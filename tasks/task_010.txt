@@ -1,6 +1,6 @@
 # Task ID: 10
 # Title: 테스트 유틸리티 및 목 생성
-# Status: pending
+# Status: done
 # Dependencies: 9
 # Priority: medium
 # Description: Develop test utilities and mocks to facilitate testing of components that use Supabase and Next.js features.
@@ -65,25 +65,25 @@ export { customRender as render }
 4. Create example tests using the utilities to validate their effectiveness
 
 # Subtasks:
-## 1. Create render utilities for component testing [pending]
+## 1. Create render utilities for component testing [done]
 ### Dependencies: None
 ### Description: Develop utilities to simplify rendering components in test environments with proper context providers and test configurations
 ### Details:
 Implement render utilities that wrap components with necessary providers (theme, auth, etc.), handle test rendering configurations, and provide helper methods for querying and interacting with rendered components. Include utilities for both shallow and deep rendering approaches.
 
-## 2. Implement Supabase mocking utilities [pending]
+## 2. Implement Supabase mocking utilities [done]
 ### Dependencies: 10.1
 ### Description: Create comprehensive mocks for Supabase client, authentication, and database operations
 ### Details:
 Develop mock implementations for Supabase client, auth methods, database queries, and real-time subscriptions. Include utilities to simulate successful responses, errors, and edge cases. Ensure mocks can be easily configured for different test scenarios.
 
-## 3. Develop Next.js feature mocks [pending]
+## 3. Develop Next.js feature mocks [done]
 ### Dependencies: 10.1
 ### Description: Create mocks for Next.js specific features like routing, data fetching, and server components
 ### Details:
 Implement mock utilities for Next.js router, navigation methods, server-side rendering functions, and data fetching methods. Include mocks for useRouter, Link component behavior, and other Next.js specific APIs. Ensure compatibility with the application's routing structure.
 
-## 4. Create test helper functions [pending]
+## 4. Create test helper functions [done]
 ### Dependencies: 10.1, 10.2, 10.3
 ### Description: Implement reusable helper functions for common testing patterns and assertions
 ### Details:
