@@ -1,6 +1,6 @@
 # Task ID: 12
 # Title: 컴포넌트 테스트 작성
-# Status: pending
+# Status: done
 # Dependencies: 6, 10
 # Priority: medium
 # Description: Create tests for key UI components to ensure they render correctly and handle user interactions properly.
@@ -50,25 +50,25 @@ describe('PostCard', () => {
 4. Test accessibility features
 
 # Subtasks:
-## 1. Implement Rendering Tests [pending]
+## 1. Implement Rendering Tests [done]
 ### Dependencies: None
 ### Description: Create tests to verify components render correctly with different props and in different states
 ### Details:
 Write tests that check if components render without errors, display the correct content based on props, handle conditional rendering correctly, and render child components as expected. Use snapshot testing where appropriate to detect unexpected UI changes.
 
-## 2. Develop Interaction Tests [pending]
+## 2. Develop Interaction Tests [done]
 ### Dependencies: 12.1
 ### Description: Create tests for user interactions like clicks, inputs, and form submissions
 ### Details:
 Simulate user events (clicks, typing, etc.) and verify components respond correctly. Test form validations, button click handlers, hover states, and other interactive elements. Use testing libraries to mock user interactions and verify the expected outcomes.
 
-## 3. Implement State Management Tests [pending]
+## 3. Implement State Management Tests [done]
 ### Dependencies: 12.1, 12.2
 ### Description: Test component state changes and integration with state management systems
 ### Details:
 Verify that component state updates correctly in response to props changes and user interactions. Test integration with Redux, Context API, or other state management solutions. Ensure that components re-render appropriately when state changes and that state is maintained correctly across component lifecycle events.
 
-## 4. Create Accessibility Tests [pending]
+## 4. Create Accessibility Tests [done]
 ### Dependencies: 12.1
 ### Description: Test components for accessibility compliance and screen reader compatibility
 ### Details:
