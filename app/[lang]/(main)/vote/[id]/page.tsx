@@ -1,26 +1,45 @@
 import {Suspense} from 'react';
 import {Metadata} from 'next';
-import {getVoteById} from '@/lib/data-fetching/vote-service';
+import {getVoteById, getVotes} from '@/lib/data-fetching/vote-service';
 import { VoteDetail } from '@/components/shared';
 import { VoteDetailSkeleton } from '@/components/server';
+import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
+import { createPageMetadata, createImageMetadata } from '@/app/[lang]/utils/metadata-utils';
+import { createVoteSchema } from '@/app/[lang]/utils/seo-utils';
+import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 
-// 동적 서버 사용을 위한 설정
-export const dynamic = 'force-dynamic';
+// ISR을 위한 메타데이터 구성 (30초마다 재검증)
+export const revalidate = 30;
+
+// 동적 서버 사용 설정 제거 (ISR 사용)
+// export const dynamic = 'force-dynamic';
+
+// ISR 메타데이터 사용
+export const metadata = createISRMetadata(30);
+
+// 정적 경로 생성
+export async function generateStaticParams() {
+  // 활성화된 투표만 사전 생성
+  const votes = await getVotes('ongoing');
+  
+  return votes.map(vote => ({
+    id: String(vote.id)
+  }));
+}
 
 // 메타데이터 동적 생성
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string; lang: string };
 }): Promise<Metadata> {
-  const resolvedParams = await params;
-  const vote = await getVoteById(resolvedParams.id);
+  const vote = await getVoteById(params.id);
 
   if (!vote) {
-    return {
-      title: '투표 - 정보 없음',
-      description: '해당 투표를 찾을 수 없습니다.',
-    };
+    return createPageMetadata(
+      '투표 - 정보 없음',
+      '해당 투표를 찾을 수 없습니다.'
+    );
   }
 
   let title: string;
@@ -33,37 +52,92 @@ export async function generateMetadata({
     title = '투표';
   }
 
-  return {
-    title: `${title} - 피크닉 투표`,
-    description:
-      vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!',
-    openGraph: {
-      title: `${title} - 피크닉 투표`,
-      description:
-        vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!',
-      images: vote.mainImage
-        ? [`https://cdn.picnic.fan/${vote.mainImage}`]
-        : undefined,
-    },
-  };
+  const description = vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
+  
+  // 기본 메타데이터
+  const baseMetadata = createPageMetadata(
+    `${title} - 피크닉 투표`,
+    description,
+    {
+      alternates: {
+        canonical: `${SITE_URL}/${params.lang}/vote/${params.id}`,
+        languages: {
+          'ko-KR': `${SITE_URL}/ko/vote/${params.id}`,
+          'en-US': `${SITE_URL}/en/vote/${params.id}`,
+        },
+      },
+    }
+  );
+
+  // 이미지가 있는 경우 이미지 메타데이터 추가
+  if (vote.mainImage) {
+    const imageMetadata = createImageMetadata(
+      vote.mainImage,
+      title,
+      1200,
+      630
+    );
+    
+    return {
+      ...baseMetadata,
+      ...imageMetadata,
+    };
+  }
+
+  return baseMetadata;
 }
 
 type VoteDetailPageProps = {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+    lang: string;
+  };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function VoteDetailPage(props: VoteDetailPageProps) {
-  const [params] = await Promise.all([
-    props.params,
-    props.searchParams,
-  ]);
+  const { params } = props;
+  const vote = await getVoteById(params.id);
+  
+  // 구조화된 데이터를 위한 정보 준비
+  let schemaData = null;
+  
+  if (vote) {
+    let title: string;
+    if (typeof vote.title === 'string') {
+      title = vote.title;
+    } else if (vote.title && typeof vote.title === 'object') {
+      const titleObj = vote.title as { ko?: string; en?: string };
+      title = titleObj.ko || titleObj.en || '투표';
+    } else {
+      title = '투표';
+    }
+    
+    const description = vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
+    
+    schemaData = createVoteSchema(
+      title,
+      description,
+      vote.mainImage ? `https://cdn.picnic.fan/${vote.mainImage}` : undefined,
+      vote.startAt || undefined,
+      vote.stopAt || undefined,
+      `${SITE_URL}/${params.lang}/vote/${params.id}`
+    );
+  }
 
   return (
-    <Suspense fallback={<VoteDetailSkeleton />}>
-      <VoteDetail id={params.id} />
-    </Suspense>
+    <>
+      {schemaData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(schemaData)
+          }}
+        />
+      )}
+      <Suspense fallback={<VoteDetailSkeleton />}>
+        <VoteDetail id={params.id} />
+      </Suspense>
+    </>
   );
 }

@@ -3,6 +3,8 @@ import {createClient} from "./utils/supabase-server-client";
 import {SITE_URL, STATIC_PAGES} from "./constants/static-pages";
 import fs from "fs";
 import path from "path";
+import { getVotes } from '@/lib/data-fetching/vote-service';
+import { getRewards } from '@/utils/api/queries';
 
 interface Vote {
     id: number;
@@ -132,21 +134,66 @@ async function fetchVoteData(): Promise<Vote[]> {
     }
 }
 
+/**
+ * 사이트맵 생성 함수
+ * 
+ * Next.js의 메타데이터 API를 활용하여 동적으로 사이트맵을 생성합니다.
+ * 정적 페이지와 동적 컨텐츠(투표, 리워드 등)를 모두 포함합니다.
+ * 
+ * @return {Promise<MetadataRoute.Sitemap>} 사이트맵 객체 배열
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const staticPages = STATIC_PAGES.map(path => ({
-        url: `${SITE_URL}${path}`,
-        lastModified: new Date(),
-        changeFreq: 'daily' as const,
-        priority: path === '/' ? 1 : 0.8,
-    }));
+    // 다국어 지원을 위한 언어 목록
+    const languages = ['ko', 'en'];
 
-    const votePages = await fetchVoteData();
-    const voteUrls = votePages.map(vote => ({
-        url: `${SITE_URL}/vote/${vote.id}`,
-        lastModified: new Date(vote.updated_at),
-        changeFreq: 'daily' as const,
-        priority: 0.7,
-    }));
+    // 1. 정적 페이지 사이트맵 항목 생성
+    const staticPagesMaps = languages.flatMap(lang => 
+        STATIC_PAGES.map(page => ({
+            url: `${SITE_URL}/${lang}${page === '/' ? '' : page}`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly' as const,
+            priority: page === '/' ? 1.0 : 0.8,
+        }))
+    );
 
-    return [...staticPages, ...voteUrls];
+    // 2. 투표 페이지 사이트맵 항목 생성
+    let votesMaps: MetadataRoute.Sitemap = [];
+    try {
+        const votes = await getVotes('all');
+        
+        votesMaps = languages.flatMap(lang => 
+            votes.map(vote => ({
+                url: `${SITE_URL}/${lang}/vote/${vote.id}`,
+                lastModified: new Date(vote.updatedAt || vote.createdAt),
+                changeFrequency: 'daily' as const,
+                priority: 0.9,
+            }))
+        );
+    } catch (error) {
+        console.error('사이트맵 생성 중 투표 데이터 가져오기 실패:', error);
+    }
+
+    // 3. 리워드 페이지 사이트맵 항목 생성
+    let rewardsMaps: MetadataRoute.Sitemap = [];
+    try {
+        const rewards = await getRewards();
+        
+        rewardsMaps = languages.flatMap(lang => 
+            rewards.map(reward => ({
+                url: `${SITE_URL}/${lang}/rewards/${reward.id}`,
+                lastModified: new Date(reward.updatedAt || reward.createdAt),
+                changeFrequency: 'weekly' as const,
+                priority: 0.8,
+            }))
+        );
+    } catch (error) {
+        console.error('사이트맵 생성 중 리워드 데이터 가져오기 실패:', error);
+    }
+
+    // 4. 사이트맵 병합 및 반환
+    return [
+        ...staticPagesMaps,
+        ...votesMaps,
+        ...rewardsMaps,
+    ];
 }

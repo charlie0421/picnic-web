@@ -14,5 +14,6 @@ export { default as VoteListClient } from './VoteListClient';
 export { default as VoteItems } from './VoteItems';
 export { default as RetryButton } from './RetryButton';
 export { default as VoteClientComponent } from './VoteClientComponent';
+export { default as ClientNavigationSetter } from './ClientNavigationSetter';
 // 공유 컴포넌트에서 클라이언트 컴포넌트 가져오기
 export { default as VoteDetailClient } from '../shared/VoteDetail/VoteDetailClient';

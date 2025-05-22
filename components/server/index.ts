@@ -13,6 +13,7 @@ export { default as VoteDetailServer } from './VoteDetailServer';
 export { default as VoteDetailSkeleton } from './VoteDetailSkeleton';
 export { default as AuthCallbackSkeleton } from './AuthCallbackSkeleton';
 export { default as MediaServer } from './MediaServer';
+export { default as StreamingExample } from './StreamingExample';
 
 // 에러 처리 관련 컴포넌트
 export { default as ErrorBoundary } from './ErrorBoundary';

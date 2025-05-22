@@ -1,6 +1,6 @@
 # Task ID: 7
 # Title: 정적 및 동적 렌더링 최적화
-# Status: pending
+# Status: done
 # Dependencies: 5, 6
 # Priority: medium
 # Description: Identify and implement opportunities for static generation and dynamic rendering based on page content requirements.
@@ -57,25 +57,25 @@ export const revalidate = 3600 // Revalidate every hour
 4. Measure and compare performance between static and dynamic pages
 
 # Subtasks:
-## 1. Page Analysis and Rendering Strategy Mapping [pending]
+## 1. Page Analysis and Rendering Strategy Mapping [done]
 ### Dependencies: None
 ### Description: Analyze all pages in the application and determine the optimal rendering strategy for each based on content type and update frequency.
 ### Details:
 Create a comprehensive inventory of all pages, categorizing them by data requirements, update frequency, and user interaction patterns. Document which pages should use static generation (SSG), incremental static regeneration (ISR), or server-side rendering (SSR). Include performance metrics and user experience considerations in the analysis.
 
-## 2. Static Generation Implementation [pending]
+## 2. Static Generation Implementation [done]
 ### Dependencies: 7.1
 ### Description: Implement static generation for pages with infrequently changing content to improve performance and reduce server load.
 ### Details:
 Modify page components to use getStaticProps for data fetching. Ensure proper error handling and fallback states. Implement build-time data fetching for static content. Test the implementation by comparing load times before and after changes.
 
-## 3. Revalidation Configuration Setup [pending]
+## 3. Revalidation Configuration Setup [done]
 ### Dependencies: 7.2
 ### Description: Configure incremental static regeneration (ISR) for semi-dynamic pages that require periodic updates.
 ### Details:
 Implement revalidation strategies using Next.js ISR capabilities. Set appropriate revalidation intervals based on content update frequency. Add on-demand revalidation triggers where applicable. Document the revalidation strategy for each page and test the revalidation process.
 
-## 4. Dynamic Rendering Implementation [pending]
+## 4. Dynamic Rendering Implementation [done]
 ### Dependencies: 7.1, 7.3
 ### Description: Implement server-side rendering or client-side rendering for highly dynamic pages that require real-time data.
 ### Details:

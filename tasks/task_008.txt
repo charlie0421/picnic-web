@@ -1,6 +1,6 @@
 # Task ID: 8
 # Title: SEO 및 메타데이터 최적화 구현
-# Status: pending
+# Status: done
 # Dependencies: 7
 # Priority: medium
 # Description: Add proper metadata to all pages and implement SEO best practices using Next.js metadata API.
@@ -75,19 +75,19 @@ export default async function BlogPost({ params }: Props) {
 4. Test structured data using Google's Rich Results Test
 
 # Subtasks:
-## 1. Basic Metadata Setup [pending]
+## 1. Basic Metadata Setup [done]
 ### Dependencies: None
 ### Description: Implement basic metadata for all static pages using Next.js metadata API
 ### Details:
 Create a consistent metadata structure for static pages including title, description, and Open Graph tags. Set up default metadata in the root layout.js file and implement page-specific overrides. Ensure proper favicon and site icon implementation.
 
-## 2. Dynamic Metadata Generation [pending]
+## 2. Dynamic Metadata Generation [done]
 ### Dependencies: 8.1
 ### Description: Implement dynamic metadata for content-driven pages
 ### Details:
 Create generateMetadata functions for dynamic routes like blog posts, product pages, and category pages. Ensure metadata reflects the specific content being displayed. Implement proper canonical URLs and alternates for pagination or filtered views. Test with various content types to ensure metadata is correctly generated.
 
-## 3. Structured Data Implementation [pending]
+## 3. Structured Data Implementation [done]
 ### Dependencies: 8.2
 ### Description: Add JSON-LD structured data for relevant page types
 ### Details:

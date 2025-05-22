@@ -4,6 +4,7 @@ import './globals.css';
 import './layout.css';
 import { Metadata } from 'next';
 import ClientLayout from './ClientLayout';
+import { DEFAULT_METADATA } from './utils/metadata-utils';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -17,19 +18,26 @@ export async function generateMetadata({
   const paramsResolved = await Promise.resolve(params);
   const lang = String(paramsResolved.lang || 'ko');
   
-  return {
-    title: {
-      default: 'Picnic',
-      template: '%s | Picnic',
+  // 언어에 따라 다른 메타데이터 생성
+  const languageSpecificMetadata: Partial<Metadata> = {
+    alternates: {
+      ...DEFAULT_METADATA.alternates,
+      canonical: lang === 'ko' ? '/' : `/${lang}`,
     },
-    description: 'Picnic - 투표 및 미디어 플랫폼',
     openGraph: {
-      title: 'Picnic',
-      description: 'Picnic - 투표 및 미디어 플랫폼',
-      siteName: 'Picnic',
+      ...DEFAULT_METADATA.openGraph,
+      locale: lang === 'ko' ? 'ko_KR' : 'en_US',
     },
   };
+  
+  return {
+    ...DEFAULT_METADATA,
+    ...languageSpecificMetadata,
+  };
 }
+
+// 기본 메타데이터
+export const metadata: Metadata = DEFAULT_METADATA;
 
 export default async function RootLayout({
   children,
@@ -45,6 +53,26 @@ export default async function RootLayout({
   
   return (
     <html lang={lang}>
+      <head>
+        {/* JSON-LD 구조화된 데이터 - 웹사이트 정보 */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              url: 'https://picnic.com',
+              name: '피크닉',
+              description: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: 'https://picnic.com/search?q={search_term_string}',
+                'query-input': 'required name=search_term_string'
+              },
+            })
+          }}
+        />
+      </head>
       <body className={inter.className}>
         <ClientLayout initialLanguage={lang}>
           {children}

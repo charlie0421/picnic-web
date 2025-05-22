@@ -801,6 +801,8 @@ export interface Reward {
   updatedAt: string
   voteReward?: VoteReward[];
   voteAchieve?: VoteAchieve[];
+  price?: number | null;
+  mainImage?: string | null;
 }
 
 export interface RolePermissions {

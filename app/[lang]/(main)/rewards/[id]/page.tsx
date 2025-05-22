@@ -1,133 +1,151 @@
-'use client';
+import React, { Suspense } from 'react';
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getRewardById, getRewards } from '@/utils/api/queries';
+import { createPageMetadata, createImageMetadata } from '@/app/[lang]/utils/metadata-utils';
+import { createProductSchema } from '@/app/[lang]/utils/seo-utils';
+import { SITE_URL } from '@/app/[lang]/constants/static-pages';
+import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
+import RewardDetailClient from '@/components/features/reward/RewardDetailClient';
+import { LoadingState } from '@/components/server';
 
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import Image from 'next/image';
-import { Reward } from '@/types/interfaces';
-import { getRewardById } from '@/utils/api/queries';
-import { getCdnImageUrl } from '@/utils/api/image';
-import { useLanguageStore } from '@/stores/languageStore';
-import { getLocalizedJson, getLocalizedString } from '@/utils/api/strings';
-import RewardImageGallery from '@/components/features/reward/RewardImageGallery';
-import RewardTabs from '@/components/features/reward/RewardTabs';
-import RewardLocationInfo from '@/components/features/reward/RewardLocationInfo';
-import RewardSizeGuide from '@/components/features/reward/RewardSizeGuide';
+// ISR을 위한 메타데이터 구성 (30초마다 재검증)
+export const revalidate = 30;
 
-const RewardDetailPage = () => {
-  const params = useParams();
-  const { id } = params;
-  const { currentLanguage } = useLanguageStore();
-  const [reward, setReward] = useState<Reward | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<'overview' | 'location' | 'size'>(
-    'overview',
-  );
-  const { t } = useLanguageStore();
+// ISR 메타데이터 사용
+export const metadata = createISRMetadata(30);
 
-  useEffect(() => {
-    const fetchReward = async () => {
-      if (!id) return;
+// 정적 경로 생성
+export async function generateStaticParams() {
+  // 활성화된 리워드만 사전 생성
+  const rewards = await getRewards();
+  
+  return rewards.slice(0, 10).map(reward => ({
+    id: String(reward.id)
+  }));
+}
 
-      try {
-        const rewardData = await getRewardById(id as string);
-        setReward(rewardData);
-      } catch (error) {
-        console.error('리워드 정보를 가져오는 중 오류가 발생했습니다:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchReward();
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className='flex justify-center items-center min-h-[calc(100vh-64px)]'>
-        <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary'></div>
-      </div>
-    );
-  }
+// 메타데이터 동적 생성
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string; lang: string };
+}): Promise<Metadata> {
+  const reward = await getRewardById(params.id);
 
   if (!reward) {
-    return (
-      <div className='container mx-auto px-4 py-10'>
-        <div className='bg-red-50 text-red-700 p-6 rounded-lg text-center'>
-          <p>리워드를 찾을 수 없습니다.</p>
-        </div>
-      </div>
+    return createPageMetadata(
+      '리워드 - 정보 없음',
+      '해당 리워드를 찾을 수 없습니다.'
     );
   }
 
-  const title =
-    getLocalizedString(reward.title as { [key: string]: string } | null) ||
-    '제목 없음';
-  const overviewImages = reward.overviewImages || [];
-  const locationImages = reward.locationImages || [];
-  const sizeGuideImages = reward.sizeGuideImages || [];
+  let title: string;
+  if (typeof reward.title === 'string') {
+    title = reward.title;
+  } else if (reward.title && typeof reward.title === 'object') {
+    const titleObj = reward.title as { ko?: string; en?: string };
+    title = titleObj.ko || titleObj.en || '리워드';
+  } else {
+    title = '리워드';
+  }
 
-  // 현재 활성화된 탭에 따라 이미지 배열 선택
-  const currentImages = (() => {
-    switch (activeTab) {
-      case 'overview':
-        return overviewImages;
-      case 'location':
-        return locationImages;
-      case 'size':
-        return sizeGuideImages;
-      default:
-        return overviewImages;
+  const description = typeof reward.description === 'string' 
+    ? reward.description 
+    : '피크닉에서 제공하는 특별한 리워드입니다.';
+  
+  // 기본 메타데이터
+  const baseMetadata = createPageMetadata(
+    `${title} - 피크닉 리워드`,
+    description,
+    {
+      alternates: {
+        canonical: `${SITE_URL}/${params.lang}/rewards/${params.id}`,
+        languages: {
+          'ko-KR': `${SITE_URL}/ko/rewards/${params.id}`,
+          'en-US': `${SITE_URL}/en/rewards/${params.id}`,
+        },
+      },
     }
-  })();
-
-  // 다국어 위치 정보 처리
-  const locationInfo = getLocalizedJson(reward.location) || null;
-
-  // 다국어 크기 가이드 정보 처리
-  const sizeGuideInfo = getLocalizedJson(reward.sizeGuide) || null;
-
-  return (
-    <div className='container mx-auto px-4 py-8'>
-      <div className='mb-8 text-gray-700'>
-        <h1 className='text-3xl font-bold mb-4'>{title}</h1>
-      </div>
-
-      {/* 탭 메뉴 */}
-      <RewardTabs
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        setCurrentImageIndex={setCurrentImageIndex}
-        t={t}
-      />
-
-      {/* 이미지 갤러리 */}
-      <div className='mb-8'>
-        {currentImages.length > 0 ? (
-          <RewardImageGallery
-            images={currentImages}
-            title={title}
-            currentImageIndex={currentImageIndex}
-            setCurrentImageIndex={setCurrentImageIndex}
-          />
-        ) : (
-          <div className='w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center'>
-            <p className='text-gray-500'>이미지가 없습니다</p>
-          </div>
-        )}
-      </div>
-
-      {/* 위치 정보 */}
-      {activeTab === 'location' && locationInfo && (
-        <RewardLocationInfo locationInfo={locationInfo} />
-      )}
-
-      {/* 사이즈 가이드 */}
-      {activeTab === 'size' && sizeGuideInfo && (
-        <RewardSizeGuide sizeGuideInfo={sizeGuideInfo} />
-      )}
-    </div>
   );
+
+  // 대표 이미지가 있는 경우 이미지 메타데이터 추가
+  const mainImage = reward.mainImage || (reward.overviewImages?.length > 0 ? reward.overviewImages[0] : null);
+  
+  if (mainImage) {
+    const imageMetadata = createImageMetadata(
+      mainImage,
+      title,
+      1200,
+      630
+    );
+    
+    return {
+      ...baseMetadata,
+      ...imageMetadata,
+    };
+  }
+
+  return baseMetadata;
+}
+
+type RewardDetailPageProps = {
+  params: {
+    id: string;
+    lang: string;
+  };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
-export default RewardDetailPage;
+export default async function RewardDetailPage({ params }: RewardDetailPageProps) {
+  // 서버에서 데이터 가져오기
+  const reward = await getRewardById(params.id);
+
+  // 리워드가 존재하지 않는 경우 404 페이지로 이동
+  if (!reward) {
+    notFound();
+  }
+
+  // 구조화된 데이터를 위한 정보 준비
+  let title: string;
+  if (typeof reward.title === 'string') {
+    title = reward.title;
+  } else if (reward.title && typeof reward.title === 'object') {
+    const titleObj = reward.title as { ko?: string; en?: string };
+    title = titleObj.ko || titleObj.en || '리워드';
+  } else {
+    title = '리워드';
+  }
+
+  const description = typeof reward.description === 'string' 
+    ? reward.description 
+    : '피크닉에서 제공하는 특별한 리워드입니다.';
+
+  // 대표 이미지 찾기
+  const mainImage = reward.mainImage || (reward.overviewImages?.length > 0 ? reward.overviewImages[0] : null);
+  
+  // 상품 구조화 데이터 생성
+  const schemaData = createProductSchema(
+    title,
+    description,
+    mainImage ? `https://cdn.picnic.fan/${mainImage}` : undefined,
+    reward.price,
+    'KRW',
+    'InStock',
+    `${SITE_URL}/${params.lang}/rewards/${params.id}`
+  );
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(schemaData)
+        }}
+      />
+      <Suspense fallback={<LoadingState message="리워드 정보를 불러오는 중..." />}>
+        <RewardDetailClient reward={reward} />
+      </Suspense>
+    </>
+  );
+}
