@@ -13,8 +13,9 @@ export async function generateMetadata({
 }: {
   params: { lang: string | Promise<string> }
 }): Promise<Metadata> {
-  // Next.js 15에서는 Promise.resolve를 사용하여 처리
-  const lang = typeof params.lang === 'string' ? params.lang : await Promise.resolve(params.lang) || 'ko';
+  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
+  const paramsResolved = await Promise.resolve(params);
+  const lang = String(paramsResolved.lang || 'ko');
   
   return {
     title: {
@@ -37,8 +38,10 @@ export default async function RootLayout({
   children: ReactNode;
   params: { lang: string | Promise<string> };
 }) {
-  // Next.js 15에서는 Promise.resolve를 사용하여 처리
-  const lang = typeof params.lang === 'string' ? params.lang : await Promise.resolve(params.lang) || 'ko';
+  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
+  const paramsResolved = await Promise.resolve(params);
+  const langParam = paramsResolved.lang;
+  const lang = typeof langParam === 'string' ? langParam : await langParam || 'ko';
   
   return (
     <html lang={lang}>

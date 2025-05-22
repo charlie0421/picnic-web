@@ -1,10 +1,12 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { Database } from '@/types/supabase';
+import type { CookieOptions } from '@supabase/ssr';
 
-// 쿠키 저장소 인터페이스
-interface CookieStore {
-  get(name: string): { name: string; value: string } | undefined;
-  set(cookie: { name: string; value: string; [key: string]: any }): void;
+// 쿠키 스토어 인터페이스
+export interface CookieStore {
+  get: (name: string) => { name: string; value: string } | undefined;
+  set: (cookie: { name: string; value: string; [key: string]: any }) => void;
+  remove?: (name: string, options?: any) => void;
 }
 
 /**
@@ -27,12 +29,13 @@ export function createServerSupabaseClientWithCookies(cookieStore: CookieStore) 
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        async get(name: string) {
+          const cookie = await Promise.resolve(cookieStore.get(name));
+          return cookie?.value;
         },
-        set(name: string, value: string, options: CookieOptions) {
+        async set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options });
+            await Promise.resolve(cookieStore.set({ name, value, ...options }));
           } catch (error) {
             // 쿠키 설정 실패 시 로깅 (개발 환경에서만)
             if (process.env.NODE_ENV !== 'production') {
@@ -40,9 +43,13 @@ export function createServerSupabaseClientWithCookies(cookieStore: CookieStore) 
             }
           }
         },
-        remove(name: string, options: CookieOptions) {
+        async remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options, maxAge: 0 });
+            if (cookieStore.remove) {
+              await Promise.resolve(cookieStore.remove(name, options));
+            } else {
+              await Promise.resolve(cookieStore.set({ name, value: '', ...options, maxAge: 0 }));
+            }
           } catch (error) {
             // 쿠키 삭제 실패 시 로깅 (개발 환경에서만)
             if (process.env.NODE_ENV !== 'production') {
