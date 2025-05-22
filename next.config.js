@@ -4,13 +4,12 @@ const { withSentryConfig } = require('@sentry/nextjs');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  turbopack: {
-    resolveAlias: {
-      // 필요한 별칭 해결
-    }
-  },
   experimental: {
-    // 다른 experimental 설정을 추가할 수 있습니다.
+    turbo: {
+      resolveAlias: {
+        // 필요한 별칭 해결
+      }
+    }
   },
   images: {
     unoptimized: true,
