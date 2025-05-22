@@ -6,8 +6,8 @@ import { createPageMetadata, createImageMetadata } from '@/app/[lang]/utils/meta
 import { createProductSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
-import RewardDetailClient from '@/components/features/reward/RewardDetailClient';
 import { LoadingState } from '@/components/server';
+import RewardDetailClient from '@/components/features/reward/RewardDetailClient';
 
 // ISR을 위한 메타데이터 구성 (30초마다 재검증)
 export const revalidate = 30;
