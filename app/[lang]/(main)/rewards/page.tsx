@@ -16,32 +16,43 @@ export const revalidate = 60;
 export async function generateMetadata({
   params,
 }: {
-  params: { lang: string };
+  params: { lang: string | Promise<string> };
 }): Promise<Metadata> {
-  return createPageMetadata(
-    '리워드 - 피크닉',
-    '피크닉에서 제공하는 다양한 리워드를 확인해보세요.',
-    {
-      alternates: {
-        canonical: `${SITE_URL}/${params.lang}/rewards`,
-        languages: {
-          'ko-KR': `${SITE_URL}/ko/rewards`,
-          'en-US': `${SITE_URL}/en/rewards`,
+  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
+  const langParam = await Promise.resolve(params.lang || 'ko');
+  const lang = String(langParam);
+  
+  // ISR 메타데이터 속성 추가
+  const isrOptions = createISRMetadata(60);
+  
+  return {
+    ...createPageMetadata(
+      '리워드 - 피크닉',
+      '피크닉에서 제공하는 다양한 리워드를 확인해보세요.',
+      {
+        alternates: {
+          canonical: `${SITE_URL}/${lang}/rewards`,
+          languages: {
+            'ko-KR': `${SITE_URL}/ko/rewards`,
+            'en-US': `${SITE_URL}/en/rewards`,
+          },
         },
-      },
-    }
-  );
+      }
+    ),
+    ...isrOptions
+  };
 }
-
-// ISR 메타데이터 사용
-export const metadata = createISRMetadata(60);
 
 // 서버 컴포넌트로 변환
 export default async function RewardsPage({
   params,
 }: {
-  params: { lang: string };
+  params: { lang: string | Promise<string> };
 }) {
+  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
+  const langParam = await Promise.resolve(params.lang || 'ko');
+  const lang = String(langParam);
+  
   // 서버에서 데이터 가져오기
   const rewards = await getRewards();
   

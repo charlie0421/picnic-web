@@ -13,7 +13,7 @@ import { LoadingState } from '@/components/server';
 export const revalidate = 30;
 
 // ISR 메타데이터 사용
-export const metadata = createISRMetadata(30);
+// export const metadata = createISRMetadata(30);
 
 // 정적 경로 생성
 export async function generateStaticParams() {
@@ -29,15 +29,25 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string; lang: string };
+  params: { id: string; lang: string | Promise<string> };
 }): Promise<Metadata> {
+  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
+  const langParam = await Promise.resolve(params.lang || 'ko');
+  const lang = String(langParam);
+  
+  // ISR 메타데이터 속성 추가
+  const isrOptions = createISRMetadata(30);
+  
   const reward = await getRewardById(params.id);
 
   if (!reward) {
-    return createPageMetadata(
-      '리워드 - 정보 없음',
-      '해당 리워드를 찾을 수 없습니다.'
-    );
+    return {
+      ...createPageMetadata(
+        '리워드 - 정보 없음',
+        '해당 리워드를 찾을 수 없습니다.'
+      ),
+      ...isrOptions
+    };
   }
 
   let title: string;
@@ -60,7 +70,7 @@ export async function generateMetadata({
     description,
     {
       alternates: {
-        canonical: `${SITE_URL}/${params.lang}/rewards/${params.id}`,
+        canonical: `${SITE_URL}/${lang}/rewards/${params.id}`,
         languages: {
           'ko-KR': `${SITE_URL}/ko/rewards/${params.id}`,
           'en-US': `${SITE_URL}/en/rewards/${params.id}`,
@@ -70,7 +80,7 @@ export async function generateMetadata({
   );
 
   // 대표 이미지가 있는 경우 이미지 메타데이터 추가
-  const mainImage = reward.mainImage || (reward.overviewImages?.length > 0 ? reward.overviewImages[0] : null);
+  const mainImage = reward.mainImage || (reward.overviewImages && reward.overviewImages.length > 0 ? reward.overviewImages[0] : null);
   
   if (mainImage) {
     const imageMetadata = createImageMetadata(
@@ -83,21 +93,29 @@ export async function generateMetadata({
     return {
       ...baseMetadata,
       ...imageMetadata,
+      ...isrOptions
     };
   }
 
-  return baseMetadata;
+  return {
+    ...baseMetadata,
+    ...isrOptions
+  };
 }
 
 type RewardDetailPageProps = {
   params: {
     id: string;
-    lang: string;
+    lang: string | Promise<string>;
   };
   searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function RewardDetailPage({ params }: RewardDetailPageProps) {
+  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
+  const langParam = await Promise.resolve(params.lang || 'ko');
+  const lang = String(langParam);
+  
   // 서버에서 데이터 가져오기
   const reward = await getRewardById(params.id);
 
@@ -122,7 +140,7 @@ export default async function RewardDetailPage({ params }: RewardDetailPageProps
     : '피크닉에서 제공하는 특별한 리워드입니다.';
 
   // 대표 이미지 찾기
-  const mainImage = reward.mainImage || (reward.overviewImages?.length > 0 ? reward.overviewImages[0] : null);
+  const mainImage = reward.mainImage || (reward.overviewImages && reward.overviewImages.length > 0 ? reward.overviewImages[0] : null);
   
   // 상품 구조화 데이터 생성
   const schemaData = createProductSchema(
@@ -132,7 +150,7 @@ export default async function RewardDetailPage({ params }: RewardDetailPageProps
     reward.price,
     'KRW',
     'InStock',
-    `${SITE_URL}/${params.lang}/rewards/${params.id}`
+    `${SITE_URL}/${lang}/rewards/${params.id}`
   );
 
   return (

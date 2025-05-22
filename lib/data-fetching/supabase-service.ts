@@ -15,7 +15,6 @@ import { PostgrestError, PostgrestSingleResponse } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import { PostgrestFilterBuilder } from '@supabase/postgrest-js';
 import { unstable_cache } from 'next/cache';
-import { revalidatePath } from 'next/cache';
 
 // Supabase 테이블 이름 상수
 export const TABLES = {

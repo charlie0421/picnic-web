@@ -14,9 +14,6 @@ export const revalidate = 30;
 // 동적 서버 사용 설정 제거 (ISR 사용)
 // export const dynamic = 'force-dynamic';
 
-// ISR 메타데이터 사용
-export const metadata = createISRMetadata(30);
-
 // 정적 경로 생성
 export async function generateStaticParams() {
   // 활성화된 투표만 사전 생성
@@ -31,15 +28,25 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string; lang: string };
+  params: { id: string; lang: string | Promise<string> };
 }): Promise<Metadata> {
+  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
+  const langParam = await Promise.resolve(params.lang || 'ko');
+  const lang = String(langParam);
+  
+  // ISR 메타데이터 속성 추가
+  const isrOptions = createISRMetadata(30);
+  
   const vote = await getVoteById(params.id);
 
   if (!vote) {
-    return createPageMetadata(
-      '투표 - 정보 없음',
-      '해당 투표를 찾을 수 없습니다.'
-    );
+    return {
+      ...createPageMetadata(
+        '투표 - 정보 없음',
+        '해당 투표를 찾을 수 없습니다.'
+      ),
+      ...isrOptions
+    };
   }
 
   let title: string;
@@ -60,7 +67,7 @@ export async function generateMetadata({
     description,
     {
       alternates: {
-        canonical: `${SITE_URL}/${params.lang}/vote/${params.id}`,
+        canonical: `${SITE_URL}/${lang}/vote/${params.id}`,
         languages: {
           'ko-KR': `${SITE_URL}/ko/vote/${params.id}`,
           'en-US': `${SITE_URL}/en/vote/${params.id}`,
@@ -81,22 +88,31 @@ export async function generateMetadata({
     return {
       ...baseMetadata,
       ...imageMetadata,
+      ...isrOptions
     };
   }
 
-  return baseMetadata;
+  return {
+    ...baseMetadata,
+    ...isrOptions
+  };
 }
 
 type VoteDetailPageProps = {
   params: {
     id: string;
-    lang: string;
+    lang: string | Promise<string>;
   };
   searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function VoteDetailPage(props: VoteDetailPageProps) {
   const { params } = props;
+  
+  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
+  const langParam = await Promise.resolve(params.lang || 'ko');
+  const lang = String(langParam);
+  
   const vote = await getVoteById(params.id);
   
   // 구조화된 데이터를 위한 정보 준비
@@ -121,7 +137,7 @@ export default async function VoteDetailPage(props: VoteDetailPageProps) {
       vote.mainImage ? `https://cdn.picnic.fan/${vote.mainImage}` : undefined,
       vote.startAt || undefined,
       vote.stopAt || undefined,
-      `${SITE_URL}/${params.lang}/vote/${params.id}`
+      `${SITE_URL}/${lang}/vote/${params.id}`
     );
   }
 

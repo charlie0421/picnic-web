@@ -36,8 +36,7 @@ export async function generateMetadata({
   };
 }
 
-// 기본 메타데이터
-export const metadata: Metadata = DEFAULT_METADATA;
+// 정적 metadata 내보내기 제거 (중복된 metadata 내보내기)
 
 export default async function RootLayout({
   children,
