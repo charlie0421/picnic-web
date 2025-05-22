@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import VoteInfiniteLoading from './VoteInfiniteLoading';
 import { useLanguageStore } from '@/stores/languageStore';

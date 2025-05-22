@@ -1,50 +1,17 @@
-'use client';
+import React, { Suspense } from 'react';
+import { LoadingState, MediaServer } from '@/components/server';
 
-import React, {useEffect, useState} from 'react';
-import {Media} from '@/types/interfaces';
-import {getMedias} from '@/utils/api/queries';
-import MediaList from '@/components/features/media/MediaList';
-
-const MediaPage: React.FC = () => {
-  const [medias, setMedias] = useState<Media[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const mediasData = await getMedias();
-        setMedias(mediasData);
-        setIsLoading(false);
-      } catch (error) {
-        console.error(
-          '미디어 데이터를 가져오는 중 오류가 발생했습니다:',
-          error,
-        );
-        setError('미디어 데이터를 불러오는 중 오류가 발생했습니다.');
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
+/**
+ * 미디어 페이지
+ * 
+ * 서버 컴포넌트를 사용하여 데이터 페칭을 수행합니다.
+ */
+export default function MediaPage() {
   return (
     <main className='container mx-auto px-4 py-8'>
-      {mounted && (
-        <MediaList
-          medias={medias}
-          isLoading={isLoading}
-          error={error}
-        />
-      )}
+      <Suspense fallback={<LoadingState message="미디어 데이터를 불러오는 중..." size="large" fullPage />}>
+        <MediaServer />
+      </Suspense>
     </main>
   );
-};
-
-export default MediaPage;
+}

@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Vote } from '@/types/interfaces';
 import VoteCard from './VoteCard';
