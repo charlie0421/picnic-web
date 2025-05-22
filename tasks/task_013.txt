@@ -1,6 +1,6 @@
 # Task ID: 13
 # Title: 페이지 통합 테스트 작성
-# Status: pending
+# Status: done
 # Dependencies: 5, 7, 10
 # Priority: low
 # Description: Create integration tests for key pages to ensure they correctly fetch and display data.
@@ -72,25 +72,25 @@ describe('PostsPage', () => {
 4. Test page-level interactions
 
 # Subtasks:
-## 1. Set up data fetching mocks [pending]
+## 1. Set up data fetching mocks [done]
 ### Dependencies: None
 ### Description: Create mock implementations for all data fetching functions used by the page
 ### Details:
 Identify all data fetching functions used by the page. Create mock implementations that return predefined test data. Set up a testing utility that allows switching between different mock data scenarios (empty data, full data, partial data). Ensure mocks properly simulate loading states and timing.
 
-## 2. Implement page rendering tests [pending]
+## 2. Implement page rendering tests [done]
 ### Dependencies: 13.1
 ### Description: Test that the page renders correctly with different data scenarios
 ### Details:
 Create tests that verify the page renders correctly with various data scenarios. Test rendering with full data, empty data, and partial data. Verify that all expected UI elements are present and contain the correct content. Test that server and client components integrate properly. Verify that loading states are displayed appropriately.
 
-## 3. Develop user interaction tests [pending]
+## 3. Develop user interaction tests [done]
 ### Dependencies: 13.2
 ### Description: Test all interactive elements and user flows on the page
 ### Details:
 Identify all interactive elements on the page (buttons, forms, links, etc.). Create tests for each interaction, verifying that the correct actions occur. Test form submissions, navigation events, and state changes. Verify that client-side state updates correctly after interactions. Test any conditional rendering based on user interactions.
 
-## 4. Implement error state tests [pending]
+## 4. Implement error state tests [done]
 ### Dependencies: 13.1, 13.2
 ### Description: Test how the page handles various error conditions
 ### Details:

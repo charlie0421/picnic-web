@@ -10,7 +10,11 @@ import VoteFilterSection from './VoteFilterSection';
 import VoteListSection from './VoteListSection';
 import VotePagination from './VotePagination';
 
-const VoteList: React.FC = () => {
+interface VoteListProps {
+  status?: string;
+}
+
+const VoteList: React.FC<VoteListProps> = ({ status }) => {
   const { supabase } = useSupabase();
   const { currentLanguage } = useLanguageStore();
   const router = useRouter();
@@ -23,6 +27,9 @@ const VoteList: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // status prop이 제공되면 그 값을 사용하고, 없으면 store의 값을 사용
+  const effectiveStatus = status || selectedStatus;
 
   const fetchVotes = useCallback(
     async (isRefresh = false) => {
@@ -65,7 +72,7 @@ const VoteList: React.FC = () => {
           .is('deleted_at', null);
 
         // 상태별 필터링
-        switch (selectedStatus) {
+        switch (effectiveStatus) {
           case VOTE_STATUS.UPCOMING:
             query = query.gt('start_at', now);
             break;
@@ -149,12 +156,12 @@ const VoteList: React.FC = () => {
         setIsTransitioning(false);
       }
     },
-    [supabase, selectedStatus, selectedArea, PAGE_SIZE, isTransitioning],
+    [supabase, effectiveStatus, selectedArea, PAGE_SIZE, isTransitioning],
   );
 
   // URL 파라미터와 필터 상태 변경 감지
   useEffect(() => {
-    const status = searchParams.get('status') as typeof selectedStatus || VOTE_STATUS.ONGOING;
+    const urlStatus = searchParams.get('status') as typeof selectedStatus || VOTE_STATUS.ONGOING;
     const area = searchParams.get('area') as typeof selectedArea || VOTE_AREAS.KPOP;
     
     if (!isLoading && !isTransitioning) {
@@ -172,7 +179,7 @@ const VoteList: React.FC = () => {
       
       updateData();
     }
-  }, [searchParams, selectedStatus, selectedArea]);
+  }, [searchParams, effectiveStatus, selectedArea]);
 
   // 언어 변경 시 쿼리 재실행
   useEffect(() => {

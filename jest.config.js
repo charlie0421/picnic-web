@@ -17,6 +17,8 @@ const customJestConfig = {
     // 경로 별칭 핸들링
     '^@/(.*)$': '<rootDir>/$1',
   },
+  collectCoverage: true,
+  coverageDirectory: 'coverage',
   collectCoverageFrom: [
     'app/**/*.{js,jsx,ts,tsx}',
     'components/**/*.{js,jsx,ts,tsx}',
@@ -47,23 +49,23 @@ const customJestConfig = {
   // 최소 커버리지 기준 설정
   coverageThreshold: {
     global: {
-      statements: 10, // 점진적으로 증가시킬 목표
-      branches: 10,
-      functions: 10,
-      lines: 10,
+      statements: 70, // 요구사항에 따라 70%로 설정
+      branches: 70,
+      functions: 70,
+      lines: 70,
     },
     // 중요 디렉터리/파일에 대한 더 높은 커버리지 요구 설정
     './utils/api/': {
-      statements: 60,
-      branches: 50,
-      functions: 60,
-      lines: 60,
+      statements: 70,
+      branches: 70,
+      functions: 70,
+      lines: 70,
     },
     './components/ui/': {
-      statements: 40,
-      branches: 30,
-      functions: 40,
-      lines: 40,
+      statements: 70,
+      branches: 70,
+      functions: 70,
+      lines: 70,
     },
   },
   // 커버리지 보고서 설정
