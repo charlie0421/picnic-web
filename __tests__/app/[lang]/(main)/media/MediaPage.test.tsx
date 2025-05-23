@@ -3,6 +3,16 @@ import { screen, waitFor } from '@testing-library/react';
 import { usePathname } from 'next/navigation';
 import { render as customRender } from '../../../../utils/test-utils';
 
+// 모듈 모킹
+jest.mock('next/navigation', () => ({
+  usePathname: jest.fn(),
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn()
+  }),
+}));
+
 // 미디어 페이지 목 데이터
 const mockMedias = [
   {
@@ -27,6 +37,11 @@ const mockMedias = [
   }
 ];
 
+// API 요청 모킹
+jest.mock('@/utils/api/queries', () => ({
+  getMedias: jest.fn().mockResolvedValue(mockMedias)
+}));
+
 // MediaServer 컴포넌트 모킹
 jest.mock('@/components/server/MediaServer', () => {
   return function MockMediaServer() {
@@ -48,21 +63,6 @@ jest.mock('@/components/server/LoadingState', () => {
     return <div data-testid="media-skeleton">로딩 중...</div>;
   };
 });
-
-// 모듈 모킹
-jest.mock('next/navigation', () => ({
-  usePathname: jest.fn(),
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    prefetch: jest.fn()
-  }),
-}));
-
-// API 요청 모킹
-jest.mock('@/utils/api/queries', () => ({
-  getMedias: jest.fn().mockResolvedValue(mockMedias)
-}));
 
 // 실제 페이지 컴포넌트 불러오기
 import MediaPage from '../../../../../app/[lang]/(main)/media/page';

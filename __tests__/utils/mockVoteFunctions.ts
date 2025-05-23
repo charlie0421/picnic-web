@@ -75,26 +75,22 @@ export const mockGetVoteRewards = jest.fn(async (voteId: number): Promise<Reward
   const vote = mockVotes.find(v => v.id === voteId);
   const voteRewards = vote?.voteReward || [];
   
-  // 실제 Reward 객체 배열 반환 (간단한 예시)
-  return Promise.resolve(voteRewards.map(vr => ({
+  // 실제 Reward 객체 배열 반환
+  return Promise.resolve(voteRewards.map(vr => vr.reward || {
     id: vr.rewardId,
-    title: `보상 ${vr.rewardId}`,
+    title: { ko: `보상 ${vr.rewardId}`, en: `Reward ${vr.rewardId}` },
     description: { ko: `보상 ${vr.rewardId} 설명`, en: `Reward ${vr.rewardId} description` },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     deletedAt: null,
-    content: `보상 ${vr.rewardId}에 대한 설명입니다.`,
-    subContent: null,
-    thumbnail: `https://example.com/reward${vr.rewardId}.jpg`,
-    images: [],
-    status: 'active',
-    type: 'reward',
+    location: null,
     locationImages: [],
+    order: vr.rewardId,
     overviewImages: [],
     sizeGuide: null,
     sizeGuideImages: [],
-    location: null,
-    order: 1,
-    severity: 'normal'
-  })));
+    thumbnail: `https://example.com/reward${vr.rewardId}.jpg`,
+    price: vr.rewardId * 1000,
+    mainImage: `https://example.com/reward${vr.rewardId}-main.jpg`
+  }));
 }); 

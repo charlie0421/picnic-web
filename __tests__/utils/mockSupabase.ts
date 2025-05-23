@@ -1,7 +1,7 @@
 /**
  * Supabase 모킹 유틸리티
  * 
- * Supabase 클라이언트의 쉬운 모킹을 위한 유틸리티 함수들을 제공합니다.
+ * 테스트에서 Supabase 클라이언트와 인증 기능을 모킹합니다.
  */
 
 import { User, Session } from '@supabase/supabase-js';
@@ -32,17 +32,117 @@ export const mockUser: MockUser = {
   factors: null,
 };
 
-// 기본 세션 정보
-export const mockSession: Session = {
-  access_token: 'test-access-token',
-  refresh_token: 'test-refresh-token',
-  expires_in: 3600,
-  expires_at: Math.floor(Date.now() / 1000) + 3600,
-  token_type: 'bearer',
-  user: mockUser as User, // 타입 단언으로 호환성 확보
-  provider_token: null,
-  provider_refresh_token: null,
+// 기본 모의 세션
+export const mockSession = {
+  user: {
+    id: 'test-user-id',
+    email: 'test@example.com',
+    app_metadata: {
+      provider: 'email'
+    }
+  },
+  refresh_token: 'mock-refresh-token',
+  access_token: 'mock-access-token',
+  expires_at: Date.now() + 3600
 };
+
+// 기본 모의 데이터
+export const mockData = {
+  votes: [],
+  rewards: [],
+  user_profiles: []
+};
+
+// 모의 Supabase 클라이언트
+export const mockSupabaseClient = {
+  from: jest.fn(() => ({
+    select: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        single: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        maybeSingle: jest.fn(() => Promise.resolve({ data: null, error: null }))
+      })),
+      limit: jest.fn(() => ({
+        order: jest.fn(() => Promise.resolve({ data: [], error: null }))
+      })),
+      order: jest.fn(() => Promise.resolve({ data: [], error: null }))
+    })),
+    insert: jest.fn(() => Promise.resolve({ data: { id: 'new-id' }, error: null })),
+    update: jest.fn(() => Promise.resolve({ data: { id: 'updated-id' }, error: null })),
+    delete: jest.fn(() => Promise.resolve({ data: null, error: null }))
+  })),
+  auth: {
+    getSession: jest.fn(() => Promise.resolve({ data: { session: mockSession }, error: null })),
+    getUser: jest.fn(() => Promise.resolve({ data: { user: mockSession.user }, error: null })),
+    signInWithPassword: jest.fn(() => Promise.resolve({ data: { user: mockSession.user, session: mockSession }, error: null })),
+    signInWithOAuth: jest.fn(() => Promise.resolve({ data: { provider: 'google', url: 'https://example.com/auth' }, error: null })),
+    signOut: jest.fn(() => Promise.resolve({ error: null }))
+  },
+  storage: {
+    from: jest.fn(() => ({
+      upload: jest.fn(() => Promise.resolve({ data: { path: 'test-path' }, error: null })),
+      getPublicUrl: jest.fn(() => ({ data: { publicUrl: 'https://test-url.com/test-path' } }))
+    }))
+  }
+};
+
+/**
+ * Supabase 모킹 설정 함수
+ * 테스트에 필요한 모의 데이터와 응답을 구성합니다.
+ */
+export function setupSupabaseMock(options) {
+  // 사용자 지정 세션 설정
+  if (options?.session) {
+    Object.assign(mockSession, options.session);
+  } else if (options?.user) {
+    Object.assign(mockSession.user, options.user);
+  }
+
+  // 사용자 지정 데이터 설정
+  if (options?.data) {
+    Object.assign(mockData, options.data);
+  }
+
+  // 로그인 오류 설정
+  if (options?.signInError) {
+    mockSupabaseClient.auth.signInWithPassword.mockResolvedValue({
+      data: { user: null, session: null },
+      error: options.signInError
+    });
+    
+    mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
+      data: { provider: 'google', url: '' },
+      error: options.signInError
+    });
+  }
+
+  return mockSupabaseClient;
+}
+
+// 모의 Supabase 응답 생성 헬퍼
+export function mockSupabaseResponse(data = null, error = null) {
+  return Promise.resolve({ data, error });
+}
+
+// 모든 Supabase 관련 모킹 초기화
+export function resetSupabaseMocks() {
+  jest.resetAllMocks();
+  Object.assign(mockSession, {
+    user: {
+      id: 'test-user-id',
+      email: 'test@example.com',
+      app_metadata: { provider: 'email' }
+    },
+    refresh_token: 'mock-refresh-token',
+    access_token: 'mock-access-token',
+    expires_at: Date.now() + 3600
+  });
+  
+  Object.assign(mockData, {
+    votes: [],
+    rewards: [],
+    user_profiles: []
+  });
+}
 
 /**
  * 다양한 소셜 로그인 사용자 정보 모킹
@@ -84,72 +184,6 @@ export const mockUsers = {
       name: 'WeChat 사용자',
     },
   } as MockUser,
-};
-
-/**
- * 기본 데이터베이스 테이블 응답 모킹
- */
-export const mockData = {
-  profiles: [
-    {
-      id: mockUser.id,
-      user_id: mockUser.id,
-      username: 'testuser',
-      full_name: '테스트 사용자',
-      avatar_url: 'https://example.com/avatar.png',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  ],
-  posts: [
-    {
-      id: 1,
-      title: '테스트 게시물 1',
-      content: '테스트 게시물 내용입니다',
-      user_id: mockUser.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      title: '테스트 게시물 2',
-      content: '테스트 게시물 내용입니다 2',
-      user_id: mockUser.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  ],
-  comments: [
-    {
-      id: 1,
-      post_id: 1,
-      content: '테스트 댓글입니다',
-      user_id: mockUser.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  ],
-  votes: [
-    {
-      id: 1,
-      title: '테스트 투표',
-      description: '테스트 투표 설명',
-      user_id: mockUser.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      ends_at: new Date(Date.now() + 86400000).toISOString(),
-    }
-  ],
-  rewards: [
-    {
-      id: 1,
-      title: '테스트 리워드',
-      description: '테스트 리워드 설명',
-      points: 100,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-  ],
 };
 
 /**
@@ -422,4 +456,57 @@ export const clearSupabaseMocks = () => {
   
   // 모든 Supabase 관련 모킹 초기화
   jest.restoreAllMocks();
-}; 
+};
+
+// 실제 모듈을 모킹합니다
+jest.mock('@/lib/supabase/client', () => ({
+  createBrowserSupabaseClient: jest.fn(() => mockSupabaseClient),
+  getCurrentUser: jest.fn(() => Promise.resolve(mockSession.user)),
+  getCurrentSession: jest.fn(() => Promise.resolve(mockSession)),
+  signOut: jest.fn(() => Promise.resolve({ success: true }))
+}));
+
+// AuthProvider 관련 기능 모킹
+jest.mock('@/lib/supabase/auth-provider', () => {
+  const React = require('react');
+  
+  // 모킹된 useAuth 훅
+  const useAuth = jest.fn(() => ({
+    user: mockSession.user || null,
+    userProfile: null,
+    session: mockSession,
+    isLoading: false,
+    isAuthenticated: !!mockSession.user,
+    isInitialized: true,
+    error: null,
+    signIn: jest.fn().mockResolvedValue({ error: null }),
+    signInWithOAuth: jest.fn().mockResolvedValue({ error: null }),
+    signUp: jest.fn().mockResolvedValue({ error: null, data: { user: mockSession.user || null } }),
+    signOut: jest.fn().mockResolvedValue({ success: true }),
+    refreshSession: jest.fn().mockResolvedValue(undefined),
+    updateUserProfile: jest.fn().mockResolvedValue({ success: true }),
+  }));
+
+  // 모킹된 AuthProvider 컴포넌트
+  const AuthProvider = ({ children }) => {
+    return React.createElement('div', { 'data-testid': 'auth-provider' }, children);
+  };
+
+  return {
+    useAuth,
+    AuthProvider,
+  };
+});
+
+// 서버 측 Supabase 함수 모킹
+jest.mock('@/lib/supabase/server', () => ({
+  createServerSupabaseClient: jest.fn(() => mockSupabaseClient),
+  getServerSession: jest.fn(() => Promise.resolve({ data: { session: mockSession }, error: null })),
+  getServerUser: jest.fn(() => Promise.resolve(mockSession.user)),
+  withAuth: jest.fn((callback) => {
+    if (mockSession.user) {
+      return callback(mockSession.user.id);
+    }
+    throw new Error('인증이 필요합니다');
+  })
+})); 

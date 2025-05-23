@@ -3,6 +3,16 @@ import { screen, waitFor } from '@testing-library/react';
 import { usePathname } from 'next/navigation';
 import { render as customRender } from '../../../../utils/test-utils';
 
+// 모듈 모킹
+jest.mock('next/navigation', () => ({
+  usePathname: jest.fn(),
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn()
+  }),
+}));
+
 // 보상 페이지 목 데이터
 const mockRewards = [
   {
@@ -49,6 +59,11 @@ const mockRewards = [
   }
 ];
 
+// API 요청 모킹
+jest.mock('@/utils/api/queries', () => ({
+  getRewards: jest.fn().mockResolvedValue(mockRewards)
+}));
+
 // RewardList 컴포넌트 모킹
 jest.mock('@/components/features/reward/RewardList', () => {
   return function MockRewardList({ rewards }: { rewards: any[] }) {
@@ -70,21 +85,6 @@ jest.mock('@/components/client/ClientNavigationSetter', () => {
     return <div data-testid="client-navigation-setter"></div>;
   };
 });
-
-// 모듈 모킹
-jest.mock('next/navigation', () => ({
-  usePathname: jest.fn(),
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    prefetch: jest.fn()
-  }),
-}));
-
-// API 요청 모킹
-jest.mock('@/utils/api/queries', () => ({
-  getRewards: jest.fn().mockResolvedValue(mockRewards)
-}));
 
 // 실제 페이지 컴포넌트 불러오기
 import RewardsPage from '../../../../../app/[lang]/(main)/rewards/page';

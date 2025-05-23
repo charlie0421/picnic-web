@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getRewardById, getRewards } from '@/utils/api/queries';
 import { createPageMetadata, createImageMetadata } from '@/app/[lang]/utils/metadata-utils';
@@ -29,141 +29,92 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string; lang: string | Promise<string> };
+  params: { id: string; lang: string };
 }): Promise<Metadata> {
-  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
-  const langParam = await Promise.resolve(params.lang || 'ko');
-  const lang = String(langParam);
+  const rewardId = params.id;
   
-  // ISR 메타데이터 속성 추가
-  const isrOptions = createISRMetadata(30);
-  
-  const reward = await getRewardById(params.id);
-
-  if (!reward) {
-    return {
-      ...createPageMetadata(
-        '리워드 - 정보 없음',
-        '해당 리워드를 찾을 수 없습니다.'
-      ),
-      ...isrOptions
-    };
-  }
-
-  let title: string;
-  if (typeof reward.title === 'string') {
-    title = reward.title;
-  } else if (reward.title && typeof reward.title === 'object') {
-    const titleObj = reward.title as { ko?: string; en?: string };
-    title = titleObj.ko || titleObj.en || '리워드';
-  } else {
-    title = '리워드';
-  }
-
-  const description = typeof reward.description === 'string' 
-    ? reward.description 
-    : '피크닉에서 제공하는 특별한 리워드입니다.';
-  
-  // 기본 메타데이터
-  const baseMetadata = createPageMetadata(
-    `${title} - 피크닉 리워드`,
-    description,
-    {
-      alternates: {
-        canonical: `${SITE_URL}/${lang}/rewards/${params.id}`,
-        languages: {
-          'ko-KR': `${SITE_URL}/ko/rewards/${params.id}`,
-          'en-US': `${SITE_URL}/en/rewards/${params.id}`,
-        },
-      },
+  try {
+    const reward = await getRewardById(rewardId);
+    
+    if (!reward) {
+      return createPageMetadata({
+        title: '리워드를 찾을 수 없습니다',
+        description: '요청하신 리워드가 존재하지 않습니다.'
+      });
     }
-  );
-
-  // 대표 이미지가 있는 경우 이미지 메타데이터 추가
-  const mainImage = reward.mainImage || (reward.overviewImages && reward.overviewImages.length > 0 ? reward.overviewImages[0] : null);
-  
-  if (mainImage) {
-    const imageMetadata = createImageMetadata(
-      mainImage,
-      title,
-      1200,
-      630
-    );
+    
+    const imageUrl = reward.image_url || '';
+    const url = `${SITE_URL}/rewards/${rewardId}`;
     
     return {
-      ...baseMetadata,
-      ...imageMetadata,
-      ...isrOptions
+      ...createPageMetadata({
+        title: `${reward.title} | Picnic 리워드`,
+        description: reward.description || '팬 활동에 대한 특별한 보상을 받아보세요!',
+      }),
+      ...createImageMetadata(imageUrl),
+      openGraph: {
+        title: `${reward.title} | Picnic 리워드`,
+        description: reward.description || '팬 활동에 대한 특별한 보상을 받아보세요!',
+        url,
+        images: [{ url: imageUrl, alt: reward.title }],
+        type: 'website'
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${reward.title} | Picnic 리워드`,
+        description: reward.description || '팬 활동에 대한 특별한 보상을 받아보세요!',
+        images: [{ url: imageUrl, alt: reward.title }],
+      },
+      alternates: {
+        canonical: url,
+      },
+      schema: createProductSchema({
+        name: reward.title,
+        description: reward.description || '',
+        image: imageUrl,
+        url,
+        price: reward.price ? `${reward.price}` : '무료',
+        priceCurrency: 'KRW'
+      })
     };
+  } catch (error) {
+    return createPageMetadata({
+      title: '리워드 정보 로딩 중 오류',
+      description: '리워드 정보를 불러오는 중 오류가 발생했습니다.'
+    });
   }
-
-  return {
-    ...baseMetadata,
-    ...isrOptions
-  };
 }
 
-type RewardDetailPageProps = {
-  params: {
-    id: string;
-    lang: string | Promise<string>;
-  };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
+// PageProps 타입 생략, 직접 함수 파라미터에 타입을 인라인으로 정의
+export default async function RewardDetailPage({ 
+  params 
+}: { 
+  params: { id: string; lang: string } 
+}) {
+  // ISR 메타데이터 설정 (증분 정적 재생성)
+  createISRMetadata({
+    revalidate: 30,
+    dynamicParams: true
+  });
 
-export default async function RewardDetailPage({ params }: RewardDetailPageProps) {
-  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
-  const langParam = await Promise.resolve(params.lang || 'ko');
-  const lang = String(langParam);
+  const rewardId = params.id;
   
-  // 서버에서 데이터 가져오기
-  const reward = await getRewardById(params.id);
-
-  // 리워드가 존재하지 않는 경우 404 페이지로 이동
-  if (!reward) {
-    notFound();
+  try {
+    const reward = await getRewardById(rewardId);
+    
+    if (!reward) {
+      notFound(); // 404 페이지로 리디렉션
+    }
+    
+    return (
+      <main className="flex flex-col min-h-screen bg-gray-50">
+        <Suspense fallback={<LoadingState />}>
+          <RewardDetailClient reward={reward} />
+        </Suspense>
+      </main>
+    );
+  } catch (error) {
+    // 에러 발생 시 에러 경계로 전파
+    throw error;
   }
-
-  // 구조화된 데이터를 위한 정보 준비
-  let title: string;
-  if (typeof reward.title === 'string') {
-    title = reward.title;
-  } else if (reward.title && typeof reward.title === 'object') {
-    const titleObj = reward.title as { ko?: string; en?: string };
-    title = titleObj.ko || titleObj.en || '리워드';
-  } else {
-    title = '리워드';
-  }
-
-  const description = typeof reward.description === 'string' 
-    ? reward.description 
-    : '피크닉에서 제공하는 특별한 리워드입니다.';
-
-  // 대표 이미지 찾기
-  const mainImage = reward.mainImage || (reward.overviewImages && reward.overviewImages.length > 0 ? reward.overviewImages[0] : null);
-  
-  // 상품 구조화 데이터 생성
-  const schemaData = createProductSchema(
-    title,
-    description,
-    mainImage ? `https://cdn.picnic.fan/${mainImage}` : undefined,
-    reward.price,
-    'KRW',
-    'InStock',
-    `${SITE_URL}/${lang}/rewards/${params.id}`
-  );
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(schemaData)
-        }}
-      />
-      <Suspense fallback={<LoadingState message="리워드 정보를 불러오는 중..." />}>
-        <RewardDetailClient reward={reward} />
-      </Suspense>
-    </>
-  );
 }

@@ -1,6 +1,9 @@
 // sentry 설정 래퍼 추가
 const { withSentryConfig } = require('@sentry/nextjs');
 
+// 환경 변수로 Sentry 경고 억제
+process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -40,7 +43,9 @@ const nextConfig = {
   // 실험적 기능 활성화
   experimental: {
     // 서버 컴포넌트에서 React 18 스트리밍 활성화
-    serverActions: true,
+    serverActions: {
+      enabled: true
+    },
     // 페이지당 개별 CSS 대신 앱 전체 CSS 번들링
     optimizeCss: true,
     // 프리페치 최적화 활성화
@@ -126,6 +131,7 @@ const nextConfig = {
 const sentryWebpackPluginOptions = {
   silent: true, // 로그 비활성화
   // 필요한 경우 authToken, org, project 등 추가 설정
+  hideSourceMaps: true // 소스맵 숨기기
 };
 
 module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);

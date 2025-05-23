@@ -1,5 +1,5 @@
 import {Suspense} from 'react';
-import {Metadata} from 'next';
+import type {Metadata} from 'next';
 import {getVoteById, getVotes} from '@/lib/data-fetching/vote-service';
 import { VoteDetail } from '@/components/shared';
 import { VoteDetailSkeleton } from '@/components/server';
@@ -28,7 +28,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string; lang: string | Promise<string> };
+  params: { id: string; lang: string };
 }): Promise<Metadata> {
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
   const langParam = await Promise.resolve(params.lang || 'ko');
@@ -98,17 +98,12 @@ export async function generateMetadata({
   };
 }
 
-type VoteDetailPageProps = {
-  params: {
-    id: string;
-    lang: string | Promise<string>;
-  };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-export default async function VoteDetailPage(props: VoteDetailPageProps) {
-  const { params } = props;
-  
+// PageProps 타입 생략, 직접 함수 파라미터에 타입을 인라인으로 정의
+export default async function VoteDetailPage({ 
+  params 
+}: { 
+  params: { id: string; lang: string } 
+}) {
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
   const langParam = await Promise.resolve(params.lang || 'ko');
   const lang = String(langParam);
@@ -116,7 +111,7 @@ export default async function VoteDetailPage(props: VoteDetailPageProps) {
   const vote = await getVoteById(params.id);
   
   // 구조화된 데이터를 위한 정보 준비
-  let schemaData = null;
+  let schemaData: any = null;
   
   if (vote) {
     let title: string;

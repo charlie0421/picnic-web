@@ -7,7 +7,7 @@ import { useSupabase } from '@/components/providers/SupabaseProvider';
 import { useVoteFilterStore, VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
 import { Vote } from '@/types/interfaces';
 import { LoadingSpinner } from './index';
-
+import { getLocalizedString } from '@/utils/api/strings';
 // VoteListClient 컴포넌트는 VoteList 컴포넌트의 클라이언트 부분입니다.
 // 원래 components/features/vote/list/VoteList.tsx의 내용을 여기로 이동했습니다.
 
@@ -263,19 +263,19 @@ const VoteListClient: React.FC<VoteListClientProps> = ({
           <div 
             key={vote.id}
             className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => handleVoteClick(vote.id)}
+            onClick={() => handleVoteClick(vote.id.toString())}
           >
             <div className="relative aspect-video">
               <img 
                 src={vote.mainImage || '/images/default-vote.jpg'} 
-                alt={vote.title}
+                alt={getLocalizedString(vote.title)}
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="p-4">
-              <h3 className="text-lg font-bold truncate">{vote.title}</h3>
+              <h3 className="text-lg font-bold truncate">{getLocalizedString(vote.title)}</h3>
               <p className="text-sm text-gray-500 mt-1">
-                {new Date(vote.startAt).toLocaleDateString()} ~ {new Date(vote.stopAt).toLocaleDateString()}
+                {new Date(vote?.startAt || '').toLocaleDateString()} ~ {new Date(vote?.stopAt || '').toLocaleDateString()}
               </p>
             </div>
           </div>

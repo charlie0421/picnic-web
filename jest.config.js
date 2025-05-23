@@ -14,8 +14,8 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
   moduleDirectories: ['node_modules', '<rootDir>/'],
   moduleNameMapper: {
-    // 경로 별칭 핸들링
-    '^@/(.*)$': '<rootDir>/$1',
+    // 경로 별칭 핸들링 - 정규식 수정
+    '@/(.*)': '<rootDir>/$1',
   },
   collectCoverage: true,
   coverageDirectory: 'coverage',

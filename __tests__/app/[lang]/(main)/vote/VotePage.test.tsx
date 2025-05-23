@@ -5,6 +5,7 @@ import { mockVotes, emptyVotes, mockVoteError, getVotesByStatus } from '../../..
 import { mockGetVotes } from '../../../../utils/mockVoteFunctions';
 import VotePageClient from '../../../../../app/[lang]/(main)/vote/VotePageClient';
 import { render as customRender } from '../../../../utils/test-utils';
+import { Vote, Json } from '@/types/interfaces';
 
 // 모듈 모킹
 jest.mock('next/navigation', () => ({
@@ -21,6 +22,24 @@ jest.mock('@/lib/data-fetching/vote-service', () => ({
   getVotes: jest.fn(),
 }));
 
+// JSON 타입에서 제목 표시 헬퍼 함수
+const getDisplayTitle = (title: Vote['title'] | null | undefined): string => {
+  if (!title) return '';
+  
+  // Json 객체에서 한글/영어 제목 추출
+  if (typeof title === 'object' && title !== null) {
+    if ('ko' in title && typeof title.ko === 'string') {
+      return title.ko;
+    }
+    if ('en' in title && typeof title.en === 'string') {
+      return title.en;
+    }
+  }
+  
+  // 다른 타입은 문자열 변환
+  return String(title);
+};
+
 // VoteList 컴포넌트 모킹
 jest.mock('@/components/features/vote/list/VoteList', () => {
   return function MockVoteList({ status }: { status?: string }) {
@@ -29,7 +48,7 @@ jest.mock('@/components/features/vote/list/VoteList', () => {
       <div data-testid={testId}>
         {mockVotes.map(vote => (
           <div key={vote.id} data-testid="vote-item">
-            {String(vote.title)}
+            {getDisplayTitle(vote.title)}
           </div>
         ))}
       </div>
@@ -106,7 +125,10 @@ describe('투표 페이지 테스트', () => {
     
     // 투표 제목이 올바르게 표시되는지 확인
     mockVotes.forEach(vote => {
-      expect(screen.getByText(String(vote.title))).toBeInTheDocument();
+      const displayTitle = getDisplayTitle(vote.title);
+      if (displayTitle) {
+        expect(screen.getByText(displayTitle)).toBeInTheDocument();
+      }
     });
   });
   
@@ -145,7 +167,10 @@ describe('투표 페이지 테스트', () => {
     
     await waitFor(() => {
       ongoingVotes.forEach(vote => {
-        expect(screen.getByText(String(vote.title))).toBeInTheDocument();
+        const displayTitle = getDisplayTitle(vote.title);
+        if (displayTitle) {
+          expect(screen.getByText(displayTitle)).toBeInTheDocument();
+        }
       });
       
       const filteredVoteItems = screen.getAllByTestId('vote-item');
@@ -161,7 +186,10 @@ describe('투표 페이지 테스트', () => {
     
     await waitFor(() => {
       completedVotes.forEach(vote => {
-        expect(screen.getByText(String(vote.title))).toBeInTheDocument();
+        const displayTitle = getDisplayTitle(vote.title);
+        if (displayTitle) {
+          expect(screen.getByText(displayTitle)).toBeInTheDocument();
+        }
       });
       
       const completedVoteItems = screen.getAllByTestId('vote-item');
@@ -177,7 +205,10 @@ describe('투표 페이지 테스트', () => {
     
     await waitFor(() => {
       upcomingVotes.forEach(vote => {
-        expect(screen.getByText(String(vote.title))).toBeInTheDocument();
+        const displayTitle = getDisplayTitle(vote.title);
+        if (displayTitle) {
+          expect(screen.getByText(displayTitle)).toBeInTheDocument();
+        }
       });
       
       const upcomingVoteItems = screen.getAllByTestId('vote-item');

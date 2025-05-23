@@ -5,7 +5,7 @@
 import { Vote, Artist } from '@/types/interfaces';
 
 // 기본 Artist 정보를 생성하는 함수
-const createArtist = (id: number, name: string, image: string): Artist => ({
+const createArtist = (id: number, name: { ko: string, en: string }, image: string): Artist => ({
   id,
   name,
   image,
@@ -31,7 +31,7 @@ const createArtist = (id: number, name: string, image: string): Artist => ({
 export const mockVotes: Vote[] = [
   {
     id: 1,
-    title: '인기 아티스트 투표',
+    title: { ko: '인기 아티스트 투표', en: 'Popular Artist Vote' },
     startAt: new Date(Date.now() - 86400000).toISOString(), // 하루 전
     stopAt: new Date(Date.now() + 86400000).toISOString(), // 하루 후
     mainImage: 'https://example.com/vote1.jpg',
@@ -56,7 +56,7 @@ export const mockVotes: Vote[] = [
         createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
         updatedAt: new Date(Date.now() - 86400000).toISOString(),
         deletedAt: null,
-        artist: createArtist(1, '아티스트 1', 'https://example.com/artist1.jpg')
+        artist: createArtist(1, { ko: '아티스트 1', en: 'Artist 1' }, 'https://example.com/artist1.jpg')
       },
       {
         id: 2,
@@ -67,19 +67,36 @@ export const mockVotes: Vote[] = [
         createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
         updatedAt: new Date(Date.now() - 86400000).toISOString(),
         deletedAt: null,
-        artist: createArtist(2, '아티스트 2', 'https://example.com/artist2.jpg')
+        artist: createArtist(2, { ko: '아티스트 2', en: 'Artist 2' }, 'https://example.com/artist2.jpg')
       }
     ],
     voteReward: [
       {
         rewardId: 1,
-        voteId: 1
+        voteId: 1,
+        reward: {
+          id: 1,
+          title: { ko: '보상 1', en: 'Reward 1' },
+          description: { ko: '보상 1 설명', en: 'Reward 1 description' },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+          location: null,
+          locationImages: [],
+          order: 1,
+          overviewImages: [],
+          sizeGuide: null,
+          sizeGuideImages: [],
+          thumbnail: 'https://example.com/reward1.jpg',
+          price: 1000,
+          mainImage: 'https://example.com/reward1-main.jpg'
+        }
       }
     ]
   },
   {
     id: 2,
-    title: '신인상 투표',
+    title: { ko: '신인상 투표', en: 'Rookie Award Vote' },
     startAt: new Date(Date.now() - 86400000 * 3).toISOString(), // 3일 전
     stopAt: new Date(Date.now() - 86400000).toISOString(), // 하루 전 (종료됨)
     mainImage: 'https://example.com/vote2.jpg',
@@ -104,7 +121,7 @@ export const mockVotes: Vote[] = [
         createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
         updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
         deletedAt: null,
-        artist: createArtist(3, '아티스트 3', 'https://example.com/artist3.jpg')
+        artist: createArtist(3, { ko: '아티스트 3', en: 'Artist 3' }, 'https://example.com/artist3.jpg')
       },
       {
         id: 4,
@@ -115,14 +132,14 @@ export const mockVotes: Vote[] = [
         createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
         updatedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
         deletedAt: null,
-        artist: createArtist(4, '아티스트 4', 'https://example.com/artist4.jpg')
+        artist: createArtist(4, { ko: '아티스트 4', en: 'Artist 4' }, 'https://example.com/artist4.jpg')
       }
     ],
     voteReward: []
   },
   {
     id: 3,
-    title: '다가오는 투표',
+    title: { ko: '다가오는 투표', en: 'Upcoming Vote' },
     startAt: new Date(Date.now() + 86400000).toISOString(), // 하루 후
     stopAt: new Date(Date.now() + 86400000 * 5).toISOString(), // 5일 후
     mainImage: 'https://example.com/vote3.jpg',
@@ -147,7 +164,7 @@ export const mockVotes: Vote[] = [
         createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
         updatedAt: new Date(Date.now() - 86400000).toISOString(),
         deletedAt: null,
-        artist: createArtist(5, '아티스트 5', 'https://example.com/artist5.jpg')
+        artist: createArtist(5, { ko: '아티스트 5', en: 'Artist 5' }, 'https://example.com/artist5.jpg')
       },
       {
         id: 6,
@@ -158,13 +175,30 @@ export const mockVotes: Vote[] = [
         createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
         updatedAt: new Date(Date.now() - 86400000).toISOString(),
         deletedAt: null,
-        artist: createArtist(6, '아티스트 6', 'https://example.com/artist6.jpg')
+        artist: createArtist(6, { ko: '아티스트 6', en: 'Artist 6' }, 'https://example.com/artist6.jpg')
       }
     ],
     voteReward: [
       {
         rewardId: 2,
-        voteId: 3
+        voteId: 3,
+        reward: {
+          id: 2,
+          title: { ko: '보상 2', en: 'Reward 2' },
+          description: { ko: '보상 2 설명', en: 'Reward 2 description' },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+          location: null,
+          locationImages: [],
+          order: 2,
+          overviewImages: [],
+          sizeGuide: null,
+          sizeGuideImages: [],
+          thumbnail: 'https://example.com/reward2.jpg',
+          price: 2000,
+          mainImage: 'https://example.com/reward2-main.jpg'
+        }
       }
     ]
   }

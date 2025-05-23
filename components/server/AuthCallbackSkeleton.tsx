@@ -1,3 +1,5 @@
+import { Link } from 'lucide-react';
+import { Linden_Hill } from 'next/font/google';
 import React from 'react';
 
 interface AuthCallbackSkeletonProps {
@@ -26,12 +28,12 @@ export default function AuthCallbackSkeleton({
         {onRetry ? (
           <div id="retry-button-container" data-retry-handler="true" />
         ) : (
-          <a
+          <Link
             href="/login"
             className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
           >
             로그인으로 돌아가기
-          </a>
+          </Link>
         )}
       </div>
     );
