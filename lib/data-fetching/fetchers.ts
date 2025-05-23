@@ -1,24 +1,24 @@
 /**
  * 서버 사이드 데이터 페칭 유틸리티
- * 
+ *
  * Next.js의 서버 컴포넌트에서 사용할 데이터 페칭 유틸리티 함수 모음입니다.
  * 이 파일의 함수들은 서버 컴포넌트에서만 사용해야 합니다.
  */
 
-import { createClient } from '@/utils/supabase-server-client';
-import { notFound } from 'next/navigation';
-import { cache } from 'react';
+import { createClient } from "@/utils/supabase-server-client";
+import { notFound } from "next/navigation";
+import { cache } from "react";
 
 // 기본 캐싱 옵션
 export type CacheOptions = {
   revalidate?: number | false; // 데이터 재검증 시간 (초)
   tags?: string[]; // 캐시 태그
-  cache?: 'force-cache' | 'no-store' | 'default'; // 캐시 전략
+  cache?: "force-cache" | "no-store" | "default"; // 캐시 전략
 };
 
 const DEFAULT_CACHE_OPTIONS: CacheOptions = {
   revalidate: 60, // 기본 1분 캐싱
-  cache: 'force-cache', // Next.js 15.3.1부터 no-store가 기본값이므로 명시적으로 force-cache 설정
+  cache: "force-cache", // Next.js 15.3.1부터 no-store가 기본값이므로 명시적으로 force-cache 설정
 };
 
 /**
@@ -26,26 +26,31 @@ const DEFAULT_CACHE_OPTIONS: CacheOptions = {
  * 서버 컴포넌트에서 캐싱과 함께 Supabase 쿼리를 실행
  */
 export const fetchFromSupabase = cache(async <T>(
-  queryBuilder: (supabase: ReturnType<typeof createClient>) => Promise<{ data: T | null; error: any }>,
-  options: CacheOptions = DEFAULT_CACHE_OPTIONS
+  queryBuilder: (
+    supabase: Awaited<ReturnType<typeof createClient>>,
+  ) => Promise<{ data: T | null; error: any }>,
+  options: CacheOptions = DEFAULT_CACHE_OPTIONS,
 ): Promise<T> => {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await queryBuilder(supabase);
 
     if (error) {
-      console.error('Supabase query error:', error);
-      throw new Error(error.message || '데이터 조회 중 오류가 발생했습니다.');
+      console.error("Supabase query error:", error);
+      throw new Error(error.message || "데이터 조회 중 오류가 발생했습니다.");
     }
 
     if (!data) {
-      // 타입 안전한 방식으로 빈 값 반환
-      return (Array.isArray([] as unknown as T) ? [] : null) as T;
+      // null 데이터 처리를 보다
+      // 안전하게 배열 타입에 대해서는 빈 배열, 그 외에는 null 반환
+      // 타입스크립트는 컴파일 타임에만 존재하므로 실행 시점에는 판단 불가
+      // 타입 매개변수에서 명시적으로 배열 타입인 경우에만 빈 배열 반환
+      return ([] as any) as T; // 기본적으로 빈 배열 반환
     }
 
     return data;
   } catch (error) {
-    console.error('Data fetching error:', error);
+    console.error("Data fetching error:", error);
     throw error;
   }
 });
@@ -56,14 +61,14 @@ export const fetchFromSupabase = cache(async <T>(
 export const fetchById = cache(async <T>(
   table: string,
   id: string,
-  columns: string = '*',
-  options: CacheOptions = DEFAULT_CACHE_OPTIONS
+  columns: string = "*",
+  options: CacheOptions = DEFAULT_CACHE_OPTIONS,
 ): Promise<T> => {
   return fetchFromSupabase(async (supabase) => {
     return supabase
       .from(table)
       .select(columns)
-      .eq('id', id)
+      .eq("id", id)
       .single();
   }, options);
 });
@@ -71,15 +76,15 @@ export const fetchById = cache(async <T>(
 /**
  * 특정 조건으로 데이터 목록 조회
  */
-export const fetchList = cache(async <T>(
+export const fetchList = cache(async <T = any>(
   table: string,
-  columns: string = '*',
+  columns: string = "*",
   filters?: Record<string, any>,
-  options: CacheOptions = DEFAULT_CACHE_OPTIONS
+  options: CacheOptions = DEFAULT_CACHE_OPTIONS,
 ): Promise<T[]> => {
-  return fetchFromSupabase(async (supabase) => {
+  return fetchFromSupabase<T[]>(async (supabase) => {
     let query = supabase.from(table).select(columns);
-    
+
     // 필터 적용
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -88,8 +93,9 @@ export const fetchList = cache(async <T>(
         }
       });
     }
-    
-    return query;
+
+    // 타입 안전한 방식으로 쿼리 결과 반환
+    return query as unknown as Promise<{ data: T[]; error: any }>;
   }, options);
 });
 
@@ -99,12 +105,12 @@ export const fetchList = cache(async <T>(
 export const fetchApi = cache(async <T>(
   url: string,
   options: RequestInit = {},
-  cacheOptions: CacheOptions = DEFAULT_CACHE_OPTIONS
+  cacheOptions: CacheOptions = DEFAULT_CACHE_OPTIONS,
 ): Promise<T> => {
   try {
     const res = await fetch(url, {
       ...options,
-      cache: cacheOptions.cache || 'force-cache', // Next.js 15.3.1부터 no-store가 기본값이므로 명시적으로 설정
+      cache: cacheOptions.cache || "force-cache", // Next.js 15.3.1부터 no-store가 기본값이므로 명시적으로 설정
       next: {
         revalidate: cacheOptions.revalidate,
         tags: cacheOptions.tags,
@@ -117,7 +123,7 @@ export const fetchApi = cache(async <T>(
 
     return res.json();
   } catch (error) {
-    console.error('API fetch error:', error);
+    console.error("API fetch error:", error);
     throw error;
   }
-}); 
+});

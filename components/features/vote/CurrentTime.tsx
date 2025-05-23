@@ -1,9 +1,9 @@
 'use client';
 
-import React, {useEffect, useRef, useState} from 'react';
-import {format} from 'date-fns';
-import {useLanguageStore} from '@/stores/languageStore';
-import {getCurrentLocale} from '@/utils/date';
+import React, { useEffect, useState, useRef } from 'react';
+import { format } from 'date-fns';
+import { useLanguageStore } from '@/stores/languageStore';
+import { getCurrentLocale } from '@/utils/date';
 
 interface CurrentTimeProps {
   initialTime?: string;
@@ -15,28 +15,16 @@ const CurrentTime: React.FC<CurrentTimeProps> = ({
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState<string>('');
   const { currentLanguage } = useLanguageStore();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const prevLanguage = useRef<string>(currentLanguage);
 
   // 컴포넌트 마운트 시 초기화
   useEffect(() => {
     setMounted(true);
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
   }, []);
 
   // 언어 변경 또는 마운트 시 시간 포맷 업데이트
   useEffect(() => {
     if (!mounted) return;
-
-    // 이전 타이머 정리
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
 
     const updateTime = () => {
       const now = new Date();
@@ -50,17 +38,8 @@ const CurrentTime: React.FC<CurrentTimeProps> = ({
     // 즉시 한 번 업데이트
     updateTime();
 
-    // 정기적인 업데이트 설정
-    timerRef.current = setInterval(updateTime, 1000);
-
     // 언어 변경 기록
     prevLanguage.current = currentLanguage;
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
   }, [mounted, currentLanguage]);
 
   if (!mounted) return null;

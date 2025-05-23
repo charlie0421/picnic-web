@@ -2,7 +2,10 @@ import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getRewardById, getRewards } from '@/utils/api/queries';
-import { createPageMetadata, createImageMetadata } from '@/app/[lang]/utils/metadata-utils';
+import {
+  createPageMetadata,
+  createImageMetadata,
+} from '@/app/[lang]/utils/metadata-utils';
 import { createProductSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
@@ -19,9 +22,9 @@ export const revalidate = 30;
 export async function generateStaticParams() {
   // 활성화된 리워드만 사전 생성
   const rewards = await getRewards();
-  
-  return rewards.slice(0, 10).map(reward => ({
-    id: String(reward.id)
+
+  return rewards.slice(0, 10).map((reward) => ({
+    id: String(reward.id),
   }));
 }
 
@@ -29,85 +32,93 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string; lang: string };
+  params: Promise<{ id: string; lang: string }>;
 }): Promise<Metadata> {
-  const rewardId = params.id;
-  
+  const { id: rewardId } = await params;
+
   try {
     const reward = await getRewardById(rewardId);
-    
+
     if (!reward) {
-      return createPageMetadata({
-        title: '리워드를 찾을 수 없습니다',
-        description: '요청하신 리워드가 존재하지 않습니다.'
-      });
+      return createPageMetadata(
+        '리워드를 찾을 수 없습니다',
+        '요청하신 리워드가 존재하지 않습니다.',
+      );
     }
-    
-    const imageUrl = reward.image_url || '';
+
+    // reward.title, reward.description이 Json 타입이므로 문자열로 변환
+    const title =
+      typeof reward.title === 'string'
+        ? reward.title
+        : reward.title && typeof reward.title === 'object'
+        ? (reward.title as any)?.ko || (reward.title as any)?.en || '리워드'
+        : '리워드';
+
+    const description =
+      typeof reward.description === 'string'
+        ? reward.description
+        : reward.description && typeof reward.description === 'object'
+        ? (reward.description as any)?.ko ||
+          (reward.description as any)?.en ||
+          '팬 활동에 대한 특별한 보상을 받아보세요!'
+        : '팬 활동에 대한 특별한 보상을 받아보세요!';
+
+    // reward.image_url을 mainImage 또는 thumbnail로 변경
+    const imageUrl = reward.mainImage || reward.thumbnail || '';
     const url = `${SITE_URL}/rewards/${rewardId}`;
-    
-    return {
-      ...createPageMetadata({
-        title: `${reward.title} | Picnic 리워드`,
-        description: reward.description || '팬 활동에 대한 특별한 보상을 받아보세요!',
-      }),
-      ...createImageMetadata(imageUrl),
+
+    const metadata: Metadata = {
+      ...createPageMetadata(`${title} | Picnic 리워드`, description),
+      ...createImageMetadata(imageUrl, title, 1200, 630),
       openGraph: {
-        title: `${reward.title} | Picnic 리워드`,
-        description: reward.description || '팬 활동에 대한 특별한 보상을 받아보세요!',
+        title: `${title} | Picnic 리워드`,
+        description: description,
         url,
-        images: [{ url: imageUrl, alt: reward.title }],
-        type: 'website'
+        images: [{ url: imageUrl, alt: title }],
+        type: 'website',
       },
       twitter: {
         card: 'summary_large_image',
-        title: `${reward.title} | Picnic 리워드`,
-        description: reward.description || '팬 활동에 대한 특별한 보상을 받아보세요!',
-        images: [{ url: imageUrl, alt: reward.title }],
+        title: `${title} | Picnic 리워드`,
+        description: description,
+        images: [{ url: imageUrl, alt: title }],
       },
       alternates: {
         canonical: url,
       },
-      schema: createProductSchema({
-        name: reward.title,
-        description: reward.description || '',
-        image: imageUrl,
-        url,
-        price: reward.price ? `${reward.price}` : '무료',
-        priceCurrency: 'KRW'
-      })
     };
+
+    // 스키마 데이터는 별도로 처리 (Metadata 타입에 없음)
+    return metadata;
   } catch (error) {
-    return createPageMetadata({
-      title: '리워드 정보 로딩 중 오류',
-      description: '리워드 정보를 불러오는 중 오류가 발생했습니다.'
-    });
+    return createPageMetadata(
+      '리워드 정보 로딩 중 오류',
+      '리워드 정보를 불러오는 중 오류가 발생했습니다.',
+    );
   }
 }
 
 // PageProps 타입 생략, 직접 함수 파라미터에 타입을 인라인으로 정의
-export default async function RewardDetailPage({ 
-  params 
-}: { 
-  params: { id: string; lang: string } 
+export default async function RewardDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string; lang: string }>;
 }) {
   // ISR 메타데이터 설정 (증분 정적 재생성)
-  createISRMetadata({
-    revalidate: 30,
-    dynamicParams: true
-  });
+  // createISRMetadata 함수는 숫자만 받음
+  const isrOptions = createISRMetadata(30);
 
-  const rewardId = params.id;
-  
+  const { id: rewardId } = await params;
+
   try {
     const reward = await getRewardById(rewardId);
-    
+
     if (!reward) {
       notFound(); // 404 페이지로 리디렉션
     }
-    
+
     return (
-      <main className="flex flex-col min-h-screen bg-gray-50">
+      <main className='flex flex-col min-h-screen bg-gray-50'>
         <Suspense fallback={<LoadingState />}>
           <RewardDetailClient reward={reward} />
         </Suspense>

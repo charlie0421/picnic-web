@@ -1,9 +1,9 @@
 import React from 'react';
 import RewardList from '@/components/features/reward/RewardList';
-import {getRewards} from '@/utils/api/queries';
-import {createISRMetadata} from '@/app/[lang]/utils/rendering-utils';
-import {ClientNavigationSetter} from '@/components/client';
-import {PortalType} from '@/utils/enums';
+import { getRewards } from '@/utils/api/queries';
+import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
+import { ClientNavigationSetter } from '@/components/client';
+import { PortalType } from '@/utils/enums';
 import { Metadata } from 'next';
 import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils';
 import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
@@ -16,15 +16,15 @@ export const revalidate = 60;
 export async function generateMetadata({
   params,
 }: {
-  params: { lang: string | Promise<string> };
+  params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
-  const langParam = await Promise.resolve(params.lang || 'ko');
-  const lang = String(langParam);
-  
+  const { lang: langParam } = await params;
+  const lang = String(langParam || 'ko');
+
   // ISR 메타데이터 속성 추가
   const isrOptions = createISRMetadata(60);
-  
+
   return {
     ...createPageMetadata(
       '리워드 - 피크닉',
@@ -37,9 +37,9 @@ export async function generateMetadata({
             'en-US': `${SITE_URL}/en/rewards`,
           },
         },
-      }
+      },
     ),
-    ...isrOptions
+    ...isrOptions,
   };
 }
 
@@ -47,15 +47,15 @@ export async function generateMetadata({
 export default async function RewardsPage({
   params,
 }: {
-  params: { lang: string | Promise<string> };
+  params: Promise<{ lang: string }>;
 }) {
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
-  const langParam = await Promise.resolve(params.lang || 'ko');
-  const lang = String(langParam);
-  
+  const { lang: langParam } = await params;
+  const lang = String(langParam || 'ko');
+
   // 서버에서 데이터 가져오기
   const rewards = await getRewards();
-  
+
   // 데이터 가져오기 실패 시 오류 상태 표시
   if (!rewards || rewards.length === 0) {
     return (
@@ -63,30 +63,30 @@ export default async function RewardsPage({
         <div className='bg-red-100 text-red-700 p-4 rounded-md'>
           데이터를 불러오는 중 오류가 발생했습니다.
         </div>
-        
+
         {/* 클라이언트 포털 타입 설정 */}
         <ClientNavigationSetter portalType={PortalType.VOTE} />
       </div>
     );
   }
-  
+
   return (
     <>
       <script
-        type="application/ld+json"
+        type='application/ld+json'
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(
             createWebsiteSchema(
               `${SITE_URL}/rewards`,
               '피크닉 리워드',
-              '피크닉에서 제공하는 다양한 리워드를 확인해보세요.'
-            )
+              '피크닉에서 제공하는 다양한 리워드를 확인해보세요.',
+            ),
           ),
         }}
       />
       <div className='container mx-auto px-4 py-6 space-y-10'>
         <RewardList rewards={rewards} />
-        
+
         {/* 클라이언트 포털 타입 설정 */}
         <ClientNavigationSetter portalType={PortalType.VOTE} />
       </div>

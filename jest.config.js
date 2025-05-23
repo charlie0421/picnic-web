@@ -1,15 +1,15 @@
-const nextJest = require('next/jest')
+const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({
   // Next.js 앱의 경로를 제공하여 테스트 환경에서 next.config.js와 .env 파일을 로드합니다
   dir: './',
-})
+});
 
 // Jest에 전달할 사용자 정의 설정
 const customJestConfig = {
   setupFilesAfterEnv: [
     '<rootDir>/jest.setup.js',
-    '<rootDir>/__tests__/setup.ts'
+    '<rootDir>/__tests__/setup.ts',
   ],
   testEnvironment: 'jest-environment-jsdom',
   moduleDirectories: ['node_modules', '<rootDir>/'],
@@ -49,23 +49,23 @@ const customJestConfig = {
   // 최소 커버리지 기준 설정
   coverageThreshold: {
     global: {
-      statements: 70, // 요구사항에 따라 70%로 설정
-      branches: 70,
-      functions: 70,
-      lines: 70,
+      statements: 80, // 요구사항에 따라 80%로 변경
+      branches: 80,
+      functions: 80,
+      lines: 80,
     },
     // 중요 디렉터리/파일에 대한 더 높은 커버리지 요구 설정
     './utils/api/': {
-      statements: 70,
-      branches: 70,
-      functions: 70,
-      lines: 70,
+      statements: 80,
+      branches: 80,
+      functions: 80,
+      lines: 80,
     },
     './components/ui/': {
-      statements: 70,
-      branches: 70,
-      functions: 70,
-      lines: 70,
+      statements: 80,
+      branches: 80,
+      functions: 80,
+      lines: 80,
     },
   },
   // 커버리지 보고서 설정
@@ -81,7 +81,7 @@ const customJestConfig = {
     '<rootDir>/.next/',
     '<rootDir>/coverage/',
   ],
-}
+};
 
 // createJestConfig는 next/jest가 비동기 설정을 제공할 수 있도록 내보내기를 자동으로 처리합니다
-module.exports = createJestConfig(customJestConfig) 
+module.exports = createJestConfig(customJestConfig);

@@ -1,7 +1,10 @@
 import React, { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { LoadingState } from '@/components/server';
-import { getByIdOrNotFound, TABLES } from '@/lib/data-fetching/supabase-service';
+import {
+  getByIdOrNotFound,
+  TABLES,
+} from '@/lib/data-fetching/supabase-service';
 import { createServerSupabaseClientWithRequest } from '@/lib/supabase/server';
 import { Vote, VoteItem, Reward } from '@/types/interfaces';
 import { VoteDetailClient } from '@/components/client';
@@ -19,13 +22,19 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
   try {
     // 페이지 라우터에서는 req/res가 필요함
     if (!req || !res) {
-      console.warn('서버 컴포넌트에 req/res 객체가 전달되지 않았습니다. 인증 없는 클라이언트를 사용합니다.');
+      console.warn(
+        '서버 컴포넌트에 req/res 객체가 전달되지 않았습니다. 인증 없는 클라이언트를 사용합니다.',
+      );
     }
 
     // req/res가 있으면 페이지 라우터용 클라이언트를 사용하고, 없으면 기본 클라이언트를 사용합니다
-    const supabase = req && res 
-      ? createServerSupabaseClientWithRequest(req, res)
-      : createServerSupabaseClientWithRequest({ cookies: {} }, { setHeader: () => {} });
+    const supabase =
+      req && res
+        ? createServerSupabaseClientWithRequest(req, res)
+        : createServerSupabaseClientWithRequest(
+            { cookies: {} },
+            { setHeader: () => {} },
+          );
 
     const numericId = parseInt(id, 10);
     if (isNaN(numericId)) {
@@ -34,7 +43,8 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
 
     const { data: voteData, error } = await supabase
       .from('vote')
-      .select(`
+      .select(
+        `
         *,
         vote_item!vote_id (
           id,
@@ -59,7 +69,8 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
           reward_id,
           reward:reward_id (*)
         )
-      `)
+      `,
+      )
       .eq('id', numericId)
       .is('deleted_at', null)
       .single();
@@ -69,7 +80,9 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
       if (error.code === 'PGRST116') {
         notFound();
       }
-      throw new Error(`투표 데이터를 불러오는데 문제가 발생했습니다: ${error.message}`);
+      throw new Error(
+        `투표 데이터를 불러오는데 문제가 발생했습니다: ${error.message}`,
+      );
     }
 
     if (!voteData) {
@@ -80,7 +93,7 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
     const formattedVote: Vote = {
       id: voteData.id,
       order: 0, // 기본값 설정 (Vote 인터페이스 요구사항)
-      area: voteData.area || '', // Vote 인터페이스 요구사항
+      area: '', // area 필드 기본값
       deletedAt: voteData.deleted_at,
       startAt: voteData.start_at,
       stopAt: voteData.stop_at,
@@ -108,18 +121,18 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
           groupId: item.group_id || 0,
           voteTotal: item.vote_total || 0,
           artist: item.artist
-            ? {
+            ? ({
                 id: item.artist.id,
                 name: item.artist.name,
                 image: item.artist.image,
                 artistGroup: item.artist.artist_group
                   ? {
                       id: item.artist.artist_group.id,
-                      name: item.artist.artist_group.name
+                      name: item.artist.artist_group.name,
                     }
-                  : undefined
-              }
-            : undefined
+                  : undefined,
+              } as any)
+            : undefined,
         }))
       : [];
 
@@ -141,7 +154,7 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
             locationImages: reward.location_images || [],
             location: reward.location,
             sizeGuide: reward.size_guide,
-            sizeGuideImages: reward.size_guide_images || []
+            sizeGuideImages: reward.size_guide_images || [],
           }))
       : [];
 
@@ -149,7 +162,7 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
     const now = new Date();
     const startDate = new Date(voteData.start_at);
     const endDate = new Date(voteData.stop_at);
-    
+
     let voteStatus: 'upcoming' | 'ongoing' | 'ended' = 'upcoming';
     if (now < startDate) {
       voteStatus = 'upcoming';
@@ -161,13 +174,13 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
 
     // 클라이언트 컴포넌트에 데이터 전달
     return (
-      <VoteDetailClient 
-        id={id} 
+      <VoteDetailClient
+        id={id}
         initialData={{
           vote: formattedVote,
           voteItems: formattedVoteItems,
           rewards: formattedRewards,
-          voteStatus
+          voteStatus,
         }}
       />
     );
@@ -182,13 +195,25 @@ async function VoteDetailData({ id, req, res }: VoteDetailServerProps) {
 
 /**
  * 투표 상세 서버 컴포넌트
- * 
+ *
  * 서버에서 투표 상세 데이터를 가져와 클라이언트 컴포넌트로 전달합니다.
  * Suspense를 사용하여 로딩 상태를 처리합니다.
  */
-export default function VoteDetailServer({ id, req, res }: VoteDetailServerProps) {
+export default function VoteDetailServer({
+  id,
+  req,
+  res,
+}: VoteDetailServerProps) {
   return (
-    <Suspense fallback={<LoadingState message="투표 정보를 불러오는 중..." size="medium" fullPage />}>
+    <Suspense
+      fallback={
+        <LoadingState
+          message='투표 정보를 불러오는 중...'
+          size='medium'
+          fullPage
+        />
+      }
+    >
       <VoteDetailData id={id} req={req} res={res} />
     </Suspense>
   );

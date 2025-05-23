@@ -1,10 +1,13 @@
-import {Suspense} from 'react';
-import type {Metadata} from 'next';
-import {getVoteById, getVotes} from '@/lib/data-fetching/vote-service';
+import { Suspense } from 'react';
+import type { Metadata } from 'next';
+import { getVoteById, getVotes } from '@/lib/data-fetching/vote-service';
 import { VoteDetail } from '@/components/shared';
 import { VoteDetailSkeleton } from '@/components/server';
 import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
-import { createPageMetadata, createImageMetadata } from '@/app/[lang]/utils/metadata-utils';
+import {
+  createPageMetadata,
+  createImageMetadata,
+} from '@/app/[lang]/utils/metadata-utils';
 import { createVoteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 
@@ -18,9 +21,9 @@ export const revalidate = 30;
 export async function generateStaticParams() {
   // 활성화된 투표만 사전 생성
   const votes = await getVotes('ongoing');
-  
-  return votes.map(vote => ({
-    id: String(vote.id)
+
+  return votes.map((vote) => ({
+    id: String(vote.id),
   }));
 }
 
@@ -28,24 +31,24 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string; lang: string };
+  params: Promise<{ id: string; lang: string }>;
 }): Promise<Metadata> {
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
-  const langParam = await Promise.resolve(params.lang || 'ko');
-  const lang = String(langParam);
-  
+  const { id, lang: langParam } = await params;
+  const lang = String(langParam || 'ko');
+
   // ISR 메타데이터 속성 추가
   const isrOptions = createISRMetadata(30);
-  
-  const vote = await getVoteById(params.id);
+
+  const vote = await getVoteById(id);
 
   if (!vote) {
     return {
       ...createPageMetadata(
         '투표 - 정보 없음',
-        '해당 투표를 찾을 수 없습니다.'
+        '해당 투표를 찾을 수 없습니다.',
       ),
-      ...isrOptions
+      ...isrOptions,
     };
   }
 
@@ -59,60 +62,56 @@ export async function generateMetadata({
     title = '투표';
   }
 
-  const description = vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
-  
+  const description =
+    vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
+
   // 기본 메타데이터
   const baseMetadata = createPageMetadata(
     `${title} - 피크닉 투표`,
     description,
     {
       alternates: {
-        canonical: `${SITE_URL}/${lang}/vote/${params.id}`,
+        canonical: `${SITE_URL}/${lang}/vote/${id}`,
         languages: {
-          'ko-KR': `${SITE_URL}/ko/vote/${params.id}`,
-          'en-US': `${SITE_URL}/en/vote/${params.id}`,
+          'ko-KR': `${SITE_URL}/ko/vote/${id}`,
+          'en-US': `${SITE_URL}/en/vote/${id}`,
         },
       },
-    }
+    },
   );
 
   // 이미지가 있는 경우 이미지 메타데이터 추가
   if (vote.mainImage) {
-    const imageMetadata = createImageMetadata(
-      vote.mainImage,
-      title,
-      1200,
-      630
-    );
-    
+    const imageMetadata = createImageMetadata(vote.mainImage, title, 1200, 630);
+
     return {
       ...baseMetadata,
       ...imageMetadata,
-      ...isrOptions
+      ...isrOptions,
     };
   }
 
   return {
     ...baseMetadata,
-    ...isrOptions
+    ...isrOptions,
   };
 }
 
 // PageProps 타입 생략, 직접 함수 파라미터에 타입을 인라인으로 정의
-export default async function VoteDetailPage({ 
-  params 
-}: { 
-  params: { id: string; lang: string } 
+export default async function VoteDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string; lang: string }>;
 }) {
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
-  const langParam = await Promise.resolve(params.lang || 'ko');
-  const lang = String(langParam);
-  
-  const vote = await getVoteById(params.id);
-  
+  const { id, lang: langParam } = await params;
+  const lang = String(langParam || 'ko');
+
+  const vote = await getVoteById(id);
+
   // 구조화된 데이터를 위한 정보 준비
   let schemaData: any = null;
-  
+
   if (vote) {
     let title: string;
     if (typeof vote.title === 'string') {
@@ -123,16 +122,17 @@ export default async function VoteDetailPage({
     } else {
       title = '투표';
     }
-    
-    const description = vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
-    
+
+    const description =
+      vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
+
     schemaData = createVoteSchema(
       title,
       description,
       vote.mainImage ? `https://cdn.picnic.fan/${vote.mainImage}` : undefined,
       vote.startAt || undefined,
       vote.stopAt || undefined,
-      `${SITE_URL}/${lang}/vote/${params.id}`
+      `${SITE_URL}/${lang}/vote/${id}`,
     );
   }
 
@@ -140,14 +140,14 @@ export default async function VoteDetailPage({
     <>
       {schemaData && (
         <script
-          type="application/ld+json"
+          type='application/ld+json'
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(schemaData)
+            __html: JSON.stringify(schemaData),
           }}
         />
       )}
       <Suspense fallback={<VoteDetailSkeleton />}>
-        <VoteDetail id={params.id} />
+        <VoteDetail id={id} />
       </Suspense>
     </>
   );

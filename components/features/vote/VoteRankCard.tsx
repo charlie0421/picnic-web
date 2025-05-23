@@ -1,10 +1,12 @@
 'use client';
 
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import {VoteItem} from '@/types/interfaces';
-import {getLocalizedString} from '@/utils/api/strings';
-import {useLanguageStore} from '@/stores/languageStore';
+import { VoteItem } from '@/types/interfaces';
+import { getLocalizedString } from '@/utils/api/strings';
+import { useLanguageStore } from '@/stores/languageStore';
+import { DefaultAvatar } from '@/components/ui/ProfileImageContainer';
+import { getCdnImageUrl } from '@/utils/api/image';
 
 interface VoteRankCardProps {
   item: VoteItem & { artist?: any };
@@ -41,45 +43,49 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
 
   // 컴포넌트 마운트 시 초기화
   useEffect(() => {
+    console.log(`[VoteRankCard] 마운트 - 순위 ${rank}위:`, {
+      id: item.id,
+      artistName: item.artist?.name?.ko || '이름 없음',
+      initialVoteTotal,
+      currentVoteTotal: localVoteTotal,
+    });
+
+    // 클린업 함수 - 언마운트 시 모든 타이머 정리
     return () => {
-      // 컴포넌트 언마운트 시 모든 타이머 정리
       if (animationTimeoutRef.current) {
         clearTimeout(animationTimeoutRef.current);
       }
     };
   }, []);
 
+  // 외부에서 voteTotal이 변경되면 로컬 상태 업데이트
+  useEffect(() => {
+    // 외부 voteTotal이 있고 현재 로컬 상태와 다른 경우에만 업데이트
+    if (voteTotal !== undefined && voteTotal !== localVoteTotal) {
+      console.log(`[VoteRankCard] 투표수 업데이트 - 순위 ${rank}위:`, {
+        id: item.id,
+        fromTotal: localVoteTotal,
+        toTotal: voteTotal,
+        change: voteTotal - localVoteTotal,
+      });
+
+      setLocalVoteTotal(voteTotal);
+
+      // 처리된 투표수 목록에 추가 (중복 처리 방지)
+      processedVoteTotals.current.add(voteTotal);
+      prevVoteTotal.current = voteTotal;
+    }
+  }, [voteTotal, rank, item.id]);
+
   // 외부에서 voteChange가 제공되었을 때 업데이트
   useEffect(() => {
     if (voteChange !== 0) {
       setCurrentVoteChange(voteChange);
-    }
-  }, [voteChange]);
 
-  // 투표수 변경 감지 - 애니메이션 중복 방지 강화
-  useEffect(() => {
-    // voteTotal이 없거나 이미 처리된 값이면 무시
-    if (voteTotal === undefined || processedVoteTotals.current.has(voteTotal)) {
-      return;
-    }
-
-    // 실제 투표수 변경이 있는 경우에만 처리
-    if (voteTotal !== localVoteTotal) {
-      // 변화량 계산
-      const calculatedChange = voteTotal - prevVoteTotal.current;
-
-      // 기존 애니메이션 타이머 정리
+      // 애니메이션 타이머 설정 (기존 타이머 정리 후)
       if (animationTimeoutRef.current) {
         clearTimeout(animationTimeoutRef.current);
       }
-
-      // 새로운 투표수 저장
-      processedVoteTotals.current.add(voteTotal);
-      prevVoteTotal.current = voteTotal;
-
-      // 상태 업데이트 및 애니메이션 활성화
-      setLocalVoteTotal(voteTotal);
-      setCurrentVoteChange(calculatedChange);
 
       // 1초 후 애니메이션 종료
       animationTimeoutRef.current = setTimeout(() => {
@@ -87,14 +93,23 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
         animationTimeoutRef.current = null;
       }, 1000);
     }
-  }, [voteTotal]);
+  }, [voteChange]);
 
   // 부모 컴포넌트에 초기값 전달 (한 번만 실행)
   useEffect(() => {
-    if (onVoteChange && localVoteTotal !== undefined && !processedVoteTotals.current.has(localVoteTotal)) {
+    if (
+      onVoteChange &&
+      localVoteTotal !== undefined &&
+      !processedVoteTotals.current.has(localVoteTotal)
+    ) {
+      console.log(
+        `[VoteRankCard] 초기 투표수 전달 - 순위 ${rank}위:`,
+        localVoteTotal,
+      );
       onVoteChange(localVoteTotal);
+      processedVoteTotals.current.add(localVoteTotal);
     }
-  }, [localVoteTotal, onVoteChange]);
+  }, [localVoteTotal, onVoteChange, rank]);
 
   // 투표수 변화가 있고 애니메이션 중일 때만 변화량 표시
   const shouldShowVoteChange =
@@ -111,14 +126,24 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
 
   // 2:1.5:1 비율에 따른 카드 클래스 결정
   const getCardWidthClass = (rankNum: number): string => {
-    if (rankNum === 1) return 'w-[44%]'; // 2/4.5 ≈ 44%
-    if (rankNum === 2) return 'w-[33%]'; // 1.5/4.5 ≈ 33%
-    return 'w-[23%]'; // 1/4.5 ≈ 23%
+    // 너비를 더 확실하게 구분하여 시각적으로 차별화
+    if (rankNum === 1) return 'w-[50%] h-auto'; // 더 넓게 설정
+    if (rankNum === 2) return 'w-[35%] h-auto'; // 중간 크기
+    return 'w-[30%] h-auto'; // 가장 작은 크기
   };
 
   // className에 너비 클래스가 포함되어 있으면 기본 너비 클래스를 사용하지 않음
   const hasWidthClass = className.includes('w-');
   const cardWidthClass = hasWidthClass ? '' : getCardWidthClass(rank);
+
+  useEffect(() => {
+    console.log(`[VoteRankCard] 렌더링 - 순위 ${rank}위:`, {
+      artistName: item.artist?.name?.ko || '이름 없음',
+      voteTotal: localVoteTotal,
+      hasImage: !!item.artist?.image,
+      className: cardWidthClass,
+    });
+  }, [rank, item, localVoteTotal, cardWidthClass]);
 
   return (
     <div
@@ -126,10 +151,10 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
         isAnimating ? 'animate-pulse' : ''
       } ${
         rank === 1
-          ? 'bg-gradient-to-br from-yellow-50/30 to-yellow-100/30 border-2 border-yellow-200/50 order-2'
+          ? 'bg-gradient-to-br from-yellow-50/80 to-yellow-100/80 border-2 border-yellow-300/80 order-2 z-10 scale-110 shadow-xl'
           : rank === 2
-          ? 'bg-gradient-to-br from-gray-50/30 to-gray-100/30 border border-gray-200/50 order-1'
-          : 'bg-gradient-to-br from-amber-50/30 to-amber-100/30 border border-amber-200/50 order-3'
+          ? 'bg-gradient-to-br from-gray-50/80 to-gray-100/80 border border-gray-300/70 order-1 z-5 scale-100 shadow-lg'
+          : 'bg-gradient-to-br from-amber-50/80 to-amber-100/80 border border-amber-300/70 order-3 z-5 scale-100 shadow-lg'
       } ${cardWidthClass} ${className}`}
     >
       {/* 컨텐츠 컨테이너 */}
@@ -151,17 +176,21 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
           <div className='aspect-square relative'>
             <div className='absolute inset-0 rounded-full overflow-hidden border-4 border-yellow-200/50 shadow-lg'>
               {item.artist && item.artist.image ? (
-                <Image
-                  src={`${process.env.NEXT_PUBLIC_CDN_URL}/${item.artist.image}`}
+                <img
+                  src={getCdnImageUrl(item.artist.image)}
                   alt={getLocalizedString(item.artist.name)}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className='w-full h-full object-cover'
-                  priority
+                  loading={rank <= 3 ? 'eager' : 'lazy'} // 상위 3개 항목은 우선 로드
+                  onError={(e) => {
+                    console.error(`이미지 로드 오류: ${item.artist.image}`);
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/images/default-artist.png';
+                    target.onerror = null; // 추가 오류 방지
+                  }}
                 />
               ) : (
-                <div className='w-full h-full bg-gray-200/50 flex items-center justify-center'>
-                  <span className='text-gray-400 text-xs'>이미지 없음</span>
+                <div className='w-full h-full bg-gray-200 flex items-center justify-center'>
+                  <DefaultAvatar width={100} height={100} />
                 </div>
               )}
             </div>
@@ -180,7 +209,8 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
             >
               <span className='truncate overflow-ellipsis max-w-full'>
                 {item.artist
-                  ? getLocalizedString(item.artist.name) || '알 수 없는 아티스트'
+                  ? getLocalizedString(item.artist.name) ||
+                    '알 수 없는 아티스트'
                   : '알 수 없는 아티스트'}
               </span>
             </div>
@@ -190,7 +220,9 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
                   {getLocalizedString(item.artist.artist_group.name)}
                 </span>
               ) : (
-                <span className='text-[10px] text-transparent select-none'>-</span>
+                <span className='text-[10px] text-transparent select-none'>
+                  -
+                </span>
               )}
             </div>
             <div className='flex items-center justify-center font-bold overflow-hidden min-w-0 max-w-full'>

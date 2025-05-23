@@ -1,4 +1,4 @@
-import {useLanguageStore} from "@/stores/languageStore";
+import { useLanguageStore } from "@/stores/languageStore";
 
 /**
  * CDN 이미지 URL을 생성하는 유틸리티 함수
@@ -55,7 +55,8 @@ export const getCdnImageUrl = (
   }
 
   // 슬래시로 시작하는지 확인하고 공백 제거
-  const normalizedPath = (path.startsWith("/") ? path.substring(1) : path).trim();
+  const normalizedPath = (path.startsWith("/") ? path.substring(1) : path)
+    .trim();
 
   // 최종 URL 생성
   const widthParam = width ? `?w=${width}` : "";
@@ -63,4 +64,3 @@ export const getCdnImageUrl = (
 
   return finalUrl;
 };
-

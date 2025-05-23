@@ -1,7 +1,7 @@
 /**
  * 하이드레이션 안전한 데이터 로딩을 위한 유틸리티
  */
-import {useEffect, useState} from 'react';
+import { useEffect, useState } from "react";
 
 type DataFetcher<T> = () => Promise<T>;
 
@@ -16,7 +16,7 @@ type DataFetcher<T> = () => Promise<T>;
 export function useSafeData<T>(
   fetcher: DataFetcher<T>,
   initialData?: T,
-  dependencies: any[] = []
+  dependencies: any[] = [],
 ) {
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<T | undefined>(initialData);
@@ -34,7 +34,6 @@ export function useSafeData<T>(
     if (!mounted) return;
 
     let isCancelled = false;
-    let timeoutId: NodeJS.Timeout;
 
     const loadData = async () => {
       if (!initialData) {
@@ -50,7 +49,7 @@ export function useSafeData<T>(
         setError(null);
       } catch (err) {
         if (isCancelled) return;
-        console.error('데이터 로딩 중 오류 발생:', err);
+        console.error("데이터 로딩 중 오류 발생:", err);
         setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         if (!isCancelled) {
@@ -62,12 +61,8 @@ export function useSafeData<T>(
     // 초기 데이터 로드
     loadData();
 
-    // 30초마다 데이터 새로고침
-    timeoutId = setInterval(loadData, 30000);
-
     return () => {
       isCancelled = true;
-      clearInterval(timeoutId);
     };
   }, [mounted, initialData, ...dependencies]);
 
@@ -78,14 +73,14 @@ export function useSafeData<T>(
  * 하이드레이션 안전한 방식으로 데이터를 새로고침하는 훅
  *
  * @param fetcher 데이터를 가져오는 비동기 함수
- * @param interval 새로고침 간격 (밀리초)
+ * @param interval 새로고침 간격 (밀리초, 사용하지 않음)
  * @param initialData 초기 데이터 (SSR에서 제공된 경우)
  * @returns 로딩 상태, 에러, 데이터를 포함하는 객체와 수동 새로고침 함수
  */
 export function useRefreshableData<T>(
   fetcher: DataFetcher<T>,
   interval: number = 0,
-  initialData?: T
+  initialData?: T,
 ) {
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<T | undefined>(initialData);
@@ -108,7 +103,7 @@ export function useRefreshableData<T>(
       setLastRefreshed(new Date());
       setError(null);
     } catch (err) {
-      console.error('데이터 새로고침 중 오류 발생:', err);
+      console.error("데이터 새로고침 중 오류 발생:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
@@ -124,17 +119,6 @@ export function useRefreshableData<T>(
       refresh();
     }
   }, [mounted, initialData]);
-
-  // 정기적 새로고침 설정
-  useEffect(() => {
-    if (!mounted || interval <= 0) return;
-
-    const timer = setInterval(refresh, interval);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [mounted, interval]);
 
   return { data, isLoading, error, mounted, refresh, lastRefreshed };
 }

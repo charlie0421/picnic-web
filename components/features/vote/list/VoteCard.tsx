@@ -71,15 +71,6 @@ const VoteCard = React.memo(
       return VOTE_STATUS.ONGOING;
     }, [vote.startAt, vote.stopAt]);
 
-    // 1초마다 현재 시간 업데이트
-    useEffect(() => {
-      const timer = setInterval(() => {
-        now.current = new Date();
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }, []);
-
     return (
       <Link href={`/vote/${vote.id}`}>
         <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
@@ -177,7 +168,10 @@ const VoteCard = React.memo(
                 </div>
                 <div className='flex flex-wrap gap-2'>
                   {vote.voteReward.slice(0, 2).map((reward) => (
-                    <RewardItem key={reward.reward?.id} reward={reward.reward!} />
+                    <RewardItem
+                      key={reward.reward?.id}
+                      reward={reward.reward!}
+                    />
                   ))}
                   {vote.voteReward.length > 2 && (
                     <div className='w-full text-center'>
@@ -228,4 +222,4 @@ const VoteCard = React.memo(
 
 VoteCard.displayName = 'VoteCard';
 
-export default VoteCard; 
+export default VoteCard;

@@ -1,13 +1,13 @@
 'use client';
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import {Banner} from '@/types/interfaces';
-import {getCdnImageUrl} from '@/utils/api/image';
-import {getBanners} from '@/utils/api/queries';
+import { Banner } from '@/types/interfaces';
+import { getCdnImageUrl } from '@/utils/api/image';
+import { getBanners } from '@/utils/api/queries';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import {getLocalizedString} from '@/utils/api/strings';
+import { getLocalizedString } from '@/utils/api/strings';
 
 const BannerList: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -18,7 +18,6 @@ const BannerList: React.FC = () => {
   const [isTablet, setIsTablet] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const autoScrollRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -72,9 +71,8 @@ const BannerList: React.FC = () => {
   const nextBanner = useCallback(() => {
     if (banners.length <= 3 && !isMobile && !isTablet) return;
     setCurrentIndex((prev) => {
-      const totalGroups = isMobile || isTablet
-        ? Math.ceil(banners.length / 2)
-        : banners.length;
+      const totalGroups =
+        isMobile || isTablet ? Math.ceil(banners.length / 2) : banners.length;
 
       const next = prev + 1;
       if (next >= totalGroups) {
@@ -88,9 +86,8 @@ const BannerList: React.FC = () => {
   const prevBanner = useCallback(() => {
     if (banners.length <= 3 && !isMobile && !isTablet) return;
     setCurrentIndex((prev) => {
-      const totalGroups = isMobile || isTablet
-        ? Math.ceil(banners.length / 2)
-        : banners.length;
+      const totalGroups =
+        isMobile || isTablet ? Math.ceil(banners.length / 2) : banners.length;
 
       const next = prev - 1;
       if (next < 0) {
@@ -103,26 +100,6 @@ const BannerList: React.FC = () => {
   // 자동 스크롤 시작
   useEffect(() => {
     if (banners.length <= 3 && !isMobile && !isTablet) return;
-
-    const startAutoScroll = () => {
-      if (autoScrollRef.current) {
-        clearInterval(autoScrollRef.current);
-      }
-
-      autoScrollRef.current = setInterval(() => {
-        if (!isPaused) {
-          nextBanner();
-        }
-      }, 5000);
-    };
-
-    startAutoScroll();
-
-    return () => {
-      if (autoScrollRef.current) {
-        clearInterval(autoScrollRef.current);
-      }
-    };
   }, [banners.length, isPaused, nextBanner, isMobile, isTablet]);
 
   // 배너 렌더링
@@ -138,7 +115,7 @@ const BannerList: React.FC = () => {
                 src={getCdnImageUrl(getLocalizedString(image), 786)}
                 alt={typeof banner.title === 'string' ? banner.title : '배너'}
                 fill
-                sizes="(max-width: 639px) 50vw, (max-width: 1023px) 50vw, 33.33vw"
+                sizes='(max-width: 639px) 50vw, (max-width: 1023px) 50vw, 33.33vw'
                 className='object-cover'
                 priority
               />
@@ -208,14 +185,14 @@ const BannerList: React.FC = () => {
               {renderBanner(banner)}
             </div>
           ))}
-          </div>
+        </div>
       </section>
     );
   }
 
   // 현재 인덱스를 기준으로 표시할 배너들을 계산
   const getVisibleBanners = () => {
-    const result = [];
+    const result: Banner[] = [];
     const totalBanners = banners.length;
 
     // 디바이스 크기별 표시할 배너 수
@@ -241,40 +218,43 @@ const BannerList: React.FC = () => {
             <div
               className='flex transition-all duration-500 ease-in-out'
               style={{
-                transform: isMobile || isTablet
-                  ? `translateX(-${currentIndex * 100}%)`
-                  : `translateX(0%)`,
+                transform:
+                  isMobile || isTablet
+                    ? `translateX(-${currentIndex * 100}%)`
+                    : `translateX(0%)`,
               }}
             >
               {isMobile || isTablet ? (
                 // 모바일/태블릿: 쌍으로 슬라이드(한 화면에 2개씩)
-                [...Array(Math.ceil(banners.length / 2))].map((_, groupIndex) => {
-                  const startIdx = (groupIndex * 2) % banners.length;
-                  const bannerPair = [
-                    banners[startIdx],
-                    banners[(startIdx + 1) % banners.length]
-                  ].filter(Boolean); // 마지막에 1개만 남을 경우 대비
+                [...Array(Math.ceil(banners.length / 2))].map(
+                  (_, groupIndex) => {
+                    const startIdx = (groupIndex * 2) % banners.length;
+                    const bannerPair = [
+                      banners[startIdx],
+                      banners[(startIdx + 1) % banners.length],
+                    ].filter(Boolean); // 마지막에 1개만 남을 경우 대비
 
-                  return (
-                    <div key={`group-${groupIndex}`} className="w-full flex-shrink-0">
-                      <div className="grid grid-cols-2 gap-2">
-                        {bannerPair.map((banner) => (
-                          <div key={banner.id} className="w-full">
-                            {renderBanner(banner)}
-                          </div>
-                        ))}
+                    return (
+                      <div
+                        key={`group-${groupIndex}`}
+                        className='w-full flex-shrink-0'
+                      >
+                        <div className='grid grid-cols-2 gap-2'>
+                          {bannerPair.map((banner) => (
+                            <div key={banner.id} className='w-full'>
+                              {renderBanner(banner)}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  },
+                )
               ) : (
                 // 데스크탑: 현재 보이는 3개의 배너만 표시
-                <div className="w-full grid grid-cols-3 gap-4 transition-all duration-500 ease-in-out">
+                <div className='w-full grid grid-cols-3 gap-4 transition-all duration-500 ease-in-out'>
                   {getVisibleBanners().map((banner, index) => (
-                    <div
-                      key={`${banner.id}-${index}`}
-                      className="w-full"
-                    >
+                    <div key={`${banner.id}-${index}`} className='w-full'>
                       {renderBanner(banner)}
                     </div>
                   ))}

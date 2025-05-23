@@ -1,20 +1,33 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSupabase } from '@/components/providers/SupabaseProvider';
 import { Vote } from '@/types/interfaces';
-import { useVoteFilterStore, VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
+import {
+  useVoteFilterStore,
+  VOTE_STATUS,
+  VOTE_AREAS,
+  VoteStatus,
+  VoteArea,
+} from '@/stores/voteFilterStore';
 import VoteFilterSection from './VoteFilterSection';
 import VoteListSection from './VoteListSection';
 import VotePagination from './VotePagination';
 
 interface VoteListProps {
   status?: string;
+  initialVotes?: Vote[];
 }
 
-const VoteList: React.FC<VoteListProps> = ({ status }) => {
+const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
   const { supabase } = useSupabase();
   const { currentLanguage } = useLanguageStore();
   const router = useRouter();
@@ -23,10 +36,15 @@ const VoteList: React.FC<VoteListProps> = ({ status }) => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const { selectedStatus, selectedArea } = useVoteFilterStore();
-  const [votes, setVotes] = useState<Vote[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [votes, setVotes] = useState<Vote[]>(initialVotes);
+  const [isLoading, setIsLoading] = useState(initialVotes.length === 0);
   const [error, setError] = useState<Error | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const initialDataLoaded = useRef(initialVotes.length > 0);
+  const hasInitialData = useRef(initialVotes.length > 0);
+  // 이전 필터 값 저장용 ref - 타입 에러 방지를 위해 타입 캐스팅 사용
+  const prevStatusRef = useRef(selectedStatus as unknown as string);
+  const prevAreaRef = useRef(selectedArea as unknown as string);
 
   // status prop이 제공되면 그 값을 사용하고, 없으면 store의 값을 사용
   const effectiveStatus = status || selectedStatus;
@@ -159,34 +177,86 @@ const VoteList: React.FC<VoteListProps> = ({ status }) => {
     [supabase, effectiveStatus, selectedArea, PAGE_SIZE, isTransitioning],
   );
 
+  // 초기 로드 - 서버에서 가져온 데이터가 없는 경우에만 실행
+  useEffect(() => {
+    console.log('[VoteList] 초기 로드 useEffect 실행', {
+      hasInitialData: hasInitialData.current,
+      initialVotesLength: initialVotes.length,
+    });
+
+    // 서버에서 가져온 초기 데이터가 없는 경우에만 클라이언트에서 데이터를 가져옴
+    if (!hasInitialData.current) {
+      console.log(
+        '[VoteList] 초기 데이터 없음, 클라이언트에서 데이터 가져오기',
+      );
+      fetchVotes(true);
+    } else {
+      console.log('[VoteList] 초기 데이터 있음, 클라이언트 데이터 패치 건너뜀');
+
+      // 초기 데이터가 있더라도 화면에 노출되는지 확인하기 위해 로그 출력
+      console.log('[VoteList] 초기 투표 데이터:', initialVotes);
+
+      // votes 상태가 initialVotes로 초기화되었는지 확인
+      console.log('[VoteList] 현재 votes 상태:', votes);
+    }
+
+    initialDataLoaded.current = true;
+  }, [fetchVotes, initialVotes, votes]);
+
   // URL 파라미터와 필터 상태 변경 감지
   useEffect(() => {
-    const urlStatus = searchParams.get('status') as typeof selectedStatus || VOTE_STATUS.ONGOING;
-    const area = searchParams.get('area') as typeof selectedArea || VOTE_AREAS.KPOP;
-    
-    if (!isLoading && !isTransitioning) {
+    const urlStatus =
+      (searchParams.get('status') as typeof selectedStatus) ||
+      VOTE_STATUS.ONGOING;
+    const area =
+      (searchParams.get('area') as typeof selectedArea) || VOTE_AREAS.KPOP;
+
+    // 실제로 필터 값이 변경되었는지 확인
+    const isFilterChanged =
+      effectiveStatus !== prevStatusRef.current ||
+      selectedArea !== prevAreaRef.current;
+
+    // 필터가 실제로 변경되었고, 초기 데이터가 처리된 후, 로딩 중이 아닐 때만 실행
+    if (
+      isFilterChanged &&
+      initialDataLoaded.current &&
+      !isLoading &&
+      !isTransitioning
+    ) {
+      console.log('[VoteList] 필터 실제 변경 감지:', {
+        이전상태: prevStatusRef.current,
+        새상태: effectiveStatus,
+        이전영역: prevAreaRef.current,
+        새영역: selectedArea,
+      });
+
+      // 현재 필터 값 저장
+      prevStatusRef.current = effectiveStatus;
+      prevAreaRef.current = selectedArea;
+
+      // 데이터 업데이트
       const updateData = async () => {
         try {
           setIsTransitioning(true);
           setPage(1);
-          await fetchVotes(false);
+          await fetchVotes(true);
         } catch (error) {
           console.error('데이터 업데이트 중 오류 발생:', error);
         } finally {
           setIsTransitioning(false);
         }
       };
-      
+
       updateData();
     }
-  }, [searchParams, effectiveStatus, selectedArea]);
-
-  // 언어 변경 시 쿼리 재실행
-  useEffect(() => {
-    if (currentLanguage && !isTransitioning) {
-      fetchVotes(false);
-    }
-  }, [currentLanguage, fetchVotes, isTransitioning]);
+  }, [
+    searchParams,
+    effectiveStatus,
+    selectedArea,
+    fetchVotes,
+    isLoading,
+    isTransitioning,
+  ]);
 
   // 표시할 투표 목록 계산
   const paginatedVotes = useMemo(() => {
@@ -196,12 +266,23 @@ const VoteList: React.FC<VoteListProps> = ({ status }) => {
     const end = page * PAGE_SIZE;
     const paginatedData = votes.slice(start, end);
     setHasMore(end < votes.length);
+
+    console.log('[VoteList] 페이지네이션된 투표 데이터:', {
+      total: votes.length,
+      paginatedCount: paginatedData.length,
+      hasMore: end < votes.length,
+      page,
+    });
+
     return paginatedData;
   }, [votes, page, PAGE_SIZE]);
 
-  const handleVoteClick = useCallback((voteId: string) => {
-    router.push(`/vote/${voteId}`);
-  }, [router]);
+  const handleVoteClick = useCallback(
+    (voteId: string) => {
+      router.push(`/vote/${voteId}`);
+    },
+    [router],
+  );
 
   const handleLoadMore = useCallback(() => {
     setPage((prev) => prev + 1);

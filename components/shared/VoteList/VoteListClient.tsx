@@ -4,7 +4,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useSupabase } from '@/components/providers/SupabaseProvider';
-import { useVoteFilterStore, VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
+import {
+  useVoteFilterStore,
+  VOTE_STATUS,
+  VOTE_AREAS,
+  VoteStatus,
+  VoteArea,
+} from '@/stores/voteFilterStore';
 import VoteFilterSection from '@/components/features/vote/list/VoteFilterSection';
 import VoteListSection from '@/components/features/vote/list/VoteListSection';
 import VotePagination from '@/components/features/vote/list/VotePagination';
@@ -12,23 +18,24 @@ import { Vote } from '@/types/interfaces';
 
 interface VoteListClientProps {
   initialVotes: Vote[];
-  initialStatus: string;
-  initialArea: string;
+  initialStatus: VoteStatus;
+  initialArea: VoteArea;
   error?: string;
 }
 
-const VoteListClient: React.FC<VoteListClientProps> = ({ 
+const VoteListClient: React.FC<VoteListClientProps> = ({
   initialVotes,
   initialStatus,
   initialArea,
-  error: initialError
+  error: initialError,
 }) => {
   const { supabase } = useSupabase();
   const { currentLanguage } = useLanguageStore();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setSelectedStatus, setSelectedArea, selectedStatus, selectedArea } = useVoteFilterStore();
-  
+  const { setSelectedStatus, setSelectedArea, selectedStatus, selectedArea } =
+    useVoteFilterStore();
+
   const PAGE_SIZE = 8;
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -174,16 +181,23 @@ const VoteListClient: React.FC<VoteListClientProps> = ({
 
   // URL 파라미터와 필터 상태 변경 감지
   useEffect(() => {
-    const status = searchParams.get('status') as typeof selectedStatus || VOTE_STATUS.ONGOING;
-    const area = searchParams.get('area') as typeof selectedArea || VOTE_AREAS.KPOP;
-    
+    const status =
+      (searchParams.get('status') as typeof selectedStatus) ||
+      VOTE_STATUS.ONGOING;
+    const area =
+      (searchParams.get('area') as typeof selectedArea) || VOTE_AREAS.KPOP;
+
     if (status !== selectedStatus || area !== selectedArea) {
       setSelectedStatus(status);
       setSelectedArea(area);
     }
 
     // 초기 로드가 아닐 때만 클라이언트 측에서 추가 페치
-    if (!initialVotes.length || status !== initialStatus || area !== initialArea) {
+    if (
+      !initialVotes.length ||
+      status !== initialStatus ||
+      area !== initialArea
+    ) {
       const updateData = async () => {
         try {
           setIsTransitioning(true);
@@ -195,10 +209,20 @@ const VoteListClient: React.FC<VoteListClientProps> = ({
           setIsTransitioning(false);
         }
       };
-      
+
       updateData();
     }
-  }, [searchParams, selectedStatus, selectedArea, initialVotes.length, initialStatus, initialArea, fetchVotes, setSelectedStatus, setSelectedArea]);
+  }, [
+    searchParams,
+    selectedStatus,
+    selectedArea,
+    initialVotes.length,
+    initialStatus,
+    initialArea,
+    fetchVotes,
+    setSelectedStatus,
+    setSelectedArea,
+  ]);
 
   // 언어 변경 시 쿼리 재실행
   useEffect(() => {
@@ -218,9 +242,12 @@ const VoteListClient: React.FC<VoteListClientProps> = ({
     return paginatedData;
   }, [votes, page, PAGE_SIZE]);
 
-  const handleVoteClick = useCallback((voteId: string) => {
-    router.push(`/vote/${voteId}`);
-  }, [router]);
+  const handleVoteClick = useCallback(
+    (voteId: string) => {
+      router.push(`/vote/${voteId}`);
+    },
+    [router],
+  );
 
   const handleLoadMore = useCallback(() => {
     setPage((prev) => prev + 1);
@@ -245,4 +272,4 @@ const VoteListClient: React.FC<VoteListClientProps> = ({
   );
 };
 
-export default React.memo(VoteListClient); 
+export default React.memo(VoteListClient);

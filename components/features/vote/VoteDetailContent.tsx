@@ -1,17 +1,17 @@
 'use client';
 
-import React, {useEffect, useMemo, useRef, useState,} from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import {format} from 'date-fns';
-import {ko} from 'date-fns/locale';
-import {Reward, Vote, VoteItem} from '@/types/interfaces';
-import {getVoteById, getVoteItems, getVoteRewards} from '@/utils/api/queries';
-import {getCdnImageUrl} from '@/utils/api/image';
-import {getLocalizedString} from '@/utils/api/strings';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { Reward, Vote, VoteItem } from '@/types/interfaces';
+import { getVoteById, getVoteItems, getVoteRewards } from '@/utils/api/queries';
+import { getCdnImageUrl } from '@/utils/api/image';
+import { getLocalizedString } from '@/utils/api/strings';
 import VoteDialog from '@/components/features/vote/dialogs/VoteDialog';
 import LoginDialog from '@/components/features/vote/dialogs/LoginDialog';
-import {useAuth} from '@/hooks/useAuth';
-import {useLanguageStore} from '@/stores/languageStore';
+import { useAuth } from '@/hooks/useAuth';
+import { useLanguageStore } from '@/stores/languageStore';
 import VoteSearch from '@/components/features/vote/VoteSearch';
 import VoteRewardPreview from '@/components/features/vote/VoteRewardPreview';
 import CountdownTimer from '@/components/features/CountdownTimer';
@@ -29,7 +29,7 @@ interface VoteDetailContentProps {
 const VoteDetailContent: React.FC<VoteDetailContentProps> = ({
   id,
   initialData,
-}): JSX.Element | null => {
+}): React.ReactNode => {
   const { isAuthenticated } = useAuth();
   const [vote, setVote] = useState<Vote | null>(initialData?.vote || null);
   const [voteItems, setVoteItems] = useState<VoteItem[]>(
@@ -141,8 +141,6 @@ const VoteDetailContent: React.FC<VoteDetailContentProps> = ({
     };
 
     fetchVoteItems();
-    const intervalId = setInterval(fetchVoteItems, 1000);
-    return () => clearInterval(intervalId);
   }, [id, voteStatus]);
 
   // 투표 아이템 랭킹 계산 (동점자 공동 순위 처리)

@@ -2,25 +2,31 @@ import React from 'react';
 import { createClient } from '@/utils/supabase-server-client';
 import { VoteListClient } from '@/components/client';
 import { Vote } from '@/types/interfaces';
-import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
+import {
+  VOTE_STATUS,
+  VOTE_AREAS,
+  VoteStatus,
+  VoteArea,
+} from '@/stores/voteFilterStore';
 
 interface VoteListProps {
-  initialStatus?: string;
-  initialArea?: string;
+  initialStatus?: VoteStatus;
+  initialArea?: VoteArea;
 }
 
-export default async function VoteList({ 
+export default async function VoteList({
   initialStatus = VOTE_STATUS.ONGOING,
-  initialArea = VOTE_AREAS.KPOP
+  initialArea = VOTE_AREAS.KPOP,
 }: VoteListProps) {
   // 서버에서 초기 데이터 페칭
-  const supabase = createClient();
+  const supabase = await createClient();
   const now = new Date().toISOString();
-  
+
   // 서버에서 필터링된 기본 투표 데이터 가져오기
   let query = supabase
     .from('vote')
-    .select(`
+    .select(
+      `
       *,
       vote_item!vote_id (
         id,
@@ -45,7 +51,8 @@ export default async function VoteList({
         reward_id,
         reward:reward_id (*)
       )
-    `)
+    `,
+    )
     .is('deleted_at', null);
 
   // 상태별 필터링
@@ -72,12 +79,25 @@ export default async function VoteList({
   if (voteError) {
     console.error('Vote fetch error:', voteError);
     // 에러 처리는 클라이언트 컴포넌트에서 수행
-    return <VoteListClient initialVotes={[]} initialStatus={initialStatus} initialArea={initialArea} error={voteError.message} />;
+    return (
+      <VoteListClient
+        initialVotes={[]}
+        initialStatus={initialStatus}
+        initialArea={initialArea}
+        error={voteError.message}
+      />
+    );
   }
 
   if (!voteData || voteData.length === 0) {
     // 데이터가 없는 경우 빈 배열 전달
-    return <VoteListClient initialVotes={[]} initialStatus={initialStatus} initialArea={initialArea} />;
+    return (
+      <VoteListClient
+        initialVotes={[]}
+        initialStatus={initialStatus}
+        initialArea={initialArea}
+      />
+    );
   }
 
   // 서버에서 데이터 포맷팅
@@ -121,5 +141,11 @@ export default async function VoteList({
   }));
 
   // 클라이언트 컴포넌트에 초기 데이터 전달
-  return <VoteListClient initialVotes={formattedVotes} initialStatus={initialStatus} initialArea={initialArea} />;
-} 
+  return (
+    <VoteListClient
+      initialVotes={formattedVotes}
+      initialStatus={initialStatus}
+      initialArea={initialArea}
+    />
+  );
+}
