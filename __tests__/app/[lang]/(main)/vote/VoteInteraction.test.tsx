@@ -17,7 +17,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // 목 컴포넌트에서 이벤트를 트리거하기 위한 클릭 핸들러 구현
-jest.mock('@/components/features/vote/list/VoteList', () => {
+jest.mock('@/components/client/vote/list/VoteList', () => {
   return function MockVoteList({ status }: { status?: string }) {
     const router = useRouter();
     
@@ -44,7 +44,7 @@ jest.mock('@/components/features/vote/list/VoteList', () => {
 });
 
 // BannerList 컴포넌트 모킹
-jest.mock('@/components/features/vote/BannerList', () => {
+jest.mock('@/components/client/vote/BannerList', () => {
   return function MockBannerList() {
     return <div data-testid="banner-list">배너 목록</div>;
   };

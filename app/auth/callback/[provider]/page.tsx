@@ -1,4 +1,4 @@
-import AuthCallback from '@/components/shared/AuthCallback';
+import AuthCallback from '@/components/client/auth/AuthCallback';
 
 // 타입 정의 수정
 type PageProps = {

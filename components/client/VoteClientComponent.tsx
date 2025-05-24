@@ -22,7 +22,7 @@ interface VoteClientComponentProps {
  * 이 컴포넌트는 서버 컴포넌트에서 가져온 데이터를 받아
  * 클라이언트 상호작용(정렬, 필터링, 클릭 이벤트 등)을 처리합니다.
  */
-export default function VoteClientComponent({ votes }: VoteClientComponentProps) {
+export function VoteClientComponent({ votes }: VoteClientComponentProps) {
   const [selectedVote, setSelectedVote] = useState<Vote | null>(null);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   

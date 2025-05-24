@@ -55,24 +55,6 @@ export type TableInsert<T extends TableName> =
 export type TableUpdate<T extends TableName> =
   Database["public"]["Tables"][T]["Update"];
 
-// RPC 함수 파라미터 타입
-export type RpcParams<T extends RpcFunctionName> = T extends "get_user_vote"
-  ? Database["public"]["Functions"]["get_user_vote"]["Args"]
-  : T extends "add_user_vote"
-    ? Database["public"]["Functions"]["add_user_vote"]["Args"]
-  : T extends "increment_vote"
-    ? Database["public"]["Functions"]["increment_vote"]["Args"]
-  : Record<string, any>;
-
-// RPC 함수 반환 타입
-export type RpcReturn<T extends RpcFunctionName> = T extends "get_user_vote"
-  ? Database["public"]["Functions"]["get_user_vote"]["Returns"]
-  : T extends "add_user_vote"
-    ? Database["public"]["Functions"]["add_user_vote"]["Returns"]
-  : T extends "increment_vote"
-    ? Database["public"]["Functions"]["increment_vote"]["Returns"]
-  : any;
-
 /**
  * 고급 필터 연산자 타입
  */
@@ -725,33 +707,6 @@ function getRpcFunctionName(
       return "increment_vote";
   }
 }
-
-/**
- * RPC 함수 호출
- */
-export const callRpc = cache(async <T extends RpcFunctionName>(
-  functionName: T,
-  params: RpcParams<T> = {} as RpcParams<T>,
-  options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<RpcReturn<T>> => {
-  const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase.rpc(
-    getRpcFunctionName(functionName),
-    params as any,
-  );
-
-  if (error) {
-    console.error(`RPC 함수 호출 오류 (${functionName}):`, error);
-    throw new DataFetchingError(
-      `RPC 함수를 호출할 수 없습니다: ${error.message}`,
-      ErrorType.SERVER,
-      500,
-      error,
-    );
-  }
-
-  return data as RpcReturn<T>;
-});
 
 /**
  * ID로 항목 조회 (없을 경우 404)

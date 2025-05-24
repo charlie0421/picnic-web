@@ -1,8 +1,9 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { getVoteById, getVotes } from '@/lib/data-fetching/vote-service';
-import { VoteDetail } from '@/components/shared';
-import { VoteDetailSkeleton } from '@/components/server';
+import { VoteDetail } from '@/components/client/vote';
+import { VoteDetailFetcher, VoteDetailSkeleton } from '@/components/server';
 import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
 import {
   createPageMetadata,
@@ -19,12 +20,17 @@ export const revalidate = 30;
 
 // 정적 경로 생성
 export async function generateStaticParams() {
-  // 활성화된 투표만 사전 생성
-  const votes = await getVotes('ongoing');
-
-  return votes.map((vote) => ({
-    id: String(vote.id),
-  }));
+  try {
+    // 활성화된 투표만 사전 생성
+    const votes = await getVotes('ongoing');
+    
+    return votes.map((vote) => ({
+      id: String(vote.id),
+    }));
+  } catch (error) {
+    console.error('generateStaticParams 에러:', error);
+    return [];
+  }
 }
 
 // 메타데이터 동적 생성
@@ -63,7 +69,7 @@ export async function generateMetadata({
   }
 
   const description =
-    vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
+    vote.vote_content || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
 
   // 기본 메타데이터
   const baseMetadata = createPageMetadata(
@@ -81,8 +87,8 @@ export async function generateMetadata({
   );
 
   // 이미지가 있는 경우 이미지 메타데이터 추가
-  if (vote.mainImage) {
-    const imageMetadata = createImageMetadata(vote.mainImage, title, 1200, 630);
+  if (vote.main_image) {
+    const imageMetadata = createImageMetadata(vote.main_image, title, 1200, 630);
 
     return {
       ...baseMetadata,
@@ -109,32 +115,35 @@ export default async function VoteDetailPage({
 
   const vote = await getVoteById(id);
 
+  // 투표가 없으면 404 페이지로 이동
+  if (!vote) {
+    notFound();
+  }
+
   // 구조화된 데이터를 위한 정보 준비
   let schemaData: any = null;
 
-  if (vote) {
-    let title: string;
-    if (typeof vote.title === 'string') {
-      title = vote.title;
-    } else if (vote.title && typeof vote.title === 'object') {
-      const titleObj = vote.title as { ko?: string; en?: string };
-      title = titleObj.ko || titleObj.en || '투표';
-    } else {
-      title = '투표';
-    }
-
-    const description =
-      vote.voteContent || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
-
-    schemaData = createVoteSchema(
-      title,
-      description,
-      vote.mainImage ? `https://cdn.picnic.fan/${vote.mainImage}` : undefined,
-      vote.startAt || undefined,
-      vote.stopAt || undefined,
-      `${SITE_URL}/${lang}/vote/${id}`,
-    );
+  let title: string;
+  if (typeof vote.title === 'string') {
+    title = vote.title;
+  } else if (vote.title && typeof vote.title === 'object') {
+    const titleObj = vote.title as { ko?: string; en?: string };
+    title = titleObj.ko || titleObj.en || '투표';
+  } else {
+    title = '투표';
   }
+
+  const description =
+    vote.vote_content || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
+
+  schemaData = createVoteSchema(
+    title,
+    description,
+    vote.main_image ? `https://cdn.picnic.fan/${vote.main_image}` : undefined,
+    vote.start_at || undefined,
+    vote.stop_at || undefined,
+    `${SITE_URL}/${lang}/vote/${id}`,
+  );
 
   return (
     <>
@@ -147,7 +156,7 @@ export default async function VoteDetailPage({
         />
       )}
       <Suspense fallback={<VoteDetailSkeleton />}>
-        <VoteDetail id={id} />
+        <VoteDetailFetcher id={id} />
       </Suspense>
     </>
   );

@@ -2,75 +2,131 @@ import { createServerClient } from "@supabase/ssr";
 import { cache } from "react";
 
 /**
- * 동적 임포트를 사용하여 App Router 환경에서만 next/headers를 로드
- * Pages Router 환경에서는 대체 구현을 사용
+ * 서버 환경 체크 - 엄격한 검증
  */
-const getAppRouterCookieStore = async () => {
-  try {
-    // App Router 전용 API (동적 임포트)
-    const { cookies } = await import("next/headers");
-    return cookies();
-  } catch (error) {
-    // Pages Router 환경인 경우 호환 가능한 대체 구현 반환
-    console.warn(
-      "next/headers를 가져올 수 없습니다. Pages Router 환경으로 대체합니다.",
-    );
-    return {
-      get: (name: string) => null, // 서버 환경에서는 쿠키 값을 가져올 수 없으므로 null 반환
-      set: () => {},
-      delete: () => {},
-    };
-  }
-};
-
-/**
- * 서버 환경 감지
- * 브라우저에서는 false, 서버에서는 true 반환
- */
-const isServerEnvironment = () => {
-  return typeof window === "undefined";
-};
-
-// createClient 함수를 캐싱하여 동일한 요청 내에서 재사용
-export const createClient = cache(async () => {
-  // 서버 환경이 아닌 경우 대체 구현 반환
-  if (!isServerEnvironment()) {
+function assertServerEnvironment() {
+  if (typeof window !== "undefined") {
     throw new Error(
       "createClient는 서버 환경에서만 호출해야 합니다. 클라이언트에서는 createClientComponentClient를 사용하세요.",
     );
   }
+  
+  if (typeof process === "undefined") {
+    throw new Error("서버 환경이 아닙니다. process 객체를 찾을 수 없습니다.");
+  }
+}
 
-  const cookieStore = await getAppRouterCookieStore();
+/**
+ * 안전한 쿠키 스토어 생성 함수
+ */
+async function createSafeCookieStore() {
+  try {
+    // Dynamic import로만 next/headers 로드
+    const { cookies } = await import("next/headers");
+    
+    // Next.js 15에서는 반드시 async 함수 내에서 호출
+    const cookieStore = await cookies();
+    
+    return {
+      get: (name: string) => {
+        try {
+          const cookie = cookieStore.get(name);
+          return cookie?.value;
+        } catch (error) {
+          // Request scope 밖에서 호출된 경우 undefined 반환
+          return undefined;
+        }
+      },
+      set: (name: string, value: string, options?: any) => {
+        try {
+          cookieStore.set(name, value, options);
+        } catch (error) {
+          // Request scope 밖에서는 무시
+        }
+      },
+      delete: (name: string) => {
+        try {
+          cookieStore.delete(name);
+        } catch (error) {
+          // Request scope 밖에서는 무시
+        }
+      },
+    };
+  } catch (error) {
+    // next/headers를 사용할 수 없는 환경에서는 빈 구현 반환
+    return {
+      get: () => undefined,
+      set: () => {},
+      delete: () => {},
+    };
+  }
+}
+
+/**
+ * 서버 컴포넌트에서만 사용할 수 있는 Supabase 클라이언트 생성
+ * Next.js 15 App Router 환경에서 안전하게 cookies 사용
+ */
+export const createClient = cache(async () => {
+  assertServerEnvironment();
+
+  const cookieStore = await createSafeCookieStore();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        get(name: string) {
-          const cookie = cookieStore.get(name);
-          return cookie?.value;
-        },
-        set(name: string, value: string, options: any) {
-          try {
-            cookieStore.set({ name, value, ...options });
-          } catch (error) {
-            // 쿠키 설정 실패 시 무시
-          }
-        },
-        remove(name: string, options: any) {
-          try {
-            cookieStore.delete({ name, ...options });
-          } catch (error) {
-            // 쿠키 삭제 실패 시 무시
-          }
-        },
-      },
+      cookies: cookieStore,
     },
   );
 });
 
-// 서버 컴포넌트에서 사용할 수 있는 캐싱 포함 Supabase 클라이언트
-export const createServerComponentClient = cache(async () => {
-  return await createClient();
-});
+export default createClient;
+
+/**
+ * 서버 액션에서 사용할 수 있는 Supabase 클라이언트
+ */
+export async function createServerActionClient() {
+  assertServerEnvironment();
+  
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+
+    return createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            cookieStore.delete({ name, ...options });
+          },
+        },
+      },
+    );
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn("서버 액션에서 next/headers 사용 불가능:", error);
+    }
+    
+    return createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get: () => undefined,
+          set: () => {},
+          remove: () => {},
+        },
+      },
+    );
+  }
+}
+
+// 호환성을 위한 deprecated 별칭
+export const createServerComponentClient = createClient; 

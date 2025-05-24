@@ -40,16 +40,6 @@ function log(message: string) {
   process.stdout.write(message + '\n');
 }
 
-function toCamelCase(str: string): string {
-  return str
-    .split('_')
-    .map((word, index) => {
-      if (index === 0) return word;
-      return word.charAt(0).toUpperCase() + word.slice(1);
-    })
-    .join('');
-}
-
 function toPascalCase(str: string): string {
   return str
     .split('_')
@@ -174,7 +164,6 @@ function generateInterfaces() {
       .filter(line => line.length > 0)
       .map(line => {
         const [name, type] = line.split(':').map(s => s.trim());
-        const camelCaseName = toCamelCase(name);
         // Replace Database enum references with our local type definitions
         const processedType = type
           .replace(/Database\["public"\]\["Enums"\]\["board_status_enum"\]/g, 'BoardStatusEnum')
@@ -186,7 +175,7 @@ function generateInterfaces() {
           .replace(/Database\["public"\]\["Enums"\]\["supported_language"\]/g, 'SupportedLanguage')
           .replace(/Database\["public"\]\["Enums"\]\["user_gender_enum"\]/g, 'UserGenderEnum')
           .replace(/\s*$/g, '');
-        return `  ${camelCaseName}: ${processedType}`;
+        return `  ${name}: ${processedType}`;
       });
 
     // Generate interface

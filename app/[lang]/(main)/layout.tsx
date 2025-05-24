@@ -7,13 +7,13 @@ import { useNavigation } from '@/contexts/NavigationContext';
 import { useLanguageStore } from '@/stores/languageStore';
 import Footer from '../Footer';
 import ExclusiveOpenBadge from '@/components/layouts/ExclusiveOpenBadge';
-import Menu from '@/components/features/vote/Menu';
 import { getPortalTypeFromPath } from '@/config/navigation';
 import Header from '@/components/layouts/Header';
-import VotePopup from '@/components/features/vote/dialogs/VotePopup';
 import { getPopups } from '@/utils/api/queries';
 import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
+import VotePopup from '@/components/client/vote/dialogs/VotePopup';
+import { Menu } from '@/components/client/vote';
 
 interface MainLayoutProps {
   children: React.ReactNode;

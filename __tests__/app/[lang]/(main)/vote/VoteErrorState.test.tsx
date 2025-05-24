@@ -21,7 +21,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // VoteList 컴포넌트 모킹 (오류 상태를 표시할 수 있도록)
-jest.mock('@/components/features/vote/list/VoteList', () => {
+jest.mock('@/components/client/vote/list/VoteList', () => {
   return function MockVoteList({ status }: { status?: string }) {
     // 오류 상태를 시뮬레이션
     const [error, setError] = React.useState<Error | null>(null);
@@ -51,7 +51,7 @@ jest.mock('@/components/features/vote/list/VoteList', () => {
 });
 
 // BannerList 컴포넌트 모킹
-jest.mock('@/components/features/vote/BannerList', () => {
+jest.mock('@/components/client/vote/BannerList', () => {
   return function MockBannerList() {
     return <div data-testid="banner-list">배너 목록</div>;
   };

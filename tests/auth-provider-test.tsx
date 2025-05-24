@@ -27,7 +27,7 @@ export default function AuthProviderTest() {
     }
     
     if (userProfile) {
-      addLog(`프로필 정보: 닉네임=${userProfile.nickname}, 아바타=${userProfile.avatarUrl ? '있음' : '없음'}`);
+      addLog(`프로필 정보: 닉네임=${userProfile.nickname}, 아바타=${userProfile.avatar_url ? '있음' : '없음'}`);
     } else {
       addLog('프로필 정보 없음');
     }
@@ -86,8 +86,8 @@ export default function AuthProviderTest() {
         {userProfile ? (
           <div className="bg-green-50 p-3 rounded">
             <p><span className="font-medium">닉네임:</span> {userProfile.nickname || '(없음)'}</p>
-            <p><span className="font-medium">아바타:</span> {userProfile.avatarUrl || '(없음)'}</p>
-            <p><span className="font-medium">관리자:</span> {userProfile.isAdmin ? '예' : '아니오'}</p>
+            <p><span className="font-medium">아바타:</span> {userProfile.avatar_url || '(없음)'}</p>
+            <p><span className="font-medium">관리자:</span> {userProfile.is_admin ? '예' : '아니오'}</p>
           </div>
         ) : (
           <div className="bg-gray-50 p-3 rounded">프로필 정보 없음</div>

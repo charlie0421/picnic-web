@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { getList, TABLES } from '@/lib/data-fetching/supabase-service';
 import { LoadingState } from '@/components/server';
-import VoteClientComponent from '@/components/client/VoteClientComponent';
+import { VoteClientComponent } from '@/components/client';
 
 /**
  * 서버-클라이언트 컴포넌트 경계 패턴

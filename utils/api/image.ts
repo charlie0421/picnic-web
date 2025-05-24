@@ -47,6 +47,8 @@ export const getCdnImageUrl = (
       const widthParam = width ? `?w=${width}` : "";
       const finalUrl = `${cdnUrl}/${normalizedPath}${widthParam}`;
 
+      console.log("finalUrl", finalUrl);
+
       return finalUrl;
     }
   } catch (e) {

@@ -1,5 +1,5 @@
 import {MetadataRoute} from "next";
-import {createClient} from "./utils/supabase-server-client";
+import {createClient} from "@/utils/supabase-server-client";
 import {SITE_URL, STATIC_PAGES} from "./constants/static-pages";
 import fs from "fs";
 import path from "path";
@@ -68,72 +68,6 @@ function detectAppPages(): string[] {
     }
 }
 
-// Supabase 클라이언트를 사용하여 투표 데이터를 가져오는 함수
-async function fetchVoteData(): Promise<Vote[]> {
-    try {
-        const supabase = await createClient();
-        const now = new Date().toISOString();
-
-        // 활성화된 투표 가져오기
-        const { data: activeVotes, error: activeError } = await supabase
-            .from("vote")
-            .select("id, title, created_at, updated_at")
-            .is("deleted_at", null)
-            .lte("start_at", now)
-            .gt("stop_at", now)
-            .order("created_at", { ascending: false });
-
-        if (activeError) throw activeError;
-
-        // 예정된 투표 가져오기 (시작일이 미래인 투표)
-        const { data: upcomingVotes, error: upcomingError } = await supabase
-            .from("vote")
-            .select("id, title, created_at, updated_at")
-            .is("deleted_at", null)
-            .gt("start_at", now)
-            .order("start_at", { ascending: true });
-
-        if (upcomingError) throw upcomingError;
-
-        // 종료된 투표 가져오기 (최근 30개)
-        const { data: pastVotes, error: pastError } = await supabase
-            .from("vote")
-            .select("id, title, created_at, updated_at")
-            .is("deleted_at", null)
-            .lte("stop_at", now)
-            .order("stop_at", { ascending: false })
-            .limit(30);
-
-        if (pastError) throw pastError;
-
-        // 상태 플래그 추가하기
-        const formattedActiveVotes = (activeVotes || []).map((vote) => ({
-            ...vote,
-            status: "active",
-        }));
-
-        const formattedUpcomingVotes = (upcomingVotes || []).map((vote) => ({
-            ...vote,
-            status: "upcoming",
-        }));
-
-        const formattedPastVotes = (pastVotes || []).map((vote) => ({
-            ...vote,
-            status: "past",
-        }));
-
-        // 모든 투표 데이터 병합
-        return [
-            ...formattedActiveVotes,
-            ...formattedUpcomingVotes,
-            ...formattedPastVotes,
-        ];
-    } catch (error) {
-        console.error("사이트맵 생성 중 오류:", error);
-        return []; // 오류 발생 시 빈 배열 반환
-    }
-}
-
 /**
  * 사이트맵 생성 함수
  * 
@@ -164,7 +98,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         votesMaps = languages.flatMap(lang => 
             votes.map(vote => ({
                 url: `${SITE_URL}/${lang}/vote/${vote.id}`,
-                lastModified: new Date(vote.updatedAt || vote.createdAt),
+                lastModified: new Date(vote.updated_at || vote.created_at),
                 changeFrequency: 'daily' as const,
                 priority: 0.9,
             }))
@@ -181,7 +115,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         rewardsMaps = languages.flatMap(lang => 
             rewards.map(reward => ({
                 url: `${SITE_URL}/${lang}/rewards/${reward.id}`,
-                lastModified: new Date(reward.updatedAt || reward.createdAt),
+                lastModified: new Date(reward.updated_at || reward.created_at),
                 changeFrequency: 'weekly' as const,
                 priority: 0.8,
             }))

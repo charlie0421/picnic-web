@@ -7,13 +7,16 @@
  * 새로운 클라이언트 컴포넌트가 추가될 때마다 이 파일에도 추가해야 합니다.
  */
 
-// 클라이언트 컴포넌트 내보내기
-// 예: export { default as DataGrid } from './DataGrid'; 
-export { default as LoadingSpinner } from './LoadingSpinner';
-export { default as VoteListClient } from './VoteListClient';
-export { default as VoteItems } from './VoteItems';
-export { default as RetryButton } from './RetryButton';
-export { default as VoteClientComponent } from './VoteClientComponent';
-export { default as ClientNavigationSetter } from './ClientNavigationSetter';
-// 공유 컴포넌트에서 클라이언트 컴포넌트 가져오기
-export { default as VoteDetailClient } from '../shared/VoteDetail/VoteDetailClient';
+// 도메인별 클라이언트 컴포넌트
+export * from './vote';
+export * from './auth';
+export * from './media';
+export * from './reward';
+export * from './banner';
+
+// 기타 클라이언트 컴포넌트
+export { LoadingSpinner } from './common/LoadingSpinner';
+export { VoteItems } from './vote/list/VoteItems';
+export { RetryButton } from './RetryButton';
+export { VoteClientComponent } from './VoteClientComponent';
+export { ClientNavigationSetter } from './ClientNavigationSetter';

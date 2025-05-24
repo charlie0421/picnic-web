@@ -46,7 +46,7 @@ const Header: React.FC = () => {
                 );
                 if (
                   isAdminMenu &&
-                  (!isAuthenticated || !userProfile?.isAdmin)
+                  (!isAuthenticated || !userProfile?.is_admin)
                 ) {
                   return null;
                 }
@@ -65,9 +65,9 @@ const Header: React.FC = () => {
 
               {isAuthenticated ? (
                 <Link href='/mypage'>
-                  {userProfile?.avatarUrl ? (
+                  {userProfile?.avatar_url ? (
                     <ProfileImageContainer
-                      avatarUrl={userProfile.avatarUrl}
+                      avatarUrl={userProfile.avatar_url}
                       width={32}
                       height={32}
                       borderRadius={8}

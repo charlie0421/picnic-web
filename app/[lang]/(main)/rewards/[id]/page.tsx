@@ -10,7 +10,7 @@ import { createProductSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
 import { LoadingState } from '@/components/server';
-import RewardDetailClient from '@/components/features/reward/RewardDetailClient';
+import RewardDetailClient from '@/components/client/reward/RewardDetailClient';
 
 // ISR을 위한 메타데이터 구성 (30초마다 재검증)
 export const revalidate = 30;
@@ -54,25 +54,14 @@ export async function generateMetadata({
         ? (reward.title as any)?.ko || (reward.title as any)?.en || '리워드'
         : '리워드';
 
-    const description =
-      typeof reward.description === 'string'
-        ? reward.description
-        : reward.description && typeof reward.description === 'object'
-        ? (reward.description as any)?.ko ||
-          (reward.description as any)?.en ||
-          '팬 활동에 대한 특별한 보상을 받아보세요!'
-        : '팬 활동에 대한 특별한 보상을 받아보세요!';
-
-    // reward.image_url을 mainImage 또는 thumbnail로 변경
-    const imageUrl = reward.mainImage || reward.thumbnail || '';
+    const imageUrl = reward.thumbnail || '';
     const url = `${SITE_URL}/rewards/${rewardId}`;
 
     const metadata: Metadata = {
-      ...createPageMetadata(`${title} | Picnic 리워드`, description),
+      ...createPageMetadata(`${title}`, '리워드 상세 페이지'),
       ...createImageMetadata(imageUrl, title, 1200, 630),
       openGraph: {
         title: `${title} | Picnic 리워드`,
-        description: description,
         url,
         images: [{ url: imageUrl, alt: title }],
         type: 'website',
@@ -80,7 +69,6 @@ export async function generateMetadata({
       twitter: {
         card: 'summary_large_image',
         title: `${title} | Picnic 리워드`,
-        description: description,
         images: [{ url: imageUrl, alt: title }],
       },
       alternates: {

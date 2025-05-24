@@ -98,9 +98,9 @@ const MyPage = () => {
       <div className='bg-white rounded-lg shadow-md p-6 mb-8 relative'>
         <div className='flex flex-col sm:flex-row items-start sm:items-center'>
           <div className='mb-4 sm:mb-0 sm:mr-6'>
-            {userProfile?.avatarUrl ? (
+            {userProfile?.avatar_url ? (
               <ProfileImageContainer
-                avatarUrl={userProfile.avatarUrl}
+                avatarUrl={userProfile.avatar_url}
                 width={100}
                 height={100}
                 borderRadius={12}
@@ -116,10 +116,10 @@ const MyPage = () => {
             <p className='text-gray-600 mb-1'>
               {userProfile?.email || '로그인 후 이메일이 표시됩니다'}
             </p>
-            {userProfile?.birthDate && (
-              <p className='text-gray-700 mt-2'>{userProfile?.birthDate}</p>
+            {userProfile?.birth_date && (
+              <p className='text-gray-700 mt-2'>{userProfile?.birth_date}</p>
             )}
-            {userProfile?.isAdmin && (
+            {userProfile?.is_admin && (
               <div className='mt-2 bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded'>
                 관리자
               </div>

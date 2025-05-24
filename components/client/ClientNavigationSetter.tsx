@@ -13,7 +13,7 @@ interface ClientNavigationSetterProps {
  * 
  * 서버 컴포넌트에서 포털 타입을 설정하기 위해 사용됩니다.
  */
-const ClientNavigationSetter: React.FC<ClientNavigationSetterProps> = ({ portalType }) => {
+export const ClientNavigationSetter: React.FC<ClientNavigationSetterProps> = ({ portalType }) => {
   const { setCurrentPortalType } = useNavigation();
 
   useEffect(() => {
@@ -23,5 +23,3 @@ const ClientNavigationSetter: React.FC<ClientNavigationSetterProps> = ({ portalT
   // 아무 것도 렌더링하지 않는 유틸리티 컴포넌트
   return null;
 };
-
-export default ClientNavigationSetter; 

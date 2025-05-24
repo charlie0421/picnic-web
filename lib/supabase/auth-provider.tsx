@@ -89,18 +89,18 @@ export function AuthProvider({
             id: userId,
             email: currentSession.user.email || null,
             nickname: null,
-            avatarUrl: null,
-            isAdmin: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            deletedAt: null,
-            birthDate: null,
-            birthTime: null,
+            avatar_url: null,
+            is_admin: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            deleted_at: null,
+            birth_date: null,
+            birth_time: null,
             gender: null,
-            openAges: false,
-            openGender: false,
-            starCandy: 0,
-            starCandyBonus: 0
+            open_ages: false,
+            open_gender: false,
+            star_candy: 0,
+            star_candy_bonus: 0
           };
           
           console.log('[AuthProvider] 기본 프로필 생성');
@@ -113,23 +113,7 @@ export function AuthProvider({
       }
 
       if (data) {
-        const profile = {
-          id: data.id,
-          email: data.email,
-          nickname: data.nickname,
-          avatarUrl: data.avatar_url,
-          isAdmin: data.is_admin,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at,
-          deletedAt: data.deleted_at,
-          birthDate: data.birth_date,
-          birthTime: data.birth_time,
-          gender: data.gender,
-          openAges: data.open_ages,
-          openGender: data.open_gender,
-          starCandy: data.star_candy,
-          starCandyBonus: data.star_candy_bonus
-        } as UserProfiles;
+        const profile = data as UserProfiles;
         
         console.log('[AuthProvider] 프로필 DB 조회 완료');
         // 캐시에 저장

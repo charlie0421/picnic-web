@@ -19,11 +19,10 @@ export const viewport: Viewport = {
 export async function generateMetadata({
   params,
 }: {
-  params: { lang: string | Promise<string> };
+  params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
-  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
-  const paramsResolved = await Promise.resolve(params);
-  const lang = String(paramsResolved.lang || 'ko');
+  // Next.js 15.3.1에서는 params 전체를 await 해야 함
+  const { lang } = await params;
 
   // 언어에 따라 다른 메타데이터 생성
   const languageSpecificMetadata: Partial<Metadata> = {
@@ -50,16 +49,13 @@ export default async function RootLayout({
   params,
 }: {
   children: ReactNode;
-  params: { lang: string | Promise<string> };
+  params: Promise<{ lang: string }>;
 }) {
-  // Next.js 15.3.1에서는 params를 먼저 await 해야 함
-  const paramsResolved = await Promise.resolve(params);
-  const langParam = paramsResolved.lang;
-  const lang =
-    typeof langParam === 'string' ? langParam : (await langParam) || 'ko';
+  // Next.js 15.3.1에서는 params 전체를 await 해야 함
+  const { lang } = await params;
 
   return (
-    <html lang={lang}>
+    <html lang={lang || 'ko'}>
       <head>
         {/* PWA Manifest */}
         <link rel='manifest' href='/manifest.json' />

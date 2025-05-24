@@ -6,7 +6,7 @@ import Image from 'next/image';
 import {useSearchParams} from 'next/navigation';
 import {useLanguageStore} from '@/stores/languageStore';
 import Script from 'next/script';
-import SocialLoginButtons from '@/components/features/auth/SocialLoginButtons';
+import { SocialLoginButtons } from '@/components/client/auth';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import Link from 'next/link';
 

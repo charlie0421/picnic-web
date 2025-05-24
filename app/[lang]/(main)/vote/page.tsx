@@ -1,11 +1,10 @@
-import VotePageClient from '@/app/[lang]/(main)/vote/VotePageClient';
 import { Metadata } from 'next';
 import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils';
 import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
-import { getVotes } from '@/lib/data-fetching/vote-service';
-import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
-import { Vote } from '@/types/interfaces';
+import { BannerListFetcher, LoadingState } from '@/components/server';
+import { Suspense } from 'react';
+import { VoteListFetcher } from '@/components/server/vote/VoteListFetcher';
 
 export async function generateMetadata({
   params,
@@ -31,16 +30,12 @@ export async function generateMetadata({
   );
 }
 
-export default async function VotePage() {
-  // 초기 투표 데이터를 서버에서 가져옵니다
-  let initialVotes: Vote[] = [];
-  try {
-    initialVotes = await getVotes(VOTE_STATUS.ONGOING, VOTE_AREAS.KPOP);
-  } catch (error) {
-    console.error('[VotePage] 투표 데이터 로드 중 오류 발생:', error);
-    // 오류가 발생했을 때 빈 배열 사용
-    initialVotes = [];
-  }
+export default function VoteListPage() {
+  const filter = {
+    status: 'ongoing' as const, // VoteStatus 타입에 맞춤
+    sortBy: 'startTime' as const,
+    sortOrder: 'desc' as const
+  };
 
   return (
     <>
@@ -56,7 +51,28 @@ export default async function VotePage() {
           ),
         }}
       />
-      <VotePageClient initialVotes={initialVotes} />
+      <main className='container mx-auto px-4 py-8 space-y-8'>
+        {/* 배너 섹션 */}
+        <section>
+          <Suspense fallback={<LoadingState message="배너를 불러오는 중..." />}>
+            <BannerListFetcher />
+          </Suspense>
+        </section>
+
+        {/* 투표 섹션 */}
+        <section>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">진행 중인 투표</h2>
+          </div>
+          <Suspense fallback={<LoadingState message="투표 데이터를 불러오는 중..." />}>
+            <VoteListFetcher
+              filter={filter}
+              className="w-full"
+            />
+          </Suspense>
+        </section>
+
+      </main>
     </>
   );
 }

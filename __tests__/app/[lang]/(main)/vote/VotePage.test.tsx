@@ -46,7 +46,7 @@ const getDisplayTitle = (title: Vote['title'] | null | undefined): string => {
 };
 
 // VoteList 컴포넌트 모킹 - 실제 props에 따라 다른 데이터 반환
-jest.mock('@/components/features/vote/list/VoteList', () => {
+jest.mock('@/components/client/vote/list/VoteList', () => {
   return function MockVoteList({ status, initialVotes }: { status?: string; initialVotes?: Vote[] }) {
     const testId = status ? `vote-list-${status}` : 'vote-list';
     
@@ -84,7 +84,7 @@ jest.mock('@/components/features/vote/list/VoteList', () => {
 });
 
 // BannerList 컴포넌트 모킹
-jest.mock('@/components/features/vote/BannerList', () => {
+jest.mock('@/components/client/vote/BannerList', () => {
   return function MockBannerList() {
     return <div data-testid="banner-list">배너 목록</div>;
   };

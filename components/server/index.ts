@@ -5,15 +5,18 @@
  * 새로운 서버 컴포넌트가 추가될 때마다 이 파일에도 추가해야 합니다.
  */
 
-// 서버 컴포넌트 내보내기
+// 도메인별 서버 컴포넌트
+export * from './vote';
+export * from './banner';
+export * from './media';
+export * from './reward';
+// export * from './auth';    // 추후 추가 예정
+
+// 기타 서버 컴포넌트
 export { default as LoadingState } from './LoadingState';
 export { default as ErrorState } from './ErrorState';
-export { default as VoteListServer } from './VoteListServer';
-export { default as VoteDetailServer } from './VoteDetailServer';
 export { default as VoteDetailSkeleton } from './VoteDetailSkeleton';
 export { default as AuthCallbackSkeleton } from './AuthCallbackSkeleton';
-export { default as MediaServer } from './MediaServer';
-export { default as StreamingExample } from './StreamingExample';
 
 // 에러 처리 관련 컴포넌트
 export { default as ErrorBoundary } from './ErrorBoundary';

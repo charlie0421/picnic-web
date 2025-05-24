@@ -181,8 +181,6 @@ const _getBanners = async (): Promise<Banner[]> => {
       .or(`end_at.gt.now(),end_at.is.null`)
       .limit(10);
 
-    console.log('[getBanners] Supabase 응답:', { data: bannerData, error: bannerError });
-
     if (bannerError) {
       console.error('[getBanners] Supabase 오류:', bannerError);
       throw bannerError;
@@ -193,20 +191,7 @@ const _getBanners = async (): Promise<Banner[]> => {
       return [];
     }
 
-    console.log('[getBanners] 원본 배너 데이터:', bannerData);
-
-    const transformedData = bannerData.map((banner: any) => ({
-      ...banner,
-      deletedAt: banner.deleted_at,
-      createdAt: banner.created_at,
-      updatedAt: banner.updated_at,
-      startAt: banner.start_at,
-      endAt: banner.end_at,
-      celebId: banner.celeb_id,
-    }));
-
-    console.log('[getBanners] 변환된 배너 데이터:', transformedData);
-    return transformedData;
+    return bannerData;
   } catch (error) {
     console.error('[getBanners] 오류 발생:', error);
     logRequestError(error, 'getBanners');
@@ -228,16 +213,7 @@ const _getRewardById = async (id: string): Promise<Reward | null> => {
     if (rewardError) throw rewardError;
     if (!rewardData) return null;
 
-    return {
-      ...rewardData,
-      deletedAt: rewardData.deleted_at,
-      createdAt: rewardData.created_at,
-      updatedAt: rewardData.updated_at,
-      locationImages: rewardData.location_images,
-      overviewImages: rewardData.overview_images,
-      sizeGuide: rewardData.size_guide,
-      sizeGuideImages: rewardData.size_guide_images,
-    };
+    return rewardData;
   } catch (error) {
     logRequestError(error, 'getRewardById');
     return null;
@@ -260,12 +236,12 @@ const _getMedias = async (): Promise<Media[]> => {
     // 스네이크 케이스에서 캐멀 케이스로 필드 변환
     return mediaData.map((media: any) => ({
       id: media.id,
-      createdAt: media.created_at,
-      updatedAt: media.updated_at,
-      deletedAt: media.deleted_at,
-      thumbnailUrl: media.thumbnail_url,
-      videoUrl: media.video_url,
-      videoId: media.video_id,
+      created_at: media.created_at,
+      updated_at: media.updated_at,
+      deleted_at: media.deleted_at,
+      thumbnail_url: media.thumbnail_url,
+      video_url: media.video_url,
+      video_id: media.video_id,
       title: media.title,
     }));
   } catch (error) {

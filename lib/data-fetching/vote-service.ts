@@ -8,7 +8,7 @@
 import { cache } from "react";
 import { createClient } from "@/utils/supabase-server-client";
 import { CacheOptions } from "./fetchers";
-import { Vote, VoteItem } from "@/types/interfaces";
+import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 // 기본 투표 테이블 조회 쿼리
@@ -44,15 +44,8 @@ const DEFAULT_VOTE_QUERY = `
  */
 function transformVoteData(data: any[]): Vote[] {
   return data.map((vote) => {
-    const voteItems: VoteItem[] = vote.vote_item?.map((item: any) => ({
-      id: item.id,
-      voteId: item.vote_id,
-      artistId: item.artist_id,
-      groupId: item.group_id,
-      voteTotal: item.vote_total,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-      deletedAt: item.deleted_at,
+    const voteItem: VoteItem[] = vote.vote_item?.map((item: any) => ({
+      ...item,
       artist: item.artist ? {
         id: item.artist.id,
         name: item.artist.name,
@@ -61,25 +54,19 @@ function transformVoteData(data: any[]): Vote[] {
       } : null,
     })) || [];
 
+    const voteReward: VoteReward[] = vote.vote_reward?.map((vr: any) => ({
+      ...vr,
+      reward: vr.reward ? {
+        id: vr.reward.id,
+        name: vr.reward.name,
+        image: vr.reward.image,
+      } : null,
+    })) || [];
+
     return {
-      id: vote.id,
-      title: vote.title,
-      area: vote.area,
-      mainImage: vote.main_image,
-      resultImage: vote.result_image,
-      waitImage: vote.wait_image,
-      order: vote.order,
-      startAt: vote.start_at,
-      stopAt: vote.stop_at,
-      visibleAt: vote.visible_at,
-      voteCategory: vote.vote_category,
-      voteSubCategory: vote.vote_sub_category,
-      voteContent: vote.vote_content,
-      createdAt: vote.created_at,
-      updatedAt: vote.updated_at,
-      deletedAt: vote.deleted_at,
-      voteItems,
-      reward: vote.vote_reward?.map((vr: any) => vr.reward).filter(Boolean) || [],
+      ...vote,
+      voteItem,
+      voteReward,
     };
   });
 }

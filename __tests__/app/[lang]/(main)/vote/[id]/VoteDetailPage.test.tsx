@@ -5,7 +5,7 @@ import { mockGetVoteById } from '../../../../../utils/mockVoteFunctions';
 import { render as customRender } from '../../../../../utils/test-utils';
 
 // VoteDetail 컴포넌트 모킹
-jest.mock('@/components/shared/VoteDetail', () => {
+jest.mock('@/components/client/vote/VoteDetail', () => {
   return function MockVoteDetail({ id }: { id: string }) {
     const vote = mockVotes.find(v => v.id.toString() === id);
     
