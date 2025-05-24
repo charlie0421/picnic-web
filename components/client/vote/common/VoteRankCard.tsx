@@ -64,26 +64,29 @@ export function VoteRankCard({
     switch (rank) {
       case 1:
         return {
-          image: 'w-34 h-34',
-          padding: 'p-1',
+          image: 'w-24 h-24 sm:w-34 sm:h-34',
+          padding: 'p-2 sm:p-3',
           name: 'text-sm',
           votes: 'text-sm'
         };
       case 2:
         return {
-          image: 'w-22 h-22',
+          image: 'w-16 h-16 sm:w-22 sm:h-22',
+          padding: 'p-1 sm:p-2',
           name: 'text-xs',
           votes: 'text-xs'
         };
       case 3:
         return {
-          image: 'w-13 h-13',
+          image: 'w-10 h-10 sm:w-13 sm:h-13',
+          padding: 'p-1',
           name: 'text-xs',
           votes: 'text-xs'
         };
       default:
         return {
           image: 'w-12 h-12',
+          padding: 'p-1',
           name: 'text-xs',
           votes: 'text-xs'
         };
@@ -125,7 +128,7 @@ export function VoteRankCard({
 
         {/* 그룹 이름 (있는 경우) - 컴팩트/풀위스/심플 모드에서는 숨김 */}
         {item.artist?.artistGroup?.name && (
-          <p className="text-xs text-gray-600 truncate w-full px-1 mb-1">
+          <p className="text-xs text-gray-600 text-center truncate w-full px-1 mb-1">
             {getLocalizedString(item.artist.artistGroup.name, currentLanguage)}
           </p>
         )}

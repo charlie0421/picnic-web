@@ -50,7 +50,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
           {/* 1위 - 가장 크고 높음 */}
           {topItems[0] && (
               <VoteRankCard
-                className='flex-[3] max-w-xs h-60 flex-shrink-0 min-h-60 max-h-60 mx-0 min-w-0'
+                className='flex-[2] sm:flex-[3] max-w-xs h-52 sm:h-60 flex-shrink-0 min-h-52 sm:min-h-60 max-h-52 sm:max-h-60 mx-0 min-w-0'
                 key={`${keyPrefix}-rank-${topItems[0].id}-0`}
                 item={topItems[0]}
                 rank={1}
@@ -65,7 +65,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
           {/* 2위 - 중간 크기 */}
           {topItems[1] && (
               <VoteRankCard
-                className='flex-[2] max-w-sm h-44 flex-shrink-0 min-h-44 max-h-44 mx-0 min-w-0'
+                className='flex-[1.5] sm:flex-[2] max-w-sm h-40 sm:h-44 flex-shrink-0 min-h-40 sm:min-h-44 max-h-40 sm:max-h-44 mx-0 min-w-0'
                 key={`${keyPrefix}-rank-${topItems[1].id}-1`}
                 item={topItems[1]}
                 rank={2}
@@ -80,7 +80,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
           {/* 3위 - 가장 작음 */}
           {topItems[2] && (
               <VoteRankCard
-                className='flex-[1] max-w-xs h-30 flex-shrink-0 min-h-30 max-h-30 mx-0 min-w-0'
+                className='flex-[1] max-w-xs h-32 sm:h-30 flex-shrink-0 min-h-32 sm:min-h-30 max-h-32 sm:max-h-30 mx-0 min-w-0'
                 key={`${keyPrefix}-rank-${topItems[2].id}-2`}
                 item={topItems[2]}
                 rank={3}
