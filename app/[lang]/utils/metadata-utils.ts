@@ -21,7 +21,6 @@ export const DEFAULT_METADATA: Metadata = {
   referrer: 'origin-when-cross-origin',
   keywords: ['피크닉', 'K-Pop', '투표', '아이돌', '팬덤', '리워드', '미디어'],
   authors: [{ name: '피크닉 팀' }],
-  colorScheme: 'light',
   creator: '피크닉',
   publisher: '피크닉',
   formatDetection: {
@@ -77,11 +76,6 @@ export const DEFAULT_METADATA: Metadata = {
     ],
   },
   manifest: '/site.webmanifest',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
   verification: {
     google: 'google-site-verification=YOUR_VERIFICATION_CODE',
     yandex: 'YOUR_YANDEX_VERIFICATION_CODE',

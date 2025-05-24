@@ -40,8 +40,7 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
   const [isLoading, setIsLoading] = useState(initialVotes.length === 0);
   const [error, setError] = useState<Error | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const initialDataLoaded = useRef(initialVotes.length > 0);
-  const hasInitialData = useRef(initialVotes.length > 0);
+  const initialDataLoaded = useRef(false);
   // 이전 필터 값 저장용 ref - 타입 에러 방지를 위해 타입 캐스팅 사용
   const prevStatusRef = useRef(selectedStatus as unknown as string);
   const prevAreaRef = useRef(selectedArea as unknown as string);
@@ -116,7 +115,6 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
         }
 
         if (!voteData || voteData.length === 0) {
-          console.log('No votes found');
           setVotes([]);
           setHasMore(false);
           return;
@@ -177,31 +175,19 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
     [supabase, effectiveStatus, selectedArea, PAGE_SIZE, isTransitioning],
   );
 
-  // 초기 로드 - 서버에서 가져온 데이터가 없는 경우에만 실행
+  // 초기 로드
   useEffect(() => {
-    console.log('[VoteList] 초기 로드 useEffect 실행', {
-      hasInitialData: hasInitialData.current,
-      initialVotesLength: initialVotes.length,
-    });
-
-    // 서버에서 가져온 초기 데이터가 없는 경우에만 클라이언트에서 데이터를 가져옴
-    if (!hasInitialData.current) {
-      console.log(
-        '[VoteList] 초기 데이터 없음, 클라이언트에서 데이터 가져오기',
-      );
+    if (initialVotes.length > 0) {
+      // 초기 데이터가 있는 경우
+      setVotes(initialVotes);
+      setIsLoading(false);
+      initialDataLoaded.current = true;
+    } else if (!initialDataLoaded.current) {
+      // 초기 데이터가 없는 경우에만 클라이언트에서 데이터를 가져옴
       fetchVotes(true);
-    } else {
-      console.log('[VoteList] 초기 데이터 있음, 클라이언트 데이터 패치 건너뜀');
-
-      // 초기 데이터가 있더라도 화면에 노출되는지 확인하기 위해 로그 출력
-      console.log('[VoteList] 초기 투표 데이터:', initialVotes);
-
-      // votes 상태가 initialVotes로 초기화되었는지 확인
-      console.log('[VoteList] 현재 votes 상태:', votes);
+      initialDataLoaded.current = true;
     }
-
-    initialDataLoaded.current = true;
-  }, [fetchVotes, initialVotes, votes]);
+  }, [initialVotes, fetchVotes]);
 
   // URL 파라미터와 필터 상태 변경 감지
   useEffect(() => {
@@ -223,13 +209,6 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
       !isLoading &&
       !isTransitioning
     ) {
-      console.log('[VoteList] 필터 실제 변경 감지:', {
-        이전상태: prevStatusRef.current,
-        새상태: effectiveStatus,
-        이전영역: prevAreaRef.current,
-        새영역: selectedArea,
-      });
-
       // 현재 필터 값 저장
       prevStatusRef.current = effectiveStatus;
       prevAreaRef.current = selectedArea;
@@ -266,13 +245,6 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
     const end = page * PAGE_SIZE;
     const paginatedData = votes.slice(start, end);
     setHasMore(end < votes.length);
-
-    console.log('[VoteList] 페이지네이션된 투표 데이터:', {
-      total: votes.length,
-      paginatedCount: paginatedData.length,
-      hasMore: end < votes.length,
-      page,
-    });
 
     return paginatedData;
   }, [votes, page, PAGE_SIZE]);

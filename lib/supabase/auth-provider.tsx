@@ -59,14 +59,12 @@ export function AuthProvider({
       const now = Date.now();
       const lastFetch = lastProfileFetch[userId] || 0;
       if (now - lastFetch < 1000) {
-        console.log('🔍 프로필 요청 건너뜀: 최근에 이미 요청됨', userId);
         return userProfile;
       }
       
       // 캐시에서 확인
       const cached = profileCache.get(userId);
       if (cached && now - cached.timestamp < CACHE_TTL) {
-        console.log('🔍 캐시된 프로필 사용:', userId);
         setUserProfile(cached.profile);
         return cached.profile;
       }
@@ -74,7 +72,6 @@ export function AuthProvider({
       // 요청 타임스탬프 기록
       setLastProfileFetch(prev => ({ ...prev, [userId]: now }));
       
-      console.log('🔍 프로필 서버에서 가져오기:', userId);
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -162,6 +159,36 @@ export function AuthProvider({
     setError(null);
   }, [fetchUserProfile]);
 
+  // 세션 및 사용자 정보 로드
+  const loadSessionAndUser = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('세션 가져오기 오류:', sessionError);
+        setError(sessionError.message);
+        return;
+      }
+
+      if (session?.user) {
+        setSession(session);
+        setUser(session.user);
+        setIsAuthenticated(true);
+      } else {
+        setSession(null);
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    } catch (error) {
+      console.error('인증 상태 로드 중 오류:', error);
+      setError(error instanceof Error ? error.message : '알 수 없는 오류');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [supabase.auth]);
+
   // 세션 갱신 및 프로필 로드
   useEffect(() => {
     let isMounted = true;
@@ -169,7 +196,6 @@ export function AuthProvider({
     const loadUserSession = async () => {
       try {
         setIsLoading(true);
-        console.log('🔍 AuthProvider: 세션 및 사용자 정보 로드 중...');
         
         // 현재 세션 가져오기
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
@@ -182,10 +208,8 @@ export function AuthProvider({
         if (!isMounted) return;
         
         if (currentSession) {
-          console.log('✅ AuthProvider: 세션 발견, 사용자 로그인 상태', currentSession.user.id);
           await handleSession(currentSession);
         } else {
-          console.log('❌ AuthProvider: 세션 없음, 로그아웃 상태');
           setSession(null);
           setUser(null);
           setUserProfile(null);
@@ -213,13 +237,8 @@ export function AuthProvider({
 
   // 인증 상태 변경 구독
   useEffect(() => {
-    console.log('🔄 AuthProvider: 인증 상태 변경 이벤트 구독 설정...');
-    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log(`📣 AuthProvider: 인증 이벤트 감지: ${event}`, 
-                    newSession ? `사용자 ID: ${newSession.user.id}` : '세션 없음');
-        
         await handleSession(newSession);
         
         // 세션이 생성되었을 때 로컬 스토리지에 저장
@@ -236,7 +255,6 @@ export function AuthProvider({
     );
 
     return () => {
-      console.log('🛑 AuthProvider: 인증 이벤트 구독 해제');
       subscription.unsubscribe();
     };
   }, [supabase, handleSession]);
@@ -277,7 +295,6 @@ export function AuthProvider({
     setIsLoading(true);
     setError(null);
     try {
-      console.log(`🔑 AuthProvider: ${provider} 소셜 로그인 시도...`);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider as Provider,
         options: {
@@ -398,7 +415,6 @@ export function AuthProvider({
           profile: updatedProfile, 
           timestamp: Date.now() 
         });
-        console.log('✅ 프로필 캐시 업데이트 완료:', currentUserId);
       }
       
       return { success: true };

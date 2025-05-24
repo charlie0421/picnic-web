@@ -2,11 +2,18 @@ import { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import './layout.css';
-import { Metadata } from 'next';
+import { Metadata, Viewport } from 'next';
 import ClientLayout from './ClientLayout';
 import { DEFAULT_METADATA } from './utils/metadata-utils';
 
 const inter = Inter({ subsets: ['latin'] });
+
+// Next.js 15에서 요구하는 viewport 내보내기
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 // 동적 메타데이터 생성
 export async function generateMetadata({
@@ -54,6 +61,11 @@ export default async function RootLayout({
   return (
     <html lang={lang}>
       <head>
+        {/* PWA Manifest */}
+        <link rel='manifest' href='/manifest.json' />
+        <meta name='msapplication-TileColor' content='#4F46E5' />
+        <meta name='theme-color' content='#ffffff' />
+        
         {/* JSON-LD 구조화된 데이터 - 웹사이트 정보 */}
         <script
           type='application/ld+json'

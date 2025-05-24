@@ -6,7 +6,6 @@ import React, {
   useCallback,
   useContext,
   useState,
-  useEffect,
 } from 'react';
 import { PortalType } from '../utils/enums';
 
@@ -33,20 +32,11 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({
     currentPortalType: PortalType.VOTE,
   });
 
-  useEffect(() => {
-    console.log('NavigationState 변경됨:', {
-      portalType: navigationState.currentPortalType,
-      hasScreen: !!navigationState.currentScreen,
-    });
-  }, [navigationState]);
-
   const setCurrentScreen = useCallback((screen: ReactNode) => {
-    console.log('setCurrentScreen 호출됨');
     setNavigationState((prev) => ({ ...prev, currentScreen: screen }));
   }, []);
 
   const setCurrentPortalType = useCallback((type: PortalType) => {
-    console.log('setCurrentPortalType 호출됨:', type);
     setNavigationState((prev) => ({ ...prev, currentPortalType: type }));
   }, []);
 

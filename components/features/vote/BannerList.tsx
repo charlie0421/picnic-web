@@ -28,6 +28,7 @@ const BannerList: React.FC = () => {
     const fetchBanners = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         const bannersData = await getBanners();
         setBanners(bannersData);
       } catch (error) {
@@ -38,8 +39,10 @@ const BannerList: React.FC = () => {
       }
     };
 
-    fetchBanners();
-  }, []);
+    if (mounted) {
+      fetchBanners();
+    }
+  }, [mounted]);
 
   // 화면 크기 감지
   useEffect(() => {
@@ -141,9 +144,9 @@ const BannerList: React.FC = () => {
     }
   };
 
-  // 서버 사이드에서는 기본값 사용
-  if (typeof window === 'undefined') {
-    return <LoadingSpinner />;
+  // 서버 사이드에서는 빈 div 반환 (hydration 불일치 방지)
+  if (!mounted) {
+    return <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />;
   }
 
   if (isLoading) {

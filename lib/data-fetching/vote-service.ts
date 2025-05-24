@@ -46,7 +46,6 @@ export const getVotes = cache(async (
   area?: string,
   options?: CacheOptions,
 ): Promise<Vote[]> => {
-  console.log("[getVotes] 서버에서 투표 데이터 조회 시작:", { status, area });
   try {
     const client = await createClient();
     let query = client
@@ -79,7 +78,6 @@ export const getVotes = cache(async (
       .is("deleted_at", null)
       .order("order", { ascending: true });
 
-    console.log("[getVotes] 쿼리 실행");
     const { data, error } = await query;
 
     if (error) {
@@ -87,11 +85,8 @@ export const getVotes = cache(async (
       return [];
     }
 
-    console.log(`[getVotes] 데이터 ${data?.length || 0}개 조회 성공`);
-
     // 데이터 변환: vote_item -> voteItem, Supabase 스네이크 케이스를 카멜 케이스로 변환
     const transformedData = data.map((vote) => {
-      // console.log(`[getVotes] 투표 ${vote.id}의 투표 항목:`, vote.vote_item);
       const voteItems: VoteItem[] = vote.vote_item?.map((item) => ({
         id: item.id,
         voteId: item.vote_id,
@@ -128,13 +123,6 @@ export const getVotes = cache(async (
       return transformedVote;
     });
 
-    console.log(`[getVotes] 최종 변환된 데이터:`, {
-      count: transformedData.length,
-      firstItemHasVoteItems: transformedData[0]
-        ? (transformedData[0].voteItem?.length || 0) > 0
-        : false,
-    });
-
     return transformedData;
   } catch (e) {
     console.error("[getVotes] 에러:", e);
@@ -149,7 +137,6 @@ export const getVoteById = cache(async (
   id: string | number,
   options?: CacheOptions,
 ): Promise<Vote | null> => {
-  console.log("[getVoteById] 서버에서 단일 투표 데이터 조회 시작:", { id });
   try {
     const client = await createClient();
     const { data, error } = await client
@@ -165,11 +152,8 @@ export const getVoteById = cache(async (
     }
 
     if (!data) {
-      console.log("[getVoteById] 해당 ID의 투표 없음:", id);
       return null;
     }
-
-    console.log(`[getVoteById] 투표 ${id} 조회 성공`);
 
     // 데이터 변환: vote_item -> voteItem, Supabase 스네이크 케이스를 카멜 케이스로 변환
     const voteItems: VoteItem[] = data.vote_item?.map((item) => ({
@@ -204,12 +188,6 @@ export const getVoteById = cache(async (
       deletedAt: data.deleted_at,
       voteItem: voteItems.length > 0 ? voteItems : undefined,
     };
-
-    console.log(`[getVoteById] 변환된 데이터:`, {
-      id: transformedVote.id,
-      hasVoteItems: (transformedVote.voteItem?.length || 0) > 0,
-      voteItemsCount: transformedVote.voteItem?.length || 0,
-    });
 
     return transformedVote;
   } catch (e) {

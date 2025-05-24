@@ -40,60 +40,35 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
   const processedVoteTotals = useRef<Set<number>>(new Set([initialVoteTotal]));
   const prevVoteTotal = useRef(initialVoteTotal);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [shouldShowVoteChange, setShouldShowVoteChange] = useState(false);
 
   // 컴포넌트 마운트 시 초기화
   useEffect(() => {
-    console.log(`[VoteRankCard] 마운트 - 순위 ${rank}위:`, {
-      id: item.id,
-      artistName: item.artist?.name?.ko || '이름 없음',
-      initialVoteTotal,
-      currentVoteTotal: localVoteTotal,
-    });
+    setLocalVoteTotal(initialVoteTotal);
+  }, [initialVoteTotal]);
 
-    // 클린업 함수 - 언마운트 시 모든 타이머 정리
-    return () => {
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // 외부에서 voteTotal이 변경되면 로컬 상태 업데이트
+  // 투표 변경 애니메이션 처리
   useEffect(() => {
-    // 외부 voteTotal이 있고 현재 로컬 상태와 다른 경우에만 업데이트
-    if (voteTotal !== undefined && voteTotal !== localVoteTotal) {
-      console.log(`[VoteRankCard] 투표수 업데이트 - 순위 ${rank}위:`, {
-        id: item.id,
-        fromTotal: localVoteTotal,
-        toTotal: voteTotal,
-        change: voteTotal - localVoteTotal,
-      });
-
-      setLocalVoteTotal(voteTotal);
-
-      // 처리된 투표수 목록에 추가 (중복 처리 방지)
-      processedVoteTotals.current.add(voteTotal);
-      prevVoteTotal.current = voteTotal;
-    }
-  }, [voteTotal, rank, item.id]);
-
-  // 외부에서 voteChange가 제공되었을 때 업데이트
-  useEffect(() => {
-    if (voteChange !== 0) {
+    if (voteChange && voteChange !== 0) {
       setCurrentVoteChange(voteChange);
+      setShouldShowVoteChange(true);
 
-      // 애니메이션 타이머 설정 (기존 타이머 정리 후)
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current);
-      }
-
-      // 1초 후 애니메이션 종료
-      animationTimeoutRef.current = setTimeout(() => {
+      // 3초 후 변경 표시 숨기기
+      const timer = setTimeout(() => {
+        setShouldShowVoteChange(false);
         setCurrentVoteChange(0);
-        animationTimeoutRef.current = null;
-      }, 1000);
+      }, 3000);
+
+      return () => clearTimeout(timer);
     }
   }, [voteChange]);
+
+  // 투표 총합 업데이트 처리
+  useEffect(() => {
+    if (voteTotal !== undefined && voteTotal !== localVoteTotal) {
+      setLocalVoteTotal(voteTotal);
+    }
+  }, [voteTotal, localVoteTotal]);
 
   // 부모 컴포넌트에 초기값 전달 (한 번만 실행)
   useEffect(() => {
@@ -102,18 +77,10 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
       localVoteTotal !== undefined &&
       !processedVoteTotals.current.has(localVoteTotal)
     ) {
-      console.log(
-        `[VoteRankCard] 초기 투표수 전달 - 순위 ${rank}위:`,
-        localVoteTotal,
-      );
       onVoteChange(localVoteTotal);
       processedVoteTotals.current.add(localVoteTotal);
     }
-  }, [localVoteTotal, onVoteChange, rank]);
-
-  // 투표수 변화가 있고 애니메이션 중일 때만 변화량 표시
-  const shouldShowVoteChange =
-    isAnimating && currentVoteChange !== 0 && showVoteChange;
+  }, [localVoteTotal, onVoteChange]);
 
   const RANK_BADGE_COLORS = [
     'bg-gradient-to-br from-yellow-400/70 to-yellow-600/70 shadow-lg',
@@ -135,15 +102,6 @@ const VoteRankCard: React.FC<VoteRankCardProps> = ({
   // className에 너비 클래스가 포함되어 있으면 기본 너비 클래스를 사용하지 않음
   const hasWidthClass = className.includes('w-');
   const cardWidthClass = hasWidthClass ? '' : getCardWidthClass(rank);
-
-  useEffect(() => {
-    console.log(`[VoteRankCard] 렌더링 - 순위 ${rank}위:`, {
-      artistName: item.artist?.name?.ko || '이름 없음',
-      voteTotal: localVoteTotal,
-      hasImage: !!item.artist?.image,
-      className: cardWidthClass,
-    });
-  }, [rank, item, localVoteTotal, cardWidthClass]);
 
   return (
     <div

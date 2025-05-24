@@ -25,14 +25,6 @@ export default function ClientLayout({
     }
   }, [initialLanguage, loadTranslations]);
 
-  // 환경 정보 로깅 (개발 환경용)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      const isNgrok = window.location.hostname.includes('ngrok');
-      console.log(`환경 정보: ${isNgrok ? 'ngrok' : '일반'}, ${process.env.NODE_ENV}`);
-    }
-  }, []);
-
   return (
     <SupabaseProvider>
       <AuthProvider>

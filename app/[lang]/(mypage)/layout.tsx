@@ -19,9 +19,7 @@ const MainContent = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    console.log('MainContent 컴포넌트 useEffect 실행:', { pathname });
     const portalType = getPortalTypeFromPath(pathname);
-    console.log('계산된 포털 타입:', portalType);
 
     // 현재 설정된 포털 타입과 다를 때만 업데이트
     if (navigationState.currentPortalType !== portalType) {
@@ -59,22 +57,5 @@ export default function MainLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-
-  // 컴포넌트 렌더링 시마다 로그 출력
-  console.log('MainLayout 렌더링됨:', { pathname });
-
-  useEffect(() => {
-    // 최초 마운트 시 로그 출력
-    console.log('MainLayout 컴포넌트 마운트됨');
-
-    // 환경 정보 로깅
-    if (typeof window !== 'undefined') {
-      // 개발 환경 또는 ngrok 환경에서만 디버깅 활성화
-      const isNgrok = window.location.hostname.includes('ngrok');
-      const isDev = process.env.NODE_ENV === 'development';
-    }
-  }, []);
-
   return <MainContent>{children}</MainContent>;
 }

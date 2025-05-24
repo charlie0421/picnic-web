@@ -184,7 +184,7 @@ const _getBanners = async (): Promise<Banner[]> => {
     if (bannerError) throw bannerError;
     if (!bannerData || bannerData.length === 0) return [];
 
-    return bannerData.map((banner: any) => ({
+    const transformedData = bannerData.map((banner: any) => ({
       ...banner,
       deletedAt: banner.deleted_at,
       createdAt: banner.created_at,
@@ -193,6 +193,8 @@ const _getBanners = async (): Promise<Banner[]> => {
       endAt: banner.end_at,
       celebId: banner.celeb_id,
     }));
+
+    return transformedData;
   } catch (error) {
     logRequestError(error, 'getBanners');
     return [];

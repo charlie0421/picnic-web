@@ -7,8 +7,8 @@ import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString } from '@/utils/api/strings';
 
 interface UpcomingVoteItemsProps {
-  voteItem?: Array<VoteItem & { artist?: any }>;
-  voteItems?: Array<VoteItem & { artist?: any }>; // 이전 속성명 호환성 유지
+  voteItem?: VoteItem[];
+  voteItems?: VoteItem[];
 }
 
 const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
@@ -24,13 +24,6 @@ const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
 
   // 두 속성 모두 확인하여 유효한 항목 사용 (voteItem을 우선)
   const effectiveItems = voteItem || voteItems || [];
-
-  console.log('[UpcomingVoteItems] 렌더링:', {
-    voteItemCount: voteItem?.length || 0,
-    voteItemsCount: voteItems?.length || 0,
-    effectiveItemsCount: effectiveItems.length,
-    mounted,
-  });
 
   const totalPages = Math.ceil(effectiveItems.length / itemsPerPage);
 
@@ -51,7 +44,6 @@ const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
   // 컴포넌트가 마운트된 후에만 랜덤으로 섞기
   useEffect(() => {
     if (mounted && effectiveItems.length > 0) {
-      console.log('[UpcomingVoteItems] 아이템 섞기:', effectiveItems.length);
       setShuffledItems(shuffleItems(effectiveItems));
     }
   }, [mounted, effectiveItems]);
@@ -75,10 +67,7 @@ const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
       )
     : effectiveItems.slice(0, itemsPerPage);
 
-  console.log('[UpcomingVoteItems] 현재 표시할 아이템:', currentItems.length);
-
   if (effectiveItems.length === 0) {
-    console.log('[UpcomingVoteItems] 표시할 아이템 없음');
     return null;
   }
 
@@ -97,10 +86,6 @@ const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
                 loading='lazy'
                 onError={(e) => {
                   // 이미지 로드 실패 시 기본 이미지로 대체
-                  console.log(`아티스트 이미지 로드 실패:`, {
-                    id: item.id,
-                    artist: getLocalizedString(item.artist?.name) || 'unknown',
-                  });
                   e.currentTarget.src = '/images/default-artist.png';
                 }}
               />
@@ -114,52 +99,47 @@ const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
         ))}
       </div>
 
+      {/* 페이지네이션 */}
       {totalPages > 1 && (
-        <div className='flex justify-center items-center my-1 py-0 gap-2'>
+        <div className='flex justify-center items-center mt-4 space-x-4'>
           <button
             onClick={handlePrevPage}
             disabled={currentPage === 0}
-            className='p-2 rounded-full bg-gray-100 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200'
-            aria-label='이전 페이지'
+            className='p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
           >
             <svg
               xmlns='http://www.w3.org/2000/svg'
               className='h-5 w-5'
-              fill='none'
-              viewBox='0 0 24 24'
-              stroke='currentColor'
+              viewBox='0 0 20 20'
+              fill='currentColor'
             >
               <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                strokeWidth={2}
-                d='M15 19l-7-7 7-7'
+                fillRule='evenodd'
+                d='M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z'
+                clipRule='evenodd'
               />
             </svg>
           </button>
 
-          <span className='text-sm text-gray-500'>
+          <span className='text-sm text-gray-600'>
             {currentPage + 1} / {totalPages}
           </span>
 
           <button
             onClick={handleNextPage}
             disabled={currentPage === totalPages - 1}
-            className='p-2 rounded-full bg-gray-100 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200'
-            aria-label='다음 페이지'
+            className='p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
           >
             <svg
               xmlns='http://www.w3.org/2000/svg'
               className='h-5 w-5'
-              fill='none'
-              viewBox='0 0 24 24'
-              stroke='currentColor'
+              viewBox='0 0 20 20'
+              fill='currentColor'
             >
               <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                strokeWidth={2}
-                d='M9 5l7 7-7 7'
+                fillRule='evenodd'
+                d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z'
+                clipRule='evenodd'
               />
             </svg>
           </button>

@@ -97,7 +97,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    console.log('인증 상태 확인:', { isAuthenticated, isLoading });
     // 추가 인증 관련 로직이 있을 수 있음
   }, [isAuthenticated, isLoading]);
 
