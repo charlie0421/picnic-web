@@ -13,47 +13,49 @@ jest.mock('next/navigation', () => ({
     replace: jest.fn(),
     prefetch: jest.fn()
   }),
+  useSearchParams: () => ({
+    toString: () => '',
+    get: jest.fn(),
+    set: jest.fn(),
+  }),
 }));
 
 // 필터 스토어 모킹을 위한 준비
 const mockSetSelectedStatus = jest.fn();
 const mockSetSelectedArea = jest.fn();
 
+// 상태를 관리하는 변수들
+let currentStatus = 'ongoing';
+let currentArea = 'kpop';
+
 // 스토어 모킹
-jest.mock('@/stores/voteFilterStore', () => {
-  const selectedStatus = jest.requireActual('react').createRef();
-  selectedStatus.current = 'ongoing';
-  
-  const selectedArea = jest.requireActual('react').createRef();
-  selectedArea.current = 'kpop';
-  
-  return {
-    useVoteFilterStore: () => ({
-      selectedStatus: selectedStatus.current,
-      selectedArea: selectedArea.current,
-      setSelectedStatus: (status: string) => {
-        selectedStatus.current = status;
+jest.mock('@/stores/voteFilterStore', () => ({
+  useVoteFilterStore: () => ({
+    selectedStatus: currentStatus,
+    selectedArea: currentArea,
+    setSelectedStatus: (status: string) => {
+      if (status !== currentStatus) {
+        currentStatus = status;
         mockSetSelectedStatus(status);
-      },
-      setSelectedArea: (area: string) => {
-        selectedArea.current = area;
+      }
+    },
+    setSelectedArea: (area: string) => {
+      if (area !== currentArea) {
+        currentArea = area;
         mockSetSelectedArea(area);
       }
-    }),
-    VOTE_STATUS: {
-      ALL: 'all',
-      UPCOMING: 'upcoming',
-      ONGOING: 'ongoing',
-      COMPLETED: 'completed'
-    },
-    VOTE_AREAS: {
-      ALL: 'all',
-      KPOP: 'kpop',
-      JPOP: 'jpop',
-      CPOP: 'cpop'
     }
-  };
-});
+  }),
+  VOTE_STATUS: {
+    UPCOMING: 'upcoming',
+    ONGOING: 'ongoing',
+    COMPLETED: 'completed'
+  },
+  VOTE_AREAS: {
+    KPOP: 'kpop',
+    MUSICAL: 'musical'
+  }
+}));
 
 // 언어 스토어 모킹
 jest.mock('@/stores/languageStore', () => ({
@@ -61,14 +63,9 @@ jest.mock('@/stores/languageStore', () => ({
     currentLanguage: 'ko',
     t: (key: string) => {
       const translations: Record<string, string> = {
-        'label_vote_status_all': '전체',
-        'label_vote_status_upcoming': '예정',
-        'label_vote_status_ongoing': '진행 중',
-        'label_vote_status_completed': '완료',
-        'label_vote_area_all': '전체',
-        'label_vote_area_kpop': 'K-POP',
-        'label_vote_area_jpop': 'J-POP',
-        'label_vote_area_cpop': 'C-POP'
+        'label_tabbar_vote_active': '진행 중',
+        'label_tabbar_vote_upcoming': '예정',
+        'label_tabbar_vote_end': '완료'
       };
       return translations[key] || key;
     }
@@ -78,6 +75,9 @@ jest.mock('@/stores/languageStore', () => ({
 describe('투표 필터 상호작용 테스트', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // 상태 초기화
+    currentStatus = 'ongoing';
+    currentArea = 'kpop';
     (usePathname as jest.Mock).mockReturnValue('/ko/vote');
   });
 
@@ -97,6 +97,9 @@ describe('투표 필터 상호작용 테스트', () => {
     // 상태 업데이트 함수가 올바른 값으로 호출되었는지 확인
     expect(mockSetSelectedStatus).toHaveBeenCalledWith('upcoming');
     
+    // 상태 업데이트
+    currentStatus = 'upcoming';
+    
     // "완료" 상태 필터 클릭
     act(() => {
       fireEvent.click(getByText('완료'));
@@ -104,14 +107,6 @@ describe('투표 필터 상호작용 테스트', () => {
     
     // 상태 업데이트 함수가 올바른 값으로 호출되었는지 확인
     expect(mockSetSelectedStatus).toHaveBeenCalledWith('completed');
-    
-    // "전체" 상태 필터 클릭
-    act(() => {
-      fireEvent.click(getByText('전체'));
-    });
-    
-    // 상태 업데이트 함수가 올바른 값으로 호출되었는지 확인
-    expect(mockSetSelectedStatus).toHaveBeenCalledWith('all');
   });
 
   test('영역 필터 변경 시 상태가 올바르게 업데이트되는지 확인', async () => {
@@ -122,29 +117,13 @@ describe('투표 필터 상호작용 테스트', () => {
       expect(getByText('K-POP')).toBeInTheDocument();
     });
     
-    // "J-POP" 영역 필터 클릭
+    // "K-MUSICAL" 영역 필터 클릭
     act(() => {
-      fireEvent.click(getByText('J-POP'));
+      fireEvent.click(getByText('K-MUSICAL'));
     });
     
     // 영역 업데이트 함수가 올바른 값으로 호출되었는지 확인
-    expect(mockSetSelectedArea).toHaveBeenCalledWith('jpop');
-    
-    // "C-POP" 영역 필터 클릭
-    act(() => {
-      fireEvent.click(getByText('C-POP'));
-    });
-    
-    // 영역 업데이트 함수가 올바른 값으로 호출되었는지 확인
-    expect(mockSetSelectedArea).toHaveBeenCalledWith('cpop');
-    
-    // "전체" 영역 필터 클릭
-    act(() => {
-      fireEvent.click(getByText('전체'));
-    });
-    
-    // 영역 업데이트 함수가 올바른 값으로 호출되었는지 확인
-    expect(mockSetSelectedArea).toHaveBeenCalledWith('all');
+    expect(mockSetSelectedArea).toHaveBeenCalledWith('musical');
   });
   
   test('필터 이중 전환 (상태 필터와 영역 필터 조합) 테스트', async () => {
@@ -156,31 +135,93 @@ describe('투표 필터 상호작용 테스트', () => {
       expect(getByText('K-POP')).toBeInTheDocument();
     });
     
-    // 필터 조합 1: 예정 + J-POP
+    // 1단계: 상태 필터 변경 (ongoing -> upcoming)
     act(() => {
       fireEvent.click(getByText('예정'));
-      fireEvent.click(getByText('J-POP'));
     });
     
     expect(mockSetSelectedStatus).toHaveBeenCalledWith('upcoming');
-    expect(mockSetSelectedArea).toHaveBeenCalledWith('jpop');
+    expect(mockSetSelectedStatus).toHaveBeenCalledTimes(1);
     
-    // 필터 조합 2: 완료 + C-POP
+    // 상태 업데이트
+    currentStatus = 'upcoming';
+    
+    // 2단계: 영역 필터 변경 (kpop -> musical)
+    act(() => {
+      fireEvent.click(getByText('K-MUSICAL'));
+    });
+    
+    expect(mockSetSelectedArea).toHaveBeenCalledWith('musical');
+    expect(mockSetSelectedArea).toHaveBeenCalledTimes(1);
+    
+    // 상태 업데이트
+    currentArea = 'musical';
+    
+    // 3단계: 상태 필터 다시 변경 (upcoming -> completed)
     act(() => {
       fireEvent.click(getByText('완료'));
-      fireEvent.click(getByText('C-POP'));
     });
     
     expect(mockSetSelectedStatus).toHaveBeenCalledWith('completed');
-    expect(mockSetSelectedArea).toHaveBeenCalledWith('cpop');
+    expect(mockSetSelectedStatus).toHaveBeenCalledTimes(2);
     
-    // 필터 조합 3: 전체 + 전체
-    act(() => {
-      fireEvent.click(getByText('전체'));
-      fireEvent.click(getByText('전체'));
+    // 최종 호출 횟수 확인
+    expect(mockSetSelectedStatus).toHaveBeenCalledTimes(2); // 'upcoming', 'completed'
+    expect(mockSetSelectedArea).toHaveBeenCalledTimes(1); // 'musical'
+  });
+
+  test('필터 버튼의 활성 상태가 올바르게 표시되는지 확인', async () => {
+    const { getByText } = customRender(<VoteFilterSection />);
+    
+    // 초기 상태 확인 - ongoing이 활성화되어 있어야 함
+    await waitFor(() => {
+      const ongoingButton = getByText('진행 중');
+      const kpopButton = getByText('K-POP');
+      
+      expect(ongoingButton).toBeInTheDocument();
+      expect(kpopButton).toBeInTheDocument();
+      
+      // 활성 상태 확인 (aria-pressed 속성)
+      expect(ongoingButton).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  test('필터 변경 시 URL 파라미터가 업데이트되는지 확인', async () => {
+    const { getByText } = customRender(<VoteFilterSection />);
+    
+    await waitFor(() => {
+      expect(getByText('진행 중')).toBeInTheDocument();
     });
     
-    expect(mockSetSelectedStatus).toHaveBeenCalledWith('all');
-    expect(mockSetSelectedArea).toHaveBeenCalledWith('all');
+    // 상태 필터 변경
+    act(() => {
+      fireEvent.click(getByText('예정'));
+    });
+    
+    // URL 업데이트가 호출되었는지 확인 (실제 URL은 모킹되어 있으므로 함수 호출만 확인)
+    expect(mockSetSelectedStatus).toHaveBeenCalledWith('upcoming');
+  });
+
+  test('동일한 필터 클릭 시 상태가 변경되지 않는지 확인', async () => {
+    const { getByText } = customRender(<VoteFilterSection />);
+    
+    await waitFor(() => {
+      expect(getByText('진행 중')).toBeInTheDocument();
+    });
+    
+    // 이미 선택된 "진행 중" 버튼을 다시 클릭
+    act(() => {
+      fireEvent.click(getByText('진행 중'));
+    });
+    
+    // 같은 상태로 변경 시 함수가 호출되지 않아야 함
+    expect(mockSetSelectedStatus).not.toHaveBeenCalled();
+    
+    // K-POP도 마찬가지
+    act(() => {
+      fireEvent.click(getByText('K-POP'));
+    });
+    
+    expect(mockSetSelectedArea).not.toHaveBeenCalled();
   });
 }); 

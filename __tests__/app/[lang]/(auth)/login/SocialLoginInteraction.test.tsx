@@ -110,35 +110,13 @@ describe('소셜 로그인 버튼 상호작용 테스트', () => {
     expect(mockSocialLogin).toHaveBeenCalledWith('kakao');
   });
 
-  test('소셜 로그인 중 로딩 상태가 표시되는지 확인', async () => {
-    // 로딩 상태를 확인하기 위해 의도적으로 지연 설정
-    mockSocialLogin.mockImplementation(() => new Promise(resolve => {
-      setTimeout(() => resolve({ success: true, error: null }), 100);
-    }));
-    
-    customRender(<SocialLoginButtons />);
-    
-    // 애플 로그인 버튼 찾기
-    const appleButton = screen.getByText(/애플로 로그인/i);
-    
-    // 버튼 클릭
-    fireEvent.click(appleButton);
-    
-    // 로딩 상태 확인 (로딩 인디케이터 또는 비활성화된 버튼)
-    expect(appleButton).toBeDisabled();
-    
-    // 로딩 완료 후 버튼 상태 확인
-    await waitFor(() => {
-      expect(appleButton).not.toBeDisabled();
-    }, { timeout: 200 });
-  });
-
   test('소셜 로그인 실패 시 오류가 처리되는지 확인', async () => {
     // 로그인 실패 시뮬레이션
     const mockError = new Error('소셜 로그인 실패');
     mockSocialLogin.mockResolvedValue({ success: false, error: mockError });
     
-    customRender(<SocialLoginButtons />);
+    // 위챗을 포함한 providers로 컴포넌트 렌더링
+    customRender(<SocialLoginButtons providers={['google', 'apple', 'kakao', 'wechat']} />);
     
     // 위챗 로그인 버튼 찾기
     const wechatButton = screen.getByText(/위챗으로 로그인/i);

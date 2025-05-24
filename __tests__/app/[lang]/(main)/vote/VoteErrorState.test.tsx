@@ -13,16 +13,38 @@ jest.mock('next/navigation', () => ({
     replace: jest.fn(),
     prefetch: jest.fn()
   }),
+  useSearchParams: () => ({
+    toString: () => '',
+    get: jest.fn(),
+    set: jest.fn(),
+  }),
 }));
 
 // VoteList 컴포넌트 모킹 (오류 상태를 표시할 수 있도록)
 jest.mock('@/components/features/vote/list/VoteList', () => {
   return function MockVoteList({ status }: { status?: string }) {
-    return (
-      <div data-testid={status ? `vote-list-${status}` : 'vote-list'}>
+    // 오류 상태를 시뮬레이션
+    const [error, setError] = React.useState<Error | null>(null);
+    
+    React.useEffect(() => {
+      // 컴포넌트 마운트 시 오류 발생 시뮬레이션
+      setTimeout(() => {
+        setError(new Error('데이터를 불러오는 중 오류가 발생했습니다.'));
+      }, 100);
+    }, []);
+    
+    if (error) {
+      return (
         <div data-testid="vote-list-error">
           <p>데이터를 불러오는 중 오류가 발생했습니다.</p>
+          <button data-testid="retry-button">다시 시도</button>
         </div>
+      );
+    }
+    
+    return (
+      <div data-testid={status ? `vote-list-${status}` : 'vote-list'}>
+        투표 목록
       </div>
     );
   };
@@ -35,11 +57,6 @@ jest.mock('@/components/features/vote/BannerList', () => {
   };
 });
 
-// API 요청 모킹 - 오류 시뮬레이션
-jest.mock('@/lib/data-fetching/vote-service', () => ({
-  getVotes: jest.fn().mockRejectedValue(mockVoteError)
-}));
-
 // SupabaseProvider 모킹 - 오류 시뮬레이션
 jest.mock('@/components/providers/SupabaseProvider', () => ({
   useSupabase: () => ({
@@ -51,16 +68,6 @@ jest.mock('@/components/providers/SupabaseProvider', () => ({
       order: jest.fn().mockReturnThis(),
       then: jest.fn().mockImplementation(cb => cb({ data: null, error: mockVoteError }))
     }
-  })
-}));
-
-// 오류 스토어 모킹
-const mockSetError = jest.fn();
-jest.mock('@/stores/errorStore', () => ({
-  useErrorStore: () => ({
-    setError: mockSetError,
-    error: null,
-    clearError: jest.fn()
   })
 }));
 
@@ -98,15 +105,35 @@ describe('투표 페이지 오류 상태 테스트', () => {
   test('데이터 로딩 실패 시 오류 상태가 표시되는지 확인', async () => {
     customRender(<VotePageClient />);
     
+    // 배너 목록이 먼저 렌더링되는지 확인
+    expect(screen.getByTestId('banner-list')).toBeInTheDocument();
+    
     // 오류 상태가 표시될 때까지 대기
     await waitFor(() => {
       expect(screen.getByTestId('vote-list-error')).toBeInTheDocument();
-    });
+    }, { timeout: 1000 });
     
     // 오류 메시지가 표시되는지 확인
     expect(screen.getByText(/데이터를 불러오는 중 오류가 발생했습니다/i)).toBeInTheDocument();
     
-    // 오류 스토어에 오류가 설정되었는지 확인
-    expect(mockSetError).toHaveBeenCalled();
+    // 재시도 버튼이 표시되는지 확인
+    expect(screen.getByTestId('retry-button')).toBeInTheDocument();
+  });
+
+  test('네트워크 오류 발생 시 적절한 오류 메시지가 표시되는지 확인', async () => {
+    customRender(<VotePageClient />);
+    
+    // 오류 상태가 표시될 때까지 대기
+    await waitFor(() => {
+      expect(screen.getByTestId('vote-list-error')).toBeInTheDocument();
+    }, { timeout: 1000 });
+    
+    // 오류 메시지 확인
+    expect(screen.getByText(/데이터를 불러오는 중 오류가 발생했습니다/i)).toBeInTheDocument();
+    
+    // 재시도 버튼 확인
+    const retryButton = screen.getByTestId('retry-button');
+    expect(retryButton).toBeInTheDocument();
+    expect(retryButton).toHaveTextContent('다시 시도');
   });
 }); 

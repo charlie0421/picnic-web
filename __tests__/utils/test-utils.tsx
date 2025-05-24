@@ -4,83 +4,34 @@
  * 컴포넌트 테스트를 위한 공통 유틸리티 함수와 래퍼를 제공합니다.
  */
 
-import React, { ReactElement, PropsWithChildren } from 'react';
+import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
-import messages from '@/locales/ko.json';
-import { mockSession } from './mockSupabase';
-
-// Provider 타입
-interface ProviderProps {
-  children: React.ReactNode;
-}
-
-// 테마 프로바이더 목 컴포넌트
-const MockThemeProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
-  return <div data-testid='theme-provider'>{children}</div>;
-};
-
-// 인증 프로바이더 목 컴포넌트
-const MockAuthProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
-  return <div data-testid='auth-provider'>{children}</div>;
-};
-
-// next-intl 메시지를 위한 타입 확장
-const mockMessages = messages as unknown as Record<
-  string,
-  Record<string, string>
->;
 
 // 테스트 래퍼 옵션 인터페이스
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  messages?: Record<string, Record<string, string>>;
-  withAuth?: boolean;
-  withTheme?: boolean;
-  supapaseOptions?: any;
+  // 추가 옵션들을 여기에 정의할 수 있습니다
 }
 
 /**
- * 테스트를 위한 모든 필요한 컨텍스트 프로바이더와 함께 컴포넌트를 렌더링합니다.
+ * 테스트를 위한 간단한 래퍼와 함께 컴포넌트를 렌더링합니다.
  *
  * @param ui 렌더링할 리액트 컴포넌트
- * @param options 렌더링 옵션 (테마, 인증, 메시지 등)
+ * @param options 렌더링 옵션
  * @returns 테스팅 라이브러리 렌더링 결과
  */
 export function renderWithProviders(
   ui: ReactElement,
-  {
-    messages = mockMessages,
-    withAuth = true,
-    withTheme = true,
-    supapaseOptions,
-    ...renderOptions
-  }: CustomRenderOptions = {},
+  options: CustomRenderOptions = {},
 ) {
-  // 모든 프로바이더를 포함하는 래퍼
-  const AllProviders: React.FC<PropsWithChildren<{}>> = ({ children }) => {
-    return (
-      <NextIntlClientProvider messages={messages} locale='ko'>
-        {withTheme ? (
-          <MockThemeProvider>
-            {withAuth ? (
-              <MockAuthProvider>{children}</MockAuthProvider>
-            ) : (
-              children
-            )}
-          </MockThemeProvider>
-        ) : withAuth ? (
-          <MockAuthProvider>{children}</MockAuthProvider>
-        ) : (
-          children
-        )}
-      </NextIntlClientProvider>
-    );
-  };
+  // 간단한 래퍼 컴포넌트
+  function TestWrapper({ children }: { children: React.ReactNode }) {
+    return <div data-testid="test-wrapper">{children}</div>;
+  }
 
   // 컴포넌트 렌더링
   return {
-    ...render(ui, { wrapper: AllProviders, ...renderOptions }),
+    ...render(ui, { wrapper: TestWrapper, ...options }),
     // 사용자 이벤트 생성 헬퍼 추가
     user: userEvent.setup(),
   };
@@ -101,6 +52,9 @@ export const mockTestUser = {
 };
 
 export const mockTestSession = {
-  ...mockSession,
+  access_token: 'mock-access-token',
+  refresh_token: 'mock-refresh-token',
+  expires_in: 3600,
+  token_type: 'bearer',
   user: mockTestUser,
 };

@@ -29,6 +29,37 @@ jobs:
     - name: Run tests with coverage
       run: npm run test:ci
       
+    - name: Check coverage threshold
+      run: |
+        echo "🔍 커버리지 임계값 검증 중..."
+        npm run test:coverage -- --passWithNoTests
+        if [ $? -ne 0 ]; then
+          echo "❌ 커버리지가 80% 임계값에 미달했습니다!"
+          echo "📊 현재 커버리지 리포트를 확인하세요."
+          exit 1
+        else
+          echo "✅ 커버리지 임계값 80%를 충족했습니다!"
+        fi
+        
+    - name: Generate coverage summary
+      run: |
+        echo "📊 커버리지 요약 생성 중..."
+        if [ -f coverage/coverage-summary.json ]; then
+          echo "## 📊 테스트 커버리지 리포트" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          node -e "
+            const fs = require('fs');
+            const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const total = coverage.total;
+            console.log('| 항목 | 커버리지 | 임계값 | 상태 |');
+            console.log('|------|----------|--------|------|');
+            console.log('| Statements | ' + total.statements.pct + '% | 80% | ' + (total.statements.pct >= 80 ? '✅' : '❌') + ' |');
+            console.log('| Branches | ' + total.branches.pct + '% | 80% | ' + (total.branches.pct >= 80 ? '✅' : '❌') + ' |');
+            console.log('| Functions | ' + total.functions.pct + '% | 80% | ' + (total.functions.pct >= 80 ? '✅' : '❌') + ' |');
+            console.log('| Lines | ' + total.lines.pct + '% | 80% | ' + (total.lines.pct >= 80 ? '✅' : '❌') + ' |');
+          " >> $GITHUB_STEP_SUMMARY
+        fi
+      
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
@@ -41,4 +72,36 @@ jobs:
       with:
         name: coverage-report
         path: coverage/
-        retention-days: 7 
+        retention-days: 7
+        
+    - name: Comment PR with coverage
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          if (fs.existsSync('coverage/coverage-summary.json')) {
+            const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const total = coverage.total;
+            
+            const comment = `## 📊 테스트 커버리지 리포트
+            
+            | 항목 | 커버리지 | 임계값 | 상태 |
+            |------|----------|--------|------|
+            | Statements | ${total.statements.pct}% | 80% | ${total.statements.pct >= 80 ? '✅' : '❌'} |
+            | Branches | ${total.branches.pct}% | 80% | ${total.branches.pct >= 80 ? '✅' : '❌'} |
+            | Functions | ${total.functions.pct}% | 80% | ${total.functions.pct >= 80 ? '✅' : '❌'} |
+            | Lines | ${total.lines.pct}% | 80% | ${total.lines.pct >= 80 ? '✅' : '❌'} |
+            
+            ${total.statements.pct >= 80 && total.branches.pct >= 80 && total.functions.pct >= 80 && total.lines.pct >= 80 
+              ? '🎉 모든 커버리지 임계값을 충족했습니다!' 
+              : '⚠️ 일부 커버리지가 임계값에 미달했습니다. 추가 테스트가 필요합니다.'}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } 

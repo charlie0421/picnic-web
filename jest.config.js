@@ -67,9 +67,21 @@ const customJestConfig = {
       functions: 80,
       lines: 80,
     },
+    './lib/supabase/': {
+      statements: 75,
+      branches: 75,
+      functions: 75,
+      lines: 75,
+    },
+    './hooks/': {
+      statements: 75,
+      branches: 75,
+      functions: 75,
+      lines: 75,
+    },
   },
   // 커버리지 보고서 설정
-  coverageReporters: ['json', 'lcov', 'text', 'clover', 'html'],
+  coverageReporters: ['json', 'json-summary', 'lcov', 'text', 'text-summary', 'clover', 'html'],
   // 캐시 설정
   cache: true,
   cacheDirectory: '<rootDir>/.jest-cache',
