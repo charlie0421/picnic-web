@@ -61,13 +61,17 @@ const getStatusText = (
 const VoteCard = React.memo(
   ({ vote, onClick }: { vote: Vote; onClick?: () => void }) => {
     const { t } = useLanguageStore();
-    const now = useRef(new Date());
+    const now = useRef(typeof window !== 'undefined' ? new Date() : new Date(0));
     const status = useMemo(() => {
       if (!vote.startAt || !vote.stopAt) return VOTE_STATUS.UPCOMING;
       const start = new Date(vote.startAt);
       const end = new Date(vote.stopAt);
-      if (now.current < start) return VOTE_STATUS.UPCOMING;
-      if (now.current > end) return VOTE_STATUS.COMPLETED;
+      
+      // 클라이언트 사이드에서만 정확한 시간 비교
+      const currentTime = typeof window !== 'undefined' ? new Date() : now.current;
+      
+      if (currentTime < start) return VOTE_STATUS.UPCOMING;
+      if (currentTime > end) return VOTE_STATUS.COMPLETED;
       return VOTE_STATUS.ONGOING;
     }, [vote.startAt, vote.stopAt]);
 

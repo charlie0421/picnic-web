@@ -76,16 +76,22 @@ function isLikelyInChina(): boolean {
 }
 
 /**
- * 상태 토큰 생성 (CSRF 방지용)
+ * 무작위 상태 토큰 생성
+ * CSRF 공격 방지를 위한 상태 토큰 생성
  * 
  * @returns 무작위 상태 문자열
  */
 function generateStateToken(): string {
   const randomBytes = new Uint8Array(16);
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+  
+  // 브라우저 환경에서 crypto API 사용
+  if (typeof window !== 'undefined' && typeof crypto !== 'undefined' && crypto.getRandomValues) {
     crypto.getRandomValues(randomBytes);
+  } else if (typeof globalThis !== 'undefined' && globalThis.crypto && globalThis.crypto.getRandomValues) {
+    // Node.js 환경에서 crypto API 사용
+    globalThis.crypto.getRandomValues(randomBytes);
   } else {
-    // 서버 측 또는 crypto가 지원되지 않는 환경
+    // 폴백: Math.random() 사용 (덜 안전하지만 작동함)
     for (let i = 0; i < randomBytes.length; i++) {
       randomBytes[i] = Math.floor(Math.random() * 256);
     }

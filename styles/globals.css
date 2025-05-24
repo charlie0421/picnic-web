@@ -20,6 +20,21 @@ body {
   color: rgb(var(--foreground-rgb));
 }
 
+/* 브라우저 확장 프로그램으로 인한 hydration 문제 방지 */
+/* Dashlane, LastPass, 1Password 등의 확장 프로그램이 DOM을 수정하는 것을 방지 */
+[data-dashlane-rid],
+[data-lastpass-icon-root],
+[data-1p-ignore],
+[data-bitwarden-watching],
+.dashlane-overlay,
+.lastpass-overlay,
+._1PasswordExtensionOverlay {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* 순위 변동 및 투표수 변경 애니메이션 */
 @keyframes bounce-up {
   0%, 100% { transform: translateY(0); }

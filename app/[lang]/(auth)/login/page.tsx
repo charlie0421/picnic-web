@@ -53,12 +53,34 @@ const debugLog = (message: string, data?: any) => {
 function LoginContentInner() {
   const searchParams = useSearchParams();
   const { t } = useLanguageStore();
-  const { isLoading: authLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, isInitialized, user, userProfile, error: authError } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // 클라이언트에서만 렌더링되도록 보장
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // AuthProvider 상태 디버깅
+  useEffect(() => {
+    if (mounted) {
+      debugLog('AuthProvider 상태 변경', {
+        isLoading,
+        isAuthenticated,
+        isInitialized,
+        hasUser: !!user,
+        hasUserProfile: !!userProfile,
+        authError
+      });
+    }
+  }, [mounted, isLoading, isAuthenticated, isInitialized, user, userProfile, authError]);
 
   // 오류 파라미터 처리
   useEffect(() => {
+    if (!mounted) return;
+
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
     const provider = searchParams.get('provider');
@@ -127,18 +149,39 @@ function LoginContentInner() {
         window.history.replaceState({}, document.title, url.toString());
       }
     }
-  }, [searchParams]);
+  }, [mounted, searchParams]);
+
+  // 클라이언트에서 마운트되지 않았으면 로딩 표시
+  if (!mounted) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"></div>
+        <p className="text-gray-600">페이지 로딩 중...</p>
+      </div>
+    );
+  }
 
   // 로딩 상태 또는 이미 인증된 상태 처리
-  if (authLoading) {
+  if (!isInitialized || isLoading) {
+    debugLog('로딩 상태 표시', { isInitialized, isLoading });
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      <div className="flex flex-col justify-center items-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"></div>
+        <p className="text-gray-600">
+          {!isInitialized ? '인증 시스템 초기화 중...' : '로딩 중...'}
+        </p>
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-4 text-xs text-gray-500 text-center">
+            <p>디버그: isInitialized={String(isInitialized)}, isLoading={String(isLoading)}</p>
+            <p>authError: {authError || 'none'}</p>
+          </div>
+        )}
       </div>
     );
   }
 
   if (isAuthenticated) {
+    debugLog('이미 인증된 사용자');
     return (
       <div className="text-center py-10">
         <h2 className="text-2xl font-bold mb-4">{t('label_already_logged_in')}</h2>
@@ -153,14 +196,15 @@ function LoginContentInner() {
     );
   }
 
+  debugLog('로그인 폼 표시');
   return (
     <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
       <h1 className="text-2xl font-bold mb-6 text-center">{t('label_login')}</h1>
 
       {/* 오류 메시지 표시 */}
-      {error && (
+      {(error || authError) && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
-          <span className="block sm:inline">{error}</span>
+          <span className="block sm:inline">{error || authError}</span>
         </div>
       )}
 
@@ -177,6 +221,20 @@ function LoginContentInner() {
       <div className="mt-6 text-center text-sm text-gray-600">
         <p>{t('label_no_account')} <Link href="/signup" className="text-primary-600 hover:underline">{t('button_signup')}</Link></p>
       </div>
+
+      {/* 개발 환경에서만 디버그 정보 표시 */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-6 p-3 bg-gray-100 rounded text-xs">
+          <h3 className="font-bold mb-2">디버그 정보:</h3>
+          <p>mounted: {String(mounted)}</p>
+          <p>isInitialized: {String(isInitialized)}</p>
+          <p>isLoading: {String(isLoading)}</p>
+          <p>isAuthenticated: {String(isAuthenticated)}</p>
+          <p>hasUser: {String(!!user)}</p>
+          <p>hasUserProfile: {String(!!userProfile)}</p>
+          <p>authError: {authError || 'none'}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -198,7 +256,10 @@ function LoginContent() {
       </div>
       
       <Suspense fallback={
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+        <div className="flex flex-col justify-center items-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"></div>
+          <p className="text-gray-600">페이지 로딩 중...</p>
+        </div>
       }>
         <LoginContentInner />
       </Suspense>

@@ -133,8 +133,10 @@ const CountdownTimer = React.memo(
         }
       };
 
-      // 초기 업데이트
-      updateTimer(new Date());
+      // 클라이언트 사이드에서만 초기 업데이트
+      if (typeof window !== 'undefined') {
+        updateTimer(new Date());
+      }
 
       // 전역 타이머 구독
       const unsubscribe = useGlobalTimer.subscribe((state) => {

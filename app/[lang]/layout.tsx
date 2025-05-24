@@ -66,6 +66,12 @@ export default async function RootLayout({
         <meta name='msapplication-TileColor' content='#4F46E5' />
         <meta name='theme-color' content='#ffffff' />
         
+        {/* 브라우저 확장 프로그램 비활성화 */}
+        <meta name='1password-ignore' content='true' />
+        <meta name='lastpass-ignore' content='true' />
+        <meta name='dashlane-ignore' content='true' />
+        <meta name='bitwarden-ignore' content='true' />
+        
         {/* JSON-LD 구조화된 데이터 - 웹사이트 정보 */}
         <script
           type='application/ld+json'

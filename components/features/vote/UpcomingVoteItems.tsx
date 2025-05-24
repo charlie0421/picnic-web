@@ -72,7 +72,7 @@ const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
   }
 
   return (
-    <div className='flex flex-col'>
+    <div className='flex flex-col' suppressHydrationWarning>
       <div className='grid grid-cols-4 md:grid-cols-4 gap-1'>
         {currentItems.map((item) => (
           <div key={item.id} className='relative aspect-square'>

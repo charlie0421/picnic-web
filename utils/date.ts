@@ -8,7 +8,8 @@ export interface RemainingTime {
 }
 
 export function calculateRemainingTime(endTime: string): RemainingTime {
-  const now = new Date().getTime();
+  // 클라이언트 사이드에서만 정확한 시간 계산
+  const now = typeof window !== 'undefined' ? new Date().getTime() : Date.now();
   const end = new Date(endTime).getTime();
   const distance = Math.max(0, end - now);
 

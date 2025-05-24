@@ -10,7 +10,7 @@ const useGlobalTimer = create<GlobalTimerState>((set, get) => {
   let timer: NodeJS.Timeout | null = null;
 
   const startTimer = () => {
-    if (timer) return;
+    if (timer || typeof window === 'undefined') return;
 
     timer = setInterval(() => {
       const now = new Date();
@@ -27,11 +27,14 @@ const useGlobalTimer = create<GlobalTimerState>((set, get) => {
     }
   };
 
+  // 서버 사이드에서는 고정된 시간, 클라이언트에서는 현재 시간
+  const initialTime = typeof window !== 'undefined' ? new Date() : new Date(0);
+
   return {
-    currentTime: new Date(),
+    currentTime: initialTime,
     subscribe: (callback) => {
       subscribers.add(callback);
-      if (subscribers.size === 1) {
+      if (subscribers.size === 1 && typeof window !== 'undefined') {
         startTimer();
       }
       return () => {

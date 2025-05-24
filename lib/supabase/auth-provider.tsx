@@ -50,27 +50,17 @@ export function AuthProvider({
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(!!session?.user);
-  const [lastProfileFetch, setLastProfileFetch] = useState<Record<string, number>>({});
 
-  // 사용자 프로필 정보 가져오기
-  const fetchUserProfile = useCallback(async (userId: string) => {
+  // 사용자 프로필 정보 가져오기 (의존성 최소화)
+  const fetchUserProfile = useCallback(async (userId: string, currentSession: Session | null) => {
     try {
-      // 이미 최근에 요청했는지 확인 (1초 이내 중복 요청 방지)
-      const now = Date.now();
-      const lastFetch = lastProfileFetch[userId] || 0;
-      if (now - lastFetch < 1000) {
-        return userProfile;
-      }
-      
       // 캐시에서 확인
+      const now = Date.now();
       const cached = profileCache.get(userId);
       if (cached && now - cached.timestamp < CACHE_TTL) {
         setUserProfile(cached.profile);
         return cached.profile;
       }
-      
-      // 요청 타임스탬프 기록
-      setLastProfileFetch(prev => ({ ...prev, [userId]: now }));
       
       const { data, error } = await supabase
         .from('user_profiles')
@@ -78,7 +68,35 @@ export function AuthProvider({
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.warn('사용자 프로필 조회 오류:', error);
+        // 프로필이 없으면 기본 정보로 빈 프로필 생성
+        if (currentSession?.user?.id === userId) {
+          const defaultProfile: UserProfiles = {
+            id: userId,
+            email: currentSession.user.email || null,
+            nickname: null,
+            avatarUrl: null,
+            isAdmin: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            birthDate: null,
+            birthTime: null,
+            gender: null,
+            openAges: false,
+            openGender: false,
+            starCandy: 0,
+            starCandyBonus: 0
+          };
+          
+          profileCache.set(userId, { profile: defaultProfile, timestamp: now });
+          setUserProfile(defaultProfile);
+          return defaultProfile;
+        }
+        setUserProfile(null);
+        return null;
+      }
 
       if (data) {
         const profile = {
@@ -101,99 +119,55 @@ export function AuthProvider({
         
         // 캐시에 저장
         profileCache.set(userId, { profile, timestamp: now });
-        
         setUserProfile(profile);
         return profile;
       }
       
-      // 프로필이 없으면 기본 정보로 빈 프로필 생성 (현재 사용자에 대해)
-      if (session?.user?.id === userId) {
-        const defaultProfile: UserProfiles = {
-          id: userId,
-          email: session.user.email || null,
-          nickname: null,
-          avatarUrl: null,
-          isAdmin: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          deletedAt: null,
-          birthDate: null,
-          birthTime: null,
-          gender: null,
-          openAges: false,
-          openGender: false,
-          starCandy: 0,
-          starCandyBonus: 0
-        };
-        
-        // 캐시에 저장
-        profileCache.set(userId, { profile: defaultProfile, timestamp: now });
-        
-        setUserProfile(defaultProfile);
-        return defaultProfile;
-      }
-      
       setUserProfile(null);
       return null;
     } catch (error) {
-      console.error('사용자 프로필 조회 오류:', error);
+      console.error('사용자 프로필 조회 중 예외:', error);
       setUserProfile(null);
       return null;
     }
-  }, [supabase, session, userProfile, lastProfileFetch]);
+  }, [supabase]);
 
-  // 인증 상태 처리 함수
+  // 인증 상태 처리 함수 (의존성 최소화)
   const handleSession = useCallback(async (newSession: Session | null) => {
-    setSession(newSession);
-    setUser(newSession?.user ?? null);
-    setIsAuthenticated(!!newSession?.user);
-    
-    // 세션이 있으면 사용자 프로필 로드
-    if (newSession?.user) {
-      await fetchUserProfile(newSession.user.id);
-    } else {
-      setUserProfile(null);
-    }
-    
-    setIsLoading(false);
-    setError(null);
-  }, [fetchUserProfile]);
-
-  // 세션 및 사용자 정보 로드
-  const loadSessionAndUser = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      setIsAuthenticated(!!newSession?.user);
       
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('세션 가져오기 오류:', sessionError);
-        setError(sessionError.message);
-        return;
-      }
-
-      if (session?.user) {
-        setSession(session);
-        setUser(session.user);
-        setIsAuthenticated(true);
+      // 세션이 있으면 사용자 프로필 로드
+      if (newSession?.user) {
+        try {
+          await fetchUserProfile(newSession.user.id, newSession);
+        } catch (profileError) {
+          console.warn('프로필 로드 실패, 기본값으로 진행:', profileError);
+          // 프로필 로드 실패해도 인증 상태는 유지
+        }
       } else {
-        setSession(null);
-        setUser(null);
-        setIsAuthenticated(false);
+        setUserProfile(null);
       }
     } catch (error) {
-      console.error('인증 상태 로드 중 오류:', error);
-      setError(error instanceof Error ? error.message : '알 수 없는 오류');
+      console.error('세션 처리 중 오류:', error);
+      setError(error instanceof Error ? error.message : '세션 처리 오류');
     } finally {
       setIsLoading(false);
+      // 오류가 있어도 초기화는 완료된 것으로 처리
+      if (!isInitialized) {
+        setIsInitialized(true);
+      }
     }
-  }, [supabase.auth]);
+  }, [fetchUserProfile, isInitialized]);
 
-  // 세션 갱신 및 프로필 로드
+  // 초기 세션 로드 (한 번만 실행)
   useEffect(() => {
     let isMounted = true;
+    let initTimeout: NodeJS.Timeout;
     
-    const loadUserSession = async () => {
+    const initializeAuth = async () => {
       try {
         setIsLoading(true);
         
@@ -207,38 +181,46 @@ export function AuthProvider({
         // 컴포넌트가 언마운트되었으면 상태 업데이트 중단
         if (!isMounted) return;
         
-        if (currentSession) {
-          await handleSession(currentSession);
-        } else {
-          setSession(null);
-          setUser(null);
-          setUserProfile(null);
-          setIsAuthenticated(false);
-        }
+        await handleSession(currentSession);
       } catch (error) {
         if (!isMounted) return;
         
         console.error('AuthProvider 초기화 오류:', error);
         setError(error instanceof Error ? error.message : String(error));
+        setIsLoading(false);
       } finally {
         if (isMounted) {
           setIsInitialized(true);
-          setIsLoading(false);
         }
       }
     };
 
-    loadUserSession();
+    // 5초 후에도 초기화가 완료되지 않으면 강제로 완료 처리
+    initTimeout = setTimeout(() => {
+      if (isMounted && !isInitialized) {
+        console.warn('AuthProvider 초기화 타임아웃 - 강제 완료 처리');
+        setIsLoading(false);
+        setIsInitialized(true);
+        setError('인증 시스템 초기화에 시간이 오래 걸리고 있습니다. 페이지를 새로고침해보세요.');
+      }
+    }, 5000);
+
+    initializeAuth();
     
     return () => {
       isMounted = false;
+      if (initTimeout) {
+        clearTimeout(initTimeout);
+      }
     };
-  }, [handleSession, supabase.auth]);
+  }, []); // 빈 의존성 배열로 한 번만 실행
 
-  // 인증 상태 변경 구독
+  // 인증 상태 변경 구독 (별도 useEffect)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        console.log('Auth state change:', event, !!newSession);
+        
         await handleSession(newSession);
         
         // 세션이 생성되었을 때 로컬 스토리지에 저장
@@ -257,7 +239,7 @@ export function AuthProvider({
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, handleSession]);
+  }, [handleSession]);
 
   // 캐시 정리 
   useEffect(() => {
@@ -320,36 +302,19 @@ export function AuthProvider({
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            username: username || email.split('@')[0],
+          },
+        },
       });
-      
-      if (error) throw error;
-      
-      // 사용자 프로필 생성 (username이 제공된 경우)
-      if (data.user && username) {
-        try {
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert([
-              {
-                id: data.user.id,
-                email: email,
-                nickname: username,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }
-            ]);
 
-          if (profileError) throw profileError;
-        } catch (profileError: any) {
-          console.error('프로필 생성 오류:', profileError);
-          // 계정은 생성되었으므로 오류를 반환하지 않고 로그만 남김
-        }
-      }
-      
-      return { data, error: null };
+      if (error) throw error;
+
+      return { error: null, data: { user: data.user } };
     } catch (error: any) {
       setError(error.message || '회원가입 중 오류가 발생했습니다.');
-      return { data: { user: null }, error: error as Error };
+      return { error: error as Error, data: { user: null } };
     } finally {
       setIsLoading(false);
     }
@@ -357,56 +322,39 @@ export function AuthProvider({
 
   const refreshSession = async () => {
     try {
-      const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-      await handleSession(refreshedSession);
-    } catch (error: any) {
+      setIsLoading(true);
+      const { data: { session }, error } = await supabase.auth.refreshSession();
+      
+      if (error) throw error;
+      
+      await handleSession(session);
+    } catch (error) {
       console.error('세션 갱신 오류:', error);
-      setError(error.message || '세션 갱신 중 오류가 발생했습니다.');
+      setError(error instanceof Error ? error.message : '세션 갱신 오류');
+    } finally {
+      setIsLoading(false);
     }
   };
-  
+
   const updateUserProfile = async (profile: Partial<UserProfiles>) => {
     try {
       setIsLoading(true);
       setError(null);
-
+      
       const currentUserId = user?.id;
       if (!currentUserId) {
         throw new Error('로그인이 필요합니다');
       }
 
-      // 데이터베이스 컬럼 명명 규칙에 맞게 변환
-      const dbProfile: Record<string, any> = {};
-      
-      // snake_case로 변환
-      if ('avatarUrl' in profile) dbProfile.avatar_url = profile.avatarUrl;
-      if ('isAdmin' in profile) dbProfile.is_admin = profile.isAdmin;
-      if ('createdAt' in profile) dbProfile.created_at = profile.createdAt;
-      if ('updatedAt' in profile) dbProfile.updated_at = profile.updatedAt;
-      if ('deletedAt' in profile) dbProfile.deleted_at = profile.deletedAt;
-      if ('birthDate' in profile) dbProfile.birth_date = profile.birthDate;
-      if ('birthTime' in profile) dbProfile.birth_time = profile.birthTime;
-      if ('openAges' in profile) dbProfile.open_ages = profile.openAges;
-      if ('openGender' in profile) dbProfile.open_gender = profile.openGender;
-      if ('starCandy' in profile) dbProfile.star_candy = profile.starCandy;
-      if ('starCandyBonus' in profile) dbProfile.star_candy_bonus = profile.starCandyBonus;
-      
-      // 일반 속성 복사
-      if ('email' in profile) dbProfile.email = profile.email;
-      if ('nickname' in profile) dbProfile.nickname = profile.nickname;
-      if ('gender' in profile) dbProfile.gender = profile.gender;
-
       const { error } = await supabase
         .from('user_profiles')
-        .update(dbProfile)
+        .update(profile)
         .eq('id', currentUserId);
 
       if (error) throw error;
 
-      // 업데이트된 프로필 객체 생성
+      // 현재 프로필 업데이트
       const updatedProfile = userProfile ? { ...userProfile, ...profile } : null;
-      
-      // 업데이트 성공시 상태 업데이트
       setUserProfile(updatedProfile);
       
       // 캐시 업데이트

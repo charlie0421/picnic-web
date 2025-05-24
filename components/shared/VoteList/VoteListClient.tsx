@@ -11,7 +11,7 @@ import {
   VoteStatus,
   VoteArea,
 } from '@/stores/voteFilterStore';
-import VoteFilterSection from '@/components/features/vote/list/VoteFilterSection';
+import VoteFilterSectionWrapper from '@/components/features/vote/list/VoteFilterSectionWrapper';
 import VoteListSection from '@/components/features/vote/list/VoteListSection';
 import VotePagination from '@/components/features/vote/list/VotePagination';
 import { Vote } from '@/types/interfaces';
@@ -255,7 +255,7 @@ const VoteListClient: React.FC<VoteListClientProps> = ({
 
   return (
     <section className='w-full'>
-      <VoteFilterSection />
+      <VoteFilterSectionWrapper />
       <VoteListSection
         votes={paginatedVotes}
         isLoading={isLoading}
