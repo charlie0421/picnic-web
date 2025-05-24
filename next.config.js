@@ -34,12 +34,6 @@ const nextConfig = {
     minimumCacheTTL: 60, // 이미지 캐시 시간 설정 (초 단위)
   },
   
-  // 개발 허용 원본
-  allowedDevOrigins: [
-    'ngrok-free.app',
-    '.ngrok-free.app'
-  ],
-  
   // 실험적 기능 활성화
   experimental: {
     // 서버 컴포넌트에서 React 18 스트리밍 활성화

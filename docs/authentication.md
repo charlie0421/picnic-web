@@ -7,7 +7,6 @@
 - [보안 고려사항](#보안-고려사항)
 
 ## 관련 문서
-- [ngrok 설정 가이드](./ngrok-setup-guide.md) - 개발 환경 설정
 - [인증 테스트 가이드](./auth-testing-guide.md) - 테스트 방법
 - [Apple 웹 인증 설정 가이드](./apple-web-auth-guide.md) - Apple 로그인 상세 설정
 
@@ -18,7 +17,6 @@
 - OAuth 2.0 클라이언트 ID 생성
 - 승인된 리디렉션 URI 설정:
   - 개발 환경: `http://localhost:3000/auth/callback`
-  - ngrok 사용 시: `https://[your-ngrok-subdomain].ngrok-free.app/auth/callback`
   - 프로덕션: `https://www.picnic.fan/auth/callback`
 
 ### 2. Apple 로그인
@@ -26,7 +24,6 @@
 - 웹 인증 설정 구성 (자세한 내용은 [Apple 웹 인증 설정 가이드](./apple-web-auth-guide.md) 참조)
 - 도메인 및 리디렉션 URL 등록:
   - 개발 환경: `http://localhost:3000/auth/callback`
-  - ngrok 사용 시: `https://[your-ngrok-subdomain].ngrok-free.app/auth/callback`
   - 프로덕션: `https://www.picnic.fan/auth/callback`
 
 ### 3. Kakao 로그인
@@ -34,18 +31,15 @@
 - 플랫폼 설정에서 웹 플랫폼 추가
 - 사이트 도메인 등록:
   - 개발 환경: `http://localhost:3000`
-  - ngrok 사용 시: `https://[your-ngrok-subdomain].ngrok-free.app`
   - 프로덕션: `https://www.picnic.fan`
 - 리디렉션 URI 설정:
   - 개발 환경: `http://localhost:3000/auth/callback`
-  - ngrok 사용 시: `https://[your-ngrok-subdomain].ngrok-free.app/auth/callback`
   - 프로덕션: `https://www.picnic.fan/auth/callback`
 
 ### 4. WeChat 로그인
 - WeChat Open Platform에서 웹사이트 애플리케이션 등록
 - 도메인 및 리디렉션 URL 설정:
   - 개발 환경: `http://localhost:3000/auth/callback`
-  - ngrok 사용 시: `https://[your-ngrok-subdomain].ngrok-free.app/auth/callback`
   - 프로덕션: `https://www.picnic.fan/auth/callback`
 
 ## 환경 변수 설정
@@ -72,5 +66,4 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 - HTTPS 사용 필수
 - CSRF 보호 구현
 - 세션 타임아웃 설정
-- 로그인 시도 제한 구현
-- 프로덕션 환경에서는 ngrok 사용 금지 
+- 로그인 시도 제한 구현 

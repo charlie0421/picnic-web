@@ -25,12 +25,6 @@ export default function PrimaryLayout({
     }
   }, [initialLanguage, loadTranslations]);
 
-  // 환경 정보 로깅 (개발 환경용)
-  useEffect(() => {
-    const isNgrok = window.location.hostname.includes('ngrok');
-    // 환경 정보 로그 제거됨
-  }, []);
-
   return (
     <SupabaseProvider>
       <AuthProvider>

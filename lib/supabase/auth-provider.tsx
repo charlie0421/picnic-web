@@ -58,18 +58,31 @@ export function AuthProvider({
       const now = Date.now();
       const cached = profileCache.get(userId);
       if (cached && now - cached.timestamp < CACHE_TTL) {
+        console.log('[AuthProvider] 캐시된 프로필 사용');
         setUserProfile(cached.profile);
         return cached.profile;
       }
       
-      const { data, error } = await supabase
+      console.log('[AuthProvider] 프로필 DB 조회 시작');
+      
+      // 프로필 조회에 타임아웃 설정
+      const profilePromise = supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
+        
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('프로필 조회 타임아웃')), 2000);
+      });
+      
+      const { data, error } = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]) as any;
 
       if (error) {
-        console.warn('사용자 프로필 조회 오류:', error);
+        console.warn('[AuthProvider] 사용자 프로필 조회 오류:', error);
         // 프로필이 없으면 기본 정보로 빈 프로필 생성
         if (currentSession?.user?.id === userId) {
           const defaultProfile: UserProfiles = {
@@ -90,6 +103,7 @@ export function AuthProvider({
             starCandyBonus: 0
           };
           
+          console.log('[AuthProvider] 기본 프로필 생성');
           profileCache.set(userId, { profile: defaultProfile, timestamp: now });
           setUserProfile(defaultProfile);
           return defaultProfile;
@@ -117,6 +131,7 @@ export function AuthProvider({
           starCandyBonus: data.star_candy_bonus
         } as UserProfiles;
         
+        console.log('[AuthProvider] 프로필 DB 조회 완료');
         // 캐시에 저장
         profileCache.set(userId, { profile, timestamp: now });
         setUserProfile(profile);
@@ -126,7 +141,7 @@ export function AuthProvider({
       setUserProfile(null);
       return null;
     } catch (error) {
-      console.error('사용자 프로필 조회 중 예외:', error);
+      console.error('[AuthProvider] 사용자 프로필 조회 중 예외:', error);
       setUserProfile(null);
       return null;
     }
@@ -135,6 +150,7 @@ export function AuthProvider({
   // 인증 상태 처리 함수 (의존성 최소화)
   const handleSession = useCallback(async (newSession: Session | null) => {
     try {
+      console.log('[AuthProvider] 세션 처리 시작:', !!newSession);
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setIsAuthenticated(!!newSession?.user);
@@ -142,18 +158,21 @@ export function AuthProvider({
       // 세션이 있으면 사용자 프로필 로드
       if (newSession?.user) {
         try {
-          await fetchUserProfile(newSession.user.id, newSession);
+          console.log('[AuthProvider] 프로필 로딩 시작');
+          const profile = await fetchUserProfile(newSession.user.id, newSession);
+          console.log('[AuthProvider] 프로필 로딩 완료:', !!profile);
         } catch (profileError) {
-          console.warn('프로필 로드 실패, 기본값으로 진행:', profileError);
+          console.warn('[AuthProvider] 프로필 로드 실패, 기본값으로 진행:', profileError);
           // 프로필 로드 실패해도 인증 상태는 유지
         }
       } else {
         setUserProfile(null);
       }
     } catch (error) {
-      console.error('세션 처리 중 오류:', error);
+      console.error('[AuthProvider] 세션 처리 중 오류:', error);
       setError(error instanceof Error ? error.message : '세션 처리 오류');
     } finally {
+      console.log('[AuthProvider] 세션 처리 완료');
       setIsLoading(false);
       // 오류가 있어도 초기화는 완료된 것으로 처리
       if (!isInitialized) {
@@ -169,41 +188,50 @@ export function AuthProvider({
     
     const initializeAuth = async () => {
       try {
+        console.log('[AuthProvider] 인증 초기화 시작');
         setIsLoading(true);
         
-        // 현재 세션 가져오기
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        // 현재 세션 가져오기 (타임아웃 설정)
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('세션 조회 타임아웃')), 3000);
+        });
+        
+        const { data: { session: currentSession }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]) as any;
         
         if (error) {
-          throw error;
+          console.warn('[AuthProvider] 세션 조회 오류:', error);
+          // 오류가 있어도 계속 진행 (비로그인 상태로 처리)
         }
         
         // 컴포넌트가 언마운트되었으면 상태 업데이트 중단
         if (!isMounted) return;
         
-        await handleSession(currentSession);
+        console.log('[AuthProvider] 세션 상태:', !!currentSession);
+        await handleSession(currentSession || null);
       } catch (error) {
         if (!isMounted) return;
         
-        console.error('AuthProvider 초기화 오류:', error);
-        setError(error instanceof Error ? error.message : String(error));
+        console.warn('[AuthProvider] 초기화 오류 (계속 진행):', error);
+        // 오류가 있어도 비로그인 상태로 초기화 완료
         setIsLoading(false);
-      } finally {
-        if (isMounted) {
-          setIsInitialized(true);
-        }
+        setIsInitialized(true);
+        setError(null); // 초기화 오류는 사용자에게 표시하지 않음
       }
     };
 
-    // 5초 후에도 초기화가 완료되지 않으면 강제로 완료 처리
+    // 2초 후에도 초기화가 완료되지 않으면 강제로 완료 처리
     initTimeout = setTimeout(() => {
       if (isMounted && !isInitialized) {
-        console.warn('AuthProvider 초기화 타임아웃 - 강제 완료 처리');
+        console.warn('[AuthProvider] 초기화 타임아웃 - 강제 완료 처리');
         setIsLoading(false);
         setIsInitialized(true);
-        setError('인증 시스템 초기화에 시간이 오래 걸리고 있습니다. 페이지를 새로고침해보세요.');
+        setError(null); // 타임아웃 오류는 사용자에게 표시하지 않음
       }
-    }, 5000);
+    }, 2000); // 5초에서 2초로 단축
 
     initializeAuth();
     
@@ -213,7 +241,7 @@ export function AuthProvider({
         clearTimeout(initTimeout);
       }
     };
-  }, []); // 빈 의존성 배열로 한 번만 실행
+  }, []);
 
   // 인증 상태 변경 구독 (별도 useEffect)
   useEffect(() => {

@@ -40,17 +40,9 @@
 5. Configure 버튼 클릭
 6. 웹 인증 설정:
    - Primary App ID: 선택 (없으면 새로 생성)
-   - Domains and Subdomains:
-     - `localhost:3000`
-     - `*.ngrok-free.app` (ngrok 사용 시)
-   - Return URLs:
-     - `http://localhost:3000/auth/callback`
-     - `https://*.ngrok-free.app/auth/callback`
+   - Domains and Subdomains: `localhost:3000`
+   - Return URLs: `http://localhost:3000/auth/callback`
 7. Save 클릭
-
-> **참고**: 
-> - 개발 환경용 서비스 ID는 `*.ngrok-free.app` 와일드카드를 사용하여 모든 ngrok 서브도메인을 허용합니다.
-> - 프로덕션 환경용 서비스 ID는 정확한 도메인만 허용합니다.
 
 ## 키 생성
 
@@ -86,9 +78,7 @@
    - Team ID: Apple Developer 계정의 팀 ID
    - Key ID: 생성한 키의 ID
    - Private Key: 다운로드한 `.p8` 파일의 내용
-   - Redirect URL: 
-     - `http://localhost:3000/auth/callback`
-     - `https://*.ngrok-free.app/auth/callback`
+   - Redirect URL: `http://localhost:3000/auth/callback`
 
 ## 문제 해결
 
@@ -101,7 +91,6 @@
 2. `Invalid redirect_uri`
    - Supabase와 Apple Developer Console의 리디렉션 URL이 일치하는지 확인
    - 도메인이 올바르게 등록되어 있는지 확인
-   - 개발 환경에서는 ngrok URL이 `*.ngrok-free.app` 패턴과 일치하는지 확인
 
 3. `Invalid key`
    - 키가 올바르게 생성되었는지 확인

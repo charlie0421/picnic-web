@@ -28,11 +28,31 @@ const VoteListSection: React.FC<VoteListSectionProps> = ({
     setIsMounted(true);
   }, []);
 
-  // 서버 렌더링 중에는 항상 로딩 스켈레톤 표시 (hydration 불일치 방지)
+  // Hydration 문제 해결: 서버 렌더링 중에는 초기 데이터가 있으면 표시, 없으면 스켈레톤
   if (!isMounted) {
-    return <VoteLoadingSkeleton />;
+    // 서버 렌더링 또는 클라이언트 초기 렌더링
+    if (votes && votes.length > 0) {
+      // 초기 데이터가 있는 경우 바로 표시
+      return (
+        <div className="transition-all duration-300 opacity-100">
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8'>
+            {votes.map((vote) => (
+              <VoteCard
+                key={vote.id}
+                vote={vote}
+                onClick={() => onVoteClick(vote.id.toString())}
+              />
+            ))}
+          </div>
+        </div>
+      );
+    } else {
+      // 초기 데이터가 없는 경우 스켈레톤 표시
+      return <VoteLoadingSkeleton />;
+    }
   }
 
+  // 클라이언트가 마운트된 후의 로직
   // 로딩 중이고 데이터가 없는 경우 스켈레톤 표시
   if (isLoading && (!votes || votes.length === 0)) {
     return <VoteLoadingSkeleton />;

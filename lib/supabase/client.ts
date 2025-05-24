@@ -21,12 +21,6 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
     return browserSupabase;
   }
 
-  // ngrok 환경 감지 (브라우저에서만 실행)
-  const isNgrokEnvironment = typeof window !== 'undefined' && (
-    window.location.hostname.includes('ngrok') ||
-    /^[a-z0-9]+\.ngrok(?:-free)?\.(?:io|app)$/.test(window.location.hostname)
-  );
-
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     throw new Error('환경 변수 NEXT_PUBLIC_SUPABASE_URL이 설정되지 않았습니다.');
   }
@@ -46,11 +40,11 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
         persistSession: true,
         storage: {
           getItem: (key: string) => {
-            // 먼저 로컬 스토리지에서 시도
+            // 로컬 스토리지에서 가져오기
             const localValue = globalThis.localStorage?.getItem(key) ?? null;
             if (localValue) return localValue;
 
-            // 쿠키에서 시도 (ngrok 환경에서 더 안정적일 수 있음)
+            // 쿠키에서 시도 (백업)
             const cookies = document.cookie.split('; ');
             for (const cookie of cookies) {
               const [cookieName, cookieValue] = cookie.split('=');
@@ -63,12 +57,10 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
               // 로컬 스토리지에 저장
               globalThis.localStorage?.setItem(key, value);
 
-              // 쿠키에도 저장 (ngrok 환경에서는 SameSite=None 추가)
+              // 쿠키에도 저장 (백업)
               const date = new Date();
               date.setTime(date.getTime() + 8 * 60 * 60 * 1000); // 8시간 유효
-              const cookieOptions = isNgrokEnvironment ?
-                `; expires=${date.toUTCString()}; path=/; SameSite=None; Secure` :
-                `; expires=${date.toUTCString()}; path=/`;
+              const cookieOptions = `; expires=${date.toUTCString()}; path=/`;
               document.cookie = `${key}=${encodeURIComponent(value)}${cookieOptions}`;
             } catch (e) {
               console.warn('스토리지 저장 오류:', e);
@@ -94,7 +86,6 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
   if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
     console.log('브라우저 Supabase 클라이언트 초기화 완료', {
       url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      isNgrok: isNgrokEnvironment,
       hostname: window.location.hostname
     });
   }

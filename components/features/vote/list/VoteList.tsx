@@ -37,10 +37,11 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
   const [hasMore, setHasMore] = useState(true);
   const { selectedStatus, selectedArea } = useVoteFilterStore();
   const [votes, setVotes] = useState<Vote[]>(initialVotes);
-  const [isLoading, setIsLoading] = useState(initialVotes.length === 0);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const initialDataLoaded = useRef(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const initialDataLoaded = useRef(initialVotes.length > 0);
   // 이전 필터 값 저장용 ref - 타입 에러 방지를 위해 타입 캐스팅 사용
   const prevStatusRef = useRef(selectedStatus as unknown as string);
   const prevAreaRef = useRef(selectedArea as unknown as string);
@@ -48,9 +49,21 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
   // status prop이 제공되면 그 값을 사용하고, 없으면 store의 값을 사용
   const effectiveStatus = status || selectedStatus;
 
+  // 클라이언트 마운트 상태 추적
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const fetchVotes = useCallback(
     async (isRefresh = false) => {
       if (isTransitioning && !isRefresh) return;
+
+      console.log('[VoteList] fetchVotes 시작:', { 
+        effectiveStatus, 
+        selectedArea, 
+        isRefresh,
+        isTransitioning 
+      });
 
       try {
         setIsLoading(true);
@@ -109,12 +122,18 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
 
         const { data: voteData, error: voteError } = await query;
 
+        console.log('[VoteList] 쿼리 결과:', { 
+          dataLength: voteData?.length, 
+          error: voteError 
+        });
+
         if (voteError) {
           console.error('Vote fetch error:', voteError);
           throw voteError;
         }
 
         if (!voteData || voteData.length === 0) {
+          console.log('[VoteList] 데이터 없음');
           setVotes([]);
           setHasMore(false);
           return;
@@ -159,6 +178,7 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
           title: vote.title || '제목 없음',
         }));
 
+        console.log('[VoteList] 데이터 설정 완료:', formattedVotes.length);
         setVotes(formattedVotes);
         setHasMore(formattedVotes.length >= PAGE_SIZE);
         setError(null);
@@ -170,6 +190,7 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
       } finally {
         setIsLoading(false);
         setIsTransitioning(false);
+        console.log('[VoteList] fetchVotes 완료');
       }
     },
     [supabase, effectiveStatus, selectedArea, PAGE_SIZE, isTransitioning],
@@ -177,17 +198,26 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
 
   // 초기 로드
   useEffect(() => {
+    console.log('[VoteList] 초기 로드 useEffect:', { 
+      initialVotesLength: initialVotes.length,
+      initialDataLoaded: initialDataLoaded.current,
+      isLoading,
+      isMounted
+    });
+    
     if (initialVotes.length > 0) {
-      // 초기 데이터가 있는 경우
+      // 초기 데이터가 있는 경우 - 서버에서 제공된 데이터 사용
+      console.log('[VoteList] 초기 데이터 설정');
       setVotes(initialVotes);
-      setIsLoading(false);
       initialDataLoaded.current = true;
-    } else if (!initialDataLoaded.current) {
-      // 초기 데이터가 없는 경우에만 클라이언트에서 데이터를 가져옴
+    } else if (isMounted && !initialDataLoaded.current) {
+      // 클라이언트가 마운트되고, 초기 데이터가 없는 경우에만 데이터 패칭
+      console.log('[VoteList] 클라이언트에서 데이터 패칭 시작');
+      setIsLoading(true);
       fetchVotes(true);
       initialDataLoaded.current = true;
     }
-  }, [initialVotes, fetchVotes]);
+  }, [initialVotes, isMounted]);
 
   // URL 파라미터와 필터 상태 변경 감지
   useEffect(() => {
@@ -232,7 +262,6 @@ const VoteList: React.FC<VoteListProps> = ({ status, initialVotes = [] }) => {
     searchParams,
     effectiveStatus,
     selectedArea,
-    fetchVotes,
     isLoading,
     isTransitioning,
   ]);

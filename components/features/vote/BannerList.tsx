@@ -11,7 +11,7 @@ import { getLocalizedString } from '@/utils/api/strings';
 
 const BannerList: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
@@ -27,13 +27,23 @@ const BannerList: React.FC = () => {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
+        console.log('[BannerList] 배너 데이터 가져오기 시작');
         setIsLoading(true);
         setError(null);
         const bannersData = await getBanners();
-        setBanners(bannersData);
+        console.log('[BannerList] 배너 데이터 가져오기 완료:', bannersData);
+        
+        if (!bannersData || bannersData.length === 0) {
+          console.log('[BannerList] 배너 데이터가 없습니다.');
+          setBanners([]);
+        } else {
+          console.log('[BannerList] 배너 데이터 설정:', bannersData.length, '개');
+          setBanners(bannersData);
+        }
       } catch (error) {
-        console.error('배너 데이터를 가져오는 중 오류가 발생했습니다:', error);
+        console.error('[BannerList] 배너 데이터를 가져오는 중 오류가 발생했습니다:', error);
         setError('배너를 불러오는 중 오류가 발생했습니다.');
+        setBanners([]);
       } finally {
         setIsLoading(false);
       }
@@ -144,13 +154,21 @@ const BannerList: React.FC = () => {
     }
   };
 
-  // 서버 사이드에서는 빈 div 반환 (hydration 불일치 방지)
+  // 서버 사이드에서는 빈 섹션 반환 (hydration 불일치 방지)
   if (!mounted) {
-    return <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />;
+    return (
+      <section>
+        <div className="h-48 bg-gray-100 rounded-lg" />
+      </section>
+    );
   }
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <section>
+        <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />
+      </section>
+    );
   }
 
   if (error) {

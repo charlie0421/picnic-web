@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Vote } from '@/types/interfaces';
@@ -61,19 +61,33 @@ const getStatusText = (
 const VoteCard = React.memo(
   ({ vote, onClick }: { vote: Vote; onClick?: () => void }) => {
     const { t } = useLanguageStore();
-    const now = useRef(typeof window !== 'undefined' ? new Date() : new Date(0));
+    const [isMounted, setIsMounted] = useState(false);
+    
+    // 클라이언트 마운트 상태 추적
+    useEffect(() => {
+      setIsMounted(true);
+    }, []);
+    
     const status = useMemo(() => {
       if (!vote.startAt || !vote.stopAt) return VOTE_STATUS.UPCOMING;
+      
+      // 서버 렌더링 시에는 startAt 기준으로 기본 상태 결정
+      if (!isMounted) {
+        const start = new Date(vote.startAt);
+        const now = new Date();
+        // 서버에서는 보수적으로 판단 (시작 시간이 지났으면 ongoing으로 가정)
+        return now >= start ? VOTE_STATUS.ONGOING : VOTE_STATUS.UPCOMING;
+      }
+      
+      // 클라이언트에서는 정확한 계산
       const start = new Date(vote.startAt);
       const end = new Date(vote.stopAt);
+      const now = new Date();
       
-      // 클라이언트 사이드에서만 정확한 시간 비교
-      const currentTime = typeof window !== 'undefined' ? new Date() : now.current;
-      
-      if (currentTime < start) return VOTE_STATUS.UPCOMING;
-      if (currentTime > end) return VOTE_STATUS.COMPLETED;
+      if (now < start) return VOTE_STATUS.UPCOMING;
+      if (now > end) return VOTE_STATUS.COMPLETED;
       return VOTE_STATUS.ONGOING;
-    }, [vote.startAt, vote.stopAt]);
+    }, [vote.startAt, vote.stopAt, isMounted]);
 
     return (
       <Link href={`/vote/${vote.id}`}>

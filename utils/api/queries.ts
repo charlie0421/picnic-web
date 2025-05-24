@@ -167,22 +167,33 @@ const _getRewards = async (limit?: number): Promise<Reward[]> => {
 // 배너 데이터 가져오기
 const _getBanners = async (): Promise<Banner[]> => {
   try {
+    console.log('[getBanners] 배너 데이터 조회 시작');
     const supabase = await getSupabaseClient();
     const now = new Date();
-    const currentTime = now.toISOString();
-
+    
     const { data: bannerData, error: bannerError } = await supabase
       .from("banner")
       .select("*")
       .is("deleted_at", null)
       .eq("location", "vote_home")
       .order("order", { ascending: true })
-      .lte("start_at", currentTime)
-      .or(`end_at.gt.${currentTime},end_at.is.null`)
+      .lte("start_at", 'now()')
+      .or(`end_at.gt.now(),end_at.is.null`)
       .limit(10);
 
-    if (bannerError) throw bannerError;
-    if (!bannerData || bannerData.length === 0) return [];
+    console.log('[getBanners] Supabase 응답:', { data: bannerData, error: bannerError });
+
+    if (bannerError) {
+      console.error('[getBanners] Supabase 오류:', bannerError);
+      throw bannerError;
+    }
+    
+    if (!bannerData || bannerData.length === 0) {
+      console.log('[getBanners] 조회된 배너 데이터가 없습니다.');
+      return [];
+    }
+
+    console.log('[getBanners] 원본 배너 데이터:', bannerData);
 
     const transformedData = bannerData.map((banner: any) => ({
       ...banner,
@@ -194,8 +205,10 @@ const _getBanners = async (): Promise<Banner[]> => {
       celebId: banner.celeb_id,
     }));
 
+    console.log('[getBanners] 변환된 배너 데이터:', transformedData);
     return transformedData;
   } catch (error) {
+    console.error('[getBanners] 오류 발생:', error);
     logRequestError(error, 'getBanners');
     return [];
   }

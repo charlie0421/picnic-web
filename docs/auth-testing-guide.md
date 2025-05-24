@@ -9,7 +9,6 @@
 
 ## 관련 문서
 - [인증 가이드](./authentication.md) - 전체 인증 시스템 설정
-- [ngrok 설정 가이드](./ngrok-setup-guide.md) - 개발 환경 설정
 
 ## 1. 테스트 환경 설정
 
