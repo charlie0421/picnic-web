@@ -1021,11 +1021,13 @@ export interface Vote {
   voteSubCategory: string | null
   waitImage: string | null
   voteItem?: VoteItem[];
+  voteItems?: VoteItem[];
   votePick?: VotePick[];
   voteComment?: VoteComment[];
   voteReward?: VoteReward[];
   voteShareBonus?: VoteShareBonus[];
   voteAchieve?: VoteAchieve[];
+  reward?: Reward[];
 }
 
 export interface VoteAchieve {

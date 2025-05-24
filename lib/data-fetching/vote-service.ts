@@ -1,7 +1,7 @@
 /**
  * 투표 관련 데이터 서비스
  *
- * 서버 컴포넌트에서 투표 데이터를 조회하는 서비스 함수들입니다.
+ * 서버 컴포넌트와 클라이언트 컴포넌트에서 투표 데이터를 조회하는 서비스 함수들입니다.
  * 각 함수는 React의 cache를 사용하여 요청을 캐싱합니다.
  */
 
@@ -9,8 +9,9 @@ import { cache } from "react";
 import { createClient } from "@/utils/supabase-server-client";
 import { CacheOptions } from "./fetchers";
 import { Vote, VoteItem } from "@/types/interfaces";
+import { SupabaseClient } from "@supabase/supabase-js";
 
-// 기본 투표 테이블 조회 쿼리 (서버 컴포넌트용)
+// 기본 투표 테이블 조회 쿼리
 const DEFAULT_VOTE_QUERY = `
   *,
   vote_item!vote_id (
@@ -39,7 +40,93 @@ const DEFAULT_VOTE_QUERY = `
 `;
 
 /**
- * 투표 목록 조회 함수
+ * 투표 데이터를 표준 형식으로 변환
+ */
+function transformVoteData(data: any[]): Vote[] {
+  return data.map((vote) => {
+    const voteItems: VoteItem[] = vote.vote_item?.map((item: any) => ({
+      id: item.id,
+      voteId: item.vote_id,
+      artistId: item.artist_id,
+      groupId: item.group_id,
+      voteTotal: item.vote_total,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+      deletedAt: item.deleted_at,
+      artist: item.artist ? {
+        id: item.artist.id,
+        name: item.artist.name,
+        image: item.artist.image,
+        artistGroup: item.artist.artist_group
+      } : null,
+    })) || [];
+
+    return {
+      id: vote.id,
+      title: vote.title,
+      area: vote.area,
+      mainImage: vote.main_image,
+      resultImage: vote.result_image,
+      waitImage: vote.wait_image,
+      order: vote.order,
+      startAt: vote.start_at,
+      stopAt: vote.stop_at,
+      visibleAt: vote.visible_at,
+      voteCategory: vote.vote_category,
+      voteSubCategory: vote.vote_sub_category,
+      voteContent: vote.vote_content,
+      createdAt: vote.created_at,
+      updatedAt: vote.updated_at,
+      deletedAt: vote.deleted_at,
+      voteItems,
+      reward: vote.vote_reward?.map((vr: any) => vr.reward).filter(Boolean) || [],
+    };
+  });
+}
+
+/**
+ * 공통 투표 쿼리 빌더
+ */
+function buildVoteQuery(
+  client: SupabaseClient,
+  status?: string,
+  area?: string
+) {
+  let query = client
+    .from("vote")
+    .select(DEFAULT_VOTE_QUERY)
+    .is("deleted_at", null)
+    .lte("visible_at", new Date().toISOString());
+
+  // 상태 필터링
+  if (status) {
+    const now = new Date().toISOString();
+
+    switch (status) {
+      case "upcoming":
+        query = query.gt("start_at", now);
+        break;
+      case "ongoing":
+        query = query
+          .lte("start_at", now)
+          .gt("stop_at", now);
+        break;
+      case "completed":
+        query = query.lte("stop_at", now);
+        break;
+    }
+  }
+
+  // 지역 필터링
+  if (area) {
+    query = query.eq("area", area);
+  }
+
+  return query.order("start_at", { ascending: false });
+}
+
+/**
+ * 투표 목록 조회 함수 (서버용)
  */
 export const getVotes = cache(async (
   status?: string,
@@ -48,36 +135,7 @@ export const getVotes = cache(async (
 ): Promise<Vote[]> => {
   try {
     const client = await createClient();
-    let query = client
-      .from("vote")
-      .select(DEFAULT_VOTE_QUERY);
-
-    // 상태 필터링
-    if (status) {
-      const now = new Date();
-
-      if (status === "upcoming") {
-        query = query.gt("start_at", now.toISOString());
-      } else if (status === "ongoing") {
-        query = query
-          .lte("start_at", now.toISOString())
-          .gt("stop_at", now.toISOString());
-      } else if (status === "completed") {
-        query = query.lte("stop_at", now.toISOString());
-      }
-    }
-
-    // 지역 필터링
-    if (area) {
-      query = query.eq("area", area);
-    }
-
-    // 공개된 투표만 조회
-    query = query
-      .lte("visible_at", new Date().toISOString())
-      .is("deleted_at", null)
-      .order("order", { ascending: true });
-
+    const query = buildVoteQuery(client, status, area);
     const { data, error } = await query;
 
     if (error) {
@@ -85,45 +143,7 @@ export const getVotes = cache(async (
       return [];
     }
 
-    // 데이터 변환: vote_item -> voteItem, Supabase 스네이크 케이스를 카멜 케이스로 변환
-    const transformedData = data.map((vote) => {
-      const voteItems: VoteItem[] = vote.vote_item?.map((item) => ({
-        id: item.id,
-        voteId: item.vote_id,
-        artistId: item.artist_id,
-        groupId: item.group_id,
-        voteTotal: item.vote_total,
-        createdAt: item.created_at,
-        updatedAt: item.updated_at,
-        deletedAt: item.deleted_at,
-        artist: item.artist,
-      })) || [];
-
-      // 최종 변환된 Vote 객체 생성
-      const transformedVote: Vote & { voteItem?: VoteItem[] } = {
-        id: vote.id,
-        title: vote.title,
-        area: vote.area,
-        mainImage: vote.main_image,
-        resultImage: vote.result_image,
-        waitImage: vote.wait_image,
-        order: vote.order,
-        startAt: vote.start_at,
-        stopAt: vote.stop_at,
-        visibleAt: vote.visible_at,
-        voteCategory: vote.vote_category,
-        voteSubCategory: vote.vote_sub_category,
-        voteContent: vote.vote_content,
-        createdAt: vote.created_at,
-        updatedAt: vote.updated_at,
-        deletedAt: vote.deleted_at,
-        voteItem: voteItems.length > 0 ? voteItems : undefined,
-      };
-
-      return transformedVote;
-    });
-
-    return transformedData;
+    return transformVoteData(data || []);
   } catch (e) {
     console.error("[getVotes] 에러:", e);
     return [];
@@ -131,7 +151,31 @@ export const getVotes = cache(async (
 });
 
 /**
- * 단일 투표 조회 함수
+ * 투표 목록 조회 함수 (클라이언트용)
+ */
+export async function getVotesClient(
+  client: SupabaseClient,
+  status?: string,
+  area?: string,
+): Promise<Vote[]> {
+  try {
+    const query = buildVoteQuery(client, status, area);
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("[getVotesClient] 에러 발생:", error);
+      throw error;
+    }
+
+    return transformVoteData(data || []);
+  } catch (e) {
+    console.error("[getVotesClient] 에러:", e);
+    throw e;
+  }
+}
+
+/**
+ * 단일 투표 조회 함수 (서버용)
  */
 export const getVoteById = cache(async (
   id: string | number,
@@ -155,43 +199,42 @@ export const getVoteById = cache(async (
       return null;
     }
 
-    // 데이터 변환: vote_item -> voteItem, Supabase 스네이크 케이스를 카멜 케이스로 변환
-    const voteItems: VoteItem[] = data.vote_item?.map((item) => ({
-      id: item.id,
-      voteId: item.vote_id,
-      artistId: item.artist_id,
-      groupId: item.group_id,
-      voteTotal: item.vote_total,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-      deletedAt: item.deleted_at,
-      artist: item.artist,
-    })) || [];
-
-    // 최종 변환된 Vote 객체 생성
-    const transformedVote: Vote & { voteItem?: VoteItem[] } = {
-      id: data.id,
-      title: data.title,
-      area: data.area,
-      mainImage: data.main_image,
-      resultImage: data.result_image,
-      waitImage: data.wait_image,
-      order: data.order,
-      startAt: data.start_at,
-      stopAt: data.stop_at,
-      visibleAt: data.visible_at,
-      voteCategory: data.vote_category,
-      voteSubCategory: data.vote_sub_category,
-      voteContent: data.vote_content,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      deletedAt: data.deleted_at,
-      voteItem: voteItems.length > 0 ? voteItems : undefined,
-    };
-
-    return transformedVote;
+    const transformedData = transformVoteData([data]);
+    return transformedData[0] || null;
   } catch (e) {
     console.error("[getVoteById] 에러:", e);
     return null;
   }
 });
+
+/**
+ * 단일 투표 조회 함수 (클라이언트용)
+ */
+export async function getVoteByIdClient(
+  client: SupabaseClient,
+  id: string | number,
+): Promise<Vote | null> {
+  try {
+    const { data, error } = await client
+      .from("vote")
+      .select(DEFAULT_VOTE_QUERY)
+      .eq("id", id)
+      .is("deleted_at", null)
+      .single();
+
+    if (error) {
+      console.error("[getVoteByIdClient] 에러 발생:", error);
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    const transformedData = transformVoteData([data]);
+    return transformedData[0] || null;
+  } catch (e) {
+    console.error("[getVoteByIdClient] 에러:", e);
+    throw e;
+  }
+}

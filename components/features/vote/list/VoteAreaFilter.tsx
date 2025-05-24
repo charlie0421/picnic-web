@@ -1,13 +1,7 @@
 'use client';
 
 import React from 'react';
-
-const VOTE_AREAS = {
-  KPOP: 'kpop',
-  MUSICAL: 'musical',
-} as const;
-
-type VoteArea = (typeof VOTE_AREAS)[keyof typeof VOTE_AREAS];
+import { VOTE_AREAS, VoteArea } from '@/stores/voteFilterStore';
 
 interface VoteAreaFilterProps {
   selectedArea: VoteArea;

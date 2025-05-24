@@ -2,14 +2,7 @@
 
 import React from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
-
-const VOTE_STATUS = {
-  UPCOMING: 'upcoming',
-  ONGOING: 'ongoing',
-  COMPLETED: 'completed',
-} as const;
-
-type VoteStatus = (typeof VOTE_STATUS)[keyof typeof VOTE_STATUS];
+import { VOTE_STATUS, VoteStatus } from '@/stores/voteFilterStore';
 
 interface VoteStatusFilterProps {
   selectedStatus: VoteStatus;
