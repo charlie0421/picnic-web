@@ -3,23 +3,27 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Vote } from '@/types/interfaces';
-import { VoteFilter } from '@/components/features_backup/vote';
+
 import { getVoteStatus } from '@/components/server/utils';
 import { VoteStatus } from '@/stores/voteFilterStore';
 import { VoteCard } from '..';
 
 export interface VoteListPresenterProps {
   votes: Vote[];
-  filter?: VoteFilter;
   onVoteClick?: (voteId: string | number) => void;
   className?: string;
+  hasMore?: boolean;
+  isLoading?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function VoteListPresenter({ 
   votes, 
-  filter,
   onVoteClick,
-  className 
+  className,
+  hasMore = false,
+  isLoading = false,
+  onLoadMore
 }: VoteListPresenterProps) {
   const router = useRouter();
   const [selectedStatus, setSelectedStatus] = useState<VoteStatus | 'all'>('all');
@@ -30,13 +34,6 @@ export function VoteListPresenter({
     return voteStatus === selectedStatus;
   });
   
-  const statusOptions: Array<{ value: VoteStatus | 'all'; label: string }> = [
-    { value: 'all', label: '전체' },
-    { value: 'ongoing', label: '진행중' },
-    { value: 'upcoming', label: '예정' },
-    { value: 'completed', label: '종료' }
-  ];
-
   const handleVoteClick = (voteId: string | number) => {
     if (onVoteClick) {
       onVoteClick(voteId);
@@ -48,34 +45,32 @@ export function VoteListPresenter({
   
   return (
     <div className={className}>
-      {/* 필터 탭 */}
-      <div className="flex gap-2 mb-6">
-        {statusOptions.map(option => (
-          <button
-            key={option.value}
-            onClick={() => setSelectedStatus(option.value)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              selectedStatus === option.value
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-      
       {/* 투표 목록 */}
       {filteredVotes.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVotes.map(vote => (
-            <VoteCard
-              key={vote.id}
-              vote={vote}
-              onClick={() => handleVoteClick(vote.id)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredVotes.map(vote => (
+              <VoteCard
+                key={vote.id}
+                vote={vote}
+                onClick={() => handleVoteClick(vote.id)}
+              />
+            ))}
+          </div>
+          
+          {/* 페이지네이션 */}
+          {hasMore && onLoadMore && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={onLoadMore}
+                disabled={isLoading}
+                className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isLoading ? '로딩 중...' : '더보기'}
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-12">
           <p className="text-gray-500">표시할 투표가 없습니다.</p>

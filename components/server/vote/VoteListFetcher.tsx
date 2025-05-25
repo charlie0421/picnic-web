@@ -1,18 +1,13 @@
 import { createClient } from '@/utils/supabase-server-client';
 import { buildVoteQuery, formatVoteData } from '@/utils/vote-data-formatter';
-import { VoteListPresenter } from '@/components/client/vote/list/VoteListPresenter';
-import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
+import { VoteListPresenter, VoteFilterSection } from '@/components/client/vote/list';
+import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
 import { Vote } from '@/types/interfaces';
-import { VoteFilter } from '@/components/features_backup/vote';
 
 // 실제 Supabase에서 데이터를 가져오는 함수
-async function fetchVotes(filter?: VoteFilter): Promise<Vote[]> {
+async function fetchVotes(status: VoteStatus, area: VoteArea): Promise<Vote[]> {
   try {
     const supabase = await createClient();
-    
-    // 기본값 설정 - VoteFilter 타입에 맞춰 조정
-    const status = filter?.status || VOTE_STATUS.ONGOING;
-    const area = VOTE_AREAS.KPOP; // VoteFilter에 area가 없으므로 기본값 사용
     
     // 공통 쿼리 빌더 사용
     const query = buildVoteQuery(supabase, status, area);
@@ -36,24 +31,34 @@ async function fetchVotes(filter?: VoteFilter): Promise<Vote[]> {
 }
 
 export interface VoteListFetcherProps {
-  filter?: VoteFilter;
+  status?: VoteStatus;
+  area?: VoteArea;
   className?: string;
-  onVoteClick?: (voteId: string | number) => void;
+  enablePagination?: boolean;
+  pageSize?: number;
 }
 
 export async function VoteListFetcher({ 
-  filter, 
+  status = VOTE_STATUS.ONGOING,
+  area = VOTE_AREAS.KPOP,
   className,
-  onVoteClick 
+  enablePagination = true,
+  pageSize = 12
 }: VoteListFetcherProps) {
-  const votes = await fetchVotes(filter);
+  // 선택된 status와 area에 해당하는 투표만 가져오기
+  const votes = await fetchVotes(status, area);
   
   return (
-    <VoteListPresenter 
-      votes={votes} 
-      filter={filter}
-      className={className}
-      onVoteClick={onVoteClick}
-    />
+    <div className={className}>
+      {/* 필터 섹션 */}
+      <VoteFilterSection />
+      
+      {/* 투표 리스트 */}
+      <VoteListPresenter 
+        votes={votes}
+        hasMore={enablePagination && votes.length >= pageSize}
+        isLoading={false}
+      />
+    </div>
   );
 } 

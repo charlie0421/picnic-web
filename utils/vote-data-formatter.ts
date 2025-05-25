@@ -78,22 +78,22 @@ export const buildVoteQuery = (supabase: any, status: string, area: string) => {
 
   // 상태별 필터링
   switch (status) {
-    case 'UPCOMING':
+    case 'upcoming':
       query = query.gt('start_at', now);
       break;
-    case 'ONGOING':
+    case 'ongoing':
       query = query.lte('start_at', now).gte('stop_at', now);
       break;
-    case 'COMPLETED':
+    case 'completed':
       query = query.lt('stop_at', now);
       break;
   }
 
-  // 영역별 필터링
+  // 영역별 필터링 (area 값 확인을 위한 로그 추가)
   query = query.eq('area', area);
   
   // 정렬
   query = query.order('start_at', { ascending: false });
-
+  
   return query;
 }; 

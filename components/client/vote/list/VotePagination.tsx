@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import VoteInfiniteLoading from './VoteInfiniteLoading';
 import { useLanguageStore } from '@/stores/languageStore';
 
 interface VotePaginationProps {
@@ -30,7 +29,7 @@ const VotePagination: React.FC<VotePaginationProps> = ({
       >
         {isLoading ? (
           <>
-            <VoteInfiniteLoading />
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
             <span>Loading...</span>
           </>
         ) : (

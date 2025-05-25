@@ -8,7 +8,7 @@ import { getCdnImageUrl } from '@/utils/api/image';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useLanguageStore } from '@/stores/languageStore';
-import { CountdownTimer } from '@/components/features_backup/vote/client';
+import { CountdownTimer } from '../common/CountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
 import RewardItem from '@/components/common/RewardItem';
 import { VoteRankCard } from '../common/VoteRankCard';

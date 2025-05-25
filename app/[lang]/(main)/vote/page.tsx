@@ -5,6 +5,7 @@ import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { BannerListFetcher, LoadingState } from '@/components/server';
 import { Suspense } from 'react';
 import { VoteListFetcher } from '@/components/server/vote/VoteListFetcher';
+import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
 
 export async function generateMetadata({
   params,
@@ -30,13 +31,15 @@ export async function generateMetadata({
   );
 }
 
-export default function VoteListPage() {
-  const filter = {
-    status: 'ongoing' as const, // VoteStatus 타입에 맞춤
-    sortBy: 'startTime' as const,
-    sortOrder: 'desc' as const
-  };
+interface VoteListPageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
 
+export default async function VoteListPage({ searchParams }: VoteListPageProps) {
+  // URL 파라미터에서 status와 area 가져오기
+  const resolvedSearchParams = await searchParams;
+  const status = resolvedSearchParams.status || VOTE_STATUS.ONGOING;
+  const area = resolvedSearchParams.area || VOTE_AREAS.KPOP;
   return (
     <>
       <script
@@ -61,13 +64,11 @@ export default function VoteListPage() {
 
         {/* 투표 섹션 */}
         <section>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">진행 중인 투표</h2>
-          </div>
           <Suspense fallback={<LoadingState message="투표 데이터를 불러오는 중..." />}>
-            <VoteListFetcher
-              filter={filter}
-              className="w-full"
+            <VoteListFetcher 
+              className="w-full" 
+              status={status as any}
+              area={area as any}
             />
           </Suspense>
         </section>

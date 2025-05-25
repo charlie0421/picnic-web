@@ -61,13 +61,13 @@ const VoteFilterSection: React.FC = () => {
 
   return (
     <div className='flex justify-between items-center mb-4'>
-      <div className=' justify-start'>
+      <div className='justify-start'>
         <VoteAreaFilter
           selectedArea={selectedArea}
           onAreaChange={handleAreaChange}
         />
       </div>
-      <div className=' justify-end'>
+      <div className='justify-end'>
         <VoteStatusFilter
           selectedStatus={selectedStatus}
           onStatusChange={handleStatusChange}

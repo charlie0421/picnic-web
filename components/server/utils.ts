@@ -1,4 +1,14 @@
-import { Vote, VoteItem, VoteStatus, VoteResult } from '../features_backup/vote/types';
+import { Vote, VoteItem } from '@/types/interfaces';
+
+export type VoteStatus = 'upcoming' | 'ongoing' | 'completed';
+
+export interface VoteResult {
+  voteItemId: number;
+  title: string;
+  voteCount: number;
+  percentage: number;
+  rank: number;
+}
 
 /**
  * 투표 상태를 결정하는 함수
