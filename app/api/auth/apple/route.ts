@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.redirect(errorUrl);
     }
 
-    // 성공: 콜백 페이지로 리다이렉트
+    // 성공: 콜백 페이지로 리다이렉트 (동적 라우트 [provider] 사용)
     const callbackUrl = new URL('/auth/callback/apple', request.url);
     callbackUrl.searchParams.set('code', code);
     
