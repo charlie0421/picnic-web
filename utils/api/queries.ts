@@ -167,7 +167,6 @@ const _getRewards = async (limit?: number): Promise<Reward[]> => {
 // 배너 데이터 가져오기
 const _getBanners = async (): Promise<Banner[]> => {
   try {
-    console.log('[getBanners] 배너 데이터 조회 시작');
     const supabase = await getSupabaseClient();
     
     const { data: bannerData, error: bannerError } = await supabase
@@ -189,7 +188,6 @@ const _getBanners = async (): Promise<Banner[]> => {
       return [];
     }
     
-    console.log('[getBanners] 조회된 배너 데이터:', bannerData);
     return bannerData;
   } catch (error) {
     console.error('[getBanners] 오류 발생:', error);

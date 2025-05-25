@@ -64,14 +64,14 @@ export function VoteRankCard({
     switch (rank) {
       case 1:
         return {
-          image: 'w-24 h-24 sm:w-34 sm:h-34',
+          image: 'md:w-32 md:h-32 sm:w-32 sm:h-32',
           padding: 'p-2 sm:p-3',
           name: 'text-sm',
           votes: 'text-sm'
         };
       case 2:
         return {
-          image: 'w-16 h-16 sm:w-22 sm:h-22',
+          image: 'w-24 h-24 sm:w-20 sm:h-20',
           padding: 'p-1 sm:p-2',
           name: 'text-xs',
           votes: 'text-xs'
