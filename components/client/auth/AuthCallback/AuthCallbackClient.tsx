@@ -25,8 +25,15 @@ export default function AuthCallbackClient({ provider }: AuthCallbackClientProps
         
         // 오류 코드가 있으면 처리
         const errorCode = searchParams.get('error');
+        const errorDescription = searchParams.get('error_description');
         if (errorCode) {
-          setError(`인증 오류: ${errorCode}`);
+          console.error('Auth callback error:', { 
+            error: errorCode, 
+            description: errorDescription,
+            provider: providerType,
+            url: window.location.href
+          });
+          setError(`인증 오류: ${errorCode} - ${errorDescription || '자세한 정보 없음'}`);
           return;
         }
         

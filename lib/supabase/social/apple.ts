@@ -35,7 +35,9 @@ export function getAppleConfig(): OAuthProviderConfig {
       // 팀 ID (Apple Developer Console에서 확인)
       teamId: process.env.APPLE_TEAM_ID || '',
       // 키 ID (Apple Developer Console에서 생성한 프라이빗 키의 ID)
-      keyId: process.env.APPLE_KEY_ID || ''
+      keyId: process.env.APPLE_KEY_ID || '',
+      // 리디렉션 URI 설정
+      redirectUri: `${typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL || 'https://www.picnic.fan'}/auth/callback/apple`
     }
   };
 }
@@ -54,7 +56,8 @@ export async function signInWithAppleImpl(
   try {
     // 설정값 준비
     const config = getAppleConfig();
-    const redirectUrl = options?.redirectUrl || `${window.location.origin}/auth/callback/apple`;
+    // 웹에서는 항상 웹용 콜백 URL 사용 (Supabase 설정과 무관하게)
+    const redirectUrl = options?.redirectUrl || 'https://www.picnic.fan/auth/callback/apple';
     const scopes = options?.scopes || config.defaultScopes;
     
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
@@ -65,9 +68,9 @@ export async function signInWithAppleImpl(
     
     // Apple의 경우 추가 설정이 필요함
     const appleParams = {
-      // Apple은 response_type에 id_token을 추가해야 함
-      response_type: 'code id_token',
-      response_mode: 'fragment',
+      // Apple OAuth 표준 설정 - Supabase 호환
+      response_type: 'code',
+      response_mode: 'query',
       // 사용자 데이터 요청 (첫 로그인에서만 제공됨)
       user_data: 'name,email',
       ...options?.additionalParams
