@@ -22,7 +22,6 @@ export async function VoteDetailFetcher({ id, className }: VoteDetailFetcherProp
 
     // vote-service를 사용하여 데이터 조회
     const voteData = await getVoteById(numericId);
-    console.log("voteData", voteData);
     if (!voteData) {
       console.log('[VoteDetailFetcher] 투표 데이터 없음:', numericId);
       notFound();
@@ -43,12 +42,6 @@ export async function VoteDetailFetcher({ id, className }: VoteDetailFetcherProp
         voteStatus = 'ended';
       }
     }
-
-    console.log('[VoteDetailFetcher] 데이터 로드 완료:', {
-      voteId: voteData.id,
-      itemCount: voteData.voteItem?.length || 0,
-      status: voteStatus
-    });
 
     return (
       <VoteDetailPresenter 
