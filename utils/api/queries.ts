@@ -169,7 +169,6 @@ const _getBanners = async (): Promise<Banner[]> => {
   try {
     console.log('[getBanners] 배너 데이터 조회 시작');
     const supabase = await getSupabaseClient();
-    const now = new Date();
     
     const { data: bannerData, error: bannerError } = await supabase
       .from("banner")
@@ -178,8 +177,7 @@ const _getBanners = async (): Promise<Banner[]> => {
       .eq("location", "vote_home")
       .order("order", { ascending: true })
       .lte("start_at", 'now()')
-      .or(`end_at.gt.now(),end_at.is.null`)
-      .limit(10);
+      .or('end_at.is.null,end_at.gt.now()');
 
     if (bannerError) {
       console.error('[getBanners] Supabase 오류:', bannerError);
@@ -190,7 +188,8 @@ const _getBanners = async (): Promise<Banner[]> => {
       console.log('[getBanners] 조회된 배너 데이터가 없습니다.');
       return [];
     }
-
+    
+    console.log('[getBanners] 조회된 배너 데이터:', bannerData);
     return bannerData;
   } catch (error) {
     console.error('[getBanners] 오류 발생:', error);
