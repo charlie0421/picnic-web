@@ -37,7 +37,7 @@ export function getAppleConfig(): OAuthProviderConfig {
       // 키 ID (Apple Developer Console에서 생성한 프라이빗 키의 ID)
       keyId: process.env.APPLE_KEY_ID || '',
       // 리디렉션 URI 설정
-      redirectUri: `${typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL || 'https://www.picnic.fan'}/auth/callback/apple`
+      redirectUri: `${typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL || 'https://www.picnic.fan'}/api/auth/apple`
     }
   };
 }
