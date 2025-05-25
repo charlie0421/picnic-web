@@ -39,25 +39,83 @@ export default function AuthCallbackClient({ provider }: AuthCallbackClientProps
         
         // Apple은 특수한 처리가 필요함
         if (providerType === 'apple') {
-          // user 파라미터 (Apple은 첫 로그인 시에만 name 정보 제공)
-          const userParam = searchParams.get('user');
-          
           // state 파라미터 검증 (CSRF 방지용)
           const stateParam = searchParams.get('state');
+          const savedState = localStorage.getItem('apple_oauth_state');
           
-          // id_token 파라미터
-          const idTokenParam = searchParams.get('id_token');
+          if (stateParam !== savedState) {
+            setError('인증 상태 검증 실패 (CSRF 보호)');
+            return;
+          }
           
-          // 코드 파라미터
+          // 코드 파라미터 확인
           const codeParam = searchParams.get('code');
+          if (!codeParam) {
+            setError('Apple 인증 코드가 없습니다.');
+            return;
+          }
+          
+          // user 파라미터 (Apple은 첫 로그인 시에만 name 정보 제공)
+          const userParam = searchParams.get('user');
           
           // 로그 출력
           console.log('Apple callback params:', { 
             user: userParam, 
             state: stateParam, 
-            id_token: idTokenParam ? '[redacted]' : null,
-            code: codeParam ? '[redacted]' : null 
+            code: '[redacted]',
+            hasCode: !!codeParam
           });
+          
+          // Apple OAuth 코드를 우리 API로 전송하여 처리
+          setStatus('Apple 인증 코드 처리 중...');
+          
+          try {
+            const response = await fetch('/api/auth/apple', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                code: codeParam,
+                user: userParam,
+                state: stateParam
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error('Apple 인증 처리 실패');
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              setStatus('인증 성공! 리디렉션 중...');
+              
+              // 성공 후 이동할 URL 결정
+              let returnUrl = '/';
+              
+              // 로컬 스토리지에서 리다이렉트 URL 가져오기
+              if (typeof localStorage !== 'undefined') {
+                const savedReturnUrl = localStorage.getItem('auth_return_url');
+                if (savedReturnUrl) {
+                  returnUrl = savedReturnUrl;
+                  localStorage.removeItem('auth_return_url');
+                }
+                // state 정리
+                localStorage.removeItem('apple_oauth_state');
+              }
+              
+              // 인증 후 지정된 페이지로 리디렉션
+              router.push(returnUrl);
+            } else {
+              setError(`Apple 인증 처리 오류: ${result.error || '알 수 없는 오류'}`);
+            }
+          } catch (fetchError) {
+            console.error('Apple 인증 API 호출 오류:', fetchError);
+            setError('Apple 인증 처리 중 오류가 발생했습니다.');
+          }
+          
+          return; // Apple 처리 완료, 다른 로직 실행하지 않음
         }
         
         // 소셜 로그인 서비스 가져오기

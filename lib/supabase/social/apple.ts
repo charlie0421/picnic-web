@@ -56,8 +56,8 @@ export async function signInWithAppleImpl(
   try {
     // 설정값 준비
     const config = getAppleConfig();
-    // 웹에서는 항상 웹용 콜백 URL 사용 (Supabase 설정과 무관하게)
-    const redirectUrl = options?.redirectUrl || 'https://www.picnic.fan/auth/callback/apple';
+    // Apple form_post 전용 API 엔드포인트 사용
+    const redirectUrl = options?.redirectUrl || 'https://www.picnic.fan/api/auth/apple';
     const scopes = options?.scopes || config.defaultScopes;
     
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
@@ -65,37 +65,31 @@ export async function signInWithAppleImpl(
       const returnUrl = options?.additionalParams?.return_url || window.location.pathname;
       localStorage.setItem('auth_return_url', returnUrl);
     }
+
+    // Supabase OAuth 대신 직접 Apple OAuth 처리
+    const clientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || 'fan.picnic.web';
+    const state = Math.random().toString(36).substring(2, 15);
     
-    // Apple의 경우 추가 설정이 필요함
-    const appleParams = {
-      // Apple OAuth 표준 설정 - Supabase 호환
-      response_type: 'code',
-      response_mode: 'query',
-      // 사용자 데이터 요청 (첫 로그인에서만 제공됨)
-      user_data: 'name,email',
-      ...options?.additionalParams
-    };
-    
-    // Supabase OAuth 사용
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: {
-        redirectTo: redirectUrl,
-        scopes: scopes.join(' '),
-        queryParams: appleParams
-      }
-    });
-    
-    if (error) {
-      throw new SocialAuthError(
-        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        `Apple 로그인 프로세스 실패: ${error.message}`,
-        'apple',
-        error
-      );
+    // 로컬 스토리지에 state 저장 (보안 검증용)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('apple_oauth_state', state);
     }
     
-    // OAuth 리디렉션으로 인해 이 함수는 여기까지만 실행되고 리디렉션됨
+    // Apple OAuth URL 직접 생성
+    const appleAuthUrl = new URL('https://appleid.apple.com/auth/authorize');
+    appleAuthUrl.searchParams.set('client_id', clientId);
+    appleAuthUrl.searchParams.set('redirect_uri', redirectUrl);
+    appleAuthUrl.searchParams.set('response_type', 'code');
+    appleAuthUrl.searchParams.set('scope', scopes.join(' '));
+    appleAuthUrl.searchParams.set('response_mode', 'form_post');
+    appleAuthUrl.searchParams.set('state', state);
+    
+    console.log('Apple OAuth 직접 리다이렉트:', appleAuthUrl.toString());
+    
+    // 직접 Apple 인증 페이지로 리다이렉트
+    window.location.href = appleAuthUrl.toString();
+    
+    // 이 함수는 리다이렉트 후 실행되지 않음
     return {
       success: true,
       provider: 'apple',
