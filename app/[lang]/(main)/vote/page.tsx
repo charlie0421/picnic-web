@@ -6,7 +6,6 @@ import { BannerListFetcher, LoadingState } from '@/components/server';
 import { Suspense } from 'react';
 import { VoteListFetcher } from '@/components/server/vote/VoteListFetcher';
 import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
-import { AppleAuthHandler } from '@/components/client/auth/AppleAuthHandler';
 
 export async function generateMetadata({
   params,
@@ -58,9 +57,6 @@ export default async function VoteListPage({
         }}
       />
       <main className='container mx-auto px-4 py-8 space-y-8'>
-        {/* Apple OAuth 처리 */}
-        <AppleAuthHandler />
-
         {/* 배너 섹션 */}
         <section>
           <Suspense fallback={<LoadingState message='배너를 불러오는 중...' />}>
