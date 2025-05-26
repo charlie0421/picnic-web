@@ -564,6 +564,20 @@ export async function POST(request: NextRequest) {
               <h2>🍎 Apple 로그인 성공!</h2>
               <p>세션을 설정하고 있습니다...</p>
               <script>
+                // 전체 로그를 window 객체에 저장 (콘솔에서 접근 가능)
+                window.appleDebugLogs = ${JSON.stringify(debugLogs, null, 2)};
+                
+                // 각 단계별로 개별 로그 출력
+                console.group('🍎 Apple OAuth 디버깅 로그 (단계별)');
+                ${
+          debugLogs.map((log, index) =>
+            `console.log('${index + 1}. ${log.step}:', ${
+              JSON.stringify(log, null, 2)
+            });`
+          ).join("\n                ")
+        }
+                console.groupEnd();
+                
                 console.log('🍎 Apple OAuth 전체 디버깅 로그:', ${
           JSON.stringify(debugLogs, null, 2)
         });
@@ -571,6 +585,10 @@ export async function POST(request: NextRequest) {
           JSON.stringify(debugInfo)
         });
                 console.log('Apple OAuth 성공, 리다이렉트 중:', '${redirectUrl}');
+                
+                // 접근 방법 안내
+                console.log('💡 디버깅 팁: window.appleDebugLogs로 전체 로그에 접근할 수 있습니다');
+                
                 window.location.href = '${redirectUrl}';
               </script>
             </div>
@@ -651,13 +669,31 @@ export async function POST(request: NextRequest) {
               <h2>🍎 Apple 로그인 처리 중 오류</h2>
               <p>다시 시도해주세요...</p>
               <script>
-                console.log('🍎 Apple OAuth 전체 디버깅 로그 (오류):', ${
+                // 전체 로그를 window 객체에 저장 (콘솔에서 접근 가능)
+                window.appleDebugLogs = ${JSON.stringify(debugLogs, null, 2)};
+                
+                // 각 단계별로 개별 로그 출력
+                console.group('🍎 Apple OAuth 디버깅 로그 (단계별)');
+                ${
+          debugLogs.map((log, index) =>
+            `console.log('${index + 1}. ${log.step}:', ${
+              JSON.stringify(log, null, 2)
+            });`
+          ).join("\n                ")
+        }
+                console.groupEnd();
+                
+                console.log('🍎 Apple OAuth 전체 디버깅 로그:', ${
           JSON.stringify(debugLogs, null, 2)
         });
                 console.error('🍎 Apple OAuth 오류 디버깅:', ${
           JSON.stringify(errorDebugInfo)
         });
                 console.log('Apple OAuth 오류, 리다이렉트 중:', '${fallbackUrl}');
+                
+                // 접근 방법 안내
+                console.log('💡 디버깅 팁: window.appleDebugLogs로 전체 로그에 접근할 수 있습니다');
+                
                 window.location.href = '${fallbackUrl}';
               </script>
             </div>
