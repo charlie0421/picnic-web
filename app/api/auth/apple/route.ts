@@ -271,6 +271,7 @@ export async function POST(request: NextRequest) {
       let nonce: string | undefined = undefined;
       let tokenNonce: string | undefined = undefined;
       let finalNonce: string | undefined = undefined;
+      let debugLogs: any[] = [];
 
       // 기존 소셜 로그인 서비스 활용
       try {
@@ -369,6 +370,15 @@ export async function POST(request: NextRequest) {
           note: "Supabase에는 항상 원본 state nonce를 전달합니다",
         });
 
+        debugLogs.push({
+          step: "nonce_analysis",
+          stateNonce: nonce,
+          tokenNonce: tokenNonce || "missing",
+          stateNonceLength: nonce.length,
+          tokenNonceLength: tokenNonce?.length || 0,
+          note: "Supabase에는 항상 원본 state nonce를 전달합니다",
+        });
+
         // Apple이 nonce를 해시하는지 확인 (디버깅용)
         if (tokenNonce) {
           try {
@@ -383,8 +393,23 @@ export async function POST(request: NextRequest) {
               hashMatches: hashedStateNonce === tokenNonce,
               note: "Apple은 nonce를 SHA256+base64url로 해시합니다",
             });
+
+            debugLogs.push({
+              step: "nonce_hash_check",
+              originalStateNonce: nonce,
+              hashedStateNonce: hashedStateNonce,
+              tokenNonce: tokenNonce,
+              hashMatches: hashedStateNonce === tokenNonce,
+              note: "Apple은 nonce를 SHA256+base64url로 해시합니다",
+            });
           } catch (hashError) {
             console.error("nonce 해시 계산 오류:", hashError);
+            debugLogs.push({
+              step: "nonce_hash_error",
+              error: hashError instanceof Error
+                ? hashError.message
+                : String(hashError),
+            });
           }
         }
 
@@ -393,6 +418,14 @@ export async function POST(request: NextRequest) {
 
         // Apple ID 토큰으로 Supabase 세션 생성 (nonce 포함)
         console.log("🔐 Supabase Apple 인증 시도 (nonce 포함):", {
+          hasIdToken: !!tokenData.id_token,
+          hasNonce: !!finalNonce,
+          nonceLength: finalNonce.length,
+          usingTokenNonce: finalNonce === tokenNonce,
+        });
+
+        debugLogs.push({
+          step: "supabase_auth_attempt",
           hasIdToken: !!tokenData.id_token,
           hasNonce: !!finalNonce,
           nonceLength: finalNonce.length,
@@ -417,9 +450,24 @@ export async function POST(request: NextRequest) {
             hint: (authError as any).hint || "no hint",
           });
 
+          debugLogs.push({
+            step: "supabase_auth_error",
+            message: authError.message,
+            status: authError.status,
+            code: authError.code || "unknown",
+            details: (authError as any).details || "no details",
+            hint: (authError as any).hint || "no hint",
+          });
+
           // nonce 문제인 경우 nonce 없이 재시도
           if (authError.message.includes("Nonces mismatch")) {
             console.log("🔄 nonce 없이 Apple 인증 재시도...");
+
+            debugLogs.push({
+              step: "fallback_auth_attempt",
+              reason: "nonces_mismatch",
+              action: "retry_without_nonce",
+            });
 
             const { data: authDataNoNonce, error: authErrorNoNonce } =
               await supabase.auth
@@ -431,22 +479,33 @@ export async function POST(request: NextRequest) {
 
             if (authErrorNoNonce) {
               console.error("nonce 없는 Apple 인증도 실패:", authErrorNoNonce);
+              debugLogs.push({
+                step: "fallback_auth_error",
+                message: authErrorNoNonce.message,
+                status: authErrorNoNonce.status,
+                code: authErrorNoNonce.code || "unknown",
+              });
               throw new Error(`Supabase 인증 실패: ${authError.message}`);
             } else {
               console.log("✅ nonce 없는 Apple 인증 성공!");
+              debugLogs.push({
+                step: "fallback_auth_success",
+                message: "nonce 없는 인증 성공",
+              });
               // authData를 업데이트
               Object.assign(authData, authDataNoNonce);
             }
           } else {
             throw new Error(`Supabase 인증 실패: ${authError.message}`);
           }
+        } else {
+          debugLogs.push({
+            step: "supabase_auth_success",
+            hasUser: !!authData.user,
+            hasSession: !!authData.session,
+            userId: authData.user?.id,
+          });
         }
-
-        console.log("✅ Supabase Apple 세션 생성 성공:", {
-          hasUser: !!authData.user,
-          hasSession: !!authData.session,
-          userId: authData.user?.id,
-        });
 
         // state에서 return URL 추출
         let returnUrl = "/en/vote"; // 기본값
@@ -490,6 +549,7 @@ export async function POST(request: NextRequest) {
           finalNonce: finalNonce,
           nonceMatch: nonce === tokenNonce,
           redirectUrl: redirectUrl,
+          allDebugLogs: debugLogs,
         };
 
         const htmlResponse = `
@@ -504,7 +564,10 @@ export async function POST(request: NextRequest) {
               <h2>🍎 Apple 로그인 성공!</h2>
               <p>세션을 설정하고 있습니다...</p>
               <script>
-                console.log('🍎 Apple OAuth 디버깅 정보:', ${
+                console.log('🍎 Apple OAuth 전체 디버깅 로그:', ${
+          JSON.stringify(debugLogs, null, 2)
+        });
+                console.log('🍎 Apple OAuth 요약 정보:', ${
           JSON.stringify(debugInfo)
         });
                 console.log('Apple OAuth 성공, 리다이렉트 중:', '${redirectUrl}');
@@ -573,6 +636,7 @@ export async function POST(request: NextRequest) {
           hasState: !!state,
           hasIdToken: !!tokenData?.id_token,
           fallbackUrl: fallbackUrl,
+          allDebugLogs: debugLogs,
         };
 
         const htmlResponse = `
@@ -587,6 +651,9 @@ export async function POST(request: NextRequest) {
               <h2>🍎 Apple 로그인 처리 중 오류</h2>
               <p>다시 시도해주세요...</p>
               <script>
+                console.log('🍎 Apple OAuth 전체 디버깅 로그 (오류):', ${
+          JSON.stringify(debugLogs, null, 2)
+        });
                 console.error('🍎 Apple OAuth 오류 디버깅:', ${
           JSON.stringify(errorDebugInfo)
         });
