@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     // 에러가 있는 경우
     if (error) {
       console.error('Apple OAuth 에러:', error);
-      const errorUrl = new URL('/auth/callback/apple', request.url);
+      const errorUrl = new URL('/en/auth/callback/apple', request.url);
       errorUrl.searchParams.set('error', error);
       return NextResponse.redirect(errorUrl);
     }
@@ -33,28 +33,27 @@ export async function POST(request: NextRequest) {
     // code가 없는 경우
     if (!code) {
       console.error('Apple OAuth code 누락');
-      const errorUrl = new URL('/auth/callback/apple', request.url);
+      const errorUrl = new URL('/en/auth/callback/apple', request.url);
       errorUrl.searchParams.set('error', 'missing_code');
       return NextResponse.redirect(errorUrl);
     }
 
-    // 성공: 콜백 페이지로 query parameter로 전달 (무한 루프 방지: 페이지로 이동)
-    const callbackUrl = new URL('/auth/callback/apple', request.url);
-    callbackUrl.searchParams.set('code', code);
-    callbackUrl.searchParams.set('from_api', 'true'); // API에서 온 요청임을 표시
+    // 성공: 동적 라우트 페이지로 리다이렉트 (API 라우트 충돌 방지)
+    const successUrl = new URL('/en/auth/callback/apple', request.url);
+    successUrl.searchParams.set('code', code);
     if (state) {
-      callbackUrl.searchParams.set('state', state);
+      successUrl.searchParams.set('state', state);
     }
     if (user) {
-      callbackUrl.searchParams.set('user', user);
+      successUrl.searchParams.set('user', user);
     }
     
-    console.log('Apple OAuth 성공, 리다이렉트:', callbackUrl.toString());
-    return NextResponse.redirect(callbackUrl);
+    console.log('Apple OAuth 성공, 리다이렉트:', successUrl.toString());
+    return NextResponse.redirect(successUrl);
     
   } catch (error) {
     console.error('Apple form_post 처리 오류:', error);
-    const errorUrl = new URL('/auth/callback/apple', request.url);
+    const errorUrl = new URL('/en/auth/callback/apple', request.url);
     errorUrl.searchParams.set('error', 'processing_failed');
     return NextResponse.redirect(errorUrl);
   }
