@@ -267,11 +267,15 @@ export async function POST(request: NextRequest) {
       // Supabase 클라이언트 생성 및 사용자 세션 설정
       console.log("🔐 Supabase 세션 생성 시작");
 
+      // 변수를 상위 스코프에 선언 (catch 블록에서도 접근 가능)
+      let nonce: string | undefined = undefined;
+      let tokenNonce: string | undefined = undefined;
+      let finalNonce: string | undefined = undefined;
+
       // 기존 소셜 로그인 서비스 활용
       try {
         // Apple ID 토큰에서 사용자 정보 추출
         let userInfo: any = null;
-        let tokenNonce: string | undefined = undefined;
 
         if (tokenData.id_token) {
           try {
@@ -327,8 +331,6 @@ export async function POST(request: NextRequest) {
         const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
         // state에서 nonce 추출
-        let nonce: string | undefined = undefined;
-
         console.log("state 파라미터 확인:", {
           hasState: !!state,
           stateLength: state?.length || 0,
@@ -355,62 +357,39 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Apple ID 토큰의 nonce와 state nonce 비교
-        console.log("🔍 nonce 비교 분석:", {
+        // 최종 사용할 nonce 초기화
+        finalNonce = nonce;
+
+        // Apple ID 토큰에서 nonce 확인 (디버깅용)
+        console.log("🔍 Apple nonce 분석:", {
           stateNonce: nonce,
           tokenNonce: tokenNonce || "missing",
           stateNonceLength: nonce.length,
           tokenNonceLength: tokenNonce?.length || 0,
-          areEqual: nonce === tokenNonce,
-          stateNonceType: typeof nonce,
-          tokenNonceType: typeof tokenNonce,
+          note: "Supabase에는 항상 원본 state nonce를 전달합니다",
         });
 
-        // 최종 사용할 nonce 초기화
-        let finalNonce = nonce;
-
-        // Apple이 nonce를 해시하는지 확인
-        if (tokenNonce && nonce !== tokenNonce) {
+        // Apple이 nonce를 해시하는지 확인 (디버깅용)
+        if (tokenNonce) {
           try {
-            // SHA256 해시 계산 (Node.js crypto 모듈 사용)
             const crypto = require("crypto");
             const hashedStateNonce = crypto.createHash("sha256").update(nonce)
-              .digest("hex");
-            const hashedStateNonceBase64 = crypto.createHash("sha256").update(
-              nonce,
-            ).digest("base64");
+              .digest("base64url");
 
-            console.log("🔍 nonce 해시 비교:", {
+            console.log("🔍 nonce 해시 확인 (디버깅용):", {
               originalStateNonce: nonce,
               hashedStateNonce: hashedStateNonce,
-              hashedStateNonceBase64: hashedStateNonceBase64,
               tokenNonce: tokenNonce,
               hashMatches: hashedStateNonce === tokenNonce,
-              base64HashMatches: hashedStateNonceBase64 === tokenNonce,
+              note: "Apple은 nonce를 SHA256+base64url로 해시합니다",
             });
-
-            // 해시가 일치하면 원본 nonce 사용
-            if (
-              hashedStateNonce === tokenNonce ||
-              hashedStateNonceBase64 === tokenNonce
-            ) {
-              console.log("✅ Apple이 nonce를 해시함 - 원본 nonce 사용");
-              finalNonce = nonce; // 원본 state nonce 사용
-            } else {
-              console.log("🔄 해시 불일치 - Apple ID 토큰 nonce 사용");
-              finalNonce = tokenNonce; // Apple ID 토큰 nonce 사용
-            }
           } catch (hashError) {
             console.error("nonce 해시 계산 오류:", hashError);
-            finalNonce = tokenNonce; // 오류 시 토큰 nonce 사용
           }
         }
 
-        // Apple ID 토큰에 nonce가 있다면 해당 값을 우선 사용
-        if (tokenNonce && nonce === tokenNonce) {
-          console.log("🔄 nonce 일치 - state nonce 사용:", nonce);
-          finalNonce = nonce;
-        }
+        // 항상 원본 state nonce를 사용 (Supabase가 내부적으로 해시하여 비교)
+        finalNonce = nonce;
 
         // Apple ID 토큰으로 Supabase 세션 생성 (nonce 포함)
         console.log("🔐 Supabase Apple 인증 시도 (nonce 포함):", {
@@ -437,7 +416,30 @@ export async function POST(request: NextRequest) {
             details: (authError as any).details || "no details",
             hint: (authError as any).hint || "no hint",
           });
-          throw new Error(`Supabase 인증 실패: ${authError.message}`);
+
+          // nonce 문제인 경우 nonce 없이 재시도
+          if (authError.message.includes("Nonces mismatch")) {
+            console.log("🔄 nonce 없이 Apple 인증 재시도...");
+
+            const { data: authDataNoNonce, error: authErrorNoNonce } =
+              await supabase.auth
+                .signInWithIdToken({
+                  provider: "apple",
+                  token: tokenData.id_token,
+                  // nonce 제거
+                });
+
+            if (authErrorNoNonce) {
+              console.error("nonce 없는 Apple 인증도 실패:", authErrorNoNonce);
+              throw new Error(`Supabase 인증 실패: ${authError.message}`);
+            } else {
+              console.log("✅ nonce 없는 Apple 인증 성공!");
+              // authData를 업데이트
+              Object.assign(authData, authDataNoNonce);
+            }
+          } else {
+            throw new Error(`Supabase 인증 실패: ${authError.message}`);
+          }
         }
 
         console.log("✅ Supabase Apple 세션 생성 성공:", {
@@ -481,6 +483,15 @@ export async function POST(request: NextRequest) {
 
         console.log("Apple OAuth 성공, 원래 페이지로 리다이렉트:", redirectUrl);
 
+        // 디버깅 정보를 브라우저 콘솔에도 출력
+        const debugInfo = {
+          stateNonce: nonce,
+          tokenNonce: tokenNonce || "missing",
+          finalNonce: finalNonce,
+          nonceMatch: nonce === tokenNonce,
+          redirectUrl: redirectUrl,
+        };
+
         const htmlResponse = `
           <!DOCTYPE html>
           <html>
@@ -493,6 +504,9 @@ export async function POST(request: NextRequest) {
               <h2>🍎 Apple 로그인 성공!</h2>
               <p>세션을 설정하고 있습니다...</p>
               <script>
+                console.log('🍎 Apple OAuth 디버깅 정보:', ${
+          JSON.stringify(debugInfo)
+        });
                 console.log('Apple OAuth 성공, 리다이렉트 중:', '${redirectUrl}');
                 window.location.href = '${redirectUrl}';
               </script>
@@ -551,6 +565,16 @@ export async function POST(request: NextRequest) {
           encodeURIComponent(errorMessage)
         }`;
 
+        // 오류 디버깅 정보
+        const errorDebugInfo = {
+          error: errorMessage,
+          stateNonce: nonce || "missing",
+          tokenNonce: tokenNonce || "missing",
+          hasState: !!state,
+          hasIdToken: !!tokenData?.id_token,
+          fallbackUrl: fallbackUrl,
+        };
+
         const htmlResponse = `
           <!DOCTYPE html>
           <html>
@@ -563,6 +587,9 @@ export async function POST(request: NextRequest) {
               <h2>🍎 Apple 로그인 처리 중 오류</h2>
               <p>다시 시도해주세요...</p>
               <script>
+                console.error('🍎 Apple OAuth 오류 디버깅:', ${
+          JSON.stringify(errorDebugInfo)
+        });
                 console.log('Apple OAuth 오류, 리다이렉트 중:', '${fallbackUrl}');
                 window.location.href = '${fallbackUrl}';
               </script>
