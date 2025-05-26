@@ -264,41 +264,47 @@ export async function POST(request: NextRequest) {
         hasRefreshToken: !!tokenData.refresh_token,
       });
 
-      // ID 토큰 파싱 (사용자 정보 포함)
-      let userInfo: any = null;
-      if (tokenData.id_token) {
-        try {
-          const decodedToken = jose.decodeJwt(tokenData.id_token);
-          console.log("Apple ID 토큰 디코딩 성공:", {
-            sub: decodedToken.sub,
-            email: (decodedToken as any).email,
-            email_verified: (decodedToken as any).email_verified,
-          });
-          userInfo = decodedToken;
-        } catch (decodeError) {
-          console.error("Apple ID 토큰 디코딩 실패:", decodeError);
-        }
-      }
-
-      // user 파라미터에서 추가 정보 파싱 (첫 로그인 시에만 제공됨)
-      let additionalUserInfo: any = null;
-      if (user) {
-        try {
-          additionalUserInfo = JSON.parse(user);
-          console.log("Apple 추가 사용자 정보:", {
-            hasName: !!(additionalUserInfo as any)?.name,
-            hasEmail: !!(additionalUserInfo as any)?.email,
-          });
-        } catch (parseError) {
-          console.error("Apple 사용자 정보 파싱 실패:", parseError);
-        }
-      }
-
       // Supabase 클라이언트 생성 및 사용자 세션 설정
       console.log("🔐 Supabase 세션 생성 시작");
 
       // 기존 소셜 로그인 서비스 활용
       try {
+        // Apple ID 토큰에서 사용자 정보 추출
+        let userInfo: any = null;
+        let tokenNonce: string | undefined = undefined;
+
+        if (tokenData.id_token) {
+          try {
+            const decodedToken = jose.decodeJwt(tokenData.id_token);
+            userInfo = decodedToken;
+            tokenNonce = (decodedToken as any).nonce;
+
+            console.log("Apple ID 토큰 디코딩 성공:", {
+              sub: decodedToken.sub,
+              email: (decodedToken as any).email,
+              email_verified: (decodedToken as any).email_verified,
+              hasTokenNonce: !!tokenNonce,
+              tokenNonce: tokenNonce || "missing",
+            });
+          } catch (decodeError) {
+            console.error("Apple ID 토큰 디코딩 실패:", decodeError);
+          }
+        }
+
+        // user 파라미터에서 추가 정보 파싱 (첫 로그인 시에만 제공됨)
+        let additionalUserInfo: any = null;
+        if (user) {
+          try {
+            additionalUserInfo = JSON.parse(user);
+            console.log("Apple 추가 사용자 정보:", {
+              hasName: !!(additionalUserInfo as any)?.name,
+              hasEmail: !!(additionalUserInfo as any)?.email,
+            });
+          } catch (parseError) {
+            console.error("Apple 사용자 정보 파싱 실패:", parseError);
+          }
+        }
+
         // Apple 사용자 정보 추출
         const appleUserId = userInfo?.sub;
         const email = userInfo?.email || (additionalUserInfo as any)?.email;
@@ -310,16 +316,170 @@ export async function POST(request: NextRequest) {
           hasName: !!name,
         });
 
-        // 성공 응답 - 클라이언트에서 세션 처리하도록 함
-        const redirectUrl =
-          `/vote?apple_auth=success&apple_id=${appleUserId}&email=${
-            encodeURIComponent(email || "")
-          }`;
+        // Supabase 클라이언트 생성
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-        console.log(
-          "Apple OAuth 성공, 클라이언트 세션 처리로 리다이렉트:",
-          redirectUrl,
-        );
+        if (!supabaseUrl || !supabaseAnonKey) {
+          throw new Error("Supabase 환경 변수가 설정되지 않았습니다.");
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+        // state에서 nonce 추출
+        let nonce: string | undefined = undefined;
+
+        console.log("state 파라미터 확인:", {
+          hasState: !!state,
+          stateLength: state?.length || 0,
+        });
+
+        if (state) {
+          try {
+            const stateData = JSON.parse(atob(state));
+            nonce = stateData.nonce;
+            console.log("state에서 nonce 추출 성공:", {
+              hasNonce: !!nonce,
+              nonceLength: nonce?.length || 0,
+              stateKeys: Object.keys(stateData),
+            });
+          } catch (decodeError) {
+            console.error("state 디코딩 실패:", decodeError);
+          }
+        }
+
+        if (!nonce) {
+          console.error("nonce 없음 - Apple OAuth 재시작 필요");
+          throw new Error(
+            "Apple OAuth nonce가 없습니다. 인증을 다시 시작해주세요.",
+          );
+        }
+
+        // Apple ID 토큰의 nonce와 state nonce 비교
+        console.log("🔍 nonce 비교 분석:", {
+          stateNonce: nonce,
+          tokenNonce: tokenNonce || "missing",
+          stateNonceLength: nonce.length,
+          tokenNonceLength: tokenNonce?.length || 0,
+          areEqual: nonce === tokenNonce,
+          stateNonceType: typeof nonce,
+          tokenNonceType: typeof tokenNonce,
+        });
+
+        // 최종 사용할 nonce 초기화
+        let finalNonce = nonce;
+
+        // Apple이 nonce를 해시하는지 확인
+        if (tokenNonce && nonce !== tokenNonce) {
+          try {
+            // SHA256 해시 계산 (Node.js crypto 모듈 사용)
+            const crypto = require("crypto");
+            const hashedStateNonce = crypto.createHash("sha256").update(nonce)
+              .digest("hex");
+            const hashedStateNonceBase64 = crypto.createHash("sha256").update(
+              nonce,
+            ).digest("base64");
+
+            console.log("🔍 nonce 해시 비교:", {
+              originalStateNonce: nonce,
+              hashedStateNonce: hashedStateNonce,
+              hashedStateNonceBase64: hashedStateNonceBase64,
+              tokenNonce: tokenNonce,
+              hashMatches: hashedStateNonce === tokenNonce,
+              base64HashMatches: hashedStateNonceBase64 === tokenNonce,
+            });
+
+            // 해시가 일치하면 원본 nonce 사용
+            if (
+              hashedStateNonce === tokenNonce ||
+              hashedStateNonceBase64 === tokenNonce
+            ) {
+              console.log("✅ Apple이 nonce를 해시함 - 원본 nonce 사용");
+              finalNonce = nonce; // 원본 state nonce 사용
+            } else {
+              console.log("🔄 해시 불일치 - Apple ID 토큰 nonce 사용");
+              finalNonce = tokenNonce; // Apple ID 토큰 nonce 사용
+            }
+          } catch (hashError) {
+            console.error("nonce 해시 계산 오류:", hashError);
+            finalNonce = tokenNonce; // 오류 시 토큰 nonce 사용
+          }
+        }
+
+        // Apple ID 토큰에 nonce가 있다면 해당 값을 우선 사용
+        if (tokenNonce && nonce === tokenNonce) {
+          console.log("🔄 nonce 일치 - state nonce 사용:", nonce);
+          finalNonce = nonce;
+        }
+
+        // Apple ID 토큰으로 Supabase 세션 생성 (nonce 포함)
+        console.log("🔐 Supabase Apple 인증 시도 (nonce 포함):", {
+          hasIdToken: !!tokenData.id_token,
+          hasNonce: !!finalNonce,
+          nonceLength: finalNonce.length,
+          usingTokenNonce: finalNonce === tokenNonce,
+        });
+
+        // Apple ID 토큰으로 Supabase 세션 생성 (nonce 포함)
+        const { data: authData, error: authError } = await supabase.auth
+          .signInWithIdToken({
+            provider: "apple",
+            token: tokenData.id_token,
+            nonce: finalNonce,
+          });
+
+        if (authError) {
+          console.error("Supabase Apple 인증 오류:", authError);
+          console.error("Supabase 오류 상세:", {
+            message: authError.message,
+            status: authError.status,
+            code: authError.code || "unknown",
+            details: (authError as any).details || "no details",
+            hint: (authError as any).hint || "no hint",
+          });
+          throw new Error(`Supabase 인증 실패: ${authError.message}`);
+        }
+
+        console.log("✅ Supabase Apple 세션 생성 성공:", {
+          hasUser: !!authData.user,
+          hasSession: !!authData.session,
+          userId: authData.user?.id,
+        });
+
+        // state에서 return URL 추출
+        let returnUrl = "/en/vote"; // 기본값
+
+        if (state) {
+          try {
+            const stateData = JSON.parse(atob(state));
+            if (stateData.returnUrl) {
+              // 언어 경로가 없으면 /en 추가
+              const originalUrl = stateData.returnUrl;
+              if (
+                originalUrl.startsWith("/") &&
+                !originalUrl.startsWith("/en/") &&
+                !originalUrl.startsWith("/ko/")
+              ) {
+                returnUrl = `/en${originalUrl}`;
+              } else {
+                returnUrl = originalUrl;
+              }
+
+              console.log("state에서 return URL 추출:", {
+                originalUrl,
+                finalReturnUrl: returnUrl,
+              });
+            }
+          } catch (decodeError) {
+            console.warn("state 디코딩 실패, 기본 URL 사용:", decodeError);
+          }
+        }
+
+        // 성공 응답 - 원래 페이지로 리다이렉트
+        const redirectUrl =
+          `${returnUrl}?apple_auth=success&session_created=true`;
+
+        console.log("Apple OAuth 성공, 원래 페이지로 리다이렉트:", redirectUrl);
 
         const htmlResponse = `
           <!DOCTYPE html>
@@ -349,10 +509,46 @@ export async function POST(request: NextRequest) {
         });
       } catch (error) {
         console.error("Apple OAuth 처리 오류:", error);
+        console.error("오류 상세 정보:", {
+          errorType: error instanceof Error
+            ? error.constructor.name
+            : typeof error,
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : "no stack",
+        });
 
-        // 오류 시 기본 리다이렉트
-        const fallbackUrl = `/vote?apple_auth=error&message=${
-          encodeURIComponent("세션 생성 실패")
+        // state에서 return URL 추출 (오류 시에도)
+        let returnUrl = "/en/vote"; // 기본값
+
+        if (state) {
+          try {
+            const stateData = JSON.parse(atob(state));
+            if (stateData.returnUrl) {
+              const originalUrl = stateData.returnUrl;
+              if (
+                originalUrl.startsWith("/") &&
+                !originalUrl.startsWith("/en/") &&
+                !originalUrl.startsWith("/ko/")
+              ) {
+                returnUrl = `/en${originalUrl}`;
+              } else {
+                returnUrl = originalUrl;
+              }
+            }
+          } catch (decodeError) {
+            console.warn(
+              "오류 시 state 디코딩 실패, 기본 URL 사용:",
+              decodeError,
+            );
+          }
+        }
+
+        // 오류 시 원래 페이지로 리다이렉트
+        const errorMessage = error instanceof Error
+          ? error.message
+          : "알 수 없는 오류";
+        const fallbackUrl = `${returnUrl}?apple_auth=error&message=${
+          encodeURIComponent(errorMessage)
         }`;
 
         const htmlResponse = `
