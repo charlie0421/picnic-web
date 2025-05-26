@@ -1,4 +1,5 @@
 import AuthCallback from '@/components/client/auth/AuthCallback';
+import { Suspense } from 'react';
 
 // 타입 정의 수정
 type PageProps = {
@@ -13,5 +14,10 @@ type PageProps = {
  */
 export default async function AuthCallbackPage({ params }: PageProps) {
   const { provider } = await params;
-  return <AuthCallback provider={provider} />;
+
+  return (
+    <Suspense fallback={<div>인증 처리 중...</div>}>
+      <AuthCallback provider={provider} />
+    </Suspense>
+  );
 }

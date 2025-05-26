@@ -6,6 +6,7 @@ import { BannerListFetcher, LoadingState } from '@/components/server';
 import { Suspense } from 'react';
 import { VoteListFetcher } from '@/components/server/vote/VoteListFetcher';
 import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
+import { AppleAuthHandler } from '@/components/client/auth/AppleAuthHandler';
 
 export async function generateMetadata({
   params,
@@ -35,7 +36,9 @@ interface VoteListPageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function VoteListPage({ searchParams }: VoteListPageProps) {
+export default async function VoteListPage({
+  searchParams,
+}: VoteListPageProps) {
   // URL 파라미터에서 status와 area 가져오기
   const resolvedSearchParams = await searchParams;
   const status = resolvedSearchParams.status || VOTE_STATUS.ONGOING;
@@ -55,24 +58,28 @@ export default async function VoteListPage({ searchParams }: VoteListPageProps) 
         }}
       />
       <main className='container mx-auto px-4 py-8 space-y-8'>
+        {/* Apple OAuth 처리 */}
+        <AppleAuthHandler />
+
         {/* 배너 섹션 */}
         <section>
-          <Suspense fallback={<LoadingState message="배너를 불러오는 중..." />}>
+          <Suspense fallback={<LoadingState message='배너를 불러오는 중...' />}>
             <BannerListFetcher />
           </Suspense>
         </section>
 
         {/* 투표 섹션 */}
         <section>
-          <Suspense fallback={<LoadingState message="투표 데이터를 불러오는 중..." />}>
-            <VoteListFetcher 
-              className="w-full" 
+          <Suspense
+            fallback={<LoadingState message='투표 데이터를 불러오는 중...' />}
+          >
+            <VoteListFetcher
+              className='w-full'
               status={status as any}
               area={area as any}
             />
           </Suspense>
         </section>
-
       </main>
     </>
   );
