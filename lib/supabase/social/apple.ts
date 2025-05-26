@@ -86,24 +86,39 @@ export async function signInWithAppleImpl(
     const nonce = Math.random().toString(36).substring(2, 15) +
       Math.random().toString(36).substring(2, 15);
 
+    // Apple OAuth는 해시된 nonce를 기대함
+    const hashedNonce = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(nonce),
+    ).then((buffer) => {
+      // ArrayBuffer를 base64url로 변환
+      const bytes = new Uint8Array(buffer);
+      const binary = String.fromCharCode(...Array.from(bytes));
+      return btoa(binary)
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=/g, "");
+    });
+
     const stateData = {
       random: randomState,
       returnUrl: returnUrl,
-      nonce: nonce, // nonce 다시 포함
+      nonce: nonce, // 원본 nonce 저장 (Supabase 인증용)
     };
     const state = btoa(JSON.stringify(stateData));
 
     console.log("Apple OAuth state 생성:", {
       returnUrl,
       randomState,
-      nonce,
+      originalNonce: nonce,
+      hashedNonce: hashedNonce,
       encodedState: state,
     });
 
     // 로컬 스토리지에 state와 nonce 저장 (보안 검증용)
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("apple_oauth_state", randomState);
-      localStorage.setItem("apple_oauth_nonce", nonce);
+      localStorage.setItem("apple_oauth_nonce", nonce); // 원본 nonce 저장
       localStorage.setItem("auth_return_url", returnUrl);
     }
 
@@ -115,10 +130,10 @@ export async function signInWithAppleImpl(
     appleAuthUrl.searchParams.set("scope", scopes.join(" "));
     appleAuthUrl.searchParams.set("response_mode", "form_post");
     appleAuthUrl.searchParams.set("state", state);
-    appleAuthUrl.searchParams.set("nonce", nonce); // nonce 다시 추가
+    appleAuthUrl.searchParams.set("nonce", hashedNonce); // 해시된 nonce 사용
 
     console.log(
-      "Apple OAuth 직접 리다이렉트 (nonce 포함):",
+      "Apple OAuth 직접 리다이렉트 (해시된 nonce 포함):",
       appleAuthUrl.toString(),
     );
 
