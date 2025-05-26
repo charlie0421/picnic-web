@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
-import { clientTransformers } from '@/lib/supabase/middleware';
+import { clientTransformers } from '@/lib/supabase/transforms';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 

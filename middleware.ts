@@ -23,16 +23,22 @@ export function middleware(request: NextRequest) {
   }
 
   // auth/callback 경로는 언어 경로 추가 없이 직접 처리
-  // /auth/callback/[provider] 형태로 동적 라우트 사용
-  if (pathname.startsWith("/auth/callback/")) {
+  // /auth/callback 또는 /auth/callback/[provider] 형태로 동적 라우트 사용
+  if (pathname.startsWith("/auth/callback")) {
     console.log(`✅ auth/callback 경로 직접 처리: ${pathname}`);
     return NextResponse.next();
   }
 
+  // auth 관련 경로 전체를 언어 리다이렉트에서 제외
+  if (pathname.startsWith("/auth/")) {
+    console.log(`✅ auth 경로 직접 처리: ${pathname}`);
+    return NextResponse.next();
+  }
+
   // 언어 경로가 포함된 auth/callback 처리 (Apple Developer Console 호환성)
-  // /en/auth/callback/apple -> /auth/callback/apple로 리다이렉트
+  // /en/auth/callback -> /auth/callback로 리다이렉트
   for (const lang of SUPPORTED_LANGUAGES) {
-    if (pathname.startsWith(`/${lang}/auth/callback/`)) {
+    if (pathname.startsWith(`/${lang}/auth/callback`)) {
       const newPathname = pathname.replace(`/${lang}`, "");
       const newUrl = new URL(request.url);
       newUrl.pathname = newPathname;

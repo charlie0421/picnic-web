@@ -10,6 +10,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     
+    console.log('🍎 Apple OAuth 콜백 수신:', request.url);
+    console.log('🍎 쿼리 파라미터:', Object.fromEntries(searchParams.entries()));
+    
     // URL의 모든 쿼리 파라미터를 가져와서 그대로 전달
     const params = new URLSearchParams();
     searchParams.forEach((value, key) => {
@@ -17,16 +20,16 @@ export async function GET(request: NextRequest) {
     });
     
     // Apple 로그인 콜백 페이지로 리다이렉트
-    const redirectUrl = `https://www.picnic.fan/auth/callback/apple?${params.toString()}`;
+    const redirectUrl = `https://api.picnic.fan/auth/callback/apple?${params.toString()}`;
     
-    console.log('Apple OAuth 콜백 프록시 리다이렉트:', redirectUrl);
+    console.log('🍎 Apple OAuth 콜백 프록시 리다이렉트:', redirectUrl);
     
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
-    console.error('Apple OAuth 콜백 프록시 오류:', error);
+    console.error('🚨 Apple OAuth 콜백 프록시 오류:', error);
     
     // 오류 발생 시 홈페이지로 리다이렉트
-    return NextResponse.redirect('https://www.picnic.fan/?error=auth_callback_failed');
+    return NextResponse.redirect('https://api.picnic.fan/?error=auth_callback_failed');
   }
 }
 

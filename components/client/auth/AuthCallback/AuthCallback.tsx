@@ -1,7 +1,7 @@
 import { AuthCallbackClient } from './index';
 
 interface AuthCallbackProps {
-  provider: string;
+  provider?: string;
 }
 
 /**

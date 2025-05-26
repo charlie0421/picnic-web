@@ -59,11 +59,8 @@ export async function signInWithAppleImpl(
   options?: SocialAuthOptions,
 ): Promise<AuthResult> {
   try {
-    // 설정값 준비
+    // 완전히 표준 Supabase OAuth 사용
     const config = getAppleConfig();
-    // Apple form_post 전용 API 엔드포인트 사용
-    const redirectUrl = options?.redirectUrl ||
-      "https://www.picnic.fan/api/auth/apple";
     const scopes = options?.scopes || config.defaultScopes;
 
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
@@ -73,74 +70,29 @@ export async function signInWithAppleImpl(
       localStorage.setItem("auth_return_url", returnUrl);
     }
 
-    // Supabase OAuth 대신 직접 Apple OAuth 처리
-    const clientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ||
-      "fan.picnic.web";
+    console.log("✅ 표준 Supabase Apple OAuth 시작");
 
-    // state에 return URL 포함 (Base64 인코딩)
-    const returnUrl = options?.additionalParams?.return_url ||
-      window.location.pathname;
-    const randomState = Math.random().toString(36).substring(2, 15);
-
-    // Apple OAuth용 간단한 nonce 생성
-    const nonce = Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15);
-
-    // Apple OAuth는 해시된 nonce를 기대함
-    const hashedNonce = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(nonce),
-    ).then((buffer) => {
-      // ArrayBuffer를 base64url로 변환
-      const bytes = new Uint8Array(buffer);
-      const binary = String.fromCharCode(...Array.from(bytes));
-      return btoa(binary)
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=/g, "");
+    // 표준 Supabase OAuth 사용
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        scopes: scopes.join(' '),
+        redirectTo: `${window.location.origin}/auth/callback`,
+      }
     });
 
-    const stateData = {
-      random: randomState,
-      returnUrl: returnUrl,
-      nonce: nonce, // 원본 nonce 저장 (Supabase 인증용)
-    };
-    const state = btoa(JSON.stringify(stateData));
-
-    console.log("Apple OAuth state 생성:", {
-      returnUrl,
-      randomState,
-      originalNonce: nonce,
-      hashedNonce: hashedNonce,
-      encodedState: state,
-    });
-
-    // 로컬 스토리지에 state와 nonce 저장 (보안 검증용)
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("apple_oauth_state", randomState);
-      localStorage.setItem("apple_oauth_nonce", nonce); // 원본 nonce 저장
-      localStorage.setItem("auth_return_url", returnUrl);
+    if (error) {
+      console.error("❌ Supabase Apple OAuth 오류:", error);
+      throw new SocialAuthError(
+        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
+        error.message,
+        "apple",
+        error,
+      );
     }
 
-    // Apple OAuth URL 직접 생성
-    const appleAuthUrl = new URL("https://appleid.apple.com/auth/authorize");
-    appleAuthUrl.searchParams.set("client_id", clientId);
-    appleAuthUrl.searchParams.set("redirect_uri", redirectUrl);
-    appleAuthUrl.searchParams.set("response_type", "code");
-    appleAuthUrl.searchParams.set("scope", scopes.join(" "));
-    appleAuthUrl.searchParams.set("response_mode", "form_post");
-    appleAuthUrl.searchParams.set("state", state);
-    appleAuthUrl.searchParams.set("nonce", hashedNonce); // 해시된 nonce 사용
+    console.log("✅ Supabase Apple OAuth 성공, 리다이렉션 중...");
 
-    console.log(
-      "Apple OAuth 직접 리다이렉트 (해시된 nonce 포함):",
-      appleAuthUrl.toString(),
-    );
-
-    // 직접 Apple 인증 페이지로 리다이렉트
-    window.location.href = appleAuthUrl.toString();
-
-    // 이 함수는 리다이렉트 후 실행되지 않음
     return {
       success: true,
       provider: "apple",

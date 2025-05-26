@@ -25,10 +25,29 @@ module.exports = {
           '50%': { transform: 'translateX(-50%) scale(1.1)' },
           '100%': { transform: 'translateX(-50%) scale(1)' },
         },
+        'blob': {
+          '0%': { transform: 'translate(0px, 0px) scale(1)' },
+          '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+          '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+          '100%': { transform: 'translate(0px, 0px) scale(1)' },
+        },
+        'shake': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-5px)' },
+          '20%, 40%, 60%, 80%': { transform: 'translateX(5px)' },
+        },
+        'loading-bar': {
+          '0%': { width: '0%' },
+          '50%': { width: '70%' },
+          '100%': { width: '100%' },
+        },
       },
       animation: {
         'fade-in-out': 'fade-in-out 1s ease-in-out forwards',
         'rank-pulse': 'rank-pulse 0.5s ease-in-out',
+        'blob': 'blob 7s infinite',
+        'shake': 'shake 0.82s cubic-bezier(.36,.07,.19,.97) both',
+        'loading-bar': 'loading-bar 2s ease-in-out infinite',
       },
       colors: {
         primary: {
