@@ -358,7 +358,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // 최종 사용할 nonce 초기화
+        // 항상 원본 state nonce를 사용 (Supabase가 내부적으로 해시하여 비교)
         finalNonce = nonce;
 
         // Apple ID 토큰에서 nonce 확인 (디버깅용)
@@ -367,7 +367,7 @@ export async function POST(request: NextRequest) {
           tokenNonce: tokenNonce || "missing",
           stateNonceLength: nonce.length,
           tokenNonceLength: tokenNonce?.length || 0,
-          note: "Supabase에는 항상 원본 state nonce를 전달합니다",
+          note: "Apple ID 토큰의 해시된 nonce를 Supabase에 전달합니다",
         });
 
         debugLogs.push({
@@ -376,7 +376,7 @@ export async function POST(request: NextRequest) {
           tokenNonce: tokenNonce || "missing",
           stateNonceLength: nonce.length,
           tokenNonceLength: tokenNonce?.length || 0,
-          note: "Supabase에는 항상 원본 state nonce를 전달합니다",
+          note: "Apple ID 토큰의 해시된 nonce를 Supabase에 전달합니다",
         });
 
         // Apple이 nonce를 해시하는지 확인 (디버깅용)
@@ -413,8 +413,13 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // 항상 원본 state nonce를 사용 (Supabase가 내부적으로 해시하여 비교)
-        finalNonce = nonce;
+        // Apple ID 토큰에 해시된 nonce가 들어있으므로, 해시된 nonce를 사용해야 함
+        if (tokenNonce) {
+          finalNonce = tokenNonce; // Apple ID 토큰의 해시된 nonce 사용
+          console.log("✅ Apple ID 토큰의 해시된 nonce 사용:", tokenNonce);
+        } else {
+          console.log("⚠️ Apple ID 토큰에 nonce 없음, 원본 nonce 사용:", nonce);
+        }
 
         // Apple ID 토큰으로 Supabase 세션 생성 (nonce 포함)
         console.log("🔐 Supabase Apple 인증 시도 (nonce 포함):", {
