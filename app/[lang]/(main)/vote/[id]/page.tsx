@@ -23,7 +23,7 @@ export async function generateStaticParams() {
   try {
     // 활성화된 투표만 사전 생성
     const votes = await getVotes('ongoing');
-    
+
     return votes.map((vote) => ({
       id: String(vote.id),
     }));
@@ -88,7 +88,12 @@ export async function generateMetadata({
 
   // 이미지가 있는 경우 이미지 메타데이터 추가
   if (vote.main_image) {
-    const imageMetadata = createImageMetadata(vote.main_image, title, 1200, 630);
+    const imageMetadata = createImageMetadata(
+      vote.main_image,
+      title,
+      1200,
+      630,
+    );
 
     return {
       ...baseMetadata,
@@ -113,12 +118,26 @@ export default async function VoteDetailPage({
   const { id, lang: langParam } = await params;
   const lang = String(langParam || 'ko');
 
+  console.log('[VoteDetailPage] 페이지 시작 - ID:', id, 'Lang:', lang);
+  console.log('[VoteDetailPage] 환경 변수 체크:');
+  console.log(
+    '  - NEXT_PUBLIC_SUPABASE_URL:',
+    process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '설정되지 않음',
+  );
+  console.log(
+    '  - NEXT_PUBLIC_SUPABASE_ANON_KEY:',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '설정되지 않음',
+  );
+
   const vote = await getVoteById(id);
 
   // 투표가 없으면 404 페이지로 이동
   if (!vote) {
+    console.log('[VoteDetailPage] 투표 없음 - notFound 호출');
     notFound();
   }
+
+  console.log('[VoteDetailPage] 투표 데이터 로드 성공');
 
   // 구조화된 데이터를 위한 정보 준비
   let schemaData: any = null;

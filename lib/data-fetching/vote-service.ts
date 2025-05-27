@@ -46,21 +46,25 @@ function transformVoteData(data: any[]): Vote[] {
   return data.map((vote) => {
     const voteItem: VoteItem[] = vote.vote_item?.map((item: any) => ({
       ...item,
-      artist: item.artist ? {
-        id: item.artist.id,
-        name: item.artist.name,
-        image: item.artist.image,
-        artistGroup: item.artist.artist_group
-      } : null,
+      artist: item.artist
+        ? {
+          id: item.artist.id,
+          name: item.artist.name,
+          image: item.artist.image,
+          artistGroup: item.artist.artist_group,
+        }
+        : null,
     })) || [];
 
     const voteReward: VoteReward[] = vote.vote_reward?.map((vr: any) => ({
       ...vr,
-      reward: vr.reward ? {
-        id: vr.reward.id,
-        name: vr.reward.name,
-        image: vr.reward.image,
-      } : null,
+      reward: vr.reward
+        ? {
+          id: vr.reward.id,
+          name: vr.reward.name,
+          image: vr.reward.image,
+        }
+        : null,
     })) || [];
 
     return {
@@ -77,7 +81,7 @@ function transformVoteData(data: any[]): Vote[] {
 function buildVoteQuery(
   client: SupabaseClient,
   status?: string,
-  area?: string
+  area?: string,
 ) {
   let query = client
     .from("vote")
@@ -169,7 +173,11 @@ export const getVoteById = cache(async (
   options?: CacheOptions,
 ): Promise<Vote | null> => {
   try {
+    console.log("[getVoteById] 시작 - ID:", id, "Type:", typeof id);
+
     const client = await createClient();
+    console.log("[getVoteById] Supabase 클라이언트 생성 완료");
+
     const { data, error } = await client
       .from("vote")
       .select(DEFAULT_VOTE_QUERY)
@@ -177,19 +185,46 @@ export const getVoteById = cache(async (
       .is("deleted_at", null)
       .single();
 
+    console.log("[getVoteById] Supabase 쿼리 완료");
+    console.log("[getVoteById] 에러:", error);
+    console.log("[getVoteById] 데이터 존재:", !!data);
+
     if (error) {
-      console.error("[getVoteById] 에러 발생:", error);
+      console.error("[getVoteById] Supabase 에러 발생:", error);
+      console.error("[getVoteById] 에러 코드:", error.code);
+      console.error("[getVoteById] 에러 메시지:", error.message);
+      console.error("[getVoteById] 에러 세부사항:", error.details);
       return null;
     }
 
     if (!data) {
+      console.log(
+        "[getVoteById] 데이터가 null임 - ID가 존재하지 않거나 삭제됨:",
+        id,
+      );
       return null;
     }
 
+    console.log("[getVoteById] 원본 데이터:", {
+      id: data.id,
+      title: data.title,
+      deleted_at: data.deleted_at,
+      vote_item_count: data.vote_item?.length || 0,
+      vote_reward_count: data.vote_reward?.length || 0,
+    });
+
     const transformedData = transformVoteData([data]);
-    return transformedData[0] || null;
+    const result = transformedData[0] || null;
+
+    console.log("[getVoteById] 변환된 데이터:", result ? "성공" : "실패");
+
+    return result;
   } catch (e) {
-    console.error("[getVoteById] 에러:", e);
+    console.error("[getVoteById] 예외 발생:", e);
+    console.error(
+      "[getVoteById] 예외 스택:",
+      e instanceof Error ? e.stack : "스택 없음",
+    );
     return null;
   }
 });
