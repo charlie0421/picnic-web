@@ -76,53 +76,12 @@
       "status": "pending",
       "subtasks": [
         {
-          "id": 1,
-          "title": "Database Schema Design",
-          "description": "Analyze requirements and design a normalized database schema for the voting system, including tables for users, votes, options, and results. Define primary and foreign keys, and ensure data integrity.",
-          "dependencies": [],
-          "details": "Apply best practices such as using appropriate primary keys, normalization (aim for 3NF), and defining foreign key relationships to enforce referential integrity.",
-          "status": "pending"
-        },
-        {
-          "id": 2,
-          "title": "Table Creation",
-          "description": "Implement the designed schema by creating the necessary tables in the database, including constraints and indexes.",
-          "dependencies": [
-            1
-          ],
-          "details": "Write and execute SQL scripts to create tables as per the schema, ensuring all relationships and constraints are properly defined.",
-          "status": "pending"
-        },
-        {
-          "id": 3,
-          "title": "Row-Level Security (RLS) Policy Setup",
-          "description": "Configure RLS policies to restrict access to voting data based on user roles and ownership.",
-          "dependencies": [
-            2
-          ],
-          "details": "Define and apply RLS policies to ensure users can only access or modify their own votes and cannot view or alter others' data.",
-          "status": "pending"
-        },
-        {
-          "id": 4,
-          "title": "API Endpoint Development: Create Vote",
-          "description": "Develop the backend API endpoint to allow users to create a new vote (poll), including specifying options and settings.",
-          "dependencies": [
-            2,
-            3
-          ],
-          "details": "Implement endpoint logic, handle input validation, and ensure proper database interaction for vote creation.",
-          "status": "pending"
-        },
-        {
           "id": 5,
           "title": "API Endpoint Development: Submit Vote",
           "description": "Develop the backend API endpoint for users to submit their vote for a specific poll.",
-          "dependencies": [
-            4
-          ],
-          "details": "Implement endpoint logic to record user votes, enforce RLS, and prevent duplicate submissions.",
-          "status": "pending"
+          "dependencies": [],
+          "details": "Implement endpoint logic to record user votes, enforce RLS, and prevent duplicate submissions.\n<info added on 2025-05-27T08:40:48.561Z>\nBased on log analysis:\n1. Verify vote data existence before processing (PGRST116 error on vote ID 1)\n2. Integrate the existing process_vote database function into the vote submission logic\n   - Function signature: process_vote(p_vote_id, p_vote_item_id, p_amount, p_user_id, p_total_bonus_remain)\n   - Returns: { vote_total: number }[]\n3. Implement proper error handling for cases where no rows are returned\n4. Ensure the API endpoint correctly passes all required parameters to the process_vote function\n5. Add validation to check remaining bonus points before processing votes\n</info added on 2025-05-27T08:40:48.561Z>",
+          "status": "done"
         },
         {
           "id": 6,
@@ -139,7 +98,6 @@
           "title": "Server-Side Validation and Backend Testing",
           "description": "Implement server-side validation for all endpoints and conduct comprehensive backend testing to ensure correctness, security, and robustness.",
           "dependencies": [
-            4,
             5,
             6
           ],
@@ -1297,6 +1255,17 @@
           "status": "pending"
         }
       ]
+    },
+    {
+      "id": 16,
+      "title": "Row-Level Security (RLS) Policy Setup",
+      "description": "Configure RLS policies to restrict access to voting data based on user roles and ownership.",
+      "details": "Define and apply RLS policies to ensure users can only access or modify their own votes and cannot view or alter others' data.",
+      "status": "pending",
+      "dependencies": [
+        2
+      ],
+      "priority": "high"
     }
   ]
 }
