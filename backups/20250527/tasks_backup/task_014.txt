@@ -1,0 +1,79 @@
+# Task ID: 14
+# Title: 코드 커버리지 리포팅 설정
+# Status: done
+# Dependencies: 9
+# Priority: low
+# Description: Set up code coverage reporting with Jest and configure minimum coverage thresholds.
+# Details:
+1. Configure Jest to collect coverage information
+2. Set coverage thresholds (minimum 70% as per requirements)
+3. Configure coverage report output formats
+4. Add coverage reporting to npm scripts
+
+Implementation steps:
+1. Update Jest configuration:
+```javascript
+// jest.config.js
+const customJestConfig = {
+  // ... existing config
+  collectCoverage: true,
+  coverageDirectory: 'coverage',
+  collectCoverageFrom: [
+    'src/**/*.{js,jsx,ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/_*.{js,jsx,ts,tsx}',
+    '!src/**/*.stories.{js,jsx,ts,tsx}',
+    '!**/node_modules/**',
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 70,
+      lines: 70,
+      statements: 70,
+    },
+  },
+  coverageReporters: ['json', 'lcov', 'text', 'clover'],
+}
+```
+
+2. Add npm scripts:
+```json
+// package.json
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  }
+}
+```
+
+# Test Strategy:
+1. Run test coverage to verify configuration works
+2. Check that coverage reports are generated in expected formats
+3. Verify that coverage thresholds are enforced
+4. Test that coverage reporting works in CI environment
+
+# Subtasks:
+## 1. Configure Jest for code coverage collection [done]
+### Dependencies: None
+### Description: Set up Jest configuration to collect code coverage metrics during test runs
+### Details:
+Update Jest configuration to enable coverage collection by adding the appropriate flags in package.json or jest.config.js. Configure the coverage directory and ensure the correct file patterns are included/excluded from coverage analysis.
+
+## 2. Establish code coverage thresholds [done]
+### Dependencies: 14.1
+### Description: Define minimum acceptable code coverage thresholds for the project
+### Details:
+Set up coverage thresholds in the Jest configuration for statements, branches, functions, and lines. Determine appropriate threshold values based on project requirements. Configure Jest to fail tests if coverage falls below these thresholds.
+
+## 3. Integrate code coverage reporting with CI pipeline [done]
+### Dependencies: 14.1, 14.2
+### Description: Configure CI system to generate and display code coverage reports
+### Details:
+Update CI configuration to run tests with coverage enabled. Configure the CI pipeline to generate coverage reports in the appropriate format (HTML, lcov, etc.). Set up the CI to fail builds if coverage thresholds are not met. Consider adding coverage badges to the repository README.
+<info added on 2025-05-22T18:02:17.425Z>
+GitHub Actions 워크플로우를 설정하여 CI 시스템에서 코드 커버리지 테스트가 자동화되었습니다. `.github/workflows/test-coverage.yml` 파일을 생성하여 main 및 production 브랜치에 푸시되거나 PR이 생성될 때 테스트가 실행되도록 구성했습니다. 테스트 결과는 Codecov로 업로드되며, 커버리지 리포트는 GitHub 아티팩트로도 저장됩니다. 코드 커버리지 임계값은 70%로 설정되어 이 값 미만일 경우 빌드가 실패하도록 구성했습니다. 또한 README.md 파일에 코드 커버리지 배지를 추가하여 프로젝트의 커버리지 상태를 쉽게 확인할 수 있도록 했습니다.
+</info added on 2025-05-22T18:02:17.425Z>
+

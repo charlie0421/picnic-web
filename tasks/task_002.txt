@@ -1,88 +1,64 @@
 # Task ID: 2
-# Title: Supabase 클라이언트 구조 개선
-# Status: done
+# Title: Implement Voting System Backend
+# Status: pending
 # Dependencies: 1
 # Priority: high
-# Description: Create a proper separation between browser and server Supabase clients using @supabase/ssr package.
+# Description: Create the backend structure for the voting system using Supabase, including database schema and API endpoints.
 # Details:
-1. Create a dedicated module for Supabase client initialization
-2. Implement browser client using createBrowserClient from @supabase/ssr
-3. Implement server client using createServerClient from @supabase/ssr
-4. Add proper type definitions for both clients
-5. Ensure environment variables are properly accessed in both contexts
-
-Example implementation:
-```typescript
-// lib/supabase/server.ts
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-
-export function createServerSupabaseClient() {
-  const cookieStore = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name) {
-          return cookieStore.get(name)?.value
-        },
-        set(name, value, options) {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove(name, options) {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
-  )
-}
-
-// lib/supabase/client.ts
-import { createBrowserClient } from '@supabase/ssr'
-
-export function createBrowserSupabaseClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-}
-```
+1. Design and implement the following tables in Supabase:
+   - votes: id, title, description, start_time, end_time
+   - vote_options: id, vote_id, option_text
+   - user_votes: id, user_id, vote_id, vote_option_id, created_at
+2. Set up Row Level Security (RLS) policies for each table to ensure data security.
+3. Create API endpoints using Supabase Functions or Edge Functions for:
+   - Creating a new vote
+   - Submitting a vote
+   - Fetching vote results
+4. Implement server-side validation to prevent duplicate voting.
 
 # Test Strategy:
-1. Write unit tests to verify both client and server Supabase instances are created correctly
-2. Test that environment variables are properly accessed
-3. Mock cookies for server client tests
-4. Verify type safety of both client implementations
+Write unit tests for each API endpoint using Jest. Test RLS policies by attempting unauthorized access. Perform integration tests to ensure proper data flow between tables.
 
 # Subtasks:
-## 1. Create server-side Supabase client implementation [done]
+## 1. Database Schema Design [pending]
 ### Dependencies: None
-### Description: Implement a server-side Supabase client using the @supabase/ssr package that handles authentication and data fetching in server components.
+### Description: Analyze requirements and design a normalized database schema for the voting system, including tables for users, votes, options, and results. Define primary and foreign keys, and ensure data integrity.
 ### Details:
-Create a new file for server client implementation. Use createServerClient from @supabase/ssr. Handle cookies properly for authentication. Ensure proper error handling and logging. Document usage patterns for server components.
+Apply best practices such as using appropriate primary keys, normalization (aim for 3NF), and defining foreign key relationships to enforce referential integrity.
 
-## 2. Implement browser-side Supabase client [done]
-### Dependencies: None
-### Description: Create a browser-side Supabase client implementation that works with client components and handles real-time subscriptions.
+## 2. Table Creation [pending]
+### Dependencies: 2.1
+### Description: Implement the designed schema by creating the necessary tables in the database, including constraints and indexes.
 ### Details:
-Create a separate file for browser client implementation. Use createBrowserClient from @supabase/ssr. Implement proper authentication state management. Handle browser-specific features like real-time subscriptions. Document usage patterns for client components.
+Write and execute SQL scripts to create tables as per the schema, ensuring all relationships and constraints are properly defined.
 
-## 3. Define comprehensive type definitions [done]
-### Dependencies: 2.1, 2.2
-### Description: Create type definitions for the Supabase client implementations, database schema, and API responses.
+## 3. Row-Level Security (RLS) Policy Setup [pending]
+### Dependencies: 2.2
+### Description: Configure RLS policies to restrict access to voting data based on user roles and ownership.
 ### Details:
-Create types for database tables and relationships. Define types for API responses and requests. Create utility types for common operations. Ensure type safety across both server and browser implementations. Document type usage patterns.
+Define and apply RLS policies to ensure users can only access or modify their own votes and cannot view or alter others' data.
 
-## 4. Configure environment variables and settings [done]
-### Dependencies: 2.1, 2.2
-### Description: Set up environment variables and configuration for different environments (development, production) for the Supabase client.
+## 4. API Endpoint Development: Create Vote [pending]
+### Dependencies: 2.2, 2.3
+### Description: Develop the backend API endpoint to allow users to create a new vote (poll), including specifying options and settings.
 ### Details:
-Create environment variable definitions for Supabase URL and keys. Implement validation for required environment variables. Create configuration files for different environments. Document environment setup requirements. Ensure secrets are properly handled.
+Implement endpoint logic, handle input validation, and ensure proper database interaction for vote creation.
 
-## 5. Implement testing strategy and examples [done]
-### Dependencies: 2.1, 2.2, 2.3, 2.4
-### Description: Create tests for both server and browser Supabase client implementations and document testing patterns.
+## 5. API Endpoint Development: Submit Vote [pending]
+### Dependencies: 2.4
+### Description: Develop the backend API endpoint for users to submit their vote for a specific poll.
 ### Details:
-Create unit tests for both client implementations. Set up mock Supabase responses for testing. Create integration tests for critical paths. Document testing patterns for components using Supabase. Create example usage patterns in test files.
+Implement endpoint logic to record user votes, enforce RLS, and prevent duplicate submissions.
+
+## 6. API Endpoint Development: Fetch Results [pending]
+### Dependencies: 2.5
+### Description: Develop the backend API endpoint to fetch voting results, ensuring only authorized users can access aggregated data.
+### Details:
+Implement logic to aggregate and return results, applying RLS and any necessary permissions checks.
+
+## 7. Server-Side Validation and Backend Testing [pending]
+### Dependencies: 2.4, 2.5, 2.6
+### Description: Implement server-side validation for all endpoints and conduct comprehensive backend testing to ensure correctness, security, and robustness.
+### Details:
+Write validation logic for input data, test all API endpoints for expected and edge cases, and verify RLS enforcement.
 

@@ -1,98 +1,75 @@
 # Task ID: 13
-# Title: 페이지 통합 테스트 작성
-# Status: done
-# Dependencies: 5, 7, 10
-# Priority: low
-# Description: Create integration tests for key pages to ensure they correctly fetch and display data.
+# Title: Enhance Security Measures
+# Status: pending
+# Dependencies: 2, 5
+# Priority: high
+# Description: Implement additional security features to protect user data and prevent common vulnerabilities.
 # Details:
-1. Identify critical pages for testing
-2. Mock server-side data fetching
-3. Test page rendering with different data scenarios
-4. Test page interactions and navigation
-
-Example test implementation:
-```typescript
-// src/app/posts/page.test.tsx
-import { render, screen } from '@testing-library/react'
-import PostsPage from './page'
-import { mockPosts } from '@/test/utils'
-
-// Mock the data fetching function
-jest.mock('@/lib/supabase/server', () => ({
-  createServerSupabaseClient: jest.fn(() => ({
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        order: jest.fn(() => ({
-          data: mockPosts,
-          error: null,
-        })),
-      })),
-    })),
-  })),
-}))
-
-describe('PostsPage', () => {
-  it('renders posts correctly', async () => {
-    // Since this is an async component, we need to render it differently
-    const PostsPageComponent = await PostsPage()
-    render(PostsPageComponent)
-    
-    expect(screen.getByText('Posts')).toBeInTheDocument()
-    expect(screen.getByText('Test Post 1')).toBeInTheDocument()
-    expect(screen.getByText('Test Post 2')).toBeInTheDocument()
-  })
-
-  it('handles empty posts array', async () => {
-    // Override the mock for this test
-    jest.mock('@/lib/supabase/server', () => ({
-      createServerSupabaseClient: jest.fn(() => ({
-        from: jest.fn(() => ({
-          select: jest.fn(() => ({
-            order: jest.fn(() => ({
-              data: [],
-              error: null,
-            })),
-          })),
-        })),
-      })),
-    }))
-    
-    const PostsPageComponent = await PostsPage()
-    render(PostsPageComponent)
-    
-    expect(screen.getByText('No posts found')).toBeInTheDocument()
-  })
-})
-```
+1. Implement proper CORS settings in Supabase to restrict API access.
+2. Set up Content Security Policy (CSP) headers to prevent XSS attacks.
+3. Use HttpOnly cookies for storing authentication tokens.
+4. Implement rate limiting on API endpoints to prevent abuse.
+5. Use Supabase RLS policies to ensure data access is properly restricted.
+6. Implement input sanitization on both frontend and backend.
+7. Set up security headers including X-Frame-Options, X-XSS-Protection, etc.
+8. Regularly update dependencies to patch known vulnerabilities.
+9. Implement two-factor authentication option for user accounts.
 
 # Test Strategy:
-1. Test pages with different data scenarios (empty, error, loaded)
-2. Verify that pages correctly handle loading and error states
-3. Test that pages correctly render components with fetched data
-4. Test page-level interactions
+Perform security audits using tools like OWASP ZAP. Conduct penetration testing to identify potential vulnerabilities. Write unit tests for security-related functions like input sanitization.
 
 # Subtasks:
-## 1. Set up data fetching mocks [done]
+## 1. Implement Content Security Policy (CSP) Headers [pending]
 ### Dependencies: None
-### Description: Create mock implementations for all data fetching functions used by the page
+### Description: Set up strict CSP headers to prevent XSS attacks by restricting which resources can be loaded and from where.
 ### Details:
-Identify all data fetching functions used by the page. Create mock implementations that return predefined test data. Set up a testing utility that allows switching between different mock data scenarios (empty data, full data, partial data). Ensure mocks properly simulate loading states and timing.
+Configure CSP using HTTP response headers (preferred over meta tags). Include directives for script-src, style-src, and other resource types. Consider implementing a nonce-based approach for dynamic scripts. Ensure headers are sent with all HTTP responses, not just the index page.
 
-## 2. Implement page rendering tests [done]
+## 2. Configure CORS (Cross-Origin Resource Sharing) [pending]
+### Dependencies: None
+### Description: Implement proper CORS policies to control which domains can access your resources.
+### Details:
+Set up Access-Control-Allow-Origin headers with specific allowed domains rather than wildcards. Configure appropriate Access-Control-Allow-Methods and Access-Control-Allow-Headers. Test CORS configuration with cross-domain requests to ensure proper functionality.
+
+## 3. Implement HttpOnly Cookies [pending]
+### Dependencies: None
+### Description: Configure cookies with HttpOnly flag to prevent client-side script access to sensitive cookie data.
+### Details:
+Modify all authentication and session cookies to include the HttpOnly flag. Add Secure flag to ensure cookies are only sent over HTTPS. Consider implementing SameSite attribute to prevent CSRF attacks. Test cookie configuration to verify proper settings.
+
+## 4. Set Up Rate Limiting [pending]
+### Dependencies: None
+### Description: Implement rate limiting to prevent brute force attacks and API abuse.
+### Details:
+Choose appropriate rate limiting strategy (fixed window, sliding window, or token bucket). Configure limits for authentication endpoints, API calls, and other sensitive operations. Implement proper response headers (Retry-After) for rate-limited requests. Set up monitoring for rate limit events.
+
+## 5. Configure Row-Level Security (RLS) Policies [pending]
+### Dependencies: None
+### Description: Implement database RLS policies to restrict data access based on user context.
+### Details:
+Identify tables requiring row-level security. Create RLS policies based on user roles and permissions. Test policies thoroughly to ensure proper data access control. Document RLS implementation for future maintenance.
+
+## 6. Implement Input Sanitization [pending]
+### Dependencies: None
+### Description: Add robust input validation and sanitization to prevent injection attacks.
+### Details:
+Identify all user input points in the application. Implement server-side validation for all inputs. Use appropriate sanitization libraries for different input types (HTML, SQL, etc.). Create test cases to verify sanitization effectiveness against common attack vectors.
+
+## 7. Configure Additional Security Headers [pending]
 ### Dependencies: 13.1
-### Description: Test that the page renders correctly with different data scenarios
+### Description: Implement security headers beyond CSP to enhance application security posture.
 ### Details:
-Create tests that verify the page renders correctly with various data scenarios. Test rendering with full data, empty data, and partial data. Verify that all expected UI elements are present and contain the correct content. Test that server and client components integrate properly. Verify that loading states are displayed appropriately.
+Configure X-Content-Type-Options, X-Frame-Options, Referrer-Policy, and Strict-Transport-Security headers. Consider implementing Feature-Policy/Permissions-Policy headers. Test headers using security scanning tools to verify proper implementation.
 
-## 3. Develop user interaction tests [done]
-### Dependencies: 13.2
-### Description: Test all interactive elements and user flows on the page
+## 8. Implement Dependency Update Process [pending]
+### Dependencies: None
+### Description: Create a systematic approach to identify and update vulnerable dependencies.
 ### Details:
-Identify all interactive elements on the page (buttons, forms, links, etc.). Create tests for each interaction, verifying that the correct actions occur. Test form submissions, navigation events, and state changes. Verify that client-side state updates correctly after interactions. Test any conditional rendering based on user interactions.
+Set up automated dependency scanning tools. Create a process for regular dependency reviews. Implement automated testing for dependency updates. Document the update process and establish response procedures for critical vulnerabilities.
 
-## 4. Implement error state tests [done]
-### Dependencies: 13.1, 13.2
-### Description: Test how the page handles various error conditions
+## 9. Implement Two-Factor Authentication [pending]
+### Dependencies: 13.3
+### Description: Add 2FA support to strengthen authentication security beyond passwords.
 ### Details:
-Configure data fetching mocks to simulate different error scenarios (network errors, server errors, validation errors). Test that appropriate error messages are displayed to the user. Verify error boundary functionality if implemented. Test recovery paths from error states. Ensure errors are logged or reported appropriately.
+Select appropriate 2FA methods (TOTP, SMS, email, etc.). Implement 2FA enrollment and verification flows. Create backup/recovery mechanisms for lost 2FA devices. Test the complete 2FA implementation including edge cases and recovery paths.
 

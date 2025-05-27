@@ -1,91 +1,61 @@
 # Task ID: 10
-# Title: 테스트 유틸리티 및 목 생성
-# Status: done
-# Dependencies: 9
+# Title: Enhance Real-time Voting Animations
+# Status: pending
+# Dependencies: 3, 4
 # Priority: medium
-# Description: Develop test utilities and mocks to facilitate testing of components that use Supabase and Next.js features.
+# Description: Implement advanced animations for real-time updates in vote counts and rankings.
 # Details:
-1. Create test utilities for rendering components with providers
-2. Develop mocks for Supabase client
-3. Create mocks for Next.js features (router, headers, cookies)
-4. Implement helper functions for common testing scenarios
-
-Example implementation:
-```typescript
-// src/test/utils.tsx
-import { render } from '@testing-library/react'
-import { SupabaseProvider } from '@/lib/supabase/provider'
-
-const customRender = (ui, options = {}) => {
-  return render(ui, {
-    wrapper: ({ children }) => (
-      <SupabaseProvider>{children}</SupabaseProvider>
-    ),
-    ...options,
-  })
-}
-
-// Mock data
-export const mockPosts = [
-  { id: 1, title: 'Test Post 1', content: 'Content 1' },
-  { id: 2, title: 'Test Post 2', content: 'Content 2' },
-]
-
-// Mock Supabase responses
-export const mockSupabaseFrom = (tableName, data, error = null) => {
-  return {
-    from: jest.fn((table) => {
-      if (table === tableName) {
-        return {
-          select: jest.fn(() => ({
-            eq: jest.fn(() => ({ data, error })),
-            order: jest.fn(() => ({ data, error })),
-            data,
-            error,
-          })),
-          insert: jest.fn(() => ({ data, error })),
-          update: jest.fn(() => ({ data, error })),
-          delete: jest.fn(() => ({ data, error })),
-        }
-      }
-      return {
-        select: jest.fn(() => ({ data: null, error: null })),
-      }
-    }),
-  }
-}
-
-export { customRender as render }
-```
+1. Use Framer Motion to create smooth animations for vote count changes.
+2. Implement a counting animation when vote numbers increase.
+3. Create a ranking change animation that moves options up or down the list.
+4. Add a highlight effect for options that receive new votes.
+5. Implement staggered animations when multiple updates occur simultaneously.
+6. Ensure animations are performant and don't cause layout shifts.
+7. Add subtle loading animations while waiting for real-time updates.
 
 # Test Strategy:
-1. Test the custom render function with a simple component
-2. Verify mocks correctly simulate Supabase responses
-3. Test that providers are correctly applied in the test environment
-4. Create example tests using the utilities to validate their effectiveness
+Create visual regression tests to ensure animations render correctly. Perform performance testing to verify animations don't impact page responsiveness. Test animations with various update scenarios, including rapid multiple updates.
 
 # Subtasks:
-## 1. Create render utilities for component testing [done]
+## 1. Implement Framer Motion Integration [pending]
 ### Dependencies: None
-### Description: Develop utilities to simplify rendering components in test environments with proper context providers and test configurations
+### Description: Set up Framer Motion library in the project and create basic animation components
 ### Details:
-Implement render utilities that wrap components with necessary providers (theme, auth, etc.), handle test rendering configurations, and provide helper methods for querying and interacting with rendered components. Include utilities for both shallow and deep rendering approaches.
+Install Framer Motion package, configure basic motion components, and implement layout transitions using the layout prop for smooth UI transitions
 
-## 2. Implement Supabase mocking utilities [done]
+## 2. Develop Vote Count Animation [pending]
 ### Dependencies: 10.1
-### Description: Create comprehensive mocks for Supabase client, authentication, and database operations
+### Description: Create smooth animations for vote count changes
 ### Details:
-Develop mock implementations for Supabase client, auth methods, database queries, and real-time subscriptions. Include utilities to simulate successful responses, errors, and edge cases. Ensure mocks can be easily configured for different test scenarios.
+Implement number transitions for vote counts with appropriate easing and duration (200-500ms), ensuring subtle and purposeful animations
 
-## 3. Develop Next.js feature mocks [done]
+## 3. Build Ranking Animation System [pending]
 ### Dependencies: 10.1
-### Description: Create mocks for Next.js specific features like routing, data fetching, and server components
+### Description: Develop animations for items changing positions in rankings
 ### Details:
-Implement mock utilities for Next.js router, navigation methods, server-side rendering functions, and data fetching methods. Include mocks for useRouter, Link component behavior, and other Next.js specific APIs. Ensure compatibility with the application's routing structure.
+Use layoutId for smooth position transitions between ranks, implement proper enter/exit animations with AnimatePresence for items joining or leaving rankings
 
-## 4. Create test helper functions [done]
-### Dependencies: 10.1, 10.2, 10.3
-### Description: Implement reusable helper functions for common testing patterns and assertions
+## 4. Create Highlight Effect Animation [pending]
+### Dependencies: 10.1
+### Description: Design and implement highlight effects for selected or changing items
 ### Details:
-Develop helper functions for common testing tasks such as form interactions, authentication state simulation, waiting for async operations, and custom assertions. Create utilities for generating test data, simulating user interactions, and validating component states across different test scenarios.
+Develop subtle highlight animations using color transitions, scale effects, or glows that draw attention without overwhelming the UI
+
+## 5. Implement Staggered Updates Animation [pending]
+### Dependencies: 10.1
+### Description: Create staggered animation effects for multiple elements updating simultaneously
+### Details:
+Use Framer Motion's staggerChildren property to create cascading animations for lists or grids of elements with appropriate timing offsets
+
+## 6. Optimize Animation Performance [pending]
+### Dependencies: 10.2, 10.3, 10.4, 10.5
+### Description: Ensure animations run smoothly without impacting overall application performance
+### Details:
+Minimize DOM manipulations, use CSS transforms instead of layout properties, implement useReducedMotion hook for accessibility, and profile performance using React DevTools and Chrome Performance tab
+
+## 7. Develop Loading Animation [pending]
+### Dependencies: 10.1
+### Description: Create engaging loading state animations
+### Details:
+Implement loading indicators with looping animations, ensure they're subtle yet informative, and properly handle mounting/unmounting with AnimatePresence
 

@@ -1,0 +1,175 @@
+# Task ID: 11
+# Title: Supabase 클라이언트 유틸리티 유닛 테스트 작성
+# Status: done
+# Dependencies: 2, 3, 10
+# Priority: medium
+# Description: Create comprehensive unit tests for the Supabase client utility functions.
+# Details:
+1. Write tests for createServerSupabaseClient function
+2. Write tests for createBrowserSupabaseClient function
+3. Test SupabaseProvider and useSupabase hook
+4. Test error handling in Supabase utility functions
+
+Example test implementation:
+```typescript
+// src/lib/supabase/client.test.ts
+import { createBrowserSupabaseClient } from './client'
+
+jest.mock('@supabase/ssr', () => ({
+  createBrowserClient: jest.fn(() => ({
+    // Mock Supabase client methods
+  })),
+}))
+
+describe('createBrowserSupabaseClient', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('should create a browser Supabase client', () => {
+    const client = createBrowserSupabaseClient()
+    expect(client).toBeDefined()
+  })
+})
+
+// src/lib/supabase/provider.test.tsx
+import { render, screen } from '@testing-library/react'
+import { SupabaseProvider, useSupabase } from './provider'
+
+const TestComponent = () => {
+  const { supabase } = useSupabase()
+  return <div>Supabase Client: {supabase ? 'Available' : 'Not Available'}</div>
+}
+
+describe('SupabaseProvider', () => {
+  it('should provide Supabase client to children', () => {
+    render(
+      <SupabaseProvider>
+        <TestComponent />
+      </SupabaseProvider>
+    )
+    
+    expect(screen.getByText(/Supabase Client: Available/)).toBeInTheDocument()
+  })
+
+  it('should throw error when useSupabase is used outside provider', () => {
+    // Suppress console.error for this test
+    const originalError = console.error
+    console.error = jest.fn()
+    
+    expect(() => {
+      render(<TestComponent />)
+    }).toThrow('useSupabase must be used inside SupabaseProvider')
+    
+    console.error = originalError
+  })
+})
+```
+
+# Test Strategy:
+1. Test that client creation functions return expected objects
+2. Verify error handling works correctly
+3. Test that context providers correctly provide values to consumers
+4. Use mocks to avoid actual API calls during testing
+
+# Subtasks:
+## 1. Implement server-side Supabase client tests [done]
+### Dependencies: None
+### Description: Create comprehensive unit tests for the server-side Supabase client implementation
+### Details:
+Write tests that verify server-side Supabase client initialization, authentication methods, database queries, and storage operations. Set up proper mocking for Supabase responses. Include tests for successful operations and edge cases. Ensure tests run in a Node.js environment.
+<info added on 2025-05-22T17:56:26.246Z>
+Server-side Supabase client utility tests have been implemented, covering:
+
+1. createServerSupabaseClient function
+2. createServerSupabaseClientWithCookies function
+3. createServerSupabaseClientWithRequest function
+4. getServerSession function
+5. getServerUser function
+6. withAuth function
+
+Key test cases include:
+- Successful client creation
+- Proper error handling when environment variables are missing
+- Cookie storage handling mechanisms
+- Session and user information retrieval
+- Error handling when using withAuth in unauthenticated states
+
+All tests are properly mocked to avoid actual Supabase API calls.
+</info added on 2025-05-22T17:56:26.246Z>
+
+## 2. Implement browser-side Supabase client tests [done]
+### Dependencies: 11.1
+### Description: Create comprehensive unit tests for the browser-side Supabase client implementation
+### Details:
+Write tests that verify browser-specific Supabase client behavior, including local storage integration, cookie handling, and browser-specific authentication flows. Set up proper DOM mocking and ensure tests run in a simulated browser environment. Test both successful operations and edge cases.
+<info added on 2025-05-22T17:56:38.637Z>
+브라우저 측 Supabase 클라이언트 유틸리티에 대한 테스트를 구현했습니다. 다음과 같은 항목들을 테스트했습니다:
+
+1. createBrowserSupabaseClient 함수 테스트
+2. getCurrentUser 함수 테스트
+3. getCurrentSession 함수 테스트
+4. signOut 함수 테스트
+
+주요 테스트 케이스:
+- 클라이언트 생성 성공
+- 환경 변수 누락 시 적절한 오류 발생
+- 싱글톤 패턴 확인 (여러 번 호출해도 동일한 인스턴스 반환)
+- ngrok 환경 감지 기능
+- 사용자 및 세션 정보 조회
+- 로그아웃 처리 및 오류 처리
+
+모든 테스트가 정상적으로 작성되었으며, @supabase/ssr, localStorage, document.cookie 등을 모두 모킹하여 테스트합니다.
+</info added on 2025-05-22T17:56:38.637Z>
+
+## 3. Implement provider and hook tests [done]
+### Dependencies: 11.2
+### Description: Create tests for Supabase context providers and React hooks
+### Details:
+Test the Supabase provider component and associated React hooks. Verify that the provider correctly initializes the Supabase client and provides it to child components. Test hooks for authentication state, data fetching, and real-time subscriptions. Use React Testing Library to render components and test hook behavior.
+<info added on 2025-05-22T17:56:54.556Z>
+Supabase 인증 프로바이더와 훅에 대한 테스트 구현 완료:
+
+1. AuthProvider 컴포넌트 렌더링 테스트
+2. 인증 메서드(signIn, signInWithOAuth, signUp, signOut) 테스트
+3. 인증 상태 변경 감지 테스트
+4. 초기 세션 제공 테스트
+5. useAuth 훅 사용 시 프로바이더 외부에서 오류 발생 테스트
+
+주요 테스트 케이스:
+- AuthProvider가 자식 컴포넌트에 올바르게 렌더링
+- 초기 인증 상태 설정
+- 인증 메서드가 자식 컴포넌트에 제공
+- 로그인, OAuth 로그인, 회원가입, 로그아웃 작업 처리
+- 인증 상태 변경 이벤트 구독
+- useAuth 훅이 프로바이더 외부에서 사용될 때 오류 발생
+
+모든 테스트는 React Testing Library를 사용하여 작성되었으며, 실제 Supabase 호출을 하지 않고 모킹을 통해 테스트합니다.
+</info added on 2025-05-22T17:56:54.556Z>
+
+## 4. Implement error handling tests [done]
+### Dependencies: 11.1, 11.2, 11.3
+### Description: Create tests that verify proper error handling in all Supabase client utilities
+### Details:
+Test error scenarios including network failures, authentication errors, permission issues, and invalid operations. Verify that errors are properly caught, logged, and handled. Test error recovery mechanisms and retry logic if applicable. Ensure consistent error handling across both server and browser environments.
+<info added on 2025-05-22T17:57:15.749Z>
+오류 처리 테스트 구현 완료:
+
+1. 브라우저 클라이언트 오류 처리
+   - auth.getUser 오류 처리
+   - auth.getSession 오류 처리
+   - 데이터베이스 쿼리 오류 처리
+   - 로그아웃 오류 처리
+
+2. 서버 클라이언트 오류 처리
+   - getServerSession 오류 처리
+   - 인증되지 않은 상태에서 withAuth 사용 시 오류 처리
+   - 서버 측 데이터베이스 쿼리 오류 처리
+
+3. 환경 변수 유효성 검사
+   - 브라우저 클라이언트에서 URL 또는 ANON_KEY가 없을 때 오류 발생
+   - 서버 클라이언트에서 URL 또는 ANON_KEY가 없을 때 오류 발생
+
+모든 테스트 케이스에서 예상되는 오류가 적절하게 처리되고 반환되는지 확인했으며, 오류 메시지의 내용과 형식이 일관성 있게 유지되는지 검증했습니다.
+</info added on 2025-05-22T17:57:15.749Z>
+

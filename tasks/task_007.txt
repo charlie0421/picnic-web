@@ -1,83 +1,55 @@
 # Task ID: 7
-# Title: 정적 및 동적 렌더링 최적화
-# Status: done
-# Dependencies: 5, 6
+# Title: Implement Status Filter Persistence
+# Status: pending
+# Dependencies: 1
 # Priority: medium
-# Description: Identify and implement opportunities for static generation and dynamic rendering based on page content requirements.
+# Description: Add localStorage persistence for the Status filter selection.
 # Details:
-1. Analyze each page to determine if it can be statically generated or needs dynamic rendering
-2. Implement static generation for pages with content that doesn't change frequently
-3. Configure revalidation periods for statically generated pages
-4. Ensure dynamic pages use server components for data fetching
-
-Implementation approach:
-```typescript
-// Static page with revalidation
-// app/blog/[slug]/page.tsx
-import { createServerSupabaseClient } from '@/lib/supabase/server'
-
-export async function generateStaticParams() {
-  const supabase = createServerSupabaseClient()
-  const { data } = await supabase.from('posts').select('slug')
-  
-  return data?.map(post => ({
-    slug: post.slug,
-  })) || []
-}
-
-async function getPost(slug) {
-  const supabase = createServerSupabaseClient()
-  const { data } = await supabase
-    .from('posts')
-    .select('*')
-    .eq('slug', slug)
-    .single()
-  
-  return data
-}
-
-export default async function BlogPost({ params }) {
-  const post = await getPost(params.slug)
-  
-  return (
-    <article>
-      <h1>{post.title}</h1>
-      <div dangerouslySetInnerHTML={{ __html: post.content }} />
-    </article>
-  )
-}
-
-export const revalidate = 3600 // Revalidate every hour
-```
+1. Modify the StatusFilter component to save selected status to localStorage.
+2. Update the Zustand store to handle loading and saving of status filter state.
+3. Implement a function to retrieve and apply saved status filter on page load.
+4. Add a reset button to clear saved filter state.
+5. Handle cases where saved filter value is no longer valid.
+6. Ensure filter state is correctly applied to data queries.
+7. Update UI to reflect current filter state, including saved state.
 
 # Test Strategy:
-1. Test that static pages are correctly pre-rendered
-2. Verify revalidation works as expected
-3. Test dynamic pages with different query parameters
-4. Measure and compare performance between static and dynamic pages
+Create unit tests for StatusFilter component and localStorage interactions. Test filter persistence across page reloads and browser sessions. Verify that invalid saved states are handled gracefully.
 
 # Subtasks:
-## 1. Page Analysis and Rendering Strategy Mapping [done]
+## 1. Update StatusFilter UI Components [pending]
 ### Dependencies: None
-### Description: Analyze all pages in the application and determine the optimal rendering strategy for each based on content type and update frequency.
+### Description: Revise the StatusFilter UI to support new status options, improved usability, and clear filter application controls.
 ### Details:
-Create a comprehensive inventory of all pages, categorizing them by data requirements, update frequency, and user interaction patterns. Document which pages should use static generation (SSG), incremental static regeneration (ISR), or server-side rendering (SSR). Include performance metrics and user experience considerations in the analysis.
+Modify relevant UI files (e.g., Status/index.tsx) to add or update status filter controls, ensuring alignment with design patterns and best practices for filter UX.
 
-## 2. Static Generation Implementation [done]
+## 2. Implement Zustand Store Changes [pending]
 ### Dependencies: 7.1
-### Description: Implement static generation for pages with infrequently changing content to improve performance and reduce server load.
+### Description: Update the Zustand store to manage the status filter state, including actions for setting, resetting, and persisting filter values.
 ### Details:
-Modify page components to use getStaticProps for data fetching. Ensure proper error handling and fallback states. Implement build-time data fetching for static content. Test the implementation by comparing load times before and after changes.
+Add or update Zustand store slices to handle status filter state, ensuring the store can be easily integrated with the UI and supports future extensibility.
 
-## 3. Revalidation Configuration Setup [done]
+## 3. Integrate localStorage Persistence [pending]
 ### Dependencies: 7.2
-### Description: Configure incremental static regeneration (ISR) for semi-dynamic pages that require periodic updates.
+### Description: Enable persistence of the status filter state in localStorage to maintain user preferences across sessions.
 ### Details:
-Implement revalidation strategies using Next.js ISR capabilities. Set appropriate revalidation intervals based on content update frequency. Add on-demand revalidation triggers where applicable. Document the revalidation strategy for each page and test the revalidation process.
+Implement logic to save and retrieve the status filter state from localStorage, syncing with the Zustand store on app load and filter changes.
 
-## 4. Dynamic Rendering Implementation [done]
-### Dependencies: 7.1, 7.3
-### Description: Implement server-side rendering or client-side rendering for highly dynamic pages that require real-time data.
+## 4. Add Reset Logic for Status Filter [pending]
+### Dependencies: 7.3
+### Description: Provide a mechanism to reset the status filter to its default state, clearing both the UI and persisted state.
 ### Details:
-Identify pages requiring real-time data and implement getServerSideProps or client-side data fetching as appropriate. Optimize server-side rendering with caching headers where possible. Implement loading states and error boundaries for dynamic content. Test performance under various network conditions.
+Implement a reset action in the Zustand store and connect it to the UI, ensuring localStorage is also cleared or reset appropriately.
+
+## 5. Handle Invalid or Corrupt State [pending]
+### Dependencies: 7.4
+### Description: Detect and handle invalid or corrupt status filter states from localStorage or user input, ensuring robust error handling.
+### Details:
+Add validation logic when loading from localStorage and when updating the filter, reverting to defaults or showing user feedback if state is invalid.
+
+## 6. Update Data Query and UI to Reflect Filter Changes [pending]
+### Dependencies: 7.5
+### Description: Ensure that data queries and UI components update in real-time or on user action to reflect the current status filter selection.
+### Details:
+Connect the status filter state to data fetching logic and UI rendering, ensuring filtered results are displayed and updated as expected.
 

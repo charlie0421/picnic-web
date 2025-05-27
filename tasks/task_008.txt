@@ -1,95 +1,61 @@
 # Task ID: 8
-# Title: SEO 및 메타데이터 최적화 구현
-# Status: done
-# Dependencies: 7
+# Title: Improve Menu Navigation Language Handling
+# Status: pending
+# Dependencies: 1
 # Priority: medium
-# Description: Add proper metadata to all pages and implement SEO best practices using Next.js metadata API.
+# Description: Ensure that the current language is maintained when navigating between Reward, Media, and Vote menus.
 # Details:
-1. Implement metadata for all pages using Next.js metadata API
-2. Create dynamic metadata based on page content
-3. Add Open Graph and Twitter card metadata
-4. Implement structured data where appropriate
-
-Example implementation:
-```typescript
-// app/blog/[slug]/page.tsx
-import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { Metadata, ResolvingMetadata } from 'next'
-
-type Props = {
-  params: { slug: string }
-}
-
-export async function generateMetadata(
-  { params }: Props,
-  parent: ResolvingMetadata
-): Promise<Metadata> {
-  const post = await getPost(params.slug)
-  
-  return {
-    title: post.title,
-    description: post.excerpt,
-    openGraph: {
-      title: post.title,
-      description: post.excerpt,
-      images: [post.featuredImage],
-      type: 'article',
-      publishedTime: post.publishedAt,
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: post.title,
-      description: post.excerpt,
-      images: [post.featuredImage],
-    },
-  }
-}
-
-async function getPost(slug) {
-  const supabase = createServerSupabaseClient()
-  const { data } = await supabase
-    .from('posts')
-    .select('*')
-    .eq('slug', slug)
-    .single()
-  
-  return data
-}
-
-export default async function BlogPost({ params }: Props) {
-  const post = await getPost(params.slug)
-  
-  return (
-    <article>
-      <h1>{post.title}</h1>
-      <div dangerouslySetInnerHTML={{ __html: post.content }} />
-    </article>
-  )
-}
-```
+1. Modify the Navigation component to dynamically generate menu links based on the current language.
+2. Use next-intl's Link component for language-aware navigation.
+3. Implement a custom useRouter hook that wraps next-intl's useRouter and handles language persistence.
+4. Update all internal links to use the custom language-aware routing.
+5. Fix the issue where '/en' is forcibly appended to URLs.
+6. Ensure that language changes are reflected in menu links without page reload.
+7. Implement proper SEO handling for multi-language routes.
 
 # Test Strategy:
-1. Verify metadata is correctly generated for each page
-2. Test dynamic metadata generation with different content
-3. Use tools like Lighthouse to verify SEO score improvements
-4. Test structured data using Google's Rich Results Test
+Write unit tests for the Navigation component and custom routing hook. Perform integration tests to verify language persistence across different page navigations. Test SEO-related aspects like correct hreflang tags.
 
 # Subtasks:
-## 1. Basic Metadata Setup [done]
+## 1. Update Navigation Component for React Navigation 7 [pending]
 ### Dependencies: None
-### Description: Implement basic metadata for all static pages using Next.js metadata API
+### Description: Refactor the existing navigation component to comply with React Navigation 7 API changes and implement new navigation lifecycle methods.
 ### Details:
-Create a consistent metadata structure for static pages including title, description, and Open Graph tags. Set up default metadata in the root layout.js file and implement page-specific overrides. Ensure proper favicon and site icon implementation.
+Review breaking changes in React Navigation 7 documentation. Update minimum requirements (React Native ≥ 0.72.0). Implement focus/blur event listeners for proper screen lifecycle management. Remove deprecated navigation patterns that could cause bugs.
 
-## 2. Dynamic Metadata Generation [done]
-### Dependencies: 8.1
-### Description: Implement dynamic metadata for content-driven pages
+## 2. Integrate next-intl for Internationalization [pending]
+### Dependencies: None
+### Description: Set up next-intl library to handle multilingual content throughout the application.
 ### Details:
-Create generateMetadata functions for dynamic routes like blog posts, product pages, and category pages. Ensure metadata reflects the specific content being displayed. Implement proper canonical URLs and alternates for pagination or filtered views. Test with various content types to ensure metadata is correctly generated.
+Install next-intl package. Create translation files for all supported languages. Configure language detection and default language settings. Set up message formatting for different locales.
 
-## 3. Structured Data Implementation [done]
-### Dependencies: 8.2
-### Description: Add JSON-LD structured data for relevant page types
+## 3. Develop Custom useRouter Hook [pending]
+### Dependencies: 8.1, 8.2
+### Description: Create a custom router hook that extends next-intl functionality while maintaining compatibility with React Navigation.
 ### Details:
-Implement JSON-LD structured data for products, articles, FAQs, and other relevant content types. Create reusable structured data components that can be populated dynamically. Test implementation using Google's Rich Results Test and Schema Validator. Ensure proper integration with the Next.js metadata API.
+Implement wrapper around next-intl's useRouter. Add language persistence across navigation events. Ensure proper state management between screen and navigation components using useEffect with appropriate dependency arrays.
+
+## 4. Update Internal Link Handling [pending]
+### Dependencies: 8.3
+### Description: Refactor all internal links to work with the new internationalized routing system.
+### Details:
+Audit all internal navigation calls. Replace direct navigation with internationalized routes. Implement proper state passing between screens. Test navigation flows in all supported languages.
+
+## 5. Fix URL Handling for Internationalized Routes [pending]
+### Dependencies: 8.2, 8.4
+### Description: Ensure proper URL structure and handling for all language variations.
+### Details:
+Implement language prefixing in URLs. Set up redirects for language detection. Configure proper fallback routes. Test deep linking functionality across different languages.
+
+## 6. Implement Language Change Handling [pending]
+### Dependencies: 8.2, 8.3
+### Description: Create a robust system for handling language changes during runtime.
+### Details:
+Develop language selector component. Implement state updates between screen and navigation components when language changes. Ensure navigation bar updates reflect language changes. Test user experience during language switching.
+
+## 7. Optimize SEO for Multilingual Content [pending]
+### Dependencies: 8.5, 8.6
+### Description: Implement SEO best practices for internationalized content.
+### Details:
+Add hreflang tags for language alternatives. Configure proper metadata for each language. Implement canonical URLs. Set up language-specific sitemaps. Test SEO performance using lighthouse and other tools.
 

@@ -114,8 +114,8 @@ describe("서버 쿼리 유틸리티 함수", () => {
             if (result) {
                 expect(result.id).toBe(123);
                 expect(result.title).toBe("테스트 투표");
-                expect(result.startAt).toBe("2023-01-01");
-                expect(result.stopAt).toBe("2023-12-31");
+                expect(result.start_at).toBe("2023-01-01");
+                expect(result.stop_at).toBe("2023-12-31");
             }
         });
 
