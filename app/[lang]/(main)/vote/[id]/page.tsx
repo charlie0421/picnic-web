@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getVoteById, getVotes } from '@/lib/data-fetching/vote-service';
 import { VoteDetail } from '@/components/client/vote';
 import { VoteDetailFetcher, VoteDetailSkeleton } from '@/components/server';
-import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
+
 import {
   createPageMetadata,
   createImageMetadata,
@@ -12,11 +12,11 @@ import {
 import { createVoteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 
-// ISR을 위한 메타데이터 구성 (30초마다 재검증)
-export const revalidate = 30;
+// 동적 서버 사용 설정 (쿠키 사용으로 인한 정적->동적 에러 방지)
+export const dynamic = 'force-dynamic';
 
-// 동적 서버 사용 설정 제거 (ISR 사용)
-// export const dynamic = 'force-dynamic';
+// ISR 비활성화 (동적 페이지이므로)
+// export const revalidate = 30;
 
 // 정적 경로 생성
 export async function generateStaticParams() {
@@ -43,19 +43,13 @@ export async function generateMetadata({
   const { id, lang: langParam } = await params;
   const lang = String(langParam || 'ko');
 
-  // ISR 메타데이터 속성 추가
-  const isrOptions = createISRMetadata(30);
-
   const vote = await getVoteById(id);
 
   if (!vote) {
-    return {
-      ...createPageMetadata(
-        '투표 - 정보 없음',
-        '해당 투표를 찾을 수 없습니다.',
-      ),
-      ...isrOptions,
-    };
+    return createPageMetadata(
+      '투표 - 정보 없음',
+      '해당 투표를 찾을 수 없습니다.',
+    );
   }
 
   let title: string;
@@ -98,14 +92,10 @@ export async function generateMetadata({
     return {
       ...baseMetadata,
       ...imageMetadata,
-      ...isrOptions,
     };
   }
 
-  return {
-    ...baseMetadata,
-    ...isrOptions,
-  };
+  return baseMetadata;
 }
 
 // PageProps 타입 생략, 직접 함수 파라미터에 타입을 인라인으로 정의
