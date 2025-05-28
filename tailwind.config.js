@@ -1,8 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     screens: {
@@ -41,6 +42,54 @@ module.exports = {
           '50%': { width: '70%' },
           '100%': { width: '100%' },
         },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        'pulse-ring': {
+          '0%': {
+            transform: 'scale(0.33)',
+            opacity: '1',
+          },
+          '80%, 100%': {
+            transform: 'scale(2.4)',
+            opacity: '0',
+          },
+        },
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        'slide-up': {
+          '0%': { 
+            opacity: '0',
+            transform: 'translateY(20px)',
+          },
+          '100%': { 
+            opacity: '1',
+            transform: 'translateY(0)',
+          },
+        },
+        'scale-in': {
+          '0%': { 
+            opacity: '0',
+            transform: 'scale(0.9)',
+          },
+          '100%': { 
+            opacity: '1',
+            transform: 'scale(1)',
+          },
+        },
+        'bounce-gentle': {
+          '0%, 100%': {
+            transform: 'translateY(0)',
+            animationTimingFunction: 'cubic-bezier(0, 0, 0.2, 1)',
+          },
+          '50%': {
+            transform: 'translateY(-5px)',
+            animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)',
+          },
+        },
       },
       animation: {
         'fade-in-out': 'fade-in-out 1s ease-in-out forwards',
@@ -48,20 +97,27 @@ module.exports = {
         'blob': 'blob 7s infinite',
         'shake': 'shake 0.82s cubic-bezier(.36,.07,.19,.97) both',
         'loading-bar': 'loading-bar 2s ease-in-out infinite',
+        'shimmer': 'shimmer 3s ease-in-out infinite',
+        'pulse-ring': 'pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite',
+        'fade-in': 'fade-in 0.3s ease-out',
+        'slide-up': 'slide-up 0.5s ease-out',
+        'scale-in': 'scale-in 0.3s ease-out',
+        'bounce-gentle': 'bounce-gentle 2s infinite',
       },
       colors: {
         primary: {
           DEFAULT: '#9374FF',
-          50: '#F5F2FF',
-          100: '#E6DFFF',
-          200: '#CCBDFF',
-          300: '#B29AFF',
-          400: '#9374FF',
-          500: '#7A56FF',
-          600: '#6138FD',
-          700: '#491AE1',
-          800: '#3712B3',
-          900: '#260D7A',
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
+          950: '#172554',
         },
         secondary: {
           DEFAULT: '#83FBC8',
@@ -104,8 +160,25 @@ module.exports = {
         },
         point900: {
           DEFAULT: '#EB4A71',
+        },
+        vote: {
+          'success': '#10b981',
+          'warning': '#f59e0b',
+          'error': '#ef4444',
+          'pending': '#6b7280',
+          'accent': '#8b5cf6',
         }
-      }
+      },
+      boxShadow: {
+        'vote-card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        'vote-selected': '0 10px 15px -3px rgba(59, 130, 246, 0.3), 0 4px 6px -2px rgba(59, 130, 246, 0.05)',
+        'vote-hover': '0 8px 12px -2px rgba(0, 0, 0, 0.15), 0 3px 6px -1px rgba(0, 0, 0, 0.1)',
+      },
+      gradientColorStops: theme => ({
+        'vote-gold': '#ffd700',
+        'vote-silver': '#c0c0c0', 
+        'vote-bronze': '#cd7f32',
+      }),
     },
   },
   plugins: [],

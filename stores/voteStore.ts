@@ -1,6 +1,18 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Vote, VoteItem } from '@/types/interfaces';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { 
+  submitVote, 
+  getVoteResults, 
+  checkCanVote, 
+  fetchVoteDetail, 
+  fetchVoteList,
+  calculateVoteStatus,
+  calculateTimeLeft,
+  VoteSubmissionRequest,
+  CanVoteRequest
+} from '@/lib/data-fetching/vote-api';
 
 // 투표 상태 타입 정의
 export interface VoteSubmissionState {
@@ -107,6 +119,25 @@ interface VoteStore {
   resetSubmissionState: () => void;
   resetParticipationState: () => void;
   resetResultsState: () => void;
+
+  // API 연동 액션들
+  // 투표 상세 정보 로드
+  loadVoteDetail: (supabaseClient: SupabaseClient, voteId: string | number) => Promise<void>;
+  
+  // 투표 결과 로드
+  loadVoteResults: (voteId: number) => Promise<void>;
+  
+  // 투표 가능 여부 확인
+  checkVoteEligibility: (userId: string, voteAmount: number) => Promise<boolean>;
+  
+  // 투표 제출
+  submitUserVote: (userId: string, totalBonusRemain?: number) => Promise<boolean>;
+  
+  // 투표 상태 자동 업데이트 시작
+  startStatusUpdates: () => void;
+  
+  // 투표 상태 자동 업데이트 중지
+  stopStatusUpdates: () => void;
 }
 
 // 초기 상태
@@ -142,6 +173,9 @@ const initialResultsState: VoteResultsState = {
   error: null,
 };
 
+// 상태 업데이트 타이머 저장용
+let statusUpdateInterval: NodeJS.Timeout | null = null;
+
 // Zustand 스토어 생성
 export const useVoteStore = create<VoteStore>()(
   devtools(
@@ -153,7 +187,7 @@ export const useVoteStore = create<VoteStore>()(
       results: initialResultsState,
       isSubscribed: false,
 
-      // Actions 구현
+      // 기존 Actions 구현
       setCurrentVote: (vote, voteItems, voteStatus) =>
         set(
           (state) => ({
@@ -424,6 +458,275 @@ export const useVoteStore = create<VoteStore>()(
           false,
           'resetResultsState'
         ),
+
+      // API 연동 액션들
+      loadVoteDetail: async (supabaseClient, voteId) => {
+        const { currentVote } = get();
+        
+        set(
+          (state) => ({
+            currentVote: {
+              ...state.currentVote,
+              isLoading: true,
+              error: null,
+            },
+          }),
+          false,
+          'loadVoteDetail:start'
+        );
+
+        try {
+          const { vote, voteItems, error } = await fetchVoteDetail(supabaseClient, voteId);
+          
+          if (error || !vote) {
+            set(
+              (state) => ({
+                currentVote: {
+                  ...state.currentVote,
+                  isLoading: false,
+                  error: error || 'Vote not found',
+                },
+              }),
+              false,
+              'loadVoteDetail:error'
+            );
+            return;
+          }
+
+          const voteStatus = calculateVoteStatus(vote.start_at || '', vote.stop_at || '');
+          const timeLeft = voteStatus === 'ongoing' 
+            ? calculateTimeLeft(vote.stop_at || '') 
+            : voteStatus === 'upcoming' 
+              ? calculateTimeLeft(vote.start_at || '')
+              : null;
+
+          set(
+            (state) => ({
+              currentVote: {
+                ...state.currentVote,
+                vote,
+                voteItems,
+                voteStatus,
+                timeLeft,
+                isLoading: false,
+                error: null,
+              },
+              results: {
+                ...state.results,
+                voteItems,
+                totalVotes: voteItems.reduce((sum, item) => sum + (item.vote_total || 0), 0),
+                lastUpdateTime: Date.now(),
+              },
+            }),
+            false,
+            'loadVoteDetail:success'
+          );
+        } catch (error) {
+          console.error('Load vote detail error:', error);
+          set(
+            (state) => ({
+              currentVote: {
+                ...state.currentVote,
+                isLoading: false,
+                error: 'Failed to load vote details',
+              },
+            }),
+            false,
+            'loadVoteDetail:exception'
+          );
+        }
+      },
+
+      loadVoteResults: async (voteId) => {
+        const { startResultsLoading, setResultsError, updateResults } = get();
+        
+        startResultsLoading();
+
+        try {
+          const response = await getVoteResults(voteId);
+          
+          if (!response.success || !response.data) {
+            setResultsError(response.error || 'Failed to load vote results');
+            return;
+          }
+
+          const { results, totalVotes } = response.data;
+          const voteItems: VoteItem[] = results.map((result) => ({
+            id: result.id,
+            vote_id: result.voteId,
+            artist_id: result.artistId,
+            group_id: result.groupId,
+            vote_total: result.voteTotal,
+            artist: result.artist ? {
+              id: result.artist.id,
+              birth_date: null,
+              created_at: '',
+              dd: null,
+              debut_date: null,
+              debut_dd: null,
+              debut_mm: null,
+              debut_yy: null,
+              deleted_at: null,
+              gender: null,
+              group_id: result.groupId,
+              image: result.artist.image,
+              is_kpop: false,
+              is_musical: false,
+              is_solo: true,
+              mm: null,
+              name: result.artist.name,
+              updated_at: '',
+              yy: null,
+              artistGroup: result.artist.artistGroup ? {
+                id: result.artist.artistGroup.id,
+                created_at: '',
+                debut_date: null,
+                debut_dd: null,
+                debut_mm: null,
+                debut_yy: null,
+                deleted_at: null,
+                image: null,
+                name: result.artist.artistGroup.name,
+                updated_at: '',
+              } : undefined,
+            } : undefined,
+            created_at: '',
+            updated_at: '',
+            deleted_at: null,
+          }));
+
+          updateResults(voteItems, totalVotes);
+        } catch (error) {
+          console.error('Load vote results error:', error);
+          setResultsError('Failed to load vote results');
+        }
+      },
+
+      checkVoteEligibility: async (userId, voteAmount) => {
+        try {
+          const request: CanVoteRequest = { userId, voteAmount };
+          const response = await checkCanVote(request);
+          
+          if (!response.success) {
+            set(
+              (state) => ({
+                submission: {
+                  ...state.submission,
+                  error: response.error || 'Failed to check vote eligibility',
+                },
+              }),
+              false,
+              'checkVoteEligibility:error'
+            );
+            return false;
+          }
+
+          return response.canVote || false;
+        } catch (error) {
+          console.error('Check vote eligibility error:', error);
+          set(
+            (state) => ({
+              submission: {
+                ...state.submission,
+                error: 'Failed to check vote eligibility',
+              },
+            }),
+            false,
+            'checkVoteEligibility:exception'
+          );
+          return false;
+        }
+      },
+
+      submitUserVote: async (userId, totalBonusRemain = 0) => {
+        const { currentVote, submission, startSubmission, completeSubmission } = get();
+        
+        if (!currentVote.vote || !submission.selectedItemId) {
+          completeSubmission(false, 'Invalid vote data');
+          return false;
+        }
+
+        startSubmission();
+
+        try {
+          const request: VoteSubmissionRequest = {
+            voteId: currentVote.vote.id,
+            voteItemId: submission.selectedItemId as number,
+            amount: submission.voteAmount,
+            userId,
+            totalBonusRemain,
+          };
+
+          const response = await submitVote(request);
+          
+          if (!response.success) {
+            completeSubmission(false, response.error || 'Failed to submit vote');
+            return false;
+          }
+
+          completeSubmission(true);
+          
+          // 성공 후 투표 결과 새로고침
+          const { loadVoteResults } = get();
+          await loadVoteResults(currentVote.vote.id);
+          
+          return true;
+        } catch (error) {
+          console.error('Submit vote error:', error);
+          completeSubmission(false, 'Failed to submit vote');
+          return false;
+        }
+      },
+
+      startStatusUpdates: () => {
+        const { currentVote, updateTimeLeft } = get();
+        
+        if (statusUpdateInterval) {
+          clearInterval(statusUpdateInterval);
+        }
+
+        statusUpdateInterval = setInterval(() => {
+          const { currentVote } = get();
+          
+          if (!currentVote.vote) return;
+
+          let targetDate: string | null = null;
+          if (currentVote.voteStatus === 'upcoming' && currentVote.vote.start_at) {
+            targetDate = currentVote.vote.start_at;
+          } else if (currentVote.voteStatus === 'ongoing' && currentVote.vote.stop_at) {
+            targetDate = currentVote.vote.stop_at;
+          }
+
+          if (targetDate) {
+            const timeLeft = calculateTimeLeft(targetDate);
+            updateTimeLeft(timeLeft);
+            
+            // 상태 변경 체크
+            if (currentVote.vote.start_at && currentVote.vote.stop_at) {
+              const newStatus = calculateVoteStatus(currentVote.vote.start_at, currentVote.vote.stop_at);
+              if (newStatus !== currentVote.voteStatus) {
+                set(
+                  (state) => ({
+                    currentVote: {
+                      ...state.currentVote,
+                      voteStatus: newStatus,
+                    },
+                  }),
+                  false,
+                  'statusUpdate'
+                );
+              }
+            }
+          }
+        }, 1000);
+      },
+
+      stopStatusUpdates: () => {
+        if (statusUpdateInterval) {
+          clearInterval(statusUpdateInterval);
+          statusUpdateInterval = null;
+        }
+      },
     }),
     {
       name: 'vote-store',
