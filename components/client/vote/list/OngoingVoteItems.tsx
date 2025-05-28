@@ -58,13 +58,13 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
           // artist 객체가 있는 경우 artist_group과 artistGroup 모두 처리
           const artist = item.artist
             ? {
-              ...item.artist,
-              // 둘 중 하나만 있는 경우 다른 하나로 복사
-              artist_group:
-                item.artist.artist_group || item.artist.artistGroup,
-              artistGroup:
-                item.artist.artistGroup || item.artist.artist_group,
-            }
+                ...item.artist,
+                // 둘 중 하나만 있는 경우 다른 하나로 복사
+                artist_group:
+                  item.artist.artist_group || item.artist.artistGroup,
+                artistGroup:
+                  item.artist.artistGroup || item.artist.artist_group,
+              }
             : null;
 
           return {
@@ -86,6 +86,9 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   // 투표 변경 핸들러
   const handleVoteChange = useCallback(
     (itemId: string | number, newTotal: number) => {
+      // onVoteChange가 없으면 아무것도 하지 않음
+      if (!onVoteChange) return;
+
       // 문자열과 숫자 ID 모두 호환되도록 처리
       const itemIdStr = String(itemId);
 
@@ -106,12 +109,10 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
         });
       });
 
-      // 상위 컴포넌트 콜백 호출 (있는 경우)
-      if (onVoteChange) {
-        const numericId = Number(vote.id);
-        if (!isNaN(numericId)) {
-          onVoteChange(numericId, itemId, newTotal);
-        }
+      // 상위 컴포넌트 콜백 호출
+      const numericId = Number(vote.id);
+      if (!isNaN(numericId)) {
+        onVoteChange(numericId, itemId, newTotal);
       }
     },
     [vote.id, onVoteChange],
@@ -149,11 +150,10 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
         <RankingView
           items={topItems}
           showVoteChange={true}
-          onVoteChange={handleVoteChange}
-          keyPrefix="ongoing"
+          onVoteChange={onVoteChange ? handleVoteChange : undefined}
+          keyPrefix='ongoing'
         />
       </div>
     </div>
   );
 };
-

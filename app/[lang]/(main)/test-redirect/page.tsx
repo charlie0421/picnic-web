@@ -21,9 +21,11 @@ export default function TestRedirectPage() {
             </h3>
             <ol className='list-decimal list-inside ml-4 space-y-1 text-blue-600'>
               <li>로그아웃 상태인지 확인</li>
-              <li>"투표하기 (인증 필요)" 버튼 클릭</li>
+              <li>&ldquo;투표하기 (인증 필요)&rdquo; 버튼 클릭</li>
               <li>로그인 필요 다이얼로그 확인</li>
-              <li>"로그인하기" 버튼 클릭하여 로그인 페이지로 이동</li>
+              <li>
+                &ldquo;로그인하기&rdquo; 버튼 클릭하여 로그인 페이지로 이동
+              </li>
               <li>소셜 로그인 완료</li>
               <li>이 페이지로 자동 리다이렉트되는지 확인</li>
             </ol>
@@ -34,7 +36,7 @@ export default function TestRedirectPage() {
               2. 실제 투표 페이지 테스트
             </h3>
             <ol className='list-decimal list-inside ml-4 space-y-1 text-blue-600'>
-              <li>"실제 투표 페이지로 이동" 버튼 클릭</li>
+              <li>&ldquo;실제 투표 페이지로 이동&rdquo; 버튼 클릭</li>
               <li>투표 페이지에서 투표 시도</li>
               <li>로그인 필요 다이얼로그 확인</li>
               <li>로그인 완료 후 투표 페이지로 돌아오는지 확인</li>
@@ -44,7 +46,7 @@ export default function TestRedirectPage() {
           <div>
             <h3 className='font-semibold text-blue-700'>3. 수동 URL 테스트</h3>
             <ol className='list-decimal list-inside ml-4 space-y-1 text-blue-600'>
-              <li>"테스트 리다이렉트 URL 설정" 버튼 클릭</li>
+              <li>&ldquo;테스트 리다이렉트 URL 설정&rdquo; 버튼 클릭</li>
               <li>SessionStorage에 URL이 저장되는지 확인</li>
               <li>로그인 페이지로 이동</li>
               <li>로그인 후 설정된 URL로 이동하는지 확인</li>

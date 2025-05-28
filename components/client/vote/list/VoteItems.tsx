@@ -56,6 +56,7 @@ export const VoteItems = ({ vote }: VoteItemsProps) => {
     case VOTE_STATUS.UPCOMING:
       return <UpcomingVoteItems vote={vote} />;
     case VOTE_STATUS.ONGOING:
+      // 메인 투표 리스트에서는 onVoteChange를 전달하지 않아 투표 기능 비활성화
       return <OngoingVoteItems vote={vote} />;
     case VOTE_STATUS.COMPLETED:
       return <CompletedVoteItems vote={vote} />;

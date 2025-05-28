@@ -8,6 +8,7 @@ import { saveRedirectUrl, redirectToLogin } from '@/utils/auth-redirect';
 import { useLanguageStore } from '@/stores/languageStore';
 
 export function LoginRequiredDialog({
+  isOpen = false,
   redirectUrl,
   onLogin,
   onCancel,
@@ -55,6 +56,7 @@ export function LoginRequiredDialog({
   return (
     <ConfirmDialog
       {...dialogProps}
+      isOpen={isOpen}
       title={defaultTitle}
       description={defaultDescription}
       confirmText={defaultLoginText}

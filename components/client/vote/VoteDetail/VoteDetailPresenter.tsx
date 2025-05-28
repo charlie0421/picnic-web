@@ -235,14 +235,38 @@ const VoteDetailPresenter: React.FC<VoteDetailContentProps> = ({
 
   // 투표 항목 선택 핸들러
   const handleSelectItem = (itemId: string) => {
-    if (state.voteStatus !== 'ongoing' || userVoteState.hasVoted) {
+    console.log('🎯 [VoteDetail] handleSelectItem 시작:', {
+      itemId,
+      voteStatus: state.voteStatus,
+      hasVoted: userVoteState.hasVoted,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (state.voteStatus !== 'ongoing') {
+      console.log('❌ [VoteDetail] 투표가 진행 중이 아님:', state.voteStatus);
       return;
     }
 
-    setUserVoteState((prev) => ({
-      ...prev,
-      selectedItemId: itemId,
-    }));
+    if (userVoteState.hasVoted) {
+      console.log('❌ [VoteDetail] 이미 투표함');
+      return;
+    }
+
+    console.log('🔐 [VoteDetail] 인증 체크 시작 - withAuth 호출');
+
+    // 인증이 필요한 투표 선택
+    withAuth(async () => {
+      console.log('✅ [VoteDetail] withAuth 내부 - 인증 성공, 투표 항목 선택');
+
+      setUserVoteState((prev) => ({
+        ...prev,
+        selectedItemId: itemId,
+      }));
+
+      console.log('✅ [VoteDetail] 투표 항목 선택 완료:', itemId);
+    }).catch((error) => {
+      console.log('❌ [VoteDetail] 인증 실패 또는 오류:', error);
+    });
   };
 
   // 투표 데이터 새로고침
