@@ -9,6 +9,7 @@ import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { OngoingVoteItems } from '@/components/client/vote/list';
 import { LoadingSpinner } from '../../common/LoadingSpinner';
+import { useRequireAuth } from '@/hooks/useAuthGuard';
 
 interface VoteDetailContentProps {
   id: string;
@@ -36,6 +37,13 @@ const VoteDetailPresenter: React.FC<VoteDetailContentProps> = ({
   const { supabase } = useSupabase();
   const router = useRouter();
   const { currentLanguage } = useLanguageStore();
+  const { withAuth } = useRequireAuth({
+    customLoginMessage: {
+      title: '투표하려면 로그인이 필요합니다',
+      description:
+        '이 투표에 참여하려면 로그인이 필요합니다. 로그인하시겠습니까?',
+    },
+  });
 
   // 초기 데이터 확인
   console.log('[VoteDetailClient] 초기 데이터:', {
@@ -236,7 +244,6 @@ const VoteDetailPresenter: React.FC<VoteDetailContentProps> = ({
       selectedItemId: itemId,
     }));
   };
-
 
   // 투표 데이터 새로고침
   const refreshVoteData = async () => {
@@ -685,7 +692,43 @@ const VoteDetailPresenter: React.FC<VoteDetailContentProps> = ({
                 ? 'bg-primary hover:bg-primary/90'
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
-            onClick={() => {}}
+            onClick={async () => {
+              if (!userVoteState.selectedItemId || userVoteState.isSubmitting)
+                return;
+
+              // 인증이 필요한 투표 액션을 실행
+              await withAuth(async () => {
+                // TODO: 실제 투표 로직 구현
+                console.log('투표 실행:', {
+                  voteId: vote.id,
+                  itemId: userVoteState.selectedItemId,
+                });
+
+                setUserVoteState((prev) => ({
+                  ...prev,
+                  isSubmitting: true,
+                }));
+
+                try {
+                  // 실제 투표 API 호출 로직
+                  // await submitVote(vote.id, userVoteState.selectedItemId);
+
+                  // 임시로 투표 완료 상태로 변경
+                  setUserVoteState((prev) => ({
+                    ...prev,
+                    hasVoted: true,
+                    isSubmitting: false,
+                  }));
+                } catch (error) {
+                  console.error('투표 오류:', error);
+                  setUserVoteState((prev) => ({
+                    ...prev,
+                    isSubmitting: false,
+                    participationError: '투표 중 오류가 발생했습니다.',
+                  }));
+                }
+              });
+            }}
             disabled={
               !userVoteState.selectedItemId || userVoteState.isSubmitting
             }

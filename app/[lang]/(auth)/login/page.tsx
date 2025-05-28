@@ -1,15 +1,16 @@
 'use client';
 
-import {Suspense, useCallback, useEffect, useState} from 'react';
-import {supabase} from '@/utils/supabase-client';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { supabase } from '@/utils/supabase-client';
 import Image from 'next/image';
-import {useSearchParams} from 'next/navigation';
-import {useLanguageStore} from '@/stores/languageStore';
+import { useSearchParams } from 'next/navigation';
+import { useLanguageStore } from '@/stores/languageStore';
 import Script from 'next/script';
 import { SocialLoginButtons } from '@/components/client/auth';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 
 // AppleID 타입 정의
 declare global {
@@ -38,7 +39,7 @@ const debugLog = (message: string, data?: any) => {
     debugLogs.push({
       timestamp: Date.now(),
       message,
-      data
+      data,
     });
     // 최대 50개 항목만 유지
     while (debugLogs.length > 50) {
@@ -54,7 +55,14 @@ const debugLog = (message: string, data?: any) => {
 function LoginContentInner() {
   const searchParams = useSearchParams();
   const { t } = useLanguageStore();
-  const { isLoading, isAuthenticated, isInitialized, user, userProfile, error: authError } = useAuth();
+  const {
+    isLoading,
+    isAuthenticated,
+    isInitialized,
+    user,
+    userProfile,
+    error: authError,
+  } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -73,15 +81,36 @@ function LoginContentInner() {
         isInitialized,
         hasUser: !!user,
         hasUserProfile: !!userProfile,
-        authError
+        authError,
       });
     }
-  }, [mounted, isLoading, isAuthenticated, isInitialized, user, userProfile, authError]);
+  }, [
+    mounted,
+    isLoading,
+    isAuthenticated,
+    isInitialized,
+    user,
+    userProfile,
+    authError,
+  ]);
+
+  // 인증된 사용자 리다이렉트 처리
+  useEffect(() => {
+    if (mounted && isAuthenticated && isInitialized && !isLoading) {
+      debugLog('이미 인증된 사용자 - 리다이렉트 처리');
+      const targetUrl = handlePostLoginRedirect();
+
+      // 현재 페이지가 로그인 페이지이고 리다이렉트 URL이 다른 경우에만 이동
+      if (targetUrl !== '/login') {
+        window.location.href = targetUrl;
+      }
+    }
+  }, [mounted, isAuthenticated, isInitialized, isLoading]);
 
   // 오류 파라미터 처리
   useEffect(() => {
     if (!mounted) return;
-    
+
     const checkAppleAuthSuccess = async () => {
       try {
         const authSuccess = localStorage.getItem('authSuccess');
@@ -89,105 +118,127 @@ function LoginContentInner() {
         const appleIdToken = localStorage.getItem('appleIdToken');
         const appleNonce = localStorage.getItem('appleNonce');
         const sessionCreated = localStorage.getItem('sessionCreated');
-        
+
         debugLog('Apple OAuth 상태 확인', {
           authSuccess,
           appleEmail,
-          appleIdToken: appleIdToken ? `토큰 있음 (길이: ${appleIdToken.length})` : '없음',
+          appleIdToken: appleIdToken
+            ? `토큰 있음 (길이: ${appleIdToken.length})`
+            : '없음',
           appleNonce,
           sessionCreated,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
-        
+
         if (authSuccess === 'true' && !sessionCreated) {
           debugLog('Apple OAuth 성공 감지, 세션 생성 시도');
           setLoading(true);
-          
+
           try {
             // Supabase 클라이언트 생성
             const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
             const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-            
+
             if (!supabaseUrl || !supabaseAnonKey) {
               throw new Error('Supabase 환경 변수가 설정되지 않았습니다');
             }
-            
+
             const supabase = createClient(supabaseUrl, supabaseAnonKey);
-            
+
             // 0. Apple ID Token과 nonce가 있는지 확인
             if (!appleIdToken || !appleNonce) {
-              debugLog('❌ Apple ID Token, nonce 또는 Supabase 클라이언트 없음', {
-                hasIdToken: !!appleIdToken,
-                hasNonce: !!appleNonce,
-                hasSupabase: !!supabase
-              });
+              debugLog(
+                '❌ Apple ID Token, nonce 또는 Supabase 클라이언트 없음',
+                {
+                  hasIdToken: !!appleIdToken,
+                  hasNonce: !!appleNonce,
+                  hasSupabase: !!supabase,
+                },
+              );
               throw new Error('Apple ID Token 또는 nonce가 없습니다');
             }
-            
+
             debugLog('✅ Apple ID Token과 nonce 확인됨, Supabase 인증 시도');
-            
+
             // 1. 기존 사용자 세션 확인
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            const {
+              data: { user },
+              error: userError,
+            } = await supabase.auth.getUser();
             if (!userError && user) {
-              debugLog('기존 세션 발견', { userId: user.id, email: user.email });
+              debugLog('기존 세션 발견', {
+                userId: user.id,
+                email: user.email,
+              });
               localStorage.setItem('sessionCreated', 'true');
               localStorage.removeItem('authSuccess');
               localStorage.removeItem('appleEmail');
               localStorage.removeItem('appleIdToken');
               localStorage.removeItem('appleNonce');
-              window.location.href = '/';
+
+              // 리다이렉트 처리
+              const targetUrl = handlePostLoginRedirect();
+              window.location.href = targetUrl;
               return;
             }
-            
+
             // 2. Apple ID Token으로 Supabase 세션 생성 시도
             debugLog('Apple ID Token으로 Supabase 세션 생성 시도', {
               tokenLength: appleIdToken.length,
-              nonceLength: appleNonce.length
+              nonceLength: appleNonce.length,
             });
-            
-            const { data: authData, error: authError } = await supabase.auth.signInWithIdToken({
-              provider: 'apple',
-              token: appleIdToken,
-              nonce: appleNonce,
-            });
-            
+
+            const { data: authData, error: authError } =
+              await supabase.auth.signInWithIdToken({
+                provider: 'apple',
+                token: appleIdToken,
+                nonce: appleNonce,
+              });
+
             if (!authError && authData?.user) {
               debugLog('✅ Apple ID Token으로 Supabase 세션 생성 성공!', {
                 userId: authData.user.id,
-                email: authData.user.email
+                email: authData.user.email,
               });
-              
+
               localStorage.setItem('sessionCreated', 'true');
               localStorage.removeItem('authSuccess');
               localStorage.removeItem('appleEmail');
               localStorage.removeItem('appleIdToken');
               localStorage.removeItem('appleNonce');
-              
+
               // 성공 메시지 표시 후 리다이렉트
               setError('Apple 로그인이 성공적으로 완료되었습니다!');
               setTimeout(() => {
-                window.location.href = '/';
+                const targetUrl = handlePostLoginRedirect();
+                window.location.href = targetUrl;
               }, 1000);
               return;
             } else {
-              debugLog('❌ Apple ID Token으로 Supabase 세션 생성 실패', authError);
-              
+              debugLog(
+                '❌ Apple ID Token으로 Supabase 세션 생성 실패',
+                authError,
+              );
+
               // 3. 대안: Apple 이메일로 매직 링크 시도
               if (appleEmail) {
-                debugLog('대안: Apple 이메일로 매직 링크 시도', { email: appleEmail });
-                
-                const { error: magicLinkError } = await supabase.auth.signInWithOtp({
+                debugLog('대안: Apple 이메일로 매직 링크 시도', {
                   email: appleEmail,
-                  options: {
-                    shouldCreateUser: true,
-                    data: {
-                      provider: 'apple',
-                      apple_oauth: true,
-                      full_name: 'Apple User'
-                    }
-                  }
                 });
-                
+
+                const { error: magicLinkError } =
+                  await supabase.auth.signInWithOtp({
+                    email: appleEmail,
+                    options: {
+                      shouldCreateUser: true,
+                      data: {
+                        provider: 'apple',
+                        apple_oauth: true,
+                        full_name: 'Apple User',
+                      },
+                    },
+                  });
+
                 if (!magicLinkError) {
                   debugLog('✅ 매직 링크 성공');
                   localStorage.setItem('sessionCreated', 'true');
@@ -195,20 +246,31 @@ function LoginContentInner() {
                   localStorage.removeItem('appleEmail');
                   localStorage.removeItem('appleIdToken');
                   localStorage.removeItem('appleNonce');
-                  setError('Apple 로그인이 거의 완료되었습니다. 이메일을 확인해주세요.');
+                  setError(
+                    'Apple 로그인이 거의 완료되었습니다. 이메일을 확인해주세요.',
+                  );
                   return;
                 } else {
                   debugLog('❌ 매직 링크 실패', magicLinkError);
                 }
               }
-              
+
               // 4. 모든 방법 실패
-              throw new Error(`Apple 세션 생성 실패: ${authError?.message || '알 수 없는 오류'}`);
+              throw new Error(
+                `Apple 세션 생성 실패: ${
+                  authError?.message || '알 수 없는 오류'
+                }`,
+              );
             }
-            
           } catch (sessionError) {
             debugLog('세션 생성 중 오류', sessionError);
-            setError(`Apple 로그인 후 세션 생성 중 오류가 발생했습니다: ${sessionError instanceof Error ? sessionError.message : '알 수 없는 오류'}`);
+            setError(
+              `Apple 로그인 후 세션 생성 중 오류가 발생했습니다: ${
+                sessionError instanceof Error
+                  ? sessionError.message
+                  : '알 수 없는 오류'
+              }`,
+            );
           } finally {
             setLoading(false);
           }
@@ -217,7 +279,7 @@ function LoginContentInner() {
         debugLog('Apple OAuth 상태 확인 중 오류', e);
       }
     };
-    
+
     checkAppleAuthSuccess();
   }, [mounted]);
 
@@ -246,7 +308,7 @@ function LoginContentInner() {
         errorDescription,
         authError,
         localErrorDescription,
-        provider
+        provider,
       });
 
       // 오류 메시지 설정
@@ -258,7 +320,10 @@ function LoginContentInner() {
         try {
           localStorage.removeItem('auth_error_description');
         } catch (e) {}
-      } else if (error === 'invalid_request' || error === 'bad_oauth_callback') {
+      } else if (
+        error === 'invalid_request' ||
+        error === 'bad_oauth_callback'
+      ) {
         setError('OAuth 인증 중 문제가 발생했습니다. 다시 시도해주세요.');
       } else if (error) {
         switch (error) {
@@ -266,21 +331,33 @@ function LoginContentInner() {
             setError('필수 파라미터가 누락되었습니다.');
             break;
           case 'server_error':
-            setError(`서버 오류가 발생했습니다: ${errorDescription || '알 수 없는 오류'}`);
+            setError(
+              `서버 오류가 발생했습니다: ${
+                errorDescription || '알 수 없는 오류'
+              }`,
+            );
             break;
           case 'oauth_error':
-            setError(provider === 'apple'
-              ? 'Apple 로그인 중 오류가 발생했습니다. 다시 시도해주세요.'
-              : '소셜 로그인 중 오류가 발생했습니다.');
+            setError(
+              provider === 'apple'
+                ? 'Apple 로그인 중 오류가 발생했습니다. 다시 시도해주세요.'
+                : '소셜 로그인 중 오류가 발생했습니다.',
+            );
             break;
           case 'callback_error':
             setError('인증 처리 중 오류가 발생했습니다.');
             break;
           default:
-            setError(`인증 오류가 발생했습니다: ${errorDescription || '알 수 없는 오류'}`);
+            setError(
+              `인증 오류가 발생했습니다: ${
+                errorDescription || '알 수 없는 오류'
+              }`,
+            );
         }
       } else {
-        setError('로그인 중 알 수 없는 오류가 발생했습니다. 다시 시도해주세요.');
+        setError(
+          '로그인 중 알 수 없는 오류가 발생했습니다. 다시 시도해주세요.',
+        );
       }
 
       // URL에서 오류 파라미터 제거
@@ -298,9 +375,9 @@ function LoginContentInner() {
   // 클라이언트에서 마운트되지 않았으면 로딩 표시
   if (!mounted) {
     return (
-      <div className="flex flex-col justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"></div>
-        <p className="text-gray-600">페이지 로딩 중...</p>
+      <div className='flex flex-col justify-center items-center min-h-[400px]'>
+        <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4'></div>
+        <p className='text-gray-600'>페이지 로딩 중...</p>
       </div>
     );
   }
@@ -309,14 +386,17 @@ function LoginContentInner() {
   if (!isInitialized || isLoading) {
     debugLog('로딩 상태 표시', { isInitialized, isLoading });
     return (
-      <div className="flex flex-col justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4"></div>
-        <p className="text-gray-600">
+      <div className='flex flex-col justify-center items-center min-h-[400px]'>
+        <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4'></div>
+        <p className='text-gray-600'>
           {!isInitialized ? '인증 시스템 초기화 중...' : '로딩 중...'}
         </p>
         {process.env.NODE_ENV === 'development' && (
-          <div className="mt-4 text-xs text-gray-500 text-center">
-            <p>디버그: isInitialized={String(isInitialized)}, isLoading={String(isLoading)}</p>
+          <div className='mt-4 text-xs text-gray-500 text-center'>
+            <p>
+              디버그: isInitialized={String(isInitialized)}, isLoading=
+              {String(isLoading)}
+            </p>
             <p>authError: {authError || 'none'}</p>
           </div>
         )}
@@ -327,12 +407,14 @@ function LoginContentInner() {
   if (isAuthenticated) {
     debugLog('이미 인증된 사용자');
     return (
-      <div className="text-center py-10">
-        <h2 className="text-2xl font-bold mb-4">{t('label_already_logged_in')}</h2>
-        <p className="mb-6">{t('message_already_logged_in')}</p>
-        <Link 
-          href="/"
-          className="inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors"
+      <div className='text-center py-10'>
+        <h2 className='text-2xl font-bold mb-4'>
+          {t('label_already_logged_in')}
+        </h2>
+        <p className='mb-6'>{t('message_already_logged_in')}</p>
+        <Link
+          href='/'
+          className='inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors'
         >
           {t('button_go_to_home')}
         </Link>
@@ -342,87 +424,131 @@ function LoginContentInner() {
 
   debugLog('로그인 폼 표시');
   return (
-    <div className="relative max-w-lg mx-auto">
+    <div className='relative max-w-lg mx-auto'>
       {/* 배경 그라디언트 카드 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 rounded-3xl blur-xl opacity-20 animate-pulse"></div>
-      
+      <div className='absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 rounded-3xl blur-xl opacity-20 animate-pulse'></div>
+
       {/* 메인 로그인 카드 */}
-      <div className="relative bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-3xl shadow-2xl border border-white/20 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl">
+      <div className='relative bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-3xl shadow-2xl border border-white/20 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl'>
         {/* 웰컴 헤더 */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-6 shadow-lg">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        <div className='text-center mb-8'>
+          <div className='inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-6 shadow-lg'>
+            <svg
+              className='w-8 h-8 text-white'
+              fill='none'
+              stroke='currentColor'
+              viewBox='0 0 24 24'
+            >
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
+              />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2">
+          <h1 className='text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2'>
             {t('label_login')}
           </h1>
-          <p className="text-gray-600">피크닉에서 특별한 순간을 만나보세요</p>
+          <p className='text-gray-600'>피크닉에서 특별한 순간을 만나보세요</p>
         </div>
 
-      {/* 오류 메시지 표시 */}
-      {(error || authError) && (
-          <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl mb-6 shadow-sm animate-shake" role="alert">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 mr-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+        {/* 오류 메시지 표시 */}
+        {(error || authError) && (
+          <div
+            className='bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl mb-6 shadow-sm animate-shake'
+            role='alert'
+          >
+            <div className='flex items-center'>
+              <svg
+                className='w-5 h-5 mr-3 text-red-500'
+                fill='currentColor'
+                viewBox='0 0 20 20'
+              >
+                <path
+                  fillRule='evenodd'
+                  d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
+                  clipRule='evenodd'
+                />
               </svg>
-              <span className="font-medium">{error || authError}</span>
+              <span className='font-medium'>{error || authError}</span>
             </div>
-        </div>
-      )}
+          </div>
+        )}
 
         {/* 소셜 로그인 섹션 */}
-        <div className="mb-8">
-          <div className="flex items-center mb-6">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
-            <span className="px-4 text-sm font-medium text-gray-500 bg-white rounded-full">
+        <div className='mb-8'>
+          <div className='flex items-center mb-6'>
+            <div className='flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent'></div>
+            <span className='px-4 text-sm font-medium text-gray-500 bg-white rounded-full'>
               간편 로그인
             </span>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+            <div className='flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent'></div>
           </div>
-          
-        <SocialLoginButtons 
-          providers={['google', 'apple', 'kakao']} 
-          onError={(error) => setError(error.message)}
-          size="large"
-        />
-      </div>
+
+          <SocialLoginButtons
+            providers={['google', 'apple', 'kakao']}
+            onError={(error) => setError(error.message)}
+            size='large'
+          />
+        </div>
 
         {/* 하단 안내 */}
-        <div className="text-center">
-          <p className="text-gray-600">
+        <div className='text-center'>
+          <p className='text-gray-600'>
             계정이 없으신가요?{' '}
-            <span className="font-semibold text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text">
+            <span className='font-semibold text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text'>
               위의 소셜 로그인으로 자동 회원가입됩니다
             </span>
           </p>
-      </div>
+        </div>
 
         {/* 장식적 요소들 */}
-        <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-yellow-400 to-pink-400 rounded-full opacity-20 blur-xl animate-bounce"></div>
-        <div className="absolute -bottom-6 -left-6 w-16 h-16 bg-gradient-to-br from-green-400 to-blue-400 rounded-full opacity-20 blur-xl animate-pulse"></div>
+        <div className='absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-yellow-400 to-pink-400 rounded-full opacity-20 blur-xl animate-bounce'></div>
+        <div className='absolute -bottom-6 -left-6 w-16 h-16 bg-gradient-to-br from-green-400 to-blue-400 rounded-full opacity-20 blur-xl animate-pulse'></div>
 
-      {/* 개발 환경에서만 디버그 정보 표시 */}
-      {process.env.NODE_ENV === 'development' && (
-          <div className="mt-8 p-4 bg-gray-50/80 backdrop-blur-sm rounded-2xl border border-gray-200/50">
-            <details className="text-xs text-gray-700">
-              <summary className="font-semibold cursor-pointer hover:text-blue-600 transition-colors">
+        {/* 개발 환경에서만 디버그 정보 표시 */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className='mt-8 p-4 bg-gray-50/80 backdrop-blur-sm rounded-2xl border border-gray-200/50'>
+            <details className='text-xs text-gray-700'>
+              <summary className='font-semibold cursor-pointer hover:text-blue-600 transition-colors'>
                 🐛 디버그 정보 (클릭하여 펼치기)
               </summary>
-              <div className="mt-3 space-y-1 pl-4 border-l-2 border-blue-200">
-                <div className="flex justify-between"><span>mounted:</span> <code className="text-blue-600">{String(mounted)}</code></div>
-                <div className="flex justify-between"><span>isInitialized:</span> <code className="text-blue-600">{String(isInitialized)}</code></div>
-                <div className="flex justify-between"><span>isLoading:</span> <code className="text-blue-600">{String(isLoading)}</code></div>
-                <div className="flex justify-between"><span>isAuthenticated:</span> <code className="text-blue-600">{String(isAuthenticated)}</code></div>
-                <div className="flex justify-between"><span>hasUser:</span> <code className="text-blue-600">{String(!!user)}</code></div>
-                <div className="flex justify-between"><span>hasUserProfile:</span> <code className="text-blue-600">{String(!!userProfile)}</code></div>
-                <div className="flex justify-between"><span>authError:</span> <code className="text-red-600">{authError || 'none'}</code></div>
+              <div className='mt-3 space-y-1 pl-4 border-l-2 border-blue-200'>
+                <div className='flex justify-between'>
+                  <span>mounted:</span>{' '}
+                  <code className='text-blue-600'>{String(mounted)}</code>
+                </div>
+                <div className='flex justify-between'>
+                  <span>isInitialized:</span>{' '}
+                  <code className='text-blue-600'>{String(isInitialized)}</code>
+                </div>
+                <div className='flex justify-between'>
+                  <span>isLoading:</span>{' '}
+                  <code className='text-blue-600'>{String(isLoading)}</code>
+                </div>
+                <div className='flex justify-between'>
+                  <span>isAuthenticated:</span>{' '}
+                  <code className='text-blue-600'>
+                    {String(isAuthenticated)}
+                  </code>
+                </div>
+                <div className='flex justify-between'>
+                  <span>hasUser:</span>{' '}
+                  <code className='text-blue-600'>{String(!!user)}</code>
+                </div>
+                <div className='flex justify-between'>
+                  <span>hasUserProfile:</span>{' '}
+                  <code className='text-blue-600'>{String(!!userProfile)}</code>
+                </div>
+                <div className='flex justify-between'>
+                  <span>authError:</span>{' '}
+                  <code className='text-red-600'>{authError || 'none'}</code>
+                </div>
               </div>
             </details>
-        </div>
-      )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -430,63 +556,79 @@ function LoginContentInner() {
 
 function LoginContent() {
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden py-10 px-4">
+    <div className='relative min-h-screen flex flex-col items-center justify-center overflow-hidden py-10 px-4'>
       {/* 동적 배경 그라디언트 */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"></div>
-      
+      <div className='absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'></div>
+
       {/* 애니메이션 배경 요소들 */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-pink-400/20 to-yellow-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-green-400/20 to-blue-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob" style={{animationDelay: '4s'}}></div>
+      <div className='absolute inset-0 overflow-hidden'>
+        <div className='absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob'></div>
+        <div
+          className='absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-pink-400/20 to-yellow-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob'
+          style={{ animationDelay: '2s' }}
+        ></div>
+        <div
+          className='absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-green-400/20 to-blue-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob'
+          style={{ animationDelay: '4s' }}
+        ></div>
       </div>
 
       {/* 격자 패턴 배경 */}
-      <div className="absolute inset-0 opacity-60">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          backgroundSize: '60px 60px'
-        }}></div>
+      <div className='absolute inset-0 opacity-60'>
+        <div
+          className='absolute inset-0'
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundSize: '60px 60px',
+          }}
+        ></div>
       </div>
-      
+
       {/* 로고 섹션 */}
-      <div className="relative z-10 mb-12 transform transition-all duration-700 hover:scale-110">
-        <Link href="/" className="group">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 scale-110"></div>
-            <div className="relative bg-white/80 backdrop-blur-sm p-6 rounded-3xl shadow-xl border border-white/40 group-hover:shadow-2xl transition-all duration-300">
-          <Image
-            src="/images/logo.png"
-            alt="Picnic Logo"
+      <div className='relative z-10 mb-12 transform transition-all duration-700 hover:scale-110'>
+        <Link href='/' className='group'>
+          <div className='relative'>
+            <div className='absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 scale-110'></div>
+            <div className='relative bg-white/80 backdrop-blur-sm p-6 rounded-3xl shadow-xl border border-white/40 group-hover:shadow-2xl transition-all duration-300'>
+              <Image
+                src='/images/logo.png'
+                alt='Picnic Logo'
                 width={60}
                 height={60}
-            priority
-                className="mx-auto filter drop-shadow-lg"
-          />
+                priority
+                className='mx-auto filter drop-shadow-lg'
+              />
             </div>
           </div>
         </Link>
       </div>
-      
-      <div className="relative z-10 w-full max-w-md">
-      <Suspense fallback={
-        <div className="flex flex-col justify-center items-center min-h-[400px]">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-              <div className="absolute inset-0 w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin rotate-45" style={{animationDelay: '1s'}}></div>
+
+      <div className='relative z-10 w-full max-w-md'>
+        <Suspense
+          fallback={
+            <div className='flex flex-col justify-center items-center min-h-[400px]'>
+              <div className='relative'>
+                <div className='w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin'></div>
+                <div
+                  className='absolute inset-0 w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin rotate-45'
+                  style={{ animationDelay: '1s' }}
+                ></div>
+              </div>
+              <p className='text-gray-700 mt-6 font-medium'>
+                페이지 로딩 중...
+              </p>
+              <div className='mt-2 w-32 h-1 bg-gray-200 rounded-full overflow-hidden'>
+                <div className='h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-loading-bar'></div>
+              </div>
             </div>
-            <p className="text-gray-700 mt-6 font-medium">페이지 로딩 중...</p>
-            <div className="mt-2 w-32 h-1 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-loading-bar"></div>
-            </div>
-        </div>
-      }>
-        <LoginContentInner />
-      </Suspense>
+          }
+        >
+          <LoginContentInner />
+        </Suspense>
       </div>
 
       {/* 하단 장식 요소 */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white/20 to-transparent backdrop-blur-sm"></div>
+      <div className='absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white/20 to-transparent backdrop-blur-sm'></div>
     </div>
   );
 }

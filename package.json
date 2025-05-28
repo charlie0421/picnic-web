@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "lsof -ti:3100 | xargs kill -9 2>/dev/null || true && next dev --turbopack --port 3100",
+    "next-dev": "next dev --turbopack --port 3100",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

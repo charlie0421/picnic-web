@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
         // 입력 검증
         if (
-            !voteId || !voteItemId || !amount || !userId ||
+            !voteId || !voteItemId || amount === undefined || !userId ||
             totalBonusRemain === undefined
         ) {
             return NextResponse.json(
@@ -34,7 +34,93 @@ export async function POST(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // process_vote 함수 호출
+        // 1. 먼저 can_vote 함수로 투표 가능 여부 확인
+        try {
+            const { data: canVoteResult, error: canVoteError } = await supabase
+                .rpc("can_vote", {
+                    p_user_id: userId,
+                    p_vote_amount: amount,
+                });
+
+            if (canVoteError) {
+                console.error(
+                    "[Vote Submit] can_vote 검증 실패:",
+                    canVoteError,
+                );
+
+                if (canVoteError.message.includes("Insufficient balance")) {
+                    return NextResponse.json(
+                        {
+                            error: "Insufficient balance",
+                            details: canVoteError.message,
+                        },
+                        { status: 400 },
+                    );
+                }
+
+                if (canVoteError.message.includes("User not found")) {
+                    return NextResponse.json(
+                        {
+                            error: "User not found",
+                            details: canVoteError.message,
+                        },
+                        { status: 404 },
+                    );
+                }
+
+                return NextResponse.json(
+                    {
+                        error: "Vote eligibility check failed",
+                        details: canVoteError.message,
+                    },
+                    { status: 500 },
+                );
+            }
+
+            if (!canVoteResult) {
+                return NextResponse.json(
+                    { error: "Vote not allowed" },
+                    { status: 400 },
+                );
+            }
+
+            console.log("[Vote Submit] can_vote 검증 통과:", {
+                userId,
+                amount,
+            });
+        } catch (canVoteException: any) {
+            console.error("[Vote Submit] can_vote 예외:", canVoteException);
+
+            if (canVoteException.message?.includes("Insufficient balance")) {
+                return NextResponse.json(
+                    {
+                        error: "Insufficient balance",
+                        details: canVoteException.message,
+                    },
+                    { status: 400 },
+                );
+            }
+
+            if (canVoteException.message?.includes("User not found")) {
+                return NextResponse.json(
+                    {
+                        error: "User not found",
+                        details: canVoteException.message,
+                    },
+                    { status: 404 },
+                );
+            }
+
+            return NextResponse.json(
+                {
+                    error: "Vote eligibility check failed",
+                    details: canVoteException.message,
+                },
+                { status: 500 },
+            );
+        }
+
+        // 2. can_vote 검증 통과 후 실제 투표 처리
         const { data, error } = await supabase.rpc("process_vote", {
             p_vote_id: voteId,
             p_vote_item_id: voteItemId,

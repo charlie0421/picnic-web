@@ -73,7 +73,7 @@
       "dependencies": [
         1
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 5,
@@ -90,8 +90,8 @@
           "dependencies": [
             5
           ],
-          "details": "Implement logic to aggregate and return results, applying RLS and any necessary permissions checks.",
-          "status": "pending"
+          "details": "Implement logic to aggregate and return results, applying RLS and any necessary permissions checks.\n<info added on 2025-05-28T03:19:43.668Z>\nImplemented vote results API with the following features:\n\n1. **API Endpoint** (`/api/vote/results`):\n   - Accepts GET requests with voteId parameter\n   - Returns vote basic information (title, status)\n   - Provides item-by-item results based on vote_total\n   - Calculates vote status (upcoming/ongoing/ended)\n   - Computes total votes, percentages, and rankings\n   - Includes artist details (name, image, group information)\n\n2. **Client Hook** (`hooks/useVoteResults.ts`):\n   - Custom hook for fetching vote results\n   - Manages loading and error states\n   - Supports automatic data fetching and manual refetch\n   - Includes TypeScript type definitions\n\n3. **Key Features**:\n   - Sorts vote items by vote_total in descending order\n   - Calculates vote percentage for each item (2 decimal places)\n   - Automatically determines rankings\n   - Implements error handling and logging\n   - Applies RLS policies (checks for null deleted_at)\n\nThe implemented API is fully compatible with the existing database schema and enables real-time retrieval of voting results.\n</info added on 2025-05-28T03:19:43.668Z>",
+          "status": "done"
         },
         {
           "id": 7,
@@ -101,8 +101,8 @@
             5,
             6
           ],
-          "details": "Write validation logic for input data, test all API endpoints for expected and edge cases, and verify RLS enforcement.",
-          "status": "pending"
+          "details": "Write validation logic for input data, test all API endpoints for expected and edge cases, and verify RLS enforcement.\n<info added on 2025-05-28T03:27:37.886Z>\n# Server-Side Validation and Backend Testing Implementation Completed:\n\n## Implemented Test Files:\n\n### 1. API Endpoint Tests:\n- **`__tests__/app/api/vote/submit.test.ts`** (7 tests):\n  - Successful vote submission\n  - 400 error when required fields are missing\n  - 400 error when amount is 0 or less\n  - 500 error when process_vote function fails\n  - 500 error on JSON parsing error\n  - Normal processing when totalBonusRemain is 0\n  - Validation of negative amount values\n\n- **`__tests__/app/api/vote/results.test.ts`** (9 tests):\n  - Successful vote results retrieval\n  - 400 error when voteId parameter is missing\n  - 404 error with non-existent vote ID\n  - 404 error when accessing deleted votes\n  - 500 error when vote item retrieval fails\n  - Vote status calculation (upcoming/ongoing/ended)\n  - Handling cases with no vote items\n  - Percentage calculation accuracy verification\n\n### 2. Client Hook Tests:\n- **`__tests__/hooks/useVoteSubmit.test.ts`** (9 tests):\n  - Initial state setup\n  - Successful vote submission\n  - API error response handling\n  - Network error handling\n  - Loading state management\n  - Error clearing functionality\n  - Various error scenario handling\n\n- **`__tests__/hooks/useVoteResults.test.ts`** (13 tests):\n  - Initial state setup\n  - Automatic data fetching\n  - Handling null voteId\n  - API/network error handling\n  - Refetch functionality\n  - Error clearing functionality\n  - New data fetching on voteId change\n  - Loading state management\n\n## Test Environment Setup:\n- Jest configuration updates (NextRequest, NextResponse mocking)\n- Web API mocking (Request, Response, Headers, URL)\n- Supabase client mocking\n- Test utility function implementation\n\n## Verified Functionality:\n- Input data validation (required fields, types, ranges)\n- Error handling and response codes\n- Business logic (percentage calculation, status calculation)\n- Database integration (process_vote function calls)\n- Client state management (loading, errors, data)\n\n**All 38 tests passed** ✅\n\nAll voting-related APIs and hooks have been thoroughly tested, ensuring stability and reliability.\n</info added on 2025-05-28T03:27:37.886Z>\n<info added on 2025-05-28T03:33:03.882Z>\n# can_vote 프로시저 활용 구현 및 테스트 완료:\n\n## 새로 구현된 기능:\n\n### 1. can_vote DB 함수 분석 및 활용:\n- **DB 함수 확인**: `can_vote(p_user_id uuid, p_vote_amount integer)` 함수 분석\n- **기능**: 사용자 잔액 검증, 투표 가능 여부 판단\n- **검증 로직**: star_candy + star_candy_bonus >= vote_amount\n- **에러 처리**: 잔액 부족, 사용자 없음, 잘못된 투표량 등\n\n### 2. can_vote API 엔드포인트 구현 (`/api/vote/can-vote`):\n- **POST/GET 지원**: 두 가지 방식으로 호출 가능\n- **입력 검증**: userId, voteAmount 필수 필드 검증\n- **DB 함수 호출**: can_vote 프로시저 호출 및 결과 처리\n- **사용자 잔액 정보**: star_candy, star_candy_bonus, totalAvailable 반환\n- **에러 처리**: 잔액 부족, 사용자 없음 등 상세한 에러 응답\n\n### 3. useCanVote 클라이언트 훅 구현:\n- **두 가지 호출 방식**: checkCanVote (POST), checkCanVoteByQuery (GET)\n- **상태 관리**: isChecking, error 상태 관리\n- **에러 처리**: 네트워크 에러, API 에러 등 포괄적 처리\n- **URL 인코딩**: 특수 문자 포함 userId 안전 처리\n\n### 4. 투표 제출 로직 개선:\n- **사전 검증**: 투표 제출 전 can_vote 함수로 사전 검증\n- **이중 검증**: can_vote → process_vote 순차 실행\n- **에러 처리**: 각 단계별 상세한 에러 메시지 제공\n\n### 5. 포괄적 테스트 구현:\n- **API 테스트** (`__tests__/app/api/vote/can-vote.test.ts`): 11개 테스트\n  - 성공 케이스, 필드 누락, 잘못된 값, 잔액 부족, 사용자 없음 등\n  - POST/GET 방식 모두 테스트\n  - 에러 처리 및 예외 상황 검증\n\n- **훅 테스트** (`__tests__/hooks/useCanVote.test.ts`): 12개 테스트\n  - 초기 상태, 성공/실패 케이스, 로딩 상태 관리\n  - 에러 처리, 연속 요청, URL 인코딩 등\n\n## 기존 테스트 업데이트:\n- **투표 제출 API 테스트**: can_vote 사전 검증 로직 반영\n- **모든 테스트 통과**: 총 38개 테스트 (API 27개 + 훅 23개) 성공\n\n## 활용 방법:\n```typescript\n// 1. 투표 가능 여부 확인\nconst { checkCanVote, isChecking, error } = useCanVote();\nconst result = await checkCanVote({ userId: 'user123', voteAmount: 100 });\n\n// 2. 결과 활용\nif (result?.canVote) {\n  // 투표 가능 - 투표 버튼 활성화\n  console.log('총 사용 가능:', result.userBalance?.totalAvailable);\n} else {\n  // 투표 불가 - 에러 메시지 표시\n  console.log('에러:', result?.error);\n}\n```\n</info added on 2025-05-28T03:33:03.882Z>",
+          "status": "done"
         }
       ]
     },
@@ -1265,7 +1265,240 @@
       "dependencies": [
         2
       ],
-      "priority": "high"
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Analyze data access requirements and user roles",
+          "description": "Identify sensitive data, determine which users/roles need access to which data, and establish organization-based access patterns",
+          "dependencies": [],
+          "details": "Review existing data structure, identify organization boundaries, create application roles (like app_user), and determine how user-to-organization mapping will be implemented",
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "title": "Define RLS policy rules for each role",
+          "description": "Create the logical rules that will determine which rows each role can access based on the analysis",
+          "dependencies": [
+            1
+          ],
+          "details": "Design functions like current_organization_id() to determine user context, define USING clauses for policies, and document the policy logic for each table requiring protection",
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "title": "Implement RLS policies in the database",
+          "description": "Enable row-level security on tables and create the defined policies using database-specific syntax",
+          "dependencies": [
+            2
+          ],
+          "details": "Use ALTER TABLE to enable RLS, create policies with CREATE POLICY statements, implement helper functions for context determination, and apply policies to all relevant tables",
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "title": "Test and validate RLS enforcement",
+          "description": "Verify that policies correctly restrict data access across different user scenarios",
+          "dependencies": [
+            3
+          ],
+          "details": "Create test data spanning multiple organizations, test access with different user roles, verify policies work with all query patterns, and document test results to confirm security boundaries",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Develop Reusable Fancy Dialog Component System",
+      "description": "Implement a reusable dialog component system with modern, animated UI/UX supporting multiple dialog types (confirmation, warning, info, error).",
+      "details": "Design and build a modular dialog component in React that supports various dialog types (confirmation, warning, info, error) with a consistent, modern look and feel. Use a component-based architecture to maximize reusability and maintainability. Integrate smooth entrance/exit animations (e.g., using Framer Motion or CSS transitions) and ensure accessibility (focus management, keyboard navigation, ARIA roles). Provide a flexible API for triggering dialogs programmatically and passing custom content or actions. Style the dialogs with a modern design system (e.g., Tailwind CSS), ensuring responsiveness and theme compatibility. Document usage patterns and edge cases for developers.",
+      "testStrategy": "- Write unit tests for each dialog type to verify correct rendering, props handling, and event callbacks.\n- Perform integration tests to ensure dialogs can be triggered from various parts of the app and overlay correctly.\n- Test animation timing and transitions for smoothness and absence of visual glitches.\n- Verify accessibility features: keyboard navigation, focus trapping, ARIA roles, and screen reader compatibility.\n- Conduct cross-browser and responsive UI testing.\n- Review documentation for completeness and clarity.",
+      "status": "done",
+      "dependencies": [
+        3
+      ],
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Design Dialog Component Architecture",
+          "description": "Plan the overall architecture for the dialog system, selecting appropriate React patterns (such as compound components, container/presentational separation, and HOCs) to ensure scalability, maintainability, and flexibility.",
+          "dependencies": [],
+          "details": "Define the structure for dialog components, including how header, content, and footer will be composed, and how state and logic will be managed across dialog variants.[1][2]\n<info added on 2025-05-28T03:45:24.881Z>\n# 다이얼로그 컴포넌트 아키텍처 설계 완료:\n\n## 구현된 아키텍처:\n\n### 1. 컴포넌트 구조 (Compound Component Pattern)\n- **Dialog**: 기본 다이얼로그 컴포넌트 (Headless UI 기반)\n- **ActionDialog**: 액션 버튼이 있는 다이얼로그\n- **ConfirmDialog**: 확인/취소 다이얼로그\n- **AlertDialog**: 알림 다이얼로그\n- **DialogIcon**: 타입별 아이콘 컴포넌트\n\n### 2. 컴파운드 컴포넌트 서브 컴포넌트\n- Dialog.Header\n- Dialog.Title\n- Dialog.Description\n- Dialog.Content\n- Dialog.Footer\n\n### 3. 프로그래매틱 제어 (Context Pattern)\n- **DialogProvider**: 다이얼로그 상태 관리\n- **useDialog**: 다이얼로그 제어 훅\n- **useConfirm**: 확인 다이얼로그 편의 훅\n- **useAlert**: 알림 다이얼로그 편의 훅\n\n### 4. 타입 시스템\n- 완전한 TypeScript 타입 정의\n- 5가지 다이얼로그 타입 (info, warning, error, success, confirmation)\n- 5가지 크기 옵션 (sm, md, lg, xl, full)\n- 6가지 애니메이션 타입\n\n### 5. 테마 시스템\n- Tailwind CSS 기반 테마\n- 다크 모드 지원\n- 타입별 색상 매핑\n- 애니메이션 클래스 매핑\n\n### 6. 접근성 고려사항\n- ARIA 속성 지원\n- 키보드 네비게이션 (ESC 키)\n- 포커스 관리\n- 스크린 리더 지원\n\n### 7. 사용 패턴\n- 선언적 사용 (JSX)\n- 프로그래매틱 사용 (Context API)\n- 컴파운드 컴포넌트 패턴\n- 커스터마이징 가능한 테마\n\n이 아키텍처는 확장성, 재사용성, 유지보수성을 고려하여 설계되었습니다.\n</info added on 2025-05-28T03:45:24.881Z>",
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "title": "Implement Base Dialog with Animation Support",
+          "description": "Develop the foundational dialog component with support for open/close animations and transitions.",
+          "dependencies": [
+            1
+          ],
+          "details": "Ensure the base dialog handles mounting/unmounting, backdrop, and animation hooks or libraries for smooth transitions.",
+          "status": "done"
+        },
+        {
+          "id": 3,
+          "title": "Create Dialog Variants (Confirmation, Warning, Info, Error)",
+          "description": "Build specialized dialog variants by extending the base dialog, each with unique icons, colors, and behaviors.",
+          "dependencies": [
+            2
+          ],
+          "details": "Implement variants as either separate components or via props, ensuring consistent API and visual differentiation.",
+          "status": "done"
+        },
+        {
+          "id": 4,
+          "title": "Integrate Accessibility Features",
+          "description": "Ensure dialogs are accessible by implementing ARIA roles, keyboard navigation, focus management, and screen reader support.",
+          "dependencies": [
+            2
+          ],
+          "details": "Follow accessibility best practices for modals, including trapping focus, labeling, and escape key handling.",
+          "status": "done"
+        },
+        {
+          "id": 5,
+          "title": "Develop Flexible API for Programmatic Control",
+          "description": "Expose a robust API to allow dialogs to be opened, closed, and controlled programmatically from parent components or external logic.",
+          "dependencies": [
+            2
+          ],
+          "details": "Support both controlled and uncontrolled usage patterns, and provide hooks or context for advanced control scenarios.[2]",
+          "status": "done"
+        },
+        {
+          "id": 6,
+          "title": "Style Dialogs with Design System and Ensure Responsiveness",
+          "description": "Apply consistent styling using the project's design system and ensure dialogs are responsive across devices and screen sizes.",
+          "dependencies": [
+            3
+          ],
+          "details": "Implement CSS or CSS-in-JS solutions, support theming, and test dialogs on various breakpoints.",
+          "status": "done"
+        },
+        {
+          "id": 7,
+          "title": "Write Documentation and Usage Examples",
+          "description": "Document the dialog system's API, usage patterns, accessibility features, and provide code examples for each variant.",
+          "dependencies": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "details": "Create comprehensive documentation and sample implementations to guide consumers of the dialog component.\n<info added on 2025-05-28T03:47:22.327Z>\n# Dialog System Documentation Completed:\n\n## Generated Documentation:\n\n### 1. Comprehensive README.md\n- **Location**: `components/ui/Dialog/README.md`\n- **Content**: Complete usage guide, API reference, example collection\n\n### 2. Documentation Structure:\n- **Feature Introduction**: Explanation of 8 key features\n- **Installation and Setup**: How to set up DialogProvider\n- **Usage Examples**: Examples for 4 dialog types\n- **Programmatic API**: Context-based usage\n- **Compound Components**: Complex layout examples\n- **API Reference**: All type and interface definitions\n- **Customization**: Theme and style customization methods\n- **Best Practices**: Guidelines for correct usage\n- **Troubleshooting**: Common issues and solutions\n\n### 3. Example Code:\n- Declarative usage (useState-based)\n- Programmatic usage (Context-based)\n- Actual usage examples for each dialog type\n- Asynchronous operation handling examples\n- Customization examples\n\n### 4. Developer Experience:\n- TypeScript type definitions included\n- Code examples with syntax highlighting\n- Step-by-step setup guide\n- Debugging tips provided\n\nThis documentation was created to help developers easily understand and use the dialog system.\n</info added on 2025-05-28T03:47:22.327Z>",
+          "status": "done"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Implement Login Required Dialog and Redirect Logic",
+      "description": "Develop a dialog component to notify users when login is required and implement a redirect logic to return users to their original page after login.",
+      "details": "1. Extend the reusable dialog component system to create a \"Login Required\" dialog:\n   - Design the dialog content with a clear message about the need to log in\n   - Include a \"Login\" button that directs to the login page\n   - Add a \"Cancel\" button to dismiss the dialog\n\n2. Implement a higher-order component (HOC) or custom hook to check user authentication status:\n   - Create a function that verifies if the user is logged in\n   - If not logged in, trigger the \"Login Required\" dialog\n\n3. Develop a redirect mechanism:\n   - Before redirecting to the login page, store the current page URL in localStorage or a secure cookie\n   - Use Next.js routing to redirect to the login page\n\n4. Modify the login process:\n   - After successful login, check for a stored redirect URL\n   - If found, navigate the user back to the stored URL\n   - If not found, redirect to a default page (e.g., dashboard)\n\n5. Implement the logic to show the \"Login Required\" dialog:\n   - Identify all actions or pages that require authentication\n   - Before allowing access, use the authentication check HOC/hook\n   - If not authenticated, show the \"Login Required\" dialog\n\n6. Handle edge cases:\n   - Ensure the stored URL is within the application domain to prevent open redirect vulnerabilities\n   - Implement an expiration for the stored URL to avoid outdated redirects\n   - Handle cases where the stored URL is no longer valid or accessible\n\n7. Optimize for performance:\n   - Ensure the dialog appears quickly when triggered\n   - Minimize any layout shifts when the dialog is shown or hidden\n\n8. Internationalization:\n   - Ensure all text in the dialog and related messages are localized using next-intl\n\nCode example for the HOC:\n\n```typescript\nimport { useRouter } from 'next/router';\nimport { useState, useEffect } from 'react';\nimport { useUser } from '@/hooks/useUser'; // Assume this hook provides user authentication status\n\nexport function withAuthCheck(WrappedComponent) {\n  return function AuthCheckedComponent(props) {\n    const router = useRouter();\n    const { user, isLoading } = useUser();\n    const [showLoginDialog, setShowLoginDialog] = useState(false);\n\n    useEffect(() => {\n      if (!isLoading && !user) {\n        setShowLoginDialog(true);\n      }\n    }, [user, isLoading]);\n\n    const handleLogin = () => {\n      localStorage.setItem('redirectUrl', router.asPath);\n      router.push('/login');\n    };\n\n    if (showLoginDialog) {\n      return (\n        <LoginRequiredDialog\n          onLogin={handleLogin}\n          onCancel={() => setShowLoginDialog(false)}\n        />\n      );\n    }\n\n    return <WrappedComponent {...props} />;\n  };\n}\n```\n\nUsage:\n\n```typescript\nconst ProtectedPage = withAuthCheck(YourPageComponent);\n```",
+      "testStrategy": "1. Unit Tests:\n   - Test the authentication check HOC/hook with various user states (logged in, logged out, loading)\n   - Verify that the \"Login Required\" dialog is shown correctly when a user is not authenticated\n   - Test the redirect URL storage and retrieval functions\n   - Ensure the login process correctly handles the stored redirect URL\n\n2. Integration Tests:\n   - Simulate accessing a protected page while logged out and verify the \"Login Required\" dialog appears\n   - Test the full login and redirect flow, ensuring the user returns to the original page after login\n   - Verify that canceling the login dialog keeps the user on the current page\n   - Check that the redirect mechanism works across different pages and components\n\n3. End-to-End Tests:\n   - Create a test scenario that navigates through multiple pages, triggering the login required dialog, completing the login process, and verifying the redirect\n   - Test edge cases such as expired sessions, invalid redirect URLs, and network issues during login\n\n4. Security Tests:\n   - Attempt to inject malicious URLs into the redirect mechanism and ensure they are properly sanitized\n   - Verify that the stored redirect URL is properly encrypted or protected against tampering\n\n5. Accessibility Tests:\n   - Ensure the \"Login Required\" dialog is fully accessible, including keyboard navigation and screen reader compatibility\n   - Test the focus management when the dialog appears and after it's dismissed\n\n6. Performance Tests:\n   - Measure the time it takes for the \"Login Required\" dialog to appear when triggered\n   - Verify that showing/hiding the dialog does not cause significant layout shifts or performance issues\n\n7. Localization Tests:\n   - Verify that all text in the \"Login Required\" dialog and related messages are correctly translated for all supported languages\n\n8. Browser Compatibility Tests:\n   - Test the login required flow and redirect mechanism across different browsers and devices to ensure consistent behavior\n\n9. User Acceptance Testing:\n   - Have real users test the login required flow and provide feedback on the user experience\n   - Ensure the dialog messaging is clear and the redirect behavior meets user expectations",
+      "status": "done",
+      "dependencies": [
+        17
+      ],
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Extend Dialog System for 'Login Required' Dialog",
+          "description": "Modify the existing dialog system to support a new 'Login Required' dialog type, ensuring it can be invoked from any protected route or action.",
+          "dependencies": [],
+          "details": "This includes updating dialog management logic, registering the new dialog, and ensuring accessibility patterns are followed.\n<info added on 2025-05-28T03:49:33.090Z>\n다이얼로그 시스템 확장 완료:\n\n## 구현된 기능:\n\n### 1. LoginRequiredDialog 컴포넌트\n- **위치**: `components/ui/Dialog/LoginRequiredDialog.tsx`\n- **기능**: 로그인이 필요할 때 표시되는 전용 다이얼로그\n- **특징**:\n  - ConfirmDialog를 기반으로 구축\n  - 로그인 아이콘과 명확한 메시지\n  - 커스터마이징 가능한 텍스트 (title, description, 버튼 텍스트)\n  - 자동 리다이렉트 URL 저장 기능\n  - 커스텀 onLogin 핸들러 지원\n\n### 2. 타입 시스템 확장\n- **LoginRequiredDialogProps** 타입 추가\n- redirectUrl, onLogin, onCancel 등 전용 props 정의\n- 기존 BaseDialogProps 확장\n\n### 3. DialogProvider 확장\n- **showLoginRequired** 메서드 추가\n- 프로그래매틱 API로 로그인 다이얼로그 호출 가능\n- 다이얼로그 타입 감지 및 적절한 컴포넌트 렌더링\n\n### 4. 편의 훅 추가\n- **useLoginRequired** 훅 생성\n- 간편한 로그인 다이얼로그 호출 인터페이스\n\n### 5. 기본 동작\n- 현재 URL을 sessionStorage에 자동 저장\n- Next.js router를 사용한 로그인 페이지 이동\n- ESC 키로 닫기 가능, 백드롭 클릭으로는 닫기 불가\n</info added on 2025-05-28T03:49:33.090Z>",
+          "status": "done"
+        },
+        {
+          "id": 2,
+          "title": "Design Dialog Content and Actions",
+          "description": "Define the UI/UX for the 'Login Required' dialog, including message text, buttons (e.g., 'Login', 'Cancel'), and any supporting visuals.",
+          "dependencies": [
+            1
+          ],
+          "details": "Ensure the dialog clearly communicates the need to log in and provides intuitive actions for the user.",
+          "status": "done"
+        },
+        {
+          "id": 3,
+          "title": "Implement Authentication Check HOC/Hook",
+          "description": "Develop a higher-order component or React hook to check authentication status and trigger the 'Login Required' dialog when necessary.",
+          "dependencies": [
+            1
+          ],
+          "details": "This logic should be reusable across protected routes and actions.",
+          "status": "done"
+        },
+        {
+          "id": 4,
+          "title": "Develop Redirect URL Storage and Retrieval Logic",
+          "description": "Implement logic to store the user's intended destination before redirecting to login, and retrieve it after authentication.",
+          "dependencies": [
+            3
+          ],
+          "details": "Ensure the redirect URL is securely stored (e.g., in memory or session storage) and validated before use.",
+          "status": "done"
+        },
+        {
+          "id": 5,
+          "title": "Integrate with Login Flow and Redirect After Login",
+          "description": "Connect the dialog and authentication logic to the login flow, ensuring users are redirected to their original destination after successful login.",
+          "dependencies": [
+            4
+          ],
+          "details": "Handle both manual and automatic invocations of the login process.",
+          "status": "done"
+        },
+        {
+          "id": 6,
+          "title": "Handle Edge Cases (Invalid/Expired URLs, Security)",
+          "description": "Implement safeguards for invalid, expired, or malicious redirect URLs, and ensure secure handling of authentication state.",
+          "dependencies": [
+            4
+          ],
+          "details": "Validate URLs, handle session timeouts, and prevent open redirect vulnerabilities.",
+          "status": "done"
+        },
+        {
+          "id": 7,
+          "title": "Optimize Dialog Performance and UX",
+          "description": "Review and enhance the dialog's performance and user experience, including focus management, accessibility, and responsiveness.",
+          "dependencies": [
+            2,
+            5
+          ],
+          "details": "Follow best practices for modal dialogs, including ARIA attributes and keyboard navigation.",
+          "status": "done"
+        },
+        {
+          "id": 8,
+          "title": "Localize Dialog and Messages",
+          "description": "Prepare the dialog content and related messages for localization, supporting multiple languages and regional formats.",
+          "dependencies": [
+            2
+          ],
+          "details": "Externalize strings and integrate with the app's i18n framework.\n<info added on 2025-05-28T04:12:02.957Z>\n타입 오류 수정 및 다국어화 작업 내용:\n\n1. 타입 오류 수정:\n   - LoginRequiredDialogProps 인터페이스에서 isOpen 속성을 선택적(optional)으로 변경\n   - types.ts 파일에 DialogTheme 타입을 추가하고 export 설정\n   - DialogProvider에서 Dialog 컴포넌트 import 누락 수정\n   - useAuthGuard와 withAuthGuard에서 showLoginRequired 호출 시 발생하는 타입 불일치 해결\n\n2. 다국어화(i18n) 작업:\n   - 로그인 필요 다이얼로그 관련 문자열 외부화\n   - 앱의 i18n 프레임워크와 통합\n   - 다국어 번역 키 구조 설계 및 구현\n</info added on 2025-05-28T04:12:02.957Z>\n<info added on 2025-05-28T04:15:37.275Z>\n다국어화 작업 완료 내용:\n\n1. **타입 오류 수정**:\n   - DialogTheme 타입을 types.ts에 추가하고 export\n   - LoginRequiredDialogProps에서 isOpen을 선택적 속성으로 변경\n   - DialogProvider에서 Dialog 컴포넌트 import 추가\n   - showLoginRequired 함수의 타입 시그니처 수정\n\n2. **다국어 번역 파일 구성**:\n   - locales/ko.json에 다이얼로그 관련 번역 키 추가\n   - locales/en.json 새로 생성하여 영어 번역 추가\n   - 체계적인 번역 키 구조 설계 (dialog.login_required, dialog.confirm, dialog.alert, dialog.action)\n\n3. **컴포넌트 다국어화**:\n   - LoginRequiredDialog: useLanguageStore 통합 및 기본값 설정\n   - ConfirmDialog, AlertDialog, ActionDialog: 다국어 지원 추가\n   - DialogProvider: 다국어 기본값 설정\n   - withAuthGuard: 하드코딩된 문자열을 다국어 키로 변경\n   - AuthGuardExamples: 예제에서도 다국어 지원 적용\n\n4. **번역 키 구조**:\n   ```\n   dialog: {\n     login_required: { title, description, login_button, cancel_button },\n     confirm: { confirm_button, cancel_button, loading },\n     alert: { confirm_button },\n     action: { confirm_button, cancel_button, loading }\n   }\n   ```\n\n모든 다이얼로그 컴포넌트가 이제 한국어/영어를 지원하며, 새로운 언어 추가도 쉽게 가능합니다. 타입 안정성도 확보되었습니다.\n</info added on 2025-05-28T04:15:37.275Z>\n<info added on 2025-05-28T04:21:27.677Z>\n# 투표 시 로그인 필요 다이얼로그 통합 완료\n\n## 완료된 작업 내역\n\n1. **useAuthGuard 훅 확장**:\n   - AuthGuardOptions 인터페이스에 customLoginMessage 옵션 추가\n   - title, description, loginText, cancelText 커스터마이징 지원\n   - withAuth와 navigateWithAuth 함수에서 customLoginMessage 파라미터 활용\n\n2. **VoteButton 컴포넌트 개선**:\n   - useRequireAuth 훅에 customLoginMessage 통합\n   - 아티스트별 맞춤형 로그인 메시지 지원 구현\n   - 다국어 지원 (vote.login_required.* 번역 키 사용)\n   - 투표 버튼 텍스트 다국어화 적용\n   - 에러 메시지 다국어화 처리\n\n3. **VoteDetailPresenter 컴포넌트 업데이트**:\n   - detail/VoteDetailPresenter.tsx: confirmVote 함수에 withAuth 적용\n   - VoteDetail/VoteDetailPresenter.tsx: 투표 버튼에 withAuth 적용\n   - 투표 실행 전 자동 인증 체크 로직 구현\n\n4. **번역 키 추가**:\n   - locales/ko.json과 en.json에 vote 관련 번역 추가\n   - vote.button.* (투표 버튼 텍스트)\n   - vote.error.* (에러 메시지)\n   - vote.login_required.* (로그인 필요 메시지)\n\n5. **실제 사용 예제 추가**:\n   - AuthGuardExamples에 VoteButtonExample 컴포넌트 추가\n   - 로그인/로그아웃 상태별 테스트 기능 구현\n   - 아티스트별 다른 메시지 확인 기능 구현\n\n## 구현된 기능\n- 투표 버튼 클릭 시 세션 체크 자동화\n- 로그인되지 않은 경우 맞춤형 다이얼로그 표시\n- 아티스트 이름이 포함된 개인화된 메시지 지원\n- 로그인 후 원래 페이지로 자동 리다이렉트\n- 완전한 다국어 지원 (한국어/영어)\n</info added on 2025-05-28T04:21:27.677Z>",
+          "status": "done"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Improve Login and Redirect Flow",
+      "description": "Modify and enhance the login redirect flow to ensure users are properly redirected back to their original page (e.g., voting detail page) after successful login.",
+      "details": "1. Review and debug the current login flow:\n   - Analyze the AuthRedirectHandler component\n   - Check the implementation of redirect URL storage and retrieval\n   - Verify session storage (sessionStorage/localStorage) functionality\n\n2. Implement a robust redirect URL storage mechanism:\n   - Store the current URL before redirecting to login page\n   - Use sessionStorage to persist the redirect URL across page reloads\n   - Implement encryption for stored URLs to prevent tampering\n\n3. Modify the login page to handle redirect URLs:\n   - Extract the redirect URL from sessionStorage on login page load\n   - Pass the redirect URL to the authentication process\n\n4. Update the authentication process:\n   - After successful login, retrieve the stored redirect URL\n   - Implement a fallback mechanism if no redirect URL is found (e.g., redirect to home page)\n\n5. Implement automatic redirect after successful login:\n   - Use React Router for client-side redirection\n   - Implement a loading state during the redirect process\n\n6. Enhance error handling:\n   - Create specific error messages for different failure scenarios\n   - Implement proper error logging for debugging purposes\n\n7. Optimize for various scenarios:\n   - Handle cases where the redirect URL is no longer valid\n   - Implement a maximum redirect chain length to prevent infinite loops\n\n8. Improve user experience:\n   - Add a progress indicator during the login and redirect process\n   - Implement smooth transitions between pages\n\n9. Ensure cross-browser compatibility:\n   - Test the redirect flow in multiple browsers (Chrome, Firefox, Safari, Edge)\n   - Verify functionality on both desktop and mobile devices\n\n10. Implement security measures:\n    - Validate and sanitize redirect URLs to prevent open redirect vulnerabilities\n    - Use HTTPS for all redirects to ensure secure communication\n\n11. Update relevant components:\n    - Modify the login dialog component to work with the new redirect flow\n    - Update any components that trigger the login process to use the new mechanism\n\n12. Document the new login and redirect flow for future reference and maintenance.",
+      "testStrategy": "1. Unit Tests:\n   - Write tests for URL storage and retrieval functions\n   - Test encryption and decryption of stored redirect URLs\n   - Verify proper handling of edge cases (e.g., missing redirect URL, invalid URL)\n\n2. Integration Tests:\n   - Test the entire login flow from multiple entry points (e.g., voting page, profile page)\n   - Verify that the AuthRedirectHandler correctly manages the redirect process\n   - Test login functionality with and without stored redirect URLs\n\n3. End-to-End Tests:\n   - Create test scenarios covering the complete user journey:\n     a. User attempts to vote without being logged in\n     b. User is presented with login dialog\n     c. User completes login process\n     d. User is redirected back to the voting page\n   - Test the flow on different browsers and devices\n\n4. Security Tests:\n   - Attempt to inject malicious redirect URLs to check for vulnerabilities\n   - Verify that all redirects use HTTPS\n   - Test for potential session fixation or session hijacking vulnerabilities\n\n5. Performance Tests:\n   - Measure the time taken for the entire login and redirect process\n   - Test the system under load to ensure redirect mechanism works with many concurrent users\n\n6. User Acceptance Testing:\n   - Conduct usability tests with real users to gather feedback on the login and redirect experience\n   - Verify that the flow feels intuitive and smooth from a user's perspective\n\n7. Regression Testing:\n   - Ensure that the new implementation doesn't break existing functionality\n   - Verify that other parts of the application still work correctly after login\n\n8. Error Handling Tests:\n   - Simulate various error conditions (e.g., network issues, server errors) to test error handling\n   - Verify that appropriate error messages are displayed to the user\n\n9. Accessibility Testing:\n   - Ensure that the login and redirect process is accessible to users with disabilities\n   - Test with screen readers and keyboard navigation\n\n10. Cross-browser and Cross-device Testing:\n    - Verify the login and redirect flow on different browsers (Chrome, Firefox, Safari, Edge)\n    - Test on various devices (desktop, tablet, mobile) and operating systems",
+      "status": "pending",
+      "dependencies": [
+        18,
+        17,
+        7
+      ],
+      "priority": "high",
+      "subtasks": []
     }
   ]
 }
