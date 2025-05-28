@@ -18,6 +18,32 @@ import {
  * Apple OAuth 설정
  */
 export function getAppleConfig(): OAuthProviderConfig {
+  // 환경에 따른 기본 URL 설정
+  const getBaseUrl = () => {
+    // 개발 환경에서는 환경변수 우선 사용
+    if (process.env.NODE_ENV === "development") {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      if (siteUrl) {
+        return siteUrl;
+      }
+      // 환경변수가 없으면 기본 개발 URL
+      return "http://localhost:3100";
+    }
+
+    // 프로덕션 환경
+    if (typeof window !== "undefined") {
+      return window.location.origin;
+    }
+
+    // 서버 사이드에서는 환경 변수 또는 기본값 사용
+    if (process.env.NEXT_PUBLIC_SITE_URL) {
+      return process.env.NEXT_PUBLIC_SITE_URL;
+    }
+
+    // 프로덕션 기본값
+    return "https://www.picnic.fan";
+  };
+
   return {
     clientId: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || "",
     clientSecretEnvKey: "APPLE_CLIENT_SECRET",
@@ -37,12 +63,8 @@ export function getAppleConfig(): OAuthProviderConfig {
       teamId: process.env.APPLE_TEAM_ID || "",
       // 키 ID (Apple Developer Console에서 생성한 프라이빗 키의 ID)
       keyId: process.env.APPLE_KEY_ID || "",
-      // 리디렉션 URI 설정
-      redirectUri: `${
-        typeof window !== "undefined"
-          ? window.location.origin
-          : process.env.NEXT_PUBLIC_SITE_URL || "https://www.picnic.fan"
-      }/api/auth/apple`,
+      // 리디렉션 URI 설정 - 환경에 따라 동적으로 설정
+      redirectUri: `${getBaseUrl()}/api/auth/apple`,
     },
   };
 }
@@ -74,11 +96,18 @@ export async function signInWithAppleImpl(
 
     // 표준 Supabase OAuth 사용
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
+      provider: "apple",
       options: {
-        scopes: scopes.join(' '),
+        scopes: scopes.join(" "),
         redirectTo: `${window.location.origin}/auth/callback`,
-      }
+      },
+    });
+
+    console.log("🍎 Apple OAuth 설정:", {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      currentOrigin: window.location.origin,
+      nodeEnv: process.env.NODE_ENV,
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
     });
 
     if (error) {

@@ -15,21 +15,27 @@ import {
 export const dynamic = "force-dynamic"; // POST 요청이므로 항상 동적으로 처리
 
 /**
- * Google OAuth 로그인 시작 (GET)
+ * Google OAuth 시작 API (GET)
  *
- * 이 API는 Google OAuth 로그인을 시작하기 위해 Supabase의 signInWithOAuth를 사용합니다.
+ * 이 API는 Google OAuth 로그인 프로세스를 시작합니다.
+ * Supabase의 signInWithOAuth를 사용하여 Google OAuth URL을 생성하고
+ * 클라이언트를 해당 URL로 리다이렉트합니다.
  */
 export async function GET(request: NextRequest) {
   try {
-    // 클라이언트 측 Supabase 클라이언트 생성
+    // 서버 측 Supabase 클라이언트 생성
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
+    // 현재 호스트를 동적으로 감지하여 리다이렉트 URL 생성
+    const host = request.headers.get("host") || "localhost:3000";
+    const protocol = host.includes("localhost") ? "http" : "https";
+    const baseUrl = `${protocol}://${host}`;
+
     // 리다이렉트 URL 설정
-    const redirectTo =
-      `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback/google`;
+    const redirectTo = `${baseUrl}/auth/callback/google`;
 
     // Supabase를 통한 Google OAuth 로그인 시작
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -126,8 +132,12 @@ export async function POST(request: NextRequest) {
       // 클라이언트 ID와 시크릿이 환경 변수에 설정되어 있어야 함
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      const redirectUri =
-        `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback/google`;
+
+      // 현재 호스트를 동적으로 감지하여 리다이렉트 URL 생성
+      const host = request.headers.get("host") || "localhost:3000";
+      const protocol = host.includes("localhost") ? "http" : "https";
+      const baseUrl = `${protocol}://${host}`;
+      const redirectUri = `${baseUrl}/auth/callback/google`;
 
       if (!clientId || !clientSecret) {
         throw new SocialAuthError(
