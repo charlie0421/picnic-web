@@ -2,41 +2,35 @@ import React from 'react';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '@/lib/supabase/auth-provider';
 import '@testing-library/jest-dom';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 // Mock the client module
-jest.mock('@/lib/supabase/client', () => {
-  const mockSupabaseClient = {
-    auth: {
-      getSession: jest.fn(() =>
-        Promise.resolve({
-          data: { session: null },
-          error: null,
-        }),
-      ),
-      onAuthStateChange: jest.fn(() => ({
-        data: { subscription: { unsubscribe: jest.fn() } },
-      })),
-      signInWithPassword: jest.fn(() => Promise.resolve({ error: null })),
-      signInWithOAuth: jest.fn(() => Promise.resolve({ error: null })),
-      signUp: jest.fn(() =>
-        Promise.resolve({ error: null, data: { user: { id: 'new-user-id' } } }),
-      ),
-      signOut: jest.fn(() => Promise.resolve({ error: null })),
-    },
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-          single: jest.fn(() => Promise.resolve({ data: null, error: null })),
-        })),
+jest.mock('@/lib/supabase/client');
+
+const mockSupabase = {
+  auth: {
+    getSession: jest.fn(),
+    onAuthStateChange: jest.fn(() => ({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    })),
+    signInWithPassword: jest.fn(),
+    signInWithOAuth: jest.fn(),
+    signUp: jest.fn(),
+    refreshSession: jest.fn(),
+  },
+  from: jest.fn(() => ({
+    select: jest.fn(() => ({
+      eq: jest.fn(() => ({
+        single: jest.fn(),
       })),
     })),
-  };
+    update: jest.fn(() => ({
+      eq: jest.fn(),
+    })),
+  })),
+};
 
-  return {
-    createBrowserSupabaseClient: jest.fn(() => mockSupabaseClient),
-    signOut: jest.fn(() => Promise.resolve({ success: true })),
-  };
-});
+(createBrowserSupabaseClient as jest.Mock).mockReturnValue(mockSupabase);
 
 // Test component that uses the auth hook
 const TestComponent = () => {
@@ -81,6 +75,8 @@ const TestComponent = () => {
 describe('AuthProvider', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.clearAllTimers();
+    jest.useFakeTimers();
 
     // Mock localStorage for tests
     Object.defineProperty(window, 'localStorage', {
@@ -91,6 +87,11 @@ describe('AuthProvider', () => {
       },
       writable: true,
     });
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
   });
 
   it('should render children and initialize auth state', async () => {
@@ -339,5 +340,249 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('user-info')).toHaveTextContent(
       'User ID: initial-session-user-id',
     );
+  });
+
+  test('프로필 조회 타임아웃 시 기본 프로필 생성', async () => {
+    const testUser = {
+      id: 'test-user-id',
+      email: 'test@example.com',
+      aud: 'authenticated',
+      role: 'authenticated',
+      created_at: '2023-01-01T00:00:00Z',
+      app_metadata: {},
+      user_metadata: {},
+    };
+
+    const testSession = {
+      access_token: 'test-access-token',
+      refresh_token: 'test-refresh-token',
+      expires_in: 3600,
+      expires_at: Date.now() / 1000 + 3600,
+      token_type: 'bearer',
+      user: testUser,
+    };
+
+    // getSession은 성공하지만 프로필 조회는 타임아웃
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: testSession },
+      error: null,
+    });
+
+    // 프로필 조회가 5초 이상 걸리도록 설정
+    const profileQuery = mockSupabase.from().select().eq().single;
+    profileQuery.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({ data: null, error: null }), 6000))
+    );
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    // 5초 경과 (프로필 조회 타임아웃)
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-status')).toHaveTextContent('Not Loading');
+    });
+
+    // 인증 상태는 유지되어야 함
+    expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
+    expect(screen.getByTestId('user-info')).toHaveTextContent('User ID: test-user-id');
+  });
+
+  test('세션 조회 타임아웃 시 비로그인 상태로 정상 초기화', async () => {
+    // getSession이 5초 이상 걸리도록 설정
+    mockSupabase.auth.getSession.mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve({ data: { session: null }, error: null }), 6000))
+    );
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    // 5초 경과 (강제 초기화 완료)
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-status')).toHaveTextContent('Not Loading');
+    });
+
+    // 비로그인 상태로 초기화되어야 함
+    expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
+    expect(screen.getByTestId('user-info')).toHaveTextContent('No User');
+  });
+
+  test('프로필 조회 에러 시 기본 프로필 생성', async () => {
+    const testUser = {
+      id: 'test-user-id',
+      email: 'test@example.com',
+      aud: 'authenticated',
+      role: 'authenticated',
+      created_at: '2023-01-01T00:00:00Z',
+      app_metadata: {},
+      user_metadata: {},
+    };
+
+    const testSession = {
+      access_token: 'test-access-token',
+      refresh_token: 'test-refresh-token',
+      expires_in: 3600,
+      expires_at: Date.now() / 1000 + 3600,
+      token_type: 'bearer',
+      user: testUser,
+    };
+
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: testSession },
+      error: null,
+    });
+
+    // 프로필 조회에서 에러 발생
+    const profileQuery = mockSupabase.from().select().eq().single;
+    profileQuery.mockResolvedValue({
+      data: null,
+      error: { message: 'Database connection failed', code: 'PGRST301' },
+    });
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-status')).toHaveTextContent('Not Loading');
+    });
+
+    // 인증 상태는 유지되어야 함
+    expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
+    expect(screen.getByTestId('user-info')).toHaveTextContent('User ID: test-user-id');
+  });
+
+  test('네트워크 예외 시 기본 프로필 생성', async () => {
+    const testUser = {
+      id: 'test-user-id',
+      email: 'test@example.com',
+      aud: 'authenticated',
+      role: 'authenticated',
+      created_at: '2023-01-01T00:00:00Z',
+      app_metadata: {},
+      user_metadata: {},
+    };
+
+    const testSession = {
+      access_token: 'test-access-token',
+      refresh_token: 'test-refresh-token',
+      expires_in: 3600,
+      expires_at: Date.now() / 1000 + 3600,
+      token_type: 'bearer',
+      user: testUser,
+    };
+
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: testSession },
+      error: null,
+    });
+
+    // 프로필 조회에서 네트워크 예외 발생
+    const profileQuery = mockSupabase.from().select().eq().single;
+    profileQuery.mockRejectedValue(new Error('Network error'));
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-status')).toHaveTextContent('Not Loading');
+    });
+
+    // 인증 상태는 유지되어야 함
+    expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
+    expect(screen.getByTestId('user-info')).toHaveTextContent('User ID: test-user-id');
+  });
+
+  test('정상적인 프로필 조회 시 캐시 저장', async () => {
+    const testUser = {
+      id: 'test-user-id',
+      email: 'test@example.com',
+      aud: 'authenticated',
+      role: 'authenticated',
+      created_at: '2023-01-01T00:00:00Z',
+      app_metadata: {},
+      user_metadata: {},
+    };
+
+    const testSession = {
+      access_token: 'test-access-token',
+      refresh_token: 'test-refresh-token',
+      expires_in: 3600,
+      expires_at: Date.now() / 1000 + 3600,
+      token_type: 'bearer',
+      user: testUser,
+    };
+
+    const testProfile = {
+      id: 'test-user-id',
+      email: 'test@example.com',
+      nickname: 'testuser',
+      avatar_url: null,
+      is_admin: false,
+      created_at: '2023-01-01T00:00:00Z',
+      updated_at: '2023-01-01T00:00:00Z',
+      deleted_at: null,
+      birth_date: null,
+      birth_time: null,
+      gender: null,
+      open_ages: false,
+      open_gender: false,
+      star_candy: 100,
+      star_candy_bonus: 0,
+    };
+
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: testSession },
+      error: null,
+    });
+
+    // 정상적인 프로필 조회
+    const profileQuery = mockSupabase.from().select().eq().single;
+    profileQuery.mockResolvedValue({
+      data: testProfile,
+      error: null,
+    });
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-status')).toHaveTextContent('Not Loading');
+    });
+
+    // 인증 상태와 프로필이 정상적으로 로드되어야 함
+    expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
+    expect(screen.getByTestId('user-info')).toHaveTextContent('User ID: test-user-id');
   });
 });

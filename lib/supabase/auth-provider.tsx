@@ -85,7 +85,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
 
         console.log('[AuthProvider] 프로필 DB 조회 시작');
 
-        // 프로필 조회에 타임아웃 설정
+        // 프로필 조회에 타임아웃 설정 (5초로 증가)
         const profilePromise = supabase
           .from('user_profiles')
           .select('*')
@@ -93,7 +93,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
           .single();
 
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('프로필 조회 타임아웃')), 2000);
+          setTimeout(() => reject(new Error('프로필 조회 타임아웃')), 5000);
         });
 
         const { data, error } = (await Promise.race([
@@ -103,12 +103,15 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
 
         if (error) {
           console.warn('[AuthProvider] 사용자 프로필 조회 오류:', error);
-          // 프로필이 없으면 기본 정보로 빈 프로필 생성
+          // 프로필이 없거나 타임아웃이어도 기본 정보로 빈 프로필 생성
           if (currentSession?.user?.id === userId) {
+            const email = currentSession.user.email || null;
+            const defaultNickname = email ? email.split('@')[0] : `user_${userId.slice(-8)}`;
+            
             const defaultProfile: UserProfiles = {
               id: userId,
-              email: currentSession.user.email || null,
-              nickname: null,
+              email: email,
+              nickname: defaultNickname,
               avatar_url: null,
               is_admin: false,
               created_at: new Date().toISOString(),
@@ -123,7 +126,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
               star_candy_bonus: 0,
             };
 
-            console.log('[AuthProvider] 기본 프로필 생성');
+            console.log('[AuthProvider] 기본 프로필 생성 (에러 발생으로 인해)');
             profileCache.set(userId, {
               profile: defaultProfile,
               timestamp: now,
@@ -145,10 +148,76 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
           return profile;
         }
 
+        // 데이터가 없는 경우에도 기본 프로필 생성
+        if (currentSession?.user?.id === userId) {
+          const email = currentSession.user.email || null;
+          const defaultNickname = email ? email.split('@')[0] : `user_${userId.slice(-8)}`;
+          
+          const defaultProfile: UserProfiles = {
+            id: userId,
+            email: email,
+            nickname: defaultNickname,
+            avatar_url: null,
+            is_admin: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            deleted_at: null,
+            birth_date: null,
+            birth_time: null,
+            gender: null,
+            open_ages: false,
+            open_gender: false,
+            star_candy: 0,
+            star_candy_bonus: 0,
+          };
+
+          console.log('[AuthProvider] 기본 프로필 생성 (데이터 없음)');
+          profileCache.set(userId, {
+            profile: defaultProfile,
+            timestamp: now,
+          });
+          setUserProfile(defaultProfile);
+          return defaultProfile;
+        }
+
         setUserProfile(null);
         return null;
       } catch (error) {
         console.error('[AuthProvider] 사용자 프로필 조회 중 예외:', error);
+        
+        // 예외 발생 시에도 기본 프로필 생성 시도
+        if (currentSession?.user?.id === userId) {
+          const email = currentSession.user.email || null;
+          const defaultNickname = email ? email.split('@')[0] : `user_${userId.slice(-8)}`;
+          
+          const defaultProfile: UserProfiles = {
+            id: userId,
+            email: email,
+            nickname: defaultNickname,
+            avatar_url: null,
+            is_admin: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            deleted_at: null,
+            birth_date: null,
+            birth_time: null,
+            gender: null,
+            open_ages: false,
+            open_gender: false,
+            star_candy: 0,
+            star_candy_bonus: 0,
+          };
+
+          console.log('[AuthProvider] 예외 발생으로 인한 기본 프로필 생성');
+          const now = Date.now();
+          profileCache.set(userId, {
+            profile: defaultProfile,
+            timestamp: now,
+          });
+          setUserProfile(defaultProfile);
+          return defaultProfile;
+        }
+        
         setUserProfile(null);
         return null;
       }
@@ -172,7 +241,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
         setUser(newSession?.user ?? null);
         setIsAuthenticated(!!newSession?.user);
 
-        console.log('📊 [AuthProvider] 상태 업데이트 완료:', {
+        console.log('✅ [AuthProvider] 상태 업데이트 완료:', {
           isAuthenticated: !!newSession?.user,
           hasUser: !!newSession?.user,
           userId: newSession?.user?.id,
@@ -197,6 +266,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
               profileError,
             );
             // 프로필 로드 실패해도 인증 상태는 유지
+            // 기본 프로필이 fetchUserProfile 내에서 이미 생성됨
           }
         } else {
           console.log('🚫 [AuthProvider] 세션 없음 - 프로필 초기화');
@@ -204,7 +274,17 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
         }
       } catch (error) {
         console.error('❌ [AuthProvider] 세션 처리 중 오류:', error);
-        setError(error instanceof Error ? error.message : '세션 처리 오류');
+        // 세션 처리 중 오류가 발생해도 기본적인 인증 상태는 유지
+        if (newSession?.user) {
+          console.log('🔧 [AuthProvider] 세션 처리 오류 복구 - 기본 상태 유지');
+          setSession(newSession);
+          setUser(newSession.user);
+          setIsAuthenticated(true);
+          // 에러는 로그만 남기고 사용자에게는 표시하지 않음
+          setError(null);
+        } else {
+          setError(error instanceof Error ? error.message : '세션 처리 오류');
+        }
       } finally {
         console.log('🏁 [AuthProvider] 세션 처리 완료');
         setIsLoading(false);
@@ -231,7 +311,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
         // 현재 세션 가져오기 (타임아웃 설정)
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('세션 조회 타임아웃')), 3000);
+          setTimeout(() => reject(new Error('세션 조회 타임아웃')), 5000);
         });
 
         const {
@@ -260,7 +340,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
       }
     };
 
-    // 2초 후에도 초기화가 완료되지 않으면 강제로 완료 처리
+    // 5초 후에도 초기화가 완료되지 않으면 강제로 완료 처리
     initTimeout = setTimeout(() => {
       if (isMounted && !isInitialized) {
         console.warn('[AuthProvider] 초기화 타임아웃 - 강제 완료 처리');
@@ -268,7 +348,7 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
         setIsInitialized(true);
         setError(null); // 타임아웃 오류는 사용자에게 표시하지 않음
       }
-    }, 2000); // 5초에서 2초로 단축
+    }, 5000); // 2초에서 5초로 변경
 
     initializeAuth();
 
