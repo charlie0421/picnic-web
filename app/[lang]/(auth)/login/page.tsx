@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/utils/supabase-client';
 import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import Script from 'next/script';
 import { SocialLoginButtons } from '@/components/client/auth';
@@ -54,6 +54,7 @@ const debugLog = (message: string, data?: any) => {
 // SearchParams를 사용하는 컴포넌트
 function LoginContentInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { t } = useLanguageStore();
   const {
     isLoading,
@@ -102,10 +103,11 @@ function LoginContentInner() {
 
       // 현재 페이지가 로그인 페이지이고 리다이렉트 URL이 다른 경우에만 이동
       if (targetUrl !== '/login') {
-        window.location.href = targetUrl;
+        // Next.js 라우터 사용 (SPA 경험 향상)
+        router.push(targetUrl);
       }
     }
-  }, [mounted, isAuthenticated, isInitialized, isLoading]);
+  }, [mounted, isAuthenticated, isInitialized, isLoading, router]);
 
   // 오류 파라미터 처리
   useEffect(() => {
@@ -178,7 +180,7 @@ function LoginContentInner() {
 
               // 리다이렉트 처리
               const targetUrl = handlePostLoginRedirect();
-              window.location.href = targetUrl;
+              router.push(targetUrl);
               return;
             }
 
@@ -211,7 +213,7 @@ function LoginContentInner() {
               setError('Apple 로그인이 성공적으로 완료되었습니다!');
               setTimeout(() => {
                 const targetUrl = handlePostLoginRedirect();
-                window.location.href = targetUrl;
+                router.push(targetUrl);
               }, 1000);
               return;
             } else {
@@ -281,7 +283,7 @@ function LoginContentInner() {
     };
 
     checkAppleAuthSuccess();
-  }, [mounted]);
+  }, [mounted, router]);
 
   // 오류 파라미터 처리
   useEffect(() => {
@@ -370,7 +372,7 @@ function LoginContentInner() {
         window.history.replaceState({}, document.title, url.toString());
       }
     }
-  }, [mounted, searchParams]);
+  }, [mounted, searchParams, router]);
 
   // 클라이언트에서 마운트되지 않았으면 로딩 표시
   if (!mounted) {

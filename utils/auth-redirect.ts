@@ -154,6 +154,12 @@ export function clearRedirectUrl(): void {
         sessionStorage.removeItem(REDIRECT_TIMESTAMP_KEY);
         localStorage.removeItem(LOGIN_REDIRECT_KEY);
         localStorage.removeItem(REDIRECT_TIMESTAMP_KEY);
+
+        // 추가로 다른 키 패턴들도 정리
+        sessionStorage.removeItem("auth_redirect_url");
+        sessionStorage.removeItem("auth_redirect_timestamp");
+        localStorage.removeItem("auth_redirect_url");
+        localStorage.removeItem("auth_redirect_timestamp");
     } catch (error) {
         console.warn("리다이렉트 URL 제거 실패:", error);
     }
@@ -279,3 +285,51 @@ export const securityUtils = {
         );
     },
 };
+
+/**
+ * 로그아웃 시 모든 인증 관련 데이터를 완전히 정리합니다.
+ */
+export function clearAllAuthData(): void {
+    try {
+        // 리다이렉트 URL 정리
+        clearRedirectUrl();
+
+        // sessionStorage에서 인증 관련 모든 데이터 제거
+        const sessionKeysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (
+                key && (
+                    key.includes("auth") ||
+                    key.includes("redirect") ||
+                    key.includes("supabase") ||
+                    key.includes("login")
+                )
+            ) {
+                sessionKeysToRemove.push(key);
+            }
+        }
+        sessionKeysToRemove.forEach((key) => sessionStorage.removeItem(key));
+
+        // localStorage에서 인증 관련 모든 데이터 제거
+        const localKeysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (
+                key && (
+                    key.includes("auth") ||
+                    key.includes("redirect") ||
+                    key.includes("supabase") ||
+                    key.includes("login")
+                )
+            ) {
+                localKeysToRemove.push(key);
+            }
+        }
+        localKeysToRemove.forEach((key) => localStorage.removeItem(key));
+
+        console.log("모든 인증 관련 데이터가 정리되었습니다.");
+    } catch (error) {
+        console.warn("인증 데이터 정리 실패:", error);
+    }
+}

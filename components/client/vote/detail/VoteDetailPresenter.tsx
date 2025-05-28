@@ -198,14 +198,40 @@ export function VoteDetailPresenter({
 
   // 투표 확인 팝업 열기
   const handleCardClick = async (item: VoteItem) => {
-    if (!canVote) return;
+    console.log('🎯 handleCardClick 시작:', {
+      canVote,
+      itemId: item.id,
+      artistId: item.artist_id,
+      groupId: item.group_id,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (!canVote) {
+      console.log('❌ canVote가 false - 투표 불가능');
+      return;
+    }
+
+    console.log('🔐 withAuth 호출 시작...');
 
     // 인증이 필요한 투표 액션을 실행
-    await withAuth(async () => {
+    const result = await withAuth(async () => {
+      console.log('✅ withAuth 내부 - 인증 성공, 투표 다이얼로그 표시');
+      // 인증된 사용자만 여기에 도달
       setVoteCandidate(item);
       setVoteAmount(1); // 투표량 초기화
       setShowVoteModal(true);
+      return true;
     });
+
+    console.log('🔍 withAuth 결과:', result);
+
+    // withAuth가 null을 반환하면 인증 실패 (로그인 다이얼로그 표시됨)
+    // 인증 성공 시에만 result가 true가 됨
+    if (!result) {
+      console.log('❌ 인증 실패 - 투표 다이얼로그 표시하지 않음');
+    } else {
+      console.log('✅ 인증 성공 - 투표 다이얼로그가 표시되어야 함');
+    }
   };
 
   // 투표 확인
@@ -214,7 +240,7 @@ export function VoteDetailPresenter({
       return;
 
     // 인증이 필요한 투표 액션을 실행
-    await withAuth(async () => {
+    const result = await withAuth(async () => {
       setIsVoting(true);
       setShowVoteModal(false);
       try {
@@ -243,7 +269,14 @@ export function VoteDetailPresenter({
         setVoteCandidate(null);
         setVoteAmount(1);
       }
+      return true;
     });
+
+    // 인증 실패 시 투표 다이얼로그 유지
+    if (!result) {
+      console.log('투표 인증 실패 - 다이얼로그 유지');
+      // 투표 다이얼로그는 열린 상태로 유지
+    }
   };
 
   // 투표 취소

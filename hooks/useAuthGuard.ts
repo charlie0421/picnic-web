@@ -38,18 +38,29 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
     // 인증 체크 함수
     const checkAuth = useCallback(async (): Promise<boolean> => {
         try {
+            console.log("🔍 checkAuth 시작:", {
+                isLoading,
+                requireAuth,
+                isAuthenticated,
+                userId: user?.id,
+                timestamp: new Date().toISOString(),
+            });
+
             // 로딩 중이면 대기
             if (isLoading) {
+                console.log("⏳ 로딩 중 - 인증 체크 대기");
                 return false;
             }
 
             // 인증이 필요하지 않은 경우
             if (!requireAuth) {
+                console.log("✅ 인증 불필요 - 통과");
                 return true;
             }
 
             // 보안 검증
             if (!securityUtils.validateUserAgent()) {
+                console.log("🚫 보안 검증 실패 - 의심스러운 사용자 에이전트");
                 const error = new Error(
                     "보안 검증 실패: 의심스러운 사용자 에이전트",
                 );
@@ -57,13 +68,46 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                 return false;
             }
 
+            // 인증 상태 엄격 체크
+            const hasValidAuth = isAuthenticated && user && user.id;
+
+            console.log("🔐 인증 상태 체크:", {
+                isAuthenticated,
+                hasUser: !!user,
+                userId: user?.id,
+                hasValidAuth,
+            });
+
+            // 로컬 스토리지의 잘못된 인증 데이터 정리
+            if (!hasValidAuth) {
+                console.log("🧹 잘못된 인증 데이터 정리 시작");
+                try {
+                    // 인증되지 않았는데 남아있는 인증 관련 데이터 정리
+                    const authKeys = [
+                        "auth_success",
+                        "auth_provider",
+                        "auth_timestamp",
+                    ];
+                    authKeys.forEach((key) => {
+                        if (localStorage.getItem(key)) {
+                            localStorage.removeItem(key);
+                            console.log(`🗑️ 잘못된 인증 데이터 정리: ${key}`);
+                        }
+                    });
+                } catch (e) {
+                    console.warn("로컬 스토리지 정리 중 오류:", e);
+                }
+            }
+
             // 인증된 경우
-            if (isAuthenticated && user) {
+            if (hasValidAuth) {
+                console.log("✅ 인증 성공");
                 onAuthSuccess?.();
                 return true;
             }
 
             // 인증되지 않은 경우
+            console.log("❌ 인증 실패 - 로그인 필요");
             const targetUrl = redirectUrl || pathname;
 
             // URL 보안 검증
@@ -100,13 +144,25 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
         customRedirectUrl?: string,
     ): Promise<T | null> => {
         try {
+            console.log("🔐 withAuth 시작:", {
+                isLoading,
+                isAuthenticated,
+                userId: user?.id,
+                requireAuth,
+                timestamp: new Date().toISOString(),
+            });
+
             const isAuthorized = await checkAuth();
 
+            console.log("🔍 checkAuth 결과:", isAuthorized);
+
             if (!isAuthorized) {
+                console.log("❌ 인증 실패 - 로그인 다이얼로그 표시");
                 const targetUrl = customRedirectUrl || redirectUrl || pathname;
 
-                // URL 보안 검증
+                // URL 보안 검증 및 저장
                 if (targetUrl && securityUtils.isValidRedirectUrl(targetUrl)) {
+                    console.log("리다이렉트 URL 저장:", targetUrl);
                     saveRedirectUrl(targetUrl);
                 }
 
@@ -117,10 +173,9 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                     description: customLoginMessage?.description,
                     loginText: customLoginMessage?.loginText,
                     cancelText: customLoginMessage?.cancelText,
-                    onLogin: (url) => {
-                        if (url && securityUtils.isValidRedirectUrl(url)) {
-                            saveRedirectUrl(url);
-                        }
+                    onLogin: () => {
+                        // URL은 이미 저장되었으므로 중복 저장하지 않음
+                        console.log("로그인 페이지로 이동");
                         router.push("/login");
                     },
                 });
@@ -128,6 +183,7 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                 return null;
             }
 
+            console.log("✅ 인증 성공 - 액션 실행");
             // 인증된 경우 액션 실행
             return await action();
         } catch (error) {
@@ -137,7 +193,19 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
             );
             return null;
         }
-    }, [checkAuth, redirectUrl, pathname, showLoginRequired, router, onError]);
+    }, [
+        checkAuth,
+        redirectUrl,
+        pathname,
+        showLoginRequired,
+        router,
+        onError,
+        customLoginMessage,
+        isLoading,
+        isAuthenticated,
+        user,
+        requireAuth,
+    ]);
 
     // 인증이 필요한 네비게이션
     const navigateWithAuth = useCallback(async (
@@ -155,6 +223,7 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
             const isAuthorized = await checkAuth();
 
             if (!isAuthorized) {
+                console.log("네비게이션 리다이렉트 URL 저장:", path);
                 saveRedirectUrl(path);
 
                 // 로그인 다이얼로그 표시
@@ -164,10 +233,9 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                     description: customLoginMessage?.description,
                     loginText: customLoginMessage?.loginText,
                     cancelText: customLoginMessage?.cancelText,
-                    onLogin: (url) => {
-                        if (url && securityUtils.isValidRedirectUrl(url)) {
-                            saveRedirectUrl(url);
-                        }
+                    onLogin: () => {
+                        // URL은 이미 저장되었으므로 중복 저장하지 않음
+                        console.log("로그인 페이지로 이동");
                         router.push("/login");
                     },
                 });
@@ -190,7 +258,7 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
             );
             return false;
         }
-    }, [checkAuth, showLoginRequired, router, onError]);
+    }, [checkAuth, showLoginRequired, router, onError, customLoginMessage]);
 
     return {
         // 상태

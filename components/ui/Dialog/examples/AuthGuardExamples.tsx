@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { useAuthGuard, useRequireAuth } from '@/hooks/useAuthGuard';
 import {
   withRequireAuth,
@@ -9,6 +10,12 @@ import {
 import { useLoginRequired } from '@/components/ui/Dialog';
 import { useLanguageStore } from '@/stores/languageStore';
 import { VoteButton } from '@/components/client/vote/common/VoteButton';
+import {
+  getRedirectUrl,
+  clearRedirectUrl,
+  clearAllAuthData,
+} from '@/utils/auth-redirect';
+import { Card } from '@/components/common';
 
 // 1. 훅을 사용한 예제
 export function AuthGuardHookExample() {
@@ -235,17 +242,324 @@ export function VoteButtonExample() {
 
 // 전체 예제를 모은 컴포넌트
 export function AuthGuardExamples() {
-  return (
-    <div className='max-w-4xl mx-auto space-y-8 p-6'>
-      <h2 className='text-2xl font-bold text-center'>인증 가드 시스템 예제</h2>
+  const { isAuthenticated, user } = useAuth();
+  const { withAuth } = useRequireAuth();
+  const [debugInfo, setDebugInfo] = useState<any>({});
 
-      <div className='grid gap-6'>
-        <AuthGuardHookExample />
-        <AuthGuardHOCExample />
-        <DirectLoginDialogExample />
-        <CustomCallbackExample />
-        <VoteButtonExample />
-      </div>
+  // 디버깅 정보 업데이트
+  useEffect(() => {
+    const updateDebugInfo = () => {
+      // sessionStorage와 localStorage 상태 확인
+      const sessionStorageData = {};
+      const localStorageData = {};
+
+      try {
+        // sessionStorage 데이터 수집
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.includes('redirect') || key.includes('auth'))) {
+            sessionStorageData[key] = sessionStorage.getItem(key);
+          }
+        }
+
+        // localStorage 데이터 수집
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('redirect') || key.includes('auth'))) {
+            localStorageData[key] = localStorage.getItem(key);
+          }
+        }
+      } catch (error) {
+        console.warn('Storage 접근 오류:', error);
+      }
+
+      // 인증 상태 검증
+      const hasValidAuth = isAuthenticated && user && user.id;
+      const hasStaleAuthData =
+        !hasValidAuth &&
+        (localStorage.getItem('auth_success') ||
+          localStorage.getItem('auth_provider') ||
+          localStorage.getItem('auth_timestamp'));
+
+      setDebugInfo({
+        isAuthenticated,
+        userId: user?.id || null,
+        userEmail: user?.email || null,
+        hasValidAuth,
+        hasStaleAuthData,
+        currentPath:
+          typeof window !== 'undefined' ? window.location.pathname : null,
+        savedRedirectUrl: getRedirectUrl(),
+        sessionStorage: sessionStorageData,
+        localStorage: localStorageData,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    };
+
+    updateDebugInfo();
+    const interval = setInterval(updateDebugInfo, 1000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, user]);
+
+  const handleVoteAction = async () => {
+    await withAuth(async () => {
+      alert('투표가 완료되었습니다!');
+    });
+  };
+
+  const handleClearRedirectUrl = () => {
+    clearRedirectUrl();
+    alert('리다이렉트 URL이 제거되었습니다.');
+  };
+
+  const handleSetTestRedirectUrl = () => {
+    const testUrl = '/ko/vote/123';
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('auth_redirect_url', testUrl);
+      sessionStorage.setItem('auth_redirect_timestamp', Date.now().toString());
+      alert(`테스트 리다이렉트 URL 설정: ${testUrl}`);
+    }
+  };
+
+  const handleClearAllStorage = () => {
+    if (typeof window !== 'undefined') {
+      // clearAllAuthData 함수 사용
+      clearAllAuthData();
+      alert('모든 인증 관련 저장소 데이터가 제거되었습니다.');
+    }
+  };
+
+  const handleClearStaleAuthData = () => {
+    if (typeof window !== 'undefined') {
+      // 잘못된 인증 데이터만 정리
+      const authKeys = ['auth_success', 'auth_provider', 'auth_timestamp'];
+      authKeys.forEach((key) => {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key);
+        }
+      });
+      alert('잘못된 인증 데이터가 정리되었습니다.');
+    }
+  };
+
+  const handleTestGoogleLogin = () => {
+    if (typeof window !== 'undefined') {
+      // 구글 로그인 테스트
+      window.location.href = '/api/auth/google';
+    }
+  };
+
+  const handleCheckSupabaseSession = async () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        );
+
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        console.log('🔍 Supabase 세션 확인:', {
+          hasSession: !!session,
+          userId: session?.user?.id,
+          userEmail: session?.user?.email,
+          provider: session?.user?.app_metadata?.provider,
+          expiresAt: session?.expires_at,
+          error: error?.message,
+        });
+
+        alert(
+          `Supabase 세션 상태:\n${JSON.stringify(
+            {
+              hasSession: !!session,
+              userId: session?.user?.id,
+              userEmail: session?.user?.email,
+              provider: session?.user?.app_metadata?.provider,
+              error: error?.message,
+            },
+            null,
+            2,
+          )}`,
+        );
+      } catch (error) {
+        console.error('세션 확인 오류:', error);
+        alert(`세션 확인 오류: ${error}`);
+      }
+    }
+  };
+
+  return (
+    <div className='space-y-6 p-6'>
+      <h2 className='text-2xl font-bold'>인증 가드 테스트</h2>
+
+      {/* 디버깅 정보 */}
+      <Card>
+        <Card.Header>
+          <h3 className='text-lg font-semibold'>디버깅 정보</h3>
+        </Card.Header>
+        <Card.Body>
+          <div className='space-y-2 text-sm'>
+            <div>
+              <strong>인증 상태:</strong>{' '}
+              {debugInfo.isAuthenticated ? '✅ 로그인됨' : '❌ 로그아웃됨'}
+            </div>
+            <div>
+              <strong>유효한 인증:</strong>{' '}
+              {debugInfo.hasValidAuth ? '✅ 유효함' : '❌ 무효함'}
+            </div>
+            {debugInfo.hasStaleAuthData && (
+              <div className='text-red-600'>
+                <strong>⚠️ 잘못된 인증 데이터:</strong> 로컬 스토리지에 오래된
+                인증 데이터가 남아있습니다.
+              </div>
+            )}
+            <div>
+              <strong>사용자 ID:</strong> {debugInfo.userId || 'N/A'}
+            </div>
+            <div>
+              <strong>사용자 이메일:</strong> {debugInfo.userEmail || 'N/A'}
+            </div>
+            <div>
+              <strong>현재 경로:</strong> {debugInfo.currentPath || 'N/A'}
+            </div>
+            <div>
+              <strong>저장된 리다이렉트 URL:</strong>{' '}
+              {debugInfo.savedRedirectUrl || 'N/A'}
+            </div>
+            <div>
+              <strong>마지막 업데이트:</strong> {debugInfo.timestamp}
+            </div>
+
+            {/* sessionStorage 정보 */}
+            <div className='mt-4 pt-4 border-t'>
+              <strong>SessionStorage:</strong>
+              <div className='ml-4 mt-2 space-y-1'>
+                {debugInfo.sessionStorage &&
+                Object.keys(debugInfo.sessionStorage).length > 0 ? (
+                  Object.entries(debugInfo.sessionStorage).map(
+                    ([key, value]) => (
+                      <div key={key} className='text-xs'>
+                        <span className='font-mono text-blue-600'>{key}:</span>{' '}
+                        {String(value)}
+                      </div>
+                    ),
+                  )
+                ) : (
+                  <div className='text-xs text-gray-500'>관련 데이터 없음</div>
+                )}
+              </div>
+            </div>
+
+            {/* localStorage 정보 */}
+            <div className='mt-4 pt-4 border-t'>
+              <strong>LocalStorage:</strong>
+              <div className='ml-4 mt-2 space-y-1'>
+                {debugInfo.localStorage &&
+                Object.keys(debugInfo.localStorage).length > 0 ? (
+                  Object.entries(debugInfo.localStorage).map(([key, value]) => (
+                    <div key={key} className='text-xs'>
+                      <span className='font-mono text-green-600'>{key}:</span>{' '}
+                      {String(value)}
+                    </div>
+                  ))
+                ) : (
+                  <div className='text-xs text-gray-500'>관련 데이터 없음</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
+
+      {/* 테스트 버튼들 */}
+      <Card>
+        <Card.Header>
+          <h3 className='text-lg font-semibold'>테스트 액션</h3>
+        </Card.Header>
+        <Card.Body className='space-y-4'>
+          <button
+            onClick={handleVoteAction}
+            className='w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors'
+          >
+            투표하기 (인증 필요)
+          </button>
+
+          <button
+            onClick={() => {
+              // 실제 투표 페이지로 이동하여 테스트
+              if (typeof window !== 'undefined') {
+                window.location.href = '/ko/vote/1';
+              }
+            }}
+            className='w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors'
+          >
+            실제 투표 페이지로 이동 (테스트용)
+          </button>
+
+          <button
+            onClick={handleClearRedirectUrl}
+            className='w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors'
+          >
+            리다이렉트 URL 제거
+          </button>
+
+          <button
+            onClick={handleSetTestRedirectUrl}
+            className='w-full px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors'
+          >
+            테스트 리다이렉트 URL 설정
+          </button>
+
+          <button
+            onClick={handleClearAllStorage}
+            className='w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors'
+          >
+            모든 인증 관련 저장소 데이터 제거
+          </button>
+
+          <button
+            onClick={handleClearStaleAuthData}
+            className='w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors'
+          >
+            잘못된 인증 데이터 정리
+          </button>
+
+          {isAuthenticated && (
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.location.href = '/login';
+                }
+              }}
+              className='w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors'
+            >
+              로그인 페이지로 이동 (테스트용)
+            </button>
+          )}
+
+          <button
+            onClick={handleTestGoogleLogin}
+            className='w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors'
+          >
+            구글 로그인 테스트
+          </button>
+
+          <button
+            onClick={handleCheckSupabaseSession}
+            className='w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors'
+          >
+            스파바 세션 확인
+          </button>
+        </Card.Body>
+      </Card>
+
+      {/* 기존 예제들 */}
+      <VoteButtonExample />
     </div>
   );
 }
