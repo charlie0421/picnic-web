@@ -116,15 +116,15 @@
       "dependencies": [
         2
       ],
-      "status": "pending",
+      "status": "in-progress",
       "subtasks": [
         {
           "id": 1,
           "title": "Implement VoteList Component",
           "description": "Create the VoteList component to display all available voting options",
           "dependencies": [],
-          "details": "Build a component that fetches and renders a list of voting options from state. Include state management for loading, error handling, and displaying the list of vote items. Use React's useState hook to manage the component's local state.",
-          "status": "pending"
+          "details": "Build a component that fetches and renders a list of voting options from state. Include state management for loading, error handling, and displaying the list of vote items. Use React's useState hook to manage the component's local state.\n<info added on 2025-05-28T09:05:33.917Z>\nVoteList 컴포넌트 구현 완료:\n\n✅ 구현된 주요 기능:\n- 투표 목록을 그리드 형태로 표시\n- 로딩, 에러, 빈 상태 처리\n- 더보기 버튼 지원 (페이지네이션)\n- 투표 클릭 핸들러 지원\n- 반응형 디자인 (모바일/태블릿/데스크톱)\n- TypeScript 인터페이스 정의\n\n✅ 컴포넌트 특징:\n- 기존 VoteCard 컴포넌트 재사용\n- VoteLoadingSkeleton으로 로딩 상태 표시\n- 커스터마이징 가능한 props (className, emptyMessage, loadMoreText 등)\n- 에러 발생 시 재시도 버튼 제공\n\n✅ 파일 위치:\n- components/client/vote/list/VoteList.tsx\n- export 추가: components/client/vote/list/index.ts\n\n다음 단계: VoteItem 컴포넌트 구현 준비\n</info added on 2025-05-28T09:05:33.917Z>",
+          "status": "done"
         },
         {
           "id": 2,
@@ -133,8 +133,8 @@
           "dependencies": [
             1
           ],
-          "details": "Develop a component that displays a single voting option with selection capability. Implement state management to track selection status. Include hover effects and visual feedback when an item is selected. This component will be a child of the VoteList component.",
-          "status": "pending"
+          "details": "Develop a component that displays a single voting option with selection capability. Implement state management to track selection status. Include hover effects and visual feedback when an item is selected. This component will be a child of the VoteList component.\n<info added on 2025-05-28T09:07:11.102Z>\nVoteItem Component Implementation Completed:\n\n✅ Key Features Implemented:\n- Selectable component displaying individual voting options\n- Support for 3 variants: 'card', 'list', 'compact'\n- Selection state indication (checkmark icon)\n- Hover effects and animations\n- Keyboard accessibility (Enter, Space)\n- Display of artist image, name, group name, and vote count\n\n✅ Component Characteristics:\n- TypeScript interface definitions completed\n- Responsive design (mobile/tablet/desktop)\n- Accessibility features (role, aria-pressed, tabIndex)\n- Error handling (default image on image load failure)\n- Multilingual support (getLocalizedString)\n- CDN image optimization\n\n✅ Props Configuration:\n- isSelected: selection state\n- isDisabled: disabled state\n- showVoteCount: vote count display toggle\n- onSelect: callback function on selection\n- variant: display type (card/list/compact)\n- className: additional styling\n\n✅ File Location:\n- components/client/vote/list/VoteItem.tsx\n- Export added: components/client/vote/list/index.ts\n\nNext step: Prepare for VoteSubmit component implementation\n</info added on 2025-05-28T09:07:11.102Z>",
+          "status": "done"
         },
         {
           "id": 3,
@@ -143,8 +143,8 @@
           "dependencies": [
             2
           ],
-          "details": "Build a form component that handles vote submission with proper validation. Implement form state management using useState for tracking input values, validation errors, and submission status. Add validation logic to ensure required fields are completed before submission is allowed.",
-          "status": "pending"
+          "details": "Build a form component that handles vote submission with proper validation. Implement form state management using useState for tracking input values, validation errors, and submission status. Add validation logic to ensure required fields are completed before submission is allowed.\n<info added on 2025-05-28T09:08:18.776Z>\nVoteSubmit component implementation completed:\n\n✅ Key features implemented:\n- Complete form component for vote submission\n- Single-choice voting option selection\n- Form validation (required field checking)\n- Asynchronous submission handling and error management\n- Loading state and submission status indicators\n- Visual feedback for selected items\n\n✅ Component characteristics:\n- TypeScript interface definitions completed\n- Responsive grid layout (mobile/tablet/desktop)\n- Client-side validation\n- Error message display functionality\n- Accessibility considerations (form semantics)\n- Skeleton loading states\n\n✅ Props structure:\n- voteItems: Array of votable items\n- selectedItemId: Currently selected item ID\n- onSelectedItemChange: Selection change callback\n- onSubmit: Form submission callback (async)\n- isSubmitting: Submission status\n- disabled: Disabled state\n- Customizable text elements\n\n✅ User experience:\n- Single selection toggle mechanism\n- Checkmark display on selection\n- Hover effects and animations\n- Spinner display during submission\n- Clear guidance messages\n\n✅ File location:\n- components/client/vote/list/VoteSubmit.tsx\n- Export added to: components/client/vote/list/index.ts\n\nNext step: Preparation for VoteResults component implementation\n</info added on 2025-05-28T09:08:18.776Z>",
+          "status": "done"
         },
         {
           "id": 4,
@@ -153,8 +153,8 @@
           "dependencies": [
             3
           ],
-          "details": "Develop a component that fetches and displays voting results. Implement state management for loading states, error handling, and results data. Include visualization of voting data with appropriate styling and layout.",
-          "status": "pending"
+          "details": "Develop a component that fetches and displays voting results. Implement state management for loading states, error handling, and results data. Include visualization of voting data with appropriate styling and layout.\n<info added on 2025-05-28T09:09:37.331Z>\n# VoteResults Component Implementation Completed\n\n## Key Features Implemented:\n- Complete component for visual display of voting results\n- Automatic sorting and ranking display based on vote count\n- Progress bars to visualize voting percentages\n- Medal icons for top 1st, 2nd, and 3rd places\n- Percentage calculation and display\n- Maximum display item limit functionality\n\n## Component Characteristics:\n- TypeScript interfaces fully defined\n- Responsive design with accessibility considerations\n- Skeleton loading state support\n- Empty state handling with guidance messages\n- Multilingual support (getLocalizedString)\n- CDN image optimization\n\n## Visual Elements:\n- Color differentiation by ranking (gold, silver, bronze medals)\n- Animated progress bars\n- Artist image and information display\n- Vote count and percentage display\n- Gradient backgrounds and shadow effects\n\n## Props Configuration:\n- voteItems: Array of voting items\n- totalVotes: Total vote count (optional)\n- showPercentage: Toggle for percentage display\n- showRanking: Toggle for ranking display\n- maxDisplayItems: Maximum number of items to display\n- Customizable titles/messages\n\n## Data Processing:\n- Performance optimization using useMemo\n- Automatic percentage calculation (to first decimal place)\n- Descending sort by vote count\n- Safe data access (optional chaining)\n\n## File Location:\n- components/client/vote/list/VoteResults.tsx\n- Export added to: components/client/vote/list/index.ts\n</info added on 2025-05-28T09:09:37.331Z>",
+          "status": "done"
         },
         {
           "id": 5,
@@ -166,8 +166,8 @@
             3,
             4
           ],
-          "details": "Implement a Zustand store to manage global application state. Create actions for updating vote selections, handling form submission, and managing results. Connect all components to the store and refactor component logic to use the global state where appropriate.",
-          "status": "pending"
+          "details": "Implement a Zustand store to manage global application state. Create actions for updating vote selections, handling form submission, and managing results. Connect all components to the store and refactor component logic to use the global state where appropriate.\n<info added on 2025-05-28T09:19:54.441Z>\n# Zustand Global State Integration Complete\n\n## Completed Work:\n1. **Created Vote-specific Zustand Store** (`stores/voteStore.ts`)\n   - Comprehensive vote state management (submission, participation, results, details)\n   - Real-time update and subscription state management\n   - Error handling and state reset functionality\n\n2. **VoteSubmit Component Store Integration**\n   - Added `useStore` option to enable Zustand store usage\n   - Maintained backward compatibility with existing props approach\n   - Managed selected items and submission state in global state\n\n3. **VoteResults Component Store Integration**\n   - Implemented support for real-time vote result updates\n   - Added last update time display\n   - Improved store error handling\n\n4. **VoteItem Component Store Integration**\n   - Implemented global selection state management\n   - Added toggle selection functionality (select/deselect on click)\n   - Maintained backward compatibility\n\n5. **VoteList Component Store Integration**\n   - Added optional store usage\n   - Improved error state UI\n\n## Key Improvements:\n- Added `useStore` option to each component (defaults to false to maintain existing behavior)\n- Centralized management of voting state\n- Built foundation for real-time data synchronization\n- Enhanced type safety and developer tools support\n\nPreparation complete for next subtask 3.6 (Supabase integration and styling).\n</info added on 2025-05-28T09:19:54.441Z>",
+          "status": "done"
         },
         {
           "id": 6,

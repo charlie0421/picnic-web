@@ -1,4 +1,8 @@
 export { VoteListPresenter } from './VoteListPresenter';
+export { VoteList } from './VoteList';
+export { VoteItem } from './VoteItem';
+export { VoteSubmit } from './VoteSubmit';
+export { VoteResults } from './VoteResults';
 export { OngoingVoteItems } from './OngoingVoteItems';
 export { CompletedVoteItems } from './CompletedVoteItems';
 export { VoteItems } from './VoteItems';
