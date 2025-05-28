@@ -30,13 +30,6 @@ export function VoteDetailPresenter({
   rewards = [],
   className,
 }: VoteDetailPresenterProps) {
-  console.log('🚀 [VoteDetailPresenter] 컴포넌트 마운트됨:', {
-    voteId: vote.id,
-    voteTitle: vote.title,
-    itemCount: initialItems.length,
-    timestamp: new Date().toISOString(),
-  });
-
   const { currentLanguage } = useLanguageStore();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
@@ -64,15 +57,6 @@ export function VoteDetailPresenter({
 
   const voteStatus = getVoteStatus(vote);
   const canVote = voteStatus === 'ongoing';
-
-  console.log('🔍 [VoteDetailPresenter] 투표 상태 확인:', {
-    voteStatus,
-    canVote,
-    voteId: vote.id,
-    startAt: vote.start_at,
-    stopAt: vote.stop_at,
-    timestamp: new Date().toISOString(),
-  });
 
   // 남은 시간 계산 및 업데이트
   useEffect(() => {

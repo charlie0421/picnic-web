@@ -40,14 +40,6 @@ export function VoteRankCard({
   const [currentVoteChange, setCurrentVoteChange] = useState(voteChange);
   const [shouldShowVoteChange, setShouldShowVoteChange] = useState(false);
 
-  console.log('🚀 [VoteRankCard] 컴포넌트 마운트됨:', {
-    itemId: item.id,
-    rank,
-    artistName: item.artist?.name,
-    onVoteChange: !!onVoteChange,
-    timestamp: new Date().toISOString(),
-  });
-
   // 투표 변경 애니메이션 처리
   useEffect(() => {
     if (voteChange && voteChange !== 0) {
