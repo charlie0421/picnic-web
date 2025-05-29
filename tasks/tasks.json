@@ -1746,6 +1746,75 @@
           "testStrategy": "Perform load testing to verify system stability. Measure render performance in both modes. Test error scenarios and verify user feedback mechanisms."
         }
       ]
+    },
+    {
+      "id": 22,
+      "title": "Restore Multilingual Processing Logic and Implement Crowdin Integration",
+      "description": "Restore and enhance the multilingual processing system, including the implementation of useLocaleRouter hook, fixing language routing issues, and integrating Crowdin for text management.",
+      "details": "1. Implement useLocaleRouter hook:\n   - Create a new hook in the 'hooks' directory named 'useLocaleRouter.ts'\n   - Implement logic to handle locale-based routing\n   - Ensure the hook integrates with Next.js routing system\n\n2. Fix language routing issues in LanguageSelector and PortalMenuItem components:\n   - Review and update the LanguageSelector component to use the new useLocaleRouter hook\n   - Modify the PortalMenuItem component to handle language changes correctly\n   - Test both components thoroughly to ensure proper routing behavior\n\n3. Integrate Crowdin for multilingual text management:\n   - Set up a Crowdin project for the application\n   - Configure the Crowdin CLI tool for syncing translations\n   - Implement a workflow to push source strings to Crowdin and pull translations\n\n4. Review and update existing locales folder and next-intl configuration:\n   - Audit the current structure of the locales folder\n   - Update next-intl configuration to work with the new Crowdin integration\n   - Ensure all existing translations are properly migrated to the new system\n\n5. Restore multilingual routing middleware and configuration:\n   - Implement a custom middleware for handling locale-based routing\n   - Update Next.js configuration to use the new middleware\n   - Ensure proper fallback behavior for unsupported locales\n\n6. Implement a centralized translation management system:\n   - Create a utility function for loading translations based on the current locale\n   - Implement caching mechanism to improve performance of translation lookups\n   - Ensure proper error handling for missing translations\n\n7. Update components to use the new translation system:\n   - Refactor existing components to use the new translation utilities\n   - Implement HOC or custom hooks for easy translation integration in components\n\n8. Implement language switching functionality:\n   - Create a language switcher component that updates the application's locale\n   - Ensure proper state management for language changes\n   - Implement smooth transitions when switching languages\n\n9. Optimize translation loading:\n   - Implement lazy loading for translations to improve initial load time\n   - Consider implementing a translation bundling strategy for frequently used strings",
+      "testStrategy": "1. Unit Testing:\n   - Write unit tests for the useLocaleRouter hook to ensure correct behavior\n   - Create tests for the updated LanguageSelector and PortalMenuItem components\n   - Develop unit tests for all utility functions related to translation management\n\n2. Integration Testing:\n   - Test the integration between the application and Crowdin\n   - Verify that translations are correctly pulled from Crowdin and applied in the app\n   - Test the language switching functionality across different pages and components\n\n3. End-to-End Testing:\n   - Create E2E tests to simulate user interactions with language-related features\n   - Test navigation between different locales and verify correct content display\n   - Verify that all UI elements adapt correctly to different languages\n\n4. Performance Testing:\n   - Measure the impact of the new translation system on application load time\n   - Test the performance of language switching, ensuring smooth transitions\n   - Verify that lazy loading of translations works as expected\n\n5. Localization Testing:\n   - Test the application with various locales, including RTL languages if applicable\n   - Verify that all UI elements adapt correctly to different text lengths\n   - Check for any hardcoded strings that may have been missed in the localization process\n\n6. Accessibility Testing:\n   - Ensure that the language switcher is accessible via keyboard navigation\n   - Verify that screen readers can properly announce language changes\n   - Test that all localized content is properly read by screen readers\n\n7. Cross-browser and Cross-device Testing:\n   - Test the multilingual functionality across different browsers and devices\n   - Verify that language persistence works correctly across sessions and page reloads\n\n8. Error Handling:\n   - Test scenarios with missing translations or connection issues with Crowdin\n   - Verify that appropriate fallback mechanisms are in place for unsupported locales\n\n9. Code Review:\n   - Conduct a thorough code review to ensure best practices in i18n implementation\n   - Verify that the codebase is consistent in its approach to handling translations\n\n10. Documentation:\n    - Ensure that all new multilingual features and processes are well-documented\n    - Create guidelines for developers on how to add new translatable content",
+      "status": "pending",
+      "dependencies": [
+        3,
+        17,
+        19
+      ],
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Implement useLocaleRouter hook",
+          "description": "Create and implement the useLocaleRouter hook to handle locale-based routing in the application.",
+          "dependencies": [],
+          "details": "Create a new file 'useLocaleRouter.ts' in the 'hooks' directory. Implement the hook to handle locale-based routing, ensuring integration with Next.js routing system. Include logic for getting the current locale, changing locales, and generating localized route paths.",
+          "status": "pending",
+          "testStrategy": "Write unit tests for the hook, covering various scenarios such as getting current locale, changing locale, and generating localized paths."
+        },
+        {
+          "id": 2,
+          "title": "Update LanguageSelector and PortalMenuItem components",
+          "description": "Modify the LanguageSelector and PortalMenuItem components to use the new useLocaleRouter hook and fix language routing issues.",
+          "dependencies": [
+            1
+          ],
+          "details": "Refactor the LanguageSelector component to utilize the useLocaleRouter hook for language switching. Update the PortalMenuItem component to handle language changes correctly. Ensure both components use the hook for generating localized routes and handling language changes.",
+          "status": "pending",
+          "testStrategy": "Perform integration tests on both components to verify correct behavior with language changes and routing."
+        },
+        {
+          "id": 3,
+          "title": "Integrate Crowdin for text management",
+          "description": "Set up Crowdin integration for managing multilingual text content in the application.",
+          "dependencies": [],
+          "details": "Create a Crowdin project for the application. Configure the Crowdin CLI tool for syncing translations. Implement a workflow to push source strings to Crowdin and pull translations. Update the build process to include Crowdin synchronization.",
+          "status": "pending",
+          "testStrategy": "Test the Crowdin integration by pushing sample content and pulling translations, verifying the accuracy of the workflow."
+        },
+        {
+          "id": 4,
+          "title": "Update locales folder and next-intl configuration",
+          "description": "Review and update the existing locales folder structure and next-intl configuration to work with the Crowdin integration.",
+          "dependencies": [
+            3
+          ],
+          "details": "Audit the current structure of the locales folder. Update the next-intl configuration to align with the new Crowdin integration. Ensure all existing translations are properly migrated to the new system. Implement a strategy for merging Crowdin translations with existing locale files.",
+          "status": "pending",
+          "testStrategy": "Conduct thorough testing of the updated locales structure and next-intl configuration, ensuring all translations are correctly loaded and applied."
+        },
+        {
+          "id": 5,
+          "title": "Implement and test multilingual routing middleware",
+          "description": "Create and configure a custom middleware for handling locale-based routing in the application.",
+          "dependencies": [
+            1,
+            2,
+            4
+          ],
+          "details": "Develop a custom middleware for managing locale-based routing. Update the Next.js configuration to utilize this new middleware. Implement proper fallback behavior for unsupported locales. Ensure the middleware works correctly with the useLocaleRouter hook and updated components.",
+          "status": "pending",
+          "testStrategy": "Perform end-to-end tests of the routing system, covering various scenarios including supported locales, unsupported locales, and fallback behavior."
+        }
+      ]
     }
   ]
 }

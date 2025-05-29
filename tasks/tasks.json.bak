@@ -375,7 +375,7 @@
       "dependencies": [
         1
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -383,7 +383,7 @@
           "description": "Redesign and implement the AreaFilter UI to match new requirements, ensuring compatibility with Next.js 13+ App Router and Tailwind CSS.",
           "dependencies": [],
           "details": "Refactor or create new AreaFilter components, update layout and styles using Tailwind CSS, and ensure accessibility and responsiveness.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2,
@@ -392,8 +392,8 @@
           "dependencies": [
             1
           ],
-          "details": "Define AreaFilter state structure, actions for updating/filtering, and ensure TypeScript types are accurate. Use modular store organization and memoized selectors.",
-          "status": "pending"
+          "details": "Define AreaFilter state structure, actions for updating/filtering, and ensure TypeScript types are accurate. Use modular store organization and memoized selectors.\n<info added on 2025-05-29T13:39:28.207Z>\nNote: The Zustand store already supports localStorage persistence through the persist middleware. The selected status and area values are being saved under the 'vote-filter-storage' key, so no additional implementation work is required for this persistence functionality.\n</info added on 2025-05-29T13:39:28.207Z>",
+          "status": "done"
         },
         {
           "id": 3,
@@ -403,7 +403,7 @@
             2
           ],
           "details": "Use Zustand middleware or custom logic to sync AreaFilter state with localStorage, ensuring state is restored on reload and compatible with SSR.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 4,
@@ -413,7 +413,7 @@
             2
           ],
           "details": "Update Supabase or other data-fetching hooks to read AreaFilter state from the store and apply filters to queries.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 5,
@@ -424,7 +424,7 @@
             4
           ],
           "details": "Connect UI components to Zustand selectors, ensure two-way binding, and test for correct reactivity and minimal re-renders.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 6,
@@ -434,7 +434,7 @@
             1
           ],
           "details": "Extract all user-facing strings, add translation keys, and update components to use the i18n library (e.g., next-i18next or similar).",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },
@@ -448,15 +448,15 @@
       "dependencies": [
         1
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
           "title": "Update StatusFilter UI Components",
           "description": "Revise the StatusFilter UI to reflect new requirements, ensuring it is visually consistent with Tailwind CSS and integrates smoothly with the Next.js 13+ App Router.",
           "dependencies": [],
-          "details": "Implement new filter options, update component structure, and ensure accessibility. Prepare for interaction with Zustand store.",
-          "status": "pending"
+          "details": "Implement new filter options, update component structure, and ensure accessibility. Prepare for interaction with Zustand store.\n<info added on 2025-05-29T13:51:38.422Z>\n#### 현재 상황 분석 (2025-01-27)\n\n**기존 구현 상태:**\n- VoteStatusFilter 컴포넌트가 이미 존재하고 잘 구현되어 있음 (`components/client/vote/list/VoteStatusFilter.tsx`)\n- Zustand store (`stores/voteFilterStore.ts`)에 persist 미들웨어가 이미 적용되어 localStorage 지속성이 구현됨\n- VoteFilterSection에서 URL 파라미터와 상태 동기화가 이미 구현됨\n\n**테스크 요구사항 vs 현실:**\n1. ✅ StatusFilter 컴포넌트 존재\n2. ✅ localStorage 지속성 이미 구현 (persist 미들웨어)\n3. ✅ UI가 현재 필터 상태 반영\n4. ❌ Reset 버튼 없음\n5. ❌ 잘못된 저장 상태 검증 로직 부족\n\n**계획:**\n1. VoteStatusFilter에 Reset 버튼 추가\n2. 상태 검증 로직 추가\n3. 더 나은 에러 핸들링 구현\n</info added on 2025-05-29T13:51:38.422Z>\n<info added on 2025-05-29T13:53:06.341Z>\n#### 구현 완료 (2025-01-27)\n\n**완료된 작업:**\n1. ✅ VoteStatusFilter에 Reset 버튼 추가\n   - 파일: `components/client/vote/list/VoteStatusFilter.tsx`\n   - onReset 옵셔널 prop 추가\n   - Reset 버튼 UI (⟲ 아이콘) 추가, hover 효과 포함\n\n2. ✅ Zustand store 개선\n   - 파일: `stores/voteFilterStore.ts`\n   - resetFilters() 액션 추가\n   - 상태 검증 함수 (isValidVoteStatus, isValidVoteArea) 추가\n   - validateAndFixState() 메서드 추가\n   - onRehydrateStorage 훅에서 자동 상태 검증 실행\n\n3. ✅ VoteFilterSection 연결\n   - 파일: `components/client/vote/list/VoteFilterSection.tsx`\n   - handleReset 핸들러 추가\n   - VoteStatusFilter에 onReset prop 전달\n   - Reset 시 URL 파라미터도 함께 초기화\n\n**검증된 기능:**\n- Reset 버튼 클릭 시 필터 상태가 기본값으로 복원\n- URL 파라미터도 함께 초기화\n- localStorage의 잘못된 상태 자동 수정\n- 컴포넌트 재사용성 유지 (onReset은 옵셔널)\n</info added on 2025-05-29T13:53:06.341Z>",
+          "status": "done"
         },
         {
           "id": 2,
@@ -466,7 +466,7 @@
             1
           ],
           "details": "Ensure the store exposes actions for updating, resetting, and validating status filter state. Use selectors to minimize unnecessary re-renders.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 3,
@@ -476,7 +476,7 @@
             2
           ],
           "details": "Use Zustand middleware or custom hooks to sync state changes with localStorage, ensuring state is restored on refresh or navigation.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 4,
@@ -486,7 +486,7 @@
             3
           ],
           "details": "Expose a reset action in the store and connect it to the UI. Ensure localStorage is cleared or reset accordingly.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 5,
@@ -496,7 +496,7 @@
             4
           ],
           "details": "Implement checks during hydration and provide fallback to default state if validation fails. Optionally notify the user or log errors.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 6,
@@ -506,7 +506,7 @@
             5
           ],
           "details": "Update data queries (e.g., Supabase) to use the filter, and ensure UI components display filtered results and respond to state changes.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },
@@ -753,6 +753,23 @@
           ],
           "details": "Implement a Framer Motion-based loading spinner or skeleton UI that appears during asynchronous operations.",
           "status": "done"
+        },
+        {
+          "id": 8,
+          "title": "Comprehensive Testing of Real-time/Polling/Static Modes",
+          "description": "실시간, 폴링, 정적 모드 간의 자동 전환 및 수동 전환 기능을 포함한 하이브리드 투표 시스템의 모든 모드에 대한 포괄적인 테스트를 수행합니다. 각 모드의 성능, 안정성, 사용자 경험을 검증하고 모드 간 전환이 원활하게 작동하는지 확인합니다.",
+          "details": "<info added on 2025-05-29T10:32:15.121Z>\n## 실시간/폴링/정적 모드 테스트 계획\n\n### 1. 실시간 모드 테스트 (WebSocket)\n- **연결 성공 테스트**: Supabase 실시간 연결이 정상적으로 이루어지는지 확인\n- **데이터 업데이트 테스트**: 투표 데이터 변경 시 즉시 UI에 반영되는지 확인\n- **연결 끊김 처리**: 네트워크 연결이 끊어졌을 때 폴링 모드로 자동 전환되는지 확인\n- **재연결 테스트**: 네트워크 복구 시 실시간 모드로 다시 전환되는지 확인\n\n### 2. 폴링 모드 테스트 (HTTP 요청)\n- **1초 간격 폴링**: 1초마다 정확하게 데이터를 가져오는지 확인\n- **에러 처리**: API 호출 실패 시 에러 카운트 증가 및 재시도 로직 확인\n- **성능 테스트**: 폴링이 브라우저 성능에 미치는 영향 측정\n- **데이터 무결성**: 폴링으로 가져온 데이터가 정확한지 확인\n\n### 3. 정적 모드 테스트\n- **초기 데이터 로딩**: 정적 모드에서 초기 데이터만 표시되는지 확인\n- **업데이트 차단**: 정적 모드에서는 데이터가 자동 업데이트되지 않는지 확인\n- **수동 새로고침**: 사용자가 수동으로 페이지를 새로고침할 때만 데이터가 업데이트되는지 확인\n\n### 4. 모드 전환 테스트\n- **자동 전환**: 연결 품질에 따른 자동 모드 전환 로직 검증\n- **수동 전환**: 개발 모드에서 수동 모드 전환 버튼 기능 확인\n- **전환 알림**: 모드 전환 시 사용자에게 적절한 알림이 표시되는지 확인\n- **상태 유지**: 모드 전환 후에도 기존 데이터와 UI 상태가 유지되는지 확인\n\n### 5. 연결 품질 모니터링 테스트\n- **품질 점수 계산**: 연결 품질 점수가 정확하게 계산되는지 확인\n- **응답 시간 측정**: 네트워크 응답 시간이 정확하게 측정되는지 확인\n- **에러율 추적**: 연속 에러 및 에러율이 정확하게 추적되는지 확인\n- **임계값 기반 전환**: 설정된 임계값에 따라 모드 전환이 발생하는지 확인\n\n### 6. UI/UX 테스트\n- **연결 상태 표시**: 현재 연결 모드와 상태가 사용자에게 명확하게 표시되는지 확인\n- **투표수 업데이트 애니메이션**: 각 모드에서 투표수 변경 시 애니메이션이 정상 작동하는지 확인\n- **로딩 상태**: 데이터 로딩 중 적절한 로딩 상태가 표시되는지 확인\n- **에러 메시지**: 연결 실패나 에러 발생 시 사용자 친화적인 메시지가 표시되는지 확인\n\n### 7. 성능 및 안정성 테스트\n- **메모리 사용량**: 장시간 사용 시 메모리 누수가 발생하지 않는지 확인\n- **CPU 사용률**: 각 모드의 CPU 사용률 측정 및 최적화 필요성 확인\n- **네트워크 사용량**: 폴링 모드의 네트워크 사용량 측정\n- **배터리 소모**: 모바일 기기에서의 배터리 소모 영향 평가\n\n### 8. 극한 상황 테스트\n- **고빈도 데이터 변경**: 짧은 시간 내 많은 투표가 발생할 때 시스템 안정성 확인\n- **다중 탭/창**: 같은 사용자가 여러 탭에서 동시 접속할 때의 동작 확인\n- **네트워크 불안정**: 네트워크가 자주 끊어지고 연결되는 상황에서의 안정성 확인\n- **서버 부하**: 많은 사용자가 동시 접속할 때의 시스템 동작 확인\n</info added on 2025-05-29T10:32:15.121Z>",
+          "status": "pending",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "parentTaskId": 10
         }
       ]
     },
@@ -1290,8 +1307,8 @@
           "title": "Analyze data access requirements and user roles",
           "description": "Review the Picnic application's data structure and identify different user roles and their corresponding data access needs.",
           "dependencies": [],
-          "details": "Examine the existing database schema in Supabase, list all tables and their relationships. Identify user roles (e.g., regular users, admins) and determine what data each role should be able to access or modify.",
-          "status": "pending"
+          "details": "Examine the existing database schema in Supabase, list all tables and their relationships. Identify user roles (e.g., regular users, admins) and determine what data each role should be able to access or modify.\n<info added on 2025-05-29T07:45:37.055Z>\n## Database Structure\n### Authentication Schema (auth)\n- **auth.users**: Supabase default user table (UUID-based ID)\n- **auth.sessions**: User session management\n- **auth.identities**: Social login integration information\n\n### Application Schema (public)\n- **user_profiles**: User profile information (using auth.users ID as FK)\n  - id: string (connected to auth.users.id)\n  - email, nickname, avatar_url, is_admin, etc.\n  - star_candy, star_candy_bonus (voting points)\n\n### Voting-Related Tables\n- **vote**: Voting events (title, start/end time, region, category, etc.)\n- **vote_item**: Voting options (including artist/group information)\n- **vote_pick**: User's actual voting records (user_id, vote_item_id, amount)\n- **vote_comment**: Vote comments\n- **vote_comment_like**: Comment likes\n- **vote_comment_report**: Comment reports\n\n### Additional Tables\n- **artist**, **artist_group**: Artist and group information\n- **reward**, **vote_reward**: Reward system\n- **user_blocks**: User blocking functionality\n\n## User Role Identification\n1. **Regular Users**\n   - user_profiles.is_admin = false\n   - Can participate in voting, write comments, like\n   - Should only see their own voting records\n\n2. **Admins**\n   - user_profiles.is_admin = true\n   - Vote management, user management, system-wide permissions\n\n3. **Anonymous Users**\n   - Limited access to voting results only\n   - Cannot participate in voting or access personal information\n\n## Data Access Requirements\n- Users can only view/modify their own vote_pick records\n- Comment authors can only modify/delete their own comments\n- Admins have access to all data\n- Sensitive information in user_profiles (star_candy, etc.) is only accessible to the owner\n</info added on 2025-05-29T07:45:37.055Z>",
+          "status": "done"
         },
         {
           "id": 2,
@@ -1300,8 +1317,8 @@
           "dependencies": [
             1
           ],
-          "details": "For each table, define specific conditions that determine read and write access for different user roles. Consider using Supabase's auth.uid() function to link policies to authenticated users. Document these rules clearly for implementation.",
-          "status": "pending"
+          "details": "For each table, define specific conditions that determine read and write access for different user roles. Consider using Supabase's auth.uid() function to link policies to authenticated users. Document these rules clearly for implementation.\n<info added on 2025-05-29T07:46:10.379Z>\n# RLS Policy Rules Detailed Definition:\n\n## 1. user_profiles Table RLS Policy\n\n### Read Permissions (SELECT)\n- **Own Profile**: `auth.uid() = id`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n- **Public Fields**: Some fields are visible to all authenticated users (nickname, avatar_url)\n\n### Write Permissions (INSERT/UPDATE)\n- **Own Profile**: `auth.uid() = id`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n### Delete Permissions (DELETE)\n- **Administrators Only**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n## 2. vote_pick Table RLS Policy\n\n### Read Permissions (SELECT)\n- **Own Votes**: `auth.uid() = user_id`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n### Write Permissions (INSERT/UPDATE)\n- **Own Votes**: `auth.uid() = user_id`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n### Delete Permissions (DELETE)\n- **Own Votes**: `auth.uid() = user_id`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n## 3. vote_comment Table RLS Policy\n\n### Read Permissions (SELECT)\n- **All Authenticated Users**: `auth.uid() IS NOT NULL AND deleted_at IS NULL`\n\n### Write Permissions (INSERT)\n- **Authenticated Users**: `auth.uid() IS NOT NULL`\n\n### Update Permissions (UPDATE)\n- **Comment Author**: `auth.uid()::text = user_id::text`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n### Delete Permissions (DELETE)\n- **Comment Author**: `auth.uid()::text = user_id::text`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n## 4. vote_comment_like Table RLS Policy\n\n### Read Permissions (SELECT)\n- **All Authenticated Users**: `auth.uid() IS NOT NULL`\n\n### Write Permissions (INSERT/DELETE)\n- **Own Likes**: `auth.uid()::text = user_id::text`\n\n## 5. vote, vote_item, artist, artist_group Tables RLS Policy\n\n### Read Permissions (SELECT)\n- **All Users**: `deleted_at IS NULL` (public information)\n\n### Write Permissions (INSERT/UPDATE/DELETE)\n- **Administrators Only**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n## 6. vote_share_bonus Table RLS Policy\n\n### Read/Write Permissions\n- **Own Bonuses**: `auth.uid() = user_id`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n\n## 7. user_blocks Table RLS Policy\n\n### Read/Write Permissions\n- **Own Block List**: `auth.uid() = user_id`\n- **Administrators**: `(SELECT is_admin FROM user_profiles WHERE id = auth.uid()) = true`\n</info added on 2025-05-29T07:46:10.379Z>",
+          "status": "done"
         },
         {
           "id": 3,
@@ -1311,7 +1328,7 @@
             2
           ],
           "details": "Use Supabase's dashboard or SQL editor to create and apply RLS policies. Ensure policies are correctly linked to the WeChat authentication system. Double-check that default policies deny access unless explicitly granted.",
-          "status": "pending"
+          "status": "in-progress"
         },
         {
           "id": 4,
@@ -1658,9 +1675,89 @@
       "description": "Enhance the existing voting system by maintaining the original UI, analyzing connection issues, and implementing a fallback polling mechanism for real-time updates.",
       "details": "1. UI Restoration:\n   - Review the current VoteDetailPresenter.tsx and identify changes made for real-time functionality.\n   - Refactor the component to maintain the original UI structure while incorporating real-time updates.\n   - Use conditional rendering to seamlessly switch between real-time and polling modes.\n\n2. Connection State Analysis:\n   - Implement a connection state management system using Zustand or React Context.\n   - Add logging and error tracking for WebSocket connections using Supabase Realtime.\n   - Create a diagnostic tool to analyze and report connection issues.\n\n3. Fallback Mechanism Implementation:\n   - Develop a polling function that fetches vote data every second when real-time connection fails.\n   - Implement a switchable data source that can toggle between WebSocket and polling:\n     ```typescript\n     const dataSource = useDataSource();\n     const [voteData, setVoteData] = useState(null);\n\n     useEffect(() => {\n       if (dataSource.isRealtime) {\n         // Use existing real-time subscription\n         const subscription = supabase\n           .from('votes')\n           .on('UPDATE', handleRealtimeUpdate)\n           .subscribe();\n         return () => subscription.unsubscribe();\n       } else {\n         // Implement polling\n         const pollInterval = setInterval(async () => {\n           const { data, error } = await supabase.from('votes').select('*');\n           if (data) setVoteData(data);\n         }, 1000);\n         return () => clearInterval(pollInterval);\n       }\n     }, [dataSource.isRealtime]);\n     ```\n\n4. Hybrid System Integration:\n   - Modify VoteDetailPresenter.tsx to use the new switchable data source.\n   - Implement a connection quality monitor that automatically switches between real-time and polling:\n     ```typescript\n     const connectionMonitor = () => {\n       let failedAttempts = 0;\n       return {\n         onError: () => {\n           failedAttempts++;\n           if (failedAttempts > 3) {\n             dataSource.setMode('polling');\n           }\n         },\n         onSuccess: () => {\n           failedAttempts = 0;\n           dataSource.setMode('realtime');\n         }\n       };\n     };\n     ```\n\n5. Performance Optimization:\n   - Implement debouncing for polling updates to prevent unnecessary re-renders.\n   - Use memoization techniques to optimize component rendering in both modes.\n\n6. Error Handling and User Feedback:\n   - Create a user-friendly notification system for connection status changes.\n   - Implement graceful degradation, ensuring voting functionality remains available even in polling mode.",
       "testStrategy": "1. UI Consistency Test:\n   - Compare screenshots of the original UI with the refactored version to ensure visual consistency.\n   - Conduct a thorough review of all UI components to verify that real-time functionality hasn't altered the layout or user experience.\n\n2. Connection State Analysis Test:\n   - Simulate various network conditions (good, poor, disconnected) using browser dev tools.\n   - Verify that the connection state is correctly reported and logged.\n   - Check that the diagnostic tool accurately identifies and reports connection issues.\n\n3. Fallback Mechanism Test:\n   - Manually disconnect the WebSocket connection and confirm that the system switches to polling mode.\n   - Verify that poll requests occur every second when in fallback mode.\n   - Reconnect the WebSocket and ensure the system switches back to real-time updates.\n\n4. Hybrid System Integration Test:\n   - Create a test scenario that alternates between good and poor network conditions.\n   - Verify that the system smoothly transitions between real-time and polling modes without data loss or UI disruptions.\n   - Check that all vote data is consistently updated in both modes.\n\n5. Performance Test:\n   - Use React DevTools profiler to measure render performance in both real-time and polling modes.\n   - Simulate high-frequency updates and ensure the UI remains responsive.\n   - Verify that unnecessary re-renders are minimized, especially in polling mode.\n\n6. Error Handling and User Feedback Test:\n   - Simulate various error conditions (e.g., server unavailable, invalid data) and verify appropriate error messages are displayed.\n   - Check that users are notified of mode changes (real-time to polling and vice versa) in a non-intrusive manner.\n   - Ensure that core voting functionality remains accessible even when real-time updates are unavailable.\n\n7. End-to-End Test:\n   - Conduct a full user journey test, including creating votes, submitting votes, and viewing results in both real-time and polling modes.\n   - Verify that all animations and UI updates work correctly in both modes.\n\n8. Browser Compatibility Test:\n   - Test the hybrid system across multiple browsers (Chrome, Firefox, Safari, Edge) to ensure consistent behavior.\n\n9. Mobile Responsiveness Test:\n   - Verify that the enhanced system works correctly on various mobile devices and screen sizes.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         10
+      ],
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Restore and Analyze Existing UI",
+          "description": "Review the current VoteDetailPresenter.tsx, identify changes made for real-time functionality, and refactor the component to maintain the original UI structure while incorporating real-time updates.",
+          "dependencies": [],
+          "details": "1. Examine VoteDetailPresenter.tsx for real-time modifications.\n2. Document all changes related to real-time functionality.\n3. Refactor the component to preserve original UI structure.\n4. Implement conditional rendering for seamless mode switching.\n5. Ensure UI consistency between real-time and polling modes.\n<info added on 2025-05-29T06:05:14.988Z>\n## UI Analysis Completed\n\n### Current Situation Analysis:\n1. **Original VoteDetailPresenter.tsx (846 lines)**: Complete UI structure\n   - Gradient background, sticky header, card layout\n   - Vote timer, search functionality, modal dialogs\n   - Complete voting logic and state management\n\n2. **RealtimeVoteDetailPresenter.tsx (590 lines)**: Version with realtime features\n   - Missing some original UI elements (gradients, card structure, etc.)\n   - Added realtime hooks and animations\n   - Currently used in VoteDetailFetcher\n\n### Identified Issues:\n- UI completeness lost in realtime version\n- Realtime connection currently not functioning\n- No fallback mechanism implemented\n\n### Solution Approach:\nImplement hybrid system based on original VoteDetailPresenter.tsx:\n1. Maintain existing UI structure\n2. Selectively integrate realtime functionality\n3. Implement polling fallback for connection failures\n</info added on 2025-05-29T06:05:14.988Z>",
+          "status": "done",
+          "testStrategy": "Create unit tests for UI rendering in both real-time and polling modes. Perform visual regression testing to ensure UI consistency."
+        },
+        {
+          "id": 2,
+          "title": "Implement Connection State Diagnostic System",
+          "description": "Develop a connection state management system using Zustand or React Context, add logging and error tracking for WebSocket connections, and create a diagnostic tool for connection issues.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Choose between Zustand and React Context for state management.\n2. Implement connection state tracking logic.\n3. Add comprehensive logging for WebSocket connections.\n4. Develop error tracking system for Supabase Realtime.\n5. Create a diagnostic tool to analyze and report connection issues.\n<info added on 2025-05-29T06:15:17.474Z>\n## 연결 상태 진단 시스템 구현 완료\n\n### 구현 내용:\n1. **HybridVoteDetailPresenter 생성**: 기존 UI를 유지하면서 리얼타임 기능을 선택적으로 추가하는 하이브리드 시스템 구현\n2. **VoteDetailFetcher 업데이트**: 새로운 HybridVoteDetailPresenter 사용하도록 변경\n3. **빌드 검증**: 모든 타입 에러 수정 및 성공적인 빌드 확인\n\n### 진단 기능:\n- 데이터 소스 모드 (realtime/polling/hybrid) 지원\n- 연결 상태 모니터링 및 자동 전환\n- 실시간 연결 실패시 폴링 모드로 자동 전환\n- 연결 상태 표시 및 디버그 정보 제공\n\n### 다음 단계:\n테스크 21.3에서 폴링 폴백 메커니즘을 구현하여 리얼타임 연결이 실패할 때 1초마다 데이터를 업데이트하는 시스템을 완성할 예정입니다.\n</info added on 2025-05-29T06:15:17.474Z>",
+          "status": "done",
+          "testStrategy": "Implement unit tests for state management. Simulate various connection scenarios to verify logging and error tracking. Test the diagnostic tool with mock connection data."
+        },
+        {
+          "id": 3,
+          "title": "Develop Polling Fallback Mechanism",
+          "description": "Create a polling function that fetches vote data every second when real-time connection fails, ensuring continuous data updates in case of WebSocket disconnection.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Implement a polling function using Supabase client.\n2. Set up a 1-second interval for data fetching.\n3. Ensure proper error handling in the polling function.\n4. Implement data comparison to avoid unnecessary updates.\n5. Optimize the polling mechanism for performance.\n<info added on 2025-05-29T06:23:01.325Z>\n**Implementation Completed:**\n1. Created `updateVoteDataPolling` function that runs every 1 second\n2. Applied correct database schema:\n   - Used `vote_content`, `area`, `start_at`, `stop_at` columns from `vote` table\n   - Joined `vote_item` and `artist` tables to retrieve artist information\n   - Queried user voting information from `vote_pick` table\n3. Data transformation and sorting:\n   - Converted database responses to VoteItem type\n   - Sorted by vote count in descending order and assigned rankings\n4. User state management: Added user and setUserVote states with Supabase auth integration\n5. Error handling: Implemented error tracking with pollingErrorCount and retry logic\n6. Polling control: Created startPollingMode/stopPollingMode functions to manage polling\n\n**Technical Details:**\n- Used setInterval for 1-second polling (pollingInterval = 1000ms)\n- Managed interval reference with pollingIntervalRef.current\n- Hybrid mode: Automatically switches to polling mode when realtime connection fails\n- Console logging for polling state debugging\n\n**Build Status:** All TypeScript errors resolved, production build successful\n\nThe requirement \"update every second when connection is lost\" has been fully implemented.\n</info added on 2025-05-29T06:23:01.325Z>",
+          "status": "done",
+          "testStrategy": "Create unit tests for the polling function. Simulate WebSocket failures to verify fallback behavior. Measure performance impact of polling."
+        },
+        {
+          "id": 4,
+          "title": "Implement Hybrid Data Source System",
+          "description": "Develop a switchable data source that can toggle between WebSocket and polling, integrating it into the VoteDetailPresenter.tsx component.",
+          "dependencies": [
+            3
+          ],
+          "details": "1. Create a switchable data source hook or class.\n2. Implement logic to toggle between WebSocket and polling.\n3. Modify VoteDetailPresenter.tsx to use the new data source.\n4. Ensure smooth transition between data sources.\n5. Implement proper cleanup for both WebSocket and polling.\n<info added on 2025-05-29T06:31:16.053Z>\nImplementation of Hybrid Data Source System completed with the following components:\n\n1. Supabase Realtime Connection:\n   - Subscription to `vote_item` table for PostgreSQL change events\n   - Additional monitoring of `vote_pick` table changes\n   - Automatic handling based on connection states (SUBSCRIBED/CHANNEL_ERROR)\n\n2. Hybrid Mode Switching Logic:\n   - `connectRealtime()`: Subscribes to Supabase realtime channels\n   - `startHybridMode()`: Attempts realtime connection first\n   - Automatic fallback to polling mode when realtime connection fails\n\n3. Connection State Management:\n   - Status updates based on connection success/failure\n   - Error count tracking and retry logic\n   - Automatic fallback mechanism\n\n4. Data Source Integration:\n   - Common data update functions for both realtime and polling modes\n   - Unified data transformation and sorting logic\n   - Simultaneous user vote information updates\n\nTechnical Implementation Details:\n- Used Supabase `.channel()` API for realtime subscriptions\n- Implemented `postgres_changes` event type for table change detection\n- Applied filters to receive updates only for specific vote IDs\n- Implemented connection state callbacks for automatic mode switching\n- Optimized performance using useCallback\n\nTesting Results:\n- All TypeScript errors resolved\n- Successful production build\n- Function dependency order organized\n</info added on 2025-05-29T06:31:16.053Z>",
+          "status": "done",
+          "testStrategy": "Develop integration tests for the hybrid system. Verify correct data flow in both modes. Test switching behavior under various network conditions."
+        },
+        {
+          "id": 5,
+          "title": "Implement Automatic Mode Switching Logic",
+          "description": "Create a connection quality monitor that automatically switches between real-time and polling modes based on connection stability.",
+          "dependencies": [
+            4
+          ],
+          "details": "1. Implement a connection monitor function.\n2. Define thresholds for switching between modes.\n3. Integrate the monitor with the hybrid data source.\n4. Implement graceful mode transitions.\n5. Add user notifications for mode changes.\n<info added on 2025-05-29T08:56:52.088Z>\n# Automatic Mode Switching Logic Implementation Completed:\n\n## Implemented Features:\n\n1. **Connection Quality Monitoring System**:\n   - `startConnectionQualityMonitor()`: Checks connection quality every 10 seconds\n   - Quality score calculation (0-100): Based on error rate and consecutive errors\n   - Response time and latency tracking\n\n2. **Automatic Mode Switching Thresholds**:\n   - Maximum error count: 3 times\n   - Maximum consecutive errors: 2 times\n   - Minimum connection quality: 70 points\n   - Real-time retry delay: 5 seconds\n   - Quality check interval: 10 seconds\n\n3. **Intelligent Mode Switching**:\n   - Real-time → Polling: Quality below 70 points or consecutive errors exceeding 2\n   - Polling → Real-time: Quality above 80 points + 5 or more consecutive successes\n   - Automatic reconnection attempts: Retry real-time mode after 5-second delay\n\n4. **Graceful Transition Mechanism**:\n   - `switchMode()`: Cleans up existing connections before starting new mode\n   - State initialization and error count reset\n   - Ensures smooth user experience\n\n5. **User Feedback**:\n   - Real-time status display in development mode\n   - Manual mode switching buttons (real-time/polling/static)\n   - Detailed debug information via console logging\n\n6. **Performance Optimization**:\n   - Prevents unnecessary re-rendering with useCallback\n   - Cleanup functions to prevent memory leaks\n   - Automatic recovery mechanisms for error situations\n\n**Testing Completed**: No TypeScript errors, successful build confirmed\n</info added on 2025-05-29T08:56:52.088Z>",
+          "status": "done",
+          "testStrategy": "Create unit tests for the connection monitor. Simulate various network conditions to verify automatic switching. Test user notification system."
+        },
+        {
+          "id": 6,
+          "title": "Optimize Performance and Error Handling",
+          "description": "Implement performance optimizations, including debouncing and memoization, and enhance error handling with user-friendly notifications.",
+          "dependencies": [
+            5
+          ],
+          "details": "1. Implement debouncing for polling updates.\n2. Apply memoization techniques to optimize rendering.\n3. Create a user-friendly notification system for status changes.\n4. Implement graceful degradation for voting functionality.\n5. Conduct thorough testing and performance profiling.\n<info added on 2025-05-29T09:00:11.189Z>\n## 구현된 기능들:\n\n### 1. 성능 최적화:\n- **디바운싱**: 검색어 입력에 300ms 디바운싱 적용 (`useDebounce` 훅)\n- **메모이제이션**: \n  - `useMemo`로 투표 아이템 정렬, 필터링, 총합 계산 최적화\n  - 투표 제목과 내용 메모이제이션으로 불필요한 재계산 방지\n  - `useCallback`으로 함수 참조 안정성 확보\n- **렌더링 최적화**: \n  - 검색 필터링과 정렬을 하나의 useMemo로 통합\n  - 디바운싱된 검색어를 사용하여 과도한 리렌더링 방지\n\n### 2. 사용자 친화적 알림 시스템:\n- **알림 타입**: success, error, warning, info 지원\n- **자동 제거**: 기본 5초, 커스터마이즈 가능한 duration\n- **시각적 피드백**: 타입별 색상 구분 (녹색/빨강/노랑/파랑)\n- **사용자 제어**: 수동 닫기 버튼 제공\n- **위치**: 화면 상단 우측에 고정, z-index 50으로 최상위 표시\n\n### 3. 향상된 에러 핸들링:\n- **연결 오류 알림**: 데이터 로딩 실패 시 사용자에게 명확한 메시지 표시\n- **투표 결과 피드백**: 성공/실패 시 즉시 알림으로 상태 전달\n- **모드 전환 알림**: 실시간 ↔ 폴링 모드 변경 시 사용자에게 정보 제공\n- **우아한 오류 복구**: 에러 발생 시에도 기본 기능 유지\n\n### 4. 우아한 기능 저하:\n- **연결 모드별 동작**: realtime → polling → static 순서로 점진적 저하\n- **기능 보존**: 투표 핵심 기능은 모든 모드에서 유지\n- **투명한 상태 표시**: 개발 모드에서 상세한 상태 정보 제공\n\n### 5. 사용자 경험 개선:\n- **즉각적 피드백**: 모든 사용자 액션에 대한 시각적 응답\n- **직관적 인터페이스**: 연결 상태와 모드를 아이콘과 색상으로 표시\n- **접근성**: 키보드 탐색과 스크린 리더 호환성 고려\n\n**테스트 결과**: 모든 TypeScript 에러 해결, 성능 최적화 적용 완료\n</info added on 2025-05-29T09:00:11.189Z>",
+          "status": "done",
+          "testStrategy": "Perform load testing to verify system stability. Measure render performance in both modes. Test error scenarios and verify user feedback mechanisms."
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Restore Multilingual Processing Logic and Implement Crowdin Integration",
+      "description": "Restore and enhance the multilingual processing system, including the implementation of useLocaleRouter hook, fixing language routing issues, and integrating Crowdin for text management.",
+      "details": "1. Implement useLocaleRouter hook:\n   - Create a new hook in the 'hooks' directory named 'useLocaleRouter.ts'\n   - Implement logic to handle locale-based routing\n   - Ensure the hook integrates with Next.js routing system\n\n2. Fix language routing issues in LanguageSelector and PortalMenuItem components:\n   - Review and update the LanguageSelector component to use the new useLocaleRouter hook\n   - Modify the PortalMenuItem component to handle language changes correctly\n   - Test both components thoroughly to ensure proper routing behavior\n\n3. Integrate Crowdin for multilingual text management:\n   - Set up a Crowdin project for the application\n   - Configure the Crowdin CLI tool for syncing translations\n   - Implement a workflow to push source strings to Crowdin and pull translations\n\n4. Review and update existing locales folder and next-intl configuration:\n   - Audit the current structure of the locales folder\n   - Update next-intl configuration to work with the new Crowdin integration\n   - Ensure all existing translations are properly migrated to the new system\n\n5. Restore multilingual routing middleware and configuration:\n   - Implement a custom middleware for handling locale-based routing\n   - Update Next.js configuration to use the new middleware\n   - Ensure proper fallback behavior for unsupported locales\n\n6. Implement a centralized translation management system:\n   - Create a utility function for loading translations based on the current locale\n   - Implement caching mechanism to improve performance of translation lookups\n   - Ensure proper error handling for missing translations\n\n7. Update components to use the new translation system:\n   - Refactor existing components to use the new translation utilities\n   - Implement HOC or custom hooks for easy translation integration in components\n\n8. Implement language switching functionality:\n   - Create a language switcher component that updates the application's locale\n   - Ensure proper state management for language changes\n   - Implement smooth transitions when switching languages\n\n9. Optimize translation loading:\n   - Implement lazy loading for translations to improve initial load time\n   - Consider implementing a translation bundling strategy for frequently used strings",
+      "testStrategy": "1. Unit Testing:\n   - Write unit tests for the useLocaleRouter hook to ensure correct behavior\n   - Create tests for the updated LanguageSelector and PortalMenuItem components\n   - Develop unit tests for all utility functions related to translation management\n\n2. Integration Testing:\n   - Test the integration between the application and Crowdin\n   - Verify that translations are correctly pulled from Crowdin and applied in the app\n   - Test the language switching functionality across different pages and components\n\n3. End-to-End Testing:\n   - Create E2E tests to simulate user interactions with language-related features\n   - Test navigation between different locales and verify correct content display\n   - Verify that all UI elements adapt correctly to different languages\n\n4. Performance Testing:\n   - Measure the impact of the new translation system on application load time\n   - Test the performance of language switching, ensuring smooth transitions\n   - Verify that lazy loading of translations works as expected\n\n5. Localization Testing:\n   - Test the application with various locales, including RTL languages if applicable\n   - Verify that all UI elements adapt correctly to different text lengths\n   - Check for any hardcoded strings that may have been missed in the localization process\n\n6. Accessibility Testing:\n   - Ensure that the language switcher is accessible via keyboard navigation\n   - Verify that screen readers can properly announce language changes\n   - Test that all localized content is properly read by screen readers\n\n7. Cross-browser and Cross-device Testing:\n   - Test the multilingual functionality across different browsers and devices\n   - Verify that language persistence works correctly across sessions and page reloads\n\n8. Error Handling:\n   - Test scenarios with missing translations or connection issues with Crowdin\n   - Verify that appropriate fallback mechanisms are in place for unsupported locales\n\n9. Code Review:\n   - Conduct a thorough code review to ensure best practices in i18n implementation\n   - Verify that the codebase is consistent in its approach to handling translations\n\n10. Documentation:\n    - Ensure that all new multilingual features and processes are well-documented\n    - Create guidelines for developers on how to add new translatable content",
+      "status": "pending",
+      "dependencies": [
+        3,
+        17,
+        19
       ],
       "priority": "high",
       "subtasks": []
