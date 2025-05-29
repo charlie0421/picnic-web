@@ -1,10 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import Image from 'next/image';
 import {useRouter} from 'next/navigation';
 import {useLanguageStore} from '@/stores/languageStore';
 import {useEffect, useState} from 'react';
-import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 export default function NotFound() {
   const { t } = useLanguageStore();
@@ -65,18 +65,18 @@ export default function NotFound() {
             </p>
 
             <div className='flex flex-col sm:flex-row justify-center gap-4'>
-              <LocalizedLink
+              <Link
                 href='/'
                 className='inline-flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 shadow-sm hover:shadow-md'
               >
                 {t('notFound.homeButton')}
-              </LocalizedLink>
-              <LocalizedLink
+              </Link>
+              <Link
                 href='/contact'
                 className='inline-flex items-center justify-center px-6 py-3 bg-white text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 transition-colors duration-200 shadow-sm hover:shadow-md'
               >
                 {t('notFound.contactButton')}
-              </LocalizedLink>
+              </Link>
             </div>
           </div>
         </div>

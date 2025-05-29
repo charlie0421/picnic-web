@@ -4,9 +4,7 @@ import './globals.css';
 import './layout.css';
 import { Metadata, Viewport } from 'next';
 import ClientLayout from './ClientLayout';
-import { createInternationalizedMetadata, createLocalizedJsonLd } from './utils/metadata-utils';
-import { Language, SUPPORTED_LANGUAGES } from '@/config/settings';
-import { notFound } from 'next/navigation';
+import { DEFAULT_METADATA } from './utils/metadata-utils';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -25,10 +23,23 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   // Next.js 15.3.1에서는 params 전체를 await 해야 함
   const { lang } = await params;
-  const language = lang as Language;
 
-  // 국제화된 메타데이터 생성
-  return createInternationalizedMetadata(language, '/');
+  // 언어에 따라 다른 메타데이터 생성
+  const languageSpecificMetadata: Partial<Metadata> = {
+    alternates: {
+      ...DEFAULT_METADATA.alternates,
+      canonical: lang === 'ko' ? '/' : `/${lang}`,
+    },
+    openGraph: {
+      ...DEFAULT_METADATA.openGraph,
+      locale: lang === 'ko' ? 'ko_KR' : 'en_US',
+    },
+  };
+
+  return {
+    ...DEFAULT_METADATA,
+    ...languageSpecificMetadata,
+  };
 }
 
 // 정적 metadata 내보내기 제거 (중복된 metadata 내보내기)
@@ -42,60 +53,6 @@ export default async function RootLayout({
 }) {
   // Next.js 15.3.1에서는 params 전체를 await 해야 함
   const { lang } = await params;
-  const language = lang as Language;
-
-  // 지원되는 언어인지 확인
-  if (!SUPPORTED_LANGUAGES.includes(language)) {
-    notFound();
-  }
-
-  // 메시지 로드
-  let messages;
-  try {
-    messages = (await import(`../../locales/${language}.json`)).default;
-  } catch (error) {
-    // 기본 언어로 폴백
-    messages = (await import(`../../locales/ko.json`)).default;
-  }
-
-  // 언어별 구조화된 데이터 생성
-  const websiteJsonLd = createLocalizedJsonLd(
-    language,
-    'WebSite',
-    {
-      '@id': `https://picnic.com/#website`,
-      url: 'https://picnic.com',
-      potentialAction: {
-        '@type': 'SearchAction',
-        target: {
-          '@type': 'EntryPoint',
-          urlTemplate: 'https://picnic.com/search?q={search_term_string}',
-        },
-        'query-input': 'required name=search_term_string',
-      },
-    }
-  );
-
-  const organizationJsonLd = createLocalizedJsonLd(
-    language,
-    'Organization',
-    {
-      '@id': `https://picnic.com/#organization`,
-      name: language === 'ko' ? '피크닉' : 'Picnic',
-      url: 'https://picnic.com',
-      logo: {
-        '@type': 'ImageObject',
-        url: 'https://picnic.com/images/logo.png',
-        width: 400,
-        height: 400,
-      },
-      sameAs: [
-        'https://twitter.com/picnic',
-        'https://instagram.com/picnic',
-        'https://facebook.com/picnic',
-      ],
-    }
-  );
 
   return (
     <html lang={lang || 'ko'}>
@@ -111,22 +68,28 @@ export default async function RootLayout({
         <meta name='dashlane-ignore' content='true' />
         <meta name='bitwarden-ignore' content='true' />
         
-        {/* 언어별 구조화된 데이터 */}
+        {/* JSON-LD 구조화된 데이터 - 웹사이트 정보 */}
         <script
           type='application/ld+json'
           dangerouslySetInnerHTML={{
-            __html: websiteJsonLd,
-          }}
-        />
-        <script
-          type='application/ld+json'
-          dangerouslySetInnerHTML={{
-            __html: organizationJsonLd,
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              url: 'https://picnic.com',
+              name: '피크닉',
+              description:
+                '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: 'https://picnic.com/search?q={search_term_string}',
+                'query-input': 'required name=search_term_string',
+              },
+            }),
           }}
         />
       </head>
       <body className={inter.className}>
-        <ClientLayout initialLanguage={lang} messages={messages}>{children}</ClientLayout>
+        <ClientLayout initialLanguage={lang}>{children}</ClientLayout>
       </body>
     </html>
   );

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Vote } from '@/types/interfaces';
 
 import { getVoteStatus } from '@/components/server/utils';
 import { VoteStatus } from '@/stores/voteFilterStore';
 import { VoteCard } from '..';
-import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 export interface VoteListPresenterProps {
   votes: Vote[];
@@ -25,7 +25,7 @@ export function VoteListPresenter({
   isLoading = false,
   onLoadMore
 }: VoteListPresenterProps) {
-  const { push } = useLocaleRouter();
+  const router = useRouter();
   const [selectedStatus, setSelectedStatus] = useState<VoteStatus | 'all'>('all');
   
   const filteredVotes = votes.filter(vote => {
@@ -39,7 +39,7 @@ export function VoteListPresenter({
       onVoteClick(voteId);
     } else {
       // 기본 라우팅 동작
-      push(`/vote/${voteId}`);
+      router.push(`/vote/${voteId}`);
     }
   };
   

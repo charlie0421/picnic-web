@@ -1,12 +1,11 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {usePathname} from 'next/navigation';
 import {useLanguageStore} from '@/stores/languageStore';
 import menuConfig from '@/config/menu.json';
 import CurrentTime from './common/CurrentTime';
-import { LocalizedLink } from '@/components/ui/LocalizedLink';
-import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 /**
  * 투표 페이지 메뉴 컴포넌트
@@ -15,15 +14,13 @@ import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 export const Menu: React.FC = () => {
   const { t } = useLanguageStore();
   const pathname = usePathname();
-  const { currentLocale } = useLocaleRouter();
 
   // 현재 경로에 따라 메뉴 항목의 활성 상태 결정
   const isActive = (path: string) => {
-    const currentLang = currentLocale;
-    const localizedPath = `/${currentLang}${path}`;
-    
-    // 언어가 포함된 전체 경로로 비교
-    return pathname.startsWith(localizedPath) || pathname.startsWith(path);
+    // 언어 코드를 제외한 경로 비교
+    const currentPath = pathname.split('/').slice(2).join('/');
+    const targetPath = path.split('/').slice(1).join('/');
+    return currentPath.startsWith(targetPath);
   };
 
   // 투표 포탈의 서브메뉴 가져오기
@@ -34,7 +31,7 @@ export const Menu: React.FC = () => {
     <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center py-0'>
       <div className='flex overflow-x-auto scrollbar-hide whitespace-nowrap w-full sm:w-auto'>
         {subMenus.map((menuItem) => (
-          <LocalizedLink
+          <Link
             key={menuItem.key}
             href={menuItem.path}
             className={`px-5 py-2 text-sm sm:text-base ${
@@ -47,7 +44,7 @@ export const Menu: React.FC = () => {
             }`}
           >
             {menuItem.i18nKey ? t(menuItem.i18nKey) : menuItem.name}
-          </LocalizedLink>
+          </Link>
         ))}
       </div>
       <div className='mt-1 sm:mt-0'>

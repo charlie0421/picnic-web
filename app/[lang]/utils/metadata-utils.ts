@@ -6,188 +6,91 @@
 
 import { Metadata } from 'next';
 import { SITE_URL } from '../constants/static-pages';
-import { Language, SUPPORTED_LANGUAGES } from '@/config/settings';
 
 /**
- * 언어별 사이트 정보
+ * 기본 메타데이터 객체
  */
-const SITE_INFO: Record<Language, {
-  title: string;
-  description: string;
-  keywords: string[];
-  locale: string;
-}> = {
-  ko: {
+export const DEFAULT_METADATA: Metadata = {
+  title: {
+    default: '피크닉',
+    template: '%s | 피크닉',
+  },
+  description: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+  generator: 'Next.js',
+  applicationName: '피크닉',
+  referrer: 'origin-when-cross-origin',
+  keywords: ['피크닉', 'K-Pop', '투표', '아이돌', '팬덤', '리워드', '미디어'],
+  authors: [{ name: '피크닉 팀' }],
+  creator: '피크닉',
+  publisher: '피크닉',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: '/',
+    languages: {
+      'ko-KR': '/',
+      'en-US': '/en',
+    },
+  },
+  openGraph: {
+    type: 'website',
+    siteName: '피크닉',
     title: '피크닉',
     description: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
-    keywords: ['피크닉', 'K-Pop', '투표', '아이돌', '팬덤', '리워드', '미디어'],
-    locale: 'ko_KR',
+    images: [
+      {
+        url: `${SITE_URL}/images/og-image.jpg`,
+        width: 1200,
+        height: 630,
+        alt: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+      },
+    ],
   },
-  en: {
-    title: 'Picnic',
-    description: 'Picnic - Voting and Media Platform for K-Pop Artists',
-    keywords: ['Picnic', 'K-Pop', 'Voting', 'Idol', 'Fandom', 'Rewards', 'Media'],
-    locale: 'en_US',
+  twitter: {
+    card: 'summary_large_image',
+    title: '피크닉',
+    description: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+    images: [`${SITE_URL}/images/twitter-image.jpg`],
+    creator: '@picnic',
+    site: '@picnic',
   },
-  ja: {
-    title: 'ピクニック',
-    description: 'ピクニック - K-Popアーティストのための投票とメディアプラットフォーム',
-    keywords: ['ピクニック', 'K-Pop', '投票', 'アイドル', 'ファンダム', 'リワード', 'メディア'],
-    locale: 'ja_JP',
+  icons: {
+    icon: [
+      { url: '/favicon/favicon.ico' },
+      { url: '/favicon/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/favicon/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    other: [
+      {
+        rel: 'mask-icon',
+        url: '/favicon/safari-pinned-tab.svg',
+        color: '#5bbad5',
+      },
+    ],
   },
-  zh: {
-    title: '野餐',
-    description: '野餐 - K-Pop艺人投票和媒体平台',
-    keywords: ['野餐', 'K-Pop', '投票', '偶像', '粉丝', '奖励', '媒体'],
-    locale: 'zh_CN',
+  manifest: '/site.webmanifest',
+  verification: {
+    google: 'google-site-verification=YOUR_VERIFICATION_CODE',
+    yandex: 'YOUR_YANDEX_VERIFICATION_CODE',
   },
-  id: {
-    title: 'Picnic',
-    description: 'Picnic - Platform Voting dan Media untuk Artis K-Pop',
-    keywords: ['Picnic', 'K-Pop', 'Voting', 'Idol', 'Fandom', 'Rewards', 'Media'],
-    locale: 'id_ID',
-  },
-};
-
-/**
- * 언어별 hreflang 링크 생성
- */
-export function generateHreflangLinks(currentPath: string): Record<string, string> {
-  const hreflangLinks: Record<string, string> = {};
-  
-  // 각 지원 언어에 대한 hreflang 링크 생성
-  SUPPORTED_LANGUAGES.forEach(lang => {
-    const langPath = lang === 'ko' ? currentPath : `/${lang}${currentPath}`;
-    hreflangLinks[SITE_INFO[lang].locale.replace('_', '-')] = `${SITE_URL}${langPath}`;
-  });
-  
-  // x-default 링크 추가 (기본 언어)
-  hreflangLinks['x-default'] = `${SITE_URL}${currentPath}`;
-  
-  return hreflangLinks;
-}
-
-/**
- * 국제화된 메타데이터 생성
- */
-export function createInternationalizedMetadata(
-  language: Language,
-  path: string = '/',
-  customData?: {
-    title?: string;
-    description?: string;
-    imageUrl?: string;
-    keywords?: string[];
-  }
-): Metadata {
-  const siteInfo = SITE_INFO[language];
-  const title = customData?.title || siteInfo.title;
-  const description = customData?.description || siteInfo.description;
-  const keywords = customData?.keywords || siteInfo.keywords;
-  
-  // 정규화된 경로 (언어 프리픽스 제거)
-  const normalizedPath = path.startsWith(`/${language}`) 
-    ? path.replace(`/${language}`, '') || '/'
-    : path;
-  
-  // 현재 언어의 canonical URL
-  const canonicalPath = language === 'ko' 
-    ? normalizedPath 
-    : `/${language}${normalizedPath}`;
-  
-  // hreflang 링크 생성
-  const hreflangLinks = generateHreflangLinks(normalizedPath);
-  
-  // 이미지 URL 처리
-  const imageUrl = customData?.imageUrl || `${SITE_URL}/images/og-image.jpg`;
-  const fullImageUrl = imageUrl.startsWith('http') ? imageUrl : `${SITE_URL}${imageUrl}`;
-  
-  return {
-    title: {
-      default: title,
-      template: `%s | ${siteInfo.title}`,
-    },
-    description,
-    keywords,
-    generator: 'Next.js',
-    applicationName: siteInfo.title,
-    referrer: 'origin-when-cross-origin',
-    authors: [{ name: `${siteInfo.title} 팀` }],
-    creator: siteInfo.title,
-    publisher: siteInfo.title,
-    formatDetection: {
-      email: false,
-      address: false,
-      telephone: false,
-    },
-    metadataBase: new URL(SITE_URL),
-    alternates: {
-      canonical: canonicalPath,
-      languages: hreflangLinks,
-    },
-    openGraph: {
-      type: 'website',
-      siteName: siteInfo.title,
-      title,
-      description,
-      locale: siteInfo.locale,
-      url: `${SITE_URL}${canonicalPath}`,
-      images: [
-        {
-          url: fullImageUrl,
-          width: 1200,
-          height: 630,
-          alt: description,
-        },
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: [fullImageUrl],
-      creator: '@picnic',
-      site: '@picnic',
-    },
-    icons: {
-      icon: [
-        { url: '/favicon/favicon.ico' },
-        { url: '/favicon/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-        { url: '/favicon/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      ],
-      apple: [
-        { url: '/favicon/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-      ],
-      other: [
-        {
-          rel: 'mask-icon',
-          url: '/favicon/safari-pinned-tab.svg',
-          color: '#5bbad5',
-        },
-      ],
-    },
-    manifest: '/site.webmanifest',
-    verification: {
-      google: 'google-site-verification=YOUR_VERIFICATION_CODE',
-      yandex: 'YOUR_YANDEX_VERIFICATION_CODE',
-    },
-    robots: {
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
       index: true,
       follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        'max-image-preview': 'large',
-        'max-snippet': -1,
-      },
+      'max-image-preview': 'large',
+      'max-snippet': -1,
     },
-  };
-}
-
-/**
- * 기본 메타데이터 객체 (하위 호환성)
- */
-export const DEFAULT_METADATA: Metadata = createInternationalizedMetadata('ko');
+  },
+};
 
 /**
  * 페이지별 메타데이터 생성 함수
@@ -219,37 +122,6 @@ export function createPageMetadata(
       description,
     },
     ...metadata,
-  };
-}
-
-/**
- * 언어별 페이지 메타데이터 생성
- */
-export function createLocalizedPageMetadata(
-  language: Language,
-  path: string,
-  title: string,
-  description: string,
-  options?: {
-    imageUrl?: string;
-    keywords?: string[];
-    customMetadata?: Partial<Metadata>;
-  }
-): Metadata {
-  const baseMetadata = createInternationalizedMetadata(
-    language,
-    path,
-    {
-      title,
-      description,
-      imageUrl: options?.imageUrl,
-      keywords: options?.keywords,
-    }
-  );
-  
-  return {
-    ...baseMetadata,
-    ...options?.customMetadata,
   };
 }
 
@@ -357,59 +229,17 @@ export function createDynamicPathMetadata(
 }
 
 /**
- * 언어별 구조화된 데이터 생성
- */
-export function createLocalizedJsonLd(
-  language: Language,
-  type: string,
-  data: Record<string, any>
-): string {
-  // 언어가 지원되는지 확인하고 기본 언어로 폴백
-  const validLanguage = SUPPORTED_LANGUAGES.includes(language) ? language : 'ko';
-  const siteInfo = SITE_INFO[validLanguage];
-  
-  if (!siteInfo) {
-    console.warn(`Site info not found for language: ${validLanguage}, using Korean as fallback`);
-    const fallbackSiteInfo = SITE_INFO['ko'];
-    
-    const jsonLd = {
-      '@context': 'https://schema.org',
-      '@type': type,
-      inLanguage: validLanguage,
-      ...data,
-      // 사이트 정보 추가
-      ...(type === 'WebSite' && {
-        name: fallbackSiteInfo.title,
-        description: fallbackSiteInfo.description,
-        url: SITE_URL,
-      }),
-    };
-    
-    return JSON.stringify(jsonLd);
-  }
-  
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': type,
-    inLanguage: validLanguage,
-    ...data,
-    // 사이트 정보 추가
-    ...(type === 'WebSite' && {
-      name: siteInfo.title,
-      description: siteInfo.description,
-      url: SITE_URL,
-    }),
-  };
-  
-  return JSON.stringify(jsonLd);
-}
-
-/**
- * JSON-LD 구조화된 데이터 생성 유틸리티 (하위 호환성)
+ * JSON-LD 구조화된 데이터 생성 유틸리티
  * 
  * @param type 스키마 타입
  * @param data 스키마 데이터
  */
 export function createJsonLd(type: string, data: Record<string, any>): string {
-  return createLocalizedJsonLd('ko', type, data);
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': type,
+    ...data,
+  };
+  
+  return JSON.stringify(jsonLd);
 } 

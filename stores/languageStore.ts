@@ -22,65 +22,11 @@ const getCurrentLanguageFromPath = (): Language => {
   return settings.languages.default;
 };
 
-// 사용자 선호 언어 가져오기 (localStorage에서)
-const getUserPreferredLanguage = (): Language | null => {
-  if (typeof window === 'undefined') return null;
-  
-  try {
-    const preferred = localStorage.getItem('preferredLanguage') as Language;
-    if (preferred && settings.languages.supported.includes(preferred)) {
-      return preferred;
-    }
-  } catch (error) {
-    // localStorage 접근 실패 시 무시
-  }
-  
-  return null;
-};
-
-// 브라우저 언어 감지
-const getBrowserLanguage = (): Language => {
+// 초기 언어 설정은 항상 URL 경로에서 가져옴
+const initialLanguage: Language = (() => {
   if (typeof window === 'undefined') return settings.languages.default;
-  
-  const browserLang = navigator.language || navigator.languages?.[0];
-  if (!browserLang) return settings.languages.default;
-  
-  // 언어 코드만 추출 (예: 'ko-KR' -> 'ko')
-  const langCode = browserLang.split('-')[0] as Language;
-  
-  if (settings.languages.supported.includes(langCode)) {
-    return langCode;
-  }
-  
-  return settings.languages.default;
-};
-
-// 초기 언어 설정 우선순위:
-// 1. URL 경로의 언어 (가장 높은 우선순위)
-// 2. 사용자 선호 언어 (localStorage)
-// 3. 브라우저 언어
-// 4. 기본 언어
-const getInitialLanguage = (): Language => {
-  if (typeof window === 'undefined') return settings.languages.default;
-  
-  // 1. URL 경로에서 언어 확인
-  const pathLang = getCurrentLanguageFromPath();
-  if (pathLang !== settings.languages.default) {
-    return pathLang;
-  }
-  
-  // 2. 사용자 선호 언어 확인
-  const preferredLang = getUserPreferredLanguage();
-  if (preferredLang) {
-    return preferredLang;
-  }
-  
-  // 3. 브라우저 언어 확인
-  const browserLang = getBrowserLanguage();
-  return browserLang;
-};
-
-const initialLanguage: Language = getInitialLanguage();
+  return getCurrentLanguageFromPath();
+})();
 
 // OTA 클라이언트에 초기 언어 설정
 if (typeof window !== 'undefined') {
@@ -99,12 +45,11 @@ interface LanguageState {
   isLoading: boolean;
   error: string | null;
   isTranslationLoaded: Record<Language, boolean>;
-  setLanguage: (lang: Language) => Promise<void>;
+  setLanguage: (lang: Language) => void;
   t: (key: string, args?: Record<string, string>) => string;
   loadTranslations: (lang: string) => Promise<void>;
   setCurrentLang: (lang: Language) => void;
   syncLanguageWithPath: () => void;
-  initializeLanguage: () => Promise<void>;
 }
 
 export const useLanguageStore = create<LanguageState>()(
@@ -121,55 +66,16 @@ export const useLanguageStore = create<LanguageState>()(
         acc[lang] = false;
         return acc;
       }, {} as Record<Language, boolean>),
-      
-      setLanguage: async (lang: Language) => {
+      setLanguage: (lang: Language) => {
         if (settings.languages.supported.includes(lang)) {
           set({ currentLanguage: lang });
-          
-          // 번역 데이터 미리 로드
-          const { loadTranslations } = get();
-          await loadTranslations(lang);
-          
-          // localStorage에 사용자 선호도 저장
-          if (typeof window !== 'undefined') {
-            try {
-              localStorage.setItem('preferredLanguage', lang);
-            } catch (error) {
-              console.warn('Failed to save language preference:', error);
-            }
-          }
         }
       },
-      
       syncLanguageWithPath: () => {
         if (typeof window === 'undefined') return;
         const langFromPath = getCurrentLanguageFromPath();
-        const { currentLanguage } = get();
-        
-        // URL의 언어와 현재 언어가 다르면 업데이트
-        if (langFromPath !== currentLanguage) {
-          set({ currentLanguage: langFromPath });
-        }
+        set({ currentLanguage: langFromPath });
       },
-      
-      initializeLanguage: async () => {
-        const { currentLanguage, loadTranslations } = get();
-        
-        // 현재 언어의 번역 데이터를 로드
-        await loadTranslations(currentLanguage);
-        
-        // 자주 사용되는 다른 언어들도 백그라운드에서 미리 로드
-        const commonLanguages = ['ko', 'en'];
-        for (const lang of commonLanguages) {
-          if (lang !== currentLanguage) {
-            // 백그라운드에서 로드 (에러 무시)
-            loadTranslations(lang).catch(() => {
-              // 백그라운드 로드 실패는 무시
-            });
-          }
-        }
-      },
-      
       t: (key: string, args?: Record<string, string>) => {
         const { currentLanguage, translations, isTranslationLoaded } = get();
 
@@ -202,18 +108,12 @@ export const useLanguageStore = create<LanguageState>()(
         }
         return translation;
       },
-      
       loadTranslations: async (lang: string) => {
         if (typeof window === 'undefined') return;
 
-        const { isTranslationLoaded } = get();
-        
-        // 이미 로드된 언어는 스킵
-        if (isTranslationLoaded[lang as Language]) {
-          return;
-        }
-
         try {
+          // 로그 제거
+          // console.log(`Loading translations for language: ${lang}`);
           set({ isLoading: true, error: null });
 
           // Crowdin OTA 클라이언트에 현재 언어 설정
@@ -225,6 +125,8 @@ export const useLanguageStore = create<LanguageState>()(
           const translations = await otaClient.getStringsByLocale(crowdinLang);
 
           if (!translations || Object.keys(translations).length === 0) {
+            // 로그 제거
+            // console.warn(`No translations found for language: ${lang}`);
             // 기본 번역 데이터를 사용하도록 설정
             set((state) => ({
               translations: {
@@ -252,13 +154,20 @@ export const useLanguageStore = create<LanguageState>()(
             }
           }));
         } catch (error) {
+          // 에러 로그 간소화
+          // console.error(`Failed to load translations for ${lang}:`, error);
+          // if (error instanceof Error) {
+          //   console.error('Error details:', {
+          //     message: error.message,
+          //     stack: error.stack,
+          //   });
+          // }
           set({
             error: error instanceof Error ? error.message : 'Failed to load translations',
             isLoading: false,
           });
         }
       },
-      
       setCurrentLang: (lang) => set({ currentLanguage: lang }),
     }),
     {

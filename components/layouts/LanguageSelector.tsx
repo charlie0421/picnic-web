@@ -2,8 +2,7 @@
 
 import React, {useEffect, useRef, useState} from 'react';
 import {useLanguageStore} from '@/stores/languageStore';
-import { useLocaleRouter } from '@/hooks/useLocaleRouter';
-import { Language } from '@/config/settings';
+import {usePathname, useRouter} from 'next/navigation';
 
 const languages = [
   { code: 'ko', name: '한국어' },
@@ -14,18 +13,22 @@ const languages = [
 ];
 
 const LanguageSelector: React.FC = () => {
-  const { currentLanguage, setLanguage, loadTranslations } = useLanguageStore();
+  const { currentLanguage, setLanguage, syncLanguageWithPath } = useLanguageStore();
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [isChanging, setIsChanging] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { pushWithLanguage, getPathnameWithoutLocale } = useLocaleRouter();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  // 마운트 상태 설정
+  // 마운트 시와 라우트 변경 시 언어 동기화
   useEffect(() => {
     setMounted(true);
+
+    // URL이 변경될 때마다 현재 언어 상태를 URL과 동기화
+    syncLanguageWithPath();
+
     return () => setMounted(false);
-  }, []);
+  }, [pathname, syncLanguageWithPath]);
 
   const currentLanguageObj = languages.find((lang) => lang.code === currentLanguage);
 
@@ -48,41 +51,30 @@ const LanguageSelector: React.FC = () => {
   }, [mounted]);
 
   const toggleDropdown = () => {
-    if (!mounted || isChanging) return;
+    if (!mounted) return;
     setIsOpen(!isOpen);
   };
 
   const handleLanguageChange = async (lang: string) => {
-    if (lang === currentLanguage || isChanging) return;
+    if (lang === currentLanguage) return;
 
-    setIsChanging(true);
-    
-    try {
-      // 언어 스토어 업데이트
-      await setLanguage(lang as Language);
-      
-      // 현재 경로에서 언어 프리픽스를 제거한 경로를 가져옴
-      const currentPath = getPathnameWithoutLocale();
-      
-      // 새로운 언어로 이동
-      pushWithLanguage(currentPath, lang as Language);
-      
-      // 선택한 언어의 번역 데이터를 미리 로드
-      await loadTranslations(lang);
-      
-      // 드롭다운 닫기
-      setIsOpen(false);
-      
-      // 사용자 선호도를 localStorage에 저장 (persist 미들웨어와 별도로)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('preferredLanguage', lang);
-      }
-      
-    } catch (error) {
-      console.error('언어 변경 중 오류 발생:', error);
-    } finally {
-      setIsChanging(false);
+    // 현재 경로에서 언어 코드 부분만 교체
+    let newPath = pathname;
+    const pathSegments = pathname.split('/');
+
+    // 첫 번째 세그먼트가 언어 코드인 경우 교체
+    if (pathSegments.length > 1 && languages.some(l => l.code === pathSegments[1])) {
+      pathSegments[1] = lang;
+      newPath = pathSegments.join('/');
+    } else {
+      // 언어 코드가 없는 경우 추가
+      newPath = `/${lang}${pathname}`;
     }
+
+    // 상태 변경 및 페이지 이동
+    await setLanguage(lang as any);
+    router.push(newPath);
+    setIsOpen(false);
   };
 
   // 서버 사이드에서는 빈 div를 렌더링
@@ -109,45 +101,38 @@ const LanguageSelector: React.FC = () => {
       <button
         type='button'
         onClick={toggleDropdown}
-        disabled={isChanging}
         style={{
           padding: '8px 12px',
           border: '1px solid #e5e7eb',
           borderRadius: '6px',
-          backgroundColor: isChanging ? '#f9fafb' : 'white',
-          cursor: isChanging ? 'not-allowed' : 'pointer',
+          backgroundColor: 'white',
+          cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
           width: '170px',
           justifyContent: 'space-between',
-          color: isChanging ? '#9ca3af' : '#374151',
+          color: '#374151',
           position: 'relative',
           fontSize: '13px',
-          opacity: isChanging ? 0.7 : 1,
-          transition: 'opacity 0.2s ease',
         }}
       >
         <span>{currentLanguageObj?.name || 'Language'}</span>
-        {isChanging ? (
-          <span style={{ fontSize: '12px' }}>...</span>
-        ) : (
-          <span
-            style={{
-              transform: isOpen ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s',
-              fontSize: '12px',
-            }}
-          >
-            ▼
-          </span>
-        )}
+        <span
+          style={{
+            transform: isOpen ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.2s',
+            fontSize: '12px',
+          }}
+        >
+          ▼
+        </span>
       </button>
 
       <div
         style={{
-          visibility: isOpen && !isChanging ? 'visible' : 'hidden',
-          opacity: isOpen && !isChanging ? 1 : 0,
+          visibility: isOpen ? 'visible' : 'hidden',
+          opacity: isOpen ? 1 : 0,
           position: 'fixed',
           top: dropdownRef.current
             ? dropdownRef.current.getBoundingClientRect().bottom + 4
@@ -174,7 +159,7 @@ const LanguageSelector: React.FC = () => {
               key={language.code}
               type='button'
               onClick={() => handleLanguageChange(language.code)}
-              disabled={isCurrentLanguage || isChanging}
+              disabled={isCurrentLanguage}
               style={{
                 display: 'block',
                 width: '100%',
@@ -183,14 +168,13 @@ const LanguageSelector: React.FC = () => {
                 border: 'none',
                 backgroundColor: isCurrentLanguage ? '#f0f0f0' : 'white',
                 color: isCurrentLanguage ? '#9ca3af' : '#374151',
-                cursor: isCurrentLanguage || isChanging ? 'default' : 'pointer',
+                cursor: isCurrentLanguage ? 'default' : 'pointer',
                 transition: 'background-color 0.2s',
                 borderBottom: '1px solid #f3f4f6',
                 fontWeight: isCurrentLanguage ? 'bold' : 'normal',
-                opacity: isChanging ? 0.7 : 1,
               }}
               onMouseEnter={(e) => {
-                if (!isCurrentLanguage && !isChanging && mounted) {
+                if (!isCurrentLanguage && mounted) {
                   e.currentTarget.style.backgroundColor = '#f3f4f6';
                 }
               }}

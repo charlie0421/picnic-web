@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
 import { Banner } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString } from '@/utils/api/strings';
-import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 export interface BannerItemProps {
   banner: Banner;
@@ -45,21 +45,10 @@ export function BannerItem({ banner }: BannerItemProps) {
   );
 
   if (banner.link) {
-    // Check if it's an external link
-    const isExternal = banner.link.startsWith('http') || banner.link.startsWith('//');
-    
-    if (isExternal) {
-      return (
-        <a href={banner.link} className='block' target='_blank' rel='noopener noreferrer'>
-          {content}
-        </a>
-      );
-    }
-    
     return (
-      <LocalizedLink href={banner.link} className='block'>
+      <Link href={banner.link} className='block'>
         {content}
-      </LocalizedLink>
+      </Link>
     );
   }
 

@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
 import {Reward} from '@/types/interfaces';
 import {getCdnImageUrl} from '@/utils/api/image';
 import {getLocalizedString} from '@/utils/api/strings';
-import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 interface RewardListProps {
   rewards: Reward[];
@@ -24,7 +24,7 @@ export const RewardListPresenter: React.FC<RewardListProps> = ({
       ) : (
         <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
           {rewards.map((reward) => (
-            <LocalizedLink
+            <Link
               key={reward.id}
               href={`/rewards/${reward.id}`}
               className='bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-200'
@@ -54,7 +54,7 @@ export const RewardListPresenter: React.FC<RewardListProps> = ({
                   )}
                 </h3>
               </div>
-            </LocalizedLink>
+            </Link>
           ))}
         </div>
       )}
