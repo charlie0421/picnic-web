@@ -489,7 +489,7 @@ function LoginContentInner() {
           </div>
 
           <SocialLoginButtons
-            providers={['google', 'apple', 'kakao']}
+            providers={['google', 'apple', 'kakao', 'wechat']}
             onError={(error) => setError(error.message)}
             size='large'
           />

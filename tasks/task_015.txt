@@ -18,51 +18,51 @@
 Verify that all critical events are being logged correctly. Test error reporting by intentionally triggering errors in different parts of the application. Ensure that analytics respect user privacy settings and comply with GDPR.
 
 # Subtasks:
-## 1. Error Tracking Setup [pending]
+## 1. Set Up Error Tracking Service [pending]
 ### Dependencies: None
-### Description: Implement error tracking system to capture and report application errors
+### Description: Integrate an error tracking service (e.g., Sentry) with the Next.js 13+ App Router environment to capture and report runtime errors.
 ### Details:
-Select and implement an error tracking solution that integrates with your application stack. Configure error capturing for both frontend and backend components, set up error categorization, and establish error notification workflows.
+Install the Sentry SDK, configure it for both client and server components, and verify error reporting in development and production.
 
-## 2. APM Integration [pending]
+## 2. Integrate Application Performance Monitoring (APM) [pending]
+### Dependencies: 15.1
+### Description: Enable APM features in the error tracking service to monitor performance metrics such as response times, throughput, and slow transactions.
+### Details:
+Configure Sentry or a similar APM tool to capture performance data for both client and server routes, including custom spans for key operations.
+
+## 3. Enable Supabase Monitoring [pending]
+### Dependencies: 15.1
+### Description: Set up monitoring for Supabase interactions, including database queries and authentication events.
+### Details:
+Integrate Supabase Sentry plugin or equivalent, ensure database queries and auth events are tracked, and test with sample queries.
+
+## 4. Integrate Analytics Service [pending]
 ### Dependencies: None
-### Description: Integrate Application Performance Monitoring solution with the application
+### Description: Add a web analytics service (e.g., Google Analytics, Plausible) to track user behavior and page views.
 ### Details:
-Select an APM tool, follow guided installation procedures to instrument your application, configure service monitoring, and set up performance metrics tracking for response times, throughput, and resource utilization.
+Install the analytics SDK, configure it for Next.js App Router, and verify that page views and navigation events are tracked.
 
-## 3. Supabase Monitoring [pending]
-### Dependencies: 15.2
-### Description: Implement monitoring for Supabase database and authentication services
-### Details:
-Configure monitoring for Supabase database performance, query execution times, authentication service availability, and resource utilization. Integrate Supabase logs with your monitoring solution.
-
-## 4. Analytics Service Integration [pending]
-### Dependencies: None
-### Description: Integrate analytics service to track user behavior and application usage
-### Details:
-Select and implement an analytics service, configure tracking for key user journeys, set up conversion funnels, and establish user segmentation for targeted analysis.
-
-## 5. Custom Event Tracking [pending]
+## 5. Implement Custom Event Tracking [pending]
 ### Dependencies: 15.4
-### Description: Implement custom event tracking for business-specific metrics
+### Description: Define and implement tracking for custom events relevant to Picnic's business logic (e.g., WeChat login success, key user actions).
 ### Details:
-Define business-critical events to track, implement custom event tracking code, validate event capture accuracy, and create documentation for the custom event schema.
+Identify key events, add tracking calls in the codebase, and ensure events are sent to the analytics service.
 
-## 6. Alerting Setup [pending]
-### Dependencies: 15.1, 15.2, 15.3
-### Description: Configure alerting system for critical performance and error thresholds
+## 6. Set Up Alerting for Critical Events [pending]
+### Dependencies: 15.2, 15.3, 15.5
+### Description: Configure alerting rules in error tracking, APM, and analytics services for critical errors, performance regressions, and business events.
 ### Details:
-Define alert thresholds for key metrics, configure notification channels (email, Slack, PagerDuty), implement alert severity levels, and create on-call schedules for incident response.
+Define thresholds, set up notification channels (e.g., email, Slack), and test alert delivery.
 
-## 7. Server-side Logging [pending]
-### Dependencies: None
-### Description: Implement comprehensive server-side logging system
+## 7. Implement Server-Side Logging [pending]
+### Dependencies: 15.1, 15.3
+### Description: Establish structured server-side logging for Next.js API routes and Supabase interactions.
 ### Details:
-Configure structured logging for server components, implement log levels (debug, info, warn, error), set up log rotation and retention policies, and integrate logs with centralized log management system.
+Choose a logging library, standardize log formats, and ensure logs are stored and accessible for debugging.
 
-## 8. Dashboard Creation [pending]
-### Dependencies: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7
-### Description: Create monitoring and analytics dashboards for stakeholders
+## 8. Create Unified Monitoring Dashboard [pending]
+### Dependencies: 15.2, 15.3, 15.4, 15.5, 15.6, 15.7
+### Description: Build or configure a dashboard that aggregates error, performance, analytics, and Supabase monitoring data for real-time visibility.
 ### Details:
-Design and implement dashboards for different stakeholders (technical, business), configure real-time performance views, create historical trend analysis, and set up automated dashboard sharing.
+Use built-in dashboards from integrated services or create a custom dashboard using a tool like Grafana or Datadog.
 

@@ -79,12 +79,29 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
           }
         }
       },
+      realtime: {
+        // Realtime 기능 활성화
+        params: {
+          eventsPerSecond: 10, // 초당 최대 이벤트 수 제한
+        },
+        // 연결 상태 로깅 (개발 환경에서만)
+        log_level: process.env.NODE_ENV === 'development' ? 'info' : 'error',
+        // 자동 재연결 설정
+        reconnectAfterMs: (tries: number) => {
+          // 지수 백오프: 1초, 2초, 4초, 8초, 최대 30초
+          return Math.min(1000 * Math.pow(2, tries), 30000);
+        },
+        // 하트비트 간격 (30초)
+        heartbeatIntervalMs: 30000,
+        // 연결 타임아웃 (10초) - timeout 속성 사용
+        timeout: 10000,
+      },
     }
-  );
+  ) as BrowserSupabaseClient;
 
   // 디버그 로그 (개발 환경에서만)
   if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
-    console.log('브라우저 Supabase 클라이언트 초기화 완료', {
+    console.log('브라우저 Supabase 클라이언트 초기화 완료 (Realtime 활성화)', {
       url: process.env.NEXT_PUBLIC_SUPABASE_URL,
       hostname: window.location.hostname
     });

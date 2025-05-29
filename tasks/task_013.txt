@@ -19,57 +19,57 @@
 Perform security audits using tools like OWASP ZAP. Conduct penetration testing to identify potential vulnerabilities. Write unit tests for security-related functions like input sanitization.
 
 # Subtasks:
-## 1. Implement Content Security Policy (CSP) Headers [pending]
+## 1. Configure CORS Policy in Next.js App Router [pending]
 ### Dependencies: None
-### Description: Set up strict CSP headers to prevent XSS attacks by restricting which resources can be loaded and from where.
+### Description: Set up and enforce Cross-Origin Resource Sharing (CORS) rules for all API endpoints and route handlers to restrict allowed origins and HTTP methods.
 ### Details:
-Configure CSP using HTTP response headers (preferred over meta tags). Include directives for script-src, style-src, and other resource types. Consider implementing a nonce-based approach for dynamic scripts. Ensure headers are sent with all HTTP responses, not just the index page.
+Review all custom route handlers (route.ts) and API endpoints. Use appropriate CORS middleware or headers to allow only trusted origins, especially for endpoints handling authentication or sensitive data.
 
-## 2. Configure CORS (Cross-Origin Resource Sharing) [pending]
+## 2. Implement Content Security Policy (CSP) Headers [pending]
 ### Dependencies: None
-### Description: Implement proper CORS policies to control which domains can access your resources.
+### Description: Define and apply a strict Content Security Policy via HTTP headers to mitigate XSS and data injection attacks.
 ### Details:
-Set up Access-Control-Allow-Origin headers with specific allowed domains rather than wildcards. Configure appropriate Access-Control-Allow-Methods and Access-Control-Allow-Headers. Test CORS configuration with cross-domain requests to ensure proper functionality.
+Configure the Content-Security-Policy header in the Next.js custom server or via middleware. Specify allowed sources for scripts, styles, images, and other resources. Test the policy in development and staging environments to avoid breaking legitimate functionality.
 
-## 3. Implement HttpOnly Cookies [pending]
+## 3. Set HttpOnly and Secure Flags on Authentication Cookies [pending]
 ### Dependencies: None
-### Description: Configure cookies with HttpOnly flag to prevent client-side script access to sensitive cookie data.
+### Description: Ensure all authentication and session cookies are set with HttpOnly and Secure flags to prevent client-side access and transmission over insecure channels.
 ### Details:
-Modify all authentication and session cookies to include the HttpOnly flag. Add Secure flag to ensure cookies are only sent over HTTPS. Consider implementing SameSite attribute to prevent CSRF attacks. Test cookie configuration to verify proper settings.
+Audit cookie usage in Supabase auth integration and any custom session management. Update cookie settings in API route handlers and middleware to include HttpOnly and Secure attributes.
 
-## 4. Set Up Rate Limiting [pending]
+## 4. Integrate Rate Limiting for API Endpoints [pending]
 ### Dependencies: None
-### Description: Implement rate limiting to prevent brute force attacks and API abuse.
+### Description: Apply rate limiting to all public-facing API endpoints and authentication routes to prevent abuse and brute-force attacks.
 ### Details:
-Choose appropriate rate limiting strategy (fixed window, sliding window, or token bucket). Configure limits for authentication endpoints, API calls, and other sensitive operations. Implement proper response headers (Retry-After) for rate-limited requests. Set up monitoring for rate limit events.
+Select a rate limiting middleware compatible with Next.js App Router (e.g., using edge middleware or serverless functions). Configure limits based on endpoint sensitivity and expected usage patterns.
 
-## 5. Configure Row-Level Security (RLS) Policies [pending]
+## 5. Define and Enforce Row-Level Security (RLS) Policies in Supabase [pending]
 ### Dependencies: None
-### Description: Implement database RLS policies to restrict data access based on user context.
+### Description: Audit and implement RLS policies for all relevant tables in Supabase to ensure users can only access their own data.
 ### Details:
-Identify tables requiring row-level security. Create RLS policies based on user roles and permissions. Test policies thoroughly to ensure proper data access control. Document RLS implementation for future maintenance.
+Review current Supabase schema and authentication logic. Write and test RLS policies for each table, ensuring proper enforcement for both read and write operations.
 
-## 6. Implement Input Sanitization [pending]
+## 6. Implement Input Sanitization and Validation [pending]
 ### Dependencies: None
-### Description: Add robust input validation and sanitization to prevent injection attacks.
+### Description: Sanitize and validate all user input on both client and server sides to prevent injection attacks and malformed data.
 ### Details:
-Identify all user input points in the application. Implement server-side validation for all inputs. Use appropriate sanitization libraries for different input types (HTML, SQL, etc.). Create test cases to verify sanitization effectiveness against common attack vectors.
+Use libraries such as zod or yup for TypeScript-based validation. Apply input checks in server actions, API routes, and Supabase queries. Ensure error handling for invalid input.
 
-## 7. Configure Additional Security Headers [pending]
-### Dependencies: 13.1
-### Description: Implement security headers beyond CSP to enhance application security posture.
-### Details:
-Configure X-Content-Type-Options, X-Frame-Options, Referrer-Policy, and Strict-Transport-Security headers. Consider implementing Feature-Policy/Permissions-Policy headers. Test headers using security scanning tools to verify proper implementation.
-
-## 8. Implement Dependency Update Process [pending]
+## 7. Set Additional Security Headers [pending]
 ### Dependencies: None
-### Description: Create a systematic approach to identify and update vulnerable dependencies.
+### Description: Add and configure security-related HTTP headers such as X-Frame-Options, X-Content-Type-Options, and Referrer-Policy.
 ### Details:
-Set up automated dependency scanning tools. Create a process for regular dependency reviews. Implement automated testing for dependency updates. Document the update process and establish response procedures for critical vulnerabilities.
+Update Next.js custom server or middleware to include these headers in all responses. Test for compatibility with frontend features and third-party integrations.
 
-## 9. Implement Two-Factor Authentication [pending]
-### Dependencies: 13.3
-### Description: Add 2FA support to strengthen authentication security beyond passwords.
+## 8. Automate Dependency Updates and Security Audits [pending]
+### Dependencies: None
+### Description: Set up automated tools to regularly check for and apply security updates to dependencies.
 ### Details:
-Select appropriate 2FA methods (TOTP, SMS, email, etc.). Implement 2FA enrollment and verification flows. Create backup/recovery mechanisms for lost 2FA devices. Test the complete 2FA implementation including edge cases and recovery paths.
+Integrate tools like Dependabot or Renovate for npm packages. Schedule regular security audits using npm audit or similar tools, and review update logs for breaking changes.
+
+## 9. Implement Two-Factor Authentication (2FA) for User Accounts [pending]
+### Dependencies: 13.3, 13.5
+### Description: Add support for two-factor authentication in the authentication flow, leveraging Supabase or a compatible third-party provider.
+### Details:
+Design the 2FA flow (e.g., TOTP, SMS, or email-based). Update authentication UI and backend logic to support 2FA enrollment, verification, and recovery. Ensure compatibility with existing WeChat login integration.
 

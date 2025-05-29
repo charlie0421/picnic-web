@@ -17,45 +17,45 @@
 Create visual regression tests to ensure animations render correctly. Perform performance testing to verify animations don't impact page responsiveness. Test animations with various update scenarios, including rapid multiple updates.
 
 # Subtasks:
-## 1. Implement Framer Motion Integration [pending]
+## 1. Integrate Framer Motion into Next.js 13+ App [pending]
 ### Dependencies: None
-### Description: Set up Framer Motion library in the project and create basic animation components
+### Description: Install Framer Motion, ensure compatibility with Next.js 13+ App Router, and set up the base configuration for client components.
 ### Details:
-Install Framer Motion package, configure basic motion components, and implement layout transitions using the layout prop for smooth UI transitions
+Run `npm install framer-motion`, import motion components, and verify that animations work in a minimal client component setup.
 
-## 2. Develop Vote Count Animation [pending]
+## 2. Implement Vote Count Animation [pending]
 ### Dependencies: 10.1
-### Description: Create smooth animations for vote count changes
+### Description: Animate the vote count number when it changes, providing a smooth transition effect (e.g., counting up/down or scaling).
 ### Details:
-Implement number transitions for vote counts with appropriate easing and duration (200-500ms), ensuring subtle and purposeful animations
+Use Framer Motion's animate prop to smoothly update the displayed vote count. Ensure the animation triggers only on value change.
 
-## 3. Build Ranking Animation System [pending]
+## 3. Create Ranking Change Animation [pending]
 ### Dependencies: 10.1
-### Description: Develop animations for items changing positions in rankings
+### Description: Animate the movement of items when their ranking changes (e.g., list reordering with slide or fade effects).
 ### Details:
-Use layoutId for smooth position transitions between ranks, implement proper enter/exit animations with AnimatePresence for items joining or leaving rankings
+Leverage Framer Motion's layout animations to smoothly transition items to their new positions in the ranking list.
 
-## 4. Create Highlight Effect Animation [pending]
-### Dependencies: 10.1
-### Description: Design and implement highlight effects for selected or changing items
+## 4. Add Highlight Effect for Updated Items [pending]
+### Dependencies: 10.2, 10.3
+### Description: Visually highlight items that have been updated (e.g., background color flash or glow) to draw user attention.
 ### Details:
-Develop subtle highlight animations using color transitions, scale effects, or glows that draw attention without overwhelming the UI
+Apply a temporary highlight animation using Framer Motion when an item's vote count or rank changes.
 
-## 5. Implement Staggered Updates Animation [pending]
-### Dependencies: 10.1
-### Description: Create staggered animation effects for multiple elements updating simultaneously
+## 5. Implement Staggered Animation for Batch Updates [pending]
+### Dependencies: 10.3, 10.4
+### Description: When multiple items update simultaneously, animate their changes in a staggered sequence for better visual clarity.
 ### Details:
-Use Framer Motion's staggerChildren property to create cascading animations for lists or grids of elements with appropriate timing offsets
+Use Framer Motion's staggerChildren and variants to control the timing of animations for each item in the list.
 
 ## 6. Optimize Animation Performance [pending]
-### Dependencies: 10.2, 10.3, 10.4, 10.5
-### Description: Ensure animations run smoothly without impacting overall application performance
+### Dependencies: 10.5
+### Description: Profile and optimize the animation logic to ensure smooth performance, especially during rapid or large-scale updates.
 ### Details:
-Minimize DOM manipulations, use CSS transforms instead of layout properties, implement useReducedMotion hook for accessibility, and profile performance using React DevTools and Chrome Performance tab
+Minimize unnecessary re-renders, use React.memo where appropriate, and test on various devices for consistent frame rates.
 
-## 7. Develop Loading Animation [pending]
+## 7. Add Loading Animation for Data Fetching [pending]
 ### Dependencies: 10.1
-### Description: Create engaging loading state animations
+### Description: Display an engaging loading animation while vote or ranking data is being fetched or updated.
 ### Details:
-Implement loading indicators with looping animations, ensure they're subtle yet informative, and properly handle mounting/unmounting with AnimatePresence
+Implement a Framer Motion-based loading spinner or skeleton UI that appears during asynchronous operations.
 

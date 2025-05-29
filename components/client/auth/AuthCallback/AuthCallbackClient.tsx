@@ -29,8 +29,13 @@ export default function AuthCallbackClient({
           const codeParam = searchParams.get('code');
           const stateParam = searchParams.get('state');
           
+          // WeChat OAuth의 특징적인 파라미터들을 확인
+          if (stateParam?.includes('wechat')) {
+            detectedProvider = 'wechat';
+            console.log('🔍 Provider 자동 감지: WeChat (state 파라미터에서 감지)');
+          }
           // Apple OAuth의 특징적인 파라미터들을 확인
-          if (codeParam) {
+          else if (codeParam) {
             // Apple OAuth는 보통 code 파라미터가 있음
             detectedProvider = 'apple';
             console.log('🔍 Provider 자동 감지: Apple (code 파라미터 존재)');
@@ -59,6 +64,162 @@ export default function AuthCallbackClient({
               errorDescription || '자세한 정보 없음'
             }`,
           );
+          return;
+        }
+
+        // WeChat 특수 처리
+        if (providerType === 'wechat') {
+          console.log('💚 WeChat OAuth 콜백 처리 시작:', {
+            url: window.location.href,
+            searchParams: Object.fromEntries(searchParams.entries()),
+            provider: providerType,
+          });
+
+          const codeParam = searchParams.get('code');
+          const stateParam = searchParams.get('state');
+
+          if (!codeParam) {
+            setError('WeChat 인증 코드가 없습니다.');
+            return;
+          }
+
+          console.log('WeChat callback params:', {
+            code: codeParam ? 'present' : 'missing',
+            state: stateParam || 'missing',
+          });
+
+          setStatus('WeChat 인증 처리 중...');
+
+          try {
+            console.log('WeChat API 호출 시작:', {
+              code: codeParam ? 'present' : 'missing',
+              state: stateParam ? 'present' : 'missing',
+            });
+
+            const requestBody = {
+              code: codeParam,
+              state: stateParam,
+            };
+
+            console.log('요청 본문:', JSON.stringify(requestBody));
+
+            const response = await fetch('/api/auth/wechat', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody),
+            });
+
+            console.log('WeChat API 응답:', {
+              status: response.status,
+              statusText: response.statusText,
+              headers: Object.fromEntries(response.headers.entries()),
+            });
+
+            let result;
+            try {
+              result = await response.json();
+              console.log('응답 본문:', result);
+            } catch (jsonError) {
+              console.error('응답 JSON 파싱 오류:', jsonError);
+              const textResponse = await response.text();
+              console.log('응답 텍스트:', textResponse);
+              throw new Error(`응답 파싱 실패: ${textResponse}`);
+            }
+
+            if (response.ok && result.success) {
+              setStatus('WeChat 인증 성공! 세션 생성 중...');
+
+              // WeChat 인증 성공 후 Supabase 세션 생성
+              if (result.profile && result.tokens) {
+                console.log('🔑 WeChat 인증 완료, Supabase 세션 생성...');
+                
+                try {
+                  // Supabase 클라이언트로 세션 생성
+                  const { createClient } = await import('@supabase/supabase-js');
+                  const supabase = createClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                  );
+                  
+                  console.log('💚 WeChat 사용자 정보로 Supabase 세션 생성 시도...');
+                  
+                  // WeChat은 이메일을 제공하지 않으므로 임시 이메일 생성
+                  const tempEmail = `wechat_${result.profile.id}@placeholder.com`;
+                  const tempPassword = result.tokens.id_token;
+                  
+                  // 기존 사용자 확인 후 로그인 시도
+                  const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+                    email: tempEmail,
+                    password: tempPassword
+                  });
+                  
+                  if (loginData.session && !loginError) {
+                    console.log('✅ WeChat 기존 사용자 로그인 성공!');
+                    setStatus('WeChat 로그인 완료!');
+                  } else if (loginError?.message?.includes('Invalid login credentials')) {
+                    console.log('ℹ️ WeChat 신규 사용자, 회원가입 시도...');
+                    
+                    // 신규 사용자 생성
+                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                      email: tempEmail,
+                      password: tempPassword,
+                      options: {
+                        data: {
+                          full_name: result.profile.name || 'WeChat User',
+                          wechat_openid: result.profile.id,
+                          provider: 'wechat',
+                          wechat_verified: true,
+                          email_verified: true, // WeChat 인증으로 간주
+                          avatar_url: result.profile.avatar
+                        }
+                      }
+                    });
+                    
+                    if (signUpData.user && !signUpError) {
+                      console.log('✅ WeChat 신규 사용자 생성 성공!');
+                      setStatus('WeChat 회원가입 완료!');
+                    } else {
+                      console.log('❌ WeChat 사용자 생성 실패:', signUpError?.message);
+                      throw new Error(signUpError?.message || 'WeChat 사용자 생성 실패');
+                    }
+                  } else {
+                    console.log('❌ WeChat 로그인 실패:', loginError?.message);
+                    throw new Error(loginError?.message || 'WeChat 로그인 실패');
+                  }
+                  
+                } catch (sessionError) {
+                  console.error('WeChat 세션 생성 중 오류:', sessionError);
+                  setError(`WeChat 세션 생성 실패: ${sessionError instanceof Error ? sessionError.message : '알 수 없는 오류'}`);
+                  return;
+                }
+              }
+
+              // 성공 후 리디렉션
+              const returnUrl = localStorage.getItem('auth_return_url') || '/';
+              console.log('🔄 WeChat 리다이렉트 준비:', {
+                returnUrl,
+                hasAuthReturnUrl: !!localStorage.getItem('auth_return_url'),
+              });
+
+              localStorage.removeItem('auth_return_url');
+              localStorage.removeItem('wechat_oauth_state');
+
+              // 약간의 지연을 두고 리다이렉트
+              setTimeout(() => {
+                console.log('🚀 WeChat 리다이렉트 실행:', returnUrl);
+                router.push(returnUrl);
+              }, 100);
+            } else {
+              throw new Error(
+                result.message || `HTTP ${response.status}: WeChat 인증 처리 실패`,
+              );
+            }
+          } catch (fetchError) {
+            console.error('WeChat API 호출 오류:', fetchError);
+            setError(`WeChat 인증 실패: ${fetchError instanceof Error ? fetchError.message : '알 수 없는 오류'}`);
+          }
           return;
         }
 

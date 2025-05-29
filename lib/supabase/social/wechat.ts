@@ -12,7 +12,8 @@ import {
   NormalizedProfile,
   SocialAuthError,
   SocialAuthErrorCode,
-  LogFunction
+  LogFunction,
+  OAuthProviderConfig
 } from './types';
 
 /**
@@ -20,17 +21,20 @@ import {
  * 
  * @returns WeChat 인증에 필요한 설정 값
  */
-export function getWeChatConfig() {
+export function getWeChatConfig(): OAuthProviderConfig {
   return {
-    appId: process.env.NEXT_PUBLIC_WECHAT_APP_ID || '',
-    appSecret: process.env.WECHAT_APP_SECRET || '',
-    redirectUri: typeof window !== 'undefined' 
-      ? `${window.location.origin}/auth/callback/wechat` 
-      : '',
-    scope: 'snsapi_userinfo',
-    authEndpoint: 'https://open.weixin.qq.com/connect/qrconnect',
-    tokenEndpoint: 'https://api.weixin.qq.com/sns/oauth2/access_token',
-    userInfoEndpoint: 'https://api.weixin.qq.com/sns/userinfo'
+    clientId: process.env.NEXT_PUBLIC_WECHAT_APP_ID || "",
+    clientSecretEnvKey: "WECHAT_APP_SECRET",
+    defaultScopes: [
+      "snsapi_login", // 웹사이트 애플리케이션 로그인 권한
+    ],
+    additionalConfig: {
+      // WeChat 특화 설정
+      responseType: "code",
+      state: generateStateToken(), // 동적으로 생성되는 CSRF 보호 토큰
+      // WeChat은 중국 본토와 해외 버전이 다름
+      isOverseas: process.env.WECHAT_OVERSEAS === "true", // 해외 버전 사용 여부
+    },
   };
 }
 
@@ -46,43 +50,26 @@ export function isWeChatBrowser(): boolean {
 }
 
 /**
- * 중국 내 환경인지 확인하는 헬퍼 함수 (간단한 구현)
+ * WeChat 지원 여부 확인
  * 
- * 참고: 실제 프로덕션에서는 더 정확한 지역 판단 로직이 필요할 수 있습니다.
- * 
- * @returns 중국 내부 환경인지 여부 (언어 설정, 타임존 등 기반)
+ * @returns WeChat 로그인이 현재 환경에서 지원되는지 여부
  */
-function isLikelyInChina(): boolean {
-  if (typeof navigator === 'undefined') return false;
+export function isWeChatSupported(): boolean {
+  // 필수 환경 변수 확인
+  const appId = process.env.NEXT_PUBLIC_WECHAT_APP_ID;
+  const appSecret = process.env.WECHAT_APP_SECRET;
   
-  // 중국어 설정 확인
-  const lang = navigator.language || '';
-  if (lang.startsWith('zh-CN') || lang === 'zh') return true;
-  
-  // 타임존으로 확인 (중국은 GMT+8)
-  try {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (timeZone === 'Asia/Shanghai' || 
-        timeZone === 'Asia/Hong_Kong' || 
-        timeZone === 'Asia/Macau' ||
-        timeZone === 'Asia/Chongqing') {
-      return true;
-    }
-  } catch (e) {
-    // 타임존 API가 지원되지 않는 경우 무시
-  }
-  
-  return false;
+  return !!(appId && appSecret);
 }
 
 /**
- * 무작위 상태 토큰 생성
+ * 암호학적으로 안전한 상태 토큰 생성
  * CSRF 공격 방지를 위한 상태 토큰 생성
  * 
- * @returns 무작위 상태 문자열
+ * @returns 무작위 상태 문자열 (32바이트 hex)
  */
 function generateStateToken(): string {
-  const randomBytes = new Uint8Array(16);
+  const randomBytes = new Uint8Array(32); // 256비트 보안 강도
   
   // 브라우저 환경에서 crypto API 사용
   if (typeof window !== 'undefined' && typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -92,14 +79,97 @@ function generateStateToken(): string {
     globalThis.crypto.getRandomValues(randomBytes);
   } else {
     // 폴백: Math.random() 사용 (덜 안전하지만 작동함)
+    console.warn('⚠️ 암호학적으로 안전한 난수 생성기를 사용할 수 없습니다. Math.random()을 사용합니다.');
     for (let i = 0; i < randomBytes.length; i++) {
       randomBytes[i] = Math.floor(Math.random() * 256);
     }
   }
   
-  return Array.from(randomBytes)
+  // 타임스탬프 추가로 고유성 보장
+  const timestamp = Date.now().toString(16);
+  const randomHex = Array.from(randomBytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+  
+  return `wechat_${timestamp}_${randomHex}`;
+}
+
+/**
+ * 상태 토큰 저장 (CSRF 보호용)
+ * 
+ * @param state 저장할 상태 토큰
+ */
+function saveStateToken(state: string): void {
+  if (typeof sessionStorage !== 'undefined') {
+    // 이전 상태 토큰 제거
+    sessionStorage.removeItem('wechat_auth_state');
+    sessionStorage.removeItem('wechat_auth_timestamp');
+    
+    // 새 상태 토큰과 타임스탬프 저장
+    sessionStorage.setItem('wechat_auth_state', state);
+    sessionStorage.setItem('wechat_auth_timestamp', Date.now().toString());
+    
+    console.log('🔐 WeChat 상태 토큰 저장됨');
+  }
+}
+
+/**
+ * 상태 토큰 검증 (CSRF 보호)
+ * 
+ * @param receivedState 받은 상태 토큰
+ * @returns 검증 결과
+ */
+function validateStateToken(receivedState: string): { valid: boolean; error?: string } {
+  if (typeof sessionStorage === 'undefined') {
+    console.warn('⚠️ sessionStorage를 사용할 수 없어 상태 토큰 검증을 건너뜁니다.');
+    return { valid: true };
+  }
+  
+  const savedState = sessionStorage.getItem('wechat_auth_state');
+  const savedTimestamp = sessionStorage.getItem('wechat_auth_timestamp');
+  
+  // 저장된 상태 토큰이 없는 경우
+  if (!savedState) {
+    return { 
+      valid: false, 
+      error: '저장된 상태 토큰이 없습니다. 인증 프로세스를 다시 시작해주세요.' 
+    };
+  }
+  
+  // 상태 토큰이 일치하지 않는 경우
+  if (receivedState !== savedState) {
+    return { 
+      valid: false, 
+      error: 'CSRF 보안 오류: 상태 토큰이 일치하지 않습니다.' 
+    };
+  }
+  
+  // 타임스탬프 검증 (10분 제한)
+  if (savedTimestamp) {
+    const timestamp = parseInt(savedTimestamp, 10);
+    const now = Date.now();
+    const maxAge = 10 * 60 * 1000; // 10분
+    
+    if (now - timestamp > maxAge) {
+      return { 
+        valid: false, 
+        error: '인증 세션이 만료되었습니다. 다시 로그인해주세요.' 
+      };
+    }
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * 상태 토큰 정리
+ */
+function clearStateToken(): void {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem('wechat_auth_state');
+    sessionStorage.removeItem('wechat_auth_timestamp');
+    console.log('🧹 WeChat 상태 토큰 정리됨');
+  }
 }
 
 /**
@@ -113,6 +183,15 @@ export function normalizeWeChatProfile(profile: any): NormalizedProfile {
     throw new SocialAuthError(
       SocialAuthErrorCode.PROFILE_FETCH_FAILED,
       'WeChat 프로필 정보가 없습니다.',
+      'wechat'
+    );
+  }
+  
+  // 필수 필드 검증
+  if (!profile.openid) {
+    throw new SocialAuthError(
+      SocialAuthErrorCode.PROFILE_FETCH_FAILED,
+      'WeChat OpenID가 없습니다.',
       'wechat'
     );
   }
@@ -137,6 +216,22 @@ export function normalizeWeChatProfile(profile: any): NormalizedProfile {
     avatar: profile.headimgurl || '',
     raw: profile
   };
+  
+  // 데이터 검증 및 정제
+  if (normalizedProfile.name) {
+    // 닉네임 길이 제한 (데이터베이스 제약 고려)
+    normalizedProfile.name = normalizedProfile.name.substring(0, 100);
+  }
+  
+  if (normalizedProfile.avatar) {
+    // 프로필 이미지 URL 검증
+    try {
+      new URL(normalizedProfile.avatar);
+    } catch {
+      console.warn('⚠️ 유효하지 않은 WeChat 프로필 이미지 URL:', normalizedProfile.avatar);
+      normalizedProfile.avatar = '';
+    }
+  }
   
   // unionid가 있으면 추가 (다중 앱 환경에 유용)
   if (profile.unionid && profile.openid !== profile.unionid) {
@@ -181,107 +276,200 @@ export async function signInWithWeChatImpl(
   supabase: SupabaseClient<Database>,
   options?: SocialAuthOptions
 ): Promise<AuthResult> {
-  const config = getWeChatConfig();
-  const debug = options?.debug || false;
-  
-  // 로깅 함수 준비
-  const log: LogFunction = debug
-    ? (message, data) => console.log(`🔑 WeChat Auth: ${message}`, data || '')
-    : () => {};
-  
-  const logError: LogFunction = (message, data) => 
-    console.error(`❌ WeChat Auth Error: ${message}`, data || '');
-  
   try {
-    // 필수 구성 검증
-    if (!config.appId) {
+    console.log("🔍 signInWithWeChatImpl 함수 시작");
+
+    // WeChat 지원 여부 확인
+    if (!isWeChatSupported()) {
       throw new SocialAuthError(
-        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        'WeChat 앱 ID가 설정되지 않았습니다.',
+        SocialAuthErrorCode.PROVIDER_NOT_AVAILABLE,
+        'WeChat 로그인이 설정되지 않았습니다. 관리자에게 문의하세요.',
         'wechat'
       );
     }
-    
-    // 브라우저 환경 검증
-    if (typeof window === 'undefined') {
+
+    // 설정값 준비
+    const config = getWeChatConfig();
+    console.log("🔍 WeChat 설정 로드 완료");
+
+    // 상태 토큰 생성 및 저장
+    const stateToken = generateStateToken();
+    saveStateToken(stateToken);
+
+    // 리다이렉트 URL 결정 (환경변수 우선 사용)
+    let redirectUrl = options?.redirectUrl;
+    if (!redirectUrl) {
+      // 개발 환경에서는 환경변수 또는 localhost 사용
+      if (process.env.NODE_ENV === "development") {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+        if (siteUrl) {
+          redirectUrl = `${siteUrl}/auth/callback/wechat`;
+        } else if (typeof window !== "undefined") {
+          // 환경변수가 없으면 현재 origin 사용
+          redirectUrl = `${window.location.origin}/auth/callback/wechat`;
+        } else {
+          redirectUrl = "http://localhost:3100/auth/callback/wechat";
+        }
+      } else {
+        // 프로덕션 환경
+        if (typeof window !== "undefined") {
+          redirectUrl = `${window.location.origin}/auth/callback/wechat`;
+        } else {
+          redirectUrl = "https://www.picnic.fan/auth/callback/wechat";
+        }
+      }
+    }
+
+    const scopes = options?.scopes || config.defaultScopes;
+
+    console.log("🔍 WeChat OAuth 시작:", {
+      redirectUrl,
+      nodeEnv: process.env.NODE_ENV,
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+      currentOrigin: typeof window !== "undefined"
+        ? window.location.origin
+        : "server",
+      stateToken: stateToken.substring(0, 20) + '...' // 보안상 일부만 로그
+    });
+
+    // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
+    if (typeof localStorage !== "undefined") {
+      const returnUrl = options?.additionalParams?.return_url ||
+        window.location.pathname;
+      localStorage.setItem("auth_return_url", returnUrl);
+      console.log("🔍 로컬 스토리지에 return_url 저장:", returnUrl);
+    }
+
+    // WeChat 특화 추가 파라미터
+    const wechatParams = {
+      response_type: (config.additionalConfig as any)?.responseType || "code",
+      state: stateToken, // 동적으로 생성된 상태 토큰 사용
+      ...options?.additionalParams,
+    };
+
+    console.log("🔍 WeChat OAuth 파라미터 준비 완료");
+    console.log("🔍 Supabase signInWithOAuth 호출 시작");
+
+    // WeChat은 Supabase에서 기본 지원하지 않으므로 커스텀 OAuth 플로우 구현
+    // 우선 일반적인 OAuth 방식으로 시도하고, 필요시 커스텀 구현으로 변경
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "wechat" as any, // WeChat은 Supabase에서 기본 지원하지 않음
+      options: {
+        redirectTo: redirectUrl,
+        scopes: scopes.join(" "),
+        queryParams: wechatParams,
+      },
+    });
+
+    console.log("🔍 Supabase signInWithOAuth 호출 완료, error:", error);
+
+    if (error) {
+      console.error("❌ WeChat OAuth 오류:", error);
+      
+      // WeChat이 Supabase에서 지원되지 않는 경우 커스텀 구현으로 폴백
+      if (error.message.includes("Provider not supported") || 
+          error.message.includes("wechat")) {
+        console.log("🔄 WeChat 커스텀 OAuth 플로우로 전환");
+        return await signInWithWeChatCustom(config, redirectUrl, scopes, wechatParams);
+      }
+      
+      // 상태 토큰 정리
+      clearStateToken();
+      
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        'WeChat 로그인은 브라우저 환경에서만 사용할 수 있습니다.',
-        'wechat'
+        `WeChat 로그인 프로세스 실패: ${error.message}`,
+        "wechat",
+        error,
       );
     }
-    
-    log('WeChat 로그인 시작', { redirectUri: options?.redirectUrl });
-    
-    // 리디렉션 URL 준비
-    const redirectUri = options?.redirectUrl || config.redirectUri;
-    if (!redirectUri) {
-      throw new SocialAuthError(
-        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        'WeChat 리디렉션 URL이 설정되지 않았습니다.',
-        'wechat'
-      );
-    }
-    
-    // 상태 토큰 생성 (CSRF 방지)
-    const state = generateStateToken();
-    
-    // 상태 저장 (콜백에서 검증용)
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem('wechat_auth_state', state);
-    }
-    
-    // WeChat은 특별한 처리가 필요한 경우가 많음
-    // 예: 중국 내부와 외부의 API 엔드포인트가 다를 수 있음
-    const authEndpoint = isLikelyInChina()
-      ? 'https://open.weixin.qq.com/connect/qrconnect' // 중국 내 엔드포인트
-      : 'https://open.weixin.qq.com/connect/qrconnect'; // 해외 엔드포인트 (현재는 동일하지만 변경될 수 있음)
-    
-    // 인증 URL 구성
-    const authUrl = new URL(authEndpoint);
-    authUrl.searchParams.append('appid', config.appId);
-    authUrl.searchParams.append('redirect_uri', redirectUri);
-    authUrl.searchParams.append('response_type', 'code');
-    authUrl.searchParams.append('scope', config.scope);
-    authUrl.searchParams.append('state', state);
-    
-    // WeChat 특유의 URL 형식 (URL 끝에 #wechat_redirect 추가 필요)
-    const finalAuthUrl = `${authUrl.toString()}#wechat_redirect`;
-    
-    log('WeChat 인증 URL 구성 완료', { finalAuthUrl });
-    
-    // 사용자를 WeChat 인증 페이지로 리디렉션
-    window.location.href = finalAuthUrl;
-    
-    // 리디렉션 중이므로 아래 코드는 실행되지 않음
-    // 하지만 타입 안전성을 위해 리턴 값 포함
+
+    console.log("✅ WeChat OAuth 리다이렉션 시작");
+
+    // OAuth 리디렉션으로 인해 이 함수는 여기까지만 실행되고 리디렉션됨
+    // 리디렉션 후 콜백 처리는 callback 핸들러에서 수행
     return {
       success: true,
-      provider: 'wechat',
-      message: 'WeChat 인증 페이지로 리디렉션 중...'
+      provider: "wechat",
+      message: "WeChat 로그인 리디렉션 중...",
     };
   } catch (error) {
-    logError('WeChat 로그인 오류', error);
-    
+    console.error("🔍 signInWithWeChatImpl 오류:", error);
+
+    // 오류 발생 시 상태 토큰 정리
+    clearStateToken();
+
     if (error instanceof SocialAuthError) {
-      return {
-        success: false,
-        error,
-        provider: 'wechat',
-        message: error.message
-      };
+      throw error;
     }
-    
+
+    throw new SocialAuthError(
+      SocialAuthErrorCode.AUTH_PROCESS_FAILED,
+      error instanceof Error ? error.message : "알 수 없는 WeChat 로그인 오류",
+      "wechat",
+      error,
+    );
+  }
+}
+
+/**
+ * WeChat 커스텀 OAuth 플로우 구현
+ * Supabase에서 WeChat을 지원하지 않는 경우 사용
+ *
+ * @param config WeChat 설정
+ * @param redirectUrl 리다이렉트 URL
+ * @param scopes 권한 범위
+ * @param params 추가 파라미터
+ * @returns 인증 결과
+ */
+async function signInWithWeChatCustom(
+  config: OAuthProviderConfig,
+  redirectUrl: string,
+  scopes: string[],
+  params: Record<string, string>,
+): Promise<AuthResult> {
+  try {
+    // WeChat OAuth 엔드포인트 URL 구성
+    const isOverseas = (config.additionalConfig as any)?.isOverseas;
+    const baseUrl = isOverseas 
+      ? "https://open.weixin.qq.com/connect/qrconnect" // 해외 버전
+      : "https://open.weixin.qq.com/connect/oauth2/authorize"; // 중국 본토 버전
+
+    const authUrl = new URL(baseUrl);
+    authUrl.searchParams.set("appid", config.clientId);
+    authUrl.searchParams.set("redirect_uri", encodeURIComponent(redirectUrl));
+    authUrl.searchParams.set("response_type", params.response_type || "code");
+    authUrl.searchParams.set("scope", scopes.join(","));
+    authUrl.searchParams.set("state", params.state || "wechat_oauth_state");
+
+    // 해외 버전의 경우 추가 파라미터
+    if (isOverseas) {
+      authUrl.searchParams.set("style", "black"); // QR 코드 스타일
+      authUrl.searchParams.set("href", ""); // 커스텀 스타일시트 URL (선택사항)
+    }
+
+    console.log("🔍 WeChat 커스텀 OAuth URL:", authUrl.toString());
+
+    // 브라우저에서 WeChat OAuth 페이지로 리다이렉트
+    if (typeof window !== "undefined") {
+      window.location.href = authUrl.toString();
+    }
+
     return {
-      success: false,
-      error: new SocialAuthError(
-        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        error instanceof Error ? error.message : '알 수 없는 WeChat 로그인 오류',
-        'wechat',
-        error
-      ),
-      provider: 'wechat'
+      success: true,
+      provider: "wechat",
+      message: "WeChat 커스텀 OAuth 리다이렉션 중...",
     };
+  } catch (error) {
+    // 오류 발생 시 상태 토큰 정리
+    clearStateToken();
+    
+    throw new SocialAuthError(
+      SocialAuthErrorCode.AUTH_PROCESS_FAILED,
+      error instanceof Error ? error.message : "WeChat 커스텀 OAuth 오류",
+      "wechat",
+      error,
+    );
   }
 }
 
@@ -301,17 +489,40 @@ export async function handleWeChatCallback(
   try {
     const { code, state, error } = params;
     
+    console.log('🔍 WeChat 콜백 처리 시작:', {
+      hasCode: !!code,
+      hasState: !!state,
+      hasError: !!error,
+      state: state ? state.substring(0, 20) + '...' : 'none' // 보안상 일부만 로그
+    });
+    
     // 에러 처리
     if (error) {
+      clearStateToken();
+      
+      // WeChat 특화 오류 코드 처리
+      const errorMessages: Record<string, string> = {
+        'access_denied': '사용자가 WeChat 로그인을 거부했습니다.',
+        'invalid_request': 'WeChat 로그인 요청이 유효하지 않습니다.',
+        'unauthorized_client': 'WeChat 앱이 승인되지 않았습니다.',
+        'unsupported_response_type': '지원되지 않는 응답 타입입니다.',
+        'invalid_scope': '요청한 권한이 유효하지 않습니다.',
+        'server_error': 'WeChat 서버 오류가 발생했습니다.',
+        'temporarily_unavailable': 'WeChat 서비스가 일시적으로 사용할 수 없습니다.'
+      };
+      
+      const errorMessage = errorMessages[error] || `WeChat 인증 오류: ${error}`;
+      
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        `WeChat 인증 오류: ${error}`,
+        errorMessage,
         'wechat'
       );
     }
     
     // 필수 파라미터 검증
     if (!code) {
+      clearStateToken();
       throw new SocialAuthError(
         SocialAuthErrorCode.CALLBACK_FAILED,
         'WeChat 인증 코드가 없습니다.',
@@ -320,21 +531,27 @@ export async function handleWeChatCallback(
     }
     
     // 상태 토큰 검증 (CSRF 방지)
-    if (typeof sessionStorage !== 'undefined') {
-      const savedState = sessionStorage.getItem('wechat_auth_state');
-      if (state && savedState && state !== savedState) {
+    if (state) {
+      const validation = validateStateToken(state);
+      if (!validation.valid) {
+        clearStateToken();
         throw new SocialAuthError(
-          SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-          '보안 오류: 상태 토큰이 일치하지 않습니다.',
+          SocialAuthErrorCode.INVALID_STATE,
+          validation.error || '상태 토큰 검증 실패',
           'wechat'
         );
       }
-      // 사용된 상태 토큰 제거
-      sessionStorage.removeItem('wechat_auth_state');
+    } else {
+      console.warn('⚠️ WeChat 콜백에 상태 토큰이 없습니다.');
     }
+    
+    // 상태 토큰 정리 (검증 완료 후)
+    clearStateToken();
     
     // 코드를 토큰으로 교환 (서버 측 구현 필요)
     // WeChat API는 서버 측 비밀키가 필요하므로 API 라우트 사용
+    console.log('🔍 WeChat API 호출 시작');
+    
     const tokenResponse = await fetch('/api/auth/wechat', {
       method: 'POST',
       headers: {
@@ -344,17 +561,35 @@ export async function handleWeChatCallback(
     });
     
     if (!tokenResponse.ok) {
-      const error = await tokenResponse.text();
+      const errorText = await tokenResponse.text();
+      console.error('❌ WeChat API 응답 오류:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        body: errorText
+      });
+      
       throw new SocialAuthError(
         SocialAuthErrorCode.TOKEN_EXCHANGE_FAILED,
-        `WeChat 토큰 교환 실패: ${error}`,
+        `WeChat 토큰 교환 실패 (${tokenResponse.status}): ${errorText}`,
         'wechat'
       );
     }
     
-    const tokenData = await tokenResponse.json();
+    let tokenData;
+    try {
+      tokenData = await tokenResponse.json();
+    } catch (parseError) {
+      console.error('❌ WeChat API 응답 파싱 오류:', parseError);
+      throw new SocialAuthError(
+        SocialAuthErrorCode.INVALID_RESPONSE,
+        'WeChat API 응답을 파싱할 수 없습니다.',
+        'wechat',
+        parseError
+      );
+    }
     
     if (!tokenData.success) {
+      console.error('❌ WeChat API 오류:', tokenData);
       throw new SocialAuthError(
         SocialAuthErrorCode.TOKEN_EXCHANGE_FAILED,
         tokenData.error || 'WeChat 토큰 교환 실패',
@@ -364,6 +599,8 @@ export async function handleWeChatCallback(
     
     // 프로필 정보가 있으면 바로 사용
     if (tokenData.profile) {
+      console.log('✅ WeChat 프로필 정보 수신 완료');
+      
       // Supabase로 이 정보로 사용자 생성 또는 업데이트
       // 주의: WeChat은 신원 정보가 이메일이 아닌 openid를 사용
       // 커스텀 API 구현이 필요할 수 있음
@@ -371,34 +608,47 @@ export async function handleWeChatCallback(
       // Supabase OAuth 호출 - WeChat은 공식 지원되지 않으므로 이메일/비밀번호 방식으로 처리
       // 실제 구현에서는 커스텀 인증 로직 필요
       // 아래는 임시 예시 코드
+      const tempEmail = `wechat_${tokenData.profile.id}@placeholder.com`;
+      const tempPassword = tokenData.tokens.id_token;
+      
+      console.log('🔍 Supabase 인증 시도');
+      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: `wechat_${tokenData.profile.id}@placeholder.com`,
-        password: tokenData.tokens.id_token
+        email: tempEmail,
+        password: tempPassword
       });
       
       if (error) {
         // 사용자가 존재하지 않으면 생성
         if (error.message.includes('Invalid login credentials')) {
+          console.log('ℹ️ 신규 WeChat 사용자 생성');
+          
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email: `wechat_${tokenData.profile.id}@placeholder.com`,
-            password: tokenData.tokens.id_token,
+            email: tempEmail,
+            password: tempPassword,
             options: {
               data: {
                 provider: 'wechat',
                 provider_id: tokenData.profile.id,
-                name: tokenData.profile.name
+                name: tokenData.profile.name,
+                wechat_openid: tokenData.profile.id,
+                avatar_url: tokenData.profile.avatar,
+                email_verified: true // WeChat 인증으로 간주
               }
             }
           });
           
           if (signUpError) {
+            console.error('❌ WeChat 사용자 등록 실패:', signUpError);
             throw new SocialAuthError(
-              SocialAuthErrorCode.AUTH_PROCESS_FAILED,
+              SocialAuthErrorCode.SESSION_CREATION_FAILED,
               `WeChat 사용자 등록 실패: ${signUpError.message}`,
               'wechat',
               signUpError
             );
           }
+          
+          console.log('✅ WeChat 신규 사용자 생성 완료');
           
           return {
             success: true,
@@ -409,13 +659,16 @@ export async function handleWeChatCallback(
           };
         }
         
+        console.error('❌ Supabase WeChat 로그인 실패:', error);
         throw new SocialAuthError(
-          SocialAuthErrorCode.AUTH_PROCESS_FAILED,
+          SocialAuthErrorCode.SESSION_CREATION_FAILED,
           `Supabase WeChat 로그인 실패: ${error.message}`,
           'wechat',
           error
         );
       }
+      
+      console.log('✅ WeChat 기존 사용자 로그인 완료');
       
       return {
         success: true,
@@ -434,6 +687,11 @@ export async function handleWeChatCallback(
     );
     
   } catch (error) {
+    console.error('🔍 WeChat 콜백 처리 오류:', error);
+    
+    // 오류 발생 시 상태 토큰 정리
+    clearStateToken();
+    
     if (error instanceof SocialAuthError) {
       return {
         success: false,
@@ -453,5 +711,89 @@ export async function handleWeChatCallback(
       ),
       provider: 'wechat'
     };
+  }
+}
+
+/**
+ * WeChat 액세스 토큰으로 사용자 정보 가져오기
+ *
+ * @param accessToken WeChat 액세스 토큰
+ * @param openid WeChat OpenID
+ * @returns 사용자 프로필 정보
+ */
+export async function getWeChatUserInfo(
+  accessToken: string,
+  openid: string,
+): Promise<Record<string, any>> {
+  try {
+    if (!accessToken || !openid) {
+      throw new SocialAuthError(
+        SocialAuthErrorCode.INVALID_RESPONSE,
+        'WeChat 액세스 토큰 또는 OpenID가 없습니다.',
+        'wechat'
+      );
+    }
+    
+    const userInfoUrl = new URL("https://api.weixin.qq.com/sns/userinfo");
+    userInfoUrl.searchParams.set("access_token", accessToken);
+    userInfoUrl.searchParams.set("openid", openid);
+    userInfoUrl.searchParams.set("lang", "zh_CN");
+
+    console.log('🔍 WeChat 사용자 정보 요청');
+
+    const response = await fetch(userInfoUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'WeChat-OAuth-Client/1.0'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new SocialAuthError(
+        SocialAuthErrorCode.PROFILE_FETCH_FAILED,
+        `WeChat API 요청 실패: ${response.status} ${response.statusText}`,
+        'wechat'
+      );
+    }
+
+    const userInfo = await response.json();
+
+    if (userInfo.errcode) {
+      // WeChat API 오류 코드 처리
+      const errorMessages: Record<string, string> = {
+        '40001': '액세스 토큰이 유효하지 않습니다.',
+        '40003': 'OpenID가 유효하지 않습니다.',
+        '42001': '액세스 토큰이 만료되었습니다.',
+        '42003': '액세스 토큰이 갱신되어야 합니다.',
+        '50001': '사용자가 인증을 취소했습니다.'
+      };
+      
+      const errorMessage = errorMessages[userInfo.errcode] || 
+        `WeChat API 오류: ${userInfo.errmsg} (${userInfo.errcode})`;
+      
+      throw new SocialAuthError(
+        SocialAuthErrorCode.PROFILE_FETCH_FAILED,
+        errorMessage,
+        'wechat'
+      );
+    }
+
+    console.log('✅ WeChat 사용자 정보 수신 완료');
+
+    return normalizeWeChatProfile(userInfo);
+  } catch (error) {
+    console.error('❌ WeChat 사용자 정보 가져오기 실패:', error);
+    
+    if (error instanceof SocialAuthError) {
+      throw error;
+    }
+    
+    throw new SocialAuthError(
+      SocialAuthErrorCode.PROFILE_FETCH_FAILED,
+      error instanceof Error ? error.message : "WeChat 사용자 정보 가져오기 실패",
+      "wechat",
+      error,
+    );
   }
 } 

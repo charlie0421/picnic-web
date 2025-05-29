@@ -17,45 +17,45 @@
 Write unit tests for the Navigation component and custom routing hook. Perform integration tests to verify language persistence across different page navigations. Test SEO-related aspects like correct hreflang tags.
 
 # Subtasks:
-## 1. Update Navigation Component for React Navigation 7 [pending]
+## 1. Refactor Navigation Component for Locale Awareness [pending]
 ### Dependencies: None
-### Description: Refactor the existing navigation component to comply with React Navigation 7 API changes and implement new navigation lifecycle methods.
+### Description: Update the main Navigation component to support locale-prefixed routes and dynamic language switching, ensuring all navigation links reflect the current language context.
 ### Details:
-Review breaking changes in React Navigation 7 documentation. Update minimum requirements (React Native ≥ 0.72.0). Implement focus/blur event listeners for proper screen lifecycle management. Remove deprecated navigation patterns that could cause bugs.
+Move or update the Navigation component under the appropriate app/[lang] or app/[locale] directory structure as per Next.js App Router conventions. Ensure all navigation items generate URLs with the correct locale prefix (e.g., /en/about, /ko/about).
 
 ## 2. Integrate next-intl for Internationalization [pending]
-### Dependencies: None
-### Description: Set up next-intl library to handle multilingual content throughout the application.
+### Dependencies: 8.1
+### Description: Install and configure next-intl to provide translation and locale management throughout the app, leveraging the App Router's dynamic [locale] segment.
 ### Details:
-Install next-intl package. Create translation files for all supported languages. Configure language detection and default language settings. Set up message formatting for different locales.
+Set up next-intl provider at the root layout (e.g., app/[locale]/layout.tsx). Load translation messages based on the current locale and ensure the provider wraps all pages and components that require translations.
 
-## 3. Develop Custom useRouter Hook [pending]
-### Dependencies: 8.1, 8.2
-### Description: Create a custom router hook that extends next-intl functionality while maintaining compatibility with React Navigation.
+## 3. Develop Custom useRouter Hook with Locale Support [pending]
+### Dependencies: 8.2
+### Description: Create a custom useRouter hook that extends Next.js's router to handle locale-aware navigation, language persistence, and programmatic route changes.
 ### Details:
-Implement wrapper around next-intl's useRouter. Add language persistence across navigation events. Ensure proper state management between screen and navigation components using useEffect with appropriate dependency arrays.
+The hook should expose navigation methods that automatically include the current locale in URLs, and provide helpers for switching languages while preserving the current path.
 
-## 4. Update Internal Link Handling [pending]
+## 4. Update Internal Links to Use Locale-Prefixed URLs [pending]
 ### Dependencies: 8.3
-### Description: Refactor all internal links to work with the new internationalized routing system.
+### Description: Refactor all internal links (e.g., <Link> components, router.push calls) to use locale-prefixed paths, ensuring consistent language context across navigation.
 ### Details:
-Audit all internal navigation calls. Replace direct navigation with internationalized routes. Implement proper state passing between screens. Test navigation flows in all supported languages.
+Audit the codebase for hardcoded paths and update them to use the custom useRouter hook or generate URLs with the current locale. Ensure all navigation actions respect the active language.
 
-## 5. Fix URL Handling for Internationalized Routes [pending]
-### Dependencies: 8.2, 8.4
-### Description: Ensure proper URL structure and handling for all language variations.
+## 5. Fix URL Handling for Dynamic and Static Routes [pending]
+### Dependencies: 8.4
+### Description: Ensure that both dynamic and static routes correctly handle locale segments, including edge cases such as fallback routes, 404s, and redirects.
 ### Details:
-Implement language prefixing in URLs. Set up redirects for language detection. Configure proper fallback routes. Test deep linking functionality across different languages.
+Test and update route definitions and middleware as needed to guarantee that all URLs are correctly parsed and generated with the locale segment. Handle cases where users access non-prefixed URLs by redirecting to the appropriate locale.
 
-## 6. Implement Language Change Handling [pending]
-### Dependencies: 8.2, 8.3
-### Description: Create a robust system for handling language changes during runtime.
+## 6. Implement Language Change Handling and Persistence [pending]
+### Dependencies: 8.5
+### Description: Enable seamless language switching that updates the URL, reloads translations, and persists the user's language preference across sessions.
 ### Details:
-Develop language selector component. Implement state updates between screen and navigation components when language changes. Ensure navigation bar updates reflect language changes. Test user experience during language switching.
+Update the language switcher to use the custom useRouter hook for navigation. Store the selected language in cookies or localStorage to persist the preference. Ensure the app initializes with the correct locale on subsequent visits.
 
-## 7. Optimize SEO for Multilingual Content [pending]
-### Dependencies: 8.5, 8.6
-### Description: Implement SEO best practices for internationalized content.
+## 7. Enhance SEO for Internationalized Routes [pending]
+### Dependencies: None
+### Description: Update SEO metadata, hreflang tags, and canonical URLs to reflect the current locale and improve search engine discoverability for all supported languages.
 ### Details:
-Add hreflang tags for language alternatives. Configure proper metadata for each language. Implement canonical URLs. Set up language-specific sitemaps. Test SEO performance using lighthouse and other tools.
+Dynamically generate meta tags and hreflang links in the head of each page based on the active locale. Ensure canonical URLs include the locale segment. Test with SEO tools to verify correct indexing and language targeting.
 

@@ -19,43 +19,43 @@ Write unit tests for language detection and mapping functions. Test persistence 
 # Subtasks:
 ## 1. Implement Language Detection Utility [pending]
 ### Dependencies: None
-### Description: Develop a utility function or module that can detect the language of a given text input using appropriate libraries or APIs.
+### Description: Develop a utility function to detect the user's preferred language using sources such as the Accept-Language header, browser settings, or cookies.
 ### Details:
-Choose a language detection approach (e.g., using NLP libraries or external APIs), implement the detection logic, and ensure it returns standardized language codes.
+This utility should prioritize detection methods and return a standardized locale string compatible with the app's supported languages.
 
 ## 2. Create Language Mapping Logic [pending]
 ### Dependencies: 9.1
-### Description: Establish a mapping between detected language codes and the application's supported languages/locales.
+### Description: Map detected language codes to supported locales, handling cases where only a region or script differs, and provide fallbacks as needed.
 ### Details:
-Define a mapping object or function that translates detected language codes to the app's internal language keys, handling unsupported or ambiguous codes.
+Ensure that if a detected locale is not directly supported, the mapping logic falls back to a more general or default locale as per Next.js i18n best practices.
 
 ## 3. Integrate localStorage for Language Persistence [pending]
 ### Dependencies: 9.2
-### Description: Implement logic to store and retrieve the user's language preference in localStorage.
+### Description: Implement logic to store and retrieve the user's language preference in localStorage to persist their choice across sessions.
 ### Details:
-Ensure that language selection and detection results are saved to localStorage and retrieved on subsequent visits to persist user preference.
+Ensure that the language preference is read from localStorage on app load and updated whenever the user changes their language.
 
 ## 4. Modify _app.js for Language Initialization [pending]
 ### Dependencies: 9.3
-### Description: Update the _app.js file to initialize the app's language based on precedence logic, including detection, mapping, and localStorage.
+### Description: Update the custom _app.js (or equivalent in App Router) to initialize the app's language based on detection, mapping, and localStorage.
 ### Details:
-Ensure _app.js checks localStorage, then browser settings, then detection utility, and finally falls back to a default language if needed.
+Ensure the app wraps all pages/components with the necessary i18n providers and initializes the language state correctly.
 
 ## 5. Update Language Switcher Component [pending]
 ### Dependencies: 9.4
-### Description: Refactor the language switcher UI to interact with the new language logic and update localStorage on user selection.
+### Description: Refactor the language switcher UI to interact with the new language detection and persistence logic, updating both state and localStorage.
 ### Details:
-Ensure the switcher updates the app's language, persists the choice, and triggers re-rendering as needed.
+The switcher should allow users to change languages, update the app's locale, and persist the choice.
 
 ## 6. Implement Language Precedence Logic [pending]
-### Dependencies: 9.4
-### Description: Define and enforce the order of precedence for language selection: localStorage > browser settings > detection > fallback.
+### Dependencies: 9.5
+### Description: Define and implement the order of precedence for language selection: localStorage, URL, browser settings, and default fallback.
 ### Details:
-Centralize the logic to determine which language should be used at app startup and after user actions.
+Ensure the app consistently applies this precedence when determining which language to display.
 
-## 7. Handle Fallback Language Scenarios [pending]
+## 7. Handle Fallbacks and Edge Cases [pending]
 ### Dependencies: None
-### Description: Ensure robust fallback handling when detection fails or an unsupported language is encountered.
+### Description: Implement robust fallback handling for unsupported or missing locales, ensuring the app gracefully defaults to the primary language.
 ### Details:
-Implement logic to default to a safe language (e.g., English) and provide user feedback if necessary.
+Test edge cases such as unsupported browser languages, missing translation files, and ensure the user experience remains consistent.
 

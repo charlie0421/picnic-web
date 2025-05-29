@@ -18,51 +18,51 @@
 Use Lighthouse and WebPageTest for performance benchmarking. Create performance budgets and automated tests to prevent performance regressions. Test the application performance on various devices and network conditions.
 
 # Subtasks:
-## 1. Implement Code Splitting [pending]
+## 1. Analyze Current Application Structure and Performance Bottlenecks [pending]
 ### Dependencies: None
-### Description: Break the application into smaller code chunks using dynamic import() and React.lazy, focusing on route-based and component-based splitting.
+### Description: Review the existing Picnic web application to identify areas for improvement in code splitting, lazy loading, Tailwind usage, API calls, ISR, font loading, service worker setup, and React performance.
 ### Details:
-Identify large routes and components, refactor imports to use React.lazy and Suspense, and ensure proper chunk naming for maintainability.
+Use profiling tools and Next.js analytics to pinpoint slow-loading pages, large bundles, and inefficient rendering patterns.
 
-## 2. Set Up Lazy Loading [pending]
+## 2. Implement Code Splitting and Lazy Loading [pending]
 ### Dependencies: 12.1
-### Description: Configure lazy loading for non-critical components and routes to defer their loading until needed.
+### Description: Refactor the application to leverage dynamic imports and React Suspense for components and routes that are not needed on initial load.
 ### Details:
-Use Suspense fallbacks for user experience, and selectively lazy load secondary features or rarely used components.
+Use Next.js dynamic imports and ensure only critical code is loaded upfront. Apply lazy loading to images and non-critical components.
 
-## 3. Optimize Tailwind CSS [pending]
-### Dependencies: None
+## 3. Optimize Tailwind CSS Usage [pending]
+### Dependencies: 12.1
 ### Description: Configure Tailwind CSS to purge unused styles and minimize the final CSS bundle size.
 ### Details:
-Adjust tailwind.config.js to enable purging, review class usage, and test the build output for unnecessary CSS.
+Update tailwind.config.js to enable JIT mode and ensure only used classes are included in production builds.
 
-## 4. Implement API Caching [pending]
-### Dependencies: None
-### Description: Introduce caching strategies for API requests to reduce redundant network calls and improve perceived performance.
+## 4. Set Up API Caching Strategies [pending]
+### Dependencies: 12.1
+### Description: Implement server-side and client-side caching for API requests to reduce redundant network calls and improve perceived performance.
 ### Details:
-Evaluate client-side (e.g., SWR, React Query) and server-side caching options, and implement cache invalidation policies.
+Use SWR or React Query for client-side caching and HTTP cache headers or Supabase edge functions for server-side caching.
 
 ## 5. Configure Incremental Static Regeneration (ISR) [pending]
-### Dependencies: None
-### Description: Set up ISR to allow static pages to be updated after deployment without a full rebuild.
+### Dependencies: 12.1
+### Description: Enable ISR for pages that can benefit from static generation with periodic revalidation to balance freshness and performance.
 ### Details:
-Adjust framework configuration (e.g., Next.js getStaticProps with revalidate) to enable on-demand static regeneration.
+Update Next.js page configurations to use revalidate options and test regeneration behavior for dynamic content.
 
 ## 6. Optimize Font Loading [pending]
-### Dependencies: None
-### Description: Improve font loading performance by using modern formats, preloading, and minimizing unused font variants.
+### Dependencies: 12.1
+### Description: Switch to using next/font for local font hosting and configure font-display: swap to prevent layout shifts and blocking renders.
 ### Details:
-Use font-display: swap, preload critical fonts, and remove unnecessary font weights/styles from the build.
+Audit current font usage, preload critical fonts, and defer non-essential fonts as needed.
 
-## 7. Implement Service Worker [pending]
-### Dependencies: None
-### Description: Add a service worker to enable offline support and advanced caching strategies for static assets and API responses.
+## 7. Implement Service Worker for Offline Support and Asset Caching [pending]
+### Dependencies: 12.1
+### Description: Add a service worker to cache static assets and API responses, enabling offline access and faster repeat visits.
 ### Details:
-Register a service worker, define caching rules, and test offline behavior and cache updates.
+Use Workbox or Next.js PWA plugins to register and configure the service worker, ensuring compatibility with App Router.
 
-## 8. Tune React Performance [pending]
-### Dependencies: 12.1, 12.2
-### Description: Profile and optimize React components for rendering efficiency and minimal re-renders.
+## 8. Tune React and Next.js Performance [pending]
+### Dependencies: 12.1
+### Description: Apply React and Next.js best practices such as memoization, avoiding unnecessary re-renders, and optimizing component structure.
 ### Details:
-Use React DevTools to identify bottlenecks, apply memoization (React.memo, useMemo, useCallback), and optimize context usage.
+Use React.memo, useCallback, and useMemo where appropriate; audit component tree for heavy renders; leverage Next.js built-in optimizations.
 

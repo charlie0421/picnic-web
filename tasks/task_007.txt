@@ -19,37 +19,37 @@ Create unit tests for StatusFilter component and localStorage interactions. Test
 # Subtasks:
 ## 1. Update StatusFilter UI Components [pending]
 ### Dependencies: None
-### Description: Revise the StatusFilter UI to support new status options, improved usability, and clear filter application controls.
+### Description: Revise the StatusFilter UI to reflect new requirements, ensuring it is visually consistent with Tailwind CSS and integrates smoothly with the Next.js 13+ App Router.
 ### Details:
-Modify relevant UI files (e.g., Status/index.tsx) to add or update status filter controls, ensuring alignment with design patterns and best practices for filter UX.
+Implement new filter options, update component structure, and ensure accessibility. Prepare for interaction with Zustand store.
 
-## 2. Implement Zustand Store Changes [pending]
+## 2. Refactor Zustand Store for Status State [pending]
 ### Dependencies: 7.1
-### Description: Update the Zustand store to manage the status filter state, including actions for setting, resetting, and persisting filter values.
+### Description: Modify or create a dedicated Zustand store slice for status filter state, following best practices for modularity and selective subscriptions.
 ### Details:
-Add or update Zustand store slices to handle status filter state, ensuring the store can be easily integrated with the UI and supports future extensibility.
+Ensure the store exposes actions for updating, resetting, and validating status filter state. Use selectors to minimize unnecessary re-renders.
 
 ## 3. Integrate localStorage Persistence [pending]
 ### Dependencies: 7.2
-### Description: Enable persistence of the status filter state in localStorage to maintain user preferences across sessions.
+### Description: Implement middleware or custom logic to persist the status filter state to localStorage and hydrate it on app load.
 ### Details:
-Implement logic to save and retrieve the status filter state from localStorage, syncing with the Zustand store on app load and filter changes.
+Use Zustand middleware or custom hooks to sync state changes with localStorage, ensuring state is restored on refresh or navigation.
 
-## 4. Add Reset Logic for Status Filter [pending]
+## 4. Implement Reset Logic for Status Filter [pending]
 ### Dependencies: 7.3
-### Description: Provide a mechanism to reset the status filter to its default state, clearing both the UI and persisted state.
+### Description: Add logic to reset the status filter state both in the Zustand store and in localStorage, ensuring a consistent reset experience.
 ### Details:
-Implement a reset action in the Zustand store and connect it to the UI, ensuring localStorage is also cleared or reset appropriately.
+Expose a reset action in the store and connect it to the UI. Ensure localStorage is cleared or reset accordingly.
 
 ## 5. Handle Invalid or Corrupt State [pending]
 ### Dependencies: 7.4
-### Description: Detect and handle invalid or corrupt status filter states from localStorage or user input, ensuring robust error handling.
+### Description: Add validation and error handling for cases where the status filter state in localStorage is invalid or corrupt.
 ### Details:
-Add validation logic when loading from localStorage and when updating the filter, reverting to defaults or showing user feedback if state is invalid.
+Implement checks during hydration and provide fallback to default state if validation fails. Optionally notify the user or log errors.
 
-## 6. Update Data Query and UI to Reflect Filter Changes [pending]
+## 6. Update Data Query and UI to Reflect Filter State [pending]
 ### Dependencies: 7.5
-### Description: Ensure that data queries and UI components update in real-time or on user action to reflect the current status filter selection.
+### Description: Ensure that data fetching logic and UI components reactively update based on the current status filter state from the Zustand store.
 ### Details:
-Connect the status filter state to data fetching logic and UI rendering, ensuring filtered results are displayed and updated as expected.
+Update data queries (e.g., Supabase) to use the filter, and ensure UI components display filtered results and respond to state changes.
 

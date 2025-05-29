@@ -18,51 +18,51 @@
 Write unit tests for error handling utilities. Create integration tests that simulate various error scenarios. Perform end-to-end tests to verify error messages are displayed correctly to users.
 
 # Subtasks:
-## 1. Design Custom Error Class Hierarchy [pending]
+## 1. Design and Implement Centralized Error Utility Module [pending]
 ### Dependencies: None
-### Description: Create a hierarchy of custom error classes for different application layers
+### Description: Create a centralized error utility module to standardize error handling across the application. This module should include utility functions for error formatting, categorization, and propagation.
 ### Details:
-Define base error classes for different application layers (DataAccessError, BusinessLogicError, PresentationError). Include properties for error codes, user-friendly messages, and technical details. Ensure errors can be serialized for logging and API responses.
+Develop a TypeScript module in the shared utils directory. Ensure it can be imported both in frontend and backend code. Include functions for formatting error messages, mapping error codes, and optionally integrating with logging services.
 
-## 2. Implement Centralized Error Handling Utility [pending]
+## 2. Define and Implement Custom Error Classes [pending]
 ### Dependencies: 11.1
-### Description: Create a centralized error handling service for consistent error processing
+### Description: Develop custom error classes (e.g., AuthError, ValidationError, ApiError) that extend the native Error object, providing additional context and metadata.
 ### Details:
-Develop a utility that processes all errors through a single pipeline. Include functionality for error transformation, logging, and appropriate response generation. Ensure the utility can be used across different services in a microservices architecture.
+Implement these classes in TypeScript, ensuring they are compatible with both server and client environments. Integrate them with the centralized error utility for consistent usage.
 
-## 3. Set Up React Error Boundaries [pending]
-### Dependencies: None
-### Description: Implement error boundaries at strategic levels in the React component tree
+## 3. Integrate React Error Boundaries Using Next.js App Router [pending]
+### Dependencies: 11.1, 11.2
+### Description: Set up error boundaries at appropriate route segments using Next.js 13+ App Router conventions (error.js files) to catch and isolate errors in the UI.
 ### Details:
-Create error boundary components for critical UI sections and the root application. Design fallback UIs for different error scenarios. Ensure error boundaries capture component rendering errors and provide appropriate user feedback.
+Create error.js files in relevant app route segments. Implement error boundary components that display user-friendly messages and provide recovery options (e.g., retry button). Ensure error boundaries report errors to the centralized utility.
 
-## 4. Develop User-Friendly Error Messaging System [pending]
+## 4. Implement User-Facing Error Messaging Components [pending]
+### Dependencies: 11.3
+### Description: Develop reusable UI components for displaying error messages to users, ensuring clarity and actionable feedback.
+### Details:
+Use Tailwind CSS to style error alerts, modals, or banners. Ensure messages are specific and helpful, avoiding generic text. Integrate with error boundaries and async error handlers.
+
+## 5. Set Up Backend Error Logging and Monitoring [pending]
+### Dependencies: 11.1, 11.2
+### Description: Implement backend error logging using Supabase functions or third-party services. Ensure all critical errors are logged with sufficient context for debugging.
+### Details:
+Integrate logging in API routes and server actions. Optionally connect to external monitoring tools for alerting and analytics. Ensure logs include error type, stack trace, and user/session context where possible.
+
+## 6. Add Retry Logic for Recoverable Errors [pending]
 ### Dependencies: 11.1, 11.3
-### Description: Create a system for displaying appropriate error messages to users
+### Description: Implement retry mechanisms for transient errors (e.g., network failures) in both frontend data fetching and backend API calls.
 ### Details:
-Design a component library for different types of error notifications (toasts, modals, inline messages). Map technical errors to user-friendly messages. Support different severity levels and provide actionable information when possible.
+Use the reset function in error boundaries for UI retries. For async operations, implement exponential backoff or limited retries. Ensure retries are tracked and do not cause infinite loops.
 
-## 5. Implement Backend Error Logging Infrastructure [pending]
-### Dependencies: 11.2
-### Description: Set up comprehensive error logging for backend services
+## 7. Enhance Async Error Handling in Data Fetching and Actions [pending]
+### Dependencies: 11.1, 11.2, 11.6
+### Description: Standardize async error handling in React components, server actions, and API routes using the centralized utility and custom error classes.
 ### Details:
-Configure structured logging for errors with contextual information. Implement log aggregation and search capabilities. Set up alerting for critical errors. Ensure sensitive information is properly redacted from logs.
-
-## 6. Build Retry Logic for Network Operations [pending]
-### Dependencies: 11.2
-### Description: Implement resilient retry mechanisms for network requests
-### Details:
-Create a retry utility with exponential backoff for API calls and service communications. Implement circuit breaker pattern to prevent cascading failures. Add configurable retry policies for different types of operations.
-
-## 7. Develop Async Error Handling Patterns [pending]
-### Dependencies: 11.2, 11.3
-### Description: Create patterns for handling errors in asynchronous code
-### Details:
-Implement error handling for Promises, async/await, and event handlers. Create utilities for wrapping async functions with consistent error handling. Ensure errors in async code are properly propagated to the centralized error system.
+Refactor existing async code to use try/catch where appropriate, returning or throwing custom errors. Ensure all async errors are surfaced to error boundaries or logged as needed.
 
 ## 8. Implement Global Error State Management [pending]
-### Dependencies: 11.3, 11.4, 11.7
-### Description: Create a global error state management solution
+### Dependencies: 11.1, 11.4, 11.7
+### Description: Establish a global error state using React context or a state management library to track and respond to errors across the application.
 ### Details:
-Set up a global error state using context or state management library. Implement hooks for components to access and update error state. Create mechanisms for clearing errors and tracking error resolution status.
+Create a context provider for error state. Allow components to set, clear, and subscribe to global errors. Integrate with error boundaries and user messaging components for seamless UX.
 
