@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Vote, VoteItem } from '@/types/interfaces';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { 
   submitVote, 
   getVoteResults, 
@@ -14,7 +15,7 @@ import {
   CanVoteRequest
 } from '@/lib/data-fetching/vote-api';
 import { 
-  getVoteRealtimeService, 
+  VoteRealtimeService,
   VoteRealtimeEvent, 
   ConnectionStatus,
   VoteEventListener,
@@ -142,10 +143,10 @@ interface VoteStore {
 
   // 실시간 관련 액션들 (새로 추가)
   // 실시간 연결 시작
-  startRealtimeConnection: (voteId: number) => void;
+  startRealtimeConnection: (voteId: number) => Promise<void>;
   
   // 실시간 연결 중지
-  stopRealtimeConnection: () => void;
+  stopRealtimeConnection: () => Promise<void>;
   
   // 실시간 이벤트 처리
   handleRealtimeEvent: (event: VoteRealtimeEvent) => void;
@@ -222,10 +223,25 @@ const initialRealtimeState: RealtimeState = {
 // 상태 업데이트 타이머 저장용
 let statusUpdateInterval: NodeJS.Timeout | null = null;
 
-// 실시간 서비스 및 리스너 참조
-let realtimeService = getVoteRealtimeService();
+// 실시간 서비스 및 리스너 참조 (지연 로딩)
+let realtimeService: VoteRealtimeService | null = null;
 let eventListener: VoteEventListener | null = null;
 let statusListener: ConnectionStatusListener | null = null;
+
+// 실시간 서비스 가져오기 (브라우저에서만)
+const getRealtimeServiceSafely = async () => {
+  if (typeof window === 'undefined') return null;
+  if (!realtimeService) {
+    try {
+      const { getVoteRealtimeService } = await import('@/lib/supabase/realtime');
+      realtimeService = getVoteRealtimeService();
+    } catch (error) {
+      console.error('[VoteStore] Failed to load realtime service:', error);
+      return null;
+    }
+  }
+  return realtimeService;
+};
 
 // Zustand 스토어 생성
 export const useVoteStore = create<VoteStore>()(
@@ -514,20 +530,11 @@ export const useVoteStore = create<VoteStore>()(
 
       // 실시간 관련 액션들 (새로 추가)
       // 실시간 연결 시작
-      startRealtimeConnection: (voteId) => {
-        const { realtime } = get();
+      startRealtimeConnection: async (voteId) => {
+        // 기존 연결이 있다면 먼저 중지
+        get().stopRealtimeConnection();
         
-        // 이미 같은 투표에 연결되어 있으면 무시
-        if (realtime.currentVoteId === voteId && realtime.isConnected) {
-          return;
-        }
-        
-        // 기존 연결 정리
-        if (realtime.currentVoteId !== null) {
-          get().stopRealtimeConnection();
-        }
-        
-        // 연결 상태 업데이트
+        // 상태 업데이트
         set(
           (state) => ({
             realtime: {
@@ -550,39 +557,81 @@ export const useVoteStore = create<VoteStore>()(
           get().updateConnectionStatus(status);
         };
         
-        // 리스너 등록
-        realtimeService.addEventListener(eventListener);
-        realtimeService.addStatusListener(statusListener);
-        
-        // 투표 구독 시작
-        realtimeService.subscribeToVote(voteId);
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[VoteStore] 실시간 연결 시작: 투표 ${voteId}`);
+        try {
+          // 실시간 서비스 가져오기
+          const service = await getRealtimeServiceSafely();
+          if (!service) {
+            console.warn('[VoteStore] 실시간 서비스를 사용할 수 없습니다.');
+            return;
+          }
+          
+          // 리스너 등록
+          service.addEventListener(eventListener);
+          service.addStatusListener(statusListener);
+          
+          // 투표 구독 시작
+          service.subscribeToVote(voteId);
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[VoteStore] 실시간 연결 시작: 투표 ${voteId}`);
+          }
+        } catch (error) {
+          console.error('[VoteStore] 실시간 연결 실패:', error);
+          set(
+            (state) => ({
+              realtime: {
+                ...state.realtime,
+                connectionStatus: 'error',
+              },
+            }),
+            false,
+            'startRealtimeConnection:error'
+          );
         }
       },
       
       // 실시간 연결 중지
-      stopRealtimeConnection: () => {
+      stopRealtimeConnection: async () => {
         const { realtime } = get();
         
         if (realtime.currentVoteId !== null) {
-          // 구독 해제
-          realtimeService.unsubscribeFromVote(realtime.currentVoteId);
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[VoteStore] 실시간 연결 중지: 투표 ${realtime.currentVoteId}`);
+          try {
+            const service = await getRealtimeServiceSafely();
+            if (service) {
+              // 구독 해제
+              service.unsubscribeFromVote(realtime.currentVoteId);
+              
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`[VoteStore] 실시간 연결 중지: 투표 ${realtime.currentVoteId}`);
+              }
+            }
+          } catch (error) {
+            console.error('[VoteStore] 실시간 연결 해제 실패:', error);
           }
         }
         
         // 리스너 제거
         if (eventListener) {
-          realtimeService.removeEventListener(eventListener);
+          try {
+            const service = await getRealtimeServiceSafely();
+            if (service) {
+              service.removeEventListener(eventListener);
+            }
+          } catch (error) {
+            console.error('[VoteStore] 이벤트 리스너 제거 실패:', error);
+          }
           eventListener = null;
         }
         
         if (statusListener) {
-          realtimeService.removeStatusListener(statusListener);
+          try {
+            const service = await getRealtimeServiceSafely();
+            if (service) {
+              service.removeStatusListener(statusListener);
+            }
+          } catch (error) {
+            console.error('[VoteStore] 상태 리스너 제거 실패:', error);
+          }
           statusListener = null;
         }
         

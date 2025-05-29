@@ -20,9 +20,9 @@ import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 // 디바운싱 훅 추가
 function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedValue(value);
     }, delay);
@@ -104,32 +104,32 @@ export function HybridVoteDetailPresenter({
   });
 
   // 기존 상태들
-  const [voteItems, setVoteItems] = useState<VoteItem[]>(initialItems);
-  const [selectedItem, setSelectedItem] = useState<VoteItem | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isVoting, setIsVoting] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<{
+  const [voteItems, setVoteItems] = React.useState<VoteItem[]>(initialItems);
+  const [selectedItem, setSelectedItem] = React.useState<VoteItem | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [isVoting, setIsVoting] = React.useState(false);
+  const [timeLeft, setTimeLeft] = React.useState<{
     days: number;
     hours: number;
     minutes: number;
     seconds: number;
   } | null>(null);
-  const [showVoteModal, setShowVoteModal] = useState(false);
-  const [voteCandidate, setVoteCandidate] = useState<VoteItem | null>(null);
-  const [voteAmount, setVoteAmount] = useState(1);
-  const [availableVotes, setAvailableVotes] = useState(10);
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const headerRef = useRef<HTMLDivElement>(null);
+  const [showVoteModal, setShowVoteModal] = React.useState(false);
+  const [voteCandidate, setVoteCandidate] = React.useState<VoteItem | null>(null);
+  const [voteAmount, setVoteAmount] = React.useState(1);
+  const [availableVotes, setAvailableVotes] = React.useState(10);
+  const [headerHeight, setHeaderHeight] = React.useState(0);
+  const headerRef = React.useRef<HTMLDivElement>(null);
 
   // 사용자 관련 상태
-  const [user, setUser] = useState<any>(null);
-  const [userVote, setUserVote] = useState<any>(null);
+  const [user, setUser] = React.useState<any>(null);
+  const [userVote, setUserVote] = React.useState<any>(null);
 
   // 알림 시스템 상태
-  const [notifications, setNotifications] = useState<NotificationState[]>([]);
+  const [notifications, setNotifications] = React.useState<NotificationState[]>([]);
 
   // 하이브리드 시스템 상태
-  const [connectionState, setConnectionState] = useState<ConnectionState>({
+  const [connectionState, setConnectionState] = React.useState<ConnectionState>({
     mode: enableRealtime ? 'realtime' : 'static',
     isConnected: false,
     lastUpdate: null,
@@ -138,7 +138,7 @@ export function HybridVoteDetailPresenter({
   });
 
   // 연결 품질 모니터링 상태
-  const [connectionQuality, setConnectionQuality] = useState<ConnectionQuality>({
+  const [connectionQuality, setConnectionQuality] = React.useState<ConnectionQuality>({
     score: 100,
     latency: 0,
     errorRate: 0,
@@ -159,17 +159,17 @@ export function HybridVoteDetailPresenter({
   };
 
   // 폴링 관련 ref
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const realtimeSubscriptionRef = useRef<any>(null);
-  const qualityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const realtimeRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const realtimeSubscriptionRef = React.useRef<any>(null);
+  const qualityCheckIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const realtimeRetryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // 성능 측정을 위한 ref
-  const requestStartTimeRef = useRef<number>(0);
+  const requestStartTimeRef = React.useRef<number>(0);
 
   // 폴링 관련 상태
-  const [lastPollingUpdate, setLastPollingUpdate] = useState<Date | null>(null);
-  const [pollingErrorCount, setPollingErrorCount] = useState(0);
+  const [lastPollingUpdate, setLastPollingUpdate] = React.useState<Date | null>(null);
+  const [pollingErrorCount, setPollingErrorCount] = React.useState(0);
 
   // Supabase 클라이언트
   const supabase = createBrowserSupabaseClient();
@@ -181,7 +181,7 @@ export function HybridVoteDetailPresenter({
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // 알림 시스템 함수들
-  const addNotification = useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
+  const addNotification = React.useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
     const newNotification: NotificationState = {
       ...notification,
       id: Math.random().toString(36).substr(2, 9),
@@ -197,12 +197,12 @@ export function HybridVoteDetailPresenter({
     }, duration);
   }, []);
 
-  const removeNotification = useCallback((id: string) => {
+  const removeNotification = React.useCallback((id: string) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   }, []);
 
   // 연결 상태 변경 알림
-  const notifyConnectionStateChange = useCallback((from: DataSourceMode, to: DataSourceMode) => {
+  const notifyConnectionStateChange = React.useCallback((from: DataSourceMode, to: DataSourceMode) => {
     const modeNames = {
       realtime: '실시간',
       polling: '폴링',
@@ -218,7 +218,7 @@ export function HybridVoteDetailPresenter({
   }, [addNotification]);
 
   // 사용자 정보 가져오기
-  useEffect(() => {
+  React.useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
@@ -227,7 +227,7 @@ export function HybridVoteDetailPresenter({
   }, [supabase]);
 
   // 연결 품질 업데이트
-  const updateConnectionQuality = useCallback((success: boolean, responseTime?: number) => {
+  const updateConnectionQuality = React.useCallback((success: boolean, responseTime?: number) => {
     setConnectionQuality(prev => {
       const newConsecutiveErrors = success ? 0 : prev.consecutiveErrors + 1;
       const newConsecutiveSuccesses = success ? prev.consecutiveSuccesses + 1 : 0;
@@ -258,7 +258,7 @@ export function HybridVoteDetailPresenter({
   }, []);
 
   // 데이터 업데이트 함수 (폴링용)
-  const updateVoteDataPolling = useCallback(async () => {
+  const updateVoteDataPolling = React.useCallback(async () => {
     if (!vote?.id) return;
 
     const startTime = performance.now();
@@ -378,7 +378,7 @@ export function HybridVoteDetailPresenter({
   }, [vote?.id, user, supabase, updateConnectionQuality]);
 
   // 데이터 업데이트 함수
-  const updateVoteData = useCallback(async () => {
+  const updateVoteData = React.useCallback(async () => {
     try {
       // TODO: 실제 API 호출로 데이터 가져오기
       // const { data } = await supabase.from('vote_item').select('*').eq('vote_id', vote.id);
@@ -401,7 +401,7 @@ export function HybridVoteDetailPresenter({
   }, [vote.id, connectionState.mode]);
 
   // 폴링 시작
-  const startPollingMode = useCallback(() => {
+  const startPollingMode = React.useCallback(() => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
     }
@@ -425,7 +425,7 @@ export function HybridVoteDetailPresenter({
   }, [updateVoteDataPolling]);
 
   // 리얼타임 연결 시도
-  const connectRealtime = useCallback(async () => {
+  const connectRealtime = React.useCallback(async () => {
     if (!enableRealtime) return;
 
     try {
@@ -503,7 +503,7 @@ export function HybridVoteDetailPresenter({
   }, [enableRealtime, vote.id, supabase, updateVoteDataPolling, startPollingMode]);
 
   // 폴링 중지
-  const stopPollingMode = useCallback(() => {
+  const stopPollingMode = React.useCallback(() => {
     if (pollingIntervalRef.current) {
       console.log('⏹️ [Polling] Stopping polling mode');
       clearInterval(pollingIntervalRef.current);
@@ -512,7 +512,7 @@ export function HybridVoteDetailPresenter({
   }, []);
 
   // 하이브리드 모드 시작
-  const startHybridMode = useCallback(() => {
+  const startHybridMode = React.useCallback(() => {
     console.log('🔀 [Hybrid] Starting hybrid mode');
     setConnectionState(prev => ({
       ...prev,
@@ -525,7 +525,7 @@ export function HybridVoteDetailPresenter({
   }, [connectRealtime]);
 
   // 리얼타임 연결 해제
-  const disconnectRealtime = useCallback(() => {
+  const disconnectRealtime = React.useCallback(() => {
     if (realtimeSubscriptionRef.current) {
       realtimeSubscriptionRef.current.unsubscribe();
       realtimeSubscriptionRef.current = null;
@@ -534,7 +534,7 @@ export function HybridVoteDetailPresenter({
   }, []);
 
   // 연결 모니터 정리
-  const cleanupConnectionMonitor = useCallback(() => {
+  const cleanupConnectionMonitor = React.useCallback(() => {
     if (qualityCheckIntervalRef.current) {
       clearInterval(qualityCheckIntervalRef.current);
       qualityCheckIntervalRef.current = null;
@@ -546,7 +546,7 @@ export function HybridVoteDetailPresenter({
   }, []);
 
   // 모드 전환 함수
-  const switchMode = useCallback((targetMode: DataSourceMode) => {
+  const switchMode = React.useCallback((targetMode: DataSourceMode) => {
     const prevMode = connectionState.mode;
     console.log(`[Mode Switch] Switching from ${prevMode} to ${targetMode}`);
     
@@ -578,7 +578,7 @@ export function HybridVoteDetailPresenter({
   }, [connectionState.mode, disconnectRealtime, stopPollingMode, connectRealtime, startPollingMode, notifyConnectionStateChange]);
 
   // 자동 모드 전환 (에러 발생시)
-  useEffect(() => {
+  React.useEffect(() => {
     if (connectionState.errorCount >= maxRetries) {
       if (connectionState.mode === 'realtime') {
         console.log('[Auto Switch] Realtime -> Polling (에러 한계 도달)');
@@ -591,7 +591,7 @@ export function HybridVoteDetailPresenter({
   }, [connectionState.errorCount, connectionState.mode, maxRetries, switchMode]);
 
   // 연결 모니터링 시스템 초기화
-  useEffect(() => {
+  React.useEffect(() => {
     if (enableRealtime) {
       // 하이브리드 모드 시작
       startHybridMode();
@@ -611,7 +611,7 @@ export function HybridVoteDetailPresenter({
   }, [enableRealtime, startHybridMode, startPollingMode, stopPollingMode, disconnectRealtime, cleanupConnectionMonitor]);
 
   // 남은 시간 계산 및 업데이트
-  useEffect(() => {
+  React.useEffect(() => {
     if (!vote.stop_at || voteStatus !== 'ongoing') return;
 
     const updateTimer = () => {
@@ -763,7 +763,7 @@ export function HybridVoteDetailPresenter({
   };
 
   // 성능 최적화된 투표 아이템 필터링 및 정렬
-  const { rankedVoteItems, filteredItems, totalVotes } = useMemo(() => {
+  const { rankedVoteItems, filteredItems, totalVotes } = React.useMemo(() => {
     // 투표 아이템 순위 매기기
     const ranked = [...voteItems]
       .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
@@ -794,31 +794,77 @@ export function HybridVoteDetailPresenter({
   }, [voteItems, debouncedSearchQuery, currentLanguage]);
 
   // 투표 제목과 내용 메모이제이션
-  const { voteTitle, voteContent } = useMemo(() => ({
+  const { voteTitle, voteContent } = React.useMemo(() => ({
     voteTitle: getLocalizedString(vote.title, currentLanguage),
     voteContent: getLocalizedString(vote.vote_content, currentLanguage),
   }), [vote.title, vote.vote_content, currentLanguage]);
 
-  // 투표 확인 팝업 열기
+  // 투표 확인 팝업
   const handleCardClick = async (item: VoteItem) => {
-    if (!canVote) return;
-
-    await withAuth(() => {
-      setVoteCandidate(item);
-      setShowVoteModal(true);
+    console.log('🎯 handleCardClick 시작:', {
+      canVote,
+      itemId: item.id,
+      artistId: item.artist_id,
+      groupId: item.group_id,
+      timestamp: new Date().toISOString(),
     });
+
+    if (!canVote) {
+      console.log('❌ canVote가 false - 투표 불가능');
+      return;
+    }
+
+    console.log('🔐 withAuth 호출 시작...');
+
+    // 인증이 필요한 투표 액션을 실행
+    const result = await withAuth(async () => {
+      console.log('✅ withAuth 내부 - 인증 성공, 투표 다이얼로그 표시');
+      // 인증된 사용자만 여기에 도달
+      setVoteCandidate(item);
+      setVoteAmount(1); // 투표량 초기화
+      setShowVoteModal(true);
+      return true;
+    });
+
+    console.log('🔍 withAuth 결과:', result);
+
+    // withAuth가 null을 반환하면 인증 실패 (로그인 다이얼로그 표시됨)
+    // 인증 성공 시에만 result가 true가 됨
+    if (!result) {
+      console.log('❌ 인증 실패 - 투표 다이얼로그 표시하지 않음');
+    } else {
+      console.log('✅ 인증 성공 - 투표 다이얼로그가 표시되어야 함');
+    }
   };
 
   // 투표 실행
   const confirmVote = async () => {
-    if (!voteCandidate || !canVote || isVoting) return;
+    if (!voteCandidate || voteAmount <= 0 || voteAmount > availableVotes)
+      return;
 
-    setIsVoting(true);
-    
-    try {
-      await withAuth(async () => {
+    // 인증이 필요한 투표 액션을 실행
+    const result = await withAuth(async () => {
+      setIsVoting(true);
+      setShowVoteModal(false);
+      try {
         // TODO: 실제 투표 API 호출
-        console.log(`투표: ${voteCandidate.artist?.name}에게 ${voteAmount}표`);
+        console.log('Voting for:', {
+          voteId: vote.id,
+          itemId: voteCandidate.id,
+          amount: voteAmount,
+        });
+
+        // 임시로 투표수 증가
+        setVoteItems((prev) =>
+          prev.map((item) =>
+            item.id === voteCandidate.id
+              ? { ...item, vote_total: (item.vote_total || 0) + voteAmount }
+              : item,
+          ),
+        );
+
+        // 사용 가능한 투표량 감소
+        setAvailableVotes((prev) => prev - voteAmount);
         
         // 투표 성공 알림
         addNotification({
@@ -827,24 +873,28 @@ export function HybridVoteDetailPresenter({
           message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount}표 투표했습니다.`,
           duration: 3000,
         });
+      } catch (error) {
+        console.error('Vote error:', error);
         
-        setAvailableVotes(prev => Math.max(0, prev - voteAmount));
-        setShowVoteModal(false);
+        // 투표 실패 알림
+        addNotification({
+          type: 'error',
+          title: '투표 실패',
+          message: '투표 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
+          duration: 4000,
+        });
+      } finally {
+        setIsVoting(false);
         setVoteCandidate(null);
         setVoteAmount(1);
-      });
-    } catch (error) {
-      console.error('투표 실패:', error);
-      
-      // 투표 실패 알림
-      addNotification({
-        type: 'error',
-        title: '투표 실패',
-        message: '투표 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
-        duration: 4000,
-      });
-    } finally {
-      setIsVoting(false);
+      }
+      return true;
+    });
+
+    // 인증 실패 시 투표 다이얼로그 유지
+    if (!result) {
+      console.log('투표 인증 실패 - 다이얼로그 유지');
+      // 투표 다이얼로그는 열린 상태로 유지
     }
   };
 
@@ -861,7 +911,7 @@ export function HybridVoteDetailPresenter({
   };
 
   // 헤더 높이 측정
-  useEffect(() => {
+  React.useEffect(() => {
     const updateHeaderHeight = () => {
       if (headerRef.current) {
         setHeaderHeight(headerRef.current.offsetHeight);
@@ -890,7 +940,7 @@ export function HybridVoteDetailPresenter({
   }, [voteTitle, voteContent, voteStatus, availableVotes]);
 
   // 연결 품질 모니터링
-  const startConnectionQualityMonitor = useCallback(() => {
+  const startConnectionQualityMonitor = React.useCallback(() => {
     if (qualityCheckIntervalRef.current) {
       clearInterval(qualityCheckIntervalRef.current);
     }
@@ -923,7 +973,7 @@ export function HybridVoteDetailPresenter({
   }, [connectionQuality, connectionState.mode, thresholds]);
 
   // 리얼타임 재연결 시도
-  const attemptRealtimeReconnection = useCallback(() => {
+  const attemptRealtimeReconnection = React.useCallback(() => {
     if (realtimeRetryTimeoutRef.current) {
       clearTimeout(realtimeRetryTimeoutRef.current);
     }
@@ -947,26 +997,25 @@ export function HybridVoteDetailPresenter({
       >
         <div className='relative overflow-hidden'>
           <div className='absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-10'></div>
-          <Card className='border-0 bg-white/80 backdrop-blur-sm'>
-            <Card.Header className='pb-2'>
+          <div className='border-0 bg-white/80 backdrop-blur-sm rounded-lg p-4'>
+            <div className='pb-2'>
               <div className='flex items-start justify-between gap-2 mb-1'>
                 <h1 className='text-base md:text-lg lg:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex-1 min-w-0'>
                   {voteTitle}
                 </h1>
                 <div className="flex items-center gap-2">
-                  <Badge
-                    variant={
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full font-medium ${
                       voteStatus === 'ongoing'
-                        ? 'success'
+                        ? 'bg-green-100 text-green-800'
                         : voteStatus === 'upcoming'
-                        ? 'warning'
-                        : 'default'
-                    }
-                    size="sm"
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}
                   >
                     {voteStatus === 'ongoing' ? '진행 중' :
                      voteStatus === 'upcoming' ? '예정' : '종료'}
-                  </Badge>
+                  </span>
                   {renderConnectionStatus()}
                 </div>
               </div>
@@ -1019,8 +1068,8 @@ export function HybridVoteDetailPresenter({
                   </div>
                 )}
               </div>
-            </Card.Header>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1033,78 +1082,346 @@ export function HybridVoteDetailPresenter({
         />
       </div>
 
-      {/* 투표 아이템 목록 */}
+      {/* 상위 3위 표시 */}
+      {voteStatus !== 'upcoming' && filteredItems.length > 0 && (
+        <div
+          className='sticky z-30 bg-white/95 backdrop-blur-md border-b border-gray-200/50 py-2 md:py-3 mb-2 md:mb-4 shadow-lg'
+          style={{ top: `${headerHeight}px` }}
+        >
+          <div className='container mx-auto px-4'>
+            <div className='text-center mb-2 md:mb-3'>
+              <div className='flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4'>
+                <h2 className='text-lg md:text-xl font-bold bg-gradient-to-r from-yellow-500 via-yellow-600 to-orange-500 bg-clip-text text-transparent'>
+                  🏆 TOP 3
+                </h2>
+
+                {/* 타이머 */}
+                <div className='flex items-center gap-3'>{renderTimer()}</div>
+              </div>
+            </div>
+
+            {/* 포디움 스타일 레이아웃 - 더 컴팩트 */}
+            <div className='flex justify-center items-end w-full max-w-4xl gap-1 sm:gap-2 md:gap-4 px-2 sm:px-4 mx-auto'>
+              {/* 2위 */}
+              {filteredItems[1] && (
+                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
+                  <div className='relative'>
+                    <div className='absolute -inset-1 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
+                    <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
+                      <VoteRankCard
+                        item={{
+                          ...filteredItems[1],
+                          image_url: filteredItems[1].artist?.image ? `https://cdn.picnic.fan/picnic/${filteredItems[1].artist.image}` : '',
+                          total_votes: filteredItems[1].vote_total || 0,
+                          rank: 2
+                        }}
+                        rank={2}
+                        className='w-20 sm:w-24 md:w-28 lg:w-32'
+                      />
+                    </div>
+                  </div>
+                  <div className='mt-1 text-center'>
+                    <div className='text-sm'>🥈</div>
+                  </div>
+                </div>
+              )}
+
+              {/* 1위 */}
+              {filteredItems[0] && (
+                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10'>
+                  <div className='relative'>
+                    <div className='absolute -inset-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
+                    <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
+                      <div className='absolute -top-0.5 -right-0.5 text-sm animate-bounce'>
+                        👑
+                      </div>
+                      <VoteRankCard
+                        item={{
+                          ...filteredItems[0],
+                          image_url: filteredItems[0].artist?.image ? `https://cdn.picnic.fan/picnic/${filteredItems[0].artist.image}` : '',
+                          total_votes: filteredItems[0].vote_total || 0,
+                          rank: 1
+                        }}
+                        rank={1}
+                        className='w-24 sm:w-32 md:w-36 lg:w-40'
+                      />
+                    </div>
+                  </div>
+                  <div className='mt-1 text-center'>
+                    <div className='text-base font-bold animate-pulse'>🥇</div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3위 */}
+              {filteredItems[2] && (
+                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
+                  <div className='relative'>
+                    <div className='absolute -inset-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded blur opacity-30'></div>
+                    <div className='relative bg-gradient-to-br from-amber-100 to-orange-100 p-1 rounded border border-amber-400 shadow-lg'>
+                      <VoteRankCard
+                        item={{
+                          ...filteredItems[2],
+                          image_url: filteredItems[2].artist?.image ? `https://cdn.picnic.fan/picnic/${filteredItems[2].artist.image}` : '',
+                          total_votes: filteredItems[2].vote_total || 0,
+                          rank: 3
+                        }}
+                        rank={3}
+                        className='w-18 sm:w-20 md:w-24 lg:w-28'
+                      />
+                    </div>
+                  </div>
+                  <div className='mt-1 text-center'>
+                    <div className='text-sm'>🥉</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 투표 가능한 썸네일 그리드 (4위 이하) */}
       <div className="px-4 pb-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredItems.map((item, index) => {
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+          {filteredItems.slice(3).map((item, index) => {
+            const actualRank = index + 4; // 4위부터 시작
             return (
               <div
                 key={item.id}
-                className='transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 cursor-pointer'
+                className="relative group cursor-pointer transform transition-all duration-300 hover:scale-105"
                 style={{
-                  animationDelay: `${index * 50}ms`,
+                  animationDelay: `${index * 30}ms`,
                 }}
                 onClick={() => handleCardClick(item)}
               >
-                <VoteRankCard
-                  item={{
-                    ...item,
-                    rank: item.rank,
-                  }}
-                  rank={item.rank}
-                  className="h-full"
-                  enableMotionAnimations={true}
-                />
+                {/* 순위 표시 */}
+                <div className="absolute -top-2 -left-2 z-10">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white
+                    ${actualRank <= 6 ? 'bg-blue-500' : 
+                      actualRank <= 10 ? 'bg-purple-500' : 'bg-gray-500'}
+                  `}>
+                    {actualRank}
+                  </div>
+                </div>
+                
+                {/* 아티스트 이미지 */}
+                <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                  {item.artist?.image ? (
+                    <img 
+                      src={`https://cdn.picnic.fan/picnic/${item.artist.image}`}
+                      alt={getLocalizedString(item.artist.name, currentLanguage)}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-400 text-xs">No Image</span>
+                    </div>
+                  )}
+                </div>
+                
+                {/* 아티스트 정보 */}
+                <div className="mt-1 text-center">
+                  <p className="text-xs font-medium text-gray-800 truncate">
+                    {item.artist?.name ? 
+                      getLocalizedString(item.artist.name, currentLanguage) :
+                      '알 수 없음'
+                    }
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {item.artist?.artist_group ? 
+                      getLocalizedString(item.artist.artist_group, currentLanguage) :
+                      ''
+                    }
+                  </p>
+                  <p className="text-xs font-bold text-blue-600 mt-1">
+                    {item.vote_total?.toLocaleString() || 0}표
+                  </p>
+                </div>
+                
+                {/* 호버 효과 */}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 rounded-lg flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="bg-white text-gray-800 px-2 py-1 rounded text-xs font-medium">
+                      투표하기
+                    </span>
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* 투표 확인 모달 */}
+      {/* 투표 확인 팝업 */}
       {showVoteModal && voteCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 m-4 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">투표 확인</h3>
-            
-            <div className="mb-4">
-              <p className="text-gray-600 mb-2">
-                {voteCandidate.artist?.name ? 
-                  getLocalizedString(voteCandidate.artist.name, currentLanguage) :
-                  '알 수 없는 아티스트'
-                }에게 투표하시겠습니까?
-              </p>
-              
-              <div className="flex items-center gap-2 mb-2">
-                <label className="text-sm font-medium">투표 수:</label>
-                <input 
-                  type="number"
-                  min="1"
-                  max={availableVotes}
-                  value={voteAmount}
-                  onChange={(e) => setVoteAmount(Math.min(availableVotes, Math.max(1, parseInt(e.target.value) || 1)))}
-                  className="border rounded px-2 py-1 w-20 text-center"
+        <div className='fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4'>
+          <div className='bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform animate-in zoom-in-95 duration-200'>
+            {/* 후보자 정보 */}
+            <div className='text-center mb-6'>
+              <div className='w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden ring-4 ring-blue-100'>
+                <img
+                  src={
+                    voteCandidate.artist?.image
+                      ? getCdnImageUrl(voteCandidate.artist.image)
+                      : '/images/default-artist.png'
+                  }
+                  alt={
+                    voteCandidate.artist?.name
+                      ? getLocalizedString(
+                          voteCandidate.artist.name,
+                          currentLanguage,
+                        )
+                      : '아티스트'
+                  }
+                  className='w-full h-full object-cover'
                 />
               </div>
-              
-              <p className="text-xs text-gray-500">
-                사용 가능한 투표: {availableVotes}표
+              <h3 className='text-lg font-bold text-gray-800 mb-1'>
+                {voteCandidate.artist?.name
+                  ? getLocalizedString(
+                      voteCandidate.artist.name,
+                      currentLanguage,
+                    )
+                  : '아티스트'}
+              </h3>
+              {voteCandidate.artist?.artistGroup?.name && (
+                <p className='text-sm text-gray-500'>
+                  {getLocalizedString(
+                    voteCandidate.artist.artistGroup.name,
+                    currentLanguage,
+                  )}
+                </p>
+              )}
+              {(() => {
+                const rankedItem = rankedVoteItems.find(
+                  (item) => item.id === voteCandidate.id,
+                );
+                return (
+                  rankedItem?.rank && (
+                    <div className='mt-2 flex items-center justify-center gap-1'>
+                      {rankedItem.rank <= 3 && (
+                        <span className='text-lg'>
+                          {rankedItem.rank === 1
+                            ? '🥇'
+                            : rankedItem.rank === 2
+                            ? '🥈'
+                            : '🥉'}
+                        </span>
+                      )}
+                      <span className='text-sm font-semibold text-gray-600'>
+                        현재 {rankedItem.rank}위
+                      </span>
+                    </div>
+                  )
+                );
+              })()}
+            </div>
+
+            {/* 확인 메시지 */}
+            <div className='text-center mb-6'>
+              <h2 className='text-xl font-bold text-gray-800 mb-2'>
+                투표 확인
+              </h2>
+              <p className='text-gray-600'>이 후보에게 투표하시겠습니까?</p>
+              <p className='text-sm text-gray-500 mt-1'>
+                투표는 한 번만 가능합니다.
               </p>
             </div>
 
-            <div className="flex gap-3">
-              <button 
+            {/* 투표량 선택 */}
+            <div className='mb-6'>
+              <div className='flex items-center justify-between mb-3'>
+                <label className='text-sm font-semibold text-gray-700'>
+                  투표량
+                </label>
+                <span className='text-xs text-gray-500'>
+                  보유: {availableVotes}표
+                </span>
+              </div>
+
+              <div className='flex items-center gap-3'>
+                <button
+                  onClick={() => setVoteAmount(Math.max(1, voteAmount - 1))}
+                  disabled={voteAmount <= 1}
+                  className='w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-bold text-gray-600 transition-colors'
+                >
+                  −
+                </button>
+
+                <div className='flex-1 text-center'>
+                  <input
+                    type='number'
+                    min='1'
+                    max={availableVotes}
+                    value={voteAmount}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      setVoteAmount(
+                        Math.min(availableVotes, Math.max(1, value)),
+                      );
+                    }}
+                    className='w-full text-center text-lg font-bold border-2 border-gray-200 rounded-lg py-2 focus:border-blue-500 focus:outline-none'
+                  />
+                  <div className='text-xs text-gray-500 mt-1'>표</div>
+                </div>
+
+                <button
+                  onClick={() =>
+                    setVoteAmount(Math.min(availableVotes, voteAmount + 1))
+                  }
+                  disabled={voteAmount >= availableVotes}
+                  className='w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-bold text-gray-600 transition-colors'
+                >
+                  +
+                </button>
+              </div>
+
+              {/* 빠른 선택 버튼 */}
+              <div className='flex gap-2 mt-3'>
+                {[1, 5, Math.min(10, availableVotes), availableVotes]
+                  .filter(
+                    (val, idx, arr) => arr.indexOf(val) === idx && val > 0,
+                  )
+                  .map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => setVoteAmount(amount)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        voteAmount === amount
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                      }`}
+                    >
+                      {amount}표
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            {/* 버튼 */}
+            <div className='flex gap-3'>
+              <button
                 onClick={cancelVote}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className='flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors duration-200'
               >
                 취소
               </button>
-              <button 
+              <button
                 onClick={confirmVote}
-                disabled={isVoting || voteAmount > availableVotes}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={
+                  isVoting || voteAmount <= 0 || voteAmount > availableVotes
+                }
+                className='flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
               >
-                {isVoting ? '투표 중...' : '투표하기'}
+                {isVoting ? (
+                  <div className='flex items-center justify-center gap-2'>
+                    <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></div>
+                    투표 중...
+                  </div>
+                ) : (
+                  `${voteAmount}표 투표하기`
+                )}
               </button>
             </div>
           </div>

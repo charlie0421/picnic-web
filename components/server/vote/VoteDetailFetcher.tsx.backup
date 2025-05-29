@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { HybridVoteDetailPresenter } from '@/components/client/vote/detail/HybridVoteDetailPresenter';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -9,7 +10,8 @@ interface VoteDetailFetcherProps {
 }
 
 /**
- * 투표 상세 데이터를 서버에서 가져오는 컴포넌트
+ * 투표 상세 데이터를 가져오는 서버 컴포넌트
+ * vote-service를 사용하여 데이터를 조회합니다.
  */
 export async function VoteDetailFetcher({
   voteId,
@@ -18,14 +20,14 @@ export async function VoteDetailFetcher({
   const supabase = createServerSupabaseClient();
 
   try {
-    // voteId를 숫자로 변환
+    // voteId를 number로 변환
     const numericVoteId = parseInt(voteId, 10);
     if (isNaN(numericVoteId)) {
       console.error('Invalid vote ID:', voteId);
       notFound();
     }
 
-    // 투표 정보 조회
+    // 투표 정보 가져오기
     const { data: vote, error: voteError } = await supabase
       .from('vote')
       .select('*')
@@ -37,7 +39,7 @@ export async function VoteDetailFetcher({
       notFound();
     }
 
-    // 투표 아이템들 조회
+    // 투표 아이템들 가져오기
     const { data: voteItems, error: itemsError } = await supabase
       .from('vote_item')
       .select(`
@@ -56,23 +58,28 @@ export async function VoteDetailFetcher({
       throw new Error('Failed to fetch vote items');
     }
 
-    // 리워드 정보 조회
+    // 리워드 정보 가져오기 (있는 경우)
     const { data: rewards } = await supabase
       .from('reward')
       .select('*')
       .eq('vote_id', numericVoteId);
 
-    // 클라이언트 컴포넌트에 데이터 전달
     return (
-      <HybridVoteDetailPresenter
-        vote={vote as Vote}
-        initialItems={(voteItems || []) as unknown as VoteItem[]}
-        rewards={rewards || []}
-        className={className}
-        enableRealtime={true}
-        pollingInterval={1000}
-        maxRetries={3}
-      />
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        <HybridVoteDetailPresenter
+          vote={vote as Vote}
+          initialItems={(voteItems || []) as unknown as VoteItem[]}
+          rewards={rewards || []}
+          className={className}
+          enableRealtime={true}
+          pollingInterval={1000}
+          maxRetries={3}
+        />
+      </Suspense>
     );
   } catch (error) {
     console.error('VoteDetailFetcher error:', error);

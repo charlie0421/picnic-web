@@ -78,8 +78,8 @@ export class VoteRealtimeService {
     status: 'disconnected',
     reconnectAttempts: 0,
     maxReconnectAttempts: 10, // 증가된 재시도 횟수
-    isOnline: navigator.onLine,
-    isVisible: !document.hidden
+    isOnline: true, // 서버사이드에서는 기본값으로 설정
+    isVisible: true // 서버사이드에서는 기본값으로 설정
   };
   
   // 재연결 설정
@@ -90,8 +90,8 @@ export class VoteRealtimeService {
   private reconnectTimeouts: Map<string, NodeJS.Timeout> = new Map();
   
   // 네트워크 및 가시성 상태
-  private isOnline = navigator.onLine;
-  private isVisible = !document.hidden;
+  private isOnline = true; // 서버사이드에서는 기본값으로 설정
+  private isVisible = true; // 서버사이드에서는 기본값으로 설정
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private lastHeartbeat: Date | null = null;
   
@@ -100,24 +100,37 @@ export class VoteRealtimeService {
   private maxPendingEvents = 100;
 
   constructor() {
-    this.setupNetworkListeners();
-    this.setupVisibilityListeners();
-    this.startHeartbeat();
+    // 브라우저 환경에서만 초기화
+    if (typeof window !== 'undefined') {
+      // 브라우저 환경에서 실제 값으로 설정
+      this.isOnline = navigator.onLine;
+      this.isVisible = !document.hidden;
+      this.connectionInfo.isOnline = this.isOnline;
+      this.connectionInfo.isVisible = this.isVisible;
+      
+      this.setupNetworkListeners();
+      this.setupVisibilityListeners();
+      this.startHeartbeat();
+    }
   }
 
   /**
    * 네트워크 상태 감지 설정
    */
   private setupNetworkListeners(): void {
-    window.addEventListener('online', this.handleOnline.bind(this));
-    window.addEventListener('offline', this.handleOffline.bind(this));
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', this.handleOnline.bind(this));
+      window.addEventListener('offline', this.handleOffline.bind(this));
+    }
   }
 
   /**
    * 페이지 가시성 감지 설정
    */
   private setupVisibilityListeners(): void {
-    document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    }
   }
 
   /**
@@ -169,21 +182,23 @@ export class VoteRealtimeService {
    * 페이지 가시성 변경 처리
    */
   private handleVisibilityChange(): void {
-    this.isVisible = !document.hidden;
-    this.connectionInfo.isVisible = this.isVisible;
-    
-    if (this.isVisible) {
-      // 페이지가 보이게 되면 연결 상태 확인 및 재연결
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[VoteRealtime] 페이지 활성화 - 연결 확인');
+    if (typeof document !== 'undefined') {
+      this.isVisible = !document.hidden;
+      this.connectionInfo.isVisible = this.isVisible;
+      
+      if (this.isVisible) {
+        // 페이지가 보이게 되면 연결 상태 확인 및 재연결
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[VoteRealtime] 페이지 활성화 - 연결 확인');
+        }
+        this.checkConnection();
+      } else {
+        // 페이지가 숨겨지면 연결 일시 중단 (배터리 절약)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[VoteRealtime] 페이지 비활성화 - 연결 일시 중단');
+        }
+        this.updateConnectionStatus('suspended');
       }
-      this.checkConnection();
-    } else {
-      // 페이지가 숨겨지면 연결 일시 중단 (배터리 절약)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[VoteRealtime] 페이지 비활성화 - 연결 일시 중단');
-      }
-      this.updateConnectionStatus('suspended');
     }
   }
 
@@ -750,9 +765,13 @@ export class VoteRealtimeService {
     }
     
     // 이벤트 리스너 제거
-    window.removeEventListener('online', this.handleOnline.bind(this));
-    window.removeEventListener('offline', this.handleOffline.bind(this));
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.handleOnline.bind(this));
+      window.removeEventListener('offline', this.handleOffline.bind(this));
+    }
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+    }
     
     // 상태 초기화
     this.channels.clear();
