@@ -375,7 +375,7 @@
       "dependencies": [
         1
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -383,7 +383,7 @@
           "description": "Redesign and implement the AreaFilter UI to match new requirements, ensuring compatibility with Next.js 13+ App Router and Tailwind CSS.",
           "dependencies": [],
           "details": "Refactor or create new AreaFilter components, update layout and styles using Tailwind CSS, and ensure accessibility and responsiveness.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2,
@@ -392,8 +392,8 @@
           "dependencies": [
             1
           ],
-          "details": "Define AreaFilter state structure, actions for updating/filtering, and ensure TypeScript types are accurate. Use modular store organization and memoized selectors.",
-          "status": "pending"
+          "details": "Define AreaFilter state structure, actions for updating/filtering, and ensure TypeScript types are accurate. Use modular store organization and memoized selectors.\n<info added on 2025-05-29T13:39:28.207Z>\nNote: The Zustand store already supports localStorage persistence through the persist middleware. The selected status and area values are being saved under the 'vote-filter-storage' key, so no additional implementation work is required for this persistence functionality.\n</info added on 2025-05-29T13:39:28.207Z>",
+          "status": "done"
         },
         {
           "id": 3,
@@ -403,7 +403,7 @@
             2
           ],
           "details": "Use Zustand middleware or custom logic to sync AreaFilter state with localStorage, ensuring state is restored on reload and compatible with SSR.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 4,
@@ -413,7 +413,7 @@
             2
           ],
           "details": "Update Supabase or other data-fetching hooks to read AreaFilter state from the store and apply filters to queries.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 5,
@@ -424,7 +424,7 @@
             4
           ],
           "details": "Connect UI components to Zustand selectors, ensure two-way binding, and test for correct reactivity and minimal re-renders.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 6,
@@ -434,7 +434,7 @@
             1
           ],
           "details": "Extract all user-facing strings, add translation keys, and update components to use the i18n library (e.g., next-i18next or similar).",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },
@@ -448,15 +448,15 @@
       "dependencies": [
         1
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
           "title": "Update StatusFilter UI Components",
           "description": "Revise the StatusFilter UI to reflect new requirements, ensuring it is visually consistent with Tailwind CSS and integrates smoothly with the Next.js 13+ App Router.",
           "dependencies": [],
-          "details": "Implement new filter options, update component structure, and ensure accessibility. Prepare for interaction with Zustand store.",
-          "status": "pending"
+          "details": "Implement new filter options, update component structure, and ensure accessibility. Prepare for interaction with Zustand store.\n<info added on 2025-05-29T13:51:38.422Z>\n#### 현재 상황 분석 (2025-01-27)\n\n**기존 구현 상태:**\n- VoteStatusFilter 컴포넌트가 이미 존재하고 잘 구현되어 있음 (`components/client/vote/list/VoteStatusFilter.tsx`)\n- Zustand store (`stores/voteFilterStore.ts`)에 persist 미들웨어가 이미 적용되어 localStorage 지속성이 구현됨\n- VoteFilterSection에서 URL 파라미터와 상태 동기화가 이미 구현됨\n\n**테스크 요구사항 vs 현실:**\n1. ✅ StatusFilter 컴포넌트 존재\n2. ✅ localStorage 지속성 이미 구현 (persist 미들웨어)\n3. ✅ UI가 현재 필터 상태 반영\n4. ❌ Reset 버튼 없음\n5. ❌ 잘못된 저장 상태 검증 로직 부족\n\n**계획:**\n1. VoteStatusFilter에 Reset 버튼 추가\n2. 상태 검증 로직 추가\n3. 더 나은 에러 핸들링 구현\n</info added on 2025-05-29T13:51:38.422Z>\n<info added on 2025-05-29T13:53:06.341Z>\n#### 구현 완료 (2025-01-27)\n\n**완료된 작업:**\n1. ✅ VoteStatusFilter에 Reset 버튼 추가\n   - 파일: `components/client/vote/list/VoteStatusFilter.tsx`\n   - onReset 옵셔널 prop 추가\n   - Reset 버튼 UI (⟲ 아이콘) 추가, hover 효과 포함\n\n2. ✅ Zustand store 개선\n   - 파일: `stores/voteFilterStore.ts`\n   - resetFilters() 액션 추가\n   - 상태 검증 함수 (isValidVoteStatus, isValidVoteArea) 추가\n   - validateAndFixState() 메서드 추가\n   - onRehydrateStorage 훅에서 자동 상태 검증 실행\n\n3. ✅ VoteFilterSection 연결\n   - 파일: `components/client/vote/list/VoteFilterSection.tsx`\n   - handleReset 핸들러 추가\n   - VoteStatusFilter에 onReset prop 전달\n   - Reset 시 URL 파라미터도 함께 초기화\n\n**검증된 기능:**\n- Reset 버튼 클릭 시 필터 상태가 기본값으로 복원\n- URL 파라미터도 함께 초기화\n- localStorage의 잘못된 상태 자동 수정\n- 컴포넌트 재사용성 유지 (onReset은 옵셔널)\n</info added on 2025-05-29T13:53:06.341Z>",
+          "status": "done"
         },
         {
           "id": 2,
@@ -466,7 +466,7 @@
             1
           ],
           "details": "Ensure the store exposes actions for updating, resetting, and validating status filter state. Use selectors to minimize unnecessary re-renders.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 3,
@@ -476,7 +476,7 @@
             2
           ],
           "details": "Use Zustand middleware or custom hooks to sync state changes with localStorage, ensuring state is restored on refresh or navigation.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 4,
@@ -486,7 +486,7 @@
             3
           ],
           "details": "Expose a reset action in the store and connect it to the UI. Ensure localStorage is cleared or reset accordingly.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 5,
@@ -496,7 +496,7 @@
             4
           ],
           "details": "Implement checks during hydration and provide fallback to default state if validation fails. Optionally notify the user or log errors.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 6,
@@ -506,7 +506,7 @@
             5
           ],
           "details": "Update data queries (e.g., Supabase) to use the filter, and ensure UI components display filtered results and respond to state changes.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },

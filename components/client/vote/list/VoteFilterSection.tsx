@@ -7,7 +7,12 @@ import { useVoteFilterStore, VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilter
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const VoteFilterSection: React.FC = () => {
-  const { selectedStatus, selectedArea, setSelectedStatus, setSelectedArea } = useVoteFilterStore();
+  const { 
+    selectedStatus, 
+    selectedArea, 
+    setSelectedStatus, 
+    setSelectedArea 
+  } = useVoteFilterStore();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -53,7 +58,7 @@ const VoteFilterSection: React.FC = () => {
     // URL에 파라미터가 없으면 기본값으로 설정
     if (!urlStatus || !urlArea) {
       const defaultStatus = urlStatus || selectedStatus || VOTE_STATUS.ONGOING;
-      const defaultArea = urlArea || selectedArea || VOTE_AREAS.KPOP;
+      const defaultArea = urlArea || selectedArea || VOTE_AREAS.ALL;
       
       updateUrlParams(defaultStatus, defaultArea);
     }

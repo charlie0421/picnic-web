@@ -89,8 +89,10 @@ export const buildVoteQuery = (supabase: any, status: string, area: string) => {
       break;
   }
 
-  // 영역별 필터링 (area 값 확인을 위한 로그 추가)
-  query = query.eq('area', area);
+  // 영역별 필터링 - 'all'인 경우 필터링하지 않음
+  if (area && area !== 'all') {
+    query = query.eq('area', area);
+  }
   
   // 정렬
   query = query.order('start_at', { ascending: false });

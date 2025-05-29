@@ -108,8 +108,8 @@ function buildVoteQuery(
     }
   }
 
-  // 지역 필터링
-  if (area) {
+  // 지역 필터링 - 'all'인 경우 필터링하지 않음
+  if (area && area !== 'all') {
     query = query.eq("area", area);
   }
 
