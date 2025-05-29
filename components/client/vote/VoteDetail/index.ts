@@ -3,5 +3,4 @@
  */
 
 // VoteDetail 컴포넌트 내보내기
-export { default } from './VoteDetail';
-export { default as VoteDetailPresenter } from './VoteDetailPresenter'; 
+export { default } from './VoteDetail'; 

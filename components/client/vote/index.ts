@@ -8,7 +8,6 @@
 export { VoteListPresenter } from './list';
 export { VoteTimer } from './common/VoteTimer';
 export { VoteSearch } from './detail/VoteSearch';
-export { VoteDetailPresenter } from './detail/VoteDetailPresenter';
 export { VoteRankCard } from './common/VoteRankCard';
 export { CompletedVoteItems } from './list/CompletedVoteItems';
 export { VoteButton } from './common/VoteButton';

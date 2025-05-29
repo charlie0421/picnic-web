@@ -1079,11 +1079,13 @@ export function HybridVoteDetailPresenter({
           onSearch={handleSearch}
           placeholder={`${rankedVoteItems.length}명 중 검색...`}
           totalItems={rankedVoteItems.length}
+          searchResults={filteredItems}
+          disabled={!canVote}
         />
       </div>
 
       {/* 상위 3위 표시 */}
-      {voteStatus !== 'upcoming' && filteredItems.length > 0 && (
+      {voteStatus !== 'upcoming' && rankedVoteItems.length > 0 && (
         <div
           className='sticky z-30 bg-white/95 backdrop-blur-md border-b border-gray-200/50 py-2 md:py-3 mb-2 md:mb-4 shadow-lg'
           style={{ top: `${headerHeight}px` }}
@@ -1103,18 +1105,13 @@ export function HybridVoteDetailPresenter({
             {/* 포디움 스타일 레이아웃 - 더 컴팩트 */}
             <div className='flex justify-center items-end w-full max-w-4xl gap-1 sm:gap-2 md:gap-4 px-2 sm:px-4 mx-auto'>
               {/* 2위 */}
-              {filteredItems[1] && (
+              {rankedVoteItems[1] && (
                 <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
                   <div className='relative'>
                     <div className='absolute -inset-1 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
                     <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
                       <VoteRankCard
-                        item={{
-                          ...filteredItems[1],
-                          image_url: filteredItems[1].artist?.image ? `https://cdn.picnic.fan/picnic/${filteredItems[1].artist.image}` : '',
-                          total_votes: filteredItems[1].vote_total || 0,
-                          rank: 2
-                        }}
+                        item={rankedVoteItems[1]}
                         rank={2}
                         className='w-20 sm:w-24 md:w-28 lg:w-32'
                       />
@@ -1127,7 +1124,7 @@ export function HybridVoteDetailPresenter({
               )}
 
               {/* 1위 */}
-              {filteredItems[0] && (
+              {rankedVoteItems[0] && (
                 <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10'>
                   <div className='relative'>
                     <div className='absolute -inset-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
@@ -1136,12 +1133,7 @@ export function HybridVoteDetailPresenter({
                         👑
                       </div>
                       <VoteRankCard
-                        item={{
-                          ...filteredItems[0],
-                          image_url: filteredItems[0].artist?.image ? `https://cdn.picnic.fan/picnic/${filteredItems[0].artist.image}` : '',
-                          total_votes: filteredItems[0].vote_total || 0,
-                          rank: 1
-                        }}
+                        item={rankedVoteItems[0]}
                         rank={1}
                         className='w-24 sm:w-32 md:w-36 lg:w-40'
                       />
@@ -1154,18 +1146,13 @@ export function HybridVoteDetailPresenter({
               )}
 
               {/* 3위 */}
-              {filteredItems[2] && (
+              {rankedVoteItems[2] && (
                 <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
                   <div className='relative'>
                     <div className='absolute -inset-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded blur opacity-30'></div>
                     <div className='relative bg-gradient-to-br from-amber-100 to-orange-100 p-1 rounded border border-amber-400 shadow-lg'>
                       <VoteRankCard
-                        item={{
-                          ...filteredItems[2],
-                          image_url: filteredItems[2].artist?.image ? `https://cdn.picnic.fan/picnic/${filteredItems[2].artist.image}` : '',
-                          total_votes: filteredItems[2].vote_total || 0,
-                          rank: 3
-                        }}
+                        item={rankedVoteItems[2]}
                         rank={3}
                         className='w-18 sm:w-20 md:w-24 lg:w-28'
                       />
@@ -1181,76 +1168,185 @@ export function HybridVoteDetailPresenter({
         </div>
       )}
 
-      {/* 투표 가능한 썸네일 그리드 (4위 이하) */}
-      <div className="px-4 pb-8">
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
-          {filteredItems.slice(3).map((item, index) => {
-            const actualRank = index + 4; // 4위부터 시작
+      {/* 투표 아이템 그리드 - 개선된 반응형 */}
+      <div className='container mx-auto px-4 pb-8'>
+        <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-3 md:gap-4'>
+          {filteredItems.map((item, index) => {
+            const artistName = item.artist?.name
+              ? getLocalizedString(item.artist.name, currentLanguage) ||
+                '아티스트'
+              : '아티스트';
+            const imageUrl = item.artist?.image
+              ? getCdnImageUrl(item.artist.image)
+              : '/images/default-artist.png';
+
             return (
               <div
                 key={item.id}
-                className="relative group cursor-pointer transform transition-all duration-300 hover:scale-105"
+                className='transform transition-all duration-300 hover:scale-105 hover:-translate-y-2'
                 style={{
-                  animationDelay: `${index * 30}ms`,
+                  animationDelay: `${index * 50}ms`,
                 }}
-                onClick={() => handleCardClick(item)}
+                onClick={() => {
+                  console.log('🖱️ [HybridVoteDetailPresenter] 카드 클릭됨:', {
+                    canVote,
+                    itemId: item.id,
+                    artistName: artistName,
+                    timestamp: new Date().toISOString(),
+                  });
+
+                  if (canVote) {
+                    handleCardClick(item);
+                  } else {
+                    console.log('❌ canVote가 false - 클릭 무시됨');
+                  }
+                }}
               >
-                {/* 순위 표시 */}
-                <div className="absolute -top-2 -left-2 z-10">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white
-                    ${actualRank <= 6 ? 'bg-blue-500' : 
-                      actualRank <= 10 ? 'bg-purple-500' : 'bg-gray-500'}
-                  `}>
-                    {actualRank}
-                  </div>
-                </div>
-                
-                {/* 아티스트 이미지 */}
-                <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-                  {item.artist?.image ? (
-                    <img 
-                      src={`https://cdn.picnic.fan/picnic/${item.artist.image}`}
-                      alt={getLocalizedString(item.artist.name, currentLanguage)}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-400 text-xs">No Image</span>
+                <Card
+                  hoverable={canVote}
+                  className={`
+                    group relative overflow-hidden border-0 shadow-lg hover:shadow-2xl 
+                    transition-all duration-300 cursor-pointer
+                    ${
+                      !canVote
+                        ? 'opacity-75 grayscale cursor-not-allowed'
+                        : 'hover:shadow-blue-200/50 hover:shadow-xl'
+                    }
+                    ${
+                      item.rank <= 3
+                        ? 'ring-2 ring-yellow-400/50 bg-gradient-to-br from-yellow-50/50 to-orange-50/50'
+                        : 'bg-gradient-to-br from-white to-blue-50/30'
+                    }
+                    backdrop-blur-sm
+                  `}
+                >
+                  {/* 순위 배지 */}
+                  {item.rank && item.rank <= 10 && (
+                    <div
+                      className={`
+                      absolute top-1 left-1 z-10 w-5 h-5 sm:w-6 sm:h-6 rounded-full 
+                      flex items-center justify-center text-xs font-bold text-white shadow-lg
+                      ${
+                        item.rank === 1
+                          ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 animate-pulse'
+                          : item.rank === 2
+                          ? 'bg-gradient-to-br from-gray-400 to-gray-600'
+                          : item.rank === 3
+                          ? 'bg-gradient-to-br from-amber-400 to-orange-500'
+                          : 'bg-gradient-to-br from-blue-500 to-purple-600'
+                      }
+                    `}
+                    >
+                      {item.rank}
                     </div>
                   )}
-                </div>
-                
-                {/* 아티스트 정보 */}
-                <div className="mt-1 text-center">
-                  <p className="text-xs font-medium text-gray-800 truncate">
-                    {item.artist?.name ? 
-                      getLocalizedString(item.artist.name, currentLanguage) :
-                      '알 수 없음'
+
+                  {/* 투표 가능 상태 표시 */}
+                  {canVote && (
+                    <div className='absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
+                      <div className='bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full shadow-lg'>
+                        투표
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 투표 중 오버레이 */}
+                  {isVoting && voteCandidate?.id === item.id && (
+                    <div className='absolute inset-0 bg-blue-500/20 backdrop-blur-sm flex items-center justify-center z-20'>
+                      <div className='bg-white rounded-full p-2 shadow-xl'>
+                        <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin'></div>
+                      </div>
+                    </div>
+                  )}
+
+                  <Card.Body className='p-1.5'>
+                    <div className='text-center'>
+                      <div className='relative mb-1.5 group'>
+                        <div className='relative w-full aspect-square bg-gray-100 rounded overflow-hidden'>
+                          <img
+                            src={imageUrl}
+                            alt={artistName}
+                            className='w-full h-full object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-110'
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/images/default-artist.png';
+                              target.onerror = null;
+                            }}
+                          />
+                          {/* 이미지 오버레이 효과 */}
+                          <div className='absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300'></div>
+                        </div>
+                      </div>
+
+                      <h3 className='font-bold text-xs mb-0.5 line-clamp-1 group-hover:text-blue-600 transition-colors'>
+                        {artistName}
+                      </h3>
+
+                      {item.artist?.artistGroup?.name && (
+                        <p className='text-xs text-gray-500 mb-0.5 line-clamp-1 group-hover:text-gray-700 transition-colors'>
+                          {getLocalizedString(
+                            item.artist.artistGroup.name,
+                            currentLanguage,
+                          )}
+                        </p>
+                      )}
+
+                      <div className='space-y-0.5'>
+                        <p className='text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>
+                          {(item.vote_total || 0).toLocaleString()}
+                          <span className='text-xs text-gray-500 ml-0.5'>
+                            표
+                          </span>
+                        </p>
+
+                        {item.rank && (
+                          <div className='flex items-center justify-center gap-0.5'>
+                            {item.rank <= 3 && (
+                              <span className='text-xs'>
+                                {item.rank === 1
+                                  ? '🥇'
+                                  : item.rank === 2
+                                  ? '🥈'
+                                  : '🥉'}
+                              </span>
+                            )}
+                            <span className='text-xs text-gray-500 font-medium'>
+                              {item.rank}위
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card.Body>
+
+                  {/* 하단 그라데이션 장식 */}
+                  <div
+                    className={`
+                    absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-300
+                    ${
+                      item.rank <= 3
+                        ? 'from-yellow-400 via-orange-500 to-red-500'
+                        : 'from-blue-500 via-purple-500 to-pink-500'
                     }
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {item.artist?.artist_group ? 
-                      getLocalizedString(item.artist.artist_group, currentLanguage) :
-                      ''
-                    }
-                  </p>
-                  <p className="text-xs font-bold text-blue-600 mt-1">
-                    {item.vote_total?.toLocaleString() || 0}표
-                  </p>
-                </div>
-                
-                {/* 호버 효과 */}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 rounded-lg flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <span className="bg-white text-gray-800 px-2 py-1 rounded text-xs font-medium">
-                      투표하기
-                    </span>
-                  </div>
-                </div>
+                  `}
+                  ></div>
+                </Card>
               </div>
             );
           })}
         </div>
+
+        {filteredItems.length === 0 && (
+          <div className='text-center py-16'>
+            <div className='text-6xl mb-4'>🔍</div>
+            <p className='text-xl text-gray-500 font-medium'>
+              검색 결과가 없습니다.
+            </p>
+            <p className='text-sm text-gray-400 mt-2'>
+              다른 검색어를 시도해보세요.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 투표 확인 팝업 */}
