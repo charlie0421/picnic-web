@@ -4,7 +4,8 @@ import React, { useCallback, useEffect } from 'react';
 import VoteStatusFilter from './VoteStatusFilter';
 import VoteAreaFilter from './VoteAreaFilter';
 import { useVoteFilterStore, VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 const VoteFilterSection: React.FC = () => {
   const { 
@@ -13,7 +14,7 @@ const VoteFilterSection: React.FC = () => {
     setSelectedStatus, 
     setSelectedArea 
   } = useVoteFilterStore();
-  const router = useRouter();
+  const { push } = useLocaleRouter();
   const searchParams = useSearchParams();
 
   // URL 파라미터 업데이트 함수
@@ -28,9 +29,9 @@ const VoteFilterSection: React.FC = () => {
     
     if (newUrl !== currentUrl) {
       console.log('[VoteFilterSection] URL 업데이트:', { status, area, newUrl });
-      router.push(newUrl, { scroll: false });
+      push(newUrl);
     }
-  }, [router, searchParams]);
+  }, [push, searchParams]);
 
   // 상태 변경 핸들러
   const handleStatusChange = useCallback((status: typeof selectedStatus) => {

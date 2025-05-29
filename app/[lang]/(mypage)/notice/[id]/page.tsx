@@ -5,7 +5,7 @@ import {supabase} from '@/utils/supabase-client';
 import {format} from 'date-fns';
 import {ko} from 'date-fns/locale';
 import {useParams, useRouter} from 'next/navigation';
-import Link from 'next/link';
+import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 interface MultilingualText {
   en?: string;
@@ -74,9 +74,9 @@ const NoticeDetailPage = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-md p-6">
           <p className="text-gray-600">공지사항을 찾을 수 없습니다.</p>
-          <Link href="/notice" className="text-primary-600 hover:underline mt-4 inline-block">
+          <LocalizedLink href="/notice" className="text-primary-600 hover:underline mt-4 inline-block">
             목록으로 돌아가기
-          </Link>
+          </LocalizedLink>
         </div>
       </div>
     );
@@ -86,9 +86,9 @@ const NoticeDetailPage = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6">
-          <Link href="/notice" className="text-primary-600 hover:underline">
+          <LocalizedLink href="/notice" className="text-primary-600 hover:underline">
             ← 목록으로 돌아가기
-          </Link>
+          </LocalizedLink>
         </div>
 
         <div className="border-b pb-4 mb-6">

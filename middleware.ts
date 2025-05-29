@@ -1,6 +1,15 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import createIntlMiddleware from 'next-intl/middleware';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
+
+// next-intl 미들웨어 생성
+const intlMiddleware = createIntlMiddleware({
+  locales: SUPPORTED_LANGUAGES,
+  defaultLocale: DEFAULT_LANGUAGE,
+  localePrefix: 'always',
+  localeDetection: true // 브라우저 언어 감지 활성화
+});
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -17,7 +26,10 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/static/") ||
-    pathname.includes(".")
+    pathname.includes(".") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/robots") ||
+    pathname.startsWith("/sitemap")
   ) {
     return NextResponse.next();
   }
@@ -47,25 +59,28 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 이미 언어가 포함된 경로인지 확인
-  const pathnameHasLang = SUPPORTED_LANGUAGES.some((lang) =>
-    pathname.startsWith(`/${lang}/`) || pathname === `/${lang}`
-  );
-
-  if (pathnameHasLang) {
-    return NextResponse.next();
+  // 잘못된 언어 코드 처리 (예: /kr -> /ko)
+  const pathSegments = pathname.split('/');
+  const firstSegment = pathSegments[1];
+  
+  if (firstSegment && !SUPPORTED_LANGUAGES.includes(firstSegment as any)) {
+    // 일반적인 언어 코드 매핑
+    const languageMapping: Record<string, string> = {
+      'kr': 'ko',
+      'cn': 'zh',
+      'jp': 'ja',
+      'in': 'id'
+    };
+    
+    if (languageMapping[firstSegment]) {
+      const newPathname = pathname.replace(`/${firstSegment}`, `/${languageMapping[firstSegment]}`);
+      console.log(`언어 코드 수정 리다이렉트: ${pathname} -> ${newPathname}`);
+      return NextResponse.redirect(new URL(newPathname, request.url));
+    }
   }
 
-  // 쿠키에서 현재 언어 확인
-  const currentLang = request.cookies.get("NEXT_LOCALE")?.value;
-  const preferredLang = SUPPORTED_LANGUAGES.includes(currentLang as any)
-    ? currentLang
-    : DEFAULT_LANGUAGE;
-
-  // 기본 언어로 리다이렉트
-  const newUrl = new URL(request.url);
-  newUrl.pathname = `/${preferredLang}${pathname}`;
-  return NextResponse.redirect(newUrl);
+  // next-intl 미들웨어 실행
+  return intlMiddleware(request);
 }
 
 export const config = {

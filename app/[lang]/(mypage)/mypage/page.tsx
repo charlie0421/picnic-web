@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import {
   DefaultAvatar,
   ProfileImageContainer,
 } from '@/components/ui/ProfileImageContainer';
 import { useLanguageStore } from '@/stores/languageStore';
+import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 const MyPage = () => {
   const { userProfile, isAuthenticated, isLoading, signOut } = useAuth();
@@ -135,12 +135,12 @@ const MyPage = () => {
                 {isAuthenticated ? (
                   <>
                     <li>
-                      <Link
+                      <LocalizedLink
                         href='/mypage/edit-profile'
                         className='text-primary-600 hover:underline'
                       >
                         프로필 수정
-                      </Link>
+                      </LocalizedLink>
                     </li>
                     <li>
                       <button
@@ -153,12 +153,12 @@ const MyPage = () => {
                   </>
                 ) : (
                   <li>
-                    <Link
+                    <LocalizedLink
                       href='/login'
                       className='text-primary-600 hover:underline'
                     >
                       로그인하기
-                    </Link>
+                    </LocalizedLink>
                   </li>
                 )}
               </ul>
@@ -170,28 +170,28 @@ const MyPage = () => {
                 {isAuthenticated ? (
                   <>
                     <li>
-                      <Link
+                      <LocalizedLink
                         href='/mypage/votes'
                         className='text-primary-600 hover:underline'
                       >
                         내 투표 보기
-                      </Link>
+                      </LocalizedLink>
                     </li>
                     <li>
-                      <Link
+                      <LocalizedLink
                         href='/mypage/posts'
                         className='text-primary-600 hover:underline'
                       >
                         내 게시글 보기
-                      </Link>
+                      </LocalizedLink>
                     </li>
                     <li>
-                      <Link
+                      <LocalizedLink
                         href='/mypage/comments'
                         className='text-primary-600 hover:underline'
                       >
                         내 댓글 보기
-                      </Link>
+                      </LocalizedLink>
                     </li>
                   </>
                 ) : (
@@ -210,12 +210,12 @@ const MyPage = () => {
               <p className='text-gray-600 mb-6'>
                 프로필 정보를 보시려면 로그인해주세요.
               </p>
-              <Link
+              <LocalizedLink
                 href='/login'
                 className='inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors'
               >
                 로그인하기
-              </Link>
+              </LocalizedLink>
             </div>
           </div>
         )}
@@ -227,33 +227,33 @@ const MyPage = () => {
         </h2>
         <ul className='space-y-3'>
           <li>
-            <Link href='/notice' className='text-primary-600 hover:underline'>
+            <LocalizedLink href='/notice' className='text-primary-600 hover:underline'>
               {t('label_mypage_notice')}
-            </Link>
+            </LocalizedLink>
           </li>
           <li>
-            <Link href='/faq' className='text-primary-600 hover:underline'>
+            <LocalizedLink href='/faq' className='text-primary-600 hover:underline'>
               {t('label_mypage_faq')}
-            </Link>
+            </LocalizedLink>
           </li>
           <li>
-            <Link href='/privacy' className='text-primary-600 hover:underline'>
+            <LocalizedLink href='/privacy' className='text-primary-600 hover:underline'>
               {t('label_mypage_privacy_policy')}
-            </Link>
+            </LocalizedLink>
           </li>
           <li>
-            <Link href='/terms' className='text-primary-600 hover:underline'>
+            <LocalizedLink href='/terms' className='text-primary-600 hover:underline'>
               {t('label_mypage_terms_of_use')}
-            </Link>
+            </LocalizedLink>
           </li>
           {isAuthenticated && (
             <li>
-              <Link
+              <LocalizedLink
                 href='/mypage/delete-account'
                 className='text-red-600 hover:underline'
               >
                 {t('label_mypage_withdrawal')}
-              </Link>
+              </LocalizedLink>
             </li>
           )}
         </ul>

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { Vote, VoteItem } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
@@ -13,6 +12,7 @@ import { getLocalizedString } from '@/utils/api/strings';
 import RewardItem from '@/components/common/RewardItem';
 import { VoteRankCard } from '../common/VoteRankCard';
 import { VoteItems } from './VoteItems';
+import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 const VOTE_STATUS = {
   UPCOMING: 'upcoming',
@@ -93,7 +93,7 @@ export const VoteCard = React.memo(
     }, [vote.start_at, vote.stop_at, isMounted]);
 
     return (
-      <Link href={`/vote/${vote.id}`}>
+      <LocalizedLink href={`/vote/${vote.id}`}>
         <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
           <div className='relative'>
             {vote.main_image && (
@@ -236,7 +236,7 @@ export const VoteCard = React.memo(
             </div>
           </div>
         </div>
-      </Link>
+      </LocalizedLink>
     );
   },
 );

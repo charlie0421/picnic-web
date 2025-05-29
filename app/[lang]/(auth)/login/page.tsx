@@ -9,8 +9,8 @@ import Script from 'next/script';
 import { SocialLoginButtons } from '@/components/client/auth';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { createClient } from '@supabase/supabase-js';
-import Link from 'next/link';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';
+import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 // AppleID 타입 정의
 declare global {
@@ -414,12 +414,12 @@ function LoginContentInner() {
           {t('label_already_logged_in')}
         </h2>
         <p className='mb-6'>{t('message_already_logged_in')}</p>
-        <Link
+        <LocalizedLink
           href='/'
           className='inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors'
         >
           {t('button_go_to_home')}
-        </Link>
+        </LocalizedLink>
       </div>
     );
   }
@@ -588,7 +588,7 @@ function LoginContent() {
 
       {/* 로고 섹션 */}
       <div className='relative z-10 mb-12 transform transition-all duration-700 hover:scale-110'>
-        <Link href='/' className='group'>
+        <LocalizedLink href='/' className='group'>
           <div className='relative'>
             <div className='absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 scale-110'></div>
             <div className='relative bg-white/80 backdrop-blur-sm p-6 rounded-3xl shadow-xl border border-white/40 group-hover:shadow-2xl transition-all duration-300'>
@@ -602,7 +602,7 @@ function LoginContent() {
               />
             </div>
           </div>
-        </Link>
+        </LocalizedLink>
       </div>
 
       <div className='relative z-10 w-full max-w-md'>

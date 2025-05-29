@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
+import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -51,12 +51,12 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose }) => {
           >
             취소
           </button>
-          <Link
+          <LocalizedLink
             href="/login"
             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
           >
             로그인하기
-          </Link>
+          </LocalizedLink>
         </div>
       </div>
     </div>

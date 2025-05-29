@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import {usePathname} from 'next/navigation';
 import {useAuth} from '@/lib/supabase/auth-provider';
@@ -11,6 +10,7 @@ import PortalMenuItem from './PortalMenuItem';
 import {PORTAL_MENU} from '@/config/navigation';
 import {Menu as MenuIcon} from 'lucide-react';
 import LanguageSelector from './LanguageSelector';
+import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 const Header: React.FC = () => {
   const { isAuthenticated, userProfile, signOut } = useAuth();
@@ -25,7 +25,7 @@ const Header: React.FC = () => {
             {/* 로고 */}
             <div className='flex items-center'>
               <div className='flex items-center space-x-2'>
-                <Link href="/">
+                <LocalizedLink href="/vote">
                   <Image
                     src='/images/logo.png'
                     alt='logo'
@@ -34,7 +34,7 @@ const Header: React.FC = () => {
                     priority
                     className='w-8 h-8 sm:w-10 sm:h-10'
                   />
-                </Link>
+                </LocalizedLink>
               </div>
             </div>
 
@@ -64,7 +64,7 @@ const Header: React.FC = () => {
               <LanguageSelector />
 
               {isAuthenticated ? (
-                <Link href='/mypage'>
+                <LocalizedLink href='/mypage'>
                   {userProfile?.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userProfile.avatar_url}
@@ -75,13 +75,13 @@ const Header: React.FC = () => {
                   ) : (
                     <DefaultAvatar width={32} height={32} />
                   )}
-                </Link>
+                </LocalizedLink>
               ) : (
-                <Link href='/mypage'>
+                <LocalizedLink href='/mypage'>
                   <div className='p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200'>
                     <MenuIcon className="w-6 h-6 text-gray-700" />
                   </div>
-                </Link>
+                </LocalizedLink>
               )}
             </div>
           </div>

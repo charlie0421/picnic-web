@@ -3,9 +3,9 @@
 import React, {useEffect, useState} from 'react';
 import {supabase} from '@/utils/supabase-client';
 import {format} from 'date-fns';
-import Link from 'next/link';
 import {getCurrentLocale} from '@/utils/date';
 import {useLanguageStore} from '@/stores/languageStore';
+import { LocalizedLink } from '@/components/ui/LocalizedLink';
 
 interface MultilingualText {
   en?: string;
@@ -72,7 +72,7 @@ const NoticePage = () => {
           ) : (
             <div className="divide-y divide-gray-200">
               {notices.map((notice) => (
-                <Link
+                <LocalizedLink
                   href={`/notice/${notice.id}`}
                   key={notice.id}
                   className="block hover:bg-gray-50 transition-colors"
@@ -98,7 +98,7 @@ const NoticePage = () => {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </LocalizedLink>
               ))}
             </div>
           )}

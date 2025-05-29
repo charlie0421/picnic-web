@@ -1,5 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
+import { LocalizedNotFoundLink } from './LocalizedNotFoundLink';
 
 interface ErrorStateProps {
   message?: string;
@@ -24,12 +24,12 @@ export default function ErrorState({
         <h2 className="text-2xl font-bold text-red-500">{code}</h2>
         <p className="mt-2 text-gray-700">{message}</p>
         {retryLink && (
-          <Link 
+          <LocalizedNotFoundLink 
             href={retryLink}
             className="mt-4 inline-block px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 transition-colors"
           >
             {retryLabel}
-          </Link>
+          </LocalizedNotFoundLink>
         )}
       </div>
     </div>

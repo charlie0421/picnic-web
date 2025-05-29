@@ -1,5 +1,9 @@
 // sentry 설정 래퍼 추가
 const { withSentryConfig } = require('@sentry/nextjs');
+const createNextIntlPlugin = require('next-intl/plugin');
+
+// next-intl 플러그인 생성 - 올바른 i18n 파일 경로 지정
+const withNextIntl = createNextIntlPlugin('./i18n.ts');
 
 // 환경 변수로 Sentry 경고 억제
 process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';
@@ -128,4 +132,4 @@ const sentryWebpackPluginOptions = {
   hideSourceMaps: true // 소스맵 숨기기
 };
 
-module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
+module.exports = withSentryConfig(withNextIntl(nextConfig), sentryWebpackPluginOptions);
