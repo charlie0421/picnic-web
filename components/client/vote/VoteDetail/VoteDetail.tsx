@@ -18,7 +18,7 @@ export default function VoteDetail({ id }: VoteDetailProps) {
     <Suspense 
       fallback={<LoadingState message="투표 정보를 불러오고 있습니다..." />}
     >
-      <VoteDetailFetcher id={id} />
+      <VoteDetailFetcher voteId={id} />
     </Suspense>
   );
 } 

@@ -1,10 +1,11 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { Vote, VoteItem, Reward } from '@/types/interfaces';
-import { getVoteById } from '@/lib/data-fetching/vote-service';
-import { VoteDetailPresenter } from '@/components/client';
+import { HybridVoteDetailPresenter } from '@/components/client/vote/detail/HybridVoteDetailPresenter';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { Vote, VoteItem } from '@/types/interfaces';
 
-export interface VoteDetailFetcherProps {
-  id: string;
+interface VoteDetailFetcherProps {
+  voteId: string;
   className?: string;
 }
 
@@ -13,120 +14,75 @@ export interface VoteDetailFetcherProps {
  * vote-service를 사용하여 데이터를 조회합니다.
  */
 export async function VoteDetailFetcher({
-  id,
+  voteId,
   className,
 }: VoteDetailFetcherProps) {
+  const supabase = createServerSupabaseClient();
+
   try {
-    console.log('[VoteDetailFetcher] 시작 - ID:', id);
-
-    const numericId = parseInt(id, 10);
-    if (isNaN(numericId)) {
-      console.error('[VoteDetailFetcher] 유효하지 않은 ID:', id);
+    // voteId를 number로 변환
+    const numericVoteId = parseInt(voteId, 10);
+    if (isNaN(numericVoteId)) {
+      console.error('Invalid vote ID:', voteId);
       notFound();
     }
 
-    console.log('[VoteDetailFetcher] 파싱된 ID:', numericId);
+    // 투표 정보 가져오기
+    const { data: vote, error: voteError } = await supabase
+      .from('vote')
+      .select('*')
+      .eq('id', numericVoteId)
+      .single();
 
-    // 환경 변수 확인
-    console.log(
-      '[VoteDetailFetcher] Supabase URL 존재:',
-      !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    );
-    console.log(
-      '[VoteDetailFetcher] Supabase Key 존재:',
-      !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    );
-
-    // vote-service를 사용하여 데이터 조회
-    console.log('[VoteDetailFetcher] getVoteById 호출 시작');
-    const voteData = await getVoteById(numericId);
-    console.log(
-      '[VoteDetailFetcher] getVoteById 결과:',
-      voteData ? '데이터 있음' : '데이터 없음',
-    );
-
-    if (!voteData) {
-      console.log(
-        '[VoteDetailFetcher] 투표 데이터 없음 - notFound 호출:',
-        numericId,
-      );
+    if (voteError || !vote) {
+      console.error('Vote fetch error:', voteError);
       notFound();
     }
 
-    console.log('[VoteDetailFetcher] 투표 데이터 로드 성공:', {
-      id: voteData.id,
-      title: voteData.title,
-      voteItemCount: voteData.voteItem?.length || 0,
-      voteRewardCount: voteData.voteReward?.length || 0,
-    });
+    // 투표 아이템들 가져오기
+    const { data: voteItems, error: itemsError } = await supabase
+      .from('vote_item')
+      .select(`
+        *,
+        artist:artist_id (
+          id,
+          name,
+          image
+        )
+      `)
+      .eq('vote_id', numericVoteId)
+      .order('vote_total', { ascending: false });
 
-    // 투표 상태 계산
-    const now = new Date();
-    const startDate = voteData.start_at ? new Date(voteData.start_at) : null;
-    const endDate = voteData.stop_at ? new Date(voteData.stop_at) : null;
-
-    let voteStatus: 'upcoming' | 'ongoing' | 'ended' = 'upcoming';
-    if (startDate && endDate) {
-      if (now < startDate) {
-        voteStatus = 'upcoming';
-      } else if (now < endDate) {
-        voteStatus = 'ongoing';
-      } else {
-        voteStatus = 'ended';
-      }
+    if (itemsError) {
+      console.error('Vote items fetch error:', itemsError);
+      throw new Error('Failed to fetch vote items');
     }
 
-    console.log('[VoteDetailFetcher] 투표 상태:', voteStatus);
+    // 리워드 정보 가져오기 (있는 경우)
+    const { data: rewards } = await supabase
+      .from('reward')
+      .select('*')
+      .eq('vote_id', numericVoteId);
 
     return (
-      <VoteDetailPresenter
-        vote={voteData}
-        initialItems={voteData.voteItem || []}
-        rewards={voteData.voteReward || []}
-        className={className}
-      />
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        <HybridVoteDetailPresenter
+          vote={vote as Vote}
+          initialItems={(voteItems || []) as unknown as VoteItem[]}
+          rewards={rewards || []}
+          className={className}
+          enableRealtime={true}
+          pollingInterval={1000}
+          maxRetries={3}
+        />
+      </Suspense>
     );
   } catch (error) {
-    console.error('[VoteDetailFetcher] 에러 발생:', error);
-    console.error(
-      '[VoteDetailFetcher] 에러 스택:',
-      error instanceof Error ? error.stack : '스택 없음',
-    );
-
-    // 개발 환경에서만 상세 에러 표시
-    if (process.env.NODE_ENV === 'development') {
-      return (
-        <div className='p-4 bg-red-50 border border-red-200 rounded-lg'>
-          <h2 className='text-red-800 font-semibold'>
-            투표 로드 에러 (개발 모드)
-          </h2>
-          <p className='text-red-600 text-sm mt-2'>ID: {id}</p>
-          <p className='text-red-600 text-sm'>
-            Supabase URL:{' '}
-            {process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '설정되지 않음'}
-          </p>
-          <p className='text-red-600 text-sm'>
-            Supabase Key:{' '}
-            {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-              ? '설정됨'
-              : '설정되지 않음'}
-          </p>
-          <pre className='text-red-500 text-xs mt-2 overflow-auto max-h-40'>
-            {error instanceof Error ? error.message : '알 수 없는 에러'}
-          </pre>
-          <details className='mt-2'>
-            <summary className='text-red-600 text-sm cursor-pointer'>
-              스택 트레이스 보기
-            </summary>
-            <pre className='text-red-500 text-xs mt-1 overflow-auto max-h-60'>
-              {error instanceof Error ? error.stack : '스택 정보 없음'}
-            </pre>
-          </details>
-        </div>
-      );
-    }
-
-    // 프로덕션에서는 404로 처리
+    console.error('VoteDetailFetcher error:', error);
     notFound();
   }
 }

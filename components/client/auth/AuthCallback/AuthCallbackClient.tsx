@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getSocialAuthService } from '@/lib/supabase/social';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 import { AuthCallbackSkeleton } from '@/components/server';
 
@@ -19,6 +18,9 @@ export default function AuthCallbackClient({
   const [status, setStatus] = useState<string>('인증 세션을 처리 중입니다...');
 
   useEffect(() => {
+    // 브라우저 환경에서만 실행
+    if (typeof window === 'undefined') return;
+
     const handleCallback = async () => {
       try {
         // provider 자동 감지 로직
@@ -57,7 +59,7 @@ export default function AuthCallbackClient({
             error: errorCode,
             description: errorDescription,
             provider: providerType,
-            url: window.location.href,
+            url: typeof window !== 'undefined' ? window.location.href : 'SSR',
           });
           setError(
             `인증 오류: ${errorCode} - ${
@@ -70,7 +72,7 @@ export default function AuthCallbackClient({
         // WeChat 특수 처리
         if (providerType === 'wechat') {
           console.log('💚 WeChat OAuth 콜백 처리 시작:', {
-            url: window.location.href,
+            url: typeof window !== 'undefined' ? window.location.href : 'SSR',
             searchParams: Object.fromEntries(searchParams.entries()),
             provider: providerType,
           });
@@ -197,14 +199,18 @@ export default function AuthCallbackClient({
               }
 
               // 성공 후 리디렉션
-              const returnUrl = localStorage.getItem('auth_return_url') || '/';
+              const returnUrl = typeof window !== 'undefined' && localStorage ? 
+                (localStorage.getItem('auth_return_url') || '/') : '/';
               console.log('🔄 WeChat 리다이렉트 준비:', {
                 returnUrl,
-                hasAuthReturnUrl: !!localStorage.getItem('auth_return_url'),
+                hasAuthReturnUrl: typeof window !== 'undefined' && localStorage ? 
+                  !!localStorage.getItem('auth_return_url') : false,
               });
 
-              localStorage.removeItem('auth_return_url');
-              localStorage.removeItem('wechat_oauth_state');
+              if (typeof window !== 'undefined' && localStorage) {
+                localStorage.removeItem('auth_return_url');
+                localStorage.removeItem('wechat_oauth_state');
+              }
 
               // 약간의 지연을 두고 리다이렉트
               setTimeout(() => {
@@ -226,7 +232,7 @@ export default function AuthCallbackClient({
         // Apple 특수 처리
         if (providerType === 'apple') {
           console.log('🍎 Apple OAuth 콜백 처리 시작:', {
-            url: window.location.href,
+            url: typeof window !== 'undefined' ? window.location.href : 'SSR',
             searchParams: Object.fromEntries(searchParams.entries()),
             provider: providerType,
           });
@@ -240,26 +246,30 @@ export default function AuthCallbackClient({
             console.log('✅ Apple OAuth 성공 확인:', {
               userId: userIdParam || 'missing',
               email: emailParam || 'missing',
-              currentUrl: window.location.href,
+              currentUrl: typeof window !== 'undefined' ? window.location.href : 'SSR',
             });
 
             setStatus('Apple 인증 성공! 리디렉션 중...');
 
-                          // 성공 후 리디렉션
-              const returnUrl = localStorage.getItem('auth_return_url') || '/';
-              console.log('🔄 리다이렉트 준비:', {
-                returnUrl,
-                hasAuthReturnUrl: !!localStorage.getItem('auth_return_url'),
-              });
+            // 성공 후 리디렉션
+            const returnUrl = typeof window !== 'undefined' && localStorage ? 
+              (localStorage.getItem('auth_return_url') || '/') : '/';
+            console.log('🔄 리다이렉트 준비:', {
+              returnUrl,
+              hasAuthReturnUrl: typeof window !== 'undefined' && localStorage ? 
+                !!localStorage.getItem('auth_return_url') : false,
+            });
 
+            if (typeof window !== 'undefined' && localStorage) {
               localStorage.removeItem('auth_return_url');
               localStorage.removeItem('apple_oauth_state');
+            }
 
-              // 약간의 지연을 두고 리다이렉트 (405 에러 방지)
-              setTimeout(() => {
-                console.log('🚀 리다이렉트 실행:', returnUrl);
-                router.push(returnUrl);
-              }, 100);
+            // 약간의 지연을 두고 리다이렉트 (405 에러 방지)
+            setTimeout(() => {
+              console.log('🚀 리다이렉트 실행:', returnUrl);
+              router.push(returnUrl);
+            }, 100);
             return;
           }
 
@@ -339,7 +349,8 @@ export default function AuthCallbackClient({
                   console.log('🧪 클라이언트에서 Apple 세션 생성 실험 시작...');
                   
                   // localStorage에서 원본 nonce 가져오기
-                  const storedState = localStorage.getItem('apple_oauth_state');
+                  const storedState = typeof window !== 'undefined' && localStorage ? 
+                    localStorage.getItem('apple_oauth_state') : null;
                   let originalNonce: string | null = null;
                   
                   if (storedState) {
@@ -568,7 +579,8 @@ export default function AuthCallbackClient({
                     
                     // 8초 후 원래 페이지 또는 메인페이지로 리디렉션
                     setTimeout(() => {
-                      const returnUrl = localStorage.getItem('auth_return_url') || '/';
+                      const returnUrl = typeof window !== 'undefined' && localStorage ? 
+                        (localStorage.getItem('auth_return_url') || '/') : '/';
                       router.push(returnUrl);
                     }, 8000);
                     
@@ -583,9 +595,12 @@ export default function AuthCallbackClient({
               }
 
               // 성공 후 리디렉션
-              const returnUrl = localStorage.getItem('auth_return_url') || '/';
-              localStorage.removeItem('auth_return_url');
-              localStorage.removeItem('apple_oauth_state');
+              const returnUrl = typeof window !== 'undefined' && localStorage ? 
+                (localStorage.getItem('auth_return_url') || '/') : '/';
+              if (typeof window !== 'undefined' && localStorage) {
+                localStorage.removeItem('auth_return_url');
+                localStorage.removeItem('apple_oauth_state');
+              }
 
               router.push(returnUrl);
             } else {
@@ -604,17 +619,20 @@ export default function AuthCallbackClient({
               paramObj[key] = value;
             });
 
-            const socialAuthService = getSocialAuthService();
-            const authResult = await socialAuthService.handleCallback(
+            const socialAuthService = await import('@/lib/supabase/social');
+            const authResult = await socialAuthService.getSocialAuthService().handleCallback(
               'apple',
               paramObj,
             );
 
             if (authResult.success) {
               setStatus('인증 성공! 리디렉션 중...');
-              const returnUrl = localStorage.getItem('auth_return_url') || '/';
-              localStorage.removeItem('auth_return_url');
-              localStorage.removeItem('apple_oauth_state');
+              const returnUrl = typeof window !== 'undefined' && localStorage ? 
+                (localStorage.getItem('auth_return_url') || '/') : '/';
+              if (typeof window !== 'undefined' && localStorage) {
+                localStorage.removeItem('auth_return_url');
+                localStorage.removeItem('apple_oauth_state');
+              }
               router.push(returnUrl);
             } else {
               setError(
@@ -633,16 +651,19 @@ export default function AuthCallbackClient({
           paramObj[key] = value;
         });
 
-        const socialAuthService = getSocialAuthService();
-        const authResult = await socialAuthService.handleCallback(
+        const socialAuthService = await import('@/lib/supabase/social');
+        const authResult = await socialAuthService.getSocialAuthService().handleCallback(
           providerType,
           paramObj,
         );
 
         if (authResult.success) {
           setStatus('인증 성공! 리디렉션 중...');
-          const returnUrl = localStorage.getItem('auth_return_url') || '/';
-          localStorage.removeItem('auth_return_url');
+          const returnUrl = typeof window !== 'undefined' && localStorage ? 
+            (localStorage.getItem('auth_return_url') || '/') : '/';
+          if (typeof window !== 'undefined' && localStorage) {
+            localStorage.removeItem('auth_return_url');
+          }
           router.push(returnUrl);
         } else if (authResult.error) {
           setError(`인증 오류: ${authResult.error.message}`);
@@ -659,7 +680,8 @@ export default function AuthCallbackClient({
   }, [provider, router, searchParams]);
 
   const handleRetry = () => {
-    const returnUrl = localStorage.getItem('auth_return_url') || '/';
+    const returnUrl = typeof window !== 'undefined' && localStorage ? 
+      (localStorage.getItem('auth_return_url') || '/') : '/';
     router.push(returnUrl);
   };
 

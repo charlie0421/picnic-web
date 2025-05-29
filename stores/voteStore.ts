@@ -13,6 +13,13 @@ import {
   VoteSubmissionRequest,
   CanVoteRequest
 } from '@/lib/data-fetching/vote-api';
+import { 
+  getVoteRealtimeService, 
+  VoteRealtimeEvent, 
+  ConnectionStatus,
+  VoteEventListener,
+  ConnectionStatusListener
+} from '@/lib/supabase/realtime';
 
 // 투표 상태 타입 정의
 export interface VoteSubmissionState {
@@ -52,6 +59,16 @@ export interface VoteDetailState {
   error: string | null;
 }
 
+// 실시간 상태 타입 추가
+export interface RealtimeState {
+  isConnected: boolean;
+  connectionStatus: ConnectionStatus;
+  currentVoteId: number | null;
+  eventCount: number;
+  lastEvent: VoteRealtimeEvent | null;
+  autoSync: boolean; // 자동 동기화 여부
+}
+
 // 메인 투표 스토어 인터페이스
 interface VoteStore {
   // 현재 투표 상세 정보
@@ -66,8 +83,11 @@ interface VoteStore {
   // 투표 결과 상태
   results: VoteResultsState;
   
-  // 실시간 구독 상태
+  // 실시간 구독 상태 (기존)
   isSubscribed: boolean;
+  
+  // 실시간 상태 (새로 추가)
+  realtime: RealtimeState;
   
   // Actions
   // 투표 데이터 설정
@@ -119,6 +139,22 @@ interface VoteStore {
   resetSubmissionState: () => void;
   resetParticipationState: () => void;
   resetResultsState: () => void;
+
+  // 실시간 관련 액션들 (새로 추가)
+  // 실시간 연결 시작
+  startRealtimeConnection: (voteId: number) => void;
+  
+  // 실시간 연결 중지
+  stopRealtimeConnection: () => void;
+  
+  // 실시간 이벤트 처리
+  handleRealtimeEvent: (event: VoteRealtimeEvent) => void;
+  
+  // 연결 상태 업데이트
+  updateConnectionStatus: (status: ConnectionStatus) => void;
+  
+  // 자동 동기화 설정
+  setAutoSync: (enabled: boolean) => void;
 
   // API 연동 액션들
   // 투표 상세 정보 로드
@@ -173,8 +209,23 @@ const initialResultsState: VoteResultsState = {
   error: null,
 };
 
+// 실시간 초기 상태 (새로 추가)
+const initialRealtimeState: RealtimeState = {
+  isConnected: false,
+  connectionStatus: 'disconnected',
+  currentVoteId: null,
+  eventCount: 0,
+  lastEvent: null,
+  autoSync: true,
+};
+
 // 상태 업데이트 타이머 저장용
 let statusUpdateInterval: NodeJS.Timeout | null = null;
+
+// 실시간 서비스 및 리스너 참조
+let realtimeService = getVoteRealtimeService();
+let eventListener: VoteEventListener | null = null;
+let statusListener: ConnectionStatusListener | null = null;
 
 // Zustand 스토어 생성
 export const useVoteStore = create<VoteStore>()(
@@ -186,6 +237,7 @@ export const useVoteStore = create<VoteStore>()(
       submission: initialSubmissionState,
       results: initialResultsState,
       isSubscribed: false,
+      realtime: initialRealtimeState,
 
       // 기존 Actions 구현
       setCurrentVote: (vote, voteItems, voteStatus) =>
@@ -427,6 +479,7 @@ export const useVoteStore = create<VoteStore>()(
             submission: initialSubmissionState,
             results: initialResultsState,
             isSubscribed: false,
+            realtime: initialRealtimeState,
           }),
           false,
           'resetVoteState'
@@ -458,6 +511,224 @@ export const useVoteStore = create<VoteStore>()(
           false,
           'resetResultsState'
         ),
+
+      // 실시간 관련 액션들 (새로 추가)
+      // 실시간 연결 시작
+      startRealtimeConnection: (voteId) => {
+        const { realtime } = get();
+        
+        // 이미 같은 투표에 연결되어 있으면 무시
+        if (realtime.currentVoteId === voteId && realtime.isConnected) {
+          return;
+        }
+        
+        // 기존 연결 정리
+        if (realtime.currentVoteId !== null) {
+          get().stopRealtimeConnection();
+        }
+        
+        // 연결 상태 업데이트
+        set(
+          (state) => ({
+            realtime: {
+              ...state.realtime,
+              currentVoteId: voteId,
+              connectionStatus: 'connecting',
+            },
+          }),
+          false,
+          'startRealtimeConnection:connecting'
+        );
+        
+        // 이벤트 리스너 생성
+        eventListener = (event: VoteRealtimeEvent) => {
+          get().handleRealtimeEvent(event);
+        };
+        
+        // 상태 리스너 생성
+        statusListener = (status: ConnectionStatus) => {
+          get().updateConnectionStatus(status);
+        };
+        
+        // 리스너 등록
+        realtimeService.addEventListener(eventListener);
+        realtimeService.addStatusListener(statusListener);
+        
+        // 투표 구독 시작
+        realtimeService.subscribeToVote(voteId);
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[VoteStore] 실시간 연결 시작: 투표 ${voteId}`);
+        }
+      },
+      
+      // 실시간 연결 중지
+      stopRealtimeConnection: () => {
+        const { realtime } = get();
+        
+        if (realtime.currentVoteId !== null) {
+          // 구독 해제
+          realtimeService.unsubscribeFromVote(realtime.currentVoteId);
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[VoteStore] 실시간 연결 중지: 투표 ${realtime.currentVoteId}`);
+          }
+        }
+        
+        // 리스너 제거
+        if (eventListener) {
+          realtimeService.removeEventListener(eventListener);
+          eventListener = null;
+        }
+        
+        if (statusListener) {
+          realtimeService.removeStatusListener(statusListener);
+          statusListener = null;
+        }
+        
+        // 상태 초기화
+        set(
+          (state) => ({
+            realtime: {
+              ...state.realtime,
+              isConnected: false,
+              connectionStatus: 'disconnected',
+              currentVoteId: null,
+            },
+          }),
+          false,
+          'stopRealtimeConnection'
+        );
+      },
+      
+      // 실시간 이벤트 처리
+      handleRealtimeEvent: (event) => {
+        const { realtime, results } = get();
+        
+        // 이벤트 카운트 및 마지막 이벤트 업데이트
+        set(
+          (state) => ({
+            realtime: {
+              ...state.realtime,
+              eventCount: state.realtime.eventCount + 1,
+              lastEvent: event,
+            },
+          }),
+          false,
+          'handleRealtimeEvent:updateEvent'
+        );
+        
+        // 자동 동기화가 비활성화되어 있으면 이벤트만 기록하고 종료
+        if (!realtime.autoSync) {
+          return;
+        }
+        
+        // 이벤트 타입별 처리
+        switch (event.type) {
+          case 'vote_item_updated': {
+            const updatedItem = event.payload;
+            
+            // 현재 결과에서 해당 아이템 업데이트
+            const updatedVoteItems = results.voteItems.map(item => 
+              item.id === updatedItem.id 
+                ? { ...item, ...updatedItem, vote_total: updatedItem.vote_total || 0 }
+                : item
+            );
+            
+            // 총 투표수 재계산
+            const totalVotes = updatedVoteItems.reduce((sum, item) => sum + (item.vote_total || 0), 0);
+            
+            // 결과 업데이트
+            get().updateResults(updatedVoteItems, totalVotes);
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[VoteStore] 투표 아이템 업데이트:', updatedItem);
+            }
+            break;
+          }
+          
+          case 'vote_pick_created': {
+            const newPick = event.payload;
+            
+            // 해당 투표 아이템의 총 투표수 업데이트를 위해 전체 결과 새로고침
+            // 실제로는 더 효율적인 방법으로 특정 아이템만 업데이트할 수 있음
+            if (realtime.currentVoteId) {
+              get().loadVoteResults(realtime.currentVoteId);
+            }
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[VoteStore] 새 투표 생성:', newPick);
+            }
+            break;
+          }
+          
+          case 'vote_updated': {
+            const updatedVote = event.payload;
+            
+            // 투표 정보 업데이트
+            set(
+              (state) => ({
+                currentVote: {
+                  ...state.currentVote,
+                  vote: state.currentVote.vote 
+                    ? { ...state.currentVote.vote, ...updatedVote }
+                    : null,
+                },
+              }),
+              false,
+              'handleRealtimeEvent:voteUpdated'
+            );
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[VoteStore] 투표 정보 업데이트:', updatedVote);
+            }
+            break;
+          }
+          
+          default:
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[VoteStore] 처리되지 않은 이벤트:', event);
+            }
+            break;
+        }
+      },
+      
+      // 연결 상태 업데이트
+      updateConnectionStatus: (status) => {
+        set(
+          (state) => ({
+            realtime: {
+              ...state.realtime,
+              connectionStatus: status,
+              isConnected: status === 'connected',
+            },
+          }),
+          false,
+          'updateConnectionStatus'
+        );
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[VoteStore] 연결 상태 변경:', status);
+        }
+      },
+      
+      // 자동 동기화 설정
+      setAutoSync: (enabled) => {
+        set(
+          (state) => ({
+            realtime: {
+              ...state.realtime,
+              autoSync: enabled,
+            },
+          }),
+          false,
+          'setAutoSync'
+        );
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[VoteStore] 자동 동기화:', enabled ? '활성화' : '비활성화');
+        }
+      },
 
       // API 연동 액션들
       loadVoteDetail: async (supabaseClient, voteId) => {

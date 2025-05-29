@@ -165,7 +165,7 @@ export default async function VoteDetailPage({
         />
       )}
       <Suspense fallback={<VoteDetailSkeleton />}>
-        <VoteDetailFetcher id={id} />
+        <VoteDetailFetcher voteId={id} />
       </Suspense>
     </>
   );

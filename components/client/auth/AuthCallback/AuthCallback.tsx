@@ -1,4 +1,17 @@
-import { AuthCallbackClient } from './index';
+'use client';
+
+import dynamic from 'next/dynamic';
+
+// AuthCallbackClient를 클라이언트 사이드에서만 로드
+const AuthCallbackClient = dynamic(() => import('./AuthCallbackClient'), {
+  ssr: false,
+  loading: () => <div className="min-h-screen flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+      <p>인증 처리 중...</p>
+    </div>
+  </div>
+});
 
 interface AuthCallbackProps {
   provider?: string;
