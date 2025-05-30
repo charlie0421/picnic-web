@@ -63,7 +63,7 @@ const getStatusText = (
 
 export const VoteCard = React.memo(
   ({ vote, onClick }: { vote: Vote; onClick?: () => void }) => {
-    const { t } = useLanguageStore();
+    const { t, currentLanguage } = useLanguageStore();
     const [isMounted, setIsMounted] = useState(false);
     
     // 클라이언트 마운트 상태 추적
@@ -71,18 +71,10 @@ export const VoteCard = React.memo(
       setIsMounted(true);
     }, []);
     
+    // hydration 불일치 방지를 위해 서버에서는 보수적인 상태 사용
     const status = useMemo(() => {
       if (!vote.start_at || !vote.stop_at) return VOTE_STATUS.UPCOMING;
       
-      // 서버 렌더링 시에는 startAt 기준으로 기본 상태 결정
-      if (!isMounted) {
-        const start = new Date(vote.start_at);
-        const now = new Date();
-        // 서버에서는 보수적으로 판단 (시작 시간이 지났으면 ongoing으로 가정)
-        return now >= start ? VOTE_STATUS.ONGOING : VOTE_STATUS.UPCOMING;
-      }
-      
-      // 클라이언트에서는 정확한 계산
       const start = new Date(vote.start_at);
       const end = new Date(vote.stop_at);
       const now = new Date();
@@ -90,7 +82,88 @@ export const VoteCard = React.memo(
       if (now < start) return VOTE_STATUS.UPCOMING;
       if (now > end) return VOTE_STATUS.COMPLETED;
       return VOTE_STATUS.ONGOING;
-    }, [vote.start_at, vote.stop_at, isMounted]);
+    }, [vote.start_at, vote.stop_at]);
+
+    // hydration 후에만 표시되는 동적 컨텐츠
+    if (!isMounted) {
+      // 서버 렌더링 시 기본 영어 번역 사용
+      return (
+        <Link href={`/vote/${vote.id}`}>
+          <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
+            <div className='relative'>
+              {vote.main_image && (
+                <div className='h-48 sm:h-56 md:h-64 bg-gray-200 relative'>
+                  <Image
+                    src={getCdnImageUrl(vote.main_image)}
+                    alt={getLocalizedString(vote.title, 'en')}
+                    width={320}
+                    height={256}
+                    className='w-full h-full object-cover'
+                    priority
+                  />
+                  <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent' />
+                </div>
+              )}
+            </div>
+
+            <div className='p-1 sm:p-2 flex-1 flex flex-col'>
+              <div className='flex flex-wrap gap-0.5 mb-1'>
+                <span className='flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ml-auto bg-blue-500 text-white border border-blue-600'>
+                  Loading...
+                </span>
+              </div>
+
+              <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 truncate p-2 relative group'>
+                {getLocalizedString(vote.title, 'en')}
+                <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
+              </h3>
+
+              <div className='flex justify-center mb-4'>
+                <CountdownTimer
+                  startTime={vote.start_at}
+                  endTime={vote.stop_at}
+                  status='scheduled'
+                />
+              </div>
+
+              <div className='flex-1'>
+                <VoteItems vote={vote} />
+              </div>
+
+              {vote.start_at && vote.stop_at && (
+                <div className='mt-1 pt-2 border-t border-gray-100'>
+                  <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-0'>
+                    <div className='flex items-center space-x-2 bg-primary/5 rounded-lg px-3 py-2'>
+                      <svg
+                        xmlns='http://www.w3.org/2000/svg'
+                        className='h-4 w-4 text-primary'
+                        viewBox='0 0 20 20'
+                        fill='currentColor'
+                      >
+                        <path
+                          fillRule='evenodd'
+                          d='M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z'
+                          clipRule='evenodd'
+                        />
+                      </svg>
+                      <span className='text-primary font-medium'>
+                        {format(new Date(vote.start_at), 'MM.dd HH:mm', {
+                          locale: ko,
+                        })}{' '}
+                        ~{' '}
+                        {format(new Date(vote.stop_at), 'MM.dd HH:mm', {
+                          locale: ko,
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </Link>
+      );
+    }
 
     return (
       <Link href={`/vote/${vote.id}`}>
@@ -100,7 +173,7 @@ export const VoteCard = React.memo(
               <div className='h-48 sm:h-56 md:h-64 bg-gray-200 relative'>
                 <Image
                   src={getCdnImageUrl(vote.main_image)}
-                  alt={getLocalizedString(vote.title)}
+                  alt={getLocalizedString(vote.title, currentLanguage)}
                   width={320}
                   height={256}
                   className='w-full h-full object-cover'
@@ -143,7 +216,7 @@ export const VoteCard = React.memo(
             </div>
 
             <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 truncate p-2 relative group'>
-              {getLocalizedString(vote.title)}
+              {getLocalizedString(vote.title, currentLanguage)}
               <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
             </h3>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import {PortalType} from '@/utils/enums';
 import {isVoteRelatedPath, PORTAL_MENU} from '@/config/navigation';
@@ -12,6 +13,7 @@ interface PortalMenuItemProps {
 
 const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
+  const pathname = usePathname();
 
   // 설정에서 메뉴 정보 가져오기
   const menuItem = PORTAL_MENU.find((item) => item.type === portalType);
@@ -20,7 +22,7 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
   if (!menuItem || !portalConfig) return null;
 
   // 현재 경로에서 로케일 정보 추출
-  const { path: currentPath } = extractLocaleFromPath(window?.location?.pathname || '/');
+  const { path: currentPath } = extractLocaleFromPath(pathname);
   
   // 로케일화된 메뉴 경로 생성
   const localizedMenuPath = getLocalizedPath(menuItem.path, currentLocale);

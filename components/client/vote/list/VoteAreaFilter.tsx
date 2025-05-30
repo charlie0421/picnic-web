@@ -3,6 +3,7 @@
 import React from 'react';
 import { VOTE_AREAS, VoteArea } from '@/stores/voteFilterStore';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useTranslationReady } from '@/hooks/useTranslationReady';
 
 interface VoteAreaFilterProps {
   selectedArea: VoteArea;
@@ -12,11 +13,52 @@ interface VoteAreaFilterProps {
 const VoteAreaFilter = React.memo(
   ({ selectedArea, onAreaChange }: VoteAreaFilterProps) => {
     const { t } = useLanguageStore();
+    const isTranslationReady = useTranslationReady();
 
     const getAreaText = (area: VoteArea) => {
+      if (!isTranslationReady) {
+        // 번역이 로드되지 않은 경우 fallback 텍스트 사용
+        switch (area) {
+          case VOTE_AREAS.ALL:
+            return 'ALL';
+          case VOTE_AREAS.KPOP:
+            return 'K-POP';
+          case VOTE_AREAS.MUSICAL:
+            return 'K-MUSICAL';
+          default:
+            return '';
+        }
+      }
+
       switch (area) {
         case VOTE_AREAS.ALL:
           return t('label_area_filter_all') || 'ALL';
+        case VOTE_AREAS.KPOP:
+          return t('label_area_filter_kpop') || 'K-POP';
+        case VOTE_AREAS.MUSICAL:
+          return t('label_area_filter_musical') || 'K-MUSICAL';
+        default:
+          return '';
+      }
+    };
+
+    const getAriaLabel = (area: VoteArea) => {
+      if (!isTranslationReady) {
+        switch (area) {
+          case VOTE_AREAS.ALL:
+            return 'All areas';
+          case VOTE_AREAS.KPOP:
+            return 'K-POP';
+          case VOTE_AREAS.MUSICAL:
+            return 'K-MUSICAL';
+          default:
+            return '';
+        }
+      }
+
+      switch (area) {
+        case VOTE_AREAS.ALL:
+          return t('label_area_filter_all') || 'All areas';
         case VOTE_AREAS.KPOP:
           return t('label_area_filter_kpop') || 'K-POP';
         case VOTE_AREAS.MUSICAL:
@@ -38,7 +80,7 @@ const VoteAreaFilter = React.memo(
         <button
           onClick={() => onAreaChange(VOTE_AREAS.ALL)}
           className={getButtonClasses(VOTE_AREAS.ALL)}
-          aria-label={t('label_area_filter_all') || 'All areas'}
+          aria-label={getAriaLabel(VOTE_AREAS.ALL)}
           aria-pressed={selectedArea === VOTE_AREAS.ALL}
         >
           {getAreaText(VOTE_AREAS.ALL)}
@@ -46,7 +88,7 @@ const VoteAreaFilter = React.memo(
         <button
           onClick={() => onAreaChange(VOTE_AREAS.KPOP)}
           className={getButtonClasses(VOTE_AREAS.KPOP)}
-          aria-label={t('label_area_filter_kpop') || 'K-POP'}
+          aria-label={getAriaLabel(VOTE_AREAS.KPOP)}
           aria-pressed={selectedArea === VOTE_AREAS.KPOP}
         >
           {getAreaText(VOTE_AREAS.KPOP)}
@@ -54,7 +96,7 @@ const VoteAreaFilter = React.memo(
         <button
           onClick={() => onAreaChange(VOTE_AREAS.MUSICAL)}
           className={getButtonClasses(VOTE_AREAS.MUSICAL)}
-          aria-label={t('label_area_filter_musical') || 'K-MUSICAL'}
+          aria-label={getAriaLabel(VOTE_AREAS.MUSICAL)}
           aria-pressed={selectedArea === VOTE_AREAS.MUSICAL}
         >
           {getAreaText(VOTE_AREAS.MUSICAL)}

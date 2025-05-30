@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useTranslationReady } from '@/hooks/useTranslationReady';
 
 interface CountdownTimerProps {
   startTime: string | null;
@@ -11,6 +12,7 @@ interface CountdownTimerProps {
 
 export function CountdownTimer({ startTime, endTime, status }: CountdownTimerProps) {
   const { t } = useLanguageStore();
+  const isTranslationReady = useTranslationReady();
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
     hours: number;
@@ -49,11 +51,27 @@ export function CountdownTimer({ startTime, endTime, status }: CountdownTimerPro
 
   const formatTime = (time: number) => time.toString().padStart(2, '0');
 
+  const getEndedText = () => {
+    if (!isTranslationReady) {
+      return '투표 종료';
+    }
+    return t('text_vote_ended') || '투표 종료';
+  };
+
+  const getCountdownText = () => {
+    if (!isTranslationReady) {
+      return status === 'scheduled' ? '시작까지' : '종료까지';
+    }
+    return status === 'scheduled' 
+      ? (t('text_vote_countdown_start') || '시작까지')
+      : (t('text_vote_countdown_end') || '종료까지');
+  };
+
   if (status === 'ended') {
     return (
       <div className="text-center py-2">
         <span className="text-sm font-medium text-gray-500">
-          {t('text_vote_ended') || '투표 종료'}
+          {getEndedText()}
         </span>
       </div>
     );
@@ -64,10 +82,7 @@ export function CountdownTimer({ startTime, endTime, status }: CountdownTimerPro
   return (
     <div className="text-center py-2">
       <div className="text-xs text-gray-600 mb-1">
-        {status === 'scheduled' 
-          ? (t('text_vote_starts_in') || '투표 시작까지')
-          : (t('text_vote_ends_in') || '투표 종료까지')
-        }
+        {getCountdownText()}
       </div>
       <div className="flex justify-center items-center space-x-1 text-sm font-bold">
         {days > 0 && (

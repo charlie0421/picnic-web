@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cache } from "react";
+import type { CookieOptions } from "@supabase/ssr";
 
 /**
  * 서버 환경 체크 - 엄격한 검증
@@ -37,14 +38,14 @@ async function createSafeCookieStore() {
           return undefined;
         }
       },
-      set: (name: string, value: string, options?: any) => {
+      set: (name: string, value: string, options?: CookieOptions) => {
         try {
           cookieStore.set(name, value, options);
         } catch (error) {
           // Request scope 밖에서는 무시
         }
       },
-      delete: (name: string) => {
+      remove: (name: string, options?: CookieOptions) => {
         try {
           cookieStore.delete(name);
         } catch (error) {
@@ -57,7 +58,7 @@ async function createSafeCookieStore() {
     return {
       get: () => undefined,
       set: () => {},
-      delete: () => {},
+      remove: () => {},
     };
   }
 }
@@ -75,7 +76,17 @@ export const createClient = cache(async () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: cookieStore,
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name);
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set(name, value, options);
+        },
+        remove(name: string, options: CookieOptions) {
+          cookieStore.remove(name, options);
+        },
+      },
     },
   );
 });
@@ -100,11 +111,11 @@ export async function createServerActionClient() {
           get(name: string) {
             return cookieStore.get(name)?.value;
           },
-          set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
+          set(name: string, value: string, options: CookieOptions) {
+            cookieStore.set(name, value, options);
           },
-          remove(name: string, options: any) {
-            cookieStore.delete({ name, ...options });
+          remove(name: string, options: CookieOptions) {
+            cookieStore.delete(name);
           },
         },
       },

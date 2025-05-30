@@ -27,7 +27,8 @@
     "test:fail-fast": "jest --bail",
     "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
     "sync-translations": "node scripts/sync-translations.js",
-    "sync-translations:save": "SAVE_SYNC_RESULTS=true node scripts/sync-translations.js"
+    "sync-translations:save": "SAVE_SYNC_RESULTS=true node scripts/sync-translations.js",
+    "check-translations": "node scripts/check-missing-keys.js"
   },
   "dependencies": {
     "@auth/core": "0.34.2",

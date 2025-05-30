@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useTranslationReady } from '@/hooks/useTranslationReady';
 import { VOTE_STATUS, VoteStatus } from '@/stores/voteFilterStore';
 
 interface VoteStatusFilterProps {
@@ -12,8 +13,49 @@ interface VoteStatusFilterProps {
 const VoteStatusFilter = React.memo(
   ({ selectedStatus, onStatusChange }: VoteStatusFilterProps) => {
     const { t } = useLanguageStore();
+    const isTranslationReady = useTranslationReady();
 
     const getButtonText = (status: VoteStatus) => {
+      if (!isTranslationReady) {
+        // 번역이 로드되지 않은 경우 fallback 텍스트 사용
+        switch (status) {
+          case VOTE_STATUS.ONGOING:
+            return '진행 중';
+          case VOTE_STATUS.UPCOMING:
+            return '예정';
+          case VOTE_STATUS.COMPLETED:
+            return '완료';
+          default:
+            return '';
+        }
+      }
+
+      switch (status) {
+        case VOTE_STATUS.ONGOING:
+          return t('label_tabbar_vote_active');
+        case VOTE_STATUS.UPCOMING:
+          return t('label_tabbar_vote_upcoming');
+        case VOTE_STATUS.COMPLETED:
+          return t('label_tabbar_vote_end');
+        default:
+          return '';
+      }
+    };
+
+    const getAriaLabel = (status: VoteStatus) => {
+      if (!isTranslationReady) {
+        switch (status) {
+          case VOTE_STATUS.ONGOING:
+            return '진행 중인 투표';
+          case VOTE_STATUS.UPCOMING:
+            return '예정된 투표';
+          case VOTE_STATUS.COMPLETED:
+            return '완료된 투표';
+          default:
+            return '';
+        }
+      }
+
       switch (status) {
         case VOTE_STATUS.ONGOING:
           return t('label_tabbar_vote_active');
@@ -35,7 +77,7 @@ const VoteStatusFilter = React.memo(
               ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
               : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
           }`}
-          aria-label={t('label_tabbar_vote_active')}
+          aria-label={getAriaLabel(VOTE_STATUS.ONGOING)}
           aria-pressed={selectedStatus === VOTE_STATUS.ONGOING}
         >
           {getButtonText(VOTE_STATUS.ONGOING)}
@@ -47,7 +89,7 @@ const VoteStatusFilter = React.memo(
               ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
               : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
           }`}
-          aria-label={t('label_tabbar_vote_upcoming')}
+          aria-label={getAriaLabel(VOTE_STATUS.UPCOMING)}
           aria-pressed={selectedStatus === VOTE_STATUS.UPCOMING}
         >
           {getButtonText(VOTE_STATUS.UPCOMING)}
@@ -59,7 +101,7 @@ const VoteStatusFilter = React.memo(
               ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
               : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
           }`}
-          aria-label={t('label_tabbar_vote_end')}
+          aria-label={getAriaLabel(VOTE_STATUS.COMPLETED)}
           aria-pressed={selectedStatus === VOTE_STATUS.COMPLETED}
         >
           {getButtonText(VOTE_STATUS.COMPLETED)}
