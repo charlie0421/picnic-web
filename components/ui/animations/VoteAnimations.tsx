@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 // 투표 제출 성공 애니메이션
 export interface VoteSubmitSuccessProps {
@@ -9,10 +9,10 @@ export interface VoteSubmitSuccessProps {
   message?: string;
 }
 
-export function VoteSubmitSuccess({ 
-  isVisible, 
-  onComplete, 
-  message = '투표가 완료되었습니다!' 
+export function VoteSubmitSuccess({
+  isVisible,
+  onComplete,
+  message = '투표가 완료되었습니다!',
 }: VoteSubmitSuccessProps) {
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -30,45 +30,53 @@ export function VoteSubmitSuccess({
   if (!isVisible && !isAnimating) return null;
 
   return (
-    <div 
+    <div
       className={`fixed inset-0 flex items-center justify-center z-50 bg-black/50 transition-all duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
     >
-      <div 
+      <div
         className={`bg-white rounded-2xl p-8 mx-4 max-w-sm w-full text-center shadow-2xl transition-all duration-500 ${
           isVisible ? 'scale-100 translate-y-0' : 'scale-75 translate-y-4'
         }`}
       >
         {/* 체크마크 애니메이션 */}
-        <div className={`w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-700 ${
-          isVisible ? 'scale-100' : 'scale-0'
-        }`}>
+        <div
+          className={`w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-700 ${
+            isVisible ? 'scale-100' : 'scale-0'
+          }`}
+        >
           <svg
-            className="w-8 h-8 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+            className='w-8 h-8 text-white'
+            fill='none'
+            stroke='currentColor'
+            viewBox='0 0 24 24'
           >
             <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              strokeLinecap='round'
+              strokeLinejoin='round'
               strokeWidth={3}
-              d="M5 13l4 4L19 7"
-              className={`transition-all duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+              d='M5 13l4 4L19 7'
+              className={`transition-all duration-1000 ${
+                isVisible ? 'opacity-100' : 'opacity-0'
+              }`}
             />
           </svg>
         </div>
 
-        <h3 className={`text-lg font-bold text-gray-900 mb-2 transition-all duration-300 delay-500 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-        }`}>
+        <h3
+          className={`text-lg font-bold text-gray-900 mb-2 transition-all duration-300 delay-500 ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          }`}
+        >
           투표 완료!
         </h3>
 
-        <p className={`text-gray-600 transition-all duration-300 delay-700 ${
-          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-        }`}>
+        <p
+          className={`text-gray-600 transition-all duration-300 delay-700 ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          }`}
+        >
           {message}
         </p>
       </div>
@@ -83,41 +91,40 @@ export interface CountUpAnimationProps {
   className?: string;
 }
 
-export function CountUpAnimation({ 
-  value, 
-  duration = 1000, 
-  className = '' 
+export function CountUpAnimation({
+  value,
+  duration = 1000,
+  className = '',
 }: CountUpAnimationProps) {
   const [displayValue, setDisplayValue] = useState(0);
+  const previousValueRef = useRef(0);
 
   useEffect(() => {
     const startTime = Date.now();
-    const startValue = displayValue;
+    const startValue = previousValueRef.current;
     const diff = value - startValue;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
+
       // easeOut 효과
       const easeOut = 1 - Math.pow(1 - progress, 3);
       const currentValue = Math.floor(startValue + diff * easeOut);
-      
+
       setDisplayValue(currentValue);
 
       if (progress < 1) {
         requestAnimationFrame(animate);
+      } else {
+        previousValueRef.current = value;
       }
     };
 
     requestAnimationFrame(animate);
   }, [value, duration]);
 
-  return (
-    <span className={className}>
-      {displayValue.toLocaleString()}
-    </span>
-  );
+  return <span className={className}>{displayValue.toLocaleString()}</span>;
 }
 
 // 진행률 바 애니메이션
@@ -129,12 +136,12 @@ export interface AnimatedProgressBarProps {
   color?: string;
 }
 
-export function AnimatedProgressBar({ 
-  percentage, 
-  duration = 1000, 
-  className = '', 
+export function AnimatedProgressBar({
+  percentage,
+  duration = 1000,
+  className = '',
   showLabel = true,
-  color = 'bg-primary'
+  color = 'bg-primary',
 }: AnimatedProgressBarProps) {
   const [currentPercentage, setCurrentPercentage] = useState(0);
   const [isAnimated, setIsAnimated] = useState(false);
@@ -149,20 +156,22 @@ export function AnimatedProgressBar({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+      <div className='w-full bg-gray-200 rounded-full h-2 overflow-hidden'>
         <div
           className={`h-full ${color} relative overflow-hidden transition-all duration-1000 ease-out`}
           style={{ width: `${currentPercentage}%` }}
         >
           {/* 반짝이는 효과 */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 animate-shimmer" />
+          <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 animate-shimmer' />
         </div>
       </div>
-      
+
       {showLabel && (
-        <span className={`absolute -top-8 right-0 text-sm font-medium text-gray-700 transition-all duration-300 ${
-          isAnimated ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
-        }`}>
+        <span
+          className={`absolute -top-8 right-0 text-sm font-medium text-gray-700 transition-all duration-300 ${
+            isAnimated ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+          }`}
+        >
           {percentage.toFixed(1)}%
         </span>
       )}
@@ -177,13 +186,17 @@ export interface LiveUpdatePulseProps {
   className?: string;
 }
 
-export function LiveUpdatePulse({ 
-  isActive, 
-  children, 
-  className = '' 
+export function LiveUpdatePulse({
+  isActive,
+  children,
+  className = '',
 }: LiveUpdatePulseProps) {
   return (
-    <div className={`rounded-xl ${isActive ? 'animate-pulse-ring' : ''} ${className}`}>
+    <div
+      className={`rounded-xl ${
+        isActive ? 'animate-pulse-ring' : ''
+      } ${className}`}
+    >
       {children}
     </div>
   );
@@ -197,23 +210,25 @@ export interface VoteItemHoverProps {
   className?: string;
 }
 
-export function VoteItemHover({ 
-  children, 
-  isSelected, 
-  isDisabled, 
-  className = '' 
+export function VoteItemHover({
+  children,
+  isSelected,
+  isDisabled,
+  className = '',
 }: VoteItemHoverProps) {
   return (
-    <div className={`relative transition-all duration-200 ${
-      !isDisabled ? 'hover:scale-105 hover:-translate-y-1 hover:shadow-lg' : ''
-    } ${
-      isSelected ? 'scale-105 -translate-y-1 shadow-lg' : ''
-    } ${className}`}>
+    <div
+      className={`relative transition-all duration-200 ${
+        !isDisabled
+          ? 'hover:scale-105 hover:-translate-y-1 hover:shadow-lg'
+          : ''
+      } ${isSelected ? 'scale-105 -translate-y-1 shadow-lg' : ''} ${className}`}
+    >
       {children}
-      
+
       {/* 선택된 항목 글로우 효과 */}
       {isSelected && (
-        <div className="absolute inset-0 rounded-xl bg-primary/10 pointer-events-none animate-fade-in" />
+        <div className='absolute inset-0 rounded-xl bg-primary/10 pointer-events-none animate-fade-in' />
       )}
     </div>
   );
@@ -227,11 +242,11 @@ export interface RankingAnimationProps {
   className?: string;
 }
 
-export function RankingAnimation({ 
-  rank, 
-  delay = 0, 
-  children, 
-  className = '' 
+export function RankingAnimation({
+  rank,
+  delay = 0,
+  children,
+  className = '',
 }: RankingAnimationProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -243,9 +258,13 @@ export function RankingAnimation({
   }, [rank, delay]);
 
   return (
-    <div className={`transition-all duration-500 ease-out ${
-      isVisible ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 -translate-x-12 scale-90'
-    } ${className}`}>
+    <div
+      className={`transition-all duration-500 ease-out ${
+        isVisible
+          ? 'opacity-100 translate-x-0 scale-100'
+          : 'opacity-0 -translate-x-12 scale-90'
+      } ${className}`}
+    >
       {children}
     </div>
   );
@@ -258,22 +277,24 @@ export interface VoteLoadingSpinnerProps {
   className?: string;
 }
 
-export function VoteLoadingSpinner({ 
-  size = 'md', 
-  message = '투표 처리 중...', 
-  className = '' 
+export function VoteLoadingSpinner({
+  size = 'md',
+  message = '투표 처리 중...',
+  className = '',
 }: VoteLoadingSpinnerProps) {
   const sizeClasses = {
     sm: 'w-4 h-4',
     md: 'w-8 h-8',
-    lg: 'w-12 h-12'
+    lg: 'w-12 h-12',
   };
 
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
-      <div className={`${sizeClasses[size]} border-2 border-primary border-t-transparent rounded-full animate-spin`} />
+      <div
+        className={`${sizeClasses[size]} border-2 border-primary border-t-transparent rounded-full animate-spin`}
+      />
       {message && (
-        <p className="mt-2 text-sm text-gray-600 text-center animate-fade-in">
+        <p className='mt-2 text-sm text-gray-600 text-center animate-fade-in'>
           {message}
         </p>
       )}
@@ -293,11 +314,15 @@ export interface TimeCountdownProps {
   className?: string;
 }
 
-export function TimeCountdown({ timeLeft, status, className = '' }: TimeCountdownProps) {
+export function TimeCountdown({
+  timeLeft,
+  status,
+  className = '',
+}: TimeCountdownProps) {
   if (status === 'ended' || !timeLeft) {
     return (
       <div className={`text-center ${className}`}>
-        <span className="text-red-500 font-medium">투표가 종료되었습니다</span>
+        <span className='text-red-500 font-medium'>투표가 종료되었습니다</span>
       </div>
     );
   }
@@ -306,41 +331,53 @@ export function TimeCountdown({ timeLeft, status, className = '' }: TimeCountdow
 
   return (
     <div className={`flex items-center justify-center space-x-2 ${className}`}>
-      <span className="text-sm text-gray-600">
+      <span className='text-sm text-gray-600'>
         {status === 'upcoming' ? '시작까지' : '종료까지'}
       </span>
-      
-      <div className="flex items-center space-x-1">
+
+      <div className='flex items-center space-x-1'>
         {timeLeft.days > 0 && (
           <>
-            <TimeUnit value={timeLeft.days} label="일" isUrgent={isUrgent} />
-            <span className="text-gray-400">:</span>
+            <TimeUnit value={timeLeft.days} label='일' isUrgent={isUrgent} />
+            <span className='text-gray-400'>:</span>
           </>
         )}
-        
-        <TimeUnit value={timeLeft.hours} label="시" isUrgent={isUrgent} />
-        <span className="text-gray-400">:</span>
-        
-        <TimeUnit value={timeLeft.minutes} label="분" isUrgent={isUrgent} />
-        <span className="text-gray-400">:</span>
-        
-        <TimeUnit value={timeLeft.seconds} label="초" isUrgent={isUrgent} />
+
+        <TimeUnit value={timeLeft.hours} label='시' isUrgent={isUrgent} />
+        <span className='text-gray-400'>:</span>
+
+        <TimeUnit value={timeLeft.minutes} label='분' isUrgent={isUrgent} />
+        <span className='text-gray-400'>:</span>
+
+        <TimeUnit value={timeLeft.seconds} label='초' isUrgent={isUrgent} />
       </div>
     </div>
   );
 }
 
-function TimeUnit({ value, label, isUrgent }: { value: number; label: string; isUrgent: boolean }) {
+function TimeUnit({
+  value,
+  label,
+  isUrgent,
+}: {
+  value: number;
+  label: string;
+  isUrgent: boolean;
+}) {
   return (
-    <div className={`flex flex-col items-center transition-all duration-300 ${
-      isUrgent ? 'text-red-500' : 'text-gray-900'
-    }`}>
-      <span className={`text-lg font-bold leading-none ${
-        isUrgent && value < 10 ? 'animate-pulse' : ''
-      }`}>
+    <div
+      className={`flex flex-col items-center transition-all duration-300 ${
+        isUrgent ? 'text-red-500' : 'text-gray-900'
+      }`}
+    >
+      <span
+        className={`text-lg font-bold leading-none ${
+          isUrgent && value < 10 ? 'animate-pulse' : ''
+        }`}
+      >
         {value.toString().padStart(2, '0')}
       </span>
-      <span className="text-xs opacity-75 leading-none">{label}</span>
+      <span className='text-xs opacity-75 leading-none'>{label}</span>
     </div>
   );
-} 
+}

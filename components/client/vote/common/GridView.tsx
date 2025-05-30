@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 import { VoteItem } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
@@ -35,14 +35,18 @@ export const GridView: React.FC<GridViewProps> = ({
   enablePagination = false,
   itemsPerPage = 12,
   enableShuffle = false,
-  style = 'circular'
+  style = 'circular',
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
-  const [shuffledItems, setShuffledItems] = useState<Array<EnhancedVoteItem>>([]);
+  const [shuffledItems, setShuffledItems] = useState<Array<EnhancedVoteItem>>(
+    [],
+  );
   const [mounted, setMounted] = useState(false);
 
-  const effectiveItems = items || [];
-  const totalPages = enablePagination ? Math.ceil(effectiveItems.length / itemsPerPage) : 1;
+  const effectiveItems = useMemo(() => items || [], [items]);
+  const totalPages = enablePagination
+    ? Math.ceil(effectiveItems.length / itemsPerPage)
+    : 1;
 
   useEffect(() => {
     setMounted(true);
@@ -83,8 +87,9 @@ export const GridView: React.FC<GridViewProps> = ({
 
   // 현재 페이지의 아이템들
   const getCurrentItems = () => {
-    const sourceItems = mounted && enableShuffle ? shuffledItems : effectiveItems;
-    
+    const sourceItems =
+      mounted && enableShuffle ? shuffledItems : effectiveItems;
+
     if (enablePagination) {
       return sourceItems.slice(
         currentPage * itemsPerPage,
@@ -130,7 +135,10 @@ export const GridView: React.FC<GridViewProps> = ({
     <div className='flex flex-col' suppressHydrationWarning>
       <div className={`grid ${gridColumnsClass} gap-1`}>
         {currentItems.map((item, index) => (
-          <div key={`${keyPrefix}-${item.id}-${index}`} className='relative aspect-square'>
+          <div
+            key={`${keyPrefix}-${item.id}-${index}`}
+            className='relative aspect-square'
+          >
             <div className='w-full h-full rounded-full overflow-hidden relative'>
               <Image
                 src={getCdnImageUrl(item.artist?.image, 100)}
@@ -207,16 +215,29 @@ export const GridView: React.FC<GridViewProps> = ({
     // 기존 VoteRankCard를 사용하는 로직은 별도 컴포넌트로 분리하는 것이 좋습니다
     // 여기서는 간단한 카드 스타일만 구현
     const cardSizeClass = getCardSizeClass();
-    
+
     return (
-      <div className={`w-full ${disabled ? 'opacity-70 grayscale pointer-events-none select-none' : ''}`}>
-        <div className={`grid ${gridColumnsClass} gap-2 md:gap-4 justify-items-center`}>
+      <div
+        className={`w-full ${
+          disabled ? 'opacity-70 grayscale pointer-events-none select-none' : ''
+        }`}
+      >
+        <div
+          className={`grid ${gridColumnsClass} gap-2 md:gap-4 justify-items-center`}
+        >
           {currentItems.map((item, index) => (
-            <div key={`${keyPrefix}-${item.id}-${index}`} className="flex flex-col items-center">
-              <div className={`${cardSizeClass} relative rounded-lg overflow-hidden border border-gray-200`}>
+            <div
+              key={`${keyPrefix}-${item.id}-${index}`}
+              className='flex flex-col items-center'
+            >
+              <div
+                className={`${cardSizeClass} relative rounded-lg overflow-hidden border border-gray-200`}
+              >
                 <Image
                   src={getCdnImageUrl(item.artist?.image, 300)}
-                  alt={getLocalizedString(item.artist?.name) || '아티스트 이미지'}
+                  alt={
+                    getLocalizedString(item.artist?.name) || '아티스트 이미지'
+                  }
                   fill
                   sizes='(max-width: 768px) 20vw, (max-width: 1200px) 15vw, 10vw'
                   className='object-cover'
@@ -237,4 +258,4 @@ export const GridView: React.FC<GridViewProps> = ({
   };
 
   return style === 'circular' ? renderCircularStyle() : renderCardStyle();
-}; 
+};

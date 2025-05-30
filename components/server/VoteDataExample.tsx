@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { getByIdOrNotFound, TABLES } from '@/lib/data-fetching/supabase-service';
-import { AsyncBoundary, ErrorState, LoadingState } from '@/components/server';
+import { ErrorState, LoadingState } from '@/components/server';
 import { AppError, ErrorCode } from '@/lib/supabase/error';
 
 interface VoteDataProps {
@@ -66,18 +66,8 @@ async function VoteData({ id }: VoteDataProps) {
  */
 export default function VoteDataExample({ id }: VoteDataProps) {
   return (
-    <AsyncBoundary
-      fallback={<LoadingState message="투표 데이터를 불러오는 중..." size="medium" />}
-      errorFallback={(error) => (
-        <ErrorState
-          message={error.toFriendlyMessage()}
-          code={error.status || 500}
-          retryLink={`/vote/${id}`}
-          retryLabel="다시 시도"
-        />
-      )}
-    >
+    <Suspense fallback={<LoadingState message="투표 데이터를 불러오는 중..." size="medium" />}>
       <VoteData id={id} />
-    </AsyncBoundary>
+    </Suspense>
   );
 } 

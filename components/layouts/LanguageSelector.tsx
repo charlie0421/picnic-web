@@ -1,8 +1,7 @@
 'use client';
 
-import React, {useEffect, useRef, useState} from 'react';
-import {useLanguageStore} from '@/stores/languageStore';
-import {usePathname, useRouter} from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 const languages = [
   { code: 'ko', name: '한국어' },
@@ -12,25 +11,21 @@ const languages = [
   { code: 'id', name: 'Bahasa Indonesia' },
 ];
 
-const LanguageSelector: React.FC = () => {
-  const { currentLanguage, setLanguage, syncLanguageWithPath } = useLanguageStore();
+const LanguageSelector = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-  const pathname = usePathname();
+  const { currentLocale, changeLocale } = useLocaleRouter();
 
-  // 마운트 시와 라우트 변경 시 언어 동기화
+  // 마운트 상태 관리
   useEffect(() => {
     setMounted(true);
-
-    // URL이 변경될 때마다 현재 언어 상태를 URL과 동기화
-    syncLanguageWithPath();
-
     return () => setMounted(false);
-  }, [pathname, syncLanguageWithPath]);
+  }, []);
 
-  const currentLanguageObj = languages.find((lang) => lang.code === currentLanguage);
+  const currentLanguageObj = languages.find(
+    (lang) => lang.code === currentLocale,
+  );
 
   useEffect(() => {
     if (!mounted) return;
@@ -55,26 +50,16 @@ const LanguageSelector: React.FC = () => {
     setIsOpen(!isOpen);
   };
 
-  const handleLanguageChange = async (lang: string) => {
-    if (lang === currentLanguage) return;
+  const handleLanguageChange = async (langCode: string) => {
+    if (langCode === currentLocale) return;
 
-    // 현재 경로에서 언어 코드 부분만 교체
-    let newPath = pathname;
-    const pathSegments = pathname.split('/');
-
-    // 첫 번째 세그먼트가 언어 코드인 경우 교체
-    if (pathSegments.length > 1 && languages.some(l => l.code === pathSegments[1])) {
-      pathSegments[1] = lang;
-      newPath = pathSegments.join('/');
-    } else {
-      // 언어 코드가 없는 경우 추가
-      newPath = `/${lang}${pathname}`;
+    try {
+      // useLocaleRouter의 changeLocale 함수 사용
+      await changeLocale(langCode as any, true); // preservePath = true
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Failed to change language:', error);
     }
-
-    // 상태 변경 및 페이지 이동
-    await setLanguage(lang as any);
-    router.push(newPath);
-    setIsOpen(false);
   };
 
   // 서버 사이드에서는 빈 div를 렌더링
@@ -153,7 +138,7 @@ const LanguageSelector: React.FC = () => {
         }}
       >
         {languages.map((language) => {
-          const isCurrentLanguage = language.code === currentLanguage;
+          const isCurrentLanguage = language.code === currentLocale;
           return (
             <button
               key={language.code}

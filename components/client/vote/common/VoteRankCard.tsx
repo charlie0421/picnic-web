@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import { VoteItem } from '@/types/interfaces';
 import { Badge } from '@/components/common';
 import { getLocalizedString } from '@/utils/api/strings';
@@ -11,8 +12,8 @@ import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
 
 export interface VoteRankCardProps {
-  item: VoteItem & { 
-    artist?: any; 
+  item: VoteItem & {
+    artist?: any;
     rank?: number;
     _realtimeInfo?: {
       isHighlighted?: boolean;
@@ -197,9 +198,11 @@ export function VoteRankCard({
         <div
           className={`${sizeClasses.image} rounded-full overflow-hidden border border-white shadow-sm mx-auto flex-shrink-0`}
         >
-          <img
+          <Image
             src={imageUrl}
             alt={artistName}
+            width={100}
+            height={100}
             className='w-full h-full object-cover'
             onError={(e) => {
               const target = e.target as HTMLImageElement;
@@ -216,7 +219,10 @@ export function VoteRankCard({
           </h3>
           {item.artist?.artistGroup?.name && (
             <p className='text-xs text-gray-600 text-center truncate w-full px-1 mb-1'>
-              {getLocalizedString(item.artist.artistGroup.name, currentLanguage)}
+              {getLocalizedString(
+                item.artist.artistGroup.name,
+                currentLanguage,
+              )}
             </p>
           )}
           <div className='relative w-full'>
@@ -256,33 +262,39 @@ export function VoteRankCard({
           : rank === 2
           ? 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-300 shadow-lg'
           : 'bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-300 shadow-lg'
-      } ${
-        onVoteChange ? 'cursor-pointer' : 'cursor-default'
-      } ${className}`}
+      } ${onVoteChange ? 'cursor-pointer' : 'cursor-default'} ${className}`}
       onClick={handleCardClick}
       initial={{ scale: 1, y: 0 }}
       animate={{
         scale: isAnimating ? [1, 1.05, 1] : 1,
         y: isHighlighted ? [0, -2, 0] : 0,
-        boxShadow: isHighlighted 
-          ? "0 8px 25px -5px rgba(59, 130, 246, 0.4)"
-          : rank === 1 
-          ? "0 10px 25px -5px rgba(0, 0, 0, 0.1)"
-          : "0 4px 15px -3px rgba(0, 0, 0, 0.1)"
+        boxShadow: isHighlighted
+          ? '0 8px 25px -5px rgba(59, 130, 246, 0.4)'
+          : rank === 1
+          ? '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
+          : '0 4px 15px -3px rgba(0, 0, 0, 0.1)',
       }}
-      whileHover={onVoteChange ? { 
-        scale: 1.05, 
-        y: -4,
-        transition: { duration: 0.2 }
-      } : {}}
-      whileTap={onVoteChange ? { 
-        scale: 0.98,
-        transition: { duration: 0.1 }
-      } : {}}
-      transition={{ 
-        type: "spring", 
-        stiffness: 300, 
-        damping: 20 
+      whileHover={
+        onVoteChange
+          ? {
+              scale: 1.05,
+              y: -4,
+              transition: { duration: 0.2 },
+            }
+          : {}
+      }
+      whileTap={
+        onVoteChange
+          ? {
+              scale: 0.98,
+              transition: { duration: 0.1 },
+            }
+          : {}
+      }
+      transition={{
+        type: 'spring',
+        stiffness: 300,
+        damping: 20,
       }}
     >
       {/* 실시간 하이라이트 배경 */}
@@ -293,7 +305,7 @@ export function VoteRankCard({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.3 }}
-            className="absolute inset-0 bg-gradient-to-r from-blue-100/50 to-indigo-100/50 rounded-xl border border-blue-300"
+            className='absolute inset-0 bg-gradient-to-r from-blue-100/50 to-indigo-100/50 rounded-xl border border-blue-300'
           />
         )}
       </AnimatePresence>
@@ -305,21 +317,21 @@ export function VoteRankCard({
             initial={{ opacity: 0, scale: 0, rotate: -180 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0, rotate: 180 }}
-            transition={{ type: "spring", stiffness: 600, damping: 25 }}
-            className="absolute -top-1 -right-1 z-10"
+            transition={{ type: 'spring', stiffness: 600, damping: 25 }}
+            className='absolute -top-1 -right-1 z-10'
           >
             {rankChange === 'up' && (
-              <div className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+              <div className='bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold'>
                 ↗
               </div>
             )}
             {rankChange === 'down' && (
-              <div className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+              <div className='bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold'>
                 ↘
               </div>
             )}
             {rankChange === 'new' && (
-              <div className="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+              <div className='bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold'>
                 ✨
               </div>
             )}
@@ -331,21 +343,24 @@ export function VoteRankCard({
       <motion.div
         className={`${sizeClasses.image} rounded-full overflow-hidden border border-white shadow-sm mx-auto flex-shrink-0 relative z-[1]`}
         whileHover={{ scale: 1.1 }}
-        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       >
-        <motion.img
-          src={imageUrl}
-          alt={artistName}
-          className='w-full h-full object-cover'
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = '/images/default-artist.png';
-            target.onerror = null;
-          }}
-        />
+        <motion.div
+          className={`${sizeClasses.image} rounded-full overflow-hidden border border-white shadow-sm mx-auto flex-shrink-0`}
+        >
+          <Image
+            src={imageUrl}
+            alt={artistName}
+            width={100}
+            height={100}
+            className='w-full h-full object-cover'
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = '/images/default-artist.png';
+              target.onerror = null;
+            }}
+          />
+        </motion.div>
       </motion.div>
 
       {/* 텍스트 그룹 - 하단 정렬 */}
@@ -362,7 +377,7 @@ export function VoteRankCard({
 
         {/* 그룹 이름 (있는 경우) */}
         {item.artist?.artistGroup?.name && (
-          <motion.p 
+          <motion.p
             className='text-xs text-gray-600 text-center truncate w-full px-1 mb-1'
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -380,7 +395,7 @@ export function VoteRankCard({
                 initial={{ opacity: 0, scale: 0.5, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.5, y: -10 }}
-                transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                 className={`absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap z-20 ${
                   currentVoteChange > 0
                     ? 'bg-green-200 text-green-800'
@@ -392,17 +407,17 @@ export function VoteRankCard({
               </motion.div>
             )}
           </AnimatePresence>
-          
+
           <motion.div
             className={`font-bold text-blue-600 ${sizeClasses.votes} truncate w-full px-1 text-center`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <AnimatedCount 
-              value={displayVoteTotal} 
-              suffix=""
-              className="font-inherit"
+            <AnimatedCount
+              value={displayVoteTotal}
+              suffix=''
+              className='font-inherit'
             />
           </motion.div>
         </div>

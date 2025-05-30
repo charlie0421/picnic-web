@@ -25,7 +25,9 @@
     "test:libs": "jest --testPathPattern=__tests__/lib",
     "test:api": "jest --testPathPattern=__tests__/app/api",
     "test:fail-fast": "jest --bail",
-    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand"
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "sync-translations": "node scripts/sync-translations.js",
+    "sync-translations:save": "SAVE_SYNC_RESULTS=true node scripts/sync-translations.js"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
@@ -51,8 +53,8 @@
     "next-auth": "^4.24.11",
     "next-intl": "^4.1.0",
     "next-sitemap": "^4.2.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "rimraf": "^6.0.1",
     "swiper": "^11.2.8",
     "typescript": "5.1.6",
@@ -66,8 +68,8 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.4.5",
-    "@types/react": "^19.1.5",
-    "@types/react-dom": "^19.1.5",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
     "@types/swiper": "^5.4.3",
     "autoprefixer": "^10.4.14",
     "dotenv": "^16.5.0",

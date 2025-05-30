@@ -12,6 +12,9 @@ import {
   clearAllAuthData,
 } from '@/utils/auth-redirect';
 
+// 세션 타임아웃 설정 (30분)
+const SESSION_TIMEOUT = 30 * 60 * 1000;
+
 interface AuthRedirectHandlerProps {
   children: React.ReactNode;
 }
@@ -26,9 +29,6 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
   const lastAuthState = useRef<boolean | null>(null);
   const sessionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const redirectProcessed = useRef<boolean>(false);
-
-  // 세션 타임아웃 설정 (30분)
-  const SESSION_TIMEOUT = 30 * 60 * 1000;
 
   // 세션 타임아웃 타이머 설정
   const resetSessionTimeout = () => {

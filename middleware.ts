@@ -2,6 +2,54 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
 
+/**
+ * 브라우저의 Accept-Language 헤더에서 선호 언어 추출
+ */
+function getPreferredLanguageFromHeader(acceptLanguage: string | null): string {
+  if (!acceptLanguage) return DEFAULT_LANGUAGE;
+
+  // Accept-Language 헤더 파싱 (예: "ko-KR,ko;q=0.9,en;q=0.8")
+  const languages = acceptLanguage
+    .split(',')
+    .map(lang => {
+      const [code, qValue] = lang.trim().split(';q=');
+      const langCode = code.split('-')[0]; // ko-KR -> ko
+      const quality = qValue ? parseFloat(qValue) : 1.0;
+      return { code: langCode, quality };
+    })
+    .sort((a, b) => b.quality - a.quality);
+
+  // 지원하는 언어 중에서 가장 선호도가 높은 언어 찾기
+  for (const lang of languages) {
+    if (SUPPORTED_LANGUAGES.includes(lang.code as any)) {
+      return lang.code;
+    }
+  }
+
+  return DEFAULT_LANGUAGE;
+}
+
+/**
+ * 요청에서 선호 언어 결정 (우선순위: 쿠키 > Accept-Language > 기본값)
+ */
+function getPreferredLanguage(request: NextRequest): string {
+  // 1. 쿠키에서 언어 확인 (useLocaleRouter와 일치하는 'locale' 쿠키 사용)
+  const cookieLocale = request.cookies.get("locale")?.value;
+  if (cookieLocale && SUPPORTED_LANGUAGES.includes(cookieLocale as any)) {
+    return cookieLocale;
+  }
+
+  // 2. 기존 NEXT_LOCALE 쿠키도 확인 (하위 호환성)
+  const legacyCookieLocale = request.cookies.get("NEXT_LOCALE")?.value;
+  if (legacyCookieLocale && SUPPORTED_LANGUAGES.includes(legacyCookieLocale as any)) {
+    return legacyCookieLocale;
+  }
+
+  // 3. Accept-Language 헤더에서 언어 추출
+  const acceptLanguage = request.headers.get("accept-language");
+  return getPreferredLanguageFromHeader(acceptLanguage);
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -53,19 +101,52 @@ export function middleware(request: NextRequest) {
   );
 
   if (pathnameHasLang) {
+    // 언어가 포함된 경로에서 쿠키 업데이트
+    const currentLangFromPath = pathname.split('/')[1];
+    if (SUPPORTED_LANGUAGES.includes(currentLangFromPath as any)) {
+      const response = NextResponse.next();
+      
+      // useLocaleRouter와 일치하는 'locale' 쿠키 설정
+      response.cookies.set("locale", currentLangFromPath, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365, // 1년
+        sameSite: "lax"
+      });
+      
+      return response;
+    }
     return NextResponse.next();
   }
 
-  // 쿠키에서 현재 언어 확인
-  const currentLang = request.cookies.get("NEXT_LOCALE")?.value;
-  const preferredLang = SUPPORTED_LANGUAGES.includes(currentLang as any)
-    ? currentLang
-    : DEFAULT_LANGUAGE;
+  // 선호 언어 결정
+  const preferredLang = getPreferredLanguage(request);
 
-  // 기본 언어로 리다이렉트
+  // 기본 언어인 경우 리다이렉트하지 않고 그대로 진행 (선택사항)
+  // 만약 모든 언어에 대해 경로를 명시적으로 표시하려면 이 조건을 제거
+  if (preferredLang === DEFAULT_LANGUAGE && pathname === '/') {
+    const response = NextResponse.next();
+    response.cookies.set("locale", preferredLang, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax"
+    });
+    return response;
+  }
+
+  // 언어 경로로 리다이렉트
   const newUrl = new URL(request.url);
   newUrl.pathname = `/${preferredLang}${pathname}`;
-  return NextResponse.redirect(newUrl);
+  
+  const response = NextResponse.redirect(newUrl);
+  
+  // 쿠키 설정
+  response.cookies.set("locale", preferredLang, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365, // 1년
+    sameSite: "lax"
+  });
+  
+  return response;
 }
 
 export const config = {
