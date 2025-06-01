@@ -43,12 +43,11 @@ export function VoteRankCard({
   onVoteChange,
   enableMotionAnimations = true,
 }: VoteRankCardProps) {
-  const { currentLanguage } = useLanguageStore();
+  const { currentLanguage, t } = useLanguageStore();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
-      title: '투표하려면 로그인이 필요합니다',
-      description:
-        '이 투표에 참여하려면 로그인이 필요합니다. 로그인하시겠습니까?',
+      title: t('vote_login_required_title'),
+      description: t('vote_login_required_description'),
     },
   });
   const [currentVoteChange, setCurrentVoteChange] = useState(voteChange);
@@ -121,8 +120,8 @@ export function VoteRankCard({
 
   // 아티스트 이름 가져오기
   const artistName = item.artist
-    ? getLocalizedString(item.artist.name, currentLanguage) || '아티스트'
-    : '아티스트';
+    ? getLocalizedString(item.artist.name, currentLanguage) || t('artist_name_fallback')
+    : t('artist_name_fallback');
 
   // 아티스트 이미지 URL
   const imageUrl = item.artist?.image

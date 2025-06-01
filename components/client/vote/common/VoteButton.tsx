@@ -31,17 +31,12 @@ export const VoteButton = ({
   const { withAuth, isAuthenticated } = useRequireAuth({
     // 커스텀 로그인 다이얼로그 메시지
     customLoginMessage: {
-      title: t('vote.login_required.title') || '투표하려면 로그인이 필요합니다',
+      title: t('vote_login_required_title'),
       description: artistName
-        ? t('vote.login_required.description_with_artist')?.replace(
-            '{artistName}',
-            artistName,
-          ) ||
-          `${artistName}에게 투표하려면 로그인이 필요합니다. 로그인하시겠습니까?`
-        : t('vote.login_required.description') ||
-          '이 투표에 참여하려면 로그인이 필요합니다. 로그인하시겠습니까?',
-      loginText: t('dialog.login_required.login_button') || '로그인',
-      cancelText: t('dialog.login_required.cancel_button') || '취소',
+        ? t('vote_login_required_description_with_artist', { artistName })
+        : t('vote_login_required_description'),
+      loginText: t('button_login'),
+      cancelText: t('button_cancel'),
     },
   });
 
@@ -56,8 +51,7 @@ export const VoteButton = ({
       try {
         await onVote(voteId, voteItemId);
       } catch (err) {
-        const errorMessage =
-          t('vote.error.general') || '투표 중 오류가 발생했습니다.';
+        const errorMessage = t('vote_error_general');
         setError(errorMessage);
         console.error('Vote error:', err);
       } finally {
@@ -68,15 +62,15 @@ export const VoteButton = ({
 
   const getButtonText = () => {
     if (hasVoted) {
-      return t('vote.button.completed') || '투표 완료';
+      return t('vote_button_completed');
     }
     if (isVoting) {
-      return t('vote.button.voting') || '투표 중...';
+      return t('vote_button_voting');
     }
     if (isAuthenticated) {
-      return t('vote.button.vote') || '투표하기';
+      return t('vote_button_vote');
     }
-    return t('vote.button.login_to_vote') || '로그인 후 투표하기';
+    return t('vote_button_login_to_vote');
   };
 
   return (

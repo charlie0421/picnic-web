@@ -20,11 +20,11 @@ const VoteAreaFilter = React.memo(
         // 번역이 로드되지 않은 경우 fallback 텍스트 사용
         switch (area) {
           case VOTE_AREAS.ALL:
-            return 'ALL';
+            return t('vote_area_fallback_all');
           case VOTE_AREAS.KPOP:
-            return 'K-POP';
+            return t('vote_area_fallback_kpop');
           case VOTE_AREAS.MUSICAL:
-            return 'K-MUSICAL';
+            return t('vote_area_fallback_musical');
           default:
             return '';
         }
@@ -32,11 +32,11 @@ const VoteAreaFilter = React.memo(
 
       switch (area) {
         case VOTE_AREAS.ALL:
-          return t('label_area_filter_all') || 'ALL';
+          return t('label_area_filter_all');
         case VOTE_AREAS.KPOP:
-          return t('label_area_filter_kpop') || 'K-POP';
+          return t('label_area_filter_kpop');
         case VOTE_AREAS.MUSICAL:
-          return t('label_area_filter_musical') || 'K-MUSICAL';
+          return t('label_area_filter_musical');
         default:
           return '';
       }
@@ -46,11 +46,11 @@ const VoteAreaFilter = React.memo(
       if (!isTranslationReady) {
         switch (area) {
           case VOTE_AREAS.ALL:
-            return 'All areas';
+            return t('vote_area_aria_all');
           case VOTE_AREAS.KPOP:
-            return 'K-POP';
+            return t('vote_area_aria_kpop');
           case VOTE_AREAS.MUSICAL:
-            return 'K-MUSICAL';
+            return t('vote_area_aria_musical');
           default:
             return '';
         }
@@ -58,11 +58,11 @@ const VoteAreaFilter = React.memo(
 
       switch (area) {
         case VOTE_AREAS.ALL:
-          return t('label_area_filter_all') || 'All areas';
+          return t('label_area_filter_all');
         case VOTE_AREAS.KPOP:
-          return t('label_area_filter_kpop') || 'K-POP';
+          return t('label_area_filter_kpop');
         case VOTE_AREAS.MUSICAL:
-          return t('label_area_filter_musical') || 'K-MUSICAL';
+          return t('label_area_filter_musical');
         default:
           return '';
       }

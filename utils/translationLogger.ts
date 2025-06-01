@@ -133,7 +133,7 @@ class TranslationLogger {
     const recentErrors: TranslationError[] = [];
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
 
-    for (const error of this.errorCache.values()) {
+    for (const error of Array.from(this.errorCache.values())) {
       // 언어별 통계
       byLanguage[error.language] = (byLanguage[error.language] || 0) + 1;
       

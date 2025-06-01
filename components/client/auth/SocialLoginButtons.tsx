@@ -56,11 +56,11 @@ export default function SocialLoginButtons({
         onError?.(
           error instanceof Error
             ? error
-            : new Error('알 수 없는 로그인 오류가 발생했습니다.'),
+            : new Error(t('unknown_login_error')),
         );
       }
     },
-    [onLoginStart, onError],
+    [onLoginStart, onError, t],
   );
 
   // 각 소셜 로그인 버튼의 스타일 및 내용 설정
@@ -76,7 +76,7 @@ export default function SocialLoginButtons({
     }
   > = {
     google: {
-      label: t('label_login_with_google') || '구글로 로그인',
+      label: t('label_login_with_google'),
       bgColor: 'bg-white',
       textColor: 'text-gray-700',
       hoverColor: 'hover:bg-gray-50',
@@ -84,21 +84,21 @@ export default function SocialLoginButtons({
       borderColor: 'border-gray-300',
     },
     apple: {
-      label: t('label_login_with_apple') || '애플로 로그인',
+      label: t('label_login_with_apple'),
       bgColor: 'bg-black',
       textColor: 'text-white',
       hoverColor: 'hover:bg-gray-900',
       iconPath: '/images/auth/apple-logo.svg',
     },
     kakao: {
-      label: t('label_login_with_kakao') || '카카오로 로그인',
+      label: t('label_login_with_kakao'),
       bgColor: 'bg-yellow-400',
       textColor: 'text-gray-900',
       hoverColor: 'hover:bg-yellow-500',
       iconPath: '/images/auth/kakao-logo.svg',
     },
     wechat: {
-      label: t('label_login_with_wechat') || '위챗으로 로그인',
+      label: t('label_login_with_wechat'),
       bgColor: 'bg-green-500',
       textColor: 'text-white',
       hoverColor: 'hover:bg-green-600',
@@ -158,7 +158,7 @@ export default function SocialLoginButtons({
             
             {/* 텍스트 */}
             <span className={`transition-all duration-300 ${isLoading === provider ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'}`}>
-              {isLoading === provider ? '로그인 중...' : config.label}
+              {isLoading === provider ? t('login_loading') : config.label}
             </span>
 
             {/* 버튼 하이라이트 효과 */}

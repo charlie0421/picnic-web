@@ -15,13 +15,13 @@ const VoteEmptyState: React.FC<VoteEmptyStateProps> = () => {
   const getEmptyMessage = () => {
     switch (selectedStatus) {
       case VOTE_STATUS.ONGOING:
-        return '진행 중인 투표가 없습니다.';
+        return t('vote_empty_state_ongoing');
       case VOTE_STATUS.UPCOMING:
-        return '예정된 투표가 없습니다.';
+        return t('vote_empty_state_upcoming');
       case VOTE_STATUS.COMPLETED:
-        return '완료된 투표가 없습니다.';
+        return t('vote_empty_state_completed');
       default:
-        return '투표가 없습니다.';
+        return t('vote_empty_state_default');
     }
   };
 
