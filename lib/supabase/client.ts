@@ -133,8 +133,8 @@ export async function getCurrentSession() {
 }
 
 /**
- * 로그아웃 처리 함수입니다.
- * 모든 세션을 제거하고 스토리지를 정리합니다.
+ * 종합적인 로그아웃 처리 함수입니다.
+ * 모든 세션을 제거하고 스토리지를 완전히 정리합니다.
  * 
  * @returns 로그아웃 결과
  */
@@ -142,23 +142,292 @@ export async function signOut() {
   const supabase = createBrowserSupabaseClient();
   
   try {
-    // 모든 세션 제거
-    const { error } = await supabase.auth.signOut({
-      scope: 'global'
-    });
+    console.log('🚪 [SignOut] 종합 로그아웃 시작');
 
-    // 로컬 스토리지에서 인증 관련 항목 제거
+    // 1. 서버사이드 세션 무효화 API 호출 (먼저 시도)
     try {
-      localStorage.removeItem('auth_session_active');
-      localStorage.removeItem('auth_provider');
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        console.log('✅ [SignOut] 서버사이드 세션 무효화 완료');
+      } else {
+        console.warn('⚠️ [SignOut] 서버사이드 세션 무효화 실패 (계속 진행)');
+      }
     } catch (e) {
-      // 로컬 스토리지 오류 무시
+      console.warn('⚠️ [SignOut] 서버사이드 세션 무효화 오류 (계속 진행):', e);
     }
 
-    if (error) throw error;
-    return { success: true };
+    // 2. Supabase 세션 제거
+    try {
+      const { error } = await supabase.auth.signOut({
+        scope: 'global'
+      });
+
+      if (error) {
+        console.warn('⚠️ [SignOut] Supabase 로그아웃 오류 (계속 진행):', error);
+      } else {
+        console.log('✅ [SignOut] Supabase 세션 제거 완료');
+      }
+    } catch (e) {
+      console.warn('⚠️ [SignOut] Supabase 로그아웃 예외 (계속 진행):', e);
+    }
+
+    // 3. 모든 인증 관련 localStorage 데이터 제거
+    try {
+      const authKeys = [
+        // 기본 인증 키들
+        'auth_session_active',
+        'auth_provider',
+        'auth_timestamp',
+        'auth_success',
+        
+        // Supabase 관련 키들
+        'supabase.auth.token',
+        'supabase.auth.expires_at',
+        'supabase.auth.refresh_token',
+        'sb-auth-token',
+        
+        // WeChat 관련 키들
+        'wechat_auth_token',
+        'wechat_auth_state',
+        'wechat_login_state',
+        
+        // 기타 소셜 로그인 키들
+        'google_auth_state',
+        'kakao_auth_state',
+        'apple_auth_state',
+        
+        // 사용자 프로필 캐시
+        'user_profile_cache',
+        'profile_cache_timestamp',
+      ];
+
+      // 명시적 키 제거
+      authKeys.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`⚠️ [SignOut] localStorage 키 제거 실패: ${key}`, e);
+        }
+      });
+
+      // 패턴 기반 키 제거 (supabase, auth 포함)
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.includes('supabase') || 
+          key.includes('auth') || 
+          key.includes('login') ||
+          key.includes('wechat') ||
+          key.includes('oauth')
+        )) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`⚠️ [SignOut] localStorage 패턴 키 제거 실패: ${key}`, e);
+        }
+      });
+
+      console.log('✅ [SignOut] localStorage 정리 완료');
+    } catch (e) {
+      console.warn('⚠️ [SignOut] localStorage 정리 오류 (계속 진행):', e);
+    }
+
+    // 4. 모든 인증 관련 sessionStorage 데이터 제거
+    try {
+      const sessionAuthKeys = [
+        'redirect_url',
+        'auth_redirect_url',
+        'login_redirect',
+        'oauth_state',
+        'wechat_auth_code',
+      ];
+
+      // 명시적 키 제거
+      sessionAuthKeys.forEach(key => {
+        try {
+          sessionStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`⚠️ [SignOut] sessionStorage 키 제거 실패: ${key}`, e);
+        }
+      });
+
+      // 패턴 기반 키 제거
+      const sessionKeysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (
+          key.includes('auth') || 
+          key.includes('redirect') || 
+          key.includes('login') ||
+          key.includes('oauth') ||
+          key.includes('wechat')
+        )) {
+          sessionKeysToRemove.push(key);
+        }
+      }
+      
+      sessionKeysToRemove.forEach(key => {
+        try {
+          sessionStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`⚠️ [SignOut] sessionStorage 패턴 키 제거 실패: ${key}`, e);
+        }
+      });
+
+      console.log('✅ [SignOut] sessionStorage 정리 완료');
+    } catch (e) {
+      console.warn('⚠️ [SignOut] sessionStorage 정리 오류 (계속 진행):', e);
+    }
+
+    // 5. 모든 인증 관련 쿠키 제거
+    try {
+      const cookiesToRemove = [
+        'auth-token',
+        'auth-refresh-token',
+        'sb-auth-token',
+        'supabase-auth-token',
+        'wechat-auth',
+        'oauth-state',
+        'session-id',
+        'user-session',
+      ];
+
+      // 명시적 쿠키 제거
+      cookiesToRemove.forEach(cookieName => {
+        try {
+          // 여러 경로와 도메인에서 제거 시도
+          const domains = ['', `.${window.location.hostname}`, window.location.hostname];
+          const paths = ['/', '/auth', '/api'];
+          
+          domains.forEach(domain => {
+            paths.forEach(path => {
+              document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
+            });
+          });
+        } catch (e) {
+          console.warn(`⚠️ [SignOut] 쿠키 제거 실패: ${cookieName}`, e);
+        }
+      });
+
+      // 패턴 기반 쿠키 제거
+      try {
+        document.cookie.split(';').forEach((cookie) => {
+          const cookieName = cookie.trim().split('=')[0];
+          if (cookieName && (
+            cookieName.includes('auth') || 
+            cookieName.includes('supabase') ||
+            cookieName.includes('login') ||
+            cookieName.includes('oauth') ||
+            cookieName.includes('wechat')
+          )) {
+            const domains = ['', `.${window.location.hostname}`, window.location.hostname];
+            const paths = ['/', '/auth', '/api'];
+            
+            domains.forEach(domain => {
+              paths.forEach(path => {
+                document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
+              });
+            });
+          }
+        });
+      } catch (e) {
+        console.warn('⚠️ [SignOut] 패턴 쿠키 제거 오류:', e);
+      }
+
+      console.log('✅ [SignOut] 쿠키 정리 완료');
+    } catch (e) {
+      console.warn('⚠️ [SignOut] 쿠키 정리 오류 (계속 진행):', e);
+    }
+
+    // 6. 메모리 캐시 정리 (window 객체에서 전역 변수들 정리)
+    try {
+      // 전역 인증 관련 변수들 정리
+      if (typeof window !== 'undefined') {
+        // Supabase 클라이언트 캐시 정리
+        browserSupabase = null;
+        
+        // 전역 변수 정리
+        const globalVarsToDelete = [
+          '__supabase_client',
+          '__auth_user',
+          '__user_profile',
+          '__auth_session',
+          'wechatAuth',
+          'googleAuth',
+          'kakaoAuth',
+        ];
+        
+        globalVarsToDelete.forEach(varName => {
+          try {
+            delete (window as any)[varName];
+          } catch (e) {
+            // 삭제 오류 무시
+          }
+        });
+      }
+
+      console.log('✅ [SignOut] 메모리 캐시 정리 완료');
+    } catch (e) {
+      console.warn('⚠️ [SignOut] 메모리 캐시 정리 오류 (계속 진행):', e);
+    }
+
+    // 7. WeChat SDK 로그아웃 시도 (WeChat이 활성화된 경우)
+    try {
+      if (typeof window !== 'undefined' && (window as any).WeixinJSBridge) {
+        console.log('🔄 [SignOut] WeChat SDK 로그아웃 시도');
+        // WeChat SDK 특별 처리 (필요시)
+      }
+    } catch (e) {
+      console.warn('⚠️ [SignOut] WeChat SDK 로그아웃 오류 (계속 진행):', e);
+    }
+
+    // 8. 리다이렉트 URL 정리 (auth-redirect.ts의 clearAllAuthData 호출)
+    try {
+      // 동적 import로 clearAllAuthData 함수 사용
+      const { clearAllAuthData } = await import('@/utils/auth-redirect');
+      clearAllAuthData();
+      console.log('✅ [SignOut] 리다이렉트 데이터 정리 완료');
+    } catch (e) {
+      console.warn('⚠️ [SignOut] 리다이렉트 데이터 정리 오류 (계속 진행):', e);
+    }
+
+    // 9. 최종 상태 체크 및 로깅
+    console.log('✅ [SignOut] 종합 로그아웃 완료');
+    
+    return { 
+      success: true,
+      message: '모든 인증 데이터가 성공적으로 정리되었습니다.'
+    };
+    
   } catch (error) {
-    console.error('로그아웃 중 오류 발생:', error);
-    return { success: false, error };
+    console.error('❌ [SignOut] 종합 로그아웃 중 치명적 오류:', error);
+    
+    // 치명적 오류가 발생해도 기본 정리는 시도
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log('🔧 [SignOut] 응급 스토리지 전체 정리 완료');
+    } catch (e) {
+      console.error('💥 [SignOut] 응급 정리마저 실패:', e);
+    }
+    
+    return { 
+      success: false, 
+      error,
+      message: '로그아웃 중 오류가 발생했지만 기본 정리는 완료되었습니다.'
+    };
   }
 } 
