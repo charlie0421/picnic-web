@@ -23,15 +23,14 @@ export function LoginRequiredDialog({
 
   // 다국어 지원 기본값
   const defaultTitle =
-    title || t('dialog.login_required.title') || '로그인이 필요합니다';
+    title || t('dialog_login_required_title');
   const defaultDescription =
     description ||
-    t('dialog.login_required.description') ||
-    '이 기능을 사용하려면 로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?';
+    t('dialog_login_required_description');
   const defaultLoginText =
-    loginText || t('dialog.login_required.login_button') || '로그인';
+    loginText || t('dialog_login_required_login_button');
   const defaultCancelText =
-    cancelText || t('dialog.login_required.cancel_button') || '취소';
+    cancelText || t('dialog_login_required_cancel_button');
 
   // 기본 로그인 핸들러
   const handleLogin = () => {

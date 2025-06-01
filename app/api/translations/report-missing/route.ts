@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
         
         const logFile = path.join(logDir, `translation-errors-${new Date().toISOString().split('T')[0]}.json`);
         const logEntry = {
-          timestamp: new Date().toISOString(),
           ...body,
+          serverTimestamp: new Date().toISOString(),
         };
         
         // 기존 로그 파일 읽기 (있는 경우)

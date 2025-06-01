@@ -20,11 +20,11 @@ const VoteStatusFilter = React.memo(
         // 번역이 로드되지 않은 경우 fallback 텍스트 사용
         switch (status) {
           case VOTE_STATUS.ONGOING:
-            return '진행 중';
+            return t('vote_status_fallback_ongoing');
           case VOTE_STATUS.UPCOMING:
-            return '예정';
+            return t('vote_status_fallback_upcoming');
           case VOTE_STATUS.COMPLETED:
-            return '완료';
+            return t('vote_status_fallback_completed');
           default:
             return '';
         }
@@ -46,11 +46,11 @@ const VoteStatusFilter = React.memo(
       if (!isTranslationReady) {
         switch (status) {
           case VOTE_STATUS.ONGOING:
-            return '진행 중인 투표';
+            return t('vote_status_ongoing_aria_label');
           case VOTE_STATUS.UPCOMING:
-            return '예정된 투표';
+            return t('vote_status_upcoming_aria_label');
           case VOTE_STATUS.COMPLETED:
-            return '완료된 투표';
+            return t('vote_status_completed_aria_label');
           default:
             return '';
         }

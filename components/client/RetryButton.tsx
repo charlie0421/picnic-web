@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface RetryButtonProps {
   redirectPath?: string;
@@ -14,6 +15,7 @@ interface RetryButtonProps {
  */
 export function RetryButton({ redirectPath = '/login' }: RetryButtonProps) {
   const router = useRouter();
+  const { t } = useLanguageStore();
 
   const handleClick = () => {
     router.push(redirectPath);
@@ -24,7 +26,7 @@ export function RetryButton({ redirectPath = '/login' }: RetryButtonProps) {
       onClick={handleClick}
       className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
     >
-      로그인으로 돌아가기
+      {t('return_to_login')}
     </button>
   );
 } 

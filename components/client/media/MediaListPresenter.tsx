@@ -14,10 +14,10 @@ interface MediaListProps {
 }
 
 const MediaListPresenter: React.FC<MediaListProps> = ({ medias, isLoading, error }) => {
-  const { currentLanguage } = useLanguageStore();
+  const { currentLanguage, t } = useLanguageStore();
 
   const getTitleString = (title: any) => {
-    if (!title) return '제목 없음';
+    if (!title) return t('media_no_title');
     if (typeof title === 'string') return title;
     return getLocalizedString(title);
   };
@@ -133,7 +133,7 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ medias, isLoading, error
 
       {medias.length === 0 && !isLoading && !error && (
         <div className='text-center py-12 col-span-full'>
-          <p className='text-xl text-gray-800 font-medium'>표시할 미디어가 없습니다.</p>
+          <p className='text-xl text-gray-800 font-medium'>{t('media_no_items')}</p>
         </div>
       )}
     </div>
