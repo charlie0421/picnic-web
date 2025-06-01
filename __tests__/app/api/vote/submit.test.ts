@@ -99,14 +99,19 @@ describe("/api/vote/submit", () => {
         });
 
         it("process_vote 함수 에러 시 500 에러", async () => {
-            // process_vote 함수 에러 응답 모킹
-            mockSupabase.rpc.mockResolvedValue({
-                data: null,
-                error: {
-                    message: "Database error",
-                    code: "PGRST301",
-                },
-            });
+            // can_vote 함수는 성공으로 모킹 (먼저 호출됨)
+            mockSupabase.rpc
+                .mockResolvedValueOnce({
+                    data: true, // can_vote 성공
+                    error: null,
+                })
+                .mockResolvedValueOnce({
+                    data: null,
+                    error: {
+                        message: "Database error",
+                        code: "PGRST301",
+                    },
+                });
 
             const request = createMockRequest(validRequestBody);
             const response = await POST(request);

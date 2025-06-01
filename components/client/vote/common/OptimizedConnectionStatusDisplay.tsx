@@ -112,7 +112,7 @@ const PerformanceMetrics = memo(({
 
   const renderCount = performanceMetrics.renderCount;
   const isHighRenderCount = renderCount > 50;
-  const eventCount = performanceMetrics.eventCount || 0;
+  const eventCount = 0;
 
   return (
     <div className="text-xs text-gray-600 space-y-1">

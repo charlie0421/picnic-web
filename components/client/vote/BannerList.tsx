@@ -46,17 +46,14 @@ export default function BannerList({
           className="relative rounded-lg overflow-hidden shadow-md"
         >
           <img 
-            src={banner.image_url} 
-            alt={banner.title}
+            src={banner.thumbnail || "/images/default-banner.jpg"} 
+            alt={typeof banner.title === "object" ? (banner.title as any)?.ko || "Banner" : banner.title || "Banner"}
             className="w-full h-40 object-cover"
             loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           <div className="absolute bottom-4 left-4 text-white">
-            <h3 className="text-lg font-bold">{banner.title}</h3>
-            {banner.description && (
-              <p className="text-sm opacity-90">{banner.description}</p>
-            )}
+            <h3 className="text-lg font-bold">{typeof banner.title === "object" ? (banner.title as any)?.ko || "Banner" : banner.title || "Banner"}</h3>
           </div>
         </div>
       ))}
