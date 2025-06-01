@@ -77,7 +77,9 @@ class TranslationLogger {
     // 캐시 크기 제한
     if (this.errorCache.size > this.config.maxLocalErrors) {
       const oldestKey = this.errorCache.keys().next().value;
-      this.errorCache.delete(oldestKey);
+      if (oldestKey !== undefined) {
+        this.errorCache.delete(oldestKey);
+      }
     }
   }
 
