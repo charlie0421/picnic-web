@@ -42,6 +42,7 @@ const ConnectionStatusIcon = memo(({ status }: { status: ConnectionStatus }) => 
     <span 
       className={`${iconConfig.color} ${iconConfig.pulse ? 'animate-pulse' : ''}`}
       aria-label={`연결 상태: ${status}`}
+      data-testid="connection-status-icon"
     >
       {iconConfig.icon}
     </span>
@@ -111,6 +112,7 @@ const PerformanceMetrics = memo(({
 
   const renderCount = performanceMetrics.renderCount;
   const isHighRenderCount = renderCount > 50;
+  const eventCount = performanceMetrics.eventCount || 0;
 
   return (
     <div className="text-xs text-gray-600 space-y-1">
@@ -126,6 +128,10 @@ const PerformanceMetrics = memo(({
           <span className="font-medium">메모리:</span>
           <span className="ml-1">{formatMemoryUsage}</span>
         </div>
+      </div>
+      <div>
+        <span className="font-medium">이벤트:</span>
+        <span className="ml-1">{eventCount}개</span>
       </div>
       <div className="text-xs text-gray-500">
         마지막 렌더: {new Date(performanceMetrics.lastRenderTime).toLocaleTimeString()}
@@ -163,6 +169,7 @@ const ControlPanel = memo(({
                 smartReconnectEnabled ? 'bg-blue-500' : 'bg-gray-300'
               }`}
               aria-label={`스마트 재연결 ${smartReconnectEnabled ? '비활성화' : '활성화'}`}
+              tabIndex={0}
             >
               <div
                 className={`w-3 h-3 bg-white rounded-full transition-transform ${
@@ -181,6 +188,7 @@ const ControlPanel = memo(({
                 batterySaverEnabled ? 'bg-green-500' : 'bg-gray-300'
               }`}
               aria-label={`배터리 절약 ${batterySaverEnabled ? '비활성화' : '활성화'}`}
+              tabIndex={0}
             >
               <div
                 className={`w-3 h-3 bg-white rounded-full transition-transform ${
@@ -214,13 +222,13 @@ const OptimizedConnectionStatusDisplay = memo(({
   const statusText = useMemo(() => {
     switch (connectionStatus) {
       case 'connected':
-        return '실시간 연결됨';
+        return isCompact ? '연결됨' : '실시간 연결됨';
       case 'connecting':
         return '연결 중...';
       case 'reconnecting':
         return `재연결 중... (${connectionInfo.reconnectAttempts}/${connectionInfo.maxReconnectAttempts})`;
       case 'disconnected':
-        return '연결 끊김';
+        return '연결 해제됨';
       case 'error':
         return `오류: ${connectionInfo.lastError?.message || '알 수 없는 오류'}`;
       case 'network_error':
@@ -230,7 +238,7 @@ const OptimizedConnectionStatusDisplay = memo(({
       default:
         return '상태 확인 중';
     }
-  }, [connectionStatus, connectionInfo]);
+  }, [connectionStatus, connectionInfo, isCompact]);
 
   // 컴팩트 모드
   if (isCompact) {
@@ -244,7 +252,7 @@ const OptimizedConnectionStatusDisplay = memo(({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+    <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm" role="status">
       {/* 기본 상태 정보 */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -310,4 +318,4 @@ const OptimizedConnectionStatusDisplay = memo(({
 
 OptimizedConnectionStatusDisplay.displayName = 'OptimizedConnectionStatusDisplay';
 
-export default OptimizedConnectionStatusDisplay; 
+export default OptimizedConnectionStatusDisplay;

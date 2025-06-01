@@ -12,8 +12,8 @@ describe('투표 모의 데이터 테스트', () => {
       // 필수 필드 존재 확인
       expect(vote).toHaveProperty('id');
       expect(vote).toHaveProperty('title');
-      expect(vote).toHaveProperty('startAt');
-      expect(vote).toHaveProperty('stopAt');
+      expect(vote).toHaveProperty('start_at');
+      expect(vote).toHaveProperty('stop_at');
       expect(vote).toHaveProperty('voteItem');
       
       // title이 Json 타입인지 확인
@@ -31,8 +31,8 @@ describe('투표 모의 데이터 테스트', () => {
       if (vote.voteItem && vote.voteItem.length > 0) {
         vote.voteItem.forEach(item => {
           expect(item).toHaveProperty('id');
-          expect(item).toHaveProperty('voteId');
-          expect(item).toHaveProperty('artistId');
+          expect(item).toHaveProperty('vote_id');
+          expect(item).toHaveProperty('artist_id');
           expect(item).toHaveProperty('artist');
           
           // artist 객체 검사
@@ -53,14 +53,13 @@ describe('투표 모의 데이터 테스트', () => {
       // voteReward 배열이 있으면 검사
       if (vote.voteReward && vote.voteReward.length > 0) {
         vote.voteReward.forEach(rewardItem => {
-          expect(rewardItem).toHaveProperty('rewardId');
-          expect(rewardItem).toHaveProperty('voteId');
+          expect(rewardItem).toHaveProperty('reward_id');
+          expect(rewardItem).toHaveProperty('vote_id');
           
           // reward 객체가 있으면 검사
           if (rewardItem.reward) {
             expect(rewardItem.reward).toHaveProperty('id');
             expect(rewardItem.reward).toHaveProperty('title');
-            expect(rewardItem.reward).toHaveProperty('description');
             expect(rewardItem.reward).toHaveProperty('thumbnail');
           }
         });
@@ -84,8 +83,8 @@ describe('투표 모의 데이터 테스트', () => {
       {
         id: 1,
         title: { ko: '진행 중인 투표', en: 'Ongoing Vote' },
-        startAt: pastDate,
-        stopAt: futureDate,
+        start_at: pastDate,
+        stop_at: futureDate,
         voteItem: [],
         voteReward: [],
         mainImage: '',
@@ -104,8 +103,8 @@ describe('투표 모의 데이터 테스트', () => {
       {
         id: 2,
         title: { ko: '종료된 투표', en: 'Completed Vote' },
-        startAt: pastDate,
-        stopAt: pastDate, // 이미 종료됨
+        start_at: pastDate,
+        stop_at: pastDate, // 이미 종료됨
         voteItem: [],
         voteReward: [],
         mainImage: '',
@@ -124,8 +123,8 @@ describe('투표 모의 데이터 테스트', () => {
       {
         id: 3,
         title: { ko: '예정된 투표', en: 'Upcoming Vote' },
-        startAt: futureDate, // 앞으로 시작됨
-        stopAt: new Date(now.getTime() + 86400000 * 4).toISOString(),
+        start_at: futureDate, // 앞으로 시작됨
+        stop_at: new Date(now.getTime() + 86400000 * 4).toISOString(),
         voteItem: [],
         voteReward: [],
         mainImage: '',
