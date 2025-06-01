@@ -4,6 +4,7 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback, R
 import { VoteRealtimeEvent, ConnectionStatus } from '@/lib/supabase/realtime';
 import { useVoteRealtime } from '@/hooks/useVoteRealtime';
 import { Database } from '@/types/supabase';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 // 투표 관련 타입 정의
 type VoteData = Database['public']['Tables']['vote']['Row'];
@@ -158,6 +159,7 @@ export function VoteRealtimeProvider({
   autoLoad = true 
 }: VoteRealtimeProviderProps) {
   const [state, dispatch] = useReducer(voteRealtimeReducer, initialState);
+  const { t } = useLocaleRouter();
 
   // 실시간 연결 관리
   const { connectionStatus, lastEvent, eventCount } = useVoteRealtime({
@@ -189,9 +191,9 @@ export function VoteRealtimeProvider({
         break;
         
       default:
-        console.warn('[VoteRealtimeContext] 알 수 없는 이벤트 타입:', event);
+        console.warn(`[VoteRealtimeContext] ${t('vote.unknownEventType') || '알 수 없는 이벤트 타입'}:`, event);
     }
-  }, []);
+  }, [t]);
 
   // 투표 데이터 로드
   const loadVoteData = useCallback(async (targetVoteId: number) => {
@@ -211,11 +213,11 @@ export function VoteRealtimeProvider({
         result_image: null,
         start_at: new Date().toISOString(),
         stop_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        title: { ko: '테스트 투표', en: 'Test Vote' },
+        title: { ko: t('vote.testVote.title') || '테스트 투표', en: 'Test Vote' },
         updated_at: new Date().toISOString(),
         visible_at: new Date().toISOString(),
         vote_category: 'artist',
-        vote_content: '가장 좋아하는 아티스트를 선택하세요',
+        vote_content: t('vote.testVote.content') || '가장 좋아하는 아티스트를 선택하세요',
         vote_sub_category: 'kpop',
         wait_image: null
       };
@@ -254,13 +256,13 @@ export function VoteRealtimeProvider({
         }
       });
     } catch (error) {
-      console.error('[VoteRealtimeContext] 투표 데이터 로드 오류:', error);
+      console.error(`[VoteRealtimeContext] ${t('vote.loadError') || '투표 데이터 로드 오류'}:`, error);
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: error instanceof Error ? error.message : '투표 데이터를 불러오는데 실패했습니다.' 
+        payload: error instanceof Error ? error.message : (t('vote.loadErrorMessage') || '투표 데이터를 불러오는데 실패했습니다.') 
       });
     }
-  }, []);
+  }, [t]);
 
   // 상태 초기화
   const resetState = useCallback(() => {
