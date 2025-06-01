@@ -109,21 +109,21 @@ export function LanguageSyncProvider({ children, initialLanguage }: LanguageSync
     }
   }, [initialLanguage, currentLanguage, isClientHydrated, isHydrated, setCurrentLang]);
 
-  // hydration이 완료되지 않은 경우 로딩 표시
-  if (!isClientHydrated || !isHydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600 text-sm">언어 설정을 로드하는 중...</p>
-        </div>
-      </div>
-    );
-  }
+  // 로딩 상태 계산
+  const isLoading = !isClientHydrated || !isHydrated;
 
   return (
     <TranslationSuspenseProvider language={targetLanguage} key={targetLanguage}>
-      {children}
+      {isLoading ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600 text-sm">언어 설정을 로드하는 중...</p>
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </TranslationSuspenseProvider>
   );
 } 

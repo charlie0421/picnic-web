@@ -71,6 +71,23 @@ const checkedLanguages = new Set<Language>();
 function TranslationChecker({ language }: { language: Language }) {
   const { loadTranslations, isTranslationLoaded, translations, isHydrated } = useLanguageStore();
   
+  // 모든 훅을 먼저 호출한 후 조건부 로직 처리
+  const isLoaded = isTranslationLoaded[language] && 
+    translations[language] && 
+    Object.keys(translations[language]).length > 0;
+
+  // 디버깅 로그
+  if (!checkedLanguages.has(language)) {
+    console.log(`🔍 [TranslationChecker] Checking ${language}:`, {
+      isTranslationLoaded: isTranslationLoaded[language],
+      hasTranslations: !!translations[language],
+      translationCount: Object.keys(translations[language] || {}).length,
+      isLoaded,
+      isHydrated
+    });
+    checkedLanguages.add(language);
+  }
+
   // hydration이 완료되지 않은 경우 로딩으로 간주
   if (!isHydrated) {
     console.log(`⏳ [TranslationChecker] Waiting for hydration for ${language}`);
@@ -86,22 +103,6 @@ function TranslationChecker({ language }: { language: Language }) {
       checkHydration();
     });
     throw promise;
-  }
-  
-  const isLoaded = isTranslationLoaded[language] && 
-    translations[language] && 
-    Object.keys(translations[language]).length > 0;
-
-  // 디버깅 로그
-  if (!checkedLanguages.has(language)) {
-    console.log(`🔍 [TranslationChecker] Checking ${language}:`, {
-      isTranslationLoaded: isTranslationLoaded[language],
-      hasTranslations: !!translations[language],
-      translationCount: Object.keys(translations[language] || {}).length,
-      isLoaded,
-      isHydrated
-    });
-    checkedLanguages.add(language);
   }
 
   const translationPromise = new TranslationPromise(
