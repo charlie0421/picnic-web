@@ -349,25 +349,146 @@ export class SocialAuthService implements SocialAuthServiceInterface {
     this.log(`${provider} 콜백 처리`, params);
 
     try {
-      // 세션 정보 가져오기
+      // OAuth 콜백에서는 URL 해시나 검색 파라미터에서 세션 정보를 추출해야 함
+      if (typeof window !== "undefined") {
+        // 브라우저 환경에서 URL 해시 확인
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const searchParams = new URLSearchParams(window.location.search);
+        
+        // access_token이나 code가 있는지 확인
+        const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
+        const code = searchParams.get('code');
+        
+        this.log(`${provider} 콜백 파라미터 확인`, {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          hasCode: !!code,
+          hashParams: Object.fromEntries(hashParams.entries()),
+          searchParams: Object.fromEntries(searchParams.entries())
+        });
+
+        // 토큰이 URL에 있으면 세션 설정
+        if (accessToken) {
+          const { data, error } = await this.supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+
+          if (error) {
+            throw new SocialAuthError(
+              SocialAuthErrorCode.CALLBACK_FAILED,
+              `토큰으로 세션 설정 실패: ${error.message}`,
+              provider,
+              error,
+            );
+          }
+
+          if (data.session) {
+            this.log(`${provider} 토큰으로 세션 생성 성공`);
+            
+            // Google 특화 처리
+            if (provider === "google") {
+              await this.handleGoogleProfile(data.session, params);
+            }
+
+            // Apple 특화 처리
+            if (provider === "apple") {
+              await this.handleAppleProfile(data.session, params);
+            }
+
+            // 로컬 스토리지에 인증 성공 정보 저장
+            if (typeof window !== "undefined") {
+              localStorage.setItem("auth_success", "true");
+              localStorage.setItem("auth_provider", provider);
+              localStorage.setItem("auth_timestamp", Date.now().toString());
+              
+              // URL 정리 (토큰 제거)
+              const cleanUrl = new URL(window.location.href);
+              cleanUrl.hash = '';
+              cleanUrl.searchParams.delete('access_token');
+              cleanUrl.searchParams.delete('refresh_token');
+              cleanUrl.searchParams.delete('expires_in');
+              cleanUrl.searchParams.delete('token_type');
+              window.history.replaceState({}, '', cleanUrl.toString());
+            }
+
+            return {
+              success: true,
+              session: data.session,
+              user: data.session.user,
+              provider,
+              message: `${provider} 로그인 성공`,
+            };
+          }
+        }
+      }
+
+      // 기존 방식: 이미 설정된 세션 확인
+      this.log(`${provider} 기존 세션 확인`);
       const { data, error } = await this.supabase.auth.getSession();
 
       if (error) {
-        throw new SocialAuthError(
-          SocialAuthErrorCode.CALLBACK_FAILED,
-          `인증 세션 가져오기 실패: ${error.message}`,
-          provider,
-          error,
-        );
+        // Supabase의 자동 콜백 처리 시도
+        this.log(`${provider} Supabase 자동 콜백 처리 시도`);
+        
+        // 잠시 대기 후 다시 세션 확인 (Supabase의 자동 처리 시간 확보)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { data: retryData, error: retryError } = await this.supabase.auth.getSession();
+        
+        if (retryError || !retryData.session) {
+          throw new SocialAuthError(
+            SocialAuthErrorCode.CALLBACK_FAILED,
+            `인증 세션 가져오기 실패: ${error.message}`,
+            provider,
+            error,
+          );
+        }
+        
+        // 재시도로 세션을 얻었다면 해당 세션 사용
+        if (retryData.session) {
+          this.log(`${provider} 재시도로 세션 확인 성공`);
+          
+          // Google 특화 처리
+          if (provider === "google") {
+            await this.handleGoogleProfile(retryData.session, params);
+          }
+
+          // Apple 특화 처리
+          if (provider === "apple") {
+            await this.handleAppleProfile(retryData.session, params);
+          }
+
+          // 로컬 스토리지에 인증 성공 정보 저장
+          if (typeof window !== "undefined") {
+            localStorage.setItem("auth_success", "true");
+            localStorage.setItem("auth_provider", provider);
+            localStorage.setItem("auth_timestamp", Date.now().toString());
+          }
+
+          return {
+            success: true,
+            session: retryData.session,
+            user: retryData.session.user,
+            provider,
+            message: `${provider} 로그인 성공`,
+          };
+        }
       }
 
       if (!data.session) {
+        // 최후의 수단: 페이지 새로고침 후 세션 확인 요청
+        this.log(`${provider} 세션이 없음 - 페이지 새로고침 필요`);
+        
         throw new SocialAuthError(
           SocialAuthErrorCode.CALLBACK_FAILED,
-          "세션이 없습니다. 인증 프로세스가 완료되지 않았습니다.",
+          "세션이 생성되지 않았습니다. 페이지를 새로고침하거나 다시 로그인해주세요.",
           provider,
         );
       }
+
+      this.log(`${provider} 기존 세션 확인 성공`);
 
       // Google 특화 처리
       if (provider === "google" && data.session) {
@@ -655,15 +776,37 @@ let socialAuthServiceInstance: SocialAuthService | null = null;
 /**
  * 소셜 인증 서비스 인스턴스 생성 또는 가져오기
  *
- * @param supabase Supabase 클라이언트 인스턴스
+ * @param supabase Supabase 클라이언트 인스턴스 (옵션)
  * @returns SocialAuthService 인스턴스
  */
 export function getSocialAuthService(
-  supabase: SupabaseClient<Database>,
+  supabase?: SupabaseClient<Database>,
 ): SocialAuthService {
+  // Supabase 클라이언트가 제공되지 않은 경우 자동 생성
+  if (!supabase) {
+    if (typeof window !== "undefined") {
+      // 브라우저 환경에서는 동적 import 사용
+      const { createBrowserSupabaseClient } = require("@/lib/supabase/client");
+      supabase = createBrowserSupabaseClient();
+      console.log("🔍 getSocialAuthService: 브라우저 Supabase 클라이언트 자동 생성");
+    } else {
+      throw new Error("서버 환경에서는 Supabase 클라이언트를 명시적으로 전달해야 합니다.");
+    }
+  }
+
+  // 인스턴스가 없거나 다른 클라이언트가 전달된 경우 새로 생성
   if (!socialAuthServiceInstance) {
     socialAuthServiceInstance = new SocialAuthService(supabase);
+    console.log("🔍 getSocialAuthService: 새로운 SocialAuthService 인스턴스 생성");
   }
 
   return socialAuthServiceInstance;
+}
+
+/**
+ * 소셜 인증 서비스 인스턴스 재설정 (테스트용)
+ */
+export function resetSocialAuthService(): void {
+  socialAuthServiceInstance = null;
+  console.log("🔄 getSocialAuthService: 인스턴스 재설정 완료");
 }
