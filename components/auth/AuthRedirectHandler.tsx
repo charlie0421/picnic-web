@@ -9,6 +9,11 @@ import {
   clearRedirectUrl,
   clearAllAuthData,
 } from '@/utils/auth-redirect';
+import { 
+  performLogout, 
+  isLoggedOut, 
+  getRemainingAuthItems 
+} from '@/lib/auth/logout';
 
 // 보호된 라우트 패턴
 const PROTECTED_ROUTES = [
@@ -38,6 +43,7 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
   const pathname = usePathname();
   const lastAuthState = useRef<boolean | null>(null);
   const redirectProcessed = useRef<boolean>(false);
+  const lastVerificationTime = useRef<number>(0);
   
   // 인증 상태 강화 확인
   const [isAuthStateVerified, setIsAuthStateVerified] = useState(false);
@@ -45,7 +51,7 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
   const verifyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
-   * 완전한 로그아웃 처리
+   * 완전한 로그아웃 처리 (새로운 포괄적 로그아웃 시스템 사용)
    */
   const performCompleteLogout = async (reason?: string) => {
     console.log('🚪 [AuthRedirectHandler] 완전한 로그아웃 처리 시작:', reason);
@@ -69,13 +75,65 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
       //   }
       // });
 
-      // 5. 상태 리셋
+      console.log('📊 [AuthRedirectHandler] 로그아웃 결과:', logoutResult);
+
+      // 2. AuthProvider signOut 호출 (추가 안전장치)
+      try {
+        await signOut();
+      } catch (err) {
+        console.warn('⚠️ [AuthRedirectHandler] AuthProvider signOut 오류:', err);
+      }
+
+      // 3. 로컬 상태 리셋
       setIsAuthStateVerified(false);
+      setAuthVerificationCount(0);
       redirectProcessed.current = false;
+      lastAuthState.current = false;
+
+      // 4. 남은 인증 데이터 확인 및 로깅
+      const remainingItems = getRemainingAuthItems();
+      if (remainingItems.length > 0) {
+        console.warn('⚠️ [AuthRedirectHandler] 남은 인증 데이터:', remainingItems);
+        
+        // 추가 정리 시도
+        remainingItems.forEach(item => {
+          try {
+            const [storageType, key] = item.split('.');
+            if (storageType === 'localStorage' && typeof window !== 'undefined') {
+              localStorage.removeItem(key);
+            } else if (storageType === 'sessionStorage' && typeof window !== 'undefined') {
+              sessionStorage.removeItem(key);
+            }
+          } catch (err) {
+            console.warn(`데이터 정리 실패: ${item}`, err);
+          }
+        });
+      }
 
       console.log('✅ [AuthRedirectHandler] 완전한 로그아웃 완료');
+      
+      // 5. 로그인 페이지로 강제 이동 (약간의 지연)
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      }, 500);
+      
     } catch (error) {
       console.error('💥 [AuthRedirectHandler] 로그아웃 처리 오류:', error);
+      
+      // 응급 로그아웃 (에러 시)
+      try {
+        clearAllAuthData();
+        setIsAuthStateVerified(false);
+        redirectProcessed.current = false;
+        
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      } catch (err) {
+        console.error('💥 [AuthRedirectHandler] 응급 로그아웃도 실패:', err);
+      }
     }
   };
 
@@ -99,6 +157,14 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
 
     try {
       console.log('🔍 [AuthRedirectHandler] 강화된 인증 상태 검증 시작');
+      setAuthVerificationCount(prev => prev + 1);
+
+      // 0. 포괄적 로그아웃 상태 체크
+      if (isLoggedOut()) {
+        console.warn('❌ [AuthRedirectHandler] 포괄적 로그아웃 상태 감지');
+        await performCompleteLogout('포괄적 로그아웃 상태 감지');
+        return false;
+      }
 
       // 1. 기본 인증 상태 체크
       if (!isAuthenticated || !user || !session) {
@@ -108,6 +174,7 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
           hasSession: !!session,
         });
         setIsAuthStateVerified(false);
+        await performCompleteLogout('기본 인증 상태 실패');
         return false;
       }
 
@@ -115,6 +182,7 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
       if (session.expires_at) {
         const expiryTime = new Date(session.expires_at * 1000);
         const now = new Date();
+
         if (now >= expiryTime) {
           console.warn('⏰ [AuthRedirectHandler] 세션이 만료됨 (자동 로그아웃 비활성화)');
           // await performCompleteLogout('세션 만료'); // 자동 로그아웃 제거
@@ -122,6 +190,7 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
           return false;
         }
       }
+
 
       // 3. 서버 사이드 세션 검증 (자동 로그아웃 없음, 경고만)
       console.log('🔍 [AuthRedirectHandler] 서버 사이드 세션 검증 시작');
@@ -213,6 +282,7 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
       }
       
       setIsAuthStateVerified(false);
+      await performCompleteLogout('인증 상태 검증 오류');
       return false;
     } finally {
       setIsVerifyingAuth(false);
@@ -241,6 +311,7 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
     const isProtectedRoute = PROTECTED_ROUTES.some(route => 
       pathname.includes(route)
     );
+
 
     if (isProtectedRoute && !isAuthenticated) {
       console.warn('🛡️ [AuthRedirectHandler] 보호된 라우트 접근 차단 (인증되지 않음):', pathname);

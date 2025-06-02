@@ -16,6 +16,21 @@ const customJestConfig = {
   moduleNameMapper: {
     // 경로 별칭 핸들링 - 정규식 수정
     '@/(.*)': '<rootDir>/$1',
+    // Swiper 모듈 처리
+    '^swiper/react$': '<rootDir>/__mocks__/swiper-react.js',
+    '^swiper$': '<rootDir>/__mocks__/swiper.js',
+    '^swiper/modules$': '<rootDir>/__mocks__/swiper-modules.js',
+    '^swiper/(.*)$': '<rootDir>/__mocks__/swiper.js',
+    // CSS 모듈 처리
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+  },
+  // ES 모듈 변환을 위한 설정
+  transformIgnorePatterns: [
+    'node_modules/(?!(swiper|ssr-window|dom7)/)',
+  ],
+  // 글로벌 설정
+  globals: {
+    fetch: global.fetch,
   },
   collectCoverage: true,
   coverageDirectory: 'coverage',
