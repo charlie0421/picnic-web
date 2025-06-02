@@ -6,7 +6,7 @@ import React from 'react';
 import { screen, fireEvent } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import { renderWithProviders } from '../../utils/test-utils';
-import RetryButton from '../../../components/client/RetryButton';
+import { RetryButton } from '../../../components/client/RetryButton';
 
 // Next.js router 모킹
 jest.mock('next/navigation', () => ({

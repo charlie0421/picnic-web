@@ -7,6 +7,17 @@ import { TextEncoder, TextDecoder } from 'util';
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// fetch API 모킹
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({}),
+    text: () => Promise.resolve(''),
+    status: 200,
+    statusText: 'OK',
+  })
+);
+
 // Request, Response, Headers 모킹
 global.Request = class Request {
   constructor(input, init = {}) {

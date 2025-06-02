@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { render } from '@testing-library/react';
-import ClientNavigationSetter from '@/components/client/ClientNavigationSetter';
+import { ClientNavigationSetter } from '@/components/client/ClientNavigationSetter';
 import { PortalType } from '@/utils/enums';
 import { renderWithProviders } from '../../utils/test-utils';
 
