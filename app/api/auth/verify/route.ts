@@ -1,5 +1,6 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClientWithCookies } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { headers, cookies } from 'next/headers';
 
 /**
  * 인증 상태 검증 API 엔드포인트
@@ -9,11 +10,29 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔍 [Auth Verify API] 인증 상태 검증 요청 받음');
 
-    // 서버사이드 Supabase 클라이언트 생성
-    const supabase = createServerSupabaseClient();
+    // App Router에서 쿠키를 읽을 수 있는 서버사이드 Supabase 클라이언트 생성
+    const cookieStore = await cookies();
+    
+    const supabase = createServerSupabaseClientWithCookies({
+      get: (name: string) => {
+        const cookie = cookieStore.get(name);
+        return cookie ? { name: cookie.name, value: cookie.value } : undefined;
+      },
+      set: (cookie: { name: string; value: string; [key: string]: any }) => {
+        cookieStore.set(cookie.name, cookie.value, cookie);
+      }
+    });
+
+    console.log('🔍 [Auth Verify API] Supabase 클라이언트 생성 완료');
 
     // 현재 세션 확인
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    console.log('🔍 [Auth Verify API] 세션 조회 결과:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      sessionError: sessionError?.message,
+    });
     
     if (sessionError) {
       console.warn('⚠️ [Auth Verify API] 세션 조회 오류:', sessionError);
@@ -116,8 +135,7 @@ export async function GET(request: NextRequest) {
       expiresAt: new Date(session.expires_at! * 1000).toISOString(),
     });
 
-    // 성공 응답
-    return NextResponse.json({ 
+    return NextResponse.json({
       valid: true,
       user: {
         id: userData.user.id,
@@ -127,17 +145,15 @@ export async function GET(request: NextRequest) {
       session: {
         expiresAt: new Date(session.expires_at! * 1000).toISOString(),
       },
-      message: '인증 상태가 유효합니다.'
     });
-
   } catch (error) {
-    console.error('💥 [Auth Verify API] 검증 중 예외 발생:', error);
+    console.error('💥 [Auth Verify API] 처리 중 오류:', error);
     
     return NextResponse.json(
       { 
         valid: false, 
-        error: error instanceof Error ? error.message : '알 수 없는 오류',
-        message: '인증 상태 검증 중 오류가 발생했습니다.'
+        error: 'Internal server error',
+        message: '서버 내부 오류가 발생했습니다.'
       }, 
       { status: 500 }
     );

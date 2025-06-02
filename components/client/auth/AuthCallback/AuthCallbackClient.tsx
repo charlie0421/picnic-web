@@ -23,6 +23,161 @@ export default function AuthCallbackClient({
 
     const handleCallback = async () => {
       try {
+        // Supabase 자체 OAuth 콜백 처리 먼저 시도
+        console.log('🔍 [AuthCallback] Supabase 자체 OAuth 콜백 처리 시작');
+        
+        // Supabase 클라이언트 생성
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        // URL에 OAuth 파라미터가 있는지 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        
+        const hasOAuthParams = !!(
+          urlParams.get('code') || 
+          urlParams.get('access_token') || 
+          hashParams.get('access_token') ||
+          urlParams.get('error')
+        );
+
+        if (hasOAuthParams) {
+          console.log('🔍 [AuthCallback] OAuth 파라미터 감지, Supabase 자동 처리 시도');
+          
+          try {
+            // Supabase의 자동 세션 복구 시도
+            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+            
+            if (!sessionError && sessionData.session) {
+              console.log('✅ [AuthCallback] Supabase 자동 처리로 세션 복구 성공');
+              
+              // 서버 사이드 쿠키 동기화 강제 실행
+              try {
+                console.log('🔄 [AuthCallback] 서버 사이드 쿠키 동기화 시도');
+                const syncResponse = await fetch('/api/auth/verify', {
+                  method: 'GET',
+                  credentials: 'include',
+                });
+                
+                if (syncResponse.ok) {
+                  console.log('✅ [AuthCallback] 서버 사이드 쿠키 동기화 성공');
+                } else {
+                  console.warn('⚠️ [AuthCallback] 서버 사이드 쿠키 동기화 실패, 하지만 진행');
+                }
+              } catch (syncError) {
+                console.warn('⚠️ [AuthCallback] 쿠키 동기화 오류, 하지만 진행:', syncError);
+              }
+              
+              setStatus('인증 성공! 리디렉션 중...');
+              
+              // 저장된 리다이렉트 URL로 이동
+              const returnUrl = typeof window !== 'undefined' && localStorage ? 
+                (localStorage.getItem('auth_return_url') || '/') : '/';
+              
+              if (typeof window !== 'undefined' && localStorage) {
+                localStorage.setItem("auth_success", "true");
+                localStorage.setItem("auth_provider", provider || 'google');
+                localStorage.setItem("auth_timestamp", Date.now().toString());
+                localStorage.removeItem('auth_return_url');
+              }
+              
+              // 약간의 지연을 두어 상태 안정화
+              setTimeout(() => {
+                console.log('🚀 [AuthCallback] 리다이렉트 실행:', returnUrl);
+                router.push(returnUrl);
+              }, 300);
+              return; // 성공했으므로 더 이상 진행하지 않음
+            }
+            
+            // 세션이 없다면 OAuth 이벤트 리스너 등록 후 대기
+            console.log('🔄 [AuthCallback] 세션이 없음, OAuth 이벤트 대기 중...');
+            
+            let authEventHandled = false;
+            const authTimeout = setTimeout(() => {
+              if (!authEventHandled) {
+                console.log('⏰ [AuthCallback] OAuth 이벤트 타임아웃, 수동 처리로 전환');
+                proceedWithManualHandling();
+              }
+            }, 3000); // 3초 대기
+
+            // OAuth 상태 변경 이벤트 리스너
+            const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+              console.log('🔔 [AuthCallback] Auth 상태 변경:', { event, hasSession: !!session });
+              
+              if (event === 'SIGNED_IN' && session && !authEventHandled) {
+                authEventHandled = true;
+                clearTimeout(authTimeout);
+                
+                console.log('✅ [AuthCallback] OAuth 이벤트로 로그인 성공');
+                
+                // 성공 처리
+                const returnUrl = typeof window !== 'undefined' && localStorage ? 
+                  (localStorage.getItem('auth_return_url') || '/') : '/';
+                
+                // localStorage 정리
+                if (typeof window !== 'undefined' && localStorage) {
+                  localStorage.setItem("auth_success", "true");
+                  localStorage.setItem("auth_provider", provider || 'google');
+                  localStorage.setItem("auth_timestamp", Date.now().toString());
+                  localStorage.removeItem('auth_return_url');
+                }
+                
+                setStatus('인증 성공! 리디렉션 중...');
+                
+                // 리스너 정리
+                authListener.subscription.unsubscribe();
+                
+                router.push(returnUrl);
+                return;
+              }
+              
+              if (event === 'SIGNED_OUT' && !authEventHandled) {
+                authEventHandled = true;
+                clearTimeout(authTimeout);
+                console.warn('❌ [AuthCallback] OAuth 이벤트로 로그아웃 감지');
+                
+                // 리스너 정리
+                authListener.subscription.unsubscribe();
+                
+                proceedWithManualHandling();
+              }
+            });
+
+            // 수동 처리 함수
+            const proceedWithManualHandling = () => {
+              console.log('🔄 [AuthCallback] 수동 OAuth 콜백 처리로 전환');
+              handleManualCallback();
+            };
+
+            // 컴포넌트 언마운트 시 리스너 정리
+            return () => {
+              if (authListener?.subscription) {
+                authListener.subscription.unsubscribe();
+              }
+              clearTimeout(authTimeout);
+            };
+            
+          } catch (supabaseError) {
+            console.warn('⚠️ [AuthCallback] Supabase 자동 처리 실패:', supabaseError);
+            handleManualCallback();
+          }
+        } else {
+          console.log('🔍 [AuthCallback] OAuth 파라미터 없음, 수동 처리 시작');
+          handleManualCallback();
+        }
+        
+      } catch (error) {
+        console.error('💥 [AuthCallback] 초기 처리 오류:', error);
+        handleManualCallback();
+      }
+    };
+
+    // 수동 콜백 처리 함수
+    const handleManualCallback = async () => {
+      try {
         // provider 자동 감지 로직
         let detectedProvider = provider;
         
@@ -602,7 +757,29 @@ export default function AuthCallbackClient({
                 localStorage.removeItem('apple_oauth_state');
               }
 
-              router.push(returnUrl);
+              // 서버 사이드 쿠키 동기화 강제 실행
+              try {
+                console.log('🔄 [AuthCallback] 서버 사이드 쿠키 동기화 시도 (수동 처리)');
+                const syncResponse = await fetch('/api/auth/verify', {
+                  method: 'GET',
+                  credentials: 'include',
+                });
+                
+                if (syncResponse.ok) {
+                  console.log('✅ [AuthCallback] 서버 사이드 쿠키 동기화 성공 (수동 처리)');
+                } else {
+                  console.warn('⚠️ [AuthCallback] 서버 사이드 쿠키 동기화 실패, 하지만 진행 (수동 처리)');
+                }
+              } catch (syncError) {
+                console.warn('⚠️ [AuthCallback] 쿠키 동기화 오류, 하지만 진행 (수동 처리):', syncError);
+              }
+              
+              console.log(`✅ [AuthCallback] ${providerType} 로그인 성공, 리디렉션:`, returnUrl);
+              
+              // 약간의 지연을 두어 상태 안정화
+              setTimeout(() => {
+                router.push(returnUrl);
+              }, 300);
             } else {
               throw new Error(
                 result.message || `HTTP ${response.status}: 인증 처리 실패`,
@@ -651,24 +828,101 @@ export default function AuthCallbackClient({
           paramObj[key] = value;
         });
 
+        console.log(`🔍 [AuthCallback] ${providerType} 콜백 처리 시작:`, {
+          url: typeof window !== 'undefined' ? window.location.href : 'SSR',
+          params: paramObj,
+          provider: providerType,
+        });
+
         const socialAuthService = await import('@/lib/supabase/social');
         const authResult = await socialAuthService.getSocialAuthService().handleCallback(
           providerType,
           paramObj,
         );
 
+        console.log(`🔍 [AuthCallback] ${providerType} 콜백 처리 결과:`, authResult);
+
         if (authResult.success) {
           setStatus('인증 성공! 리디렉션 중...');
+          
+          // 서버 사이드 쿠키 동기화 강제 실행
+          try {
+            console.log('🔄 [AuthCallback] 서버 사이드 쿠키 동기화 시도 (수동 처리)');
+            const syncResponse = await fetch('/api/auth/verify', {
+              method: 'GET',
+              credentials: 'include',
+            });
+            
+            if (syncResponse.ok) {
+              console.log('✅ [AuthCallback] 서버 사이드 쿠키 동기화 성공 (수동 처리)');
+            } else {
+              console.warn('⚠️ [AuthCallback] 서버 사이드 쿠키 동기화 실패, 하지만 진행 (수동 처리)');
+            }
+          } catch (syncError) {
+            console.warn('⚠️ [AuthCallback] 쿠키 동기화 오류, 하지만 진행 (수동 처리):', syncError);
+          }
+          
           const returnUrl = typeof window !== 'undefined' && localStorage ? 
             (localStorage.getItem('auth_return_url') || '/') : '/';
           if (typeof window !== 'undefined' && localStorage) {
             localStorage.removeItem('auth_return_url');
           }
-          router.push(returnUrl);
+          
+          console.log(`✅ [AuthCallback] ${providerType} 로그인 성공, 리디렉션:`, returnUrl);
+          
+          // 약간의 지연을 두어 상태 안정화
+          setTimeout(() => {
+            router.push(returnUrl);
+          }, 300);
         } else if (authResult.error) {
-          setError(`인증 오류: ${authResult.error.message}`);
+          console.warn(`❌ [AuthCallback] ${providerType} 인증 실패:`, authResult.error.message);
+          
+          // 세션 생성 실패의 경우 페이지 새로고침 시도
+          if (authResult.error.message.includes('세션이 생성되지 않았습니다') || 
+              authResult.error.message.includes('페이지를 새로고침')) {
+            
+            // 새로고침 시도 여부 확인 (무한 루프 방지)
+            const refreshAttempted = sessionStorage.getItem(`${providerType}_refresh_attempted`);
+            
+            if (!refreshAttempted) {
+              console.log(`🔄 [AuthCallback] ${providerType} 세션 생성 실패 - 페이지 새로고침 시도`);
+              
+              // 새로고침 시도 플래그 설정 (5분간 유효)
+              sessionStorage.setItem(`${providerType}_refresh_attempted`, Date.now().toString());
+              setTimeout(() => {
+                sessionStorage.removeItem(`${providerType}_refresh_attempted`);
+              }, 5 * 60 * 1000);
+              
+              setStatus('세션 생성을 위해 페이지를 새로고침하고 있습니다...');
+              
+              // 2초 후 새로고침
+              setTimeout(() => {
+                window.location.reload();
+              }, 2000);
+              
+              return; // 더 이상 진행하지 않음
+            } else {
+              // 이미 새로고침을 시도했다면 다른 대안 제시
+              const refreshTime = parseInt(refreshAttempted);
+              const timeSinceRefresh = Date.now() - refreshTime;
+              
+              if (timeSinceRefresh < 5 * 60 * 1000) { // 5분 이내
+                console.log(`⚠️ [AuthCallback] ${providerType} 이미 새로고침 시도함 (${Math.floor(timeSinceRefresh / 1000)}초 전)`);
+                setError(`${providerType} 로그인에 기술적 문제가 있습니다. 잠시 후 다시 시도하거나 다른 로그인 방법을 이용해주세요.`);
+              } else {
+                // 5분이 지났으면 다시 새로고침 허용
+                sessionStorage.removeItem(`${providerType}_refresh_attempted`);
+                console.log(`🔄 [AuthCallback] ${providerType} 5분 경과 - 새로고침 재시도 허용`);
+                window.location.reload();
+                return;
+              }
+            }
+          } else {
+            setError(`${providerType} 인증 오류: ${authResult.error.message}`);
+          }
         } else {
-          setError('알 수 없는 인증 오류가 발생했습니다.');
+          console.error(`❌ [AuthCallback] ${providerType} 알 수 없는 인증 오류`);
+          setError(`${providerType} 알 수 없는 인증 오류가 발생했습니다.`);
         }
       } catch (error) {
         console.error('콜백 처리 오류:', error);

@@ -28,36 +28,47 @@ export default function SocialLoginButtons({
 
   const handleSocialLogin = useCallback(
     async (provider: SocialLoginProvider) => {
+      console.log(`🔍 [SocialLoginButtons] ${provider} 로그인 시도 시작`);
+      
       try {
+        // 로딩 상태 설정
+        setIsLoading(provider);
+        
         // 로그인 시작 콜백
         onLoginStart?.();
 
-        // 소셜 로그인 서비스 인스턴스 가져오기
+        // 소셜 로그인 서비스 인스턴스 가져오기 (자동으로 Supabase 클라이언트 생성)
         const socialAuthService = getSocialAuthService();
+        console.log(`🔍 [SocialLoginButtons] SocialAuthService 인스턴스 생성 완료`);
 
         // 선택된 제공자로 로그인 시도
-        const result = await socialAuthService.signInWithProvider(provider,
-          {
-            redirectUrl: `${window.location.origin}/auth/callback/${provider}`,
-          }
-        );
+        console.log(`🔍 [SocialLoginButtons] ${provider} 로그인 서비스 호출 시작`);
+        const result = await socialAuthService.signInWithProvider(provider, {
+          redirectUrl: `${window.location.origin}/auth/callback/${provider}`,
+        });
+
+        console.log(`🔍 [SocialLoginButtons] ${provider} 로그인 서비스 호출 결과:`, result);
 
         // 로그인 성공 시 (리디렉션 중)
         if (result.success) {
           // 리디렉션 중이므로 완료 콜백은 호출되지 않음
           // 사용자는 callback 처리 후에 리디렉션되어 돌아옴
-          console.log(`${provider} 로그인 리디렉션 중...`);
+          console.log(`✅ [SocialLoginButtons] ${provider} 로그인 리디렉션 중...`);
         } else if (result.error) {
           // 오류 처리
+          console.error(`❌ [SocialLoginButtons] ${provider} 로그인 실패:`, result.error);
           onError?.(result.error);
         }
       } catch (error) {
-        console.error('소셜 로그인 오류:', error);
+        console.error(`💥 [SocialLoginButtons] ${provider} 소셜 로그인 오류:`, error);
         onError?.(
           error instanceof Error
             ? error
             : new Error(t('unknown_login_error')),
         );
+      } finally {
+        // 로딩 상태 해제 (리디렉션되지 않은 경우에만)
+        setIsLoading(null);
       }
     },
     [onLoginStart, onError, t],
