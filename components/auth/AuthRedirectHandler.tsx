@@ -3,18 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/supabase/auth-provider';
-// import { usePeriodicAuthVerification } from '@/hooks/usePeriodicAuthVerification'; // 자동 로그아웃 방지를 위해 제거
 import {
-  // handlePostLoginRedirect, // 사용하지 않음
-  // handleSessionTimeout, // 사용하지 않음
   securityUtils,
   getRedirectUrl,
   clearRedirectUrl,
   clearAllAuthData,
 } from '@/utils/auth-redirect';
-
-// 세션 타임아웃 설정 제거 (자동 로그아웃 방지)
-// const SESSION_TIMEOUT = 30 * 60 * 1000;
 
 // 보호된 라우트 패턴
 const PROTECTED_ROUTES = [
@@ -43,7 +37,6 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
   const router = useRouter();
   const pathname = usePathname();
   const lastAuthState = useRef<boolean | null>(null);
-  // const sessionTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 세션 타임아웃 제거
   const redirectProcessed = useRef<boolean>(false);
   
   // 인증 상태 강화 확인
