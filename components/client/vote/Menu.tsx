@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
 import {useLanguageStore} from '@/stores/languageStore';
+import {useLocaleRouter} from '@/hooks/useLocaleRouter';
 import menuConfig from '@/config/menu.json';
 import CurrentTime from './common/CurrentTime';
 
@@ -13,6 +14,7 @@ import CurrentTime from './common/CurrentTime';
  */
 export const Menu: React.FC = () => {
   const { t, currentLanguage, translations, isTranslationLoaded } = useLanguageStore();
+  const { getLocalizedPath, removeLocaleFromPath } = useLocaleRouter();
   const pathname = usePathname();
 
   // 현재 언어의 번역이 로드되었는지 확인
@@ -35,8 +37,8 @@ export const Menu: React.FC = () => {
   // 현재 경로에 따라 메뉴 항목의 활성 상태 결정
   const isActive = (path: string) => {
     // 언어 코드를 제외한 경로 비교
-    const currentPath = pathname.split('/').slice(2).join('/');
-    const targetPath = path.split('/').slice(1).join('/');
+    const currentPath = removeLocaleFromPath(pathname);
+    const targetPath = path.startsWith('/') ? path : `/${path}`;
     return currentPath.startsWith(targetPath);
   };
 
@@ -70,16 +72,20 @@ export const Menu: React.FC = () => {
       <div className='flex overflow-x-auto scrollbar-hide whitespace-nowrap w-full sm:w-auto'>
         {subMenus.map((menuItem) => {
           const translatedText = menuItem.i18nKey ? t(menuItem.i18nKey) : menuItem.name;
+          const localizedPath = getLocalizedPath(menuItem.path);
+          
           console.log(`🔍 Menu item ${menuItem.key}:`, { 
             i18nKey: menuItem.i18nKey, 
             translatedText,
+            originalPath: menuItem.path,
+            localizedPath,
             isKeyInTranslations: menuItem.i18nKey ? menuItem.i18nKey in (translations[currentLanguage] || {}) : false
           });
           
           return (
             <Link
               key={menuItem.key}
-              href={menuItem.path}
+              href={localizedPath}
               className={`px-5 py-2 text-sm sm:text-base ${
                 isActive(menuItem.path) &&
                 // 투표홈은 하위 경로가 아닐 때만 활성화

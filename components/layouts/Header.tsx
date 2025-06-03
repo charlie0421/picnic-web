@@ -6,6 +6,7 @@ import Image from 'next/image';
 import {usePathname} from 'next/navigation';
 import {useAuth} from '@/lib/supabase/auth-provider';
 import {useLanguageStore} from '@/stores/languageStore';
+import {useLocaleRouter} from '@/hooks/useLocaleRouter';
 import {DefaultAvatar, ProfileImageContainer,} from '@/components/ui/ProfileImageContainer';
 import PortalMenuItem from './PortalMenuItem';
 import {PORTAL_MENU} from '@/config/navigation';
@@ -15,6 +16,7 @@ import LanguageSelector from './LanguageSelector';
 const Header: React.FC = () => {
   const { isAuthenticated, userProfile, signOut } = useAuth();
   const { currentLanguage } = useLanguageStore();
+  const { getLocalizedPath } = useLocaleRouter();
   const pathname = usePathname();
 
   return (
@@ -25,9 +27,9 @@ const Header: React.FC = () => {
             {/* 로고 */}
             <div className='flex items-center'>
               <div className='flex items-center space-x-2'>
-                <Link href="/">
+                <Link href={getLocalizedPath('/')}>
                   <Image
-                    src='/images/logo.png'
+                    src='/images/auth/picnic-logo.svg'
                     alt='logo'
                     width={40}
                     height={40}

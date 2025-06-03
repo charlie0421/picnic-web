@@ -1,50 +1,95 @@
-import { Link } from 'lucide-react';
-import { Linden_Hill } from 'next/font/google';
+'use client';
+
 import React from 'react';
+import Link from 'next/link';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 interface AuthCallbackSkeletonProps {
   status?: string;
-  error?: string | null;
+  error?: string;
   onRetry?: () => void;
 }
 
 /**
- * 인증 콜백 페이지에서 사용하는 스켈레톤/로딩 UI
- * 정적 UI 부분은 서버 컴포넌트로 구현하고 
- * 버튼 클릭 같은 인터랙션이 필요한 부분만 클라이언트 컴포넌트로 분리
+ * 인증 콜백 로딩 스켈레톤 컴포넌트
+ * 인증 처리 중에 표시되는 로딩 화면
  */
-export default function AuthCallbackSkeleton({
-  status = '처리 중입니다...',
-  error = null,
-  onRetry,
-}: AuthCallbackSkeletonProps) {
-  // 에러 표시
+const AuthCallbackSkeleton: React.FC<AuthCallbackSkeletonProps> = ({ 
+  status = '로그인 처리 중...', 
+  error, 
+  onRetry 
+}) => {
+  const { getLocalizedPath } = useLocaleRouter();
+
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
-        <h1 className="text-2xl font-bold mb-4">로그인 오류</h1>
-        <p className="text-red-500 mb-6">{error}</p>
-        {/* 클라이언트 컴포넌트로 분리 필요한 부분 */}
-        {onRetry ? (
-          <div id="retry-button-container" data-retry-handler="true" />
-        ) : (
-          <Link
-            href="/login"
-            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
-          >
-            로그인으로 돌아가기
-          </Link>
-        )}
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+          <div className="text-center">
+            {/* 오류 아이콘 */}
+            <div className="mx-auto mb-6 w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            
+            {/* 오류 메시지 */}
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              로그인 오류
+            </h2>
+            <p className="text-gray-600 mb-6 whitespace-pre-line">
+              {error}
+            </p>
+            
+            {/* 버튼들 */}
+            <div className="space-y-2">
+              {onRetry && (
+                <button
+                  onClick={onRetry}
+                  className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  다시 시도
+                </button>
+              )}
+              <Link 
+                href={getLocalizedPath('/login')}
+                className="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                로그인 페이지로 돌아가기
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // 로딩 표시
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
-      <div className="animate-spin w-12 h-12 border-4 border-gray-200 border-t-blue-500 rounded-full mb-4"></div>
-      <h1 className="text-xl font-medium mb-2">처리 중입니다</h1>
-      <p className="text-gray-600">{status}</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
+        <div className="text-center">
+          {/* 로딩 애니메이션 */}
+          <div className="mx-auto mb-6 w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          
+          {/* 메시지 */}
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            로그인 처리 중...
+          </h2>
+          <p className="text-gray-600 mb-6 whitespace-pre-line">
+            {status}
+          </p>
+          
+          {/* 뒤로가기 링크 */}
+          <Link 
+            href={getLocalizedPath('/login')}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            로그인 페이지로 돌아가기
+          </Link>
+        </div>
+      </div>
     </div>
   );
-} 
+};
+
+export default AuthCallbackSkeleton; 

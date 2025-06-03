@@ -2,11 +2,55 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '@/types/supabase';
+import { clearAllAuthData } from '@/utils/auth-redirect';
 
 // 브라우저 클라이언트 타입을 미리 정의
 type BrowserSupabaseClient = ReturnType<typeof createBrowserClient<Database>>;
 
 let browserSupabase: BrowserSupabaseClient | null = null;
+let supabaseInstance: any = null;
+let authFailureCount = 0;
+const MAX_AUTH_FAILURES = 3;
+
+// 401 에러 감지 및 자동 로그아웃 처리
+const handleAuthError = async (error: any, context: string = 'unknown') => {
+  console.warn(`🚫 [Supabase] 인증 오류 감지 (${context}):`, error);
+  
+  authFailureCount++;
+  
+  if (authFailureCount >= MAX_AUTH_FAILURES) {
+    console.error(`🚨 [Supabase] 연속 인증 실패 ${authFailureCount}회 - 강제 로그아웃`);
+    
+    try {
+      // 강제 로그아웃 수행
+      const { emergencyLogout } = await import('@/lib/auth/logout');
+      await emergencyLogout();
+      
+      // 로그인 페이지로 이동
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          window.location.href = '/login?reason=auth_expired';
+        }, 1000);
+      }
+    } catch (logoutError) {
+      console.error('💥 [Supabase] 강제 로그아웃 실패:', logoutError);
+      
+      // 응급 처리
+      if (typeof window !== 'undefined') {
+        clearAllAuthData();
+        window.location.href = '/login?reason=auth_error';
+      }
+    }
+  }
+};
+
+// 인증 성공 시 실패 카운트 리셋
+const resetAuthFailureCount = () => {
+  if (authFailureCount > 0) {
+    console.log('✅ [Supabase] 인증 성공 - 실패 카운트 리셋');
+    authFailureCount = 0;
+  }
+};
 
 /**
  * 브라우저 환경에서 사용할 Supabase 클라이언트를 생성합니다.
@@ -89,7 +133,9 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
         // 자동 재연결 설정
         reconnectAfterMs: (tries: number) => {
           // 지수 백오프: 1초, 2초, 4초, 8초, 최대 30초
-          return Math.min(1000 * Math.pow(2, tries), 30000);
+          const delay = Math.min(1000 * Math.pow(2, tries), 30000);
+          console.log(`🔄 [Supabase] Realtime 재연결 시도 #${tries + 1}, ${delay}ms 후`);
+          return delay;
         },
         // 하트비트 간격 (30초)
         heartbeatIntervalMs: 30000,
@@ -106,6 +152,39 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
       hostname: window.location.hostname
     });
   }
+
+  // Auth 상태 변화 리스너 (강화됨)
+  browserSupabase.auth.onAuthStateChange(async (event: any, session: any) => {
+    console.log('🔄 [Supabase] Auth 상태 변화:', event, session ? 'session exists' : 'no session');
+    
+    switch (event) {
+      case 'SIGNED_IN':
+        console.log('✅ [Supabase] 로그인 성공');
+        resetAuthFailureCount();
+        break;
+        
+      case 'SIGNED_OUT':
+        console.log('🚪 [Supabase] 로그아웃 완료');
+        authFailureCount = 0;
+        break;
+        
+      case 'TOKEN_REFRESHED':
+        console.log('🔄 [Supabase] 토큰 갱신 성공');
+        resetAuthFailureCount();
+        break;
+        
+      case 'PASSWORD_RECOVERY':
+        console.log('🔑 [Supabase] 비밀번호 복구');
+        break;
+        
+      case 'USER_UPDATED':
+        console.log('👤 [Supabase] 사용자 정보 업데이트');
+        break;
+        
+      default:
+        console.log(`🔍 [Supabase] 알 수 없는 Auth 이벤트: ${event}`);
+    }
+  });
 
   return browserSupabase;
 }
@@ -141,42 +220,22 @@ export async function getCurrentSession() {
 export async function signOut() {
   const supabase = createBrowserSupabaseClient();
   
+  console.log('🚪 [Supabase] 로그아웃 프로세스 시작');
+  
   try {
-    console.log('🚪 [SignOut] 종합 로그아웃 시작');
+    // 1. Supabase auth sign out
+    const { error } = await supabase.auth.signOut({
+      scope: 'global'
+    });
 
-    // 1. 서버사이드 세션 무효화 API 호출 (먼저 시도)
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        console.log('✅ [SignOut] 서버사이드 세션 무효화 완료');
-      } else {
-        console.warn('⚠️ [SignOut] 서버사이드 세션 무효화 실패 (계속 진행)');
-      }
-    } catch (e) {
-      console.warn('⚠️ [SignOut] 서버사이드 세션 무효화 오류 (계속 진행):', e);
+    if (error) {
+      console.warn('⚠️ [SignOut] Supabase 로그아웃 오류 (계속 진행):', error.message);
+    } else {
+      console.log('✅ [SignOut] Supabase 로그아웃 완료');
     }
 
-    // 2. Supabase 세션 제거
-    try {
-      const { error } = await supabase.auth.signOut({
-        scope: 'global'
-      });
-
-      if (error) {
-        console.warn('⚠️ [SignOut] Supabase 로그아웃 오류 (계속 진행):', error);
-      } else {
-        console.log('✅ [SignOut] Supabase 세션 제거 완료');
-      }
-    } catch (e) {
-      console.warn('⚠️ [SignOut] Supabase 로그아웃 예외 (계속 진행):', e);
-    }
+    // 2. 실패 카운트 리셋
+    authFailureCount = 0;
 
     // 3. 모든 인증 관련 localStorage 데이터 제거
     try {
@@ -245,45 +304,20 @@ export async function signOut() {
       console.warn('⚠️ [SignOut] localStorage 정리 오류 (계속 진행):', e);
     }
 
-    // 4. 모든 인증 관련 sessionStorage 데이터 제거
+    // 4. sessionStorage 정리
     try {
-      const sessionAuthKeys = [
-        'redirect_url',
-        'auth_redirect_url',
-        'login_redirect',
-        'oauth_state',
-        'wechat_auth_code',
+      const sessionKeys = [
+        'redirectUrl',
+        'loginRedirect',
+        'authRedirect',
+        'auth_redirect_url'
       ];
 
-      // 명시적 키 제거
-      sessionAuthKeys.forEach(key => {
+      sessionKeys.forEach(key => {
         try {
           sessionStorage.removeItem(key);
         } catch (e) {
           console.warn(`⚠️ [SignOut] sessionStorage 키 제거 실패: ${key}`, e);
-        }
-      });
-
-      // 패턴 기반 키 제거
-      const sessionKeysToRemove: string[] = [];
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && (
-          key.includes('auth') || 
-          key.includes('redirect') || 
-          key.includes('login') ||
-          key.includes('oauth') ||
-          key.includes('wechat')
-        )) {
-          sessionKeysToRemove.push(key);
-        }
-      }
-      
-      sessionKeysToRemove.forEach(key => {
-        try {
-          sessionStorage.removeItem(key);
-        } catch (e) {
-          console.warn(`⚠️ [SignOut] sessionStorage 패턴 키 제거 실패: ${key}`, e);
         }
       });
 
@@ -292,142 +326,39 @@ export async function signOut() {
       console.warn('⚠️ [SignOut] sessionStorage 정리 오류 (계속 진행):', e);
     }
 
-    // 5. 모든 인증 관련 쿠키 제거
-    try {
-      const cookiesToRemove = [
-        'auth-token',
-        'auth-refresh-token',
-        'sb-auth-token',
-        'supabase-auth-token',
-        'wechat-auth',
-        'oauth-state',
-        'session-id',
-        'user-session',
-      ];
+    // 5. Supabase 인스턴스 초기화
+    browserSupabase = null;
 
-      // 명시적 쿠키 제거
-      cookiesToRemove.forEach(cookieName => {
-        try {
-          // 여러 경로와 도메인에서 제거 시도
-          const domains = ['', `.${window.location.hostname}`, window.location.hostname];
-          const paths = ['/', '/auth', '/api'];
-          
-          domains.forEach(domain => {
-            paths.forEach(path => {
-              document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
-            });
-          });
-        } catch (e) {
-          console.warn(`⚠️ [SignOut] 쿠키 제거 실패: ${cookieName}`, e);
-        }
-      });
+    console.log('✅ [SignOut] 전체 로그아웃 프로세스 완료');
 
-      // 패턴 기반 쿠키 제거
-      try {
-        document.cookie.split(';').forEach((cookie) => {
-          const cookieName = cookie.trim().split('=')[0];
-          if (cookieName && (
-            cookieName.includes('auth') || 
-            cookieName.includes('supabase') ||
-            cookieName.includes('login') ||
-            cookieName.includes('oauth') ||
-            cookieName.includes('wechat')
-          )) {
-            const domains = ['', `.${window.location.hostname}`, window.location.hostname];
-            const paths = ['/', '/auth', '/api'];
-            
-            domains.forEach(domain => {
-              paths.forEach(path => {
-                document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
-              });
-            });
-          }
-        });
-      } catch (e) {
-        console.warn('⚠️ [SignOut] 패턴 쿠키 제거 오류:', e);
-      }
-
-      console.log('✅ [SignOut] 쿠키 정리 완료');
-    } catch (e) {
-      console.warn('⚠️ [SignOut] 쿠키 정리 오류 (계속 진행):', e);
-    }
-
-    // 6. 메모리 캐시 정리 (window 객체에서 전역 변수들 정리)
-    try {
-      // 전역 인증 관련 변수들 정리
-      if (typeof window !== 'undefined') {
-        // Supabase 클라이언트 캐시 정리
-        browserSupabase = null;
-        
-        // 전역 변수 정리
-        const globalVarsToDelete = [
-          '__supabase_client',
-          '__auth_user',
-          '__user_profile',
-          '__auth_session',
-          'wechatAuth',
-          'googleAuth',
-          'kakaoAuth',
-        ];
-        
-        globalVarsToDelete.forEach(varName => {
-          try {
-            delete (window as any)[varName];
-          } catch (e) {
-            // 삭제 오류 무시
-          }
-        });
-      }
-
-      console.log('✅ [SignOut] 메모리 캐시 정리 완료');
-    } catch (e) {
-      console.warn('⚠️ [SignOut] 메모리 캐시 정리 오류 (계속 진행):', e);
-    }
-
-    // 7. WeChat SDK 로그아웃 시도 (WeChat이 활성화된 경우)
-    try {
-      if (typeof window !== 'undefined' && (window as any).WeixinJSBridge) {
-        console.log('🔄 [SignOut] WeChat SDK 로그아웃 시도');
-        // WeChat SDK 특별 처리 (필요시)
-      }
-    } catch (e) {
-      console.warn('⚠️ [SignOut] WeChat SDK 로그아웃 오류 (계속 진행):', e);
-    }
-
-    // 8. 리다이렉트 URL 정리 (auth-redirect.ts의 clearAllAuthData 호출)
-    try {
-      // 동적 import로 clearAllAuthData 함수 사용
-      const { clearAllAuthData } = await import('@/utils/auth-redirect');
-      clearAllAuthData();
-      console.log('✅ [SignOut] 리다이렉트 데이터 정리 완료');
-    } catch (e) {
-      console.warn('⚠️ [SignOut] 리다이렉트 데이터 정리 오류 (계속 진행):', e);
-    }
-
-    // 9. 최종 상태 체크 및 로깅
-    console.log('✅ [SignOut] 종합 로그아웃 완료');
-    
-    return { 
-      success: true,
-      message: '모든 인증 데이터가 성공적으로 정리되었습니다.'
-    };
-    
   } catch (error) {
-    console.error('❌ [SignOut] 종합 로그아웃 중 치명적 오류:', error);
+    console.error('💥 [SignOut] 로그아웃 프로세스 오류:', error);
     
-    // 치명적 오류가 발생해도 기본 정리는 시도
+    // 에러 발생 시에도 최소한의 정리 수행
+    authFailureCount = 0;
+    browserSupabase = null;
+    
     try {
-      localStorage.clear();
-      sessionStorage.clear();
-      console.log('🔧 [SignOut] 응급 스토리지 전체 정리 완료');
+      clearAllAuthData();
     } catch (e) {
-      console.error('💥 [SignOut] 응급 정리마저 실패:', e);
+      console.warn('⚠️ [SignOut] 응급 정리 실패:', e);
     }
-    
-    return { 
-      success: false, 
-      error,
-      message: '로그아웃 중 오류가 발생했지만 기본 정리는 완료되었습니다.'
-    };
   }
+}
+
+// 인증 실패 통계 조회 (디버깅용)
+export function getAuthFailureStats() {
+  return {
+    failureCount: authFailureCount,
+    maxFailures: MAX_AUTH_FAILURES,
+    isAtRisk: authFailureCount >= MAX_AUTH_FAILURES - 1
+  };
+}
+
+export function getSupabaseClient() {
+  return createBrowserSupabaseClient();
+}
+
+export default function createClient() {
+  return createBrowserSupabaseClient();
 } 

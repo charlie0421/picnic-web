@@ -19,8 +19,7 @@ import { Card } from '@/components/common';
 
 // 1. 훅을 사용한 예제
 export function AuthGuardHookExample() {
-  const { checkAuth, withAuth, navigateWithAuth, isAuthenticated } =
-    useRequireAuth();
+  const { withAuth, isAuthenticated } = useRequireAuth();
   const { t } = useLanguageStore();
 
   const handleVote = async () => {
@@ -31,7 +30,12 @@ export function AuthGuardHookExample() {
   };
 
   const handleNavigateToProfile = async () => {
-    await navigateWithAuth('/mypage');
+    await withAuth(async () => {
+      // 인증이 성공하면 프로파일 페이지로 이동
+      if (typeof window !== 'undefined') {
+        window.location.href = '/mypage';
+      }
+    });
   };
 
   return (
@@ -138,7 +142,7 @@ export function DirectLoginDialogExample() {
 
 // 4. 커스텀 콜백을 사용한 예제
 export function CustomCallbackExample() {
-  const { checkAuth } = useAuthGuard({
+  const { verifyAuth } = useAuthGuard({
     onAuthRequired: (redirectUrl) => {
       console.log('커스텀 인증 필요 처리:', redirectUrl);
       // 커스텀 로직 (예: 특별한 로그인 플로우)
@@ -150,8 +154,8 @@ export function CustomCallbackExample() {
   });
 
   const handleCustomAuth = async () => {
-    const isAuthorized = await checkAuth();
-    if (isAuthorized) {
+    const authResult = await verifyAuth();
+    if (authResult.isValid) {
       console.log('인증된 사용자 전용 기능 실행');
     }
   };

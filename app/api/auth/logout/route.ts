@@ -137,7 +137,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LogoutRes
       console.log('Logout event:', logData);
 
       // In production, you might want to log to a database or external service
-      const isProduction = process.env.NODE_ENV === 'production';
+      const isProduction = (process.env.NODE_ENV as string) === 'production';
       if (isProduction) {
         try {
           // Example: Log to Supabase audit table
@@ -207,7 +207,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const url = new URL(request.url);
     const debug = url.searchParams.get('debug') === 'true';
 
-    if (debug && process.env.NODE_ENV === 'development') {
+    if (debug && (process.env.NODE_ENV as string) === 'development') {
       // Return debugging information in development
       return NextResponse.json({
         endpoint: '/api/auth/logout',
@@ -218,7 +218,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         features: {
           supabase_logout: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
           redis_cache: !!process.env.REDIS_URL,
-          audit_logging: process.env.NODE_ENV === 'production'
+          audit_logging: (process.env.NODE_ENV as string) === 'production'
         }
       });
     }

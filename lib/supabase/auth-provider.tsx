@@ -577,23 +577,30 @@ export function AuthProvider({ children, initialSession }: AuthProviderProps) {
       }
 
       // 4. 종합적인 로그아웃 실행 (supabaseSignOut 호출)
-      const result = await supabaseSignOut();
-      
-      if (result.success) {
-        console.log('✅ [AuthProvider] 종합 로그아웃 성공:', result.message);
-      } else {
-        console.warn('⚠️ [AuthProvider] 로그아웃 중 일부 오류:', result.error);
+      try {
+        await supabaseSignOut();
+        console.log('✅ [AuthProvider] 종합 로그아웃 성공');
+        
+        // 5. 최종 상태 확인 및 정리
+        setIsLoading(false);
+        setError(null); // 로그아웃 오류는 사용자에게 표시하지 않음
+        
+        console.log('✅ [AuthProvider] signOut 완료');
+        
+        return { success: true, message: '로그아웃이 완료되었습니다.' };
+        
+      } catch (signOutError) {
+        console.warn('⚠️ [AuthProvider] 로그아웃 중 일부 오류:', signOutError);
         // 오류가 있어도 UI 상태는 이미 초기화되었으므로 계속 진행
+        
+        // 5. 최종 상태 확인 및 정리
+        setIsLoading(false);
+        setError(null); // 로그아웃 오류는 사용자에게 표시하지 않음
+        
+        console.log('✅ [AuthProvider] signOut 완료 (일부 오류 있음)');
+        
+        return { success: true, error: signOutError, message: '로그아웃이 완료되었습니다. (일부 오류 발생)' };
       }
-
-      // 5. 최종 상태 확인 및 정리
-      setIsLoading(false);
-      setError(null); // 로그아웃 오류는 사용자에게 표시하지 않음
-      
-      console.log('✅ [AuthProvider] signOut 완료');
-      
-      return result;
-      
     } catch (error) {
       console.error('❌ [AuthProvider] signOut 중 예외:', error);
       

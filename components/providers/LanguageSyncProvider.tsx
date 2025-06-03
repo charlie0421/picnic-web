@@ -5,6 +5,12 @@ import { usePathname } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import { Language, settings } from '@/config/settings';
 import { TranslationSuspenseProvider } from './TranslationSuspenseProvider';
+import { 
+  detectUserLanguage, 
+  logLanguageDetection, 
+  persistLanguageSelection, 
+  isValidLanguage 
+} from '@/utils/language-detection';
 
 interface LanguageSyncProviderProps {
   children: React.ReactNode;
@@ -26,8 +32,11 @@ function extractLanguageFromPath(pathname: string): Language {
 }
 
 /**
- * 언어 동기화 Provider
- * URL 경로와 Zustand 스토어를 동기화하고 hydration 문제를 해결합니다.
+ * 강화된 언어 동기화 Provider
+ * - 스마트 언어 감지 (브라우저, localStorage, 쿠키)
+ * - URL 경로와 Zustand 스토어 동기화
+ * - Hydration 문제 해결
+ * - 언어 우선순위 처리
  */
 export function LanguageSyncProvider({ children, initialLanguage }: LanguageSyncProviderProps) {
   const pathname = usePathname();
@@ -43,10 +52,12 @@ export function LanguageSyncProvider({ children, initialLanguage }: LanguageSync
   const [targetLanguage, setTargetLanguage] = useState<Language>(
     initialLanguage as Language || extractLanguageFromPath(pathname)
   );
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // 마지막으로 처리된 경로를 추적하여 중복 처리 방지
   const lastProcessedPath = useRef<string>('');
   const syncInProgress = useRef<boolean>(false);
+  const initialDetectionDone = useRef<boolean>(false);
 
   // 클라이언트 사이드 hydration 완료 감지
   useEffect(() => {
@@ -60,9 +71,43 @@ export function LanguageSyncProvider({ children, initialLanguage }: LanguageSync
     }
   }, [isHydrated, setHydrated]);
 
+  // 초기 언어 감지 및 설정 (한 번만 실행)
+  useEffect(() => {
+    if (!isClientHydrated || !isHydrated || initialDetectionDone.current) {
+      return;
+    }
+
+    console.log('🌐 [LanguageSyncProvider] Starting initial language detection');
+    
+    const pathLanguage = extractLanguageFromPath(pathname);
+    const detectionResult = detectUserLanguage(pathLanguage);
+    
+    logLanguageDetection(detectionResult);
+
+    // 감지된 언어가 현재 언어와 다른 경우 업데이트
+    if (detectionResult.detectedLanguage !== currentLanguage) {
+      console.log(
+        `🌐 [LanguageSyncProvider] Language changed: ${currentLanguage} → ${detectionResult.detectedLanguage} (${detectionResult.mappingSource})`
+      );
+      setCurrentLang(detectionResult.detectedLanguage);
+      setTargetLanguage(detectionResult.detectedLanguage);
+    }
+
+    // 초기 언어 설정이 제공된 경우 우선 적용
+    if (initialLanguage && isValidLanguage(initialLanguage) && initialLanguage !== currentLanguage) {
+      console.log(`🌐 [LanguageSyncProvider] Applying initial language: ${initialLanguage}`);
+      setCurrentLang(initialLanguage as Language);
+      setTargetLanguage(initialLanguage as Language);
+      persistLanguageSelection(initialLanguage as Language);
+    }
+
+    initialDetectionDone.current = true;
+    setIsInitialized(true);
+  }, [isClientHydrated, isHydrated, currentLanguage, setCurrentLang, pathname, initialLanguage]);
+
   // URL 경로 변경 감지 및 언어 업데이트
   useEffect(() => {
-    if (!isClientHydrated || !isHydrated || syncInProgress.current) {
+    if (!isClientHydrated || !isHydrated || !isInitialized || syncInProgress.current) {
       return;
     }
 
@@ -73,21 +118,25 @@ export function LanguageSyncProvider({ children, initialLanguage }: LanguageSync
     }
 
     const langFromPath = extractLanguageFromPath(pathname);
-    setTargetLanguage(langFromPath);
-
+    
     console.log('🔄 [LanguageSyncProvider] Path changed:', {
       pathname,
       langFromPath,
       currentLanguage,
       isHydrated,
       isClientHydrated,
+      isInitialized,
       lastProcessed: lastProcessedPath.current
     });
 
-    // 언어가 다른 경우 즉시 업데이트
+    // URL에서 추출한 언어가 현재 언어와 다른 경우
     if (langFromPath !== currentLanguage) {
       console.log(`🔄 [LanguageSyncProvider] Updating language from ${currentLanguage} to ${langFromPath}`);
       setCurrentLang(langFromPath);
+      setTargetLanguage(langFromPath);
+      
+      // 언어 변경 시 설정 저장
+      persistLanguageSelection(langFromPath);
     }
 
     // 동기화 실행 (한 번만)
@@ -96,21 +145,33 @@ export function LanguageSyncProvider({ children, initialLanguage }: LanguageSync
       syncInProgress.current = false;
       lastProcessedPath.current = pathname;
     });
-  }, [pathname, isClientHydrated, isHydrated, currentLanguage, syncLanguageWithPath, setCurrentLang]);
+  }, [pathname, isClientHydrated, isHydrated, isInitialized, currentLanguage, syncLanguageWithPath, setCurrentLang]);
 
-  // 초기 언어 설정 (서버에서 전달받은 언어)
+  // 언어 변경 감지 및 지속성 처리
   useEffect(() => {
-    if (!isClientHydrated || !isHydrated || !initialLanguage) return;
-    
-    if (initialLanguage !== currentLanguage) {
-      console.log(`🔄 [LanguageSyncProvider] Setting initial language: ${initialLanguage}`);
-      setCurrentLang(initialLanguage as Language);
-      setTargetLanguage(initialLanguage as Language);
-    }
-  }, [initialLanguage, currentLanguage, isClientHydrated, isHydrated, setCurrentLang]);
+    if (!isClientHydrated || !currentLanguage) return;
+
+    // 언어가 변경되면 localStorage에 저장
+    persistLanguageSelection(currentLanguage);
+  }, [currentLanguage, isClientHydrated]);
 
   // 로딩 상태 계산
-  const isLoading = !isClientHydrated || !isHydrated;
+  const isLoading = !isClientHydrated || !isHydrated || !isInitialized;
+
+  // 디버깅 정보 출력
+  useEffect(() => {
+    if (isInitialized) {
+      console.log('🌐 [LanguageSyncProvider] State:', {
+        isClientHydrated,
+        isHydrated,
+        isInitialized,
+        currentLanguage,
+        targetLanguage,
+        pathname,
+        isLoading
+      });
+    }
+  }, [isClientHydrated, isHydrated, isInitialized, currentLanguage, targetLanguage, pathname, isLoading]);
 
   return (
     <TranslationSuspenseProvider language={targetLanguage} key={targetLanguage}>
@@ -119,6 +180,11 @@ export function LanguageSyncProvider({ children, initialLanguage }: LanguageSync
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-gray-600 text-sm">언어 설정을 로드하는 중...</p>
+            <p className="text-gray-400 text-xs mt-1">
+              {!isClientHydrated && 'Hydrating...'}
+              {isClientHydrated && !isHydrated && 'Loading store...'}
+              {isClientHydrated && isHydrated && !isInitialized && 'Detecting language...'}
+            </p>
           </div>
         </div>
       ) : (

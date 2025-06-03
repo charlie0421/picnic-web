@@ -1,5 +1,7 @@
-import React from 'react';
+'use client';
+
 import Link from 'next/link';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 /**
  * 서버 컴포넌트 데모 페이지 레이아웃
@@ -9,35 +11,23 @@ export default function ServerComponentsLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { getLocalizedPath } = useLocaleRouter();
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="container mx-auto p-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">서버 컴포넌트 데모</h1>
-            <nav>
-              <ul className="flex gap-6">
-                <li>
-                  <Link href="/" className="text-gray-600 hover:text-primary">
-                    홈
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/server-components" className="text-gray-600 hover:text-primary">
-                    데모 홈
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/streaming-example" className="text-gray-600 hover:text-primary">
-                    스트리밍 예제
-                  </Link>
-                </li>
-              </ul>
-            </nav>
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">Server Components Demo</h1>
+            <Link href={getLocalizedPath('/')} className="text-gray-600 hover:text-primary">
+              홈으로
+            </Link>
           </div>
         </div>
-      </div>
-      {children}
+      </header>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+      </main>
     </div>
   );
 } 

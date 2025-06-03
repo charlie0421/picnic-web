@@ -1,462 +1,324 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/supabase/auth-provider';
-import {
-  securityUtils,
-  getRedirectUrl,
-  clearRedirectUrl,
-  clearAllAuthData,
-} from '@/utils/auth-redirect';
-import { 
-  performLogout, 
-  isLoggedOut, 
-  getRemainingAuthItems 
-} from '@/lib/auth/logout';
+import { clearRedirectUrl, getRedirectUrl, handlePostLoginRedirect } from '@/utils/auth-redirect';
+import { isLoggedOut, getRemainingAuthItems, emergencyLogout } from '@/lib/auth/logout';
 
-// 보호된 라우트 패턴
-const PROTECTED_ROUTES = [
-  '/vote',
-  '/mypage',
-  '/rewards',
-  '/admin',
-];
-
-interface AuthRedirectHandlerProps {
-  children: React.ReactNode;
+// 인증 검증 결과 인터페이스
+interface VerificationResult {
+  valid: boolean;
+  authenticated: boolean;
+  user_id?: string;
+  error?: string;
+  details?: string;
 }
 
 /**
- * 로그인 성공 후 자동 리다이렉트를 처리하고
- * 보호된 컨텐츠 접근을 관리하는 컴포넌트
+ * 강화된 인증 리다이렉트 핸들러
  * 
- * 주의: 자동 로그아웃 기능은 모두 제거되었습니다.
- * - 세션 타임아웃 자동 로그아웃 비활성화
- * - 주기적 인증 검증 자동 로그아웃 비활성화
- * - 서버 검증 실패 시 자동 로그아웃 비활성화
- * - 보호된 라우트 자동 리다이렉트 비활성화
+ * 주요 기능:
+ * 1. 포괄적 인증 상태 검증
+ * 2. 서버 사이드 인증 검증
+ * 3. 주기적 인증 상태 모니터링
+ * 4. 자동 로그아웃 및 정리
+ * 5. 로그아웃된 사용자 강력 차단
  */
-export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
-  const { isAuthenticated, isLoading, isInitialized, user, session, signOut } = useAuth();
+export default function AuthRedirectHandler() {
+  const { isAuthenticated, isLoading, user, session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const lastAuthState = useRef<boolean | null>(null);
-  const redirectProcessed = useRef<boolean>(false);
-  const lastVerificationTime = useRef<number>(0);
   
-  // 인증 상태 강화 확인
-  const [isAuthStateVerified, setIsAuthStateVerified] = useState(false);
-  const [isVerifyingAuth, setIsVerifyingAuth] = useState(false);
+  // 상태 관리
+  const [authVerificationCount, setAuthVerificationCount] = useState(0);
+  const [lastVerificationTime, setLastVerificationTime] = useState(0);
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+
+  // Refs
+  const redirectProcessed = useRef(false);
   const verifyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const periodicCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAuthState = useRef<boolean>(false);
 
   /**
-   * 완전한 로그아웃 처리 (새로운 포괄적 로그아웃 시스템 사용)
+   * 서버 사이드 인증 검증
    */
-  const performCompleteLogout = async (reason?: string) => {
-    console.log('🚪 [AuthRedirectHandler] 완전한 로그아웃 처리 시작:', reason);
-
+  const verifyAuthenticationWithServer = useCallback(async (): Promise<VerificationResult> => {
     try {
-      // 1. 주기적 검증 중단 (signOut이 처리함)
-      
-      // 2. AuthProvider signOut 호출
-      await signOut();
+      console.log('🔍 [AuthRedirectHandler] 서버 사이드 인증 검증 시작');
 
-      // 3. 모든 인증 관련 데이터 정리
-      clearAllAuthData();
+      const response = await fetch('/api/auth/verify', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      // 4. WeChat 특별 처리
-      // WECHAT_AUTH_KEYS.forEach(key => {
-      //   try {
-      //     localStorage.removeItem(key);
-      //     sessionStorage.removeItem(key);
-      //   } catch (e) {
-      //     console.warn(`WeChat 키 정리 실패: ${key}`, e);
-      //   }
-      // });
+      const result: VerificationResult = await response.json();
 
-      console.log('📊 [AuthRedirectHandler] 로그아웃 결과:', logoutResult);
+      console.log('🔍 [AuthRedirectHandler] 서버 인증 검증 결과:', {
+        status: response.status,
+        valid: result.valid,
+        authenticated: result.authenticated,
+        userId: result.user_id
+      });
 
-      // 2. AuthProvider signOut 호출 (추가 안전장치)
-      try {
-        await signOut();
-      } catch (err) {
-        console.warn('⚠️ [AuthRedirectHandler] AuthProvider signOut 오류:', err);
-      }
-
-      // 3. 로컬 상태 리셋
-      setIsAuthStateVerified(false);
-      setAuthVerificationCount(0);
-      redirectProcessed.current = false;
-      lastAuthState.current = false;
-
-      // 4. 남은 인증 데이터 확인 및 로깅
-      const remainingItems = getRemainingAuthItems();
-      if (remainingItems.length > 0) {
-        console.warn('⚠️ [AuthRedirectHandler] 남은 인증 데이터:', remainingItems);
-        
-        // 추가 정리 시도
-        remainingItems.forEach(item => {
-          try {
-            const [storageType, key] = item.split('.');
-            if (storageType === 'localStorage' && typeof window !== 'undefined') {
-              localStorage.removeItem(key);
-            } else if (storageType === 'sessionStorage' && typeof window !== 'undefined') {
-              sessionStorage.removeItem(key);
-            }
-          } catch (err) {
-            console.warn(`데이터 정리 실패: ${item}`, err);
-          }
-        });
-      }
-
-      console.log('✅ [AuthRedirectHandler] 완전한 로그아웃 완료');
-      
-      // 5. 로그인 페이지로 강제 이동 (약간의 지연)
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-      }, 500);
-      
+      return result;
     } catch (error) {
-      console.error('💥 [AuthRedirectHandler] 로그아웃 처리 오류:', error);
-      
-      // 응급 로그아웃 (에러 시)
-      try {
-        clearAllAuthData();
-        setIsAuthStateVerified(false);
-        redirectProcessed.current = false;
-        
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-      } catch (err) {
-        console.error('💥 [AuthRedirectHandler] 응급 로그아웃도 실패:', err);
-      }
+      console.warn('⚠️ [AuthRedirectHandler] 서버 인증 검증 실패:', error);
+      return {
+        valid: false,
+        authenticated: false,
+        error: 'Server verification failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
-  };
+  }, []);
 
   /**
-   * 강화된 인증 상태 검증 (debounced)
+   * 포괄적 인증 상태 검증
    */
-  const verifyAuthState = async (force = false) => {
-    // 이미 검증 중이면 중복 호출 방지
-    if (isVerifyingAuth && !force) {
-      console.log('⏭️ [AuthRedirectHandler] 인증 검증이 이미 진행 중 - 건너뜀');
-      return isAuthStateVerified;
-    }
-
-    // 이미 검증 완료된 상태이고 강제가 아니면 스킵
-    if (isAuthStateVerified && !force) {
-      console.log('✅ [AuthRedirectHandler] 이미 검증 완료된 상태 - 건너뜀');
-      return true;
-    }
-
-    setIsVerifyingAuth(true);
-
+  const performComprehensiveAuthCheck = useCallback(async (): Promise<boolean> => {
     try {
-      console.log('🔍 [AuthRedirectHandler] 강화된 인증 상태 검증 시작');
-      setAuthVerificationCount(prev => prev + 1);
+      console.log('🔄 [AuthRedirectHandler] 포괄적 인증 상태 검증 시작');
 
-      // 0. 포괄적 로그아웃 상태 체크
+      // 1. 강화된 로그아웃 상태 검증
       if (isLoggedOut()) {
-        console.warn('❌ [AuthRedirectHandler] 포괄적 로그아웃 상태 감지');
-        await performCompleteLogout('포괄적 로그아웃 상태 감지');
+        console.warn('❌ [AuthRedirectHandler] 강화된 로그아웃 상태 감지');
+        const remainingItems = getRemainingAuthItems();
+        if (remainingItems.length > 0) {
+          console.warn('⚠️ [AuthRedirectHandler] 남은 인증 데이터 감지:', remainingItems);
+          // 남은 데이터가 있으면 강제 정리
+          await emergencyLogout();
+        }
         return false;
       }
 
-      // 1. 기본 인증 상태 체크
+      // 2. 기본 AuthProvider 상태 체크
       if (!isAuthenticated || !user || !session) {
-        console.warn('❌ [AuthRedirectHandler] 기본 인증 상태 실패:', {
+        console.log('❌ [AuthRedirectHandler] 기본 인증 상태 실패:', {
           isAuthenticated,
           hasUser: !!user,
-          hasSession: !!session,
+          hasSession: !!session
         });
-        setIsAuthStateVerified(false);
-        await performCompleteLogout('기본 인증 상태 실패');
         return false;
       }
 
-      // 2. 세션 만료 체크 (경고만, 자동 로그아웃 안함)
+      // 3. 세션 만료 체크
       if (session.expires_at) {
         const expiryTime = new Date(session.expires_at * 1000);
         const now = new Date();
-
-        if (now >= expiryTime) {
-          console.warn('⏰ [AuthRedirectHandler] 세션이 만료됨 (자동 로그아웃 비활성화)');
-          // await performCompleteLogout('세션 만료'); // 자동 로그아웃 제거
-          setIsAuthStateVerified(false);
+        const timeDiff = expiryTime.getTime() - now.getTime();
+        
+        if (timeDiff <= 0) {
+          console.warn('⏰ [AuthRedirectHandler] 세션 만료됨');
+          await emergencyLogout();
           return false;
+        }
+
+        // 세션이 10분 이내에 만료될 예정이면 서버 검증 강제 실행
+        if (timeDiff < 600000) { // 10분
+          console.warn('⚠️ [AuthRedirectHandler] 세션이 곧 만료됨:', Math.round(timeDiff / 60000), '분 남음');
+          const serverResult = await verifyAuthenticationWithServer();
+          if (!serverResult.valid || !serverResult.authenticated) {
+            console.warn('❌ [AuthRedirectHandler] 만료 예정 세션 서버 검증 실패');
+            await emergencyLogout();
+            return false;
+          }
         }
       }
 
+      // 4. 서버 사이드 검증 (중요한 작업에서만)
+      const shouldVerifyWithServer = 
+        authVerificationCount % 3 === 0 || // 3번에 한 번
+        Date.now() - lastVerificationTime > 300000 || // 5분마다
+        consecutiveFailures > 0; // 이전에 실패가 있었으면 항상 검증
 
-      // 3. 서버 사이드 세션 검증 (자동 로그아웃 없음, 경고만)
-      console.log('🔍 [AuthRedirectHandler] 서버 사이드 세션 검증 시작');
-      
-      let verificationAttempt = 0;
-      const maxAttempts = 2;
-      
-      while (verificationAttempt < maxAttempts) {
-        try {
-          verificationAttempt++;
-          console.log(`🔍 [AuthRedirectHandler] 서버 검증 시도 ${verificationAttempt}/${maxAttempts}`);
+      if (shouldVerifyWithServer) {
+        const serverResult = await verifyAuthenticationWithServer();
+        setLastVerificationTime(Date.now());
+
+        if (!serverResult.valid || !serverResult.authenticated) {
+          console.warn('❌ [AuthRedirectHandler] 서버 인증 검증 실패');
+          setConsecutiveFailures(prev => prev + 1);
           
-          // AbortController로 timeout 제어
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5초 timeout
-          
-          const response = await fetch('/api/auth/verify', {
-            method: 'GET',
-            credentials: 'include',
-            signal: controller.signal,
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) {
-            if (response.status === 401) {
-              console.warn('🔓 [AuthRedirectHandler] 서버에서 인증 실패 (401) - 자동 로그아웃 비활성화');
-              // await performCompleteLogout('서버 인증 실패'); // 자동 로그아웃 제거
-              setIsAuthStateVerified(false);
-              return false;
-            }
-            
-            // 다른 HTTP 에러 (5xx 등)는 재시도
-            if (verificationAttempt >= maxAttempts) {
-              console.warn('⚠️ [AuthRedirectHandler] 서버 검증 최대 시도 초과, 클라이언트 세션으로 fallback');
-              setIsAuthStateVerified(true);
-              return true;
-            }
-            
-            console.warn(`⚠️ [AuthRedirectHandler] 서버 검증 실패 (${response.status}), 재시도...`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
-            continue;
-          }
-          
-          const result = await response.json();
-          
-          if (result.valid) {
-            console.log('✅ [AuthRedirectHandler] 서버 사이드 세션 검증 성공');
-            setIsAuthStateVerified(true);
-            return true;
-          } else {
-            console.warn('❌ [AuthRedirectHandler] 서버 세션 무효 - 자동 로그아웃 비활성화:', result.message);
-            // await performCompleteLogout('서버 세션 무효'); // 자동 로그아웃 제거
-            setIsAuthStateVerified(false);
+          // 연속 실패 3회 이상시 강제 로그아웃
+          if (consecutiveFailures >= 2) {
+            console.error('🚨 [AuthRedirectHandler] 연속 인증 실패 - 강제 로그아웃');
+            await emergencyLogout();
             return false;
           }
           
-        } catch (fetchError: any) {
-          if (fetchError.name === 'AbortError') {
-            console.warn(`⏰ [AuthRedirectHandler] 서버 검증 timeout (시도 ${verificationAttempt}/${maxAttempts})`);
-          } else {
-            console.warn(`⚠️ [AuthRedirectHandler] 서버 검증 네트워크 오류 (시도 ${verificationAttempt}/${maxAttempts}):`, fetchError.message);
-          }
-          
-          if (verificationAttempt >= maxAttempts) {
-            console.warn('⚠️ [AuthRedirectHandler] 서버 검증 완전 실패, 클라이언트 세션으로 fallback');
-            // 클라이언트 세션이 있으면 일단 허용
-            setIsAuthStateVerified(true);
-            return true;
-          }
-          
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
+          return false;
+        } else {
+          setConsecutiveFailures(0); // 성공시 실패 카운트 리셋
         }
       }
-      
-      // 이 지점에 도달하면 fallback
-      console.warn('⚠️ [AuthRedirectHandler] 모든 검증 시도 실패, 클라이언트 세션으로 fallback');
-      setIsAuthStateVerified(true);
+
+      console.log('✅ [AuthRedirectHandler] 포괄적 인증 상태 검증 성공');
+      setAuthVerificationCount(prev => prev + 1);
       return true;
-      
+
     } catch (error) {
-      console.error('💥 [AuthRedirectHandler] 인증 상태 검증 중 예외:', error);
+      console.error('💥 [AuthRedirectHandler] 인증 상태 검증 중 오류:', error);
+      setConsecutiveFailures(prev => prev + 1);
       
-      // 에러 발생 시에도 클라이언트 세션이 있으면 허용
-      if (isAuthenticated && user && session) {
-        console.warn('⚠️ [AuthRedirectHandler] 검증 에러 but 클라이언트 세션 존재, fallback 허용');
-        setIsAuthStateVerified(true);
-        return true;
+      // 예외 발생시도 일정 횟수 이상이면 강제 로그아웃
+      if (consecutiveFailures >= 2) {
+        console.error('🚨 [AuthRedirectHandler] 예외 연속 발생 - 강제 로그아웃');
+        await emergencyLogout();
       }
       
-      setIsAuthStateVerified(false);
-      await performCompleteLogout('인증 상태 검증 오류');
       return false;
-    } finally {
-      setIsVerifyingAuth(false);
     }
-  };
+  }, [isAuthenticated, user, session, authVerificationCount, lastVerificationTime, consecutiveFailures, verifyAuthenticationWithServer]);
 
   /**
-   * Debounced 인증 상태 검증
+   * 5분마다 주기적 인증 상태 검증
    */
-  const debouncedVerifyAuthState = (force = false, delay = 500) => {
+  const startPeriodicAuthVerification = useCallback(() => {
+    if (periodicCheckRef.current) {
+      clearInterval(periodicCheckRef.current);
+    }
+
+    console.log('🔄 [AuthRedirectHandler] 주기적 인증 검증 시작');
+    setIsMonitoring(true);
+
+    periodicCheckRef.current = setInterval(async () => {
+      if (isAuthenticated && !isLoading) {
+        console.log('🔄 [AuthRedirectHandler] 주기적 인증 상태 검증 실행');
+        
+        const isValid = await performComprehensiveAuthCheck();
+        
+        if (!isValid) {
+          console.warn('❌ [AuthRedirectHandler] 주기적 검증 실패 - 모니터링 중단');
+          stopPeriodicAuthVerification();
+        }
+      }
+    }, 300000); // 5분마다
+  }, [isAuthenticated, isLoading, performComprehensiveAuthCheck]);
+
+  /**
+   * 주기적 인증 검증 중단
+   */
+  const stopPeriodicAuthVerification = useCallback(() => {
+    if (periodicCheckRef.current) {
+      clearInterval(periodicCheckRef.current);
+      periodicCheckRef.current = null;
+      setIsMonitoring(false);
+      console.log('⏹️ [AuthRedirectHandler] 주기적 인증 검증 중단');
+    }
+  }, []);
+
+  /**
+   * 로그인 후 리다이렉트 처리
+   */
+  const handleAuthenticationSuccess = useCallback(async () => {
+    if (redirectProcessed.current) return;
+
+    console.log('🔄 [AuthRedirectHandler] 로그인 성공 감지 - 리다이렉트 처리 시작');
+    
+    // 인증 상태 검증 먼저 수행
+    const isValid = await performComprehensiveAuthCheck();
+    if (!isValid) {
+      console.warn('❌ [AuthRedirectHandler] 로그인 후 인증 검증 실패');
+      return;
+    }
+
+    redirectProcessed.current = true;
+
+    // 100ms 지연으로 상태 안정화
     if (verifyTimeoutRef.current) {
       clearTimeout(verifyTimeoutRef.current);
     }
 
-    verifyTimeoutRef.current = setTimeout(() => {
-      verifyAuthState(force);
-    }, delay);
-  };
+    verifyTimeoutRef.current = setTimeout(async () => {
+      try {
+        const redirectUrl = getRedirectUrl();
+        
+        if (redirectUrl && redirectUrl !== pathname) {
+          console.log('📍 [AuthRedirectHandler] 저장된 리다이렉트 URL:', redirectUrl);
+          
+          if (await handlePostLoginRedirect()) {
+            console.log('🚀 [AuthRedirectHandler] 리다이렉트 성공');
+          } else {
+            console.log('🏠 [AuthRedirectHandler] 리다이렉트 실패 - 홈으로 이동');
+            router.push('/');
+          }
+        } else {
+          console.log('🏠 [AuthRedirectHandler] 저장된 URL 없음 - 홈으로 이동');
+          clearRedirectUrl();
+          router.push('/');
+        }
+      } catch (error) {
+        console.error('💥 [AuthRedirectHandler] 리다이렉트 처리 중 오류:', error);
+        router.push('/');
+      }
+    }, 100);
+  }, [pathname, router, performComprehensiveAuthCheck]);
 
   /**
-   * 보호된 라우트 접근 권한 체크 (자동 리다이렉트 비활성화)
+   * 인증 상태 변화 감지 및 처리
    */
-  const checkProtectedRouteAccess = () => {
-    if (!pathname) return true;
-
-    const isProtectedRoute = PROTECTED_ROUTES.some(route => 
-      pathname.includes(route)
-    );
-
-
-    if (isProtectedRoute && !isAuthenticated) {
-      console.warn('🛡️ [AuthRedirectHandler] 보호된 라우트 접근 차단 (인증되지 않음):', pathname);
-      
-      // 자동 리다이렉트 제거 - 사용자가 수동으로 로그인하도록 유도
-      // router.push('/login'); // 자동 리다이렉트 제거
-      return false;
-    }
-
-    // OAuth 콜백 직후에는 isAuthStateVerified가 아직 false일 수 있으므로 더 관대하게 처리
-    if (isProtectedRoute && isAuthenticated && !isAuthStateVerified) {
-      // 기본 세션이 있으면 잠시 허용하고 백그라운드에서 검증 실행
-      if (user && session) {
-        console.log('⚠️ [AuthRedirectHandler] 보호된 라우트 접근 - 기본 세션 있음, 백그라운드 검증 비활성화:', pathname);
-        
-        // 백그라운드에서 검증 실행 비활성화
-        // debouncedVerifyAuthState(false, 100); // 100ms 지연으로 즉시 실행
-        
-        // 일단 접근 허용
-        return true;
-      } else {
-        console.warn('🛡️ [AuthRedirectHandler] 보호된 라우트 접근 차단 (세션 없음):', pathname);
-        // 자동 리다이렉트 제거
-        // router.push('/login'); // 자동 리다이렉트 제거
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  // 인증 상태 변화 감지 및 리다이렉트 처리
   useEffect(() => {
-    console.log('🔄 [AuthRedirectHandler] 상태 체크:', {
-      isInitialized,
+    const currentAuthState = isAuthenticated && !!user && !!session;
+    
+    console.log('🔄 [AuthRedirectHandler] 인증 상태 변화 감지:', {
+      이전상태: lastAuthState.current,
+      현재상태: currentAuthState,
       isLoading,
-      isAuthenticated,
-      isAuthStateVerified,
-      user: user?.id,
-      lastAuthState: lastAuthState.current,
-      redirectProcessed: redirectProcessed.current,
-      pathname,
+      pathname
     });
 
-    // 초기화가 완료되고 로딩이 끝났을 때만 처리
-    if (!isInitialized || isLoading) {
-      console.log('⏳ [AuthRedirectHandler] 초기화 대기 중...');
-      return;
-    }
-
-    // 보안 검증
-    if (typeof window !== 'undefined' && !securityUtils.validateUserAgent()) {
-      console.warn('🚨 [AuthRedirectHandler] 의심스러운 사용자 에이전트 감지');
-      return;
-    }
-
-    // 인증 상태가 변경되었을 때만 처리
-    if (lastAuthState.current !== isAuthenticated) {
-      console.log('🔄 [AuthRedirectHandler] 인증 상태 변화 감지:', {
-        이전상태: lastAuthState.current,
-        현재상태: isAuthenticated,
-      });
-
-      lastAuthState.current = isAuthenticated;
-
-      // 로그인 상태가 되었을 때 리다이렉트 처리
-      if (isAuthenticated && user && !redirectProcessed.current) {
-        redirectProcessed.current = true;
-
-        console.log('🔄 [AuthRedirectHandler] 로그인 성공 감지 - 자동 검증 비활성화');
+    if (!isLoading) {
+      if (currentAuthState && !lastAuthState.current) {
+        console.log('✅ [AuthRedirectHandler] 로그인 감지');
+        lastAuthState.current = true;
+        redirectProcessed.current = false;
         
-        // 자동 검증 대신 바로 verified 상태로 설정
-        setIsAuthStateVerified(true);
+        // 로그인 성공 처리
+        handleAuthenticationSuccess();
         
-        // 강화된 인증 상태 검증 비활성화
-        // debouncedVerifyAuthState(true, 300); // 300ms 지연으로 검증
+        // 주기적 검증 시작
+        startPeriodicAuthVerification();
         
-        // 검증 없이 바로 리다이렉트 로직 실행
-        const savedRedirectUrl = getRedirectUrl();
-        console.log('📍 [AuthRedirectHandler] 저장된 리다이렉트 URL:', savedRedirectUrl);
-
-        if (
-          savedRedirectUrl &&
-          securityUtils.isValidRedirectUrl(savedRedirectUrl)
-        ) {
-          console.log('✅ [AuthRedirectHandler] 유효한 리다이렉트 URL로 이동:', savedRedirectUrl);
-          clearRedirectUrl();
-
-          // 약간의 지연을 두어 상태 안정화
-          setTimeout(() => {
-            console.log('🚀 [AuthRedirectHandler] 리다이렉트 실행:', savedRedirectUrl);
-            router.push(savedRedirectUrl);
-          }, 100); // 검증이 없으므로 빠르게
-        } else {
-          // 현재 페이지가 로그인 페이지인 경우에만 홈으로 이동
-          if (
-            typeof window !== 'undefined' &&
-            window.location.pathname.includes('/login')
-          ) {
-            console.log('🏠 [AuthRedirectHandler] 로그인 페이지에서 홈으로 이동');
-            setTimeout(() => {
-              router.push('/');
-            }, 100); // 검증이 없으므로 빠르게
-          } else {
-            console.log('ℹ️ [AuthRedirectHandler] 리다이렉트 URL이 없거나 로그인 페이지가 아님 - 현재 페이지 유지');
-          }
+      } else if (!currentAuthState && lastAuthState.current) {
+        console.log('🚪 [AuthRedirectHandler] 로그아웃 감지');
+        lastAuthState.current = false;
+        redirectProcessed.current = false;
+        
+        // 검증 중단
+        stopPeriodicAuthVerification();
+        
+        // 추가 정리 작업
+        clearRedirectUrl();
+        
+      } else if (currentAuthState && lastAuthState.current) {
+        // 로그인 상태 유지 중 - 주기적 검증이 실행 중인지 확인
+        if (!isMonitoring) {
+          console.log('🔄 [AuthRedirectHandler] 로그인 상태 유지 중 - 주기적 검증 재시작');
+          startPeriodicAuthVerification();
         }
       }
-
-      // 로그아웃 상태가 되었을 때 경고만 (자동 정리 제거)
-      if (!isAuthenticated && lastAuthState.current === true) {
-        // 이전에 인증된 상태였다가 로그아웃된 경우 경고만
-        console.log('🔓 [AuthRedirectHandler] 로그아웃 감지 - 자동 정리 비활성화');
-        
-        // 자동 로그아웃 정리 제거
-        // setTimeout(async () => {
-        //   // 다시 한번 확인
-        //   if (!isAuthenticated && !user && !session) {
-        //     console.log('🚪 [AuthRedirectHandler] 로그아웃 확정 - 모든 데이터 정리');
-        //     await performCompleteLogout('확정적 로그아웃 감지');
-        //   } else {
-        //     console.log('🔄 [AuthRedirectHandler] 일시적 상태 변화로 판단 - 로그아웃 취소');
-        //   }
-        // }, 100);
-      } else if (!isAuthenticated && lastAuthState.current === null) {
-        // 초기 로딩 시 인증되지 않은 상태는 정상 (로그아웃 처리하지 않음)
-        console.log('ℹ️ [AuthRedirectHandler] 초기 비인증 상태 - 정상');
-      }
     }
+  }, [isAuthenticated, user, session, isLoading, pathname, handleAuthenticationSuccess, startPeriodicAuthVerification, stopPeriodicAuthVerification, isMonitoring]);
 
-    // 보호된 라우트 접근 권한 체크 (매번 실행) - 자동 체크 비활성화
-    // if (isInitialized && !isLoading) {
-    //   checkProtectedRouteAccess();
-    // }
-  }, [isAuthenticated, isInitialized, isLoading, user, router, pathname, isAuthStateVerified]);
-
-  // 컴포넌트 언마운트 시 타이머 정리
+  /**
+   * 컴포넌트 언마운트 시 정리
+   */
   useEffect(() => {
     return () => {
       if (verifyTimeoutRef.current) {
         clearTimeout(verifyTimeoutRef.current);
       }
+      stopPeriodicAuthVerification();
     };
-  }, []);
+  }, [stopPeriodicAuthVerification]);
 
-  return <>{children}</>;
+  // 컴포넌트는 UI를 렌더링하지 않음
+  return null;
 }
 

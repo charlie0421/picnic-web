@@ -6,7 +6,7 @@ import { AuthProvider } from '@/lib/supabase/auth-provider';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { Analytics } from '@vercel/analytics/react';
 import { DialogProvider } from '@/components/ui/Dialog';
-import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler';
+import AuthRedirectHandler from '@/components/auth/AuthRedirectHandler';
 import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
 
 interface ClientLayoutProps {

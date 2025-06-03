@@ -520,7 +520,7 @@
       "dependencies": [
         1
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -528,7 +528,7 @@
           "description": "Update the main Navigation component to support locale-prefixed routes and dynamic language switching, ensuring all navigation links reflect the current language context.",
           "dependencies": [],
           "details": "Move or update the Navigation component under the appropriate app/[lang] or app/[locale] directory structure as per Next.js App Router conventions. Ensure all navigation items generate URLs with the correct locale prefix (e.g., /en/about, /ko/about).",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2,
@@ -538,7 +538,7 @@
             1
           ],
           "details": "Set up next-intl provider at the root layout (e.g., app/[locale]/layout.tsx). Load translation messages based on the current locale and ensure the provider wraps all pages and components that require translations.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 3,
@@ -548,7 +548,7 @@
             2
           ],
           "details": "The hook should expose navigation methods that automatically include the current locale in URLs, and provide helpers for switching languages while preserving the current path.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 4,
@@ -558,7 +558,7 @@
             3
           ],
           "details": "Audit the codebase for hardcoded paths and update them to use the custom useRouter hook or generate URLs with the current locale. Ensure all navigation actions respect the active language.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 5,
@@ -568,7 +568,7 @@
             4
           ],
           "details": "Test and update route definitions and middleware as needed to guarantee that all URLs are correctly parsed and generated with the locale segment. Handle cases where users access non-prefixed URLs by redirecting to the appropriate locale.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 6,
@@ -578,7 +578,7 @@
             5
           ],
           "details": "Update the language switcher to use the custom useRouter hook for navigation. Store the selected language in cookies or localStorage to persist the preference. Ensure the app initializes with the correct locale on subsequent visits.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 7,
@@ -586,7 +586,7 @@
           "description": "Update SEO metadata, hreflang tags, and canonical URLs to reflect the current locale and improve search engine discoverability for all supported languages.",
           "dependencies": [],
           "details": "Dynamically generate meta tags and hreflang links in the head of each page based on the active locale. Ensure canonical URLs include the locale segment. Test with SEO tools to verify correct indexing and language targeting.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },
@@ -601,7 +601,7 @@
         1,
         8
       ],
-      "status": "pending",
+      "status": "done",
       "subtasks": [
         {
           "id": 1,
@@ -609,7 +609,7 @@
           "description": "Develop a utility function to detect the user's preferred language using sources such as the Accept-Language header, browser settings, or cookies.",
           "dependencies": [],
           "details": "This utility should prioritize detection methods and return a standardized locale string compatible with the app's supported languages.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 2,
@@ -619,7 +619,7 @@
             1
           ],
           "details": "Ensure that if a detected locale is not directly supported, the mapping logic falls back to a more general or default locale as per Next.js i18n best practices.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 3,
@@ -629,7 +629,7 @@
             2
           ],
           "details": "Ensure that the language preference is read from localStorage on app load and updated whenever the user changes their language.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 4,
@@ -639,7 +639,7 @@
             3
           ],
           "details": "Ensure the app wraps all pages/components with the necessary i18n providers and initializes the language state correctly.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 5,
@@ -649,7 +649,7 @@
             4
           ],
           "details": "The switcher should allow users to change languages, update the app's locale, and persist the choice.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 6,
@@ -659,7 +659,7 @@
             5
           ],
           "details": "Ensure the app consistently applies this precedence when determining which language to display.",
-          "status": "pending"
+          "status": "done"
         },
         {
           "id": 7,
@@ -667,7 +667,7 @@
           "description": "Implement robust fallback handling for unsupported or missing locales, ensuring the app gracefully defaults to the primary language.",
           "dependencies": [],
           "details": "Test edge cases such as unsupported browser languages, missing translation files, and ensure the user experience remains consistent.",
-          "status": "pending"
+          "status": "done"
         }
       ]
     },
@@ -1328,7 +1328,7 @@
             2
           ],
           "details": "Use Supabase's dashboard or SQL editor to create and apply RLS policies. Ensure policies are correctly linked to the WeChat authentication system. Double-check that default policies deny access unless explicitly granted.",
-          "status": "in-progress"
+          "status": "done"
         },
         {
           "id": 4,
@@ -1603,7 +1603,7 @@
       "description": "Resolve the issue where the voting dialog is displayed to logged-out users due to incomplete clearing of authentication-related local data upon logout.",
       "details": "1. Identify all locations where authentication data is stored locally:\n   - Review localStorage, sessionStorage, and any other client-side storage mechanisms\n   - Check for any authentication tokens or user data stored in memory (e.g., React context, Redux store)\n\n2. Implement a comprehensive logout function:\n   - Clear all authentication-related data from localStorage and sessionStorage\n   - Reset any in-memory authentication state (e.g., in React context or Redux store)\n   - Invalidate and remove any authentication tokens\n   - Consider implementing a logout API endpoint to invalidate sessions server-side\n\n3. Update the AuthRedirectHandler component:\n   - Ensure it properly checks the current authentication state before allowing access to protected routes\n   - Implement a check to verify if the user is truly logged out before displaying the voting dialog\n\n4. Modify the voting dialog display logic:\n   - Before showing the voting dialog, implement a robust check for user authentication status\n   - If the user is not authenticated, redirect to the login page or show the \"Login Required\" dialog\n\n5. Implement a periodic authentication state verification:\n   - Create a function to verify the validity of stored authentication data\n   - Set up an interval to run this check periodically (e.g., every 5 minutes or on each major user action)\n   - If invalid auth state is detected, force a logout and clear all related data\n\n6. Update error handling for API calls:\n   - Implement proper error handling for 401 (Unauthorized) responses\n   - On receiving a 401 error, clear local auth data and redirect to login page\n\n7. Review and update the Row-Level Security (RLS) policies:\n   - Ensure RLS policies are correctly set up to prevent unauthorized access to voting data\n   - Test RLS policies thoroughly to confirm they're working as expected\n\n8. Implement proper state management for authentication:\n   - Consider using a dedicated state management solution (e.g., Redux, MobX) for handling authentication state\n   - Ensure that the authentication state is consistently updated across the application\n\n9. Add logging for authentication-related actions:\n   - Implement detailed logging for login, logout, and authentication check processes\n   - Use these logs to help diagnose any future authentication issues",
       "testStrategy": "1. Unit Tests:\n   - Write unit tests for the logout function to ensure all authentication data is properly cleared\n   - Create tests for the AuthRedirectHandler to verify it correctly handles various authentication states\n   - Develop tests for the voting dialog display logic to confirm it only shows for authenticated users\n\n2. Integration Tests:\n   - Implement integration tests that simulate the login-logout flow and verify that no residual auth data remains\n   - Test the interaction between the authentication state and the voting dialog display\n\n3. End-to-End Tests:\n   - Create E2E tests using a tool like Cypress or Playwright to simulate user scenarios:\n     a. Log in, then log out, and attempt to access the voting dialog\n     b. Log out and try to directly navigate to a protected route\n     c. Test the application behavior when authentication tokens expire\n\n4. Manual Testing:\n   - Perform manual testing of the logout process across different browsers and devices\n   - Attempt to access protected routes and voting functionality after logout\n   - Test edge cases such as:\n     a. Closing the browser without logging out and then reopening\n     b. Logging out in one tab while the application is open in another\n     c. Testing behavior when network connectivity is lost during login/logout processes\n\n5. Security Testing:\n   - Conduct penetration testing to ensure that logged-out users cannot access protected resources\n   - Verify that authentication tokens are properly invalidated upon logout\n\n6. Performance Testing:\n   - Measure the impact of the new authentication checks on application performance\n   - Ensure that periodic authentication checks do not significantly impact user experience\n\n7. Compatibility Testing:\n   - Test the solution across different browsers (Chrome, Firefox, Safari, Edge) and versions\n   - Verify functionality on both desktop and mobile devices\n\n8. Logging and Monitoring:\n   - Review logs to ensure that authentication-related actions are properly recorded\n   - Set up alerts for any unusual authentication patterns or errors\n\n9. User Acceptance Testing:\n   - Have a group of users test the new implementation to ensure it doesn't negatively impact the user experience\n   - Gather feedback on the login/logout process and make adjustments as necessary",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         18,
         19
@@ -1616,7 +1616,7 @@
           "description": "Create a robust logout function that clears all authentication-related data from client-side storage and resets in-memory state.",
           "dependencies": [],
           "details": "1. Clear localStorage and sessionStorage of auth data\n2. Reset React context or Redux store auth state\n3. Implement a logout API endpoint to invalidate sessions server-side\n4. Ensure WeChat login session is properly terminated",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Verify all auth data is cleared after logout by checking storage and state. Test with different login methods including WeChat."
         },
         {
@@ -1627,7 +1627,7 @@
             1
           ],
           "details": "1. Implement a robust auth state check\n2. Prevent display of voting dialog for logged-out users\n3. Redirect unauthenticated users to login page\n4. Handle WeChat authentication edge cases",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test various scenarios including expired tokens, invalid sessions, and WeChat login states."
         },
         {
@@ -1638,7 +1638,7 @@
             2
           ],
           "details": "1. Implement auth check before displaying voting dialog\n2. Redirect to login or show 'Login Required' dialog for unauthenticated users\n3. Handle WeChat-specific authentication scenarios",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test dialog display for various user states, including WeChat logged-in users and users with expired sessions."
         },
         {
@@ -1650,7 +1650,7 @@
             2
           ],
           "details": "1. Develop a function to check auth data validity\n2. Set up an interval to run the check (e.g., every 5 minutes)\n3. Force logout and clear data if invalid auth state is detected\n4. Ensure compatibility with WeChat login flow",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Test with simulated expired tokens, invalid sessions, and interrupted WeChat auth flows."
         },
         {
@@ -1664,7 +1664,7 @@
             4
           ],
           "details": "1. Implement centralized error handling for 401 responses\n2. Clear local auth data and redirect to login on 401 errors\n3. Handle WeChat-specific authentication errors\n4. Update error logging for authentication-related issues",
-          "status": "pending",
+          "status": "done",
           "testStrategy": "Simulate various API error responses and verify correct handling, including WeChat-specific scenarios."
         }
       ]

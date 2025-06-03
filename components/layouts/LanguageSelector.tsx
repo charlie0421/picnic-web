@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
+import { persistLanguageSelection } from '@/utils/language-detection';
 
 const languages = [
   { code: 'ko', name: '한국어' },
@@ -54,11 +55,18 @@ const LanguageSelector = () => {
     if (langCode === currentLocale) return;
 
     try {
+      console.log(`🌐 [LanguageSelector] Changing language to: ${langCode}`);
+      
+      // 새로운 지속성 시스템을 사용하여 언어 설정 저장
+      persistLanguageSelection(langCode as any);
+      
       // useLocaleRouter의 changeLocale 함수 사용
       await changeLocale(langCode as any, true); // preservePath = true
       setIsOpen(false);
+      
+      console.log(`✅ [LanguageSelector] Language changed successfully to: ${langCode}`);
     } catch (error) {
-      console.error('Failed to change language:', error);
+      console.error('❌ [LanguageSelector] Failed to change language:', error);
     }
   };
 
@@ -101,6 +109,9 @@ const LanguageSelector = () => {
           position: 'relative',
           fontSize: '13px',
         }}
+        aria-label={`Current language: ${currentLanguageObj?.name || 'Language'}`}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
       >
         <span>{currentLanguageObj?.name || 'Language'}</span>
         <span
@@ -136,6 +147,8 @@ const LanguageSelector = () => {
           zIndex: 9999,
           fontSize: '14px',
         }}
+        role="listbox"
+        aria-label="Language options"
       >
         {languages.map((language) => {
           const isCurrentLanguage = language.code === currentLocale;
@@ -145,6 +158,8 @@ const LanguageSelector = () => {
               type='button'
               onClick={() => handleLanguageChange(language.code)}
               disabled={isCurrentLanguage}
+              role="option"
+              aria-selected={isCurrentLanguage}
               style={{
                 display: 'block',
                 width: '100%',
@@ -172,6 +187,17 @@ const LanguageSelector = () => {
               }}
             >
               {language.name}
+              {isCurrentLanguage && (
+                <span 
+                  style={{ 
+                    marginLeft: '8px', 
+                    color: '#10b981',
+                    fontSize: '12px'
+                  }}
+                >
+                  ✓
+                </span>
+              )}
             </button>
           );
         })}

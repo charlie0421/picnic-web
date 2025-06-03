@@ -796,7 +796,7 @@ export function getSocialAuthService(
 
   // 인스턴스가 없거나 다른 클라이언트가 전달된 경우 새로 생성
   if (!socialAuthServiceInstance) {
-    socialAuthServiceInstance = new SocialAuthService(supabase);
+    socialAuthServiceInstance = new SocialAuthService(supabase as any);
     console.log("🔍 getSocialAuthService: 새로운 SocialAuthService 인스턴스 생성");
   }
 
