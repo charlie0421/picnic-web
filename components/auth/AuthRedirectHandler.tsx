@@ -49,6 +49,7 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
   const [isAuthStateVerified, setIsAuthStateVerified] = useState(false);
   const [isVerifyingAuth, setIsVerifyingAuth] = useState(false);
   const verifyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [authVerificationCount, setAuthVerificationCount] = useState(0);
 
   /**
    * 완전한 로그아웃 처리 (새로운 포괄적 로그아웃 시스템 사용)
@@ -75,7 +76,6 @@ export function AuthRedirectHandler({ children }: AuthRedirectHandlerProps) {
       //   }
       // });
 
-      console.log('📊 [AuthRedirectHandler] 로그아웃 결과:', logoutResult);
 
       // 2. AuthProvider signOut 호출 (추가 안전장치)
       try {

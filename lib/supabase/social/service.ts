@@ -783,20 +783,19 @@ export function getSocialAuthService(
   supabase?: SupabaseClient<Database>,
 ): SocialAuthService {
   // Supabase 클라이언트가 제공되지 않은 경우 자동 생성
-  if (!supabase) {
+  let client = supabase;
+  if (!client) {
     if (typeof window !== "undefined") {
-      // 브라우저 환경에서는 동적 import 사용
       const { createBrowserSupabaseClient } = require("@/lib/supabase/client");
-      supabase = createBrowserSupabaseClient();
+      client = createBrowserSupabaseClient();
       console.log("🔍 getSocialAuthService: 브라우저 Supabase 클라이언트 자동 생성");
     } else {
       throw new Error("서버 환경에서는 Supabase 클라이언트를 명시적으로 전달해야 합니다.");
     }
   }
 
-  // 인스턴스가 없거나 다른 클라이언트가 전달된 경우 새로 생성
   if (!socialAuthServiceInstance) {
-    socialAuthServiceInstance = new SocialAuthService(supabase);
+    socialAuthServiceInstance = new SocialAuthService(client as SupabaseClient<Database>);
     console.log("🔍 getSocialAuthService: 새로운 SocialAuthService 인스턴스 생성");
   }
 
