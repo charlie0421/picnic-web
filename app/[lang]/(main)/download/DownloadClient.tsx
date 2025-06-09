@@ -238,50 +238,31 @@ export default function DownloadClient({
 
             {/* APK 버튼 */}
             <div className='text-center'>
-              {/* QR 코드 */}
+              {/* QR 코드 - 준비중 상태 */}
               <div className='mb-4 flex justify-center'>
-                <div className='bg-white p-4 rounded-xl shadow-xl border-2 border-gray-200'>
-                  <Image
-                    src={generateQRCodeURL(appInfo.apk.link)}
-                    alt='APK QR Code'
-                    width={120}
-                    height={120}
-                    className='rounded-lg'
-                  />
+                <div className='bg-white p-4 rounded-xl shadow-xl border-2 border-gray-200 opacity-50'>
+                  <div className='w-[120px] h-[120px] bg-gray-200 rounded-lg flex items-center justify-center'>
+                    <span className='text-gray-500 text-sm'>준비중</span>
+                  </div>
                 </div>
               </div>
-              {appInfo.apk.version && (
-                <p className='text-sm text-gray-700 font-medium mb-3 bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full mx-auto w-fit border border-gray-200'>
-                  v{appInfo.apk.version}
-                </p>
-              )}
-              <a
-                href={appInfo.apk.link}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='group relative overflow-hidden bg-gradient-to-r from-point-600 to-point-800 text-white px-8 py-6 rounded-2xl shadow-[0_8px_30px_rgba(255,169,189,0.4)] hover:shadow-[0_12px_40px_rgba(255,169,189,0.6)] transform hover:scale-105 transition-all duration-300 flex flex-col items-center justify-center gap-4 w-full border-4 border-point-400 hover:border-point-300'
-              >
+              <p className='text-sm text-gray-700 font-medium mb-3 bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full mx-auto w-fit border border-gray-200'>
+                준비중
+              </p>
+              <div className='group relative overflow-hidden bg-gradient-to-r from-gray-400 to-gray-500 text-white px-8 py-6 rounded-2xl shadow-[0_8px_30px_rgba(156,163,175,0.3)] flex flex-col items-center justify-center gap-4 w-full border-4 border-gray-300 cursor-not-allowed opacity-70'>
                 <ApkIcon />
                 <div className='text-center'>
                   <div className='font-bold text-lg drop-shadow-sm'>
                     {t('download_apk_button')}
                   </div>
-                  {appInfo.apk.version && (
-                    <div className='text-xs opacity-90 drop-shadow-sm'>
-                      v{appInfo.apk.version}
-                    </div>
-                  )}
+                  <div className='text-xs opacity-90 drop-shadow-sm'>
+                    준비중
+                  </div>
                 </div>
-                <div className='absolute inset-0 bg-white opacity-0 group-hover:opacity-25 transition-opacity duration-300'></div>
-              </a>
-              <button
-                onClick={() => handleCopyLink(appInfo.apk.link, 'apk')}
-                className='mt-3 px-4 py-2 text-sm font-medium bg-point-50 text-point-800 hover:bg-point-100 rounded-lg transition-colors duration-200 border-2 border-point-300 hover:border-point-400 shadow-md hover:shadow-lg'
-              >
-                {copied === 'apk'
-                  ? t('download_link_copied')
-                  : t('download_link_copy')}
-              </button>
+              </div>
+              <div className='mt-3 px-4 py-2 text-sm font-medium bg-gray-100 text-gray-500 rounded-lg border-2 border-gray-300 cursor-not-allowed opacity-70'>
+                준비중
+              </div>
             </div>
           </div>
         </div>
