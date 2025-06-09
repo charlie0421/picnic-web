@@ -108,6 +108,22 @@ const nextConfig = {
     ];
   },
   
+  async redirects() {
+    return [
+      // download.html을 download로 리디렉션
+      {
+        source: '/download.html',
+        destination: '/download',
+        permanent: true
+      },
+      {
+        source: '/:lang/download.html',
+        destination: '/:lang/download',
+        permanent: true
+      }
+    ];
+  },
+  
   async rewrites() {
     return [
       {

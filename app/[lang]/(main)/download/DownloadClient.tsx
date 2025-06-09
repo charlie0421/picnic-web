@@ -242,12 +242,12 @@ export default function DownloadClient({
               <div className='mb-4 flex justify-center'>
                 <div className='bg-white p-4 rounded-xl shadow-xl border-2 border-gray-200 opacity-50'>
                   <div className='w-[120px] h-[120px] bg-gray-200 rounded-lg flex items-center justify-center'>
-                    <span className='text-gray-500 text-sm'>준비중</span>
+                    <span className='text-gray-500 text-sm'>{t('download_coming_soon')}</span>
                   </div>
                 </div>
               </div>
               <p className='text-sm text-gray-700 font-medium mb-3 bg-white/70 backdrop-blur-sm px-3 py-1 rounded-full mx-auto w-fit border border-gray-200'>
-                준비중
+                {t('download_coming_soon')}
               </p>
               <div className='group relative overflow-hidden bg-gradient-to-r from-gray-400 to-gray-500 text-white px-8 py-6 rounded-2xl shadow-[0_8px_30px_rgba(156,163,175,0.3)] flex flex-col items-center justify-center gap-4 w-full border-4 border-gray-300 cursor-not-allowed opacity-70'>
                 <ApkIcon />
@@ -256,12 +256,12 @@ export default function DownloadClient({
                     {t('download_apk_button')}
                   </div>
                   <div className='text-xs opacity-90 drop-shadow-sm'>
-                    준비중
+                    {t('download_coming_soon')}
                   </div>
                 </div>
               </div>
               <div className='mt-3 px-4 py-2 text-sm font-medium bg-gray-100 text-gray-500 rounded-lg border-2 border-gray-300 cursor-not-allowed opacity-70'>
-                준비중
+                {t('download_coming_soon')}
               </div>
             </div>
           </div>
