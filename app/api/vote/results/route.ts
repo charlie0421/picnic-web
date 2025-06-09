@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase-server-client";
-import { 
-  withApiErrorHandler, 
-  apiHelpers,
-  createValidationError,
-  createNotFoundError,
-  createDatabaseError,
-  safeApiOperation 
-} from "@/utils/api-error-handler";
 
 interface VoteResultItem {
     id: number;
@@ -36,23 +28,23 @@ interface VoteResultsResponse {
     results: VoteResultItem[];
 }
 
-export const GET = withApiErrorHandler(async (request: NextRequest) => {
-    const { data, error } = await safeApiOperation(async () => {
+export async function GET(request: NextRequest) {
+    try {
         const { searchParams } = new URL(request.url);
         const voteId = searchParams.get("voteId");
 
         if (!voteId) {
-            throw createValidationError(
-                "투표 ID가 필요합니다.",
-                "voteId"
+            return NextResponse.json(
+                { error: "투표 ID가 필요합니다." },
+                { status: 400 }
             );
         }
 
         const voteIdNumber = parseInt(voteId);
         if (isNaN(voteIdNumber) || voteIdNumber <= 0) {
-            throw createValidationError(
-                "유효한 투표 ID가 필요합니다.",
-                "voteId"
+            return NextResponse.json(
+                { error: "유효한 투표 ID가 필요합니다." },
+                { status: 400 }
             );
         }
 
@@ -73,22 +65,23 @@ export const GET = withApiErrorHandler(async (request: NextRequest) => {
             .single();
 
         if (voteError) {
+            console.error('투표 정보 조회 실패:', voteError);
             if (voteError.code === 'PGRST116') { // No rows returned
-                throw createNotFoundError(
-                    "투표를 찾을 수 없습니다.",
-                    "vote"
+                return NextResponse.json(
+                    { error: "투표를 찾을 수 없습니다." },
+                    { status: 404 }
                 );
             }
-            throw createDatabaseError(
-                "투표 정보 조회에 실패했습니다.",
-                voteError.message
+            return NextResponse.json(
+                { error: "투표 정보 조회에 실패했습니다." },
+                { status: 500 }
             );
         }
 
         if (!voteData) {
-            throw createNotFoundError(
-                "투표를 찾을 수 없습니다.",
-                "vote"
+            return NextResponse.json(
+                { error: "투표를 찾을 수 없습니다." },
+                { status: 404 }
             );
         }
 
@@ -130,9 +123,10 @@ export const GET = withApiErrorHandler(async (request: NextRequest) => {
             .order("vote_total", { ascending: false });
 
         if (itemsError) {
-            throw createDatabaseError(
-                "투표 아이템 조회에 실패했습니다.",
-                itemsError.message
+            console.error('투표 아이템 조회 실패:', itemsError);
+            return NextResponse.json(
+                { error: "투표 아이템 조회에 실패했습니다." },
+                { status: 500 }
             );
         }
 
@@ -174,23 +168,22 @@ export const GET = withApiErrorHandler(async (request: NextRequest) => {
             results,
         };
 
-        return {
+        return NextResponse.json({
             success: true,
             data: response,
-        };
-    }, request);
-
-    if (error) {
-        return error;
+        });
+    } catch (error) {
+        console.error('투표 결과 조회 처리 중 오류:', error);
+        return NextResponse.json(
+            { error: '서버 오류가 발생했습니다.' },
+            { status: 500 }
+        );
     }
+}
 
-    return apiHelpers.success(data!);
-});
-
-export const POST = withApiErrorHandler(async (request: NextRequest) => {
-    const { error } = await safeApiOperation(async () => {
-        throw apiHelpers.methodNotAllowed("POST 메서드는 지원되지 않습니다.");
-    }, request);
-
-    return error!;
-});
+export async function POST(request: NextRequest) {
+    return NextResponse.json(
+        { error: "POST 메서드는 지원되지 않습니다." },
+        { status: 405 }
+    );
+}

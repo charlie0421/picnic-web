@@ -2,16 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { normalizeKakaoProfile } from '@/lib/supabase/social/kakao';
-import { SocialAuthError, SocialAuthErrorCode } from '@/lib/supabase/social/types';
-import { 
-  withApiErrorHandler, 
-  apiHelpers,
-  createValidationError,
-  createExternalServiceError,
-  createDatabaseError,
-  safeApiOperation 
-} from '@/utils/api-error-handler';
-import { ErrorTransformer } from '@/utils/error';
 
 /**
  * Kakao 토큰 및 사용자 정보 처리 API
