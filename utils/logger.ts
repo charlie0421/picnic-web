@@ -5,7 +5,7 @@
  */
 
 import { createServerActionClient } from '@/utils/supabase-server-client';
-import { AppError, ErrorContext } from '@/utils/error';
+import { AppError, ErrorContext, ErrorSeverity } from '@/utils/error';
 
 /**
  * 로그 레벨 정의
@@ -348,12 +348,11 @@ export class Logger {
       headers?: Record<string, string>;
     }
   ): Promise<void> {
-    const level = appError.severity === 'high' ? LogLevel.FATAL : LogLevel.ERROR;
+    const level = appError.severity === ErrorSeverity.HIGH || appError.severity === ErrorSeverity.CRITICAL ? LogLevel.FATAL : LogLevel.ERROR;
     const message = `[${appError.category}] ${appError.message}`;
     
     const enhancedContext = {
       ...context,
-      errorId: appError.id,
       category: appError.category,
       severity: appError.severity,
       statusCode: appError.statusCode,
@@ -420,9 +419,9 @@ export class PerformanceTimer {
   private logger: Logger;
   private operation: string;
 
-  constructor(operation: string, logger: Logger = logger) {
+  constructor(operation: string, loggerInstance?: Logger) {
     this.operation = operation;
-    this.logger = logger;
+    this.logger = loggerInstance || logger;
     this.startTime = Date.now();
   }
 
@@ -460,8 +459,8 @@ export class PerformanceTimer {
 /**
  * 성능 타이머 생성 헬퍼
  */
-export function startTimer(operation: string, logger?: Logger): PerformanceTimer {
-  return new PerformanceTimer(operation, logger);
+export function startTimer(operation: string, loggerInstance?: Logger): PerformanceTimer {
+  return new PerformanceTimer(operation, loggerInstance);
 }
 
 /**
@@ -470,10 +469,10 @@ export function startTimer(operation: string, logger?: Logger): PerformanceTimer
 export function withLogging<T extends (...args: any[]) => any>(
   fn: T,
   operation: string,
-  logger: Logger = logger
+  loggerInstance?: Logger
 ): T {
   return (async (...args: any[]) => {
-    const timer = startTimer(operation, logger);
+    const timer = startTimer(operation, loggerInstance);
     
     try {
       const result = await fn(...args);

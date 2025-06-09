@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { AppError, ErrorCategory } from '@/utils/error';
+import { AppError, ErrorCategory, ErrorSeverity } from '@/utils/error';
 import { withNetworkRetry } from '@/utils/retry';
 
 interface UserBalance {
@@ -53,9 +53,9 @@ export function useCanVote() {
                     throw new AppError(
                         errorMessage,
                         response.status >= 500 ? ErrorCategory.SERVER : ErrorCategory.VALIDATION,
-                        'medium',
+                        ErrorSeverity.MEDIUM,
                         response.status,
-                        { originalResponse: result }
+                        { originalError: result }
                     );
                 }
 
@@ -67,7 +67,7 @@ export function useCanVote() {
             if (result.success) {
                 return result.data!;
             } else {
-                const errorMessage = result.error.message;
+                const errorMessage = result.error?.message || 'Unknown error occurred';
                 setError(errorMessage);
                 console.error("Can vote check error:", result.error);
                 return null;
@@ -98,9 +98,9 @@ export function useCanVote() {
                     throw new AppError(
                         errorMessage,
                         response.status >= 500 ? ErrorCategory.SERVER : ErrorCategory.VALIDATION,
-                        'medium',
+                        ErrorSeverity.MEDIUM,
                         response.status,
-                        { originalResponse: result }
+                        { originalError: result }
                     );
                 }
 
@@ -112,7 +112,7 @@ export function useCanVote() {
             if (result.success) {
                 return result.data!;
             } else {
-                const errorMessage = result.error.message;
+                const errorMessage = result.error?.message || 'Unknown error occurred';
                 setError(errorMessage);
                 console.error("Can vote check error:", result.error);
                 return null;

@@ -330,39 +330,14 @@ export const updateVoteStatus = withServerActionErrorHandler(
  * 폼 액션 예시: 투표 생성 (리다이렉트 포함)
  */
 export async function createVoteFormAction(formData: FormData) {
-  const result = await safeServerActionOperation(
-    async () => {
-      const { voteId } = await createVote.unwrapped(formData);
-      return voteId;
-    },
-    'createVoteFormAction'
-  );
+  const result = await createVote(formData);
 
   if (result.success) {
-    redirect(`/vote/${result.data}`);
+    redirect(`/vote/${result.data.voteId}`);
   } else {
     // 에러 처리는 클라이언트에서 처리하도록 결과 반환
     return result;
   }
 }
 
-// 래핑되지 않은 원본 함수들 (필요한 경우 직접 접근)
-submitVote.unwrapped = async (voteId: number, voteItemId: number) => {
-  // 원본 로직...
-  return { success: true, message: '투표가 성공적으로 제출되었습니다.' };
-};
-
-createVote.unwrapped = async (formData: FormData) => {
-  // 원본 로직...
-  return { voteId: 1 };
-};
-
-deleteVote.unwrapped = async (voteId: number) => {
-  // 원본 로직...
-  return { success: true };
-};
-
-updateVoteStatus.unwrapped = async (voteId: number, status: 'upcoming' | 'ongoing' | 'completed') => {
-  // 원본 로직...
-  return { success: true };
-}; 
+ 

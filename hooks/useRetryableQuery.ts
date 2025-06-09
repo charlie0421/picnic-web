@@ -7,7 +7,53 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
+// React Query 타입 정의 (자체 구현)
+interface UseQueryOptions<T> {
+  enabled?: boolean;
+  onError?: (error: Error) => void;
+  onSuccess?: (data: T) => void;
+}
+
+interface UseMutationOptions<T, TError, TVariables> {
+  onError?: (error: TError) => void;
+  onSuccess?: (data: T, variables: TVariables) => void;
+  onMutate?: (variables: TVariables) => void;
+  mutationFn: (variables: TVariables) => Promise<T>;
+}
+
+// 간단한 useMutation 구현
+function useMutation<T, TError = Error, TVariables = void>(options: UseMutationOptions<T, TError, TVariables>) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<TError | null>(null);
+  const [data, setData] = useState<T | null>(null);
+
+  const mutate = useCallback(async (variables: TVariables) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      options.onMutate?.(variables);
+      const result = await options.mutationFn(variables);
+      setData(result);
+      options.onSuccess?.(result, variables);
+      return result;
+    } catch (err) {
+      const error = err as TError;
+      setError(error);
+      options.onError?.(error);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [options]);
+
+  return {
+    mutate,
+    isLoading,
+    error,
+    data,
+  };
+}
 import { 
   ExtendedRetryUtility, 
   withNetworkRetry, 
@@ -41,6 +87,19 @@ export interface RetryableQueryOptions<T> {
 export interface RetryableMutationOptions<T, V> extends Omit<UseMutationOptions<T, Error, V>, 'mutationFn'> {
   retryConfig?: Partial<ExtendedRetryConfig>;
   operationName?: string;
+}
+
+/**
+ * 재시도 가능한 쿼리 결과
+ */
+export interface RetryableQueryResult<T> {
+  data: T | null;
+  isLoading: boolean;
+  error: AppError | null;
+  retryCount: number;
+  canRetry: boolean;
+  refetch: () => Promise<T | null>;
+  retry: () => void;
 }
 
 /**
@@ -104,21 +163,28 @@ export function useRetryableQuery<T>(
 
           return await queryFn();
         },
-        operationName,
         {
-          maxRetries: 3,
-          retryDelay: 1000,
+          maxAttempts: 3,
+          baseDelay: 1000,
           retryableCategories: [
             ErrorCategory.NETWORK,
             ErrorCategory.SERVER,
             ErrorCategory.EXTERNAL_SERVICE,
           ],
           ...retryConfig,
-          onRetry: (attempt, error) => {
+          onRetry: (error, attempt) => {
             setRetryCount(attempt);
-            onRetry?.(attempt, error);
+            const appError = error instanceof AppError ? error : new AppError(
+              error.message,
+              ErrorCategory.UNKNOWN,
+              ErrorSeverity.MEDIUM,
+              500,
+              { originalError: error }
+            );
+            onRetry?.(attempt, appError);
           },
-        }
+        },
+        operationName
       );
 
       if (result.success && queryKeyRef.current === currentQueryKey) {
@@ -127,14 +193,29 @@ export function useRetryableQuery<T>(
         onSuccess?.(result.data!);
         return result.data!;
       } else if (!result.success && queryKeyRef.current === currentQueryKey) {
-        const appError = result.error;
+        const appError = result.error instanceof AppError 
+          ? result.error 
+          : result.error 
+            ? new AppError(
+                result.error.message,
+                ErrorCategory.UNKNOWN,
+                ErrorSeverity.MEDIUM,
+                500,
+                { originalError: result.error }
+              )
+            : new AppError(
+                'Unknown error occurred',
+                ErrorCategory.UNKNOWN,
+                ErrorSeverity.MEDIUM,
+                500
+              );
         setError(appError);
-        setRetryCount(result.retryCount || 0);
+        setRetryCount(result.attempts || 0);
 
         // 에러 로깅
         await logger.error(`Query failed: ${operationName}`, appError, {
           queryKey: queryKeyString,
-          retryCount: result.retryCount || 0,
+          retryCount: result.attempts || 0,
           operationName,
         });
 
@@ -201,7 +282,7 @@ export function useRetryableQuery<T>(
   }, [enabled, executeQuery]);
 
   // 재시도 가능 여부 계산
-  const canRetry = error !== null && retryCount < (retryConfig.maxRetries || 3);
+  const canRetry = error !== null && retryCount < (retryConfig.maxAttempts || 3);
 
   return {
     data,
@@ -307,7 +388,7 @@ export function useSupabaseQuery<T>(
         );
       }
       
-      return data;
+      return data!;
     },
     {
       retryConfig: {
@@ -344,8 +425,7 @@ export function useVoteQuery<T>(
           createRetryCondition.errorMessage(['network', 'timeout', 'connection'])
         ),
       },
-      staleTime: 30000, // 30초간 fresh 상태 유지
-      cacheTime: 300000, // 5분간 캐시 유지
+
       ...options,
       operationName: `vote-${queryKey.join('-')}`,
     }
@@ -389,7 +469,7 @@ export function useAuthQuery<T>(
     queryFn,
     {
       retryConfig: {
-        maxRetries: 2, // 인증 에러는 재시도 횟수 제한
+        maxAttempts: 2, // 인증 에러는 재시도 횟수 제한
         retryableCategories: [ErrorCategory.NETWORK],
       },
       ...options,
@@ -452,8 +532,8 @@ export function useFileUploadQuery<T>(
     uploadFn,
     {
       retryConfig: {
-        maxRetries: 2,
-        retryDelay: 2000,
+        maxAttempts: 2,
+        baseDelay: 2000,
         retryableCategories: [ErrorCategory.NETWORK],
       },
       ...options,
@@ -496,7 +576,7 @@ export function useSafeRetryableQuery<T>(
   });
 
   // 에러 발생 시 fallback 데이터 반환
-  if (query.isError && fallbackData !== undefined) {
+  if (query.error && fallbackData !== undefined) {
     return {
       ...query,
       data: fallbackData,

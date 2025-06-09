@@ -4,7 +4,7 @@
  * 다양한 시나리오에 대한 재시도 메커니즘을 제공합니다.
  */
 
-import { AppError, ErrorCategory, RetryConfig, createContext } from '@/utils/error';
+import { AppError, ErrorCategory, ErrorSeverity, RetryConfig, createContext } from '@/utils/error';
 import { logger } from '@/utils/logger';
 
 /**
@@ -130,7 +130,7 @@ export class ExtendedRetryUtility {
             reject(new AppError(
               `작업 타임아웃: ${finalConfig.timeoutMs}ms 초과`,
               ErrorCategory.CLIENT,
-              'medium',
+              ErrorSeverity.MEDIUM,
               408
             ));
           }, finalConfig.timeoutMs);
@@ -167,7 +167,7 @@ export class ExtendedRetryUtility {
         lastError = error instanceof AppError ? error : new AppError(
           error instanceof Error ? error.message : String(error),
           ErrorCategory.UNKNOWN,
-          'medium',
+          ErrorSeverity.MEDIUM,
           500,
           { originalError: error }
         );
@@ -198,19 +198,21 @@ export class ExtendedRetryUtility {
           try {
             await finalConfig.onRetry(lastError, attempts);
           } catch (callbackError) {
-            await logger.warn('재시도 콜백 실행 실패', callbackError as Error, {
+            await logger.warn('재시도 콜백 실행 실패', {
               operationName,
               attempt: attempts,
+              error: callbackError,
             });
           }
         }
 
         // 재시도 로깅
-        await logger.warn(`재시도 시도 ${attempts}/${finalConfig.maxAttempts}: ${operationName || 'unknown'}`, lastError, {
+        await logger.warn(`재시도 시도 ${attempts}/${finalConfig.maxAttempts}: ${operationName || 'unknown'}`, {
           attempt: attempts,
           maxAttempts: finalConfig.maxAttempts,
           operationName,
           nextDelayMs: this.calculateDelay(attempts, finalConfig),
+          error: lastError,
         });
 
         // 마지막 시도가 아니면 지연

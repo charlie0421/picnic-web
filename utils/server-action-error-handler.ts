@@ -5,7 +5,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { ErrorHandler, AppError, createContext, ErrorCategory } from '@/utils/error';
+import { ErrorHandler, AppError, createContext, ErrorCategory, ErrorSeverity } from '@/utils/error';
 import { logger } from '@/utils/logger';
 
 /**
@@ -170,7 +170,7 @@ export function createServerActionValidationError(
   return new AppError(
     message,
     ErrorCategory.VALIDATION,
-    'low',
+    ErrorSeverity.LOW,
     400,
     {
       context: createContext()
@@ -187,7 +187,7 @@ export function createServerActionAuthError(message: string = '로그인이 필�
   return new AppError(
     message,
     ErrorCategory.AUTHENTICATION,
-    'medium',
+    ErrorSeverity.MEDIUM,
     401,
     {
       context: createContext()
@@ -204,7 +204,7 @@ export function createServerActionAuthorizationError(message: string = '접근 �
   return new AppError(
     message,
     ErrorCategory.AUTHORIZATION,
-    'medium',
+    ErrorSeverity.MEDIUM,
     403,
     {
       context: createContext()
@@ -221,7 +221,7 @@ export function createServerActionNotFoundError(resource: string = '리소스'):
   return new AppError(
     `${resource}를 찾을 수 없습니다.`,
     ErrorCategory.NOT_FOUND,
-    'low',
+    ErrorSeverity.LOW,
     404,
     {
       context: createContext()

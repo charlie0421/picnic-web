@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ErrorHandler, AppError, createContext, ErrorCategory } from '@/utils/error';
+import { ErrorHandler, AppError, createContext, ErrorCategory, ErrorSeverity } from '@/utils/error';
 import { logger, createRequestLogger } from '@/utils/logger';
 
 /**
@@ -111,7 +111,7 @@ export class ApiErrorHandler {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
-          'X-Request-ID': fallbackResponse.error.requestId,
+          ...(fallbackResponse.error.requestId && { 'X-Request-ID': fallbackResponse.error.requestId }),
         },
       });
     }
@@ -134,7 +134,7 @@ export class ApiErrorHandler {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'X-Request-ID': response.requestId,
+        ...(response.requestId && { 'X-Request-ID': response.requestId }),
       },
     });
   }
@@ -226,7 +226,7 @@ export function createValidationError(
   return new AppError(
     message,
     ErrorCategory.VALIDATION,
-    'low',
+    ErrorSeverity.LOW,
     400,
     {
       context: createContext()
@@ -243,7 +243,7 @@ export function createAuthError(message: string = '인증이 필요합니다.'):
   return new AppError(
     message,
     ErrorCategory.AUTHENTICATION,
-    'medium',
+    ErrorSeverity.MEDIUM,
     401
   );
 }
@@ -255,7 +255,7 @@ export function createAuthorizationError(message: string = '접근 권한이 없
   return new AppError(
     message,
     ErrorCategory.AUTHORIZATION,
-    'medium',
+    ErrorSeverity.MEDIUM,
     403
   );
 }
@@ -267,7 +267,7 @@ export function createNotFoundError(resource: string = '리소스'): AppError {
   return new AppError(
     `${resource}를 찾을 수 없습니다.`,
     ErrorCategory.NOT_FOUND,
-    'low',
+    ErrorSeverity.LOW,
     404
   );
 }
@@ -279,7 +279,7 @@ export function createConflictError(message: string = '이미 존재하는 데�
   return new AppError(
     message,
     ErrorCategory.CONFLICT,
-    'low',
+    ErrorSeverity.LOW,
     409
   );
 }
@@ -291,7 +291,7 @@ export function createRateLimitError(message: string = '요청 한도를 초과�
   return new AppError(
     message,
     ErrorCategory.CLIENT,
-    'medium',
+    ErrorSeverity.MEDIUM,
     429
   );
 }
@@ -302,8 +302,8 @@ export function createRateLimitError(message: string = '요청 한도를 초과�
 export function createExternalServiceError(message: string = '외부 서비스 연결에 실패했습니다.'): AppError {
   return new AppError(
     message,
-    ErrorCategory.EXTERNAL,
-    'high',
+    ErrorCategory.EXTERNAL_SERVICE,
+    ErrorSeverity.HIGH,
     502
   );
 }
@@ -314,8 +314,8 @@ export function createExternalServiceError(message: string = '외부 서비스 �
 export function createDatabaseError(message: string = '데이터베이스 오류가 발생했습니다.'): AppError {
   return new AppError(
     message,
-    ErrorCategory.DATABASE,
-    'high',
+    ErrorCategory.SERVER,
+    ErrorSeverity.HIGH,
     500
   );
 }
@@ -326,8 +326,8 @@ export function createDatabaseError(message: string = '데이터베이스 오류
 export function createBusinessLogicError(message: string = '비즈니스 규칙 위반입니다.'): AppError {
   return new AppError(
     message,
-    ErrorCategory.BUSINESS,
-    'medium',
+    ErrorCategory.VALIDATION,
+    ErrorSeverity.MEDIUM,
     400
   );
 }

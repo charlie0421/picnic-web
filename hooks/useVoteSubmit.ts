@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { AppError, ErrorCategory } from "@/utils/error";
+import { AppError, ErrorCategory, ErrorSeverity } from "@/utils/error";
 import { withNetworkRetry } from "@/utils/retry";
 
 interface VoteSubmissionData {
@@ -53,34 +53,26 @@ export function useVoteSubmit() {
                 
                 throw new AppError(
                     errorMessage,
-                    isBusinessLogicError ? ErrorCategory.BUSINESS_LOGIC : 
+                    isBusinessLogicError ? ErrorCategory.VALIDATION : 
                     response.status >= 500 ? ErrorCategory.SERVER : ErrorCategory.VALIDATION,
-                    'medium',
+                    ErrorSeverity.MEDIUM,
                     response.status,
                     { 
-                        originalResponse: result,
-                        retryable: !isBusinessLogicError 
+                        originalError: result,
+                        isRetryable: !isBusinessLogicError 
                     }
                 );
             }
 
             return response.json() as Promise<VoteSubmissionResponse>;
-        }, 'submitVote', {
-            // 비즈니스 로직 에러는 재시도하지 않도록 설정
-            retryableCategories: [
-                ErrorCategory.NETWORK,
-                ErrorCategory.SERVER,
-                ErrorCategory.EXTERNAL_SERVICE
-            ],
-            maxRetries: 2, // 투표 제출은 중요하므로 재시도 횟수를 줄임
-        });
+        }, 'submitVote');
 
         setIsSubmitting(false);
 
         if (result.success) {
             return result.data!;
         } else {
-            const errorMessage = result.error.message;
+            const errorMessage = result.error?.message || "투표 제출 중 오류가 발생했습니다.";
             setError(errorMessage);
             console.error("[useVoteSubmit] 에러:", result.error);
             return null;

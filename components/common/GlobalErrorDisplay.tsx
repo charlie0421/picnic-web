@@ -155,9 +155,9 @@ export function GlobalErrorDisplay({
               </p>
               
               {/* 에러 세부 정보 (개발 환경에서만) */}
-              {process.env.NODE_ENV === 'development' && errorState.error.details && (
+              {process.env.NODE_ENV === 'development' && errorState.error.context && (
                 <p className="text-xs mt-1 opacity-75">
-                  {truncateMessage(errorState.error.details, 80)}
+                  {truncateMessage(JSON.stringify(errorState.error.context), 80)}
                 </p>
               )}
               

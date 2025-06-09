@@ -61,8 +61,8 @@ export function useVoteResults(voteId: number | null) {
             enabled: !!voteId,
             fallbackData: null,
             retryConfig: {
-                maxRetries: 3,
-                retryDelay: 1000,
+                maxAttempts: 3,
+                baseDelay: 1000,
                 retryableCategories: [
                     ErrorCategory.NETWORK,
                     ErrorCategory.SERVER,
