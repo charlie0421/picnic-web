@@ -153,11 +153,11 @@ export class ApiErrorHandler {
  * API 라우트 핸들러를 래핑하여 자동으로 에러 처리를 적용합니다.
  */
 export function withApiErrorHandler<T = any>(
-  handler: (request: NextRequest, context?: { params?: any }) => Promise<NextResponse<T>>
+  handler: (request: NextRequest, context: { params?: any }) => Promise<NextResponse<T>>
 ) {
   return async (
     request: NextRequest,
-    context?: { params?: any }
+    context: { params?: any } = {}
   ): Promise<NextResponse<T | ApiErrorResponse>> => {
     const requestId = ApiErrorHandler['generateRequestId']();
     const requestLogger = createRequestLogger(request);
@@ -293,6 +293,42 @@ export function createRateLimitError(message: string = '요청 한도를 초과�
     ErrorCategory.CLIENT,
     'medium',
     429
+  );
+}
+
+/**
+ * 외부 서비스 에러 생성 헬퍼
+ */
+export function createExternalServiceError(message: string = '외부 서비스 연결에 실패했습니다.'): AppError {
+  return new AppError(
+    message,
+    ErrorCategory.EXTERNAL,
+    'high',
+    502
+  );
+}
+
+/**
+ * 데이터베이스 에러 생성 헬퍼
+ */
+export function createDatabaseError(message: string = '데이터베이스 오류가 발생했습니다.'): AppError {
+  return new AppError(
+    message,
+    ErrorCategory.DATABASE,
+    'high',
+    500
+  );
+}
+
+/**
+ * 비즈니스 로직 에러 생성 헬퍼
+ */
+export function createBusinessLogicError(message: string = '비즈니스 규칙 위반입니다.'): AppError {
+  return new AppError(
+    message,
+    ErrorCategory.BUSINESS,
+    'medium',
+    400
   );
 }
 

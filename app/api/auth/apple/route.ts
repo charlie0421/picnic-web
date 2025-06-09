@@ -9,7 +9,7 @@ interface AppleAuthRequest {
   state?: string;
 }
 
-async function appleAuthHandler(request: NextRequest) {
+async function appleAuthHandler(request: NextRequest, context: { params?: any }) {
   const { data: body, error: parseError } = await safeApiOperation(
     () => request.json() as Promise<AppleAuthRequest>,
     request
