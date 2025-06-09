@@ -153,11 +153,11 @@ export class ApiErrorHandler {
  * API 라우트 핸들러를 래핑하여 자동으로 에러 처리를 적용합니다.
  */
 export function withApiErrorHandler<T = any>(
-  handler: (request: NextRequest, context: { params?: any }) => Promise<NextResponse<T>>
+  handler: (request: NextRequest, context?: { params?: any }) => Promise<NextResponse<T>>
 ) {
   return async (
     request: NextRequest,
-    context: { params?: any } = {}
+    context?: { params?: any }
   ): Promise<NextResponse<T | ApiErrorResponse>> => {
     const requestId = ApiErrorHandler['generateRequestId']();
     const requestLogger = createRequestLogger(request);
