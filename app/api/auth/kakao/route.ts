@@ -19,8 +19,8 @@ import { ErrorTransformer } from '@/utils/error';
  * 이 API는 Kakao OAuth 콜백으로부터 받은 코드를 사용하여
  * 액세스 토큰을 획득하고 사용자 정보를 가져오는 역할을 합니다.
  */
-export const POST = withApiErrorHandler(async (request: NextRequest) => {
-  const { data, error } = await safeApiOperation(async () => {
+export async function POST(request: NextRequest) {
+  try {
     const { code, accessToken } = await request.json();
     
     // 서버 측 Supabase 클라이언트 생성
@@ -40,10 +40,10 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
     const clientSecret = process.env.KAKAO_CLIENT_SECRET;
     
     if (!clientId) {
-      throw ErrorTransformer.fromLegacySocialAuthError(
-        SocialAuthErrorCode.INITIALIZATION_FAILED,
-        'Kakao 클라이언트 ID가 설정되지 않았습니다.',
-        'kakao'
+      console.error('Kakao 클라이언트 ID가 설정되지 않았습니다.');
+      return NextResponse.json(
+        { error: 'Kakao 클라이언트 ID가 설정되지 않았습니다.' },
+        { status: 500 }
       );
     }
     
@@ -71,10 +71,10 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
       
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
-        throw createExternalServiceError(
-          '액세스 토큰 요청 실패',
-          'kakao',
-          errorText
+        console.error('액세스 토큰 요청 실패:', errorText);
+        return NextResponse.json(
+          { error: '액세스 토큰 요청 실패' },
+          { status: 502 }
         );
       }
       
@@ -82,18 +82,18 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
       token = tokenData.access_token;
       
       if (!token) {
-        throw ErrorTransformer.fromLegacySocialAuthError(
-          SocialAuthErrorCode.TOKEN_EXCHANGE_FAILED,
-          'Kakao 액세스 토큰을 획득하지 못했습니다.',
-          'kakao'
+        console.error('Kakao 액세스 토큰을 획득하지 못했습니다.');
+        return NextResponse.json(
+          { error: 'Kakao 액세스 토큰을 획득하지 못했습니다.' },
+          { status: 502 }
         );
       }
     }
     
     if (!token) {
-      throw createValidationError(
-        'Kakao 액세스 토큰이 필요합니다.',
-        'accessToken'
+      return NextResponse.json(
+        { error: 'Kakao 액세스 토큰이 필요합니다.' },
+        { status: 400 }
       );
     }
     
@@ -108,11 +108,10 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
     
     if (!userInfoResponse.ok) {
       const errorText = await userInfoResponse.text();
-      throw ErrorTransformer.fromLegacySocialAuthError(
-        SocialAuthErrorCode.PROFILE_FETCH_FAILED,
-        'Kakao 사용자 정보 요청 실패',
-        'kakao',
-        errorText
+      console.error('Kakao 사용자 정보 요청 실패:', errorText);
+      return NextResponse.json(
+        { error: 'Kakao 사용자 정보 요청 실패' },
+        { status: 502 }
       );
     }
     
@@ -128,9 +127,10 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
         const { data: users, error: userError } = await supabase.auth.admin.listUsers();
         
         if (userError) {
-          throw createDatabaseError(
-            'Supabase 사용자 조회 실패',
-            userError.message
+          console.error('Supabase 사용자 조회 실패:', userError.message);
+          return NextResponse.json(
+            { error: 'Supabase 사용자 조회 실패' },
+            { status: 500 }
           );
         }
         
@@ -140,48 +140,44 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
         
         if (user?.user) {
           // 사용자가 존재하면 반환
-          return {
+          return NextResponse.json({
             success: true,
             profile: normalizedProfile,
             existingUser: true
-          };
+          });
         }
       } catch (error: any) {
-        // 이미 우리가 던진 에러라면 다시 던지기
-        if (error.category) {
-          throw error;
-        }
         // 오류가 발생해도 계속 진행 (새 사용자 생성 시도)
         console.warn('Supabase 사용자 조회 오류 (계속 진행):', error);
       }
     }
     
     // 새 사용자 정보 반환
-    return {
+    return NextResponse.json({
       success: true,
       profile: normalizedProfile,
       existingUser: false
-    };
-  }, request);
-
-  if (error) {
-    return error;
+    });
+  } catch (error) {
+    console.error('Kakao 인증 처리 중 오류:', error);
+    return NextResponse.json(
+      { error: '서버 오류가 발생했습니다.' },
+      { status: 500 }
+    );
   }
-
-  return apiHelpers.success(data!);
-});
+}
 
 /**
  * Kakao 연결 해제 처리
  */
-export const DELETE = withApiErrorHandler(async (request: NextRequest) => {
-  const { data, error } = await safeApiOperation(async () => {
+export async function DELETE(request: NextRequest) {
+  try {
     const { accessToken } = await request.json();
     
     if (!accessToken) {
-      throw createValidationError(
-        'Kakao 액세스 토큰이 필요합니다.',
-        'accessToken'
+      return NextResponse.json(
+        { error: 'Kakao 액세스 토큰이 필요합니다.' },
+        { status: 400 }
       );
     }
     
@@ -196,24 +192,24 @@ export const DELETE = withApiErrorHandler(async (request: NextRequest) => {
     
     if (!unlinkResponse.ok) {
       const errorText = await unlinkResponse.text();
-      throw createExternalServiceError(
-        'Kakao 연결 해제 요청 실패',
-        'kakao',
-        errorText
+      console.error('Kakao 연결 해제 요청 실패:', errorText);
+      return NextResponse.json(
+        { error: 'Kakao 연결 해제 요청 실패' },
+        { status: 502 }
       );
     }
     
     const unlinkData = await unlinkResponse.json();
     
-    return {
+    return NextResponse.json({
       success: true,
       id: unlinkData.id
-    };
-  }, request);
-
-  if (error) {
-    return error;
+    });
+  } catch (error) {
+    console.error('Kakao 연결 해제 처리 중 오류:', error);
+    return NextResponse.json(
+      { error: '서버 오류가 발생했습니다.' },
+      { status: 500 }
+    );
   }
-
-  return apiHelpers.success(data!);
-});
+}
