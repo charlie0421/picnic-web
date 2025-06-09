@@ -7,12 +7,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { 
-  withApiErrorHandler, 
-  apiHelpers,
-  createDatabaseError,
-  safeApiOperation 
-} from '@/utils/api-error-handler';
 
 // Types
 interface LogoutRequestBody {
@@ -38,8 +32,8 @@ interface LogoutResponse {
  * 2. Clearing server-side cached data
  * 3. Logging logout events
  */
-export const POST = withApiErrorHandler(async (request: NextRequest) => {
-  const { data, error } = await safeApiOperation(async () => {
+export async function POST(request: NextRequest) {
+  try {
     const timestamp = new Date().toISOString();
     
     console.log('🔐 Server-side logout initiated at:', timestamp);
@@ -186,34 +180,34 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
 
     console.log(`✅ Server-side logout completed successfully. Cleared ${clearedSessions} sessions.`);
 
-    return {
+    return NextResponse.json({
       success: true,
       message: 'Logout completed successfully',
       timestamp,
       clearedSessions
-    };
-  }, request);
-
-  if (error) {
-    return error;
+    });
+  } catch (error) {
+    console.error('로그아웃 처리 중 오류:', error);
+    return NextResponse.json(
+      { error: '서버 오류가 발생했습니다.' },
+      { status: 500 }
+    );
   }
-
-  return apiHelpers.success(data!);
-});
+}
 
 /**
  * GET /api/auth/logout
  * 
  * Returns logout status and debugging information
  */
-export const GET = withApiErrorHandler(async (request: NextRequest) => {
-  const { data, error } = await safeApiOperation(async () => {
+export async function GET(request: NextRequest) {
+  try {
     const url = new URL(request.url);
     const debug = url.searchParams.get('debug') === 'true';
 
     if (debug && process.env.NODE_ENV === 'development') {
       // Return debugging information in development
-      return {
+      return NextResponse.json({
         endpoint: '/api/auth/logout',
         methods: ['POST', 'GET'],
         description: 'Server-side logout endpoint',
@@ -224,21 +218,21 @@ export const GET = withApiErrorHandler(async (request: NextRequest) => {
           redis_cache: !!process.env.REDIS_URL,
           audit_logging: (process.env.NODE_ENV as string) === 'production'
         }
-      };
+      });
     }
 
-    return {
+    return NextResponse.json({
       message: 'Logout endpoint is active',
       timestamp: new Date().toISOString()
-    };
-  }, request);
-
-  if (error) {
-    return error;
+    });
+  } catch (error) {
+    console.error('로그아웃 상태 조회 중 오류:', error);
+    return NextResponse.json(
+      { error: '서버 오류가 발생했습니다.' },
+      { status: 500 }
+    );
   }
-
-  return apiHelpers.success(data!);
-});
+}
 
 /**
  * OPTIONS /api/auth/logout
