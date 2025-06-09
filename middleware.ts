@@ -121,17 +121,7 @@ export function middleware(request: NextRequest) {
   // 선호 언어 결정
   const preferredLang = getPreferredLanguage(request);
 
-  // 기본 언어인 경우 리다이렉트하지 않고 그대로 진행 (선택사항)
-  // 만약 모든 언어에 대해 경로를 명시적으로 표시하려면 이 조건을 제거
-  if (preferredLang === DEFAULT_LANGUAGE && pathname === '/') {
-    const response = NextResponse.next();
-    response.cookies.set("locale", preferredLang, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax"
-    });
-    return response;
-  }
+  // 모든 언어에 대해 명시적으로 언어 경로로 리다이렉트
 
   // 언어 경로로 리다이렉트
   const newUrl = new URL(request.url);
