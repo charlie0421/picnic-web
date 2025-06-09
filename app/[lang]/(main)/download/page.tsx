@@ -4,6 +4,9 @@ import { SUPPORTED_LANGUAGES } from '@/config/settings';
 import DownloadClient from './DownloadClient';
 import { getLatestVersion } from '@/lib/data-fetching/supabase-service';
 
+// 동적 렌더링 강제 (빌드 타임아웃 방지)
+export const dynamic = 'force-dynamic';
+
 interface DownloadPageProps {
   params: Promise<{ lang: string }>;
 }
@@ -69,12 +72,12 @@ export async function generateMetadata({
   };
 }
 
-// 정적 경로 생성
-export async function generateStaticParams() {
-  return SUPPORTED_LANGUAGES.map((lang) => ({
-    lang,
-  }));
-}
+// 정적 경로 생성 - 빌드 타임아웃 방지를 위해 제거
+// export async function generateStaticParams() {
+//   return SUPPORTED_LANGUAGES.map((lang) => ({
+//     lang,
+//   }));
+// }
 
 export default async function DownloadPage({ params }: DownloadPageProps) {
   const { lang } = await params;

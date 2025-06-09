@@ -3,8 +3,6 @@
 import { useLanguageStore } from '@/stores/languageStore';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Version } from '@/types/interfaces';
-
 // 기본 앱 다운로드 링크 (fallback)
 const DEFAULT_APP_LINKS = {
   ios: 'https://apps.apple.com/app/picnic',
@@ -12,9 +10,16 @@ const DEFAULT_APP_LINKS = {
   apk: 'https://picnic.fan/app/picnic.apk',
 };
 
+// getLatestVersion에서 반환되는 실제 타입
+type VersionInfo = {
+  ios: any;
+  android: any;
+  apk?: any;
+} | null;
+
 interface DownloadClientProps {
   lang: string;
-  versionInfo: Version | null;
+  versionInfo: VersionInfo;
 }
 
 // QR 코드 생성 함수

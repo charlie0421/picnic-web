@@ -110,10 +110,16 @@ const nextConfig = {
   
   async redirects() {
     return [
+      // download를 기본 언어로 리디렉션
+      {
+        source: '/download',
+        destination: '/en/download',
+        permanent: true
+      },
       // download.html을 download로 리디렉션
       {
         source: '/download.html',
-        destination: '/download',
+        destination: '/en/download',
         permanent: true
       },
       {
