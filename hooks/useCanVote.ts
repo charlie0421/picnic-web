@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { AppError, ErrorCategory } from '@/utils/error';
+import { withNetworkRetry } from '@/utils/retry';
 
 interface UserBalance {
     starCandy: number;
@@ -9,8 +11,8 @@ interface UserBalance {
 }
 
 interface CanVoteResponse {
-    canVote: boolean;
-    userBalance?: UserBalance;
+    success: boolean;
+    canVote?: boolean;
     error?: string;
     details?: string;
 }
@@ -20,6 +22,12 @@ interface CanVoteData {
     voteAmount: number;
 }
 
+/**
+ * 투표 가능 여부를 확인하는 훅 (재시도 로직 포함)
+ * 
+ * 새로운 재시도 시스템을 사용하여 네트워크 오류나 일시적인 서버 오류에 대해
+ * 자동으로 재시도를 수행합니다.
+ */
 export function useCanVote() {
     const [isChecking, setIsChecking] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -29,7 +37,7 @@ export function useCanVote() {
             setIsChecking(true);
             setError(null);
 
-            try {
+            const result = await withNetworkRetry(async () => {
                 const response = await fetch("/api/vote/can-vote", {
                     method: "POST",
                     headers: {
@@ -38,25 +46,31 @@ export function useCanVote() {
                     body: JSON.stringify(data),
                 });
 
-                const result = await response.json();
-
                 if (!response.ok) {
-                    const errorMessage = result.error ||
-                        "Failed to check vote eligibility";
-                    setError(errorMessage);
-                    return null;
+                    const result = await response.json();
+                    const errorMessage = result.error || "Failed to check vote eligibility";
+                    
+                    throw new AppError(
+                        errorMessage,
+                        response.status >= 500 ? ErrorCategory.SERVER : ErrorCategory.VALIDATION,
+                        'medium',
+                        response.status,
+                        { originalResponse: result }
+                    );
                 }
 
-                return result as CanVoteResponse;
-            } catch (err) {
-                console.error("Can vote check error:", err);
-                const errorMessage = err instanceof Error
-                    ? err.message
-                    : "Unknown error";
+                return response.json() as Promise<CanVoteResponse>;
+            }, 'checkCanVote');
+
+            setIsChecking(false);
+
+            if (result.success) {
+                return result.data!;
+            } else {
+                const errorMessage = result.error.message;
                 setError(errorMessage);
+                console.error("Can vote check error:", result.error);
                 return null;
-            } finally {
-                setIsChecking(false);
             }
         },
         [],
@@ -70,31 +84,38 @@ export function useCanVote() {
             setIsChecking(true);
             setError(null);
 
-            try {
+            const result = await withNetworkRetry(async () => {
                 const response = await fetch(
                     `/api/vote/can-vote?userId=${
                         encodeURIComponent(userId)
                     }&voteAmount=${voteAmount}`,
                 );
-                const result = await response.json();
 
                 if (!response.ok) {
-                    const errorMessage = result.error ||
-                        "Failed to check vote eligibility";
-                    setError(errorMessage);
-                    return null;
+                    const result = await response.json();
+                    const errorMessage = result.error || "Failed to check vote eligibility";
+                    
+                    throw new AppError(
+                        errorMessage,
+                        response.status >= 500 ? ErrorCategory.SERVER : ErrorCategory.VALIDATION,
+                        'medium',
+                        response.status,
+                        { originalResponse: result }
+                    );
                 }
 
-                return result as CanVoteResponse;
-            } catch (err) {
-                console.error("Can vote check error:", err);
-                const errorMessage = err instanceof Error
-                    ? err.message
-                    : "Unknown error";
+                return response.json() as Promise<CanVoteResponse>;
+            }, 'checkCanVoteByQuery');
+
+            setIsChecking(false);
+
+            if (result.success) {
+                return result.data!;
+            } else {
+                const errorMessage = result.error.message;
                 setError(errorMessage);
+                console.error("Can vote check error:", result.error);
                 return null;
-            } finally {
-                setIsChecking(false);
             }
         },
         [],

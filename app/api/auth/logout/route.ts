@@ -7,6 +7,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { 
+  withApiErrorHandler, 
+  apiHelpers,
+  createDatabaseError,
+  safeApiOperation 
+} from '@/utils/api-error-handler';
 
 // Types
 interface LogoutRequestBody {
@@ -32,11 +38,11 @@ interface LogoutResponse {
  * 2. Clearing server-side cached data
  * 3. Logging logout events
  */
-export async function POST(request: NextRequest): Promise<NextResponse<LogoutResponse>> {
-  const timestamp = new Date().toISOString();
-  
-  try {
-    console.log('� Server-side logout initiated at:', timestamp);
+export const POST = withApiErrorHandler(async (request: NextRequest) => {
+  const { data, error } = await safeApiOperation(async () => {
+    const timestamp = new Date().toISOString();
+    
+    console.log('🔐 Server-side logout initiated at:', timestamp);
 
     // Parse request body
     let body: LogoutRequestBody = {};
@@ -72,6 +78,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LogoutRes
           const { error } = await supabase.auth.admin.signOut(userId);
           if (error) {
             console.warn('Error signing out specific user:', error.message);
+            // Don't throw here, just log the warning
           } else {
             clearedSessions++;
             console.log(`✅ Cleared session for user: ${userId}`);
@@ -83,6 +90,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LogoutRes
         }
       } catch (err) {
         console.warn('Error clearing Supabase sessions:', err);
+        // Don't throw here, continue with other cleanup operations
       }
     }
 
@@ -150,6 +158,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LogoutRes
             });
         } catch (err) {
           console.warn('Error logging to audit table:', err);
+          // Don't throw here, logging failure shouldn't break logout
         }
       }
 
@@ -177,39 +186,34 @@ export async function POST(request: NextRequest): Promise<NextResponse<LogoutRes
 
     console.log(`✅ Server-side logout completed successfully. Cleared ${clearedSessions} sessions.`);
 
-    return NextResponse.json<LogoutResponse>({
+    return {
       success: true,
       message: 'Logout completed successfully',
       timestamp,
       clearedSessions
-    }, { status: 200 });
+    };
+  }, request);
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown server error';
-    console.error('❌ Server-side logout error:', errorMessage);
-
-    return NextResponse.json<LogoutResponse>({
-      success: false,
-      message: 'Logout failed',
-      timestamp,
-      error: errorMessage
-    }, { status: 500 });
+  if (error) {
+    return error;
   }
-}
+
+  return apiHelpers.success(data!);
+});
 
 /**
  * GET /api/auth/logout
  * 
  * Returns logout status and debugging information
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  try {
+export const GET = withApiErrorHandler(async (request: NextRequest) => {
+  const { data, error } = await safeApiOperation(async () => {
     const url = new URL(request.url);
     const debug = url.searchParams.get('debug') === 'true';
 
     if (debug && process.env.NODE_ENV === 'development') {
       // Return debugging information in development
-      return NextResponse.json({
+      return {
         endpoint: '/api/auth/logout',
         methods: ['POST', 'GET'],
         description: 'Server-side logout endpoint',
@@ -220,21 +224,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           redis_cache: !!process.env.REDIS_URL,
           audit_logging: (process.env.NODE_ENV as string) === 'production'
         }
-      });
+      };
     }
 
-    return NextResponse.json({
+    return {
       message: 'Logout endpoint is active',
       timestamp: new Date().toISOString()
-    });
+    };
+  }, request);
 
-  } catch (error) {
-    return NextResponse.json({
-      error: 'Internal server error',
-      timestamp: new Date().toISOString()
-    }, { status: 500 });
+  if (error) {
+    return error;
   }
-}
+
+  return apiHelpers.success(data!);
+});
 
 /**
  * OPTIONS /api/auth/logout

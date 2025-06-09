@@ -8,6 +8,14 @@
 import { createClient } from "@/utils/supabase-server-client";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { 
+  withDatabaseRetry, 
+  withNetworkRetry, 
+  ExtendedRetryUtility,
+  DATABASE_RETRY_CONFIG,
+  NETWORK_RETRY_CONFIG 
+} from "@/utils/retry";
+import { logger } from "@/utils/logger";
 
 // 기본 캐싱 옵션
 export type CacheOptions = {
@@ -22,7 +30,7 @@ const DEFAULT_CACHE_OPTIONS: CacheOptions = {
 };
 
 /**
- * Supabase 쿼리를 위한 기본 페처 함수
+ * Supabase 쿼리를 위한 기본 페처 함수 (재시도 로직 포함)
  * 서버 컴포넌트에서 캐싱과 함께 Supabase 쿼리를 실행
  */
 export const fetchFromSupabase = cache(async <T>(
@@ -31,12 +39,16 @@ export const fetchFromSupabase = cache(async <T>(
   ) => Promise<{ data: T | null; error: any }>,
   options: CacheOptions = DEFAULT_CACHE_OPTIONS,
 ): Promise<T> => {
-  try {
+  const result = await withDatabaseRetry(async () => {
     const supabase = await createClient();
     const { data, error } = await queryBuilder(supabase);
 
     if (error) {
-      console.error("Supabase query error:", error);
+      await logger.error("Supabase query error", error, {
+        operation: 'fetchFromSupabase',
+        errorCode: error.code,
+        errorMessage: error.message,
+      });
       throw new Error(error.message || "데이터 조회 중 오류가 발생했습니다.");
     }
 
@@ -49,9 +61,12 @@ export const fetchFromSupabase = cache(async <T>(
     }
 
     return data;
-  } catch (error) {
-    console.error("Data fetching error:", error);
-    throw error;
+  }, 'fetchFromSupabase');
+
+  if (result.success) {
+    return result.data!;
+  } else {
+    throw result.error;
   }
 });
 
@@ -100,14 +115,14 @@ export const fetchList = cache(async <T = any>(
 });
 
 /**
- * 외부 API를 호출하는 페처 함수
+ * 외부 API를 호출하는 페처 함수 (재시도 로직 포함)
  */
 export const fetchApi = cache(async <T>(
   url: string,
   options: RequestInit = {},
   cacheOptions: CacheOptions = DEFAULT_CACHE_OPTIONS,
 ): Promise<T> => {
-  try {
+  const result = await withNetworkRetry(async () => {
     const res = await fetch(url, {
       ...options,
       cache: cacheOptions.cache || "force-cache", // Next.js 15.3.1부터 no-store가 기본값이므로 명시적으로 설정
@@ -118,12 +133,21 @@ export const fetchApi = cache(async <T>(
     });
 
     if (!res.ok) {
+      await logger.error(`API 요청 실패: ${url}`, new Error(`HTTP ${res.status}`), {
+        operation: 'fetchApi',
+        url,
+        status: res.status,
+        statusText: res.statusText,
+      });
       throw new Error(`API 요청 실패: ${res.status}`);
     }
 
     return res.json();
-  } catch (error) {
-    console.error("API fetch error:", error);
-    throw error;
+  }, `fetchApi-${url}`);
+
+  if (result.success) {
+    return result.data!;
+  } else {
+    throw result.error;
   }
 });

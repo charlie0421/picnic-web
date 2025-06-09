@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase-server-client";
+import { 
+  withApiErrorHandler, 
+  apiHelpers,
+  createValidationError,
+  createNotFoundError,
+  createBusinessLogicError,
+  safeApiOperation 
+} from "@/utils/api-error-handler";
 
 interface VoteSubmissionRequest {
     voteId: number;
@@ -9,26 +17,23 @@ interface VoteSubmissionRequest {
     totalBonusRemain: number;
 }
 
-export async function POST(request: NextRequest) {
-    try {
+export const POST = withApiErrorHandler(async (request: NextRequest) => {
+    const { data, error } = await safeApiOperation(async () => {
         const body: VoteSubmissionRequest = await request.json();
         const { voteId, voteItemId, amount, userId, totalBonusRemain } = body;
 
         // 입력 검증
-        if (
-            !voteId || !voteItemId || amount === undefined || !userId ||
-            totalBonusRemain === undefined
-        ) {
-            return NextResponse.json(
-                { error: "Missing required fields" },
-                { status: 400 },
+        if (!voteId || !voteItemId || amount === undefined || !userId || totalBonusRemain === undefined) {
+            throw createValidationError(
+                "필수 필드가 누락되었습니다.",
+                "required_fields"
             );
         }
 
         if (amount <= 0) {
-            return NextResponse.json(
-                { error: "Amount must be greater than 0" },
-                { status: 400 },
+            throw createValidationError(
+                "투표 금액은 0보다 커야 합니다.",
+                "amount"
             );
         }
 
@@ -43,81 +48,59 @@ export async function POST(request: NextRequest) {
                 });
 
             if (canVoteError) {
-                console.error(
-                    "[Vote Submit] can_vote 검증 실패:",
-                    canVoteError,
-                );
+                console.error("[Vote Submit] can_vote 검증 실패:", canVoteError);
 
                 if (canVoteError.message.includes("Insufficient balance")) {
-                    return NextResponse.json(
-                        {
-                            error: "Insufficient balance",
-                            details: canVoteError.message,
-                        },
-                        { status: 400 },
+                    throw createBusinessLogicError(
+                        "잔액이 부족합니다.",
+                        "insufficient_balance",
+                        canVoteError.message
                     );
                 }
 
                 if (canVoteError.message.includes("User not found")) {
-                    return NextResponse.json(
-                        {
-                            error: "User not found",
-                            details: canVoteError.message,
-                        },
-                        { status: 404 },
+                    throw createNotFoundError(
+                        "사용자를 찾을 수 없습니다.",
+                        "user"
                     );
                 }
 
-                return NextResponse.json(
-                    {
-                        error: "Vote eligibility check failed",
-                        details: canVoteError.message,
-                    },
-                    { status: 500 },
-                );
+                throw new Error(`투표 자격 확인 실패: ${canVoteError.message}`);
             }
 
             if (!canVoteResult) {
-                return NextResponse.json(
-                    { error: "Vote not allowed" },
-                    { status: 400 },
+                throw createBusinessLogicError(
+                    "투표가 허용되지 않습니다.",
+                    "vote_not_allowed"
                 );
             }
 
-            console.log("[Vote Submit] can_vote 검증 통과:", {
-                userId,
-                amount,
-            });
+            console.log("[Vote Submit] can_vote 검증 통과:", { userId, amount });
+
         } catch (canVoteException: any) {
             console.error("[Vote Submit] can_vote 예외:", canVoteException);
 
+            // 이미 우리가 던진 에러라면 다시 던지기
+            if (canVoteException.category) {
+                throw canVoteException;
+            }
+
             if (canVoteException.message?.includes("Insufficient balance")) {
-                return NextResponse.json(
-                    {
-                        error: "Insufficient balance",
-                        details: canVoteException.message,
-                    },
-                    { status: 400 },
+                throw createBusinessLogicError(
+                    "잔액이 부족합니다.",
+                    "insufficient_balance",
+                    canVoteException.message
                 );
             }
 
             if (canVoteException.message?.includes("User not found")) {
-                return NextResponse.json(
-                    {
-                        error: "User not found",
-                        details: canVoteException.message,
-                    },
-                    { status: 404 },
+                throw createNotFoundError(
+                    "사용자를 찾을 수 없습니다.",
+                    "user"
                 );
             }
 
-            return NextResponse.json(
-                {
-                    error: "Vote eligibility check failed",
-                    details: canVoteException.message,
-                },
-                { status: 500 },
-            );
+            throw new Error(`투표 자격 확인 중 오류: ${canVoteException.message}`);
         }
 
         // 2. can_vote 검증 통과 후 실제 투표 처리
@@ -131,31 +114,29 @@ export async function POST(request: NextRequest) {
 
         if (error) {
             console.error("[Vote Submit] process_vote 에러:", error);
-            return NextResponse.json(
-                { error: "Failed to process vote", details: error.message },
-                { status: 500 },
-            );
+            throw new Error(`투표 처리 실패: ${error.message}`);
         }
 
         console.log("[Vote Submit] process_vote 성공:", data);
 
-        return NextResponse.json({
+        return {
             success: true,
             data: data,
-            message: "Vote submitted successfully",
-        });
-    } catch (error) {
-        console.error("[Vote Submit] 예외 발생:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 },
-        );
-    }
-}
+            message: "투표가 성공적으로 제출되었습니다.",
+        };
+    }, request);
 
-export async function GET(request: NextRequest) {
-    return NextResponse.json(
-        { error: "Method not allowed" },
-        { status: 405 },
-    );
-}
+    if (error) {
+        return error;
+    }
+
+    return apiHelpers.success(data!);
+});
+
+export const GET = withApiErrorHandler(async (request: NextRequest) => {
+    const { error } = await safeApiOperation(async () => {
+        throw apiHelpers.methodNotAllowed("GET 메서드는 지원되지 않습니다.");
+    }, request);
+
+    return error!;
+});

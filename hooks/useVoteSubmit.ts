@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { AppError, ErrorCategory } from "@/utils/error";
+import { withNetworkRetry } from "@/utils/retry";
 
 interface VoteSubmissionData {
     voteId: number;
@@ -15,9 +17,14 @@ interface VoteSubmissionResponse {
     data?: any;
     message?: string;
     error?: string;
-    details?: string;
 }
 
+/**
+ * 투표 제출을 처리하는 훅 (재시도 로직 포함)
+ * 
+ * 새로운 재시도 시스템을 사용하여 네트워크 오류나 일시적인 서버 오류에 대해
+ * 자동으로 재시도를 수행합니다.
+ */
 export function useVoteSubmit() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -28,7 +35,7 @@ export function useVoteSubmit() {
         setIsSubmitting(true);
         setError(null);
 
-        try {
+        const result = await withNetworkRetry(async () => {
             const response = await fetch("/api/vote/submit", {
                 method: "POST",
                 headers: {
@@ -37,29 +44,57 @@ export function useVoteSubmit() {
                 body: JSON.stringify(voteData),
             });
 
-            const result: VoteSubmissionResponse = await response.json();
-
             if (!response.ok) {
-                throw new Error(result.error || "Failed to submit vote");
+                const result = await response.json();
+                const errorMessage = result.error || "Failed to submit vote";
+                
+                // 비즈니스 로직 에러 (잔액 부족, 중복 투표 등)는 재시도하지 않음
+                const isBusinessLogicError = response.status === 400 || response.status === 409;
+                
+                throw new AppError(
+                    errorMessage,
+                    isBusinessLogicError ? ErrorCategory.BUSINESS_LOGIC : 
+                    response.status >= 500 ? ErrorCategory.SERVER : ErrorCategory.VALIDATION,
+                    'medium',
+                    response.status,
+                    { 
+                        originalResponse: result,
+                        retryable: !isBusinessLogicError 
+                    }
+                );
             }
 
-            return result;
-        } catch (err) {
-            const errorMessage = err instanceof Error
-                ? err.message
-                : "Unknown error";
+            return response.json() as Promise<VoteSubmissionResponse>;
+        }, 'submitVote', {
+            // 비즈니스 로직 에러는 재시도하지 않도록 설정
+            retryableCategories: [
+                ErrorCategory.NETWORK,
+                ErrorCategory.SERVER,
+                ErrorCategory.EXTERNAL_SERVICE
+            ],
+            maxRetries: 2, // 투표 제출은 중요하므로 재시도 횟수를 줄임
+        });
+
+        setIsSubmitting(false);
+
+        if (result.success) {
+            return result.data!;
+        } else {
+            const errorMessage = result.error.message;
             setError(errorMessage);
-            console.error("[useVoteSubmit] 에러:", err);
+            console.error("[useVoteSubmit] 에러:", result.error);
             return null;
-        } finally {
-            setIsSubmitting(false);
         }
     };
+
+    const clearError = useCallback(() => {
+        setError(null);
+    }, []);
 
     return {
         submitVote,
         isSubmitting,
         error,
-        clearError: () => setError(null),
+        clearError,
     };
 }

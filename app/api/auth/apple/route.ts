@@ -1,83 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { withApiErrorHandler, safeApiOperation } from '@/utils/api-error-handler';
+import { AppError, ErrorCategory } from '@/utils/error';
 
-export async function POST(request: NextRequest) {
-  try {
-    const { code, user, state } = await request.json();
-    
-    console.log('🍎 Apple API 라우트 호출:', {
-      code: code ? 'present' : 'missing',
-      user: user ? 'present' : 'missing',
-      state: state ? 'present' : 'missing',
-    });
+interface AppleAuthRequest {
+  code: string;
+  user?: any;
+  state?: string;
+}
 
-    if (!code) {
-      return NextResponse.json(
-        { success: false, message: 'Authorization code가 없습니다.' },
-        { status: 400 }
-      );
-    }
+async function appleAuthHandler(request: NextRequest) {
+  const { data: body, error: parseError } = await safeApiOperation(
+    () => request.json() as Promise<AppleAuthRequest>,
+    request
+  );
 
+  if (parseError) {
+    return parseError;
+  }
+
+  const { code, user, state } = body!;
+
+  if (!code) {
+    throw new AppError(
+      'Authorization code가 필요합니다',
+      ErrorCategory.VALIDATION,
+      'medium',
+      400
+    );
+  }
+
+  const { data: authResult, error: authError } = await safeApiOperation(async () => {
     // Supabase 클라이언트 생성
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Apple OAuth 콜백 처리 시도
-    try {
-      console.log('Supabase Apple OAuth 처리 시작...');
-      
-      // Supabase의 Apple OAuth 처리
-      const { data, error } = await supabase.auth.exchangeCodeForSession(`apple_${code}`);
-      
-      if (error) {
-        console.error('Supabase Apple OAuth 오류:', error);
-
-        return NextResponse.json({
-          success: false,
-          message: `Apple OAuth 처리 실패: ${error.message}`,
-          debug: {
-            originalError: error.message,
-            code,
+    // Apple OAuth 콜백 처리
+    const { data, error } = await supabase.auth.exchangeCodeForSession(`apple_${code}`);
+    
+    if (error) {
+      throw new AppError(
+        `Apple OAuth 처리 실패: ${error.message}`,
+        ErrorCategory.EXTERNAL_SERVICE,
+        'high',
+        400,
+        { 
+          originalError: error,
+          additionalData: {
+            code: code ? 'present' : 'missing',
             hasUser: !!user,
             hasState: !!state
           }
-        }, { status: 400 });
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Apple OAuth 성공',
-        authData: {
-          isAppleVerified: true,
-          user: data?.session?.user,
-          session: data?.session
         }
-      });
-      
-    } catch (supabaseError) {
-      console.error('Supabase 처리 중 예외:', supabaseError);
-      
-      return NextResponse.json({
-        success: false,
-        message: `Supabase 처리 실패: ${supabaseError}`,
-        debug: {
-          error: String(supabaseError),
-          code,
-          hasUser: !!user,
-          hasState: !!state
-        }
-      }, { status: 500 });
+      );
     }
 
-  } catch (error) {
-    console.error('Apple API 라우트 오류:', error);
+    if (!data?.session) {
+      throw new AppError(
+        'Apple OAuth 세션 생성 실패',
+        ErrorCategory.EXTERNAL_SERVICE,
+        'high',
+        500
+      );
+    }
 
-    return NextResponse.json({
-      success: false,
-      message: '서버 오류가 발생했습니다.',
-      debug: String(error)
-    }, { status: 500 });
+    return {
+      isAppleVerified: true,
+      user: data.session.user,
+      session: data.session
+    };
+  }, request);
+
+  if (authError) {
+    return authError;
   }
+
+  return NextResponse.json({
+    success: true,
+    message: 'Apple OAuth 성공',
+    authData: authResult!
+  });
 }
+
+export const POST = withApiErrorHandler(appleAuthHandler);
