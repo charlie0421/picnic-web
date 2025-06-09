@@ -2,20 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
-  SocialAuthError,
-  SocialAuthErrorCode,
-} from "@/lib/supabase/social/types";
-import {
   normalizeGoogleProfile,
   parseGoogleIdToken,
 } from "@/lib/supabase/social/google";
-import { 
-  withApiErrorHandler, 
-  apiHelpers,
-  createValidationError,
-  safeApiOperation 
-} from "@/utils/api-error-handler";
-import { ErrorTransformer } from "@/utils/error";
 
 // Next.js 15.3.1에서는 GET 핸들러도 기본적으로 캐싱되지 않도록 변경되었습니다.
 // 필요한 경우 dynamic = 'force-static' 또는 fetchCache = 'default-cache' 옵션을 사용할 수 있습니다.
@@ -28,8 +17,8 @@ export const dynamic = "force-dynamic"; // POST 요청이므로 항상 동적으
  * Supabase의 signInWithOAuth를 사용하여 Google OAuth URL을 생성하고
  * 클라이언트를 해당 URL로 리다이렉트합니다.
  */
-export const GET = withApiErrorHandler(async (request: NextRequest) => {
-  const { data, error } = await safeApiOperation(async () => {
+export async function GET(request: NextRequest) {
+  try {
     // 서버 측 Supabase 클라이언트 생성
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,11 +46,10 @@ export const GET = withApiErrorHandler(async (request: NextRequest) => {
     });
 
     if (error) {
-      throw ErrorTransformer.fromLegacySocialAuthError(
-        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        `Google OAuth 시작 실패: ${error.message}`,
-        "google",
-        error
+      console.error('Google OAuth 시작 실패:', error);
+      return NextResponse.json(
+        { error: `Google OAuth 시작 실패: ${error.message}` },
+        { status: 400 }
       );
     }
 
@@ -70,19 +58,18 @@ export const GET = withApiErrorHandler(async (request: NextRequest) => {
       return NextResponse.redirect(data.url);
     }
 
-    throw ErrorTransformer.fromLegacySocialAuthError(
-      SocialAuthErrorCode.INITIALIZATION_FAILED,
-      "OAuth URL을 생성할 수 없습니다.",
-      "google"
+    return NextResponse.json(
+      { error: "OAuth URL을 생성할 수 없습니다." },
+      { status: 500 }
     );
-  }, request);
-
-  if (error) {
-    return error;
+  } catch (error) {
+    console.error('Google OAuth GET API 에러:', error);
+    return NextResponse.json(
+      { error: '서버 내부 오류가 발생했습니다' },
+      { status: 500 }
+    );
   }
-
-  return data!;
-});
+}
 
 /**
  * Google OAuth 토큰 교환 API (POST)
@@ -91,16 +78,16 @@ export const GET = withApiErrorHandler(async (request: NextRequest) => {
  * 액세스 토큰과 사용자 정보를 가져오는 역할을 합니다.
  * 주로 Supabase 콜백 처리 이후 추가 작업이 필요한 경우 사용됩니다.
  */
-export const POST = withApiErrorHandler(async (request: NextRequest) => {
-  const { data, error } = await safeApiOperation(async () => {
+export async function POST(request: NextRequest) {
+  try {
     const requestBody = await request.json();
     const { code, idToken } = requestBody;
 
     // 필수 파라미터 검증
     if (!code && !idToken) {
-      throw createValidationError(
-        "코드 또는 ID 토큰이 필요합니다.",
-        "code_or_idToken"
+      return NextResponse.json(
+        { error: "코드 또는 ID 토큰이 필요합니다." },
+        { status: 400 }
       );
     }
 
@@ -122,16 +109,15 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
         const payload = parseGoogleIdToken(idToken);
         const userProfile = normalizeGoogleProfile(payload);
 
-        return {
+        return NextResponse.json({
           success: true,
           profile: userProfile,
-        };
+        });
       } catch (error) {
-        throw ErrorTransformer.fromLegacySocialAuthError(
-          SocialAuthErrorCode.TOKEN_VALIDATION_FAILED,
-          "ID 토큰 검증 실패",
-          "google",
-          error
+        console.error('ID 토큰 검증 실패:', error);
+        return NextResponse.json(
+          { error: "ID 토큰 검증 실패" },
+          { status: 400 }
         );
       }
     }
@@ -151,10 +137,9 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
     const redirectUri = `${baseUrl}/auth/callback/google`;
 
     if (!clientId || !clientSecret) {
-      throw ErrorTransformer.fromLegacySocialAuthError(
-        SocialAuthErrorCode.INITIALIZATION_FAILED,
-        "Google OAuth 클라이언트 ID 또는 시크릿이 설정되지 않았습니다.",
-        "google"
+      return NextResponse.json(
+        { error: "Google OAuth 클라이언트 ID 또는 시크릿이 설정되지 않았습니다." },
+        { status: 500 }
       );
     }
 
@@ -176,11 +161,10 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json();
-      throw ErrorTransformer.fromLegacySocialAuthError(
-        SocialAuthErrorCode.TOKEN_EXCHANGE_FAILED,
-        `토큰 교환 실패: ${errorData.error}`,
-        "google",
-        errorData
+      console.error('토큰 교환 실패:', errorData);
+      return NextResponse.json(
+        { error: `토큰 교환 실패: ${errorData.error}` },
+        { status: 400 }
       );
     }
 
@@ -199,18 +183,17 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
 
     if (!userInfoResponse.ok) {
       const errorData = await userInfoResponse.json();
-      throw ErrorTransformer.fromLegacySocialAuthError(
-        SocialAuthErrorCode.PROFILE_FETCH_FAILED,
-        "사용자 정보 가져오기 실패",
-        "google",
-        errorData
+      console.error('사용자 정보 가져오기 실패:', errorData);
+      return NextResponse.json(
+        { error: "사용자 정보 가져오기 실패" },
+        { status: 400 }
       );
     }
 
     const userData = await userInfoResponse.json();
     const userProfile = normalizeGoogleProfile(userData);
 
-    return {
+    return NextResponse.json({
       success: true,
       tokens: {
         access_token: tokenData.access_token,
@@ -219,12 +202,12 @@ export const POST = withApiErrorHandler(async (request: NextRequest) => {
         expires_in: tokenData.expires_in,
       },
       profile: userProfile,
-    };
-  }, request);
-
-  if (error) {
-    return error;
+    });
+  } catch (error) {
+    console.error('Google OAuth POST API 에러:', error);
+    return NextResponse.json(
+      { error: '서버 내부 오류가 발생했습니다' },
+      { status: 500 }
+    );
   }
-
-  return apiHelpers.success(data!);
-});
+}
