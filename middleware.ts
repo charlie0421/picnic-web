@@ -22,10 +22,12 @@ function getPreferredLanguageFromHeader(acceptLanguage: string | null): string {
   // 지원하는 언어 중에서 가장 선호도가 높은 언어 찾기
   for (const lang of languages) {
     if (SUPPORTED_LANGUAGES.includes(lang.code as any)) {
+      console.log(`✅ 브라우저 언어에서 지원되는 언어 발견: ${lang.code}`);
       return lang.code;
     }
   }
 
+  console.log(`⚠️ 브라우저 언어에서 지원되는 언어 없음, 기본 언어 사용: ${DEFAULT_LANGUAGE}`);
   return DEFAULT_LANGUAGE;
 }
 
@@ -95,7 +97,26 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 이미 언어가 포함된 경로인지 확인
+  // 경로에서 언어 코드 추출
+  const pathLangCode = pathname.split('/')[1];
+  
+  // 지원하지 않는 언어 경로인지 확인 (예: /fr/, /de/ 등)
+  if (pathLangCode && pathLangCode.length === 2 && !SUPPORTED_LANGUAGES.includes(pathLangCode as any)) {
+    console.log(`❌ 지원하지 않는 언어 경로: ${pathLangCode} -> 영어로 리다이렉트`);
+    const newUrl = new URL(request.url);
+    newUrl.pathname = pathname.replace(`/${pathLangCode}`, `/en`);
+    
+    const response = NextResponse.redirect(newUrl);
+    response.cookies.set("locale", "en", {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax"
+    });
+    
+    return response;
+  }
+
+  // 이미 지원되는 언어가 포함된 경로인지 확인
   const pathnameHasLang = SUPPORTED_LANGUAGES.some((lang) =>
     pathname.startsWith(`/${lang}/`) || pathname === `/${lang}`
   );
@@ -104,6 +125,7 @@ export function middleware(request: NextRequest) {
     // 언어가 포함된 경로에서 쿠키 업데이트
     const currentLangFromPath = pathname.split('/')[1];
     if (SUPPORTED_LANGUAGES.includes(currentLangFromPath as any)) {
+      console.log(`✅ 지원되는 언어 경로: ${currentLangFromPath}`);
       const response = NextResponse.next();
       
       // useLocaleRouter와 일치하는 'locale' 쿠키 설정
@@ -120,6 +142,7 @@ export function middleware(request: NextRequest) {
 
   // 선호 언어 결정
   const preferredLang = getPreferredLanguage(request);
+  console.log(`🌐 선호 언어 결정: ${preferredLang} (지원 언어: ${SUPPORTED_LANGUAGES.join(', ')})`);
 
   // 모든 언어에 대해 명시적으로 언어 경로로 리다이렉트
 
