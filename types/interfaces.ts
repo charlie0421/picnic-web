@@ -100,6 +100,25 @@ export interface AppSplash {
   updated_at: string | null
 }
 
+export interface ApplicationLogs {
+  browser_name: string | null
+  category: string
+  created_at: string
+  data: string | null
+  environment: string | null
+  id: string
+  level: string
+  line_number: number | null
+  message: string
+  platform: string | null
+  request_id: string | null
+  session_id: string | null
+  source_file: string | null
+  stack_trace: string | null
+  timestamp: string
+  user_id: string | null
+}
+
 export interface Article {
   comment_count: number | null
   content: string | null
@@ -967,6 +986,7 @@ export interface UserProfiles {
   gender: UserGenderEnum | null
   id: string
   is_admin: boolean
+  is_super_admin: boolean | null
   nickname: string | null
   open_ages: boolean
   open_gender: boolean
@@ -990,6 +1010,7 @@ export interface UserRoles {
 
 export interface Version {
   android: Json | null
+  apk: Json | null
   created_at: string
   deleted_at: string | null
   id: number
@@ -1078,6 +1099,28 @@ export interface VoteItem {
   vote?: Vote;
   artist?: Artist;
   artistGroup?: ArtistGroup;
+}
+
+export interface VoteItemRequestUsers {
+  artist_group: string | null
+  artist_name: string
+  created_at: string | null
+  id: string
+  reason: string | null
+  status: string
+  updated_at: string | null
+  user_id: string
+  vote_item_request_id: string
+}
+
+export interface VoteItemRequests {
+  created_at: string | null
+  description: string | null
+  id: string
+  status: string
+  title: string
+  updated_at: string | null
+  vote_id: number
 }
 
 export interface VotePick {

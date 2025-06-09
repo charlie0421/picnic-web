@@ -28,6 +28,7 @@ export const TABLES = {
   MEDIA: "media",
   BANNER: "banner",
   USER: "user_profiles",
+  VERSION: "version",
 } as const;
 
 // Supabase 테이블 이름 타입
@@ -691,6 +692,40 @@ export const executeCustomQuery = cache(async <T>(
       500,
       error,
     );
+  }
+});
+
+/**
+ * 최신 버전 정보 조회
+ */
+export const getLatestVersion = cache(async (): Promise<{
+  ios: any;
+  android: any;
+  apk?: any;
+} | null> => {
+  try {
+    const supabase = createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from(TABLES.VERSION)
+      .select("ios, android, apk")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.warn("버전 정보 조회 실패:", error);
+      return null;
+    }
+
+    return {
+      ios: data?.ios || null,
+      android: data?.android || null,
+      apk: data?.apk || null,
+    };
+  } catch (error) {
+    console.warn("버전 정보 조회 중 오류:", error);
+    return null;
   }
 });
 

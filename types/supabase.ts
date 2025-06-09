@@ -260,6 +260,63 @@ export type Database = {
         }
         Relationships: []
       }
+      application_logs: {
+        Row: {
+          browser_name: string | null
+          category: string
+          created_at: string
+          data: string | null
+          environment: string | null
+          id: string
+          level: string
+          line_number: number | null
+          message: string
+          platform: string | null
+          request_id: string | null
+          session_id: string | null
+          source_file: string | null
+          stack_trace: string | null
+          timestamp: string
+          user_id: string | null
+        }
+        Insert: {
+          browser_name?: string | null
+          category: string
+          created_at?: string
+          data?: string | null
+          environment?: string | null
+          id: string
+          level: string
+          line_number?: number | null
+          message: string
+          platform?: string | null
+          request_id?: string | null
+          session_id?: string | null
+          source_file?: string | null
+          stack_trace?: string | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Update: {
+          browser_name?: string | null
+          category?: string
+          created_at?: string
+          data?: string | null
+          environment?: string | null
+          id?: string
+          level?: string
+          line_number?: number | null
+          message?: string
+          platform?: string | null
+          request_id?: string | null
+          session_id?: string | null
+          source_file?: string | null
+          stack_trace?: string | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       article: {
         Row: {
           comment_count: number | null
@@ -3194,6 +3251,7 @@ export type Database = {
           gender: Database["public"]["Enums"]["user_gender_enum"] | null
           id: string
           is_admin: boolean
+          is_super_admin: boolean | null
           nickname: string | null
           open_ages: boolean
           open_gender: boolean
@@ -3211,6 +3269,7 @@ export type Database = {
           gender?: Database["public"]["Enums"]["user_gender_enum"] | null
           id: string
           is_admin?: boolean
+          is_super_admin?: boolean | null
           nickname?: string | null
           open_ages?: boolean
           open_gender?: boolean
@@ -3228,6 +3287,7 @@ export type Database = {
           gender?: Database["public"]["Enums"]["user_gender_enum"] | null
           id?: string
           is_admin?: boolean
+          is_super_admin?: boolean | null
           nickname?: string | null
           open_ages?: boolean
           open_gender?: boolean
@@ -3272,6 +3332,7 @@ export type Database = {
       version: {
         Row: {
           android: Json | null
+          apk: Json | null
           created_at: string
           deleted_at: string | null
           id: number
@@ -3283,6 +3344,7 @@ export type Database = {
         }
         Insert: {
           android?: Json | null
+          apk?: Json | null
           created_at?: string
           deleted_at?: string | null
           id?: number
@@ -3294,6 +3356,7 @@ export type Database = {
         }
         Update: {
           android?: Json | null
+          apk?: Json | null
           created_at?: string
           deleted_at?: string | null
           id?: number
@@ -3518,6 +3581,88 @@ export type Database = {
           },
           {
             foreignKeyName: "vote_item_vote_id_fk"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vote_item_request_users: {
+        Row: {
+          artist_group: string | null
+          artist_name: string
+          created_at: string | null
+          id: string
+          reason: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+          vote_item_request_id: string
+        }
+        Insert: {
+          artist_group?: string | null
+          artist_name: string
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+          vote_item_request_id: string
+        }
+        Update: {
+          artist_group?: string | null
+          artist_name?: string
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+          vote_item_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_item_request_users_vote_item_request_id_fkey"
+            columns: ["vote_item_request_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vote_item_requests: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          status: string
+          title: string
+          updated_at: string | null
+          vote_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string | null
+          vote_id: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string | null
+          vote_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_item_requests_vote_id_fkey"
             columns: ["vote_id"]
             isOneToOne: false
             referencedRelation: "vote"
@@ -3765,23 +3910,43 @@ export type Database = {
           total_bonus_remain: number
         }[]
       }
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
-        Returns: unknown
+        Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_delete: {
         Args:
           | { uri: string }
           | { uri: string; content: string; content_type: string }
-        Returns: unknown
+        Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_get: {
         Args: { uri: string } | { uri: string; data: Json }
-        Returns: unknown
+        Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_head: {
         Args: { uri: string }
-        Returns: unknown
+        Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_header: {
         Args: { field: string; value: string }
@@ -3796,17 +3961,17 @@ export type Database = {
       }
       http_patch: {
         Args: { uri: string; content: string; content_type: string }
-        Returns: unknown
+        Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_post: {
         Args:
           | { uri: string; content: string; content_type: string }
           | { uri: string; data: Json }
-        Returns: unknown
+        Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_put: {
         Args: { uri: string; content: string; content_type: string }
-        Returns: unknown
+        Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_reset_curlopt: {
         Args: Record<PropertyKey, never>
@@ -3823,6 +3988,18 @@ export type Database = {
       increment_view_count: {
         Args: { post_id_param: string; viewer_id?: string }
         Returns: undefined
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_vote_creator: {
+        Args: { vote_id: number }
+        Returns: boolean
+      }
+      is_vote_item_request_open: {
+        Args: { vote_id: number }
+        Returns: boolean
       }
       perform_pic_vote_transaction: {
         Args: {
@@ -3873,6 +4050,18 @@ export type Database = {
       rollback_transaction: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
       }
       test_expire_star_candy_bonus: {
         Args: { test_datetime: string }
