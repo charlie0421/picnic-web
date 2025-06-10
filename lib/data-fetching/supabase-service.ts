@@ -15,6 +15,7 @@ import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 import { unstable_cache } from "next/cache";
+import { handleSupabaseError } from "@/lib/supabase/error";
 
 // Supabase 테이블 이름 상수
 export const TABLES = {
@@ -23,6 +24,7 @@ export const TABLES = {
   USER_PROFILES: "user_profiles",
   VOTE: "vote",
   VOTE_ITEM: "vote_item",
+  VOTE_PICK: "vote_pick",
   VOTE_REWARD: "vote_reward",
   REWARD: "reward",
   MEDIA: "media",
@@ -539,7 +541,7 @@ export const getPaginatedList = cache(async <T>(
 });
 
 /**
- * 데이터 삽입
+ * 데이터 삽입 (레거시 - RLS 호환성을 위해 insertDataSafe 사용 권장)
  */
 export const insertData = cache(async <T extends TableName>(
   table: T,
@@ -555,27 +557,17 @@ export const insertData = cache(async <T extends TableName>(
 
   if (error) {
     console.error(`데이터 삽입 오류 (${table}):`, error);
-    if (error.code === "23505") {
-      throw new DataFetchingError(
-        `중복된 데이터가 존재합니다: ${error.message}`,
-        ErrorType.VALIDATION,
-        409,
-        error,
-      );
-    }
-    throw new DataFetchingError(
-      `데이터를 삽입할 수 없습니다: ${error.message}`,
-      ErrorType.SERVER,
-      500,
-      error,
-    );
+    
+    // RLS 정책 관련 에러 처리 추가
+    const appError = handleSupabaseError(error);
+    throw appError;
   }
 
   return insertedData;
 });
 
 /**
- * 데이터 업데이트
+ * 데이터 업데이트 (레거시 - RLS 호환성을 위해 updateDataSafe 사용 권장)
  */
 export const updateData = cache(async <T extends TableName>(
   table: T,
@@ -593,27 +585,17 @@ export const updateData = cache(async <T extends TableName>(
 
   if (error) {
     console.error(`데이터 업데이트 오류 (${table} ID:${id}):`, error);
-    if (error.code === "PGRST116") {
-      throw new DataFetchingError(
-        `업데이트할 항목을 찾을 수 없습니다: ${table} ID ${id}`,
-        ErrorType.NOT_FOUND,
-        404,
-        error,
-      );
-    }
-    throw new DataFetchingError(
-      `데이터를 업데이트할 수 없습니다: ${error.message}`,
-      ErrorType.SERVER,
-      500,
-      error,
-    );
+    
+    // RLS 정책 관련 에러 처리 추가
+    const appError = handleSupabaseError(error);
+    throw appError;
   }
 
   return updatedData;
 });
 
 /**
- * 데이터 삭제
+ * 데이터 삭제 (레거시 - RLS 호환성을 위해 deleteDataSafe 사용 권장)
  */
 export const deleteData = cache(async <T extends TableName>(
   table: T,
@@ -630,23 +612,69 @@ export const deleteData = cache(async <T extends TableName>(
 
   if (error) {
     console.error(`데이터 삭제 오류 (${table} ID:${id}):`, error);
-    if (error.code === "PGRST116") {
-      throw new DataFetchingError(
-        `삭제할 항목을 찾을 수 없습니다: ${table} ID ${id}`,
-        ErrorType.NOT_FOUND,
-        404,
-        error,
-      );
-    }
-    throw new DataFetchingError(
-      `데이터를 삭제할 수 없습니다: ${error.message}`,
-      ErrorType.SERVER,
-      500,
-      error,
-    );
+    
+    // RLS 정책 관련 에러 처리 추가
+    const appError = handleSupabaseError(error);
+    throw appError;
   }
 
   return deletedData;
+});
+
+/**
+ * RLS 정책을 고려한 안전한 데이터 삭제
+ */
+export const deleteDataSafe = cache(async <T extends TableName>(
+  table: T,
+  id: string | number,
+  options: QueryOptions = DEFAULT_OPTIONS,
+): Promise<any> => {
+  const userContext = await getCurrentUserContext();
+  
+  if (!userContext.isAuthenticated) {
+    throw new DataFetchingError(
+      '로그인이 필요합니다.',
+      ErrorType.UNAUTHORIZED,
+      401,
+    );
+  }
+
+  const supabase = createServerSupabaseClient();
+
+  try {
+    let query = supabase
+      .from(table)
+      .delete()
+      .eq("id" as any, id);
+
+    // 사용자 소유 데이터는 추가 필터링
+    const userOwnedTables = ['vote_pick', 'vote_comment'];
+    if (userOwnedTables.includes(table) && !userContext.isAdmin && userContext.userId) {
+      query = query.eq('user_id' as any, userContext.userId);
+    }
+
+    const { data: deletedData, error } = await query
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`데이터 삭제 오류 (${table} ID:${id}):`, error);
+      const appError = handleSupabaseError(error);
+      throw appError;
+    }
+
+    return deletedData;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('RLS')) {
+      throw new DataFetchingError(
+        '데이터를 삭제할 권한이 없습니다.',
+        ErrorType.FORBIDDEN,
+        403,
+        error,
+      );
+    }
+    throw error;
+  }
 });
 
 /**
@@ -987,3 +1015,337 @@ export async function prefetchList<T>(
     console.warn(`Failed to prefetch list from ${table}:`, error);
   }
 }
+
+/**
+ * RLS 정책 호환성을 위한 사용자 컨텍스트 인터페이스
+ */
+export interface UserContext {
+  userId?: string;
+  isAdmin?: boolean;
+  isAuthenticated: boolean;
+}
+
+/**
+ * 현재 사용자 컨텍스트를 가져오는 함수
+ */
+export const getCurrentUserContext = cache(async (): Promise<UserContext> => {
+  try {
+    const supabase = createServerSupabaseClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { isAuthenticated: false };
+    }
+
+    // 사용자 프로필에서 관리자 여부 확인
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single();
+
+    return {
+      userId: user.id,
+      isAdmin: profile?.is_admin || false,
+      isAuthenticated: true,
+    };
+  } catch (error) {
+    console.warn('사용자 컨텍스트 조회 실패:', error);
+    return { isAuthenticated: false };
+  }
+});
+
+/**
+ * RLS 정책을 고려한 안전한 데이터 조회
+ */
+export const getByIdSafe = cache(async <T>(
+  table: TableName,
+  id: string | number,
+  columns: string = "*",
+  options: QueryOptions = DEFAULT_OPTIONS,
+): Promise<T> => {
+  const userContext = await getCurrentUserContext();
+  const supabase = createServerSupabaseClient();
+
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columns)
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      console.error(`항목 조회 오류 (${table} ID:${id}):`, error);
+      
+      // RLS 정책 관련 에러 처리
+      const appError = handleSupabaseError(error);
+      throw appError;
+    }
+
+    return data as T;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('RLS')) {
+      throw new DataFetchingError(
+        userContext.isAuthenticated 
+          ? '해당 데이터에 접근할 권한이 없습니다.'
+          : '로그인이 필요합니다.',
+        userContext.isAuthenticated ? ErrorType.FORBIDDEN : ErrorType.UNAUTHORIZED,
+        userContext.isAuthenticated ? 403 : 401,
+        error,
+      );
+    }
+    throw error;
+  }
+});
+
+/**
+ * RLS 정책을 고려한 안전한 데이터 목록 조회
+ */
+export const getListSafe = cache(async <T>(
+  table: TableName,
+  {
+    columns = "*",
+    filters = {},
+    orderBy,
+    limit,
+    offset,
+    options = DEFAULT_OPTIONS,
+  }: {
+    columns?: string;
+    filters?: Record<string, any | FilterOperator<any>>;
+    orderBy?: { column: string; ascending?: boolean };
+    limit?: number;
+    offset?: number;
+    options?: QueryOptions;
+  },
+): Promise<T[]> => {
+  const userContext = await getCurrentUserContext();
+  const supabase = createServerSupabaseClient();
+
+  try {
+    let query = supabase.from(table).select(columns);
+
+    // 사용자별 데이터 필터링 (RLS 정책 보완)
+    if (!userContext.isAdmin && userContext.isAuthenticated && userContext.userId) {
+      // 사용자 소유 데이터만 조회하는 테이블들
+      const userOwnedTables = ['vote_pick', 'vote_comment', 'user_profiles'];
+      if (userOwnedTables.includes(table)) {
+        query = query.eq('user_id' as any, userContext.userId);
+      }
+    }
+
+    // 필터 적용
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value)) {
+          query = query.in(key, value);
+        } else if (typeof value === "object") {
+          // 연산자 객체인 경우 적절한 필터 적용
+          Object.entries(value as FilterOperator<any>).forEach(
+            ([operator, operatorValue]) => {
+              if (operatorValue !== undefined) {
+                switch (operator) {
+                  case "eq":
+                    query = query.eq(key, operatorValue);
+                    break;
+                  case "neq":
+                    query = query.neq(key, operatorValue);
+                    break;
+                  case "gt":
+                    query = query.gt(key, operatorValue);
+                    break;
+                  case "gte":
+                    query = query.gte(key, operatorValue);
+                    break;
+                  case "lt":
+                    query = query.lt(key, operatorValue);
+                    break;
+                  case "lte":
+                    query = query.lte(key, operatorValue);
+                    break;
+                  case "like":
+                    query = query.like(key, operatorValue as string);
+                    break;
+                  case "ilike":
+                    query = query.ilike(key, operatorValue as string);
+                    break;
+                  case "is":
+                    query = query.is(key, operatorValue as boolean | null);
+                    break;
+                  case "in":
+                    query = query.in(key, operatorValue as any[]);
+                    break;
+                  case "contains":
+                    query = query.contains(key, operatorValue);
+                    break;
+                  case "containedBy":
+                    query = query.containedBy(key, operatorValue as any[]);
+                    break;
+                  case "overlaps":
+                    query = query.overlaps(key, operatorValue as any[]);
+                    break;
+                  case "textSearch":
+                    query = query.textSearch(key, operatorValue as string);
+                    break;
+                  case "match":
+                    query = query.match(operatorValue as Record<string, unknown>);
+                    break;
+                }
+              }
+            },
+          );
+        } else {
+          query = query.eq(key, value);
+        }
+      }
+    });
+
+    // 정렬 적용
+    if (orderBy) {
+      query = query.order(orderBy.column, {
+        ascending: orderBy.ascending !== false,
+      });
+    }
+
+    // 페이지네이션 적용
+    if (limit !== undefined) {
+      query = query.limit(limit);
+    }
+
+    if (offset !== undefined) {
+      query = query.range(offset, offset + (limit || 10) - 1);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error(`목록 조회 오류 (${table}):`, error);
+      const appError = handleSupabaseError(error);
+      throw appError;
+    }
+
+    return (data || []) as T[];
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('RLS')) {
+      throw new DataFetchingError(
+        userContext.isAuthenticated 
+          ? '해당 데이터에 접근할 권한이 없습니다.'
+          : '로그인이 필요합니다.',
+        userContext.isAuthenticated ? ErrorType.FORBIDDEN : ErrorType.UNAUTHORIZED,
+        userContext.isAuthenticated ? 403 : 401,
+        error,
+      );
+    }
+    throw error;
+  }
+});
+
+/**
+ * RLS 정책을 고려한 안전한 데이터 삽입
+ */
+export const insertDataSafe = cache(async <T extends TableName>(
+  table: T,
+  data: any,
+  options: QueryOptions = DEFAULT_OPTIONS,
+): Promise<any> => {
+  const userContext = await getCurrentUserContext();
+  
+  if (!userContext.isAuthenticated) {
+    throw new DataFetchingError(
+      '로그인이 필요합니다.',
+      ErrorType.UNAUTHORIZED,
+      401,
+    );
+  }
+
+  const supabase = createServerSupabaseClient();
+
+  // 사용자 소유 데이터에 user_id 자동 설정
+  const userOwnedTables = ['vote_pick', 'vote_comment'];
+  if (userOwnedTables.includes(table) && !data.user_id && userContext.userId) {
+    data.user_id = userContext.userId;
+  }
+
+  try {
+    const { data: insertedData, error } = await supabase
+      .from(table)
+      .insert(data)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`데이터 삽입 오류 (${table}):`, error);
+      const appError = handleSupabaseError(error);
+      throw appError;
+    }
+
+    return insertedData;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('RLS')) {
+      throw new DataFetchingError(
+        '데이터를 생성할 권한이 없습니다.',
+        ErrorType.FORBIDDEN,
+        403,
+        error,
+      );
+    }
+    throw error;
+  }
+});
+
+/**
+ * RLS 정책을 고려한 안전한 데이터 업데이트
+ */
+export const updateDataSafe = cache(async <T extends TableName>(
+  table: T,
+  id: string | number,
+  data: any,
+  options: QueryOptions = DEFAULT_OPTIONS,
+): Promise<any> => {
+  const userContext = await getCurrentUserContext();
+  
+  if (!userContext.isAuthenticated) {
+    throw new DataFetchingError(
+      '로그인이 필요합니다.',
+      ErrorType.UNAUTHORIZED,
+      401,
+    );
+  }
+
+  const supabase = createServerSupabaseClient();
+
+  try {
+    let query = supabase
+      .from(table)
+      .update(data)
+      .eq("id" as any, id);
+
+    // 사용자 소유 데이터는 추가 필터링
+    const userOwnedTables = ['vote_pick', 'vote_comment', 'user_profiles'];
+    if (userOwnedTables.includes(table) && !userContext.isAdmin && userContext.userId) {
+      query = query.eq('user_id' as any, userContext.userId);
+    }
+
+    const { data: updatedData, error } = await query
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`데이터 업데이트 오류 (${table} ID:${id}):`, error);
+      const appError = handleSupabaseError(error);
+      throw appError;
+    }
+
+    return updatedData;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('RLS')) {
+      throw new DataFetchingError(
+        '데이터를 수정할 권한이 없습니다.',
+        ErrorType.FORBIDDEN,
+        403,
+        error,
+      );
+    }
+    throw error;
+  }
+});

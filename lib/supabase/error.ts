@@ -11,6 +11,7 @@ export enum ErrorCode {
   VALIDATION = 'validation',
   SERVER_ERROR = 'server_error',
   NETWORK_ERROR = 'network_error',
+  RLS_POLICY_VIOLATION = 'rls_policy_violation',
   UNKNOWN = 'unknown',
 }
 
@@ -43,6 +44,8 @@ export class AppError extends Error {
         return '로그인이 필요합니다.';
       case ErrorCode.FORBIDDEN:
         return '접근 권한이 없습니다.';
+      case ErrorCode.RLS_POLICY_VIOLATION:
+        return '데이터 접근 권한이 없습니다. 본인의 데이터만 접근할 수 있습니다.';
       case ErrorCode.CONFLICT:
         return '데이터 충돌이 발생했습니다.';
       case ErrorCode.VALIDATION:
@@ -80,6 +83,11 @@ const PG_ERROR_CODES = {
   NOT_NULL_VIOLATION: '23502',   // not_null_violation
   CHECK_VIOLATION: '23514',      // check_violation
   STRING_DATA_RIGHT_TRUNCATION: '22001', // string_data_right_truncation
+
+  // RLS 정책 관련 에러 (Supabase/PostgREST 특화)
+  RLS_POLICY_VIOLATION: 'PGRST301', // RLS 정책 위반
+  RLS_NO_ROWS_RETURNED: 'PGRST204', // RLS로 인해 반환된 행이 없음
+  RLS_PERMISSION_DENIED: 'PGRST403', // RLS 권한 거부
 };
 
 /**
@@ -92,6 +100,22 @@ export function handleSupabaseError(error: PostgrestError): AppError {
   const { code, message, details } = error;
   
   // PostgreSQL 에러 코드에 따라 적절한 에러 반환
+  
+  // RLS 정책 관련 에러 (최우선 처리)
+  if (
+    code === PG_ERROR_CODES.RLS_POLICY_VIOLATION ||
+    code === PG_ERROR_CODES.RLS_NO_ROWS_RETURNED ||
+    code === PG_ERROR_CODES.RLS_PERMISSION_DENIED ||
+    message?.toLowerCase().includes('row level security') ||
+    message?.toLowerCase().includes('policy')
+  ) {
+    return new AppError(
+      '데이터 접근 권한이 없습니다. 본인의 데이터만 접근할 수 있습니다.',
+      ErrorCode.RLS_POLICY_VIOLATION,
+      details,
+      403
+    );
+  }
   
   // NOT_FOUND 에러
   if (

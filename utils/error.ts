@@ -396,12 +396,19 @@ export class DataFetchingError extends AppError {
 }
 
 /**
- * PostgreSQL 에러 코드 매핑
+ * PostgreSQL 에러 코드와 AppError 매핑
+ * 
+ * 각 PostgreSQL 에러 코드를 적절한 ErrorCategory, ErrorSeverity, HTTP 상태 코드로 매핑합니다.
  */
 const PG_ERROR_MAPPING: Record<string, { category: ErrorCategory; severity: ErrorSeverity; statusCode: number }> = {
   // 인증/권한 관련
   '28P01': { category: ErrorCategory.AUTHENTICATION, severity: ErrorSeverity.MEDIUM, statusCode: 401 },
   '42501': { category: ErrorCategory.AUTHORIZATION, severity: ErrorSeverity.MEDIUM, statusCode: 403 },
+  
+  // RLS 정책 관련 (Supabase/PostgREST 특화)
+  'PGRST301': { category: ErrorCategory.AUTHORIZATION, severity: ErrorSeverity.MEDIUM, statusCode: 403 },
+  'PGRST204': { category: ErrorCategory.AUTHORIZATION, severity: ErrorSeverity.LOW, statusCode: 403 },
+  'PGRST403': { category: ErrorCategory.AUTHORIZATION, severity: ErrorSeverity.MEDIUM, statusCode: 403 },
   
   // 데이터 관련
   '23505': { category: ErrorCategory.CONFLICT, severity: ErrorSeverity.LOW, statusCode: 409 },
