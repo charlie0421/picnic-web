@@ -244,7 +244,7 @@ describe('HybridVoteDetailPresenter - Comprehensive Testing (Task 10.8)', () => 
       );
 
       await waitFor(() => {
-        expect(mockSupabaseClient.channel).toHaveBeenCalledWith(`vote_${mockVote.id}`);
+        expect(mockSupabaseClient.channel).toHaveBeenCalledWith('supabase_realtime');
       });
 
       // 구독 설정 확인

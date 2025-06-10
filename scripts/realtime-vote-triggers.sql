@@ -31,7 +31,7 @@ BEGIN
     UPDATE vote_item 
     SET 
       vote_total = COALESCE((
-        SELECT SUM(vote_amount) 
+        SELECT SUM(amount) 
         FROM vote_pick 
         WHERE vote_item_id = OLD.vote_item_id
       ), 0),
@@ -44,7 +44,7 @@ BEGIN
     UPDATE vote_item 
     SET 
       vote_total = COALESCE((
-        SELECT SUM(vote_amount) 
+        SELECT SUM(amount) 
         FROM vote_pick 
         WHERE vote_item_id = NEW.vote_item_id
       ), 0),
@@ -89,39 +89,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 5. 투표 상태 업데이트 함수
--- 투표 시작/종료 시간에 따라 상태를 자동으로 업데이트
-
-CREATE OR REPLACE FUNCTION update_vote_status()
+-- 5. 투표 시간 업데이트 함수 (간단한 updated_at 업데이트)
+CREATE OR REPLACE FUNCTION update_vote_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- 투표 시작/종료 시간 변경 시 상태 업데이트
-  IF NEW.start_date IS DISTINCT FROM OLD.start_date OR 
-     NEW.end_date IS DISTINCT FROM OLD.end_date THEN
-    
-    -- 현재 시간 기준으로 상태 결정
-    IF NOW() < NEW.start_date THEN
-      NEW.status = 'upcoming';
-    ELSIF NOW() >= NEW.start_date AND NOW() <= NEW.end_date THEN
-      NEW.status = 'ongoing';
-    ELSE
-      NEW.status = 'ended';
-    END IF;
-    
-    NEW.updated_at = NOW();
-  END IF;
-  
+  NEW.updated_at = NOW();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- 6. 투표 상태 업데이트 트리거
-DROP TRIGGER IF EXISTS trigger_update_vote_status ON vote;
+-- 6. 투표 시간 업데이트 트리거
+DROP TRIGGER IF EXISTS trigger_update_vote_timestamp ON vote;
 
-CREATE TRIGGER trigger_update_vote_status
+CREATE TRIGGER trigger_update_vote_timestamp
   BEFORE UPDATE ON vote
   FOR EACH ROW
-  EXECUTE FUNCTION update_vote_status();
+  EXECUTE FUNCTION update_vote_timestamp();
 
 -- 7. 실시간 알림 함수 (선택사항)
 -- 특정 이벤트 발생 시 추가적인 알림을 보내는 함수
@@ -138,7 +121,7 @@ BEGIN
       'vote_id', NEW.vote_id,
       'vote_item_id', NEW.vote_item_id,
       'user_id', NEW.user_id,
-      'vote_amount', NEW.vote_amount
+      'vote_amount', NEW.amount
     )::text);
   ELSIF TG_OP = 'UPDATE' THEN
     PERFORM pg_notify('vote_update', json_build_object(
@@ -187,8 +170,7 @@ CREATE INDEX IF NOT EXISTS idx_vote_pick_user_id ON vote_pick(user_id);
 CREATE INDEX IF NOT EXISTS idx_vote_item_vote_id ON vote_item(vote_id);
 
 -- 투표 상태 및 시간 기반 쿼리 최적화
-CREATE INDEX IF NOT EXISTS idx_vote_status ON vote(status);
-CREATE INDEX IF NOT EXISTS idx_vote_dates ON vote(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_vote_dates ON vote(start_at, stop_at);
 
 -- 완료 메시지
 SELECT 'Realtime vote triggers and functions have been created successfully!' as message; 

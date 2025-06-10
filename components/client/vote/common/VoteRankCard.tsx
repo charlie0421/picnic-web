@@ -184,10 +184,16 @@ export function VoteRankCard({
           isAnimating ? 'animate-pulse' : ''
         } ${
           rank === 1
-            ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-300 shadow-xl'
+            ? `bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 ${
+                isUpdated ? 'border-green-400 shadow-green-200' : 'border-yellow-300'
+              } shadow-xl`
             : rank === 2
-            ? 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-300 shadow-lg'
-            : 'bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-300 shadow-lg'
+            ? `bg-gradient-to-br from-gray-50 to-gray-100 border ${
+                isUpdated ? 'border-green-400 shadow-green-200' : 'border-gray-300'
+              } shadow-lg`
+            : `bg-gradient-to-br from-amber-50 to-amber-100 border ${
+                isUpdated ? 'border-green-400 shadow-green-200' : 'border-amber-300'
+              } shadow-lg`
         } ${
           onVoteChange ? 'cursor-pointer hover:scale-105' : 'cursor-default'
         } ${className}`}
@@ -238,9 +244,17 @@ export function VoteRankCard({
               </div>
             )}
             <p
-              className={`font-bold text-blue-600 ${sizeClasses.votes} truncate w-full px-1 text-center`}
+              className={`font-bold ${
+                isUpdated ? 'text-green-600' : 'text-blue-600'
+              } ${sizeClasses.votes} truncate w-full px-1 text-center transition-all duration-300 ${
+                isUpdated ? 'scale-110' : 'scale-100'
+              }`}
             >
-              {displayVoteTotal.toLocaleString()}
+              <AnimatedCount
+                value={displayVoteTotal}
+                suffix=''
+                className='font-inherit'
+              />
             </p>
           </div>
         </div>
@@ -257,16 +271,22 @@ export function VoteRankCard({
         sizeClasses.padding
       } rounded-xl backdrop-blur-sm overflow-hidden min-w-0 ${
         rank === 1
-          ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-300 shadow-xl'
+          ? `bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 ${
+              isUpdated ? 'border-green-400 shadow-green-200' : 'border-yellow-300'
+            } shadow-xl`
           : rank === 2
-          ? 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-300 shadow-lg'
-          : 'bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-300 shadow-lg'
+          ? `bg-gradient-to-br from-gray-50 to-gray-100 border ${
+              isUpdated ? 'border-green-400 shadow-green-200' : 'border-gray-300'
+            } shadow-lg`
+          : `bg-gradient-to-br from-amber-50 to-amber-100 border ${
+              isUpdated ? 'border-green-400 shadow-green-200' : 'border-amber-300'
+            } shadow-lg`
       } ${onVoteChange ? 'cursor-pointer' : 'cursor-default'} ${className}`}
       onClick={handleCardClick}
       initial={{ scale: 1, y: 0 }}
       animate={{
-        scale: isAnimating ? [1, 1.05, 1] : 1,
-        y: isHighlighted ? [0, -2, 0] : 0,
+        scale: isAnimating ? 1.05 : 1,
+        y: isHighlighted ? -2 : 0,
         boxShadow: isHighlighted
           ? '0 8px 25px -5px rgba(59, 130, 246, 0.4)'
           : rank === 1
@@ -294,6 +314,14 @@ export function VoteRankCard({
         type: 'spring',
         stiffness: 300,
         damping: 20,
+        y: {
+          duration: isHighlighted ? 0.3 : 0.8, // 사라질 때는 더 천천히
+          ease: isHighlighted ? "easeOut" : "easeInOut"
+        },
+        boxShadow: {
+          duration: isHighlighted ? 0.2 : 0.6, // 그림자도 부드럽게 사라지기
+          ease: "easeInOut"
+        }
       }}
     >
       {/* 실시간 하이라이트 배경 */}
@@ -302,7 +330,16 @@ export function VoteRankCard({
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            exit={{ 
+              opacity: 0, 
+              scale: 0.95,
+              transition: { 
+                duration: 0.8, 
+                ease: "easeInOut",
+                opacity: { duration: 0.6 },
+                scale: { duration: 0.8, ease: "easeOut" }
+              }
+            }}
             transition={{ duration: 0.3 }}
             className='absolute inset-0 bg-gradient-to-r from-blue-100/50 to-indigo-100/50 rounded-xl border border-blue-300'
           />
@@ -410,13 +447,29 @@ export function VoteRankCard({
           <motion.div
             className={`font-bold text-blue-600 ${sizeClasses.votes} truncate w-full px-1 text-center`}
             initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            animate={{ 
+              opacity: 1, 
+              y: 0,
+              scale: isUpdated ? 1.1 : 1,
+            }}
+            transition={{ 
+              delay: 0.3,
+              scale: { 
+                duration: isUpdated ? 0.3 : 0.6, // 사라질 때는 더 느리게
+                ease: isUpdated ? "easeOut" : "easeInOut",
+                type: "spring",
+                stiffness: isUpdated ? 400 : 200, // 사라질 때는 더 부드럽게
+                damping: isUpdated ? 20 : 30
+              }
+            }}
           >
             <AnimatedCount
+              key={`vote-count-${item.id}-${isUpdated ? 'updated' : 'normal'}`}
               value={displayVoteTotal}
               suffix=''
-              className='font-inherit'
+              className={`font-inherit transition-all duration-700 ease-in-out ${
+                isUpdated ? 'text-green-600' : 'text-blue-600'
+              }`}
             />
           </motion.div>
         </div>

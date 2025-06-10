@@ -103,8 +103,17 @@ export function HybridVoteDetailPresenter({
     },
   });
 
-  // 기존 상태들
-  const [voteItems, setVoteItems] = React.useState<VoteItem[]>(initialItems);
+  // 기존 상태들 - 초기 데이터를 올바른 형태로 변환
+  const [voteItems, setVoteItems] = React.useState<VoteItem[]>(() => {
+    // initialItems가 올바른 형태인지 확인하고 필요시 변환
+    return initialItems.map(item => ({
+      ...item,
+      // 호환성을 위한 추가 필드들 (GridView, VoteRankCard에서 사용)
+      name: item.artist?.name || 'Unknown',
+      image_url: item.artist?.image || '',
+      total_votes: item.vote_total || 0,
+    }));
+  });
   const [selectedItem, setSelectedItem] = React.useState<VoteItem | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isVoting, setIsVoting] = React.useState(false);
@@ -137,6 +146,9 @@ export function HybridVoteDetailPresenter({
     retryCount: 0,
   });
 
+  // 폴링 모드 시작 시간 추적 (최소 폴링 시간 보장용)
+  const [pollingStartTime, setPollingStartTime] = React.useState<Date | null>(null);
+
   // 연결 품질 모니터링 상태
   const [connectionQuality, setConnectionQuality] = React.useState<ConnectionQuality>({
     score: 100,
@@ -148,14 +160,14 @@ export function HybridVoteDetailPresenter({
     averageResponseTime: 0,
   });
 
-  // 임계값 설정
+  // 임계값 설정 - 더 보수적으로 조정
   const thresholds: ThresholdConfig = {
     maxErrorCount: 3,
     maxConsecutiveErrors: 2,
     minConnectionQuality: 70,
-    realtimeRetryDelay: 5000, // 5초
+    realtimeRetryDelay: 30000, // 30초로 증가 (너무 빈번한 전환 방지)
     pollingInterval: 1000, // 1초
-    qualityCheckInterval: 10000, // 10초
+    qualityCheckInterval: 15000, // 15초로 증가 (더 안정적인 모니터링)
   };
 
   // 폴링 관련 ref
@@ -170,6 +182,62 @@ export function HybridVoteDetailPresenter({
   // 폴링 관련 상태
   const [lastPollingUpdate, setLastPollingUpdate] = React.useState<Date | null>(null);
   const [pollingErrorCount, setPollingErrorCount] = React.useState(0);
+
+  // 리얼타임 하이라이트 상태
+  const [recentlyUpdatedItems, setRecentlyUpdatedItems] = React.useState<Set<string | number>>(new Set());
+  
+  // 하이라이트 타이머 관리
+  const highlightTimersRef = React.useRef<Map<string | number, NodeJS.Timeout>>(new Map());
+
+  // 하이라이트 관리 함수
+  const setItemHighlight = React.useCallback((itemId: string | number, highlight: boolean = true, duration: number = 3000) => {
+    // 기존 타이머가 있으면 취소
+    const existingTimer = highlightTimersRef.current.get(itemId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      highlightTimersRef.current.delete(itemId);
+      console.log(`⏰ [Highlight] 기존 타이머 취소: ${itemId}`);
+    }
+
+    if (highlight) {
+      // 하이라이트 추가
+      console.log(`✨ [Highlight] 하이라이트 시작: ${itemId} (${duration}ms)`);
+      setRecentlyUpdatedItems(prev => new Set([...prev, itemId]));
+      
+      // 새 타이머 설정
+      const timer = setTimeout(() => {
+        console.log(`🕐 [Highlight] 하이라이트 종료: ${itemId}`);
+        setRecentlyUpdatedItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
+        highlightTimersRef.current.delete(itemId);
+      }, duration);
+      
+      highlightTimersRef.current.set(itemId, timer);
+    } else {
+      // 즉시 하이라이트 제거
+      console.log(`🚫 [Highlight] 즉시 제거: ${itemId}`);
+      setRecentlyUpdatedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+    }
+  }, []);
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  React.useEffect(() => {
+    return () => {
+      // 모든 하이라이트 타이머 정리
+      highlightTimersRef.current.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      highlightTimersRef.current.clear();
+      console.log('🧹 [Highlight] 모든 타이머 정리 완료');
+    };
+  }, []);
 
   // Supabase 클라이언트
   const supabase = createBrowserSupabaseClient();
@@ -260,12 +328,24 @@ export function HybridVoteDetailPresenter({
   // 데이터 업데이트 함수 (폴링용)
   const updateVoteDataPolling = React.useCallback(async () => {
     if (!vote?.id) return;
+    
+    // 리얼타임 모드에서는 폴링 함수 실행 중단 (보호 로직)
+    if (connectionState.mode === 'realtime') {
+      console.log('[Polling] 리얼타임 모드에서 폴링 함수 호출 차단');
+      return;
+    }
 
     const startTime = performance.now();
     requestStartTimeRef.current = startTime;
 
     try {
-      console.log('[Polling] Fetching vote data...');
+      // 폴링 로그를 5초마다만 출력 (1초마다 반복 방지) + 리얼타임 모드에서는 로그 출력 안함
+      const shouldLog = connectionState.mode === 'polling' && 
+        (!lastPollingUpdate || (Date.now() - lastPollingUpdate.getTime()) > 5000);
+      
+      if (shouldLog) {
+        console.log('[Polling] Fetching vote data...');
+      }
       
       // Fetch vote data with vote_items
       const { data: voteData, error: voteError } = await supabase
@@ -281,13 +361,25 @@ export function HybridVoteDetailPresenter({
           updated_at,
           vote_item (
             id,
+            artist_id,
+            group_id,
+            vote_id,
             vote_total,
             created_at,
             updated_at,
+            deleted_at,
             artist:artist_id (
               id,
               name,
-              image
+              image,
+              birth_date,
+              gender,
+              group_id,
+              artistGroup:group_id (
+                id,
+                name,
+                image
+              )
             )
           )
         `)
@@ -312,16 +404,31 @@ export function HybridVoteDetailPresenter({
       }
 
       if (voteData) {
-        console.log('[Polling] Vote data received:', voteData);
+        if (shouldLog) {
+          console.log('[Polling] Vote data received:', voteData);
+        }
         
-        // Transform the data to match our types
+        // Transform the data to match our VoteItem interface (올바른 데이터 구조)
         const transformedVoteItems = (voteData.vote_item || []).map((item: any) => ({
           id: item.id,
+          artist_id: item.artist_id,
+          group_id: item.group_id,
+          vote_id: item.vote_id,
+          vote_total: item.vote_total || 0,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          deleted_at: item.deleted_at,
+          // 아티스트 정보를 올바르게 매핑 (VoteRankCard가 기대하는 구조)
+          artist: item.artist ? {
+            id: item.artist.id,
+            name: item.artist.name,
+            image: item.artist.image,
+            ...item.artist
+          } : null,
+          // 호환성을 위한 추가 필드들
           name: item.artist?.name || 'Unknown',
           image_url: item.artist?.image || '',
           total_votes: item.vote_total || 0,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
           rank: 0 // Will be calculated after sorting
         }));
 
@@ -350,16 +457,42 @@ export function HybridVoteDetailPresenter({
       if (user) {
         const { data: userVoteData, error: userVoteError } = await supabase
           .from('vote_pick')
-          .select('vote_item_id')
+          .select('vote_item_id, amount, created_at')
           .eq('vote_id', vote.id)
           .eq('user_id', user.id)
-          .maybeSingle();
+          .order('created_at', { ascending: false }); // 최신 투표부터 정렬
 
         if (userVoteError) {
           console.error('[Polling] User vote fetch error:', userVoteError);
           updateConnectionQuality(false);
+                  } else if (userVoteData && userVoteData.length > 0) {
+          // 여러 투표 기록이 있는 경우 처리
+          if (userVoteData.length > 1 && shouldLog) {
+            console.log(`[Polling] 사용자가 ${userVoteData.length}번 투표함:`, userVoteData);
+            
+            // 투표 기록 요약 계산
+            const voteSummary = {
+              totalVotes: userVoteData.reduce((sum, vote) => sum + (vote.amount || 0), 0),
+              voteCount: userVoteData.length,
+              lastVoteItem: userVoteData[0].vote_item_id, // 가장 최근 투표한 아이템
+                             allVoteItems: Array.from(new Set(userVoteData.map(v => v.vote_item_id))), // 투표한 모든 아이템 (중복 제거)
+              votes: userVoteData
+            };
+            
+            setUserVote(voteSummary);
+          } else {
+            // 단일 투표 기록
+            setUserVote({
+              totalVotes: userVoteData[0].amount || 0,
+              voteCount: 1,
+              lastVoteItem: userVoteData[0].vote_item_id,
+              allVoteItems: [userVoteData[0].vote_item_id],
+              votes: userVoteData
+            });
+          }
         } else {
-          setUserVote(userVoteData);
+          // 투표 기록 없음
+          setUserVote(null);
         }
       }
 
@@ -377,12 +510,75 @@ export function HybridVoteDetailPresenter({
     }
   }, [vote?.id, user, supabase, updateConnectionQuality]);
 
-  // 데이터 업데이트 함수
+  // 데이터 업데이트 함수 (리얼타임용)
   const updateVoteData = React.useCallback(async () => {
+    if (!vote?.id) return;
+    
     try {
-      // TODO: 실제 API 호출로 데이터 가져오기
-      // const { data } = await supabase.from('vote_item').select('*').eq('vote_id', vote.id);
-      // setVoteItems(data || []);
+      console.log(`[${connectionState.mode}] 리얼타임 데이터 업데이트 시작...`);
+      
+      // 실제 API 호출로 최신 투표 데이터 가져오기
+      const { data: items, error } = await supabase
+        .from('vote_item')
+        .select(`
+          id,
+          artist_id,
+          vote_total,
+          artist:artist_id (
+            id,
+            name,
+            image,
+            group:group_id (
+              id,
+              name
+            )
+          )
+        `)
+        .eq('vote_id', vote.id)
+        .order('vote_total', { ascending: false });
+
+      if (error) {
+        console.error(`[${connectionState.mode}] 데이터 업데이트 에러:`, error);
+        throw error;
+      }
+
+      if (items) {
+        // VoteItem 인터페이스에 맞게 데이터 변환
+        const transformedVoteItems = items.map(item => ({
+          id: item.id,
+          artist_id: item.artist_id,
+          vote_total: item.vote_total,
+          artist: item.artist || undefined, // null을 undefined로 변환하여 Artist | undefined 타입에 맞춤
+          // VoteItem 인터페이스 필수 필드들
+          created_at: new Date().toISOString(),
+          deleted_at: null,
+          group_id: item.artist?.group?.id || 0,
+          updated_at: new Date().toISOString(),
+          vote_id: vote.id,
+          // 호환성을 위한 추가 필드들 (기존 컴포넌트에서 사용)
+          name: item.artist?.name,
+          image_url: item.artist?.image,
+          total_votes: item.vote_total,
+        }));
+
+        setVoteItems(transformedVoteItems as VoteItem[]);
+        console.log(`[${connectionState.mode}] 투표 데이터 업데이트 완료: ${items.length}개 아이템`);
+      }
+
+      // 사용자 투표 상태도 함께 업데이트
+      if (user) {
+        const { data: userVoteData } = await supabase
+          .from('vote_pick')
+          .select('vote_item_id, amount, created_at')
+          .eq('vote_id', vote.id)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (userVoteData && userVoteData.length > 0) {
+          setUserVote(userVoteData);
+          console.log(`[${connectionState.mode}] 사용자 투표 상태 업데이트: ${userVoteData.length}개 투표`);
+        }
+      }
       
       setConnectionState(prev => ({
         ...prev,
@@ -390,7 +586,6 @@ export function HybridVoteDetailPresenter({
         errorCount: 0,
       }));
       
-      console.log(`[${connectionState.mode}] 데이터 업데이트 완료:`, new Date().toLocaleTimeString());
     } catch (error) {
       console.error(`[${connectionState.mode}] 데이터 업데이트 실패:`, error);
       setConnectionState(prev => ({
@@ -398,15 +593,21 @@ export function HybridVoteDetailPresenter({
         errorCount: prev.errorCount + 1,
       }));
     }
-  }, [vote.id, connectionState.mode]);
+  }, [vote.id, connectionState.mode, supabase]);
 
   // 폴링 시작
   const startPollingMode = React.useCallback(() => {
+    // 이미 폴링 중이라면 중복 시작 방지
     if (pollingIntervalRef.current) {
+      console.log('[Polling] 이미 폴링 중이므로 기존 인터벌 정리');
       clearInterval(pollingIntervalRef.current);
     }
 
-    console.log('🔄 [Polling] Starting polling mode (1s interval)');
+    console.log('🔄 [Polling] Starting polling mode (1s interval)', {
+      voteId: vote.id,
+      enableRealtime: enableRealtime,
+      timestamp: new Date().toLocaleTimeString()
+    });
     setConnectionState(prev => ({
       ...prev,
       mode: 'polling' as DataSourceMode,
@@ -426,45 +627,71 @@ export function HybridVoteDetailPresenter({
 
   // 리얼타임 연결 시도
   const connectRealtime = React.useCallback(async () => {
-    if (!enableRealtime) return;
+    if (!enableRealtime) {
+      console.log('[Realtime] ❌ enableRealtime이 false로 설정됨');
+      return;
+    }
+    if (!vote?.id) {
+      console.log('[Realtime] ❌ vote.id가 없음:', vote);
+      return;
+    }
 
     try {
-      console.log('[Realtime] 연결 시도 중...');
+      console.log('[Realtime] 🔄 연결 시도 중...', {
+        voteId: vote.id,
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '❌ 없음',
+        supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '❌ 없음'
+      });
       
       // 실제 Supabase 리얼타임 연결
       const subscription = supabase
-        .channel(`vote_${vote.id}`)
+        .channel('supabase_realtime')
         .on(
           'postgres_changes',
           {
-            event: '*',
+            event: '*', // 모든 이벤트 수신 (INSERT, UPDATE, DELETE)
             schema: 'public',
             table: 'vote_item',
             filter: `vote_id=eq.${vote.id}`,
           },
           (payload) => {
-            console.log('[Realtime] 업데이트 수신:', payload);
-            // 리얼타임 업데이트시 폴링 함수 재사용
-            updateVoteDataPolling();
+            console.log('🔥 [Realtime] vote_item 변화 수신!', {
+              event: payload.eventType,
+              table: payload.table,
+              new: payload.new,
+              old: payload.old,
+              timestamp: new Date().toLocaleTimeString(),
+              payload: payload // 전체 payload 확인
+            });
+            
+            // 업데이트된 아이템을 하이라이트 표시
+            if (payload.eventType === 'UPDATE' && payload.new?.id) {
+              console.log(`🎯 [Realtime] 아이템 ${payload.new.id} 하이라이트 표시`);
+              setItemHighlight(payload.new.id, true, 3000);
+            }
+            
+            // 리얼타임 모드에서는 폴링 함수가 아닌 별도 업데이트 사용
+            if (connectionState.mode === 'realtime') {
+              console.log('🔄 [Realtime] vote_item 변화로 인한 데이터 업데이트 시작...');
+              updateVoteData(); // 폴링이 아닌 일반 업데이트 함수 사용
+            }
+            
+            // 연결 품질 업데이트
+            updateConnectionQuality(true);
           }
         )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'vote_pick',
-            filter: `vote_id=eq.${vote.id}`,
-          },
-          (payload) => {
-            console.log('[Realtime] 투표 픽 업데이트 수신:', payload);
-            // 투표 픽 변경시도 데이터 업데이트
-            updateVoteDataPolling();
-          }
-        )
+
         .subscribe((status, err) => {
+          console.log(`[Realtime] 📡 구독 상태 변경: ${status}`, err ? { error: err } : '');
+          
           if (status === 'SUBSCRIBED') {
-            console.log('[Realtime] 연결 성공');
+            console.log('[Realtime] ✅ 연결 성공! 실시간 업데이트 수신 대기 중...', {
+              channel: 'supabase_realtime',
+              voteId: vote.id,
+              tables: ['vote_item'],
+              events: ['*'],
+              connectedAt: new Date().toISOString()
+            });
             setConnectionState(prev => ({
               ...prev,
               mode: 'realtime',
@@ -472,7 +699,19 @@ export function HybridVoteDetailPresenter({
               errorCount: 0,
               retryCount: 0,
             }));
-          } else if (status === 'CHANNEL_ERROR') {
+            
+            // 연결 품질 업데이트
+            updateConnectionQuality(true);
+            
+            // 연결 성공 알림
+            addNotification({
+              type: 'success',
+              title: '실시간 연결 성공',
+              message: '투표 결과가 실시간으로 업데이트됩니다.',
+              duration: 3000,
+            });
+            
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.error('[Realtime] 연결 실패:', err);
             setConnectionState(prev => ({
               ...prev,
@@ -481,8 +720,38 @@ export function HybridVoteDetailPresenter({
               errorCount: prev.errorCount + 1,
               retryCount: prev.retryCount + 1,
             }));
-            // 리얼타임 실패시 폴링 모드로 전환
-            startPollingMode();
+            
+            // 연결 품질 업데이트
+            updateConnectionQuality(false);
+            
+            // 리얼타임 실패시 폴링 모드로 전환 (switchMode를 통해 안전하게 전환)
+            console.log('[Realtime] 폴링 모드로 자동 전환');
+            // startPollingMode(); // ❌ 삭제: switchMode에서 이미 처리됨
+            
+            // 연결 실패 알림
+            addNotification({
+              type: 'warning',
+              title: '실시간 연결 실패',
+              message: '폴링 모드로 전환되었습니다. 데이터는 계속 업데이트됩니다.',
+              duration: 4000,
+            });
+            
+          } else if (status === 'CLOSED') {
+            console.log('[Realtime] 연결 종료');
+            setConnectionState(prev => ({
+              ...prev,
+              isConnected: false,
+            }));
+            
+            // 연결이 예기치 않게 종료된 경우 폴링으로 전환 (상태만 변경)
+            if (connectionState.mode === 'realtime') {
+              console.log('[Realtime] 연결 종료로 인한 폴링 모드 전환');
+              setConnectionState(prev => ({
+                ...prev,
+                mode: 'polling',
+                isConnected: false,
+              }));
+            }
           }
         });
       
@@ -497,10 +766,22 @@ export function HybridVoteDetailPresenter({
         errorCount: prev.errorCount + 1,
         retryCount: prev.retryCount + 1,
       }));
-      // 에러 발생시 폴링 모드로 전환
-      startPollingMode();
+      
+      // 연결 품질 업데이트
+      updateConnectionQuality(false);
+      
+      // 에러 발생시 폴링 모드로 전환 (switchMode를 통해 안전하게 전환)
+      // startPollingMode(); // ❌ 삭제: switchMode에서 이미 처리됨
+      
+      // 에러 알림
+      addNotification({
+        type: 'error',
+        title: '실시간 연결 오류',
+        message: '폴링 모드로 전환되었습니다.',
+        duration: 4000,
+      });
     }
-  }, [enableRealtime, vote.id, supabase, updateVoteDataPolling, startPollingMode]);
+  }, [enableRealtime, vote.id, supabase, connectionState.mode]); // 함수 의존성 제거하여 무한 루프 방지
 
   // 폴링 중지
   const stopPollingMode = React.useCallback(() => {
@@ -513,7 +794,11 @@ export function HybridVoteDetailPresenter({
 
   // 하이브리드 모드 시작
   const startHybridMode = React.useCallback(() => {
-    console.log('🔀 [Hybrid] Starting hybrid mode');
+    console.log('🔀 [Hybrid] Starting hybrid mode', {
+      voteId: vote?.id,
+      enableRealtime,
+      currentMode: connectionState.mode
+    });
     setConnectionState(prev => ({
       ...prev,
       mode: 'realtime',
@@ -571,11 +856,15 @@ export function HybridVoteDetailPresenter({
     
     // 새 모드 시작
     if (targetMode === 'realtime') {
+      setPollingStartTime(null); // 리얼타임 모드로 전환시 폴링 시작 시간 초기화
       connectRealtime();
     } else if (targetMode === 'polling') {
+      setPollingStartTime(new Date()); // 폴링 모드 시작 시간 기록
       startPollingMode();
+    } else {
+      setPollingStartTime(null); // 정적 모드로 전환시 폴링 시작 시간 초기화
     }
-  }, [connectionState.mode, disconnectRealtime, stopPollingMode, connectRealtime, startPollingMode, notifyConnectionStateChange]);
+  }, [connectionState.mode]); // 함수 의존성 제거하여 무한 루프 방지
 
   // 자동 모드 전환 (에러 발생시)
   React.useEffect(() => {
@@ -588,9 +877,9 @@ export function HybridVoteDetailPresenter({
         switchMode('static');
       }
     }
-  }, [connectionState.errorCount, connectionState.mode, maxRetries, switchMode]);
+  }, [connectionState.errorCount, connectionState.mode, maxRetries]); // switchMode 의존성 제거하여 무한 루프 방지
 
-  // 연결 모니터링 시스템 초기화
+  // 연결 모니터링 시스템 초기화 (컴포넌트 마운트 시 한 번만 실행)
   React.useEffect(() => {
     if (enableRealtime) {
       // 하이브리드 모드 시작
@@ -608,7 +897,7 @@ export function HybridVoteDetailPresenter({
       disconnectRealtime();
       cleanupConnectionMonitor();
     };
-  }, [enableRealtime, startHybridMode, startPollingMode, stopPollingMode, disconnectRealtime, cleanupConnectionMonitor]);
+  }, [enableRealtime]); // 함수들을 의존성에서 제거하여 무한 루프 방지
 
   // 남은 시간 계산 및 업데이트
   React.useEffect(() => {
@@ -767,10 +1056,20 @@ export function HybridVoteDetailPresenter({
     // 투표 아이템 순위 매기기
     const ranked = [...voteItems]
       .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
-      .map((item, index) => ({
-        ...item,
-        rank: index + 1,
-      }));
+      .map((item, index) => {
+        // 리얼타임 정보 추가
+        const isHighlighted = recentlyUpdatedItems.has(item.id);
+        
+        return {
+          ...item,
+          rank: index + 1,
+          _realtimeInfo: {
+            isHighlighted,
+            isUpdated: isHighlighted,
+            rankChange: 'same' as const, // 랭킹 변경 추적을 원하면 이전 순위와 비교 로직 추가
+          }
+        };
+      });
 
     // 검색 필터링 (디바운싱된 검색어 사용)
     const filtered = debouncedSearchQuery
@@ -791,7 +1090,7 @@ export function HybridVoteDetailPresenter({
       filteredItems: filtered,
       totalVotes: total,
     };
-  }, [voteItems, debouncedSearchQuery, currentLanguage]);
+  }, [voteItems, debouncedSearchQuery, currentLanguage, recentlyUpdatedItems]);
 
   // 투표 제목과 내용 메모이제이션
   const { voteTitle, voteContent } = React.useMemo(() => ({
@@ -939,6 +1238,92 @@ export function HybridVoteDetailPresenter({
     };
   }, [voteTitle, voteContent, voteStatus, availableVotes]);
 
+  // 전역 디버깅 함수들 설정
+  React.useEffect(() => {
+    // @ts-ignore
+    window.testHighlight = (itemId?: string | number) => {
+      if (!itemId) {
+        console.log('💡 [Test] 사용법: window.testHighlight(아이템ID)');
+        console.log('예: window.testHighlight(1) 또는 window.testHighlight("1")');
+        console.log('현재 하이라이트된 아이템들:', Array.from(recentlyUpdatedItems));
+        console.log('활성 타이머 수:', highlightTimersRef.current.size);
+        return;
+      }
+      
+      const testId = itemId;
+      console.log(`🎨 [Test] 하이라이트 테스트 시작: ${testId}`);
+      console.log('현재 하이라이트된 아이템들:', Array.from(recentlyUpdatedItems));
+      console.log('활성 타이머 수:', highlightTimersRef.current.size);
+      
+      setItemHighlight(testId, true, 5000); // 5초 테스트
+      
+      // 1초 후 상태 확인
+      setTimeout(() => {
+        console.log('📊 [Test] 1초 후 상태 확인:');
+        console.log('  recentlyUpdatedItems:', Array.from(recentlyUpdatedItems));
+        console.log('  highlightTimersRef size:', highlightTimersRef.current.size);
+      }, 1000);
+      
+      setTimeout(() => {
+        console.log('🎨 [Test] 3초 후 다시 하이라이트 테스트 (중복 처리 확인)');
+        setItemHighlight(testId, true, 3000);
+      }, 3000);
+    };
+
+    // @ts-ignore
+    window.clearAllHighlights = () => {
+      console.log('🧹 [Test] 모든 하이라이트 즉시 제거');
+      highlightTimersRef.current.forEach((timer, itemId) => {
+        clearTimeout(timer);
+        console.log(`⏰ [Test] 타이머 취소: ${itemId}`);
+      });
+      highlightTimersRef.current.clear();
+      setRecentlyUpdatedItems(new Set());
+    };
+
+    // @ts-ignore
+    window.debugHighlightStatus = () => {
+      console.log('=== 🔍 하이라이트 상태 디버깅 ===');
+      console.log('recentlyUpdatedItems:', Array.from(recentlyUpdatedItems));
+      console.log('활성 타이머 수:', highlightTimersRef.current.size);
+      console.log('타이머 목록:', Array.from(highlightTimersRef.current.keys()));
+    };
+
+    // @ts-ignore
+    window.testRealtime = () => {
+      console.log('🔧 [Guide] 리얼타임 테스트 가이드');
+      console.log('');
+      console.log('1. 하이라이트 테스트:');
+      console.log('   window.testHighlight(1)     // 아이템 ID 1 테스트');
+      console.log('   window.testHighlight("2")   // 아이템 ID 2 테스트');
+      console.log('');
+      console.log('2. 상태 확인:');
+      console.log('   window.debugHighlightStatus()    // 하이라이트 상태');
+      console.log('   window.checkRealtimeStatus()     // 리얼타임 전체 상태');
+      console.log('');
+      console.log('3. 하이라이트 제거:');
+      console.log('   window.clearAllHighlights()      // 모든 하이라이트 제거');
+      console.log('');
+      console.log('4. 리얼타임 테스트:');
+      console.log('   window.testSupabaseRealtime()    // Supabase 연결 테스트');
+      console.log('   window.testDatabaseDirectly()    // DB 업데이트 테스트');
+      console.log('');
+      console.log('💡 페이지에서 아이템 ID를 확인한 후 window.testHighlight(ID)로 테스트하세요!');
+    };
+
+    return () => {
+      // cleanup 시 전역 함수들 제거
+      // @ts-ignore
+      delete window.testHighlight;
+      // @ts-ignore
+      delete window.clearAllHighlights;
+      // @ts-ignore
+      delete window.debugHighlightStatus;
+      // @ts-ignore
+      delete window.testRealtime;
+    };
+  }, [recentlyUpdatedItems, setItemHighlight, highlightTimersRef, setRecentlyUpdatedItems]);
+
   // 연결 품질 모니터링
   const startConnectionQualityMonitor = React.useCallback(() => {
     if (qualityCheckIntervalRef.current) {
@@ -962,11 +1347,14 @@ export function HybridVoteDetailPresenter({
         }
       }
       
-      // 품질이 좋아지면 리얼타임 모드 재시도
+      // 품질이 좋아지면 리얼타임 모드 재시도 (더 엄격한 조건)
       if (connectionState.mode === 'polling' && 
-          connectionQuality.score > thresholds.minConnectionQuality + 10 && 
-          connectionQuality.consecutiveSuccesses >= 5) {
-        console.log(`[Quality Monitor] Quality improved (${connectionQuality.score}), attempting realtime reconnection`);
+          connectionQuality.score > thresholds.minConnectionQuality + 20 && // 90점 이상 요구
+          connectionQuality.consecutiveSuccesses >= 15 && // 15초간 연속 성공 요구
+          connectionQuality.errorRate < 0.1 && // 에러율 10% 미만
+          pollingStartTime && // 폴링 시작 시간이 기록되어 있어야 함
+          Date.now() - pollingStartTime.getTime() > 60000) { // 최소 1분간 폴링 모드 유지
+        console.log(`[Quality Monitor] Quality significantly improved after sufficient polling time (${connectionQuality.score}, successes: ${connectionQuality.consecutiveSuccesses}), attempting realtime reconnection`);
         attemptRealtimeReconnection();
       }
     }, thresholds.qualityCheckInterval);
@@ -1114,6 +1502,8 @@ export function HybridVoteDetailPresenter({
                         item={rankedVoteItems[1]}
                         rank={2}
                         className='w-20 sm:w-24 md:w-28 lg:w-32'
+                        voteTotal={rankedVoteItems[1].vote_total || 0}
+                        enableMotionAnimations={true}
                       />
                     </div>
                   </div>
@@ -1136,6 +1526,8 @@ export function HybridVoteDetailPresenter({
                         item={rankedVoteItems[0]}
                         rank={1}
                         className='w-24 sm:w-32 md:w-36 lg:w-40'
+                        voteTotal={rankedVoteItems[0].vote_total || 0}
+                        enableMotionAnimations={true}
                       />
                     </div>
                   </div>
@@ -1155,6 +1547,8 @@ export function HybridVoteDetailPresenter({
                         item={rankedVoteItems[2]}
                         rank={3}
                         className='w-18 sm:w-20 md:w-24 lg:w-28'
+                        voteTotal={rankedVoteItems[2].vote_total || 0}
+                        enableMotionAnimations={true}
                       />
                     </div>
                   </div>
@@ -1241,14 +1635,25 @@ export function HybridVoteDetailPresenter({
                     </div>
                   )}
 
-                  {/* 투표 가능 상태 표시 */}
-                  {canVote && (
+                  {/* 사용자 투표 상태 표시 */}
+                  {userVote && userVote.allVoteItems && userVote.allVoteItems.includes(item.id) ? (
+                    <div className='absolute top-1 right-1 z-10'>
+                      <div className='bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs px-1.5 py-0.5 rounded-full shadow-lg flex items-center gap-1'>
+                        <span>✓</span>
+                        {userVote.voteCount > 1 && (
+                          <span className="text-xs">
+                            {userVote.votes?.filter(v => v.vote_item_id === item.id).reduce((sum, v) => sum + (v.amount || 0), 0) || 0}표
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : canVote ? (
                     <div className='absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
                       <div className='bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full shadow-lg'>
                         투표
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
                   {/* 투표 중 오버레이 */}
                   {isVoting && voteCandidate?.id === item.id && (
@@ -1591,19 +1996,160 @@ export function HybridVoteDetailPresenter({
 
       {/* 개발 모드 디버그 정보 */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 right-4 bg-black bg-opacity-80 text-white p-3 rounded-lg text-xs max-w-xs">
-          <h4 className="font-semibold mb-1">🔧 하이브리드 시스템 상태</h4>
-          <div className="space-y-1">
-            <p>모드: {connectionState.mode}</p>
-            <p>연결: {connectionState.isConnected ? '✅' : '❌'}</p>
-            <p>에러 수: {connectionState.errorCount}</p>
-            <p>재시도: {connectionState.retryCount}</p>
-            <p>마지막 업데이트: {connectionState.lastUpdate?.toLocaleTimeString() || 'None'}</p>
-            <p>총 아이템: {voteItems.length}</p>
-            <p>필터된 아이템: {filteredItems.length}</p>
+        <div className="fixed bottom-4 right-4 bg-black bg-opacity-90 text-white p-4 rounded-lg text-xs max-w-sm space-y-3">
+          <h4 className="font-semibold mb-2 text-yellow-300">🔧 하이브리드 시스템 디버거</h4>
+          
+          {/* 연결 상태 */}
+          <div className="space-y-1 mb-3">
+            <p className="text-green-300">📊 현재 상태:</p>
+            <p>• 모드: <span className="text-cyan-300 font-mono">{connectionState.mode}</span></p>
+            <p>• 연결: {connectionState.isConnected ? '✅' : '❌'}</p>
+            <p>• 에러 수: <span className="text-red-300">{connectionState.errorCount}</span></p>
+            <p>• 재시도: <span className="text-yellow-300">{connectionState.retryCount}</span></p>
+            <p>• 마지막 업데이트: <span className="text-blue-300">{connectionState.lastUpdate?.toLocaleTimeString() || 'None'}</span></p>
+            {connectionState.mode === 'polling' && pollingStartTime && (
+              <p>• 폴링 지속시간: <span className="text-purple-300">{Math.floor((Date.now() - pollingStartTime.getTime()) / 1000)}초</span></p>
+            )}
+          </div>
+
+          {/* 데이터 상태 */}
+          <div className="space-y-1 mb-3">
+            <p className="text-green-300">📋 데이터:</p>
+            <p>• 총 아이템: <span className="text-cyan-300">{voteItems.length}</span></p>
+            <p>• 필터된 아이템: <span className="text-cyan-300">{filteredItems.length}</span></p>
+            <p>• 검색어: <span className="text-yellow-300">&quot;{searchQuery}&quot;</span></p>
+            {user && (
+              <p>• 사용자: <span className="text-green-300">로그인됨</span></p>
+            )}
+            {userVote && (
+              <>
+                <p>• 내 투표 횟수: <span className="text-yellow-300">{userVote.voteCount}회</span></p>
+                <p>• 총 투표량: <span className="text-yellow-300">{userVote.totalVotes}표</span></p>
+                <p>• 투표한 아이템: <span className="text-cyan-300">{userVote.allVoteItems?.length || 0}개</span></p>
+              </>
+            )}
+          </div>
+
+          {/* 연결 품질 정보 */}
+          <div className="space-y-1 mb-3">
+            <p className="text-green-300">📶 연결 품질:</p>
+            <p>• 점수: <span className="text-cyan-300">{connectionQuality.score.toFixed(0)}/100</span></p>
+            <p>• 에러율: <span className="text-red-300">{(connectionQuality.errorRate * 100).toFixed(1)}%</span></p>
+            <p>• 연속 에러: <span className="text-red-300">{connectionQuality.consecutiveErrors}</span></p>
+            <p>• 연속 성공: <span className="text-green-300">{connectionQuality.consecutiveSuccesses}</span></p>
+          </div>
+
+          {/* 수동 컨트롤 */}
+          <div className="space-y-2">
+            <p className="text-green-300">🎛️ 수동 제어:</p>
+            <div className="flex gap-1">
+              <button
+                onClick={() => switchMode('realtime')}
+                className={`px-2 py-1 text-xs rounded font-mono ${
+                  connectionState.mode === 'realtime' 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-gray-600 hover:bg-gray-500 text-white'
+                }`}
+              >
+                RT
+              </button>
+              <button
+                onClick={() => switchMode('polling')}
+                className={`px-2 py-1 text-xs rounded font-mono ${
+                  connectionState.mode === 'polling' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-600 hover:bg-gray-500 text-white'
+                }`}
+              >
+                Poll
+              </button>
+              <button
+                onClick={() => switchMode('static')}
+                className={`px-2 py-1 text-xs rounded font-mono ${
+                  connectionState.mode === 'static' 
+                    ? 'bg-gray-600 text-white' 
+                    : 'bg-gray-600 hover:bg-gray-500 text-white'
+                }`}
+              >
+                Static
+              </button>
+            </div>
+            <div className="flex gap-1">
+              <button
+                onClick={() => updateVoteDataPolling()}
+                className="px-2 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-mono"
+              >
+                수동 새로고침
+              </button>
+              <button
+                onClick={() => {
+                  console.clear();
+                  console.log('[Debug] 콘솔 클리어됨');
+                }}
+                className="px-2 py-1 text-xs rounded bg-orange-600 hover:bg-orange-500 text-white font-mono"
+              >
+                콘솔 클리어
+              </button>
+            </div>
+          </div>
+
+          {/* 실시간 로그 */}
+          <div className="border-t border-gray-600 pt-2 text-xs">
+            <p className="text-green-300">📝 실시간 상태:</p>
+            <p className="text-gray-300 font-mono">
+              {connectionState.mode === 'realtime' ? '🔴 실시간 모드 활성' : 
+               connectionState.mode === 'polling' ? '🔵 폴링 모드 활성' : 
+               '⚪ 정적 모드'}
+            </p>
+            <p className="text-gray-300 font-mono text-xs">
+              Last update: {lastPollingUpdate?.toLocaleTimeString() || 'N/A'}
+            </p>
+            {connectionState.mode === 'polling' && (
+              <p className="text-yellow-300 font-mono text-xs">
+                ⚡ {pollingErrorCount === 0 ? '안정적 폴링' : `에러 ${pollingErrorCount}회`}
+              </p>
+            )}
+            {process.env.NODE_ENV === 'development' && (
+              <p className="text-blue-300 font-mono text-xs">
+                🔧 로그: 5초마다 축약 출력
+              </p>
+            )}
           </div>
         </div>
       )}
     </div>
   );
+}
+
+// 브라우저 콘솔에서 리얼타임 테스트용 전역 함수 등록 (개발 모드에서만)
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  // @ts-ignore
+  window.testRealtime = () => {
+    console.log('=== 🔧 리얼타임 테스트 함수 ===');
+    console.log('브라우저 콘솔에서 다음 함수들을 사용할 수 있습니다:');
+    console.log('• window.testRealtime() - 현재 리얼타임 상태 확인');
+    console.log('• window.checkRealtimeStatus() - 종합 상태 진단');
+    console.log('• window.testSupabaseRealtime() - Supabase 리얼타임 연결 테스트 (10초)');
+    console.log('• window.testDatabaseDirectly() - 데이터베이스 직접 업데이트 테스트');
+    console.log('• window.forceRealtimeReconnect() - 강제 리얼타임 재연결 (컴포넌트 내부)');
+    console.log('• window.switchToPolling() - 폴링 모드로 전환 (컴포넌트 내부)');
+    console.log('• window.switchToRealtime() - 리얼타임 모드로 전환 (컴포넌트 내부)');
+    console.log('=== 📋 테스트 순서 추천 ===');
+    console.log('1. window.checkRealtimeStatus() 실행 (종합 진단)');
+    console.log('2. window.testSupabaseRealtime() 실행 (연결 확인)');
+    console.log('3. window.testDatabaseDirectly() 실행 (DB 업데이트)');
+    console.log('4. 또는 SQL Editor에서: SELECT test_realtime_update(83);');
+    console.log('=== 🚨 문제 해결 가이드 ===');
+    console.log('만약 리얼타임이 작동하지 않는다면:');
+    console.log('1. Supabase 대시보드 → Settings → API → Realtime API 활성화 확인');
+    console.log('2. 테이블의 RLS 정책이 리얼타임을 차단하는지 확인');
+    console.log('3. 네트워크/방화벽이 WebSocket을 차단하는지 확인');
+    console.log('4. 브라우저 확장 프로그램(ad-blocker 등) 비활성화 후 테스트');
+    console.log('=== 현재 환경에서는 컴포넌트 내부 상태에 직접 접근할 수 없습니다 ===');
+    console.log('페이지를 새로고침한 후 다시 시도해주세요.');
+  };
+
+
+
+
 } 

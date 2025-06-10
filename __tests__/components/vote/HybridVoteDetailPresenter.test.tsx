@@ -40,10 +40,29 @@ jest.mock('@/stores/languageStore', () => ({
   }),
 }));
 
+// Mock useAuthGuard hook completely
 jest.mock('@/hooks/useAuthGuard', () => ({
-  useRequireAuth: () => ({
-    withAuth: jest.fn((fn) => fn),
-  }),
+  useAuthGuard: jest.fn(() => ({
+    user: { id: 'user123', email: 'test@example.com' },
+    session: { access_token: 'mock-token' },
+    isLoading: false,
+    signOut: jest.fn(),
+    requireAuth: jest.fn(),
+  })),
+  useRequireAuth: jest.fn(() => ({
+    withAuth: jest.fn((fn) => (...args: any[]) => fn(...args)),
+  })),
+}));
+
+// Mock AuthProvider completely
+jest.mock('@/lib/supabase/auth-provider', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: jest.fn(() => ({
+    user: { id: 'user123', email: 'test@example.com' },
+    session: { access_token: 'mock-token' },
+    isLoading: false,
+    signOut: jest.fn(),
+  })),
 }));
 
 // Mock data with correct types
@@ -162,6 +181,22 @@ const createMockChain = (resolveValue?: any, rejectValue?: any) => {
   const mockEq = jest.fn().mockReturnValue({ single: mockSingle });
   const mockSelect = jest.fn().mockReturnValue({ eq: mockEq });
   return { mockSelect, mockEq, mockSingle };
+};
+
+// Test Wrapper with complete mocked context
+const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const mockAuthContext = React.useMemo(() => ({
+    user: { id: 'user123', email: 'test@example.com' },
+    session: { access_token: 'mock-token' },
+    isLoading: false,
+    signOut: jest.fn(),
+  }), []);
+  
+  return (
+    <div data-testid="auth-provider">
+      {children}
+    </div>
+  );
 };
 
 describe('HybridVoteDetailPresenter', () => {
@@ -334,7 +369,7 @@ describe('HybridVoteDetailPresenter', () => {
       );
 
       await waitFor(() => {
-        expect(mockSupabaseClient.channel).toHaveBeenCalledWith(`vote_${mockVote.id}`);
+        expect(mockSupabaseClient.channel).toHaveBeenCalledWith('supabase_realtime');
       });
     });
 
