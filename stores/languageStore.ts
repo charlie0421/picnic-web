@@ -403,9 +403,12 @@ export const useLanguageStore = create<LanguageState>()(
           state.setHydrated(true);
           
           // 리하이드레이션 후 현재 언어의 번역이 로드되지 않았다면 로드
+          // setTimeout을 사용하여 렌더링 사이클과 분리
           if (!state.isTranslationLoaded[state.currentLanguage]) {
             console.log('🔄 Loading translations after rehydration');
-            state.loadTranslations(state.currentLanguage);
+            setTimeout(() => {
+              state.loadTranslations(state.currentLanguage);
+            }, 0);
           }
         }
       },

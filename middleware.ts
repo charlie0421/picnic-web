@@ -62,6 +62,24 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(`/vote/${voteId}`, request.url));
   }
 
+  // /download 경로에 대한 특별 처리
+  if (pathname === "/download" || pathname === "/download.html") {
+    const preferredLang = getPreferredLanguage(request);
+    console.log(`🔄 Download 페이지 리다이렉트: ${pathname} -> /${preferredLang}/download`);
+    
+    const newUrl = new URL(request.url);
+    newUrl.pathname = `/${preferredLang}/download`;
+    
+    const response = NextResponse.redirect(newUrl);
+    response.cookies.set("locale", preferredLang, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax"
+    });
+    
+    return response;
+  }
+
   // 정적 파일 및 API 경로는 건너뛰기
   if (
     pathname.startsWith("/_next/") ||
