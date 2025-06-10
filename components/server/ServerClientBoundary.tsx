@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { getList, TABLES } from '@/lib/data-fetching/supabase-service';
+import { getListSafe, TABLES } from '@/lib/data-fetching/supabase-service';
 import { LoadingState } from '@/components/server';
 import { VoteClientComponent } from '@/components/client';
 
@@ -25,7 +25,7 @@ interface Vote {
  */
 async function VoteDataProvider() {
   // 서버에서 데이터 가져오기
-  const votes = await getList<Vote>(TABLES.VOTE, {
+  const votes = await getListSafe<Vote>(TABLES.VOTE, {
     orderBy: { column: 'created_at', ascending: false },
     limit: 5
   });

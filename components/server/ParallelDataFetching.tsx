@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { LoadingState } from '@/components/server';
-import { getList, TABLES } from '@/lib/data-fetching/supabase-service';
+import { getListSafe, TABLES } from '@/lib/data-fetching/supabase-service';
 
 /**
  * 병렬 데이터 페칭 패턴
@@ -44,7 +44,7 @@ interface Reward {
  */
 async function VoteListSection() {
   // 투표 데이터 조회 (느린 네트워크 시뮬레이션)
-  const votes = await getList<Vote>(TABLES.VOTE, {
+  const votes = await getListSafe<Vote>(TABLES.VOTE, {
     orderBy: { column: 'created_at', ascending: false },
     limit: 5
   });
@@ -73,7 +73,7 @@ async function VoteListSection() {
  */
 async function MediaSection() {
   // 미디어 데이터 조회
-  const media = await getList<Media>(TABLES.MEDIA, {
+  const media = await getListSafe<Media>(TABLES.MEDIA, {
     orderBy: { column: 'created_at', ascending: false },
     limit: 5
   });
@@ -102,7 +102,7 @@ async function MediaSection() {
  */
 async function RewardSection() {
   // 보상 데이터 조회
-  const rewards = await getList<Reward>(TABLES.REWARD, {
+  const rewards = await getListSafe<Reward>(TABLES.REWARD, {
     orderBy: { column: 'created_at', ascending: false },
     limit: 5
   });

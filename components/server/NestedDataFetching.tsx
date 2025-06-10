@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { LoadingState } from '@/components/server';
-import { getById, getList, TABLES } from '@/lib/data-fetching/supabase-service';
+import { getByIdSafe, getListSafe, TABLES } from '@/lib/data-fetching/supabase-service';
 
 /**
  * 중첩된 Suspense 경계를 활용한 계층적 데이터 로딩 패턴
@@ -36,7 +36,7 @@ interface VoteItem {
  */
 async function VoteHeader({ id }: { id: string }) {
   // 투표 기본 정보 조회
-  const vote = await getById<Vote>(TABLES.VOTE, id);
+  const vote = await getByIdSafe<Vote>(TABLES.VOTE, id);
   
   return (
     <div className="mb-6">
@@ -54,7 +54,7 @@ async function VoteHeader({ id }: { id: string }) {
  */
 async function VoteItems({ voteId }: { voteId: string }) {
   // 투표 항목 조회
-  const items = await getList<VoteItem>(TABLES.VOTE_ITEM, {
+  const items = await getListSafe<VoteItem>(TABLES.VOTE_ITEM, {
     filters: { vote_id: voteId },
     orderBy: { column: 'votes_count', ascending: false }
   });
@@ -92,7 +92,7 @@ async function VoteItems({ voteId }: { voteId: string }) {
 async function VoteStats({ voteId }: { voteId: string }) {
   // 복잡한 집계 쿼리를 시뮬레이션
   // 실제로는 더 복잡한 데이터 처리나 집계 함수 호출이 있을 수 있음
-  const items = await getList<VoteItem>(TABLES.VOTE_ITEM, {
+  const items = await getListSafe<VoteItem>(TABLES.VOTE_ITEM, {
     filters: { vote_id: voteId },
     orderBy: { column: 'votes_count', ascending: false }
   });
@@ -127,7 +127,7 @@ async function VoteStats({ voteId }: { voteId: string }) {
  */
 async function RelatedVotes({ voteId }: { voteId: string }) {
   // 관련 투표 목록 조회 (현재 투표 제외)
-  const votes = await getList<Vote>(TABLES.VOTE, {
+  const votes = await getListSafe<Vote>(TABLES.VOTE, {
     filters: { id: { neq: voteId } },
     orderBy: { column: 'created_at', ascending: false },
     limit: 3
