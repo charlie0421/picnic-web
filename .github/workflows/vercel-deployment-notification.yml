@@ -1,0 +1,173 @@
+name: Vercel Deployment Notification
+
+on:
+  push:
+    branches: [main, production]
+  workflow_dispatch:
+
+jobs:
+  notify-deployment-start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Send deployment start notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "🚀 Picnic Web 배포 시작!",
+              "attachments": [
+                {
+                  "color": "#ffaa00",
+                  "fields": [
+                    {
+                      "title": "환경",
+                      "value": "${{ github.ref_name == 'main' && 'Development' || 'Production' }}",
+                      "short": true
+                    },
+                    {
+                      "title": "브랜치",
+                      "value": "${{ github.ref_name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "커밋 메시지",
+                      "value": "${{ github.event.head_commit.message }}",
+                      "short": false
+                    },
+                    {
+                      "title": "작성자",
+                      "value": "${{ github.event.head_commit.author.name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "커밋 SHA",
+                      "value": "<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
+                      "short": true
+                    }
+                  ],
+                  "footer": "⏳ Vercel에서 빌드 진행 중..."
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  check-deployment:
+    runs-on: ubuntu-latest
+    needs: notify-deployment-start
+    steps:
+      - name: Wait for deployment
+        run: sleep 300  # 5분 대기 (Next.js 빌드 시간 고려)
+        
+      - name: Check Vercel deployment status
+        id: check-vercel
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "deployment_url=https://picnic-web-dev.vercel.app" >> $GITHUB_OUTPUT
+            echo "environment=Development" >> $GITHUB_OUTPUT
+          else
+            echo "deployment_url=https://picnic-web.vercel.app" >> $GITHUB_OUTPUT
+            echo "environment=Production" >> $GITHUB_OUTPUT
+          fi
+          
+          # 실제 배포 상태 확인 (간단한 헬스체크)
+          response=$(curl -s -o /dev/null -w "%{http_code}" $deployment_url || echo "000")
+          if [ "$response" = "200" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Send deployment success notification
+        if: steps.check-vercel.outputs.status == 'success'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "✅ Picnic Web 배포 완료!",
+              "attachments": [
+                {
+                  "color": "good",
+                  "fields": [
+                    {
+                      "title": "환경",
+                      "value": "${{ steps.check-vercel.outputs.environment }}",
+                      "short": true
+                    },
+                    {
+                      "title": "배포 URL",
+                      "value": "<${{ steps.check-vercel.outputs.deployment_url }}|배포 사이트 보기>",
+                      "short": true
+                    },
+                    {
+                      "title": "커밋 메시지",
+                      "value": "${{ github.event.head_commit.message }}",
+                      "short": false
+                    },
+                    {
+                      "title": "작성자",
+                      "value": "${{ github.event.head_commit.author.name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "소요 시간",
+                      "value": "약 5분",
+                      "short": true
+                    }
+                  ],
+                  "footer": "🎉 배포 성공! 사이트가 정상적으로 응답하고 있습니다."
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Send deployment failure notification
+        if: steps.check-vercel.outputs.status == 'failed'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              "text": "❌ Picnic Web 배포 실패!",
+              "attachments": [
+                {
+                  "color": "danger",
+                  "fields": [
+                    {
+                      "title": "환경",
+                      "value": "${{ steps.check-vercel.outputs.environment }}",
+                      "short": true
+                    },
+                    {
+                      "title": "브랜치",
+                      "value": "${{ github.ref_name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "커밋 메시지",
+                      "value": "${{ github.event.head_commit.message }}",
+                      "short": false
+                    },
+                    {
+                      "title": "작성자",
+                      "value": "${{ github.event.head_commit.author.name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "확인 필요",
+                      "value": "<https://vercel.com/dashboard|Vercel 대시보드에서 확인>",
+                      "short": true
+                    }
+                  ],
+                  "footer": "⚠️ 배포 실패 - Vercel 대시보드를 확인해주세요."
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} 
