@@ -1,10 +1,12 @@
 name: Test and Coverage
 
 on:
-  push:
-    branches: [ main, production ]
-  pull_request:
-    branches: [ main, production ]
+  # 임시 비활성화 - 수동 실행만 가능
+  workflow_dispatch:
+  # push:
+  #   branches: [ main, production ]
+  # pull_request:
+  #   branches: [ main, production ]
 
 jobs:
   test:

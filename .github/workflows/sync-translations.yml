@@ -1,9 +1,10 @@
 name: Sync Translations from Crowdin
 
 on:
+  # 임시 비활성화 - 수동 실행만 가능
   # 매일 오전 9시 (KST)에 실행
-  schedule:
-    - cron: '0 0 * * *'  # UTC 기준 00:00 (KST 09:00)
+  # schedule:
+  #   - cron: '0 0 * * *'  # UTC 기준 00:00 (KST 09:00)
   
   # 수동 실행 가능
   workflow_dispatch:
@@ -15,8 +16,8 @@ on:
         type: boolean
 
   # Crowdin에서 번역이 업데이트될 때 (webhook 설정 시)
-  repository_dispatch:
-    types: [crowdin-updated]
+  # repository_dispatch:
+  #   types: [crowdin-updated]
 
 jobs:
   sync-translations:
