@@ -16,7 +16,7 @@ interface ProfileDetailsState {
  * 마이페이지, 투표 등에서 필요할 때만 DB 조회 수행
  */
 export function useProfileDetails() {
-  const { user, userProfile, setUserProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [state, setState] = useState<ProfileDetailsState>({
     isLoading: false,
     error: null,
@@ -45,9 +45,10 @@ export function useProfileDetails() {
 
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
+    const startTime = Date.now();
+    
     try {
       console.log('📋 [useProfileDetails] 프로필 상세 정보 조회 시작');
-      const startTime = Date.now();
 
       // 단순한 타임아웃 설정 (5초)
       const timeoutPromise = new Promise((_, reject) => {
@@ -103,9 +104,7 @@ export function useProfileDetails() {
         lastFetched: now,
       }));
 
-      // AuthProvider의 프로필도 업데이트 (캐시 갱신)
-      setUserProfile(detailedProfile);
-      
+      // 상세 프로필 정보를 내부 상태에만 저장 (AuthProvider는 세션 기반 프로필 유지)
       return detailedProfile;
 
     } catch (error) {
@@ -122,7 +121,7 @@ export function useProfileDetails() {
       
       return userProfile;
     }
-  }, [user?.id, state.lastFetched, state.detailedProfile, userProfile, setUserProfile]);
+  }, [user?.id, state.lastFetched, state.detailedProfile, userProfile]);
 
   /**
    * 특정 정보가 필요한지 확인하는 유틸리티 함수들
