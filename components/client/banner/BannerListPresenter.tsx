@@ -96,7 +96,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   }
 
   return (
-    <div className={`banner-carousel ${className}`}>
+    <div className={`banner-carousel relative ${className}`}>
       <Swiper
         modules={[Navigation, Pagination, Autoplay]}
         spaceBetween={16}
