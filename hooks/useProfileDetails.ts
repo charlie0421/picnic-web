@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/lib/supabase';
-import { UserProfiles } from '@/types/supabase';
+import { UserProfiles } from '@/types/interfaces';
 
 interface ProfileDetailsState {
   isLoading: boolean;
