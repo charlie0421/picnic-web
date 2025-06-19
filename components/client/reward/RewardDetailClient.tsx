@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Reward } from '@/types/interfaces';
 import { getLocalizedJson, getLocalizedString } from '@/utils/api/strings';
 import RewardImageGallery from './RewardImageGallery';
@@ -47,6 +47,19 @@ const RewardDetailClient: React.FC<RewardDetailClientProps> = ({ reward }) => {
   // 다국어 크기 가이드 정보 처리
   const sizeGuideInfo = getLocalizedJson(reward.size_guide) || null;
 
+  // 위치와 사이즈 정보 유무 확인
+  const hasLocationInfo = Boolean(locationInfo && locationImages.length > 0);
+  const hasSizeGuideInfo = Boolean(sizeGuideInfo && sizeGuideImages.length > 0);
+
+  // 활성 탭이 숨겨진 탭일 경우 개요 탭으로 전환
+  useEffect(() => {
+    if (activeTab === 'location' && !hasLocationInfo) {
+      setActiveTab('overview');
+    } else if (activeTab === 'size' && !hasSizeGuideInfo) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, hasLocationInfo, hasSizeGuideInfo]);
+
   return (
     <div className='container mx-auto px-4 py-8'>
 
@@ -56,6 +69,8 @@ const RewardDetailClient: React.FC<RewardDetailClientProps> = ({ reward }) => {
         setActiveTab={setActiveTab}
         setCurrentImageIndex={setCurrentImageIndex}
         t={t}
+        hasLocationInfo={hasLocationInfo}
+        hasSizeGuideInfo={hasSizeGuideInfo}
       />
 
       {/* 이미지 갤러리 */}
