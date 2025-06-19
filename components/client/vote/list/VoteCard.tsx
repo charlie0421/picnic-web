@@ -92,16 +92,17 @@ export const VoteCard = React.memo(
           <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
             <div className='relative'>
               {vote.main_image && (
-                <div className='h-48 sm:h-56 md:h-64 bg-gray-200 relative'>
+                <div className='bg-gray-200 relative overflow-hidden'>
                   <Image
                     src={getCdnImageUrl(vote.main_image)}
                     alt={getLocalizedString(vote.title, 'en')}
-                    width={320}
-                    height={256}
-                    className='w-full h-full object-cover'
+                    width={640}
+                    height={512}
+                    className='w-full h-auto object-cover'
                     priority
+                    quality={90}
                   />
-                  <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent' />
+                  <div className='absolute inset-0 bg-gradient-to-t from-black/30 to-transparent' />
                 </div>
               )}
             </div>
@@ -170,16 +171,17 @@ export const VoteCard = React.memo(
         <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
           <div className='relative'>
             {vote.main_image && (
-              <div className='h-48 sm:h-56 md:h-64 bg-gray-200 relative'>
+              <div className='bg-gray-200 relative overflow-hidden'>
                 <Image
                   src={getCdnImageUrl(vote.main_image)}
                   alt={getLocalizedString(vote.title, currentLanguage)}
-                  width={320}
-                  height={256}
-                  className='w-full h-full object-cover'
+                  width={640}
+                  height={512}
+                  className='w-full h-auto object-cover'
                   priority
+                  quality={90}
                 />
-                <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent' />
+                <div className='absolute inset-0 bg-gradient-to-t from-black/30 to-transparent' />
               </div>
             )}
           </div>
