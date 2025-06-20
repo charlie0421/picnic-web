@@ -1057,12 +1057,15 @@ export function HybridVoteDetailPresenter({
 
   // 성능 최적화된 투표 아이템 필터링 및 정렬
   const { rankedVoteItems, filteredItems, totalVotes } = React.useMemo(() => {
+    // recentlyUpdatedItems를 Array로 변환하여 안정적인 참조 생성
+    const recentlyUpdatedArray = Array.from(recentlyUpdatedItems);
+    
     // 투표 아이템 순위 매기기
     const ranked = [...voteItems]
       .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
       .map((item, index) => {
         // 리얼타임 정보 추가
-        const isHighlighted = recentlyUpdatedItems.has(item.id);
+        const isHighlighted = recentlyUpdatedArray.includes(item.id);
         
         return {
           ...item,
@@ -1094,7 +1097,7 @@ export function HybridVoteDetailPresenter({
       filteredItems: filtered,
       totalVotes: total,
     };
-  }, [voteItems, debouncedSearchQuery, currentLanguage, recentlyUpdatedItems]);
+  }, [voteItems, debouncedSearchQuery, currentLanguage, Array.from(recentlyUpdatedItems).join(',')]);
 
   // 투표 제목과 내용 메모이제이션
   const { voteTitle, voteContent } = React.useMemo(() => ({
