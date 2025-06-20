@@ -381,7 +381,6 @@ function LoginContentInner() {
         } else {
           setError('OAuth 인증 중 문제가 발생했습니다. 다시 시도해주세요.');
         }
-      }
       } else if (error) {
         switch (error) {
           case 'missing_params':
