@@ -32,6 +32,8 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  console.log('🏗️ [AuthProvider] 컴포넌트 생성/재렌더링');
+  
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfiles | null>(null);
@@ -154,6 +156,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         if (mountedRef.current) {
+          console.log('🔧 [AuthProvider] 상태 업데이트 시작:', { 
+            hasSession: !!initialSession, 
+            hasUser: !!initialSession?.user 
+          });
+          
           setSession(initialSession);
           setUser(initialSession?.user || null);
 
@@ -165,8 +172,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
           }
 
+          console.log('🔧 [AuthProvider] 로딩 상태 업데이트 중...');
           setIsLoading(false);
           setIsInitialized(true);
+          console.log('🔧 [AuthProvider] 상태 업데이트 완료');
         }
 
         // 인증 상태 변경 구독
@@ -242,6 +251,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOut,
     loadUserProfile,
   };
+
+  // Context value 변경 감지
+  useEffect(() => {
+    console.log('🔄 [AuthProvider] Context 값 변경:', {
+      isLoading,
+      isInitialized,
+      isAuthenticated: !!session && !!user,
+      hasSession: !!session,
+      hasUser: !!user,
+      hasUserProfile: !!userProfile
+    });
+  }, [isLoading, isInitialized, session, user, userProfile]);
 
   return (
     <AuthContext.Provider value={value}>
