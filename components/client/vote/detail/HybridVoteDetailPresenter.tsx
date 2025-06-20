@@ -189,14 +189,12 @@ export function HybridVoteDetailPresenter({
   // 하이라이트 타이머 관리
   const highlightTimersRef = React.useRef<Map<string | number, NodeJS.Timeout>>(new Map());
 
-  // 하이라이트 관리 함수
-  const setItemHighlight = React.useCallback((itemId: string | number, highlight: boolean = true, duration: number = 3000) => {
-    // 기존 타이머가 있으면 취소
-    const existingTimer = highlightTimersRef.current.get(itemId);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
+  // 하이라이트 관리 함수 (메모화)
+  const setItemHighlight = React.useCallback((itemId: number, highlight: boolean, duration: number = 3000) => {
+    // 기존 타이머가 있다면 정리
+    if (highlightTimersRef.current.has(itemId)) {
+      clearTimeout(highlightTimersRef.current.get(itemId)!);
       highlightTimersRef.current.delete(itemId);
-      console.log(`⏰ [Highlight] 기존 타이머 취소: ${itemId}`);
     }
 
     if (highlight) {
@@ -868,7 +866,7 @@ export function HybridVoteDetailPresenter({
     } else {
       setPollingStartTime(null); // 정적 모드로 전환시 폴링 시작 시간 초기화
     }
-  }, [connectionState.mode]); // 함수 의존성 제거하여 무한 루프 방지
+  }, []); // 의존성 배열을 빈 배열로 변경하여 순환 의존성 방지
 
   // 자동 모드 전환 (에러 발생시)
   React.useEffect(() => {
@@ -881,7 +879,7 @@ export function HybridVoteDetailPresenter({
         switchMode('static');
       }
     }
-  }, [connectionState.errorCount, connectionState.mode, maxRetries]); // switchMode 의존성 제거하여 무한 루프 방지
+  }, [connectionState.errorCount, connectionState.mode, maxRetries]); // switchMode는 안정적이므로 의존성에서 제거 가능
 
   // 연결 모니터링 시스템 초기화 (컴포넌트 마운트 시 한 번만 실행)
   React.useEffect(() => {
@@ -901,7 +899,7 @@ export function HybridVoteDetailPresenter({
       disconnectRealtime();
       cleanupConnectionMonitor();
     };
-  }, [enableRealtime]); // 함수들을 의존성에서 제거하여 무한 루프 방지
+  }, [enableRealtime]); // 함수들은 안정적이므로 의존성에서 제거
 
   // 남은 시간 계산 및 업데이트
   React.useEffect(() => {
@@ -1329,7 +1327,7 @@ export function HybridVoteDetailPresenter({
       // @ts-ignore
       delete window.testRealtime;
     };
-  }, [setItemHighlight, setRecentlyUpdatedItems]);
+  }, []); // 의존성 배열을 빈 배열로 변경하여 무한 루프 방지
 
   // 연결 품질 모니터링
   const startConnectionQualityMonitor = React.useCallback(() => {
