@@ -12,6 +12,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
+      - name: Prepare commit message
+        id: commit-msg
+        run: |
+          # 커밋 메시지를 안전하게 처리 (특수 문자 이스케이프)
+          commit_msg="${{ github.event.head_commit.message }}"
+          # 줄바꿈을 공백으로 변환하고 따옴표 이스케이프
+          safe_msg=$(echo "$commit_msg" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
+          echo "safe_message=$safe_msg" >> $GITHUB_OUTPUT
+        
       - name: Send deployment start notification
         uses: 8398a7/action-slack@v3
         with:
@@ -35,7 +44,7 @@ jobs:
                     },
                     {
                       "title": "커밋 메시지",
-                      "value": "${{ github.event.head_commit.message }}",
+                      "value": "${{ steps.commit-msg.outputs.safe_message }}",
                       "short": false
                     },
                     {
@@ -63,6 +72,13 @@ jobs:
       - name: Wait for deployment
         run: sleep 300  # 5분 대기 (Next.js 빌드 시간 고려)
         
+      - name: Prepare commit message for success
+        id: commit-msg-success
+        run: |
+          commit_msg="${{ github.event.head_commit.message }}"
+          safe_msg=$(echo "$commit_msg" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
+          echo "safe_message=$safe_msg" >> $GITHUB_OUTPUT
+        
       - name: Check Vercel deployment status
         id: check-vercel
         run: |
@@ -75,6 +91,7 @@ jobs:
           fi
           
           # 실제 배포 상태 확인 (간단한 헬스체크)
+          deployment_url=$(echo ${{ github.ref_name == 'main' && 'https://picnic-web-dev.vercel.app' || 'https://picnic-web.vercel.app' }})
           response=$(curl -s -o /dev/null -w "%{http_code}" $deployment_url || echo "000")
           if [ "$response" = "200" ]; then
             echo "status=success" >> $GITHUB_OUTPUT
@@ -106,7 +123,7 @@ jobs:
                     },
                     {
                       "title": "커밋 메시지",
-                      "value": "${{ github.event.head_commit.message }}",
+                      "value": "${{ steps.commit-msg-success.outputs.safe_message }}",
                       "short": false
                     },
                     {
@@ -126,6 +143,14 @@ jobs:
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Prepare commit message for failure
+        if: steps.check-vercel.outputs.status == 'failed'
+        id: commit-msg-failure
+        run: |
+          commit_msg="${{ github.event.head_commit.message }}"
+          safe_msg=$(echo "$commit_msg" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
+          echo "safe_message=$safe_msg" >> $GITHUB_OUTPUT
 
       - name: Send deployment failure notification
         if: steps.check-vercel.outputs.status == 'failed'
@@ -151,7 +176,7 @@ jobs:
                     },
                     {
                       "title": "커밋 메시지",
-                      "value": "${{ github.event.head_commit.message }}",
+                      "value": "${{ steps.commit-msg-failure.outputs.safe_message }}",
                       "short": false
                     },
                     {
