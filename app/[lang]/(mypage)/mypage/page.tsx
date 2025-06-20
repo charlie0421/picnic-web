@@ -50,14 +50,10 @@ const MyPage = () => {
 
   // 로그아웃 처리 함수 (메모화)
   const handleSignOut = useCallback(async () => {
-    // 이미 로딩 중이면 중복 실행 방지
-    if (isLoading) {
-      console.log('🔄 [MyPage] 이미 로그아웃 진행 중 - 중복 호출 방지');
-      return;
-    }
-
-    // 중복 실행 방지 플래그
+    // 중복 실행 방지 플래그 (더 짧은 키)
     const signOutKey = 'signout_in_progress';
+    
+    // 이미 진행 중이면 중복 호출 방지
     if (sessionStorage.getItem(signOutKey)) {
       console.log('🔄 [MyPage] 로그아웃 이미 진행 중 - 중복 호출 방지');
       return;
@@ -65,31 +61,36 @@ const MyPage = () => {
 
     try {
       console.log('🚪 [MyPage] 로그아웃 시작');
-      sessionStorage.setItem(signOutKey, 'true');
+      
+      // 플래그 설정 (5초 후 자동 제거)
+      sessionStorage.setItem(signOutKey, Date.now().toString());
+      
+      // 5초 후 플래그 자동 제거 (타임아웃 방지)
+      setTimeout(() => {
+        sessionStorage.removeItem(signOutKey);
+      }, 5000);
 
-      // signOut 함수 호출 - 한 번만 실행
+      // signOut 함수 호출
       await signOut();
 
       console.log('✅ [MyPage] 로그아웃 완료');
       
+      // 즉시 플래그 제거 및 리디렉션
+      sessionStorage.removeItem(signOutKey);
+      
       // 로그아웃 완료 후 홈으로 리디렉션
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
+      window.location.href = '/';
 
     } catch (error) {
       console.error('❌ [MyPage] 로그아웃 중 예외:', error);
+      
+      // 예외 발생 시도 플래그 제거
+      sessionStorage.removeItem(signOutKey);
+      
       // 예외가 발생해도 홈으로 리디렉션
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
-    } finally {
-      // 플래그 제거
-      setTimeout(() => {
-        sessionStorage.removeItem(signOutKey);
-      }, 1000);
+      window.location.href = '/';
     }
-  }, [isLoading, signOut]); // signOut 의존성 추가
+  }, [signOut]); // isLoading 의존성 제거
 
   if (pageLoading) {
     return (

@@ -461,19 +461,19 @@ function LoginContentInner() {
   }
 
   if (isAuthenticated) {
-    debugLog('이미 인증된 사용자');
+    debugLog('이미 인증된 사용자 - 즉시 리디렉트');
+    
+    // 이미 로그인된 사용자는 즉시 리디렉트 (UI 표시하지 않음)
+    useEffect(() => {
+      const targetUrl = handlePostLoginRedirect();
+      router.replace(targetUrl); // push 대신 replace 사용하여 뒤로가기 방지
+    }, []);
+    
+    // 리디렉트 중 간단한 로딩 표시
     return (
-      <div className='text-center py-10'>
-        <h2 className='text-2xl font-bold mb-4'>
-          {t('label_already_logged_in')}
-        </h2>
-        <p className='mb-6'>{t('message_already_logged_in')}</p>
-        <Link
-          href='/'
-          className='inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors'
-        >
-          {t('button_go_to_home')}
-        </Link>
+      <div className='flex flex-col justify-center items-center min-h-[400px]'>
+        <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4'></div>
+        <p className='text-gray-600'>로그인 완료 - 페이지 이동 중...</p>
       </div>
     );
   }
