@@ -125,8 +125,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
+    // 초기화 시작 전에 한 번만 실행되도록 보장
     initializingRef.current = true;
     mountedRef.current = true;
+    
+    // 이미 세션이 있고 사용자 프로필도 있다면 추가 초기화 건너뛰기
+    if (session && user && userProfile && isInitialized) {
+      console.log('⏭️ [AuthProvider] 이미 완전히 초기화됨, 건너뜀');
+      return;
+    }
 
     const initializeAuth = async () => {
       try {

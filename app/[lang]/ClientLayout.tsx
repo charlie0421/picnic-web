@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { SupabaseProvider } from '@/components/providers/SupabaseProvider';
-import { AuthProvider } from '@/lib/supabase/auth-provider';
+import { SimpleAuthProvider } from '@/lib/supabase/auth-provider-simple';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { Analytics } from '@vercel/analytics/react';
 import { DialogProvider } from '@/components/ui/Dialog';
@@ -78,8 +78,8 @@ export default function ClientLayout({
         <NavigationProvider>
           <LanguageSyncProvider initialLanguage={initialLanguage}>
             <SupabaseProvider>
-              {/* AuthProvider를 한 번만 제공 - React 에러 #310 방지 */}
-              <AuthProvider>
+              {/* SimpleAuthProvider를 한 번만 제공 - React 에러 #310 방지 */}
+              <SimpleAuthProvider>
                 {/* @ts-ignore */}
                 <DialogProvider>
                   {/* @ts-ignore */}
@@ -91,7 +91,7 @@ export default function ClientLayout({
                     <ErrorToast />
                   </AuthRedirectHandler>
                 </DialogProvider>
-              </AuthProvider>
+              </SimpleAuthProvider>
             </SupabaseProvider>
           </LanguageSyncProvider>
         </NavigationProvider>
