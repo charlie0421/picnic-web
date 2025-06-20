@@ -42,24 +42,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const initOnceRef = useRef(false);
   const mountedRef = useRef(true);
   const subscriptionRef = useRef<any>(null);
+  const isInitializingRef = useRef(false);
 
   // Supabase 클라이언트 (한 번만 생성)
-  const supabaseRef = useRef<any>(null);
-  if (!supabaseRef.current) {
+  const [supabaseClient] = useState(() => {
     try {
-      supabaseRef.current = createBrowserSupabaseClient();
+      const client = createBrowserSupabaseClient();
       console.log('✅ [AuthProvider] Supabase 클라이언트 생성 완료');
+      return client;
     } catch (error) {
       console.error('❌ [AuthProvider] Supabase 클라이언트 생성 실패:', error);
+      return null;
     }
-  }
+  });
 
   // 사용자 프로필 로딩 함수
   const loadUserProfile = useCallback(async (userId: string): Promise<UserProfiles | null> => {
-    if (!supabaseRef.current || !mountedRef.current) return null;
+    if (!supabaseClient || !mountedRef.current) return null;
     
     try {
-      const { data: profile, error } = await supabaseRef.current
+      const { data: profile, error } = await supabaseClient
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
@@ -75,11 +77,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('프로필 로딩 에러:', error);
       return null;
     }
-  }, []);
+  }, [supabaseClient]);
 
   // 로그아웃 함수
   const signOut = useCallback(async () => {
-    if (!supabaseRef.current) return;
+    if (!supabaseClient) return;
     
     try {
       console.log('로그아웃 시작');
@@ -91,7 +93,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setSession(null);
       }
 
-      await supabaseRef.current.auth.signOut();
+      await supabaseClient.auth.signOut();
       
       if (mountedRef.current) {
         setIsLoading(false);
@@ -104,16 +106,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [supabaseClient]);
 
   // 초기화 (한 번만 실행)
   useEffect(() => {
-    if (initOnceRef.current) return;
+    if (initOnceRef.current || isInitializingRef.current) {
+      console.log('⏭️ [AuthProvider] 이미 초기화됨/진행중, 건너뜀:', { 
+        initOnce: initOnceRef.current, 
+        isInitializing: isInitializingRef.current 
+      });
+      return;
+    }
+    
     initOnceRef.current = true;
+    isInitializingRef.current = true;
 
     // 5초 후 강제로 로딩 해제 (무한 대기 방지)
     const timeoutId = setTimeout(() => {
       console.log('⏰ [AuthProvider] 초기화 타임아웃 - 강제로 로딩 해제');
+      isInitializingRef.current = false;
       if (mountedRef.current) {
         setIsLoading(false);
         setIsInitialized(true);
@@ -121,9 +132,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, 5000);
 
     const initAuth = async () => {
-      if (!supabaseRef.current || !mountedRef.current) {
+      if (!supabaseClient || !mountedRef.current) {
         console.log('❌ [AuthProvider] 초기화 조건 불충족:', { 
-          hasSupabase: !!supabaseRef.current, 
+          hasSupabase: !!supabaseClient, 
           isMounted: mountedRef.current 
         });
         return;
@@ -134,7 +145,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // 초기 세션 가져오기
         console.log('🔍 [AuthProvider] 초기 세션 조회 중...');
-        const { data: { session: initialSession }, error: sessionError } = await supabaseRef.current.auth.getSession();
+        const { data: { session: initialSession }, error: sessionError } = await supabaseClient.auth.getSession();
         
         if (sessionError) {
           console.error('❌ [AuthProvider] 세션 조회 에러:', sessionError);
@@ -163,7 +174,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           subscriptionRef.current.unsubscribe();
         }
 
-        const { data: { subscription } } = supabaseRef.current.auth.onAuthStateChange(
+        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
           async (event, newSession) => {
             console.log('인증 상태 변경:', event);
 
@@ -193,10 +204,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // 타임아웃 클리어 (정상 초기화 완료)
         clearTimeout(timeoutId);
+        isInitializingRef.current = false;
+        console.log('✅ [AuthProvider] 초기화 완료');
 
       } catch (error) {
-        console.error('Auth 초기화 에러:', error);
+        console.error('❌ [AuthProvider] Auth 초기화 에러:', error);
         clearTimeout(timeoutId);
+        isInitializingRef.current = false;
         if (mountedRef.current) {
           setIsLoading(false);
           setIsInitialized(true);
@@ -209,13 +223,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // 정리 함수
     return () => {
       mountedRef.current = false;
+      isInitializingRef.current = false;
       clearTimeout(timeoutId);
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
     };
-  }, []); // 빈 의존성 배열로 한 번만 실행
+  }, [supabaseClient]); // supabaseClient 의존성 추가
 
   const value: AuthContextType = {
     session,
