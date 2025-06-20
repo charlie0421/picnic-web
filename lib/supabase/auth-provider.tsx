@@ -70,7 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('❌ [AuthProvider] 프로필 로딩 중 에러:', error);
       return null;
     }
-  }, [supabase]);
+  }, []); // supabase 의존성 제거 (ref로 안정적이므로)
 
   // 로그아웃 함수 (메모화)
   const signOut = useCallback(async () => {
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isSigningOutRef.current = false;
       }, 100);
     }
-  }, [supabase]);
+  }, []); // supabase 의존성 제거 (ref로 안정적이므로)
 
   // 인증 상태 초기화 및 구독 (한 번만 실행)
   useEffect(() => {
@@ -146,35 +146,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           // 초기 프로필 로딩
           if (initialSession?.user) {
-            const profile = await loadUserProfile(initialSession.user.id);
-            if (mountedRef.current && !isSigningOutRef.current) {
-              // 프로필이 없으면 소셜 로그인 메타데이터에서 추출
-              if (!profile && initialSession.user.user_metadata) {
-                const extractedAvatar = extractAvatarFromProvider(initialSession.user.user_metadata);
-                console.log('🖼️ [AuthProvider] 추출된 아바타 URL:', extractedAvatar);
-                
-                const fallbackProfile: UserProfiles = {
-                  id: initialSession.user.id,
-                  email: initialSession.user.email || '',
-                  nickname: initialSession.user.user_metadata?.full_name || 'User',
-                  avatar_url: extractedAvatar,
-                  birth_date: null,
-                  birth_time: null,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                  deleted_at: null,
-                  gender: null,
-                  is_admin: false,
-                  is_super_admin: false,
-                  open_ages: false,
-                  open_gender: false,
-                  star_candy: 0,
-                  star_candy_bonus: 0,
-                };
-                console.log('🎯 [AuthProvider] 최종 프로필:', fallbackProfile);
-                setUserProfile(fallbackProfile);
-              } else {
-                setUserProfile(profile);
+            // 직접 프로필 로딩 (useCallback 함수 호출 대신)
+            try {
+              console.log('🔍 [AuthProvider] 초기 프로필 로딩 시작:', initialSession.user.id);
+              
+              const { data: profile, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('id', initialSession.user.id)
+                .single();
+
+              if (mountedRef.current && !isSigningOutRef.current) {
+                if (error) {
+                  console.error('❌ [AuthProvider] 초기 프로필 조회 실패:', error);
+                  
+                  // 프로필이 없으면 소셜 로그인 메타데이터에서 추출
+                  if (initialSession.user.user_metadata) {
+                    const extractedAvatar = extractAvatarFromProvider(initialSession.user.user_metadata);
+                    console.log('🖼️ [AuthProvider] 추출된 아바타 URL:', extractedAvatar);
+                    
+                    const fallbackProfile: UserProfiles = {
+                      id: initialSession.user.id,
+                      email: initialSession.user.email || '',
+                      nickname: initialSession.user.user_metadata?.full_name || 'User',
+                      avatar_url: extractedAvatar,
+                      birth_date: null,
+                      birth_time: null,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                      deleted_at: null,
+                      gender: null,
+                      is_admin: false,
+                      is_super_admin: false,
+                      open_ages: false,
+                      open_gender: false,
+                      star_candy: 0,
+                      star_candy_bonus: 0,
+                    };
+                    console.log('🎯 [AuthProvider] 최종 프로필:', fallbackProfile);
+                    setUserProfile(fallbackProfile);
+                  } else {
+                    setUserProfile(null);
+                  }
+                } else {
+                  console.log('✅ [AuthProvider] 초기 프로필 조회 성공:', profile);
+                  setUserProfile(profile);
+                }
+              }
+            } catch (profileError) {
+              console.error('❌ [AuthProvider] 초기 프로필 로딩 중 에러:', profileError);
+              if (mountedRef.current && !isSigningOutRef.current) {
+                setUserProfile(null);
               }
             }
           }
@@ -193,9 +215,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
               setUser(newSession?.user || null);
 
               if (newSession?.user) {
-                const profile = await loadUserProfile(newSession.user.id);
-                if (mountedRef.current && !isSigningOutRef.current) {
-                  setUserProfile(profile);
+                // 직접 프로필 로딩 (useCallback 함수 호출 대신)
+                try {
+                  console.log('🔍 [AuthProvider] 상태 변경 프로필 로딩 시작:', newSession.user.id);
+                  
+                  const { data: profile, error } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', newSession.user.id)
+                    .single();
+
+                  if (mountedRef.current && !isSigningOutRef.current) {
+                    if (error) {
+                      console.error('❌ [AuthProvider] 상태 변경 프로필 조회 실패:', error);
+                      setUserProfile(null);
+                    } else {
+                      console.log('✅ [AuthProvider] 상태 변경 프로필 조회 성공:', profile);
+                      setUserProfile(profile);
+                    }
+                  }
+                } catch (profileError) {
+                  console.error('❌ [AuthProvider] 상태 변경 프로필 로딩 중 에러:', profileError);
+                  if (mountedRef.current && !isSigningOutRef.current) {
+                    setUserProfile(null);
+                  }
                 }
               } else {
                 if (mountedRef.current) {
