@@ -1097,7 +1097,7 @@ export function HybridVoteDetailPresenter({
       filteredItems: filtered,
       totalVotes: total,
     };
-  }, [voteItems, debouncedSearchQuery, currentLanguage, Array.from(recentlyUpdatedItems).join(',')]);
+  }, [voteItems, debouncedSearchQuery, currentLanguage, recentlyUpdatedItems.size]);
 
   // 투표 제목과 내용 메모이제이션
   const { voteTitle, voteContent } = React.useMemo(() => ({
@@ -1329,7 +1329,7 @@ export function HybridVoteDetailPresenter({
       // @ts-ignore
       delete window.testRealtime;
     };
-  }, [recentlyUpdatedItems, setItemHighlight, highlightTimersRef, setRecentlyUpdatedItems]);
+  }, [setItemHighlight, setRecentlyUpdatedItems]);
 
   // 연결 품질 모니터링
   const startConnectionQualityMonitor = React.useCallback(() => {
