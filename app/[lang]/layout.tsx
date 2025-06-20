@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import './layout.css';
 import { Metadata, Viewport } from 'next';
-import MinimalClientLayout from './ClientLayout-minimal';
+import ClientLayout from './ClientLayout';
 import { DEFAULT_METADATA } from './utils/metadata-utils';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -89,7 +89,7 @@ export default async function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <MinimalClientLayout initialLanguage={lang}>{children}</MinimalClientLayout>
+        <ClientLayout initialLanguage={lang}>{children}</ClientLayout>
       </body>
     </html>
   );

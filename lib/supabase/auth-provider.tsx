@@ -38,53 +38,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // 로그아웃 진행 상태 추적 (hooks 에러 방지)
-  const isSigningOutRef = useRef(false);
+  // 한 번만 실행되도록 보장하는 플래그들
+  const initOnceRef = useRef(false);
   const mountedRef = useRef(true);
-  const initializingRef = useRef(false);
   const subscriptionRef = useRef<any>(null);
 
-  // Supabase 클라이언트 생성 (메모화)
-  const supabase = useRef(createBrowserSupabaseClient()).current;
+  // Supabase 클라이언트 (한 번만 생성)
+  const supabaseRef = useRef<any>(null);
+  if (!supabaseRef.current) {
+    supabaseRef.current = createBrowserSupabaseClient();
+  }
 
-  // 중복 로그 제거 - 매 렌더링마다 실행되지 않도록 함
-
-  // 사용자 프로필 로딩 함수 (메모화)
+  // 사용자 프로필 로딩 함수
   const loadUserProfile = useCallback(async (userId: string): Promise<UserProfiles | null> => {
+    if (!supabaseRef.current || !mountedRef.current) return null;
+    
     try {
-      console.log('🔍 [AuthProvider] 프로필 로딩 시작:', userId);
-      
-      const { data: profile, error } = await supabase
+      const { data: profile, error } = await supabaseRef.current
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error('❌ [AuthProvider] 프로필 조회 실패:', error);
+      if (error || !profile) {
+        console.log('프로필 없음, 기본 프로필 생성');
         return null;
       }
 
-      console.log('✅ [AuthProvider] DB에서 프로필 조회 성공:', profile);
       return profile;
     } catch (error) {
-      console.error('❌ [AuthProvider] 프로필 로딩 중 에러:', error);
+      console.error('프로필 로딩 에러:', error);
       return null;
     }
-  }, []); // supabase 의존성 제거 (ref로 안정적이므로)
+  }, []);
 
-  // 로그아웃 함수 (메모화)
+  // 로그아웃 함수
   const signOut = useCallback(async () => {
-    if (isSigningOutRef.current) {
-      console.log('⏭️ [AuthProvider] 로그아웃 이미 진행 중, 건너뜀');
-      return;
-    }
-
+    if (!supabaseRef.current) return;
+    
     try {
-      isSigningOutRef.current = true;
-      console.log('🚪 [AuthProvider] 로그아웃 시작');
-
-      // 상태를 안전하게 초기화 (hooks 에러 방지)
+      console.log('로그아웃 시작');
+      
       if (mountedRef.current) {
         setIsLoading(true);
         setUserProfile(null);
@@ -92,120 +86,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setSession(null);
       }
 
-      // Supabase 로그아웃 수행
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('❌ [AuthProvider] Supabase 로그아웃 실패:', error);
-      } else {
-        console.log('✅ [AuthProvider] Supabase 로그아웃 성공');
-      }
-
-      // 최종 상태 설정
+      await supabaseRef.current.auth.signOut();
+      
       if (mountedRef.current) {
         setIsLoading(false);
       }
-
+      
+      console.log('로그아웃 완료');
     } catch (error) {
-      console.error('❌ [AuthProvider] 로그아웃 중 에러:', error);
+      console.error('로그아웃 에러:', error);
       if (mountedRef.current) {
         setIsLoading(false);
       }
-    } finally {
-      // 짧은 지연 후 플래그 리셋 (hooks 안정화)
-      setTimeout(() => {
-        isSigningOutRef.current = false;
-      }, 100);
     }
-  }, []); // supabase 의존성 제거 (ref로 안정적이므로)
+  }, []);
 
-  // 인증 상태 초기화 및 구독 (한 번만 실행)
+  // 초기화 (한 번만 실행)
   useEffect(() => {
-    if (initializingRef.current) {
-      console.log('⏭️ [AuthProvider] 이미 초기화 중, 건너뜀');
-      return;
-    }
+    if (initOnceRef.current) return;
+    initOnceRef.current = true;
 
-    // 초기화 시작 전에 한 번만 실행되도록 보장
-    initializingRef.current = true;
-    mountedRef.current = true;
-    
-    // 이미 세션이 있고 사용자 프로필도 있다면 추가 초기화 건너뛰기
-    if (session && user && userProfile && isInitialized) {
-      console.log('⏭️ [AuthProvider] 이미 완전히 초기화됨, 건너뜀');
-      return;
-    }
-
-    const initializeAuth = async () => {
+    const initAuth = async () => {
+      if (!supabaseRef.current || !mountedRef.current) return;
+      
       try {
-        console.log('🔄 [AuthProvider] 인증 상태 초기화 시작');
+        console.log('Auth 초기화 시작');
 
         // 초기 세션 가져오기
-        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('❌ [AuthProvider] 초기 세션 조회 실패:', sessionError);
-        } else {
-          console.log('📱 [AuthProvider] 초기 세션:', !!initialSession);
-        }
+        const { data: { session: initialSession } } = await supabaseRef.current.auth.getSession();
 
-        if (mountedRef.current && !isSigningOutRef.current) {
+        if (mountedRef.current) {
           setSession(initialSession);
           setUser(initialSession?.user || null);
 
           // 초기 프로필 로딩
           if (initialSession?.user) {
-            // 직접 프로필 로딩 (useCallback 함수 호출 대신)
-            try {
-              console.log('🔍 [AuthProvider] 초기 프로필 로딩 시작:', initialSession.user.id);
-              
-              const { data: profile, error } = await supabase
-                .from('user_profiles')
-                .select('*')
-                .eq('id', initialSession.user.id)
-                .single();
-
-              if (mountedRef.current && !isSigningOutRef.current) {
-                if (error) {
-                  console.error('❌ [AuthProvider] 초기 프로필 조회 실패:', error);
-                  
-                  // 프로필이 없으면 소셜 로그인 메타데이터에서 추출
-                  if (initialSession.user.user_metadata) {
-                    const extractedAvatar = extractAvatarFromProvider(initialSession.user.user_metadata);
-                    console.log('🖼️ [AuthProvider] 추출된 아바타 URL:', extractedAvatar);
-                    
-                    const fallbackProfile: UserProfiles = {
-                      id: initialSession.user.id,
-                      email: initialSession.user.email || '',
-                      nickname: initialSession.user.user_metadata?.full_name || 'User',
-                      avatar_url: extractedAvatar,
-                      birth_date: null,
-                      birth_time: null,
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                      deleted_at: null,
-                      gender: null,
-                      is_admin: false,
-                      is_super_admin: false,
-                      open_ages: false,
-                      open_gender: false,
-                      star_candy: 0,
-                      star_candy_bonus: 0,
-                    };
-                    console.log('🎯 [AuthProvider] 최종 프로필:', fallbackProfile);
-                    setUserProfile(fallbackProfile);
-                  } else {
-                    setUserProfile(null);
-                  }
-                } else {
-                  console.log('✅ [AuthProvider] 초기 프로필 조회 성공:', profile);
-                  setUserProfile(profile);
-                }
-              }
-            } catch (profileError) {
-              console.error('❌ [AuthProvider] 초기 프로필 로딩 중 에러:', profileError);
-              if (mountedRef.current && !isSigningOutRef.current) {
-                setUserProfile(null);
-              }
+            const profile = await loadUserProfile(initialSession.user.id);
+            if (mountedRef.current) {
+              setUserProfile(profile);
             }
           }
 
@@ -213,45 +131,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setIsInitialized(true);
         }
 
-        // 인증 상태 변경 구독 (기존 구독이 있다면 먼저 해제)
+        // 인증 상태 변경 구독
         if (subscriptionRef.current) {
-          console.log('🧹 [AuthProvider] 기존 구독 해제');
           subscriptionRef.current.unsubscribe();
         }
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        const { data: { subscription } } = supabaseRef.current.auth.onAuthStateChange(
           async (event, newSession) => {
-            console.log('🔄 [AuthProvider] 인증 상태 변경:', event, !!newSession);
+            console.log('인증 상태 변경:', event);
 
-            if (mountedRef.current && !isSigningOutRef.current) {
+            if (mountedRef.current) {
               setSession(newSession);
               setUser(newSession?.user || null);
 
               if (newSession?.user) {
-                // 직접 프로필 로딩 (useCallback 함수 호출 대신)
-                try {
-                  console.log('🔍 [AuthProvider] 상태 변경 프로필 로딩 시작:', newSession.user.id);
-                  
-                  const { data: profile, error } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('id', newSession.user.id)
-                    .single();
-
-                  if (mountedRef.current && !isSigningOutRef.current) {
-                    if (error) {
-                      console.error('❌ [AuthProvider] 상태 변경 프로필 조회 실패:', error);
-                      setUserProfile(null);
-                    } else {
-                      console.log('✅ [AuthProvider] 상태 변경 프로필 조회 성공:', profile);
-                      setUserProfile(profile);
-                    }
-                  }
-                } catch (profileError) {
-                  console.error('❌ [AuthProvider] 상태 변경 프로필 로딩 중 에러:', profileError);
-                  if (mountedRef.current && !isSigningOutRef.current) {
-                    setUserProfile(null);
-                  }
+                const profile = await loadUserProfile(newSession.user.id);
+                if (mountedRef.current) {
+                  setUserProfile(profile);
                 }
               } else {
                 if (mountedRef.current) {
@@ -266,20 +162,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         );
 
-        // 구독 참조 저장
         subscriptionRef.current = subscription;
 
-        // 컴포넌트 언마운트 시 구독 해제
-        return () => {
-          mountedRef.current = false;
-          if (subscriptionRef.current) {
-            subscriptionRef.current.unsubscribe();
-            subscriptionRef.current = null;
-          }
-        };
-
       } catch (error) {
-        console.error('❌ [AuthProvider] 초기화 중 에러:', error);
+        console.error('Auth 초기화 에러:', error);
         if (mountedRef.current) {
           setIsLoading(false);
           setIsInitialized(true);
@@ -287,25 +173,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     };
 
-    const cleanup = initializeAuth();
+    initAuth();
 
-    // 클린업 함수
+    // 정리 함수
     return () => {
       mountedRef.current = false;
-      initializingRef.current = false;
-      
-      // 구독 해제
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
-      }
-      
-      if (cleanup && typeof cleanup.then === 'function') {
-        cleanup.then((cleanupFn) => {
-          if (cleanupFn && typeof cleanupFn === 'function') {
-            cleanupFn();
-          }
-        });
       }
     };
   }, []); // 빈 의존성 배열로 한 번만 실행
@@ -334,5 +209,4 @@ export function useAuth(): AuthContextType {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
-
+} 

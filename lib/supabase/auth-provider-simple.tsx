@@ -31,7 +31,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function SimpleAuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfiles | null>(null);
