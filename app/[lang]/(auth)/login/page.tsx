@@ -62,7 +62,6 @@ function LoginContentInner() {
     isInitialized,
     user,
     userProfile,
-    error: authError,
   } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -82,7 +81,6 @@ function LoginContentInner() {
         isInitialized,
         hasUser: !!user,
         hasUserProfile: !!userProfile,
-        authError,
       });
     }
   }, [
@@ -92,7 +90,6 @@ function LoginContentInner() {
     isInitialized,
     user,
     userProfile,
-    authError,
   ]);
 
   // 인증된 사용자 리다이렉트 처리
@@ -399,7 +396,6 @@ function LoginContentInner() {
               디버그: isInitialized={String(isInitialized)}, isLoading=
               {String(isLoading)}
             </p>
-            <p>authError: {authError || 'none'}</p>
           </div>
         )}
       </div>
@@ -456,7 +452,7 @@ function LoginContentInner() {
         </div>
 
         {/* 오류 메시지 표시 */}
-        {(error || authError) && (
+        {error && (
           <div
             className='bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl mb-6 shadow-sm animate-shake'
             role='alert'
@@ -473,7 +469,7 @@ function LoginContentInner() {
                   clipRule='evenodd'
                 />
               </svg>
-              <span className='font-medium'>{error || authError}</span>
+              <span className='font-medium'>{error}</span>
             </div>
           </div>
         )}
@@ -542,10 +538,6 @@ function LoginContentInner() {
                 <div className='flex justify-between'>
                   <span>hasUserProfile:</span>{' '}
                   <code className='text-blue-600'>{String(!!userProfile)}</code>
-                </div>
-                <div className='flex justify-between'>
-                  <span>authError:</span>{' '}
-                  <code className='text-red-600'>{authError || 'none'}</code>
                 </div>
               </div>
             </details>
