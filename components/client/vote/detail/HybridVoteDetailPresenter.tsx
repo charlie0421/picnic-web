@@ -250,7 +250,7 @@ export function HybridVoteDetailPresenter({
   // 디바운싱된 검색어
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // 알림 시스템 함수들
+  // 알림 시스템 함수들 (의존성 최적화)
   const addNotification = React.useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
     const newNotification: NotificationState = {
       ...notification,
@@ -263,7 +263,7 @@ export function HybridVoteDetailPresenter({
     // 자동 제거 (기본 5초)
     const duration = notification.duration || 5000;
     setTimeout(() => {
-      removeNotification(newNotification.id);
+      setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
     }, duration);
   }, []);
 
@@ -271,7 +271,7 @@ export function HybridVoteDetailPresenter({
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   }, []);
 
-  // 연결 상태 변경 알림
+  // 연결 상태 변경 알림 (의존성 최적화)
   const notifyConnectionStateChange = React.useCallback((from: DataSourceMode, to: DataSourceMode) => {
     const modeNames = {
       realtime: '실시간',
@@ -279,13 +279,21 @@ export function HybridVoteDetailPresenter({
       static: '정적'
     };
 
-    addNotification({
+    const newNotification: NotificationState = {
       type: 'info',
       title: '연결 모드 변경',
       message: `${modeNames[from]}에서 ${modeNames[to]} 모드로 전환되었습니다.`,
       duration: 3000,
-    });
-  }, [addNotification]);
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: new Date(),
+    };
+    
+    setNotifications(prev => [...prev, newNotification]);
+    
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
+    }, 3000);
+  }, []);
 
   // 사용자 정보 가져오기
   React.useEffect(() => {
@@ -296,7 +304,7 @@ export function HybridVoteDetailPresenter({
     getUser();
   }, [supabase]);
 
-  // 연결 품질 업데이트
+  // 연결 품질 업데이트 (의존성 최적화)
   const updateConnectionQuality = React.useCallback((success: boolean, responseTime?: number) => {
     setConnectionQuality(prev => {
       const newConsecutiveErrors = success ? 0 : prev.consecutiveErrors + 1;
@@ -327,7 +335,7 @@ export function HybridVoteDetailPresenter({
     });
   }, []);
 
-  // 데이터 업데이트 함수 (폴링용)
+  // 데이터 업데이트 함수 (폴링용) - 의존성 최적화
   const updateVoteDataPolling = React.useCallback(async () => {
     if (!vote?.id) return;
     
@@ -395,13 +403,20 @@ export function HybridVoteDetailPresenter({
         setPollingErrorCount(prev => prev + 1);
         updateConnectionQuality(false, responseTime);
         
-        // 사용자에게 에러 알림
-        addNotification({
+        // 사용자에게 에러 알림 (직접 처리)
+        const errorNotification: NotificationState = {
           type: 'error',
           title: '데이터 로딩 오류',
           message: '투표 데이터를 가져오는 중 오류가 발생했습니다.',
           duration: 4000,
-        });
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: new Date(),
+        };
+        
+        setNotifications(prev => [...prev, errorNotification]);
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(notif => notif.id !== errorNotification.id));
+        }, 4000);
         return;
       }
 
@@ -467,7 +482,7 @@ export function HybridVoteDetailPresenter({
         if (userVoteError) {
           console.error('[Polling] User vote fetch error:', userVoteError);
           updateConnectionQuality(false);
-                  } else if (userVoteData && userVoteData.length > 0) {
+        } else if (userVoteData && userVoteData.length > 0) {
           // 여러 투표 기록이 있는 경우 처리
           if (userVoteData.length > 1 && shouldLog) {
             console.log(`[Polling] 사용자가 ${userVoteData.length}번 투표함:`, userVoteData);
@@ -477,7 +492,7 @@ export function HybridVoteDetailPresenter({
               totalVotes: userVoteData.reduce((sum, vote) => sum + (vote.amount || 0), 0),
               voteCount: userVoteData.length,
               lastVoteItem: userVoteData[0].vote_item_id, // 가장 최근 투표한 아이템
-                             allVoteItems: Array.from(new Set(userVoteData.map(v => v.vote_item_id))), // 투표한 모든 아이템 (중복 제거)
+              allVoteItems: Array.from(new Set(userVoteData.map(v => v.vote_item_id))), // 투표한 모든 아이템 (중복 제거)
               votes: userVoteData
             };
             
@@ -510,9 +525,9 @@ export function HybridVoteDetailPresenter({
         errorCount: prev.errorCount + 1,
       }));
     }
-  }, [vote?.id, user, supabase, updateConnectionQuality]);
+  }, [vote?.id, user, supabase, connectionState.mode, lastPollingUpdate]); // updateConnectionQuality 제거
 
-  // 데이터 업데이트 함수 (리얼타임용)
+  // 데이터 업데이트 함수 (리얼타임용) - 의존성 최적화
   const updateVoteData = React.useCallback(async () => {
     if (!vote?.id) return;
     
@@ -595,9 +610,9 @@ export function HybridVoteDetailPresenter({
         errorCount: prev.errorCount + 1,
       }));
     }
-  }, [vote.id, connectionState.mode, supabase]);
+  }, [vote.id, supabase, user]); // connectionState.mode 제거
 
-  // 폴링 시작
+  // 폴링 시작 - 의존성 최적화
   const startPollingMode = React.useCallback(() => {
     // 이미 폴링 중이라면 중복 시작 방지
     if (pollingIntervalRef.current) {
@@ -625,9 +640,9 @@ export function HybridVoteDetailPresenter({
     }, 1000);
     
     pollingIntervalRef.current = interval;
-  }, [updateVoteDataPolling]);
+  }, [vote.id, enableRealtime]); // updateVoteDataPolling 제거
 
-  // 리얼타임 연결 시도
+  // 리얼타임 연결 시도 - 의존성 최적화
   const connectRealtime = React.useCallback(async () => {
     if (!enableRealtime) {
       console.log('[Realtime] ❌ enableRealtime이 false로 설정됨');
@@ -705,13 +720,20 @@ export function HybridVoteDetailPresenter({
             // 연결 품질 업데이트
             updateConnectionQuality(true);
             
-            // 연결 성공 알림
-            addNotification({
+            // 연결 성공 알림 (직접 처리)
+            const successNotification: NotificationState = {
               type: 'success',
               title: '실시간 연결 성공',
               message: '투표 결과가 실시간으로 업데이트됩니다.',
               duration: 3000,
-            });
+              id: Math.random().toString(36).substr(2, 9),
+              timestamp: new Date(),
+            };
+            
+            setNotifications(prev => [...prev, successNotification]);
+            setTimeout(() => {
+              setNotifications(prev => prev.filter(notif => notif.id !== successNotification.id));
+            }, 3000);
             
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.error('[Realtime] 연결 실패:', err);
@@ -728,15 +750,21 @@ export function HybridVoteDetailPresenter({
             
             // 리얼타임 실패시 폴링 모드로 전환 (switchMode를 통해 안전하게 전환)
             console.log('[Realtime] 폴링 모드로 자동 전환');
-            // startPollingMode(); // ❌ 삭제: switchMode에서 이미 처리됨
             
-            // 연결 실패 알림
-            addNotification({
+            // 연결 실패 알림 (직접 처리)
+            const warningNotification: NotificationState = {
               type: 'warning',
               title: '실시간 연결 실패',
               message: '폴링 모드로 전환되었습니다. 데이터는 계속 업데이트됩니다.',
               duration: 4000,
-            });
+              id: Math.random().toString(36).substr(2, 9),
+              timestamp: new Date(),
+            };
+            
+            setNotifications(prev => [...prev, warningNotification]);
+            setTimeout(() => {
+              setNotifications(prev => prev.filter(notif => notif.id !== warningNotification.id));
+            }, 4000);
             
           } else if (status === 'CLOSED') {
             console.log('[Realtime] 연결 종료');
@@ -747,12 +775,8 @@ export function HybridVoteDetailPresenter({
             
             // 연결이 예기치 않게 종료된 경우 폴링으로 전환 (상태만 변경)
             if (connectionState.mode === 'realtime') {
-              console.log('[Realtime] 연결 종료로 인한 폴링 모드 전환');
-              setConnectionState(prev => ({
-                ...prev,
-                mode: 'polling',
-                isConnected: false,
-              }));
+              console.log('[Realtime] 예기치 않은 연결 종료 - 폴링으로 전환 준비');
+              // switchMode 호출은 외부에서 처리됨
             }
           }
         });
@@ -760,32 +784,20 @@ export function HybridVoteDetailPresenter({
       realtimeSubscriptionRef.current = subscription;
       
     } catch (error) {
-      console.error('[Realtime] 연결 실패:', error);
+      console.error('[Realtime] 연결 설정 중 오류:', error);
       setConnectionState(prev => ({
         ...prev,
         mode: 'polling',
         isConnected: false,
         errorCount: prev.errorCount + 1,
-        retryCount: prev.retryCount + 1,
       }));
       
       // 연결 품질 업데이트
       updateConnectionQuality(false);
-      
-      // 에러 발생시 폴링 모드로 전환 (switchMode를 통해 안전하게 전환)
-      // startPollingMode(); // ❌ 삭제: switchMode에서 이미 처리됨
-      
-      // 에러 알림
-      addNotification({
-        type: 'error',
-        title: '실시간 연결 오류',
-        message: '폴링 모드로 전환되었습니다.',
-        duration: 4000,
-      });
     }
-  }, [enableRealtime, vote.id, supabase, connectionState.mode]); // 함수 의존성 제거하여 무한 루프 방지
+  }, [vote.id, enableRealtime, supabase]); // 의존성 최적화
 
-  // 폴링 중지
+  // 폴링 중단 - 의존성 최적화
   const stopPollingMode = React.useCallback(() => {
     if (pollingIntervalRef.current) {
       console.log('⏹️ [Polling] Stopping polling mode');
@@ -794,33 +806,32 @@ export function HybridVoteDetailPresenter({
     }
   }, []);
 
-  // 하이브리드 모드 시작
+  // 하이브리드 모드 시작 - 의존성 최적화
   const startHybridMode = React.useCallback(() => {
-    console.log('🔀 [Hybrid] Starting hybrid mode', {
-      voteId: vote?.id,
-      enableRealtime,
-      currentMode: connectionState.mode
-    });
-    setConnectionState(prev => ({
-      ...prev,
-      mode: 'realtime',
-      isConnected: false,
-    }));
+    console.log('🚀 [Hybrid] Starting hybrid mode');
     
-    // 먼저 리얼타임 연결 시도
+    // 리얼타임 연결 시도
     connectRealtime();
-  }, [connectRealtime]);
+    
+    // 리얼타임 연결 실패 대비 폴링 백업 (3초 후)
+    setTimeout(() => {
+      if (!connectionState.isConnected || connectionState.mode !== 'realtime') {
+        console.log('[Hybrid] 리얼타임 연결 실패 - 폴링 모드로 전환');
+        startPollingMode();
+      }
+    }, 3000);
+  }, [connectionState.isConnected, connectionState.mode]); // 함수 의존성 제거
 
-  // 리얼타임 연결 해제
+  // 리얼타임 연결 해제 - 의존성 최적화
   const disconnectRealtime = React.useCallback(() => {
     if (realtimeSubscriptionRef.current) {
+      console.log('🔌 [Realtime] Disconnecting realtime subscription');
       realtimeSubscriptionRef.current.unsubscribe();
       realtimeSubscriptionRef.current = null;
-      console.log('[Realtime] 연결 해제');
     }
   }, []);
 
-  // 연결 모니터 정리
+  // 연결 모니터링 정리 - 의존성 최적화
   const cleanupConnectionMonitor = React.useCallback(() => {
     if (qualityCheckIntervalRef.current) {
       clearInterval(qualityCheckIntervalRef.current);
@@ -832,7 +843,7 @@ export function HybridVoteDetailPresenter({
     }
   }, []);
 
-  // 모드 전환 함수
+  // 모드 전환 함수 - 의존성 최적화
   const switchMode = React.useCallback((targetMode: DataSourceMode) => {
     const prevMode = connectionState.mode;
     console.log(`[Mode Switch] Switching from ${prevMode} to ${targetMode}`);
@@ -861,14 +872,18 @@ export function HybridVoteDetailPresenter({
       setPollingStartTime(null); // 리얼타임 모드로 전환시 폴링 시작 시간 초기화
       connectRealtime();
     } else if (targetMode === 'polling') {
-      setPollingStartTime(new Date()); // 폴링 모드 시작 시간 기록
+      setPollingStartTime(new Date()); // 폴링 시작 시간 기록
       startPollingMode();
-    } else {
-      setPollingStartTime(null); // 정적 모드로 전환시 폴링 시작 시간 초기화
+    } else if (targetMode === 'static') {
+      // 정적 모드는 연결 없음
+      setConnectionState(prev => ({
+        ...prev,
+        isConnected: false,
+      }));
     }
-  }, []); // 의존성 배열을 빈 배열로 변경하여 순환 의존성 방지
+  }, [connectionState.mode]); // 함수 의존성 제거
 
-  // 자동 모드 전환 (에러 발생시)
+  // 자동 모드 전환 (에러 발생시) - 의존성 최적화
   React.useEffect(() => {
     if (connectionState.errorCount >= maxRetries) {
       if (connectionState.mode === 'realtime') {
@@ -881,7 +896,7 @@ export function HybridVoteDetailPresenter({
     }
   }, [connectionState.errorCount, connectionState.mode, maxRetries]); // switchMode는 안정적이므로 의존성에서 제거 가능
 
-  // 연결 모니터링 시스템 초기화 (컴포넌트 마운트 시 한 번만 실행)
+  // 연결 모니터링 시스템 초기화 (컴포넌트 마운트 시 한 번만 실행) - 의존성 최적화
   React.useEffect(() => {
     if (enableRealtime) {
       // 하이브리드 모드 시작
@@ -900,6 +915,31 @@ export function HybridVoteDetailPresenter({
       cleanupConnectionMonitor();
     };
   }, [enableRealtime]); // 함수들은 안정적이므로 의존성에서 제거
+
+  // 컴포넌트 언마운트 시 정리
+  React.useEffect(() => {
+    return () => {
+      // 모든 타이머와 구독 정리
+      highlightTimersRef.current.forEach((timer) => clearTimeout(timer));
+      highlightTimersRef.current.clear();
+      
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+      
+      if (realtimeSubscriptionRef.current) {
+        realtimeSubscriptionRef.current.unsubscribe();
+      }
+      
+      if (qualityCheckIntervalRef.current) {
+        clearInterval(qualityCheckIntervalRef.current);
+      }
+      
+      if (realtimeRetryTimeoutRef.current) {
+        clearTimeout(realtimeRetryTimeoutRef.current);
+      }
+    };
+  }, []); // 빈 의존성 배열로 마운트/언마운트 시에만 실행
 
   // 남은 시간 계산 및 업데이트
   React.useEffect(() => {
@@ -1329,7 +1369,7 @@ export function HybridVoteDetailPresenter({
     };
   }, []); // 의존성 배열을 빈 배열로 변경하여 무한 루프 방지
 
-  // 연결 품질 모니터링
+  // 연결 품질 모니터링 - 의존성 최적화
   const startConnectionQualityMonitor = React.useCallback(() => {
     if (qualityCheckIntervalRef.current) {
       clearInterval(qualityCheckIntervalRef.current);
@@ -1363,9 +1403,9 @@ export function HybridVoteDetailPresenter({
         attemptRealtimeReconnection();
       }
     }, thresholds.qualityCheckInterval);
-  }, [connectionQuality, connectionState.mode, thresholds]);
+  }, [thresholds.qualityCheckInterval, thresholds.minConnectionQuality, thresholds.maxConsecutiveErrors]); // 상태 의존성 제거
 
-  // 리얼타임 재연결 시도
+  // 리얼타임 재연결 시도 - 의존성 최적화
   const attemptRealtimeReconnection = React.useCallback(() => {
     if (realtimeRetryTimeoutRef.current) {
       clearTimeout(realtimeRetryTimeoutRef.current);
@@ -1377,7 +1417,7 @@ export function HybridVoteDetailPresenter({
         switchMode('realtime');
       }
     }, thresholds.realtimeRetryDelay);
-  }, [connectionState.mode, thresholds.realtimeRetryDelay]);
+  }, [thresholds.realtimeRetryDelay]); // connectionState.mode와 switchMode 제거
 
   return (
     <div
