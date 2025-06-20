@@ -21,10 +21,10 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { setCurrentPortalType } = useNavigation();
+  const { isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [popupSlides, setPopupSlides] = useState<any[]>([]);
-  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
     const portalType = getPortalTypeFromPath(pathname);

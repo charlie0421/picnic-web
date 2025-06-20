@@ -41,7 +41,8 @@ export default async function VoteListPage({
   // URL 파라미터에서 status와 area 가져오기
   const resolvedSearchParams = await searchParams;
   const status = resolvedSearchParams.status || VOTE_STATUS.ONGOING;
-  const area = resolvedSearchParams.area || VOTE_AREAS.KPOP;
+  const area = resolvedSearchParams.area || VOTE_AREAS.ALL;
+
   return (
     <>
       <script

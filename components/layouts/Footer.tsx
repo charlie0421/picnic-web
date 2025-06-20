@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 
 const Footer: React.FC = () => {
   const { currentLanguage } = useLanguageStore();
+  const [mounted, setMounted] = useState(false);
+
+  // 컴포넌트가 마운트된 후에만 언어 변경을 적용
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const content = {
     ko: {
@@ -25,10 +31,8 @@ const Footer: React.FC = () => {
     },
   };
 
-  const currentContent =
-    typeof window !== 'undefined' && currentLanguage === 'ko'
-      ? content.ko
-      : content.en;
+  // 서버사이드에서는 항상 영어로, 클라이언트에서 마운트된 후에 한국어로 변경
+  const currentContent = mounted && currentLanguage === 'ko' ? content.ko : content.en;
 
   return (
     <footer className='w-full py-4 px-10 text-center text-gray-500 text-xs'>

@@ -195,48 +195,48 @@ export function ErrorProvider({
 
   // 에러 추가 함수
   const addError = useCallback((
-    error: AppError | Error | string, 
+    errorInput: AppError | Error | string,
     options: { autoHide?: boolean; duration?: number } = {}
   ): string => {
     let appError: AppError;
 
-    if (error instanceof AppError) {
-      appError = error;
-    } else if (error instanceof Error) {
+    if (errorInput instanceof AppError) {
+      appError = errorInput;
+    } else if (errorInput instanceof Error) {
       appError = new AppError(
-        error.message,
+        errorInput.message,
         ErrorCategory.UNKNOWN,
-        ErrorSeverity.MEDIUM,
-        500,
-        { originalError: error }
+        ErrorSeverity.ERROR,
+        { originalError: errorInput }
       );
     } else {
       appError = new AppError(
-        error,
+        errorInput,
         ErrorCategory.UNKNOWN,
-        ErrorSeverity.MEDIUM
+        ErrorSeverity.ERROR
       );
     }
 
-    // 에러 로깅
-    logger.error('Global error added', appError, {
+    // 로깅
+    logger.error('Error added to context', {
+      message: appError.message,
       category: appError.category,
       severity: appError.severity,
-      timestamp: new Date().toISOString(),
+      context: appError.context,
     });
 
-    const finalOptions = {
-      autoHide: options.autoHide ?? defaultAutoHide,
-      duration: options.duration ?? defaultDuration,
-    };
-
-    dispatch({ 
-      type: 'ADD_ERROR', 
-      payload: { error: appError, ...finalOptions } 
+    const id = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    dispatch({
+      type: 'ADD_ERROR',
+      payload: {
+        error: appError,
+        autoHide: options.autoHide ?? defaultAutoHide,
+        duration: options.duration ?? defaultDuration,
+      },
     });
 
-    // 에러 ID 반환 (나중에 특정 에러를 조작할 때 사용)
-    return `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return id;
   }, [defaultAutoHide, defaultDuration]);
 
   // 에러 해제 함수

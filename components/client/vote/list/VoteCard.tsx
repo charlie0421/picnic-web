@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Vote, VoteItem } from '@/types/interfaces';
+import { Vote } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -11,7 +11,6 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { CountdownTimer } from '../common/CountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
 import RewardItem from '@/components/common/RewardItem';
-import { VoteRankCard } from '../common/VoteRankCard';
 import { VoteItems } from './VoteItems';
 
 const VOTE_STATUS = {
@@ -64,14 +63,8 @@ const getStatusText = (
 export const VoteCard = React.memo(
   ({ vote, onClick }: { vote: Vote; onClick?: () => void }) => {
     const { t, currentLanguage } = useLanguageStore();
-    const [isMounted, setIsMounted] = useState(false);
     
-    // 클라이언트 마운트 상태 추적
-    useEffect(() => {
-      setIsMounted(true);
-    }, []);
-    
-    // hydration 불일치 방지를 위해 서버에서는 보수적인 상태 사용
+    // 투표 상태 계산 (서버/클라이언트 일관성 보장)
     const status = useMemo(() => {
       if (!vote.start_at || !vote.stop_at) return VOTE_STATUS.UPCOMING;
       
@@ -84,87 +77,12 @@ export const VoteCard = React.memo(
       return VOTE_STATUS.ONGOING;
     }, [vote.start_at, vote.stop_at]);
 
-    // hydration 후에만 표시되는 동적 컨텐츠
-    if (!isMounted) {
-      // 서버 렌더링 시 기본 영어 번역 사용
-      return (
-        <Link href={`/vote/${vote.id}`}>
-          <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
-            <div className='relative'>
-              {vote.main_image && (
-                <div className='bg-gray-200 relative overflow-hidden'>
-                  <Image
-                    src={getCdnImageUrl(vote.main_image)}
-                    alt={getLocalizedString(vote.title, 'en')}
-                    width={640}
-                    height={512}
-                    className='w-full h-auto object-cover'
-                    priority
-                    quality={90}
-                  />
-                  <div className='absolute inset-0 bg-gradient-to-t from-black/30 to-transparent' />
-                </div>
-              )}
-            </div>
-
-            <div className='p-1 sm:p-2 flex-1 flex flex-col'>
-              <div className='flex flex-wrap gap-0.5 mb-1'>
-                <span className='flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ml-auto bg-blue-500 text-white border border-blue-600'>
-                  Loading...
-                </span>
-              </div>
-
-              <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 truncate p-2 relative group'>
-                {getLocalizedString(vote.title, 'en')}
-                <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
-              </h3>
-
-              <div className='flex justify-center mb-4'>
-                <CountdownTimer
-                  startTime={vote.start_at}
-                  endTime={vote.stop_at}
-                  status='scheduled'
-                />
-              </div>
-
-              <div className='flex-1'>
-                <VoteItems vote={vote} />
-              </div>
-
-              {vote.start_at && vote.stop_at && (
-                <div className='mt-1 pt-2 border-t border-gray-100'>
-                  <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-0'>
-                    <div className='flex items-center space-x-2 bg-primary/5 rounded-lg px-3 py-2'>
-                      <svg
-                        xmlns='http://www.w3.org/2000/svg'
-                        className='h-4 w-4 text-primary'
-                        viewBox='0 0 20 20'
-                        fill='currentColor'
-                      >
-                        <path
-                          fillRule='evenodd'
-                          d='M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z'
-                          clipRule='evenodd'
-                        />
-                      </svg>
-                      <span className='text-primary font-medium'>
-                        {format(new Date(vote.start_at), 'MM.dd HH:mm', {
-                          locale: ko,
-                        })}{' '}
-                        ~{' '}
-                        {format(new Date(vote.stop_at), 'MM.dd HH:mm', {
-                          locale: ko,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </Link>
-      );
-    }
+    // CountdownTimer 상태 계산 (고정된 로직)
+    const countdownStatus = useMemo(() => {
+      if (status === VOTE_STATUS.UPCOMING) return 'scheduled';
+      if (status === VOTE_STATUS.COMPLETED) return 'ended';
+      return 'in_progress';
+    }, [status]);
 
     return (
       <Link href={`/vote/${vote.id}`}>
@@ -226,13 +144,7 @@ export const VoteCard = React.memo(
               <CountdownTimer
                 startTime={vote.start_at}
                 endTime={vote.stop_at}
-                status={
-                  status === VOTE_STATUS.UPCOMING
-                    ? 'scheduled'
-                    : status === VOTE_STATUS.COMPLETED
-                    ? 'ended'
-                    : 'in_progress'
-                }
+                status={countdownStatus}
               />
             </div>
 

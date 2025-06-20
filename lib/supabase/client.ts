@@ -8,6 +8,9 @@ type BrowserSupabaseClient = ReturnType<typeof createBrowserClient<Database>>;
 
 let browserSupabase: BrowserSupabaseClient | null = null;
 
+// 로그아웃 진행 상태 추적을 위한 전역 변수
+let isSigningOut = false;
+
 /**
  * 브라우저 환경에서 사용할 Supabase 클라이언트를 생성합니다.
  * 싱글톤 패턴을 사용하여 단일 인스턴스를 생성하고 재사용합니다.
@@ -139,9 +142,16 @@ export async function getCurrentSession() {
  * @returns 로그아웃 결과
  */
 export async function signOut() {
+  // 중복 실행 방지
+  if (isSigningOut) {
+    console.log('🔄 [SignOut] 이미 로그아웃 진행 중 - 중복 호출 방지');
+    return { success: true, message: '로그아웃이 이미 진행 중입니다.' };
+  }
+
   const supabase = createBrowserSupabaseClient();
   
   try {
+    isSigningOut = true; // 로그아웃 시작 표시
     console.log('🚪 [SignOut] 종합 로그아웃 시작');
 
     // 1. 서버사이드 세션 무효화 API 호출 (먼저 시도)
@@ -429,5 +439,23 @@ export async function signOut() {
       error,
       message: '로그아웃 중 오류가 발생했지만 기본 정리는 완료되었습니다.'
     };
+  } finally {
+    // 성공이든 실패든 상관없이 로그아웃 상태 리셋
+    isSigningOut = false;
+    console.log('🔄 [SignOut] 로그아웃 상태 리셋');
   }
+}
+
+// 로그아웃 상태 확인을 위한 디버그 함수
+export function getLogoutStatus() {
+  return {
+    isSigningOut,
+    timestamp: new Date().toISOString()
+  };
+}
+
+// 강제 로그아웃 상태 리셋 (개발용)
+export function resetLogoutStatus() {
+  isSigningOut = false;
+  console.log('🔧 [SignOut] 로그아웃 상태 강제 리셋');
 } 

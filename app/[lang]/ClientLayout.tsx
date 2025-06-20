@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SupabaseProvider } from '@/components/providers/SupabaseProvider';
 import { AuthProvider } from '@/lib/supabase/auth-provider';
 import { NavigationProvider } from '@/contexts/NavigationContext';
@@ -60,6 +60,7 @@ export default function ClientLayout({
   children,
   initialLanguage,
 }: ClientLayoutProps) {
+  // Provider들을 항상 렌더링하여 하이드레이션 미스매치 방지
   return (
     <ErrorProvider
       maxErrors={10}
@@ -74,26 +75,26 @@ export default function ClientLayout({
           console.error('ClientLayout Error:', error.toLogData());
         }}
       >
-        <LanguageSyncProvider initialLanguage={initialLanguage}>
-          <SupabaseProvider>
-            {/* @ts-ignore */}
-            <AuthProvider>
+        <NavigationProvider>
+          <LanguageSyncProvider initialLanguage={initialLanguage}>
+            <SupabaseProvider>
               {/* @ts-ignore */}
-              <DialogProvider>
+              <AuthProvider>
                 {/* @ts-ignore */}
-                <AuthRedirectHandler>
-                  <NavigationProvider>
+                <DialogProvider>
+                  {/* @ts-ignore */}
+                  <AuthRedirectHandler>
                     <GlobalErrorIntegration />
                     {children}
                     <Analytics />
                     {/* 글로벌 에러 표시 컴포넌트 */}
                     <ErrorToast />
-                  </NavigationProvider>
-                </AuthRedirectHandler>
-              </DialogProvider>
-            </AuthProvider>
-          </SupabaseProvider>
-        </LanguageSyncProvider>
+                  </AuthRedirectHandler>
+                </DialogProvider>
+              </AuthProvider>
+            </SupabaseProvider>
+          </LanguageSyncProvider>
+        </NavigationProvider>
       </PageErrorBoundary>
     </ErrorProvider>
   );

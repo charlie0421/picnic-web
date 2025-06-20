@@ -36,16 +36,14 @@ const getBreakpoints = () => ({
 });
 
 export function BannerListPresenter({ banners, className }: BannerListProps) {
-  const [mounted, setMounted] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     setIsClient(true);
   }, []);
 
   // 서버 사이드에서는 기본 로딩 상태 표시
-  if (!mounted) {
+  if (!isClient) {
     return (
       <div className={`w-full bg-gray-100 rounded-lg animate-pulse banner-aspect-ratio ${className}`}>
         <style jsx>{`
@@ -78,19 +76,6 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     return (
       <div className={className}>
         <BannerItem banner={banners[0]} />
-      </div>
-    );
-  }
-
-  // 클라이언트에서만 Swiper 렌더링
-  if (!isClient) {
-    return (
-      <div className={`w-full bg-gray-100 rounded-lg banner-aspect-ratio ${className}`}>
-        <style jsx>{`
-          .banner-aspect-ratio {
-            aspect-ratio: 700/356;
-          }
-        `}</style>
       </div>
     );
   }

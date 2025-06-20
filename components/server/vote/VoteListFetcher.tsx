@@ -30,7 +30,7 @@ async function fetchVotes(status: VoteStatus, area: VoteArea): Promise<Vote[]> {
   }
 }
 
-export interface VoteListFetcherProps {
+interface VoteListFetcherProps {
   status?: VoteStatus;
   area?: VoteArea;
   className?: string;
@@ -40,7 +40,7 @@ export interface VoteListFetcherProps {
 
 export async function VoteListFetcher({ 
   status = VOTE_STATUS.ONGOING,
-  area = VOTE_AREAS.KPOP,
+  area = VOTE_AREAS.ALL,
   className,
   enablePagination = true,
   pageSize = 12
