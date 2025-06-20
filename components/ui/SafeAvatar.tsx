@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { getSafeAvatarUrl, createImageErrorHandler } from '@/utils/image-utils';
+import { getSafeAvatarUrl, createImageErrorHandler, isFailedImageUrl } from '@/utils/image-utils';
 
 interface SafeAvatarProps {
   src?: string | null;
@@ -9,6 +9,7 @@ interface SafeAvatarProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   fallbackUrl?: string;
   className?: string;
+  useProxy?: boolean; // 프록시 사용 옵션
   onImageLoad?: () => void;
   onImageError?: (originalSrc: string) => void;
 }
@@ -25,6 +26,7 @@ const sizeClasses = {
  * - 이미지 로딩 실패 시 자동 폴백
  * - URL 검증
  * - 로딩 상태 표시
+ * - Google 이미지 429 에러 대응 (프록시 포함)
  */
 export function SafeAvatar({
   src,
@@ -32,14 +34,19 @@ export function SafeAvatar({
   size = 'md',
   fallbackUrl = '/images/default-avatar.png',
   className = '',
+  useProxy = true, // 기본적으로 프록시 사용
   onImageLoad,
   onImageError
 }: SafeAvatarProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   
-  // 안전한 이미지 URL 가져오기
-  const safeImageUrl = getSafeAvatarUrl(src, fallbackUrl);
+  // 안전한 이미지 URL 가져오기 (Google 이미지 최적화 및 프록시 포함)
+  const safeImageUrl = getSafeAvatarUrl(src, fallbackUrl, useProxy);
+  
+  // 이전에 실패한 URL인지 확인하여 즉시 폴백 사용
+  const shouldUseFallback = src && isFailedImageUrl(src);
+  const finalImageUrl = shouldUseFallback ? fallbackUrl : safeImageUrl;
   
   // 이미지 로딩 완료 핸들러
   const handleImageLoad = useCallback(() => {
@@ -48,10 +55,10 @@ export function SafeAvatar({
     onImageLoad?.();
   }, [onImageLoad]);
   
-  // 이미지 에러 핸들러
+  // 이미지 에러 핸들러 (프록시 옵션 포함)
   const handleImageError = useCallback(
-    createImageErrorHandler(fallbackUrl),
-    [fallbackUrl]
+    createImageErrorHandler(fallbackUrl, useProxy),
+    [fallbackUrl, useProxy]
   );
   
   // 커스텀 에러 핸들러
@@ -76,7 +83,7 @@ export function SafeAvatar({
   return (
     <div className="relative inline-block">
       {/* 로딩 중 표시 */}
-      {isLoading && (
+      {isLoading && !shouldUseFallback && (
         <div 
           className={`
             ${baseClasses} 
@@ -96,11 +103,11 @@ export function SafeAvatar({
       
       {/* 실제 이미지 */}
       <img
-        src={safeImageUrl}
+        src={finalImageUrl}
         alt={alt}
         className={`
           ${baseClasses}
-          ${isLoading ? 'opacity-0 absolute inset-0' : 'opacity-100'}
+          ${isLoading && !shouldUseFallback ? 'opacity-0 absolute inset-0' : 'opacity-100'}
           transition-opacity duration-200
         `}
         onLoad={handleImageLoad}
@@ -108,9 +115,27 @@ export function SafeAvatar({
         loading="lazy"
       />
       
-      {/* 에러 상태 표시 (개발 환경에서만) */}
-      {process.env.NODE_ENV === 'development' && hasError && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" />
+      {/* 개발 환경에서만 표시되는 상태 인디케이터 */}
+      {process.env.NODE_ENV === 'development' && (
+        <>
+          {/* 에러 상태 표시 */}
+          {hasError && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" 
+                 title={`이미지 로딩 실패: ${src}`} />
+          )}
+          
+          {/* Google 이미지 429 에러 표시 */}
+          {shouldUseFallback && src?.includes('googleusercontent.com') && (
+            <div className="absolute -top-1 -left-1 w-3 h-3 bg-yellow-500 rounded-full border border-white" 
+                 title={`Google 이미지 429 에러로 폴백 사용: ${src}`} />
+          )}
+          
+          {/* 프록시 사용 표시 */}
+          {useProxy && finalImageUrl.includes('/api/proxy-image') && (
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" 
+                 title={`프록시를 통해 이미지 로딩: ${src}`} />
+          )}
+        </>
       )}
     </div>
   );
@@ -124,22 +149,46 @@ export function SimpleAvatar({
   alt = '프로필 이미지',
   size = 'md',
   fallbackUrl = '/images/default-avatar.png',
-  className = ''
+  className = '',
+  useProxy = true // 기본적으로 프록시 사용
 }: Omit<SafeAvatarProps, 'onImageLoad' | 'onImageError'>) {
-  const safeImageUrl = getSafeAvatarUrl(src, fallbackUrl);
-  const handleImageError = createImageErrorHandler(fallbackUrl);
+  const safeImageUrl = getSafeAvatarUrl(src, fallbackUrl, useProxy);
+  const handleImageError = createImageErrorHandler(fallbackUrl, useProxy);
+  
+  // 이전에 실패한 URL인지 확인하여 즉시 폴백 사용
+  const shouldUseFallback = src && isFailedImageUrl(src);
+  const finalImageUrl = shouldUseFallback ? fallbackUrl : safeImageUrl;
 
   return (
-    <img
-      src={safeImageUrl}
-      alt={alt}
-      className={`
-        rounded-full object-cover bg-gray-200 
-        ${sizeClasses[size]} 
-        ${className}
-      `}
-      onError={handleImageError}
-      loading="lazy"
-    />
+    <div className="relative inline-block">
+      <img
+        src={finalImageUrl}
+        alt={alt}
+        className={`
+          rounded-full object-cover bg-gray-200 
+          ${sizeClasses[size]} 
+          ${className}
+        `}
+        onError={handleImageError}
+        loading="lazy"
+      />
+      
+      {/* 개발 환경에서만 표시되는 상태 인디케이터 */}
+      {process.env.NODE_ENV === 'development' && (
+        <>
+          {/* Google 이미지 429 에러 표시 */}
+          {shouldUseFallback && src?.includes('googleusercontent.com') && (
+            <div className="absolute -top-1 -left-1 w-3 h-3 bg-yellow-500 rounded-full border border-white" 
+                 title={`Google 이미지 429 에러로 폴백 사용: ${src}`} />
+          )}
+          
+          {/* 프록시 사용 표시 */}
+          {useProxy && finalImageUrl.includes('/api/proxy-image') && (
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" 
+                 title={`프록시를 통해 이미지 로딩: ${src}`} />
+          )}
+        </>
+      )}
+    </div>
   );
 } 
