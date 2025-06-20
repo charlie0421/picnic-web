@@ -92,42 +92,62 @@ function LoginContentInner() {
     userProfile,
   ]);
 
+  // 포스트 로그인 리다이렉트 처리 함수 (메모화)
+  const handlePostLoginRedirect = useCallback(() => {
+    const redirectTo = searchParams.get('redirect_to');
+    const decodedRedirectTo = redirectTo ? decodeURIComponent(redirectTo) : null;
+
+    // 유효한 내부 URL인지 확인 (보안상 중요)
+    if (decodedRedirectTo && 
+        (decodedRedirectTo.startsWith('/') && !decodedRedirectTo.startsWith('//')) ||
+        decodedRedirectTo.startsWith(window?.location?.origin || '')) {
+      debugLog('리다이렉트 URL로 이동:', decodedRedirectTo);
+      return decodedRedirectTo;
+    }
+
+    debugLog('기본 홈 페이지로 이동');
+    return '/';
+  }, [searchParams]);
+
   // 인증된 사용자 리다이렉트 처리
-  useEffect(() => {
-    if (!mounted || !isInitialized || isLoading) {
+  const redirectAuthenticatedUser = useCallback(() => {
+    if (!mounted || !isInitialized || isLoading || !isAuthenticated || !user) {
       return;
     }
 
-    if (isAuthenticated && user) {
-      debugLog('이미 인증된 사용자 - 리다이렉트 처리');
-      
-      // 현재 URL이 이미 로그인 페이지가 아니라면 리다이렉트하지 않음
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        return;
-      }
+    debugLog('이미 인증된 사용자 - 리다이렉트 처리');
+    
+    // 현재 URL이 이미 로그인 페이지가 아니라면 리다이렉트하지 않음
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+      return;
+    }
 
-      const targetUrl = handlePostLoginRedirect();
+    const targetUrl = handlePostLoginRedirect();
 
-      // 현재 페이지가 로그인 페이지이고 리다이렉트 URL이 다른 경우에만 이동
-      if (targetUrl !== '/login' && typeof window !== 'undefined') {
-        // 한 번만 실행되도록 플래그 설정
-        const redirectKey = 'login_redirect_executed';
-        if (!sessionStorage.getItem(redirectKey)) {
-          sessionStorage.setItem(redirectKey, 'true');
-          
-          // 짧은 지연 후 리다이렉트 (상태 안정화)
-          setTimeout(() => {
-            router.push(targetUrl);
-          }, 100);
-          
-          // 5초 후 플래그 제거 (다음 방문을 위해)
-          setTimeout(() => {
-            sessionStorage.removeItem(redirectKey);
-          }, 5000);
-        }
+    // 현재 페이지가 로그인 페이지이고 리다이렉트 URL이 다른 경우에만 이동
+    if (targetUrl !== '/login' && typeof window !== 'undefined') {
+      // 한 번만 실행되도록 플래그 설정
+      const redirectKey = 'login_redirect_executed';
+      if (!sessionStorage.getItem(redirectKey)) {
+        sessionStorage.setItem(redirectKey, 'true');
+        
+        // 짧은 지연 후 리다이렉트 (상태 안정화)
+        setTimeout(() => {
+          router.push(targetUrl);
+        }, 100);
+        
+        // 5초 후 플래그 제거 (다음 방문을 위해)
+        setTimeout(() => {
+          sessionStorage.removeItem(redirectKey);
+        }, 5000);
       }
     }
-  }, [mounted, isAuthenticated, isInitialized, isLoading, user?.id]); // user 전체 대신 user.id만 의존성으로 사용
+  }, [mounted, isAuthenticated, isInitialized, isLoading, user?.id, handlePostLoginRedirect, router]);
+
+  // 인증된 사용자 리다이렉트 처리
+  useEffect(() => {
+    redirectAuthenticatedUser();
+  }, [redirectAuthenticatedUser]);
 
   // 오류 파라미터 처리
   useEffect(() => {

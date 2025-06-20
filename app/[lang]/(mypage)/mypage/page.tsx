@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import {
@@ -48,29 +48,48 @@ const MyPage = () => {
     });
   }, [isAuthenticated, isLoading, pageLoading, userProfile]);
 
-  const handleSignOut = async () => {
+  // 로그아웃 처리 함수 (메모화)
+  const handleSignOut = useCallback(async () => {
     // 이미 로딩 중이면 중복 실행 방지
     if (isLoading) {
       console.log('🔄 [MyPage] 이미 로그아웃 진행 중 - 중복 호출 방지');
       return;
     }
 
+    // 중복 실행 방지 플래그
+    const signOutKey = 'signout_in_progress';
+    if (sessionStorage.getItem(signOutKey)) {
+      console.log('🔄 [MyPage] 로그아웃 이미 진행 중 - 중복 호출 방지');
+      return;
+    }
+
     try {
       console.log('🚪 [MyPage] 로그아웃 시작');
+      sessionStorage.setItem(signOutKey, 'true');
 
       // signOut 함수 호출 - 한 번만 실행
       await signOut();
 
       console.log('✅ [MyPage] 로그아웃 완료');
+      
       // 로그아웃 완료 후 홈으로 리디렉션
-      window.location.href = '/';
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
 
     } catch (error) {
       console.error('❌ [MyPage] 로그아웃 중 예외:', error);
       // 예외가 발생해도 홈으로 리디렉션
-      window.location.href = '/';
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+    } finally {
+      // 플래그 제거
+      setTimeout(() => {
+        sessionStorage.removeItem(signOutKey);
+      }, 1000);
     }
-  };
+  }, [isLoading, signOut]); // signOut 의존성 추가
 
   if (pageLoading) {
     return (
