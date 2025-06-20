@@ -366,7 +366,22 @@ function LoginContentInner() {
         error === 'invalid_request' ||
         error === 'bad_oauth_callback'
       ) {
-        setError('OAuth 인증 중 문제가 발생했습니다. 다시 시도해주세요.');
+        // bad_oauth_state 에러 특별 처리
+        const errorCode = searchParams.get('error_code');
+        if (errorCode === 'bad_oauth_state') {
+          setError('보안상의 이유로 로그인이 취소되었습니다. 브라우저를 새로고침하고 다시 시도해주세요.');
+          
+          // 관련 스토리지 정리
+          try {
+            localStorage.removeItem('auth_return_url');
+            sessionStorage.clear();
+          } catch (e) {
+            console.warn('스토리지 정리 중 오류:', e);
+          }
+        } else {
+          setError('OAuth 인증 중 문제가 발생했습니다. 다시 시도해주세요.');
+        }
+      }
       } else if (error) {
         switch (error) {
           case 'missing_params':

@@ -64,19 +64,32 @@ export function isWeChatSupported(): boolean {
 
 /**
  * 암호학적으로 안전한 상태 토큰 생성
- * CSRF 공격 방지를 위한 상태 토큰 생성
+ * CSRF 공격 방지를 위한 고유한 상태 토큰 생성
  * 
- * @returns 무작위 상태 문자열 (32바이트 hex)
+ * @returns 고유한 상태 토큰
  */
 function generateStateToken(): string {
-  const randomBytes = new Uint8Array(32); // 256비트 보안 강도
+  const randomBytes = new Uint8Array(32);
   
-  // 브라우저 환경에서 crypto API 사용
-  if (typeof window !== 'undefined' && typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    crypto.getRandomValues(randomBytes);
-  } else if (typeof globalThis !== 'undefined' && globalThis.crypto && globalThis.crypto.getRandomValues) {
-    // Node.js 환경에서 crypto API 사용
-    globalThis.crypto.getRandomValues(randomBytes);
+  // crypto.getRandomValues 사용 (브라우저 환경)
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+    window.crypto.getRandomValues(randomBytes);
+  } 
+  // Node.js 환경의 crypto 모듈 사용
+  else if (typeof require !== 'undefined') {
+    try {
+      const crypto = require('crypto');
+      const nodeRandomBytes = crypto.randomBytes(32);
+      for (let i = 0; i < 32; i++) {
+        randomBytes[i] = nodeRandomBytes[i];
+      }
+    } catch (e) {
+      console.warn('⚠️ Node.js crypto 모듈을 사용할 수 없습니다. Math.random()을 사용합니다.');
+      // 폴백: Math.random() 사용
+      for (let i = 0; i < randomBytes.length; i++) {
+        randomBytes[i] = Math.floor(Math.random() * 256);
+      }
+    }
   } else {
     // 폴백: Math.random() 사용 (덜 안전하지만 작동함)
     console.warn('⚠️ 암호학적으로 안전한 난수 생성기를 사용할 수 없습니다. Math.random()을 사용합니다.');
@@ -85,13 +98,21 @@ function generateStateToken(): string {
     }
   }
   
-  // 타임스탬프 추가로 고유성 보장
+  // 타임스탬프와 프로세스 정보 추가로 고유성 보장
   const timestamp = Date.now().toString(16);
+  const processInfo = typeof process !== 'undefined' && process.pid 
+    ? process.pid.toString(16) 
+    : Math.floor(Math.random() * 65536).toString(16);
   const randomHex = Array.from(randomBytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
   
-  return `wechat_${timestamp}_${randomHex}`;
+  // 더 긴 토큰으로 충돌 가능성 최소화
+  const token = `wechat_${timestamp}_${processInfo}_${randomHex}`;
+  
+  console.log('🔐 새 WeChat 상태 토큰 생성됨:', token.substring(0, 30) + '...');
+  
+  return token;
 }
 
 /**
@@ -120,6 +141,11 @@ function saveStateToken(state: string): void {
  * @returns 검증 결과
  */
 function validateStateToken(receivedState: string): { valid: boolean; error?: string } {
+  console.log('🔍 WeChat 상태 토큰 검증 시작:', {
+    received: receivedState ? receivedState.substring(0, 30) + '...' : 'null',
+    hasSessionStorage: typeof sessionStorage !== 'undefined'
+  });
+  
   if (typeof sessionStorage === 'undefined') {
     console.warn('⚠️ sessionStorage를 사용할 수 없어 상태 토큰 검증을 건너뜁니다.');
     return { valid: true };
@@ -128,8 +154,15 @@ function validateStateToken(receivedState: string): { valid: boolean; error?: st
   const savedState = sessionStorage.getItem('wechat_auth_state');
   const savedTimestamp = sessionStorage.getItem('wechat_auth_timestamp');
   
+  console.log('🔍 저장된 상태 토큰 정보:', {
+    saved: savedState ? savedState.substring(0, 30) + '...' : 'null',
+    timestamp: savedTimestamp,
+    timestampAge: savedTimestamp ? Date.now() - parseInt(savedTimestamp, 10) : 'N/A'
+  });
+  
   // 저장된 상태 토큰이 없는 경우
   if (!savedState) {
+    console.error('❌ 저장된 WeChat 상태 토큰이 없습니다.');
     return { 
       valid: false, 
       error: '저장된 상태 토큰이 없습니다. 인증 프로세스를 다시 시작해주세요.' 
@@ -138,26 +171,40 @@ function validateStateToken(receivedState: string): { valid: boolean; error?: st
   
   // 상태 토큰이 일치하지 않는 경우
   if (receivedState !== savedState) {
+    console.error('❌ WeChat 상태 토큰 불일치:', {
+      received: receivedState ? receivedState.substring(0, 30) + '...' : 'null',
+      saved: savedState.substring(0, 30) + '...'
+    });
     return { 
       valid: false, 
       error: 'CSRF 보안 오류: 상태 토큰이 일치하지 않습니다.' 
     };
   }
   
-  // 타임스탬프 검증 (10분 제한)
+  // 타임스탬프 검증 (15분 제한으로 연장)
   if (savedTimestamp) {
     const timestamp = parseInt(savedTimestamp, 10);
     const now = Date.now();
-    const maxAge = 10 * 60 * 1000; // 10분
+    const maxAge = 15 * 60 * 1000; // 15분으로 연장
+    const age = now - timestamp;
     
-    if (now - timestamp > maxAge) {
+    if (age > maxAge) {
+      console.error('❌ WeChat 인증 세션 만료:', {
+        age: Math.floor(age / 1000) + '초',
+        maxAge: Math.floor(maxAge / 1000) + '초'
+      });
       return { 
         valid: false, 
         error: '인증 세션이 만료되었습니다. 다시 로그인해주세요.' 
       };
     }
+    
+    console.log('✅ WeChat 상태 토큰 타임스탬프 검증 통과:', {
+      age: Math.floor(age / 1000) + '초'
+    });
   }
   
+  console.log('✅ WeChat 상태 토큰 검증 성공');
   return { valid: true };
 }
 

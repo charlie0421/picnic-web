@@ -215,13 +215,47 @@ export default function AuthCallbackClient({
         // 오류 코드가 있으면 처리
         const errorCode = searchParams.get('error');
         const errorDescription = searchParams.get('error_description');
+        const errorCodeParam = searchParams.get('error_code');
+        
         if (errorCode) {
           console.error('Auth callback error:', {
             error: errorCode,
+            error_code: errorCodeParam,
             description: errorDescription,
             provider: providerType,
             url: typeof window !== 'undefined' ? window.location.href : 'SSR',
           });
+          
+          // bad_oauth_state 에러 특별 처리
+          if (errorCode === 'invalid_request' && errorCodeParam === 'bad_oauth_state') {
+            console.warn('🔒 [AuthCallback] OAuth state 검증 실패 - 보안 에러');
+            
+            // 세션 스토리지와 로컬 스토리지 정리
+            if (typeof window !== 'undefined') {
+              try {
+                sessionStorage.clear();
+                localStorage.removeItem('auth_return_url');
+                localStorage.removeItem(`${providerType}_oauth_state`);
+                localStorage.removeItem('wechat_oauth_state');
+                localStorage.removeItem('apple_oauth_state');
+              } catch (e) {
+                console.warn('스토리지 정리 중 오류:', e);
+              }
+            }
+            
+            setIsLoading(false);
+            setError(
+              '보안상의 이유로 로그인이 취소되었습니다. 다시 시도해주세요.'
+            );
+            
+            // 3초 후 로그인 페이지로 리다이렉트
+            setTimeout(() => {
+              window.location.href = '/ko/login';
+            }, 3000);
+            
+            return;
+          }
+          
           setIsLoading(false);
           setError(
             `인증 오류: ${errorCode} - ${
@@ -720,7 +754,7 @@ export default function AuthCallbackClient({
                   // 최종 실패 처리 개선
                   if (!clientSuccess) {
                     console.log('❌ 모든 클라이언트 세션 생성 실험 실패');
-                    console.log('🔍 최종 상태: Apple JWT 검증 성공, Supabase 세션 생성 실패');
+                    console.log('�� 최종 상태: Apple JWT 검증 성공, Supabase 세션 생성 실패');
                     console.log('ℹ️ 이것은 Supabase Apple OAuth의 알려진 nonce 검증 버그입니다.');
                     console.log('ℹ️ 대안: 다른 OAuth 제공자(Google, GitHub) 사용을 권장합니다.');
                     
