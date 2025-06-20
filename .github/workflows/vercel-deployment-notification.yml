@@ -15,11 +15,11 @@ jobs:
       - name: Prepare commit message
         id: commit-msg
         run: |
-          # 커밋 메시지를 안전하게 처리 (특수 문자 이스케이프)
-          commit_msg="${{ github.event.head_commit.message }}"
-          # 줄바꿈을 공백으로 변환하고 따옴표 이스케이프
-          safe_msg=$(echo "$commit_msg" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
-          echo "safe_message=$safe_msg" >> $GITHUB_OUTPUT
+          # 커밋 메시지를 환경 변수로 안전하게 처리
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          # 줄바꿈을 공백으로 변환하고 특수 문자 이스케이프
+          SAFE_MSG=$(printf '%s' "$COMMIT_MSG" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
+          echo "safe_message=$SAFE_MSG" >> $GITHUB_OUTPUT
         
       - name: Send deployment start notification
         uses: 8398a7/action-slack@v3
@@ -34,7 +34,7 @@ jobs:
                   "fields": [
                     {
                       "title": "환경",
-                      "value": "${{ github.ref_name == 'main' && 'Development' || 'Production' }}",
+                      "value": "${{ github.ref_name == 'main' && 'Staging' || 'Production' }}",
                       "short": true
                     },
                     {
@@ -65,42 +65,24 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-  check-deployment:
+  notify-deployment-success:
     runs-on: ubuntu-latest
     needs: notify-deployment-start
+    if: success()
     steps:
       - name: Wait for deployment
-        run: sleep 300  # 5분 대기 (Next.js 빌드 시간 고려)
+        run: sleep 60
         
-      - name: Prepare commit message for success
-        id: commit-msg-success
+      - name: Prepare commit message
+        id: commit-msg
         run: |
-          commit_msg="${{ github.event.head_commit.message }}"
-          safe_msg=$(echo "$commit_msg" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
-          echo "safe_message=$safe_msg" >> $GITHUB_OUTPUT
+          # 커밋 메시지를 환경 변수로 안전하게 처리
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          # 줄바꿈을 공백으로 변환하고 특수 문자 이스케이프
+          SAFE_MSG=$(printf '%s' "$COMMIT_MSG" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
+          echo "safe_message=$SAFE_MSG" >> $GITHUB_OUTPUT
         
-      - name: Check Vercel deployment status
-        id: check-vercel
-        run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "deployment_url=https://picnic-web-dev.vercel.app" >> $GITHUB_OUTPUT
-            echo "environment=Development" >> $GITHUB_OUTPUT
-          else
-            echo "deployment_url=https://picnic-web.vercel.app" >> $GITHUB_OUTPUT
-            echo "environment=Production" >> $GITHUB_OUTPUT
-          fi
-          
-          # 실제 배포 상태 확인 (간단한 헬스체크)
-          deployment_url=$(echo ${{ github.ref_name == 'main' && 'https://picnic-web-dev.vercel.app' || 'https://picnic-web.vercel.app' }})
-          response=$(curl -s -o /dev/null -w "%{http_code}" $deployment_url || echo "000")
-          if [ "$response" = "200" ]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-          else
-            echo "status=failed" >> $GITHUB_OUTPUT
-          fi
-          
       - name: Send deployment success notification
-        if: steps.check-vercel.outputs.status == 'success'
         uses: 8398a7/action-slack@v3
         with:
           status: custom
@@ -109,21 +91,21 @@ jobs:
               "text": "✅ Picnic Web 배포 완료!",
               "attachments": [
                 {
-                  "color": "good",
+                  "color": "#36a64f",
                   "fields": [
                     {
                       "title": "환경",
-                      "value": "${{ steps.check-vercel.outputs.environment }}",
+                      "value": "${{ github.ref_name == 'main' && 'Staging' || 'Production' }}",
                       "short": true
                     },
                     {
                       "title": "배포 URL",
-                      "value": "<${{ steps.check-vercel.outputs.deployment_url }}|배포 사이트 보기>",
+                      "value": "${{ github.ref_name == 'main' && 'https://picnic-web-staging.vercel.app' || 'https://picnic-web-production.vercel.app' }}",
                       "short": true
                     },
                     {
                       "title": "커밋 메시지",
-                      "value": "${{ steps.commit-msg-success.outputs.safe_message }}",
+                      "value": "${{ steps.commit-msg.outputs.safe_message }}",
                       "short": false
                     },
                     {
@@ -132,28 +114,33 @@ jobs:
                       "short": true
                     },
                     {
-                      "title": "소요 시간",
-                      "value": "약 5분",
+                      "title": "커밋 SHA",
+                      "value": "<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
                       "short": true
                     }
                   ],
-                  "footer": "🎉 배포 성공! 사이트가 정상적으로 응답하고 있습니다."
+                  "footer": "🎉 배포가 성공적으로 완료되었습니다!"
                 }
               ]
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-      - name: Prepare commit message for failure
-        if: steps.check-vercel.outputs.status == 'failed'
-        id: commit-msg-failure
+  notify-deployment-failure:
+    runs-on: ubuntu-latest
+    needs: notify-deployment-start
+    if: failure()
+    steps:
+      - name: Prepare commit message
+        id: commit-msg
         run: |
-          commit_msg="${{ github.event.head_commit.message }}"
-          safe_msg=$(echo "$commit_msg" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
-          echo "safe_message=$safe_msg" >> $GITHUB_OUTPUT
-
+          # 커밋 메시지를 환경 변수로 안전하게 처리
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          # 줄바꿈을 공백으로 변환하고 특수 문자 이스케이프
+          SAFE_MSG=$(printf '%s' "$COMMIT_MSG" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 500)
+          echo "safe_message=$SAFE_MSG" >> $GITHUB_OUTPUT
+        
       - name: Send deployment failure notification
-        if: steps.check-vercel.outputs.status == 'failed'
         uses: 8398a7/action-slack@v3
         with:
           status: custom
@@ -162,11 +149,11 @@ jobs:
               "text": "❌ Picnic Web 배포 실패!",
               "attachments": [
                 {
-                  "color": "danger",
+                  "color": "#ff0000",
                   "fields": [
                     {
                       "title": "환경",
-                      "value": "${{ steps.check-vercel.outputs.environment }}",
+                      "value": "${{ github.ref_name == 'main' && 'Staging' || 'Production' }}",
                       "short": true
                     },
                     {
@@ -176,7 +163,7 @@ jobs:
                     },
                     {
                       "title": "커밋 메시지",
-                      "value": "${{ steps.commit-msg-failure.outputs.safe_message }}",
+                      "value": "${{ steps.commit-msg.outputs.safe_message }}",
                       "short": false
                     },
                     {
@@ -185,12 +172,12 @@ jobs:
                       "short": true
                     },
                     {
-                      "title": "확인 필요",
-                      "value": "<https://vercel.com/dashboard|Vercel 대시보드에서 확인>",
+                      "title": "커밋 SHA",
+                      "value": "<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>",
                       "short": true
                     }
                   ],
-                  "footer": "⚠️ 배포 실패 - Vercel 대시보드를 확인해주세요."
+                  "footer": "🔧 배포 로그를 확인하고 문제를 해결해주세요."
                 }
               ]
             }
