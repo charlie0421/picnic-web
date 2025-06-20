@@ -7,6 +7,7 @@ import React, {
   useState,
   ReactNode,
   useRef,
+  useCallback,
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { createBrowserSupabaseClient } from './client';
@@ -40,14 +41,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // 로그아웃 진행 상태 추적 (hooks 에러 방지)
   const isSigningOutRef = useRef(false);
   const mountedRef = useRef(true);
+  const initializingRef = useRef(false);
 
-  // Supabase 클라이언트 생성
-  const supabase = createBrowserSupabaseClient();
+  // Supabase 클라이언트 생성 (메모화)
+  const supabase = useRef(createBrowserSupabaseClient()).current;
 
   console.log('🚀 [AuthProvider] 인증 초기화 시작');
 
-  // 사용자 프로필 로딩 함수
-  const loadUserProfile = async (userId: string): Promise<UserProfiles | null> => {
+  // 사용자 프로필 로딩 함수 (메모화)
+  const loadUserProfile = useCallback(async (userId: string): Promise<UserProfiles | null> => {
     try {
       console.log('🔍 [AuthProvider] 프로필 로딩 시작:', userId);
       
@@ -68,10 +70,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('❌ [AuthProvider] 프로필 로딩 중 에러:', error);
       return null;
     }
-  };
+  }, [supabase]);
 
-  // 로그아웃 함수
-  const signOut = async () => {
+  // 로그아웃 함수 (메모화)
+  const signOut = useCallback(async () => {
     if (isSigningOutRef.current) {
       console.log('⏭️ [AuthProvider] 로그아웃 이미 진행 중, 건너뜀');
       return;
@@ -113,11 +115,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isSigningOutRef.current = false;
       }, 100);
     }
-  };
+  }, [supabase]);
 
-  // 인증 상태 초기화 및 구독
+  // 인증 상태 초기화 및 구독 (한 번만 실행)
   useEffect(() => {
-    let mounted = true;
+    if (initializingRef.current) {
+      console.log('⏭️ [AuthProvider] 이미 초기화 중, 건너뜀');
+      return;
+    }
+
+    initializingRef.current = true;
     mountedRef.current = true;
 
     const initializeAuth = async () => {
@@ -133,14 +140,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('📱 [AuthProvider] 초기 세션:', !!initialSession);
         }
 
-        if (mounted && !isSigningOutRef.current) {
+        if (mountedRef.current && !isSigningOutRef.current) {
           setSession(initialSession);
           setUser(initialSession?.user || null);
 
           // 초기 프로필 로딩
           if (initialSession?.user) {
             const profile = await loadUserProfile(initialSession.user.id);
-            if (mounted && !isSigningOutRef.current) {
+            if (mountedRef.current && !isSigningOutRef.current) {
               // 프로필이 없으면 소셜 로그인 메타데이터에서 추출
               if (!profile && initialSession.user.user_metadata) {
                 const extractedAvatar = extractAvatarFromProvider(initialSession.user.user_metadata);
@@ -181,22 +188,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
           async (event, newSession) => {
             console.log('🔄 [AuthProvider] 인증 상태 변경:', event, !!newSession);
 
-            if (mounted && !isSigningOutRef.current) {
+            if (mountedRef.current && !isSigningOutRef.current) {
               setSession(newSession);
               setUser(newSession?.user || null);
 
               if (newSession?.user) {
                 const profile = await loadUserProfile(newSession.user.id);
-                if (mounted && !isSigningOutRef.current) {
+                if (mountedRef.current && !isSigningOutRef.current) {
                   setUserProfile(profile);
                 }
               } else {
-                if (mounted) {
+                if (mountedRef.current) {
                   setUserProfile(null);
                 }
               }
 
-              if (mounted) {
+              if (mountedRef.current) {
                 setIsLoading(false);
               }
             }
@@ -205,28 +212,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // 컴포넌트 언마운트 시 구독 해제
         return () => {
-          mounted = false;
           mountedRef.current = false;
           subscription.unsubscribe();
         };
 
       } catch (error) {
         console.error('❌ [AuthProvider] 초기화 중 에러:', error);
-        if (mounted) {
+        if (mountedRef.current) {
           setIsLoading(false);
           setIsInitialized(true);
         }
       }
     };
 
-    initializeAuth();
+    const cleanup = initializeAuth();
 
     // 클린업 함수
     return () => {
-      mounted = false;
       mountedRef.current = false;
+      initializingRef.current = false;
+      if (cleanup && typeof cleanup.then === 'function') {
+        cleanup.then((cleanupFn) => {
+          if (cleanupFn && typeof cleanupFn === 'function') {
+            cleanupFn();
+          }
+        });
+      }
     };
-  }, []);
+  }, []); // 빈 의존성 배열로 한 번만 실행
 
   const value: AuthContextType = {
     session,
