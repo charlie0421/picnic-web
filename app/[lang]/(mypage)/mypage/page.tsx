@@ -59,17 +59,11 @@ const MyPage = () => {
       console.log('🚪 [MyPage] 로그아웃 시작');
 
       // signOut 함수 호출 - 한 번만 실행
-      const result = await signOut();
+      await signOut();
 
-      if (result.success) {
-        console.log('✅ [MyPage] 로그아웃 성공:', result.message);
-        // 로그아웃 성공 시 홈으로 리디렉션
-        window.location.href = '/';
-      } else {
-        console.warn('⚠️ [MyPage] 로그아웃 중 일부 오류:', result.error);
-        // 오류가 있어도 홈으로 리디렉션
-        window.location.href = '/';
-      }
+      console.log('✅ [MyPage] 로그아웃 완료');
+      // 로그아웃 완료 후 홈으로 리디렉션
+      window.location.href = '/';
 
     } catch (error) {
       console.error('❌ [MyPage] 로그아웃 중 예외:', error);
@@ -109,14 +103,6 @@ const MyPage = () => {
             <p className='text-gray-600 mb-1'>
               {userProfile?.email || '로그인 후 이메일이 표시됩니다'}
             </p>
-            {userProfile?.birth_date && (
-              <p className='text-gray-700 mt-2'>{userProfile?.birth_date}</p>
-            )}
-            {userProfile?.is_admin && (
-              <div className='mt-2 bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded'>
-                관리자
-              </div>
-            )}
           </div>
         </div>
 

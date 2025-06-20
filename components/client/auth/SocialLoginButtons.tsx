@@ -22,7 +22,6 @@ export default function SocialLoginButtons({
   providers = ['google', 'apple', 'kakao'],
   size = 'medium',
 }: SocialLoginButtonsProps) {
-  const { signInWithOAuth } = useAuth();
   const [isLoading, setIsLoading] = useState<SocialLoginProvider | null>(null);
   const { t } = useLanguageStore();
 

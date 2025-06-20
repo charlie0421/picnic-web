@@ -206,19 +206,21 @@ export function ErrorProvider({
       appError = new AppError(
         errorInput.message,
         ErrorCategory.UNKNOWN,
-        ErrorSeverity.ERROR,
+        ErrorSeverity.MEDIUM,
+        500,
         { originalError: errorInput }
       );
     } else {
       appError = new AppError(
         errorInput,
         ErrorCategory.UNKNOWN,
-        ErrorSeverity.ERROR
+        ErrorSeverity.MEDIUM,
+        500
       );
     }
 
     // 로깅
-    logger.error('Error added to context', {
+    console.log('Error added to context:', {
       message: appError.message,
       category: appError.category,
       severity: appError.severity,

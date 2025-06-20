@@ -11,26 +11,17 @@ import React, {
 import { Session, User } from '@supabase/supabase-js';
 import { createBrowserSupabaseClient } from './client';
 import { extractAvatarFromProvider } from '@/utils/image-utils';
-
-interface UserProfile {
-  id: string;
-  email: string;
-  nickname: string;
-  avatar_url: string | null;
-  bio: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { UserProfiles } from '@/types/interfaces';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  userProfile: UserProfile | null;
+  userProfile: UserProfiles | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isInitialized: boolean;
   signOut: () => Promise<void>;
-  loadUserProfile: (userId: string) => Promise<UserProfile | null>;
+  loadUserProfile: (userId: string) => Promise<UserProfiles | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,7 +33,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfiles | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   
@@ -56,7 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   console.log('🚀 [AuthProvider] 인증 초기화 시작');
 
   // 사용자 프로필 로딩 함수
-  const loadUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  const loadUserProfile = async (userId: string): Promise<UserProfiles | null> => {
     try {
       console.log('🔍 [AuthProvider] 프로필 로딩 시작:', userId);
       
@@ -155,14 +146,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 const extractedAvatar = extractAvatarFromProvider(initialSession.user.user_metadata);
                 console.log('🖼️ [AuthProvider] 추출된 아바타 URL:', extractedAvatar);
                 
-                const fallbackProfile: UserProfile = {
+                const fallbackProfile: UserProfiles = {
                   id: initialSession.user.id,
                   email: initialSession.user.email || '',
                   nickname: initialSession.user.user_metadata?.full_name || 'User',
                   avatar_url: extractedAvatar,
-                  bio: null,
+                  birth_date: null,
+                  birth_time: null,
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString(),
+                  deleted_at: null,
+                  gender: null,
+                  is_admin: false,
+                  is_super_admin: false,
+                  open_ages: false,
+                  open_gender: false,
+                  star_candy: 0,
+                  star_candy_bonus: 0,
                 };
                 console.log('🎯 [AuthProvider] 최종 프로필:', fallbackProfile);
                 setUserProfile(fallbackProfile);

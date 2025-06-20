@@ -11,7 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/supabase/auth-provider';
 
 export default function AuthProviderTest() {
-  const { isAuthenticated, isLoading, user, userProfile, error, signInWithOAuth } = useAuth();
+  const { isAuthenticated, isLoading, user, userProfile } = useAuth();
   const [logs, setLogs] = useState<string[]>([]);
 
   const addLog = (message: string) => {
@@ -31,24 +31,10 @@ export default function AuthProviderTest() {
     } else {
       addLog('프로필 정보 없음');
     }
-
-    if (error) {
-      addLog(`오류: ${error}`);
-    }
-  }, [isAuthenticated, isLoading, user, userProfile, error]);
+  }, [isAuthenticated, isLoading, user, userProfile]);
 
   const handleLogin = async (provider: 'google' | 'apple' | 'kakao' | 'wechat') => {
-    addLog(`${provider} 로그인 시도...`);
-    try {
-      const result = await signInWithOAuth(provider);
-      if (result.error) {
-        addLog(`로그인 오류: ${result.error.message}`);
-      } else {
-        addLog(`${provider} 로그인 리디렉션 시작...`);
-      }
-    } catch (error) {
-      addLog(`로그인 예외: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    addLog(`${provider} 로그인 기능은 현재 테스트에서 지원되지 않습니다.`);
   };
 
   return (
@@ -61,10 +47,6 @@ export default function AuthProviderTest() {
           <div className="bg-gray-100 p-2 rounded">
             <span className="font-medium">인증 상태:</span> 
             {isLoading ? '로딩 중...' : isAuthenticated ? '로그인됨' : '로그아웃됨'}
-          </div>
-          <div className="bg-gray-100 p-2 rounded">
-            <span className="font-medium">오류:</span> 
-            {error || '없음'}
           </div>
         </div>
       </div>

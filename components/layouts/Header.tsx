@@ -44,10 +44,7 @@ const Header: React.FC = () => {
                 const isAdminMenu = ['community', 'pic', 'novel'].includes(
                   menuItem.type,
                 );
-                if (
-                  isAdminMenu &&
-                  (!isAuthenticated || !userProfile?.is_admin)
-                ) {
+                if (isAdminMenu && !isAuthenticated) {
                   return null;
                 }
                 return (
