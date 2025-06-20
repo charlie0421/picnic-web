@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SupabaseProvider } from '@/components/providers/SupabaseProvider';
-import { SimpleAuthProvider } from '@/lib/supabase/auth-provider-simple';
+import { AuthProvider as SimpleAuthProvider } from '@/lib/supabase/auth-provider-simple';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { Analytics } from '@vercel/analytics/react';
 import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';

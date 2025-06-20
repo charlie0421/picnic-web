@@ -1101,7 +1101,7 @@ export function HybridVoteDetailPresenter({
     
     // 투표 아이템 순위 매기기
     const ranked = [...voteItems]
-      .sort((a, b) => (b.total_votes || 0) - (a.total_votes || 0))
+      .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
       .map((item, index) => {
         // 리얼타임 정보 추가
         const isHighlighted = recentlyUpdatedArray.includes(item.id);
@@ -1310,7 +1310,7 @@ export function HybridVoteDetailPresenter({
         return;
       }
       
-      const testId = itemId;
+      const testId = typeof itemId === 'string' ? parseInt(itemId, 10) : itemId;
       console.log(`🎨 [Test] 하이라이트 테스트 시작: ${testId}`);
       console.log('현재 하이라이트된 아이템들:', Array.from(recentlyUpdatedItems));
       console.log('활성 타이머 수:', highlightTimersRef.current.size);

@@ -8,7 +8,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import Script from 'next/script';
 import { SocialLoginButtons } from '@/components/client/auth';
 import { useAuth } from '@/lib/supabase/auth-provider';
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 
@@ -53,21 +53,15 @@ const debugLog = (message: string, data?: any) => {
 
 // SearchParams를 사용하는 컴포넌트
 function LoginContentInner() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
   const { t } = useLanguageStore();
-  const {
-    isLoading,
-    isAuthenticated,
-    isInitialized,
-    user,
-    userProfile,
-  } = useAuth();
-  const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated, isLoading, isInitialized, user, userProfile } = useAuth();
+  const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // 클라이언트에서만 렌더링되도록 보장
+  // 컴포넌트 마운트 감지
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -76,81 +70,25 @@ function LoginContentInner() {
   useEffect(() => {
     if (mounted) {
       debugLog('AuthProvider 상태 변경', {
-        isLoading,
         isAuthenticated,
+        isLoading,
         isInitialized,
         hasUser: !!user,
         hasUserProfile: !!userProfile,
       });
     }
-  }, [
-    mounted,
-    isLoading,
-    isAuthenticated,
-    isInitialized,
-    user,
-    userProfile,
-  ]);
+  }, [mounted, isAuthenticated, isLoading, isInitialized, user, userProfile]);
 
-  // 포스트 로그인 리다이렉트 처리 함수 (메모화)
-  const handlePostLoginRedirect = useCallback(() => {
-    const redirectTo = searchParams.get('redirect_to');
-    const decodedRedirectTo = redirectTo ? decodeURIComponent(redirectTo) : null;
-
-    // 유효한 내부 URL인지 확인 (보안상 중요)
-    if (decodedRedirectTo && 
-        ((decodedRedirectTo.startsWith('/') && !decodedRedirectTo.startsWith('//')) ||
-         (typeof window !== 'undefined' && window.location?.origin && 
-          decodedRedirectTo.startsWith(window.location.origin)))) {
-      debugLog('리다이렉트 URL로 이동:', decodedRedirectTo);
-      return decodedRedirectTo;
-    }
-
-    debugLog('기본 홈 페이지로 이동');
-    return '/';
-  }, [searchParams]);
-
-  // 인증된 사용자 리다이렉트 처리
-  const redirectAuthenticatedUser = useCallback(() => {
-    if (!mounted || !isInitialized || isLoading || !isAuthenticated || !user) {
-      return;
-    }
-
-    debugLog('이미 인증된 사용자 - 리다이렉트 처리');
-    
-    // 현재 URL이 이미 로그인 페이지가 아니라면 리다이렉트하지 않음
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-      return;
-    }
-
-    const targetUrl = handlePostLoginRedirect();
-
-    // 현재 페이지가 로그인 페이지이고 리다이렉트 URL이 다른 경우에만 이동
-    if (targetUrl !== '/login' && typeof window !== 'undefined') {
-      // 한 번만 실행되도록 플래그 설정
-      const redirectKey = 'login_redirect_executed';
-      if (!sessionStorage.getItem(redirectKey)) {
-        sessionStorage.setItem(redirectKey, 'true');
-        
-        // 짧은 지연 후 리다이렉트 (상태 안정화)
-        setTimeout(() => {
-          router.push(targetUrl);
-        }, 100);
-        
-        // 5초 후 플래그 제거 (다음 방문을 위해)
-        setTimeout(() => {
-          sessionStorage.removeItem(redirectKey);
-        }, 5000);
-      }
-    }
-  }, [mounted, isAuthenticated, isInitialized, isLoading, user?.id, handlePostLoginRedirect, router]);
-
-  // 인증된 사용자 리다이렉트 처리
+  // 이미 인증된 사용자 리디렉트 처리 - 최상위로 이동
   useEffect(() => {
-    redirectAuthenticatedUser();
-  }, [redirectAuthenticatedUser]);
+    if (mounted && isAuthenticated) {
+      debugLog('이미 인증된 사용자 - 즉시 리디렉트');
+      const targetUrl = handlePostLoginRedirect();
+      router.replace(targetUrl); // push 대신 replace 사용하여 뒤로가기 방지
+    }
+  }, [mounted, isAuthenticated, router]);
 
-  // 오류 파라미터 처리
+  // Apple OAuth 성공 상태 확인
   useEffect(() => {
     if (!mounted) return;
 
@@ -160,36 +98,18 @@ function LoginContentInner() {
         const appleEmail = localStorage.getItem('appleEmail');
         const appleIdToken = localStorage.getItem('appleIdToken');
         const appleNonce = localStorage.getItem('appleNonce');
-        const sessionCreated = localStorage.getItem('sessionCreated');
 
-        debugLog('Apple OAuth 상태 확인', {
-          authSuccess,
-          appleEmail,
-          appleIdToken: appleIdToken
-            ? `토큰 있음 (길이: ${appleIdToken.length})`
-            : '없음',
-          appleNonce,
-          sessionCreated,
-          timestamp: Date.now(),
-        });
-
-        if (authSuccess === 'true' && !sessionCreated) {
-          debugLog('Apple OAuth 성공 감지, 세션 생성 시도');
+        if (authSuccess === 'true') {
           setLoading(true);
+          debugLog('Apple OAuth 성공 감지, 세션 생성 시도', {
+            hasIdToken: !!appleIdToken,
+            hasNonce: !!appleNonce,
+            hasEmail: !!appleEmail,
+          });
 
           try {
-            // Supabase 클라이언트 생성
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-            if (!supabaseUrl || !supabaseAnonKey) {
-              throw new Error('Supabase 환경 변수가 설정되지 않았습니다');
-            }
-
-            const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-            // 0. Apple ID Token과 nonce가 있는지 확인
-            if (!appleIdToken || !appleNonce) {
+            const supabase = createBrowserSupabaseClient();
+            if (!appleIdToken || !appleNonce || !supabase) {
               debugLog(
                 '❌ Apple ID Token, nonce 또는 Supabase 클라이언트 없음',
                 {
@@ -459,15 +379,6 @@ function LoginContentInner() {
       </div>
     );
   }
-
-  // 이미 인증된 사용자 리디렉트 처리
-  useEffect(() => {
-    if (isAuthenticated) {
-      debugLog('이미 인증된 사용자 - 즉시 리디렉트');
-      const targetUrl = handlePostLoginRedirect();
-      router.replace(targetUrl); // push 대신 replace 사용하여 뒤로가기 방지
-    }
-  }, [isAuthenticated, router]);
 
   if (isAuthenticated) {
     // 리디렉트 중 간단한 로딩 표시

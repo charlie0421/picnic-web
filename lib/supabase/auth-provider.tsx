@@ -8,6 +8,7 @@ import React, {
   ReactNode,
   useRef,
   useCallback,
+  memo,
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { createBrowserSupabaseClient } from './client';
@@ -31,245 +32,202 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  console.log('🏗️ [AuthProvider] 컴포넌트 생성/재렌더링');
-  
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfiles | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
-  
-  // 한 번만 실행되도록 보장하는 플래그들
-  const initOnceRef = useRef(false);
-  const mountedRef = useRef(true);
-  const subscriptionRef = useRef<any>(null);
-  const isInitializingRef = useRef(false);
+// 전역 상태 관리를 위한 싱글톤 패턴
+class AuthStore {
+  private static instance: AuthStore | null = null;
+  private supabaseClient: any = null;
+  private listeners: Set<(state: AuthContextType) => void> = new Set();
+  private state: AuthContextType = {
+    session: null,
+    user: null,
+    userProfile: null as UserProfiles | null,
+    isAuthenticated: false,
+    isLoading: true,
+    isInitialized: false,
+    signOut: this.signOut.bind(this),
+    loadUserProfile: this.loadUserProfile.bind(this),
+  };
+  private initPromise: Promise<void> | null = null;
 
-  // Supabase 클라이언트 (한 번만 생성)
-  const [supabaseClient] = useState(() => {
-    try {
-      const client = createBrowserSupabaseClient();
-      console.log('✅ [AuthProvider] Supabase 클라이언트 생성 완료');
-      return client;
-    } catch (error) {
-      console.error('❌ [AuthProvider] Supabase 클라이언트 생성 실패:', error);
-      return null;
+  static getInstance(): AuthStore {
+    if (!AuthStore.instance) {
+      AuthStore.instance = new AuthStore();
     }
-  });
+    return AuthStore.instance;
+  }
 
-  // 사용자 프로필 로딩 함수
-  const loadUserProfile = useCallback(async (userId: string): Promise<UserProfiles | null> => {
-    if (!supabaseClient || !mountedRef.current) return null;
-    
+  private constructor() {
+    if (typeof window !== 'undefined') {
+      this.supabaseClient = createBrowserSupabaseClient();
+      this.initPromise = this.initialize();
+    }
+  }
+
+  private async initialize() {
+    if (!this.supabaseClient) return;
+
     try {
-      const { data: profile, error } = await supabaseClient
+      console.log('🔄 [AuthStore] 전역 Auth 초기화 시작');
+      
+      // 초기 세션 조회
+      const { data: { session }, error } = await this.supabaseClient.auth.getSession();
+      console.log('📱 [AuthStore] 초기 세션 조회 완료:', !!session);
+
+      if (error) {
+        console.error('❌ [AuthStore] 세션 조회 에러:', error);
+      }
+
+      await this.updateAuthState(session, 'INITIAL_SESSION');
+
+      // 인증 상태 변경 리스너 등록
+      this.supabaseClient.auth.onAuthStateChange(async (event: string, session: Session | null) => {
+        console.log('🔄 [AuthStore] 인증 상태 변경:', event);
+        await this.updateAuthState(session, event);
+      });
+
+      console.log('✅ [AuthStore] 전역 Auth 초기화 완료');
+    } catch (error) {
+      console.error('❌ [AuthStore] 초기화 에러:', error);
+      this.updateState({
+        ...this.state,
+        isLoading: false,
+        isInitialized: true,
+      });
+    }
+  }
+
+  private async updateAuthState(session: Session | null, event: string) {
+    try {
+      let userProfile: UserProfiles | null = null;
+      
+      if (session?.user) {
+        userProfile = await this.loadUserProfile(session.user.id);
+      }
+
+      this.updateState({
+        session,
+        user: session?.user || null,
+        userProfile,
+        isAuthenticated: !!session,
+        isLoading: false,
+        isInitialized: true,
+        signOut: this.signOut.bind(this),
+        loadUserProfile: this.loadUserProfile.bind(this),
+      });
+    } catch (error) {
+      console.error('❌ [AuthStore] 상태 업데이트 에러:', error);
+      this.updateState({
+        ...this.state,
+        isLoading: false,
+        isInitialized: true,
+      });
+    }
+  }
+
+  private updateState(newState: AuthContextType) {
+    this.state = newState;
+    this.listeners.forEach(listener => listener(newState));
+  }
+
+  public subscribe(listener: (state: AuthContextType) => void): () => void {
+    this.listeners.add(listener);
+    // 구독 즉시 현재 상태 전달
+    listener(this.state);
+    
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  public getState(): AuthContextType {
+    return this.state;
+  }
+
+  public async waitForInitialization(): Promise<void> {
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+  }
+
+  private async signOut(): Promise<void> {
+    if (!this.supabaseClient) return;
+
+    try {
+      console.log('🔄 [AuthStore] 로그아웃 시작');
+      const { error } = await this.supabaseClient.auth.signOut();
+      
+      if (error) {
+        console.error('❌ [AuthStore] 로그아웃 에러:', error);
+      } else {
+        console.log('✅ [AuthStore] 로그아웃 완료');
+      }
+    } catch (error) {
+      console.error('❌ [AuthStore] 로그아웃 예외:', error);
+    }
+  }
+
+  private async loadUserProfile(userId: string): Promise<UserProfiles | null> {
+    if (!this.supabaseClient) return null;
+
+    try {
+      const { data, error } = await this.supabaseClient
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error || !profile) {
-        console.log('프로필 없음, 기본 프로필 생성');
+      if (error) {
+        console.warn('⚠️ [AuthStore] 프로필 로드 실패:', error);
         return null;
       }
 
-      return profile;
+      return data;
     } catch (error) {
-      console.error('프로필 로딩 에러:', error);
+      console.error('❌ [AuthStore] 프로필 로드 예외:', error);
       return null;
     }
-  }, [supabaseClient]);
+  }
+}
 
-  // 로그아웃 함수
-  const signOut = useCallback(async () => {
-    if (!supabaseClient) return;
-    
-    try {
-      console.log('로그아웃 시작');
-      
-      if (mountedRef.current) {
-        setIsLoading(true);
-        setUserProfile(null);
-        setUser(null);
-        setSession(null);
-      }
+// AuthProvider 컴포넌트를 memo로 감싸서 완전히 안정화
+const AuthProviderComponent = memo(function AuthProviderInternal({ children }: AuthProviderProps) {
+  console.log('🏗️ [AuthProvider] 컴포넌트 생성/재렌더링');
+  
+  const [contextValue, setContextValue] = useState<AuthContextType>(() => {
+    return AuthStore.getInstance().getState();
+  });
 
-      await supabaseClient.auth.signOut();
-      
-      if (mountedRef.current) {
-        setIsLoading(false);
-      }
-      
-      console.log('로그아웃 완료');
-    } catch (error) {
-      console.error('로그아웃 에러:', error);
-      if (mountedRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [supabaseClient]);
-
-  // 초기화 (한 번만 실행)
   useEffect(() => {
-    if (initOnceRef.current || isInitializingRef.current) {
-      console.log('⏭️ [AuthProvider] 이미 초기화됨/진행중, 건너뜀:', { 
-        initOnce: initOnceRef.current, 
-        isInitializing: isInitializingRef.current 
+    const authStore = AuthStore.getInstance();
+    
+    // 초기화 대기
+    authStore.waitForInitialization();
+    
+    // 상태 변경 구독
+    const unsubscribe = authStore.subscribe((newState) => {
+      console.log('🔄 [AuthProvider] Context 값 변경:', {
+        isLoading: newState.isLoading,
+        isInitialized: newState.isInitialized,
+        isAuthenticated: newState.isAuthenticated,
+        hasSession: !!newState.session,
+        hasUser: !!newState.user,
+        hasUserProfile: !!newState.userProfile,
       });
-      return;
-    }
-    
-    initOnceRef.current = true;
-    isInitializingRef.current = true;
-
-    // 5초 후 강제로 로딩 해제 (무한 대기 방지)
-    const timeoutId = setTimeout(() => {
-      console.log('⏰ [AuthProvider] 초기화 타임아웃 - 강제로 로딩 해제');
-      isInitializingRef.current = false;
-      if (mountedRef.current) {
-        setIsLoading(false);
-        setIsInitialized(true);
-      }
-    }, 5000);
-
-    const initAuth = async () => {
-      if (!supabaseClient || !mountedRef.current) {
-        console.log('❌ [AuthProvider] 초기화 조건 불충족:', { 
-          hasSupabase: !!supabaseClient, 
-          isMounted: mountedRef.current 
-        });
-        return;
-      }
-      
-      try {
-        console.log('🔄 [AuthProvider] Auth 초기화 시작');
-
-        // 초기 세션 가져오기
-        console.log('🔍 [AuthProvider] 초기 세션 조회 중...');
-        const { data: { session: initialSession }, error: sessionError } = await supabaseClient.auth.getSession();
-        
-        if (sessionError) {
-          console.error('❌ [AuthProvider] 세션 조회 에러:', sessionError);
-        } else {
-          console.log('📱 [AuthProvider] 초기 세션 조회 완료:', !!initialSession);
-        }
-
-        if (mountedRef.current) {
-          console.log('🔧 [AuthProvider] 상태 업데이트 시작:', { 
-            hasSession: !!initialSession, 
-            hasUser: !!initialSession?.user 
-          });
-          
-          setSession(initialSession);
-          setUser(initialSession?.user || null);
-
-          // 초기 프로필 로딩
-          if (initialSession?.user) {
-            const profile = await loadUserProfile(initialSession.user.id);
-            if (mountedRef.current) {
-              setUserProfile(profile);
-            }
-          }
-
-          console.log('🔧 [AuthProvider] 로딩 상태 업데이트 중...');
-          setIsLoading(false);
-          setIsInitialized(true);
-          console.log('🔧 [AuthProvider] 상태 업데이트 완료');
-        }
-
-        // 인증 상태 변경 구독
-        if (subscriptionRef.current) {
-          subscriptionRef.current.unsubscribe();
-        }
-
-        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-          async (event, newSession) => {
-            console.log('인증 상태 변경:', event);
-
-            if (mountedRef.current) {
-              setSession(newSession);
-              setUser(newSession?.user || null);
-
-              if (newSession?.user) {
-                const profile = await loadUserProfile(newSession.user.id);
-                if (mountedRef.current) {
-                  setUserProfile(profile);
-                }
-              } else {
-                if (mountedRef.current) {
-                  setUserProfile(null);
-                }
-              }
-
-              if (mountedRef.current) {
-                setIsLoading(false);
-              }
-            }
-          }
-        );
-
-        subscriptionRef.current = subscription;
-
-        // 타임아웃 클리어 (정상 초기화 완료)
-        clearTimeout(timeoutId);
-        isInitializingRef.current = false;
-        console.log('✅ [AuthProvider] 초기화 완료');
-
-      } catch (error) {
-        console.error('❌ [AuthProvider] Auth 초기화 에러:', error);
-        clearTimeout(timeoutId);
-        isInitializingRef.current = false;
-        if (mountedRef.current) {
-          setIsLoading(false);
-          setIsInitialized(true);
-        }
-      }
-    };
-
-    initAuth();
-
-    // 정리 함수
-    return () => {
-      mountedRef.current = false;
-      isInitializingRef.current = false;
-      clearTimeout(timeoutId);
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
-      }
-    };
-  }, [supabaseClient]); // supabaseClient 의존성 추가
-
-  const value: AuthContextType = {
-    session,
-    user,
-    userProfile,
-    isAuthenticated: !!session && !!user,
-    isLoading,
-    isInitialized,
-    signOut,
-    loadUserProfile,
-  };
-
-  // Context value 변경 감지
-  useEffect(() => {
-    console.log('🔄 [AuthProvider] Context 값 변경:', {
-      isLoading,
-      isInitialized,
-      isAuthenticated: !!session && !!user,
-      hasSession: !!session,
-      hasUser: !!user,
-      hasUserProfile: !!userProfile
+      setContextValue(newState);
     });
-  }, [isLoading, isInitialized, session, user, userProfile]);
+
+    return unsubscribe;
+  }, []);
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
-}
+});
+
+// AuthProvider를 완전히 안정화된 컴포넌트로 export
+export const AuthProvider = AuthProviderComponent;
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
