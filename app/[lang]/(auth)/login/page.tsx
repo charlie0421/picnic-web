@@ -460,15 +460,16 @@ function LoginContentInner() {
     );
   }
 
-  if (isAuthenticated) {
-    debugLog('이미 인증된 사용자 - 즉시 리디렉트');
-    
-    // 이미 로그인된 사용자는 즉시 리디렉트 (UI 표시하지 않음)
-    useEffect(() => {
+  // 이미 인증된 사용자 리디렉트 처리
+  useEffect(() => {
+    if (isAuthenticated) {
+      debugLog('이미 인증된 사용자 - 즉시 리디렉트');
       const targetUrl = handlePostLoginRedirect();
       router.replace(targetUrl); // push 대신 replace 사용하여 뒤로가기 방지
-    }, []);
-    
+    }
+  }, [isAuthenticated, router]);
+
+  if (isAuthenticated) {
     // 리디렉트 중 간단한 로딩 표시
     return (
       <div className='flex flex-col justify-center items-center min-h-[400px]'>

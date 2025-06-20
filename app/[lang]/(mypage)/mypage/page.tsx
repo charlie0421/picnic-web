@@ -14,6 +14,46 @@ const MyPage = () => {
   const { t } = useLanguageStore();
   const [pageLoading, setPageLoading] = useState(true);
 
+  // 컴포넌트 마운트 시 기존 로그아웃 플래그 정리
+  useEffect(() => {
+    // 모든 가능한 로그아웃 플래그 정리
+    const cleanupFlags = () => {
+      try {
+        const flagsToCheck = ['signout_in_progress', 'logout_in_progress', 'auth_signout'];
+        let cleanedAny = false;
+        
+        flagsToCheck.forEach(flagKey => {
+          const existingFlag = sessionStorage.getItem(flagKey);
+          if (existingFlag) {
+            const flagTime = parseInt(existingFlag);
+            const currentTime = Date.now();
+            
+            // 5초 이상 된 플래그는 제거 (타임아웃) 또는 숫자가 아닌 경우 제거
+            if (isNaN(flagTime) || currentTime - flagTime > 5000) {
+              console.log(`🧹 [MyPage] 오래된 플래그 정리: ${flagKey}`);
+              sessionStorage.removeItem(flagKey);
+              cleanedAny = true;
+            }
+          }
+        });
+        
+        if (cleanedAny) {
+          console.log('✅ [MyPage] 로그아웃 플래그 정리 완료');
+        }
+      } catch (error) {
+        console.warn('⚠️ [MyPage] sessionStorage 정리 중 오류:', error);
+      }
+    };
+
+    // 마운트 시 즉시 정리
+    cleanupFlags();
+    
+    // 5초 후에도 한 번 더 정리 (안전장치)
+    const timeoutId = setTimeout(cleanupFlags, 5000);
+    
+    return () => clearTimeout(timeoutId);
+  }, []);
+
   // 초기 로딩 타임아웃 설정 (5초 후 강제로 로딩 상태 해제)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -50,25 +90,30 @@ const MyPage = () => {
 
   // 로그아웃 처리 함수 (메모화)
   const handleSignOut = useCallback(async () => {
-    // 중복 실행 방지 플래그 (더 짧은 키)
     const signOutKey = 'signout_in_progress';
     
-    // 이미 진행 중이면 중복 호출 방지
-    if (sessionStorage.getItem(signOutKey)) {
-      console.log('🔄 [MyPage] 로그아웃 이미 진행 중 - 중복 호출 방지');
-      return;
+    // 기존 플래그 확인 및 정리
+    const existingFlag = sessionStorage.getItem(signOutKey);
+    if (existingFlag) {
+      const flagTime = parseInt(existingFlag);
+      const currentTime = Date.now();
+      
+      // 5초 이내의 최근 플래그라면 중복 호출 방지
+      if (currentTime - flagTime < 5000) {
+        console.log('🔄 [MyPage] 로그아웃 이미 진행 중 - 중복 호출 방지');
+        return;
+      } else {
+        // 오래된 플래그는 제거
+        console.log('🧹 [MyPage] 오래된 로그아웃 플래그 제거 후 진행');
+        sessionStorage.removeItem(signOutKey);
+      }
     }
 
     try {
       console.log('🚪 [MyPage] 로그아웃 시작');
       
-      // 플래그 설정 (5초 후 자동 제거)
+      // 플래그 설정
       sessionStorage.setItem(signOutKey, Date.now().toString());
-      
-      // 5초 후 플래그 자동 제거 (타임아웃 방지)
-      setTimeout(() => {
-        sessionStorage.removeItem(signOutKey);
-      }, 5000);
 
       // signOut 함수 호출
       await signOut();
@@ -91,6 +136,24 @@ const MyPage = () => {
       window.location.href = '/';
     }
   }, [signOut]); // isLoading 의존성 제거
+
+  // 강제 로그아웃 함수 (디버깅용)
+  const forceSignOut = useCallback(() => {
+    console.log('🚨 [MyPage] 강제 로그아웃 시작');
+    
+    // 모든 sessionStorage 플래그 정리
+    sessionStorage.removeItem('signout_in_progress');
+    sessionStorage.removeItem('logout_in_progress');
+    
+    // 직접 signOut 호출
+    signOut().then(() => {
+      console.log('✅ [MyPage] 강제 로그아웃 완료');
+      window.location.href = '/';
+    }).catch((error) => {
+      console.error('❌ [MyPage] 강제 로그아웃 중 예외:', error);
+      window.location.href = '/';
+    });
+  }, [signOut]);
 
   if (pageLoading) {
     return (
@@ -147,6 +210,14 @@ const MyPage = () => {
                         className='text-red-600 hover:underline'
                       >
                         로그아웃
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={forceSignOut}
+                        className='text-orange-600 hover:underline text-sm'
+                      >
+                        강제 로그아웃 (디버깅용)
                       </button>
                     </li>
                   </>

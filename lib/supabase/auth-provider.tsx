@@ -42,6 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isSigningOutRef = useRef(false);
   const mountedRef = useRef(true);
   const initializingRef = useRef(false);
+  const subscriptionRef = useRef<any>(null);
 
   // Supabase 클라이언트 생성 (메모화)
   const supabase = useRef(createBrowserSupabaseClient()).current;
@@ -205,7 +206,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setIsInitialized(true);
         }
 
-        // 인증 상태 변경 구독
+        // 인증 상태 변경 구독 (기존 구독이 있다면 먼저 해제)
+        if (subscriptionRef.current) {
+          console.log('🧹 [AuthProvider] 기존 구독 해제');
+          subscriptionRef.current.unsubscribe();
+        }
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, newSession) => {
             console.log('🔄 [AuthProvider] 인증 상태 변경:', event, !!newSession);
@@ -253,10 +259,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         );
 
+        // 구독 참조 저장
+        subscriptionRef.current = subscription;
+
         // 컴포넌트 언마운트 시 구독 해제
         return () => {
           mountedRef.current = false;
-          subscription.unsubscribe();
+          if (subscriptionRef.current) {
+            subscriptionRef.current.unsubscribe();
+            subscriptionRef.current = null;
+          }
         };
 
       } catch (error) {
@@ -274,6 +286,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       mountedRef.current = false;
       initializingRef.current = false;
+      
+      // 구독 해제
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+      
       if (cleanup && typeof cleanup.then === 'function') {
         cleanup.then((cleanupFn) => {
           if (cleanupFn && typeof cleanupFn === 'function') {
