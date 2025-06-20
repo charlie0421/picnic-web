@@ -27,6 +27,7 @@ import {
   getCircuitBreakerStats,
   PerformanceMetrics 
 } from '@/utils/api/enhanced-retry-utils';
+import { handleAuthError } from '@/utils/auth-error-handler';
 
 type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
 
@@ -334,18 +335,35 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
     } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('[EnhancedAuthProvider] 인증 상태 변경:', event, !!newSession);
       
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setUserProfile(null);
-        setSession(null);
-        setError(null);
-        profileCache.clear();
-        setIsLoading(false);
-        setIsInitialized(true);
-      } else {
-        await handleSession(newSession);
-        setIsLoading(false);
-        setIsInitialized(true);
+      try {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setUserProfile(null);
+          setSession(null);
+          setError(null);
+          profileCache.clear();
+          setIsLoading(false);
+          setIsInitialized(true);
+        } else {
+          await handleSession(newSession);
+          setIsLoading(false);
+          setIsInitialized(true);
+        }
+      } catch (error) {
+        console.error('[EnhancedAuthProvider] 인증 상태 변경 중 오류:', error);
+        
+        // 리프레시 토큰 오류 처리
+        const handled = await handleAuthError(error);
+        if (!handled) {
+          // 처리되지 않은 오류의 경우 기본 상태로 설정
+          setUser(null);
+          setUserProfile(null);
+          setSession(null);
+          setError(null);
+          profileCache.clear();
+          setIsLoading(false);
+          setIsInitialized(true);
+        }
       }
     });
 
@@ -372,6 +390,14 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
             
             if (error) {
               console.warn('[EnhancedAuthProvider] 세션 조회 오류:', error);
+              
+              // 리프레시 토큰 오류 처리
+              const handled = await handleAuthError(error);
+              if (handled) {
+                console.log('🔄 [EnhancedAuthProvider] 리프레시 토큰 오류 처리 완료');
+                return null; // 처리되었으면 null 반환
+              }
+              
               // 오류가 있어도 계속 진행 (비로그인 상태로 처리)
             }
             
