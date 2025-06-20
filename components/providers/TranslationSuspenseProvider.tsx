@@ -4,6 +4,7 @@ import React, { Suspense, ReactNode, useState, useEffect } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { Language } from '@/config/settings';
 
+
 interface TranslationSuspenseProviderProps {
   children: ReactNode;
   language: Language;
@@ -107,17 +108,15 @@ function TranslationChecker({ language }: { language: Language }) {
  * 번역 로딩 Fallback UI 컴포넌트
  */
 function TranslationLoadingFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-blue-100 rounded-full">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
         </div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-2">번역 데이터 로딩 중</h2>
-        <p className="text-sm text-gray-600">잠시만 기다려주세요...</p>
       </div>
-    </div>
-  );
+    );
 }
 
 /**

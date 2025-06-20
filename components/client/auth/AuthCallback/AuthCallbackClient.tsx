@@ -15,11 +15,18 @@ export default function AuthCallbackClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>('인증 세션을 처리 중입니다...');
+  const [status, setStatus] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     // 브라우저 환경에서만 실행
     if (typeof window === 'undefined') return;
+
+    // 로딩 화면 제거
+    const loadingEl = document.getElementById('oauth-loading');
+    if (loadingEl) {
+      loadingEl.remove();
+    }
 
     const handleCallback = async () => {
       try {
@@ -71,7 +78,7 @@ export default function AuthCallbackClient({
                 console.warn('⚠️ [AuthCallback] 쿠키 동기화 오류, 하지만 진행:', syncError);
               }
               
-              setStatus('인증 성공! 리디렉션 중...');
+              setStatus('');
               
               // 저장된 리다이렉트 URL로 이동
               const returnUrl = typeof window !== 'undefined' && localStorage ? 
@@ -84,11 +91,9 @@ export default function AuthCallbackClient({
                 localStorage.removeItem('auth_return_url');
               }
               
-              // 약간의 지연을 두어 상태 안정화
-              setTimeout(() => {
-                console.log('🚀 [AuthCallback] 리다이렉트 실행:', returnUrl);
-                router.push(returnUrl);
-              }, 300);
+              // 즉시 리다이렉트
+              console.log('🚀 [AuthCallback] 즉시 리다이렉트 실행:', returnUrl);
+              window.location.href = returnUrl;
               return; // 성공했으므로 더 이상 진행하지 않음
             }
             
@@ -125,12 +130,12 @@ export default function AuthCallbackClient({
                   localStorage.removeItem('auth_return_url');
                 }
                 
-                setStatus('인증 성공! 리디렉션 중...');
+                setStatus('');
                 
                 // 리스너 정리
                 authListener.subscription.unsubscribe();
                 
-                router.push(returnUrl);
+                window.location.href = returnUrl;
                 return;
               }
               
@@ -200,6 +205,7 @@ export default function AuthCallbackClient({
         }
         
         if (!detectedProvider) {
+          setIsLoading(false);
           setError('OAuth provider를 감지할 수 없습니다.');
           return;
         }
@@ -216,6 +222,7 @@ export default function AuthCallbackClient({
             provider: providerType,
             url: typeof window !== 'undefined' ? window.location.href : 'SSR',
           });
+          setIsLoading(false);
           setError(
             `인증 오류: ${errorCode} - ${
               errorDescription || '자세한 정보 없음'
@@ -236,6 +243,7 @@ export default function AuthCallbackClient({
           const stateParam = searchParams.get('state');
 
           if (!codeParam) {
+            setIsLoading(false);
             setError('WeChat 인증 코드가 없습니다.');
             return;
           }
@@ -245,7 +253,7 @@ export default function AuthCallbackClient({
             state: stateParam || 'missing',
           });
 
-          setStatus('WeChat 인증 처리 중...');
+          setStatus('');
 
           try {
             console.log('WeChat API 호출 시작:', {
@@ -286,7 +294,7 @@ export default function AuthCallbackClient({
             }
 
             if (response.ok && result.success) {
-              setStatus('WeChat 인증 성공! 세션 생성 중...');
+              setStatus('');
 
               // WeChat 인증 성공 후 Supabase 세션 생성
               if (result.profile && result.tokens) {
@@ -348,6 +356,7 @@ export default function AuthCallbackClient({
                   
                 } catch (sessionError) {
                   console.error('WeChat 세션 생성 중 오류:', sessionError);
+                  setIsLoading(false);
                   setError(`WeChat 세션 생성 실패: ${sessionError instanceof Error ? sessionError.message : '알 수 없는 오류'}`);
                   return;
                 }
@@ -367,11 +376,9 @@ export default function AuthCallbackClient({
                 localStorage.removeItem('wechat_oauth_state');
               }
 
-              // 약간의 지연을 두고 리다이렉트
-              setTimeout(() => {
-                console.log('🚀 WeChat 리다이렉트 실행:', returnUrl);
-                router.push(returnUrl);
-              }, 100);
+              // 즉시 리다이렉트
+              console.log('🚀 WeChat 리다이렉트 실행:', returnUrl);
+              window.location.href = returnUrl;
             } else {
               throw new Error(
                 result.message || `HTTP ${response.status}: WeChat 인증 처리 실패`,
@@ -379,6 +386,7 @@ export default function AuthCallbackClient({
             }
           } catch (fetchError) {
             console.error('WeChat API 호출 오류:', fetchError);
+            setIsLoading(false);
             setError(`WeChat 인증 실패: ${fetchError instanceof Error ? fetchError.message : '알 수 없는 오류'}`);
           }
           return;
@@ -404,7 +412,7 @@ export default function AuthCallbackClient({
               currentUrl: typeof window !== 'undefined' ? window.location.href : 'SSR',
             });
 
-            setStatus('Apple 인증 성공! 리디렉션 중...');
+                          setStatus('');
 
             // 성공 후 리디렉션
             const returnUrl = typeof window !== 'undefined' && localStorage ? 
@@ -420,11 +428,9 @@ export default function AuthCallbackClient({
               localStorage.removeItem('apple_oauth_state');
             }
 
-            // 약간의 지연을 두고 리다이렉트 (405 에러 방지)
-            setTimeout(() => {
-              console.log('🚀 리다이렉트 실행:', returnUrl);
-              router.push(returnUrl);
-            }, 100);
+            // 즉시 리다이렉트
+            console.log('🚀 리다이렉트 실행:', returnUrl);
+            window.location.href = returnUrl;
             return;
           }
 
@@ -433,6 +439,7 @@ export default function AuthCallbackClient({
           const userParam = searchParams.get('user');
 
           if (!codeParam) {
+            setIsLoading(false);
             setError('Apple 인증 코드가 없습니다.');
             return;
           }
@@ -443,7 +450,7 @@ export default function AuthCallbackClient({
             user: userParam ? 'present' : 'missing',
           });
 
-          setStatus('Apple 인증 처리 중...');
+          setStatus('');
 
           try {
             console.log('Apple API 호출 시작:', {
@@ -486,7 +493,7 @@ export default function AuthCallbackClient({
             }
 
             if (response.ok && result.success) {
-              setStatus('Apple 인증 성공! 세션 생성 중...');
+              setStatus('');
 
               // 🛡️ 안전한 Apple JWT 기반 세션 생성
               if (result.authData?.isAppleVerified && result.authData?.appleIdToken) {
@@ -632,7 +639,7 @@ export default function AuthCallbackClient({
                       if (!signInError) {
                         console.log('✅ 클라이언트 실험 5: OTP 요청 성공 (이메일 확인 불필요)');
                         // 소셜 로그인이므로 즉시 세션 생성 시도
-                        setStatus('Apple 인증 완료! 세션 확인 중...');
+                        setStatus('');
                         
                         // 잠시 후 세션 재확인
                         setTimeout(async () => {
@@ -736,7 +743,7 @@ export default function AuthCallbackClient({
                     setTimeout(() => {
                       const returnUrl = typeof window !== 'undefined' && localStorage ? 
                         (localStorage.getItem('auth_return_url') || '/') : '/';
-                      router.push(returnUrl);
+                      window.location.href = returnUrl;
                     }, 8000);
                     
                     return; // 더 이상 진행하지 않음
@@ -745,7 +752,7 @@ export default function AuthCallbackClient({
                 } catch (sessionError) {
                   console.error('클라이언트 세션 생성 중 오류:', sessionError);
                   // Apple 인증은 성공했으므로 계속 진행
-                  setStatus('Apple 인증 완료, 로그인 중...');
+                  setStatus('');
                 }
               }
 
@@ -776,10 +783,8 @@ export default function AuthCallbackClient({
               
               console.log(`✅ [AuthCallback] ${providerType} 로그인 성공, 리디렉션:`, returnUrl);
               
-              // 약간의 지연을 두어 상태 안정화
-              setTimeout(() => {
-                router.push(returnUrl);
-              }, 300);
+              // 즉시 리다이렉트
+              window.location.href = returnUrl;
             } else {
               throw new Error(
                 result.message || `HTTP ${response.status}: 인증 처리 실패`,
@@ -789,7 +794,7 @@ export default function AuthCallbackClient({
             console.error('Apple API 호출 오류:', fetchError);
 
             // 대체 방법: 표준 소셜 로그인 서비스 사용
-            setStatus('대체 인증 방법으로 시도 중...');
+            setStatus('');
 
             const paramObj: Record<string, string> = {};
             searchParams.forEach((value, key) => {
@@ -803,15 +808,16 @@ export default function AuthCallbackClient({
             );
 
             if (authResult.success) {
-              setStatus('인증 성공! 리디렉션 중...');
+              setStatus('');
               const returnUrl = typeof window !== 'undefined' && localStorage ? 
                 (localStorage.getItem('auth_return_url') || '/') : '/';
               if (typeof window !== 'undefined' && localStorage) {
                 localStorage.removeItem('auth_return_url');
                 localStorage.removeItem('apple_oauth_state');
               }
-              router.push(returnUrl);
+              window.location.href = returnUrl;
             } else {
+              setIsLoading(false);
               setError(
                 `인증 실패: ${authResult.error?.message || '알 수 없는 오류'}`,
               );
@@ -821,7 +827,7 @@ export default function AuthCallbackClient({
         }
 
         // 다른 소셜 로그인 처리
-        setStatus('인증 처리 중...');
+        setStatus('');
 
         const paramObj: Record<string, string> = {};
         searchParams.forEach((value, key) => {
@@ -843,7 +849,7 @@ export default function AuthCallbackClient({
         console.log(`🔍 [AuthCallback] ${providerType} 콜백 처리 결과:`, authResult);
 
         if (authResult.success) {
-          setStatus('인증 성공! 리디렉션 중...');
+          setStatus('');
           
           // 서버 사이드 쿠키 동기화 강제 실행
           try {
@@ -870,10 +876,8 @@ export default function AuthCallbackClient({
           
           console.log(`✅ [AuthCallback] ${providerType} 로그인 성공, 리디렉션:`, returnUrl);
           
-          // 약간의 지연을 두어 상태 안정화
-          setTimeout(() => {
-            router.push(returnUrl);
-          }, 300);
+          // 즉시 리다이렉트
+          window.location.href = returnUrl;
         } else if (authResult.error) {
           console.warn(`❌ [AuthCallback] ${providerType} 인증 실패:`, authResult.error.message);
           
@@ -893,7 +897,7 @@ export default function AuthCallbackClient({
                 sessionStorage.removeItem(`${providerType}_refresh_attempted`);
               }, 5 * 60 * 1000);
               
-              setStatus('세션 생성을 위해 페이지를 새로고침하고 있습니다...');
+              setStatus('');
               
               // 2초 후 새로고침
               setTimeout(() => {
@@ -908,6 +912,7 @@ export default function AuthCallbackClient({
               
               if (timeSinceRefresh < 5 * 60 * 1000) { // 5분 이내
                 console.log(`⚠️ [AuthCallback] ${providerType} 이미 새로고침 시도함 (${Math.floor(timeSinceRefresh / 1000)}초 전)`);
+                setIsLoading(false);
                 setError(`${providerType} 로그인에 기술적 문제가 있습니다. 잠시 후 다시 시도하거나 다른 로그인 방법을 이용해주세요.`);
               } else {
                 // 5분이 지났으면 다시 새로고침 허용
@@ -917,15 +922,18 @@ export default function AuthCallbackClient({
                 return;
               }
             }
-          } else {
-            setError(`${providerType} 인증 오류: ${authResult.error.message}`);
-          }
+                      } else {
+              setIsLoading(false);
+              setError(`${providerType} 인증 오류: ${authResult.error.message}`);
+            }
         } else {
           console.error(`❌ [AuthCallback] ${providerType} 알 수 없는 인증 오류`);
+          setIsLoading(false);
           setError(`${providerType} 알 수 없는 인증 오류가 발생했습니다.`);
         }
       } catch (error) {
         console.error('콜백 처리 오류:', error);
+        setIsLoading(false);
         setError('인증 처리 중 오류가 발생했습니다.');
       }
     };
@@ -936,12 +944,14 @@ export default function AuthCallbackClient({
   const handleRetry = () => {
     const returnUrl = typeof window !== 'undefined' && localStorage ? 
       (localStorage.getItem('auth_return_url') || '/') : '/';
-    router.push(returnUrl);
+    window.location.href = returnUrl;
   };
 
+  // 에러 시에만 표시, 그 외에는 빈 화면 (로딩은 페이지 레벨에서 처리)
   if (error) {
     return <AuthCallbackSkeleton error={error} onRetry={handleRetry} />;
   }
 
-  return <AuthCallbackSkeleton status={status} />;
+  // 처리 중일 때는 아무것도 렌더링하지 않음 (페이지 레벨 로딩 사용)
+  return null;
 }

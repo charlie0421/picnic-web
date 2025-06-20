@@ -1,5 +1,6 @@
 import React from 'react';
 
+
 interface LoadingStateProps {
   message?: string;
   fullPage?: boolean;
@@ -24,21 +25,27 @@ export default function LoadingState({
   fullPage = false,
   size = 'medium',
 }: LoadingStateProps) {
-  // size에 따른 스피너 크기 결정
-  const spinnerSize =
-    size === 'small' ? 'h-8 w-8' : size === 'large' ? 'h-16 w-16' : 'h-12 w-12';
+  // 전체 페이지 로딩인 경우 공통 컴포넌트 사용
+  if (fullPage) {
+    return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    </div>
+  );
+  }
 
-  // 전체 페이지 여부에 따른 높이 조정
-  const containerHeight = fullPage ? 'min-h-screen' : 'min-h-[200px]';
+  // 부분 로딩인 경우 기존 스타일 유지하되 텍스트 제거
+  const containerHeight = 'min-h-[200px]';
 
   return (
-    <div
-      className={`flex flex-col items-center justify-center ${containerHeight} py-10`}
-    >
-      <div
-        className={`animate-spin rounded-full ${spinnerSize} border-t-2 border-b-2 border-primary mb-4`}
-      ></div>
-      <p className='text-gray-600'>{message}</p>
+    <div className={`flex items-center justify-center ${containerHeight} py-10`}>
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
     </div>
   );
 }

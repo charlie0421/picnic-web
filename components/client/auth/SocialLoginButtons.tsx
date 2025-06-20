@@ -169,7 +169,7 @@ export default function SocialLoginButtons({
             
             {/* 텍스트 */}
             <span className={`transition-all duration-300 ${isLoading === provider ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'}`}>
-              {isLoading === provider ? t('login_loading') : config.label}
+              {isLoading === provider ? '' : config.label}
             </span>
 
             {/* 버튼 하이라이트 효과 */}

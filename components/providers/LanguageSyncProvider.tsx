@@ -6,6 +6,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { Language, settings } from '@/config/settings';
 import { TranslationSuspenseProvider } from './TranslationSuspenseProvider';
 
+
 interface LanguageSyncProviderProps {
   children: React.ReactNode;
   initialLanguage?: string;
@@ -112,18 +113,30 @@ export function LanguageSyncProvider({ children, initialLanguage }: LanguageSync
   // 로딩 상태 계산
   const isLoading = !isClientHydrated || !isHydrated;
 
+  // hydration이 완료되지 않았으면 TranslationSuspenseProvider의 fallback만 사용
+  if (!isClientHydrated || !isHydrated) {
+    return (
+      <TranslationSuspenseProvider 
+        language={targetLanguage} 
+        key={targetLanguage}
+        fallback={
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            </div>
+          </div>
+        }
+      >
+        {children}
+      </TranslationSuspenseProvider>
+    );
+  }
+
   return (
     <TranslationSuspenseProvider language={targetLanguage} key={targetLanguage}>
-      {isLoading ? (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-gray-600 text-sm">언어 설정을 로드하는 중...</p>
-          </div>
-        </div>
-      ) : (
-        children
-      )}
+      {children}
     </TranslationSuspenseProvider>
   );
 } 

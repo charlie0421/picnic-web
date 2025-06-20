@@ -2,6 +2,7 @@ import { Link } from 'lucide-react';
 import { Linden_Hill } from 'next/font/google';
 import React from 'react';
 
+
 interface AuthCallbackSkeletonProps {
   status?: string;
   error?: string | null;
@@ -39,12 +40,14 @@ export default function AuthCallbackSkeleton({
     );
   }
 
-  // 로딩 표시
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
-      <div className="animate-spin w-12 h-12 border-4 border-gray-200 border-t-blue-500 rounded-full mb-4"></div>
-      <h1 className="text-xl font-medium mb-2">처리 중입니다</h1>
-      <p className="text-gray-600">{status}</p>
-    </div>
-  );
+  // 로딩 표시 (텍스트 없이 애니메이션만)
+      return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+      </div>
+    );
 } 
