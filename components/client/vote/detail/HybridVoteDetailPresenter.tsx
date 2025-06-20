@@ -227,7 +227,7 @@ export function HybridVoteDetailPresenter({
         return newSet;
       });
     }
-  }, []);
+  }, []); // 빈 의존성 배열로 안정화
 
   // 컴포넌트 언마운트 시 타이머 정리
   React.useEffect(() => {
@@ -265,11 +265,11 @@ export function HybridVoteDetailPresenter({
     setTimeout(() => {
       setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
     }, duration);
-  }, []);
+  }, []); // 빈 의존성 배열로 안정화
 
   const removeNotification = React.useCallback((id: string) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
-  }, []);
+  }, []); // 빈 의존성 배열로 안정화
 
   // 연결 상태 변경 알림 (의존성 최적화)
   const notifyConnectionStateChange = React.useCallback((from: DataSourceMode, to: DataSourceMode) => {
@@ -279,6 +279,7 @@ export function HybridVoteDetailPresenter({
       static: '정적'
     };
 
+    // 직접 상태 업데이트 (addNotification 의존성 제거)
     const newNotification: NotificationState = {
       type: 'info',
       title: '연결 모드 변경',
@@ -293,7 +294,7 @@ export function HybridVoteDetailPresenter({
     setTimeout(() => {
       setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
     }, 3000);
-  }, []);
+  }, []); // 빈 의존성 배열로 안정화
 
   // 사용자 정보 가져오기
   React.useEffect(() => {
@@ -333,7 +334,7 @@ export function HybridVoteDetailPresenter({
         averageResponseTime: newAverageResponseTime,
       };
     });
-  }, []);
+  }, []); // 빈 의존성 배열로 안정화
 
   // 데이터 업데이트 함수 (폴링용) - 의존성 최적화
   const updateVoteDataPolling = React.useCallback(async () => {
@@ -525,7 +526,7 @@ export function HybridVoteDetailPresenter({
         errorCount: prev.errorCount + 1,
       }));
     }
-  }, [vote?.id, user, supabase, connectionState.mode, lastPollingUpdate]); // updateConnectionQuality 제거
+  }, [vote?.id, user, supabase]); // connectionState.mode, lastPollingUpdate, updateConnectionQuality 제거
 
   // 데이터 업데이트 함수 (리얼타임용) - 의존성 최적화
   const updateVoteData = React.useCallback(async () => {
@@ -820,7 +821,7 @@ export function HybridVoteDetailPresenter({
         startPollingMode();
       }
     }, 3000);
-  }, [connectionState.isConnected, connectionState.mode]); // 함수 의존성 제거
+  }, []); // 함수 의존성 제거
 
   // 리얼타임 연결 해제 - 의존성 최적화
   const disconnectRealtime = React.useCallback(() => {
@@ -881,7 +882,7 @@ export function HybridVoteDetailPresenter({
         isConnected: false,
       }));
     }
-  }, [connectionState.mode]); // 함수 의존성 제거
+  }, []); // 함수 의존성 제거
 
   // 자동 모드 전환 (에러 발생시) - 의존성 최적화
   React.useEffect(() => {
@@ -1100,7 +1101,7 @@ export function HybridVoteDetailPresenter({
     
     // 투표 아이템 순위 매기기
     const ranked = [...voteItems]
-      .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
+      .sort((a, b) => (b.total_votes || 0) - (a.total_votes || 0))
       .map((item, index) => {
         // 리얼타임 정보 추가
         const isHighlighted = recentlyUpdatedArray.includes(item.id);
@@ -1210,23 +1211,37 @@ export function HybridVoteDetailPresenter({
         // 사용 가능한 투표량 감소
         setAvailableVotes((prev) => prev - voteAmount);
         
-        // 투표 성공 알림
-        addNotification({
+        // 투표 성공 알림 (직접 처리)
+        const successNotification: NotificationState = {
           type: 'success',
           title: '투표 완료',
           message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount}표 투표했습니다.`,
           duration: 3000,
-        });
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: new Date(),
+        };
+        
+        setNotifications(prev => [...prev, successNotification]);
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(notif => notif.id !== successNotification.id));
+        }, 3000);
       } catch (error) {
         console.error('Vote error:', error);
         
-        // 투표 실패 알림
-        addNotification({
+        // 투표 실패 알림 (직접 처리)
+        const errorNotification: NotificationState = {
           type: 'error',
           title: '투표 실패',
           message: '투표 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
           duration: 4000,
-        });
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: new Date(),
+        };
+        
+        setNotifications(prev => [...prev, errorNotification]);
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(notif => notif.id !== errorNotification.id));
+        }, 4000);
       } finally {
         setIsVoting(false);
         setVoteCandidate(null);
@@ -1403,7 +1418,7 @@ export function HybridVoteDetailPresenter({
         attemptRealtimeReconnection();
       }
     }, thresholds.qualityCheckInterval);
-  }, [thresholds.qualityCheckInterval, thresholds.minConnectionQuality, thresholds.maxConsecutiveErrors]); // 상태 의존성 제거
+  }, []); // 상태 의존성 제거
 
   // 리얼타임 재연결 시도 - 의존성 최적화
   const attemptRealtimeReconnection = React.useCallback(() => {
@@ -1417,7 +1432,7 @@ export function HybridVoteDetailPresenter({
         switchMode('realtime');
       }
     }, thresholds.realtimeRetryDelay);
-  }, [thresholds.realtimeRetryDelay]); // connectionState.mode와 switchMode 제거
+  }, []); // connectionState.mode와 switchMode 제거
 
   return (
     <div
