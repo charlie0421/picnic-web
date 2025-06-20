@@ -99,8 +99,9 @@ function LoginContentInner() {
 
     // 유효한 내부 URL인지 확인 (보안상 중요)
     if (decodedRedirectTo && 
-        (decodedRedirectTo.startsWith('/') && !decodedRedirectTo.startsWith('//')) ||
-        decodedRedirectTo.startsWith(window?.location?.origin || '')) {
+        ((decodedRedirectTo.startsWith('/') && !decodedRedirectTo.startsWith('//')) ||
+         (typeof window !== 'undefined' && window.location?.origin && 
+          decodedRedirectTo.startsWith(window.location.origin)))) {
       debugLog('리다이렉트 URL로 이동:', decodedRedirectTo);
       return decodedRedirectTo;
     }
