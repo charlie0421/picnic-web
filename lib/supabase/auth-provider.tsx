@@ -46,7 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Supabase 클라이언트 생성 (메모화)
   const supabase = useRef(createBrowserSupabaseClient()).current;
 
-  console.log('🚀 [AuthProvider] 인증 초기화 시작');
+  // 중복 로그 제거 - 매 렌더링마다 실행되지 않도록 함
 
   // 사용자 프로필 로딩 함수 (메모화)
   const loadUserProfile = useCallback(async (userId: string): Promise<UserProfiles | null> => {

@@ -78,7 +78,7 @@ export default function ClientLayout({
         <NavigationProvider>
           <LanguageSyncProvider initialLanguage={initialLanguage}>
             <SupabaseProvider>
-              {/* @ts-ignore */}
+              {/* AuthProvider를 한 번만 제공 - React 에러 #310 방지 */}
               <AuthProvider>
                 {/* @ts-ignore */}
                 <DialogProvider>
