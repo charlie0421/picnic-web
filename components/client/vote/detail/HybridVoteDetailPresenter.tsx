@@ -1024,22 +1024,27 @@ export function HybridVoteDetailPresenter({
         <div className='flex items-center gap-1 text-xs sm:text-sm font-mono font-bold'>
           {days > 0 && (
             <>
-              <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-                {days}{t('time_unit_day')}
+              <span className='text-blue-600 font-bold'>{t('time_unit_day')}</span>
+              <span className='bg-blue-100 text-blue-800 px-2 py-1 rounded min-w-[28px] text-center'>
+                {String(days).padStart(2, '0')}
               </span>
-              <span className='text-gray-400'>:</span>
+              <span className='text-gray-400 mx-1'>:</span>
             </>
           )}
-          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-            {hours}{t('time_unit_hour')}
+          <span className='text-blue-600 font-bold'>{t('time_unit_hour')}</span>
+          <span className='text-gray-400 mx-1'>:</span>
+          <span className='bg-blue-100 text-blue-800 px-2 py-1 rounded min-w-[28px] text-center'>
+            {String(hours).padStart(2, '0')}
           </span>
-          <span className='text-gray-400'>:</span>
-          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-            {minutes}{t('time_unit_minute')}
+          <span className='text-blue-600 font-bold mx-2'>{t('time_unit_minute')}</span>
+          <span className='text-gray-400 mx-1'>:</span>
+          <span className='bg-blue-100 text-blue-800 px-2 py-1 rounded min-w-[28px] text-center'>
+            {String(minutes).padStart(2, '0')}
           </span>
-          <span className='text-gray-400'>:</span>
-          <span className='bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse text-xs'>
-            {seconds}{t('time_unit_second')}
+          <span className='text-red-600 font-bold mx-2'>{t('time_unit_second')}</span>
+          <span className='text-gray-400 mx-1'>:</span>
+          <span className='bg-red-100 text-red-800 px-2 py-1 rounded animate-pulse min-w-[28px] text-center'>
+            {String(seconds).padStart(2, '0')}
           </span>
         </div>
       </div>
