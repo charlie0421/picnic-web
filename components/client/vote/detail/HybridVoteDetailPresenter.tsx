@@ -1021,29 +1021,25 @@ export function HybridVoteDetailPresenter({
     return (
       <div className='flex items-center gap-2'>
         <span className='text-xl'>⏱️</span>
-        <div className='flex items-center gap-1 text-xs sm:text-sm font-mono font-bold'>
+        <div className='flex items-center gap-0.5 text-xs sm:text-sm font-mono font-bold'>
           {days > 0 && (
             <>
-              <span className='text-blue-600 font-bold'>{t('time_unit_day')}</span>
-              <span className='bg-blue-100 text-blue-800 px-2 py-1 rounded min-w-[28px] text-center'>
+              <span className='text-blue-600 text-xs'>{t('time_unit_day')}</span>
+              <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs min-w-[20px] text-center'>
                 {String(days).padStart(2, '0')}
               </span>
-              <span className='text-gray-400 mx-1'>:</span>
             </>
           )}
-          <span className='text-blue-600 font-bold'>{t('time_unit_hour')}</span>
-          <span className='text-gray-400 mx-1'>:</span>
-          <span className='bg-blue-100 text-blue-800 px-2 py-1 rounded min-w-[28px] text-center'>
+          <span className='text-blue-600 text-xs'>{t('time_unit_hour')}</span>
+          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs min-w-[20px] text-center'>
             {String(hours).padStart(2, '0')}
           </span>
-          <span className='text-blue-600 font-bold mx-2'>{t('time_unit_minute')}</span>
-          <span className='text-gray-400 mx-1'>:</span>
-          <span className='bg-blue-100 text-blue-800 px-2 py-1 rounded min-w-[28px] text-center'>
+          <span className='text-blue-600 text-xs'>{t('time_unit_minute')}</span>
+          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs min-w-[20px] text-center'>
             {String(minutes).padStart(2, '0')}
           </span>
-          <span className='text-red-600 font-bold mx-2'>{t('time_unit_second')}</span>
-          <span className='text-gray-400 mx-1'>:</span>
-          <span className='bg-red-100 text-red-800 px-2 py-1 rounded animate-pulse min-w-[28px] text-center'>
+          <span className='text-red-600 text-xs'>{t('time_unit_second')}</span>
+          <span className='bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse text-xs min-w-[20px] text-center'>
             {String(seconds).padStart(2, '0')}
           </span>
         </div>
