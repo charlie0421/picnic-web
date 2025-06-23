@@ -1507,8 +1507,8 @@ export function HybridVoteDetailPresenter({
         />
       </div>
 
-      {/* 상위 3위 표시 - 3명 이상일 때만 표시 */}
-      {voteStatus !== 'upcoming' && rankedVoteItems.length >= 3 && (
+      {/* 상위 순위 표시 - 2명 이상일 때 표시 */}
+      {voteStatus !== 'upcoming' && rankedVoteItems.length >= 2 && (
         <div
           className='sticky z-30 bg-white/95 backdrop-blur-md border-b border-gray-200/50 py-2 md:py-3 mb-2 md:mb-4 shadow-lg'
           style={{ top: `${headerHeight}px` }}
@@ -1522,42 +1522,22 @@ export function HybridVoteDetailPresenter({
               </div>
             </div>
 
-            {/* 포디움 스타일 레이아웃 - 더 컴팩트 */}
-            <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg gap-1 sm:gap-2 md:gap-3 px-2 sm:px-4 mx-auto'>
-              {/* 2위 */}
-              {rankedVoteItems[1] && (
-                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
-                  <div className='relative'>
-                    <div className='absolute -inset-1 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
-                    <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
-                      <VoteRankCard
-                        item={rankedVoteItems[1]}
-                        rank={2}
-                        className='w-20 sm:w-24 md:w-28 lg:w-32'
-                        voteTotal={rankedVoteItems[1].vote_total || 0}
-                        enableMotionAnimations={true}
-                      />
-                    </div>
-                  </div>
-                  <div className='mt-1 text-center'>
-                    <div className='text-sm'>🥈</div>
-                  </div>
-                </div>
-              )}
-
-              {/* 1위 */}
-              {rankedVoteItems[0] && (
-                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10'>
-                  <div className='relative'>
-                    <div className='absolute -inset-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
+            {/* 포디움 스타일 레이아웃 - 2명/3명 이상 조건부 렌더링 */}
+            {rankedVoteItems.length === 2 ? (
+              /* 2명일 때: 1위-2위 순으로 나란히 배치 */
+              <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md gap-2 sm:gap-3 px-4 sm:px-6 mx-auto'>
+                {/* 1위 - 왼쪽, 높음 */}
+                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10 flex-1'>
+                  <div className='relative w-full max-w-[100px] sm:max-w-[120px] md:max-w-[135px]'>
+                    <div className='absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
                     <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
-                      <div className='absolute -top-0.5 -right-0.5 text-sm animate-bounce'>
+                      <div className='absolute -top-1 -right-1 text-sm animate-bounce'>
                         👑
                       </div>
                       <VoteRankCard
                         item={rankedVoteItems[0]}
                         rank={1}
-                        className='w-24 sm:w-32 md:w-36 lg:w-40'
+                        className='w-full h-40 sm:h-44 md:h-48'
                         voteTotal={rankedVoteItems[0].vote_total || 0}
                         enableMotionAnimations={true}
                       />
@@ -1567,29 +1547,96 @@ export function HybridVoteDetailPresenter({
                     <div className='text-base font-bold animate-pulse'>🥇</div>
                   </div>
                 </div>
-              )}
 
-              {/* 3위 */}
-              {rankedVoteItems[2] && (
-                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
-                  <div className='relative'>
-                    <div className='absolute -inset-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded blur opacity-30'></div>
-                    <div className='relative bg-gradient-to-br from-amber-100 to-orange-100 p-1 rounded border border-amber-400 shadow-lg'>
+                {/* 2위 - 오른쪽, 낮음 */}
+                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1 flex-1'>
+                  <div className='relative w-full max-w-[85px] sm:max-w-[100px] md:max-w-[110px]'>
+                    <div className='absolute -inset-0.5 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
+                    <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
                       <VoteRankCard
-                        item={rankedVoteItems[2]}
-                        rank={3}
-                        className='w-18 sm:w-20 md:w-24 lg:w-28'
-                        voteTotal={rankedVoteItems[2].vote_total || 0}
+                        item={rankedVoteItems[1]}
+                        rank={2}
+                        className='w-full h-32 sm:h-36 md:h-40'
+                        voteTotal={rankedVoteItems[1].vote_total || 0}
                         enableMotionAnimations={true}
                       />
                     </div>
                   </div>
                   <div className='mt-1 text-center'>
-                    <div className='text-sm'>🥉</div>
+                    <div className='text-sm'>🥈</div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              /* 3명 이상일 때: 기존 포디움 형식 (2위-1위-3위) */
+              <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg gap-1 sm:gap-2 md:gap-3 px-2 sm:px-4 mx-auto'>
+                {/* 2위 - 왼쪽, 중간 높이 */}
+                {rankedVoteItems[1] && (
+                  <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
+                    <div className='relative'>
+                      <div className='absolute -inset-1 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
+                      <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
+                        <VoteRankCard
+                          item={rankedVoteItems[1]}
+                          rank={2}
+                          className='w-20 sm:w-24 md:w-28 lg:w-32'
+                          voteTotal={rankedVoteItems[1].vote_total || 0}
+                          enableMotionAnimations={true}
+                        />
+                      </div>
+                    </div>
+                    <div className='mt-1 text-center'>
+                      <div className='text-sm'>🥈</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 1위 - 가운데, 가장 높음 */}
+                {rankedVoteItems[0] && (
+                  <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10'>
+                    <div className='relative'>
+                      <div className='absolute -inset-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
+                      <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
+                        <div className='absolute -top-0.5 -right-0.5 text-sm animate-bounce'>
+                          👑
+                        </div>
+                        <VoteRankCard
+                          item={rankedVoteItems[0]}
+                          rank={1}
+                          className='w-24 sm:w-32 md:w-36 lg:w-40'
+                          voteTotal={rankedVoteItems[0].vote_total || 0}
+                          enableMotionAnimations={true}
+                        />
+                      </div>
+                    </div>
+                    <div className='mt-1 text-center'>
+                      <div className='text-base font-bold animate-pulse'>🥇</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3위 - 오른쪽, 가장 낮음 */}
+                {rankedVoteItems[2] && (
+                  <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
+                    <div className='relative'>
+                      <div className='absolute -inset-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded blur opacity-30'></div>
+                      <div className='relative bg-gradient-to-br from-amber-100 to-orange-100 p-1 rounded border border-amber-400 shadow-lg'>
+                        <VoteRankCard
+                          item={rankedVoteItems[2]}
+                          rank={3}
+                          className='w-18 sm:w-20 md:w-24 lg:w-28'
+                          voteTotal={rankedVoteItems[2].vote_total || 0}
+                          enableMotionAnimations={true}
+                        />
+                      </div>
+                    </div>
+                    <div className='mt-1 text-center'>
+                      <div className='text-sm'>🥉</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
