@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Vote, VoteItem } from '@/types/interfaces';
 import {
   getVoteStatus,
@@ -17,15 +18,6 @@ import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
-import { useTranslations } from 'next-intl';
-import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
-import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
-import { useTimeLeft } from '@/hooks/useTimeLeft';
-import { useRequireAuth } from '@/hooks/useRequireAuth';
-import { createClientSupabaseClient } from '@/lib/supabase/client';
-import { useCanVote } from '@/hooks/useCanVote';
-import { debounce } from '@/utils/performance';
-import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 
 // 디바운싱 훅 추가
 function useDebounce<T>(value: T, delay: number): T {
