@@ -94,7 +94,8 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading translations...</p>
-          {process.env.NODE_ENV === 'development' && (
+          {/* hydration 완료 후에만 디버그 정보 표시 */}
+          {mounted && isHydrated && process.env.NODE_ENV === 'development' && (
             <div className="mt-2 text-xs text-gray-500">
               <p>Mounted: {mounted ? '✅' : '❌'}</p>
               <p>Hydrated: {isHydrated ? '✅' : '❌'}</p>
