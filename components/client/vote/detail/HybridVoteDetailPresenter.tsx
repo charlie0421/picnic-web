@@ -17,6 +17,15 @@ import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { useTranslations } from 'next-intl';
+import { useSupabaseQuery } from '@/hooks/useSupabaseQuery';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
+import { useTimeLeft } from '@/hooks/useTimeLeft';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { createClientSupabaseClient } from '@/lib/supabase/client';
+import { useCanVote } from '@/hooks/useCanVote';
+import { debounce } from '@/utils/performance';
+import { useConnectionMonitor } from '@/hooks/useConnectionMonitor';
 
 // 디바운싱 훅 추가
 function useDebounce<T>(value: T, delay: number): T {
@@ -95,6 +104,7 @@ export function HybridVoteDetailPresenter({
   maxRetries = 3,
 }: HybridVoteDetailPresenterProps) {
   const { currentLanguage } = useLanguageStore();
+  const t = useTranslations();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
       title: '투표하려면 로그인이 필요합니다',
@@ -975,13 +985,19 @@ export function HybridVoteDetailPresenter({
 
   // 투표 기간 포맷팅
   const formatVotePeriod = () => {
-    if (!vote.start_at || !vote.stop_at) return '';
+    if (!vote.start_at || !vote.stop_at) return t('vote_period_undetermined') || '기간 미정';
 
     const startDate = new Date(vote.start_at);
     const endDate = new Date(vote.stop_at);
 
     const formatDate = (date: Date) => {
-      return date.toLocaleDateString('ko-KR', {
+      const locale = currentLanguage === 'ko' ? 'ko-KR' :
+                    currentLanguage === 'en' ? 'en-US' :
+                    currentLanguage === 'ja' ? 'ja-JP' :
+                    currentLanguage === 'zh' ? 'zh-CN' :
+                    currentLanguage === 'id' ? 'id-ID' : 'ko-KR';
+
+      return date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -1006,7 +1022,7 @@ export function HybridVoteDetailPresenter({
         <div className='flex items-center gap-2'>
           <span className='text-xl'>🚫</span>
           <span className='text-sm md:text-base font-bold text-red-600'>
-            마감
+            {t('vote_deadline') || '마감'}
           </span>
         </div>
       );
@@ -1019,21 +1035,21 @@ export function HybridVoteDetailPresenter({
           {days > 0 && (
             <>
               <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-                {days}일
+                {days}{t('time_unit_day') || '일'}
               </span>
               <span className='text-gray-400'>:</span>
             </>
           )}
           <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-            {hours}시
+            {hours}{t('time_unit_hour') || '시'}
           </span>
           <span className='text-gray-400'>:</span>
           <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-            {minutes}분
+            {minutes}{t('time_unit_minute') || '분'}
           </span>
           <span className='text-gray-400'>:</span>
           <span className='bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse text-xs'>
-            {seconds}초
+            {seconds}{t('time_unit_second') || '초'}
           </span>
         </div>
       </div>
@@ -1215,7 +1231,7 @@ export function HybridVoteDetailPresenter({
         const successNotification: NotificationState = {
           type: 'success',
           title: '투표 완료',
-          message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount}표 투표했습니다.`,
+          message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount} 투표했습니다.`,
           duration: 3000,
           id: Math.random().toString(36).substr(2, 9),
           timestamp: new Date(),
@@ -1464,16 +1480,11 @@ export function HybridVoteDetailPresenter({
                     {voteStatus === 'ongoing' ? '진행 중' :
                      voteStatus === 'upcoming' ? '예정' : '종료'}
                   </span>
-                  {renderConnectionStatus()}
                 </div>
               </div>
               
               <div className='flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-600 mb-2'>
                 <span>📅 {formatVotePeriod()}</span>
-                <span className="hidden sm:inline">•</span>
-                <span>👥 총 {totalVotes.toLocaleString()} 표</span>
-                <span className="hidden sm:inline">•</span>
-                <span>🏆 {filteredItems.length}명 참여</span>
               </div>
 
               {/* 타이머 */}
@@ -1525,7 +1536,7 @@ export function HybridVoteDetailPresenter({
       <div className="px-4 mb-4">
         <VoteSearch 
           onSearch={handleSearch}
-          placeholder={`${rankedVoteItems.length}명 중 검색...`}
+          placeholder={t('text_vote_where_is_my_bias')}
           totalItems={rankedVoteItems.length}
           searchResults={filteredItems}
           disabled={!canVote}
@@ -1544,14 +1555,11 @@ export function HybridVoteDetailPresenter({
                 <h2 className='text-lg md:text-xl font-bold bg-gradient-to-r from-yellow-500 via-yellow-600 to-orange-500 bg-clip-text text-transparent'>
                   🏆 TOP 3
                 </h2>
-
-                {/* 타이머 */}
-                <div className='flex items-center gap-3'>{renderTimer()}</div>
               </div>
             </div>
 
             {/* 포디움 스타일 레이아웃 - 더 컴팩트 */}
-            <div className='flex justify-center items-end w-full max-w-4xl gap-1 sm:gap-2 md:gap-4 px-2 sm:px-4 mx-auto'>
+            <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg gap-1 sm:gap-2 md:gap-3 px-2 sm:px-4 mx-auto'>
               {/* 2위 */}
               {rankedVoteItems[1] && (
                 <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
@@ -1702,7 +1710,7 @@ export function HybridVoteDetailPresenter({
                         <span>✓</span>
                         {userVote.voteCount > 1 && (
                           <span className="text-xs">
-                            {userVote.votes?.filter(v => v.vote_item_id === item.id).reduce((sum, v) => sum + (v.amount || 0), 0) || 0}표
+                            {userVote.votes?.filter(v => v.vote_item_id === item.id).reduce((sum, v) => sum + (v.amount || 0), 0) || 0}
                           </span>
                         )}
                       </div>
@@ -1759,9 +1767,6 @@ export function HybridVoteDetailPresenter({
                       <div className='space-y-0.5'>
                         <p className='text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>
                           {(item.vote_total || 0).toLocaleString()}
-                          <span className='text-xs text-gray-500 ml-0.5'>
-                            표
-                          </span>
                         </p>
 
                         {item.rank && (
@@ -1776,7 +1781,7 @@ export function HybridVoteDetailPresenter({
                               </span>
                             )}
                             <span className='text-xs text-gray-500 font-medium'>
-                              {item.rank}위
+                              {t('text_vote_rank', { rank: item.rank })}
                             </span>
                           </div>
                         )}
@@ -1805,10 +1810,10 @@ export function HybridVoteDetailPresenter({
           <div className='text-center py-16'>
             <div className='text-6xl mb-4'>🔍</div>
             <p className='text-xl text-gray-500 font-medium'>
-              검색 결과가 없습니다.
+              {t('common_text_no_search_result')}
             </p>
             <p className='text-sm text-gray-400 mt-2'>
-              다른 검색어를 시도해보세요.
+              {t('search_try_other_keywords') || '다른 검색어를 시도해보세요.'}
             </p>
           </div>
         )}
@@ -1871,7 +1876,7 @@ export function HybridVoteDetailPresenter({
                         </span>
                       )}
                       <span className='text-sm font-semibold text-gray-600'>
-                        현재 {rankedItem.rank}위
+                        현재 {t('text_vote_rank', { rank: rankedItem.rank })}
                       </span>
                     </div>
                   )
@@ -1897,7 +1902,7 @@ export function HybridVoteDetailPresenter({
                   투표량
                 </label>
                 <span className='text-xs text-gray-500'>
-                  보유: {availableVotes}표
+                  보유: {availableVotes}
                 </span>
               </div>
 
@@ -1924,7 +1929,7 @@ export function HybridVoteDetailPresenter({
                     }}
                     className='w-full text-center text-lg font-bold border-2 border-gray-200 rounded-lg py-2 focus:border-blue-500 focus:outline-none'
                   />
-                  <div className='text-xs text-gray-500 mt-1'>표</div>
+                  <div className='text-xs text-gray-500 mt-1'></div>
                 </div>
 
                 <button
@@ -1954,7 +1959,7 @@ export function HybridVoteDetailPresenter({
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                       }`}
                     >
-                      {amount}표
+                      {amount}
                     </button>
                   ))}
               </div>
@@ -1981,7 +1986,7 @@ export function HybridVoteDetailPresenter({
                     투표 중...
                   </div>
                 ) : (
-                  `${voteAmount}표 투표하기`
+                  `${voteAmount} 투표하기`
                 )}
               </button>
             </div>
