@@ -32,7 +32,15 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
   initialLanguage 
 }: LanguageSyncProviderProps) {
   const pathname = usePathname();
-  const { isHydrated, currentLanguage, setHydrated, syncLanguageWithPath } = useLanguageStore();
+  const { 
+    isHydrated, 
+    currentLanguage, 
+    setHydrated, 
+    syncLanguageWithPath,
+    isTranslationLoaded,
+    translations,
+    isLoading
+  } = useLanguageStore();
   const [mounted, setMounted] = useState(false);
   const syncedRef = useRef(false);
 
@@ -40,6 +48,13 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
   const targetLanguage = useMemo(() => {
     return extractLanguageFromPath(pathname);
   }, [pathname]);
+
+  // 현재 언어의 번역이 실제로 로드되었는지 확인
+  const isTranslationReady = useMemo(() => {
+    return isTranslationLoaded[currentLanguage] && 
+           translations[currentLanguage] && 
+           Object.keys(translations[currentLanguage]).length > 0;
+  }, [isTranslationLoaded, translations, currentLanguage]);
 
   // 컴포넌트 마운트 감지
   useEffect(() => {
@@ -63,21 +78,31 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
         langFromPath: targetLanguage,
         currentLanguage,
         isHydrated,
-        mounted
+        mounted,
+        isTranslationReady
       });
       
       syncLanguageWithPath();
       syncedRef.current = true;
     }
-  }, [mounted, isHydrated, pathname, targetLanguage, currentLanguage, syncLanguageWithPath]);
+  }, [mounted, isHydrated, pathname, targetLanguage, currentLanguage, syncLanguageWithPath, isTranslationReady]);
 
-  // 언어가 로드되지 않았으면 로딩 표시
-  if (!mounted || !isHydrated) {
+  // 번역이 로드되지 않았거나 로딩 중이면 로딩 표시
+  if (!mounted || !isHydrated || isLoading || !isTranslationReady) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading translations...</p>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 text-xs text-gray-500">
+              <p>Mounted: {mounted ? '✅' : '❌'}</p>
+              <p>Hydrated: {isHydrated ? '✅' : '❌'}</p>
+              <p>Loading: {isLoading ? '🔄' : '✅'}</p>
+              <p>Translation Ready: {isTranslationReady ? '✅' : '❌'}</p>
+              <p>Current Lang: {currentLanguage}</p>
+            </div>
+          )}
         </div>
       </div>
     );
