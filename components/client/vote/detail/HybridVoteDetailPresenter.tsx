@@ -1731,7 +1731,7 @@ export function HybridVoteDetailPresenter({
                               </span>
                             )}
                             <span className='text-xs text-gray-500 font-medium'>
-                              {t('text_vote_rank', { rank: item.rank })}
+                              {t('text_vote_rank', { rank: item.rank.toString() })}
                             </span>
                           </div>
                         )}
@@ -1826,7 +1826,7 @@ export function HybridVoteDetailPresenter({
                         </span>
                       )}
                       <span className='text-sm font-semibold text-gray-600'>
-                        현재 {t('text_vote_rank', { rank: rankedItem.rank })}
+                        현재 {t('text_vote_rank', { rank: rankedItem.rank.toString() })}
                       </span>
                     </div>
                   )
