@@ -228,7 +228,17 @@ export const useLanguageStore = create<LanguageState>()(
         set({ isHydrated: hydrated });
       },
       t: (key: string, args?: Record<string, string>) => {
-        const { translations, currentLanguage } = get();
+        const { translations, currentLanguage, isHydrated, isTranslationLoaded, isLoading } = get();
+
+        // hydration이 완료되지 않았거나 번역 로딩 중인 경우 빈 문자열 반환
+        if (!isHydrated || isLoading) {
+          return '';
+        }
+
+        // 현재 언어의 번역이 아직 로드되지 않은 경우 빈 문자열 반환
+        if (!isTranslationLoaded[currentLanguage]) {
+          return '';
+        }
 
         // 현재 언어의 번역 찾기
         const currentTranslations = translations[currentLanguage] || {};
@@ -250,10 +260,16 @@ export const useLanguageStore = create<LanguageState>()(
           }
         }
 
-        // 여전히 번역이 없는 경우 키 자체 반환 및 로깅
+        // 여전히 번역이 없는 경우 처리
         if (!translation) {
           translationLogger.logMissingTranslation(key, currentLanguage, 'no_translation_found');
-          return key;
+          
+          // 번역이 완전히 로드된 상태에서 키가 없는 경우에만 키 반환 (개발용)
+          // 프로덕션에서는 빈 문자열 반환
+          if (process.env.NODE_ENV === 'development') {
+            return `[${key}]`; // 개발 환경에서는 키를 대괄호로 감싸서 표시
+          }
+          return ''; // 프로덕션에서는 빈 문자열
         }
 
         // 변수 치환
