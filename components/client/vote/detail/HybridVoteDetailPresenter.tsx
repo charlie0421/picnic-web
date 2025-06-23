@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { Vote, VoteItem } from '@/types/interfaces';
 import {
   getVoteStatus,
@@ -96,7 +95,6 @@ export function HybridVoteDetailPresenter({
   maxRetries = 3,
 }: HybridVoteDetailPresenterProps) {
   const { currentLanguage } = useLanguageStore();
-  const t = useTranslations();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
       title: '투표하려면 로그인이 필요합니다',
@@ -977,7 +975,7 @@ export function HybridVoteDetailPresenter({
 
   // 투표 기간 포맷팅
   const formatVotePeriod = () => {
-    if (!vote.start_at || !vote.stop_at) return t('vote_period_undetermined') || '기간 미정';
+    if (!vote.start_at || !vote.stop_at) return '기간 미정';
 
     const startDate = new Date(vote.start_at);
     const endDate = new Date(vote.stop_at);
@@ -1014,7 +1012,7 @@ export function HybridVoteDetailPresenter({
         <div className='flex items-center gap-2'>
           <span className='text-xl'>🚫</span>
           <span className='text-sm md:text-base font-bold text-red-600'>
-            {t('vote_deadline') || '마감'}
+            마감
           </span>
         </div>
       );
@@ -1027,21 +1025,21 @@ export function HybridVoteDetailPresenter({
           {days > 0 && (
             <>
               <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-                {days}{t('time_unit_day') || '일'}
+                {days}일
               </span>
               <span className='text-gray-400'>:</span>
             </>
           )}
           <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-            {hours}{t('time_unit_hour') || '시'}
+            {hours}시
           </span>
           <span className='text-gray-400'>:</span>
           <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-            {minutes}{t('time_unit_minute') || '분'}
+            {minutes}분
           </span>
           <span className='text-gray-400'>:</span>
           <span className='bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse text-xs'>
-            {seconds}{t('time_unit_second') || '초'}
+            {seconds}초
           </span>
         </div>
       </div>
@@ -1528,7 +1526,7 @@ export function HybridVoteDetailPresenter({
       <div className="px-4 mb-4">
         <VoteSearch 
           onSearch={handleSearch}
-          placeholder={t('text_vote_where_is_my_bias')}
+          placeholder="나의 최애는 어디에?"
           totalItems={rankedVoteItems.length}
           searchResults={filteredItems}
           disabled={!canVote}
@@ -1773,7 +1771,7 @@ export function HybridVoteDetailPresenter({
                               </span>
                             )}
                             <span className='text-xs text-gray-500 font-medium'>
-                              {t('text_vote_rank', { rank: item.rank })}
+                              {item.rank}위
                             </span>
                           </div>
                         )}
@@ -1802,10 +1800,10 @@ export function HybridVoteDetailPresenter({
           <div className='text-center py-16'>
             <div className='text-6xl mb-4'>🔍</div>
             <p className='text-xl text-gray-500 font-medium'>
-              {t('common_text_no_search_result')}
+              검색 결과가 없습니다.
             </p>
             <p className='text-sm text-gray-400 mt-2'>
-              {t('search_try_other_keywords') || '다른 검색어를 시도해보세요.'}
+              다른 검색어를 시도해보세요.
             </p>
           </div>
         )}
@@ -1868,7 +1866,7 @@ export function HybridVoteDetailPresenter({
                         </span>
                       )}
                       <span className='text-sm font-semibold text-gray-600'>
-                        현재 {t('text_vote_rank', { rank: rankedItem.rank })}
+                        현재 {rankedItem.rank}위
                       </span>
                     </div>
                   )
