@@ -18,6 +18,7 @@ import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { useNotification } from '@/contexts/NotificationContext';
 
 // 디바운싱 훅 추가
 function useDebounce<T>(value: T, delay: number): T {
@@ -37,14 +38,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 // 알림 시스템을 위한 타입 정의
-interface NotificationState {
-  id: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-  duration?: number;
-  timestamp: Date;
-}
+
 
 // 하이브리드 시스템을 위한 타입 정의
 type DataSourceMode = 'realtime' | 'polling' | 'static';
@@ -96,6 +90,7 @@ export function HybridVoteDetailPresenter({
   maxRetries = 3,
 }: HybridVoteDetailPresenterProps) {
   const { currentLanguage, t } = useLanguageStore();
+  const { addNotification } = useNotification();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
       title: '투표하려면 로그인이 필요합니다',
@@ -135,8 +130,7 @@ export function HybridVoteDetailPresenter({
   const [user, setUser] = React.useState<any>(null);
   const [userVote, setUserVote] = React.useState<any>(null);
 
-  // 알림 시스템 상태
-  const [notifications, setNotifications] = React.useState<NotificationState[]>([]);
+
 
   // 하이브리드 시스템 상태
   const [connectionState, setConnectionState] = React.useState<ConnectionState>({
@@ -251,28 +245,9 @@ export function HybridVoteDetailPresenter({
   // 디바운싱된 검색어
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // 알림 시스템 함수들 (의존성 최적화)
-  const addNotification = React.useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
-    const newNotification: NotificationState = {
-      ...notification,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-    };
-    
-    setNotifications(prev => [...prev, newNotification]);
-    
-    // 자동 제거 (기본 5초)
-    const duration = notification.duration || 5000;
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
-    }, duration);
-  }, []); // 빈 의존성 배열로 안정화
+  // 전역 알림 사용 (기존 로컬 알림 시스템 제거)
 
-  const removeNotification = React.useCallback((id: string) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
-  }, []); // 빈 의존성 배열로 안정화
-
-  // 연결 상태 변경 알림 (의존성 최적화)
+  // 연결 상태 변경 알림 (전역 알림 사용)
   const notifyConnectionStateChange = React.useCallback((from: DataSourceMode, to: DataSourceMode) => {
     const modeNames = {
       realtime: '실시간',
@@ -280,22 +255,13 @@ export function HybridVoteDetailPresenter({
       static: '정적'
     };
 
-    // 직접 상태 업데이트 (addNotification 의존성 제거)
-    const newNotification: NotificationState = {
+    addNotification({
       type: 'info',
       title: '연결 모드 변경',
       message: `${modeNames[from]}에서 ${modeNames[to]} 모드로 전환되었습니다.`,
       duration: 3000,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-    };
-    
-    setNotifications(prev => [...prev, newNotification]);
-    
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
-    }, 3000);
-  }, []); // 빈 의존성 배열로 안정화
+    });
+  }, [addNotification]);
 
   // 사용자 정보 가져오기
   React.useEffect(() => {
@@ -405,20 +371,13 @@ export function HybridVoteDetailPresenter({
         setPollingErrorCount(prev => prev + 1);
         updateConnectionQuality(false, responseTime);
         
-        // 사용자에게 에러 알림 (직접 처리)
-        const errorNotification: NotificationState = {
+        // 사용자에게 에러 알림 (전역 알림 사용)
+        addNotification({
           type: 'error',
           title: '데이터 로딩 오류',
           message: '투표 데이터를 가져오는 중 오류가 발생했습니다.',
           duration: 4000,
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: new Date(),
-        };
-        
-        setNotifications(prev => [...prev, errorNotification]);
-        setTimeout(() => {
-          setNotifications(prev => prev.filter(notif => notif.id !== errorNotification.id));
-        }, 4000);
+        });
         return;
       }
 
@@ -730,23 +689,16 @@ export function HybridVoteDetailPresenter({
             // 연결 품질 업데이트
             updateConnectionQuality(true);
             
-            // 연결 성공 알림 (직접 처리)
-            const successNotification: NotificationState = {
+            // 연결 성공 알림 (전역 알림 사용)
+            addNotification({
               type: 'success',
               title: '실시간 연결 성공',
               message: '투표 결과가 실시간으로 업데이트됩니다.',
               duration: 3000,
-              id: Math.random().toString(36).substr(2, 9),
-              timestamp: new Date(),
-            };
-            
-            setNotifications(prev => [...prev, successNotification]);
-            setTimeout(() => {
-              setNotifications(prev => prev.filter(notif => notif.id !== successNotification.id));
-            }, 3000);
+            });
             
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error('[Realtime] 연결 실패:', err);
+            console.error('[Realtime] 연결 실패:', err || 'Unknown error');
             setConnectionState(prev => ({
               ...prev,
               mode: 'polling',
@@ -761,20 +713,13 @@ export function HybridVoteDetailPresenter({
             // 리얼타임 실패시 폴링 모드로 전환 (switchMode를 통해 안전하게 전환)
             console.log('[Realtime] 폴링 모드로 자동 전환');
             
-            // 연결 실패 알림 (직접 처리)
-            const warningNotification: NotificationState = {
+            // 연결 실패 알림 (전역 알림 사용)
+            addNotification({
               type: 'warning',
               title: '실시간 연결 실패',
               message: '폴링 모드로 전환되었습니다. 데이터는 계속 업데이트됩니다.',
               duration: 4000,
-              id: Math.random().toString(36).substr(2, 9),
-              timestamp: new Date(),
-            };
-            
-            setNotifications(prev => [...prev, warningNotification]);
-            setTimeout(() => {
-              setNotifications(prev => prev.filter(notif => notif.id !== warningNotification.id));
-            }, 4000);
+            });
             
           } else if (status === 'CLOSED') {
             console.log('[Realtime] 연결 종료');
@@ -804,6 +749,14 @@ export function HybridVoteDetailPresenter({
       
       // 연결 품질 업데이트
       updateConnectionQuality(false);
+      
+      // 연결 실패 알림
+      addNotification({
+        type: 'error',
+        title: '연결 오류',
+        message: '실시간 연결 중 오류가 발생했습니다. 폴링 모드로 전환됩니다.',
+        duration: 4000,
+      });
     }
   }, [vote.id, enableRealtime, supabase]); // 의존성 최적화
 
@@ -1188,37 +1141,23 @@ export function HybridVoteDetailPresenter({
         // 사용 가능한 투표량 감소
         setAvailableVotes((prev) => prev - voteAmount);
         
-        // 투표 성공 알림 (직접 처리)
-        const successNotification: NotificationState = {
+        // 투표 성공 알림 (전역 알림 사용)
+        addNotification({
           type: 'success',
           title: '투표 완료',
           message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount} 투표했습니다.`,
           duration: 3000,
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: new Date(),
-        };
-        
-        setNotifications(prev => [...prev, successNotification]);
-        setTimeout(() => {
-          setNotifications(prev => prev.filter(notif => notif.id !== successNotification.id));
-        }, 3000);
+        });
       } catch (error) {
         console.error('Vote error:', error);
         
-        // 투표 실패 알림 (직접 처리)
-        const errorNotification: NotificationState = {
+        // 투표 실패 알림 (전역 알림 사용)
+        addNotification({
           type: 'error',
           title: '투표 실패',
           message: '투표 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
           duration: 4000,
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: new Date(),
-        };
-        
-        setNotifications(prev => [...prev, errorNotification]);
-        setTimeout(() => {
-          setNotifications(prev => prev.filter(notif => notif.id !== errorNotification.id));
-        }, 4000);
+        });
       } finally {
         setIsVoting(false);
         setVoteCandidate(null);
@@ -2005,56 +1944,7 @@ export function HybridVoteDetailPresenter({
         </div>
       )}
 
-      {/* 알림 시스템 */}
-      <div className="fixed top-20 right-4 z-50 space-y-2 max-w-sm">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={`
-              p-4 rounded-lg shadow-lg border-l-4 bg-white transform transition-all duration-300 ease-in-out
-              ${notification.type === 'success' ? 'border-green-500 bg-green-50' : ''}
-              ${notification.type === 'error' ? 'border-red-500 bg-red-50' : ''}
-              ${notification.type === 'warning' ? 'border-yellow-500 bg-yellow-50' : ''}
-              ${notification.type === 'info' ? 'border-blue-500 bg-blue-50' : ''}
-            `}
-          >
-            <div className="flex justify-between items-start gap-2">
-              <div className="flex-1">
-                <h4 className={`
-                  font-medium text-sm
-                  ${notification.type === 'success' ? 'text-green-800' : ''}
-                  ${notification.type === 'error' ? 'text-red-800' : ''}
-                  ${notification.type === 'warning' ? 'text-yellow-800' : ''}
-                  ${notification.type === 'info' ? 'text-blue-800' : ''}
-                `}>
-                  {notification.title}
-                </h4>
-                <p className={`
-                  text-xs mt-1
-                  ${notification.type === 'success' ? 'text-green-700' : ''}
-                  ${notification.type === 'error' ? 'text-red-700' : ''}
-                  ${notification.type === 'warning' ? 'text-yellow-700' : ''}
-                  ${notification.type === 'info' ? 'text-blue-700' : ''}
-                `}>
-                  {notification.message}
-                </p>
-              </div>
-              <button
-                onClick={() => removeNotification(notification.id)}
-                className={`
-                  text-xs hover:opacity-70 transition-opacity
-                  ${notification.type === 'success' ? 'text-green-800' : ''}
-                  ${notification.type === 'error' ? 'text-red-800' : ''}
-                  ${notification.type === 'warning' ? 'text-yellow-800' : ''}
-                  ${notification.type === 'info' ? 'text-blue-800' : ''}
-                `}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* 알림 시스템은 전역 레이아웃에서 처리됩니다 */}
 
       {/* 리워드 섹션 (있는 경우) */}
       {rewards.length > 0 && (
