@@ -1,7 +1,10 @@
 {
   "version": 2,
   "git": {
-    "deploymentEnabled": true
+    "deploymentEnabled": {
+      "production": true,
+      "main": false
+    }
   },
   "buildCommand": "npm run build",
   "installCommand": "npm install",
