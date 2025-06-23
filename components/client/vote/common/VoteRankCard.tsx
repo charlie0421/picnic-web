@@ -136,21 +136,21 @@ export function VoteRankCard({
     switch (rank) {
       case 1:
         return {
-          image: 'md:w-32 md:h-32 sm:w-32 sm:h-32',
-          padding: 'p-2 sm:p-3',
-          name: 'text-sm',
-          votes: 'text-sm',
+          image: 'w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24',
+          padding: 'p-1.5 sm:p-2',
+          name: 'text-xs sm:text-sm',
+          votes: 'text-xs sm:text-sm',
         };
       case 2:
         return {
-          image: 'w-24 h-24 sm:w-20 sm:h-20',
-          padding: 'p-1 sm:p-2',
+          image: 'w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18',
+          padding: 'p-1 sm:p-1.5',
           name: 'text-xs',
           votes: 'text-xs',
         };
       case 3:
         return {
-          image: 'w-10 h-10 sm:w-13 sm:h-13',
+          image: 'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14',
           padding: 'p-1',
           name: 'text-xs',
           votes: 'text-xs',
@@ -216,14 +216,28 @@ export function VoteRankCard({
             }}
           />
         </div>
-        <div className='flex flex-col items-center mt-2 min-h-0 w-full overflow-hidden'>
+        <div className='flex flex-col items-center mt-1 flex-1 w-full justify-end'>
           <h3
-            className={`font-bold text-center ${sizeClasses.name} truncate w-full px-1 mb-1`}
+            className={`font-bold text-center ${sizeClasses.name} w-full px-0.5 mb-0.5 leading-tight`}
+            style={{ 
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}
           >
             {artistName}
           </h3>
           {item.artist?.artistGroup?.name && (
-            <p className='text-xs text-gray-600 text-center truncate w-full px-1 mb-1'>
+            <p 
+              className='text-xs text-gray-600 text-center w-full px-0.5 mb-0.5 leading-tight'
+              style={{ 
+                display: '-webkit-box',
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden'
+              }}
+            >
               {getLocalizedString(
                 item.artist.artistGroup.name,
                 currentLanguage,
@@ -233,7 +247,7 @@ export function VoteRankCard({
           <div className='relative w-full'>
             {shouldShowVoteChange && (
               <div
-                className={`absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                className={`absolute -top-5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
                   currentVoteChange > 0
                     ? 'bg-green-200 text-green-800'
                     : 'bg-red-200 text-red-800'
@@ -246,7 +260,7 @@ export function VoteRankCard({
             <p
               className={`font-bold ${
                 isUpdated ? 'text-green-600' : 'text-blue-600'
-              } ${sizeClasses.votes} truncate w-full px-1 text-center transition-all duration-300 ${
+              } ${sizeClasses.votes} w-full px-0.5 text-center transition-all duration-300 leading-tight ${
                 isUpdated ? 'scale-110' : 'scale-100'
               }`}
             >
@@ -400,10 +414,16 @@ export function VoteRankCard({
       </motion.div>
 
       {/* 텍스트 그룹 - 하단 정렬 */}
-      <div className='flex flex-col items-center mt-2 min-h-0 w-full overflow-hidden relative z-[1]'>
+      <div className='flex flex-col items-center mt-1 flex-1 w-full justify-end relative z-[1]'>
         {/* 아티스트 이름 */}
         <motion.h3
-          className={`font-bold text-center ${sizeClasses.name} truncate w-full px-1 mb-1`}
+          className={`font-bold text-center ${sizeClasses.name} w-full px-0.5 mb-0.5 leading-tight`}
+          style={{ 
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -414,7 +434,13 @@ export function VoteRankCard({
         {/* 그룹 이름 (있는 경우) */}
         {item.artist?.artistGroup?.name && (
           <motion.p
-            className='text-xs text-gray-600 text-center truncate w-full px-1 mb-1'
+            className='text-xs text-gray-600 text-center w-full px-0.5 mb-0.5 leading-tight'
+            style={{ 
+              display: '-webkit-box',
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -432,7 +458,7 @@ export function VoteRankCard({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.5, y: -10 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                className={`absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap z-20 ${
+                className={`absolute -top-5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap z-20 ${
                   currentVoteChange > 0
                     ? 'bg-green-200 text-green-800'
                     : 'bg-red-200 text-red-800'
@@ -445,7 +471,7 @@ export function VoteRankCard({
           </AnimatePresence>
 
           <motion.div
-            className={`font-bold text-blue-600 ${sizeClasses.votes} truncate w-full px-1 text-center`}
+            className={`font-bold text-blue-600 ${sizeClasses.votes} w-full px-0.5 text-center leading-tight`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ 
               opacity: 1, 

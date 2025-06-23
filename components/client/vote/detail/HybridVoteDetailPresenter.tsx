@@ -11,12 +11,14 @@ import { VoteCard, VoteRankCard } from '..';
 import { VoteTimer } from '../common/VoteTimer';
 import { VoteSearch } from './VoteSearch';
 import { VoteButton } from '../common/VoteButton';
+import { VoteCountdownTimer } from '../common/VoteCountdownTimer';
 import { Badge, Card } from '@/components/common';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { useNotification } from '@/contexts/NotificationContext';
 
 // 디바운싱 훅 추가
 function useDebounce<T>(value: T, delay: number): T {
@@ -36,14 +38,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 // 알림 시스템을 위한 타입 정의
-interface NotificationState {
-  id: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message: string;
-  duration?: number;
-  timestamp: Date;
-}
+
 
 // 하이브리드 시스템을 위한 타입 정의
 type DataSourceMode = 'realtime' | 'polling' | 'static';
@@ -94,7 +89,8 @@ export function HybridVoteDetailPresenter({
   pollingInterval = 1000,
   maxRetries = 3,
 }: HybridVoteDetailPresenterProps) {
-  const { currentLanguage } = useLanguageStore();
+  const { currentLanguage, t } = useLanguageStore();
+  const { addNotification } = useNotification();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
       title: '투표하려면 로그인이 필요합니다',
@@ -134,8 +130,7 @@ export function HybridVoteDetailPresenter({
   const [user, setUser] = React.useState<any>(null);
   const [userVote, setUserVote] = React.useState<any>(null);
 
-  // 알림 시스템 상태
-  const [notifications, setNotifications] = React.useState<NotificationState[]>([]);
+
 
   // 하이브리드 시스템 상태
   const [connectionState, setConnectionState] = React.useState<ConnectionState>({
@@ -250,28 +245,9 @@ export function HybridVoteDetailPresenter({
   // 디바운싱된 검색어
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // 알림 시스템 함수들 (의존성 최적화)
-  const addNotification = React.useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
-    const newNotification: NotificationState = {
-      ...notification,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-    };
-    
-    setNotifications(prev => [...prev, newNotification]);
-    
-    // 자동 제거 (기본 5초)
-    const duration = notification.duration || 5000;
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
-    }, duration);
-  }, []); // 빈 의존성 배열로 안정화
+  // 전역 알림 사용 (기존 로컬 알림 시스템 제거)
 
-  const removeNotification = React.useCallback((id: string) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
-  }, []); // 빈 의존성 배열로 안정화
-
-  // 연결 상태 변경 알림 (의존성 최적화)
+  // 연결 상태 변경 알림 (전역 알림 사용)
   const notifyConnectionStateChange = React.useCallback((from: DataSourceMode, to: DataSourceMode) => {
     const modeNames = {
       realtime: '실시간',
@@ -279,22 +255,13 @@ export function HybridVoteDetailPresenter({
       static: '정적'
     };
 
-    // 직접 상태 업데이트 (addNotification 의존성 제거)
-    const newNotification: NotificationState = {
+    addNotification({
       type: 'info',
       title: '연결 모드 변경',
       message: `${modeNames[from]}에서 ${modeNames[to]} 모드로 전환되었습니다.`,
       duration: 3000,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-    };
-    
-    setNotifications(prev => [...prev, newNotification]);
-    
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(notif => notif.id !== newNotification.id));
-    }, 3000);
-  }, []); // 빈 의존성 배열로 안정화
+    });
+  }, [addNotification]);
 
   // 사용자 정보 가져오기
   React.useEffect(() => {
@@ -404,20 +371,13 @@ export function HybridVoteDetailPresenter({
         setPollingErrorCount(prev => prev + 1);
         updateConnectionQuality(false, responseTime);
         
-        // 사용자에게 에러 알림 (직접 처리)
-        const errorNotification: NotificationState = {
+        // 사용자에게 에러 알림 (전역 알림 사용)
+        addNotification({
           type: 'error',
           title: '데이터 로딩 오류',
           message: '투표 데이터를 가져오는 중 오류가 발생했습니다.',
           duration: 4000,
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: new Date(),
-        };
-        
-        setNotifications(prev => [...prev, errorNotification]);
-        setTimeout(() => {
-          setNotifications(prev => prev.filter(notif => notif.id !== errorNotification.id));
-        }, 4000);
+        });
         return;
       }
 
@@ -450,15 +410,23 @@ export function HybridVoteDetailPresenter({
           rank: 0 // Will be calculated after sorting
         }));
 
-        // Sort by vote total and assign ranks
+        // Sort by vote total and assign ranks with tie handling
         const sortedItems = transformedVoteItems
-          .sort((a: any, b: any) => (b.total_votes || 0) - (a.total_votes || 0))
-          .map((item: any, index: number) => ({
+          .sort((a: any, b: any) => (b.total_votes || 0) - (a.total_votes || 0));
+        
+        // 같은 점수면 같은 순위로 계산
+        let currentRank = 1;
+        const rankedItems = sortedItems.map((item: any, index: number) => {
+          if (index > 0 && (item.total_votes || 0) < (sortedItems[index - 1].total_votes || 0)) {
+            currentRank = index + 1;
+          }
+          return {
             ...item,
-            rank: index + 1
-          }));
+            rank: currentRank
+          };
+        });
 
-        setVoteItems(sortedItems);
+        setVoteItems(rankedItems);
         setLastPollingUpdate(new Date());
         setPollingErrorCount(0); // Reset error count on success
         updateConnectionQuality(true, responseTime);
@@ -721,23 +689,16 @@ export function HybridVoteDetailPresenter({
             // 연결 품질 업데이트
             updateConnectionQuality(true);
             
-            // 연결 성공 알림 (직접 처리)
-            const successNotification: NotificationState = {
+            // 연결 성공 알림 (전역 알림 사용)
+            addNotification({
               type: 'success',
               title: '실시간 연결 성공',
               message: '투표 결과가 실시간으로 업데이트됩니다.',
               duration: 3000,
-              id: Math.random().toString(36).substr(2, 9),
-              timestamp: new Date(),
-            };
-            
-            setNotifications(prev => [...prev, successNotification]);
-            setTimeout(() => {
-              setNotifications(prev => prev.filter(notif => notif.id !== successNotification.id));
-            }, 3000);
+            });
             
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error('[Realtime] 연결 실패:', err);
+            console.error('[Realtime] 연결 실패:', err || 'Unknown error');
             setConnectionState(prev => ({
               ...prev,
               mode: 'polling',
@@ -752,20 +713,13 @@ export function HybridVoteDetailPresenter({
             // 리얼타임 실패시 폴링 모드로 전환 (switchMode를 통해 안전하게 전환)
             console.log('[Realtime] 폴링 모드로 자동 전환');
             
-            // 연결 실패 알림 (직접 처리)
-            const warningNotification: NotificationState = {
+            // 연결 실패 알림 (전역 알림 사용)
+            addNotification({
               type: 'warning',
               title: '실시간 연결 실패',
               message: '폴링 모드로 전환되었습니다. 데이터는 계속 업데이트됩니다.',
               duration: 4000,
-              id: Math.random().toString(36).substr(2, 9),
-              timestamp: new Date(),
-            };
-            
-            setNotifications(prev => [...prev, warningNotification]);
-            setTimeout(() => {
-              setNotifications(prev => prev.filter(notif => notif.id !== warningNotification.id));
-            }, 4000);
+            });
             
           } else if (status === 'CLOSED') {
             console.log('[Realtime] 연결 종료');
@@ -795,6 +749,14 @@ export function HybridVoteDetailPresenter({
       
       // 연결 품질 업데이트
       updateConnectionQuality(false);
+      
+      // 연결 실패 알림
+      addNotification({
+        type: 'error',
+        title: '연결 오류',
+        message: '실시간 연결 중 오류가 발생했습니다. 폴링 모드로 전환됩니다.',
+        duration: 4000,
+      });
     }
   }, [vote.id, enableRealtime, supabase]); // 의존성 최적화
 
@@ -975,13 +937,19 @@ export function HybridVoteDetailPresenter({
 
   // 투표 기간 포맷팅
   const formatVotePeriod = () => {
-    if (!vote.start_at || !vote.stop_at) return '';
+    if (!vote.start_at || !vote.stop_at) return t('vote_period_tbd');
 
     const startDate = new Date(vote.start_at);
     const endDate = new Date(vote.stop_at);
 
     const formatDate = (date: Date) => {
-      return date.toLocaleDateString('ko-KR', {
+      const locale = currentLanguage === 'ko' ? 'ko-KR' :
+                    currentLanguage === 'en' ? 'en-US' :
+                    currentLanguage === 'ja' ? 'ja-JP' :
+                    currentLanguage === 'zh' ? 'zh-CN' :
+                    currentLanguage === 'id' ? 'id-ID' : 'ko-KR';
+
+      return date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -993,52 +961,7 @@ export function HybridVoteDetailPresenter({
     return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
   };
 
-  // 타이머 렌더링
-  const renderTimer = () => {
-    if (voteStatus !== 'ongoing' || !timeLeft) return null;
 
-    const { days, hours, minutes, seconds } = timeLeft;
-    const isExpired =
-      days === 0 && hours === 0 && minutes === 0 && seconds === 0;
-
-    if (isExpired) {
-      return (
-        <div className='flex items-center gap-2'>
-          <span className='text-xl'>🚫</span>
-          <span className='text-sm md:text-base font-bold text-red-600'>
-            마감
-          </span>
-        </div>
-      );
-    }
-
-    return (
-      <div className='flex items-center gap-2'>
-        <span className='text-xl'>⏱️</span>
-        <div className='flex items-center gap-1 text-xs sm:text-sm font-mono font-bold'>
-          {days > 0 && (
-            <>
-              <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-                {days}일
-              </span>
-              <span className='text-gray-400'>:</span>
-            </>
-          )}
-          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-            {hours}시
-          </span>
-          <span className='text-gray-400'>:</span>
-          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>
-            {minutes}분
-          </span>
-          <span className='text-gray-400'>:</span>
-          <span className='bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse text-xs'>
-            {seconds}초
-          </span>
-        </div>
-      </div>
-    );
-  };
 
   // 연결 상태 표시
   const renderConnectionStatus = () => {
@@ -1099,23 +1022,30 @@ export function HybridVoteDetailPresenter({
     // recentlyUpdatedItems를 Array로 변환하여 안정적인 참조 생성
     const recentlyUpdatedArray = Array.from(recentlyUpdatedItems);
     
-    // 투표 아이템 순위 매기기
-    const ranked = [...voteItems]
-      .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
-      .map((item, index) => {
-        // 리얼타임 정보 추가
-        const isHighlighted = recentlyUpdatedArray.includes(item.id);
-        
-        return {
-          ...item,
-          rank: index + 1,
-          _realtimeInfo: {
-            isHighlighted,
-            isUpdated: isHighlighted,
-            rankChange: 'same' as const, // 랭킹 변경 추적을 원하면 이전 순위와 비교 로직 추가
-          }
-        };
-      });
+    // 투표 아이템 순위 매기기 (같은 점수면 같은 순위)
+    const sortedByVotes = [...voteItems]
+      .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0));
+    
+    let currentRank = 1;
+    const ranked = sortedByVotes.map((item, index) => {
+      // 이전 아이템과 점수가 다르면 순위 업데이트
+      if (index > 0 && (item.vote_total || 0) < (sortedByVotes[index - 1].vote_total || 0)) {
+        currentRank = index + 1;
+      }
+      
+      // 리얼타임 정보 추가
+      const isHighlighted = recentlyUpdatedArray.includes(item.id);
+      
+      return {
+        ...item,
+        rank: currentRank,
+        _realtimeInfo: {
+          isHighlighted,
+          isUpdated: isHighlighted,
+          rankChange: 'same' as const, // 랭킹 변경 추적을 원하면 이전 순위와 비교 로직 추가
+        }
+      };
+    });
 
     // 검색 필터링 (디바운싱된 검색어 사용)
     const filtered = debouncedSearchQuery
@@ -1211,37 +1141,23 @@ export function HybridVoteDetailPresenter({
         // 사용 가능한 투표량 감소
         setAvailableVotes((prev) => prev - voteAmount);
         
-        // 투표 성공 알림 (직접 처리)
-        const successNotification: NotificationState = {
+        // 투표 성공 알림 (전역 알림 사용)
+        addNotification({
           type: 'success',
           title: '투표 완료',
-          message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount}표 투표했습니다.`,
+          message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount} 투표했습니다.`,
           duration: 3000,
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: new Date(),
-        };
-        
-        setNotifications(prev => [...prev, successNotification]);
-        setTimeout(() => {
-          setNotifications(prev => prev.filter(notif => notif.id !== successNotification.id));
-        }, 3000);
+        });
       } catch (error) {
         console.error('Vote error:', error);
         
-        // 투표 실패 알림 (직접 처리)
-        const errorNotification: NotificationState = {
+        // 투표 실패 알림 (전역 알림 사용)
+        addNotification({
           type: 'error',
           title: '투표 실패',
           message: '투표 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
           duration: 4000,
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: new Date(),
-        };
-        
-        setNotifications(prev => [...prev, errorNotification]);
-        setTimeout(() => {
-          setNotifications(prev => prev.filter(notif => notif.id !== errorNotification.id));
-        }, 4000);
+        });
       } finally {
         setIsVoting(false);
         setVoteCandidate(null);
@@ -1460,25 +1376,23 @@ export function HybridVoteDetailPresenter({
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}
-                  >
-                    {voteStatus === 'ongoing' ? '진행 중' :
-                     voteStatus === 'upcoming' ? '예정' : '종료'}
-                  </span>
-                  {renderConnectionStatus()}
+                                      >
+                      {voteStatus === 'ongoing' ? t('label_tabbar_vote_active') :
+                       voteStatus === 'upcoming' ? t('label_tabbar_vote_upcoming') : t('label_tabbar_vote_end')}
+                    </span>
                 </div>
               </div>
               
               <div className='flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-600 mb-2'>
                 <span>📅 {formatVotePeriod()}</span>
-                <span className="hidden sm:inline">•</span>
-                <span>👥 총 {totalVotes.toLocaleString()} 표</span>
-                <span className="hidden sm:inline">•</span>
-                <span>🏆 {filteredItems.length}명 참여</span>
               </div>
 
               {/* 타이머 */}
               <div className="flex items-center justify-between">
-                {renderTimer()}
+                <VoteCountdownTimer
+                  timeLeft={timeLeft}
+                  voteStatus={voteStatus}
+                />
                 
                 {/* 개발 모드에서 수동 모드 전환 버튼 */}
                 {process.env.NODE_ENV === 'development' && (
@@ -1525,15 +1439,15 @@ export function HybridVoteDetailPresenter({
       <div className="px-4 mb-4">
         <VoteSearch 
           onSearch={handleSearch}
-          placeholder={`${rankedVoteItems.length}명 중 검색...`}
+          placeholder={t('text_vote_where_is_my_bias')}
           totalItems={rankedVoteItems.length}
           searchResults={filteredItems}
           disabled={!canVote}
         />
       </div>
 
-      {/* 상위 3위 표시 */}
-      {voteStatus !== 'upcoming' && rankedVoteItems.length > 0 && (
+      {/* 상위 순위 표시 - 2명 이상일 때 표시 */}
+      {voteStatus !== 'upcoming' && rankedVoteItems.length >= 2 && (
         <div
           className='sticky z-30 bg-white/95 backdrop-blur-md border-b border-gray-200/50 py-2 md:py-3 mb-2 md:mb-4 shadow-lg'
           style={{ top: `${headerHeight}px` }}
@@ -1544,48 +1458,25 @@ export function HybridVoteDetailPresenter({
                 <h2 className='text-lg md:text-xl font-bold bg-gradient-to-r from-yellow-500 via-yellow-600 to-orange-500 bg-clip-text text-transparent'>
                   🏆 TOP 3
                 </h2>
-
-                {/* 타이머 */}
-                <div className='flex items-center gap-3'>{renderTimer()}</div>
               </div>
             </div>
 
-            {/* 포디움 스타일 레이아웃 - 더 컴팩트 */}
-            <div className='flex justify-center items-end w-full max-w-4xl gap-1 sm:gap-2 md:gap-4 px-2 sm:px-4 mx-auto'>
-              {/* 2위 */}
-              {rankedVoteItems[1] && (
-                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
-                  <div className='relative'>
-                    <div className='absolute -inset-1 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
-                    <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
-                      <VoteRankCard
-                        item={rankedVoteItems[1]}
-                        rank={2}
-                        className='w-20 sm:w-24 md:w-28 lg:w-32'
-                        voteTotal={rankedVoteItems[1].vote_total || 0}
-                        enableMotionAnimations={true}
-                      />
-                    </div>
-                  </div>
-                  <div className='mt-1 text-center'>
-                    <div className='text-sm'>🥈</div>
-                  </div>
-                </div>
-              )}
-
-              {/* 1위 */}
-              {rankedVoteItems[0] && (
-                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10'>
-                  <div className='relative'>
-                    <div className='absolute -inset-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
+            {/* 포디움 스타일 레이아웃 - 2명/3명 이상 조건부 렌더링 */}
+            {rankedVoteItems.length === 2 ? (
+              /* 2명일 때: 1위-2위 순으로 나란히 배치 */
+              <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md gap-2 sm:gap-3 px-4 sm:px-6 mx-auto'>
+                {/* 1위 - 왼쪽, 높음 */}
+                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10 flex-1'>
+                  <div className='relative w-full max-w-[100px] sm:max-w-[120px] md:max-w-[135px]'>
+                    <div className='absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
                     <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
-                      <div className='absolute -top-0.5 -right-0.5 text-sm animate-bounce'>
+                      <div className='absolute -top-1 -right-1 text-sm animate-bounce'>
                         👑
                       </div>
                       <VoteRankCard
                         item={rankedVoteItems[0]}
                         rank={1}
-                        className='w-24 sm:w-32 md:w-36 lg:w-40'
+                        className='w-full h-40 sm:h-44 md:h-48'
                         voteTotal={rankedVoteItems[0].vote_total || 0}
                         enableMotionAnimations={true}
                       />
@@ -1595,29 +1486,96 @@ export function HybridVoteDetailPresenter({
                     <div className='text-base font-bold animate-pulse'>🥇</div>
                   </div>
                 </div>
-              )}
 
-              {/* 3위 */}
-              {rankedVoteItems[2] && (
-                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
-                  <div className='relative'>
-                    <div className='absolute -inset-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded blur opacity-30'></div>
-                    <div className='relative bg-gradient-to-br from-amber-100 to-orange-100 p-1 rounded border border-amber-400 shadow-lg'>
+                {/* 2위 - 오른쪽, 낮음 */}
+                <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1 flex-1'>
+                  <div className='relative w-full max-w-[85px] sm:max-w-[100px] md:max-w-[110px]'>
+                    <div className='absolute -inset-0.5 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
+                    <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
                       <VoteRankCard
-                        item={rankedVoteItems[2]}
-                        rank={3}
-                        className='w-18 sm:w-20 md:w-24 lg:w-28'
-                        voteTotal={rankedVoteItems[2].vote_total || 0}
+                        item={rankedVoteItems[1]}
+                        rank={2}
+                        className='w-full h-32 sm:h-36 md:h-40'
+                        voteTotal={rankedVoteItems[1].vote_total || 0}
                         enableMotionAnimations={true}
                       />
                     </div>
                   </div>
                   <div className='mt-1 text-center'>
-                    <div className='text-sm'>🥉</div>
+                    <div className='text-sm'>🥈</div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              /* 3명 이상일 때: 기존 포디움 형식 (2위-1위-3위) */
+              <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg gap-1 sm:gap-2 md:gap-3 px-2 sm:px-4 mx-auto'>
+                {/* 2위 - 왼쪽, 중간 높이 */}
+                {rankedVoteItems[1] && (
+                  <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
+                    <div className='relative'>
+                      <div className='absolute -inset-1 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
+                      <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
+                        <VoteRankCard
+                          item={rankedVoteItems[1]}
+                          rank={2}
+                          className='w-20 sm:w-24 md:w-28 lg:w-32'
+                          voteTotal={rankedVoteItems[1].vote_total || 0}
+                          enableMotionAnimations={true}
+                        />
+                      </div>
+                    </div>
+                    <div className='mt-1 text-center'>
+                      <div className='text-sm'>🥈</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 1위 - 가운데, 가장 높음 */}
+                {rankedVoteItems[0] && (
+                  <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10'>
+                    <div className='relative'>
+                      <div className='absolute -inset-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
+                      <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
+                        <div className='absolute -top-0.5 -right-0.5 text-sm animate-bounce'>
+                          👑
+                        </div>
+                        <VoteRankCard
+                          item={rankedVoteItems[0]}
+                          rank={1}
+                          className='w-24 sm:w-32 md:w-36 lg:w-40'
+                          voteTotal={rankedVoteItems[0].vote_total || 0}
+                          enableMotionAnimations={true}
+                        />
+                      </div>
+                    </div>
+                    <div className='mt-1 text-center'>
+                      <div className='text-base font-bold animate-pulse'>🥇</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3위 - 오른쪽, 가장 낮음 */}
+                {rankedVoteItems[2] && (
+                  <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1'>
+                    <div className='relative'>
+                      <div className='absolute -inset-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded blur opacity-30'></div>
+                      <div className='relative bg-gradient-to-br from-amber-100 to-orange-100 p-1 rounded border border-amber-400 shadow-lg'>
+                        <VoteRankCard
+                          item={rankedVoteItems[2]}
+                          rank={3}
+                          className='w-18 sm:w-20 md:w-24 lg:w-28'
+                          voteTotal={rankedVoteItems[2].vote_total || 0}
+                          enableMotionAnimations={true}
+                        />
+                      </div>
+                    </div>
+                    <div className='mt-1 text-center'>
+                      <div className='text-sm'>🥉</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1702,7 +1660,7 @@ export function HybridVoteDetailPresenter({
                         <span>✓</span>
                         {userVote.voteCount > 1 && (
                           <span className="text-xs">
-                            {userVote.votes?.filter(v => v.vote_item_id === item.id).reduce((sum, v) => sum + (v.amount || 0), 0) || 0}표
+                            {userVote.votes?.filter(v => v.vote_item_id === item.id).reduce((sum, v) => sum + (v.amount || 0), 0) || 0}
                           </span>
                         )}
                       </div>
@@ -1759,9 +1717,6 @@ export function HybridVoteDetailPresenter({
                       <div className='space-y-0.5'>
                         <p className='text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>
                           {(item.vote_total || 0).toLocaleString()}
-                          <span className='text-xs text-gray-500 ml-0.5'>
-                            표
-                          </span>
                         </p>
 
                         {item.rank && (
@@ -1776,7 +1731,7 @@ export function HybridVoteDetailPresenter({
                               </span>
                             )}
                             <span className='text-xs text-gray-500 font-medium'>
-                              {item.rank}위
+                              {t('text_vote_rank', { rank: item.rank.toString() })}
                             </span>
                           </div>
                         )}
@@ -1805,10 +1760,10 @@ export function HybridVoteDetailPresenter({
           <div className='text-center py-16'>
             <div className='text-6xl mb-4'>🔍</div>
             <p className='text-xl text-gray-500 font-medium'>
-              검색 결과가 없습니다.
+              {t('common_text_no_search_result')}
             </p>
             <p className='text-sm text-gray-400 mt-2'>
-              다른 검색어를 시도해보세요.
+              {t('search_try_other_keywords')}
             </p>
           </div>
         )}
@@ -1871,7 +1826,7 @@ export function HybridVoteDetailPresenter({
                         </span>
                       )}
                       <span className='text-sm font-semibold text-gray-600'>
-                        현재 {rankedItem.rank}위
+                        현재 {t('text_vote_rank', { rank: rankedItem.rank.toString() })}
                       </span>
                     </div>
                   )
@@ -1897,7 +1852,7 @@ export function HybridVoteDetailPresenter({
                   투표량
                 </label>
                 <span className='text-xs text-gray-500'>
-                  보유: {availableVotes}표
+                  보유: {availableVotes}
                 </span>
               </div>
 
@@ -1924,7 +1879,7 @@ export function HybridVoteDetailPresenter({
                     }}
                     className='w-full text-center text-lg font-bold border-2 border-gray-200 rounded-lg py-2 focus:border-blue-500 focus:outline-none'
                   />
-                  <div className='text-xs text-gray-500 mt-1'>표</div>
+                  <div className='text-xs text-gray-500 mt-1'></div>
                 </div>
 
                 <button
@@ -1954,7 +1909,7 @@ export function HybridVoteDetailPresenter({
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                       }`}
                     >
-                      {amount}표
+                      {amount}
                     </button>
                   ))}
               </div>
@@ -1981,7 +1936,7 @@ export function HybridVoteDetailPresenter({
                     투표 중...
                   </div>
                 ) : (
-                  `${voteAmount}표 투표하기`
+                  `${voteAmount} 투표하기`
                 )}
               </button>
             </div>
@@ -1989,56 +1944,7 @@ export function HybridVoteDetailPresenter({
         </div>
       )}
 
-      {/* 알림 시스템 */}
-      <div className="fixed top-20 right-4 z-50 space-y-2 max-w-sm">
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={`
-              p-4 rounded-lg shadow-lg border-l-4 bg-white transform transition-all duration-300 ease-in-out
-              ${notification.type === 'success' ? 'border-green-500 bg-green-50' : ''}
-              ${notification.type === 'error' ? 'border-red-500 bg-red-50' : ''}
-              ${notification.type === 'warning' ? 'border-yellow-500 bg-yellow-50' : ''}
-              ${notification.type === 'info' ? 'border-blue-500 bg-blue-50' : ''}
-            `}
-          >
-            <div className="flex justify-between items-start gap-2">
-              <div className="flex-1">
-                <h4 className={`
-                  font-medium text-sm
-                  ${notification.type === 'success' ? 'text-green-800' : ''}
-                  ${notification.type === 'error' ? 'text-red-800' : ''}
-                  ${notification.type === 'warning' ? 'text-yellow-800' : ''}
-                  ${notification.type === 'info' ? 'text-blue-800' : ''}
-                `}>
-                  {notification.title}
-                </h4>
-                <p className={`
-                  text-xs mt-1
-                  ${notification.type === 'success' ? 'text-green-700' : ''}
-                  ${notification.type === 'error' ? 'text-red-700' : ''}
-                  ${notification.type === 'warning' ? 'text-yellow-700' : ''}
-                  ${notification.type === 'info' ? 'text-blue-700' : ''}
-                `}>
-                  {notification.message}
-                </p>
-              </div>
-              <button
-                onClick={() => removeNotification(notification.id)}
-                className={`
-                  text-xs hover:opacity-70 transition-opacity
-                  ${notification.type === 'success' ? 'text-green-800' : ''}
-                  ${notification.type === 'error' ? 'text-red-800' : ''}
-                  ${notification.type === 'warning' ? 'text-yellow-800' : ''}
-                  ${notification.type === 'info' ? 'text-blue-800' : ''}
-                `}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* 알림 시스템은 전역 레이아웃에서 처리됩니다 */}
 
       {/* 리워드 섹션 (있는 경우) */}
       {rewards.length > 0 && (
