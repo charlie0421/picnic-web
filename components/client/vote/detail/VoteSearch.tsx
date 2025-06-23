@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { Spinner } from '@/components/common';
 import { useLanguageStore } from '@/stores/languageStore';
 import { VoteItem } from '@/types/interfaces';
@@ -32,8 +31,7 @@ export function VoteSearch({
   filter,
   disabled = false,
 }: VoteSearchProps) {
-  const { currentLanguage } = useLanguageStore();
-  const t = useTranslations();
+  const { currentLanguage, t } = useLanguageStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<SearchFilter>(filter || 'all');

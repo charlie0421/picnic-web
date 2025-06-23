@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { Vote, VoteItem } from '@/types/interfaces';
 import {
   getVoteStatus,
@@ -95,8 +94,7 @@ export function HybridVoteDetailPresenter({
   pollingInterval = 1000,
   maxRetries = 3,
 }: HybridVoteDetailPresenterProps) {
-  const { currentLanguage } = useLanguageStore();
-  const t = useTranslations();
+  const { currentLanguage, t } = useLanguageStore();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
       title: '투표하려면 로그인이 필요합니다',
