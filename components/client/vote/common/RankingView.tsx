@@ -42,54 +42,154 @@ export const RankingView: React.FC<RankingViewProps> = ({
   const shouldShowVoteChange = showVoteChange && isInteractionEnabled;
   const handleVoteChange = isInteractionEnabled ? onVoteChange : undefined;
 
+  // 2명만 있는 경우와 3명 있는 경우 분리
+  if (topItems.length === 2) {
+    return (
+      <div className={containerClass}>
+        <div className='flex flex-col items-center justify-center'>
+          {/* 2명일 때 포디움 형식 - 1위 왼쪽, 2위 오른쪽 */}
+          <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md gap-2 sm:gap-3 px-4 sm:px-6 mx-auto'>
+            {/* 1위 - 왼쪽, 높음 */}
+            <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10 flex-1'>
+              <div className='relative w-full max-w-[100px] sm:max-w-[120px] md:max-w-[135px]'>
+                <div className='absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
+                <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
+                  <div className='absolute -top-1 -right-1 text-sm animate-bounce'>
+                    👑
+                  </div>
+                  <VoteRankCard
+                    className='w-full h-40 sm:h-44 md:h-48'
+                    key={`${keyPrefix}-rank-${topItems[0].id}-0`}
+                    item={topItems[0]}
+                    rank={1}
+                    showVoteChange={shouldShowVoteChange}
+                    isAnimating={topItems[0].isAnimating && isInteractionEnabled}
+                    voteChange={topItems[0].voteChange}
+                    voteTotal={topItems[0].vote_total ?? 0}
+                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[0].id, newTotal) : undefined}
+                    enableMotionAnimations={true}
+                  />
+                </div>
+              </div>
+              <div className='mt-1 text-center'>
+                <div className='text-base font-bold animate-pulse'>🥇</div>
+              </div>
+            </div>
+
+            {/* 2위 - 오른쪽, 낮음 */}
+            <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1 flex-1'>
+              <div className='relative w-full max-w-[85px] sm:max-w-[100px] md:max-w-[110px]'>
+                <div className='absolute -inset-0.5 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
+                <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
+                  <VoteRankCard
+                    className='w-full h-32 sm:h-36 md:h-40'
+                    key={`${keyPrefix}-rank-${topItems[1].id}-1`}
+                    item={topItems[1]}
+                    rank={2}
+                    showVoteChange={shouldShowVoteChange}
+                    isAnimating={topItems[1].isAnimating && isInteractionEnabled}
+                    voteChange={topItems[1].voteChange}
+                    voteTotal={topItems[1].vote_total ?? 0}
+                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[1].id, newTotal) : undefined}
+                    enableMotionAnimations={true}
+                  />
+                </div>
+              </div>
+              <div className='mt-1 text-center'>
+                <div className='text-sm'>🥈</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3명 있는 경우 기존 포디움 형식
   return (
     <div className={containerClass}>
       <div className='flex flex-col items-center justify-center'>
-        {/* 계층적 랭킹 카드 - 1, 2, 3위 순서 배치 */}
-        <div className='flex justify-center items-center w-full'>
-          {/* 1위 - 가장 크고 높음 */}
-          {topItems[0] && (
-              <VoteRankCard
-                className='flex-[2] sm:flex-[3] max-w-xs h-52 sm:h-60 flex-shrink-0 min-h-52 sm:min-h-60 max-h-52 sm:max-h-60 mx-0 min-w-0'
-                key={`${keyPrefix}-rank-${topItems[0].id}-0`}
-                item={topItems[0]}
-                rank={1}
-                showVoteChange={shouldShowVoteChange}
-                isAnimating={topItems[0].isAnimating && isInteractionEnabled}
-                voteChange={topItems[0].voteChange}
-                voteTotal={topItems[0].vote_total ?? 0}
-                onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[0].id, newTotal) : undefined}
-              />
-          )}
-
-          {/* 2위 - 중간 크기 */}
+        {/* 포디움 형식 랭킹 카드 배치 */}
+        <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg gap-1 sm:gap-2 px-4 sm:px-6 mx-auto'>
+          {/* 2위 - 왼쪽, 중간 높이 */}
           {topItems[1] && (
-              <VoteRankCard
-                className='flex-[1.5] sm:flex-[2] max-w-sm h-40 sm:h-44 flex-shrink-0 min-h-40 sm:min-h-44 max-h-40 sm:max-h-44 mx-0 min-w-0'
-                key={`${keyPrefix}-rank-${topItems[1].id}-1`}
-                item={topItems[1]}
-                rank={2}
-                showVoteChange={shouldShowVoteChange}
-                isAnimating={topItems[1].isAnimating && isInteractionEnabled}
-                voteChange={topItems[1].voteChange}
-                voteTotal={topItems[1].vote_total ?? 0}
-                onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[1].id, newTotal) : undefined}
-              />
+            <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1 flex-1'>
+              <div className='relative w-full max-w-[85px] sm:max-w-[100px] md:max-w-[110px]'>
+                <div className='absolute -inset-0.5 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
+                <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
+                  <VoteRankCard
+                    className='w-full h-32 sm:h-36 md:h-40'
+                    key={`${keyPrefix}-rank-${topItems[1].id}-1`}
+                    item={topItems[1]}
+                    rank={2}
+                    showVoteChange={shouldShowVoteChange}
+                    isAnimating={topItems[1].isAnimating && isInteractionEnabled}
+                    voteChange={topItems[1].voteChange}
+                    voteTotal={topItems[1].vote_total ?? 0}
+                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[1].id, newTotal) : undefined}
+                    enableMotionAnimations={true}
+                  />
+                </div>
+              </div>
+              <div className='mt-1 text-center'>
+                <div className='text-sm'>🥈</div>
+              </div>
+            </div>
           )}
 
-          {/* 3위 - 가장 작음 */}
+          {/* 1위 - 가운데, 가장 높음 */}
+          {topItems[0] && (
+            <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-110 hover:-translate-y-2 z-10 flex-1'>
+              <div className='relative w-full max-w-[100px] sm:max-w-[120px] md:max-w-[135px]'>
+                <div className='absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
+                <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
+                  <div className='absolute -top-1 -right-1 text-sm animate-bounce'>
+                    👑
+                  </div>
+                  <VoteRankCard
+                    className='w-full h-40 sm:h-44 md:h-48'
+                    key={`${keyPrefix}-rank-${topItems[0].id}-0`}
+                    item={topItems[0]}
+                    rank={1}
+                    showVoteChange={shouldShowVoteChange}
+                    isAnimating={topItems[0].isAnimating && isInteractionEnabled}
+                    voteChange={topItems[0].voteChange}
+                    voteTotal={topItems[0].vote_total ?? 0}
+                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[0].id, newTotal) : undefined}
+                    enableMotionAnimations={true}
+                  />
+                </div>
+              </div>
+              <div className='mt-1 text-center'>
+                <div className='text-base font-bold animate-pulse'>🥇</div>
+              </div>
+            </div>
+          )}
+
+          {/* 3위 - 오른쪽, 가장 낮음 */}
           {topItems[2] && (
-              <VoteRankCard
-                className='flex-[1] max-w-xs h-32 sm:h-30 flex-shrink-0 min-h-32 sm:min-h-30 max-h-32 sm:max-h-30 mx-0 min-w-0'
-                key={`${keyPrefix}-rank-${topItems[2].id}-2`}
-                item={topItems[2]}
-                rank={3}
-                showVoteChange={shouldShowVoteChange}
-                isAnimating={topItems[2].isAnimating && isInteractionEnabled}
-                voteChange={topItems[2].voteChange}
-                voteTotal={topItems[2].vote_total ?? 0}
-                onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[2].id, newTotal) : undefined}
-              />
+            <div className='flex flex-col items-center transform transition-all duration-500 hover:scale-105 hover:-translate-y-1 flex-1'>
+              <div className='relative w-full max-w-[75px] sm:max-w-[90px] md:max-w-[100px]'>
+                <div className='absolute -inset-0.5 bg-gradient-to-r from-amber-400 to-orange-500 rounded blur opacity-30'></div>
+                <div className='relative bg-gradient-to-br from-amber-100 to-orange-100 p-1 rounded border border-amber-400 shadow-lg'>
+                  <VoteRankCard
+                    className='w-full h-28 sm:h-32 md:h-36'
+                    key={`${keyPrefix}-rank-${topItems[2].id}-2`}
+                    item={topItems[2]}
+                    rank={3}
+                    showVoteChange={shouldShowVoteChange}
+                    isAnimating={topItems[2].isAnimating && isInteractionEnabled}
+                    voteChange={topItems[2].voteChange}
+                    voteTotal={topItems[2].vote_total ?? 0}
+                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[2].id, newTotal) : undefined}
+                    enableMotionAnimations={true}
+                  />
+                </div>
+              </div>
+              <div className='mt-1 text-center'>
+                <div className='text-sm'>🥉</div>
+              </div>
+            </div>
           )}
         </div>
       </div>
