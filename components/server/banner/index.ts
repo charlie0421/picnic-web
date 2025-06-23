@@ -5,4 +5,5 @@
  * 서버에서 데이터 페칭을 담당합니다.
  */
 
-export { BannerListFetcher } from './BannerListFetcher'; 
+export { BannerListFetcher } from './BannerListFetcher';
+export { default as BannerSkeleton } from './BannerSkeleton'; 

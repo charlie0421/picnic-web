@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils';
 import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
-import { BannerListFetcher, LoadingState } from '@/components/server';
+import { BannerListFetcher, BannerSkeleton, VoteListSkeleton } from '@/components/server';
 import { Suspense } from 'react';
 import { VoteListFetcher } from '@/components/server/vote/VoteListFetcher';
 import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
@@ -60,16 +60,14 @@ export default async function VoteListPage({
       <main className='container mx-auto px-4 py-8 space-y-8'>
         {/* 배너 섹션 */}
         <section>
-          <Suspense fallback={<LoadingState message='배너를 불러오는 중...' />}>
+          <Suspense fallback={<BannerSkeleton />}>
             <BannerListFetcher />
           </Suspense>
         </section>
 
         {/* 투표 섹션 */}
         <section>
-          <Suspense
-            fallback={<LoadingState message='투표 데이터를 불러오는 중...' />}
-          >
+          <Suspense fallback={<VoteListSkeleton />}>
             <VoteListFetcher
               className='w-full'
               status={status as any}

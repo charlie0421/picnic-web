@@ -27,4 +27,8 @@ export { default as NotFoundState } from './NotFoundState';
 export { default as ParallelDataFetching } from './ParallelDataFetching';
 export { default as NestedDataFetching } from './NestedDataFetching';
 export { default as ServerClientBoundary } from './ServerClientBoundary';
-export { default as VoteDataExample } from './VoteDataExample'; 
+export { default as VoteDataExample } from './VoteDataExample';
+
+// 스켈레톤 컴포넌트들
+export { default as BannerSkeleton } from './banner/BannerSkeleton';
+export { default as VoteListSkeleton } from './vote/VoteListSkeleton'; 
