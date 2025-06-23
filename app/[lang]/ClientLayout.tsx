@@ -8,6 +8,8 @@ import { Analytics } from '@vercel/analytics/react';
 import { DialogProvider } from '@/components/ui/Dialog';
 import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler';
 import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
+import { NotificationProvider } from '@/contexts/NotificationContext';
+import { GlobalNotifications } from '@/components/common/GlobalNotifications';
 
 interface ClientLayoutProps {
   children: any;
@@ -26,14 +28,17 @@ const ClientLayoutComponent = memo(function ClientLayoutInternal({
       <LanguageSyncProvider initialLanguage={initialLanguage}>
         <SupabaseProvider>
           <AuthProvider>
-            {/* @ts-ignore */}
-            <DialogProvider>
+            <NotificationProvider>
               {/* @ts-ignore */}
-              <AuthRedirectHandler>
-                {children}
-                <Analytics />
-              </AuthRedirectHandler>
-            </DialogProvider>
+              <DialogProvider>
+                {/* @ts-ignore */}
+                <AuthRedirectHandler>
+                  {children}
+                  <GlobalNotifications />
+                  <Analytics />
+                </AuthRedirectHandler>
+              </DialogProvider>
+            </NotificationProvider>
           </AuthProvider>
         </SupabaseProvider>
       </LanguageSyncProvider>

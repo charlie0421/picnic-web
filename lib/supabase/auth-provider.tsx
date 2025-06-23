@@ -14,6 +14,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { createBrowserSupabaseClient } from './client';
 import { extractAvatarFromProvider } from '@/utils/image-utils';
 import { UserProfiles } from '@/types/interfaces';
+import { handleAuthError } from '@/utils/auth-error-handler';
 
 interface AuthContextType {
   session: Session | null;
@@ -75,6 +76,13 @@ class AuthStore {
 
       if (error) {
         console.error('❌ [AuthStore] 세션 조회 에러:', error);
+        
+        // 리프레시 토큰 오류 처리
+        const handled = await handleAuthError(error);
+        if (handled) {
+          console.log('🔄 [AuthStore] 리프레시 토큰 오류 처리 완료');
+          return; // 처리되었으면 더 이상 진행하지 않음
+        }
       }
 
       await this.updateAuthState(session, 'INITIAL_SESSION');
@@ -82,7 +90,27 @@ class AuthStore {
       // 인증 상태 변경 리스너 등록
       this.supabaseClient.auth.onAuthStateChange(async (event: string, session: Session | null) => {
         console.log('🔄 [AuthStore] 인증 상태 변경:', event);
-        await this.updateAuthState(session, event);
+        
+        try {
+          await this.updateAuthState(session, event);
+        } catch (error) {
+          console.error('❌ [AuthStore] 인증 상태 변경 중 오류:', error);
+          
+          // 리프레시 토큰 오류 처리
+          const handled = await handleAuthError(error);
+          if (!handled) {
+            // 처리되지 않은 오류의 경우 기본 상태로 설정
+            this.updateState({
+              ...this.state,
+              session: null,
+              user: null,
+              userProfile: null,
+              isAuthenticated: false,
+              isLoading: false,
+              isInitialized: true,
+            });
+          }
+        }
       });
 
       console.log('✅ [AuthStore] 전역 Auth 초기화 완료');

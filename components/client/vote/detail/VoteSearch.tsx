@@ -31,7 +31,7 @@ export function VoteSearch({
   filter,
   disabled = false,
 }: VoteSearchProps) {
-  const { currentLanguage } = useLanguageStore();
+  const { currentLanguage, t } = useLanguageStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<SearchFilter>(filter || 'all');
@@ -184,7 +184,7 @@ export function VoteSearch({
                       )}
                     </div>
                     <div className='text-sm text-gray-500'>
-                      {(item.vote_total || 0).toLocaleString()} 표
+                      {(item.vote_total || 0).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -192,7 +192,7 @@ export function VoteSearch({
             })
           ) : (
             <div className='p-3 text-center text-gray-500'>
-              검색 결과가 없습니다
+              {t('common_text_no_search_result')}
             </div>
           )}
         </div>

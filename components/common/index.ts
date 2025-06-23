@@ -9,3 +9,6 @@ export * from './molecules';
 
 // Vote components
 // export * from './vote'; 
+
+// Global components
+export { GlobalNotifications } from './GlobalNotifications'; 

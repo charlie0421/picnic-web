@@ -31,7 +31,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
 
   useEffect(() => {
     if (contentRef.current) {
-      setIsOverflow(contentRef.current.scrollHeight > 100);
+      setIsOverflow(contentRef.current.scrollHeight > contentRef.current.clientHeight);
     }
   }, [content, current]);
 
@@ -58,14 +58,14 @@ const VotePopup: React.FC<VotePopupProps> = ({
   };
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50'>
+    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4'>
       <div
-        className={`bg-white rounded-lg shadow-lg p-0 w-full max-w-sm mx-4 flex flex-col items-center relative overflow-hidden h-[450px]`}
+        className={`bg-white rounded-lg shadow-lg w-full max-w-sm flex flex-col relative overflow-hidden min-h-[400px] max-h-[90vh]`}
       >
         {/* 좌우 버튼 */}
         {current > 0 && (
           <button
-            className='absolute left-2 top-1/2 -translate-y-1/2 bg-primary shadow-lg rounded-full p-2 flex items-center justify-center hover:bg-primary-dark transition-colors z-10'
+            className='absolute left-2 top-1/2 -translate-y-1/2 bg-primary bg-opacity-80 shadow-lg rounded-full p-2 flex items-center justify-center hover:bg-primary-dark hover:bg-opacity-100 transition-all duration-200 z-10'
             onClick={handlePrev}
             aria-label='이전'
           >
@@ -87,7 +87,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
         )}
         {current < slides.length - 1 && (
           <button
-            className='absolute right-2 top-1/2 -translate-y-1/2 bg-primary shadow-lg rounded-full p-2 flex items-center justify-center hover:bg-primary-dark transition-colors z-10'
+            className='absolute right-2 top-1/2 -translate-y-1/2 bg-primary bg-opacity-80 shadow-lg rounded-full p-2 flex items-center justify-center hover:bg-primary-dark hover:bg-opacity-100 transition-all duration-200 z-10'
             onClick={handleNext}
             aria-label='다음'
           >
@@ -107,56 +107,65 @@ const VotePopup: React.FC<VotePopupProps> = ({
             </svg>
           </button>
         )}
-        {/* 슬라이드 영역 */}
-        <div
-          className={`flex flex-col items-center w-full transition-transform duration-300 ease-in-out ${
-            direction === 'left'
-              ? '-translate-x-10 opacity-0'
-              : direction === 'right'
-              ? 'translate-x-10 opacity-0'
-              : 'translate-x-0 opacity-100'
-          }`}
-        >
+        
+        {/* 콘텐츠 영역 */}
+        <div className='flex-1 flex flex-col overflow-hidden'>
           <div
-            className='w-full mb-4 rounded-t-lg overflow-hidden bg-gray-100'
-            style={{ position: 'relative', paddingTop: '56.25%' }}
+            className={`flex flex-col items-center w-full h-full transition-transform duration-300 ease-in-out ${
+              direction === 'left'
+                ? '-translate-x-10 opacity-0'
+                : direction === 'right'
+                ? 'translate-x-10 opacity-0'
+                : 'translate-x-0 opacity-100'
+            }`}
           >
-            <Image
-              src={imageUrl || '/images/logo_alpha.png'}
-              alt='popup'
-              fill
-              className={`${imageUrl ? 'object-cover' : 'object-contain'}`}
-            />
-          </div>
-          {title && (
-            <h2 className='text-lg font-bold mb-2 text-center text-black'>
-              {title}
-            </h2>
-          )}
-          {content && (
-            <div className='w-full mb-4 px-4 relative text-sm'>
-              <p
-                ref={contentRef}
-                className='text-gray-700 text-left whitespace-pre-line overflow-y-auto max-h-[100px] pr-2'
-              >
-                {content}
-              </p>
-              {isOverflow && (
-                <div className='pointer-events-none absolute left-0 right-0 bottom-0 h-6 bg-gradient-to-t from-white to-transparent' />
+            {/* 이미지 영역 */}
+            <div
+              className='w-full flex-shrink-0 rounded-t-lg overflow-hidden bg-gray-100'
+              style={{ position: 'relative', paddingTop: '56.25%' }}
+            >
+              <Image
+                src={imageUrl || '/images/logo_alpha.png'}
+                alt='popup'
+                fill
+                className={`${imageUrl ? 'object-cover' : 'object-contain'}`}
+              />
+            </div>
+            
+            {/* 제목과 내용 영역 */}
+            <div className='flex-1 flex flex-col w-full p-4 overflow-hidden'>
+              {title && (
+                <h2 className='text-lg font-bold mb-3 text-center text-black px-2 py-1 flex-shrink-0'>
+                  {title}
+                </h2>
+              )}
+              {content && (
+                <div className='flex-1 px-2 relative text-sm overflow-hidden'>
+                  <p
+                    ref={contentRef}
+                    className='text-gray-700 text-left whitespace-pre-line overflow-y-auto h-full p-3 rounded-lg bg-gray-50'
+                  >
+                    {content}
+                  </p>
+                  {isOverflow && (
+                    <div className='pointer-events-none absolute left-5 right-5 bottom-3 h-6 bg-gradient-to-t from-gray-50 to-transparent rounded-b-lg' />
+                  )}
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
-        {/* 버튼 영역 */}
-        <div className='flex flex-row gap-2 w-full mt-auto px-4 pb-4'>
+        
+        {/* 버튼 영역 - 항상 하단에 고정 */}
+        <div className='flex-shrink-0 flex flex-row gap-2 w-full p-4 pt-2 bg-white border-t border-gray-100'>
           <button
-            className='flex-1 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors'
+            className='flex-1 py-2 px-4 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors'
             onClick={onClose}
           >
             {t('label_popup_close')}
           </button>
           <button
-            className='flex-1 py-2 rounded bg-primary text-white hover:bg-primary-dark transition-colors'
+            className='flex-1 py-2 px-4 rounded bg-primary text-white hover:bg-primary-dark transition-colors'
             onClick={onCloseFor7Days}
           >
             {t('label_popup_hide_7days')}

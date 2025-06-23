@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Vote } from '@/types/interfaces';
@@ -8,7 +8,7 @@ import { getCdnImageUrl } from '@/utils/api/image';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useLanguageStore } from '@/stores/languageStore';
-import { CountdownTimer } from '../common/CountdownTimer';
+import { VoteCountdownTimer } from '../common/VoteCountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
 import RewardItem from '@/components/common/RewardItem';
 import { VoteItems } from './VoteItems';
@@ -63,6 +63,16 @@ const getStatusText = (
 export const VoteCard = React.memo(
   ({ vote, onClick }: { vote: Vote; onClick?: () => void }) => {
     const { t, currentLanguage } = useLanguageStore();
+    const [currentTime, setCurrentTime] = useState(new Date());
+    
+    // 실시간 시간 업데이트 (메인페이지에서는 10초마다 업데이트)
+    useEffect(() => {
+      const timer = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 10000); // 10초마다 업데이트 (성능 최적화)
+
+      return () => clearInterval(timer);
+    }, []);
     
     // 투표 상태 계산 (서버/클라이언트 일관성 보장)
     const status = useMemo(() => {
@@ -70,19 +80,29 @@ export const VoteCard = React.memo(
       
       const start = new Date(vote.start_at);
       const end = new Date(vote.stop_at);
-      const now = new Date();
       
-      if (now < start) return VOTE_STATUS.UPCOMING;
-      if (now > end) return VOTE_STATUS.COMPLETED;
+      if (currentTime < start) return VOTE_STATUS.UPCOMING;
+      if (currentTime > end) return VOTE_STATUS.COMPLETED;
       return VOTE_STATUS.ONGOING;
-    }, [vote.start_at, vote.stop_at]);
+    }, [vote.start_at, vote.stop_at, currentTime]);
 
-    // CountdownTimer 상태 계산 (고정된 로직)
-    const countdownStatus = useMemo(() => {
-      if (status === VOTE_STATUS.UPCOMING) return 'scheduled';
-      if (status === VOTE_STATUS.COMPLETED) return 'ended';
-      return 'in_progress';
-    }, [status]);
+    // 남은 시간 계산
+    const timeLeft = useMemo(() => {
+      if (status !== VOTE_STATUS.ONGOING || !vote.stop_at) return null;
+      
+      const now = currentTime.getTime();
+      const endTime = new Date(vote.stop_at).getTime();
+      const difference = endTime - now;
+
+      if (difference <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+      return { days, hours, minutes, seconds };
+    }, [status, vote.stop_at, currentTime]);
 
     return (
       <Link href={`/vote/${vote.id}`}>
@@ -141,10 +161,10 @@ export const VoteCard = React.memo(
             </h3>
 
             <div className='flex justify-center mb-4'>
-              <CountdownTimer
-                startTime={vote.start_at}
-                endTime={vote.stop_at}
-                status={countdownStatus}
+              <VoteCountdownTimer
+                timeLeft={timeLeft}
+                voteStatus={status as 'upcoming' | 'ongoing' | 'completed'}
+                compact={true}
               />
             </div>
 

@@ -30,11 +30,11 @@ export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
     // 여기에 Sentry 등의 에러 로깅 서비스를 추가할 수 있습니다.
   }, [error]);
   
-  const { code, toFriendlyMessage } = appError;
+  const { code } = appError;
   
   // 에러 유형에 따라 적절한 메시지와 상태 코드 표시
   let statusCode = appError.status || 500;
-  let errorMessage = toFriendlyMessage();
+  let errorMessage = appError.toFriendlyMessage();
   
   switch (code) {
     case ErrorCode.NOT_FOUND:
