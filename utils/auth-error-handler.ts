@@ -174,7 +174,7 @@ export function emergencyAuthReset(): void {
 
   try {
     // localStorage 전체 정리
-    const authKeys = [];
+    const authKeys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
