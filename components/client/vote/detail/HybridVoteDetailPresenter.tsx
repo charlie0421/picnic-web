@@ -11,6 +11,7 @@ import { VoteCard, VoteRankCard } from '..';
 import { VoteTimer } from '../common/VoteTimer';
 import { VoteSearch } from './VoteSearch';
 import { VoteButton } from '../common/VoteButton';
+import { VoteCountdownTimer } from '../common/VoteCountdownTimer';
 import { Badge, Card } from '@/components/common';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
@@ -450,15 +451,23 @@ export function HybridVoteDetailPresenter({
           rank: 0 // Will be calculated after sorting
         }));
 
-        // Sort by vote total and assign ranks
+        // Sort by vote total and assign ranks with tie handling
         const sortedItems = transformedVoteItems
-          .sort((a: any, b: any) => (b.total_votes || 0) - (a.total_votes || 0))
-          .map((item: any, index: number) => ({
+          .sort((a: any, b: any) => (b.total_votes || 0) - (a.total_votes || 0));
+        
+        // 같은 점수면 같은 순위로 계산
+        let currentRank = 1;
+        const rankedItems = sortedItems.map((item: any, index: number) => {
+          if (index > 0 && (item.total_votes || 0) < (sortedItems[index - 1].total_votes || 0)) {
+            currentRank = index + 1;
+          }
+          return {
             ...item,
-            rank: index + 1
-          }));
+            rank: currentRank
+          };
+        });
 
-        setVoteItems(sortedItems);
+        setVoteItems(rankedItems);
         setLastPollingUpdate(new Date());
         setPollingErrorCount(0); // Reset error count on success
         updateConnectionQuality(true, responseTime);
@@ -999,53 +1008,7 @@ export function HybridVoteDetailPresenter({
     return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
   };
 
-  // 타이머 렌더링
-  const renderTimer = () => {
-    if (voteStatus !== 'ongoing' || !timeLeft) return null;
 
-    const { days, hours, minutes, seconds } = timeLeft;
-    const isExpired =
-      days === 0 && hours === 0 && minutes === 0 && seconds === 0;
-
-    if (isExpired) {
-      return (
-        <div className='flex items-center gap-2'>
-          <span className='text-xl'>🚫</span>
-          <span className='text-sm md:text-base font-bold text-red-600'>
-            {t('vote_status_closed')}
-          </span>
-        </div>
-      );
-    }
-
-    return (
-      <div className='flex items-center gap-2'>
-        <span className='text-xl'>⏱️</span>
-        <div className='flex items-center gap-0.5 text-xs sm:text-sm font-mono font-bold'>
-          {days > 0 && (
-            <>
-              <span className='text-blue-600 text-xs'>{t('time_unit_day')}</span>
-              <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs min-w-[20px] text-center'>
-                {String(days).padStart(2, '0')}
-              </span>
-            </>
-          )}
-          <span className='text-blue-600 text-xs'>{t('time_unit_hour')}</span>
-          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs min-w-[20px] text-center'>
-            {String(hours).padStart(2, '0')}
-          </span>
-          <span className='text-blue-600 text-xs'>{t('time_unit_minute')}</span>
-          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs min-w-[20px] text-center'>
-            {String(minutes).padStart(2, '0')}
-          </span>
-          <span className='text-red-600 text-xs'>{t('time_unit_second')}</span>
-          <span className='bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse text-xs min-w-[20px] text-center'>
-            {String(seconds).padStart(2, '0')}
-          </span>
-        </div>
-      </div>
-    );
-  };
 
   // 연결 상태 표시
   const renderConnectionStatus = () => {
@@ -1106,23 +1069,30 @@ export function HybridVoteDetailPresenter({
     // recentlyUpdatedItems를 Array로 변환하여 안정적인 참조 생성
     const recentlyUpdatedArray = Array.from(recentlyUpdatedItems);
     
-    // 투표 아이템 순위 매기기
-    const ranked = [...voteItems]
-      .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
-      .map((item, index) => {
-        // 리얼타임 정보 추가
-        const isHighlighted = recentlyUpdatedArray.includes(item.id);
-        
-        return {
-          ...item,
-          rank: index + 1,
-          _realtimeInfo: {
-            isHighlighted,
-            isUpdated: isHighlighted,
-            rankChange: 'same' as const, // 랭킹 변경 추적을 원하면 이전 순위와 비교 로직 추가
-          }
-        };
-      });
+    // 투표 아이템 순위 매기기 (같은 점수면 같은 순위)
+    const sortedByVotes = [...voteItems]
+      .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0));
+    
+    let currentRank = 1;
+    const ranked = sortedByVotes.map((item, index) => {
+      // 이전 아이템과 점수가 다르면 순위 업데이트
+      if (index > 0 && (item.vote_total || 0) < (sortedByVotes[index - 1].vote_total || 0)) {
+        currentRank = index + 1;
+      }
+      
+      // 리얼타임 정보 추가
+      const isHighlighted = recentlyUpdatedArray.includes(item.id);
+      
+      return {
+        ...item,
+        rank: currentRank,
+        _realtimeInfo: {
+          isHighlighted,
+          isUpdated: isHighlighted,
+          rankChange: 'same' as const, // 랭킹 변경 추적을 원하면 이전 순위와 비교 로직 추가
+        }
+      };
+    });
 
     // 검색 필터링 (디바운싱된 검색어 사용)
     const filtered = debouncedSearchQuery
@@ -1467,10 +1437,10 @@ export function HybridVoteDetailPresenter({
                         ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}
-                  >
-                    {voteStatus === 'ongoing' ? '진행 중' :
-                     voteStatus === 'upcoming' ? '예정' : '종료'}
-                  </span>
+                                      >
+                      {voteStatus === 'ongoing' ? t('label_tabbar_vote_active') :
+                       voteStatus === 'upcoming' ? t('label_tabbar_vote_upcoming') : t('label_tabbar_vote_end')}
+                    </span>
                 </div>
               </div>
               
@@ -1480,7 +1450,10 @@ export function HybridVoteDetailPresenter({
 
               {/* 타이머 */}
               <div className="flex items-center justify-between">
-                {renderTimer()}
+                <VoteCountdownTimer
+                  timeLeft={timeLeft}
+                  voteStatus={voteStatus}
+                />
                 
                 {/* 개발 모드에서 수동 모드 전환 버튼 */}
                 {process.env.NODE_ENV === 'development' && (
@@ -1534,8 +1507,8 @@ export function HybridVoteDetailPresenter({
         />
       </div>
 
-      {/* 상위 3위 표시 */}
-      {voteStatus !== 'upcoming' && rankedVoteItems.length > 0 && (
+      {/* 상위 3위 표시 - 3명 이상일 때만 표시 */}
+      {voteStatus !== 'upcoming' && rankedVoteItems.length >= 3 && (
         <div
           className='sticky z-30 bg-white/95 backdrop-blur-md border-b border-gray-200/50 py-2 md:py-3 mb-2 md:mb-4 shadow-lg'
           style={{ top: `${headerHeight}px` }}
