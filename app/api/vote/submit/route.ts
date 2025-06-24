@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 2. can_vote 검증 통과 후 실제 투표 처리
-        const { data, error } = await supabase.rpc("process_vote", {
+        // 2. can_vote 검증 통과 후 실제 투표 처리 (엣지 함수 사용)
+        const { data, error } = await supabase.rpc("perform_vote_transaction", {
             p_vote_id: voteId,
             p_vote_item_id: voteItemId,
             p_amount: amount,
@@ -104,14 +104,14 @@ export async function POST(request: NextRequest) {
         });
 
         if (error) {
-            console.error("[Vote Submit] process_vote 에러:", error);
+            console.error("[Vote Submit] perform_vote_transaction 에러:", error);
             return NextResponse.json(
                 { error: `투표 처리 실패: ${error.message}` },
                 { status: 500 }
             );
         }
 
-        console.log("[Vote Submit] process_vote 성공:", data);
+        console.log("[Vote Submit] perform_vote_transaction 성공:", data);
 
         return NextResponse.json({
             success: true,
