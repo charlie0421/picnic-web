@@ -93,9 +93,8 @@ export function HybridVoteDetailPresenter({
   const { addNotification } = useNotification();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
-      title: '투표하려면 로그인이 필요합니다',
-      description:
-        '이 투표에 참여하려면 로그인이 필요합니다. 로그인하시겠습니까?',
+      title: t('dialog_vote_login_required') || t('dialog_content_login_required') || 'Login Required',
+      description: t('dialog_vote_login_description') || t('dialog_login_required_description') || 'You need to log in to use this feature.',
     },
   });
 
@@ -309,7 +308,7 @@ export function HybridVoteDetailPresenter({
     
     // 리얼타임 모드에서는 폴링 함수 실행 중단 (보호 로직)
     if (connectionState.mode === 'realtime') {
-      console.log('[Polling] 리얼타임 모드에서 폴링 함수 호출 차단');
+      // console.log('[Polling] 리얼타임 모드에서 폴링 함수 호출 차단');
       return;
     }
 

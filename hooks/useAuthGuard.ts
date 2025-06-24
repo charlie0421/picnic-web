@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/supabase/auth-provider";
 import { useLoginRequired } from "@/components/ui/Dialog";
@@ -25,6 +25,17 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
     const router = useRouter();
     const pathname = usePathname();
     const showLoginRequired = useLoginRequired();
+    const hasLoggedInitRef = useRef(false);
+
+    // useLoginRequired 훅이 제대로 가져와졌는지 확인 (한 번만)
+    if (!hasLoggedInitRef.current && process.env.NODE_ENV === 'development') {
+        console.log('🔍 [useAuthGuard] 초기화:', {
+            hasShowLoginRequired: typeof showLoginRequired === 'function',
+            pathname,
+            timestamp: new Date().toISOString()
+        });
+        hasLoggedInitRef.current = true;
+    }
 
     const {
         redirectUrl,
@@ -167,7 +178,13 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                 }
 
                 // 로그인 다이얼로그 표시
-                showLoginRequired({
+                console.log("🔄 showLoginRequired 호출 시작:", {
+                    targetUrl,
+                    hasCustomMessage: !!customLoginMessage,
+                    timestamp: new Date().toISOString()
+                });
+                
+                const loginDialogResult = await showLoginRequired({
                     redirectUrl: targetUrl,
                     title: customLoginMessage?.title,
                     description: customLoginMessage?.description,
@@ -175,10 +192,12 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                     cancelText: customLoginMessage?.cancelText,
                     onLogin: () => {
                         // URL은 이미 저장되었으므로 중복 저장하지 않음
-                        console.log("로그인 페이지로 이동");
+                        console.log("🔄 로그인 페이지로 이동");
                         router.push("/login");
                     },
                 });
+
+                console.log("🔄 showLoginRequired 결과:", loginDialogResult);
 
                 return null;
             }
@@ -227,7 +246,13 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                 saveRedirectUrl(path);
 
                 // 로그인 다이얼로그 표시
-                showLoginRequired({
+                console.log("🔄 showLoginRequired 호출 시작:", {
+                    path,
+                    hasCustomMessage: !!customLoginMessage,
+                    timestamp: new Date().toISOString()
+                });
+                
+                const loginDialogResult = await showLoginRequired({
                     redirectUrl: path,
                     title: customLoginMessage?.title,
                     description: customLoginMessage?.description,
@@ -235,10 +260,12 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                     cancelText: customLoginMessage?.cancelText,
                     onLogin: () => {
                         // URL은 이미 저장되었으므로 중복 저장하지 않음
-                        console.log("로그인 페이지로 이동");
+                        console.log("🔄 로그인 페이지로 이동");
                         router.push("/login");
                     },
                 });
+
+                console.log("🔄 showLoginRequired 결과:", loginDialogResult);
 
                 return false;
             }
