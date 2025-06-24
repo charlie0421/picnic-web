@@ -418,7 +418,7 @@ function LoginContentInner() {
           <h1 className='text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2'>
             {t('label_login')}
           </h1>
-          <p className='text-gray-600'>피크닉에서 특별한 순간을 만나보세요</p>
+          <p className='text-gray-600'>피크닠에서 특별한 순간을 만나보세요</p>
         </div>
 
         {/* 오류 메시지 표시 */}

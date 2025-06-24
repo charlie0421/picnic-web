@@ -18,7 +18,7 @@ export async function generateMetadata({
 
   return createPageMetadata(
     '투표',
-    '피크닉에서 좋아하는 아티스트에게 투표하고 응원하세요.',
+    '피크닠에서 좋아하는 아티스트에게 투표하고 응원하세요.',
     {
       alternates: {
         canonical: `${SITE_URL}/${lang}/vote`,
@@ -51,8 +51,8 @@ export default async function VoteListPage({
           __html: JSON.stringify(
             createWebsiteSchema(
               `${SITE_URL}/vote`,
-              '피크닉 투표',
-              '피크닉에서 좋아하는 아티스트에게 투표하고 응원하세요.',
+              '피크닠 투표',
+              '피크닠에서 좋아하는 아티스트에게 투표하고 응원하세요.',
             ),
           ),
         }}

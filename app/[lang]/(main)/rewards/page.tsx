@@ -27,8 +27,8 @@ export async function generateMetadata({
 
   return {
     ...createPageMetadata(
-      '리워드 - 피크닉',
-      '피크닉에서 제공하는 다양한 리워드를 확인해보세요.',
+      '리워드 - 피크닠',
+      '피크닠에서 제공하는 다양한 리워드를 확인해보세요.',
       {
         alternates: {
           canonical: `${SITE_URL}/${lang}/rewards`,
@@ -61,8 +61,8 @@ export default async function RewardsPage({
           __html: JSON.stringify(
             createWebsiteSchema(
               `${SITE_URL}/rewards`,
-              '피크닉 리워드',
-              '피크닉에서 제공하는 다양한 리워드를 확인해보세요.',
+              '피크닠 리워드',
+              '피크닠에서 제공하는 다양한 리워드를 확인해보세요.',
             ),
           ),
         }}

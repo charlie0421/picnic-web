@@ -103,7 +103,7 @@ export function createVoteSchema(
     },
     organizer: {
       '@type': 'Organization',
-      name: '피크닉',
+      name: '피크닠',
       url: 'https://picnic.com',
     },
     offers: {
@@ -145,7 +145,7 @@ export function createProductSchema(
     },
     brand: {
       '@type': 'Organization',
-      name: '피크닉',
+      name: '피크닠',
     },
   };
 }
@@ -172,7 +172,7 @@ export function createMediaSchema(
     ...(url && { url }),
     publisher: {
       '@type': 'Organization',
-      name: '피크닉',
+      name: '피크닠',
       logo: {
         '@type': 'ImageObject',
         url: 'https://picnic.com/images/logo.png',
