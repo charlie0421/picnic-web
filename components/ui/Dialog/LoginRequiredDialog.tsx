@@ -19,18 +19,49 @@ export function LoginRequiredDialog({
   ...dialogProps
 }: LoginRequiredDialogProps) {
   const router = useRouter();
-  const { t } = useLanguageStore();
+  const { t, currentLanguage, isHydrated } = useLanguageStore();
 
-  // 다국어 지원 기본값
-  const defaultTitle =
-    title || t('dialog_login_required_title');
-  const defaultDescription =
-    description ||
-    t('dialog_login_required_description');
-  const defaultLoginText =
-    loginText || t('dialog_login_required_login_button');
-  const defaultCancelText =
-    cancelText || t('dialog_login_required_cancel_button');
+  // 디버깅용 로깅
+  console.log('[LoginRequiredDialog] State:', {
+    currentLanguage,
+    isHydrated,
+    isOpen,
+    hasTitle: !!title,
+    hasDescription: !!description
+  });
+
+  // 더 안전한 다국어 지원 기본값
+  const getDefaultTitle = () => {
+    if (title) return title;
+    const translated = t('dialog_content_login_required');
+    console.log('[LoginRequiredDialog] Title translation:', translated);
+    if (translated && translated.trim() && !translated.startsWith('[')) {
+      return translated;
+    }
+    return 'Login Required';
+  };
+
+  const getDefaultDescription = () => {
+    if (description) return description;
+    const translated = t('dialog_login_required_description');
+    console.log('[LoginRequiredDialog] Description translation:', translated);
+    if (translated && translated.trim() && !translated.startsWith('[')) {
+      return translated;
+    }
+    
+    // fallback to title key
+    const fallback = t('dialog_content_login_required');
+    console.log('[LoginRequiredDialog] Fallback translation:', fallback);
+    if (fallback && fallback.trim() && !fallback.startsWith('[')) {
+      return 'Please log in to continue.';
+    }
+    return 'You need to log in to use this feature.';
+  };
+
+  const defaultTitle = getDefaultTitle();
+  const defaultDescription = getDefaultDescription();
+  const defaultLoginText = loginText || t('dialog_button_ok') || 'OK';
+  const defaultCancelText = cancelText || t('dialog_button_cancel') || 'Cancel';
 
   // 기본 로그인 핸들러
   const handleLogin = () => {
