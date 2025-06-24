@@ -400,25 +400,7 @@ function LoginContentInner() {
       <div className='relative bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-3xl shadow-2xl border border-white/20 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl'>
         {/* 웰컴 헤더 */}
         <div className='text-center mb-8'>
-          <div className='inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-6 shadow-lg'>
-            <svg
-              className='w-8 h-8 text-white'
-              fill='none'
-              stroke='currentColor'
-              viewBox='0 0 24 24'
-            >
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                strokeWidth={2}
-                d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
-              />
-            </svg>
-          </div>
-          <h1 className='text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-2'>
-            {t('label_login')}
-          </h1>
-          <p className='text-gray-600'>피크닠에서 특별한 순간을 만나보세요</p>
+          <p className='text-gray-600'>{t('login_title')}</p>
         </div>
 
         {/* 오류 메시지 표시 */}
@@ -449,7 +431,7 @@ function LoginContentInner() {
           <div className='flex items-center mb-6'>
             <div className='flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent'></div>
             <span className='px-4 text-sm font-medium text-gray-500 bg-white rounded-full'>
-              간편 로그인
+              {t('login_simple_login')}
             </span>
             <div className='flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent'></div>
           </div>
@@ -463,11 +445,7 @@ function LoginContentInner() {
 
         {/* 하단 안내 */}
         <div className='text-center'>
-          <p className='text-gray-600'>
-            계정이 없으신가요?{' '}
-            <span className='font-semibold text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text'>
-              위의 소셜 로그인으로 자동 회원가입됩니다
-            </span>
+          <p className='text-gray-600'>{t('login_simple_login_guide')}
           </p>
         </div>
 
