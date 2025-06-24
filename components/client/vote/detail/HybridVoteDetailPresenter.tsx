@@ -19,6 +19,7 @@ import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useNotification } from '@/contexts/NotificationContext';
+import VotePopup from '@/components/client/vote/dialogs/VotePopup';
 
 // 디바운싱 훅 추가
 function useDebounce<T>(value: T, delay: number): T {
@@ -1768,180 +1769,41 @@ export function HybridVoteDetailPresenter({
         )}
       </div>
 
-      {/* 투표 확인 팝업 */}
-      {showVoteModal && voteCandidate && (
-        <div className='fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4'>
-          <div className='bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform animate-in zoom-in-95 duration-200'>
-            {/* 후보자 정보 */}
-            <div className='text-center mb-6'>
-              <div className='w-20 h-20 mx-auto mb-4 rounded-full overflow-hidden ring-4 ring-blue-100'>
-                <img
-                  src={
-                    voteCandidate.artist?.image
-                      ? getCdnImageUrl(voteCandidate.artist.image)
-                      : '/images/default-artist.png'
-                  }
-                  alt={
-                    voteCandidate.artist?.name
-                      ? getLocalizedString(
-                          voteCandidate.artist.name,
-                          currentLanguage,
-                        )
-                      : '아티스트'
-                  }
-                  className='w-full h-full object-cover'
-                />
-              </div>
-              <h3 className='text-lg font-bold text-gray-800 mb-1'>
-                {voteCandidate.artist?.name
-                  ? getLocalizedString(
-                      voteCandidate.artist.name,
-                      currentLanguage,
-                    )
-                  : '아티스트'}
-              </h3>
-              {voteCandidate.artist?.artistGroup?.name && (
-                <p className='text-sm text-gray-500'>
-                  {getLocalizedString(
-                    voteCandidate.artist.artistGroup.name,
-                    currentLanguage,
-                  )}
-                </p>
-              )}
-              {(() => {
-                const rankedItem = rankedVoteItems.find(
-                  (item) => item.id === voteCandidate.id,
-                );
-                return (
-                  rankedItem?.rank && (
-                    <div className='mt-2 flex items-center justify-center gap-1'>
-                      {rankedItem.rank <= 3 && (
-                        <span className='text-lg'>
-                          {rankedItem.rank === 1
-                            ? '🥇'
-                            : rankedItem.rank === 2
-                            ? '🥈'
-                            : '🥉'}
-                        </span>
-                      )}
-                      <span className='text-sm font-semibold text-gray-600'>
-                        현재 {t('text_vote_rank', { rank: rankedItem.rank.toString() })}
-                      </span>
-                    </div>
-                  )
-                );
-              })()}
-            </div>
 
-            {/* 확인 메시지 */}
-            <div className='text-center mb-6'>
-              <h2 className='text-xl font-bold text-gray-800 mb-2'>
-                투표 확인
-              </h2>
-              <p className='text-gray-600'>이 후보에게 투표하시겠습니까?</p>
-              <p className='text-sm text-gray-500 mt-1'>
-                투표는 한 번만 가능합니다.
-              </p>
-            </div>
 
-            {/* 투표량 선택 */}
-            <div className='mb-6'>
-              <div className='flex items-center justify-between mb-3'>
-                <label className='text-sm font-semibold text-gray-700'>
-                  투표량
-                </label>
-                <span className='text-xs text-gray-500'>
-                  보유: {availableVotes}
-                </span>
-              </div>
-
-              <div className='flex items-center gap-3'>
-                <button
-                  onClick={() => setVoteAmount(Math.max(1, voteAmount - 1))}
-                  disabled={voteAmount <= 1}
-                  className='w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-bold text-gray-600 transition-colors'
-                >
-                  −
-                </button>
-
-                <div className='flex-1 text-center'>
-                  <input
-                    type='number'
-                    min='1'
-                    max={availableVotes}
-                    value={voteAmount}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 1;
-                      setVoteAmount(
-                        Math.min(availableVotes, Math.max(1, value)),
-                      );
-                    }}
-                    className='w-full text-center text-lg font-bold border-2 border-gray-200 rounded-lg py-2 focus:border-blue-500 focus:outline-none'
-                  />
-                  <div className='text-xs text-gray-500 mt-1'></div>
-                </div>
-
-                <button
-                  onClick={() =>
-                    setVoteAmount(Math.min(availableVotes, voteAmount + 1))
-                  }
-                  disabled={voteAmount >= availableVotes}
-                  className='w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-bold text-gray-600 transition-colors'
-                >
-                  +
-                </button>
-              </div>
-
-              {/* 빠른 선택 버튼 */}
-              <div className='flex gap-2 mt-3'>
-                {[1, 5, Math.min(10, availableVotes), availableVotes]
-                  .filter(
-                    (val, idx, arr) => arr.indexOf(val) === idx && val > 0,
-                  )
-                  .map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => setVoteAmount(amount)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                        voteAmount === amount
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                      }`}
-                    >
-                      {amount}
-                    </button>
-                  ))}
-              </div>
-            </div>
-
-            {/* 버튼 */}
-            <div className='flex gap-3'>
-              <button
-                onClick={cancelVote}
-                className='flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors duration-200'
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmVote}
-                disabled={
-                  isVoting || voteAmount <= 0 || voteAmount > availableVotes
-                }
-                className='flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
-              >
-                {isVoting ? (
-                  <div className='flex items-center justify-center gap-2'>
-                    <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></div>
-                    투표 중...
-                  </div>
-                ) : (
-                  `${voteAmount} 투표하기`
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 새로운 VotePopup 컴포넌트 */}
+      <VotePopup
+        isOpen={showVoteModal}
+        onClose={cancelVote}
+        voteId={vote.id}
+        voteItemId={voteCandidate?.id || 0}
+        artistName={voteCandidate?.artist?.name 
+          ? getLocalizedString(voteCandidate.artist.name, currentLanguage) 
+          : '아티스트'
+        }
+        onVoteSuccess={(amount) => {
+          // 투표 성공 처리
+          setVoteItems((prev) =>
+            prev.map((item) =>
+              item.id === voteCandidate?.id
+                ? { ...item, vote_total: (item.vote_total || 0) + amount }
+                : item,
+            ),
+          );
+          setAvailableVotes((prev) => prev - amount);
+          setShowVoteModal(false);
+          setVoteCandidate(null);
+          setVoteAmount(1);
+          
+          // 성공 알림
+          addNotification({
+            type: 'success',
+            title: t('vote_popup_vote_success'),
+            message: `${getLocalizedString(voteCandidate?.artist?.name || '', currentLanguage)}에게 ${amount} 투표했습니다.`,
+            duration: 3000,
+          });
+        }}
+      />
 
       {/* 알림 시스템은 전역 레이아웃에서 처리됩니다 */}
 

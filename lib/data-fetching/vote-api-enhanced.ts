@@ -35,21 +35,7 @@ export interface VoteSubmissionResponse {
   message?: string;
 }
 
-export interface CanVoteRequest {
-  userId: string;
-  voteAmount: number;
-}
 
-export interface CanVoteResponse {
-  canVote: boolean;
-  error?: string;
-  details?: string;
-  userBalance?: {
-    starCandy: number;
-    starCandyBonus: number;
-    totalAvailable: number;
-  };
-}
 
 export interface VoteResultsResponse {
   voteId: number;
@@ -226,59 +212,7 @@ export const getVoteResultsEnhanced = withPerformanceMonitoring(
   'vote_results'
 );
 
-/**
- * 향상된 투표 가능 여부 확인 API 호출
- */
-export const checkCanVoteEnhanced = withDuplicateRequestPrevention(
-  withPerformanceMonitoring(
-    withVoteOptimization(async (request: CanVoteRequest): Promise<CanVoteResponse> => {
-      console.log('[Enhanced Vote API] 투표 가능 여부 확인 시작:', {
-        userId: request.userId?.slice(0, 8) + '...',
-        voteAmount: request.voteAmount
-      });
 
-      try {
-        const response = await fetch('/api/vote/can-vote', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(request),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          console.warn('[Enhanced Vote API] 투표 가능 여부 확인 실패:', {
-            status: response.status,
-            error: result.error
-          });
-
-          return {
-            canVote: false,
-            error: result.error || 'Failed to check vote eligibility',
-            details: result.details
-          };
-        }
-
-        console.log('[Enhanced Vote API] 투표 가능 여부 확인 성공:', {
-          canVote: result.canVote,
-          totalAvailable: result.userBalance?.totalAvailable
-        });
-
-        return result;
-      } catch (error) {
-        console.error('[Enhanced Vote API] 투표 가능 여부 확인 예외:', error);
-        return {
-          canVote: false,
-          error: 'Network error occurred while checking vote eligibility'
-        };
-      }
-    }),
-    'can_vote_check'
-  ),
-  (request) => `can_vote_${request.userId}_${request.voteAmount}`
-);
 
 /**
  * 투표 상세 정보 조회 (향상된 버전)
@@ -414,7 +348,6 @@ export function getRequestQueueStatus() {
 // 기존 API와 호환성을 위한 exports
 export const submitVote = submitVoteEnhanced;
 export const getVoteResults = getVoteResultsEnhanced;
-export const checkCanVote = checkCanVoteEnhanced;
 export const fetchVoteDetail = fetchVoteDetailEnhanced;
 export const fetchVoteList = fetchVoteListEnhanced;
 export const calculateVoteStatus = calculateVoteStatusEnhanced;
