@@ -6,13 +6,11 @@ import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { 
   submitVote, 
   getVoteResults, 
-  checkCanVote, 
   fetchVoteDetail, 
   fetchVoteList,
   calculateVoteStatus,
   calculateTimeLeft,
-  VoteSubmissionRequest,
-  CanVoteRequest
+  VoteSubmissionRequest
 } from '@/lib/data-fetching/vote-api';
 import { 
   VoteRealtimeService,
@@ -164,8 +162,7 @@ interface VoteStore {
   // 투표 결과 로드
   loadVoteResults: (voteId: number) => Promise<void>;
   
-  // 투표 가능 여부 확인
-  checkVoteEligibility: (userId: string, voteAmount: number) => Promise<boolean>;
+
   
   // 투표 제출
   submitUserVote: (userId: string, totalBonusRemain?: number) => Promise<boolean>;
@@ -922,41 +919,7 @@ export const useVoteStore = create<VoteStore>()(
         }
       },
 
-      checkVoteEligibility: async (userId, voteAmount) => {
-        try {
-          const request: CanVoteRequest = { userId, voteAmount };
-          const response = await checkCanVote(request);
-          
-          if (!response.success) {
-            set(
-              (state) => ({
-                submission: {
-                  ...state.submission,
-                  error: response.error || 'Failed to check vote eligibility',
-                },
-              }),
-              false,
-              'checkVoteEligibility:error'
-            );
-            return false;
-          }
 
-          return response.canVote || false;
-        } catch (error) {
-          console.error('Check vote eligibility error:', error);
-          set(
-            (state) => ({
-              submission: {
-                ...state.submission,
-                error: 'Failed to check vote eligibility',
-              },
-            }),
-            false,
-            'checkVoteEligibility:exception'
-          );
-          return false;
-        }
-      },
 
       submitUserVote: async (userId, totalBonusRemain = 0) => {
         const { currentVote, submission, startSubmission, completeSubmission } = get();

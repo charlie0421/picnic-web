@@ -63,11 +63,11 @@ export async function generateMetadata({
   }
 
   const description =
-    vote.vote_content || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
+    vote.vote_content || '피크닠에서 좋아하는 아티스트에게 투표해보세요!';
 
   // 기본 메타데이터
   const baseMetadata = createPageMetadata(
-    `${title} - 피크닉 투표`,
+    `${title} - 피크닠 투표`,
     description,
     {
       alternates: {
@@ -143,7 +143,7 @@ export default async function VoteDetailPage({
   }
 
   const description =
-    vote.vote_content || '피크닉에서 좋아하는 아티스트에게 투표해보세요!';
+    vote.vote_content || '피크닠에서 좋아하는 아티스트에게 투표해보세요!';
 
   schemaData = createVoteSchema(
     title,

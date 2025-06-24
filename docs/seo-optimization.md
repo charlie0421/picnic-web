@@ -1,6 +1,6 @@
 # SEO 최적화 가이드
 
-이 문서는 피크닉 웹 프로젝트의 SEO(검색 엔진 최적화) 전략과 구현 방법에 대해 설명합니다.
+이 문서는 피크닠 웹 프로젝트의 SEO(검색 엔진 최적화) 전략과 구현 방법에 대해 설명합니다.
 
 ## 목차
 
@@ -14,7 +14,7 @@
 
 ## 개요
 
-피크닉 웹사이트는 Next.js의 App Router를 사용하며, 각 페이지별로 최적화된 SEO 설정을 적용하고 있습니다. 주요 구현 방식은 다음과 같습니다:
+피크닠 웹사이트는 Next.js의 App Router를 사용하며, 각 페이지별로 최적화된 SEO 설정을 적용하고 있습니다. 주요 구현 방식은 다음과 같습니다:
 
 - Next.js의 메타데이터 API를 활용한 페이지별 메타데이터 설정
 - JSON-LD 기반의 구조화된 데이터(Schema.org) 구현
@@ -30,10 +30,10 @@
 ```typescript
 export const DEFAULT_METADATA: Metadata = {
   title: {
-    default: '피크닉',
-    template: '%s | 피크닉',
+    default: '피크닠',
+    template: '%s | 피크닠',
   },
-  description: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+  description: '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
   // 기타 메타데이터 필드들
 };
 ```
@@ -74,7 +74,7 @@ export async function generateMetadata({
 ### 주요 스키마 타입
 
 - **웹사이트**: `createWebsiteSchema` - 웹사이트 기본 정보 제공
-- **조직**: `createOrganizationSchema` - 피크닉 조직 정보 제공
+- **조직**: `createOrganizationSchema` - 피크닠 조직 정보 제공
 - **투표 이벤트**: `createVoteSchema` - 투표 페이지에 사용
 - **상품**: `createProductSchema` - 리워드 페이지에 사용
 - **FAQ**: `createFAQSchema` - FAQ 페이지에 사용
@@ -179,4 +179,4 @@ alternates: {
 
 ## 결론
 
-피크닉 웹사이트의 SEO 전략은 Next.js의 최신 기능을 활용하여 검색 엔진 및 소셜 미디어에서의 노출을 극대화하는 방향으로 설계되었습니다. 페이지를 추가하거나 수정할 때는 이 문서에 설명된 패턴을 따라 SEO 설정을 적용해 주세요. 
+피크닠 웹사이트의 SEO 전략은 Next.js의 최신 기능을 활용하여 검색 엔진 및 소셜 미디어에서의 노출을 극대화하는 방향으로 설계되었습니다. 페이지를 추가하거나 수정할 때는 이 문서에 설명된 패턴을 따라 SEO 설정을 적용해 주세요. 

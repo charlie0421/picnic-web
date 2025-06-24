@@ -76,9 +76,9 @@ export default async function RootLayout({
               '@context': 'https://schema.org',
               '@type': 'WebSite',
               url: 'https://picnic.com',
-              name: '피크닉',
+              name: '피크닠',
               description:
-                '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+                '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
               potentialAction: {
                 '@type': 'SearchAction',
                 target: 'https://picnic.com/search?q={search_term_string}',

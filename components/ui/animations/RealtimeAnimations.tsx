@@ -11,6 +11,7 @@ export interface AnimatedCountProps {
   className?: string;
   prefix?: string;
   suffix?: string;
+  locale?: string;
 }
 
 export function AnimatedCount({ 
@@ -18,14 +19,15 @@ export function AnimatedCount({
   duration = 0.8, 
   className = '',
   prefix = '',
-  suffix = ''
+  suffix = '',
+  locale = 'en-US'
 }: AnimatedCountProps) {
   const springValue = useSpring(value, { 
     duration: duration * 1000,
     bounce: 0.1 
   });
   const display = useTransform(springValue, (latest) => 
-    Math.floor(latest).toLocaleString()
+    Math.floor(latest).toLocaleString(locale)
   );
 
   return (

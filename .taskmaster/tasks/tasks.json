@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "project": "picnic-web",
+    "tags": {
+      "master": {
+        "name": "master",
+        "description": "Default task context",
+        "created": "2024-12-27",
+        "active": true
+      }
+    },
+    "currentTag": "master"
+  },
+  "tags": {
+    "master": {
+      "tasks": [
+        {
+          "id": "1",
+          "title": "VotePopup 컴포넌트 개선 및 기능 확장",
+          "description": "VotePopup 컴포넌트를 개선하여 국제화, 별사탕 시스템, 투표 제한, RPC API 연동 등의 기능을 구현",
+          "status": "pending",
+          "priority": "high",
+          "dependencies": [],
+          "details": "VotePopup 컴포넌트에 다음 기능들을 구현:\n1. 하드코딩된 한국어 텍스트 국제화\n2. '투표는 한번만 가능' 텍스트 제거\n3. 유저 프로필 기반 별사탕/보너스 표시\n4. 애니메이션과 로케일 적용된 숫자 표시\n5. 전체 투표 입력 체크박스\n6. PostgreSQL can_vote 함수를 통한 투표 가능 여부 체크\n7. 10000개 투표 제한 안내\n8. RPC API(https://api.picnic.fan/functions/v1/voting)를 통한 투표 실행\n9. 팬시한 디자인과 애니메이션",
+          "testStrategy": "컴포넌트 렌더링 테스트, 국제화 텍스트 확인, 별사탕 표시 테스트, 투표 API 호출 테스트, 애니메이션 동작 확인",
+          "subtasks": []
+        }
+      ]
+    }
+  }
+} 

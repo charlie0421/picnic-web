@@ -56,18 +56,6 @@ export interface VoteResultsResponse {
   details?: string;
 }
 
-export interface CanVoteRequest {
-  userId: string;
-  voteAmount: number;
-}
-
-export interface CanVoteResponse {
-  success: boolean;
-  canVote?: boolean;
-  error?: string;
-  details?: string;
-}
-
 /**
  * 투표 제출 API 호출
  */
@@ -123,39 +111,6 @@ export async function getVoteResults(voteId: number): Promise<VoteResultsRespons
     return {
       success: false,
       error: 'Network error occurred while fetching vote results'
-    };
-  }
-}
-
-/**
- * 투표 가능 여부 확인 API 호출
- */
-export async function checkCanVote(request: CanVoteRequest): Promise<CanVoteResponse> {
-  try {
-    const response = await fetch('/api/vote/can-vote', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: result.error || 'Failed to check vote eligibility',
-        details: result.details
-      };
-    }
-
-    return result;
-  } catch (error) {
-    console.error('Can vote check error:', error);
-    return {
-      success: false,
-      error: 'Network error occurred while checking vote eligibility'
     };
   }
 }

@@ -12,7 +12,7 @@ import Header from '@/components/layouts/Header';
 import { getPopups } from '@/utils/api/queries';
 import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
-import VotePopup from '@/components/client/vote/dialogs/VotePopup';
+import PopupBanner from '@/components/client/vote/dialogs/PopupBanner';
 import { Menu } from '@/components/client/vote';
 
 interface MainLayoutProps {
@@ -103,7 +103,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   return (
     <div className='bg-gradient-to-b from-blue-50 to-white relative'>
       {popupSlides.length > 0 && (
-        <VotePopup
+        <PopupBanner
           isOpen={isPopupOpen}
           onClose={() => setIsPopupOpen(false)}
           onCloseFor7Days={handleCloseFor7Days}
