@@ -30,6 +30,7 @@ export type {
   
   // 컴포넌트 Props
   PaymentModalProps,
+  PaymentRateTableProps,
   RegionSelectorProps,
   ProductSelectorProps,
   PaymentMethodSelectorProps,
@@ -55,8 +56,9 @@ export type {
   PaymentCompleteResponse,
 } from './types';
 
-// Components (아직 구현되지 않았지만 향후 export 예정)
-// export { PaymentModal } from './PaymentModal';
+// Components
+export { PaymentModal } from './PaymentModal';
+export { PaymentRateTable } from './PaymentRateTable';
 // export { RegionSelector } from './RegionSelector';
 // export { ProductSelector } from './ProductSelector';
 // export { PaymentMethodSelector } from './PaymentMethodSelector';

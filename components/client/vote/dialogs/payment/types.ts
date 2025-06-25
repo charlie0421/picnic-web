@@ -12,7 +12,7 @@ export type Region = 'korea' | 'global';
 /**
  * 통화 타입
  */
-export type Currency = 'KRW' | 'USD';
+export type Currency = 'KRW' | 'USD' | 'EUR' | 'GBP' | 'JPY';
 
 /**
  * 결제 제공업체
@@ -423,6 +423,30 @@ export interface PriceTableProps {
 }
 
 /**
+ * PaymentRateTable 컴포넌트 Props
+ */
+export interface PaymentRateTableProps {
+  /** 표시할 지역 */
+  region: Region;
+  /** 표시할 통화 */
+  currency?: Currency;
+  /** 컴팩트 모드 여부 */
+  isCompact?: boolean;
+  /** 특정 결제 수단만 표시 */
+  showOnly?: string[];
+  /** 프로모션 할인 정보 */
+  promotional?: {
+    discount: number;
+    validUntil: Date;
+    description: string;
+  };
+  /** 테이블 제목 */
+  title?: string;
+  /** 추가 CSS 클래스 */
+  className?: string;
+}
+
+/**
  * PaymentActions 컴포넌트 Props
  */
 export interface PaymentActionsProps {
@@ -483,14 +507,25 @@ export interface PaymentModalState {
   
   // 결제 진행
   paymentSession?: PaymentSession;
+  paymentStatus: PaymentStatus;
   receipt?: PaymentReceipt;
   
+  // 플로우 히스토리
+  stepHistory: PaymentStep[];
+  
+  // 메타데이터
+  metadata: {
+    startedAt: number;
+    userAgent: string;
+    sessionId: string;
+  };
+  
   // 데이터
-  availableProducts: ProductType[];
-  availablePaymentMethods: PaymentMethod[];
+  availableProducts?: ProductType[];
+  availablePaymentMethods?: PaymentMethod[];
   
   // 설정
-  debug: boolean;
+  debug?: boolean;
 }
 
 // ========================================================================================
