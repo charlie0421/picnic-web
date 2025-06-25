@@ -1,165 +1,165 @@
 {
-  "meta": {
-    "generatedAt": "2025-05-28T03:38:47.973Z",
-    "tasksAnalyzed": 3,
-    "totalTasks": 18,
-    "analysisCount": 19,
-    "thresholdScore": 5,
-    "projectName": "Taskmaster",
-    "usedResearch": true
-  },
-  "complexityAnalysis": [
-    {
-      "taskId": 19,
-      "taskTitle": "테스트 커버리지 80% 달성 및 테스트 신뢰성 강화",
-      "complexityScore": 8,
-      "recommendedSubtasks": 6,
-      "expansionPrompt": "Break down the test coverage improvement task into specific subtasks addressing: 1) Current coverage analysis, 2) Fixing failing tests, 3) Improving mocking/stub logic, 4) Adding new tests for uncovered areas, 5) CI/CD pipeline configuration, and 6) Test code optimization. For each subtask, specify deliverables, acceptance criteria, and estimated effort.",
-      "reasoning": "This task involves multiple technical aspects including test analysis, code modification, mocking improvements, new test creation, CI/CD configuration, and code optimization. The cyclomatic complexity is high due to numerous decision paths in testing scenarios and the need to understand existing code structure. The task requires both analytical skills to identify coverage gaps and implementation skills to fix and enhance tests. The 6 recommended subtasks align with the 6 detailed points already outlined in the task description, each representing a distinct area of work with its own complexity factors."
-    },
-    {
-      "taskId": 1,
-      "taskTitle": "Update Project Dependencies",
-      "complexityScore": 4,
-      "recommendedSubtasks": 5,
-      "expansionPrompt": "Break down the dependency update process by major library (Next.js, React, TypeScript, Tailwind CSS, Zustand, next-intl, Framer Motion, Supabase). Include steps for updating, testing, and resolving compatibility issues for each.",
-      "reasoning": "Updating dependencies is a routine but potentially risky task, especially with major libraries. The complexity is moderate due to the need for compatibility checks and thorough testing, but the process is well-defined and can be parallelized by library."
-    },
-    {
-      "taskId": 2,
-      "taskTitle": "Implement Voting System Backend",
-      "complexityScore": 7,
-      "recommendedSubtasks": 7,
-      "expansionPrompt": "Expand into subtasks for database schema design, table creation, RLS policy setup, API endpoint development (create vote, submit vote, fetch results), server-side validation, and backend testing.",
-      "reasoning": "This task involves database design, security policy configuration, API development, and validation logic. Each area requires careful planning and testing, making the overall complexity high."
-    },
-    {
-      "taskId": 3,
-      "taskTitle": "Develop Voting System Frontend",
-      "complexityScore": 6,
-      "recommendedSubtasks": 6,
-      "expansionPrompt": "List subtasks for each React component (VoteList, VoteItem, VoteSubmit, VoteResults), state management integration, form validation, styling, animation, and Supabase integration.",
-      "reasoning": "Building multiple interactive components with state management, validation, styling, and backend integration adds up to a moderately high complexity, though the work can be modularized."
-    },
-    {
-      "taskId": 4,
-      "taskTitle": "Implement Real-time Voting Updates",
-      "complexityScore": 8,
-      "recommendedSubtasks": 7,
-      "expansionPrompt": "Divide into subtasks for Supabase Realtime setup, frontend WebSocket integration, VoteResults real-time updates, animation implementation, error/reconnection handling, performance optimization, and testing.",
-      "reasoning": "Real-time features introduce significant complexity due to asynchronous data flows, error handling, and performance considerations, requiring careful coordination between backend and frontend."
-    },
-    {
-      "taskId": 5,
-      "taskTitle": "Complete WeChat Login Integration",
-      "complexityScore": 7,
-      "recommendedSubtasks": 8,
-      "expansionPrompt": "Expand into subtasks for WeChat developer setup, OAuth flow implementation, UI component creation, callback handling, user data storage, error handling, CSRF protection, and testing.",
-      "reasoning": "Integrating a third-party OAuth provider with security and compatibility requirements is complex, especially when ensuring it works alongside existing authentication flows."
-    },
-    {
-      "taskId": 6,
-      "taskTitle": "Enhance Area Filter Functionality",
-      "complexityScore": 4,
-      "recommendedSubtasks": 6,
-      "expansionPrompt": "Break down into subtasks for AreaFilter UI update, Zustand store changes, localStorage integration, query logic update, UI state reflection, and internationalization.",
-      "reasoning": "This is a focused UI/UX enhancement with moderate complexity, mainly involving state management and persistence, but not requiring deep architectural changes."
-    },
-    {
-      "taskId": 7,
-      "taskTitle": "Implement Status Filter Persistence",
-      "complexityScore": 4,
-      "recommendedSubtasks": 6,
-      "expansionPrompt": "List subtasks for StatusFilter UI update, Zustand store changes, localStorage integration, reset logic, invalid state handling, and UI/data query updates.",
-      "reasoning": "Similar to the Area Filter task, this involves state persistence and UI updates, with moderate complexity and clear separation of concerns."
-    },
-    {
-      "taskId": 8,
-      "taskTitle": "Improve Menu Navigation Language Handling",
-      "complexityScore": 5,
-      "recommendedSubtasks": 7,
-      "expansionPrompt": "Expand into subtasks for Navigation component update, next-intl integration, custom useRouter hook, internal link updates, URL handling fixes, language change handling, and SEO improvements.",
-      "reasoning": "Ensuring language persistence across navigation and proper SEO handling adds complexity, especially with dynamic routing and internationalization."
-    },
-    {
-      "taskId": 9,
-      "taskTitle": "Implement Initial Language Detection and Persistence",
-      "complexityScore": 5,
-      "recommendedSubtasks": 7,
-      "expansionPrompt": "Break down into subtasks for language detection utility, language mapping, localStorage integration, _app.js modification, language switcher update, precedence logic, and fallback handling.",
-      "reasoning": "This task involves both frontend logic and persistence, with some edge cases for language precedence and fallback, making it moderately complex."
-    },
-    {
-      "taskId": 10,
-      "taskTitle": "Enhance Real-time Voting Animations",
-      "complexityScore": 6,
-      "recommendedSubtasks": 7,
-      "expansionPrompt": "List subtasks for Framer Motion integration, vote count animation, ranking animation, highlight effect, staggered updates, performance optimization, and loading animation.",
-      "reasoning": "Advanced UI animation work is moderately complex, especially when coordinating multiple real-time updates and ensuring performance."
-    },
-    {
-      "taskId": 11,
-      "taskTitle": "Implement Comprehensive Error Handling",
-      "complexityScore": 8,
-      "recommendedSubtasks": 8,
-      "expansionPrompt": "Expand into subtasks for centralized error utility, custom error classes, React error boundaries, user messaging, backend logging, retry logic, async error handling, and global error state management.",
-      "reasoning": "Robust error handling across frontend and backend, including logging and user feedback, is a complex and critical task that touches many parts of the system."
-    },
-    {
-      "taskId": 12,
-      "taskTitle": "Optimize Application Performance",
-      "complexityScore": 8,
-      "recommendedSubtasks": 8,
-      "expansionPrompt": "Break down into subtasks for code splitting, lazy loading, Tailwind optimization, API caching, ISR setup, font optimization, service worker implementation, and React performance tuning.",
-      "reasoning": "Performance optimization is a multifaceted task involving build configuration, runtime behavior, and infrastructure, requiring expertise and careful testing."
-    },
-    {
-      "taskId": 13,
-      "taskTitle": "Enhance Security Measures",
-      "complexityScore": 9,
-      "recommendedSubtasks": 9,
-      "expansionPrompt": "List subtasks for CORS setup, CSP headers, HttpOnly cookies, rate limiting, RLS policies, input sanitization, security headers, dependency updates, and two-factor authentication.",
-      "reasoning": "Security enhancements are highly complex, requiring deep understanding of both backend and frontend vulnerabilities, and must be implemented with precision to avoid introducing new risks."
-    },
-    {
-      "taskId": 14,
-      "taskTitle": "Implement Comprehensive Testing Suite",
-      "complexityScore": 9,
-      "recommendedSubtasks": 10,
-      "expansionPrompt": "Expand into subtasks for unit test setup, integration test setup, end-to-end test setup, utility/hook tests, component interaction tests, user flow tests, visual regression, CI/CD integration, mocks for external services, and coverage reporting.",
-      "reasoning": "Building a full testing suite is a large, complex task that requires coverage across all layers of the application and integration with development workflows."
-    },
-    {
-      "taskId": 15,
-      "taskTitle": "Setup Monitoring and Analytics",
-      "complexityScore": 7,
-      "recommendedSubtasks": 8,
-      "expansionPrompt": "Break down into subtasks for error tracking setup, APM integration, Supabase monitoring, analytics service integration, custom event tracking, alerting setup, server-side logging, and dashboard creation.",
-      "reasoning": "Comprehensive monitoring and analytics require integration with multiple services, custom event tracking, and dashboarding, making it a complex but well-scoped task."
-    },
-    {
-      "taskId": 16,
-      "taskTitle": "Row-Level Security (RLS) Policy Setup",
-      "complexityScore": 5,
-      "recommendedSubtasks": 4,
-      "expansionPrompt": "Break down the RLS policy setup into subtasks such as: 1) Analyze data access requirements and user roles, 2) Define RLS policy rules for each role, 3) Implement RLS policies in the database, 4) Test and validate RLS enforcement for different user scenarios.",
-      "reasoning": "Configuring RLS policies is moderately complex, involving analysis of access requirements, precise policy definition, implementation in the database, and thorough testing to ensure correct enforcement. While not algorithmically complex, it requires careful planning to avoid security loopholes and ensure maintainability."
-    },
-    {
-      "taskId": 17,
-      "taskTitle": "Develop Reusable Fancy Dialog Component System",
-      "complexityScore": 8,
-      "recommendedSubtasks": 7,
-      "expansionPrompt": "Expand this task into subtasks such as: 1) Design dialog component architecture, 2) Implement base dialog with animation support, 3) Create dialog variants (confirmation, warning, info, error), 4) Integrate accessibility features, 5) Develop flexible API for programmatic control, 6) Style dialogs with design system and ensure responsiveness, 7) Write documentation and usage examples.",
-      "reasoning": "Building a reusable, animated, accessible dialog system with multiple variants and a flexible API is a high-complexity UI engineering task. It requires architectural planning, advanced React patterns, animation integration, accessibility compliance, and thorough documentation, each of which adds to the overall complexity."
-    },
-    {
-      "taskId": 18,
-      "taskTitle": "Implement Login Required Dialog and Redirect Logic",
-      "complexityScore": 7,
-      "recommendedSubtasks": 8,
-      "expansionPrompt": "Decompose this task into subtasks such as: 1) Extend dialog system for 'Login Required' dialog, 2) Design dialog content and actions, 3) Implement authentication check HOC/hook, 4) Develop redirect URL storage and retrieval logic, 5) Integrate with login flow and redirect after login, 6) Handle edge cases (invalid/expired URLs, security), 7) Optimize dialog performance and UX, 8) Localize dialog and messages.",
-      "reasoning": "This task involves both UI and authentication flow logic, including extending the dialog system, managing authentication checks, secure redirect handling, and addressing edge cases. The need for security, performance, and localization increases the complexity, though it builds on the dialog system from the previous task."
-    }
-  ]
+	"meta": {
+		"generatedAt": "2025-06-25T03:06:54.114Z",
+		"tasksAnalyzed": 15,
+		"totalTasks": 15,
+		"analysisCount": 19,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 19,
+			"taskTitle": "테스트 커버리지 80% 달성 및 테스트 신뢰성 강화",
+			"complexityScore": 8,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down the test coverage improvement task into specific subtasks addressing: 1) Current coverage analysis, 2) Fixing failing tests, 3) Improving mocking/stub logic, 4) Adding new tests for uncovered areas, 5) CI/CD pipeline configuration, and 6) Test code optimization. For each subtask, specify deliverables, acceptance criteria, and estimated effort.",
+			"reasoning": "This task involves multiple technical aspects including test analysis, code modification, mocking improvements, new test creation, CI/CD configuration, and code optimization. The cyclomatic complexity is high due to numerous decision paths in testing scenarios and the need to understand existing code structure. The task requires both analytical skills to identify coverage gaps and implementation skills to fix and enhance tests. The 6 recommended subtasks align with the 6 detailed points already outlined in the task description, each representing a distinct area of work with its own complexity factors."
+		},
+		{
+			"taskId": 16,
+			"taskTitle": "Row-Level Security (RLS) Policy Setup",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down the RLS policy setup into subtasks such as: 1) Analyze data access requirements and user roles, 2) Define RLS policy rules for each role, 3) Implement RLS policies in the database, 4) Test and validate RLS enforcement for different user scenarios.",
+			"reasoning": "Configuring RLS policies is moderately complex, involving analysis of access requirements, precise policy definition, implementation in the database, and thorough testing to ensure correct enforcement. While not algorithmically complex, it requires careful planning to avoid security loopholes and ensure maintainability."
+		},
+		{
+			"taskId": 17,
+			"taskTitle": "Develop Reusable Fancy Dialog Component System",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Expand this task into subtasks such as: 1) Design dialog component architecture, 2) Implement base dialog with animation support, 3) Create dialog variants (confirmation, warning, info, error), 4) Integrate accessibility features, 5) Develop flexible API for programmatic control, 6) Style dialogs with design system and ensure responsiveness, 7) Write documentation and usage examples.",
+			"reasoning": "Building a reusable, animated, accessible dialog system with multiple variants and a flexible API is a high-complexity UI engineering task. It requires architectural planning, advanced React patterns, animation integration, accessibility compliance, and thorough documentation, each of which adds to the overall complexity."
+		},
+		{
+			"taskId": 18,
+			"taskTitle": "Implement Login Required Dialog and Redirect Logic",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Decompose this task into subtasks such as: 1) Extend dialog system for 'Login Required' dialog, 2) Design dialog content and actions, 3) Implement authentication check HOC/hook, 4) Develop redirect URL storage and retrieval logic, 5) Integrate with login flow and redirect after login, 6) Handle edge cases (invalid/expired URLs, security), 7) Optimize dialog performance and UX, 8) Localize dialog and messages.",
+			"reasoning": "This task involves both UI and authentication flow logic, including extending the dialog system, managing authentication checks, secure redirect handling, and addressing edge cases. The need for security, performance, and localization increases the complexity, though it builds on the dialog system from the previous task."
+		},
+		{
+			"taskId": 1,
+			"taskTitle": "Database Schema Extension Implementation",
+			"complexityScore": 6,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down the database schema extension into detailed steps including schema design, migration scripts, index creation, RLS policy implementation, and rollback procedures",
+			"reasoning": "Moderate complexity due to need for careful schema design, migration handling, and security policies. Multiple interconnected components require thorough planning."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "IP-based Region Detection Service",
+			"complexityScore": 7,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Detail the implementation steps for IP detection service including API integration, caching system, error handling, and performance optimization",
+			"reasoning": "Higher complexity due to external API dependency, caching requirements, and need for robust error handling and performance considerations"
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Payment Modal UI Component",
+			"complexityScore": 5,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down the UI component development into design, implementation, state management, and testing phases",
+			"reasoning": "Moderate complexity involving UI/UX design, state management, and accessibility requirements"
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Port One SDK Integration",
+			"complexityScore": 8,
+			"recommendedSubtasks": 12,
+			"expansionPrompt": "Detail the Port One integration steps including SDK setup, payment flow implementation, error handling, and testing scenarios",
+			"reasoning": "High complexity due to third-party SDK integration, complex payment flows, and extensive error handling requirements"
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "PayPal SDK Integration",
+			"complexityScore": 7,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Break down PayPal integration into SDK setup, button implementation, payment flow handling, and testing procedures",
+			"reasoning": "Significant complexity due to PayPal's specific requirements and multiple payment flow scenarios"
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "Payment Session Management",
+			"complexityScore": 7,
+			"recommendedSubtasks": 9,
+			"expansionPrompt": "Detail the session management system implementation including creation, validation, timeout handling, and recovery procedures",
+			"reasoning": "Complex state management requirements and need for robust error handling and recovery mechanisms"
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Payment Verification Edge Function",
+			"complexityScore": 9,
+			"recommendedSubtasks": 12,
+			"expansionPrompt": "Break down the verification function implementation including provider-specific verification, security measures, and error handling",
+			"reasoning": "High complexity due to critical security requirements and multiple payment provider integrations"
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "User Account Update Service",
+			"complexityScore": 8,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Detail the account update service implementation including atomic operations, rollback mechanisms, and audit logging",
+			"reasoning": "Complex due to critical transaction handling and need for perfect accuracy in financial operations"
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Payment Rate Table Component",
+			"complexityScore": 4,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down the rate table component development into UI implementation, currency handling, and dynamic pricing features",
+			"reasoning": "Moderate complexity focused on UI implementation and dynamic data display"
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Payment Progress Indicator",
+			"complexityScore": 5,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Detail the progress indicator implementation including state management, animations, and error state handling",
+			"reasoning": "Moderate complexity involving UI states and real-time updates"
+		},
+		{
+			"taskId": 11,
+			"taskTitle": "Vote System Integration",
+			"complexityScore": 6,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down the vote system integration including payment triggers, validation rules, and error handling",
+			"reasoning": "Moderate complexity due to integration with existing system and validation requirements"
+		},
+		{
+			"taskId": 12,
+			"taskTitle": "Error Handling and Recovery System",
+			"complexityScore": 8,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Detail the error handling system implementation including recovery mechanisms, logging, and user notification systems",
+			"reasoning": "High complexity due to comprehensive error handling requirements and recovery mechanisms"
+		},
+		{
+			"taskId": 13,
+			"taskTitle": "Security Implementation",
+			"complexityScore": 9,
+			"recommendedSubtasks": 12,
+			"expansionPrompt": "Break down security implementation into specific protection measures, validation systems, and encryption mechanisms",
+			"reasoning": "High complexity due to critical security requirements and multiple protection layers needed"
+		},
+		{
+			"taskId": 14,
+			"taskTitle": "Payment Analytics Integration",
+			"complexityScore": 6,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Detail the analytics system implementation including event tracking, reporting, and dashboard components",
+			"reasoning": "Moderate complexity involving data collection, processing, and visualization"
+		},
+		{
+			"taskId": 15,
+			"taskTitle": "System Integration Testing",
+			"complexityScore": 9,
+			"recommendedSubtasks": 15,
+			"expansionPrompt": "Break down the testing strategy into specific test scenarios, automation implementation, and monitoring setup",
+			"reasoning": "High complexity due to comprehensive testing requirements and multiple system dependencies"
+		}
+	]
 }

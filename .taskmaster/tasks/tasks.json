@@ -28,5 +28,462 @@
         }
       ]
     }
+  },
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Database Schema Extension Implementation",
+        "description": "Extend the receipt table and create new payment_sessions table in the Supabase database",
+        "details": "Execute SQL migrations to:\n1. Add payment_provider, region, payment_method columns to receipt table\n2. Create payment_sessions table with specified schema\n3. Add appropriate indexes and foreign key constraints\n4. Implement RLS policies for new tables",
+        "testStrategy": "1. Verify table creation and column additions\n2. Test RLS policies\n3. Validate foreign key constraints\n4. Perform CRUD operations test",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "IP-based Region Detection Service",
+        "description": "Implement IP geolocation service to automatically detect user region for payment provider selection",
+        "details": "1. Create edge function for IP detection\n2. Integrate IP Geolocation API\n3. Implement caching mechanism\n4. Add fallback logic for failed detections\n5. Create /api/payment/region-detect endpoint",
+        "testStrategy": "1. Test with various IP ranges\n2. Verify cache functionality\n3. Test fallback scenarios\n4. Measure response times",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Payment Modal UI Component",
+        "description": "Create reusable payment modal component with region selection and payment method display",
+        "details": "Using Next.js and Tailwind CSS:\n1. Create PaymentModal component\n2. Implement responsive design\n3. Add region selector\n4. Create payment method display\n5. Add loading states",
+        "testStrategy": "1. Unit tests for component rendering\n2. Responsive design testing\n3. User interaction testing\n4. Accessibility testing",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Component Design Mockups",
+            "description": "Design wireframes and visual mockups of the UI component",
+            "dependencies": [],
+            "details": "Use design tools to create mockups showing component layout, styling, and interactions in different states",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Define Component API and Props",
+            "description": "Specify the component's interface, required props, and optional configurations",
+            "dependencies": [
+              1
+            ],
+            "details": "Document prop types, default values, and expected behaviors based on the design mockups",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement Basic Component Structure",
+            "description": "Create the initial component skeleton with basic markup and styling",
+            "dependencies": [
+              2
+            ],
+            "details": "Set up component file structure, implement basic JSX layout, and add preliminary CSS styles\n<info added on 2025-06-25T03:17:08.902Z>\nComponent structure implementation completed:\n\n- Created PaymentModal main component integrated with existing Dialog system\n- Implemented 7-step payment flow (region → product → payment → review → processing → success/error)\n- Built progress indicator UI\n- Added region-specific payment method branching (Korea: Port One, Global: PayPal)\n- Implemented temporary product list and pricing table UI\n- Set up component file structure with TypeScript support\n- Applied Tailwind CSS styling following design system\n- Added debug mode functionality\n\nTechnical achievements:\n- Full Dialog system integration\n- Complete TypeScript type safety\n- Consistent design system implementation\n- All payment stage UIs completed\n\nKnown issues:\n- React type definition issues (project configuration related)\n- React hooks import errors\n- Component function declaration syntax problems\n- To be resolved in environment configuration\n</info added on 2025-06-25T03:17:08.902Z>",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Set Up State Management",
+            "description": "Implement state handling logic and data flow",
+            "dependencies": [
+              3
+            ],
+            "details": "Configure state management solution, define actions, and implement state updates",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Add Interactive Features",
+            "description": "Implement user interactions and event handlers",
+            "dependencies": [
+              4
+            ],
+            "details": "Add click handlers, form controls, and other interactive elements with appropriate state updates",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Implement Accessibility Features",
+            "description": "Add ARIA attributes and keyboard navigation support",
+            "dependencies": [
+              5
+            ],
+            "details": "Ensure component meets accessibility standards with proper ARIA roles, labels, and keyboard interactions",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Write Unit Tests",
+            "description": "Create comprehensive unit tests for component functionality",
+            "dependencies": [
+              5
+            ],
+            "details": "Write tests for component rendering, state changes, user interactions, and edge cases",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Perform Integration Testing",
+            "description": "Test component integration with other parts of the application",
+            "dependencies": [
+              7
+            ],
+            "details": "Verify component works correctly within the larger application context and with real data",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Port One SDK Integration",
+        "description": "Integrate Port One payment SDK for Korean market payments",
+        "details": "1. Install Port One SDK\n2. Configure SDK with test credentials\n3. Implement payment initialization\n4. Create payment widget wrapper component\n5. Handle payment callbacks",
+        "testStrategy": "1. Test payment flow with test credentials\n2. Verify callback handling\n3. Test error scenarios\n4. Cross-browser testing",
+        "priority": "high",
+        "dependencies": [
+          1,
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "PayPal SDK Integration",
+        "description": "Integrate PayPal JavaScript SDK for global market payments",
+        "details": "1. Install PayPal SDK\n2. Configure SDK with sandbox credentials\n3. Implement PayPal button component\n4. Handle payment authorization\n5. Implement success/cancel flows",
+        "testStrategy": "1. Test PayPal sandbox payments\n2. Verify button rendering\n3. Test payment callbacks\n4. Cross-browser testing",
+        "priority": "high",
+        "dependencies": [
+          1,
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Payment Session Management",
+        "description": "Implement payment session handling and management system",
+        "details": "1. Create session management service\n2. Implement session creation/validation\n3. Add session timeout handling\n4. Create cleanup mechanism\n5. Implement session recovery",
+        "testStrategy": "1. Test session lifecycle\n2. Verify timeout handling\n3. Test concurrent sessions\n4. Validate cleanup process",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Payment Verification Edge Function",
+        "description": "Extend existing verify_receipt edge function to handle new payment providers",
+        "details": "1. Extend verify_receipt function\n2. Add Port One verification\n3. Add PayPal verification\n4. Implement signature validation\n5. Add security measures",
+        "testStrategy": "1. Test verification logic\n2. Verify security measures\n3. Test with mock payments\n4. Performance testing",
+        "priority": "high",
+        "dependencies": [
+          4,
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "User Account Update Service",
+        "description": "Implement service to update user's star candy and bonus after successful payment",
+        "details": "1. Create account update service\n2. Implement atomic updates\n3. Add rollback mechanism\n4. Create audit logging\n5. Handle edge cases",
+        "testStrategy": "1. Test update operations\n2. Verify atomicity\n3. Test rollback scenarios\n4. Audit log verification",
+        "priority": "high",
+        "dependencies": [
+          1,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Payment Rate Table Component",
+        "description": "Create dynamic payment rate table display component",
+        "details": "1. Create rate table component\n2. Implement responsive design\n3. Add currency conversion\n4. Create dynamic pricing display\n5. Add promotional pricing support",
+        "testStrategy": "1. Test display logic\n2. Verify responsive behavior\n3. Test currency formatting\n4. Visual regression testing",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create basic rate table structure",
+            "description": "Implement the foundational HTML/CSS structure for the rate table component",
+            "dependencies": [],
+            "details": "Design and implement the basic grid layout, header structure, and column definitions for the rate table using semantic HTML and CSS",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement currency formatting",
+            "description": "Add currency display and formatting functionality",
+            "dependencies": [
+              1
+            ],
+            "details": "Integrate currency formatting utilities, handle different currency symbols, and ensure proper decimal place formatting",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Develop responsive design",
+            "description": "Make the rate table responsive across different screen sizes",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement media queries, flexible layouts, and mobile-friendly view adaptations for the rate table",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Add dynamic data management",
+            "description": "Implement data fetching and state management for rates",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create data fetching logic, implement state management, and handle data updates for real-time rate changes",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement sorting and filtering",
+            "description": "Add interactive sorting and filtering capabilities",
+            "dependencies": [
+              4
+            ],
+            "details": "Create sort functions for columns, implement filter controls, and handle user interaction with data manipulation features",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Add user interaction features",
+            "description": "Implement hover states, selection, and click handlers",
+            "dependencies": [
+              1,
+              4
+            ],
+            "details": "Add interactive elements like hover effects, row selection, and click handlers for rate selection or additional information display",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Payment Progress Indicator",
+        "description": "Implement real-time payment progress indicator and status updates",
+        "details": "1. Create progress component\n2. Implement status updates\n3. Add error handling\n4. Create loading states\n5. Add animation effects",
+        "testStrategy": "1. Test status transitions\n2. Verify error displays\n3. Test loading states\n4. Animation testing",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          4,
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up progress indicator state management",
+            "description": "Implement core state management structure for the progress indicator using appropriate state management solution",
+            "dependencies": [],
+            "details": "Create state variables for progress value, loading state, and error state. Define actions and reducers for state updates. Implement state provider wrapper component.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Create base progress indicator component",
+            "description": "Build the foundational progress indicator component with basic styling and structure",
+            "dependencies": [
+              1
+            ],
+            "details": "Develop component skeleton with container and progress bar elements. Add basic CSS styling. Implement progress value display logic.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Add progress animation transitions",
+            "description": "Implement smooth animations for progress updates and state changes",
+            "dependencies": [
+              2
+            ],
+            "details": "Add CSS transitions for progress bar width changes. Implement enter/exit animations. Optimize animation performance.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement error state handling",
+            "description": "Add error state display and recovery mechanisms",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create error state UI elements. Implement error message display. Add retry functionality. Handle error state transitions.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Add loading state animations",
+            "description": "Implement loading state indicators and animations",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Create loading spinner component. Add pulse animations. Implement loading state transitions. Optimize loading state performance.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Implement progress update throttling",
+            "description": "Add performance optimizations for frequent progress updates",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement debounce/throttle logic for progress updates. Optimize state updates. Add performance monitoring.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Add accessibility features",
+            "description": "Implement ARIA attributes and keyboard navigation",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "Add ARIA roles and labels. Implement keyboard controls. Add screen reader support. Test accessibility compliance.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Vote System Integration",
+        "description": "Integrate payment system with existing vote functionality",
+        "details": "1. Add payment triggers to vote system\n2. Implement vote-payment flow\n3. Add validation rules\n4. Create error handling\n5. Implement success flows",
+        "testStrategy": "1. Test integration points\n2. Verify vote-payment flow\n3. Test validation rules\n4. End-to-end testing",
+        "priority": "high",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Error Handling and Recovery System",
+        "description": "Implement comprehensive error handling and recovery mechanisms",
+        "details": "1. Create error handling service\n2. Implement recovery mechanisms\n3. Add error logging\n4. Create user notifications\n5. Implement retry logic",
+        "testStrategy": "1. Test error scenarios\n2. Verify recovery flows\n3. Test logging system\n4. User notification testing",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Security Implementation",
+        "description": "Implement security measures for payment system",
+        "details": "1. Add CSRF protection\n2. Implement XSS prevention\n3. Add request validation\n4. Implement rate limiting\n5. Add encryption for sensitive data",
+        "testStrategy": "1. Security penetration testing\n2. Verify protection measures\n3. Test rate limiting\n4. Encryption validation",
+        "priority": "high",
+        "dependencies": [
+          4,
+          5,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Payment Analytics Integration",
+        "description": "Implement payment analytics and reporting system",
+        "details": "1. Create analytics service\n2. Implement event tracking\n3. Add reporting endpoints\n4. Create dashboard components\n5. Implement export functionality",
+        "testStrategy": "1. Test event tracking\n2. Verify report generation\n3. Test data accuracy\n4. Performance testing",
+        "priority": "low",
+        "dependencies": [
+          1,
+          7,
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "System Integration Testing",
+        "description": "Comprehensive testing of entire payment system",
+        "details": "1. Create test scenarios\n2. Implement E2E tests\n3. Add load testing\n4. Create test documentation\n5. Implement monitoring",
+        "testStrategy": "1. End-to-end testing\n2. Load testing\n3. Integration testing\n4. User acceptance testing",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-06-25T03:06:02.780Z",
+      "updated": "2025-06-25T03:16:40.395Z",
+      "description": "Tasks for master context"
+    }
   }
-} 
+}
