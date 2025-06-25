@@ -423,6 +423,36 @@ export interface PriceTableProps {
 }
 
 /**
+ * API에서 받아오는 결제 요율 데이터 (React Query용)
+ */
+export interface PaymentRateApiData {
+  id: string;
+  name: string;
+  provider: PaymentProvider;
+  region: Region;
+  currency: Currency;
+  baseRate: number;
+  additionalFees?: number;
+  minAmount?: number;
+  maxAmount?: number;
+  isActive: boolean;
+  processingTime: string;
+  description?: string;
+  benefits?: string[];
+  limitations?: string[];
+  supportedCurrencies: Currency[];
+  lastUpdated: string;
+  promotion?: {
+    id: string;
+    discount: number;
+    validFrom: string;
+    validUntil: string;
+    description: string;
+    isActive: boolean;
+  };
+}
+
+/**
  * PaymentRateTable 컴포넌트 Props
  */
 export interface PaymentRateTableProps {
@@ -444,6 +474,16 @@ export interface PaymentRateTableProps {
   title?: string;
   /** 추가 CSS 클래스 */
   className?: string;
+  /** 결제 수단 선택 가능 여부 */
+  selectable?: boolean;
+  /** 선택된 결제 수단 ID */
+  selectedPaymentId?: string;
+  /** 결제 수단 선택 시 콜백 */
+  onPaymentSelect?: (paymentId: string, paymentData: PaymentRateApiData) => void;
+  /** 상세 정보 표시 여부 */
+  showDetails?: boolean;
+  /** 로딩 상태 표시 여부 */
+  showLoadingStates?: boolean;
 }
 
 /**
