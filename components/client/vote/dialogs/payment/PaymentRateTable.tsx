@@ -2,6 +2,16 @@
 
 import { useMemo } from 'react';
 import type { Region, PaymentProvider, PaymentMethod, Currency, PaymentRateTableProps } from './types';
+import { 
+  formatCurrency, 
+  formatPercentage, 
+  calculateFee, 
+  formatFeeCalculation,
+  getCurrencySymbol,
+  getCurrencyName,
+  type FormatCurrencyOptions,
+  type FeeCalculation 
+} from './utils/currencyFormatter';
 
 /**
  * 결제 수단별 수수료 정보
@@ -151,35 +161,36 @@ export function PaymentRateTable({
     return rates;
   }, [region, showOnly, currency]);
 
-  // 통화 심볼 가져오기
-  const getCurrencySymbol = (curr: Currency): string => {
-    const symbols: Record<Currency, string> = {
-      KRW: '₩',
-      USD: '$',
-      EUR: '€',
-      GBP: '£',
-      JPY: '¥'
-    };
-    return symbols[curr] || curr;
+  // 통화 포맷팅 옵션
+  const formatOptions: FormatCurrencyOptions = {
+    showDecimals: true,
+    showThousandsSeparator: true,
+    showSymbol: true,
+    showCurrencyCode: false
   };
 
   // 수수료 계산 (예시 금액 10,000원/100달러 기준)
-  const calculateFee = (rate: PaymentRateInfo, amount: number = region === 'korea' ? 10000 : 100) => {
-    const baseFee = (amount * rate.baseRate) / 100;
-    const additionalFee = rate.additionalFees || 0;
-    const total = baseFee + additionalFee;
+  const calculatePaymentFee = (rate: PaymentRateInfo, amount: number = region === 'korea' ? 10000 : 100) => {
+    // 기본 수수료 계산
+    const feeCalc = calculateFee(amount, rate.baseRate, currency, rate.additionalFees || 0);
     
     // 프로모션 할인 적용
     if (promotional) {
-      const discount = (total * promotional.discount) / 100;
+      const discount = (feeCalc.feeAmount * promotional.discount) / 100;
       return {
-        original: total,
-        discounted: total - discount,
-        savings: discount
+        original: feeCalc.feeAmount,
+        discounted: feeCalc.feeAmount - discount,
+        savings: discount,
+        total: feeCalc.totalAmount - discount
       };
     }
     
-    return { original: total, discounted: total, savings: 0 };
+    return { 
+      original: feeCalc.feeAmount, 
+      discounted: feeCalc.feeAmount, 
+      savings: 0,
+      total: feeCalc.totalAmount
+    };
   };
 
   // 제목 생성
@@ -210,7 +221,7 @@ export function PaymentRateTable({
         )}
         
         <p className="text-sm text-gray-600">
-          {getCurrencySymbol(currency)}{region === 'korea' ? '10,000' : '100'} 기준 수수료 ({currency})
+          {formatCurrency(region === 'korea' ? 10000 : 100, currency, formatOptions)} 기준 수수료 ({getCurrencyName(currency, 'ko')})
         </p>
       </div>
 
@@ -239,7 +250,7 @@ export function PaymentRateTable({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {paymentRates.map((rate, index) => {
-              const fee = calculateFee(rate);
+              const fee = calculatePaymentFee(rate);
               const hasPromotion = promotional && fee.savings > 0;
               
               return (
@@ -282,11 +293,11 @@ export function PaymentRateTable({
                     <td className="px-4 py-4">
                       <div className="text-sm">
                         <div className="font-medium text-gray-900">
-                          {rate.baseRate}%
+                          {formatPercentage(rate.baseRate)}
                         </div>
                         {rate.additionalFees && rate.additionalFees > 0 && (
                           <div className="text-xs text-gray-500">
-                            + {getCurrencySymbol(currency)}{rate.additionalFees} 고정
+                            + {formatCurrency(rate.additionalFees, currency, { ...formatOptions, showDecimals: false })} 고정
                           </div>
                         )}
                       </div>
@@ -299,18 +310,18 @@ export function PaymentRateTable({
                       {hasPromotion ? (
                         <>
                           <div className="text-sm line-through text-gray-400">
-                            {getCurrencySymbol(currency)}{Math.round(fee.original)}
+                            {formatCurrency(Math.round(fee.original), currency, formatOptions)}
                           </div>
                           <div className="font-semibold text-orange-600">
-                            {getCurrencySymbol(currency)}{Math.round(fee.discounted)}
+                            {formatCurrency(Math.round(fee.discounted), currency, formatOptions)}
                           </div>
                           <div className="text-xs text-orange-500">
-                            -{getCurrencySymbol(currency)}{Math.round(fee.savings)} 절약
+                            -{formatCurrency(Math.round(fee.savings), currency, formatOptions)} 절약
                           </div>
                         </>
                       ) : (
                         <div className="font-semibold text-gray-900">
-                          {getCurrencySymbol(currency)}{Math.round(fee.original)}
+                          {formatCurrency(Math.round(fee.original), currency, formatOptions)}
                         </div>
                       )}
                     </div>

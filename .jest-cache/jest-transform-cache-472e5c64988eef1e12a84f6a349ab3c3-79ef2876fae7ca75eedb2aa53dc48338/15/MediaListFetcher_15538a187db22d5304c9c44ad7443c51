@@ -1,0 +1,374 @@
+a9a4be93c5819dc5243d3e1411da4c9d
+"use strict";
+
+/* istanbul ignore next */
+function cov_1hzs14oa9d() {
+  var path = "/workspace/components/server/media/MediaListFetcher.tsx";
+  var hash = "a50a4cbd23d5a318bab460ffedab003e61b629c3";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/components/server/media/MediaListFetcher.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 32
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 42
+        },
+        end: {
+          line: 12,
+          column: 116
+        }
+      },
+      "5": {
+        start: {
+          line: 13,
+          column: 17
+        },
+        end: {
+          line: 13,
+          column: 54
+        }
+      },
+      "6": {
+        start: {
+          line: 15,
+          column: 4
+        },
+        end: {
+          line: 17,
+          column: 6
+        }
+      },
+      "7": {
+        start: {
+          line: 20,
+          column: 19
+        },
+        end: {
+          line: 20,
+          column: 50
+        }
+      },
+      "8": {
+        start: {
+          line: 21,
+          column: 4
+        },
+        end: {
+          line: 28,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 14,
+            column: 9
+          },
+          end: {
+            line: 14,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 14,
+            column: 39
+          },
+          end: {
+            line: 18,
+            column: 1
+          }
+        },
+        line: 14
+      },
+      "2": {
+        name: "MediaListFetcher",
+        decl: {
+          start: {
+            line: 19,
+            column: 15
+          },
+          end: {
+            line: 19,
+            column: 31
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 52
+          },
+          end: {
+            line: 29,
+            column: 1
+          }
+        },
+        line: 19
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 17,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 15,
+            column: 35
+          },
+          end: {
+            line: 15,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 41
+          },
+          end: {
+            line: 17,
+            column: 5
+          }
+        }],
+        line: 15
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 15,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 18
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        }],
+        line: 15
+      },
+      "2": {
+        loc: {
+          start: {
+            line: 19,
+            column: 32
+          },
+          end: {
+            line: 19,
+            column: 50
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 19,
+            column: 48
+          },
+          end: {
+            line: 19,
+            column: 50
+          }
+        }],
+        line: 19
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0],
+      "2": [0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/components/server/media/MediaListFetcher.tsx"],
+      sourcesContent: ["import MediaListPresenter from \"@/components/client/media/MediaListPresenter\";\nimport { getMedias } from \"@/utils/api/queries\";\n\nexport interface MediaListFetcherProps {\n  className?: string;\n}\n\n/**\n * \uC11C\uBC84 \uCEF4\uD3EC\uB10C\uD2B8: \uBBF8\uB514\uC5B4 \uB370\uC774\uD130\uB97C \uC11C\uBC84\uC5D0\uC11C \uD398\uCE6D\uD558\uC5EC \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8\uC5D0 \uC804\uB2EC\n * \n * \uC7A5\uC810:\n * - \uCD08\uAE30 \uD398\uC774\uC9C0 \uB85C\uB4DC \uC2DC \uBE60\uB978 \uB80C\uB354\uB9C1 (\uC11C\uBC84\uC5D0\uC11C \uB370\uC774\uD130 \uD3EC\uD568)\n * - SEO \uCD5C\uC801\uD654 (\uD06C\uB864\uB7EC\uAC00 \uBBF8\uB514\uC5B4 \uB0B4\uC6A9 \uC778\uB371\uC2F1 \uAC00\uB2A5)\n * - \uD074\uB77C\uC774\uC5B8\uD2B8 \uBC88\uB4E4 \uD06C\uAE30 \uAC10\uC18C\n * \n * \uC0AC\uC6A9\uBC95:\n * ```tsx\n * <MediaListFetcher className=\"my-4\" />\n * ```\n */\nexport async function MediaListFetcher({ className }: MediaListFetcherProps = {}) {\n  const medias = await getMedias();\n  \n  return (\n    <div className={className}>\n      <MediaListPresenter \n        medias={medias} \n        isLoading={false} \n        error={null} \n      />\n    </div>\n  );\n} "],
+      names: ["MediaListFetcher", "className", "medias", "getMedias", "div", "MediaListPresenter", "isLoading", "error"],
+      mappings: ";;;;+BAoBsBA;;;eAAAA;;;;2EApBS;yBACL;;;;;;AAmBnB,eAAeA,iBAAiB,EAAEC,SAAS,EAAyB,GAAG,CAAC,CAAC;IAC9E,MAAMC,SAAS,MAAMC,IAAAA,kBAAS;IAE9B,qBACE,qBAACC;QAAIH,WAAWA;kBACd,cAAA,qBAACI,2BAAkB;YACjBH,QAAQA;YACRI,WAAW;YACXC,OAAO;;;AAIf"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "a50a4cbd23d5a318bab460ffedab003e61b629c3"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_1hzs14oa9d = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_1hzs14oa9d();
+cov_1hzs14oa9d().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_1hzs14oa9d().s[1]++;
+Object.defineProperty(exports, "MediaListFetcher", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_1hzs14oa9d().f[0]++;
+    cov_1hzs14oa9d().s[2]++;
+    return MediaListFetcher;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_1hzs14oa9d().s[3]++, require("react/jsx-runtime"));
+const _MediaListPresenter =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_1hzs14oa9d().s[4]++, _interop_require_default(require("../../client/media/MediaListPresenter")));
+const _queries =
+/* istanbul ignore next */
+(cov_1hzs14oa9d().s[5]++, require("../../../utils/api/queries"));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_1hzs14oa9d().f[1]++;
+  cov_1hzs14oa9d().s[6]++;
+  return /* istanbul ignore next */(cov_1hzs14oa9d().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_1hzs14oa9d().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_1hzs14oa9d().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_1hzs14oa9d().b[0][1]++, {
+    default: obj
+  });
+}
+async function MediaListFetcher({
+  className
+} =
+/* istanbul ignore next */
+(cov_1hzs14oa9d().b[2][0]++, {})) {
+  /* istanbul ignore next */
+  cov_1hzs14oa9d().f[2]++;
+  const medias =
+  /* istanbul ignore next */
+  (cov_1hzs14oa9d().s[7]++, await (0, _queries.getMedias)());
+  /* istanbul ignore next */
+  cov_1hzs14oa9d().s[8]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+    className: className,
+    children: /*#__PURE__*/(0, _jsxruntime.jsx)(_MediaListPresenter.default, {
+      medias: medias,
+      isLoading: false,
+      error: null
+    })
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJNZWRpYUxpc3RGZXRjaGVyIiwiY2xhc3NOYW1lIiwiY292XzFoenMxNG9hOWQiLCJiIiwiZiIsIm1lZGlhcyIsInMiLCJfcXVlcmllcyIsImdldE1lZGlhcyIsIl9qc3hydW50aW1lIiwianN4IiwiX01lZGlhTGlzdFByZXNlbnRlciIsImRlZmF1bHQiLCJpc0xvYWRpbmciLCJlcnJvciJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvY29tcG9uZW50cy9zZXJ2ZXIvbWVkaWEvTWVkaWFMaXN0RmV0Y2hlci50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IE1lZGlhTGlzdFByZXNlbnRlciBmcm9tIFwiQC9jb21wb25lbnRzL2NsaWVudC9tZWRpYS9NZWRpYUxpc3RQcmVzZW50ZXJcIjtcbmltcG9ydCB7IGdldE1lZGlhcyB9IGZyb20gXCJAL3V0aWxzL2FwaS9xdWVyaWVzXCI7XG5cbmV4cG9ydCBpbnRlcmZhY2UgTWVkaWFMaXN0RmV0Y2hlclByb3BzIHtcbiAgY2xhc3NOYW1lPzogc3RyaW5nO1xufVxuXG4vKipcbiAqIOyEnOuyhCDsu7Ttj6zrhIztirg6IOuvuOuUlOyWtCDrjbDsnbTthLDrpbwg7ISc67KE7JeQ7IScIO2OmOy5re2VmOyXrCDtgbTrnbzsnbTslrjtirgg7Lu07Y+s64SM7Yq47JeQIOyghOuLrFxuICogXG4gKiDsnqXsoJA6XG4gKiAtIOy0iOq4sCDtjpjsnbTsp4Ag66Gc65OcIOyLnCDruaDrpbgg66CM642U66eBICjshJzrsoTsl5DshJwg642w7J207YSwIO2PrO2VqClcbiAqIC0gU0VPIOy1nOygge2ZlCAo7YGs66Gk65+s6rCAIOuvuOuUlOyWtCDrgrTsmqkg7J24642x7IuxIOqwgOuKpSlcbiAqIC0g7YG065287J207Ja47Yq4IOuyiOuTpCDtgazquLAg6rCQ7IaMXG4gKiBcbiAqIOyCrOyaqeuylTpcbiAqIGBgYHRzeFxuICogPE1lZGlhTGlzdEZldGNoZXIgY2xhc3NOYW1lPVwibXktNFwiIC8+XG4gKiBgYGBcbiAqL1xuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIE1lZGlhTGlzdEZldGNoZXIoeyBjbGFzc05hbWUgfTogTWVkaWFMaXN0RmV0Y2hlclByb3BzID0ge30pIHtcbiAgY29uc3QgbWVkaWFzID0gYXdhaXQgZ2V0TWVkaWFzKCk7XG4gIFxuICByZXR1cm4gKFxuICAgIDxkaXYgY2xhc3NOYW1lPXtjbGFzc05hbWV9PlxuICAgICAgPE1lZGlhTGlzdFByZXNlbnRlciBcbiAgICAgICAgbWVkaWFzPXttZWRpYXN9IFxuICAgICAgICBpc0xvYWRpbmc9e2ZhbHNlfSBcbiAgICAgICAgZXJyb3I9e251bGx9IFxuICAgICAgLz5cbiAgICA8L2Rpdj5cbiAgKTtcbn0gIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OytCQW9Cc0I7Ozs7OztXQUFBQSxnQkFBQTs7Ozs7Ozs7d0VBcEJTOzs7a0NBQ0w7Ozs7Ozs7Ozs7Ozs7OztBQW1CbkIsZUFBZUEsaUJBQWlCO0VBQUVDO0FBQVMsQ0FBeUI7QUFBQTtBQUFBLENBQUFDLGNBQUEsR0FBQUMsQ0FBQSxVQUFHLENBQUMsQ0FBQztFQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUM5RSxNQUFNQyxNQUFBO0VBQUE7RUFBQSxDQUFBSCxjQUFBLEdBQUFJLENBQUEsT0FBUyxNQUFNLElBQUFDLFFBQUEsQ0FBQUMsU0FBUztFQUFBO0VBQUFOLGNBQUEsR0FBQUksQ0FBQTtFQUU5QixvQkFDRSxJQUFBRyxXQUFBLENBQUFDLEdBQUEsRUFBQztJQUFJVCxTQUFBLEVBQVdBLFNBQUE7Y0FDZCxpQkFBQVEsV0FBQSxDQUFBQyxHQUFBLEVBQUNDLG1CQUFBLENBQUFDLE9BQWtCO01BQ2pCUCxNQUFBLEVBQVFBLE1BQUE7TUFDUlEsU0FBQSxFQUFXO01BQ1hDLEtBQUEsRUFBTzs7O0FBSWYiLCJpZ25vcmVMaXN0IjpbXX0=

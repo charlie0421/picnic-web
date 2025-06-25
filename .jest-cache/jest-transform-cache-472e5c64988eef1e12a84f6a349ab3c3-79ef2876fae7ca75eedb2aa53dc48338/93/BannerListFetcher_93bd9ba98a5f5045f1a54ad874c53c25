@@ -1,0 +1,252 @@
+87dba19a17f274daa97514b6ec1dfb31
+"use strict";
+
+/* istanbul ignore next */
+function cov_2as5qqe72u() {
+  var path = "/workspace/components/server/banner/BannerListFetcher.tsx";
+  var hash = "80774245a2711baa5dec1a7b8491d6f238c61456";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/components/server/banner/BannerListFetcher.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 33
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 16
+        },
+        end: {
+          line: 12,
+          column: 46
+        }
+      },
+      "5": {
+        start: {
+          line: 13,
+          column: 17
+        },
+        end: {
+          line: 13,
+          column: 54
+        }
+      },
+      "6": {
+        start: {
+          line: 15,
+          column: 20
+        },
+        end: {
+          line: 15,
+          column: 52
+        }
+      },
+      "7": {
+        start: {
+          line: 16,
+          column: 4
+        },
+        end: {
+          line: 19,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "BannerListFetcher",
+        decl: {
+          start: {
+            line: 14,
+            column: 15
+          },
+          end: {
+            line: 14,
+            column: 32
+          }
+        },
+        loc: {
+          start: {
+            line: 14,
+            column: 53
+          },
+          end: {
+            line: 20,
+            column: 1
+          }
+        },
+        line: 14
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 14,
+            column: 33
+          },
+          end: {
+            line: 14,
+            column: 51
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 14,
+            column: 49
+          },
+          end: {
+            line: 14,
+            column: 51
+          }
+        }],
+        line: 14
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {
+      "0": [0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/components/server/banner/BannerListFetcher.tsx"],
+      sourcesContent: ["import { createClient } from \"@/utils/supabase-server-client\";\nimport { Banner as DBBanner } from \"@/types/interfaces\";\nimport { getLocalizedString } from \"@/utils/api/strings\";\nimport { getCdnImageUrl } from \"@/utils/api/image\";\nimport { BannerListPresenter } from \"@/components/client/banner\";\nimport { getBanners } from \"@/utils/api/queries\";\n\n\nexport interface BannerListFetcherProps {\n  className?: string;\n}\n\n/**\n * \uC11C\uBC84 \uCEF4\uD3EC\uB10C\uD2B8: \uBC30\uB108 \uB370\uC774\uD130\uB97C \uC11C\uBC84\uC5D0\uC11C \uD398\uCE6D\uD558\uC5EC \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8\uC5D0 \uC804\uB2EC\n * \n * \uC7A5\uC810:\n * - \uCD08\uAE30 \uD398\uC774\uC9C0 \uB85C\uB4DC \uC2DC \uBE60\uB978 \uB80C\uB354\uB9C1 (\uC11C\uBC84\uC5D0\uC11C \uB370\uC774\uD130 \uD3EC\uD568)\n * - SEO \uCD5C\uC801\uD654 (\uD06C\uB864\uB7EC\uAC00 \uBC30\uB108 \uB0B4\uC6A9 \uC778\uB371\uC2F1 \uAC00\uB2A5)\n * - \uD074\uB77C\uC774\uC5B8\uD2B8 \uBC88\uB4E4 \uD06C\uAE30 \uAC10\uC18C\n * \n * \uC0AC\uC6A9\uBC95:\n * ```tsx\n * <BannerListFetcher className=\"my-4\" />\n * ```\n */\nexport async function BannerListFetcher({ className }: BannerListFetcherProps = {}) {\n  const banners = await getBanners();\n\n  return (\n    <BannerListPresenter banners={banners} className={className} />\n  );\n} "],
+      names: ["BannerListFetcher", "className", "banners", "getBanners", "BannerListPresenter"],
+      mappings: ";;;;+BAyBsBA;;;eAAAA;;;;wBArBc;yBACT;AAoBpB,eAAeA,kBAAkB,EAAEC,SAAS,EAA0B,GAAG,CAAC,CAAC;IAChF,MAAMC,UAAU,MAAMC,IAAAA,mBAAU;IAEhC,qBACE,qBAACC,2BAAmB;QAACF,SAASA;QAASD,WAAWA;;AAEtD"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "80774245a2711baa5dec1a7b8491d6f238c61456"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2as5qqe72u = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2as5qqe72u();
+cov_2as5qqe72u().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2as5qqe72u().s[1]++;
+Object.defineProperty(exports, "BannerListFetcher", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2as5qqe72u().f[0]++;
+    cov_2as5qqe72u().s[2]++;
+    return BannerListFetcher;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2as5qqe72u().s[3]++, require("react/jsx-runtime"));
+const _banner =
+/* istanbul ignore next */
+(cov_2as5qqe72u().s[4]++, require("../../client/banner"));
+const _queries =
+/* istanbul ignore next */
+(cov_2as5qqe72u().s[5]++, require("../../../utils/api/queries"));
+async function BannerListFetcher({
+  className
+} =
+/* istanbul ignore next */
+(cov_2as5qqe72u().b[0][0]++, {})) {
+  /* istanbul ignore next */
+  cov_2as5qqe72u().f[1]++;
+  const banners =
+  /* istanbul ignore next */
+  (cov_2as5qqe72u().s[6]++, await (0, _queries.getBanners)());
+  /* istanbul ignore next */
+  cov_2as5qqe72u().s[7]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_banner.BannerListPresenter, {
+    banners: banners,
+    className: className
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMmFzNXFxZTcydSIsImFjdHVhbENvdmVyYWdlIiwicyIsIkJhbm5lckxpc3RGZXRjaGVyIiwiY2xhc3NOYW1lIiwiYiIsImYiLCJiYW5uZXJzIiwiX3F1ZXJpZXMiLCJnZXRCYW5uZXJzIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJfYmFubmVyIiwiQmFubmVyTGlzdFByZXNlbnRlciJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvY29tcG9uZW50cy9zZXJ2ZXIvYmFubmVyL0Jhbm5lckxpc3RGZXRjaGVyLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBjcmVhdGVDbGllbnQgfSBmcm9tIFwiQC91dGlscy9zdXBhYmFzZS1zZXJ2ZXItY2xpZW50XCI7XG5pbXBvcnQgeyBCYW5uZXIgYXMgREJCYW5uZXIgfSBmcm9tIFwiQC90eXBlcy9pbnRlcmZhY2VzXCI7XG5pbXBvcnQgeyBnZXRMb2NhbGl6ZWRTdHJpbmcgfSBmcm9tIFwiQC91dGlscy9hcGkvc3RyaW5nc1wiO1xuaW1wb3J0IHsgZ2V0Q2RuSW1hZ2VVcmwgfSBmcm9tIFwiQC91dGlscy9hcGkvaW1hZ2VcIjtcbmltcG9ydCB7IEJhbm5lckxpc3RQcmVzZW50ZXIgfSBmcm9tIFwiQC9jb21wb25lbnRzL2NsaWVudC9iYW5uZXJcIjtcbmltcG9ydCB7IGdldEJhbm5lcnMgfSBmcm9tIFwiQC91dGlscy9hcGkvcXVlcmllc1wiO1xuXG5cbmV4cG9ydCBpbnRlcmZhY2UgQmFubmVyTGlzdEZldGNoZXJQcm9wcyB7XG4gIGNsYXNzTmFtZT86IHN0cmluZztcbn1cblxuLyoqXG4gKiDshJzrsoQg7Lu07Y+s64SM7Yq4OiDrsLDrhIgg642w7J207YSw66W8IOyEnOuyhOyXkOyEnCDtjpjsua3tlZjsl6wg7YG065287J207Ja47Yq4IOy7tO2PrOuEjO2KuOyXkCDsoITri6xcbiAqIFxuICog7J6l7KCQOlxuICogLSDstIjquLAg7Y6Y7J207KeAIOuhnOuTnCDsi5wg67mg66W4IOugjOuNlOungSAo7ISc67KE7JeQ7IScIOuNsOydtO2EsCDtj6ztlagpXG4gKiAtIFNFTyDstZzsoIHtmZQgKO2BrOuhpOufrOqwgCDrsLDrhIgg64K07JqpIOyduOuNseyLsSDqsIDriqUpXG4gKiAtIO2BtOudvOydtOyWuO2KuCDrsojrk6Qg7YGs6riwIOqwkOyGjFxuICogXG4gKiDsgqzsmqnrspU6XG4gKiBgYGB0c3hcbiAqIDxCYW5uZXJMaXN0RmV0Y2hlciBjbGFzc05hbWU9XCJteS00XCIgLz5cbiAqIGBgYFxuICovXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gQmFubmVyTGlzdEZldGNoZXIoeyBjbGFzc05hbWUgfTogQmFubmVyTGlzdEZldGNoZXJQcm9wcyA9IHt9KSB7XG4gIGNvbnN0IGJhbm5lcnMgPSBhd2FpdCBnZXRCYW5uZXJzKCk7XG5cbiAgcmV0dXJuIChcbiAgICA8QmFubmVyTGlzdFByZXNlbnRlciBiYW5uZXJzPXtiYW5uZXJzfSBjbGFzc05hbWU9e2NsYXNzTmFtZX0gLz5cbiAgKTtcbn0gIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7SUE0QkU7SUFBQUEsY0FBQSxZQUFBQSxDQUFBO01BQUEsT0FBQUMsY0FBQTtJQUFBO0VBQUE7RUFBQSxPQUFBQSxjQUFBO0FBQUE7QUFBQUQsY0FBQTtBQUFBQSxjQUFBLEdBQUFFLENBQUE7Ozs7OzsrQkFIb0I7Ozs7OztXQUFBQyxpQkFBQTs7Ozs7Ozs7a0NBckJjOzs7a0NBQ1Q7QUFvQnBCLGVBQWVBLGtCQUFrQjtFQUFFQztBQUFTLENBQTBCO0FBQUE7QUFBQSxDQUFBSixjQUFBLEdBQUFLLENBQUEsVUFBRyxDQUFDLENBQUM7RUFBQTtFQUFBTCxjQUFBLEdBQUFNLENBQUE7RUFDaEYsTUFBTUMsT0FBQTtFQUFBO0VBQUEsQ0FBQVAsY0FBQSxHQUFBRSxDQUFBLE9BQVUsTUFBTSxJQUFBTSxRQUFBLENBQUFDLFVBQVU7RUFBQTtFQUFBVCxjQUFBLEdBQUFFLENBQUE7RUFFaEMsb0JBQ0UsSUFBQVEsV0FBQSxDQUFBQyxHQUFBLEVBQUNDLE9BQUEsQ0FBQUMsbUJBQW1CO0lBQUNOLE9BQUEsRUFBU0EsT0FBQTtJQUFTSCxTQUFBLEVBQVdBOztBQUV0RCIsImlnbm9yZUxpc3QiOltdfQ==

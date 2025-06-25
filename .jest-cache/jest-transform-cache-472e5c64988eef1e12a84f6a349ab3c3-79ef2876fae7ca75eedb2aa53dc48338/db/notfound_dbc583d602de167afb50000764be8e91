@@ -1,0 +1,200 @@
+9b8a90259cd4c7c2afda12398afe4fe6
+"use strict";
+
+/* istanbul ignore next */
+function cov_1357d5bmpl() {
+  var path = "/workspace/app/[lang]/(main)/media/not-found.tsx";
+  var hash = "cf6f89a9aca40e04092d183c2c053691f7fd0658";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/app/[lang]/(main)/media/not-found.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 14,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 12,
+          column: 8
+        },
+        end: {
+          line: 12,
+          column: 29
+        }
+      },
+      "3": {
+        start: {
+          line: 15,
+          column: 20
+        },
+        end: {
+          line: 15,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 16,
+          column: 16
+        },
+        end: {
+          line: 16,
+          column: 56
+        }
+      },
+      "5": {
+        start: {
+          line: 18,
+          column: 4
+        },
+        end: {
+          line: 23,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 11,
+            column: 9
+          },
+          end: {
+            line: 11,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 11,
+            column: 20
+          },
+          end: {
+            line: 13,
+            column: 5
+          }
+        },
+        line: 11
+      },
+      "1": {
+        name: "MediaNotFound",
+        decl: {
+          start: {
+            line: 17,
+            column: 9
+          },
+          end: {
+            line: 17,
+            column: 22
+          }
+        },
+        loc: {
+          start: {
+            line: 17,
+            column: 25
+          },
+          end: {
+            line: 24,
+            column: 1
+          }
+        },
+        line: 17
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/app/[lang]/(main)/media/not-found.tsx"],
+      sourcesContent: ["import { NotFoundState } from '@/components/server';\n\n/**\n * \uBBF8\uB514\uC5B4 \uD398\uC774\uC9C0\uC758 Not Found \uCEF4\uD3EC\uB10C\uD2B8\n * \n * \uBBF8\uB514\uC5B4 \uB370\uC774\uD130\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC744 \uB54C \uC0AC\uC6A9\uC790\uC5D0\uAC8C \uCE5C\uC808\uD55C \uBA54\uC2DC\uC9C0\uB97C \uD45C\uC2DC\uD569\uB2C8\uB2E4.\n */\nexport default function MediaNotFound() {\n  return (\n    <NotFoundState \n      title=\"\uBBF8\uB514\uC5B4\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4\"\n      message=\"\uC694\uCCAD\uD558\uC2E0 \uBBF8\uB514\uC5B4 \uCF58\uD150\uCE20\uAC00 \uC874\uC7AC\uD558\uC9C0 \uC54A\uAC70\uB098 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.\"\n      backLink=\"/media\"\n      backLabel=\"\uBBF8\uB514\uC5B4 \uBAA9\uB85D\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30\"\n    />\n  );\n} "],
+      names: ["MediaNotFound", "NotFoundState", "title", "message", "backLink", "backLabel"],
+      mappings: ";;;;+BAEA;;;;CAIC,GACD;;;eAAwBA;;;;wBAPM;AAOf,SAASA;IACtB,qBACE,qBAACC,qBAAa;QACZC,OAAM;QACNC,SAAQ;QACRC,UAAS;QACTC,WAAU;;AAGhB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "cf6f89a9aca40e04092d183c2c053691f7fd0658"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_1357d5bmpl = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_1357d5bmpl();
+cov_1357d5bmpl().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_1357d5bmpl().s[1]++;
+Object.defineProperty(exports,
+/**
+* 미디어 페이지의 Not Found 컴포넌트
+* 
+* 미디어 데이터를 찾을 수 없을 때 사용자에게 친절한 메시지를 표시합니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_1357d5bmpl().f[0]++;
+    cov_1357d5bmpl().s[2]++;
+    return MediaNotFound;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_1357d5bmpl().s[3]++, require("react/jsx-runtime"));
+const _server =
+/* istanbul ignore next */
+(cov_1357d5bmpl().s[4]++, require("../../../../components/server"));
+function MediaNotFound() {
+  /* istanbul ignore next */
+  cov_1357d5bmpl().f[1]++;
+  cov_1357d5bmpl().s[5]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_server.NotFoundState, {
+    title: "미디어를 찾을 수 없습니다",
+    message: "요청하신 미디어 콘텐츠가 존재하지 않거나 삭제되었습니다.",
+    backLink: "/media",
+    backLabel: "미디어 목록으로 돌아가기"
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJNZWRpYU5vdEZvdW5kIiwiY292XzEzNTdkNWJtcGwiLCJmIiwicyIsIl9qc3hydW50aW1lIiwianN4IiwiX3NlcnZlciIsIk5vdEZvdW5kU3RhdGUiLCJ0aXRsZSIsIm1lc3NhZ2UiLCJiYWNrTGluayIsImJhY2tMYWJlbCJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvYXBwL1tsYW5nXS8obWFpbikvbWVkaWEvbm90LWZvdW5kLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBOb3RGb3VuZFN0YXRlIH0gZnJvbSAnQC9jb21wb25lbnRzL3NlcnZlcic7XG5cbi8qKlxuICog66+465SU7Ja0IO2OmOydtOyngOydmCBOb3QgRm91bmQg7Lu07Y+s64SM7Yq4XG4gKiBcbiAqIOuvuOuUlOyWtCDrjbDsnbTthLDrpbwg7LC+7J2EIOyImCDsl4bsnYQg65WMIOyCrOyaqeyekOyXkOqyjCDsuZzsoIjtlZwg66mU7Iuc7KeA66W8IO2RnOyLnO2VqeuLiOuLpC5cbiAqL1xuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gTWVkaWFOb3RGb3VuZCgpIHtcbiAgcmV0dXJuIChcbiAgICA8Tm90Rm91bmRTdGF0ZSBcbiAgICAgIHRpdGxlPVwi66+465SU7Ja066W8IOywvuydhCDsiJgg7JeG7Iq164uI64ukXCJcbiAgICAgIG1lc3NhZ2U9XCLsmpTssq3tlZjsi6Ag66+465SU7Ja0IOy9mO2FkOy4oOqwgCDsobTsnqztlZjsp4Ag7JWK6rGw64KYIOyCreygnOuQmOyXiOyKteuLiOuLpC5cIlxuICAgICAgYmFja0xpbms9XCIvbWVkaWFcIlxuICAgICAgYmFja0xhYmVsPVwi66+465SU7Ja0IOuqqeuhneycvOuhnCDrj4zslYTqsIDquLBcIlxuICAgIC8+XG4gICk7XG59ICJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFFQTs7Ozs7QUFLQTs7Ozs7O1dBQXdCQSxhQUFBOzs7Ozs7OztrQ0FQTTtBQU9mLFNBQVNBLGNBQUE7RUFBQTtFQUFBQyxjQUFBLEdBQUFDLENBQUE7RUFBQUQsY0FBQSxHQUFBRSxDQUFBO0VBQ3RCLG9CQUNFLElBQUFDLFdBQUEsQ0FBQUMsR0FBQSxFQUFDQyxPQUFBLENBQUFDLGFBQWE7SUFDWkMsS0FBQSxFQUFNO0lBQ05DLE9BQUEsRUFBUTtJQUNSQyxRQUFBLEVBQVM7SUFDVEMsU0FBQSxFQUFVOztBQUdoQiIsImlnbm9yZUxpc3QiOltdfQ==

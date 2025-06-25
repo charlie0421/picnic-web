@@ -1,0 +1,372 @@
+258c64da1d32b462ae816fee6c573291
+"use strict";
+
+/* istanbul ignore next */
+function cov_2cqir9tzsy() {
+  var path = "/workspace/components/common/atoms/Badge.tsx";
+  var hash = "1ca69daf56f4f5caca1bbd67b30ad2b87e308e46";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/components/common/atoms/Badge.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 21
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 12
+        },
+        end: {
+          line: 12,
+          column: 37
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 23
+        },
+        end: {
+          line: 14,
+          column: 76
+        }
+      },
+      "6": {
+        start: {
+          line: 15,
+          column: 21
+        },
+        end: {
+          line: 21,
+          column: 5
+        }
+      },
+      "7": {
+        start: {
+          line: 22,
+          column: 18
+        },
+        end: {
+          line: 26,
+          column: 5
+        }
+      },
+      "8": {
+        start: {
+          line: 27,
+          column: 4
+        },
+        end: {
+          line: 30,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "Badge",
+        decl: {
+          start: {
+            line: 13,
+            column: 9
+          },
+          end: {
+            line: 13,
+            column: 14
+          }
+        },
+        loc: {
+          start: {
+            line: 13,
+            column: 91
+          },
+          end: {
+            line: 31,
+            column: 1
+          }
+        },
+        line: 13
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 13,
+            column: 27
+          },
+          end: {
+            line: 13,
+            column: 46
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 13,
+            column: 37
+          },
+          end: {
+            line: 13,
+            column: 46
+          }
+        }],
+        line: 13
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 13,
+            column: 48
+          },
+          end: {
+            line: 13,
+            column: 59
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 13,
+            column: 55
+          },
+          end: {
+            line: 13,
+            column: 59
+          }
+        }],
+        line: 13
+      },
+      "2": {
+        loc: {
+          start: {
+            line: 13,
+            column: 61
+          },
+          end: {
+            line: 13,
+            column: 76
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 13,
+            column: 71
+          },
+          end: {
+            line: 13,
+            column: 76
+          }
+        }],
+        line: 13
+      },
+      "3": {
+        loc: {
+          start: {
+            line: 28,
+            column: 75
+          },
+          end: {
+            line: 28,
+            column: 111
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 28,
+            column: 85
+          },
+          end: {
+            line: 28,
+            column: 99
+          }
+        }, {
+          start: {
+            line: 28,
+            column: 102
+          },
+          end: {
+            line: 28,
+            column: 111
+          }
+        }],
+        line: 28
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {
+      "0": [0],
+      "1": [0],
+      "2": [0],
+      "3": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/components/common/atoms/Badge.tsx"],
+      sourcesContent: ["import { cn } from '@/components/utils/cn';\n\nexport interface BadgeProps {\n  children: React.ReactNode;\n  variant?: 'default' | 'success' | 'warning' | 'error' | 'info';\n  size?: 'sm' | 'md' | 'lg';\n  rounded?: boolean;\n  className?: string;\n}\n\nexport function Badge({ \n  children, \n  variant = 'default',\n  size = 'md',\n  rounded = false,\n  className\n}: BadgeProps) {\n  const baseStyles = 'inline-flex items-center justify-center font-medium';\n  \n  const variants = {\n    default: 'bg-gray-100 text-gray-800',\n    success: 'bg-green-100 text-green-800',\n    warning: 'bg-yellow-100 text-yellow-800',\n    error: 'bg-red-100 text-red-800',\n    info: 'bg-blue-100 text-blue-800'\n  };\n  \n  const sizes = {\n    sm: 'px-2 py-0.5 text-xs',\n    md: 'px-2.5 py-1 text-sm',\n    lg: 'px-3 py-1.5 text-base'\n  };\n  \n  return (\n    <span\n      className={cn(\n        baseStyles,\n        variants[variant],\n        sizes[size],\n        rounded ? 'rounded-full' : 'rounded',\n        className\n      )}\n    >\n      {children}\n    </span>\n  );\n} "],
+      names: ["Badge", "children", "variant", "size", "rounded", "className", "baseStyles", "variants", "default", "success", "warning", "error", "info", "sizes", "sm", "md", "lg", "span", "cn"],
+      mappings: ";;;;+BAUgBA;;;eAAAA;;;;oBAVG;AAUZ,SAASA,MAAM,EACpBC,QAAQ,EACRC,UAAU,SAAS,EACnBC,OAAO,IAAI,EACXC,UAAU,KAAK,EACfC,SAAS,EACE;IACX,MAAMC,aAAa;IAEnB,MAAMC,WAAW;QACfC,SAAS;QACTC,SAAS;QACTC,SAAS;QACTC,OAAO;QACPC,MAAM;IACR;IAEA,MAAMC,QAAQ;QACZC,IAAI;QACJC,IAAI;QACJC,IAAI;IACN;IAEA,qBACE,qBAACC;QACCZ,WAAWa,IAAAA,MAAE,EACXZ,YACAC,QAAQ,CAACL,QAAQ,EACjBW,KAAK,CAACV,KAAK,EACXC,UAAU,iBAAiB,WAC3BC;kBAGDJ;;AAGP"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "1ca69daf56f4f5caca1bbd67b30ad2b87e308e46"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2cqir9tzsy = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2cqir9tzsy();
+cov_2cqir9tzsy().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2cqir9tzsy().s[1]++;
+Object.defineProperty(exports, "Badge", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2cqir9tzsy().f[0]++;
+    cov_2cqir9tzsy().s[2]++;
+    return Badge;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2cqir9tzsy().s[3]++, require("react/jsx-runtime"));
+const _cn =
+/* istanbul ignore next */
+(cov_2cqir9tzsy().s[4]++, require("../../utils/cn"));
+function Badge({
+  children,
+  variant =
+  /* istanbul ignore next */
+  (cov_2cqir9tzsy().b[0][0]++, 'default'),
+  size =
+  /* istanbul ignore next */
+  (cov_2cqir9tzsy().b[1][0]++, 'md'),
+  rounded =
+  /* istanbul ignore next */
+  (cov_2cqir9tzsy().b[2][0]++, false),
+  className
+}) {
+  /* istanbul ignore next */
+  cov_2cqir9tzsy().f[1]++;
+  const baseStyles =
+  /* istanbul ignore next */
+  (cov_2cqir9tzsy().s[5]++, 'inline-flex items-center justify-center font-medium');
+  const variants =
+  /* istanbul ignore next */
+  (cov_2cqir9tzsy().s[6]++, {
+    default: 'bg-gray-100 text-gray-800',
+    success: 'bg-green-100 text-green-800',
+    warning: 'bg-yellow-100 text-yellow-800',
+    error: 'bg-red-100 text-red-800',
+    info: 'bg-blue-100 text-blue-800'
+  });
+  const sizes =
+  /* istanbul ignore next */
+  (cov_2cqir9tzsy().s[7]++, {
+    sm: 'px-2 py-0.5 text-xs',
+    md: 'px-2.5 py-1 text-sm',
+    lg: 'px-3 py-1.5 text-base'
+  });
+  /* istanbul ignore next */
+  cov_2cqir9tzsy().s[8]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("span", {
+    className: (0, _cn.cn)(baseStyles, variants[variant], sizes[size], rounded ?
+    /* istanbul ignore next */
+    (cov_2cqir9tzsy().b[3][0]++, 'rounded-full') :
+    /* istanbul ignore next */
+    (cov_2cqir9tzsy().b[3][1]++, 'rounded'), className),
+    children: children
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMmNxaXI5dHpzeSIsImFjdHVhbENvdmVyYWdlIiwicyIsIkJhZGdlIiwiY2hpbGRyZW4iLCJ2YXJpYW50IiwiYiIsInNpemUiLCJyb3VuZGVkIiwiY2xhc3NOYW1lIiwiZiIsImJhc2VTdHlsZXMiLCJ2YXJpYW50cyIsImRlZmF1bHQiLCJzdWNjZXNzIiwid2FybmluZyIsImVycm9yIiwiaW5mbyIsInNpemVzIiwic20iLCJtZCIsImxnIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJfY24iLCJjbiJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvY29tcG9uZW50cy9jb21tb24vYXRvbXMvQmFkZ2UudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IGNuIH0gZnJvbSAnQC9jb21wb25lbnRzL3V0aWxzL2NuJztcblxuZXhwb3J0IGludGVyZmFjZSBCYWRnZVByb3BzIHtcbiAgY2hpbGRyZW46IFJlYWN0LlJlYWN0Tm9kZTtcbiAgdmFyaWFudD86ICdkZWZhdWx0JyB8ICdzdWNjZXNzJyB8ICd3YXJuaW5nJyB8ICdlcnJvcicgfCAnaW5mbyc7XG4gIHNpemU/OiAnc20nIHwgJ21kJyB8ICdsZyc7XG4gIHJvdW5kZWQ/OiBib29sZWFuO1xuICBjbGFzc05hbWU/OiBzdHJpbmc7XG59XG5cbmV4cG9ydCBmdW5jdGlvbiBCYWRnZSh7IFxuICBjaGlsZHJlbiwgXG4gIHZhcmlhbnQgPSAnZGVmYXVsdCcsXG4gIHNpemUgPSAnbWQnLFxuICByb3VuZGVkID0gZmFsc2UsXG4gIGNsYXNzTmFtZVxufTogQmFkZ2VQcm9wcykge1xuICBjb25zdCBiYXNlU3R5bGVzID0gJ2lubGluZS1mbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBmb250LW1lZGl1bSc7XG4gIFxuICBjb25zdCB2YXJpYW50cyA9IHtcbiAgICBkZWZhdWx0OiAnYmctZ3JheS0xMDAgdGV4dC1ncmF5LTgwMCcsXG4gICAgc3VjY2VzczogJ2JnLWdyZWVuLTEwMCB0ZXh0LWdyZWVuLTgwMCcsXG4gICAgd2FybmluZzogJ2JnLXllbGxvdy0xMDAgdGV4dC15ZWxsb3ctODAwJyxcbiAgICBlcnJvcjogJ2JnLXJlZC0xMDAgdGV4dC1yZWQtODAwJyxcbiAgICBpbmZvOiAnYmctYmx1ZS0xMDAgdGV4dC1ibHVlLTgwMCdcbiAgfTtcbiAgXG4gIGNvbnN0IHNpemVzID0ge1xuICAgIHNtOiAncHgtMiBweS0wLjUgdGV4dC14cycsXG4gICAgbWQ6ICdweC0yLjUgcHktMSB0ZXh0LXNtJyxcbiAgICBsZzogJ3B4LTMgcHktMS41IHRleHQtYmFzZSdcbiAgfTtcbiAgXG4gIHJldHVybiAoXG4gICAgPHNwYW5cbiAgICAgIGNsYXNzTmFtZT17Y24oXG4gICAgICAgIGJhc2VTdHlsZXMsXG4gICAgICAgIHZhcmlhbnRzW3ZhcmlhbnRdLFxuICAgICAgICBzaXplc1tzaXplXSxcbiAgICAgICAgcm91bmRlZCA/ICdyb3VuZGVkLWZ1bGwnIDogJ3JvdW5kZWQnLFxuICAgICAgICBjbGFzc05hbWVcbiAgICAgICl9XG4gICAgPlxuICAgICAge2NoaWxkcmVufVxuICAgIDwvc3Bhbj5cbiAgKTtcbn0gIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztJQW9CSTtJQUFBQSxjQUFBLFlBQUFBLENBQUE7TUFBQSxPQUFBQyxjQUFBO0lBQUE7RUFBQTtFQUFBLE9BQUFBLGNBQUE7QUFBQTtBQUFBRCxjQUFBO0FBQUFBLGNBQUEsR0FBQUUsQ0FBQTs7Ozs7OytCQVZZOzs7Ozs7V0FBQUMsS0FBQTs7Ozs7Ozs7a0NBVkc7QUFVWixTQUFTQSxNQUFNO0VBQ3BCQyxRQUFRO0VBQ1JDLE9BQUE7RUFBQTtFQUFBLENBQUFMLGNBQUEsR0FBQU0sQ0FBQSxVQUFVLFNBQVM7RUFDbkJDLElBQUE7RUFBQTtFQUFBLENBQUFQLGNBQUEsR0FBQU0sQ0FBQSxVQUFPLElBQUk7RUFDWEUsT0FBQTtFQUFBO0VBQUEsQ0FBQVIsY0FBQSxHQUFBTSxDQUFBLFVBQVUsS0FBSztFQUNmRztBQUFTLENBQ0U7RUFBQTtFQUFBVCxjQUFBLEdBQUFVLENBQUE7RUFDWCxNQUFNQyxVQUFBO0VBQUE7RUFBQSxDQUFBWCxjQUFBLEdBQUFFLENBQUEsT0FBYTtFQUVuQixNQUFNVSxRQUFBO0VBQUE7RUFBQSxDQUFBWixjQUFBLEdBQUFFLENBQUEsT0FBVztJQUNmVyxPQUFBLEVBQVM7SUFDVEMsT0FBQSxFQUFTO0lBQ1RDLE9BQUEsRUFBUztJQUNUQyxLQUFBLEVBQU87SUFDUEMsSUFBQSxFQUFNO0VBQ1I7RUFFQSxNQUFNQyxLQUFBO0VBQUE7RUFBQSxDQUFBbEIsY0FBQSxHQUFBRSxDQUFBLE9BQVE7SUFDWmlCLEVBQUEsRUFBSTtJQUNKQyxFQUFBLEVBQUk7SUFDSkMsRUFBQSxFQUFJO0VBQ047RUFBQTtFQUFBckIsY0FBQSxHQUFBRSxDQUFBO0VBRUEsb0JBQ0UsSUFBQW9CLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO0lBQ0NkLFNBQUEsRUFBVyxJQUFBZSxHQUFBLENBQUFDLEVBQUUsRUFDWGQsVUFBQSxFQUNBQyxRQUFRLENBQUNQLE9BQUEsQ0FBUSxFQUNqQmEsS0FBSyxDQUFDWCxJQUFBLENBQUssRUFDWEMsT0FBQTtJQUFBO0lBQUEsQ0FBQVIsY0FBQSxHQUFBTSxDQUFBLFVBQVU7SUFBQTtJQUFBLENBQUFOLGNBQUEsR0FBQU0sQ0FBQSxVQUFpQixZQUMzQkcsU0FBQTtjQUdETDs7QUFHUCIsImlnbm9yZUxpc3QiOltdfQ==

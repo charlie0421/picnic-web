@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">80% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>4/5</span>
+                <span class='fraction'>0/5</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">80% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>4/5</span>
+                <span class='fraction'>0/5</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -134,7 +134,7 @@
 <a name='L69'></a><a href='#L69'>69</a>
 <a name='L70'></a><a href='#L70'>70</a>
 <a name='L71'></a><a href='#L71'>71</a>
-<a name='L72'></a><a href='#L72'>72</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L72'></a><a href='#L72'>72</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -171,7 +171,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -185,7 +185,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -199,13 +199,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { cn } from '@/components/utils/cn';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { cn } from <span class="cstat-no" title="statement not covered" >'@/components/utils/cn';</span>
 &nbsp;
 // Card Root Component
 export interface CardProps {
@@ -242,7 +242,7 @@ export interface CardHeaderProps {
   className?: string;
 }
 &nbsp;
-Card.Header = function <span class="fstat-no" title="function not covered" >CardHeader({</span> children, className }: CardHeaderProps) {
+<span class="cstat-no" title="statement not covered" >Card.Header = function <span class="fstat-no" title="function not covered" >CardHeader({</span> children, className }: CardHeaderProps) {</span>
   return (
     &lt;div className={cn('px-6 py-4 border-b border-gray-200', className)}&gt;
       {children}
@@ -256,7 +256,7 @@ export interface CardBodyProps {
   className?: string;
 }
 &nbsp;
-Card.Body = function <span class="fstat-no" title="function not covered" >CardBody({</span> children, className }: CardBodyProps) {
+<span class="cstat-no" title="statement not covered" >Card.Body = function <span class="fstat-no" title="function not covered" >CardBody({</span> children, className }: CardBodyProps) {</span>
   return (
     &lt;div className={cn('px-6 py-4', className)}&gt;
       {children}
@@ -270,7 +270,7 @@ export interface CardFooterProps {
   className?: string;
 }
 &nbsp;
-Card.Footer = function <span class="fstat-no" title="function not covered" >CardFooter({</span> children, className }: CardFooterProps) {
+<span class="cstat-no" title="statement not covered" >Card.Footer = function <span class="fstat-no" title="function not covered" >CardFooter({</span> children, className }: CardFooterProps) {</span>
   return (
     &lt;div className={cn('px-6 py-4 border-t border-gray-200 bg-gray-50', className)}&gt;
       {children}
@@ -283,7 +283,7 @@ Card.Footer = function <span class="fstat-no" title="function not covered" >Card
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-06-10T09:05:49.187Z
+                at 2025-06-25T06:59:47.542Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

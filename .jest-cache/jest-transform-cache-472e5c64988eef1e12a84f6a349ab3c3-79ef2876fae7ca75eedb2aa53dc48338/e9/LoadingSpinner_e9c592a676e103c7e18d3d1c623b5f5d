@@ -1,0 +1,363 @@
+c583fd98df1ca8ab6218e988be2ff1ff
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_ebqnon4rn() {
+  var path = "/workspace/components/client/common/LoadingSpinner.tsx";
+  var hash = "e1053e59c61848a21912847ff512c777c829c9c1";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/components/client/common/LoadingSpinner.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 8
+        },
+        end: {
+          line: 9,
+          column: 30
+        }
+      },
+      "3": {
+        start: {
+          line: 12,
+          column: 20
+        },
+        end: {
+          line: 12,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 29
+        },
+        end: {
+          line: 13,
+          column: 71
+        }
+      },
+      "5": {
+        start: {
+          line: 15,
+          column: 4
+        },
+        end: {
+          line: 17,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 19,
+          column: 23
+        },
+        end: {
+          line: 32,
+          column: 1
+        }
+      },
+      "7": {
+        start: {
+          line: 20,
+          column: 4
+        },
+        end: {
+          line: 31,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 9
+          },
+          end: {
+            line: 8,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 20
+          },
+          end: {
+            line: 10,
+            column: 5
+          }
+        },
+        line: 8
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 14,
+            column: 9
+          },
+          end: {
+            line: 14,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 14,
+            column: 39
+          },
+          end: {
+            line: 18,
+            column: 1
+          }
+        },
+        line: 14
+      },
+      "2": {
+        name: "(anonymous_2)",
+        decl: {
+          start: {
+            line: 19,
+            column: 23
+          },
+          end: {
+            line: 19,
+            column: 24
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 45
+          },
+          end: {
+            line: 32,
+            column: 1
+          }
+        },
+        line: 19
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 17,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 15,
+            column: 35
+          },
+          end: {
+            line: 15,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 41
+          },
+          end: {
+            line: 17,
+            column: 5
+          }
+        }],
+        line: 15
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 15,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 18
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        }],
+        line: 15
+      },
+      "2": {
+        loc: {
+          start: {
+            line: 19,
+            column: 26
+          },
+          end: {
+            line: 19,
+            column: 40
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 19,
+            column: 38
+          },
+          end: {
+            line: 19,
+            column: 40
+          }
+        }],
+        line: 19
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0],
+      "2": [0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/components/client/common/LoadingSpinner.tsx"],
+      sourcesContent: ["'use client';\n\nimport React from 'react';\n\n\ninterface LoadingSpinnerProps {\n  className?: string;\n}\n\nexport const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className = '' }) => {\n  return (\n    <div className={`min-h-screen flex items-center justify-center bg-gray-50 ${className}`}>\n      <div className=\"text-center\">\n        <div className=\"inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full\">\n          <div className=\"w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin\"></div>\n        </div>\n      </div>\n    </div>\n  );\n};"],
+      names: ["LoadingSpinner", "className", "div"],
+      mappings: "AAAA;;;;;+BASaA;;;eAAAA;;;;8DAPK;;;;;;AAOX,MAAMA,iBAAgD,CAAC,EAAEC,YAAY,EAAE,EAAE;IAC9E,qBACE,qBAACC;QAAID,WAAW,CAAC,yDAAyD,EAAEA,WAAW;kBACrF,cAAA,qBAACC;YAAID,WAAU;sBACb,cAAA,qBAACC;gBAAID,WAAU;0BACb,cAAA,qBAACC;oBAAID,WAAU;;;;;AAKzB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "e1053e59c61848a21912847ff512c777c829c9c1"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_ebqnon4rn = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_ebqnon4rn();
+cov_ebqnon4rn().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_ebqnon4rn().s[1]++;
+Object.defineProperty(exports, "LoadingSpinner", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_ebqnon4rn().f[0]++;
+    cov_ebqnon4rn().s[2]++;
+    return LoadingSpinner;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_ebqnon4rn().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_ebqnon4rn().s[4]++, _interop_require_default(require("react")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_ebqnon4rn().f[1]++;
+  cov_ebqnon4rn().s[5]++;
+  return /* istanbul ignore next */(cov_ebqnon4rn().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_ebqnon4rn().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_ebqnon4rn().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_ebqnon4rn().b[0][1]++, {
+    default: obj
+  });
+}
+/* istanbul ignore next */
+cov_ebqnon4rn().s[6]++;
+const LoadingSpinner = ({
+  className =
+  /* istanbul ignore next */
+  (cov_ebqnon4rn().b[2][0]++, '')
+}) => {
+  /* istanbul ignore next */
+  cov_ebqnon4rn().f[2]++;
+  cov_ebqnon4rn().s[7]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+    className: `min-h-screen flex items-center justify-center bg-gray-50 ${className}`,
+    children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+      className: "text-center",
+      children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+        className: "inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full",
+        children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          className: "w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"
+        })
+      })
+    })
+  });
+};
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJMb2FkaW5nU3Bpbm5lciIsImNsYXNzTmFtZSIsImNvdl9lYnFub240cm4iLCJiIiwiZiIsInMiLCJfanN4cnVudGltZSIsImpzeCJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvY29tcG9uZW50cy9jbGllbnQvY29tbW9uL0xvYWRpbmdTcGlubmVyLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyIndXNlIGNsaWVudCc7XG5cbmltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7XG5cblxuaW50ZXJmYWNlIExvYWRpbmdTcGlubmVyUHJvcHMge1xuICBjbGFzc05hbWU/OiBzdHJpbmc7XG59XG5cbmV4cG9ydCBjb25zdCBMb2FkaW5nU3Bpbm5lcjogUmVhY3QuRkM8TG9hZGluZ1NwaW5uZXJQcm9wcz4gPSAoeyBjbGFzc05hbWUgPSAnJyB9KSA9PiB7XG4gIHJldHVybiAoXG4gICAgPGRpdiBjbGFzc05hbWU9e2BtaW4taC1zY3JlZW4gZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgYmctZ3JheS01MCAke2NsYXNzTmFtZX1gfT5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwidGV4dC1jZW50ZXJcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJpbmxpbmUtZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgdy0xNiBoLTE2IGJnLWJsdWUtMTAwIHJvdW5kZWQtZnVsbFwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidy04IGgtOCBib3JkZXItNCBib3JkZXItYmx1ZS02MDAgYm9yZGVyLXQtdHJhbnNwYXJlbnQgcm91bmRlZC1mdWxsIGFuaW1hdGUtc3BpblwiPjwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgIDwvZGl2PlxuICAgIDwvZGl2PlxuICApO1xufTsiXSwibWFwcGluZ3MiOiJBQUFBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7K0JBU2E7Ozs7OztXQUFBQSxjQUFBOzs7Ozs7Ozt1RUFQSzs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFPWCxNQUFNQSxjQUFBLEdBQWdEQSxDQUFDO0VBQUVDLFNBQUE7RUFBQTtFQUFBLENBQUFDLGFBQUEsR0FBQUMsQ0FBQSxVQUFZLEVBQUU7QUFBQSxDQUFFO0VBQUE7RUFBQUQsYUFBQSxHQUFBRSxDQUFBO0VBQUFGLGFBQUEsR0FBQUcsQ0FBQTtFQUM5RSxvQkFDRSxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQztJQUFJTixTQUFBLEVBQVcsNERBQTREQSxTQUFBLEVBQVc7Y0FDckYsaUJBQUFLLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO01BQUlOLFNBQUEsRUFBVTtnQkFDYixpQkFBQUssV0FBQSxDQUFBQyxHQUFBLEVBQUM7UUFBSU4sU0FBQSxFQUFVO2tCQUNiLGlCQUFBSyxXQUFBLENBQUFDLEdBQUEsRUFBQztVQUFJTixTQUFBLEVBQVU7Ozs7O0FBS3pCIiwiaWdub3JlTGlzdCI6W119

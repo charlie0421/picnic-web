@@ -1,0 +1,511 @@
+c9224dee3f32a2eb0b7d1ed22e8b4007
+"use strict";
+
+/* istanbul ignore next */
+function cov_2bh8j06qsh() {
+  var path = "/workspace/components/server/LoadingState.tsx";
+  var hash = "e48bea3443df91422694fcdc41bd026363d4f9bf";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/components/server/LoadingState.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 22,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 20,
+          column: 8
+        },
+        end: {
+          line: 20,
+          column: 28
+        }
+      },
+      "3": {
+        start: {
+          line: 23,
+          column: 20
+        },
+        end: {
+          line: 23,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 24,
+          column: 29
+        },
+        end: {
+          line: 24,
+          column: 71
+        }
+      },
+      "5": {
+        start: {
+          line: 26,
+          column: 4
+        },
+        end: {
+          line: 28,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 32,
+          column: 4
+        },
+        end: {
+          line: 45,
+          column: 5
+        }
+      },
+      "7": {
+        start: {
+          line: 33,
+          column: 8
+        },
+        end: {
+          line: 44,
+          column: 11
+        }
+      },
+      "8": {
+        start: {
+          line: 47,
+          column: 28
+        },
+        end: {
+          line: 47,
+          column: 43
+        }
+      },
+      "9": {
+        start: {
+          line: 48,
+          column: 4
+        },
+        end: {
+          line: 56,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 19,
+            column: 9
+          },
+          end: {
+            line: 19,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 20
+          },
+          end: {
+            line: 21,
+            column: 5
+          }
+        },
+        line: 19
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 25,
+            column: 9
+          },
+          end: {
+            line: 25,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 25,
+            column: 39
+          },
+          end: {
+            line: 29,
+            column: 1
+          }
+        },
+        line: 25
+      },
+      "2": {
+        name: "LoadingState",
+        decl: {
+          start: {
+            line: 30,
+            column: 9
+          },
+          end: {
+            line: 30,
+            column: 21
+          }
+        },
+        loc: {
+          start: {
+            line: 30,
+            column: 82
+          },
+          end: {
+            line: 57,
+            column: 1
+          }
+        },
+        line: 30
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 26,
+            column: 11
+          },
+          end: {
+            line: 28,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 26,
+            column: 35
+          },
+          end: {
+            line: 26,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 26,
+            column: 41
+          },
+          end: {
+            line: 28,
+            column: 5
+          }
+        }],
+        line: 26
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 26,
+            column: 11
+          },
+          end: {
+            line: 26,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 26,
+            column: 11
+          },
+          end: {
+            line: 26,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 26,
+            column: 18
+          },
+          end: {
+            line: 26,
+            column: 32
+          }
+        }],
+        line: 26
+      },
+      "2": {
+        loc: {
+          start: {
+            line: 30,
+            column: 24
+          },
+          end: {
+            line: 30,
+            column: 43
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 30,
+            column: 34
+          },
+          end: {
+            line: 30,
+            column: 43
+          }
+        }],
+        line: 30
+      },
+      "3": {
+        loc: {
+          start: {
+            line: 30,
+            column: 45
+          },
+          end: {
+            line: 30,
+            column: 61
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 30,
+            column: 56
+          },
+          end: {
+            line: 30,
+            column: 61
+          }
+        }],
+        line: 30
+      },
+      "4": {
+        loc: {
+          start: {
+            line: 30,
+            column: 63
+          },
+          end: {
+            line: 30,
+            column: 78
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 30,
+            column: 70
+          },
+          end: {
+            line: 30,
+            column: 78
+          }
+        }],
+        line: 30
+      },
+      "5": {
+        loc: {
+          start: {
+            line: 32,
+            column: 4
+          },
+          end: {
+            line: 45,
+            column: 5
+          }
+        },
+        type: "if",
+        locations: [{
+          start: {
+            line: 32,
+            column: 4
+          },
+          end: {
+            line: 45,
+            column: 5
+          }
+        }, {
+          start: {
+            line: undefined,
+            column: undefined
+          },
+          end: {
+            line: undefined,
+            column: undefined
+          }
+        }],
+        line: 32
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0],
+      "2": [0],
+      "3": [0],
+      "4": [0],
+      "5": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/components/server/LoadingState.tsx"],
+      sourcesContent: ["import React from 'react';\n\n\ninterface LoadingStateProps {\n  message?: string;\n  fullPage?: boolean;\n  size?: 'small' | 'medium' | 'large';\n}\n\n/**\n * \uC11C\uBC84 \uCEF4\uD3EC\uB10C\uD2B8\uC5D0\uC11C \uB370\uC774\uD130 \uB85C\uB529 \uC911 \uD45C\uC2DC\uD560 \uCEF4\uD3EC\uB10C\uD2B8\n *\n * Next.js\uC758 Suspense \uB610\uB294 loading.tsx \uD30C\uC77C\uACFC \uD568\uAED8 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.\n *\n * @example\n * // app/[lang]/(main)/vote/[id]/loading.tsx\n * import { LoadingState } from '@/components/server';\n *\n * export default function VoteLoading() {\n *   return <LoadingState message=\"\uD22C\uD45C \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4...\" />;\n * }\n */\nexport default function LoadingState({\n  message = '\uB85C\uB529 \uC911...',\n  fullPage = false,\n  size = 'medium',\n}: LoadingStateProps) {\n  // \uC804\uCCB4 \uD398\uC774\uC9C0 \uB85C\uB529\uC778 \uACBD\uC6B0 \uACF5\uD1B5 \uCEF4\uD3EC\uB10C\uD2B8 \uC0AC\uC6A9\n  if (fullPage) {\n    return (\n    <div className=\"min-h-screen flex items-center justify-center bg-gray-50\">\n      <div className=\"text-center\">\n        <div className=\"inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full\">\n          <div className=\"w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin\"></div>\n        </div>\n      </div>\n    </div>\n  );\n  }\n\n  // \uBD80\uBD84 \uB85C\uB529\uC778 \uACBD\uC6B0 \uAE30\uC874 \uC2A4\uD0C0\uC77C \uC720\uC9C0\uD558\uB418 \uD14D\uC2A4\uD2B8 \uC81C\uAC70\n  const containerHeight = 'min-h-[200px]';\n\n  return (\n    <div className={`flex items-center justify-center ${containerHeight} py-10`}>\n      <div className=\"inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full\">\n        <div className=\"w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin\"></div>\n      </div>\n    </div>\n  );\n}\n"],
+      names: ["LoadingState", "message", "fullPage", "size", "div", "className", "containerHeight"],
+      mappings: ";;;;+BASA;;;;;;;;;;;;CAYC,GACD;;;eAAwBA;;;;8DAtBN;;;;;;AAsBH,SAASA,aAAa,EACnCC,UAAU,SAAS,EACnBC,WAAW,KAAK,EAChBC,OAAO,QAAQ,EACG;IAClB,2BAA2B;IAC3B,IAAID,UAAU;QACZ,qBACA,qBAACE;YAAIC,WAAU;sBACb,cAAA,qBAACD;gBAAIC,WAAU;0BACb,cAAA,qBAACD;oBAAIC,WAAU;8BACb,cAAA,qBAACD;wBAAIC,WAAU;;;;;IAKvB;IAEA,+BAA+B;IAC/B,MAAMC,kBAAkB;IAExB,qBACE,qBAACF;QAAIC,WAAW,CAAC,iCAAiC,EAAEC,gBAAgB,MAAM,CAAC;kBACzE,cAAA,qBAACF;YAAIC,WAAU;sBACb,cAAA,qBAACD;gBAAIC,WAAU;;;;AAIvB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "e48bea3443df91422694fcdc41bd026363d4f9bf"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2bh8j06qsh = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2bh8j06qsh();
+cov_2bh8j06qsh().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2bh8j06qsh().s[1]++;
+Object.defineProperty(exports,
+/**
+* 서버 컴포넌트에서 데이터 로딩 중 표시할 컴포넌트
+*
+* Next.js의 Suspense 또는 loading.tsx 파일과 함께 사용할 수 있습니다.
+*
+* @example
+* // app/[lang]/(main)/vote/[id]/loading.tsx
+* import { LoadingState } from '@/components/server';
+*
+* export default function VoteLoading() {
+*   return <LoadingState message="투표 데이터를 불러오는 중입니다..." />;
+* }
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2bh8j06qsh().f[0]++;
+    cov_2bh8j06qsh().s[2]++;
+    return LoadingState;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2bh8j06qsh().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_2bh8j06qsh().s[4]++, _interop_require_default(require("react")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_2bh8j06qsh().f[1]++;
+  cov_2bh8j06qsh().s[5]++;
+  return /* istanbul ignore next */(cov_2bh8j06qsh().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_2bh8j06qsh().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_2bh8j06qsh().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_2bh8j06qsh().b[0][1]++, {
+    default: obj
+  });
+}
+function LoadingState({
+  message =
+  /* istanbul ignore next */
+  (cov_2bh8j06qsh().b[2][0]++, '로딩 중...'),
+  fullPage =
+  /* istanbul ignore next */
+  (cov_2bh8j06qsh().b[3][0]++, false),
+  size =
+  /* istanbul ignore next */
+  (cov_2bh8j06qsh().b[4][0]++, 'medium')
+}) {
+  /* istanbul ignore next */
+  cov_2bh8j06qsh().f[2]++;
+  cov_2bh8j06qsh().s[6]++;
+  // 전체 페이지 로딩인 경우 공통 컴포넌트 사용
+  if (fullPage) {
+    /* istanbul ignore next */
+    cov_2bh8j06qsh().b[5][0]++;
+    cov_2bh8j06qsh().s[7]++;
+    return /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+      className: "min-h-screen flex items-center justify-center bg-gray-50",
+      children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+        className: "text-center",
+        children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          className: "inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full",
+          children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+            className: "w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"
+          })
+        })
+      })
+    });
+  } else
+  /* istanbul ignore next */
+  {
+    cov_2bh8j06qsh().b[5][1]++;
+  }
+  // 부분 로딩인 경우 기존 스타일 유지하되 텍스트 제거
+  const containerHeight =
+  /* istanbul ignore next */
+  (cov_2bh8j06qsh().s[8]++, 'min-h-[200px]');
+  /* istanbul ignore next */
+  cov_2bh8j06qsh().s[9]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+    className: `flex items-center justify-center ${containerHeight} py-10`,
+    children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+      className: "inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full",
+      children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+        className: "w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"
+      })
+    })
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJMb2FkaW5nU3RhdGUiLCJtZXNzYWdlIiwiY292XzJiaDhqMDZxc2giLCJiIiwiZnVsbFBhZ2UiLCJzaXplIiwiZiIsInMiLCJfanN4cnVudGltZSIsImpzeCIsImNsYXNzTmFtZSIsImNvbnRhaW5lckhlaWdodCJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvY29tcG9uZW50cy9zZXJ2ZXIvTG9hZGluZ1N0YXRlLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QgZnJvbSAncmVhY3QnO1xuXG5cbmludGVyZmFjZSBMb2FkaW5nU3RhdGVQcm9wcyB7XG4gIG1lc3NhZ2U/OiBzdHJpbmc7XG4gIGZ1bGxQYWdlPzogYm9vbGVhbjtcbiAgc2l6ZT86ICdzbWFsbCcgfCAnbWVkaXVtJyB8ICdsYXJnZSc7XG59XG5cbi8qKlxuICog7ISc67KEIOy7tO2PrOuEjO2KuOyXkOyEnCDrjbDsnbTthLAg66Gc65SpIOykkSDtkZzsi5ztlaAg7Lu07Y+s64SM7Yq4XG4gKlxuICogTmV4dC5qc+ydmCBTdXNwZW5zZSDrmJDripQgbG9hZGluZy50c3gg7YyM7J286rO8IO2VqOq7mCDsgqzsmqntlaAg7IiYIOyeiOyKteuLiOuLpC5cbiAqXG4gKiBAZXhhbXBsZVxuICogLy8gYXBwL1tsYW5nXS8obWFpbikvdm90ZS9baWRdL2xvYWRpbmcudHN4XG4gKiBpbXBvcnQgeyBMb2FkaW5nU3RhdGUgfSBmcm9tICdAL2NvbXBvbmVudHMvc2VydmVyJztcbiAqXG4gKiBleHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBWb3RlTG9hZGluZygpIHtcbiAqICAgcmV0dXJuIDxMb2FkaW5nU3RhdGUgbWVzc2FnZT1cIu2IrO2RnCDrjbDsnbTthLDrpbwg67aI65+s7Jik64qUIOykkeyeheuLiOuLpC4uLlwiIC8+O1xuICogfVxuICovXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBMb2FkaW5nU3RhdGUoe1xuICBtZXNzYWdlID0gJ+uhnOuUqSDspJEuLi4nLFxuICBmdWxsUGFnZSA9IGZhbHNlLFxuICBzaXplID0gJ21lZGl1bScsXG59OiBMb2FkaW5nU3RhdGVQcm9wcykge1xuICAvLyDsoITssrQg7Y6Y7J207KeAIOuhnOuUqeyduCDqsr3smrAg6rO17Ya1IOy7tO2PrOuEjO2KuCDsgqzsmqlcbiAgaWYgKGZ1bGxQYWdlKSB7XG4gICAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cIm1pbi1oLXNjcmVlbiBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciBiZy1ncmF5LTUwXCI+XG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtY2VudGVyXCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaW5saW5lLWZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHctMTYgaC0xNiBiZy1ibHVlLTEwMCByb3VuZGVkLWZ1bGxcIj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInctOCBoLTggYm9yZGVyLTQgYm9yZGVyLWJsdWUtNjAwIGJvcmRlci10LXRyYW5zcGFyZW50IHJvdW5kZWQtZnVsbCBhbmltYXRlLXNwaW5cIj48L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2Rpdj5cbiAgICA8L2Rpdj5cbiAgKTtcbiAgfVxuXG4gIC8vIOu2gOu2hCDroZzrlKnsnbgg6rK97JqwIOq4sOyhtCDsiqTtg4Dsnbwg7Jyg7KeA7ZWY65CYIO2FjeyKpO2KuCDsoJzqsbBcbiAgY29uc3QgY29udGFpbmVySGVpZ2h0ID0gJ21pbi1oLVsyMDBweF0nO1xuXG4gIHJldHVybiAoXG4gICAgPGRpdiBjbGFzc05hbWU9e2BmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciAke2NvbnRhaW5lckhlaWdodH0gcHktMTBgfT5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaW5saW5lLWZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIHctMTYgaC0xNiBiZy1ibHVlLTEwMCByb3VuZGVkLWZ1bGxcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ3LTggaC04IGJvcmRlci00IGJvcmRlci1ibHVlLTYwMCBib3JkZXItdC10cmFuc3BhcmVudCByb3VuZGVkLWZ1bGwgYW5pbWF0ZS1zcGluXCI+PC9kaXY+XG4gICAgICA8L2Rpdj5cbiAgICA8L2Rpdj5cbiAgKTtcbn1cbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQVNBOzs7Ozs7Ozs7Ozs7O0FBYUE7Ozs7OztXQUF3QkEsWUFBQTs7Ozs7Ozs7d0VBdEJOOzs7Ozs7Ozs7Ozs7Ozs7QUFzQkgsU0FBU0EsYUFBYTtFQUNuQ0MsT0FBQTtFQUFBO0VBQUEsQ0FBQUMsY0FBQSxHQUFBQyxDQUFBLFVBQVUsU0FBUztFQUNuQkMsUUFBQTtFQUFBO0VBQUEsQ0FBQUYsY0FBQSxHQUFBQyxDQUFBLFVBQVcsS0FBSztFQUNoQkUsSUFBQTtFQUFBO0VBQUEsQ0FBQUgsY0FBQSxHQUFBQyxDQUFBLFVBQU8sUUFBUTtBQUFBLENBQ0c7RUFBQTtFQUFBRCxjQUFBLEdBQUFJLENBQUE7RUFBQUosY0FBQSxHQUFBSyxDQUFBO0VBQ2xCO0VBQ0EsSUFBSUgsUUFBQSxFQUFVO0lBQUE7SUFBQUYsY0FBQSxHQUFBQyxDQUFBO0lBQUFELGNBQUEsR0FBQUssQ0FBQTtJQUNaLG9CQUNBLElBQUFDLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO01BQUlDLFNBQUEsRUFBVTtnQkFDYixpQkFBQUYsV0FBQSxDQUFBQyxHQUFBLEVBQUM7UUFBSUMsU0FBQSxFQUFVO2tCQUNiLGlCQUFBRixXQUFBLENBQUFDLEdBQUEsRUFBQztVQUFJQyxTQUFBLEVBQVU7b0JBQ2IsaUJBQUFGLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO1lBQUlDLFNBQUEsRUFBVTs7Ozs7RUFLdkI7RUFBQTtFQUFBO0lBQUFSLGNBQUEsR0FBQUMsQ0FBQTtFQUFBO0VBRUE7RUFDQSxNQUFNUSxlQUFBO0VBQUE7RUFBQSxDQUFBVCxjQUFBLEdBQUFLLENBQUEsT0FBa0I7RUFBQTtFQUFBTCxjQUFBLEdBQUFLLENBQUE7RUFFeEIsb0JBQ0UsSUFBQUMsV0FBQSxDQUFBQyxHQUFBLEVBQUM7SUFBSUMsU0FBQSxFQUFXLG9DQUFvQ0MsZUFBQSxRQUF1QjtjQUN6RSxpQkFBQUgsV0FBQSxDQUFBQyxHQUFBLEVBQUM7TUFBSUMsU0FBQSxFQUFVO2dCQUNiLGlCQUFBRixXQUFBLENBQUFDLEdBQUEsRUFBQztRQUFJQyxTQUFBLEVBQVU7Ozs7QUFJdkIiLCJpZ25vcmVMaXN0IjpbXX0=

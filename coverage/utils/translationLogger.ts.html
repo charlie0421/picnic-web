@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">8.95% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/67</span>
+                <span class='fraction'>0/67</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">7.69% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>3/39</span>
+                <span class='fraction'>0/39</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">7.69% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/13</span>
+                <span class='fraction'>0/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">9.37% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/64</span>
+                <span class='fraction'>0/64</span>
             </div>
         
             
@@ -314,12 +314,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -522,10 +522,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Language } from '@/config/settings';
 &nbsp;
@@ -546,12 +546,12 @@ interface TranslationLoggerConfig {
 &nbsp;
 class TranslationLogger {
   private config: TranslationLoggerConfig;
-  private errorCache: Map&lt;string, TranslationError&gt; = new Map();
-  private reportedErrors: Set&lt;string&gt; = new Set();
-  private reportingQueue: TranslationError[] = [];
+  private <span class="cstat-no" title="statement not covered" >errorCache: Map&lt;string, TranslationError&gt; = new Map();</span>
+  private <span class="cstat-no" title="statement not covered" >reportedErrors: Set&lt;string&gt; = new Set();</span>
+  private <span class="cstat-no" title="statement not covered" >reportingQueue: TranslationError[] = [];</span>
 &nbsp;
-  constructor(config: Partial&lt;TranslationLoggerConfig&gt; = {}) {
-    this.config = {
+<span class="fstat-no" title="function not covered" >  constructor(c</span>onfig: Partial&lt;TranslationLoggerConfig&gt; = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
+<span class="cstat-no" title="statement not covered" >    this.config = {</span>
       enableConsoleLogging: process.env.NODE_ENV === 'development',
       enableRemoteLogging: process.env.NODE_ENV === 'production',
       maxLocalErrors: 100,
@@ -754,10 +754,10 @@ class TranslationLogger {
 }
 &nbsp;
 // 싱글톤 인스턴스 생성
-export const <span class="cstat-no" title="statement not covered" >translationLogger = n</span>ew TranslationLogger();
+export const <span class="cstat-no" title="statement not covered" >translationLogger = <span class="cstat-no" title="statement not covered" >n</span>ew TranslationLogger();</span>
 &nbsp;
 // 개발 환경에서 전역 접근 가능하도록 설정
-<span class="missing-if-branch" title="if path not taken" >I</span>if (typeof window !== 'undefined' &amp;&amp; process.env.NODE_ENV === 'development') {
+<span class="cstat-no" title="statement not covered" ><span class="missing-if-branch" title="if path not taken" >I</span>if (typeof window !== 'undefined' &amp;&amp; process.env.NODE_ENV === 'development') {</span>
   (<span class="cstat-no" title="statement not covered" >window as any).translationLogger = translationLogger;</span>
 } </pre></td></tr></table></pre>
 
@@ -766,7 +766,7 @@ export const <span class="cstat-no" title="statement not covered" >translationLo
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-06-10T09:05:49.187Z
+                at 2025-06-25T06:59:47.542Z
             </div>
         <script src="../prettify.js"></script>
         <script>

@@ -70,6 +70,24 @@ export { PaymentRateTable } from './PaymentRateTable';
 // export { useRegionDetection } from './hooks/useRegionDetection';
 // export { usePaymentFlow } from './hooks/usePaymentFlow';
 
+// Currency Utilities
+export {
+  formatCurrency,
+  formatCompactCurrency,
+  formatPercentage,
+  formatCurrencyRange,
+  formatCurrencyConversion,
+  getCurrencySymbol,
+  getCurrencyName,
+  getCurrencyConfig,
+  calculateFee,
+  formatFeeCalculation,
+  convertCurrency,
+  CURRENCY_CONFIGS,
+  type FormatCurrencyOptions,
+  type FeeCalculation,
+  type ExchangeRate
+} from './utils/currencyFormatter';
+
 // Constants and Utilities (향후 추가 예정)
 // export { PAYMENT_STEPS, DEFAULT_THEME } from './constants';
-// export { formatPrice, calculateFees, validatePaymentMethod } from './utils';

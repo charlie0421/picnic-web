@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">57.69% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>15/26</span>
+                <span class='fraction'>0/30</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>15/15</span>
+                <span class='fraction'>0/17</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -92,7 +92,11 @@
 <a name='L27'></a><a href='#L27'>27</a>
 <a name='L28'></a><a href='#L28'>28</a>
 <a name='L29'></a><a href='#L29'>29</a>
-<a name='L30'></a><a href='#L30'>30</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -100,28 +104,32 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span></td><td class="text"><pre class="prettyprint lang-js">/**
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
  * 서버 컴포넌트 인덱스
  * 
  * 이 파일은 서버 컴포넌트를 다른 파일에서 쉽게 임포트할 수 있도록 합니다.
@@ -129,35 +137,39 @@
  */
 &nbsp;
 // 도메인별 서버 컴포넌트
-export * from './vote';
-export * from './banner';
-export * from './media';
-export * from './reward';
+export * from <span class="cstat-no" title="statement not covered" >'./vote';</span>
+export * from <span class="cstat-no" title="statement not covered" >'./banner';</span>
+export * from <span class="cstat-no" title="statement not covered" >'./media';</span>
+export * from <span class="cstat-no" title="statement not covered" >'./reward';</span>
 // export * from './auth';    // 추후 추가 예정
 &nbsp;
 // 기타 서버 컴포넌트
-export { default as <span class="cstat-no" title="statement not covered" >LoadingState } from '</span>./LoadingState';
-export { default as <span class="cstat-no" title="statement not covered" >ErrorState } from '</span>./ErrorState';
-export { default as <span class="cstat-no" title="statement not covered" >VoteDetailSkeleton } from '</span>./VoteDetailSkeleton';
-export { default as <span class="cstat-no" title="statement not covered" >AuthCallbackSkeleton } from '</span>./AuthCallbackSkeleton';
+export { default as <span class="cstat-no" title="statement not covered" >LoadingState } from <span class="cstat-no" title="statement not covered" >'</span>./LoadingState';</span>
+export { default as <span class="cstat-no" title="statement not covered" >ErrorState } from <span class="cstat-no" title="statement not covered" >'</span>./ErrorState';</span>
+export { default as <span class="cstat-no" title="statement not covered" >VoteDetailSkeleton } from <span class="cstat-no" title="statement not covered" >'</span>./VoteDetailSkeleton';</span>
+export { default as <span class="cstat-no" title="statement not covered" >AuthCallbackSkeleton } from <span class="cstat-no" title="statement not covered" >'</span>./AuthCallbackSkeleton';</span>
 &nbsp;
 // 에러 처리 관련 컴포넌트
-export { default as <span class="cstat-no" title="statement not covered" >ErrorBoundary } from '</span>./ErrorBoundary';
-export { default as <span class="cstat-no" title="statement not covered" >AsyncBoundary } from '</span>./AsyncBoundary';
-export { default as <span class="cstat-no" title="statement not covered" >NotFoundState } from '</span>./NotFoundState';
+export { default as <span class="cstat-no" title="statement not covered" >ErrorBoundary } from <span class="cstat-no" title="statement not covered" >'</span>./ErrorBoundary';</span>
+export { default as <span class="cstat-no" title="statement not covered" >AsyncBoundary } from <span class="cstat-no" title="statement not covered" >'</span>./AsyncBoundary';</span>
+export { default as <span class="cstat-no" title="statement not covered" >NotFoundState } from <span class="cstat-no" title="statement not covered" >'</span>./NotFoundState';</span>
 &nbsp;
 // React Suspense 관련 컴포넌트
-export { default as <span class="cstat-no" title="statement not covered" >ParallelDataFetching } from '</span>./ParallelDataFetching';
-export { default as <span class="cstat-no" title="statement not covered" >NestedDataFetching } from '</span>./NestedDataFetching';
-export { default as <span class="cstat-no" title="statement not covered" >ServerClientBoundary } from '</span>./ServerClientBoundary';
-export { default as <span class="cstat-no" title="statement not covered" >VoteDataExample } from '</span>./VoteDataExample'; </pre></td></tr></table></pre>
+export { default as <span class="cstat-no" title="statement not covered" >ParallelDataFetching } from <span class="cstat-no" title="statement not covered" >'</span>./ParallelDataFetching';</span>
+export { default as <span class="cstat-no" title="statement not covered" >NestedDataFetching } from <span class="cstat-no" title="statement not covered" >'</span>./NestedDataFetching';</span>
+export { default as <span class="cstat-no" title="statement not covered" >ServerClientBoundary } from <span class="cstat-no" title="statement not covered" >'</span>./ServerClientBoundary';</span>
+export { default as <span class="cstat-no" title="statement not covered" >VoteDataExample } from <span class="cstat-no" title="statement not covered" >'</span>./VoteDataExample';</span>
+&nbsp;
+// 스켈레톤 컴포넌트들
+export { default as <span class="cstat-no" title="statement not covered" >BannerSkeleton } from <span class="cstat-no" title="statement not covered" >'</span>./banner/BannerSkeleton';</span>
+export { default as <span class="cstat-no" title="statement not covered" >VoteListSkeleton } from <span class="cstat-no" title="statement not covered" >'</span>./vote/VoteListSkeleton'; </span></pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-06-10T09:05:49.187Z
+                at 2025-06-25T06:59:47.542Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

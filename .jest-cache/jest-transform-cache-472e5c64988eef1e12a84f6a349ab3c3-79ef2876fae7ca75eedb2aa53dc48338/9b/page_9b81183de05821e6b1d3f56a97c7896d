@@ -1,0 +1,426 @@
+3b9ba8070ec209ca2f5d64034bb034bf
+"use strict";
+
+/* istanbul ignore next */
+function cov_itn0v43wc() {
+  var path = "/workspace/app/auth/callback/[provider]/page.tsx";
+  var hash = "9d8788e9b0b1cff8a15978ed5ba7d58a5489534c";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/app/auth/callback/[provider]/page.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 15,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 13,
+          column: 8
+        },
+        end: {
+          line: 13,
+          column: 32
+        }
+      },
+      "3": {
+        start: {
+          line: 16,
+          column: 20
+        },
+        end: {
+          line: 16,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 17,
+          column: 15
+        },
+        end: {
+          line: 17,
+          column: 31
+        }
+      },
+      "5": {
+        start: {
+          line: 18,
+          column: 36
+        },
+        end: {
+          line: 18,
+          column: 120
+        }
+      },
+      "6": {
+        start: {
+          line: 20,
+          column: 4
+        },
+        end: {
+          line: 22,
+          column: 6
+        }
+      },
+      "7": {
+        start: {
+          line: 25,
+          column: 25
+        },
+        end: {
+          line: 25,
+          column: 37
+        }
+      },
+      "8": {
+        start: {
+          line: 26,
+          column: 4
+        },
+        end: {
+          line: 106,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 20
+          },
+          end: {
+            line: 14,
+            column: 5
+          }
+        },
+        line: 12
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 19,
+            column: 9
+          },
+          end: {
+            line: 19,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 39
+          },
+          end: {
+            line: 23,
+            column: 1
+          }
+        },
+        line: 19
+      },
+      "2": {
+        name: "AuthCallbackPage",
+        decl: {
+          start: {
+            line: 24,
+            column: 15
+          },
+          end: {
+            line: 24,
+            column: 31
+          }
+        },
+        loc: {
+          start: {
+            line: 24,
+            column: 44
+          },
+          end: {
+            line: 107,
+            column: 1
+          }
+        },
+        line: 24
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 22,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 35
+          },
+          end: {
+            line: 20,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 41
+          },
+          end: {
+            line: 22,
+            column: 5
+          }
+        }],
+        line: 20
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 18
+          },
+          end: {
+            line: 20,
+            column: 32
+          }
+        }],
+        line: 20
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/app/auth/callback/[provider]/page.tsx"],
+      sourcesContent: ["import { Suspense } from 'react';\nimport AuthCallback from '@/components/client/auth/AuthCallback';\n\n// \uD0C0\uC785 \uC815\uC758 \uC218\uC815\ntype PageProps = {\n  params: Promise<{ provider: string }>;\n};\n\n/**\n * \uC18C\uC15C \uB85C\uADF8\uC778 \uCF5C\uBC31 \uD398\uC774\uC9C0\n *\n * \uC774 \uD398\uC774\uC9C0\uB294 \uC11C\uBC84 \uCEF4\uD3EC\uB10C\uD2B8\uB85C \uAD6C\uD604\uB418\uACE0,\n * \uD544\uC694\uD55C \uC778\uC99D \uB85C\uC9C1\uC740 \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8\uB85C \uBD84\uB9AC\uB418\uC5B4 \uC788\uC2B5\uB2C8\uB2E4.\n */\nexport default async function AuthCallbackPage({ params }: PageProps) {\n  const { provider } = await params;\n\n  return (\n    <>\n      {/* \uC989\uC2DC \uB85C\uB529\uBC14\uB97C \uD45C\uC2DC\uD558\uB294 \uC2A4\uD06C\uB9BD\uD2B8 */}\n      <script\n        dangerouslySetInnerHTML={{\n          __html: `\n            // \uD398\uC774\uC9C0 \uB85C\uB4DC \uC989\uC2DC \uB85C\uB529\uBC14 \uC0DD\uC131\n            (function() {\n              console.log('\uD83D\uDD04 [OAuth Callback] \uC989\uC2DC \uB85C\uB529\uBC14 \uC0DD\uC131');\n              \n              const loadingDiv = document.createElement('div');\n              loadingDiv.id = 'oauth-loading';\n              loadingDiv.style.cssText = \\`\n                position: fixed;\n                top: 0;\n                left: 0;\n                width: 100vw;\n                height: 100vh;\n                background: #f9fafb;\n                display: flex;\n                align-items: center;\n                justify-content: center;\n                z-index: 9999;\n              \\`;\n              \n              const spinnerContainer = document.createElement('div');\n              spinnerContainer.style.cssText = \\`\n                width: 64px;\n                height: 64px;\n                background: #dbeafe;\n                border-radius: 50%;\n                display: flex;\n                align-items: center;\n                justify-content: center;\n              \\`;\n              \n              const spinner = document.createElement('div');\n              spinner.style.cssText = \\`\n                width: 32px;\n                height: 32px;\n                border: 4px solid #2563eb;\n                border-top: 4px solid transparent;\n                border-radius: 50%;\n                animation: spin 1s linear infinite;\n              \\`;\n              \n              // CSS \uC560\uB2C8\uBA54\uC774\uC158 \uCD94\uAC00\n              if (!document.getElementById('spinner-style')) {\n                const style = document.createElement('style');\n                style.id = 'spinner-style';\n                style.textContent = \\`\n                  @keyframes spin {\n                    0% { transform: rotate(0deg); }\n                    100% { transform: rotate(360deg); }\n                  }\n                \\`;\n                document.head.appendChild(style);\n              }\n              \n              spinnerContainer.appendChild(spinner);\n              loadingDiv.appendChild(spinnerContainer);\n              \n              // body\uAC00 \uC900\uBE44\uB418\uBA74 \uC989\uC2DC \uCD94\uAC00\n              if (document.body) {\n                document.body.appendChild(loadingDiv);\n              } else {\n                document.addEventListener('DOMContentLoaded', function() {\n                  document.body.appendChild(loadingDiv);\n                });\n              }\n            })();\n          `\n        }}\n      />\n\n      {/* \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8 */}\n      <Suspense fallback={null}>\n        <AuthCallback provider={provider} />\n      </Suspense>\n    </>\n  );\n}\n"],
+      names: ["AuthCallbackPage", "params", "provider", "script", "dangerouslySetInnerHTML", "__html", "Suspense", "fallback", "AuthCallback"],
+      mappings: ";;;;+BAQA;;;;;CAKC,GACD;;;eAA8BA;;;;uBAdL;qEACA;;;;;;AAaV,eAAeA,iBAAiB,EAAEC,MAAM,EAAa;IAClE,MAAM,EAAEC,QAAQ,EAAE,GAAG,MAAMD;IAE3B,qBACE;;0BAEE,qBAACE;gBACCC,yBAAyB;oBACvBC,QAAQ,CAAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;UAkET,CAAC;gBACH;;0BAIF,qBAACC,eAAQ;gBAACC,UAAU;0BAClB,cAAA,qBAACC,qBAAY;oBAACN,UAAUA;;;;;AAIhC"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "9d8788e9b0b1cff8a15978ed5ba7d58a5489534c"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_itn0v43wc = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_itn0v43wc();
+cov_itn0v43wc().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_itn0v43wc().s[1]++;
+Object.defineProperty(exports,
+/**
+* 소셜 로그인 콜백 페이지
+*
+* 이 페이지는 서버 컴포넌트로 구현되고,
+* 필요한 인증 로직은 클라이언트 컴포넌트로 분리되어 있습니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_itn0v43wc().f[0]++;
+    cov_itn0v43wc().s[2]++;
+    return AuthCallbackPage;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_itn0v43wc().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(cov_itn0v43wc().s[4]++, require("react"));
+const _AuthCallback =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_itn0v43wc().s[5]++, _interop_require_default(require("../../../../components/client/auth/AuthCallback")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_itn0v43wc().f[1]++;
+  cov_itn0v43wc().s[6]++;
+  return /* istanbul ignore next */(cov_itn0v43wc().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_itn0v43wc().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_itn0v43wc().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_itn0v43wc().b[0][1]++, {
+    default: obj
+  });
+}
+async function AuthCallbackPage({
+  params
+}) {
+  /* istanbul ignore next */
+  cov_itn0v43wc().f[2]++;
+  const {
+    provider
+  } =
+  /* istanbul ignore next */
+  (cov_itn0v43wc().s[7]++, await params);
+  /* istanbul ignore next */
+  cov_itn0v43wc().s[8]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsxs)(_jsxruntime.Fragment, {
+    children: [/*#__PURE__*/(0, _jsxruntime.jsx)("script", {
+      dangerouslySetInnerHTML: {
+        __html: `
+            // 페이지 로드 즉시 로딩바 생성
+            (function() {
+              console.log('🔄 [OAuth Callback] 즉시 로딩바 생성');
+              
+              const loadingDiv = document.createElement('div');
+              loadingDiv.id = 'oauth-loading';
+              loadingDiv.style.cssText = \`
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: #f9fafb;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+              \`;
+              
+              const spinnerContainer = document.createElement('div');
+              spinnerContainer.style.cssText = \`
+                width: 64px;
+                height: 64px;
+                background: #dbeafe;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              \`;
+              
+              const spinner = document.createElement('div');
+              spinner.style.cssText = \`
+                width: 32px;
+                height: 32px;
+                border: 4px solid #2563eb;
+                border-top: 4px solid transparent;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+              \`;
+              
+              // CSS 애니메이션 추가
+              if (!document.getElementById('spinner-style')) {
+                const style = document.createElement('style');
+                style.id = 'spinner-style';
+                style.textContent = \`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                \`;
+                document.head.appendChild(style);
+              }
+              
+              spinnerContainer.appendChild(spinner);
+              loadingDiv.appendChild(spinnerContainer);
+              
+              // body가 준비되면 즉시 추가
+              if (document.body) {
+                document.body.appendChild(loadingDiv);
+              } else {
+                document.addEventListener('DOMContentLoaded', function() {
+                  document.body.appendChild(loadingDiv);
+                });
+              }
+            })();
+          `
+      }
+    }), /*#__PURE__*/(0, _jsxruntime.jsx)(_react.Suspense, {
+      fallback: null,
+      children: /*#__PURE__*/(0, _jsxruntime.jsx)(_AuthCallback.default, {
+        provider: provider
+      })
+    })]
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJBdXRoQ2FsbGJhY2tQYWdlIiwicGFyYW1zIiwiY292X2l0bjB2NDN3YyIsImYiLCJwcm92aWRlciIsInMiLCJfanN4cnVudGltZSIsImpzeHMiLCJGcmFnbWVudCIsImpzeCIsImRhbmdlcm91c2x5U2V0SW5uZXJIVE1MIiwiX19odG1sIiwiX3JlYWN0IiwiU3VzcGVuc2UiLCJmYWxsYmFjayIsIl9BdXRoQ2FsbGJhY2siLCJkZWZhdWx0Il0sInNvdXJjZXMiOlsiL3dvcmtzcGFjZS9hcHAvYXV0aC9jYWxsYmFjay9bcHJvdmlkZXJdL3BhZ2UudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFN1c3BlbnNlIH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IEF1dGhDYWxsYmFjayBmcm9tICdAL2NvbXBvbmVudHMvY2xpZW50L2F1dGgvQXV0aENhbGxiYWNrJztcblxuLy8g7YOA7J6FIOygleydmCDsiJjsoJVcbnR5cGUgUGFnZVByb3BzID0ge1xuICBwYXJhbXM6IFByb21pc2U8eyBwcm92aWRlcjogc3RyaW5nIH0+O1xufTtcblxuLyoqXG4gKiDshozshZwg66Gc6re47J24IOy9nOuwsSDtjpjsnbTsp4BcbiAqXG4gKiDsnbQg7Y6Y7J207KeA64qUIOyEnOuyhCDsu7Ttj6zrhIztirjroZwg6rWs7ZiE65CY6rOgLFxuICog7ZWE7JqU7ZWcIOyduOymnSDroZzsp4HsnYAg7YG065287J207Ja47Yq4IOy7tO2PrOuEjO2KuOuhnCDrtoTrpqzrkJjslrQg7J6I7Iq164uI64ukLlxuICovXG5leHBvcnQgZGVmYXVsdCBhc3luYyBmdW5jdGlvbiBBdXRoQ2FsbGJhY2tQYWdlKHsgcGFyYW1zIH06IFBhZ2VQcm9wcykge1xuICBjb25zdCB7IHByb3ZpZGVyIH0gPSBhd2FpdCBwYXJhbXM7XG5cbiAgcmV0dXJuIChcbiAgICA8PlxuICAgICAgey8qIOymieyLnCDroZzrlKnrsJTrpbwg7ZGc7Iuc7ZWY64qUIOyKpO2BrOumve2KuCAqL31cbiAgICAgIDxzY3JpcHRcbiAgICAgICAgZGFuZ2Vyb3VzbHlTZXRJbm5lckhUTUw9e3tcbiAgICAgICAgICBfX2h0bWw6IGBcbiAgICAgICAgICAgIC8vIO2OmOydtOyngCDroZzrk5wg7KaJ7IucIOuhnOuUqeuwlCDsg53shLFcbiAgICAgICAgICAgIChmdW5jdGlvbigpIHtcbiAgICAgICAgICAgICAgY29uc29sZS5sb2coJ/CflIQgW09BdXRoIENhbGxiYWNrXSDsponsi5wg66Gc65Sp67CUIOyDneyEsScpO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgY29uc3QgbG9hZGluZ0RpdiA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2RpdicpO1xuICAgICAgICAgICAgICBsb2FkaW5nRGl2LmlkID0gJ29hdXRoLWxvYWRpbmcnO1xuICAgICAgICAgICAgICBsb2FkaW5nRGl2LnN0eWxlLmNzc1RleHQgPSBcXGBcbiAgICAgICAgICAgICAgICBwb3NpdGlvbjogZml4ZWQ7XG4gICAgICAgICAgICAgICAgdG9wOiAwO1xuICAgICAgICAgICAgICAgIGxlZnQ6IDA7XG4gICAgICAgICAgICAgICAgd2lkdGg6IDEwMHZ3O1xuICAgICAgICAgICAgICAgIGhlaWdodDogMTAwdmg7XG4gICAgICAgICAgICAgICAgYmFja2dyb3VuZDogI2Y5ZmFmYjtcbiAgICAgICAgICAgICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgICAgICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICAgICAgICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XG4gICAgICAgICAgICAgICAgei1pbmRleDogOTk5OTtcbiAgICAgICAgICAgICAgXFxgO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgY29uc3Qgc3Bpbm5lckNvbnRhaW5lciA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2RpdicpO1xuICAgICAgICAgICAgICBzcGlubmVyQ29udGFpbmVyLnN0eWxlLmNzc1RleHQgPSBcXGBcbiAgICAgICAgICAgICAgICB3aWR0aDogNjRweDtcbiAgICAgICAgICAgICAgICBoZWlnaHQ6IDY0cHg7XG4gICAgICAgICAgICAgICAgYmFja2dyb3VuZDogI2RiZWFmZTtcbiAgICAgICAgICAgICAgICBib3JkZXItcmFkaXVzOiA1MCU7XG4gICAgICAgICAgICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgICAgICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgICAgICAgICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xuICAgICAgICAgICAgICBcXGA7XG4gICAgICAgICAgICAgIFxuICAgICAgICAgICAgICBjb25zdCBzcGlubmVyID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnZGl2Jyk7XG4gICAgICAgICAgICAgIHNwaW5uZXIuc3R5bGUuY3NzVGV4dCA9IFxcYFxuICAgICAgICAgICAgICAgIHdpZHRoOiAzMnB4O1xuICAgICAgICAgICAgICAgIGhlaWdodDogMzJweDtcbiAgICAgICAgICAgICAgICBib3JkZXI6IDRweCBzb2xpZCAjMjU2M2ViO1xuICAgICAgICAgICAgICAgIGJvcmRlci10b3A6IDRweCBzb2xpZCB0cmFuc3BhcmVudDtcbiAgICAgICAgICAgICAgICBib3JkZXItcmFkaXVzOiA1MCU7XG4gICAgICAgICAgICAgICAgYW5pbWF0aW9uOiBzcGluIDFzIGxpbmVhciBpbmZpbml0ZTtcbiAgICAgICAgICAgICAgXFxgO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgLy8gQ1NTIOyVoOuLiOuplOydtOyFmCDstpTqsIBcbiAgICAgICAgICAgICAgaWYgKCFkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3Bpbm5lci1zdHlsZScpKSB7XG4gICAgICAgICAgICAgICAgY29uc3Qgc3R5bGUgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdzdHlsZScpO1xuICAgICAgICAgICAgICAgIHN0eWxlLmlkID0gJ3NwaW5uZXItc3R5bGUnO1xuICAgICAgICAgICAgICAgIHN0eWxlLnRleHRDb250ZW50ID0gXFxgXG4gICAgICAgICAgICAgICAgICBAa2V5ZnJhbWVzIHNwaW4ge1xuICAgICAgICAgICAgICAgICAgICAwJSB7IHRyYW5zZm9ybTogcm90YXRlKDBkZWcpOyB9XG4gICAgICAgICAgICAgICAgICAgIDEwMCUgeyB0cmFuc2Zvcm06IHJvdGF0ZSgzNjBkZWcpOyB9XG4gICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgXFxgO1xuICAgICAgICAgICAgICAgIGRvY3VtZW50LmhlYWQuYXBwZW5kQ2hpbGQoc3R5bGUpO1xuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgIFxuICAgICAgICAgICAgICBzcGlubmVyQ29udGFpbmVyLmFwcGVuZENoaWxkKHNwaW5uZXIpO1xuICAgICAgICAgICAgICBsb2FkaW5nRGl2LmFwcGVuZENoaWxkKHNwaW5uZXJDb250YWluZXIpO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgLy8gYm9keeqwgCDspIDruYTrkJjrqbQg7KaJ7IucIOy2lOqwgFxuICAgICAgICAgICAgICBpZiAoZG9jdW1lbnQuYm9keSkge1xuICAgICAgICAgICAgICAgIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQobG9hZGluZ0Rpdik7XG4gICAgICAgICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgICAgICAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignRE9NQ29udGVudExvYWRlZCcsIGZ1bmN0aW9uKCkge1xuICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChsb2FkaW5nRGl2KTtcbiAgICAgICAgICAgICAgICB9KTtcbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgfSkoKTtcbiAgICAgICAgICBgXG4gICAgICAgIH19XG4gICAgICAvPlxuXG4gICAgICB7Lyog7YG065287J207Ja47Yq4IOy7tO2PrOuEjO2KuCAqL31cbiAgICAgIDxTdXNwZW5zZSBmYWxsYmFjaz17bnVsbH0+XG4gICAgICAgIDxBdXRoQ2FsbGJhY2sgcHJvdmlkZXI9e3Byb3ZpZGVyfSAvPlxuICAgICAgPC9TdXNwZW5zZT5cbiAgICA8Lz5cbiAgKTtcbn1cbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQVFBOzs7Ozs7QUFNQTs7Ozs7O1dBQThCQSxnQkFBQTs7Ozs7Ozs7aUNBZEw7Ozt1RUFDQTs7Ozs7Ozs7Ozs7Ozs7O0FBYVYsZUFBZUEsaUJBQWlCO0VBQUVDO0FBQU0sQ0FBYTtFQUFBO0VBQUFDLGFBQUEsR0FBQUMsQ0FBQTtFQUNsRSxNQUFNO0lBQUVDO0VBQVEsQ0FBRTtFQUFBO0VBQUEsQ0FBQUYsYUFBQSxHQUFBRyxDQUFBLE9BQUcsTUFBTUosTUFBQTtFQUFBO0VBQUFDLGFBQUEsR0FBQUcsQ0FBQTtFQUUzQixvQkFDRSxJQUFBQyxXQUFBLENBQUFDLElBQUEsRUFBQUQsV0FBQSxDQUFBRSxRQUFBOzRCQUVFLElBQUFGLFdBQUEsQ0FBQUcsR0FBQSxFQUFDO01BQ0NDLHVCQUFBLEVBQXlCO1FBQ3ZCQyxNQUFBLEVBQVE7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7TUFtRVY7cUJBSUYsSUFBQUwsV0FBQSxDQUFBRyxHQUFBLEVBQUNHLE1BQUEsQ0FBQUMsUUFBUTtNQUFDQyxRQUFBLEVBQVU7Z0JBQ2xCLGlCQUFBUixXQUFBLENBQUFHLEdBQUEsRUFBQ00sYUFBQSxDQUFBQyxPQUFZO1FBQUNaLFFBQUEsRUFBVUE7Ozs7QUFJaEMiLCJpZ25vcmVMaXN0IjpbXX0=

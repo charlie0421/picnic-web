@@ -1,0 +1,260 @@
+a114282c44d056423918c8802e271059
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_65o8moc6f() {
+  var path = "/workspace/components/client/vote/VoteStatus.tsx";
+  var hash = "eba24d2cdf3a6741bb65a3a5f8c77832805a8b0f";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/components/client/vote/VoteStatus.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 8
+        },
+        end: {
+          line: 9,
+          column: 26
+        }
+      },
+      "3": {
+        start: {
+          line: 12,
+          column: 20
+        },
+        end: {
+          line: 12,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 16
+        },
+        end: {
+          line: 13,
+          column: 39
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 15
+        },
+        end: {
+          line: 14,
+          column: 44
+        }
+      },
+      "6": {
+        start: {
+          line: 16,
+          column: 18
+        },
+        end: {
+          line: 16,
+          column: 56
+        }
+      },
+      "7": {
+        start: {
+          line: 17,
+          column: 23
+        },
+        end: {
+          line: 17,
+          column: 61
+        }
+      },
+      "8": {
+        start: {
+          line: 19,
+          column: 23
+        },
+        end: {
+          line: 23,
+          column: 5
+        }
+      },
+      "9": {
+        start: {
+          line: 24,
+          column: 4
+        },
+        end: {
+          line: 29,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 9
+          },
+          end: {
+            line: 8,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 20
+          },
+          end: {
+            line: 10,
+            column: 5
+          }
+        },
+        line: 8
+      },
+      "1": {
+        name: "VoteStatus",
+        decl: {
+          start: {
+            line: 15,
+            column: 9
+          },
+          end: {
+            line: 15,
+            column: 19
+          }
+        },
+        loc: {
+          start: {
+            line: 15,
+            column: 43
+          },
+          end: {
+            line: 30,
+            column: 1
+          }
+        },
+        line: 15
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/components/client/vote/VoteStatus.tsx"],
+      sourcesContent: ["'use client';\n\nimport { Badge } from '@/components/common';\nimport { VoteStatus as VoteStatusType } from '@/stores/voteFilterStore';\nimport { getVoteStatusLabel, getVoteStatusColor } from '@/components/server/utils';\n\nexport interface VoteStatusProps {\n  status: VoteStatusType;\n  className?: string;\n}\n\nexport function VoteStatus({ status, className }: VoteStatusProps) {\n  const label = getVoteStatusLabel(status);\n  const colorClass = getVoteStatusColor(status);\n  \n  // Badge variant \uB9E4\uD551\n  const variantMap: Record<VoteStatusType, 'info' | 'success' | 'default'> = {\n    upcoming: 'info',\n    ongoing: 'success',\n    completed: 'default'\n  };\n  \n  return (\n    <Badge \n      variant={variantMap[status]}\n      size=\"sm\"\n      className={className}\n    >\n      {label}\n    </Badge>\n  );\n} "],
+      names: ["VoteStatus", "status", "className", "label", "getVoteStatusLabel", "colorClass", "getVoteStatusColor", "variantMap", "upcoming", "ongoing", "completed", "Badge", "variant", "size"],
+      mappings: "AAAA;;;;;+BAWgBA;;;eAAAA;;;;wBATM;uBAEiC;AAOhD,SAASA,WAAW,EAAEC,MAAM,EAAEC,SAAS,EAAmB;IAC/D,MAAMC,QAAQC,IAAAA,yBAAkB,EAACH;IACjC,MAAMI,aAAaC,IAAAA,yBAAkB,EAACL;IAEtC,mBAAmB;IACnB,MAAMM,aAAqE;QACzEC,UAAU;QACVC,SAAS;QACTC,WAAW;IACb;IAEA,qBACE,qBAACC,aAAK;QACJC,SAASL,UAAU,CAACN,OAAO;QAC3BY,MAAK;QACLX,WAAWA;kBAEVC;;AAGP"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "eba24d2cdf3a6741bb65a3a5f8c77832805a8b0f"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_65o8moc6f = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_65o8moc6f();
+cov_65o8moc6f().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_65o8moc6f().s[1]++;
+Object.defineProperty(exports, "VoteStatus", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_65o8moc6f().f[0]++;
+    cov_65o8moc6f().s[2]++;
+    return VoteStatus;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_65o8moc6f().s[3]++, require("react/jsx-runtime"));
+const _common =
+/* istanbul ignore next */
+(cov_65o8moc6f().s[4]++, require("../../common"));
+const _utils =
+/* istanbul ignore next */
+(cov_65o8moc6f().s[5]++, require("../../server/utils"));
+function VoteStatus({
+  status,
+  className
+}) {
+  /* istanbul ignore next */
+  cov_65o8moc6f().f[1]++;
+  const label =
+  /* istanbul ignore next */
+  (cov_65o8moc6f().s[6]++, (0, _utils.getVoteStatusLabel)(status));
+  const colorClass =
+  /* istanbul ignore next */
+  (cov_65o8moc6f().s[7]++, (0, _utils.getVoteStatusColor)(status));
+  // Badge variant 매핑
+  const variantMap =
+  /* istanbul ignore next */
+  (cov_65o8moc6f().s[8]++, {
+    upcoming: 'info',
+    ongoing: 'success',
+    completed: 'default'
+  });
+  /* istanbul ignore next */
+  cov_65o8moc6f().s[9]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_common.Badge, {
+    variant: variantMap[status],
+    size: "sm",
+    className: className,
+    children: label
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfNjVvOG1vYzZmIiwiYWN0dWFsQ292ZXJhZ2UiLCJzIiwiVm90ZVN0YXR1cyIsInN0YXR1cyIsImNsYXNzTmFtZSIsImYiLCJsYWJlbCIsIl91dGlscyIsImdldFZvdGVTdGF0dXNMYWJlbCIsImNvbG9yQ2xhc3MiLCJnZXRWb3RlU3RhdHVzQ29sb3IiLCJ2YXJpYW50TWFwIiwidXBjb21pbmciLCJvbmdvaW5nIiwiY29tcGxldGVkIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJfY29tbW9uIiwiQmFkZ2UiLCJ2YXJpYW50Iiwic2l6ZSJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvY29tcG9uZW50cy9jbGllbnQvdm90ZS9Wb3RlU3RhdHVzLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyIndXNlIGNsaWVudCc7XG5cbmltcG9ydCB7IEJhZGdlIH0gZnJvbSAnQC9jb21wb25lbnRzL2NvbW1vbic7XG5pbXBvcnQgeyBWb3RlU3RhdHVzIGFzIFZvdGVTdGF0dXNUeXBlIH0gZnJvbSAnQC9zdG9yZXMvdm90ZUZpbHRlclN0b3JlJztcbmltcG9ydCB7IGdldFZvdGVTdGF0dXNMYWJlbCwgZ2V0Vm90ZVN0YXR1c0NvbG9yIH0gZnJvbSAnQC9jb21wb25lbnRzL3NlcnZlci91dGlscyc7XG5cbmV4cG9ydCBpbnRlcmZhY2UgVm90ZVN0YXR1c1Byb3BzIHtcbiAgc3RhdHVzOiBWb3RlU3RhdHVzVHlwZTtcbiAgY2xhc3NOYW1lPzogc3RyaW5nO1xufVxuXG5leHBvcnQgZnVuY3Rpb24gVm90ZVN0YXR1cyh7IHN0YXR1cywgY2xhc3NOYW1lIH06IFZvdGVTdGF0dXNQcm9wcykge1xuICBjb25zdCBsYWJlbCA9IGdldFZvdGVTdGF0dXNMYWJlbChzdGF0dXMpO1xuICBjb25zdCBjb2xvckNsYXNzID0gZ2V0Vm90ZVN0YXR1c0NvbG9yKHN0YXR1cyk7XG4gIFxuICAvLyBCYWRnZSB2YXJpYW50IOunpO2VkVxuICBjb25zdCB2YXJpYW50TWFwOiBSZWNvcmQ8Vm90ZVN0YXR1c1R5cGUsICdpbmZvJyB8ICdzdWNjZXNzJyB8ICdkZWZhdWx0Jz4gPSB7XG4gICAgdXBjb21pbmc6ICdpbmZvJyxcbiAgICBvbmdvaW5nOiAnc3VjY2VzcycsXG4gICAgY29tcGxldGVkOiAnZGVmYXVsdCdcbiAgfTtcbiAgXG4gIHJldHVybiAoXG4gICAgPEJhZGdlIFxuICAgICAgdmFyaWFudD17dmFyaWFudE1hcFtzdGF0dXNdfVxuICAgICAgc2l6ZT1cInNtXCJcbiAgICAgIGNsYXNzTmFtZT17Y2xhc3NOYW1lfVxuICAgID5cbiAgICAgIHtsYWJlbH1cbiAgICA8L0JhZGdlPlxuICApO1xufSAiXSwibWFwcGluZ3MiOiJBQUFBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztJQVlRO0lBQUFBLGFBQUEsWUFBQUEsQ0FBQTtNQUFBLE9BQUFDLGNBQUE7SUFBQTtFQUFBO0VBQUEsT0FBQUEsY0FBQTtBQUFBO0FBQUFELGFBQUE7QUFBQUEsYUFBQSxHQUFBRSxDQUFBOzs7Ozs7K0JBRFE7Ozs7OztXQUFBQyxVQUFBOzs7Ozs7OztpQ0FUTTs7O2lDQUVpQztBQU9oRCxTQUFTQSxXQUFXO0VBQUVDLE1BQU07RUFBRUM7QUFBUyxDQUFtQjtFQUFBO0VBQUFMLGFBQUEsR0FBQU0sQ0FBQTtFQUMvRCxNQUFNQyxLQUFBO0VBQUE7RUFBQSxDQUFBUCxhQUFBLEdBQUFFLENBQUEsT0FBUSxJQUFBTSxNQUFBLENBQUFDLGtCQUFrQixFQUFDTCxNQUFBO0VBQ2pDLE1BQU1NLFVBQUE7RUFBQTtFQUFBLENBQUFWLGFBQUEsR0FBQUUsQ0FBQSxPQUFhLElBQUFNLE1BQUEsQ0FBQUcsa0JBQWtCLEVBQUNQLE1BQUE7RUFFdEM7RUFDQSxNQUFNUSxVQUFBO0VBQUE7RUFBQSxDQUFBWixhQUFBLEdBQUFFLENBQUEsT0FBcUU7SUFDekVXLFFBQUEsRUFBVTtJQUNWQyxPQUFBLEVBQVM7SUFDVEMsU0FBQSxFQUFXO0VBQ2I7RUFBQTtFQUFBZixhQUFBLEdBQUFFLENBQUE7RUFFQSxvQkFDRSxJQUFBYyxXQUFBLENBQUFDLEdBQUEsRUFBQ0MsT0FBQSxDQUFBQyxLQUFLO0lBQ0pDLE9BQUEsRUFBU1IsVUFBVSxDQUFDUixNQUFBLENBQU87SUFDM0JpQixJQUFBLEVBQUs7SUFDTGhCLFNBQUEsRUFBV0EsU0FBQTtjQUVWRTs7QUFHUCIsImlnbm9yZUxpc3QiOltdfQ==

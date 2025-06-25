@@ -1,0 +1,283 @@
+598348a12e121dc43e6ab4a009f7e449
+"use strict";
+
+/* istanbul ignore next */
+function cov_bltbaywc1() {
+  var path = "/workspace/lib/supabase.ts";
+  var hash = "ae272a237a16386d6097d77047016aa2f5daec82";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/lib/supabase.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 24
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 52
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 20
+        },
+        end: {
+          line: 12,
+          column: 56
+        }
+      },
+      "5": {
+        start: {
+          line: 13,
+          column: 24
+        },
+        end: {
+          line: 13,
+          column: 65
+        }
+      },
+      "6": {
+        start: {
+          line: 14,
+          column: 0
+        },
+        end: {
+          line: 16,
+          column: 1
+        }
+      },
+      "7": {
+        start: {
+          line: 15,
+          column: 4
+        },
+        end: {
+          line: 15,
+          column: 62
+        }
+      },
+      "8": {
+        start: {
+          line: 17,
+          column: 17
+        },
+        end: {
+          line: 17,
+          column: 76
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 14,
+            column: 0
+          },
+          end: {
+            line: 16,
+            column: 1
+          }
+        },
+        type: "if",
+        locations: [{
+          start: {
+            line: 14,
+            column: 0
+          },
+          end: {
+            line: 16,
+            column: 1
+          }
+        }, {
+          start: {
+            line: undefined,
+            column: undefined
+          },
+          end: {
+            line: undefined,
+            column: undefined
+          }
+        }],
+        line: 14
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 14,
+            column: 4
+          },
+          end: {
+            line: 14,
+            column: 36
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 14,
+            column: 4
+          },
+          end: {
+            line: 14,
+            column: 16
+          }
+        }, {
+          start: {
+            line: 14,
+            column: 20
+          },
+          end: {
+            line: 14,
+            column: 36
+          }
+        }],
+        line: 14
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/lib/supabase.ts"],
+      sourcesContent: ["import {createClient} from '@supabase/supabase-js';\n\nconst supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;\nconst supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;\n\nif (!supabaseUrl || !supabaseAnonKey) {\n  throw new Error('Missing Supabase environment variables');\n}\n\nexport const supabase = createClient(supabaseUrl, supabaseAnonKey);\n"],
+      names: ["supabase", "supabaseUrl", "process", "env", "NEXT_PUBLIC_SUPABASE_URL", "supabaseAnonKey", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "Error", "createClient"],
+      mappings: ";;;;+BASaA;;;eAAAA;;;4BATc;AAE3B,MAAMC,cAAcC,QAAQC,GAAG,CAACC,wBAAwB;AACxD,MAAMC,kBAAkBH,QAAQC,GAAG,CAACG,6BAA6B;AAEjE,IAAI,CAACL,eAAe,CAACI,iBAAiB;IACpC,MAAM,IAAIE,MAAM;AAClB;AAEO,MAAMP,WAAWQ,IAAAA,wBAAY,EAACP,aAAaI"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "ae272a237a16386d6097d77047016aa2f5daec82"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_bltbaywc1 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_bltbaywc1();
+cov_bltbaywc1().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_bltbaywc1().s[1]++;
+Object.defineProperty(exports, "supabase", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_bltbaywc1().f[0]++;
+    cov_bltbaywc1().s[2]++;
+    return supabase;
+  }
+});
+const _supabasejs =
+/* istanbul ignore next */
+(cov_bltbaywc1().s[3]++, require("@supabase/supabase-js"));
+const supabaseUrl =
+/* istanbul ignore next */
+(cov_bltbaywc1().s[4]++, process.env.NEXT_PUBLIC_SUPABASE_URL);
+const supabaseAnonKey =
+/* istanbul ignore next */
+(cov_bltbaywc1().s[5]++, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+/* istanbul ignore next */
+cov_bltbaywc1().s[6]++;
+if (
+/* istanbul ignore next */
+(cov_bltbaywc1().b[1][0]++, !supabaseUrl) ||
+/* istanbul ignore next */
+(cov_bltbaywc1().b[1][1]++, !supabaseAnonKey)) {
+  /* istanbul ignore next */
+  cov_bltbaywc1().b[0][0]++;
+  cov_bltbaywc1().s[7]++;
+  throw new Error('Missing Supabase environment variables');
+} else
+/* istanbul ignore next */
+{
+  cov_bltbaywc1().b[0][1]++;
+}
+const supabase =
+/* istanbul ignore next */
+(cov_bltbaywc1().s[8]++, (0, _supabasejs.createClient)(supabaseUrl, supabaseAnonKey));
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfYmx0YmF5d2MxIiwiYWN0dWFsQ292ZXJhZ2UiLCJzIiwic3VwYWJhc2UiLCJzdXBhYmFzZVVybCIsInByb2Nlc3MiLCJlbnYiLCJORVhUX1BVQkxJQ19TVVBBQkFTRV9VUkwiLCJzdXBhYmFzZUFub25LZXkiLCJORVhUX1BVQkxJQ19TVVBBQkFTRV9BTk9OX0tFWSIsImIiLCJFcnJvciIsIl9zdXBhYmFzZWpzIiwiY3JlYXRlQ2xpZW50Il0sInNvdXJjZXMiOlsiL3dvcmtzcGFjZS9saWIvc3VwYWJhc2UudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHtjcmVhdGVDbGllbnR9IGZyb20gJ0BzdXBhYmFzZS9zdXBhYmFzZS1qcyc7XG5cbmNvbnN0IHN1cGFiYXNlVXJsID0gcHJvY2Vzcy5lbnYuTkVYVF9QVUJMSUNfU1VQQUJBU0VfVVJMO1xuY29uc3Qgc3VwYWJhc2VBbm9uS2V5ID0gcHJvY2Vzcy5lbnYuTkVYVF9QVUJMSUNfU1VQQUJBU0VfQU5PTl9LRVk7XG5cbmlmICghc3VwYWJhc2VVcmwgfHwgIXN1cGFiYXNlQW5vbktleSkge1xuICB0aHJvdyBuZXcgRXJyb3IoJ01pc3NpbmcgU3VwYWJhc2UgZW52aXJvbm1lbnQgdmFyaWFibGVzJyk7XG59XG5cbmV4cG9ydCBjb25zdCBzdXBhYmFzZSA9IGNyZWF0ZUNsaWVudChzdXBhYmFzZVVybCwgc3VwYWJhc2VBbm9uS2V5KTtcbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7SUFPQTtJQUFBQSxhQUFBLFlBQUFBLENBQUE7TUFBQSxPQUFBQyxjQUFBO0lBQUE7RUFBQTtFQUFBLE9BQUFBLGNBQUE7QUFBQTtBQUFBRCxhQUFBO0FBQUFBLGFBQUEsR0FBQUUsQ0FBQTs7Ozs7OytCQUVhOzs7Ozs7V0FBQUMsUUFBQTs7Ozs7aUNBVGM7QUFFM0IsTUFBTUMsV0FBQTtBQUFBO0FBQUEsQ0FBQUosYUFBQSxHQUFBRSxDQUFBLE9BQWNHLE9BQUEsQ0FBUUMsR0FBRyxDQUFDQyx3QkFBd0I7QUFDeEQsTUFBTUMsZUFBQTtBQUFBO0FBQUEsQ0FBQVIsYUFBQSxHQUFBRSxDQUFBLE9BQWtCRyxPQUFBLENBQVFDLEdBQUcsQ0FBQ0csNkJBQTZCO0FBQUE7QUFBQVQsYUFBQSxHQUFBRSxDQUFBO0FBRWpFO0FBQUk7QUFBQSxDQUFBRixhQUFBLEdBQUFVLENBQUEsV0FBQ04sV0FBQTtBQUFBO0FBQUEsQ0FBQUosYUFBQSxHQUFBVSxDQUFBLFVBQWUsQ0FBQ0YsZUFBQSxHQUFpQjtFQUFBO0VBQUFSLGFBQUEsR0FBQVUsQ0FBQTtFQUFBVixhQUFBLEdBQUFFLENBQUE7RUFDcEMsTUFBTSxJQUFJUyxLQUFBLENBQU07QUFDbEI7QUFBQTtBQUFBO0VBQUFYLGFBQUEsR0FBQVUsQ0FBQTtBQUFBO0FBRU8sTUFBTVAsUUFBQTtBQUFBO0FBQUEsQ0FBQUgsYUFBQSxHQUFBRSxDQUFBLE9BQVcsSUFBQVUsV0FBQSxDQUFBQyxZQUFZLEVBQUNULFdBQUEsRUFBYUksZUFBQSIsImlnbm9yZUxpc3QiOltdfQ==

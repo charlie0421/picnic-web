@@ -1,0 +1,303 @@
+f276a3848470b2208df066206a544783
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_22xfr54blr() {
+  var path = "/workspace/app/[lang]/(main)/test-redirect/page.tsx";
+  var hash = "e12afe739b29a20716e99b9fd7d1f140d4847fe8";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/app/[lang]/(main)/test-redirect/page.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 8
+        },
+        end: {
+          line: 9,
+          column: 32
+        }
+      },
+      "3": {
+        start: {
+          line: 12,
+          column: 20
+        },
+        end: {
+          line: 12,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 27
+        },
+        end: {
+          line: 13,
+          column: 97
+        }
+      },
+      "5": {
+        start: {
+          line: 15,
+          column: 4
+        },
+        end: {
+          line: 197,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 9
+          },
+          end: {
+            line: 8,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 20
+          },
+          end: {
+            line: 10,
+            column: 5
+          }
+        },
+        line: 8
+      },
+      "1": {
+        name: "TestRedirectPage",
+        decl: {
+          start: {
+            line: 14,
+            column: 9
+          },
+          end: {
+            line: 14,
+            column: 25
+          }
+        },
+        loc: {
+          start: {
+            line: 14,
+            column: 28
+          },
+          end: {
+            line: 198,
+            column: 1
+          }
+        },
+        line: 14
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/app/[lang]/(main)/test-redirect/page.tsx"],
+      sourcesContent: ["'use client';\n\nimport { AuthGuardExamples } from '@/components/ui/Dialog/examples/AuthGuardExamples';\n\nexport default function TestRedirectPage() {\n  return (\n    <div className='container mx-auto py-8 max-w-4xl'>\n      <h1 className='text-3xl font-bold mb-8 text-center'>\n        \uB9AC\uB2E4\uC774\uB809\uD2B8 \uD50C\uB85C\uC6B0 \uD14C\uC2A4\uD2B8\n      </h1>\n\n      {/* \uD14C\uC2A4\uD2B8 \uAC00\uC774\uB4DC */}\n      <div className='mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200'>\n        <h2 className='text-xl font-semibold mb-4 text-blue-800'>\n          \uD83E\uDDEA \uD14C\uC2A4\uD2B8 \uAC00\uC774\uB4DC\n        </h2>\n        <div className='space-y-4 text-sm'>\n          <div>\n            <h3 className='font-semibold text-blue-700'>\n              1. \uAE30\uBCF8 \uB9AC\uB2E4\uC774\uB809\uD2B8 \uD50C\uB85C\uC6B0 \uD14C\uC2A4\uD2B8\n            </h3>\n            <ol className='list-decimal list-inside ml-4 space-y-1 text-blue-600'>\n              <li>\uB85C\uADF8\uC544\uC6C3 \uC0C1\uD0DC\uC778\uC9C0 \uD655\uC778</li>\n              <li>&ldquo;\uD22C\uD45C\uD558\uAE30 (\uC778\uC99D \uD544\uC694)&rdquo; \uBC84\uD2BC \uD074\uB9AD</li>\n              <li>\uB85C\uADF8\uC778 \uD544\uC694 \uB2E4\uC774\uC5BC\uB85C\uADF8 \uD655\uC778</li>\n              <li>\n                &ldquo;\uB85C\uADF8\uC778\uD558\uAE30&rdquo; \uBC84\uD2BC \uD074\uB9AD\uD558\uC5EC \uB85C\uADF8\uC778 \uD398\uC774\uC9C0\uB85C \uC774\uB3D9\n              </li>\n              <li>\uC18C\uC15C \uB85C\uADF8\uC778 \uC644\uB8CC</li>\n              <li>\uC774 \uD398\uC774\uC9C0\uB85C \uC790\uB3D9 \uB9AC\uB2E4\uC774\uB809\uD2B8\uB418\uB294\uC9C0 \uD655\uC778</li>\n            </ol>\n          </div>\n\n          <div>\n            <h3 className='font-semibold text-blue-700'>\n              2. \uC2E4\uC81C \uD22C\uD45C \uD398\uC774\uC9C0 \uD14C\uC2A4\uD2B8\n            </h3>\n            <ol className='list-decimal list-inside ml-4 space-y-1 text-blue-600'>\n              <li>&ldquo;\uC2E4\uC81C \uD22C\uD45C \uD398\uC774\uC9C0\uB85C \uC774\uB3D9&rdquo; \uBC84\uD2BC \uD074\uB9AD</li>\n              <li>\uD22C\uD45C \uD398\uC774\uC9C0\uC5D0\uC11C \uD22C\uD45C \uC2DC\uB3C4</li>\n              <li>\uB85C\uADF8\uC778 \uD544\uC694 \uB2E4\uC774\uC5BC\uB85C\uADF8 \uD655\uC778</li>\n              <li>\uB85C\uADF8\uC778 \uC644\uB8CC \uD6C4 \uD22C\uD45C \uD398\uC774\uC9C0\uB85C \uB3CC\uC544\uC624\uB294\uC9C0 \uD655\uC778</li>\n            </ol>\n          </div>\n\n          <div>\n            <h3 className='font-semibold text-blue-700'>3. \uC218\uB3D9 URL \uD14C\uC2A4\uD2B8</h3>\n            <ol className='list-decimal list-inside ml-4 space-y-1 text-blue-600'>\n              <li>&ldquo;\uD14C\uC2A4\uD2B8 \uB9AC\uB2E4\uC774\uB809\uD2B8 URL \uC124\uC815&rdquo; \uBC84\uD2BC \uD074\uB9AD</li>\n              <li>SessionStorage\uC5D0 URL\uC774 \uC800\uC7A5\uB418\uB294\uC9C0 \uD655\uC778</li>\n              <li>\uB85C\uADF8\uC778 \uD398\uC774\uC9C0\uB85C \uC774\uB3D9</li>\n              <li>\uB85C\uADF8\uC778 \uD6C4 \uC124\uC815\uB41C URL\uB85C \uC774\uB3D9\uD558\uB294\uC9C0 \uD655\uC778</li>\n            </ol>\n          </div>\n        </div>\n      </div>\n\n      {/* \uBE0C\uB77C\uC6B0\uC800 \uAC1C\uBC1C\uC790 \uB3C4\uAD6C \uAC00\uC774\uB4DC */}\n      <div className='mb-8 p-6 bg-green-50 rounded-lg border border-green-200'>\n        <h2 className='text-xl font-semibold mb-4 text-green-800'>\n          \uD83D\uDD0D \uAC1C\uBC1C\uC790 \uB3C4\uAD6C \uD655\uC778\uC0AC\uD56D\n        </h2>\n        <div className='space-y-2 text-sm text-green-600'>\n          <div>\n            <strong>Console \uD0ED:</strong> AuthRedirectHandler\uC758 \uB85C\uAE45 \uBA54\uC2DC\uC9C0 \uD655\uC778\n          </div>\n          <div>\n            <strong>Application \uD0ED:</strong> SessionStorage\uC758 auth_redirect_url\n            \uD655\uC778\n          </div>\n          <div>\n            <strong>Network \uD0ED:</strong> \uB85C\uADF8\uC778 \uC694\uCCAD/\uC751\uB2F5 \uD655\uC778\n          </div>\n          <div>\n            <strong>\uC544\uB798 \uB514\uBC84\uAE45 \uC815\uBCF4:</strong> \uC2E4\uC2DC\uAC04 \uC0C1\uD0DC \uBCC0\uD654 \uBAA8\uB2C8\uD130\uB9C1\n          </div>\n        </div>\n      </div>\n\n      {/* \uC608\uC0C1 \uB85C\uADF8 \uBA54\uC2DC\uC9C0 */}\n      <div className='mb-8 p-6 bg-yellow-50 rounded-lg border border-yellow-200'>\n        <h2 className='text-xl font-semibold mb-4 text-yellow-800'>\n          \uD83D\uDCDD \uC608\uC0C1 \uCF58\uC194 \uB85C\uADF8\n        </h2>\n        <div className='space-y-1 text-xs font-mono bg-gray-900 text-green-400 p-4 rounded'>\n          <div>\uB9AC\uB2E4\uC774\uB809\uD2B8 URL \uC800\uC7A5: /ko/test-redirect</div>\n          <div>\uB85C\uADF8\uC778 \uD398\uC774\uC9C0\uB85C \uC774\uB3D9</div>\n          <div>\uD83D\uDD04 \uB85C\uADF8\uC778 \uC131\uACF5 \uAC10\uC9C0 - \uB9AC\uB2E4\uC774\uB809\uD2B8 \uCC98\uB9AC \uC2DC\uC791</div>\n          <div>\uD83D\uDCCD \uC800\uC7A5\uB41C \uB9AC\uB2E4\uC774\uB809\uD2B8 URL: /ko/test-redirect</div>\n          <div>\u2705 \uC720\uD6A8\uD55C \uB9AC\uB2E4\uC774\uB809\uD2B8 URL\uB85C \uC774\uB3D9: /ko/test-redirect</div>\n          <div>\uD83D\uDE80 \uB9AC\uB2E4\uC774\uB809\uD2B8 \uC2E4\uD589: /ko/test-redirect</div>\n        </div>\n      </div>\n\n      <AuthGuardExamples />\n    </div>\n  );\n}\n"],
+      names: ["TestRedirectPage", "div", "className", "h1", "h2", "h3", "ol", "li", "strong", "AuthGuardExamples"],
+      mappings: "AAAA;;;;;+BAIA;;;eAAwBA;;;;mCAFU;AAEnB,SAASA;IACtB,qBACE,sBAACC;QAAIC,WAAU;;0BACb,qBAACC;gBAAGD,WAAU;0BAAsC;;0BAKpD,sBAACD;gBAAIC,WAAU;;kCACb,qBAACE;wBAAGF,WAAU;kCAA2C;;kCAGzD,sBAACD;wBAAIC,WAAU;;0CACb,sBAACD;;kDACC,qBAACI;wCAAGH,WAAU;kDAA8B;;kDAG5C,sBAACI;wCAAGJ,WAAU;;0DACZ,qBAACK;0DAAG;;0DACJ,qBAACA;0DAAG;;0DACJ,qBAACA;0DAAG;;0DACJ,qBAACA;0DAAG;;0DAGJ,qBAACA;0DAAG;;0DACJ,qBAACA;0DAAG;;;;;;0CAIR,sBAACN;;kDACC,qBAACI;wCAAGH,WAAU;kDAA8B;;kDAG5C,sBAACI;wCAAGJ,WAAU;;0DACZ,qBAACK;0DAAG;;0DACJ,qBAACA;0DAAG;;0DACJ,qBAACA;0DAAG;;0DACJ,qBAACA;0DAAG;;;;;;0CAIR,sBAACN;;kDACC,qBAACI;wCAAGH,WAAU;kDAA8B;;kDAC5C,sBAACI;wCAAGJ,WAAU;;0DACZ,qBAACK;0DAAG;;0DACJ,qBAACA;0DAAG;;0DACJ,qBAACA;0DAAG;;0DACJ,qBAACA;0DAAG;;;;;;;;;;0BAOZ,sBAACN;gBAAIC,WAAU;;kCACb,qBAACE;wBAAGF,WAAU;kCAA4C;;kCAG1D,sBAACD;wBAAIC,WAAU;;0CACb,sBAACD;;kDACC,qBAACO;kDAAO;;oCAAmB;;;0CAE7B,sBAACP;;kDACC,qBAACO;kDAAO;;oCAAuB;;;0CAGjC,sBAACP;;kDACC,qBAACO;kDAAO;;oCAAmB;;;0CAE7B,sBAACP;;kDACC,qBAACO;kDAAO;;oCAAmB;;;;;;;0BAMjC,sBAACP;gBAAIC,WAAU;;kCACb,qBAACE;wBAAGF,WAAU;kCAA6C;;kCAG3D,sBAACD;wBAAIC,WAAU;;0CACb,qBAACD;0CAAI;;0CACL,qBAACA;0CAAI;;0CACL,qBAACA;0CAAI;;0CACL,qBAACA;0CAAI;;0CACL,qBAACA;0CAAI;;0CACL,qBAACA;0CAAI;;;;;;0BAIT,qBAACQ,oCAAiB;;;AAGxB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "e12afe739b29a20716e99b9fd7d1f140d4847fe8"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_22xfr54blr = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_22xfr54blr();
+cov_22xfr54blr().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_22xfr54blr().s[1]++;
+Object.defineProperty(exports, "default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_22xfr54blr().f[0]++;
+    cov_22xfr54blr().s[2]++;
+    return TestRedirectPage;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_22xfr54blr().s[3]++, require("react/jsx-runtime"));
+const _AuthGuardExamples =
+/* istanbul ignore next */
+(cov_22xfr54blr().s[4]++, require("../../../../components/ui/Dialog/examples/AuthGuardExamples"));
+function TestRedirectPage() {
+  /* istanbul ignore next */
+  cov_22xfr54blr().f[1]++;
+  cov_22xfr54blr().s[5]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+    className: "container mx-auto py-8 max-w-4xl",
+    children: [/*#__PURE__*/(0, _jsxruntime.jsx)("h1", {
+      className: "text-3xl font-bold mb-8 text-center",
+      children: "리다이렉트 플로우 테스트"
+    }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+      className: "mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200",
+      children: [/*#__PURE__*/(0, _jsxruntime.jsx)("h2", {
+        className: "text-xl font-semibold mb-4 text-blue-800",
+        children: "\uD83E\uDDEA 테스트 가이드"
+      }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+        className: "space-y-4 text-sm",
+        children: [/*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("h3", {
+            className: "font-semibold text-blue-700",
+            children: "1. 기본 리다이렉트 플로우 테스트"
+          }), /*#__PURE__*/(0, _jsxruntime.jsxs)("ol", {
+            className: "list-decimal list-inside ml-4 space-y-1 text-blue-600",
+            children: [/*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "로그아웃 상태인지 확인"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "“투표하기 (인증 필요)” 버튼 클릭"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "로그인 필요 다이얼로그 확인"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "“로그인하기” 버튼 클릭하여 로그인 페이지로 이동"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "소셜 로그인 완료"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "이 페이지로 자동 리다이렉트되는지 확인"
+            })]
+          })]
+        }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("h3", {
+            className: "font-semibold text-blue-700",
+            children: "2. 실제 투표 페이지 테스트"
+          }), /*#__PURE__*/(0, _jsxruntime.jsxs)("ol", {
+            className: "list-decimal list-inside ml-4 space-y-1 text-blue-600",
+            children: [/*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "“실제 투표 페이지로 이동” 버튼 클릭"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "투표 페이지에서 투표 시도"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "로그인 필요 다이얼로그 확인"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "로그인 완료 후 투표 페이지로 돌아오는지 확인"
+            })]
+          })]
+        }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("h3", {
+            className: "font-semibold text-blue-700",
+            children: "3. 수동 URL 테스트"
+          }), /*#__PURE__*/(0, _jsxruntime.jsxs)("ol", {
+            className: "list-decimal list-inside ml-4 space-y-1 text-blue-600",
+            children: [/*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "“테스트 리다이렉트 URL 설정” 버튼 클릭"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "SessionStorage에 URL이 저장되는지 확인"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "로그인 페이지로 이동"
+            }), /*#__PURE__*/(0, _jsxruntime.jsx)("li", {
+              children: "로그인 후 설정된 URL로 이동하는지 확인"
+            })]
+          })]
+        })]
+      })]
+    }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+      className: "mb-8 p-6 bg-green-50 rounded-lg border border-green-200",
+      children: [/*#__PURE__*/(0, _jsxruntime.jsx)("h2", {
+        className: "text-xl font-semibold mb-4 text-green-800",
+        children: "\uD83D\uDD0D 개발자 도구 확인사항"
+      }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+        className: "space-y-2 text-sm text-green-600",
+        children: [/*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("strong", {
+            children: "Console 탭:"
+          }), " AuthRedirectHandler의 로깅 메시지 확인"]
+        }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("strong", {
+            children: "Application 탭:"
+          }), " SessionStorage의 auth_redirect_url 확인"]
+        }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("strong", {
+            children: "Network 탭:"
+          }), " 로그인 요청/응답 확인"]
+        }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("strong", {
+            children: "아래 디버깅 정보:"
+          }), " 실시간 상태 변화 모니터링"]
+        })]
+      })]
+    }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+      className: "mb-8 p-6 bg-yellow-50 rounded-lg border border-yellow-200",
+      children: [/*#__PURE__*/(0, _jsxruntime.jsx)("h2", {
+        className: "text-xl font-semibold mb-4 text-yellow-800",
+        children: "\uD83D\uDCDD 예상 콘솔 로그"
+      }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+        className: "space-y-1 text-xs font-mono bg-gray-900 text-green-400 p-4 rounded",
+        children: [/*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          children: "리다이렉트 URL 저장: /ko/test-redirect"
+        }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          children: "로그인 페이지로 이동"
+        }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          children: "\uD83D\uDD04 로그인 성공 감지 - 리다이렉트 처리 시작"
+        }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          children: "\uD83D\uDCCD 저장된 리다이렉트 URL: /ko/test-redirect"
+        }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          children: "✅ 유효한 리다이렉트 URL로 이동: /ko/test-redirect"
+        }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          children: "\uD83D\uDE80 리다이렉트 실행: /ko/test-redirect"
+        })]
+      })]
+    }), /*#__PURE__*/(0, _jsxruntime.jsx)(_AuthGuardExamples.AuthGuardExamples, {})]
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMjJ4ZnI1NGJsciIsImFjdHVhbENvdmVyYWdlIiwicyIsIlRlc3RSZWRpcmVjdFBhZ2UiLCJmIiwiX2pzeHJ1bnRpbWUiLCJqc3hzIiwiY2xhc3NOYW1lIiwianN4IiwiX0F1dGhHdWFyZEV4YW1wbGVzIiwiQXV0aEd1YXJkRXhhbXBsZXMiXSwic291cmNlcyI6WyIvd29ya3NwYWNlL2FwcC9bbGFuZ10vKG1haW4pL3Rlc3QtcmVkaXJlY3QvcGFnZS50c3giXSwic291cmNlc0NvbnRlbnQiOlsiJ3VzZSBjbGllbnQnO1xuXG5pbXBvcnQgeyBBdXRoR3VhcmRFeGFtcGxlcyB9IGZyb20gJ0AvY29tcG9uZW50cy91aS9EaWFsb2cvZXhhbXBsZXMvQXV0aEd1YXJkRXhhbXBsZXMnO1xuXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBUZXN0UmVkaXJlY3RQYWdlKCkge1xuICByZXR1cm4gKFxuICAgIDxkaXYgY2xhc3NOYW1lPSdjb250YWluZXIgbXgtYXV0byBweS04IG1heC13LTR4bCc+XG4gICAgICA8aDEgY2xhc3NOYW1lPSd0ZXh0LTN4bCBmb250LWJvbGQgbWItOCB0ZXh0LWNlbnRlcic+XG4gICAgICAgIOumrOuLpOydtOugie2KuCDtlIzroZzsmrAg7YWM7Iqk7Yq4XG4gICAgICA8L2gxPlxuXG4gICAgICB7Lyog7YWM7Iqk7Yq4IOqwgOydtOuTnCAqL31cbiAgICAgIDxkaXYgY2xhc3NOYW1lPSdtYi04IHAtNiBiZy1ibHVlLTUwIHJvdW5kZWQtbGcgYm9yZGVyIGJvcmRlci1ibHVlLTIwMCc+XG4gICAgICAgIDxoMiBjbGFzc05hbWU9J3RleHQteGwgZm9udC1zZW1pYm9sZCBtYi00IHRleHQtYmx1ZS04MDAnPlxuICAgICAgICAgIPCfp6og7YWM7Iqk7Yq4IOqwgOydtOuTnFxuICAgICAgICA8L2gyPlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT0nc3BhY2UteS00IHRleHQtc20nPlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8aDMgY2xhc3NOYW1lPSdmb250LXNlbWlib2xkIHRleHQtYmx1ZS03MDAnPlxuICAgICAgICAgICAgICAxLiDquLDrs7gg66as64uk7J2066CJ7Yq4IO2UjOuhnOyasCDthYzsiqTtirhcbiAgICAgICAgICAgIDwvaDM+XG4gICAgICAgICAgICA8b2wgY2xhc3NOYW1lPSdsaXN0LWRlY2ltYWwgbGlzdC1pbnNpZGUgbWwtNCBzcGFjZS15LTEgdGV4dC1ibHVlLTYwMCc+XG4gICAgICAgICAgICAgIDxsaT7roZzqt7jslYTsm4Mg7IOB7YOc7J247KeAIO2ZleyduDwvbGk+XG4gICAgICAgICAgICAgIDxsaT4mbGRxdW877Yis7ZGc7ZWY6riwICjsnbjspp0g7ZWE7JqUKSZyZHF1bzsg67KE7Yq8IO2BtOumrTwvbGk+XG4gICAgICAgICAgICAgIDxsaT7roZzqt7jsnbgg7ZWE7JqUIOuLpOydtOyWvOuhnOq3uCDtmZXsnbg8L2xpPlxuICAgICAgICAgICAgICA8bGk+XG4gICAgICAgICAgICAgICAgJmxkcXVvO+uhnOq3uOyduO2VmOq4sCZyZHF1bzsg67KE7Yq8IO2BtOumre2VmOyXrCDroZzqt7jsnbgg7Y6Y7J207KeA66GcIOydtOuPmVxuICAgICAgICAgICAgICA8L2xpPlxuICAgICAgICAgICAgICA8bGk+7IaM7IWcIOuhnOq3uOyduCDsmYTro4w8L2xpPlxuICAgICAgICAgICAgICA8bGk+7J20IO2OmOydtOyngOuhnCDsnpDrj5kg66as64uk7J2066CJ7Yq465CY64qU7KeAIO2ZleyduDwvbGk+XG4gICAgICAgICAgICA8L29sPlxuICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgPGRpdj5cbiAgICAgICAgICAgIDxoMyBjbGFzc05hbWU9J2ZvbnQtc2VtaWJvbGQgdGV4dC1ibHVlLTcwMCc+XG4gICAgICAgICAgICAgIDIuIOyLpOygnCDtiKztkZwg7Y6Y7J207KeAIO2FjOyKpO2KuFxuICAgICAgICAgICAgPC9oMz5cbiAgICAgICAgICAgIDxvbCBjbGFzc05hbWU9J2xpc3QtZGVjaW1hbCBsaXN0LWluc2lkZSBtbC00IHNwYWNlLXktMSB0ZXh0LWJsdWUtNjAwJz5cbiAgICAgICAgICAgICAgPGxpPiZsZHF1bzvsi6TsoJwg7Yis7ZGcIO2OmOydtOyngOuhnCDsnbTrj5kmcmRxdW87IOuyhO2KvCDtgbTrpq08L2xpPlxuICAgICAgICAgICAgICA8bGk+7Yis7ZGcIO2OmOydtOyngOyXkOyEnCDtiKztkZwg7Iuc64+EPC9saT5cbiAgICAgICAgICAgICAgPGxpPuuhnOq3uOyduCDtlYTsmpQg64uk7J207Ja866Gc6re4IO2ZleyduDwvbGk+XG4gICAgICAgICAgICAgIDxsaT7roZzqt7jsnbgg7JmE66OMIO2bhCDtiKztkZwg7Y6Y7J207KeA66GcIOuPjOyVhOyYpOuKlOyngCDtmZXsnbg8L2xpPlxuICAgICAgICAgICAgPC9vbD5cbiAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8aDMgY2xhc3NOYW1lPSdmb250LXNlbWlib2xkIHRleHQtYmx1ZS03MDAnPjMuIOyImOuPmSBVUkwg7YWM7Iqk7Yq4PC9oMz5cbiAgICAgICAgICAgIDxvbCBjbGFzc05hbWU9J2xpc3QtZGVjaW1hbCBsaXN0LWluc2lkZSBtbC00IHNwYWNlLXktMSB0ZXh0LWJsdWUtNjAwJz5cbiAgICAgICAgICAgICAgPGxpPiZsZHF1bzvthYzsiqTtirgg66as64uk7J2066CJ7Yq4IFVSTCDshKTsoJUmcmRxdW87IOuyhO2KvCDtgbTrpq08L2xpPlxuICAgICAgICAgICAgICA8bGk+U2Vzc2lvblN0b3JhZ2Xsl5AgVVJM7J20IOyggOyepeuQmOuKlOyngCDtmZXsnbg8L2xpPlxuICAgICAgICAgICAgICA8bGk+66Gc6re47J24IO2OmOydtOyngOuhnCDsnbTrj5k8L2xpPlxuICAgICAgICAgICAgICA8bGk+66Gc6re47J24IO2bhCDshKTsoJXrkJwgVVJM66GcIOydtOuPme2VmOuKlOyngCDtmZXsnbg8L2xpPlxuICAgICAgICAgICAgPC9vbD5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2Rpdj5cblxuICAgICAgey8qIOu4jOudvOyasOyggCDqsJzrsJzsnpAg64+E6rWsIOqwgOydtOuTnCAqL31cbiAgICAgIDxkaXYgY2xhc3NOYW1lPSdtYi04IHAtNiBiZy1ncmVlbi01MCByb3VuZGVkLWxnIGJvcmRlciBib3JkZXItZ3JlZW4tMjAwJz5cbiAgICAgICAgPGgyIGNsYXNzTmFtZT0ndGV4dC14bCBmb250LXNlbWlib2xkIG1iLTQgdGV4dC1ncmVlbi04MDAnPlxuICAgICAgICAgIPCflI0g6rCc67Cc7J6QIOuPhOq1rCDtmZXsnbjsgqztla1cbiAgICAgICAgPC9oMj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9J3NwYWNlLXktMiB0ZXh0LXNtIHRleHQtZ3JlZW4tNjAwJz5cbiAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgPHN0cm9uZz5Db25zb2xlIO2DrTo8L3N0cm9uZz4gQXV0aFJlZGlyZWN0SGFuZGxlcuydmCDroZzquYUg66mU7Iuc7KeAIO2ZleyduFxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8c3Ryb25nPkFwcGxpY2F0aW9uIO2DrTo8L3N0cm9uZz4gU2Vzc2lvblN0b3JhZ2XsnZggYXV0aF9yZWRpcmVjdF91cmxcbiAgICAgICAgICAgIO2ZleyduFxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXY+XG4gICAgICAgICAgICA8c3Ryb25nPk5ldHdvcmsg7YOtOjwvc3Ryb25nPiDroZzqt7jsnbgg7JqU7LKtL+ydkeuLtSDtmZXsnbhcbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgPHN0cm9uZz7slYTrnpgg65SU67KE6rmFIOygleuztDo8L3N0cm9uZz4g7Iuk7Iuc6rCEIOyDge2DnCDrs4DtmZQg66qo64uI7YSw66eBXG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgPC9kaXY+XG5cbiAgICAgIHsvKiDsmIjsg4Eg66Gc6re4IOuplOyLnOyngCAqL31cbiAgICAgIDxkaXYgY2xhc3NOYW1lPSdtYi04IHAtNiBiZy15ZWxsb3ctNTAgcm91bmRlZC1sZyBib3JkZXIgYm9yZGVyLXllbGxvdy0yMDAnPlxuICAgICAgICA8aDIgY2xhc3NOYW1lPSd0ZXh0LXhsIGZvbnQtc2VtaWJvbGQgbWItNCB0ZXh0LXllbGxvdy04MDAnPlxuICAgICAgICAgIPCfk50g7JiI7IOBIOy9mOyGlCDroZzqt7hcbiAgICAgICAgPC9oMj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9J3NwYWNlLXktMSB0ZXh0LXhzIGZvbnQtbW9ubyBiZy1ncmF5LTkwMCB0ZXh0LWdyZWVuLTQwMCBwLTQgcm91bmRlZCc+XG4gICAgICAgICAgPGRpdj7rpqzri6TsnbTroIntirggVVJMIOyggOyepTogL2tvL3Rlc3QtcmVkaXJlY3Q8L2Rpdj5cbiAgICAgICAgICA8ZGl2PuuhnOq3uOyduCDtjpjsnbTsp4DroZwg7J2064+ZPC9kaXY+XG4gICAgICAgICAgPGRpdj7wn5SEIOuhnOq3uOyduCDshLHqs7Ug6rCQ7KeAIC0g66as64uk7J2066CJ7Yq4IOyymOumrCDsi5zsnpE8L2Rpdj5cbiAgICAgICAgICA8ZGl2PvCfk40g7KCA7J6l65CcIOumrOuLpOydtOugie2KuCBVUkw6IC9rby90ZXN0LXJlZGlyZWN0PC9kaXY+XG4gICAgICAgICAgPGRpdj7inIUg7Jyg7Zqo7ZWcIOumrOuLpOydtOugie2KuCBVUkzroZwg7J2064+ZOiAva28vdGVzdC1yZWRpcmVjdDwvZGl2PlxuICAgICAgICAgIDxkaXY+8J+agCDrpqzri6TsnbTroIntirgg7Iuk7ZaJOiAva28vdGVzdC1yZWRpcmVjdDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgIDwvZGl2PlxuXG4gICAgICA8QXV0aEd1YXJkRXhhbXBsZXMgLz5cbiAgICA8L2Rpdj5cbiAgKTtcbn1cbiJdLCJtYXBwaW5ncyI6IkFBQUE7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7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

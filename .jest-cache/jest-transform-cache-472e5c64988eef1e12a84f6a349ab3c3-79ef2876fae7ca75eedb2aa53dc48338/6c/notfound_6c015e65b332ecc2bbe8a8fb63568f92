@@ -1,0 +1,200 @@
+5db4ad2fa8988740a456031aea247702
+"use strict";
+
+/* istanbul ignore next */
+function cov_13jporjp1b() {
+  var path = "/workspace/app/[lang]/(main)/vote/[id]/not-found.tsx";
+  var hash = "6c6c31c358655ee0c72c8a72bcd558bb3e31172f";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/app/[lang]/(main)/vote/[id]/not-found.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 14,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 12,
+          column: 8
+        },
+        end: {
+          line: 12,
+          column: 28
+        }
+      },
+      "3": {
+        start: {
+          line: 15,
+          column: 20
+        },
+        end: {
+          line: 15,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 16,
+          column: 16
+        },
+        end: {
+          line: 16,
+          column: 59
+        }
+      },
+      "5": {
+        start: {
+          line: 18,
+          column: 4
+        },
+        end: {
+          line: 23,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 11,
+            column: 9
+          },
+          end: {
+            line: 11,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 11,
+            column: 20
+          },
+          end: {
+            line: 13,
+            column: 5
+          }
+        },
+        line: 11
+      },
+      "1": {
+        name: "VoteNotFound",
+        decl: {
+          start: {
+            line: 17,
+            column: 9
+          },
+          end: {
+            line: 17,
+            column: 21
+          }
+        },
+        loc: {
+          start: {
+            line: 17,
+            column: 24
+          },
+          end: {
+            line: 24,
+            column: 1
+          }
+        },
+        line: 17
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/app/[lang]/(main)/vote/[id]/not-found.tsx"],
+      sourcesContent: ["import { NotFoundState } from '@/components/server';\n\n/**\n * \uD22C\uD45C \uC0C1\uC138 \uD398\uC774\uC9C0\uC758 Not Found \uCEF4\uD3EC\uB10C\uD2B8\n * \n * \uD22C\uD45C \uB370\uC774\uD130\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC744 \uB54C \uC0AC\uC6A9\uC790\uC5D0\uAC8C \uCE5C\uC808\uD55C \uBA54\uC2DC\uC9C0\uB97C \uD45C\uC2DC\uD569\uB2C8\uB2E4.\n */\nexport default function VoteNotFound() {\n  return (\n    <NotFoundState \n      title=\"\uD22C\uD45C\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4\"\n      message=\"\uC694\uCCAD\uD558\uC2E0 \uD22C\uD45C\uAC00 \uC874\uC7AC\uD558\uC9C0 \uC54A\uAC70\uB098 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.\"\n      backLink=\"/vote\"\n      backLabel=\"\uD22C\uD45C \uBAA9\uB85D\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30\"\n    />\n  );\n} "],
+      names: ["VoteNotFound", "NotFoundState", "title", "message", "backLink", "backLabel"],
+      mappings: ";;;;+BAEA;;;;CAIC,GACD;;;eAAwBA;;;;wBAPM;AAOf,SAASA;IACtB,qBACE,qBAACC,qBAAa;QACZC,OAAM;QACNC,SAAQ;QACRC,UAAS;QACTC,WAAU;;AAGhB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "6c6c31c358655ee0c72c8a72bcd558bb3e31172f"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_13jporjp1b = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_13jporjp1b();
+cov_13jporjp1b().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_13jporjp1b().s[1]++;
+Object.defineProperty(exports,
+/**
+* 투표 상세 페이지의 Not Found 컴포넌트
+* 
+* 투표 데이터를 찾을 수 없을 때 사용자에게 친절한 메시지를 표시합니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_13jporjp1b().f[0]++;
+    cov_13jporjp1b().s[2]++;
+    return VoteNotFound;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_13jporjp1b().s[3]++, require("react/jsx-runtime"));
+const _server =
+/* istanbul ignore next */
+(cov_13jporjp1b().s[4]++, require("../../../../../components/server"));
+function VoteNotFound() {
+  /* istanbul ignore next */
+  cov_13jporjp1b().f[1]++;
+  cov_13jporjp1b().s[5]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_server.NotFoundState, {
+    title: "투표를 찾을 수 없습니다",
+    message: "요청하신 투표가 존재하지 않거나 삭제되었습니다.",
+    backLink: "/vote",
+    backLabel: "투표 목록으로 돌아가기"
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJWb3RlTm90Rm91bmQiLCJjb3ZfMTNqcG9yanAxYiIsImYiLCJzIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJfc2VydmVyIiwiTm90Rm91bmRTdGF0ZSIsInRpdGxlIiwibWVzc2FnZSIsImJhY2tMaW5rIiwiYmFja0xhYmVsIl0sInNvdXJjZXMiOlsiL3dvcmtzcGFjZS9hcHAvW2xhbmddLyhtYWluKS92b3RlL1tpZF0vbm90LWZvdW5kLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBOb3RGb3VuZFN0YXRlIH0gZnJvbSAnQC9jb21wb25lbnRzL3NlcnZlcic7XG5cbi8qKlxuICog7Yis7ZGcIOyDgeyEuCDtjpjsnbTsp4DsnZggTm90IEZvdW5kIOy7tO2PrOuEjO2KuFxuICogXG4gKiDtiKztkZwg642w7J207YSw66W8IOywvuydhCDsiJgg7JeG7J2EIOuVjCDsgqzsmqnsnpDsl5Dqsowg7Lmc7KCI7ZWcIOuplOyLnOyngOulvCDtkZzsi5ztlanri4jri6QuXG4gKi9cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIFZvdGVOb3RGb3VuZCgpIHtcbiAgcmV0dXJuIChcbiAgICA8Tm90Rm91bmRTdGF0ZSBcbiAgICAgIHRpdGxlPVwi7Yis7ZGc66W8IOywvuydhCDsiJgg7JeG7Iq164uI64ukXCJcbiAgICAgIG1lc3NhZ2U9XCLsmpTssq3tlZjsi6Ag7Yis7ZGc6rCAIOyhtOyerO2VmOyngCDslYrqsbDrgpgg7IKt7KCc65CY7JeI7Iq164uI64ukLlwiXG4gICAgICBiYWNrTGluaz1cIi92b3RlXCJcbiAgICAgIGJhY2tMYWJlbD1cIu2IrO2RnCDrqqnroZ3snLzroZwg64+M7JWE6rCA6riwXCJcbiAgICAvPlxuICApO1xufSAiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBRUE7Ozs7O0FBS0E7Ozs7OztXQUF3QkEsWUFBQTs7Ozs7Ozs7a0NBUE07QUFPZixTQUFTQSxhQUFBO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFDRSxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQ0MsT0FBQSxDQUFBQyxhQUFhO0lBQ1pDLEtBQUEsRUFBTTtJQUNOQyxPQUFBLEVBQVE7SUFDUkMsUUFBQSxFQUFTO0lBQ1RDLFNBQUEsRUFBVTs7QUFHaEIiLCJpZ25vcmVMaXN0IjpbXX0=

@@ -1,0 +1,136 @@
+78cde3250d296f8af2075ed2a0e2e6a6
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_2hyre28fdt() {
+  var path = "/workspace/hooks/useAuth.ts";
+  var hash = "249592ccea9c98374489bb02d2fc50e292d38c01";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/hooks/useAuth.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 8
+        },
+        end: {
+          line: 9,
+          column: 37
+        }
+      },
+      "3": {
+        start: {
+          line: 12,
+          column: 22
+        },
+        end: {
+          line: 12,
+          column: 62
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 9
+          },
+          end: {
+            line: 8,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 20
+          },
+          end: {
+            line: 10,
+            column: 5
+          }
+        },
+        line: 8
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/hooks/useAuth.ts"],
+      sourcesContent: ["'use client';\n\n// \uD1B5\uD569\uB41C AuthProvider\uC5D0\uC11C \uB0B4\uBCF4\uB0B4\uB294 useAuth \uD6C5\uC744 \uB2E4\uC2DC \uB0B4\uBCF4\uB0C5\uB2C8\uB2E4.\nexport { useAuth } from '@/lib/supabase/auth-provider';\n\n// \uC774 \uD30C\uC77C\uC740 \uB4A4 \uD638\uD658\uC131\uC744 \uC704\uD574 \uC0AC\uC6A9\uB429\uB2C8\uB2E4.\n// VoteDetailContent.tsx\uC640 \uAC19\uC740 \uCEF4\uD3EC\uB10C\uD2B8\uAC00 \uC774 \uACBD\uB85C\uC5D0\uC11C useAuth\uB97C \uAC00\uC838\uC624\uAE30 \uB54C\uBB38\uC5D0 \uBCF4\uC874\uD569\uB2C8\uB2E4.\n"],
+      names: ["useAuth"],
+      mappings: "AAAA;;;;;+BAGSA;;;eAAAA,qBAAO;;;8BAAQ;CAExB,yBAAyB;CACzB,kEAAkE"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "249592ccea9c98374489bb02d2fc50e292d38c01"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2hyre28fdt = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2hyre28fdt();
+cov_2hyre28fdt().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2hyre28fdt().s[1]++;
+Object.defineProperty(exports, "useAuth", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2hyre28fdt().f[0]++;
+    cov_2hyre28fdt().s[2]++;
+    return _authprovider.useAuth;
+  }
+});
+const _authprovider =
+/* istanbul ignore next */
+(cov_2hyre28fdt().s[3]++, require("../lib/supabase/auth-provider"));
+// 이 파일은 뒤 호환성을 위해 사용됩니다.
+// VoteDetailContent.tsx와 같은 컴포넌트가 이 경로에서 useAuth를 가져오기 때문에 보존합니다.
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJfYXV0aHByb3ZpZGVyIiwidXNlQXV0aCJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvaG9va3MvdXNlQXV0aC50cyJdLCJzb3VyY2VzQ29udGVudCI6WyIndXNlIGNsaWVudCc7XG5cbi8vIO2Gte2VqeuQnCBBdXRoUHJvdmlkZXLsl5DshJwg64K067O064K064qUIHVzZUF1dGgg7ZuF7J2EIOuLpOyLnCDrgrTrs7Trg4Xri4jri6QuXG5leHBvcnQgeyB1c2VBdXRoIH0gZnJvbSAnQC9saWIvc3VwYWJhc2UvYXV0aC1wcm92aWRlcic7XG5cbi8vIOydtCDtjIzsnbzsnYAg65KkIO2YuO2ZmOyEseydhCDsnITtlbQg7IKs7Jqp65Cp64uI64ukLlxuLy8gVm90ZURldGFpbENvbnRlbnQudHN47JmAIOqwmeydgCDsu7Ttj6zrhIztirjqsIAg7J20IOqyveuhnOyXkOyEnCB1c2VBdXRo66W8IOqwgOyguOyYpOq4sCDrlYzrrLjsl5Ag67O07KG07ZWp64uI64ukLlxuIl0sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OytCQUdTOzs7Ozs7V0FBQUEsYUFBQSxDQUFBQyxPQUFPOzs7OztrQ0FBUTtBQUV4QjtBQUNBIiwiaWdub3JlTGlzdCI6W119

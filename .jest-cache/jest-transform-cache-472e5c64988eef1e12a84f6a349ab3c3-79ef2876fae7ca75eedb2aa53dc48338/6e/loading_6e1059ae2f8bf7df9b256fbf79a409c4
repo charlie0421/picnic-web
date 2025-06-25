@@ -1,0 +1,199 @@
+31a48d7319a3f0137b2f5d2872b1c13f
+"use strict";
+
+/* istanbul ignore next */
+function cov_1goggbfnoa() {
+  var path = "/workspace/app/[lang]/(main)/media/loading.tsx";
+  var hash = "6efcde3fedfbbb2945a1ed0f19c258696bdaf638";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/workspace/app/[lang]/(main)/media/loading.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 14,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 12,
+          column: 8
+        },
+        end: {
+          line: 12,
+          column: 28
+        }
+      },
+      "3": {
+        start: {
+          line: 15,
+          column: 20
+        },
+        end: {
+          line: 15,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 16,
+          column: 16
+        },
+        end: {
+          line: 16,
+          column: 56
+        }
+      },
+      "5": {
+        start: {
+          line: 18,
+          column: 4
+        },
+        end: {
+          line: 22,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 11,
+            column: 9
+          },
+          end: {
+            line: 11,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 11,
+            column: 20
+          },
+          end: {
+            line: 13,
+            column: 5
+          }
+        },
+        line: 11
+      },
+      "1": {
+        name: "MediaLoading",
+        decl: {
+          start: {
+            line: 17,
+            column: 9
+          },
+          end: {
+            line: 17,
+            column: 21
+          }
+        },
+        loc: {
+          start: {
+            line: 17,
+            column: 24
+          },
+          end: {
+            line: 23,
+            column: 1
+          }
+        },
+        line: 17
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/workspace/app/[lang]/(main)/media/loading.tsx"],
+      sourcesContent: ["import { LoadingState } from '@/components/server';\n\n/**\n * \uBBF8\uB514\uC5B4 \uD398\uC774\uC9C0\uC758 \uB85C\uB529 \uC0C1\uD0DC \uCEF4\uD3EC\uB10C\uD2B8\n * \n * \uBBF8\uB514\uC5B4 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uB3D9\uC548 \uD45C\uC2DC\uB420 \uB85C\uB529 \uC778\uB514\uCF00\uC774\uD130\uC785\uB2C8\uB2E4.\n */\nexport default function MediaLoading() {\n  return <LoadingState message=\"\uBBF8\uB514\uC5B4 \uCF58\uD150\uCE20\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4...\" fullPage size=\"large\" />;\n} "],
+      names: ["MediaLoading", "LoadingState", "message", "fullPage", "size"],
+      mappings: ";;;;+BAEA;;;;CAIC,GACD;;;eAAwBA;;;;wBAPK;AAOd,SAASA;IACtB,qBAAO,qBAACC,oBAAY;QAACC,SAAQ;QAAwBC,QAAQ;QAACC,MAAK;;AACrE"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "6efcde3fedfbbb2945a1ed0f19c258696bdaf638"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_1goggbfnoa = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_1goggbfnoa();
+cov_1goggbfnoa().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_1goggbfnoa().s[1]++;
+Object.defineProperty(exports,
+/**
+* 미디어 페이지의 로딩 상태 컴포넌트
+* 
+* 미디어 데이터를 불러오는 동안 표시될 로딩 인디케이터입니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_1goggbfnoa().f[0]++;
+    cov_1goggbfnoa().s[2]++;
+    return MediaLoading;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_1goggbfnoa().s[3]++, require("react/jsx-runtime"));
+const _server =
+/* istanbul ignore next */
+(cov_1goggbfnoa().s[4]++, require("../../../../components/server"));
+function MediaLoading() {
+  /* istanbul ignore next */
+  cov_1goggbfnoa().f[1]++;
+  cov_1goggbfnoa().s[5]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_server.LoadingState, {
+    message: "미디어 콘텐츠를 불러오는 중입니다...",
+    fullPage: true,
+    size: "large"
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJNZWRpYUxvYWRpbmciLCJjb3ZfMWdvZ2diZm5vYSIsImYiLCJzIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJfc2VydmVyIiwiTG9hZGluZ1N0YXRlIiwibWVzc2FnZSIsImZ1bGxQYWdlIiwic2l6ZSJdLCJzb3VyY2VzIjpbIi93b3Jrc3BhY2UvYXBwL1tsYW5nXS8obWFpbikvbWVkaWEvbG9hZGluZy50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgTG9hZGluZ1N0YXRlIH0gZnJvbSAnQC9jb21wb25lbnRzL3NlcnZlcic7XG5cbi8qKlxuICog66+465SU7Ja0IO2OmOydtOyngOydmCDroZzrlKkg7IOB7YOcIOy7tO2PrOuEjO2KuFxuICogXG4gKiDrr7jrlJTslrQg642w7J207YSw66W8IOu2iOufrOyYpOuKlCDrj5nslYgg7ZGc7Iuc65CgIOuhnOuUqSDsnbjrlJTsvIDsnbTthLDsnoXri4jri6QuXG4gKi9cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIE1lZGlhTG9hZGluZygpIHtcbiAgcmV0dXJuIDxMb2FkaW5nU3RhdGUgbWVzc2FnZT1cIuuvuOuUlOyWtCDsvZjthZDsuKDrpbwg67aI65+s7Jik64qUIOykkeyeheuLiOuLpC4uLlwiIGZ1bGxQYWdlIHNpemU9XCJsYXJnZVwiIC8+O1xufSAiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBRUE7Ozs7O0FBS0E7Ozs7OztXQUF3QkEsWUFBQTs7Ozs7Ozs7a0NBUEs7QUFPZCxTQUFTQSxhQUFBO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFBTyxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQ0MsT0FBQSxDQUFBQyxZQUFZO0lBQUNDLE9BQUEsRUFBUTtJQUF3QkMsUUFBUTtJQUFDQyxJQUFBLEVBQUs7O0FBQ3JFIiwiaWdub3JlTGlzdCI6W119
