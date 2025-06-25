@@ -1,0 +1,170 @@
+# 피크닉 웹 앱 결제 기능 추가 PRD
+
+## Overview
+피크닉 웹 앱에 상품 결제 기능을 추가하여 사용자들이 별사탕, 보너스 등의 디지털 상품을 구매할 수 있도록 합니다. 한국 사용자는 Port One, 해외 사용자는 PayPal을 통해 결제하며, IP 기반으로 자동으로 결제 옵션이 선택됩니다.
+
+## Core Features
+
+### 1. 지역별 결제 시스템
+- **한국 결제**: Port One 결제 모듈 통합
+- **해외 결제**: PayPal 결제 모듈 통합
+- **자동 지역 감지**: IP 기반으로 한국/해외 자동 구분
+- **수동 지역 선택**: 사용자가 직접 Korea/Global 선택 가능
+
+### 2. 투표 메뉴 내 결제 시스템
+- 투표 페이지에서 결제 항목 추가
+- 별사탕, 보너스 등 디지털 상품 구매
+- 웹 기반 결제 요율표 표시
+- 앱과 유사한 결제 UI 구현
+
+### 3. 결제 검증 및 데이터 처리
+- Port One, PayPal 결제 검증 로직
+- Receipt 테이블에 결제 내역 저장
+- 별사탕, 보너스 등 사용자 계정 업데이트
+- 기존 verify_receipt 엣지 펑션과 연동
+
+## User Experience
+
+### User Personas
+- **한국 사용자**: 카드결제, 계좌이체 등 Port One 지원 결제수단 선호
+- **해외 사용자**: PayPal을 통한 신용카드/페이팔 잔액 결제 선호
+- **모바일/웹 사용자**: 일관된 UI/UX 경험 기대
+
+### Key User Flows
+1. **결제 시작**: 투표 페이지 → 결제 메뉴 → 상품 선택
+2. **지역 선택**: IP 기반 자동 감지 또는 수동 선택
+3. **결제 진행**: Port One(한국) 또는 PayPal(해외) 결제 프로세스
+4. **결제 완료**: 검증 → Receipt 저장 → 사용자 계정 업데이트 → 완료 페이지
+
+### UI/UX Considerations
+- 앱에서 제공된 결제 UI 디자인을 웹에 적용
+- 반응형 디자인으로 모바일/데스크톱 모두 지원
+- 결제 요율표를 명확하게 표시
+- 결제 진행 상태를 실시간으로 표시
+
+## Technical Architecture
+
+### System Components
+1. **Frontend Components**
+   - PaymentModal: 결제 모달 컴포넌트
+   - PaymentMethodSelector: 결제 수단 선택 컴포넌트
+   - RegionSelector: 지역 선택 컴포넌트
+   - PaymentProgress: 결제 진행 상태 표시
+
+2. **Backend API Endpoints**
+   - `/api/payment/portone/initiate`: Port One 결제 초기화
+   - `/api/payment/portone/verify`: Port One 결제 검증
+   - `/api/payment/paypal/initiate`: PayPal 결제 초기화
+   - `/api/payment/paypal/verify`: PayPal 결제 검증
+   - `/api/payment/region-detect`: IP 기반 지역 감지
+
+3. **Database Schema Extensions**
+   - receipt 테이블 확장 (payment_provider, region 컬럼 추가)
+   - payment_sessions 테이블 (임시 결제 세션 관리)
+
+### Data Models
+```sql
+-- Receipt 테이블 확장
+ALTER TABLE receipt ADD COLUMN payment_provider VARCHAR(20); -- 'portone', 'paypal'
+ALTER TABLE receipt ADD COLUMN region VARCHAR(10); -- 'korea', 'global'
+ALTER TABLE receipt ADD COLUMN payment_method VARCHAR(50); -- 구체적 결제수단
+
+-- Payment Sessions 테이블
+CREATE TABLE payment_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  amount INTEGER NOT NULL,
+  currency VARCHAR(3) DEFAULT 'KRW',
+  product_type VARCHAR(50),
+  payment_provider VARCHAR(20),
+  region VARCHAR(10),
+  session_data JSONB,
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+### APIs and Integrations
+- **Port One SDK**: 웹 결제 위젯 통합
+- **PayPal JavaScript SDK**: PayPal 버튼 및 결제 플로우
+- **IP Geolocation API**: 사용자 지역 감지
+- **Supabase Edge Functions**: 결제 검증 로직
+
+## Development Roadmap
+
+### Phase 1: UI Foundation (우선순위 높음)
+- 투표 메뉴에 결제 항목 추가
+- 기본 결제 모달 UI 구현
+- 지역 선택 컴포넌트 (IP 기반 자동 감지)
+- 상품 선택 및 요율표 표시
+
+### Phase 2: 결제 모듈 통합 (Mock)
+- Port One, PayPal 결제 UI 컴포넌트 (실제 결제 없이 UI만)
+- 결제 프로세스 플로우 구현
+- 로딩 상태 및 에러 처리 UI
+
+### Phase 3: 백엔드 API 구축
+- 결제 초기화 API 엔드포인트
+- 결제 검증 로직 (verify_receipt 확장)
+- Database 스키마 업데이트
+- 결제 세션 관리
+
+### Phase 4: 실제 결제 연동
+- Port One 설정 및 실제 결제 연동
+- PayPal 설정 및 실제 결제 연동
+- 결제 검증 및 사용자 계정 업데이트
+- 에러 처리 및 롤백 로직
+
+### Phase 5: 테스트 및 최적화
+- 결제 플로우 전체 테스트
+- 보안 검증 및 최적화
+- 결제 실패 케이스 처리
+- 성능 최적화
+
+## Logical Dependency Chain
+
+1. **Foundation**: UI 컴포넌트 및 기본 구조
+2. **Integration**: 결제 모듈 UI 통합 (Mock)
+3. **Backend**: API 및 데이터베이스 구조
+4. **Connection**: 실제 결제 서비스 연동
+5. **Validation**: 테스트 및 보안 강화
+
+## Risks and Mitigations
+
+### Technical Challenges
+- **Port One/PayPal API 변경**: 공식 문서 및 최신 SDK 사용
+- **지역 감지 정확도**: 여러 IP 서비스 조합 또는 수동 선택 옵션
+- **결제 검증 보안**: 서버사이드 검증 및 암호화 적용
+
+### MVP Strategy
+- Phase 1-2에서 UI 우선 구현으로 빠른 피드백 수집
+- Mock 결제로 사용자 플로우 검증 후 실제 연동
+- 단계별 릴리즈로 위험 분산
+
+### Resource Constraints
+- Port One, PayPal 개발자 계정 및 테스트 환경 필요
+- 결제 테스트를 위한 충분한 QA 시간 확보
+- 보안 검토 및 PCI DSS 준수 사항 체크
+
+## Appendix
+
+### Technical Specifications
+- **Frontend**: Next.js, React, TypeScript
+- **Backend**: Supabase, Edge Functions
+- **Database**: PostgreSQL (Supabase)
+- **Payment Providers**: Port One (Korea), PayPal (Global)
+- **Styling**: Tailwind CSS (기존 프로젝트 스타일 통일)
+
+### Integration Requirements
+- 기존 vote 시스템과의 연동
+- 사용자 인증 시스템 활용
+- 별사탕/보너스 시스템과 연동
+- 기존 receipt 테이블 및 verify_receipt 엣지 펑션 확장
+
+### Security Considerations
+- 결제 정보 암호화
+- HTTPS 필수
+- 서버사이드 결제 검증
+- 사용자 세션 보안
+- CSRF 및 XSS 방지
