@@ -748,6 +748,12 @@ export interface Products {
   star_candy: number | null
   star_candy_bonus: number | null
   start_at: string | null
+  web_price_krw: number | null
+  web_price_usd: number | null
+  web_bonus_amount: number | null
+  web_display_order: number | null
+  web_is_featured: boolean | null
+  web_description: string | null
 }
 
 export interface PromptUsageLogs {
