@@ -1,155 +1,19 @@
-interface IpApiResponse {
-  status: string;
-  country: string;
-  countryCode: string;
-  region: string;
-  regionName: string;
-  city: string;
-  zip: string;
-  lat: number;
-  lon: number;
-  timezone: string;
-  isp: string;
-  org: string;
-  as: string;
-  query: string;
-}
-
-interface IpifyGeoResponse {
-  ip: string;
-  country_code: string;
-  country_name: string;
-  region_code: string;
-  region_name: string;
-  city: string;
-  zip_code: string;
-  time_zone: string;
-  latitude: number;
-  longitude: number;
-  metro_code: number;
-}
-
-interface IpapiCoResponse {
-  ip: string;
-  country_code: string;
-  country_name: string;
-  region_code: string;
-  region: string;
-  city: string;
-  postal: string;
-  latitude: number;
-  longitude: number;
-  timezone: string;
-}
-
 interface LocationInfo {
   country: string;
   countryCode: string;
   isKorea: boolean;
   ip: string;
+  source: 'browser' | 'ip-service';
 }
 
 // Cache location info for the session
 let cachedLocation: LocationInfo | null = null;
 
 /**
- * Try to get location from ipify.org (most reliable)
+ * Primary method: Detect location based on browser language and timezone
+ * This is more reliable and doesn't require external API calls
  */
-async function tryIpify(): Promise<LocationInfo | null> {
-  try {
-    const response = await fetch('https://geo.ipify.org/api/v2/country?apiKey=at_free', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ipify HTTP error! status: ${response.status}`);
-    }
-
-    const data: IpifyGeoResponse = await response.json();
-
-    return {
-      country: data.country_name,
-      countryCode: data.country_code,
-      isKorea: data.country_code === 'KR',
-      ip: data.ip,
-    };
-  } catch (error) {
-    console.warn('Ipify failed:', error);
-    return null;
-  }
-}
-
-/**
- * Try to get location from ipapi.co
- */
-async function tryIpapiCo(): Promise<LocationInfo | null> {
-  try {
-    const response = await fetch('https://ipapi.co/json/', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ipapi.co HTTP error! status: ${response.status}`);
-    }
-
-    const data: IpapiCoResponse = await response.json();
-
-    return {
-      country: data.country_name,
-      countryCode: data.country_code,
-      isKorea: data.country_code === 'KR',
-      ip: data.ip,
-    };
-  } catch (error) {
-    console.warn('Ipapi.co failed:', error);
-    return null;
-  }
-}
-
-/**
- * Try to get location from ip-api.com (fallback)
- */
-async function tryIpApi(): Promise<LocationInfo | null> {
-  try {
-    const response = await fetch('https://ip-api.com/json/', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`IP-API HTTP error! status: ${response.status}`);
-    }
-
-    const data: IpApiResponse = await response.json();
-
-    if (data.status !== 'success') {
-      throw new Error('Failed to get location data from ip-api');
-    }
-
-    return {
-      country: data.country,
-      countryCode: data.countryCode,
-      isKorea: data.countryCode === 'KR',
-      ip: data.query,
-    };
-  } catch (error) {
-    console.warn('IP-API failed:', error);
-    return null;
-  }
-}
-
-/**
- * Fallback: Detect location based on browser language and timezone
- */
-function detectLocationFromBrowser(): LocationInfo | null {
+function detectLocationFromBrowser(): LocationInfo {
   try {
     const language = navigator.language || (navigator as any).userLanguage;
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -164,50 +28,94 @@ function detectLocationFromBrowser(): LocationInfo | null {
       countryCode: isKorea ? 'KR' : 'XX',
       isKorea,
       ip: 'unknown',
+      source: 'browser'
     };
   } catch (error) {
-    console.warn('Browser detection failed:', error);
+    console.warn('Browser detection failed, defaulting to international:', error);
+    // Safe fallback: assume international user
+    return {
+      country: 'Unknown',
+      countryCode: 'XX',
+      isKorea: false,
+      ip: 'unknown',
+      source: 'browser'
+    };
+  }
+}
+
+/**
+ * Optional: Try to get more precise location from IP service (only if needed)
+ * This is completely optional and won't block the main functionality
+ */
+async function tryIpServiceOptional(): Promise<LocationInfo | null> {
+  try {
+    // Only try one reliable service with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+    const response = await fetch('https://ipapi.co/json/', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null; // Silently fail
+    }
+
+    const data = await response.json();
+
+    if (data.country_code) {
+      return {
+        country: data.country_name || 'Unknown',
+        countryCode: data.country_code,
+        isKorea: data.country_code === 'KR',
+        ip: data.ip || 'unknown',
+        source: 'ip-service'
+      };
+    }
+
+    return null;
+  } catch (error) {
+    // Silently fail - this is optional
     return null;
   }
 }
 
 /**
- * Detects user's location based on IP address with multiple fallbacks
+ * Detects user's location with browser-first approach
+ * Browser detection is primary, IP service is optional enhancement
  */
-export async function detectUserLocation(): Promise<LocationInfo | null> {
+export async function detectUserLocation(): Promise<LocationInfo> {
   // Return cached location if available
   if (cachedLocation) {
     return cachedLocation;
   }
 
-  // Try multiple IP geolocation services in order of reliability
-  const services = [tryIpify, tryIpapiCo, tryIpApi];
-  
-  for (const service of services) {
-    try {
-      const result = await service();
-      if (result) {
-        cachedLocation = result;
-        console.log('Location detected:', result);
-        return result;
-      }
-    } catch (error) {
-      console.warn('Service failed:', error);
-      continue;
-    }
-  }
-
-  // If all IP services fail, try browser detection
-  console.warn('All IP services failed, trying browser detection');
+  // Primary method: Browser-based detection (always works)
   const browserResult = detectLocationFromBrowser();
-  if (browserResult) {
-    cachedLocation = browserResult;
-    console.log('Location detected from browser:', browserResult);
-    return browserResult;
+  cachedLocation = browserResult;
+
+  // Optional enhancement: Try to get more precise location from IP service
+  // This runs in the background and doesn't block the main functionality
+  if (browserResult.source === 'browser') {
+    tryIpServiceOptional().then(ipResult => {
+      if (ipResult) {
+        // Update cache with more precise location if available
+        cachedLocation = ipResult;
+        console.log('Enhanced location with IP service:', ipResult);
+      }
+    }).catch(() => {
+      // Silently ignore IP service failures
+    });
   }
 
-  console.error('All location detection methods failed');
-  return null;
+  console.log('Location detected:', browserResult);
+  return browserResult;
 }
 
 /**
