@@ -95,7 +95,7 @@ export const Menu: React.FC = () => {
         })}
       </div>
       <div className='mt-1 sm:mt-0'>
-        <CurrentTime />
+        {/* <CurrentTime /> */}
       </div>
     </div>
   );

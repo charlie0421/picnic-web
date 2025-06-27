@@ -3,7 +3,6 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguageStore } from '../stores/languageStore';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, type Language } from '../config/settings';
-import { fetchTranslationsFromCrowdin, getTranslation, isCrowdinAvailable } from '../lib/crowdin';
 
 interface LocaleRouterReturn {
   currentLocale: Language;
@@ -19,19 +18,18 @@ interface LocaleRouterReturn {
   extractLocaleFromPath: (path: string) => { locale: Language; path: string };
   loadTranslations: (locale: Language) => Promise<boolean>;
   t: (key: string, args?: Record<string, string>) => string;
-  isCrowdinEnabled: boolean;
 }
 
 /**
- * Hook for locale-based routing with Crowdin integration
- * 로케일 기반 라우팅과 Crowdin 번역 통합을 위한 Hook
+ * Hook for locale-based routing with local translations
+ * 로케일 기반 라우팅과 로컬 번역 시스템을 위한 Hook
  */
 export function useLocaleRouter(): LocaleRouterReturn {
   const router = useRouter();
   const pathname = usePathname();
   const { currentLanguage, setLanguage, translations, loadTranslations: storeLoadTranslations, t: storeT } = useLanguageStore();
 
-  // 로케일 유효성 검사 (extractLocaleFromPath보다 먼저 정의)
+  // 로케일 유효성 검사
   const isValidLocale = (locale: string): locale is Language => {
     return SUPPORTED_LANGUAGES.includes(locale as Language);
   };
@@ -104,10 +102,8 @@ export function useLocaleRouter(): LocaleRouterReturn {
       document.cookie = `locale=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
     }
 
-    // Crowdin 번역 로드
-    if (isCrowdinAvailable()) {
-      await loadTranslations(locale);
-    }
+    // 로컬 번역 로드
+    await loadTranslations(locale);
 
     // 경로 변경
     if (preservePath) {
@@ -120,23 +116,12 @@ export function useLocaleRouter(): LocaleRouterReturn {
     }
   };
 
-  // Crowdin 번역 로드
+  // 로컬 번역 로드
   const loadTranslations = async (locale: Language): Promise<boolean> => {
-    if (!isCrowdinAvailable()) {
-      console.warn('Crowdin is not available');
-      return false;
-    }
-
     try {
-      const crowdinTranslations = await fetchTranslationsFromCrowdin(locale);
-      
-      if (crowdinTranslations) {
-        // 기존 스토어의 loadTranslations 함수 사용
-        await storeLoadTranslations(locale);
-        return true;
-      }
-      
-      return false;
+      // 기존 스토어의 loadTranslations 함수 사용 (로컬 JSON에서 로드)
+      await storeLoadTranslations(locale);
+      return true;
     } catch (error) {
       console.error(`Failed to load translations for ${locale}:`, error);
       return false;
@@ -162,6 +147,5 @@ export function useLocaleRouter(): LocaleRouterReturn {
     extractLocaleFromPath,
     loadTranslations,
     t,
-    isCrowdinEnabled: isCrowdinAvailable(),
   };
 } 

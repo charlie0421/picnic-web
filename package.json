@@ -25,14 +25,10 @@
     "test:libs": "jest --testPathPattern=__tests__/lib",
     "test:api": "jest --testPathPattern=__tests__/app/api",
     "test:fail-fast": "jest --bail",
-    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
-    "sync-translations": "node scripts/sync-translations.js",
-    "sync-translations:save": "SAVE_SYNC_RESULTS=true node scripts/sync-translations.js",
-    "check-translations": "node scripts/check-missing-keys.js"
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
-    "@crowdin/ota-client": "^2.0.1",
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
     "@humanwhocodes/config-array": "^0.13.0",

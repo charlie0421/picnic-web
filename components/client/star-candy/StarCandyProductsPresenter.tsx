@@ -11,6 +11,7 @@ import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 import { getCurrencyByPaymentMethod } from '@/utils/ip-detection';
 import { PortOnePaymentModal } from './PortOnePaymentModal';
 import { PayPalPaymentButton } from './PayPalPaymentButton';
+import Image from 'next/image';
 
 interface StarCandyProductsPresenterProps {
   products: Products[];
@@ -100,13 +101,70 @@ export function StarCandyProductsPresenter({
     return getCurrencyByPaymentMethod(selectedPaymentMethod);
   };
 
+  // 안전한 다국어 문자열 처리 함수
+  const getSafeLocalizedString = (value: any, language: string) => {
+    if (!value) return '';
+    
+    // 이미 문자열인 경우
+    if (typeof value === 'string') {
+      // JSON 문자열인지 확인
+      try {
+        const parsed = JSON.parse(value);
+        if (typeof parsed === 'object' && parsed[language]) {
+          return parsed[language];
+        }
+        if (typeof parsed === 'object' && parsed['en']) {
+          return parsed['en'];
+        }
+        // JSON이지만 해당 언어가 없으면 원본 문자열 반환
+        return value;
+      } catch {
+        // JSON이 아닌 일반 문자열
+        return value;
+      }
+    }
+    
+    // 객체인 경우
+    if (typeof value === 'object' && value !== null) {
+      return value[language] || value['en'] || '';
+    }
+    
+    return String(value);
+  };
+
+  // 상품 수량에 따라 적절한 이미지를 선택하는 함수
+  const getProductImage = (starCandyAmount: number | null | undefined) => {
+    if (!starCandyAmount) return '/images/star-candy/star_100.png';
+    
+    const imageMap = [
+      { threshold: 100, image: 'star_100.png' },
+      { threshold: 200, image: 'star_200.png' },
+      { threshold: 600, image: 'star_600.png' },
+      { threshold: 1000, image: 'star_1000.png' },
+      { threshold: 2000, image: 'star_2000.png' },
+      { threshold: 3000, image: 'star_3000.png' },
+      { threshold: 4000, image: 'star_4000.png' },
+      { threshold: 5000, image: 'star_5000.png' },
+      { threshold: 7000, image: 'star_7000.png' },
+      { threshold: 10000, image: 'star_10000.png' }
+    ];
+
+    // 수량에 가장 가까운 이미지를 찾기
+    let selectedImage = imageMap[0].image;
+    for (const item of imageMap) {
+      if (starCandyAmount <= item.threshold) {
+        selectedImage = item.image;
+        break;
+      }
+      selectedImage = item.image; // 가장 큰 수량보다 많은 경우 최대 이미지 사용
+    }
+
+    return `/images/star-candy/${selectedImage}`;
+  };
+
   // 상품을 소팅하는 함수
   const getSortedProducts = () => {
     return [...products].sort((a, b) => {
-      // 1. Featured 상품을 먼저 표시
-      if (a.web_is_featured && !b.web_is_featured) return -1;
-      if (!a.web_is_featured && b.web_is_featured) return 1;
-      
       // 2. web_display_order가 있으면 그것으로 정렬
       if (a.web_display_order && b.web_display_order) {
         return a.web_display_order - b.web_display_order;
@@ -175,7 +233,7 @@ export function StarCandyProductsPresenter({
         className="mb-8"
       />
 
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+      <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6'>
         {getSortedProducts().map((product, index) => (
           <motion.div
             key={product.id}
@@ -195,8 +253,26 @@ export function StarCandyProductsPresenter({
 
             <div className='p-6'>
               <div className='text-center mb-4'>
-                <div className='inline-flex items-center justify-center w-20 h-20 bg-yellow-100 rounded-full mb-3'>
-                  <span className='text-3xl'>⭐</span>
+                <div className='inline-flex items-center justify-center w-20 h-20 mb-3'>
+                  <Image
+                    src={getProductImage(product.star_candy)}
+                    alt={`${product.star_candy} ${t('star_candy_unit')}`}
+                    width={80}
+                    height={80}
+                    className='object-contain'
+                    onError={(e) => {
+                      // Fallback to emoji if image not found
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.fallback-emoji')) {
+                        const emoji = document.createElement('span');
+                        emoji.className = 'fallback-emoji text-4xl';
+                        emoji.textContent = '⭐';
+                        parent.appendChild(emoji);
+                      }
+                    }}
+                  />
                 </div>
 
                 <h3 className='text-xl font-bold mb-1'>
@@ -211,11 +287,11 @@ export function StarCandyProductsPresenter({
                 )}
               </div>
 
-              {product.web_description && (
-                <p className='text-sm text-gray-600 mb-4 text-center'>
-                  {getLocalizedString(product.web_description, currentLanguage)}
-                </p>
-              )}
+                              {product.web_description && (
+                  <p className='text-sm text-gray-600 mb-4 text-center'>
+                    {getSafeLocalizedString(product.web_description, currentLanguage)}
+                  </p>
+                )}
 
               <div className='text-center mb-4'>
                 <p className='text-2xl font-bold text-primary'>

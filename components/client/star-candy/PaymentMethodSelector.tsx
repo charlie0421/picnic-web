@@ -105,7 +105,7 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
             whileTap={{ scale: 0.98 }}
           >
             {method.recommended && !isManuallySelected && (
-              <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+              <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full z-10">
                 {t('recommended')}
               </div>
             )}
