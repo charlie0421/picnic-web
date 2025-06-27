@@ -15,6 +15,33 @@ interface IpApiResponse {
   query: string;
 }
 
+interface IpifyGeoResponse {
+  ip: string;
+  country_code: string;
+  country_name: string;
+  region_code: string;
+  region_name: string;
+  city: string;
+  zip_code: string;
+  time_zone: string;
+  latitude: number;
+  longitude: number;
+  metro_code: number;
+}
+
+interface IpapiCoResponse {
+  ip: string;
+  country_code: string;
+  country_name: string;
+  region_code: string;
+  region: string;
+  city: string;
+  postal: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+}
+
 interface LocationInfo {
   country: string;
   countryCode: string;
@@ -26,17 +53,70 @@ interface LocationInfo {
 let cachedLocation: LocationInfo | null = null;
 
 /**
- * Detects user's location based on IP address
- * Uses ip-api.com free service (no API key required)
+ * Try to get location from ipify.org (most reliable)
  */
-export async function detectUserLocation(): Promise<LocationInfo | null> {
-  // Return cached location if available
-  if (cachedLocation) {
-    return cachedLocation;
-  }
-
+async function tryIpify(): Promise<LocationInfo | null> {
   try {
-    // Use ip-api.com for IP geolocation (free, no API key required)
+    const response = await fetch('https://geo.ipify.org/api/v2/country?apiKey=at_free', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ipify HTTP error! status: ${response.status}`);
+    }
+
+    const data: IpifyGeoResponse = await response.json();
+
+    return {
+      country: data.country_name,
+      countryCode: data.country_code,
+      isKorea: data.country_code === 'KR',
+      ip: data.ip,
+    };
+  } catch (error) {
+    console.warn('Ipify failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Try to get location from ipapi.co
+ */
+async function tryIpapiCo(): Promise<LocationInfo | null> {
+  try {
+    const response = await fetch('https://ipapi.co/json/', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ipapi.co HTTP error! status: ${response.status}`);
+    }
+
+    const data: IpapiCoResponse = await response.json();
+
+    return {
+      country: data.country_name,
+      countryCode: data.country_code,
+      isKorea: data.country_code === 'KR',
+      ip: data.ip,
+    };
+  } catch (error) {
+    console.warn('Ipapi.co failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Try to get location from ip-api.com (fallback)
+ */
+async function tryIpApi(): Promise<LocationInfo | null> {
+  try {
     const response = await fetch('https://ip-api.com/json/', {
       method: 'GET',
       headers: {
@@ -45,30 +125,89 @@ export async function detectUserLocation(): Promise<LocationInfo | null> {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`IP-API HTTP error! status: ${response.status}`);
     }
 
     const data: IpApiResponse = await response.json();
 
     if (data.status !== 'success') {
-      throw new Error('Failed to get location data');
+      throw new Error('Failed to get location data from ip-api');
     }
 
-    const locationInfo: LocationInfo = {
+    return {
       country: data.country,
       countryCode: data.countryCode,
       isKorea: data.countryCode === 'KR',
       ip: data.query,
     };
-
-    // Cache the location info
-    cachedLocation = locationInfo;
-
-    return locationInfo;
   } catch (error) {
-    console.error('Error detecting user location:', error);
+    console.warn('IP-API failed:', error);
     return null;
   }
+}
+
+/**
+ * Fallback: Detect location based on browser language and timezone
+ */
+function detectLocationFromBrowser(): LocationInfo | null {
+  try {
+    const language = navigator.language || (navigator as any).userLanguage;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    // Korean language or Korea timezone
+    const isKoreanLanguage = language.startsWith('ko');
+    const isKoreaTimezone = timezone === 'Asia/Seoul';
+    const isKorea = isKoreanLanguage || isKoreaTimezone;
+
+    return {
+      country: isKorea ? 'South Korea' : 'Unknown',
+      countryCode: isKorea ? 'KR' : 'XX',
+      isKorea,
+      ip: 'unknown',
+    };
+  } catch (error) {
+    console.warn('Browser detection failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Detects user's location based on IP address with multiple fallbacks
+ */
+export async function detectUserLocation(): Promise<LocationInfo | null> {
+  // Return cached location if available
+  if (cachedLocation) {
+    return cachedLocation;
+  }
+
+  // Try multiple IP geolocation services in order of reliability
+  const services = [tryIpify, tryIpapiCo, tryIpApi];
+  
+  for (const service of services) {
+    try {
+      const result = await service();
+      if (result) {
+        cachedLocation = result;
+        console.log('Location detected:', result);
+        return result;
+      }
+    } catch (error) {
+      console.warn('Service failed:', error);
+      continue;
+    }
+  }
+
+  // If all IP services fail, try browser detection
+  console.warn('All IP services failed, trying browser detection');
+  const browserResult = detectLocationFromBrowser();
+  if (browserResult) {
+    cachedLocation = browserResult;
+    console.log('Location detected from browser:', browserResult);
+    return browserResult;
+  }
+
+  console.error('All location detection methods failed');
+  return null;
 }
 
 /**
