@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
-import { StarCandyProducts } from '@/components/client/star-candy/StarCandyProducts';
+import StarCandyProductsFetcherServer from '@/components/server/star-candy/StarCandyProductsFetcher';
 import { getLanguageFromParams } from '@/utils/api/language';
+import { Suspense } from 'react';
+import { StarCandySkeleton } from '@/components/client/star-candy/StarCandySkeleton';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang } = await params;
@@ -16,8 +18,26 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 
 export default async function StarCandyPage({ params }: { params: Promise<{ lang: string }> }) {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <StarCandyProducts />
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            name: getLanguageFromParams(await params) === 'ko' ? '별사탕 충전 | 피크닉' : 'Star Candy Recharge | Picnic',
+            description: getLanguageFromParams(await params) === 'ko' ? '피크닉 별사탕을 충전하고 더 많은 투표에 참여하세요!' : 'Recharge your Picnic Star Candy and participate in more votes!',
+            url: `${process.env.SITE_URL}/${(await params).lang}/star-candy`,
+          }),
+        }}
+      />
+      <main className="container mx-auto px-4 py-8">
+        <section>
+          <Suspense fallback={<StarCandySkeleton />}>
+            <StarCandyProductsFetcherServer />
+          </Suspense>
+        </section>
+      </main>
+    </>
   );
 }

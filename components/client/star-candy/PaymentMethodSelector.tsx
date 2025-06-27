@@ -25,7 +25,15 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
       setIsLoading(true);
       
       try {
-        const location = await detectUserLocation();
+        // Set a timeout for location detection
+        const timeoutPromise = new Promise<null>((_, reject) => {
+          setTimeout(() => reject(new Error('Location detection timeout')), 3000);
+        });
+
+        const location = await Promise.race([
+          detectUserLocation(),
+          timeoutPromise
+        ]);
         
         if (location && !isManuallySelected) {
           const method = getPaymentMethodByLocation(location);
@@ -35,6 +43,9 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
         }
       } catch (error) {
         console.error('Error detecting location:', error);
+        // Fallback to PayPal if location detection fails
+        setSelectedMethod('paypal');
+        onMethodChange('paypal');
       } finally {
         setIsLoading(false);
       }
