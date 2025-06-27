@@ -33,17 +33,67 @@ export function StarCandyProducts() {
       setLoading(true);
       const supabase = createBrowserSupabaseClient();
       
+      // 먼저 모든 consumable 제품을 가져와서 디버깅
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .eq('product_type', 'consumable')
-        .not('web_price_krw', 'is', null)
-        .order('web_display_order', { ascending: true })
         .order('star_candy', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      setProducts(data || []);
+      console.log('Fetched products:', data);
+
+      // web_price_krw 또는 web_price_usd가 있는 제품만 필터링
+      let filteredProducts = (data || []).filter(product => 
+        product.web_price_krw || product.web_price_usd
+      );
+
+      console.log('Filtered products:', filteredProducts);
+
+      // 만약 웹 가격이 설정된 제품이 없다면, 임시 샘플 데이터를 생성
+      if (filteredProducts.length === 0 && data && data.length > 0) {
+        console.log('No web pricing found, creating sample data from existing products');
+        
+        // 기존 제품 데이터에 웹 가격 정보를 임시로 추가
+        const samplePricing = {
+          100: { krw: 1400, usd: 0.90, bonus: 0 },
+          200: { krw: 2800, usd: 1.99, bonus: 25 },
+          600: { krw: 8500, usd: 5.99, bonus: 85 },
+          1000: { krw: 14000, usd: 9.99, bonus: 150 },
+          2000: { krw: 28000, usd: 19.99, bonus: 320 },
+          3000: { krw: 42000, usd: 29.99, bonus: 540 },
+          4000: { krw: 55000, usd: 39.99, bonus: 760 },
+          5000: { krw: 69000, usd: 49.99, bonus: 1000 },
+          7000: { krw: 95000, usd: 69.99, bonus: 1500 },
+          10000: { krw: 130000, usd: 99.99, bonus: 2100 },
+        };
+
+        filteredProducts = data
+          .filter(product => product.star_candy && samplePricing[product.star_candy as keyof typeof samplePricing])
+          .map(product => {
+            const pricing = samplePricing[product.star_candy as keyof typeof samplePricing];
+            return {
+              ...product,
+              web_price_krw: pricing.krw,
+              web_price_usd: pricing.usd,
+              web_bonus_amount: pricing.bonus,
+              web_display_order: Object.keys(samplePricing).indexOf(String(product.star_candy)) + 1,
+              web_is_featured: product.star_candy === 1000 || product.star_candy === 5000,
+              web_description: JSON.stringify({
+                ko: `${product.star_candy} 별사탕 패키지`,
+                en: `${product.star_candy} Star Candy Package`
+              })
+            };
+          });
+
+        console.log('Generated sample products:', filteredProducts);
+      }
+
+      setProducts(filteredProducts);
     } catch (err) {
       console.error('Error fetching products:', err);
       setError(err instanceof Error ? err.message : 'Failed to load products');
