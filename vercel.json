@@ -1,13 +1,25 @@
 {
   "version": 2,
   "git": {
-    "deploymentEnabled": {
-      "production": true,
-      "main": false
-    }
+    "deploymentEnabled": false,
+    "productionBranch": "production"
   },
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "outputDirectory": ".next",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "picnic.fan"
+        }
+      ],
+      "destination": "https://www.picnic.fan/$1",
+      "permanent": true
+    }
+  ]
+
 } 

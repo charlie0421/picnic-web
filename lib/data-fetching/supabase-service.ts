@@ -31,6 +31,7 @@ export const TABLES = {
   BANNER: "banner",
   USER: "user_profiles",
   VERSION: "version",
+  PRODUCTS: "products",
 } as const;
 
 // Supabase 테이블 이름 타입

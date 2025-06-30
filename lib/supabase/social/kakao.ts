@@ -22,9 +22,9 @@ export function getKakaoConfig(): OAuthProviderConfig {
     clientId: process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID || '',
     clientSecretEnvKey: 'KAKAO_CLIENT_SECRET',
     defaultScopes: [
-      'profile_nickname',
-      'profile_image',
-      'account_email'
+      'account_email',
+      'profile_image', 
+      'profile_nickname'
     ],
     additionalConfig: {
       // Kakao 특화 설정
@@ -37,6 +37,15 @@ export function getKakaoConfig(): OAuthProviderConfig {
       autoConnect: true
     }
   };
+}
+
+/**
+ * 로컬 개발 환경 감지
+ */
+function isLocalDevelopment(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
 }
 
 /**
@@ -53,7 +62,6 @@ export async function signInWithKakaoImpl(
   try {
     // 설정값 준비
     const config = getKakaoConfig();
-    const redirectUrl = options?.redirectUrl || `${window.location.origin}/auth/callback/kakao`;
     const scopes = options?.scopes || config.defaultScopes;
     
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
@@ -73,31 +81,72 @@ export async function signInWithKakaoImpl(
       kakaoParams.service_terms = options.additionalParams.service_terms;
     }
     
-    // Supabase OAuth 사용
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: {
-        redirectTo: redirectUrl,
-        scopes: scopes.join(' '),
-        queryParams: kakaoParams
-      }
+    // 중복 제거된 고유 scope 생성 및 디버깅
+    const uniqueScopes = Array.from(new Set(scopes));
+    const finalScopeString = uniqueScopes.join(' ');
+    
+    // 로컬/프로덕션 환경 감지
+    const isLocal = isLocalDevelopment();
+    const redirectUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/auth/callback/kakao`
+      : options?.redirectUrl;
+    
+    // 디버깅: 환경 및 OAuth 설정 확인
+    console.log('🔍 Kakao OAuth Debug:', {
+      isLocal,
+      redirectUrl,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      originalScopes: scopes,
+      uniqueScopes: uniqueScopes,
+      finalScopeString: finalScopeString
     });
     
-    if (error) {
+    if (isLocal) {
+      // 🚫 로컬 환경: 카카오 로그인 비활성화
+      console.warn('⚠️ 로컬 개발 환경에서는 카카오 로그인을 지원하지 않습니다.');
+      
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        `Kakao 로그인 프로세스 실패: ${error.message}`,
-        'kakao',
-        error
+        '로컬 개발 환경에서는 카카오 로그인을 사용할 수 없습니다. 프로덕션 환경에서 테스트해주세요.',
+        'kakao'
       );
+      
+    } else {
+      // 🌐 프로덕션 환경: www.picnic.fan을 사용한 직접 OAuth
+      const clientId = config.clientId;
+      if (!clientId) {
+        throw new Error('Kakao Client ID가 설정되지 않았습니다.');
+      }
+      
+      // 프로덕션에서는 www.picnic.fan 콜백 사용
+      const prodRedirectUrl = 'https://www.picnic.fan/auth/callback/kakao';
+      
+      const kakaoOAuthUrl = new URL('https://kauth.kakao.com/oauth/authorize');
+      kakaoOAuthUrl.searchParams.set('client_id', clientId);
+      kakaoOAuthUrl.searchParams.set('redirect_uri', prodRedirectUrl);
+      kakaoOAuthUrl.searchParams.set('response_type', 'code');
+      kakaoOAuthUrl.searchParams.set('scope', finalScopeString);
+      
+      // Kakao 특화 파라미터 추가
+      Object.entries(kakaoParams).forEach(([key, value]) => {
+        kakaoOAuthUrl.searchParams.set(key, value);
+      });
+      
+      console.log('🚀 프로덕션 환경: www.picnic.fan으로 직접 Kakao OAuth 리디렉션', {
+        url: kakaoOAuthUrl.toString(),
+        redirectUri: prodRedirectUrl
+      });
+      
+      // 직접 리디렉션 (Supabase 우회하여 api.picnic.fan 콜백 제거)
+      window.location.href = kakaoOAuthUrl.toString();
+      
+      return {
+        success: true,
+        provider: 'kakao',
+        message: 'Kakao 로그인 리디렉션 중... (프로덕션 모드)'
+      };
     }
     
-    // OAuth 리디렉션으로 인해 이 함수는 여기까지만 실행되고 리디렉션됨
-    return {
-      success: true,
-      provider: 'kakao',
-      message: 'Kakao 로그인 리디렉션 중...'
-    };
   } catch (error) {
     if (error instanceof SocialAuthError) {
       throw error;

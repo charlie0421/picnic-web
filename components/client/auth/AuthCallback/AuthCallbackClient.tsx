@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 import { AuthCallbackSkeleton } from '@/components/server';
+import { supabase } from '@/lib/supabase';
+import { getSocialAuthService } from '@/lib/supabase/social';
 
 interface AuthCallbackClientProps {
   provider?: string;
@@ -33,12 +35,7 @@ export default function AuthCallbackClient({
         // Supabase 자체 OAuth 콜백 처리 먼저 시도
         console.log('🔍 [AuthCallback] Supabase 자체 OAuth 콜백 처리 시작');
         
-        // Supabase 클라이언트 생성
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
+        // Supabase 클라이언트 사용 (이미 import됨)
 
         // URL에 OAuth 파라미터가 있는지 확인
         const urlParams = new URLSearchParams(window.location.search);
@@ -335,12 +332,7 @@ export default function AuthCallbackClient({
                 console.log('🔑 WeChat 인증 완료, Supabase 세션 생성...');
                 
                 try {
-                  // Supabase 클라이언트로 세션 생성
-                  const { createClient } = await import('@supabase/supabase-js');
-                  const supabase = createClient(
-                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                  );
+                  // Supabase 클라이언트 사용 (이미 import됨)
                   
                   console.log('💚 WeChat 사용자 정보로 Supabase 세션 생성 시도...');
                   
@@ -534,12 +526,7 @@ export default function AuthCallbackClient({
                 console.log('🔑 Apple JWT 검증 완료, 안전한 Supabase 세션 생성...');
                 
                 try {
-                  // Supabase 클라이언트로 안전한 세션 생성
-                  const { createClient } = await import('@supabase/supabase-js');
-                  const supabase = createClient(
-                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-                  );
+                  // Supabase 클라이언트 사용 (이미 import됨)
                   
                   // 🧪 클라이언트 Apple 세션 생성 실험 시스템
                   console.log('🧪 클라이언트에서 Apple 세션 생성 실험 시작...');
@@ -835,8 +822,7 @@ export default function AuthCallbackClient({
               paramObj[key] = value;
             });
 
-            const socialAuthService = await import('@/lib/supabase/social');
-            const authResult = await socialAuthService.getSocialAuthService().handleCallback(
+            const authResult = await getSocialAuthService().handleCallback(
               'apple',
               paramObj,
             );
@@ -874,8 +860,7 @@ export default function AuthCallbackClient({
           provider: providerType,
         });
 
-        const socialAuthService = await import('@/lib/supabase/social');
-        const authResult = await socialAuthService.getSocialAuthService().handleCallback(
+        const authResult = await getSocialAuthService().handleCallback(
           providerType,
           paramObj,
         );
