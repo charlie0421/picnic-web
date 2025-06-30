@@ -86,7 +86,7 @@ class TranslationLogger {
   /**
    * 번역 로딩 에러 로깅
    */
-  logLoadingError(language: Language, error: Error, source: 'local' | 'crowdin'): void {
+  logLoadingError(language: Language, error: Error, source: 'local'): void {
     const errorMessage = `Failed to load ${source} translations for ${language}: ${error.message}`;
     
     if (this.config.enableConsoleLogging) {
@@ -108,7 +108,7 @@ class TranslationLogger {
   /**
    * 번역 성공 로깅 (통계용)
    */
-  logTranslationSuccess(language: Language, keysLoaded: number, source: 'local' | 'crowdin'): void {
+  logTranslationSuccess(language: Language, keysLoaded: number, source: 'local'): void {
     if (this.config.enableConsoleLogging) {
       console.log(`✅ [Translation] Loaded ${keysLoaded} keys for ${language} from ${source}`);
     }

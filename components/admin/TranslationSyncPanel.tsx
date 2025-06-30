@@ -68,7 +68,7 @@ export function TranslationSyncPanel() {
 
       <div className='mb-4'>
         <p className='text-gray-600 mb-2'>
-          Crowdin에서 최신 번역을 가져와서 로컬 JSON 파일을 업데이트합니다.
+          로컬 번역 파일을 동기화하고 관리합니다.
         </p>
         <button
           onClick={handleSync}

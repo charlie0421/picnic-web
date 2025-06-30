@@ -1,17 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import OtaClient from "@crowdin/ota-client";
 import { type Language, settings } from "@/config/settings";
 import { translationLogger } from "@/utils/translationLogger";
-
-// Crowdin OTA 클라이언트 초기화
-const distributionHash = process.env.NEXT_PUBLIC_CROWDIN_DISTRIBUTION_HASH;
-const crowdinOnlyMode = process.env.NEXT_PUBLIC_CROWDIN_ONLY_MODE === "true";
-let otaClient: any = null;
-
-if (distributionHash && typeof window !== "undefined") {
-  otaClient = new OtaClient(distributionHash);
-}
 
 // 진행 중인 번역 로딩 Promise들을 추적하는 맵
 const loadingPromises = new Map<Language, Promise<void>>();
@@ -35,24 +25,6 @@ const initialLanguage: Language = (() => {
   if (typeof window === "undefined") return settings.languages.default;
   return getCurrentLanguageFromPath();
 })();
-
-// OTA 클라이언트에 초기 언어 설정 (클라이언트에서만)
-if (typeof window !== "undefined" && otaClient) {
-  const langMap: Record<Language, string> = {
-    ko: "ko",
-    en: "en",
-    ja: "ja",
-    zh: "zh-CN",
-    id: "id",
-  };
-  otaClient.setCurrentLocale(langMap[initialLanguage] || initialLanguage);
-}
-
-interface TranslationData {
-  identifier: string;
-  translation: string;
-  source_string: string;
-}
 
 interface LanguageState {
   currentLanguage: Language;
@@ -90,62 +62,10 @@ async function loadLocalTranslations(
     
     const translations: Record<string, string> = await response.json();
     console.log(`✅ Loaded ${Object.keys(translations).length} translation keys for ${lang}`);
-    console.log(`🔍 Has nav_vote key:`, 'nav_vote' in translations);
-    console.log(`🔍 Has text_vote_countdown_end key:`, 'text_vote_countdown_end' in translations);
-    console.log(`🔍 Sample translation values:`, {
-      nav_vote: translations.nav_vote,
-      app_name: translations.app_name,
-      button_cancel: translations.button_cancel
-    });
     
     return translations;
   } catch (error) {
     console.warn(`❌ Local translations not found for ${lang}:`, error);
-    return null;
-  }
-}
-
-/**
- * Crowdin에서 번역 로드
- */
-async function loadCrowdinTranslations(
-  lang: Language,
-): Promise<Record<string, string> | null> {
-  if (!otaClient || typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    // Crowdin 언어 코드 매핑
-    const crowdinLangMap: Record<Language, string> = {
-      ko: "ko",
-      en: "en",
-      ja: "ja",
-      zh: "zh-CN",
-      id: "id",
-    };
-
-    const crowdinLang = crowdinLangMap[lang] || lang;
-    otaClient.setCurrentLocale(crowdinLang);
-
-    const crowdinData = await otaClient.getStringsByLocale(crowdinLang);
-
-    if (!crowdinData || Object.keys(crowdinData).length === 0) {
-      return null;
-    }
-
-    // Crowdin 데이터를 일반 key-value 형태로 변환
-    const translations: Record<string, string> = {};
-    Object.values(crowdinData).forEach((item: any) => {
-      if (item.identifier && (item.translation || item.source_string)) {
-        translations[item.identifier] = item.translation || item.source_string;
-      }
-    });
-
-    console.log(`✅ Crowdin translations converted:`, Object.keys(translations).length, 'keys');
-    return translations;
-  } catch (error) {
-    console.warn(`Failed to load Crowdin translations for ${lang}:`, error);
     return null;
   }
 }
@@ -317,58 +237,35 @@ export const useLanguageStore = create<LanguageState>()(
 
             let translationsData: Record<string, string> = {};
 
-            // Crowdin 우선 모드가 아닌 경우에만 로컬 파일 로드
-            if (!crowdinOnlyMode) {
-              // 1. 로컬 번역 파일 로드 시도
-              try {
-                const localTranslations = await loadLocalTranslations(lang);
-                if (localTranslations) {
-                  translationsData = { ...translationsData, ...localTranslations };
-                  console.log(`✅ Local translations loaded for ${lang}:`, Object.keys(localTranslations).length, 'keys');
-                  translationLogger.logTranslationSuccess(lang, Object.keys(localTranslations).length, 'local');
-                }
-              } catch (error) {
-                translationLogger.logLoadingError(lang, error as Error, 'local');
-              }
-            }
-
-            // 2. Crowdin 번역 로드 시도 (우선순위)
+            // 로컬 번역 파일 로드
             try {
-              const crowdinTranslations = await loadCrowdinTranslations(lang);
-              if (crowdinTranslations) {
-                translationsData = { ...translationsData, ...crowdinTranslations };
-                console.log(`✅ Crowdin translations loaded for ${lang}:`, Object.keys(crowdinTranslations).length, 'keys');
-                translationLogger.logTranslationSuccess(lang, Object.keys(crowdinTranslations).length, 'crowdin');
+              const localTranslations = await loadLocalTranslations(lang);
+              if (localTranslations) {
+                translationsData = { ...translationsData, ...localTranslations };
+                console.log(`✅ Local translations loaded for ${lang}:`, Object.keys(localTranslations).length, 'keys');
+                translationLogger.logTranslationSuccess(lang, Object.keys(localTranslations).length, 'local');
               }
             } catch (error) {
-              translationLogger.logLoadingError(lang, error as Error, 'crowdin');
+              translationLogger.logLoadingError(lang, error as Error, 'local');
             }
 
-            // 3. 번역이 없는 경우 처리
-            if (Object.keys(translationsData).length === 0) {
-              if (crowdinOnlyMode) {
-                console.warn(`No Crowdin translations found for ${lang}`);
-                translationLogger.logLoadingError(lang, new Error('No Crowdin translations found'), 'crowdin');
-                // Crowdin 전용 모드에서는 키 자체를 반환하도록 fallback
-                translationsData = {};
-              } else if (lang !== settings.languages.default) {
-                console.warn(
-                  `No translations found for ${lang}, falling back to ${settings.languages.default}`,
-                );
-                try {
-                  const defaultTranslations = await loadLocalTranslations(settings.languages.default);
-                  if (defaultTranslations) {
-                    translationsData = defaultTranslations;
-                    translationLogger.logTranslationSuccess(lang, Object.keys(defaultTranslations).length, 'local');
-                  }
-                } catch (error) {
-                  translationLogger.logLoadingError(settings.languages.default, error as Error, 'local');
+            // 번역이 없는 경우 기본 언어로 fallback
+            if (Object.keys(translationsData).length === 0 && lang !== settings.languages.default) {
+              console.warn(
+                `No translations found for ${lang}, falling back to ${settings.languages.default}`,
+              );
+              try {
+                const defaultTranslations = await loadLocalTranslations(settings.languages.default);
+                if (defaultTranslations) {
+                  translationsData = defaultTranslations;
+                  translationLogger.logTranslationSuccess(lang, Object.keys(defaultTranslations).length, 'local');
                 }
+              } catch (error) {
+                translationLogger.logLoadingError(settings.languages.default, error as Error, 'local');
               }
             }
 
             console.log(`🎉 Final translations for ${lang}:`, Object.keys(translationsData).length, 'keys');
-            console.log(`🔍 Sample keys:`, Object.keys(translationsData).slice(0, 5));
 
             set((state) => ({
               translations: {
