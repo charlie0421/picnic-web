@@ -1,14 +1,15 @@
 {
   "version": 2,
   "git": {
-    "deploymentEnabled": true,
+    "deploymentEnabled": {
+      "main": false
+    },
     "productionBranch": "production"
   },
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "ignoreCommand": "bash -c 'if [[ \"$VERCEL_GIT_COMMIT_REF\" != \"production\" ]]; then exit 0; else exit 1; fi'",
   "redirects": [
     {
       "source": "/(.*)",
