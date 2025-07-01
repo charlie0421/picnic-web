@@ -58,6 +58,7 @@ function LoginContentInner() {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [envCheckFailed, setEnvCheckFailed] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -65,6 +66,59 @@ function LoginContentInner() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 환경 변수 확인 및 Supabase 클라이언트 상태 체크
+  useEffect(() => {
+    if (!mounted) return;
+
+    const checkEnvironment = () => {
+      try {
+        // 환경 변수 확인
+        const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const hasKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+        debugLog('환경 변수 상태 확인', {
+          hasUrl,
+          hasKey,
+          url: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + '...',
+        });
+
+        if (!hasUrl || !hasKey) {
+          console.error('❌ 필수 환경 변수가 누락되었습니다.', {
+            'NEXT_PUBLIC_SUPABASE_URL': hasUrl,
+            'NEXT_PUBLIC_SUPABASE_ANON_KEY': hasKey,
+          });
+          setEnvCheckFailed(true);
+          setError('서버 설정 오류가 발생했습니다. 관리자에게 문의해주세요.');
+          return;
+        }
+
+        // Supabase 클라이언트 테스트
+        try {
+          const testClient = createBrowserSupabaseClient();
+          if (!testClient) {
+            throw new Error('클라이언트 생성 실패');
+          }
+          debugLog('✅ Supabase 클라이언트 생성 성공');
+        } catch (clientError) {
+          console.error('❌ Supabase 클라이언트 생성 실패:', clientError);
+          setEnvCheckFailed(true);
+          setError('데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+          return;
+        }
+
+        setEnvCheckFailed(false);
+      } catch (error) {
+        console.error('❌ 환경 확인 중 오류:', error);
+        setEnvCheckFailed(true);
+        setError('시스템 초기화 중 오류가 발생했습니다.');
+      }
+    };
+
+    // 약간의 지연 후 환경 체크 (AuthProvider 초기화 대기)
+    const timeoutId = setTimeout(checkEnvironment, 100);
+    return () => clearTimeout(timeoutId);
+  }, [mounted]);
 
   // AuthProvider 상태 디버깅
   useEffect(() => {
@@ -75,18 +129,19 @@ function LoginContentInner() {
         isInitialized,
         hasUser: !!user,
         hasUserProfile: !!userProfile,
+        envCheckFailed,
       });
     }
-  }, [mounted, isAuthenticated, isLoading, isInitialized, user, userProfile]);
+  }, [mounted, isAuthenticated, isLoading, isInitialized, user, userProfile, envCheckFailed]);
 
   // 이미 인증된 사용자 리디렉트 처리 - 최상위로 이동
   useEffect(() => {
-    if (mounted && isAuthenticated) {
+    if (mounted && isAuthenticated && !envCheckFailed) {
       debugLog('이미 인증된 사용자 - 즉시 리디렉트');
       const targetUrl = handlePostLoginRedirect();
       router.replace(targetUrl); // push 대신 replace 사용하여 뒤로가기 방지
     }
-  }, [mounted, isAuthenticated, router]);
+  }, [mounted, isAuthenticated, router, envCheckFailed]);
 
   // Apple OAuth 성공 상태 확인
   useEffect(() => {
@@ -359,6 +414,46 @@ function LoginContentInner() {
     );
   }
 
+  // 환경 변수 오류가 있으면 오류 페이지 표시
+  if (envCheckFailed) {
+    return (
+      <div className='flex flex-col justify-center items-center min-h-[400px] p-8'>
+        <div className='max-w-md text-center'>
+          <div className='mb-6'>
+            <svg className='w-16 h-16 mx-auto text-red-500' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z' />
+            </svg>
+          </div>
+          <h3 className='text-xl font-semibold text-gray-900 mb-4'>서비스 일시 중단</h3>
+          <p className='text-gray-600 mb-6'>{error}</p>
+          <div className='space-y-3'>
+            <button
+              onClick={() => window.location.reload()}
+              className='w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
+            >
+              페이지 새로고침
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className='w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors'
+            >
+              홈으로 돌아가기
+            </button>
+          </div>
+          {process.env.NODE_ENV === 'development' && (
+            <div className='mt-6 p-4 bg-red-50 rounded-lg border border-red-200 text-left'>
+              <h4 className='font-semibold text-red-800 mb-2'>개발자 정보:</h4>
+              <div className='text-sm text-red-700 space-y-1'>
+                <p>• NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '❌ 누락'}</p>
+                <p>• NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '❌ 누락'}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // 로딩 상태 또는 이미 인증된 상태 처리
   if (!isInitialized || isLoading) {
     debugLog('로딩 상태 표시', { isInitialized, isLoading });
@@ -373,6 +468,9 @@ function LoginContentInner() {
             <p>
               디버그: isInitialized={String(isInitialized)}, isLoading=
               {String(isLoading)}
+            </p>
+            <p className='mt-2'>
+              환경: URL={!!process.env.NEXT_PUBLIC_SUPABASE_URL}, KEY={!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}
             </p>
           </div>
         )}

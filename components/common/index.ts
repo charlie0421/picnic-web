@@ -11,4 +11,7 @@ export * from './molecules';
 // export * from './vote'; 
 
 // Global components
-export { GlobalNotifications } from './GlobalNotifications'; 
+export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as GlobalErrorDisplay } from './GlobalErrorDisplay';
+export { default as GlobalNotifications } from './GlobalNotifications';
+export { default as EnvironmentValidator } from './EnvironmentValidator'; 

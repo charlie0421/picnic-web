@@ -59,13 +59,58 @@ class AuthStore {
 
   private constructor() {
     if (typeof window !== 'undefined') {
-      this.supabaseClient = createBrowserSupabaseClient();
-      this.initPromise = this.initialize();
+      try {
+        // 환경 변수 확인 및 안전한 클라이언트 생성
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          console.error('❌ [AuthStore] Supabase 환경 변수가 설정되지 않았습니다.', {
+            hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+            hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+          });
+          
+          // 환경 변수가 없어도 기본 상태로 초기화
+          this.updateState({
+            session: null,
+            user: null,
+            userProfile: null,
+            isAuthenticated: false,
+            isLoading: false,
+            isInitialized: true,
+            signOut: this.signOut.bind(this),
+            loadUserProfile: this.loadUserProfile.bind(this),
+          });
+          return;
+        }
+
+        this.supabaseClient = createBrowserSupabaseClient();
+        this.initPromise = this.initialize();
+      } catch (error) {
+        console.error('❌ [AuthStore] Supabase 클라이언트 생성 실패:', error);
+        
+        // 클라이언트 생성 실패 시에도 기본 상태로 초기화
+        this.updateState({
+          session: null,
+          user: null,
+          userProfile: null,
+          isAuthenticated: false,
+          isLoading: false,
+          isInitialized: true,
+          signOut: this.signOut.bind(this),
+          loadUserProfile: this.loadUserProfile.bind(this),
+        });
+      }
     }
   }
 
   private async initialize() {
-    if (!this.supabaseClient) return;
+    if (!this.supabaseClient) {
+      console.warn('⚠️ [AuthStore] Supabase 클라이언트가 없어 초기화를 건너뜁니다.');
+      this.updateState({
+        ...this.state,
+        isLoading: false,
+        isInitialized: true,
+      });
+      return;
+    }
 
     try {
       console.log('🔄 [AuthStore] 전역 Auth 초기화 시작');
