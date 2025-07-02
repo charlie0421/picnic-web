@@ -72,6 +72,14 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
   const initializationAttempted = useRef(false);
   const authSubscription = useRef<ReturnType<typeof supabase.auth.onAuthStateChange> | null>(null);
 
+  // 🔍 컴포넌트 로드 확인 (즉시 실행)
+  console.log('[EnhancedAuthProvider] 🎬 컴포넌트 로드됨!', {
+    timestamp: new Date().toISOString(),
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
+    hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    isClient: typeof window !== 'undefined'
+  });
+
   // 향상된 프로필 조회 함수 - 성능 최적화 적용
   const fetchUserProfile = useCallback(
     withPerformanceMonitoring(
@@ -331,6 +339,8 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
 
   // 인증 상태 구독
   useEffect(() => {
+    console.log('[EnhancedAuthProvider] 🎪 useEffect 시작 - initializationAttempted:', initializationAttempted.current);
+    
     if (initializationAttempted.current) {
       console.log('[EnhancedAuthProvider] 🔄 이미 초기화 시도됨, 건너뜀');
       return;
@@ -338,6 +348,8 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
     
     let isMounted = true;
     let initTimeout: NodeJS.Timeout;
+    
+    console.log('[EnhancedAuthProvider] 🎯 초기화 준비 시작');
 
     const initializeAuth = async () => {
       try {
