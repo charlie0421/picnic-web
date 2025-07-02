@@ -433,7 +433,7 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
         }
 
         // 구독 정리 함수 저장
-        authSubscription.current = subscription;
+        authSubscription.current = { data: { subscription } };
         
         console.log('[EnhancedAuthProvider] ✅ 초기화 완료:', {
           isLoading: false,
@@ -485,7 +485,7 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
       }
       if (authSubscription.current) {
         console.log('[EnhancedAuthProvider] 📴 인증 구독 해제');
-        authSubscription.current.unsubscribe();
+        authSubscription.current.data.subscription.unsubscribe();
       }
     };
   }, [supabase.auth, handleSession]);
