@@ -463,6 +463,29 @@ function LoginContentInner() {
         <p className='text-gray-600'>
           {!isInitialized ? '인증 시스템 초기화 중...' : '로딩 중...'}
         </p>
+        
+        {/* 🔍 Production 디버깅 정보 (항상 표시) */}
+        <div className='mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded border max-w-sm'>
+          <div className='font-semibold mb-2'>🔍 상태 확인:</div>
+          <div>• isInitialized: {String(isInitialized)}</div>
+          <div>• isLoading: {String(isLoading)}</div>
+          <div>• mounted: {String(mounted)}</div>
+          <div>• envCheckFailed: {String(envCheckFailed)}</div>
+          <div>• isAuthenticated: {String(isAuthenticated)}</div>
+          <div>• hasUser: {String(!!user)}</div>
+          <div>• hasUserProfile: {String(!!userProfile)}</div>
+          <div>• 환경체크: URL={String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}, KEY={String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
+          <div>• timestamp: {new Date().toISOString().split('.')[0]}</div>
+        </div>
+        
+        {/* 🔧 새로고침 버튼 */}
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-3 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+        >
+          🔄 새로고침
+        </button>
+        
         {process.env.NODE_ENV === 'development' && (
           <div className='mt-4 text-xs text-gray-500 text-center'>
             <p>
