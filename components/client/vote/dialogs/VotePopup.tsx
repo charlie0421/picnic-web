@@ -1,5 +1,5 @@
 import { useLanguageStore } from '@/stores/languageStore';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';

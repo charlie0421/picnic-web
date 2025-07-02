@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
 
 export default function AuthProviderTest() {
   const { isAuthenticated, isLoading, user, userProfile } = useAuth();

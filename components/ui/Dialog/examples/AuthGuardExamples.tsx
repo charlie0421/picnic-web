@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
 import { useAuthGuard, useRequireAuth } from '@/hooks/useAuthGuard';
 import {
   withRequireAuth,

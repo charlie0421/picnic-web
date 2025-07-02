@@ -5,7 +5,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { Products } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString } from '@/utils/api/strings';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
 import { motion } from 'framer-motion';
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 import { getCurrencyByPaymentMethod } from '@/utils/ip-detection';
