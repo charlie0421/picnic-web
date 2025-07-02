@@ -70,6 +70,7 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initializationAttempted = useRef(false);
+  const authSubscription = useRef<ReturnType<typeof supabase.auth.onAuthStateChange> | null>(null);
 
   // 향상된 프로필 조회 함수 - 성능 최적화 적용
   const fetchUserProfile = useCallback(
@@ -330,123 +331,164 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
 
   // 인증 상태 구독
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log('[EnhancedAuthProvider] 인증 상태 변경:', event, !!newSession);
-      
-      try {
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setUserProfile(null);
-          setSession(null);
-          setError(null);
-          profileCache.clear();
-          setIsLoading(false);
-          setIsInitialized(true);
-        } else {
-          await handleSession(newSession);
-          setIsLoading(false);
-          setIsInitialized(true);
-        }
-      } catch (error) {
-        console.error('[EnhancedAuthProvider] 인증 상태 변경 중 오류:', error);
-        
-        // 리프레시 토큰 오류 처리
-        const handled = await handleAuthError(error);
-        if (!handled) {
-          // 처리되지 않은 오류의 경우 기본 상태로 설정
-          setUser(null);
-          setUserProfile(null);
-          setSession(null);
-          setError(null);
-          profileCache.clear();
-          setIsLoading(false);
-          setIsInitialized(true);
-        }
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase.auth, handleSession]);
-
-  // 초기 세션 로드 (한 번만 실행)
-  useEffect(() => {
-    if (initializationAttempted.current) return;
+    if (initializationAttempted.current) {
+      console.log('[EnhancedAuthProvider] 🔄 이미 초기화 시도됨, 건너뜀');
+      return;
+    }
     
     let isMounted = true;
     let initTimeout: NodeJS.Timeout;
 
     const initializeAuth = async () => {
       try {
-        console.log('[EnhancedAuthProvider] 인증 초기화 시작');
+        console.log('[EnhancedAuthProvider] 🚀 인증 초기화 시작');
+        console.log('[EnhancedAuthProvider] 📍 환경 정보:', {
+          isClient: typeof window !== 'undefined',
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
+          hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          userAgent: typeof window !== 'undefined' ? window.navigator.userAgent.substring(0, 50) : 'server'
+        });
+        
         setIsLoading(true);
         initializationAttempted.current = true;
 
         // 현재 세션 가져오기 (성능 모니터링 적용)
+        console.log('[EnhancedAuthProvider] 📡 세션 조회 시작');
         const getSessionWithMonitoring = withPerformanceMonitoring(
           async () => {
+            const startTime = Date.now();
             const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+            const duration = Date.now() - startTime;
+            
+            console.log('[EnhancedAuthProvider] 📡 세션 조회 완료:', {
+              duration: `${duration}ms`,
+              hasSession: !!currentSession,
+              sessionId: currentSession?.access_token?.substring(0, 20) + '...' || 'none',
+              error: error?.message || 'none'
+            });
             
             if (error) {
-              console.warn('[EnhancedAuthProvider] 세션 조회 오류:', error);
+              console.warn('[EnhancedAuthProvider] ⚠️ 세션 조회 오류:', {
+                message: error.message,
+                status: error.status,
+                name: error.name
+              });
               
               // 리프레시 토큰 오류 처리
               const handled = await handleAuthError(error);
-              if (handled) {
-                console.log('🔄 [EnhancedAuthProvider] 리프레시 토큰 오류 처리 완료');
-                return null; // 처리되었으면 null 반환
+              if (!handled) {
+                console.error('[EnhancedAuthProvider] ❌ 처리되지 않은 인증 오류:', error);
+                throw error;
               }
-              
-              // 오류가 있어도 계속 진행 (비로그인 상태로 처리)
+              return null;
             }
             
             return currentSession;
           },
-          'session_init'
+          'get-session'
         );
 
-        const currentSession = await getSessionWithMonitoring();
-
-        // 컴포넌트가 언마운트되었으면 상태 업데이트 중단
-        if (!isMounted) return;
-
-        console.log('[EnhancedAuthProvider] 세션 상태:', !!currentSession);
-        await handleSession(currentSession || null);
+        const session = await getSessionWithMonitoring();
         
-        // 초기화 완료 처리
-        setIsLoading(false);
-        setIsInitialized(true);
-      } catch (error) {
-        if (!isMounted) return;
+        if (!isMounted) {
+          console.log('[EnhancedAuthProvider] 🚫 컴포넌트 언마운트됨, 초기화 중단');
+          return;
+        }
 
-        console.warn('[EnhancedAuthProvider] 초기화 오류 (계속 진행):', error);
-        // 오류가 있어도 비로그인 상태로 초기화 완료
+        console.log('[EnhancedAuthProvider] 👤 세션 처리 시작:', {
+          hasSession: !!session,
+          userId: session?.user?.id || 'none'
+        });
+
+        // 세션 상태 업데이트
+        await handleSession(session);
+        
+        // 사용자별 프로필 캐시 워밍업
+        if (session?.user?.id) {
+          console.log('[EnhancedAuthProvider] 👤 프로필 조회 시작');
+          await fetchUserProfile(session.user.id);
+        }
+
+        // Auth state change listener 설정
+        console.log('[EnhancedAuthProvider] 👂 인증 상태 리스너 설정');
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            console.log('[EnhancedAuthProvider] 🔔 인증 상태 변경:', {
+              event,
+              hasSession: !!session,
+              userId: session?.user?.id || 'none',
+              timestamp: new Date().toISOString()
+            });
+            
+            if (isMounted) {
+              await handleSession(session);
+            }
+          }
+        );
+
+        if (!isMounted) {
+          console.log('[EnhancedAuthProvider] 🚫 컴포넌트 언마운트됨, 구독 해제');
+          subscription.unsubscribe();
+          return;
+        }
+
+        // 구독 정리 함수 저장
+        authSubscription.current = subscription;
+        
+        console.log('[EnhancedAuthProvider] ✅ 초기화 완료:', {
+          isLoading: false,
+          isInitialized: true,
+          hasUser: !!session?.user,
+          subscriptionActive: true
+        });
+        
         setIsLoading(false);
         setIsInitialized(true);
-        setError(null); // 초기화 오류는 사용자에게 표시하지 않음
+
+      } catch (error) {
+        console.error('[EnhancedAuthProvider] ❌ 초기화 실패:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack?.substring(0, 200) : 'No stack',
+          type: typeof error,
+          isMounted
+        });
+        
+        if (isMounted) {
+          setIsLoading(false);
+          setError(error instanceof Error ? error : new Error('인증 초기화 실패'));
+          
+          // 5초 후 재시도
+          console.log('[EnhancedAuthProvider] 🔄 5초 후 재시도 예약');
+          initTimeout = setTimeout(() => {
+            if (isMounted) {
+              console.log('[EnhancedAuthProvider] 🔄 재시도 실행');
+              initializationAttempted.current = false;
+              setError(null);
+              initializeAuth();
+            }
+          }, 5000);
+        }
       }
     };
 
-    // 5초 후에도 초기화가 완료되지 않으면 강제로 완료 처리
-    initTimeout = setTimeout(() => {
-      if (isMounted && !isInitialized) {
-        console.warn('[EnhancedAuthProvider] 초기화 타임아웃 - 강제 완료 처리');
-        setIsLoading(false);
-        setIsInitialized(true);
-        setError(null); // 타임아웃 오류는 사용자에게 표시하지 않음
-      }
-    }, 5000); // 8초에서 5초로 단축
-
+    // 초기화 실행
+    console.log('[EnhancedAuthProvider] 🎬 초기화 함수 호출');
     initializeAuth();
 
+    // 정리 함수
     return () => {
+      console.log('[EnhancedAuthProvider] 🧹 useEffect 정리 시작');
       isMounted = false;
       if (initTimeout) {
+        console.log('[EnhancedAuthProvider] ⏰ 타임아웃 취소');
         clearTimeout(initTimeout);
       }
+      if (authSubscription.current) {
+        console.log('[EnhancedAuthProvider] 📴 인증 구독 해제');
+        authSubscription.current.unsubscribe();
+      }
     };
-  }, [supabase.auth, handleSession]); // isInitialized 의존성 제거로 무한 루프 방지
+  }, [supabase.auth, handleSession]);
 
   // 인증 상태 계산
   const isAuthenticated = !!user && !!userProfile;

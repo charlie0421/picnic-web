@@ -488,6 +488,44 @@ function LoginContentInner() {
     );
   }
 
+  // 인증 상태가 초기화되지 않은 경우 대기 화면 표시
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
+        <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md w-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            인증 시스템 초기화 중
+          </h2>
+          <p className="text-gray-600 mb-4">
+            잠시만 기다려주세요...
+          </p>
+          
+          {/* 🔍 디버깅 정보 (Production에서 임시 표시) */}
+          <div className="text-left text-xs text-gray-500 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
+            <div className="font-semibold mb-2">📊 상태 정보:</div>
+            <div>• isLoading: {String(isLoading)}</div>
+            <div>• isInitialized: {String(isInitialized)}</div>
+            <div>• isAuthenticated: {String(isAuthenticated)}</div>
+            <div>• hasUser: {String(!!user)}</div>
+            <div>• hasUserProfile: {String(!!userProfile)}</div>
+            <div>• hasSupabaseUrl: {String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
+            <div>• hasSupabaseKey: {String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
+            <div>• timestamp: {new Date().toISOString().split('.')[0]}</div>
+          </div>
+          
+          {/* 🔧 강제 새로고침 버튼 */}
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+          >
+            🔄 새로고침
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   debugLog('로그인 폼 표시');
   return (
     <div className='relative max-w-lg mx-auto'>
