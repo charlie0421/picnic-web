@@ -455,7 +455,7 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
         
         if (isMounted) {
           setIsLoading(false);
-          setError(error instanceof Error ? error : new Error('인증 초기화 실패'));
+          setError(error instanceof Error ? error.message : '인증 초기화 실패');
           
           // 5초 후 재시도
           console.log('[EnhancedAuthProvider] 🔄 5초 후 재시도 예약');
