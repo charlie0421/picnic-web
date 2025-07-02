@@ -62,6 +62,13 @@ const profileCache = new Map<string, ProfileCache>();
 const CACHE_TTL = 5 * 60 * 1000; // 5분
 
 export function EnhancedAuthProvider({ children, initialSession }: AuthProviderProps) {
+  // 🔍 가장 기본적인 로드 확인 (함수 진입점)
+  console.log('🚨 [CRITICAL] EnhancedAuthProvider 함수 시작!', {
+    timestamp: Date.now(),
+    hasChildren: !!children,
+    hasInitialSession: !!initialSession
+  });
+
   const [supabase] = useState(() => createBrowserSupabaseClient());
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -550,8 +557,11 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
 
 export function useEnhancedAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useEnhancedAuth는 EnhancedAuthProvider 내부에서 사용해야 합니다');
   }
   return context;
-} 
+}
+
+// 기존 코드와의 호환성을 위해 useAuth로도 export
+export const useAuth = useEnhancedAuth; 

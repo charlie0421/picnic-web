@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import Script from 'next/script';
 import { SocialLoginButtons } from '@/components/client/auth';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';

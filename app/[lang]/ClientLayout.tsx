@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { SupabaseProvider } from '@/components/providers/SupabaseProvider';
-import { AuthProvider } from '@/lib/supabase/auth-provider';
+import { EnhancedAuthProvider } from '@/lib/supabase/auth-provider-enhanced';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { Analytics } from '@vercel/analytics/react';
 import { DialogProvider } from '@/components/ui/Dialog';
@@ -27,7 +27,7 @@ const ClientLayoutComponent = memo(function ClientLayoutInternal({
     <NavigationProvider>
       <LanguageSyncProvider initialLanguage={initialLanguage}>
         <SupabaseProvider>
-          <AuthProvider>
+          <EnhancedAuthProvider>
             <NotificationProvider>
               {/* @ts-ignore */}
               <DialogProvider>
@@ -39,7 +39,7 @@ const ClientLayoutComponent = memo(function ClientLayoutInternal({
                 </AuthRedirectHandler>
               </DialogProvider>
             </NotificationProvider>
-          </AuthProvider>
+          </EnhancedAuthProvider>
         </SupabaseProvider>
       </LanguageSyncProvider>
     </NavigationProvider>
