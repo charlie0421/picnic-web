@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
 import {
   DefaultAvatar,
   ProfileImageContainer,

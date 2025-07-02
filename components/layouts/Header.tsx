@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {usePathname} from 'next/navigation';
-import {useAuth} from '@/lib/supabase/auth-provider';
+import {useAuth} from '@/lib/supabase/auth-provider-enhanced';
 import {useLanguageStore} from '@/stores/languageStore';
 import {DefaultAvatar, ProfileImageContainer,} from '@/components/ui/ProfileImageContainer';
 import PortalMenuItem from './PortalMenuItem';

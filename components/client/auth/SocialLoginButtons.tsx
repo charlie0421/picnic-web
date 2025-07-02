@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { supabase } from '@/utils/supabase-client';
+import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getSocialAuthService } from '@/lib/supabase/social';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';

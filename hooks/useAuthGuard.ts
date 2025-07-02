@@ -2,7 +2,7 @@
 
 import { useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/supabase/auth-provider";
+import { useAuth } from "@/lib/supabase/auth-provider-enhanced";
 import { useLoginRequired } from "@/components/ui/Dialog";
 import { saveRedirectUrl, securityUtils } from "@/utils/auth-redirect";
 
