@@ -83,8 +83,8 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
   // 🔍 의존성 상태 확인
   console.log('[EnhancedAuthProvider] 🔧 의존성 상태:', {
     supabaseAuth: !!supabase?.auth,
-    handleSession: typeof handleSession,
-    supabaseObject: typeof supabase
+    supabaseObject: typeof supabase,
+    isClientSide: typeof window !== 'undefined'
   });
 
   // 향상된 프로필 조회 함수 - 성능 최적화 적용
