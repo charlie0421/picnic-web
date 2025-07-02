@@ -1,6 +1,8 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getPolicyForCurrentLanguage } from '@/lib/data-fetching/policy-service';
 
 interface PrivacyPageProps {
@@ -57,11 +59,57 @@ export default async function PrivacyPage({ params }: PrivacyPageProps) {
         </div>
 
         {/* 정책 내용 */}
-        <main className="prose prose-lg max-w-none">
-          <div 
-            className="text-gray-800 leading-relaxed whitespace-pre-wrap"
-            dangerouslySetInnerHTML={{ __html: policy.content }}
-          />
+        <main className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-800 prose-strong:text-gray-900 prose-a:text-primary-600 hover:prose-a:text-primary-700">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            className="text-gray-800 leading-relaxed"
+            components={{
+              h1: ({ children }) => (
+                <h1 className="text-2xl font-bold text-gray-900 mt-8 mb-4 first:mt-0">{children}</h1>
+              ),
+              h2: ({ children }) => (
+                <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">{children}</h2>
+              ),
+              h3: ({ children }) => (
+                <h3 className="text-lg font-medium text-gray-900 mt-4 mb-2">{children}</h3>
+              ),
+              p: ({ children }) => (
+                <p className="text-gray-800 mb-4 leading-relaxed">{children}</p>
+              ),
+              ul: ({ children }) => (
+                <ul className="list-disc list-inside mb-4 text-gray-800 space-y-1">{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol className="list-decimal list-inside mb-4 text-gray-800 space-y-1">{children}</ol>
+              ),
+              li: ({ children }) => (
+                <li className="mb-1">{children}</li>
+              ),
+              strong: ({ children }) => (
+                <strong className="font-semibold text-gray-900">{children}</strong>
+              ),
+              em: ({ children }) => (
+                <em className="italic text-gray-700">{children}</em>
+              ),
+              blockquote: ({ children }) => (
+                <blockquote className="border-l-4 border-primary-200 pl-4 py-2 mb-4 bg-gray-50 text-gray-700 italic">
+                  {children}
+                </blockquote>
+              ),
+              code: ({ children }) => (
+                <code className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono">
+                  {children}
+                </code>
+              ),
+              pre: ({ children }) => (
+                <pre className="bg-gray-100 p-4 rounded-lg overflow-x-auto mb-4">
+                  {children}
+                </pre>
+              ),
+            }}
+          >
+            {policy.content}
+          </ReactMarkdown>
         </main>
 
         {/* 하단 정보 */}
