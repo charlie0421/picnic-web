@@ -1,5 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { getPolicyForCurrentLanguage } from '@/lib/data-fetching/policy-service';
 
 interface PrivacyPageProps {
@@ -69,23 +70,23 @@ export default async function PrivacyPage({ params }: PrivacyPageProps) {
             {lang === 'ko' ? (
               <p>
                 본 개인정보처리방침에 대해 궁금한 사항이 있으시면{' '}
-                <a 
+                <Link 
                   href="/contact" 
                   className="text-primary-600 hover:underline"
                 >
                   고객센터
-                </a>
+                </Link>
                 로 문의해 주세요.
               </p>
             ) : (
               <p>
                 If you have any questions about this Privacy Policy, please{' '}
-                <a 
+                <Link 
                   href="/contact" 
                   className="text-primary-600 hover:underline"
                 >
                   contact us
-                </a>
+                </Link>
                 .
               </p>
             )}
