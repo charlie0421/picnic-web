@@ -11,6 +11,9 @@ import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvide
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { GlobalNotifications } from '@/components/common/GlobalNotifications';
 
+// 🚨 즉석 테스트 로그
+console.log('🚨 [CRITICAL] ClientLayout 파일 로드됨!', new Date().toISOString());
+
 interface ClientLayoutProps {
   children: any;
   initialLanguage: string;
@@ -21,7 +24,10 @@ const ClientLayoutComponent = memo(function ClientLayoutInternal({
   children,
   initialLanguage,
 }: ClientLayoutProps) {
-  console.log('🔄 [ClientLayout] 렌더링 시작', { initialLanguage });
+  console.log('🚨 [CRITICAL] ClientLayout 렌더링 시작!', { 
+    initialLanguage,
+    timestamp: new Date().toISOString() 
+  });
   
   return (
     <NavigationProvider>
