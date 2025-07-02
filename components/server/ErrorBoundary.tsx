@@ -17,8 +17,8 @@ interface ErrorBoundaryProps {
  * 
  * @example
  * // app/[lang]/(main)/vote/error.tsx
- * import { ErrorBoundary } from '@/components/server';
- * export default ErrorBoundary;
+ * import { ServerErrorBoundary } from '@/components/server';
+ * export default ServerErrorBoundary;
  */
 export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
   // 에러를 애플리케이션 표준 에러로 변환
