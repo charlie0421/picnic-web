@@ -80,6 +80,13 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
     isClient: typeof window !== 'undefined'
   });
 
+  // 🔍 의존성 상태 확인
+  console.log('[EnhancedAuthProvider] 🔧 의존성 상태:', {
+    supabaseAuth: !!supabase?.auth,
+    handleSession: typeof handleSession,
+    supabaseObject: typeof supabase
+  });
+
   // 향상된 프로필 조회 함수 - 성능 최적화 적용
   const fetchUserProfile = useCallback(
     withPerformanceMonitoring(
@@ -501,6 +508,25 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
       }
     };
   }, [supabase.auth, handleSession]);
+
+  // 🔍 강제 초기화 타이머 (10초 후)
+  useEffect(() => {
+    console.log('[EnhancedAuthProvider] ⏰ 강제 초기화 타이머 설정 (10초)');
+    const forceInitTimer = setTimeout(() => {
+      console.log('[EnhancedAuthProvider] 🚨 10초 경과 - 강제 초기화 시도');
+      if (!isInitialized) {
+        console.log('[EnhancedAuthProvider] 🔄 강제로 초기화 상태 변경');
+        setIsLoading(false);
+        setIsInitialized(true);
+        setError('초기화 타임아웃으로 인한 강제 완료');
+      }
+    }, 10000);
+
+    return () => {
+      console.log('[EnhancedAuthProvider] ⏰ 강제 초기화 타이머 제거');
+      clearTimeout(forceInitTimer);
+    };
+  }, [isInitialized]);  // isInitialized 의존성으로 한 번만 실행
 
   // 인증 상태 계산
   const isAuthenticated = !!user && !!userProfile;
