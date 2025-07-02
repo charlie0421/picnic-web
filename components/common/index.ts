@@ -12,6 +12,6 @@ export * from './molecules';
 
 // Global components
 export { default as ErrorBoundary } from './ErrorBoundary';
-export { default as GlobalErrorDisplay } from './GlobalErrorDisplay';
-export { default as GlobalNotifications } from './GlobalNotifications';
+export { GlobalErrorDisplay, ErrorToast, ErrorBar } from './GlobalErrorDisplay';
+export { GlobalNotifications } from './GlobalNotifications';
 export { default as EnvironmentValidator } from './EnvironmentValidator'; 
