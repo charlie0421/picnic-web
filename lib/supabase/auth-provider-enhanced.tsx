@@ -198,7 +198,7 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
       }),
       'profile_fetch'
     ),
-    [supabase, user?.email]
+    [supabase]
   );
 
   // 세션 처리 함수 - 성능 모니터링 적용
@@ -413,6 +413,10 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
 
         console.log('[EnhancedAuthProvider] 세션 상태:', !!currentSession);
         await handleSession(currentSession || null);
+        
+        // 초기화 완료 처리
+        setIsLoading(false);
+        setIsInitialized(true);
       } catch (error) {
         if (!isMounted) return;
 
@@ -424,7 +428,7 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
       }
     };
 
-    // 8초 후에도 초기화가 완료되지 않으면 강제로 완료 처리
+    // 5초 후에도 초기화가 완료되지 않으면 강제로 완료 처리
     initTimeout = setTimeout(() => {
       if (isMounted && !isInitialized) {
         console.warn('[EnhancedAuthProvider] 초기화 타임아웃 - 강제 완료 처리');
@@ -432,7 +436,7 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
         setIsInitialized(true);
         setError(null); // 타임아웃 오류는 사용자에게 표시하지 않음
       }
-    }, 8000); // 5초에서 8초로 증가
+    }, 5000); // 8초에서 5초로 단축
 
     initializeAuth();
 
@@ -442,7 +446,7 @@ export function EnhancedAuthProvider({ children, initialSession }: AuthProviderP
         clearTimeout(initTimeout);
       }
     };
-  }, [supabase.auth, handleSession, isInitialized]);
+  }, [supabase.auth, handleSession]); // isInitialized 의존성 제거로 무한 루프 방지
 
   // 인증 상태 계산
   const isAuthenticated = !!user && !!userProfile;
