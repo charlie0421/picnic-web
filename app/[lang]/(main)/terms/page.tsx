@@ -60,10 +60,10 @@ export default async function TermsPage({ params }: TermsPageProps) {
 
         {/* 정책 내용 */}
         <main className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-800 prose-strong:text-gray-900 prose-a:text-primary-600 hover:prose-a:text-primary-700">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            className="text-gray-800 leading-relaxed"
-            components={{
+          <div className="text-gray-800 leading-relaxed">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
               h1: ({ children }) => (
                 <h1 className="text-2xl font-bold text-gray-900 mt-8 mb-4 first:mt-0">{children}</h1>
               ),
@@ -106,10 +106,11 @@ export default async function TermsPage({ params }: TermsPageProps) {
                   {children}
                 </pre>
               ),
-            }}
-          >
-            {policy.content}
-          </ReactMarkdown>
+                         }}
+           >
+             {policy.content}
+           </ReactMarkdown>
+          </div>
         </main>
 
         {/* 하단 정보 */}
