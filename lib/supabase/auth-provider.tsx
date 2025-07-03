@@ -115,50 +115,87 @@ class AuthStore {
     try {
       console.log('🔄 [AuthStore] 전역 Auth 초기화 시작');
       
-      // 초기 세션 조회
-      const { data: { session }, error } = await this.supabaseClient.auth.getSession();
-      console.log('📱 [AuthStore] 초기 세션 조회 완료:', !!session);
+      // 초기화 타임아웃 설정 (10초)
+      const initTimeout = setTimeout(() => {
+        console.warn('⏰ [AuthStore] 초기화 타임아웃 - 강제 완료');
+        this.updateState({
+          ...this.state,
+          session: null,
+          user: null,
+          userProfile: null,
+          isAuthenticated: false,
+          isLoading: false,
+          isInitialized: true,
+        });
+      }, 10000);
 
-      if (error) {
-        console.error('❌ [AuthStore] 세션 조회 에러:', error);
+      try {
+        // 초기 세션 조회 (타임아웃 포함)
+        const sessionPromise = this.supabaseClient.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('getSession timeout')), 5000)
+        );
         
-        // 리프레시 토큰 오류 처리
-        const handled = await handleAuthError(error);
-        if (handled) {
-          console.log('🔄 [AuthStore] 리프레시 토큰 오류 처리 완료');
-          return; // 처리되었으면 더 이상 진행하지 않음
-        }
-      }
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
+        console.log('📱 [AuthStore] 초기 세션 조회 완료:', !!session);
 
-      await this.updateAuthState(session, 'INITIAL_SESSION');
-
-      // 인증 상태 변경 리스너 등록
-      this.supabaseClient.auth.onAuthStateChange(async (event: string, session: Session | null) => {
-        console.log('🔄 [AuthStore] 인증 상태 변경:', event);
-        
-        try {
-          await this.updateAuthState(session, event);
-        } catch (error) {
-          console.error('❌ [AuthStore] 인증 상태 변경 중 오류:', error);
+        if (error) {
+          console.error('❌ [AuthStore] 세션 조회 에러:', error);
           
           // 리프레시 토큰 오류 처리
           const handled = await handleAuthError(error);
-          if (!handled) {
-            // 처리되지 않은 오류의 경우 기본 상태로 설정
-            this.updateState({
-              ...this.state,
-              session: null,
-              user: null,
-              userProfile: null,
-              isAuthenticated: false,
-              isLoading: false,
-              isInitialized: true,
-            });
+          if (handled) {
+            console.log('🔄 [AuthStore] 리프레시 토큰 오류 처리 완료 - 페이지 새로고침 예정');
+            clearTimeout(initTimeout);
+            return; // 페이지 새로고침되므로 여기서 종료
           }
         }
-      });
 
-      console.log('✅ [AuthStore] 전역 Auth 초기화 완료');
+        await this.updateAuthState(session, 'INITIAL_SESSION');
+        clearTimeout(initTimeout);
+
+        // 인증 상태 변경 리스너 등록
+        this.supabaseClient.auth.onAuthStateChange(async (event: string, session: Session | null) => {
+          console.log('🔄 [AuthStore] 인증 상태 변경:', event);
+          
+          try {
+            await this.updateAuthState(session, event);
+          } catch (error) {
+            console.error('❌ [AuthStore] 인증 상태 변경 중 오류:', error);
+            
+            // 리프레시 토큰 오류 처리
+            const handled = await handleAuthError(error);
+            if (!handled) {
+              // 처리되지 않은 오류의 경우 기본 상태로 설정
+              this.updateState({
+                ...this.state,
+                session: null,
+                user: null,
+                userProfile: null,
+                isAuthenticated: false,
+                isLoading: false,
+                isInitialized: true,
+              });
+            }
+          }
+        });
+
+        console.log('✅ [AuthStore] 전역 Auth 초기화 완료');
+      } catch (sessionError) {
+        console.error('❌ [AuthStore] 세션 조회/처리 에러:', sessionError);
+        clearTimeout(initTimeout);
+        
+        // 세션 오류가 발생해도 기본 상태로 초기화 완료
+        this.updateState({
+          ...this.state,
+          session: null,
+          user: null,
+          userProfile: null,
+          isAuthenticated: false,
+          isLoading: false,
+          isInitialized: true,
+        });
+      }
     } catch (error) {
       console.error('❌ [AuthStore] 초기화 에러:', error);
       this.updateState({
