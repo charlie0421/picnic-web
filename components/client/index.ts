@@ -7,16 +7,29 @@
  * 새로운 클라이언트 컴포넌트가 추가될 때마다 이 파일에도 추가해야 합니다.
  */
 
-// 도메인별 클라이언트 컴포넌트
-export * from './vote';
+// Auth 관련
 export * from './auth';
-export * from './media';
-export * from './reward';
+
+// Banner 관련
 export * from './banner';
 
-// 기타 클라이언트 컴포넌트
+// Media 관련
+export * from './media';
+
+// Reward 관련
+export * from './reward';
+
+// Star Candy 관련
+export * from './star-candy';
+
+// Vote 관련
+export * from './vote';
+
+// Navigation 관련
+export { default as NavigationLink } from './NavigationLink';
+export { ClientNavigationSetter } from './ClientNavigationSetter';
+
+// Common 컴포넌트
 export { LoadingSpinner } from './common/LoadingSpinner';
-export { VoteItems } from './vote/list/VoteItems';
 export { RetryButton } from './RetryButton';
 export { VoteClientComponent } from './VoteClientComponent';
-export { ClientNavigationSetter } from './ClientNavigationSetter';

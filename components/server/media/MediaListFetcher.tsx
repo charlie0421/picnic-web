@@ -1,5 +1,8 @@
-import MediaListPresenter from "@/components/client/media/MediaListPresenter";
-import { getMedias } from "@/utils/api/queries";
+import { createClient } from "@/utils/supabase-server-client";
+import { MediaListPresenter } from "@/components/client/media";
+import { Media } from "@/types/interfaces";
+import { getLocalizedString } from "@/utils/api/strings";
+import { getCdnImageUrl } from "@/utils/api/image";
 
 export interface MediaListFetcherProps {
   className?: string;
@@ -19,15 +22,44 @@ export interface MediaListFetcherProps {
  * ```
  */
 export async function MediaListFetcher({ className }: MediaListFetcherProps = {}) {
-  const medias = await getMedias();
-  
-  return (
-    <div className={className}>
-      <MediaListPresenter 
-        medias={medias} 
-        isLoading={false} 
-        error={null} 
-      />
-    </div>
-  );
+  try {
+    const supabase = await createClient();
+    
+    const { data: mediaData, error } = await supabase
+      .from('media')
+      .select(`
+        id,
+        title,
+        thumbnail_url,
+        video_url,
+        video_id,
+        created_at,
+        updated_at,
+        deleted_at
+      `)
+      .is('deleted_at', null) // 삭제되지 않은 미디어만
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Media fetch error:', error);
+      return <div>미디어를 불러오는 중 오류가 발생했습니다.</div>;
+    }
+
+    if (!mediaData || mediaData.length === 0) {
+      return <div>표시할 미디어가 없습니다.</div>;
+    }
+
+    // 데이터 변환 - 실제 존재하는 필드만 사용
+    const formattedMedia: Media[] = mediaData.map((item) => ({
+      ...item,
+      title: getLocalizedString(item.title),
+      thumbnail_url: item.thumbnail_url ? getCdnImageUrl(item.thumbnail_url) : null,
+      video_url: item.video_url, // 비디오 URL은 CDN 처리하지 않음
+    }));
+
+    return <MediaListPresenter media={formattedMedia} className={className} />;
+  } catch (error) {
+    console.error('MediaListFetcher error:', error);
+    return <div>미디어를 불러오는 중 오류가 발생했습니다.</div>;
+  }
 } 

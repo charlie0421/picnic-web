@@ -8,20 +8,35 @@ import {
   getStorageUrl, 
   getCdnUrl, 
   uploadFile,
-  supabase 
+  supabase,
+  handlePendingAuth
 } from '../../../utils/api/auth';
 
-// Supabase 클라이언트 모킹
-jest.mock('../../../utils/supabase-client', () => ({
-  supabase: {
+// 세션 모킹
+const mockSession = {
+  user: {
+    id: 'test-user-id',
+    email: 'test@example.com',
+    app_metadata: {},
+    user_metadata: {},
+    aud: 'authenticated',
+    created_at: '2023-01-01T00:00:00.000Z',
+  },
+  access_token: 'mock-access-token',
+  token_type: 'bearer',
+  expires_in: 3600,
+  refresh_token: 'mock-refresh-token',
+};
+
+jest.mock('../../../lib/supabase/client', () => ({
+  createBrowserSupabaseClient: jest.fn(() => ({
     auth: {
       getSession: jest.fn(),
+      onAuthStateChange: jest.fn(() => ({
+        data: { subscription: { unsubscribe: jest.fn() } }
+      })),
     },
-    from: jest.fn(),
-    storage: {
-      from: jest.fn(),
-    },
-  },
+  })),
 }));
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;

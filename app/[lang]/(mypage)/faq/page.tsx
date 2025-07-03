@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/utils/supabase-client';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { getLocalizedString } from '@/utils/api/strings';
 import { useParams } from 'next/navigation';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useLanguageStore } from '@/stores/languageStore';
@@ -19,7 +20,7 @@ interface FAQ {
   question: MultilingualText;
   answer: MultilingualText;
   category: string | null;
-  orderNumber: number | null;
+  order_number: number | null;
   status: string | null;
 }
 
@@ -34,14 +35,25 @@ const FAQPage = () => {
   useEffect(() => {
     const fetchFaqs = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await createBrowserSupabaseClient()
           .from('faqs')
           .select('*')
           .eq('status', 'PUBLISHED')
           .order('order_number', { ascending: true });
 
         if (error) throw error;
-        setFaqs(data || []);
+        
+        // 데이터베이스 데이터를 FAQ 타입으로 변환
+        const transformedFaqs: FAQ[] = (data || []).map(item => ({
+          id: item.id,
+          question: item.question as MultilingualText,
+          answer: item.answer as MultilingualText,
+          category: item.category,
+          order_number: item.order_number,
+          status: item.status
+        }));
+        
+        setFaqs(transformedFaqs);
       } catch (error) {
         console.error('FAQ를 불러오는 중 오류가 발생했습니다:', error);
       } finally {

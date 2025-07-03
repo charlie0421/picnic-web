@@ -9,7 +9,6 @@ import {
 import { createProductSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
-import { LoadingState } from '@/components/server';
 import RewardDetailClient from '@/components/client/reward/RewardDetailClient';
 
 // ISR을 위한 메타데이터 구성 (30초마다 재검증)
@@ -107,7 +106,7 @@ export default async function RewardDetailPage({
 
     return (
       <main className='flex flex-col min-h-screen bg-gray-50'>
-        <Suspense fallback={<LoadingState />}>
+        <Suspense>
           <RewardDetailClient reward={reward} />
         </Suspense>
       </main>

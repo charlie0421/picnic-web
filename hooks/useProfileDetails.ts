@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from './useAuth';
-import { supabase } from '@/lib/supabase';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { UserProfiles } from '@/types/interfaces';
 
 interface ProfileDetailsState {
@@ -10,19 +10,59 @@ interface ProfileDetailsState {
   lastFetched: number | null;
 }
 
+interface UserProfileDetailsHook {
+  userProfileDetails: UserProfiles | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+}
+
 /**
  * 필요한 시점에 프로필 상세 정보를 조회하는 훅
  * 로그인 시에는 세션 기반 기본 프로필만 사용하고,
  * 마이페이지, 투표 등에서 필요할 때만 DB 조회 수행
  */
-export function useProfileDetails() {
+export function useProfileDetails(): UserProfileDetailsHook {
   const { user, userProfile } = useAuth();
-  const [state, setState] = useState<ProfileDetailsState>({
-    isLoading: false,
-    error: null,
-    detailedProfile: null,
-    lastFetched: null,
-  });
+  const [userProfileDetails, setUserProfileDetails] = useState<UserProfiles | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchUserProfileDetails = async () => {
+    if (!user?.id) {
+      setUserProfileDetails(null);
+      setError(null);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setUserProfileDetails(data);
+    } catch (err: any) {
+      console.error('사용자 프로필 상세 정보 조회 오류:', err);
+      setError(err.message || '프로필 정보를 불러오는 중 오류가 발생했습니다.');
+      setUserProfileDetails(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfileDetails();
+  }, [user?.id]);
 
   /**
    * 프로필 상세 정보 조회 (필요시에만 호출)
@@ -30,7 +70,7 @@ export function useProfileDetails() {
    */
   const fetchProfileDetails = useCallback(async (force: boolean = false) => {
     if (!user?.id) {
-      setState(prev => ({ ...prev, error: '로그인이 필요합니다' }));
+      setError('로그인이 필요합니다');
       return null;
     }
 
@@ -38,12 +78,13 @@ export function useProfileDetails() {
     const now = Date.now();
     const cacheExpiry = 5 * 60 * 1000; // 5분
     
-    if (!force && state.lastFetched && (now - state.lastFetched) < cacheExpiry) {
+    if (!force && userProfileDetails && userProfileDetails.created_at && (now - new Date(userProfileDetails.created_at).getTime()) < cacheExpiry) {
       console.log('📋 [useProfileDetails] 캐시된 상세 프로필 사용');
-      return state.detailedProfile;
+      return userProfileDetails;
     }
 
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setLoading(true);
+    setError(null);
     
     const startTime = Date.now();
     
@@ -55,6 +96,7 @@ export function useProfileDetails() {
         setTimeout(() => reject(new Error('프로필 상세 조회 타임아웃')), 5000);
       });
 
+      const supabase = createBrowserSupabaseClient();
       const profilePromise = supabase
         .from('user_profiles')
         .select(`
@@ -76,13 +118,7 @@ export function useProfileDetails() {
         console.warn('⚠️ [useProfileDetails] 프로필 상세 조회 실패:', error);
         
         // DB 조회 실패 시 세션 기반 프로필 유지
-        setState(prev => ({ 
-          ...prev, 
-          isLoading: false,
-          error: `프로필 조회 실패: ${error.message}`,
-          detailedProfile: userProfile, // 기존 세션 기반 프로필 유지
-          lastFetched: now,
-        }));
+        setUserProfileDetails(userProfile);
         
         return userProfile;
       }
@@ -96,13 +132,7 @@ export function useProfileDetails() {
       });
 
       // 상태 업데이트
-      setState(prev => ({ 
-        ...prev, 
-        isLoading: false,
-        error: null,
-        detailedProfile,
-        lastFetched: now,
-      }));
+      setUserProfileDetails(detailedProfile);
 
       // 상세 프로필 정보를 내부 상태에만 저장 (AuthProvider는 세션 기반 프로필 유지)
       return detailedProfile;
@@ -111,17 +141,11 @@ export function useProfileDetails() {
       const duration = Date.now() - startTime;
       console.error(`❌ [useProfileDetails] 프로필 상세 조회 예외 (${duration}ms):`, error);
       
-      setState(prev => ({ 
-        ...prev, 
-        isLoading: false,
-        error: error instanceof Error ? error.message : '프로필 조회 오류',
-        detailedProfile: userProfile, // 기존 세션 기반 프로필 유지
-        lastFetched: now,
-      }));
+      setUserProfileDetails(userProfile);
       
       return userProfile;
     }
-  }, [user?.id, state.lastFetched, state.detailedProfile, userProfile]);
+  }, [user?.id, userProfileDetails, userProfile]);
 
   /**
    * 특정 정보가 필요한지 확인하는 유틸리티 함수들
@@ -167,23 +191,9 @@ export function useProfileDetails() {
   }, [userProfile?.is_admin, fetchProfileDetails]);
 
   return {
-    // 상태
-    isLoading: state.isLoading,
-    error: state.error,
-    detailedProfile: state.detailedProfile || userProfile,
-    
-    // 조회 함수들
-    fetchProfileDetails,
-    fetchForMyPage,
-    fetchForVoting,
-    checkAdminStatus,
-    
-    // 유틸리티
-    needsDetailedProfile,
-    
-    // 편의 속성들
-    hasDetailedData: !!state.detailedProfile,
-    starCandy: state.detailedProfile?.star_candy || userProfile?.star_candy || 0,
-    isAdmin: state.detailedProfile?.is_admin || userProfile?.is_admin || false,
+    userProfileDetails,
+    loading,
+    error,
+    refetch: fetchUserProfileDetails,
   };
 } 

@@ -10,7 +10,7 @@ import '@testing-library/jest-dom';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 // AuthProvider
-import { EnhancedAuthProvider } from '@/lib/supabase/auth-provider-enhanced';
+import { AuthProvider } from '@/lib/supabase/auth-provider';
 
 // 향상된 API들
 import { 
@@ -115,9 +115,9 @@ describe('성능 개선 효과 데모', () => {
 
       await act(async () => {
         render(
-          <EnhancedAuthProvider>
+          <AuthProvider>
             <TestComponent />
-          </EnhancedAuthProvider>
+          </AuthProvider>
         );
       });
 
@@ -136,9 +136,9 @@ describe('성능 개선 효과 데모', () => {
 
       await act(async () => {
         render(
-          <EnhancedAuthProvider>
+          <AuthProvider>
             <TestComponent />
-          </EnhancedAuthProvider>
+          </AuthProvider>
         );
       });
 
@@ -152,9 +152,9 @@ describe('성능 개선 효과 데모', () => {
 
       await act(async () => {
         render(
-          <EnhancedAuthProvider>
+          <AuthProvider>
             <TestComponent />
-          </EnhancedAuthProvider>
+          </AuthProvider>
         );
       });
 
@@ -325,9 +325,9 @@ describe('성능 개선 효과 데모', () => {
       await Promise.all([
         act(async () => {
           render(
-            <EnhancedAuthProvider>
+            <AuthProvider>
               <PerformanceDashboard />
-            </EnhancedAuthProvider>
+            </AuthProvider>
           );
         }),
         checkCanVoteEnhanced({ userId: 'test-user', voteAmount: 10 }),

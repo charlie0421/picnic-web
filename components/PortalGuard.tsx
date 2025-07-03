@@ -1,9 +1,10 @@
 'use client';
 
-import {PortalType} from '@/utils/enums';
-import {usePathname, useRouter} from 'next/navigation';
-import {useEffect} from 'react';
-import {supabase} from '@/utils/supabase-client';
+import React, { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { PortalType } from '@/utils/enums';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface PortalProps {
   type?: PortalType;
@@ -16,7 +17,7 @@ export default function PortalGuard({ type = PortalType.PUBLIC, children }: Port
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await createBrowserSupabaseClient().auth.getSession();
 
       // 인증 상태에 따른 리다이렉션
       if (type === PortalType.AUTH && session) {

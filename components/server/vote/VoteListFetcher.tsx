@@ -25,40 +25,41 @@ async function fetchVotes(status: VoteStatus, area: VoteArea): Promise<Vote[]> {
     // 공통 포맷터 사용
     return formatVoteData(voteData);
   } catch (error) {
-    console.error('Unexpected error in fetchVotes:', error);
+    console.error('fetchVotes error:', error);
     return [];
   }
 }
 
 interface VoteListFetcherProps {
-  status?: VoteStatus;
-  area?: VoteArea;
+  status: VoteStatus;
+  area: VoteArea;
   className?: string;
-  enablePagination?: boolean;
-  pageSize?: number;
 }
 
+/**
+ * 서버 컴포넌트: 투표 데이터를 서버에서 페칭하여 클라이언트 컴포넌트에 전달
+ * 
+ * 장점:
+ * - 초기 페이지 로드 시 빠른 렌더링 (서버에서 데이터 포함)
+ * - SEO 최적화 (크롤러가 투표 내용 인덱싱 가능)
+ * - 클라이언트 번들 크기 감소
+ * 
+ * 사용법:
+ * ```tsx
+ * <VoteListFetcher status="ongoing" area="all" className="my-4" />
+ * ```
+ */
 export async function VoteListFetcher({ 
-  status = VOTE_STATUS.ONGOING,
-  area = VOTE_AREAS.ALL,
-  className,
-  enablePagination = true,
-  pageSize = 12
+  status = VOTE_STATUS.ONGOING, 
+  area = VOTE_AREAS.ALL, 
+  className 
 }: VoteListFetcherProps) {
-  // 선택된 status와 area에 해당하는 투표만 가져오기
   const votes = await fetchVotes(status, area);
   
   return (
     <div className={className}>
-      {/* 필터 섹션 */}
       <VoteFilterSection />
-      
-      {/* 투표 리스트 */}
-      <VoteListPresenter 
-        votes={votes}
-        hasMore={enablePagination && votes.length >= pageSize}
-        isLoading={false}
-      />
+      <VoteListPresenter votes={votes} />
     </div>
   );
 } 

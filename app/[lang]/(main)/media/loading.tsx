@@ -1,10 +1,17 @@
-import { LoadingState } from '@/components/server';
+import { MediaSkeleton } from '@/components/client/media';
 
 /**
  * 미디어 페이지의 로딩 상태 컴포넌트
  * 
- * 미디어 데이터를 불러오는 동안 표시될 로딩 인디케이터입니다.
+ * 미디어 데이터를 불러오는 동안 표시될 스켈레톤 UI입니다.
+ * Next.js가 자동으로 이 컴포넌트를 Suspense fallback으로 사용합니다.
  */
 export default function MediaLoading() {
-  return <LoadingState message="미디어 콘텐츠를 불러오는 중입니다..." fullPage size="large" />;
+  return (
+    <main className="container mx-auto px-4 py-8">
+      <section>
+        <MediaSkeleton />
+      </section>
+    </main>
+  );
 } 

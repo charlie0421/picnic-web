@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguageStore } from '@/stores/languageStore';
-import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { Products } from '@/types/interfaces';
 import { portOneService } from '@/lib/payment/portone';
 import { X } from 'lucide-react';

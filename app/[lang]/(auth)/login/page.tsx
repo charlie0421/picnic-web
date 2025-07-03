@@ -1,14 +1,13 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/utils/supabase-client';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import Script from 'next/script';
 import { SocialLoginButtons } from '@/components/client/auth';
-import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import Link from 'next/link';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 

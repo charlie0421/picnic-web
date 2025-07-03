@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useLanguageStore } from '@/stores/languageStore';
 import Footer from '../Footer';

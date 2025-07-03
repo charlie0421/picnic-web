@@ -3,4 +3,5 @@ export { StarCandyProductsPresenter } from './StarCandyProductsPresenter';
 export { StarCandyProductsWrapper } from './StarCandyProductsWrapper';
 export { PaymentMethodSelector } from './PaymentMethodSelector';
 export { PortOnePaymentModal } from './PortOnePaymentModal';
-export { PayPalPaymentButton } from './PayPalPaymentButton'; 
+export { PayPalPaymentButton } from './PayPalPaymentButton';
+export { StarCandySkeleton } from './StarCandySkeleton'; 

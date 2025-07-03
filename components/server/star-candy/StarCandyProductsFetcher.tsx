@@ -48,7 +48,6 @@ export default async function StarCandyProductsFetcherServer({ className }: Star
   return (
     <StarCandyProductsPresenter
       products={products}
-      loading={false}
       error={error}
       className={className}
     />

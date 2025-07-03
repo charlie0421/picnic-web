@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
 import { ClientNavigationSetter } from '@/components/client';
 import { PortalType } from '@/utils/enums';
@@ -7,7 +7,6 @@ import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils';
 import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { RewardListFetcher } from '@/components/server/reward';
-import { LoadingState } from '@/components/server';
 
 // ISR을 위한 메타데이터 구성 (60초마다 재검증)
 export const revalidate = 60;
@@ -68,9 +67,7 @@ export default async function RewardsPage({
         }}
       />
       <div className='container mx-auto px-4 py-6 space-y-10'>
-        <Suspense fallback={<LoadingState message="미디어 데이터를 불러오는 중..." size="large" fullPage />}>
-          <RewardListFetcher showViewAllLink={true} />
-        </Suspense>
+        <RewardListFetcher showViewAllLink={true} />
 
         {/* 클라이언트 포털 타입 설정 */}
         <ClientNavigationSetter portalType={PortalType.VOTE} />

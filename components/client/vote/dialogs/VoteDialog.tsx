@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 import { useLanguageStore } from '@/stores/languageStore';
 import { VoteItem } from '@/types/interfaces';

@@ -1,11 +1,12 @@
 'use client';
 
 import React, {useEffect, useState} from 'react';
-import {supabase} from '@/utils/supabase-client';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import {format} from 'date-fns';
 import Link from 'next/link';
 import {getCurrentLocale} from '@/utils/date';
 import {useLanguageStore} from '@/stores/languageStore';
+import { getLocalizedString } from '@/utils/api/strings';
 
 interface MultilingualText {
   en?: string;
@@ -20,7 +21,7 @@ interface Notice {
   title: MultilingualText;
   content: MultilingualText;
   created_at: string | null;
-  isPinned: boolean | null;
+  is_pinned: boolean | null;
   status: string | null;
 }
 
@@ -31,14 +32,25 @@ const NoticePage = () => {
   useEffect(() => {
     const fetchNotices = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await createBrowserSupabaseClient()
           .from('notices')
           .select('*')
           .order('is_pinned', { ascending: false })
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setNotices(data || []);
+        
+        // 데이터베이스 데이터를 Notice 타입으로 변환
+        const transformedNotices: Notice[] = (data || []).map(item => ({
+          id: item.id,
+          title: item.title as MultilingualText,
+          content: item.content as MultilingualText,
+          created_at: item.created_at,
+          is_pinned: item.is_pinned,
+          status: item.status
+        }));
+        
+        setNotices(transformedNotices);
       } catch (error) {
         console.error('공지사항을 불러오는 중 오류가 발생했습니다:', error);
       } finally {
@@ -80,7 +92,7 @@ const NoticePage = () => {
                   <div className="py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        {notice.isPinned && (
+                        {notice.is_pinned && (
                           <span className="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded">
                             공지
                           </span>

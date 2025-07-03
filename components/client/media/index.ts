@@ -7,4 +7,5 @@
 
 export { default as MediaListPresenter } from './MediaListPresenter';
 export * from './types';
-export * from './utils'; 
+export * from './utils';
+export { MediaSkeleton } from './MediaSkeleton'; 

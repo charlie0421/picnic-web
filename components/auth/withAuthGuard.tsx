@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLoginRequired } from '@/components/ui/Dialog';
 import { saveRedirectUrl } from '@/utils/auth-redirect';
 import { useLanguageStore } from '@/stores/languageStore';

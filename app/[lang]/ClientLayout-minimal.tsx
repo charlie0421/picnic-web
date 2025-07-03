@@ -1,32 +1,23 @@
 'use client';
 
 import React from 'react';
-import { SupabaseProvider } from '@/components/providers/SupabaseProvider';
-import { AuthProvider as SimpleAuthProvider } from '@/lib/supabase/auth-provider-simple';
-import { NavigationProvider } from '@/contexts/NavigationContext';
+import { AuthProvider } from '@/lib/supabase/auth-provider';
 import { Analytics } from '@vercel/analytics/react';
-import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
 
-interface ClientLayoutProps {
-  children: any;
+interface ClientLayoutMinimalProps {
+  children: React.ReactNode;
   initialLanguage: string;
 }
 
-export default function MinimalClientLayout({
+// 최소한의 Provider 구조 - 테스트/디버깅용
+export default function ClientLayoutMinimal({
   children,
   initialLanguage,
-}: ClientLayoutProps) {
-  // 최소한의 Provider만 사용하여 React Hook #310 에러 원인 찾기
+}: ClientLayoutMinimalProps) {
   return (
-    <NavigationProvider>
-      <LanguageSyncProvider initialLanguage={initialLanguage}>
-        <SupabaseProvider>
-          <SimpleAuthProvider>
-            {children}
-            <Analytics />
-          </SimpleAuthProvider>
-        </SupabaseProvider>
-      </LanguageSyncProvider>
-    </NavigationProvider>
+    <AuthProvider>
+      {children}
+      <Analytics />
+    </AuthProvider>
   );
 } 

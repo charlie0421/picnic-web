@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSupabase } from '@/components/providers/SupabaseProvider';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { Vote } from '@/types/interfaces';
 import { VoteStatus, VoteArea } from '@/stores/voteFilterStore';
 import { getVotesClient } from '@/lib/data-fetching/vote-service';
@@ -27,7 +27,7 @@ export function useVoteList({
   area, 
   initialVotes = [] 
 }: UseVoteListParams): UseVoteListReturn {
-  const { supabase } = useSupabase();
+  const supabase = createBrowserSupabaseClient();
   const [votes, setVotes] = useState<Vote[]>(initialVotes);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);

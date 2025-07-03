@@ -2,11 +2,12 @@
 
 import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
-import { supabase } from '@/utils/supabase-client';
-import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getSocialAuthService } from '@/lib/supabase/social';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
+import { Button } from '@/components/common/atoms/Button';
 
 interface SocialLoginButtonsProps {
   onLoginStart?: () => void;
@@ -35,6 +36,7 @@ export default function SocialLoginButtons({
   const [isLoading, setIsLoading] = useState<SocialLoginProvider | null>(null);
   const { t } = useLanguageStore();
   const isLocal = isLocalDevelopment();
+  const { isLoading: authLoading } = useAuth();
 
   const handleSocialLogin = useCallback(
     async (provider: SocialLoginProvider) => {
@@ -44,7 +46,7 @@ export default function SocialLoginButtons({
         return;
       }
 
-      console.log(`🔍 [SocialLoginButtons] ${provider} 로그인 시도 시작`);
+      console.log(`🔄 [SocialLogin] ${provider.toUpperCase()} 로그인 시작`);
       
       try {
         // 로딩 상태 설정
@@ -55,25 +57,22 @@ export default function SocialLoginButtons({
 
         // 소셜 로그인 서비스 인스턴스 가져오기 (자동으로 Supabase 클라이언트 생성)
         const socialAuthService = getSocialAuthService();
-        console.log(`🔍 [SocialLoginButtons] SocialAuthService 인스턴스 생성 완료`);
+        console.log(`🔗 [SocialLogin] ${provider.toUpperCase()} 인증 서비스 생성 완료`);
 
         // 선택된 제공자로 로그인 시도
         console.log(`🔍 [SocialLoginButtons] ${provider} 로그인 서비스 호출 시작`);
-        const result = await socialAuthService.signInWithProvider(provider, {
-          redirectUrl: `${window.location.origin}/auth/callback/${provider}`,
-        });
+        const authResult = await socialAuthService.signInWithProvider(provider);
 
-        console.log(`🔍 [SocialLoginButtons] ${provider} 로그인 서비스 호출 결과:`, result);
-
-        // 로그인 성공 시 (리디렉션 중)
-        if (result.success) {
-          // 리디렉션 중이므로 완료 콜백은 호출되지 않음
-          // 사용자는 callback 처리 후에 리디렉션되어 돌아옴
-          console.log(`✅ [SocialLoginButtons] ${provider} 로그인 리디렉션 중...`);
-        } else if (result.error) {
+        console.log(`🔗 [SocialLogin] ${provider.toUpperCase()} 인증 결과:`, authResult);
+        
+        if (authResult.success) {
+          // 로그인 성공 시 
+          console.log(`✅ [SocialLoginButtons] ${provider} 로그인 성공`);
+          onLoginComplete?.();
+        } else {
           // 오류 처리
-          console.error(`❌ [SocialLoginButtons] ${provider} 로그인 실패:`, result.error);
-          onError?.(result.error);
+          console.error(`❌ [SocialLoginButtons] ${provider} 로그인 실패:`, authResult.error);
+          onError?.(authResult.error || new Error(t('unknown_login_error')));
         }
       } catch (error) {
         console.error(`💥 [SocialLoginButtons] ${provider} 소셜 로그인 오류:`, error);
@@ -89,6 +88,29 @@ export default function SocialLoginButtons({
     },
     [onLoginStart, onError, t, isLocal],
   );
+
+  const handleStandardLogin = async () => {
+    try {
+      console.log('🔄 [SocialLogin] 표준 OAuth 로그인 시작');
+      
+      const supabase = createBrowserSupabaseClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('✅ [SocialLogin] 표준 OAuth 로그인 완료');
+    } catch (error) {
+      console.error('❌ [SocialLogin] 표준 OAuth 로그인 오류:', error);
+      alert('표준 OAuth 로그인 중 오류가 발생했습니다.');
+    }
+  };
 
   // 각 소셜 로그인 버튼의 스타일 및 내용 설정
   const providerConfig: Record<
@@ -166,11 +188,10 @@ export default function SocialLoginButtons({
 
         return (
           <div key={provider} className="relative">
-            <button
-              type='button'
-              className={`relative flex items-center justify-center w-full gap-3 ${buttonHeight} rounded-2xl transition-all duration-300 font-semibold text-sm md:text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${getProviderStyle()}`}
+            <Button
               onClick={() => handleSocialLogin(provider)}
-              disabled={isLoading === provider || isKakaoDisabled}
+              disabled={isLoading === provider || isKakaoDisabled || authLoading}
+              className={`relative flex items-center justify-center w-full gap-3 ${buttonHeight} rounded-2xl transition-all duration-300 font-semibold text-sm md:text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${getProviderStyle()}`}
             >
               {/* 로딩 상태일 때의 오버레이 */}
               {isLoading === provider && (
@@ -199,7 +220,7 @@ export default function SocialLoginButtons({
               {!isKakaoDisabled && (
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
               )}
-            </button>
+            </Button>
             
             {/* 로컬 환경에서 카카오 버튼에 경고 툴팁 표시 */}
             {isKakaoDisabled && (
@@ -222,6 +243,17 @@ export default function SocialLoginButtons({
           </div>
         </div>
       )}
+      
+      <hr className="my-4" />
+      
+      <Button 
+        onClick={handleStandardLogin}
+        disabled={authLoading}
+        variant="secondary"
+        className="w-full"
+      >
+        🔍 Google로 로그인 (표준)
+      </Button>
     </div>
   );
 }

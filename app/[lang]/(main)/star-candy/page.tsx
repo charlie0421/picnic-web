@@ -1,8 +1,6 @@
 import { Metadata } from 'next';
 import StarCandyProductsFetcherServer from '@/components/server/star-candy/StarCandyProductsFetcher';
 import { getLanguageFromParams } from '@/utils/api/language';
-import { Suspense } from 'react';
-import { StarCandySkeleton } from '@/components/client/star-candy/StarCandySkeleton';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang } = await params;
@@ -33,9 +31,7 @@ export default async function StarCandyPage({ params }: { params: Promise<{ lang
       />
       <main className="container mx-auto px-4 py-8">
         <section>
-          <Suspense fallback={<StarCandySkeleton />}>
-            <StarCandyProductsFetcherServer />
-          </Suspense>
+          <StarCandyProductsFetcherServer />
         </section>
       </main>
     </>

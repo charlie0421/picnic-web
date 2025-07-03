@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { useLanguageStore } from '@/stores/languageStore';
-import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { Products } from '@/types/interfaces';
 import { payPalService } from '@/lib/payment/paypal';
 

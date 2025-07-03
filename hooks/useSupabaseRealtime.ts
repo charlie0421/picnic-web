@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSupabase } from "@/components/providers/SupabaseProvider";
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { clientTransformers } from '@/lib/supabase/transforms';
 import { handleError } from "@/lib/supabase/error";
 import type {
   RealtimeChannel,
@@ -61,7 +62,7 @@ export type SubscriptionOptions<T extends Record<string, any>> = {
 export function useSupabaseSubscription<T extends Record<string, any>>(
   options: SubscriptionOptions<T>,
 ) {
-  const { supabase, transformers } = useSupabase();
+  const supabase = createBrowserSupabaseClient();
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -105,10 +106,10 @@ export function useSupabaseSubscription<T extends Record<string, any>>(
             (payload: RealtimePostgresChangesPayload<any>) => {
               // 페이로드 데이터를 카멜 케이스로 변환
               if (payload.new) {
-                payload.new = transformers.transform(payload.new);
+                payload.new = clientTransformers.transform(payload.new);
               }
               if (payload.old) {
-                payload.old = transformers.transform(payload.old);
+                payload.old = clientTransformers.transform(payload.old);
               }
 
               // 콜백 호출
@@ -137,7 +138,7 @@ export function useSupabaseSubscription<T extends Record<string, any>>(
 
     // 컴포넌트 언마운트 시 구독 정리
     return cleanup;
-  }, [supabase, table, event, filter, onChange, cleanup, transformers]);
+  }, [supabase, table, event, filter, onChange, cleanup]);
 
   return {
     isConnected,
@@ -183,7 +184,7 @@ export function useRealtimeData<T extends Record<string, any>>({
   /**
    * 초기 데이터를 가져오는 쿼리 함수
    */
-  query: (supabase: ReturnType<typeof useSupabase>["supabase"]) => Promise<{
+  query: (supabase: ReturnType<typeof createBrowserSupabaseClient>) => Promise<{
     data: any;
     error: any;
   }>;
@@ -196,7 +197,7 @@ export function useRealtimeData<T extends Record<string, any>>({
     filter?: string;
   };
 }) {
-  const { supabase, transformers } = useSupabase();
+  const supabase = createBrowserSupabaseClient();
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -214,7 +215,7 @@ export function useRealtimeData<T extends Record<string, any>>({
         setError(handleError(responseError));
         setData(null);
       } else {
-        setData(transformers.transform(responseData) as T);
+        setData(clientTransformers.transform(responseData) as T);
         setError(null);
       }
     } catch (err) {
@@ -223,7 +224,7 @@ export function useRealtimeData<T extends Record<string, any>>({
     } finally {
       setIsLoading(false);
     }
-  }, [supabase, query, transformers]);
+  }, [supabase, query]);
 
   // 데이터 변경 핸들러
   const handleDataChange = useCallback(

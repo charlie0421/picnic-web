@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 import { AuthCallbackSkeleton } from '@/components/server';
-import { supabase } from '@/lib/supabase';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { getSocialAuthService } from '@/lib/supabase/social';
 
 interface AuthCallbackClientProps {
@@ -53,7 +53,7 @@ export default function AuthCallbackClient({
           
           try {
             // Supabase의 자동 세션 복구 시도
-            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+            const { data: sessionData, error: sessionError } = await createBrowserSupabaseClient().auth.getSession();
             
             if (!sessionError && sessionData.session) {
               console.log('✅ [AuthCallback] Supabase 자동 처리로 세션 복구 성공');
@@ -106,7 +106,7 @@ export default function AuthCallbackClient({
             }, 3000); // 3초 대기
 
             // OAuth 상태 변경 이벤트 리스너
-            const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+            const { data: authListener } = createBrowserSupabaseClient().auth.onAuthStateChange((event, session) => {
               console.log('🔔 [AuthCallback] Auth 상태 변경:', { event, hasSession: !!session });
               
               if (event === 'SIGNED_IN' && session && !authEventHandled) {
@@ -341,7 +341,7 @@ export default function AuthCallbackClient({
                   const tempPassword = result.tokens.id_token;
                   
                   // 기존 사용자 확인 후 로그인 시도
-                  const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+                  const { data: loginData, error: loginError } = await createBrowserSupabaseClient().auth.signInWithPassword({
                     email: tempEmail,
                     password: tempPassword
                   });
@@ -353,7 +353,7 @@ export default function AuthCallbackClient({
                     console.log('ℹ️ WeChat 신규 사용자, 회원가입 시도...');
                     
                     // 신규 사용자 생성
-                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                    const { data: signUpData, error: signUpError } = await createBrowserSupabaseClient().auth.signUp({
                       email: tempEmail,
                       password: tempPassword,
                       options: {
@@ -555,7 +555,7 @@ export default function AuthCallbackClient({
                   if (originalNonce && !clientSuccess) {
                     console.log('🧪 클라이언트 실험 1: 원본 nonce로 시도...');
                     try {
-                      const { data: sessionData1, error: sessionError1 } = await supabase.auth.signInWithIdToken({
+                      const { data: sessionData1, error: sessionError1 } = await createBrowserSupabaseClient().auth.signInWithIdToken({
                         provider: 'apple',
                         token: result.authData.appleIdToken,
                         nonce: originalNonce
@@ -577,7 +577,7 @@ export default function AuthCallbackClient({
                   if (!clientSuccess) {
                     console.log('🧪 클라이언트 실험 2: nonce 없이 시도...');
                     try {
-                      const { data: sessionData2, error: sessionError2 } = await supabase.auth.signInWithIdToken({
+                      const { data: sessionData2, error: sessionError2 } = await createBrowserSupabaseClient().auth.signInWithIdToken({
                         provider: 'apple',
                         token: result.authData.appleIdToken
                         // nonce 제거
@@ -599,7 +599,7 @@ export default function AuthCallbackClient({
                   if (!clientSuccess && result.authData?.tokenNonce) {
                     console.log('🧪 클라이언트 실험 3: 해시된 nonce로 시도...');
                     try {
-                      const { data: sessionData3, error: sessionError3 } = await supabase.auth.signInWithIdToken({
+                      const { data: sessionData3, error: sessionError3 } = await createBrowserSupabaseClient().auth.signInWithIdToken({
                         provider: 'apple',
                         token: result.authData.appleIdToken,
                         nonce: result.authData.tokenNonce
@@ -622,7 +622,7 @@ export default function AuthCallbackClient({
                     console.log('🧪 클라이언트 실험 4: Auth Helper 방식으로 시도...');
                     try {
                       // Supabase auth helper를 사용한 방식
-                      const session = await supabase.auth.getSession();
+                      const session = await createBrowserSupabaseClient().auth.getSession();
                       console.log('현재 세션 상태:', { 
                         hasSession: !!session.data.session,
                         sessionData: session.data.session 
@@ -642,7 +642,7 @@ export default function AuthCallbackClient({
                   if (!clientSuccess && result.authData?.user?.email) {
                     console.log('🧪 클라이언트 실험 5: 이메일 기반 passwordless 로그인...');
                     try {
-                      const { data: signInData, error: signInError } = await supabase.auth.signInWithOtp({
+                      const { data: signInData, error: signInError } = await createBrowserSupabaseClient().auth.signInWithOtp({
                         email: result.authData.user.email,
                         options: {
                           shouldCreateUser: true,
@@ -664,7 +664,7 @@ export default function AuthCallbackClient({
                         
                         // 잠시 후 세션 재확인
                         setTimeout(async () => {
-                          const newSession = await supabase.auth.getSession();
+                          const newSession = await createBrowserSupabaseClient().auth.getSession();
                           if (newSession.data.session) {
                             console.log('✅ 클라이언트 실험 5 최종 성공: 세션 생성됨!');
                             clientSuccess = true;
@@ -687,7 +687,7 @@ export default function AuthCallbackClient({
                       const tempPassword = `apple_${result.authData.user.id}_${Date.now()}`;
                       
                       // 사용자 생성 시도
-                      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                      const { data: signUpData, error: signUpError } = await createBrowserSupabaseClient().auth.signUp({
                         email: result.authData.user.email,
                         password: tempPassword,
                         options: {
@@ -705,7 +705,7 @@ export default function AuthCallbackClient({
                         console.log('✅ 클라이언트 실험 6: 사용자 생성 성공, 즉시 로그인 시도...');
                         
                         // 즉시 로그인 시도
-                        const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+                        const { data: loginData, error: loginError } = await createBrowserSupabaseClient().auth.signInWithPassword({
                           email: result.authData.user.email,
                           password: tempPassword
                         });
@@ -722,7 +722,7 @@ export default function AuthCallbackClient({
                         
                         // 기존 사용자 로그인 시도 (임시 패스워드로는 불가능)
                         // 대신 OTP 방식으로 재시도
-                        const { error: otpError } = await supabase.auth.signInWithOtp({
+                        const { error: otpError } = await createBrowserSupabaseClient().auth.signInWithOtp({
                           email: result.authData.user.email
                         });
                         

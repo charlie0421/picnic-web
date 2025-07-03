@@ -24,9 +24,34 @@ export interface BannerListFetcherProps {
  * ```
  */
 export async function BannerListFetcher({ className }: BannerListFetcherProps = {}) {
-  const banners = await getBanners();
+  try {
+    const banners = await getBanners();
+    
+    if (!banners || banners.length === 0) {
+      return null; // 배너가 없으면 아무것도 렌더링하지 않음
+    }
 
-  return (
-    <BannerListPresenter banners={banners} className={className} />
-  );
+    // 데이터 변환 - DBBanner를 클라이언트용 Banner로 변환
+    const clientBanners = banners.map((banner) => ({
+      id: banner.id,
+      celeb_id: banner.celeb_id,
+      created_at: banner.created_at,
+      deleted_at: banner.deleted_at,
+      duration: banner.duration,
+      end_at: banner.end_at,
+      image: banner.image,
+      link: banner.link,
+      location: banner.location,
+      order: banner.order,
+      start_at: banner.start_at,
+      thumbnail: banner.thumbnail,
+      title: banner.title,
+      updated_at: banner.updated_at,
+    }));
+
+    return <BannerListPresenter banners={clientBanners} className={className} />;
+  } catch (error) {
+    console.error('BannerListFetcher error:', error);
+    return null; // 에러 시 배너 섹션을 숨김
+  }
 } 

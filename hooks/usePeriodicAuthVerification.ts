@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
-import { useAuth } from '@/lib/supabase/auth-provider-enhanced';
+import { useAuth } from '@/lib/supabase/auth-provider';
 
 // 검증 간격 설정 (기본: 5분)
 const DEFAULT_VERIFICATION_INTERVAL = 5 * 60 * 1000;

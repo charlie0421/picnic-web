@@ -1,7 +1,7 @@
 'use client';
 
 import React, {useEffect, useState} from 'react';
-import {supabase} from '@/utils/supabase-client';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import {format} from 'date-fns';
 import {ko} from 'date-fns/locale';
 import {useParams, useRouter} from 'next/navigation';
@@ -35,14 +35,31 @@ const NoticeDetailPage = () => {
   useEffect(() => {
     const fetchNotice = async () => {
       try {
-        const { data, error } = await supabase
+        // noticeId를 숫자로 변환하고 유효성 검증
+        const id = parseInt(noticeId as string, 10);
+        if (isNaN(id)) {
+          throw new Error('유효하지 않은 공지사항 ID입니다.');
+        }
+
+        const { data, error } = await createBrowserSupabaseClient()
           .from('notices')
           .select('*')
-          .eq('id', noticeId)
+          .eq('id', id)
           .single();
 
         if (error) throw error;
-        setNotice(data);
+        
+        // 데이터 변환
+        const transformedNotice: Notice = {
+          id: data.id,
+          title: data.title as MultilingualText,
+          content: data.content as MultilingualText,
+          createdAt: data.created_at,
+          isPinned: data.is_pinned,
+          status: data.status
+        };
+        
+        setNotice(transformedNotice);
       } catch (error) {
         console.error('공지사항을 불러오는 중 오류가 발생했습니다:', error);
         router.push('/notice');

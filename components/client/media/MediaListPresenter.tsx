@@ -8,12 +8,11 @@ import Image from 'next/image';
 import {useLanguageStore} from '@/stores/languageStore';
 
 interface MediaListProps {
-  medias: Media[];
-  isLoading: boolean;
-  error: string | null;
+  media: Media[];
+  className?: string;
 }
 
-const MediaListPresenter: React.FC<MediaListProps> = ({ medias, isLoading, error }) => {
+const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
   const { currentLanguage, t } = useLanguageStore();
 
   const getTitleString = (title: any) => {
@@ -78,46 +77,27 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ medias, isLoading, error
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className='flex justify-center items-center h-64'>
-        <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500'></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative'
-        role='alert'
-      >
-        <span className='block sm:inline'>{error}</span>
-      </div>
-    );
-  }
-
   return (
-    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-      {medias.map((media) => (
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className || ''}`}>
+      {media.map((mediaItem) => (
         <Link
           href={
-            media.video_url ||
-            `https://www.youtube.com/watch?v=${media.video_id}`
+            mediaItem.video_url ||
+            `https://www.youtube.com/watch?v=${mediaItem.video_id}`
           }
-          key={media.id}
+          key={mediaItem.id}
           target='_blank'
           rel='noopener noreferrer'
           className='block'
         >
           <div className='bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300'>
-            {renderThumbnail(media)}
+            {renderThumbnail(mediaItem)}
             <div className='p-4 bg-white/90'>
               <h2 className='text-lg font-semibold text-gray-800 line-clamp-2 mb-2'>
-                {getTitleString(media.title)}
+                {getTitleString(mediaItem.title)}
               </h2>
               <p className='text-sm text-gray-700'>
-                {new Date(media.created_at).toLocaleDateString(
+                {new Date(mediaItem.created_at).toLocaleDateString(
                   currentLanguage === 'ko' ? 'ko-KR' : 'en-US',
                   {
                     year: 'numeric',
@@ -131,7 +111,7 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ medias, isLoading, error
         </Link>
       ))}
 
-      {medias.length === 0 && !isLoading && !error && (
+      {media.length === 0 && (
         <div className='text-center py-12 col-span-full'>
           <p className='text-xl text-gray-800 font-medium'>{t('media_no_items')}</p>
         </div>

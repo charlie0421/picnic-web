@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useSupabase } from '@/components/providers/SupabaseProvider';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { handleError, AppError } from '@/lib/supabase/error';
 import { PostgrestError } from '@supabase/supabase-js';
 
@@ -35,42 +35,26 @@ export type QueryState<T> = {
   data: T | null;
 };
 
-/**
- * Supabase 쿼리를 위한 확장 커스텀 훅
- * 
- * 이 훅은 데이터 로딩 상태 관리, 에러 처리, 자동 데이터 변환 기능을 제공합니다.
- * 자동으로 카멜 케이스 변환도 적용됩니다.
- * 
- * @example
- * ```tsx
- * const { 
- *   data, 
- *   isLoading, 
- *   isError, 
- *   error, 
- *   execute 
- * } = useSupabaseQuery(
- *   (supabase) => supabase
- *     .from('votes')
- *     .select('*')
- * );
- * 
- * // 쿼리 실행
- * useEffect(() => {
- *   execute();
- * }, []);
- * ```
- * 
- * @param queryFn Supabase 쿼리 함수
- * @returns 쿼리 상태와 실행 함수
- */
+interface UseSupabaseQueryOptions {
+  queryKey: string;
+  enabled?: boolean;
+  refetchOnMount?: boolean;
+  staleTime?: number;
+}
+
+interface UseSupabaseQueryResult<T> {
+  data: T | null;
+  isLoading: boolean;
+  error: AppError | null;
+  refetch: () => void;
+  execute: () => Promise<void>;
+}
+
 export function useSupabaseQuery<T>(
-  queryFn: (supabase: ReturnType<typeof useSupabase>['supabase']) => Promise<{
-    data: any;
-    error: PostgrestError | null;
-  }>
-) {
-  const { supabase, transformers } = useSupabase();
+  queryFn: (supabase: ReturnType<typeof createBrowserSupabaseClient>) => Promise<{ data: T | null; error: any }>,
+  options: UseSupabaseQueryOptions
+): UseSupabaseQueryResult<T> {
+  const supabase = createBrowserSupabaseClient();
   const [state, setState] = useState<QueryState<T>>({
     isLoading: false,
     isSuccess: false,
@@ -98,14 +82,13 @@ export function useSupabaseQuery<T>(
           data: null,
         });
       } else {
-        // 데이터를 카멜 케이스로 변환
-        const transformedData = transformers.transform(data) as T;
+        // 데이터를 그대로 사용
         setState({
           isLoading: false,
           isSuccess: true,
           isError: false,
           error: null,
-          data: transformedData,
+          data: data,
         });
       }
     } catch (error) {
@@ -118,11 +101,12 @@ export function useSupabaseQuery<T>(
         data: null,
       });
     }
-  }, [supabase, queryFn, transformers]);
+  }, [supabase, queryFn]);
 
   return {
     ...state,
     execute,
+    refetch: execute,
   };
 }
 
@@ -153,14 +137,14 @@ export function useSupabaseQuery<T>(
  */
 export function useSupabaseMutation<T, R = any>(
   mutationFn: (
-    supabase: ReturnType<typeof useSupabase>['supabase'],
+    supabase: ReturnType<typeof createBrowserSupabaseClient>,
     data: T
   ) => Promise<{
     data: any;
     error: PostgrestError | null;
   }>
 ) {
-  const { supabase, transformers } = useSupabase();
+  const supabase = createBrowserSupabaseClient();
   const [state, setState] = useState<QueryState<R>>({
     isLoading: false,
     isSuccess: false,
@@ -190,16 +174,15 @@ export function useSupabaseMutation<T, R = any>(
           });
           return { success: false, error: appError };
         } else {
-          // 데이터를 카멜 케이스로 변환
-          const transformedData = transformers.transform(result.data) as R;
+          // 데이터를 그대로 사용
           setState({
             isLoading: false,
             isSuccess: true,
             isError: false,
             error: null,
-            data: transformedData,
+            data: result.data,
           });
-          return { success: true, data: transformedData };
+          return { success: true, data: result.data };
         }
       } catch (error) {
         const appError = handleError(error);
@@ -213,7 +196,7 @@ export function useSupabaseMutation<T, R = any>(
         return { success: false, error: appError };
       }
     },
-    [supabase, mutationFn, transformers]
+    [supabase, mutationFn]
   );
 
   return {
