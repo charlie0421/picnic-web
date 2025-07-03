@@ -12,11 +12,8 @@ import {
 import { createVoteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 
-// 동적 서버 사용 설정 (쿠키 사용으로 인한 정적->동적 에러 방지)
-export const dynamic = 'force-dynamic';
-
-// ISR 비활성화 (동적 페이지이므로)
-// export const revalidate = 30;
+// ISR 활성화 (공개 클라이언트 사용으로 쿠키 의존성 제거)
+export const revalidate = 30;
 
 // 정적 경로 생성
 export async function generateStaticParams() {

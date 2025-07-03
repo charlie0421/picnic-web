@@ -733,7 +733,13 @@ export const getLatestVersion = cache(async (): Promise<{
   apk?: any;
 } | null> => {
   try {
-    const supabase = createServerSupabaseClient();
+    // 공개 데이터용 클라이언트 사용 (쿠키 없음)
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    
     const { data, error } = await supabase
       .from(TABLES.VERSION)
       .select("ios, android, apk")

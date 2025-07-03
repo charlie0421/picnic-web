@@ -6,10 +6,19 @@
  */
 
 import { cache } from "react";
-import { createClient } from "@/utils/supabase-server-client";
+// 공개 데이터용 클라이언트 사용 (쿠키 없음)
+import { createClient } from "@supabase/supabase-js";
 import { CacheOptions } from "./fetchers";
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
+
+// 공개 Supabase 클라이언트 생성 함수 (쿠키 없음)
+function createPublicClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 // 기본 투표 테이블 조회 쿼리
 const DEFAULT_VOTE_QUERY = `
@@ -125,7 +134,7 @@ export const getVotes = cache(async (
   options?: CacheOptions,
 ): Promise<Vote[]> => {
   try {
-    const client = await createClient();
+    const client = createPublicClient(); // 공개 클라이언트 사용
     const query = buildVoteQuery(client, status, area);
     const { data, error } = await query;
 
@@ -175,8 +184,8 @@ export const getVoteById = cache(async (
   try {
     console.log("[getVoteById] 시작 - ID:", id, "Type:", typeof id);
 
-    const client = await createClient();
-    console.log("[getVoteById] Supabase 클라이언트 생성 완료");
+    const client = createPublicClient(); // 공개 클라이언트 사용
+    console.log("[getVoteById] 공개 Supabase 클라이언트 생성 완료");
 
     const { data, error } = await client
       .from("vote")
