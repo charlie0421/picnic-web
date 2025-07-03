@@ -4,7 +4,40 @@ import {withRetry} from "./retry-utils";
 // 서버 환경인지 여부 확인
 const isServer = typeof window === 'undefined';
 
-// 동적으로 클라이언트 가져오기
+// 공개 데이터용 Supabase 클라이언트 (쿠키 없음)
+const getPublicSupabaseClient = async () => {
+  // 환경 변수 체크
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.error('[getPublicSupabaseClient] 필수 환경 변수가 설정되지 않았습니다');
+    throw new Error('Supabase 환경 변수가 설정되지 않았습니다.');
+  }
+
+  if (isServer) {
+    // 서버에서 공개 데이터용 클라이언트 (쿠키 없음)
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const client = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      );
+      return client;
+    } catch (error) {
+      console.error('[getPublicSupabaseClient] 서버 공개 클라이언트 생성 오류:', error);
+      throw error;
+    }
+  } else {
+    // 클라이언트 환경에서는 기존 클라이언트 사용
+    try {
+      const { createBrowserSupabaseClient } = await import('../../lib/supabase/client');
+      return createBrowserSupabaseClient();
+    } catch (error) {
+      console.error('[getPublicSupabaseClient] 브라우저 클라이언트 생성 오류:', error);
+      throw error;
+    }
+  }
+};
+
+// 인증이 필요한 데이터용 클라이언트 (쿠키 사용)
 const getSupabaseClient = async () => {
   // 환경 변수 체크
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -159,7 +192,7 @@ const _getVotes = async (
 // 리워드 데이터 가져오기
 const _getRewards = async (limit?: number): Promise<Reward[]> => {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = await getPublicSupabaseClient(); // 공개 클라이언트 사용
     let query = supabase
       .from("reward")
       .select("*")
@@ -233,8 +266,8 @@ const _getRewardById = async (id: string): Promise<Reward | null> => {
       return null;
     }
 
-    const supabase = await getSupabaseClient();
-    console.log(`[_getRewardById] Supabase 클라이언트 준비 완료, ID ${id} 쿼리 실행`);
+    const supabase = await getPublicSupabaseClient(); // 공개 클라이언트 사용
+    console.log(`[_getRewardById] Supabase 공개 클라이언트 준비 완료, ID ${id} 쿼리 실행`);
     
     const { data: rewardData, error: rewardError } = await supabase
       .from("reward")
