@@ -32,6 +32,11 @@ export default function AuthCallbackClient({
 
     const handleCallback = async () => {
       try {
+        console.log('🚀 [AuthCallback] 메인 콜백 처리 시작');
+        console.log('🔍 [AuthCallback] 현재 URL:', window.location.href);
+        console.log('🔍 [AuthCallback] Provider:', provider);
+        console.log('🔍 [AuthCallback] Search Params:', Object.fromEntries(searchParams.entries()));
+        
         // Supabase 자체 OAuth 콜백 처리 먼저 시도
         console.log('🔍 [AuthCallback] Supabase 자체 OAuth 콜백 처리 시작');
         
