@@ -81,6 +81,16 @@ class AuthStore {
           return;
         }
 
+        // TODO: 향후 최적화 방안들
+        // 1. Supabase 클라이언트 연결 최적화
+        //    - persistSession: 'local' (기본값) vs 'memory'
+        //    - autoRefreshToken: true (기본값) vs false
+        // 2. 지역별 Supabase 엣지 위치 활용
+        //    - 사용자 위치 기반 최적 엣지 선택
+        // 3. 세션 캐시 전략
+        //    - Service Worker를 통한 세션 캐싱
+        //    - IndexedDB 활용한 오프라인 세션
+        
         this.supabaseClient = createBrowserSupabaseClient();
         this.initPromise = this.initialize();
       } catch (error) {
