@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, memo, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import { Language, settings } from '@/config/settings';
+import { StarCandySkeleton } from '@/components/client/star-candy/StarCandySkeleton';
 
 interface LanguageSyncProviderProps {
   children: React.ReactNode;
@@ -22,6 +23,38 @@ function extractLanguageFromPath(pathname: string): Language {
   }
   
   return settings.languages.default;
+}
+
+/**
+ * 기본 스켈레톤 컴포넌트
+ */
+function DefaultSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="animate-pulse">
+        {/* Header Skeleton */}
+        <div className="h-16 bg-gray-200 mb-8"></div>
+        
+        {/* Main Content Skeleton */}
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center mb-8">
+            <div className="h-8 bg-gray-200 rounded-lg w-64 mx-auto mb-4"></div>
+            <div className="h-5 bg-gray-200 rounded-lg w-96 mx-auto"></div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="bg-white rounded-lg p-6 shadow">
+                <div className="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -51,6 +84,11 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
   // 경로에서 언어 추출 - useMemo로 안정화
   const targetLanguage = useMemo(() => {
     return extractLanguageFromPath(pathname);
+  }, [pathname]);
+
+  // star-candy 페이지인지 확인
+  const isStarCandyPage = useMemo(() => {
+    return pathname.includes('/star-candy');
   }, [pathname]);
 
   // 현재 언어의 번역이 실제로 로드되었는지 확인
@@ -117,15 +155,17 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
     syncedRef.current = false;
   }, [currentLanguage]);
 
-  // 번역이 로드되지 않았거나 로딩 중이면 로딩 표시
+  // 번역이 로드되지 않았거나 로딩 중이면 스켈레톤 표시
   if (!mounted || !isHydrated || (isLoading && !fallbackMode) || (!isTranslationReady && !fallbackMode)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          {/* hydration 완료 후에만 디버그 정보 표시 */}
+    // star-candy 페이지에서는 정교한 스켈레톤 사용
+    if (isStarCandyPage) {
+      return (
+        <div className="container mx-auto px-4 py-8">
+          <StarCandySkeleton />
+          
+          {/* Debug info for development */}
           {mounted && isHydrated && process.env.NODE_ENV === 'development' && (
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="fixed bottom-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded text-xs">
               <p>Mounted: {mounted ? '✅' : '❌'}</p>
               <p>Hydrated: {isHydrated ? '✅' : '❌'}</p>
               <p>Loading: {isLoading ? '🔄' : '✅'}</p>
@@ -133,10 +173,31 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
               <p>Current Lang: {currentLanguage}</p>
               <p>Fallback Mode: {fallbackMode ? '✅' : '❌'}</p>
               <p>Retry Count: {retryCountRef.current}/{maxRetries}</p>
+              <p>Star Candy Page: {isStarCandyPage ? '✅' : '❌'}</p>
             </div>
           )}
         </div>
-      </div>
+      );
+    }
+
+    // 다른 페이지에서는 기본 스켈레톤 사용
+    return (
+      <>
+        <DefaultSkeleton />
+        {/* Debug info for development */}
+        {mounted && isHydrated && process.env.NODE_ENV === 'development' && (
+          <div className="fixed bottom-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded text-xs">
+            <p>Mounted: {mounted ? '✅' : '❌'}</p>
+            <p>Hydrated: {isHydrated ? '✅' : '❌'}</p>
+            <p>Loading: {isLoading ? '🔄' : '✅'}</p>
+            <p>Translation Ready: {isTranslationReady ? '✅' : '❌'}</p>
+            <p>Current Lang: {currentLanguage}</p>
+            <p>Fallback Mode: {fallbackMode ? '✅' : '❌'}</p>
+            <p>Retry Count: {retryCountRef.current}/{maxRetries}</p>
+            <p>Star Candy Page: {isStarCandyPage ? '✅' : '❌'}</p>
+          </div>
+        )}
+      </>
     );
   }
 

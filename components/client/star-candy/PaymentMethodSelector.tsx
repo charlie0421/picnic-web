@@ -71,9 +71,30 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
 
   if (isLoading) {
     return (
-      <div className={`flex items-center justify-center p-4 ${className}`}>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span className="ml-3 text-gray-600">{t('detecting_location')}</span>
+      <div className={`space-y-4 ${className}`}>
+        {/* Title Skeleton */}
+        <div className="text-center">
+          <div className="h-6 bg-gray-200 rounded-lg w-48 mx-auto mb-2 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded-lg w-64 mx-auto animate-pulse"></div>
+        </div>
+
+        {/* Payment Method Buttons Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div
+              key={index}
+              className="p-4 rounded-lg border-2 border-gray-200 animate-pulse"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                <div className="text-left flex-1">
+                  <div className="h-5 bg-gray-200 rounded w-20 mb-1"></div>
+                  <div className="h-4 bg-gray-200 rounded w-32"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
