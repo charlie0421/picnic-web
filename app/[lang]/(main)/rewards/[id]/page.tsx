@@ -91,28 +91,44 @@ export default async function RewardDetailPage({
 }: {
   params: Promise<{ id: string; lang: string }>;
 }) {
-  // ISR 메타데이터 설정 (증분 정적 재생성)
-  // createISRMetadata 함수는 숫자만 받음
-  const isrOptions = createISRMetadata(30);
-
   const { id: rewardId } = await params;
 
   try {
+    console.log(`[RewardDetailPage] 리워드 ID ${rewardId} 요청 시작`);
+    
     const reward = await getRewardById(rewardId);
+    
+    console.log(`[RewardDetailPage] 리워드 ID ${rewardId} 조회 결과:`, reward ? '성공' : '없음');
 
     if (!reward) {
+      console.log(`[RewardDetailPage] 리워드 ID ${rewardId} 찾을 수 없음 - 404로 리디렉션`);
       notFound(); // 404 페이지로 리디렉션
     }
 
     return (
       <main className='flex flex-col min-h-screen bg-gray-50'>
-        <Suspense>
+        <Suspense fallback={<div className="p-8 text-center">로딩 중...</div>}>
           <RewardDetailClient reward={reward} />
         </Suspense>
       </main>
     );
   } catch (error) {
-    // 에러 발생 시 에러 경계로 전파
-    throw error;
+    // 상세한 에러 로깅
+    console.error(`[RewardDetailPage] 리워드 ID ${rewardId} 처리 중 에러:`, {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      rewardId,
+    });
+
+    // 프로덕션에서는 사용자에게 친화적인 에러 페이지 표시
+    if (process.env.NODE_ENV === 'production') {
+      // 404로 처리하여 500 에러 방지
+      notFound();
+    } else {
+      // 개발 환경에서는 에러를 그대로 throw하여 디버깅 가능
+      throw error;
+    }
   }
 }

@@ -6,23 +6,50 @@ const isServer = typeof window === 'undefined';
 
 // 동적으로 클라이언트 가져오기
 const getSupabaseClient = async () => {
+  // 환경 변수 체크
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.error('[getSupabaseClient] 필수 환경 변수가 설정되지 않았습니다:', {
+      hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      environment: process.env.NODE_ENV,
+      isServer
+    });
+    throw new Error('Supabase 환경 변수가 설정되지 않았습니다.');
+  }
+
   if (isServer) {
     // 서버 환경에서는 서버 클라이언트 사용
     try {
+      console.log('[getSupabaseClient] 서버 클라이언트 생성 시도');
       const { createClient } = await import("../supabase-server-client");
-      return await createClient();
+      const client = await createClient();
+      console.log('[getSupabaseClient] 서버 클라이언트 생성 성공');
+      return client;
     } catch (error) {
-      console.error('서버 Supabase 클라이언트 생성 오류:', error);
-      throw new Error('서버 Supabase 클라이언트를 생성할 수 없습니다.');
+      console.error('[getSupabaseClient] 서버 Supabase 클라이언트 생성 오류:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        environment: process.env.NODE_ENV
+      });
+      throw new Error(`서버 Supabase 클라이언트를 생성할 수 없습니다: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   } else {
     // 클라이언트 환경에서는 클라이언트 측 Supabase 사용
     try {
+      console.log('[getSupabaseClient] 브라우저 클라이언트 생성 시도');
       const { createBrowserSupabaseClient } = await import('../../lib/supabase/client');
-      return createBrowserSupabaseClient();
+      const client = createBrowserSupabaseClient();
+      console.log('[getSupabaseClient] 브라우저 클라이언트 생성 성공');
+      return client;
     } catch (error) {
-      console.error('클라이언트 Supabase 가져오기 오류:', error);
-      throw new Error('클라이언트 Supabase를 가져올 수 없습니다.');
+      console.error('[getSupabaseClient] 클라이언트 Supabase 가져오기 오류:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        environment: process.env.NODE_ENV
+      });
+      throw new Error(`클라이언트 Supabase를 가져올 수 없습니다: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 };
@@ -199,7 +226,16 @@ const _getBanners = async (): Promise<Banner[]> => {
 // 리워드 상세 정보 가져오기
 const _getRewardById = async (id: string): Promise<Reward | null> => {
   try {
+    console.log(`[_getRewardById] 리워드 ID ${id} 조회 시작`);
+    
+    if (!id || id.trim() === '') {
+      console.error('[_getRewardById] 유효하지 않은 ID:', id);
+      return null;
+    }
+
     const supabase = await getSupabaseClient();
+    console.log(`[_getRewardById] Supabase 클라이언트 준비 완료, ID ${id} 쿼리 실행`);
+    
     const { data: rewardData, error: rewardError } = await supabase
       .from("reward")
       .select("*")
@@ -207,12 +243,46 @@ const _getRewardById = async (id: string): Promise<Reward | null> => {
       .is("deleted_at", null)
       .single();
 
-    if (rewardError) throw rewardError;
-    if (!rewardData) return null;
+    if (rewardError) {
+      console.error(`[_getRewardById] Supabase 쿼리 오류 (ID: ${id}):`, {
+        error: rewardError,
+        code: rewardError.code,
+        message: rewardError.message,
+        details: rewardError.details,
+        hint: rewardError.hint
+      });
+      
+      // PGRST116은 "no rows returned" 에러 (데이터가 없음)
+      if (rewardError.code === 'PGRST116') {
+        console.log(`[_getRewardById] 리워드 ID ${id} 데이터 없음 (정상)`);
+        return null;
+      }
+      
+      throw rewardError;
+    }
+    
+    if (!rewardData) {
+      console.log(`[_getRewardById] 리워드 ID ${id} 데이터 없음`);
+      return null;
+    }
+
+    console.log(`[_getRewardById] 리워드 ID ${id} 조회 성공:`, {
+      id: rewardData.id,
+      title: rewardData.title,
+      hasData: !!rewardData
+    });
 
     return rewardData;
   } catch (error) {
-    logRequestError(error, 'getRewardById');
+    console.error(`[_getRewardById] 리워드 ID ${id} 조회 중 예외:`, {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      id
+    });
+    
+    logRequestError(error, `getRewardById(${id})`);
     return null;
   }
 };
