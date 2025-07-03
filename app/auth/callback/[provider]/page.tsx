@@ -70,103 +70,106 @@ export default function CallbackPage({ params }: CallbackPageProps) {
     handleAuth();
   }, [params.provider, searchParams, router, supabase.auth]);
 
-  // 수동 완료 처리
-  const handleManualComplete = () => {
-    console.log('🔧 [AuthCallback] 수동 완료 시도');
+  // 수동 완료 처리 함수
+  const goToHome = () => {
+    console.log('🔧 [AuthCallback] 홈으로 이동');
     router.push('/');
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      padding: '20px',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      <div style={{
-        background: 'white',
-        border: '1px solid #e0e0e0',
-        borderRadius: '8px',
-        padding: '40px',
-        textAlign: 'center',
-        maxWidth: '400px',
-        width: '100%',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-      }}>
-        <h1 style={{ 
-          fontSize: '24px', 
-          marginBottom: '20px', 
-          color: '#333' 
-        }}>
-          {params.provider.toUpperCase()} 로그인
-        </h1>
-        
-        {!error ? (
-          <>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              border: '3px solid #f0f0f0',
-              borderTop: '3px solid #007bff',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '20px auto'
-            }} />
-            
-            <p style={{ 
-              fontSize: '16px', 
-              color: '#666',
-              marginBottom: '20px'
-            }}>
-              {status}
-            </p>
-          </>
-        ) : (
-          <>
-            <div style={{
-              fontSize: '48px',
-              color: '#dc3545',
-              marginBottom: '20px'
-            }}>
-              ⚠️
-            </div>
-            
-            <p style={{ 
-              fontSize: '16px', 
-              color: '#dc3545',
-              marginBottom: '20px'
-            }}>
-              {error}
-            </p>
-          </>
-        )}
-        
-        <button
-          onClick={handleManualComplete}
-          style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            marginTop: '10px'
-          }}
-        >
-          홈으로 이동
-        </button>
-      </div>
-      
+    <>
       <style jsx>{`
+        .container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          padding: 20px;
+          font-family: Arial, sans-serif;
+          background: #f9fafb;
+        }
+        .card {
+          background: white;
+          border: 1px solid #e0e0e0;
+          border-radius: 8px;
+          padding: 40px;
+          text-align: center;
+          max-width: 400px;
+          width: 100%;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .title {
+          font-size: 24px;
+          margin-bottom: 20px;
+          color: #333;
+        }
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid #f0f0f0;
+          border-top: 3px solid #007bff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 20px auto;
+        }
+        .status {
+          font-size: 16px;
+          color: #666;
+          margin-bottom: 20px;
+        }
+        .error-icon {
+          font-size: 48px;
+          color: #dc3545;
+          margin-bottom: 20px;
+        }
+        .error-text {
+          font-size: 16px;
+          color: #dc3545;
+          margin-bottom: 20px;
+        }
+        .button {
+          background-color: #007bff;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          margin-top: 10px;
+        }
+        .button:hover {
+          background-color: #0056b3;
+        }
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+      
+      <div className="container">
+        <div className="card">
+          <h1 className="title">
+            {params.provider.toUpperCase()} 로그인
+          </h1>
+          
+          {!error ? (
+            <>
+              <div className="spinner" />
+              <p className="status">{status}</p>
+            </>
+          ) : (
+            <>
+              <div className="error-icon">⚠️</div>
+              <p className="error-text">{error}</p>
+            </>
+          )}
+          
+          <button className="button" onClick={goToHome}>
+            홈으로 이동
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
