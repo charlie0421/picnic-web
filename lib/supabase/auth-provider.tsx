@@ -115,9 +115,9 @@ class AuthStore {
     try {
       console.log('🔄 [AuthStore] 전역 Auth 초기화 시작');
       
-      // 초기화 타임아웃 설정 (10초)
+      // 초기화 타임아웃 설정 (7초로 단축)
       const initTimeout = setTimeout(() => {
-        console.warn('⏰ [AuthStore] 초기화 타임아웃 - 강제 완료');
+        console.warn('⏰ [AuthStore] 초기화 타임아웃 - 강제 완료 (7초)');
         this.updateState({
           ...this.state,
           session: null,
@@ -127,13 +127,13 @@ class AuthStore {
           isLoading: false,
           isInitialized: true,
         });
-      }, 10000);
+      }, 7000);
 
       try {
-        // 초기 세션 조회 (타임아웃 포함)
+        // 초기 세션 조회 (타임아웃 3초로 단축)
         const sessionPromise = this.supabaseClient.auth.getSession();
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('getSession timeout')), 5000)
+          setTimeout(() => reject(new Error('getSession timeout')), 3000)
         );
         
         const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
@@ -186,6 +186,7 @@ class AuthStore {
         clearTimeout(initTimeout);
         
         // 세션 오류가 발생해도 기본 상태로 초기화 완료
+        console.log('🔧 [AuthStore] 세션 오류 발생 - 로그아웃 상태로 초기화 완료');
         this.updateState({
           ...this.state,
           session: null,
@@ -198,8 +199,13 @@ class AuthStore {
       }
     } catch (error) {
       console.error('❌ [AuthStore] 초기화 에러:', error);
+      console.log('�� [AuthStore] 초기화 에러 발생 - 기본 상태로 완료');
       this.updateState({
         ...this.state,
+        session: null,
+        user: null,
+        userProfile: null,
+        isAuthenticated: false,
         isLoading: false,
         isInitialized: true,
       });
