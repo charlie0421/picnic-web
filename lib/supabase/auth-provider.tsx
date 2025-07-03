@@ -130,17 +130,20 @@ class AuthStore {
       // 🚀 빠른 토큰 사전 체크 (로그인 페이지 최적화)
       const hasStoredToken = this.hasValidStoredToken();
       const isLoginPage = typeof window !== 'undefined' && 
-        (window.location.pathname.includes('/login') || window.location.pathname.includes('/auth'));
+        window.location.pathname.includes('/login');
+      const isCallbackPage = typeof window !== 'undefined' && 
+        window.location.pathname.includes('/callback');
       
       console.log('🔍 [AuthStore] 초기화 컨텍스트:', {
         hasStoredToken,
         isLoginPage,
+        isCallbackPage,
         pathname: typeof window !== 'undefined' ? window.location.pathname : 'server'
       });
 
-      // 로그인 페이지이고 토큰이 없으면 즉시 로그아웃 상태로 처리
-      if (isLoginPage && !hasStoredToken) {
-        console.log('⚡ [AuthStore] 로그인 페이지 + 토큰 없음 → 즉시 로그아웃 상태로 처리');
+      // 로그인 페이지이고 토큰이 없으면 즉시 로그아웃 상태로 처리 (콜백 페이지 제외)
+      if (isLoginPage && !isCallbackPage && !hasStoredToken) {
+        console.log('⚡ [AuthStore] 로그인 페이지 + 토큰 없음 = 즉시 로그아웃 상태 처리');
         this.updateState({
           ...this.state,
           session: null,
@@ -169,8 +172,8 @@ class AuthStore {
       }
       
       // 초기화 타임아웃 설정 (로그인 페이지는 더 짧게)
-      const timeoutMs = isLoginPage ? 2000 : 7000;
-      const sessionTimeoutMs = isLoginPage ? 1000 : 3000;
+      const timeoutMs = isLoginPage && !isCallbackPage ? 2000 : 7000;        // 전체: 로그인=2초, 콜백/기타=7초  
+      const sessionTimeoutMs = isLoginPage && !isCallbackPage ? 1000 : 3000; // 세션: 로그인=1초, 콜백/기타=3초
       
       console.log(`⏰ [AuthStore] 타임아웃 설정: 전체=${timeoutMs}ms, 세션=${sessionTimeoutMs}ms`);
       
