@@ -9,7 +9,7 @@ const getSupabaseClient = async () => {
   if (isServer) {
     // 서버 환경에서는 서버 클라이언트 사용
     try {
-      const { createClient } = await import("../supabase-server-client");
+      const { createClient } = await import("./supabase-server-client");
       return await createClient();
     } catch (error) {
       console.error('서버 Supabase 클라이언트 생성 오류:', error);
@@ -18,7 +18,7 @@ const getSupabaseClient = async () => {
   } else {
     // 클라이언트 환경에서는 클라이언트 측 Supabase 사용
     try {
-      const { createBrowserSupabaseClient } = await import('../../lib/supabase/client');
+      const { createBrowserSupabaseClient } = await import('../lib/supabase/client');
       return createBrowserSupabaseClient();
     } catch (error) {
       console.error('클라이언트 Supabase 가져오기 오류:', error);
