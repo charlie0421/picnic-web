@@ -229,7 +229,7 @@ class AuthStore {
         }
 
         // handleAuthError 호출하되, 결과와 관계없이 초기화 완료
-        const shouldContinue = await this.handleAuthError(sessionError);
+        const shouldContinue = await handleAuthError(sessionError);
         
         console.log('🔧 [AuthStore] 세션 오류 발생 - 로그아웃 상태로 초기화 완료');
         this.updateState({
@@ -428,7 +428,7 @@ class AuthStore {
         console.error('❌ [AuthStore] 인증 상태 변경 중 오류:', error);
         
         // 리프레시 토큰 오류 처리
-        const handled = await this.handleAuthError(error);
+        const handled = await handleAuthError(error);
         if (!handled) {
           // 처리되지 않은 오류의 경우 기본 상태로 설정
           this.updateState({
