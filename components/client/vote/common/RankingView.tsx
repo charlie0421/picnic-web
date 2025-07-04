@@ -3,6 +3,8 @@
 import React from 'react';
 import { VoteItem } from '@/types/interfaces';
 import { VoteRankCard } from './VoteRankCard';
+import { useRequireAuth } from '@/hooks/useAuthGuard';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface EnhancedVoteItem extends VoteItem {
   artist?: any;
@@ -25,6 +27,16 @@ export const RankingView: React.FC<RankingViewProps> = ({
   onVoteChange,
   keyPrefix = 'ranking'
 }) => {
+  const { t } = useLanguageStore();
+  
+  // 한 번만 인증 훅을 호출
+  const { withAuth } = useRequireAuth({
+    customLoginMessage: {
+      title: t('vote_login_required_title'),
+      description: t('vote_login_required_description'),
+    },
+  });
+
   // 상위 3개 아이템만 추출
   const topItems = items.slice(0, 3);
 
@@ -41,6 +53,32 @@ export const RankingView: React.FC<RankingViewProps> = ({
   const isInteractionEnabled = !disabled;
   const shouldShowVoteChange = showVoteChange && isInteractionEnabled;
   const handleVoteChange = isInteractionEnabled ? onVoteChange : undefined;
+
+  // 인증된 투표 함수 생성
+  const createAuthenticatedVoteHandler = (item: EnhancedVoteItem) => {
+    if (!handleVoteChange) return undefined;
+    
+    return async () => {
+      console.log('🔐 [RankingView] 인증된 투표 처리 시작:', { itemId: item.id });
+      
+      const result = await withAuth(async () => {
+        console.log('✅ [RankingView] 인증 성공, 투표 처리:', { itemId: item.id });
+        
+        // 실제 투표 로직
+        const currentTotal = item.vote_total || 0;
+        const newTotal = currentTotal + 1;
+        
+        handleVoteChange(item.id, newTotal);
+        return true;
+      });
+
+      if (!result) {
+        console.log('❌ [RankingView] 인증 실패:', { itemId: item.id });
+      } else {
+        console.log('✅ [RankingView] 투표 처리 완료:', { itemId: item.id });
+      }
+    };
+  };
 
   // 2명만 있는 경우와 3명 있는 경우 분리
   if (topItems.length === 2) {
@@ -66,7 +104,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[0].isAnimating && isInteractionEnabled}
                     voteChange={topItems[0].voteChange}
                     voteTotal={topItems[0].vote_total ?? 0}
-                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[0].id, newTotal) : undefined}
+                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[0])}
                     enableMotionAnimations={true}
                   />
                 </div>
@@ -90,7 +128,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[1].isAnimating && isInteractionEnabled}
                     voteChange={topItems[1].voteChange}
                     voteTotal={topItems[1].vote_total ?? 0}
-                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[1].id, newTotal) : undefined}
+                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[1])}
                     enableMotionAnimations={true}
                   />
                 </div>
@@ -126,7 +164,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[1].isAnimating && isInteractionEnabled}
                     voteChange={topItems[1].voteChange}
                     voteTotal={topItems[1].vote_total ?? 0}
-                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[1].id, newTotal) : undefined}
+                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[1])}
                     enableMotionAnimations={true}
                   />
                 </div>
@@ -155,7 +193,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[0].isAnimating && isInteractionEnabled}
                     voteChange={topItems[0].voteChange}
                     voteTotal={topItems[0].vote_total ?? 0}
-                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[0].id, newTotal) : undefined}
+                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[0])}
                     enableMotionAnimations={true}
                   />
                 </div>
@@ -181,7 +219,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[2].isAnimating && isInteractionEnabled}
                     voteChange={topItems[2].voteChange}
                     voteTotal={topItems[2].vote_total ?? 0}
-                    onVoteChange={handleVoteChange ? (newTotal) => handleVoteChange(topItems[2].id, newTotal) : undefined}
+                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[2])}
                     enableMotionAnimations={true}
                   />
                 </div>

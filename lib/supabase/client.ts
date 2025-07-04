@@ -32,72 +32,26 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
     throw new Error('환경 변수 NEXT_PUBLIC_SUPABASE_ANON_KEY가 설정되지 않았습니다.');
   }
 
+  // 임시로 간단한 설정으로 변경 (디버깅용)
+  console.log('🔧 [Client] 간단한 Supabase 클라이언트 설정으로 초기화...');
+  
   browserSupabase = createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       auth: {
         flowType: 'pkce',
-        detectSessionInUrl: true,
+        detectSessionInUrl: false, // 일시적으로 비활성화
         autoRefreshToken: true,
         persistSession: true,
-        storage: {
-          getItem: (key: string) => {
-            // 로컬 스토리지에서 가져오기
-            const localValue = globalThis.localStorage?.getItem(key) ?? null;
-            if (localValue) return localValue;
-
-            // 쿠키에서 시도 (백업)
-            const cookies = document.cookie.split('; ');
-            for (const cookie of cookies) {
-              const [cookieName, cookieValue] = cookie.split('=');
-              if (cookieName === key) return decodeURIComponent(cookieValue);
-            }
-            return null;
-          },
-          setItem: (key: string, value: string) => {
-            try {
-              // 로컬 스토리지에 저장
-              globalThis.localStorage?.setItem(key, value);
-
-              // 쿠키에도 저장 (백업)
-              const date = new Date();
-              date.setTime(date.getTime() + 8 * 60 * 60 * 1000); // 8시간 유효
-              const cookieOptions = `; expires=${date.toUTCString()}; path=/`;
-              document.cookie = `${key}=${encodeURIComponent(value)}${cookieOptions}`;
-            } catch (e) {
-              console.warn('스토리지 저장 오류:', e);
-            }
-          },
-          removeItem: (key: string) => {
-            try {
-              // 로컬 스토리지에서 제거
-              globalThis.localStorage?.removeItem(key);
-
-              // 쿠키에서도 제거
-              document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-            } catch (e) {
-              console.warn('스토리지 제거 오류:', e);
-            }
-          }
-        }
+        // 기본 localStorage 사용 (복잡한 로직 제거)
       },
       realtime: {
-        // Realtime 기능 활성화
+        // 일시적으로 Realtime 비활성화
         params: {
-          eventsPerSecond: 10, // 초당 최대 이벤트 수 제한
+          eventsPerSecond: 1,
         },
-        // 연결 상태 로깅 (개발 환경에서만)
-        log_level: process.env.NODE_ENV === 'development' ? 'info' : 'error',
-        // 자동 재연결 설정
-        reconnectAfterMs: (tries: number) => {
-          // 지수 백오프: 1초, 2초, 4초, 8초, 최대 30초
-          return Math.min(1000 * Math.pow(2, tries), 30000);
-        },
-        // 하트비트 간격 (30초)
-        heartbeatIntervalMs: 30000,
-        // 연결 타임아웃 (10초) - timeout 속성 사용
-        timeout: 10000,
+        log_level: 'error', // 로그 최소화
       },
     }
   ) as BrowserSupabaseClient;

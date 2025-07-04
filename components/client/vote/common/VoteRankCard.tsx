@@ -8,7 +8,6 @@ import { Badge } from '@/components/common';
 import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useLanguageStore } from '@/stores/languageStore';
-import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
 
 export interface VoteRankCardProps {
@@ -29,6 +28,7 @@ export interface VoteRankCardProps {
   isAnimating?: boolean;
   voteTotal?: number;
   onVoteChange?: (newTotal: number) => void;
+  onAuthenticatedVote?: () => Promise<void>;
   enableMotionAnimations?: boolean;
 }
 
@@ -41,15 +41,10 @@ export function VoteRankCard({
   isAnimating = false,
   voteTotal,
   onVoteChange,
+  onAuthenticatedVote,
   enableMotionAnimations = true,
 }: VoteRankCardProps) {
-  const { currentLanguage, t } = useLanguageStore();
-  const { withAuth } = useRequireAuth({
-    customLoginMessage: {
-      title: t('vote_login_required_title'),
-      description: t('vote_login_required_description'),
-    },
-  });
+  const { currentLanguage } = useLanguageStore();
   const [currentVoteChange, setCurrentVoteChange] = useState(voteChange);
   const [shouldShowVoteChange, setShouldShowVoteChange] = useState(false);
 
@@ -68,7 +63,7 @@ export function VoteRankCard({
     }
   }, [voteChange]);
 
-  // 카드 클릭 핸들러
+  // 카드 클릭 핸들러 - 인증 처리를 상위 컴포넌트에 위임
   const handleCardClick = async (event: React.MouseEvent) => {
     // 이벤트 버블링 방지 - 상위 Link 컴포넌트의 클릭 이벤트가 실행되지 않도록 함
     event.stopPropagation();
@@ -77,51 +72,43 @@ export function VoteRankCard({
       itemId: item.id,
       rank,
       hasOnVoteChange: !!onVoteChange,
+      hasOnAuthenticatedVote: !!onAuthenticatedVote,
       timestamp: new Date().toISOString(),
     });
 
-    // onVoteChange가 없으면 클릭 무시
-    if (!onVoteChange) {
-      console.log('❌ [VoteRankCard] onVoteChange가 없음 - 클릭 무시');
+    // onAuthenticatedVote가 있으면 우선 사용 (인증 처리가 상위에서 완료됨)
+    if (onAuthenticatedVote) {
+      console.log('🔐 [VoteRankCard] 인증된 투표 함수 호출');
+      await onAuthenticatedVote();
       return;
     }
 
-    console.log('🔐 [VoteRankCard] 인증 체크 시작 - withAuth 호출');
+    // onVoteChange가 없으면 클릭 무시
+    if (!onVoteChange) {
+      console.log('❌ [VoteRankCard] 투표 함수가 없음 - 클릭 무시');
+      return;
+    }
 
-    // 인증이 필요한 투표 액션을 실행
-    const result = await withAuth(async () => {
-      console.log('✅ [VoteRankCard] withAuth 내부 - 인증 성공, 투표 처리');
+    console.log('📊 [VoteRankCard] 직접 투표 처리 (인증 없음)');
+    
+    // 실제 투표 로직은 상위 컴포넌트에서 처리
+    // 여기서는 단순히 onVoteChange 콜백만 호출
+    const currentTotal = voteTotal !== undefined ? voteTotal : item.vote_total || 0;
+    const newTotal = currentTotal + 1; // 임시로 1 증가
 
-      // 실제 투표 로직은 상위 컴포넌트에서 처리
-      // 여기서는 단순히 onVoteChange 콜백만 호출
-      const currentTotal =
-        voteTotal !== undefined ? voteTotal : item.vote_total || 0;
-      const newTotal = currentTotal + 1; // 임시로 1 증가
-
-      console.log('📊 [VoteRankCard] 투표 처리:', {
-        currentTotal,
-        newTotal,
-        itemId: item.id,
-      });
-
-      onVoteChange(newTotal);
-      return true;
+    console.log('📊 [VoteRankCard] 투표 처리:', {
+      currentTotal,
+      newTotal,
+      itemId: item.id,
     });
 
-    console.log('🔍 [VoteRankCard] withAuth 결과:', result);
-
-    // withAuth가 null을 반환하면 인증 실패 (로그인 다이얼로그 표시됨)
-    if (!result) {
-      console.log('❌ [VoteRankCard] 인증 실패 - 투표 처리하지 않음');
-    } else {
-      console.log('✅ [VoteRankCard] 인증 성공 - 투표 처리 완료');
-    }
+    onVoteChange(newTotal);
   };
 
   // 아티스트 이름 가져오기
   const artistName = item.artist
-    ? getLocalizedString(item.artist.name, currentLanguage) || t('artist_name_fallback')
-    : t('artist_name_fallback');
+    ? getLocalizedString(item.artist.name, currentLanguage) || '아티스트'
+    : '아티스트';
 
   // 아티스트 이미지 URL
   const imageUrl = item.artist?.image
@@ -195,7 +182,7 @@ export function VoteRankCard({
                 isUpdated ? 'border-green-400 shadow-green-200' : 'border-amber-300'
               } shadow-lg`
         } ${
-          onVoteChange ? 'cursor-pointer hover:scale-105' : 'cursor-default'
+          onVoteChange || onAuthenticatedVote ? 'cursor-pointer hover:scale-105' : 'cursor-default'
         } ${className}`}
         onClick={handleCardClick}
       >
@@ -295,7 +282,7 @@ export function VoteRankCard({
           : `bg-gradient-to-br from-amber-50 to-amber-100 border ${
               isUpdated ? 'border-green-400 shadow-green-200' : 'border-amber-300'
             } shadow-lg`
-      } ${onVoteChange ? 'cursor-pointer' : 'cursor-default'} ${className}`}
+      } ${onVoteChange || onAuthenticatedVote ? 'cursor-pointer' : 'cursor-default'} ${className}`}
       onClick={handleCardClick}
       initial={{ scale: 1, y: 0 }}
       animate={{
@@ -308,7 +295,7 @@ export function VoteRankCard({
           : '0 4px 15px -3px rgba(0, 0, 0, 0.1)',
       }}
       whileHover={
-        onVoteChange
+        onVoteChange || onAuthenticatedVote
           ? {
               scale: 1.05,
               y: -4,
@@ -317,7 +304,7 @@ export function VoteRankCard({
           : {}
       }
       whileTap={
-        onVoteChange
+        onVoteChange || onAuthenticatedVote
           ? {
               scale: 0.98,
               transition: { duration: 0.1 },

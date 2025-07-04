@@ -48,14 +48,50 @@ export default function AuthCallbackClient({
           urlParams.get('error')
         );
 
+        console.log('🔍 [AuthCallback] OAuth 파라미터 체크:', {
+          hasOAuthParams,
+          code: !!urlParams.get('code'),
+          accessToken: !!urlParams.get('access_token'),
+          hashAccessToken: !!hashParams.get('access_token'),
+          error: !!urlParams.get('error'),
+          currentURL: window.location.href
+        });
+
         if (hasOAuthParams) {
           console.log('🔍 [AuthCallback] OAuth 파라미터 감지, Supabase 자동 처리 시도');
           
           try {
-            // Supabase의 자동 세션 복구 시도
-            const { data: sessionData, error: sessionError } = await createBrowserSupabaseClient().auth.getSession();
+            // Supabase의 자동 세션 복구 시도 (타임아웃 추가)
+            console.log('🔍 [AuthCallback] getSession() 호출 시작...');
             
-            if (!sessionError && sessionData.session) {
+            const sessionPromise = createBrowserSupabaseClient().auth.getSession();
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('getSession timeout')), 2000)
+            );
+            
+            let sessionData: any = null;
+            let sessionError: any = null;
+            
+            try {
+              const result = await Promise.race([
+                sessionPromise,
+                timeoutPromise
+              ]);
+              sessionData = (result as any)?.data;
+              sessionError = (result as any)?.error;
+            } catch (error) {
+              console.warn('⚠️ [AuthCallback] getSession() 타임아웃 또는 에러:', (error as Error).message);
+              sessionError = error;
+            }
+            
+            console.log('🔍 [AuthCallback] getSession() 결과:', { 
+              hasData: !!sessionData, 
+              hasSession: !!sessionData?.session,
+              hasError: !!sessionError,
+              errorMessage: sessionError?.message 
+            });
+            
+            if (!sessionError && sessionData?.session) {
               console.log('✅ [AuthCallback] Supabase 자동 처리로 세션 복구 성공');
               
               // 서버 사이드 쿠키 동기화 강제 실행
@@ -103,7 +139,7 @@ export default function AuthCallbackClient({
                 console.log('⏰ [AuthCallback] OAuth 이벤트 타임아웃, 수동 처리로 전환');
                 proceedWithManualHandling();
               }
-            }, 3000); // 3초 대기
+            }, 1000); // 1초로 더 단축
 
             // OAuth 상태 변경 이벤트 리스너
             const { data: authListener } = createBrowserSupabaseClient().auth.onAuthStateChange((event, session) => {
@@ -193,9 +229,14 @@ export default function AuthCallbackClient({
             detectedProvider = 'wechat';
             console.log('🔍 Provider 자동 감지: WeChat (state 파라미터에서 감지)');
           }
+          // Google OAuth 감지 - URL path나 현재 path에서 확인
+          else if (window.location.pathname.includes('/google') || codeParam) {
+            detectedProvider = 'google';
+            console.log('🔍 Provider 자동 감지: Google (URL path 또는 code 파라미터)');
+          }
           // Apple OAuth의 특징적인 파라미터들을 확인
           else if (codeParam) {
-            // Apple OAuth는 보통 code 파라미터가 있음
+            // 마지막 fallback으로 Apple 처리
             detectedProvider = 'apple';
             console.log('🔍 Provider 자동 감지: Apple (code 파라미터 존재)');
           }
