@@ -8,6 +8,13 @@ process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';
 const nextConfig = {
   reactStrictMode: true,
   
+  // 환경변수 명시적 설정 (브라우저에서 사용 가능하도록)
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+  },
+  
   // 페이지 및 레이아웃 최적화 설정
   compiler: {
     // 불필요한 JavaScript 제거 
@@ -50,6 +57,36 @@ const nextConfig = {
   
   // 성능 최적화를 위한 webpack 설정
   webpack: (config, { dev, isServer }) => {
+    // 🔧 브라우저에서 process.env 강제 정의
+    if (!isServer) {
+      config.plugins = config.plugins || [];
+      
+      // DefinePlugin으로 process.env를 브라우저에 주입
+      const webpack = require('webpack');
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_URL),
+          'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+          'process.env.NEXT_PUBLIC_SITE_URL': JSON.stringify(process.env.NEXT_PUBLIC_SITE_URL),
+          'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+        })
+      );
+      
+      // process 객체 자체도 정의 (최소한의 env 속성만)
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          'process': JSON.stringify({
+            env: {
+              NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+              NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+              NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+              NODE_ENV: process.env.NODE_ENV,
+            }
+          })
+        })
+      );
+    }
+    
     // 프로덕션 빌드에서만 최적화 적용
     if (!dev) {
       // 코드 스플리팅 최적화

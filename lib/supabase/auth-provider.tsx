@@ -15,8 +15,6 @@ import { createBrowserSupabaseClient } from './client';
 import { extractAvatarFromProvider } from '@/utils/image-utils';
 import { UserProfiles } from '@/types/interfaces';
 import { handleAuthError } from '@/utils/auth-error-handler';
-import { Database } from '@/types/supabase';
-import { SupabaseClient } from '@supabase/supabase-js';
 
 interface AuthContextType {
   session: Session | null;
@@ -62,6 +60,108 @@ class AuthStore {
   private constructor() {
     if (typeof window !== 'undefined') {
       try {
+        console.log('🔄 [AuthStore] 초기화 시작');
+        
+        // localStorage에서 Supabase Auth 토큰 체크 (동적 키 확인)
+        const checkStoredToken = () => {
+          try {
+            // Supabase 프로젝트 URL에서 프로젝트 ID 추출
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            if (!supabaseUrl) return false;
+            
+            const urlParts = supabaseUrl.split('.');
+            const projectId = urlParts[0]?.split('://')[1];
+            
+            // 🍪 쿠키에서 토큰 확인하는 함수
+            const checkCookieToken = (projectId: string) => {
+              try {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                  const [name, value] = cookie.trim().split('=');
+                  if (name && name.startsWith(`sb-${projectId}-auth-token`) && value) {
+                    console.log(`🍪 [AuthStore] 쿠키에 토큰 (${name}): 있음`);
+                    return true;
+                  }
+                }
+                return false;
+              } catch (error) {
+                console.warn('⚠️ [AuthStore] 쿠키 토큰 체크 중 오류:', error);
+                return false;
+              }
+            };
+            
+            if (projectId) {
+              const authKey = `sb-${projectId}-auth-token`;
+              
+              // 1단계: localStorage 확인
+              const hasLocalStorageToken = localStorage.getItem(authKey);
+              console.log(`🔍 [AuthStore] localStorage에 토큰 (${authKey}):`, hasLocalStorageToken ? '있음' : '없음');
+              
+              // 2단계: 쿠키 확인
+              const hasCookieToken = checkCookieToken(projectId);
+              
+              const hasAnyToken = !!hasLocalStorageToken || hasCookieToken;
+              console.log(`🔍 [AuthStore] 토큰 총합:`, {
+                localStorage: !!hasLocalStorageToken,
+                cookie: hasCookieToken,
+                hasAnyToken
+              });
+              
+              return hasAnyToken;
+            }
+            
+            // 프로젝트 ID를 추출할 수 없는 경우 모든 Supabase 키 확인
+            let hasLocalStorage = false;
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                const hasToken = localStorage.getItem(key);
+                console.log(`🔍 [AuthStore] localStorage에 토큰 (${key}):`, hasToken ? '있음' : '없음');
+                if (hasToken) hasLocalStorage = true;
+              }
+            }
+            
+            // 일반적인 쿠키 패턴 확인
+            let hasCookie = false;
+            try {
+              const cookies = document.cookie.split(';');
+              for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name && name.startsWith('sb-') && name.includes('auth-token') && value) {
+                  console.log(`🍪 [AuthStore] 쿠키에 토큰 (${name}): 있음`);
+                  hasCookie = true;
+                  break;
+                }
+              }
+            } catch (error) {
+              console.warn('⚠️ [AuthStore] 일반 쿠키 확인 중 오류:', error);
+            }
+            
+            const hasAnyToken = hasLocalStorage || hasCookie;
+            console.log(`🔍 [AuthStore] 전체 토큰 상태:`, {
+              localStorage: hasLocalStorage,
+              cookie: hasCookie,
+              hasAnyToken
+            });
+            
+            return hasAnyToken;
+          } catch (error) {
+            console.warn('⚠️ [AuthStore] 토큰 체크 중 오류:', error);
+            return false;
+          }
+        };
+        
+        const hasStoredToken = checkStoredToken();
+        const isLoginPage = window.location.pathname.includes('/login');
+        const isCallbackPage = window.location.pathname.includes('/callback');
+        
+        console.log('🔍 [AuthStore] 초기화 컨텍스트:', {
+          hasStoredToken,
+          isLoginPage,
+          isCallbackPage,
+          pathname: window.location.pathname
+        });
+        
         // 환경 변수 확인 및 안전한 클라이언트 생성
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
           console.error('❌ [AuthStore] Supabase 환경 변수가 설정되지 않았습니다.', {
@@ -83,16 +183,71 @@ class AuthStore {
           return;
         }
 
-        // TODO: 향후 최적화 방안들
-        // 1. Supabase 클라이언트 연결 최적화
-        //    - persistSession: 'local' (기본값) vs 'memory'
-        //    - autoRefreshToken: true (기본값) vs false
-        // 2. 지역별 Supabase 엣지 위치 활용
-        //    - 사용자 위치 기반 최적 엣지 선택
-        // 3. 세션 캐시 전략
-        //    - Service Worker를 통한 세션 캐싱
-        //    - IndexedDB 활용한 오프라인 세션
+        // 🛡️ getSession deadlock 우회: 쿠키가 있으면 즉시 로그인 상태로 설정
+        if (hasStoredToken) {
+          console.log('🛡️ [AuthStore] 쿠키 토큰 존재 → getSession 완전히 우회하고 즉시 로그인 상태 설정');
+          this.supabaseClient = createBrowserSupabaseClient();
+          
+          this.updateState({
+            user: { id: 'cookie-user', email: 'user@cookie.auth' } as any,
+            session: { access_token: 'from-cookie', user: { id: 'cookie-user' } } as any,
+            userProfile: null,
+            isLoading: false,
+            isInitialized: true,
+            isAuthenticated: true,
+            signOut: this.signOut.bind(this),
+            loadUserProfile: this.loadUserProfile.bind(this),
+          });
+          
+          // 백그라운드에서 실제 세션 동기화 (deadlock 문제로 인해 선택사항)
+          setTimeout(async () => {
+            try {
+              console.log('🔄 [AuthStore] 백그라운드에서 실제 세션 동기화 시도...');
+              const { data } = await this.supabaseClient.auth.getSession();
+              if (data?.session) {
+                console.log('✅ [AuthStore] 백그라운드 세션 동기화 성공');
+                await this.updateAuthState(data.session, 'BACKGROUND_SYNC');
+              }
+            } catch (bgError) {
+              console.warn('⚠️ [AuthStore] 백그라운드 세션 동기화 실패 (무시됨):', bgError);
+            }
+          }, 2000); // 2초 후 백그라운드에서 동기화
+          
+          return; // getSession 완전히 우회
+        }
         
+        // 🚀 로그인 페이지 성능 최적화: 토큰이 없으면 즉시 로그아웃 상태 처리
+        if (!hasStoredToken && isLoginPage) {
+          console.log('⚡ [AuthStore] 로그인 페이지에서 토큰 없음 → 즉시 로그아웃 상태 처리 (getSession 건너뛰기)');
+          this.updateState({
+            session: null,
+            user: null,
+            userProfile: null,
+            isAuthenticated: false,
+            isLoading: false,
+            isInitialized: true,
+            signOut: this.signOut.bind(this),
+            loadUserProfile: this.loadUserProfile.bind(this),
+          });
+          return;
+        }
+        
+        // 저장된 토큰이 없고 일반 페이지에서도 빠른 초기화
+        if (!hasStoredToken && !isCallbackPage) {
+          console.log('⚡ [AuthStore] 저장된 토큰 없음 → 빠른 로그아웃 상태 처리');
+          this.updateState({
+            session: null,
+            user: null,
+            userProfile: null,
+            isAuthenticated: false,
+            isLoading: false,
+            isInitialized: true,
+            signOut: this.signOut.bind(this),
+            loadUserProfile: this.loadUserProfile.bind(this),
+          });
+          return;
+        }
+
         this.supabaseClient = createBrowserSupabaseClient();
         this.initPromise = this.initialize();
       } catch (error) {
@@ -110,6 +265,19 @@ class AuthStore {
           loadUserProfile: this.loadUserProfile.bind(this),
         });
       }
+    } else {
+      // SSR 환경에서는 기본 상태로 초기화
+      console.log('🌐 [AuthStore] SSR 환경에서 기본 초기화');
+      this.updateState({
+        session: null,
+        user: null,
+        userProfile: null,
+        isAuthenticated: false,
+        isLoading: false,
+        isInitialized: true,
+        signOut: this.signOut.bind(this),
+        loadUserProfile: this.loadUserProfile.bind(this),
+      });
     }
   }
 
@@ -127,134 +295,332 @@ class AuthStore {
     try {
       console.log('🔄 [AuthStore] 전역 Auth 초기화 시작');
       
-      // 🚀 빠른 토큰 사전 체크 (로그인 페이지 최적화)
-      const hasStoredToken = this.hasValidStoredToken();
-      const isLoginPage = typeof window !== 'undefined' && 
-        window.location.pathname.includes('/login');
-      const isCallbackPage = typeof window !== 'undefined' && 
-        window.location.pathname.includes('/callback');
-      
-      console.log('🔍 [AuthStore] 초기화 컨텍스트:', {
-        hasStoredToken,
-        isLoginPage,
-        isCallbackPage,
-        pathname: typeof window !== 'undefined' ? window.location.pathname : 'server'
+      // 브라우저 환경 진단
+      console.log('🔍 [AuthStore] 브라우저 환경 진단:', {
+        userAgent: navigator.userAgent,
+        cookieEnabled: navigator.cookieEnabled,
+        localStorage: typeof localStorage !== 'undefined',
+        sessionStorage: typeof sessionStorage !== 'undefined',
+        isLocalhost: window.location.hostname === 'localhost',
+        protocol: window.location.protocol,
+        origin: window.location.origin
       });
-
-      // 로그인 페이지이고 토큰이 없으면 즉시 로그아웃 상태로 처리 (콜백 페이지 제외)
-      if (isLoginPage && !isCallbackPage && !hasStoredToken) {
-        console.log('⚡ [AuthStore] 로그인 페이지 + 토큰 없음 = 즉시 로그아웃 상태 처리');
-        this.updateState({
-          ...this.state,
-          session: null,
-          user: null,
-          userProfile: null,
-          isAuthenticated: false,
-          isLoading: false,
-          isInitialized: true,
+      
+      // 네트워크 상태 체크
+      if ('connection' in navigator) {
+        const connection = (navigator as any).connection;
+        console.log('🌐 [AuthStore] 네트워크 상태:', {
+          effectiveType: connection?.effectiveType,
+          downlink: connection?.downlink,
+          rtt: connection?.rtt
         });
-        return;
       }
       
-      // 토큰이 없으면 빠른 처리 (다른 페이지에서도)
-      if (!hasStoredToken) {
-        console.log('⚡ [AuthStore] 저장된 토큰 없음 → 빠른 로그아웃 상태 처리');
-        this.updateState({
-          ...this.state,
-          session: null,
-          user: null,
-          userProfile: null,
-          isAuthenticated: false,
-          isLoading: false,
-          isInitialized: true,
-        });
-        return;
-      }
-      
-      // 초기화 타임아웃 설정 (로그인 페이지는 더 짧게)
-      const timeoutMs = isLoginPage && !isCallbackPage ? 2000 : 7000;        // 전체: 로그인=2초, 콜백/기타=7초  
-      const sessionTimeoutMs = isLoginPage && !isCallbackPage ? 1000 : 3000; // 세션: 로그인=1초, 콜백/기타=3초
-      
-      console.log(`⏰ [AuthStore] 타임아웃 설정: 전체=${timeoutMs}ms, 세션=${sessionTimeoutMs}ms`);
-      
-      const initTimeout = setTimeout(() => {
-        console.warn(`⏰ [AuthStore] 초기화 타임아웃 - 강제 완료 (${timeoutMs}ms)`);
-        this.updateState({
-          ...this.state,
-          session: null,
-          user: null,
-          userProfile: null,
-          isAuthenticated: false,
-          isLoading: false,
-          isInitialized: true,
-        });
-      }, timeoutMs);
-
+      // localStorage 접근 테스트
       try {
-        // 초기 세션 조회 (로그인 페이지는 더 짧은 타임아웃)
-        const sessionPromise = this.supabaseClient.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('getSession timeout')), sessionTimeoutMs)
-        );
-
-        console.log(`🔍 [AuthStore] 세션 조회 시작 (타임아웃: ${sessionTimeoutMs}ms)`);
-        const sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
+        const testKey = 'test_storage_access';
+        const testStart = performance.now();
+        localStorage.setItem(testKey, 'test');
+        const testValue = localStorage.getItem(testKey);
+        localStorage.removeItem(testKey);
+        const testEnd = performance.now();
+        console.log('✅ [AuthStore] localStorage 접근 테스트:', {
+          success: testValue === 'test',
+          duration: `${(testEnd - testStart).toFixed(2)}ms`
+        });
+      } catch (storageError) {
+        console.error('❌ [AuthStore] localStorage 접근 실패:', storageError);
+      }
+      
+      // Supabase 클라이언트 상태 상세 진단
+      console.log('🔍 [AuthStore] Supabase 클라이언트 상태:', {
+        clientExists: !!this.supabaseClient,
+        authExists: !!this.supabaseClient?.auth,
+        getSessionExists: !!this.supabaseClient?.auth?.getSession,
+        realtimeExists: !!this.supabaseClient?.realtime,
+        restExists: !!this.supabaseClient?.rest
+      });
+      
+      // 환경 변수 길이 체크 (너무 길면 성능 영향)
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      console.log('🔍 [AuthStore] 환경 변수 상태:', {
+        urlLength: supabaseUrl.length,
+        keyLength: supabaseKey.length,
+        urlValid: supabaseUrl.startsWith('https://'),
+        keyValid: supabaseKey.length > 50
+      });
+      
+      // localStorage에서 기존 세션 데이터 크기 체크
+      try {
+        let totalSize = 0;
+        let authRelatedSize = 0;
+        const authKeys: string[] = [];
         
-        clearTimeout(initTimeout);
-        console.log('📱 [AuthStore] 초기 세션 조회 완료:', !!sessionResult.data.session);
-
-        if (sessionResult.data.session) {
-          await this.handleSuccessfulSession(sessionResult.data.session);
-        } else {
-          console.log('🔓 [AuthStore] 유효한 세션이 없음 - 로그아웃 상태로 설정');
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key) {
+            const value = localStorage.getItem(key) || '';
+            const itemSize = key.length + value.length;
+            totalSize += itemSize;
+            
+            if (key.includes('sb-') || key.includes('auth') || key.includes('supabase')) {
+              authRelatedSize += itemSize;
+              authKeys.push(key);
+            }
+          }
+        }
+        
+        console.log('🔍 [AuthStore] localStorage 상태:', {
+          totalItems: localStorage.length,
+          totalSize: `${totalSize} chars`,
+          authRelatedSize: `${authRelatedSize} chars`,
+          authKeys: authKeys.slice(0, 5), // 처음 5개만 표시
+          authKeysCount: authKeys.length
+        });
+      } catch (error) {
+        console.warn('⚠️ [AuthStore] localStorage 분석 실패:', error);
+      }
+      
+      // 초기 세션 조회 - 단계별 성능 측정
+      console.log('🔍 [AuthStore] getSession() 단계별 성능 측정 시작...');
+      
+      let session: any = null;
+      let error: any = null;
+      let progressInterval: NodeJS.Timeout | null = null;
+      let startTime = 0;
+      
+      try {
+        // 1단계: 준비 시간 측정
+        const prepStartTime = performance.now();
+        
+        startTime = Date.now();
+        console.log('🚀 [AuthStore] getSession() 호출 시작 - 시간:', new Date().toISOString());
+        
+        // 2단계: Promise 생성 시간 측정
+        const promiseStartTime = performance.now();
+        const sessionPromise = this.supabaseClient.auth.getSession();
+        const promiseCreationTime = performance.now() - promiseStartTime;
+        
+        console.log('🔍 [AuthStore] Promise 생성 완료:', {
+          promiseExists: !!sessionPromise,
+          creationTime: `${promiseCreationTime.toFixed(2)}ms`
+        });
+        
+        // 🔧 타임아웃 연장: OAuth 성공 후에도 충분한 시간 제공
+        const isCallbackPageDetected = window.location.pathname.includes('/auth/callback/');
+        const timeoutDuration = isCallbackPageDetected ? 8000 : 5000; // 콜백: 8초, 일반: 5초
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => {
+            console.log(`⏰ [AuthStore] ${timeoutDuration/1000}초 타임아웃 도달 (${isCallbackPageDetected ? '콜백 페이지' : '일반 페이지'}) - RLS 비활성화했는데도 지연`);
+            reject(new Error(`getSession timeout after ${timeoutDuration/1000} seconds`));
+          }, timeoutDuration)
+        );
+        
+        // 1초마다 진행 상황 로그 및 상세 진단
+        progressInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          console.log(`⏱️ [AuthStore] getSession 진행 중... ${elapsed}ms 경과`);
+          
+          // 2초 후부터 상세 진단 시작
+          if (elapsed > 2000) {
+            console.log(`🔍 [진단] getSession 장시간 대기 중:`, {
+              elapsed: `${elapsed}ms`,
+              networkOnline: navigator.onLine,
+              authClientState: !!this.supabaseClient?.auth,
+              hasActiveRequests: document.querySelectorAll('script, link').length
+            });
+          }
+          
+          // 타임아웃 임박 시 추가 정보
+          if (elapsed > timeoutDuration * 0.8) {
+            console.warn(`⚠️ [AuthStore] 타임아웃 임박 (${Math.round(timeoutDuration * 0.8)}ms/${timeoutDuration}ms) - API 응답 없음`);
+          }
+        }, 1000);
+        
+        // 4단계: 실제 세션 조회 실행
+        const sessionStartTime = performance.now();
+        const result = await Promise.race([sessionPromise, timeoutPromise]);
+        const sessionEndTime = performance.now();
+        
+        if (progressInterval) clearInterval(progressInterval);
+        const elapsed = Date.now() - startTime;
+        const performanceElapsed = sessionEndTime - sessionStartTime;
+        
+        console.log(`✅ [AuthStore] getSession 완료 - 성능 분석:`, {
+          totalTime: `${elapsed}ms`,
+          performanceTime: `${performanceElapsed.toFixed(2)}ms`,
+          prepTime: `${(promiseStartTime - prepStartTime).toFixed(2)}ms`,
+          creationTime: `${promiseCreationTime.toFixed(2)}ms`
+        });
+        
+        session = (result as any)?.data?.session;
+        error = (result as any)?.error;
+        
+        // 5단계: 결과 분석
+        console.log('🔍 [AuthStore] getSession() 결과 분석:', { 
+          hasSession: !!session,
+          hasError: !!error,
+          errorMessage: error?.message,
+          sessionSize: session ? JSON.stringify(session).length : 0,
+          resultType: typeof result,
+          resultKeys: result ? Object.keys(result as any) : []
+        });
+        
+      } catch (timeoutError) {
+        if (progressInterval) clearInterval(progressInterval);
+        const elapsed = Date.now() - startTime;
+        console.warn(`⚠️ [AuthStore] getSession() 타임아웃 분석:`, {
+          timeoutAt: `${elapsed}ms`,
+          error: (timeoutError as Error).message,
+          stack: (timeoutError as Error).stack?.split('\n').slice(0, 3)
+        });
+        
+        // 타임아웃 시 Supabase 내부 상태 진단
+        try {
+          console.log('🔍 [AuthStore] 타임아웃 시 내부 상태:', {
+            authState: this.supabaseClient.auth?.getSession ? 'ready' : 'not ready',
+            clientReady: !!this.supabaseClient,
+            hasListeners: !!(this.supabaseClient.auth as any)?._listeners
+          });
+        } catch (diagError) {
+          console.warn('⚠️ [AuthStore] 내부 상태 진단 실패:', diagError);
+        }
+        
+        // 🛡️ Fallback: 쿠키가 있으면 getSession 타임아웃에도 로그인 상태 유지
+        let hasCookieToken = false;
+        try {
+          const cookies = document.cookie.split(';');
+          for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name && name.startsWith('sb-') && name.includes('auth-token') && value) {
+              hasCookieToken = true;
+              break;
+            }
+          }
+        } catch (cookieError) {
+          console.warn('⚠️ [AuthStore] 쿠키 체크 실패:', cookieError);
+        }
+        
+        if (hasCookieToken) {
+          console.log('🛡️ [AuthStore] getSession 타임아웃이지만 쿠키 존재 → Fallback 로그인 상태');
           this.updateState({
-            ...this.state,
+            user: { id: 'fallback-user', email: 'user@cookie.auth' } as any, // 임시 사용자 객체
+            session: { access_token: 'from-cookie', user: { id: 'fallback-user' } } as any, // 임시 세션 객체
+            userProfile: null,
+            isLoading: false,
+            isInitialized: true,
+            isAuthenticated: true,
+            signOut: this.signOut.bind(this),
+            loadUserProfile: this.loadUserProfile.bind(this),
+          });
+          return;
+        }
+        
+        // 완전한 로그아웃 상태 처리
+        console.log('⚡ [AuthStore] 타임아웃으로 인한 빠른 로그아웃 상태 처리');
+        console.log('🔧 [진단] 브라우저 콘솔에서 다음 코드로 수동 테스트 가능:');
+        console.log('window.supabase.auth.getSession().then(r => console.log("수동 테스트 결과:", r))');
+        console.log('document.cookie.split(";").filter(c => c.includes("sb-"))'); // 쿠키 확인
+        this.updateState({
+          session: null,
+          user: null,
+          userProfile: null,
+          isAuthenticated: false,
+          isLoading: false,
+          isInitialized: true,
+          signOut: this.signOut.bind(this),
+          loadUserProfile: this.loadUserProfile.bind(this),
+        });
+        
+        // 인증 상태 변경 리스너는 여전히 등록
+        this.supabaseClient.auth.onAuthStateChange(async (event: string, session: Session | null) => {
+          console.log('🔄 [AuthStore] 인증 상태 변경:', event);
+          
+          try {
+            await this.updateAuthState(session, event);
+          } catch (error) {
+            console.error('❌ [AuthStore] 인증 상태 변경 중 오류:', error);
+            
+            // 리프레시 토큰 오류 처리
+            const handled = await handleAuthError(error);
+            if (!handled) {
+              // 처리되지 않은 오류의 경우 기본 상태로 설정
+              this.updateState({
+                ...this.state,
+                session: null,
+                user: null,
+                userProfile: null,
+                isAuthenticated: false,
+                isLoading: false,
+                isInitialized: true,
+              });
+            }
+          }
+        });
+        
+        return; // 타임아웃 후 조기 종료
+      }
+      
+      console.log('📱 [AuthStore] 초기 세션 조회 완료:', !!session);
+
+      if (error) {
+        console.error('❌ [AuthStore] 세션 조회 에러:', error);
+        
+        // 리프레시 토큰 오류 처리
+        const handled = await handleAuthError(error);
+        if (handled) {
+          console.log('🔄 [AuthStore] 리프레시 토큰 오류 처리 완료');
+          
+          // 에러 처리 후에도 초기화 완료 표시
+          this.updateState({
             session: null,
             user: null,
             userProfile: null,
             isAuthenticated: false,
             isLoading: false,
             isInitialized: true,
+            signOut: this.signOut.bind(this),
+            loadUserProfile: this.loadUserProfile.bind(this),
           });
+          return; // 처리되었으면 더 이상 진행하지 않음
         }
-
-        console.log('✅ [AuthStore] 전역 Auth 초기화 완료');
-      } catch (sessionError) {
-        clearTimeout(initTimeout);
-        
-        // 세션 조회 실패 처리
-        const isTimeoutError = sessionError instanceof Error && sessionError.message === 'getSession timeout';
-        
-        if (isTimeoutError) {
-          console.error('❌ [AuthStore] 세션 조회/처리 에러:', sessionError);
-        } else {
-          console.error('❌ [AuthStore] 예상치 못한 세션 오류:', sessionError);
-        }
-
-        // handleAuthError 호출하되, 결과와 관계없이 초기화 완료
-        const shouldContinue = await handleAuthError(sessionError);
-        
-        console.log('🔧 [AuthStore] 세션 오류 발생 - 로그아웃 상태로 초기화 완료');
-        this.updateState({
-          ...this.state,
-          session: null,
-          user: null,
-          userProfile: null,
-          isAuthenticated: false,
-          isLoading: false,
-          isInitialized: true,
-        });
       }
+
+      await this.updateAuthState(session, 'INITIAL_SESSION');
+
+      // 인증 상태 변경 리스너 등록
+      this.supabaseClient.auth.onAuthStateChange(async (event: string, session: Session | null) => {
+        console.log('🔄 [AuthStore] 인증 상태 변경:', event);
+        
+        try {
+          await this.updateAuthState(session, event);
+        } catch (error) {
+          console.error('❌ [AuthStore] 인증 상태 변경 중 오류:', error);
+          
+          // 리프레시 토큰 오류 처리
+          const handled = await handleAuthError(error);
+          if (!handled) {
+            // 처리되지 않은 오류의 경우 기본 상태로 설정
+            this.updateState({
+              ...this.state,
+              session: null,
+              user: null,
+              userProfile: null,
+              isAuthenticated: false,
+              isLoading: false,
+              isInitialized: true,
+            });
+          }
+        }
+      });
+
+      console.log('✅ [AuthStore] 전역 Auth 초기화 완료');
     } catch (error) {
-      console.error('❌ [AuthStore] 초기화 중 예상치 못한 오류:', error);
-      
-      // 어떤 오류가 발생해도 기본 상태로 초기화 완료
+      console.error('❌ [AuthStore] 초기화 에러:', error);
       this.updateState({
         ...this.state,
-        session: null,
-        user: null,
-        userProfile: null,
-        isAuthenticated: false,
         isLoading: false,
         isInitialized: true,
       });
@@ -352,104 +718,6 @@ class AuthStore {
       return null;
     }
   }
-
-  /**
-   * 저장된 토큰의 유효성을 빠르게 체크 (네트워크 요청 없이)
-   */
-  private hasValidStoredToken(): boolean {
-    try {
-      if (typeof window === 'undefined') return false;
-      
-      // Supabase 토큰 키 확인 (실제 프로젝트 URL 기반)
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (!supabaseUrl) return false;
-      
-      // URL에서 프로젝트 ID 추출 (예: xtijtefcycoeqludlngc)
-      const projectId = supabaseUrl.replace('https://', '').split('.')[0];
-      const tokenKey = `sb-${projectId}-auth-token`;
-      
-      const storedToken = localStorage.getItem(tokenKey);
-      if (!storedToken) {
-        console.log('🔍 [AuthStore] localStorage에 토큰 없음:', tokenKey);
-        return false;
-      }
-      
-      // 기본적인 JSON 파싱 확인
-      try {
-        const parsed = JSON.parse(storedToken);
-        const hasAccessToken = !!(parsed?.access_token);
-        const hasRefreshToken = !!(parsed?.refresh_token);
-        
-        console.log('🔍 [AuthStore] 토큰 상태:', {
-          hasAccessToken,
-          hasRefreshToken,
-          expiresAt: parsed?.expires_at
-        });
-        
-        return hasAccessToken || hasRefreshToken;
-      } catch (parseError) {
-        console.warn('⚠️ [AuthStore] 토큰 파싱 실패:', parseError);
-        return false;
-      }
-    } catch (error) {
-      console.warn('⚠️ [AuthStore] 토큰 체크 중 오류:', error);
-      return false;
-    }
-  }
-
-  /**
-   * 성공적인 세션 처리
-   */
-  private async handleSuccessfulSession(session: Session) {
-    try {
-      console.log('✅ [AuthStore] 유효한 세션 발견 - 인증 상태 업데이트');
-      await this.updateAuthState(session, 'INITIAL_SESSION');
-      
-      // 인증 상태 변경 리스너 등록 (아직 등록되지 않은 경우에만)
-      if (!this.authStateListenerRegistered) {
-        this.registerAuthStateListener();
-        this.authStateListenerRegistered = true;
-      }
-    } catch (error) {
-      console.error('❌ [AuthStore] 세션 처리 중 오류:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * 인증 상태 변경 리스너 등록
-   */
-  private registerAuthStateListener() {
-    if (!this.supabaseClient) return;
-    
-    this.supabaseClient.auth.onAuthStateChange(async (event: string, session: Session | null) => {
-      console.log('🔄 [AuthStore] 인증 상태 변경:', event);
-
-      try {
-        await this.updateAuthState(session, event);
-      } catch (error) {
-        console.error('❌ [AuthStore] 인증 상태 변경 중 오류:', error);
-        
-        // 리프레시 토큰 오류 처리
-        const handled = await handleAuthError(error);
-        if (!handled) {
-          // 처리되지 않은 오류의 경우 기본 상태로 설정
-          this.updateState({
-            ...this.state,
-            session: null,
-            user: null,
-            userProfile: null,
-            isAuthenticated: false,
-            isLoading: false,
-            isInitialized: true,
-          });
-        }
-      }
-    });
-  }
-
-  // 인증 상태 리스너 등록 여부 추적
-  private authStateListenerRegistered = false;
 }
 
 // AuthProvider 컴포넌트를 memo로 감싸서 완전히 안정화
@@ -463,8 +731,17 @@ const AuthProviderComponent = memo(function AuthProviderInternal({ children }: A
   useEffect(() => {
     const authStore = AuthStore.getInstance();
     
-    // 초기화 대기
-    authStore.waitForInitialization();
+    // 초기화 대기 (await 추가)
+    const initializeAndSubscribe = async () => {
+      try {
+        await authStore.waitForInitialization();
+        console.log('✅ [AuthProvider] 초기화 완료 대기 성공');
+      } catch (error) {
+        console.error('❌ [AuthProvider] 초기화 대기 중 오류:', error);
+      }
+    };
+    
+    initializeAndSubscribe();
     
     // 상태 변경 구독
     const unsubscribe = authStore.subscribe((newState) => {

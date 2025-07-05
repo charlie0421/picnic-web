@@ -70,12 +70,6 @@ export const Menu: React.FC = () => {
       <div className='flex overflow-x-auto scrollbar-hide whitespace-nowrap w-full sm:w-auto'>
         {subMenus.map((menuItem) => {
           const translatedText = menuItem.i18nKey ? t(menuItem.i18nKey) : menuItem.name;
-          console.log(`🔍 Menu item ${menuItem.key}:`, { 
-            i18nKey: menuItem.i18nKey, 
-            translatedText,
-            isKeyInTranslations: menuItem.i18nKey ? menuItem.i18nKey in (translations[currentLanguage] || {}) : false
-          });
-          
           return (
             <Link
               key={menuItem.key}
