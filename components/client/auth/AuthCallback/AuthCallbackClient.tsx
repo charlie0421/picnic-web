@@ -50,10 +50,10 @@ export default function AuthCallbackClient({
         
         // API 라우트를 통한 서버사이드 처리
         const response = await fetch('/api/auth/exchange-code', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
           body: JSON.stringify({
             code,
             provider: provider || 'google',
@@ -85,10 +85,18 @@ export default function AuthCallbackClient({
 
           console.log('🚀 [AuthCallback] OAuth 성공 → 강제 홈페이지 리디렉션:', returnUrl);
           
-          // 페이지 새로고침으로 세션 재로드
+          // 🔧 강제 새로고침으로 getSession 무한대기 우회
+          console.log('🔄 [AuthCallback] getSession 무한대기 문제로 인해 강제 새로고침 실행');
           setTimeout(() => {
             window.location.href = returnUrl;
-          }, 500);
+            // 추가 보험: 1초 후에도 리디렉션 안되면 강제 새로고침
+                    setTimeout(() => {
+              if (window.location.pathname !== '/ja/vote') {
+                console.log('💪 [AuthCallback] 추가 보험: 강제 새로고침');
+                window.location.reload();
+              }
+            }, 1000);
+          }, 300); // 더 빠른 리디렉션
           
           return;
         }
@@ -100,12 +108,12 @@ export default function AuthCallbackClient({
         
         setError(`OAuth 처리 실패: ${err.message}`);
         setStatus('');
-        
+
         // 2초 후 로그인 페이지로 리디렉션
-        setTimeout(() => {
+              setTimeout(() => {
           console.log('🔄 [AuthCallback] 오류 발생, 로그인 페이지로 리디렉션');
           router.push('/ja/login');
-        }, 2000);
+              }, 2000);
       }
     };
 

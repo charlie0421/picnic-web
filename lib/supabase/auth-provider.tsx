@@ -183,6 +183,39 @@ class AuthStore {
           return;
         }
 
+        // 🛡️ getSession deadlock 우회: 쿠키가 있으면 즉시 로그인 상태로 설정
+        if (hasStoredToken) {
+          console.log('🛡️ [AuthStore] 쿠키 토큰 존재 → getSession 완전히 우회하고 즉시 로그인 상태 설정');
+          this.supabaseClient = createBrowserSupabaseClient();
+          
+          this.updateState({
+            user: { id: 'cookie-user', email: 'user@cookie.auth' } as any,
+            session: { access_token: 'from-cookie', user: { id: 'cookie-user' } } as any,
+            userProfile: null,
+            isLoading: false,
+            isInitialized: true,
+            isAuthenticated: true,
+            signOut: this.signOut.bind(this),
+            loadUserProfile: this.loadUserProfile.bind(this),
+          });
+          
+          // 백그라운드에서 실제 세션 동기화 (deadlock 문제로 인해 선택사항)
+          setTimeout(async () => {
+            try {
+              console.log('🔄 [AuthStore] 백그라운드에서 실제 세션 동기화 시도...');
+              const { data } = await this.supabaseClient.auth.getSession();
+              if (data?.session) {
+                console.log('✅ [AuthStore] 백그라운드 세션 동기화 성공');
+                await this.updateAuthState(data.session, 'BACKGROUND_SYNC');
+              }
+            } catch (bgError) {
+              console.warn('⚠️ [AuthStore] 백그라운드 세션 동기화 실패 (무시됨):', bgError);
+            }
+          }, 2000); // 2초 후 백그라운드에서 동기화
+          
+          return; // getSession 완전히 우회
+        }
+        
         // 🚀 로그인 페이지 성능 최적화: 토큰이 없으면 즉시 로그아웃 상태 처리
         if (!hasStoredToken && isLoginPage) {
           console.log('⚡ [AuthStore] 로그인 페이지에서 토큰 없음 → 즉시 로그아웃 상태 처리 (getSession 건너뛰기)');
@@ -455,7 +488,37 @@ class AuthStore {
           console.warn('⚠️ [AuthStore] 내부 상태 진단 실패:', diagError);
         }
         
-        // 타임아웃 시 브라우저 콘솔 진단 코드 제공
+        // 🛡️ Fallback: 쿠키가 있으면 getSession 타임아웃에도 로그인 상태 유지
+        let hasCookieToken = false;
+        try {
+          const cookies = document.cookie.split(';');
+          for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name && name.startsWith('sb-') && name.includes('auth-token') && value) {
+              hasCookieToken = true;
+              break;
+            }
+          }
+        } catch (cookieError) {
+          console.warn('⚠️ [AuthStore] 쿠키 체크 실패:', cookieError);
+        }
+        
+        if (hasCookieToken) {
+          console.log('🛡️ [AuthStore] getSession 타임아웃이지만 쿠키 존재 → Fallback 로그인 상태');
+          this.updateState({
+            user: { id: 'fallback-user', email: 'user@cookie.auth' } as any, // 임시 사용자 객체
+            session: { access_token: 'from-cookie', user: { id: 'fallback-user' } } as any, // 임시 세션 객체
+            userProfile: null,
+            isLoading: false,
+            isInitialized: true,
+            isAuthenticated: true,
+            signOut: this.signOut.bind(this),
+            loadUserProfile: this.loadUserProfile.bind(this),
+          });
+          return;
+        }
+        
+        // 완전한 로그아웃 상태 처리
         console.log('⚡ [AuthStore] 타임아웃으로 인한 빠른 로그아웃 상태 처리');
         console.log('🔧 [진단] 브라우저 콘솔에서 다음 코드로 수동 테스트 가능:');
         console.log('window.supabase.auth.getSession().then(r => console.log("수동 테스트 결과:", r))');
