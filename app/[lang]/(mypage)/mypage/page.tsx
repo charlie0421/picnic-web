@@ -54,14 +54,14 @@ const MyPage = () => {
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // 초기 로딩 타임아웃 설정 (5초 후 강제로 로딩 상태 해제)
+  // 초기 로딩 타임아웃 설정 (2초 후 강제로 로딩 상태 해제)
   useEffect(() => {
     const timer = setTimeout(() => {
       if (pageLoading) {
         console.log('로딩 타임아웃 - 강제로 로딩 상태 해제');
         setPageLoading(false);
       }
-    }, 5000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [pageLoading]);

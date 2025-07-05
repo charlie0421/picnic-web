@@ -424,25 +424,126 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         }
       }
 
-      // 기존 방식: 이미 설정된 세션 확인
-      this.log(`${provider} 기존 세션 확인`);
-      const { data, error } = await this.supabase.auth.getSession();
+      // 최적화된 방식: OAuth Code Exchange 우선 시도
+      const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const code = params?.code || searchParams?.get('code');
+      if (code) {
+        this.log(`${provider} OAuth Code 발견, exchangeCodeForSession 시도`);
+        
+        try {
+          const { data: exchangeData, error: exchangeError } = await this.supabase.auth.exchangeCodeForSession(code);
+          
+          if (!exchangeError && exchangeData?.session) {
+            this.log(`${provider} Code Exchange 성공! 즉시 완료`);
+            
+            // URL 정리
+            if (typeof window !== 'undefined') {
+              const cleanUrl = new URL(window.location.href);
+              cleanUrl.searchParams.delete('code');
+              cleanUrl.searchParams.delete('state');
+              window.history.replaceState({}, '', cleanUrl.toString());
+            }
+            
+            // Google 특화 처리
+            if (provider === "google") {
+              await this.handleGoogleProfile(exchangeData.session, params);
+            }
 
-      if (error) {
-        // Supabase의 자동 콜백 처리 시도
+            // Apple 특화 처리
+            if (provider === "apple") {
+              await this.handleAppleProfile(exchangeData.session, params);
+            }
+
+            // 로컬 스토리지에 인증 성공 정보 저장
+            if (typeof window !== "undefined") {
+              localStorage.setItem("auth_success", "true");
+              localStorage.setItem("auth_provider", provider);
+              localStorage.setItem("auth_timestamp", Date.now().toString());
+            }
+
+            return {
+              success: true,
+              session: exchangeData.session,
+              user: exchangeData.session.user,
+              provider,
+              message: `${provider} 로그인 성공 (Code Exchange)`,
+            };
+          } else {
+            this.log(`${provider} Code Exchange 실패:`, exchangeError?.message);
+          }
+        } catch (codeExchangeError) {
+          this.log(`${provider} Code Exchange 오류:`, (codeExchangeError as Error)?.message);
+        }
+      }
+
+      // 폴백: 기존 세션 확인
+      this.log(`${provider} Code Exchange 실패/불가 - 기존 세션 확인으로 폴백`);
+      
+      // 먼저 빠른 세션 체크 (타임아웃 적용)
+      let sessionData: any = null;
+      let sessionError: any = null;
+      
+      try {
+        const sessionPromise = this.supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('getSession timeout')), 500) // 1초에서 500ms로 단축
+        );
+        
+        const result = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]);
+        
+        sessionData = (result as any)?.data;
+        sessionError = (result as any)?.error;
+        
+        this.log(`${provider} 세션 확인 결과`, { 
+          hasData: !!sessionData, 
+          hasSession: !!sessionData?.session,
+          hasError: !!sessionError 
+        });
+        
+      } catch (timeoutError) {
+        this.log(`${provider} getSession 타임아웃 (500ms) - Supabase 자동 처리로 전환`);
+        sessionError = timeoutError;
+      }
+
+      if (sessionError || !sessionData?.session) {
+        // Supabase의 자동 콜백 처리 시도 (더 짧은 대기)
         this.log(`${provider} Supabase 자동 콜백 처리 시도`);
         
-        // 잠시 대기 후 다시 세션 확인 (Supabase의 자동 처리 시간 확보)
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // 짧은 대기 후 다시 세션 확인 (500ms로 단축)
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        const { data: retryData, error: retryError } = await this.supabase.auth.getSession();
+        // 빠른 재시도
+        let retryData: any = null;
+        let retryError: any = null;
         
-        if (retryError || !retryData.session) {
+        try {
+          const retryPromise = this.supabase.auth.getSession();
+          const retryTimeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('retry getSession timeout')), 500)
+          );
+          
+          const retryResult = await Promise.race([
+            retryPromise,
+            retryTimeoutPromise
+          ]);
+          
+          retryData = (retryResult as any)?.data;
+          retryError = (retryResult as any)?.error;
+          
+        } catch (retryTimeoutError) {
+          this.log(`${provider} 재시도 getSession도 타임아웃 - 페이지 새로고침 안내`);
+          retryError = retryTimeoutError;
+        }
+        
+        if (retryError || !retryData?.session) {
           throw new SocialAuthError(
             SocialAuthErrorCode.CALLBACK_FAILED,
-            `인증 세션 가져오기 실패: ${error.message}`,
+            `인증 세션 가져오기 실패: ${sessionError?.message || retryError?.message}`,
             provider,
-            error,
+            sessionError || retryError,
           );
         }
         
@@ -477,7 +578,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         }
       }
 
-      if (!data.session) {
+      if (!sessionData?.session) {
         // 최후의 수단: 페이지 새로고침 후 세션 확인 요청
         this.log(`${provider} 세션이 없음 - 페이지 새로고침 필요`);
         
@@ -491,13 +592,13 @@ export class SocialAuthService implements SocialAuthServiceInterface {
       this.log(`${provider} 기존 세션 확인 성공`);
 
       // Google 특화 처리
-      if (provider === "google" && data.session) {
-        await this.handleGoogleProfile(data.session, params);
+      if (provider === "google" && sessionData.session) {
+        await this.handleGoogleProfile(sessionData.session, params);
       }
 
       // Apple 특화 처리
-      if (provider === "apple" && data.session) {
-        await this.handleAppleProfile(data.session, params);
+      if (provider === "apple" && sessionData.session) {
+        await this.handleAppleProfile(sessionData.session, params);
       }
 
       // 로컬 스토리지에 인증 성공 정보 저장 (기존 코드와의 호환성)
@@ -509,8 +610,8 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
       return {
         success: true,
-        session: data.session,
-        user: data.session.user,
+        session: sessionData.session,
+        user: sessionData.session.user,
         provider,
         message: `${provider} 로그인 성공`,
       };

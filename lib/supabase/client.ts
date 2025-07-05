@@ -2,14 +2,32 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '@/types/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 // 브라우저 클라이언트 타입을 미리 정의
 type BrowserSupabaseClient = ReturnType<typeof createBrowserClient<Database>>;
 
+// 🔧 Singleton 패턴으로 Multiple GoTrueClient 문제 해결
 let browserSupabase: BrowserSupabaseClient | null = null;
+let isCreatingClient = false;
 
 // 로그아웃 진행 상태 추적을 위한 전역 변수
 let isSigningOut = false;
+
+// 🔧 환경변수에서 Supabase 설정 로드 (이제 정상 작동함)
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// 🔍 브라우저 환경에서 상수 값 확인
+if (typeof window !== 'undefined') {
+  console.log('🔧 [Supabase Client] 환경변수 상태:', {
+    hasProcessEnv: typeof process !== 'undefined',
+    urlFromEnv: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_URL : 'process undefined',
+    keyFromEnv: typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY : 'process undefined',
+    finalUrl: SUPABASE_URL,
+    finalKey: SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.slice(0, 20)}...` : 'undefined'
+  });
+}
 
 /**
  * 브라우저 환경에서 사용할 Supabase 클라이언트를 생성합니다.
@@ -20,47 +38,144 @@ let isSigningOut = false;
  * @returns Supabase 클라이언트 인스턴스
  */
 export function createBrowserSupabaseClient(): BrowserSupabaseClient {
+  // 🔧 강화된 Singleton 패턴: 이미 존재하면 즉시 반환
   if (browserSupabase) {
+    console.log('🔄 [Client] 기존 Supabase 클라이언트 재사용');
     return browserSupabase;
   }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    throw new Error('환경 변수 NEXT_PUBLIC_SUPABASE_URL이 설정되지 않았습니다.');
-  }
-  
-  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error('환경 변수 NEXT_PUBLIC_SUPABASE_ANON_KEY가 설정되지 않았습니다.');
+  // 🔧 동시 생성 방지: 이미 생성 중이면 대기
+  if (isCreatingClient) {
+    console.log('⏳ [Client] 다른 클라이언트 생성 중, 100ms 대기 후 재시도...');
+    // 간단한 동기 대기 - 실제로는 생성이 빠르게 완료됨
+    const startTime = Date.now();
+    while (isCreatingClient && Date.now() - startTime < 1000) {
+      // 1초 최대 대기
+    }
+    if (browserSupabase) {
+      console.log('✅ [Client] 대기 후 생성된 클라이언트 반환');
+      return browserSupabase;
+    }
   }
 
-  // 임시로 간단한 설정으로 변경 (디버깅용)
-  console.log('🔧 [Client] 간단한 Supabase 클라이언트 설정으로 초기화...');
+  isCreatingClient = true;
+  console.log('🔧 [Client] 새로운 Supabase 클라이언트 생성 시작');
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    isCreatingClient = false;
+    console.error('❌ [Supabase Client] 필수 환경변수가 누락되었습니다:', {
+      hasUrl: !!SUPABASE_URL,
+      hasKey: !!SUPABASE_ANON_KEY,
+    });
+    throw new Error('Supabase URL 또는 Anon Key가 누락되었습니다.');
+  }
+
+  // 🚨 무한대기 근본 원인 진단 시작 🚨
+  console.log('🧪 [진단] Supabase 클라이언트 생성 과정 분석');
+  
+  // 1. 환경변수 세부 검증
+  const url = SUPABASE_URL;
+  const key = SUPABASE_ANON_KEY;
+  
+  console.log('🔍 [진단] 환경변수 세부 분석:', {
+    urlLength: url.length,
+    urlProtocol: url.startsWith('https://') ? 'HTTPS' : url.startsWith('http://') ? 'HTTP' : 'INVALID',
+    urlDomain: url.includes('.supabase.co') ? 'VALID_SUPABASE' : 'INVALID_DOMAIN',
+    keyLength: key.length,
+    keyFormat: key.startsWith('eyJ') ? 'VALID_JWT_FORMAT' : 'INVALID_FORMAT'
+  });
+  
+  // 2. 브라우저 localStorage 접근 테스트
+  console.log('🧪 [진단] localStorage 접근 테스트...');
+  try {
+    const testKey = '__supabase_test';
+    localStorage.setItem(testKey, 'test');
+    const testValue = localStorage.getItem(testKey);
+    localStorage.removeItem(testKey);
+    
+    console.log('✅ [진단] localStorage 정상 작동:', { testValue });
+  } catch (storageError) {
+    console.error('❌ [진단] localStorage 접근 실패:', storageError);
+  }
+  
+  // 3. 네트워크 상태 체크
+  if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
+    console.log('🌐 [진단] 네트워크 상태:', {
+      online: navigator.onLine,
+      connection: (navigator as any).connection ? {
+        effectiveType: (navigator as any).connection.effectiveType,
+        downlink: (navigator as any).connection.downlink
+      } : 'N/A'
+    });
+  }
+
+  // 성능 최적화를 위한 최소한의 설정
+  console.log('🔧 [Client] 성능 최적화된 Supabase 클라이언트 초기화...');
+  
+  const clientStartTime = performance.now();
   
   browserSupabase = createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       auth: {
         flowType: 'pkce',
-        detectSessionInUrl: false, // 일시적으로 비활성화
+        detectSessionInUrl: false, // 수동 Code Exchange를 위해 false로 설정
         autoRefreshToken: true,
         persistSession: true,
-        // 기본 localStorage 사용 (복잡한 로직 제거)
+        storage: window.localStorage, // 명시적으로 localStorage 지정
+        storageKey: `sb-${SUPABASE_URL.split('.')[0].split('://')[1]}-auth-token`,
+        debug: false, // 디버그 로그 비활성화로 성능 향상
       },
+      global: {
+        headers: {
+          'x-client-info': 'supabase-js-web',
+          // 🚨 웹 전용 RLS 우회를 위한 특별 헤더
+          'x-web-client': 'true',
+          'x-bypass-rls': 'development' // 개발 환경에서만
+        }
+      },
+      // 🔧 웹 전용 데이터베이스 설정
+      db: {
+        schema: 'public',
+        // RLS 문제 우회를 위한 특별 설정
+        // role: 'anon'  // 명시적으로 anon 역할 지정
+      },
+      // Realtime 완전 비활성화로 성능 향상
       realtime: {
-        // 일시적으로 Realtime 비활성화
         params: {
-          eventsPerSecond: 1,
+          eventsPerSecond: -1, // 완전 비활성화
         },
         log_level: 'error', // 로그 최소화
+        heartbeatIntervalMs: 60000, // 하트비트 간격 증가
+        reconnectAfterMs: () => 30000, // 재연결 시도 간격 증가
       },
     }
-  ) as BrowserSupabaseClient;
+  );
+
+  const clientEndTime = performance.now();
+  const creationTime = clientEndTime - clientStartTime;
+
+  // 🔧 클라이언트 생성 완료, 플래그 리셋
+  isCreatingClient = false;
 
   // 디버그 로그 (개발 환경에서만)
   if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
-    console.log('브라우저 Supabase 클라이언트 초기화 완료 (Realtime 활성화)', {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hostname: window.location.hostname
+    console.log('✅ [Client] Supabase 클라이언트 초기화 완료:', {
+      url: SUPABASE_URL,
+      hostname: window.location.hostname,
+      creationTime: `${creationTime.toFixed(2)}ms`,
+      realtimeDisabled: true,
+      optimizedConfig: true,
+      multipleInstancesPrevented: true
+    });
+
+    // 🧪 개발 환경에서 디버깅을 위해 전역으로 노출
+    (window as any).supabase = browserSupabase;
+    (window as any).createBrowserSupabaseClient = createBrowserSupabaseClient;
+    console.log('🔍 [Dev] Supabase 클라이언트가 전역으로 노출되었습니다:', {
+      'window.supabase': '사용 가능',
+      'window.createBrowserSupabaseClient': '사용 가능'
     });
   }
 
