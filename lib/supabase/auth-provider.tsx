@@ -185,33 +185,80 @@ class AuthStore {
 
         // 🛡️ getSession deadlock 우회: 쿠키가 있으면 즉시 로그인 상태로 설정
         if (hasStoredToken) {
-          console.log('🛡️ [AuthStore] 쿠키 토큰 존재 → getSession 완전히 우회하고 즉시 로그인 상태 설정');
+          console.log('🛡️ [AuthStore] 쿠키 토큰 존재 → 실제 세션 동기화를 위한 로딩 상태 시작');
           this.supabaseClient = createBrowserSupabaseClient();
           
+          // 임시 로딩 상태로 시작 (하드코딩된 데이터 제거)
           this.updateState({
-            user: { id: 'cookie-user', email: 'user@cookie.auth' } as any,
-            session: { access_token: 'from-cookie', user: { id: 'cookie-user' } } as any,
+            user: null,
+            session: null,
             userProfile: null,
-            isLoading: false,
-            isInitialized: true,
-            isAuthenticated: true,
+            isLoading: true, // 로딩 상태로 시작
+            isInitialized: false,
+            isAuthenticated: false,
             signOut: this.signOut.bind(this),
             loadUserProfile: this.loadUserProfile.bind(this),
           });
           
-          // 백그라운드에서 실제 세션 동기화 (deadlock 문제로 인해 선택사항)
+          // 즉시 실제 세션 동기화 시도 (백그라운드가 아닌 즉시)
           setTimeout(async () => {
             try {
-              console.log('🔄 [AuthStore] 백그라운드에서 실제 세션 동기화 시도...');
-              const { data } = await this.supabaseClient.auth.getSession();
+              console.log('🔄 [AuthStore] 즉시 실제 세션 동기화 시도...');
+              const { data, error } = await this.supabaseClient.auth.getSession();
+              
+              if (error) {
+                console.error('❌ [AuthStore] 세션 동기화 실패:', error);
+                // 실패 시 로그아웃 상태로 설정
+                this.updateState({
+                  session: null,
+                  user: null,
+                  userProfile: null,
+                  isAuthenticated: false,
+                  isLoading: false,
+                  isInitialized: true,
+                  signOut: this.signOut.bind(this),
+                  loadUserProfile: this.loadUserProfile.bind(this),
+                });
+                return;
+              }
+              
               if (data?.session) {
-                console.log('✅ [AuthStore] 백그라운드 세션 동기화 성공');
-                await this.updateAuthState(data.session, 'BACKGROUND_SYNC');
+                console.log('✅ [AuthStore] 실제 세션 동기화 성공 - 사용자 정보:', {
+                  userId: data.session.user.id,
+                  email: data.session.user.email,
+                  provider: data.session.user.app_metadata?.provider,
+                  hasUserMetadata: !!data.session.user.user_metadata,
+                  userMetadataKeys: Object.keys(data.session.user.user_metadata || {}),
+                });
+                await this.updateAuthState(data.session, 'IMMEDIATE_SYNC');
+              } else {
+                console.log('⚠️ [AuthStore] 세션이 없음 - 로그아웃 상태로 설정');
+                this.updateState({
+                  session: null,
+                  user: null,
+                  userProfile: null,
+                  isAuthenticated: false,
+                  isLoading: false,
+                  isInitialized: true,
+                  signOut: this.signOut.bind(this),
+                  loadUserProfile: this.loadUserProfile.bind(this),
+                });
               }
             } catch (bgError) {
-              console.warn('⚠️ [AuthStore] 백그라운드 세션 동기화 실패 (무시됨):', bgError);
+              console.error('❌ [AuthStore] 세션 동기화 중 오류:', bgError);
+              // 오류 시 로그아웃 상태로 설정
+              this.updateState({
+                session: null,
+                user: null,
+                userProfile: null,
+                isAuthenticated: false,
+                isLoading: false,
+                isInitialized: true,
+                signOut: this.signOut.bind(this),
+                loadUserProfile: this.loadUserProfile.bind(this),
+              });
             }
-          }, 2000); // 2초 후 백그라운드에서 동기화
+          }, 100); // 100ms 후 즉시 동기화 (2초 → 0.1초로 단축)
           
           return; // getSession 완전히 우회
         }
@@ -504,14 +551,36 @@ class AuthStore {
         }
         
         if (hasCookieToken) {
-          console.log('🛡️ [AuthStore] getSession 타임아웃이지만 쿠키 존재 → Fallback 로그인 상태');
+          console.log('🛡️ [AuthStore] getSession 타임아웃이지만 쿠키 존재 → 실제 세션 재시도');
+          
+          // 타임아웃 후에도 한 번 더 시도 (더 짧은 타임아웃으로)
+          try {
+            const quickSessionPromise = this.supabaseClient.auth.getSession();
+            const quickTimeout = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Quick retry timeout')), 2000)
+            );
+            
+            const result = await Promise.race([quickSessionPromise, quickTimeout]);
+            const session = (result as any)?.data?.session;
+            
+            if (session) {
+              console.log('✅ [AuthStore] 타임아웃 후 재시도 성공');
+              await this.updateAuthState(session, 'TIMEOUT_RETRY');
+              return;
+            }
+          } catch (retryError) {
+            console.warn('⚠️ [AuthStore] 타임아웃 후 재시도도 실패:', retryError);
+          }
+          
+          // 재시도도 실패하면 로그아웃 상태로 설정 (임시 데이터 사용 안함)
+          console.log('❌ [AuthStore] 모든 시도 실패 → 로그아웃 상태로 설정');
           this.updateState({
-            user: { id: 'fallback-user', email: 'user@cookie.auth' } as any, // 임시 사용자 객체
-            session: { access_token: 'from-cookie', user: { id: 'fallback-user' } } as any, // 임시 세션 객체
+            session: null,
+            user: null,
             userProfile: null,
+            isAuthenticated: false,
             isLoading: false,
             isInitialized: true,
-            isAuthenticated: true,
             signOut: this.signOut.bind(this),
             loadUserProfile: this.loadUserProfile.bind(this),
           });

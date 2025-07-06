@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/supabase/auth-provider';
+import { simpleSignOut } from '@/lib/supabase/client';
 import {
   DefaultAvatar,
   ProfileImageContainer,
@@ -10,9 +11,76 @@ import {
 import { useLanguageStore } from '@/stores/languageStore';
 
 const MyPage = () => {
-  const { userProfile, isAuthenticated, isLoading, signOut } = useAuth();
+  const { userProfile, isAuthenticated, isLoading, isInitialized, user, session } = useAuth();
   const { t } = useLanguageStore();
   const [pageLoading, setPageLoading] = useState(true);
+  
+  // 디버그 모드 감지 (개발 환경 또는 로컬호스트)
+  const isDebugMode = process.env.NODE_ENV === 'development' || 
+                     (typeof window !== 'undefined' && window.location.hostname === 'localhost');
+
+  // 사용자 정보 추출 (토큰 기반 우선, userProfile은 fallback)
+  const getUserInfo = useCallback(() => {
+    // 디버깅: 실제 데이터 확인
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [getUserInfo] 디버깅 데이터:', {
+        hasUser: !!user,
+        hasUserProfile: !!userProfile,
+        userKeys: user ? Object.keys(user) : null,
+        userProfileKeys: userProfile ? Object.keys(userProfile) : null,
+        userMetadata: user?.user_metadata,
+        appMetadata: user?.app_metadata,
+        userEmail: user?.email,
+        profileEmail: userProfile?.email,
+      });
+    }
+
+    // 1. 토큰에서 직접 정보 가져오기 (가장 확실함)
+    if (user) {
+      const result = {
+        nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자',
+        email: user.email || '이메일 정보 없음',
+        avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+        provider: user.app_metadata?.provider || 'unknown',
+        source: 'token'
+      };
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ [getUserInfo] 토큰에서 정보 추출:', result);
+      }
+      return result;
+    }
+    
+    // 2. userProfile에서 가져오기 (fallback)
+    if (userProfile) {
+      const result = {
+        nickname: userProfile.nickname || userProfile.email?.split('@')[0] || '사용자',
+        email: userProfile.email || '이메일 정보 없음', 
+        avatar_url: userProfile.avatar_url || null,
+        provider: 'profile',
+        source: 'userProfile'
+      };
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⚠️ [getUserInfo] userProfile에서 정보 추출:', result);
+      }
+      return result;
+    }
+    
+    // 3. 기본값
+    const result = {
+      nickname: '사용자',
+      email: '로그인 후 이메일이 표시됩니다',
+      avatar_url: null,
+      provider: 'none',
+      source: 'default'
+    };
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('❌ [getUserInfo] 기본값 사용:', result);
+    }
+    return result;
+  }, [user, userProfile]);
 
   // 컴포넌트 마운트 시 기존 로그아웃 플래그 정리
   useEffect(() => {
@@ -78,99 +146,67 @@ const MyPage = () => {
     }
   }, [isLoading]);
 
-  // 디버깅을 위한 렌더링 로그 추가
+  // 디버깅을 위한 렌더링 로그 추가 (개발 환경에서만)
   useEffect(() => {
-    console.log('MyPage 컴포넌트 렌더링 됨', {
-      isAuthenticated,
-      isLoading,
-      pageLoading,
-      userProfile: userProfile ? `ID: ${userProfile.id}` : 'null',
-    });
-  }, [isAuthenticated, isLoading, pageLoading, userProfile]);
-
-  // 로그아웃 처리 함수 (메모화)
-  const handleSignOut = useCallback(async () => {
-    const signOutKey = 'signout_in_progress';
-    
-    // 기존 플래그 확인 및 정리
-    const existingFlag = sessionStorage.getItem(signOutKey);
-    if (existingFlag) {
-      const flagTime = parseInt(existingFlag);
-      const currentTime = Date.now();
-      
-      // 5초 이내의 최근 플래그라면 중복 호출 방지
-      if (currentTime - flagTime < 5000) {
-        console.log('🔄 [MyPage] 로그아웃 이미 진행 중 - 중복 호출 방지');
-        return;
-      } else {
-        // 오래된 플래그는 제거
-        console.log('🧹 [MyPage] 오래된 로그아웃 플래그 제거 후 진행');
-        sessionStorage.removeItem(signOutKey);
-      }
+    if (process.env.NODE_ENV === 'development') {
+      const userInfo = getUserInfo();
+      console.log('👤 [MyPage] 사용자 정보 디버깅:', {
+        isAuthenticated,
+        isLoading,
+        isInitialized,
+        pageLoading,
+        isDebugMode,
+        userFromToken: user ? {
+          id: user.id,
+          email: user.email,
+          name: user.user_metadata?.name,
+          provider: user.app_metadata?.provider,
+          avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+        } : null,
+        userProfile: userProfile ? `ID: ${userProfile.id}, email: ${userProfile.email}` : 'null',
+        resolvedUserInfo: userInfo,
+        timestamp: new Date().toISOString(),
+      });
     }
+  }, [isAuthenticated, isLoading, isInitialized, pageLoading, userProfile, user, getUserInfo, isDebugMode]);
 
+  // 빠른 로그아웃 (Next.js 15 최적화)
+  const handleSignOut = useCallback(async () => {
     try {
-      console.log('🚪 [MyPage] 로그아웃 시작');
-      
-      // 플래그 설정
-      sessionStorage.setItem(signOutKey, Date.now().toString());
-
-      // signOut 함수 호출
-      await signOut();
-
-      console.log('✅ [MyPage] 로그아웃 완료');
-      
-      // 즉시 플래그 제거 및 리디렉션
-      sessionStorage.removeItem(signOutKey);
-      
-      // 로그아웃 완료 후 홈으로 리디렉션
-      window.location.href = '/';
-
+      console.log('🚀 [MyPage] 빠른 로그아웃 시작');
+      await simpleSignOut();
+      // 성공 시 별도 처리 불필요 (함수 내에서 리다이렉트 처리됨)
     } catch (error) {
       console.error('❌ [MyPage] 로그아웃 중 예외:', error);
-      
-      // 예외 발생 시도 플래그 제거
-      sessionStorage.removeItem(signOutKey);
-      
-      // 예외가 발생해도 홈으로 리디렉션
+      // 실패 시 강제 리다이렉트
+      console.log('🚨 [MyPage] 로그아웃 실패 → 강제 리다이렉트');
       window.location.href = '/';
     }
-  }, [signOut]); // isLoading 의존성 제거
+  }, []);
 
-  // 강제 로그아웃 함수 (디버깅용)
-  const forceSignOut = useCallback(() => {
-    console.log('🚨 [MyPage] 강제 로그아웃 시작');
-    
-    // 모든 sessionStorage 플래그 정리
-    sessionStorage.removeItem('signout_in_progress');
-    sessionStorage.removeItem('logout_in_progress');
-    
-    // 직접 signOut 호출
-    signOut().then(() => {
-      console.log('✅ [MyPage] 강제 로그아웃 완료');
-      window.location.href = '/';
-    }).catch((error) => {
-      console.error('❌ [MyPage] 강제 로그아웃 중 예외:', error);
-      window.location.href = '/';
-    });
-  }, [signOut]);
-
-  if (pageLoading) {
+  // 로딩 상태 처리 (auth 초기화 또는 페이지 로딩)
+  if (isLoading || pageLoading || !isInitialized) {
     return (
-      <div className='min-h-screen flex justify-center items-center'>
+      <div className='min-h-screen flex flex-col justify-center items-center space-y-4'>
         <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500'></div>
+        <p className='text-gray-600'>
+          {isLoading ? '사용자 정보를 로드하는 중...' : '페이지를 로드하는 중...'}
+        </p>
       </div>
     );
   }
+
+  // 사용자 정보 가져오기
+  const userInfo = getUserInfo();
 
   return (
     <div className='container mx-auto px-4 py-8'>
       <div className='bg-white rounded-lg shadow-md p-6 mb-8 relative'>
         <div className='flex flex-col sm:flex-row items-start sm:items-center'>
           <div className='mb-4 sm:mb-0 sm:mr-6'>
-            {userProfile?.avatar_url ? (
+            {userInfo.avatar_url ? (
               <ProfileImageContainer
-                avatarUrl={userProfile.avatar_url}
+                avatarUrl={userInfo.avatar_url}
                 width={100}
                 height={100}
                 borderRadius={12}
@@ -181,11 +217,16 @@ const MyPage = () => {
           </div>
           <div>
             <h1 className='text-2xl font-bold mb-2'>
-              {userProfile?.nickname || '사용자'}
+              {userInfo.nickname}
             </h1>
             <p className='text-gray-600 mb-1'>
-              {userProfile?.email || '로그인 후 이메일이 표시됩니다'}
+              {userInfo.email}
             </p>
+            {isDebugMode && userInfo.provider !== 'none' && (
+              <p className='text-xs text-gray-400 mt-1'>
+                Provider: {userInfo.provider}
+              </p>
+            )}
           </div>
         </div>
 
@@ -196,28 +237,22 @@ const MyPage = () => {
               <ul className='space-y-3'>
                 {isAuthenticated ? (
                   <>
-                    <li>
-                      <Link
-                        href='/mypage/edit-profile'
-                        className='text-primary-600 hover:underline'
-                      >
-                        프로필 수정
-                      </Link>
-                    </li>
+                    {isDebugMode && (
+                      <li>
+                        <Link
+                          href='/mypage/edit-profile'
+                          className='text-primary-600 hover:underline'
+                        >
+                          프로필 수정 (디버그)
+                        </Link>
+                      </li>
+                    )}
                     <li>
                       <button
                         onClick={handleSignOut}
-                        className='text-red-600 hover:underline'
+                        className='text-red-600 hover:underline font-medium'
                       >
                         로그아웃
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={forceSignOut}
-                        className='text-orange-600 hover:underline text-sm'
-                      >
-                        강제 로그아웃 (디버깅용)
                       </button>
                     </li>
                   </>
@@ -234,43 +269,45 @@ const MyPage = () => {
               </ul>
             </div>
 
-            <div>
-              <h2 className='text-lg font-semibold mb-4'>활동 내역</h2>
-              <ul className='space-y-3'>
-                {isAuthenticated ? (
-                  <>
-                    <li>
-                      <Link
-                        href='/mypage/votes'
-                        className='text-primary-600 hover:underline'
-                      >
-                        내 투표 보기
-                      </Link>
+            {isDebugMode && (
+              <div>
+                <h2 className='text-lg font-semibold mb-4'>활동 내역 (디버그)</h2>
+                <ul className='space-y-3'>
+                  {isAuthenticated ? (
+                    <>
+                      <li>
+                        <Link
+                          href='/mypage/votes'
+                          className='text-primary-600 hover:underline'
+                        >
+                          내 투표 보기
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          href='/mypage/posts'
+                          className='text-primary-600 hover:underline'
+                        >
+                          내 게시글 보기
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          href='/mypage/comments'
+                          className='text-primary-600 hover:underline'
+                        >
+                          내 댓글 보기
+                        </Link>
+                      </li>
+                    </>
+                  ) : (
+                    <li className='text-gray-500'>
+                      로그인 후 이용 가능한 서비스입니다
                     </li>
-                    <li>
-                      <Link
-                        href='/mypage/posts'
-                        className='text-primary-600 hover:underline'
-                      >
-                        내 게시글 보기
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        href='/mypage/comments'
-                        className='text-primary-600 hover:underline'
-                      >
-                        내 댓글 보기
-                      </Link>
-                    </li>
-                  </>
-                ) : (
-                  <li className='text-gray-500'>
-                    로그인 후 이용 가능한 서비스입니다
-                  </li>
-                )}
-              </ul>
-            </div>
+                  )}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
 
@@ -316,13 +353,13 @@ const MyPage = () => {
               {t('label_mypage_terms_of_use')}
             </Link>
           </li>
-          {isAuthenticated && (
+          {isAuthenticated && isDebugMode && (
             <li>
               <Link
                 href='/mypage/delete-account'
                 className='text-red-600 hover:underline'
               >
-                {t('label_mypage_withdrawal')}
+                {t('label_mypage_withdrawal')} (디버그)
               </Link>
             </li>
           )}

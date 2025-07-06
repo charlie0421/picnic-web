@@ -173,9 +173,109 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
     // 🧪 개발 환경에서 디버깅을 위해 전역으로 노출
     (window as any).supabase = browserSupabase;
     (window as any).createBrowserSupabaseClient = createBrowserSupabaseClient;
-    console.log('🔍 [Dev] Supabase 클라이언트가 전역으로 노출되었습니다:', {
-      'window.supabase': '사용 가능',
-      'window.createBrowserSupabaseClient': '사용 가능'
+    
+    // 🔧 로그아웃 디버깅 도구들 전역 노출
+    (window as any).debugLogout = {
+      // 포괄적인 로그아웃 (기존)
+      signOut: signOut,
+      
+      // Next.js 15 호환 간단 로그아웃 (NEW)
+      simpleSignOut: simpleSignOut,
+      
+      // 응급 로그아웃 (NEW)
+      emergencySignOut: emergencySignOut,
+      
+      // 로그아웃 상태 확인
+      checkStatus: () => {
+        console.log('🔍 로그아웃 디버깅 도구 실행 중...');
+        
+        // localStorage 확인
+        const localStorageKeys: Array<{key: string, value: string}> = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('auth') || key.includes('supabase') || key.includes('sb-'))) {
+            const value = localStorage.getItem(key);
+            localStorageKeys.push({ key, value: (value?.slice(0, 50) || '') + '...' });
+          }
+        }
+        
+        // sessionStorage 확인
+        const sessionStorageKeys: Array<{key: string, value: string | null}> = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.includes('auth') || key.includes('logout') || key.includes('redirect'))) {
+            sessionStorageKeys.push({ key, value: sessionStorage.getItem(key) });
+          }
+        }
+        
+        // 쿠키 확인
+        const authCookies = document.cookie.split(';').filter(cookie => {
+          const name = cookie.trim().split('=')[0];
+          return name && (name.includes('auth') || name.includes('sb-') || name.includes('supabase'));
+        });
+        
+        console.log('🔍 로그아웃 상태 디버깅 결과:', {
+          localStorageKeys,
+          sessionStorageKeys,
+          authCookies,
+          isSigningOut
+        });
+        
+        return { localStorageKeys, sessionStorageKeys, authCookies, isSigningOut };
+      },
+      
+      // 강제 스토리지 정리
+      forceClean: () => {
+        console.log('🧹 강제 스토리지 정리 시작...');
+        
+        // localStorage 정리
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('auth') || key.includes('supabase') || key.includes('sb-'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        // sessionStorage 정리
+        const sessionKeysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.includes('auth') || key.includes('logout') || key.includes('redirect'))) {
+            sessionKeysToRemove.push(key);
+          }
+        }
+        sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+        
+        console.log('✅ 강제 스토리지 정리 완료');
+        return { removed: keysToRemove.length + sessionKeysToRemove.length };
+      },
+      
+      // 단순 Supabase 로그아웃 (기존)
+      supabaseOnly: async () => {
+        console.log('🚪 단순 Supabase 로그아웃...');
+        try {
+          if (!browserSupabase) {
+            throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
+          }
+          const result = await browserSupabase.auth.signOut();
+          console.log('✅ 단순 로그아웃 완료:', result);
+          return result;
+        } catch (error) {
+          console.error('❌ 단순 로그아웃 실패:', error);
+          return { error };
+        }
+      }
+    };
+    
+    console.log('🔍 [Dev] Next.js 15 호환 로그아웃 디버깅 도구가 전역으로 노출되었습니다:', {
+      '🚀 window.debugLogout.simpleSignOut()': 'Next.js 15 호환 간단 로그아웃',
+      '🚨 window.debugLogout.emergencySignOut()': '응급 로그아웃 (즉시 리다이렉트)',
+      '🚪 window.debugLogout.signOut()': '포괄적인 로그아웃 (기존)',
+      '🔍 window.debugLogout.checkStatus()': '로그아웃 상태 확인',
+      '🧹 window.debugLogout.forceClean()': '강제 스토리지 정리',
+      '🔧 window.debugLogout.supabaseOnly()': '단순 Supabase 로그아웃'
     });
   }
 
@@ -242,16 +342,32 @@ export async function signOut() {
       console.warn('⚠️ [SignOut] 서버사이드 세션 무효화 오류 (계속 진행):', e);
     }
 
-    // 2. Supabase 세션 제거
+    // 2. Supabase 세션 제거 (타임아웃 적용)
     try {
-      const { error } = await supabase.auth.signOut({
+      console.log('🔄 [SignOut] Supabase 세션 제거 시작...');
+      
+      // 타임아웃을 위한 Promise.race 사용
+      const signOutPromise = supabase.auth.signOut({
         scope: 'global'
       });
+      
+      const timeoutPromise = new Promise<{ error: { message: string } }>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Supabase 로그아웃 타임아웃 (5초)'));
+        }, 5000);
+      });
 
-      if (error) {
-        console.warn('⚠️ [SignOut] Supabase 로그아웃 오류 (계속 진행):', error);
-      } else {
-        console.log('✅ [SignOut] Supabase 세션 제거 완료');
+      try {
+        const result = await Promise.race([signOutPromise, timeoutPromise]);
+        
+        if ('error' in result && result.error) {
+          console.warn('⚠️ [SignOut] Supabase 로그아웃 오류 (계속 진행):', result.error);
+        } else {
+          console.log('✅ [SignOut] Supabase 세션 제거 완료');
+        }
+      } catch (timeoutError) {
+        console.warn('⚠️ [SignOut] Supabase 로그아웃 타임아웃 (계속 진행):', timeoutError);
+        // 타임아웃이 발생해도 계속 진행
       }
     } catch (e) {
       console.warn('⚠️ [SignOut] Supabase 로그아웃 예외 (계속 진행):', e);
@@ -259,6 +375,8 @@ export async function signOut() {
 
     // 3. 모든 인증 관련 localStorage 데이터 제거
     try {
+      console.log('🔄 [SignOut] localStorage 정리 시작...');
+      
       const authKeys = [
         // 기본 인증 키들
         'auth_session_active',
@@ -288,13 +406,18 @@ export async function signOut() {
       ];
 
       // 명시적 키 제거
+      let removedExplicitKeys = 0;
       authKeys.forEach(key => {
         try {
-          localStorage.removeItem(key);
+          if (localStorage.getItem(key) !== null) {
+            localStorage.removeItem(key);
+            removedExplicitKeys++;
+          }
         } catch (e) {
           console.warn(`⚠️ [SignOut] localStorage 키 제거 실패: ${key}`, e);
         }
       });
+      console.log(`🗑️ [SignOut] 명시적 키 ${removedExplicitKeys}개 제거 완료`);
 
       // 패턴 기반 키 제거 (supabase, auth 포함)
       const keysToRemove: string[] = [];
@@ -311,21 +434,25 @@ export async function signOut() {
         }
       }
       
+      let removedPatternKeys = 0;
       keysToRemove.forEach(key => {
         try {
           localStorage.removeItem(key);
+          removedPatternKeys++;
         } catch (e) {
           console.warn(`⚠️ [SignOut] localStorage 패턴 키 제거 실패: ${key}`, e);
         }
       });
 
-      console.log('✅ [SignOut] localStorage 정리 완료');
+      console.log(`✅ [SignOut] localStorage 정리 완료 (명시적: ${removedExplicitKeys}, 패턴: ${removedPatternKeys})`);
     } catch (e) {
       console.warn('⚠️ [SignOut] localStorage 정리 오류 (계속 진행):', e);
     }
 
     // 4. 모든 인증 관련 sessionStorage 데이터 제거
     try {
+      console.log('🔄 [SignOut] sessionStorage 정리 시작...');
+      
       const sessionAuthKeys = [
         'redirect_url',
         'auth_redirect_url',
@@ -335,13 +462,18 @@ export async function signOut() {
       ];
 
       // 명시적 키 제거
+      let removedSessionExplicitKeys = 0;
       sessionAuthKeys.forEach(key => {
         try {
-          sessionStorage.removeItem(key);
+          if (sessionStorage.getItem(key) !== null) {
+            sessionStorage.removeItem(key);
+            removedSessionExplicitKeys++;
+          }
         } catch (e) {
           console.warn(`⚠️ [SignOut] sessionStorage 키 제거 실패: ${key}`, e);
         }
       });
+      console.log(`🗑️ [SignOut] sessionStorage 명시적 키 ${removedSessionExplicitKeys}개 제거 완료`);
 
       // 패턴 기반 키 제거
       const sessionKeysToRemove: string[] = [];
@@ -358,21 +490,25 @@ export async function signOut() {
         }
       }
       
+      let removedSessionPatternKeys = 0;
       sessionKeysToRemove.forEach(key => {
         try {
           sessionStorage.removeItem(key);
+          removedSessionPatternKeys++;
         } catch (e) {
           console.warn(`⚠️ [SignOut] sessionStorage 패턴 키 제거 실패: ${key}`, e);
         }
       });
 
-      console.log('✅ [SignOut] sessionStorage 정리 완료');
+      console.log(`✅ [SignOut] sessionStorage 정리 완료 (명시적: ${removedSessionExplicitKeys}, 패턴: ${removedSessionPatternKeys})`);
     } catch (e) {
       console.warn('⚠️ [SignOut] sessionStorage 정리 오류 (계속 진행):', e);
     }
 
     // 5. 모든 인증 관련 쿠키 제거
     try {
+      console.log('🔄 [SignOut] 쿠키 정리 시작...');
+      
       const cookiesToRemove = [
         'auth-token',
         'auth-refresh-token',
@@ -385,6 +521,7 @@ export async function signOut() {
       ];
 
       // 명시적 쿠키 제거
+      let removedExplicitCookies = 0;
       cookiesToRemove.forEach(cookieName => {
         try {
           // 여러 경로와 도메인에서 제거 시도
@@ -396,12 +533,15 @@ export async function signOut() {
               document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
             });
           });
+          removedExplicitCookies++;
         } catch (e) {
           console.warn(`⚠️ [SignOut] 쿠키 제거 실패: ${cookieName}`, e);
         }
       });
+      console.log(`🗑️ [SignOut] 명시적 쿠키 ${removedExplicitCookies}개 제거 완료`);
 
       // 패턴 기반 쿠키 제거
+      let removedPatternCookies = 0;
       try {
         document.cookie.split(';').forEach((cookie) => {
           const cookieName = cookie.trim().split('=')[0];
@@ -420,23 +560,27 @@ export async function signOut() {
                 document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
               });
             });
+            removedPatternCookies++;
           }
         });
       } catch (e) {
         console.warn('⚠️ [SignOut] 패턴 쿠키 제거 오류:', e);
       }
 
-      console.log('✅ [SignOut] 쿠키 정리 완료');
+      console.log(`✅ [SignOut] 쿠키 정리 완료 (명시적: ${removedExplicitCookies}, 패턴: ${removedPatternCookies})`);
     } catch (e) {
       console.warn('⚠️ [SignOut] 쿠키 정리 오류 (계속 진행):', e);
     }
 
     // 6. 메모리 캐시 정리 (window 객체에서 전역 변수들 정리)
     try {
+      console.log('🔄 [SignOut] 메모리 캐시 정리 시작...');
+      
       // 전역 인증 관련 변수들 정리
       if (typeof window !== 'undefined') {
         // Supabase 클라이언트 캐시 정리
         browserSupabase = null;
+        console.log('🗑️ [SignOut] Supabase 클라이언트 캐시 정리 완료');
         
         // 전역 변수 정리
         const globalVarsToDelete = [
@@ -449,13 +593,18 @@ export async function signOut() {
           'kakaoAuth',
         ];
         
+        let deletedVars = 0;
         globalVarsToDelete.forEach(varName => {
           try {
-            delete (window as any)[varName];
+            if ((window as any)[varName] !== undefined) {
+              delete (window as any)[varName];
+              deletedVars++;
+            }
           } catch (e) {
             // 삭제 오류 무시
           }
         });
+        console.log(`🗑️ [SignOut] 전역 변수 ${deletedVars}개 정리 완료`);
       }
 
       console.log('✅ [SignOut] 메모리 캐시 정리 완료');
@@ -468,6 +617,9 @@ export async function signOut() {
       if (typeof window !== 'undefined' && (window as any).WeixinJSBridge) {
         console.log('🔄 [SignOut] WeChat SDK 로그아웃 시도');
         // WeChat SDK 특별 처리 (필요시)
+        console.log('✅ [SignOut] WeChat SDK 처리 완료');
+      } else {
+        console.log('ℹ️ [SignOut] WeChat SDK 미감지, 건너뜀');
       }
     } catch (e) {
       console.warn('⚠️ [SignOut] WeChat SDK 로그아웃 오류 (계속 진행):', e);
@@ -475,6 +627,7 @@ export async function signOut() {
 
     // 8. 리다이렉트 URL 정리 (auth-redirect.ts의 clearAllAuthData 호출)
     try {
+      console.log('🔄 [SignOut] 리다이렉트 데이터 정리 시작...');
       // 동적 import로 clearAllAuthData 함수 사용
       const { clearAllAuthData } = await import('@/utils/auth-redirect');
       clearAllAuthData();
@@ -484,11 +637,18 @@ export async function signOut() {
     }
 
     // 9. 최종 상태 체크 및 로깅
+    console.log('🎉 [SignOut] 모든 로그아웃 단계 완료!');
     console.log('✅ [SignOut] 종합 로그아웃 완료');
+    
+    // 10. 페이지 리다이렉트 (포괄적 로그아웃도 리다이렉트 추가)
+    console.log('🔄 [SignOut] 홈페이지로 리다이렉트...');
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 500); // 조금 더 긴 지연으로 모든 정리가 완료되도록
     
     return { 
       success: true,
-      message: '모든 인증 데이터가 성공적으로 정리되었습니다.'
+      message: '모든 인증 데이터가 성공적으로 정리되었습니다. 홈페이지로 이동합니다.'
     };
     
   } catch (error) {
@@ -503,10 +663,16 @@ export async function signOut() {
       console.error('💥 [SignOut] 응급 정리마저 실패:', e);
     }
     
+    // 오류가 발생해도 리다이렉트
+    console.log('🔄 [SignOut] 오류 후 홈페이지로 리다이렉트...');
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 300);
+    
     return { 
       success: false, 
       error,
-      message: '로그아웃 중 오류가 발생했지만 기본 정리는 완료되었습니다.'
+      message: '로그아웃 중 오류가 발생했지만 기본 정리는 완료되었습니다. 홈페이지로 이동합니다.'
     };
   } finally {
     // 성공이든 실패든 상관없이 로그아웃 상태 리셋
@@ -527,4 +693,163 @@ export function getLogoutStatus() {
 export function resetLogoutStatus() {
   isSigningOut = false;
   console.log('🔧 [SignOut] 로그아웃 상태 강제 리셋');
+}
+
+/**
+ * Next.js 15 호환 간단 로그아웃 함수
+ * 복잡한 세션 처리를 우회하고 하드 리프레시를 사용합니다.
+ */
+export async function simpleSignOut() {
+  console.log('🚀 [SimpleSignOut] Next.js 15 호환 간단 로그아웃 시작');
+  
+  try {
+    // 1. 서버사이드 세션 무효화 (가장 중요)
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        console.log('✅ [SimpleSignOut] 서버사이드 세션 무효화 완료');
+      } else {
+        console.warn('⚠️ [SimpleSignOut] 서버사이드 세션 무효화 실패 (계속 진행)');
+      }
+    } catch (e) {
+      console.warn('⚠️ [SimpleSignOut] 서버 무효화 오류 (계속 진행):', e);
+    }
+
+    // 2. 핵심 스토리지 정리
+    try {
+      // localStorage 핵심 키만 제거
+      const criticalKeys = [
+        'supabase.auth.token',
+        'auth_session_active', 
+        'auth_provider',
+        'user_profile_cache'
+      ];
+      
+      criticalKeys.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          // 무시
+        }
+      });
+
+      // 패턴 기반 핵심 정리
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('sb-') || key.includes('supabase') || key.includes('auth'))) {
+          try {
+            localStorage.removeItem(key);
+          } catch (e) {
+            // 무시
+          }
+        }
+      }
+
+      console.log('✅ [SimpleSignOut] 핵심 스토리지 정리 완료');
+    } catch (e) {
+      console.warn('⚠️ [SimpleSignOut] 스토리지 정리 오류 (계속 진행):', e);
+    }
+
+    // 2.5. 핵심 쿠키 강화 정리 (가장 중요!)
+    try {
+      console.log('🍪 [SimpleSignOut] 쿠키 강화 정리 시작...');
+      
+      // Supabase 인증 쿠키들 (패턴 기반으로 찾아서 제거)
+      const allCookies = document.cookie.split(';');
+      let removedCookies = 0;
+      
+      allCookies.forEach(cookie => {
+        const cookieName = cookie.trim().split('=')[0];
+        if (cookieName && (
+          cookieName.includes('sb-') ||
+          cookieName.includes('supabase') ||
+          cookieName.includes('auth-token') ||
+          cookieName.includes('auth_token') ||
+          cookieName.includes('session')
+        )) {
+          // 여러 경로와 도메인에서 제거 시도
+          const domains = ['', `.${window.location.hostname}`, window.location.hostname, '.localhost'];
+          const paths = ['/', '/auth', '/api', '/ja'];
+          
+          domains.forEach(domain => {
+            paths.forEach(path => {
+              try {
+                document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain}; SameSite=Lax`;
+                document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain}; SameSite=Strict`;
+                document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain}; SameSite=None; Secure`;
+                document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
+              } catch (e) {
+                // 무시
+              }
+            });
+          });
+          removedCookies++;
+          console.log(`🗑️ [SimpleSignOut] 쿠키 제거: ${cookieName}`);
+        }
+      });
+
+      console.log(`✅ [SimpleSignOut] 쿠키 강화 정리 완료 (${removedCookies}개)`);
+    } catch (e) {
+      console.warn('⚠️ [SimpleSignOut] 쿠키 정리 오류 (계속 진행):', e);
+    }
+
+    // 3. 브라우저 캐시 정리
+    try {
+      browserSupabase = null;
+      console.log('✅ [SimpleSignOut] 브라우저 캐시 정리 완료');
+    } catch (e) {
+      console.warn('⚠️ [SimpleSignOut] 캐시 정리 오류:', e);
+    }
+
+    // 4. 하드 리프레시로 완전 초기화 (Next.js 15 세션 이슈 우회)
+    console.log('🔄 [SimpleSignOut] 하드 리프레시로 완전 초기화 시작...');
+    
+    // 작은 지연 후 리프레시 (스토리지 정리가 완료되도록)
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 100);
+
+    return { 
+      success: true,
+      message: '간단 로그아웃 완료 - 페이지를 새로고침합니다.'
+    };
+
+  } catch (error) {
+    console.error('❌ [SimpleSignOut] 간단 로그아웃 실패:', error);
+    
+    // 실패해도 강제 리프레시
+    window.location.href = '/';
+    
+    return { 
+      success: false, 
+      error,
+      message: '로그아웃 중 오류 발생 - 강제 새로고침합니다.'
+    };
+  }
+}
+
+/**
+ * 응급 로그아웃 함수 (최후의 수단)
+ * 모든 처리를 건너뛰고 즉시 리다이렉트합니다.
+ */
+export function emergencySignOut() {
+  console.log('🚨 [EmergencySignOut] 응급 로그아웃 실행');
+  
+  try {
+    // 최소한의 정리만 시도
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch (e) {
+    // 무시
+  }
+  
+  // 즉시 리다이렉트
+  window.location.replace('/');
 } 
