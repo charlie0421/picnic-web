@@ -8,9 +8,10 @@ export { useAuth } from '@/lib/supabase/auth-provider';
 
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
-// 성능 진단을 위한 직접적인 getSession 테스트 함수
+// 성능 진단을 위한 직접적인 getSession 테스트 함수 (레거시)
+// ⚠️ getSession()은 느립니다. 가능하면 testGetUserPerformance()를 사용하세요.
 export async function testGetSessionPerformance() {
-  console.log('🧪 [Performance Test] getSession 성능 테스트 시작');
+  console.log('🧪 [Performance Test] getSession 성능 테스트 시작 (레거시 방식)');
   
   const supabase = createBrowserSupabaseClient();
   const testResults = {
@@ -80,10 +81,128 @@ export async function testGetSessionPerformance() {
   return testResults;
 }
 
+// 🚀 권장: getUser() 기반 빠른 성능 테스트 함수
+export async function testGetUserPerformance() {
+  console.log('🧪 [Performance Test] getUser 성능 테스트 시작 (권장 방식)');
+  
+  const supabase = createBrowserSupabaseClient();
+  const testResults = {
+    attempts: 3,
+    results: [] as Array<{
+      attempt: number;
+      duration: number;
+      success: boolean;
+      error?: string;
+    }>,
+    average: 0,
+    fastest: 0,
+    slowest: 0
+  };
+
+  for (let i = 1; i <= testResults.attempts; i++) {
+    const startTime = performance.now();
+    
+    try {
+      console.log(`🏃 [Performance Test] getUser 시도 ${i}/${testResults.attempts} 시작`);
+      
+      const result = await supabase.auth.getUser();
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      testResults.results.push({
+        attempt: i,
+        duration,
+        success: !result.error && !!result.data?.user,
+        error: result.error?.message
+      });
+      
+      console.log(`✅ [Performance Test] getUser 시도 ${i} 완료: ${duration.toFixed(2)}ms`);
+      
+      // 시도 간 간격
+      if (i < testResults.attempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+    } catch (error) {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      testResults.results.push({
+        attempt: i,
+        duration,
+        success: false,
+        error: error instanceof Error ? error.message : '알 수 없는 오류'
+      });
+      
+      console.log(`❌ [Performance Test] getUser 시도 ${i} 실패: ${duration.toFixed(2)}ms - ${error}`);
+    }
+  }
+
+  // 결과 분석
+  const durations = testResults.results.map(r => r.duration);
+  testResults.average = durations.reduce((a, b) => a + b, 0) / durations.length;
+  testResults.fastest = Math.min(...durations);
+  testResults.slowest = Math.max(...durations);
+  
+  console.log('📊 [Performance Test] getUser 최종 결과:');
+  console.table(testResults.results);
+  console.log(`⚡ 평균: ${testResults.average.toFixed(2)}ms`);
+  console.log(`🏆 최고 속도: ${testResults.fastest.toFixed(2)}ms`);
+  console.log(`🐌 최저 속도: ${testResults.slowest.toFixed(2)}ms`);
+  
+  return testResults;
+}
+
+// 성능 비교 테스트 함수
+export async function compareGetSessionVsGetUser() {
+  console.log('⚡ [Performance Comparison] getSession vs getUser 비교 테스트 시작');
+  
+  console.log('📊 getSession 테스트...');
+  const sessionResults = await testGetSessionPerformance();
+  
+  console.log('📊 getUser 테스트...');
+  const userResults = await testGetUserPerformance();
+  
+  const comparison = {
+    getSession: {
+      average: sessionResults.average,
+      fastest: sessionResults.fastest,
+      slowest: sessionResults.slowest
+    },
+    getUser: {
+      average: userResults.average,
+      fastest: userResults.fastest,
+      slowest: userResults.slowest
+    },
+    speedup: {
+      average: sessionResults.average / userResults.average,
+      fastest: sessionResults.fastest / userResults.fastest,
+      slowest: sessionResults.slowest / userResults.slowest
+    }
+  };
+  
+  console.log('🎯 [Performance Comparison] 비교 결과:');
+  console.table(comparison);
+  
+  if (comparison.speedup.average > 1) {
+    console.log(`🚀 getUser()가 평균 ${comparison.speedup.average.toFixed(1)}배 빠릅니다!`);
+  } else {
+    console.log(`🐌 getSession()이 더 빠릅니다 (예상치 못한 결과)`);
+  }
+  
+  return comparison;
+}
+
 // 브라우저 환경에서 전역 함수로 등록
 if (typeof window !== 'undefined') {
-  (window as any).testSupabasePerformance = testGetSessionPerformance;
-  console.log('🛠️ [useAuth] testSupabasePerformance 함수가 전역으로 등록되었습니다. 브라우저 콘솔에서 testSupabasePerformance() 호출 가능');
+  (window as any).testSupabasePerformance = testGetSessionPerformance; // 레거시 호환성
+  (window as any).testGetSessionPerformance = testGetSessionPerformance;
+  (window as any).testGetUserPerformance = testGetUserPerformance;
+  (window as any).compareSupabasePerformance = compareGetSessionVsGetUser;
+  console.log('🛠️ [useAuth] 성능 테스트 함수들이 전역으로 등록되었습니다:');
+  console.log('  - testGetSessionPerformance() : getSession 테스트 (레거시)');
+  console.log('  - testGetUserPerformance() : getUser 테스트 (권장)');
+  console.log('  - compareSupabasePerformance() : 성능 비교');
 }
 
 // 🚨 무한대기 근본 원인 진단 전용 함수 🚨
@@ -298,9 +417,15 @@ export async function diagnoseSupabaseInfiniteWait() {
 
 // 전역 등록
 if (typeof window !== 'undefined') {
-  (window as any).testSupabasePerformance = testGetSessionPerformance;
+  (window as any).testSupabasePerformance = testGetSessionPerformance; // 레거시 호환성
+  (window as any).testGetSessionPerformance = testGetSessionPerformance;
+  (window as any).testGetUserPerformance = testGetUserPerformance; 
+  (window as any).compareSupabasePerformance = compareGetSessionVsGetUser;
   (window as any).diagnoseSupabaseInfiniteWait = diagnoseSupabaseInfiniteWait;
+  
   console.log('🛠️ [useAuth] 진단 함수들이 전역으로 등록되었습니다:');
-  console.log('  - testSupabasePerformance() : 성능 테스트');
+  console.log('  - testGetSessionPerformance() : getSession 테스트 (레거시)');
+  console.log('  - testGetUserPerformance() : getUser 테스트 (권장 ⭐)');
+  console.log('  - compareSupabasePerformance() : 성능 비교');
   console.log('  - diagnoseSupabaseInfiniteWait() : 무한대기 근본 원인 분석');
 }

@@ -167,8 +167,73 @@ const MyPage = () => {
         resolvedUserInfo: userInfo,
         timestamp: new Date().toISOString(),
       });
+
+      // 🚨 인증 감지 문제 진단
+      if (!isAuthenticated && !isLoading && isInitialized) {
+        console.warn('🚨 [MyPage] 인증 감지 실패 - 진단 시작');
+        
+        // 쿠키 확인
+        const hasCookie = document.cookie.includes('auth-token');
+        console.log('🍪 쿠키 상태:', {
+          hasCookie,
+          cookieCount: document.cookie.split(';').length,
+          allCookies: document.cookie.split(';').map(c => c.trim().split('=')[0])
+        });
+
+        // localStorage 확인
+        const storageKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.includes('sb-') && key.includes('auth')) {
+            storageKeys.push(key);
+          }
+        }
+        console.log('💾 localStorage 인증 키:', storageKeys);
+
+        // JWT 직접 테스트
+        try {
+          import('@/utils/jwt-parser').then(({ getInstantUserFromCookies }) => {
+            const jwtUser = getInstantUserFromCookies();
+            console.log('🔍 직접 JWT 파싱 결과:', {
+              hasJWTUser: !!jwtUser,
+              jwtUserEmail: jwtUser?.email,
+              jwtUserId: jwtUser?.id?.substring(0, 8) + '...'
+            });
+
+            if (jwtUser && !isAuthenticated) {
+              console.error('🚨 JWT에서는 사용자 발견되지만 Auth 상태가 인증되지 않음!');
+              console.log('🔄 Auth 상태 강제 새로고침을 시도하려면 콘솔에서 다음 실행:');
+              console.log('window.location.reload()');
+            }
+          });
+        } catch (error) {
+          console.error('❌ JWT 직접 테스트 실패:', error);
+        }
+      }
     }
   }, [isAuthenticated, isLoading, isInitialized, pageLoading, userProfile, user, getUserInfo, isDebugMode]);
+
+  // 🛠️ 강제 인증 새로고침 함수 (개발 환경에서만)
+  const forceAuthRefresh = useCallback(async () => {
+    if (process.env.NODE_ENV !== 'development') return;
+    
+    console.log('🔄 [MyPage] 강제 인증 새로고침 시작');
+    try {
+      const { getInstantUserFromCookies } = await import('@/utils/jwt-parser');
+      const jwtUser = getInstantUserFromCookies();
+      
+      if (jwtUser) {
+        console.log('✅ JWT에서 사용자 발견 - 페이지 새로고침');
+        window.location.reload();
+      } else {
+        console.warn('⚠️ JWT에서도 사용자 없음 - 로그인 필요');
+        alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error('❌ 강제 새로고침 실패:', error);
+    }
+  }, []);
 
   // 빠른 로그아웃 (Next.js 15 최적화)
   const handleSignOut = useCallback(async () => {
@@ -323,6 +388,59 @@ const MyPage = () => {
               >
                 로그인하기
               </Link>
+              
+              {/* 🛠️ 개발 환경 디버깅 버튼들 */}
+              {isDebugMode && (
+                <div className='mt-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg'>
+                  <p className='text-sm text-yellow-800 mb-3 font-medium'>🛠️ 개발자 디버깅 도구</p>
+                  <div className='space-y-2'>
+                    <button
+                      onClick={() => {
+                        console.log('🔍 [Debug] JWT 디버깅 시작');
+                        if (typeof window !== 'undefined' && (window as any).debugJWT) {
+                          (window as any).debugJWT();
+                        } else {
+                          import('@/utils/jwt-parser').then(({ debugJWTInfo }) => debugJWTInfo());
+                        }
+                      }}
+                      className='block w-full text-xs bg-yellow-200 hover:bg-yellow-300 px-3 py-2 rounded transition-colors'
+                    >
+                      JWT 토큰 분석
+                    </button>
+                    <button
+                      onClick={() => {
+                        console.log('🔍 [Debug] 로컬 쿠키 분석 시작');
+                        if (typeof window !== 'undefined' && (window as any).debugLocalCookies) {
+                          (window as any).debugLocalCookies();
+                        } else {
+                          import('@/utils/jwt-parser').then(({ debugLocalCookies }) => debugLocalCookies());
+                        }
+                      }}
+                      className='block w-full text-xs bg-blue-200 hover:bg-blue-300 px-3 py-2 rounded transition-colors'
+                    >
+                      로컬 쿠키 분석
+                    </button>
+                    <button
+                      onClick={forceAuthRefresh}
+                      className='block w-full text-xs bg-green-200 hover:bg-green-300 px-3 py-2 rounded transition-colors'
+                    >
+                      강제 인증 새로고침
+                    </button>
+                    <button
+                      onClick={() => {
+                        console.log('🔄 [Debug] 전체 새로고침');
+                        window.location.reload();
+                      }}
+                      className='block w-full text-xs bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded transition-colors'
+                    >
+                      페이지 새로고침
+                    </button>
+                  </div>
+                  <p className='text-xs text-yellow-700 mt-3'>
+                    💡 브라우저 콘솔을 열어서 디버깅 정보를 확인하세요.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

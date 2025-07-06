@@ -131,15 +131,15 @@ export class AuthErrorHandler {
     try {
       console.log('🔄 [AuthError] 인증 상태 복구 시도');
       
-      // 현재 세션 확인
-      const { data: { session }, error } = await this.supabase.auth.getSession();
+      // 현재 사용자 확인 (getUser()는 getSession()보다 빠르고 안정적)
+      const { data: { user }, error } = await this.supabase.auth.getUser();
       
-      if (error || !session) {
+      if (error || !user) {
         console.log('❌ [AuthError] 복구 불가능 - 로그아웃 상태로 처리');
         return false;
       }
 
-      console.log('✅ [AuthError] 세션 복구 성공');
+      console.log('✅ [AuthError] 사용자 복구 성공');
       return true;
     } catch (error) {
       console.error('❌ [AuthError] 복구 시도 중 오류:', error);

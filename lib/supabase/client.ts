@@ -40,7 +40,16 @@ if (typeof window !== 'undefined') {
 export function createBrowserSupabaseClient(): BrowserSupabaseClient {
   // 🔧 강화된 Singleton 패턴: 이미 존재하면 즉시 반환
   if (browserSupabase) {
-    console.log('🔄 [Client] 기존 Supabase 클라이언트 재사용');
+    // 무한 로그 방지: 1초에 최대 1번만 로그 출력
+    const now = Date.now();
+    const lastLogKey = '_supabase_last_reuse_log';
+    const lastLogTime = (window as any)[lastLogKey] || 0;
+    
+    if (now - lastLogTime > 1000) { // 1초마다 최대 1번
+      console.log('🔄 [Client] 기존 Supabase 클라이언트 재사용');
+      (window as any)[lastLogKey] = now;
+    }
+    
     return browserSupabase;
   }
 
@@ -295,13 +304,28 @@ export async function getCurrentUser() {
 
 /**
  * 현재 인증 세션을 가져오는 편의 함수입니다.
+ * ⚠️ 내부적으로 getUser()를 사용하며, 더 빠른 getCurrentUser()를 직접 사용하는 것을 권장합니다.
  * 
- * @returns 현재 인증 세션 또는 null
+ * @returns 현재 인증 세션 또는 null (호환성을 위해 세션 형태로 반환)
  */
 export async function getCurrentSession() {
   const supabase = createBrowserSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  return session;
+  
+  // getUser()로 사용자 정보 확인 (더 빠름)
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (error || !user) {
+    return null;
+  }
+  
+  // 호환성을 위해 간단한 세션 객체 생성
+  return {
+    user,
+    access_token: 'token-from-cookies',
+    refresh_token: null,
+    expires_at: null,
+    token_type: 'bearer' as const
+  };
 }
 
 /**

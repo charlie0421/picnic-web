@@ -33,38 +33,115 @@ const VotePopup: React.FC<VotePopupProps> = ({
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
 
   const { t, currentLanguage } = useLanguageStore();
   const { user, userProfile, isAuthenticated } = useAuth();
 
-  // 디버깅: props 로깅
+  // 디버깅: props 로깅 (간소화)
   useEffect(() => {
-    if (isOpen) {
-      console.log('🔍 [VotePopup] Props 확인:', {
+    if (isOpen && process.env.NODE_ENV === 'development') {
+      console.log('🔍 [VotePopup] 상태 확인:', {
         voteId,
         voteItemId,
         artistName,
-        userId: user?.id,
+        userId: user?.id?.substring(0, 8) + '...',
         isAuthenticated,
-        userProfile: userProfile ? 'exists' : 'null',
+        userProfile: userProfile ? '로드됨' : 'null',
+        userBalance: userBalance ? `총 ${userBalance.totalAvailable}개` : 'null',
+        isLoadingBalance,
+        balanceError: balanceError || 'none'
       });
     }
-  }, [isOpen, voteId, voteItemId, artistName, user, isAuthenticated, userProfile]);
+  }, [isOpen, userProfile, userBalance, isLoadingBalance, balanceError, user, isAuthenticated, voteId, voteItemId, artistName]);
 
   // 10000개 제한
   const MAX_VOTE_LIMIT = 10000;
 
   // 사용자 잔액 로드
   useEffect(() => {
-    if (isOpen && userProfile) {
-      const balance: UserBalance = {
-        starCandy: userProfile.star_candy || 0,
-        starCandyBonus: userProfile.star_candy_bonus || 0,
-        totalAvailable: (userProfile.star_candy || 0) + (userProfile.star_candy_bonus || 0),
-      };
-      setUserBalance(balance);
+    if (isOpen && user) {
+      if (userProfile) {
+        // userProfile이 있는 경우: 기존 로직
+        const balance: UserBalance = {
+          starCandy: userProfile.star_candy || 0,
+          starCandyBonus: userProfile.star_candy_bonus || 0,
+          totalAvailable: (userProfile.star_candy || 0) + (userProfile.star_candy_bonus || 0),
+        };
+        setUserBalance(balance);
+        console.log('✅ [VotePopup] userProfile에서 캔디 정보 로드:', balance);
+      } else {
+        // userProfile이 없는 경우: 서버에서 직접 가져오기 (JWT 토큰 기반 인증 대응)
+        console.log('🔄 [VotePopup] userProfile이 없어서 서버에서 캔디 정보 가져오는 중...');
+        fetchUserBalance();
+      }
     }
-  }, [isOpen, userProfile]);
+  }, [isOpen, userProfile, user]);
+
+  // 서버에서 캔디 정보 직접 가져오기
+  const fetchUserBalance = async () => {
+    if (!user?.id) {
+      console.error('❌ [VotePopup] user.id가 없습니다.');
+      setBalanceError('사용자 정보가 없습니다.');
+      return;
+    }
+
+    setIsLoadingBalance(true);
+    setBalanceError(null);
+
+    try {
+      console.log('📡 [VotePopup] 서버에서 캔디 정보 요청 중...', { userId: user.id });
+      
+      // 사용자 프로필 정보를 서버에서 가져오기
+      const response = await fetch(`/api/user/profile?userId=${user.id}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server response: ${response.status}`);
+      }
+
+      const profileData = await response.json();
+      console.log('📡 [VotePopup] 서버 응답:', profileData);
+
+      if (profileData.success && profileData.user) {
+        const balance: UserBalance = {
+          starCandy: profileData.user.star_candy || 0,
+          starCandyBonus: profileData.user.star_candy_bonus || 0,
+          totalAvailable: (profileData.user.star_candy || 0) + (profileData.user.star_candy_bonus || 0),
+        };
+        setUserBalance(balance);
+        setBalanceError(null);
+        console.log('✅ [VotePopup] 서버에서 캔디 정보 로드 성공:', balance);
+      } else {
+        const errorMsg = profileData.message || '캔디 정보를 불러올 수 없습니다.';
+        console.warn('⚠️ [VotePopup] 서버 응답 구조가 올바르지 않습니다:', profileData);
+        setBalanceError(errorMsg);
+        // 기본값 설정
+        setUserBalance({
+          starCandy: 0,
+          starCandyBonus: 0,
+          totalAvailable: 0,
+        });
+      }
+    } catch (error) {
+      console.error('❌ [VotePopup] 캔디 정보 가져오기 실패:', error);
+      setBalanceError('네트워크 오류가 발생했습니다.');
+      // 네트워크 오류 시 기본값 설정
+      setUserBalance({
+        starCandy: 0,
+        starCandyBonus: 0,
+        totalAvailable: 0,
+      });
+    } finally {
+      setIsLoadingBalance(false);
+    }
+  };
 
   // 전체 사용 체크박스 핸들러
   const handleUseAllChange = useCallback((checked: boolean) => {
@@ -276,7 +353,45 @@ const VotePopup: React.FC<VotePopupProps> = ({
           {/* 컨텐츠 */}
           <div className="p-6 space-y-6">
             {/* 보유 별사탕 정보 */}
-            {userBalance && (
+            {isLoadingBalance ? (
+              <motion.div
+                className="bg-gradient-to-r from-primary/5 to-secondary/10 p-4 rounded-xl border-2 border-primary/20"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('vote_popup_total_available')}</h3>
+                
+                <div className="flex items-center justify-center space-x-2 py-8">
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-primary font-medium">캔디 정보 로딩 중...</span>
+                </div>
+              </motion.div>
+            ) : balanceError ? (
+              <motion.div
+                className="bg-gradient-to-r from-red-50 to-orange-50 p-4 rounded-xl border-2 border-red-200"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('vote_popup_total_available')}</h3>
+                
+                <div className="text-center py-4">
+                  <div className="text-red-500 mb-2">
+                    <svg className="w-8 h-8 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-red-600 font-medium text-sm">{balanceError}</p>
+                  <button
+                    onClick={fetchUserBalance}
+                    className="mt-2 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded-lg transition-colors"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              </motion.div>
+            ) : userBalance ? (
               <motion.div
                 className="bg-gradient-to-r from-primary/5 to-secondary/10 p-4 rounded-xl border-2 border-primary/20"
                 initial={{ opacity: 0, y: 20 }}
@@ -318,6 +433,19 @@ const VotePopup: React.FC<VotePopupProps> = ({
                       <AnimatedCount value={userBalance.totalAvailable} suffix="" locale={getLocale()} />
                     </motion.div>
                   </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-xl border-2 border-gray-200"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('vote_popup_total_available')}</h3>
+                
+                <div className="text-center py-4">
+                  <p className="text-gray-500 text-sm">캔디 정보를 불러오지 못했습니다.</p>
                 </div>
               </motion.div>
             )}
@@ -429,7 +557,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
             
             <motion.button
               onClick={handleVoteSubmit}
-              disabled={isVoting || !userBalance || voteAmount > userBalance.totalAvailable}
+              disabled={isVoting || isLoadingBalance || !userBalance || voteAmount > userBalance.totalAvailable}
               className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-secondary text-white font-medium rounded-xl hover:from-primary/90 hover:to-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -441,6 +569,14 @@ const VotePopup: React.FC<VotePopupProps> = ({
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   <span>{t('vote_popup_voting')}</span>
+                </span>
+              ) : isLoadingBalance ? (
+                <span className="flex items-center justify-center space-x-2">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>캔디 정보 로딩 중...</span>
                 </span>
               ) : (
                 t('vote_popup_next')

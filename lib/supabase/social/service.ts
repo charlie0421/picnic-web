@@ -476,53 +476,53 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         }
       }
 
-      // 폴백: 기존 세션 확인
-      this.log(`${provider} Code Exchange 실패/불가 - 기존 세션 확인으로 폴백`);
+      // 폴백: 기존 사용자 확인 (getUser()로 빠른 처리)
+      this.log(`${provider} Code Exchange 실패/불가 - 기존 사용자 확인으로 폴백`);
       
-      // 먼저 빠른 세션 체크 (타임아웃 적용)
-      let sessionData: any = null;
-      let sessionError: any = null;
+      // 먼저 빠른 사용자 체크 (getUser()는 getSession()보다 빠름)
+      let userData: any = null;
+      let userError: any = null;
       
       try {
-        const sessionPromise = this.supabase.auth.getSession();
+        const userPromise = this.supabase.auth.getUser();
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('getSession timeout')), 500) // 1초에서 500ms로 단축
+          setTimeout(() => reject(new Error('getUser timeout')), 300) // getUser는 더 빠르므로 300ms
         );
         
         const result = await Promise.race([
-          sessionPromise,
+          userPromise,
           timeoutPromise
         ]);
         
-        sessionData = (result as any)?.data;
-        sessionError = (result as any)?.error;
+        userData = (result as any)?.data;
+        userError = (result as any)?.error;
         
-        this.log(`${provider} 세션 확인 결과`, { 
-          hasData: !!sessionData, 
-          hasSession: !!sessionData?.session,
-          hasError: !!sessionError 
+        this.log(`${provider} 사용자 확인 결과`, { 
+          hasData: !!userData, 
+          hasUser: !!userData?.user,
+          hasError: !!userError 
         });
         
       } catch (timeoutError) {
-        this.log(`${provider} getSession 타임아웃 (500ms) - Supabase 자동 처리로 전환`);
-        sessionError = timeoutError;
+        this.log(`${provider} getUser 타임아웃 (300ms) - Supabase 자동 처리로 전환`);
+        userError = timeoutError;
       }
 
-      if (sessionError || !sessionData?.session) {
+      if (userError || !userData?.user) {
         // Supabase의 자동 콜백 처리 시도 (더 짧은 대기)
         this.log(`${provider} Supabase 자동 콜백 처리 시도`);
         
-        // 짧은 대기 후 다시 세션 확인 (500ms로 단축)
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 짧은 대기 후 다시 사용자 확인 (300ms로 단축)
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // 빠른 재시도
         let retryData: any = null;
         let retryError: any = null;
         
         try {
-          const retryPromise = this.supabase.auth.getSession();
+          const retryPromise = this.supabase.auth.getUser();
           const retryTimeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('retry getSession timeout')), 500)
+            setTimeout(() => reject(new Error('retry getUser timeout')), 300)
           );
           
           const retryResult = await Promise.race([
@@ -534,31 +534,40 @@ export class SocialAuthService implements SocialAuthServiceInterface {
           retryError = (retryResult as any)?.error;
           
         } catch (retryTimeoutError) {
-          this.log(`${provider} 재시도 getSession도 타임아웃 - 페이지 새로고침 안내`);
+          this.log(`${provider} 재시도 getUser도 타임아웃 - 페이지 새로고침 안내`);
           retryError = retryTimeoutError;
         }
         
-        if (retryError || !retryData?.session) {
+        if (retryError || !retryData?.user) {
           throw new SocialAuthError(
             SocialAuthErrorCode.CALLBACK_FAILED,
-            `인증 세션 가져오기 실패: ${sessionError?.message || retryError?.message}`,
+            `인증 사용자 가져오기 실패: ${userError?.message || retryError?.message}`,
             provider,
-            sessionError || retryError,
+            userError || retryError,
           );
         }
         
-        // 재시도로 세션을 얻었다면 해당 세션 사용
-        if (retryData.session) {
-          this.log(`${provider} 재시도로 세션 확인 성공`);
+        // 재시도로 사용자를 얻었다면 간단한 세션 객체 생성
+        if (retryData.user) {
+          this.log(`${provider} 재시도로 사용자 확인 성공`);
+          
+          // 간단한 세션 객체 생성 (프로필 처리용)
+          const simpleSession = {
+            user: retryData.user,
+            access_token: 'token-from-cookie',
+            refresh_token: null,
+            expires_at: null,
+            token_type: 'bearer'
+          };
           
           // Google 특화 처리
           if (provider === "google") {
-            await this.handleGoogleProfile(retryData.session, params);
+            await this.handleGoogleProfile(simpleSession as any, params);
           }
 
           // Apple 특화 처리
           if (provider === "apple") {
-            await this.handleAppleProfile(retryData.session, params);
+            await this.handleAppleProfile(simpleSession as any, params);
           }
 
           // 로컬 스토리지에 인증 성공 정보 저장
@@ -570,35 +579,44 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
           return {
             success: true,
-            session: retryData.session,
-            user: retryData.session.user,
+            session: simpleSession as any,
+            user: retryData.user,
             provider,
             message: `${provider} 로그인 성공`,
           };
         }
       }
 
-      if (!sessionData?.session) {
-        // 최후의 수단: 페이지 새로고침 후 세션 확인 요청
-        this.log(`${provider} 세션이 없음 - 페이지 새로고침 필요`);
+      if (!userData?.user) {
+        // 최후의 수단: 페이지 새로고침 후 사용자 확인 요청
+        this.log(`${provider} 사용자가 없음 - 페이지 새로고침 필요`);
         
         throw new SocialAuthError(
           SocialAuthErrorCode.CALLBACK_FAILED,
-          "세션이 생성되지 않았습니다. 페이지를 새로고침하거나 다시 로그인해주세요.",
+          "사용자가 인증되지 않았습니다. 페이지를 새로고침하거나 다시 로그인해주세요.",
           provider,
         );
       }
 
-      this.log(`${provider} 기존 세션 확인 성공`);
+      this.log(`${provider} 기존 사용자 확인 성공`);
+
+      // 간단한 세션 객체 생성 (프로필 처리용)
+      const sessionForProfile = {
+        user: userData.user,
+        access_token: 'token-from-cookie',
+        refresh_token: null,
+        expires_at: null,
+        token_type: 'bearer'
+      };
 
       // Google 특화 처리
-      if (provider === "google" && sessionData.session) {
-        await this.handleGoogleProfile(sessionData.session, params);
+      if (provider === "google") {
+        await this.handleGoogleProfile(sessionForProfile as any, params);
       }
 
       // Apple 특화 처리
-      if (provider === "apple" && sessionData.session) {
-        await this.handleAppleProfile(sessionData.session, params);
+      if (provider === "apple") {
+        await this.handleAppleProfile(sessionForProfile as any, params);
       }
 
       // 로컬 스토리지에 인증 성공 정보 저장 (기존 코드와의 호환성)
@@ -610,8 +628,8 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
       return {
         success: true,
-        session: sessionData.session,
-        user: sessionData.session.user,
+        session: sessionForProfile as any,
+        user: userData.user,
         provider,
         message: `${provider} 로그인 성공`,
       };

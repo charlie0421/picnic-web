@@ -360,26 +360,25 @@ export function AuthGuardExamples() {
         );
 
         const {
-          data: { session },
+          data: { user },
           error,
-        } = await supabase.auth.getSession();
+        } = await supabase.auth.getUser();
 
-        console.log('🔍 Supabase 세션 확인:', {
-          hasSession: !!session,
-          userId: session?.user?.id,
-          userEmail: session?.user?.email,
-          provider: session?.user?.app_metadata?.provider,
-          expiresAt: session?.expires_at,
+        console.log('🔍 Supabase 사용자 확인:', {
+          hasUser: !!user,
+          userId: user?.id,
+          userEmail: user?.email,
+          provider: user?.app_metadata?.provider,
           error: error?.message,
         });
 
         alert(
-          `Supabase 세션 상태:\n${JSON.stringify(
+          `Supabase 사용자 상태:\n${JSON.stringify(
             {
-              hasSession: !!session,
-              userId: session?.user?.id,
-              userEmail: session?.user?.email,
-              provider: session?.user?.app_metadata?.provider,
+              hasUser: !!user,
+              userId: user?.id,
+              userEmail: user?.email,
+              provider: user?.app_metadata?.provider,
               error: error?.message,
             },
             null,

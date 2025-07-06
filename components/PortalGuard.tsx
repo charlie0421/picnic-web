@@ -17,12 +17,12 @@ export default function PortalGuard({ type = PortalType.PUBLIC, children }: Port
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await createBrowserSupabaseClient().auth.getSession();
+      const { data: { user }, error } = await createBrowserSupabaseClient().auth.getUser();
 
-      // 인증 상태에 따른 리다이렉션
-      if (type === PortalType.AUTH && session) {
+      // 인증 상태에 따른 리다이렉션 (getUser는 getSession보다 빠르고 안정적)
+      if (type === PortalType.AUTH && user && !error) {
         router.push('/');
-      } else if (type === PortalType.AUTH && !session) {
+      } else if (type === PortalType.AUTH && (!user || error)) {
         router.push('/login');
       }
     };

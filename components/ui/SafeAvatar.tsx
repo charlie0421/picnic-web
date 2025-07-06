@@ -115,8 +115,8 @@ export function SafeAvatar({
         loading="lazy"
       />
       
-      {/* 개발 환경에서만 표시되는 상태 인디케이터 */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* 개발 환경에서만 표시되는 상태 인디케이터 - 파란 점 제거 */}
+      {false && process.env.NODE_ENV === 'development' && (
         <>
           {/* 에러 상태 표시 */}
           {hasError && (
@@ -130,11 +130,11 @@ export function SafeAvatar({
                  title={`Google 이미지 429 에러로 폴백 사용: ${src}`} />
           )}
           
-          {/* 프록시 사용 표시 */}
-          {useProxy && finalImageUrl.includes('/api/proxy-image') && (
+          {/* 프록시 사용 표시 - 파란 점 제거됨 */}
+          {/* {useProxy && finalImageUrl.includes('/api/proxy-image') && (
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" 
                  title={`프록시를 통해 이미지 로딩: ${src}`} />
-          )}
+          )} */}
         </>
       )}
     </div>
@@ -173,8 +173,8 @@ export function SimpleAvatar({
         loading="lazy"
       />
       
-      {/* 개발 환경에서만 표시되는 상태 인디케이터 */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* 개발 환경에서만 표시되는 상태 인디케이터 - 파란 점 제거 */}
+      {false && process.env.NODE_ENV === 'development' && (
         <>
           {/* Google 이미지 429 에러 표시 */}
           {shouldUseFallback && src?.includes('googleusercontent.com') && (
@@ -182,11 +182,11 @@ export function SimpleAvatar({
                  title={`Google 이미지 429 에러로 폴백 사용: ${src}`} />
           )}
           
-          {/* 프록시 사용 표시 */}
-          {useProxy && finalImageUrl.includes('/api/proxy-image') && (
+          {/* 프록시 사용 표시 - 파란 점 제거됨 */}
+          {/* {useProxy && finalImageUrl.includes('/api/proxy-image') && (
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white" 
                  title={`프록시를 통해 이미지 로딩: ${src}`} />
-          )}
+          )} */}
         </>
       )}
     </div>

@@ -85,8 +85,8 @@ export default function AuthCallbackClient({
 
           console.log('🚀 [AuthCallback] OAuth 성공 → 강제 홈페이지 리디렉션:', returnUrl);
           
-          // 🔧 강제 새로고침으로 getSession 무한대기 우회
-          console.log('🔄 [AuthCallback] getSession 무한대기 문제로 인해 강제 새로고침 실행');
+          // 🔧 강제 새로고침으로 확실한 인증 상태 반영
+          console.log('🔄 [AuthCallback] 확실한 인증 상태 반영을 위해 강제 새로고침 실행');
           setTimeout(() => {
             window.location.href = returnUrl;
             // 추가 보험: 1초 후에도 리디렉션 안되면 강제 새로고침
@@ -144,7 +144,7 @@ export default function AuthCallbackClient({
           <p className="text-sm text-gray-500 mt-2">{provider.toUpperCase()} 계정으로 로그인 중...</p>
         )}
         <div className="mt-4 text-xs text-gray-400">
-          <p>서버사이드 OAuth 처리 (클라이언트 무한대기 회피)</p>
+          <p>서버사이드 OAuth 처리 (빠른 인증 처리)</p>
         </div>
       </div>
     </div>

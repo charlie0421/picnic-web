@@ -5,10 +5,10 @@ const supabase = createBrowserSupabaseClient();
 
 export { supabase };
 
-// 로그인 상태 확인
+// 로그인 상태 확인 (getUser()는 getSession()보다 빠르고 안정적)
 export const isUserLoggedIn = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  return !!session;
+  const { data: { user }, error } = await supabase.auth.getUser();
+  return !!user && !error;
 };
 
 // 사용자 정보 가져오기
@@ -43,11 +43,15 @@ export const uploadFile = async (bucket: string, path: string, file: File) => {
   return data;
 };
 
-// pending auth 상태 처리를 위한 유틸리티 함수
+// pending auth 상태 처리를 위한 유틸리티 함수 (더 빠른 getUser() 사용)
 export const handlePendingAuth = async () => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session;
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error('Auth 상태 확인 오류:', error);
+      return null;
+    }
+    return user;
   } catch (error) {
     console.error('Auth 상태 확인 오류:', error);
     return null;

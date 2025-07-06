@@ -124,20 +124,46 @@ export function createServerSupabaseClientWithRequest(req: any, res: any) {
 
 /**
  * 서버 컴포넌트에서 현재 인증 세션을 가져옵니다.
- * @returns 현재 인증 세션 또는 null
+ * ⚠️ 내부적으로 getUser()를 사용하며, 더 빠른 getServerUser()를 직접 사용하는 것을 권장합니다.
+ * @returns 현재 인증 세션 또는 null (호환성을 위해 세션 형태로 반환)
  */
 export async function getServerSession() {
   const supabase = createServerSupabaseClient();
-  return await supabase.auth.getSession();
+  
+  // getUser()로 사용자 정보 확인 (더 빠름)
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (error || !user) {
+    return { data: { session: null }, error };
+  }
+  
+  // 호환성을 위해 간단한 세션 객체 생성
+  const mockSession = {
+    user,
+    access_token: 'token-from-cookies',
+    refresh_token: null,
+    expires_at: null,
+    token_type: 'bearer' as const
+  };
+  
+  return { data: { session: mockSession }, error: null };
 }
 
 /**
  * 서버 컴포넌트에서 현재 사용자 정보를 가져옵니다.
+ * getSession()보다 빠르고 안정적입니다.
  * @returns 현재 사용자 정보 또는 null
  */
 export async function getServerUser() {
-  const { data: { session } } = await getServerSession();
-  return session?.user || null;
+  const supabase = createServerSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (error) {
+    console.warn('🔍 [Server] getUser 오류:', error);
+    return null;
+  }
+  
+  return user;
 }
 
 /**
@@ -157,11 +183,11 @@ export async function getServerUser() {
 export async function withAuth<T>(
   callback: (userId: string) => Promise<T>
 ): Promise<T> {
-  const { data: { session } } = await getServerSession();
+  const user = await getServerUser();
   
-  if (!session) {
+  if (!user) {
     throw new Error('인증이 필요합니다');
   }
   
-  return callback(session.user.id);
+  return callback(user.id);
 } 

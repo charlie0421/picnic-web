@@ -25,70 +25,30 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 [Auth Verify API] Supabase 클라이언트 생성 완료');
 
-    // 현재 세션 확인
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    console.log('🔍 [Auth Verify API] 세션 조회 결과:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      sessionError: sessionError?.message,
-    });
-    
-    if (sessionError) {
-      console.warn('⚠️ [Auth Verify API] 세션 조회 오류:', sessionError);
-      return NextResponse.json(
-        { 
-          valid: false, 
-          error: 'Session retrieval failed',
-          message: '세션 조회에 실패했습니다.'
-        }, 
-        { status: 401 }
-      );
-    }
-
-    // 세션이 없는 경우
-    if (!session || !session.user) {
-      console.log('❌ [Auth Verify API] 세션이 없음');
-      return NextResponse.json(
-        { 
-          valid: false, 
-          error: 'No session found',
-          message: '활성 세션이 없습니다.'
-        }, 
-        { status: 401 }
-      );
-    }
-
-    // 세션 만료 체크
-    const now = new Date();
-    const expiryTime = new Date(session.expires_at! * 1000);
-    
-    if (now >= expiryTime) {
-      console.warn('⏰ [Auth Verify API] 세션이 만료됨');
-      return NextResponse.json(
-        { 
-          valid: false, 
-          error: 'Session expired',
-          message: '세션이 만료되었습니다.'
-        }, 
-        { status: 401 }
-      );
-    }
-
-    // 사용자 정보 확인
+    // 먼저 빠른 사용자 정보 확인 (getUser는 getSession보다 빠르고 안정적)
     const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    if (userError || !userData.user) {
-      console.warn('⚠️ [Auth Verify API] 사용자 정보 조회 오류:', userError);
+    console.log('🔍 [Auth Verify API] 사용자 조회 결과:', {
+      hasUser: !!userData?.user,
+      userId: userData?.user?.id,
+      userError: userError?.message,
+    });
+    
+    if (userError || !userData?.user) {
+      console.warn('⚠️ [Auth Verify API] 사용자 정보 조회 오류 또는 사용자 없음:', userError);
       return NextResponse.json(
         { 
           valid: false, 
-          error: 'User data retrieval failed',
-          message: '사용자 정보 조회에 실패했습니다.'
+          error: 'User authentication failed',
+          message: '사용자 인증에 실패했습니다.'
         }, 
         { status: 401 }
       );
     }
+
+    // 주의: getUser()가 성공했다면 토큰이 유효함을 의미
+    // 별도의 세션 만료 체크는 getUser() 호출 자체에서 처리됨
+
 
     // 사용자 프로필 존재 확인 (선택적)
     try {
@@ -120,19 +80,18 @@ export async function GET(request: NextRequest) {
     }
 
     // WeChat 로그인 특별 검증
-    const provider = session.user.app_metadata?.provider;
+    const provider = userData.user.app_metadata?.provider;
     if (provider === 'wechat') {
       console.log('🔄 [Auth Verify API] WeChat 로그인 특별 검증');
       
       // WeChat 토큰 유효성 추가 검증 (필요시 구현)
-      // 현재는 기본 세션 검증으로 충분
+      // 현재는 기본 사용자 검증으로 충분
     }
 
     console.log('✅ [Auth Verify API] 인증 상태 검증 성공:', {
       userId: userData.user.id,
       email: userData.user.email,
       provider: provider || 'email',
-      expiresAt: new Date(session.expires_at! * 1000).toISOString(),
     });
 
     return NextResponse.json({
@@ -141,9 +100,6 @@ export async function GET(request: NextRequest) {
         id: userData.user.id,
         email: userData.user.email,
         provider: provider || 'email',
-      },
-      session: {
-        expiresAt: new Date(session.expires_at! * 1000).toISOString(),
       },
     });
   } catch (error) {

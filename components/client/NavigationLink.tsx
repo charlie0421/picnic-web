@@ -41,10 +41,8 @@ export default function NavigationLink({
     
     if (!pending) return null;
     
-    return (
-      <span className="inline-block ml-2 w-3 h-3 rounded-full bg-blue-500 animate-pulse" 
-            aria-label="Loading" />
-    );
+    // 파란 점 제거됨 - 로딩 인디케이터 비활성화
+    return null;
   };
   */
   
@@ -58,10 +56,11 @@ export default function NavigationLink({
     >
       {children}
       {/* Next.js 15.3.1 지원 시 주석 해제: <LinkStatusIndicator /> */}
-      {isNavigating && (
+      {/* 파란 점 제거: 네비게이션 로딩 인디케이터 */}
+      {/* {isNavigating && (
         <span className="inline-block ml-2 w-3 h-3 rounded-full bg-blue-500 animate-pulse" 
               aria-label="Loading" />
-      )}
+      )} */}
     </Link>
   );
 } 
