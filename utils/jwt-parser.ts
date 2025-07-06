@@ -307,7 +307,7 @@ function getSupabaseTokenFromStorage(): string | null {
 
     // 모든 Supabase 키 확인
     console.log('🔍 [JWT Parser] 모든 localStorage sb- 키 검색');
-    const allKeys = [];
+    const allKeys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
@@ -480,16 +480,14 @@ export function debugJWTInfo() {
 
   // localStorage 정보 출력
   console.log('💾 [JWT Debug] localStorage 정보:');
-  const localStorageKeys = [];
-  const supabaseKeys = [];
+  const localStorageKeys: string[] = [];
+  const supabaseKeys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key) {
       localStorageKeys.push(key);
       if (key.startsWith('sb-') && key.includes('auth')) {
         supabaseKeys.push(key);
-        const value = localStorage.getItem(key);
-        console.log(`  🔑 ${key}: ${value ? `${value.length}자` : 'null'}`);
       }
     }
   }
