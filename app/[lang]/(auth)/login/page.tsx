@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/supabase/auth-provider';
 import Link from 'next/link';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
+import { getLastLoginInfo, formatLastLoginTime, type LastLoginInfo } from '@/utils/storage';
 
 // AppleID 타입 정의
 declare global {
@@ -62,6 +63,7 @@ function LoginContentInner() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [envCheckFailed, setEnvCheckFailed] = useState(false);
+  const [lastLoginInfo, setLastLoginInfo] = useState<LastLoginInfo | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -97,6 +99,24 @@ function LoginContentInner() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 최근 로그인 정보 로드
+  useEffect(() => {
+    if (!mounted) return;
+    
+    try {
+      const loginInfo = getLastLoginInfo();
+      setLastLoginInfo(loginInfo);
+      
+      if (process.env.NODE_ENV === 'development' && loginInfo) {
+        debugLog('최근 로그인 정보 로드됨', loginInfo);
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        debugLog('최근 로그인 정보 로드 실패', error);
+      }
+    }
+  }, [mounted]);
 
   // 환경 변수 확인 및 Supabase 클라이언트 상태 체크 - 최적화됨
   useEffect(() => {
@@ -631,6 +651,25 @@ function LoginContentInner() {
           </div>
         )}
 
+        {/* 최근 로그인 정보 표시 */}
+        {lastLoginInfo && (
+          <div className='bg-blue-50 border border-blue-200 px-3 sm:px-4 py-2 sm:py-3 rounded-lg mb-4 sm:mb-6'>
+            <div className='flex items-center justify-center space-x-2'>
+              <div className='flex items-center space-x-2'>
+                <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse'></div>
+                <span className='text-blue-700 text-sm font-medium'>
+                  {t('login_recent_login')}
+                </span>
+              </div>
+            </div>
+            <div className='text-center mt-1'>
+              <span className='text-blue-600 text-sm'>
+                {lastLoginInfo.providerDisplay} {t('login_recent_login_via')} • {formatLastLoginTime(lastLoginInfo.timestamp)}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* 소셜 로그인 버튼들 */}
         <div className='space-y-3 sm:space-y-4'>
           <SocialLoginButtons
@@ -670,8 +709,6 @@ function LoginContentInner() {
             </div>
           </div>
         </div>
-
-
 
         {/* 개발 환경에서만 디버그 정보 표시 */}
         {process.env.NODE_ENV === 'development' && (

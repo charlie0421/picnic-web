@@ -92,6 +92,46 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Provider 정보 추출 (Supabase auth에서 가져오기)
+    const user = userData.user;
+    let provider = 'email'; // 기본값
+    let providerDisplayName = '이메일';
+    
+    // user.identities에서 provider 정보 확인
+    if (user.identities && user.identities.length > 0) {
+      const identity = user.identities[0]; // 첫 번째 identity 사용
+      provider = identity.provider || 'email';
+      
+      // Provider별 한국어 표시명 설정
+      switch (provider) {
+        case 'google':
+          providerDisplayName = 'Google';
+          break;
+        case 'kakao':
+          providerDisplayName = 'Kakao';
+          break;
+        case 'apple':
+          providerDisplayName = 'Apple';
+          break;
+        case 'github':
+          providerDisplayName = 'GitHub';
+          break;
+        case 'facebook':
+          providerDisplayName = 'Facebook';
+          break;
+        case 'twitter':
+          providerDisplayName = 'Twitter';
+          break;
+        case 'discord':
+          providerDisplayName = 'Discord';
+          break;
+        case 'email':
+        default:
+          providerDisplayName = '이메일';
+          break;
+      }
+    }
+
     console.log('✅ [User Profile API] 프로필 조회 성공:', {
       userId: profile.id,
       nickname: profile.nickname,
@@ -99,7 +139,9 @@ export async function GET(request: NextRequest) {
       star_candy_bonus: profile.star_candy_bonus,
       total: (profile.star_candy || 0) + (profile.star_candy_bonus || 0),
       is_admin: profile.is_admin,
-      is_super_admin: profile.is_super_admin
+      is_super_admin: profile.is_super_admin,
+      provider: provider,
+      providerDisplayName: providerDisplayName
     });
 
     return NextResponse.json({
@@ -114,6 +156,8 @@ export async function GET(request: NextRequest) {
         total_candy: (profile.star_candy || 0) + (profile.star_candy_bonus || 0),
         is_admin: profile.is_admin || false,
         is_super_admin: profile.is_super_admin || false,
+        provider: provider,
+        provider_display_name: providerDisplayName,
         created_at: profile.created_at,
         updated_at: profile.updated_at
       }

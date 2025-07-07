@@ -667,9 +667,9 @@ export async function signOut() {
     console.log('✅ [SignOut] 종합 로그아웃 완료');
     
     // 10. 페이지 리다이렉트 (포괄적 로그아웃도 리다이렉트 추가)
-    console.log('🔄 [SignOut] 홈페이지로 리다이렉트...');
+    console.log('🔄 [SignOut] 마이페이지로 리다이렉트...');
     setTimeout(() => {
-      window.location.href = '/';
+      window.location.href = '/ko/mypage';
     }, 500); // 조금 더 긴 지연으로 모든 정리가 완료되도록
     
     return { 
@@ -690,9 +690,9 @@ export async function signOut() {
     }
     
     // 오류가 발생해도 리다이렉트
-    console.log('🔄 [SignOut] 오류 후 홈페이지로 리다이렉트...');
+    console.log('🔄 [SignOut] 오류 후 마이페이지로 리다이렉트...');
     setTimeout(() => {
-      window.location.href = '/';
+      window.location.href = '/ko/mypage';
     }, 300);
     
     return { 
@@ -839,7 +839,7 @@ export async function simpleSignOut() {
     
     // 작은 지연 후 리프레시 (스토리지 정리가 완료되도록)
     setTimeout(() => {
-      window.location.href = '/';
+      window.location.href = '/ko/mypage';
     }, 100);
 
     return { 
@@ -851,7 +851,7 @@ export async function simpleSignOut() {
     console.error('❌ [SimpleSignOut] 간단 로그아웃 실패:', error);
     
     // 실패해도 강제 리프레시
-    window.location.href = '/';
+    window.location.href = '/ko/mypage';
     
     return { 
       success: false, 
@@ -877,5 +877,5 @@ export function emergencySignOut() {
   }
   
   // 즉시 리다이렉트
-  window.location.replace('/');
+  window.location.replace('/ko/mypage');
 } 

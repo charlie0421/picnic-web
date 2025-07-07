@@ -190,15 +190,26 @@ export async function getServerSession() {
  * @returns 현재 사용자 정보 또는 null
  */
 export async function getServerUser() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  
-  if (error) {
-    console.warn('🔍 [Server] getUser 오류:', error);
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      // AuthSessionMissingError는 정상적인 로그아웃 상태이므로 경고만 표시
+      if (error.message?.includes('Auth session missing')) {
+        // 인증 세션이 없는 정상적인 상태
+        return null;
+      }
+      console.warn('🔍 [Server] getUser 오류:', error);
+      return null;
+    }
+    
+    return user;
+  } catch (error) {
+    // 예상치 못한 오류 처리
+    console.warn('🔍 [Server] getUser 예외:', error);
     return null;
   }
-  
-  return user;
 }
 
 /**

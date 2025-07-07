@@ -160,16 +160,9 @@ export default function AuthCallbackClient({
                 localStorage.setItem('auth_provider', provider || 'google');
                 localStorage.removeItem('code_verifier');
                 
-                // 🎯 실제 로그인 성공 시 최근 사용한 로그인 수단으로 저장
-                try {
-                  const { saveLastLoginProvider, incrementProviderUsage } = require('@/utils/auth-helpers');
-                  const loginProvider = provider || 'google';
-                  saveLastLoginProvider(loginProvider);
-                  incrementProviderUsage(loginProvider);
-                  debugLog(`✅ [AuthCallback] 최근 로그인 수단 저장 완료: ${loginProvider}`);
-                } catch (error) {
-                  debugError('⚠️ [AuthCallback] 최근 로그인 수단 저장 실패:', error);
-                }
+                // 🎯 최근 로그인 정보는 AuthStore에서 API를 통해 자동으로 처리됩니다
+                // (중복 처리 방지를 위해 여기서는 제거됨)
+                debugLog('ℹ️ [AuthCallback] 최근 로그인 정보는 AuthStore에서 자동 처리됩니다');
               }
             })
           ]);

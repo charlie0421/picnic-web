@@ -379,7 +379,7 @@ export function useLogout() {
     
     if (result.success) {
       // Redirect after successful logout
-      const redirectTo = options.redirectTo || '/login';
+      const redirectTo = options.redirectTo || '/ko/mypage';
       
       // Small delay to ensure all cleanup is complete
       setTimeout(() => {
@@ -406,7 +406,7 @@ export async function emergencyLogout(): Promise<LogoutResult> {
   
   const result = await performLogout({
     clearAllStorage: true,
-    redirectTo: '/login',
+    redirectTo: '/ko/mypage',
     invalidateServerSession: true,
     clearVotingState: true,
     showNotification: false
@@ -415,7 +415,7 @@ export async function emergencyLogout(): Promise<LogoutResult> {
   // Force page reload regardless of result
   if (typeof window !== 'undefined') {
     setTimeout(() => {
-      window.location.href = '/login';
+      window.location.href = '/ko/mypage';
     }, 100);
   }
 
@@ -535,7 +535,7 @@ export function useCompleteLogout() {
     
     if (result.success) {
       // Redirect after successful logout
-      const redirectTo = options.redirectTo || '/login';
+      const redirectTo = options.redirectTo || '/ko/mypage';
       
       // Small delay to ensure all cleanup is complete
       setTimeout(() => {
@@ -552,4 +552,309 @@ export function useCompleteLogout() {
   };
 
   return { completeLogout };
+}
+
+/**
+ * 🚀 Next.js 15 호환 간단하고 확실한 로그아웃 함수
+ * 복잡한 로직 없이 즉시 리다이렉트하고 스토리지를 정리합니다.
+ */
+export async function quickLogout(): Promise<void> {
+  console.log('🔄 Starting comprehensive logout process...');
+  
+  try {
+    // 0. 기존 Supabase 인스턴스 정리 먼저 시도
+    try {
+      // 기존 클라이언트가 있다면 먼저 정리
+      if (typeof window !== 'undefined' && (window as any).__supabaseClient) {
+        console.log('🔄 [QuickLogout] 기존 Supabase 클라이언트 감지, 정리 중...');
+        delete (window as any).__supabaseClient;
+      }
+      
+      const { createBrowserSupabaseClient } = await import('@/lib/supabase/client');
+      const supabase = createBrowserSupabaseClient();
+      
+      // 로컬 범위로 제한하여 로그아웃
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) {
+        console.warn('🔄 [QuickLogout] Supabase 로그아웃 에러 (무시하고 계속):', error.message);
+      } else {
+        console.log('✅ [QuickLogout] Supabase 세션 정리 완료');
+      }
+    } catch (supabaseError) {
+      console.warn('🔄 [QuickLogout] Supabase 로그아웃 실패 (무시하고 계속):', supabaseError);
+    }
+    
+    // 1. 즉시 모든 스토리지 정리 (동기)
+    if (typeof window !== 'undefined') {
+      // localStorage 정리
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (
+          key.includes('supabase') || 
+          key.includes('auth') || 
+          key.includes('sb-') ||
+          key.includes('session') ||
+          key.includes('token')
+        )) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // sessionStorage 정리
+      const sessionKeysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (
+          key.includes('auth') || 
+          key.includes('redirect') ||
+          key.includes('login')
+        )) {
+          sessionKeysToRemove.push(key);
+        }
+      }
+      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+      
+      console.log(`🧹 [QuickLogout] 스토리지 정리 완료 (${keysToRemove.length + sessionKeysToRemove.length}개 항목)`);
+    }
+    
+    // 2. 더욱 강력한 쿠키 정리 (분할된 Supabase 쿠키 포함)
+    if (typeof document !== 'undefined') {
+      // Supabase 프로젝트 ID 추출
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const projectIdMatch = supabaseUrl.match(/https:\/\/([a-z0-9]+)\.supabase\.co/);
+      const projectId = projectIdMatch ? projectIdMatch[1] : null;
+      
+      console.log('🧩 [JWT Parser] Supabase 프로젝트 ID:', projectId);
+      
+      // 현재 모든 쿠키 분석
+      const allCookies = document.cookie.split(';');
+      const cookiesToClear: string[] = [];
+      
+      allCookies.forEach(cookie => {
+        const cookieName = cookie.split('=')[0].trim();
+        const cookieValue = cookie.split('=')[1] || '';
+        
+        if (cookieName && (
+          cookieName.includes('sb-') ||
+          cookieName.includes('supabase') ||
+          cookieName.includes('auth-token') ||
+          cookieName.includes('auth') ||
+          cookieName.includes('session') ||
+          cookieName.includes('token') ||
+          // 분할된 쿠키 패턴 감지 (더 정확한 패턴)
+          /^sb-[a-z0-9]+-auth-token(\.\d+)?$/.test(cookieName)
+        )) {
+          cookiesToClear.push(cookieName);
+          
+          // 분할된 쿠키인 경우 로깅
+          if (/^sb-[a-z0-9]+-auth-token\.\d+$/.test(cookieName)) {
+            console.log(`🧩 [JWT Parser] 쿠키 조각 발견: ${cookieName} (${cookieValue.length}자)`);
+          }
+        }
+      });
+      
+      // 프로젝트 ID가 있다면 특정 패턴으로 추가 검색
+      if (projectId) {
+        // 분할된 쿠키들을 더 체계적으로 찾기 (최대 20개 조각까지)
+        for (let i = 0; i < 20; i++) {
+          const splitCookieName = `sb-${projectId}-auth-token.${i}`;
+          if (document.cookie.includes(splitCookieName) && !cookiesToClear.includes(splitCookieName)) {
+            cookiesToClear.push(splitCookieName);
+            console.log(`🧩 [JWT Parser] 추가 쿠키 조각 발견: ${splitCookieName}`);
+          }
+        }
+        
+        // 기본 토큰도 확인
+        const baseCookieName = `sb-${projectId}-auth-token`;
+        if (document.cookie.includes(baseCookieName) && !cookiesToClear.includes(baseCookieName)) {
+          cookiesToClear.push(baseCookieName);
+        }
+        
+        // refresh token도 확인
+        const refreshCookieName = `sb-${projectId}-auth-token-code-verifier`;
+        if (document.cookie.includes(refreshCookieName) && !cookiesToClear.includes(refreshCookieName)) {
+          cookiesToClear.push(refreshCookieName);
+        }
+      }
+      
+      console.log(`🍪 [QuickLogout] 삭제할 쿠키 목록 (${cookiesToClear.length}개):`, cookiesToClear);
+      
+      // 각 쿠키를 매우 다양한 경로와 도메인으로 삭제 시도
+      cookiesToClear.forEach(cookieName => {
+        // 기본 삭제 시도들
+        const deleteOptions = [
+          // 기본 삭제
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; max-age=0;`,
+          // 현재 도메인
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}; max-age=0;`,
+          // 다양한 경로
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/auth; max-age=0;`,
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/api; max-age=0;`,
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/api/auth; max-age=0;`,
+          // Secure 옵션
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; secure; max-age=0;`,
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}; secure; max-age=0;`,
+          // SameSite 옵션들
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=strict; max-age=0;`,
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=lax; max-age=0;`,
+          `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=none; secure; max-age=0;`,
+        ];
+        
+        // 상위 도메인 삭제도 시도
+        if (window.location.hostname.includes('.')) {
+          const domainParts = window.location.hostname.split('.');
+          
+          // 루트 도메인 (.example.com)
+          if (domainParts.length >= 2) {
+            const rootDomain = '.' + domainParts.slice(-2).join('.');
+            deleteOptions.push(
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; secure; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; samesite=strict; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; samesite=lax; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; samesite=none; secure; max-age=0;`
+            );
+          }
+          
+          // 서브도메인도 시도 (.sub.example.com)
+          if (domainParts.length >= 3) {
+            const subDomain = '.' + domainParts.slice(-3).join('.');
+            deleteOptions.push(
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${subDomain}; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${subDomain}; secure; max-age=0;`
+            );
+          }
+        }
+        
+        // 모든 삭제 옵션 시도
+        deleteOptions.forEach(option => {
+          try {
+            document.cookie = option;
+          } catch (e) {
+            // 무시 (일부 옵션은 클라이언트에서 설정할 수 없을 수 있음)
+          }
+        });
+      });
+      
+      console.log(`🍪 [QuickLogout] ${cookiesToClear.length}개 쿠키 삭제 시도 완료`);
+    }
+    
+    // 3. 강화된 쿠키 삭제 확인 및 재시도
+    if (typeof document !== 'undefined') {
+      let retryCount = 0;
+      const maxRetries = 5; // 재시도 횟수 증가
+      
+      const verifyCookieClearing = () => {
+        // 남은 쿠키들 더 정확하게 탐지
+        const allCurrentCookies = document.cookie.split(';');
+        const remainingAuthCookies: string[] = [];
+        
+        allCurrentCookies.forEach(cookie => {
+          const cookieName = cookie.split('=')[0].trim();
+          if (cookieName && (
+            cookieName.includes('sb-') ||
+            cookieName.includes('supabase') ||
+            cookieName.includes('auth-token') ||
+            cookieName.includes('auth') ||
+            cookieName.includes('session') ||
+            cookieName.includes('token') ||
+            // 분할된 쿠키 패턴도 검사 (더 정확한 패턴)
+            /^sb-[a-z0-9]+-auth-token(\.\d+)?$/.test(cookieName)
+          )) {
+            remainingAuthCookies.push(cookieName);
+          }
+        });
+        
+        if (remainingAuthCookies.length > 0 && retryCount < maxRetries) {
+          retryCount++;
+          console.log(`🔄 [QuickLogout] 남은 쿠키 발견 (재시도 ${retryCount}/${maxRetries}):`, remainingAuthCookies);
+          
+          // 남은 쿠키들을 더 강력하게 재삭제
+          remainingAuthCookies.forEach(cookieName => {
+            // 더욱 공격적인 삭제 시도
+            const aggressiveDeleteOptions = [
+              // 기본 삭제 (다양한 형태)
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; max-age=0; secure;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; max-age=0; httponly;`,
+              // 도메인 포함
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${window.location.hostname}; max-age=0;`,
+              // 다양한 경로
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/auth; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/api; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/api/auth; max-age=0;`,
+              // SameSite 옵션들
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=strict; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=lax; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=none; secure; max-age=0;`,
+              // 조합 옵션들
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}; secure; samesite=strict; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}; secure; samesite=lax; max-age=0;`,
+              `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}; secure; samesite=none; max-age=0;`,
+            ];
+            
+            // 루트 도메인 추가
+            if (window.location.hostname.includes('.')) {
+              const rootDomain = '.' + window.location.hostname.split('.').slice(-2).join('.');
+              aggressiveDeleteOptions.push(
+                `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; max-age=0;`,
+                `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; secure; max-age=0;`,
+                `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; secure; samesite=strict; max-age=0;`,
+                `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; secure; samesite=lax; max-age=0;`,
+                `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${rootDomain}; secure; samesite=none; max-age=0;`
+              );
+            }
+            
+            // 모든 옵션 시도
+            aggressiveDeleteOptions.forEach(option => {
+              try {
+                document.cookie = option;
+              } catch (e) {
+                // 무시
+              }
+            });
+          });
+          
+          // 재귀적으로 다시 확인 (더 긴 대기 시간)
+          setTimeout(verifyCookieClearing, 200);
+          return;
+        }
+        
+        if (remainingAuthCookies.length > 0) {
+          console.warn(`⚠️ [QuickLogout] ${remainingAuthCookies.length}개 쿠키가 여전히 남아있음:`, remainingAuthCookies);
+        } else {
+          console.log('✅ [QuickLogout] 모든 인증 쿠키 정리 완료');
+        }
+        
+        // 4. 확실한 정리 후 리다이렉트
+        console.log('🔄 [QuickLogout] 마이페이지로 리다이렉트');
+        window.location.href = '/ko/mypage';
+      };
+      
+      // 초기 쿠키 삭제 확인 (더 긴 대기 시간)
+      setTimeout(verifyCookieClearing, 100);
+      return; // 리다이렉트는 콜백에서 처리
+    }
+    
+  } catch (error) {
+    console.error('❌ [QuickLogout] 오류:', error);
+    // 오류가 발생해도 강제 리다이렉트
+    if (typeof window !== 'undefined') {
+      window.location.href = '/ko/mypage';
+    }
+  }
+}
+
+/**
+ * React Hook으로 quickLogout 사용
+ */
+export function useQuickLogout() {
+  const logout = async () => {
+    await quickLogout();
+  };
+  
+  return { logout };
 }
