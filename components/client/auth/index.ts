@@ -5,7 +5,7 @@
  * 사용자 인증과 소셜 로그인 등을 담당합니다.
  */
 
-export { default as SocialLoginButtons } from './SocialLoginButtons';
+export { SocialLoginButtons } from './SocialLoginButtons';
 export * from './types';
 export * from './utils';
 export { default as AuthCallback } from './AuthCallback';

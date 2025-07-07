@@ -19,7 +19,7 @@ const MyPage = () => {
   const isDebugMode = process.env.NODE_ENV === 'development' || 
                      (typeof window !== 'undefined' && window.location.hostname === 'localhost');
 
-  // 사용자 정보 추출 (토큰 기반 우선, userProfile은 fallback)
+  // 사용자 정보 추출 (DB 프로필 우선, OAuth는 최초 가입시에만)
   const getUserInfo = useCallback(() => {
     // 디버깅: 실제 데이터 확인
     if (process.env.NODE_ENV === 'development') {
@@ -35,7 +35,23 @@ const MyPage = () => {
       });
     }
 
-    // 1. 토큰에서 직접 정보 가져오기 (가장 확실함)
+    // 1. DB 프로필이 있으면 무조건 DB 사용 (사용자가 관리하는 프로필)
+    if (userProfile) {
+      const result = {
+        nickname: userProfile.nickname || userProfile.email?.split('@')[0] || user?.email?.split('@')[0] || '사용자',
+        email: userProfile.email || user?.email || '이메일 정보 없음', 
+        avatar_url: userProfile.avatar_url || null, // DB의 프로필 이미지만 사용
+        provider: 'profile',
+        source: 'userProfile'
+      };
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ [getUserInfo] DB 프로필 사용:', result);
+      }
+      return result;
+    }
+    
+    // 2. DB 프로필이 없을 때만 JWT 토큰 사용 (최초 로그인 시 임시)
     if (user) {
       const result = {
         nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자',
@@ -46,23 +62,7 @@ const MyPage = () => {
       };
       
       if (process.env.NODE_ENV === 'development') {
-        console.log('✅ [getUserInfo] 토큰에서 정보 추출:', result);
-      }
-      return result;
-    }
-    
-    // 2. userProfile에서 가져오기 (fallback)
-    if (userProfile) {
-      const result = {
-        nickname: userProfile.nickname || userProfile.email?.split('@')[0] || '사용자',
-        email: userProfile.email || '이메일 정보 없음', 
-        avatar_url: userProfile.avatar_url || null,
-        provider: 'profile',
-        source: 'userProfile'
-      };
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('⚠️ [getUserInfo] userProfile에서 정보 추출:', result);
+        console.log('✅ [getUserInfo] JWT 토큰 사용 (DB 프로필 없음):', result);
       }
       return result;
     }
@@ -80,7 +80,7 @@ const MyPage = () => {
       console.log('❌ [getUserInfo] 기본값 사용:', result);
     }
     return result;
-  }, [user, userProfile]);
+  }, [userProfile, user]); // userProfile 우선
 
   // 컴포넌트 마운트 시 기존 로그아웃 플래그 정리
   useEffect(() => {
@@ -249,6 +249,8 @@ const MyPage = () => {
     }
   }, []);
 
+
+
   // 로딩 상태 처리 (auth 초기화 또는 페이지 로딩)
   if (isLoading || pageLoading || !isInitialized) {
     return (
@@ -291,6 +293,175 @@ const MyPage = () => {
               <p className='text-xs text-gray-400 mt-1'>
                 Provider: {userInfo.provider}
               </p>
+            )}
+            
+            {/* 🔍 프로필 이미지 출처 디버깅 정보 */}
+            {isDebugMode && (
+              <div className='mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs'>
+                <h3 className='font-semibold text-yellow-800 mb-2'>🔍 프로필 이미지 디버깅</h3>
+                <div className='space-y-1 text-yellow-700'>
+                  <p><strong>현재 표시:</strong> {userInfo.source} ({userInfo.avatar_url ? '이미지 있음' : '기본 이미지'})</p>
+                  <p><strong>JWT 토큰:</strong> {user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '없음'}</p>
+                  <p><strong>DB 프로필:</strong> {userProfile?.avatar_url || '없음'}</p>
+                  <p className='text-green-600 font-medium'>✅ DB 프로필 이미지 우선 사용 (OAuth는 최초 가입시에만)</p>
+                  
+                  {/* 🆚 웹과 앱 비교 정보 */}
+                  <div className='mt-2 p-2 bg-red-50 border border-red-200 rounded'>
+                    <p className='text-red-800 font-medium'>🆚 웹 vs 앱 환경 비교</p>
+                    <div className='text-red-700 text-xs mt-1'>
+                      <p><strong>현재 환경:</strong> {process.env.NODE_ENV} (웹)</p>
+                      <p><strong>사용자 ID:</strong> {user?.id ? `${user.id.substring(0, 8)}...` : '없음'}</p>
+                      <p><strong>이메일:</strong> {user?.email || '없음'}</p>
+                      <p><strong>Provider:</strong> {user?.app_metadata?.provider || '없음'}</p>
+                      <p><strong>JWT 업데이트:</strong> {user?.updated_at ? new Date(user.updated_at).toLocaleString('ko-KR') : '없음'}</p>
+                      <p><strong>현재 URL:</strong> {typeof window !== 'undefined' ? window.location.origin : 'SSR'}</p>
+                      <p className='mt-1 font-medium text-red-800'>❓ 앱과 같은 계정/환경인지 확인하세요!</p>
+                    </div>
+                  </div>
+                  
+                  {user?.user_metadata?.avatar_url !== userProfile?.avatar_url && (
+                    <p className='text-red-600 font-medium'>⚠️ JWT와 DB 이미지가 다릅니다!</p>
+                  )}
+                  
+                  {/* DB 프로필이 없는 경우 경고 및 생성 버튼 */}
+                  {!userProfile && user && (
+                    <div className='mt-3 p-2 bg-red-50 border border-red-200 rounded'>
+                      <p className='text-red-700 font-medium'>⚠️ DB에 프로필 레코드가 없습니다!</p>
+                      <p className='text-red-600 text-xs mt-1'>Google 로그인 시 프로필 생성에 실패했을 가능성이 있습니다.</p>
+                      <button
+                        onClick={async () => {
+                          if (!user?.id) {
+                            alert('사용자 정보가 없습니다.');
+                            return;
+                          }
+                          
+                          try {
+                            const { createBrowserSupabaseClient } = await import('@/lib/supabase/client');
+                            const supabase = createBrowserSupabaseClient();
+                            
+                            // JWT 토큰에서 프로필 정보 추출
+                            const profileData = {
+                              id: user.id,
+                              nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자',
+                              email: user.email,
+                              avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+                              provider: user.app_metadata?.provider || 'google',
+                              created_at: new Date().toISOString(),
+                              updated_at: new Date().toISOString(),
+                            };
+                            
+                            console.log('🔧 [MyPage] 수동 프로필 생성 시도:', profileData);
+                            
+                            const { data, error } = await supabase
+                              .from('user_profiles')
+                              .insert(profileData)
+                              .select()
+                              .single();
+                            
+                            if (error) {
+                              console.error('❌ 프로필 생성 실패:', error);
+                              alert(`프로필 생성 실패: ${error.message}`);
+                              return;
+                            }
+                            
+                            console.log('✅ 프로필 생성 성공:', data);
+                            alert('프로필이 성공적으로 생성되었습니다! 페이지를 새로고침합니다.');
+                            window.location.reload();
+                          } catch (error) {
+                            console.error('❌ 프로필 생성 예외:', error);
+                            alert(`오류가 발생했습니다: ${error}`);
+                          }
+                        }}
+                        className='mt-2 px-3 py-1 bg-red-200 hover:bg-red-300 rounded text-xs font-medium'
+                      >
+                        🔧 수동으로 프로필 생성
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div className='mt-2'>
+                    <button
+                      onClick={() => {
+                        console.log('🔍 상세 프로필 이미지 정보:', {
+                          'JWT 토큰 메타데이터': user?.user_metadata,
+                          'DB 프로필': userProfile,
+                          '최종 표시 정보': userInfo,
+                          '로직': 'DB 프로필 우선 → JWT 토큰 fallback → 기본 이미지'
+                        });
+                        alert('콘솔에서 상세 정보를 확인하세요.');
+                      }}
+                      className='px-2 py-1 bg-yellow-200 hover:bg-yellow-300 rounded text-xs'
+                    >
+                      콘솔에서 상세 정보 보기
+                    </button>
+                    
+                    {/* DB 직접 조회 테스트 버튼 */}
+                    <button
+                      onClick={async () => {
+                        if (!user?.id) {
+                          alert('사용자 정보가 없습니다.');
+                          return;
+                        }
+                        
+                        try {
+                          console.log('🔍 [Direct DB Test] 직접 DB 조회 테스트 시작');
+                          console.log('📋 [Direct DB Test] 사용자 ID:', user.id);
+                          
+                          const { createBrowserSupabaseClient } = await import('@/lib/supabase/client');
+                          const supabase = createBrowserSupabaseClient();
+                          
+                          // 1. 전체 user_profiles 테이블 확인 (개수만)
+                          const { count, error: countError } = await supabase
+                            .from('user_profiles')
+                            .select('*', { count: 'exact', head: true });
+                          
+                          console.log('📊 [Direct DB Test] user_profiles 전체 레코드 수:', count);
+                          if (countError) console.error('❌ [Direct DB Test] 카운트 에러:', countError);
+                          
+                          // 2. 현재 사용자 조회 시도
+                          const { data, error } = await supabase
+                            .from('user_profiles')
+                            .select('*')
+                            .eq('id', user.id)
+                            .single();
+                          
+                          console.log('🔍 [Direct DB Test] 사용자별 조회 결과:', {
+                            데이터: data,
+                            에러: error,
+                            사용자ID: user.id
+                          });
+                          
+                          // 3. 모든 레코드 조회 (최대 5개)
+                          const { data: allProfiles, error: allError } = await supabase
+                            .from('user_profiles')
+                            .select('id, nickname, email')
+                            .limit(5);
+                          
+                          console.log('📋 [Direct DB Test] 전체 프로필 샘플 (최대 5개):', allProfiles);
+                          if (allError) console.error('❌ [Direct DB Test] 전체 조회 에러:', allError);
+                          
+                          // 4. RLS 정책 확인을 위한 auth.getUser() 테스트
+                          const { data: authUser, error: authError } = await supabase.auth.getUser();
+                          console.log('🔐 [Direct DB Test] Supabase Auth 사용자:', {
+                            인증상태: !!authUser?.user,
+                            사용자ID: authUser?.user?.id,
+                            JWT_ID와_일치: authUser?.user?.id === user.id,
+                            에러: authError
+                          });
+                          
+                          alert('콘솔에서 DB 조회 테스트 결과를 확인하세요!');
+                        } catch (error) {
+                          console.error('❌ [Direct DB Test] 테스트 중 예외:', error);
+                          alert(`테스트 실패: ${error}`);
+                        }
+                      }}
+                      className='ml-2 px-2 py-1 bg-blue-200 hover:bg-blue-300 rounded text-xs'
+                    >
+                      🔍 DB 직접 조회 테스트
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

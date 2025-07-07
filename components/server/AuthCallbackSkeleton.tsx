@@ -1,10 +1,7 @@
 import { Link } from 'lucide-react';
-import { Linden_Hill } from 'next/font/google';
 import React from 'react';
 
-
 interface AuthCallbackSkeletonProps {
-  status?: string;
   error?: string | null;
   onRetry?: () => void;
 }
@@ -15,7 +12,6 @@ interface AuthCallbackSkeletonProps {
  * 버튼 클릭 같은 인터랙션이 필요한 부분만 클라이언트 컴포넌트로 분리
  */
 export default function AuthCallbackSkeleton({
-  status = '처리 중입니다...',
   error = null,
   onRetry,
 }: AuthCallbackSkeletonProps) {
@@ -40,14 +36,25 @@ export default function AuthCallbackSkeleton({
     );
   }
 
-  // 로딩 표시 (텍스트 없이 애니메이션만)
-      return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          </div>
+  // 심플한 로딩바
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        {/* 심플한 로딩바 */}
+        <div className="relative">
+          {/* 외부 원 */}
+          <div className="w-20 h-20 border-4 border-gray-200 rounded-full"></div>
+          {/* 회전하는 로딩바 */}
+          <div className="absolute top-0 left-0 w-20 h-20 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        
+        {/* 간단한 점 애니메이션 */}
+        <div className="flex justify-center items-center mt-6 space-x-1">
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
         </div>
       </div>
-    );
+    </div>
+  );
 } 

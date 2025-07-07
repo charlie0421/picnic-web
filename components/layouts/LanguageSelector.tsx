@@ -4,23 +4,36 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 const languages = [
-  { code: 'ko', name: '한국어' },
-  { code: 'en', name: 'English' },
-  { code: 'ja', name: '日本語' },
-  { code: 'zh', name: '中文' },
-  { code: 'id', name: 'Bahasa Indonesia' },
+  { code: 'ko', name: '한국어', shortName: '한', flag: '🇰🇷' },
+  { code: 'en', name: 'English', shortName: 'EN', flag: '🇺🇸' },
+  { code: 'ja', name: '日本語', shortName: '日', flag: '🇯🇵' },
+  { code: 'zh', name: '中文', shortName: '中', flag: '🇨🇳' },
+  { code: 'id', name: 'Bahasa Indonesia', shortName: 'ID', flag: '🇮🇩' },
 ];
 
 const LanguageSelector = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { currentLocale, changeLocale } = useLocaleRouter();
 
   // 마운트 상태 관리
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
+    
+    // 모바일 감지
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      setMounted(false);
+      window.removeEventListener('resize', checkMobile);
+    };
   }, []);
 
   const currentLanguageObj = languages.find(
@@ -65,49 +78,35 @@ const LanguageSelector = () => {
   // 서버 사이드에서는 빈 div를 렌더링
   if (!mounted) {
     return (
-      <div
-        style={{
-          width: '170px',
-          height: '36px',
-        }}
-      />
+      <div className="w-10 h-9 sm:w-[170px] sm:h-9" />
     );
   }
 
   return (
     <div
       ref={dropdownRef}
-      style={{
-        position: 'relative',
-        display: 'inline-block',
-        width: '170px',
-      }}
+      className="relative inline-block w-10 sm:w-[170px]"
     >
       <button
         type='button'
         onClick={toggleDropdown}
-        style={{
-          padding: '8px 12px',
-          border: '1px solid #e5e7eb',
-          borderRadius: '6px',
-          backgroundColor: 'white',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          width: '170px',
-          justifyContent: 'space-between',
-          color: '#374151',
-          position: 'relative',
-          fontSize: '13px',
-        }}
+        className="flex items-center justify-center sm:justify-between w-full h-9 px-2 sm:px-3 border border-gray-300 rounded-lg bg-white cursor-pointer text-gray-700 text-xs sm:text-sm hover:bg-gray-50 transition-colors"
       >
-        <span>{currentLanguageObj?.name || 'Language'}</span>
+        {/* 모바일: 플래그만 표시 */}
+        <span className="block sm:hidden text-base">
+          {currentLanguageObj?.flag || '🌐'}
+        </span>
+        
+        {/* 데스크톱: 전체 이름 표시 */}
+        <span className="hidden sm:block">
+          {currentLanguageObj?.name || 'Language'}
+        </span>
+        
+        {/* 화살표 (데스크톱에서만) */}
         <span
+          className="hidden sm:block text-xs transition-transform duration-200"
           style={{
             transform: isOpen ? 'rotate(180deg)' : 'none',
-            transition: 'transform 0.2s',
-            fontSize: '12px',
           }}
         >
           ▼
@@ -115,26 +114,19 @@ const LanguageSelector = () => {
       </button>
 
       <div
+        className={`
+          fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg
+          transition-all duration-200 ease-in-out
+          w-10 sm:w-[170px] max-h-80 overflow-y-auto
+          ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}
+        `}
         style={{
-          visibility: isOpen ? 'visible' : 'hidden',
-          opacity: isOpen ? 1 : 0,
-          position: 'fixed',
           top: dropdownRef.current
             ? dropdownRef.current.getBoundingClientRect().bottom + 4
             : 0,
           left: dropdownRef.current
             ? dropdownRef.current.getBoundingClientRect().left
             : 0,
-          backgroundColor: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '6px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          width: '170px',
-          maxHeight: '300px',
-          overflowY: 'auto',
-          transition: 'opacity 0.2s ease-in-out',
-          zIndex: 9999,
-          fontSize: '14px',
         }}
       >
         {languages.map((language) => {
@@ -145,33 +137,24 @@ const LanguageSelector = () => {
               type='button'
               onClick={() => handleLanguageChange(language.code)}
               disabled={isCurrentLanguage}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '8px 12px',
-                textAlign: 'left',
-                border: 'none',
-                backgroundColor: isCurrentLanguage ? '#f0f0f0' : 'white',
-                color: isCurrentLanguage ? '#9ca3af' : '#374151',
-                cursor: isCurrentLanguage ? 'default' : 'pointer',
-                transition: 'background-color 0.2s',
-                borderBottom: '1px solid #f3f4f6',
-                fontWeight: isCurrentLanguage ? 'bold' : 'normal',
-              }}
-              onMouseEnter={(e) => {
-                if (!isCurrentLanguage && mounted) {
-                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+              className={`
+                block w-full text-left border-none transition-colors
+                ${isCurrentLanguage 
+                  ? 'bg-gray-100 text-gray-500 cursor-default font-semibold' 
+                  : 'bg-white text-gray-700 cursor-pointer hover:bg-gray-50'
                 }
-              }}
-              onMouseLeave={(e) => {
-                if (mounted) {
-                  e.currentTarget.style.backgroundColor = isCurrentLanguage
-                    ? '#f0f0f0'
-                    : 'white';
-                }
-              }}
+                ${language.code !== languages[languages.length - 1].code ? 'border-b border-gray-100' : ''}
+              `}
             >
-              {language.name}
+              {/* 모바일: 플래그만 */}
+              <div className="block sm:hidden p-2 text-center text-base">
+                {language.flag}
+              </div>
+              
+              {/* 데스크톱: 전체 이름 */}
+              <div className="hidden sm:block px-3 py-2 text-sm">
+                {language.name}
+              </div>
             </button>
           );
         })}

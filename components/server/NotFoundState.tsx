@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface NotFoundStateProps {
   message?: string;
@@ -30,22 +33,29 @@ interface NotFoundStateProps {
  * }
  */
 export default function NotFoundState({ 
-  message = '요청하신 페이지를 찾을 수 없습니다.',
+  message,
   backLink = '/',
-  backLabel = '홈으로 돌아가기',
-  title = '페이지를 찾을 수 없습니다'
+  backLabel,
+  title
 }: NotFoundStateProps) {
+  const { t } = useLanguageStore();
+  
+  // 기본값을 번역된 텍스트로 설정
+  const displayTitle = title || t('notFound.title');
+  const displayMessage = message || t('notFound.description');
+  const displayBackLabel = backLabel || t('notFound.homeButton');
+  
   return (
     <div className="flex flex-col justify-center items-center min-h-[50vh] p-4">
       <div className="text-center max-w-md">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">{title}</h1>
-        <p className="text-gray-600 mb-6">{message}</p>
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">{displayTitle}</h1>
+        <p className="text-gray-600 mb-6">{displayMessage}</p>
         <div className="flex justify-center">
           <Link 
             href={backLink}
             className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 transition-colors"
           >
-            {backLabel}
+            {displayBackLabel}
           </Link>
         </div>
       </div>

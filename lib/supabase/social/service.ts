@@ -697,17 +697,25 @@ export class SocialAuthService implements SocialAuthServiceInterface {
             if (data.success && data.profile) {
               // 사용자 프로필이 없으면 생성, 있으면 업데이트
               if (!existingProfile) {
-                await this.supabase.from("user_profiles").insert({
+                const insertData = {
                   id: user.id,
-                  display_name: data.profile.name ||
-                    user.email?.split("@")[0] || "User",
+                  nickname: data.profile.name || user.email?.split("@")[0] || "User", // display_name → nickname
                   avatar_url: data.profile.avatar || null,
                   email: data.profile.email || user.email,
                   provider: "google",
                   provider_id: data.profile.id,
-                  locale: data.profile.locale || navigator.language,
+                  created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString(),
-                });
+                };
+                
+                console.log('🔧 [Google] 프로필 생성 시도:', insertData);
+                const { error: insertError } = await this.supabase.from("user_profiles").insert(insertData);
+                
+                if (insertError) {
+                  console.error('❌ [Google] 프로필 생성 실패:', insertError);
+                } else {
+                  console.log('✅ [Google] 프로필 생성 성공');
+                }
               } else {
                 // 필요한 필드만 업데이트
                 await this.supabase.from("user_profiles").update({
@@ -727,13 +735,24 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
       // 최소한의 프로필 정보가 없는 경우 기본 프로필 생성
       if (!existingProfile) {
-        await this.supabase.from("user_profiles").insert({
+        const basicProfileData = {
           id: user.id,
-          display_name: user.email?.split("@")[0] || "User",
+          nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split("@")[0] || "User", // display_name → nickname
           email: user.email,
+          avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null, // JWT에서 아바타 추가
           provider: "google",
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        });
+        };
+        
+        console.log('🔧 [Google] 기본 프로필 생성 시도:', basicProfileData);
+        const { error: basicInsertError } = await this.supabase.from("user_profiles").insert(basicProfileData);
+        
+        if (basicInsertError) {
+          console.error('❌ [Google] 기본 프로필 생성 실패:', basicInsertError);
+        } else {
+          console.log('✅ [Google] 기본 프로필 생성 성공');
+        }
       }
     } catch (error) {
       console.error("Google 프로필 업데이트 오류:", error);
@@ -805,17 +824,25 @@ export class SocialAuthService implements SocialAuthServiceInterface {
             if (data.success && data.profile) {
               // 사용자 프로필이 없으면 생성, 있으면 업데이트
               if (!existingProfile) {
-                await this.supabase.from("user_profiles").insert({
+                const appleInsertData = {
                   id: user.id,
-                  display_name: data.profile.name ||
-                    userObject?.name?.firstName || user.email?.split("@")[0] ||
-                    "User",
+                  nickname: data.profile.name || userObject?.name?.firstName || user.email?.split("@")[0] || "User", // display_name → nickname
                   avatar_url: null, // Apple은 프로필 이미지를 제공하지 않음
                   email: data.profile.email || user.email,
                   provider: "apple",
                   provider_id: data.profile.id,
+                  created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString(),
-                });
+                };
+                
+                console.log('🔧 [Apple] 프로필 생성 시도:', appleInsertData);
+                const { error: appleInsertError } = await this.supabase.from("user_profiles").insert(appleInsertData);
+                
+                if (appleInsertError) {
+                  console.error('❌ [Apple] 프로필 생성 실패:', appleInsertError);
+                } else {
+                  console.log('✅ [Apple] 프로필 생성 성공');
+                }
               } else {
                 // 필요한 필드만 업데이트
                 await this.supabase.from("user_profiles").update({
@@ -848,13 +875,24 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
         // 기본 프로필 정보만으로 처리
         if (!existingProfile) {
-          await this.supabase.from("user_profiles").insert({
+          const appleBasicData = {
             id: user.id,
-            display_name: name || user.email?.split("@")[0] || "User",
+            nickname: name || user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split("@")[0] || "User", // display_name → nickname + JWT 정보 추가
             email: user.email,
+            avatar_url: null, // Apple은 프로필 이미지 제공 안함
             provider: "apple",
+            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          });
+          };
+          
+          console.log('🔧 [Apple] 기본 프로필 생성 시도:', appleBasicData);
+          const { error: appleBasicError } = await this.supabase.from("user_profiles").insert(appleBasicData);
+          
+          if (appleBasicError) {
+            console.error('❌ [Apple] 기본 프로필 생성 실패:', appleBasicError);
+          } else {
+            console.log('✅ [Apple] 기본 프로필 생성 성공');
+          }
         }
       }
     } catch (error) {

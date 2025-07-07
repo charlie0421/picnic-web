@@ -68,6 +68,9 @@ const AUTH_STORAGE_KEYS = [
   'lastLoginMethod',
   'rememberMe',
   
+  // Recent login provider (new)
+  'picnic_last_login_provider',
+  
   // Voting and application state
   'voteState',
   'votingSession',

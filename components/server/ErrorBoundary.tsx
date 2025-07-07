@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useLanguageStore } from '@/stores/languageStore';
 import { ErrorCode, AppError, handleError } from '@/lib/supabase/error';
 import ErrorState from './ErrorState';
 
@@ -21,6 +22,8 @@ interface ErrorBoundaryProps {
  * export default ServerErrorBoundary;
  */
 export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
+  const { t } = useLanguageStore();
+  
   // 에러를 애플리케이션 표준 에러로 변환
   const appError = error instanceof AppError ? error : handleError(error);
   
@@ -39,11 +42,11 @@ export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
   switch (code) {
     case ErrorCode.NOT_FOUND:
       statusCode = 404;
-      errorMessage = '요청한 데이터를 찾을 수 없습니다.';
+      errorMessage = t('error_loading_page') || '요청한 데이터를 찾을 수 없습니다.';
       break;
     case ErrorCode.UNAUTHORIZED:
       statusCode = 401;
-      errorMessage = '로그인이 필요합니다.';
+      errorMessage = t('dialog_content_login_required') || '로그인이 필요합니다.';
       break;
     case ErrorCode.FORBIDDEN:
       statusCode = 403;
@@ -51,11 +54,14 @@ export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
       break;
     case ErrorCode.VALIDATION:
       statusCode = 400;
-      errorMessage = '입력값이 유효하지 않습니다.';
+      errorMessage = t('error_invalid_data') || '입력값이 유효하지 않습니다.';
       break;
     case ErrorCode.NETWORK_ERROR:
       statusCode = 0;
-      errorMessage = '네트워크 연결을 확인해주세요.';
+      errorMessage = t('error_network_connection') || '네트워크 연결을 확인해주세요.';
+      break;
+    default:
+      errorMessage = t('error.description') || '요청하신 페이지를 처리하는 중 문제가 발생했습니다.';
       break;
   }
   
@@ -64,7 +70,7 @@ export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
       <ErrorState 
         message={errorMessage}
         code={statusCode}
-        retryLabel="다시 시도"
+        retryLabel={t('error.retryButton')}
         retryLink={undefined} // Link 대신 버튼 사용
       />
       <div className="mt-4 flex justify-center">
@@ -72,7 +78,7 @@ export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
           onClick={reset}
           className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 transition-colors"
         >
-          다시 시도
+          {t('error.retryButton')}
         </button>
       </div>
     </div>
