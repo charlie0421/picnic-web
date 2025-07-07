@@ -253,9 +253,7 @@ export function SocialLoginButtons({
             provider === 'kakao' ? '!text-gray-900' :
             provider === 'wechat' ? '!text-white' : '!text-gray-700'
           } ${isLoading === provider ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'}`}>
-            {isLoading === provider ? (t('label_logging_in') || '로그인 중...') : 
-             isLastUsed ? (t('label_continue_with_last_used') || '최근 사용한 방법으로 계속하기') :
-             config.label}
+            {isLoading === provider ? (t('label_logging_in') || '로그인 중...') : config.label}
           </span>
 
           {/* 버튼 하이라이트 효과 */}

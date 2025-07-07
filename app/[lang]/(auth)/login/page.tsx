@@ -640,8 +640,32 @@ function LoginContentInner() {
         </div>
 
         {/* 하단 안내 */}
-        <div className='text-center'>
-          <p className='text-gray-600 text-xs sm:text-sm leading-relaxed'>{t('login_simple_login_guide')}</p>
+        <div className='mt-8 sm:mt-10 text-center relative'>
+          <div className='relative inline-block'>
+            <div className='absolute -inset-3 bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 rounded-2xl opacity-80 blur-sm'></div>
+            <div className='relative bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent'>
+              <div className='space-y-3'>
+                <div className='flex items-center justify-center space-x-2 text-sm sm:text-base font-medium'>
+                  <span className='bg-blue-100 text-blue-600 p-1.5 rounded-full'>
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20" className='w-3.5 h-3.5'>
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </span>
+                  <span className='text-gray-800 font-semibold'>계정이 없으신가요?</span>
+                </div>
+                <div className='text-gray-600 text-sm leading-relaxed max-w-sm mx-auto px-4'>
+                  <span className='inline-flex items-center space-x-1'>
+                    <span>위의</span>
+                    <span className='bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold'>소셜 로그인</span>
+                    <span>으로</span>
+                    <span className='bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold'>자동 회원가입</span>
+                    <span>됩니다</span>
+                    <span className='text-blue-600'>✨</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
 
