@@ -93,7 +93,9 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
     label_mypage_guest_benefit_2: localeMessages.label_mypage_guest_benefit_2 || 'Recharge and manage Star Candy',
     label_mypage_guest_benefit_3: localeMessages.label_mypage_guest_benefit_3 || 'Profile settings and activity history',
     label_mypage_guest_benefit_4: localeMessages.label_mypage_guest_benefit_4 || 'Personalized content recommendations',
-    label_mypage_guest_profile_placeholder: localeMessages.label_mypage_guest_profile_placeholder || 'Guest User'
+    label_mypage_guest_profile_placeholder: localeMessages.label_mypage_guest_profile_placeholder || 'Guest User',
+    label_mypage_last_login: localeMessages.label_mypage_last_login || 'Last Login',
+    label_mypage_last_login_via: localeMessages.label_mypage_last_login_via || 'via'
   };
 
   // 클라이언트 컴포넌트에 초기 데이터와 번역 전달 (user는 null일 수 있음)
