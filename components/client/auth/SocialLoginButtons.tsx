@@ -9,9 +9,8 @@ import { getSocialAuthService } from '@/lib/supabase/social';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 import { Button } from '@/components/common/atoms/Button';
 import { 
-  saveLastLoginProvider, 
   getLastLoginProvider, 
-  sortProvidersByLastUsed 
+  sortProvidersByLastUsed
 } from '@/utils/auth-helpers';
 
 interface SocialLoginButtonsProps {
@@ -63,7 +62,7 @@ export function SocialLoginButtons({
       console.log(`🔄 [SocialLogin] ${provider.toUpperCase()} 로그인 시작`);
       
       try {
-        // 로딩 상태 설정
+        // 로딩 상태 설정 (다른 버튼들도 비활성화됨)
         setIsLoading(provider);
         
         // 로그인 시작 콜백
@@ -80,17 +79,17 @@ export function SocialLoginButtons({
         console.log(`🔗 [SocialLogin] ${provider.toUpperCase()} 인증 결과:`, authResult);
         
         if (authResult.success) {
-          // 로그인 성공 시 최근 사용한 로그인 수단으로 저장
-          saveLastLoginProvider(provider);
-          setLastUsedProvider(provider);
-          setSortedProviders(sortProvidersByLastUsed(providers));
+          // 로그인 리다이렉트 성공 - 실제 인증 완료는 콜백에서 처리됨
+          // (saveLastLoginProvider는 AuthCallback에서 실제 인증 성공 시 호출됨)
           
-          console.log(`✅ [SocialLoginButtons] ${provider} 로그인 성공`);
+          console.log(`✅ [SocialLoginButtons] ${provider} 리다이렉트 성공`);
           onLoginComplete?.();
         } else {
           // 오류 처리
           console.error(`❌ [SocialLoginButtons] ${provider} 로그인 실패:`, authResult.error);
           onError?.(authResult.error || new Error(t('unknown_login_error')));
+          // 실패 시에만 로딩 상태 해제
+          setIsLoading(null);
         }
       } catch (error) {
         console.error(`💥 [SocialLoginButtons] ${provider} 소셜 로그인 오류:`, error);
@@ -99,10 +98,10 @@ export function SocialLoginButtons({
             ? error
             : new Error(t('unknown_login_error')),
         );
-      } finally {
-        // 로딩 상태 해제 (리디렉션되지 않은 경우에만)
+        // 에러 시에만 로딩 상태 해제
         setIsLoading(null);
       }
+      // finally 블록 제거 - 성공 시에는 로딩 상태를 유지하여 리다이렉트까지 버튼 비활성화
     },
     [onLoginStart, onError, t, isLocal, providers],
   );
@@ -239,7 +238,7 @@ export function SocialLoginButtons({
         <Button
           variant="ghost"
           onClick={() => handleSocialLogin(provider)}
-          disabled={isLoading === provider || isKakaoDisabled || authLoading}
+          disabled={isLoading !== null || isKakaoDisabled || authLoading}
           className={`relative flex items-center justify-center w-full gap-2 sm:gap-3 ${buttonHeight} px-4 sm:px-6 rounded-lg sm:rounded-xl transition-all duration-300 font-medium text-xs sm:text-sm md:text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${getProviderStyle()}`}
         >
           {/* 로딩 상태일 때의 오버레이 */}

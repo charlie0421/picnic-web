@@ -68,8 +68,8 @@ const AUTH_STORAGE_KEYS = [
   'lastLoginMethod',
   'rememberMe',
   
-  // Recent login provider (new)
-  'picnic_last_login_provider',
+  // Note: 'picnic_last_login_provider' is intentionally NOT included here
+  // so it persists across logout/login sessions for better UX
   
   // Voting and application state
   'voteState',
@@ -498,4 +498,58 @@ export function getRemainingAuthItems(): string[] {
   }
 
   return remainingItems;
+}
+
+/**
+ * Clear all data including recent login provider (for complete data wipe)
+ */
+export async function performCompleteDataWipe(options: LogoutOptions = {}): Promise<LogoutResult> {
+  console.log('🧹 Starting complete data wipe (including recent login provider)...');
+  
+  // First perform normal logout
+  const logoutResult = await performLogout(options);
+  
+  // Then clear the recent login provider data
+  try {
+    if (typeof window !== 'undefined') {
+      const { clearLastLoginProvider } = await import('@/utils/auth-helpers');
+      clearLastLoginProvider();
+      logoutResult.clearedItems.push('localStorage.picnic_last_login_provider');
+      console.log('✅ Recent login provider data cleared');
+    }
+  } catch (error) {
+    console.warn('Error clearing recent login provider:', error);
+  }
+  
+  return logoutResult;
+}
+
+/**
+ * React hook for complete logout with data wipe
+ */
+export function useCompleteLogout() {
+  const router = useRouter();
+
+  const completeLogout = async (options: LogoutOptions = {}) => {
+    const result = await performCompleteDataWipe(options);
+    
+    if (result.success) {
+      // Redirect after successful logout
+      const redirectTo = options.redirectTo || '/login';
+      
+      // Small delay to ensure all cleanup is complete
+      setTimeout(() => {
+        router.push(redirectTo);
+        
+        // Force page reload to ensure clean state
+        if (typeof window !== 'undefined') {
+          window.location.href = redirectTo;
+        }
+      }, 100);
+    }
+    
+    return result;
+  };
+
+  return { completeLogout };
 }

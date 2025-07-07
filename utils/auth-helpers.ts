@@ -57,4 +57,49 @@ export function sortProvidersByLastUsed(providers: SocialLoginProvider[]): Socia
   
   // 최근 사용한 provider를 맨 앞으로 이동
   return [lastProvider, ...providers.filter(p => p !== lastProvider)];
+}
+
+/**
+ * 최근 로그인 수단이 저장되어 있는지 확인합니다.
+ */
+export function hasLastLoginProvider(): boolean {
+  return getLastLoginProvider() !== null;
+}
+
+/**
+ * 특정 provider가 최근 사용한 수단인지 확인합니다.
+ */
+export function isLastUsedProvider(provider: SocialLoginProvider): boolean {
+  return getLastLoginProvider() === provider;
+}
+
+/**
+ * 로그인 수단 사용 통계를 위한 간단한 카운터 (선택사항)
+ */
+export function incrementProviderUsage(provider: SocialLoginProvider): void {
+  try {
+    if (typeof window !== 'undefined') {
+      const key = `picnic_provider_usage_${provider}`;
+      const currentCount = parseInt(localStorage.getItem(key) || '0', 10);
+      localStorage.setItem(key, (currentCount + 1).toString());
+    }
+  } catch (error) {
+    console.warn('로그인 수단 사용 통계 업데이트 실패:', error);
+  }
+}
+
+/**
+ * 모든 로그인 관련 통계 데이터를 삭제합니다.
+ */
+export function clearProviderUsageStats(): void {
+  try {
+    if (typeof window !== 'undefined') {
+      const providers: SocialLoginProvider[] = ['google', 'apple', 'kakao', 'wechat'];
+      providers.forEach(provider => {
+        localStorage.removeItem(`picnic_provider_usage_${provider}`);
+      });
+    }
+  } catch (error) {
+    console.warn('로그인 수단 통계 삭제 실패:', error);
+  }
 } 

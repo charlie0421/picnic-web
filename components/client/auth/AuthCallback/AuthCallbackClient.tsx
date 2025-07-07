@@ -71,6 +71,17 @@ export default function AuthCallbackClient({
             localStorage.setItem('auth_success', 'true');
             localStorage.setItem('auth_provider', provider || 'google');
             localStorage.removeItem('code_verifier');
+            
+            // 🎯 실제 로그인 성공 시 최근 사용한 로그인 수단으로 저장
+            try {
+              const { saveLastLoginProvider, incrementProviderUsage } = await import('@/utils/auth-helpers');
+              const loginProvider = provider || 'google';
+              saveLastLoginProvider(loginProvider as any);
+              incrementProviderUsage(loginProvider as any);
+              console.log(`✅ [AuthCallback] 최근 로그인 수단 저장 완료: ${loginProvider}`);
+            } catch (error) {
+              console.warn('⚠️ [AuthCallback] 최근 로그인 수단 저장 실패:', error);
+            }
           }
           
           // 🎯 OAuth 성공 시 강제로 홈페이지 리디렉션 (로그인 페이지 회피)
