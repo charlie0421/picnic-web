@@ -97,7 +97,7 @@ export async function signInWithKakaoImpl(
       throw new Error('Kakao Client ID가 설정되지 않았습니다.');
     }
     
-    const targetRedirectUrl = redirectUrl;
+    const targetRedirectUrl = redirectUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.picnic.fan'}/auth/callback/kakao`;
     
     console.log('🚀 Kakao OAuth 시도:', {
       targetRedirectUrl,
