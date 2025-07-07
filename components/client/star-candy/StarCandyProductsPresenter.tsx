@@ -12,6 +12,7 @@ import { getCurrencyByPaymentMethod } from '@/utils/ip-detection';
 import { PortOnePaymentModal } from './PortOnePaymentModal';
 import { PayPalPaymentButton } from './PayPalPaymentButton';
 import Image from 'next/image';
+import Link from 'next/link';
 
 interface StarCandyProductsPresenterProps {
   products: Products[];
@@ -313,7 +314,24 @@ export function StarCandyProductsPresenter({
         <h3 className='font-medium mb-2'>{t('star_candy_notice_title')}</h3>
         <ul className='text-sm text-gray-600 space-y-1'>
           <li>• {t('star_candy_notice_1')}</li>
-          <li>• {t('star_candy_notice_2')}</li>
+          <li>
+            • {currentLanguage === 'ko' ? '환불은 ' : 
+               currentLanguage === 'ja' ? '返金については' :
+               currentLanguage === 'zh' ? '退款请参考' :
+               currentLanguage === 'id' ? 'Untuk pengembalian dana, silakan lihat ' :
+               'Please refer to the '}
+            <Link 
+              href={`/${currentLanguage}/terms`} 
+              className='text-primary hover:underline font-medium'
+            >
+              {t('terms_of_service')}
+            </Link>
+            {currentLanguage === 'ko' ? '을 참고바랍니다.' : 
+             currentLanguage === 'ja' ? 'をご確認ください。' :
+             currentLanguage === 'zh' ? '。' :
+             currentLanguage === 'id' ? '.' :
+             ' for refund policy.'}
+          </li>
           <li>• {t('star_candy_notice_3')}</li>
         </ul>
       </div>
