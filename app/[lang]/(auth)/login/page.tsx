@@ -172,10 +172,11 @@ function LoginContentInner() {
   useEffect(() => {
     if (mounted && isAuthenticated && !envCheckFailed) {
       debugLog('이미 인증된 사용자 - 즉시 리디렉트');
-      const targetUrl = handlePostLoginRedirect();
+      const returnTo = searchParams.get('returnTo');
+      const targetUrl = handlePostLoginRedirect(returnTo || undefined);
       router.replace(targetUrl); // push 대신 replace 사용하여 뒤로가기 방지
     }
-  }, [mounted, isAuthenticated, router, envCheckFailed]);
+  }, [mounted, isAuthenticated, router, envCheckFailed, searchParams]);
 
   // Apple OAuth 성공 상태 확인
   useEffect(() => {
@@ -229,7 +230,8 @@ function LoginContentInner() {
               localStorage.removeItem('appleNonce');
 
               // 리다이렉트 처리
-              const targetUrl = handlePostLoginRedirect();
+              const returnTo = searchParams.get('returnTo');
+              const targetUrl = handlePostLoginRedirect(returnTo || undefined);
               router.push(targetUrl);
               return;
             }
@@ -262,7 +264,8 @@ function LoginContentInner() {
               // 성공 메시지 표시 후 리다이렉트
               setError('Apple 로그인이 성공적으로 완료되었습니다!');
               setTimeout(() => {
-                const targetUrl = handlePostLoginRedirect();
+                const returnTo = searchParams.get('returnTo');
+                const targetUrl = handlePostLoginRedirect(returnTo || undefined);
                 router.push(targetUrl);
               }, 1000);
               return;

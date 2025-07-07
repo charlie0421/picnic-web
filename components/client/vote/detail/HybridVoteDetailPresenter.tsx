@@ -7,11 +7,12 @@ import {
   formatRemainingTime,
   formatTimeUntilStart,
 } from '@/components/server/utils';
+import { formatVotePeriodWithTimeZone } from '@/utils/date';
 import { VoteCard, VoteRankCard } from '..';
 import { VoteTimer } from '../common/VoteTimer';
 import { VoteSearch } from './VoteSearch';
 import { VoteButton } from '../common/VoteButton';
-import { VoteCountdownTimer } from '../common/VoteCountdownTimer';
+import { CountdownTimer } from '../common/CountdownTimer';
 import { Badge, Card } from '@/components/common';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
@@ -75,6 +76,8 @@ export interface HybridVoteDetailPresenterProps {
   vote: Vote;
   initialItems: VoteItem[];
   rewards?: any[];
+  initialUser?: any; // 🚀 서버에서 전달받은 사용자 정보
+  initialUserVotes?: any[]; // 🚀 서버에서 전달받은 사용자 투표 상태
   className?: string;
   enableRealtime?: boolean; // 리얼타임 기능 활성화 여부
   pollingInterval?: number; // 폴링 간격 (ms)
@@ -85,6 +88,8 @@ export function HybridVoteDetailPresenter({
   vote,
   initialItems,
   rewards = [],
+  initialUser,
+  initialUserVotes = [],
   className,
   enableRealtime = true,
   pollingInterval = 1000,
@@ -126,9 +131,22 @@ export function HybridVoteDetailPresenter({
   const [headerHeight, setHeaderHeight] = React.useState(0);
   const headerRef = React.useRef<HTMLDivElement>(null);
 
-  // 사용자 관련 상태
-  const [user, setUser] = React.useState<any>(null);
-  const [userVote, setUserVote] = React.useState<any>(null);
+  // 🚀 사용자 관련 상태 - 서버에서 받은 초기 데이터 사용 (성능 개선)
+  const [user, setUser] = React.useState<any>(initialUser || null);
+  const [userVote, setUserVote] = React.useState<any>(() => {
+    // 서버에서 받은 사용자 투표 데이터를 적절한 형태로 변환
+    if (initialUserVotes && initialUserVotes.length > 0) {
+      const voteSummary = {
+        totalVotes: initialUserVotes.reduce((sum, vote) => sum + (vote.amount || 0), 0),
+        voteCount: initialUserVotes.length,
+        lastVoteItem: initialUserVotes[0]?.vote_item_id, // 가장 최근 투표한 아이템
+        allVoteItems: Array.from(new Set(initialUserVotes.map(v => v.vote_item_id))), // 투표한 모든 아이템 (중복 제거)
+        votes: initialUserVotes
+      };
+      return voteSummary;
+    }
+    return null;
+  });
 
 
 
@@ -263,14 +281,17 @@ export function HybridVoteDetailPresenter({
     });
   }, [addNotification]);
 
-  // 사용자 정보 가져오기
+  // 🚀 사용자 정보 가져오기 최적화 - 서버에서 받은 데이터가 없을 때만 클라이언트에서 조회
   React.useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
-  }, [supabase]);
+    if (!initialUser) {
+      // 서버에서 사용자 정보를 받지 못한 경우에만 클라이언트에서 조회
+      const getUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+      };
+      getUser();
+    }
+  }, [supabase, initialUser]);
 
   // 연결 품질 업데이트 (의존성 최적화)
   const updateConnectionQuality = React.useCallback((success: boolean, responseTime?: number) => {
@@ -318,7 +339,8 @@ export function HybridVoteDetailPresenter({
 
     try {
       // 폴링 로그를 5초마다만 출력 (1초마다 반복 방지) + 리얼타임 모드에서는 로그 출력 안함
-      const shouldLog = connectionState.mode === 'polling' && 
+      const shouldLog = process.env.NODE_ENV === 'development' && 
+        connectionState.mode === 'polling' && 
         (!lastPollingUpdate || (Date.now() - lastPollingUpdate.getTime()) > 5000);
       
       if (shouldLog) {
@@ -501,7 +523,9 @@ export function HybridVoteDetailPresenter({
     if (!vote?.id) return;
     
     try {
-      console.log(`[${connectionState.mode}] 리얼타임 데이터 업데이트 시작...`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[${connectionState.mode}] 리얼타임 데이터 업데이트 시작...`);
+      }
       
       // 실제 API 호출로 최신 투표 데이터 가져오기
       const { data: items, error } = await supabase
@@ -548,7 +572,9 @@ export function HybridVoteDetailPresenter({
         }));
 
         setVoteItems(transformedVoteItems as VoteItem[]);
-        console.log(`[${connectionState.mode}] 투표 데이터 업데이트 완료: ${items.length}개 아이템`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[${connectionState.mode}] 투표 데이터 업데이트 완료: ${items.length}개 아이템`);
+        }
       }
 
       // 사용자 투표 상태도 함께 업데이트
@@ -562,7 +588,9 @@ export function HybridVoteDetailPresenter({
 
         if (userVoteData && userVoteData.length > 0) {
           setUserVote(userVoteData);
-          console.log(`[${connectionState.mode}] 사용자 투표 상태 업데이트: ${userVoteData.length}개 투표`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[${connectionState.mode}] 사용자 투표 상태 업데이트: ${userVoteData.length}개 투표`);
+          }
         }
       }
       
@@ -585,15 +613,19 @@ export function HybridVoteDetailPresenter({
   const startPollingMode = React.useCallback(() => {
     // 이미 폴링 중이라면 중복 시작 방지
     if (pollingIntervalRef.current) {
-      console.log('[Polling] 이미 폴링 중이므로 기존 인터벌 정리');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Polling] 이미 폴링 중이므로 기존 인터벌 정리');
+      }
       clearInterval(pollingIntervalRef.current);
     }
 
-    console.log('🔄 [Polling] Starting polling mode (1s interval)', {
-      voteId: vote.id,
-      enableRealtime: enableRealtime,
-      timestamp: new Date().toLocaleTimeString()
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 [Polling] Starting polling mode (1s interval)', {
+        voteId: vote.id,
+        enableRealtime: enableRealtime,
+        timestamp: new Date().toLocaleTimeString()
+      });
+    }
     setConnectionState(prev => ({
       ...prev,
       mode: 'polling' as DataSourceMode,
@@ -614,20 +646,26 @@ export function HybridVoteDetailPresenter({
   // 리얼타임 연결 시도 - 의존성 최적화
   const connectRealtime = React.useCallback(async () => {
     if (!enableRealtime) {
-      console.log('[Realtime] ❌ enableRealtime이 false로 설정됨');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Realtime] ❌ enableRealtime이 false로 설정됨');
+      }
       return;
     }
     if (!vote?.id) {
-      console.log('[Realtime] ❌ vote.id가 없음:', vote);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Realtime] ❌ vote.id가 없음:', vote);
+      }
       return;
     }
 
     try {
-      console.log('[Realtime] 🔄 연결 시도 중...', {
-        voteId: vote.id,
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '❌ 없음',
-        supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '❌ 없음'
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Realtime] 🔄 연결 시도 중...', {
+          voteId: vote.id,
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '❌ 없음',
+          supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '❌ 없음'
+        });
+      }
       
       // 실제 Supabase 리얼타임 연결
       const subscription = supabase
@@ -641,24 +679,30 @@ export function HybridVoteDetailPresenter({
             filter: `vote_id=eq.${vote.id}`,
           },
           (payload) => {
-            console.log('🔥 [Realtime] vote_item 변화 수신!', {
-              event: payload.eventType,
-              table: payload.table,
-              new: payload.new,
-              old: payload.old,
-              timestamp: new Date().toLocaleTimeString(),
-              payload: payload // 전체 payload 확인
-            });
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🔥 [Realtime] vote_item 변화 수신!', {
+                event: payload.eventType,
+                table: payload.table,
+                new: payload.new,
+                old: payload.old,
+                timestamp: new Date().toLocaleTimeString(),
+                payload: payload // 전체 payload 확인
+              });
+            }
             
             // 업데이트된 아이템을 하이라이트 표시
             if (payload.eventType === 'UPDATE' && payload.new?.id) {
-              console.log(`🎯 [Realtime] 아이템 ${payload.new.id} 하이라이트 표시`);
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`🎯 [Realtime] 아이템 ${payload.new.id} 하이라이트 표시`);
+              }
               setItemHighlight(payload.new.id, true, 3000);
             }
             
             // 리얼타임 모드에서는 폴링 함수가 아닌 별도 업데이트 사용
             if (connectionState.mode === 'realtime') {
-              console.log('🔄 [Realtime] vote_item 변화로 인한 데이터 업데이트 시작...');
+              if (process.env.NODE_ENV === 'development') {
+                console.log('🔄 [Realtime] vote_item 변화로 인한 데이터 업데이트 시작...');
+              }
               updateVoteData(); // 폴링이 아닌 일반 업데이트 함수 사용
             }
             
@@ -668,16 +712,20 @@ export function HybridVoteDetailPresenter({
         )
 
         .subscribe((status, err) => {
-          console.log(`[Realtime] 📡 구독 상태 변경: ${status}`, err ? { error: err } : '');
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[Realtime] 📡 구독 상태 변경: ${status}`, err ? { error: err } : '');
+          }
           
           if (status === 'SUBSCRIBED') {
-            console.log('[Realtime] ✅ 연결 성공! 실시간 업데이트 수신 대기 중...', {
-              channel: 'supabase_realtime',
-              voteId: vote.id,
-              tables: ['vote_item'],
-              events: ['*'],
-              connectedAt: new Date().toISOString()
-            });
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Realtime] ✅ 연결 성공! 실시간 업데이트 수신 대기 중...', {
+                channel: 'supabase_realtime',
+                voteId: vote.id,
+                tables: ['vote_item'],
+                events: ['*'],
+                connectedAt: new Date().toISOString()
+              });
+            }
             setConnectionState(prev => ({
               ...prev,
               mode: 'realtime',
@@ -711,7 +759,9 @@ export function HybridVoteDetailPresenter({
             updateConnectionQuality(false);
             
             // 리얼타임 실패시 폴링 모드로 전환 (switchMode를 통해 안전하게 전환)
-            console.log('[Realtime] 폴링 모드로 자동 전환');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Realtime] 폴링 모드로 자동 전환');
+            }
             
             // 연결 실패 알림 (전역 알림 사용)
             addNotification({
@@ -722,7 +772,9 @@ export function HybridVoteDetailPresenter({
             });
             
           } else if (status === 'CLOSED') {
-            console.log('[Realtime] 연결 종료');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Realtime] 연결 종료');
+            }
             setConnectionState(prev => ({
               ...prev,
               isConnected: false,
@@ -730,7 +782,9 @@ export function HybridVoteDetailPresenter({
             
             // 연결이 예기치 않게 종료된 경우 폴링으로 전환 (상태만 변경)
             if (connectionState.mode === 'realtime') {
-              console.log('[Realtime] 예기치 않은 연결 종료 - 폴링으로 전환 준비');
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[Realtime] 예기치 않은 연결 종료 - 폴링으로 전환 준비');
+              }
               // switchMode 호출은 외부에서 처리됨
             }
           }
@@ -763,7 +817,9 @@ export function HybridVoteDetailPresenter({
   // 폴링 중단 - 의존성 최적화
   const stopPollingMode = React.useCallback(() => {
     if (pollingIntervalRef.current) {
-      console.log('⏹️ [Polling] Stopping polling mode');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⏹️ [Polling] Stopping polling mode');
+      }
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
@@ -771,7 +827,9 @@ export function HybridVoteDetailPresenter({
 
   // 하이브리드 모드 시작 - 의존성 최적화
   const startHybridMode = React.useCallback(() => {
-    console.log('🚀 [Hybrid] Starting hybrid mode');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🚀 [Hybrid] Starting hybrid mode');
+    }
     
     // 리얼타임 연결 시도
     connectRealtime();
@@ -779,7 +837,9 @@ export function HybridVoteDetailPresenter({
     // 리얼타임 연결 실패 대비 폴링 백업 (3초 후)
     setTimeout(() => {
       if (!connectionState.isConnected || connectionState.mode !== 'realtime') {
-        console.log('[Hybrid] 리얼타임 연결 실패 - 폴링 모드로 전환');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Hybrid] 리얼타임 연결 실패 - 폴링 모드로 전환');
+        }
         startPollingMode();
       }
     }, 3000);
@@ -788,7 +848,9 @@ export function HybridVoteDetailPresenter({
   // 리얼타임 연결 해제 - 의존성 최적화
   const disconnectRealtime = React.useCallback(() => {
     if (realtimeSubscriptionRef.current) {
-      console.log('🔌 [Realtime] Disconnecting realtime subscription');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔌 [Realtime] Disconnecting realtime subscription');
+      }
       realtimeSubscriptionRef.current.unsubscribe();
       realtimeSubscriptionRef.current = null;
     }
@@ -809,7 +871,9 @@ export function HybridVoteDetailPresenter({
   // 모드 전환 함수 - 의존성 최적화
   const switchMode = React.useCallback((targetMode: DataSourceMode) => {
     const prevMode = connectionState.mode;
-    console.log(`[Mode Switch] Switching from ${prevMode} to ${targetMode}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Mode Switch] Switching from ${prevMode} to ${targetMode}`);
+    }
     
     // 기존 연결 정리
     if (connectionState.mode === 'realtime') {
@@ -850,10 +914,14 @@ export function HybridVoteDetailPresenter({
   React.useEffect(() => {
     if (connectionState.errorCount >= maxRetries) {
       if (connectionState.mode === 'realtime') {
-        console.log('[Auto Switch] Realtime -> Polling (에러 한계 도달)');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Auto Switch] Realtime -> Polling (에러 한계 도달)');
+        }
         switchMode('polling');
       } else if (connectionState.mode === 'polling') {
-        console.log('[Auto Switch] Polling -> Static (에러 한계 도달)');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Auto Switch] Polling -> Static (에러 한계 도달)');
+        }
         switchMode('static');
       }
     }
@@ -935,30 +1003,12 @@ export function HybridVoteDetailPresenter({
     return () => clearInterval(timer);
   }, [vote.stop_at, voteStatus]);
 
-  // 투표 기간 포맷팅
+  // 투표 기간 포맷팅 (시간대 정보 포함)
   const formatVotePeriod = () => {
     if (!vote.start_at || !vote.stop_at) return t('vote_period_tbd');
 
-    const startDate = new Date(vote.start_at);
-    const endDate = new Date(vote.stop_at);
-
-    const formatDate = (date: Date) => {
-      const locale = currentLanguage === 'ko' ? 'ko-KR' :
-                    currentLanguage === 'en' ? 'en-US' :
-                    currentLanguage === 'ja' ? 'ja-JP' :
-                    currentLanguage === 'zh' ? 'zh-CN' :
-                    currentLanguage === 'id' ? 'id-ID' : 'ko-KR';
-
-      return date.toLocaleDateString(locale, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    };
-
-    return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
+    // 새로운 시간대 포맷팅 함수 사용
+    return formatVotePeriodWithTimeZone(vote.start_at, vote.stop_at, currentLanguage);
   };
 
 
@@ -1216,6 +1266,10 @@ export function HybridVoteDetailPresenter({
 
   // 전역 디버깅 함수들 설정
   React.useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') {
+      return; // 개발 환경이 아니면 디버깅 함수들을 설정하지 않음
+    }
+
     // @ts-ignore
     window.testHighlight = (itemId?: string | number) => {
       if (!itemId) {
@@ -1307,18 +1361,24 @@ export function HybridVoteDetailPresenter({
     }
 
     qualityCheckIntervalRef.current = setInterval(() => {
-      console.log(`[Quality Monitor] Current quality score: ${connectionQuality.score}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Quality Monitor] Current quality score: ${connectionQuality.score}`);
+      }
       
       // 품질이 임계값 이하로 떨어지면 폴링 모드로 전환
       if (connectionState.mode === 'realtime' && connectionQuality.score < thresholds.minConnectionQuality) {
-        console.log(`[Quality Monitor] Quality too low (${connectionQuality.score}), switching to polling`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Quality Monitor] Quality too low (${connectionQuality.score}), switching to polling`);
+        }
         switchMode('polling');
       }
       
       // 연속 에러가 임계값을 초과하면 모드 전환
       if (connectionQuality.consecutiveErrors >= thresholds.maxConsecutiveErrors) {
         if (connectionState.mode === 'realtime') {
-          console.log(`[Quality Monitor] Too many consecutive errors (${connectionQuality.consecutiveErrors}), switching to polling`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[Quality Monitor] Too many consecutive errors (${connectionQuality.consecutiveErrors}), switching to polling`);
+          }
           switchMode('polling');
         }
       }
@@ -1330,7 +1390,9 @@ export function HybridVoteDetailPresenter({
           connectionQuality.errorRate < 0.1 && // 에러율 10% 미만
           pollingStartTime && // 폴링 시작 시간이 기록되어 있어야 함
           Date.now() - pollingStartTime.getTime() > 60000) { // 최소 1분간 폴링 모드 유지
-        console.log(`[Quality Monitor] Quality significantly improved after sufficient polling time (${connectionQuality.score}, successes: ${connectionQuality.consecutiveSuccesses}), attempting realtime reconnection`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Quality Monitor] Quality significantly improved after sufficient polling time (${connectionQuality.score}, successes: ${connectionQuality.consecutiveSuccesses}), attempting realtime reconnection`);
+        }
         attemptRealtimeReconnection();
       }
     }, thresholds.qualityCheckInterval);
@@ -1342,7 +1404,9 @@ export function HybridVoteDetailPresenter({
       clearTimeout(realtimeRetryTimeoutRef.current);
     }
 
-    console.log('[Reconnection] Attempting realtime reconnection...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Reconnection] Attempting realtime reconnection...');
+    }
     realtimeRetryTimeoutRef.current = setTimeout(() => {
       if (connectionState.mode === 'polling') {
         switchMode('realtime');
@@ -1389,9 +1453,10 @@ export function HybridVoteDetailPresenter({
 
               {/* 타이머 */}
               <div className="flex items-center justify-between">
-                <VoteCountdownTimer
+                <CountdownTimer
                   timeLeft={timeLeft}
                   voteStatus={voteStatus}
+                  variant="decorated"
                 />
                 
                 {/* 개발 모드에서 수동 모드 전환 버튼 */}
@@ -1600,17 +1665,21 @@ export function HybridVoteDetailPresenter({
                   animationDelay: `${index * 50}ms`,
                 }}
                 onClick={() => {
-                  console.log('🖱️ [HybridVoteDetailPresenter] 카드 클릭됨:', {
-                    canVote,
-                    itemId: item.id,
-                    artistName: artistName,
-                    timestamp: new Date().toISOString(),
-                  });
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('🖱️ [HybridVoteDetailPresenter] 카드 클릭됨:', {
+                      canVote,
+                      itemId: item.id,
+                      artistName: artistName,
+                      timestamp: new Date().toISOString(),
+                    });
+                  }
 
                   if (canVote) {
                     handleCardClick(item);
                   } else {
-                    console.log('❌ canVote가 false - 클릭 무시됨');
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('❌ canVote가 false - 클릭 무시됨');
+                    }
                   }
                 }}
               >
@@ -1701,7 +1770,7 @@ export function HybridVoteDetailPresenter({
                         </div>
                       </div>
 
-                      <h3 className='font-bold text-xs mb-0.5 line-clamp-1 group-hover:text-blue-600 transition-colors'>
+                      <h3 className='font-bold text-xs mb-0.5 line-clamp-1 text-gray-800 group-hover:text-blue-600 transition-colors'>
                         {artistName}
                       </h3>
 
@@ -1823,7 +1892,7 @@ export function HybridVoteDetailPresenter({
 
       {/* 개발 모드 디버그 정보 */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 right-4 bg-black bg-opacity-90 text-white p-4 rounded-lg text-xs max-w-sm space-y-3">
+        <div className="fixed bottom-4 right-4 z-[9999] bg-black bg-opacity-90 text-white p-4 rounded-lg text-xs max-w-sm space-y-3">
           <h4 className="font-semibold mb-2 text-yellow-300">🔧 하이브리드 시스템 디버거</h4>
           
           {/* 연결 상태 */}

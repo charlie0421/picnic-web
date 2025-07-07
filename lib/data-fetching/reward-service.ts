@@ -6,9 +6,17 @@
  */
 
 import { cache } from 'react';
-import { createClient } from '@/utils/supabase-server-client';
+import { createClient } from '@supabase/supabase-js';
 import { CacheOptions } from './fetchers';
 import { Reward } from '@/types/interfaces';
+
+// 공개 Supabase 클라이언트 생성 (쿠키 없음 - ISR/정적 생성 호환)
+function createPublicClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 // 기본 보상 테이블 조회 쿼리 (서버 컴포넌트용)
 const DEFAULT_REWARD_QUERY = `
@@ -29,7 +37,7 @@ const DEFAULT_REWARD_QUERY = `
 export const getRewards = cache(async (
   options?: CacheOptions
 ): Promise<Reward[]> => {
-  const supabase = await createClient();
+  const supabase = createPublicClient(); // 공개 클라이언트 사용 (쿠키 없음)
   
   const { data, error } = await supabase
     .from('reward')
@@ -66,7 +74,7 @@ export const getRewardById = cache(async (
   id: string,
   options?: CacheOptions
 ): Promise<Reward | null> => {
-  const supabase = await createClient();
+  const supabase = createPublicClient(); // 공개 클라이언트 사용 (쿠키 없음)
   
   const { data, error } = await supabase
     .from('reward')

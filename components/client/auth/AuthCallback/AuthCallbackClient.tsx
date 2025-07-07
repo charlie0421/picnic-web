@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 
 interface AuthCallbackClientProps {
   provider?: string;
@@ -85,11 +86,22 @@ export default function AuthCallbackClient({
 
         debugLog('🔐 [AuthCallback] OAuth 코드 발견:', { code: code.substring(0, 10) + '...' });
         
-        // 🔧 OAuth 코드 확인 완료 후 즉시 로딩바 제거
-        const immediateLoadingBar = document.getElementById('oauth-loading');
-        if (immediateLoadingBar) {
-          debugLog('🗑️ [AuthCallback] OAuth 코드 확인 완료, 즉시 로딩바 제거');
-          immediateLoadingBar.remove();
+        // Apple 특화 파라미터 수집
+        let appleParams: Record<string, string> = {};
+        if (provider === 'apple') {
+          const user = searchParams?.get('user');
+          const idToken = searchParams?.get('id_token');
+          const state = searchParams?.get('state');
+          
+          if (user) appleParams.user = user;
+          if (idToken) appleParams.id_token = idToken;
+          if (state) appleParams.state = state;
+          
+          debugLog('🍎 [AuthCallback] Apple 특화 파라미터 수집:', {
+            hasUser: !!user,
+            hasIdToken: !!idToken,
+            hasState: !!state
+          });
         }
         
         setProcessingStep('서버에서 인증을 처리하고 있습니다...');
@@ -103,6 +115,10 @@ export default function AuthCallbackClient({
           currentHost: window.location.hostname 
         });
         
+        // 🔧 API 호출에 타임아웃 설정 (15초)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -111,8 +127,12 @@ export default function AuthCallbackClient({
           body: JSON.stringify({
             code,
             provider: provider || 'google',
+            ...appleParams, // Apple 특화 파라미터 포함
           }),
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -122,32 +142,58 @@ export default function AuthCallbackClient({
         const data = await response.json();
 
         if (data.success) {
-          setProcessingStep('로그인이 완료되었습니다. 페이지로 이동 중...');
+          setProcessingStep('인증이 완료되었습니다. 쿠키를 동기화하고 있습니다...');
           debugLog('✅ [AuthCallback] 서버사이드 OAuth 인증 성공');
           
-          // 성공 정보 저장
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('auth_success', 'true');
-            localStorage.setItem('auth_provider', provider || 'google');
-            localStorage.removeItem('code_verifier');
-            
-            // 🎯 실제 로그인 성공 시 최근 사용한 로그인 수단으로 저장
-            try {
-              const { saveLastLoginProvider, incrementProviderUsage } = await import('@/utils/auth-helpers');
-              const loginProvider = provider || 'google';
-              saveLastLoginProvider(loginProvider as any);
-              incrementProviderUsage(loginProvider as any);
-              debugLog(`✅ [AuthCallback] 최근 로그인 수단 저장 완료: ${loginProvider}`);
-            } catch (error) {
-              debugError('⚠️ [AuthCallback] 최근 로그인 수단 저장 실패:', error);
-            }
+          // 🔧 쿠키 동기화와 성공 처리를 병렬로 실행
+          const [syncResult] = await Promise.allSettled([
+            // 쿠키 동기화 (타임아웃 5초)
+            fetch('/api/auth/verify', {
+              method: 'GET',
+              credentials: 'include',
+              signal: AbortSignal.timeout(5000),
+            }),
+            // 성공 정보 저장 (즉시 완료)
+            Promise.resolve().then(() => {
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('auth_success', 'true');
+                localStorage.setItem('auth_provider', provider || 'google');
+                localStorage.removeItem('code_verifier');
+                
+                // 🎯 실제 로그인 성공 시 최근 사용한 로그인 수단으로 저장
+                try {
+                  const { saveLastLoginProvider, incrementProviderUsage } = require('@/utils/auth-helpers');
+                  const loginProvider = provider || 'google';
+                  saveLastLoginProvider(loginProvider);
+                  incrementProviderUsage(loginProvider);
+                  debugLog(`✅ [AuthCallback] 최근 로그인 수단 저장 완료: ${loginProvider}`);
+                } catch (error) {
+                  debugError('⚠️ [AuthCallback] 최근 로그인 수단 저장 실패:', error);
+                }
+              }
+            })
+          ]);
+          
+          // 동기화 결과 로깅 (실패해도 진행)
+          if (syncResult.status === 'fulfilled') {
+            debugLog('✅ [AuthCallback] 쿠키 동기화 성공');
+          } else {
+            debugLog('⚠️ [AuthCallback] 쿠키 동기화 실패, 하지만 진행:', syncResult.reason);
           }
           
-          // 🎯 OAuth 성공 시 강제로 홈페이지 리디렉션 (로그인 페이지 회피)
+          setProcessingStep('로그인이 완료되었습니다. 페이지로 이동 중...');
+          
+          // 🚀 즉시 로딩바 제거하지 않고 리다이렉션까지 유지
+          debugLog('✅ [AuthCallback] OAuth 처리 완료, 리다이렉션까지 로딩바 유지');
+          
+          // 🎯 OAuth 성공 시 적절한 페이지로 리디렉션
           localStorage.removeItem('auth_return_url'); // 기존 URL 제거
-          const returnUrl = '/ja/vote'; // 강제로 홈페이지 설정
+          
+          // returnTo 파라미터 확인 및 적절한 리다이렉션 URL 결정
+          const returnTo = searchParams?.get('returnTo');
+          const returnUrl = handlePostLoginRedirect(returnTo || undefined);
 
-          debugLog('🚀 [AuthCallback] OAuth 성공 → 강제 홈페이지 리디렉션:', returnUrl);
+          debugLog('🚀 [AuthCallback] OAuth 성공 → 리디렉션:', { returnTo, returnUrl });
           
           // 🔧 최소 로딩 시간 보장 후 리디렉션
           ensureMinimumLoading(() => {
@@ -167,30 +213,26 @@ export default function AuthCallbackClient({
               
               window.addEventListener('beforeunload', handleBeforeUnload);
               
-              // 로딩바가 계속 표시되고 있는지 확인
-              const loadingCheck = setInterval(() => {
-                if (isProcessing) {
-                  debugLog('✅ [AuthCallback] 로딩바 정상 유지 중...');
-                }
-              }, 100);
+              // 🎯 리다이렉션 직전에 로딩바 상태 확인 (너무 자주 체크하지 않음)
+              debugLog('🚀 [AuthCallback] 리다이렉션 준비 완료, 로딩바 계속 유지');
               
               // 실제 리디렉션 실행
               setTimeout(() => {
-                clearInterval(loadingCheck);
                 window.removeEventListener('beforeunload', handleBeforeUnload);
+                debugLog('🚀 [AuthCallback] 로딩바 유지하면서 리다이렉션 실행');
                 window.location.href = returnUrl;
               }, 200);
               
               // 추가 보험: 2초 후에도 리다이렉션 안되면 강제 새로고침
               setTimeout(() => {
-                if (window.location.pathname !== '/ja/vote') {
+                const expectedPath = new URL(returnUrl, window.location.origin).pathname;
+                if (window.location.pathname !== expectedPath) {
                   debugLog('💪 [AuthCallback] 추가 보험: 강제 새로고침');
-                  clearInterval(loadingCheck);
                   window.removeEventListener('beforeunload', handleBeforeUnload);
                   window.location.reload();
                 }
-              }, 2000); // 2초로 늘림
-            }, 1000); // 300ms → 1000ms로 늘림
+              }, 2000);
+            }, 500); // 500ms로 줄여서 더 빠른 전환
           });
           
           return;
@@ -200,6 +242,13 @@ export default function AuthCallbackClient({
 
       } catch (err: any) {
         debugError('❌ [AuthCallback] OAuth 처리 실패:', err);
+        
+        // 🔧 에러 시에도 즉시 로딩바 제거
+        const immediateLoadingBar = document.getElementById('oauth-loading');
+        if (immediateLoadingBar) {
+          debugLog('🗑️ [AuthCallback] 에러 발생, 즉시 로딩바 제거');
+          immediateLoadingBar.remove();
+        }
         
         ensureMinimumLoading(() => {
           setError(`로그인 중 문제가 발생했습니다`);

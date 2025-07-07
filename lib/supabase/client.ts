@@ -40,14 +40,16 @@ if (typeof window !== 'undefined') {
 export function createBrowserSupabaseClient(): BrowserSupabaseClient {
   // 🔧 강화된 Singleton 패턴: 이미 존재하면 즉시 반환
   if (browserSupabase) {
-    // 무한 로그 방지: 1초에 최대 1번만 로그 출력
-    const now = Date.now();
-    const lastLogKey = '_supabase_last_reuse_log';
-    const lastLogTime = (window as any)[lastLogKey] || 0;
-    
-    if (now - lastLogTime > 1000) { // 1초마다 최대 1번
-      console.log('🔄 [Client] 기존 Supabase 클라이언트 재사용');
-      (window as any)[lastLogKey] = now;
+    // 로그 출력을 더 제한적으로: 개발 환경에서만, 5초마다 최대 1번
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      const now = Date.now();
+      const lastLogKey = '_supabase_last_reuse_log';
+      const lastLogTime = (window as any)[lastLogKey] || 0;
+      
+      if (now - lastLogTime > 5000) { // 5초마다 최대 1번으로 변경
+        console.log('🔄 [Client] 기존 Supabase 클라이언트 재사용');
+        (window as any)[lastLogKey] = now;
+      }
     }
     
     return browserSupabase;

@@ -32,8 +32,7 @@
     "test:libs": "jest --testPathPattern=__tests__/lib",
     "test:api": "jest --testPathPattern=__tests__/app/api",
     "test:fail-fast": "jest --bail",
-    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
-    "dev:https": "node server.js"
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
@@ -53,6 +52,7 @@
     "bufferutil": "^4.0.9",
     "critters": "^0.0.23",
     "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.15.0",
     "glob": "^11.0.2",
     "jsonwebtoken": "^9.0.2",

@@ -1,4 +1,5 @@
 import { Vote, VoteItem } from '@/types/interfaces';
+import { formatVotePeriodWithTimeZone } from '@/utils/date';
 
 export type VoteStatus = 'upcoming' | 'ongoing' | 'completed';
 
@@ -103,23 +104,29 @@ export function formatRemainingTime(remaining: {
 }
 
 /**
- * 투표 날짜 범위를 포맷팅하는 함수
+ * 투표 날짜 범위를 포맷팅하는 함수 (시간대 정보 포함)
  */
-export function formatVoteDateRange(startDate: string | null, endDate: string | null): string {
+export function formatVoteDateRange(startDate: string | null, endDate: string | null, language: string = 'ko'): string {
   if (!startDate || !endDate) return '날짜 미정';
   
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  const options: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  };
-  
-  return `${start.toLocaleString('ko-KR', options)} ~ ${end.toLocaleString('ko-KR', options)}`;
+  try {
+    return formatVotePeriodWithTimeZone(startDate, endDate, language);
+  } catch (error) {
+    console.error('날짜 포맷팅 오류:', error);
+    // 폴백: 기존 방식
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    
+    return `${start.toLocaleString('ko-KR', options)} ~ ${end.toLocaleString('ko-KR', options)}`;
+  }
 }
 
 /**

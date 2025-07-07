@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getSocialAuthService } from '@/lib/supabase/social/service';
 
 // 모든 OAuth 제공자 동일 처리: 간단하고 일관된 Supabase 표준 OAuth
 
@@ -8,7 +9,8 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔧 [API] OAuth 코드 교환 시작');
     
-    const { code, provider } = await request.json();
+    const body = await request.json();
+    const { code, provider, user, id_token, state } = body;
 
     if (!code) {
       return NextResponse.json(
@@ -19,7 +21,9 @@ export async function POST(request: NextRequest) {
 
     console.log('🔐 [API] OAuth 코드 수신:', { 
       code: code.substring(0, 10) + '...', 
-      provider 
+      provider,
+      hasAppleUser: !!user,
+      hasAppleIdToken: !!id_token
     });
 
     // 🚀 서버사이드 Supabase 클라이언트 생성
@@ -78,6 +82,39 @@ export async function POST(request: NextRequest) {
       userId: data.user?.id?.substring(0, 8) + '...',
       provider: data.user?.app_metadata?.provider
     });
+
+    // 🍎 Apple 특화 프로필 처리 (또는 다른 소셜 프로필 처리)
+    if (provider && ['apple', 'google'].includes(provider)) {
+      try {
+        console.log(`🔧 [API] ${provider} 프로필 처리 시작`);
+        
+        // SocialAuthService를 통한 프로필 처리
+        const socialAuthService = getSocialAuthService(supabase);
+        
+        // Apple 특화 파라미터 준비
+        const callbackParams: Record<string, string> = {};
+        if (provider === 'apple') {
+          if (user) callbackParams.user = user;
+          if (id_token) callbackParams.id_token = id_token;
+          if (state) callbackParams.state = state;
+        }
+        
+        // 콜백 처리 (프로필 생성/업데이트)
+        const callbackResult = await socialAuthService.handleCallback(
+          provider as any,
+          callbackParams
+        );
+        
+        if (callbackResult.success) {
+          console.log(`✅ [API] ${provider} 프로필 처리 성공`);
+        } else {
+          console.error(`❌ [API] ${provider} 프로필 처리 실패:`, callbackResult.error?.message);
+        }
+      } catch (profileError) {
+        console.error(`❌ [API] ${provider} 프로필 처리 중 오류:`, profileError);
+        // 프로필 처리 실패해도 로그인 자체는 성공으로 처리
+      }
+    }
 
     return NextResponse.json({
       success: true,

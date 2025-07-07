@@ -168,7 +168,22 @@ export function clearRedirectUrl(): void {
 /**
  * 로그인 후 적절한 페이지로 리다이렉트합니다.
  */
-export function handlePostLoginRedirect(): string {
+export function handlePostLoginRedirect(returnToParam?: string): string {
+    // 1. URL 파라미터에서 returnTo 확인 (우선순위 높음)
+    if (returnToParam && isValidRedirectUrl(returnToParam)) {
+        return returnToParam;
+    }
+
+    // 2. 브라우저 URL에서 returnTo 파라미터 확인
+    if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnTo = urlParams.get('returnTo');
+        if (returnTo && isValidRedirectUrl(returnTo)) {
+            return returnTo;
+        }
+    }
+
+    // 3. 저장된 리다이렉트 URL 확인
     const redirectUrl = getRedirectUrl();
 
     // 저장된 URL 제거

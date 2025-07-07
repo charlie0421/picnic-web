@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getRewardById, getRewards } from '@/utils/api/queries';
+import { getRewardById } from '@/lib/data-fetching/reward-service';
+import { getRewards } from '@/utils/api/queries';
 import {
   createPageMetadata,
   createImageMetadata,
@@ -19,12 +20,17 @@ export const revalidate = 30;
 
 // 정적 경로 생성
 export async function generateStaticParams() {
-  // 활성화된 리워드만 사전 생성
-  const rewards = await getRewards();
+  try {
+    // 활성화된 리워드만 사전 생성
+    const rewards = await getRewards();
 
-  return rewards.slice(0, 10).map((reward) => ({
-    id: String(reward.id),
-  }));
+    return rewards.slice(0, 10).map((reward) => ({
+      id: String(reward.id),
+    }));
+  } catch (error) {
+    console.error('generateStaticParams 에러:', error);
+    return [];
+  }
 }
 
 // 메타데이터 동적 생성

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import {getCurrentLocale} from '@/utils/date';
 import {useLanguageStore} from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
+import { useTranslations } from 'next-intl';
 
 interface MultilingualText {
   en?: string;
@@ -29,6 +30,7 @@ const NoticePage = () => {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
   const currentLang = useLanguageStore((state) => state.currentLanguage);
+  const t = useTranslations();
   useEffect(() => {
     const fetchNotices = async () => {
       try {
@@ -77,10 +79,10 @@ const NoticePage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold mb-6 text-gray-900">공지사항</h1>
+        <h1 className="text-2xl font-bold mb-6 text-gray-900">{t('page_title_notice') || '공지사항'}</h1>
         <div className="space-y-4">
           {notices.length === 0 ? (
-            <p className="text-gray-600">등록된 공지사항이 없습니다.</p>
+            <p className="text-gray-600">{t('notice_no_items') || '등록된 공지사항이 없습니다.'}</p>
           ) : (
             <div className="divide-y divide-gray-200">
               {notices.map((notice) => (
@@ -94,7 +96,7 @@ const NoticePage = () => {
                       <div className="flex items-center space-x-2">
                         {notice.is_pinned && (
                           <span className="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                            공지
+                            {t('notice_pinned') || '공지'}
                           </span>
                         )}
                         <h2 className="text-lg font-semibold text-gray-900">{getLocalizedText(notice.title)}</h2>

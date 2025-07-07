@@ -5,11 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Vote } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import { useLanguageStore } from '@/stores/languageStore';
-import { VoteCountdownTimer } from '../common/VoteCountdownTimer';
+import { CountdownTimer } from '../common/CountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
+import { formatVotePeriodWithTimeZone } from '@/utils/date';
 import RewardItem from '@/components/common/RewardItem';
 import { VoteItems } from './VoteItems';
 
@@ -161,9 +160,10 @@ export const VoteCard = React.memo(
             </h3>
 
             <div className='flex justify-center mb-4'>
-              <VoteCountdownTimer
+              <CountdownTimer
                 timeLeft={timeLeft}
                 voteStatus={status as 'upcoming' | 'ongoing' | 'completed'}
+                variant="decorated"
                 compact={true}
               />
             </div>
@@ -229,13 +229,7 @@ export const VoteCard = React.memo(
                       />
                     </svg>
                     <span className='text-primary font-medium'>
-                      {format(new Date(vote.start_at), 'MM.dd HH:mm', {
-                        locale: ko,
-                      })}{' '}
-                      ~{' '}
-                      {format(new Date(vote.stop_at), 'MM.dd HH:mm', {
-                        locale: ko,
-                      })}
+                      {formatVotePeriodWithTimeZone(vote.start_at, vote.stop_at, currentLanguage)}
                     </span>
                   </div>
                 </div>

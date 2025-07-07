@@ -7,6 +7,7 @@ import {
   formatRemainingTime,
   formatTimeUntilStart,
 } from '@/components/server/utils';
+import { formatVotePeriodWithTimeZone } from '@/utils/date';
 import { VoteCard, VoteRankCard } from '..';
 import { VoteTimer } from '../common/VoteTimer';
 import { VoteSearch } from './VoteSearch';
@@ -159,24 +160,12 @@ export function RealtimeVoteDetailPresenter({
     };
   }, [cleanup]);
 
-  // 투표 기간 포맷팅
+  // 투표 기간 포맷팅 (시간대 정보 포함)
   const formatVotePeriod = () => {
     if (!vote.start_at || !vote.stop_at) return '';
 
-    const startDate = new Date(vote.start_at);
-    const endDate = new Date(vote.stop_at);
-
-    const formatDate = (date: Date) => {
-      return date.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    };
-
-    return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
+    // 새로운 시간대 포맷팅 함수 사용
+    return formatVotePeriodWithTimeZone(vote.start_at, vote.stop_at, currentLanguage);
   };
 
   // 타이머 렌더링 (애니메이션 추가)

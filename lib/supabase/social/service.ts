@@ -761,13 +761,24 @@ export class SocialAuthService implements SocialAuthServiceInterface {
   ): Promise<void> {
     try {
       const user = session.user;
+      console.log('🍎 [Apple Profile] 처리 시작:', { userId: user.id, email: user.email });
 
       // 사용자 프로필이 이미 존재하는지 확인
-      const { data: existingProfile } = await this.supabase
+      const { data: existingProfile, error: profileCheckError } = await this.supabase
         .from("user_profiles")
         .select("*")
         .eq("id", user.id)
         .single();
+
+      if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+        // PGRST116 = 데이터 없음 (정상), 다른 에러는 로깅
+        console.error('🍎 [Apple Profile] 기존 프로필 확인 오류:', profileCheckError);
+      }
+
+      console.log('🍎 [Apple Profile] 기존 프로필 확인:', { 
+        hasProfile: !!existingProfile,
+        profileId: existingProfile?.id 
+      });
 
       // Apple은 첫 로그인 시에만 name과 email 정보를 제공합니다.
       // user 정보가 URL 파라미터로 제공된 경우 (첫 로그인)
@@ -776,6 +787,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
       if (params?.user) {
         try {
           userObject = JSON.parse(decodeURIComponent(params.user));
+          console.log('🍎 [Apple Profile] 첫 로그인 사용자 데이터 파싱 성공:', userObject);
 
           // localStorage에 저장 (향후 사용)
           if (typeof localStorage !== "undefined") {
@@ -787,14 +799,16 @@ export class SocialAuthService implements SocialAuthServiceInterface {
               "apple_user_email",
               userObject.email || user.email || "",
             );
+            console.log('🍎 [Apple Profile] 사용자 정보 localStorage 저장 완료');
           }
         } catch (error) {
-          console.error("Apple 사용자 데이터 파싱 오류:", error);
+          console.error("🍎 [Apple Profile] 사용자 데이터 파싱 오류:", error);
         }
       }
 
-      // ID 토큰이 있는 경우
+      // ID 토큰이 있는 경우 (API 검증 시도)
       if (params?.id_token) {
+        console.log('🍎 [Apple Profile] ID 토큰 발견, API 검증 시작');
         try {
           // API를 호출하여 ID 토큰을 검증하고 프로필 정보 가져오기
           const response = await fetch("/api/auth/apple", {
@@ -810,12 +824,14 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
           if (response.ok) {
             const data = await response.json();
+            console.log('🍎 [Apple Profile] API 응답:', data);
+            
             if (data.success && data.profile) {
               // 사용자 프로필이 없으면 생성, 있으면 업데이트
               if (!existingProfile) {
                 const appleInsertData = {
                   id: user.id,
-                  nickname: data.profile.name || userObject?.name?.firstName || user.email?.split("@")[0] || "User", // display_name → nickname
+                  nickname: data.profile.name || userObject?.name?.firstName || user.email?.split("@")[0] || "User",
                   avatar_url: null, // Apple은 프로필 이미지를 제공하지 않음
                   email: data.profile.email || user.email,
                   provider: "apple",
@@ -824,68 +840,98 @@ export class SocialAuthService implements SocialAuthServiceInterface {
                   updated_at: new Date().toISOString(),
                 };
                 
-                console.log('🔧 [Apple] 프로필 생성 시도:', appleInsertData);
-                const { error: appleInsertError } = await this.supabase.from("user_profiles").insert(appleInsertData);
+                console.log('🍎 [Apple Profile] API 검증 후 프로필 생성 시도:', appleInsertData);
+                const { error: appleInsertError } = await this.supabase
+                  .from("user_profiles")
+                  .insert(appleInsertData);
                 
                 if (appleInsertError) {
-                  console.error('❌ [Apple] 프로필 생성 실패:', appleInsertError);
+                  console.error('❌ [Apple Profile] API 검증 후 프로필 생성 실패:', appleInsertError);
                 } else {
-                  console.log('✅ [Apple] 프로필 생성 성공');
+                  console.log('✅ [Apple Profile] API 검증 후 프로필 생성 성공');
+                  return; // 성공적으로 생성했으므로 함수 종료
                 }
               } else {
-                // 필요한 필드만 업데이트
-                await this.supabase.from("user_profiles").update({
-                  provider: "apple",
-                  provider_id: data.profile.id,
-                  updated_at: new Date().toISOString(),
-                }).eq("id", user.id);
+                // 기존 프로필 업데이트
+                console.log('🍎 [Apple Profile] 기존 프로필 업데이트 시도');
+                const { error: updateError } = await this.supabase
+                  .from("user_profiles")
+                  .update({
+                    provider: "apple",
+                    provider_id: data.profile.id,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", user.id);
+
+                if (updateError) {
+                  console.error('❌ [Apple Profile] 프로필 업데이트 실패:', updateError);
+                } else {
+                  console.log('✅ [Apple Profile] 프로필 업데이트 성공');
+                  return; // 성공적으로 업데이트했으므로 함수 종료
+                }
               }
+            } else {
+              console.log('🍎 [Apple Profile] API 응답에 프로필 정보 없음, 기본 처리로 진행');
             }
+          } else {
+            console.error('🍎 [Apple Profile] API 응답 실패:', response.status, response.statusText);
           }
         } catch (error) {
-          console.error("Apple 프로필 처리 오류:", error);
-          // 오류 발생 시 기본 프로필만 사용
+          console.error("🍎 [Apple Profile] API 호출 오류:", error);
+          // 오류 발생 시 기본 프로필 처리로 진행
         }
-      } else {
-        // ID 토큰이 없는 경우, localStorage에서 이전에 저장한 정보 사용
+      }
+
+      // API 검증 실패 또는 ID 토큰 없음 → 기본 프로필 처리
+      if (!existingProfile) {
+        console.log('🍎 [Apple Profile] 기본 프로필 생성 시작');
+        
+        // localStorage에서 이전에 저장한 정보 사용
         let name = "";
         if (typeof localStorage !== "undefined") {
           try {
             const savedName = localStorage.getItem("apple_user_name");
             if (savedName) {
               const parsedName = JSON.parse(savedName);
-              name = [parsedName.firstName, parsedName.lastName].filter(Boolean)
-                .join(" ");
+              name = [parsedName.firstName, parsedName.lastName].filter(Boolean).join(" ");
+              console.log('🍎 [Apple Profile] localStorage에서 이름 복원:', name);
             }
           } catch (e) {
-            console.error("저장된 Apple 사용자 이름 파싱 오류:", e);
+            console.error("🍎 [Apple Profile] 저장된 이름 파싱 오류:", e);
           }
         }
 
-        // 기본 프로필 정보만으로 처리
-        if (!existingProfile) {
-          const appleBasicData = {
-            id: user.id,
-            nickname: name || user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split("@")[0] || "User", // display_name → nickname + JWT 정보 추가
-            email: user.email,
-            avatar_url: null, // Apple은 프로필 이미지 제공 안함
-            provider: "apple",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          
-          console.log('🔧 [Apple] 기본 프로필 생성 시도:', appleBasicData);
-          const { error: appleBasicError } = await this.supabase.from("user_profiles").insert(appleBasicData);
-          
-          if (appleBasicError) {
-            console.error('❌ [Apple] 기본 프로필 생성 실패:', appleBasicError);
-          } else {
-            console.log('✅ [Apple] 기본 프로필 생성 성공');
-          }
+        // 기본 프로필 데이터 생성
+        const appleBasicData = {
+          id: user.id,
+          nickname: name || 
+                   userObject?.name?.firstName || 
+                   user.user_metadata?.name || 
+                   user.user_metadata?.full_name || 
+                   user.email?.split("@")[0] || 
+                   "User",
+          email: user.email,
+          avatar_url: null, // Apple은 프로필 이미지 제공 안함
+          provider: "apple",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        console.log('🍎 [Apple Profile] 기본 프로필 생성 시도:', appleBasicData);
+        const { error: appleBasicError } = await this.supabase
+          .from("user_profiles")
+          .insert(appleBasicData);
+        
+        if (appleBasicError) {
+          console.error('❌ [Apple Profile] 기본 프로필 생성 실패:', appleBasicError);
+        } else {
+          console.log('✅ [Apple Profile] 기본 프로필 생성 성공');
         }
+      } else {
+        console.log('🍎 [Apple Profile] 기존 프로필 존재, 추가 처리 없음');
       }
     } catch (error) {
-      console.error("Apple 프로필 업데이트 오류:", error);
+      console.error("🍎 [Apple Profile] 처리 중 전체 오류:", error);
       // 프로필 업데이트 실패해도 로그인 자체는 성공으로 처리
     }
   }

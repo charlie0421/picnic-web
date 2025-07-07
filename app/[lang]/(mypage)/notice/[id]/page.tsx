@@ -6,6 +6,8 @@ import {format} from 'date-fns';
 import {ko} from 'date-fns/locale';
 import {useParams, useRouter} from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getCurrentLocale } from '@/utils/date';
 
 interface MultilingualText {
   en?: string;
@@ -31,6 +33,7 @@ const NoticeDetailPage = () => {
   const currentLang = (params?.lang as string) || 'ko';
   const router = useRouter();
   const noticeId = params?.id;
+  const t = useTranslations();
 
   useEffect(() => {
     const fetchNotice = async () => {
@@ -38,7 +41,7 @@ const NoticeDetailPage = () => {
         // noticeId를 숫자로 변환하고 유효성 검증
         const id = parseInt(noticeId as string, 10);
         if (isNaN(id)) {
-          throw new Error('유효하지 않은 공지사항 ID입니다.');
+          throw new Error(t('notice_invalid_id') || '유효하지 않은 공지사항 ID입니다.');
         }
 
         const { data, error } = await createBrowserSupabaseClient()
@@ -61,7 +64,7 @@ const NoticeDetailPage = () => {
         
         setNotice(transformedNotice);
       } catch (error) {
-        console.error('공지사항을 불러오는 중 오류가 발생했습니다:', error);
+        console.error(t('notice_loading_error') || '공지사항을 불러오는 중 오류가 발생했습니다:', error);
         router.push('/notice');
       } finally {
         setLoading(false);
@@ -90,9 +93,9 @@ const NoticeDetailPage = () => {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <p className="text-gray-600">공지사항을 찾을 수 없습니다.</p>
+          <p className="text-gray-600">{t('notice_not_found') || '공지사항을 찾을 수 없습니다.'}</p>
           <Link href="/notice" className="text-primary-600 hover:underline mt-4 inline-block">
-            목록으로 돌아가기
+            {t('notice_back_to_list') || '목록으로 돌아가기'}
           </Link>
         </div>
       </div>
@@ -104,7 +107,7 @@ const NoticeDetailPage = () => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6">
           <Link href="/notice" className="text-primary-600 hover:underline">
-            ← 목록으로 돌아가기
+            ← {t('notice_back_to_list') || '목록으로 돌아가기'}
           </Link>
         </div>
 
@@ -112,13 +115,13 @@ const NoticeDetailPage = () => {
           <div className="flex items-center space-x-2 mb-2">
             {notice.isPinned && (
               <span className="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                공지
+                {t('notice_pinned') || '공지'}
               </span>
             )}
             <h1 className="text-2xl font-bold text-gray-900">{getLocalizedText(notice.title)}</h1>
           </div>
           <span className="text-sm text-gray-500">
-            {notice.createdAt && format(new Date(notice.createdAt), 'yyyy년 MM월 dd일', { locale: ko })}
+            {notice.createdAt && format(new Date(notice.createdAt), 'yyyy.MM.dd (EEE)', { locale: getCurrentLocale(currentLang) })}
           </span>
         </div>
 
