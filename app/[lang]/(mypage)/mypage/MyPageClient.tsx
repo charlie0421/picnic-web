@@ -1,21 +1,52 @@
 'use client';
 
 import React, { useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { User } from '@supabase/supabase-js';
 import { UserProfiles } from '@/types/interfaces';
 import { useLogout } from '@/lib/auth/logout';
 import Link from 'next/link';
 
+interface Translations {
+  error_logout: string;
+  label_default_user: string;
+  label_default_email: string;
+  label_default_email_message: string;
+  label_mypage_provider_profile: string;
+  label_mypage_provider_google: string;
+  label_mypage_provider_apple: string;
+  label_mypage_provider_kakao: string;
+  label_mypage_provider_wechat: string;
+  label_mypage_provider_default: string;
+  label_mypage_account_management: string;
+  label_mypage_edit_profile: string;
+  label_debug: string;
+  label_mypage_logout: string;
+  label_mypage_activity_history: string;
+  label_mypage_my_votes: string;
+  label_mypage_my_posts: string;
+  label_mypage_my_comments: string;
+  label_mypage_service_info: string;
+  label_mypage_menu_service: string;
+  label_mypage_notice: string;
+  label_mypage_faq: string;
+  label_mypage_menu_policy: string;
+  label_mypage_terms_of_use: string;
+  label_mypage_privacy_policy: string;
+  label_mypage_withdrawal: string;
+}
+
 interface MyPageClientProps {
   initialUser: User;
   initialUserProfile: UserProfiles | null;
+  translations: Translations;
 }
 
 // 🎯 서버에서 받은 초기 데이터 기반 클라이언트 컴포넌트
-export default function MyPageClient({ initialUser, initialUserProfile }: MyPageClientProps) {
-  const t = useTranslations();
+export default function MyPageClient({ initialUser, initialUserProfile, translations }: MyPageClientProps) {
   const { logout } = useLogout();
+  
+  // 간편한 번역 함수 (props로 받은 번역 사용)
+  const t = (key: keyof Translations) => translations[key] || key;
 
   // 디버그 모드 감지 (개발 환경 또는 로컬호스트)
   const isDebugMode = process.env.NODE_ENV === 'development' || 
