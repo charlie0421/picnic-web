@@ -95,8 +95,15 @@ export default function AuthCallbackClient({
         setProcessingStep('서버에서 인증을 처리하고 있습니다...');
         debugLog('🔧 [OAuth] 서버 API로 토큰 교환 시도 (클라이언트 무한대기 회피)');
         
-        // API 라우트를 통한 서버사이드 처리
-        const response = await fetch('/api/auth/exchange-code', {
+        // API 라우트를 통한 서버사이드 처리 (모든 환경 동일)
+        const apiUrl = '/api/auth/exchange-code';
+        
+        debugLog('🔗 [AuthCallback] API URL 설정:', { 
+          apiUrl,
+          currentHost: window.location.hostname 
+        });
+        
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

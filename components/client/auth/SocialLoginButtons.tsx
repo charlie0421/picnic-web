@@ -21,14 +21,7 @@ interface SocialLoginButtonsProps {
   size?: 'small' | 'medium' | 'large';
 }
 
-/**
- * 로컬 개발 환경 감지
- */
-function isLocalDevelopment(): boolean {
-  if (typeof window === 'undefined') return false;
-  const hostname = window.location.hostname;
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
-}
+// 모든 환경에서 동일 처리: 로컬 특별 로직 제거
 
 export function SocialLoginButtons({
   onLoginStart,
@@ -41,7 +34,6 @@ export function SocialLoginButtons({
   const [lastUsedProvider, setLastUsedProvider] = useState<SocialLoginProvider | null>(null);
   const [sortedProviders, setSortedProviders] = useState<SocialLoginProvider[]>(providers);
   const { t } = useLanguageStore();
-  const isLocal = isLocalDevelopment();
   const { isLoading: authLoading } = useAuth();
 
   // 컴포넌트 마운트 시 최근 사용한 로그인 수단을 확인
@@ -53,11 +45,6 @@ export function SocialLoginButtons({
 
   const handleSocialLogin = useCallback(
     async (provider: SocialLoginProvider) => {
-      // 로컬 환경에서 카카오 로그인 시도 시 에러 표시
-      if (isLocal && provider === 'kakao') {
-        onError?.(new Error('로컬 개발 환경에서는 카카오 로그인을 사용할 수 없습니다. 프로덕션 환경에서 테스트해주세요.'));
-        return;
-      }
 
       console.log(`🔄 [SocialLogin] ${provider.toUpperCase()} 로그인 시작`);
       
@@ -103,7 +90,7 @@ export function SocialLoginButtons({
       }
       // finally 블록 제거 - 성공 시에는 로딩 상태를 유지하여 리다이렉트까지 버튼 비활성화
     },
-    [onLoginStart, onError, t, isLocal, providers],
+    [onLoginStart, onError, t, providers],
   );
 
   // 각 소셜 로그인 버튼의 스타일 및 내용 설정
@@ -134,7 +121,7 @@ export function SocialLoginButtons({
       iconPath: '/images/auth/apple.svg',
     },
     kakao: {
-      label: isLocal ? '카카오 로그인 (로컬 환경에서 비활성화됨)' : (t('label_login_with_kakao') || 'Kakao로 로그인'),
+      label: t('label_login_with_kakao') || 'Kakao로 로그인',
       bgColor: 'bg-yellow-400',
       textColor: 'text-gray-900',
       hoverColor: 'hover:bg-yellow-500',
@@ -185,15 +172,7 @@ export function SocialLoginButtons({
       {/* 다른 로그인 수단들 */}
       {otherProviders.map((provider) => renderLoginButton(provider, false))}
       
-      {/* 로컬 환경에서 카카오 관련 안내 메시지 */}
-      {isLocal && providers.includes('kakao') && (
-        <div className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded-lg p-2 sm:p-3 mt-1 sm:mt-2">
-          <div className="flex items-center gap-1 sm:gap-2">
-            <span className="text-orange-500">⚠️</span>
-            <span className="text-xs sm:text-sm">로컬 개발 환경에서는 카카오 로그인이 비활성화됩니다. 프로덕션 환경에서 테스트해주세요.</span>
-          </div>
-        </div>
-      )}
+      {/* 모든 제공자 동일 처리: 특별 안내 메시지 제거 */}
     </div>
   );
 
@@ -218,10 +197,6 @@ export function SocialLoginButtons({
         case 'apple':
           return baseStyle + 'bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 border-2 border-gray-800 hover:border-gray-700 !text-white hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
         case 'kakao':
-          // 로컬 환경에서는 비활성화 스타일 적용
-          if (isLocal) {
-            return 'bg-gray-300 border-2 border-gray-400 !text-gray-600 cursor-not-allowed opacity-60';
-          }
           return baseStyle + 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 border-2 border-yellow-400 hover:border-yellow-500 !text-gray-900 hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
         case 'wechat':
           return baseStyle + 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 border-2 border-green-600 hover:border-green-700 !text-white hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
@@ -230,15 +205,14 @@ export function SocialLoginButtons({
       }
     };
 
-    // 카카오 버튼 비활성화 조건
-    const isKakaoDisabled = isLocal && provider === 'kakao';
+    // 모든 제공자 동일 처리: 특별 비활성화 조건 제거
 
     return (
       <div key={provider} className="relative">
         <Button
           variant="ghost"
           onClick={() => handleSocialLogin(provider)}
-          disabled={isLoading !== null || isKakaoDisabled || authLoading}
+          disabled={isLoading !== null || authLoading}
           className={`relative flex items-center justify-center w-full gap-2 sm:gap-3 ${buttonHeight} px-4 sm:px-6 rounded-lg sm:rounded-xl transition-all duration-300 font-medium text-xs sm:text-sm md:text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${getProviderStyle()}`}
         >
           {/* 로딩 상태일 때의 오버레이 */}
@@ -266,7 +240,7 @@ export function SocialLoginButtons({
               height={size === 'large' || isLastUsed ? 24 : 20}
               className={`${size === 'large' || isLastUsed ? 'w-6 h-6 sm:w-8 sm:h-8' : 'w-5 h-5 sm:w-6 sm:h-6'} object-contain ${
                 provider === 'apple' ? 'filter brightness-0 invert' : ''
-              } ${isKakaoDisabled ? 'grayscale' : ''}`}
+              }`}
               priority={provider === 'google' || isLastUsed}
               unoptimized={provider === 'wechat'} // WeChat SVG의 렌더링 문제 해결
             />
@@ -276,7 +250,7 @@ export function SocialLoginButtons({
           <span className={`font-medium text-xs sm:text-sm md:text-base whitespace-nowrap transition-all duration-300 ${
             provider === 'google' ? '!text-gray-700' :
             provider === 'apple' ? '!text-white' :
-            provider === 'kakao' ? (isKakaoDisabled ? '!text-gray-600' : '!text-gray-900') :
+            provider === 'kakao' ? '!text-gray-900' :
             provider === 'wechat' ? '!text-white' : '!text-gray-700'
           } ${isLoading === provider ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'}`}>
             {isLoading === provider ? (t('label_logging_in') || '로그인 중...') : 
@@ -284,20 +258,10 @@ export function SocialLoginButtons({
              config.label}
           </span>
 
-          {/* 버튼 하이라이트 효과 (비활성화되지 않은 경우에만) */}
-          {!isKakaoDisabled && (
-            <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-          )}
+          {/* 버튼 하이라이트 효과 */}
+          <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
         </Button>
-        
-        {/* 로컬 환경에서 카카오 버튼에 경고 툴팁 표시 */}
-        {isKakaoDisabled && (
-          <div className="absolute -top-2 -right-2 z-10">
-            <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-bold">!</span>
-            </div>
-          </div>
-        )}
+
       </div>
     );
   }

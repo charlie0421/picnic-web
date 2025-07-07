@@ -39,14 +39,7 @@ export function getKakaoConfig(): OAuthProviderConfig {
   };
 }
 
-/**
- * 로컬 개발 환경 감지
- */
-function isLocalDevelopment(): boolean {
-  if (typeof window === 'undefined') return false;
-  const hostname = window.location.hostname;
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
-}
+// 모든 환경에서 동일 처리: 환경별 특별 로직 제거
 
 /**
  * Kakao 로그인 구현
@@ -85,15 +78,13 @@ export async function signInWithKakaoImpl(
     const uniqueScopes = Array.from(new Set(scopes));
     const finalScopeString = uniqueScopes.join(' ');
     
-    // 로컬/프로덕션 환경 감지
-    const isLocal = isLocalDevelopment();
+    // 현재 도메인 기반 콜백 URL 생성 (모든 환경 동일)
     const redirectUrl = typeof window !== 'undefined' 
       ? `${window.location.origin}/auth/callback/kakao`
       : options?.redirectUrl;
     
-    // 디버깅: 환경 및 OAuth 설정 확인
+    // 디버깅: OAuth 설정 확인
     console.log('🔍 Kakao OAuth Debug:', {
-      isLocal,
       redirectUrl,
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
       originalScopes: scopes,
@@ -101,51 +92,43 @@ export async function signInWithKakaoImpl(
       finalScopeString: finalScopeString
     });
     
-    if (isLocal) {
-      // 🚫 로컬 환경: 카카오 로그인 비활성화
-      console.warn('⚠️ 로컬 개발 환경에서는 카카오 로그인을 지원하지 않습니다.');
-      
-      throw new SocialAuthError(
-        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        '로컬 개발 환경에서는 카카오 로그인을 사용할 수 없습니다. 프로덕션 환경에서 테스트해주세요.',
-        'kakao'
-      );
-      
-    } else {
-      // 🌐 프로덕션 환경: www.picnic.fan을 사용한 직접 OAuth
-      const clientId = config.clientId;
-      if (!clientId) {
-        throw new Error('Kakao Client ID가 설정되지 않았습니다.');
-      }
-      
-      // 프로덕션에서는 www.picnic.fan 콜백 사용
-      const prodRedirectUrl = 'https://www.picnic.fan/auth/callback/kakao';
-      
-      const kakaoOAuthUrl = new URL('https://kauth.kakao.com/oauth/authorize');
-      kakaoOAuthUrl.searchParams.set('client_id', clientId);
-      kakaoOAuthUrl.searchParams.set('redirect_uri', prodRedirectUrl);
-      kakaoOAuthUrl.searchParams.set('response_type', 'code');
-      kakaoOAuthUrl.searchParams.set('scope', finalScopeString);
-      
-      // Kakao 특화 파라미터 추가
-      Object.entries(kakaoParams).forEach(([key, value]) => {
-        kakaoOAuthUrl.searchParams.set(key, value);
-      });
-      
-      console.log('🚀 프로덕션 환경: www.picnic.fan으로 직접 Kakao OAuth 리디렉션', {
-        url: kakaoOAuthUrl.toString(),
-        redirectUri: prodRedirectUrl
-      });
-      
-      // 직접 리디렉션 (Supabase 우회하여 api.picnic.fan 콜백 제거)
-      window.location.href = kakaoOAuthUrl.toString();
-      
-      return {
-        success: true,
-        provider: 'kakao',
-        message: 'Kakao 로그인 리디렉션 중... (프로덕션 모드)'
-      };
+    const clientId = config.clientId;
+    if (!clientId) {
+      throw new Error('Kakao Client ID가 설정되지 않았습니다.');
     }
+    
+    const targetRedirectUrl = redirectUrl;
+    
+    console.log('🚀 Kakao OAuth 시도:', {
+      targetRedirectUrl,
+      origin: typeof window !== 'undefined' ? window.location.origin : 'unknown'
+    });
+    
+    // Kakao OAuth URL 생성
+    const kakaoOAuthUrl = new URL('https://kauth.kakao.com/oauth/authorize');
+    kakaoOAuthUrl.searchParams.set('client_id', clientId);
+    kakaoOAuthUrl.searchParams.set('redirect_uri', targetRedirectUrl);
+    kakaoOAuthUrl.searchParams.set('response_type', 'code');
+    kakaoOAuthUrl.searchParams.set('scope', finalScopeString);
+    
+    // Kakao 특화 파라미터 추가
+    Object.entries(kakaoParams).forEach(([key, value]) => {
+      kakaoOAuthUrl.searchParams.set(key, value);
+    });
+    
+    console.log('🚀 Kakao OAuth 리디렉션:', {
+      url: kakaoOAuthUrl.toString(),
+      redirectUri: targetRedirectUrl
+    });
+    
+    // 직접 리디렉션
+    window.location.href = kakaoOAuthUrl.toString();
+    
+    return {
+      success: true,
+      provider: 'kakao',
+      message: 'Kakao 로그인 리디렉션 중...'
+    };
     
   } catch (error) {
     if (error instanceof SocialAuthError) {

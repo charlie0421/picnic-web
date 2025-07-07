@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+// 모든 OAuth 제공자 동일 처리: 간단하고 일관된 Supabase 표준 OAuth
+
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔧 [API] OAuth 코드 교환 시작 (서버사이드 RLS 우회)');
+    console.log('🔧 [API] OAuth 코드 교환 시작');
     
     const { code, provider } = await request.json();
 
@@ -20,8 +22,9 @@ export async function POST(request: NextRequest) {
       provider 
     });
 
-    // 🚀 서버사이드 Supabase 클라이언트 생성 (Next.js 15 호환)
+    // 🚀 서버사이드 Supabase 클라이언트 생성
     const cookieStore = await cookies();
+    
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -42,7 +45,11 @@ export async function POST(request: NextRequest) {
 
     console.log('🔧 [API] 서버사이드 Supabase 클라이언트 생성 완료');
 
-    // 🚀 서버에서 OAuth 코드 교환 (RLS 문제 없음)
+    // 모든 제공자 동일 처리: 표준 Supabase OAuth만 사용
+
+    // 🌐 모든 제공자 공통: 표준 Supabase OAuth 사용
+    console.log('🌐 [API] 표준 Supabase OAuth 사용 (모든 제공자 동일)');
+    
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
@@ -72,8 +79,7 @@ export async function POST(request: NextRequest) {
       provider: data.user?.app_metadata?.provider
     });
 
-    // 🎯 응답에 성공 정보 포함
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       message: 'OAuth 인증 성공',
       user: {
@@ -82,11 +88,6 @@ export async function POST(request: NextRequest) {
         provider: data.user?.app_metadata?.provider
       }
     });
-
-    // 🔧 쿠키에 세션 정보 설정 (자동으로 처리됨)
-    console.log('🍪 [API] 세션 쿠키 설정 완료');
-
-    return response;
 
   } catch (error: any) {
     console.error('❌ [API] 서버 오류:', error);

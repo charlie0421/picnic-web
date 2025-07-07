@@ -68,20 +68,9 @@ export class SocialAuthService implements SocialAuthServiceInterface {
       console.error(`❌ SocialAuth Error: ${message}`, data || "");
     };
 
-    // 콜백 URL 초기화
+    // 콜백 URL 초기화 (모든 환경에서 동일)
     if (typeof window !== "undefined") {
-      // 로컬 환경 감지
-      const isLocalhost = window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1";
-
-      let baseUrl: string;
-      if (isLocalhost) {
-        // 로컬 환경에서는 강제로 localhost 사용
-        const port = window.location.port || "3100";
-        baseUrl = `http://localhost:${port}`;
-      } else {
-        baseUrl = window.location.origin;
-      }
+      const baseUrl = window.location.origin;
 
       this.callbackUrls = {
         google: `${baseUrl}/auth/callback/google`,
