@@ -104,25 +104,31 @@ export async function signInWithKakaoImpl(
       origin: typeof window !== 'undefined' ? window.location.origin : 'unknown'
     });
     
-    // Kakao OAuth URL 생성
-    const kakaoOAuthUrl = new URL('https://kauth.kakao.com/oauth/authorize');
-    kakaoOAuthUrl.searchParams.set('client_id', clientId);
-    kakaoOAuthUrl.searchParams.set('redirect_uri', targetRedirectUrl);
-    kakaoOAuthUrl.searchParams.set('response_type', 'code');
-    kakaoOAuthUrl.searchParams.set('scope', finalScopeString);
-    
-    // Kakao 특화 파라미터 추가
-    Object.entries(kakaoParams).forEach(([key, value]) => {
-      kakaoOAuthUrl.searchParams.set(key, value);
+    console.log('🚀 Kakao OAuth 시도 (Supabase 표준):', {
+      redirectUri: targetRedirectUrl,
+      scopes: finalScopeString
     });
     
-    console.log('🚀 Kakao OAuth 리디렉션:', {
-      url: kakaoOAuthUrl.toString(),
-      redirectUri: targetRedirectUrl
+    // 🎯 Supabase 표준 OAuth 사용 (PKCE 자동 처리)
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo: targetRedirectUrl,
+        scopes: finalScopeString
+      }
     });
     
-    // 직접 리디렉션
-    window.location.href = kakaoOAuthUrl.toString();
+    if (error) {
+      console.error('❌ Supabase Kakao OAuth 오류:', error);
+      throw new SocialAuthError(
+        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
+        `Supabase Kakao OAuth 실패: ${error.message}`,
+        'kakao',
+        error
+      );
+    }
+    
+    console.log('✅ Kakao OAuth 리디렉션 성공:', data);
     
     return {
       success: true,
