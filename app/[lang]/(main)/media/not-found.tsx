@@ -1,4 +1,4 @@
-import { NotFoundState } from '@/components/server';
+import UniversalNotFound from '@/components/common/UniversalNotFound';
 
 /**
  * 미디어 페이지의 Not Found 컴포넌트
@@ -7,11 +7,10 @@ import { NotFoundState } from '@/components/server';
  */
 export default function MediaNotFound() {
   return (
-    <NotFoundState 
-      title="미디어를 찾을 수 없습니다"
-      message="요청하신 미디어 콘텐츠가 존재하지 않거나 삭제되었습니다."
-      backLink="/media"
-      backLabel="미디어 목록으로 돌아가기"
+    <UniversalNotFound 
+      pageType="media"
+      useGlobalLanguageDetection={false}
+      showContactButton={false}
     />
   );
 } 

@@ -1,4 +1,4 @@
-import { NotFoundState } from '@/components/server';
+import UniversalNotFound from '@/components/common/UniversalNotFound';
 
 /**
  * 투표 상세 페이지의 Not Found 컴포넌트
@@ -7,11 +7,10 @@ import { NotFoundState } from '@/components/server';
  */
 export default function VoteNotFound() {
   return (
-    <NotFoundState 
-      title="투표를 찾을 수 없습니다"
-      message="요청하신 투표가 존재하지 않거나 삭제되었습니다."
-      backLink="/vote"
-      backLabel="투표 목록으로 돌아가기"
+    <UniversalNotFound 
+      pageType="vote"
+      useGlobalLanguageDetection={false}
+      showContactButton={false}
     />
   );
 } 
