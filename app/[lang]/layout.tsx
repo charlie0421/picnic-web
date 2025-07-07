@@ -34,6 +34,15 @@ export async function generateMetadata({
       ...DEFAULT_METADATA.openGraph,
       locale: lang === 'ko' ? 'ko_KR' : 'en_US',
     },
+    manifest: '/manifest.json',
+    other: {
+      'msapplication-TileColor': '#4F46E5',
+      'theme-color': '#ffffff',
+      '1password-ignore': 'true',
+      'lastpass-ignore': 'true',
+      'dashlane-ignore': 'true',
+      'bitwarden-ignore': 'true',
+    },
   };
 
   return {
@@ -44,7 +53,7 @@ export async function generateMetadata({
 
 // 정적 metadata 내보내기 제거 (중복된 metadata 내보내기)
 
-export default async function RootLayout({
+export default async function LanguageLayout({
   children,
   params,
 }: {
@@ -55,42 +64,8 @@ export default async function RootLayout({
   const { lang } = await params;
 
   return (
-    <html lang={lang || 'ko'}>
-      <head>
-        {/* PWA Manifest */}
-        <link rel='manifest' href='/manifest.json' />
-        <meta name='msapplication-TileColor' content='#4F46E5' />
-        <meta name='theme-color' content='#ffffff' />
-        
-        {/* 브라우저 확장 프로그램 비활성화 */}
-        <meta name='1password-ignore' content='true' />
-        <meta name='lastpass-ignore' content='true' />
-        <meta name='dashlane-ignore' content='true' />
-        <meta name='bitwarden-ignore' content='true' />
-        
-        {/* JSON-LD 구조화된 데이터 - 웹사이트 정보 */}
-        <script
-          type='application/ld+json'
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'WebSite',
-              url: 'https://picnic.com',
-              name: '피크닠',
-              description:
-                '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
-              potentialAction: {
-                '@type': 'SearchAction',
-                target: 'https://picnic.com/search?q={search_term_string}',
-                'query-input': 'required name=search_term_string',
-              },
-            }),
-          }}
-        />
-      </head>
-      <body className={inter.className}>
-        <ClientLayout initialLanguage={lang}>{children}</ClientLayout>
-      </body>
-    </html>
+    <div className={inter.className}>
+      <ClientLayout initialLanguage={lang}>{children}</ClientLayout>
+    </div>
   );
 }
