@@ -27,7 +27,7 @@ export function SocialLoginButtons({
   onLoginStart,
   onLoginComplete,
   onError,
-  providers = ['google', 'apple', 'kakao'],
+  providers = ['google', 'apple'], // 'kakao' 임시 제거 - 웹에서 지원 안함
   size = 'medium',
 }: SocialLoginButtonsProps) {
   const [isLoading, setIsLoading] = useState<SocialLoginProvider | null>(null);
