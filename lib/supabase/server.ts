@@ -69,15 +69,50 @@ const emptyCookieStore: CookieStore = {
 };
 
 /**
- * 기본 서버 Supabase 클라이언트를 생성합니다.
- * 이 구현은 App Router와 Pages Router 모두에서 동작하지만 Pages Router에서는 인증 없는 기본 클라이언트만 제공합니다.
- * 
- * 중요: Pages Router에서는 createServerSupabaseClientWithRequest 함수를 대신 사용하세요.
+ * App Router용 서버 Supabase 클라이언트를 생성합니다.
+ * Next.js의 cookies() API를 사용하여 인증 쿠키를 읽습니다.
  * 
  * @returns Supabase 클라이언트 인스턴스
  */
-export function createServerSupabaseClient() {
-  return createServerSupabaseClientWithCookies(emptyCookieStore);
+export async function createServerSupabaseClient() {
+  try {
+    // App Router 환경에서만 cookies() API 사용
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    
+    const appRouterCookieStore: CookieStore = {
+      get: (name: string) => {
+        const cookie = cookieStore.get(name);
+        return cookie ? { name: cookie.name, value: cookie.value } : undefined;
+      },
+      set: (cookie: { name: string; value: string; [key: string]: any }) => {
+        try {
+          cookieStore.set(cookie.name, cookie.value, cookie);
+        } catch (error) {
+          // 쿠키 설정 실패 시 로깅 (개발 환경에서만)
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('서버 Supabase 클라이언트: 쿠키 설정 실패', error);
+          }
+        }
+      },
+      remove: (name: string, options?: any) => {
+        try {
+          cookieStore.set(name, '', { ...options, maxAge: 0 });
+        } catch (error) {
+          // 쿠키 삭제 실패 시 로깅 (개발 환경에서만)
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('서버 Supabase 클라이언트: 쿠키 삭제 실패', error);
+          }
+        }
+      }
+    };
+    
+    return createServerSupabaseClientWithCookies(appRouterCookieStore);
+  } catch (error) {
+    // App Router가 아닌 환경에서는 빈 쿠키 스토어 사용 (Pages Router 등)
+    console.warn('⚠️ App Router가 아닌 환경 - 빈 쿠키 스토어 사용:', error);
+    return createServerSupabaseClientWithCookies(emptyCookieStore);
+  }
 }
 
 /**
@@ -128,7 +163,7 @@ export function createServerSupabaseClientWithRequest(req: any, res: any) {
  * @returns 현재 인증 세션 또는 null (호환성을 위해 세션 형태로 반환)
  */
 export async function getServerSession() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   
   // getUser()로 사용자 정보 확인 (더 빠름)
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -155,7 +190,7 @@ export async function getServerSession() {
  * @returns 현재 사용자 정보 또는 null
  */
 export async function getServerUser() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   
   if (error) {

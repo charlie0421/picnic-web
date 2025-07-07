@@ -15,7 +15,7 @@ export async function VoteDetailFetcher({
   voteId,
   className,
 }: VoteDetailFetcherProps) {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   try {
     // voteId를 숫자로 변환

@@ -17,7 +17,7 @@ export default async function MyPage() {
   // 사용자 프로필도 서버에서 미리 가져오기
   let userProfile: UserProfiles | null = null;
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data } = await supabase
       .from('user_profiles')
       .select('*')

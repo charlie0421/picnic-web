@@ -51,6 +51,7 @@ const RewardImageGallery: React.FC<RewardImageGalleryProps> = ({
 
         {images.length > 0 && (
           <Image
+            key={`${images[currentImageIndex]}-${currentImageIndex}`}
             src={getCdnImageUrl(images[currentImageIndex], 300)}
             alt={`${title} 이미지 ${currentImageIndex + 1}`}
             fill

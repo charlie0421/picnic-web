@@ -60,6 +60,11 @@ const RewardDetailClient: React.FC<RewardDetailClientProps> = ({ reward }) => {
     }
   }, [activeTab, hasLocationInfo, hasSizeGuideInfo]);
 
+  // 탭 전환시 이미지 인덱스를 0으로 리셋
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [activeTab]);
+
   return (
     <div className='container mx-auto px-4 py-8'>
 
@@ -77,6 +82,7 @@ const RewardDetailClient: React.FC<RewardDetailClientProps> = ({ reward }) => {
       <div className='mb-8'>
         {currentImages.length > 0 ? (
           <RewardImageGallery
+            key={`gallery-${activeTab}`}
             images={currentImages}
             title={title}
             currentImageIndex={currentImageIndex}

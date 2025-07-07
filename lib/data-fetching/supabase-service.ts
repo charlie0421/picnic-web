@@ -197,12 +197,12 @@ export class DataFetchingError extends Error {
  */
 export const querySupabase = cache(async <T>(
   queryFn: (
-    supabase: ReturnType<typeof createServerSupabaseClient>,
+    supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   ) => Promise<PostgrestSingleResponse<T>>,
   options: QueryOptions = DEFAULT_OPTIONS,
 ): Promise<T> => {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data, error } = await queryFn(supabase);
 
     if (error) {
@@ -256,7 +256,7 @@ export const getById = cache(async <T>(
   columns: string = "*",
   options: QueryOptions = DEFAULT_OPTIONS,
 ): Promise<T> => {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from(table)
     .select(columns)
@@ -306,7 +306,7 @@ export const getList = cache(async <T>(
     options?: QueryOptions;
   },
 ): Promise<T[]> => {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   let query = supabase.from(table).select(columns);
 
   // 필터 적용
@@ -429,7 +429,7 @@ export const getPaginatedList = cache(async <T>(
   },
 ): Promise<PaginatedResult<T>> => {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
 
     // 전체 항목 수 조회
     let countQuery = supabase.from(table).select("id", {
@@ -549,7 +549,7 @@ export const insertData = cache(async <T extends TableName>(
   data: any,
   options: QueryOptions = DEFAULT_OPTIONS,
 ): Promise<any> => {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data: insertedData, error } = await supabase
     .from(table)
     .insert(data)
@@ -576,7 +576,7 @@ export const updateData = cache(async <T extends TableName>(
   data: any,
   options: QueryOptions = DEFAULT_OPTIONS,
 ): Promise<any> => {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data: updatedData, error } = await supabase
     .from(table)
     .update(data)
@@ -603,7 +603,7 @@ export const deleteData = cache(async <T extends TableName>(
   id: string | number,
   options: QueryOptions = DEFAULT_OPTIONS,
 ): Promise<any> => {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data: deletedData, error } = await supabase
     .from(table)
     .delete()
@@ -640,7 +640,7 @@ export const deleteDataSafe = cache(async <T extends TableName>(
     );
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   try {
     let query = supabase
@@ -683,11 +683,11 @@ export const deleteDataSafe = cache(async <T extends TableName>(
  */
 export const executeCustomQuery = cache(async <T>(
   queryFn: (
-    supabase: ReturnType<typeof createServerSupabaseClient>,
+    supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   ) => Promise<PostgrestSingleResponse<T>>,
 ): Promise<T> => {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data, error } = await queryFn(supabase);
 
     if (error) {
@@ -828,7 +828,7 @@ export const bulkInsert = cache(async <T extends TableName>(
 ): Promise<any[]> => {
   if (!data.length) return [];
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   const { data: insertedData, error } = await supabase
     .from(table)
     .insert(data)
@@ -1037,7 +1037,7 @@ export interface UserContext {
  */
 export const getCurrentUserContext = cache(async (): Promise<UserContext> => {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -1072,7 +1072,7 @@ export const getByIdSafe = cache(async <T>(
   options: QueryOptions = DEFAULT_OPTIONS,
 ): Promise<T> => {
   const userContext = await getCurrentUserContext();
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   try {
     const { data, error } = await supabase
@@ -1127,7 +1127,7 @@ export const getListSafe = cache(async <T>(
   },
 ): Promise<T[]> => {
   const userContext = await getCurrentUserContext();
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   try {
     let query = supabase.from(table).select(columns);
@@ -1265,7 +1265,7 @@ export const insertDataSafe = cache(async <T extends TableName>(
     );
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   // 사용자 소유 데이터에 user_id 자동 설정
   const userOwnedTables = ['vote_pick', 'vote_comment'];
@@ -1319,7 +1319,7 @@ export const updateDataSafe = cache(async <T extends TableName>(
     );
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   try {
     let query = supabase
