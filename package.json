@@ -32,7 +32,8 @@
     "test:libs": "jest --testPathPattern=__tests__/lib",
     "test:api": "jest --testPathPattern=__tests__/app/api",
     "test:fail-fast": "jest --bail",
-    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand"
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "dev:https": "node server.js"
   },
   "dependencies": {
     "@auth/core": "0.34.2",

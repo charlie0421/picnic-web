@@ -279,7 +279,7 @@ export function SocialLoginButtons({
             provider === 'kakao' ? (isKakaoDisabled ? '!text-gray-600' : '!text-gray-900') :
             provider === 'wechat' ? '!text-white' : '!text-gray-700'
           } ${isLoading === provider ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'}`}>
-            {isLoading === provider ? '로그인 중...' : 
+            {isLoading === provider ? (t('label_logging_in') || '로그인 중...') : 
              isLastUsed ? (t('label_continue_with_last_used') || '최근 사용한 방법으로 계속하기') :
              config.label}
           </span>

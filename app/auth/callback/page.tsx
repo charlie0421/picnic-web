@@ -16,7 +16,9 @@ export default function AuthCallbackPage() {
           __html: `
             // 페이지 로드 즉시 로딩바 생성
             (function() {
-              console.log('🔄 [OAuth Callback] 범용 콜백 즉시 로딩바 생성');
+              // 개발 환경에서만 로그 출력
+              const isDev = ${process.env.NODE_ENV === 'development'};
+              if (isDev) console.log('🔄 [OAuth Callback] 범용 콜백 즉시 로딩바 생성');
               
               const loadingDiv = document.createElement('div');
               loadingDiv.id = 'oauth-loading';

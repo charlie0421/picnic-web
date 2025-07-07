@@ -54,8 +54,27 @@ const Header: React.FC = () => {
     };
   }, [userProfile, user]); // userProfile 우선
 
+  // 🔍 프로필 이미지 로딩 상태 확인
+  const isProfileImageLoading = useCallback(() => {
+    // 인증되지 않은 경우 로딩 아님
+    if (!isAuthenticated || !user) return false;
+    
+    // AuthProvider의 초기 로딩 중인 경우
+    if (isLoading) return true;
+    
+    // user는 있지만 userProfile이 아직 로드되지 않은 경우 (비동기 로딩 중)
+    if (user && userProfile === null) {
+      // JWT 토큰에 소셜 이미지가 있으면 DB 프로필 로딩을 기다림
+      const hasSocialImage = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+      return !!hasSocialImage; // 소셜 이미지가 있으면 DB 로딩을 기다림
+    }
+    
+    return false;
+  }, [isAuthenticated, user, userProfile, isLoading]);
+
   // 사용자 정보 가져오기
   const userInfo = getUserInfo();
+  const profileImageLoading = isProfileImageLoading();
 
   // 디버깅 로그 (개발 환경에서만)
   useEffect(() => {
@@ -222,7 +241,11 @@ const Header: React.FC = () => {
             <div className='flex-shrink-0'>
               {isAuthenticated ? (
                 <Link href='/mypage' className='block'>
-                  {userInfo.avatar_url ? (
+                  {profileImageLoading ? (
+                    // DB 프로필 로딩 중일 때 shimmer 효과
+                    <div className="w-8 h-8 rounded-lg shimmer-effect">
+                    </div>
+                  ) : userInfo.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userInfo.avatar_url}
                       width={32}

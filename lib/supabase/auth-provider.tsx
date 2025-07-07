@@ -275,6 +275,12 @@ class AuthStore {
       return;
     }
 
+    // 이미 초기화된 경우 재초기화 방지
+    if (this.state.isInitialized) {
+      console.log('✅ [AuthStore] 이미 초기화됨 - 재초기화 건너뜀');
+      return;
+    }
+
     try {
       console.log('🚀 [AuthStore] 완전 쿠키 기반 초기화 시작 (네트워크 요청 0개)');
       
@@ -436,29 +442,44 @@ class AuthStore {
         (window as any).authStartTime = Date.now();
       }
 
-      // 즉시 사용자 프로필 로드 (관리자 메뉴 표시를 위해)
-      console.log('🔄 [AuthStore] 사용자 프로필 로드 시작:', {
-        userId: user.id?.substring(0, 8) + '...',
-        hasUserId: !!user.id,
-        userEmail: user.email
-      });
+      // 프로필 캐싱 로직: 프로필이 없거나 사용자가 변경된 경우에만 로드
+      const shouldLoadProfile = !this.state.userProfile || 
+                               (this.state.userProfile?.id !== user.id);
       
-      this.loadUserProfile(user.id).then(profile => {
-        if (profile) {
-          console.log('✅ [AuthStore] 사용자 프로필 로드 성공:', {
-            is_admin: profile.is_admin,
-            is_super_admin: profile.is_super_admin
+      if (shouldLoadProfile) {
+        console.log('🔄 [AuthStore] 사용자 프로필 로드 시작:', {
+          userId: user.id?.substring(0, 8) + '...',
+          hasUserId: !!user.id,
+          userEmail: user.email,
+          reason: !this.state.userProfile ? 'profile_not_cached' : 'user_changed',
+          previousUserId: this.state.userProfile?.id?.substring(0, 8) + '...' || 'none'
+        });
+        
+        this.loadUserProfile(user.id).then(profile => {
+          if (profile) {
+            console.log('✅ [AuthStore] 사용자 프로필 로드 성공:', {
+              is_admin: profile.is_admin,
+              is_super_admin: profile.is_super_admin
+            });
+            this.updateState({
+              ...this.state,
+              userProfile: profile,
+            });
+          } else {
+            console.warn('⚠️ [AuthStore] 사용자 프로필 로드 결과가 null임');
+          }
+        }).catch(error => {
+          console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패:', error);
+        });
+              } else {
+          console.log('✅ [AuthStore] 동일 사용자 프로필이 이미 캐시됨 - 재로딩 건너뜀:', {
+            userId: user.id?.substring(0, 8) + '...',
+            cachedProfile: {
+              nickname: this.state.userProfile?.nickname,
+              is_admin: this.state.userProfile?.is_admin
+            }
           });
-          this.updateState({
-            ...this.state,
-            userProfile: profile,
-          });
-        } else {
-          console.warn('⚠️ [AuthStore] 사용자 프로필 로드 결과가 null임');
         }
-      }).catch(error => {
-        console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패:', error);
-      });
 
       // 토큰 만료 경고 (쿠키 기반)
       if (expiringSoon) {

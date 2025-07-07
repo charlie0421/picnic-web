@@ -77,10 +77,28 @@ const MyPage = () => {
     };
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('❌ [getUserInfo] 기본값 사용:', result);
+      console.log('🔄 [getUserInfo] 기본값 사용:', result);
     }
     return result;
   }, [userProfile, user]); // userProfile 우선
+
+  // 🔍 프로필 이미지 로딩 상태 확인
+  const isProfileImageLoading = useCallback(() => {
+    // 인증되지 않은 경우 로딩 아님
+    if (!isAuthenticated || !user) return false;
+    
+    // AuthProvider의 초기 로딩 중인 경우
+    if (isLoading) return true;
+    
+    // user는 있지만 userProfile이 아직 로드되지 않은 경우 (비동기 로딩 중)
+    if (user && userProfile === null) {
+      // JWT 토큰에 소셜 이미지가 있으면 DB 프로필 로딩을 기다림
+      const hasSocialImage = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+      return !!hasSocialImage; // 소셜 이미지가 있으면 DB 로딩을 기다림
+    }
+    
+    return false;
+  }, [isAuthenticated, user, userProfile, isLoading]);
 
   // 컴포넌트 마운트 시 기존 로그아웃 플래그 정리
   useEffect(() => {
@@ -249,7 +267,9 @@ const MyPage = () => {
     }
   }, []);
 
-
+  // 사용자 정보 추출
+  const userInfo = getUserInfo();
+  const profileImageLoading = isProfileImageLoading();
 
   // 로딩 상태 처리 (auth 초기화 또는 페이지 로딩)
   if (isLoading || pageLoading || !isInitialized) {
@@ -263,15 +283,16 @@ const MyPage = () => {
     );
   }
 
-  // 사용자 정보 가져오기
-  const userInfo = getUserInfo();
-
   return (
     <div className='container mx-auto px-4 py-8'>
       <div className='bg-white rounded-lg shadow-md p-6 mb-8 relative'>
         <div className='flex flex-col sm:flex-row items-start sm:items-center'>
           <div className='mb-4 sm:mb-0 sm:mr-6'>
-            {userInfo.avatar_url ? (
+            {profileImageLoading ? (
+              // DB 프로필 로딩 중일 때 shimmer 효과 (100x100 크기로 조정)
+              <div className="w-[100px] h-[100px] rounded-xl shimmer-effect">
+              </div>
+            ) : userInfo.avatar_url ? (
               <ProfileImageContainer
                 avatarUrl={userInfo.avatar_url}
                 width={100}

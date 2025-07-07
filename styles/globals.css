@@ -71,4 +71,34 @@ body {
 
 .animate-number-scale {
   animation: number-scale 1.5s ease-in-out;
+}
+
+/* Shimmer 효과 (프로필 이미지 로딩) */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.shimmer-effect {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.shimmer-effect::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.6),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
 } 
