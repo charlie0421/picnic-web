@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 사용자 프로필 정보 조회 (캔디 정보 포함)
+    // 사용자 프로필 정보 조회 (캔디 정보 + 관리자 권한 포함)
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select(`
@@ -72,6 +72,8 @@ export async function GET(request: NextRequest) {
         avatar_url,
         star_candy,
         star_candy_bonus,
+        is_admin,
+        is_super_admin,
         created_at,
         updated_at
       `)
@@ -92,9 +94,12 @@ export async function GET(request: NextRequest) {
 
     console.log('✅ [User Profile API] 프로필 조회 성공:', {
       userId: profile.id,
+      nickname: profile.nickname,
       star_candy: profile.star_candy,
       star_candy_bonus: profile.star_candy_bonus,
-      total: (profile.star_candy || 0) + (profile.star_candy_bonus || 0)
+      total: (profile.star_candy || 0) + (profile.star_candy_bonus || 0),
+      is_admin: profile.is_admin,
+      is_super_admin: profile.is_super_admin
     });
 
     return NextResponse.json({
@@ -107,6 +112,8 @@ export async function GET(request: NextRequest) {
         star_candy: profile.star_candy || 0,
         star_candy_bonus: profile.star_candy_bonus || 0,
         total_candy: (profile.star_candy || 0) + (profile.star_candy_bonus || 0),
+        is_admin: profile.is_admin || false,
+        is_super_admin: profile.is_super_admin || false,
         created_at: profile.created_at,
         updated_at: profile.updated_at
       }

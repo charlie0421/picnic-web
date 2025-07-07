@@ -1,15 +1,16 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState, useMemo } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import Script from 'next/script';
-import { SocialLoginButtons } from '@/components/client/auth';
+import { SocialLoginButtons } from '@/components/client/auth/SocialLoginButtons';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import Link from 'next/link';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';
+import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 
 // AppleID 타입 정의
 declare global {
@@ -29,19 +30,22 @@ declare global {
   }
 }
 
-// 간단한 디버깅 함수 추가
+// 최적화된 디버깅 함수 - 개발 환경에서만 작동
 const debugLog = (message: string, data?: any) => {
+  if (process.env.NODE_ENV !== 'development') return;
+  
   console.log(`[DEBUG] ${message}`, data ? data : '');
+  
+  // 로컬 스토리지 저장도 개발 환경에서만
   try {
-    // 디버그 정보를 로컬 스토리지에 저장
     const debugLogs = JSON.parse(localStorage.getItem('debug_logs') || '[]');
     debugLogs.push({
       timestamp: Date.now(),
       message,
       data,
     });
-    // 최대 50개 항목만 유지
-    while (debugLogs.length > 50) {
+    // 최대 20개 항목만 유지 (50 → 20으로 축소)
+    while (debugLogs.length > 20) {
       debugLogs.shift();
     }
     localStorage.setItem('debug_logs', JSON.stringify(debugLogs));
@@ -61,14 +65,42 @@ function LoginContentInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // 메모이제이션된 providers 배열
+  const providers: SocialLoginProvider[] = useMemo(() => {
+    return process.env.NODE_ENV === 'development' 
+      ? ['google', 'apple', 'kakao', 'wechat'] 
+      : ['google', 'apple', 'kakao'];
+  }, []);
+
+  // 메모이제이션된 콜백 함수들
+  const handleLoginStart = useCallback(() => {
+    setLoading(true);
+    setError('');
+  }, []);
+
+  const handleLoginComplete = useCallback(() => {
+    if (process.env.NODE_ENV === 'development') {
+      debugLog('소셜 로그인 완료');
+    }
+    setLoading(false);
+  }, []);
+
+  const handleLoginError = useCallback((loginError: Error) => {
+    if (process.env.NODE_ENV === 'development') {
+      debugLog('소셜 로그인 오류', loginError);
+    }
+    setError(loginError.message);
+    setLoading(false);
+  }, []);
+
   // 컴포넌트 마운트 감지
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 환경 변수 확인 및 Supabase 클라이언트 상태 체크
+  // 환경 변수 확인 및 Supabase 클라이언트 상태 체크 - 최적화됨
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || envCheckFailed !== false) return; // 이미 체크했거나 실패한 경우 건너뛰기
 
     const checkEnvironment = () => {
       try {
@@ -76,11 +108,13 @@ function LoginContentInner() {
         const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
         const hasKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-        debugLog('환경 변수 상태 확인', {
-          hasUrl,
-          hasKey,
-          url: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + '...',
-        });
+        if (process.env.NODE_ENV === 'development') {
+          debugLog('환경 변수 상태 확인', {
+            hasUrl,
+            hasKey,
+            url: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + '...',
+          });
+        }
 
         if (!hasUrl || !hasKey) {
           console.error('❌ 필수 환경 변수가 누락되었습니다.', {
@@ -92,13 +126,15 @@ function LoginContentInner() {
           return;
         }
 
-        // Supabase 클라이언트 테스트
+        // Supabase 클라이언트 테스트 - 간소화
         try {
           const testClient = createBrowserSupabaseClient();
           if (!testClient) {
             throw new Error('클라이언트 생성 실패');
           }
-          debugLog('✅ Supabase 클라이언트 생성 성공');
+          if (process.env.NODE_ENV === 'development') {
+            debugLog('✅ Supabase 클라이언트 생성 성공');
+          }
         } catch (clientError) {
           console.error('❌ Supabase 클라이언트 생성 실패:', clientError);
           setEnvCheckFailed(true);
@@ -114,14 +150,13 @@ function LoginContentInner() {
       }
     };
 
-    // 약간의 지연 후 환경 체크 (AuthProvider 초기화 대기)
-    const timeoutId = setTimeout(checkEnvironment, 100);
-    return () => clearTimeout(timeoutId);
+    // 즉시 실행 (지연 제거)
+    checkEnvironment();
   }, [mounted]);
 
-  // AuthProvider 상태 디버깅
+  // AuthProvider 상태 디버깅 - 최적화됨
   useEffect(() => {
-    if (mounted) {
+    if (mounted && process.env.NODE_ENV === 'development') {
       debugLog('AuthProvider 상태 변경', {
         isAuthenticated,
         isLoading,
@@ -131,7 +166,7 @@ function LoginContentInner() {
         envCheckFailed,
       });
     }
-  }, [mounted, isAuthenticated, isLoading, isInitialized, user, userProfile, envCheckFailed]);
+  }, [mounted, isAuthenticated, isLoading, isInitialized, !!user, !!userProfile, envCheckFailed]);
 
   // 이미 인증된 사용자 리디렉트 처리 - 최상위로 이동
   useEffect(() => {
@@ -406,9 +441,9 @@ function LoginContentInner() {
   // 클라이언트에서 마운트되지 않았으면 로딩 표시
   if (!mounted) {
     return (
-      <div className='flex flex-col justify-center items-center min-h-[400px]'>
-        <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4'></div>
-        <p className='text-gray-600'>페이지 로딩 중...</p>
+      <div className='flex flex-col justify-center items-center min-h-[60vh] sm:min-h-[70vh]'>
+        <div className='animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary-500 mb-3 sm:mb-4'></div>
+        <p className='text-gray-600 text-sm sm:text-base'>로딩 중...</p>
       </div>
     );
   }
@@ -455,7 +490,9 @@ function LoginContentInner() {
 
   // 로딩 상태 또는 이미 인증된 상태 처리
   if (!isInitialized || isLoading) {
-    debugLog('로딩 상태 표시', { isInitialized, isLoading });
+    if (process.env.NODE_ENV === 'development') {
+      debugLog('로딩 상태 표시', { isInitialized, isLoading });
+    }
     return (
       <div className='flex flex-col justify-center items-center min-h-[400px]'>
         <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4'></div>
@@ -463,27 +500,31 @@ function LoginContentInner() {
           {!isInitialized ? '인증 시스템 초기화 중...' : '로딩 중...'}
         </p>
         
-        {/* 🔍 Production 디버깅 정보 (항상 표시) */}
-        <div className='mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded border max-w-sm'>
-          <div className='font-semibold mb-2'>🔍 상태 확인:</div>
-          <div>• isInitialized: {String(isInitialized)}</div>
-          <div>• isLoading: {String(isLoading)}</div>
-          <div>• mounted: {String(mounted)}</div>
-          <div>• envCheckFailed: {String(envCheckFailed)}</div>
-          <div>• isAuthenticated: {String(isAuthenticated)}</div>
-          <div>• hasUser: {String(!!user)}</div>
-          <div>• hasUserProfile: {String(!!userProfile)}</div>
-          <div>• 환경체크: URL={String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}, KEY={String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
-          <div>• timestamp: {new Date().toISOString().split('.')[0]}</div>
-        </div>
-        
-        {/* 🔧 새로고침 버튼 */}
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-3 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-        >
-          🔄 새로고침
-        </button>
+        {/* 🔍 디버깅 정보 (개발 환경에서만) */}
+        {process.env.NODE_ENV === 'development' && (
+          <>
+            <div className='mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded border max-w-sm'>
+              <div className='font-semibold mb-2'>🔍 상태 확인:</div>
+              <div>• isInitialized: {String(isInitialized)}</div>
+              <div>• isLoading: {String(isLoading)}</div>
+              <div>• mounted: {String(mounted)}</div>
+              <div>• envCheckFailed: {String(envCheckFailed)}</div>
+              <div>• isAuthenticated: {String(isAuthenticated)}</div>
+              <div>• hasUser: {String(!!user)}</div>
+              <div>• hasUserProfile: {String(!!userProfile)}</div>
+              <div>• 환경체크: URL={String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}, KEY={String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
+              <div>• timestamp: {new Date().toISOString().split('.')[0]}</div>
+            </div>
+            
+            {/* 🔧 새로고침 버튼 */}
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-3 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+            >
+              🔄 새로고침
+            </button>
+          </>
+        )}
         
         {process.env.NODE_ENV === 'development' && (
           <div className='mt-4 text-xs text-gray-500 text-center'>
@@ -513,9 +554,9 @@ function LoginContentInner() {
   // 인증 상태가 초기화되지 않은 경우 대기 화면 표시
   if (!isInitialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md w-full">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">
             인증 시스템 초기화 중
           </h2>
@@ -523,53 +564,56 @@ function LoginContentInner() {
             잠시만 기다려주세요...
           </p>
           
-          {/* 🔍 디버깅 정보 (Production에서 임시 표시) */}
-          <div className="text-left text-xs text-gray-500 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
-            <div className="font-semibold mb-2">📊 상태 정보:</div>
-            <div>• isLoading: {String(isLoading)}</div>
-            <div>• isInitialized: {String(isInitialized)}</div>
-            <div>• isAuthenticated: {String(isAuthenticated)}</div>
-            <div>• hasUser: {String(!!user)}</div>
-            <div>• hasUserProfile: {String(!!userProfile)}</div>
-            <div>• hasSupabaseUrl: {String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
-            <div>• hasSupabaseKey: {String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
-            <div>• timestamp: {new Date().toISOString().split('.')[0]}</div>
-          </div>
-          
-          {/* 🔧 강제 새로고침 버튼 */}
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-          >
-            🔄 새로고침
-          </button>
+          {/* 🔍 디버깅 정보 (개발 환경에서만) */}
+          {process.env.NODE_ENV === 'development' && (
+            <>
+              <div className="text-left text-xs text-gray-500 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
+                <div className="font-semibold mb-2">📊 상태 정보:</div>
+                <div>• isLoading: {String(isLoading)}</div>
+                <div>• isInitialized: {String(isInitialized)}</div>
+                <div>• isAuthenticated: {String(isAuthenticated)}</div>
+                <div>• hasUser: {String(!!user)}</div>
+                <div>• hasUserProfile: {String(!!userProfile)}</div>
+                <div>• hasSupabaseUrl: {String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
+                <div>• hasSupabaseKey: {String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
+                <div>• timestamp: {new Date().toISOString().split('.')[0]}</div>
+              </div>
+              
+              {/* 🔧 강제 새로고침 버튼 */}
+              <button 
+                onClick={() => window.location.reload()} 
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                🔄 새로고침
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
   }
 
-  debugLog('로그인 폼 표시');
+  if (process.env.NODE_ENV === 'development') {
+    debugLog('로그인 폼 표시');
+  }
   return (
-    <div className='relative max-w-lg mx-auto'>
-      {/* 배경 그라디언트 카드 */}
-      <div className='absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 rounded-3xl blur-xl opacity-20 animate-pulse'></div>
-
+    <div className='relative max-w-sm sm:max-w-lg mx-auto'>
       {/* 메인 로그인 카드 */}
-      <div className='relative bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-3xl shadow-2xl border border-white/20 transform transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl'>
+      <div className='relative bg-white p-4 sm:p-6 md:p-8 lg:p-10 rounded-xl sm:rounded-2xl md:rounded-3xl shadow-lg border border-gray-200 transition-shadow duration-200 hover:shadow-xl'>
         {/* 웰컴 헤더 */}
-        <div className='text-center mb-8'>
-          <p className='text-gray-600'>{t('login_title')}</p>
+        <div className='text-center mb-4 sm:mb-6 md:mb-8'>
+          <p className='text-gray-600 text-sm sm:text-base'>{t('login_title')}</p>
         </div>
 
         {/* 오류 메시지 표시 */}
         {error && (
           <div
-            className='bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl mb-6 shadow-sm animate-shake'
+            className='bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-lg mb-4 sm:mb-6 text-sm'
             role='alert'
           >
             <div className='flex items-center'>
               <svg
-                className='w-5 h-5 mr-3 text-red-500'
+                className='w-4 h-4 mr-2 flex-shrink-0'
                 fill='currentColor'
                 viewBox='0 0 20 20'
               >
@@ -579,41 +623,32 @@ function LoginContentInner() {
                   clipRule='evenodd'
                 />
               </svg>
-              <span className='font-medium'>{error}</span>
+              <span className='break-words'>{error}</span>
             </div>
           </div>
         )}
 
-        {/* 소셜 로그인 섹션 */}
-        <div className='mb-8'>
-          <div className='flex items-center mb-6'>
-            <div className='flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent'></div>
-            <span className='px-4 text-sm font-medium text-gray-500 bg-white rounded-full'>
-              {t('login_simple_login')}
-            </span>
-            <div className='flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent'></div>
-          </div>
-
+        {/* 소셜 로그인 버튼들 */}
+        <div className='space-y-3 sm:space-y-4'>
           <SocialLoginButtons
-            providers={['google', 'apple', 'kakao', 'wechat']}
-            onError={(error) => setError(error.message)}
-            size='large'
+            providers={providers}
+            size='medium'
+            onLoginStart={handleLoginStart}
+            onLoginComplete={handleLoginComplete}
+            onError={handleLoginError}
           />
         </div>
 
         {/* 하단 안내 */}
         <div className='text-center'>
-          <p className='text-gray-600'>{t('login_simple_login_guide')}
-          </p>
+          <p className='text-gray-600 text-xs sm:text-sm leading-relaxed'>{t('login_simple_login_guide')}</p>
         </div>
 
-        {/* 장식적 요소들 */}
-        <div className='absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-yellow-400 to-pink-400 rounded-full opacity-20 blur-xl animate-bounce'></div>
-        <div className='absolute -bottom-6 -left-6 w-16 h-16 bg-gradient-to-br from-green-400 to-blue-400 rounded-full opacity-20 blur-xl animate-pulse'></div>
+
 
         {/* 개발 환경에서만 디버그 정보 표시 */}
         {process.env.NODE_ENV === 'development' && (
-          <div className='mt-8 p-4 bg-gray-50/80 backdrop-blur-sm rounded-2xl border border-gray-200/50'>
+          <div className='mt-6 sm:mt-8 p-3 sm:p-4 bg-gray-50/80 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-gray-200/50'>
             <details className='text-xs text-gray-700'>
               <summary className='font-semibold cursor-pointer hover:text-blue-600 transition-colors'>
                 🐛 디버그 정보 (클릭하여 펼치기)
@@ -656,70 +691,32 @@ function LoginContentInner() {
 
 function LoginContent() {
   return (
-    <div className='relative min-h-screen flex flex-col items-center justify-center overflow-hidden py-10 px-4'>
-      {/* 동적 배경 그라디언트 */}
-      <div className='absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'></div>
-
-      {/* 애니메이션 배경 요소들 */}
-      <div className='absolute inset-0 overflow-hidden'>
-        <div className='absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob'></div>
-        <div
-          className='absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-pink-400/20 to-yellow-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob'
-          style={{ animationDelay: '2s' }}
-        ></div>
-        <div
-          className='absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-green-400/20 to-blue-600/20 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob'
-          style={{ animationDelay: '4s' }}
-        ></div>
-      </div>
-
-      {/* 격자 패턴 배경 */}
-      <div className='absolute inset-0 opacity-60'>
-        <div
-          className='absolute inset-0'
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            backgroundSize: '60px 60px',
-          }}
-        ></div>
-      </div>
+    <div className='relative min-h-screen flex flex-col items-center justify-center py-6 sm:py-10 px-4 sm:px-6 bg-white'>
 
       {/* 로고 섹션 */}
-      <div className='relative z-10 mb-12 transform transition-all duration-700 hover:scale-110'>
+      <div className='relative z-10 mb-8 sm:mb-12 transition-transform duration-200 hover:scale-105'>
         <Link href='/' className='group'>
           <div className='relative'>
-            <div className='absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-600/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 scale-110'></div>
-            <div className='relative bg-white/80 backdrop-blur-sm p-6 rounded-3xl shadow-xl border border-white/40 group-hover:shadow-2xl transition-all duration-300'>
+            <div className='relative bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 group-hover:shadow-2xl transition-all duration-300'>
               <Image
                 src='/images/logo.png'
                 alt='Picnic Logo'
-                width={60}
-                height={60}
+                width={48}
+                height={48}
+                className='w-12 h-12 sm:w-16 sm:h-16 mx-auto filter drop-shadow-lg'
                 priority
-                className='mx-auto filter drop-shadow-lg'
               />
             </div>
           </div>
         </Link>
       </div>
 
-      <div className='relative z-10 w-full max-w-md'>
+      <div className='relative z-10 w-full max-w-sm sm:max-w-md'>
         <Suspense
           fallback={
-            <div className='flex flex-col justify-center items-center min-h-[400px]'>
-              <div className='relative'>
-                <div className='w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin'></div>
-                <div
-                  className='absolute inset-0 w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin rotate-45'
-                  style={{ animationDelay: '1s' }}
-                ></div>
-              </div>
-              <p className='text-gray-700 mt-6 font-medium'>
-                페이지 로딩 중...
-              </p>
-              <div className='mt-2 w-32 h-1 bg-gray-200 rounded-full overflow-hidden'>
-                <div className='h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-loading-bar'></div>
-              </div>
+            <div className='flex flex-col justify-center items-center min-h-[60vh] sm:min-h-[70vh]'>
+              <div className='animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary-500 mb-3 sm:mb-4'></div>
+              <p className='text-gray-600 text-sm sm:text-base'>로딩 중...</p>
             </div>
           }
         >
@@ -727,12 +724,19 @@ function LoginContent() {
         </Suspense>
       </div>
 
-      {/* 하단 장식 요소 */}
-      <div className='absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white/20 to-transparent backdrop-blur-sm'></div>
     </div>
   );
 }
 
 export default function Login() {
-  return <LoginContent />;
+  return (
+    <div className='min-h-screen bg-white flex flex-col'>
+      {/* 메인 컨테이너 */}
+      <div className='flex-1 flex items-center justify-center p-3 sm:p-6 lg:p-8'>
+        <div className='w-full max-w-sm sm:max-w-md'>
+          <LoginContent />
+        </div>
+      </div>
+    </div>
+  );
 }

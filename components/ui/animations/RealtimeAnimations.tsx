@@ -81,19 +81,19 @@ export function AnimatedVoteItem({
         return {
           initial: { y: 10, scale: 0.98 },
           animate: { y: 0, scale: 1 },
-          transition: { type: "spring", stiffness: 400, damping: 25 }
+          transition: { type: "spring" as const, stiffness: 400, damping: 25 }
         };
       case 'down':
         return {
           initial: { y: -10, scale: 0.98 },
           animate: { y: 0, scale: 1 },
-          transition: { type: "spring", stiffness: 400, damping: 25 }
+          transition: { type: "spring" as const, stiffness: 400, damping: 25 }
         };
       case 'new':
         return {
           initial: { opacity: 0, scale: 0.8, x: -20 },
           animate: { opacity: 1, scale: 1, x: 0 },
-          transition: { type: "spring", stiffness: 500, damping: 30 }
+          transition: { type: "spring" as const, stiffness: 500, damping: 30 }
         };
       default:
         return {
@@ -131,7 +131,7 @@ export function AnimatedVoteItem({
             initial={{ opacity: 0, scale: 0, rotate: -180 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0, rotate: 180 }}
-            transition={{ type: "spring", stiffness: 600, damping: 25 }}
+            transition={{ type: "spring" as const, stiffness: 600, damping: 25 }}
             className="absolute -top-2 -right-2 z-10"
           >
             {rankChange === 'up' && (
@@ -217,7 +217,7 @@ export function MotionProgressBar({
         animate={{ width: `${percentage}%` }}
         transition={{ 
           duration,
-          type: "spring",
+          type: "spring" as const,
           stiffness: 100,
           damping: 20
         }}

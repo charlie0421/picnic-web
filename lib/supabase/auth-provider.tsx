@@ -431,20 +431,34 @@ class AuthStore {
       
       console.log('🎉 [AuthStore] 인증 상태 업데이트 완료 - 로딩 해제됨 (JWT 방식)');
 
-      // 백그라운드에서 사용자 프로필 로드
-      setTimeout(() => {
-        this.loadUserProfile(user.id).then(profile => {
-          if (profile) {
-            console.log('✅ [AuthStore] 사용자 프로필 로드 성공');
-            this.updateState({
-              ...this.state,
-              userProfile: profile,
-            });
-          }
-        }).catch(error => {
-          console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패:', error);
-        });
-      }, 100);
+      // 🔧 개발 환경에서 userProfile 로딩 시간 추적
+      if (process.env.NODE_ENV === 'development') {
+        (window as any).authStartTime = Date.now();
+      }
+
+      // 즉시 사용자 프로필 로드 (관리자 메뉴 표시를 위해)
+      console.log('🔄 [AuthStore] 사용자 프로필 로드 시작:', {
+        userId: user.id?.substring(0, 8) + '...',
+        hasUserId: !!user.id,
+        userEmail: user.email
+      });
+      
+      this.loadUserProfile(user.id).then(profile => {
+        if (profile) {
+          console.log('✅ [AuthStore] 사용자 프로필 로드 성공:', {
+            is_admin: profile.is_admin,
+            is_super_admin: profile.is_super_admin
+          });
+          this.updateState({
+            ...this.state,
+            userProfile: profile,
+          });
+        } else {
+          console.warn('⚠️ [AuthStore] 사용자 프로필 로드 결과가 null임');
+        }
+      }).catch(error => {
+        console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패:', error);
+      });
 
       // 토큰 만료 경고 (쿠키 기반)
       if (expiringSoon) {
@@ -539,23 +553,118 @@ class AuthStore {
   }
 
   private async loadUserProfile(userId: string): Promise<UserProfiles | null> {
-    if (!this.supabaseClient) return null;
-
     try {
-      const { data, error } = await this.supabaseClient
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      console.log('🔍 [AuthStore] API를 통한 프로필 조회 시작:', { userId: userId.substring(0, 8) + '...' });
+      
+      // 🚀 서버 API를 통해 프로필 조회 (RLS 정책 우회)
+      const response = await fetch('/api/user/profile', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // 쿠키 포함
+      });
 
-      if (error) {
-        console.warn('⚠️ [AuthStore] 프로필 로드 실패:', error);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.warn('⚠️ [AuthStore] API 프로필 조회 실패:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // 404나 403 에러인 경우 null 반환 (프로필 없음)
+        if (response.status === 404 || response.status === 403) {
+          return null;
+        }
+        
+        throw new Error(`API 응답 실패: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success || !data.user) {
+        console.warn('⚠️ [AuthStore] API 응답에서 사용자 정보 없음:', data);
         return null;
       }
 
-      return data;
+      // API 응답을 UserProfiles 형식으로 변환
+      const userProfile: UserProfiles = {
+        id: data.user.id,
+        email: data.user.email,
+        nickname: data.user.name,
+        avatar_url: data.user.avatar_url,
+        star_candy: data.user.star_candy || 0,
+        star_candy_bonus: data.user.star_candy_bonus || 0,
+        is_admin: data.user.is_admin || false,
+        is_super_admin: data.user.is_super_admin || false,
+        created_at: data.user.created_at,
+        updated_at: data.user.updated_at,
+        // 기본값 설정
+        birth_date: null,
+        birth_time: null,
+        deleted_at: null,
+        gender: null,
+        open_ages: false,
+        open_gender: false
+      };
+
+      console.log('✅ [AuthStore] API를 통한 프로필 조회 성공:', {
+        id: userProfile.id?.substring(0, 8) + '...',
+        nickname: userProfile.nickname,
+        email: userProfile.email,
+        hasAvatar: !!userProfile.avatar_url,
+        is_admin: userProfile.is_admin,
+        is_super_admin: userProfile.is_super_admin,
+        star_candy: userProfile.star_candy
+      });
+
+      return userProfile;
+
     } catch (error) {
-      console.error('❌ [AuthStore] 프로필 로드 예외:', error);
+      console.error('❌ [AuthStore] API 프로필 조회 예외:', error);
+      
+      // API 호출 실패시 fallback으로 기본 프로필 반환 (개발 환경)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔧 [AuthStore] 개발환경 - 기본 프로필 fallback');
+        
+        // 현재 사용자 정보 가져오기
+        const { data: { user: currentUser } } = await this.supabaseClient?.auth.getUser() || { data: { user: null } };
+        
+        if (currentUser && currentUser.id === userId) {
+          const fallbackProfile: UserProfiles = {
+            id: userId,
+            email: currentUser.email || null,
+            nickname: currentUser.user_metadata?.name || 
+                     currentUser.user_metadata?.full_name || 
+                     currentUser.email?.split('@')[0] || 
+                     'User',
+            avatar_url: currentUser.user_metadata?.avatar_url || 
+                       currentUser.user_metadata?.picture || 
+                       null,
+            is_admin: true, // 개발환경에서 API 실패시 임시 관리자
+            is_super_admin: false,
+            star_candy: 0,
+            star_candy_bonus: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            birth_date: null,
+            birth_time: null,
+            deleted_at: null,
+            gender: null,
+            open_ages: false,
+            open_gender: false
+          };
+          
+          console.log('🐛 [AuthStore] 개발환경 fallback 프로필 생성:', {
+            nickname: fallbackProfile.nickname,
+            is_admin: fallbackProfile.is_admin
+          });
+          
+          return fallbackProfile;
+        }
+      }
+      
       return null;
     }
   }
