@@ -72,18 +72,18 @@ export default function LanguageNotFound() {
   const [showLanguages, setShowLanguages] = useState(false);
   const params = useParams();
   const router = useRouter();
-  const { language, setLanguage, t } = useLanguageStore();
+  const { currentLanguage, setLanguage, t } = useLanguageStore();
 
   // 현재 언어 감지
-  const currentLang = (params?.lang as string) || language || 'ko';
+  const currentLang = (params?.lang as string) || currentLanguage || 'ko';
   const currentTranslations = translations[currentLang as keyof typeof translations] || translations.ko;
 
   useEffect(() => {
     setMounted(true);
-    if (params?.lang && language !== params.lang) {
+    if (params?.lang && currentLanguage !== params.lang) {
       setLanguage(params.lang as string);
     }
-  }, [params?.lang, language, setLanguage]);
+  }, [params?.lang, currentLanguage, setLanguage]);
 
   // 언어 변경 핸들러
   const handleLanguageChange = (langCode: string) => {
