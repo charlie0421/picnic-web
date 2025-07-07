@@ -68,8 +68,8 @@ function LoginContentInner() {
   // 메모이제이션된 providers 배열
   const providers: SocialLoginProvider[] = useMemo(() => {
     return process.env.NODE_ENV === 'development' 
-      ? ['google', 'apple', 'kakao', 'wechat'] 
-      : ['google', 'apple', 'kakao'];
+      ? ['google', 'apple', 'wechat'] // 'kakao' 제거 - 웹에서 지원 안함
+      : ['google', 'apple']; // 'kakao' 제거 - 웹에서 지원 안함
   }, []);
 
   // 메모이제이션된 콜백 함수들
