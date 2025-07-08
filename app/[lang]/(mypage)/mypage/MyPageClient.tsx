@@ -547,68 +547,74 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
           </div>
         </div>
 
-        {/* 활동 내역 카드 (디버그 모드에서만) */}
-        {isDebugMode && (
-          <div className='bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-2xl p-1'>
-            <div className='bg-white rounded-2xl p-6'>
-              <div className='flex items-center mb-6'>
-                <div className='w-12 h-12 bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-xl flex items-center justify-center mr-4'>
-                  <span className='text-2xl'>📊</span>
+        {/* 활동 내역 카드 - 투표 내역은 모든 사용자에게 표시 */}
+        <div className='bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-2xl p-1'>
+          <div className='bg-white rounded-2xl p-6'>
+            <div className='flex items-center mb-6'>
+              <div className='w-12 h-12 bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-xl flex items-center justify-center mr-4'>
+                <span className='text-2xl'>📊</span>
+              </div>
+              <h2 className='text-xl font-bold text-gray-900'>
+                {t('label_mypage_activity_history')}
+              </h2>
+            </div>
+            
+            <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+              <Link href='/mypage/vote-history' className='group'>
+                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
+                  <div className='text-center'>
+                    <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
+                      <span className='text-white text-lg'>🗳️</span>
+                    </div>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
+                      {t('label_mypage_my_votes')}
+                    </h3>
+                    <p className='text-sm text-gray-500'>{t('label_mypage_my_votes_desc')}</p>
+                  </div>
                 </div>
-                <h2 className='text-xl font-bold text-gray-900'>
-                  {t('label_mypage_activity_history')}
-                  <span className='ml-2 px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-full'>
-                    {t('label_debug')}
-                  </span>
-                </h2>
-              </div>
+              </Link>
               
-              <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
-                <Link href='/mypage/vote-history' className='group'>
-                  <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
-                    <div className='text-center'>
-                      <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
-                        <span className='text-white text-lg'>🗳️</span>
+              {/* 디버그 모드에서만 표시할 기능들 */}
+              {isDebugMode && (
+                <>
+                  <Link href='/mypage/posts' className='group'>
+                    <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
+                      <div className='text-center'>
+                        <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
+                          <span className='text-white text-lg'>📝</span>
+                        </div>
+                        <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
+                          {t('label_mypage_my_posts')}
+                          <span className='ml-2 px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-full'>
+                            {t('label_debug')}
+                          </span>
+                        </h3>
+                        <p className='text-sm text-gray-500'>{t('label_mypage_my_posts_desc')}</p>
                       </div>
-                      <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
-                        {t('label_mypage_my_votes')}
-                      </h3>
-                      <p className='text-sm text-gray-500'>{t('label_mypage_my_votes_desc')}</p>
                     </div>
-                  </div>
-                </Link>
-                
-                <Link href='/mypage/posts' className='group'>
-                  <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
-                    <div className='text-center'>
-                      <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
-                        <span className='text-white text-lg'>📝</span>
+                  </Link>
+                  
+                  <Link href='/mypage/comments' className='group'>
+                    <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
+                      <div className='text-center'>
+                        <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
+                          <span className='text-white text-lg'>💬</span>
+                        </div>
+                        <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
+                          {t('label_mypage_my_comments')}
+                          <span className='ml-2 px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-full'>
+                            {t('label_debug')}
+                          </span>
+                        </h3>
+                        <p className='text-sm text-gray-500'>{t('label_mypage_my_comments_desc')}</p>
                       </div>
-                      <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
-                        {t('label_mypage_my_posts')}
-                      </h3>
-                      <p className='text-sm text-gray-500'>{t('label_mypage_my_posts_desc')}</p>
                     </div>
-                  </div>
-                </Link>
-                
-                <Link href='/mypage/comments' className='group'>
-                  <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
-                    <div className='text-center'>
-                      <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
-                        <span className='text-white text-lg'>💬</span>
-                      </div>
-                      <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
-                        {t('label_mypage_my_comments')}
-                      </h3>
-                      <p className='text-sm text-gray-500'>{t('label_mypage_my_comments_desc')}</p>
-                    </div>
-                  </div>
-                </Link>
-              </div>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
         {/* 서비스 정보 카드 */}
         <div className='bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl p-1'>
