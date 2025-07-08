@@ -487,7 +487,7 @@ export function useRealtimeQuery<T>(
   queryFn: () => Promise<T>,
   options: RetryableQueryOptions<T> & { pollingInterval?: number } = {}
 ) {
-  const { pollingInterval = 5000, ...queryOptions } = options;
+  const { pollingInterval = 1000, ...queryOptions } = options;
   const [isPolling, setIsPolling] = useState(false);
 
   const result = useRetryableQuery(

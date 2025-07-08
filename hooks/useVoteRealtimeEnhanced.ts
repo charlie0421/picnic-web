@@ -336,7 +336,7 @@ export function useVoteRealtimeEnhanced(
       
       // 연결 상태가 오류인 경우 스마트 재연결 시도
       if ((status === 'error' || status === 'network_error') && shouldReconnect()) {
-        const delay = networkStatus.isSlowConnection ? 10000 : 5000; // 느린 연결에서는 더 긴 지연
+        const delay = networkStatus.isSlowConnection ? 10000 : 1000; // 느린 연결에서는 더 긴 지연
         
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);

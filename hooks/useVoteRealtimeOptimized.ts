@@ -452,7 +452,7 @@ export function useVoteRealtimeOptimized(
       onConnectionStatusChange?.(status, info);
       
       if ((status === 'error' || status === 'network_error') && shouldReconnect) {
-        const delay = state.systemStatus.isSlowConnection ? 10000 : 5000;
+        const delay = state.systemStatus.isSlowConnection ? 10000 : 1000;
         
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
@@ -606,7 +606,7 @@ export function useVoteRealtimeOptimized(
     // 연결이 끊어진 상태에서 재연결 조건이 충족되면 재연결 시도
     if (currentStatus === 'disconnected' || currentStatus === 'error' || currentStatus === 'network_error') {
       if (shouldReconnect) {
-        const delay = state.systemStatus.isSlowConnection ? 5000 : 2000;
+        const delay = state.systemStatus.isSlowConnection ? 5000 : 1000;
         
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
