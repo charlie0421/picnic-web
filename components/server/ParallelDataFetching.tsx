@@ -53,7 +53,7 @@ async function VoteListSection() {
     <div className="mb-8 bg-white p-4 rounded-lg shadow">
       <h2 className="text-xl font-bold mb-4">최근 투표</h2>
       {votes.length === 0 ? (
-        <p className="text-gray-500">표시할 투표가 없습니다.</p>
+        <p className="text-gray-500">투표 항목이 없습니다</p>
       ) : (
         <ul className="space-y-2">
           {votes.map(vote => (

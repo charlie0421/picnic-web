@@ -6,7 +6,7 @@ import {format} from 'date-fns';
 import {ko} from 'date-fns/locale';
 import {useParams, useRouter} from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentLocale } from '@/utils/date';
+import { getCurrentLocale, type SupportedLanguage } from '@/utils/date';
 
 interface MultilingualText {
   en?: string;
@@ -127,7 +127,7 @@ const NoticeDetailClient = ({ lang, translations }: NoticeDetailClientProps) => 
             <h1 className="text-2xl font-bold text-gray-900">{getLocalizedText(notice.title)}</h1>
           </div>
           <span className="text-sm text-gray-500">
-            {notice.createdAt && format(new Date(notice.createdAt), 'yyyy.MM.dd (EEE)', { locale: getCurrentLocale(currentLang) })}
+            {notice.createdAt && format(new Date(notice.createdAt), 'yyyy.MM.dd (EEE)', { locale: getCurrentLocale(currentLang as SupportedLanguage) })}
           </span>
         </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 // 투표 데이터 타입
 interface Vote {
@@ -23,6 +24,7 @@ interface VoteClientComponentProps {
  * 클라이언트 상호작용(정렬, 필터링, 클릭 이벤트 등)을 처리합니다.
  */
 export function VoteClientComponent({ votes }: VoteClientComponentProps) {
+  const { t } = useLocaleRouter();
   const [selectedVote, setSelectedVote] = useState<Vote | null>(null);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   
@@ -59,7 +61,7 @@ export function VoteClientComponent({ votes }: VoteClientComponentProps) {
         {/* 투표 목록 */}
         <div className="border rounded-lg overflow-hidden">
           {sortedVotes.length === 0 ? (
-            <p className="p-4 text-gray-500">표시할 투표가 없습니다.</p>
+            <p className="p-4 text-gray-500">{t('text_vote_no_items')}</p>
           ) : (
             <ul className="divide-y">
               {sortedVotes.map(vote => (

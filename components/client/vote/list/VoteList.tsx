@@ -5,6 +5,7 @@ import { Vote } from '@/types/interfaces';
 import { VoteCard } from './VoteCard';
 import VoteLoadingSkeleton from './VoteLoadingSkeleton';
 import { useVoteStore } from '@/stores/voteStore';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 export interface VoteListProps {
   votes?: Vote[];
@@ -29,9 +30,11 @@ export function VoteList({
   hasMore = false,
   onLoadMore,
   loadMoreText = '더보기',
-  emptyMessage = '표시할 투표가 없습니다.',
+  emptyMessage,
   useStore = false
 }: VoteListProps) {
+  const { t } = useLocaleRouter();
+  
   // Zustand 스토어 상태
   const { currentVote } = useVoteStore();
 
@@ -39,6 +42,9 @@ export function VoteList({
   const votes = useStore && currentVote.vote ? [currentVote.vote] : propVotes;
   const isLoading = useStore ? currentVote.isLoading : propIsLoading;
   const error = useStore ? currentVote.error : propError;
+
+  // emptyMessage가 제공되지 않으면 번역된 기본값 사용
+  const finalEmptyMessage = emptyMessage || t('text_vote_no_items');
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -107,7 +113,7 @@ export function VoteList({
               />
             </svg>
           </div>
-          <p className="text-gray-500 text-lg">{emptyMessage}</p>
+          <p className="text-gray-500 text-lg">{finalEmptyMessage}</p>
         </div>
       </div>
     );

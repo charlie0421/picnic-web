@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { getCurrentLocale } from '@/utils/date';
+import { getCurrentLocale, type SupportedLanguage } from '@/utils/date';
 
 interface MultilingualText {
   en?: string;
@@ -177,7 +177,7 @@ const NoticePageClient: React.FC<Props> = ({ lang, translations }) => {
     if (!dateString) return '';
     try {
       const date = new Date(dateString);
-      const locale = getCurrentLocale(lang);
+      const locale = getCurrentLocale(lang as SupportedLanguage);
       return format(date, 'yyyy.MM.dd', { locale });
     } catch {
       return dateString;

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Vote } from '@/types/interfaces';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 import { getVoteStatus } from '@/components/server/utils';
 import { VoteStatus } from '@/stores/voteFilterStore';
@@ -26,6 +27,7 @@ export function VoteListPresenter({
   onLoadMore
 }: VoteListPresenterProps) {
   const router = useRouter();
+  const { t } = useLocaleRouter();
   const [selectedStatus, setSelectedStatus] = useState<VoteStatus | 'all'>('all');
   
   const filteredVotes = votes.filter(vote => {
@@ -73,7 +75,7 @@ export function VoteListPresenter({
         </>
       ) : (
         <div className="text-center py-12">
-          <p className="text-gray-500">표시할 투표가 없습니다.</p>
+          <p className="text-gray-500">{t('text_vote_no_items')}</p>
         </div>
       )}
     </div>

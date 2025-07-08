@@ -1,5 +1,5 @@
 import { Vote, VoteItem } from '@/types/interfaces';
-import { formatVotePeriodWithTimeZone } from '@/utils/date';
+import { formatVotePeriodWithTimeZone, type SupportedLanguage } from '@/utils/date';
 
 export type VoteStatus = 'upcoming' | 'ongoing' | 'completed';
 
@@ -110,7 +110,7 @@ export function formatVoteDateRange(startDate: string | null, endDate: string | 
   if (!startDate || !endDate) return '날짜 미정';
   
   try {
-    return formatVotePeriodWithTimeZone(startDate, endDate, language);
+    return formatVotePeriodWithTimeZone(startDate, endDate, language as SupportedLanguage);
   } catch (error) {
     console.error('날짜 포맷팅 오류:', error);
     // 폴백: 기존 방식
