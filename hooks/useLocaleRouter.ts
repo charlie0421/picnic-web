@@ -66,10 +66,8 @@ export function useLocaleRouter(): LocaleRouterReturn {
     const targetLocale = locale || currentLocale;
     const cleanPath = removeLocaleFromPath(path);
     
-    if (targetLocale === DEFAULT_LANGUAGE) {
-      return cleanPath;
-    }
-    
+    // 🔧 모든 언어에 대해 일관된 prefix 적용 (영어 포함)
+    // DEFAULT_LANGUAGE 특별 처리 제거: app/[lang] 구조에서는 모든 언어가 prefix 필요
     return `/${targetLocale}${cleanPath === '/' ? '' : cleanPath}`;
   };
 
