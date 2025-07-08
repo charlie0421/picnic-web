@@ -2,15 +2,14 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Vote } from '@/types/interfaces';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { useLanguageStore } from '@/stores/languageStore';
 import { CountdownTimer } from '../common/CountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
 import { formatVotePeriodWithTimeZone } from '@/utils/date';
 import RewardItem from '@/components/common/RewardItem';
 import { VoteItems } from './VoteItems';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 const VOTE_STATUS = {
   UPCOMING: 'upcoming',
@@ -108,15 +107,18 @@ export const VoteCard = React.memo(
         <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
           <div className='relative'>
             {vote.main_image && (
-              <div className='bg-gray-200 relative overflow-hidden'>
-                <Image
-                  src={getCdnImageUrl(vote.main_image)}
+              <div className='bg-gray-200 relative overflow-hidden aspect-[4/3]'>
+                <OptimizedImage
+                  src={vote.main_image}
                   alt={getLocalizedString(vote.title, currentLanguage)}
-                  width={640}
-                  height={512}
-                  className='w-full h-auto object-cover'
-                  priority
-                  quality={90}
+                  fill
+                  sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
+                  className='object-cover'
+                  priority={false}
+                  progressive={true}
+                  placeholder='skeleton'
+                  quality={85}
+                  intersectionThreshold={0.2}
                 />
                 <div className='absolute inset-0 bg-gradient-to-t from-black/30 to-transparent' />
               </div>

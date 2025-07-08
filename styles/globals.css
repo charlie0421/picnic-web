@@ -73,32 +73,32 @@ body {
   animation: number-scale 1.5s ease-in-out;
 }
 
-/* Shimmer 효과 (프로필 이미지 로딩) */
+/* 이미지 로딩 shimmer 애니메이션 */
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
-.shimmer-effect {
-  position: relative;
-  overflow: hidden;
+.animate-shimmer {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
 
-.shimmer-effect::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.6),
-    transparent
-  );
-  animation: shimmer 1.5s infinite;
+/* 성능 최적화를 위한 이미지 컨테이너 */
+.image-container {
+  contain: layout style paint;
+}
+
+/* 투표 카드 hover 효과 최적화 */
+.vote-card-hover {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.vote-card-hover:hover {
+  transform: translateY(-2px);
 } 

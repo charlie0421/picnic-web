@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import Image from 'next/image';
 import { VoteItem } from '@/types/interfaces';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString } from '@/utils/api/strings';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface EnhancedVoteItem extends VoteItem {
   artist?: any;
@@ -140,16 +139,17 @@ export const GridView: React.FC<GridViewProps> = ({
             className='relative aspect-square'
           >
             <div className='w-full h-full rounded-full overflow-hidden relative'>
-              <Image
-                src={getCdnImageUrl(item.artist?.image, 100)}
+              <OptimizedImage
+                src={item.artist?.image || '/images/default-artist.png'}
                 alt={getLocalizedString(item.artist?.name) || '아티스트 이미지'}
                 fill
                 sizes='(max-width: 768px) 25vw, (max-width: 1200px) 20vw, 15vw'
                 className='object-cover'
-                loading='lazy'
-                onError={(e) => {
-                  e.currentTarget.src = '/images/default-artist.png';
-                }}
+                priority={false}
+                progressive={true}
+                placeholder='skeleton'
+                quality={80}
+                intersectionThreshold={0.1}
               />
             </div>
             <div className='absolute bottom-0 left-0 right-0 text-center mt-1'>
@@ -233,18 +233,17 @@ export const GridView: React.FC<GridViewProps> = ({
               <div
                 className={`${cardSizeClass} relative rounded-lg overflow-hidden border border-gray-200`}
               >
-                <Image
-                  src={getCdnImageUrl(item.artist?.image, 300)}
-                  alt={
-                    getLocalizedString(item.artist?.name) || '아티스트 이미지'
-                  }
+                <OptimizedImage
+                  src={item.artist?.image || '/images/default-artist.png'}
+                  alt={getLocalizedString(item.artist?.name) || '아티스트 이미지'}
                   fill
                   sizes='(max-width: 768px) 20vw, (max-width: 1200px) 15vw, 10vw'
                   className='object-cover'
-                  loading='lazy'
-                  onError={(e) => {
-                    e.currentTarget.src = '/images/default-artist.png';
-                  }}
+                  priority={false}
+                  progressive={true}
+                  placeholder='skeleton'
+                  quality={85}
+                  intersectionThreshold={0.1}
                 />
               </div>
               <p className='text-xs font-medium text-center truncate w-full mt-1'>
