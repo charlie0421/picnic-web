@@ -192,13 +192,15 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
           rel='noopener noreferrer'
           className='block group'
         >
-          <article className='bg-white shadow-md rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1'>
+          <article className='bg-white shadow-md rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col h-full'>
             {renderThumbnail(mediaItem, index)}
-            <div className='p-4 bg-white/95 backdrop-blur-sm'>
-              <h2 className='text-lg font-semibold text-gray-800 line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors'>
-                {getTitleString(mediaItem.title)}
+            <div className='p-4 bg-white/95 backdrop-blur-sm flex-1 flex flex-col'>
+              <h2 className='text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors h-14 overflow-hidden'>
+                <span className='line-clamp-2 leading-7'>
+                  {getTitleString(mediaItem.title)}
+                </span>
               </h2>
-              <div className='flex items-center justify-between'>
+              <div className='flex items-center justify-between mt-auto'>
                 <p className='text-sm text-gray-600'>
                   {new Date(mediaItem.created_at).toLocaleDateString(
                     currentLanguage === 'ko' ? 'ko-KR' : 'en-US',
@@ -209,11 +211,6 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
                     },
                   )}
                 </p>
-                {(mediaItem.video_url || mediaItem.video_id) && (
-                  <span className='text-xs text-blue-600 font-medium px-2 py-1 bg-blue-100 rounded-full'>
-                    {t('media_type_video') || '동영상'}
-                  </span>
-                )}
               </div>
             </div>
           </article>
