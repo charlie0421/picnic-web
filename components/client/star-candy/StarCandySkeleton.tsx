@@ -45,8 +45,8 @@ export function StarCandySkeleton() {
               {/* Products Grid Skeleton - 실제 UI와 정확히 일치 */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {Array.from({ length: 10 }).map((_, index) => {
-            // 600개(index 2), 1000개(index 3) 상품만 추천으로 표시
-            const isFeatured = index === 2 || index === 3;
+            // 600개(index 2), 10,000개(index 9) 상품만 추천으로 표시
+            const isFeatured = index === 2 || index === 9;
             return (
               <div
                 key={index}

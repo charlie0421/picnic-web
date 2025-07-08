@@ -356,8 +356,8 @@ export function StarCandyProductsPresenter({
 
       <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6'>
         {getSortedProducts().map((product, index) => {
-          // 추천 상품을 600개, 1000개 상품만으로 제한 (최대 2개)
-          const isFeatured = product.star_candy === 600 || product.star_candy === 1000;
+          // 추천 상품을 600개, 10,000개 상품만으로 제한 (최대 2개)
+          const isFeatured = product.star_candy === 600 || product.star_candy === 10000;
           const isProcessing = processingProductId === product.id;
 
           return (
