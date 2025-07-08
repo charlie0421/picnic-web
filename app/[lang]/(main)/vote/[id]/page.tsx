@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getVoteById, getVotes } from '@/lib/data-fetching/vote-service';
+import { getVoteById } from '@/lib/data-fetching/vote-service';
 import { VoteDetail } from '@/components/client/vote';
 import { VoteDetailFetcher, VoteDetailSkeleton } from '@/components/server';
 
@@ -12,23 +12,8 @@ import {
 import { createVoteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 
-// ISR 활성화 - middleware에서 투표 상세 페이지를 제외하여 정적 렌더링 가능
-export const revalidate = 30;
-
-// 정적 경로 생성 - 주요 투표들을 미리 생성
-export async function generateStaticParams() {
-  try {
-    // 활성화된 투표만 사전 생성
-    const votes = await getVotes('ongoing');
-
-    return votes.map((vote) => ({
-      id: String(vote.id),
-    }));
-  } catch (error) {
-    console.error('generateStaticParams 에러:', error);
-    return [];
-  }
-}
+// 동적 렌더링 강제 - DYNAMIC_SERVER_USAGE 에러 방지
+export const dynamic = 'force-dynamic';
 
 // 메타데이터 동적 생성
 export async function generateMetadata({

@@ -80,14 +80,12 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
-  // 정적 파일, API 경로, 투표 관련 모든 페이지는 건너뛰기
+  // 정적 파일 및 API 경로는 건너뛰기
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/static/") ||
-    pathname.includes(".") ||
-    // 투표 관련 모든 페이지는 정적 렌더링을 위해 middleware 스킵
-    pathname.includes("/vote")
+    pathname.includes(".")
   ) {
     return NextResponse.next();
   }
