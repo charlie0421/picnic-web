@@ -63,11 +63,11 @@ export const VoteCard = React.memo(
     const { t, currentLanguage } = useLanguageStore();
     const [currentTime, setCurrentTime] = useState(new Date());
     
-    // 실시간 시간 업데이트 (메인페이지에서는 10초마다 업데이트)
+    // 실시간 시간 업데이트 (1초마다 업데이트)
     useEffect(() => {
       const timer = setInterval(() => {
         setCurrentTime(new Date());
-      }, 10000); // 10초마다 업데이트 (성능 최적화)
+      }, 1000); // 1초마다 업데이트
 
       return () => clearInterval(timer);
     }, []);
