@@ -79,9 +79,9 @@ export function StarCandyProductsPresenter({
         totalAmount: product.web_price_krw || 0,
         currency: 'KRW' as const,
         customer: {
-          fullName: user.user_metadata?.name || '사용자',
-          email: user.email || '',
-          phoneNumber: user.user_metadata?.phone,
+          fullName: user?.user_metadata?.name || '사용자',
+          email: user?.email || '',
+          phoneNumber: user?.user_metadata?.phone,
         },
         productInfo: {
           id: product.id,
@@ -128,8 +128,8 @@ export function StarCandyProductsPresenter({
         amount: product.web_price_usd || 0,
         starCandy: product.star_candy || 0,
         bonusAmount: product.web_bonus_amount || 0,
-        userId: user.id,
-        userEmail: user.email || '',
+        userId: user?.id || '',
+        userEmail: user?.email || '',
       });
 
       // Get PayPal SDK instance and approve order

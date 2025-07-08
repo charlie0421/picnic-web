@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 import { getLastLoginInfo, formatLastLoginTime, type LastLoginInfo } from '@/utils/storage';
+import LanguageSelector from '@/components/layouts/LanguageSelector';
 
 // AppleID 타입 정의
 declare global {
@@ -756,6 +757,11 @@ function LoginContentInner() {
 function LoginContent() {
   return (
     <div className='relative min-h-screen flex flex-col items-center justify-center py-6 sm:py-10 px-4 sm:px-6 bg-white'>
+
+      {/* 언어 선택기 - 우상단 고정 */}
+      <div className='fixed top-4 right-4 z-50'>
+        <LanguageSelector />
+      </div>
 
       {/* 로고 섹션 */}
       <div className='relative z-10 mb-8 sm:mb-12 transition-transform duration-200 hover:scale-105'>

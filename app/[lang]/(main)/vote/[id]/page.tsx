@@ -12,10 +12,10 @@ import {
 import { createVoteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 
-// ISR 활성화 (공개 클라이언트 사용으로 쿠키 의존성 제거)
+// ISR 활성화 - 기본 투표 데이터는 정적 렌더링 가능
 export const revalidate = 30;
 
-// 정적 경로 생성
+// 정적 경로 생성 - 주요 투표들을 미리 생성
 export async function generateStaticParams() {
   try {
     // 활성화된 투표만 사전 생성

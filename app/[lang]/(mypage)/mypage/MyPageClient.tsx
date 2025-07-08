@@ -8,6 +8,7 @@ import Link from 'next/link';
 // 최근 로그인 정보를 위한 로컬 스토리지 유틸리티 import
 import { getLastLoginInfo, formatLastLoginTime, LastLoginInfo } from '@/utils/storage';
 
+
 interface Translations {
   error_logout: string;
   label_default_user: string;
@@ -287,7 +288,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
     return (
       <div className='container mx-auto px-4 py-8 max-w-4xl'>
         {/* 게스트 환영 헤더 */}
-        <div className='bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-md p-8 mb-8 text-white text-center'>
+        <div className='bg-gradient-to-r from-primary-500 to-primary-700 rounded-lg shadow-md p-8 mb-8 text-white text-center'>
           <div className='flex items-center justify-center mb-4'>
             <div className='w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-4xl'>
               👋
@@ -297,7 +298,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
           <p className='text-lg opacity-90 mb-6'>{t('label_mypage_guest_description')}</p>
           <button
             onClick={handleLoginRedirect}
-            className='bg-white text-blue-600 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors text-lg shadow-lg'
+            className='bg-white text-primary-600 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors text-lg shadow-lg'
           >
             {t('label_mypage_guest_login_button')}
           </button>
@@ -309,26 +310,26 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             {t('label_mypage_guest_login_benefits')}
           </h2>
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-            <div className='flex items-center p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg'>
-              <div className='w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mr-4'>
+            <div className='flex items-center p-4 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg'>
+              <div className='w-12 h-12 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center mr-4'>
                 <span className='text-white text-xl'>🗳️</span>
               </div>
               <p className='text-gray-700'>{t('label_mypage_guest_benefit_1')}</p>
             </div>
-            <div className='flex items-center p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg'>
-              <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-lg flex items-center justify-center mr-4'>
+            <div className='flex items-center p-4 bg-gradient-to-r from-sub-50 to-sub-100 rounded-lg'>
+              <div className='w-12 h-12 bg-gradient-to-r from-sub-500 to-sub-600 rounded-lg flex items-center justify-center mr-4'>
                 <span className='text-white text-xl'>🌟</span>
               </div>
               <p className='text-gray-700'>{t('label_mypage_guest_benefit_2')}</p>
             </div>
-            <div className='flex items-center p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg'>
-              <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mr-4'>
+            <div className='flex items-center p-4 bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-lg'>
+              <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mr-4'>
                 <span className='text-white text-xl'>👤</span>
               </div>
               <p className='text-gray-700'>{t('label_mypage_guest_benefit_3')}</p>
             </div>
-            <div className='flex items-center p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg'>
-              <div className='w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center mr-4'>
+            <div className='flex items-center p-4 bg-gradient-to-r from-point-50 to-point-100 rounded-lg'>
+              <div className='w-12 h-12 bg-gradient-to-r from-point-500 to-point-600 rounded-lg flex items-center justify-center mr-4'>
                 <span className='text-white text-xl'>🎯</span>
               </div>
               <p className='text-gray-700'>{t('label_mypage_guest_benefit_4')}</p>
@@ -419,7 +420,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
         <div className='flex flex-col md:flex-row items-center gap-6'>
           {/* 프로필 이미지 */}
           <div className='relative'>
-            <div className='w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-1'>
+            <div className='w-24 h-24 rounded-full border-2 border-primary'>
               <div className='w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden'>
                 {userInfo.avatar_url ? (
                   <img
@@ -449,7 +450,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             
             {/* Provider 정보 */}
             <div className='flex flex-wrap gap-2 justify-center md:justify-start mb-3'>
-              <span className='inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm'>
+              <span className='inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm'>
                 <span>
                   {isLoadingProfile ? t('label_loading') : userInfo.provider_display_name}
                 </span>
@@ -457,7 +458,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
               
               {/* 최근 로그인 정보 */}
               {!isLoadingProfile && lastLoginInfo && (
-                <span className='inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm'>
+                <span className='inline-flex items-center gap-1 px-3 py-1 bg-secondary-100 text-secondary-800 rounded-full text-sm'>
                   <span className='text-xs'>🕒</span>
                   <span>
                     {formatLastLoginTime(lastLoginInfo.timestamp)}
@@ -468,15 +469,19 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
 
             {/* 스타 캔디 정보 */}
             {!isLoadingProfile && apiUserProfile && (
-              <div className='bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4 mt-4'>
+              <div className='bg-sub-200 p-6 rounded-lg'>
                 <div className='text-center'>
-                  <div className='text-purple-600 font-semibold text-xl mb-2'>
+                  <div className='text-primary-500 font-semibold text-xl mb-2'>
                     {t('label_mypage_star_candy_total')}: {userInfo.total_candy.toLocaleString()}
                   </div>
                   <div className='text-base text-gray-600 flex items-center justify-center gap-1'>
-                    <img src="/images/star-candy/star_100.png" alt="별사탕" className="w-8 h-8" />
+                    <img 
+                      src="/images/star-candy/star_100.png" 
+                      alt="별사탕" 
+                      className="w-8 h-8" 
+                    />
                     <span>{userInfo.star_candy.toLocaleString()}</span>
-                    {userInfo.star_candy_bonus > 0 && (
+                {userInfo.star_candy_bonus > 0 && (
                       <span> + 🎁 {userInfo.star_candy_bonus.toLocaleString()}</span>
                     )}
                   </div>
@@ -490,10 +495,10 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
       {/* 팬시 메뉴 카드 섹션 */}
       <div className='mt-8 space-y-8'>
         {/* 계정 관리 카드 */}
-        <div className='bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-1'>
+        <div className='bg-gradient-to-r from-primary-400 to-primary-600 rounded-2xl p-1'>
           <div className='bg-white rounded-2xl p-6'>
             <div className='flex items-center mb-6'>
-              <div className='w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4'>
+              <div className='w-12 h-12 bg-gradient-to-r from-primary-400 to-primary-600 rounded-xl flex items-center justify-center mr-4'>
                 <span className='text-2xl'>👤</span>
               </div>
               <h2 className='text-xl font-bold text-gray-900'>
@@ -504,15 +509,15 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               {isDebugMode && (
                 <Link href='/mypage/edit-profile' className='group'>
-                  <div className='bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-purple-200'>
+                  <div className='bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-primary-200'>
                     <div className='flex items-center space-x-3'>
-                      <div className='w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center'>
+                      <div className='w-10 h-10 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center'>
                         <span className='text-white text-lg'>✏️</span>
                       </div>
                       <div>
-                        <h3 className='font-semibold text-gray-900 group-hover:text-purple-600 transition-colors'>
+                        <h3 className='font-semibold text-gray-900 group-hover:text-primary-600 transition-colors'>
                           {t('label_mypage_edit_profile')}
-                          <span className='ml-2 px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded-full'>
+                          <span className='ml-2 px-2 py-1 bg-primary-100 text-primary-600 text-xs rounded-full'>
                             {t('label_debug')}
                           </span>
                         </h3>
@@ -524,13 +529,13 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
               )}
               
               <button onClick={handleLogout} className='group text-left'>
-                <div className='bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-red-200'>
+                <div className='bg-gradient-to-r from-point-50 to-point-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-point-200'>
                   <div className='flex items-center space-x-3'>
-                    <div className='w-10 h-10 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center'>
+                    <div className='w-10 h-10 bg-gradient-to-r from-point-500 to-point-600 rounded-lg flex items-center justify-center'>
                       <span className='text-white text-lg'>🚪</span>
                     </div>
                     <div>
-                      <h3 className='font-semibold text-gray-900 group-hover:text-red-600 transition-colors'>
+                      <h3 className='font-semibold text-gray-900 group-hover:text-point-600 transition-colors'>
                         {t('label_mypage_logout')}
                       </h3>
                       <p className='text-sm text-gray-500'>{t('label_mypage_logout_desc')}</p>
@@ -544,15 +549,15 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
 
         {/* 활동 내역 카드 (디버그 모드에서만) */}
         {isDebugMode && (
-          <div className='bg-gradient-to-r from-green-500 to-teal-500 rounded-2xl p-1'>
+          <div className='bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-2xl p-1'>
             <div className='bg-white rounded-2xl p-6'>
               <div className='flex items-center mb-6'>
-                <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-xl flex items-center justify-center mr-4'>
+                <div className='w-12 h-12 bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-xl flex items-center justify-center mr-4'>
                   <span className='text-2xl'>📊</span>
                 </div>
                 <h2 className='text-xl font-bold text-gray-900'>
                   {t('label_mypage_activity_history')}
-                  <span className='ml-2 px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full'>
+                  <span className='ml-2 px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-full'>
                     {t('label_debug')}
                   </span>
                 </h2>
@@ -560,12 +565,12 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
               
               <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
                 <Link href='/mypage/vote-history' className='group'>
-                  <div className='bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-green-200'>
+                  <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
                     <div className='text-center'>
-                      <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
+                      <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
                         <span className='text-white text-lg'>🗳️</span>
                       </div>
-                      <h3 className='font-semibold text-gray-900 group-hover:text-green-600 transition-colors mb-1'>
+                      <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
                         {t('label_mypage_my_votes')}
                       </h3>
                       <p className='text-sm text-gray-500'>{t('label_mypage_my_votes_desc')}</p>
@@ -574,12 +579,12 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                 </Link>
                 
                 <Link href='/mypage/posts' className='group'>
-                  <div className='bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-green-200'>
+                  <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
                     <div className='text-center'>
-                      <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
+                      <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
                         <span className='text-white text-lg'>📝</span>
                       </div>
-                      <h3 className='font-semibold text-gray-900 group-hover:text-green-600 transition-colors mb-1'>
+                      <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
                         {t('label_mypage_my_posts')}
                       </h3>
                       <p className='text-sm text-gray-500'>{t('label_mypage_my_posts_desc')}</p>
@@ -588,12 +593,12 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                 </Link>
                 
                 <Link href='/mypage/comments' className='group'>
-                  <div className='bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-green-200'>
+                  <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
                     <div className='text-center'>
-                      <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
+                      <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
                         <span className='text-white text-lg'>💬</span>
                       </div>
-                      <h3 className='font-semibold text-gray-900 group-hover:text-green-600 transition-colors mb-1'>
+                      <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
                         {t('label_mypage_my_comments')}
                       </h3>
                       <p className='text-sm text-gray-500'>{t('label_mypage_my_comments_desc')}</p>
@@ -679,15 +684,15 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             {isDebugMode && (
               <div className='mt-6 pt-6 border-t border-gray-200'>
                 <Link href='/mypage/withdrawal' className='group'>
-                  <div className='bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-red-200'>
+                  <div className='bg-gradient-to-r from-point-50 to-point-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-point-200'>
                     <div className='flex items-center justify-center space-x-3'>
-                      <div className='w-10 h-10 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center'>
+                      <div className='w-10 h-10 bg-gradient-to-r from-point-500 to-point-600 rounded-lg flex items-center justify-center'>
                         <span className='text-white text-lg'>⚠️</span>
                       </div>
                       <div className='text-center'>
-                        <h3 className='font-semibold text-gray-900 group-hover:text-red-600 transition-colors'>
+                        <h3 className='font-semibold text-gray-900 group-hover:text-point-600 transition-colors'>
                           {t('label_mypage_withdrawal')}
-                          <span className='ml-2 px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full'>
+                          <span className='ml-2 px-2 py-1 bg-point-100 text-point-600 text-xs rounded-full'>
                             {t('label_debug')}
                           </span>
                         </h3>

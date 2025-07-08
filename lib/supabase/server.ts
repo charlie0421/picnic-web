@@ -237,3 +237,31 @@ export async function withAuth<T>(
   
   return callback(user.id);
 } 
+
+/**
+ * 정적 렌더링에서 공개 데이터 조회용 Supabase 클라이언트
+ * 쿠키를 사용하지 않아 정적 렌더링과 ISR에서 안전하게 사용 가능
+ * @returns 인증 없는 공개 데이터 전용 Supabase 클라이언트
+ */
+export function createPublicSupabaseClient() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    throw new Error('환경 변수 NEXT_PUBLIC_SUPABASE_URL이 설정되지 않았습니다.');
+  }
+  
+  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    throw new Error('환경 변수 NEXT_PUBLIC_SUPABASE_ANON_KEY가 설정되지 않았습니다.');
+  }
+
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        // 정적 렌더링을 위한 빈 쿠키 핸들러
+        async get() { return undefined; },
+        async set() { /* no-op */ },
+        async remove() { /* no-op */ },
+      },
+    }
+  );
+} 

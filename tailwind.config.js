@@ -80,16 +80,6 @@ module.exports = {
             transform: 'scale(1)',
           },
         },
-        'bounce-gentle': {
-          '0%, 100%': {
-            transform: 'translateY(0)',
-            animationTimingFunction: 'cubic-bezier(0, 0, 0.2, 1)',
-          },
-          '50%': {
-            transform: 'translateY(-5px)',
-            animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)',
-          },
-        },
       },
       animation: {
         'fade-in-out': 'fade-in-out 1s ease-in-out forwards',
@@ -102,7 +92,6 @@ module.exports = {
         'fade-in': 'fade-in 0.3s ease-out',
         'slide-up': 'slide-up 0.5s ease-out',
         'scale-in': 'scale-in 0.3s ease-out',
-        'bounce-gentle': 'bounce-gentle 2s infinite',
       },
       colors: {
         primary: {
