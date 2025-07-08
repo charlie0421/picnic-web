@@ -70,6 +70,15 @@ interface Translations {
   label_no_more_votes: string;
   label_star_candy: string;
   label_back_to_mypage: string;
+  label_total_vote_count: string;
+  label_vote_status_ongoing: string;
+  label_vote_status_ended: string;
+  label_vote_status_upcoming: string;
+  label_no_title: string;
+  label_unknown: string;
+  label_group_separator: string;
+  label_artist: string;
+  label_scroll_for_more: string;
 }
 
 interface VoteHistoryClientProps {
@@ -445,7 +454,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           </Link>
         </div>
         <p className="text-gray-600">
-          총 {totalCount}번의 투표 내역
+          {t('label_total_vote_count').replace('{count}', totalCount.toString())}
         </p>
       </div>
 
@@ -524,7 +533,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       return (
                         <img
                           src={cleanUrl}
-                          alt={getLocalizedText(item.voteItem?.artist?.name) || '아티스트'}
+                          alt={getLocalizedText(item.voteItem?.artist?.name) || t('label_artist')}
                           className="w-full h-full object-cover"
                           onError={handleImageError}
                           onLoad={() => {
@@ -553,15 +562,15 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-semibold text-gray-900 truncate">
-                    {getLocalizedText(item.vote?.title) || '제목 없음'}
+                    {getLocalizedText(item.vote?.title) || t('label_no_title')}
                   </h3>
                   {item.vote && (
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       getVoteStatus(item.vote.startAt, item.vote.stopAt).color
                     }`}>
-                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && '진행 중'}
-                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && '종료'}
-                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'upcoming' && '예정'}
+                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && t('label_vote_status_ongoing')}
+                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && t('label_vote_status_ended')}
+                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'upcoming' && t('label_vote_status_upcoming')}
                     </span>
                   )}
                 </div>
@@ -569,10 +578,10 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                 <div className="space-y-1 text-sm text-gray-600">
                   <div className="flex items-center space-x-4">
                     <span className="font-medium">{t('label_artist_name')}:</span>
-                    <span>{getLocalizedText(item.voteItem?.artist?.name) || '알 수 없음'}</span>
+                    <span>{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
                     {item.voteItem?.artist?.artistGroup && (
                       <>
-                        <span className="text-gray-400">|</span>
+                        <span className="text-gray-400">{t('label_group_separator')}</span>
                         <span>{getLocalizedText(item.voteItem?.artist?.artistGroup?.name)}</span>
                       </>
                     )}
@@ -620,7 +629,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
             </div>
           ) : (
             <div className="text-gray-400 text-sm">
-              스크롤하여 더 많은 투표 내역 보기
+              {t('label_scroll_for_more')}
             </div>
           )}
         </div>
