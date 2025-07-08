@@ -439,208 +439,286 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* 헤더 */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {t('label_mypage_my_votes')}
-          </h1>
-          <Link 
-            href="/mypage"
-            className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-          >
-            {t('label_back_to_mypage')}
-          </Link>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* 헤더 - 개선된 디자인 */}
+        <div className="mb-8">
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                  <span className="text-white text-lg">🗳️</span>
+                </div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  {t('label_mypage_my_votes')}
+                </h1>
+              </div>
+              <Link 
+                href="/mypage"
+                className="group flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              >
+                <span className="text-sm font-medium">{t('label_back_to_mypage')}</span>
+                <span className="group-hover:translate-x-1 transition-transform duration-300">→</span>
+              </Link>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <p className="text-gray-700 font-medium">
+                {t('label_total_vote_count').replace('{count}', totalCount.toString())}
+              </p>
+            </div>
+          </div>
         </div>
-        <p className="text-gray-600">
-          {t('label_total_vote_count').replace('{count}', totalCount.toString())}
-        </p>
-      </div>
 
-      {/* 오류 상태 */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <p className="text-red-800">{error}</p>
-            <button
-              onClick={retry}
-              className="text-red-600 hover:text-red-700 font-medium"
+        {/* 오류 상태 - 개선된 디자인 */}
+        {error && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl shadow-md backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                  <span className="text-red-500">⚠️</span>
+                </div>
+                <p className="text-red-800 font-medium">{error}</p>
+              </div>
+              <button
+                onClick={retry}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-300 transform hover:scale-105 shadow-md"
+              >
+                {t('label_retry')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 빈 상태 - 개선된 디자인 */}
+        {voteHistory.length === 0 && !isLoading && (
+          <div className="text-center py-16">
+            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 shadow-xl border border-white/20 max-w-md mx-auto">
+              <div className="relative mb-6">
+                <div className="w-24 h-24 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto animate-bounce">
+                  <span className="text-4xl">🗳️</span>
+                </div>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full animate-ping"></div>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">아직 투표 내역이 없어요</h3>
+              <p className="text-gray-600 mb-6">{t('label_no_votes')}</p>
+              <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <span className="mr-2">✨</span>
+                <span className="font-medium">첫 투표 참여하기</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 투표 내역 리스트 - 개선된 카드 디자인 */}
+        <div className="space-y-6">
+          {voteHistory.map((item, index) => (
+            <div 
+              key={item.id} 
+              className="group bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/20 overflow-hidden transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-1"
+              style={{
+                animationDelay: `${index * 100}ms`
+              }}
             >
-              {t('label_retry')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 투표 내역 리스트 */}
-      {voteHistory.length === 0 && !isLoading && (
-        <div className="text-center py-12">
-          <div className="text-gray-400 text-4xl mb-4">🗳️</div>
-          <p className="text-gray-600">{t('label_no_votes')}</p>
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {voteHistory.map((item) => (
-          <div key={item.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="flex items-start space-x-4">
-              {/* 아티스트 이미지 */}
-              <div className="flex-shrink-0">
-                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
-                  {(() => {
-                    const imageUrl = item.voteItem?.artist?.image;
-                    
-                    // 🐛 디버깅: 이미지 URL 확인
-                    console.log('🖼️ 아티스트 이미지 디버깅:', {
-                      artistName: getLocalizedText(item.voteItem?.artist?.name),
-                      imageUrl: imageUrl,
-                      imageUrlType: typeof imageUrl,
-                      imageUrlLength: imageUrl?.length,
-                      hasImage: !!imageUrl
-                    });
-                    
-                    // 📝 더 유연한 이미지 URL 검증
-                    const isValidImageUrl = (url: string | null | undefined): boolean => {
-                      if (!url || typeof url !== 'string' || url.trim() === '') {
-                        return false;
-                      }
-                      
-                      const cleanUrl = url.trim();
-                      
-                      // 다양한 이미지 URL 패턴 허용
-                      return (
-                        cleanUrl.startsWith('http://') ||
-                        cleanUrl.startsWith('https://') ||
-                        cleanUrl.startsWith('/') ||
-                        cleanUrl.includes('supabase') ||
-                        cleanUrl.includes('cloudflare') ||
-                        cleanUrl.includes('amazonaws') ||
-                        cleanUrl.includes('googleusercontent') ||
-                        cleanUrl.includes('cdn') ||
-                        // 상대 경로도 허용
-                        cleanUrl.startsWith('./') ||
-                        cleanUrl.startsWith('../') ||
-                        // 이미지 파일 확장자로 끝나는 경우
-                        /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(cleanUrl)
-                      );
-                    };
-                    
-                    if (isValidImageUrl(imageUrl)) {
-                      console.log('✅ 유효한 이미지 URL:', imageUrl);
-                      const cleanUrl = getCleanImageUrl(imageUrl!);
-                      
-                      return (
-                        <img
-                          src={cleanUrl}
-                          alt={getLocalizedText(item.voteItem?.artist?.name) || t('label_artist')}
-                          className="w-full h-full object-cover"
-                          onError={handleImageError}
-                          onLoad={() => {
-                            console.log('🎉 이미지 로딩 성공:', cleanUrl);
-                          }}
-                        />
-                      );
-                    } else {
-                      // 🚨 이미지 URL이 없거나 유효하지 않은 경우
-                      console.warn('❌ 유효하지 않은 이미지 URL:', {
-                        imageUrl,
-                        artistName: getLocalizedText(item.voteItem?.artist?.name)
-                      });
-                      
-                      return (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
-                          👤
-                        </div>
-                      );
-                    }
-                  })()}
-                </div>
-              </div>
-
-              {/* 투표 정보 */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">
-                    {getLocalizedText(item.vote?.title) || t('label_no_title')}
-                  </h3>
-                  {item.vote && (
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      getVoteStatus(item.vote.startAt, item.vote.stopAt).color
-                    }`}>
-                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && t('label_vote_status_ongoing')}
-                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && t('label_vote_status_ended')}
-                      {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'upcoming' && t('label_vote_status_upcoming')}
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-1 text-sm text-gray-600">
-                  <div className="flex items-center space-x-4">
-                    <span className="font-medium">{t('label_artist_name')}:</span>
-                    <span>{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
-                    {item.voteItem?.artist?.artistGroup && (
-                      <>
-                        <span className="text-gray-400">{t('label_group_separator')}</span>
-                        <span>{getLocalizedText(item.voteItem?.artist?.artistGroup?.name)}</span>
-                      </>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <span className="font-medium">{t('label_vote_amount')}:</span>
-                    <span className="flex items-center space-x-1">
-                      <img 
-                        src="/images/star-candy/star_100.png" 
-                        alt="별사탕" 
-                        className="w-4 h-4" 
-                      />
-                      <span className="text-primary-600 font-medium">{item.amount}</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    <span className="font-medium">{t('label_vote_date')}:</span>
-                    <span>{formatDate(item.createdAt)}</span>
-                  </div>
-
-                  {item.vote?.voteCategory && (
-                    <div className="flex items-center space-x-4">
-                      <span className="font-medium">{t('label_vote_category')}:</span>
-                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                        {getLocalizedText(item.vote?.voteCategory)}
-                      </span>
+              {/* 상단 그라데이션 바 */}
+              <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500"></div>
+              
+              <div className="p-6">
+                <div className="flex items-start space-x-6">
+                  {/* 아티스트 이미지 - 개선된 디자인 */}
+                  <div className="flex-shrink-0">
+                    <div className="relative">
+                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 shadow-lg group-hover:shadow-xl transition-all duration-300">
+                        {(() => {
+                          const imageUrl = item.voteItem?.artist?.image;
+                          
+                          const isValidImageUrl = (url: string | null | undefined): boolean => {
+                            if (!url || typeof url !== 'string' || url.trim() === '') {
+                              return false;
+                            }
+                            
+                            const cleanUrl = url.trim();
+                            
+                            return (
+                              cleanUrl.startsWith('http://') ||
+                              cleanUrl.startsWith('https://') ||
+                              cleanUrl.startsWith('/') ||
+                              cleanUrl.includes('supabase') ||
+                              cleanUrl.includes('cloudflare') ||
+                              cleanUrl.includes('amazonaws') ||
+                              cleanUrl.includes('googleusercontent') ||
+                              cleanUrl.includes('cdn') ||
+                              cleanUrl.startsWith('./') ||
+                              cleanUrl.startsWith('../') ||
+                              /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(cleanUrl)
+                            );
+                          };
+                          
+                          if (isValidImageUrl(imageUrl)) {
+                            const cleanUrl = getCleanImageUrl(imageUrl!);
+                            
+                            return (
+                              <img
+                                src={cleanUrl}
+                                alt={getLocalizedText(item.voteItem?.artist?.name) || t('label_artist')}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                onError={handleImageError}
+                              />
+                            );
+                          } else {
+                            return (
+                              <div className="w-full h-full flex items-center justify-center text-gray-400 text-3xl group-hover:scale-110 transition-transform duration-500">
+                                👤
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
+                      {/* 호버시 나타나는 글로우 효과 */}
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400/20 to-pink-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </div>
-                  )}
+                  </div>
+
+                  {/* 투표 정보 - 개선된 레이아웃 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-xl font-bold text-gray-900 truncate group-hover:text-purple-600 transition-colors duration-300">
+                        {getLocalizedText(item.vote?.title) || t('label_no_title')}
+                      </h3>
+                      {item.vote && (
+                        <div className="flex-shrink-0 ml-4">
+                          <span className={`inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full shadow-md transition-all duration-300 transform group-hover:scale-105 ${
+                            getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' 
+                              ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white animate-pulse'
+                              : getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended'
+                              ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
+                              : 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white'
+                          }`}>
+                            <span className="mr-1">
+                              {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && '🟢'}
+                              {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && '⭕'}
+                              {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'upcoming' && '🔵'}
+                            </span>
+                            {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && t('label_vote_status_ongoing')}
+                            {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && t('label_vote_status_ended')}
+                            {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'upcoming' && t('label_vote_status_upcoming')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      {/* 아티스트 정보 */}
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 group-hover:from-purple-100 group-hover:to-pink-100 transition-all duration-300">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-purple-500">🎤</span>
+                          <span className="font-semibold text-gray-700">{t('label_artist_name')}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium text-gray-900">{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
+                          {item.voteItem?.artist?.artistGroup && (
+                            <>
+                              <span className="text-gray-400">{t('label_group_separator')}</span>
+                              <span className="text-gray-700">{getLocalizedText(item.voteItem?.artist?.artistGroup?.name)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* 투표 금액 */}
+                      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4 group-hover:from-yellow-100 group-hover:to-orange-100 transition-all duration-300">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-yellow-500">💰</span>
+                          <span className="font-semibold text-gray-700">{t('label_vote_amount')}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <img 
+                            src="/images/star-candy/star_100.png" 
+                            alt="별사탕" 
+                            className="w-5 h-5 animate-spin" 
+                            style={{ animationDuration: '3s' }}
+                          />
+                          <span className="text-lg font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                            {item.amount.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* 투표 날짜 */}
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 group-hover:from-blue-100 group-hover:to-indigo-100 transition-all duration-300">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-blue-500">📅</span>
+                          <span className="font-semibold text-gray-700">{t('label_vote_date')}</span>
+                        </div>
+                        <span className="text-gray-900 font-medium">{formatDate(item.createdAt)}</span>
+                      </div>
+
+                      {/* 투표 카테고리 */}
+                      {item.vote?.voteCategory && (
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 group-hover:from-green-100 group-hover:to-emerald-100 transition-all duration-300">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-green-500">🏷️</span>
+                            <span className="font-semibold text-gray-700">{t('label_vote_category')}</span>
+                          </div>
+                          <span className="inline-flex items-center px-3 py-1 bg-white/70 text-gray-800 rounded-lg text-sm font-medium shadow-sm">
+                            {getLocalizedText(item.vote?.voteCategory)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+          ))}
+        </div>
+
+        {/* 무한 스크롤 트리거 - 개선된 로딩 디자인 */}
+        {hasMore && (
+          <div ref={sentinelRef} className="mt-12 text-center py-8">
+            {(isLoading || isLoadingMore) ? (
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 max-w-sm mx-auto">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 animate-spin">
+                      <div className="absolute inset-2 bg-white rounded-full"></div>
+                    </div>
+                    <div className="absolute inset-0 w-12 h-12 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 animate-ping opacity-20"></div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-gray-700 font-medium">{t('label_loading')}</p>
+                    <div className="flex space-x-1 justify-center mt-2">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/20 max-w-xs mx-auto">
+                <div className="flex items-center justify-center space-x-2 text-gray-500">
+                  <span className="animate-bounce">👆</span>
+                  <span className="text-sm font-medium">{t('label_scroll_for_more')}</span>
+                </div>
+              </div>
+            )}
           </div>
-        ))}
+        )}
+
+        {/* 더 이상 로드할 데이터가 없는 경우 - 개선된 디자인 */}
+        {!hasMore && voteHistory.length > 0 && (
+          <div className="text-center py-12">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 max-w-md mx-auto">
+              <div className="w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">🎉</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">모든 투표 내역을 확인했어요!</h3>
+              <p className="text-gray-600">{t('label_no_more_votes')}</p>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* 무한 스크롤 트리거 */}
-      {hasMore && (
-        <div ref={sentinelRef} className="mt-8 text-center py-4">
-          {(isLoading || isLoadingMore) ? (
-            <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-              <span className="ml-2 text-gray-600">{t('label_loading')}</span>
-            </div>
-          ) : (
-            <div className="text-gray-400 text-sm">
-              {t('label_scroll_for_more')}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 더 이상 로드할 데이터가 없는 경우 */}
-      {!hasMore && voteHistory.length > 0 && (
-        <div className="text-center py-8">
-          <p className="text-gray-500">{t('label_no_more_votes')}</p>
-        </div>
-      )}
     </div>
   );
 } 
