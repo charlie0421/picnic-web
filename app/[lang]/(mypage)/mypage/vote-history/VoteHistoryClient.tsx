@@ -342,22 +342,45 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    const currentLang = getCurrentLanguage();
+    const currentLang = getCurrentLanguage() as string;
     
     // 현재 언어에 따른 로케일 설정
-    const locale = currentLang === 'ko' ? 'ko-KR' : 'en-US';
+    let locale = 'en-US';
+    switch (currentLang) {
+      case 'ko':
+        locale = 'ko-KR';
+        break;
+      case 'ja':
+        locale = 'ja-JP';
+        break;
+      case 'zh':
+        locale = 'zh-CN';
+        break;
+      case 'id':
+        locale = 'id-ID';
+        break;
+      default:
+        locale = 'en-US';
+    }
     
-    // 시간대 정보를 포함한 포맷팅
-    const options: Intl.DateTimeFormatOptions = {
+    // 기본 포맷팅 옵션
+    const baseOptions: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: currentLang === 'ko' ? 'long' : 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZoneName: 'short'
+      timeZone: 'Asia/Seoul' // 한국 시간대로 통일
     };
     
-    return date.toLocaleString(locale, options);
+    // 언어별 친숙한 시간대 표시
+    let formattedDate = date.toLocaleString(locale, baseOptions);
+    
+    // 모든 언어에서 KST로 통일 (한국 서비스)
+    const friendlyTimeZone = 'KST';
+    
+    // GMT+9나 기타 시간대 표시를 친숙한 형태로 교체
+    return `${formattedDate} ${friendlyTimeZone}`;
   };
 
   const getVoteStatus = (startAt: string, stopAt: string) => {
