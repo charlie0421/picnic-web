@@ -207,6 +207,21 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
       const data: VoteHistoryResponse = await response.json();
 
       if (data.success) {
+        // 🐛 디버깅: API 응답 데이터 확인
+        console.log('📡 API 응답 전체 데이터:', data);
+        
+        // 각 투표 항목의 이미지 URL 디버깅
+        data.data.forEach((item, index) => {
+          console.log(`📊 투표 항목 ${index + 1}:`, {
+            id: item.id,
+            artistName: item.voteItem?.artist?.name,
+            artistImage: item.voteItem?.artist?.image,
+            artistImageType: typeof item.voteItem?.artist?.image,
+            hasArtist: !!item.voteItem?.artist,
+            hasVoteItem: !!item.voteItem
+          });
+        });
+
         // 데이터 안전성 검증 및 정제
         const safeData = data.data.map((item) => {
           return {
@@ -356,13 +371,61 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
   const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement;
     const parent = target.parentElement;
+    const originalUrl = target.src;
+    
+    console.warn('🚨 이미지 로딩 실패:', {
+      originalUrl,
+      error: e
+    });
     
     if (parent) {
+      // 이미 fallback이 시도된 경우 기본 아바타 표시
+      if (target.dataset.fallbackAttempted === 'true') {
+        target.style.display = 'none';
+        const fallbackDiv = document.createElement('div');
+        fallbackDiv.className = 'w-full h-full flex items-center justify-center text-gray-400 text-2xl';
+        fallbackDiv.textContent = '👤';
+        parent.appendChild(fallbackDiv);
+        return;
+      }
+
+      // 프록시 이미지 시도 (구글 이미지 등 허용된 도메인의 경우)
+      const isProxyCompatible = originalUrl.includes('googleusercontent.com') ||
+                               originalUrl.includes('graph.facebook.com') ||
+                               originalUrl.includes('pbs.twimg.com') ||
+                               originalUrl.includes('cdn.discordapp.com') ||
+                               originalUrl.includes('avatars.githubusercontent.com');
+
+      if (isProxyCompatible && !originalUrl.includes('/api/proxy-image')) {
+        console.log('🔄 프록시 이미지 시도:', originalUrl);
+        target.dataset.fallbackAttempted = 'true';
+        target.src = `/api/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+        return;
+      }
+
+      // 기본 아바타 표시
       target.style.display = 'none';
       const fallbackDiv = document.createElement('div');
       fallbackDiv.className = 'w-full h-full flex items-center justify-center text-gray-400 text-2xl';
       fallbackDiv.textContent = '👤';
       parent.appendChild(fallbackDiv);
+    }
+  }, []);
+
+  // 이미지 URL 정리 함수
+  const getCleanImageUrl = useCallback((url: string): string => {
+    // URL에서 불필요한 파라미터 제거 및 정리
+    try {
+      const urlObj = new URL(url.startsWith('http') ? url : `https:${url}`);
+      
+      // 일부 공통 이미지 서비스의 크기 파라미터 최적화
+      if (urlObj.hostname.includes('googleusercontent.com')) {
+        urlObj.searchParams.set('s', '200'); // 적절한 크기로 조정
+      }
+      
+      return urlObj.toString();
+    } catch {
+      return url;
     }
   }, []);
 
@@ -419,18 +482,63 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                   {(() => {
                     const imageUrl = item.voteItem?.artist?.image;
                     
-                    // 이미지가 있고 유효한 URL인 경우
-                    if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('/images') || imageUrl.includes('supabase'))) {
+                    // 🐛 디버깅: 이미지 URL 확인
+                    console.log('🖼️ 아티스트 이미지 디버깅:', {
+                      artistName: getLocalizedText(item.voteItem?.artist?.name),
+                      imageUrl: imageUrl,
+                      imageUrlType: typeof imageUrl,
+                      imageUrlLength: imageUrl?.length,
+                      hasImage: !!imageUrl
+                    });
+                    
+                    // 📝 더 유연한 이미지 URL 검증
+                    const isValidImageUrl = (url: string | null | undefined): boolean => {
+                      if (!url || typeof url !== 'string' || url.trim() === '') {
+                        return false;
+                      }
+                      
+                      const cleanUrl = url.trim();
+                      
+                      // 다양한 이미지 URL 패턴 허용
+                      return (
+                        cleanUrl.startsWith('http://') ||
+                        cleanUrl.startsWith('https://') ||
+                        cleanUrl.startsWith('/') ||
+                        cleanUrl.includes('supabase') ||
+                        cleanUrl.includes('cloudflare') ||
+                        cleanUrl.includes('amazonaws') ||
+                        cleanUrl.includes('googleusercontent') ||
+                        cleanUrl.includes('cdn') ||
+                        // 상대 경로도 허용
+                        cleanUrl.startsWith('./') ||
+                        cleanUrl.startsWith('../') ||
+                        // 이미지 파일 확장자로 끝나는 경우
+                        /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(cleanUrl)
+                      );
+                    };
+                    
+                    if (isValidImageUrl(imageUrl)) {
+                      console.log('✅ 유효한 이미지 URL:', imageUrl);
+                      const cleanUrl = getCleanImageUrl(imageUrl!);
+                      
                       return (
                         <img
-                          src={imageUrl}
+                          src={cleanUrl}
                           alt={getLocalizedText(item.voteItem?.artist?.name) || '아티스트'}
                           className="w-full h-full object-cover"
                           onError={handleImageError}
+                          onLoad={() => {
+                            console.log('🎉 이미지 로딩 성공:', cleanUrl);
+                          }}
                         />
                       );
                     } else {
-                      // 기본 아바타 표시
+                      // 🚨 이미지 URL이 없거나 유효하지 않은 경우
+                      console.warn('❌ 유효하지 않은 이미지 URL:', {
+                        imageUrl,
+                        artistName: getLocalizedText(item.voteItem?.artist?.name)
+                      });
+                      
                       return (
                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
                           👤

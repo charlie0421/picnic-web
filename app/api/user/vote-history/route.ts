@@ -79,36 +79,57 @@ export async function GET(request: NextRequest) {
     };
 
     // 데이터 변환 (안전성 강화)
-    const transformedHistory = voteHistory?.map(item => ({
-      id: item.id,
-      voteId: item.vote_id,
-      voteItemId: item.vote_item_id,
-      amount: item.amount,
-      createdAt: item.created_at,
-      vote: item.vote ? {
-        id: item.vote.id,
-        title: safeMultiLangText(item.vote.title),
-        startAt: item.vote.start_at,
-        stopAt: item.vote.stop_at,
-        mainImage: item.vote.main_image,
-        area: item.vote.area || '',
-        voteCategory: safeMultiLangText(item.vote.vote_category)
-      } : null,
-      voteItem: item.vote_item ? {
-        id: item.vote_item.id,
-        artistId: item.vote_item.artist_id,
-        groupId: item.vote_item.group_id,
-        artist: item.vote_item.artist ? {
-          id: item.vote_item.artist.id,
-          name: safeMultiLangText(item.vote_item.artist.name),
-          image: item.vote_item.artist.image,
-          artistGroup: item.vote_item.artist.artist_group ? {
-            id: item.vote_item.artist.artist_group.id,
-            name: safeMultiLangText(item.vote_item.artist.artist_group.name)
+    const transformedHistory = voteHistory?.map(item => {
+      // 🐛 디버깅: 아티스트 이미지 URL 확인
+      const artistImage = item.vote_item?.artist?.image;
+      if (artistImage) {
+        console.log('🎨 API에서 아티스트 이미지 발견:', {
+          artistId: item.vote_item?.artist?.id,
+          artistName: item.vote_item?.artist?.name,
+          imageUrl: artistImage,
+          imageType: typeof artistImage,
+          imageLength: artistImage?.length
+        });
+      } else {
+        console.log('⚠️ 아티스트 이미지 없음:', {
+          artistId: item.vote_item?.artist?.id,
+          artistName: item.vote_item?.artist?.name,
+          hasArtist: !!item.vote_item?.artist,
+          hasVoteItem: !!item.vote_item
+        });
+      }
+
+      return {
+        id: item.id,
+        voteId: item.vote_id,
+        voteItemId: item.vote_item_id,
+        amount: item.amount,
+        createdAt: item.created_at,
+        vote: item.vote ? {
+          id: item.vote.id,
+          title: safeMultiLangText(item.vote.title),
+          startAt: item.vote.start_at,
+          stopAt: item.vote.stop_at,
+          mainImage: item.vote.main_image,
+          area: item.vote.area || '',
+          voteCategory: safeMultiLangText(item.vote.vote_category)
+        } : null,
+        voteItem: item.vote_item ? {
+          id: item.vote_item.id,
+          artistId: item.vote_item.artist_id,
+          groupId: item.vote_item.group_id,
+          artist: item.vote_item.artist ? {
+            id: item.vote_item.artist.id,
+            name: safeMultiLangText(item.vote_item.artist.name),
+            image: item.vote_item.artist.image,
+            artistGroup: item.vote_item.artist.artist_group ? {
+              id: item.vote_item.artist.artist_group.id,
+              name: safeMultiLangText(item.vote_item.artist.artist_group.name)
+            } : null
           } : null
         } : null
-      } : null
-    })) || [];
+      };
+    }) || [];
 
     return NextResponse.json({
       success: true,
