@@ -2,18 +2,41 @@
 import * as Sentry from '@sentry/nextjs';
 
 export function register() {
-  // Sentry 관련 등록 코드가 필요한 경우 여기에 추가
-  // 현재는 환경 변수로 경고 메시지를 억제하도록 설정
+  // Sentry 초기화 - 환경에 따라 적절한 설정 파일이 로드됨
+  // - 클라이언트: sentry.client.config.js
+  // - 서버: sentry.server.config.js  
+  // - Edge: sentry.edge.config.js
+  
+  // Sentry 경고 메시지 억제
   process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔧 Sentry instrumentation registered for', process.env.NODE_ENV);
+  }
 }
 
-// onRequestError 훅 설정
+// onRequestError 훅 설정 - Next.js 15.3.1 최신 방식
 export function onRequestError({ error, request }: { error: Error; request: Request }) {
-  // Next.js 15.3.1에 맞게 Sentry 에러 캡처 설정
+  // 에러를 Sentry로 전송
   Sentry.captureException(error, {
+    tags: {
+      component: 'instrumentation',
+      source: 'onRequestError'
+    },
     extra: {
       requestUrl: request?.url,
-      requestMethod: request?.method
+      requestMethod: request?.method,
+      requestHeaders: request?.headers ? Object.fromEntries(request.headers.entries()) : undefined,
+    },
+    contexts: {
+      request: {
+        url: request?.url,
+        method: request?.method,
+      }
     }
   });
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.error('🚨 Request error captured by Sentry:', error.message);
+  }
 } 

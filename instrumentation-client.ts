@@ -1,8 +1,149 @@
+// This file configures the initialization of Sentry for client-side instrumentation.
+// This is the recommended approach for Next.js 15+ with Sentry v9+
+// https://docs.sentry.io/platforms/javascript/guides/nextjs/
+
+import * as Sentry from '@sentry/nextjs';
+
+const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
+
+export function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Server-side instrumentation
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      
+      // Debug mode - only in development
+      debug: process.env.NODE_ENV === 'development',
+      
+      // Environment
+      environment: process.env.NODE_ENV || 'development',
+      
+      // Sample rate for performance monitoring
+      tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+      
+      // Integrations for server-side
+      integrations: [
+        Sentry.httpIntegration(),
+      ],
+      
+      // Server-specific error filtering
+      beforeSend(event) {
+        if (process.env.NODE_ENV === 'development') {
+          if (event.exception) {
+            const error = event.exception.values?.[0];
+            if (error?.value?.includes('ECONNREFUSED') || 
+                error?.value?.includes('MODULE_NOT_FOUND')) {
+              return null;
+            }
+          }
+        }
+        return event;
+      },
+      
+      // Release information
+      release: process.env.SENTRY_RELEASE,
+      
+      // Additional server options
+      maxBreadcrumbs: 50,
+      serverName: process.env.SENTRY_SERVER_NAME || 'picnic-web-server',
+    });
+  }
+
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    // Edge runtime instrumentation
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      debug: process.env.NODE_ENV === 'development',
+      environment: process.env.NODE_ENV || 'development',
+      tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.05 : 0.5,
+      
+      // Minimal integrations for edge runtime
+      integrations: [],
+      
+      beforeSend(event) {
+        if (process.env.NODE_ENV === 'development') {
+          if (event.exception) {
+            const error = event.exception.values?.[0];
+            if (error?.value?.includes('middleware') && 
+                error?.value?.includes('redirect')) {
+              return null;
+            }
+          }
+        }
+        return event;
+      },
+      
+      release: process.env.SENTRY_RELEASE,
+      maxBreadcrumbs: 10,
+    });
+  }
+
+  // Client-side instrumentation
+  if (typeof window !== 'undefined') {
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      
+      // Debug mode - only in development
+      debug: process.env.NODE_ENV === 'development',
+      
+      // Environment
+      environment: process.env.NODE_ENV || 'development',
+      
+      // Sample rate for performance monitoring
+      tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+      
+      // Sample rate for session replays
+      replaysSessionSampleRate: process.env.NODE_ENV === 'production' ? 0.01 : 0.1,
+      
+      // Sample rate for error replays
+      replaysOnErrorSampleRate: 1.0,
+      
+      // Configure integrations
+      integrations: [
+        // Session Replay integration for debugging
+        Sentry.replayIntegration({
+          maskAllText: false,
+          blockAllMedia: true,
+        }),
+        
+        // Browser tracing for performance monitoring
+        Sentry.browserTracingIntegration({
+          // Automatic route change tracking for Next.js App Router
+        }),
+      ],
+      
+      // Performance options
+      beforeSend(event) {
+        // Filter out known development errors
+        if (event.exception) {
+          const error = event.exception.values?.[0];
+          if (error?.value?.includes('hydration') && process.env.NODE_ENV === 'development') {
+            return null;
+          }
+        }
+        return event;
+      },
+      
+      // Release information
+      release: process.env.NEXT_PUBLIC_SENTRY_RELEASE,
+      
+      // Additional options
+      ignoreErrors: [
+        'Script error.',
+        'Non-Error promise rejection captured',
+        'Hydration failed',
+        'There was an error while hydrating',
+      ],
+    });
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔧 Sentry client instrumentation initialized');
+    }
+  }
+}
+
 // 앱 초기화 성능 측정 시작
 performance.mark('app-init');
-
-// Sentry SDK를 위한 설정
-import * as Sentry from '@sentry/nextjs';
 
 // Sentry 네비게이션 추적을 위한 함수 추가
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
