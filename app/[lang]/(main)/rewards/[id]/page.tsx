@@ -2,36 +2,16 @@ import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getRewardById } from '@/lib/data-fetching/reward-service';
-import { getRewards } from '@/utils/api/queries';
 import {
   createPageMetadata,
   createImageMetadata,
 } from '@/app/[lang]/utils/metadata-utils';
 import { createProductSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
-import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
 import RewardDetailClient from '@/components/client/reward/RewardDetailClient';
 
-// ISR을 위한 메타데이터 구성 (30초마다 재검증)
-export const revalidate = 30;
-
-// ISR 메타데이터 사용
-// export const metadata = createISRMetadata(30);
-
-// 정적 경로 생성
-export async function generateStaticParams() {
-  try {
-    // 활성화된 리워드만 사전 생성
-    const rewards = await getRewards();
-
-    return rewards.slice(0, 10).map((reward) => ({
-      id: String(reward.id),
-    }));
-  } catch (error) {
-    console.error('generateStaticParams 에러:', error);
-    return [];
-  }
-}
+// 동적 렌더링 강제 - DYNAMIC_SERVER_USAGE 에러 방지
+export const dynamic = 'force-dynamic';
 
 // 메타데이터 동적 생성
 export async function generateMetadata({
