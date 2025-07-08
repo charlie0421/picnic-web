@@ -409,30 +409,30 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* 헤더 - 개선된 디자인 */}
+        {/* 헤더 - 테마 색상 적용 */}
         <div className="mb-8">
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-primary to-point flex items-center justify-center">
                   <span className="text-white text-lg">🗳️</span>
                 </div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-point bg-clip-text text-transparent">
                   {t('label_mypage_my_votes')}
                 </h1>
               </div>
               <Link 
                 href="/mypage"
-                className="group flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                className="group flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-primary to-point text-white rounded-lg hover:from-primary-600 hover:to-point-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 <span className="text-sm font-medium">{t('label_back_to_mypage')}</span>
                 <span className="group-hover:translate-x-1 transition-transform duration-300">→</span>
               </Link>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-secondary rounded-full animate-pulse"></div>
               <p className="text-gray-700 font-medium">
                 {t('label_total_vote_count').replace('{count}', totalCount.toString())}
               </p>
@@ -440,9 +440,9 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           </div>
         </div>
 
-        {/* 오류 상태 - 개선된 디자인 */}
+        {/* 오류 상태 - 테마 색상 적용 */}
         {error && (
-          <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl shadow-md backdrop-blur-sm">
+          <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-point-50 border border-red-200 rounded-xl shadow-md backdrop-blur-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
@@ -460,15 +460,15 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           </div>
         )}
 
-        {/* 빈 상태 - 개선된 디자인 */}
+        {/* 빈 상태 - 테마 색상 적용 */}
         {voteHistory.length === 0 && !isLoading && (
           <div className="text-center py-16">
             <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 shadow-xl border border-white/20 max-w-md mx-auto">
               <div className="relative mb-6">
-                <div className="w-24 h-24 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto animate-bounce">
+                <div className="w-24 h-24 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-full flex items-center justify-center mx-auto animate-bounce">
                   <span className="text-4xl">🗳️</span>
                 </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full animate-ping"></div>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-sub to-point rounded-full animate-ping"></div>
               </div>
               <h3 className="text-xl font-bold text-gray-800 mb-2">{t('label_no_votes')}</h3>
               <p className="text-gray-600 mb-6">{t('label_scroll_for_more')}</p>
@@ -476,7 +476,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           </div>
         )}
 
-        {/* 투표 내역 리스트 - 개선된 카드 디자인 */}
+        {/* 투표 내역 리스트 - 테마 색상 적용 */}
         <div className="space-y-6">
           {voteHistory.map((item, index) => (
             <div 
@@ -486,15 +486,15 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                 animationDelay: `${index * 100}ms`
               }}
             >
-              {/* 상단 그라데이션 바 */}
-              <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500"></div>
+              {/* 상단 그라데이션 바 - 테마 색상 */}
+              <div className="h-1 bg-gradient-to-r from-primary via-secondary to-point"></div>
               
               <div className="p-6">
                 <div className="flex items-start space-x-6">
-                  {/* 아티스트 이미지 - getCdnImageUrl 사용 */}
+                  {/* 아티스트 이미지 - 테마 색상 적용 */}
                   <div className="flex-shrink-0">
                     <div className="relative">
-                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 shadow-lg group-hover:shadow-xl transition-all duration-300">
+                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-100 to-secondary-100 shadow-lg group-hover:shadow-xl transition-all duration-300">
                         <img
                           src={getCdnImageUrl(item.voteItem?.artist?.image, 150) || '/images/default-artist.png'}
                           alt={getLocalizedText(item.voteItem?.artist?.name) || t('label_artist')}
@@ -502,15 +502,15 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                           onError={handleImageError}
                         />
                       </div>
-                      {/* 호버시 나타나는 글로우 효과 */}
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400/20 to-pink-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      {/* 호버시 나타나는 글로우 효과 - 테마 색상 */}
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/20 to-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </div>
                   </div>
 
-                  {/* 투표 정보 - 개선된 레이아웃 */}
+                  {/* 투표 정보 - 테마 색상 적용 */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-4">
-                      <h3 className="text-xl font-bold text-gray-900 truncate group-hover:text-purple-600 transition-colors duration-300">
+                      <h3 className="text-xl font-bold text-gray-900 truncate group-hover:text-primary transition-colors duration-300">
                         {getLocalizedText(item.vote?.title) || t('label_no_title')}
                       </h3>
                       {item.vote && (
@@ -527,10 +527,10 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      {/* 아티스트 정보 */}
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 group-hover:from-purple-100 group-hover:to-pink-100 transition-all duration-300">
+                      {/* 아티스트 정보 - 테마 색상 */}
+                      <div className="bg-gradient-to-r from-primary-50 to-point-50 rounded-xl p-4 group-hover:from-primary-100 group-hover:to-point-100 transition-all duration-300">
                         <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-purple-500">🎤</span>
+                          <span className="text-primary">🎤</span>
                           <span className="font-semibold text-gray-700">{t('label_artist_name')}</span>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -544,10 +544,10 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                         </div>
                       </div>
                       
-                      {/* 투표 금액 */}
-                      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4 group-hover:from-yellow-100 group-hover:to-orange-100 transition-all duration-300">
+                      {/* 투표 금액 - 테마 색상 */}
+                      <div className="bg-gradient-to-r from-sub-50 to-secondary-50 rounded-xl p-4 group-hover:from-sub-100 group-hover:to-secondary-100 transition-all duration-300">
                         <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-yellow-500">💰</span>
+                          <span className="text-sub">💰</span>
                           <span className="font-semibold text-gray-700">{t('label_vote_amount')}</span>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -557,26 +557,26 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                             className="w-5 h-5 animate-spin" 
                             style={{ animationDuration: '3s' }}
                           />
-                          <span className="text-lg font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                          <span className="text-lg font-bold bg-gradient-to-r from-sub to-secondary bg-clip-text text-transparent">
                             {item.amount.toLocaleString()}
                           </span>
                         </div>
                       </div>
 
-                      {/* 투표 날짜 */}
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 group-hover:from-blue-100 group-hover:to-indigo-100 transition-all duration-300">
+                      {/* 투표 날짜 - 테마 색상 */}
+                      <div className="bg-gradient-to-r from-secondary-50 to-primary-50 rounded-xl p-4 group-hover:from-secondary-100 group-hover:to-primary-100 transition-all duration-300">
                         <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-blue-500">📅</span>
+                          <span className="text-secondary">📅</span>
                           <span className="font-semibold text-gray-700">{t('label_vote_date')}</span>
                         </div>
                         <span className="text-gray-900 font-medium">{formatDate(item.createdAt)}</span>
                       </div>
 
-                      {/* 투표 카테고리 */}
+                      {/* 투표 카테고리 - 테마 색상 */}
                       {item.vote?.voteCategory && (
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 group-hover:from-green-100 group-hover:to-emerald-100 transition-all duration-300">
+                        <div className="bg-gradient-to-r from-point-50 to-sub-50 rounded-xl p-4 group-hover:from-point-100 group-hover:to-sub-100 transition-all duration-300">
                           <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-green-500">🏷️</span>
+                            <span className="text-point">🏷️</span>
                             <span className="font-semibold text-gray-700">{t('label_vote_category')}</span>
                           </div>
                           <span className="inline-flex items-center px-3 py-1 bg-white/70 text-gray-800 rounded-lg text-sm font-medium shadow-sm">
@@ -592,24 +592,24 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           ))}
         </div>
 
-        {/* 무한 스크롤 트리거 - 개선된 로딩 디자인 */}
+        {/* 무한 스크롤 트리거 - 테마 색상 적용 */}
         {hasMore && (
           <div ref={sentinelRef} className="mt-12 text-center py-8">
             {(isLoading || isLoadingMore) ? (
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 max-w-sm mx-auto">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 animate-spin">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary animate-spin">
                       <div className="absolute inset-2 bg-white rounded-full"></div>
                     </div>
-                    <div className="absolute inset-0 w-12 h-12 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 animate-ping opacity-20"></div>
+                    <div className="absolute inset-0 w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary animate-ping opacity-20"></div>
                   </div>
                   <div className="text-center">
                     <p className="text-gray-700 font-medium">{t('label_loading')}</p>
                     <div className="flex space-x-1 justify-center mt-2">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-secondary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-point rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                     </div>
                   </div>
                 </div>
@@ -625,11 +625,11 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           </div>
         )}
 
-        {/* 더 이상 로드할 데이터가 없는 경우 - 개선된 디자인 */}
+        {/* 더 이상 로드할 데이터가 없는 경우 - 테마 색상 적용 */}
         {!hasMore && voteHistory.length > 0 && (
           <div className="text-center py-12">
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 max-w-md mx-auto">
-              <div className="w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-gradient-to-r from-secondary-100 to-primary-200 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">🎉</span>
               </div>
               <h3 className="text-lg font-bold text-gray-800 mb-2">{t('label_all_votes_checked')}</h3>
