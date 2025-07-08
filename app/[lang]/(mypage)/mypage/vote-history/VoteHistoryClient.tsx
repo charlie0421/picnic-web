@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { getCdnImageUrl } from '@/utils/api/image';
 
 // 다국어 객체 타입 정의
 type MultiLanguageText = {
@@ -79,6 +80,7 @@ interface Translations {
   label_group_separator: string;
   label_artist: string;
   label_scroll_for_more: string;
+  label_all_votes_checked: string;
 }
 
 interface VoteHistoryClientProps {
@@ -379,63 +381,8 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
   // 안전한 이미지 에러 핸들러
   const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement;
-    const parent = target.parentElement;
-    const originalUrl = target.src;
-    
-    console.warn('🚨 이미지 로딩 실패:', {
-      originalUrl,
-      error: e
-    });
-    
-    if (parent) {
-      // 이미 fallback이 시도된 경우 기본 아바타 표시
-      if (target.dataset.fallbackAttempted === 'true') {
-        target.style.display = 'none';
-        const fallbackDiv = document.createElement('div');
-        fallbackDiv.className = 'w-full h-full flex items-center justify-center text-gray-400 text-2xl';
-        fallbackDiv.textContent = '👤';
-        parent.appendChild(fallbackDiv);
-        return;
-      }
-
-      // 프록시 이미지 시도 (구글 이미지 등 허용된 도메인의 경우)
-      const isProxyCompatible = originalUrl.includes('googleusercontent.com') ||
-                               originalUrl.includes('graph.facebook.com') ||
-                               originalUrl.includes('pbs.twimg.com') ||
-                               originalUrl.includes('cdn.discordapp.com') ||
-                               originalUrl.includes('avatars.githubusercontent.com');
-
-      if (isProxyCompatible && !originalUrl.includes('/api/proxy-image')) {
-        console.log('🔄 프록시 이미지 시도:', originalUrl);
-        target.dataset.fallbackAttempted = 'true';
-        target.src = `/api/proxy-image?url=${encodeURIComponent(originalUrl)}`;
-        return;
-      }
-
-      // 기본 아바타 표시
-      target.style.display = 'none';
-      const fallbackDiv = document.createElement('div');
-      fallbackDiv.className = 'w-full h-full flex items-center justify-center text-gray-400 text-2xl';
-      fallbackDiv.textContent = '👤';
-      parent.appendChild(fallbackDiv);
-    }
-  }, []);
-
-  // 이미지 URL 정리 함수
-  const getCleanImageUrl = useCallback((url: string): string => {
-    // URL에서 불필요한 파라미터 제거 및 정리
-    try {
-      const urlObj = new URL(url.startsWith('http') ? url : `https:${url}`);
-      
-      // 일부 공통 이미지 서비스의 크기 파라미터 최적화
-      if (urlObj.hostname.includes('googleusercontent.com')) {
-        urlObj.searchParams.set('s', '200'); // 적절한 크기로 조정
-      }
-      
-      return urlObj.toString();
-    } catch {
-      return url;
-    }
+    target.src = '/images/default-artist.png';
+    target.onerror = null;
   }, []);
 
   return (
@@ -500,12 +447,8 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                 </div>
                 <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full animate-ping"></div>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">아직 투표 내역이 없어요</h3>
-              <p className="text-gray-600 mb-6">{t('label_no_votes')}</p>
-              <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <span className="mr-2">✨</span>
-                <span className="font-medium">첫 투표 참여하기</span>
-              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">{t('label_no_votes')}</h3>
+              <p className="text-gray-600 mb-6">{t('label_scroll_for_more')}</p>
             </div>
           </div>
         )}
@@ -525,54 +468,16 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
               
               <div className="p-6">
                 <div className="flex items-start space-x-6">
-                  {/* 아티스트 이미지 - 개선된 디자인 */}
+                  {/* 아티스트 이미지 - getCdnImageUrl 사용 */}
                   <div className="flex-shrink-0">
                     <div className="relative">
                       <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                        {(() => {
-                          const imageUrl = item.voteItem?.artist?.image;
-                          
-                          const isValidImageUrl = (url: string | null | undefined): boolean => {
-                            if (!url || typeof url !== 'string' || url.trim() === '') {
-                              return false;
-                            }
-                            
-                            const cleanUrl = url.trim();
-                            
-                            return (
-                              cleanUrl.startsWith('http://') ||
-                              cleanUrl.startsWith('https://') ||
-                              cleanUrl.startsWith('/') ||
-                              cleanUrl.includes('supabase') ||
-                              cleanUrl.includes('cloudflare') ||
-                              cleanUrl.includes('amazonaws') ||
-                              cleanUrl.includes('googleusercontent') ||
-                              cleanUrl.includes('cdn') ||
-                              cleanUrl.startsWith('./') ||
-                              cleanUrl.startsWith('../') ||
-                              /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i.test(cleanUrl)
-                            );
-                          };
-                          
-                          if (isValidImageUrl(imageUrl)) {
-                            const cleanUrl = getCleanImageUrl(imageUrl!);
-                            
-                            return (
-                              <img
-                                src={cleanUrl}
-                                alt={getLocalizedText(item.voteItem?.artist?.name) || t('label_artist')}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                onError={handleImageError}
-                              />
-                            );
-                          } else {
-                            return (
-                              <div className="w-full h-full flex items-center justify-center text-gray-400 text-3xl group-hover:scale-110 transition-transform duration-500">
-                                👤
-                              </div>
-                            );
-                          }
-                        })()}
+                        <img
+                          src={getCdnImageUrl(item.voteItem?.artist?.image, 150) || '/images/default-artist.png'}
+                          alt={getLocalizedText(item.voteItem?.artist?.name) || t('label_artist')}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          onError={handleImageError}
+                        />
                       </div>
                       {/* 호버시 나타나는 글로우 효과 */}
                       <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400/20 to-pink-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -587,18 +492,9 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       </h3>
                       {item.vote && (
                         <div className="flex-shrink-0 ml-4">
-                          <span className={`inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full shadow-md transition-all duration-300 transform group-hover:scale-105 ${
-                            getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' 
-                              ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white animate-pulse'
-                              : getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended'
-                              ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
-                              : 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white'
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            getVoteStatus(item.vote.startAt, item.vote.stopAt).color
                           }`}>
-                            <span className="mr-1">
-                              {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && '🟢'}
-                              {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && '⭕'}
-                              {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'upcoming' && '🔵'}
-                            </span>
                             {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && t('label_vote_status_ongoing')}
                             {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && t('label_vote_status_ended')}
                             {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'upcoming' && t('label_vote_status_upcoming')}
@@ -634,7 +530,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                         <div className="flex items-center space-x-2">
                           <img 
                             src="/images/star-candy/star_100.png" 
-                            alt="별사탕" 
+                            alt={t('label_star_candy')} 
                             className="w-5 h-5 animate-spin" 
                             style={{ animationDuration: '3s' }}
                           />
@@ -713,7 +609,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
               <div className="w-16 h-16 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">🎉</span>
               </div>
-              <h3 className="text-lg font-bold text-gray-800 mb-2">모든 투표 내역을 확인했어요!</h3>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">{t('label_all_votes_checked')}</h3>
               <p className="text-gray-600">{t('label_no_more_votes')}</p>
             </div>
           </div>
