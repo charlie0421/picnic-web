@@ -12,8 +12,23 @@ import {
 import { createVoteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 
-// 동적 렌더링 강제 - DYNAMIC_SERVER_USAGE 에러 해결
-export const dynamic = 'force-dynamic';
+// ISR 활성화 - middleware에서 투표 상세 페이지를 제외하여 정적 렌더링 가능
+export const revalidate = 30;
+
+// 정적 경로 생성 - 주요 투표들을 미리 생성
+export async function generateStaticParams() {
+  try {
+    // 활성화된 투표만 사전 생성
+    const votes = await getVotes('ongoing');
+
+    return votes.map((vote) => ({
+      id: String(vote.id),
+    }));
+  } catch (error) {
+    console.error('generateStaticParams 에러:', error);
+    return [];
+  }
+}
 
 // 메타데이터 동적 생성
 export async function generateMetadata({
