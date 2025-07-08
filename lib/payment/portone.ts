@@ -52,36 +52,26 @@ class PortOneService {
   }
 
   /**
-   * Initialize Port One SDK
+   * Initialize Port One v2 SDK
    */
   async initialize(): Promise<boolean> {
     if (this.isInitialized) return true;
 
     try {
-      // Load Port One SDK script
+      // Load Port One v2 SDK script
       await this.loadScript();
       
-      // Initialize with store ID
-      if (window.PortOne) {
-        window.PortOne.init({
-          storeId: this.config.storeId,
-          channelKey: this.config.channelKey,
-        });
-        
-        this.isInitialized = true;
-        console.log('Port One SDK initialized successfully');
-        return true;
-      }
-      
-      throw new Error('Port One SDK not loaded');
+      this.isInitialized = true;
+      console.log('Port One v2 SDK initialized successfully');
+      return true;
     } catch (error) {
-      console.error('Failed to initialize Port One SDK:', error);
+      console.error('Failed to initialize Port One v2 SDK:', error);
       return false;
     }
   }
 
   /**
-   * Load Port One SDK script
+   * Load Port One v2 SDK script
    */
   private loadScript(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -95,28 +85,25 @@ class PortOneService {
       script.src = 'https://cdn.portone.io/v2/browser-sdk.js';
       script.async = true;
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Port One SDK'));
+      script.onerror = () => reject(new Error('Failed to load Port One v2 SDK'));
       
       document.head.appendChild(script);
     });
   }
 
   /**
-   * Request payment through Port One
+   * Request payment through Port One v2 with simplified flow
    */
   async requestPayment(request: PaymentRequest): Promise<PaymentResponse> {
     try {
       // Ensure SDK is initialized
       const initialized = await this.initialize();
       if (!initialized) {
-        throw new Error('Port One SDK not initialized');
+        throw new Error('Port One v2 SDK not initialized');
       }
 
-      // Generate unique order ID
-      const orderId = `${request.paymentId}_${Date.now()}`;
-
-      // Request payment
-      const response = await window.PortOne.requestPayment({
+      // Prepare payment request for v2 API
+      const paymentRequest = {
         storeId: this.config.storeId,
         channelKey: this.config.channelKey,
         paymentId: request.paymentId,
@@ -133,40 +120,57 @@ class PortOneService {
           productId: request.productInfo.id,
           starCandy: request.productInfo.starCandy,
           bonusAmount: request.productInfo.bonusAmount,
-          userId: request.customer.email, // Using email as user identifier
         },
         redirectUrl: `${window.location.origin}/api/payment/portone/callback`,
-      });
+        noticeUrl: `${window.location.origin}/api/payment/portone/webhook`,
+        confirmUrl: `${window.location.origin}/api/payment/portone/confirm`,
+      };
 
-      if (response.code === 'PAYMENT_COMPLETE') {
+      // Request payment using v2 API
+      const response = await window.PortOne.requestPayment(paymentRequest);
+
+      if (response.code === null && response.paymentId) {
+        // Payment completed successfully
         return {
           success: true,
           paymentId: response.paymentId,
           transactionId: response.transactionId,
         };
       } else {
+        // Payment failed or cancelled
         return {
           success: false,
           error: {
-            code: response.code || 'UNKNOWN_ERROR',
-            message: response.message || 'Payment failed',
+            code: response.code || 'PAYMENT_FAILED',
+            message: response.message || '결제에 실패했습니다.',
           },
         };
       }
     } catch (error) {
-      console.error('Payment request error:', error);
+      console.error('Port One v2 payment request error:', error);
       return {
         success: false,
         error: {
           code: 'PAYMENT_ERROR',
-          message: error instanceof Error ? error.message : 'Payment processing failed',
+          message: error instanceof Error ? error.message : '결제 처리 중 오류가 발생했습니다.',
         },
       };
     }
   }
 
   /**
-   * Verify payment status
+   * Request payment with automatic payment method detection
+   */
+  async requestPaymentAuto(request: Omit<PaymentRequest, 'payMethod'>): Promise<PaymentResponse> {
+    // For auto payment, we'll use CARD as default but let Port One handle the selection
+    return this.requestPayment({
+      ...request,
+      payMethod: 'CARD', // Port One v2 will show payment method selection UI
+    });
+  }
+
+  /**
+   * Verify payment status on server
    */
   async verifyPayment(paymentId: string): Promise<boolean> {
     try {
@@ -187,7 +191,7 @@ class PortOneService {
   }
 
   /**
-   * Get available payment methods
+   * Get available payment methods for Korean users
    */
   getAvailablePaymentMethods() {
     return [
@@ -203,6 +207,14 @@ class PortOneService {
    */
   formatPrice(amount: number): string {
     return `₩${amount.toLocaleString('ko-KR')}`;
+  }
+
+  /**
+   * Check if Port One is available (mainly for Korean users)
+   */
+  isAvailableInCountry(countryCode: string): boolean {
+    // Port One is primarily for Korean market
+    return countryCode.toUpperCase() === 'KR';
   }
 }
 

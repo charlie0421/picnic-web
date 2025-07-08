@@ -9,8 +9,8 @@ import { useAuth } from '@/lib/supabase/auth-provider';
 import { motion } from 'framer-motion';
 import { PaymentMethodSelector, PaymentMethod } from './PaymentMethodSelector';
 import { getCurrencyByPaymentMethod } from '@/utils/ip-detection';
-import { PortOnePaymentModal } from './PortOnePaymentModal';
-import { PayPalPaymentButton } from './PayPalPaymentButton';
+import { portOneService } from '@/lib/payment/portone';
+import { payPalService } from '@/lib/payment/paypal';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -29,9 +29,7 @@ export function StarCandyProductsPresenter({
   const { user } = useAuth();
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>('paypal');
-  const [selectedProduct, setSelectedProduct] = useState<Products | null>(null);
-  const [showPortOneModal, setShowPortOneModal] = useState(false);
-  const [showPayPalButton, setShowPayPalButton] = useState(false);
+  const [processingProductId, setProcessingProductId] = useState<string | null>(null);
 
   const formatPrice = (price: number | null, currency: 'KRW' | 'USD') => {
     if (!price) return '';
@@ -43,48 +41,189 @@ export function StarCandyProductsPresenter({
     }
   };
 
-  const handlePurchase = (product: Products) => {
+  const handlePurchase = async (product: Products) => {
     if (!user) {
-      // TODO: Show login modal or redirect to login
       alert(t('star_candy_login_required'));
       return;
     }
 
-    setSelectedProduct(product);
+    if (processingProductId) {
+      return; // 이미 처리 중인 결제가 있음
+    }
 
-    if (selectedPaymentMethod === 'portone') {
-      setShowPortOneModal(true);
-    } else {
-      setShowPayPalButton(true);
+    setProcessingProductId(product.id);
+
+    try {
+      if (selectedPaymentMethod === 'portone') {
+        await handlePortOnePayment(product);
+      } else {
+        await handlePayPalPayment(product);
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert(t('payment_failed'));
+    } finally {
+      setProcessingProductId(null);
     }
   };
 
-  const handlePortOneSuccess = (paymentId: string) => {
-    console.log('Port One payment successful:', paymentId);
-    // TODO: Show success message
-    alert(t('payment_success'));
-    // Refresh products to update any UI changes
-    window.location.reload();
+  const handlePortOnePayment = async (product: Products) => {
+    try {
+      // Generate unique payment ID
+      const paymentId = `PAY_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Prepare payment request
+      const paymentRequest = {
+        paymentId,
+        orderName: `${product.product_name} - ${product.star_candy} 별사탕`,
+        totalAmount: product.web_price_krw || 0,
+        currency: 'KRW' as const,
+        customer: {
+          fullName: user.user_metadata?.name || '사용자',
+          email: user.email || '',
+          phoneNumber: user.user_metadata?.phone,
+        },
+        productInfo: {
+          id: product.id,
+          name: product.product_name,
+          starCandy: product.star_candy || 0,
+          bonusAmount: product.web_bonus_amount || 0,
+        },
+      };
+
+      // Request payment using Port One v2 (automatic payment method selection)
+      const response = await portOneService.requestPaymentAuto(paymentRequest);
+
+      if (response.success && response.paymentId) {
+        // Verify payment on server
+        const verified = await portOneService.verifyPayment(response.paymentId);
+        
+        if (verified) {
+          alert(t('payment_success'));
+          window.location.reload();
+        } else {
+          alert(t('payment_verification_failed'));
+        }
+      } else {
+        alert(response.error?.message || t('payment_failed'));
+      }
+    } catch (error) {
+      console.error('Port One payment error:', error);
+      alert(t('payment_error_occurred'));
+    }
   };
 
-  const handlePayPalSuccess = (orderID: string) => {
-    console.log('PayPal payment successful:', orderID);
-    setShowPayPalButton(false);
-    setSelectedProduct(null);
-    // TODO: Show success message
-    alert(t('payment_success'));
-    // Refresh products to update any UI changes
-    window.location.reload();
-  };
+  const handlePayPalPayment = async (product: Products) => {
+    try {
+      // Initialize PayPal service
+      const initialized = await payPalService.initialize();
+      if (!initialized) {
+        throw new Error('PayPal SDK initialization failed');
+      }
 
-  const handlePayPalError = (error: any) => {
-    console.error('PayPal payment error:', error);
-    alert(t('payment_failed'));
-  };
+      // Create PayPal order
+      const orderID = await payPalService.createOrder({
+        productId: product.id,
+        productName: product.product_name,
+        amount: product.web_price_usd || 0,
+        starCandy: product.star_candy || 0,
+        bonusAmount: product.web_bonus_amount || 0,
+        userId: user.id,
+        userEmail: user.email || '',
+      });
 
-  const handlePayPalCancel = () => {
-    console.log('PayPal payment cancelled');
-    setShowPayPalButton(false);
+      // Get PayPal SDK instance and approve order
+      const paypal = payPalService.getPayPal();
+      if (paypal && paypal.Buttons) {
+        // Open PayPal checkout in a popup
+        const actions = {
+          order: {
+            get: () => Promise.resolve({ id: orderID })
+          }
+        };
+
+        // Redirect to PayPal approval URL
+        const approvalUrl = `https://www.${process.env.NEXT_PUBLIC_PAYPAL_ENV === 'production' ? '' : 'sandbox.'}paypal.com/checkoutnow?token=${orderID}`;
+        
+        // Open PayPal in a centered popup window
+        const width = 500;
+        const height = 600;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top = (window.screen.height / 2) - (height / 2);
+        
+        const paypalWindow = window.open(
+          approvalUrl,
+          'paypal_checkout',
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+        );
+
+        // Poll for payment completion
+        const pollForCompletion = () => {
+          const interval = setInterval(async () => {
+            try {
+              // Check if popup was closed
+              if (paypalWindow?.closed) {
+                clearInterval(interval);
+                
+                // Try to capture the order to check if payment was completed
+                try {
+                  const result = await payPalService.captureOrder(orderID);
+                  if (result.success) {
+                    alert(t('payment_success'));
+                    window.location.reload();
+                  }
+                } catch (error) {
+                  // Payment likely was not completed
+                  console.log('Payment was cancelled or not completed');
+                }
+                return;
+              }
+
+              // Check popup URL for success/cancel indicators
+              try {
+                const currentUrl = paypalWindow?.location?.href;
+                if (currentUrl && currentUrl.includes('success')) {
+                  clearInterval(interval);
+                  paypalWindow?.close();
+                  
+                  // Capture the order
+                  const result = await payPalService.captureOrder(orderID);
+                  if (result.success) {
+                    alert(t('payment_success'));
+                    window.location.reload();
+                  } else {
+                    alert(t('payment_failed'));
+                  }
+                }
+              } catch (error) {
+                // Cross-origin restriction, continue polling
+              }
+            } catch (error) {
+              console.error('Error polling payment status:', error);
+            }
+          }, 1000);
+
+          // Clear interval after 10 minutes
+          setTimeout(() => {
+            clearInterval(interval);
+            if (paypalWindow && !paypalWindow.closed) {
+              paypalWindow.close();
+            }
+          }, 600000);
+        };
+
+        pollForCompletion();
+        
+      } else {
+        // Fallback: redirect to PayPal
+        const paypalPayUrl = `https://www.${process.env.NEXT_PUBLIC_PAYPAL_ENV === 'production' ? '' : 'sandbox.'}paypal.com/checkoutnow?token=${orderID}`;
+        window.location.href = paypalPayUrl;
+      }
+
+    } catch (error) {
+      console.error('PayPal payment error:', error);
+      alert(t('payment_failed'));
+    }
   };
 
   const handlePaymentMethodChange = (method: PaymentMethod) => {
@@ -216,98 +355,115 @@ export function StarCandyProductsPresenter({
       />
 
       <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6'>
-        {getSortedProducts().map((product, index) => (
-          <motion.div
-            key={product.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={`
-              relative bg-white rounded-xl shadow-lg overflow-hidden
-              ${product.web_is_featured ? 'ring-2 ring-primary' : ''}
-            `}
-          >
-            {product.web_is_featured && (
-              <div className='absolute top-0 right-0 bg-primary text-white px-3 py-1 text-sm font-medium rounded-bl-lg'>
-                {t('star_candy_featured')}
-              </div>
-            )}
+        {getSortedProducts().map((product, index) => {
+          // 추천 상품을 600개, 1000개 상품만으로 제한 (최대 2개)
+          const isFeatured = product.star_candy === 600 || product.star_candy === 1000;
+          const isProcessing = processingProductId === product.id;
 
-            <div className='p-6'>
-              <div className='text-center mb-4'>
-                <div className='inline-flex items-center justify-center w-20 h-20 mb-3'>
-                  <Image
-                    src={getProductImage(product.star_candy)}
-                    alt={`${product.star_candy} ${t('star_candy_unit')}`}
-                    width={80}
-                    height={80}
-                    className='object-contain'
-                    onError={(e) => {
-                      // Fallback to emoji if image not found
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent && !parent.querySelector('.fallback-emoji')) {
-                        const emoji = document.createElement('span');
-                        emoji.className = 'fallback-emoji text-4xl';
-                        emoji.textContent = '⭐';
-                        parent.appendChild(emoji);
-                      }
-                    }}
-                  />
+          return (
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className={`relative bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow ${
+                isFeatured ? 'ring-2 ring-primary' : ''
+              }`}
+            >
+              {isFeatured && (
+                <div className="absolute top-0 right-0 bg-primary text-white px-2 py-1 text-xs font-medium rounded-bl-lg">
+                  {t('star_candy_featured')}
+                </div>
+              )}
+
+              <div className='p-6'>
+                <div className='text-center mb-4'>
+                  <div className='inline-flex items-center justify-center w-20 h-20 mb-3'>
+                    <Image
+                      src={getProductImage(product.star_candy)}
+                      alt={`${product.star_candy || 0} 별사탕`}
+                      width={80}
+                      height={80}
+                      className='object-contain'
+                    />
+                  </div>
+
+                  <h3 className='text-xl font-bold mb-1'>
+                    {(product.star_candy || 0).toLocaleString()} {t('star_candy_unit')}
+                  </h3>
+
+                  {product.web_bonus_amount && product.web_bonus_amount > 0 ? (
+                    <p className='text-sm text-green-600 font-medium'>
+                      +{product.web_bonus_amount.toLocaleString()}{' '}
+                      {t('star_candy_bonus')}
+                    </p>
+                  ) : (
+                    <p className='text-sm text-gray-400 font-medium'>
+                      {t('star_candy_no_bonus')}
+                    </p>
+                  )}
                 </div>
 
-                <h3 className='text-xl font-bold mb-1'>
-                  {product.star_candy?.toLocaleString()} {t('star_candy_unit')}
-                </h3>
-
-                {product.web_bonus_amount && product.web_bonus_amount > 0 ? (
-                  <p className='text-sm text-green-600 font-medium'>
-                    +{product.web_bonus_amount.toLocaleString()}{' '}
-                    {t('star_candy_bonus')}
-                  </p>
-                ) : (
-                  <p className='text-sm text-gray-400 font-medium'>
-                    {t('star_candy_no_bonus')}
+                {product.web_description && (
+                  <p className='text-sm text-gray-600 mb-4 text-center min-h-[2rem] flex items-center justify-center'>
+                    {getSafeLocalizedString(product.web_description, currentLanguage)
+                      .replace(/\s*\+\s*Bonus\s*/gi, '') // "+ Bonus" 제거
+                      .replace(/\s*\+\s*보너스\s*/gi, '') // "+ 보너스" 제거  
+                      .replace(/\s*\+\s*/g, '') // 남은 "+" 기호들 제거
+                      .replace(/\s*Bonus\s*/gi, '') // "Bonus" 단어 제거
+                      .replace(/\s*보너스\s*/gi, '') // "보너스" 단어 제거
+                      .trim()}
                   </p>
                 )}
-              </div>
 
-              {product.web_description && (
-                <p className='text-sm text-gray-600 mb-4 text-center'>
-                  {getSafeLocalizedString(product.web_description, currentLanguage)}
-                </p>
-              )}
+                <div className='text-center mb-4'>
+                  <p className='text-2xl font-bold text-primary'>
+                    {formatPrice(getCurrentPrice(product), getCurrentCurrency())}
+                  </p>
+                </div>
 
-              <div className='text-center mb-4'>
-                <p className='text-2xl font-bold text-primary'>
-                  {formatPrice(getCurrentPrice(product), getCurrentCurrency())}
-                </p>
-              </div>
-
-              {showPayPalButton &&
-              selectedProduct?.id === product.id &&
-              selectedPaymentMethod === 'paypal' ? (
-                <PayPalPaymentButton
-                  product={product}
-                  onSuccess={handlePayPalSuccess}
-                  onError={handlePayPalError}
-                  onCancel={handlePayPalCancel}
-                />
-              ) : (
                 <button
                   onClick={() => handlePurchase(product)}
-                  className='w-full py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-colors'
-                  disabled={!user}
+                  disabled={!user || isProcessing}
+                  className={`
+                    w-full py-3 font-medium rounded-lg transition-colors
+                    ${!user
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : isProcessing
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-primary text-white hover:bg-primary/90'
+                    }
+                  `}
                 >
-                  {user
-                    ? t('star_candy_purchase')
-                    : t('star_candy_login_required')}
+                  {isProcessing ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                        <circle 
+                          className="opacity-25" 
+                          cx="12" 
+                          cy="12" 
+                          r="10" 
+                          stroke="currentColor" 
+                          strokeWidth="4"
+                        />
+                        <path 
+                          className="opacity-75" 
+                          fill="currentColor" 
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      {t('processing')}
+                    </span>
+                  ) : !user ? (
+                    t('star_candy_login_required')
+                  ) : (
+                    t('star_candy_purchase')
+                  )}
                 </button>
-              )}
-            </div>
-          </motion.div>
-        ))}
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       <div className='mt-8 bg-gray-50 rounded-lg p-6'>
@@ -327,7 +483,7 @@ export function StarCandyProductsPresenter({
               {t('terms_of_service')}
             </Link>
             {currentLanguage === 'ko' ? '을 참고바랍니다.' : 
-             currentLanguage === 'ja' ? 'をご確認ください。' :
+             currentLanguage === 'ja' ? 'をご확認ください。' :
              currentLanguage === 'zh' ? '。' :
              currentLanguage === 'id' ? '.' :
              ' for refund policy.'}
@@ -335,19 +491,6 @@ export function StarCandyProductsPresenter({
           <li>• {t('star_candy_notice_3')}</li>
         </ul>
       </div>
-
-      {/* Port One Payment Modal */}
-      {selectedProduct && (
-        <PortOnePaymentModal
-          isOpen={showPortOneModal}
-          onClose={() => {
-            setShowPortOneModal(false);
-            setSelectedProduct(null);
-          }}
-          product={selectedProduct}
-          onSuccess={handlePortOneSuccess}
-        />
-      )}
     </div>
   );
 } 

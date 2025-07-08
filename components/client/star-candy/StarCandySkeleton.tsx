@@ -45,7 +45,8 @@ export function StarCandySkeleton() {
               {/* Products Grid Skeleton - 실제 UI와 정확히 일치 */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {Array.from({ length: 10 }).map((_, index) => {
-            const isFeatured = index === 2; // 600개 상품 위치
+            // 600개(index 2), 1000개(index 3) 상품만 추천으로 표시
+            const isFeatured = index === 2 || index === 3;
             return (
               <div
                 key={index}
@@ -103,13 +104,10 @@ export function StarCandySkeleton() {
                     <div className="h-5 bg-gray-200 rounded w-24 mx-auto animate-pulse"></div>
                   </div>
 
-                  {/* 패키지 설명 - 조건부 표시 */}
-                  {index % 2 === 0 && (
-                    <div className="text-center mb-4">
-                      <div className="h-4 bg-gray-200 rounded w-full mb-1 animate-pulse"></div>
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto animate-pulse"></div>
-                    </div>
-                  )}
+                  {/* 패키지 설명 - 최소 높이 설정으로 카드 높이 통일 */}
+                  <div className="text-center mb-4 min-h-[2rem] flex items-center justify-center">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto animate-pulse"></div>
+                  </div>
 
                   {/* 가격 - text-2xl font-bold */}
                   <div className="text-center mb-4">
