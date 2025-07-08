@@ -54,31 +54,114 @@ const Header: React.FC = () => {
     };
   }, [userProfile, user]); // userProfile 우선
 
+  // 🔍 안정적인 인증 상태 확인 함수
+  const getStableAuthState = useCallback(() => {
+    // 초기화가 완료되지 않은 경우
+    if (!isInitialized) {
+      return {
+        showUserArea: false,
+        showHamburger: false,
+        showLoading: true,
+        reason: 'not_initialized'
+      };
+    }
+
+    // 로딩 중인 경우
+    if (isLoading) {
+      return {
+        showUserArea: false,
+        showHamburger: false,
+        showLoading: true,
+        reason: 'loading'
+      };
+    }
+
+    // 인증되지 않은 경우
+    if (!isAuthenticated || !user) {
+      return {
+        showUserArea: false,
+        showHamburger: true,
+        showLoading: false,
+        reason: 'not_authenticated'
+      };
+    }
+
+    // 인증되었지만 프로필 로딩 중인 경우 (JWT는 있지만 DB 프로필 대기)
+    if (isAuthenticated && user && userProfile === null) {
+      // JWT에 소셜 이미지가 있는 경우 DB 프로필 로딩을 기다림
+      const hasSocialImage = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+      if (hasSocialImage) {
+        return {
+          showUserArea: false,
+          showHamburger: false,
+          showLoading: true,
+          reason: 'profile_loading_with_social_image'
+        };
+      }
+      
+      // JWT에 소셜 이미지가 없으면 바로 사용자 영역 표시 (기본 아바타)
+      return {
+        showUserArea: true,
+        showHamburger: false,
+        showLoading: false,
+        reason: 'authenticated_no_social_image'
+      };
+    }
+
+    // 완전히 인증된 경우 (프로필 포함)
+    return {
+      showUserArea: true,
+      showHamburger: false,
+      showLoading: false,
+      reason: 'fully_authenticated'
+    };
+  }, [isAuthenticated, user, userProfile, isLoading, isInitialized]);
+
   // 🔍 프로필 이미지 로딩 상태 확인
   const isProfileImageLoading = useCallback(() => {
-    // 인증되지 않은 경우 로딩 아님
-    if (!isAuthenticated || !user) return false;
+    const authState = getStableAuthState();
     
-    // AuthProvider의 초기 로딩 중인 경우
-    if (isLoading) return true;
+    // 사용자 영역이 표시되지 않거나 로딩 중이면 이미지 로딩도 아님
+    if (!authState.showUserArea || authState.showLoading) {
+      return false;
+    }
     
-    // user는 있지만 userProfile이 아직 로드되지 않은 경우 (비동기 로딩 중)
-    if (user && userProfile === null) {
-      // JWT 토큰에 소셜 이미지가 있으면 DB 프로필 로딩을 기다림
+    // 사용자 영역이 표시되는 상태에서 프로필이 로딩 중인지 확인
+    if (isAuthenticated && user && userProfile === null) {
       const hasSocialImage = user.user_metadata?.avatar_url || user.user_metadata?.picture;
       return !!hasSocialImage; // 소셜 이미지가 있으면 DB 로딩을 기다림
     }
     
     return false;
-  }, [isAuthenticated, user, userProfile, isLoading]);
+  }, [isAuthenticated, user, userProfile, getStableAuthState]);
 
   // 사용자 정보 가져오기
   const userInfo = getUserInfo();
   const profileImageLoading = isProfileImageLoading();
+  const stableAuthState = getStableAuthState();
 
   // 디버깅 로그 (개발 환경에서만)
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [Header] 인증 상태 디버깅:', {
+        '📊 기본 상태': {
+          isAuthenticated,
+          isLoading,
+          isInitialized,
+          hasUser: !!user,
+          hasUserProfile: !!userProfile
+        },
+        '🎯 계산된 상태': {
+          stableAuthState,
+          profileImageLoading,
+          userInfo: {
+            source: userInfo.source,
+            hasAvatar: !!userInfo.avatar_url,
+            provider: userInfo.provider
+          }
+        }
+      });
+
       // 🚨 관리자 권한 상태 별도 로깅
       if (isAuthenticated && !isLoading) {
         const isAdminFromProfile = userProfile?.is_admin;
@@ -103,12 +186,6 @@ const Header: React.FC = () => {
                                   (Date.now() - (window as any).authStartTime || 0) > 2000;
 
         console.log('🚨 [Header] 관리자 권한 상태:', {
-          '📊 기본 정보': {
-            isAuthenticated,
-            isLoading,
-            hasUserProfile: !!userProfile,
-            hasUser: !!user
-          },
           '🔑 권한 정보': {
             profile_isAdmin: isAdminFromProfile,
             profile_isSuperAdmin: isSuperAdminFromProfile,
@@ -124,7 +201,7 @@ const Header: React.FC = () => {
         });
       }
     }
-  }, [isAuthenticated, isLoading, userProfile, user]);
+  }, [isAuthenticated, isLoading, userProfile, user, stableAuthState, profileImageLoading]);
 
   return (
     <header className='border-b border-gray-200 bg-white relative'>
@@ -239,7 +316,12 @@ const Header: React.FC = () => {
 
             {/* 프로필/로그인 버튼 */}
             <div className='flex-shrink-0'>
-              {isAuthenticated ? (
+              {stableAuthState.showLoading ? (
+                // 로딩 중일 때 shimmer 효과
+                <div className="w-8 h-8 rounded-lg shimmer-effect">
+                </div>
+              ) : stableAuthState.showUserArea ? (
+                // 인증된 사용자 영역
                 <Link href='/mypage' className='block'>
                   {profileImageLoading ? (
                     // DB 프로필 로딩 중일 때 shimmer 효과
@@ -256,13 +338,14 @@ const Header: React.FC = () => {
                     <DefaultAvatar width={32} height={32} />
                   )}
                 </Link>
-              ) : (
+              ) : stableAuthState.showHamburger ? (
+                // 미인증 사용자 햄버거 메뉴
                 <Link href='/mypage' className='block'>
                   <div className='p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200'>
                     <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
                   </div>
                 </Link>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
