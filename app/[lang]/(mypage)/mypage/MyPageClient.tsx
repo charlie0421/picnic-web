@@ -317,7 +317,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             </div>
             <div className='flex items-center p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg'>
               <div className='w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-lg flex items-center justify-center mr-4'>
-                <span className='text-white text-xl'>⭐</span>
+                <span className='text-white text-xl'>🌟</span>
               </div>
               <p className='text-gray-700'>{t('label_mypage_guest_benefit_2')}</p>
             </div>
@@ -468,23 +468,18 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
 
             {/* 스타 캔디 정보 */}
             {!isLoadingProfile && apiUserProfile && (
-              <div className='flex flex-wrap gap-3 justify-center md:justify-start text-sm'>
-                <div className='inline-flex items-center gap-1 text-yellow-600'>
-                  <span>⭐</span>
-                  <span className='font-medium'>{userInfo.star_candy.toLocaleString()}</span>
-                  <span className='text-gray-500 ml-1'>{t('label_mypage_star_candy')}</span>
-                </div>
-                {userInfo.star_candy_bonus > 0 && (
-                  <div className='inline-flex items-center gap-1 text-orange-600'>
-                    <span>🎁</span>
-                    <span className='font-medium'>{userInfo.star_candy_bonus.toLocaleString()}</span>
-                    <span className='text-gray-500 ml-1'>{t('label_mypage_star_candy_bonus')}</span>
+              <div className='bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4 mt-4'>
+                <div className='text-center'>
+                  <div className='text-purple-600 font-semibold text-xl mb-2'>
+                    {t('label_mypage_star_candy_total')}: {userInfo.total_candy.toLocaleString()}
                   </div>
-                )}
-                <div className='inline-flex items-center gap-1 text-purple-600 font-semibold'>
-                  <span>💎</span>
-                  <span>{userInfo.total_candy.toLocaleString()}</span>
-                  <span className='text-gray-500 ml-1'>{t('label_mypage_star_candy_total')}</span>
+                  <div className='text-base text-gray-600 flex items-center justify-center gap-1'>
+                    <img src="/images/star-candy/star_100.png" alt="별사탕" className="w-8 h-8" />
+                    <span>{userInfo.star_candy.toLocaleString()}</span>
+                    {userInfo.star_candy_bonus > 0 && (
+                      <span> + 🎁 {userInfo.star_candy_bonus.toLocaleString()}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -517,6 +512,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                       <div>
                         <h3 className='font-semibold text-gray-900 group-hover:text-purple-600 transition-colors'>
                           {t('label_mypage_edit_profile')}
+                          <span className='ml-2 px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded-full'>
+                            {t('label_debug')}
+                          </span>
                         </h3>
                         <p className='text-sm text-gray-500'>{t('label_mypage_edit_profile_desc')}</p>
                       </div>
