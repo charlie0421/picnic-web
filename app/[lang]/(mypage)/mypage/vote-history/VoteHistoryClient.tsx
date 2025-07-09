@@ -53,6 +53,10 @@ interface VoteHistoryResponse {
     totalPages: number;
     hasNext: boolean;
   };
+  statistics: {
+    totalStarCandyUsed: number;
+    totalSupportedArtists: number;
+  };
 }
 
 interface Translations {
@@ -91,7 +95,6 @@ interface Translations {
   label_vote_for_favorite_artist: string;
   label_go_to_vote: string;
   label_all_vote_history_checked: string;
-  label_current_page_basis: string;
 }
 
 interface VoteHistoryClientProps {
@@ -107,6 +110,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [statistics, setStatistics] = useState({ totalStarCandyUsed: 0, totalSupportedArtists: 0 });
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -280,6 +284,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
         });
         setTotalCount(data.pagination.totalCount);
         setHasMore(data.pagination.hasNext);
+        setStatistics(data.statistics);
         
         // 페이지 번호 업데이트
         if (!reset) {
@@ -476,10 +481,9 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                     </div>
                     <div>
                       <p className="text-secondary-800 font-bold text-lg">
-                        {voteHistory.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
+                        {statistics.totalStarCandyUsed.toLocaleString()}
                       </p>
                       <p className="text-secondary-600 text-xs font-medium">{t('label_total_star_candy_used')}</p>
-                      <p className="text-secondary-500 text-xs">{t('label_current_page_basis')}</p>
                     </div>
                   </div>
                 </div>
@@ -491,10 +495,9 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                     </div>
                     <div>
                       <p className="text-point-800 font-bold text-lg">
-                        {new Set(voteHistory.map(item => item.voteItem?.artist?.id)).size}
+                        {statistics.totalSupportedArtists}
                       </p>
                       <p className="text-point-600 text-xs font-medium">{t('label_supported_artists')}</p>
-                      <p className="text-point-500 text-xs">{t('label_current_page_basis')}</p>
                     </div>
                   </div>
                 </div>

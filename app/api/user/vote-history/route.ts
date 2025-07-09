@@ -65,6 +65,35 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
       .is('deleted_at', null);
 
+    // 전체 통계 조회
+    // 1. 총 사용한 스타캔디 계산
+    const { data: totalStarCandyData } = await supabase
+      .from('vote_pick')
+      .select('amount')
+      .eq('user_id', user.id)
+      .is('deleted_at', null);
+    
+    const totalStarCandyUsed = totalStarCandyData?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0;
+
+    // 2. 응원한 고유 아티스트 수 계산
+    const { data: uniqueArtistsData } = await supabase
+      .from('vote_pick')
+      .select(`
+        vote_item:vote_item_id (
+          artist_id
+        )
+      `)
+      .eq('user_id', user.id)
+      .is('deleted_at', null);
+
+    const uniqueArtistIds = new Set();
+    uniqueArtistsData?.forEach(item => {
+      if (item.vote_item?.artist_id) {
+        uniqueArtistIds.add(item.vote_item.artist_id);
+      }
+    });
+    const totalSupportedArtists = uniqueArtistIds.size;
+
     // 안전한 다국어 텍스트 처리 함수
     const safeMultiLangText = (text: any) => {
       if (!text) return '';
@@ -140,6 +169,10 @@ export async function GET(request: NextRequest) {
         totalCount: totalCount || 0,
         totalPages: Math.ceil((totalCount || 0) / limit),
         hasNext: offset + limit < (totalCount || 0)
+      },
+      statistics: {
+        totalStarCandyUsed,
+        totalSupportedArtists
       }
     });
 
