@@ -375,34 +375,15 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
           </div>
         </div>
 
-        {/* 버전 정보 카드 */}
-        <div className='bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-1'>
-          <div className='bg-white rounded-2xl p-6'>
-            <div className='flex items-center mb-6'>
-              <div className='w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4'>
-                <span className='text-2xl'>🏷️</span>
-              </div>
-              <h2 className='text-xl font-bold text-gray-900'>
-                버전 정보
-              </h2>
-            </div>
-            
-            <div className='space-y-4'>
-              <div className='bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4'>
-                <div className='flex justify-center'>
-                  <div>
-                    <div className='text-sm text-gray-600 mb-1 text-center'>빌드 버전</div>
-                    <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
-                      {process.env.NEXT_PUBLIC_BUILD_VERSION 
-                        ? process.env.NEXT_PUBLIC_BUILD_VERSION.split('.').slice(0, 2).join('.')
-                        : 'dev'
-                      }
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        
+        {/* 페이지 하단 버전 정보 */}
+        <div className='mt-8 pt-4 border-t border-gray-200 text-center'>
+          <p className='text-xs text-gray-400'>
+            v{process.env.NEXT_PUBLIC_BUILD_VERSION 
+              ? process.env.NEXT_PUBLIC_BUILD_VERSION.split('.').slice(0, 2).join('.')
+              : 'dev'
+            }
+          </p>
         </div>
       </div>
     );
@@ -701,35 +682,16 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
           </div>
         </div>
 
-        {/* 버전 정보 카드 */}
-        <div className='bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-1'>
-          <div className='bg-white rounded-2xl p-6'>
-            <div className='flex items-center mb-6'>
-              <div className='w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4'>
-                <span className='text-2xl'>🏷️</span>
-              </div>
-              <h2 className='text-xl font-bold text-gray-900'>
-                버전 정보
-              </h2>
-            </div>
-            
-            <div className='space-y-4'>
-              <div className='bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4'>
-                <div className='flex justify-center'>
-                  <div>
-                    <div className='text-sm text-gray-600 mb-1 text-center'>빌드 버전</div>
-                    <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
-                      {process.env.NEXT_PUBLIC_BUILD_VERSION 
-                        ? process.env.NEXT_PUBLIC_BUILD_VERSION.split('.').slice(0, 2).join('.')
-                        : 'dev'
-                      }
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      </div>
+      
+      {/* 페이지 하단 버전 정보 */}
+      <div className='mt-8 pt-4 border-t border-gray-200 text-center'>
+        <p className='text-xs text-gray-400'>
+          v{process.env.NEXT_PUBLIC_BUILD_VERSION 
+            ? process.env.NEXT_PUBLIC_BUILD_VERSION.split('.').slice(0, 2).join('.')
+            : 'dev'
+          }
+        </p>
       </div>
     </div>
   );
