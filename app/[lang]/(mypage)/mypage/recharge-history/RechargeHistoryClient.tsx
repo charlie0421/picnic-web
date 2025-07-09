@@ -5,20 +5,20 @@ import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-interface PostItem {
+interface RechargeItem {
   id: string;
-  title: string;
-  content: string;
+  amount: number;
+  starCandyAmount: number;
+  bonusAmount: number;
+  paymentMethod: string;
+  transactionId: string;
+  status: string;
   createdAt: string;
-  viewCount: number;
-  commentCount: number;
-  boardName: string;
-  isAnonymous: boolean;
 }
 
-interface PostsResponse {
+interface RechargeResponse {
   success: boolean;
-  data: PostItem[];
+  data: RechargeItem[];
   pagination: {
     page: number;
     limit: number;
@@ -29,42 +29,38 @@ interface PostsResponse {
 }
 
 interface Translations {
-  page_title_my_posts: string;
+  page_title_my_recharge_history: string;
   label_loading: string;
-  label_no_posts: string;
+  label_no_recharge_history: string;
   label_load_more: string;
-  label_post_title: string;
-  label_post_content: string;
-  label_post_date: string;
+  label_recharge_amount: string;
+  label_recharge_date: string;
+  label_recharge_method: string;
+  label_star_candy_amount: string;
   label_error_occurred: string;
   label_retry: string;
   label_back_to_mypage: string;
   label_please_try_again: string;
-  label_loading_posts: string;
-  label_all_posts_checked: string;
-  label_total_posts_count: string;
-  label_scroll_for_more: string;
-  label_no_posts_description: string;
-  views: string;
-  label_title_comment: string;
-  comments: string;
-  label_anonymous: string;
-  error_posts_fetch_failed: string;
-  error_unknown: string;
+  label_loading_recharge_history: string;
+  label_all_recharge_history_checked: string;
+  text_star_candy: string;
+  label_total_recharge_amount: string;
+  label_total_recharge_count: string;
 }
 
-interface PostsClientProps {
+interface RechargeHistoryClientProps {
   initialUser: User;
   translations: Translations;
 }
 
-export default function PostsClient({ initialUser, translations }: PostsClientProps) {
-  const [posts, setPosts] = useState<PostItem[]>([]);
+export default function RechargeHistoryClient({ initialUser, translations }: RechargeHistoryClientProps) {
+  const [recharges, setRecharges] = useState<RechargeItem[]>([]);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -90,7 +86,7 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
     }
   }, [pathname]);
 
-  const fetchPosts = useCallback(async (pageNum: number, reset: boolean = false) => {
+  const fetchRechargeHistory = useCallback(async (pageNum: number, reset: boolean = false) => {
     // 이전 요청 취소
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -107,29 +103,35 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
     setError(null);
 
     try {
-      const response = await fetch(`/api/user/posts?page=${pageNum}&limit=10`, {
+      const response = await fetch(`/api/user/recharge-history?page=${pageNum}&limit=10`, {
         signal: abortControllerRef.current.signal
       });
       
       if (!response.ok) {
-        throw new Error(t('error_posts_fetch_failed'));
+        throw new Error('충전 내역 조회에 실패했습니다.');
       }
 
-      const data: PostsResponse = await response.json();
+      const data: RechargeResponse = await response.json();
 
       if (data.success) {
-        setPosts(prev => {
+        setRecharges(prev => {
           return reset ? data.data : [...prev, ...data.data];
         });
         setTotalCount(data.pagination.totalCount);
         setHasMore(data.pagination.hasNext);
+        
+        // 총 충전 금액 계산
+        if (reset) {
+          const total = data.data.reduce((sum, item) => sum + item.amount, 0);
+          setTotalAmount(total);
+        }
         
         // 페이지 번호 업데이트
         if (!reset) {
           setPage(pageNum);
         }
       } else {
-        throw new Error(t('error_posts_fetch_failed'));
+        throw new Error('충전 내역 조회에 실패했습니다.');
       }
     } catch (err) {
       // AbortError는 무시
@@ -137,8 +139,8 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
         return;
       }
       
-      console.error('포스트 내역 조회 에러:', err);
-      setError(err instanceof Error ? err.message : t('error_unknown'));
+      console.error('충전 내역 조회 에러:', err);
+      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
@@ -147,7 +149,7 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
 
   // 초기 데이터 로드
   useEffect(() => {
-    fetchPosts(1, true);
+    fetchRechargeHistory(1, true);
   }, []);
 
   // 무한 스크롤 처리
@@ -167,7 +169,7 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoading && !isLoadingMore) {
           const nextPage = page + 1;
-          fetchPosts(nextPage, false);
+          fetchRechargeHistory(nextPage, false);
         }
       },
       { threshold: 0.1, rootMargin: '100px' }
@@ -180,7 +182,7 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
         observerRef.current.disconnect();
       }
     };
-  }, [hasMore, isLoading, isLoadingMore, page, fetchPosts]);
+  }, [hasMore, isLoading, isLoadingMore, page, fetchRechargeHistory]);
 
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {
@@ -240,17 +242,50 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
     return `${formattedDate} KST`;
   };
 
-  const retry = () => {
-    setError(null);
-    setPosts([]);
-    setPage(1);
-    setHasMore(true);
-    fetchPosts(1, true);
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: 'KRW'
+    }).format(amount);
   };
 
-  const truncateContent = (content: string, maxLength: number = 100) => {
-    if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + '...';
+  const retry = () => {
+    setError(null);
+    setRecharges([]);
+    setPage(1);
+    setHasMore(true);
+    fetchRechargeHistory(1, true);
+  };
+
+  const getPaymentMethodIcon = (method: string) => {
+    switch (method.toLowerCase()) {
+      case 'paypal':
+        return '💳';
+      case 'card':
+      case 'credit_card':
+        return '💳';
+      case 'bank_transfer':
+        return '🏦';
+      case 'mobile':
+        return '📱';
+      default:
+        return '💰';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'success':
+        return 'text-green-600 bg-green-100';
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'failed':
+      case 'cancelled':
+        return 'text-red-600 bg-red-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
   };
 
   return (
@@ -267,15 +302,24 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center shadow-lg">
-                    <span className="text-3xl">📝</span>
+                    <span className="text-3xl">💳</span>
                   </div>
                   <div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-                      {t('page_title_my_posts')}
+                      {t('page_title_my_recharge_history')}
                     </h1>
-                    <p className="text-gray-600 mt-1">
-                      {totalCount > 0 ? `${totalCount.toLocaleString()} ${t('label_total_posts_count')}` : ''}
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      {totalCount > 0 && (
+                        <p className="text-gray-600">
+                          {t('label_total_recharge_count')}: {totalCount.toLocaleString()}회
+                        </p>
+                      )}
+                      {totalAmount > 0 && (
+                        <p className="text-gray-600">
+                          {t('label_total_recharge_amount')}: {formatCurrency(totalAmount)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -316,41 +360,61 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
           <div className="flex items-center justify-center py-12">
             <div className="flex items-center space-x-3">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-              <span className="text-gray-600">{t('label_loading_posts')}</span>
+              <span className="text-gray-600">{t('label_loading_recharge_history')}</span>
             </div>
           </div>
         )}
 
-        {/* 포스트 목록 */}
-        {!isLoading && posts.length > 0 && (
+        {/* 충전 내역 목록 */}
+        {!isLoading && recharges.length > 0 && (
           <div className="space-y-4 mb-8">
-            {posts.map((post) => (
+            {recharges.map((recharge) => (
               <div
-                key={post.id}
+                key={recharge.id}
                 className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/30 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                      {post.title}
-                    </h3>
-                    <p className="text-gray-600 mb-3 line-clamp-3">
-                      {truncateContent(post.content)}
-                    </p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                      <span>{post.boardName}</span>
-                      <span>•</span>
-                      <span>{formatDate(post.createdAt)}</span>
-                      <span>•</span>
-                      <span>{t('views')}: {post.viewCount.toLocaleString()}</span>
-                      <span>•</span>
-                      <span>{t('comments')}: {post.commentCount.toLocaleString()}</span>
-                      {post.isAnonymous && (
-                        <>
-                          <span>•</span>
-                          <span className="text-orange-600">{t('label_anonymous')}</span>
-                        </>
-                      )}
+                    <div className="flex items-center space-x-3 mb-3">
+                      <span className="text-2xl">{getPaymentMethodIcon(recharge.paymentMethod)}</span>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {formatCurrency(recharge.amount)}
+                        </h3>
+                        <p className="text-sm text-gray-500">{recharge.paymentMethod}</p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(recharge.status)}`}>
+                        {recharge.status}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                      <div>
+                        <p className="text-sm text-gray-500">{t('label_star_candy_amount')}</p>
+                        <p className="font-medium text-gray-900 flex items-center space-x-1">
+                          <img 
+                            src="/images/star-candy/star_100.png" 
+                            alt="별사탕" 
+                            className="w-4 h-4" 
+                          />
+                          <span>{recharge.starCandyAmount.toLocaleString()}</span>
+                          {recharge.bonusAmount > 0 && (
+                            <span className="text-sm text-orange-600">
+                              (+{recharge.bonusAmount.toLocaleString()})
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm text-gray-500">{t('label_recharge_date')}</p>
+                        <p className="font-medium text-gray-900">{formatDate(recharge.createdAt)}</p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm text-gray-500">거래 ID</p>
+                        <p className="font-medium text-gray-900 text-xs">{recharge.transactionId}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -360,22 +424,29 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
         )}
 
         {/* 빈 상태 */}
-        {!isLoading && posts.length === 0 && !error && (
+        {!isLoading && recharges.length === 0 && !error && (
           <div className="text-center py-12">
             <div className="w-24 h-24 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-4xl">📝</span>
+              <span className="text-4xl">💳</span>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {t('label_no_posts')}
+              {t('label_no_recharge_history')}
             </h3>
             <p className="text-gray-600 mb-6">
-              {t('label_no_posts_description')}
+              별사탕 충전 내역이 없습니다.
             </p>
+            <Link 
+              href="/star-candy-recharge"
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-xl hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+            >
+              <span>별사탕 충전하기</span>
+              <span className="text-lg">⭐</span>
+            </Link>
           </div>
         )}
 
         {/* 더 로드하기 버튼 및 무한 스크롤 */}
-        {posts.length > 0 && hasMore && (
+        {recharges.length > 0 && hasMore && (
           <div ref={sentinelRef} className="flex justify-center py-8">
             {isLoadingMore ? (
               <div className="flex items-center space-x-3">
@@ -383,15 +454,15 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
                 <span className="text-gray-600">{t('label_loading')}</span>
               </div>
             ) : (
-              <div className="text-gray-500 text-sm">{t('label_scroll_for_more')}</div>
+              <div className="text-gray-500 text-sm">스크롤하여 더 보기 👇</div>
             )}
           </div>
         )}
 
         {/* 모든 데이터 로드 완료 */}
-        {posts.length > 0 && !hasMore && !isLoadingMore && (
+        {recharges.length > 0 && !hasMore && !isLoadingMore && (
           <div className="text-center py-8">
-            <div className="text-gray-500 text-sm">{t('label_all_posts_checked')}</div>
+            <div className="text-gray-500 text-sm">{t('label_all_recharge_history_checked')}</div>
           </div>
         )}
       </div>

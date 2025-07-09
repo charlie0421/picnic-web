@@ -283,7 +283,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                 name: typeof item.voteItem.artist.name === 'object'
                   ? item.voteItem.artist.name
                   : (item.voteItem.artist.name || '알 수 없음'),
-                artistGroup: item.voteItem.artist.artistGroup ? {
+                artistGroup: item.voteItem.artist.artistGroup && hasValidLocalizedString(item.voteItem.artist.artistGroup.name) ? {
                   ...item.voteItem.artist.artistGroup,
                   name: typeof item.voteItem.artist.artistGroup.name === 'object'
                     ? item.voteItem.artist.artistGroup.name
@@ -329,7 +329,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
 
   // 무한 스크롤 처리 (개선된 버전)
   useEffect(() => {
-    if (!sentinelRef.current || !hasMore || isLoading || isLoadingMore) {
+    if (!sentinelRef.current || !hasMore || isLoadingMore) {
       return;
     }
 
@@ -342,7 +342,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
     
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading && !isLoadingMore) {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
           const nextPage = page + 1;
           fetchVoteHistory(nextPage, false);
         }
@@ -357,7 +357,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
         observerRef.current.disconnect();
       }
     };
-  }, [hasMore, isLoading, isLoadingMore, page, fetchVoteHistory]);
+  }, [hasMore, isLoadingMore, page, fetchVoteHistory]);
 
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {
@@ -796,7 +796,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
         {/* 무한 스크롤 트리거 - 테마 색상 개선 */}
         {hasMore && (
           <div ref={sentinelRef} className="mt-16 text-center py-12">
-            {(isLoading || isLoadingMore) ? (
+            {isLoadingMore ? (
               <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-10 shadow-xl border border-white/30 max-w-sm mx-auto">
                 <div className="absolute inset-0 bg-gradient-to-r from-primary-50/50 via-secondary-50/50 to-point-50/50 rounded-3xl animate-pulse"></div>
                 <div className="relative z-10">
