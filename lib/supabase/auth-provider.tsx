@@ -489,8 +489,6 @@ class AuthStore {
 
       // 인증 상태 변경 리스너 등록 (쿠키 기반 모드)
       this.supabaseClient.auth.onAuthStateChange(async (event: string, session: any) => {
-        console.log('🔄 [AuthStore] 인증 상태 변경 (완전 쿠키 기반):', { event, hasSession: !!session });
-        
         // 로그아웃 이벤트만 처리 (다른 이벤트는 쿠키 기반으로 이미 처리됨)
         if (event === 'SIGNED_OUT' || !session) {
           console.log('🚪 [AuthStore] 로그아웃 이벤트 - 상태 정리');
@@ -504,10 +502,9 @@ class AuthStore {
             signOut: this.signOut.bind(this),
             loadUserProfile: this.loadUserProfile.bind(this),
           });
-        } else {
-          // 다른 이벤트는 이미 쿠키 기반으로 처리되므로 무시
-          console.log('ℹ️ [AuthStore] 인증 이벤트 무시 (쿠키 기반으로 이미 처리됨):', event);
         }
+        // 다른 이벤트(SIGNED_IN, TOKEN_REFRESHED 등)는 조용히 무시
+        // 쿠키 기반으로 이미 처리되므로 추가 로그 없이 무시
       });
 
     } catch (error) {
