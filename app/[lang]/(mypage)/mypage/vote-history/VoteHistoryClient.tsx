@@ -454,7 +454,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                 </Link>
               </div>
               
-              {/* 통계 정보 - 개선된 디자인 */}
+              {/* 통계 정보 - 추후 별도 API로 구현 예정 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-4 border border-primary-200/50">
                   <div className="flex items-center space-x-3">
@@ -474,10 +474,11 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       <span className="text-white text-sm">⭐</span>
                     </div>
                     <div>
-                      <p className="text-secondary-800 font-bold text-lg">
-                        {voteHistory.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
-                      </p>
-                      <p className="text-secondary-600 text-xs font-medium">{t('label_total_star_candy_used')}</p>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-gradient-to-r from-secondary to-secondary-600 rounded-full animate-pulse"></div>
+                        <p className="text-secondary-600 text-sm font-medium">{t('label_total_star_candy_used')}</p>
+                      </div>
+                      <p className="text-secondary-700 text-xs mt-1">별도 집계 예정</p>
                     </div>
                   </div>
                 </div>
@@ -488,10 +489,11 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       <span className="text-white text-sm">🎯</span>
                     </div>
                     <div>
-                      <p className="text-point-800 font-bold text-lg">
-                        {new Set(voteHistory.map(item => item.voteItem?.artist?.id)).size}
-                      </p>
-                      <p className="text-point-600 text-xs font-medium">{t('label_supported_artists')}</p>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-gradient-to-r from-point to-point-600 rounded-full animate-pulse"></div>
+                        <p className="text-point-600 text-sm font-medium">{t('label_supported_artists')}</p>
+                      </div>
+                      <p className="text-point-700 text-xs mt-1">별도 집계 예정</p>
                     </div>
                   </div>
                 </div>
@@ -675,7 +677,9 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="font-semibold text-gray-900 text-lg">{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
-                          {item.voteItem?.artist?.artistGroup && (
+                          {item.voteItem?.artist?.artistGroup && 
+                           getLocalizedText(item.voteItem?.artist?.artistGroup?.name) && 
+                           getLocalizedText(item.voteItem?.artist?.artistGroup?.name).trim() !== '' && (
                             <>
                               <span className="text-primary-400 font-bold">{t('label_group_separator')}</span>
                               <span className="text-primary-700 font-medium">{getLocalizedText(item.voteItem?.artist?.artistGroup?.name)}</span>
@@ -698,10 +702,8 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                             <img 
                               src="/images/star-candy/star_100.png" 
                               alt={t('label_star_candy')} 
-                              className="w-7 h-7 animate-spin shadow-lg" 
-                              style={{ animationDuration: '3s' }}
+                              className="w-7 h-7 shadow-lg" 
                             />
-                            <div className="absolute inset-0 bg-gradient-to-r from-sub to-secondary rounded-full opacity-30 animate-pulse"></div>
                           </div>
                           <span className="text-2xl font-bold bg-gradient-to-r from-sub to-secondary bg-clip-text text-transparent">
                             {item.amount.toLocaleString()}
