@@ -81,6 +81,16 @@ interface Translations {
   label_artist: string;
   label_scroll_for_more: string;
   label_all_votes_checked: string;
+  // 새로 추가되는 번역 키들
+  label_total_votes_count: string;
+  label_total_star_candy_used: string;
+  label_supported_artists: string;
+  label_please_try_again: string;
+  label_loading_vote_history: string;
+  label_no_vote_history_yet: string;
+  label_vote_for_favorite_artist: string;
+  label_go_to_vote: string;
+  label_all_vote_history_checked: string;
 }
 
 interface VoteHistoryClientProps {
@@ -453,7 +463,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                     </div>
                     <div>
                       <p className="text-primary-800 font-bold text-lg">{totalCount.toLocaleString()}</p>
-                      <p className="text-primary-600 text-xs font-medium">총 투표수</p>
+                      <p className="text-primary-600 text-xs font-medium">{t('label_total_votes_count')}</p>
                     </div>
                   </div>
                 </div>
@@ -467,7 +477,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       <p className="text-secondary-800 font-bold text-lg">
                         {voteHistory.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
                       </p>
-                      <p className="text-secondary-600 text-xs font-medium">총 사용한 스타캔디</p>
+                      <p className="text-secondary-600 text-xs font-medium">{t('label_total_star_candy_used')}</p>
                     </div>
                   </div>
                 </div>
@@ -481,7 +491,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       <p className="text-point-800 font-bold text-lg">
                         {new Set(voteHistory.map(item => item.voteItem?.artist?.id)).size}
                       </p>
-                      <p className="text-point-600 text-xs font-medium">응원한 아티스트</p>
+                      <p className="text-point-600 text-xs font-medium">{t('label_supported_artists')}</p>
                     </div>
                   </div>
                 </div>
@@ -501,7 +511,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                   </div>
                   <div>
                     <p className="text-red-800 font-semibold text-lg">{error}</p>
-                    <p className="text-red-600 text-sm">다시 시도해주세요</p>
+                    <p className="text-red-600 text-sm">{t('label_please_try_again')}</p>
                   </div>
                 </div>
                 <button
@@ -546,7 +556,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                   <div className="w-3 h-3 bg-gradient-to-r from-point to-point-600 rounded-full animate-bounce" style={{ animationDelay: '450ms' }}></div>
                 </div>
                 
-                <p className="text-gray-600 font-medium">투표 내역을 불러오는 중...</p>
+                <p className="text-gray-600 font-medium">{t('label_loading_vote_history')}</p>
               </div>
             </div>
           </div>
@@ -573,15 +583,15 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                 </h3>
                 
                 <p className="text-gray-600 mb-8 text-lg leading-relaxed">
-                  아직 투표 참여 내역이 없습니다.<br />
-                  좋아하는 아티스트에게 투표해보세요!
+                  {t('label_no_vote_history_yet')}<br />
+                  {t('label_vote_for_favorite_artist')}
                 </p>
                 
                 <Link 
                   href="/vote"
                   className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-primary to-primary-600 text-white rounded-2xl hover:from-primary-600 hover:to-primary-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-semibold"
                 >
-                  <span>투표하러 가기</span>
+                  <span>{t('label_go_to_vote')}</span>
                   <span className="text-lg">🚀</span>
                 </Link>
               </div>
@@ -786,7 +796,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-secondary via-sub to-primary bg-clip-text text-transparent mb-4">
                   {t('label_all_votes_checked')}
                 </h3>
-                <p className="text-gray-600 text-lg">모든 투표 내역을 확인했습니다!</p>
+                <p className="text-gray-600 text-lg">{t('label_all_vote_history_checked')}</p>
               </div>
             </div>
           </div>
