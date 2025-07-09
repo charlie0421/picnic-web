@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient, getServerUser } from '@/lib/supabase/server';
+import { getServerUser } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,11 +12,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 임시 구현 - 빈 데이터 반환
+    // 2. 쿼리 파라미터 파싱
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
 
+    // 임시 구현 - 빈 데이터 반환
     return NextResponse.json({
       success: true,
       data: [],
