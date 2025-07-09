@@ -389,26 +389,13 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             
             <div className='space-y-4'>
               <div className='bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4'>
-                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <div className='flex justify-center'>
                   <div>
-                    <div className='text-sm text-gray-600 mb-1'>빌드 버전</div>
+                    <div className='text-sm text-gray-600 mb-1 text-center'>빌드 버전</div>
                     <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
-                      {process.env.NEXT_PUBLIC_BUILD_VERSION || 'dev'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className='text-sm text-gray-600 mb-1'>빌드 시간</div>
-                    <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
-                      {process.env.NEXT_PUBLIC_BUILD_TIME 
-                        ? new Date(process.env.NEXT_PUBLIC_BUILD_TIME).toLocaleString('ko-KR', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            timeZone: 'Asia/Seoul'
-                          }) + ' KST'
-                        : '개발 모드'
+                      {process.env.NEXT_PUBLIC_BUILD_VERSION 
+                        ? process.env.NEXT_PUBLIC_BUILD_VERSION.split('.').slice(0, 2).join('.')
+                        : 'dev'
                       }
                     </div>
                   </div>
@@ -728,26 +715,13 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             
             <div className='space-y-4'>
               <div className='bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4'>
-                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <div className='flex justify-center'>
                   <div>
-                    <div className='text-sm text-gray-600 mb-1'>빌드 버전</div>
+                    <div className='text-sm text-gray-600 mb-1 text-center'>빌드 버전</div>
                     <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
-                      {process.env.NEXT_PUBLIC_BUILD_VERSION || 'dev'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className='text-sm text-gray-600 mb-1'>빌드 시간</div>
-                    <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
-                      {process.env.NEXT_PUBLIC_BUILD_TIME 
-                        ? new Date(process.env.NEXT_PUBLIC_BUILD_TIME).toLocaleString('ko-KR', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            timeZone: 'Asia/Seoul'
-                          }) + ' KST'
-                        : '개발 모드'
+                      {process.env.NEXT_PUBLIC_BUILD_VERSION 
+                        ? process.env.NEXT_PUBLIC_BUILD_VERSION.split('.').slice(0, 2).join('.')
+                        : 'dev'
                       }
                     </div>
                   </div>
