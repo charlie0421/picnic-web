@@ -46,6 +46,7 @@ export function getLastLoginInfo(): LastLoginInfo | null {
 
 /**
  * 최근 로그인 정보를 로컬 스토리지에 저장
+ * 중복 저장 방지: 동일한 정보가 이미 저장되어 있으면 저장하지 않음
  */
 export function setLastLoginInfo(loginInfo: LastLoginInfo): boolean {
   if (typeof window === 'undefined') {
@@ -53,6 +54,23 @@ export function setLastLoginInfo(loginInfo: LastLoginInfo): boolean {
   }
 
   try {
+    // 기존 저장된 정보 확인
+    const existingInfo = getLastLoginInfo();
+    
+    // 동일한 정보가 이미 저장되어 있는지 확인
+    if (existingInfo && 
+        existingInfo.provider === loginInfo.provider &&
+        existingInfo.userId === loginInfo.userId &&
+        existingInfo.providerDisplay === loginInfo.providerDisplay) {
+      
+      // 시간 차이가 1분 미만이면 중복 저장으로 간주하고 건너뜀
+      const timeDiff = Math.abs(new Date(loginInfo.timestamp).getTime() - new Date(existingInfo.timestamp).getTime());
+      if (timeDiff < 60000) { // 1분 = 60000ms
+        console.log('🔄 [Storage] 동일한 로그인 정보가 최근에 저장됨 - 중복 저장 건너뜀');
+        return true;
+      }
+    }
+    
     localStorage.setItem(STORAGE_KEYS.LAST_LOGIN, JSON.stringify(loginInfo));
     console.log('💾 [Storage] 최근 로그인 정보 저장 완료:', loginInfo);
     return true;

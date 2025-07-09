@@ -5,24 +5,12 @@ const LAST_LOGIN_PROVIDER_KEY = 'picnic_last_login_provider'; // 레거시 키 (
 
 /**
  * 최근 사용한 로그인 수단을 새로운 storage 시스템에 저장합니다.
- * @deprecated 이 함수는 auth-provider의 updateLastLoginInfo()에서 자동으로 처리됩니다.
+ * @deprecated 이 함수는 더 이상 사용되지 않습니다. 로그인 성공 시에만 자동으로 처리됩니다.
  */
 export function saveLastLoginProvider(provider: SocialLoginProvider): void {
-  try {
-    console.warn('⚠️ [auth-helpers] saveLastLoginProvider는 더 이상 사용되지 않습니다. auth-provider가 자동으로 처리합니다.');
-    
-    // 레거시 지원: 간단한 정보만 저장
-    const loginInfo: LastLoginInfo = {
-      provider: provider,
-      providerDisplay: getProviderDisplayName(provider),
-      timestamp: new Date().toISOString(),
-      userId: '' // 사용자 ID는 알 수 없으므로 빈 문자열
-    };
-    
-    setLastLoginInfo(loginInfo);
-  } catch (error) {
-    console.warn('최근 로그인 수단 저장 실패:', error);
-  }
+  console.warn('⚠️ [auth-helpers] saveLastLoginProvider는 더 이상 사용되지 않습니다. 함수 호출이 무시됩니다.');
+  // 함수 내용 완전히 제거 - 더 이상 저장 작업을 수행하지 않음
+  return;
 }
 
 /**
@@ -40,23 +28,13 @@ export function getLastLoginProvider(): SocialLoginProvider | null {
       }
     }
 
-    // 레거시 시스템에서 확인 (마이그레이션용)
+    // 레거시 시스템에서 확인 (마이그레이션용 - 읽기만)
     if (typeof window !== 'undefined') {
       const lastProvider = localStorage.getItem(LAST_LOGIN_PROVIDER_KEY);
       if (lastProvider && ['google', 'apple', 'kakao', 'wechat'].includes(lastProvider)) {
-        console.log('🔄 [auth-helpers] 레거시 로그인 정보 발견, 새로운 시스템으로 마이그레이션');
+        console.log('🔄 [auth-helpers] 레거시 로그인 정보 발견 - 읽기만 수행');
         
-        // 레거시 데이터를 새로운 시스템으로 마이그레이션
-        const loginInfo: LastLoginInfo = {
-          provider: lastProvider as SocialLoginProvider,
-          providerDisplay: getProviderDisplayName(lastProvider as SocialLoginProvider),
-          timestamp: new Date().toISOString(),
-          userId: ''
-        };
-        
-        setLastLoginInfo(loginInfo);
-        
-        // 레거시 키 삭제
+        // 레거시 키 삭제만 수행 (새로운 시스템으로 마이그레이션하지 않음)
         localStorage.removeItem(LAST_LOGIN_PROVIDER_KEY);
         
         return lastProvider as SocialLoginProvider;
