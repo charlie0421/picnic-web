@@ -109,9 +109,6 @@ export const RankingView: React.FC<RankingViewProps> = ({
                   />
                 </div>
               </div>
-              <div className='mt-1 text-center'>
-                <div className='text-base font-bold animate-pulse'>🥇</div>
-              </div>
             </div>
 
             {/* 2위 - 오른쪽, 낮음 */}
@@ -132,9 +129,6 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     enableMotionAnimations={true}
                   />
                 </div>
-              </div>
-              <div className='mt-1 text-center'>
-                <div className='text-sm'>🥈</div>
               </div>
             </div>
           </div>
@@ -169,9 +163,6 @@ export const RankingView: React.FC<RankingViewProps> = ({
                   />
                 </div>
               </div>
-              <div className='mt-1 text-center'>
-                <div className='text-sm'>🥈</div>
-              </div>
             </div>
           )}
 
@@ -198,9 +189,6 @@ export const RankingView: React.FC<RankingViewProps> = ({
                   />
                 </div>
               </div>
-              <div className='mt-1 text-center'>
-                <div className='text-base font-bold animate-pulse'>🥇</div>
-              </div>
             </div>
           )}
 
@@ -223,9 +211,6 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     enableMotionAnimations={true}
                   />
                 </div>
-              </div>
-              <div className='mt-1 text-center'>
-                <div className='text-sm'>🥉</div>
               </div>
             </div>
           )}
