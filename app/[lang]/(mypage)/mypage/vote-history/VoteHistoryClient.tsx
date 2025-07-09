@@ -411,90 +411,206 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* 헤더 - 테마 색상 적용 */}
+        {/* 헤더 - 테마 색상 고도화 */}
         <div className="mb-8">
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-primary to-point flex items-center justify-center">
-                  <span className="text-white text-lg">🗳️</span>
+          <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-xl border border-white/30 overflow-hidden">
+            {/* 배경 데코레이션 */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary-100 to-point-100 rounded-full blur-3xl opacity-30"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-secondary-100 to-sub-100 rounded-full blur-2xl opacity-40"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary-600 flex items-center justify-center shadow-lg">
+                      <span className="text-white text-xl">🗳️</span>
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-sub to-point rounded-full animate-pulse"></div>
+                  </div>
+                  <div>
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary-600 to-point bg-clip-text text-transparent leading-tight">
+                      {t('label_mypage_my_votes')}
+                    </h1>
+                    <div className="h-1 w-20 bg-gradient-to-r from-primary to-point rounded-full mt-2"></div>
+                  </div>
                 </div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-point bg-clip-text text-transparent">
-                  {t('label_mypage_my_votes')}
-                </h1>
+                <Link 
+                  href="/mypage"
+                  className="group relative flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-primary to-primary-600 text-white rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  <span className="text-sm font-semibold">{t('label_back_to_mypage')}</span>
+                  <span className="group-hover:translate-x-1 transition-transform duration-300 text-lg">→</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </Link>
               </div>
-              <Link 
-                href="/mypage"
-                className="group flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-primary to-point text-white rounded-lg hover:from-primary-600 hover:to-point-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                <span className="text-sm font-medium">{t('label_back_to_mypage')}</span>
-                <span className="group-hover:translate-x-1 transition-transform duration-300">→</span>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-secondary rounded-full animate-pulse"></div>
-              <p className="text-gray-700 font-medium">
-                {t('label_total_vote_count').replace('{count}', totalCount.toString())}
-              </p>
+              
+              {/* 통계 정보 - 개선된 디자인 */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-4 border border-primary-200/50">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-sm">📊</span>
+                    </div>
+                    <div>
+                      <p className="text-primary-800 font-bold text-lg">{totalCount.toLocaleString()}</p>
+                      <p className="text-primary-600 text-xs font-medium">총 투표수</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-4 border border-secondary-200/50">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-secondary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-sm">⭐</span>
+                    </div>
+                    <div>
+                      <p className="text-secondary-800 font-bold text-lg">
+                        {voteHistory.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
+                      </p>
+                      <p className="text-secondary-600 text-xs font-medium">총 사용한 스타캔디</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-4 border border-point-200/50">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-point rounded-xl flex items-center justify-center">
+                      <span className="text-white text-sm">🎯</span>
+                    </div>
+                    <div>
+                      <p className="text-point-800 font-bold text-lg">
+                        {new Set(voteHistory.map(item => item.voteItem?.artist?.id)).size}
+                      </p>
+                      <p className="text-point-600 text-xs font-medium">응원한 아티스트</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 오류 상태 - 테마 색상 적용 */}
+        {/* 오류 상태 - 테마 색상 개선 */}
         {error && (
-          <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-point-50 border border-red-200 rounded-xl shadow-md backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                  <span className="text-red-500">⚠️</span>
+          <div className="mb-6 relative">
+            <div className="bg-gradient-to-r from-red-50 via-point-50 to-red-50 border border-red-200 rounded-2xl p-6 shadow-lg backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-red-100 rounded-2xl flex items-center justify-center">
+                    <span className="text-red-500 text-lg">⚠️</span>
+                  </div>
+                  <div>
+                    <p className="text-red-800 font-semibold text-lg">{error}</p>
+                    <p className="text-red-600 text-sm">다시 시도해주세요</p>
+                  </div>
                 </div>
-                <p className="text-red-800 font-medium">{error}</p>
+                <button
+                  onClick={retry}
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-medium"
+                >
+                  {t('label_retry')}
+                </button>
               </div>
-              <button
-                onClick={retry}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-300 transform hover:scale-105 shadow-md"
-              >
-                {t('label_retry')}
-              </button>
             </div>
           </div>
         )}
 
-        {/* 빈 상태 - 테마 색상 적용 */}
-        {voteHistory.length === 0 && !isLoading && (
-          <div className="text-center py-16">
-            <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-12 shadow-xl border border-white/20 max-w-md mx-auto">
-              <div className="relative mb-6">
-                <div className="w-24 h-24 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-full flex items-center justify-center mx-auto animate-bounce">
-                  <span className="text-4xl">🗳️</span>
+        {/* 초기 로딩 상태 - 테마 색상 개선 */}
+        {isLoading && voteHistory.length === 0 && (
+          <div className="text-center py-20">
+            <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-16 shadow-2xl border border-white/30 max-w-md mx-auto">
+              {/* 배경 애니메이션 */}
+              <div className="absolute inset-0 bg-gradient-to-r from-primary-100/30 via-secondary-100/30 to-point-100/30 rounded-3xl animate-pulse"></div>
+              
+              <div className="relative z-10">
+                {/* 개선된 로딩 스피너 */}
+                <div className="relative mb-8">
+                  <div className="w-20 h-20 rounded-full mx-auto relative">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary to-secondary animate-spin">
+                      <div className="absolute inset-3 bg-white rounded-full"></div>
+                    </div>
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-sub to-point animate-ping opacity-30"></div>
+                  </div>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-2xl">🗳️</div>
                 </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-sub to-point rounded-full animate-ping"></div>
+                
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-point bg-clip-text text-transparent mb-4">
+                  {t('label_loading')}
+                </h3>
+                
+                {/* 개선된 점프 애니메이션 */}
+                <div className="flex space-x-2 justify-center mb-4">
+                  <div className="w-3 h-3 bg-gradient-to-r from-primary to-primary-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-secondary to-secondary-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-sub to-sub-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-point to-point-600 rounded-full animate-bounce" style={{ animationDelay: '450ms' }}></div>
+                </div>
+                
+                <p className="text-gray-600 font-medium">투표 내역을 불러오는 중...</p>
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">{t('label_no_votes')}</h3>
-              <p className="text-gray-600 mb-6">{t('label_scroll_for_more')}</p>
             </div>
           </div>
         )}
 
-        {/* 투표 내역 리스트 - 테마 색상 적용 */}
-        <div className="space-y-6">
+        {/* 빈 상태 - 테마 색상 개선 */}
+        {voteHistory.length === 0 && !isLoading && !error && (
+          <div className="text-center py-20">
+            <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-16 shadow-2xl border border-white/30 max-w-lg mx-auto">
+              {/* 배경 데코레이션 */}
+              <div className="absolute top-4 right-4 w-16 h-16 bg-gradient-to-br from-primary-100 to-point-100 rounded-full blur-2xl opacity-50"></div>
+              <div className="absolute bottom-4 left-4 w-12 h-12 bg-gradient-to-tr from-secondary-100 to-sub-100 rounded-full blur-xl opacity-60"></div>
+              
+              <div className="relative z-10">
+                <div className="relative mb-8">
+                  <div className="w-28 h-28 bg-gradient-to-br from-primary-100 via-secondary-100 to-point-100 rounded-full flex items-center justify-center mx-auto animate-bounce shadow-lg">
+                    <span className="text-5xl">🗳️</span>
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-sub to-point rounded-full animate-ping opacity-60"></div>
+                </div>
+                
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-point bg-clip-text text-transparent mb-4">
+                  {t('label_no_votes')}
+                </h3>
+                
+                <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+                  아직 투표 참여 내역이 없습니다.<br />
+                  좋아하는 아티스트에게 투표해보세요!
+                </p>
+                
+                <Link 
+                  href="/vote"
+                  className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-primary to-primary-600 text-white rounded-2xl hover:from-primary-600 hover:to-primary-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-semibold"
+                >
+                  <span>투표하러 가기</span>
+                  <span className="text-lg">🚀</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 투표 내역 리스트 - 테마 색상 고도화 */}
+        <div className="space-y-8">
           {voteHistory.map((item, index) => (
             <div 
               key={item.id} 
-              className="group bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/20 overflow-hidden transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-1"
+              className="group relative bg-white/90 backdrop-blur-md rounded-3xl shadow-lg hover:shadow-2xl border border-white/30 overflow-hidden transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-2"
               style={{
                 animationDelay: `${index * 100}ms`
               }}
             >
-              {/* 상단 그라데이션 바 - 테마 색상 */}
-              <div className="h-1 bg-gradient-to-r from-primary via-secondary to-point"></div>
+              {/* 상단 그라데이션 바 - 개선 */}
+              <div className="h-2 bg-gradient-to-r from-primary via-secondary via-sub to-point"></div>
               
-              <div className="p-6">
-                <div className="flex items-start space-x-6">
-                  {/* 아티스트 이미지 - 테마 색상 적용 */}
+              {/* 배경 데코레이션 */}
+              <div className="absolute top-4 right-4 w-20 h-20 bg-gradient-to-br from-primary-50 to-point-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              <div className="relative p-8">
+                <div className="flex items-start space-x-8">
+                  {/* 아티스트 이미지 - 개선된 디자인 */}
                   <div className="flex-shrink-0">
                     <div className="relative">
-                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-100 to-secondary-100 shadow-lg group-hover:shadow-xl transition-all duration-300">
+                      <div className="w-24 h-24 rounded-3xl overflow-hidden bg-gradient-to-br from-primary-100 to-secondary-100 shadow-xl group-hover:shadow-2xl transition-all duration-500 border-2 border-white/50">
                         <img
                           src={getCdnImageUrl(item.voteItem?.artist?.image, 150) || '/images/default-artist.png'}
                           alt={getLocalizedText(item.voteItem?.artist?.name) || t('label_artist')}
@@ -502,21 +618,32 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                           onError={handleImageError}
                         />
                       </div>
-                      {/* 호버시 나타나는 글로우 효과 - 테마 색상 */}
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/20 to-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      {/* 호버시 나타나는 글로우 효과 */}
+                      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      {/* 투표 상태 인디케이터 */}
+                      <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-gradient-to-r from-sub to-point rounded-full flex items-center justify-center shadow-lg">
+                        <span className="text-white text-xs">✓</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* 투표 정보 - 테마 색상 적용 */}
+                  {/* 투표 정보 - 전면 개선 */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-4">
-                      <h3 className="text-xl font-bold text-gray-900 truncate group-hover:text-primary transition-colors duration-300">
-                        {getLocalizedText(item.vote?.title) || t('label_no_title')}
-                      </h3>
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-bold text-gray-900 group-hover:text-primary transition-colors duration-300 mb-2">
+                          {getLocalizedText(item.vote?.title) || t('label_no_title')}
+                        </h3>
+                        <div className="h-1 w-16 bg-gradient-to-r from-primary to-point rounded-full"></div>
+                      </div>
                       {item.vote && (
-                        <div className="flex-shrink-0 ml-4">
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                            getVoteStatus(item.vote.startAt, item.vote.stopAt).color
+                        <div className="flex-shrink-0 ml-6">
+                          <span className={`px-4 py-2 text-sm font-semibold rounded-full border ${
+                            getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' 
+                              ? 'bg-gradient-to-r from-green-500 to-secondary text-white border-green-600' :
+                            getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' 
+                              ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white border-gray-700' :
+                              'bg-gradient-to-r from-blue-500 to-primary text-white border-blue-600'
                           }`}>
                             {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && t('label_vote_status_ongoing')}
                             {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && t('label_vote_status_ended')}
@@ -526,60 +653,75 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      {/* 아티스트 정보 - 테마 색상 */}
-                      <div className="bg-gradient-to-r from-primary-50 to-point-50 rounded-xl p-4 group-hover:from-primary-100 group-hover:to-point-100 transition-all duration-300">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-primary">🎤</span>
-                          <span className="font-semibold text-gray-700">{t('label_artist_name')}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* 아티스트 정보 - 대폭 개선 */}
+                      <div className="relative bg-gradient-to-br from-primary-50 to-point-50 rounded-2xl p-6 group-hover:from-primary-100 group-hover:to-point-100 transition-all duration-300 border border-primary-100/50">
+                        <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-primary-200 to-point-200 rounded-full opacity-50"></div>
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-primary to-point rounded-xl flex items-center justify-center shadow-sm">
+                            <span className="text-white text-sm">🎤</span>
+                          </div>
+                          <span className="font-bold text-primary-800">{t('label_artist_name')}</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="font-medium text-gray-900">{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
+                          <span className="font-semibold text-gray-900 text-lg">{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
                           {item.voteItem?.artist?.artistGroup && (
                             <>
-                              <span className="text-gray-400">{t('label_group_separator')}</span>
-                              <span className="text-gray-700">{getLocalizedText(item.voteItem?.artist?.artistGroup?.name)}</span>
+                              <span className="text-primary-400 font-bold">{t('label_group_separator')}</span>
+                              <span className="text-primary-700 font-medium">{getLocalizedText(item.voteItem?.artist?.artistGroup?.name)}</span>
                             </>
                           )}
                         </div>
                       </div>
                       
-                      {/* 투표 금액 - 테마 색상 */}
-                      <div className="bg-gradient-to-r from-sub-50 to-secondary-50 rounded-xl p-4 group-hover:from-sub-100 group-hover:to-secondary-100 transition-all duration-300">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-sub">💰</span>
-                          <span className="font-semibold text-gray-700">{t('label_vote_amount')}</span>
+                      {/* 투표 금액 - 대폭 개선 */}
+                      <div className="relative bg-gradient-to-br from-sub-50 to-secondary-50 rounded-2xl p-6 group-hover:from-sub-100 group-hover:to-secondary-100 transition-all duration-300 border border-sub-100/50">
+                        <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-sub-200 to-secondary-200 rounded-full opacity-50"></div>
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-sub to-secondary rounded-xl flex items-center justify-center shadow-sm">
+                            <span className="text-white text-sm">💰</span>
+                          </div>
+                          <span className="font-bold text-sub-800">{t('label_vote_amount')}</span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <img 
-                            src="/images/star-candy/star_100.png" 
-                            alt={t('label_star_candy')} 
-                            className="w-5 h-5 animate-spin" 
-                            style={{ animationDuration: '3s' }}
-                          />
-                          <span className="text-lg font-bold bg-gradient-to-r from-sub to-secondary bg-clip-text text-transparent">
+                        <div className="flex items-center space-x-3">
+                          <div className="relative">
+                            <img 
+                              src="/images/star-candy/star_100.png" 
+                              alt={t('label_star_candy')} 
+                              className="w-7 h-7 animate-spin shadow-lg" 
+                              style={{ animationDuration: '3s' }}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-r from-sub to-secondary rounded-full opacity-30 animate-pulse"></div>
+                          </div>
+                          <span className="text-2xl font-bold bg-gradient-to-r from-sub to-secondary bg-clip-text text-transparent">
                             {item.amount.toLocaleString()}
                           </span>
                         </div>
                       </div>
 
-                      {/* 투표 날짜 - 테마 색상 */}
-                      <div className="bg-gradient-to-r from-secondary-50 to-primary-50 rounded-xl p-4 group-hover:from-secondary-100 group-hover:to-primary-100 transition-all duration-300">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-secondary">📅</span>
-                          <span className="font-semibold text-gray-700">{t('label_vote_date')}</span>
+                      {/* 투표 날짜 - 대폭 개선 */}
+                      <div className="relative bg-gradient-to-br from-secondary-50 to-primary-50 rounded-2xl p-6 group-hover:from-secondary-100 group-hover:to-primary-100 transition-all duration-300 border border-secondary-100/50">
+                        <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-secondary-200 to-primary-200 rounded-full opacity-50"></div>
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-secondary to-primary rounded-xl flex items-center justify-center shadow-sm">
+                            <span className="text-white text-sm">📅</span>
+                          </div>
+                          <span className="font-bold text-secondary-800">{t('label_vote_date')}</span>
                         </div>
-                        <span className="text-gray-900 font-medium">{formatDate(item.createdAt)}</span>
+                        <span className="text-gray-900 font-semibold text-lg">{formatDate(item.createdAt)}</span>
                       </div>
 
-                      {/* 투표 카테고리 - 테마 색상 */}
+                      {/* 투표 카테고리 - 대폭 개선 */}
                       {item.vote?.voteCategory && (
-                        <div className="bg-gradient-to-r from-point-50 to-sub-50 rounded-xl p-4 group-hover:from-point-100 group-hover:to-sub-100 transition-all duration-300">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-point">🏷️</span>
-                            <span className="font-semibold text-gray-700">{t('label_vote_category')}</span>
+                        <div className="relative bg-gradient-to-br from-point-50 to-sub-50 rounded-2xl p-6 group-hover:from-point-100 group-hover:to-sub-100 transition-all duration-300 border border-point-100/50">
+                          <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-point-200 to-sub-200 rounded-full opacity-50"></div>
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-8 h-8 bg-gradient-to-r from-point to-sub rounded-xl flex items-center justify-center shadow-sm">
+                              <span className="text-white text-sm">🏷️</span>
+                            </div>
+                            <span className="font-bold text-point-800">{t('label_vote_category')}</span>
                           </div>
-                          <span className="inline-flex items-center px-3 py-1 bg-white/70 text-gray-800 rounded-lg text-sm font-medium shadow-sm">
+                          <span className="inline-flex items-center px-4 py-2 bg-white/80 text-point-800 rounded-xl text-sm font-semibold shadow-sm border border-point-200/50">
                             {getLocalizedText(item.vote?.voteCategory)}
                           </span>
                         </div>
@@ -592,48 +734,60 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           ))}
         </div>
 
-        {/* 무한 스크롤 트리거 - 테마 색상 적용 */}
+        {/* 무한 스크롤 트리거 - 테마 색상 개선 */}
         {hasMore && (
-          <div ref={sentinelRef} className="mt-12 text-center py-8">
+          <div ref={sentinelRef} className="mt-16 text-center py-12">
             {(isLoading || isLoadingMore) ? (
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 max-w-sm mx-auto">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary animate-spin">
-                      <div className="absolute inset-2 bg-white rounded-full"></div>
+              <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-10 shadow-xl border border-white/30 max-w-sm mx-auto">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-50/50 via-secondary-50/50 to-point-50/50 rounded-3xl animate-pulse"></div>
+                <div className="relative z-10">
+                  <div className="flex flex-col items-center space-y-6">
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary via-secondary to-point animate-spin">
+                        <div className="absolute inset-3 bg-white rounded-full"></div>
+                      </div>
+                      <div className="absolute inset-0 w-16 h-16 rounded-full bg-gradient-to-r from-primary via-secondary to-point animate-ping opacity-30"></div>
                     </div>
-                    <div className="absolute inset-0 w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary animate-ping opacity-20"></div>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-gray-700 font-medium">{t('label_loading')}</p>
-                    <div className="flex space-x-1 justify-center mt-2">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-secondary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-point rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div className="text-center">
+                      <p className="text-gray-800 font-bold text-lg mb-2">{t('label_loading')}</p>
+                      <div className="flex space-x-2 justify-center">
+                        <div className="w-3 h-3 bg-gradient-to-r from-primary to-primary-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-3 h-3 bg-gradient-to-r from-secondary to-secondary-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-3 h-3 bg-gradient-to-r from-sub to-sub-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        <div className="w-3 h-3 bg-gradient-to-r from-point to-point-600 rounded-full animate-bounce" style={{ animationDelay: '450ms' }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/20 max-w-xs mx-auto">
-                <div className="flex items-center justify-center space-x-2 text-gray-500">
-                  <span className="animate-bounce">👆</span>
-                  <span className="text-sm font-medium">{t('label_scroll_for_more')}</span>
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 max-w-xs mx-auto shadow-lg">
+                <div className="flex items-center justify-center space-x-3 text-gray-600">
+                  <span className="animate-bounce text-2xl">👆</span>
+                  <span className="font-medium">{t('label_scroll_for_more')}</span>
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* 더 이상 로드할 데이터가 없는 경우 - 테마 색상 적용 */}
+        {/* 더 이상 로드할 데이터가 없는 경우 - 테마 색상 개선 */}
         {!hasMore && voteHistory.length > 0 && (
-          <div className="text-center py-12">
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20 max-w-md mx-auto">
-              <div className="w-16 h-16 bg-gradient-to-r from-secondary-100 to-primary-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">🎉</span>
+          <div className="text-center py-16">
+            <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-12 shadow-xl border border-white/30 max-w-lg mx-auto">
+              {/* 배경 데코레이션 */}
+              <div className="absolute top-4 right-4 w-16 h-16 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full blur-2xl opacity-50"></div>
+              <div className="absolute bottom-4 left-4 w-12 h-12 bg-gradient-to-tr from-sub-100 to-point-100 rounded-full blur-xl opacity-60"></div>
+              
+              <div className="relative z-10">
+                <div className="w-20 h-20 bg-gradient-to-br from-secondary-100 via-sub-100 to-primary-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <span className="text-3xl">🎉</span>
+                </div>
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-secondary via-sub to-primary bg-clip-text text-transparent mb-4">
+                  {t('label_all_votes_checked')}
+                </h3>
+                <p className="text-gray-600 text-lg">모든 투표 내역을 확인했습니다!</p>
               </div>
-              <h3 className="text-lg font-bold text-gray-800 mb-2">{t('label_all_votes_checked')}</h3>
-              <p className="text-gray-600">{t('label_no_more_votes')}</p>
             </div>
           </div>
         )}
