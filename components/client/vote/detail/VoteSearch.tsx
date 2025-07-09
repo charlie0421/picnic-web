@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Spinner } from '@/components/common';
 import { useLanguageStore } from '@/stores/languageStore';
 import { VoteItem } from '@/types/interfaces';
-import { getLocalizedString } from '@/utils/api/strings';
+import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 
 export interface VoteSearchProps {
   onSearch: (query: string) => void;
@@ -163,7 +163,7 @@ export function VoteSearch({
               const artistName = item.artist?.name 
                 ? getLocalizedString(item.artist.name, currentLanguage) || '아티스트'
                 : `항목 ${item.id}`;
-              const groupName = item.artist?.artistGroup?.name
+              const groupName = item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)
                 ? getLocalizedString(item.artist.artistGroup.name, currentLanguage)
                 : undefined;
               

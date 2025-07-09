@@ -15,7 +15,7 @@ import { VoteButton } from '../common/VoteButton';
 import { CountdownTimer } from '../common/CountdownTimer';
 import { Badge, Card } from '@/components/common';
 import { useLanguageStore } from '@/stores/languageStore';
-import { getLocalizedString } from '@/utils/api/strings';
+import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
@@ -1774,7 +1774,7 @@ export function HybridVoteDetailPresenter({
                         {artistName}
                       </h3>
 
-                      {item.artist?.artistGroup?.name && (
+                      {item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name) && (
                         <p className='text-xs text-gray-500 mb-0.5 line-clamp-1 group-hover:text-gray-700 transition-colors'>
                           {getLocalizedString(
                             item.artist.artistGroup.name,

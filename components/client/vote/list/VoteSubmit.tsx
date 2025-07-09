@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { VoteItem } from '@/types/interfaces';
 import { useVoteStore } from '@/stores/voteStore';
-import { getLocalizedJson } from '@/utils/api/strings';
+import { getLocalizedString, getLocalizedJson, hasValidLocalizedString } from '@/utils/api/strings';
 
 export interface VoteSubmitProps {
   voteItems?: Array<VoteItem & { artist?: any }>;
@@ -166,7 +166,9 @@ export function VoteSubmit({
         {voteItems.map((item) => {
           const isSelected = selectedItemId === item.id;
           const artistName = item.artist?.name || '아티스트';
-          const artistGroup = item.artist?.artistGroup?.name;
+          const artistGroup = item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)
+            ? item.artist.artistGroup.name
+            : null;
           const imageUrl = item.artist?.image || '/images/default-artist.png';
           const voteCount = item.vote_total || 0;
 

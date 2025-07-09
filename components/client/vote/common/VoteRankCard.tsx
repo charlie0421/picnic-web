@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { VoteItem } from '@/types/interfaces';
 import { Badge } from '@/components/common';
-import { getLocalizedString } from '@/utils/api/strings';
+import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useLanguageStore } from '@/stores/languageStore';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
@@ -419,7 +419,7 @@ export function VoteRankCard({
         </motion.h3>
 
         {/* 그룹 이름 (있는 경우) */}
-        {item.artist?.artistGroup?.name && (
+        {item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name) && (
           <motion.p
             className='text-xs text-gray-600 text-center w-full px-0.5 mb-0.5 leading-tight'
             style={{ 

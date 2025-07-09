@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { VoteItem as VoteItemType } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
-import { getLocalizedString } from '@/utils/api/strings';
+import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useVoteStore } from '@/stores/voteStore';
 
@@ -51,7 +51,7 @@ export function VoteItem({
     ? getLocalizedString(item.artist.name, currentLanguage) || '아티스트'
     : '아티스트';
 
-  const artistGroup = item.artist?.artistGroup?.name
+  const artistGroup = item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)
     ? getLocalizedString(item.artist.artistGroup.name, currentLanguage)
     : null;
 

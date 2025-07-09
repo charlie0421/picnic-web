@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { VoteItem } from '@/types/interfaces';
-import { getLocalizedString } from '@/utils/api/strings';
+import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface EnhancedVoteItem extends VoteItem {
