@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
+import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import {PortalType} from '@/utils/enums';
 import {isVoteRelatedPath, PORTAL_MENU} from '@/config/navigation';
 import menuConfig from '@/config/menu.json';
@@ -13,6 +14,7 @@ interface PortalMenuItemProps {
 
 const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
+  const { setIsLoading } = useGlobalLoading();
   const pathname = usePathname();
 
   // 설정에서 메뉴 정보 가져오기
@@ -32,8 +34,18 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
     currentPath.startsWith(menuItem.path) ||
     (portalType === PortalType.VOTE && isVoteRelatedPath(currentPath));
 
+  const handleClick = () => {
+    if (pathname !== localizedMenuPath) {
+      setIsLoading(true);
+    }
+  };
+
   return (
-    <Link href={localizedMenuPath}>
+    <Link 
+      href={localizedMenuPath}
+      prefetch={true}
+      onClick={handleClick}
+    >
       <div
         className={`px-2 py-1 mx-1 cursor-pointer rounded-lg transition-colors ${
           isActive ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'

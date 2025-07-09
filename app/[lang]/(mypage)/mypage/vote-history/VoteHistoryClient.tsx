@@ -588,7 +588,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
         )}
 
         {/* 초기 로딩 상태 - 테마 색상 개선 */}
-        {isLoading && voteHistory.length === 0 && (
+        {(isLoading || isInitialLoad) && voteHistory.length === 0 && (
           <div className="text-center py-20">
             <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-16 shadow-2xl border border-white/30 max-w-md mx-auto">
               {/* 배경 애니메이션 */}
@@ -624,8 +624,8 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           </div>
         )}
 
-        {/* 빈 상태 - 초기 로딩 완료 후에만 표시 */}
-        {!isInitialLoad && voteHistory.length === 0 && !isLoading && !error && (
+        {/* 빈 상태 - 로딩이 완전히 끝난 후에만 표시 */}
+        {!isLoading && !isInitialLoad && voteHistory.length === 0 && !error && (
           <div className="text-center py-20">
             <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-16 shadow-2xl border border-white/30 max-w-lg mx-auto">
               {/* 배경 데코레이션 */}
@@ -738,8 +738,10 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                         <div className="flex items-center space-x-2">
                           <span className="font-semibold text-gray-900 text-lg">{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
                           {(() => {
+                            const groupId = item.voteItem?.artist?.artistGroup?.id;
                             const groupName = item.voteItem?.artist?.artistGroup?.name ? getLocalizedText(item.voteItem.artist.artistGroup.name) : '';
-                            return groupName && groupName.trim() !== '' ? (
+                            // 그룹 아이디가 0이거나 없거나, 그룹명이 비어있으면 그룹 정보를 표시하지 않음
+                            return groupId && groupId > 0 && groupName && groupName.trim() !== '' ? (
                               <>
                                 <span className="text-primary-400 font-bold">{t('label_group_separator')}</span>
                                 <span className="text-primary-700 font-medium">{groupName}</span>
@@ -808,7 +810,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
         </div>
 
         {/* 무한 스크롤 트리거 - 초기 로딩 완료 후이고 데이터가 있을 때만 표시 */}
-        {!isInitialLoad && voteHistory.length > 0 && hasMore && (
+        {!isLoading && !isInitialLoad && voteHistory.length > 0 && hasMore && (
           <div ref={sentinelRef} className="mt-16 text-center py-12">
             {isLoadingMore ? (
               <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-10 shadow-xl border border-white/30 max-w-sm mx-auto">
@@ -845,7 +847,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
         )}
 
         {/* 더 이상 로드할 데이터가 없는 경우 - 초기 로딩 완료 후에만 표시 */}
-        {!isInitialLoad && !hasMore && voteHistory.length > 0 && (
+        {!isLoading && !isInitialLoad && !hasMore && voteHistory.length > 0 && (
           <div className="text-center py-16">
             <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-12 shadow-xl border border-white/30 max-w-lg mx-auto">
               {/* 배경 데코레이션 */}

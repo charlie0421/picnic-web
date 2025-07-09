@@ -26,6 +26,12 @@ interface CommentsResponse {
     totalPages: number;
     hasNext: boolean;
   };
+  statistics?: {
+    totalLikes: number;
+    totalBoards: number;
+    mostActiveBoard?: string;
+  };
+  error?: string; // Added for error handling
 }
 
 interface Translations {
@@ -45,6 +51,21 @@ interface Translations {
   label_unknown: string;
   label_anonymous: string;
   label_scroll_for_more: string;
+  label_total_comments_count: string;
+  label_total_likes: string;
+  label_total_boards: string;
+  label_no_comments_yet: string;
+  label_write_first_comment: string;
+  label_go_to_vote: string;
+  label_all_comments_loaded: string;
+  label_likes: string;
+  label_board: string;
+  label_post: string;
+  // 새로 추가된 번역 키들
+  error_comments_fetch_failed: string;
+  error_unknown_occurred: string;
+  console_comments_fetch_error: string;
+  console_comment_content_parsing_error: string;
 }
 
 interface CommentsClientProps {
@@ -56,11 +77,12 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(false); // 초기값을 false로 변경
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true); // 초기 로딩 상태 추가
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [statistics, setStatistics] = useState({ totalLikes: 0, totalBoards: 0 });
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -102,15 +124,34 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
     setError(null);
 
     try {
-      const response = await fetch(`/api/user/comments?page=${pageNum}&limit=10`, {
+      console.log('📡 [Comments API] 요청 시작:', `/api/user/comments?page=${pageNum}&limit=10`);
+      
+      const currentLang = getCurrentLanguage();
+      const apiUrl = `/api/user/comments?page=${pageNum}&limit=10&locale=${currentLang}`;
+      console.log('📡 [Comments API] 요청 URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         signal: abortControllerRef.current.signal
       });
       
+      console.log('📡 [Comments API] 응답 상태:', response.status, response.statusText);
+      
       if (!response.ok) {
-        throw new Error('댓글 내역 조회에 실패했습니다.');
+        let errorMessage = t('error_comments_fetch_failed');
+        try {
+          const errorData = await response.json();
+          console.error('📡 [Comments API] 응답 에러 JSON:', errorData);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          const errorText = await response.text();
+          console.error('📡 [Comments API] 응답 에러 텍스트:', errorText);
+          if (errorText) errorMessage = errorText;
+        }
+        throw new Error(errorMessage);
       }
 
       const data: CommentsResponse = await response.json();
+      console.log('📡 [Comments API] 응답 데이터:', data);
 
       if (data.success) {
         console.log('📡 API 응답 전체 데이터:', data);
@@ -120,6 +161,16 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
         });
         setTotalCount(data.pagination.totalCount);
         setHasMore(data.pagination.hasNext);
+        
+        // 통계 정보 설정
+        if (data.statistics) {
+          setStatistics(data.statistics);
+        } else {
+          // 로컬에서 통계 계산
+          const totalLikes = data.data.reduce((sum, comment) => sum + (comment.likeCount || 0), 0);
+          const uniqueBoards = new Set(data.data.map(comment => comment.boardName).filter(Boolean));
+          setStatistics({ totalLikes, totalBoards: uniqueBoards.size });
+        }
         
         // 초기 로딩 완료 표시
         if (isInitialLoad) {
@@ -131,16 +182,21 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
           setPage(pageNum);
         }
       } else {
-        throw new Error('댓글 내역 조회에 실패했습니다.');
+        console.error('📡 [Comments API] API 응답에서 success=false:', data);
+        throw new Error(data.error || t('error_comments_fetch_failed'));
       }
     } catch (err) {
       // AbortError는 무시
       if (err instanceof Error && err.name === 'AbortError') {
+        console.log('📡 [Comments API] 요청 취소됨');
         return;
       }
       
-      console.error('댓글 내역 조회 에러:', err);
-      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      console.error('📡 [Comments API] 에러 발생:', err);
+      console.error('📡 [Comments API] 에러 타입:', typeof err);
+      console.error('📡 [Comments API] 에러 메시지:', err instanceof Error ? err.message : String(err));
+      
+      setError(err instanceof Error ? err.message : t('error_unknown_occurred'));
       
       // 초기 로딩 중 에러 발생 시에도 초기 로딩 상태 해제
       if (isInitialLoad) {
@@ -150,16 +206,16 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, [isInitialLoad]);
+  }, [isInitialLoad, t, getCurrentLanguage]);
 
   // 초기 데이터 로드
   useEffect(() => {
     fetchComments(1, true);
   }, []);
 
-  // 무한 스크롤 처리
+  // 무한 스크롤 처리 (개선된 버전)
   useEffect(() => {
-    if (!sentinelRef.current || !hasMore || isLoading || isLoadingMore) {
+    if (!sentinelRef.current || !hasMore || isLoadingMore) {
       return;
     }
 
@@ -172,7 +228,7 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
     
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading && !isLoadingMore) {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
           const nextPage = page + 1;
           fetchComments(nextPage, false);
         }
@@ -187,7 +243,7 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
         observerRef.current.disconnect();
       }
     };
-  }, [hasMore, isLoading, isLoadingMore, page, fetchComments]);
+  }, [hasMore, isLoadingMore, page, fetchComments]);
 
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {
@@ -274,15 +330,143 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
     setError(null);
     setComments([]);
     setPage(1);
-    setHasMore(false); // 초기 상태로 리셋
-    setIsInitialLoad(true); // 초기 로딩 상태로 리셋
+    setHasMore(false);
+    setIsInitialLoad(true);
     fetchComments(1, true);
   };
 
-  // 내용 요약 함수
-  const truncateContent = (content: string, maxLength: number = 150) => {
-    if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + '...';
+  // 강화된 댓글 내용 파싱 및 요약 함수
+  const truncateContent = (content: string | any) => {
+    // content가 문자열이 아닌 경우 (Quill Delta 형식 등)
+    if (typeof content !== 'string') {
+      try {
+        // Quill Delta 형식인 경우 텍스트만 추출
+        if (content && Array.isArray(content.ops)) {
+          const plainText = content.ops
+            .map((op: any) => typeof op.insert === 'string' ? op.insert : '')
+            .join('')
+            .replace(/\n+/g, '\n') // 연속된 줄바꿈 정리
+            .trim();
+          return cleanAndTruncateCommentContent(plainText);
+        }
+        
+        // JSON 객체인 경우 문자열로 변환 시도
+        if (typeof content === 'object') {
+          const jsonString = JSON.stringify(content);
+          return parseQuillDeltaFromString(jsonString);
+        }
+        
+        // 기타 경우 빈 문자열 반환
+        return '';
+      } catch (error) {
+        console.warn(t('console_comment_content_parsing_error') + ':', error);
+        return '';
+      }
+    }
+    
+    // 문자열인 경우 - 강화된 파싱 로직
+    return parseQuillDeltaFromString(content);
+  };
+
+  // 강화된 Quill Delta 문자열 파싱 함수
+  const parseQuillDeltaFromString = (text: string) => {
+    if (!text) return '';
+
+    // 1. 문자열로 저장된 Quill Delta 형식 파싱 (예: "[ insert : \nHi\n\n ]")
+    const insertMatches = text.match(/insert\s*:\s*([^,\]]+)/g);
+    if (insertMatches) {
+      const extractedTexts = insertMatches.map(match => {
+        // "insert : 텍스트" 에서 텍스트 부분만 추출
+        const textPart = match.replace(/^insert\s*:\s*/, '').trim();
+        // 따옴표 제거
+        return textPart.replace(/^["']|["']$/g, '');
+      });
+      
+      const combinedText = extractedTexts.join(' ').trim();
+      if (combinedText && combinedText !== '\n' && combinedText !== '\\n') {
+        return cleanAndTruncateCommentContent(combinedText);
+      }
+    }
+
+    // 2. JSON 형태의 Quill Delta 파싱 시도
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && Array.isArray(parsed.ops)) {
+        const plainText = parsed.ops
+          .map((op: any) => typeof op.insert === 'string' ? op.insert : '')
+          .join('')
+          .trim();
+        if (plainText) {
+          return cleanAndTruncateCommentContent(plainText);
+        }
+      }
+    } catch (e) {
+      // JSON 파싱 실패는 정상 - 계속 진행
+    }
+
+    // 3. 배열 형태의 문자열 파싱 (예: "[{\"insert\":\"Hello\"}]")
+    const arrayMatches = text.match(/\[\s*\{[^}]*"insert"\s*:\s*"([^"]+)"[^}]*\}\s*\]/g);
+    if (arrayMatches) {
+      const extractedTexts = arrayMatches.map(match => {
+        const insertMatch = match.match(/"insert"\s*:\s*"([^"]+)"/);
+        return insertMatch ? insertMatch[1] : '';
+      }).filter(t => t);
+      
+      if (extractedTexts.length > 0) {
+        const combinedText = extractedTexts.join(' ').trim();
+        return cleanAndTruncateCommentContent(combinedText);
+      }
+    }
+
+    // 4. 단순 "insert" 키워드가 포함된 텍스트에서 실제 내용 추출
+    const simpleInsertMatch = text.match(/insert[^a-zA-Z0-9가-힣]*([a-zA-Z0-9가-힣\s.,!?]+)/i);
+    if (simpleInsertMatch && simpleInsertMatch[1]) {
+      const extractedText = simpleInsertMatch[1].trim();
+      if (extractedText && extractedText.length > 2) {
+        return cleanAndTruncateCommentContent(extractedText);
+      }
+    }
+
+    // 5. 일반 텍스트로 처리
+    return cleanAndTruncateCommentContent(text);
+  };
+
+  // 댓글 내용 정리 및 제한 함수
+  const cleanAndTruncateCommentContent = (text: string, maxLength: number = 200) => {
+    if (!text) return '';
+    
+    // 1차 정리: HTML 태그 및 특수 문자 제거
+    let cleanText = text
+      .replace(/<[^>]*>/g, '') // HTML 태그 제거
+      .replace(/&nbsp;/g, ' ') // &nbsp; 엔티티를 공백으로
+      .replace(/&lt;/g, '<') // HTML 엔티티 디코딩
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\\n/g, ' ') // 댓글에서는 줄바꿈을 공백으로 변환
+      .replace(/\\t/g, ' ') // 탭을 공백으로
+      .replace(/\\r/g, '') // 캐리지 리턴 제거
+      .replace(/[\[\]{}]/g, '') // 대괄호, 중괄호 제거
+      .replace(/[,:;]/g, ' ') // 특수 문자를 공백으로
+      .replace(/\s+/g, ' ') // 연속된 공백을 하나로
+      .trim();
+    
+    if (!cleanText || cleanText.length < 2) return '';
+    
+    // 댓글은 한 줄로 표시하되 적절한 길이로 제한
+    if (cleanText.length <= maxLength) {
+      return cleanText;
+    }
+    
+    // 자연스러운 절단점 찾기 (공백, 구두점)
+    const cutPoint = cleanText.lastIndexOf(' ', maxLength) || 
+                     cleanText.lastIndexOf('.', maxLength) || 
+                     cleanText.lastIndexOf(',', maxLength);
+    
+    return cutPoint > maxLength * 0.6 
+      ? cleanText.substring(0, cutPoint) + '...' 
+      : cleanText.substring(0, maxLength) + '...';
   };
 
   return (
@@ -315,144 +499,325 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
                   href="/mypage"
                   className="group relative flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-primary to-primary-600 text-white rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
                 >
-                  <span className="font-medium">{t('label_back_to_mypage')}</span>
-                  <span className="text-lg group-hover:translate-x-1 transition-transform">🏠</span>
+                  <span className="text-sm font-semibold">{t('label_back_to_mypage')}</span>
+                  <span className="group-hover:translate-x-1 transition-transform duration-300 text-lg">→</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </Link>
               </div>
-
+              
               {/* 통계 정보 */}
-              {!isLoading && (
-                <div className="bg-gradient-to-r from-white/50 to-white/30 rounded-2xl p-6 backdrop-blur-sm">
-                  <div className="flex items-center justify-center space-x-8">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary-600">{totalCount.toLocaleString()}</div>
-                      <div className="text-sm text-gray-600 font-medium">총 댓글 수</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-4 border border-primary-200/50 h-20">
+                  <div className="flex items-center justify-center h-full space-x-3">
+                    <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-sm">📊</span>
+                    </div>
+                    <div>
+                      <p className="text-primary-800 font-bold text-xl">{totalCount.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
-              )}
+                
+                <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-4 border border-secondary-200/50 h-20">
+                  <div className="flex items-center justify-center h-full space-x-3">
+                    <div className="w-8 h-8 bg-secondary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-sm">❤️</span>
+                    </div>
+                    <div>
+                      <p className="text-secondary-800 font-bold text-xl">
+                        {statistics.totalLikes.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-4 border border-point-200/50 h-20">
+                  <div className="flex items-center justify-center h-full space-x-3">
+                    <div className="w-8 h-8 bg-point rounded-xl flex items-center justify-center">
+                      <span className="text-white text-sm">📋</span>
+                    </div>
+                    <div>
+                      <p className="text-point-800 font-bold text-xl">
+                        {statistics.totalBoards}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 메인 콘텐츠 */}
-        <div className="space-y-6">
-          {isLoading ? (
-            // 로딩 상태
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-r-point rounded-full animate-spin animation-delay-75"></div>
-              </div>
-              <p className="mt-6 text-lg text-gray-600 font-medium">{t('label_loading_comments')}</p>
-            </div>
-          ) : error ? (
-            // 에러 상태
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-24 h-24 bg-gradient-to-br from-point-100 to-point-200 rounded-full flex items-center justify-center mb-6">
-                <span className="text-4xl">⚠️</span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{t('label_error_occurred')}</h3>
-              <p className="text-gray-600 mb-6 text-center max-w-md">{error}</p>
-              <button
-                onClick={retry}
-                className="px-8 py-3 bg-gradient-to-r from-primary to-primary-600 text-white rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-semibold"
-              >
-                {t('label_retry')}
-              </button>
-            </div>
-          ) : !isInitialLoad && comments.length === 0 ? (
-            // 데이터 없음 상태 - 초기 로딩 완료 후에만 표시
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-32 h-32 bg-gradient-to-br from-primary-50 via-secondary-50 to-point-50 rounded-full flex items-center justify-center mb-8">
-                <span className="text-6xl opacity-50">💬</span>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">{t('label_no_comments')}</h3>
-              <p className="text-gray-600 text-center max-w-md mb-6">
-                작성한 댓글이 없습니다. 다른 사용자의 게시물에 댓글을 남겨보세요!
-              </p>
-            </div>
-          ) : (
-            // 댓글 목록
-            <>
-              <div className="grid gap-6">
-                {comments.map((comment, index) => (
-                  <div 
-                    key={`${comment.id}-${index}`}
-                    className="group relative bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-white/30 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-                  >
-                    {/* 배경 그라데이션 */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    
-                    <div className="relative z-10">
-                      {/* 댓글 헤더 */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-2">
-                            {comment.isAnonymous && (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                {t('label_anonymous')}
-                              </span>
-                            )}
-                            {comment.boardName && (
-                              <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full">
-                                {comment.boardName}
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="text-sm font-medium text-gray-700 mb-2 group-hover:text-primary-600 transition-colors">
-                            {t('label_comment_post_title')}: {comment.postTitle}
-                          </h3>
-                          <p className="text-gray-900 leading-relaxed">
-                            {truncateContent(comment.content)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* 댓글 정보 */}
-                      <div className="flex items-center justify-between text-sm text-gray-500">
-                        <div className="flex items-center space-x-4">
-                          {comment.likeCount !== undefined && (
-                            <div className="flex items-center space-x-1">
-                              <span>❤️</span>
-                              <span>{comment.likeCount.toLocaleString()}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-xs">
-                          {formatDate(comment.createdAt)}
-                        </div>
-                      </div>
-                    </div>
+        {/* 오류 상태 - 테마 색상 개선 */}
+        {error && (
+          <div className="mb-6 relative">
+            <div className="bg-gradient-to-r from-red-50 via-point-50 to-red-50 border border-red-200 rounded-2xl p-6 shadow-lg backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-red-100 rounded-2xl flex items-center justify-center">
+                    <span className="text-red-500 text-lg">⚠️</span>
                   </div>
-                ))}
+                  <div>
+                    <p className="text-red-800 font-semibold text-lg">{error}</p>
+                    <p className="text-red-600 text-sm">{t('label_please_try_again')}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={retry}
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-medium"
+                >
+                  {t('label_retry')}
+                </button>
               </div>
+            </div>
+          </div>
+        )}
 
-              {/* 무한 스크롤 센티넬 - 초기 로딩 완료 후이고 데이터가 있을 때만 표시 */}
-              {!isInitialLoad && comments.length > 0 && (
-                <div ref={sentinelRef} className="py-8">
-                  {isLoadingMore ? (
-                    <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
-                      <p className="text-gray-600">{t('label_loading')}</p>
+        {/* 초기 로딩 상태 - 테마 색상 개선 */}
+        {(isLoading || isInitialLoad) && comments.length === 0 && (
+          <div className="text-center py-20">
+            <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-16 shadow-2xl border border-white/30 max-w-md mx-auto">
+              {/* 배경 애니메이션 */}
+              <div className="absolute inset-0 bg-gradient-to-r from-primary-100/30 via-secondary-100/30 to-point-100/30 rounded-3xl animate-pulse"></div>
+              
+              <div className="relative z-10">
+                {/* 개선된 로딩 스피너 */}
+                <div className="relative mb-8">
+                  <div className="w-20 h-20 rounded-full mx-auto relative">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary to-secondary animate-spin">
+                      <div className="absolute inset-3 bg-white rounded-full"></div>
                     </div>
-                  ) : hasMore ? (
-                    <div className="text-center py-4">
-                      <p className="text-gray-500 text-sm">{t('label_scroll_for_more')}</p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full">
-                        <span className="text-green-600">✨</span>
-                        <span className="text-green-700 font-medium">{t('label_all_comments_checked')}</span>
-                      </div>
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-sub to-point animate-ping opacity-30"></div>
+                  </div>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-2xl">💬</div>
+                </div>
+                
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-point bg-clip-text text-transparent mb-4">
+                  {t('label_loading')}
+                </h3>
+                
+                {/* 개선된 점프 애니메이션 */}
+                <div className="flex space-x-2 justify-center mb-4">
+                  <div className="w-3 h-3 bg-gradient-to-r from-primary to-primary-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-secondary to-secondary-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-sub to-sub-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-point to-point-600 rounded-full animate-bounce" style={{ animationDelay: '450ms' }}></div>
+                </div>
+                
+                <p className="text-gray-600 font-medium">{t('label_loading_comments')}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 빈 상태 - 로딩이 완전히 끝난 후에만 표시 */}
+        {!isLoading && !isInitialLoad && comments.length === 0 && !error && (
+          <div className="text-center py-20">
+            <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-16 shadow-2xl border border-white/30 max-w-lg mx-auto">
+              {/* 배경 데코레이션 */}
+              <div className="absolute top-4 right-4 w-16 h-16 bg-gradient-to-br from-primary-100 to-point-100 rounded-full blur-2xl opacity-50"></div>
+              <div className="absolute bottom-4 left-4 w-12 h-12 bg-gradient-to-tr from-sub-100 to-point-100 rounded-full blur-xl opacity-60"></div>
+              
+              <div className="relative z-10">
+                <div className="relative mb-8">
+                  <div className="w-28 h-28 bg-gradient-to-br from-primary-100 via-secondary-100 to-point-100 rounded-full flex items-center justify-center mx-auto animate-bounce shadow-lg">
+                    <span className="text-5xl">💬</span>
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-sub to-point rounded-full animate-ping opacity-60"></div>
+                </div>
+                
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-primary via-secondary to-point bg-clip-text text-transparent mb-4">
+                  {t('label_no_comments')}
+                </h3>
+                
+                <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+                  {t('label_no_comments_yet')}<br />
+                  {t('label_write_first_comment')}
+                </p>
+                
+                <Link 
+                  href="/vote"
+                  className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-primary to-primary-600 text-white rounded-2xl hover:from-primary-600 hover:to-primary-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-semibold"
+                >
+                  <span>{t('label_go_to_vote')}</span>
+                  <span className="text-lg">🗳️</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 댓글 리스트 - 테마 색상 고도화 */}
+        <div className="space-y-8">
+          {comments.map((comment, index) => (
+            <div 
+              key={`${comment.id}-${index}`}
+              className="group relative bg-white/90 backdrop-blur-md rounded-3xl shadow-lg hover:shadow-2xl border border-white/30 overflow-hidden transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-2"
+              style={{
+                animationDelay: `${index * 100}ms`
+              }}
+            >
+              {/* 상단 그라데이션 바 - 개선 */}
+              <div className="h-2 bg-gradient-to-r from-primary via-secondary via-sub to-point"></div>
+              
+              {/* 배경 데코레이션 */}
+              <div className="absolute top-4 right-4 w-20 h-20 bg-gradient-to-br from-primary-50 to-point-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              <div className="relative p-8">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-gray-900 group-hover:text-primary transition-colors duration-300 mb-2">
+                      {comment.postTitle}
+                    </h3>
+                    <div className="h-1 w-16 bg-gradient-to-r from-primary to-point rounded-full"></div>
+                  </div>
+                  {comment.isAnonymous && (
+                    <div className="flex-shrink-0 ml-6">
+                      <span className="px-4 py-2 text-sm font-semibold rounded-full bg-gradient-to-r from-sub-500 to-point-500 text-white border border-sub-600">
+                        {t('label_anonymous')}
+                      </span>
                     </div>
                   )}
                 </div>
-              )}
-            </>
-          )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 댓글 내용 - 대폭 개선 */}
+                  <div className="md:col-span-2 relative bg-gradient-to-br from-primary-50 to-point-50 rounded-2xl p-6 group-hover:from-primary-100 group-hover:to-point-100 transition-all duration-300 border border-primary-100/50">
+                    <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-primary-200 to-point-200 rounded-full opacity-50"></div>
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-primary to-point rounded-xl flex items-center justify-center shadow-sm">
+                        <span className="text-white text-sm">💬</span>
+                      </div>
+                      <span className="font-bold text-primary-800">{t('label_comment_content')}</span>
+                    </div>
+                    <p className="text-gray-800 leading-relaxed text-lg">{truncateContent(comment.content)}</p>
+                  </div>
+                  
+                  {/* 좋아요 수 - 대폭 개선 */}
+                  <div className="relative bg-gradient-to-br from-sub-50 to-secondary-50 rounded-2xl p-6 group-hover:from-sub-100 group-hover:to-secondary-100 transition-all duration-300 border border-sub-100/50">
+                    <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-sub-200 to-secondary-200 rounded-full opacity-50"></div>
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-sub to-secondary rounded-xl flex items-center justify-center shadow-sm">
+                        <span className="text-white text-sm">❤️</span>
+                      </div>
+                      <span className="font-bold text-sub-800">{t('label_likes')}</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl font-bold bg-gradient-to-r from-sub to-secondary bg-clip-text text-transparent">
+                        {(comment.likeCount || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 게시판명 - 대폭 개선 */}
+                  <div className="relative bg-gradient-to-br from-secondary-50 to-primary-50 rounded-2xl p-6 group-hover:from-secondary-100 group-hover:to-primary-100 transition-all duration-300 border border-secondary-100/50">
+                    <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-secondary-200 to-primary-200 rounded-full opacity-50"></div>
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-secondary to-primary rounded-xl flex items-center justify-center shadow-sm">
+                        <span className="text-white text-sm">📋</span>
+                      </div>
+                      <span className="font-bold text-secondary-800">{t('label_board')}</span>
+                    </div>
+                    <span className="inline-flex items-center px-4 py-2 bg-white/80 text-secondary-800 rounded-xl text-sm font-semibold shadow-sm border border-secondary-200/50">
+                      {comment.boardName || t('label_unknown')}
+                    </span>
+                  </div>
+
+                  {/* 작성 날짜 - 대폭 개선 */}
+                  <div className="relative bg-gradient-to-br from-point-50 to-sub-50 rounded-2xl p-6 group-hover:from-point-100 group-hover:to-sub-100 transition-all duration-300 border border-point-100/50">
+                    <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-point-200 to-sub-200 rounded-full opacity-50"></div>
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-point to-sub rounded-xl flex items-center justify-center shadow-sm">
+                        <span className="text-white text-sm">📅</span>
+                      </div>
+                      <span className="font-bold text-point-800">{t('label_comment_date')}</span>
+                    </div>
+                    <span className="text-gray-900 font-semibold text-lg">{formatDate(comment.createdAt)}</span>
+                  </div>
+
+                  {/* 원글 링크 - 대폭 개선 */}
+                  <div className="md:col-span-2 relative bg-gradient-to-br from-primary-50 to-secondary-50 rounded-2xl p-6 group-hover:from-primary-100 group-hover:to-secondary-100 transition-all duration-300 border border-primary-100/50">
+                    <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-primary-200 to-secondary-200 rounded-full opacity-50"></div>
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center shadow-sm">
+                        <span className="text-white text-sm">📄</span>
+                      </div>
+                      <span className="font-bold text-primary-800">{t('label_post')}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-800 font-semibold text-lg">{comment.postTitle}</span>
+                      <Link 
+                        href={`/board/${comment.boardName || 'general'}/${comment.postId}`}
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-primary to-primary-600 text-white rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all duration-300 transform hover:scale-105 shadow-sm font-medium text-sm"
+                      >
+                        <span>원글 보기</span>
+                        <span className="text-sm">→</span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
+
+        {/* 무한 스크롤 트리거 - 초기 로딩 완료 후이고 데이터가 있을 때만 표시 */}
+        {!isLoading && !isInitialLoad && comments.length > 0 && hasMore && (
+          <div ref={sentinelRef} className="mt-16 text-center py-12">
+            {isLoadingMore ? (
+              <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-10 shadow-xl border border-white/30 max-w-sm mx-auto">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-50/50 via-secondary-50/50 to-point-50/50 rounded-3xl animate-pulse"></div>
+                <div className="relative z-10">
+                  <div className="flex flex-col items-center space-y-6">
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary via-secondary to-point animate-spin">
+                        <div className="absolute inset-3 bg-white rounded-full"></div>
+                      </div>
+                      <div className="absolute inset-0 w-16 h-16 rounded-full bg-gradient-to-r from-primary via-secondary to-point animate-ping opacity-30"></div>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-gray-800 font-bold text-lg mb-2">{t('label_loading')}</p>
+                      <div className="flex space-x-2 justify-center">
+                        <div className="w-3 h-3 bg-gradient-to-r from-primary to-primary-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-3 h-3 bg-gradient-to-r from-secondary to-secondary-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-3 h-3 bg-gradient-to-r from-sub to-sub-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        <div className="w-3 h-3 bg-gradient-to-r from-point to-point-600 rounded-full animate-bounce" style={{ animationDelay: '450ms' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 max-w-xs mx-auto shadow-lg">
+                <div className="flex items-center justify-center space-x-3 text-gray-600">
+                  <span className="animate-bounce text-2xl">👆</span>
+                  <span className="font-medium">{t('label_scroll_for_more')}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 더 이상 로드할 데이터가 없는 경우 - 초기 로딩 완료 후에만 표시 */}
+        {!isLoading && !isInitialLoad && !hasMore && comments.length > 0 && (
+          <div className="text-center py-16">
+            <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-12 shadow-xl border border-white/30 max-w-lg mx-auto">
+              {/* 배경 데코레이션 */}
+              <div className="absolute top-4 right-4 w-16 h-16 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full blur-2xl opacity-50"></div>
+              <div className="absolute bottom-4 left-4 w-12 h-12 bg-gradient-to-tr from-sub-100 to-point-100 rounded-full blur-xl opacity-60"></div>
+              
+              <div className="relative z-10">
+                <div className="w-20 h-20 bg-gradient-to-br from-secondary-100 via-sub-100 to-primary-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <span className="text-3xl">🎉</span>
+                </div>
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-secondary via-sub to-primary bg-clip-text text-transparent mb-4">
+                  {t('label_all_comments_checked')}
+                </h3>
+                <p className="text-gray-600 text-lg">{t('label_all_comments_loaded')}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,12 +3,14 @@
 import React, { memo } from 'react';
 import { AuthProvider } from '@/lib/supabase/auth-provider';
 import { NavigationProvider } from '@/contexts/NavigationContext';
+import { GlobalLoadingProvider } from '@/contexts/GlobalLoadingContext';
 import { Analytics } from '@vercel/analytics/react';
 import { DialogProvider } from '@/components/ui/Dialog';
 import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler';
 import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { GlobalNotifications } from '@/components/common/GlobalNotifications';
+import GlobalLoadingOverlay from '@/components/ui/GlobalLoadingOverlay';
 
 interface ClientLayoutProps {
   children: any;
@@ -22,21 +24,24 @@ const ClientLayoutComponent = memo(function ClientLayoutInternal({
 }: ClientLayoutProps) {
   return (
     <NavigationProvider>
-      <LanguageSyncProvider initialLanguage={initialLanguage}>
-        <AuthProvider>
-          <NotificationProvider>
-            {/* @ts-ignore */}
-            <DialogProvider>
+      <GlobalLoadingProvider>
+        <LanguageSyncProvider initialLanguage={initialLanguage}>
+          <AuthProvider>
+            <NotificationProvider>
               {/* @ts-ignore */}
-              <AuthRedirectHandler>
-                {children}
-                <GlobalNotifications />
-                <Analytics />
-              </AuthRedirectHandler>
-            </DialogProvider>
-          </NotificationProvider>
-        </AuthProvider>
-      </LanguageSyncProvider>
+              <DialogProvider>
+                {/* @ts-ignore */}
+                <AuthRedirectHandler>
+                  {children}
+                  <GlobalNotifications />
+                  <GlobalLoadingOverlay />
+                  <Analytics />
+                </AuthRedirectHandler>
+              </DialogProvider>
+            </NotificationProvider>
+          </AuthProvider>
+        </LanguageSyncProvider>
+      </GlobalLoadingProvider>
     </NavigationProvider>
   );
 });

@@ -36,18 +36,7 @@ interface Translations {
   label_mypage_withdrawal: string;
   // 새로 추가된 번역 키들
   label_loading: string;
-  label_mypage_edit_profile_desc: string;
-  label_mypage_logout_desc: string;
-  label_mypage_my_votes_desc: string;
-  label_mypage_my_posts_desc: string;
-  label_mypage_my_comments_desc: string;
   label_mypage_my_recharge_history: string;
-  label_mypage_my_recharge_history_desc: string;
-  label_mypage_notice_desc: string;
-  label_mypage_faq_desc: string;
-  label_mypage_terms_desc: string;
-  label_mypage_privacy_desc: string;
-  label_mypage_withdrawal_desc: string;
   // 별사탕 관련 번역 키들
   label_mypage_star_candy: string;
   label_mypage_star_candy_bonus: string;
@@ -317,57 +306,53 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
               <Link href='/notice' className='group'>
-                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>📢</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors'>
                       {t('label_mypage_notice')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_notice_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/faq' className='group'>
-                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>❓</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors'>
                       {t('label_mypage_faq')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_faq_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/terms' className='group'>
-                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>📋</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors'>
                       {t('label_mypage_terms_of_use')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_terms_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/privacy' className='group'>
-                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>🔒</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors'>
                       {t('label_mypage_privacy_policy')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_privacy_desc')}</p>
                   </div>
                 </div>
               </Link>
@@ -436,16 +421,16 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
 
             {/* 스타 캔디 정보 */}
             {!isLoadingProfile && apiUserProfile && (
-              <div className='bg-sub-200 p-6 rounded-lg'>
+              <div className='bg-sub-200 p-3 rounded-lg'>
                 <div className='text-center'>
-                  <div className='text-primary-500 font-semibold text-xl mb-2'>
+                  <div className='text-primary-500 font-semibold text-lg mb-1'>
                     {t('label_mypage_star_candy_total')}: {userInfo.total_candy.toLocaleString()}
                   </div>
-                  <div className='text-base text-gray-600 flex items-center justify-center gap-1'>
+                  <div className='text-sm text-gray-600 flex items-center justify-center gap-1'>
                     <img 
                       src="/images/star-candy/star_100.png" 
                       alt="별사탕" 
-                      className="w-8 h-8" 
+                      className="w-6 h-6" 
                     />
                     <span>{userInfo.star_candy.toLocaleString()}</span>
                 {userInfo.star_candy_bonus > 0 && (
@@ -476,8 +461,8 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
               {isDebugMode && (
                 <Link href='/mypage/edit-profile' className='group'>
-                  <div className='bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-primary-200'>
-                    <div className='flex items-center space-x-3'>
+                  <div className='bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-primary-200 h-20'>
+                    <div className='flex items-center justify-center space-x-3 h-full'>
                       <div className='w-10 h-10 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center'>
                         <span className='text-white text-lg'>✏️</span>
                       </div>
@@ -488,7 +473,6 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                             {t('label_debug')}
                           </span>
                         </h3>
-                        <p className='text-sm text-gray-500'>{t('label_mypage_edit_profile_desc')}</p>
                       </div>
                     </div>
                   </div>
@@ -496,8 +480,8 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
               )}
               
               <button onClick={handleLogout} className='group text-left'>
-                <div className='bg-gradient-to-r from-point-50 to-point-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-point-200'>
-                  <div className='flex items-center space-x-3'>
+                <div className='bg-gradient-to-r from-point-50 to-point-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-point-200 h-20'>
+                  <div className='flex items-center justify-center space-x-3 h-full'>
                     <div className='w-10 h-10 bg-gradient-to-r from-point-500 to-point-600 rounded-lg flex items-center justify-center'>
                       <span className='text-white text-lg'>🚪</span>
                     </div>
@@ -505,7 +489,6 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                       <h3 className='font-semibold text-gray-900 group-hover:text-point-600 transition-colors'>
                         {t('label_mypage_logout')}
                       </h3>
-                      <p className='text-sm text-gray-500'>{t('label_mypage_logout_desc')}</p>
                     </div>
                   </div>
                 </div>
@@ -528,57 +511,53 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
               <Link href='/mypage/vote-history' className='group'>
-                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>🗳️</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors'>
                       {t('label_mypage_my_votes')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_my_votes_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/mypage/posts' className='group'>
-                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>📝</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors'>
                       {t('label_mypage_my_posts')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_my_posts_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/mypage/comments' className='group'>
-                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>💬</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors'>
                       {t('label_mypage_my_comments')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_my_comments_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/mypage/recharge-history' className='group'>
-                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>💳</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors'>
                       {t('label_mypage_my_recharge_history')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_my_recharge_history_desc')}</p>
                   </div>
                 </div>
               </Link>
@@ -600,57 +579,53 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
               <Link href='/notice' className='group'>
-                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>📢</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors'>
                       {t('label_mypage_notice')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_notice_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/faq' className='group'>
-                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>❓</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors'>
                       {t('label_mypage_faq')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_faq_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/terms' className='group'>
-                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>📋</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors'>
                       {t('label_mypage_terms_of_use')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_terms_desc')}</p>
                   </div>
                 </div>
               </Link>
               
               <Link href='/privacy' className='group'>
-                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200'>
-                  <div className='text-center'>
+                <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-28'>
+                  <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-3'>
                       <span className='text-white text-lg'>🔒</span>
                     </div>
-                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors mb-1'>
+                    <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors'>
                       {t('label_mypage_privacy_policy')}
                     </h3>
-                    <p className='text-sm text-gray-500'>{t('label_mypage_privacy_desc')}</p>
                   </div>
                 </div>
               </Link>
@@ -672,7 +647,6 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                             {t('label_debug')}
                           </span>
                         </h3>
-                        <p className='text-sm text-gray-500'>{t('label_mypage_withdrawal_desc')}</p>
                       </div>
                     </div>
                   </div>

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import {usePathname} from 'next/navigation';
 import {useAuth} from '@/lib/supabase/auth-provider';
 import {useLanguageStore} from '@/stores/languageStore';
+import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import {DefaultAvatar, ProfileImageContainer,} from '@/components/ui/ProfileImageContainer';
 import PortalMenuItem from './PortalMenuItem';
 import {PORTAL_MENU} from '@/config/navigation';
@@ -15,10 +16,18 @@ import LanguageSelector from './LanguageSelector';
 const Header: React.FC = () => {
   const { isAuthenticated, userProfile, user, signOut, isLoading, isInitialized } = useAuth();
   const { currentLanguage } = useLanguageStore();
+  const { setIsLoading: setGlobalLoading } = useGlobalLoading();
   const pathname = usePathname();
 
   // 🐛 디버그 모드 체크
   const isDebugMode = process.env.NODE_ENV === 'development';
+
+  // 네비게이션 클릭 핸들러
+  const handleLinkClick = useCallback((href: string) => {
+    if (pathname !== href) {
+      setGlobalLoading(true);
+    }
+  }, [pathname, setGlobalLoading]);
 
   // 🎯 DB 프로필 이미지 우선 (OAuth는 최초 가입시에만 사용)
   const getUserInfo = useCallback(() => {
@@ -211,7 +220,11 @@ const Header: React.FC = () => {
           <div className='flex items-center gap-2 sm:gap-4 flex-1 min-w-0'>
             {/* 로고 */}
             <div className='flex items-center flex-shrink-0'>
-              <Link href="/">
+              <Link 
+                href="/"
+                prefetch={true}
+                onClick={() => handleLinkClick('/')}
+              >
                 <Image
                   src='/images/logo.png'
                   alt='logo'
@@ -322,7 +335,12 @@ const Header: React.FC = () => {
                 </div>
               ) : stableAuthState.showUserArea ? (
                 // 인증된 사용자 영역
-                <Link href='/mypage' className='block'>
+                <Link 
+                  href='/mypage' 
+                  className='block'
+                  prefetch={true}
+                  onClick={() => handleLinkClick('/mypage')}
+                >
                   {profileImageLoading ? (
                     // DB 프로필 로딩 중일 때 shimmer 효과
                     <div className="w-8 h-8 rounded-lg shimmer-effect">
@@ -340,7 +358,12 @@ const Header: React.FC = () => {
                 </Link>
               ) : stableAuthState.showHamburger ? (
                 // 미인증 사용자 햄버거 메뉴
-                <Link href='/mypage' className='block'>
+                <Link 
+                  href='/mypage' 
+                  className='block'
+                  prefetch={true}
+                  onClick={() => handleLinkClick('/mypage')}
+                >
                   <div className='p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200'>
                     <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
                   </div>

@@ -3,64 +3,43 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import type { LinkProps } from 'next/link';
+import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 
 interface NavigationLinkProps extends Omit<LinkProps, 'href'> {
   href: string;
   children: React.ReactNode;
   className?: string;
+  prefetch?: boolean;
 }
 
-// Next.js 15.3.1에서 새로 도입된 네비게이션 훅을 사용하는 컴포넌트입니다.
-// 참고: 이 코드는 Next.js 15.3.1 이상 버전에서만 작동합니다.
+// 페이지 전환을 빠르게 하기 위한 최적화된 네비게이션 링크 컴포넌트
 export default function NavigationLink({
   href,
   children,
   className = '',
+  prefetch = true, // 기본값을 true로 설정하여 페이지 미리 로드
   ...props
 }: NavigationLinkProps) {
   const [isNavigating, setIsNavigating] = useState(false);
+  const { setIsLoading } = useGlobalLoading();
   
-  // Next.js 15.3.1 업데이트 이후 onNavigate 이벤트 핸들러와 useLinkStatus를
-  // 사용할 수 있게 되면 아래 주석을 해제하고 사용하세요.
-  
-  /*
-  // 실제 구현:
-  const handleNavigate = (event: any) => {
-    // 네비게이션 이벤트 추적 또는 분석 로직
-    console.log(`Navigation initiated to: ${href}`);
-    
-    // 사용자 정의 네비게이션 로직을 여기에 추가할 수 있습니다.
-    // 필요한 경우 event.preventDefault()를 호출하여 네비게이션을 취소할 수 있습니다.
-    
-    setIsNavigating(true);
+  const handleClick = () => {
+    // 현재 페이지와 다른 경우에만 로딩 시작
+    if (window.location.pathname !== href) {
+      setIsLoading(true);
+      setIsNavigating(true);
+    }
   };
-  
-  // useLinkStatus 훅 사용 예시:
-  const LinkStatusIndicator = () => {
-    const { pending } = useLinkStatus();
-    
-    if (!pending) return null;
-    
-    // 파란 점 제거됨 - 로딩 인디케이터 비활성화
-    return null;
-  };
-  */
   
   return (
     <Link 
       href={href}
-      className={`relative ${className} ${isNavigating ? 'opacity-70' : 'opacity-100'}`}
+      className={`relative ${className} ${isNavigating ? 'opacity-90' : 'opacity-100'} transition-opacity duration-200`}
+      prefetch={prefetch} // prefetch 활성화로 페이지 미리 로드
+      onClick={handleClick}
       {...props}
-      // Next.js 15.3.1 지원 시 주석 해제:
-      // onNavigate={handleNavigate}
     >
       {children}
-      {/* Next.js 15.3.1 지원 시 주석 해제: <LinkStatusIndicator /> */}
-      {/* 파란 점 제거: 네비게이션 로딩 인디케이터 */}
-      {/* {isNavigating && (
-        <span className="inline-block ml-2 w-3 h-3 rounded-full bg-blue-500 animate-pulse" 
-              aria-label="Loading" />
-      )} */}
     </Link>
   );
 } 
