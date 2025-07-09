@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
       .eq('status', 'completed')
-      .in('platform', ['ios', 'android']) // 앱구매만 필터링
+      .in('platform', ['ios', 'android', 'web']) // 웹 결제도 포함
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -183,7 +183,7 @@ export async function GET(request: NextRequest) {
         .from('receipts')
         .select('*', { count: 'exact' })
         .eq('user_id', user.id)
-        .in('platform', ['ios', 'android'])
+        .in('platform', ['ios', 'android', 'web'])
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
       
@@ -218,6 +218,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 5.5. Products 정보 가져오기 (별도 쿼리)
+    const productIds = Array.from(new Set((finalReceipts || []).map(r => r.product_id).filter((id): id is string => Boolean(id))));
+    let productsMap = new Map();
+    
+    if (productIds.length > 0) {
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id, product_name, star_candy, star_candy_bonus, web_price_krw, web_price_usd, price')
+        .in('id', productIds);
+      
+      if (productsData) {
+        productsData.forEach(product => {
+          productsMap.set(product.id, product);
+        });
+      }
+    }
+
     // 6. 데이터 변환 (앱구매 형태로)
     const rechargeItems: AppPurchaseItem[] = (finalReceipts || []).map((receipt) => {
       // 영수증 데이터 파싱
@@ -240,35 +257,54 @@ export async function GET(request: NextRequest) {
         console.warn('검증 데이터 파싱 실패:', e);
       }
 
+      // Products 테이블 정보 
+      const productInfo = productsMap.get(receipt.product_id) || {};
+      
       // 플랫폼별 데이터 처리
       const isIOS = receipt.platform === 'ios';
       const isAndroid = receipt.platform === 'android';
+      const isWeb = receipt.platform === 'web';
       
-      // 별사탕 수량 계산 (기본값)
-      const baseStarCandy = Number(receiptData.star_candy_amount || 100);
-      const bonusStarCandy = Number(receiptData.bonus_amount || 0);
+      // 별사탕 수량 계산 (Products 테이블 우선, 기본값은 영수증 데이터)
+      const baseStarCandy = Number(productInfo.star_candy || receiptData.star_candy_amount || receiptData.starCandy || 100);
+      const bonusStarCandy = Number(productInfo.star_candy_bonus || receiptData.bonus_amount || receiptData.bonusAmount || 0);
+      
+      // 결제 금액 계산 (Products 테이블 우선)
+      let actualAmount = 0;
+      if (isWeb) {
+        // 웹 결제의 경우 currency에 따라 가격 선택
+        const currency = receiptData.currency || 'KRW';
+        if (currency === 'USD') {
+          actualAmount = Number(productInfo.web_price_usd || receiptData.amount || 0);
+        } else {
+          actualAmount = Number(productInfo.web_price_krw || receiptData.amount || 0);
+        }
+      } else {
+        // 앱 결제의 경우 기존 로직 유지
+        actualAmount = Number(productInfo.price || receiptData.amount || 0);
+      }
       
       // 결제 방법 결정
-      const paymentMethod = isIOS ? 'apple_store' : isAndroid ? 'google_play' : 'app_store';
-      const paymentProvider = isIOS ? 'Apple App Store' : isAndroid ? 'Google Play Store' : 'App Store';
+      const paymentMethod = isIOS ? 'apple_store' : isAndroid ? 'google_play' : isWeb ? 'web_payment' : 'app_store';
+      const paymentProvider = isIOS ? 'Apple App Store' : isAndroid ? 'Google Play Store' : isWeb ? (receiptData.payment_method === 'port_one' ? 'Port One' : 'PayPal') : 'App Store';
       
-      // 상품 정보
-      const itemName = receiptData.product_name || receiptData.item_name || '별사탕 구매';
-      const description = receiptData.description || '별사탕 앱 내 구매';
-      const unitPrice = Number(receiptData.amount || 0);
+      // 상품 정보 (Products 테이블 우선)
+      const itemName = productInfo.product_name || receiptData.product_name || receiptData.item_name || '별사탕 구매';
+      const description = receiptData.description || '별사탕 구매';
+      const unitPrice = actualAmount;
       
       return {
         id: receipt.id.toString(),
         receiptId: receipt.receipt_hash || `APP_${receipt.id}`,
         receiptNumber: `A${new Date(receipt.created_at || new Date()).getFullYear()}${('000000' + receipt.id.toString()).slice(-6)}`,
         receiptUrl: receiptData.receipt_url || undefined,
-        amount: Number(receiptData.amount || 0),
+        amount: actualAmount,
         starCandyAmount: Number(baseStarCandy),
         bonusAmount: Number(bonusStarCandy),
         paymentMethod,
         paymentProvider,
         platform: receipt.platform,
-        storeProductId: String(receiptData.product_id || receiptData.store_product_id || 'unknown'),
+        storeProductId: String(receipt.product_id || productInfo.id || receiptData.product_id || receiptData.store_product_id || 'unknown'),
         transactionId: isIOS 
           ? (verificationData.transaction_id || receiptData.original_transaction_id || receipt.receipt_hash)
           : (receiptData.order_id || receiptData.purchase_token || receipt.receipt_hash),
@@ -316,12 +352,73 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // 7. 통계 계산
-    const statistics = {
+    // 7. 전체 통계 계산 (별도 쿼리)
+    let statistics = {
       totalPurchases: finalCount || 0,
-      totalAmount: rechargeItems.reduce((sum, item) => sum + item.amount, 0),
-      totalStarCandy: rechargeItems.reduce((sum, item) => sum + item.starCandyAmount + item.bonusAmount, 0),
+      totalAmount: 0,
+      totalStarCandy: 0,
     };
+
+    try {
+      // 전체 완료된 영수증 조회 (통계용)
+      const { data: allReceipts } = await supabase
+        .from('receipts')
+        .select('id, product_id, receipt_data, platform')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .in('platform', ['ios', 'android', 'web']);
+
+      if (allReceipts && allReceipts.length > 0) {
+        // 전체 영수증에서 통계 계산
+        let totalAmount = 0;
+        let totalStarCandy = 0;
+
+        for (const receipt of allReceipts) {
+          let receiptData: any = {};
+          try {
+            receiptData = typeof receipt.receipt_data === 'string' 
+              ? JSON.parse(receipt.receipt_data) 
+              : receipt.receipt_data || {};
+          } catch (e) {
+            continue;
+          }
+
+          const productInfo = productsMap.get(receipt.product_id) || {};
+          const isWeb = receipt.platform === 'web';
+          
+          // 실제 결제 금액
+          if (isWeb) {
+            const currency = receiptData.currency || 'KRW';
+            if (currency === 'USD') {
+              totalAmount += Number(productInfo.web_price_usd || receiptData.amount || 0);
+            } else {
+              totalAmount += Number(productInfo.web_price_krw || receiptData.amount || 0);
+            }
+          } else {
+            totalAmount += Number(productInfo.price || receiptData.amount || 0);
+          }
+
+          // 별사탕 수량
+          const baseStarCandy = Number(productInfo.star_candy || receiptData.star_candy_amount || receiptData.starCandy || 100);
+          const bonusStarCandy = Number(productInfo.star_candy_bonus || receiptData.bonus_amount || receiptData.bonusAmount || 0);
+          totalStarCandy += baseStarCandy + bonusStarCandy;
+        }
+
+        statistics = {
+          totalPurchases: allReceipts.length,
+          totalAmount,
+          totalStarCandy,
+        };
+      }
+    } catch (error) {
+      console.error('통계 계산 실패:', error);
+      // 페이지 데이터로 fallback
+      statistics = {
+        totalPurchases: finalCount || 0,
+        totalAmount: rechargeItems.reduce((sum, item) => sum + item.amount, 0),
+        totalStarCandy: rechargeItems.reduce((sum, item) => sum + item.starCandyAmount + item.bonusAmount, 0),
+      };
+    }
 
     // 8. 페이지네이션 정보
     const totalPages = Math.ceil((finalCount || 0) / limit);

@@ -19,6 +19,7 @@ interface RechargeItem {
   merchantTransactionId?: string; // 판매자 거래 ID
   status: string;
   currency: string; // 통화 코드
+  storeProductId: string; // 상품 코드 (STAR100 등)
   exchangeRate?: number; // 환율 (외화 결제시)
   originalAmount?: number; // 원래 금액 (외화 결제시)
   originalCurrency?: string; // 원래 통화
@@ -743,6 +744,13 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                       <div className="text-sm text-gray-600 mb-2">
                         {recharge.receiptData.description}
                       </div>
+                      {/* 상품 코드 표시 */}
+                      <div className="mb-2">
+                        <span className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-orange-100 to-yellow-100 text-orange-800 rounded-lg text-xs font-semibold border border-orange-200">
+                          <span className="mr-1">🏷️</span>
+                          상품코드: {recharge.storeProductId}
+                        </span>
+                      </div>
                       <div className="flex items-center space-x-4 text-sm">
                         <span>{t('label_quantity')}: {recharge.receiptData.quantity}</span>
                         <span>{t('label_unit_price')}: {recharge.currency === 'KRW' ? formatCurrency(recharge.receiptData.unitPrice) : `${recharge.receiptData.unitPrice} ${recharge.currency}`}</span>
@@ -759,17 +767,17 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                       </div>
                       <span className="font-bold text-green-800">{t('label_transaction_info')}</span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div>
                         <div className="text-xs text-gray-600 mb-1">{t('label_transaction_id')}</div>
-                        <div className="font-mono text-sm bg-white/80 px-2 py-1 rounded border">
+                        <div className="font-mono text-sm bg-white/80 px-3 py-2 rounded border break-all whitespace-pre-wrap leading-relaxed">
                           {recharge.transactionId}
                         </div>
                       </div>
                       {recharge.merchantTransactionId && (
                         <div>
                           <div className="text-xs text-gray-600 mb-1">{t('label_merchant_transaction_id')}</div>
-                          <div className="font-mono text-sm bg-white/80 px-2 py-1 rounded border">
+                          <div className="font-mono text-sm bg-white/80 px-3 py-2 rounded border break-all whitespace-pre-wrap leading-relaxed">
                             {recharge.merchantTransactionId}
                           </div>
                         </div>
