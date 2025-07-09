@@ -455,10 +455,10 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             <h1 className='text-2xl font-bold text-gray-900 mb-2'>
               {userInfo.nickname}
             </h1>
-            <p className='text-gray-600 mb-3'>{userInfo.email}</p>
             
-            {/* Provider 정보 */}
-            <div className='flex flex-wrap gap-2 justify-center md:justify-start mb-3'>
+            {/* 이메일과 로그인 수단을 한 줄로 */}
+            <div className='flex flex-wrap items-center gap-3 justify-center md:justify-start mb-3'>
+              <p className='text-gray-600'>{userInfo.email}</p>
               <span className='inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm'>
                 <span>
                   {isLoadingProfile ? t('label_loading') : userInfo.provider_display_name}
