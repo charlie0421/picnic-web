@@ -91,6 +91,7 @@ interface Translations {
   label_vote_for_favorite_artist: string;
   label_go_to_vote: string;
   label_all_vote_history_checked: string;
+  label_current_page_basis: string;
 }
 
 interface VoteHistoryClientProps {
@@ -474,11 +475,11 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       <span className="text-white text-sm">⭐</span>
                     </div>
                     <div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 bg-gradient-to-r from-secondary to-secondary-600 rounded-full animate-pulse"></div>
-                        <p className="text-secondary-600 text-sm font-medium">{t('label_total_star_candy_used')}</p>
-                      </div>
-                      <p className="text-secondary-700 text-xs mt-1">별도 집계 예정</p>
+                      <p className="text-secondary-800 font-bold text-lg">
+                        {voteHistory.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
+                      </p>
+                      <p className="text-secondary-600 text-xs font-medium">{t('label_total_star_candy_used')}</p>
+                      <p className="text-secondary-500 text-xs">{t('label_current_page_basis')}</p>
                     </div>
                   </div>
                 </div>
@@ -489,11 +490,11 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                       <span className="text-white text-sm">🎯</span>
                     </div>
                     <div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 bg-gradient-to-r from-point to-point-600 rounded-full animate-pulse"></div>
-                        <p className="text-point-600 text-sm font-medium">{t('label_supported_artists')}</p>
-                      </div>
-                      <p className="text-point-700 text-xs mt-1">별도 집계 예정</p>
+                      <p className="text-point-800 font-bold text-lg">
+                        {new Set(voteHistory.map(item => item.voteItem?.artist?.id)).size}
+                      </p>
+                      <p className="text-point-600 text-xs font-medium">{t('label_supported_artists')}</p>
+                      <p className="text-point-500 text-xs">{t('label_current_page_basis')}</p>
                     </div>
                   </div>
                 </div>

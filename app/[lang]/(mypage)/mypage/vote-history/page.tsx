@@ -59,6 +59,7 @@ export default async function VoteHistoryPage({ params }: { params: Promise<{ la
     label_vote_for_favorite_artist: localeMessages.label_vote_for_favorite_artist || 'Vote for your favorite artist!',
     label_go_to_vote: localeMessages.label_go_to_vote || 'Go to Vote',
     label_all_vote_history_checked: localeMessages.label_all_vote_history_checked || 'All vote history checked!',
+    label_current_page_basis: localeMessages.label_current_page_basis || 'Current page basis',
   };
 
   return (
