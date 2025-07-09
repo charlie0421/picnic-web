@@ -377,7 +377,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
 
         
         {/* 페이지 하단 버전 정보 */}
-        <div className='mt-8 pt-4 border-t border-gray-200 text-center'>
+        <div className='mt-8 pt-4 border-t border-gray-200 text-right'>
           <p className='text-xs text-gray-400'>
             v{process.env.NEXT_PUBLIC_BUILD_VERSION 
               ? process.env.NEXT_PUBLIC_BUILD_VERSION.split('.').slice(0, 2).join('.')
@@ -685,7 +685,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
       </div>
       
       {/* 페이지 하단 버전 정보 */}
-      <div className='mt-8 pt-4 border-t border-gray-200 text-center'>
+      <div className='mt-8 pt-4 border-t border-gray-200 text-right'>
         <p className='text-xs text-gray-400'>
           v{process.env.NEXT_PUBLIC_BUILD_VERSION 
             ? process.env.NEXT_PUBLIC_BUILD_VERSION.split('.').slice(0, 2).join('.')
