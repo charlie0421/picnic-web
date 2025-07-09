@@ -82,6 +82,8 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
     label_mypage_my_votes_desc: localeMessages.label_mypage_my_votes_desc || 'View your voting history',
     label_mypage_my_posts_desc: localeMessages.label_mypage_my_posts_desc || 'View your posts',
     label_mypage_my_comments_desc: localeMessages.label_mypage_my_comments_desc || 'View your comments',
+    label_mypage_my_recharge_history: localeMessages.label_mypage_my_recharge_history || 'My Recharge History',
+    label_mypage_my_recharge_history_desc: localeMessages.label_mypage_my_recharge_history_desc || 'View your Star Candy recharge history',
     label_mypage_star_candy: localeMessages.label_mypage_star_candy || 'Star Candy',
     label_mypage_star_candy_bonus: localeMessages.label_mypage_star_candy_bonus || 'Bonus',
     label_mypage_star_candy_total: localeMessages.label_mypage_star_candy_total || 'Total',

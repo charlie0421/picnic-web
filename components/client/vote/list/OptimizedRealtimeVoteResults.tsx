@@ -4,6 +4,8 @@ import React, { memo, useState, useMemo, useCallback } from 'react';
 import { useVoteRealtimeOptimized } from '@/hooks/useVoteRealtimeOptimized';
 import OptimizedConnectionStatusDisplay from '../common/OptimizedConnectionStatusDisplay';
 import { VoteItem } from '@/types/interfaces';
+import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface OptimizedRealtimeVoteResultsProps {
   voteId: number;
@@ -22,22 +24,29 @@ const VoteItemRow = memo(({
   totalVotes: number;
   rank: number;
 }) => {
+  const { currentLanguage } = useLanguageStore();
+  
   const percentage = useMemo(() => {
     return totalVotes > 0 && item.vote_total ? (item.vote_total / totalVotes * 100) : 0;
   }, [item.vote_total, totalVotes]);
 
   const isWinning = rank === 1 && totalVotes > 0;
 
-  // 제목 추출 (아티스트 또는 그룹 이름)
+  // 제목 추출 (아티스트 이름 우선, 그룹 이름은 별도 표시)
   const title = useMemo(() => {
-    if (item.artist?.name && typeof item.artist.name === 'object') {
-      return (item.artist.name as any).ko || (item.artist.name as any).en || '아티스트';
-    }
-    if (item.artistGroup?.name && typeof item.artistGroup.name === 'object') {
-      return (item.artistGroup.name as any).ko || (item.artistGroup.name as any).en || '그룹';
+    if (item.artist?.name && hasValidLocalizedString(item.artist.name)) {
+      return getLocalizedString(item.artist.name, currentLanguage);
     }
     return `투표 항목 ${item.id}`;
-  }, [item.artist, item.artistGroup, item.id]);
+  }, [item.artist, item.id, currentLanguage]);
+
+  // 그룹 이름 추출
+  const groupName = useMemo(() => {
+    if (item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)) {
+      return getLocalizedString(item.artist.artistGroup.name, currentLanguage);
+    }
+    return null;
+  }, [item.artist?.artistGroup, currentLanguage]);
 
   return (
     <div className={`p-4 border rounded-lg transition-all duration-300 ${
@@ -50,7 +59,12 @@ const VoteItemRow = memo(({
           }`}>
             #{rank}
           </span>
-          <h3 className="font-medium text-gray-900">{title}</h3>
+          <div>
+            <h3 className="font-medium text-gray-900">{title}</h3>
+            {groupName && (
+              <p className="text-sm text-gray-600">{groupName}</p>
+            )}
+          </div>
         </div>
         <div className="text-right">
           <div className="font-bold text-lg text-blue-600">

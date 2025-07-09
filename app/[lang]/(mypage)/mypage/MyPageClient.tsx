@@ -43,6 +43,8 @@ interface Translations {
   label_mypage_my_votes_desc: string;
   label_mypage_my_posts_desc: string;
   label_mypage_my_comments_desc: string;
+  label_mypage_my_recharge_history: string;
+  label_mypage_my_recharge_history_desc: string;
   label_mypage_notice_desc: string;
   label_mypage_faq_desc: string;
   label_mypage_terms_desc: string;
@@ -559,7 +561,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
               </h2>
             </div>
             
-            <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
               <Link href='/mypage/vote-history' className='group'>
                 <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
                   <div className='text-center'>
@@ -607,6 +609,23 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                           </span>
                         </h3>
                         <p className='text-sm text-gray-500'>{t('label_mypage_my_comments_desc')}</p>
+                      </div>
+                    </div>
+                  </Link>
+                  
+                  <Link href='/mypage/recharge-history' className='group'>
+                    <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200'>
+                      <div className='text-center'>
+                        <div className='w-12 h-12 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-3'>
+                          <span className='text-white text-lg'>💳</span>
+                        </div>
+                        <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors mb-1'>
+                          {t('label_mypage_my_recharge_history')}
+                          <span className='ml-2 px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-full'>
+                            {t('label_debug')}
+                          </span>
+                        </h3>
+                        <p className='text-sm text-gray-500'>{t('label_mypage_my_recharge_history_desc')}</p>
                       </div>
                     </div>
                   </Link>

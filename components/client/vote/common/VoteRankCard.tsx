@@ -215,7 +215,7 @@ export function VoteRankCard({
           >
             {artistName}
           </h3>
-          {item.artist?.artistGroup?.name && (
+          {item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name) && (
             <p 
               className='text-xs text-gray-600 text-center w-full px-0.5 mb-0.5 leading-tight'
               style={{ 

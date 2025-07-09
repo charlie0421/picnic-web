@@ -5,6 +5,7 @@ import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { getCdnImageUrl } from '@/utils/api/image';
+import { hasValidLocalizedString } from '@/utils/api/strings';
 
 // 다국어 객체 타입 정의
 type MultiLanguageText = {
@@ -217,27 +218,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
     }
   }, [getCurrentLanguage]);
 
-  // 그룹 이름이 실제로 유효한 내용이 있는지 확인하는 함수
-  const hasValidGroupName = useCallback((groupName: any): boolean => {
-    if (!groupName) return false;
-    
-    // 문자열인 경우
-    if (typeof groupName === 'string') {
-      return groupName.trim() !== '';
-    }
-    
-    // 객체인 경우 - 모든 값이 비어있는지 확인
-    if (typeof groupName === 'object' && groupName !== null) {
-      const values = Object.values(groupName);
-      return values.some(value => 
-        value !== null && 
-        value !== undefined && 
-        String(value).trim() !== ''
-      );
-    }
-    
-    return false;
-  }, []);
+
 
   const fetchVoteHistory = useCallback(async (pageNum: number, reset: boolean = false) => {
     // 이전 요청 취소
@@ -745,7 +726,7 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                         <div className="flex items-center space-x-2">
                           <span className="font-semibold text-gray-900 text-lg">{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
                           {item.voteItem?.artist?.artistGroup && 
-                           hasValidGroupName(item.voteItem?.artist?.artistGroup?.name) && (
+                           hasValidLocalizedString(item.voteItem?.artist?.artistGroup?.name) && (
                             <>
                               <span className="text-primary-400 font-bold">{t('label_group_separator')}</span>
                               <span className="text-primary-700 font-medium">{getLocalizedText(item.voteItem?.artist?.artistGroup?.name)}</span>
