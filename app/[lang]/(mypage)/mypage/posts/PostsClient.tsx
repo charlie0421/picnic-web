@@ -248,7 +248,34 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
     fetchPosts(1, true);
   };
 
-  const truncateContent = (content: string, maxLength: number = 100) => {
+  const truncateContent = (content: string | any, maxLength: number = 100) => {
+    // content가 문자열이 아닌 경우 (Quill Delta 형식 등)
+    if (typeof content !== 'string') {
+      try {
+        // Quill Delta 형식인 경우 텍스트만 추출
+        if (content && Array.isArray(content.ops)) {
+          const plainText = content.ops
+            .map((op: any) => typeof op.insert === 'string' ? op.insert : '')
+            .join('');
+          return plainText.length <= maxLength ? plainText : plainText.substring(0, maxLength) + '...';
+        }
+        
+        // JSON 객체인 경우 문자열로 변환 시도
+        if (typeof content === 'object') {
+          const jsonString = JSON.stringify(content);
+          const plainText = jsonString.replace(/[{}",]/g, ' ').trim();
+          return plainText.length <= maxLength ? plainText : plainText.substring(0, maxLength) + '...';
+        }
+        
+        // 기타 경우 빈 문자열 반환
+        return '';
+      } catch (error) {
+        console.warn('콘텐츠 파싱 오류:', error);
+        return '';
+      }
+    }
+    
+    // 일반 문자열인 경우 기존 로직 사용
     if (content.length <= maxLength) return content;
     return content.substring(0, maxLength) + '...';
   };

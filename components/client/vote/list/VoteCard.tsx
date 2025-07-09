@@ -115,7 +115,6 @@ export const VoteCard = React.memo(
                   sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
                   className='object-cover'
                   priority={false}
-                  progressive={true}
                   placeholder='skeleton'
                   quality={85}
                   intersectionThreshold={0.2}

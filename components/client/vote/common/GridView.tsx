@@ -146,8 +146,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 sizes='(max-width: 768px) 25vw, (max-width: 1200px) 20vw, 15vw'
                 className='object-cover'
                 priority={false}
-                progressive={true}
-                placeholder='skeleton'
+                placeholder='shimmer'
                 quality={80}
                 intersectionThreshold={0.1}
               />
@@ -240,8 +239,7 @@ export const GridView: React.FC<GridViewProps> = ({
                   sizes='(max-width: 768px) 20vw, (max-width: 1200px) 15vw, 10vw'
                   className='object-cover'
                   priority={false}
-                  progressive={true}
-                  placeholder='skeleton'
+                  placeholder='shimmer'
                   quality={85}
                   intersectionThreshold={0.1}
                 />

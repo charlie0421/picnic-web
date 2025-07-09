@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RealtimeVoteResults } from '../list';
+import { OptimizedRealtimeVoteResults } from '../list';
 import { VoteRealtimeProvider } from '@/contexts/VoteRealtimeContext';
 import { RealtimeStatusPanel } from '../common/RealtimeStatus';
 
@@ -92,18 +92,10 @@ export function RealtimeVoteExample({
       {/* 실시간 투표 결과 */}
       <div className="bg-white rounded-lg shadow-lg">
         <VoteRealtimeProvider voteId={voteId}>
-          <RealtimeVoteResults
+          <OptimizedRealtimeVoteResults
             voteId={voteId}
-            enableRealtime={enableRealtime}
-            showRealtimeIndicator={showIndicator}
-            animateChanges={animateChanges}
-            highlightNewUpdates={highlightNewVotes}
-            highlightDuration={3000}
-            updateInterval={30000}
-            title="투표 순위"
-            maxDisplayItems={10}
-            showPercentage={true}
-            showRanking={true}
+            showDebugInfo={showIndicator}
+            enablePerformanceMonitoring={animateChanges}
           />
         </VoteRealtimeProvider>
       </div>

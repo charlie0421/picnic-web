@@ -725,13 +725,15 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
                         </div>
                         <div className="flex items-center space-x-2">
                           <span className="font-semibold text-gray-900 text-lg">{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
-                          {item.voteItem?.artist?.artistGroup && 
-                           hasValidLocalizedString(item.voteItem?.artist?.artistGroup?.name) && (
-                            <>
-                              <span className="text-primary-400 font-bold">{t('label_group_separator')}</span>
-                              <span className="text-primary-700 font-medium">{getLocalizedText(item.voteItem?.artist?.artistGroup?.name)}</span>
-                            </>
-                          )}
+                          {(() => {
+                            const groupName = item.voteItem?.artist?.artistGroup?.name ? getLocalizedText(item.voteItem.artist.artistGroup.name) : '';
+                            return groupName && groupName.trim() !== '' ? (
+                              <>
+                                <span className="text-primary-400 font-bold">{t('label_group_separator')}</span>
+                                <span className="text-primary-700 font-medium">{groupName}</span>
+                              </>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
                       
