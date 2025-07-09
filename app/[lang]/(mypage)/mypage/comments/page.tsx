@@ -54,7 +54,10 @@ export default async function CommentsPage({ params }: { params: Promise<{ lang:
     error_comments_fetch_failed: localeMessages['error_comments_fetch_failed'] || 'Failed to fetch comments',
     error_unknown_occurred: localeMessages['error_unknown_occurred'] || 'An unknown error occurred',
     console_comments_fetch_error: localeMessages['console_comments_fetch_error'] || 'Comments fetch error',
-    console_comment_content_parsing_error: localeMessages['console_comment_content_parsing_error'] || 'Comment content parsing error'
+    console_comment_content_parsing_error: localeMessages['console_comment_content_parsing_error'] || 'Comment content parsing error',
+    label_comments_count_description: localeMessages['label_comments_count_description'] || '작성한 댓글 수',
+    label_likes_description: localeMessages['label_likes_description'] || '받은 좋아요 수',
+    label_boards_description: localeMessages['label_boards_description'] || '활동한 게시판 수'
   };
 
   return (

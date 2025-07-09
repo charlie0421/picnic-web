@@ -58,7 +58,10 @@ export default async function PostsPage({ params }: { params: Promise<{ lang: st
     // 새로 추가된 번역 키들
     error_unknown_occurred: localeMessages['error_unknown_occurred'] || 'An unknown error occurred',
     console_posts_fetch_error: localeMessages['console_posts_fetch_error'] || 'Posts fetch error',
-    console_content_parsing_error: localeMessages['console_content_parsing_error'] || 'Content parsing error'
+    console_content_parsing_error: localeMessages['console_content_parsing_error'] || 'Content parsing error',
+    label_posts_description: localeMessages['label_posts_description'] || '작성한 게시물 수',
+    label_views_description: localeMessages['label_views_description'] || '누적 조회수',
+    label_comments_description: localeMessages['label_comments_description'] || '받은 댓글 수'
   };
 
   return (

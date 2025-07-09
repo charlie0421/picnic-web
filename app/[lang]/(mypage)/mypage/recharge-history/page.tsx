@@ -64,7 +64,10 @@ export default async function RechargeHistoryPage({ params }: { params: Promise<
     error_recharge_history_fetch_failed: localeMessages['error_recharge_history_fetch_failed'] || 'Failed to fetch recharge history',
     error_unknown_occurred: localeMessages['error_unknown_occurred'] || 'An unknown error occurred',
     console_recharge_history_fetch_error: localeMessages['console_recharge_history_fetch_error'] || 'Recharge history fetch error',
-    star_candy_purchase_description: localeMessages['star_candy_purchase_description'] || 'Star Candy Purchase'
+    star_candy_purchase_description: localeMessages['star_candy_purchase_description'] || 'Star Candy Purchase',
+    label_recharge_count_description: localeMessages['label_recharge_count_description'] || '총 구매 횟수',
+    label_amount_description: localeMessages['label_amount_description'] || '총 결제 금액',
+    label_star_candy_description: localeMessages['label_star_candy_description'] || '총 받은 별사탕'
   };
 
   return (
