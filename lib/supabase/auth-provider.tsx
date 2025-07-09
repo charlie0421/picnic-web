@@ -360,16 +360,6 @@ class AuthStore {
         console.error('❌ [AuthStore] 로그아웃 에러:', error);
       } else {
         console.log('✅ [AuthStore] 로그아웃 완료');
-        
-        // 로그아웃 시 로컬 스토리지에서 최근 로그인 정보 삭제
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.removeItem('picnic_last_login');
-            console.log('🗑️ [AuthStore] 로그아웃 시 최근 로그인 정보 삭제 완료');
-          } catch (storageError) {
-            console.warn('⚠️ [AuthStore] 로그아웃 시 로컬 스토리지 삭제 실패:', storageError);
-          }
-        }
       }
     } catch (error) {
       console.error('❌ [AuthStore] 로그아웃 예외:', error);
@@ -447,11 +437,6 @@ class AuthStore {
       
       console.log('🎉 [AuthStore] 인증 상태 업데이트 완료 - 로딩 해제됨 (JWT 방식)');
 
-      // 🆕 로그인 성공시 최근 로그인 정보 업데이트
-      this.updateLastLoginInfo().catch(error => {
-        console.warn('⚠️ [AuthStore] 최근 로그인 정보 업데이트 실패 (무시):', error);
-      });
-
       // 🔧 개발 환경에서 userProfile 로딩 시간 추적
       if (process.env.NODE_ENV === 'development') {
         (window as any).authStartTime = Date.now();
@@ -506,14 +491,6 @@ class AuthStore {
       this.supabaseClient.auth.onAuthStateChange(async (event: string, session: any) => {
         console.log('🔄 [AuthStore] 인증 상태 변경 (완전 쿠키 기반):', { event, hasSession: !!session });
         
-        // 로그인 이벤트 감지하여 최근 로그인 정보 업데이트
-        if (event === 'SIGNED_IN' && session) {
-          console.log('🎉 [AuthStore] 로그인 이벤트 감지 - 최근 로그인 정보 업데이트');
-          this.updateLastLoginInfo().catch(error => {
-            console.warn('⚠️ [AuthStore] 로그인 이벤트에서 최근 로그인 정보 업데이트 실패 (무시):', error);
-          });
-        }
-        
         // 로그아웃 이벤트만 처리 (다른 이벤트는 쿠키 기반으로 이미 처리됨)
         if (event === 'SIGNED_OUT' || !session) {
           console.log('🚪 [AuthStore] 로그아웃 이벤트 - 상태 정리');
@@ -555,68 +532,7 @@ class AuthStore {
     }
   }
 
-  /**
-   * 최근 로그인 정보를 업데이트하는 함수 (로컬 스토리지 저장)
-   */
-  private async updateLastLoginInfo(): Promise<void> {
-    try {
-      console.log('📝 [AuthStore] 최근 로그인 정보 요청 및 로컬 스토리지 저장');
-      
-      const response = await fetch('/api/user/update-last-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // 쿠키 포함
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.warn('⚠️ [AuthStore] 최근 로그인 정보 API 실패:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
-        });
-        return;
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        const loginInfo = data.data;
-        
-        console.log('✅ [AuthStore] 최근 로그인 정보 수신:', {
-          provider: loginInfo.last_login_provider,
-          providerDisplay: loginInfo.last_login_provider_display,
-          timestamp: loginInfo.last_login_at
-        });
-
-        // 로컬 스토리지에 최근 로그인 정보 저장
-        if (typeof window !== 'undefined') {
-          try {
-            const lastLoginData = {
-              provider: loginInfo.last_login_provider,
-              providerDisplay: loginInfo.last_login_provider_display,
-              timestamp: loginInfo.last_login_at,
-              userId: loginInfo.user_id
-            };
-
-            localStorage.setItem('picnic_last_login', JSON.stringify(lastLoginData));
-            
-            console.log('💾 [AuthStore] 로컬 스토리지에 최근 로그인 정보 저장 완료:', lastLoginData);
-          } catch (storageError) {
-            console.warn('⚠️ [AuthStore] 로컬 스토리지 저장 실패:', storageError);
-          }
-        }
-      } else {
-        console.warn('⚠️ [AuthStore] API 응답에서 로그인 정보 없음:', data);
-      }
-
-    } catch (error) {
-      console.warn('⚠️ [AuthStore] 최근 로그인 정보 처리 중 예외:', error);
-      // 이 함수는 선택적이므로 오류가 발생해도 전체 인증 과정에 영향을 주지 않습니다.
-    }
-  }
 
   private async checkTokenStatusFromCookies(): Promise<void> {
     try {
