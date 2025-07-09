@@ -24,7 +24,7 @@ class TranslationLogger {
   constructor(config: Partial<TranslationLoggerConfig> = {}) {
     this.config = {
       enableConsoleLogging: process.env.NODE_ENV === 'development',
-      enableRemoteLogging: process.env.NODE_ENV === 'production',
+      enableRemoteLogging: false, // API 엔드포인트가 없으므로 비활성화
       maxLocalErrors: 100,
       reportingEndpoint: '/api/translations/report-missing',
       ...config,
