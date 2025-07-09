@@ -14,6 +14,7 @@ interface CommentItem {
   boardName: string | null;
   isAnonymous: boolean;
   likeCount?: number;
+  locale?: string | null; // 언어 코드 추가
 }
 
 interface CommentsResponse {
@@ -66,6 +67,9 @@ interface Translations {
   error_unknown_occurred: string;
   console_comments_fetch_error: string;
   console_comment_content_parsing_error: string;
+  label_comments_count_description: string;
+  label_likes_description: string;
+  label_boards_description: string;
 }
 
 interface CommentsClientProps {
@@ -452,6 +456,12 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
       .replace(/\s+/g, ' ') // 연속된 공백을 하나로
       .trim();
     
+    // 언어코드 제거: "ko", "en", "ja", "zh", "id" 등의 언어코드를 앞에서 제거
+    cleanText = cleanText
+      .replace(/^["']?(ko|en|ja|zh|id)["']?\s*["']?/i, '') // 앞쪽 언어코드 제거
+      .replace(/["']?(ko|en|ja|zh|id)["']?\s+/gi, '') // 중간 언어코드 제거
+      .trim();
+    
     if (!cleanText || cleanText.length < 2) return '';
     
     // 댓글은 한 줄로 표시하되 적절한 길이로 제한
@@ -467,6 +477,69 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
     return cutPoint > maxLength * 0.6 
       ? cleanText.substring(0, cutPoint) + '...' 
       : cleanText.substring(0, maxLength) + '...';
+  };
+
+  // 언어코드 시각적 표시 함수
+  const getLanguageBadge = (locale: string | null | undefined) => {
+    if (!locale) return null;
+
+    const languageConfig = {
+      'ko': { 
+        flag: '🇰🇷', 
+        name: '한국어', 
+        code: 'KO',
+        bgColor: 'from-red-500 to-red-600',
+        borderColor: 'border-red-300',
+        textColor: 'text-white'
+      },
+      'en': { 
+        flag: '🇺🇸', 
+        name: 'English', 
+        code: 'EN',
+        bgColor: 'from-blue-500 to-blue-600',
+        borderColor: 'border-blue-300',
+        textColor: 'text-white'
+      },
+      'ja': { 
+        flag: '🇯🇵', 
+        name: '日本語', 
+        code: 'JA',
+        bgColor: 'from-purple-500 to-purple-600',
+        borderColor: 'border-purple-300',
+        textColor: 'text-white'
+      },
+      'zh': { 
+        flag: '🇨🇳', 
+        name: '中文', 
+        code: 'ZH',
+        bgColor: 'from-yellow-500 to-yellow-600',
+        borderColor: 'border-yellow-300',
+        textColor: 'text-white'
+      },
+      'id': { 
+        flag: '🇮🇩', 
+        name: 'Indonesia', 
+        code: 'ID',
+        bgColor: 'from-green-500 to-green-600',
+        borderColor: 'border-green-300',
+        textColor: 'text-white'
+      }
+    };
+
+    const config = languageConfig[locale as keyof typeof languageConfig];
+    if (!config) {
+      // 알 수 없는 언어코드인 경우 기본 스타일
+      return {
+        flag: '🌐',
+        name: locale.toUpperCase(),
+        code: locale.toUpperCase(),
+        bgColor: 'from-gray-500 to-gray-600',
+        borderColor: 'border-gray-300',
+        textColor: 'text-white'
+      };
+    }
+
+    return config;
   };
 
   return (
@@ -507,41 +580,47 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
               
               {/* 통계 정보 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-4 border border-primary-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">📊</span>
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-6 border border-primary-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">📊</span>
                     </div>
-                    <div>
-                      <p className="text-primary-800 font-bold text-xl">{totalCount.toLocaleString()}</p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-primary-800 text-lg">{t('label_total_comments_count')}</h3>
+                      <p className="text-primary-600 text-sm">{t('label_comments_count_description') || '작성한 댓글 수'}</p>
                     </div>
                   </div>
+                  <p className="text-primary-800 font-bold text-3xl">{totalCount.toLocaleString()}</p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-4 border border-secondary-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-secondary rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">❤️</span>
+                <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-6 border border-secondary-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">❤️</span>
                     </div>
-                    <div>
-                      <p className="text-secondary-800 font-bold text-xl">
-                        {statistics.totalLikes.toLocaleString()}
-                      </p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-secondary-800 text-lg">{t('label_total_likes')}</h3>
+                      <p className="text-secondary-600 text-sm">{t('label_likes_description') || '받은 좋아요 수'}</p>
                     </div>
                   </div>
+                  <p className="text-secondary-800 font-bold text-3xl">
+                    {statistics.totalLikes.toLocaleString()}
+                  </p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-4 border border-point-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-point rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">📋</span>
+                <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-6 border border-point-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-point rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">📋</span>
                     </div>
-                    <div>
-                      <p className="text-point-800 font-bold text-xl">
-                        {statistics.totalBoards}
-                      </p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-point-800 text-lg">{t('label_total_boards')}</h3>
+                      <p className="text-point-600 text-sm">{t('label_boards_description') || '참여한 게시판 수'}</p>
                     </div>
                   </div>
+                  <p className="text-point-800 font-bold text-3xl">
+                    {statistics.totalBoards}
+                  </p>
                 </div>
               </div>
             </div>
@@ -666,9 +745,32 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
               <div className="relative p-8">
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex-1">
-                    <h3 className="text-2xl font-bold text-gray-900 group-hover:text-primary transition-colors duration-300 mb-2">
-                      {comment.postTitle}
-                    </h3>
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="text-2xl font-bold text-gray-900 group-hover:text-primary transition-colors duration-300">
+                        {comment.postTitle}
+                      </h3>
+                      {/* 언어 뱃지 */}
+                      {(() => {
+                        const languageBadge = getLanguageBadge(comment.locale);
+                        if (!languageBadge) return null;
+                        
+                        return (
+                          <div className="flex-shrink-0 relative group/lang">
+                            <span 
+                              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-full bg-gradient-to-r ${languageBadge.bgColor} ${languageBadge.textColor} border-2 ${languageBadge.borderColor} shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110`}
+                              title={`작성 언어: ${languageBadge.name}`}
+                            >
+                              <span className="text-sm">{languageBadge.flag}</span>
+                              <span className="font-extrabold tracking-wide">{languageBadge.code}</span>
+                            </span>
+                            {/* 호버 툴팁 */}
+                            <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded-lg opacity-0 group-hover/lang:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-10">
+                              작성 언어: {languageBadge.name}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <div className="h-1 w-16 bg-gradient-to-r from-primary to-point rounded-full"></div>
                   </div>
                   {comment.isAnonymous && (
