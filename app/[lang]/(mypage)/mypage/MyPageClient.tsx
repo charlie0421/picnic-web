@@ -5,8 +5,6 @@ import { User } from '@supabase/supabase-js';
 import { UserProfiles } from '@/types/interfaces';
 import { useQuickLogout } from '@/lib/auth/logout';
 import Link from 'next/link';
-// 최근 로그인 정보를 위한 로컬 스토리지 유틸리티 import
-import { getLastLoginInfo, formatLastLoginTime, LastLoginInfo } from '@/utils/storage';
 
 
 interface Translations {
@@ -64,9 +62,6 @@ interface Translations {
   label_mypage_guest_benefit_3: string;
   label_mypage_guest_benefit_4: string;
   label_mypage_guest_profile_placeholder: string;
-  // 최근 로그인 정보 관련 번역 키들
-  label_mypage_last_login: string;
-  label_mypage_last_login_via: string;
 }
 
 interface MyPageClientProps {
@@ -98,9 +93,6 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
   const [apiUserProfile, setApiUserProfile] = useState<ApiUserProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(!!initialUser); // 로그인된 사용자만 로딩 상태
   
-  // 최근 로그인 정보 상태
-  const [lastLoginInfo, setLastLoginInfo] = useState<LastLoginInfo | null>(null);
-  
   // 간편한 번역 함수 (props로 받은 번역 사용)
   const t = (key: keyof Translations) => translations[key] || key;
 
@@ -128,34 +120,6 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
     };
 
     fetchUserProfile();
-  }, [initialUser]);
-
-  // 최근 로그인 정보를 로컬 스토리지에서 가져오기
-  useEffect(() => {
-    if (!initialUser) return; // 게스트는 로컬 스토리지 정보 불필요
-
-    const loadLastLoginInfo = () => {
-      const lastLogin = getLastLoginInfo();
-      if (lastLogin && lastLogin.userId === initialUser.id) {
-        setLastLoginInfo(lastLogin);
-        console.log('📅 [MyPage] 최근 로그인 정보 로드:', {
-          provider: lastLogin.providerDisplay,
-          time: formatLastLoginTime(lastLogin.timestamp)
-        });
-      }
-    };
-
-    loadLastLoginInfo();
-    
-    // 로컬 스토리지 변경 감지 (다른 탭에서 로그인 시)
-    const handleStorageChange = () => {
-      loadLastLoginInfo();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
   }, [initialUser]);
 
   // Provider별 아이콘 반환 함수
@@ -410,11 +374,54 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             </div>
           </div>
         </div>
+
+        {/* 버전 정보 카드 */}
+        <div className='bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-1'>
+          <div className='bg-white rounded-2xl p-6'>
+            <div className='flex items-center mb-6'>
+              <div className='w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4'>
+                <span className='text-2xl'>🏷️</span>
+              </div>
+              <h2 className='text-xl font-bold text-gray-900'>
+                버전 정보
+              </h2>
+            </div>
+            
+            <div className='space-y-4'>
+              <div className='bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4'>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <div>
+                    <div className='text-sm text-gray-600 mb-1'>빌드 버전</div>
+                    <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
+                      {process.env.NEXT_PUBLIC_BUILD_VERSION || 'dev'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className='text-sm text-gray-600 mb-1'>빌드 시간</div>
+                    <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
+                      {process.env.NEXT_PUBLIC_BUILD_TIME 
+                        ? new Date(process.env.NEXT_PUBLIC_BUILD_TIME).toLocaleString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            timeZone: 'Asia/Seoul'
+                          }) + ' KST'
+                        : '개발 모드'
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // 로그인된 사용자용 기존 UI (변경 없음)
+  // 로그인된 사용자용 기존 UI
   return (
     <div className='container mx-auto px-4 py-8 max-w-4xl'>
       {/* 상단 헤더 */}
@@ -457,16 +464,6 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                   {isLoadingProfile ? t('label_loading') : userInfo.provider_display_name}
                 </span>
               </span>
-              
-              {/* 최근 로그인 정보 */}
-              {!isLoadingProfile && lastLoginInfo && (
-                <span className='inline-flex items-center gap-1 px-3 py-1 bg-secondary-100 text-secondary-800 rounded-full text-sm'>
-                  <span className='text-xs'>🕒</span>
-                  <span>
-                    {formatLastLoginTime(lastLoginInfo.timestamp)}
-                  </span>
-                </span>
-              )}
             </div>
 
             {/* 스타 캔디 정보 */}
@@ -714,6 +711,49 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                 </Link>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* 버전 정보 카드 */}
+        <div className='bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-1'>
+          <div className='bg-white rounded-2xl p-6'>
+            <div className='flex items-center mb-6'>
+              <div className='w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mr-4'>
+                <span className='text-2xl'>🏷️</span>
+              </div>
+              <h2 className='text-xl font-bold text-gray-900'>
+                버전 정보
+              </h2>
+            </div>
+            
+            <div className='space-y-4'>
+              <div className='bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4'>
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <div>
+                    <div className='text-sm text-gray-600 mb-1'>빌드 버전</div>
+                    <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
+                      {process.env.NEXT_PUBLIC_BUILD_VERSION || 'dev'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className='text-sm text-gray-600 mb-1'>빌드 시간</div>
+                    <div className='font-mono text-sm text-gray-800 bg-white px-3 py-2 rounded-lg border'>
+                      {process.env.NEXT_PUBLIC_BUILD_TIME 
+                        ? new Date(process.env.NEXT_PUBLIC_BUILD_TIME).toLocaleString('ko-KR', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            timeZone: 'Asia/Seoul'
+                          }) + ' KST'
+                        : '개발 모드'
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

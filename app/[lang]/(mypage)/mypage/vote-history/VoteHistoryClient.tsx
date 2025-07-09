@@ -107,11 +107,12 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
   const [voteHistory, setVoteHistory] = useState<VoteHistoryItem[]>([]);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false); // 초기값을 false로 변경
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [statistics, setStatistics] = useState({ totalStarCandyUsed: 0, totalSupportedArtists: 0 });
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // 초기 로딩 상태 추가
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -301,6 +302,11 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
         setHasMore(data.pagination.hasNext);
         setStatistics(data.statistics);
         
+        // 초기 로딩 완료 표시
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
+        
         // 페이지 번호 업데이트
         if (!reset) {
           setPage(pageNum);
@@ -316,11 +322,16 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
       
       console.error('투표 내역 조회 에러:', err);
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      
+      // 초기 로딩 중 에러 발생 시에도 초기 로딩 상태 해제
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, []);
+  }, [isInitialLoad]);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -457,7 +468,8 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
     setError(null);
     setVoteHistory([]);
     setPage(1);
-    setHasMore(true);
+    setHasMore(false); // 초기 상태로 리셋
+    setIsInitialLoad(true); // 초기 로딩 상태로 리셋
     fetchVoteHistory(1, true);
   };
 
@@ -612,8 +624,8 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           </div>
         )}
 
-        {/* 빈 상태 - 테마 색상 개선 */}
-        {voteHistory.length === 0 && !isLoading && !error && (
+        {/* 빈 상태 - 초기 로딩 완료 후에만 표시 */}
+        {!isInitialLoad && voteHistory.length === 0 && !isLoading && !error && (
           <div className="text-center py-20">
             <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-16 shadow-2xl border border-white/30 max-w-lg mx-auto">
               {/* 배경 데코레이션 */}
@@ -795,8 +807,8 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           ))}
         </div>
 
-        {/* 무한 스크롤 트리거 - 테마 색상 개선 */}
-        {hasMore && (
+        {/* 무한 스크롤 트리거 - 초기 로딩 완료 후이고 데이터가 있을 때만 표시 */}
+        {!isInitialLoad && voteHistory.length > 0 && hasMore && (
           <div ref={sentinelRef} className="mt-16 text-center py-12">
             {isLoadingMore ? (
               <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-10 shadow-xl border border-white/30 max-w-sm mx-auto">
@@ -832,8 +844,8 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
           </div>
         )}
 
-        {/* 더 이상 로드할 데이터가 없는 경우 - 테마 색상 개선 */}
-        {!hasMore && voteHistory.length > 0 && (
+        {/* 더 이상 로드할 데이터가 없는 경우 - 초기 로딩 완료 후에만 표시 */}
+        {!isInitialLoad && !hasMore && voteHistory.length > 0 && (
           <div className="text-center py-16">
             <div className="relative bg-white/80 backdrop-blur-md rounded-3xl p-12 shadow-xl border border-white/30 max-w-lg mx-auto">
               {/* 배경 데코레이션 */}

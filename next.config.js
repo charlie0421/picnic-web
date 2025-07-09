@@ -16,6 +16,9 @@ if (!buildVersion && process.env.NODE_ENV === 'production') {
   }
 }
 
+// 빌드 시간 생성 (중복 정의 방지를 위해 변수로 분리)
+const buildTime = new Date().toISOString();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -26,7 +29,7 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_BUILD_VERSION: buildVersion,
-    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+    NEXT_PUBLIC_BUILD_TIME: buildTime,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
   },
@@ -73,7 +76,7 @@ const nextConfig = {
   
   // 성능 최적화를 위한 webpack 설정
   webpack: (config, { dev, isServer }) => {
-    // 🔧 브라우저에서 process.env 강제 정의
+    // 🔧 브라우저에서 process.env 강제 정의 (DefinePlugin 중복 제거)
     if (!isServer) {
       config.plugins = config.plugins || [];
       
@@ -86,7 +89,7 @@ const nextConfig = {
           'process.env.NEXT_PUBLIC_SITE_URL': JSON.stringify(process.env.NEXT_PUBLIC_SITE_URL),
           'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
           'process.env.NEXT_PUBLIC_BUILD_VERSION': JSON.stringify(buildVersion),
-          'process.env.NEXT_PUBLIC_BUILD_TIME': JSON.stringify(new Date().toISOString()),
+          'process.env.NEXT_PUBLIC_BUILD_TIME': JSON.stringify(buildTime),
           'process.env.NEXT_PUBLIC_SENTRY_DSN': JSON.stringify(process.env.NEXT_PUBLIC_SENTRY_DSN),
           'process.env.NEXT_PUBLIC_SENTRY_RELEASE': JSON.stringify(process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined)),
         })
@@ -102,7 +105,7 @@ const nextConfig = {
               NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
               NODE_ENV: process.env.NODE_ENV,
               NEXT_PUBLIC_BUILD_VERSION: buildVersion,
-              NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+              NEXT_PUBLIC_BUILD_TIME: buildTime,
               NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
               NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
             }

@@ -56,10 +56,11 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false); // 초기값을 false로 변경
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // 초기 로딩 상태 추가
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -120,6 +121,11 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
         setTotalCount(data.pagination.totalCount);
         setHasMore(data.pagination.hasNext);
         
+        // 초기 로딩 완료 표시
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
+        
         // 페이지 번호 업데이트
         if (!reset) {
           setPage(pageNum);
@@ -135,11 +141,16 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
       
       console.error('댓글 내역 조회 에러:', err);
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      
+      // 초기 로딩 중 에러 발생 시에도 초기 로딩 상태 해제
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, []);
+  }, [isInitialLoad]);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -263,7 +274,8 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
     setError(null);
     setComments([]);
     setPage(1);
-    setHasMore(true);
+    setHasMore(false); // 초기 상태로 리셋
+    setIsInitialLoad(true); // 초기 로딩 상태로 리셋
     fetchComments(1, true);
   };
 
@@ -349,8 +361,8 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
                 {t('label_retry')}
               </button>
             </div>
-          ) : comments.length === 0 ? (
-            // 데이터 없음 상태
+          ) : !isInitialLoad && comments.length === 0 ? (
+            // 데이터 없음 상태 - 초기 로딩 완료 후에만 표시
             <div className="flex flex-col items-center justify-center py-20">
               <div className="w-32 h-32 bg-gradient-to-br from-primary-50 via-secondary-50 to-point-50 rounded-full flex items-center justify-center mb-8">
                 <span className="text-6xl opacity-50">💬</span>
@@ -416,26 +428,28 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
                 ))}
               </div>
 
-              {/* 무한 스크롤 센티넬 */}
-              <div ref={sentinelRef} className="py-8">
-                {isLoadingMore ? (
-                  <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
-                    <p className="text-gray-600">{t('label_loading')}</p>
-                  </div>
-                ) : hasMore ? (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 text-sm">{t('label_scroll_for_more')}</p>
-                  </div>
-                ) : comments.length > 0 ? (
-                  <div className="text-center py-8">
-                    <div className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full">
-                      <span className="text-green-600">✨</span>
-                      <span className="text-green-700 font-medium">{t('label_all_comments_checked')}</span>
+              {/* 무한 스크롤 센티넬 - 초기 로딩 완료 후이고 데이터가 있을 때만 표시 */}
+              {!isInitialLoad && comments.length > 0 && (
+                <div ref={sentinelRef} className="py-8">
+                  {isLoadingMore ? (
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
+                      <p className="text-gray-600">{t('label_loading')}</p>
                     </div>
-                  </div>
-                ) : null}
-              </div>
+                  ) : hasMore ? (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500 text-sm">{t('label_scroll_for_more')}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full">
+                        <span className="text-green-600">✨</span>
+                        <span className="text-green-700 font-medium">{t('label_all_comments_checked')}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

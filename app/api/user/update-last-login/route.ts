@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 
 /**
  * 사용자 최근 로그인 정보 업데이트 API
- * 로그인 성공시 호출되어 최근 로그인 수단과 시간을 반환합니다. (로컬 스토리지 저장용)
+ * 로그인 성공시 호출되어 데이터베이스에 저장하고 로컬 스토리지 저장용 정보를 반환합니다.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -104,11 +104,31 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ [Update Last Login API] 사용자 identities가 없습니다. 기본값 사용.');
     }
 
+    const lastLoginAt = new Date().toISOString();
+    
+    // 데이터베이스에 최근 로그인 정보 저장
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update({
+        last_login_at: lastLoginAt,
+        last_login_provider: provider,
+        last_login_provider_display: providerDisplayName,
+        updated_at: lastLoginAt
+      })
+      .eq('id', currentUserId);
+
+    if (updateError) {
+      console.error('❌ [Update Last Login API] 데이터베이스 업데이트 실패:', updateError);
+      // 데이터베이스 업데이트 실패해도 로컬 스토리지용 정보는 반환
+    } else {
+      console.log('✅ [Update Last Login API] 데이터베이스 업데이트 성공');
+    }
+
     const loginInfo = {
       user_id: currentUserId,
       last_login_provider: provider,
       last_login_provider_display: providerDisplayName,
-      last_login_at: new Date().toISOString()
+      last_login_at: lastLoginAt
     };
 
     console.log('📝 [Update Last Login API] 로그인 정보 생성:', loginInfo);
@@ -117,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: '최근 로그인 정보를 반환했습니다.',
+      message: '최근 로그인 정보를 저장했습니다.',
       data: loginInfo
     });
 

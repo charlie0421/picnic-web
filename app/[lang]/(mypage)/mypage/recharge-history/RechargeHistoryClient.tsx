@@ -57,11 +57,12 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
   const [recharges, setRecharges] = useState<RechargeItem[]>([]);
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false); // 초기값을 false로 변경
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // 초기 로딩 상태 추가
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -126,6 +127,11 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
           setTotalAmount(total);
         }
         
+        // 초기 로딩 완료 표시
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
+        
         // 페이지 번호 업데이트
         if (!reset) {
           setPage(pageNum);
@@ -141,11 +147,16 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
       
       console.error('충전 내역 조회 에러:', err);
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      
+      // 초기 로딩 중 에러 발생 시에도 초기 로딩 상태 해제
+      if (isInitialLoad) {
+        setIsInitialLoad(false);
+      }
     } finally {
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, []);
+  }, [isInitialLoad]);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -253,7 +264,8 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
     setError(null);
     setRecharges([]);
     setPage(1);
-    setHasMore(true);
+    setHasMore(false); // 초기 상태로 리셋
+    setIsInitialLoad(true); // 초기 로딩 상태로 리셋
     fetchRechargeHistory(1, true);
   };
 
@@ -423,8 +435,8 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
           </div>
         )}
 
-        {/* 빈 상태 */}
-        {!isLoading && recharges.length === 0 && !error && (
+        {/* 빈 상태 - 초기 로딩 완료 후에만 표시 */}
+        {!isInitialLoad && !isLoading && recharges.length === 0 && !error && (
           <div className="text-center py-12">
             <div className="w-24 h-24 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <span className="text-4xl">💳</span>
@@ -445,8 +457,8 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
           </div>
         )}
 
-        {/* 더 로드하기 버튼 및 무한 스크롤 */}
-        {recharges.length > 0 && hasMore && (
+        {/* 더 로드하기 버튼 및 무한 스크롤 - 초기 로딩 완료 후이고 데이터가 있을 때만 표시 */}
+        {!isInitialLoad && recharges.length > 0 && hasMore && (
           <div ref={sentinelRef} className="flex justify-center py-8">
             {isLoadingMore ? (
               <div className="flex items-center space-x-3">
@@ -459,8 +471,8 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
           </div>
         )}
 
-        {/* 모든 데이터 로드 완료 */}
-        {recharges.length > 0 && !hasMore && !isLoadingMore && (
+        {/* 모든 데이터 로드 완료 - 초기 로딩 완료 후에만 표시 */}
+        {!isInitialLoad && recharges.length > 0 && !hasMore && !isLoadingMore && (
           <div className="text-center py-8">
             <div className="text-gray-500 text-sm">{t('label_all_recharge_history_checked')}</div>
           </div>
