@@ -39,6 +39,16 @@ export default async function VoteHistoryPage({ params }: { params: Promise<{ la
     label_no_more_votes: localeMessages.label_no_more_votes || 'No more votes to load',
     label_star_candy: localeMessages.label_star_candy || 'Star Candy',
     label_back_to_mypage: localeMessages.label_back_to_mypage || 'Back to MyPage',
+    label_total_vote_count: localeMessages.label_total_vote_count || 'You\'ve voted {count} times so far 🗳️',
+    label_vote_status_ongoing: localeMessages.label_vote_status_ongoing || 'Ongoing',
+    label_vote_status_ended: localeMessages.label_vote_status_ended || 'Ended',
+    label_vote_status_upcoming: localeMessages.label_vote_status_upcoming || 'Upcoming',
+    label_no_title: localeMessages.label_no_title || 'No Title',
+    label_unknown: localeMessages.label_unknown || 'Unknown',
+    label_group_separator: localeMessages.label_group_separator || ' | ',
+    label_artist: localeMessages.label_artist || 'Artist',
+    label_scroll_for_more: localeMessages.label_scroll_for_more || 'Scroll down for more 👇',
+    label_all_votes_checked: localeMessages.label_all_votes_checked || 'All votes checked',
   };
 
   return (
