@@ -69,6 +69,9 @@ interface Translations {
   error_unknown_occurred: string;
   console_posts_fetch_error: string;
   console_content_parsing_error: string;
+  label_posts_description: string;
+  label_views_description: string;
+  label_comments_description: string;
 }
 
 interface PostsClientProps {
@@ -505,41 +508,47 @@ export default function PostsClient({ initialUser, translations }: PostsClientPr
               
               {/* 통계 정보 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-4 border border-primary-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">📊</span>
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-6 border border-primary-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">📊</span>
                     </div>
-                    <div>
-                      <p className="text-primary-800 font-bold text-xl">{totalCount.toLocaleString()}</p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-primary-800 text-lg">{t('label_total_posts_count')}</h3>
+                      <p className="text-primary-600 text-sm">{t('label_posts_description') || '작성한 게시물 수'}</p>
                     </div>
                   </div>
+                  <p className="text-primary-800 font-bold text-3xl">{totalCount.toLocaleString()}</p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-4 border border-secondary-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-secondary rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">👁️</span>
+                <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-6 border border-secondary-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">👁️</span>
                     </div>
-                    <div>
-                      <p className="text-secondary-800 font-bold text-xl">
-                        {statistics.totalViews.toLocaleString()}
-                      </p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-secondary-800 text-lg">{t('label_total_views')}</h3>
+                      <p className="text-secondary-600 text-sm">{t('label_views_description') || '누적 조회수'}</p>
                     </div>
                   </div>
+                  <p className="text-secondary-800 font-bold text-3xl">
+                    {statistics.totalViews.toLocaleString()}
+                  </p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-4 border border-point-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-point rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">💬</span>
+                <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-6 border border-point-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-point rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">💬</span>
                     </div>
-                    <div>
-                      <p className="text-point-800 font-bold text-xl">
-                        {statistics.totalComments.toLocaleString()}
-                      </p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-point-800 text-lg">{t('label_total_comments')}</h3>
+                      <p className="text-point-600 text-sm">{t('label_comments_description') || '받은 댓글 수'}</p>
                     </div>
                   </div>
+                  <p className="text-point-800 font-bold text-3xl">
+                    {statistics.totalComments.toLocaleString()}
+                  </p>
                 </div>
               </div>
             </div>

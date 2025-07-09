@@ -106,7 +106,7 @@ interface VoteHistoryClientProps {
 export default function VoteHistoryClient({ initialUser, translations }: VoteHistoryClientProps) {
   const [voteHistory, setVoteHistory] = useState<VoteHistoryItem[]>([]);
   const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // 초기값을 true로 변경하여 컴포넌트 마운트 시점부터 로딩 UI 표시
   const [hasMore, setHasMore] = useState(false); // 초기값을 false로 변경
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);

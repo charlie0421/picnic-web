@@ -5,15 +5,43 @@ interface AppPurchaseItem {
   id: string;
   receiptId: string;
   receiptNumber: string;
+  receiptUrl?: string;
   amount: number;
   starCandyAmount: number;
   bonusAmount: number;
+  paymentMethod: string; // 추가
+  paymentProvider: string; // 추가
   platform: string; // 'ios' or 'android'
   storeProductId: string;
   transactionId: string;
+  merchantTransactionId?: string; // 추가
   status: string;
   currency: string;
+  exchangeRate?: number; // 추가
+  originalAmount?: number; // 추가
+  originalCurrency?: string; // 추가
+  paymentDetails: { // 추가
+    cardLast4?: string;
+    cardBrand?: string;
+    bankName?: string;
+    paypalEmail?: string;
+  };
+  receiptData: { // 추가
+    itemName: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    taxAmount?: number;
+    discountAmount?: number;
+  };
+  metadata?: { // 추가
+    ipAddress?: string;
+    userAgent?: string;
+    referrer?: string;
+  };
   createdAt: string;
+  updatedAt: string; // 추가
+  receiptGeneratedAt?: string; // 추가
   appStoreData: {
     originalTransactionId?: string; // Apple
     purchaseToken?: string; // Google Play
@@ -72,6 +100,50 @@ export async function GET(request: NextRequest) {
     // 3. Supabase 클라이언트 생성
     const supabase = await createServerSupabaseClient();
 
+    // 디버깅: 사용자의 모든 영수증 데이터 확인
+    console.log('🔍 [DEBUG] 사용자의 모든 영수증 데이터 확인 시작');
+    
+    const { data: allReceipts, error: allReceiptsError } = await supabase
+      .from('receipts')
+      .select('id, user_id, status, platform, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    
+    console.log('🔍 [DEBUG] 사용자의 모든 영수증:', {
+      count: allReceipts?.length || 0,
+      receipts: allReceipts?.map(r => ({
+        id: r.id,
+        status: r.status,
+        platform: r.platform,
+        created_at: r.created_at
+      })) || []
+    });
+
+    // 디버깅: 각 조건별 데이터 수량 확인
+    const { count: totalUserReceipts } = await supabase
+      .from('receipts')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id);
+    
+    const { count: completedReceipts } = await supabase
+      .from('receipts')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id)
+      .eq('status', 'completed');
+      
+    const { count: appReceipts } = await supabase
+      .from('receipts')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id)
+      .in('platform', ['ios', 'android']);
+
+    console.log('🔍 [DEBUG] 조건별 데이터 수량:', {
+      totalUserReceipts,
+      completedReceipts,
+      appReceipts
+    });
+
     // 4. 앱구매 영수증 조회 (completed 상태만)
     const { data: receipts, error: receiptsError, count } = await supabase
       .from('receipts')
@@ -94,13 +166,60 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('✅ [Recharge History API] 영수증 조회 성공:', {
+    console.log('✅ [Recharge History API] 기본 쿼리 결과:', {
       count: receipts?.length || 0,
       totalCount: count
     });
 
-    // 5. 데이터 변환 (앱구매 형태로)
-    const rechargeItems: AppPurchaseItem[] = (receipts || []).map((receipt) => {
+    // 5. 만약 기본 조건으로 데이터가 없다면, 조건을 완화하여 재시도
+    let finalReceipts = receipts;
+    let finalCount = count;
+
+    if (!receipts || receipts.length === 0) {
+      console.log('⚠️ [DEBUG] 기본 조건에서 데이터 없음, 조건 완화하여 재시도');
+      
+      // 조건 완화 1: 상태 조건 제거하고 플랫폼만 확인
+      const { data: fallbackReceipts1, count: fallbackCount1 } = await supabase
+        .from('receipts')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .in('platform', ['ios', 'android'])
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      
+      console.log('🔍 [DEBUG] 상태 조건 제거 결과:', {
+        count: fallbackReceipts1?.length || 0,
+        totalCount: fallbackCount1
+      });
+
+      if (fallbackReceipts1 && fallbackReceipts1.length > 0) {
+        finalReceipts = fallbackReceipts1;
+        finalCount = fallbackCount1;
+        console.log('✅ [DEBUG] 상태 조건 제거 후 데이터 발견');
+      } else {
+        // 조건 완화 2: 플랫폼 조건도 제거하고 모든 영수증 조회
+        const { data: fallbackReceipts2, count: fallbackCount2 } = await supabase
+          .from('receipts')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+        
+        console.log('🔍 [DEBUG] 모든 조건 제거 결과:', {
+          count: fallbackReceipts2?.length || 0,
+          totalCount: fallbackCount2
+        });
+
+        if (fallbackReceipts2 && fallbackReceipts2.length > 0) {
+          finalReceipts = fallbackReceipts2;
+          finalCount = fallbackCount2;
+          console.log('✅ [DEBUG] 모든 조건 제거 후 데이터 발견');
+        }
+      }
+    }
+
+    // 6. 데이터 변환 (앱구매 형태로)
+    const rechargeItems: AppPurchaseItem[] = (finalReceipts || []).map((receipt) => {
       // 영수증 데이터 파싱
       let receiptData: any = {};
       try {
@@ -125,25 +244,62 @@ export async function GET(request: NextRequest) {
       const isIOS = receipt.platform === 'ios';
       const isAndroid = receipt.platform === 'android';
       
-             // 별사탕 수량 계산 (기본값)
-       const baseStarCandy = Number(receiptData.star_candy_amount || 100);
-       const bonusStarCandy = Number(receiptData.bonus_amount || 0);
+      // 별사탕 수량 계산 (기본값)
+      const baseStarCandy = Number(receiptData.star_candy_amount || 100);
+      const bonusStarCandy = Number(receiptData.bonus_amount || 0);
+      
+      // 결제 방법 결정
+      const paymentMethod = isIOS ? 'apple_store' : isAndroid ? 'google_play' : 'app_store';
+      const paymentProvider = isIOS ? 'Apple App Store' : isAndroid ? 'Google Play Store' : 'App Store';
+      
+      // 상품 정보
+      const itemName = receiptData.product_name || receiptData.item_name || '별사탕 구매';
+      const description = receiptData.description || '별사탕 앱 내 구매';
+      const unitPrice = Number(receiptData.amount || 0);
       
       return {
         id: receipt.id.toString(),
         receiptId: receipt.receipt_hash || `APP_${receipt.id}`,
-                 receiptNumber: `A${new Date(receipt.created_at || new Date()).getFullYear()}${('000000' + receipt.id.toString()).slice(-6)}`,
-         amount: Number(receiptData.amount || 0),
-         starCandyAmount: Number(baseStarCandy),
-         bonusAmount: Number(bonusStarCandy),
-         platform: receipt.platform,
-         storeProductId: String(receiptData.product_id || receiptData.store_product_id || 'unknown'),
+        receiptNumber: `A${new Date(receipt.created_at || new Date()).getFullYear()}${('000000' + receipt.id.toString()).slice(-6)}`,
+        receiptUrl: receiptData.receipt_url || undefined,
+        amount: Number(receiptData.amount || 0),
+        starCandyAmount: Number(baseStarCandy),
+        bonusAmount: Number(bonusStarCandy),
+        paymentMethod,
+        paymentProvider,
+        platform: receipt.platform,
+        storeProductId: String(receiptData.product_id || receiptData.store_product_id || 'unknown'),
         transactionId: isIOS 
           ? (verificationData.transaction_id || receiptData.original_transaction_id || receipt.receipt_hash)
           : (receiptData.order_id || receiptData.purchase_token || receipt.receipt_hash),
+        merchantTransactionId: receiptData.merchant_transaction_id || undefined,
         status: receipt.status,
-                 currency: receiptData.currency || 'KRW',
-         createdAt: receipt.created_at || new Date().toISOString(),
+        currency: receiptData.currency || 'KRW',
+        exchangeRate: receiptData.exchange_rate ? Number(receiptData.exchange_rate) : undefined,
+        originalAmount: receiptData.original_amount ? Number(receiptData.original_amount) : undefined,
+        originalCurrency: receiptData.original_currency || undefined,
+        paymentDetails: {
+          cardLast4: receiptData.card_last4 || undefined,
+          cardBrand: receiptData.card_brand || undefined,
+          bankName: receiptData.bank_name || undefined,
+          paypalEmail: receiptData.paypal_email || undefined,
+        },
+        receiptData: {
+          itemName,
+          description,
+          quantity: Number(receiptData.quantity || 1),
+          unitPrice,
+          taxAmount: receiptData.tax_amount ? Number(receiptData.tax_amount) : undefined,
+          discountAmount: receiptData.discount_amount ? Number(receiptData.discount_amount) : undefined,
+        },
+        metadata: {
+          ipAddress: receiptData.ip_address || undefined,
+          userAgent: receiptData.user_agent || undefined,
+          referrer: receiptData.referrer || undefined,
+        },
+        createdAt: receipt.created_at || new Date().toISOString(),
+        updatedAt: receipt.created_at || new Date().toISOString(), // updated_at 필드가 없으므로 created_at 사용
+        receiptGeneratedAt: receiptData.receipt_generated_at || receipt.created_at || undefined,
         appStoreData: {
           // Apple App Store 데이터
           ...(isIOS && {
@@ -160,19 +316,19 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // 6. 통계 계산
+    // 7. 통계 계산
     const statistics = {
-      totalPurchases: count || 0,
+      totalPurchases: finalCount || 0,
       totalAmount: rechargeItems.reduce((sum, item) => sum + item.amount, 0),
       totalStarCandy: rechargeItems.reduce((sum, item) => sum + item.starCandyAmount + item.bonusAmount, 0),
     };
 
-    // 7. 페이지네이션 정보
-    const totalPages = Math.ceil((count || 0) / limit);
+    // 8. 페이지네이션 정보
+    const totalPages = Math.ceil((finalCount || 0) / limit);
     const pagination = {
       page,
       limit,
-      totalCount: count || 0,
+      totalCount: finalCount || 0,
       totalPages,
       hasNext: page < totalPages,
       hasPrevious: page > 1,
