@@ -118,10 +118,22 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
 
   const t = (key: keyof Translations) => translations[key] || key;
 
-  // 현재 언어 추출
-  const getCurrentLanguage = useCallback((): 'en' | 'ko' => {
+  // 현재 언어 추출 (모든 지원 언어 포함)
+  const getCurrentLanguage = useCallback((): 'en' | 'ko' | 'ja' | 'zh' | 'id' => {
     const lang = pathname.split('/')[1];
-    return lang === 'ko' ? 'ko' : 'en';
+    // 지원하는 언어인지 확인하고 적절한 값 반환
+    switch (lang) {
+      case 'ko':
+        return 'ko';
+      case 'ja':
+        return 'ja';
+      case 'zh':
+        return 'zh';
+      case 'id':
+        return 'id';
+      default:
+        return 'en';
+    }
   }, [pathname]);
 
   // 🛡️ 최강 방어형 다국어 텍스트 처리 함수 (로깅 최소화)
@@ -358,45 +370,74 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    const currentLang = getCurrentLanguage() as string;
+    const currentLang = getCurrentLanguage();
     
-    // 현재 언어에 따른 로케일 설정
-    let locale = 'en-US';
+    // 언어별 로케일과 포맷팅 옵션 설정
+    let locale: string;
+    let options: Intl.DateTimeFormatOptions;
+    
     switch (currentLang) {
       case 'ko':
         locale = 'ko-KR';
+        options = {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Seoul'
+        };
         break;
       case 'ja':
         locale = 'ja-JP';
+        options = {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Seoul'
+        };
         break;
       case 'zh':
         locale = 'zh-CN';
+        options = {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Seoul'
+        };
         break;
       case 'id':
         locale = 'id-ID';
+        options = {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Seoul'
+        };
         break;
-      default:
+      default: // 'en'
         locale = 'en-US';
+        options = {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Seoul'
+        };
     }
     
-    // 기본 포맷팅 옵션
-    const baseOptions: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: currentLang === 'ko' ? 'long' : 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Seoul' // 한국 시간대로 통일
-    };
-    
-    // 언어별 친숙한 시간대 표시
-    let formattedDate = date.toLocaleString(locale, baseOptions);
+    // 언어별 로케일로 날짜 포맷팅
+    const formattedDate = date.toLocaleString(locale, options);
     
     // 모든 언어에서 KST로 통일 (한국 서비스)
-    const friendlyTimeZone = 'KST';
-    
-    // GMT+9나 기타 시간대 표시를 친숙한 형태로 교체
-    return `${formattedDate} ${friendlyTimeZone}`;
+    return `${formattedDate} KST`;
   };
 
   const getVoteStatus = (startAt: string, stopAt: string) => {
