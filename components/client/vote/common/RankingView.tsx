@@ -92,9 +92,6 @@ export const RankingView: React.FC<RankingViewProps> = ({
               <div className='relative w-full max-w-[100px] sm:max-w-[120px] md:max-w-[135px]'>
                 <div className='absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
                 <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
-                  <div className='absolute -top-1 -right-1 text-sm animate-bounce'>
-                    👑
-                  </div>
                   <VoteRankCard
                     className='w-full h-40 sm:h-44 md:h-48'
                     key={`${keyPrefix}-rank-${topItems[0].id}-0`}
@@ -172,9 +169,6 @@ export const RankingView: React.FC<RankingViewProps> = ({
               <div className='relative w-full max-w-[100px] sm:max-w-[120px] md:max-w-[135px]'>
                 <div className='absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
                 <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
-                  <div className='absolute -top-1 -right-1 text-sm animate-bounce'>
-                    👑
-                  </div>
                   <VoteRankCard
                     className='w-full h-40 sm:h-44 md:h-48'
                     key={`${keyPrefix}-rank-${topItems[0].id}-0`}
