@@ -102,6 +102,9 @@ interface Translations {
   error_unknown_occurred: string;
   console_recharge_history_fetch_error: string;
   star_candy_purchase_description: string;
+  label_recharge_count_description: string;
+  label_amount_description: string;
+  label_star_candy_description: string;
 }
 
 interface RechargeHistoryClientProps {
@@ -361,6 +364,10 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
   };
 
   const getPaymentMethodIcon = (method: string) => {
+    if (!method || typeof method !== 'string') {
+      return '💰'; // 기본 아이콘
+    }
+    
     switch (method.toLowerCase()) {
       case 'paypal':
         return '💳';
@@ -377,6 +384,10 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
   };
 
   const getStatusColor = (status: string) => {
+    if (!status || typeof status !== 'string') {
+      return 'text-gray-600 bg-gray-100'; // 기본 색상
+    }
+    
     switch (status.toLowerCase()) {
       case 'completed':
       case 'success':
@@ -429,41 +440,47 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
               
               {/* 통계 정보 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-4 border border-primary-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">📊</span>
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-6 border border-primary-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">📊</span>
                     </div>
-                    <div>
-                      <p className="text-primary-800 font-bold text-xl">{totalCount.toLocaleString()}</p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-primary-800 text-lg">{t('label_total_recharge_count')}</h3>
+                      <p className="text-primary-600 text-sm">{t('label_recharge_count_description') || '총 구매 횟수'}</p>
                     </div>
                   </div>
+                  <p className="text-primary-800 font-bold text-3xl">{totalCount.toLocaleString()}</p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-4 border border-secondary-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-secondary rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">💰</span>
+                <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-6 border border-secondary-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">💰</span>
                     </div>
-                    <div>
-                      <p className="text-secondary-800 font-bold text-xl">
-                        {formatCurrency(totalAmount)}
-                      </p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-secondary-800 text-lg">{t('label_total_recharge_amount')}</h3>
+                      <p className="text-secondary-600 text-sm">{t('label_amount_description') || '총 결제 금액'}</p>
                     </div>
                   </div>
+                  <p className="text-secondary-800 font-bold text-3xl">
+                    {formatCurrency(totalAmount)}
+                  </p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-4 border border-point-200/50 h-20">
-                  <div className="flex items-center justify-center h-full space-x-3">
-                    <div className="w-8 h-8 bg-point rounded-xl flex items-center justify-center">
-                      <span className="text-white text-sm">⭐</span>
+                <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-6 border border-point-200/50">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-10 h-10 bg-point rounded-xl flex items-center justify-center">
+                      <span className="text-white text-lg">⭐</span>
                     </div>
-                    <div>
-                      <p className="text-point-800 font-bold text-xl">
-                        {recharges.reduce((sum, r) => sum + r.starCandyAmount + r.bonusAmount, 0).toLocaleString()}
-                      </p>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-point-800 text-lg">{t('text_star_candy')}</h3>
+                      <p className="text-point-600 text-sm">{t('label_star_candy_description') || '총 받은 별사탕'}</p>
                     </div>
                   </div>
+                  <p className="text-point-800 font-bold text-3xl">
+                    {recharges.reduce((sum, r) => sum + r.starCandyAmount + r.bonusAmount, 0).toLocaleString()}
+                  </p>
                 </div>
               </div>
             </div>
@@ -572,7 +589,7 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
         <div className="space-y-8">
           {recharges.map((recharge, index) => (
             <div 
-              key={recharge.receiptId} 
+              key={`${recharge.receiptId}-${recharge.id}-${index}`} 
               className="group relative bg-white/90 backdrop-blur-md rounded-3xl shadow-lg hover:shadow-2xl border border-white/30 overflow-hidden transition-all duration-500 transform hover:scale-[1.02] hover:-translate-y-2"
               style={{
                 animationDelay: `${index * 100}ms`

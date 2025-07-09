@@ -462,6 +462,11 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
       .replace(/["']?(ko|en|ja|zh|id)["']?\s+/gi, '') // 중간 언어코드 제거
       .trim();
     
+    // 끝에 있는 따옴표 제거
+    cleanText = cleanText
+      .replace(/["']$/g, '') // 끝에 있는 따옴표 제거
+      .trim();
+    
     if (!cleanText || cleanText.length < 2) return '';
     
     // 댓글은 한 줄로 표시하되 적절한 길이로 제한
