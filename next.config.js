@@ -4,6 +4,18 @@ const { withSentryConfig } = require('@sentry/nextjs');
 // 환경 변수로 Sentry 경고 억제
 process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';
 
+// 빌드 버전 생성 (빌드 시에만)
+let buildVersion = process.env.BUILD_VERSION;
+if (!buildVersion && process.env.NODE_ENV === 'production') {
+  try {
+    const { generateBuildVersion } = require('./scripts/generate-build-version');
+    buildVersion = generateBuildVersion();
+  } catch (e) {
+    console.warn('⚠️ 빌드 버전 생성 실패, 기본값 사용');
+    buildVersion = `${new Date().toISOString().split('T')[0]}.0000.001`;
+  }
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -13,6 +25,10 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_BUILD_VERSION: buildVersion,
+    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
   },
   
   // 페이지 및 레이아웃 최적화 설정
@@ -69,6 +85,10 @@ const nextConfig = {
           'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
           'process.env.NEXT_PUBLIC_SITE_URL': JSON.stringify(process.env.NEXT_PUBLIC_SITE_URL),
           'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+          'process.env.NEXT_PUBLIC_BUILD_VERSION': JSON.stringify(buildVersion),
+          'process.env.NEXT_PUBLIC_BUILD_TIME': JSON.stringify(new Date().toISOString()),
+          'process.env.NEXT_PUBLIC_SENTRY_DSN': JSON.stringify(process.env.NEXT_PUBLIC_SENTRY_DSN),
+          'process.env.NEXT_PUBLIC_SENTRY_RELEASE': JSON.stringify(process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined)),
         })
       );
       
@@ -81,6 +101,10 @@ const nextConfig = {
               NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
               NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
               NODE_ENV: process.env.NODE_ENV,
+              NEXT_PUBLIC_BUILD_VERSION: buildVersion,
+              NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+              NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+              NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
             }
           })
         })
