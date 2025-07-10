@@ -50,7 +50,7 @@ jest.mock('@/hooks/useAuthGuard', () => ({
     requireAuth: jest.fn(),
   })),
   useRequireAuth: jest.fn(() => ({
-    withAuth: jest.fn((fn) => (...args: any[]) => fn(...args)),
+    withAuth: jest.fn((fn: any) => (...args: any[]) => (fn as any)(...args)),
   })),
 }));
 

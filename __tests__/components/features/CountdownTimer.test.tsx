@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
-import CountdownTimer from '@/components/features/CountdownTimer';
+import { CountdownTimer } from '@/components/client/vote/common/CountdownTimer';
 import { renderWithProviders } from '../../utils/test-utils';
 
 // useLanguageStore 모킹

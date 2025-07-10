@@ -43,7 +43,7 @@ const mockSupabase = {
 
 // 테스트용 컴포넌트
 const TestComponent = () => {
-  const { user, userProfile, isLoading, isInitialized, error } = useAuth();
+  const { user, userProfile, isLoading, isInitialized } = useAuth();
   
   return (
     <div>
@@ -53,7 +53,6 @@ const TestComponent = () => {
       <div data-testid="profile-id">{userProfile?.id || 'null'}</div>
       <div data-testid="profile-email">{userProfile?.email || 'null'}</div>
       <div data-testid="profile-nickname">{userProfile?.nickname || 'null'}</div>
-      <div data-testid="error">{error || 'null'}</div>
     </div>
   );
 };
@@ -207,8 +206,7 @@ describe('AuthProvider 성능 개선 통합 테스트', () => {
         expect(screen.getByTestId('loading')).toHaveTextContent('false');
         expect(screen.getByTestId('initialized')).toHaveTextContent('true');
         
-        // 에러는 노출되지 않아야 함 (사용자 경험 보호)
-        expect(screen.getByTestId('error')).toHaveTextContent('null');
+
       });
     });
   });

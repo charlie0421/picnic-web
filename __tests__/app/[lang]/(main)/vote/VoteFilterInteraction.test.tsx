@@ -3,7 +3,7 @@ import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { usePathname } from 'next/navigation';
 import { mockVotes, getVotesByStatus } from '../../../../utils/mockVoteData';
 import { render as customRender } from '../../../../utils/test-utils';
-import VoteFilterSection from '../../../../../components/features/vote/list/VoteFilterSection';
+import VoteFilterSection from '@/components/client/vote/list/VoteFilterSection';
 
 // 모듈 모킹
 jest.mock('next/navigation', () => ({

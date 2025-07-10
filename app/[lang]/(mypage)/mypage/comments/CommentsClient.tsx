@@ -20,7 +20,7 @@ interface CommentItem {
   isAnonymous: boolean;
 }
 
-interface Translations {
+interface Translations extends Record<string, string> {
   page_title_my_comments: string;
   label_loading: string;
   label_no_comments: string;
@@ -57,7 +57,7 @@ interface CommentsClientProps {
 
 export default function CommentsClient({ initialUser, translations }: CommentsClientProps) {
   const { formatDate } = useLanguage();
-  const t = (key: keyof Translations) => translations[key] || key;
+  const t = (key: keyof Translations): string => translations[key] || (key as string);
 
   // 데이터 변환 함수
   const transformCommentItem = useCallback((item: any): CommentItem => {

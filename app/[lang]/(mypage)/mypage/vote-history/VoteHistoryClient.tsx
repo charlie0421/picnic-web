@@ -48,7 +48,7 @@ interface VoteHistoryItem {
   } | null;
 }
 
-interface Translations {
+interface Translations extends Record<string, string> {
   label_mypage_my_votes: string;
   label_loading: string;
   label_no_votes: string;
@@ -93,7 +93,7 @@ interface VoteHistoryClientProps {
 
 export default function VoteHistoryClient({ initialUser, translations }: VoteHistoryClientProps) {
   const { getLocalizedText, formatDate } = useLanguage();
-  const t = (key: keyof Translations) => translations[key] || key;
+  const t = (key: keyof Translations): string => translations[key] || (key as string);
 
   // 데이터 변환 함수
   const transformVoteItem = useCallback((item: any): VoteHistoryItem => {

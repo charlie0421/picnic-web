@@ -167,8 +167,10 @@ describe('투표 페이지 테스트', () => {
   });
 
   test('데이터가 없을 때 메시지가 표시되는지 확인', async () => {
-    // 빈 데이터로 렌더링
-    customRender(<VotePageClient initialVotes={emptyVotes} />);
+    // 빈 데이터를 위해 모킹 함수를 변경
+    (getVotes as jest.Mock).mockResolvedValue({ data: emptyVotes, error: null });
+    
+    customRender(<VotePageClient />);
     
     await waitFor(() => {
       expect(screen.getByTestId('vote-empty-state')).toBeInTheDocument();
@@ -191,8 +193,10 @@ describe('투표 페이지 테스트', () => {
   
   test('필터링된 투표 목록이 정상적으로 표시되는지 확인', async () => {
     const ongoingVotes = getVotesByStatus('ongoing');
+    // 모킹을 통해 필터링된 데이터 반환
+    (getVotes as jest.Mock).mockResolvedValue({ data: ongoingVotes, error: null });
     
-    customRender(<VotePageClient filter="ongoing" initialVotes={ongoingVotes} />);
+    customRender(<VotePageClient />);
     
     await waitFor(() => {
       ongoingVotes.forEach(vote => {
@@ -209,8 +213,10 @@ describe('투표 페이지 테스트', () => {
   
   test('종료된 투표 목록이 정상적으로 표시되는지 확인', async () => {
     const completedVotes = getVotesByStatus('completed');
+    // 모킹을 통해 완료된 투표 데이터 반환
+    (getVotes as jest.Mock).mockResolvedValue({ data: completedVotes, error: null });
     
-    customRender(<VotePageClient filter="completed" initialVotes={completedVotes} />);
+    customRender(<VotePageClient />);
     
     await waitFor(() => {
       completedVotes.forEach(vote => {
@@ -227,8 +233,10 @@ describe('투표 페이지 테스트', () => {
   
   test('다가오는 투표 목록이 정상적으로 표시되는지 확인', async () => {
     const upcomingVotes = getVotesByStatus('upcoming');
+    // 모킹을 통해 예정된 투표 데이터 반환
+    (getVotes as jest.Mock).mockResolvedValue({ data: upcomingVotes, error: null });
     
-    customRender(<VotePageClient filter="upcoming" initialVotes={upcomingVotes} />);
+    customRender(<VotePageClient />);
     
     await waitFor(() => {
       upcomingVotes.forEach(vote => {

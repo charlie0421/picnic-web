@@ -20,7 +20,7 @@ interface PostItem {
   isAnonymous: boolean;
 }
 
-interface Translations {
+interface Translations extends Record<string, string> {
   page_title_my_posts: string;
   label_loading: string;
   label_no_posts: string;
@@ -67,7 +67,7 @@ interface PostsClientProps {
 
 export default function PostsClient({ initialUser, translations }: PostsClientProps) {
   const { formatDate } = useLanguage();
-  const t = (key: keyof Translations) => translations[key] || key;
+  const t = (key: keyof Translations): string => translations[key] || (key as string);
 
   // 데이터 변환 함수
   const transformPostItem = useCallback((item: any): PostItem => {

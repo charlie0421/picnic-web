@@ -56,7 +56,7 @@ jest.mock('@/lib/supabase/auth-provider', () => ({
   })
 }));
 
-import SocialLoginButtons from '@/components/features/auth/SocialLoginButtons';
+import { SocialLoginButtons } from '@/components/client/auth/SocialLoginButtons';
 
 describe('소셜 로그인 버튼 상호작용 테스트', () => {
   beforeEach(() => {

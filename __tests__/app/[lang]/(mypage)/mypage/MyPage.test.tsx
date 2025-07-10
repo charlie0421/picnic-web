@@ -56,8 +56,9 @@ describe('마이페이지 테스트', () => {
   });
 
   test('마이페이지가 정상적으로 렌더링되는지 확인', async () => {
+    const mockParams = Promise.resolve({ lang: 'ko' });
     const { container } = customRender(
-      <MyPage />
+      <MyPage params={mockParams} />
     );
     
     await waitFor(() => {
@@ -74,8 +75,9 @@ describe('마이페이지 테스트', () => {
   });
   
   test('서비스 정보 링크가 올바르게 표시되는지 확인', async () => {
+    const mockParams = Promise.resolve({ lang: 'ko' });
     customRender(
-      <MyPage />
+      <MyPage params={mockParams} />
     );
     
     await waitFor(() => {

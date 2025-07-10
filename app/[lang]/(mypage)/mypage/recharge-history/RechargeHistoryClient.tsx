@@ -51,7 +51,7 @@ interface RechargeItem {
   receiptGeneratedAt?: string;
 }
 
-interface Translations {
+interface Translations extends Record<string, string> {
   page_title_my_recharge_history: string;
   label_loading: string;
   label_no_recharge_history: string;
@@ -109,7 +109,7 @@ interface RechargeHistoryClientProps {
 
 export default function RechargeHistoryClient({ initialUser, translations }: RechargeHistoryClientProps) {
   const { formatDate } = useLanguage();
-  const t = (key: keyof Translations) => translations[key] || key;
+  const t = (key: keyof Translations): string => translations[key] || (key as string);
 
   // 클립보드 복사 함수 - useCallback으로 최적화
   const copyToClipboard = useCallback(async (text: string) => {
