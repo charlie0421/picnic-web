@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useTranslations } from '@/hooks/useTranslations';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { MypageHeader } from '@/components/mypage/MypageHeader';
 import { ErrorState, InitialLoadingState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
@@ -20,51 +21,16 @@ interface CommentItem {
   isAnonymous: boolean;
 }
 
-interface Translations extends Record<string, string> {
-  page_title_my_comments: string;
-  label_loading: string;
-  label_no_comments: string;
-  label_load_more: string;
-  label_comment_content: string;
-  label_comment_date: string;
-  label_error_occurred: string;
-  label_retry: string;
-  label_back_to_mypage: string;
-  label_please_try_again: string;
-  label_loading_comments: string;
-  label_all_comments_checked: string;
-  label_board: string;
-  label_total_comments_count: string;
-  label_scroll_for_more: string;
-  label_likes: string;
-  label_anonymous: string;
-  label_view_original_post: string;
-  label_no_comments_yet: string;
-  label_write_first_comment: string;
-  label_go_to_board: string;
-  label_all_comments_loaded: string;
-  label_total_likes: string;
-  label_popular_comment: string;
-  label_comments_description: string;
-  label_likes_description: string;
-  label_posts_description: string;
-
-  label_no_title: string;
-  label_unknown: string;
-  label_view: string;
-}
-
 interface CommentsClientProps {
   initialUser: User;
-  translations: Translations;
 }
 
-export default function CommentsClient({ initialUser, translations }: CommentsClientProps) {
+export default function CommentsClient({ initialUser }: CommentsClientProps) {
   const { 
     formatCommentDate,  // 댓글 최적화 날짜 포맷터
     formatDate
   } = useLanguage();
-  const t = (key: keyof Translations): string => translations[key] || (key as string);
+  const { t, tDynamic, translations } = useTranslations();
 
   // 데이터 변환 함수
   const transformCommentItem = useCallback((item: any): CommentItem => {

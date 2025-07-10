@@ -3,6 +3,7 @@
 import React, { useCallback } from 'react';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useTranslations } from '@/hooks/useTranslations';
 import { MypageHeader } from '@/components/mypage/MypageHeader';
 import { InitialLoadingState, ErrorState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
 import { User } from '@supabase/supabase-js';
@@ -20,61 +21,17 @@ interface PostItem {
   isAnonymous: boolean;
 }
 
-interface Translations extends Record<string, string> {
-  page_title_my_posts: string;
-  label_loading: string;
-  label_no_posts: string;
-  label_load_more: string;
-  label_post_title: string;
-  label_post_content: string;
-  label_post_date: string;
-  label_error_occurred: string;
-  label_retry: string;
-  label_back_to_mypage: string;
-  label_please_try_again: string;
-  label_loading_posts: string;
-  label_all_posts_checked: string;
-  label_content_preview_two_lines: string;
-  label_board: string;
-  label_total_posts_count: string;
-  label_scroll_for_more: string;
-  label_no_posts_description: string;
-  views: string;
-  label_title_comment: string;
-  comments: string;
-  label_anonymous: string;
-  error_posts_fetch_failed: string;
-  error_unknown: string;
-  label_total_views: string;
-  label_total_comments: string;
-  label_popular_post: string;
-  label_no_posts_yet: string;
-  label_write_first_post: string;
-  label_go_to_board: string;
-  label_all_posts_loaded: string;
-  error_unknown_occurred: string;
-  console_posts_fetch_error: string;
-  console_content_parsing_error: string;
-  label_posts_description: string;
-  label_views_description: string;
-  label_comments_description: string;
-
-  label_unknown: string;
-  label_no_title: string;
-}
-
 interface PostsClientProps {
   initialUser: User;
-  translations: Translations;
 }
 
-export default function PostsClient({ initialUser, translations }: PostsClientProps) {
+export default function PostsClient({ initialUser }: PostsClientProps) {
   const { 
     formatPostDate, 
     formatDate,
     getLocalizedText 
   } = useLanguage();
-  const t = (key: keyof Translations): string => translations[key] || (key as string);
+  const { t, tDynamic, translations } = useTranslations();
 
   // 데이터 변환 함수
   const transformPostItem = useCallback((item: any): PostItem => {
