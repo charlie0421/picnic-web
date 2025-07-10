@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useTranslations } from '@/hooks/useTranslations';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { MypageHeader } from '@/components/mypage/MypageHeader';
 import { ErrorState, InitialLoadingState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
@@ -51,82 +52,17 @@ interface RechargeItem {
   receiptGeneratedAt?: string;
 }
 
-interface Translations extends Record<string, string> {
-  page_title_my_recharge_history: string;
-  label_loading: string;
-  label_no_recharge_history: string;
-  label_load_more: string;
-  label_recharge_amount: string;
-  label_recharge_date: string;
-  label_recharge_method: string;
-  label_star_candy_amount: string;
-  label_error_occurred: string;
-  label_retry: string;
-  label_back_to_mypage: string;
-  label_please_try_again: string;
-  label_loading_recharge_history: string;
-  label_all_recharge_history_checked: string;
-  text_star_candy: string;
-  label_total_recharge_amount: string;
-  label_total_recharge_count: string;
-  label_receipt: string;
-  label_payment_amount: string;
-  label_exchange_rate: string;
-  label_bonus: string;
-  label_payment_method: string;
-  label_card_payment: string;
-  label_bank_transfer: string;
-  label_product_info: string;
-  label_quantity: string;
-  label_unit_price: string;
-  label_transaction_info: string;
-  label_transaction_id: string;
-  label_merchant_transaction_id: string;
-  label_transaction_datetime: string;
-  label_transaction_time: string;
-  label_receipt_generated: string;
-  label_no_recharge_history_message: string;
-  label_go_recharge_star_candy: string;
-  label_star_candy_recharge: string;
-  error_recharge_history_fetch_failed: string;
-  error_unknown_occurred: string;
-  console_recharge_history_fetch_error: string;
-  star_candy_purchase_description: string;
-  label_recharge_count_description: string;
-  label_amount_description: string;
-  label_star_candy_description: string;
-  label_copy: string;
-  label_received_star_candy: string;
-  label_product_code: string;
-  timezone_kst: string;
-  label_paypal: string;
-  label_total_transactions: string;
-  label_transactions_description: string;
-  label_total_recharged: string;
-  label_recharged_description: string;
-  label_this_month: string;
-  label_month_description: string;
-  label_product_name: string;
-  label_unknown_product: string;
-  label_payment_status: string;
-  label_payment_completed: string;
-  label_payment_pending: string;
-  label_payment_failed: string;
-  label_transaction_date: string;
-}
-
 interface RechargeHistoryClientProps {
   initialUser: User;
-  translations: Translations;
 }
 
-export default function RechargeHistoryClient({ initialUser, translations }: RechargeHistoryClientProps) {
+export default function RechargeHistoryClient({ initialUser }: RechargeHistoryClientProps) {
   const { 
     formatRelativeDate,  // 상대적 날짜 표시
     formatDate,
     getLocalizedText 
   } = useLanguage();
-  const t = (key: keyof Translations): string => translations[key] || (key as string);
+  const { t, tDynamic, translations } = useTranslations();
 
   // 클립보드 복사 함수 - useCallback으로 최적화
   const copyToClipboard = useCallback(async (text: string) => {

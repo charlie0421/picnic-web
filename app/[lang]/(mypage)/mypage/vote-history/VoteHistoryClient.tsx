@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { hasValidLocalizedString } from '@/utils/api/strings';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useTranslations } from '@/hooks/useTranslations';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { MypageHeader } from '@/components/mypage/MypageHeader';
 import { ErrorState, InitialLoadingState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
@@ -48,67 +49,17 @@ interface VoteHistoryItem {
   } | null;
 }
 
-interface Translations extends Record<string, string> {
-  label_mypage_my_votes: string;
-  label_loading: string;
-  label_no_votes: string;
-  label_load_more: string;
-  label_vote_amount: string;
-  label_vote_date: string;
-  label_vote_category: string;
-  label_artist_name: string;
-  label_group_name: string;
-  label_vote_title: string;
-  label_error_occurred: string;
-  label_retry: string;
-  label_no_more_votes: string;
-  label_star_candy: string;
-  label_back_to_mypage: string;
-  label_total_vote_count: string;
-  label_vote_status_ongoing: string;
-  label_vote_status_ended: string;
-  label_vote_status_upcoming: string;
-  label_no_title: string;
-  label_unknown: string;
-  label_group_separator: string;
-  label_artist: string;
-  label_scroll_for_more: string;
-  label_all_votes_checked: string;
-  label_total_votes_count: string;
-  label_total_star_candy_used: string;
-  label_supported_artists: string;
-  label_please_try_again: string;
-  label_loading_vote_history: string;
-  label_no_vote_history_yet: string;
-  label_vote_for_favorite_artist: string;
-  label_go_to_vote: string;
-  label_all_vote_history_checked: string;
-  label_all_data_loaded: string;
-  page_title_my_vote_history: string;
-  label_total_votes: string;
-  label_votes_description: string;
-  label_total_amount: string;
-  label_amount_description: string;
-  label_votes_this_month: string;
-  label_month_description: string;
-  label_voted_item: string;
-  label_vote_type: string;
-  label_general_vote: string;
-  label_total_votes_for_item: string;
-}
-
 interface VoteHistoryClientProps {
   initialUser: User;
-  translations: Translations;
 }
 
-export default function VoteHistoryClient({ initialUser, translations }: VoteHistoryClientProps) {
+export default function VoteHistoryClient({ initialUser }: VoteHistoryClientProps) {
   const { 
     formatRelativeDate,  // 상대적 날짜 표시
     formatDate,
     getLocalizedText 
   } = useLanguage();
-  const t = (key: keyof Translations): string => translations[key] || (key as string);
+  const { t, tDynamic, translations } = useTranslations();
 
   // 데이터 변환 함수
   const transformVoteItem = useCallback((item: any): VoteHistoryItem => {
