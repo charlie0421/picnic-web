@@ -58,8 +58,7 @@ interface RechargeHistoryClientProps {
 
 export default function RechargeHistoryClient({ initialUser }: RechargeHistoryClientProps) {
   const { 
-    formatRelativeDate,  // 상대적 날짜 표시
-    formatDate,
+    formatDate,  // timezone 기반 절대시간 포맷터
     getLocalizedText 
   } = useLanguage();
   const { t, tDynamic, translations } = useTranslations();

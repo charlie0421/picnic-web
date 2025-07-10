@@ -27,8 +27,7 @@ interface CommentsClientProps {
 
 export default function CommentsClient({ initialUser }: CommentsClientProps) {
   const { 
-    formatCommentDate,  // 댓글 최적화 날짜 포맷터
-    formatDate
+    formatDate  // timezone 기반 절대시간 포맷터
   } = useLanguage();
   const { t, tDynamic, translations } = useTranslations();
 
@@ -295,7 +294,7 @@ export default function CommentsClient({ initialUser }: CommentsClientProps) {
                         </div>
                         <div className="space-y-1">
                           <span className="text-gray-900 font-semibold text-sm block">
-                            {formatCommentDate(comment.createdAt)}
+                            {formatDate(comment.createdAt)}
                           </span>
                           {/* 상세 시간 (호버 시 표시) */}
                           <span className="text-xs text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
