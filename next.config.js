@@ -205,8 +205,13 @@ const nextConfig = {
 
 const sentryWebpackPluginOptions = {
   silent: true, // 로그 비활성화
-  // 필요한 경우 authToken, org, project 등 추가 설정
-  hideSourceMaps: true // 소스맵 숨기기
+  hideSourceMaps: true, // 소스맵 숨기기
+  // Sentry 조직 및 프로젝트 정보 명시적 설정
+  org: process.env.SENTRY_ORG || 'picnic-global',
+  project: process.env.SENTRY_PROJECT || 'picnic-web',
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // 릴리즈 정보
+  release: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
 };
 
 module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
