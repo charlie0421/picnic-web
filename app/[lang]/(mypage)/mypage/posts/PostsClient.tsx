@@ -410,10 +410,6 @@ export default function PostsClient({ initialUser }: PostsClientProps) {
                           <span className="text-gray-900 font-semibold text-sm block">
                             {formatDate(post.createdAt)}
                           </span>
-                          {/* 상세 시간 (호버 시 표시) */}
-                          <span className="text-xs text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            {formatDate(post.createdAt)}
-                          </span>
                         </div>
                       </div>
                     </div>
