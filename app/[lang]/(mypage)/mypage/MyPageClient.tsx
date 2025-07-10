@@ -429,7 +429,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                   <div className='text-sm text-gray-600 flex items-center justify-center gap-1'>
                     <img 
                       src="/images/star-candy/star_100.png" 
-                      alt="별사탕" 
+                      alt={t('label_mypage_star_candy')} 
                       className="w-6 h-6" 
                     />
                     <span>{userInfo.star_candy.toLocaleString()}</span>

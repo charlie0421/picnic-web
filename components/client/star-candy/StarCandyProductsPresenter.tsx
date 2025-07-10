@@ -381,7 +381,7 @@ export function StarCandyProductsPresenter({
                   <div className='inline-flex items-center justify-center w-20 h-20 mb-3'>
                     <Image
                       src={getProductImage(product.star_candy)}
-                      alt={`${product.star_candy || 0} 별사탕`}
+                      alt={`${product.star_candy || 0} ${t('star_candy_unit')}`}
                       width={80}
                       height={80}
                       className='object-contain'

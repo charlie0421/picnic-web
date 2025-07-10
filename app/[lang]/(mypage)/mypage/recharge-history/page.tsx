@@ -67,7 +67,13 @@ export default async function RechargeHistoryPage({ params }: { params: Promise<
     star_candy_purchase_description: localeMessages['star_candy_purchase_description'] || 'Star Candy Purchase',
     label_recharge_count_description: localeMessages['label_recharge_count_description'] || '총 구매 횟수',
     label_amount_description: localeMessages['label_amount_description'] || '총 결제 금액',
-    label_star_candy_description: localeMessages['label_star_candy_description'] || '총 받은 별사탕'
+    label_star_candy_description: localeMessages['label_star_candy_description'] || '총 받은 별사탕',
+    // 누락된 번역 키들 추가
+    label_copy: localeMessages['label_copy'] || 'Copy',
+    label_received_star_candy: localeMessages['label_received_star_candy'] || 'Received Star Candy',
+    label_product_code: localeMessages['label_product_code'] || 'Product Code',
+    timezone_kst: localeMessages['timezone_kst'] || 'KST',
+    label_paypal: localeMessages['label_paypal'] || 'PayPal'
   };
 
   return (

@@ -57,7 +57,13 @@ export default async function CommentsPage({ params }: { params: Promise<{ lang:
     console_comment_content_parsing_error: localeMessages['console_comment_content_parsing_error'] || 'Comment content parsing error',
     label_comments_count_description: localeMessages['label_comments_count_description'] || '작성한 댓글 수',
     label_likes_description: localeMessages['label_likes_description'] || '받은 좋아요 수',
-    label_boards_description: localeMessages['label_boards_description'] || '활동한 게시판 수'
+    label_boards_description: localeMessages['label_boards_description'] || '활동한 게시판 수',
+    // 누락된 번역 키들 추가
+    label_view_original_post: localeMessages['label_view_original_post'] || 'View Original Post',
+    label_go_to_board: localeMessages['label_go_to_board'] || 'Go to Board',
+    label_popular_comment: localeMessages['label_popular_comment'] || 'Popular Comment',
+    label_comments_description: localeMessages['label_comments_description'] || 'Your comments',
+    label_posts_description: localeMessages['label_posts_description'] || 'Your posts',
   };
 
   return (
