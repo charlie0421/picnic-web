@@ -84,6 +84,17 @@ interface Translations extends Record<string, string> {
   label_go_to_vote: string;
   label_all_vote_history_checked: string;
   label_all_data_loaded: string;
+  page_title_my_vote_history: string;
+  label_total_votes: string;
+  label_votes_description: string;
+  label_total_amount: string;
+  label_amount_description: string;
+  label_votes_this_month: string;
+  label_month_description: string;
+  label_voted_item: string;
+  label_vote_type: string;
+  label_general_vote: string;
+  label_total_votes_for_item: string;
 }
 
 interface VoteHistoryClientProps {
@@ -92,7 +103,11 @@ interface VoteHistoryClientProps {
 }
 
 export default function VoteHistoryClient({ initialUser, translations }: VoteHistoryClientProps) {
-  const { getLocalizedText, formatDate } = useLanguage();
+  const { 
+    formatRelativeDate,  // 상대적 날짜 표시
+    formatDate,
+    getLocalizedText 
+  } = useLanguage();
   const t = (key: keyof Translations): string => translations[key] || (key as string);
 
   // 데이터 변환 함수
@@ -222,196 +237,198 @@ export default function VoteHistoryClient({ initialUser, translations }: VoteHis
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
-      <div className="container mx-auto px-4 py-4 max-w-4xl">
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* 헤더 */}
         <MypageHeader 
-          config={headerConfig}
-          statistics={statisticsCards}
+          config={{
+            title: t('page_title_my_vote_history'),
+            icon: '🗳️',
+            backUrl: '/mypage',
+            backLabel: t('label_back_to_mypage')
+          }}
+          statistics={[
+            {
+              id: 'primary',
+              title: t('label_total_votes'),
+              value: totalCount || 0,
+              description: t('label_votes_description'),
+              icon: '🗳️',
+              bgColor: 'from-primary-50 to-primary-100',
+              borderColor: 'border-primary-200/50',
+              textColor: 'text-primary-800',
+              isLoading: isLoading || isInitialLoad
+            },
+            {
+              id: 'secondary',
+              title: t('label_total_amount'),
+              value: statistics?.totalAmount || 0,
+              description: t('label_amount_description'),
+              icon: '💰',
+              bgColor: 'from-secondary-50 to-secondary-100',
+              borderColor: 'border-secondary-200/50',
+              textColor: 'text-secondary-800',
+              isLoading: isLoading || isInitialLoad
+            },
+            {
+              id: 'point',
+              title: t('label_votes_this_month'),
+              value: statistics?.thisMonth || 0,
+              description: t('label_month_description'),
+              icon: '📊',
+              bgColor: 'from-point-50 to-point-100',
+              borderColor: 'border-point-200/50',
+              textColor: 'text-point-800',
+              isLoading: isLoading || isInitialLoad
+            }
+          ]}
           translations={translations}
         />
 
-        {/* 오류 상태 */}
-        {error && (
-          <div className="mb-4">
+        {/* 메인 콘텐츠 */}
+        <div className="space-y-6">
+          {/* 로딩 상태 */}
+          {isInitialLoad && (
+            <InitialLoadingState translations={translations} />
+          )}
+
+          {/* 에러 상태 */}
+          {error && !isInitialLoad && (
             <ErrorState 
               error={error}
               onRetry={retry}
               translations={translations}
             />
-          </div>
-        )}
+          )}
 
-        {/* 초기 로딩 상태 */}
-        {(isLoading || isInitialLoad) && voteHistory.length === 0 && !error && (
-          <InitialLoadingState translations={translations} />
-        )}
-
-        {/* 빈 상태 */}
-        {isEmpty && (
-          <EmptyState 
-            config={emptyStateConfig}
-            translations={translations}
-          />
-        )}
-
-        {/* 투표 내역 리스트 */}
-        <div className="space-y-4">
-          {voteHistory.map((item, index) => (
-            <div 
-              key={item.id} 
-              className="group relative bg-white/90 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg border border-white/30 overflow-hidden transition-all duration-300 transform hover:scale-[1.01] hover:-translate-y-1"
-              style={{
-                animationDelay: `${index * 50}ms`
+          {/* 빈 상태 */}
+          {isEmpty && !isInitialLoad && (
+            <EmptyState 
+              config={{
+                title: t('label_no_vote_history'),
+                description: t('label_no_vote_history_description'),
+                actionLabel: t('label_go_to_vote'),
+                actionUrl: '/vote',
+                icon: '🗳️'
               }}
-            >
-              {/* 상단 그라데이션 바 */}
-              <div className="h-1 bg-gradient-to-r from-primary via-secondary via-sub to-point"></div>
-              
-              {/* 배경 데코레이션 */}
-              <div className="absolute top-2 right-2 w-12 h-12 bg-gradient-to-br from-primary-50 to-point-50 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              
-              <div className="relative p-4">
-                <div className="flex items-start space-x-4">
-                  {/* 아티스트 이미지 */}
-                  <div className="flex-shrink-0">
-                    <div className="relative">
-                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gradient-to-br from-primary-100 to-secondary-100 shadow-md group-hover:shadow-lg transition-all duration-300 border border-white/50">
-                        <img
-                          src={getCdnImageUrl(item.voteItem?.artist?.image, 150) || '/images/default-artist.png'}
-                          alt={getLocalizedText(item.voteItem?.artist?.name) || t('label_artist')}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={handleImageError}
-                        />
-                      </div>
-                      {/* 호버시 나타나는 글로우 효과 */}
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      {/* 투표 상태 인디케이터 */}
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gradient-to-r from-sub to-point rounded-full flex items-center justify-center shadow-sm">
-                        <span className="text-white text-xs">✓</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 투표 정보 */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors duration-300 mb-1">
-                          {getLocalizedText(item.vote?.title) || t('label_no_title')}
-                        </h3>
-                        <div className="h-0.5 w-12 bg-gradient-to-r from-primary to-point rounded-full"></div>
-                      </div>
-                      {item.vote && (
-                        <div className="flex-shrink-0 ml-4">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-lg border ${
-                            getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' 
-                              ? 'bg-gradient-to-r from-green-500 to-secondary text-white border-green-600' :
-                            getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' 
-                              ? 'bg-gradient-to-r from-gray-500 to-gray-600 text-white border-gray-700' :
-                              'bg-gradient-to-r from-blue-500 to-primary text-white border-blue-600'
-                          }`}>
-                            {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ongoing' && t('label_vote_status_ongoing')}
-                            {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'ended' && t('label_vote_status_ended')}
-                            {getVoteStatus(item.vote.startAt, item.vote.stopAt).status === 'upcoming' && t('label_vote_status_upcoming')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {/* 아티스트 정보 */}
-                      <div className="relative bg-gradient-to-br from-primary-50 to-point-50 rounded-xl p-3 group-hover:from-primary-100 group-hover:to-point-100 transition-all duration-300 border border-primary-100/50">
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-primary-200 to-point-200 rounded-full opacity-50"></div>
-                        <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-6 h-6 bg-gradient-to-r from-primary to-point rounded-lg flex items-center justify-center shadow-sm">
-                            <span className="text-white text-xs">🎤</span>
-                          </div>
-                          <span className="font-bold text-primary-800 text-sm">{t('label_artist_name')}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <span className="font-semibold text-gray-900 text-sm">{getLocalizedText(item.voteItem?.artist?.name) || t('label_unknown')}</span>
-                          {(() => {
-                            const groupId = item.voteItem?.artist?.artistGroup?.id;
-                            const groupName = item.voteItem?.artist?.artistGroup?.name ? getLocalizedText(item.voteItem.artist.artistGroup.name) : '';
-                            return groupId && groupId > 0 && groupName && groupName.trim() !== '' ? (
-                              <>
-                                <span className="text-primary-400 font-bold text-xs">{t('label_group_separator')}</span>
-                                <span className="text-primary-700 font-medium text-xs">{groupName}</span>
-                              </>
-                            ) : null;
-                          })()}
-                        </div>
-                      </div>
-                      
-                      {/* 투표 금액 */}
-                      <div className="relative bg-gradient-to-br from-sub-50 to-secondary-50 rounded-xl p-3 group-hover:from-sub-100 group-hover:to-secondary-100 transition-all duration-300 border border-sub-100/50">
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-sub-200 to-secondary-200 rounded-full opacity-50"></div>
-                        <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-6 h-6 bg-gradient-to-r from-sub to-secondary rounded-lg flex items-center justify-center shadow-sm">
-                            <span className="text-white text-xs">💰</span>
-                          </div>
-                          <span className="font-bold text-sub-800 text-sm">{t('label_vote_amount')}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="relative">
-                            <img 
-                              src="/images/star-candy/star_100.png" 
-                              alt={t('label_star_candy')} 
-                              className="w-5 h-5 shadow-sm" 
-                            />
-                          </div>
-                          <span className="text-lg font-bold bg-gradient-to-r from-sub to-secondary bg-clip-text text-transparent">
-                            {item.amount.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 투표 날짜 */}
-                      <div className="relative bg-gradient-to-br from-secondary-50 to-primary-50 rounded-xl p-3 group-hover:from-secondary-100 group-hover:to-primary-100 transition-all duration-300 border border-secondary-100/50">
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-secondary-200 to-primary-200 rounded-full opacity-50"></div>
-                        <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-6 h-6 bg-gradient-to-r from-secondary to-primary rounded-lg flex items-center justify-center shadow-sm">
-                            <span className="text-white text-xs">📅</span>
-                          </div>
-                          <span className="font-bold text-secondary-800 text-sm">{t('label_vote_date')}</span>
-                        </div>
-                        <span className="text-gray-900 font-semibold text-sm">{formatDate(item.createdAt)}</span>
-                      </div>
-
-                      {/* 투표 카테고리 */}
-                      {item.vote?.voteCategory && (
-                        <div className="relative bg-gradient-to-br from-point-50 to-sub-50 rounded-xl p-3 group-hover:from-point-100 group-hover:to-sub-100 transition-all duration-300 border border-point-100/50">
-                          <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-point-200 to-sub-200 rounded-full opacity-50"></div>
-                          <div className="flex items-center space-x-2 mb-2">
-                            <div className="w-6 h-6 bg-gradient-to-r from-point to-sub rounded-lg flex items-center justify-center shadow-sm">
-                              <span className="text-white text-xs">🏷️</span>
-                            </div>
-                            <span className="font-bold text-point-800 text-sm">{t('label_vote_category')}</span>
-                          </div>
-                          <span className="inline-flex items-center px-2 py-1 bg-white/80 text-point-800 rounded-lg text-xs font-semibold shadow-sm border border-point-200/50">
-                            {getLocalizedText(item.vote?.voteCategory)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* 무한 스크롤 트리거 */}
-        {!isEmpty && (
-          <div ref={sentinelRef}>
-            <InfiniteScrollTrigger 
-              hasMore={hasMore}
-              isLoadingMore={isLoadingMore}
-              isLastPage={isLastPage}
               translations={translations}
             />
-          </div>
-        )}
+          )}
+
+          {/* 투표 내역 목록 */}
+          {voteHistory.length > 0 && (
+            <div className="space-y-6">
+              {voteHistory.map((vote, index) => {
+                return (
+                  <div key={`${vote.id}-${index}`} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group">
+                    <div className="p-6">
+                      <div className="space-y-4">
+                        {/* 투표 제목 */}
+                        <div className="mb-3">
+                          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200/50">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
+                                <span className="text-white text-xs">🗳️</span>
+                              </div>
+                              <span className="font-bold text-blue-800 text-sm">{t('label_vote_title')}</span>
+                            </div>
+                                                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-700 transition-colors duration-200">
+                               {getLocalizedText(vote.vote?.title) || t('label_no_title')}
+                             </h3>
+                          </div>
+                        </div>
+
+                        {/* 투표한 선택지 */}
+                        <div className="mb-3">
+                          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200/50">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
+                                <span className="text-white text-xs">✅</span>
+                              </div>
+                              <span className="font-bold text-green-800 text-sm">{t('label_voted_item')}</span>
+                            </div>
+                                                         <div className="text-gray-700 text-sm leading-relaxed">
+                               {getLocalizedText(vote.voteItem?.artist?.name) || t('label_unknown')}
+                             </div>
+                          </div>
+                        </div>
+
+                        {/* 투표 통계 */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {/* 투표 수량 */}
+                          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-3 border border-yellow-200/50">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="w-6 h-6 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-lg flex items-center justify-center shadow-sm">
+                                <span className="text-white text-xs">🎯</span>
+                              </div>
+                              <span className="font-bold text-yellow-800 text-sm">{t('label_vote_amount')}</span>
+                            </div>
+                            <span className="text-gray-900 font-semibold text-sm">{vote.amount?.toLocaleString()}</span>
+                          </div>
+
+                          {/* 투표 타입 */}
+                          <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-3 border border-purple-200/50">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-violet-600 rounded-lg flex items-center justify-center shadow-sm">
+                                <span className="text-white text-xs">🏷️</span>
+                              </div>
+                              <span className="font-bold text-purple-800 text-sm">{t('label_vote_type')}</span>
+                            </div>
+                                                         <span className="text-gray-900 font-semibold text-sm">
+                               {getLocalizedText(vote.vote?.voteCategory) || t('label_general_vote')}
+                             </span>
+                          </div>
+
+                          {/* 누적 투표수 */}
+                          <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl p-3 border border-teal-200/50">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-sm">
+                                <span className="text-white text-xs">📊</span>
+                              </div>
+                              <span className="font-bold text-teal-800 text-sm">{t('label_total_votes_for_item')}</span>
+                            </div>
+                                                         <span className="text-gray-900 font-semibold text-sm">N/A</span>
+                          </div>
+                        </div>
+
+                        {/* 투표일시 (개선된 날짜 표시) */}
+                        <div className="relative bg-gradient-to-br from-point-50 to-sub-50 rounded-xl p-3 group-hover:from-point-100 group-hover:to-sub-100 transition-all duration-300 border border-point-100/50">
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-point-200 to-sub-200 rounded-full opacity-50"></div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-gradient-to-r from-point to-sub rounded-lg flex items-center justify-center shadow-sm">
+                              <span className="text-white text-xs">📅</span>
+                            </div>
+                            <span className="font-bold text-point-800 text-sm">{t('label_vote_date')}</span>
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            <span className="text-gray-900 font-semibold text-sm block">
+                              {formatRelativeDate(vote.createdAt)}
+                            </span>
+                            {/* 상세 시간 (호버 시 표시) */}
+                            <span className="text-xs text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              {formatDate(vote.createdAt)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 무한 스크롤 트리거 */}
+          {!isEmpty && (
+            <div ref={sentinelRef}>
+              <InfiniteScrollTrigger 
+                hasMore={hasMore}
+                isLoadingMore={isLoadingMore}
+                isLastPage={isLastPage}
+                translations={translations}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

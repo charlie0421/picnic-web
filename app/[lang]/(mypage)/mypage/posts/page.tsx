@@ -61,7 +61,11 @@ export default async function PostsPage({ params }: { params: Promise<{ lang: st
     console_content_parsing_error: localeMessages['console_content_parsing_error'] || 'Content parsing error',
     label_posts_description: localeMessages['label_posts_description'] || '작성한 게시물 수',
     label_views_description: localeMessages['label_views_description'] || '누적 조회수',
-    label_comments_description: localeMessages['label_comments_description'] || '받은 댓글 수'
+    label_comments_description: localeMessages['label_comments_description'] || '받은 댓글 수',
+
+    label_translate_content: localeMessages['label_translate_content'] || 'Translate',
+    label_unknown: localeMessages['label_unknown'] || 'Unknown',
+    label_no_title: localeMessages['label_no_title'] || 'No Title'
   };
 
   return (

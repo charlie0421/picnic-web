@@ -73,7 +73,21 @@ export default async function RechargeHistoryPage({ params }: { params: Promise<
     label_received_star_candy: localeMessages['label_received_star_candy'] || 'Received Star Candy',
     label_product_code: localeMessages['label_product_code'] || 'Product Code',
     timezone_kst: localeMessages['timezone_kst'] || 'KST',
-    label_paypal: localeMessages['label_paypal'] || 'PayPal'
+    label_paypal: localeMessages['label_paypal'] || 'PayPal',
+    label_total_transactions: localeMessages['label_total_transactions'] || 'Total Transactions',
+    label_transactions_description: localeMessages['label_transactions_description'] || 'Total number of transactions',
+    label_total_recharged: localeMessages['label_total_recharged'] || 'Total Recharged',
+    label_recharged_description: localeMessages['label_recharged_description'] || 'Total amount recharged',
+    label_this_month: localeMessages['label_this_month'] || 'This Month',
+    label_month_description: localeMessages['label_month_description'] || 'This month',
+    label_product_name: localeMessages['label_product_name'] || 'Product Name',
+    label_unknown_product: localeMessages['label_unknown_product'] || 'Unknown Product',
+    label_payment_status: localeMessages['label_payment_status'] || 'Payment Status',
+    label_payment_completed: localeMessages['label_payment_completed'] || 'Payment Completed',
+    label_payment_pending: localeMessages['label_payment_pending'] || 'Payment Pending',
+    label_payment_failed: localeMessages['label_payment_failed'] || 'Payment Failed',
+    label_transaction_date: localeMessages['label_transaction_date'] || 'Transaction Date',
+    label_go_to_store: localeMessages['label_go_to_store'] || 'Go to Store'
   };
 
   return (

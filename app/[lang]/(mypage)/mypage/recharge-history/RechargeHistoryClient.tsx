@@ -100,6 +100,19 @@ interface Translations extends Record<string, string> {
   label_product_code: string;
   timezone_kst: string;
   label_paypal: string;
+  label_total_transactions: string;
+  label_transactions_description: string;
+  label_total_recharged: string;
+  label_recharged_description: string;
+  label_this_month: string;
+  label_month_description: string;
+  label_product_name: string;
+  label_unknown_product: string;
+  label_payment_status: string;
+  label_payment_completed: string;
+  label_payment_pending: string;
+  label_payment_failed: string;
+  label_transaction_date: string;
 }
 
 interface RechargeHistoryClientProps {
@@ -108,7 +121,11 @@ interface RechargeHistoryClientProps {
 }
 
 export default function RechargeHistoryClient({ initialUser, translations }: RechargeHistoryClientProps) {
-  const { formatDate } = useLanguage();
+  const { 
+    formatRelativeDate,  // 상대적 날짜 표시
+    formatDate,
+    getLocalizedText 
+  } = useLanguage();
   const t = (key: keyof Translations): string => translations[key] || (key as string);
 
   // 클립보드 복사 함수 - useCallback으로 최적화

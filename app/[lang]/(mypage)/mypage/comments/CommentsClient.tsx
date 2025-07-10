@@ -48,6 +48,10 @@ interface Translations extends Record<string, string> {
   label_comments_description: string;
   label_likes_description: string;
   label_posts_description: string;
+
+  label_no_title: string;
+  label_unknown: string;
+  label_view: string;
 }
 
 interface CommentsClientProps {
@@ -56,7 +60,10 @@ interface CommentsClientProps {
 }
 
 export default function CommentsClient({ initialUser, translations }: CommentsClientProps) {
-  const { formatDate } = useLanguage();
+  const { 
+    formatCommentDate,  // 댓글 최적화 날짜 포맷터
+    formatDate
+  } = useLanguage();
   const t = (key: keyof Translations): string => translations[key] || (key as string);
 
   // 데이터 변환 함수
@@ -141,6 +148,8 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
     const cutPoint = cleanText.lastIndexOf(' ', maxLength) || cleanText.lastIndexOf('.', maxLength);
     return cutPoint > maxLength / 2 ? cleanText.substring(0, cutPoint) + '...' : cleanText.substring(0, maxLength) + '...';
   };
+
+
 
   // 헤더 설정
   const headerConfig: MypageHeaderConfig = {
@@ -253,7 +262,7 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors duration-300 mb-1">
-                          {comment.postTitle || '게시글 제목'}
+                          {comment.postTitle || t('label_no_title')}
                         </h3>
                         <div className="h-0.5 w-12 bg-gradient-to-r from-primary to-point rounded-full"></div>
                       </div>
@@ -269,11 +278,14 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
                     {/* 댓글 내용 미리보기 */}
                     <div className="mb-3">
                       <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200/50">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-6 h-6 bg-gradient-to-r from-gray-400 to-gray-600 rounded-lg flex items-center justify-center shadow-sm">
-                            <span className="text-white text-xs">💬</span>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-gradient-to-r from-gray-400 to-gray-600 rounded-lg flex items-center justify-center shadow-sm">
+                              <span className="text-white text-xs">💬</span>
+                            </div>
+                            <span className="font-bold text-gray-800 text-sm">{t('label_comment_content')}</span>
                           </div>
-                          <span className="font-bold text-gray-800 text-sm">{t('label_comment_content')}</span>
+
                         </div>
                         <div className="text-gray-700 text-sm leading-relaxed">
                           {truncateContent(comment.content)}
@@ -303,7 +315,7 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
                           </div>
                           <span className="font-bold text-sub-800 text-sm">{t('label_board')}</span>
                         </div>
-                        <span className="text-gray-900 font-semibold text-sm">{comment.boardName}</span>
+                        <span className="text-gray-900 font-semibold text-sm">{comment.boardName || t('label_unknown')}</span>
                       </div>
 
                       {/* 작성일 */}
@@ -315,7 +327,15 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
                           </div>
                           <span className="font-bold text-secondary-800 text-sm">{t('label_comment_date')}</span>
                         </div>
-                        <span className="text-gray-900 font-semibold text-sm">{formatDate(comment.createdAt)}</span>
+                        <div className="space-y-1">
+                          <span className="text-gray-900 font-semibold text-sm block">
+                            {formatCommentDate(comment.createdAt)}
+                          </span>
+                          {/* 상세 시간 (호버 시 표시) */}
+                          <span className="text-xs text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            {formatDate(comment.createdAt)}
+                          </span>
+                        </div>
                       </div>
 
                       {/* 원글 보기 */}
@@ -331,7 +351,7 @@ export default function CommentsClient({ initialUser, translations }: CommentsCl
                           href={`/board/post/${comment.postId}`}
                           className="inline-flex items-center space-x-1 px-2 py-1 bg-white/80 text-point-800 rounded-lg text-xs font-semibold shadow-sm border border-point-200/50 hover:bg-point-50 transition-colors duration-200"
                         >
-                          <span>보기</span>
+                          <span>{t('label_view')}</span>
                           <span>→</span>
                         </Link>
                       </div>

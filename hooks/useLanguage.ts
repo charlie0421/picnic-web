@@ -1,6 +1,10 @@
 import { useCallback } from 'react';
 import { usePathname } from 'next/navigation';
-import { formatDateWithTimeZone } from '@/utils/date';
+import { 
+  formatDateWithTimeZone, 
+  formatRelativeTime, 
+  formatSmartDate
+} from '@/utils/date';
 import type { SupportedLanguage } from '@/types/mypage-common';
 
 export function useLanguage() {
@@ -23,13 +27,46 @@ export function useLanguage() {
     }
   }, [pathname]);
 
-  // 날짜 포맷팅
+  // 기본 날짜 포맷팅 (기존 호환성 유지)
   const formatDate = useCallback((dateString: string) => {
     const currentLang = getCurrentLanguage();
     return formatDateWithTimeZone(dateString, undefined, currentLang);
   }, [getCurrentLanguage]);
 
-  // 다국어 텍스트 처리 (방어형)
+  // 상대적 시간 포맷팅 (예: "3시간 전", "2일 전")
+  const formatRelativeDate = useCallback((
+    dateString: string,
+    options?: {
+      useAbsolute?: boolean;
+      absoluteThreshold?: number;
+      showTime?: boolean;
+    }
+  ) => {
+    const currentLang = getCurrentLanguage();
+    return formatRelativeTime(dateString, currentLang, options);
+  }, [getCurrentLanguage]);
+
+  // 스마트 날짜 포맷팅 (컨텍스트에 따라 자동 선택)
+  const formatSmartDateInternal = useCallback((
+    dateString: string,
+    context: 'post' | 'comment' | 'detailed' = 'post'
+  ) => {
+    const currentLang = getCurrentLanguage();
+    return formatSmartDate(dateString, currentLang, context);
+  }, [getCurrentLanguage]);
+
+  // Post/Comment 전용 날짜 포맷터
+  const formatPostDate = useCallback((dateString: string) => {
+    return formatSmartDateInternal(dateString, 'post');
+  }, [formatSmartDateInternal]);
+
+  const formatCommentDate = useCallback((dateString: string) => {
+    return formatSmartDateInternal(dateString, 'comment');
+  }, [formatSmartDateInternal]);
+
+
+
+  // 다국어 텍스트 처리 (기존 기능 유지)
   const getLocalizedText = useCallback((text: any): string => {
     try {
       if (text === null || text === undefined || text === '') {
@@ -98,10 +135,19 @@ export function useLanguage() {
     }
   }, [getCurrentLanguage]);
 
-  return {
-    currentLanguage: getCurrentLanguage(),
-    getCurrentLanguage,
-    formatDate,
-    getLocalizedText
-  };
+      return {
+      // 기본 정보
+      currentLanguage: getCurrentLanguage(),
+      getCurrentLanguage,
+      
+      // 날짜 포맷팅 함수들
+      formatDate,              // 기존 호환성 (절대 시간 + 시간대)
+      formatRelativeDate,      // 상대적 시간 ("3시간 전")
+      formatSmartDate: formatSmartDateInternal, // 컨텍스트별 스마트 포맷팅
+      formatPostDate,          // 게시물용 최적화
+      formatCommentDate,       // 댓글용 최적화
+      
+      // 기존 기능
+      getLocalizedText
+    };
 } 

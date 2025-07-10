@@ -60,12 +60,6 @@ export const MypageHeader = memo<MypageHeaderProps>(({ config, statistics, trans
               </div>
               <h1 className="text-xl font-bold text-gray-900">{config.title}</h1>
             </div>
-            <Link 
-              href={config.backUrl || "/mypage"}
-              className="text-sm text-primary-600 hover:text-primary-800 font-semibold px-3 py-1 rounded-lg hover:bg-primary-50 transition-colors duration-200"
-            >
-              ← {config.backLabel}
-            </Link>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

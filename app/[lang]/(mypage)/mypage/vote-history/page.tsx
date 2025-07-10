@@ -60,6 +60,19 @@ export default async function VoteHistoryPage({ params }: { params: Promise<{ la
     label_go_to_vote: localeMessages.label_go_to_vote || 'Go to Vote',
     label_all_vote_history_checked: localeMessages.label_all_vote_history_checked || 'All vote history checked!',
     label_all_data_loaded: localeMessages.label_all_data_loaded || 'All data loaded',
+    page_title_my_vote_history: localeMessages.page_title_my_vote_history || 'Vote History',
+    label_total_votes: localeMessages.label_total_votes || 'Total Votes',
+    label_votes_description: localeMessages.label_votes_description || 'Total votes cast',
+    label_total_amount: localeMessages.label_total_amount || 'Total Amount',
+    label_amount_description: localeMessages.label_amount_description || 'Total amount spent',
+    label_votes_this_month: localeMessages.label_votes_this_month || 'Votes This Month',
+    label_month_description: localeMessages.label_month_description || 'Votes this month',
+    label_voted_item: localeMessages.label_voted_item || 'Voted Item',
+    label_vote_type: localeMessages.label_vote_type || 'Vote Type',
+    label_general_vote: localeMessages.label_general_vote || 'General Vote',
+    label_total_votes_for_item: localeMessages.label_total_votes_for_item || 'Total Votes for Item',
+    label_no_vote_history: localeMessages.label_no_vote_history || 'No vote history',
+    label_no_vote_history_description: localeMessages.label_no_vote_history_description || 'No votes yet'
   };
 
   return (

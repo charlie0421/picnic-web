@@ -64,6 +64,10 @@ export default async function CommentsPage({ params }: { params: Promise<{ lang:
     label_popular_comment: localeMessages['label_popular_comment'] || 'Popular Comment',
     label_comments_description: localeMessages['label_comments_description'] || 'Your comments',
     label_posts_description: localeMessages['label_posts_description'] || 'Your posts',
+
+    label_no_title: localeMessages['label_no_title'] || 'No Title',
+    label_view: localeMessages['label_view'] || 'View',
+    label_all_data_loaded: localeMessages['label_all_data_loaded'] || 'All data loaded',
   };
 
   return (
