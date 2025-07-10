@@ -21,9 +21,6 @@ const StatisticsCard = memo(({ stat }: { stat: StatisticCard }) => (
       </div>
       <div className="flex-1">
         <h3 className={`font-bold ${stat.textColor} text-sm`}>{stat.title}</h3>
-        {stat.description && (
-          <p className={`${stat.textColor.replace('800', '600')} text-xs`}>{stat.description}</p>
-        )}
       </div>
     </div>
     {stat.isLoading ? (
