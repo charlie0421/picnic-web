@@ -57,6 +57,11 @@ interface RechargeResponse {
     totalPages: number;
     hasNext: boolean;
   };
+  statistics: {
+    totalPurchases: number;
+    totalAmount: number;
+    totalStarCandy: number;
+  };
   error?: string; // 에러 메시지 필드 추가
   message?: string; // 추가 메시지 필드
 }
@@ -121,6 +126,7 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [totalStarCandy, setTotalStarCandy] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true); // 초기 로딩 상태 추가
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -129,6 +135,33 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
   const pathname = usePathname();
 
   const t = (key: keyof Translations) => translations[key] || key;
+
+  // 클립보드 복사 함수
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // 사용자에게 복사 완료 알림을 주고 싶다면 toast 등을 사용할 수 있음
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+      // fallback: 텍스트 선택
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  };
+
+  // 타임존 감지 공통 함수
+  const getDetectedTimezone = useCallback(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      // fallback
+      return 'Asia/Seoul';
+    }
+  }, []);
 
   // 현재 언어 추출
   const getCurrentLanguage = useCallback((): 'en' | 'ko' | 'ja' | 'zh' | 'id' => {
@@ -164,6 +197,14 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
     setError(null);
 
     try {
+      console.log('🔍 [DEBUG] API 요청 시작:', {
+        userId: initialUser?.id,
+        userEmail: initialUser?.email,
+        pageNum,
+        reset,
+        isInitialLoad
+      });
+
       // Receipt 기반 쿼리 파라미터 추가
       const params = new URLSearchParams({
         page: pageNum.toString(),
@@ -180,29 +221,69 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
         }
       });
       
+      console.log('🔍 [DEBUG] API 응답 상태:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
       if (!response.ok) {
-        throw new Error(t('error_recharge_history_fetch_failed'));
+        // 더 상세한 에러 메시지 처리
+        let errorMessage = t('error_recharge_history_fetch_failed');
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          // JSON 파싱 실패 시 기본 메시지 사용
+        }
+        throw new Error(errorMessage);
       }
 
       const data: RechargeResponse = await response.json();
 
+      console.log('📊 [DEBUG] 백엔드 응답 데이터:', {
+        success: data.success,
+        dataLength: data.data?.length || 0,
+        statistics: data.statistics,
+        pagination: data.pagination,
+        reset: reset
+      });
+
       if (data.success) {
         // Receipt 데이터 유효성 검증
-        const validatedData = data.data.map(item => ({
-          ...item,
-          receiptId: item.receiptId || `receipt-${item.id}`,
-          receiptNumber: item.receiptNumber || `R${Date.now()}`,
-          currency: item.currency || 'KRW',
-          paymentProvider: item.paymentProvider || 'Unknown',
-          receiptData: item.receiptData || {
-            itemName: t('label_star_candy_recharge'),
-            description: t('star_candy_purchase_description'),
-            quantity: 1,
-            unitPrice: item.amount
-          },
-          paymentDetails: item.paymentDetails || {},
-          updatedAt: item.updatedAt || item.createdAt
-        }));
+        const validatedData = data.data.map((item, index) => {
+          // 디버깅: 처음 3개 아이템의 원본 데이터 로그
+          if (index < 3) {
+            console.log(`🔍 [DEBUG] 원본 데이터 ${index + 1}:`, {
+              receiptId: item.receiptId,
+              amount: item.amount,
+              receiptData: item.receiptData,
+              unitPrice: item.receiptData?.unitPrice,
+              quantity: item.receiptData?.quantity
+            });
+          }
+
+          return {
+            ...item,
+            receiptId: item.receiptId || `receipt-${item.id}`,
+            receiptNumber: item.receiptNumber || `R${Date.now()}`,
+            currency: item.currency || 'KRW',
+            paymentProvider: item.paymentProvider || 'Unknown',
+            // amount는 백엔드에서 계산된 실제 결제 금액 사용 (변경하지 않음)
+            receiptData: {
+              itemName: item.receiptData?.itemName || t('label_star_candy_recharge'),
+              description: item.receiptData?.description || t('star_candy_purchase_description'),
+              quantity: item.receiptData?.quantity || 1,
+              unitPrice: item.receiptData?.unitPrice || Math.round(item.amount / (item.receiptData?.quantity || 1)),
+              taxAmount: item.receiptData?.taxAmount,
+              discountAmount: item.receiptData?.discountAmount
+            },
+            paymentDetails: item.paymentDetails || {},
+            updatedAt: item.updatedAt || item.createdAt
+          };
+        });
 
         setRecharges(prev => {
           return reset ? validatedData : [...prev, ...validatedData];
@@ -210,16 +291,27 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
         setTotalCount(data.pagination.totalCount);
         setHasMore(data.pagination.hasNext);
         
-        // 총 충전 금액 계산 (외화 고려)
+        // 백엔드에서 계산된 전체 통계 사용 (페이지 기준이 아닌 전체 데이터 기준)
         if (reset) {
-          const total = validatedData.reduce((sum, item) => {
-            // 원화가 아닌 경우 환율 적용
-            const localAmount = item.currency !== 'KRW' && item.exchangeRate 
-              ? item.originalAmount || item.amount 
-              : item.amount;
-            return sum + localAmount;
-          }, 0);
-          setTotalAmount(total);
+          if (data.statistics) {
+            console.log('✅ [DEBUG] 백엔드 통계 사용:', data.statistics);
+            setTotalAmount(data.statistics.totalAmount || 0);
+            setTotalStarCandy(data.statistics.totalStarCandy || 0);
+          } else {
+            console.log('⚠️ [DEBUG] 백엔드 통계 없음, 페이지 데이터로 계산');
+            // 백엔드에서 통계가 없으면 페이지 데이터로 fallback
+            const totalAmountFromPage = validatedData.reduce((sum, item) => sum + item.amount, 0);
+            const totalStarCandyFromPage = validatedData.reduce((sum, item) => sum + item.starCandyAmount + item.bonusAmount, 0);
+            
+            setTotalAmount(totalAmountFromPage);
+            setTotalStarCandy(totalStarCandyFromPage);
+            
+            console.log('📊 [DEBUG] 페이지 데이터 기반 통계:', {
+              totalAmount: totalAmountFromPage,
+              totalStarCandy: totalStarCandyFromPage,
+              itemCount: validatedData.length
+            });
+          }
         }
         
         // 초기 로딩 완료 표시
@@ -305,6 +397,7 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const currentLang = getCurrentLanguage();
+    const userTimezone = getDetectedTimezone();
     
     let locale: string;
     let options: Intl.DateTimeFormatOptions;
@@ -318,7 +411,8 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
-          timeZone: 'Asia/Seoul'
+          second: '2-digit',
+          timeZone: userTimezone
         };
         break;
       case 'ja':
@@ -329,7 +423,8 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
-          timeZone: 'Asia/Seoul'
+          second: '2-digit',
+          timeZone: userTimezone
         };
         break;
       default:
@@ -340,12 +435,15 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
           day: 'numeric',
           hour: '2-digit',
           minute: '2-digit',
-          timeZone: 'Asia/Seoul'
+          second: '2-digit',
+          timeZone: userTimezone
         };
     }
     
     const formattedDate = date.toLocaleString(locale, options);
-    return `${formattedDate} KST`;
+    const timezoneShort = userTimezone === 'Asia/Seoul' ? 'KST' : 
+                         userTimezone.split('/').pop() || userTimezone;
+    return `${formattedDate} (${timezoneShort})`;
   };
 
   const formatCurrency = (amount: number) => {
@@ -361,6 +459,8 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
     setPage(1);
     setHasMore(false); // 초기 상태로 리셋
     setIsInitialLoad(true); // 초기 로딩 상태로 리셋
+    setTotalAmount(0);
+    setTotalStarCandy(0);
     fetchRechargeHistory(1, true);
   };
 
@@ -441,6 +541,7 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
               
               {/* 통계 정보 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* 총 구매 횟수 */}
                 <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-6 border border-primary-200/50">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
@@ -451,9 +552,21 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                       <p className="text-primary-600 text-sm">{t('label_recharge_count_description') || '총 구매 횟수'}</p>
                     </div>
                   </div>
-                  <p className="text-primary-800 font-bold text-3xl">{totalCount.toLocaleString()}</p>
+                  {(isLoading || isInitialLoad) ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 h-8 bg-primary-200 rounded-lg animate-pulse"></div>
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-primary-800 font-bold text-3xl">{totalCount.toLocaleString()}</p>
+                  )}
                 </div>
                 
+                {/* 총 결제 금액 */}
                 <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-6 border border-secondary-200/50">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
@@ -464,11 +577,23 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                       <p className="text-secondary-600 text-sm">{t('label_amount_description') || '총 결제 금액'}</p>
                     </div>
                   </div>
-                  <p className="text-secondary-800 font-bold text-3xl">
-                    {formatCurrency(totalAmount)}
-                  </p>
+                  {(isLoading || isInitialLoad) ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-24 h-8 bg-secondary-200 rounded-lg animate-pulse"></div>
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-secondary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-secondary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-secondary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-secondary-800 font-bold text-3xl">
+                      {formatCurrency(totalAmount)}
+                    </p>
+                  )}
                 </div>
                 
+                {/* 총 별사탕 */}
                 <div className="bg-gradient-to-br from-point-50 to-point-100 rounded-2xl p-6 border border-point-200/50">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className="w-10 h-10 bg-point rounded-xl flex items-center justify-center">
@@ -479,9 +604,31 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                       <p className="text-point-600 text-sm">{t('label_star_candy_description') || '총 받은 별사탕'}</p>
                     </div>
                   </div>
-                  <p className="text-point-800 font-bold text-3xl">
-                    {recharges.reduce((sum, r) => sum + r.starCandyAmount + r.bonusAmount, 0).toLocaleString()}
-                  </p>
+                  {(isLoading || isInitialLoad) ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-20 h-8 bg-point-200 rounded-lg animate-pulse"></div>
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-point-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-point-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-2 h-2 bg-point-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                      </div>
+                      <div className="w-32 h-4 bg-point-100 rounded animate-pulse"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-point-800 font-bold text-3xl">
+                          {totalStarCandy.toLocaleString()}
+                        </span>
+                        <span className="text-point-600 text-sm">별사탕</span>
+                      </div>
+                      <div className="text-point-600 text-sm">
+                        전체 기간 누적 별사탕 (보너스 포함)
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -627,10 +774,19 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                         <span>🏢</span>
                         <span>{recharge.paymentProvider}</span>
                       </span>
-                      <span className="flex items-center space-x-1">
-                        <span>📋</span>
-                        <span>ID: {recharge.receiptId.slice(-8)}</span>
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="flex items-center space-x-1">
+                          <span>📋</span>
+                          <span>ID: {recharge.receiptId}</span>
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(recharge.receiptId)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors duration-200"
+                          title="복사"
+                        >
+                          📋
+                        </button>
+                      </div>
                     </div>
                     <div className="h-1 w-16 bg-gradient-to-r from-primary to-point rounded-full mt-2"></div>
                   </div>
@@ -663,7 +819,21 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                     </div>
                     <div>
                       <span className="text-2xl font-bold bg-gradient-to-r from-primary to-point bg-clip-text text-transparent">
-                        {recharge.currency === 'KRW' ? formatCurrency(recharge.amount) : `${recharge.amount} ${recharge.currency}`}
+                        {(() => {
+                          // 백엔드에서 계산된 실제 결제 금액 사용
+                          const actualAmount = recharge.amount;
+                          
+                          // 디버깅: 결제 금액 로그
+                          console.log(`💰 [DEBUG] 결제 금액:`, {
+                            receiptId: recharge.receiptId,
+                            actualAmount: actualAmount,
+                            unitPrice: recharge.receiptData.unitPrice,
+                            quantity: recharge.receiptData.quantity,
+                            currency: recharge.currency
+                          });
+                          
+                          return recharge.currency === 'KRW' ? formatCurrency(actualAmount) : `${actualAmount} ${recharge.currency}`;
+                        })()}
                       </span>
                       {recharge.originalAmount && recharge.currency !== 'KRW' && (
                         <div className="text-sm text-gray-600 mt-1">
@@ -682,14 +852,20 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                       </div>
                       <span className="font-bold text-sub-800">받은 별사탕</span>
                     </div>
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl font-bold bg-gradient-to-r from-sub to-secondary bg-clip-text text-transparent">
-                        {recharge.starCandyAmount.toLocaleString()}
-                      </span>
-                      {recharge.bonusAmount > 0 && (
-                        <span className="px-2 py-1 bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 rounded-lg text-sm font-semibold">
-                          {t('label_bonus')} +{recharge.bonusAmount}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-bold bg-gradient-to-r from-sub to-secondary bg-clip-text text-transparent">
+                          {recharge.starCandyAmount.toLocaleString()}
                         </span>
+                        <span className="text-sub-600 text-sm">별사탕</span>
+                      </div>
+                      {recharge.bonusAmount > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-yellow-600 font-bold text-lg">
+                            +{recharge.bonusAmount.toLocaleString()}
+                          </span>
+                          <span className="text-yellow-600 text-sm">보너스</span>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -751,10 +927,6 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                           상품코드: {recharge.storeProductId}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-4 text-sm">
-                        <span>{t('label_quantity')}: {recharge.receiptData.quantity}</span>
-                        <span>{t('label_unit_price')}: {recharge.currency === 'KRW' ? formatCurrency(recharge.receiptData.unitPrice) : `${recharge.receiptData.unitPrice} ${recharge.currency}`}</span>
-                      </div>
                     </div>
                   </div>
 
@@ -770,15 +942,33 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                     <div className="space-y-3">
                       <div>
                         <div className="text-xs text-gray-600 mb-1">{t('label_transaction_id')}</div>
-                        <div className="font-mono text-sm bg-white/80 px-3 py-2 rounded border break-all whitespace-pre-wrap leading-relaxed">
-                          {recharge.transactionId}
+                        <div className="flex items-center space-x-2">
+                          <div className="flex-1 font-mono text-sm bg-white/80 px-3 py-2 rounded border break-all whitespace-pre-wrap leading-relaxed text-gray-800">
+                            {recharge.transactionId}
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(recharge.transactionId)}
+                            className="p-2 hover:bg-gray-200 rounded transition-colors duration-200"
+                            title="복사"
+                          >
+                            📋
+                          </button>
                         </div>
                       </div>
                       {recharge.merchantTransactionId && (
                         <div>
                           <div className="text-xs text-gray-600 mb-1">{t('label_merchant_transaction_id')}</div>
-                          <div className="font-mono text-sm bg-white/80 px-3 py-2 rounded border break-all whitespace-pre-wrap leading-relaxed">
-                            {recharge.merchantTransactionId}
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-1 font-mono text-sm bg-white/80 px-3 py-2 rounded border break-all whitespace-pre-wrap leading-relaxed text-gray-800">
+                              {recharge.merchantTransactionId}
+                            </div>
+                            <button
+                              onClick={() => copyToClipboard(recharge.merchantTransactionId)}
+                              className="p-2 hover:bg-gray-200 rounded transition-colors duration-200"
+                              title="복사"
+                            >
+                              📋
+                            </button>
                           </div>
                         </div>
                       )}
@@ -797,12 +987,12 @@ export default function RechargeHistoryClient({ initialUser, translations }: Rec
                     <div className="space-y-2 text-sm">
                       <div>
                         <div className="text-xs text-gray-600">{t('label_transaction_time')}</div>
-                        <div className="font-semibold">{formatDate(recharge.createdAt)}</div>
+                        <div className="font-semibold text-gray-800">{formatDate(recharge.createdAt)}</div>
                       </div>
                       {recharge.receiptGeneratedAt && (
                         <div>
                           <div className="text-xs text-gray-600">{t('label_receipt_generated')}</div>
-                          <div className="font-semibold">{formatDate(recharge.receiptGeneratedAt)}</div>
+                          <div className="font-semibold text-gray-800">{formatDate(recharge.receiptGeneratedAt)}</div>
                         </div>
                       )}
                     </div>
