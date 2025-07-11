@@ -192,14 +192,23 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
 
                 {/* 마이페이지 링크 */}
                 <div className="pt-2 border-t">
-                  <Link
-                    href={getLocalizedPath('/mypage')}
-                    onClick={() => handleLinkClick('/mypage')}
-                    className="flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    <Settings className="w-4 h-4" />
-                    <span>{t('nav.menu.mypage')}</span>
-                  </Link>
+                  {pathname.includes('/mypage') ? (
+                    // 현재 마이페이지에 있을 때 - 비활성화된 상태로 표시
+                    <div className="flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm text-blue-700 bg-blue-50 font-medium cursor-default">
+                      <Settings className="w-4 h-4" />
+                      <span>{t('nav.menu.mypage')}</span>
+                    </div>
+                  ) : (
+                    // 다른 페이지에 있을 때 - 클릭 가능한 링크
+                    <Link
+                      href={getLocalizedPath('/mypage')}
+                      onClick={() => handleLinkClick('/mypage')}
+                      className="flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>{t('nav.menu.mypage')}</span>
+                    </Link>
+                  )}
                 </div>
               </>
             ) : (
