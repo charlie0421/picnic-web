@@ -11,7 +11,7 @@ import { isVoteRelatedPath, PORTAL_MENU } from '@/config/navigation';
 import menuConfig from '@/config/menu.json';
 import { Menu as MenuIcon, X, User, LogIn, Settings } from 'lucide-react';
 import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from '@/hooks/useTranslations';
 
 interface MobileNavigationMenuProps {
   className?: string;
@@ -24,7 +24,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const t = useTranslations();
+  const { tDynamic: t } = useTranslations();
 
   // 안정적인 인증 상태 관리
   const stableAuthState = {
