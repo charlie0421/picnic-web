@@ -44,8 +44,27 @@ const repo = process.env.VERCEL_GIT_REPO_OWNER && process.env.VERCEL_GIT_REPO_SL
 
 try {
   if (repo && process.env.VERCEL_GIT_COMMIT_SHA) {
-    execSync(`sentry-cli releases --org=${sentryOrg} --project=${sentryProject} set-commits ${release} --commit "${repo}@${sha}"`, { stdio: "inherit" });
+    // Vercel 환경에서 git 정보가 있을 때
+    const commitHash = process.env.VERCEL_GIT_COMMIT_SHA;
+    execSync(`sentry-cli releases --org=${sentryOrg} --project=${sentryProject} set-commits ${release} --commit "${repo}@${commitHash}"`, { stdio: "inherit" });
+  } else if (sha && sha !== "no-git") {
+    // 로컬 환경에서 git 정보가 있을 때
+    try {
+      const currentRepo = execSync("git config --get remote.origin.url").toString().trim();
+      const repoMatch = currentRepo.match(/github\.com[/:](.*?)(?:\.git)?$/);
+      if (repoMatch) {
+        const gitRepo = repoMatch[1];
+        execSync(`sentry-cli releases --org=${sentryOrg} --project=${sentryProject} set-commits ${release} --commit "${gitRepo}@${sha}"`, { stdio: "inherit" });
+      } else {
+        // 저장소 정보를 찾을 수 없으면 --auto 옵션 사용
+        execSync(`sentry-cli releases --org=${sentryOrg} --project=${sentryProject} set-commits ${release} --auto`, { stdio: "inherit" });
+      }
+    } catch (gitError) {
+      console.warn('⚠️ Git 원격 저장소 정보를 가져올 수 없습니다. --auto 옵션을 사용합니다.');
+      execSync(`sentry-cli releases --org=${sentryOrg} --project=${sentryProject} set-commits ${release} --auto`, { stdio: "inherit" });
+    }
   } else {
+    // git 정보가 없을 때는 --auto 옵션 사용
     execSync(`sentry-cli releases --org=${sentryOrg} --project=${sentryProject} set-commits ${release} --auto`, { stdio: "inherit" });
   }
 } catch (e) {
@@ -54,7 +73,7 @@ try {
 
 try {
   execSync(
-    `sentry-cli releases --org=${sentryOrg} --project=${sentryProject} files ${release} upload-sourcemaps .next --url-prefix '~/_next' --rewrite`,
+    `sentry-cli releases --org=${sentryOrg} --project=${sentryProject} files ${release} upload-sourcemaps .next --url-prefix '~/_next' --rewrite --ignore '**/client-reference-manifest.js*' --ignore '**/middleware-build-manifest.js*' --ignore '**/middleware-react-loadable-manifest.js*' --ignore '**/next-font-manifest.js*' --ignore '**/server-reference-manifest.js*' --ignore '**/_buildManifest.js*' --ignore '**/_ssgManifest.js*'`,
     { stdio: "inherit" }
   );
 } catch (e) {

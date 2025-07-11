@@ -32,7 +32,12 @@
     "test:libs": "jest --testPathPattern=__tests__/lib",
     "test:api": "jest --testPathPattern=__tests__/app/api",
     "test:fail-fast": "jest --bail",
-    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand"
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "audit:fix-force": "npm audit fix --force",
+    "audit:report": "npm audit --audit-level=moderate",
+    "security:check": "npm audit && echo '\\n✅ 보안 감사 완료. 위의 결과를 확인해주세요.'"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
@@ -58,7 +63,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.508.0",
     "luxon": "^3.6.1",
-    "next": "15.3.1",
+    "next": "15.3.5",
     "next-auth": "^4.24.11",
     "next-intl": "^4.1.0",
     "next-sitemap": "^4.2.3",

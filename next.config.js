@@ -23,6 +23,9 @@ const buildTime = new Date().toISOString();
 const nextConfig = {
   reactStrictMode: true,
   
+  // Source Maps 설정 (Sentry 업로드용)
+  productionBrowserSourceMaps: true,
+  
   // 환경변수 명시적 설정 (브라우저에서 사용 가능하도록)
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -212,6 +215,21 @@ const sentryWebpackPluginOptions = {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   // 릴리즈 정보
   release: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
+  // sourcemap 업로드 필터링
+  include: [
+    {
+      paths: ['.next/static/'],
+      ignore: [
+        '**/client-reference-manifest.js',
+        '**/middleware-build-manifest.js',
+        '**/middleware-react-loadable-manifest.js',
+        '**/next-font-manifest.js',
+        '**/server-reference-manifest.js',
+        '**/_buildManifest.js',
+        '**/_ssgManifest.js'
+      ]
+    }
+  ],
 };
 
 module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
