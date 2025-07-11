@@ -143,19 +143,19 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             // 로딩 중일 때 shimmer 효과
             <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
           ) : stableAuthState.showUserArea ? (
-            // 인증된 사용자 - 프로필 이미지 (크기를 32x32로 줄임)
+            // 인증된 사용자 - 프로필 이미지 (크기를 28x28로 더 줄임)
             profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
               <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
             ) : userInfo.avatar_url ? (
               <ProfileImageContainer
                 avatarUrl={userInfo.avatar_url}
-                width={32}
-                height={32}
-                borderRadius={8}
-                className="w-full h-full object-cover"
+                width={28}
+                height={28}
+                borderRadius={6}
+                className="w-7 h-7 object-cover"
               />
             ) : (
-              <DefaultAvatar width={32} height={32} className="w-full h-full" />
+              <DefaultAvatar width={28} height={28} className="w-7 h-7" />
             )
           ) : (
             // 미인증 사용자 - 햄버거 메뉴 아이콘
@@ -176,26 +176,26 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
           {stableAuthState.showUserArea ? (
             // 인증된 사용자 메뉴
             <>
-              {/* 사용자 정보 헤더 섹션 - 개선된 디자인 */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 border-b border-gray-100">
-                <div className="flex items-center space-x-4">
+              {/* 사용자 정보 헤더 섹션 - 더 작은 프로필 이미지 */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-gray-100">
+                <div className="flex items-center space-x-3">
                   {profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
-                    <div className="w-14 h-14 rounded-xl shimmer-effect bg-gray-200" />
+                    <div className="w-12 h-12 rounded-xl shimmer-effect bg-gray-200" />
                   ) : userInfo.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userInfo.avatar_url}
-                      width={56}
-                      height={56}
+                      width={48}
+                      height={48}
                       borderRadius={12}
                       className="ring-2 ring-white shadow-md"
                     />
                   ) : (
-                    <div className="w-14 h-14 rounded-xl ring-2 ring-white shadow-md">
-                      <DefaultAvatar width={56} height={56} />
+                    <div className="w-12 h-12 rounded-xl ring-2 ring-white shadow-md">
+                      <DefaultAvatar width={48} height={48} />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
                       {userInfo.name || t('common.user.unknown')}
                     </p>
                     {userInfo.is_admin && (
@@ -206,16 +206,16 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                       </div>
                     )}
                     {/* 별사탕 정보 */}
-                    <div className="flex items-center mt-2 space-x-3">
+                    <div className="flex items-center mt-1.5 space-x-2">
                       <div className="flex items-center space-x-1">
-                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
-                        <span className="text-sm font-medium text-gray-700">
+                        <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                        <span className="text-xs font-medium text-gray-700">
                           {(userInfo.star_candy + userInfo.star_candy_bonus).toLocaleString()}
                         </span>
                       </div>
                       {userInfo.star_candy_bonus > 0 && (
-                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                          +{userInfo.star_candy_bonus.toLocaleString()} 보너스
+                        <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                          +{userInfo.star_candy_bonus.toLocaleString()}
                         </span>
                       )}
                     </div>
@@ -224,10 +224,10 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
               </div>
 
               {/* 메뉴 섹션 */}
-              <div className="p-3">
+              <div className="p-2">
                 {/* 네비게이션 메뉴 */}
                 {filteredMenuItems.length > 0 && (
-                  <div className="mb-3">
+                  <div className="mb-2">
                     <div className="space-y-1">
                       {filteredMenuItems.map((item) => {
                         const isActive = isVoteRelatedPath(pathname) && item.type === PortalType.VOTE;
@@ -236,7 +236,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                             key={item.type}
                             href={getLocalizedPath(item.path)}
                             onClick={handleMenuItemClick}
-                            className={`flex items-center space-x-3 w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            className={`flex items-center space-x-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               isActive
                                 ? 'bg-blue-600 text-white shadow-md'
                                 : 'text-gray-700 hover:bg-gray-50 hover:translate-x-1'
@@ -245,7 +245,9 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                             <span className={isActive ? 'text-white' : 'text-gray-500'}>
                               {getMenuIcon(item.type)}
                             </span>
-                            <span>{t(`nav.menu.${item.type}`)}</span>
+                            <span className={isActive ? 'text-white' : 'text-gray-700'}>
+                              {t(`nav.menu.${item.type}`)}
+                            </span>
                             {!isActive && <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />}
                           </NavigationLink>
                         );
@@ -255,22 +257,22 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                 )}
 
                 {/* 마이페이지 링크 - 구분선과 함께 */}
-                <div className="pt-3 border-t border-gray-100">
+                <div className="pt-2 border-t border-gray-100">
                   {pathname.includes('/mypage') ? (
                     // 현재 마이페이지에 있을 때 - 활성 상태로 표시
-                    <div className="flex items-center space-x-3 w-full text-left px-4 py-3 rounded-lg text-sm font-medium bg-blue-600 text-white shadow-md">
-                      <Settings className="w-4 h-4" />
-                      <span>{t('nav.menu.mypage')}</span>
+                    <div className="flex items-center space-x-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white shadow-md">
+                      <Settings className="w-4 h-4 text-white" />
+                      <span className="text-white">{t('nav.menu.mypage')}</span>
                     </div>
                   ) : (
                     // 다른 페이지에 있을 때 - 클릭 가능한 링크
                     <NavigationLink
                       href={getLocalizedPath('/mypage')}
                       onClick={handleMenuItemClick}
-                      className="flex items-center space-x-3 w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:translate-x-1 transition-all duration-200"
+                      className="flex items-center space-x-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:translate-x-1 transition-all duration-200"
                     >
                       <Settings className="w-4 h-4 text-gray-500" />
-                      <span>{t('nav.menu.mypage')}</span>
+                      <span className="text-gray-700">{t('nav.menu.mypage')}</span>
                       <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />
                     </NavigationLink>
                   )}
