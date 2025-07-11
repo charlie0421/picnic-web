@@ -8,6 +8,7 @@ import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { PortalType } from '@/utils/enums';
 import { isVoteRelatedPath, PORTAL_MENU } from '@/config/navigation';
+import { shouldShowLoadingFor, isSamePage } from '@/utils/navigation-loading';
 import menuConfig from '@/config/menu.json';
 import { Menu as MenuIcon, X, User, LogIn, Settings } from 'lucide-react';
 import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
@@ -67,7 +68,8 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
       targetPath,
       currentPathname: pathname,
       isMypage: pathname.includes('/mypage'),
-      isSamePage: pathname === targetPath || (href === '/mypage' && pathname.includes('/mypage'))
+      isSamePage: pathname === targetPath || (href === '/mypage' && pathname.includes('/mypage')),
+      shouldShowLoading: shouldShowLoadingFor(href)
     });
     
     if (pathname === targetPath || (href === '/mypage' && pathname.includes('/mypage'))) {
@@ -78,8 +80,14 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
       return;
     }
     
-    console.log('🔍 [MobileNav] Starting loading for navigation to:', targetPath);
-    setIsLoading(true);
+    // mypage와 vote 페이지로의 이동 시에만 로딩바 표시
+    if (shouldShowLoadingFor(href)) {
+      console.log('🔍 [MobileNav] Starting loading for navigation to:', targetPath);
+      setIsLoading(true);
+    } else {
+      console.log('🔍 [MobileNav] No loading needed for navigation to:', targetPath);
+    }
+    
     setIsOpen(false);
   };
 

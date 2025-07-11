@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import type { LinkProps } from 'next/link';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
+import { shouldShowLoadingFor } from '@/utils/navigation-loading';
 
 interface NavigationLinkProps extends Omit<LinkProps, 'href'> {
   href: string;
@@ -30,13 +31,20 @@ export default function NavigationLink({
     console.log('🔍 [NavigationLink] Link click:', {
       href,
       currentPath,
-      isSamePage: currentPath === href
+      isSamePage: currentPath === href,
+      shouldShowLoading: shouldShowLoadingFor(href)
     });
     
     if (currentPath !== href) {
-      console.log('🔍 [NavigationLink] Starting loading for navigation to:', href);
-      setIsLoading(true);
-      setIsNavigating(true);
+      // mypage와 vote 페이지로의 이동 시에만 로딩바 표시
+      if (shouldShowLoadingFor(href)) {
+        console.log('🔍 [NavigationLink] Starting loading for navigation to:', href);
+        setIsLoading(true);
+        setIsNavigating(true);
+      } else {
+        console.log('🔍 [NavigationLink] No loading needed for navigation to:', href);
+        setIsNavigating(false);
+      }
     } else {
       console.log('🔍 [NavigationLink] Same page detected, not starting loading');
     }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
+import { shouldShowLoadingFor } from '@/utils/navigation-loading';
 import {PortalType} from '@/utils/enums';
 import {isVoteRelatedPath, PORTAL_MENU} from '@/config/navigation';
 import menuConfig from '@/config/menu.json';
@@ -39,12 +40,18 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
       portalType,
       localizedMenuPath,
       currentPathname: pathname,
-      isSamePage: pathname === localizedMenuPath
+      isSamePage: pathname === localizedMenuPath,
+      shouldShowLoading: shouldShowLoadingFor(localizedMenuPath)
     });
     
     if (pathname !== localizedMenuPath) {
-      console.log('🔍 [PortalMenuItem] Starting loading for navigation to:', localizedMenuPath);
-      setIsLoading(true);
+      // mypage와 vote 페이지로의 이동 시에만 로딩바 표시
+      if (shouldShowLoadingFor(localizedMenuPath)) {
+        console.log('🔍 [PortalMenuItem] Starting loading for navigation to:', localizedMenuPath);
+        setIsLoading(true);
+      } else {
+        console.log('🔍 [PortalMenuItem] No loading needed for navigation to:', localizedMenuPath);
+      }
     } else {
       console.log('🔍 [PortalMenuItem] Same page detected, not starting loading');
     }

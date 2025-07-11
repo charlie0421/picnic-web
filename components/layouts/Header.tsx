@@ -7,6 +7,7 @@ import {usePathname} from 'next/navigation';
 import {useAuth} from '@/lib/supabase/auth-provider';
 import {useLanguageStore} from '@/stores/languageStore';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
+import { shouldShowLoadingFor } from '@/utils/navigation-loading';
 import {DefaultAvatar, ProfileImageContainer,} from '@/components/ui/ProfileImageContainer';
 import PortalMenuItem from './PortalMenuItem';
 import MobileNavigationMenu from './MobileNavigationMenu';
@@ -73,12 +74,18 @@ const Header: React.FC = () => {
     console.log('🔍 [Header] Link click:', {
       href,
       currentPathname: pathname,
-      isSamePage: pathname === href
+      isSamePage: pathname === href,
+      shouldShowLoading: shouldShowLoadingFor(href)
     });
     
     if (pathname !== href) {
-      console.log('🔍 [Header] Starting loading for navigation to:', href);
-      setGlobalLoading(true);
+      // mypage와 vote 페이지로의 이동 시에만 로딩바 표시
+      if (shouldShowLoadingFor(href)) {
+        console.log('🔍 [Header] Starting loading for navigation to:', href);
+        setGlobalLoading(true);
+      } else {
+        console.log('🔍 [Header] No loading needed for navigation to:', href);
+      }
     } else {
       console.log('🔍 [Header] Same page detected, not starting loading');
     }
