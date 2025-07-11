@@ -2,6 +2,7 @@
 
 import React, { memo } from 'react';
 import Image from 'next/image';
+import NavigationLink from '@/components/client/NavigationLink';
 import type { EmptyStateConfig } from '@/types/mypage-common';
 
 // 상태 컴포넌트에 공통으로 전달되는 props 타입
@@ -89,13 +90,13 @@ export const EmptyState = memo<EmptyStateProps>(({ config, translations }) => {
         <h3 className="text-xl font-bold text-gray-900 mb-3">{config.title}</h3>
         <p className="text-gray-600 mb-6 max-w-sm">{config.description}</p>
         {config.actionLabel && config.actionUrl && (
-          <a
+          <NavigationLink
             href={config.actionUrl}
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:from-primary-600 hover:to-secondary-600 transition-all duration-300 transform hover:scale-105 font-medium shadow-md hover:shadow-lg"
           >
             {config.actionLabel}
             <span className="ml-2">→</span>
-          </a>
+          </NavigationLink>
         )}
       </div>
     </div>

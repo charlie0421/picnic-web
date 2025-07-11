@@ -1,53 +1,66 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import {usePathname} from 'next/navigation';
-import {useLanguageStore} from '@/stores/languageStore';
+import NavigationLink from '@/components/client/NavigationLink';
+import { usePathname } from 'next/navigation';
+import { useLanguageStore } from '@/stores/languageStore';
+import CurrentTime from '@/components/client/vote/common/CurrentTime';
 import menuConfig from '@/config/menu.json';
-import CurrentTime from './common/CurrentTime';
 
-/**
- * 투표 페이지 메뉴 컴포넌트
- * 투표홈, 픽차트, 미디어, 상점 등의 메뉴 항목과 현재 시간을 표시합니다.
- */
 export const Menu: React.FC = () => {
-  const { t, currentLanguage, translations, isTranslationLoaded } = useLanguageStore();
   const pathname = usePathname();
+  const { t, currentLanguage, isTranslationLoaded } = useLanguageStore();
 
-  // 현재 언어의 번역이 로드되었는지 확인
-  const isCurrentLanguageLoaded = isTranslationLoaded[currentLanguage] && 
-    translations[currentLanguage] && 
-    Object.keys(translations[currentLanguage]).length > 0;
+  // 현재 언어의 번역 로딩 상태 확인
+  const isCurrentLanguageLoaded = isTranslationLoaded[currentLanguage];
 
-  // 디버깅: 번역 상태 확인
-  React.useEffect(() => {
-    console.log('🔍 Menu Debug:', {
-      currentLanguage,
-      isTranslationLoaded: isTranslationLoaded[currentLanguage],
-      translationsCount: Object.keys(translations[currentLanguage] || {}).length,
-      hasNavVote: 'nav_vote' in (translations[currentLanguage] || {}),
-      navVoteValue: translations[currentLanguage]?.['nav_vote'],
-      isCurrentLanguageLoaded
-    });
-  }, [currentLanguage, translations, isTranslationLoaded, isCurrentLanguageLoaded]);
+  // Vote 포털의 서브메뉴 가져오기
+  const votePortal = menuConfig.portals.find(portal => portal.id === 'vote');
+  const subMenus = votePortal?.subMenus || [];
 
-  // 현재 경로에 따라 메뉴 항목의 활성 상태 결정
+  // 디버깅 로그 추가
+  console.log('🔍 [Vote Menu] 렌더링:', {
+    pathname,
+    currentLanguage,
+    isCurrentLanguageLoaded,
+    votePortal: !!votePortal,
+    subMenusCount: subMenus.length,
+    subMenus: subMenus.map(m => ({ key: m.key, path: m.path }))
+  });
+
+  // 현재 경로가 특정 경로와 일치하는지 확인 (언어 프리픽스 제거)
   const isActive = (path: string) => {
-    // 언어 코드를 제외한 경로 비교
-    const currentPath = pathname.split('/').slice(2).join('/');
-    const targetPath = path.split('/').slice(1).join('/');
-    return currentPath.startsWith(targetPath);
+    // 현재 pathname에서 언어 프리픽스 제거
+    const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/';
+    
+    console.log('🔍 [Vote Menu] isActive 체크:', {
+      originalPath: pathname,
+      pathWithoutLocale,
+      targetPath: path,
+    });
+    
+    if (path === '/vote') {
+      // '/vote' 정확히 일치하거나 '/vote/' 로 시작하는 경우
+      return pathWithoutLocale === '/vote' || pathWithoutLocale.startsWith('/vote/');
+    }
+    return pathWithoutLocale.startsWith(path);
   };
 
-  // 투표 포탈의 서브메뉴 가져오기
-  const votePortal = menuConfig.portals.find(portal => portal.type === 'vote');
-  const subMenus = votePortal?.subMenus || [];
+  // 메뉴가 없는 경우 에러 상태 표시
+  if (!votePortal || subMenus.length === 0) {
+    console.error('🚨 [Vote Menu] 메뉴 설정을 찾을 수 없습니다:', { votePortal, subMenus });
+    return (
+      <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center py-2'>
+        <div className='text-red-500 text-sm'>메뉴 로드 실패</div>
+      </div>
+    );
+  }
 
   // 번역이 로드되지 않은 경우 로딩 표시
   if (!isCurrentLanguageLoaded) {
+    console.log('🔍 [Vote Menu] 번역 로딩 중...');
     return (
-      <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center py-0'>
+      <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center py-2'>
         <div className='flex overflow-x-auto scrollbar-hide whitespace-nowrap w-full sm:w-auto'>
           {subMenus.map((menuItem) => (
             <div
@@ -59,19 +72,28 @@ export const Menu: React.FC = () => {
           ))}
         </div>
         <div className='mt-1 sm:mt-0'>
-          <CurrentTime />
+          {/* <CurrentTime /> */}
         </div>
       </div>
     );
   }
 
+  console.log('🔍 [Vote Menu] 정상 렌더링 시작');
+
   return (
-    <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center py-0'>
+    <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center py-2'>
       <div className='flex overflow-x-auto scrollbar-hide whitespace-nowrap w-full sm:w-auto'>
         {subMenus.map((menuItem) => {
           const translatedText = menuItem.i18nKey ? t(menuItem.i18nKey) : menuItem.name;
+          console.log('🔍 [Vote Menu] 메뉴 아이템:', { 
+            key: menuItem.key, 
+            path: menuItem.path, 
+            translatedText,
+            isActive: isActive(menuItem.path)
+          });
+          
           return (
-            <Link
+            <NavigationLink
               key={menuItem.key}
               href={menuItem.path}
               className={`px-5 py-2 text-sm sm:text-base ${
@@ -84,7 +106,7 @@ export const Menu: React.FC = () => {
               }`}
             >
               {translatedText}
-            </Link>
+            </NavigationLink>
           );
         })}
       </div>
@@ -94,5 +116,3 @@ export const Menu: React.FC = () => {
     </div>
   );
 };
-
-export default Menu;

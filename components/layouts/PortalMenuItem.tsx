@@ -1,12 +1,13 @@
 'use client';
 
-import Link from 'next/link';
+import React from 'react';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { usePathname } from 'next/navigation';
+import { useLanguageStore } from '@/stores/languageStore';
+import { PortalType } from '@/utils/enums';
+import { PORTAL_MENU, isVoteRelatedPath } from '@/config/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
-import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
-import { shouldShowLoadingFor } from '@/utils/navigation-loading';
-import {PortalType} from '@/utils/enums';
-import {isVoteRelatedPath, PORTAL_MENU} from '@/config/navigation';
+import NavigationLink from '@/components/client/NavigationLink';
 import menuConfig from '@/config/menu.json';
 
 interface PortalMenuItemProps {
@@ -15,7 +16,6 @@ interface PortalMenuItemProps {
 
 const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
-  const { setIsLoading } = useGlobalLoading();
   const pathname = usePathname();
 
   // 설정에서 메뉴 정보 가져오기
@@ -35,33 +35,10 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
     currentPath.startsWith(menuItem.path) ||
     (portalType === PortalType.VOTE && isVoteRelatedPath(currentPath));
 
-  const handleClick = () => {
-    console.log('🔍 [PortalMenuItem] Link click:', {
-      portalType,
-      localizedMenuPath,
-      currentPathname: pathname,
-      isSamePage: pathname === localizedMenuPath,
-      shouldShowLoading: shouldShowLoadingFor(localizedMenuPath)
-    });
-    
-    if (pathname !== localizedMenuPath) {
-      // mypage와 vote 페이지로의 이동 시에만 로딩바 표시
-      if (shouldShowLoadingFor(localizedMenuPath)) {
-        console.log('🔍 [PortalMenuItem] Starting loading for navigation to:', localizedMenuPath);
-        setIsLoading(true);
-      } else {
-        console.log('🔍 [PortalMenuItem] No loading needed for navigation to:', localizedMenuPath);
-      }
-    } else {
-      console.log('🔍 [PortalMenuItem] Same page detected, not starting loading');
-    }
-  };
-
   return (
-    <Link 
+    <NavigationLink 
       href={localizedMenuPath}
       prefetch={true}
-      onClick={handleClick}
       className={`group relative px-3 py-2 text-base font-medium transition-all duration-200 hover:scale-105 ${
         isActive 
           ? 'text-blue-600' 
@@ -79,7 +56,7 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
       <div className={`absolute inset-0 bg-blue-50 rounded-lg transition-all duration-200 -z-10 ${
         isActive ? 'opacity-20' : 'opacity-0 group-hover:opacity-10'
       }`} />
-    </Link>
+    </NavigationLink>
   );
 };
 

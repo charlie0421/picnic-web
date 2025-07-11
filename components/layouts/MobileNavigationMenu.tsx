@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { PortalType } from '@/utils/enums';
 import { isVoteRelatedPath, PORTAL_MENU } from '@/config/navigation';
-import { shouldShowLoadingFor, isSamePage } from '@/utils/navigation-loading';
+import NavigationLink from '@/components/client/NavigationLink';
 import menuConfig from '@/config/menu.json';
 import { Menu as MenuIcon, X, User, LogIn, Settings } from 'lucide-react';
 import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
@@ -59,35 +58,8 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
 
   const filteredMenuItems = getFilteredMenuItems();
 
-  const handleLinkClick = (href: string) => {
-    // 현재 경로와 동일한 경우 로딩 시작하지 않음
-    const targetPath = getLocalizedPath(href);
-    
-    console.log('🔍 [MobileNav] Link click:', {
-      href,
-      targetPath,
-      currentPathname: pathname,
-      isMypage: pathname.includes('/mypage'),
-      isSamePage: pathname === targetPath || (href === '/mypage' && pathname.includes('/mypage')),
-      shouldShowLoading: shouldShowLoadingFor(href)
-    });
-    
-    if (pathname === targetPath || (href === '/mypage' && pathname.includes('/mypage'))) {
-      console.log('🔍 [MobileNav] Same page detected, not starting loading');
-      setIsOpen(false);
-      // 기존 로딩이 있다면 강제로 중지
-      forceStopLoading();
-      return;
-    }
-    
-    // mypage와 vote 페이지로의 이동 시에만 로딩바 표시
-    if (shouldShowLoadingFor(href)) {
-      console.log('🔍 [MobileNav] Starting loading for navigation to:', targetPath);
-      setIsLoading(true);
-    } else {
-      console.log('🔍 [MobileNav] No loading needed for navigation to:', targetPath);
-    }
-    
+  const handleMenuItemClick = () => {
+    // 메뉴 닫기
     setIsOpen(false);
   };
 
@@ -207,10 +179,10 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                       {filteredMenuItems.map((item) => {
                         const isActive = isVoteRelatedPath(pathname) && item.type === PortalType.VOTE;
                         return (
-                          <Link
+                          <NavigationLink
                             key={item.type}
                             href={getLocalizedPath(item.path)}
-                            onClick={() => handleLinkClick(item.path)}
+                            onClick={handleMenuItemClick}
                             className={`block w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                               isActive
                                 ? 'bg-blue-50 text-blue-700 font-medium'
@@ -218,7 +190,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                             }`}
                           >
                             {t(`nav.menu.${item.type.toLowerCase()}`)}
-                          </Link>
+                          </NavigationLink>
                         );
                       })}
                     </div>
@@ -235,14 +207,14 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                     </div>
                   ) : (
                     // 다른 페이지에 있을 때 - 클릭 가능한 링크
-                    <Link
+                    <NavigationLink
                       href={getLocalizedPath('/mypage')}
-                      onClick={() => handleLinkClick('/mypage')}
+                      onClick={handleMenuItemClick}
                       className="flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <Settings className="w-4 h-4" />
                       <span>{t('nav.menu.mypage')}</span>
-                    </Link>
+                    </NavigationLink>
                   )}
                 </div>
               </>
@@ -253,14 +225,14 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                   {t('common.auth.loginPrompt')}
                 </p>
                 
-                <Link
+                <NavigationLink
                   href={getLocalizedPath('/login')}
-                  onClick={() => handleLinkClick('/login')}
+                  onClick={handleMenuItemClick}
                   className="flex items-center justify-center space-x-2 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
                   <LogIn className="w-4 h-4" />
                   <span>{t('common.auth.login')}</span>
-                </Link>
+                </NavigationLink>
               </div>
             )}
           </div>

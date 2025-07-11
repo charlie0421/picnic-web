@@ -14,7 +14,6 @@ const GlobalLoadingContext = createContext<GlobalLoadingContextType | undefined>
 export function GlobalLoadingProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const pathname = usePathname();
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const quickReleaseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 페이지 이동 인디케이터용 setIsLoading (페이지 로드 완료 시 해제)
@@ -37,39 +36,14 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
     }
   };
 
-  // 안전장치: 로딩이 5초 이상 지속되면 자동으로 해제
-  useEffect(() => {
-    if (isLoading) {
-      loadingTimeoutRef.current = setTimeout(() => {
-        console.warn('⚠️ 로딩이 5초 이상 지속되어 강제로 해제합니다.');
-        setIsLoading(false);
-      }, 5000);
-    } else {
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
-    }
-
-    return () => {
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-      }
-    };
-  }, [isLoading]);
-
   // 페이지 이동 시 로딩 상태 관리 (페이지 로드 완료 후 해제)
   useEffect(() => {
-    // 페이지 로드 완료 후 약간의 지연으로 스켈레톤이 보이도록 함
+    // 페이지 로드 완료 후 스켈레톤이 렌더링될 시간을 충분히 줌
     const pageLoadTimeout = setTimeout(() => {
       console.log('🔍 [GlobalLoading] Page loaded - hiding loading bar for skeleton display');
       setIsLoading(false);
-    }, 150); // 페이지 컴포넌트 렌더링 대기
+    }, 300); // 스켈레톤 렌더링 대기 시간 증가
     
-    if (loadingTimeoutRef.current) {
-      clearTimeout(loadingTimeoutRef.current);
-      loadingTimeoutRef.current = null;
-    }
     if (quickReleaseTimeoutRef.current) {
       clearTimeout(quickReleaseTimeoutRef.current);
       quickReleaseTimeoutRef.current = null;
@@ -83,10 +57,6 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
   // 강제로 로딩 중지하는 함수
   const forceStopLoading = () => {
     setIsLoading(false);
-    if (loadingTimeoutRef.current) {
-      clearTimeout(loadingTimeoutRef.current);
-      loadingTimeoutRef.current = null;
-    }
     if (quickReleaseTimeoutRef.current) {
       clearTimeout(quickReleaseTimeoutRef.current);
       quickReleaseTimeoutRef.current = null;

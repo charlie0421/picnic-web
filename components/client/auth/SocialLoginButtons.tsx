@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { getSocialAuthService } from '@/lib/supabase/social';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 import { Button } from '@/components/common/atoms/Button';
@@ -35,6 +36,7 @@ export function SocialLoginButtons({
   const [sortedProviders, setSortedProviders] = useState<SocialLoginProvider[]>(providers);
   const { t } = useLanguageStore();
   const { isLoading: authLoading } = useAuth();
+  const { setIsLoading: setGlobalLoading } = useGlobalLoading();
 
   // 컴포넌트 마운트 시 최근 사용한 로그인 수단을 확인
   useEffect(() => {
@@ -51,6 +53,7 @@ export function SocialLoginButtons({
       try {
         // 로딩 상태 설정 (다른 버튼들도 비활성화됨)
         setIsLoading(provider);
+        setGlobalLoading(true); // 전역 로딩바 시작
         
         // 로그인 시작 콜백
         onLoginStart?.();
@@ -71,12 +74,14 @@ export function SocialLoginButtons({
           
           console.log(`✅ [SocialLoginButtons] ${provider} 리다이렉트 성공`);
           onLoginComplete?.();
+          // 성공 시에는 로딩 상태를 유지하여 리다이렉트까지 버튼 비활성화
         } else {
           // 오류 처리
           console.error(`❌ [SocialLoginButtons] ${provider} 로그인 실패:`, authResult.error);
           onError?.(authResult.error || new Error(t('unknown_login_error')));
           // 실패 시에만 로딩 상태 해제
           setIsLoading(null);
+          setGlobalLoading(false); // 전역 로딩바 종료
         }
       } catch (error) {
         console.error(`💥 [SocialLoginButtons] ${provider} 소셜 로그인 오류:`, error);
@@ -87,10 +92,11 @@ export function SocialLoginButtons({
         );
         // 에러 시에만 로딩 상태 해제
         setIsLoading(null);
+        setGlobalLoading(false); // 전역 로딩바 종료
       }
       // finally 블록 제거 - 성공 시에는 로딩 상태를 유지하여 리다이렉트까지 버튼 비활성화
     },
-    [onLoginStart, onError, t, providers],
+    [onLoginStart, onError, t, providers, setGlobalLoading],
   );
 
   // 각 소셜 로그인 버튼의 스타일 및 내용 설정

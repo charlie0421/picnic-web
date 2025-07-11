@@ -1,13 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import {usePathname} from 'next/navigation';
 import {useAuth} from '@/lib/supabase/auth-provider';
 import {useLanguageStore} from '@/stores/languageStore';
-import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
-import { shouldShowLoadingFor } from '@/utils/navigation-loading';
+import NavigationLink from '@/components/client/NavigationLink';
 import {DefaultAvatar, ProfileImageContainer,} from '@/components/ui/ProfileImageContainer';
 import PortalMenuItem from './PortalMenuItem';
 import MobileNavigationMenu from './MobileNavigationMenu';
@@ -19,7 +17,6 @@ import LanguageSelector from './LanguageSelector';
 const Header: React.FC = () => {
   const { isAuthenticated, userProfile, user, signOut, isLoading, isInitialized } = useAuth();
   const { currentLanguage } = useLanguageStore();
-  const { setIsLoading: setGlobalLoading } = useGlobalLoading();
   const pathname = usePathname();
   
   // 스크롤 상태 관리
@@ -68,28 +65,6 @@ const Header: React.FC = () => {
 
   // 🐛 디버그 모드 체크
   const isDebugMode = process.env.NODE_ENV === 'development';
-
-  // 네비게이션 클릭 핸들러
-  const handleLinkClick = useCallback((href: string) => {
-    console.log('🔍 [Header] Link click:', {
-      href,
-      currentPathname: pathname,
-      isSamePage: pathname === href,
-      shouldShowLoading: shouldShowLoadingFor(href)
-    });
-    
-    if (pathname !== href) {
-      // mypage와 vote 페이지로의 이동 시에만 로딩바 표시
-      if (shouldShowLoadingFor(href)) {
-        console.log('🔍 [Header] Starting loading for navigation to:', href);
-        setGlobalLoading(true);
-      } else {
-        console.log('🔍 [Header] No loading needed for navigation to:', href);
-      }
-    } else {
-      console.log('🔍 [Header] Same page detected, not starting loading');
-    }
-  }, [pathname, setGlobalLoading]);
 
   // 🎯 DB 프로필 이미지만 사용 (OAuth 토큰 이미지 제외)
   const getUserInfo = useCallback(() => {
@@ -249,10 +224,9 @@ const Header: React.FC = () => {
           <div className='flex items-center gap-2 sm:gap-4 flex-1 min-w-0'>
             {/* 로고 */}
             <div className='flex items-center flex-shrink-0'>
-              <Link 
+              <NavigationLink 
                 href="/"
                 prefetch={true}
-                onClick={() => handleLinkClick('/')}
               >
                 <Image
                   src='/images/logo.png'
@@ -262,7 +236,7 @@ const Header: React.FC = () => {
                   priority
                   className='w-8 h-8 sm:w-10 sm:h-10'
                 />
-              </Link>
+              </NavigationLink>
             </div>
 
             {/* 모바일 포털메뉴 - 모바일과 태블릿에서 표시 */}
@@ -400,11 +374,10 @@ const Header: React.FC = () => {
                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg shimmer-effect bg-gray-200 flex-shrink-0"></div>
               ) : stableAuthState.showUserArea ? (
                 // 인증된 사용자 영역
-                <Link 
+                <NavigationLink 
                   href='/mypage' 
                   className='block w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-lg overflow-hidden'
                   prefetch={true}
-                  onClick={() => handleLinkClick('/mypage')}
                 >
                   {profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
                     // DB 프로필 로딩 중이거나 프로필 이미지가 없는 경우 shimmer 효과만 표시
@@ -424,26 +397,18 @@ const Header: React.FC = () => {
                       className="w-full h-full"
                     />
                   )}
-                </Link>
+                </NavigationLink>
               ) : stableAuthState.showHamburger ? (
                 // 미인증 사용자 햄버거 메뉴
-                <Link 
+                <NavigationLink 
                   href='/mypage' 
                   className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0'
                   prefetch={true}
-                  onClick={() => {
-                    // mypage에 이미 있는 경우 로딩 시작하지 않음
-                    if (!pathname.includes('/mypage')) {
-                      handleLinkClick('/mypage');
-                    } else {
-                      console.log('🔍 [Header] Already on mypage, not starting loading');
-                    }
-                  }}
                 >
                   <div className='w-full h-full hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200 flex items-center justify-center'>
                     <MenuIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                   </div>
-                </Link>
+                </NavigationLink>
               ) : null}
             </div>
           </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { memo } from 'react';
-import Link from 'next/link';
 import type { StatisticCard, MypageHeaderConfig } from '@/types/mypage-common';
 
 interface MypageHeaderProps {

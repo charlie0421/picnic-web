@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { UserProfiles } from '@/types/interfaces';
 import { useQuickLogout } from '@/lib/auth/logout';
-import Link from 'next/link';
+import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
+import NavigationLink from '@/components/client/NavigationLink';
 
 
 interface Translations {
@@ -79,6 +80,7 @@ interface ApiUserProfile {
 // 🎯 서버에서 받은 초기 데이터 기반 클라이언트 컴포넌트
 export default function MyPageClient({ initialUser, initialUserProfile, translations }: MyPageClientProps) {
   const { logout } = useQuickLogout();
+  const { setIsLoading } = useGlobalLoading();
   const [apiUserProfile, setApiUserProfile] = useState<ApiUserProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(!!initialUser); // 로그인된 사용자만 로딩 상태
   
@@ -141,14 +143,18 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
   // 로그아웃 핸들러
   const handleLogout = async () => {
     try {
+      setIsLoading(true);
       await logout();
     } catch (error) {
       console.error(t('error_logout'), error);
+      setIsLoading(false); // 에러 시에만 수동으로 로딩 해제
     }
+    // 성공 시에는 로그아웃 후 페이지 리다이렉트로 자동 해제됨
   };
 
   // 로그인 페이지로 이동
   const handleLoginRedirect = () => {
+    setIsLoading(true);
     window.location.href = '/login?returnTo=/mypage';
   };
 
@@ -304,7 +310,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             </div>
             
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-              <Link href='/notice' className='group'>
+              <NavigationLink href='/notice' className='group'>
                 <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -315,9 +321,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/faq' className='group'>
+              <NavigationLink href='/faq' className='group'>
                 <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -328,9 +334,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/terms' className='group'>
+              <NavigationLink href='/terms' className='group'>
                 <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -341,9 +347,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/privacy' className='group'>
+              <NavigationLink href='/privacy' className='group'>
                 <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -354,7 +360,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
             </div>
           </div>
         </div>
@@ -459,7 +465,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             
             <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
               {isDebugMode && (
-                <Link href='/mypage/edit-profile' className='group'>
+                <NavigationLink href='/mypage/edit-profile' className='group'>
                   <div className='bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-primary-200 h-16'>
                     <div className='flex items-center justify-center space-x-2 h-full'>
                       <div className='w-8 h-8 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center'>
@@ -475,7 +481,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                       </div>
                     </div>
                   </div>
-                </Link>
+                </NavigationLink>
               )}
               
               <button onClick={handleLogout} className='group text-left'>
@@ -509,7 +515,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             </div>
             
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-              <Link href='/mypage/vote-history' className='group'>
+              <NavigationLink href='/mypage/vote-history' className='group'>
                 <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -520,9 +526,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/mypage/posts' className='group'>
+              <NavigationLink href='/mypage/posts' className='group'>
                 <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -533,9 +539,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/mypage/comments' className='group'>
+              <NavigationLink href='/mypage/comments' className='group'>
                 <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -546,9 +552,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/mypage/recharge-history' className='group'>
+              <NavigationLink href='/mypage/recharge-history' className='group'>
                 <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -559,7 +565,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
             </div>
           </div>
         </div>
@@ -577,7 +583,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
             </div>
             
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
-              <Link href='/notice' className='group'>
+              <NavigationLink href='/notice' className='group'>
                 <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -588,9 +594,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/faq' className='group'>
+              <NavigationLink href='/faq' className='group'>
                 <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -601,9 +607,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/terms' className='group'>
+              <NavigationLink href='/terms' className='group'>
                 <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -614,9 +620,9 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
               
-              <Link href='/privacy' className='group'>
+              <NavigationLink href='/privacy' className='group'>
                 <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
                   <div className='text-center h-full flex flex-col justify-center'>
                     <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
@@ -627,13 +633,13 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                     </h3>
                   </div>
                 </div>
-              </Link>
+              </NavigationLink>
             </div>
 
             {/* 탈퇴 버튼 (디버그 모드에서만, 별도 영역) */}
             {isDebugMode && (
               <div className='mt-4 pt-4 border-t border-gray-200'>
-                <Link href='/mypage/withdrawal' className='group'>
+                <NavigationLink href='/mypage/withdrawal' className='group'>
                   <div className='bg-gradient-to-r from-point-50 to-point-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-point-200'>
                     <div className='flex items-center justify-center space-x-2'>
                       <div className='w-8 h-8 bg-gradient-to-r from-point-500 to-point-600 rounded-lg flex items-center justify-center'>
@@ -649,7 +655,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                       </div>
                     </div>
                   </div>
-                </Link>
+                </NavigationLink>
               </div>
             )}
           </div>

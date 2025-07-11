@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import Link from 'next/link';
+import NavigationLink from '@/components/client/NavigationLink';
 import { Vote } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
 import { CountdownTimer } from '../common/CountdownTimer';
@@ -103,7 +103,7 @@ export const VoteCard = React.memo(
     }, [status, vote.stop_at, currentTime]);
 
     return (
-      <Link href={`/vote/${vote.id}`}>
+      <NavigationLink href={`/vote/${vote.id}`}>
         <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
           <div className='relative'>
             {vote.main_image && (
@@ -238,7 +238,7 @@ export const VoteCard = React.memo(
             </div>
           </div>
         </div>
-      </Link>
+      </NavigationLink>
     );
   },
 );

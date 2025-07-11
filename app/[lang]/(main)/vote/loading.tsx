@@ -1,30 +1,11 @@
-import React from 'react';
-import Image from 'next/image';
+import VoteListSkeleton from '@/components/server/vote/VoteListSkeleton';
 
 /**
- * 투표 페이지 간소화된 로딩 상태
- * 빠른 페이지 전환을 위해 최소화된 로딩 UI
+ * 투표 리스트 페이지의 로딩 상태 컴포넌트
+ * 
+ * 투표 리스트 데이터를 불러오는 동안 표시될 스켈레톤 UI입니다.
+ * Next.js가 자동으로 이 컴포넌트를 Suspense fallback으로 사용합니다.
  */
-
 export default function VoteLoading() {
-  return (
-    <main className="container mx-auto px-4 py-8 min-h-screen">
-      {/* 깔끔한 로딩 인디케이터 */}
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="relative">
-          <Image
-            src="/images/logo.png"
-            alt="Vote Loading"
-            width={48}
-            height={48}
-            priority
-            className="w-12 h-12 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
-          />
-        </div>
-        <div className="mt-4 text-gray-600 text-sm font-medium animate-scale-pulse">
-          투표 페이지 로딩 중...
-        </div>
-      </div>
-    </main>
-  );
+  return <VoteListSkeleton />;
 } 
