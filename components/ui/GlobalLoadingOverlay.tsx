@@ -10,7 +10,7 @@ export default function GlobalLoadingOverlay() {
   if (!isLoading) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
       <div className="flex flex-col items-center space-y-4">
         {/* 앱 아이콘 with 펄스 애니메이션 */}
         <div className="relative">
@@ -22,12 +22,10 @@ export default function GlobalLoadingOverlay() {
             className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
             priority
           />
-          {/* 추가 글로우 효과 */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary-400 to-secondary-400 opacity-20 animate-pulse" />
         </div>
         
         {/* 로딩 텍스트 */}
-        <div className="text-white text-sm font-medium animate-pulse">
+        <div className="text-gray-800 text-sm font-medium animate-pulse">
           Loading...
         </div>
       </div>

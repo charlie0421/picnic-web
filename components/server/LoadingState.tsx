@@ -28,7 +28,7 @@ export default function LoadingState({
   // 전체 페이지 로딩인 경우 공통 컴포넌트 사용
   if (fullPage) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           {/* 로고 아이콘 with 펄스 애니메이션 */}
           <div className="relative inline-block">
@@ -40,8 +40,6 @@ export default function LoadingState({
               priority
               className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
             />
-            {/* 추가 글로우 효과 */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400 opacity-20 animate-pulse" />
           </div>
           
           {/* 로딩 텍스트 */}
@@ -68,8 +66,6 @@ export default function LoadingState({
           priority
           className="w-16 h-16 rounded-full animate-pulse drop-shadow-lg object-cover"
         />
-        {/* 추가 글로우 효과 */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400 opacity-20 animate-pulse" />
       </div>
     </div>
   );

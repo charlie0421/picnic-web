@@ -9,7 +9,7 @@ interface LoadingSpinnerProps {
 
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className = '' }) => {
   return (
-    <div className={`min-h-screen flex items-center justify-center bg-gray-50 ${className}`}>
+    <div className={`min-h-screen flex items-center justify-center ${className}`}>
       <div className="text-center">
         {/* 로고 아이콘 with 펄스 애니메이션 */}
         <div className="relative inline-block">
@@ -21,8 +21,6 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className = '' }
             priority
             className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
           />
-          {/* 추가 글로우 효과 */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400 opacity-20 animate-pulse" />
         </div>
         
         {/* 로딩 텍스트 */}
