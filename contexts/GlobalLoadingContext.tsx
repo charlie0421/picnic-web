@@ -17,22 +17,16 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const quickReleaseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 페이지 이동 인디케이터용 setIsLoading (800ms 후 자동 해제)
-  const setLoadingWithQuickRelease = (loading: boolean) => {
+  // 페이지 이동 인디케이터용 setIsLoading (페이지 로드 완료 시 해제)
+  const setLoadingWithPageBasedRelease = (loading: boolean) => {
     if (loading) {
-      console.log('🔍 [GlobalLoading] Starting page transition indicator (800ms)');
+      console.log('🔍 [GlobalLoading] Starting page transition indicator');
       setIsLoading(true);
       
-      // 기존 퀵 릴리즈 타이머 클리어
+      // 기존 릴리즈 타이머 클리어
       if (quickReleaseTimeoutRef.current) {
         clearTimeout(quickReleaseTimeoutRef.current);
       }
-      
-      // 300ms 후 자동으로 로딩 해제 (스켈레톤이 보이도록)
-      quickReleaseTimeoutRef.current = setTimeout(() => {
-        console.log('🔍 [GlobalLoading] Quick release - hiding loading bar for skeleton display');
-        setIsLoading(false);
-      }, 300);
     } else {
       console.log('🔍 [GlobalLoading] Manual loading stop');
       setIsLoading(false);
@@ -64,9 +58,14 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
     };
   }, [isLoading]);
 
-  // 페이지 이동 시 로딩 상태 관리
+  // 페이지 이동 시 로딩 상태 관리 (페이지 로드 완료 후 해제)
   useEffect(() => {
-    setIsLoading(false);
+    // 페이지 로드 완료 후 약간의 지연으로 스켈레톤이 보이도록 함
+    const pageLoadTimeout = setTimeout(() => {
+      console.log('🔍 [GlobalLoading] Page loaded - hiding loading bar for skeleton display');
+      setIsLoading(false);
+    }, 150); // 페이지 컴포넌트 렌더링 대기
+    
     if (loadingTimeoutRef.current) {
       clearTimeout(loadingTimeoutRef.current);
       loadingTimeoutRef.current = null;
@@ -75,6 +74,10 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
       clearTimeout(quickReleaseTimeoutRef.current);
       quickReleaseTimeoutRef.current = null;
     }
+
+    return () => {
+      clearTimeout(pageLoadTimeout);
+    };
   }, [pathname]);
 
   // 강제로 로딩 중지하는 함수
@@ -91,7 +94,7 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
   };
 
   return (
-    <GlobalLoadingContext.Provider value={{ isLoading, setIsLoading: setLoadingWithQuickRelease, forceStopLoading }}>
+    <GlobalLoadingContext.Provider value={{ isLoading, setIsLoading: setLoadingWithPageBasedRelease, forceStopLoading }}>
       {children}
     </GlobalLoadingContext.Provider>
   );
