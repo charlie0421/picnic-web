@@ -9,12 +9,37 @@ interface GlobalLoadingContextType {
   forceStopLoading: () => void;
 }
 
-const GlobalLoadingContext = createContext<GlobalLoadingContextType | undefined>(undefined);
+export const GlobalLoadingContext = createContext<GlobalLoadingContextType | undefined>(undefined);
 
 export function GlobalLoadingProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const pathname = usePathname();
   const quickReleaseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 커스텀 이벤트 리스너 등록 (콜백 페이지에서 즉시 로딩 시작용)
+  useEffect(() => {
+    const handleStartGlobalLoading = (event: CustomEvent) => {
+      console.log('🔍 [GlobalLoading] 커스텀 이벤트 수신 (시작):', event.detail);
+      setIsLoading(true);
+    };
+
+    const handleStopGlobalLoading = (event: CustomEvent) => {
+      console.log('🔍 [GlobalLoading] 커스텀 이벤트 수신 (중지):', event.detail);
+      setIsLoading(false);
+      if (quickReleaseTimeoutRef.current) {
+        clearTimeout(quickReleaseTimeoutRef.current);
+        quickReleaseTimeoutRef.current = null;
+      }
+    };
+
+    window.addEventListener('startGlobalLoading', handleStartGlobalLoading as EventListener);
+    window.addEventListener('stopGlobalLoading', handleStopGlobalLoading as EventListener);
+    
+    return () => {
+      window.removeEventListener('startGlobalLoading', handleStartGlobalLoading as EventListener);
+      window.removeEventListener('stopGlobalLoading', handleStopGlobalLoading as EventListener);
+    };
+  }, []);
 
   // 페이지 이동 인디케이터용 setIsLoading (페이지 로드 완료 시 해제)
   const setLoadingWithPageBasedRelease = (loading: boolean) => {

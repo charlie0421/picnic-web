@@ -17,7 +17,7 @@ import {
   Settings, 
   Vote,
   Users,
-  Image,
+  Image as PictureIcon,
   BookOpen,
   Star,
   ChevronRight
@@ -84,7 +84,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
     switch (type) {
       case 'vote': return <Vote className="w-4 h-4" />;
       case 'community': return <Users className="w-4 h-4" />;
-      case 'pic': return <Image className="w-4 h-4" />;
+      case 'pic': return <PictureIcon className="w-4 h-4" />;
       case 'novel': return <BookOpen className="w-4 h-4" />;
       default: return <ChevronRight className="w-4 h-4" />;
     }
