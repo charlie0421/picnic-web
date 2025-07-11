@@ -13,6 +13,7 @@ import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 import { getLastLoginInfo, formatLastLoginTime, type LastLoginInfo } from '@/utils/storage';
 import LanguageSelector from '@/components/layouts/LanguageSelector';
+import { ArrowLeft } from 'lucide-react';
 
 // AppleID 타입 정의
 declare global {
@@ -755,8 +756,31 @@ function LoginContentInner() {
 }
 
 function LoginContent() {
+  const router = useRouter();
+
+  // 뒤로가기 핸들러
+  const handleGoBack = () => {
+    // 브라우저 히스토리가 있으면 뒤로가기, 없으면 홈으로 이동
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  };
+
   return (
     <div className='relative min-h-screen flex flex-col items-center justify-center py-6 sm:py-10 px-4 sm:px-6 bg-white'>
+
+      {/* 뒤로가기 버튼 - 좌상단 고정 */}
+      <div className='fixed top-4 left-4 z-50'>
+        <button
+          onClick={handleGoBack}
+          className='flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:bg-white group'
+          aria-label='뒤로가기'
+        >
+          <ArrowLeft className='w-5 h-5 sm:w-6 sm:h-6 text-gray-600 group-hover:text-gray-800 transition-colors' />
+        </button>
+      </div>
 
       {/* 언어 선택기 - 우상단 고정 */}
       <div className='fixed top-4 right-4 z-50'>
@@ -764,21 +788,31 @@ function LoginContent() {
       </div>
 
       {/* 로고 섹션 */}
-      <div className='relative z-10 mb-8 sm:mb-12 transition-transform duration-200 hover:scale-105'>
-        <Link href='/' className='group'>
-          <div className='relative'>
-            <div className='relative bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 group-hover:shadow-2xl transition-all duration-300'>
-              <Image
-                src='/images/logo.png'
-                alt='Picnic Logo'
-                width={48}
-                height={48}
-                className='w-12 h-12 sm:w-16 sm:h-16 mx-auto filter drop-shadow-lg'
-                priority
-              />
-            </div>
+      <div className='relative z-10 mb-8 sm:mb-12'>
+        <div className='text-center'>
+          <div className='transition-transform duration-200 hover:scale-105 mb-3'>
+            <Link href='/' className='group'>
+              <div className='relative'>
+                <div className='relative bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 group-hover:shadow-2xl transition-all duration-300'>
+                  <Image
+                    src='/images/logo.png'
+                    alt='Picnic Logo'
+                    width={48}
+                    height={48}
+                    className='w-12 h-12 sm:w-16 sm:h-16 mx-auto filter drop-shadow-lg'
+                    priority
+                  />
+                </div>
+              </div>
+            </Link>
           </div>
-        </Link>
+          <Link 
+            href='/' 
+            className='text-gray-500 hover:text-gray-700 text-sm transition-colors duration-200 hover:underline'
+          >
+            홈으로 돌아가기
+          </Link>
+        </div>
       </div>
 
       <div className='relative z-10 w-full max-w-sm sm:max-w-md'>
