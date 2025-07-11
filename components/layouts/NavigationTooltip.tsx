@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Swipe } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface NavigationTooltipProps {
   show: boolean;
@@ -29,7 +29,10 @@ const NavigationTooltip: React.FC<NavigationTooltipProps> = ({ show, onDismiss }
   return (
     <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
       <div className="bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 animate-bounce">
-        <Swipe className="w-4 h-4" />
+        <div className="flex items-center">
+          <ChevronLeft className="w-3 h-3" />
+          <ChevronRight className="w-3 h-3" />
+        </div>
         <span className="text-sm font-medium">좌우로 스와이프하여 더 많은 메뉴 보기</span>
       </div>
       
