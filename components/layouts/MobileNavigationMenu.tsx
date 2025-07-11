@@ -9,7 +9,19 @@ import { PortalType } from '@/utils/enums';
 import { isVoteRelatedPath, PORTAL_MENU } from '@/config/navigation';
 import NavigationLink from '@/components/client/NavigationLink';
 import menuConfig from '@/config/menu.json';
-import { Menu as MenuIcon, X, User, LogIn, Settings } from 'lucide-react';
+import { 
+  Menu as MenuIcon, 
+  X, 
+  User, 
+  LogIn, 
+  Settings, 
+  Vote,
+  Users,
+  Image,
+  BookOpen,
+  Star,
+  ChevronRight
+} from 'lucide-react';
 import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 import { useTranslations } from '@/hooks/useTranslations';
 
@@ -35,9 +47,22 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
 
   // 사용자 정보 (안전하게 접근) - DB 프로필만 사용
   const userInfo = {
-    avatar_url: userProfile?.avatar_url || null, // JWT 토큰 이미지 제거
+    avatar_url: userProfile?.avatar_url || null,
     name: userProfile?.nickname || user?.user_metadata?.full_name || user?.email || null,
     is_admin: userProfile?.is_admin || false,
+    star_candy: userProfile?.star_candy || 0,
+    star_candy_bonus: userProfile?.star_candy_bonus || 0,
+  };
+
+  // 메뉴 아이콘 매핑
+  const getMenuIcon = (type: string) => {
+    switch (type) {
+      case 'vote': return <Vote className="w-4 h-4" />;
+      case 'community': return <Users className="w-4 h-4" />;
+      case 'pic': return <Image className="w-4 h-4" />;
+      case 'novel': return <BookOpen className="w-4 h-4" />;
+      default: return <ChevronRight className="w-4 h-4" />;
+    }
   };
 
   // 프로필 이미지 로딩 상태
@@ -124,7 +149,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             ) : userInfo.avatar_url ? (
               <ProfileImageContainer
                 avatarUrl={userInfo.avatar_url}
-                width={32} // 40에서 32로 줄임
+                width={32}
                 height={32}
                 borderRadius={8}
                 className="w-full h-full object-cover"
@@ -145,40 +170,64 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
         </button>
       </div>
 
-      {/* 드롭다운 메뉴 */}
+      {/* 드롭다운 메뉴 - 개선된 디자인 */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border z-50">
-          <div className="p-4">
-            {stableAuthState.showUserArea ? (
-              // 인증된 사용자 메뉴
-              <>
-                {/* 사용자 정보 섹션 */}
-                <div className="flex items-center space-x-3 mb-4 pb-4 border-b">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-dropdown">
+          {stableAuthState.showUserArea ? (
+            // 인증된 사용자 메뉴
+            <>
+              {/* 사용자 정보 헤더 섹션 - 개선된 디자인 */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 border-b border-gray-100">
+                <div className="flex items-center space-x-4">
                   {profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
-                    <div className="w-12 h-12 rounded-lg shimmer-effect bg-gray-200" />
+                    <div className="w-14 h-14 rounded-xl shimmer-effect bg-gray-200" />
                   ) : userInfo.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userInfo.avatar_url}
-                      width={40} // 드롭다운에서는 40px 유지 (48에서 40으로 줄임)
-                      height={40}
-                      borderRadius={8}
+                      width={56}
+                      height={56}
+                      borderRadius={12}
+                      className="ring-2 ring-white shadow-md"
                     />
                   ) : (
-                    <DefaultAvatar width={40} height={40} />
+                    <div className="w-14 h-14 rounded-xl ring-2 ring-white shadow-md">
+                      <DefaultAvatar width={56} height={56} />
+                    </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-base font-semibold text-gray-900 truncate">
                       {userInfo.name || t('common.user.unknown')}
                     </p>
                     {userInfo.is_admin && (
-                      <p className="text-xs text-blue-600">{t('common.user.admin')}</p>
+                      <div className="flex items-center mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {t('common.user.admin')}
+                        </span>
+                      </div>
                     )}
+                    {/* 별사탕 정보 */}
+                    <div className="flex items-center mt-2 space-x-3">
+                      <div className="flex items-center space-x-1">
+                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
+                        <span className="text-sm font-medium text-gray-700">
+                          {(userInfo.star_candy + userInfo.star_candy_bonus).toLocaleString()}
+                        </span>
+                      </div>
+                      {userInfo.star_candy_bonus > 0 && (
+                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                          +{userInfo.star_candy_bonus.toLocaleString()} 보너스
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+              </div>
 
+              {/* 메뉴 섹션 */}
+              <div className="p-3">
                 {/* 네비게이션 메뉴 */}
                 {filteredMenuItems.length > 0 && (
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <div className="space-y-1">
                       {filteredMenuItems.map((item) => {
                         const isActive = isVoteRelatedPath(pathname) && item.type === PortalType.VOTE;
@@ -187,13 +236,17 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                             key={item.type}
                             href={getLocalizedPath(item.path)}
                             onClick={handleMenuItemClick}
-                            className={`block w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                            className={`flex items-center space-x-3 w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                               isActive
-                                ? 'bg-blue-50 text-blue-700 font-medium'
-                                : 'text-gray-700 hover:bg-gray-50'
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'text-gray-700 hover:bg-gray-50 hover:translate-x-1'
                             }`}
                           >
-                            {t(`nav.menu.${item.type}`)}
+                            <span className={isActive ? 'text-white' : 'text-gray-500'}>
+                              {getMenuIcon(item.type)}
+                            </span>
+                            <span>{t(`nav.menu.${item.type}`)}</span>
+                            {!isActive && <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />}
                           </NavigationLink>
                         );
                       })}
@@ -201,11 +254,11 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                   </div>
                 )}
 
-                {/* 마이페이지 링크 */}
-                <div className="pt-2 border-t">
+                {/* 마이페이지 링크 - 구분선과 함께 */}
+                <div className="pt-3 border-t border-gray-100">
                   {pathname.includes('/mypage') ? (
-                    // 현재 마이페이지에 있을 때 - 비활성화된 상태로 표시
-                    <div className="flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm text-blue-700 bg-blue-50 font-medium cursor-default">
+                    // 현재 마이페이지에 있을 때 - 활성 상태로 표시
+                    <div className="flex items-center space-x-3 w-full text-left px-4 py-3 rounded-lg text-sm font-medium bg-blue-600 text-white shadow-md">
                       <Settings className="w-4 h-4" />
                       <span>{t('nav.menu.mypage')}</span>
                     </div>
@@ -214,32 +267,41 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                     <NavigationLink
                       href={getLocalizedPath('/mypage')}
                       onClick={handleMenuItemClick}
-                      className="flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="flex items-center space-x-3 w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:translate-x-1 transition-all duration-200"
                     >
-                      <Settings className="w-4 h-4" />
+                      <Settings className="w-4 h-4 text-gray-500" />
                       <span>{t('nav.menu.mypage')}</span>
+                      <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />
                     </NavigationLink>
                   )}
                 </div>
-              </>
-            ) : (
-              // 미인증 사용자 메뉴
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600 mb-4">
-                  {t('common.auth.loginPrompt')}
-                </p>
+              </div>
+            </>
+          ) : (
+            // 미인증 사용자 메뉴
+            <div className="p-5">
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                  <User className="w-8 h-8 text-gray-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">피크닉에 오신 것을 환영합니다!</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {t('common.auth.loginPrompt')}
+                  </p>
+                </div>
                 
                 <NavigationLink
                   href={getLocalizedPath('/login')}
                   onClick={handleMenuItemClick}
-                  className="flex items-center justify-center space-x-2 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  className="flex items-center justify-center space-x-2 w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span>{t('common.auth.login')}</span>
+                  <LogIn className="w-5 h-5" />
+                  <span className="font-medium">{t('common.auth.login')}</span>
                 </NavigationLink>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -252,6 +314,19 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
+        }
+        .animate-dropdown {
+          animation: dropdown 0.2s ease-out;
+        }
+        @keyframes dropdown {
+          0% {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
         }
       `}</style>
     </div>
