@@ -697,7 +697,7 @@ function LoginContentInner() {
                   <span className='text-gray-800 font-semibold'>계정이 없으신가요?</span>
                 </div>
                 <div className='text-gray-600 text-sm leading-relaxed max-w-sm mx-auto px-4'>
-                  <span className='inline-flex items-center space-x-1'>
+                  <span className='inline-flex items-center space-x-1 whitespace-nowrap'>
                     <span>위의</span>
                     <span className='bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold'>소셜 로그인</span>
                     <span>으로</span>

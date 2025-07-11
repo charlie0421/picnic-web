@@ -33,7 +33,6 @@ export function VoteSearch({
 }: VoteSearchProps) {
   const { currentLanguage, t } = useLanguageStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<SearchFilter>(filter || 'all');
   const [debouncedQuery, setDebouncedQuery] = useState('');
 
@@ -55,13 +54,11 @@ export function VoteSearch({
     if (disabled) return;
     const query = e.target.value;
     setSearchQuery(query);
-    setShowSuggestions(query.length > 0);
   };
 
   const clearSearch = () => {
     if (disabled) return;
     setSearchQuery('');
-    setShowSuggestions(false);
     onSearch('');
   };
 
@@ -70,31 +67,6 @@ export function VoteSearch({
     setSelectedFilter(filter);
     onFilterChange?.(filter);
   };
-
-  const highlightMatch = (text: string) => {
-    if (!searchQuery || !text) return text;
-    const regex = new RegExp(`(${searchQuery})`, 'gi');
-    return text.split(regex).map((part, i) =>
-      regex.test(part) ? (
-        <span key={i} className='bg-yellow-200'>
-          {part}
-        </span>
-      ) : (
-        part
-      ),
-    );
-  };
-
-  const getFilteredResults = useCallback(() => {
-    if (!searchResults) return [];
-
-    return searchResults.filter((item) => {
-      if (selectedFilter === 'all') return true;
-      if (selectedFilter === 'artist' && item.artist && !item.artist.artistGroup) return true;
-      if (selectedFilter === 'group' && item.artist?.artistGroup) return true;
-      return false;
-    });
-  }, [searchResults, selectedFilter]);
 
   return (
     <div className={`relative ${className}`}>
@@ -153,54 +125,6 @@ export function VoteSearch({
       {isLoading && !disabled && (
         <div className='absolute right-4 top-1/2 transform -translate-y-1/2'>
           <Spinner size="sm" />
-        </div>
-      )}
-
-      {showSuggestions && searchQuery && !disabled && (
-        <div className='absolute z-10 w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto'>
-          {getFilteredResults().length > 0 ? (
-            getFilteredResults().map((item) => {
-              const artistName = item.artist?.name 
-                ? getLocalizedString(item.artist.name, currentLanguage) || '아티스트'
-                : `항목 ${item.id}`;
-              const groupName = item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)
-                ? getLocalizedString(item.artist.artistGroup.name, currentLanguage)
-                : undefined;
-              
-              return (
-                <div
-                  key={item.id}
-                  className='p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0'
-                >
-                  <div className='flex items-center'>
-                    <div className='flex-1'>
-                      <p className='font-medium'>
-                        {highlightMatch(artistName)}
-                      </p>
-                      {groupName && (
-                        <p className='text-sm text-gray-600'>
-                          {highlightMatch(groupName)}
-                        </p>
-                      )}
-                    </div>
-                    <div className='text-sm text-gray-500'>
-                      {(item.vote_total || 0).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className='p-3 text-center text-gray-500'>
-              {t('common_text_no_search_result')}
-            </div>
-          )}
-        </div>
-      )}
-
-      {searchQuery && !disabled && (
-        <div className='mt-2 text-sm text-gray-500'>
-          전체 {totalItems}개 중 {getFilteredResults().length}개 검색됨
         </div>
       )}
     </div>
