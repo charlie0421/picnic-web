@@ -404,8 +404,8 @@ const Header: React.FC = () => {
               <LanguageSelector />
             </div>
 
-            {/* 프로필/로그인 버튼 */}
-            <div className='flex-shrink-0'>
+            {/* 프로필/로그인 버튼 - 데스크톱에서만 표시 (모바일은 MobileNavigationMenu가 처리) */}
+            <div className='hidden md:flex flex-shrink-0'>
               {stableAuthState.showLoading ? (
                 // 로딩 중일 때 shimmer 효과
                 <div className="w-8 h-8 rounded-lg shimmer-effect">
@@ -434,19 +434,17 @@ const Header: React.FC = () => {
                   )}
                 </Link>
               ) : stableAuthState.showHamburger ? (
-                // 미인증 사용자 햄버거 메뉴 - 데스크톱에서만 표시 (모바일은 MobileNavigationMenu가 처리)
-                <div className='hidden md:block'>
-                  <Link 
-                    href='/mypage' 
-                    className='block'
-                    prefetch={true}
-                    onClick={() => handleLinkClick('/mypage')}
-                  >
-                    <div className='p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200'>
-                      <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
-                    </div>
-                  </Link>
-                </div>
+                // 미인증 사용자 햄버거 메뉴
+                <Link 
+                  href='/mypage' 
+                  className='block'
+                  prefetch={true}
+                  onClick={() => handleLinkClick('/mypage')}
+                >
+                  <div className='p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200'>
+                    <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+                  </div>
+                </Link>
               ) : null}
             </div>
           </div>

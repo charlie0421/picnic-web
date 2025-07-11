@@ -10,13 +10,14 @@ import { PortalType } from '@/utils/enums';
 import { isVoteRelatedPath, PORTAL_MENU } from '@/config/navigation';
 import menuConfig from '@/config/menu.json';
 import { Menu as MenuIcon, X, User, LogIn, Settings } from 'lucide-react';
+import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 
 interface MobileNavigationMenuProps {
   className?: string;
 }
 
 const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className = '' }) => {
-  const { isAuthenticated, userProfile, user, isLoading } = useAuth();
+  const { isAuthenticated, userProfile, user, isLoading, isInitialized } = useAuth();
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
   const { setIsLoading: setGlobalLoading } = useGlobalLoading();
   const pathname = usePathname();
@@ -26,6 +27,64 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
 
   // 현재 경로에서 로케일 정보 추출
   const { path: currentPath } = extractLocaleFromPath(pathname);
+
+  // 사용자 정보 가져오기 (Header와 동일한 로직)
+  const getUserInfo = () => {
+    // 1. DB 프로필이 있으면 무조건 DB 사용
+    if (userProfile) {
+      return {
+        nickname: userProfile.nickname || userProfile.email?.split('@')[0] || user?.email?.split('@')[0] || '사용자',
+        email: userProfile.email || user?.email || '이메일 정보 없음', 
+        avatar_url: userProfile.avatar_url || null,
+        provider: 'profile',
+        source: 'userProfile'
+      };
+    }
+    
+    // 2. DB 프로필이 없을 때만 JWT 토큰 사용
+    if (user) {
+      return {
+        nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자',
+        email: user.email || '이메일 정보 없음',
+        avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+        provider: user.app_metadata?.provider || 'unknown',
+        source: 'token'
+      };
+    }
+    
+    // 3. 기본값
+    return {
+      nickname: '사용자',
+      email: '로그인 후 이메일이 표시됩니다',
+      avatar_url: null,
+      provider: 'none',
+      source: 'default'
+    };
+  };
+
+  // 안정적인 인증 상태 확인 (Header와 동일한 로직)
+  const getStableAuthState = () => {
+    if (!isInitialized) {
+      return { showUserArea: false, showLoading: true, reason: 'not_initialized' };
+    }
+    if (isLoading) {
+      return { showUserArea: false, showLoading: true, reason: 'loading' };
+    }
+    if (!isAuthenticated || !user) {
+      return { showUserArea: false, showLoading: false, reason: 'not_authenticated' };
+    }
+    if (isAuthenticated && user && userProfile === null) {
+      const hasSocialImage = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+      if (hasSocialImage) {
+        return { showUserArea: false, showLoading: true, reason: 'profile_loading_with_social_image' };
+      }
+      return { showUserArea: true, showLoading: false, reason: 'authenticated_no_social_image' };
+    }
+    return { showUserArea: true, showLoading: false, reason: 'fully_authenticated' };
+  };
+
+  const userInfo = getUserInfo();
+  const stableAuthState = getStableAuthState();
 
   // 메뉴 필터링 함수
   const getVisibleMenuItems = () => {
@@ -38,24 +97,16 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
       // COMMUNITY, PIC, NOVEL 메뉴는 로그인한 관리자만 노출
       const isAdminOnlyMenu = ['community', 'pic', 'novel'].includes(menuItem.type);
       if (isAdminOnlyMenu) {
-        // 로그인하지 않았으면 숨김
-        if (!isAuthenticated) {
-          return false;
-        }
+        if (!isAuthenticated) return false;
 
-        // 🔄 userProfile 로딩 상태 체크
         const isUserProfileLoading = isAuthenticated && !userProfile && !isLoading;
-        if (isUserProfileLoading) {
-          return false;
-        }
+        if (isUserProfileLoading) return false;
 
-        // 🔍 관리자 권한 확인
         const isAdmin = userProfile?.is_admin || 
                        userProfile?.is_super_admin || 
                        user?.user_metadata?.is_admin || 
                        user?.user_metadata?.is_super_admin;
 
-        // 개발 환경 임시 관리자 권한
         const isDevTempAdmin = process.env.NODE_ENV === 'development' && 
                               isAuthenticated && 
                               !isLoading && 
@@ -93,7 +144,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'hidden'; // 배경 스크롤 방지
+      document.body.style.overflow = 'hidden';
     }
 
     return () => {
@@ -121,28 +172,64 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
 
   const visibleMenuItems = getVisibleMenuItems();
 
+  // 프로필 이미지 로딩 상태 확인
+  const isProfileImageLoading = () => {
+    if (!stableAuthState.showUserArea || stableAuthState.showLoading) {
+      return false;
+    }
+    
+    if (isAuthenticated && user && userProfile === null) {
+      const hasSocialImage = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+      return !!hasSocialImage;
+    }
+    
+    return false;
+  };
+
+  const profileImageLoading = isProfileImageLoading();
+
   return (
     <div className={`relative ${className}`} ref={menuRef}>
-      {/* 햄버거 버튼 */}
+      {/* 프로필/햄버거 통합 버튼 */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className='p-2 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 relative'
+        className='relative hover:bg-gray-100 rounded-lg transition-colors p-1'
         aria-label="메뉴 열기"
         aria-expanded={isOpen}
       >
-        {isOpen ? (
-          <X className="w-5 h-5 text-gray-700" />
+        {stableAuthState.showLoading ? (
+          // 로딩 중일 때 shimmer 효과
+          <div className="w-8 h-8 rounded-lg shimmer-effect" />
+        ) : stableAuthState.showUserArea ? (
+          // 인증된 사용자 - 프로필 이미지
+          profileImageLoading ? (
+            <div className="w-8 h-8 rounded-lg shimmer-effect" />
+          ) : userInfo.avatar_url ? (
+            <ProfileImageContainer
+              avatarUrl={userInfo.avatar_url}
+              width={32}
+              height={32}
+              borderRadius={8}
+            />
+          ) : (
+            <DefaultAvatar width={32} height={32} />
+          )
         ) : (
-          <MenuIcon className="w-5 h-5 text-gray-700" />
+          // 미인증 사용자 - 기본 아바타
+          <div className='p-2 border border-gray-200 rounded-lg'>
+            <User className="w-5 h-5 text-gray-700" />
+          </div>
         )}
         
-        {/* 메뉴 개수 표시 (미인증 사용자는 항상 표시, 인증 사용자는 메뉴가 2개 이상일 때만) */}
+        {/* 상태 표시 뱃지 */}
         {!isOpen && (
-          !isAuthenticated ? (
+          !stableAuthState.showUserArea ? (
+            // 미인증 사용자: 느낌표 뱃지
             <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
               !
             </span>
           ) : visibleMenuItems.length > 1 ? (
+            // 인증 사용자: 메뉴 개수 뱃지 (메뉴가 2개 이상일 때만)
             <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
               {visibleMenuItems.length}
             </span>
@@ -162,16 +249,16 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">
-                  {isAuthenticated ? '메뉴' : '시작하기'}
+                  {stableAuthState.showUserArea ? '메뉴' : '시작하기'}
                 </span>
                 <span className="text-xs text-gray-500">
-                  {isAuthenticated ? `${visibleMenuItems.length}개` : '로그인 필요'}
+                  {stableAuthState.showUserArea ? `${visibleMenuItems.length}개` : '로그인 필요'}
                 </span>
               </div>
             </div>
 
             {/* 미인증 사용자용 메뉴 */}
-            {!isAuthenticated && (
+            {!stableAuthState.showUserArea && (
               <div className="py-1">
                 <Link
                   href="/login"
@@ -235,7 +322,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             )}
 
             {/* 인증된 사용자용 메뉴 */}
-            {isAuthenticated && (
+            {stableAuthState.showUserArea && (
               <div className="py-1">
                 {/* 사용자 정보 */}
                 <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
@@ -245,10 +332,19 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                     onClick={() => handleMenuItemClick('/mypage')}
                     className="flex items-center space-x-3 hover:bg-gray-100 -mx-2 px-2 py-1 rounded transition-colors"
                   >
-                    <User className="w-4 h-4 text-gray-500" />
+                    {userInfo.avatar_url ? (
+                      <ProfileImageContainer
+                        avatarUrl={userInfo.avatar_url}
+                        width={20}
+                        height={20}
+                        borderRadius={4}
+                      />
+                    ) : (
+                      <User className="w-5 h-5 text-gray-500" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">
-                        {userProfile?.nickname || user?.email?.split('@')[0] || '사용자'}
+                        {userInfo.nickname}
                       </div>
                       <div className="text-xs text-gray-500">마이페이지</div>
                     </div>
@@ -288,7 +384,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             {/* 메뉴 푸터 */}
             <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
               <p className="text-xs text-gray-500 text-center">
-                {isAuthenticated 
+                {stableAuthState.showUserArea 
                   ? '탭하여 이동 • 외부 터치로 닫기'
                   : '로그인하면 더 많은 기능을 이용할 수 있습니다'
                 }
@@ -297,6 +393,18 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
           </div>
         </>
       )}
+
+      <style jsx>{`
+        .shimmer-effect {
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0f0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+      `}</style>
     </div>
   );
 };
