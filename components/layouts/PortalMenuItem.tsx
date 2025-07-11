@@ -45,14 +45,23 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
       href={localizedMenuPath}
       prefetch={true}
       onClick={handleClick}
+      className={`group relative px-3 py-2 text-base font-medium transition-all duration-200 hover:scale-105 ${
+        isActive 
+          ? 'text-blue-600' 
+          : 'text-gray-700 hover:text-blue-600'
+      }`}
     >
-      <div
-        className={`px-2 py-1 mx-1 cursor-pointer rounded-lg transition-colors ${
-          isActive ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'
-        }`}
-      >
-        {menuItem.name}
-      </div>
+      {menuItem.name}
+      
+      {/* 활성 상태일 때 하단 언더라인 */}
+      <div className={`absolute -bottom-1 left-1/2 transform -translate-x-1/2 h-0.5 bg-blue-600 rounded-full transition-all duration-300 ${
+        isActive ? 'w-full' : 'w-0 group-hover:w-full'
+      }`} />
+      
+      {/* 호버 시 배경 효과 */}
+      <div className={`absolute inset-0 bg-blue-50 rounded-lg transition-all duration-200 -z-10 ${
+        isActive ? 'opacity-20' : 'opacity-0 group-hover:opacity-10'
+      }`} />
     </Link>
   );
 };

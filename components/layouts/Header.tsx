@@ -10,6 +10,7 @@ import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import {DefaultAvatar, ProfileImageContainer,} from '@/components/ui/ProfileImageContainer';
 import PortalMenuItem from './PortalMenuItem';
 import MobileNavigationMenu from './MobileNavigationMenu';
+import MobilePortalMenu from './MobilePortalMenu';
 import {PORTAL_MENU} from '@/config/navigation';
 import {Menu as MenuIcon, ChevronRight} from 'lucide-react';
 import LanguageSelector from './LanguageSelector';
@@ -260,6 +261,7 @@ const Header: React.FC = () => {
   return (
     <header className='border-b border-gray-200 bg-white relative'>
       <div className='container mx-auto px-2 sm:px-4 py-2'>
+        {/* 메인 헤더 라인 */}
         <div className='flex items-center justify-between w-full gap-2 sm:gap-4'>
           {/* 좌측: 로고 + 메뉴 */}
           <div className='flex items-center gap-2 sm:gap-4 flex-1 min-w-0'>
@@ -448,6 +450,11 @@ const Header: React.FC = () => {
               ) : null}
             </div>
           </div>
+        </div>
+
+        {/* 모바일 포털 메뉴 라인 - 모바일에서만 표시 */}
+        <div className='md:hidden mt-3 pt-3 border-t border-gray-100'>
+          <MobilePortalMenu />
         </div>
       </div>
 
