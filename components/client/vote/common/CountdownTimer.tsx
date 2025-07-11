@@ -142,14 +142,10 @@ export function CountdownTimer({
           {getCountdownText()}
         </div>
         <div className="flex justify-center items-center space-x-1 text-sm font-bold">
-          {days > 0 && (
-            <>
-              <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">
-                {days} {t('time_unit_day')}
-              </span>
-              <span className="text-gray-400">:</span>
-            </>
-          )}
+          <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">
+            {days} {t('time_unit_day')}
+          </span>
+          <span className="text-gray-400">:</span>
           <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">
             {formatTime(hours)} {t('time_unit_hour')}
           </span>
@@ -171,16 +167,12 @@ export function CountdownTimer({
     <div className={`flex items-center gap-2 ${className}`}>
       {showEmoji && <span className='text-xl'>⏱️</span>}
       <div className={`flex items-center gap-1 font-mono font-bold ${compact ? 'gap-0.5' : 'gap-1'}`}>
-        {days > 0 && (
-          <>
-            <span className={`bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded min-w-[20px] text-center ${compact ? 'text-xs px-1 py-0.5' : 'text-xs'}`}>
-              {String(days).padStart(2, '0')}
-            </span>
-            <span className={`text-blue-600 ${compact ? 'text-xs' : 'text-xs'}`}>
-              {t('time_unit_day')}
-            </span>
-          </>
-        )}
+        <span className={`bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded min-w-[20px] text-center ${compact ? 'text-xs px-1 py-0.5' : 'text-xs'}`}>
+          {String(days).padStart(2, '0')}
+        </span>
+        <span className={`text-blue-600 ${compact ? 'text-xs' : 'text-xs'}`}>
+          {t('time_unit_day')}
+        </span>
         <span className={`bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded min-w-[20px] text-center ${compact ? 'text-xs px-1 py-0.5' : 'text-xs'}`}>
           {String(hours).padStart(2, '0')}
         </span>

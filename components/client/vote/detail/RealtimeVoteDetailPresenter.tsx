@@ -201,20 +201,16 @@ export function RealtimeVoteDetailPresenter({
       >
         <span className='text-xl'>⏱️</span>
         <div className='flex items-center gap-1 text-xs sm:text-sm font-mono font-bold'>
-          {days > 0 && (
-            <>
-              <motion.span 
-                className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'
-                key={`days-${days}`}
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.2 }}
-              >
-                <AnimatedCount value={days} suffix="일" />
-              </motion.span>
-              <span className='text-gray-400'>:</span>
-            </>
-          )}
+          <motion.span 
+            className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'
+            key={`days-${days}`}
+            initial={{ scale: 1.2 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <AnimatedCount value={days} suffix="일" />
+          </motion.span>
+          <span className='text-gray-400'>:</span>
           <motion.span 
             className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'
             key={`hours-${hours}`}

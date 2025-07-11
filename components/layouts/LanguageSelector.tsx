@@ -78,7 +78,7 @@ const LanguageSelector = () => {
   // 서버 사이드에서는 빈 div를 렌더링
   if (!mounted) {
     return (
-      <div className="w-10 h-9 sm:w-[170px] sm:h-9" />
+      <div className="w-10 h-8 sm:w-[170px] sm:h-10" />
     );
   }
 
@@ -90,7 +90,7 @@ const LanguageSelector = () => {
       <button
         type='button'
         onClick={toggleDropdown}
-        className="flex items-center justify-center sm:justify-between w-full h-9 px-2 sm:px-3 border border-gray-300 rounded-lg bg-white cursor-pointer text-gray-700 text-xs sm:text-sm hover:bg-gray-50 transition-colors"
+        className="flex items-center justify-center sm:justify-between w-full h-8 sm:h-10 px-2 sm:px-3 border border-gray-300 rounded-lg bg-white cursor-pointer text-gray-700 text-xs sm:text-sm hover:bg-gray-50 transition-colors"
       >
         {/* 모바일: 플래그만 표시 */}
         <span className="block sm:hidden text-base">

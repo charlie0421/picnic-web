@@ -49,46 +49,48 @@ const MobilePortalMenu: React.FC<MobilePortalMenuProps> = ({ className = '' }) =
 
   const filteredMenuItems = getFilteredMenuItems();
 
+  // 현재 활성화된 포탈 메뉴 찾기
+  const getCurrentActiveMenuItem = () => {
+    for (const menuItem of filteredMenuItems) {
+      const isActive =
+        currentPath.startsWith(menuItem.path) ||
+        (menuItem.type === PortalType.VOTE && isVoteRelatedPath(currentPath));
+      
+      if (isActive) {
+        return menuItem;
+      }
+    }
+    return null; // 활성화된 포탈 메뉴가 없으면 null 반환
+  };
+
+  const activeMenuItem = getCurrentActiveMenuItem();
+  
   const handleLinkClick = (href: string) => {
     if (pathname !== href) {
       setIsLoading(true);
     }
   };
 
-  if (filteredMenuItems.length === 0) return null;
+  // 활성화된 포탈 메뉴가 없으면 아무것도 표시하지 않음
+  if (!activeMenuItem) return null;
+
+  const portalConfig = menuConfig.portals.find(portal => portal.type === activeMenuItem.type);
+  if (!portalConfig) return null;
+
+  const localizedMenuPath = getLocalizedPath(activeMenuItem.path, currentLocale);
 
   return (
-    <div className={`flex items-center space-x-4 overflow-x-auto scrollbar-hide ${className}`}>
-      {filteredMenuItems.map((menuItem) => {
-        const portalConfig = menuConfig.portals.find(portal => portal.type === menuItem.type);
-        if (!portalConfig) return null;
-
-        const localizedMenuPath = getLocalizedPath(menuItem.path, currentLocale);
-        
-        const isActive =
-          currentPath.startsWith(menuItem.path) ||
-          (menuItem.type === PortalType.VOTE && isVoteRelatedPath(currentPath));
-
-        return (
-          <Link 
-            key={menuItem.type}
-            href={localizedMenuPath}
-            prefetch={true}
-            onClick={() => handleLinkClick(localizedMenuPath)}
-            className={`relative whitespace-nowrap text-sm font-medium transition-colors ${
-              isActive 
-                ? 'text-blue-600' 
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            {menuItem.name}
-            {/* 활성 상태일 때 하단 언더라인 */}
-            {isActive && (
-              <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
-            )}
-          </Link>
-        );
-      })}
+    <div className={`flex items-center ${className}`}>
+      <Link 
+        href={localizedMenuPath}
+        prefetch={true}
+        onClick={() => handleLinkClick(localizedMenuPath)}
+        className="relative text-sm font-medium text-blue-600"
+      >
+        {activeMenuItem.name}
+        {/* 활성 상태 하단 언더라인 */}
+        <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+      </Link>
     </div>
   );
 };

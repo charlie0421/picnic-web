@@ -336,12 +336,8 @@ export function TimeCountdown({
       </span>
 
       <div className='flex items-center space-x-1'>
-        {timeLeft.days > 0 && (
-          <>
-            <TimeUnit value={timeLeft.days} label='일' isUrgent={isUrgent} />
-            <span className='text-gray-400'>:</span>
-          </>
-        )}
+        <TimeUnit value={timeLeft.days} label='일' isUrgent={isUrgent} />
+        <span className='text-gray-400'>:</span>
 
         <TimeUnit value={timeLeft.hours} label='시' isUrgent={isUrgent} />
         <span className='text-gray-400'>:</span>

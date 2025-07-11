@@ -283,6 +283,11 @@ const Header: React.FC = () => {
               </Link>
             </div>
 
+            {/* 모바일 포털메뉴 - 로고 오른쪽에 배치 */}
+            <div className='md:hidden flex items-center'>
+              <MobilePortalMenu />
+            </div>
+
             {/* 데스크톱 메뉴 - 중형 화면 이상에서만 표시 */}
             <div className='hidden md:flex flex-1 relative'>
               {/* 메뉴 컨테이너 */}
@@ -395,56 +400,59 @@ const Header: React.FC = () => {
           </div>
 
           {/* 우측 메뉴 - 항상 표시 */}
-          <div className='flex items-center space-x-3'>
-            {/* 언어 선택기 - 먼저 표시, 모든 화면에서 표시 */}
-            <div className='flex items-center'>
+          <div className='flex items-center gap-3'>
+            {/* 언어 선택기 - 모든 화면에서 표시 */}
+            <div className='flex items-center justify-center h-8 sm:h-10'>
               <LanguageSelector />
             </div>
 
             {/* 모바일 햄버거 메뉴 - 나중에 표시 */}
-            <div className='md:hidden'>
+            <div className='md:hidden flex items-center justify-center h-8 sm:h-10'>
               <MobileNavigationMenu />
             </div>
 
             {/* 프로필/로그인 버튼 - 데스크톱에서만 표시 (모바일은 MobileNavigationMenu가 처리) */}
-            <div className='hidden md:flex flex-shrink-0'>
+            <div className='hidden md:flex items-center justify-center h-8 sm:h-10'>
               {stableAuthState.showLoading ? (
                 // 로딩 중일 때 shimmer 효과
-                <div className="w-8 h-8 rounded-lg shimmer-effect">
-                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg shimmer-effect bg-gray-200 flex-shrink-0"></div>
               ) : stableAuthState.showUserArea ? (
                 // 인증된 사용자 영역
                 <Link 
                   href='/mypage' 
-                  className='block'
+                  className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0'
                   prefetch={true}
                   onClick={() => handleLinkClick('/mypage')}
                 >
                   {profileImageLoading ? (
                     // DB 프로필 로딩 중일 때 shimmer 효과
-                    <div className="w-8 h-8 rounded-lg shimmer-effect">
-                    </div>
+                    <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200"></div>
                   ) : userInfo.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userInfo.avatar_url}
-                      width={32}
-                      height={32}
+                      width={40} // sm 크기에 맞춤
+                      height={40}
                       borderRadius={8}
+                      className="w-full h-full object-cover"
                     />
                   ) : (
-                    <DefaultAvatar width={32} height={32} />
+                    <DefaultAvatar 
+                      width={40} // sm 크기에 맞춤
+                      height={40} 
+                      className="w-full h-full"
+                    />
                   )}
                 </Link>
               ) : stableAuthState.showHamburger ? (
                 // 미인증 사용자 햄버거 메뉴
                 <Link 
                   href='/mypage' 
-                  className='block'
+                  className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0'
                   prefetch={true}
                   onClick={() => handleLinkClick('/mypage')}
                 >
-                  <div className='p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200'>
-                    <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+                  <div className='w-full h-full hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200 flex items-center justify-center'>
+                    <MenuIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                   </div>
                 </Link>
               ) : null}
@@ -452,10 +460,7 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* 모바일 포털 메뉴 라인 - 모바일에서만 표시 */}
-        <div className='md:hidden mt-3 pt-3 border-t border-gray-100'>
-          <MobilePortalMenu />
-        </div>
+        {/* 모바일 포털 메뉴 라인 제거 - 상단으로 이동됨 */}
       </div>
 
       <style jsx>{`
