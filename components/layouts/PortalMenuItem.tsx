@@ -35,8 +35,18 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
     (portalType === PortalType.VOTE && isVoteRelatedPath(currentPath));
 
   const handleClick = () => {
+    console.log('🔍 [PortalMenuItem] Link click:', {
+      portalType,
+      localizedMenuPath,
+      currentPathname: pathname,
+      isSamePage: pathname === localizedMenuPath
+    });
+    
     if (pathname !== localizedMenuPath) {
+      console.log('🔍 [PortalMenuItem] Starting loading for navigation to:', localizedMenuPath);
       setIsLoading(true);
+    } else {
+      console.log('🔍 [PortalMenuItem] Same page detected, not starting loading');
     }
   };
 

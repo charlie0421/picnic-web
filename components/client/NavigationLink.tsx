@@ -25,9 +25,20 @@ export default function NavigationLink({
   
   const handleClick = () => {
     // 현재 페이지와 다른 경우에만 로딩 시작
-    if (window.location.pathname !== href) {
+    const currentPath = window.location.pathname;
+    
+    console.log('🔍 [NavigationLink] Link click:', {
+      href,
+      currentPath,
+      isSamePage: currentPath === href
+    });
+    
+    if (currentPath !== href) {
+      console.log('🔍 [NavigationLink] Starting loading for navigation to:', href);
       setIsLoading(true);
       setIsNavigating(true);
+    } else {
+      console.log('🔍 [NavigationLink] Same page detected, not starting loading');
     }
   };
   

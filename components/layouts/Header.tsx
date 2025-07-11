@@ -70,8 +70,17 @@ const Header: React.FC = () => {
 
   // 네비게이션 클릭 핸들러
   const handleLinkClick = useCallback((href: string) => {
+    console.log('🔍 [Header] Link click:', {
+      href,
+      currentPathname: pathname,
+      isSamePage: pathname === href
+    });
+    
     if (pathname !== href) {
+      console.log('🔍 [Header] Starting loading for navigation to:', href);
       setGlobalLoading(true);
+    } else {
+      console.log('🔍 [Header] Same page detected, not starting loading');
     }
   }, [pathname, setGlobalLoading]);
 
@@ -415,7 +424,14 @@ const Header: React.FC = () => {
                   href='/mypage' 
                   className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0'
                   prefetch={true}
-                  onClick={() => handleLinkClick('/mypage')}
+                  onClick={() => {
+                    // mypage에 이미 있는 경우 로딩 시작하지 않음
+                    if (!pathname.includes('/mypage')) {
+                      handleLinkClick('/mypage');
+                    } else {
+                      console.log('🔍 [Header] Already on mypage, not starting loading');
+                    }
+                  }}
                 >
                   <div className='w-full h-full hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200 flex items-center justify-center'>
                     <MenuIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />

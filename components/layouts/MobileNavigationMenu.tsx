@@ -20,7 +20,7 @@ interface MobileNavigationMenuProps {
 const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className = '' }) => {
   const { isAuthenticated, userProfile, user, isLoading } = useAuth();
   const { currentLocale, getLocalizedPath } = useLocaleRouter();
-  const { isLoading: globalLoading, setIsLoading } = useGlobalLoading();
+  const { isLoading: globalLoading, setIsLoading, forceStopLoading } = useGlobalLoading();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -61,11 +61,24 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   const handleLinkClick = (href: string) => {
     // 현재 경로와 동일한 경우 로딩 시작하지 않음
     const targetPath = getLocalizedPath(href);
+    
+    console.log('🔍 [MobileNav] Link click:', {
+      href,
+      targetPath,
+      currentPathname: pathname,
+      isMypage: pathname.includes('/mypage'),
+      isSamePage: pathname === targetPath || (href === '/mypage' && pathname.includes('/mypage'))
+    });
+    
     if (pathname === targetPath || (href === '/mypage' && pathname.includes('/mypage'))) {
+      console.log('🔍 [MobileNav] Same page detected, not starting loading');
       setIsOpen(false);
+      // 기존 로딩이 있다면 강제로 중지
+      forceStopLoading();
       return;
     }
     
+    console.log('🔍 [MobileNav] Starting loading for navigation to:', targetPath);
     setIsLoading(true);
     setIsOpen(false);
   };
@@ -109,7 +122,14 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
       <div className="flex items-center">
         {/* 프로필/햄버거 통합 버튼 */}
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            // 메뉴를 열 때 기존 로딩이 있다면 중지
+            if (!isOpen && globalLoading) {
+              console.log('🔍 [MobileNav] Menu opening, stopping existing loading');
+              forceStopLoading();
+            }
+            setIsOpen(!isOpen);
+          }}
           className='relative hover:bg-gray-100 rounded-lg transition-colors w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center'
           aria-label={t('common.menu.openMenu')}
           aria-expanded={isOpen}
