@@ -10,8 +10,8 @@ export default function GlobalLoadingOverlay() {
   if (!isLoading) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="flex flex-col items-center space-y-4 bg-white/90 backdrop-blur-md rounded-2xl px-8 py-6 shadow-2xl border border-white/20">
         {/* 앱 아이콘 with 펄스 애니메이션 */}
         <div className="relative">
           <Image
