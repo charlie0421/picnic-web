@@ -390,8 +390,8 @@ const Header: React.FC = () => {
                   prefetch={true}
                   onClick={() => handleLinkClick('/mypage')}
                 >
-                  {profileImageLoading ? (
-                    // DB 프로필 로딩 중일 때 shimmer 효과
+                  {profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
+                    // DB 프로필 로딩 중이거나 프로필 이미지가 없는 경우 shimmer 효과만 표시
                     <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200"></div>
                   ) : userInfo.avatar_url ? (
                     <ProfileImageContainer

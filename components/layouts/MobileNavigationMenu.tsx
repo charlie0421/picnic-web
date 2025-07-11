@@ -112,7 +112,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
           ) : stableAuthState.showUserArea ? (
             // 인증된 사용자 - 프로필 이미지
-            profileImageLoading ? (
+            profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
               <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
             ) : userInfo.avatar_url ? (
               <ProfileImageContainer
@@ -143,7 +143,9 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
               <>
                 {/* 사용자 정보 섹션 */}
                 <div className="flex items-center space-x-3 mb-4 pb-4 border-b">
-                  {userInfo.avatar_url ? (
+                  {profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
+                    <div className="w-12 h-12 rounded-lg shimmer-effect bg-gray-200" />
+                  ) : userInfo.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userInfo.avatar_url}
                       width={48} // 드롭다운에서는 더 큰 크기
