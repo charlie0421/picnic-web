@@ -35,7 +35,7 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
   }
 
   // 서버사이드에서 번역 로드
-  let localeMessages: Record<string, string> = {};
+  let localeMessages: Record<string, any> = {};
   try {
     localeMessages = await import(`../../../../public/locales/${lang}.json`).then(m => m.default);
   } catch (error) {

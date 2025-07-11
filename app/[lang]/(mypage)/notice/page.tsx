@@ -9,7 +9,7 @@ export default async function NoticePage({ params }: Props) {
   const { lang } = await params;
 
   // 번역 파일 직접 로드
-  let localeMessages: Record<string, string> = {};
+  let localeMessages: Record<string, any> = {};
   try {
     localeMessages = await import(`../../../../public/locales/${lang}.json`).then(m => m.default);
   } catch (error) {

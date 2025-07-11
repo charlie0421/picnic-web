@@ -27,7 +27,7 @@ interface Notice {
 
 interface NoticeDetailClientProps {
   lang: string;
-  translations: Record<string, string>;
+  translations: Record<string, any>;
 }
 
 const NoticeDetailClient = ({ lang, translations }: NoticeDetailClientProps) => {

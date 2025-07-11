@@ -9,7 +9,7 @@ const NoticeDetailPage = async ({ params }: Props) => {
   const { lang } = await params;
   
   // Load translations server-side
-  let localeMessages: Record<string, string> = {};
+  let localeMessages: Record<string, any> = {};
   try {
     localeMessages = await import(`../../../../../public/locales/${lang}.json`).then(m => m.default);
   } catch (error) {

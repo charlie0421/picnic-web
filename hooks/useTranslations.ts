@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import type { SupportedLanguage } from '@/types/mypage-common';
 
 // 번역 캐시
-const translationCache = new Map<string, Record<string, string>>();
-const loadingPromises = new Map<string, Promise<Record<string, string>>>();
+const translationCache = new Map<string, Record<string, any>>();
+const loadingPromises = new Map<string, Promise<Record<string, any>>>();
 
 // 타입 안전한 번역 키 정의
 export type TranslationKey = 
@@ -345,7 +345,7 @@ const DEFAULT_TRANSLATIONS: Record<TranslationKey, string> = {
 
 export function useTranslations() {
   const pathname = usePathname();
-  const [translations, setTranslations] = useState<Record<string, string>>(DEFAULT_TRANSLATIONS);
+  const [translations, setTranslations] = useState<Record<string, any>>(DEFAULT_TRANSLATIONS);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentLangRef = useRef<SupportedLanguage>('en');
