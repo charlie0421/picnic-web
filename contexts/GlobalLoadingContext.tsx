@@ -28,11 +28,11 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
         clearTimeout(quickReleaseTimeoutRef.current);
       }
       
-      // 800ms 후 자동으로 로딩 해제 (스켈레톤이 보이도록)
+      // 300ms 후 자동으로 로딩 해제 (스켈레톤이 보이도록)
       quickReleaseTimeoutRef.current = setTimeout(() => {
         console.log('🔍 [GlobalLoading] Quick release - hiding loading bar for skeleton display');
         setIsLoading(false);
-      }, 800);
+      }, 300);
     } else {
       console.log('🔍 [GlobalLoading] Manual loading stop');
       setIsLoading(false);
