@@ -226,7 +226,6 @@ const Header: React.FC = () => {
             <div className='flex items-center flex-shrink-0'>
               <NavigationLink 
                 href="/"
-                prefetch={true}
               >
                 <Image
                   src='/images/logo.png'
@@ -377,7 +376,6 @@ const Header: React.FC = () => {
                 <NavigationLink 
                   href='/mypage' 
                   className='block w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-lg overflow-hidden'
-                  prefetch={true}
                 >
                   {profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
                     // DB 프로필 로딩 중이거나 프로필 이미지가 없는 경우 shimmer 효과만 표시
@@ -403,7 +401,6 @@ const Header: React.FC = () => {
                 <NavigationLink 
                   href='/mypage' 
                   className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0'
-                  prefetch={true}
                 >
                   <div className='w-full h-full hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200 flex items-center justify-center'>
                     <MenuIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />

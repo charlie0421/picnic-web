@@ -118,24 +118,28 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             // 로딩 중일 때 shimmer 효과
             <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
           ) : stableAuthState.showUserArea ? (
-            // 인증된 사용자 - 프로필 이미지
+            // 인증된 사용자 - 프로필 이미지 (크기를 32x32로 줄임)
             profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
               <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
             ) : userInfo.avatar_url ? (
               <ProfileImageContainer
                 avatarUrl={userInfo.avatar_url}
-                width={40} // 태블릿 크기에 맞춤
-                height={40}
+                width={32} // 40에서 32로 줄임
+                height={32}
                 borderRadius={8}
                 className="w-full h-full object-cover"
               />
             ) : (
-              <DefaultAvatar width={40} height={40} className="w-full h-full" />
+              <DefaultAvatar width={32} height={32} className="w-full h-full" />
             )
           ) : (
-            // 미인증 사용자 - User 아이콘
-            <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-              <User className="w-5 h-5 text-gray-600" />
+            // 미인증 사용자 - 햄버거 메뉴 아이콘
+            <div className="w-full h-full flex items-center justify-center">
+              {isOpen ? (
+                <X className="w-5 h-5 text-gray-600" />
+              ) : (
+                <MenuIcon className="w-5 h-5 text-gray-600" />
+              )}
             </div>
           )}
         </button>
@@ -155,12 +159,12 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                   ) : userInfo.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userInfo.avatar_url}
-                      width={48} // 드롭다운에서는 더 큰 크기
-                      height={48}
+                      width={40} // 드롭다운에서는 40px 유지 (48에서 40으로 줄임)
+                      height={40}
                       borderRadius={8}
                     />
                   ) : (
-                    <DefaultAvatar width={48} height={48} />
+                    <DefaultAvatar width={40} height={40} />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
@@ -189,7 +193,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                                 : 'text-gray-700 hover:bg-gray-50'
                             }`}
                           >
-                            {t(`nav.menu.${item.type.toLowerCase()}`)}
+                            {t(`nav.menu.${item.type}`)}
                           </NavigationLink>
                         );
                       })}

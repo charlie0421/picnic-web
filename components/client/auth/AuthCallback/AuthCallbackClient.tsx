@@ -9,6 +9,23 @@ interface AuthCallbackClientProps {
   provider?: string;
 }
 
+// GlobalLoadingContext를 안전하게 사용하는 훅
+const useSafeGlobalLoading = () => {
+  try {
+    // 동적 import로 안전하게 사용
+    const { useGlobalLoading } = require('@/contexts/GlobalLoadingContext');
+    return useGlobalLoading();
+  } catch (error) {
+    // GlobalLoadingProvider가 없는 경우 빈 함수 반환
+    console.warn('GlobalLoadingProvider가 제공되지 않았습니다. 대체 구현을 사용합니다.');
+    return {
+      setIsLoading: (loading: boolean) => {
+        console.log('GlobalLoading 상태:', loading);
+      }
+    };
+  }
+};
+
 // 개발 환경에서만 로그 출력
 const debugLog = (message: string, data?: any) => {
   if (process.env.NODE_ENV === 'development') {
@@ -27,6 +44,7 @@ export default function AuthCallbackClient({
 }: AuthCallbackClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setIsLoading } = useSafeGlobalLoading();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
   const [processingStep, setProcessingStep] = useState<string>('인증 정보를 확인하고 있습니다...');
@@ -35,6 +53,19 @@ export default function AuthCallbackClient({
   const processedRef = useRef(false);
 
   useEffect(() => {
+    // 🚀 전역 로딩바 시작
+    setIsLoading(true);
+    debugLog('🔄 [AuthCallback] 전역 로딩바 시작');
+    
+    // 🗑️ 즉시 로딩바 제거 (전역 로딩바로 대체)
+    setTimeout(() => {
+      const immediateLoadingBar = document.getElementById('oauth-loading');
+      if (immediateLoadingBar) {
+        debugLog('🗑️ [AuthCallback] 즉시 로딩바 제거 (전역 로딩바로 대체)');
+        immediateLoadingBar.remove();
+      }
+    }, 100);
+    
     // 🔧 최소 로딩 시간 보장 (사용자가 로딩 상태를 인지할 수 있도록)
     const minimumLoadingTime = 1200; // 800ms → 1200ms로 늘림 (더 확실한 로딩 경험)
     const startTime = Date.now();
@@ -237,10 +268,13 @@ export default function AuthCallbackClient({
       } catch (err: any) {
         debugError('❌ [AuthCallback] OAuth 처리 실패:', err);
         
-        // 🔧 에러 시에도 즉시 로딩바 제거
+        // 🔧 에러 시에도 전역 로딩바 해제
+        setIsLoading(false);
+        debugLog('🗑️ [AuthCallback] 에러 발생, 전역 로딩바 해제');
+        
+        // 즉시 로딩바도 제거 (혹시 남아있다면)
         const immediateLoadingBar = document.getElementById('oauth-loading');
         if (immediateLoadingBar) {
-          debugLog('🗑️ [AuthCallback] 에러 발생, 즉시 로딩바 제거');
           immediateLoadingBar.remove();
         }
         

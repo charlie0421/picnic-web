@@ -38,7 +38,6 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
   return (
     <NavigationLink 
       href={localizedMenuPath}
-      prefetch={true}
       className={`group relative px-3 py-2 text-base font-medium transition-all duration-200 hover:scale-105 ${
         isActive 
           ? 'text-blue-600' 

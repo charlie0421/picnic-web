@@ -8,7 +8,6 @@ interface NavigationLinkProps {
   href: string;
   children: React.ReactNode;
   className?: string;
-  prefetch?: boolean;
   onClick?: () => void;
   // button 요소에 안전하게 전달할 수 있는 속성들
   disabled?: boolean;
@@ -25,7 +24,6 @@ export default function NavigationLink({
   href,
   children,
   className = '',
-  prefetch, // 사용하지 않음 (Next.js Link용 속성)
   onClick,
   // button에 안전한 속성들만 분리
   disabled,
