@@ -1,20 +1,10 @@
 /**
  * 로딩바를 표시할 페이지인지 판단하는 함수
- * mypage와 vote 페이지로의 이동 시에만 로딩바 표시
+ * 모든 페이지 이동에서 로딩바 표시하여 UX 일관성 제공
  */
 export function shouldShowLoadingFor(href: string): boolean {
-  // mypage 관련 경로
-  if (href.includes('/mypage') || href === '/mypage') {
-    return true;
-  }
-  
-  // vote 관련 경로 (vote 상세 페이지, vote 목록 등)
-  if (href.includes('/vote') || href === '/vote') {
-    return true;
-  }
-  
-  // 기타 페이지들은 로딩바 표시하지 않음
-  return false;
+  // 모든 페이지 이동에서 로딩바 표시
+  return true;
 }
 
 /**
