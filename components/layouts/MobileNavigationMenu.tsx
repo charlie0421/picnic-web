@@ -59,6 +59,13 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   const filteredMenuItems = getFilteredMenuItems();
 
   const handleLinkClick = (href: string) => {
+    // 현재 경로와 동일한 경우 로딩 시작하지 않음
+    const targetPath = getLocalizedPath(href);
+    if (pathname === targetPath || (href === '/mypage' && pathname.includes('/mypage'))) {
+      setIsOpen(false);
+      return;
+    }
+    
     setIsLoading(true);
     setIsOpen(false);
   };
