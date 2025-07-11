@@ -75,9 +75,9 @@ const Header: React.FC = () => {
     }
   }, [pathname, setGlobalLoading]);
 
-  // 🎯 DB 프로필 이미지 우선 (OAuth는 최초 가입시에만 사용)
+  // 🎯 DB 프로필 이미지만 사용 (OAuth 토큰 이미지 제외)
   const getUserInfo = useCallback(() => {
-    // 1. DB 프로필이 있으면 무조건 DB 사용 (사용자가 관리하는 프로필)
+    // 1. DB 프로필이 있으면 DB 사용 (사용자가 관리하는 프로필)
     if (userProfile) {
       return {
         nickname: userProfile.nickname || userProfile.email?.split('@')[0] || user?.email?.split('@')[0] || '사용자',
@@ -88,12 +88,12 @@ const Header: React.FC = () => {
       };
     }
     
-    // 2. DB 프로필이 없을 때만 JWT 토큰 사용 (최초 로그인 시 임시)
+    // 2. DB 프로필이 없을 때는 JWT 토큰의 기본 정보만 사용 (이미지 제외)
     if (user) {
       return {
         nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자',
         email: user.email || '이메일 정보 없음',
-        avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+        avatar_url: null, // JWT 토큰의 이미지는 사용하지 않음
         provider: user.app_metadata?.provider || 'unknown',
         source: 'token'
       };
@@ -141,54 +141,20 @@ const Header: React.FC = () => {
       };
     }
 
-    // 인증되었지만 프로필 로딩 중인 경우 (JWT는 있지만 DB 프로필 대기)
-    if (isAuthenticated && user && userProfile === null) {
-      // JWT에 소셜 이미지가 있는 경우 DB 프로필 로딩을 기다림
-      const hasSocialImage = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-      if (hasSocialImage) {
-        return {
-          showUserArea: false,
-          showHamburger: false,
-          showLoading: true,
-          reason: 'profile_loading_with_social_image'
-        };
-      }
-      
-      // JWT에 소셜 이미지가 없으면 바로 사용자 영역 표시 (기본 아바타)
-      return {
-        showUserArea: true,
-        showHamburger: false,
-        showLoading: false,
-        reason: 'authenticated_no_social_image'
-      };
-    }
-
-    // 완전히 인증된 경우 (프로필 포함)
+    // 인증된 경우 (JWT만 있거나 프로필도 있는 경우 모두 사용자 영역 표시)
     return {
       showUserArea: true,
       showHamburger: false,
       showLoading: false,
-      reason: 'fully_authenticated'
+      reason: 'authenticated'
     };
-  }, [isAuthenticated, user, userProfile, isLoading, isInitialized]);
+  }, [isAuthenticated, user, isLoading, isInitialized]);
 
   // 🔍 프로필 이미지 로딩 상태 확인
   const isProfileImageLoading = useCallback(() => {
-    const authState = getStableAuthState();
-    
-    // 사용자 영역이 표시되지 않거나 로딩 중이면 이미지 로딩도 아님
-    if (!authState.showUserArea || authState.showLoading) {
-      return false;
-    }
-    
-    // 사용자 영역이 표시되는 상태에서 프로필이 로딩 중인지 확인
-    if (isAuthenticated && user && userProfile === null) {
-      const hasSocialImage = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-      return !!hasSocialImage; // 소셜 이미지가 있으면 DB 로딩을 기다림
-    }
-    
-    return false;
-  }, [isAuthenticated, user, userProfile, getStableAuthState]);
+    // DB 프로필이 로딩 중인지만 확인 (JWT 이미지는 사용하지 않음)
+    return isAuthenticated && user && userProfile === null;
+  }, [isAuthenticated, user, userProfile]);
 
   // 사용자 정보 가져오기
   const userInfo = getUserInfo();
