@@ -394,14 +394,14 @@ const Header: React.FC = () => {
 
           {/* 우측 메뉴 - 항상 표시 */}
           <div className='flex items-center space-x-3'>
-            {/* 모바일 햄버거 메뉴 - 먼저 표시 */}
-            <div className='md:hidden'>
-              <MobileNavigationMenu />
-            </div>
-
-            {/* 언어 선택기 - 나중에 표시, 모든 화면에서 표시 */}
+            {/* 언어 선택기 - 먼저 표시, 모든 화면에서 표시 */}
             <div className='flex items-center'>
               <LanguageSelector />
+            </div>
+
+            {/* 모바일 햄버거 메뉴 - 나중에 표시 */}
+            <div className='md:hidden'>
+              <MobileNavigationMenu />
             </div>
 
             {/* 프로필/로그인 버튼 - 데스크톱에서만 표시 (모바일은 MobileNavigationMenu가 처리) */}
