@@ -9,8 +9,9 @@ import {useLanguageStore} from '@/stores/languageStore';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import {DefaultAvatar, ProfileImageContainer,} from '@/components/ui/ProfileImageContainer';
 import PortalMenuItem from './PortalMenuItem';
+import MobileNavigationMenu from './MobileNavigationMenu';
 import {PORTAL_MENU} from '@/config/navigation';
-import {Menu as MenuIcon} from 'lucide-react';
+import {Menu as MenuIcon, ChevronRight} from 'lucide-react';
 import LanguageSelector from './LanguageSelector';
 
 const Header: React.FC = () => {
@@ -18,6 +19,50 @@ const Header: React.FC = () => {
   const { currentLanguage } = useLanguageStore();
   const { setIsLoading: setGlobalLoading } = useGlobalLoading();
   const pathname = usePathname();
+  
+  // 스크롤 상태 관리
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const menuContainerRef = useRef<HTMLDivElement>(null);
+
+  // 스크롤 상태 확인 함수
+  const checkScrollState = useCallback(() => {
+    if (menuContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = menuContainerRef.current;
+      setIsScrolled(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  }, []);
+
+  // 스크롤 이벤트 핸들러
+  const handleScroll = useCallback(() => {
+    checkScrollState();
+  }, [checkScrollState]);
+
+  // 컴포넌트 마운트 시 스크롤 상태 체크 및 힌트 표시
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      checkScrollState();
+      if (canScrollRight) {
+        setShowScrollHint(true);
+        // 3초 후 힌트 숨김
+        setTimeout(() => setShowScrollHint(false), 3000);
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [checkScrollState, canScrollRight]);
+
+  // 윈도우 리사이즈 시 스크롤 상태 재확인
+  useEffect(() => {
+    const handleResize = () => {
+      setTimeout(checkScrollState, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [checkScrollState]);
 
   // 🐛 디버그 모드 체크
   const isDebugMode = process.env.NODE_ENV === 'development';
@@ -236,92 +281,124 @@ const Header: React.FC = () => {
               </Link>
             </div>
 
-            {/* 메뉴 - 스크롤 가능한 영역 */}
-            <div className='flex-1 overflow-x-auto scrollbar-hide'>
-              <div className='flex items-center space-x-2 sm:space-x-4 min-w-max'>
-                {PORTAL_MENU.map((menuItem) => {
-                  // 🔐 권한별 메뉴 노출 조건 (요구사항에 따라 수정)
-                  
-                  // VOTE 메뉴는 항상 노출
-                  if (menuItem.type === 'vote') {
+            {/* 데스크톱 메뉴 - 중형 화면 이상에서만 표시 */}
+            <div className='hidden md:flex flex-1 relative'>
+              {/* 메뉴 컨테이너 */}
+              <div 
+                ref={menuContainerRef}
+                className='overflow-x-auto scrollbar-hide scroll-smooth'
+                onScroll={handleScroll}
+                style={{
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                }}
+              >
+                <div className='flex items-center space-x-2 sm:space-x-4 min-w-max'>
+                  {PORTAL_MENU.map((menuItem) => {
+                    // 🔐 권한별 메뉴 노출 조건 (요구사항에 따라 수정)
+                    
+                    // VOTE 메뉴는 항상 노출
+                    if (menuItem.type === 'vote') {
+                      return (
+                        <PortalMenuItem
+                          key={menuItem.path}
+                          portalType={menuItem.type}
+                        />
+                      );
+                    }
+
+                    // COMMUNITY, PIC, NOVEL 메뉴는 로그인한 관리자만 노출
+                    const isAdminOnlyMenu = ['community', 'pic', 'novel'].includes(menuItem.type);
+                    if (isAdminOnlyMenu) {
+                      // 로그인하지 않았으면 숨김
+                      if (!isAuthenticated) {
+                        return null;
+                      }
+
+                      // 🔄 userProfile 로딩 상태 체크
+                      const isUserProfileLoading = isAuthenticated && !userProfile && !isLoading;
+
+                      // userProfile이 아직 로딩 중이면 메뉴를 숨김 (로딩 후 점진적 표시)
+                      if (isUserProfileLoading) {
+                        if (process.env.NODE_ENV === 'development') {
+                          console.log(`⏳ [Header] ${menuItem.type} 메뉴 - userProfile 로딩 중...`);
+                        }
+                        return null;
+                      }
+
+                      // 🔍 관리자 권한 확인 (DB의 userProfile 우선, 백업으로 user metadata 활용)
+                      const isAdmin = userProfile?.is_admin || 
+                                     userProfile?.is_super_admin || 
+                                     user?.user_metadata?.is_admin || 
+                                     user?.user_metadata?.is_super_admin;
+
+                      // 🐛 개발 환경에서 userProfile이 없는 경우 임시 관리자 권한 부여
+                      const isDevTempAdmin = process.env.NODE_ENV === 'development' && 
+                                            isAuthenticated && 
+                                            !isLoading && 
+                                            !userProfile &&
+                                            user; // JWT 사용자가 있으면 임시 관리자로 간주
+
+                      // 🔧 개발 환경에서 userProfile 로딩이 실패한 경우도 고려
+                      const isDevFallbackAdmin = process.env.NODE_ENV === 'development' && 
+                                                isAuthenticated && 
+                                                !isLoading &&
+                                                user &&
+                                                // userProfile이 2초 이상 로드되지 않으면 개발환경에서는 관리자로 간주
+                                                (Date.now() - (window as any).authStartTime || 0) > 2000;
+
+                      // 디버깅용 로그 (개발 환경에서만)
+                      if (process.env.NODE_ENV === 'development') {
+                        console.log(`🔍 [Header] ${menuItem.type} 메뉴:`, {
+                          isAdmin,
+                          isDevTempAdmin,
+                          isDevFallbackAdmin,
+                          shouldShow: isAdmin || isDevTempAdmin || isDevFallbackAdmin,
+                          isLoading: isUserProfileLoading
+                        });
+                      }
+
+                      // 관리자가 아니면 숨김 (개발환경 임시관리자는 제외)
+                      if (!isAdmin && !isDevTempAdmin && !isDevFallbackAdmin) {
+                        return null;
+                      }
+                    }
+
                     return (
                       <PortalMenuItem
                         key={menuItem.path}
                         portalType={menuItem.type}
                       />
                     );
-                  }
-
-                  // COMMUNITY, PIC, NOVEL 메뉴는 로그인한 관리자만 노출
-                  const isAdminOnlyMenu = ['community', 'pic', 'novel'].includes(menuItem.type);
-                  if (isAdminOnlyMenu) {
-                    // 로그인하지 않았으면 숨김
-                    if (!isAuthenticated) {
-                      return null;
-                    }
-
-                    // 🔄 userProfile 로딩 상태 체크
-                    const isUserProfileLoading = isAuthenticated && !userProfile && !isLoading;
-
-                    // userProfile이 아직 로딩 중이면 메뉴를 숨김 (로딩 후 점진적 표시)
-                    if (isUserProfileLoading) {
-                      if (process.env.NODE_ENV === 'development') {
-                        console.log(`⏳ [Header] ${menuItem.type} 메뉴 - userProfile 로딩 중...`);
-                      }
-                      return null;
-                    }
-
-                    // 🔍 관리자 권한 확인 (DB의 userProfile 우선, 백업으로 user metadata 활용)
-                    const isAdmin = userProfile?.is_admin || 
-                                   userProfile?.is_super_admin || 
-                                   user?.user_metadata?.is_admin || 
-                                   user?.user_metadata?.is_super_admin;
-
-                    // 🐛 개발 환경에서 userProfile이 없는 경우 임시 관리자 권한 부여
-                    const isDevTempAdmin = process.env.NODE_ENV === 'development' && 
-                                          isAuthenticated && 
-                                          !isLoading && 
-                                          !userProfile &&
-                                          user; // JWT 사용자가 있으면 임시 관리자로 간주
-
-                    // 🔧 개발 환경에서 userProfile 로딩이 실패한 경우도 고려
-                    const isDevFallbackAdmin = process.env.NODE_ENV === 'development' && 
-                                              isAuthenticated && 
-                                              !isLoading &&
-                                              user &&
-                                              // userProfile이 2초 이상 로드되지 않으면 개발환경에서는 관리자로 간주
-                                              (Date.now() - (window as any).authStartTime || 0) > 2000;
-
-                    // 디버깅용 로그 (개발 환경에서만)
-                    if (process.env.NODE_ENV === 'development') {
-                      console.log(`🔍 [Header] ${menuItem.type} 메뉴:`, {
-                        isAdmin,
-                        isDevTempAdmin,
-                        isDevFallbackAdmin,
-                        shouldShow: isAdmin || isDevTempAdmin || isDevFallbackAdmin,
-                        isLoading: isUserProfileLoading
-                      });
-                    }
-
-                    // 관리자가 아니면 숨김 (개발환경 임시관리자는 제외)
-                    if (!isAdmin && !isDevTempAdmin && !isDevFallbackAdmin) {
-                      return null;
-                    }
-                  }
-
-                  return (
-                    <PortalMenuItem
-                      key={menuItem.path}
-                      portalType={menuItem.type}
-                    />
-                  );
-                })}
+                  })}
+                </div>
               </div>
+
+              {/* 오른쪽 그라디언트 페이드 효과 (더 많은 콘텐츠가 있을 때) */}
+              {canScrollRight && (
+                <div className='absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none flex items-center justify-end pr-1'>
+                  <ChevronRight 
+                    className={`w-3 h-3 text-gray-400 transition-all duration-300 ${
+                      showScrollHint ? 'animate-pulse' : ''
+                    }`} 
+                  />
+                </div>
+              )}
+
+              {/* 왼쪽 그라디언트 페이드 효과 (스크롤된 상태일 때) */}
+              {isScrolled && (
+                <div className='absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none' />
+              )}
             </div>
           </div>
 
           {/* 우측 메뉴 - 항상 표시 */}
           <div className='flex items-center space-x-2 sm:space-x-3 flex-shrink-0'>
+            {/* 모바일 네비게이션 메뉴 - 중형 화면 미만에서만 표시 */}
+            <div className='md:hidden flex-shrink-0'>
+              <MobileNavigationMenu />
+            </div>
+
             {/* 언어 선택기 */}
             <div className='flex-shrink-0'>
               <LanguageSelector />
@@ -357,22 +434,43 @@ const Header: React.FC = () => {
                   )}
                 </Link>
               ) : stableAuthState.showHamburger ? (
-                // 미인증 사용자 햄버거 메뉴
-                <Link 
-                  href='/mypage' 
-                  className='block'
-                  prefetch={true}
-                  onClick={() => handleLinkClick('/mypage')}
-                >
-                  <div className='p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200'>
-                    <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
-                  </div>
-                </Link>
+                // 미인증 사용자 햄버거 메뉴 - 데스크톱에서만 표시 (모바일은 MobileNavigationMenu가 처리)
+                <div className='hidden md:block'>
+                  <Link 
+                    href='/mypage' 
+                    className='block'
+                    prefetch={true}
+                    onClick={() => handleLinkClick('/mypage')}
+                  >
+                    <div className='p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200'>
+                      <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+                    </div>
+                  </Link>
+                </div>
               ) : null}
             </div>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .shimmer-effect {
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+      `}</style>
     </header>
   );
 };
