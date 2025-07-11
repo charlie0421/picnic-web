@@ -11,24 +11,14 @@ export default function GlobalLoadingOverlay() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="flex flex-col items-center space-y-4 bg-white/90 backdrop-blur-md rounded-2xl px-8 py-6 shadow-2xl border border-white/20">
-        {/* 앱 아이콘 with 펄스 애니메이션 */}
-        <div className="relative">
-          <Image
-            src="/images/logo.png"
-            alt="Picnic Loading"
-            width={80}
-            height={80}
-            className="w-20 h-20 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
-            priority
-          />
-        </div>
-        
-        {/* 로딩 텍스트 */}
-        <div className="text-gray-800 text-sm font-medium animate-scale-pulse">
-          Loading...
-        </div>
-      </div>
+      <Image
+        src="/images/logo.png"
+        alt="Picnic Loading"
+        width={80}
+        height={80}
+        className="w-20 h-20 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
+        priority
+      />
     </div>
   );
 } 
