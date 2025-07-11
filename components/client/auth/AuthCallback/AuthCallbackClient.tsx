@@ -45,6 +45,7 @@ export default function AuthCallbackClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setIsLoading } = useSafeGlobalLoading();
+  const [mounted, setMounted] = useState(false); // 하이드레이션 완료 확인
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
   const [processingStep, setProcessingStep] = useState<string>('인증 정보를 확인하고 있습니다...');
@@ -52,10 +53,26 @@ export default function AuthCallbackClient({
   // 🔧 중복 처리 방지
   const processedRef = useRef(false);
 
+  // 🔧 하이드레이션 완료 확인
   useEffect(() => {
-    // 🚀 전역 로딩바 시작
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // mounted가 false면 아직 하이드레이션이 완료되지 않았으므로 대기
+    if (!mounted) return;
+
+    // 🚀 전역 로딩바 시작 (커스텀 이벤트 + 컨텍스트 이중 보장)
     setIsLoading(true);
-    debugLog('🔄 [AuthCallback] 전역 로딩바 시작');
+    
+    // 커스텀 이벤트로도 전역 로딩바 시작 (이중 보장)
+    try {
+      const event = new CustomEvent('startGlobalLoading', { detail: { reason: 'auth-callback-client' } });
+      window.dispatchEvent(event);
+      debugLog('🔄 [AuthCallback] 전역 로딩바 시작 (컨텍스트 + 이벤트)');
+    } catch (error) {
+      debugLog('🔄 [AuthCallback] 전역 로딩바 시작 (컨텍스트만)', error);
+    }
     
     // 🗑️ 즉시 로딩바 제거 (전역 로딩바로 대체)
     setTimeout(() => {
@@ -81,16 +98,6 @@ export default function AuthCallbackClient({
         callback();
       }
     };
-
-    // 🔧 즉시 로딩바 제거를 지연시키고 OAuth 처리 상태 표시
-    // 즉시 제거하지 말고 OAuth 처리가 시작될 때 제거하도록 수정
-    // setTimeout(() => {
-    //   const immediateLoadingBar = document.getElementById('oauth-loading');
-    //   if (immediateLoadingBar) {
-    //     debugLog('🗑️ [AuthCallback] 즉시 로딩바 제거 (최소 시간 후)');
-    //     immediateLoadingBar.remove();
-    //   }
-    // }, 200); // 200ms 후에 즉시 로딩바 제거
 
     // 🚫 중복 처리 방지
     if (processedRef.current) {
@@ -268,9 +275,17 @@ export default function AuthCallbackClient({
       } catch (err: any) {
         debugError('❌ [AuthCallback] OAuth 처리 실패:', err);
         
-        // 🔧 에러 시에도 전역 로딩바 해제
+        // 🔧 에러 시에도 전역 로딩바 해제 (컨텍스트 + 이벤트 이중 보장)
         setIsLoading(false);
-        debugLog('🗑️ [AuthCallback] 에러 발생, 전역 로딩바 해제');
+        
+        // 커스텀 이벤트로도 전역 로딩바 해제 (이중 보장)
+        try {
+          const event = new CustomEvent('stopGlobalLoading', { detail: { reason: 'auth-callback-error' } });
+          window.dispatchEvent(event);
+          debugLog('🗑️ [AuthCallback] 에러 발생, 전역 로딩바 해제 (컨텍스트 + 이벤트)');
+        } catch (error) {
+          debugLog('🗑️ [AuthCallback] 에러 발생, 전역 로딩바 해제 (컨텍스트만)', error);
+        }
         
         // 즉시 로딩바도 제거 (혹시 남아있다면)
         const immediateLoadingBar = document.getElementById('oauth-loading');
@@ -292,7 +307,31 @@ export default function AuthCallbackClient({
     };
 
     handleOAuthCallback();
-  }, []); // 빈 의존성 배열
+  }, [mounted]); // mounted 의존성 추가
+
+  // 🔧 하이드레이션 미스매치 방지: 서버와 클라이언트에서 동일한 UI 렌더링
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          {/* 하이드레이션 완료 전에는 서버와 동일한 UI */}
+          <div className="relative">
+            <Image
+              src="/images/logo.png"
+              alt="Picnic Loading"
+              width={80}
+              height={80}
+              priority
+              className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
+            />
+          </div>
+          <div className="mt-6 text-gray-600 text-sm font-medium animate-pulse">
+            인증 정보를 확인하고 있습니다...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // UI 렌더링
   if (error) {

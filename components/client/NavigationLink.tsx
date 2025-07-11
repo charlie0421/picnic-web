@@ -9,8 +9,7 @@ interface NavigationLinkProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-  // button 요소에 안전하게 전달할 수 있는 속성들
-  disabled?: boolean;
+  // div 요소에 안전하게 전달할 수 있는 속성들
   title?: string;
   'aria-label'?: string;
   'aria-describedby'?: string;
@@ -25,8 +24,7 @@ export default function NavigationLink({
   children,
   className = '',
   onClick,
-  // button에 안전한 속성들만 분리
-  disabled,
+  // div에 안전한 속성들만 분리
   title,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
@@ -69,25 +67,33 @@ export default function NavigationLink({
     }
   };
   
-  // button에 안전한 속성들만 전달
-  const safeButtonProps = {
-    disabled,
+  // div에 안전한 속성들만 전달
+  const safeDivProps = {
     title,
     'aria-label': ariaLabel,
     'aria-describedby': ariaDescribedBy,
     id,
-    role,
-    tabIndex
+    role: role || 'button', // 접근성을 위해 role="button" 기본값
+    tabIndex: tabIndex || 0, // 키보드 접근성을 위해 tabIndex 기본값
+  };
+  
+  // 키보드 이벤트 핸들러 (Enter, Space 키 지원)
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick(e as any);
+    }
   };
   
   return (
-    <button 
+    <div 
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       className={`${className} ${isNavigating ? 'opacity-90' : 'opacity-100'} transition-opacity duration-200 cursor-pointer`}
-      style={{ border: 'none', background: 'none', padding: 0, font: 'inherit', color: 'inherit', textDecoration: 'none' }}
-      {...safeButtonProps}
+      style={{ userSelect: 'none' }}
+      {...safeDivProps}
     >
       {children}
-    </button>
+    </div>
   );
 } 

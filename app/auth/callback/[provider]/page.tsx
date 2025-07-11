@@ -1,27 +1,34 @@
-'use client';
-
-import { use } from 'react';
 import { AuthCallbackClient } from '@/components/client/auth';
 
 interface CallbackPageProps {
   params: Promise<{ provider: string }>;
 }
 
-export default function CallbackPage({ params }: CallbackPageProps) {
-  // Next.js 15 요구사항: params를 React.use()로 unwrap
-  const { provider } = use(params);
+export default async function CallbackPage({ params }: CallbackPageProps) {
+  // Next.js 15 요구사항: params를 await로 unwrap
+  const { provider } = await params;
   
   return (
     <>
-      {/* 빠른 로딩 시작을 위한 최소한의 스크립트 */}
+      {/* 전역 로딩바 즉시 시작을 위한 스크립트 */}
       <script
         dangerouslySetInnerHTML={{
           __html: `
-            // OAuth 콜백 페이지 진입 즉시 기본 로딩 표시
+            // OAuth 콜백 페이지 진입 즉시 전역 로딩바 시작
             (function() {
-              console.log('🔄 [OAuth Callback] ${provider} 콜백 페이지 진입');
+              console.log('🔄 [OAuth Callback] ${provider} 콜백 페이지 진입 - 전역 로딩바 시작');
               
-              // 간단한 로딩 표시
+              // 전역 로딩바 즉시 표시
+              try {
+                // GlobalLoadingContext에 접근해서 로딩 상태 설정
+                const event = new CustomEvent('startGlobalLoading', { detail: { reason: 'oauth-callback' } });
+                window.dispatchEvent(event);
+                console.log('🚀 [OAuth Callback] 전역 로딩바 이벤트 발송 완료');
+              } catch (error) {
+                console.warn('⚠️ [OAuth Callback] 전역 로딩바 이벤트 발송 실패:', error);
+              }
+              
+              // 임시 로딩 표시 (전역 로딩바 백업)
               const loadingDiv = document.createElement('div');
               loadingDiv.id = 'oauth-loading';
               loadingDiv.style.cssText = \`
@@ -34,7 +41,7 @@ export default function CallbackPage({ params }: CallbackPageProps) {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                z-index: 9999;
+                z-index: 9998;
                 opacity: 0;
                 transition: opacity 0.2s ease-in-out;
               \`;
