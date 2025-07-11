@@ -76,8 +76,8 @@ export function VoteSearch({
           value={searchQuery}
           onChange={handleSearch}
           placeholder={placeholder}
-          className={`w-full p-3 pl-12 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-            disabled ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''
+          className={`w-full p-3 pl-12 rounded-full border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            disabled ? 'bg-gray-100 cursor-not-allowed opacity-75' : 'bg-white'
           }`}
           disabled={disabled}
         />

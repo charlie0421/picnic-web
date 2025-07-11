@@ -129,7 +129,9 @@ export function HybridVoteDetailPresenter({
   const [voteAmount, setVoteAmount] = React.useState(1);
   const [availableVotes, setAvailableVotes] = React.useState(10);
   const [headerHeight, setHeaderHeight] = React.useState(0);
+  const [searchHeight, setSearchHeight] = React.useState(0);
   const headerRef = React.useRef<HTMLDivElement>(null);
+  const searchRef = React.useRef<HTMLDivElement>(null);
 
   // 🚀 사용자 관련 상태 - 서버에서 받은 초기 데이터 사용 (성능 개선)
   const [user, setUser] = React.useState<any>(initialUser || null);
@@ -1235,18 +1237,21 @@ export function HybridVoteDetailPresenter({
     setSearchQuery(query);
   };
 
-  // 헤더 높이 측정
+  // 헤더 및 검색 높이 측정
   React.useEffect(() => {
-    const updateHeaderHeight = () => {
+    const updateHeights = () => {
       if (headerRef.current) {
         setHeaderHeight(headerRef.current.offsetHeight);
       }
+      if (searchRef.current) {
+        setSearchHeight(searchRef.current.offsetHeight);
+      }
     };
 
-    updateHeaderHeight();
-    window.addEventListener('resize', updateHeaderHeight);
+    updateHeights();
+    window.addEventListener('resize', updateHeights);
 
-    const observer = new MutationObserver(updateHeaderHeight);
+    const observer = new MutationObserver(updateHeights);
     if (headerRef.current) {
       observer.observe(headerRef.current, {
         childList: true,
@@ -1254,11 +1259,18 @@ export function HybridVoteDetailPresenter({
         attributes: true,
       });
     }
+    if (searchRef.current) {
+      observer.observe(searchRef.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+      });
+    }
 
-    const timer = setTimeout(updateHeaderHeight, 100);
+    const timer = setTimeout(updateHeights, 100);
 
     return () => {
-      window.removeEventListener('resize', updateHeaderHeight);
+      window.removeEventListener('resize', updateHeights);
       observer.disconnect();
       clearTimeout(timer);
     };
@@ -1500,22 +1512,28 @@ export function HybridVoteDetailPresenter({
         </div>
       </div>
 
-      {/* 검색 */}
-      <div className="px-4 mb-4">
-        <VoteSearch 
-          onSearch={handleSearch}
-          placeholder={t('text_vote_where_is_my_bias')}
-          totalItems={rankedVoteItems.length}
-          searchResults={filteredItems}
-          disabled={!canVote}
-        />
+      {/* 검색 - Sticky 고정 */}
+      <div 
+        ref={searchRef}
+        className='sticky z-20 bg-white/95 backdrop-blur-md border-b border-gray-200/50 py-3 shadow-sm'
+        style={{ top: `${headerHeight}px` }}
+      >
+        <div className="px-4">
+          <VoteSearch 
+            onSearch={handleSearch}
+            placeholder={t('text_vote_where_is_my_bias')}
+            totalItems={rankedVoteItems.length}
+            searchResults={filteredItems}
+            disabled={!canVote}
+          />
+        </div>
       </div>
 
       {/* 상위 순위 표시 - 2명 이상일 때 표시 */}
       {voteStatus !== 'upcoming' && rankedVoteItems.length >= 2 && (
         <div
           className='sticky z-30 bg-white/95 backdrop-blur-md border-b border-gray-200/50 py-2 md:py-3 mb-2 md:mb-4 shadow-lg'
-          style={{ top: `${headerHeight}px` }}
+          style={{ top: `${headerHeight + searchHeight}px` }}
         >
           <div className='container mx-auto px-4'>
             <div className='text-center mb-2 md:mb-3'>
