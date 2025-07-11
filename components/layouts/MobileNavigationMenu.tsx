@@ -33,9 +33,9 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
     showGuestArea: !isLoading && !isAuthenticated,
   };
 
-  // 사용자 정보 (안전하게 접근)
+  // 사용자 정보 (안전하게 접근) - DB 프로필만 사용
   const userInfo = {
-    avatar_url: userProfile?.avatar_url || user?.user_metadata?.avatar_url || null,
+    avatar_url: userProfile?.avatar_url || null, // JWT 토큰 이미지 제거
     name: userProfile?.nickname || user?.user_metadata?.full_name || user?.email || null,
     is_admin: userProfile?.is_admin || false,
   };

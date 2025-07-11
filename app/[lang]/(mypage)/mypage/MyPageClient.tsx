@@ -211,8 +211,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
                  initialUser.email?.split('@')[0] || 
                  t('label_default_user'),
         email: initialUser.email || t('label_default_email'),
-        avatar_url: initialUser.user_metadata?.avatar_url || 
-                   initialUser.user_metadata?.picture || null,
+        avatar_url: null, // JWT 토큰 이미지는 사용하지 않음
         provider: initialUser.app_metadata?.provider || 'email',
         provider_display_name: initialUser.app_metadata?.provider || t('label_mypage_provider_default'),
         star_candy: 0,

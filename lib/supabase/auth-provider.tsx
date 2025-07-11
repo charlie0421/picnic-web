@@ -659,9 +659,7 @@ class AuthStore {
                      currentUser.user_metadata?.full_name || 
                      currentUser.email?.split('@')[0] || 
                      'User',
-            avatar_url: currentUser.user_metadata?.avatar_url || 
-                       currentUser.user_metadata?.picture || 
-                       null,
+            avatar_url: null, // JWT 토큰 이미지는 사용하지 않음
             is_admin: true, // 개발환경에서 API 실패시 임시 관리자
             is_super_admin: false,
             star_candy: 0,

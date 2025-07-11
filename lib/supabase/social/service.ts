@@ -728,7 +728,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
           id: user.id,
           nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split("@")[0] || "User", // display_name → nickname
           email: user.email,
-          avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || null, // JWT에서 아바타 추가
+          avatar_url: null, // JWT 토큰 이미지는 사용하지 않음
           provider: "google",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
