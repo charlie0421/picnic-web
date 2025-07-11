@@ -33,7 +33,7 @@ export default function LoadingState({
           {/* 로고 아이콘 with 펄스 애니메이션 */}
           <div className="relative inline-block">
             <Image
-              src="/images/logo_alpha.png"
+              src="/images/logo.png"
               alt="Picnic Loading"
               width={80}
               height={80}
@@ -59,7 +59,7 @@ export default function LoadingState({
       {/* 로고 아이콘 with 펄스 애니메이션 */}
       <div className="relative inline-block">
         <Image
-          src="/images/logo_alpha.png"
+          src="/images/logo.png"
           alt="Picnic Loading"
           width={64}
           height={64}

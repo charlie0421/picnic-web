@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 
 interface AuthCallbackClientProps {
@@ -274,21 +275,23 @@ export default function AuthCallbackClient({
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
-        {/* 심플한 로딩바만 표시 - 텍스트 제거 */}
+        {/* 로고 아이콘 with 펄스 애니메이션 */}
         <div className="relative">
-          {/* 외부 원 */}
-          <div className="w-20 h-20 border-4 border-gray-200 rounded-full"></div>
-          {/* 회전하는 로딩바 */}
-          <div className="absolute top-0 left-0 w-20 h-20 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <Image
+            src="/images/logo.png"
+            alt="Picnic Loading"
+            width={80}
+            height={80}
+            priority
+            className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
+          />
         </div>
         
-        {/* 간단한 점 애니메이션 */}
-        <div className="flex justify-center items-center mt-6 space-x-1">
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
+        {/* 로딩 텍스트 */}
+        <div className="mt-6 text-gray-600 text-sm font-medium animate-pulse">
+          {processingStep}
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import React, {
   memo, 
   useMemo 
 } from 'react';
+import Image from 'next/image';
 
 interface VirtualScrollListProps<T> {
   items: T[];
@@ -158,8 +159,15 @@ export const VirtualScrollList = memo(<T,>({
             >
               {loadingComponent || (
                 <div className="flex justify-center items-center h-full">
-                  <div className="w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-                  <span className="ml-2 text-gray-600 text-sm">Loading...</span>
+                  <Image
+                    src="/images/logo.png"
+                    alt="Loading"
+                    width={24}
+                    height={24}
+                    className="w-6 h-6 rounded-full animate-pulse drop-shadow-lg object-cover"
+                    priority
+                  />
+                  <span className="ml-2 text-gray-600 text-sm animate-pulse">Loading...</span>
                 </div>
               )}
             </div>

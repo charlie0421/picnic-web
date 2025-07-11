@@ -1,10 +1,12 @@
 'use client';
 
 import React, { memo } from 'react';
+import Image from 'next/image';
 import type { EmptyStateConfig } from '@/types/mypage-common';
 
+// 상태 컴포넌트에 공통으로 전달되는 props 타입
 interface StateComponentProps {
-  translations: Record<string, string> | { [key: string]: string };
+  translations: Record<string, string>;
 }
 
 interface ErrorStateProps extends StateComponentProps {
@@ -29,17 +31,19 @@ export const InitialLoadingState = memo<StateComponentProps>(({ translations }) 
   
   return (
     <div className="flex flex-col items-center justify-center py-12 space-y-4">
+      {/* 로고 아이콘 with 펄스 애니메이션 */}
       <div className="relative">
-        <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-        <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-l-secondary-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+        <Image
+          src="/images/logo.png"
+          alt="Picnic Loading"
+          width={64}
+          height={64}
+          priority
+          className="w-16 h-16 rounded-full animate-pulse drop-shadow-lg object-cover"
+        />
       </div>
       <div className="text-center">
-        <p className="text-gray-600 font-medium">{t('label_loading')}</p>
-        <div className="flex space-x-1 mt-2">
-          <div className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-          <div className="w-2 h-2 bg-secondary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-          <div className="w-2 h-2 bg-point-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-        </div>
+        <p className="text-gray-600 font-medium animate-pulse">{t('label_loading')}</p>
       </div>
     </div>
   );

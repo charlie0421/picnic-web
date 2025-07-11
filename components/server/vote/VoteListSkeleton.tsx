@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 
 interface VoteListSkeletonProps {
   /** 표시할 스켈레톤 카드 개수 */
@@ -139,8 +140,15 @@ export default function VoteListSkeleton({
       {/* 로딩 표시 */}
       <div className="flex justify-center items-center py-8">
         <div className="flex items-center space-x-3 text-gray-500">
-          <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-          <span className="text-sm font-medium">투표 목록을 불러오는 중...</span>
+          <Image
+            src="/images/logo.png"
+            alt="Vote List Loading"
+            width={20}
+            height={20}
+            className="w-5 h-5 rounded-full animate-pulse drop-shadow-lg object-cover"
+            priority
+          />
+          <span className="text-sm font-medium animate-pulse">투표 목록을 불러오는 중...</span>
         </div>
       </div>
     </div>

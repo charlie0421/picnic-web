@@ -271,6 +271,8 @@ export function RankingAnimation({
 }
 
 // 로딩 스피너 (투표 관련)
+import Image from 'next/image';
+
 export interface VoteLoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   message?: string;
@@ -288,13 +290,24 @@ export function VoteLoadingSpinner({
     lg: 'w-12 h-12',
   };
 
+  const sizeValues = {
+    sm: { width: 16, height: 16 },
+    md: { width: 32, height: 32 },
+    lg: { width: 48, height: 48 },
+  };
+
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
-      <div
-        className={`${sizeClasses[size]} border-2 border-primary border-t-transparent rounded-full animate-spin`}
+      <Image
+        src="/images/logo.png"
+        alt="Vote Loading"
+        width={sizeValues[size].width}
+        height={sizeValues[size].height}
+        className={`${sizeClasses[size]} rounded-full animate-pulse drop-shadow-lg object-cover`}
+        priority
       />
       {message && (
-        <p className='mt-2 text-sm text-gray-600 text-center animate-fade-in'>
+        <p className='mt-2 text-sm text-gray-600 text-center animate-pulse'>
           {message}
         </p>
       )}

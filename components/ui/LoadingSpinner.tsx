@@ -14,7 +14,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className = '' }) => {
         {/* 로고 아이콘 with 펄스 애니메이션 */}
         <div className="relative inline-block">
           <Image
-            src="/images/logo_alpha.png"
+            src="/images/logo.png"
             alt="Picnic Loading"
             width={80}
             height={80}
