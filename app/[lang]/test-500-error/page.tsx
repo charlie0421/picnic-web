@@ -35,8 +35,10 @@ export default function Test500ErrorPage() {
     })
 
     if (errorType === 'immediate') {
-      // 즉시 에러 발생
-      throw new Error('🚨 테스트용 즉시 에러: 이것은 의도적인 500 에러 테스트입니다!')
+      // 즉시 에러 발생 (빌드 시에는 비활성화)
+      if (typeof window !== 'undefined') {
+        throw new Error('🚨 테스트용 즉시 에러: 이것은 의도적인 500 에러 테스트입니다!')
+      }
     }
 
     if (errorType === 'delayed') {
@@ -71,8 +73,8 @@ export default function Test500ErrorPage() {
     throw new Error(`🚨 테스트용 ${errorType} 에러: 이것은 의도적인 500 에러 테스트입니다! (${errorType})`)
   }
 
-  // 렌더링 중 에러 발생
-  if (errorType === 'render') {
+  // 렌더링 중 에러 발생 (빌드 시에는 비활성화)
+  if (errorType === 'render' && typeof window !== 'undefined') {
     throw new Error('🚨 테스트용 렌더링 에러: 이것은 의도적인 500 에러 테스트입니다!')
   }
 

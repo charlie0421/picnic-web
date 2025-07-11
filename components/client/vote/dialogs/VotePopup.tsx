@@ -289,7 +289,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                       alt="Vote Loading"
                       width={32}
                       height={32}
-                      className="w-8 h-8 rounded-full animate-pulse drop-shadow-lg object-cover"
+                      className="w-8 h-8 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
                       priority
                     />
                   </motion.div>
@@ -574,7 +574,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                     alt="Voting"
                     width={16}
                     height={16}
-                    className="w-4 h-4 rounded-full animate-pulse drop-shadow-lg object-cover"
+                    className="w-4 h-4 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
                     priority
                   />
                   <span>{t('vote_popup_voting')}</span>
@@ -586,7 +586,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                     alt="Loading Balance"
                     width={16}
                     height={16}
-                    className="w-4 h-4 rounded-full animate-pulse drop-shadow-lg object-cover"
+                    className="w-4 h-4 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
                     priority
                   />
                   <span>캔디 정보 로딩 중...</span>

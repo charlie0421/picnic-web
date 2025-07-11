@@ -18,10 +18,10 @@ export default function VoteLoading() {
             width={48}
             height={48}
             priority
-            className="w-12 h-12 rounded-full animate-pulse drop-shadow-lg object-cover"
+            className="w-12 h-12 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
           />
         </div>
-        <div className="mt-4 text-gray-600 text-sm font-medium animate-pulse">
+        <div className="mt-4 text-gray-600 text-sm font-medium animate-scale-pulse">
           투표 페이지 로딩 중...
         </div>
       </div>

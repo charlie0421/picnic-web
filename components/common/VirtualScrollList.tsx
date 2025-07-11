@@ -164,10 +164,10 @@ export const VirtualScrollList = memo(<T,>({
                     alt="Loading"
                     width={24}
                     height={24}
-                    className="w-6 h-6 rounded-full animate-pulse drop-shadow-lg object-cover"
+                    className="w-6 h-6 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
                     priority
                   />
-                  <span className="ml-2 text-gray-600 text-sm animate-pulse">Loading...</span>
+                  <span className="ml-2 text-gray-600 text-sm animate-scale-pulse">Loading...</span>
                 </div>
               )}
             </div>

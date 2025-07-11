@@ -145,10 +145,10 @@ export default function VoteListSkeleton({
             alt="Vote List Loading"
             width={20}
             height={20}
-            className="w-5 h-5 rounded-full animate-pulse drop-shadow-lg object-cover"
+            className="w-5 h-5 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
             priority
           />
-          <span className="text-sm font-medium animate-pulse">투표 목록을 불러오는 중...</span>
+                     <span className="text-sm font-medium animate-scale-pulse">투표 목록을 불러오는 중...</span>
         </div>
       </div>
     </div>

@@ -39,7 +39,7 @@ export const InitialLoadingState = memo<StateComponentProps>(({ translations }) 
           width={64}
           height={64}
           priority
-          className="w-16 h-16 rounded-full animate-pulse drop-shadow-lg object-cover"
+          className="w-16 h-16 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
         />
       </div>
       <div className="text-center">

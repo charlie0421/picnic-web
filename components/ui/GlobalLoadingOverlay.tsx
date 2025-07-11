@@ -19,13 +19,13 @@ export default function GlobalLoadingOverlay() {
             alt="Picnic Loading"
             width={80}
             height={80}
-            className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
+            className="w-20 h-20 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
             priority
           />
         </div>
         
         {/* 로딩 텍스트 */}
-        <div className="text-gray-800 text-sm font-medium animate-pulse">
+        <div className="text-gray-800 text-sm font-medium animate-scale-pulse">
           Loading...
         </div>
       </div>

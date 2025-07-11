@@ -80,6 +80,14 @@ module.exports = {
             transform: 'scale(1)',
           },
         },
+        'scale-pulse': {
+          '0%, 100%': { 
+            transform: 'scale(1)',
+          },
+          '50%': { 
+            transform: 'scale(1.1)',
+          },
+        },
       },
       animation: {
         'fade-in-out': 'fade-in-out 1s ease-in-out forwards',
@@ -92,6 +100,7 @@ module.exports = {
         'fade-in': 'fade-in 0.3s ease-out',
         'slide-up': 'slide-up 0.5s ease-out',
         'scale-in': 'scale-in 0.3s ease-out',
+        'scale-pulse': 'scale-pulse 2s ease-in-out infinite',
       },
       colors: {
         primary: {

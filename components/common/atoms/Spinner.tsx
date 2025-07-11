@@ -34,7 +34,7 @@ export function Spinner({
         width={sizeValues[size].width}
         height={sizeValues[size].height}
         className={cn(
-          'rounded-full animate-pulse drop-shadow-lg object-cover',
+          'rounded-full animate-scale-pulse drop-shadow-lg object-cover',
           sizes[size]
         )}
         priority

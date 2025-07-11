@@ -303,11 +303,11 @@ export function VoteLoadingSpinner({
         alt="Vote Loading"
         width={sizeValues[size].width}
         height={sizeValues[size].height}
-        className={`${sizeClasses[size]} rounded-full animate-pulse drop-shadow-lg object-cover`}
+        className={`${sizeClasses[size]} rounded-full animate-scale-pulse drop-shadow-lg object-cover`}
         priority
       />
       {message && (
-        <p className='mt-2 text-sm text-gray-600 text-center animate-pulse'>
+        <p className='mt-2 text-sm text-gray-600 text-center animate-scale-pulse'>
           {message}
         </p>
       )}
@@ -381,7 +381,7 @@ function TimeUnit({
     >
       <span
         className={`text-lg font-bold leading-none ${
-          isUrgent && value < 10 ? 'animate-pulse' : ''
+          isUrgent && value < 10 ? 'animate-scale-pulse' : ''
         }`}
       >
         {value.toString().padStart(2, '0')}
