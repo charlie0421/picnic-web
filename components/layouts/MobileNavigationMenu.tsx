@@ -36,7 +36,32 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const { tDynamic: t } = useTranslations();
+  const { tDynamic: t, currentLanguage, translations } = useTranslations();
+
+  // 안전한 중첩 번역 함수
+  const getMenuTranslation = (type: string): string => {
+    // 먼저 중첩 구조에서 시도
+    if (translations?.nav?.menu?.[type]) {
+      return translations.nav.menu[type];
+    }
+    
+    // 평면화된 키로 시도
+    const flatKey = `nav_${type}`;
+    if (translations?.[flatKey]) {
+      return translations[flatKey];
+    }
+    
+    // 폴백 매핑
+    const fallbackMap: Record<string, string> = {
+      vote: '투표',
+      community: '커뮤니티', 
+      pic: 'PIC',
+      novel: '소설',
+      mypage: '마이페이지'
+    };
+    
+    return fallbackMap[type] || type;
+  };
 
   // 안정적인 인증 상태 관리
   const stableAuthState = {
@@ -231,6 +256,8 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                     <div className="space-y-1">
                       {filteredMenuItems.map((item) => {
                         const isActive = isVoteRelatedPath(pathname) && item.type === PortalType.VOTE;
+                        const translatedText = getMenuTranslation(item.type);
+                        
                         return (
                           <NavigationLink
                             key={item.type}
@@ -246,7 +273,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                               {getMenuIcon(item.type)}
                             </span>
                             <span className={isActive ? 'text-white' : 'text-gray-700'}>
-                              {t(`nav.menu.${item.type}`)}
+                              {translatedText}
                             </span>
                             {!isActive && <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />}
                           </NavigationLink>
@@ -262,7 +289,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                     // 현재 마이페이지에 있을 때 - 활성 상태로 표시
                     <div className="flex items-center space-x-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white shadow-md">
                       <Settings className="w-4 h-4 text-white" />
-                      <span className="text-white">{t('nav.menu.mypage')}</span>
+                      <span className="text-white">{getMenuTranslation('mypage')}</span>
                     </div>
                   ) : (
                     // 다른 페이지에 있을 때 - 클릭 가능한 링크
@@ -272,7 +299,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                       className="flex items-center space-x-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:translate-x-1 transition-all duration-200"
                     >
                       <Settings className="w-4 h-4 text-gray-500" />
-                      <span className="text-gray-700">{t('nav.menu.mypage')}</span>
+                      <span className="text-gray-700">{getMenuTranslation('mypage')}</span>
                       <ChevronRight className="w-4 h-4 ml-auto text-gray-400" />
                     </NavigationLink>
                   )}
