@@ -1,5 +1,5 @@
 import React from 'react';
-
+import Image from 'next/image';
 
 interface LoadingStateProps {
   message?: string;
@@ -28,14 +28,29 @@ export default function LoadingState({
   // 전체 페이지 로딩인 경우 공통 컴포넌트 사용
   if (fullPage) {
     return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          {/* 로고 아이콘 with 펄스 애니메이션 */}
+          <div className="relative inline-block">
+            <Image
+              src="/images/logo_alpha.png"
+              alt="Picnic Loading"
+              width={80}
+              height={80}
+              priority
+              className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
+            />
+            {/* 추가 글로우 효과 */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400 opacity-20 animate-pulse" />
+          </div>
+          
+          {/* 로딩 텍스트 */}
+          <div className="mt-6 text-gray-600 text-sm font-medium animate-pulse">
+            Loading...
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
   }
 
   // 부분 로딩인 경우 기존 스타일 유지하되 텍스트 제거
@@ -43,8 +58,18 @@ export default function LoadingState({
 
   return (
     <div className={`flex items-center justify-center ${containerHeight} py-10`}>
-      <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      {/* 로고 아이콘 with 펄스 애니메이션 */}
+      <div className="relative inline-block">
+        <Image
+          src="/images/logo_alpha.png"
+          alt="Picnic Loading"
+          width={64}
+          height={64}
+          priority
+          className="w-16 h-16 rounded-full animate-pulse drop-shadow-lg object-cover"
+        />
+        {/* 추가 글로우 효과 */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400 opacity-20 animate-pulse" />
       </div>
     </div>
   );

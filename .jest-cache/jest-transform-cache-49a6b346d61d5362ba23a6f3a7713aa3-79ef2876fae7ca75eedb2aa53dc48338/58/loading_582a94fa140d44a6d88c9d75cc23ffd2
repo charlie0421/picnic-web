@@ -1,0 +1,321 @@
+21a453ab0ffb1a3ee2735adc0c6d79bb
+"use strict";
+
+/* istanbul ignore next */
+function cov_simti3kb7() {
+  var path = "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/media/loading.tsx";
+  var hash = "ed95a60fbd6e35c86e9bfcb4563cc72bb7440e2f";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/media/loading.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 12,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 10,
+          column: 8
+        },
+        end: {
+          line: 10,
+          column: 28
+        }
+      },
+      "3": {
+        start: {
+          line: 13,
+          column: 20
+        },
+        end: {
+          line: 13,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 14,
+          column: 29
+        },
+        end: {
+          line: 14,
+          column: 71
+        }
+      },
+      "5": {
+        start: {
+          line: 16,
+          column: 4
+        },
+        end: {
+          line: 18,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 21,
+          column: 4
+        },
+        end: {
+          line: 29,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 9,
+            column: 9
+          },
+          end: {
+            line: 9,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 9,
+            column: 20
+          },
+          end: {
+            line: 11,
+            column: 5
+          }
+        },
+        line: 9
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 15,
+            column: 9
+          },
+          end: {
+            line: 15,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 15,
+            column: 39
+          },
+          end: {
+            line: 19,
+            column: 1
+          }
+        },
+        line: 15
+      },
+      "2": {
+        name: "MediaLoading",
+        decl: {
+          start: {
+            line: 20,
+            column: 9
+          },
+          end: {
+            line: 20,
+            column: 21
+          }
+        },
+        loc: {
+          start: {
+            line: 20,
+            column: 24
+          },
+          end: {
+            line: 30,
+            column: 1
+          }
+        },
+        line: 20
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 16,
+            column: 11
+          },
+          end: {
+            line: 18,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 16,
+            column: 35
+          },
+          end: {
+            line: 16,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 16,
+            column: 41
+          },
+          end: {
+            line: 18,
+            column: 5
+          }
+        }],
+        line: 16
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 16,
+            column: 11
+          },
+          end: {
+            line: 16,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 16,
+            column: 11
+          },
+          end: {
+            line: 16,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 16,
+            column: 18
+          },
+          end: {
+            line: 16,
+            column: 32
+          }
+        }],
+        line: 16
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/media/loading.tsx"],
+      sourcesContent: ["import React from 'react';\n\n/**\n * \uBBF8\uB514\uC5B4 \uD398\uC774\uC9C0 \uAC04\uC18C\uD654\uB41C \uB85C\uB529 \uC0C1\uD0DC\n */\n\nexport default function MediaLoading() {\n  return (\n    <main className=\"container mx-auto px-4 py-8 min-h-screen\">\n      {/* \uCD5C\uC18C\uD654\uB41C \uB85C\uB529 \uC778\uB514\uCF00\uC774\uD130 */}\n      <div className=\"flex items-center justify-center min-h-[400px]\">\n        <div className=\"animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500\"></div>\n      </div>\n    </main>\n  );\n} "],
+      names: ["MediaLoading", "main", "className", "div"],
+      mappings: ";;;;+BAEA;;CAEC,GAED;;;eAAwBA;;;;8DANN;;;;;;AAMH,SAASA;IACtB,qBACE,qBAACC;QAAKC,WAAU;kBAEd,cAAA,qBAACC;YAAID,WAAU;sBACb,cAAA,qBAACC;gBAAID,WAAU;;;;AAIvB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "ed95a60fbd6e35c86e9bfcb4563cc72bb7440e2f"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_simti3kb7 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_simti3kb7();
+cov_simti3kb7().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_simti3kb7().s[1]++;
+Object.defineProperty(exports,
+/**
+* 미디어 페이지 간소화된 로딩 상태
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_simti3kb7().f[0]++;
+    cov_simti3kb7().s[2]++;
+    return MediaLoading;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_simti3kb7().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_simti3kb7().s[4]++, _interop_require_default(require("react")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_simti3kb7().f[1]++;
+  cov_simti3kb7().s[5]++;
+  return /* istanbul ignore next */(cov_simti3kb7().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_simti3kb7().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_simti3kb7().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_simti3kb7().b[0][1]++, {
+    default: obj
+  });
+}
+function MediaLoading() {
+  /* istanbul ignore next */
+  cov_simti3kb7().f[2]++;
+  cov_simti3kb7().s[6]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("main", {
+    className: "container mx-auto px-4 py-8 min-h-screen",
+    children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+      className: "flex items-center justify-center min-h-[400px]",
+      children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+        className: "animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"
+      })
+    })
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJNZWRpYUxvYWRpbmciLCJjb3Zfc2ltdGkza2I3IiwiZiIsInMiLCJfanN4cnVudGltZSIsImpzeCIsImNsYXNzTmFtZSJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGFybGllLmh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvYXBwL1tsYW5nXS8obWFpbikvbWVkaWEvbG9hZGluZy50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0JztcblxuLyoqXG4gKiDrr7jrlJTslrQg7Y6Y7J207KeAIOqwhOyGjO2ZlOuQnCDroZzrlKkg7IOB7YOcXG4gKi9cblxuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gTWVkaWFMb2FkaW5nKCkge1xuICByZXR1cm4gKFxuICAgIDxtYWluIGNsYXNzTmFtZT1cImNvbnRhaW5lciBteC1hdXRvIHB4LTQgcHktOCBtaW4taC1zY3JlZW5cIj5cbiAgICAgIHsvKiDstZzshoztmZTrkJwg66Gc65SpIOyduOuUlOy8gOydtO2EsCAqL31cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgbWluLWgtWzQwMHB4XVwiPlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImFuaW1hdGUtc3BpbiByb3VuZGVkLWZ1bGwgaC04IHctOCBib3JkZXItYi0yIGJvcmRlci1wcmltYXJ5LTUwMFwiPjwvZGl2PlxuICAgICAgPC9kaXY+XG4gICAgPC9tYWluPlxuICApO1xufSAiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUVBOzs7QUFJQTs7Ozs7O1dBQXdCQSxZQUFBOzs7Ozs7Ozt1RUFOTjs7Ozs7Ozs7Ozs7Ozs7O0FBTUgsU0FBU0EsYUFBQTtFQUFBO0VBQUFDLGFBQUEsR0FBQUMsQ0FBQTtFQUFBRCxhQUFBLEdBQUFFLENBQUE7RUFDdEIsb0JBQ0UsSUFBQUMsV0FBQSxDQUFBQyxHQUFBLEVBQUM7SUFBS0MsU0FBQSxFQUFVO2NBRWQsaUJBQUFGLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO01BQUlDLFNBQUEsRUFBVTtnQkFDYixpQkFBQUYsV0FBQSxDQUFBQyxHQUFBLEVBQUM7UUFBSUMsU0FBQSxFQUFVOzs7O0FBSXZCIiwiaWdub3JlTGlzdCI6W119

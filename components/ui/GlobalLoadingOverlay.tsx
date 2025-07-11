@@ -15,17 +15,15 @@ export default function GlobalLoadingOverlay() {
         {/* 앱 아이콘 with 펄스 애니메이션 */}
         <div className="relative">
           <Image
-            src="/favicon/favicon-192x192.png"
+            src="/images/logo_alpha.png"
             alt="Picnic Loading"
             width={80}
             height={80}
-            className="animate-pulse drop-shadow-lg"
+            className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
             priority
           />
           {/* 추가 글로우 효과 */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary-400 to-secondary-400 opacity-30 animate-ping" />
-          {/* 회전 링 효과 */}
-          <div className="absolute -inset-2 border-2 border-transparent border-t-primary-400 border-r-secondary-400 rounded-full animate-spin opacity-70" />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary-400 to-secondary-400 opacity-20 animate-pulse" />
         </div>
         
         {/* 로딩 텍스트 */}

@@ -14,21 +14,19 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className = '' }) => {
         {/* 로고 아이콘 with 펄스 애니메이션 */}
         <div className="relative inline-block">
           <Image
-            src="/images/logo.png"
+            src="/images/logo_alpha.png"
             alt="Picnic Loading"
-            width={64}
-            height={64}
+            width={80}
+            height={80}
             priority
-            className="w-16 h-16 rounded-lg animate-pulse drop-shadow-lg"
+            className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
           />
           {/* 추가 글로우 효과 */}
-          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-400 to-indigo-400 opacity-30 animate-ping" />
-          {/* 회전 링 효과 */}
-          <div className="absolute -inset-2 border-2 border-transparent border-t-blue-400 border-r-indigo-400 rounded-lg animate-spin opacity-70" />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400 opacity-20 animate-pulse" />
         </div>
         
         {/* 로딩 텍스트 */}
-        <div className="mt-4 text-gray-600 text-sm font-medium animate-pulse">
+        <div className="mt-6 text-gray-600 text-sm font-medium animate-pulse">
           Loading...
         </div>
       </div>
