@@ -85,11 +85,19 @@ const MobilePortalMenu: React.FC<MobilePortalMenuProps> = ({ className = '' }) =
         href={localizedMenuPath}
         prefetch={true}
         onClick={() => handleLinkClick(localizedMenuPath)}
-        className="relative text-sm font-medium text-blue-600"
+        className={`group relative px-3 py-2 text-base font-medium transition-all duration-200 hover:scale-105 ${
+          activeMenuItem ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+        }`}
       >
         {activeMenuItem.name}
-        {/* 활성 상태 하단 언더라인 */}
-        <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+        
+        {/* 호버 시에만 언더라인 표시 (데스크탑과 동일) */}
+        <div className={`absolute -bottom-1 left-1/2 transform -translate-x-1/2 h-0.5 bg-blue-600 rounded-full transition-all duration-300 w-0 group-hover:w-full`} />
+        
+        {/* 호버 시 배경 효과 */}
+        <div className={`absolute inset-0 bg-blue-50 rounded-lg transition-all duration-200 -z-10 ${
+          activeMenuItem ? 'opacity-20' : 'opacity-0 group-hover:opacity-10'
+        }`} />
       </Link>
     </div>
   );

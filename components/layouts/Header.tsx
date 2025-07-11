@@ -283,12 +283,12 @@ const Header: React.FC = () => {
               </Link>
             </div>
 
-            {/* 모바일 포털메뉴 - 로고 오른쪽에 배치 */}
+            {/* 모바일 포털메뉴 - 모바일과 태블릿에서 표시 */}
             <div className='md:hidden flex items-center'>
               <MobilePortalMenu />
             </div>
 
-            {/* 데스크톱 메뉴 - 중형 화면 이상에서만 표시 */}
+            {/* 데스크탑 메뉴 - 데스크탑에서만 표시 */}
             <div className='hidden md:flex flex-1 relative'>
               {/* 메뉴 컨테이너 */}
               <div 
@@ -300,7 +300,7 @@ const Header: React.FC = () => {
                   msOverflowStyle: 'none',
                 }}
               >
-                <div className='flex items-center space-x-2 sm:space-x-4 min-w-max'>
+                <div className='flex items-center space-x-1 sm:space-x-2 min-w-max'>
                   {PORTAL_MENU.map((menuItem) => {
                     // 🔐 권한별 메뉴 노출 조건 (요구사항에 따라 수정)
                     
@@ -406,12 +406,12 @@ const Header: React.FC = () => {
               <LanguageSelector />
             </div>
 
-            {/* 모바일 햄버거 메뉴 - 나중에 표시 */}
+            {/* 모바일 햄버거 메뉴 - 모바일과 태블릿에서 표시 */}
             <div className='md:hidden flex items-center justify-center h-8 sm:h-10'>
               <MobileNavigationMenu />
             </div>
 
-            {/* 프로필/로그인 버튼 - 데스크톱에서만 표시 (모바일은 MobileNavigationMenu가 처리) */}
+            {/* 프로필/로그인 버튼 - 데스크탑에서만 표시 (모바일/태블릿은 MobileNavigationMenu가 처리) */}
             <div className='hidden md:flex items-center justify-center h-8 sm:h-10'>
               {stableAuthState.showLoading ? (
                 // 로딩 중일 때 shimmer 효과
@@ -420,7 +420,7 @@ const Header: React.FC = () => {
                 // 인증된 사용자 영역
                 <Link 
                   href='/mypage' 
-                  className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0'
+                  className='block w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-lg overflow-hidden'
                   prefetch={true}
                   onClick={() => handleLinkClick('/mypage')}
                 >
@@ -430,14 +430,14 @@ const Header: React.FC = () => {
                   ) : userInfo.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userInfo.avatar_url}
-                      width={40} // sm 크기에 맞춤
+                      width={40} // 데스크탑 기준 40px
                       height={40}
                       borderRadius={8}
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <DefaultAvatar 
-                      width={40} // sm 크기에 맞춤
+                      width={40} // 데스크탑 기준 40px
                       height={40} 
                       className="w-full h-full"
                     />

@@ -80,13 +80,21 @@ export function SafeAvatar({
     ${className}
   `.trim();
 
+  // className에 크기 덮어쓰기가 있는지 확인
+  const hasCustomSize = className.includes('!w-full') && className.includes('!h-full');
+  
+  // 로딩 플레이스홀더용 클래스 (크기 덮어쓰기 반영)
+  const loadingClasses = hasCustomSize 
+    ? `rounded-full object-cover bg-gray-200 !w-full !h-full ${className.replace(sizeClasses[size], '').trim()}`
+    : baseClasses;
+
   return (
     <div className="relative inline-block">
       {/* 로딩 중 표시 */}
       {isLoading && !shouldUseFallback && (
         <div 
           className={`
-            ${baseClasses} 
+            ${loadingClasses} 
             animate-pulse bg-gray-300 
             flex items-center justify-center
           `}

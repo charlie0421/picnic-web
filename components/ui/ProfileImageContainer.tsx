@@ -1,5 +1,4 @@
 import React from 'react';
-import { SafeAvatar, SimpleAvatar } from './SafeAvatar';
 
 interface ProfileImageContainerProps {
   avatarUrl: string;
@@ -16,26 +15,20 @@ export const ProfileImageContainer: React.FC<ProfileImageContainerProps> = ({
   borderRadius = 0,
   className = ''
 }) => {
-  // 크기에 따라 적절한 size 선택
-  const getSize = (width: number) => {
-    if (width <= 32) return 'sm';
-    if (width <= 48) return 'md';
-    if (width <= 64) return 'lg';
-    return 'xl';
-  };
-
-  const size = getSize(width);
-  
   return (
     <div 
       style={{ borderRadius, overflow: 'hidden' }}
       className={className}
     >
-      <SafeAvatar
+      <img
         src={avatarUrl}
-        size={size}
-        className="object-cover"
         alt="프로필 이미지"
+        className="w-full h-full object-cover rounded-full bg-gray-200"
+        loading="lazy"
+        onError={(e) => {
+          // 이미지 로딩 실패 시 기본 이미지로 대체
+          e.currentTarget.src = '/images/default-avatar.png';
+        }}
       />
     </div>
   );

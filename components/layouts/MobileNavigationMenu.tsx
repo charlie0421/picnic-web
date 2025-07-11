@@ -103,30 +103,31 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
         {/* 프로필/햄버거 통합 버튼 */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className='relative hover:bg-gray-100 rounded-lg transition-colors p-1'
+          className='relative hover:bg-gray-100 rounded-lg transition-colors w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center'
           aria-label={t('common.menu.openMenu')}
           aria-expanded={isOpen}
         >
           {stableAuthState.showLoading ? (
             // 로딩 중일 때 shimmer 효과
-            <div className="w-8 h-8 rounded-lg shimmer-effect" />
+            <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
           ) : stableAuthState.showUserArea ? (
             // 인증된 사용자 - 프로필 이미지
             profileImageLoading ? (
-              <div className="w-8 h-8 rounded-lg shimmer-effect" />
+              <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
             ) : userInfo.avatar_url ? (
               <ProfileImageContainer
                 avatarUrl={userInfo.avatar_url}
-                width={32}
-                height={32}
+                width={40} // 태블릿 크기에 맞춤
+                height={40}
                 borderRadius={8}
+                className="w-full h-full object-cover"
               />
             ) : (
-              <DefaultAvatar width={32} height={32} />
+              <DefaultAvatar width={40} height={40} className="w-full h-full" />
             )
           ) : (
             // 미인증 사용자 - User 아이콘
-            <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg">
+            <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
               <User className="w-5 h-5 text-gray-600" />
             </div>
           )}
@@ -145,12 +146,12 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                   {userInfo.avatar_url ? (
                     <ProfileImageContainer
                       avatarUrl={userInfo.avatar_url}
-                      width={40}
-                      height={40}
+                      width={48} // 드롭다운에서는 더 큰 크기
+                      height={48}
                       borderRadius={8}
                     />
                   ) : (
-                    <DefaultAvatar width={40} height={40} />
+                    <DefaultAvatar width={48} height={48} />
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
@@ -219,6 +220,18 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        .shimmer-effect {
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+      `}</style>
     </div>
   );
 };
