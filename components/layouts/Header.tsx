@@ -393,14 +393,14 @@ const Header: React.FC = () => {
           </div>
 
           {/* 우측 메뉴 - 항상 표시 */}
-          <div className='flex items-center space-x-2 sm:space-x-3 flex-shrink-0'>
-            {/* 모바일 네비게이션 메뉴 - 중형 화면 미만에서만 표시 */}
-            <div className='md:hidden flex-shrink-0'>
+          <div className='flex items-center space-x-3'>
+            {/* 모바일 햄버거 메뉴 - 먼저 표시 */}
+            <div className='md:hidden'>
               <MobileNavigationMenu />
             </div>
 
-            {/* 언어 선택기 */}
-            <div className='flex-shrink-0'>
+            {/* 언어 선택기 - 나중에 표시, 모든 화면에서 표시 */}
+            <div className='flex items-center'>
               <LanguageSelector />
             </div>
 

@@ -220,21 +220,6 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             <User className="w-5 h-5 text-gray-700" />
           </div>
         )}
-        
-        {/* 상태 표시 뱃지 */}
-        {!isOpen && (
-          !stableAuthState.showUserArea ? (
-            // 미인증 사용자: 느낌표 뱃지
-            <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
-              !
-            </span>
-          ) : visibleMenuItems.length > 1 ? (
-            // 인증 사용자: 메뉴 개수 뱃지 (메뉴가 2개 이상일 때만)
-            <span className="absolute -top-1 -right-1 bg-primary-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
-              {visibleMenuItems.length}
-            </span>
-          ) : null
-        )}
       </button>
 
       {/* 드롭다운 메뉴 */}
