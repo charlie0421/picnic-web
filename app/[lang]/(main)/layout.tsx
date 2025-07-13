@@ -119,12 +119,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               <div className='flex justify-center py-1 sm:py-2'>
                 <ExclusiveOpenBadge />
               </div>
-              {/* 서브 메뉴 */}
-              <div className='bg-gray-50 border-b'>
-                <div className='container mx-auto px-0'>
-                  <Menu />
+              {/* 서브 메뉴 - 이용약관, 개인정보처리방침 페이지에서는 숨김 */}
+              {!pathname.includes('/terms') && !pathname.includes('/privacy') && (
+                <div className='bg-gray-50 border-b'>
+                  <div className='container mx-auto px-0'>
+                    <Menu />
+                  </div>
                 </div>
-              </div>
+              )}
               {/* 메인 콘텐츠 */}
               {children}
             </div>
