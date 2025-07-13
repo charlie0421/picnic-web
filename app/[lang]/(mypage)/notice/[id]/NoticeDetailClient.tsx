@@ -97,7 +97,7 @@ const NoticeDetailClient = ({ lang, translations }: NoticeDetailClientProps) => 
 
   if (!notice) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-md p-6">
           <p className="text-gray-600">{t('notice_not_found') || '공지사항을 찾을 수 없습니다.'}</p>
           <Link href={`/${currentLang}/notice`} className="text-primary-600 hover:underline mt-4 inline-block">
@@ -109,7 +109,7 @@ const NoticeDetailClient = ({ lang, translations }: NoticeDetailClientProps) => 
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6">
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6">
           <Link href={`/${currentLang}/notice`} className="text-primary-600 hover:underline">

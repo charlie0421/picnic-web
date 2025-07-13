@@ -174,8 +174,9 @@ export const VoteCard = React.memo(
                   vote={vote} 
                   mode="list" 
                   onNavigateToDetail={() => {
-                    // NavigationLink가 이미 네비게이션을 처리하므로 여기서는 빈 함수
-                    // 실제 네비게이션은 상위 NavigationLink에서 처리됨
+                    // VoteRankCard 클릭 시 투표 상세로 이동
+                    // NavigationLink의 href와 같은 경로로 프로그래매틱 네비게이션
+                    window.location.href = `/vote/${vote.id}`;
                   }} 
                 />
             </div>

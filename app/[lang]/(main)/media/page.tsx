@@ -9,7 +9,7 @@ import { MediaListFetcher } from '@/components/server/media';
  */
 export default function MediaPage() {
   return (
-    <main className='container mx-auto px-4 py-8'>
+    <main className='container mx-auto px-4 py-6'>
       <MediaListFetcher className="mt-4" />
     </main>
   );

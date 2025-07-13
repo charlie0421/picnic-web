@@ -37,7 +37,7 @@ export default async function TermsPage({ params }: TermsPageProps) {
   };
 
   return (
-    <div className="w-full px-1 py-4">
+    <div className="w-full px-1 py-6">
       <div className="bg-white rounded-lg shadow-md p-3 sm:p-4">
         {/* 페이지 제목 */}
         <div className="mb-8 border-b border-gray-200 pb-6">

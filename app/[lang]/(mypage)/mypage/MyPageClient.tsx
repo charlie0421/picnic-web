@@ -246,7 +246,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
   // 게스트 상태일 때 로그인 유도 UI 렌더링
   if (isGuest) {
     return (
-      <div className='container mx-auto px-4 py-4 max-w-4xl'>
+      <div className='container mx-auto px-4 py-6'>
         {/* 게스트 환영 헤더 */}
         <div className='bg-gradient-to-r from-primary-500 to-primary-700 rounded-lg shadow-md p-6 mb-4 text-white text-center'>
           <div className='flex items-center justify-center mb-3'>
@@ -381,7 +381,7 @@ export default function MyPageClient({ initialUser, initialUserProfile, translat
 
   // 로그인된 사용자용 기존 UI
   return (
-    <div className='container mx-auto px-4 py-4 max-w-4xl'>
+    <div className='container mx-auto px-4 py-6'>
       {/* 상단 헤더 */}
       <div className='bg-white rounded-lg shadow-md p-4 mb-4'>
         <div className='flex flex-col md:flex-row items-center gap-4'>

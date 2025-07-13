@@ -31,4 +31,13 @@ export { default as VoteDataExample } from './VoteDataExample';
 
 // 스켈레톤 컴포넌트들
 export { default as BannerSkeleton } from './banner/BannerSkeleton';
-export { default as VoteListSkeleton } from './vote/VoteListSkeleton'; 
+export { default as VoteListSkeleton } from './vote/VoteListSkeleton';
+
+// 마이페이지 스켈레톤 컴포넌트들
+export { default as MyPageSkeleton } from './mypage/MyPageSkeleton';
+export { default as NoticeSkeleton } from './mypage/NoticeSkeleton';
+export { default as FAQSkeleton } from './mypage/FAQSkeleton';
+export { default as VoteHistorySkeleton } from './mypage/VoteHistorySkeleton';
+export { default as CommentsSkeleton } from './mypage/CommentsSkeleton';
+export { default as PostsSkeleton } from './mypage/PostsSkeleton';
+export { default as RechargeHistorySkeleton } from './mypage/RechargeHistorySkeleton'; 

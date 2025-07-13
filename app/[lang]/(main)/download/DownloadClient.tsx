@@ -131,7 +131,7 @@ export default function DownloadClient({
   return (
     <div className='min-h-screen bg-gradient-to-br from-slate-100 via-gray-100 to-stone-100'>
       {/* 메인 콘텐츠 */}
-      <div className='container mx-auto px-4 py-8'>
+      <div className='container mx-auto px-4 py-6'>
         {/* 헤더 섹션 */}
         <div className='text-center mb-12'>
           <h1 className='text-4xl md:text-6xl font-bold text-gray-900 mb-4 drop-shadow-sm'>

@@ -29,7 +29,7 @@ export default async function StarCandyPage({ params }: { params: Promise<{ lang
           }),
         }}
       />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-6">
         <section>
           <StarCandyProductsFetcherServer />
         </section>

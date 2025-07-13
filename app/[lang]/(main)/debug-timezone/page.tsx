@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function DebugTimezonePage() {
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-6">
       <TimeZoneDebug />
     </div>
   );

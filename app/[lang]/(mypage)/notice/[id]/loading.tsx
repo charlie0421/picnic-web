@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function NoticeDetailLoading() {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6">
       <div className="bg-white rounded-lg shadow-md p-6">
         {/* 뒤로 가기 버튼 스켈레톤 */}
         <div className="mb-6">

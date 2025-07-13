@@ -326,17 +326,24 @@ export function VoteRankCard({
             }
           : mode === 'list' && onNavigateToDetail
           ? {
-              scale: 1.02,
-              transition: { duration: 0.15 },
+              // 투표 리스트 모드에서는 애니메이션 최소화
+              scale: 1.01,
+              transition: { duration: 0.1 },
             }
           : {}
       }
       whileTap={
         (onVoteChange || onAuthenticatedVote || onNavigateToDetail)
-          ? {
-              scale: 0.98,
-              transition: { duration: 0.1 },
-            }
+          ? mode === 'detail'
+            ? {
+                scale: 0.98,
+                transition: { duration: 0.1 },
+              }
+            : {
+                // 투표 리스트 모드에서는 tap 애니메이션 최소화
+                scale: 0.99,
+                transition: { duration: 0.05 },
+              }
           : {}
       }
       transition={{

@@ -12,7 +12,7 @@ export default function VotePageClient() {
   const { selectedStatus, selectedArea } = useVoteFilterStore();
 
   return (
-    <main className="container mx-auto px-4 py-8 space-y-8">
+    <main className="container mx-auto px-4 py-6 space-y-8">
       {/* 투표 섹션 */}
       <section>
         <VoteList

@@ -186,7 +186,7 @@ const NoticePageClient: React.FC<Props> = ({ lang, translations }) => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-8 text-gray-900">
             {translations.page_title_notice}
@@ -209,7 +209,7 @@ const NoticePageClient: React.FC<Props> = ({ lang, translations }) => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-8 text-gray-900">
             {translations.page_title_notice}
@@ -232,7 +232,7 @@ const NoticePageClient: React.FC<Props> = ({ lang, translations }) => {
   if (showTestData) {
     console.log('🧪 [Notice] 테스트 데이터 표시 중');
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-8 text-gray-900">
             {translations.page_title_notice} (테스트 모드)
@@ -279,7 +279,7 @@ const NoticePageClient: React.FC<Props> = ({ lang, translations }) => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 text-gray-900">
           {translations.page_title_notice}

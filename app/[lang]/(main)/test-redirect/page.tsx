@@ -4,7 +4,7 @@ import { AuthGuardExamples } from '@/components/ui/Dialog/examples/AuthGuardExam
 
 export default function TestRedirectPage() {
   return (
-    <div className='container mx-auto py-8 max-w-4xl'>
+    <div className='container mx-auto py-6 max-w-4xl'>
       <h1 className='text-3xl font-bold mb-8 text-center'>
         리다이렉트 플로우 테스트
       </h1>
