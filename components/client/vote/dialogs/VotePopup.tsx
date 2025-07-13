@@ -57,8 +57,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
     }
   }, [isOpen, userProfile, userBalance, isLoadingBalance, balanceError, user, isAuthenticated, voteId, voteItemId, artistName]);
 
-  // 10000개 제한
-  const MAX_VOTE_LIMIT = 10000;
+
 
   // 사용자 잔액 로드
   useEffect(() => {
@@ -148,9 +147,8 @@ const VotePopup: React.FC<VotePopupProps> = ({
   const handleUseAllChange = useCallback((checked: boolean) => {
     setUseAllVotes(checked);
     if (checked && userBalance) {
-      // 보유한 전체 투표권을 10,000개 제한 내에서 설정
-      const maxAmount = Math.min(userBalance.totalAvailable, MAX_VOTE_LIMIT);
-      setVoteAmount(maxAmount);
+      // 보유한 전체 투표권 설정
+      setVoteAmount(userBalance.totalAvailable);
     } else {
       setVoteAmount(1);
     }
@@ -160,7 +158,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
   const handleAmountChange = useCallback((amount: number) => {
     if (!userBalance) return;
     
-    const maxAmount = Math.min(userBalance.totalAvailable, MAX_VOTE_LIMIT);
+    const maxAmount = userBalance.totalAvailable;
     const newAmount = Math.max(1, Math.min(amount, maxAmount));
     setVoteAmount(newAmount);
     
@@ -471,7 +469,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                   inputMode="numeric"
                   pattern="[0-9]*"
                   min="1"
-                  max={userBalance ? Math.min(userBalance.totalAvailable, MAX_VOTE_LIMIT) : MAX_VOTE_LIMIT}
+                  max={userBalance ? userBalance.totalAvailable : undefined}
                   value={voteAmount}
                   onChange={handleInputChange}
                   onBlur={() => {
@@ -486,7 +484,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                 <div className="absolute inset-y-0 right-0 flex flex-col">
                   <button
                     onClick={() => handleAmountChange(voteAmount + 1)}
-                    disabled={!userBalance || voteAmount >= Math.min(userBalance.totalAvailable, MAX_VOTE_LIMIT)}
+                    disabled={!userBalance || voteAmount >= userBalance.totalAvailable}
                     className="flex-1 px-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-tr-xl transition-colors"
                   >
                     ▲
@@ -513,23 +511,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
               </label>
             </motion.div>
 
-            {/* 제한 안내 */}
-            <motion.div
-              className="bg-primary/10 p-3 rounded-lg border border-primary/20"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              <div className="flex items-start space-x-2">
-                <svg className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-                <div>
-                  <div className="font-medium text-primary">{t('vote_popup_max_limit_title')}</div>
-                  <div className="text-sm text-primary/80 font-medium">{t('vote_popup_max_limit')}</div>
-                </div>
-              </div>
-            </motion.div>
+
 
             {/* 에러 메시지 */}
             <AnimatePresence>
