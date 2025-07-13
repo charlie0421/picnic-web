@@ -18,6 +18,8 @@ interface RankingViewProps {
   showVoteChange?: boolean;
   onVoteChange?: (itemId: string | number, newTotal: number) => void;
   keyPrefix?: string;
+  mode?: 'list' | 'detail'; // 투표 리스트 vs 투표 상세 모드
+  onNavigateToDetail?: (voteId?: string | number) => void; // 투표 상세로 이동
 }
 
 export const RankingView: React.FC<RankingViewProps> = ({
@@ -25,7 +27,9 @@ export const RankingView: React.FC<RankingViewProps> = ({
   disabled = false,
   showVoteChange = false,
   onVoteChange,
-  keyPrefix = 'ranking'
+  keyPrefix = 'ranking',
+  mode = 'detail', // 기본값은 detail (기존 동작 유지)
+  onNavigateToDetail
 }) => {
   const { t } = useLanguageStore();
   
@@ -101,8 +105,10 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[0].isAnimating && isInteractionEnabled}
                     voteChange={topItems[0].voteChange}
                     voteTotal={topItems[0].vote_total ?? 0}
-                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[0])}
+                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[0]) : undefined}
                     enableMotionAnimations={true}
+                    mode={mode}
+                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -122,8 +128,10 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[1].isAnimating && isInteractionEnabled}
                     voteChange={topItems[1].voteChange}
                     voteTotal={topItems[1].vote_total ?? 0}
-                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[1])}
+                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[1]) : undefined}
                     enableMotionAnimations={true}
+                    mode={mode}
+                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -155,8 +163,10 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[1].isAnimating && isInteractionEnabled}
                     voteChange={topItems[1].voteChange}
                     voteTotal={topItems[1].vote_total ?? 0}
-                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[1])}
+                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[1]) : undefined}
                     enableMotionAnimations={true}
+                    mode={mode}
+                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -178,8 +188,10 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[0].isAnimating && isInteractionEnabled}
                     voteChange={topItems[0].voteChange}
                     voteTotal={topItems[0].vote_total ?? 0}
-                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[0])}
+                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[0]) : undefined}
                     enableMotionAnimations={true}
+                    mode={mode}
+                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -201,8 +213,10 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[2].isAnimating && isInteractionEnabled}
                     voteChange={topItems[2].voteChange}
                     voteTotal={topItems[2].vote_total ?? 0}
-                    onAuthenticatedVote={createAuthenticatedVoteHandler(topItems[2])}
+                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[2]) : undefined}
                     enableMotionAnimations={true}
+                    mode={mode}
+                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>

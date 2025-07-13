@@ -19,11 +19,15 @@ interface OngoingVoteItemsProps {
     itemId: string | number,
     newTotal: number,
   ) => void;
+  mode?: 'list' | 'detail'; // 투표 리스트 vs 투표 상세 모드
+  onNavigateToDetail?: (voteId?: string | number) => void; // 투표 상세로 이동
 }
 
 export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   vote,
   onVoteChange,
+  mode = 'detail', // 기본값은 detail (기존 동작 유지)
+  onNavigateToDetail,
 }) => {
   const { t } = useLanguageStore();
   const [voteItems, setVoteItems] = useState<EnhancedVoteItem[]>([]);
@@ -152,6 +156,8 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
           showVoteChange={true}
           onVoteChange={onVoteChange ? handleVoteChange : undefined}
           keyPrefix='ongoing'
+          mode={mode}
+          onNavigateToDetail={onNavigateToDetail ? () => onNavigateToDetail(vote.id) : undefined}
         />
       </div>
     </div>

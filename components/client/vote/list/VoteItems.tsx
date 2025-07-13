@@ -15,6 +15,8 @@ import { UpcomingVoteItems } from './UpcomingVoteItems';
 
 interface VoteItemsProps {
   vote: Vote & { voteItem?: Array<VoteItem & { artist?: any }> };
+  mode?: 'list' | 'detail'; // 투표 리스트 vs 투표 상세 모드
+  onNavigateToDetail?: (voteId?: string | number) => void; // 투표 상세로 이동
 }
 
 /**
@@ -25,7 +27,7 @@ interface VoteItemsProps {
  * 1. 이벤트 핸들러 사용
  * 2. useRef, useCallback 등 React 훅 사용
  */
-export const VoteItems = ({ vote }: VoteItemsProps) => {
+export const VoteItems = ({ vote, mode = 'list', onNavigateToDetail }: VoteItemsProps) => {
   const [displayStatus, setDisplayStatus] = useState<VoteStatus>(
     VOTE_STATUS.UPCOMING,
   );
@@ -57,7 +59,7 @@ export const VoteItems = ({ vote }: VoteItemsProps) => {
       return <UpcomingVoteItems vote={vote} />;
     case VOTE_STATUS.ONGOING:
       // 메인 투표 리스트에서는 onVoteChange를 전달하지 않아 투표 기능 비활성화
-      return <OngoingVoteItems vote={vote} />;
+      return <OngoingVoteItems vote={vote} mode={mode} onNavigateToDetail={onNavigateToDetail} />;
     case VOTE_STATUS.COMPLETED:
       return <CompletedVoteItems vote={vote} />;
     default:

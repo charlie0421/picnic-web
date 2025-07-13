@@ -30,6 +30,9 @@ export interface VoteRankCardProps {
   onVoteChange?: (newTotal: number) => void;
   onAuthenticatedVote?: () => Promise<void>;
   enableMotionAnimations?: boolean;
+  // 새로운 props 추가
+  mode?: 'list' | 'detail'; // 투표 리스트 모드 vs 투표 상세 모드
+  onNavigateToDetail?: () => void; // 투표 상세로 이동하는 함수
 }
 
 export function VoteRankCard({
@@ -43,6 +46,8 @@ export function VoteRankCard({
   onVoteChange,
   onAuthenticatedVote,
   enableMotionAnimations = true,
+  mode = 'detail', // 기본값은 detail (기존 동작 유지)
+  onNavigateToDetail,
 }: VoteRankCardProps) {
   const { currentLanguage } = useLanguageStore();
   const [currentVoteChange, setCurrentVoteChange] = useState(voteChange);
@@ -63,7 +68,7 @@ export function VoteRankCard({
     }
   }, [voteChange]);
 
-  // 카드 클릭 핸들러 - 인증 처리를 상위 컴포넌트에 위임
+  // 카드 클릭 핸들러 - 모드에 따라 다른 동작 수행
   const handleCardClick = async (event: React.MouseEvent) => {
     // 이벤트 버블링 방지 - 상위 Link 컴포넌트의 클릭 이벤트가 실행되지 않도록 함
     event.stopPropagation();
@@ -71,10 +76,24 @@ export function VoteRankCard({
     console.log('🎯 [VoteRankCard] 카드 클릭됨:', {
       itemId: item.id,
       rank,
+      mode,
       hasOnVoteChange: !!onVoteChange,
       hasOnAuthenticatedVote: !!onAuthenticatedVote,
+      hasOnNavigateToDetail: !!onNavigateToDetail,
       timestamp: new Date().toISOString(),
     });
+
+    // 투표 리스트 모드: 애니메이션 없이 투표 상세로 이동
+    if (mode === 'list') {
+      console.log('📋 [VoteRankCard] 리스트 모드 - 투표 상세로 이동');
+      if (onNavigateToDetail) {
+        onNavigateToDetail();
+      }
+      return;
+    }
+
+    // 투표 상세 모드: 기존 동작 (투표 다이얼로그 표시)
+    console.log('📊 [VoteRankCard] 상세 모드 - 투표 처리');
 
     // onAuthenticatedVote가 있으면 우선 사용 (인증 처리가 상위에서 완료됨)
     if (onAuthenticatedVote) {
@@ -182,7 +201,11 @@ export function VoteRankCard({
                 isUpdated ? 'border-green-400 shadow-green-200' : 'border-amber-300'
               } shadow-lg`
         } ${
-          onVoteChange || onAuthenticatedVote ? 'cursor-pointer hover:scale-105' : 'cursor-default'
+          onVoteChange || onAuthenticatedVote || onNavigateToDetail 
+            ? mode === 'list' 
+              ? 'cursor-pointer hover:scale-102' 
+              : 'cursor-pointer hover:scale-105' 
+            : 'cursor-default'
         } ${className}`}
         onClick={handleCardClick}
       >
@@ -282,7 +305,7 @@ export function VoteRankCard({
           : `bg-gradient-to-br from-amber-50 to-amber-100 border ${
               isUpdated ? 'border-green-400 shadow-green-200' : 'border-amber-300'
             } shadow-lg`
-      } ${onVoteChange || onAuthenticatedVote ? 'cursor-pointer' : 'cursor-default'} ${className}`}
+      } ${onVoteChange || onAuthenticatedVote || onNavigateToDetail ? 'cursor-pointer' : 'cursor-default'} ${className}`}
       onClick={handleCardClick}
       initial={{ scale: 1, y: 0 }}
       animate={{
@@ -295,16 +318,21 @@ export function VoteRankCard({
           : '0 4px 15px -3px rgba(0, 0, 0, 0.1)',
       }}
       whileHover={
-        onVoteChange || onAuthenticatedVote
+        (onVoteChange || onAuthenticatedVote || onNavigateToDetail) && mode === 'detail'
           ? {
               scale: 1.05,
               y: -4,
               transition: { duration: 0.2 },
             }
+          : mode === 'list' && onNavigateToDetail
+          ? {
+              scale: 1.02,
+              transition: { duration: 0.15 },
+            }
           : {}
       }
       whileTap={
-        onVoteChange || onAuthenticatedVote
+        (onVoteChange || onAuthenticatedVote || onNavigateToDetail)
           ? {
               scale: 0.98,
               transition: { duration: 0.1 },

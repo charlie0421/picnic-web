@@ -170,7 +170,14 @@ export const VoteCard = React.memo(
             </div>
 
             <div className='flex-1'>
-                <VoteItems vote={vote} />
+                <VoteItems 
+                  vote={vote} 
+                  mode="list" 
+                  onNavigateToDetail={() => {
+                    // NavigationLink가 이미 네비게이션을 처리하므로 여기서는 빈 함수
+                    // 실제 네비게이션은 상위 NavigationLink에서 처리됨
+                  }} 
+                />
             </div>
 
             {vote.voteReward && vote.voteReward.length > 0 && (

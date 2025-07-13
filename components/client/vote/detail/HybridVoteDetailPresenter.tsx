@@ -1562,6 +1562,12 @@ export function HybridVoteDetailPresenter({
                         className='w-full h-40 sm:h-44 md:h-48'
                         voteTotal={rankedVoteItems[0].vote_total || 0}
                         enableMotionAnimations={true}
+                        mode="detail"
+                        onAuthenticatedVote={async () => {
+                          if (canVote) {
+                            await handleCardClick(rankedVoteItems[0]);
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -1575,13 +1581,19 @@ export function HybridVoteDetailPresenter({
                   <div className='relative w-full max-w-[85px] sm:max-w-[100px] md:max-w-[110px]'>
                     <div className='absolute -inset-0.5 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
                     <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
-                      <VoteRankCard
-                        item={rankedVoteItems[1]}
-                        rank={2}
-                        className='w-full h-32 sm:h-36 md:h-40'
-                        voteTotal={rankedVoteItems[1].vote_total || 0}
-                        enableMotionAnimations={true}
-                      />
+                                              <VoteRankCard
+                          item={rankedVoteItems[1]}
+                          rank={2}
+                          className='w-full h-32 sm:h-36 md:h-40'
+                          voteTotal={rankedVoteItems[1].vote_total || 0}
+                          enableMotionAnimations={true}
+                          mode="detail"
+                          onAuthenticatedVote={async () => {
+                            if (canVote) {
+                              await handleCardClick(rankedVoteItems[1]);
+                            }
+                          }}
+                        />
                     </div>
                   </div>
                   <div className='mt-1 text-center'>
@@ -1604,6 +1616,12 @@ export function HybridVoteDetailPresenter({
                           className='w-20 sm:w-24 md:w-28 lg:w-32'
                           voteTotal={rankedVoteItems[1].vote_total || 0}
                           enableMotionAnimations={true}
+                          mode="detail"
+                          onAuthenticatedVote={async () => {
+                            if (canVote) {
+                              await handleCardClick(rankedVoteItems[1]);
+                            }
+                          }}
                         />
                       </div>
                     </div>
@@ -1628,6 +1646,12 @@ export function HybridVoteDetailPresenter({
                           className='w-24 sm:w-32 md:w-36 lg:w-40'
                           voteTotal={rankedVoteItems[0].vote_total || 0}
                           enableMotionAnimations={true}
+                          mode="detail"
+                          onAuthenticatedVote={async () => {
+                            if (canVote) {
+                              await handleCardClick(rankedVoteItems[0]);
+                            }
+                          }}
                         />
                       </div>
                     </div>
@@ -1649,6 +1673,12 @@ export function HybridVoteDetailPresenter({
                           className='w-18 sm:w-20 md:w-24 lg:w-28'
                           voteTotal={rankedVoteItems[2].vote_total || 0}
                           enableMotionAnimations={true}
+                          mode="detail"
+                          onAuthenticatedVote={async () => {
+                            if (canVote) {
+                              await handleCardClick(rankedVoteItems[2]);
+                            }
+                          }}
                         />
                       </div>
                     </div>
