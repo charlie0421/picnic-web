@@ -23,7 +23,9 @@ export const ProfileImageContainer: React.FC<ProfileImageContainerProps> = ({
       <img
         src={avatarUrl}
         alt="프로필 이미지"
-        className="w-full h-full object-cover rounded-full bg-gray-200"
+        width={width}
+        height={height}
+        className="object-cover rounded-full bg-gray-200"
         loading="lazy"
         onError={(e) => {
           // 이미지 로딩 실패 시 기본 이미지로 대체
