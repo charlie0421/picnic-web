@@ -468,7 +468,7 @@ function LoginContentInner() {
     return (
       <div className='flex flex-col justify-center items-center min-h-[60vh] sm:min-h-[70vh]'>
         <div className='animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary-500 mb-3 sm:mb-4'></div>
-        <p className='text-gray-600 text-sm sm:text-base'>로딩 중...</p>
+        <p className='text-gray-600 text-sm sm:text-base'>{t('login_loading_text')}</p>
       </div>
     );
   }
@@ -483,28 +483,28 @@ function LoginContentInner() {
               <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z' />
             </svg>
           </div>
-          <h3 className='text-xl font-semibold text-gray-900 mb-4'>서비스 일시 중단</h3>
+          <h3 className='text-xl font-semibold text-gray-900 mb-4'>{t('login_service_maintenance_title')}</h3>
           <p className='text-gray-600 mb-6'>{error}</p>
           <div className='space-y-3'>
             <button
               onClick={() => window.location.reload()}
               className='w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
             >
-              페이지 새로고침
+              {t('login_refresh_page')}
             </button>
             <button
               onClick={() => router.push('/')}
               className='w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors'
             >
-              홈으로 돌아가기
+              {t('login_home_button')}
             </button>
           </div>
           {process.env.NODE_ENV === 'development' && (
             <div className='mt-6 p-4 bg-red-50 rounded-lg border border-red-200 text-left'>
-              <h4 className='font-semibold text-red-800 mb-2'>개발자 정보:</h4>
+              <h4 className='font-semibold text-red-800 mb-2'>{t('login_developer_info_title')}:</h4>
               <div className='text-sm text-red-700 space-y-1'>
-                <p>• NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '❌ 누락'}</p>
-                <p>• NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '❌ 누락'}</p>
+                <p>• {t('login_env_url_label')}: {process.env.NEXT_PUBLIC_SUPABASE_URL ? '설정됨' : '❌ 누락'}</p>
+                <p>• {t('login_env_key_label')}: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '설정됨' : '❌ 누락'}</p>
               </div>
             </div>
           )}
@@ -522,23 +522,23 @@ function LoginContentInner() {
       <div className='flex flex-col justify-center items-center min-h-[400px]'>
         <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4'></div>
         <p className='text-gray-600'>
-          {!isInitialized ? '인증 시스템 초기화 중...' : '로딩 중...'}
+          {!isInitialized ? t('login_auth_system_initializing') : t('login_loading_text')}
         </p>
         
         {/* 🔍 디버깅 정보 (개발 환경에서만) */}
         {process.env.NODE_ENV === 'development' && (
           <>
             <div className='mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded border max-w-sm'>
-              <div className='font-semibold mb-2'>🔍 상태 확인:</div>
-              <div>• isInitialized: {String(isInitialized)}</div>
-              <div>• isLoading: {String(isLoading)}</div>
-              <div>• mounted: {String(mounted)}</div>
-              <div>• envCheckFailed: {String(envCheckFailed)}</div>
-              <div>• isAuthenticated: {String(isAuthenticated)}</div>
-              <div>• hasUser: {String(!!user)}</div>
-              <div>• hasUserProfile: {String(!!userProfile)}</div>
-              <div>• 환경체크: URL={String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}, KEY={String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
-              <div>• timestamp: {new Date().toISOString().split('.')[0]}</div>
+              <div className='font-semibold mb-2'>🔍 {t('login_debug_info_title')}:</div>
+              <div>• {t('login_is_initialized')}: {String(isInitialized)}</div>
+              <div>• {t('login_is_loading')}: {String(isLoading)}</div>
+              <div>• {t('login_mounted')}: {String(mounted)}</div>
+              <div>• {t('login_env_check_failed')}: {String(envCheckFailed)}</div>
+              <div>• {t('login_is_authenticated')}: {String(isAuthenticated)}</div>
+              <div>• {t('login_has_user')}: {String(!!user)}</div>
+              <div>• {t('login_has_user_profile')}: {String(!!userProfile)}</div>
+              <div>{t('login_env_check_info')}: URL={String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}, KEY={String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
+              <div>{t('login_timestamp')}: {new Date().toISOString().split('.')[0]}</div>
             </div>
             
             {/* 🔧 새로고침 버튼 */}
@@ -546,7 +546,7 @@ function LoginContentInner() {
               onClick={() => window.location.reload()} 
               className="mt-3 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
             >
-              🔄 새로고침
+              🔄 {t('login_refresh_button')}
             </button>
           </>
         )}
@@ -554,11 +554,11 @@ function LoginContentInner() {
         {process.env.NODE_ENV === 'development' && (
           <div className='mt-4 text-xs text-gray-500 text-center'>
             <p>
-              디버그: isInitialized={String(isInitialized)}, isLoading=
+              {t('login_debug_state_info')}: isInitialized={String(isInitialized)}, isLoading=
               {String(isLoading)}
             </p>
             <p className='mt-2'>
-              환경: URL={!!process.env.NEXT_PUBLIC_SUPABASE_URL}, KEY={!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}
+              {t('login_env_info')}: URL={!!process.env.NEXT_PUBLIC_SUPABASE_URL}, KEY={!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}
             </p>
           </div>
         )}
@@ -571,7 +571,7 @@ function LoginContentInner() {
     return (
       <div className='flex flex-col justify-center items-center min-h-[400px]'>
         <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mb-4'></div>
-        <p className='text-gray-600'>로그인 완료 - 페이지 이동 중...</p>
+        <p className='text-gray-600'>{t('login_complete_redirecting')}</p>
       </div>
     );
   }
@@ -583,25 +583,25 @@ function LoginContentInner() {
         <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md w-full">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">
-            인증 시스템 초기화 중
+            {t('login_auth_system_initializing')}
           </h2>
           <p className="text-gray-600 mb-4">
-            잠시만 기다려주세요...
+            {t('login_please_wait')}
           </p>
           
           {/* 🔍 디버깅 정보 (개발 환경에서만) */}
           {process.env.NODE_ENV === 'development' && (
             <>
               <div className="text-left text-xs text-gray-500 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
-                <div className="font-semibold mb-2">📊 상태 정보:</div>
-                <div>• isLoading: {String(isLoading)}</div>
-                <div>• isInitialized: {String(isInitialized)}</div>
-                <div>• isAuthenticated: {String(isAuthenticated)}</div>
-                <div>• hasUser: {String(!!user)}</div>
-                <div>• hasUserProfile: {String(!!userProfile)}</div>
-                <div>• hasSupabaseUrl: {String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
-                <div>• hasSupabaseKey: {String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
-                <div>• timestamp: {new Date().toISOString().split('.')[0]}</div>
+                <div className="font-semibold mb-2">{t('login_state_info_title')}:</div>
+                <div>• {t('login_is_loading')}: {String(isLoading)}</div>
+                <div>• {t('login_is_initialized')}: {String(isInitialized)}</div>
+                <div>• {t('login_is_authenticated')}: {String(isAuthenticated)}</div>
+                <div>• {t('login_has_user')}: {String(!!user)}</div>
+                <div>• {t('login_has_user_profile')}: {String(!!userProfile)}</div>
+                <div>{t('login_has_supabase_url')}: {String(!!process.env.NEXT_PUBLIC_SUPABASE_URL)}</div>
+                <div>{t('login_has_supabase_key')}: {String(!!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)}</div>
+                <div>{t('login_timestamp')}: {new Date().toISOString().split('.')[0]}</div>
               </div>
               
               {/* 🔧 강제 새로고침 버튼 */}
@@ -609,7 +609,7 @@ function LoginContentInner() {
                 onClick={() => window.location.reload()} 
                 className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
               >
-                🔄 새로고침
+                🔄 {t('login_refresh_button')}
               </button>
             </>
           )}
@@ -695,17 +695,19 @@ function LoginContentInner() {
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
                   </span>
-                  <span className='text-gray-800 font-semibold'>계정이 없으신가요?</span>
+                  <span className='text-gray-800 font-semibold'>{t('login_no_account_question')}</span>
                 </div>
                 <div className='text-gray-600 text-sm leading-relaxed max-w-sm mx-auto px-4'>
-                  <span className='inline-flex items-center space-x-1 whitespace-nowrap'>
-                    <span>위의</span>
-                    <span className='bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold'>소셜 로그인</span>
-                    <span>으로</span>
-                    <span className='bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold'>자동 회원가입</span>
-                    <span>됩니다</span>
-                    <span className='text-blue-600'>✨</span>
-                  </span>
+                  <div 
+                    className='inline-flex items-center space-x-1 whitespace-nowrap'
+                    dangerouslySetInnerHTML={{
+                      __html: t('login_auto_signup_description')
+                        .replace('<social>', '<span class="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">')
+                        .replace('</social>', '</span>')
+                        .replace('<signup>', '<span class="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent font-semibold">')
+                        .replace('</signup>', '</span>')
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -717,33 +719,33 @@ function LoginContentInner() {
           <div className='mt-6 sm:mt-8 p-3 sm:p-4 bg-gray-50/80 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-gray-200/50'>
             <details className='text-xs text-gray-700'>
               <summary className='font-semibold cursor-pointer hover:text-blue-600 transition-colors'>
-                🐛 디버그 정보 (클릭하여 펼치기)
+                🐛 {t('login_debug_info_title')} (👇 {t('login_click_to_expand')})
               </summary>
               <div className='mt-3 space-y-1 pl-4 border-l-2 border-blue-200'>
                 <div className='flex justify-between'>
-                  <span>mounted:</span>{' '}
+                  <span>{t('login_mounted')}:</span>{' '}
                   <code className='text-blue-600'>{String(mounted)}</code>
                 </div>
                 <div className='flex justify-between'>
-                  <span>isInitialized:</span>{' '}
+                  <span>{t('login_is_initialized')}:</span>{' '}
                   <code className='text-blue-600'>{String(isInitialized)}</code>
                 </div>
                 <div className='flex justify-between'>
-                  <span>isLoading:</span>{' '}
+                  <span>{t('login_is_loading')}:</span>{' '}
                   <code className='text-blue-600'>{String(isLoading)}</code>
                 </div>
                 <div className='flex justify-between'>
-                  <span>isAuthenticated:</span>{' '}
+                  <span>{t('login_is_authenticated')}:</span>{' '}
                   <code className='text-blue-600'>
                     {String(isAuthenticated)}
                   </code>
                 </div>
                 <div className='flex justify-between'>
-                  <span>hasUser:</span>{' '}
+                  <span>{t('login_has_user')}:</span>{' '}
                   <code className='text-blue-600'>{String(!!user)}</code>
                 </div>
                 <div className='flex justify-between'>
-                  <span>hasUserProfile:</span>{' '}
+                  <span>{t('login_has_user_profile')}:</span>{' '}
                   <code className='text-blue-600'>{String(!!userProfile)}</code>
                 </div>
               </div>
@@ -757,6 +759,7 @@ function LoginContentInner() {
 
 function LoginContent() {
   const router = useRouter();
+  const { t } = useLanguageStore();
 
   // 뒤로가기 핸들러
   const handleGoBack = () => {
@@ -776,7 +779,7 @@ function LoginContent() {
         <button
           onClick={handleGoBack}
           className='flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:bg-white group'
-          aria-label='뒤로가기'
+          aria-label={t('login_back_button')}
         >
           <ArrowLeft className='w-5 h-5 sm:w-6 sm:h-6 text-gray-600 group-hover:text-gray-800 transition-colors' />
         </button>
@@ -810,7 +813,7 @@ function LoginContent() {
             href='/' 
             className='text-gray-500 hover:text-gray-700 text-sm transition-colors duration-200 hover:underline'
           >
-            홈으로 돌아가기
+            {t('login_home_button')}
           </Link>
         </div>
       </div>
@@ -820,7 +823,7 @@ function LoginContent() {
           fallback={
             <div className='flex flex-col justify-center items-center min-h-[60vh] sm:min-h-[70vh]'>
               <div className='animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-t-2 border-b-2 border-primary-500 mb-3 sm:mb-4'></div>
-              <p className='text-gray-600 text-sm sm:text-base'>로딩 중...</p>
+              <p className='text-gray-600 text-sm sm:text-base'>{t('login_loading_text')}</p>
             </div>
           }
         >
