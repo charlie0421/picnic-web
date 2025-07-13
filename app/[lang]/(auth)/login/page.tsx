@@ -59,7 +59,7 @@ const debugLog = (message: string, data?: any) => {
 
 // SearchParams를 사용하는 컴포넌트
 function LoginContentInner() {
-  const { t } = useLanguageStore();
+  const { t, currentLanguage } = useLanguageStore();
   const { isAuthenticated, isLoading, isInitialized, user, userProfile } = useAuth();
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -666,7 +666,7 @@ function LoginContentInner() {
             </div>
             <div className='text-center mt-1'>
               <span className='text-blue-600 text-sm'>
-                {lastLoginInfo.providerDisplay} {t('login_recent_login_via')} • {formatLastLoginTime(lastLoginInfo.timestamp)}
+                {lastLoginInfo.providerDisplay} {t('login_recent_login_via')} • {formatLastLoginTime(lastLoginInfo.timestamp, currentLanguage)}
               </span>
             </div>
           </div>

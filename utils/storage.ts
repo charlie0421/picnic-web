@@ -1,3 +1,5 @@
+import { formatRelativeTime, type SupportedLanguage } from './date';
+
 /**
  * 최근 로그인 정보 타입
  */
@@ -54,25 +56,21 @@ export function setLastLoginInfo(loginInfo: LastLoginInfo): boolean {
   }
 
   try {
-    // 기존 저장된 정보 확인
-    const existingInfo = getLastLoginInfo();
-    
-    // 동일한 정보가 이미 저장되어 있는지 확인
-    if (existingInfo && 
-        existingInfo.provider === loginInfo.provider &&
-        existingInfo.userId === loginInfo.userId &&
-        existingInfo.providerDisplay === loginInfo.providerDisplay) {
-      
-      // 시간 차이가 1분 미만이면 중복 저장으로 간주하고 건너뜀
-      const timeDiff = Math.abs(new Date(loginInfo.timestamp).getTime() - new Date(existingInfo.timestamp).getTime());
-      if (timeDiff < 60000) { // 1분 = 60000ms
-        console.log('🔄 [Storage] 동일한 로그인 정보가 최근에 저장됨 - 중복 저장 건너뜀');
-        return true;
-      }
+    // 데이터 유효성 검사
+    if (!loginInfo.provider || !loginInfo.timestamp || !loginInfo.userId) {
+      console.warn('⚠️ [Storage] 잘못된 최근 로그인 정보:', loginInfo);
+      return false;
     }
+
+    const serialized = JSON.stringify(loginInfo);
+    localStorage.setItem(STORAGE_KEYS.LAST_LOGIN, serialized);
     
-    localStorage.setItem(STORAGE_KEYS.LAST_LOGIN, JSON.stringify(loginInfo));
-    console.log('💾 [Storage] 최근 로그인 정보 저장 완료:', loginInfo);
+    console.log('✅ [Storage] 최근 로그인 정보 저장 완료:', {
+      provider: loginInfo.provider,
+      userId: loginInfo.userId,
+      timestamp: loginInfo.timestamp
+    });
+    
     return true;
   } catch (error) {
     console.warn('⚠️ [Storage] 최근 로그인 정보 저장 실패:', error);
@@ -90,7 +88,7 @@ export function clearLastLoginInfo(): boolean {
 
   try {
     localStorage.removeItem(STORAGE_KEYS.LAST_LOGIN);
-    console.log('🗑️ [Storage] 최근 로그인 정보 삭제 완료');
+    console.log('✅ [Storage] 최근 로그인 정보 삭제 완료');
     return true;
   } catch (error) {
     console.warn('⚠️ [Storage] 최근 로그인 정보 삭제 실패:', error);
@@ -99,40 +97,31 @@ export function clearLastLoginInfo(): boolean {
 }
 
 /**
- * 최근 로그인 정보의 시간 포맷팅 (한국어)
+ * 최근 로그인 정보의 시간 포맷팅 (국제화 지원)
  */
-export function formatLastLoginTime(timestamp: string): string {
+export function formatLastLoginTime(timestamp: string, language: SupportedLanguage = 'ko'): string {
   try {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMinutes < 1) {
-      return '방금 전';
-    } else if (diffMinutes < 60) {
-      return `${diffMinutes}분 전`;
-    } else if (diffHours < 24) {
-      return `${diffHours}시간 전`;
-    } else if (diffDays < 7) {
-      return `${diffDays}일 전`;
-    } else {
-      return date.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    }
+    return formatRelativeTime(timestamp, language, {
+      useAbsolute: true,
+      absoluteThreshold: 7,
+      showTime: false
+    });
   } catch (error) {
     console.warn('⚠️ [Storage] 시간 포맷팅 실패:', error);
-    return '알 수 없음';
+    // 언어별 폴백 메시지
+    const fallbackMessages = {
+      ko: '알 수 없음',
+      en: 'Unknown',
+      ja: '不明',
+      zh: '未知',
+      id: 'Tidak diketahui'
+    };
+    return fallbackMessages[language] || fallbackMessages.ko;
   }
 }
 
 /**
- * 최근 로그인 정보가 특정 사용자의 것인지 확인
+ * 특정 사용자의 최근 로그인 정보인지 확인
  */
 export function isLastLoginForUser(userId: string): boolean {
   const lastLogin = getLastLoginInfo();
