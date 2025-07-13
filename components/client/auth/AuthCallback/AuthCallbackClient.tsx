@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef, useContext } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { handlePostLoginRedirect } from '@/utils/auth-redirect';
 import { GlobalLoadingContext } from '@/contexts/GlobalLoadingContext';
 
@@ -49,7 +48,6 @@ export default function AuthCallbackClient({
   const [mounted, setMounted] = useState(false); // 하이드레이션 완료 확인
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
-  const [processingStep, setProcessingStep] = useState<string>('인증 정보를 확인하고 있습니다...');
   
   // 🔧 중복 처리 방지
   const processedRef = useRef(false);
@@ -110,8 +108,6 @@ export default function AuthCallbackClient({
 
     const handleOAuthCallback = async () => {
       try {
-        setProcessingStep('OAuth 코드를 확인하고 있습니다...');
-        
         // OAuth 코드 확인
         const code = searchParams?.get('code');
         const oauthError = searchParams?.get('error');
@@ -144,7 +140,6 @@ export default function AuthCallbackClient({
           });
         }
         
-        setProcessingStep('서버에서 인증을 처리하고 있습니다...');
         debugLog('🔧 [OAuth] 서버 API로 토큰 교환 시도 (클라이언트 무한대기 회피)');
         
         // API 라우트를 통한 서버사이드 처리 (모든 환경 동일)
@@ -182,7 +177,6 @@ export default function AuthCallbackClient({
         const data = await response.json();
 
         if (data.success) {
-          setProcessingStep('인증이 완료되었습니다. 쿠키를 동기화하고 있습니다...');
           debugLog('✅ [AuthCallback] 서버사이드 OAuth 인증 성공');
           
           // 🔧 쿠키 동기화와 성공 처리를 병렬로 실행
@@ -213,8 +207,6 @@ export default function AuthCallbackClient({
           } else {
             debugLog('⚠️ [AuthCallback] 쿠키 동기화 실패, 하지만 진행:', syncResult.reason);
           }
-          
-          setProcessingStep('로그인이 완료되었습니다. 페이지로 이동 중...');
           
           // 🚀 즉시 로딩바 제거하지 않고 리다이렉션까지 유지
           debugLog('✅ [AuthCallback] OAuth 처리 완료, 리다이렉션까지 로딩바 유지');
@@ -252,7 +244,7 @@ export default function AuthCallbackClient({
               // 실제 리디렉션 실행
               setTimeout(() => {
                 window.removeEventListener('beforeunload', handleBeforeUnload);
-                debugLog('🚀 [AuthCallback] 로딩바 유지하면서 리다이렉션 실행');
+                debugLog('🚀 [AuthCallback] 로딩바 유지하면서 리디렉션 실행');
                 window.location.href = returnUrl;
               }, 200);
               
@@ -312,29 +304,10 @@ export default function AuthCallbackClient({
 
   // 🔧 하이드레이션 미스매치 방지: 서버와 클라이언트에서 동일한 UI 렌더링
   if (!mounted) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          {/* 하이드레이션 완료 전에는 서버와 동일한 UI */}
-          <div className="relative">
-            <Image
-              src="/images/logo.png"
-              alt="Picnic Loading"
-              width={80}
-              height={80}
-              priority
-              className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
-            />
-          </div>
-          <div className="mt-6 text-gray-600 text-sm font-medium animate-pulse">
-            인증 정보를 확인하고 있습니다...
-          </div>
-        </div>
-      </div>
-    );
+    return null; // 하이드레이션 완료 전에는 아무것도 렌더링하지 않음
   }
 
-  // UI 렌더링
+  // 에러 발생 시 UI
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
@@ -348,26 +321,10 @@ export default function AuthCallbackClient({
     );
   }
 
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        {/* 로고 아이콘 with 펄스 애니메이션 */}
-        <div className="relative">
-          <Image
-            src="/images/logo.png"
-            alt="Picnic Loading"
-            width={80}
-            height={80}
-            priority
-            className="w-20 h-20 rounded-full animate-pulse drop-shadow-lg object-cover"
-          />
-        </div>
-        
-        {/* 로딩 텍스트 */}
-        <div className="mt-6 text-gray-600 text-sm font-medium animate-pulse">
-          {processingStep}
-        </div>
-      </div>
-    </div>
-  );
+  // 로딩 중일 때는 전역 로딩바만 보여주고 추가 UI는 표시하지 않음
+  if (isProcessing) {
+    return null;
+  }
+
+  return null;
 }
