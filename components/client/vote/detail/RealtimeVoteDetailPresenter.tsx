@@ -17,6 +17,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 // Task 4에서 만든 리얼타임 컴포넌트들 import
 import { useVoteRealtime } from '@/hooks/useVoteRealtime';
@@ -301,22 +302,48 @@ export function RealtimeVoteDetailPresenter({
 
     setIsVoting(true);
     try {
-      // TODO: 실제 투표 API 호출
-      console.log('투표 실행:', {
+      // 실제 투표 API 호출
+      console.log('📤 [RealtimeVoteDetailPresenter] 투표 제출 시작:', {
         voteId: vote.id,
         voteItemId: voteCandidate.id,
         amount: voteAmount,
       });
 
-      // 임시: 로컬 상태 업데이트 (실제로는 리얼타임으로 업데이트됨)
-      // setVoteItems(prev => 
-      //   prev.map(item => 
-      //     item.id === voteCandidate.id 
-      //       ? { ...item, vote_total: (item.vote_total || 0) + voteAmount }
-      //       : item
-      //   )
-      // );
+      // 사용자 정보 확인 (실제 구현에서는 인증된 사용자 정보 사용)
+      const supabase = createBrowserSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user?.id) {
+        throw new Error('사용자 정보를 찾을 수 없습니다.');
+      }
 
+      // 투표 API 호출
+      const voteData = {
+        vote_id: vote.id,
+        vote_item_id: voteCandidate.id,
+        amount: voteAmount,
+        user_id: user.id,
+        total_bonus_remain: availableVotes,
+      };
+
+      const response = await fetch('https://api.picnic.fan/functions/v1/voting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.id}`,
+        },
+        body: JSON.stringify(voteData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || '투표 처리 중 오류가 발생했습니다.');
+      }
+
+      console.log('✅ [RealtimeVoteDetailPresenter] 투표 제출 성공:', result);
+
+      // 투표 성공 후 사용자 보유 투표량 감소
       setAvailableVotes(prev => Math.max(0, prev - voteAmount));
       setShowVoteModal(false);
       setVoteCandidate(null);

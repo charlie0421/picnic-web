@@ -573,7 +573,22 @@ export function HybridVoteDetailPresenter({
           total_votes: item.vote_total,
         }));
 
-        setVoteItems(transformedVoteItems as VoteItem[]);
+        // 변경 감지 및 하이라이트 적용
+        setVoteItems(prev => {
+          const newItems = transformedVoteItems as VoteItem[];
+          
+          // 변경된 아이템 감지 (투표수가 증가한 아이템)
+          prev.forEach(prevItem => {
+            const newItem = newItems.find(item => item.id === prevItem.id);
+            if (newItem && (newItem.vote_total || 0) > (prevItem.vote_total || 0)) {
+              console.log(`🔄 [${connectionState.mode}] 투표수 변경 감지: ${prevItem.id} (${prevItem.vote_total} → ${newItem.vote_total})`);
+              setItemHighlight(prevItem.id, true, 3000); // 3초간 하이라이트
+            }
+          });
+          
+          return newItems;
+        });
+        
         if (process.env.NODE_ENV === 'development') {
           console.log(`[${connectionState.mode}] 투표 데이터 업데이트 완료: ${items.length}개 아이템`);
         }
@@ -1174,24 +1189,60 @@ export function HybridVoteDetailPresenter({
       setIsVoting(true);
       setShowVoteModal(false);
       try {
-        // TODO: 실제 투표 API 호출
-        console.log('Voting for:', {
+        // 실제 투표 API 호출
+        console.log('📤 [HybridVoteDetailPresenter] 투표 제출 시작:', {
           voteId: vote.id,
           itemId: voteCandidate.id,
           amount: voteAmount,
+          userId: user?.id,
         });
 
-        // 임시로 투표수 증가
-        setVoteItems((prev) =>
-          prev.map((item) =>
-            item.id === voteCandidate.id
-              ? { ...item, vote_total: (item.vote_total || 0) + voteAmount }
-              : item,
-          ),
-        );
+        if (!user?.id) {
+          throw new Error('사용자 정보를 찾을 수 없습니다.');
+        }
 
-        // 사용 가능한 투표량 감소
-        setAvailableVotes((prev) => prev - voteAmount);
+        // 투표 API 호출 (VotePopup과 동일한 엔드포인트 사용)
+        const voteData = {
+          vote_id: vote.id,
+          vote_item_id: voteCandidate.id,
+          amount: voteAmount,
+          user_id: user.id,
+          total_bonus_remain: availableVotes, // 사용자 보유 투표권
+        };
+
+        const response = await fetch('https://api.picnic.fan/functions/v1/voting', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user.id}`,
+          },
+          body: JSON.stringify(voteData),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || '투표 처리 중 오류가 발생했습니다.');
+        }
+
+        console.log('✅ [HybridVoteDetailPresenter] 투표 제출 성공:', result);
+
+        // 투표 성공 후 즉시 데이터 새로고침 (리얼타임/폴링 모드에 관계없이)
+        if (connectionState.mode === 'polling') {
+          // 폴링 모드: 즉시 데이터 업데이트
+          await updateVoteDataPolling();
+        } else {
+          // 리얼타임 모드: 리얼타임 이벤트를 기다리지만, 백업으로 폴링도 실행
+          setTimeout(async () => {
+            await updateVoteDataPolling();
+          }, 500); // 0.5초 후 백업 업데이트
+        }
+
+        // 사용 가능한 투표량 감소 (로컬 상태)
+        setAvailableVotes((prev) => Math.max(0, prev - voteAmount));
+
+        // 투표한 아이템 하이라이트 (5초간)
+        setItemHighlight(voteCandidate.id, true, 5000);
         
         // 투표 성공 알림 (전역 알림 사용)
         addNotification({
