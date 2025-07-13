@@ -177,7 +177,7 @@ export const typeClasses: Record<DialogType, string> = {
 
 // 기본 다이얼로그 테마
 export const dialogTheme = {
-    overlay: "fixed inset-0 bg-black/25 backdrop-blur-sm",
+    overlay: "fixed inset-0 bg-black/50 backdrop-blur-sm",
     content:
         "w-full transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all",
     closeButton:

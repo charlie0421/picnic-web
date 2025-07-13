@@ -253,7 +253,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -271,7 +271,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
           <AnimatePresence>
             {isVoting && (
               <motion.div
-                className="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-20"
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-20"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
