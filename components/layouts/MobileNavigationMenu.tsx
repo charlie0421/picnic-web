@@ -112,9 +112,9 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
     setIsOpen(false);
   };
 
-  // 비로그인 상태에서 프로필 이미지 클릭 핸들러 (로그인 페이지로 이동)
+  // 비로그인 상태에서 프로필 이미지 클릭 핸들러 (마이페이지로 이동)
   const handleGuestProfileClick = () => {
-    window.location.href = getLocalizedPath('/login');
+    window.location.href = getLocalizedPath('/mypage');
   };
 
   // 로그인 상태에서 프로필 이미지 클릭 핸들러 (다이얼로그 토글)
