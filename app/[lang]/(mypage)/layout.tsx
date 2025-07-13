@@ -34,7 +34,7 @@ const MainContent = ({ children }: { children: React.ReactNode }) => {
     <div className='bg-gradient-to-b from-blue-50 to-white relative'>
       <div className='max-w-6xl mx-auto bg-white shadow-md'>
         <Header />
-        <main className='container mx-auto px-2 py-0 min-h-screen'>
+        <main className='container mx-auto py-0 min-h-screen'>
           <div className='flex flex-col'>
             <div className='w-full'>
               {/* 배타 오픈 뱃지 */}
