@@ -65,7 +65,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
 
   // 안정적인 인증 상태 관리
   const stableAuthState = {
-    showLoading: isLoading,
+    showLoading: isLoading && !isAuthenticated, // 인증되지 않은 상태에서만 로딩 표시
     showUserArea: !isLoading && isAuthenticated,
     showGuestArea: !isLoading && !isAuthenticated,
   };
@@ -91,7 +91,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   };
 
   // 프로필 이미지 로딩 상태
-  const profileImageLoading = stableAuthState.showUserArea && !userInfo.name;
+  const profileImageLoading = stableAuthState.showUserArea && !userInfo.name && isLoading;
 
   // 관리자 권한에 따른 메뉴 필터링
   const getFilteredMenuItems = () => {
