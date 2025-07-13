@@ -1,0 +1,322 @@
+eb1be5addfd75dadf61ce04b4f089b0c
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_2fkzcs5uh8() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/client/auth/AuthCallback/AuthCallback.tsx";
+  var hash = "c8c3b43822d8121cf3cc1f9fe822b6cb781e688d";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/client/auth/AuthCallback/AuthCallback.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 17,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 15,
+          column: 8
+        },
+        end: {
+          line: 15,
+          column: 28
+        }
+      },
+      "3": {
+        start: {
+          line: 18,
+          column: 20
+        },
+        end: {
+          line: 18,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 19,
+          column: 42
+        },
+        end: {
+          line: 19,
+          column: 99
+        }
+      },
+      "5": {
+        start: {
+          line: 21,
+          column: 4
+        },
+        end: {
+          line: 23,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 26,
+          column: 4
+        },
+        end: {
+          line: 28,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 14,
+            column: 9
+          },
+          end: {
+            line: 14,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 14,
+            column: 20
+          },
+          end: {
+            line: 16,
+            column: 5
+          }
+        },
+        line: 14
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 20,
+            column: 9
+          },
+          end: {
+            line: 20,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 20,
+            column: 39
+          },
+          end: {
+            line: 24,
+            column: 1
+          }
+        },
+        line: 20
+      },
+      "2": {
+        name: "AuthCallback",
+        decl: {
+          start: {
+            line: 25,
+            column: 9
+          },
+          end: {
+            line: 25,
+            column: 21
+          }
+        },
+        loc: {
+          start: {
+            line: 25,
+            column: 36
+          },
+          end: {
+            line: 29,
+            column: 1
+          }
+        },
+        line: 25
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 21,
+            column: 11
+          },
+          end: {
+            line: 23,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 21,
+            column: 35
+          },
+          end: {
+            line: 21,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 21,
+            column: 41
+          },
+          end: {
+            line: 23,
+            column: 5
+          }
+        }],
+        line: 21
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 21,
+            column: 11
+          },
+          end: {
+            line: 21,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 21,
+            column: 11
+          },
+          end: {
+            line: 21,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 21,
+            column: 18
+          },
+          end: {
+            line: 21,
+            column: 32
+          }
+        }],
+        line: 21
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/client/auth/AuthCallback/AuthCallback.tsx"],
+      sourcesContent: ["'use client';\n\nimport { Suspense } from 'react';\n\nimport AuthCallbackClient from './AuthCallbackClient';\n\ninterface AuthCallbackProps {\n  provider?: string;\n}\n\n/**\n * AuthCallback \uACF5\uC720 \uCEF4\uD3EC\uB10C\uD2B8\n * \n * \uC774 \uCEF4\uD3EC\uB10C\uD2B8\uB294 \uC11C\uBC84 \uCEF4\uD3EC\uB10C\uD2B8\uC640 \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8 \uC0AC\uC774\uC758 \uBE0C\uB9BF\uC9C0 \uC5ED\uD560\uC744 \uD569\uB2C8\uB2E4.\n * \uC11C\uBC84\uC5D0\uC11C\uB294 provider \uC815\uBCF4\uB97C \uD074\uB77C\uC774\uC5B8\uD2B8\uB85C \uC804\uB2EC\uD558\uACE0, \n * \uD074\uB77C\uC774\uC5B8\uD2B8\uC5D0\uC11C\uB294 \uC778\uC99D \uB85C\uC9C1\uC744 \uCC98\uB9AC\uD569\uB2C8\uB2E4.\n */\nexport default function AuthCallback({ provider }: AuthCallbackProps) {\n  return <AuthCallbackClient provider={provider} />;\n} "],
+      names: ["AuthCallback", "provider", "AuthCallbackClient"],
+      mappings: "AAAA;;;;;+BAUA;;;;;;CAMC,GACD;;;eAAwBA;;;;2EAbO;;;;;;AAahB,SAASA,aAAa,EAAEC,QAAQ,EAAqB;IAClE,qBAAO,qBAACC,2BAAkB;QAACD,UAAUA;;AACvC"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "c8c3b43822d8121cf3cc1f9fe822b6cb781e688d"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2fkzcs5uh8 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2fkzcs5uh8();
+cov_2fkzcs5uh8().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2fkzcs5uh8().s[1]++;
+Object.defineProperty(exports,
+/**
+* AuthCallback 공유 컴포넌트
+* 
+* 이 컴포넌트는 서버 컴포넌트와 클라이언트 컴포넌트 사이의 브릿지 역할을 합니다.
+* 서버에서는 provider 정보를 클라이언트로 전달하고, 
+* 클라이언트에서는 인증 로직을 처리합니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2fkzcs5uh8().f[0]++;
+    cov_2fkzcs5uh8().s[2]++;
+    return AuthCallback;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2fkzcs5uh8().s[3]++, require("react/jsx-runtime"));
+const _AuthCallbackClient =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_2fkzcs5uh8().s[4]++, _interop_require_default(require("./AuthCallbackClient")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_2fkzcs5uh8().f[1]++;
+  cov_2fkzcs5uh8().s[5]++;
+  return /* istanbul ignore next */(cov_2fkzcs5uh8().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_2fkzcs5uh8().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_2fkzcs5uh8().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_2fkzcs5uh8().b[0][1]++, {
+    default: obj
+  });
+}
+function AuthCallback({
+  provider
+}) {
+  /* istanbul ignore next */
+  cov_2fkzcs5uh8().f[2]++;
+  cov_2fkzcs5uh8().s[6]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_AuthCallbackClient.default, {
+    provider: provider
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJBdXRoQ2FsbGJhY2siLCJwcm92aWRlciIsImNvdl8yZmt6Y3M1dWg4IiwiZiIsInMiLCJfanN4cnVudGltZSIsImpzeCIsIl9BdXRoQ2FsbGJhY2tDbGllbnQiLCJkZWZhdWx0Il0sInNvdXJjZXMiOlsiL1VzZXJzL2NoZW9saHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9jb21wb25lbnRzL2NsaWVudC9hdXRoL0F1dGhDYWxsYmFjay9BdXRoQ2FsbGJhY2sudHN4Il0sInNvdXJjZXNDb250ZW50IjpbIid1c2UgY2xpZW50JztcblxuaW1wb3J0IHsgU3VzcGVuc2UgfSBmcm9tICdyZWFjdCc7XG5cbmltcG9ydCBBdXRoQ2FsbGJhY2tDbGllbnQgZnJvbSAnLi9BdXRoQ2FsbGJhY2tDbGllbnQnO1xuXG5pbnRlcmZhY2UgQXV0aENhbGxiYWNrUHJvcHMge1xuICBwcm92aWRlcj86IHN0cmluZztcbn1cblxuLyoqXG4gKiBBdXRoQ2FsbGJhY2sg6rO17JygIOy7tO2PrOuEjO2KuFxuICogXG4gKiDsnbQg7Lu07Y+s64SM7Yq464qUIOyEnOuyhCDsu7Ttj6zrhIztirjsmYAg7YG065287J207Ja47Yq4IOy7tO2PrOuEjO2KuCDsgqzsnbTsnZgg67iM66a/7KeAIOyXre2VoOydhCDtlanri4jri6QuXG4gKiDshJzrsoTsl5DshJzripQgcHJvdmlkZXIg7KCV67O066W8IO2BtOudvOydtOyWuO2KuOuhnCDsoITri6ztlZjqs6AsIFxuICog7YG065287J207Ja47Yq47JeQ7ISc64qUIOyduOymnSDroZzsp4HsnYQg7LKY66as7ZWp64uI64ukLlxuICovXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBBdXRoQ2FsbGJhY2soeyBwcm92aWRlciB9OiBBdXRoQ2FsbGJhY2tQcm9wcykge1xuICByZXR1cm4gPEF1dGhDYWxsYmFja0NsaWVudCBwcm92aWRlcj17cHJvdmlkZXJ9IC8+O1xufSAiXSwibWFwcGluZ3MiOiJBQUFBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBVUE7Ozs7Ozs7QUFPQTs7Ozs7O1dBQXdCQSxZQUFBOzs7Ozs7Ozt3RUFiTzs7Ozs7Ozs7Ozs7Ozs7O0FBYWhCLFNBQVNBLGFBQWE7RUFBRUM7QUFBUSxDQUFxQjtFQUFBO0VBQUFDLGNBQUEsR0FBQUMsQ0FBQTtFQUFBRCxjQUFBLEdBQUFFLENBQUE7RUFDbEUsb0JBQU8sSUFBQUMsV0FBQSxDQUFBQyxHQUFBLEVBQUNDLG1CQUFBLENBQUFDLE9BQWtCO0lBQUNQLFFBQUEsRUFBVUE7O0FBQ3ZDIiwiaWdub3JlTGlzdCI6W119

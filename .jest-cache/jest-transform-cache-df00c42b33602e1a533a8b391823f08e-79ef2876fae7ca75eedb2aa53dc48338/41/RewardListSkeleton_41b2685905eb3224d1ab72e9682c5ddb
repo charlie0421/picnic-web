@@ -1,0 +1,368 @@
+ec6d368384b9de4cb35a48247426daf4
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_2iyr0l3zi7() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/client/reward/RewardListSkeleton.tsx";
+  var hash = "11813bcfb8785944c7733e3cf3ccb272d95cba62";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/client/reward/RewardListSkeleton.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 8
+        },
+        end: {
+          line: 9,
+          column: 34
+        }
+      },
+      "3": {
+        start: {
+          line: 12,
+          column: 20
+        },
+        end: {
+          line: 12,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 29
+        },
+        end: {
+          line: 13,
+          column: 71
+        }
+      },
+      "5": {
+        start: {
+          line: 15,
+          column: 4
+        },
+        end: {
+          line: 17,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 20,
+          column: 4
+        },
+        end: {
+          line: 40,
+          column: 7
+        }
+      },
+      "7": {
+        start: {
+          line: 25,
+          column: 45
+        },
+        end: {
+          line: 38,
+          column: 25
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 9
+          },
+          end: {
+            line: 8,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 20
+          },
+          end: {
+            line: 10,
+            column: 5
+          }
+        },
+        line: 8
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 14,
+            column: 9
+          },
+          end: {
+            line: 14,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 14,
+            column: 39
+          },
+          end: {
+            line: 18,
+            column: 1
+          }
+        },
+        line: 14
+      },
+      "2": {
+        name: "RewardListSkeleton",
+        decl: {
+          start: {
+            line: 19,
+            column: 9
+          },
+          end: {
+            line: 19,
+            column: 27
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 30
+          },
+          end: {
+            line: 41,
+            column: 1
+          }
+        },
+        line: 19
+      },
+      "3": {
+        name: "(anonymous_3)",
+        decl: {
+          start: {
+            line: 25,
+            column: 19
+          },
+          end: {
+            line: 25,
+            column: 20
+          }
+        },
+        loc: {
+          start: {
+            line: 25,
+            column: 45
+          },
+          end: {
+            line: 38,
+            column: 25
+          }
+        },
+        line: 25
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 17,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 15,
+            column: 35
+          },
+          end: {
+            line: 15,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 41
+          },
+          end: {
+            line: 17,
+            column: 5
+          }
+        }],
+        line: 15
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 15,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 18
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        }],
+        line: 15
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/client/reward/RewardListSkeleton.tsx"],
+      sourcesContent: ["'use client';\n\nimport React from 'react';\n\nexport function RewardListSkeleton() {\n  return (\n    <section>\n      {/* Reward Cards Grid Skeleton - \uC2E4\uC81C \uB9AC\uC6CC\uB4DC UI\uC640 \uB3D9\uC77C\uD55C \uADF8\uB9AC\uB4DC \uAD6C\uC870 */}\n      <div className=\"grid grid-cols-2 md:grid-cols-4 gap-4\">\n        {Array.from({ length: 8 }).map((_, index) => (\n          <div\n            key={index}\n            className=\"bg-white rounded-lg shadow-md overflow-hidden animate-pulse\"\n          >\n            {/* Reward Image - aspect-square\uB85C \uC815\uC0AC\uAC01\uD615 \uBE44\uC728 */}\n            <div className=\"aspect-square bg-gray-200\"></div>\n            \n            {/* Content - \uC2E4\uC81C UI\uC640 \uB3D9\uC77C\uD55C padding */}\n            <div className=\"p-3\">\n              {/* Title - \uD55C \uC904\uB85C \uC81C\uD55C\uB41C \uC81C\uBAA9 */}\n              <div className=\"h-5 bg-gray-200 rounded w-3/4\"></div>\n            </div>\n          </div>\n        ))}\n      </div>\n    </section>\n  );\n} "],
+      names: ["RewardListSkeleton", "section", "div", "className", "Array", "from", "length", "map", "_", "index"],
+      mappings: "AAAA;;;;;+BAIgBA;;;eAAAA;;;;8DAFE;;;;;;AAEX,SAASA;IACd,qBACE,qBAACC;kBAEC,cAAA,qBAACC;YAAIC,WAAU;sBACZC,MAAMC,IAAI,CAAC;gBAAEC,QAAQ;YAAE,GAAGC,GAAG,CAAC,CAACC,GAAGC,sBACjC,sBAACP;oBAECC,WAAU;;sCAGV,qBAACD;4BAAIC,WAAU;;sCAGf,qBAACD;4BAAIC,WAAU;sCAEb,cAAA,qBAACD;gCAAIC,WAAU;;;;mBATZM;;;AAgBjB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "11813bcfb8785944c7733e3cf3ccb272d95cba62"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2iyr0l3zi7 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2iyr0l3zi7();
+cov_2iyr0l3zi7().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2iyr0l3zi7().s[1]++;
+Object.defineProperty(exports, "RewardListSkeleton", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2iyr0l3zi7().f[0]++;
+    cov_2iyr0l3zi7().s[2]++;
+    return RewardListSkeleton;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2iyr0l3zi7().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_2iyr0l3zi7().s[4]++, _interop_require_default(require("react")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_2iyr0l3zi7().f[1]++;
+  cov_2iyr0l3zi7().s[5]++;
+  return /* istanbul ignore next */(cov_2iyr0l3zi7().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_2iyr0l3zi7().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_2iyr0l3zi7().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_2iyr0l3zi7().b[0][1]++, {
+    default: obj
+  });
+}
+function RewardListSkeleton() {
+  /* istanbul ignore next */
+  cov_2iyr0l3zi7().f[2]++;
+  cov_2iyr0l3zi7().s[6]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("section", {
+    children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+      className: "grid grid-cols-2 md:grid-cols-4 gap-4",
+      children: Array.from({
+        length: 8
+      }).map((_, index) => {
+        /* istanbul ignore next */
+        cov_2iyr0l3zi7().f[3]++;
+        cov_2iyr0l3zi7().s[7]++;
+        return /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          className: "bg-white rounded-lg shadow-md overflow-hidden animate-pulse",
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+            className: "aspect-square bg-gray-200"
+          }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+            className: "p-3",
+            children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+              className: "h-5 bg-gray-200 rounded w-3/4"
+            })
+          })]
+        }, index);
+      })
+    })
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJSZXdhcmRMaXN0U2tlbGV0b24iLCJjb3ZfMml5cjBsM3ppNyIsImYiLCJzIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJjbGFzc05hbWUiLCJBcnJheSIsImZyb20iLCJsZW5ndGgiLCJtYXAiLCJfIiwiaW5kZXgiLCJqc3hzIl0sInNvdXJjZXMiOlsiL1VzZXJzL2NoZW9saHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9jb21wb25lbnRzL2NsaWVudC9yZXdhcmQvUmV3YXJkTGlzdFNrZWxldG9uLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyIndXNlIGNsaWVudCc7XG5cbmltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7XG5cbmV4cG9ydCBmdW5jdGlvbiBSZXdhcmRMaXN0U2tlbGV0b24oKSB7XG4gIHJldHVybiAoXG4gICAgPHNlY3Rpb24+XG4gICAgICB7LyogUmV3YXJkIENhcmRzIEdyaWQgU2tlbGV0b24gLSDsi6TsoJwg66as7JuM65OcIFVJ7JmAIOuPmeydvO2VnCDqt7jrpqzrk5wg6rWs7KGwICovfVxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJncmlkIGdyaWQtY29scy0yIG1kOmdyaWQtY29scy00IGdhcC00XCI+XG4gICAgICAgIHtBcnJheS5mcm9tKHsgbGVuZ3RoOiA4IH0pLm1hcCgoXywgaW5kZXgpID0+IChcbiAgICAgICAgICA8ZGl2XG4gICAgICAgICAgICBrZXk9e2luZGV4fVxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiYmctd2hpdGUgcm91bmRlZC1sZyBzaGFkb3ctbWQgb3ZlcmZsb3ctaGlkZGVuIGFuaW1hdGUtcHVsc2VcIlxuICAgICAgICAgID5cbiAgICAgICAgICAgIHsvKiBSZXdhcmQgSW1hZ2UgLSBhc3BlY3Qtc3F1YXJl66GcIOygleyCrOqwge2YlSDruYTsnKggKi99XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImFzcGVjdC1zcXVhcmUgYmctZ3JheS0yMDBcIj48L2Rpdj5cbiAgICAgICAgICAgIFxuICAgICAgICAgICAgey8qIENvbnRlbnQgLSDsi6TsoJwgVUnsmYAg64+Z7J287ZWcIHBhZGRpbmcgKi99XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInAtM1wiPlxuICAgICAgICAgICAgICB7LyogVGl0bGUgLSDtlZwg7KSE66GcIOygnO2VnOuQnCDsoJzrqqkgKi99XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC01IGJnLWdyYXktMjAwIHJvdW5kZWQgdy0zLzRcIj48L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICApKX1cbiAgICAgIDwvZGl2PlxuICAgIDwvc2VjdGlvbj5cbiAgKTtcbn0gIl0sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OytCQUlnQjs7Ozs7O1dBQUFBLGtCQUFBOzs7Ozs7Ozt3RUFGRTs7Ozs7Ozs7Ozs7Ozs7O0FBRVgsU0FBU0EsbUJBQUE7RUFBQTtFQUFBQyxjQUFBLEdBQUFDLENBQUE7RUFBQUQsY0FBQSxHQUFBRSxDQUFBO0VBQ2Qsb0JBQ0UsSUFBQUMsV0FBQSxDQUFBQyxHQUFBLEVBQUM7Y0FFQyxpQkFBQUQsV0FBQSxDQUFBQyxHQUFBLEVBQUM7TUFBSUMsU0FBQSxFQUFVO2dCQUNaQyxLQUFBLENBQU1DLElBQUksQ0FBQztRQUFFQyxNQUFBLEVBQVE7TUFBRSxHQUFHQyxHQUFHLENBQUMsQ0FBQ0MsQ0FBQSxFQUFHQyxLQUFBLEtBQ2pDO1FBQUE7UUFBQVgsY0FBQSxHQUFBQyxDQUFBO1FBQUFELGNBQUEsR0FBQUUsQ0FBQTtRQUFBLE9BRGlDLGFBQ2pDLElBQUFDLFdBQUEsQ0FBQVMsSUFBQSxFQUFDO1VBRUNQLFNBQUEsRUFBVTtrQ0FHVixJQUFBRixXQUFBLENBQUFDLEdBQUEsRUFBQztZQUFJQyxTQUFBLEVBQVU7MkJBR2YsSUFBQUYsV0FBQSxDQUFBQyxHQUFBLEVBQUM7WUFBSUMsU0FBQSxFQUFVO3NCQUViLGlCQUFBRixXQUFBLENBQUFDLEdBQUEsRUFBQztjQUFJQyxTQUFBLEVBQVU7OztXQVRaTSxLQUFBO01BQUE7OztBQWdCakIiLCJpZ25vcmVMaXN0IjpbXX0=

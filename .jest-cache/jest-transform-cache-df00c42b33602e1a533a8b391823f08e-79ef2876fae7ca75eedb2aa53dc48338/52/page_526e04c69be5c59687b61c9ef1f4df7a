@@ -1,0 +1,268 @@
+4446aa96c584a74008cbd520716c59ac
+"use strict";
+
+/* istanbul ignore next */
+function cov_2abm4yhby2() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/auth/callback/[provider]/page.tsx";
+  var hash = "2e15e0fd20d7b1286af53478ec2fb1aedc4e1f02";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/auth/callback/[provider]/page.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 28
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 14
+        },
+        end: {
+          line: 12,
+          column: 59
+        }
+      },
+      "5": {
+        start: {
+          line: 15,
+          column: 25
+        },
+        end: {
+          line: 15,
+          column: 37
+        }
+      },
+      "6": {
+        start: {
+          line: 16,
+          column: 4
+        },
+        end: {
+          line: 78,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "CallbackPage",
+        decl: {
+          start: {
+            line: 13,
+            column: 15
+          },
+          end: {
+            line: 13,
+            column: 27
+          }
+        },
+        loc: {
+          start: {
+            line: 13,
+            column: 40
+          },
+          end: {
+            line: 79,
+            column: 1
+          }
+        },
+        line: 13
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/auth/callback/[provider]/page.tsx"],
+      sourcesContent: ["import { AuthCallbackClient } from '@/components/client/auth';\n\ninterface CallbackPageProps {\n  params: Promise<{ provider: string }>;\n}\n\nexport default async function CallbackPage({ params }: CallbackPageProps) {\n  // Next.js 15 \uC694\uAD6C\uC0AC\uD56D: params\uB97C await\uB85C unwrap\n  const { provider } = await params;\n  \n  return (\n    <>\n      {/* \uC804\uC5ED \uB85C\uB529\uBC14 \uC989\uC2DC \uC2DC\uC791\uC744 \uC704\uD55C \uC2A4\uD06C\uB9BD\uD2B8 */}\n      <script\n        dangerouslySetInnerHTML={{\n          __html: `\n            // OAuth \uCF5C\uBC31 \uD398\uC774\uC9C0 \uC9C4\uC785 \uC989\uC2DC \uC804\uC5ED \uB85C\uB529\uBC14 \uC2DC\uC791\n            (function() {\n              console.log('\uD83D\uDD04 [OAuth Callback] ${provider} \uCF5C\uBC31 \uD398\uC774\uC9C0 \uC9C4\uC785 - \uC804\uC5ED \uB85C\uB529\uBC14 \uC2DC\uC791');\n              \n              // \uC804\uC5ED \uB85C\uB529\uBC14 \uC989\uC2DC \uD45C\uC2DC\n              try {\n                // GlobalLoadingContext\uC5D0 \uC811\uADFC\uD574\uC11C \uB85C\uB529 \uC0C1\uD0DC \uC124\uC815\n                const event = new CustomEvent('startGlobalLoading', { detail: { reason: 'oauth-callback' } });\n                window.dispatchEvent(event);\n                console.log('\uD83D\uDE80 [OAuth Callback] \uC804\uC5ED \uB85C\uB529\uBC14 \uC774\uBCA4\uD2B8 \uBC1C\uC1A1 \uC644\uB8CC');\n              } catch (error) {\n                console.warn('\u26A0\uFE0F [OAuth Callback] \uC804\uC5ED \uB85C\uB529\uBC14 \uC774\uBCA4\uD2B8 \uBC1C\uC1A1 \uC2E4\uD328:', error);\n              }\n              \n              // \uC784\uC2DC \uB85C\uB529 \uD45C\uC2DC (\uC804\uC5ED \uB85C\uB529\uBC14 \uBC31\uC5C5)\n              const loadingDiv = document.createElement('div');\n              loadingDiv.id = 'oauth-loading';\n              loadingDiv.style.cssText = \\`\n                position: fixed;\n                top: 0;\n                left: 0;\n                width: 100vw;\n                height: 100vh;\n                background: #f9fafb;\n                display: flex;\n                align-items: center;\n                justify-content: center;\n                z-index: 9998;\n                opacity: 0;\n                transition: opacity 0.2s ease-in-out;\n              \\`;\n              \n              loadingDiv.innerHTML = \\`\n                <div style=\"text-align: center; color: #6b7280;\">\n                  <div style=\"margin-bottom: 16px;\">\uD83D\uDD04</div>\n                  <div>\uB85C\uADF8\uC778 \uCC98\uB9AC \uC911...</div>\n                </div>\n              \\`;\n              \n              // \uBD80\uB4DC\uB7EC\uC6B4 fade-in\n              if (document.body) {\n                document.body.appendChild(loadingDiv);\n                setTimeout(() => { loadingDiv.style.opacity = '1'; }, 10);\n              } else {\n                document.addEventListener('DOMContentLoaded', function() {\n                  document.body.appendChild(loadingDiv);\n                  setTimeout(() => { loadingDiv.style.opacity = '1'; }, 10);\n                });\n              }\n            })();\n          `\n        }}\n      />\n\n      {/* \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8 */}\n      <AuthCallbackClient provider={provider} />\n    </>\n  );\n}\n"],
+      names: ["CallbackPage", "params", "provider", "script", "dangerouslySetInnerHTML", "__html", "AuthCallbackClient"],
+      mappings: ";;;;+BAMA;;;eAA8BA;;;;sBANK;AAMpB,eAAeA,aAAa,EAAEC,MAAM,EAAqB;IACtE,yCAAyC;IACzC,MAAM,EAAEC,QAAQ,EAAE,GAAG,MAAMD;IAE3B,qBACE;;0BAEE,qBAACE;gBACCC,yBAAyB;oBACvBC,QAAQ,CAAC;;;+CAG4B,EAAEH,SAAS;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;UAgDhD,CAAC;gBACH;;0BAIF,qBAACI,wBAAkB;gBAACJ,UAAUA;;;;AAGpC"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "2e15e0fd20d7b1286af53478ec2fb1aedc4e1f02"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2abm4yhby2 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2abm4yhby2();
+cov_2abm4yhby2().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2abm4yhby2().s[1]++;
+Object.defineProperty(exports, "default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2abm4yhby2().f[0]++;
+    cov_2abm4yhby2().s[2]++;
+    return CallbackPage;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2abm4yhby2().s[3]++, require("react/jsx-runtime"));
+const _auth =
+/* istanbul ignore next */
+(cov_2abm4yhby2().s[4]++, require("../../../../components/client/auth"));
+async function CallbackPage({
+  params
+}) {
+  /* istanbul ignore next */
+  cov_2abm4yhby2().f[1]++;
+  // Next.js 15 요구사항: params를 await로 unwrap
+  const {
+    provider
+  } =
+  /* istanbul ignore next */
+  (cov_2abm4yhby2().s[5]++, await params);
+  /* istanbul ignore next */
+  cov_2abm4yhby2().s[6]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsxs)(_jsxruntime.Fragment, {
+    children: [/*#__PURE__*/(0, _jsxruntime.jsx)("script", {
+      dangerouslySetInnerHTML: {
+        __html: `
+            // OAuth 콜백 페이지 진입 즉시 전역 로딩바 시작
+            (function() {
+              console.log('🔄 [OAuth Callback] ${provider} 콜백 페이지 진입 - 전역 로딩바 시작');
+              
+              // 전역 로딩바 즉시 표시
+              try {
+                // GlobalLoadingContext에 접근해서 로딩 상태 설정
+                const event = new CustomEvent('startGlobalLoading', { detail: { reason: 'oauth-callback' } });
+                window.dispatchEvent(event);
+                console.log('🚀 [OAuth Callback] 전역 로딩바 이벤트 발송 완료');
+              } catch (error) {
+                console.warn('⚠️ [OAuth Callback] 전역 로딩바 이벤트 발송 실패:', error);
+              }
+              
+              // 임시 로딩 표시 (전역 로딩바 백업)
+              const loadingDiv = document.createElement('div');
+              loadingDiv.id = 'oauth-loading';
+              loadingDiv.style.cssText = \`
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: #f9fafb;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9998;
+                opacity: 0;
+                transition: opacity 0.2s ease-in-out;
+              \`;
+              
+              loadingDiv.innerHTML = \`
+                <div style="text-align: center; color: #6b7280;">
+                  <div style="margin-bottom: 16px;">🔄</div>
+                  <div>로그인 처리 중...</div>
+                </div>
+              \`;
+              
+              // 부드러운 fade-in
+              if (document.body) {
+                document.body.appendChild(loadingDiv);
+                setTimeout(() => { loadingDiv.style.opacity = '1'; }, 10);
+              } else {
+                document.addEventListener('DOMContentLoaded', function() {
+                  document.body.appendChild(loadingDiv);
+                  setTimeout(() => { loadingDiv.style.opacity = '1'; }, 10);
+                });
+              }
+            })();
+          `
+      }
+    }), /*#__PURE__*/(0, _jsxruntime.jsx)(_auth.AuthCallbackClient, {
+      provider: provider
+    })]
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMmFibTR5aGJ5MiIsImFjdHVhbENvdmVyYWdlIiwicyIsIkNhbGxiYWNrUGFnZSIsInBhcmFtcyIsImYiLCJwcm92aWRlciIsIl9qc3hydW50aW1lIiwianN4cyIsIkZyYWdtZW50IiwianN4IiwiZGFuZ2Vyb3VzbHlTZXRJbm5lckhUTUwiLCJfX2h0bWwiLCJfYXV0aCIsIkF1dGhDYWxsYmFja0NsaWVudCJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvYXBwL2F1dGgvY2FsbGJhY2svW3Byb3ZpZGVyXS9wYWdlLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBBdXRoQ2FsbGJhY2tDbGllbnQgfSBmcm9tICdAL2NvbXBvbmVudHMvY2xpZW50L2F1dGgnO1xuXG5pbnRlcmZhY2UgQ2FsbGJhY2tQYWdlUHJvcHMge1xuICBwYXJhbXM6IFByb21pc2U8eyBwcm92aWRlcjogc3RyaW5nIH0+O1xufVxuXG5leHBvcnQgZGVmYXVsdCBhc3luYyBmdW5jdGlvbiBDYWxsYmFja1BhZ2UoeyBwYXJhbXMgfTogQ2FsbGJhY2tQYWdlUHJvcHMpIHtcbiAgLy8gTmV4dC5qcyAxNSDsmpTqtazsgqztla06IHBhcmFtc+ulvCBhd2FpdOuhnCB1bndyYXBcbiAgY29uc3QgeyBwcm92aWRlciB9ID0gYXdhaXQgcGFyYW1zO1xuICBcbiAgcmV0dXJuIChcbiAgICA8PlxuICAgICAgey8qIOyghOyXrSDroZzrlKnrsJQg7KaJ7IucIOyLnOyekeydhCDsnITtlZwg7Iqk7YGs66a97Yq4ICovfVxuICAgICAgPHNjcmlwdFxuICAgICAgICBkYW5nZXJvdXNseVNldElubmVySFRNTD17e1xuICAgICAgICAgIF9faHRtbDogYFxuICAgICAgICAgICAgLy8gT0F1dGgg7L2c67CxIO2OmOydtOyngCDsp4TsnoUg7KaJ7IucIOyghOyXrSDroZzrlKnrsJQg7Iuc7J6RXG4gICAgICAgICAgICAoZnVuY3Rpb24oKSB7XG4gICAgICAgICAgICAgIGNvbnNvbGUubG9nKCfwn5SEIFtPQXV0aCBDYWxsYmFja10gJHtwcm92aWRlcn0g7L2c67CxIO2OmOydtOyngCDsp4TsnoUgLSDsoITsl60g66Gc65Sp67CUIOyLnOyekScpO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgLy8g7KCE7JetIOuhnOuUqeuwlCDsponsi5wg7ZGc7IucXG4gICAgICAgICAgICAgIHRyeSB7XG4gICAgICAgICAgICAgICAgLy8gR2xvYmFsTG9hZGluZ0NvbnRleHTsl5Ag7KCR6re87ZW07IScIOuhnOuUqSDsg4Htg5wg7ISk7KCVXG4gICAgICAgICAgICAgICAgY29uc3QgZXZlbnQgPSBuZXcgQ3VzdG9tRXZlbnQoJ3N0YXJ0R2xvYmFsTG9hZGluZycsIHsgZGV0YWlsOiB7IHJlYXNvbjogJ29hdXRoLWNhbGxiYWNrJyB9IH0pO1xuICAgICAgICAgICAgICAgIHdpbmRvdy5kaXNwYXRjaEV2ZW50KGV2ZW50KTtcbiAgICAgICAgICAgICAgICBjb25zb2xlLmxvZygn8J+agCBbT0F1dGggQ2FsbGJhY2tdIOyghOyXrSDroZzrlKnrsJQg7J2067Kk7Yq4IOuwnOyGoSDsmYTro4wnKTtcbiAgICAgICAgICAgICAgfSBjYXRjaCAoZXJyb3IpIHtcbiAgICAgICAgICAgICAgICBjb25zb2xlLndhcm4oJ+KaoO+4jyBbT0F1dGggQ2FsbGJhY2tdIOyghOyXrSDroZzrlKnrsJQg7J2067Kk7Yq4IOuwnOyGoSDsi6TtjKg6JywgZXJyb3IpO1xuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgIFxuICAgICAgICAgICAgICAvLyDsnoTsi5wg66Gc65SpIO2RnOyLnCAo7KCE7JetIOuhnOuUqeuwlCDrsLHsl4UpXG4gICAgICAgICAgICAgIGNvbnN0IGxvYWRpbmdEaXYgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdkaXYnKTtcbiAgICAgICAgICAgICAgbG9hZGluZ0Rpdi5pZCA9ICdvYXV0aC1sb2FkaW5nJztcbiAgICAgICAgICAgICAgbG9hZGluZ0Rpdi5zdHlsZS5jc3NUZXh0ID0gXFxgXG4gICAgICAgICAgICAgICAgcG9zaXRpb246IGZpeGVkO1xuICAgICAgICAgICAgICAgIHRvcDogMDtcbiAgICAgICAgICAgICAgICBsZWZ0OiAwO1xuICAgICAgICAgICAgICAgIHdpZHRoOiAxMDB2dztcbiAgICAgICAgICAgICAgICBoZWlnaHQ6IDEwMHZoO1xuICAgICAgICAgICAgICAgIGJhY2tncm91bmQ6ICNmOWZhZmI7XG4gICAgICAgICAgICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgICAgICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgICAgICAgICAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyO1xuICAgICAgICAgICAgICAgIHotaW5kZXg6IDk5OTg7XG4gICAgICAgICAgICAgICAgb3BhY2l0eTogMDtcbiAgICAgICAgICAgICAgICB0cmFuc2l0aW9uOiBvcGFjaXR5IDAuMnMgZWFzZS1pbi1vdXQ7XG4gICAgICAgICAgICAgIFxcYDtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIGxvYWRpbmdEaXYuaW5uZXJIVE1MID0gXFxgXG4gICAgICAgICAgICAgICAgPGRpdiBzdHlsZT1cInRleHQtYWxpZ246IGNlbnRlcjsgY29sb3I6ICM2YjcyODA7XCI+XG4gICAgICAgICAgICAgICAgICA8ZGl2IHN0eWxlPVwibWFyZ2luLWJvdHRvbTogMTZweDtcIj7wn5SEPC9kaXY+XG4gICAgICAgICAgICAgICAgICA8ZGl2PuuhnOq3uOyduCDsspjrpqwg7KSRLi4uPC9kaXY+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIFxcYDtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIC8vIOu2gOuTnOufrOyatCBmYWRlLWluXG4gICAgICAgICAgICAgIGlmIChkb2N1bWVudC5ib2R5KSB7XG4gICAgICAgICAgICAgICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChsb2FkaW5nRGl2KTtcbiAgICAgICAgICAgICAgICBzZXRUaW1lb3V0KCgpID0+IHsgbG9hZGluZ0Rpdi5zdHlsZS5vcGFjaXR5ID0gJzEnOyB9LCAxMCk7XG4gICAgICAgICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgICAgICAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignRE9NQ29udGVudExvYWRlZCcsIGZ1bmN0aW9uKCkge1xuICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChsb2FkaW5nRGl2KTtcbiAgICAgICAgICAgICAgICAgIHNldFRpbWVvdXQoKCkgPT4geyBsb2FkaW5nRGl2LnN0eWxlLm9wYWNpdHkgPSAnMSc7IH0sIDEwKTtcbiAgICAgICAgICAgICAgICB9KTtcbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgfSkoKTtcbiAgICAgICAgICBgXG4gICAgICAgIH19XG4gICAgICAvPlxuXG4gICAgICB7Lyog7YG065287J207Ja47Yq4IOy7tO2PrOuEjO2KuCAqL31cbiAgICAgIDxBdXRoQ2FsbGJhY2tDbGllbnQgcHJvdmlkZXI9e3Byb3ZpZGVyfSAvPlxuICAgIDwvPlxuICApO1xufVxuIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0lBVUU7SUFBQUEsY0FBQSxZQUFBQSxDQUFBO01BQUEsT0FBQUMsY0FBQTtJQUFBO0VBQUE7RUFBQSxPQUFBQSxjQUFBO0FBQUE7QUFBQUQsY0FBQTtBQUFBQSxjQUFBLEdBQUFFLENBQUE7Ozs7OzsrQkFKRjs7Ozs7O1dBQThCQyxZQUFBOzs7Ozs7OztrQ0FOSztBQU1wQixlQUFlQSxhQUFhO0VBQUVDO0FBQU0sQ0FBcUI7RUFBQTtFQUFBSixjQUFBLEdBQUFLLENBQUE7RUFDdEU7RUFDQSxNQUFNO0lBQUVDO0VBQVEsQ0FBRTtFQUFBO0VBQUEsQ0FBQU4sY0FBQSxHQUFBRSxDQUFBLE9BQUcsTUFBTUUsTUFBQTtFQUFBO0VBQUFKLGNBQUEsR0FBQUUsQ0FBQTtFQUUzQixvQkFDRSxJQUFBSyxXQUFBLENBQUFDLElBQUEsRUFBQUQsV0FBQSxDQUFBRSxRQUFBOzRCQUVFLElBQUFGLFdBQUEsQ0FBQUcsR0FBQSxFQUFDO01BQ0NDLHVCQUFBLEVBQXlCO1FBQ3ZCQyxNQUFBLEVBQVE7OztpREFHK0JOLFFBQUE7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7TUFpRHpDO3FCQUlGLElBQUFDLFdBQUEsQ0FBQUcsR0FBQSxFQUFDRyxLQUFBLENBQUFDLGtCQUFrQjtNQUFDUixRQUFBLEVBQVVBOzs7QUFHcEMiLCJpZ25vcmVMaXN0IjpbXX0=

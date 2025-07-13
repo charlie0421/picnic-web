@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 interface NavigationLinkProps {
   href: string;
@@ -36,30 +37,51 @@ export default function NavigationLink({
   const [isNavigating, setIsNavigating] = useState(false);
   const { setIsLoading } = useGlobalLoading();
   const router = useRouter();
+  const pathname = usePathname();
+  const { extractLocaleFromPath, getLocalizedPath, currentLocale } = useLocaleRouter();
   
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault(); // 기본 링크 동작 방지
     
-    // 현재 페이지와 다른 경우에만 로딩 시작
-    const currentPath = window.location.pathname;
+    // 현재 경로와 타겟 경로를 언어 경로를 고려하여 비교
+    const { path: currentCleanPath } = extractLocaleFromPath(pathname);
+    const { path: targetCleanPath } = extractLocaleFromPath(href);
+    
+    // href가 로케일화되지 않은 경우 현재 로케일로 로케일화
+    const normalizedTargetHref = href.startsWith(`/${currentLocale}/`) 
+      ? href 
+      : getLocalizedPath(href, currentLocale);
     
     console.log('🔍 [NavigationLink] Link click:', {
       href,
-      currentPath,
-      isSamePage: currentPath === href
+      normalizedTargetHref,
+      currentPath: pathname,
+      currentCleanPath,
+      targetCleanPath,
+      isSamePage: currentCleanPath === targetCleanPath,
+      currentLocale
     });
     
-    if (currentPath !== href) {
-      // 모든 페이지 이동에서 로딩바 표시
-      console.log('🔍 [NavigationLink] Starting loading for navigation to:', href);
-      setIsLoading(true);
-      setIsNavigating(true);
+    // 같은 페이지인지 확인 (언어 경로 제외하고 비교)
+    if (currentCleanPath === targetCleanPath) {
+      console.log('🔍 [NavigationLink] Same page detected, cancelling navigation');
       
-      // 프로그래매틱 네비게이션
-      router.push(href);
-    } else {
-      console.log('🔍 [NavigationLink] Same page detected, not starting loading');
+      // 사용자 정의 onClick 콜백은 실행 (메뉴 닫기 등의 동작을 위해)
+      if (onClick) {
+        onClick();
+      }
+      
+      // 네비게이션은 취소
+      return;
     }
+    
+    // 다른 페이지인 경우 로딩 시작 및 네비게이션 진행
+    console.log('🔍 [NavigationLink] Starting loading for navigation to:', normalizedTargetHref);
+    setIsLoading(true);
+    setIsNavigating(true);
+    
+    // 프로그래매틱 네비게이션 (정규화된 href 사용)
+    router.push(normalizedTargetHref);
 
     // 사용자 정의 onClick 콜백 실행
     if (onClick) {

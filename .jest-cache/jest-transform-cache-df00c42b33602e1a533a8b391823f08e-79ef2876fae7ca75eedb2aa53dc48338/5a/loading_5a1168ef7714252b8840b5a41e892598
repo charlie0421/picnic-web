@@ -1,0 +1,196 @@
+4f9eb35c36cefc457b258b595628ecfe
+"use strict";
+
+/* istanbul ignore next */
+function cov_2538bcmxpq() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/rewards/[id]/loading.tsx";
+  var hash = "d816b42f84945bbc3427145d4c7415ce3a20bde9";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/rewards/[id]/loading.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 15,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 13,
+          column: 8
+        },
+        end: {
+          line: 13,
+          column: 35
+        }
+      },
+      "3": {
+        start: {
+          line: 16,
+          column: 20
+        },
+        end: {
+          line: 16,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 17,
+          column: 16
+        },
+        end: {
+          line: 17,
+          column: 66
+        }
+      },
+      "5": {
+        start: {
+          line: 19,
+          column: 4
+        },
+        end: {
+          line: 19,
+          column: 80
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 20
+          },
+          end: {
+            line: 14,
+            column: 5
+          }
+        },
+        line: 12
+      },
+      "1": {
+        name: "RewardDetailLoading",
+        decl: {
+          start: {
+            line: 18,
+            column: 9
+          },
+          end: {
+            line: 18,
+            column: 28
+          }
+        },
+        loc: {
+          start: {
+            line: 18,
+            column: 31
+          },
+          end: {
+            line: 20,
+            column: 1
+          }
+        },
+        line: 18
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/rewards/[id]/loading.tsx"],
+      sourcesContent: ["import { RewardDetailSkeleton } from '@/components/client/reward';\n\n/**\n * \uB9AC\uC6CC\uB4DC \uC0C1\uC138 \uD398\uC774\uC9C0\uC758 \uB85C\uB529 \uC0C1\uD0DC \uCEF4\uD3EC\uB10C\uD2B8\n * \n * \uB9AC\uC6CC\uB4DC \uC0C1\uC138 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uB3D9\uC548 \uD45C\uC2DC\uB420 \uC2A4\uCF08\uB808\uD1A4 UI\uC785\uB2C8\uB2E4.\n * Next.js\uAC00 \uC790\uB3D9\uC73C\uB85C \uC774 \uCEF4\uD3EC\uB10C\uD2B8\uB97C Suspense fallback\uC73C\uB85C \uC0AC\uC6A9\uD569\uB2C8\uB2E4.\n */\nexport default function RewardDetailLoading() {\n  return <RewardDetailSkeleton />;\n} "],
+      names: ["RewardDetailLoading", "RewardDetailSkeleton"],
+      mappings: ";;;;+BAEA;;;;;CAKC,GACD;;;eAAwBA;;;;wBARa;AAQtB,SAASA;IACtB,qBAAO,qBAACC,4BAAoB;AAC9B"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "d816b42f84945bbc3427145d4c7415ce3a20bde9"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2538bcmxpq = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2538bcmxpq();
+cov_2538bcmxpq().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2538bcmxpq().s[1]++;
+Object.defineProperty(exports,
+/**
+* 리워드 상세 페이지의 로딩 상태 컴포넌트
+* 
+* 리워드 상세 데이터를 불러오는 동안 표시될 스켈레톤 UI입니다.
+* Next.js가 자동으로 이 컴포넌트를 Suspense fallback으로 사용합니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2538bcmxpq().f[0]++;
+    cov_2538bcmxpq().s[2]++;
+    return RewardDetailLoading;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2538bcmxpq().s[3]++, require("react/jsx-runtime"));
+const _reward =
+/* istanbul ignore next */
+(cov_2538bcmxpq().s[4]++, require("../../../../../components/client/reward"));
+function RewardDetailLoading() {
+  /* istanbul ignore next */
+  cov_2538bcmxpq().f[1]++;
+  cov_2538bcmxpq().s[5]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_reward.RewardDetailSkeleton, {});
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJSZXdhcmREZXRhaWxMb2FkaW5nIiwiY292XzI1MzhiY214cHEiLCJmIiwicyIsIl9qc3hydW50aW1lIiwianN4IiwiX3Jld2FyZCIsIlJld2FyZERldGFpbFNrZWxldG9uIl0sInNvdXJjZXMiOlsiL1VzZXJzL2NoZW9saHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9hcHAvW2xhbmddLyhtYWluKS9yZXdhcmRzL1tpZF0vbG9hZGluZy50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgUmV3YXJkRGV0YWlsU2tlbGV0b24gfSBmcm9tICdAL2NvbXBvbmVudHMvY2xpZW50L3Jld2FyZCc7XG5cbi8qKlxuICog66as7JuM65OcIOyDgeyEuCDtjpjsnbTsp4DsnZgg66Gc65SpIOyDge2DnCDsu7Ttj6zrhIztirhcbiAqIFxuICog66as7JuM65OcIOyDgeyEuCDrjbDsnbTthLDrpbwg67aI65+s7Jik64qUIOuPmeyViCDtkZzsi5zrkKAg7Iqk7LyI66CI7YakIFVJ7J6F64uI64ukLlxuICogTmV4dC5qc+qwgCDsnpDrj5nsnLzroZwg7J20IOy7tO2PrOuEjO2KuOulvCBTdXNwZW5zZSBmYWxsYmFja+ycvOuhnCDsgqzsmqntlanri4jri6QuXG4gKi9cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIFJld2FyZERldGFpbExvYWRpbmcoKSB7XG4gIHJldHVybiA8UmV3YXJkRGV0YWlsU2tlbGV0b24gLz47XG59ICJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFFQTs7Ozs7O0FBTUE7Ozs7OztXQUF3QkEsbUJBQUE7Ozs7Ozs7O2tDQVJhO0FBUXRCLFNBQVNBLG9CQUFBO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFBTyxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQ0MsT0FBQSxDQUFBQyxvQkFBb0I7QUFDOUIiLCJpZ25vcmVMaXN0IjpbXX0=

@@ -1,0 +1,259 @@
+2a213371da146f576681e5c0686ebbcd
+"use strict";
+
+/* istanbul ignore next */
+function cov_b2e37byz0() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/utils/api/language.ts";
+  var hash = "b67bf84702b9935b26d913d684092cc19718e8df";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/utils/api/language.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 37
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 18
+        },
+        end: {
+          line: 11,
+          column: 50
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 17
+        },
+        end: {
+          line: 13,
+          column: 28
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 4
+        },
+        end: {
+          line: 16,
+          column: 5
+        }
+      },
+      "6": {
+        start: {
+          line: 15,
+          column: 8
+        },
+        end: {
+          line: 15,
+          column: 20
+        }
+      },
+      "7": {
+        start: {
+          line: 17,
+          column: 4
+        },
+        end: {
+          line: 17,
+          column: 38
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "getLanguageFromParams",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 30
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 39
+          },
+          end: {
+            line: 18,
+            column: 1
+          }
+        },
+        line: 12
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 14,
+            column: 4
+          },
+          end: {
+            line: 16,
+            column: 5
+          }
+        },
+        type: "if",
+        locations: [{
+          start: {
+            line: 14,
+            column: 4
+          },
+          end: {
+            line: 16,
+            column: 5
+          }
+        }, {
+          start: {
+            line: undefined,
+            column: undefined
+          },
+          end: {
+            line: undefined,
+            column: undefined
+          }
+        }],
+        line: 14
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {
+      "0": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/utils/api/language.ts"],
+      sourcesContent: ["import { Language, DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from '@/config/settings';\n\nexport function getLanguageFromParams(params: { lang: string }): Language {\n  const lang = params.lang as Language;\n  \n  if (SUPPORTED_LANGUAGES.includes(lang)) {\n    return lang;\n  }\n  \n  return DEFAULT_LANGUAGE;\n}"],
+      names: ["getLanguageFromParams", "params", "lang", "SUPPORTED_LANGUAGES", "includes", "DEFAULT_LANGUAGE"],
+      mappings: ";;;;+BAEgBA;;;eAAAA;;;0BAFgD;AAEzD,SAASA,sBAAsBC,MAAwB;IAC5D,MAAMC,OAAOD,OAAOC,IAAI;IAExB,IAAIC,6BAAmB,CAACC,QAAQ,CAACF,OAAO;QACtC,OAAOA;IACT;IAEA,OAAOG,0BAAgB;AACzB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "b67bf84702b9935b26d913d684092cc19718e8df"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_b2e37byz0 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_b2e37byz0();
+cov_b2e37byz0().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_b2e37byz0().s[1]++;
+Object.defineProperty(exports, "getLanguageFromParams", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_b2e37byz0().f[0]++;
+    cov_b2e37byz0().s[2]++;
+    return getLanguageFromParams;
+  }
+});
+const _settings =
+/* istanbul ignore next */
+(cov_b2e37byz0().s[3]++, require("../../config/settings"));
+function getLanguageFromParams(params) {
+  /* istanbul ignore next */
+  cov_b2e37byz0().f[1]++;
+  const lang =
+  /* istanbul ignore next */
+  (cov_b2e37byz0().s[4]++, params.lang);
+  /* istanbul ignore next */
+  cov_b2e37byz0().s[5]++;
+  if (_settings.SUPPORTED_LANGUAGES.includes(lang)) {
+    /* istanbul ignore next */
+    cov_b2e37byz0().b[0][0]++;
+    cov_b2e37byz0().s[6]++;
+    return lang;
+  } else
+  /* istanbul ignore next */
+  {
+    cov_b2e37byz0().b[0][1]++;
+  }
+  cov_b2e37byz0().s[7]++;
+  return _settings.DEFAULT_LANGUAGE;
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfYjJlMzdieXowIiwiYWN0dWFsQ292ZXJhZ2UiLCJzIiwiZ2V0TGFuZ3VhZ2VGcm9tUGFyYW1zIiwicGFyYW1zIiwiZiIsImxhbmciLCJfc2V0dGluZ3MiLCJTVVBQT1JURURfTEFOR1VBR0VTIiwiaW5jbHVkZXMiLCJiIiwiREVGQVVMVF9MQU5HVUFHRSJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvdXRpbHMvYXBpL2xhbmd1YWdlLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IExhbmd1YWdlLCBERUZBVUxUX0xBTkdVQUdFLCBTVVBQT1JURURfTEFOR1VBR0VTIH0gZnJvbSAnQC9jb25maWcvc2V0dGluZ3MnO1xuXG5leHBvcnQgZnVuY3Rpb24gZ2V0TGFuZ3VhZ2VGcm9tUGFyYW1zKHBhcmFtczogeyBsYW5nOiBzdHJpbmcgfSk6IExhbmd1YWdlIHtcbiAgY29uc3QgbGFuZyA9IHBhcmFtcy5sYW5nIGFzIExhbmd1YWdlO1xuICBcbiAgaWYgKFNVUFBPUlRFRF9MQU5HVUFHRVMuaW5jbHVkZXMobGFuZykpIHtcbiAgICByZXR1cm4gbGFuZztcbiAgfVxuICBcbiAgcmV0dXJuIERFRkFVTFRfTEFOR1VBR0U7XG59Il0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7SUFPRTtJQUFBQSxhQUFBLFlBQUFBLENBQUE7TUFBQSxPQUFBQyxjQUFBO0lBQUE7RUFBQTtFQUFBLE9BQUFBLGNBQUE7QUFBQTtBQUFBRCxhQUFBO0FBQUFBLGFBQUEsR0FBQUUsQ0FBQTs7Ozs7OytCQUxjOzs7Ozs7V0FBQUMscUJBQUE7Ozs7O2lDQUZnRDtBQUV6RCxTQUFTQSxzQkFBc0JDLE1BQXdCO0VBQUE7RUFBQUosYUFBQSxHQUFBSyxDQUFBO0VBQzVELE1BQU1DLElBQUE7RUFBQTtFQUFBLENBQUFOLGFBQUEsR0FBQUUsQ0FBQSxPQUFPRSxNQUFBLENBQU9FLElBQUk7RUFBQTtFQUFBTixhQUFBLEdBQUFFLENBQUE7RUFFeEIsSUFBSUssU0FBQSxDQUFBQyxtQkFBbUIsQ0FBQ0MsUUFBUSxDQUFDSCxJQUFBLEdBQU87SUFBQTtJQUFBTixhQUFBLEdBQUFVLENBQUE7SUFBQVYsYUFBQSxHQUFBRSxDQUFBO0lBQ3RDLE9BQU9JLElBQUE7RUFDVDtFQUFBO0VBQUE7SUFBQU4sYUFBQSxHQUFBVSxDQUFBO0VBQUE7RUFBQVYsYUFBQSxHQUFBRSxDQUFBO0VBRUEsT0FBT0ssU0FBQSxDQUFBSSxnQkFBZ0I7QUFDekIiLCJpZ25vcmVMaXN0IjpbXX0=

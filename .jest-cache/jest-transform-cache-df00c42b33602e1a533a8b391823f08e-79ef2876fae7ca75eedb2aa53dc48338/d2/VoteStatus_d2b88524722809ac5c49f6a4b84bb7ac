@@ -1,0 +1,260 @@
+c4a11f417c8709b98a70b8c922dfe3e8
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_1ilmf61ydi() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/client/vote/VoteStatus.tsx";
+  var hash = "476a8476a2fa188a72ab3920b960d91d5c686414";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/client/vote/VoteStatus.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 8
+        },
+        end: {
+          line: 9,
+          column: 26
+        }
+      },
+      "3": {
+        start: {
+          line: 12,
+          column: 20
+        },
+        end: {
+          line: 12,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 16
+        },
+        end: {
+          line: 13,
+          column: 39
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 15
+        },
+        end: {
+          line: 14,
+          column: 44
+        }
+      },
+      "6": {
+        start: {
+          line: 16,
+          column: 18
+        },
+        end: {
+          line: 16,
+          column: 56
+        }
+      },
+      "7": {
+        start: {
+          line: 17,
+          column: 23
+        },
+        end: {
+          line: 17,
+          column: 61
+        }
+      },
+      "8": {
+        start: {
+          line: 19,
+          column: 23
+        },
+        end: {
+          line: 23,
+          column: 5
+        }
+      },
+      "9": {
+        start: {
+          line: 24,
+          column: 4
+        },
+        end: {
+          line: 29,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 9
+          },
+          end: {
+            line: 8,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 20
+          },
+          end: {
+            line: 10,
+            column: 5
+          }
+        },
+        line: 8
+      },
+      "1": {
+        name: "VoteStatus",
+        decl: {
+          start: {
+            line: 15,
+            column: 9
+          },
+          end: {
+            line: 15,
+            column: 19
+          }
+        },
+        loc: {
+          start: {
+            line: 15,
+            column: 43
+          },
+          end: {
+            line: 30,
+            column: 1
+          }
+        },
+        line: 15
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/client/vote/VoteStatus.tsx"],
+      sourcesContent: ["'use client';\n\nimport { Badge } from '@/components/common';\nimport { VoteStatus as VoteStatusType } from '@/stores/voteFilterStore';\nimport { getVoteStatusLabel, getVoteStatusColor } from '@/components/server/utils';\n\nexport interface VoteStatusProps {\n  status: VoteStatusType;\n  className?: string;\n}\n\nexport function VoteStatus({ status, className }: VoteStatusProps) {\n  const label = getVoteStatusLabel(status);\n  const colorClass = getVoteStatusColor(status);\n  \n  // Badge variant \uB9E4\uD551\n  const variantMap: Record<VoteStatusType, 'info' | 'success' | 'default'> = {\n    upcoming: 'info',\n    ongoing: 'success',\n    completed: 'default'\n  };\n  \n  return (\n    <Badge \n      variant={variantMap[status]}\n      size=\"sm\"\n      className={className}\n    >\n      {label}\n    </Badge>\n  );\n} "],
+      names: ["VoteStatus", "status", "className", "label", "getVoteStatusLabel", "colorClass", "getVoteStatusColor", "variantMap", "upcoming", "ongoing", "completed", "Badge", "variant", "size"],
+      mappings: "AAAA;;;;;+BAWgBA;;;eAAAA;;;;wBATM;uBAEiC;AAOhD,SAASA,WAAW,EAAEC,MAAM,EAAEC,SAAS,EAAmB;IAC/D,MAAMC,QAAQC,IAAAA,yBAAkB,EAACH;IACjC,MAAMI,aAAaC,IAAAA,yBAAkB,EAACL;IAEtC,mBAAmB;IACnB,MAAMM,aAAqE;QACzEC,UAAU;QACVC,SAAS;QACTC,WAAW;IACb;IAEA,qBACE,qBAACC,aAAK;QACJC,SAASL,UAAU,CAACN,OAAO;QAC3BY,MAAK;QACLX,WAAWA;kBAEVC;;AAGP"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "476a8476a2fa188a72ab3920b960d91d5c686414"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_1ilmf61ydi = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_1ilmf61ydi();
+cov_1ilmf61ydi().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_1ilmf61ydi().s[1]++;
+Object.defineProperty(exports, "VoteStatus", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_1ilmf61ydi().f[0]++;
+    cov_1ilmf61ydi().s[2]++;
+    return VoteStatus;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_1ilmf61ydi().s[3]++, require("react/jsx-runtime"));
+const _common =
+/* istanbul ignore next */
+(cov_1ilmf61ydi().s[4]++, require("../../common"));
+const _utils =
+/* istanbul ignore next */
+(cov_1ilmf61ydi().s[5]++, require("../../server/utils"));
+function VoteStatus({
+  status,
+  className
+}) {
+  /* istanbul ignore next */
+  cov_1ilmf61ydi().f[1]++;
+  const label =
+  /* istanbul ignore next */
+  (cov_1ilmf61ydi().s[6]++, (0, _utils.getVoteStatusLabel)(status));
+  const colorClass =
+  /* istanbul ignore next */
+  (cov_1ilmf61ydi().s[7]++, (0, _utils.getVoteStatusColor)(status));
+  // Badge variant 매핑
+  const variantMap =
+  /* istanbul ignore next */
+  (cov_1ilmf61ydi().s[8]++, {
+    upcoming: 'info',
+    ongoing: 'success',
+    completed: 'default'
+  });
+  /* istanbul ignore next */
+  cov_1ilmf61ydi().s[9]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_common.Badge, {
+    variant: variantMap[status],
+    size: "sm",
+    className: className,
+    children: label
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMWlsbWY2MXlkaSIsImFjdHVhbENvdmVyYWdlIiwicyIsIlZvdGVTdGF0dXMiLCJzdGF0dXMiLCJjbGFzc05hbWUiLCJmIiwibGFiZWwiLCJfdXRpbHMiLCJnZXRWb3RlU3RhdHVzTGFiZWwiLCJjb2xvckNsYXNzIiwiZ2V0Vm90ZVN0YXR1c0NvbG9yIiwidmFyaWFudE1hcCIsInVwY29taW5nIiwib25nb2luZyIsImNvbXBsZXRlZCIsIl9qc3hydW50aW1lIiwianN4IiwiX2NvbW1vbiIsIkJhZGdlIiwidmFyaWFudCIsInNpemUiXSwic291cmNlcyI6WyIvVXNlcnMvY2hlb2xoeXVuL1JlcG9zaXRvcmllcy9waWNuaWMtd2ViL2NvbXBvbmVudHMvY2xpZW50L3ZvdGUvVm90ZVN0YXR1cy50c3giXSwic291cmNlc0NvbnRlbnQiOlsiJ3VzZSBjbGllbnQnO1xuXG5pbXBvcnQgeyBCYWRnZSB9IGZyb20gJ0AvY29tcG9uZW50cy9jb21tb24nO1xuaW1wb3J0IHsgVm90ZVN0YXR1cyBhcyBWb3RlU3RhdHVzVHlwZSB9IGZyb20gJ0Avc3RvcmVzL3ZvdGVGaWx0ZXJTdG9yZSc7XG5pbXBvcnQgeyBnZXRWb3RlU3RhdHVzTGFiZWwsIGdldFZvdGVTdGF0dXNDb2xvciB9IGZyb20gJ0AvY29tcG9uZW50cy9zZXJ2ZXIvdXRpbHMnO1xuXG5leHBvcnQgaW50ZXJmYWNlIFZvdGVTdGF0dXNQcm9wcyB7XG4gIHN0YXR1czogVm90ZVN0YXR1c1R5cGU7XG4gIGNsYXNzTmFtZT86IHN0cmluZztcbn1cblxuZXhwb3J0IGZ1bmN0aW9uIFZvdGVTdGF0dXMoeyBzdGF0dXMsIGNsYXNzTmFtZSB9OiBWb3RlU3RhdHVzUHJvcHMpIHtcbiAgY29uc3QgbGFiZWwgPSBnZXRWb3RlU3RhdHVzTGFiZWwoc3RhdHVzKTtcbiAgY29uc3QgY29sb3JDbGFzcyA9IGdldFZvdGVTdGF0dXNDb2xvcihzdGF0dXMpO1xuICBcbiAgLy8gQmFkZ2UgdmFyaWFudCDrp6TtlZFcbiAgY29uc3QgdmFyaWFudE1hcDogUmVjb3JkPFZvdGVTdGF0dXNUeXBlLCAnaW5mbycgfCAnc3VjY2VzcycgfCAnZGVmYXVsdCc+ID0ge1xuICAgIHVwY29taW5nOiAnaW5mbycsXG4gICAgb25nb2luZzogJ3N1Y2Nlc3MnLFxuICAgIGNvbXBsZXRlZDogJ2RlZmF1bHQnXG4gIH07XG4gIFxuICByZXR1cm4gKFxuICAgIDxCYWRnZSBcbiAgICAgIHZhcmlhbnQ9e3ZhcmlhbnRNYXBbc3RhdHVzXX1cbiAgICAgIHNpemU9XCJzbVwiXG4gICAgICBjbGFzc05hbWU9e2NsYXNzTmFtZX1cbiAgICA+XG4gICAgICB7bGFiZWx9XG4gICAgPC9CYWRnZT5cbiAgKTtcbn0gIl0sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7SUFZUTtJQUFBQSxjQUFBLFlBQUFBLENBQUE7TUFBQSxPQUFBQyxjQUFBO0lBQUE7RUFBQTtFQUFBLE9BQUFBLGNBQUE7QUFBQTtBQUFBRCxjQUFBO0FBQUFBLGNBQUEsR0FBQUUsQ0FBQTs7Ozs7OytCQURROzs7Ozs7V0FBQUMsVUFBQTs7Ozs7Ozs7a0NBVE07OztrQ0FFaUM7QUFPaEQsU0FBU0EsV0FBVztFQUFFQyxNQUFNO0VBQUVDO0FBQVMsQ0FBbUI7RUFBQTtFQUFBTCxjQUFBLEdBQUFNLENBQUE7RUFDL0QsTUFBTUMsS0FBQTtFQUFBO0VBQUEsQ0FBQVAsY0FBQSxHQUFBRSxDQUFBLE9BQVEsSUFBQU0sTUFBQSxDQUFBQyxrQkFBa0IsRUFBQ0wsTUFBQTtFQUNqQyxNQUFNTSxVQUFBO0VBQUE7RUFBQSxDQUFBVixjQUFBLEdBQUFFLENBQUEsT0FBYSxJQUFBTSxNQUFBLENBQUFHLGtCQUFrQixFQUFDUCxNQUFBO0VBRXRDO0VBQ0EsTUFBTVEsVUFBQTtFQUFBO0VBQUEsQ0FBQVosY0FBQSxHQUFBRSxDQUFBLE9BQXFFO0lBQ3pFVyxRQUFBLEVBQVU7SUFDVkMsT0FBQSxFQUFTO0lBQ1RDLFNBQUEsRUFBVztFQUNiO0VBQUE7RUFBQWYsY0FBQSxHQUFBRSxDQUFBO0VBRUEsb0JBQ0UsSUFBQWMsV0FBQSxDQUFBQyxHQUFBLEVBQUNDLE9BQUEsQ0FBQUMsS0FBSztJQUNKQyxPQUFBLEVBQVNSLFVBQVUsQ0FBQ1IsTUFBQSxDQUFPO0lBQzNCaUIsSUFBQSxFQUFLO0lBQ0xoQixTQUFBLEVBQVdBLFNBQUE7Y0FFVkU7O0FBR1AiLCJpZ25vcmVMaXN0IjpbXX0=

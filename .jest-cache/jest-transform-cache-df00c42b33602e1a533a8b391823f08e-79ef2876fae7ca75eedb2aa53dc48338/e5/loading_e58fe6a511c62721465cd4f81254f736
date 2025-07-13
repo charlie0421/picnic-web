@@ -1,0 +1,196 @@
+baec814b6d30b5be54c77fd078575770
+"use strict";
+
+/* istanbul ignore next */
+function cov_2dtbfmb1nf() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/media/loading.tsx";
+  var hash = "c03ebc3447171a1828abe0840c3b8e7ed5a16349";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/media/loading.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 15,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 13,
+          column: 8
+        },
+        end: {
+          line: 13,
+          column: 28
+        }
+      },
+      "3": {
+        start: {
+          line: 16,
+          column: 20
+        },
+        end: {
+          line: 16,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 17,
+          column: 15
+        },
+        end: {
+          line: 17,
+          column: 61
+        }
+      },
+      "5": {
+        start: {
+          line: 19,
+          column: 4
+        },
+        end: {
+          line: 19,
+          column: 72
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 20
+          },
+          end: {
+            line: 14,
+            column: 5
+          }
+        },
+        line: 12
+      },
+      "1": {
+        name: "MediaLoading",
+        decl: {
+          start: {
+            line: 18,
+            column: 9
+          },
+          end: {
+            line: 18,
+            column: 21
+          }
+        },
+        loc: {
+          start: {
+            line: 18,
+            column: 24
+          },
+          end: {
+            line: 20,
+            column: 1
+          }
+        },
+        line: 18
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/media/loading.tsx"],
+      sourcesContent: ["import { MediaSkeleton } from '@/components/client/media';\n\n/**\n * \uBBF8\uB514\uC5B4 \uD398\uC774\uC9C0\uC758 \uB85C\uB529 \uC0C1\uD0DC \uCEF4\uD3EC\uB10C\uD2B8\n * \n * \uBBF8\uB514\uC5B4 \uD398\uC774\uC9C0 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uB3D9\uC548 \uD45C\uC2DC\uB420 \uC2A4\uCF08\uB808\uD1A4 UI\uC785\uB2C8\uB2E4.\n * Next.js\uAC00 \uC790\uB3D9\uC73C\uB85C \uC774 \uCEF4\uD3EC\uB10C\uD2B8\uB97C Suspense fallback\uC73C\uB85C \uC0AC\uC6A9\uD569\uB2C8\uB2E4.\n */\nexport default function MediaLoading() {\n  return <MediaSkeleton />;\n} "],
+      names: ["MediaLoading", "MediaSkeleton"],
+      mappings: ";;;;+BAEA;;;;;CAKC,GACD;;;eAAwBA;;;;uBARM;AAQf,SAASA;IACtB,qBAAO,qBAACC,oBAAa;AACvB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "c03ebc3447171a1828abe0840c3b8e7ed5a16349"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2dtbfmb1nf = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2dtbfmb1nf();
+cov_2dtbfmb1nf().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2dtbfmb1nf().s[1]++;
+Object.defineProperty(exports,
+/**
+* 미디어 페이지의 로딩 상태 컴포넌트
+* 
+* 미디어 페이지 데이터를 불러오는 동안 표시될 스켈레톤 UI입니다.
+* Next.js가 자동으로 이 컴포넌트를 Suspense fallback으로 사용합니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2dtbfmb1nf().f[0]++;
+    cov_2dtbfmb1nf().s[2]++;
+    return MediaLoading;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2dtbfmb1nf().s[3]++, require("react/jsx-runtime"));
+const _media =
+/* istanbul ignore next */
+(cov_2dtbfmb1nf().s[4]++, require("../../../../components/client/media"));
+function MediaLoading() {
+  /* istanbul ignore next */
+  cov_2dtbfmb1nf().f[1]++;
+  cov_2dtbfmb1nf().s[5]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_media.MediaSkeleton, {});
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJNZWRpYUxvYWRpbmciLCJjb3ZfMmR0YmZtYjFuZiIsImYiLCJzIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJfbWVkaWEiLCJNZWRpYVNrZWxldG9uIl0sInNvdXJjZXMiOlsiL1VzZXJzL2NoZW9saHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9hcHAvW2xhbmddLyhtYWluKS9tZWRpYS9sb2FkaW5nLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBNZWRpYVNrZWxldG9uIH0gZnJvbSAnQC9jb21wb25lbnRzL2NsaWVudC9tZWRpYSc7XG5cbi8qKlxuICog66+465SU7Ja0IO2OmOydtOyngOydmCDroZzrlKkg7IOB7YOcIOy7tO2PrOuEjO2KuFxuICogXG4gKiDrr7jrlJTslrQg7Y6Y7J207KeAIOuNsOydtO2EsOulvCDrtojrn6zsmKTripQg64+Z7JWIIO2RnOyLnOuQoCDsiqTsvIjroIjthqQgVUnsnoXri4jri6QuXG4gKiBOZXh0Lmpz6rCAIOyekOuPmeycvOuhnCDsnbQg7Lu07Y+s64SM7Yq466W8IFN1c3BlbnNlIGZhbGxiYWNr7Jy866GcIOyCrOyaqe2VqeuLiOuLpC5cbiAqL1xuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gTWVkaWFMb2FkaW5nKCkge1xuICByZXR1cm4gPE1lZGlhU2tlbGV0b24gLz47XG59ICJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFFQTs7Ozs7O0FBTUE7Ozs7OztXQUF3QkEsWUFBQTs7Ozs7Ozs7a0NBUk07QUFRZixTQUFTQSxhQUFBO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFBTyxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQ0MsTUFBQSxDQUFBQyxhQUFhO0FBQ3ZCIiwiaWdub3JlTGlzdCI6W119

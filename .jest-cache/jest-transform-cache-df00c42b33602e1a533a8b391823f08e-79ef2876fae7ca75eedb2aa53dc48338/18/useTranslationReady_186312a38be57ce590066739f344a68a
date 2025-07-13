@@ -1,0 +1,276 @@
+50cf3a3fbdfef71e1c26d415107d527a
+"use strict";
+
+/* istanbul ignore next */
+function cov_127rxpbkfh() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/hooks/useTranslationReady.ts";
+  var hash = "904e6d263c469da7e6828be78d4f5b24c0f0db51";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/hooks/useTranslationReady.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 35
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 23
+        },
+        end: {
+          line: 11,
+          column: 57
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 90
+        },
+        end: {
+          line: 13,
+          column: 128
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 4
+        },
+        end: {
+          line: 19,
+          column: 5
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "useTranslationReady",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 28
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 31
+          },
+          end: {
+            line: 20,
+            column: 1
+          }
+        },
+        line: 12
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 14,
+            column: 11
+          },
+          end: {
+            line: 18,
+            column: 57
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 14,
+            column: 11
+          },
+          end: {
+            line: 14,
+            column: 21
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 4
+          },
+          end: {
+            line: 15,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 16,
+            column: 4
+          },
+          end: {
+            line: 16,
+            column: 40
+          }
+        }, {
+          start: {
+            line: 17,
+            column: 4
+          },
+          end: {
+            line: 17,
+            column: 33
+          }
+        }, {
+          start: {
+            line: 18,
+            column: 4
+          },
+          end: {
+            line: 18,
+            column: 57
+          }
+        }],
+        line: 14
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {
+      "0": [0, 0, 0, 0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/hooks/useTranslationReady.ts"],
+      sourcesContent: ["import { useLanguageStore } from '@/stores/languageStore';\n\n/**\n * \uD604\uC7AC \uC5B8\uC5B4\uC758 \uBC88\uC5ED\uC774 \uC644\uC804\uD788 \uB85C\uB4DC\uB418\uC5C8\uB294\uC9C0 \uD655\uC778\uD558\uB294 \uD6C5\n * hydration \uC0C1\uD0DC, \uB85C\uB529 \uC0C1\uD0DC, \uBC88\uC5ED \uB370\uC774\uD130 \uC874\uC7AC \uC5EC\uBD80\uB97C \uBAA8\uB450 \uD655\uC778\uD558\uC5EC \n * \uC11C\uBC84-\uD074\uB77C\uC774\uC5B8\uD2B8 \uBD88\uC77C\uCE58\uC640 \uAD6D\uC81C\uD654 \uD0A4 \uB178\uCD9C\uC744 \uBC29\uC9C0\uD569\uB2C8\uB2E4.\n * @returns {boolean} \uBC88\uC5ED\uC774 \uC644\uC804\uD788 \uC900\uBE44\uB418\uC5C8\uC73C\uBA74 true, \uC544\uB2C8\uBA74 false\n */\nexport function useTranslationReady(): boolean {\n  const { \n    currentLanguage, \n    translations, \n    isTranslationLoaded, \n    isHydrated, \n    isLoading \n  } = useLanguageStore();\n\n  return (\n    isHydrated && // hydration \uC644\uB8CC \uD655\uC778\n    !isLoading && // \uB85C\uB529 \uC911\uC774 \uC544\uB2D8\uC744 \uD655\uC778\n    isTranslationLoaded[currentLanguage] && // \uBC88\uC5ED \uB85C\uB4DC \uC644\uB8CC \uD45C\uC2DC\n    translations[currentLanguage] && // \uBC88\uC5ED \uAC1D\uCCB4 \uC874\uC7AC \uD655\uC778\n    Object.keys(translations[currentLanguage]).length > 0 // \uC2E4\uC81C \uBC88\uC5ED \uB370\uC774\uD130 \uC874\uC7AC \uD655\uC778\n  );\n} "],
+      names: ["useTranslationReady", "currentLanguage", "translations", "isTranslationLoaded", "isHydrated", "isLoading", "useLanguageStore", "Object", "keys", "length"],
+      mappings: ";;;;+BAQgBA;;;eAAAA;;;+BARiB;AAQ1B,SAASA;IACd,MAAM,EACJC,eAAe,EACfC,YAAY,EACZC,mBAAmB,EACnBC,UAAU,EACVC,SAAS,EACV,GAAGC,IAAAA,+BAAgB;IAEpB,OACEF,cAAc,kBAAkB;IAChC,CAACC,aAAa,eAAe;IAC7BF,mBAAmB,CAACF,gBAAgB,IAAI,cAAc;IACtDC,YAAY,CAACD,gBAAgB,IAAI,cAAc;IAC/CM,OAAOC,IAAI,CAACN,YAAY,CAACD,gBAAgB,EAAEQ,MAAM,GAAG,EAAE,kBAAkB;;AAE5E"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "904e6d263c469da7e6828be78d4f5b24c0f0db51"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_127rxpbkfh = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_127rxpbkfh();
+cov_127rxpbkfh().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_127rxpbkfh().s[1]++;
+Object.defineProperty(exports, "useTranslationReady", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_127rxpbkfh().f[0]++;
+    cov_127rxpbkfh().s[2]++;
+    return useTranslationReady;
+  }
+});
+const _languageStore =
+/* istanbul ignore next */
+(cov_127rxpbkfh().s[3]++, require("../stores/languageStore"));
+function useTranslationReady() {
+  /* istanbul ignore next */
+  cov_127rxpbkfh().f[1]++;
+  const {
+    currentLanguage,
+    translations,
+    isTranslationLoaded,
+    isHydrated,
+    isLoading
+  } =
+  /* istanbul ignore next */
+  (cov_127rxpbkfh().s[4]++, (0, _languageStore.useLanguageStore)());
+  /* istanbul ignore next */
+  cov_127rxpbkfh().s[5]++;
+  return /* istanbul ignore next */(cov_127rxpbkfh().b[0][0]++, isHydrated) &&
+  /* istanbul ignore next */
+  (cov_127rxpbkfh().b[0][1]++,
+  // hydration 완료 확인
+  !isLoading) &&
+  /* istanbul ignore next */
+  (cov_127rxpbkfh().b[0][2]++,
+  // 로딩 중이 아님을 확인
+  isTranslationLoaded[currentLanguage]) &&
+  /* istanbul ignore next */
+  (cov_127rxpbkfh().b[0][3]++,
+  // 번역 로드 완료 표시
+  translations[currentLanguage]) &&
+  /* istanbul ignore next */
+  (cov_127rxpbkfh().b[0][4]++,
+  // 번역 객체 존재 확인
+  Object.keys(translations[currentLanguage]).length > 0) // 실제 번역 데이터 존재 확인
+  ;
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMTI3cnhwYmtmaCIsImFjdHVhbENvdmVyYWdlIiwicyIsInVzZVRyYW5zbGF0aW9uUmVhZHkiLCJmIiwiY3VycmVudExhbmd1YWdlIiwidHJhbnNsYXRpb25zIiwiaXNUcmFuc2xhdGlvbkxvYWRlZCIsImlzSHlkcmF0ZWQiLCJpc0xvYWRpbmciLCJfbGFuZ3VhZ2VTdG9yZSIsInVzZUxhbmd1YWdlU3RvcmUiLCJiIiwiT2JqZWN0Iiwia2V5cyIsImxlbmd0aCJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvaG9va3MvdXNlVHJhbnNsYXRpb25SZWFkeS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB1c2VMYW5ndWFnZVN0b3JlIH0gZnJvbSAnQC9zdG9yZXMvbGFuZ3VhZ2VTdG9yZSc7XG5cbi8qKlxuICog7ZiE7J6sIOyWuOyWtOydmCDrsojsl63snbQg7JmE7KCE7Z6IIOuhnOuTnOuQmOyXiOuKlOyngCDtmZXsnbjtlZjripQg7ZuFXG4gKiBoeWRyYXRpb24g7IOB7YOcLCDroZzrlKkg7IOB7YOcLCDrsojsl60g642w7J207YSwIOyhtOyerCDsl6zrtoDrpbwg66qo65GQIO2ZleyduO2VmOyXrCBcbiAqIOyEnOuyhC3tgbTrnbzsnbTslrjtirgg67aI7J287LmY7JmAIOq1reygnO2ZlCDtgqQg64W47Lac7J2EIOuwqeyngO2VqeuLiOuLpC5cbiAqIEByZXR1cm5zIHtib29sZWFufSDrsojsl63snbQg7JmE7KCE7Z6IIOykgOu5hOuQmOyXiOycvOuptCB0cnVlLCDslYTri4jrqbQgZmFsc2VcbiAqL1xuZXhwb3J0IGZ1bmN0aW9uIHVzZVRyYW5zbGF0aW9uUmVhZHkoKTogYm9vbGVhbiB7XG4gIGNvbnN0IHsgXG4gICAgY3VycmVudExhbmd1YWdlLCBcbiAgICB0cmFuc2xhdGlvbnMsIFxuICAgIGlzVHJhbnNsYXRpb25Mb2FkZWQsIFxuICAgIGlzSHlkcmF0ZWQsIFxuICAgIGlzTG9hZGluZyBcbiAgfSA9IHVzZUxhbmd1YWdlU3RvcmUoKTtcblxuICByZXR1cm4gKFxuICAgIGlzSHlkcmF0ZWQgJiYgLy8gaHlkcmF0aW9uIOyZhOujjCDtmZXsnbhcbiAgICAhaXNMb2FkaW5nICYmIC8vIOuhnOuUqSDspJHsnbQg7JWE64uY7J2EIO2ZleyduFxuICAgIGlzVHJhbnNsYXRpb25Mb2FkZWRbY3VycmVudExhbmd1YWdlXSAmJiAvLyDrsojsl60g66Gc65OcIOyZhOujjCDtkZzsi5xcbiAgICB0cmFuc2xhdGlvbnNbY3VycmVudExhbmd1YWdlXSAmJiAvLyDrsojsl60g6rCd7LK0IOyhtOyerCDtmZXsnbhcbiAgICBPYmplY3Qua2V5cyh0cmFuc2xhdGlvbnNbY3VycmVudExhbmd1YWdlXSkubGVuZ3RoID4gMCAvLyDsi6TsoJwg67KI7JetIOuNsOydtO2EsCDsobTsnqwg7ZmV7J24XG4gICk7XG59ICJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7SUFvQkk7SUFBQUEsY0FBQSxZQUFBQSxDQUFBO01BQUEsT0FBQUMsY0FBQTtJQUFBO0VBQUE7RUFBQSxPQUFBQSxjQUFBO0FBQUE7QUFBQUQsY0FBQTtBQUFBQSxjQUFBLEdBQUFFLENBQUE7Ozs7OzsrQkFaWTs7Ozs7O1dBQUFDLG1CQUFBOzs7OztrQ0FSaUI7QUFRMUIsU0FBU0Esb0JBQUE7RUFBQTtFQUFBSCxjQUFBLEdBQUFJLENBQUE7RUFDZCxNQUFNO0lBQ0pDLGVBQWU7SUFDZkMsWUFBWTtJQUNaQyxtQkFBbUI7SUFDbkJDLFVBQVU7SUFDVkM7RUFBUyxDQUNWO0VBQUE7RUFBQSxDQUFBVCxjQUFBLEdBQUFFLENBQUEsT0FBRyxJQUFBUSxjQUFBLENBQUFDLGdCQUFnQjtFQUFBO0VBQUFYLGNBQUEsR0FBQUUsQ0FBQTtFQUVwQixPQUNFLDJCQUFBRixjQUFBLEdBQUFZLENBQUEsVUFBQUosVUFBQTtFQUFBO0VBQUEsQ0FBQVIsY0FBQSxHQUFBWSxDQUFBO0VBQWM7RUFDZCxDQUFDSCxTQUFBO0VBQUE7RUFBQSxDQUFBVCxjQUFBLEdBQUFZLENBQUE7RUFBYTtFQUNkTCxtQkFBbUIsQ0FBQ0YsZUFBQSxDQUFnQjtFQUFBO0VBQUEsQ0FBQUwsY0FBQSxHQUFBWSxDQUFBO0VBQUk7RUFDeENOLFlBQVksQ0FBQ0QsZUFBQSxDQUFnQjtFQUFBO0VBQUEsQ0FBQUwsY0FBQSxHQUFBWSxDQUFBO0VBQUk7RUFDakNDLE1BQUEsQ0FBT0MsSUFBSSxDQUFDUixZQUFZLENBQUNELGVBQUEsQ0FBZ0IsRUFBRVUsTUFBTSxHQUFHLEdBQUU7RUFBQTtBQUUxRCIsImlnbm9yZUxpc3QiOltdfQ==

@@ -1,0 +1,372 @@
+1a2c1d84fba9fc41545b41952d6a34ee
+"use strict";
+
+/* istanbul ignore next */
+function cov_3wwlysxgn() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/common/atoms/Badge.tsx";
+  var hash = "e45bf87527283ab81beaee39745d9e1918cfb000";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/common/atoms/Badge.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 21
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 12
+        },
+        end: {
+          line: 12,
+          column: 37
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 23
+        },
+        end: {
+          line: 14,
+          column: 76
+        }
+      },
+      "6": {
+        start: {
+          line: 15,
+          column: 21
+        },
+        end: {
+          line: 21,
+          column: 5
+        }
+      },
+      "7": {
+        start: {
+          line: 22,
+          column: 18
+        },
+        end: {
+          line: 26,
+          column: 5
+        }
+      },
+      "8": {
+        start: {
+          line: 27,
+          column: 4
+        },
+        end: {
+          line: 30,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "Badge",
+        decl: {
+          start: {
+            line: 13,
+            column: 9
+          },
+          end: {
+            line: 13,
+            column: 14
+          }
+        },
+        loc: {
+          start: {
+            line: 13,
+            column: 91
+          },
+          end: {
+            line: 31,
+            column: 1
+          }
+        },
+        line: 13
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 13,
+            column: 27
+          },
+          end: {
+            line: 13,
+            column: 46
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 13,
+            column: 37
+          },
+          end: {
+            line: 13,
+            column: 46
+          }
+        }],
+        line: 13
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 13,
+            column: 48
+          },
+          end: {
+            line: 13,
+            column: 59
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 13,
+            column: 55
+          },
+          end: {
+            line: 13,
+            column: 59
+          }
+        }],
+        line: 13
+      },
+      "2": {
+        loc: {
+          start: {
+            line: 13,
+            column: 61
+          },
+          end: {
+            line: 13,
+            column: 76
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 13,
+            column: 71
+          },
+          end: {
+            line: 13,
+            column: 76
+          }
+        }],
+        line: 13
+      },
+      "3": {
+        loc: {
+          start: {
+            line: 28,
+            column: 75
+          },
+          end: {
+            line: 28,
+            column: 111
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 28,
+            column: 85
+          },
+          end: {
+            line: 28,
+            column: 99
+          }
+        }, {
+          start: {
+            line: 28,
+            column: 102
+          },
+          end: {
+            line: 28,
+            column: 111
+          }
+        }],
+        line: 28
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {
+      "0": [0],
+      "1": [0],
+      "2": [0],
+      "3": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/common/atoms/Badge.tsx"],
+      sourcesContent: ["import { cn } from '@/components/utils/cn';\n\nexport interface BadgeProps {\n  children: React.ReactNode;\n  variant?: 'default' | 'success' | 'warning' | 'error' | 'info';\n  size?: 'sm' | 'md' | 'lg';\n  rounded?: boolean;\n  className?: string;\n}\n\nexport function Badge({ \n  children, \n  variant = 'default',\n  size = 'md',\n  rounded = false,\n  className\n}: BadgeProps) {\n  const baseStyles = 'inline-flex items-center justify-center font-medium';\n  \n  const variants = {\n    default: 'bg-gray-100 text-gray-800',\n    success: 'bg-green-100 text-green-800',\n    warning: 'bg-yellow-100 text-yellow-800',\n    error: 'bg-red-100 text-red-800',\n    info: 'bg-blue-100 text-blue-800'\n  };\n  \n  const sizes = {\n    sm: 'px-2 py-0.5 text-xs',\n    md: 'px-2.5 py-1 text-sm',\n    lg: 'px-3 py-1.5 text-base'\n  };\n  \n  return (\n    <span\n      className={cn(\n        baseStyles,\n        variants[variant],\n        sizes[size],\n        rounded ? 'rounded-full' : 'rounded',\n        className\n      )}\n    >\n      {children}\n    </span>\n  );\n} "],
+      names: ["Badge", "children", "variant", "size", "rounded", "className", "baseStyles", "variants", "default", "success", "warning", "error", "info", "sizes", "sm", "md", "lg", "span", "cn"],
+      mappings: ";;;;+BAUgBA;;;eAAAA;;;;oBAVG;AAUZ,SAASA,MAAM,EACpBC,QAAQ,EACRC,UAAU,SAAS,EACnBC,OAAO,IAAI,EACXC,UAAU,KAAK,EACfC,SAAS,EACE;IACX,MAAMC,aAAa;IAEnB,MAAMC,WAAW;QACfC,SAAS;QACTC,SAAS;QACTC,SAAS;QACTC,OAAO;QACPC,MAAM;IACR;IAEA,MAAMC,QAAQ;QACZC,IAAI;QACJC,IAAI;QACJC,IAAI;IACN;IAEA,qBACE,qBAACC;QACCZ,WAAWa,IAAAA,MAAE,EACXZ,YACAC,QAAQ,CAACL,QAAQ,EACjBW,KAAK,CAACV,KAAK,EACXC,UAAU,iBAAiB,WAC3BC;kBAGDJ;;AAGP"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "e45bf87527283ab81beaee39745d9e1918cfb000"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_3wwlysxgn = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_3wwlysxgn();
+cov_3wwlysxgn().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_3wwlysxgn().s[1]++;
+Object.defineProperty(exports, "Badge", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_3wwlysxgn().f[0]++;
+    cov_3wwlysxgn().s[2]++;
+    return Badge;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_3wwlysxgn().s[3]++, require("react/jsx-runtime"));
+const _cn =
+/* istanbul ignore next */
+(cov_3wwlysxgn().s[4]++, require("../../utils/cn"));
+function Badge({
+  children,
+  variant =
+  /* istanbul ignore next */
+  (cov_3wwlysxgn().b[0][0]++, 'default'),
+  size =
+  /* istanbul ignore next */
+  (cov_3wwlysxgn().b[1][0]++, 'md'),
+  rounded =
+  /* istanbul ignore next */
+  (cov_3wwlysxgn().b[2][0]++, false),
+  className
+}) {
+  /* istanbul ignore next */
+  cov_3wwlysxgn().f[1]++;
+  const baseStyles =
+  /* istanbul ignore next */
+  (cov_3wwlysxgn().s[5]++, 'inline-flex items-center justify-center font-medium');
+  const variants =
+  /* istanbul ignore next */
+  (cov_3wwlysxgn().s[6]++, {
+    default: 'bg-gray-100 text-gray-800',
+    success: 'bg-green-100 text-green-800',
+    warning: 'bg-yellow-100 text-yellow-800',
+    error: 'bg-red-100 text-red-800',
+    info: 'bg-blue-100 text-blue-800'
+  });
+  const sizes =
+  /* istanbul ignore next */
+  (cov_3wwlysxgn().s[7]++, {
+    sm: 'px-2 py-0.5 text-xs',
+    md: 'px-2.5 py-1 text-sm',
+    lg: 'px-3 py-1.5 text-base'
+  });
+  /* istanbul ignore next */
+  cov_3wwlysxgn().s[8]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("span", {
+    className: (0, _cn.cn)(baseStyles, variants[variant], sizes[size], rounded ?
+    /* istanbul ignore next */
+    (cov_3wwlysxgn().b[3][0]++, 'rounded-full') :
+    /* istanbul ignore next */
+    (cov_3wwlysxgn().b[3][1]++, 'rounded'), className),
+    children: children
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfM3d3bHlzeGduIiwiYWN0dWFsQ292ZXJhZ2UiLCJzIiwiQmFkZ2UiLCJjaGlsZHJlbiIsInZhcmlhbnQiLCJiIiwic2l6ZSIsInJvdW5kZWQiLCJjbGFzc05hbWUiLCJmIiwiYmFzZVN0eWxlcyIsInZhcmlhbnRzIiwiZGVmYXVsdCIsInN1Y2Nlc3MiLCJ3YXJuaW5nIiwiZXJyb3IiLCJpbmZvIiwic2l6ZXMiLCJzbSIsIm1kIiwibGciLCJfanN4cnVudGltZSIsImpzeCIsIl9jbiIsImNuIl0sInNvdXJjZXMiOlsiL1VzZXJzL2NoZW9saHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9jb21wb25lbnRzL2NvbW1vbi9hdG9tcy9CYWRnZS50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgY24gfSBmcm9tICdAL2NvbXBvbmVudHMvdXRpbHMvY24nO1xuXG5leHBvcnQgaW50ZXJmYWNlIEJhZGdlUHJvcHMge1xuICBjaGlsZHJlbjogUmVhY3QuUmVhY3ROb2RlO1xuICB2YXJpYW50PzogJ2RlZmF1bHQnIHwgJ3N1Y2Nlc3MnIHwgJ3dhcm5pbmcnIHwgJ2Vycm9yJyB8ICdpbmZvJztcbiAgc2l6ZT86ICdzbScgfCAnbWQnIHwgJ2xnJztcbiAgcm91bmRlZD86IGJvb2xlYW47XG4gIGNsYXNzTmFtZT86IHN0cmluZztcbn1cblxuZXhwb3J0IGZ1bmN0aW9uIEJhZGdlKHsgXG4gIGNoaWxkcmVuLCBcbiAgdmFyaWFudCA9ICdkZWZhdWx0JyxcbiAgc2l6ZSA9ICdtZCcsXG4gIHJvdW5kZWQgPSBmYWxzZSxcbiAgY2xhc3NOYW1lXG59OiBCYWRnZVByb3BzKSB7XG4gIGNvbnN0IGJhc2VTdHlsZXMgPSAnaW5saW5lLWZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGZvbnQtbWVkaXVtJztcbiAgXG4gIGNvbnN0IHZhcmlhbnRzID0ge1xuICAgIGRlZmF1bHQ6ICdiZy1ncmF5LTEwMCB0ZXh0LWdyYXktODAwJyxcbiAgICBzdWNjZXNzOiAnYmctZ3JlZW4tMTAwIHRleHQtZ3JlZW4tODAwJyxcbiAgICB3YXJuaW5nOiAnYmcteWVsbG93LTEwMCB0ZXh0LXllbGxvdy04MDAnLFxuICAgIGVycm9yOiAnYmctcmVkLTEwMCB0ZXh0LXJlZC04MDAnLFxuICAgIGluZm86ICdiZy1ibHVlLTEwMCB0ZXh0LWJsdWUtODAwJ1xuICB9O1xuICBcbiAgY29uc3Qgc2l6ZXMgPSB7XG4gICAgc206ICdweC0yIHB5LTAuNSB0ZXh0LXhzJyxcbiAgICBtZDogJ3B4LTIuNSBweS0xIHRleHQtc20nLFxuICAgIGxnOiAncHgtMyBweS0xLjUgdGV4dC1iYXNlJ1xuICB9O1xuICBcbiAgcmV0dXJuIChcbiAgICA8c3BhblxuICAgICAgY2xhc3NOYW1lPXtjbihcbiAgICAgICAgYmFzZVN0eWxlcyxcbiAgICAgICAgdmFyaWFudHNbdmFyaWFudF0sXG4gICAgICAgIHNpemVzW3NpemVdLFxuICAgICAgICByb3VuZGVkID8gJ3JvdW5kZWQtZnVsbCcgOiAncm91bmRlZCcsXG4gICAgICAgIGNsYXNzTmFtZVxuICAgICAgKX1cbiAgICA+XG4gICAgICB7Y2hpbGRyZW59XG4gICAgPC9zcGFuPlxuICApO1xufSAiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0lBb0JJO0lBQUFBLGFBQUEsWUFBQUEsQ0FBQTtNQUFBLE9BQUFDLGNBQUE7SUFBQTtFQUFBO0VBQUEsT0FBQUEsY0FBQTtBQUFBO0FBQUFELGFBQUE7QUFBQUEsYUFBQSxHQUFBRSxDQUFBOzs7Ozs7K0JBVlk7Ozs7OztXQUFBQyxLQUFBOzs7Ozs7OztpQ0FWRztBQVVaLFNBQVNBLE1BQU07RUFDcEJDLFFBQVE7RUFDUkMsT0FBQTtFQUFBO0VBQUEsQ0FBQUwsYUFBQSxHQUFBTSxDQUFBLFVBQVUsU0FBUztFQUNuQkMsSUFBQTtFQUFBO0VBQUEsQ0FBQVAsYUFBQSxHQUFBTSxDQUFBLFVBQU8sSUFBSTtFQUNYRSxPQUFBO0VBQUE7RUFBQSxDQUFBUixhQUFBLEdBQUFNLENBQUEsVUFBVSxLQUFLO0VBQ2ZHO0FBQVMsQ0FDRTtFQUFBO0VBQUFULGFBQUEsR0FBQVUsQ0FBQTtFQUNYLE1BQU1DLFVBQUE7RUFBQTtFQUFBLENBQUFYLGFBQUEsR0FBQUUsQ0FBQSxPQUFhO0VBRW5CLE1BQU1VLFFBQUE7RUFBQTtFQUFBLENBQUFaLGFBQUEsR0FBQUUsQ0FBQSxPQUFXO0lBQ2ZXLE9BQUEsRUFBUztJQUNUQyxPQUFBLEVBQVM7SUFDVEMsT0FBQSxFQUFTO0lBQ1RDLEtBQUEsRUFBTztJQUNQQyxJQUFBLEVBQU07RUFDUjtFQUVBLE1BQU1DLEtBQUE7RUFBQTtFQUFBLENBQUFsQixhQUFBLEdBQUFFLENBQUEsT0FBUTtJQUNaaUIsRUFBQSxFQUFJO0lBQ0pDLEVBQUEsRUFBSTtJQUNKQyxFQUFBLEVBQUk7RUFDTjtFQUFBO0VBQUFyQixhQUFBLEdBQUFFLENBQUE7RUFFQSxvQkFDRSxJQUFBb0IsV0FBQSxDQUFBQyxHQUFBLEVBQUM7SUFDQ2QsU0FBQSxFQUFXLElBQUFlLEdBQUEsQ0FBQUMsRUFBRSxFQUNYZCxVQUFBLEVBQ0FDLFFBQVEsQ0FBQ1AsT0FBQSxDQUFRLEVBQ2pCYSxLQUFLLENBQUNYLElBQUEsQ0FBSyxFQUNYQyxPQUFBO0lBQUE7SUFBQSxDQUFBUixhQUFBLEdBQUFNLENBQUEsVUFBVTtJQUFBO0lBQUEsQ0FBQU4sYUFBQSxHQUFBTSxDQUFBLFVBQWlCLFlBQzNCRyxTQUFBO2NBR0RMOztBQUdQIiwiaWdub3JlTGlzdCI6W119

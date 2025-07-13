@@ -1,0 +1,305 @@
+41fd0c9242011b31491aae6619787fb8
+"use strict";
+
+/* istanbul ignore next */
+function cov_ex9lys2p0() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/ui/Dialog/DialogIcon.tsx";
+  var hash = "fc5bb19112e9e96b209de70e977b0ee32b93fde2";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/ui/Dialog/DialogIcon.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 26
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 21
+        },
+        end: {
+          line: 12,
+          column: 44
+        }
+      },
+      "5": {
+        start: {
+          line: 13,
+          column: 15
+        },
+        end: {
+          line: 13,
+          column: 33
+        }
+      },
+      "6": {
+        start: {
+          line: 14,
+          column: 15
+        },
+        end: {
+          line: 14,
+          column: 44
+        }
+      },
+      "7": {
+        start: {
+          line: 15,
+          column: 16
+        },
+        end: {
+          line: 21,
+          column: 1
+        }
+      },
+      "8": {
+        start: {
+          line: 23,
+          column: 26
+        },
+        end: {
+          line: 23,
+          column: 39
+        }
+      },
+      "9": {
+        start: {
+          line: 24,
+          column: 19
+        },
+        end: {
+          line: 24,
+          column: 44
+        }
+      },
+      "10": {
+        start: {
+          line: 25,
+          column: 4
+        },
+        end: {
+          line: 31,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "DialogIcon",
+        decl: {
+          start: {
+            line: 22,
+            column: 9
+          },
+          end: {
+            line: 22,
+            column: 19
+          }
+        },
+        loc: {
+          start: {
+            line: 22,
+            column: 52
+          },
+          end: {
+            line: 32,
+            column: 1
+          }
+        },
+        line: 22
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 22,
+            column: 39
+          },
+          end: {
+            line: 22,
+            column: 48
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 22,
+            column: 46
+          },
+          end: {
+            line: 22,
+            column: 48
+          }
+        }],
+        line: 22
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {
+      "0": [0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/ui/Dialog/DialogIcon.tsx"],
+      sourcesContent: ["import {\n  Info,\n  AlertTriangle,\n  AlertCircle,\n  CheckCircle,\n  HelpCircle,\n} from 'lucide-react';\nimport { DialogType } from './types';\nimport { dialogColors } from './theme';\nimport { cn } from '@/lib/utils';\n\ninterface DialogIconProps {\n  type: DialogType;\n  className?: string;\n  size?: number;\n}\n\nconst iconMap = {\n  info: Info,\n  warning: AlertTriangle,\n  error: AlertCircle,\n  success: CheckCircle,\n  confirmation: HelpCircle,\n} as const;\n\nexport function DialogIcon({ type, className, size = 24 }: DialogIconProps) {\n  const IconComponent = iconMap[type];\n  const colors = dialogColors[type];\n\n  return (\n    <div\n      className={cn(\n        'flex items-center justify-center w-8 h-8 rounded-full',\n        colors.background,\n        className,\n      )}\n    >\n      <IconComponent size={size} className={colors.icon} />\n    </div>\n  );\n}\n"],
+      names: ["DialogIcon", "iconMap", "info", "Info", "warning", "AlertTriangle", "error", "AlertCircle", "success", "CheckCircle", "confirmation", "HelpCircle", "type", "className", "size", "IconComponent", "colors", "dialogColors", "div", "cn", "background", "icon"],
+      mappings: ";;;;+BAyBgBA;;;eAAAA;;;;6BAnBT;uBAEsB;uBACV;AAQnB,MAAMC,UAAU;IACdC,MAAMC,iBAAI;IACVC,SAASC,0BAAa;IACtBC,OAAOC,wBAAW;IAClBC,SAASC,wBAAW;IACpBC,cAAcC,uBAAU;AAC1B;AAEO,SAASX,WAAW,EAAEY,IAAI,EAAEC,SAAS,EAAEC,OAAO,EAAE,EAAmB;IACxE,MAAMC,gBAAgBd,OAAO,CAACW,KAAK;IACnC,MAAMI,SAASC,mBAAY,CAACL,KAAK;IAEjC,qBACE,qBAACM;QACCL,WAAWM,IAAAA,SAAE,EACX,yDACAH,OAAOI,UAAU,EACjBP;kBAGF,cAAA,qBAACE;YAAcD,MAAMA;YAAMD,WAAWG,OAAOK,IAAI;;;AAGvD"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "fc5bb19112e9e96b209de70e977b0ee32b93fde2"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_ex9lys2p0 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_ex9lys2p0();
+cov_ex9lys2p0().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_ex9lys2p0().s[1]++;
+Object.defineProperty(exports, "DialogIcon", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_ex9lys2p0().f[0]++;
+    cov_ex9lys2p0().s[2]++;
+    return DialogIcon;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_ex9lys2p0().s[3]++, require("react/jsx-runtime"));
+const _lucidereact =
+/* istanbul ignore next */
+(cov_ex9lys2p0().s[4]++, require("lucide-react"));
+const _theme =
+/* istanbul ignore next */
+(cov_ex9lys2p0().s[5]++, require("./theme"));
+const _utils =
+/* istanbul ignore next */
+(cov_ex9lys2p0().s[6]++, require("../../../lib/utils"));
+const iconMap =
+/* istanbul ignore next */
+(cov_ex9lys2p0().s[7]++, {
+  info: _lucidereact.Info,
+  warning: _lucidereact.AlertTriangle,
+  error: _lucidereact.AlertCircle,
+  success: _lucidereact.CheckCircle,
+  confirmation: _lucidereact.HelpCircle
+});
+function DialogIcon({
+  type,
+  className,
+  size =
+  /* istanbul ignore next */
+  (cov_ex9lys2p0().b[0][0]++, 24)
+}) {
+  /* istanbul ignore next */
+  cov_ex9lys2p0().f[1]++;
+  const IconComponent =
+  /* istanbul ignore next */
+  (cov_ex9lys2p0().s[8]++, iconMap[type]);
+  const colors =
+  /* istanbul ignore next */
+  (cov_ex9lys2p0().s[9]++, _theme.dialogColors[type]);
+  /* istanbul ignore next */
+  cov_ex9lys2p0().s[10]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+    className: (0, _utils.cn)('flex items-center justify-center w-8 h-8 rounded-full', colors.background, className),
+    children: /*#__PURE__*/(0, _jsxruntime.jsx)(IconComponent, {
+      size: size,
+      className: colors.icon
+    })
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfZXg5bHlzMnAwIiwiYWN0dWFsQ292ZXJhZ2UiLCJzIiwiRGlhbG9nSWNvbiIsImljb25NYXAiLCJpbmZvIiwiX2x1Y2lkZXJlYWN0IiwiSW5mbyIsIndhcm5pbmciLCJBbGVydFRyaWFuZ2xlIiwiZXJyb3IiLCJBbGVydENpcmNsZSIsInN1Y2Nlc3MiLCJDaGVja0NpcmNsZSIsImNvbmZpcm1hdGlvbiIsIkhlbHBDaXJjbGUiLCJ0eXBlIiwiY2xhc3NOYW1lIiwic2l6ZSIsImIiLCJmIiwiSWNvbkNvbXBvbmVudCIsImNvbG9ycyIsIl90aGVtZSIsImRpYWxvZ0NvbG9ycyIsIl9qc3hydW50aW1lIiwianN4IiwiX3V0aWxzIiwiY24iLCJiYWNrZ3JvdW5kIiwiaWNvbiJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvY29tcG9uZW50cy91aS9EaWFsb2cvRGlhbG9nSWNvbi50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHtcbiAgSW5mbyxcbiAgQWxlcnRUcmlhbmdsZSxcbiAgQWxlcnRDaXJjbGUsXG4gIENoZWNrQ2lyY2xlLFxuICBIZWxwQ2lyY2xlLFxufSBmcm9tICdsdWNpZGUtcmVhY3QnO1xuaW1wb3J0IHsgRGlhbG9nVHlwZSB9IGZyb20gJy4vdHlwZXMnO1xuaW1wb3J0IHsgZGlhbG9nQ29sb3JzIH0gZnJvbSAnLi90aGVtZSc7XG5pbXBvcnQgeyBjbiB9IGZyb20gJ0AvbGliL3V0aWxzJztcblxuaW50ZXJmYWNlIERpYWxvZ0ljb25Qcm9wcyB7XG4gIHR5cGU6IERpYWxvZ1R5cGU7XG4gIGNsYXNzTmFtZT86IHN0cmluZztcbiAgc2l6ZT86IG51bWJlcjtcbn1cblxuY29uc3QgaWNvbk1hcCA9IHtcbiAgaW5mbzogSW5mbyxcbiAgd2FybmluZzogQWxlcnRUcmlhbmdsZSxcbiAgZXJyb3I6IEFsZXJ0Q2lyY2xlLFxuICBzdWNjZXNzOiBDaGVja0NpcmNsZSxcbiAgY29uZmlybWF0aW9uOiBIZWxwQ2lyY2xlLFxufSBhcyBjb25zdDtcblxuZXhwb3J0IGZ1bmN0aW9uIERpYWxvZ0ljb24oeyB0eXBlLCBjbGFzc05hbWUsIHNpemUgPSAyNCB9OiBEaWFsb2dJY29uUHJvcHMpIHtcbiAgY29uc3QgSWNvbkNvbXBvbmVudCA9IGljb25NYXBbdHlwZV07XG4gIGNvbnN0IGNvbG9ycyA9IGRpYWxvZ0NvbG9yc1t0eXBlXTtcblxuICByZXR1cm4gKFxuICAgIDxkaXZcbiAgICAgIGNsYXNzTmFtZT17Y24oXG4gICAgICAgICdmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciB3LTggaC04IHJvdW5kZWQtZnVsbCcsXG4gICAgICAgIGNvbG9ycy5iYWNrZ3JvdW5kLFxuICAgICAgICBjbGFzc05hbWUsXG4gICAgICApfVxuICAgID5cbiAgICAgIDxJY29uQ29tcG9uZW50IHNpemU9e3NpemV9IGNsYXNzTmFtZT17Y29sb3JzLmljb259IC8+XG4gICAgPC9kaXY+XG4gICk7XG59XG4iXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztJQWtCUTtJQUFBQSxhQUFBLFlBQUFBLENBQUE7TUFBQSxPQUFBQyxjQUFBO0lBQUE7RUFBQTtFQUFBLE9BQUFBLGNBQUE7QUFBQTtBQUFBRCxhQUFBO0FBQUFBLGFBQUEsR0FBQUUsQ0FBQTs7Ozs7OytCQU9ROzs7Ozs7V0FBQUMsVUFBQTs7Ozs7Ozs7aUNBbkJUOzs7aUNBRXNCOzs7aUNBQ1Y7QUFRbkIsTUFBTUMsT0FBQTtBQUFBO0FBQUEsQ0FBQUosYUFBQSxHQUFBRSxDQUFBLE9BQVU7RUFDZEcsSUFBQSxFQUFNQyxZQUFBLENBQUFDLElBQUk7RUFDVkMsT0FBQSxFQUFTRixZQUFBLENBQUFHLGFBQWE7RUFDdEJDLEtBQUEsRUFBT0osWUFBQSxDQUFBSyxXQUFXO0VBQ2xCQyxPQUFBLEVBQVNOLFlBQUEsQ0FBQU8sV0FBVztFQUNwQkMsWUFBQSxFQUFjUixZQUFBLENBQUFTO0FBQ2hCO0FBRU8sU0FBU1osV0FBVztFQUFFYSxJQUFJO0VBQUVDLFNBQVM7RUFBRUMsSUFBQTtFQUFBO0VBQUEsQ0FBQWxCLGFBQUEsR0FBQW1CLENBQUEsVUFBTyxFQUFFO0FBQUEsQ0FBbUI7RUFBQTtFQUFBbkIsYUFBQSxHQUFBb0IsQ0FBQTtFQUN4RSxNQUFNQyxhQUFBO0VBQUE7RUFBQSxDQUFBckIsYUFBQSxHQUFBRSxDQUFBLE9BQWdCRSxPQUFPLENBQUNZLElBQUEsQ0FBSztFQUNuQyxNQUFNTSxNQUFBO0VBQUE7RUFBQSxDQUFBdEIsYUFBQSxHQUFBRSxDQUFBLE9BQVNxQixNQUFBLENBQUFDLFlBQVksQ0FBQ1IsSUFBQSxDQUFLO0VBQUE7RUFBQWhCLGFBQUEsR0FBQUUsQ0FBQTtFQUVqQyxvQkFDRSxJQUFBdUIsV0FBQSxDQUFBQyxHQUFBLEVBQUM7SUFDQ1QsU0FBQSxFQUFXLElBQUFVLE1BQUEsQ0FBQUMsRUFBRSxFQUNYLHlEQUNBTixNQUFBLENBQU9PLFVBQVUsRUFDakJaLFNBQUE7Y0FHRixpQkFBQVEsV0FBQSxDQUFBQyxHQUFBLEVBQUNMLGFBQUE7TUFBY0gsSUFBQSxFQUFNQSxJQUFBO01BQU1ELFNBQUEsRUFBV0ssTUFBQSxDQUFPUTs7O0FBR25EIiwiaWdub3JlTGlzdCI6W119

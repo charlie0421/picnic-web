@@ -1,0 +1,461 @@
+e7f82890922d1d4bcefa7602c9bfc3e8
+"use strict";
+
+/* istanbul ignore next */
+function cov_2m11fhkixv() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/auth/callback/page.tsx";
+  var hash = "72a4254778100dce42d0c16b83d7f365921e978d";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/auth/callback/page.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 15,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 13,
+          column: 8
+        },
+        end: {
+          line: 13,
+          column: 32
+        }
+      },
+      "3": {
+        start: {
+          line: 16,
+          column: 20
+        },
+        end: {
+          line: 16,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 17,
+          column: 15
+        },
+        end: {
+          line: 17,
+          column: 31
+        }
+      },
+      "5": {
+        start: {
+          line: 18,
+          column: 36
+        },
+        end: {
+          line: 18,
+          column: 117
+        }
+      },
+      "6": {
+        start: {
+          line: 20,
+          column: 4
+        },
+        end: {
+          line: 22,
+          column: 6
+        }
+      },
+      "7": {
+        start: {
+          line: 25,
+          column: 4
+        },
+        end: {
+          line: 159,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 20
+          },
+          end: {
+            line: 14,
+            column: 5
+          }
+        },
+        line: 12
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 19,
+            column: 9
+          },
+          end: {
+            line: 19,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 39
+          },
+          end: {
+            line: 23,
+            column: 1
+          }
+        },
+        line: 19
+      },
+      "2": {
+        name: "AuthCallbackPage",
+        decl: {
+          start: {
+            line: 24,
+            column: 9
+          },
+          end: {
+            line: 24,
+            column: 25
+          }
+        },
+        loc: {
+          start: {
+            line: 24,
+            column: 28
+          },
+          end: {
+            line: 160,
+            column: 1
+          }
+        },
+        line: 24
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 22,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 35
+          },
+          end: {
+            line: 20,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 41
+          },
+          end: {
+            line: 22,
+            column: 5
+          }
+        }],
+        line: 20
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 18
+          },
+          end: {
+            line: 20,
+            column: 32
+          }
+        }],
+        line: 20
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/auth/callback/page.tsx"],
+      sourcesContent: ["import { Suspense } from 'react';\nimport AuthCallback from '@/components/client/auth/AuthCallback';\n\n/**\n * \uBC94\uC6A9 OAuth \uCF5C\uBC31 \uD398\uC774\uC9C0\n * \n * Supabase\uC5D0\uC11C OAuth \uCC98\uB9AC \uD6C4 /auth/callback\uB85C \uB9AC\uB2E4\uC774\uB809\uD2B8\uD560 \uB54C \uC0AC\uC6A9\n * AuthCallback \uCEF4\uD3EC\uB10C\uD2B8\uC5D0\uC11C URL \uD30C\uB77C\uBBF8\uD130\uB098 \uAE30\uD0C0 \uBC29\uBC95\uC73C\uB85C provider\uB97C \uAC10\uC9C0\n */\nexport default function AuthCallbackPage() {\n  return (\n    <>\n      {/* \uC989\uC2DC \uB85C\uB529\uBC14\uB97C \uD45C\uC2DC\uD558\uB294 \uC2A4\uD06C\uB9BD\uD2B8 */}\n      <script\n        dangerouslySetInnerHTML={{\n          __html: `\n            // \uD398\uC774\uC9C0 \uB85C\uB4DC \uC989\uC2DC \uB85C\uB529\uBC14 \uC0DD\uC131\n            (function() {\n              // \uAC1C\uBC1C \uD658\uACBD\uC5D0\uC11C\uB9CC \uB85C\uADF8 \uCD9C\uB825\n              const isDev = ${process.env.NODE_ENV === 'development'};\n              if (isDev) console.log('\uD83D\uDD04 [OAuth Callback] \uBC94\uC6A9 \uCF5C\uBC31 \uC989\uC2DC \uB85C\uB529\uBC14 \uC0DD\uC131');\n              \n              const loadingDiv = document.createElement('div');\n              loadingDiv.id = 'oauth-loading';\n              loadingDiv.style.cssText = \\`\n                position: fixed;\n                top: 0;\n                left: 0;\n                width: 100vw;\n                height: 100vh;\n                background: #f9fafb;\n                display: flex;\n                align-items: center;\n                justify-content: center;\n                z-index: 9999;\n              \\`;\n              \n              // \uB85C\uB529\uBC14 \uCEE8\uD14C\uC774\uB108\n              const container = document.createElement('div');\n              container.style.cssText = \\`\n                text-align: center;\n              \\`;\n              \n              // \uC2EC\uD50C\uD55C \uB85C\uB529\uBC14\n              const loadingBar = document.createElement('div');\n              loadingBar.style.cssText = \\`\n                position: relative;\n                width: 80px;\n                height: 80px;\n                margin: 0 auto;\n              \\`;\n              \n              // \uC678\uBD80 \uC6D0\n              const outerCircle = document.createElement('div');\n              outerCircle.style.cssText = \\`\n                width: 80px;\n                height: 80px;\n                border: 4px solid #e5e7eb;\n                border-radius: 50%;\n              \\`;\n              \n              // \uD68C\uC804\uD558\uB294 \uB85C\uB529\uBC14\n              const spinnerCircle = document.createElement('div');\n              spinnerCircle.style.cssText = \\`\n                position: absolute;\n                top: 0;\n                left: 0;\n                width: 80px;\n                height: 80px;\n                border: 4px solid #3b82f6;\n                border-top: 4px solid transparent;\n                border-radius: 50%;\n                animation: spin 1s linear infinite;\n              \\`;\n              \n              // \uC810 \uC560\uB2C8\uBA54\uC774\uC158 \uCEE8\uD14C\uC774\uB108\n              const dotsContainer = document.createElement('div');\n              dotsContainer.style.cssText = \\`\n                display: flex;\n                justify-content: center;\n                align-items: center;\n                margin-top: 24px;\n                gap: 4px;\n              \\`;\n              \n              // 3\uAC1C\uC758 \uC810 \uC0DD\uC131\n              for (let i = 0; i < 3; i++) {\n                const dot = document.createElement('div');\n                dot.style.cssText = \\`\n                  width: 8px;\n                  height: 8px;\n                  background: #3b82f6;\n                  border-radius: 50%;\n                  animation: pulse 1.5s ease-in-out \\${i * 0.2}s infinite;\n                \\`;\n                dotsContainer.appendChild(dot);\n              }\n              \n              // CSS \uC560\uB2C8\uBA54\uC774\uC158 \uCD94\uAC00\n              if (!document.getElementById('loading-style')) {\n                const style = document.createElement('style');\n                style.id = 'loading-style';\n                style.textContent = \\`\n                  @keyframes spin {\n                    0% { transform: rotate(0deg); }\n                    100% { transform: rotate(360deg); }\n                  }\n                  @keyframes pulse {\n                    0%, 80%, 100% { \n                      transform: scale(0.8);\n                      opacity: 0.5;\n                    }\n                    40% { \n                      transform: scale(1);\n                      opacity: 1;\n                    }\n                  }\n                \\`;\n                document.head.appendChild(style);\n              }\n              \n              // \uC694\uC18C\uB4E4 \uC870\uB9BD\n              loadingBar.appendChild(outerCircle);\n              loadingBar.appendChild(spinnerCircle);\n              container.appendChild(loadingBar);\n              container.appendChild(dotsContainer);\n              loadingDiv.appendChild(container);\n              \n              // body\uAC00 \uC900\uBE44\uB418\uBA74 \uC989\uC2DC \uCD94\uAC00\n              if (document.body) {\n                document.body.appendChild(loadingDiv);\n              } else {\n                document.addEventListener('DOMContentLoaded', function() {\n                  document.body.appendChild(loadingDiv);\n                });\n              }\n            })();\n          `\n        }}\n      />\n\n      {/* \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8 */}\n      <Suspense fallback={null}>\n        <AuthCallback />\n      </Suspense>\n    </>\n  );\n} "],
+      names: ["AuthCallbackPage", "script", "dangerouslySetInnerHTML", "__html", "process", "env", "NODE_ENV", "Suspense", "fallback", "AuthCallback"],
+      mappings: ";;;;+BAGA;;;;;CAKC,GACD;;;eAAwBA;;;;uBATC;qEACA;;;;;;AAQV,SAASA;IACtB,qBACE;;0BAEE,qBAACC;gBACCC,yBAAyB;oBACvBC,QAAQ,CAAC;;;;4BAIS,EAAEC,QAAQC,GAAG,CAACC,QAAQ,KAAK,cAAc;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;UAsH3D,CAAC;gBACH;;0BAIF,qBAACC,eAAQ;gBAACC,UAAU;0BAClB,cAAA,qBAACC,qBAAY;;;;AAIrB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "72a4254778100dce42d0c16b83d7f365921e978d"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2m11fhkixv = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2m11fhkixv();
+cov_2m11fhkixv().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2m11fhkixv().s[1]++;
+Object.defineProperty(exports,
+/**
+* 범용 OAuth 콜백 페이지
+* 
+* Supabase에서 OAuth 처리 후 /auth/callback로 리다이렉트할 때 사용
+* AuthCallback 컴포넌트에서 URL 파라미터나 기타 방법으로 provider를 감지
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2m11fhkixv().f[0]++;
+    cov_2m11fhkixv().s[2]++;
+    return AuthCallbackPage;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2m11fhkixv().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(cov_2m11fhkixv().s[4]++, require("react"));
+const _AuthCallback =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_2m11fhkixv().s[5]++, _interop_require_default(require("../../../components/client/auth/AuthCallback")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_2m11fhkixv().f[1]++;
+  cov_2m11fhkixv().s[6]++;
+  return /* istanbul ignore next */(cov_2m11fhkixv().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_2m11fhkixv().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_2m11fhkixv().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_2m11fhkixv().b[0][1]++, {
+    default: obj
+  });
+}
+function AuthCallbackPage() {
+  /* istanbul ignore next */
+  cov_2m11fhkixv().f[2]++;
+  cov_2m11fhkixv().s[7]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsxs)(_jsxruntime.Fragment, {
+    children: [/*#__PURE__*/(0, _jsxruntime.jsx)("script", {
+      dangerouslySetInnerHTML: {
+        __html: `
+            // 페이지 로드 즉시 로딩바 생성
+            (function() {
+              // 개발 환경에서만 로그 출력
+              const isDev = ${process.env.NODE_ENV === 'development'};
+              if (isDev) console.log('🔄 [OAuth Callback] 범용 콜백 즉시 로딩바 생성');
+              
+              const loadingDiv = document.createElement('div');
+              loadingDiv.id = 'oauth-loading';
+              loadingDiv.style.cssText = \`
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: #f9fafb;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+              \`;
+              
+              // 로딩바 컨테이너
+              const container = document.createElement('div');
+              container.style.cssText = \`
+                text-align: center;
+              \`;
+              
+              // 심플한 로딩바
+              const loadingBar = document.createElement('div');
+              loadingBar.style.cssText = \`
+                position: relative;
+                width: 80px;
+                height: 80px;
+                margin: 0 auto;
+              \`;
+              
+              // 외부 원
+              const outerCircle = document.createElement('div');
+              outerCircle.style.cssText = \`
+                width: 80px;
+                height: 80px;
+                border: 4px solid #e5e7eb;
+                border-radius: 50%;
+              \`;
+              
+              // 회전하는 로딩바
+              const spinnerCircle = document.createElement('div');
+              spinnerCircle.style.cssText = \`
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 80px;
+                height: 80px;
+                border: 4px solid #3b82f6;
+                border-top: 4px solid transparent;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+              \`;
+              
+              // 점 애니메이션 컨테이너
+              const dotsContainer = document.createElement('div');
+              dotsContainer.style.cssText = \`
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-top: 24px;
+                gap: 4px;
+              \`;
+              
+              // 3개의 점 생성
+              for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.style.cssText = \`
+                  width: 8px;
+                  height: 8px;
+                  background: #3b82f6;
+                  border-radius: 50%;
+                  animation: pulse 1.5s ease-in-out \${i * 0.2}s infinite;
+                \`;
+                dotsContainer.appendChild(dot);
+              }
+              
+              // CSS 애니메이션 추가
+              if (!document.getElementById('loading-style')) {
+                const style = document.createElement('style');
+                style.id = 'loading-style';
+                style.textContent = \`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                  @keyframes pulse {
+                    0%, 80%, 100% { 
+                      transform: scale(0.8);
+                      opacity: 0.5;
+                    }
+                    40% { 
+                      transform: scale(1);
+                      opacity: 1;
+                    }
+                  }
+                \`;
+                document.head.appendChild(style);
+              }
+              
+              // 요소들 조립
+              loadingBar.appendChild(outerCircle);
+              loadingBar.appendChild(spinnerCircle);
+              container.appendChild(loadingBar);
+              container.appendChild(dotsContainer);
+              loadingDiv.appendChild(container);
+              
+              // body가 준비되면 즉시 추가
+              if (document.body) {
+                document.body.appendChild(loadingDiv);
+              } else {
+                document.addEventListener('DOMContentLoaded', function() {
+                  document.body.appendChild(loadingDiv);
+                });
+              }
+            })();
+          `
+      }
+    }), /*#__PURE__*/(0, _jsxruntime.jsx)(_react.Suspense, {
+      fallback: null,
+      children: /*#__PURE__*/(0, _jsxruntime.jsx)(_AuthCallback.default, {})
+    })]
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJBdXRoQ2FsbGJhY2tQYWdlIiwiY292XzJtMTFmaGtpeHYiLCJmIiwicyIsIl9qc3hydW50aW1lIiwianN4cyIsIkZyYWdtZW50IiwianN4IiwiZGFuZ2Vyb3VzbHlTZXRJbm5lckhUTUwiLCJfX2h0bWwiLCJwcm9jZXNzIiwiZW52IiwiTk9ERV9FTlYiLCJfcmVhY3QiLCJTdXNwZW5zZSIsImZhbGxiYWNrIiwiX0F1dGhDYWxsYmFjayIsImRlZmF1bHQiXSwic291cmNlcyI6WyIvVXNlcnMvY2hlb2xoeXVuL1JlcG9zaXRvcmllcy9waWNuaWMtd2ViL2FwcC9hdXRoL2NhbGxiYWNrL3BhZ2UudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFN1c3BlbnNlIH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IEF1dGhDYWxsYmFjayBmcm9tICdAL2NvbXBvbmVudHMvY2xpZW50L2F1dGgvQXV0aENhbGxiYWNrJztcblxuLyoqXG4gKiDrspTsmqkgT0F1dGgg7L2c67CxIO2OmOydtOyngFxuICogXG4gKiBTdXBhYmFzZeyXkOyEnCBPQXV0aCDsspjrpqwg7ZuEIC9hdXRoL2NhbGxiYWNr66GcIOumrOuLpOydtOugie2KuO2VoCDrlYwg7IKs7JqpXG4gKiBBdXRoQ2FsbGJhY2sg7Lu07Y+s64SM7Yq47JeQ7IScIFVSTCDtjIzrnbzrr7jthLDrgpgg6riw7YOAIOuwqeuyleycvOuhnCBwcm92aWRlcuulvCDqsJDsp4BcbiAqL1xuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gQXV0aENhbGxiYWNrUGFnZSgpIHtcbiAgcmV0dXJuIChcbiAgICA8PlxuICAgICAgey8qIOymieyLnCDroZzrlKnrsJTrpbwg7ZGc7Iuc7ZWY64qUIOyKpO2BrOumve2KuCAqL31cbiAgICAgIDxzY3JpcHRcbiAgICAgICAgZGFuZ2Vyb3VzbHlTZXRJbm5lckhUTUw9e3tcbiAgICAgICAgICBfX2h0bWw6IGBcbiAgICAgICAgICAgIC8vIO2OmOydtOyngCDroZzrk5wg7KaJ7IucIOuhnOuUqeuwlCDsg53shLFcbiAgICAgICAgICAgIChmdW5jdGlvbigpIHtcbiAgICAgICAgICAgICAgLy8g6rCc67CcIO2ZmOqyveyXkOyEnOunjCDroZzqt7gg7Lac66ClXG4gICAgICAgICAgICAgIGNvbnN0IGlzRGV2ID0gJHtwcm9jZXNzLmVudi5OT0RFX0VOViA9PT0gJ2RldmVsb3BtZW50J307XG4gICAgICAgICAgICAgIGlmIChpc0RldikgY29uc29sZS5sb2coJ/CflIQgW09BdXRoIENhbGxiYWNrXSDrspTsmqkg7L2c67CxIOymieyLnCDroZzrlKnrsJQg7IOd7ISxJyk7XG4gICAgICAgICAgICAgIFxuICAgICAgICAgICAgICBjb25zdCBsb2FkaW5nRGl2ID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnZGl2Jyk7XG4gICAgICAgICAgICAgIGxvYWRpbmdEaXYuaWQgPSAnb2F1dGgtbG9hZGluZyc7XG4gICAgICAgICAgICAgIGxvYWRpbmdEaXYuc3R5bGUuY3NzVGV4dCA9IFxcYFxuICAgICAgICAgICAgICAgIHBvc2l0aW9uOiBmaXhlZDtcbiAgICAgICAgICAgICAgICB0b3A6IDA7XG4gICAgICAgICAgICAgICAgbGVmdDogMDtcbiAgICAgICAgICAgICAgICB3aWR0aDogMTAwdnc7XG4gICAgICAgICAgICAgICAgaGVpZ2h0OiAxMDB2aDtcbiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiAjZjlmYWZiO1xuICAgICAgICAgICAgICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgICAgICAgICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgICAgICAgICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcbiAgICAgICAgICAgICAgICB6LWluZGV4OiA5OTk5O1xuICAgICAgICAgICAgICBcXGA7XG4gICAgICAgICAgICAgIFxuICAgICAgICAgICAgICAvLyDroZzrlKnrsJQg7Luo7YWM7J2064SIXG4gICAgICAgICAgICAgIGNvbnN0IGNvbnRhaW5lciA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2RpdicpO1xuICAgICAgICAgICAgICBjb250YWluZXIuc3R5bGUuY3NzVGV4dCA9IFxcYFxuICAgICAgICAgICAgICAgIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgICAgICAgICAgICAgXFxgO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgLy8g7Ius7ZSM7ZWcIOuhnOuUqeuwlFxuICAgICAgICAgICAgICBjb25zdCBsb2FkaW5nQmFyID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnZGl2Jyk7XG4gICAgICAgICAgICAgIGxvYWRpbmdCYXIuc3R5bGUuY3NzVGV4dCA9IFxcYFxuICAgICAgICAgICAgICAgIHBvc2l0aW9uOiByZWxhdGl2ZTtcbiAgICAgICAgICAgICAgICB3aWR0aDogODBweDtcbiAgICAgICAgICAgICAgICBoZWlnaHQ6IDgwcHg7XG4gICAgICAgICAgICAgICAgbWFyZ2luOiAwIGF1dG87XG4gICAgICAgICAgICAgIFxcYDtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIC8vIOyZuOu2gCDsm5BcbiAgICAgICAgICAgICAgY29uc3Qgb3V0ZXJDaXJjbGUgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdkaXYnKTtcbiAgICAgICAgICAgICAgb3V0ZXJDaXJjbGUuc3R5bGUuY3NzVGV4dCA9IFxcYFxuICAgICAgICAgICAgICAgIHdpZHRoOiA4MHB4O1xuICAgICAgICAgICAgICAgIGhlaWdodDogODBweDtcbiAgICAgICAgICAgICAgICBib3JkZXI6IDRweCBzb2xpZCAjZTVlN2ViO1xuICAgICAgICAgICAgICAgIGJvcmRlci1yYWRpdXM6IDUwJTtcbiAgICAgICAgICAgICAgXFxgO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgLy8g7ZqM7KCE7ZWY64qUIOuhnOuUqeuwlFxuICAgICAgICAgICAgICBjb25zdCBzcGlubmVyQ2lyY2xlID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnZGl2Jyk7XG4gICAgICAgICAgICAgIHNwaW5uZXJDaXJjbGUuc3R5bGUuY3NzVGV4dCA9IFxcYFxuICAgICAgICAgICAgICAgIHBvc2l0aW9uOiBhYnNvbHV0ZTtcbiAgICAgICAgICAgICAgICB0b3A6IDA7XG4gICAgICAgICAgICAgICAgbGVmdDogMDtcbiAgICAgICAgICAgICAgICB3aWR0aDogODBweDtcbiAgICAgICAgICAgICAgICBoZWlnaHQ6IDgwcHg7XG4gICAgICAgICAgICAgICAgYm9yZGVyOiA0cHggc29saWQgIzNiODJmNjtcbiAgICAgICAgICAgICAgICBib3JkZXItdG9wOiA0cHggc29saWQgdHJhbnNwYXJlbnQ7XG4gICAgICAgICAgICAgICAgYm9yZGVyLXJhZGl1czogNTAlO1xuICAgICAgICAgICAgICAgIGFuaW1hdGlvbjogc3BpbiAxcyBsaW5lYXIgaW5maW5pdGU7XG4gICAgICAgICAgICAgIFxcYDtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIC8vIOygkCDslaDri4jrqZTsnbTshZgg7Luo7YWM7J2064SIXG4gICAgICAgICAgICAgIGNvbnN0IGRvdHNDb250YWluZXIgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdkaXYnKTtcbiAgICAgICAgICAgICAgZG90c0NvbnRhaW5lci5zdHlsZS5jc3NUZXh0ID0gXFxgXG4gICAgICAgICAgICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgICAgICAgICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcbiAgICAgICAgICAgICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgICAgICAgICAgICAgIG1hcmdpbi10b3A6IDI0cHg7XG4gICAgICAgICAgICAgICAgZ2FwOiA0cHg7XG4gICAgICAgICAgICAgIFxcYDtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIC8vIDPqsJzsnZgg7KCQIOyDneyEsVxuICAgICAgICAgICAgICBmb3IgKGxldCBpID0gMDsgaSA8IDM7IGkrKykge1xuICAgICAgICAgICAgICAgIGNvbnN0IGRvdCA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2RpdicpO1xuICAgICAgICAgICAgICAgIGRvdC5zdHlsZS5jc3NUZXh0ID0gXFxgXG4gICAgICAgICAgICAgICAgICB3aWR0aDogOHB4O1xuICAgICAgICAgICAgICAgICAgaGVpZ2h0OiA4cHg7XG4gICAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiAjM2I4MmY2O1xuICAgICAgICAgICAgICAgICAgYm9yZGVyLXJhZGl1czogNTAlO1xuICAgICAgICAgICAgICAgICAgYW5pbWF0aW9uOiBwdWxzZSAxLjVzIGVhc2UtaW4tb3V0IFxcJHtpICogMC4yfXMgaW5maW5pdGU7XG4gICAgICAgICAgICAgICAgXFxgO1xuICAgICAgICAgICAgICAgIGRvdHNDb250YWluZXIuYXBwZW5kQ2hpbGQoZG90KTtcbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgLy8gQ1NTIOyVoOuLiOuplOydtOyFmCDstpTqsIBcbiAgICAgICAgICAgICAgaWYgKCFkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbG9hZGluZy1zdHlsZScpKSB7XG4gICAgICAgICAgICAgICAgY29uc3Qgc3R5bGUgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdzdHlsZScpO1xuICAgICAgICAgICAgICAgIHN0eWxlLmlkID0gJ2xvYWRpbmctc3R5bGUnO1xuICAgICAgICAgICAgICAgIHN0eWxlLnRleHRDb250ZW50ID0gXFxgXG4gICAgICAgICAgICAgICAgICBAa2V5ZnJhbWVzIHNwaW4ge1xuICAgICAgICAgICAgICAgICAgICAwJSB7IHRyYW5zZm9ybTogcm90YXRlKDBkZWcpOyB9XG4gICAgICAgICAgICAgICAgICAgIDEwMCUgeyB0cmFuc2Zvcm06IHJvdGF0ZSgzNjBkZWcpOyB9XG4gICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgICBAa2V5ZnJhbWVzIHB1bHNlIHtcbiAgICAgICAgICAgICAgICAgICAgMCUsIDgwJSwgMTAwJSB7IFxuICAgICAgICAgICAgICAgICAgICAgIHRyYW5zZm9ybTogc2NhbGUoMC44KTtcbiAgICAgICAgICAgICAgICAgICAgICBvcGFjaXR5OiAwLjU7XG4gICAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICAgICAgNDAlIHsgXG4gICAgICAgICAgICAgICAgICAgICAgdHJhbnNmb3JtOiBzY2FsZSgxKTtcbiAgICAgICAgICAgICAgICAgICAgICBvcGFjaXR5OiAxO1xuICAgICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgXFxgO1xuICAgICAgICAgICAgICAgIGRvY3VtZW50LmhlYWQuYXBwZW5kQ2hpbGQoc3R5bGUpO1xuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgIFxuICAgICAgICAgICAgICAvLyDsmpTshozrk6Qg7KGw66a9XG4gICAgICAgICAgICAgIGxvYWRpbmdCYXIuYXBwZW5kQ2hpbGQob3V0ZXJDaXJjbGUpO1xuICAgICAgICAgICAgICBsb2FkaW5nQmFyLmFwcGVuZENoaWxkKHNwaW5uZXJDaXJjbGUpO1xuICAgICAgICAgICAgICBjb250YWluZXIuYXBwZW5kQ2hpbGQobG9hZGluZ0Jhcik7XG4gICAgICAgICAgICAgIGNvbnRhaW5lci5hcHBlbmRDaGlsZChkb3RzQ29udGFpbmVyKTtcbiAgICAgICAgICAgICAgbG9hZGluZ0Rpdi5hcHBlbmRDaGlsZChjb250YWluZXIpO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgLy8gYm9keeqwgCDspIDruYTrkJjrqbQg7KaJ7IucIOy2lOqwgFxuICAgICAgICAgICAgICBpZiAoZG9jdW1lbnQuYm9keSkge1xuICAgICAgICAgICAgICAgIGRvY3VtZW50LmJvZHkuYXBwZW5kQ2hpbGQobG9hZGluZ0Rpdik7XG4gICAgICAgICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgICAgICAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignRE9NQ29udGVudExvYWRlZCcsIGZ1bmN0aW9uKCkge1xuICAgICAgICAgICAgICAgICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChsb2FkaW5nRGl2KTtcbiAgICAgICAgICAgICAgICB9KTtcbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgfSkoKTtcbiAgICAgICAgICBgXG4gICAgICAgIH19XG4gICAgICAvPlxuXG4gICAgICB7Lyog7YG065287J207Ja47Yq4IOy7tO2PrOuEjO2KuCAqL31cbiAgICAgIDxTdXNwZW5zZSBmYWxsYmFjaz17bnVsbH0+XG4gICAgICAgIDxBdXRoQ2FsbGJhY2sgLz5cbiAgICAgIDwvU3VzcGVuc2U+XG4gICAgPC8+XG4gICk7XG59ICJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFHQTs7Ozs7O0FBTUE7Ozs7OztXQUF3QkEsZ0JBQUE7Ozs7Ozs7O2tDQVRDOzs7d0VBQ0E7Ozs7Ozs7Ozs7Ozs7OztBQVFWLFNBQVNBLGlCQUFBO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFDRSxJQUFBQyxXQUFBLENBQUFDLElBQUEsRUFBQUQsV0FBQSxDQUFBRSxRQUFBOzRCQUVFLElBQUFGLFdBQUEsQ0FBQUcsR0FBQSxFQUFDO01BQ0NDLHVCQUFBLEVBQXlCO1FBQ3ZCQyxNQUFBLEVBQVE7Ozs7OEJBSVlDLE9BQUEsQ0FBUUMsR0FBRyxDQUFDQyxRQUFRLEtBQUs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O01BdUgvQztxQkFJRixJQUFBUixXQUFBLENBQUFHLEdBQUEsRUFBQ00sTUFBQSxDQUFBQyxRQUFRO01BQUNDLFFBQUEsRUFBVTtnQkFDbEIsaUJBQUFYLFdBQUEsQ0FBQUcsR0FBQSxFQUFDUyxhQUFBLENBQUFDLE9BQVk7OztBQUlyQiIsImlnbm9yZUxpc3QiOltdfQ==

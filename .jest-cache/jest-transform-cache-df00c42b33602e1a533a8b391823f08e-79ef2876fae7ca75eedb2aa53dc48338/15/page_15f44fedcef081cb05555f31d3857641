@@ -1,0 +1,189 @@
+f21628d9ac3e3695a52ebe9ab03cf803
+"use strict";
+
+/* istanbul ignore next */
+function cov_6mi1ws3ok() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/page.tsx";
+  var hash = "0b2f56a24f8bcc9113929bbef0caa9daf6251897";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/page.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 20
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 46
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 4
+        },
+        end: {
+          line: 13,
+          column: 39
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 4
+        },
+        end: {
+          line: 14,
+          column: 16
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "Home",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 13
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 16
+          },
+          end: {
+            line: 15,
+            column: 1
+          }
+        },
+        line: 12
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/[lang]/page.tsx"],
+      sourcesContent: ["import { redirect } from 'next/navigation';\n\nexport default function Home() {\n  redirect('/vote');\n  return null;\n}\n"],
+      names: ["Home", "redirect"],
+      mappings: ";;;;+BAEA;;;eAAwBA;;;4BAFC;AAEV,SAASA;IACtBC,IAAAA,oBAAQ,EAAC;IACT,OAAO;AACT"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "0b2f56a24f8bcc9113929bbef0caa9daf6251897"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_6mi1ws3ok = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_6mi1ws3ok();
+cov_6mi1ws3ok().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_6mi1ws3ok().s[1]++;
+Object.defineProperty(exports, "default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_6mi1ws3ok().f[0]++;
+    cov_6mi1ws3ok().s[2]++;
+    return Home;
+  }
+});
+const _navigation =
+/* istanbul ignore next */
+(cov_6mi1ws3ok().s[3]++, require("next/navigation"));
+function Home() {
+  /* istanbul ignore next */
+  cov_6mi1ws3ok().f[1]++;
+  cov_6mi1ws3ok().s[4]++;
+  (0, _navigation.redirect)('/vote');
+  /* istanbul ignore next */
+  cov_6mi1ws3ok().s[5]++;
+  return null;
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJIb21lIiwiY292XzZtaTF3czNvayIsImYiLCJzIiwiX25hdmlnYXRpb24iLCJyZWRpcmVjdCJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvYXBwL1tsYW5nXS9wYWdlLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyByZWRpcmVjdCB9IGZyb20gJ25leHQvbmF2aWdhdGlvbic7XG5cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIEhvbWUoKSB7XG4gIHJlZGlyZWN0KCcvdm90ZScpO1xuICByZXR1cm4gbnVsbDtcbn1cbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OzsrQkFFQTs7Ozs7O1dBQXdCQSxJQUFBOzs7OztpQ0FGQztBQUVWLFNBQVNBLEtBQUE7RUFBQTtFQUFBQyxhQUFBLEdBQUFDLENBQUE7RUFBQUQsYUFBQSxHQUFBRSxDQUFBO0VBQ3RCLElBQUFDLFdBQUEsQ0FBQUMsUUFBUSxFQUFDO0VBQUE7RUFBQUosYUFBQSxHQUFBRSxDQUFBO0VBQ1QsT0FBTztBQUNUIiwiaWdub3JlTGlzdCI6W119

@@ -1,0 +1,358 @@
+068d01b6eae5150b3f7ea16b19685d31
+/**
+ * 컴포넌트 메인 인덱스
+ * 
+ * 새로운 구조: server, client, common 중심
+ * 기술적 관심사에 따른 분리로 Next.js App Router에 최적화
+ */ // 서버 컴포넌트 (SSR, 데이터 페칭)
+"use strict";
+
+/* istanbul ignore next */
+function cov_14j7rzkpkp() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/index.ts";
+  var hash = "23e61ac4984e6a9856e55e376ec202882497ec18";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/index.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 8,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 11,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 43
+        }
+      },
+      "2": {
+        start: {
+          line: 12,
+          column: 0
+        },
+        end: {
+          line: 12,
+          column: 43
+        }
+      },
+      "3": {
+        start: {
+          line: 13,
+          column: 0
+        },
+        end: {
+          line: 13,
+          column: 43
+        }
+      },
+      "4": {
+        start: {
+          line: 14,
+          column: 0
+        },
+        end: {
+          line: 14,
+          column: 42
+        }
+      },
+      "5": {
+        start: {
+          line: 16,
+          column: 4
+        },
+        end: {
+          line: 25,
+          column: 7
+        }
+      },
+      "6": {
+        start: {
+          line: 17,
+          column: 8
+        },
+        end: {
+          line: 24,
+          column: 9
+        }
+      },
+      "7": {
+        start: {
+          line: 18,
+          column: 12
+        },
+        end: {
+          line: 23,
+          column: 15
+        }
+      },
+      "8": {
+        start: {
+          line: 21,
+          column: 20
+        },
+        end: {
+          line: 21,
+          column: 35
+        }
+      },
+      "9": {
+        start: {
+          line: 26,
+          column: 4
+        },
+        end: {
+          line: 26,
+          column: 16
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "_export_star",
+        decl: {
+          start: {
+            line: 15,
+            column: 9
+          },
+          end: {
+            line: 15,
+            column: 21
+          }
+        },
+        loc: {
+          start: {
+            line: 15,
+            column: 32
+          },
+          end: {
+            line: 27,
+            column: 1
+          }
+        },
+        line: 15
+      },
+      "1": {
+        name: "(anonymous_1)",
+        decl: {
+          start: {
+            line: 16,
+            column: 30
+          },
+          end: {
+            line: 16,
+            column: 31
+          }
+        },
+        loc: {
+          start: {
+            line: 16,
+            column: 42
+          },
+          end: {
+            line: 25,
+            column: 5
+          }
+        },
+        line: 16
+      },
+      "2": {
+        name: "(anonymous_2)",
+        decl: {
+          start: {
+            line: 20,
+            column: 21
+          },
+          end: {
+            line: 20,
+            column: 22
+          }
+        },
+        loc: {
+          start: {
+            line: 20,
+            column: 32
+          },
+          end: {
+            line: 22,
+            column: 17
+          }
+        },
+        line: 20
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 17,
+            column: 8
+          },
+          end: {
+            line: 24,
+            column: 9
+          }
+        },
+        type: "if",
+        locations: [{
+          start: {
+            line: 17,
+            column: 8
+          },
+          end: {
+            line: 24,
+            column: 9
+          }
+        }, {
+          start: {
+            line: undefined,
+            column: undefined
+          },
+          end: {
+            line: undefined,
+            column: undefined
+          }
+        }],
+        line: 17
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 17,
+            column: 12
+          },
+          end: {
+            line: 17,
+            column: 75
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 17,
+            column: 12
+          },
+          end: {
+            line: 17,
+            column: 27
+          }
+        }, {
+          start: {
+            line: 17,
+            column: 31
+          },
+          end: {
+            line: 17,
+            column: 75
+          }
+        }],
+        line: 17
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/index.ts"],
+      sourcesContent: ["/**\n * \uCEF4\uD3EC\uB10C\uD2B8 \uBA54\uC778 \uC778\uB371\uC2A4\n * \n * \uC0C8\uB85C\uC6B4 \uAD6C\uC870: server, client, common \uC911\uC2EC\n * \uAE30\uC220\uC801 \uAD00\uC2EC\uC0AC\uC5D0 \uB530\uB978 \uBD84\uB9AC\uB85C Next.js App Router\uC5D0 \uCD5C\uC801\uD654\n */\n\n// \uC11C\uBC84 \uCEF4\uD3EC\uB10C\uD2B8 (SSR, \uB370\uC774\uD130 \uD398\uCE6D)\nexport * from './server';\n\n// \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8 (\uC778\uD130\uB799\uC158, \uC0C1\uD0DC \uAD00\uB9AC)\nexport * from './client';\n\n// \uB514\uC790\uC778 \uC2DC\uC2A4\uD15C & \uACF5\uD1B5 UI\nexport * from './common';\n\n// Feature Modules (\uAE30\uC874 \uD638\uD658\uC131 \uC720\uC9C0)\n// export * from './features';\n\n// \uB808\uC774\uC544\uC6C3 & \uD504\uB85C\uBC14\uC774\uB354\n\n// Utils\nexport * from './utils'; "],
+      names: [],
+      mappings: "AAAA;;;;;CAKC,GAED,wBAAwB;;;;;qBACV;qBAGA;qBAGA;qBAQA"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "23e61ac4984e6a9856e55e376ec202882497ec18"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_14j7rzkpkp = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_14j7rzkpkp();
+cov_14j7rzkpkp().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_14j7rzkpkp().s[1]++;
+_export_star(require("./server"), exports);
+/* istanbul ignore next */
+cov_14j7rzkpkp().s[2]++;
+_export_star(require("./client"), exports);
+/* istanbul ignore next */
+cov_14j7rzkpkp().s[3]++;
+_export_star(require("./common"), exports);
+/* istanbul ignore next */
+cov_14j7rzkpkp().s[4]++;
+_export_star(require("./utils"), exports);
+function _export_star(from, to) {
+  /* istanbul ignore next */
+  cov_14j7rzkpkp().f[0]++;
+  cov_14j7rzkpkp().s[5]++;
+  Object.keys(from).forEach(function (k) {
+    /* istanbul ignore next */
+    cov_14j7rzkpkp().f[1]++;
+    cov_14j7rzkpkp().s[6]++;
+    if (
+    /* istanbul ignore next */
+    (cov_14j7rzkpkp().b[1][0]++, k !== "default") &&
+    /* istanbul ignore next */
+    (cov_14j7rzkpkp().b[1][1]++, !Object.prototype.hasOwnProperty.call(to, k))) {
+      /* istanbul ignore next */
+      cov_14j7rzkpkp().b[0][0]++;
+      cov_14j7rzkpkp().s[7]++;
+      Object.defineProperty(to, k, {
+        enumerable: true,
+        get: function () {
+          /* istanbul ignore next */
+          cov_14j7rzkpkp().f[2]++;
+          cov_14j7rzkpkp().s[8]++;
+          return from[k];
+        }
+      });
+    } else
+    /* istanbul ignore next */
+    {
+      cov_14j7rzkpkp().b[0][1]++;
+    }
+  });
+  /* istanbul ignore next */
+  cov_14j7rzkpkp().s[9]++;
+  return from;
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJleHBvcnRzIiwiY292XzE0ajdyemtwa3AiLCJzIl0sInNvdXJjZXMiOlsiL1VzZXJzL2NoZW9saHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9jb21wb25lbnRzL2luZGV4LnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICog7Lu07Y+s64SM7Yq4IOuplOyduCDsnbjrjbHsiqRcbiAqIFxuICog7IOI66Gc7Jq0IOq1rOyhsDogc2VydmVyLCBjbGllbnQsIGNvbW1vbiDspJHsi6xcbiAqIOq4sOyIoOyggSDqtIDsi6zsgqzsl5Ag65Sw66W4IOu2hOumrOuhnCBOZXh0LmpzIEFwcCBSb3V0ZXLsl5Ag7LWc7KCB7ZmUXG4gKi9cblxuLy8g7ISc67KEIOy7tO2PrOuEjO2KuCAoU1NSLCDrjbDsnbTthLAg7Y6Y7LmtKVxuZXhwb3J0ICogZnJvbSAnLi9zZXJ2ZXInO1xuXG4vLyDtgbTrnbzsnbTslrjtirgg7Lu07Y+s64SM7Yq4ICjsnbjthLDrnpnshZgsIOyDge2DnCDqtIDrpqwpXG5leHBvcnQgKiBmcm9tICcuL2NsaWVudCc7XG5cbi8vIOuUlOyekOyduCDsi5zsiqTthZwgJiDqs7XthrUgVUlcbmV4cG9ydCAqIGZyb20gJy4vY29tbW9uJztcblxuLy8gRmVhdHVyZSBNb2R1bGVzICjquLDsobQg7Zi47ZmY7ISxIOycoOyngClcbi8vIGV4cG9ydCAqIGZyb20gJy4vZmVhdHVyZXMnO1xuXG4vLyDroIjsnbTslYTsm4MgJiDtlITroZzrsJTsnbTrjZRcblxuLy8gVXRpbHNcbmV4cG9ydCAqIGZyb20gJy4vdXRpbHMnOyAiXSwibWFwcGluZ3MiOiJBQUFBOzs7OztHQUFBLENBT0E7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztxQkFDYyxhQUFBQSxPQUFBO0FBQUE7QUFBQUMsY0FBQSxHQUFBQyxDQUFBO3FCQUdBLGFBQUFGLE9BQUE7QUFBQTtBQUFBQyxjQUFBLEdBQUFDLENBQUE7cUJBR0EsYUFBQUYsT0FBQTtBQUFBO0FBQUFDLGNBQUEsR0FBQUMsQ0FBQTtxQkFRQSxZQUFBRixPQUFBIiwiaWdub3JlTGlzdCI6W119

@@ -1,0 +1,326 @@
+cf7ce4d200f073d53f99d589d9b655f1
+"use strict";
+
+/* istanbul ignore next */
+function cov_cae9vo8na() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/robots.ts";
+  var hash = "5a25b71ba0dc4efd0dd77a07ee79f3b767461574";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/robots.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 17,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 15,
+          column: 8
+        },
+        end: {
+          line: 15,
+          column: 22
+        }
+      },
+      "3": {
+        start: {
+          line: 18,
+          column: 21
+        },
+        end: {
+          line: 18,
+          column: 56
+        }
+      },
+      "4": {
+        start: {
+          line: 20,
+          column: 16
+        },
+        end: {
+          line: 20,
+          column: 53
+        }
+      },
+      "5": {
+        start: {
+          line: 22,
+          column: 4
+        },
+        end: {
+          line: 29,
+          column: 5
+        }
+      },
+      "6": {
+        start: {
+          line: 23,
+          column: 8
+        },
+        end: {
+          line: 28,
+          column: 10
+        }
+      },
+      "7": {
+        start: {
+          line: 31,
+          column: 4
+        },
+        end: {
+          line: 60,
+          column: 6
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 14,
+            column: 9
+          },
+          end: {
+            line: 14,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 14,
+            column: 20
+          },
+          end: {
+            line: 16,
+            column: 5
+          }
+        },
+        line: 14
+      },
+      "1": {
+        name: "robots",
+        decl: {
+          start: {
+            line: 19,
+            column: 9
+          },
+          end: {
+            line: 19,
+            column: 15
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 18
+          },
+          end: {
+            line: 61,
+            column: 1
+          }
+        },
+        line: 19
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 20,
+            column: 16
+          },
+          end: {
+            line: 20,
+            column: 53
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 16
+          },
+          end: {
+            line: 20,
+            column: 36
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 40
+          },
+          end: {
+            line: 20,
+            column: 53
+          }
+        }],
+        line: 20
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 22,
+            column: 4
+          },
+          end: {
+            line: 29,
+            column: 5
+          }
+        },
+        type: "if",
+        locations: [{
+          start: {
+            line: 22,
+            column: 4
+          },
+          end: {
+            line: 29,
+            column: 5
+          }
+        }, {
+          start: {
+            line: undefined,
+            column: undefined
+          },
+          end: {
+            line: undefined,
+            column: undefined
+          }
+        }],
+        line: 22
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/[lang]/robots.ts"],
+      sourcesContent: ["import { MetadataRoute } from 'next';\nimport { SITE_URL } from './constants/static-pages';\n\n/**\n * robots.txt \uC0DD\uC131 \uD568\uC218\n * \n * Next.js\uC758 \uBA54\uD0C0\uB370\uC774\uD130 API\uB97C \uD65C\uC6A9\uD558\uC5EC \uB85C\uBD07 \uD14D\uC2A4\uD2B8 \uD30C\uC77C\uC744 \uB3D9\uC801\uC73C\uB85C \uC0DD\uC131\uD569\uB2C8\uB2E4.\n * \uAC01 \uC5B8\uC5B4\uBCC4 \uACBD\uB85C\uC5D0 \uC0AC\uC774\uD2B8\uB9F5\uC744 \uC5F0\uACB0\uD569\uB2C8\uB2E4.\n * \n * @return {MetadataRoute.Robots} \uB85C\uBD07 \uD14D\uC2A4\uD2B8 \uAC1D\uCCB4\n */\nexport default function robots(): MetadataRoute.Robots {\n  const env = process.env.NODE_ENV || 'development';\n  \n  // \uD504\uB85C\uB355\uC158 \uD658\uACBD\uC774 \uC544\uB2CC \uACBD\uC6B0 \uBAA8\uB4E0 \uD06C\uB864\uB9C1 \uCC28\uB2E8\n  if (env !== 'production') {\n    return {\n      rules: {\n        userAgent: '*',\n        disallow: '/',\n      },\n    };\n  }\n  \n  // \uD504\uB85C\uB355\uC158 \uD658\uACBD\uC5D0\uC11C\uB294 \uD5C8\uC6A9\n  return {\n    rules: [\n      {\n        userAgent: '*',\n        allow: '/',\n        // \uBBFC\uAC10\uD55C \uD398\uC774\uC9C0\uB098 API \uACBD\uB85C \uCC28\uB2E8\n        disallow: [\n          '/api/',\n          '/auth/',\n          '/test-auth/',\n          '/_next/',\n          '/admin/',\n        ],\n      },\n      {\n        userAgent: 'Googlebot',\n        allow: '/',\n        disallow: [\n          '/api/',\n          '/auth/',\n          '/test-auth/',\n        ],\n      },\n    ],\n    sitemap: [\n      `${SITE_URL}/ko/sitemap.xml`,\n      `${SITE_URL}/en/sitemap.xml`,\n    ],\n    host: SITE_URL,\n  };\n}\n"],
+      names: ["robots", "env", "process", "NODE_ENV", "rules", "userAgent", "disallow", "allow", "sitemap", "SITE_URL", "host"],
+      mappings: ";;;;+BAGA;;;;;;;CAOC,GACD;;;eAAwBA;;;6BAVC;AAUV,SAASA;IACtB,MAAMC,MAAMC,QAAQD,GAAG,CAACE,QAAQ,IAAI;IAEpC,2BAA2B;IAC3B,IAAIF,QAAQ,cAAc;QACxB,OAAO;YACLG,OAAO;gBACLC,WAAW;gBACXC,UAAU;YACZ;QACF;IACF;IAEA,gBAAgB;IAChB,OAAO;QACLF,OAAO;YACL;gBACEC,WAAW;gBACXE,OAAO;gBACP,qBAAqB;gBACrBD,UAAU;oBACR;oBACA;oBACA;oBACA;oBACA;iBACD;YACH;YACA;gBACED,WAAW;gBACXE,OAAO;gBACPD,UAAU;oBACR;oBACA;oBACA;iBACD;YACH;SACD;QACDE,SAAS;YACP,GAAGC,qBAAQ,CAAC,eAAe,CAAC;YAC5B,GAAGA,qBAAQ,CAAC,eAAe,CAAC;SAC7B;QACDC,MAAMD,qBAAQ;IAChB;AACF"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "5a25b71ba0dc4efd0dd77a07ee79f3b767461574"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_cae9vo8na = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_cae9vo8na();
+cov_cae9vo8na().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_cae9vo8na().s[1]++;
+Object.defineProperty(exports,
+/**
+* robots.txt 생성 함수
+* 
+* Next.js의 메타데이터 API를 활용하여 로봇 텍스트 파일을 동적으로 생성합니다.
+* 각 언어별 경로에 사이트맵을 연결합니다.
+* 
+* @return {MetadataRoute.Robots} 로봇 텍스트 객체
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_cae9vo8na().f[0]++;
+    cov_cae9vo8na().s[2]++;
+    return robots;
+  }
+});
+const _staticpages =
+/* istanbul ignore next */
+(cov_cae9vo8na().s[3]++, require("./constants/static-pages"));
+function robots() {
+  /* istanbul ignore next */
+  cov_cae9vo8na().f[1]++;
+  const env =
+  /* istanbul ignore next */
+  (cov_cae9vo8na().s[4]++,
+  /* istanbul ignore next */
+  (cov_cae9vo8na().b[0][0]++, process.env.NODE_ENV) ||
+  /* istanbul ignore next */
+  (cov_cae9vo8na().b[0][1]++, 'development'));
+  // 프로덕션 환경이 아닌 경우 모든 크롤링 차단
+  /* istanbul ignore next */
+  cov_cae9vo8na().s[5]++;
+  if (env !== 'production') {
+    /* istanbul ignore next */
+    cov_cae9vo8na().b[1][0]++;
+    cov_cae9vo8na().s[6]++;
+    return {
+      rules: {
+        userAgent: '*',
+        disallow: '/'
+      }
+    };
+  } else
+  /* istanbul ignore next */
+  {
+    cov_cae9vo8na().b[1][1]++;
+  }
+  // 프로덕션 환경에서는 허용
+  cov_cae9vo8na().s[7]++;
+  return {
+    rules: [{
+      userAgent: '*',
+      allow: '/',
+      // 민감한 페이지나 API 경로 차단
+      disallow: ['/api/', '/auth/', '/test-auth/', '/_next/', '/admin/']
+    }, {
+      userAgent: 'Googlebot',
+      allow: '/',
+      disallow: ['/api/', '/auth/', '/test-auth/']
+    }],
+    sitemap: [`${_staticpages.SITE_URL}/ko/sitemap.xml`, `${_staticpages.SITE_URL}/en/sitemap.xml`],
+    host: _staticpages.SITE_URL
+  };
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJyb2JvdHMiLCJjb3ZfY2FlOXZvOG5hIiwiZiIsImVudiIsInMiLCJiIiwicHJvY2VzcyIsIk5PREVfRU5WIiwicnVsZXMiLCJ1c2VyQWdlbnQiLCJkaXNhbGxvdyIsImFsbG93Iiwic2l0ZW1hcCIsIl9zdGF0aWNwYWdlcyIsIlNJVEVfVVJMIiwiaG9zdCJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvYXBwL1tsYW5nXS9yb2JvdHMudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgTWV0YWRhdGFSb3V0ZSB9IGZyb20gJ25leHQnO1xuaW1wb3J0IHsgU0lURV9VUkwgfSBmcm9tICcuL2NvbnN0YW50cy9zdGF0aWMtcGFnZXMnO1xuXG4vKipcbiAqIHJvYm90cy50eHQg7IOd7ISxIO2VqOyImFxuICogXG4gKiBOZXh0Lmpz7J2YIOuplO2DgOuNsOydtO2EsCBBUEnrpbwg7Zmc7Jqp7ZWY7JesIOuhnOu0hyDthY3siqTtirgg7YyM7J287J2EIOuPmeyggeycvOuhnCDsg53shLHtlanri4jri6QuXG4gKiDqsIEg7Ja47Ja067OEIOqyveuhnOyXkCDsgqzsnbTtirjrp7XsnYQg7Jew6rKw7ZWp64uI64ukLlxuICogXG4gKiBAcmV0dXJuIHtNZXRhZGF0YVJvdXRlLlJvYm90c30g66Gc67SHIO2FjeyKpO2KuCDqsJ3ssrRcbiAqL1xuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gcm9ib3RzKCk6IE1ldGFkYXRhUm91dGUuUm9ib3RzIHtcbiAgY29uc3QgZW52ID0gcHJvY2Vzcy5lbnYuTk9ERV9FTlYgfHwgJ2RldmVsb3BtZW50JztcbiAgXG4gIC8vIO2UhOuhnOuNleyFmCDtmZjqsr3snbQg7JWE64uMIOqyveyasCDrqqjrk6Ag7YGs66Gk66eBIOywqOuLqFxuICBpZiAoZW52ICE9PSAncHJvZHVjdGlvbicpIHtcbiAgICByZXR1cm4ge1xuICAgICAgcnVsZXM6IHtcbiAgICAgICAgdXNlckFnZW50OiAnKicsXG4gICAgICAgIGRpc2FsbG93OiAnLycsXG4gICAgICB9LFxuICAgIH07XG4gIH1cbiAgXG4gIC8vIO2UhOuhnOuNleyFmCDtmZjqsr3sl5DshJzripQg7ZeI7JqpXG4gIHJldHVybiB7XG4gICAgcnVsZXM6IFtcbiAgICAgIHtcbiAgICAgICAgdXNlckFnZW50OiAnKicsXG4gICAgICAgIGFsbG93OiAnLycsXG4gICAgICAgIC8vIOuvvOqwkO2VnCDtjpjsnbTsp4DrgpggQVBJIOqyveuhnCDssKjri6hcbiAgICAgICAgZGlzYWxsb3c6IFtcbiAgICAgICAgICAnL2FwaS8nLFxuICAgICAgICAgICcvYXV0aC8nLFxuICAgICAgICAgICcvdGVzdC1hdXRoLycsXG4gICAgICAgICAgJy9fbmV4dC8nLFxuICAgICAgICAgICcvYWRtaW4vJyxcbiAgICAgICAgXSxcbiAgICAgIH0sXG4gICAgICB7XG4gICAgICAgIHVzZXJBZ2VudDogJ0dvb2dsZWJvdCcsXG4gICAgICAgIGFsbG93OiAnLycsXG4gICAgICAgIGRpc2FsbG93OiBbXG4gICAgICAgICAgJy9hcGkvJyxcbiAgICAgICAgICAnL2F1dGgvJyxcbiAgICAgICAgICAnL3Rlc3QtYXV0aC8nLFxuICAgICAgICBdLFxuICAgICAgfSxcbiAgICBdLFxuICAgIHNpdGVtYXA6IFtcbiAgICAgIGAke1NJVEVfVVJMfS9rby9zaXRlbWFwLnhtbGAsXG4gICAgICBgJHtTSVRFX1VSTH0vZW4vc2l0ZW1hcC54bWxgLFxuICAgIF0sXG4gICAgaG9zdDogU0lURV9VUkwsXG4gIH07XG59XG4iXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFHQTs7Ozs7Ozs7QUFRQTs7Ozs7O1dBQXdCQSxNQUFBOzs7OztpQ0FWQztBQVVWLFNBQVNBLE9BQUE7RUFBQTtFQUFBQyxhQUFBLEdBQUFDLENBQUE7RUFDdEIsTUFBTUMsR0FBQTtFQUFBO0VBQUEsQ0FBQUYsYUFBQSxHQUFBRyxDQUFBO0VBQU07RUFBQSxDQUFBSCxhQUFBLEdBQUFJLENBQUEsVUFBQUMsT0FBQSxDQUFRSCxHQUFHLENBQUNJLFFBQVE7RUFBQTtFQUFBLENBQUFOLGFBQUEsR0FBQUksQ0FBQSxVQUFJO0VBRXBDO0VBQUE7RUFBQUosYUFBQSxHQUFBRyxDQUFBO0VBQ0EsSUFBSUQsR0FBQSxLQUFRLGNBQWM7SUFBQTtJQUFBRixhQUFBLEdBQUFJLENBQUE7SUFBQUosYUFBQSxHQUFBRyxDQUFBO0lBQ3hCLE9BQU87TUFDTEksS0FBQSxFQUFPO1FBQ0xDLFNBQUEsRUFBVztRQUNYQyxRQUFBLEVBQVU7TUFDWjtJQUNGO0VBQ0Y7RUFBQTtFQUFBO0lBQUFULGFBQUEsR0FBQUksQ0FBQTtFQUFBO0VBRUE7RUFBQUosYUFBQSxHQUFBRyxDQUFBO0VBQ0EsT0FBTztJQUNMSSxLQUFBLEVBQU8sQ0FDTDtNQUNFQyxTQUFBLEVBQVc7TUFDWEUsS0FBQSxFQUFPO01BQ1A7TUFDQUQsUUFBQSxFQUFVLENBQ1IsU0FDQSxVQUNBLGVBQ0EsV0FDQTtJQUVKLEdBQ0E7TUFDRUQsU0FBQSxFQUFXO01BQ1hFLEtBQUEsRUFBTztNQUNQRCxRQUFBLEVBQVUsQ0FDUixTQUNBLFVBQ0E7SUFFSixFQUNEO0lBQ0RFLE9BQUEsRUFBUyxDQUNQLEdBQUdDLFlBQUEsQ0FBQUMsUUFBUSxpQkFBaUIsRUFDNUIsR0FBR0QsWUFBQSxDQUFBQyxRQUFRLGlCQUFpQixDQUM3QjtJQUNEQyxJQUFBLEVBQU1GLFlBQUEsQ0FBQUM7RUFDUjtBQUNGIiwiaWdub3JlTGlzdCI6W119

@@ -1,0 +1,60 @@
+a8f5b97c331fa000177f7901708d1c17
+// 미디어 관련 타입 정의
+"use strict";
+
+/* istanbul ignore next */
+function cov_1hw4r0gptf() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/client/media/types.ts";
+  var hash = "d98fac4e1d0b9f8a5b7fa1eb9d5ca433115b3142";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/client/media/types.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/client/media/types.ts"],
+      sourcesContent: ["// \uBBF8\uB514\uC5B4 \uAD00\uB828 \uD0C0\uC785 \uC815\uC758\n\nexport interface Media {\n  id: string;\n  title: string;\n  description?: string;\n  type: MediaType;\n  url: string;\n  thumbnailUrl?: string;\n  duration?: number; // \uBE44\uB514\uC624/\uC624\uB514\uC624\uC758 \uACBD\uC6B0 (\uCD08 \uB2E8\uC704)\n  size?: number; // \uD30C\uC77C \uD06C\uAE30 (\uBC14\uC774\uD2B8)\n  width?: number;\n  height?: number;\n  mimeType: string;\n  uploadedAt: string;\n  uploadedBy: string;\n  tags?: string[];\n}\n\nexport type MediaType = 'image' | 'video' | 'audio' | 'document';\n\nexport interface MediaFilter {\n  type?: MediaType;\n  tags?: string[];\n  uploadedAfter?: string;\n  uploadedBefore?: string;\n  search?: string;\n}\n\nexport interface MediaUploadProgress {\n  mediaId: string;\n  progress: number; // 0-100\n  status: 'uploading' | 'processing' | 'completed' | 'error';\n  error?: string;\n}\n\nexport interface MediaPlaybackState {\n  isPlaying: boolean;\n  currentTime: number;\n  duration: number;\n  volume: number;\n  playbackRate: number;\n} "],
+      names: [],
+      mappings: "AAAA,eAAe"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "d98fac4e1d0b9f8a5b7fa1eb9d5ca433115b3142"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_1hw4r0gptf = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_1hw4r0gptf();
+cov_1hw4r0gptf().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiL1VzZXJzL2NoZW9saHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9jb21wb25lbnRzL2NsaWVudC9tZWRpYS90eXBlcy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyIvLyDrr7jrlJTslrQg6rSA66CoIO2DgOyehSDsoJXsnZhcblxuZXhwb3J0IGludGVyZmFjZSBNZWRpYSB7XG4gIGlkOiBzdHJpbmc7XG4gIHRpdGxlOiBzdHJpbmc7XG4gIGRlc2NyaXB0aW9uPzogc3RyaW5nO1xuICB0eXBlOiBNZWRpYVR5cGU7XG4gIHVybDogc3RyaW5nO1xuICB0aHVtYm5haWxVcmw/OiBzdHJpbmc7XG4gIGR1cmF0aW9uPzogbnVtYmVyOyAvLyDruYTrlJTsmKQv7Jik65SU7Jik7J2YIOqyveyasCAo7LSIIOuLqOychClcbiAgc2l6ZT86IG51bWJlcjsgLy8g7YyM7J28IO2BrOq4sCAo67CU7J207Yq4KVxuICB3aWR0aD86IG51bWJlcjtcbiAgaGVpZ2h0PzogbnVtYmVyO1xuICBtaW1lVHlwZTogc3RyaW5nO1xuICB1cGxvYWRlZEF0OiBzdHJpbmc7XG4gIHVwbG9hZGVkQnk6IHN0cmluZztcbiAgdGFncz86IHN0cmluZ1tdO1xufVxuXG5leHBvcnQgdHlwZSBNZWRpYVR5cGUgPSAnaW1hZ2UnIHwgJ3ZpZGVvJyB8ICdhdWRpbycgfCAnZG9jdW1lbnQnO1xuXG5leHBvcnQgaW50ZXJmYWNlIE1lZGlhRmlsdGVyIHtcbiAgdHlwZT86IE1lZGlhVHlwZTtcbiAgdGFncz86IHN0cmluZ1tdO1xuICB1cGxvYWRlZEFmdGVyPzogc3RyaW5nO1xuICB1cGxvYWRlZEJlZm9yZT86IHN0cmluZztcbiAgc2VhcmNoPzogc3RyaW5nO1xufVxuXG5leHBvcnQgaW50ZXJmYWNlIE1lZGlhVXBsb2FkUHJvZ3Jlc3Mge1xuICBtZWRpYUlkOiBzdHJpbmc7XG4gIHByb2dyZXNzOiBudW1iZXI7IC8vIDAtMTAwXG4gIHN0YXR1czogJ3VwbG9hZGluZycgfCAncHJvY2Vzc2luZycgfCAnY29tcGxldGVkJyB8ICdlcnJvcic7XG4gIGVycm9yPzogc3RyaW5nO1xufVxuXG5leHBvcnQgaW50ZXJmYWNlIE1lZGlhUGxheWJhY2tTdGF0ZSB7XG4gIGlzUGxheWluZzogYm9vbGVhbjtcbiAgY3VycmVudFRpbWU6IG51bWJlcjtcbiAgZHVyYXRpb246IG51bWJlcjtcbiAgdm9sdW1lOiBudW1iZXI7XG4gIHBsYXliYWNrUmF0ZTogbnVtYmVyO1xufSAiXSwibWFwcGluZ3MiOiJBQUFBIiwiaWdub3JlTGlzdCI6W119

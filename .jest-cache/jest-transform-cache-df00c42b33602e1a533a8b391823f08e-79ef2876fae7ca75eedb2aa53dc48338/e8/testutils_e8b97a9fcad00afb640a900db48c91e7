@@ -1,0 +1,88 @@
+9d01cc54184cb087405debac2484894b
+/**
+ * 테스트 유틸리티
+ *
+ * 컴포넌트 테스트를 위한 공통 유틸리티 함수와 래퍼를 제공합니다.
+ */ "use strict";
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    mockTestSession: function() {
+        return mockTestSession;
+    },
+    mockTestUser: function() {
+        return mockTestUser;
+    },
+    render: function() {
+        return renderWithProviders;
+    },
+    renderWithProviders: function() {
+        return renderWithProviders;
+    },
+    userEvent: function() {
+        return _userevent.default;
+    }
+});
+const _jsxruntime = require("react/jsx-runtime");
+const _react = /*#__PURE__*/ _interop_require_default(require("react"));
+const _react1 = _export_star(require("@testing-library/react"), exports);
+const _userevent = /*#__PURE__*/ _interop_require_default(require("@testing-library/user-event"));
+function _export_star(from, to) {
+    Object.keys(from).forEach(function(k) {
+        if (k !== "default" && !Object.prototype.hasOwnProperty.call(to, k)) {
+            Object.defineProperty(to, k, {
+                enumerable: true,
+                get: function() {
+                    return from[k];
+                }
+            });
+        }
+    });
+    return from;
+}
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function renderWithProviders(ui, options = {}) {
+    // 간단한 래퍼 컴포넌트
+    function TestWrapper({ children }) {
+        return /*#__PURE__*/ (0, _jsxruntime.jsx)("div", {
+            "data-testid": "test-wrapper",
+            children: children
+        });
+    }
+    // 컴포넌트 렌더링
+    return {
+        ...(0, _react1.render)(ui, {
+            wrapper: TestWrapper,
+            ...options
+        }),
+        // 사용자 이벤트 생성 헬퍼 추가
+        user: _userevent.default.setup()
+    };
+}
+const mockTestUser = {
+    id: 'test-user-id',
+    email: 'test@example.com',
+    app_metadata: {
+        provider: 'email'
+    }
+};
+const mockTestSession = {
+    access_token: 'mock-access-token',
+    refresh_token: 'mock-refresh-token',
+    expires_in: 3600,
+    token_type: 'bearer',
+    user: mockTestUser
+};
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvX190ZXN0c19fL3V0aWxzL3Rlc3QtdXRpbHMudHN4Il0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICog7YWM7Iqk7Yq4IOycoO2LuOumrO2LsFxuICpcbiAqIOy7tO2PrOuEjO2KuCDthYzsiqTtirjrpbwg7JyE7ZWcIOqzte2GtSDsnKDti7jrpqzti7Ag7ZWo7IiY7JmAIOuemO2NvOulvCDsoJzqs7Xtlanri4jri6QuXG4gKi9cblxuaW1wb3J0IFJlYWN0LCB7IFJlYWN0RWxlbWVudCB9IGZyb20gJ3JlYWN0JztcbmltcG9ydCB7IHJlbmRlciwgUmVuZGVyT3B0aW9ucyB9IGZyb20gJ0B0ZXN0aW5nLWxpYnJhcnkvcmVhY3QnO1xuaW1wb3J0IHVzZXJFdmVudCBmcm9tICdAdGVzdGluZy1saWJyYXJ5L3VzZXItZXZlbnQnO1xuXG4vLyDthYzsiqTtirgg656Y7Y28IOyYteyFmCDsnbjthLDtjpjsnbTsiqRcbmludGVyZmFjZSBDdXN0b21SZW5kZXJPcHRpb25zIGV4dGVuZHMgT21pdDxSZW5kZXJPcHRpb25zLCAnd3JhcHBlcic+IHtcbiAgLy8g7LaU6rCAIOyYteyFmOuTpOydhCDsl6zquLDsl5Ag7KCV7J2Y7ZWgIOyImCDsnojsirXri4jri6Rcbn1cblxuLyoqXG4gKiDthYzsiqTtirjrpbwg7JyE7ZWcIOqwhOuLqO2VnCDrnpjtjbzsmYAg7ZWo6ruYIOy7tO2PrOuEjO2KuOulvCDroIzrjZTrp4Htlanri4jri6QuXG4gKlxuICogQHBhcmFtIHVpIOugjOuNlOunge2VoCDrpqzslaHtirgg7Lu07Y+s64SM7Yq4XG4gKiBAcGFyYW0gb3B0aW9ucyDroIzrjZTrp4Eg7Ji17IWYXG4gKiBAcmV0dXJucyDthYzsiqTtjIUg65287J2067iM65+s66asIOugjOuNlOungSDqsrDqs7xcbiAqL1xuZXhwb3J0IGZ1bmN0aW9uIHJlbmRlcldpdGhQcm92aWRlcnMoXG4gIHVpOiBSZWFjdEVsZW1lbnQsXG4gIG9wdGlvbnM6IEN1c3RvbVJlbmRlck9wdGlvbnMgPSB7fSxcbikge1xuICAvLyDqsITri6jtlZwg656Y7Y28IOy7tO2PrOuEjO2KuFxuICBmdW5jdGlvbiBUZXN0V3JhcHBlcih7IGNoaWxkcmVuIH06IHsgY2hpbGRyZW46IFJlYWN0LlJlYWN0Tm9kZSB9KSB7XG4gICAgcmV0dXJuIDxkaXYgZGF0YS10ZXN0aWQ9XCJ0ZXN0LXdyYXBwZXJcIj57Y2hpbGRyZW59PC9kaXY+O1xuICB9XG5cbiAgLy8g7Lu07Y+s64SM7Yq4IOugjOuNlOungVxuICByZXR1cm4ge1xuICAgIC4uLnJlbmRlcih1aSwgeyB3cmFwcGVyOiBUZXN0V3JhcHBlciwgLi4ub3B0aW9ucyB9KSxcbiAgICAvLyDsgqzsmqnsnpAg7J2067Kk7Yq4IOyDneyEsSDtl6ztjbwg7LaU6rCAXG4gICAgdXNlcjogdXNlckV2ZW50LnNldHVwKCksXG4gIH07XG59XG5cbi8vIO2FjOyKpO2KuCDsnKDti7jrpqzti7Ag7J6s64K067O064K06riwXG5leHBvcnQgKiBmcm9tICdAdGVzdGluZy1saWJyYXJ5L3JlYWN0JztcbmV4cG9ydCB7IHJlbmRlcldpdGhQcm92aWRlcnMgYXMgcmVuZGVyIH07XG5leHBvcnQgeyB1c2VyRXZlbnQgfTtcblxuLy8g7YWM7Iqk7Yq47JqpIOuqqOydmCDrjbDsnbTthLBcbmV4cG9ydCBjb25zdCBtb2NrVGVzdFVzZXIgPSB7XG4gIGlkOiAndGVzdC11c2VyLWlkJyxcbiAgZW1haWw6ICd0ZXN0QGV4YW1wbGUuY29tJyxcbiAgYXBwX21ldGFkYXRhOiB7XG4gICAgcHJvdmlkZXI6ICdlbWFpbCcsXG4gIH0sXG59O1xuXG5leHBvcnQgY29uc3QgbW9ja1Rlc3RTZXNzaW9uID0ge1xuICBhY2Nlc3NfdG9rZW46ICdtb2NrLWFjY2Vzcy10b2tlbicsXG4gIHJlZnJlc2hfdG9rZW46ICdtb2NrLXJlZnJlc2gtdG9rZW4nLFxuICBleHBpcmVzX2luOiAzNjAwLFxuICB0b2tlbl90eXBlOiAnYmVhcmVyJyxcbiAgdXNlcjogbW9ja1Rlc3RVc2VyLFxufTtcbiJdLCJuYW1lcyI6WyJtb2NrVGVzdFNlc3Npb24iLCJtb2NrVGVzdFVzZXIiLCJyZW5kZXIiLCJyZW5kZXJXaXRoUHJvdmlkZXJzIiwidXNlckV2ZW50IiwidWkiLCJvcHRpb25zIiwiVGVzdFdyYXBwZXIiLCJjaGlsZHJlbiIsImRpdiIsImRhdGEtdGVzdGlkIiwid3JhcHBlciIsInVzZXIiLCJzZXR1cCIsImlkIiwiZW1haWwiLCJhcHBfbWV0YWRhdGEiLCJwcm92aWRlciIsImFjY2Vzc190b2tlbiIsInJlZnJlc2hfdG9rZW4iLCJleHBpcmVzX2luIiwidG9rZW5fdHlwZSJdLCJtYXBwaW5ncyI6IkFBQUE7Ozs7Q0FJQzs7Ozs7Ozs7Ozs7SUFpRFlBLGVBQWU7ZUFBZkE7O0lBUkFDLFlBQVk7ZUFBWkE7O0lBSm1CQyxNQUFNO2VBQTdCQzs7SUFuQk9BLG1CQUFtQjtlQUFuQkE7O0lBb0JQQyxTQUFTO2VBQVRBLGtCQUFTOzs7OzhEQXBDa0I7cUNBQ0U7a0VBQ2hCOzs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBY2YsU0FBU0Qsb0JBQ2RFLEVBQWdCLEVBQ2hCQyxVQUErQixDQUFDLENBQUM7SUFFakMsY0FBYztJQUNkLFNBQVNDLFlBQVksRUFBRUMsUUFBUSxFQUFpQztRQUM5RCxxQkFBTyxxQkFBQ0M7WUFBSUMsZUFBWTtzQkFBZ0JGOztJQUMxQztJQUVBLFdBQVc7SUFDWCxPQUFPO1FBQ0wsR0FBR04sSUFBQUEsY0FBTSxFQUFDRyxJQUFJO1lBQUVNLFNBQVNKO1lBQWEsR0FBR0QsT0FBTztRQUFDLEVBQUU7UUFDbkQsbUJBQW1CO1FBQ25CTSxNQUFNUixrQkFBUyxDQUFDUyxLQUFLO0lBQ3ZCO0FBQ0Y7QUFRTyxNQUFNWixlQUFlO0lBQzFCYSxJQUFJO0lBQ0pDLE9BQU87SUFDUEMsY0FBYztRQUNaQyxVQUFVO0lBQ1o7QUFDRjtBQUVPLE1BQU1qQixrQkFBa0I7SUFDN0JrQixjQUFjO0lBQ2RDLGVBQWU7SUFDZkMsWUFBWTtJQUNaQyxZQUFZO0lBQ1pULE1BQU1YO0FBQ1IifQ==

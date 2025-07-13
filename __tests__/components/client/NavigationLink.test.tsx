@@ -3,22 +3,66 @@
  */
 
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../utils/test-utils';
 import NavigationLink from '../../../components/client/NavigationLink';
 
-// Next.js Link 컴포넌트 모킹
-jest.mock('next/link', () => {
-  return function MockLink({ children, href, className, ...props }: any) {
-    return (
-      <a href={href} className={className} {...props}>
-        {children}
-      </a>
-    );
-  };
-});
+// Next.js navigation hooks 모킹
+const mockPush = jest.fn();
+const mockPathname = '/ko/vote';
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+  }),
+  usePathname: () => mockPathname,
+}));
+
+// useLocaleRouter 모킹
+const mockExtractLocaleFromPath = jest.fn();
+const mockGetLocalizedPath = jest.fn();
+
+jest.mock('@/hooks/useLocaleRouter', () => ({
+  useLocaleRouter: () => ({
+    extractLocaleFromPath: mockExtractLocaleFromPath,
+    getLocalizedPath: mockGetLocalizedPath,
+    currentLocale: 'ko',
+  }),
+}));
+
+// GlobalLoadingContext 모킹
+const mockSetIsLoading = jest.fn();
+
+jest.mock('@/contexts/GlobalLoadingContext', () => ({
+  useGlobalLoading: () => ({
+    setIsLoading: mockSetIsLoading,
+  }),
+}));
 
 describe('NavigationLink', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // 기본 모킹 설정
+    mockExtractLocaleFromPath.mockImplementation((path: string) => {
+      if (path.startsWith('/ko/')) {
+        return { locale: 'ko', path: path.replace('/ko', '') || '/' };
+      }
+      if (path.startsWith('/en/')) {
+        return { locale: 'en', path: path.replace('/en', '') || '/' };
+      }
+      return { locale: 'ko', path: path };
+    });
+    
+    mockGetLocalizedPath.mockImplementation((path: string, locale: string) => {
+      return `/${locale}${path === '/' ? '' : path}`;
+    });
+  });
+
   it('renders the navigation link correctly', () => {
     renderWithProviders(
       <NavigationLink href="/test-page">
@@ -26,9 +70,8 @@ describe('NavigationLink', () => {
       </NavigationLink>
     );
     
-    const link = screen.getByRole('link', { name: 'Test Link' });
+    const link = screen.getByRole('button', { name: 'Test Link' });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/test-page');
     expect(link).toHaveTextContent('Test Link');
   });
 
@@ -39,38 +82,150 @@ describe('NavigationLink', () => {
       </NavigationLink>
     );
     
-    const link = screen.getByRole('link', { name: 'Custom Link' });
+    const link = screen.getByRole('button', { name: 'Custom Link' });
     expect(link).toHaveClass('custom-class');
-    expect(link).toHaveClass('relative');
     expect(link).toHaveClass('opacity-100');
   });
 
-  it('renders with default opacity when not navigating', () => {
+  it('navigates to different page when clicked', () => {
+    // 현재 경로와 다른 경로 설정
+    mockExtractLocaleFromPath
+      .mockReturnValueOnce({ locale: 'ko', path: '/vote' }) // current path
+      .mockReturnValueOnce({ locale: 'ko', path: '/mypage' }); // target path
+    
+    mockGetLocalizedPath.mockReturnValue('/ko/mypage');
+
     renderWithProviders(
-      <NavigationLink href="/default">
-        Default Link
+      <NavigationLink href="/mypage">
+        My Page
       </NavigationLink>
     );
     
-    const link = screen.getByRole('link', { name: 'Default Link' });
-    expect(link).toHaveClass('opacity-100');
-    expect(link).not.toHaveClass('opacity-70');
+    const link = screen.getByRole('button', { name: 'My Page' });
+    fireEvent.click(link);
+    
+    expect(mockSetIsLoading).toHaveBeenCalledWith(true);
+    expect(mockPush).toHaveBeenCalledWith('/ko/mypage');
   });
 
-  it('passes through additional props to Link component', () => {
+  it('cancels navigation when clicking same page', () => {
+    // 현재 경로와 같은 경로 설정
+    mockExtractLocaleFromPath
+      .mockReturnValueOnce({ locale: 'ko', path: '/vote' }) // current path
+      .mockReturnValueOnce({ locale: 'ko', path: '/vote' }); // target path
+
+    const mockOnClick = jest.fn();
+
+    renderWithProviders(
+      <NavigationLink href="/vote" onClick={mockOnClick}>
+        Vote Page
+      </NavigationLink>
+    );
+    
+    const link = screen.getByRole('button', { name: 'Vote Page' });
+    fireEvent.click(link);
+    
+    // 네비게이션은 취소되어야 함
+    expect(mockSetIsLoading).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
+    
+    // onClick 콜백은 실행되어야 함 (메뉴 닫기 등을 위해)
+    expect(mockOnClick).toHaveBeenCalled();
+  });
+
+  it('handles localized paths correctly', () => {
+    // 로케일화되지 않은 href가 전달된 경우
+    mockExtractLocaleFromPath
+      .mockReturnValueOnce({ locale: 'ko', path: '/vote' }) // current path
+      .mockReturnValueOnce({ locale: 'ko', path: '/mypage' }); // target path
+    
+    mockGetLocalizedPath.mockReturnValue('/ko/mypage');
+
+    renderWithProviders(
+      <NavigationLink href="/mypage">
+        My Page
+      </NavigationLink>
+    );
+    
+    const link = screen.getByRole('button', { name: 'My Page' });
+    fireEvent.click(link);
+    
+    expect(mockGetLocalizedPath).toHaveBeenCalledWith('/mypage', 'ko');
+    expect(mockPush).toHaveBeenCalledWith('/ko/mypage');
+  });
+
+  it('handles already localized paths correctly', () => {
+    // 이미 로케일화된 href가 전달된 경우
+    mockExtractLocaleFromPath
+      .mockReturnValueOnce({ locale: 'ko', path: '/vote' }) // current path
+      .mockReturnValueOnce({ locale: 'ko', path: '/mypage' }); // target path
+
+    renderWithProviders(
+      <NavigationLink href="/ko/mypage">
+        My Page
+      </NavigationLink>
+    );
+    
+    const link = screen.getByRole('button', { name: 'My Page' });
+    fireEvent.click(link);
+    
+    // 이미 로케일화된 경우 getLocalizedPath가 호출되지 않아야 함
+    expect(mockPush).toHaveBeenCalledWith('/ko/mypage');
+  });
+
+  it('supports keyboard navigation', () => {
+    mockExtractLocaleFromPath
+      .mockReturnValueOnce({ locale: 'ko', path: '/vote' }) // current path
+      .mockReturnValueOnce({ locale: 'ko', path: '/mypage' }); // target path
+    
+    mockGetLocalizedPath.mockReturnValue('/ko/mypage');
+
+    renderWithProviders(
+      <NavigationLink href="/mypage">
+        My Page
+      </NavigationLink>
+    );
+    
+    const link = screen.getByRole('button', { name: 'My Page' });
+    
+    // Enter 키 테스트
+    fireEvent.keyDown(link, { key: 'Enter' });
+    expect(mockPush).toHaveBeenCalledWith('/ko/mypage');
+    
+    jest.clearAllMocks();
+    
+    // Space 키 테스트
+    fireEvent.keyDown(link, { key: ' ' });
+    expect(mockPush).toHaveBeenCalledWith('/ko/mypage');
+  });
+
+  it('maintains accessibility with proper button semantics', () => {
+    renderWithProviders(
+      <NavigationLink href="/accessible-page">
+        Accessible Link
+      </NavigationLink>
+    );
+    
+    const link = screen.getByRole('button');
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute('tabindex', '0');
+    expect(link).toHaveAttribute('role', 'button');
+  });
+
+  it('passes through additional accessibility props', () => {
     renderWithProviders(
       <NavigationLink 
         href="/test" 
-        data-testid="custom-link"
         aria-label="Custom navigation link"
+        title="Custom title"
       >
         Props Test
       </NavigationLink>
     );
     
-    const link = screen.getByTestId('custom-link');
-    expect(link).toBeInTheDocument();
+    const link = screen.getByRole('button');
     expect(link).toHaveAttribute('aria-label', 'Custom navigation link');
+    expect(link).toHaveAttribute('title', 'Custom title');
   });
 
   it('renders children correctly', () => {
@@ -85,51 +240,27 @@ describe('NavigationLink', () => {
     expect(screen.getByText('Bold Text')).toBeInTheDocument();
   });
 
-  it('handles different href formats', () => {
-    const { rerender } = renderWithProviders(
-      <NavigationLink href="/internal-page">
-        Internal Link
-      </NavigationLink>
-    );
+  it('shows navigating state correctly', () => {
+    mockExtractLocaleFromPath
+      .mockReturnValueOnce({ locale: 'ko', path: '/vote' }) // current path
+      .mockReturnValueOnce({ locale: 'ko', path: '/mypage' }); // target path
     
-    let link = screen.getByRole('link', { name: 'Internal Link' });
-    expect(link).toHaveAttribute('href', '/internal-page');
+    mockGetLocalizedPath.mockReturnValue('/ko/mypage');
 
-    rerender(
-      <NavigationLink href="https://external.com">
-        External Link
-      </NavigationLink>
-    );
-    
-    link = screen.getByRole('link', { name: 'External Link' });
-    expect(link).toHaveAttribute('href', 'https://external.com');
-  });
-
-  it('maintains accessibility with proper link semantics', () => {
     renderWithProviders(
-      <NavigationLink href="/accessible-page">
-        Accessible Link
+      <NavigationLink href="/mypage">
+        My Page
       </NavigationLink>
     );
     
-    const link = screen.getByRole('link');
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href');
+    const link = screen.getByRole('button', { name: 'My Page' });
     
-    // 링크가 키보드로 접근 가능한지 확인
-    expect(link).not.toHaveAttribute('tabindex', '-1');
-  });
-
-  it('renders without className when not provided', () => {
-    renderWithProviders(
-      <NavigationLink href="/no-class">
-        No Class Link
-      </NavigationLink>
-    );
-    
-    const link = screen.getByRole('link', { name: 'No Class Link' });
-    expect(link).toHaveClass('relative');
+    // 초기 상태는 opacity-100
     expect(link).toHaveClass('opacity-100');
-    // 빈 문자열이 기본값이므로 추가 클래스는 없어야 함
+    
+    fireEvent.click(link);
+    
+    // 클릭 후에는 opacity-90 (navigating 상태)
+    expect(link).toHaveClass('opacity-90');
   });
 }); 

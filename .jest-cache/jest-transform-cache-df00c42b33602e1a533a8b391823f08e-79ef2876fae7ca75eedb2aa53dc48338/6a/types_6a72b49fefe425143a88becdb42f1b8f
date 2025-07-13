@@ -1,0 +1,60 @@
+c7ecb5559bdc55c635f394785a2ac15a
+// 인증 관련 타입 정의
+"use strict";
+
+/* istanbul ignore next */
+function cov_2mf2sddb23() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/client/auth/types.ts";
+  var hash = "95bbe591ffb7fd0ff6bcac16753c8d7b4e37c793";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/client/auth/types.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      }
+    },
+    fnMap: {},
+    branchMap: {},
+    s: {
+      "0": 0
+    },
+    f: {},
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/client/auth/types.ts"],
+      sourcesContent: ["// \uC778\uC99D \uAD00\uB828 \uD0C0\uC785 \uC815\uC758\n\nexport interface User {\n  id: string;\n  email: string;\n  name?: string;\n  avatar?: string;\n  role?: UserRole;\n  createdAt: string;\n  updatedAt: string;\n}\n\nexport type UserRole = 'user' | 'admin' | 'moderator';\n\nexport interface AuthSession {\n  user: User | null;\n  isAuthenticated: boolean;\n  accessToken?: string;\n  refreshToken?: string;\n}\n\nexport interface LoginCredentials {\n  email: string;\n  password: string;\n}\n\nexport interface SignupData extends LoginCredentials {\n  name: string;\n  confirmPassword: string;\n}\n\nexport interface AuthError {\n  code: string;\n  message: string;\n}\n\nexport type AuthProvider = 'google' | 'kakao' | 'apple' | 'wechat';\n\nexport interface SocialAuthData {\n  provider: AuthProvider;\n  accessToken: string;\n  user?: {\n    email?: string;\n    name?: string;\n    avatar?: string;\n  };\n} "],
+      names: [],
+      mappings: "AAAA,cAAc"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "95bbe591ffb7fd0ff6bcac16753c8d7b4e37c793"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2mf2sddb23 = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2mf2sddb23();
+cov_2mf2sddb23().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiL1VzZXJzL2NoZW9saHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9jb21wb25lbnRzL2NsaWVudC9hdXRoL3R5cGVzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8vIOyduOymnSDqtIDroKgg7YOA7J6FIOygleydmFxuXG5leHBvcnQgaW50ZXJmYWNlIFVzZXIge1xuICBpZDogc3RyaW5nO1xuICBlbWFpbDogc3RyaW5nO1xuICBuYW1lPzogc3RyaW5nO1xuICBhdmF0YXI/OiBzdHJpbmc7XG4gIHJvbGU/OiBVc2VyUm9sZTtcbiAgY3JlYXRlZEF0OiBzdHJpbmc7XG4gIHVwZGF0ZWRBdDogc3RyaW5nO1xufVxuXG5leHBvcnQgdHlwZSBVc2VyUm9sZSA9ICd1c2VyJyB8ICdhZG1pbicgfCAnbW9kZXJhdG9yJztcblxuZXhwb3J0IGludGVyZmFjZSBBdXRoU2Vzc2lvbiB7XG4gIHVzZXI6IFVzZXIgfCBudWxsO1xuICBpc0F1dGhlbnRpY2F0ZWQ6IGJvb2xlYW47XG4gIGFjY2Vzc1Rva2VuPzogc3RyaW5nO1xuICByZWZyZXNoVG9rZW4/OiBzdHJpbmc7XG59XG5cbmV4cG9ydCBpbnRlcmZhY2UgTG9naW5DcmVkZW50aWFscyB7XG4gIGVtYWlsOiBzdHJpbmc7XG4gIHBhc3N3b3JkOiBzdHJpbmc7XG59XG5cbmV4cG9ydCBpbnRlcmZhY2UgU2lnbnVwRGF0YSBleHRlbmRzIExvZ2luQ3JlZGVudGlhbHMge1xuICBuYW1lOiBzdHJpbmc7XG4gIGNvbmZpcm1QYXNzd29yZDogc3RyaW5nO1xufVxuXG5leHBvcnQgaW50ZXJmYWNlIEF1dGhFcnJvciB7XG4gIGNvZGU6IHN0cmluZztcbiAgbWVzc2FnZTogc3RyaW5nO1xufVxuXG5leHBvcnQgdHlwZSBBdXRoUHJvdmlkZXIgPSAnZ29vZ2xlJyB8ICdrYWthbycgfCAnYXBwbGUnIHwgJ3dlY2hhdCc7XG5cbmV4cG9ydCBpbnRlcmZhY2UgU29jaWFsQXV0aERhdGEge1xuICBwcm92aWRlcjogQXV0aFByb3ZpZGVyO1xuICBhY2Nlc3NUb2tlbjogc3RyaW5nO1xuICB1c2VyPzoge1xuICAgIGVtYWlsPzogc3RyaW5nO1xuICAgIG5hbWU/OiBzdHJpbmc7XG4gICAgYXZhdGFyPzogc3RyaW5nO1xuICB9O1xufSAiXSwibWFwcGluZ3MiOiJBQUFBIiwiaWdub3JlTGlzdCI6W119

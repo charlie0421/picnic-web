@@ -1,0 +1,197 @@
+48900fb500b0eacf43df0e30d5a9a62d
+"use strict";
+
+/* istanbul ignore next */
+function cov_278tnu416h() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/server-components/loading.tsx";
+  var hash = "6ef495c8e3877e16b6d6de6a3be3d9915d0feb2d";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/server-components/loading.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 12,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 10,
+          column: 8
+        },
+        end: {
+          line: 10,
+          column: 39
+        }
+      },
+      "3": {
+        start: {
+          line: 13,
+          column: 20
+        },
+        end: {
+          line: 13,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 14,
+          column: 16
+        },
+        end: {
+          line: 14,
+          column: 56
+        }
+      },
+      "5": {
+        start: {
+          line: 16,
+          column: 4
+        },
+        end: {
+          line: 20,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 9,
+            column: 9
+          },
+          end: {
+            line: 9,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 9,
+            column: 20
+          },
+          end: {
+            line: 11,
+            column: 5
+          }
+        },
+        line: 9
+      },
+      "1": {
+        name: "ServerComponentsLoading",
+        decl: {
+          start: {
+            line: 15,
+            column: 9
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        },
+        loc: {
+          start: {
+            line: 15,
+            column: 35
+          },
+          end: {
+            line: 21,
+            column: 1
+          }
+        },
+        line: 15
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/[lang]/(main)/server-components/loading.tsx"],
+      sourcesContent: ["import { LoadingState } from '@/components/server';\n\n/**\n * \uC11C\uBC84 \uCEF4\uD3EC\uB10C\uD2B8 \uB370\uBAA8 \uD398\uC774\uC9C0\uC758 \uB85C\uB529 \uC0C1\uD0DC \uCEF4\uD3EC\uB10C\uD2B8\n */\nexport default function ServerComponentsLoading() {\n  return <LoadingState message=\"\uB370\uBAA8 \uD398\uC774\uC9C0\uB97C \uC900\uBE44\uD558\uB294 \uC911\uC785\uB2C8\uB2E4...\" fullPage size=\"large\" />;\n} "],
+      names: ["ServerComponentsLoading", "LoadingState", "message", "fullPage", "size"],
+      mappings: ";;;;+BAEA;;CAEC,GACD;;;eAAwBA;;;;wBALK;AAKd,SAASA;IACtB,qBAAO,qBAACC,oBAAY;QAACC,SAAQ;QAAuBC,QAAQ;QAACC,MAAK;;AACpE"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "6ef495c8e3877e16b6d6de6a3be3d9915d0feb2d"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_278tnu416h = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_278tnu416h();
+cov_278tnu416h().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_278tnu416h().s[1]++;
+Object.defineProperty(exports,
+/**
+* 서버 컴포넌트 데모 페이지의 로딩 상태 컴포넌트
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_278tnu416h().f[0]++;
+    cov_278tnu416h().s[2]++;
+    return ServerComponentsLoading;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_278tnu416h().s[3]++, require("react/jsx-runtime"));
+const _server =
+/* istanbul ignore next */
+(cov_278tnu416h().s[4]++, require("../../../../components/server"));
+function ServerComponentsLoading() {
+  /* istanbul ignore next */
+  cov_278tnu416h().f[1]++;
+  cov_278tnu416h().s[5]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_server.LoadingState, {
+    message: "데모 페이지를 준비하는 중입니다...",
+    fullPage: true,
+    size: "large"
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMjc4dG51NDE2aCIsImFjdHVhbENvdmVyYWdlIiwicyIsIlNlcnZlckNvbXBvbmVudHNMb2FkaW5nIiwiZiIsIl9qc3hydW50aW1lIiwianN4IiwiX3NlcnZlciIsIkxvYWRpbmdTdGF0ZSIsIm1lc3NhZ2UiLCJmdWxsUGFnZSIsInNpemUiXSwic291cmNlcyI6WyIvVXNlcnMvY2hlb2xoeXVuL1JlcG9zaXRvcmllcy9waWNuaWMtd2ViL2FwcC9bbGFuZ10vKG1haW4pL3NlcnZlci1jb21wb25lbnRzL2xvYWRpbmcudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IExvYWRpbmdTdGF0ZSB9IGZyb20gJ0AvY29tcG9uZW50cy9zZXJ2ZXInO1xuXG4vKipcbiAqIOyEnOuyhCDsu7Ttj6zrhIztirgg642w66qoIO2OmOydtOyngOydmCDroZzrlKkg7IOB7YOcIOy7tO2PrOuEjO2KuFxuICovXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBTZXJ2ZXJDb21wb25lbnRzTG9hZGluZygpIHtcbiAgcmV0dXJuIDxMb2FkaW5nU3RhdGUgbWVzc2FnZT1cIuuNsOuqqCDtjpjsnbTsp4Drpbwg7KSA67mE7ZWY64qUIOykkeyeheuLiOuLpC4uLlwiIGZ1bGxQYWdlIHNpemU9XCJsYXJnZVwiIC8+O1xufSAiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0lBTUU7SUFBQUEsY0FBQSxZQUFBQSxDQUFBO01BQUEsT0FBQUMsY0FBQTtJQUFBO0VBQUE7RUFBQSxPQUFBQSxjQUFBO0FBQUE7QUFBQUQsY0FBQTtBQUFBQSxjQUFBLEdBQUFFLENBQUE7Ozs7Ozs7QUFKRjs7O0FBR0E7Ozs7OztXQUF3QkMsdUJBQUE7Ozs7Ozs7O2tDQUxLO0FBS2QsU0FBU0Esd0JBQUE7RUFBQTtFQUFBSCxjQUFBLEdBQUFJLENBQUE7RUFBQUosY0FBQSxHQUFBRSxDQUFBO0VBQ3RCLG9CQUFPLElBQUFHLFdBQUEsQ0FBQUMsR0FBQSxFQUFDQyxPQUFBLENBQUFDLFlBQVk7SUFBQ0MsT0FBQSxFQUFRO0lBQXVCQyxRQUFRO0lBQUNDLElBQUEsRUFBSzs7QUFDcEUiLCJpZ25vcmVMaXN0IjpbXX0=

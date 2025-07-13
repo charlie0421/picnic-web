@@ -233,7 +233,7 @@ const Header: React.FC = () => {
                   width={40}
                   height={40}
                   priority
-                  className='w-8 h-8 sm:w-10 sm:h-10'
+                  className='w-8 h-8 sm:w-10 sm:h-10 rounded-lg'
                 />
               </NavigationLink>
             </div>

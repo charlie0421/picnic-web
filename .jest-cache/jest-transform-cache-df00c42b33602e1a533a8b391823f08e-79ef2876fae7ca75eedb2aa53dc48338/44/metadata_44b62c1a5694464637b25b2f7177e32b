@@ -1,0 +1,180 @@
+6893d736061cff7e067265f794d2fa7a
+"use strict";
+
+/* istanbul ignore next */
+function cov_2mh01pgvrs() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/metadata.ts";
+  var hash = "b3db7227ff591543f89c47cc0aa0ae1885e2d917";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/metadata.ts",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 24
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 23
+        },
+        end: {
+          line: 11,
+          column: 56
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 21
+        },
+        end: {
+          line: 12,
+          column: 56
+        }
+      },
+      "5": {
+        start: {
+          line: 13,
+          column: 17
+        },
+        end: {
+          line: 34,
+          column: 1
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    },
+    f: {
+      "0": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/[lang]/metadata.ts"],
+      sourcesContent: ["import { Metadata } from 'next';\nimport { DEFAULT_METADATA } from './utils/metadata-utils';\nimport { SITE_URL, SOCIAL_LINKS } from './constants/static-pages';\n\n/**\n * \uAE30\uBCF8 \uBA54\uD0C0\uB370\uC774\uD130 \uC815\uC758\n * \uC774 \uD30C\uC77C\uC740 \uBCC4\uB3C4\uB85C \uC0AC\uC6A9\uB418\uC9C0 \uC54A\uC73C\uBA70, \uBA54\uD0C0\uB370\uC774\uD130 \uC720\uD2F8\uB9AC\uD2F0\uB85C \uB300\uCCB4\uB429\uB2C8\uB2E4.\n * @deprecated \uB300\uC2E0 utils/metadata-utils\uC758 DEFAULT_METADATA\uC640 \uAD00\uB828 \uC720\uD2F8\uB9AC\uD2F0\uB97C \uC0AC\uC6A9\uD558\uC138\uC694.\n */\nexport const metadata: Metadata = {\n  ...DEFAULT_METADATA,\n  openGraph: {\n    ...DEFAULT_METADATA.openGraph,\n    images: [\n      {\n        url: `${SITE_URL}/images/og-image.jpg`,\n        width: 1200,\n        height: 630,\n        alt: '\uD53C\uD06C\uB2E0 - K-Pop \uC544\uD2F0\uC2A4\uD2B8\uB97C \uC704\uD55C \uD22C\uD45C \uBC0F \uBBF8\uB514\uC5B4 \uD50C\uB7AB\uD3FC',\n      }\n    ],\n    siteName: '\uD53C\uD06C\uB2E0',\n    locale: 'ko_KR',\n  },\n  twitter: {\n    ...DEFAULT_METADATA.twitter,\n    site: '@picnic',\n    creator: '@picnic',\n    card: 'summary_large_image',\n  },\n};\n"],
+      names: ["metadata", "DEFAULT_METADATA", "openGraph", "images", "url", "SITE_URL", "width", "height", "alt", "siteName", "locale", "twitter", "site", "creator", "card"],
+      mappings: ";;;;+BASaA;;;eAAAA;;;+BARoB;6BACM;AAOhC,MAAMA,WAAqB;IAChC,GAAGC,+BAAgB;IACnBC,WAAW;QACT,GAAGD,+BAAgB,CAACC,SAAS;QAC7BC,QAAQ;YACN;gBACEC,KAAK,GAAGC,qBAAQ,CAAC,oBAAoB,CAAC;gBACtCC,OAAO;gBACPC,QAAQ;gBACRC,KAAK;YACP;SACD;QACDC,UAAU;QACVC,QAAQ;IACV;IACAC,SAAS;QACP,GAAGV,+BAAgB,CAACU,OAAO;QAC3BC,MAAM;QACNC,SAAS;QACTC,MAAM;IACR;AACF"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "b3db7227ff591543f89c47cc0aa0ae1885e2d917"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2mh01pgvrs = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2mh01pgvrs();
+cov_2mh01pgvrs().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2mh01pgvrs().s[1]++;
+Object.defineProperty(exports, "metadata", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2mh01pgvrs().f[0]++;
+    cov_2mh01pgvrs().s[2]++;
+    return metadata;
+  }
+});
+const _metadatautils =
+/* istanbul ignore next */
+(cov_2mh01pgvrs().s[3]++, require("./utils/metadata-utils"));
+const _staticpages =
+/* istanbul ignore next */
+(cov_2mh01pgvrs().s[4]++, require("./constants/static-pages"));
+const metadata =
+/* istanbul ignore next */
+(cov_2mh01pgvrs().s[5]++, {
+  ..._metadatautils.DEFAULT_METADATA,
+  openGraph: {
+    ..._metadatautils.DEFAULT_METADATA.openGraph,
+    images: [{
+      url: `${_staticpages.SITE_URL}/images/og-image.jpg`,
+      width: 1200,
+      height: 630,
+      alt: '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼'
+    }],
+    siteName: '피크닠',
+    locale: 'ko_KR'
+  },
+  twitter: {
+    ..._metadatautils.DEFAULT_METADATA.twitter,
+    site: '@picnic',
+    creator: '@picnic',
+    card: 'summary_large_image'
+  }
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJjb3ZfMm1oMDFwZ3ZycyIsImFjdHVhbENvdmVyYWdlIiwicyIsIm1ldGFkYXRhIiwiX21ldGFkYXRhdXRpbHMiLCJERUZBVUxUX01FVEFEQVRBIiwib3BlbkdyYXBoIiwiaW1hZ2VzIiwidXJsIiwiX3N0YXRpY3BhZ2VzIiwiU0lURV9VUkwiLCJ3aWR0aCIsImhlaWdodCIsImFsdCIsInNpdGVOYW1lIiwibG9jYWxlIiwidHdpdHRlciIsInNpdGUiLCJjcmVhdG9yIiwiY2FyZCJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvYXBwL1tsYW5nXS9tZXRhZGF0YS50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBNZXRhZGF0YSB9IGZyb20gJ25leHQnO1xuaW1wb3J0IHsgREVGQVVMVF9NRVRBREFUQSB9IGZyb20gJy4vdXRpbHMvbWV0YWRhdGEtdXRpbHMnO1xuaW1wb3J0IHsgU0lURV9VUkwsIFNPQ0lBTF9MSU5LUyB9IGZyb20gJy4vY29uc3RhbnRzL3N0YXRpYy1wYWdlcyc7XG5cbi8qKlxuICog6riw67O4IOuplO2DgOuNsOydtO2EsCDsoJXsnZhcbiAqIOydtCDtjIzsnbzsnYAg67OE64+E66GcIOyCrOyaqeuQmOyngCDslYrsnLzrqbAsIOuplO2DgOuNsOydtO2EsCDsnKDti7jrpqzti7DroZwg64yA7LK065Cp64uI64ukLlxuICogQGRlcHJlY2F0ZWQg64yA7IugIHV0aWxzL21ldGFkYXRhLXV0aWxz7J2YIERFRkFVTFRfTUVUQURBVEHsmYAg6rSA66CoIOycoO2LuOumrO2LsOulvCDsgqzsmqntlZjshLjsmpQuXG4gKi9cbmV4cG9ydCBjb25zdCBtZXRhZGF0YTogTWV0YWRhdGEgPSB7XG4gIC4uLkRFRkFVTFRfTUVUQURBVEEsXG4gIG9wZW5HcmFwaDoge1xuICAgIC4uLkRFRkFVTFRfTUVUQURBVEEub3BlbkdyYXBoLFxuICAgIGltYWdlczogW1xuICAgICAge1xuICAgICAgICB1cmw6IGAke1NJVEVfVVJMfS9pbWFnZXMvb2ctaW1hZ2UuanBnYCxcbiAgICAgICAgd2lkdGg6IDEyMDAsXG4gICAgICAgIGhlaWdodDogNjMwLFxuICAgICAgICBhbHQ6ICftlLztgazri6AgLSBLLVBvcCDslYTti7DsiqTtirjrpbwg7JyE7ZWcIO2IrO2RnCDrsI8g66+465SU7Ja0IO2UjOueq+2PvCcsXG4gICAgICB9XG4gICAgXSxcbiAgICBzaXRlTmFtZTogJ+2UvO2BrOuLoCcsXG4gICAgbG9jYWxlOiAna29fS1InLFxuICB9LFxuICB0d2l0dGVyOiB7XG4gICAgLi4uREVGQVVMVF9NRVRBREFUQS50d2l0dGVyLFxuICAgIHNpdGU6ICdAcGljbmljJyxcbiAgICBjcmVhdG9yOiAnQHBpY25pYycsXG4gICAgY2FyZDogJ3N1bW1hcnlfbGFyZ2VfaW1hZ2UnLFxuICB9LFxufTtcbiJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztJQVlPO0lBQUFBLGNBQUEsWUFBQUEsQ0FBQTtNQUFBLE9BQUFDLGNBQUE7SUFBQTtFQUFBO0VBQUEsT0FBQUEsY0FBQTtBQUFBO0FBQUFELGNBQUE7QUFBQUEsY0FBQSxHQUFBRSxDQUFBOzs7Ozs7K0JBSE07Ozs7OztXQUFBQyxRQUFBOzs7OztrQ0FSb0I7OztrQ0FDTTtBQU9oQyxNQUFNQSxRQUFBO0FBQUE7QUFBQSxDQUFBSCxjQUFBLEdBQUFFLENBQUEsT0FBcUI7RUFDaEMsR0FBR0UsY0FBQSxDQUFBQyxnQkFBZ0I7RUFDbkJDLFNBQUEsRUFBVztJQUNULEdBQUdGLGNBQUEsQ0FBQUMsZ0JBQWdCLENBQUNDLFNBQVM7SUFDN0JDLE1BQUEsRUFBUSxDQUNOO01BQ0VDLEdBQUEsRUFBSyxHQUFHQyxZQUFBLENBQUFDLFFBQVEsc0JBQXNCO01BQ3RDQyxLQUFBLEVBQU87TUFDUEMsTUFBQSxFQUFRO01BQ1JDLEdBQUEsRUFBSztJQUNQLEVBQ0Q7SUFDREMsUUFBQSxFQUFVO0lBQ1ZDLE1BQUEsRUFBUTtFQUNWO0VBQ0FDLE9BQUEsRUFBUztJQUNQLEdBQUdaLGNBQUEsQ0FBQUMsZ0JBQWdCLENBQUNXLE9BQU87SUFDM0JDLElBQUEsRUFBTTtJQUNOQyxPQUFBLEVBQVM7SUFDVEMsSUFBQSxFQUFNO0VBQ1I7QUFDRiIsImlnbm9yZUxpc3QiOltdfQ==

@@ -1,0 +1,376 @@
+297bc4337e293ff6fb14c22ec8b7dcca
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_2hc2zevutm() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/components/client/media/MediaSkeleton.tsx";
+  var hash = "2d3a844b64b63b42d4564117ac535e874cdedd04";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/components/client/media/MediaSkeleton.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 8
+        },
+        end: {
+          line: 9,
+          column: 29
+        }
+      },
+      "3": {
+        start: {
+          line: 12,
+          column: 20
+        },
+        end: {
+          line: 12,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 29
+        },
+        end: {
+          line: 13,
+          column: 71
+        }
+      },
+      "5": {
+        start: {
+          line: 15,
+          column: 4
+        },
+        end: {
+          line: 17,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 20,
+          column: 4
+        },
+        end: {
+          line: 52,
+          column: 7
+        }
+      },
+      "7": {
+        start: {
+          line: 24,
+          column: 41
+        },
+        end: {
+          line: 51,
+          column: 21
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 9
+          },
+          end: {
+            line: 8,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 20
+          },
+          end: {
+            line: 10,
+            column: 5
+          }
+        },
+        line: 8
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 14,
+            column: 9
+          },
+          end: {
+            line: 14,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 14,
+            column: 39
+          },
+          end: {
+            line: 18,
+            column: 1
+          }
+        },
+        line: 14
+      },
+      "2": {
+        name: "MediaSkeleton",
+        decl: {
+          start: {
+            line: 19,
+            column: 9
+          },
+          end: {
+            line: 19,
+            column: 22
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 25
+          },
+          end: {
+            line: 53,
+            column: 1
+          }
+        },
+        line: 19
+      },
+      "3": {
+        name: "(anonymous_3)",
+        decl: {
+          start: {
+            line: 24,
+            column: 15
+          },
+          end: {
+            line: 24,
+            column: 16
+          }
+        },
+        loc: {
+          start: {
+            line: 24,
+            column: 41
+          },
+          end: {
+            line: 51,
+            column: 21
+          }
+        },
+        line: 24
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 17,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 15,
+            column: 35
+          },
+          end: {
+            line: 15,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 41
+          },
+          end: {
+            line: 17,
+            column: 5
+          }
+        }],
+        line: 15
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 15,
+            column: 11
+          },
+          end: {
+            line: 15,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 15,
+            column: 18
+          },
+          end: {
+            line: 15,
+            column: 32
+          }
+        }],
+        line: 15
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/components/client/media/MediaSkeleton.tsx"],
+      sourcesContent: ["'use client';\n\nimport React from 'react';\n\nexport function MediaSkeleton() {\n  return (\n    <div className=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6\">\n      {Array.from({ length: 6 }).map((_, index) => (\n        <div\n          key={index}\n          className=\"bg-white shadow-md rounded-lg overflow-hidden animate-pulse\"\n        >\n          {/* Video Thumbnail - aspect-video\uB85C 16:9 \uBE44\uC728 */}\n          <div className=\"relative w-full aspect-video bg-gray-200\">\n            {/* Play Button Overlay */}\n            <div className=\"absolute inset-0 flex items-center justify-center\">\n              <div className=\"w-12 h-12 bg-gray-300 rounded-full\"></div>\n            </div>\n          </div>\n          \n          {/* Content - \uC2E4\uC81C UI\uC640 \uB3D9\uC77C\uD55C padding */}\n          <div className=\"p-4 bg-white/90\">\n            {/* Title - 2\uC904 \uC81C\uBAA9 */}\n            <div className=\"h-5 bg-gray-200 rounded mb-2 w-full\"></div>\n            <div className=\"h-5 bg-gray-200 rounded mb-2 w-3/4\"></div>\n            \n            {/* Date */}\n            <div className=\"h-4 bg-gray-200 rounded w-1/2\"></div>\n          </div>\n        </div>\n      ))}\n    </div>\n  );\n} "],
+      names: ["MediaSkeleton", "div", "className", "Array", "from", "length", "map", "_", "index"],
+      mappings: "AAAA;;;;;+BAIgBA;;;eAAAA;;;;8DAFE;;;;;;AAEX,SAASA;IACd,qBACE,qBAACC;QAAIC,WAAU;kBACZC,MAAMC,IAAI,CAAC;YAAEC,QAAQ;QAAE,GAAGC,GAAG,CAAC,CAACC,GAAGC,sBACjC,sBAACP;gBAECC,WAAU;;kCAGV,qBAACD;wBAAIC,WAAU;kCAEb,cAAA,qBAACD;4BAAIC,WAAU;sCACb,cAAA,qBAACD;gCAAIC,WAAU;;;;kCAKnB,sBAACD;wBAAIC,WAAU;;0CAEb,qBAACD;gCAAIC,WAAU;;0CACf,qBAACD;gCAAIC,WAAU;;0CAGf,qBAACD;gCAAIC,WAAU;;;;;eAlBZM;;AAwBf"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "2d3a844b64b63b42d4564117ac535e874cdedd04"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2hc2zevutm = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2hc2zevutm();
+cov_2hc2zevutm().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2hc2zevutm().s[1]++;
+Object.defineProperty(exports, "MediaSkeleton", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2hc2zevutm().f[0]++;
+    cov_2hc2zevutm().s[2]++;
+    return MediaSkeleton;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2hc2zevutm().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_2hc2zevutm().s[4]++, _interop_require_default(require("react")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_2hc2zevutm().f[1]++;
+  cov_2hc2zevutm().s[5]++;
+  return /* istanbul ignore next */(cov_2hc2zevutm().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_2hc2zevutm().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_2hc2zevutm().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_2hc2zevutm().b[0][1]++, {
+    default: obj
+  });
+}
+function MediaSkeleton() {
+  /* istanbul ignore next */
+  cov_2hc2zevutm().f[2]++;
+  cov_2hc2zevutm().s[6]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+    className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
+    children: Array.from({
+      length: 6
+    }).map((_, index) => {
+      /* istanbul ignore next */
+      cov_2hc2zevutm().f[3]++;
+      cov_2hc2zevutm().s[7]++;
+      return /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+        className: "bg-white shadow-md rounded-lg overflow-hidden animate-pulse",
+        children: [/*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+          className: "relative w-full aspect-video bg-gray-200",
+          children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+            className: "absolute inset-0 flex items-center justify-center",
+            children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+              className: "w-12 h-12 bg-gray-300 rounded-full"
+            })
+          })
+        }), /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+          className: "p-4 bg-white/90",
+          children: [/*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+            className: "h-5 bg-gray-200 rounded mb-2 w-full"
+          }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+            className: "h-5 bg-gray-200 rounded mb-2 w-3/4"
+          }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+            className: "h-4 bg-gray-200 rounded w-1/2"
+          })]
+        })]
+      }, index);
+    })
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJNZWRpYVNrZWxldG9uIiwiY292XzJoYzJ6ZXZ1dG0iLCJmIiwicyIsIl9qc3hydW50aW1lIiwianN4IiwiY2xhc3NOYW1lIiwiQXJyYXkiLCJmcm9tIiwibGVuZ3RoIiwibWFwIiwiXyIsImluZGV4IiwianN4cyJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvY29tcG9uZW50cy9jbGllbnQvbWVkaWEvTWVkaWFTa2VsZXRvbi50c3giXSwic291cmNlc0NvbnRlbnQiOlsiJ3VzZSBjbGllbnQnO1xuXG5pbXBvcnQgUmVhY3QgZnJvbSAncmVhY3QnO1xuXG5leHBvcnQgZnVuY3Rpb24gTWVkaWFTa2VsZXRvbigpIHtcbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cImdyaWQgZ3JpZC1jb2xzLTEgbWQ6Z3JpZC1jb2xzLTIgbGc6Z3JpZC1jb2xzLTMgZ2FwLTZcIj5cbiAgICAgIHtBcnJheS5mcm9tKHsgbGVuZ3RoOiA2IH0pLm1hcCgoXywgaW5kZXgpID0+IChcbiAgICAgICAgPGRpdlxuICAgICAgICAgIGtleT17aW5kZXh9XG4gICAgICAgICAgY2xhc3NOYW1lPVwiYmctd2hpdGUgc2hhZG93LW1kIHJvdW5kZWQtbGcgb3ZlcmZsb3ctaGlkZGVuIGFuaW1hdGUtcHVsc2VcIlxuICAgICAgICA+XG4gICAgICAgICAgey8qIFZpZGVvIFRodW1ibmFpbCAtIGFzcGVjdC12aWRlb+uhnCAxNjo5IOu5hOycqCAqL31cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlIHctZnVsbCBhc3BlY3QtdmlkZW8gYmctZ3JheS0yMDBcIj5cbiAgICAgICAgICAgIHsvKiBQbGF5IEJ1dHRvbiBPdmVybGF5ICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJhYnNvbHV0ZSBpbnNldC0wIGZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyXCI+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidy0xMiBoLTEyIGJnLWdyYXktMzAwIHJvdW5kZWQtZnVsbFwiPjwvZGl2PlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgXG4gICAgICAgICAgey8qIENvbnRlbnQgLSDsi6TsoJwgVUnsmYAg64+Z7J287ZWcIHBhZGRpbmcgKi99XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwLTQgYmctd2hpdGUvOTBcIj5cbiAgICAgICAgICAgIHsvKiBUaXRsZSAtIDLspIQg7KCc66qpICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJoLTUgYmctZ3JheS0yMDAgcm91bmRlZCBtYi0yIHctZnVsbFwiPjwvZGl2PlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJoLTUgYmctZ3JheS0yMDAgcm91bmRlZCBtYi0yIHctMy80XCI+PC9kaXY+XG4gICAgICAgICAgICBcbiAgICAgICAgICAgIHsvKiBEYXRlICovfVxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJoLTQgYmctZ3JheS0yMDAgcm91bmRlZCB3LTEvMlwiPjwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICkpfVxuICAgIDwvZGl2PlxuICApO1xufSAiXSwibWFwcGluZ3MiOiJBQUFBOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7K0JBSWdCOzs7Ozs7V0FBQUEsYUFBQTs7Ozs7Ozs7d0VBRkU7Ozs7Ozs7Ozs7Ozs7OztBQUVYLFNBQVNBLGNBQUE7RUFBQTtFQUFBQyxjQUFBLEdBQUFDLENBQUE7RUFBQUQsY0FBQSxHQUFBRSxDQUFBO0VBQ2Qsb0JBQ0UsSUFBQUMsV0FBQSxDQUFBQyxHQUFBLEVBQUM7SUFBSUMsU0FBQSxFQUFVO2NBQ1pDLEtBQUEsQ0FBTUMsSUFBSSxDQUFDO01BQUVDLE1BQUEsRUFBUTtJQUFFLEdBQUdDLEdBQUcsQ0FBQyxDQUFDQyxDQUFBLEVBQUdDLEtBQUEsS0FDakM7TUFBQTtNQUFBWCxjQUFBLEdBQUFDLENBQUE7TUFBQUQsY0FBQSxHQUFBRSxDQUFBO01BQUEsT0FEaUMsYUFDakMsSUFBQUMsV0FBQSxDQUFBUyxJQUFBLEVBQUM7UUFFQ1AsU0FBQSxFQUFVO2dDQUdWLElBQUFGLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO1VBQUlDLFNBQUEsRUFBVTtvQkFFYixpQkFBQUYsV0FBQSxDQUFBQyxHQUFBLEVBQUM7WUFBSUMsU0FBQSxFQUFVO3NCQUNiLGlCQUFBRixXQUFBLENBQUFDLEdBQUEsRUFBQztjQUFJQyxTQUFBLEVBQVU7Ozt5QkFLbkIsSUFBQUYsV0FBQSxDQUFBUyxJQUFBLEVBQUM7VUFBSVAsU0FBQSxFQUFVO2tDQUViLElBQUFGLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO1lBQUlDLFNBQUEsRUFBVTsyQkFDZixJQUFBRixXQUFBLENBQUFDLEdBQUEsRUFBQztZQUFJQyxTQUFBLEVBQVU7MkJBR2YsSUFBQUYsV0FBQSxDQUFBQyxHQUFBLEVBQUM7WUFBSUMsU0FBQSxFQUFVOzs7U0FsQlpNLEtBQUE7SUFBQTs7QUF3QmYiLCJpZ25vcmVMaXN0IjpbXX0=

@@ -1,0 +1,57 @@
+3ae36ffe3941ced0f5bf25a8e7b42e11
+/**
+ * Jest 테스트 환경 설정 파일
+ * 
+ * 이 파일은 모든 테스트 파일 실행 전에 로드되어 테스트 환경을 구성합니다.
+ * jest.setup.js 이후에 로드됩니다.
+ */ "use strict";
+// Server Component 관련 모킹
+jest.mock('react', ()=>{
+    const originalReact = jest.requireActual('react');
+    return {
+        ...originalReact,
+        cache: jest.fn((fn)=>fn),
+        use: jest.fn((promise)=>{
+            if (promise && typeof promise.then === 'function') {
+                throw new Error('React.use() is not supported in test environment. Please mock your async functions.');
+            }
+            return promise;
+        })
+    };
+});
+// Next.js 캐시 관련 모킹
+jest.mock('next/cache', ()=>({
+        revalidatePath: jest.fn(),
+        revalidateTag: jest.fn(),
+        unstable_cache: jest.fn((fn)=>fn)
+    }));
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+require("@testing-library/jest-dom");
+// Polyfill for missing globals in JSDom
+// Node.js에서 제공하는 TextEncoder/TextDecoder를 사용하면 타입 오류가 발생할 수 있어
+// 단순한 전역 객체 설정으로 변경합니다.
+if (typeof global.TextEncoder === 'undefined') {
+    global.TextEncoder = require('util').TextEncoder;
+}
+if (typeof global.TextDecoder === 'undefined') {
+    global.TextDecoder = require('util').TextDecoder;
+}
+// 전역 테스트 타임아웃 설정
+jest.setTimeout(10000);
+// 콘솔 경고 필터링 (필요한 경우)
+const originalConsoleError = console.error;
+console.error = (...args)=>{
+    // React 18의 특정 경고 메시지를 필터링
+    const suppressedWarnings = [
+        'Warning: ReactDOM.render is no longer supported',
+        'Warning: You are importing createRoot'
+    ];
+    if (typeof args[0] === 'string' && suppressedWarnings.some((warning)=>args[0].includes(warning))) {
+        return;
+    }
+    originalConsoleError(...args);
+};
+
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGVvbGh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvX190ZXN0c19fL3NldHVwLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogSmVzdCDthYzsiqTtirgg7ZmY6rK9IOyEpOyglSDtjIzsnbxcbiAqIFxuICog7J20IO2MjOydvOydgCDrqqjrk6Ag7YWM7Iqk7Yq4IO2MjOydvCDsi6Ttlokg7KCE7JeQIOuhnOuTnOuQmOyWtCDthYzsiqTtirgg7ZmY6rK97J2EIOq1rOyEse2VqeuLiOuLpC5cbiAqIGplc3Quc2V0dXAuanMg7J207ZuE7JeQIOuhnOuTnOuQqeuLiOuLpC5cbiAqL1xuXG5pbXBvcnQgJ0B0ZXN0aW5nLWxpYnJhcnkvamVzdC1kb20nO1xuXG4vLyBQb2x5ZmlsbCBmb3IgbWlzc2luZyBnbG9iYWxzIGluIEpTRG9tXG4vLyBOb2RlLmpz7JeQ7IScIOygnOqzte2VmOuKlCBUZXh0RW5jb2Rlci9UZXh0RGVjb2RlcuulvCDsgqzsmqntlZjrqbQg7YOA7J6FIOyYpOulmOqwgCDrsJzsg53tlaAg7IiYIOyeiOyWtFxuLy8g64uo7Iic7ZWcIOyghOyXrSDqsJ3ssrQg7ISk7KCV7Jy866GcIOuzgOqyve2VqeuLiOuLpC5cbmlmICh0eXBlb2YgZ2xvYmFsLlRleHRFbmNvZGVyID09PSAndW5kZWZpbmVkJykge1xuICBnbG9iYWwuVGV4dEVuY29kZXIgPSByZXF1aXJlKCd1dGlsJykuVGV4dEVuY29kZXI7XG59XG5cbmlmICh0eXBlb2YgZ2xvYmFsLlRleHREZWNvZGVyID09PSAndW5kZWZpbmVkJykge1xuICBnbG9iYWwuVGV4dERlY29kZXIgPSByZXF1aXJlKCd1dGlsJykuVGV4dERlY29kZXI7XG59XG5cbi8vIFNlcnZlciBDb21wb25lbnQg6rSA66CoIOuqqO2CuVxuamVzdC5tb2NrKCdyZWFjdCcsICgpID0+IHtcbiAgY29uc3Qgb3JpZ2luYWxSZWFjdCA9IGplc3QucmVxdWlyZUFjdHVhbCgncmVhY3QnKTtcbiAgcmV0dXJuIHtcbiAgICAuLi5vcmlnaW5hbFJlYWN0LFxuICAgIGNhY2hlOiBqZXN0LmZuKChmbikgPT4gZm4pLFxuICAgIHVzZTogamVzdC5mbigocHJvbWlzZSkgPT4ge1xuICAgICAgaWYgKHByb21pc2UgJiYgdHlwZW9mIHByb21pc2UudGhlbiA9PT0gJ2Z1bmN0aW9uJykge1xuICAgICAgICB0aHJvdyBuZXcgRXJyb3IoXG4gICAgICAgICAgJ1JlYWN0LnVzZSgpIGlzIG5vdCBzdXBwb3J0ZWQgaW4gdGVzdCBlbnZpcm9ubWVudC4gUGxlYXNlIG1vY2sgeW91ciBhc3luYyBmdW5jdGlvbnMuJ1xuICAgICAgICApO1xuICAgICAgfVxuICAgICAgcmV0dXJuIHByb21pc2U7XG4gICAgfSksXG4gIH07XG59KTtcblxuLy8gTmV4dC5qcyDsupDsi5wg6rSA66CoIOuqqO2CuVxuamVzdC5tb2NrKCduZXh0L2NhY2hlJywgKCkgPT4gKHtcbiAgcmV2YWxpZGF0ZVBhdGg6IGplc3QuZm4oKSxcbiAgcmV2YWxpZGF0ZVRhZzogamVzdC5mbigpLFxuICB1bnN0YWJsZV9jYWNoZTogamVzdC5mbigoZm4pID0+IGZuKSxcbn0pKTtcblxuLy8g7KCE7JetIO2FjOyKpO2KuCDtg4DsnoTslYTsm4Mg7ISk7KCVXG5qZXN0LnNldFRpbWVvdXQoMTAwMDApO1xuXG4vLyDsvZjshpQg6rK96rOgIO2VhO2EsOungSAo7ZWE7JqU7ZWcIOqyveyasClcbmNvbnN0IG9yaWdpbmFsQ29uc29sZUVycm9yID0gY29uc29sZS5lcnJvcjtcbmNvbnNvbGUuZXJyb3IgPSAoLi4uYXJncykgPT4ge1xuICAvLyBSZWFjdCAxOOydmCDtirnsoJUg6rK96rOgIOuplOyLnOyngOulvCDtlYTthLDrp4FcbiAgY29uc3Qgc3VwcHJlc3NlZFdhcm5pbmdzID0gW1xuICAgICdXYXJuaW5nOiBSZWFjdERPTS5yZW5kZXIgaXMgbm8gbG9uZ2VyIHN1cHBvcnRlZCcsXG4gICAgJ1dhcm5pbmc6IFlvdSBhcmUgaW1wb3J0aW5nIGNyZWF0ZVJvb3QnLFxuICBdO1xuICBcbiAgaWYgKHR5cGVvZiBhcmdzWzBdID09PSAnc3RyaW5nJyAmJiBzdXBwcmVzc2VkV2FybmluZ3Muc29tZSh3YXJuaW5nID0+IGFyZ3NbMF0uaW5jbHVkZXMod2FybmluZykpKSB7XG4gICAgcmV0dXJuO1xuICB9XG4gIFxuICBvcmlnaW5hbENvbnNvbGVFcnJvciguLi5hcmdzKTtcbn07ICJdLCJuYW1lcyI6WyJqZXN0IiwibW9jayIsIm9yaWdpbmFsUmVhY3QiLCJyZXF1aXJlQWN0dWFsIiwiY2FjaGUiLCJmbiIsInVzZSIsInByb21pc2UiLCJ0aGVuIiwiRXJyb3IiLCJyZXZhbGlkYXRlUGF0aCIsInJldmFsaWRhdGVUYWciLCJ1bnN0YWJsZV9jYWNoZSIsImdsb2JhbCIsIlRleHRFbmNvZGVyIiwicmVxdWlyZSIsIlRleHREZWNvZGVyIiwic2V0VGltZW91dCIsIm9yaWdpbmFsQ29uc29sZUVycm9yIiwiY29uc29sZSIsImVycm9yIiwiYXJncyIsInN1cHByZXNzZWRXYXJuaW5ncyIsInNvbWUiLCJ3YXJuaW5nIiwiaW5jbHVkZXMiXSwibWFwcGluZ3MiOiJBQUFBOzs7OztDQUtDO0FBZUQseUJBQXlCO0FBQ3pCQSxLQUFLQyxJQUFJLENBQUMsU0FBUztJQUNqQixNQUFNQyxnQkFBZ0JGLEtBQUtHLGFBQWEsQ0FBQztJQUN6QyxPQUFPO1FBQ0wsR0FBR0QsYUFBYTtRQUNoQkUsT0FBT0osS0FBS0ssRUFBRSxDQUFDLENBQUNBLEtBQU9BO1FBQ3ZCQyxLQUFLTixLQUFLSyxFQUFFLENBQUMsQ0FBQ0U7WUFDWixJQUFJQSxXQUFXLE9BQU9BLFFBQVFDLElBQUksS0FBSyxZQUFZO2dCQUNqRCxNQUFNLElBQUlDLE1BQ1I7WUFFSjtZQUNBLE9BQU9GO1FBQ1Q7SUFDRjtBQUNGO0FBRUEsbUJBQW1CO0FBQ25CUCxLQUFLQyxJQUFJLENBQUMsY0FBYyxJQUFPLENBQUE7UUFDN0JTLGdCQUFnQlYsS0FBS0ssRUFBRTtRQUN2Qk0sZUFBZVgsS0FBS0ssRUFBRTtRQUN0Qk8sZ0JBQWdCWixLQUFLSyxFQUFFLENBQUMsQ0FBQ0EsS0FBT0E7SUFDbEMsQ0FBQTs7OztRQW5DTztBQUVQLHdDQUF3QztBQUN4QywrREFBK0Q7QUFDL0Qsd0JBQXdCO0FBQ3hCLElBQUksT0FBT1EsT0FBT0MsV0FBVyxLQUFLLGFBQWE7SUFDN0NELE9BQU9DLFdBQVcsR0FBR0MsUUFBUSxRQUFRRCxXQUFXO0FBQ2xEO0FBRUEsSUFBSSxPQUFPRCxPQUFPRyxXQUFXLEtBQUssYUFBYTtJQUM3Q0gsT0FBT0csV0FBVyxHQUFHRCxRQUFRLFFBQVFDLFdBQVc7QUFDbEQ7QUEwQkEsaUJBQWlCO0FBQ2pCaEIsS0FBS2lCLFVBQVUsQ0FBQztBQUVoQixxQkFBcUI7QUFDckIsTUFBTUMsdUJBQXVCQyxRQUFRQyxLQUFLO0FBQzFDRCxRQUFRQyxLQUFLLEdBQUcsQ0FBQyxHQUFHQztJQUNsQiwyQkFBMkI7SUFDM0IsTUFBTUMscUJBQXFCO1FBQ3pCO1FBQ0E7S0FDRDtJQUVELElBQUksT0FBT0QsSUFBSSxDQUFDLEVBQUUsS0FBSyxZQUFZQyxtQkFBbUJDLElBQUksQ0FBQ0MsQ0FBQUEsVUFBV0gsSUFBSSxDQUFDLEVBQUUsQ0FBQ0ksUUFBUSxDQUFDRCxXQUFXO1FBQ2hHO0lBQ0Y7SUFFQU4sd0JBQXdCRztBQUMxQiJ9

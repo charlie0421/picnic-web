@@ -1,0 +1,200 @@
+b8a8316bff5c278f8aa70099f4323ddf
+"use strict";
+
+/* istanbul ignore next */
+function cov_2ng7qku6ul() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/test-auth/layout.tsx";
+  var hash = "b8410281ae063d78207a161a95876c4c99909efa";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/test-auth/layout.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 30
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 4
+        },
+        end: {
+          line: 39,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "TestAuthLayout",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 23
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 38
+          },
+          end: {
+            line: 40,
+            column: 1
+          }
+        },
+        line: 12
+      }
+    },
+    branchMap: {},
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0
+    },
+    b: {},
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/test-auth/layout.tsx"],
+      sourcesContent: ["export default function TestAuthLayout({\n  children,\n}: {\n  children: React.ReactNode;\n}) {\n  return (\n    <html lang=\"ko\">\n      <body>\n        <div className=\"min-h-screen bg-gray-50\">\n          <header className=\"bg-white shadow-sm border-b\">\n            <div className=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8\">\n              <div className=\"flex justify-between items-center py-4\">\n                <h1 className=\"text-xl font-semibold text-gray-900\">\n                  \uC778\uC99D \uD14C\uC2A4\uD2B8\n                </h1>\n              </div>\n            </div>\n          </header>\n          <main className=\"max-w-7xl mx-auto py-6 sm:px-6 lg:px-8\">\n            {children}\n          </main>\n        </div>\n      </body>\n    </html>\n  );\n} "],
+      names: ["TestAuthLayout", "children", "html", "lang", "body", "div", "className", "header", "h1", "main"],
+      mappings: ";;;;+BAAA;;;eAAwBA;;;;AAAT,SAASA,eAAe,EACrCC,QAAQ,EAGT;IACC,qBACE,qBAACC;QAAKC,MAAK;kBACT,cAAA,qBAACC;sBACC,cAAA,sBAACC;gBAAIC,WAAU;;kCACb,qBAACC;wBAAOD,WAAU;kCAChB,cAAA,qBAACD;4BAAIC,WAAU;sCACb,cAAA,qBAACD;gCAAIC,WAAU;0CACb,cAAA,qBAACE;oCAAGF,WAAU;8CAAsC;;;;;kCAM1D,qBAACG;wBAAKH,WAAU;kCACbL;;;;;;AAMb"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "b8410281ae063d78207a161a95876c4c99909efa"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2ng7qku6ul = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2ng7qku6ul();
+cov_2ng7qku6ul().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2ng7qku6ul().s[1]++;
+Object.defineProperty(exports, "default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2ng7qku6ul().f[0]++;
+    cov_2ng7qku6ul().s[2]++;
+    return TestAuthLayout;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2ng7qku6ul().s[3]++, require("react/jsx-runtime"));
+function TestAuthLayout({
+  children
+}) {
+  /* istanbul ignore next */
+  cov_2ng7qku6ul().f[1]++;
+  cov_2ng7qku6ul().s[4]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("html", {
+    lang: "ko",
+    children: /*#__PURE__*/(0, _jsxruntime.jsx)("body", {
+      children: /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+        className: "min-h-screen bg-gray-50",
+        children: [/*#__PURE__*/(0, _jsxruntime.jsx)("header", {
+          className: "bg-white shadow-sm border-b",
+          children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+            className: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+            children: /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+              className: "flex justify-between items-center py-4",
+              children: /*#__PURE__*/(0, _jsxruntime.jsx)("h1", {
+                className: "text-xl font-semibold text-gray-900",
+                children: "인증 테스트"
+              })
+            })
+          })
+        }), /*#__PURE__*/(0, _jsxruntime.jsx)("main", {
+          className: "max-w-7xl mx-auto py-6 sm:px-6 lg:px-8",
+          children: children
+        })]
+      })
+    })
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJUZXN0QXV0aExheW91dCIsImNoaWxkcmVuIiwiY292XzJuZzdxa3U2dWwiLCJmIiwicyIsIl9qc3hydW50aW1lIiwianN4IiwibGFuZyIsImpzeHMiLCJjbGFzc05hbWUiXSwic291cmNlcyI6WyIvVXNlcnMvY2hlb2xoeXVuL1JlcG9zaXRvcmllcy9waWNuaWMtd2ViL2FwcC90ZXN0LWF1dGgvbGF5b3V0LnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBUZXN0QXV0aExheW91dCh7XG4gIGNoaWxkcmVuLFxufToge1xuICBjaGlsZHJlbjogUmVhY3QuUmVhY3ROb2RlO1xufSkge1xuICByZXR1cm4gKFxuICAgIDxodG1sIGxhbmc9XCJrb1wiPlxuICAgICAgPGJvZHk+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWluLWgtc2NyZWVuIGJnLWdyYXktNTBcIj5cbiAgICAgICAgICA8aGVhZGVyIGNsYXNzTmFtZT1cImJnLXdoaXRlIHNoYWRvdy1zbSBib3JkZXItYlwiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtYXgtdy03eGwgbXgtYXV0byBweC00IHNtOnB4LTYgbGc6cHgtOFwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImZsZXgganVzdGlmeS1iZXR3ZWVuIGl0ZW1zLWNlbnRlciBweS00XCI+XG4gICAgICAgICAgICAgICAgPGgxIGNsYXNzTmFtZT1cInRleHQteGwgZm9udC1zZW1pYm9sZCB0ZXh0LWdyYXktOTAwXCI+XG4gICAgICAgICAgICAgICAgICDsnbjspp0g7YWM7Iqk7Yq4XG4gICAgICAgICAgICAgICAgPC9oMT5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8L2hlYWRlcj5cbiAgICAgICAgICA8bWFpbiBjbGFzc05hbWU9XCJtYXgtdy03eGwgbXgtYXV0byBweS02IHNtOnB4LTYgbGc6cHgtOFwiPlxuICAgICAgICAgICAge2NoaWxkcmVufVxuICAgICAgICAgIDwvbWFpbj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2JvZHk+XG4gICAgPC9odG1sPlxuICApO1xufSAiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OytCQUFBOzs7Ozs7V0FBd0JBLGNBQUE7Ozs7OztBQUFULFNBQVNBLGVBQWU7RUFDckNDO0FBQVEsQ0FHVDtFQUFBO0VBQUFDLGNBQUEsR0FBQUMsQ0FBQTtFQUFBRCxjQUFBLEdBQUFFLENBQUE7RUFDQyxvQkFDRSxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQztJQUFLQyxJQUFBLEVBQUs7Y0FDVCxpQkFBQUYsV0FBQSxDQUFBQyxHQUFBLEVBQUM7Z0JBQ0MsaUJBQUFELFdBQUEsQ0FBQUcsSUFBQSxFQUFDO1FBQUlDLFNBQUEsRUFBVTtnQ0FDYixJQUFBSixXQUFBLENBQUFDLEdBQUEsRUFBQztVQUFPRyxTQUFBLEVBQVU7b0JBQ2hCLGlCQUFBSixXQUFBLENBQUFDLEdBQUEsRUFBQztZQUFJRyxTQUFBLEVBQVU7c0JBQ2IsaUJBQUFKLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO2NBQUlHLFNBQUEsRUFBVTt3QkFDYixpQkFBQUosV0FBQSxDQUFBQyxHQUFBLEVBQUM7Z0JBQUdHLFNBQUEsRUFBVTswQkFBc0M7Ozs7eUJBTTFELElBQUFKLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO1VBQUtHLFNBQUEsRUFBVTtvQkFDYlI7Ozs7O0FBTWIiLCJpZ25vcmVMaXN0IjpbXX0=

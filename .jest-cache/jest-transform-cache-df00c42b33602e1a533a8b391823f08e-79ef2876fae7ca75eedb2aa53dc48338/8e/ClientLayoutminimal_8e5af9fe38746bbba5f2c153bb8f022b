@@ -1,0 +1,345 @@
+3ac171c1a334389776fc3c58eb852edc
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_2hy5xzyidk() {
+  var path = "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/ClientLayout-minimal.tsx";
+  var hash = "1b8741ab138ce7ac956ec3f9d5385ca784832fe9";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/cheolhyun/Repositories/picnic-web/app/[lang]/ClientLayout-minimal.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 12,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 10,
+          column: 8
+        },
+        end: {
+          line: 10,
+          column: 35
+        }
+      },
+      "3": {
+        start: {
+          line: 13,
+          column: 20
+        },
+        end: {
+          line: 13,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 14,
+          column: 29
+        },
+        end: {
+          line: 14,
+          column: 71
+        }
+      },
+      "5": {
+        start: {
+          line: 15,
+          column: 22
+        },
+        end: {
+          line: 15,
+          column: 65
+        }
+      },
+      "6": {
+        start: {
+          line: 16,
+          column: 16
+        },
+        end: {
+          line: 16,
+          column: 50
+        }
+      },
+      "7": {
+        start: {
+          line: 18,
+          column: 4
+        },
+        end: {
+          line: 20,
+          column: 6
+        }
+      },
+      "8": {
+        start: {
+          line: 23,
+          column: 4
+        },
+        end: {
+          line: 28,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 9,
+            column: 9
+          },
+          end: {
+            line: 9,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 9,
+            column: 20
+          },
+          end: {
+            line: 11,
+            column: 5
+          }
+        },
+        line: 9
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 17,
+            column: 9
+          },
+          end: {
+            line: 17,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 17,
+            column: 39
+          },
+          end: {
+            line: 21,
+            column: 1
+          }
+        },
+        line: 17
+      },
+      "2": {
+        name: "ClientLayoutMinimal",
+        decl: {
+          start: {
+            line: 22,
+            column: 9
+          },
+          end: {
+            line: 22,
+            column: 28
+          }
+        },
+        loc: {
+          start: {
+            line: 22,
+            column: 60
+          },
+          end: {
+            line: 29,
+            column: 1
+          }
+        },
+        line: 22
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 18,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 18,
+            column: 35
+          },
+          end: {
+            line: 18,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 18,
+            column: 41
+          },
+          end: {
+            line: 20,
+            column: 5
+          }
+        }],
+        line: 18
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 18,
+            column: 11
+          },
+          end: {
+            line: 18,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 18,
+            column: 11
+          },
+          end: {
+            line: 18,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 18,
+            column: 18
+          },
+          end: {
+            line: 18,
+            column: 32
+          }
+        }],
+        line: 18
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/cheolhyun/Repositories/picnic-web/app/[lang]/ClientLayout-minimal.tsx"],
+      sourcesContent: ["'use client';\n\nimport React from 'react';\nimport { AuthProvider } from '@/lib/supabase/auth-provider';\nimport { Analytics } from '@vercel/analytics/react';\n\ninterface ClientLayoutMinimalProps {\n  children: React.ReactNode;\n  initialLanguage: string;\n}\n\n// \uCD5C\uC18C\uD55C\uC758 Provider \uAD6C\uC870 - \uD14C\uC2A4\uD2B8/\uB514\uBC84\uAE45\uC6A9\nexport default function ClientLayoutMinimal({\n  children,\n  initialLanguage,\n}: ClientLayoutMinimalProps) {\n  return (\n    <AuthProvider>\n      {children}\n      <Analytics />\n    </AuthProvider>\n  );\n} "],
+      names: ["ClientLayoutMinimal", "children", "initialLanguage", "AuthProvider", "Analytics"],
+      mappings: "AAAA;;;;;+BAWA,8BAA8B;AAC9B;;;eAAwBA;;;;8DAVN;8BACW;wBACH;;;;;;AAQX,SAASA,oBAAoB,EAC1CC,QAAQ,EACRC,eAAe,EACU;IACzB,qBACE,sBAACC,0BAAY;;YACVF;0BACD,qBAACG,iBAAS;;;AAGhB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "1b8741ab138ce7ac956ec3f9d5385ca784832fe9"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2hy5xzyidk = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2hy5xzyidk();
+cov_2hy5xzyidk().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2hy5xzyidk().s[1]++;
+Object.defineProperty(exports,
+// 최소한의 Provider 구조 - 테스트/디버깅용
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2hy5xzyidk().f[0]++;
+    cov_2hy5xzyidk().s[2]++;
+    return ClientLayoutMinimal;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2hy5xzyidk().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_2hy5xzyidk().s[4]++, _interop_require_default(require("react")));
+const _authprovider =
+/* istanbul ignore next */
+(cov_2hy5xzyidk().s[5]++, require("../../lib/supabase/auth-provider"));
+const _react1 =
+/* istanbul ignore next */
+(cov_2hy5xzyidk().s[6]++, require("@vercel/analytics/react"));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_2hy5xzyidk().f[1]++;
+  cov_2hy5xzyidk().s[7]++;
+  return /* istanbul ignore next */(cov_2hy5xzyidk().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_2hy5xzyidk().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_2hy5xzyidk().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_2hy5xzyidk().b[0][1]++, {
+    default: obj
+  });
+}
+function ClientLayoutMinimal({
+  children,
+  initialLanguage
+}) {
+  /* istanbul ignore next */
+  cov_2hy5xzyidk().f[2]++;
+  cov_2hy5xzyidk().s[8]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsxs)(_authprovider.AuthProvider, {
+    children: [children, /*#__PURE__*/(0, _jsxruntime.jsx)(_react1.Analytics, {})]
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJDbGllbnRMYXlvdXRNaW5pbWFsIiwiY2hpbGRyZW4iLCJpbml0aWFsTGFuZ3VhZ2UiLCJjb3ZfMmh5NXh6eWlkayIsImYiLCJzIiwiX2pzeHJ1bnRpbWUiLCJqc3hzIiwiX2F1dGhwcm92aWRlciIsIkF1dGhQcm92aWRlciIsImpzeCIsIl9yZWFjdDEiLCJBbmFseXRpY3MiXSwic291cmNlcyI6WyIvVXNlcnMvY2hlb2xoeXVuL1JlcG9zaXRvcmllcy9waWNuaWMtd2ViL2FwcC9bbGFuZ10vQ2xpZW50TGF5b3V0LW1pbmltYWwudHN4Il0sInNvdXJjZXNDb250ZW50IjpbIid1c2UgY2xpZW50JztcblxuaW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0JztcbmltcG9ydCB7IEF1dGhQcm92aWRlciB9IGZyb20gJ0AvbGliL3N1cGFiYXNlL2F1dGgtcHJvdmlkZXInO1xuaW1wb3J0IHsgQW5hbHl0aWNzIH0gZnJvbSAnQHZlcmNlbC9hbmFseXRpY3MvcmVhY3QnO1xuXG5pbnRlcmZhY2UgQ2xpZW50TGF5b3V0TWluaW1hbFByb3BzIHtcbiAgY2hpbGRyZW46IFJlYWN0LlJlYWN0Tm9kZTtcbiAgaW5pdGlhbExhbmd1YWdlOiBzdHJpbmc7XG59XG5cbi8vIOy1nOyGjO2VnOydmCBQcm92aWRlciDqtazsobAgLSDthYzsiqTtirgv65SU67KE6rmF7JqpXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBDbGllbnRMYXlvdXRNaW5pbWFsKHtcbiAgY2hpbGRyZW4sXG4gIGluaXRpYWxMYW5ndWFnZSxcbn06IENsaWVudExheW91dE1pbmltYWxQcm9wcykge1xuICByZXR1cm4gKFxuICAgIDxBdXRoUHJvdmlkZXI+XG4gICAgICB7Y2hpbGRyZW59XG4gICAgICA8QW5hbHl0aWNzIC8+XG4gICAgPC9BdXRoUHJvdmlkZXI+XG4gICk7XG59ICJdLCJtYXBwaW5ncyI6IkFBQUE7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBV0E7QUFDQTs7Ozs7O1dBQXdCQSxtQkFBQTs7Ozs7Ozs7d0VBVk47OztrQ0FDVzs7O2tDQUNIOzs7Ozs7Ozs7Ozs7Ozs7QUFRWCxTQUFTQSxvQkFBb0I7RUFDMUNDLFFBQVE7RUFDUkM7QUFBZSxDQUNVO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUN6QixvQkFDRSxJQUFBQyxXQUFBLENBQUFDLElBQUEsRUFBQ0MsYUFBQSxDQUFBQyxZQUFZO2VBQ1ZSLFFBQUEsRSxhQUNELElBQUFLLFdBQUEsQ0FBQUksR0FBQSxFQUFDQyxPQUFBLENBQUFDLFNBQVM7O0FBR2hCIiwiaWdub3JlTGlzdCI6W119
