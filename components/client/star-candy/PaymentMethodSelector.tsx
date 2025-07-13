@@ -102,7 +102,7 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="text-center">
-        <h3 className="text-lg font-medium mb-2">{t('select_payment_method')}</h3>
+        <h3 className="text-lg font-medium mb-2 text-gray-900">{t('select_payment_method')}</h3>
         {detectedCountry && !isManuallySelected && (
           <p className="text-sm text-gray-600">
             {t('detected_location', { country: detectedCountry })}
@@ -134,7 +134,7 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
             <div className="flex items-center space-x-3">
               <span className="text-3xl">{method.icon}</span>
               <div className="text-left">
-                <h4 className="font-medium">{method.name}</h4>
+                <h4 className="font-medium text-gray-900">{method.name}</h4>
                 <p className="text-sm text-gray-600">{method.description}</p>
               </div>
             </div>

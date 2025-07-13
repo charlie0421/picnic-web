@@ -343,7 +343,7 @@ export function StarCandyProductsPresenter({
   return (
     <div className={`space-y-6 ${className || ''}`}>
       <div className='text-center mb-8'>
-        <h1 className='text-3xl font-bold mb-2'>
+        <h1 className='text-3xl font-bold mb-2 text-gray-900'>
           {t('star_candy_recharge_title')}
         </h1>
         <p className='text-gray-600'>{t('star_candy_recharge_description')}</p>
@@ -388,7 +388,7 @@ export function StarCandyProductsPresenter({
                     />
                   </div>
 
-                  <h3 className='text-xl font-bold mb-1'>
+                  <h3 className='text-xl font-bold mb-1 text-gray-900'>
                     {(product.star_candy || 0).toLocaleString()} {t('star_candy_unit')}
                   </h3>
 
@@ -467,7 +467,7 @@ export function StarCandyProductsPresenter({
       </div>
 
       <div className='mt-8 bg-gray-50 rounded-lg p-6'>
-        <h3 className='font-medium mb-2'>{t('star_candy_notice_title')}</h3>
+        <h3 className='font-medium mb-2 text-gray-900'>{t('star_candy_notice_title')}</h3>
         <ul className='text-sm text-gray-600 space-y-1'>
           <li>• {t('star_candy_notice_1')}</li>
           <li>
