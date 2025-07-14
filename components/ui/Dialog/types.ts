@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 export type DialogType = "default" | "success" | "warning" | "error" | "info";
 
 // 다이얼로그 크기
-export type DialogSize = "xs" | "sm" | "md" | "lg" | "xl";
+export type DialogSize = "xs" | "sm" | "md" | "lg" | "xl" | "full";
 
 // 애니메이션 타입
 export type AnimationType =
@@ -13,7 +13,8 @@ export type AnimationType =
     | "fade"
     | "slideUp"
     | "slideDown"
-    | "zoom";
+    | "zoom"
+    | "bottomSheet";
 
 // 버튼 변형
 export type ButtonVariant =

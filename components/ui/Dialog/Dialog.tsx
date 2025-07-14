@@ -1,11 +1,28 @@
 'use client';
 
-import React, { Fragment, useEffect, useRef, useCallback } from 'react';
+import React, { Fragment, useEffect, useRef, useCallback, useState } from 'react';
 import { Dialog as HeadlessDialog, Transition } from '@headlessui/react';
 import { X } from 'lucide-react';
 import { DialogProps } from './types';
-import { getDialogTheme } from './theme';
+import { getDialogTheme, mobileDialogConfig } from './theme';
 import { cn } from '@/lib/utils';
+
+// 모바일 감지 훅
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+};
 
 // 서브 컴포넌트들 먼저 정의
 const DialogHeader = React.memo<React.HTMLAttributes<HTMLDivElement>>(
@@ -21,7 +38,7 @@ const DialogTitle = React.memo<React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, children, ...props }) => (
     <HeadlessDialog.Title
       as='h3'
-      className={cn('text-lg font-semibold leading-6 text-gray-900', className)}
+      className={cn('text-base sm:text-lg font-semibold leading-6 text-gray-900 dark:text-white', className)}
       {...props}
     >
       {children}
@@ -34,7 +51,7 @@ const DialogDescription = React.memo<
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }) => (
   <HeadlessDialog.Description
-    className={cn('mt-2 text-sm text-gray-600', className)}
+    className={cn('mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300', className)}
     {...props}
   >
     {children}
@@ -54,7 +71,7 @@ DialogContent.displayName = 'Dialog.Content';
 const DialogFooter = React.memo<React.HTMLAttributes<HTMLDivElement>>(
   ({ className, children, ...props }) => (
     <div
-      className={cn('mt-6 flex justify-end space-x-3', className)}
+      className={cn('mt-6 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3', className)}
       {...props}
     >
       {children}
@@ -63,9 +80,8 @@ const DialogFooter = React.memo<React.HTMLAttributes<HTMLDivElement>>(
 );
 DialogFooter.displayName = 'Dialog.Footer';
 
-// Dialog 컴포넌트 타입 정의
-interface DialogComponent
-  extends React.MemoExoticComponent<React.FC<DialogProps>> {
+// 다이얼로그 컴포넌트 타입 정의
+interface DialogComponent extends React.FC<DialogProps> {
   Header: typeof DialogHeader;
   Title: typeof DialogTitle;
   Description: typeof DialogDescription;
@@ -98,7 +114,13 @@ const DialogBase = React.memo<DialogProps>(
     'aria-describedby': ariaDescribedBy,
     ...props
   }) => {
-    const theme = getDialogTheme(size, type, animation);
+    const isMobile = useIsMobile();
+    const shouldUseBottomSheet = isMobile && mobileDialogConfig.shouldUseBottomSheet(size);
+    
+    // 모바일에서 bottom sheet 사용 시 애니메이션 변경
+    const effectiveAnimation = shouldUseBottomSheet ? 'bottomSheet' : animation;
+    
+    const theme = getDialogTheme(size, type, effectiveAnimation);
     const initialFocusRef = useRef<HTMLButtonElement>(null);
     const previousActiveElement = useRef<HTMLElement | null>(null);
 
@@ -170,6 +192,42 @@ const DialogBase = React.memo<DialogProps>(
       return null;
     }
 
+    // 모바일 bottom sheet 스타일 클래스
+    const containerClasses = shouldUseBottomSheet
+      ? mobileDialogConfig.mobileClasses.container
+      : 'fixed inset-0 overflow-y-auto';
+
+    // 모바일에서 더 작은 크기로 제한
+    const getMobileOptimizedPanelClasses = () => {
+      if (shouldUseBottomSheet) {
+        return cn(
+          mobileDialogConfig.mobileClasses.panel,
+          theme.content,
+          contentClassName,
+          className
+        );
+      }
+      
+      // 모바일에서 일반 다이얼로그 크기 제한
+      const mobileMaxWidth = isMobile ? (
+        size === 'full' ? 'max-w-[95vw]' : 
+        size === 'xl' ? 'max-w-[85vw]' :
+        size === 'lg' ? 'max-w-[80vw]' :
+        size === 'md' ? 'max-w-[75vw]' :
+        size === 'sm' ? 'max-w-[70vw]' : 'max-w-[65vw]'
+      ) : '';
+      
+      return cn(
+        theme.content,
+        isMobile && mobileMaxWidth,
+        'max-h-[85vh] sm:max-h-[90vh]', // 모바일에서 높이 제한
+        contentClassName,
+        className
+      );
+    };
+
+    const panelClasses = getMobileOptimizedPanelClasses();
+
     return (
       <Transition appear show={isOpen} as={Fragment}>
         <HeadlessDialog
@@ -197,8 +255,11 @@ const DialogBase = React.memo<DialogProps>(
           </Transition.Child>
 
           {/* 다이얼로그 컨테이너 */}
-          <div className='fixed inset-0 overflow-y-auto'>
-            <div className='flex min-h-full items-center justify-center p-4 text-center'>
+          <div className={containerClasses}>
+            <div className={shouldUseBottomSheet ? 'w-full' : cn(
+              'flex min-h-full items-center justify-center text-center',
+              isMobile ? 'p-4' : 'p-2 sm:p-4'
+            )}>
               <Transition.Child
                 as={Fragment}
                 enter={theme.animation.enter}
@@ -209,7 +270,7 @@ const DialogBase = React.memo<DialogProps>(
                 leaveTo={theme.animation.leaveTo}
               >
                 <HeadlessDialog.Panel
-                  className={cn(theme.content, contentClassName, className)}
+                  className={panelClasses}
                   role={role}
                   aria-labelledby={
                     ariaLabelledBy || (title ? 'dialog-title' : undefined)
@@ -222,7 +283,10 @@ const DialogBase = React.memo<DialogProps>(
                 >
                   {/* 헤더 */}
                   {(title || showCloseButton) && (
-                    <DialogHeader className='flex items-center justify-between'>
+                    <DialogHeader className={cn(
+                      'flex items-center justify-between',
+                      shouldUseBottomSheet ? mobileDialogConfig.mobileClasses.header : ''
+                    )}>
                       {title && (
                         <DialogTitle id='dialog-title'>{title}</DialogTitle>
                       )}
@@ -234,7 +298,7 @@ const DialogBase = React.memo<DialogProps>(
                           onClick={handleCloseClick}
                           aria-label='다이얼로그 닫기'
                         >
-                          <X className='h-4 w-4' aria-hidden='true' />
+                          <X className='h-4 w-4 sm:h-5 sm:w-5' aria-hidden='true' />
                         </button>
                       )}
                     </DialogHeader>
@@ -248,7 +312,11 @@ const DialogBase = React.memo<DialogProps>(
                   )}
 
                   {/* 콘텐츠 */}
-                  <DialogContent>{children}</DialogContent>
+                  <DialogContent className={cn(
+                    shouldUseBottomSheet ? mobileDialogConfig.mobileClasses.content : ''
+                  )}>
+                    {children}
+                  </DialogContent>
                 </HeadlessDialog.Panel>
               </Transition.Child>
             </div>
@@ -262,7 +330,7 @@ const DialogBase = React.memo<DialogProps>(
 DialogBase.displayName = 'Dialog';
 
 // 서브 컴포넌트들을 Dialog에 첨부
-const Dialog = DialogBase as DialogComponent;
+const Dialog = DialogBase as unknown as DialogComponent;
 Dialog.Header = DialogHeader;
 Dialog.Title = DialogTitle;
 Dialog.Description = DialogDescription;

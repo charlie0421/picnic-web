@@ -8,10 +8,30 @@ Picnic Web의 팬시하고 재사용 가능한 다이얼로그 시스템입니�
 - 🔧 **완전한 커스터마이징**: 테마, 크기, 애니메이션 설정 가능
 - ♿ **접근성**: ARIA 속성, 키보드 네비게이션, 스크린 리더 지원
 - 📱 **반응형**: 모든 디바이스에서 완벽하게 작동
+  - **모바일**: Bottom sheet 스타일, 전체 너비 버튼
+  - **태블릿**: 적절한 크기 조정, 유연한 레이아웃
+  - **데스크탑**: 전통적인 모달 스타일
 - 🌙 **다크 모드**: 자동 다크 모드 지원
 - 🎭 **다양한 타입**: info, warning, error, success, confirmation
-- 🎬 **애니메이션**: 6가지 애니메이션 효과
+- 🎬 **애니메이션**: 7가지 애니메이션 효과 (bottomSheet 포함)
 - 🔌 **프로그래매틱 API**: Context를 통한 간편한 제어
+
+## 반응형 디자인 상세
+
+### 모바일 최적화 (< 768px)
+- **Bottom Sheet**: `xl`과 `full` 크기에서 자동으로 bottom sheet 스타일 적용
+- **버튼 레이아웃**: 세로 스택, 전체 너비
+- **패딩**: 더 작은 패딩으로 화면 공간 효율적 사용
+- **폰트 크기**: 터치 친화적인 크기 조정
+
+### 태블릿 최적화 (768px - 1024px)
+- **유연한 크기**: 화면 크기에 맞춘 적절한 다이얼로그 크기
+- **하이브리드 레이아웃**: 모바일과 데스크탑의 중간 형태
+
+### 데스크탑 최적화 (> 1024px)
+- **전통적인 모달**: 중앙 정렬된 모달 스타일
+- **가로 버튼 레이아웃**: 우측 정렬된 액션 버튼들
+- **더 큰 패딩**: 넓은 화면에 맞춘 여백
 
 ## 설치 및 설정
 
@@ -52,7 +72,7 @@ function MyComponent() {
       <button onClick={() => setOpen(true)}>다이얼로그 열기</button>
       
       <Dialog
-        open={open}
+        isOpen={open}
         onClose={() => setOpen(false)}
         title="안녕하세요!"
         description="이것은 기본 다이얼로그입니다."
@@ -66,199 +86,68 @@ function MyComponent() {
 }
 ```
 
-### 2. 액션 다이얼로그
-
-```tsx
-import { ActionDialog } from '@/components/ui/Dialog';
-
-function ActionDialogExample() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <ActionDialog
-      open={open}
-      onClose={() => setOpen(false)}
-      title="작업 확인"
-      description="이 작업을 수행하시겠습니까?"
-      type="warning"
-      primaryAction={{
-        label: '확인',
-        variant: 'primary',
-        onClick: async () => {
-          // 비동기 작업 수행
-          await performAction();
-        }
-      }}
-      secondaryAction={{
-        label: '취소',
-        variant: 'secondary',
-        onClick: () => console.log('취소됨')
-      }}
-    />
-  );
-}
-```
-
-### 3. 확인 다이얼로그
-
-```tsx
-import { ConfirmDialog } from '@/components/ui/Dialog';
-
-function ConfirmDialogExample() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <ConfirmDialog
-      open={open}
-      onClose={() => setOpen(false)}
-      title="삭제 확인"
-      description="정말로 이 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
-      type="error"
-      destructive={true}
-      confirmText="삭제"
-      cancelText="취소"
-      onConfirm={async () => {
-        await deleteItem();
-      }}
-      onCancel={() => {
-        console.log('삭제 취소됨');
-      }}
-    />
-  );
-}
-```
-
-### 4. 알림 다이얼로그
-
-```tsx
-import { AlertDialog } from '@/components/ui/Dialog';
-
-function AlertDialogExample() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <AlertDialog
-      open={open}
-      onClose={() => setOpen(false)}
-      title="성공!"
-      description="작업이 성공적으로 완료되었습니다."
-      type="success"
-      okText="확인"
-      onOk={() => {
-        console.log('확인됨');
-      }}
-    />
-  );
-}
-```
-
-## 프로그래매틱 API
-
-Context를 사용하여 프로그래매틱하게 다이얼로그를 제어할 수 있습니다:
-
-### 1. useDialog 훅
+### 2. 액션 다이얼로그 (반응형 버튼)
 
 ```tsx
 import { useDialog } from '@/components/ui/Dialog';
 
 function MyComponent() {
-  const { showDialog, showConfirm, showAlert } = useDialog();
+  const { showActionDialog } = useDialog();
 
-  const handleShowDialog = async () => {
-    const result = await showDialog({
-      title: '사용자 입력',
-      description: '계속하시겠습니까?',
-      type: 'info',
-      primaryAction: {
-        label: '계속',
-        onClick: () => console.log('계속 클릭됨')
-      },
-      secondaryAction: {
-        label: '취소',
-        onClick: () => console.log('취소 클릭됨')
-      }
-    });
-    
-    console.log('다이얼로그 결과:', result);
-  };
-
-  const handleConfirm = async () => {
-    const confirmed = await showConfirm({
-      title: '확인 필요',
+  const handleAction = async () => {
+    const confirmed = await showActionDialog({
+      title: '작업 확인',
       description: '이 작업을 수행하시겠습니까?',
-      type: 'warning',
-      onConfirm: () => console.log('확인됨'),
-      onCancel: () => console.log('취소됨')
+      confirmText: '확인',
+      cancelText: '취소',
+      onConfirm: async () => {
+        // 비동기 작업 수행
+        await performAction();
+      },
     });
     
     if (confirmed) {
-      console.log('사용자가 확인했습니다');
+      console.log('작업이 완료되었습니다.');
     }
   };
 
-  const handleAlert = async () => {
-    await showAlert({
-      title: '알림',
-      description: '작업이 완료되었습니다.',
-      type: 'success'
-    });
-    
-    console.log('알림이 닫혔습니다');
-  };
-
   return (
-    <div>
-      <button onClick={handleShowDialog}>다이얼로그 표시</button>
-      <button onClick={handleConfirm}>확인 다이얼로그</button>
-      <button onClick={handleAlert}>알림 표시</button>
-    </div>
+    <button onClick={handleAction}>
+      액션 실행
+    </button>
   );
 }
 ```
 
-### 2. 편의 훅들
+### 3. 반응형 크기 설정
 
 ```tsx
-import { useConfirm, useAlert } from '@/components/ui/Dialog';
-
-function QuickExample() {
-  const confirm = useConfirm();
-  const alert = useAlert();
-
-  const handleDelete = async () => {
-    const confirmed = await confirm({
-      title: '삭제 확인',
-      description: '정말로 삭제하시겠습니까?',
-      type: 'error',
-      destructive: true,
-      onConfirm: () => deleteItem()
-    });
-
-    if (confirmed) {
-      await alert({
-        title: '완료',
-        description: '삭제가 완료되었습니다.',
-        type: 'success'
-      });
-    }
-  };
-
-  return <button onClick={handleDelete}>삭제</button>;
-}
+// 모바일에서는 bottom sheet, 데스크탑에서는 일반 모달
+<Dialog
+  isOpen={open}
+  onClose={() => setOpen(false)}
+  size="xl" // 모바일에서 자동으로 bottom sheet 적용
+  title="반응형 다이얼로그"
+>
+  <div className="space-y-4">
+    <p>이 다이얼로그는 화면 크기에 따라 다르게 표시됩니다.</p>
+    <ul className="list-disc pl-5 space-y-2">
+      <li>모바일: Bottom sheet 스타일</li>
+      <li>태블릿: 적절한 크기 조정</li>
+      <li>데스크탑: 전통적인 모달</li>
+    </ul>
+  </div>
+</Dialog>
 ```
 
-## 컴파운드 컴포넌트
-
-더 복잡한 레이아웃을 위해 컴파운드 컴포넌트를 사용할 수 있습니다:
+### 4. 복합 다이얼로그 (서브 컴포넌트 사용)
 
 ```tsx
-import { Dialog } from '@/components/ui/Dialog';
-
 function ComplexDialog() {
   const [open, setOpen] = useState(false);
 
   return (
-    <Dialog open={open} onClose={() => setOpen(false)} size="lg">
+    <Dialog isOpen={open} onClose={() => setOpen(false)} size="lg">
       <Dialog.Header>
         <Dialog.Title>복잡한 다이얼로그</Dialog.Title>
         <Dialog.Description>
@@ -269,31 +158,35 @@ function ComplexDialog() {
       <Dialog.Content>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium">이름</label>
-            <input type="text" className="mt-1 block w-full rounded-md border-gray-300" />
+            <label className="block text-sm font-medium mb-1">이름</label>
+            <input 
+              type="text" 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium">이메일</label>
-            <input type="email" className="mt-1 block w-full rounded-md border-gray-300" />
+            <label className="block text-sm font-medium mb-1">이메일</label>
+            <input 
+              type="email" 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            />
           </div>
         </div>
       </Dialog.Content>
 
       <Dialog.Footer>
-        <div className="flex justify-end space-x-2">
-          <button 
-            onClick={() => setOpen(false)}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-          >
-            취소
-          </button>
-          <button 
-            onClick={() => setOpen(false)}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-          >
-            저장
-          </button>
-        </div>
+        <button 
+          onClick={() => setOpen(false)}
+          className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 order-2 sm:order-1"
+        >
+          취소
+        </button>
+        <button 
+          onClick={() => setOpen(false)}
+          className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 order-1 sm:order-2"
+        >
+          저장
+        </button>
       </Dialog.Footer>
     </Dialog>
   );
@@ -305,26 +198,32 @@ function ComplexDialog() {
 ### DialogType
 
 ```typescript
-type DialogType = 'info' | 'warning' | 'error' | 'success' | 'confirmation';
+type DialogType = 'default' | 'info' | 'warning' | 'error' | 'success';
 ```
 
 ### DialogSize
 
 ```typescript
-type DialogSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
+type DialogSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
 ```
+
+**반응형 동작:**
+- `xs`, `sm`, `md`, `lg`: 모든 화면에서 일반 모달
+- `xl`, `full`: 모바일에서 bottom sheet, 데스크탑에서 일반 모달
 
 ### AnimationType
 
 ```typescript
-type AnimationType = 'fade' | 'scale' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right';
+type AnimationType = 'fade' | 'scale' | 'slide' | 'slideUp' | 'slideDown' | 'zoom' | 'bottomSheet';
 ```
+
+**주의:** `bottomSheet`는 모바일에서 자동으로 적용되며, 직접 지정할 수도 있습니다.
 
 ### BaseDialogProps
 
 ```typescript
 interface BaseDialogProps {
-  open: boolean;
+  isOpen: boolean;
   onClose: () => void;
   title?: string;
   description?: string;
@@ -333,7 +232,7 @@ interface BaseDialogProps {
   size?: DialogSize;
   className?: string;
   animation?: AnimationType;
-  closeOnBackdropClick?: boolean;
+  closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
   showCloseButton?: boolean;
   'aria-label'?: string;
@@ -341,88 +240,106 @@ interface BaseDialogProps {
 }
 ```
 
-### DialogAction
+## 반응형 커스터마이징
 
-```typescript
-interface DialogAction {
-  label: string;
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-  onClick: () => void | Promise<void>;
-  disabled?: boolean;
-  loading?: boolean;
-  autoClose?: boolean;
-}
-```
-
-## 커스터마이징
-
-### 테마 커스터마이징
-
-기본 테마를 확장하거나 완전히 새로운 테마를 만들 수 있습니다:
+### 모바일 전용 스타일
 
 ```tsx
-import { defaultDialogTheme } from '@/components/ui/Dialog';
+// mobileDialogConfig를 사용하여 모바일 동작 제어
+import { mobileDialogConfig } from '@/components/ui/Dialog/theme';
 
-const customTheme = {
-  ...defaultDialogTheme,
-  panel: {
-    ...defaultDialogTheme.panel,
-    base: 'custom-panel-classes'
-  }
-};
-
-<Dialog theme={customTheme} {...props} />
+// 특정 크기에서 bottom sheet 사용 여부 확인
+const shouldUseBottomSheet = mobileDialogConfig.shouldUseBottomSheet('xl');
 ```
 
-### CSS 변수 사용
+### 커스텀 반응형 클래스
 
-CSS 변수를 사용하여 색상을 커스터마이징할 수 있습니다:
-
-```css
-:root {
-  --dialog-primary: #3b82f6;
-  --dialog-danger: #ef4444;
-  --dialog-success: #10b981;
-  --dialog-warning: #f59e0b;
-}
+```tsx
+<Dialog
+  isOpen={open}
+  onClose={() => setOpen(false)}
+  className="sm:max-w-lg md:max-w-xl lg:max-w-2xl"
+  contentClassName="p-4 sm:p-6 md:p-8"
+>
+  <div className="text-sm sm:text-base md:text-lg">
+    반응형 텍스트 크기
+  </div>
+</Dialog>
 ```
 
 ## 모범 사례
 
-1. **적절한 타입 선택**: 상황에 맞는 다이얼로그 타입을 선택하세요
-2. **명확한 제목과 설명**: 사용자가 이해하기 쉬운 텍스트를 사용하세요
-3. **적절한 크기**: 콘텐츠에 맞는 크기를 선택하세요
-4. **접근성 고려**: ARIA 속성을 적절히 사용하세요
-5. **비동기 작업**: 로딩 상태를 적절히 처리하세요
+### 1. 반응형 버튼 레이아웃
 
-## 예제 모음
+```tsx
+<Dialog.Footer className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+  <button className="w-full sm:w-auto order-2 sm:order-1">
+    취소
+  </button>
+  <button className="w-full sm:w-auto order-1 sm:order-2">
+    확인
+  </button>
+</Dialog.Footer>
+```
 
-더 많은 예제는 `components/ui/Dialog/examples/` 폴더를 참조하세요.
+### 2. 적절한 크기 선택
+
+- **간단한 확인**: `xs`, `sm`
+- **폼 입력**: `md`, `lg`
+- **복잡한 콘텐츠**: `xl`, `full`
+
+### 3. 모바일 친화적 텍스트
+
+```tsx
+<Dialog.Title className="text-base sm:text-lg md:text-xl">
+  반응형 제목
+</Dialog.Title>
+<Dialog.Description className="text-sm sm:text-base">
+  반응형 설명
+</Dialog.Description>
+```
+
+### 4. 터치 친화적 버튼
+
+```tsx
+<button className="min-h-[44px] px-4 py-2.5 sm:py-2 text-sm font-medium">
+  터치 친화적 버튼
+</button>
+```
+
+## 접근성 고려사항
+
+- **키보드 네비게이션**: Tab, Enter, Escape 키 지원
+- **스크린 리더**: 적절한 ARIA 속성 자동 적용
+- **포커스 관리**: 다이얼로그 열기/닫기 시 포커스 자동 관리
+- **색상 대비**: WCAG 가이드라인 준수
 
 ## 문제 해결
 
 ### 일반적인 문제들
 
-1. **다이얼로그가 표시되지 않음**: DialogProvider가 올바르게 설정되었는지 확인하세요
-2. **스타일이 적용되지 않음**: Tailwind CSS가 올바르게 설정되었는지 확인하세요
-3. **애니메이션이 작동하지 않음**: Headless UI Transition이 올바르게 import되었는지 확인하세요
+1. **모바일에서 bottom sheet가 적용되지 않음**
+   - `size="xl"` 또는 `size="full"` 사용
+   - 화면 너비가 768px 미만인지 확인
 
-### 디버깅
+2. **버튼이 올바르게 정렬되지 않음**
+   - `Dialog.Footer`에 반응형 클래스 적용
+   - 버튼에 `order` 클래스 사용
 
-개발 모드에서는 콘솔에 디버그 정보가 출력됩니다:
+3. **애니메이션이 부자연스러움**
+   - 모바일에서는 `bottomSheet` 애니메이션이 자동 적용됨
+   - 필요시 `animation` prop으로 직접 제어
 
-```tsx
-<Dialog debug={true} {...props} />
-```
+## 업데이트 내역
 
-## 기여하기
+### v2.0.0 (현재)
+- ✅ 완전한 반응형 웹 UI 지원
+- ✅ 모바일 bottom sheet 스타일
+- ✅ 반응형 버튼 레이아웃
+- ✅ 터치 친화적 인터페이스
+- ✅ 개선된 애니메이션 시스템
 
-이 다이얼로그 시스템에 기여하고 싶으시다면:
-
-1. 새로운 기능이나 버그 수정을 위한 이슈를 생성하세요
-2. 테스트를 포함한 PR을 제출하세요
-3. 문서를 업데이트하세요
-
-## 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 
+### v1.0.0
+- ✅ 기본 다이얼로그 시스템
+- ✅ 다크 모드 지원
+- ✅ 접근성 기능 

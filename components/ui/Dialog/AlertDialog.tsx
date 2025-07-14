@@ -27,7 +27,7 @@ export function AlertDialog({
 
   return (
     <Dialog {...dialogProps}>
-      <Dialog.Footer>
+      <Dialog.Footer className="flex justify-center sm:justify-end">
         <button
           type='button'
           onClick={handleConfirm}
@@ -35,6 +35,7 @@ export function AlertDialog({
             buttonTheme.base,
             buttonTheme.sizes.md,
             buttonTheme.variants[confirmVariant],
+            'w-full sm:w-auto min-w-[120px]',
           )}
         >
           {defaultConfirmText}

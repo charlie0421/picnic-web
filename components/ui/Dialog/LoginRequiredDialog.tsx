@@ -2,10 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { LogIn, X } from 'lucide-react';
-import { ConfirmDialog } from './ConfirmDialog';
+import { Dialog } from './Dialog';
 import { LoginRequiredDialogProps } from './types';
+import { buttonTheme } from './theme';
 import { saveRedirectUrl, redirectToLogin } from '@/utils/auth-redirect';
 import { useLanguageStore } from '@/stores/languageStore';
+import { cn } from '@/lib/utils';
 
 export function LoginRequiredDialog({
   isOpen = false,
@@ -48,27 +50,33 @@ export function LoginRequiredDialog({
     if (translated && translated.trim() && !translated.startsWith('[')) {
       return translated;
     }
-    
-    // fallback to title key
-    const fallback = t('dialog_content_login_required');
-    console.log('[LoginRequiredDialog] Fallback translation:', fallback);
-    if (fallback && fallback.trim() && !fallback.startsWith('[')) {
-      return 'Please log in to continue.';
-    }
-    return 'You need to log in to use this feature.';
+    return 'Please log in to continue using this service.';
   };
 
-  const defaultTitle = getDefaultTitle();
-  const defaultDescription = getDefaultDescription();
-  const defaultLoginText = loginText || t('dialog_button_ok') || 'OK';
-  const defaultCancelText = cancelText || t('dialog_button_cancel') || 'Cancel';
+  const getDefaultLoginText = () => {
+    if (loginText) return loginText;
+    const translated = t('dialog_login_required_login_button');
+    console.log('[LoginRequiredDialog] Login button translation:', translated);
+    if (translated && translated.trim() && !translated.startsWith('[')) {
+      return translated;
+    }
+    return 'Login';
+  };
 
-  // 기본 로그인 핸들러
+  const getDefaultCancelText = () => {
+    if (cancelText) return cancelText;
+    const translated = t('dialog_login_required_cancel_button');
+    console.log('[LoginRequiredDialog] Cancel button translation:', translated);
+    if (translated && translated.trim() && !translated.startsWith('[')) {
+      return translated;
+    }
+    return 'Cancel';
+  };
+
   const handleLogin = () => {
     if (onLogin) {
       onLogin(redirectUrl);
     } else {
-      // 기본 로그인 로직: 리다이렉트 유틸리티 사용
       if (redirectUrl) {
         saveRedirectUrl(redirectUrl);
       }
@@ -76,24 +84,52 @@ export function LoginRequiredDialog({
     }
   };
 
-  // 취소 핸들러
   const handleCancel = () => {
     if (onCancel) {
       onCancel();
     }
+    dialogProps.onClose();
   };
 
   return (
-    <ConfirmDialog
+    <Dialog
       {...dialogProps}
       isOpen={isOpen}
-      title={defaultTitle}
-      description={defaultDescription}
-      confirmText={defaultLoginText}
-      cancelText={defaultCancelText}
-      confirmVariant='primary'
-      onConfirm={handleLogin}
-      onCancel={handleCancel}
-    />
+      title={getDefaultTitle()}
+      description={getDefaultDescription()}
+      type="info"
+      size="md"
+      animation="scale"
+    >
+      <Dialog.Footer className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+        <button
+          type='button'
+          onClick={handleCancel}
+          className={cn(
+            buttonTheme.base,
+            buttonTheme.sizes.md,
+            buttonTheme.variants.secondary,
+            'w-full sm:w-auto order-2 sm:order-1',
+          )}
+        >
+          {getDefaultCancelText()}
+        </button>
+        <button
+          type='button'
+          onClick={handleLogin}
+          className={cn(
+            buttonTheme.base,
+            buttonTheme.sizes.md,
+            buttonTheme.variants.primary,
+            'w-full sm:w-auto order-1 sm:order-2',
+          )}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <LogIn className='h-4 w-4' />
+            <span>{getDefaultLoginText()}</span>
+          </div>
+        </button>
+      </Dialog.Footer>
+    </Dialog>
   );
 }

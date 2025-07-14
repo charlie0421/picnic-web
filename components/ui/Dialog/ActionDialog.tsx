@@ -51,7 +51,7 @@ export function ActionDialog({
 
   return (
     <Dialog {...dialogProps}>
-      <Dialog.Footer>
+      <Dialog.Footer className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
         {onCancel && (
           <button
             type='button'
@@ -61,6 +61,7 @@ export function ActionDialog({
               buttonTheme.base,
               buttonTheme.sizes.md,
               buttonTheme.variants[cancelVariant],
+              'w-full sm:w-auto order-2 sm:order-1',
             )}
           >
             {defaultCancelText}
@@ -75,14 +76,15 @@ export function ActionDialog({
               buttonTheme.base,
               buttonTheme.sizes.md,
               buttonTheme.variants[confirmVariant],
+              'w-full sm:w-auto order-1 sm:order-2',
               isActionDisabled && 'opacity-50 cursor-not-allowed',
             )}
           >
             {isProcessing ? (
-              <>
-                <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2' />
-                {t('dialog.action.loading') || '처리 중...'}
-              </>
+              <div className="flex items-center justify-center gap-2">
+                <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white' />
+                <span>{t('dialog.action.loading') || '처리 중...'}</span>
+              </div>
             ) : (
               defaultConfirmText
             )}

@@ -83,7 +83,7 @@ export default function AuthCallbackClient({
     }, 100);
     
     // 🔧 최소 로딩 시간 보장 (사용자가 로딩 상태를 인지할 수 있도록)
-    const minimumLoadingTime = 1200; // 800ms → 1200ms로 늘림 (더 확실한 로딩 경험)
+    const minimumLoadingTime = 2000; // 2초로 늘려서 충분한 로딩 경험 제공
     const startTime = Date.now();
 
     const ensureMinimumLoading = async (callback: () => void) => {
