@@ -198,7 +198,8 @@ export function getDialogTheme(
     animation: AnimationType = "scale",
 ) {
     return {
-        overlay: dialogTheme.overlay,
+        backdrop: defaultDialogTheme.backdrop,
+        container: defaultDialogTheme.container,
         content: `${dialogTheme.content} ${sizeClasses[size]} ${
             typeClasses[type]
         }`,

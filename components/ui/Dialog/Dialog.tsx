@@ -195,7 +195,7 @@ const DialogBase = React.memo<DialogProps>(
     // 모바일 bottom sheet 스타일 클래스
     const containerClasses = shouldUseBottomSheet
       ? mobileDialogConfig.mobileClasses.container
-      : 'fixed inset-0 overflow-y-auto';
+      : cn(theme.container, 'overflow-y-auto');
 
     // 모바일에서 더 작은 크기로 제한
     const getMobileOptimizedPanelClasses = () => {
@@ -248,7 +248,7 @@ const DialogBase = React.memo<DialogProps>(
             leaveTo='opacity-0'
           >
             <div
-              className={cn(theme.overlay, overlayClassName)}
+              className={cn(theme.backdrop, overlayClassName)}
               onClick={handleOverlayClick}
               aria-hidden='true'
             />
