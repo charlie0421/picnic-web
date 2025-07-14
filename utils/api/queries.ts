@@ -475,8 +475,8 @@ const _getPopups = async (): Promise<Popup[]> => {
       .from("popup")
       .select("*")
       .is("deleted_at", null)
-      .lte("start_at", 'now()') // 시작 시간이 현재 시간보다 이전인 것
-      .or('stop_at.is.null,stop_at.gt.now()') // 종료 시간이 null이거나 현재 시간보다 이후인 것
+      .lte("start_at", 'now()') // 시작 시간이 현재 시간보다 이전이거나 같은 것
+      .or('stop_at.is.null,stop_at.gte.now()') // 종료 시간이 null이거나 현재 시간보다 이후이거나 같은 것
       .order("start_at", { ascending: false });
 
     if (popupError) {
