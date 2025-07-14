@@ -208,13 +208,13 @@ const DialogBase = React.memo<DialogProps>(
         );
       }
       
-      // 모바일에서 일반 다이얼로그 크기 제한
+      // 모바일에서 일반 다이얼로그 크기 제한 (마진 증가로 인해 더 작게 조정)
       const mobileMaxWidth = isMobile ? (
-        size === 'full' ? 'max-w-[95vw]' : 
-        size === 'xl' ? 'max-w-[85vw]' :
-        size === 'lg' ? 'max-w-[80vw]' :
-        size === 'md' ? 'max-w-[75vw]' :
-        size === 'sm' ? 'max-w-[70vw]' : 'max-w-[65vw]'
+        size === 'full' ? 'max-w-[90vw]' : 
+        size === 'xl' ? 'max-w-[80vw]' :
+        size === 'lg' ? 'max-w-[75vw]' :
+        size === 'md' ? 'max-w-[70vw]' :
+        size === 'sm' ? 'max-w-[65vw]' : 'max-w-[60vw]'
       ) : '';
       
       return cn(
@@ -258,7 +258,7 @@ const DialogBase = React.memo<DialogProps>(
           <div className={containerClasses}>
             <div className={shouldUseBottomSheet ? 'w-full' : cn(
               'flex min-h-full items-center justify-center text-center',
-              isMobile ? 'p-4' : 'p-2 sm:p-4'
+              isMobile ? 'p-6' : 'p-2 sm:p-4'
             )}>
               <Transition.Child
                 as={Fragment}

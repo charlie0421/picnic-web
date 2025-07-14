@@ -6,7 +6,7 @@ export const defaultDialogTheme: DialogTheme = {
     backdrop: "fixed inset-0 bg-black/50 backdrop-blur-sm z-50",
 
     // 컨테이너 스타일 - 모바일에서 더 많은 여백 확보
-    container: "fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8",
+    container: "fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-6 md:p-8",
 
     // 패널 스타일
     panel: {
