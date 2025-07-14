@@ -4,6 +4,8 @@ export { ActionDialog } from "./ActionDialog";
 export { ConfirmDialog } from "./ConfirmDialog";
 export { AlertDialog } from "./AlertDialog";
 export { LoginRequiredDialog } from "./LoginRequiredDialog";
+export { QueryTimeDialog } from "./QueryTimeDialog";
+export type { QueryTimeDialogProps } from "./QueryTimeDialog";
 export {
     DialogProvider,
     useAlert,
@@ -25,6 +27,8 @@ export type {
     DialogTheme,
     DialogType,
     LoginRequiredDialogProps,
+    TimeBasedDisplay,
+    TimeStatus,
 } from "./types";
 
 // 테마 exports

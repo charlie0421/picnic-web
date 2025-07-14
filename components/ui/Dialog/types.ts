@@ -16,6 +16,25 @@ export type AnimationType =
     | "zoom"
     | "bottomSheet";
 
+// 시간 기반 노출 설정
+export interface TimeBasedDisplay {
+  /** 노출 시작 시간 (ISO 8601 문자열) */
+  startAt?: string;
+  /** 노출 종료 시간 (ISO 8601 문자열) */
+  stopAt?: string;
+  /** 서버 시간 기준으로 체크할지 여부 (기본값: true) */
+  useServerTime?: boolean;
+  /** 시간 체크 간격 (밀리초, 기본값: 60000 = 1분) */
+  checkInterval?: number;
+  /** 시간 범위를 벗어났을 때 호출되는 콜백 */
+  onTimeExpired?: () => void;
+  /** 시간 범위에 진입했을 때 호출되는 콜백 */
+  onTimeStarted?: () => void;
+}
+
+// 시간 상태 타입
+export type TimeStatus = "before" | "active" | "after";
+
 // 버튼 변형
 export type ButtonVariant =
     | "primary"
@@ -71,6 +90,8 @@ export interface BaseDialogProps {
     role?: string;
     "aria-labelledby"?: string;
     "aria-describedby"?: string;
+    /** 시간 기반 노출 설정 */
+    timeBasedDisplay?: TimeBasedDisplay;
 }
 
 // Dialog 컴포넌트 Props
