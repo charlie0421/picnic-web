@@ -12,7 +12,7 @@ import {
   calculateRemainingTime,
   calculateTimeUntilStart
 } from '@/utils/time-based-display';
-import { cn } from '@/lib/utils';
+import { cn } from '@/components/utils/cn';
 
 export interface QueryTimeDialogProps extends Omit<DialogProps, 'isOpen'> {
   /** 기본 열림 상태 (쿼리 조건을 만족할 때만 실제로 열림) */
