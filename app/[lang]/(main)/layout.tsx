@@ -34,15 +34,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   useEffect(() => {
     async function fetchPopupResource() {
       try {
+        // 서버에서 이미 start_at/stop_at 조건으로 필터링된 활성 팝업만 가져옴
         const popups = await getPopups();
         if (!popups || popups.length === 0) return;
         
         const now = new Date();
+        // 클라이언트에서는 localStorage 숨김 상태와 플랫폼만 체크
         const filteredPopups = popups.filter((popup: any) => {
           const popupKey = popup.id;
           const hideUntil = typeof window !== 'undefined' ? localStorage.getItem(`hide_popup_${popupKey}`) : null;
           
+          // 사용자가 7일간 숨김 설정한 팝업 제외
           if (hideUntil && new Date(hideUntil) > now) return false;
+          
+          // 플랫폼 체크 (web 또는 all만 표시)
+          const platform = popup.platform || 'all';
+          if (!(platform === 'all' || platform === 'web')) return false;
+          
           return true;
         });
 
@@ -58,28 +66,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           }))
         );
       } catch (e) {
-        // 에러 무시
+        console.error('[fetchPopupResource] 팝업 데이터 로드 실패:', e);
       }
     }
     fetchPopupResource();
   }, []);
 
-  const checkPopupVisible = (resource: any) => {
-    if (!resource) return false;
-    const now = new Date();
-    const start = new Date(resource.startAt);
-    const stop = new Date(resource.stopAt);
-    const platform = resource.platform;
-    const popupKey = resource.popupKey;
-    const hideUntil = typeof window !== 'undefined' ? localStorage.getItem(`hide_popup_${popupKey}`) : null;
-    if (hideUntil && new Date(hideUntil) > now) return false;
-    if (now < start || now > stop) return false;
-    if (!(platform === 'all' || platform === 'web')) return false;
-    return true;
-  };
-
   useEffect(() => {
-    if (popupSlides.length > 0 && popupSlides.some(checkPopupVisible)) {
+    // 서버에서 필터링된 팝업이 있고, 클라이언트 필터링도 통과한 팝업이 있으면 팝업 열기
+    if (popupSlides.length > 0) {
       setIsPopupOpen(true);
     }
   }, [popupSlides]);

@@ -15,106 +15,6 @@ Picnic Web의 팬시하고 재사용 가능한 다이얼로그 시스템입니�
 - 🎭 **다양한 타입**: info, warning, error, success, confirmation
 - 🎬 **애니메이션**: 7가지 애니메이션 효과 (bottomSheet 포함)
 - 🔌 **프로그래매틱 API**: Context를 통한 간편한 제어
-- ⏰ **시간 기반 노출**: 쿼리 파라미터를 통한 시간 제한 기능
-
-## 컴포넌트
-
-### 기본 다이얼로그
-
-#### `Dialog`
-기본 다이얼로그 컴포넌트입니다.
-
-```tsx
-import { Dialog } from '@/components/ui/Dialog';
-
-<Dialog isOpen={isOpen} onClose={onClose} title="제목">
-  <Dialog.Content>
-    내용
-  </Dialog.Content>
-</Dialog>
-```
-
-#### `ActionDialog`
-확인/취소 액션이 있는 다이얼로그입니다.
-
-```tsx
-import { ActionDialog } from '@/components/ui/Dialog';
-
-<ActionDialog
-  isOpen={isOpen}
-  onClose={onClose}
-  title="확인"
-  onConfirm={handleConfirm}
-  onCancel={handleCancel}
->
-  정말 삭제하시겠습니까?
-</ActionDialog>
-```
-
-#### `ConfirmDialog`
-확인을 요구하는 다이얼로그입니다.
-
-```tsx
-import { ConfirmDialog } from '@/components/ui/Dialog';
-
-<ConfirmDialog
-  isOpen={isOpen}
-  onClose={onClose}
-  title="삭제 확인"
-  onConfirm={handleDelete}
->
-  이 작업은 되돌릴 수 없습니다.
-</ConfirmDialog>
-```
-
-#### `AlertDialog`
-알림용 다이얼로그입니다.
-
-```tsx
-import { AlertDialog } from '@/components/ui/Dialog';
-
-<AlertDialog
-  isOpen={isOpen}
-  onClose={onClose}
-  title="알림"
-  onConfirm={handleOk}
->
-  작업이 완료되었습니다.
-</AlertDialog>
-```
-
-### 시간 기반 다이얼로그
-
-#### `QueryTimeDialog`
-URL 쿼리 파라미터를 통해 시간 기반 노출을 제어하는 다이얼로그입니다.
-
-```tsx
-import { QueryTimeDialog } from '@/components/ui/Dialog';
-
-<QueryTimeDialog
-  defaultOpen={true}
-  onClose={handleClose}
-  title="이벤트 알림"
-  showTimeInfo={true}
->
-  <div>
-    <h3>특별 이벤트 진행 중!</h3>
-    <p>지금 참여하세요!</p>
-  </div>
-</QueryTimeDialog>
-```
-
-**URL 쿼리 파라미터:**
-- `start_at`: 노출 시작 시간 (ISO 8601 형식)
-- `stop_at`: 노출 종료 시간 (ISO 8601 형식)  
-- `debug`: 디버그 모드 (true/1로 설정 시 항상 표시)
-
-**사용 예시:**
-```
-/page?start_at=2024-01-01T00:00:00Z&stop_at=2024-12-31T23:59:59Z
-/page?stop_at=2024-12-31T23:59:59Z
-/page?debug=true
-```
 
 ## 반응형 디자인 상세
 
@@ -128,34 +28,86 @@ import { QueryTimeDialog } from '@/components/ui/Dialog';
 - **유연한 크기**: 화면 크기에 맞춘 적절한 다이얼로그 크기
 - **하이브리드 레이아웃**: 모바일과 데스크탑의 중간 형태
 
-### 데스크탑 최적화 (≥ 1024px)
-- **전통적인 모달**: 중앙 정렬, 적절한 크기
-- **마우스 최적화**: 호버 효과, 정확한 클릭 영역
+### 데스크탑 최적화 (> 1024px)
+- **전통적인 모달**: 중앙 정렬된 모달 스타일
+- **가로 버튼 레이아웃**: 우측 정렬된 액션 버튼들
+- **더 큰 패딩**: 넓은 화면에 맞춘 여백
 
-## 프로그래매틱 사용법
+## 설치 및 설정
 
-### Context API 사용
+### 1. DialogProvider 설정
+
+앱의 최상위에 `DialogProvider`를 추가하세요:
 
 ```tsx
-import { useDialog, useConfirm, useAlert } from '@/components/ui/Dialog';
+// app/layout.tsx 또는 _app.tsx
+import { DialogProvider } from '@/components/ui/Dialog';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html>
+      <body>
+        <DialogProvider>
+          {children}
+        </DialogProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+## 사용법
+
+### 1. 기본 다이얼로그 (선언적)
+
+```tsx
+import { useState } from 'react';
+import { Dialog } from '@/components/ui/Dialog';
 
 function MyComponent() {
-  const { showDialog } = useDialog();
-  const confirm = useConfirm();
-  const alert = useAlert();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>다이얼로그 열기</button>
+      
+      <Dialog
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        title="안녕하세요!"
+        description="이것은 기본 다이얼로그입니다."
+        type="info"
+        size="md"
+      >
+        <p>여기에 커스텀 콘텐츠를 추가할 수 있습니다.</p>
+      </Dialog>
+    </>
+  );
+}
+```
+
+### 2. 액션 다이얼로그 (반응형 버튼)
+
+```tsx
+import { useDialog } from '@/components/ui/Dialog';
+
+function MyComponent() {
+  const { showActionDialog } = useDialog();
 
   const handleAction = async () => {
-    const confirmed = await confirm({
-      title: '확인',
-      children: '정말 진행하시겠습니까?'
+    const confirmed = await showActionDialog({
+      title: '작업 확인',
+      description: '이 작업을 수행하시겠습니까?',
+      confirmText: '확인',
+      cancelText: '취소',
+      onConfirm: async () => {
+        // 비동기 작업 수행
+        await performAction();
+      },
     });
     
     if (confirmed) {
-      // 작업 수행
-      await alert({
-        title: '완료',
-        children: '작업이 완료되었습니다.'
-      });
+      console.log('작업이 완료되었습니다.');
     }
   };
 
@@ -167,91 +119,227 @@ function MyComponent() {
 }
 ```
 
-## 시간 기반 기능
+### 3. 반응형 크기 설정
 
-### 서버 시간 API
-```typescript
-// /api/server-time
-{
-  "success": true,
-  "serverTime": {
-    "iso": "2024-01-15T12:00:00.000Z",
-    "timestamp": 1705320000000,
-    "utc": "Mon, 15 Jan 2024 12:00:00 GMT",
-    "timezone": "Asia/Seoul",
-    "offset": -540
-  }
+```tsx
+// 모바일에서는 bottom sheet, 데스크탑에서는 일반 모달
+<Dialog
+  isOpen={open}
+  onClose={() => setOpen(false)}
+  size="xl" // 모바일에서 자동으로 bottom sheet 적용
+  title="반응형 다이얼로그"
+>
+  <div className="space-y-4">
+    <p>이 다이얼로그는 화면 크기에 따라 다르게 표시됩니다.</p>
+    <ul className="list-disc pl-5 space-y-2">
+      <li>모바일: Bottom sheet 스타일</li>
+      <li>태블릿: 적절한 크기 조정</li>
+      <li>데스크탑: 전통적인 모달</li>
+    </ul>
+  </div>
+</Dialog>
+```
+
+### 4. 복합 다이얼로그 (서브 컴포넌트 사용)
+
+```tsx
+function ComplexDialog() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog isOpen={open} onClose={() => setOpen(false)} size="lg">
+      <Dialog.Header>
+        <Dialog.Title>복잡한 다이얼로그</Dialog.Title>
+        <Dialog.Description>
+          이것은 더 복잡한 레이아웃을 가진 다이얼로그입니다.
+        </Dialog.Description>
+      </Dialog.Header>
+
+      <Dialog.Content>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">이름</label>
+            <input 
+              type="text" 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">이메일</label>
+            <input 
+              type="email" 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            />
+          </div>
+        </div>
+      </Dialog.Content>
+
+      <Dialog.Footer>
+        <button 
+          onClick={() => setOpen(false)}
+          className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 order-2 sm:order-1"
+        >
+          취소
+        </button>
+        <button 
+          onClick={() => setOpen(false)}
+          className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 order-1 sm:order-2"
+        >
+          저장
+        </button>
+      </Dialog.Footer>
+    </Dialog>
+  );
 }
 ```
 
-### 유틸리티 함수
+## API 참조
+
+### DialogType
+
 ```typescript
-import { 
-  checkTimeBasedDisplayWithServerTime,
-  parseTimeBasedQuery,
-  formatTimeRemaining 
-} from '@/utils/time-based-display';
-
-// URL 쿼리 파싱
-const query = parseTimeBasedQuery(searchParams);
-
-// 서버 시간 기준 체크
-const result = await checkTimeBasedDisplayWithServerTime(query);
-console.log(result.shouldDisplay); // true/false
-console.log(result.status); // 'before' | 'active' | 'after'
+type DialogType = 'default' | 'info' | 'warning' | 'error' | 'success';
 ```
 
-## 커스터마이징
+### DialogSize
 
-### 테마 커스터마이징
+```typescript
+type DialogSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
+```
+
+**반응형 동작:**
+- `xs`, `sm`, `md`, `lg`: 모든 화면에서 일반 모달
+- `xl`, `full`: 모바일에서 bottom sheet, 데스크탑에서 일반 모달
+
+### AnimationType
+
+```typescript
+type AnimationType = 'fade' | 'scale' | 'slide' | 'slideUp' | 'slideDown' | 'zoom' | 'bottomSheet';
+```
+
+**주의:** `bottomSheet`는 모바일에서 자동으로 적용되며, 직접 지정할 수도 있습니다.
+
+### BaseDialogProps
+
+```typescript
+interface BaseDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  description?: string;
+  children?: ReactNode;
+  type?: DialogType;
+  size?: DialogSize;
+  className?: string;
+  animation?: AnimationType;
+  closeOnOverlayClick?: boolean;
+  closeOnEscape?: boolean;
+  showCloseButton?: boolean;
+  'aria-label'?: string;
+  'aria-describedby'?: string;
+}
+```
+
+## 반응형 커스터마이징
+
+### 모바일 전용 스타일
 
 ```tsx
-import { defaultDialogTheme } from '@/components/ui/Dialog';
+// mobileDialogConfig를 사용하여 모바일 동작 제어
+import { mobileDialogConfig } from '@/components/ui/Dialog/theme';
 
-const customTheme = {
-  ...defaultDialogTheme,
-  panel: {
-    ...defaultDialogTheme.panel,
-    base: "custom-panel-styles"
-  }
-};
+// 특정 크기에서 bottom sheet 사용 여부 확인
+const shouldUseBottomSheet = mobileDialogConfig.shouldUseBottomSheet('xl');
 ```
 
-### 크기 설정
+### 커스텀 반응형 클래스
 
 ```tsx
-<Dialog size="xs" /> // 280px (모바일) / 384px (데스크탑)
-<Dialog size="sm" /> // 320px (모바일) / 448px (데스크탑)
-<Dialog size="md" /> // 360px (모바일) / 512px (데스크탑)
-<Dialog size="lg" /> // 400px (모바일) / 576px (데스크탑)
-<Dialog size="xl" /> // 480px (모바일) / 672px (데스크탑)
-<Dialog size="full" /> // 90vw (모바일) / 1152px (데스크탑)
+<Dialog
+  isOpen={open}
+  onClose={() => setOpen(false)}
+  className="sm:max-w-lg md:max-w-xl lg:max-w-2xl"
+  contentClassName="p-4 sm:p-6 md:p-8"
+>
+  <div className="text-sm sm:text-base md:text-lg">
+    반응형 텍스트 크기
+  </div>
+</Dialog>
 ```
 
-### 애니메이션 설정
+## 모범 사례
+
+### 1. 반응형 버튼 레이아웃
 
 ```tsx
-<Dialog animation="scale" />     // 확대/축소
-<Dialog animation="slide" />     // 슬라이드
-<Dialog animation="fade" />      // 페이드
-<Dialog animation="slideUp" />   // 아래에서 위로
-<Dialog animation="slideDown" /> // 위에서 아래로
-<Dialog animation="zoom" />      // 줌
-<Dialog animation="bottomSheet" /> // 모바일 Bottom Sheet
+<Dialog.Footer className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
+  <button className="w-full sm:w-auto order-2 sm:order-1">
+    취소
+  </button>
+  <button className="w-full sm:w-auto order-1 sm:order-2">
+    확인
+  </button>
+</Dialog.Footer>
 ```
 
-## 접근성
+### 2. 적절한 크기 선택
 
-- **ARIA 속성**: 적절한 role, aria-labelledby, aria-describedby 설정
-- **키보드 네비게이션**: ESC로 닫기, Tab으로 포커스 이동
-- **포커스 관리**: 다이얼로그 열림/닫힘 시 포커스 자동 관리
-- **스크린 리더**: 적절한 텍스트 읽기 지원
+- **간단한 확인**: `xs`, `sm`
+- **폼 입력**: `md`, `lg`
+- **복잡한 콘텐츠**: `xl`, `full`
 
-## 데모
+### 3. 모바일 친화적 텍스트
 
-시간 기반 다이얼로그 데모를 확인하려면:
+```tsx
+<Dialog.Title className="text-base sm:text-lg md:text-xl">
+  반응형 제목
+</Dialog.Title>
+<Dialog.Description className="text-sm sm:text-base">
+  반응형 설명
+</Dialog.Description>
 ```
-/demo-time-dialog
+
+### 4. 터치 친화적 버튼
+
+```tsx
+<button className="min-h-[44px] px-4 py-2.5 sm:py-2 text-sm font-medium">
+  터치 친화적 버튼
+</button>
 ```
 
-다양한 쿼리 파라미터를 테스트해보세요! 
+## 접근성 고려사항
+
+- **키보드 네비게이션**: Tab, Enter, Escape 키 지원
+- **스크린 리더**: 적절한 ARIA 속성 자동 적용
+- **포커스 관리**: 다이얼로그 열기/닫기 시 포커스 자동 관리
+- **색상 대비**: WCAG 가이드라인 준수
+
+## 문제 해결
+
+### 일반적인 문제들
+
+1. **모바일에서 bottom sheet가 적용되지 않음**
+   - `size="xl"` 또는 `size="full"` 사용
+   - 화면 너비가 768px 미만인지 확인
+
+2. **버튼이 올바르게 정렬되지 않음**
+   - `Dialog.Footer`에 반응형 클래스 적용
+   - 버튼에 `order` 클래스 사용
+
+3. **애니메이션이 부자연스러움**
+   - 모바일에서는 `bottomSheet` 애니메이션이 자동 적용됨
+   - 필요시 `animation` prop으로 직접 제어
+
+## 업데이트 내역
+
+### v2.0.0 (현재)
+- ✅ 완전한 반응형 웹 UI 지원
+- ✅ 모바일 bottom sheet 스타일
+- ✅ 반응형 버튼 레이아웃
+- ✅ 터치 친화적 인터페이스
+- ✅ 개선된 애니메이션 시스템
+
+### v1.0.0
+- ✅ 기본 다이얼로그 시스템
+- ✅ 다크 모드 지원
+- ✅ 접근성 기능 

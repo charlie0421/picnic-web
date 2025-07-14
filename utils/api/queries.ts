@@ -467,7 +467,7 @@ const _getVoteRewards = async (voteId: number): Promise<Reward[]> => {
   }
 };
 
-// 팝업 데이터 가져오기
+// 팝업 데이터 가져오기 (서버 시간 기준으로 활성 팝업만)
 const _getPopups = async (): Promise<Popup[]> => {
   try {
     const supabase = await getSupabaseClient();
@@ -475,10 +475,19 @@ const _getPopups = async (): Promise<Popup[]> => {
       .from("popup")
       .select("*")
       .is("deleted_at", null)
+      .lte("start_at", 'now()') // 시작 시간이 현재 시간보다 이전인 것
+      .or('stop_at.is.null,stop_at.gt.now()') // 종료 시간이 null이거나 현재 시간보다 이후인 것
       .order("start_at", { ascending: false });
 
-    if (popupError) throw popupError;
-    if (!popupData || popupData.length === 0) return [];
+    if (popupError) {
+      console.error('[getPopups] Supabase 오류:', popupError);
+      throw popupError;
+    }
+    
+    if (!popupData || popupData.length === 0) {
+      console.log('[getPopups] 조회된 팝업 데이터가 없습니다.');
+      return [];
+    }
 
     return popupData.map((popup: any) => ({
       ...popup,
