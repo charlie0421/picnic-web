@@ -9,7 +9,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { MypageHeader } from '@/components/mypage/MypageHeader';
-import { ErrorState, InitialLoadingState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
+import { ErrorState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
 import type { StatisticCard, MypageHeaderConfig, EmptyStateConfig } from '@/types/mypage-common';
 
 // 다국어 객체 타입 정의
@@ -236,9 +236,71 @@ export default function VoteHistoryClient({ initialUser }: VoteHistoryClientProp
 
         {/* 메인 콘텐츠 */}
         <div className="space-y-6">
-          {/* 로딩 상태 */}
+          {/* 초기 로딩 시 스켈레톤 */}
           {isInitialLoad && (
-            <InitialLoadingState translations={translations} />
+            <div className="space-y-6">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div 
+                  key={index} 
+                  className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden animate-pulse"
+                  style={{ 
+                    animationDelay: `${index * 100}ms`,
+                    animationDuration: '1.5s' 
+                  }}
+                >
+                  <div className="p-6">
+                    <div className="space-y-4">
+                      {/* 투표 제목 스켈레톤 */}
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200/50">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                          <div className="h-4 bg-gray-200 rounded w-16"></div>
+                        </div>
+                        <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                      </div>
+
+                      {/* 투표한 선택지 스켈레톤 */}
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200/50">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                          <div className="h-4 bg-gray-200 rounded w-20"></div>
+                        </div>
+                        <div className="h-5 bg-gray-200 rounded w-32"></div>
+                      </div>
+
+                      {/* 투표 통계 그리드 스켈레톤 */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {Array.from({ length: 3 }).map((_, statIndex) => {
+                          const colors = [
+                            'from-yellow-50 to-orange-50 border-yellow-200/50',
+                            'from-purple-50 to-violet-50 border-purple-200/50',
+                            'from-teal-50 to-cyan-50 border-teal-200/50'
+                          ];
+                          return (
+                            <div key={statIndex} className={`bg-gradient-to-br ${colors[statIndex]} rounded-xl p-3 border`}>
+                              <div className="flex items-center space-x-2 mb-2">
+                                <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                                <div className="h-4 bg-gray-200 rounded w-16"></div>
+                              </div>
+                              <div className="h-5 bg-gray-200 rounded w-12"></div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* 투표일시 스켈레톤 */}
+                      <div className="bg-gradient-to-br from-point-50 to-sub-50 rounded-xl p-3 border border-point-100/50">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                          <div className="h-4 bg-gray-200 rounded w-16"></div>
+                        </div>
+                        <div className="h-5 bg-gray-200 rounded w-40"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
           {/* 에러 상태 */}

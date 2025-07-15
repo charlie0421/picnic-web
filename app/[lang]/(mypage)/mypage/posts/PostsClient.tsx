@@ -5,7 +5,7 @@ import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTranslations } from '@/hooks/useTranslations';
 import { MypageHeader } from '@/components/mypage/MypageHeader';
-import { InitialLoadingState, ErrorState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
+import { ErrorState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
 import { User } from '@supabase/supabase-js';
 import type { Tables } from '@/types/supabase';
 import type { StatisticCard, MypageHeaderConfig, EmptyStateConfig } from '@/types/mypage-common';
@@ -280,9 +280,84 @@ export default function PostsClient({ initialUser }: PostsClientProps) {
 
       {/* 메인 콘텐츠 */}
       <div className="space-y-6">
-        {/* 로딩 상태 */}
+        {/* 초기 로딩 시 스켈레톤 */}
         {isInitialLoad && (
-          <InitialLoadingState translations={translations} />
+          <div className="space-y-6">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div 
+                key={index} 
+                className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden animate-pulse"
+                style={{ 
+                  animationDelay: `${index * 100}ms`,
+                  animationDuration: '1.5s' 
+                }}
+              >
+                <div className="p-6">
+                  <div className="space-y-4">
+                    {/* 게시물 제목 스켈레톤 */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200/50">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                      </div>
+                      <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                    </div>
+
+                    {/* 게시물 내용 스켈레톤 */}
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200/50">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                        <div className="h-4 bg-gray-200 rounded w-24"></div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-full"></div>
+                        <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                      </div>
+                    </div>
+
+                    {/* 게시판 정보 및 통계 그리드 스켈레톤 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* 게시판 */}
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200/50">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                          <div className="h-4 bg-gray-200 rounded w-16"></div>
+                        </div>
+                        <div className="h-5 bg-gray-200 rounded w-20"></div>
+                      </div>
+
+                      {/* 조회수 */}
+                      <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-3 border border-purple-200/50">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                          <div className="h-4 bg-gray-200 rounded w-12"></div>
+                        </div>
+                        <div className="h-5 bg-gray-200 rounded w-8"></div>
+                      </div>
+
+                      {/* 댓글 수 */}
+                      <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-3 border border-orange-200/50">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                          <div className="h-4 bg-gray-200 rounded w-12"></div>
+                        </div>
+                        <div className="h-5 bg-gray-200 rounded w-8"></div>
+                      </div>
+                    </div>
+
+                    {/* 작성일 스켈레톤 */}
+                    <div className="bg-gradient-to-br from-point-50 to-sub-50 rounded-xl p-3 border border-point-100/50">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                      </div>
+                      <div className="h-5 bg-gray-200 rounded w-40"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* 에러 상태 */}

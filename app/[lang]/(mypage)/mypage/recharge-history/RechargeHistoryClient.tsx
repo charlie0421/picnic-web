@@ -7,7 +7,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { MypageHeader } from '@/components/mypage/MypageHeader';
-import { ErrorState, InitialLoadingState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
+import { ErrorState, EmptyState, InfiniteScrollTrigger } from '@/components/mypage/MypageStates';
 import type { StatisticCard, MypageHeaderConfig, EmptyStateConfig } from '@/types/mypage-common';
 
 interface RechargeItem {
@@ -249,9 +249,81 @@ export default function RechargeHistoryClient({ initialUser }: RechargeHistoryCl
           </div>
         )}
 
-        {/* 초기 로딩 상태 */}
+        {/* 초기 로딩 시 스켈레톤 */}
         {(isLoading || isInitialLoad) && recharges.length === 0 && !error && (
-          <InitialLoadingState translations={translations} />
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div 
+                key={index} 
+                className="group relative bg-white/90 backdrop-blur-md rounded-2xl shadow-md hover:shadow-lg border border-white/30 overflow-hidden animate-pulse"
+                style={{ 
+                  animationDelay: `${index * 100}ms`,
+                  animationDuration: '1.5s' 
+                }}
+              >
+                {/* 상단 그라데이션 바 */}
+                <div className="h-1 bg-gradient-to-r from-primary via-secondary via-sub to-point"></div>
+                
+                <div className="relative p-4">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="h-6 bg-gray-200 rounded w-3/4 mb-1"></div>
+                          <div className="h-0.5 w-12 bg-gray-200 rounded-full"></div>
+                        </div>
+                        <div className="flex-shrink-0 ml-4">
+                          <div className="w-16 h-6 bg-gray-200 rounded-lg"></div>
+                        </div>
+                      </div>
+
+                      {/* 충전 정보 그리드 스켈레톤 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {/* 받은 별사탕 */}
+                        <div className="bg-gradient-to-br from-primary-50 to-point-50 rounded-xl p-3 border border-primary-100/50">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                            <div className="h-4 bg-gray-200 rounded w-20"></div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                            <div className="h-5 bg-gray-200 rounded w-16"></div>
+                          </div>
+                        </div>
+
+                        {/* 결제 금액 */}
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200/50">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                            <div className="h-4 bg-gray-200 rounded w-16"></div>
+                          </div>
+                          <div className="h-5 bg-gray-200 rounded w-20"></div>
+                        </div>
+
+                        {/* 결제 방법 */}
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200/50">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                            <div className="h-4 bg-gray-200 rounded w-16"></div>
+                          </div>
+                          <div className="h-5 bg-gray-200 rounded w-12"></div>
+                        </div>
+
+                        {/* 결제일시 */}
+                        <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-3 border border-orange-200/50">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-6 h-6 bg-gray-200 rounded-lg"></div>
+                            <div className="h-4 bg-gray-200 rounded w-16"></div>
+                          </div>
+                          <div className="h-5 bg-gray-200 rounded w-24"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* 빈 상태 */}

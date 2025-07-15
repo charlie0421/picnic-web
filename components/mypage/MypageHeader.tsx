@@ -15,7 +15,7 @@ const StatisticsCard = memo(({ stat }: { stat: StatisticCard }) => (
     className={`bg-gradient-to-br ${stat.bgColor} rounded-xl p-3 border ${stat.borderColor}`}
   >
     <div className="flex items-center space-x-2 mb-1">
-      <div className={`w-6 h-6 bg-${stat.id} rounded-lg flex items-center justify-center`}>
+      <div className={`w-6 h-6 bg-gradient-to-r from-primary to-secondary rounded-lg flex items-center justify-center shadow-sm`}>
         <span className="text-white text-xs">{stat.icon}</span>
       </div>
       <div className="flex-1">
@@ -23,18 +23,19 @@ const StatisticsCard = memo(({ stat }: { stat: StatisticCard }) => (
       </div>
     </div>
     {stat.isLoading ? (
-      <div className="flex items-center space-x-1">
-        <div className={`w-16 h-6 bg-${stat.id}-200 rounded animate-pulse`}></div>
-        <div className="flex space-x-0.5">
-          <div className={`w-1.5 h-1.5 bg-${stat.id}-400 rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
-          <div className={`w-1.5 h-1.5 bg-${stat.id}-400 rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
-          <div className={`w-1.5 h-1.5 bg-${stat.id}-400 rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
-        </div>
+      <div className="space-y-1">
+        <div className="h-6 bg-gray-200 rounded w-16 animate-pulse"></div>
+        <div className="h-3 bg-gray-200 rounded w-20 animate-pulse"></div>
       </div>
     ) : (
-      <p className={`${stat.textColor} font-bold text-lg`}>
-        {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
-      </p>
+      <>
+        <p className={`${stat.textColor} font-bold text-lg mb-1`}>
+          {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
+        </p>
+        <p className={`${stat.textColor} text-xs opacity-75`}>
+          {stat.description}
+        </p>
+      </>
     )}
   </div>
 ));
