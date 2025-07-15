@@ -46,9 +46,6 @@ export default function GlobalLoadingOverlay() {
           className="w-20 h-20 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
           priority
         />
-        <div className="mt-4 text-white text-sm font-medium animate-pulse">
-          로딩 중...
-        </div>
       </div>
     </div>
   );

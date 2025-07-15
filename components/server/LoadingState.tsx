@@ -21,7 +21,7 @@ interface LoadingStateProps {
  * }
  */
 export default function LoadingState({
-  message = '로딩 중...',
+  message,
   fullPage = false,
   size = 'medium',
 }: LoadingStateProps) {
@@ -42,10 +42,12 @@ export default function LoadingState({
             />
           </div>
           
-          {/* 로딩 텍스트 */}
-          <div className="mt-6 text-gray-600 text-sm font-medium animate-scale-pulse">
-            Loading...
-          </div>
+          {/* 로딩 텍스트 - 메시지가 있을 때만 표시 */}
+          {message && (
+            <div className="mt-6 text-gray-600 text-sm font-medium animate-scale-pulse">
+              {message}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -56,16 +58,25 @@ export default function LoadingState({
 
   return (
     <div className={`flex items-center justify-center ${containerHeight} py-10`}>
-      {/* 로고 아이콘 with 펄스 애니메이션 */}
-      <div className="relative inline-block">
-        <Image
-          src="/images/logo.png"
-          alt="Picnic Loading"
-          width={64}
-          height={64}
-          priority
-          className="w-16 h-16 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
-        />
+      <div className="text-center">
+        {/* 로고 아이콘 with 펄스 애니메이션 */}
+        <div className="relative inline-block">
+          <Image
+            src="/images/logo.png"
+            alt="Picnic Loading"
+            width={64}
+            height={64}
+            priority
+            className="w-16 h-16 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
+          />
+        </div>
+        
+        {/* 로딩 텍스트 - 메시지가 있을 때만 표시 */}
+        {message && (
+          <div className="mt-4 text-gray-600 text-sm font-medium animate-scale-pulse">
+            {message}
+          </div>
+        )}
       </div>
     </div>
   );

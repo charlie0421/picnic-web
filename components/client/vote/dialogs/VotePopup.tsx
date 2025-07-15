@@ -365,9 +365,8 @@ const VotePopup: React.FC<VotePopupProps> = ({
               >
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('vote_popup_total_available')}</h3>
                 
-                <div className="flex items-center justify-center space-x-2 py-8">
+                <div className="flex items-center justify-center py-8">
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-primary font-medium">캔디 정보 로딩 중...</span>
                 </div>
               </motion.div>
             ) : balanceError ? (
@@ -562,7 +561,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                   <span>{t('vote_popup_voting')}</span>
                 </span>
               ) : isLoadingBalance ? (
-                <span className="flex items-center justify-center space-x-2">
+                <div className="flex items-center justify-center">
                   <Image
                     src="/images/logo.png"
                     alt="Loading Balance"
@@ -571,8 +570,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                     className="w-4 h-4 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
                     priority
                   />
-                  <span>캔디 정보 로딩 중...</span>
-                </span>
+                </div>
               ) : (
                 t('vote_popup_next')
               )}

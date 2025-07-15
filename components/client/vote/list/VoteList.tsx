@@ -141,9 +141,8 @@ export function VoteList({
             className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 font-medium"
           >
             {isLoading ? (
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-center">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>로딩 중...</span>
               </div>
             ) : (
               loadMoreText
