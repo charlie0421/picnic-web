@@ -1,0 +1,385 @@
+c8c0e64c2cd98bcb581ab3560097babc
+'use client';
+"use strict";
+
+/* istanbul ignore next */
+function cov_1qxjpwcoux() {
+  var path = "/Users/charlie.hyun/Repositories/picnic-web/components/client/common/LoadingSpinner.tsx";
+  var hash = "9fd48272cce35e3b1e215ed11a18a86c521987a1";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/charlie.hyun/Repositories/picnic-web/components/client/common/LoadingSpinner.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 3,
+          column: 0
+        },
+        end: {
+          line: 5,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 6,
+          column: 0
+        },
+        end: {
+          line: 11,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 9,
+          column: 8
+        },
+        end: {
+          line: 9,
+          column: 30
+        }
+      },
+      "3": {
+        start: {
+          line: 12,
+          column: 20
+        },
+        end: {
+          line: 12,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 13,
+          column: 29
+        },
+        end: {
+          line: 13,
+          column: 71
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 29
+        },
+        end: {
+          line: 14,
+          column: 76
+        }
+      },
+      "6": {
+        start: {
+          line: 16,
+          column: 4
+        },
+        end: {
+          line: 18,
+          column: 6
+        }
+      },
+      "7": {
+        start: {
+          line: 20,
+          column: 23
+        },
+        end: {
+          line: 44,
+          column: 1
+        }
+      },
+      "8": {
+        start: {
+          line: 21,
+          column: 4
+        },
+        end: {
+          line: 43,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 8,
+            column: 9
+          },
+          end: {
+            line: 8,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 8,
+            column: 20
+          },
+          end: {
+            line: 10,
+            column: 5
+          }
+        },
+        line: 8
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 15,
+            column: 9
+          },
+          end: {
+            line: 15,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 15,
+            column: 39
+          },
+          end: {
+            line: 19,
+            column: 1
+          }
+        },
+        line: 15
+      },
+      "2": {
+        name: "(anonymous_2)",
+        decl: {
+          start: {
+            line: 20,
+            column: 23
+          },
+          end: {
+            line: 20,
+            column: 24
+          }
+        },
+        loc: {
+          start: {
+            line: 20,
+            column: 45
+          },
+          end: {
+            line: 44,
+            column: 1
+          }
+        },
+        line: 20
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 16,
+            column: 11
+          },
+          end: {
+            line: 18,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 16,
+            column: 35
+          },
+          end: {
+            line: 16,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 16,
+            column: 41
+          },
+          end: {
+            line: 18,
+            column: 5
+          }
+        }],
+        line: 16
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 16,
+            column: 11
+          },
+          end: {
+            line: 16,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 16,
+            column: 11
+          },
+          end: {
+            line: 16,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 16,
+            column: 18
+          },
+          end: {
+            line: 16,
+            column: 32
+          }
+        }],
+        line: 16
+      },
+      "2": {
+        loc: {
+          start: {
+            line: 20,
+            column: 26
+          },
+          end: {
+            line: 20,
+            column: 40
+          }
+        },
+        type: "default-arg",
+        locations: [{
+          start: {
+            line: 20,
+            column: 38
+          },
+          end: {
+            line: 20,
+            column: 40
+          }
+        }],
+        line: 20
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0],
+      "2": [0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/charlie.hyun/Repositories/picnic-web/components/client/common/LoadingSpinner.tsx"],
+      sourcesContent: ["'use client';\n\nimport React from 'react';\nimport Image from 'next/image';\n\ninterface LoadingSpinnerProps {\n  className?: string;\n}\n\nexport const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ className = '' }) => {\n  return (\n    <div className={`min-h-screen flex items-center justify-center ${className}`}>\n      <div className=\"text-center\">\n        {/* \uB85C\uACE0 \uC544\uC774\uCF58 with \uD384\uC2A4 \uC560\uB2C8\uBA54\uC774\uC158 */}\n        <div className=\"relative inline-block\">\n          <Image\n            src=\"/images/logo.png\"\n            alt=\"Picnic Loading\"\n            width={80}\n            height={80}\n            priority\n            className=\"w-20 h-20 rounded-full animate-scale-pulse drop-shadow-lg object-cover\"\n          />\n        </div>\n        \n        {/* \uB85C\uB529 \uD14D\uC2A4\uD2B8 */}\n        <div className=\"mt-6 text-gray-600 text-sm font-medium animate-scale-pulse\">\n          Loading...\n        </div>\n      </div>\n    </div>\n  );\n};"],
+      names: ["LoadingSpinner", "className", "div", "Image", "src", "alt", "width", "height", "priority"],
+      mappings: "AAAA;;;;;+BASaA;;;eAAAA;;;;8DAPK;8DACA;;;;;;AAMX,MAAMA,iBAAgD,CAAC,EAAEC,YAAY,EAAE,EAAE;IAC9E,qBACE,qBAACC;QAAID,WAAW,CAAC,8CAA8C,EAAEA,WAAW;kBAC1E,cAAA,sBAACC;YAAID,WAAU;;8BAEb,qBAACC;oBAAID,WAAU;8BACb,cAAA,qBAACE,cAAK;wBACJC,KAAI;wBACJC,KAAI;wBACJC,OAAO;wBACPC,QAAQ;wBACRC,QAAQ;wBACRP,WAAU;;;8BAKd,qBAACC;oBAAID,WAAU;8BAA6D;;;;;AAMpF"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "9fd48272cce35e3b1e215ed11a18a86c521987a1"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_1qxjpwcoux = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_1qxjpwcoux();
+cov_1qxjpwcoux().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_1qxjpwcoux().s[1]++;
+Object.defineProperty(exports, "LoadingSpinner", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_1qxjpwcoux().f[0]++;
+    cov_1qxjpwcoux().s[2]++;
+    return LoadingSpinner;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_1qxjpwcoux().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_1qxjpwcoux().s[4]++, _interop_require_default(require("react")));
+const _image =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_1qxjpwcoux().s[5]++, _interop_require_default(require("next/image")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_1qxjpwcoux().f[1]++;
+  cov_1qxjpwcoux().s[6]++;
+  return /* istanbul ignore next */(cov_1qxjpwcoux().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_1qxjpwcoux().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_1qxjpwcoux().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_1qxjpwcoux().b[0][1]++, {
+    default: obj
+  });
+}
+/* istanbul ignore next */
+cov_1qxjpwcoux().s[7]++;
+const LoadingSpinner = ({
+  className =
+  /* istanbul ignore next */
+  (cov_1qxjpwcoux().b[2][0]++, '')
+}) => {
+  /* istanbul ignore next */
+  cov_1qxjpwcoux().f[2]++;
+  cov_1qxjpwcoux().s[8]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+    className: `min-h-screen flex items-center justify-center ${className}`,
+    children: /*#__PURE__*/(0, _jsxruntime.jsxs)("div", {
+      className: "text-center",
+      children: [/*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+        className: "relative inline-block",
+        children: /*#__PURE__*/(0, _jsxruntime.jsx)(_image.default, {
+          src: "/images/logo.png",
+          alt: "Picnic Loading",
+          width: 80,
+          height: 80,
+          priority: true,
+          className: "w-20 h-20 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
+        })
+      }), /*#__PURE__*/(0, _jsxruntime.jsx)("div", {
+        className: "mt-6 text-gray-600 text-sm font-medium animate-scale-pulse",
+        children: "Loading..."
+      })]
+    })
+  });
+};
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJMb2FkaW5nU3Bpbm5lciIsImNsYXNzTmFtZSIsImNvdl8xcXhqcHdjb3V4IiwiYiIsImYiLCJzIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJqc3hzIiwiX2ltYWdlIiwiZGVmYXVsdCIsInNyYyIsImFsdCIsIndpZHRoIiwiaGVpZ2h0IiwicHJpb3JpdHkiXSwic291cmNlcyI6WyIvVXNlcnMvY2hhcmxpZS5oeXVuL1JlcG9zaXRvcmllcy9waWNuaWMtd2ViL2NvbXBvbmVudHMvY2xpZW50L2NvbW1vbi9Mb2FkaW5nU3Bpbm5lci50c3giXSwic291cmNlc0NvbnRlbnQiOlsiJ3VzZSBjbGllbnQnO1xuXG5pbXBvcnQgUmVhY3QgZnJvbSAncmVhY3QnO1xuaW1wb3J0IEltYWdlIGZyb20gJ25leHQvaW1hZ2UnO1xuXG5pbnRlcmZhY2UgTG9hZGluZ1NwaW5uZXJQcm9wcyB7XG4gIGNsYXNzTmFtZT86IHN0cmluZztcbn1cblxuZXhwb3J0IGNvbnN0IExvYWRpbmdTcGlubmVyOiBSZWFjdC5GQzxMb2FkaW5nU3Bpbm5lclByb3BzPiA9ICh7IGNsYXNzTmFtZSA9ICcnIH0pID0+IHtcbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT17YG1pbi1oLXNjcmVlbiBmbGV4IGl0ZW1zLWNlbnRlciBqdXN0aWZ5LWNlbnRlciAke2NsYXNzTmFtZX1gfT5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwidGV4dC1jZW50ZXJcIj5cbiAgICAgICAgey8qIOuhnOqzoCDslYTsnbTsvZggd2l0aCDtjoTsiqQg7JWg64uI66mU7J207IWYICovfVxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInJlbGF0aXZlIGlubGluZS1ibG9ja1wiPlxuICAgICAgICAgIDxJbWFnZVxuICAgICAgICAgICAgc3JjPVwiL2ltYWdlcy9sb2dvLnBuZ1wiXG4gICAgICAgICAgICBhbHQ9XCJQaWNuaWMgTG9hZGluZ1wiXG4gICAgICAgICAgICB3aWR0aD17ODB9XG4gICAgICAgICAgICBoZWlnaHQ9ezgwfVxuICAgICAgICAgICAgcHJpb3JpdHlcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInctMjAgaC0yMCByb3VuZGVkLWZ1bGwgYW5pbWF0ZS1zY2FsZS1wdWxzZSBkcm9wLXNoYWRvdy1sZyBvYmplY3QtY292ZXJcIlxuICAgICAgICAgIC8+XG4gICAgICAgIDwvZGl2PlxuICAgICAgICBcbiAgICAgICAgey8qIOuhnOuUqSDthY3siqTtirggKi99XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibXQtNiB0ZXh0LWdyYXktNjAwIHRleHQtc20gZm9udC1tZWRpdW0gYW5pbWF0ZS1zY2FsZS1wdWxzZVwiPlxuICAgICAgICAgIExvYWRpbmcuLi5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2Rpdj5cbiAgICA8L2Rpdj5cbiAgKTtcbn07Il0sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7K0JBU2E7Ozs7OztXQUFBQSxjQUFBOzs7Ozs7Ozt3RUFQSzs7O3dFQUNBOzs7Ozs7Ozs7Ozs7Ozs7OztBQU1YLE1BQU1BLGNBQUEsR0FBZ0RBLENBQUM7RUFBRUMsU0FBQTtFQUFBO0VBQUEsQ0FBQUMsY0FBQSxHQUFBQyxDQUFBLFVBQVksRUFBRTtBQUFBLENBQUU7RUFBQTtFQUFBRCxjQUFBLEdBQUFFLENBQUE7RUFBQUYsY0FBQSxHQUFBRyxDQUFBO0VBQzlFLG9CQUNFLElBQUFDLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO0lBQUlOLFNBQUEsRUFBVyxpREFBaURBLFNBQUEsRUFBVztjQUMxRSxpQkFBQUssV0FBQSxDQUFBRSxJQUFBLEVBQUM7TUFBSVAsU0FBQSxFQUFVOzhCQUViLElBQUFLLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO1FBQUlOLFNBQUEsRUFBVTtrQkFDYixpQkFBQUssV0FBQSxDQUFBQyxHQUFBLEVBQUNFLE1BQUEsQ0FBQUMsT0FBSztVQUNKQyxHQUFBLEVBQUk7VUFDSkMsR0FBQSxFQUFJO1VBQ0pDLEtBQUEsRUFBTztVQUNQQyxNQUFBLEVBQVE7VUFDUkMsUUFBUTtVQUNSZCxTQUFBLEVBQVU7O3VCQUtkLElBQUFLLFdBQUEsQ0FBQUMsR0FBQSxFQUFDO1FBQUlOLFNBQUEsRUFBVTtrQkFBNkQ7Ozs7QUFNcEYiLCJpZ25vcmVMaXN0IjpbXX0=

@@ -1,0 +1,316 @@
+d4037351bb4848871c6afd5d7a4555be
+"use strict";
+
+/* istanbul ignore next */
+function cov_2hfbdk3t0b() {
+  var path = "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/vote/loading.tsx";
+  var hash = "65af5f9da71a21225336feed103bf109aa9acfe7";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/vote/loading.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 15,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 13,
+          column: 8
+        },
+        end: {
+          line: 13,
+          column: 27
+        }
+      },
+      "3": {
+        start: {
+          line: 16,
+          column: 20
+        },
+        end: {
+          line: 16,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 17,
+          column: 40
+        },
+        end: {
+          line: 17,
+          column: 128
+        }
+      },
+      "5": {
+        start: {
+          line: 19,
+          column: 4
+        },
+        end: {
+          line: 21,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 24,
+          column: 4
+        },
+        end: {
+          line: 24,
+          column: 77
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 20
+          },
+          end: {
+            line: 14,
+            column: 5
+          }
+        },
+        line: 12
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 18,
+            column: 9
+          },
+          end: {
+            line: 18,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 18,
+            column: 39
+          },
+          end: {
+            line: 22,
+            column: 1
+          }
+        },
+        line: 18
+      },
+      "2": {
+        name: "VoteLoading",
+        decl: {
+          start: {
+            line: 23,
+            column: 9
+          },
+          end: {
+            line: 23,
+            column: 20
+          }
+        },
+        loc: {
+          start: {
+            line: 23,
+            column: 23
+          },
+          end: {
+            line: 25,
+            column: 1
+          }
+        },
+        line: 23
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 19,
+            column: 11
+          },
+          end: {
+            line: 21,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 19,
+            column: 35
+          },
+          end: {
+            line: 19,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 19,
+            column: 41
+          },
+          end: {
+            line: 21,
+            column: 5
+          }
+        }],
+        line: 19
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 19,
+            column: 11
+          },
+          end: {
+            line: 19,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 19,
+            column: 11
+          },
+          end: {
+            line: 19,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 19,
+            column: 18
+          },
+          end: {
+            line: 19,
+            column: 32
+          }
+        }],
+        line: 19
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/vote/loading.tsx"],
+      sourcesContent: ["import VoteListSkeleton from '@/components/server/vote/VoteListSkeleton';\n\n/**\n * \uD22C\uD45C \uB9AC\uC2A4\uD2B8 \uD398\uC774\uC9C0\uC758 \uB85C\uB529 \uC0C1\uD0DC \uCEF4\uD3EC\uB10C\uD2B8\n * \n * \uD22C\uD45C \uB9AC\uC2A4\uD2B8 \uB370\uC774\uD130\uB97C \uBD88\uB7EC\uC624\uB294 \uB3D9\uC548 \uD45C\uC2DC\uB420 \uC2A4\uCF08\uB808\uD1A4 UI\uC785\uB2C8\uB2E4.\n * Next.js\uAC00 \uC790\uB3D9\uC73C\uB85C \uC774 \uCEF4\uD3EC\uB10C\uD2B8\uB97C Suspense fallback\uC73C\uB85C \uC0AC\uC6A9\uD569\uB2C8\uB2E4.\n */\nexport default function VoteLoading() {\n  return <VoteListSkeleton />;\n} "],
+      names: ["VoteLoading", "VoteListSkeleton"],
+      mappings: ";;;;+BAEA;;;;;CAKC,GACD;;;eAAwBA;;;;yEARK;;;;;;AAQd,SAASA;IACtB,qBAAO,qBAACC,yBAAgB;AAC1B"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "65af5f9da71a21225336feed103bf109aa9acfe7"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2hfbdk3t0b = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2hfbdk3t0b();
+cov_2hfbdk3t0b().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2hfbdk3t0b().s[1]++;
+Object.defineProperty(exports,
+/**
+* 투표 리스트 페이지의 로딩 상태 컴포넌트
+* 
+* 투표 리스트 데이터를 불러오는 동안 표시될 스켈레톤 UI입니다.
+* Next.js가 자동으로 이 컴포넌트를 Suspense fallback으로 사용합니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2hfbdk3t0b().f[0]++;
+    cov_2hfbdk3t0b().s[2]++;
+    return VoteLoading;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2hfbdk3t0b().s[3]++, require("react/jsx-runtime"));
+const _VoteListSkeleton =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_2hfbdk3t0b().s[4]++, _interop_require_default(require("../../../../components/server/vote/VoteListSkeleton")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_2hfbdk3t0b().f[1]++;
+  cov_2hfbdk3t0b().s[5]++;
+  return /* istanbul ignore next */(cov_2hfbdk3t0b().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_2hfbdk3t0b().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_2hfbdk3t0b().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_2hfbdk3t0b().b[0][1]++, {
+    default: obj
+  });
+}
+function VoteLoading() {
+  /* istanbul ignore next */
+  cov_2hfbdk3t0b().f[2]++;
+  cov_2hfbdk3t0b().s[6]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_VoteListSkeleton.default, {});
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJWb3RlTG9hZGluZyIsImNvdl8yaGZiZGszdDBiIiwiZiIsInMiLCJfanN4cnVudGltZSIsImpzeCIsIl9Wb3RlTGlzdFNrZWxldG9uIiwiZGVmYXVsdCJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGFybGllLmh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvYXBwL1tsYW5nXS8obWFpbikvdm90ZS9sb2FkaW5nLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgVm90ZUxpc3RTa2VsZXRvbiBmcm9tICdAL2NvbXBvbmVudHMvc2VydmVyL3ZvdGUvVm90ZUxpc3RTa2VsZXRvbic7XG5cbi8qKlxuICog7Yis7ZGcIOumrOyKpO2KuCDtjpjsnbTsp4DsnZgg66Gc65SpIOyDge2DnCDsu7Ttj6zrhIztirhcbiAqIFxuICog7Yis7ZGcIOumrOyKpO2KuCDrjbDsnbTthLDrpbwg67aI65+s7Jik64qUIOuPmeyViCDtkZzsi5zrkKAg7Iqk7LyI66CI7YakIFVJ7J6F64uI64ukLlxuICogTmV4dC5qc+qwgCDsnpDrj5nsnLzroZwg7J20IOy7tO2PrOuEjO2KuOulvCBTdXNwZW5zZSBmYWxsYmFja+ycvOuhnCDsgqzsmqntlanri4jri6QuXG4gKi9cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIFZvdGVMb2FkaW5nKCkge1xuICByZXR1cm4gPFZvdGVMaXN0U2tlbGV0b24gLz47XG59ICJdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBRUE7Ozs7OztBQU1BOzs7Ozs7V0FBd0JBLFdBQUE7Ozs7Ozs7O3dFQVJLOzs7Ozs7Ozs7Ozs7Ozs7QUFRZCxTQUFTQSxZQUFBO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFBTyxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQ0MsaUJBQUEsQ0FBQUMsT0FBZ0I7QUFDMUIiLCJpZ25vcmVMaXN0IjpbXX0=

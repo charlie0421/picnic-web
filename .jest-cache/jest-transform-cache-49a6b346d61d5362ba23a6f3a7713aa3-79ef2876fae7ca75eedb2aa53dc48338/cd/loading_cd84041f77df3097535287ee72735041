@@ -1,0 +1,309 @@
+2a1dd864cdb7ac3029e25202c3e26346
+"use strict";
+
+/* istanbul ignore next */
+function cov_29o2xgwccs() {
+  var path = "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(mypage)/mypage/recharge-history/loading.tsx";
+  var hash = "cf638687596b4e6259a5191cc82153c639e2b017";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(mypage)/mypage/recharge-history/loading.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 38
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 47
+        },
+        end: {
+          line: 12,
+          column: 147
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 4
+        },
+        end: {
+          line: 16,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 19,
+          column: 4
+        },
+        end: {
+          line: 19,
+          column: 84
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 13,
+            column: 9
+          },
+          end: {
+            line: 13,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 13,
+            column: 39
+          },
+          end: {
+            line: 17,
+            column: 1
+          }
+        },
+        line: 13
+      },
+      "2": {
+        name: "RechargeHistoryLoading",
+        decl: {
+          start: {
+            line: 18,
+            column: 9
+          },
+          end: {
+            line: 18,
+            column: 31
+          }
+        },
+        loc: {
+          start: {
+            line: 18,
+            column: 34
+          },
+          end: {
+            line: 20,
+            column: 1
+          }
+        },
+        line: 18
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 14,
+            column: 11
+          },
+          end: {
+            line: 16,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 14,
+            column: 35
+          },
+          end: {
+            line: 14,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 14,
+            column: 41
+          },
+          end: {
+            line: 16,
+            column: 5
+          }
+        }],
+        line: 14
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 14,
+            column: 11
+          },
+          end: {
+            line: 14,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 14,
+            column: 11
+          },
+          end: {
+            line: 14,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 14,
+            column: 18
+          },
+          end: {
+            line: 14,
+            column: 32
+          }
+        }],
+        line: 14
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(mypage)/mypage/recharge-history/loading.tsx"],
+      sourcesContent: ["import RechargeHistorySkeleton from '@/components/server/mypage/RechargeHistorySkeleton';\n\nexport default function RechargeHistoryLoading() {\n  return <RechargeHistorySkeleton />;\n} "],
+      names: ["RechargeHistoryLoading", "RechargeHistorySkeleton"],
+      mappings: ";;;;+BAEA;;;eAAwBA;;;;gFAFY;;;;;;AAErB,SAASA;IACtB,qBAAO,qBAACC,gCAAuB;AACjC"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "cf638687596b4e6259a5191cc82153c639e2b017"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_29o2xgwccs = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_29o2xgwccs();
+cov_29o2xgwccs().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_29o2xgwccs().s[1]++;
+Object.defineProperty(exports, "default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_29o2xgwccs().f[0]++;
+    cov_29o2xgwccs().s[2]++;
+    return RechargeHistoryLoading;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_29o2xgwccs().s[3]++, require("react/jsx-runtime"));
+const _RechargeHistorySkeleton =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_29o2xgwccs().s[4]++, _interop_require_default(require("../../../../../components/server/mypage/RechargeHistorySkeleton")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_29o2xgwccs().f[1]++;
+  cov_29o2xgwccs().s[5]++;
+  return /* istanbul ignore next */(cov_29o2xgwccs().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_29o2xgwccs().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_29o2xgwccs().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_29o2xgwccs().b[0][1]++, {
+    default: obj
+  });
+}
+function RechargeHistoryLoading() {
+  /* istanbul ignore next */
+  cov_29o2xgwccs().f[2]++;
+  cov_29o2xgwccs().s[6]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_RechargeHistorySkeleton.default, {});
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJSZWNoYXJnZUhpc3RvcnlMb2FkaW5nIiwiY292XzI5bzJ4Z3djY3MiLCJmIiwicyIsIl9qc3hydW50aW1lIiwianN4IiwiX1JlY2hhcmdlSGlzdG9yeVNrZWxldG9uIiwiZGVmYXVsdCJdLCJzb3VyY2VzIjpbIi9Vc2Vycy9jaGFybGllLmh5dW4vUmVwb3NpdG9yaWVzL3BpY25pYy13ZWIvYXBwL1tsYW5nXS8obXlwYWdlKS9teXBhZ2UvcmVjaGFyZ2UtaGlzdG9yeS9sb2FkaW5nLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVjaGFyZ2VIaXN0b3J5U2tlbGV0b24gZnJvbSAnQC9jb21wb25lbnRzL3NlcnZlci9teXBhZ2UvUmVjaGFyZ2VIaXN0b3J5U2tlbGV0b24nO1xuXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBSZWNoYXJnZUhpc3RvcnlMb2FkaW5nKCkge1xuICByZXR1cm4gPFJlY2hhcmdlSGlzdG9yeVNrZWxldG9uIC8+O1xufSAiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OytCQUVBOzs7Ozs7V0FBd0JBLHNCQUFBOzs7Ozs7Ozt3RUFGWTs7Ozs7Ozs7Ozs7Ozs7O0FBRXJCLFNBQVNBLHVCQUFBO0VBQUE7RUFBQUMsY0FBQSxHQUFBQyxDQUFBO0VBQUFELGNBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFBTyxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQ0Msd0JBQUEsQ0FBQUMsT0FBdUI7QUFDakMiLCJpZ25vcmVMaXN0IjpbXX0=

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Banner } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString } from '@/utils/api/strings';
+import { transformBannerLink } from '@/utils/api/link-transformer';
 
 export interface BannerItemProps {
   banner: Banner;
@@ -45,8 +46,11 @@ export function BannerItem({ banner }: BannerItemProps) {
   );
 
   if (banner.link) {
+    // 배너 링크를 웹 친화적인 형태로 변환
+    const transformedLink = transformBannerLink(banner.link);
+    
     return (
-      <Link href={banner.link} className='block'>
+      <Link href={transformedLink} className='block'>
         {content}
       </Link>
     );

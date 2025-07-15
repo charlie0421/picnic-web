@@ -1,0 +1,309 @@
+317d95e0154385cbb0c3a83ce23f6fd2
+"use strict";
+
+/* istanbul ignore next */
+function cov_9o71p8hqj() {
+  var path = "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(mypage)/mypage/loading.tsx";
+  var hash = "cc05d7db92b2dca43419d6906cf76b0dae0df8da";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(mypage)/mypage/loading.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 10,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 8,
+          column: 8
+        },
+        end: {
+          line: 8,
+          column: 29
+        }
+      },
+      "3": {
+        start: {
+          line: 11,
+          column: 20
+        },
+        end: {
+          line: 11,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 12,
+          column: 38
+        },
+        end: {
+          line: 12,
+          column: 126
+        }
+      },
+      "5": {
+        start: {
+          line: 14,
+          column: 4
+        },
+        end: {
+          line: 16,
+          column: 6
+        }
+      },
+      "6": {
+        start: {
+          line: 19,
+          column: 4
+        },
+        end: {
+          line: 19,
+          column: 75
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 7,
+            column: 9
+          },
+          end: {
+            line: 7,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 7,
+            column: 20
+          },
+          end: {
+            line: 9,
+            column: 5
+          }
+        },
+        line: 7
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 13,
+            column: 9
+          },
+          end: {
+            line: 13,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 13,
+            column: 39
+          },
+          end: {
+            line: 17,
+            column: 1
+          }
+        },
+        line: 13
+      },
+      "2": {
+        name: "MyPageLoading",
+        decl: {
+          start: {
+            line: 18,
+            column: 9
+          },
+          end: {
+            line: 18,
+            column: 22
+          }
+        },
+        loc: {
+          start: {
+            line: 18,
+            column: 25
+          },
+          end: {
+            line: 20,
+            column: 1
+          }
+        },
+        line: 18
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 14,
+            column: 11
+          },
+          end: {
+            line: 16,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 14,
+            column: 35
+          },
+          end: {
+            line: 14,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 14,
+            column: 41
+          },
+          end: {
+            line: 16,
+            column: 5
+          }
+        }],
+        line: 14
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 14,
+            column: 11
+          },
+          end: {
+            line: 14,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 14,
+            column: 11
+          },
+          end: {
+            line: 14,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 14,
+            column: 18
+          },
+          end: {
+            line: 14,
+            column: 32
+          }
+        }],
+        line: 14
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(mypage)/mypage/loading.tsx"],
+      sourcesContent: ["import MyPageSkeleton from '@/components/server/mypage/MyPageSkeleton';\n\nexport default function MyPageLoading() {\n  return <MyPageSkeleton />;\n} "],
+      names: ["MyPageLoading", "MyPageSkeleton"],
+      mappings: ";;;;+BAEA;;;eAAwBA;;;;uEAFG;;;;;;AAEZ,SAASA;IACtB,qBAAO,qBAACC,uBAAc;AACxB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "cc05d7db92b2dca43419d6906cf76b0dae0df8da"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_9o71p8hqj = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_9o71p8hqj();
+cov_9o71p8hqj().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_9o71p8hqj().s[1]++;
+Object.defineProperty(exports, "default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_9o71p8hqj().f[0]++;
+    cov_9o71p8hqj().s[2]++;
+    return MyPageLoading;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_9o71p8hqj().s[3]++, require("react/jsx-runtime"));
+const _MyPageSkeleton =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_9o71p8hqj().s[4]++, _interop_require_default(require("../../../../components/server/mypage/MyPageSkeleton")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_9o71p8hqj().f[1]++;
+  cov_9o71p8hqj().s[5]++;
+  return /* istanbul ignore next */(cov_9o71p8hqj().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_9o71p8hqj().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_9o71p8hqj().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_9o71p8hqj().b[0][1]++, {
+    default: obj
+  });
+}
+function MyPageLoading() {
+  /* istanbul ignore next */
+  cov_9o71p8hqj().f[2]++;
+  cov_9o71p8hqj().s[6]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)(_MyPageSkeleton.default, {});
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJNeVBhZ2VMb2FkaW5nIiwiY292XzlvNzFwOGhxaiIsImYiLCJzIiwiX2pzeHJ1bnRpbWUiLCJqc3giLCJfTXlQYWdlU2tlbGV0b24iLCJkZWZhdWx0Il0sInNvdXJjZXMiOlsiL1VzZXJzL2NoYXJsaWUuaHl1bi9SZXBvc2l0b3JpZXMvcGljbmljLXdlYi9hcHAvW2xhbmddLyhteXBhZ2UpL215cGFnZS9sb2FkaW5nLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgTXlQYWdlU2tlbGV0b24gZnJvbSAnQC9jb21wb25lbnRzL3NlcnZlci9teXBhZ2UvTXlQYWdlU2tlbGV0b24nO1xuXG5leHBvcnQgZGVmYXVsdCBmdW5jdGlvbiBNeVBhZ2VMb2FkaW5nKCkge1xuICByZXR1cm4gPE15UGFnZVNrZWxldG9uIC8+O1xufSAiXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OytCQUVBOzs7Ozs7V0FBd0JBLGFBQUE7Ozs7Ozs7O3VFQUZHOzs7Ozs7Ozs7Ozs7Ozs7QUFFWixTQUFTQSxjQUFBO0VBQUE7RUFBQUMsYUFBQSxHQUFBQyxDQUFBO0VBQUFELGFBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFBTyxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQ0MsZUFBQSxDQUFBQyxPQUFjO0FBQ3hCIiwiaWdub3JlTGlzdCI6W119

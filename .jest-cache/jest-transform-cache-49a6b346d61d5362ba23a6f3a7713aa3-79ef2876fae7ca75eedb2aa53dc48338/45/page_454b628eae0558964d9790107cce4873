@@ -1,0 +1,335 @@
+26d3c17541c12a5861145a28c1794d07
+"use strict";
+
+/* istanbul ignore next */
+function cov_ibqt64ehc() {
+  var path = "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/media/page.tsx";
+  var hash = "a853ab5baed8f90c0691611ef2beb982f305d6ef";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/media/page.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 15,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 13,
+          column: 8
+        },
+        end: {
+          line: 13,
+          column: 25
+        }
+      },
+      "3": {
+        start: {
+          line: 16,
+          column: 20
+        },
+        end: {
+          line: 16,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 17,
+          column: 29
+        },
+        end: {
+          line: 17,
+          column: 71
+        }
+      },
+      "5": {
+        start: {
+          line: 18,
+          column: 15
+        },
+        end: {
+          line: 18,
+          column: 61
+        }
+      },
+      "6": {
+        start: {
+          line: 20,
+          column: 4
+        },
+        end: {
+          line: 22,
+          column: 6
+        }
+      },
+      "7": {
+        start: {
+          line: 25,
+          column: 4
+        },
+        end: {
+          line: 30,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 20
+          },
+          end: {
+            line: 14,
+            column: 5
+          }
+        },
+        line: 12
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 19,
+            column: 9
+          },
+          end: {
+            line: 19,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 39
+          },
+          end: {
+            line: 23,
+            column: 1
+          }
+        },
+        line: 19
+      },
+      "2": {
+        name: "MediaPage",
+        decl: {
+          start: {
+            line: 24,
+            column: 9
+          },
+          end: {
+            line: 24,
+            column: 18
+          }
+        },
+        loc: {
+          start: {
+            line: 24,
+            column: 21
+          },
+          end: {
+            line: 31,
+            column: 1
+          }
+        },
+        line: 24
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 22,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 35
+          },
+          end: {
+            line: 20,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 41
+          },
+          end: {
+            line: 22,
+            column: 5
+          }
+        }],
+        line: 20
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 18
+          },
+          end: {
+            line: 20,
+            column: 32
+          }
+        }],
+        line: 20
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/charlie.hyun/Repositories/picnic-web/app/[lang]/(main)/media/page.tsx"],
+      sourcesContent: ["import React from 'react';\nimport { MediaListFetcher } from '@/components/server/media';\n\n/**\n * \uBBF8\uB514\uC5B4 \uD398\uC774\uC9C0\n * \n * \uC11C\uBC84 \uCEF4\uD3EC\uB10C\uD2B8\uB97C \uC0AC\uC6A9\uD558\uC5EC \uB370\uC774\uD130 \uD398\uCE6D\uC744 \uC218\uD589\uD569\uB2C8\uB2E4.\n * loading.tsx\uAC00 \uB85C\uB529 UI\uB97C \uB2F4\uB2F9\uD569\uB2C8\uB2E4.\n */\nexport default function MediaPage() {\n  return (\n    <main className='container mx-auto px-4 py-6'>\n      <MediaListFetcher className=\"mt-4\" />\n    </main>\n  );\n}\n"],
+      names: ["MediaPage", "main", "className", "MediaListFetcher"],
+      mappings: ";;;;+BAGA;;;;;CAKC,GACD;;;eAAwBA;;;;8DATN;uBACe;;;;;;AAQlB,SAASA;IACtB,qBACE,qBAACC;QAAKC,WAAU;kBACd,cAAA,qBAACC,uBAAgB;YAACD,WAAU;;;AAGlC"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "a853ab5baed8f90c0691611ef2beb982f305d6ef"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_ibqt64ehc = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_ibqt64ehc();
+cov_ibqt64ehc().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_ibqt64ehc().s[1]++;
+Object.defineProperty(exports,
+/**
+* 미디어 페이지
+* 
+* 서버 컴포넌트를 사용하여 데이터 페칭을 수행합니다.
+* loading.tsx가 로딩 UI를 담당합니다.
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_ibqt64ehc().f[0]++;
+    cov_ibqt64ehc().s[2]++;
+    return MediaPage;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_ibqt64ehc().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_ibqt64ehc().s[4]++, _interop_require_default(require("react")));
+const _media =
+/* istanbul ignore next */
+(cov_ibqt64ehc().s[5]++, require("../../../../components/server/media"));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_ibqt64ehc().f[1]++;
+  cov_ibqt64ehc().s[6]++;
+  return /* istanbul ignore next */(cov_ibqt64ehc().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_ibqt64ehc().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_ibqt64ehc().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_ibqt64ehc().b[0][1]++, {
+    default: obj
+  });
+}
+function MediaPage() {
+  /* istanbul ignore next */
+  cov_ibqt64ehc().f[2]++;
+  cov_ibqt64ehc().s[7]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsx)("main", {
+    className: "container mx-auto px-4 py-6",
+    children: /*#__PURE__*/(0, _jsxruntime.jsx)(_media.MediaListFetcher, {
+      className: "mt-4"
+    })
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJNZWRpYVBhZ2UiLCJjb3ZfaWJxdDY0ZWhjIiwiZiIsInMiLCJfanN4cnVudGltZSIsImpzeCIsImNsYXNzTmFtZSIsIl9tZWRpYSIsIk1lZGlhTGlzdEZldGNoZXIiXSwic291cmNlcyI6WyIvVXNlcnMvY2hhcmxpZS5oeXVuL1JlcG9zaXRvcmllcy9waWNuaWMtd2ViL2FwcC9bbGFuZ10vKG1haW4pL21lZGlhL3BhZ2UudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7XG5pbXBvcnQgeyBNZWRpYUxpc3RGZXRjaGVyIH0gZnJvbSAnQC9jb21wb25lbnRzL3NlcnZlci9tZWRpYSc7XG5cbi8qKlxuICog66+465SU7Ja0IO2OmOydtOyngFxuICogXG4gKiDshJzrsoQg7Lu07Y+s64SM7Yq466W8IOyCrOyaqe2VmOyXrCDrjbDsnbTthLAg7Y6Y7Lmt7J2EIOyImO2Wie2VqeuLiOuLpC5cbiAqIGxvYWRpbmcudHN46rCAIOuhnOuUqSBVSeulvCDri7Tri7ntlanri4jri6QuXG4gKi9cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIE1lZGlhUGFnZSgpIHtcbiAgcmV0dXJuIChcbiAgICA8bWFpbiBjbGFzc05hbWU9J2NvbnRhaW5lciBteC1hdXRvIHB4LTQgcHktNic+XG4gICAgICA8TWVkaWFMaXN0RmV0Y2hlciBjbGFzc05hbWU9XCJtdC00XCIgLz5cbiAgICA8L21haW4+XG4gICk7XG59XG4iXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBR0E7Ozs7OztBQU1BOzs7Ozs7V0FBd0JBLFNBQUE7Ozs7Ozs7O3VFQVROOzs7aUNBQ2U7Ozs7Ozs7Ozs7Ozs7OztBQVFsQixTQUFTQSxVQUFBO0VBQUE7RUFBQUMsYUFBQSxHQUFBQyxDQUFBO0VBQUFELGFBQUEsR0FBQUUsQ0FBQTtFQUN0QixvQkFDRSxJQUFBQyxXQUFBLENBQUFDLEdBQUEsRUFBQztJQUFLQyxTQUFBLEVBQVU7Y0FDZCxpQkFBQUYsV0FBQSxDQUFBQyxHQUFBLEVBQUNFLE1BQUEsQ0FBQUMsZ0JBQWdCO01BQUNGLFNBQUEsRUFBVTs7O0FBR2xDIiwiaWdub3JlTGlzdCI6W119

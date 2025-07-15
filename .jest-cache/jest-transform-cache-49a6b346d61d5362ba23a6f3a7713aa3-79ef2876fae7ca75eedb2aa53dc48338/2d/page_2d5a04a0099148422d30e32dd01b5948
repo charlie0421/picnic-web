@@ -1,0 +1,355 @@
+2d8d10c2ea4c3538bf073e12e7a54f15
+"use strict";
+
+/* istanbul ignore next */
+function cov_2fle1ouzim() {
+  var path = "/Users/charlie.hyun/Repositories/picnic-web/app/auth/callback/page.tsx";
+  var hash = "b6ae6ca5593df37955a4cf61bfe8214c40f5c1b1";
+  var global = new Function("return this")();
+  var gcv = "__coverage__";
+  var coverageData = {
+    path: "/Users/charlie.hyun/Repositories/picnic-web/app/auth/callback/page.tsx",
+    statementMap: {
+      "0": {
+        start: {
+          line: 2,
+          column: 0
+        },
+        end: {
+          line: 4,
+          column: 3
+        }
+      },
+      "1": {
+        start: {
+          line: 5,
+          column: 0
+        },
+        end: {
+          line: 15,
+          column: 3
+        }
+      },
+      "2": {
+        start: {
+          line: 13,
+          column: 8
+        },
+        end: {
+          line: 13,
+          column: 32
+        }
+      },
+      "3": {
+        start: {
+          line: 16,
+          column: 20
+        },
+        end: {
+          line: 16,
+          column: 48
+        }
+      },
+      "4": {
+        start: {
+          line: 17,
+          column: 15
+        },
+        end: {
+          line: 17,
+          column: 31
+        }
+      },
+      "5": {
+        start: {
+          line: 18,
+          column: 36
+        },
+        end: {
+          line: 18,
+          column: 117
+        }
+      },
+      "6": {
+        start: {
+          line: 20,
+          column: 4
+        },
+        end: {
+          line: 22,
+          column: 6
+        }
+      },
+      "7": {
+        start: {
+          line: 25,
+          column: 4
+        },
+        end: {
+          line: 53,
+          column: 7
+        }
+      }
+    },
+    fnMap: {
+      "0": {
+        name: "(anonymous_0)",
+        decl: {
+          start: {
+            line: 12,
+            column: 9
+          },
+          end: {
+            line: 12,
+            column: 10
+          }
+        },
+        loc: {
+          start: {
+            line: 12,
+            column: 20
+          },
+          end: {
+            line: 14,
+            column: 5
+          }
+        },
+        line: 12
+      },
+      "1": {
+        name: "_interop_require_default",
+        decl: {
+          start: {
+            line: 19,
+            column: 9
+          },
+          end: {
+            line: 19,
+            column: 33
+          }
+        },
+        loc: {
+          start: {
+            line: 19,
+            column: 39
+          },
+          end: {
+            line: 23,
+            column: 1
+          }
+        },
+        line: 19
+      },
+      "2": {
+        name: "AuthCallbackPage",
+        decl: {
+          start: {
+            line: 24,
+            column: 9
+          },
+          end: {
+            line: 24,
+            column: 25
+          }
+        },
+        loc: {
+          start: {
+            line: 24,
+            column: 28
+          },
+          end: {
+            line: 54,
+            column: 1
+          }
+        },
+        line: 24
+      }
+    },
+    branchMap: {
+      "0": {
+        loc: {
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 22,
+            column: 5
+          }
+        },
+        type: "cond-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 35
+          },
+          end: {
+            line: 20,
+            column: 38
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 41
+          },
+          end: {
+            line: 22,
+            column: 5
+          }
+        }],
+        line: 20
+      },
+      "1": {
+        loc: {
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 32
+          }
+        },
+        type: "binary-expr",
+        locations: [{
+          start: {
+            line: 20,
+            column: 11
+          },
+          end: {
+            line: 20,
+            column: 14
+          }
+        }, {
+          start: {
+            line: 20,
+            column: 18
+          },
+          end: {
+            line: 20,
+            column: 32
+          }
+        }],
+        line: 20
+      }
+    },
+    s: {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0
+    },
+    f: {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    b: {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    inputSourceMap: {
+      version: 3,
+      sources: ["/Users/charlie.hyun/Repositories/picnic-web/app/auth/callback/page.tsx"],
+      sourcesContent: ["import { Suspense } from 'react';\nimport AuthCallback from '@/components/client/auth/AuthCallback';\n\n/**\n * \uBC94\uC6A9 OAuth \uCF5C\uBC31 \uD398\uC774\uC9C0\n * \n * Supabase\uC5D0\uC11C OAuth \uCC98\uB9AC \uD6C4 /auth/callback\uB85C \uB9AC\uB2E4\uC774\uB809\uD2B8\uD560 \uB54C \uC0AC\uC6A9\n * AuthCallback \uCEF4\uD3EC\uB10C\uD2B8\uC5D0\uC11C URL \uD30C\uB77C\uBBF8\uD130\uB098 \uAE30\uD0C0 \uBC29\uBC95\uC73C\uB85C provider\uB97C \uAC10\uC9C0\n */\nexport default function AuthCallbackPage() {\n  return (\n    <>\n      {/* \uC804\uC5ED \uB85C\uB529\uBC14 \uC989\uC2DC \uC2DC\uC791 */}\n      <script\n        dangerouslySetInnerHTML={{\n          __html: `\n            // \uD398\uC774\uC9C0 \uB85C\uB4DC \uC989\uC2DC \uC804\uC5ED \uB85C\uB529\uBC14 \uC2DC\uC791\n            (function() {\n              // \uAC1C\uBC1C \uD658\uACBD\uC5D0\uC11C\uB9CC \uB85C\uADF8 \uCD9C\uB825\n              const isDev = ${process.env.NODE_ENV === 'development'};\n              if (isDev) console.log('\uD83D\uDD04 [OAuth Callback] \uBC94\uC6A9 \uCF5C\uBC31 \uC804\uC5ED \uB85C\uB529\uBC14 \uC2DC\uC791');\n              \n              // \uC804\uC5ED \uB85C\uB529\uBC14 \uC989\uC2DC \uC2DC\uC791\n              try {\n                const event = new CustomEvent('startGlobalLoading', { detail: { reason: 'oauth-callback-page' } });\n                window.dispatchEvent(event);\n                if (isDev) console.log('\uD83D\uDE80 [OAuth Callback] \uC804\uC5ED \uB85C\uB529\uBC14 \uC774\uBCA4\uD2B8 \uBC1C\uC1A1 \uC644\uB8CC');\n              } catch (error) {\n                if (isDev) console.warn('\u26A0\uFE0F [OAuth Callback] \uC804\uC5ED \uB85C\uB529\uBC14 \uC774\uBCA4\uD2B8 \uBC1C\uC1A1 \uC2E4\uD328:', error);\n              }\n            })();\n          `\n        }}\n      />\n\n      {/* \uD074\uB77C\uC774\uC5B8\uD2B8 \uCEF4\uD3EC\uB10C\uD2B8 */}\n      <Suspense fallback={null}>\n        <AuthCallback />\n      </Suspense>\n    </>\n  );\n} "],
+      names: ["AuthCallbackPage", "script", "dangerouslySetInnerHTML", "__html", "process", "env", "NODE_ENV", "Suspense", "fallback", "AuthCallback"],
+      mappings: ";;;;+BAGA;;;;;CAKC,GACD;;;eAAwBA;;;;uBATC;qEACA;;;;;;AAQV,SAASA;IACtB,qBACE;;0BAEE,qBAACC;gBACCC,yBAAyB;oBACvBC,QAAQ,CAAC;;;;4BAIS,EAAEC,QAAQC,GAAG,CAACC,QAAQ,KAAK,cAAc;;;;;;;;;;;;UAY3D,CAAC;gBACH;;0BAIF,qBAACC,eAAQ;gBAACC,UAAU;0BAClB,cAAA,qBAACC,qBAAY;;;;AAIrB"
+    },
+    _coverageSchema: "1a1c01bbd47fc00a2c39e90264f33305004495a9",
+    hash: "b6ae6ca5593df37955a4cf61bfe8214c40f5c1b1"
+  };
+  var coverage = global[gcv] || (global[gcv] = {});
+  if (!coverage[path] || coverage[path].hash !== hash) {
+    coverage[path] = coverageData;
+  }
+  var actualCoverage = coverage[path];
+  {
+    // @ts-ignore
+    cov_2fle1ouzim = function () {
+      return actualCoverage;
+    };
+  }
+  return actualCoverage;
+}
+cov_2fle1ouzim();
+cov_2fle1ouzim().s[0]++;
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+/* istanbul ignore next */
+cov_2fle1ouzim().s[1]++;
+Object.defineProperty(exports,
+/**
+* 범용 OAuth 콜백 페이지
+* 
+* Supabase에서 OAuth 처리 후 /auth/callback로 리다이렉트할 때 사용
+* AuthCallback 컴포넌트에서 URL 파라미터나 기타 방법으로 provider를 감지
+*/
+"default", {
+  enumerable: true,
+  get: function () {
+    /* istanbul ignore next */
+    cov_2fle1ouzim().f[0]++;
+    cov_2fle1ouzim().s[2]++;
+    return AuthCallbackPage;
+  }
+});
+const _jsxruntime =
+/* istanbul ignore next */
+(cov_2fle1ouzim().s[3]++, require("react/jsx-runtime"));
+const _react =
+/* istanbul ignore next */
+(cov_2fle1ouzim().s[4]++, require("react"));
+const _AuthCallback =
+/* istanbul ignore next */
+(/*#__PURE__*/cov_2fle1ouzim().s[5]++, _interop_require_default(require("../../../components/client/auth/AuthCallback")));
+function _interop_require_default(obj) {
+  /* istanbul ignore next */
+  cov_2fle1ouzim().f[1]++;
+  cov_2fle1ouzim().s[6]++;
+  return /* istanbul ignore next */(cov_2fle1ouzim().b[1][0]++, obj) &&
+  /* istanbul ignore next */
+  (cov_2fle1ouzim().b[1][1]++, obj.__esModule) ?
+  /* istanbul ignore next */
+  (cov_2fle1ouzim().b[0][0]++, obj) :
+  /* istanbul ignore next */
+  (cov_2fle1ouzim().b[0][1]++, {
+    default: obj
+  });
+}
+function AuthCallbackPage() {
+  /* istanbul ignore next */
+  cov_2fle1ouzim().f[2]++;
+  cov_2fle1ouzim().s[7]++;
+  return /*#__PURE__*/(0, _jsxruntime.jsxs)(_jsxruntime.Fragment, {
+    children: [/*#__PURE__*/(0, _jsxruntime.jsx)("script", {
+      dangerouslySetInnerHTML: {
+        __html: `
+            // 페이지 로드 즉시 전역 로딩바 시작
+            (function() {
+              // 개발 환경에서만 로그 출력
+              const isDev = ${process.env.NODE_ENV === 'development'};
+              if (isDev) console.log('🔄 [OAuth Callback] 범용 콜백 전역 로딩바 시작');
+              
+              // 전역 로딩바 즉시 시작
+              try {
+                const event = new CustomEvent('startGlobalLoading', { detail: { reason: 'oauth-callback-page' } });
+                window.dispatchEvent(event);
+                if (isDev) console.log('🚀 [OAuth Callback] 전역 로딩바 이벤트 발송 완료');
+              } catch (error) {
+                if (isDev) console.warn('⚠️ [OAuth Callback] 전역 로딩바 이벤트 발송 실패:', error);
+              }
+            })();
+          `
+      }
+    }), /*#__PURE__*/(0, _jsxruntime.jsx)(_react.Suspense, {
+      fallback: null,
+      children: /*#__PURE__*/(0, _jsxruntime.jsx)(_AuthCallback.default, {})
+    })]
+  });
+}
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJBdXRoQ2FsbGJhY2tQYWdlIiwiY292XzJmbGUxb3V6aW0iLCJmIiwicyIsIl9qc3hydW50aW1lIiwianN4cyIsIkZyYWdtZW50IiwianN4IiwiZGFuZ2Vyb3VzbHlTZXRJbm5lckhUTUwiLCJfX2h0bWwiLCJwcm9jZXNzIiwiZW52IiwiTk9ERV9FTlYiLCJfcmVhY3QiLCJTdXNwZW5zZSIsImZhbGxiYWNrIiwiX0F1dGhDYWxsYmFjayIsImRlZmF1bHQiXSwic291cmNlcyI6WyIvVXNlcnMvY2hhcmxpZS5oeXVuL1JlcG9zaXRvcmllcy9waWNuaWMtd2ViL2FwcC9hdXRoL2NhbGxiYWNrL3BhZ2UudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFN1c3BlbnNlIH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IEF1dGhDYWxsYmFjayBmcm9tICdAL2NvbXBvbmVudHMvY2xpZW50L2F1dGgvQXV0aENhbGxiYWNrJztcblxuLyoqXG4gKiDrspTsmqkgT0F1dGgg7L2c67CxIO2OmOydtOyngFxuICogXG4gKiBTdXBhYmFzZeyXkOyEnCBPQXV0aCDsspjrpqwg7ZuEIC9hdXRoL2NhbGxiYWNr66GcIOumrOuLpOydtOugie2KuO2VoCDrlYwg7IKs7JqpXG4gKiBBdXRoQ2FsbGJhY2sg7Lu07Y+s64SM7Yq47JeQ7IScIFVSTCDtjIzrnbzrr7jthLDrgpgg6riw7YOAIOuwqeuyleycvOuhnCBwcm92aWRlcuulvCDqsJDsp4BcbiAqL1xuZXhwb3J0IGRlZmF1bHQgZnVuY3Rpb24gQXV0aENhbGxiYWNrUGFnZSgpIHtcbiAgcmV0dXJuIChcbiAgICA8PlxuICAgICAgey8qIOyghOyXrSDroZzrlKnrsJQg7KaJ7IucIOyLnOyekSAqL31cbiAgICAgIDxzY3JpcHRcbiAgICAgICAgZGFuZ2Vyb3VzbHlTZXRJbm5lckhUTUw9e3tcbiAgICAgICAgICBfX2h0bWw6IGBcbiAgICAgICAgICAgIC8vIO2OmOydtOyngCDroZzrk5wg7KaJ7IucIOyghOyXrSDroZzrlKnrsJQg7Iuc7J6RXG4gICAgICAgICAgICAoZnVuY3Rpb24oKSB7XG4gICAgICAgICAgICAgIC8vIOqwnOuwnCDtmZjqsr3sl5DshJzrp4wg66Gc6re4IOy2nOugpVxuICAgICAgICAgICAgICBjb25zdCBpc0RldiA9ICR7cHJvY2Vzcy5lbnYuTk9ERV9FTlYgPT09ICdkZXZlbG9wbWVudCd9O1xuICAgICAgICAgICAgICBpZiAoaXNEZXYpIGNvbnNvbGUubG9nKCfwn5SEIFtPQXV0aCBDYWxsYmFja10g67KU7JqpIOy9nOuwsSDsoITsl60g66Gc65Sp67CUIOyLnOyekScpO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgLy8g7KCE7JetIOuhnOuUqeuwlCDsponsi5wg7Iuc7J6RXG4gICAgICAgICAgICAgIHRyeSB7XG4gICAgICAgICAgICAgICAgY29uc3QgZXZlbnQgPSBuZXcgQ3VzdG9tRXZlbnQoJ3N0YXJ0R2xvYmFsTG9hZGluZycsIHsgZGV0YWlsOiB7IHJlYXNvbjogJ29hdXRoLWNhbGxiYWNrLXBhZ2UnIH0gfSk7XG4gICAgICAgICAgICAgICAgd2luZG93LmRpc3BhdGNoRXZlbnQoZXZlbnQpO1xuICAgICAgICAgICAgICAgIGlmIChpc0RldikgY29uc29sZS5sb2coJ/CfmoAgW09BdXRoIENhbGxiYWNrXSDsoITsl60g66Gc65Sp67CUIOydtOuypO2KuCDrsJzshqEg7JmE66OMJyk7XG4gICAgICAgICAgICAgIH0gY2F0Y2ggKGVycm9yKSB7XG4gICAgICAgICAgICAgICAgaWYgKGlzRGV2KSBjb25zb2xlLndhcm4oJ+KaoO+4jyBbT0F1dGggQ2FsbGJhY2tdIOyghOyXrSDroZzrlKnrsJQg7J2067Kk7Yq4IOuwnOyGoSDsi6TtjKg6JywgZXJyb3IpO1xuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICB9KSgpO1xuICAgICAgICAgIGBcbiAgICAgICAgfX1cbiAgICAgIC8+XG5cbiAgICAgIHsvKiDtgbTrnbzsnbTslrjtirgg7Lu07Y+s64SM7Yq4ICovfVxuICAgICAgPFN1c3BlbnNlIGZhbGxiYWNrPXtudWxsfT5cbiAgICAgICAgPEF1dGhDYWxsYmFjayAvPlxuICAgICAgPC9TdXNwZW5zZT5cbiAgICA8Lz5cbiAgKTtcbn0gIl0sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztBQUdBOzs7Ozs7QUFNQTs7Ozs7O1dBQXdCQSxnQkFBQTs7Ozs7Ozs7a0NBVEM7Ozt3RUFDQTs7Ozs7Ozs7Ozs7Ozs7O0FBUVYsU0FBU0EsaUJBQUE7RUFBQTtFQUFBQyxjQUFBLEdBQUFDLENBQUE7RUFBQUQsY0FBQSxHQUFBRSxDQUFBO0VBQ3RCLG9CQUNFLElBQUFDLFdBQUEsQ0FBQUMsSUFBQSxFQUFBRCxXQUFBLENBQUFFLFFBQUE7NEJBRUUsSUFBQUYsV0FBQSxDQUFBRyxHQUFBLEVBQUM7TUFDQ0MsdUJBQUEsRUFBeUI7UUFDdkJDLE1BQUEsRUFBUTs7Ozs4QkFJWUMsT0FBQSxDQUFRQyxHQUFHLENBQUNDLFFBQVEsS0FBSzs7Ozs7Ozs7Ozs7OztNQWEvQztxQkFJRixJQUFBUixXQUFBLENBQUFHLEdBQUEsRUFBQ00sTUFBQSxDQUFBQyxRQUFRO01BQUNDLFFBQUEsRUFBVTtnQkFDbEIsaUJBQUFYLFdBQUEsQ0FBQUcsR0FBQSxFQUFDUyxhQUFBLENBQUFDLE9BQVk7OztBQUlyQiIsImlnbm9yZUxpc3QiOltdfQ==
