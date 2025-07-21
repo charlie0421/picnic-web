@@ -94,17 +94,21 @@ export async function signInWithAppleImpl(
 
     console.log("✅ 표준 Supabase Apple OAuth 시작");
 
+    // 일관된 리디렉션 URL을 위해 환경 변수 사용
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    const redirectTo = `${baseUrl}/auth/callback`;
+
     // 표준 Supabase OAuth 사용
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "apple",
       options: {
         scopes: scopes.join(" "),
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: redirectTo,
       },
     });
 
     console.log("🍎 Apple OAuth 설정:", {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: redirectTo,
       currentOrigin: window.location.origin,
       nodeEnv: process.env.NODE_ENV,
       siteUrl: process.env.NEXT_PUBLIC_SITE_URL,

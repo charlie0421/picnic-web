@@ -1032,6 +1032,8 @@ export interface Vote {
   created_at: string
   deleted_at: string | null
   id: number
+  is_partnership?: boolean // 파트너십 여부
+  partner?: string | null // 파트너사 식별자
   main_image: string | null
   order: number | null
   result_image: string | null

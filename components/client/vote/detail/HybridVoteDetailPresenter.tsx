@@ -21,6 +21,7 @@ import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useNotification } from '@/contexts/NotificationContext';
 import VotePopup from '@/components/client/vote/dialogs/VotePopup';
+import { useAuth } from '@/hooks/useAuth';
 
 // 디바운싱 훅 추가
 function useDebounce<T>(value: T, delay: number): T {
@@ -103,6 +104,22 @@ export function HybridVoteDetailPresenter({
       description: t('dialog_vote_login_description') || t('dialog_login_required_description') || 'You need to log in to use this feature.',
     },
   });
+  const { userProfile } = useAuth();
+
+  // 투표 가능 여부 계산
+  const canVote = React.useMemo(() => {
+    const now = new Date();
+    const isOngoing = vote.start_at && vote.stop_at && now >= new Date(vote.start_at) && now <= new Date(vote.stop_at);
+    
+    if (!isOngoing) return false;
+
+    // 파트너십 투표인 경우, 관리자만 투표 가능
+    if (vote.is_partnership && vote.partner === 'jma') {
+      return userProfile?.is_admin === true;
+    }
+
+    return true;
+  }, [vote.start_at, vote.stop_at, vote.is_partnership, vote.partner, userProfile?.is_admin]);
 
   // 기존 상태들 - 초기 데이터를 올바른 형태로 변환
   const [voteItems, setVoteItems] = React.useState<VoteItem[]>(() => {
@@ -260,7 +277,6 @@ export function HybridVoteDetailPresenter({
   const supabase = createBrowserSupabaseClient();
 
   const voteStatus = getVoteStatus(vote);
-  const canVote = voteStatus === 'ongoing';
 
   // 디바운싱된 검색어
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
