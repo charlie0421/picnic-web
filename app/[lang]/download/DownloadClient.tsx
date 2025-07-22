@@ -3,6 +3,7 @@
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { type VersionInfo } from '@/lib/data-fetching/supabase-service';
+import { cn } from '@/components/utils/cn';
 
 interface DownloadClientProps {
   versionInfo: VersionInfo | null;
@@ -35,136 +36,69 @@ export default function DownloadClient({ versionInfo, translations: trans }: Dow
     };
 
     return (
-        <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '100vh',
-            backgroundColor: '#f0f2f5',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            textAlign: 'center',
-            padding: '20px',
-        }}>
+        <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-primary-100 via-secondary-100 to-white font-sans p-4">
             <main
-                style={{
-                    backgroundColor: 'white',
-                    borderRadius: '20px',
-                    width: '100%',
-                    maxWidth: '480px',
-                    padding: '40px',
-                    boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-                }}
+                className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-lg w-full max-w-md p-8 m-4 transition-all duration-300 hover:shadow-2xl"
             >
-                <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#333', marginBottom: '12px' }}>
+                <h1 className="text-3xl font-bold text-primary mb-3 text-center">
                     {trans.title}
                 </h1>
 
-                <p style={{ fontSize: '16px', color: '#666', marginBottom: '20px' }}>
+                <p className="text-gray-600 mb-6 text-center">
                     {trans.description}
                 </p>
 
-                <div style={{ marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        {languages.map((lang) => (
-                            <button
-                                key={lang.code}
-                                onClick={() => handleLanguageChange(lang.code)}
-                                style={{
-                                    background: currentLang === lang.code ? '#007aff' : '#e9e9eb',
-                                    color: currentLang === lang.code ? 'white' : 'black',
-                                    border: 'none',
-                                    borderRadius: '20px',
-                                    padding: '8px 16px',
-                                    cursor: 'pointer',
-                                    transition: 'background-color 0.2s',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }}
-                            >
-                                <span>{lang.flag}</span>
-                                <span>{lang.name}</span>
-                            </button>
-                        ))}
-                    </div>
+                <div className="flex justify-center gap-2 flex-wrap mb-8">
+                    {languages.map((lang) => (
+                        <button
+                            key={lang.code}
+                            onClick={() => handleLanguageChange(lang.code)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-200",
+                                currentLang === lang.code
+                                    ? "bg-primary text-white border-primary-400 shadow-md"
+                                    : "bg-white/50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
+                            )}
+                        >
+                            <span className="text-lg">{lang.flag}</span>
+                            <span className="font-medium text-sm">{lang.name}</span>
+                        </button>
+                    ))}
                 </div>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center', width: '100%' }}>
+                <div className="flex flex-col gap-4 items-center w-full">
                     {versionInfo?.ios?.url && (
-                        <a href={versionInfo.ios.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', width: '100%', maxWidth: '300px' }}>
-                            <button style={{
-                                width: '100%',
-                                padding: '12px',
-                                backgroundColor: '#000000',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontSize: '16px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                transition: 'background-color 0.2s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '10px'
-                            }}>
-                                <img src="/images/auth/apple.svg" alt="Apple Logo" style={{ height: '24px', filter: 'brightness(0) invert(1)' }}/>
+                        <a href={versionInfo.ios.url} target="_blank" rel="noopener noreferrer" className="w-full max-w-xs">
+                            <button className="w-full p-3 bg-primary text-white rounded-lg font-semibold flex items-center justify-center gap-3 transition-transform duration-200 hover:scale-105">
+                                <img src="/images/auth/apple.svg" alt="Apple Logo" className="h-6 filter brightness-0 invert"/>
                                 <div>
-                                    <div style={{ fontSize: '12px', opacity: '0.8' }}>{trans.iosButton}</div>
-                                    {versionInfo.ios.version && <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{`Version ${versionInfo.ios.version}`}</div>}
+                                    <div className="text-xs opacity-80">{trans.iosButton}</div>
+                                    {versionInfo.ios.version && <div className="text-sm font-bold">{`Version ${versionInfo.ios.version}`}</div>}
                                 </div>
                             </button>
                         </a>
                     )}
 
                     {versionInfo?.android?.url && (
-                        <a href={versionInfo.android.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', width: '100%', maxWidth: '300px' }}>
-                            <button style={{
-                                width: '100%',
-                                padding: '12px',
-                                backgroundColor: '#ffffff',
-                                color: 'black',
-                                border: '1px solid #dadce0',
-                                borderRadius: '8px',
-                                fontSize: '16px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                transition: 'background-color 0.2s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '10px'
-                            }}>
-                                <img src="/images/auth/google.svg" alt="Google Play Logo" style={{ height: '24px' }}/>
+                        <a href={versionInfo.android.url} target="_blank" rel="noopener noreferrer" className="w-full max-w-xs">
+                            <button className="w-full p-3 bg-secondary-300 text-black rounded-lg font-semibold flex items-center justify-center gap-3 transition-transform duration-200 hover:scale-105 hover:bg-secondary-400">
+                                <img src="/images/auth/google.svg" alt="Google Play Logo" className="h-6"/>
                                 <div>
-                                    <div style={{ fontSize: '12px', opacity: '0.8' }}>{trans.androidButton}</div>
-                                    {versionInfo.android.version && <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{`Version ${versionInfo.android.version}`}</div>}
+                                    <div className="text-xs opacity-80">{trans.androidButton}</div>
+                                    {versionInfo.android.version && <div className="text-sm font-bold">{`Version ${versionInfo.android.version}`}</div>}
                                 </div>
                             </button>
                         </a>
                     )}
                     {versionInfo?.apk && (
-                       <div style={{ width: '100%', maxWidth: '300px' }}>
-                           <button style={{
-                               width: '100%',
-                               padding: '12px',
-                               backgroundColor: '#cccccc',
-                               color: '#666666',
-                               border: 'none',
-                               borderRadius: '8px',
-                               fontSize: '16px',
-                               fontWeight: '600',
-                               cursor: 'not-allowed',
-                               display: 'flex',
-                               alignItems: 'center',
-                               justifyContent: 'center',
-                               gap: '10px'
-                           }}
-                           onClick={() => alert(trans.apkPreparing)}
+                       <div className="w-full max-w-xs">
+                           <button 
+                                className="w-full p-3 bg-gray-200 text-gray-500 rounded-lg font-semibold flex items-center justify-center gap-3 cursor-not-allowed"
+                                onClick={() => alert(trans.apkPreparing)}
                            >
                                <div>
-                                   <div style={{ fontSize: '12px', opacity: '0.8' }}>{trans.apkButton}</div>
-                                   {versionInfo.apk.version && <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{`Version ${versionInfo.apk.version}`}</div>}
+                                   <div className="text-xs opacity-80">{trans.apkButton}</div>
+                                   {versionInfo.apk.version && <div className="text-sm font-bold">{`Version ${versionInfo.apk.version}`}</div>}
                                </div>
                            </button>
                        </div>

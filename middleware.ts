@@ -27,8 +27,8 @@ function getPreferredLanguageFromHeader(acceptLanguage: string | null): string {
     }
   }
 
-  console.log(`⚠️ 브라우저 언어에서 지원되는 언어 없음, 기본 언어 사용: ${DEFAULT_LANGUAGE}`);
-  return DEFAULT_LANGUAGE;
+  console.log(`⚠️ 브라우저 언어에서 지원되는 언어 없음, 영어로 대체: en`);
+  return 'en';
 }
 
 /**
