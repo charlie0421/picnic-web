@@ -100,59 +100,54 @@ export function HybridVoteDetailPresenter({
   const { addNotification } = useNotification();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
-      title: t('dialog_vote_login_required') || t('dialog_content_login_required') || 'Login Required',
+      title: t('dialog_vote_login_title') || t('dialog_login_required_title') || 'Login Required',
       description: t('dialog_vote_login_description') || t('dialog_login_required_description') || 'You need to log in to use this feature.',
     },
   });
   const { userProfile } = useAuth();
 
-  // 투표 가능 여부 계산
+  // 투표 가능 여부 계산 (시간 기준)
   const canVote = React.useMemo(() => {
+    console.log(`[canVote] vote.partner: ${vote.partner}`);
     const now = new Date();
-    const isOngoing = vote.start_at && vote.stop_at && now >= new Date(vote.start_at) && now <= new Date(vote.stop_at);
-    
-    if (!isOngoing) return false;
-
-    // 파트너십 투표인 경우, 관리자만 투표 가능
-    if (vote.is_partnership && vote.partner === 'jma') {
-      return userProfile?.is_admin === true;
+    // JMA 투표(파트너사 투표)는 웹에서 투표 불가
+    if (vote.partner === 'jma') {
+      return false;
     }
-
-    return true;
-  }, [vote.start_at, vote.stop_at, vote.is_partnership, vote.partner, userProfile?.is_admin]);
+    const isOngoing = !!(vote.start_at && vote.stop_at && now >= new Date(vote.start_at) && now <= new Date(vote.stop_at));
+    return isOngoing;
+  }, [vote.partner, vote.start_at, vote.stop_at]);
 
   // 기존 상태들 - 초기 데이터를 올바른 형태로 변환
-  const [voteItems, setVoteItems] = React.useState<VoteItem[]>(() => {
-    // initialItems가 올바른 형태인지 확인하고 필요시 변환
-    return initialItems.map(item => ({
+  const [voteItems, setVoteItems] = useState<VoteItem[]>(
+    initialItems
+    .map(item => ({
       ...item,
-      // 호환성을 위한 추가 필드들 (GridView, VoteRankCard에서 사용)
-      name: item.artist?.name || 'Unknown',
-      image_url: item.artist?.image || '',
-      total_votes: item.vote_total || 0,
-    }));
-  });
-  const [selectedItem, setSelectedItem] = React.useState<VoteItem | null>(null);
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [isVoting, setIsVoting] = React.useState(false);
-  const [timeLeft, setTimeLeft] = React.useState<{
+      vote_total: item.vote_total || 0,
+    }))
+    .sort((a, b) => (b.vote_total ?? 0) - (a.vote_total ?? 0))
+  );
+  const [selectedItem, setSelectedItem] = useState<VoteItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isVoting, setIsVoting] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<{
     days: number;
     hours: number;
     minutes: number;
     seconds: number;
   } | null>(null);
-  const [showVoteModal, setShowVoteModal] = React.useState(false);
-  const [voteCandidate, setVoteCandidate] = React.useState<VoteItem | null>(null);
-  const [voteAmount, setVoteAmount] = React.useState(1);
-  const [availableVotes, setAvailableVotes] = React.useState(10);
-  const [headerHeight, setHeaderHeight] = React.useState(0);
-  const [searchHeight, setSearchHeight] = React.useState(0);
-  const headerRef = React.useRef<HTMLDivElement>(null);
-  const searchRef = React.useRef<HTMLDivElement>(null);
+  const [showVoteModal, setShowVoteModal] = useState(false);
+  const [voteCandidate, setVoteCandidate] = useState<VoteItem | null>(null);
+  const [voteAmount, setVoteAmount] = useState(1);
+  const [availableVotes, setAvailableVotes] = useState(10);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [searchHeight, setSearchHeight] = useState(0);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // 🚀 사용자 관련 상태 - 서버에서 받은 초기 데이터 사용 (성능 개선)
-  const [user, setUser] = React.useState<any>(initialUser || null);
-  const [userVote, setUserVote] = React.useState<any>(() => {
+  const [user, setUser] = useState<any>(initialUser || null);
+  const [userVote, setUserVote] = useState<any>(() => {
     // 서버에서 받은 사용자 투표 데이터를 적절한 형태로 변환
     if (initialUserVotes && initialUserVotes.length > 0) {
       const voteSummary = {
@@ -170,7 +165,7 @@ export function HybridVoteDetailPresenter({
 
 
   // 하이브리드 시스템 상태
-  const [connectionState, setConnectionState] = React.useState<ConnectionState>({
+  const [connectionState, setConnectionState] = useState<ConnectionState>({
     mode: enableRealtime ? 'realtime' : 'static',
     isConnected: false,
     lastUpdate: null,
@@ -179,10 +174,10 @@ export function HybridVoteDetailPresenter({
   });
 
   // 폴링 모드 시작 시간 추적 (최소 폴링 시간 보장용)
-  const [pollingStartTime, setPollingStartTime] = React.useState<Date | null>(null);
+  const [pollingStartTime, setPollingStartTime] = useState<Date | null>(null);
 
   // 연결 품질 모니터링 상태
-  const [connectionQuality, setConnectionQuality] = React.useState<ConnectionQuality>({
+  const [connectionQuality, setConnectionQuality] = useState<ConnectionQuality>({
     score: 100,
     latency: 0,
     errorRate: 0,
@@ -203,26 +198,26 @@ export function HybridVoteDetailPresenter({
   };
 
   // 폴링 관련 ref
-  const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const realtimeSubscriptionRef = React.useRef<any>(null);
-  const qualityCheckIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const realtimeRetryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const realtimeSubscriptionRef = useRef<any>(null);
+  const qualityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const realtimeRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 성능 측정을 위한 ref
-  const requestStartTimeRef = React.useRef<number>(0);
+  const requestStartTimeRef = useRef<number>(0);
 
   // 폴링 관련 상태
-  const [lastPollingUpdate, setLastPollingUpdate] = React.useState<Date | null>(null);
-  const [pollingErrorCount, setPollingErrorCount] = React.useState(0);
+  const [lastPollingUpdate, setLastPollingUpdate] = useState<Date | null>(null);
+  const [pollingErrorCount, setPollingErrorCount] = useState(0);
 
   // 리얼타임 하이라이트 상태
-  const [recentlyUpdatedItems, setRecentlyUpdatedItems] = React.useState<Set<string | number>>(new Set());
+  const [recentlyUpdatedItems, setRecentlyUpdatedItems] = useState<Set<string | number>>(new Set());
   
   // 하이라이트 타이머 관리
-  const highlightTimersRef = React.useRef<Map<string | number, NodeJS.Timeout>>(new Map());
+  const highlightTimersRef = useRef<Map<string | number, NodeJS.Timeout>>(new Map());
 
   // 하이라이트 관리 함수 (메모화)
-  const setItemHighlight = React.useCallback((itemId: number, highlight: boolean, duration: number = 3000) => {
+  const setItemHighlight = useCallback((itemId: number, highlight: boolean, duration: number = 300) => {
     // 기존 타이머가 있다면 정리
     if (highlightTimersRef.current.has(itemId)) {
       clearTimeout(highlightTimersRef.current.get(itemId)!);
@@ -262,7 +257,7 @@ export function HybridVoteDetailPresenter({
   }, []); // 빈 의존성 배열로 안정화
 
   // 컴포넌트 언마운트 시 타이머 정리
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       // 모든 하이라이트 타이머 정리
       highlightTimersRef.current.forEach((timer) => {
@@ -284,7 +279,7 @@ export function HybridVoteDetailPresenter({
   // 전역 알림 사용 (기존 로컬 알림 시스템 제거)
 
   // 연결 상태 변경 알림 (전역 알림 사용)
-  const notifyConnectionStateChange = React.useCallback((from: DataSourceMode, to: DataSourceMode) => {
+  const notifyConnectionStateChange = useCallback((from: DataSourceMode, to: DataSourceMode) => {
     const modeNames = {
       realtime: '실시간',
       polling: '폴링',
@@ -300,7 +295,7 @@ export function HybridVoteDetailPresenter({
   }, [addNotification]);
 
   // 🚀 사용자 정보 가져오기 최적화 - 서버에서 받은 데이터가 없을 때만 클라이언트에서 조회
-  React.useEffect(() => {
+  useEffect(() => {
     if (!initialUser) {
       // 서버에서 사용자 정보를 받지 못한 경우에만 클라이언트에서 조회
       const getUser = async () => {
@@ -312,7 +307,7 @@ export function HybridVoteDetailPresenter({
   }, [supabase, initialUser]);
 
   // 연결 품질 업데이트 (의존성 최적화)
-  const updateConnectionQuality = React.useCallback((success: boolean, responseTime?: number) => {
+  const updateConnectionQuality = useCallback((success: boolean, responseTime?: number) => {
     setConnectionQuality(prev => {
       const newConsecutiveErrors = success ? 0 : prev.consecutiveErrors + 1;
       const newConsecutiveSuccesses = success ? prev.consecutiveSuccesses + 1 : 0;
@@ -343,7 +338,7 @@ export function HybridVoteDetailPresenter({
   }, []); // 빈 의존성 배열로 안정화
 
   // 데이터 업데이트 함수 (폴링용) - 의존성 최적화
-  const updateVoteDataPolling = React.useCallback(async () => {
+  const updateVoteDataPolling = useCallback(async () => {
     if (!vote?.id) return;
     
     // 리얼타임 모드에서는 폴링 함수 실행 중단 (보호 로직)
@@ -537,7 +532,7 @@ export function HybridVoteDetailPresenter({
   }, [vote?.id, user, supabase]); // connectionState.mode, lastPollingUpdate, updateConnectionQuality 제거
 
   // 데이터 업데이트 함수 (리얼타임용) - 의존성 최적화
-  const updateVoteData = React.useCallback(async () => {
+  const updateVoteData = useCallback(async () => {
     if (!vote?.id) return;
     
     try {
@@ -643,7 +638,7 @@ export function HybridVoteDetailPresenter({
   }, [vote.id, supabase, user]); // connectionState.mode 제거
 
   // 폴링 시작 - 의존성 최적화
-  const startPollingMode = React.useCallback(() => {
+  const startPollingMode = useCallback(() => {
     // 이미 폴링 중이라면 중복 시작 방지
     if (pollingIntervalRef.current) {
       if (process.env.NODE_ENV === 'development') {
@@ -677,7 +672,7 @@ export function HybridVoteDetailPresenter({
   }, [vote.id, enableRealtime]); // updateVoteDataPolling 제거
 
   // 리얼타임 연결 시도 - 의존성 최적화
-  const connectRealtime = React.useCallback(async () => {
+  const connectRealtime = useCallback(async () => {
     if (!enableRealtime) {
       if (process.env.NODE_ENV === 'development') {
         console.log('[Realtime] ❌ enableRealtime이 false로 설정됨');
@@ -848,7 +843,7 @@ export function HybridVoteDetailPresenter({
   }, [vote.id, enableRealtime, supabase]); // 의존성 최적화
 
   // 폴링 중단 - 의존성 최적화
-  const stopPollingMode = React.useCallback(() => {
+  const stopPollingMode = useCallback(() => {
     if (pollingIntervalRef.current) {
       if (process.env.NODE_ENV === 'development') {
         console.log('⏹️ [Polling] Stopping polling mode');
@@ -859,7 +854,7 @@ export function HybridVoteDetailPresenter({
   }, []);
 
   // 하이브리드 모드 시작 - 의존성 최적화
-  const startHybridMode = React.useCallback(() => {
+  const startHybridMode = useCallback(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log('🚀 [Hybrid] Starting hybrid mode');
     }
@@ -879,7 +874,7 @@ export function HybridVoteDetailPresenter({
   }, []); // 함수 의존성 제거
 
   // 리얼타임 연결 해제 - 의존성 최적화
-  const disconnectRealtime = React.useCallback(() => {
+  const disconnectRealtime = useCallback(() => {
     if (realtimeSubscriptionRef.current) {
       if (process.env.NODE_ENV === 'development') {
         console.log('🔌 [Realtime] Disconnecting realtime subscription');
@@ -890,7 +885,7 @@ export function HybridVoteDetailPresenter({
   }, []);
 
   // 연결 모니터링 정리 - 의존성 최적화
-  const cleanupConnectionMonitor = React.useCallback(() => {
+  const cleanupConnectionMonitor = useCallback(() => {
     if (qualityCheckIntervalRef.current) {
       clearInterval(qualityCheckIntervalRef.current);
       qualityCheckIntervalRef.current = null;
@@ -902,7 +897,7 @@ export function HybridVoteDetailPresenter({
   }, []);
 
   // 모드 전환 함수 - 의존성 최적화
-  const switchMode = React.useCallback((targetMode: DataSourceMode) => {
+  const switchMode = useCallback((targetMode: DataSourceMode) => {
     const prevMode = connectionState.mode;
     if (process.env.NODE_ENV === 'development') {
       console.log(`[Mode Switch] Switching from ${prevMode} to ${targetMode}`);
@@ -944,7 +939,7 @@ export function HybridVoteDetailPresenter({
   }, []); // 함수 의존성 제거
 
   // 자동 모드 전환 (에러 발생시) - 의존성 최적화
-  React.useEffect(() => {
+  useEffect(() => {
     if (connectionState.errorCount >= maxRetries) {
       if (connectionState.mode === 'realtime') {
         if (process.env.NODE_ENV === 'development') {
@@ -961,7 +956,7 @@ export function HybridVoteDetailPresenter({
   }, [connectionState.errorCount, connectionState.mode, maxRetries]); // switchMode는 안정적이므로 의존성에서 제거 가능
 
   // 연결 모니터링 시스템 초기화 (컴포넌트 마운트 시 한 번만 실행) - 의존성 최적화
-  React.useEffect(() => {
+  useEffect(() => {
     if (enableRealtime) {
       // 하이브리드 모드 시작
       startHybridMode();
@@ -981,7 +976,7 @@ export function HybridVoteDetailPresenter({
   }, [enableRealtime]); // 함수들은 안정적이므로 의존성에서 제거
 
   // 컴포넌트 언마운트 시 정리
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       // 모든 타이머와 구독 정리
       highlightTimersRef.current.forEach((timer) => clearTimeout(timer));
@@ -1006,7 +1001,7 @@ export function HybridVoteDetailPresenter({
   }, []); // 빈 의존성 배열로 마운트/언마운트 시에만 실행
 
   // 남은 시간 계산 및 업데이트
-  React.useEffect(() => {
+  useEffect(() => {
     if (!vote.stop_at || voteStatus !== 'ongoing') return;
 
     const updateTimer = () => {
@@ -1101,7 +1096,7 @@ export function HybridVoteDetailPresenter({
   };
 
   // 성능 최적화된 투표 아이템 필터링 및 정렬
-  const { rankedVoteItems, filteredItems, totalVotes } = React.useMemo(() => {
+  const { rankedVoteItems, filteredItems, totalVotes } = useMemo(() => {
     // recentlyUpdatedItems를 Array로 변환하여 안정적인 참조 생성
     const recentlyUpdatedArray = Array.from(recentlyUpdatedItems);
     
@@ -1152,56 +1147,42 @@ export function HybridVoteDetailPresenter({
   }, [voteItems, debouncedSearchQuery, currentLanguage, recentlyUpdatedItems.size]);
 
   // 투표 제목과 내용 메모이제이션
-  const { voteTitle, voteContent } = React.useMemo(() => ({
+  const { voteTitle, voteContent } = useMemo(() => ({
     voteTitle: getLocalizedString(vote.title, currentLanguage),
     voteContent: getLocalizedString(vote.vote_content, currentLanguage),
   }), [vote.title, vote.vote_content, currentLanguage]);
 
   // 투표 확인 팝업
-  const handleCardClick = async (item: VoteItem) => {
-    console.log('🎯 handleCardClick 시작:', {
-      canVote,
-      itemId: item.id,
-      artistId: item.artist_id,
-      groupId: item.group_id,
-      timestamp: new Date().toISOString(),
-    });
-
-    if (!canVote) {
-      console.log('❌ canVote가 false - 투표 불가능');
+  const handleCardClick = (item: VoteItem) => {
+    console.log(`[HybridVoteDetailPresenter] 카드 클릭됨: vote.partner='${vote.partner}'`);
+    if (vote.partner === 'jma') {
+      addNotification({
+        type: 'info',
+        title: t('common_notice'),
+        message: t('vote_not_available_on_web'),
+      });
       return;
     }
 
-    console.log('🔐 withAuth 호출 시작...');
-
-    // 인증이 필요한 투표 액션을 실행
-    const result = await withAuth(async () => {
-      console.log('✅ withAuth 내부 - 인증 성공, 투표 다이얼로그 표시');
-      // 인증된 사용자만 여기에 도달
-      setVoteCandidate(item);
-      setVoteAmount(1); // 투표량 초기화
-      setShowVoteModal(true);
-      return true;
-    });
-
-    console.log('🔍 withAuth 결과:', result);
-
-    // withAuth가 null을 반환하면 인증 실패 (로그인 다이얼로그 표시됨)
-    // 인증 성공 시에만 result가 true가 됨
-    if (!result) {
-      console.log('❌ 인증 실패 - 투표 다이얼로그 표시하지 않음');
-    } else {
-      console.log('✅ 인증 성공 - 투표 다이얼로그가 표시되어야 함');
+    if (!canVote) {
+      // 투표 기간이 아닌 경우에 대한 알림 (예시)
+      // 필요하다면 여기에 "투표 기간이 아닙니다" 등의 알림을 추가할 수 있습니다.
+      return;
     }
+
+    withAuth(() => {
+      setVoteCandidate(item);
+      setVoteAmount(1);
+      setShowVoteModal(true);
+    });
   };
 
   // 투표 실행
-  const confirmVote = async () => {
+  const handleVoteSubmit = async (amount: number) => {
     if (!voteCandidate || voteAmount <= 0 || voteAmount > availableVotes)
       return;
 
-    // 인증이 필요한 투표 액션을 실행
-    const result = await withAuth(async () => {
+    await withAuth(async (): Promise<void> => {
       setIsVoting(true);
       setShowVoteModal(false);
       try {
@@ -1267,29 +1248,34 @@ export function HybridVoteDetailPresenter({
           message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount} 투표했습니다.`,
           duration: 3000,
         });
+
+        // 로컬 상태 업데이트
+        setVoteItems(prevItems =>
+          prevItems.map((item) =>
+            item.id === voteCandidate?.id
+              ? { ...item, vote_total: (item.vote_total || 0) + amount }
+              : item,
+          ),
+        );
+        addNotification({
+          type: 'success',
+          title: t('common_success'),
+          message: `${amount}표를 성공적으로 투표했습니다.`,
+        });
+
       } catch (error) {
-        console.error('Vote error:', error);
-        
-        // 투표 실패 알림 (전역 알림 사용)
+        console.error('투표 중 오류 발생:', error);
         addNotification({
           type: 'error',
-          title: '투표 실패',
-          message: '투표 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
-          duration: 4000,
+          title: t('common_fail'),
+          message: '투표 중 오류가 발생했습니다.',
         });
       } finally {
         setIsVoting(false);
+        setShowVoteModal(false);
         setVoteCandidate(null);
-        setVoteAmount(1);
       }
-      return true;
     });
-
-    // 인증 실패 시 투표 다이얼로그 유지
-    if (!result) {
-      console.log('투표 인증 실패 - 다이얼로그 유지');
-      // 투표 다이얼로그는 열린 상태로 유지
-    }
   };
 
   // 투표 취소
@@ -1305,7 +1291,7 @@ export function HybridVoteDetailPresenter({
   };
 
   // 헤더 및 검색 높이 측정
-  React.useEffect(() => {
+  useEffect(() => {
     const updateHeights = () => {
       if (headerRef.current) {
         setHeaderHeight(headerRef.current.offsetHeight);
@@ -1344,7 +1330,7 @@ export function HybridVoteDetailPresenter({
   }, [voteTitle, voteContent, voteStatus, availableVotes]);
 
   // 전역 디버깅 함수들 설정
-  React.useEffect(() => {
+  useEffect(() => {
     if (process.env.NODE_ENV !== 'development') {
       return; // 개발 환경이 아니면 디버깅 함수들을 설정하지 않음
     }
@@ -1434,7 +1420,7 @@ export function HybridVoteDetailPresenter({
   }, []); // 의존성 배열을 빈 배열로 변경하여 무한 루프 방지
 
   // 연결 품질 모니터링 - 의존성 최적화
-  const startConnectionQualityMonitor = React.useCallback(() => {
+  const startConnectionQualityMonitor = useCallback(() => {
     if (qualityCheckIntervalRef.current) {
       clearInterval(qualityCheckIntervalRef.current);
     }
@@ -1478,7 +1464,7 @@ export function HybridVoteDetailPresenter({
   }, []); // 상태 의존성 제거
 
   // 리얼타임 재연결 시도 - 의존성 최적화
-  const attemptRealtimeReconnection = React.useCallback(() => {
+  const attemptRealtimeReconnection = useCallback(() => {
     if (realtimeRetryTimeoutRef.current) {
       clearTimeout(realtimeRetryTimeoutRef.current);
     }
@@ -1779,24 +1765,7 @@ export function HybridVoteDetailPresenter({
                 style={{
                   animationDelay: `${index * 50}ms`,
                 }}
-                onClick={() => {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.log('🖱️ [HybridVoteDetailPresenter] 카드 클릭됨:', {
-                      canVote,
-                      itemId: item.id,
-                      artistName: artistName,
-                      timestamp: new Date().toISOString(),
-                    });
-                  }
-
-                  if (canVote) {
-                    handleCardClick(item);
-                  } else {
-                    if (process.env.NODE_ENV === 'development') {
-                      console.log('❌ canVote가 false - 클릭 무시됨');
-                    }
-                  }
-                }}
+                onClick={() => handleCardClick(item)}
               >
                 <Card
                   hoverable={canVote}
