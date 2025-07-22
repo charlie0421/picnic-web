@@ -725,13 +725,18 @@ export const executeCustomQuery = cache(async <T>(
 });
 
 /**
+ * 버전 정보 인터페이스
+ */
+export interface VersionInfo {
+  ios: { version: string; url: string } | null;
+  android: { version: string; url: string } | null;
+  apk: { version: string; url: string } | null;
+}
+
+/**
  * 최신 버전 정보 조회
  */
-export const getLatestVersion = cache(async (): Promise<{
-  ios: any;
-  android: any;
-  apk?: any;
-} | null> => {
+export const getLatestVersion = cache(async (): Promise<VersionInfo | null> => {
   try {
     // 공개 데이터용 클라이언트 사용 (쿠키 없음)
     const { createClient } = await import('@supabase/supabase-js');
@@ -746,18 +751,14 @@ export const getLatestVersion = cache(async (): Promise<{
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .single<VersionInfo>();
 
     if (error) {
       console.warn("버전 정보 조회 실패:", error);
       return null;
     }
 
-    return {
-      ios: data?.ios || null,
-      android: data?.android || null,
-      apk: data?.apk || null,
-    };
+    return data;
   } catch (error) {
     console.warn("버전 정보 조회 중 오류:", error);
     return null;

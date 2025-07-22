@@ -1,14 +1,14 @@
 import React, { ReactNode } from 'react';
 import ClientLayout from '../ClientLayout';
 
-interface MyPageLayoutProps {
+interface AuthLayoutProps {
   children: ReactNode;
   params: Promise<{
     lang: string;
   }>;
 }
 
-export default async function MyPageLayout({ children, params }: MyPageLayoutProps) {
+export default async function AuthLayout({ children, params }: AuthLayoutProps) {
   const { lang } = await params;
 
   return (
@@ -16,4 +16,4 @@ export default async function MyPageLayout({ children, params }: MyPageLayoutPro
       {children}
     </ClientLayout>
   );
-}
+} 

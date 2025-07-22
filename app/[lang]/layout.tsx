@@ -55,17 +55,9 @@ export async function generateMetadata({
 
 export default async function LanguageLayout({
   children,
-  params,
 }: {
   children: ReactNode;
   params: Promise<{ lang: string }>;
 }) {
-  // Next.js 15.3.1에서는 params 전체를 await 해야 함
-  const { lang } = await params;
-
-  return (
-    <div className={inter.className}>
-      <ClientLayout initialLanguage={lang}>{children}</ClientLayout>
-    </div>
-  );
+  return <>{children}</>;
 }
