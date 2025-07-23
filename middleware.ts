@@ -62,7 +62,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(`/vote/${voteId}`, request.url));
   }
 
-  // /download 경로에 대한 특별 처리
+  // /download 또는 /download.html 경로를 먼저 처리
   if (pathname === "/download" || pathname === "/download.html") {
     const preferredLang = getPreferredLanguage(request);
     console.log(`🔄 Download 페이지 리다이렉트: ${pathname} -> /${preferredLang}/download`);
@@ -80,7 +80,7 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
-  // 정적 파일 및 API 경로는 건너뛰기
+  // 정적 파일, API 경로는 언어 처리에서 제외
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/api/") ||
