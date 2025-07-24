@@ -77,7 +77,7 @@ const emptyCookieStore: CookieStore = {
 export async function createServerSupabaseClient() {
   try {
     const { cookies } = await import('next/headers');
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     
     const appRouterCookieStore: CookieStore = {
       get: (name: string) => {

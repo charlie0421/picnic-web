@@ -562,6 +562,21 @@ export async function quickLogout(): Promise<void> {
   console.log('🔄 Starting comprehensive logout process...');
   
   try {
+    // 🚀 서버사이드 세션 무효화 API 호출 (가장 먼저 수행)
+    try {
+      console.log('🔄 [QuickLogout] 서버사이드 세션 무효화 시도...');
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ clearAll: true, timestamp: new Date().toISOString() })
+      });
+      console.log('✅ [QuickLogout] 서버사이드 세션 무효화 요청 완료');
+    } catch (serverError) {
+      console.warn('⚠️ [QuickLogout] 서버사이드 로그아웃 요청 실패 (계속 진행):', serverError);
+    }
+
     // 0. 기존 Supabase 인스턴스 정리 먼저 시도
     try {
       // 기존 클라이언트가 있다면 먼저 정리

@@ -1,5 +1,8 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, Suspense } from 'react';
 import ClientLayout from '../ClientLayout';
+import { MypageHeader } from '@/components/mypage/MypageHeader';
+import { getServerUser } from '@/lib/supabase/server';
+import MainLayoutClient from '../(main)/MainLayoutClient';
 
 interface MyPageLayoutProps {
   children: ReactNode;
@@ -8,12 +11,18 @@ interface MyPageLayoutProps {
   }>;
 }
 
-export default async function MyPageLayout({ children, params }: MyPageLayoutProps) {
-  const { lang } = await params;
+export default async function MyPageLayout(props : MyPageLayoutProps) {
+  const params = await props.params;
+
+  const { children } = props;
+
+  const { lang } = params;
+
+  const user = await getServerUser();
 
   return (
     <ClientLayout initialLanguage={lang}>
-      {children}
+      <MainLayoutClient>{children}</MainLayoutClient>
     </ClientLayout>
   );
 }
