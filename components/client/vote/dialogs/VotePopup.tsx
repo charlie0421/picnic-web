@@ -243,7 +243,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
     } finally {
       setIsVoting(false);
     }
-  }, [user, userBalance, voteAmount, voteId, voteItemId, onVoteSuccess, onClose, t, supabase]);
+  }, [user, userProfile, userBalance, voteAmount, voteId, voteItemId, onVoteSuccess, onClose, t, supabase]);
 
   // 로케일 매핑
   const getLocale = useCallback(() => {

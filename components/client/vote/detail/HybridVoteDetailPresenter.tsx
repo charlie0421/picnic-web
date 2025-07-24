@@ -73,6 +73,7 @@ export function HybridVoteDetailPresenter({
 }: HybridVoteDetailPresenterProps) {
   const { currentLanguage, t } = useLanguageStore();
   const { addNotification } = useNotification();
+  const { userProfile } = useAuth();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
       title: t('dialog_vote_login_title') || t('dialog_login_required_title') || 'Login Required',
@@ -1138,6 +1139,16 @@ export function HybridVoteDetailPresenter({
     if (!canVote) {
       // 투표 기간이 아닌 경우에 대한 알림 (예시)
       // 필요하다면 여기에 "투표 기간이 아닙니다" 등의 알림을 추가할 수 있습니다.
+      return;
+    }
+
+    // 웹에서는 관리자만 투표 가능
+    if (!userProfile?.is_admin) {
+      addNotification({
+        type: 'info',
+        title: t('common_notice'),
+        message: t('vote_not_available_on_web'),
+      });
       return;
     }
 
