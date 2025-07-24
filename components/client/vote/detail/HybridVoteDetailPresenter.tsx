@@ -92,6 +92,9 @@ export function HybridVoteDetailPresenter({
     return isOngoing;
   }, [vote.partner, vote.start_at, vote.stop_at]);
 
+  // 실제 투표 액션 가능 여부 (UI 활성화 제어용)
+  const isVoteActionable = canVote && !!userProfile?.is_admin;
+
   // 기존 상태들 - 초기 데이터를 올바른 형태로 변환
   const [voteItems, setVoteItems] = useState<VoteItem[]>(
     initialItems
@@ -1125,9 +1128,8 @@ export function HybridVoteDetailPresenter({
   }), [vote.title, vote.vote_content, currentLanguage]);
 
   // 투표 확인 팝업
-  const handleCardClick = (item: VoteItem) => {
-    console.log(`[HybridVoteDetailPresenter] 카드 클릭됨: vote.partner='${vote.partner}'`);
-    if (vote.partner === 'jma') {
+  const handleCardClick = async (item: VoteItem) => {
+    if (!isVoteActionable) {
       addNotification({
         type: 'info',
         title: t('common_notice'),
@@ -1136,23 +1138,7 @@ export function HybridVoteDetailPresenter({
       return;
     }
 
-    if (!canVote) {
-      // 투표 기간이 아닌 경우에 대한 알림 (예시)
-      // 필요하다면 여기에 "투표 기간이 아닙니다" 등의 알림을 추가할 수 있습니다.
-      return;
-    }
-
-    // 웹에서는 관리자만 투표 가능
-    if (!userProfile?.is_admin) {
-      addNotification({
-        type: 'info',
-        title: t('common_notice'),
-        message: t('vote_not_available_on_web'),
-      });
-      return;
-    }
-
-    withAuth(() => {
+    withAuth(async () => {
       setVoteCandidate(item);
       setVoteAmount(1);
       setShowVoteModal(true);
@@ -1497,11 +1483,7 @@ export function HybridVoteDetailPresenter({
                         voteTotal={rankedVoteItems[0].vote_total || 0}
                         enableMotionAnimations={true}
                         mode="detail"
-                        onAuthenticatedVote={async () => {
-                          if (canVote) {
-                            await handleCardClick(rankedVoteItems[0]);
-                          }
-                        }}
+                        onAuthenticatedVote={() => handleCardClick(rankedVoteItems[0])}
                       />
                     </div>
                   </div>
@@ -1522,11 +1504,7 @@ export function HybridVoteDetailPresenter({
                           voteTotal={rankedVoteItems[1].vote_total || 0}
                           enableMotionAnimations={true}
                           mode="detail"
-                          onAuthenticatedVote={async () => {
-                            if (canVote) {
-                              await handleCardClick(rankedVoteItems[1]);
-                            }
-                          }}
+                          onAuthenticatedVote={() => handleCardClick(rankedVoteItems[1])}
                         />
                     </div>
                   </div>
@@ -1551,11 +1529,7 @@ export function HybridVoteDetailPresenter({
                           voteTotal={rankedVoteItems[1].vote_total || 0}
                           enableMotionAnimations={true}
                           mode="detail"
-                          onAuthenticatedVote={async () => {
-                            if (canVote) {
-                              await handleCardClick(rankedVoteItems[1]);
-                            }
-                          }}
+                          onAuthenticatedVote={() => handleCardClick(rankedVoteItems[1])}
                         />
                       </div>
                     </div>
@@ -1581,11 +1555,7 @@ export function HybridVoteDetailPresenter({
                           voteTotal={rankedVoteItems[0].vote_total || 0}
                           enableMotionAnimations={true}
                           mode="detail"
-                          onAuthenticatedVote={async () => {
-                            if (canVote) {
-                              await handleCardClick(rankedVoteItems[0]);
-                            }
-                          }}
+                          onAuthenticatedVote={() => handleCardClick(rankedVoteItems[0])}
                         />
                       </div>
                     </div>
@@ -1608,11 +1578,7 @@ export function HybridVoteDetailPresenter({
                           voteTotal={rankedVoteItems[2].vote_total || 0}
                           enableMotionAnimations={true}
                           mode="detail"
-                          onAuthenticatedVote={async () => {
-                            if (canVote) {
-                              await handleCardClick(rankedVoteItems[2]);
-                            }
-                          }}
+                          onAuthenticatedVote={() => handleCardClick(rankedVoteItems[2])}
                         />
                       </div>
                     </div>
@@ -1649,12 +1615,12 @@ export function HybridVoteDetailPresenter({
                 onClick={() => handleCardClick(item)}
               >
                 <Card
-                  hoverable={canVote}
+                  hoverable={isVoteActionable}
                   className={`
                     group relative overflow-hidden border-0 shadow-lg hover:shadow-2xl 
                     transition-all duration-300 cursor-pointer
                     ${
-                      !canVote
+                      !isVoteActionable
                         ? 'opacity-75 grayscale cursor-not-allowed'
                         : 'hover:shadow-blue-200/50 hover:shadow-xl'
                     }
@@ -1699,7 +1665,7 @@ export function HybridVoteDetailPresenter({
                         )}
                       </div>
                     </div>
-                  ) : canVote ? (
+                  ) : isVoteActionable ? (
                     <div className='absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
                       <div className='bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full shadow-lg'>
                         투표
