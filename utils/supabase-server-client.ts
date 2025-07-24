@@ -22,10 +22,8 @@ function assertServerEnvironment() {
  */
 async function createSafeCookieStore() {
   try {
-    // Dynamic import로만 next/headers 로드
     const { cookies } = await import("next/headers");
     
-    // Next.js 15에서는 반드시 async 함수 내에서 호출
     const cookieStore = await cookies();
     
     return {

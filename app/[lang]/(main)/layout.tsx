@@ -4,12 +4,18 @@ import MainLayoutClient from './MainLayoutClient';
 
 interface MainLayoutProps {
   children: ReactNode;
-  params: {
+  params: Promise<{
     lang: string;
-  };
+  }>;
 }
 
-export default async function MainLayout({ children, params }: MainLayoutProps) {
+export default async function MainLayout(props: MainLayoutProps) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const { lang } = params;
 
   return (

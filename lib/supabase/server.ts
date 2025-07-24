@@ -76,9 +76,8 @@ const emptyCookieStore: CookieStore = {
  */
 export async function createServerSupabaseClient() {
   try {
-    // App Router 환경에서만 cookies() API 사용
     const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     
     const appRouterCookieStore: CookieStore = {
       get: (name: string) => {

@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 interface VotePopupProps {
   isOpen: boolean;
@@ -39,6 +41,13 @@ const VotePopup: React.FC<VotePopupProps> = ({
 
   const { t, currentLanguage } = useLanguageStore();
   const { user, userProfile, isAuthenticated } = useAuth();
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSupabase(createBrowserSupabaseClient());
+    }
+  }, []);
 
   // 디버깅: props 로깅 (간소화)
   useEffect(() => {
@@ -185,38 +194,38 @@ const VotePopup: React.FC<VotePopupProps> = ({
 
   // 투표 실행
   const handleVoteSubmit = useCallback(async () => {
-    if (!user || !userBalance) return;
+    if (!user || !userBalance || !supabase) return;
 
     setIsVoting(true);
     setVoteError(null);
 
     try {
-      // 엣지 함수로 전송할 데이터 준비 (PostgreSQL 함수 파라미터 형식에 맞춤)
+      // starCandy 및 starCandyBonus 사용량 계산
+      const bonusUsage = Math.min(voteAmount, userBalance.starCandyBonus);
+      const normalUsage = voteAmount - bonusUsage;
+
+      // 엣지 함수로 전송할 데이터 준비
       const voteData = {
         vote_id: voteId,
         vote_item_id: voteItemId,
         amount: voteAmount,
         user_id: user.id,
-        total_bonus_remain: userBalance.starCandyBonus,
+        star_candy_usage: normalUsage,
+        star_candy_bonus_usage: bonusUsage,
       };
 
       console.log('📤 [VotePopup] 엣지 함수로 전송할 데이터:', voteData);
 
-      // 엣지 함수 voting 호출
-      const response = await fetch('https://api.picnic.fan/functions/v1/voting', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.id}`, // 실제 토큰 방식에 따라 조정 필요
-        },
-        body: JSON.stringify(voteData),
+      // 엣지 함수 voting-v2 호출
+      const { data, error } = await supabase.functions.invoke('voting-v2', {
+        body: voteData,
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || t('vote_popup_vote_failed'));
+      if (error) {
+        throw new Error(error.message || t('vote_popup_vote_failed'));
       }
+      
+      console.log('✅ [VotePopup] 엣지 함수 호출 성공:', data);
 
       // 성공 처리
       setShowSuccess(true);
@@ -234,7 +243,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
     } finally {
       setIsVoting(false);
     }
-  }, [user, userBalance, voteAmount, voteId, voteItemId, onVoteSuccess, onClose, t]);
+  }, [user, userBalance, voteAmount, voteId, voteItemId, onVoteSuccess, onClose, t, supabase]);
 
   // 로케일 매핑
   const getLocale = useCallback(() => {

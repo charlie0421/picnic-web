@@ -2,18 +2,12 @@
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Vote, VoteItem } from '@/types/interfaces';
-import {
-  getVoteStatus,
-  formatRemainingTime,
-  formatTimeUntilStart,
-} from '@/components/server/utils';
+import { getVoteStatus } from '@/components/server/utils';
 import { formatVotePeriodWithTimeZone } from '@/utils/date';
-import { VoteCard, VoteRankCard } from '..';
-import { VoteTimer } from '../common/VoteTimer';
+import { VoteRankCard } from '..';
 import { VoteSearch } from './VoteSearch';
-import { VoteButton } from '../common/VoteButton';
 import { CountdownTimer } from '../common/CountdownTimer';
-import { Badge, Card } from '@/components/common';
+import { Card } from '@/components/common';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
@@ -22,26 +16,7 @@ import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useNotification } from '@/contexts/NotificationContext';
 import VotePopup from '@/components/client/vote/dialogs/VotePopup';
 import { useAuth } from '@/hooks/useAuth';
-
-// 디바운싱 훅 추가
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
-
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
-// 알림 시스템을 위한 타입 정의
-
+import { useDebounce } from '@/hooks';
 
 // 하이브리드 시스템을 위한 타입 정의
 type DataSourceMode = 'realtime' | 'polling' | 'static';
@@ -104,11 +79,9 @@ export function HybridVoteDetailPresenter({
       description: t('dialog_vote_login_description') || t('dialog_login_required_description') || 'You need to log in to use this feature.',
     },
   });
-  const { userProfile } = useAuth();
 
   // 투표 가능 여부 계산 (시간 기준)
   const canVote = React.useMemo(() => {
-    console.log(`[canVote] vote.partner: ${vote.partner}`);
     const now = new Date();
     // JMA 투표(파트너사 투표)는 웹에서 투표 불가
     if (vote.partner === 'jma') {
@@ -127,9 +100,7 @@ export function HybridVoteDetailPresenter({
     }))
     .sort((a, b) => (b.vote_total ?? 0) - (a.vote_total ?? 0))
   );
-  const [selectedItem, setSelectedItem] = useState<VoteItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isVoting, setIsVoting] = useState(false);
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
     hours: number;
@@ -1177,107 +1148,6 @@ export function HybridVoteDetailPresenter({
     });
   };
 
-  // 투표 실행
-  const handleVoteSubmit = async (amount: number) => {
-    if (!voteCandidate || voteAmount <= 0 || voteAmount > availableVotes)
-      return;
-
-    await withAuth(async (): Promise<void> => {
-      setIsVoting(true);
-      setShowVoteModal(false);
-      try {
-        // 실제 투표 API 호출
-        console.log('📤 [HybridVoteDetailPresenter] 투표 제출 시작:', {
-          voteId: vote.id,
-          itemId: voteCandidate.id,
-          amount: voteAmount,
-          userId: user?.id,
-        });
-
-        if (!user?.id) {
-          throw new Error('사용자 정보를 찾을 수 없습니다.');
-        }
-
-        // 투표 API 호출 (VotePopup과 동일한 엔드포인트 사용)
-        const voteData = {
-          vote_id: vote.id,
-          vote_item_id: voteCandidate.id,
-          amount: voteAmount,
-          user_id: user.id,
-          total_bonus_remain: availableVotes, // 사용자 보유 투표권
-        };
-
-        const response = await fetch('https://api.picnic.fan/functions/v1/voting', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.id}`,
-          },
-          body: JSON.stringify(voteData),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || '투표 처리 중 오류가 발생했습니다.');
-        }
-
-        console.log('✅ [HybridVoteDetailPresenter] 투표 제출 성공:', result);
-
-        // 투표 성공 후 즉시 데이터 새로고침 (리얼타임/폴링 모드에 관계없이)
-        if (connectionState.mode === 'polling') {
-          // 폴링 모드: 즉시 데이터 업데이트
-          await updateVoteDataPolling();
-        } else {
-          // 리얼타임 모드: 리얼타임 이벤트를 기다리지만, 백업으로 폴링도 실행
-          setTimeout(async () => {
-            await updateVoteDataPolling();
-          }, 500); // 0.5초 후 백업 업데이트
-        }
-
-        // 사용 가능한 투표량 감소 (로컬 상태)
-        setAvailableVotes((prev) => Math.max(0, prev - voteAmount));
-
-        // 투표한 아이템 하이라이트 (5초간)
-        setItemHighlight(voteCandidate.id, true, 5000);
-        
-        // 투표 성공 알림 (전역 알림 사용)
-        addNotification({
-          type: 'success',
-          title: '투표 완료',
-          message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount} 투표했습니다.`,
-          duration: 3000,
-        });
-
-        // 로컬 상태 업데이트
-        setVoteItems(prevItems =>
-          prevItems.map((item) =>
-            item.id === voteCandidate?.id
-              ? { ...item, vote_total: (item.vote_total || 0) + amount }
-              : item,
-          ),
-        );
-        addNotification({
-          type: 'success',
-          title: t('common_success'),
-          message: `${amount}표를 성공적으로 투표했습니다.`,
-        });
-
-      } catch (error) {
-        console.error('투표 중 오류 발생:', error);
-        addNotification({
-          type: 'error',
-          title: t('common_fail'),
-          message: '투표 중 오류가 발생했습니다.',
-        });
-      } finally {
-        setIsVoting(false);
-        setShowVoteModal(false);
-        setVoteCandidate(null);
-      }
-    });
-  };
-
   // 투표 취소
   const cancelVote = () => {
     setShowVoteModal(false);
@@ -1825,15 +1695,6 @@ export function HybridVoteDetailPresenter({
                       </div>
                     </div>
                   ) : null}
-
-                  {/* 투표 중 오버레이 */}
-                  {isVoting && voteCandidate?.id === item.id && (
-                    <div className='absolute inset-0 bg-blue-500/20 backdrop-blur-sm flex items-center justify-center z-20'>
-                      <div className='bg-white rounded-full p-2 shadow-xl'>
-                        <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin'></div>
-                      </div>
-                    </div>
-                  )}
 
                   <Card.Body className='p-1.5'>
                     <div className='text-center'>

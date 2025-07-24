@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState, useReducer, useMemo } from 'react';
+import { useReducer, useCallback, useRef, useEffect, useMemo } from 'react';
 import { 
   VoteRealtimeService,
   VoteRealtimeEvent, 
@@ -12,22 +12,9 @@ import {
 } from '@/lib/supabase/realtime';
 import { VoteItem } from '@/types/interfaces';
 import { useVoteStore } from '@/stores/voteStore';
+import { useDebounce } from '@/hooks';
 
-// 디바운싱 및 스로틀링 유틸리티
-function useDebounce<T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): T {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  return useCallback((...args: Parameters<T>) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => callback(...args), delay);
-  }, [callback, delay]) as T;
-}
-
+// 스로틀링 유틸리티
 function useThrottle<T extends (...args: any[]) => any>(
   callback: T,
   delay: number
@@ -319,15 +306,15 @@ export function useVoteRealtimeOptimized(
   // Vote 스토어 접근
   const { loadVoteResults } = useVoteStore();
 
-  // 디바운스된 시스템 상태 업데이트 (500ms)
+  // 디바운스된 상태 업데이트 (잦은 업데이트 방지)
   const debouncedUpdateSystemStatus = useDebounce(
     useCallback((updates: Partial<VoteRealtimeState['systemStatus']>) => {
       dispatch({ type: 'UPDATE_SYSTEM_STATUS', payload: updates });
-    }, []),
+    }, [dispatch]),
     500
   );
 
-  // 스로틀된 이벤트 처리 (1000ms)
+  // 스로틀된 상태 업데이트 (UI 부하 감소)
   const throttledEventHandler = useThrottle(
     useCallback((event: VoteRealtimeEvent) => {
       dispatch({ type: 'SET_EVENT', payload: event });
