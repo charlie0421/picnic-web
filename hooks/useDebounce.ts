@@ -53,13 +53,15 @@ function useDebouncedCallback<T extends (...args: any[]) => any>(
  * // 콜백 함수 디바운싱
  * const debouncedSave = useDebounce(handleSave, 1000);
  */
-export function useDebounce<T>(
-  value: T,
-  delay: number
-): T extends (...args: any[]) => any ? T : T {
+export function useDebounce<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number,
+): T;
+export function useDebounce<T>(value: T, delay: number): T;
+export function useDebounce<T>(value: T, delay: number): T {
   if (typeof value === 'function') {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useDebouncedCallback(value as any, delay) as any;
+    return useDebouncedCallback(value as any, delay);
   }
   // eslint-disable-next-line react-hooks/rules-of-hooks
   return useDebouncedValue(value, delay);
