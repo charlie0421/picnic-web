@@ -55,9 +55,19 @@ export async function generateMetadata({
 
 export default async function LanguageLayout({
   children,
+  params: paramsPromise
 }: {
   children: ReactNode;
   params: Promise<{ lang: string }>;
 }) {
-  return <>{children}</>;
+  const params = await paramsPromise;
+  return (
+    <html lang={params.lang} suppressHydrationWarning>
+      <body>
+        <ClientLayout initialLanguage={params.lang}>
+          {children}
+        </ClientLayout>
+      </body>
+    </html>
+  );
 }

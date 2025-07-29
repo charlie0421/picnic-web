@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import React from 'react';
+import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { PortalType } from '@/utils/enums';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/supabase/auth-provider';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface PortalProps {
@@ -14,21 +15,30 @@ interface PortalProps {
 export default function PortalGuard({ type = PortalType.PUBLIC, children }: PortalProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user }, error } = await createBrowserSupabaseClient().auth.getUser();
+  React.useEffect(() => {
+    // 인증 상태 로딩 중에는 아무 작업도 하지 않음
+    if (isLoading) {
+      return;
+    }
 
-      // 인증 상태에 따른 리다이렉션 (getUser는 getSession보다 빠르고 안정적)
-      if (type === PortalType.AUTH && user && !error) {
-        router.push('/');
-      } else if (type === PortalType.AUTH && (!user || error)) {
-        router.push('/login');
-      }
-    };
+    // 인증된 사용자만 접근 가능한 페이지인데, 인증되지 않은 경우
+    if (type === PortalType.PRIVATE && !isAuthenticated) {
+      router.push('/login');
+    }
+    
+    // 인증되지 않은 사용자만 접근 가능한 페이지(예: 로그인)인데, 인증된 경우
+    else if (type === PortalType.AUTH && isAuthenticated) {
+      router.push('/');
+    }
 
-    checkAuth();
-  }, [type, router, pathname]);
+  }, [type, router, pathname, isAuthenticated, isLoading]);
+  
+  // 인증 상태 로딩 중이거나, private 페이지에 인증 없이 접근 시 로딩 표시
+  if ((isLoading && type !== PortalType.PUBLIC) || (type === PortalType.PRIVATE && !isAuthenticated)) {
+    return <div className="flex justify-center items-center h-screen"><LoadingSpinner /></div>;
+  }
 
   return <>{children}</>;
 }

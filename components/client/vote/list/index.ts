@@ -15,6 +15,5 @@ export { VoteResults } from './VoteResults';
 export { VoteItem } from './VoteItem';
 export { VoteSubmit } from './VoteSubmit';
 export { default as OptimizedRealtimeVoteResults } from './OptimizedRealtimeVoteResults';
-
-// 새로운 로딩 통합 컴포넌트
-export { VoteListWithLoading } from './VoteListWithLoading';
+export * from './VoteFilterSection';
+export * from './VoteListPresenter';

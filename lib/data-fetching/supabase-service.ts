@@ -573,14 +573,14 @@ export const insertData = cache(async <T extends TableName>(
 export const updateData = cache(async <T extends TableName>(
   table: T,
   id: string | number,
-  data: any,
+  data: TableUpdate<T>,
   options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<any> => {
+): Promise<TableRow<T>> => {
   const supabase = await createServerSupabaseClient();
   const { data: updatedData, error } = await supabase
     .from(table)
     .update(data)
-    .eq("id" as any, id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -602,14 +602,13 @@ export const deleteData = cache(async <T extends TableName>(
   table: T,
   id: string | number,
   options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<any> => {
+): Promise<TableRow<T>[]> => {
   const supabase = await createServerSupabaseClient();
   const { data: deletedData, error } = await supabase
     .from(table)
     .delete()
-    .eq("id" as any, id)
-    .select()
-    .single();
+    .eq("id", id)
+    .select();
 
   if (error) {
     console.error(`데이터 삭제 오류 (${table} ID:${id}):`, error);
@@ -629,7 +628,7 @@ export const deleteDataSafe = cache(async <T extends TableName>(
   table: T,
   id: string | number,
   options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<any> => {
+): Promise<TableRow<T>[]> => {
   const userContext = await getCurrentUserContext();
   
   if (!userContext.isAuthenticated) {
@@ -646,17 +645,16 @@ export const deleteDataSafe = cache(async <T extends TableName>(
     let query = supabase
       .from(table)
       .delete()
-      .eq("id" as any, id);
+      .eq("id", id);
 
     // 사용자 소유 데이터는 추가 필터링
     const userOwnedTables = ['vote_pick', 'vote_comment'];
     if (userOwnedTables.includes(table) && !userContext.isAdmin && userContext.userId) {
-      query = query.eq('user_id' as any, userContext.userId);
+      query = query.eq('user_id', userContext.userId);
     }
 
     const { data: deletedData, error } = await query
-      .select()
-      .single();
+      .select();
 
     if (error) {
       console.error(`데이터 삭제 오류 (${table} ID:${id}):`, error);
@@ -741,8 +739,8 @@ export const getLatestVersion = cache(async (): Promise<VersionInfo | null> => {
     // 공개 데이터용 클라이언트 사용 (쿠키 없음)
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!
     );
     
     const { data, error } = await supabase
@@ -1138,7 +1136,7 @@ export const getListSafe = cache(async <T>(
       // 사용자 소유 데이터만 조회하는 테이블들
       const userOwnedTables = ['vote_pick', 'vote_comment', 'user_profiles'];
       if (userOwnedTables.includes(table)) {
-        query = query.eq('user_id' as any, userContext.userId);
+        query = query.eq('user_id', userContext.userId);
       }
     }
 
@@ -1307,9 +1305,9 @@ export const insertDataSafe = cache(async <T extends TableName>(
 export const updateDataSafe = cache(async <T extends TableName>(
   table: T,
   id: string | number,
-  data: any,
+  data: TableUpdate<T>,
   options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<any> => {
+): Promise<TableRow<T>> => {
   const userContext = await getCurrentUserContext();
   
   if (!userContext.isAuthenticated) {
@@ -1326,12 +1324,12 @@ export const updateDataSafe = cache(async <T extends TableName>(
     let query = supabase
       .from(table)
       .update(data)
-      .eq("id" as any, id);
+      .eq("id", id);
 
     // 사용자 소유 데이터는 추가 필터링
     const userOwnedTables = ['vote_pick', 'vote_comment', 'user_profiles'];
     if (userOwnedTables.includes(table) && !userContext.isAdmin && userContext.userId) {
-      query = query.eq('user_id' as any, userContext.userId);
+      query = query.eq('user_id', userContext.userId);
     }
 
     const { data: updatedData, error } = await query

@@ -29,7 +29,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
   votes,
   setVotes,
 }) => {
-  const { isAuthenticated, isLoading, user, session } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const { t } = useLanguageStore();
   const { withAuth } = useAuthGuard({
     // 투표별 맞춤 로그인 메시지
@@ -55,27 +55,14 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
       console.log('🔍 [VoteDialog] 인증 상태 검증 시작');
 
       // 1. 기본 인증 상태 체크
-      if (!isAuthenticated || !user || !session) {
+      if (!isAuthenticated || !user) {
         console.warn('❌ [VoteDialog] 기본 인증 상태 실패');
         setAuthVerified(false);
         setVerificationError('로그인이 필요합니다.');
         return false;
       }
 
-      // 2. 세션 만료 체크
-      if (session.expires_at) {
-        const expiryTime = new Date(session.expires_at * 1000);
-        const now = new Date();
-        if (now >= expiryTime) {
-          console.warn('⏰ [VoteDialog] 세션이 만료됨');
-          setAuthVerified(false);
-          setVerificationError('세션이 만료되었습니다. 다시 로그인해주세요.');
-          onClose(); // 다이얼로그 자동 닫기
-          return false;
-        }
-      }
-
-      // 3. 서버 인증 상태 검증
+      // 2. 서버 인증 상태 검증
       try {
         const response = await fetch('/api/auth/verify', {
           method: 'GET',
@@ -122,7 +109,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     if (isOpen && !isLoading) {
       verifyAuthentication();
     }
-  }, [isOpen, isLoading, isAuthenticated, user, session]);
+  }, [isOpen, isLoading, isAuthenticated, user]);
 
   // 인증되지 않은 사용자는 다이얼로그를 표시하지 않음
   if (!isOpen || isLoading || !isAuthenticated || !authVerified) {

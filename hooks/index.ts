@@ -13,7 +13,6 @@ export * from './useDebounce';
 export { useRetryableQuery } from './useRetryableQuery';
 export { useSafeTranslation } from './useSafeTranslation';
 export { useSupabaseQuery } from './useSupabaseQuery';
-export { useRealtimeData } from './useSupabaseRealtime';
 export { useTranslationReady } from './useTranslationReady';
 export { useVoteList } from './useVoteList';
 export { useVoteRealtime } from './useVoteRealtime';

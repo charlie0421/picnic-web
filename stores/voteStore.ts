@@ -1,12 +1,9 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Vote, VoteItem } from '@/types/interfaces';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { 
   submitVote, 
   getVoteResults, 
-  fetchVoteDetail, 
   fetchVoteList,
   calculateVoteStatus,
   calculateTimeLeft,
@@ -157,7 +154,7 @@ interface VoteStore {
 
   // API 연동 액션들
   // 투표 상세 정보 로드
-  loadVoteDetail: (supabaseClient: SupabaseClient, voteId: string | number) => Promise<void>;
+  loadVoteDetail: (voteId: string | number) => Promise<void>;
   
   // 투표 결과 로드
   loadVoteResults: (voteId: number) => Promise<void>;
@@ -672,12 +669,12 @@ export const useVoteStore = create<VoteStore>()(
         // 이벤트 타입별 처리
         switch (event.type) {
           case 'vote_item_updated': {
-            const updatedItem = event.payload;
+            const updatedItem = event.payload.new as VoteItem;
             
             // 현재 결과에서 해당 아이템 업데이트
             const updatedVoteItems = results.voteItems.map(item => 
               item.id === updatedItem.id 
-                ? { ...item, ...updatedItem, vote_total: updatedItem.vote_total || 0 }
+                ? { ...item, ...updatedItem }
                 : item
             );
             
@@ -694,7 +691,7 @@ export const useVoteStore = create<VoteStore>()(
           }
           
           case 'vote_pick_created': {
-            const newPick = event.payload;
+            const newPick = event.payload.new;
             
             // 해당 투표 아이템의 총 투표수 업데이트를 위해 전체 결과 새로고침
             // 실제로는 더 효율적인 방법으로 특정 아이템만 업데이트할 수 있음
@@ -709,7 +706,7 @@ export const useVoteStore = create<VoteStore>()(
           }
           
           case 'vote_updated': {
-            const updatedVote = event.payload;
+            const updatedVote = event.payload.new as Vote;
             
             // 투표 정보 업데이트
             set(
@@ -777,9 +774,7 @@ export const useVoteStore = create<VoteStore>()(
       },
 
       // API 연동 액션들
-      loadVoteDetail: async (supabaseClient, voteId) => {
-        const { currentVote } = get();
-        
+      loadVoteDetail: async (voteId) => {
         set(
           (state) => ({
             currentVote: {
@@ -793,15 +788,24 @@ export const useVoteStore = create<VoteStore>()(
         );
 
         try {
-          const { vote, voteItems, error } = await fetchVoteDetail(supabaseClient, voteId);
+          const response = await fetch(`/api/votes/${voteId}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch vote details');
+          }
           
-          if (error || !vote) {
+          const data = await response.json();
+          const vote = data.data; // API 응답 형식에 맞게 수정
+          const voteItems = vote.vote_item;
+
+
+          if (!vote) {
             set(
               (state) => ({
                 currentVote: {
                   ...state.currentVote,
                   isLoading: false,
-                  error: error || 'Vote not found',
+                  error: 'Vote not found',
                 },
               }),
               false,
@@ -845,7 +849,7 @@ export const useVoteStore = create<VoteStore>()(
               currentVote: {
                 ...state.currentVote,
                 isLoading: false,
-                error: 'Failed to load vote details',
+                error: error instanceof Error ? error.message : 'Failed to load vote details',
               },
             }),
             false,

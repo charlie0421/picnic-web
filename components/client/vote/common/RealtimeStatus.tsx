@@ -63,7 +63,7 @@ export const RealtimeStatus = memo<RealtimeStatusProps>(({
   className = '',
   onStatusChange
 }) => {
-  const { connectionStatus, isConnected, activeSubscriptionsCount } = useVoteConnectionStatus(voteId);
+  const { connectionStatus, isConnected } = useVoteConnectionStatus(voteId);
   
   const config = statusConfig[connectionStatus];
 
@@ -97,11 +97,6 @@ export const RealtimeStatus = memo<RealtimeStatusProps>(({
             <span className={`text-sm font-medium ${config.color}`}>
               {config.label}
             </span>
-            {isConnected && activeSubscriptionsCount > 0 && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                {activeSubscriptionsCount}개 구독
-              </span>
-            )}
           </div>
           {showDetails && (
             <p className="text-xs text-gray-600 mt-1">

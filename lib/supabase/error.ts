@@ -60,6 +60,51 @@ export class AppError extends Error {
   }
 }
 
+export class SupabaseError extends Error {
+  status: number;
+  constructor(message: string, status: number = 500) {
+    super(message);
+    this.name = 'SupabaseError';
+    this.status = status;
+  }
+}
+
+export class SupabaseAuthError extends SupabaseError {
+  constructor(message: string = 'Authentication failed', status: number = 401) {
+    super(message, status);
+    this.name = 'SupabaseAuthError';
+  }
+}
+
+export class SupabaseStorageError extends SupabaseError {
+  constructor(message: string = 'Storage operation failed', status: number = 500) {
+    super(message, status);
+    this.name = 'SupabaseStorageError';
+  }
+}
+
+export class SupabasePostgrestError extends SupabaseError {
+  details: string;
+  hint: string;
+  code: string;
+
+  constructor(
+    message: string,
+    {
+      details = '',
+      hint = '',
+      code = '',
+    }: { details?: string; hint?: string; code?: string },
+    status: number = 400
+  ) {
+    super(message, status);
+    this.name = 'SupabasePostgrestError';
+    this.details = details;
+    this.hint = hint;
+    this.code = code;
+  }
+}
+
 /**
  * PostgreSQL 에러 코드와 관련 정보
  * 

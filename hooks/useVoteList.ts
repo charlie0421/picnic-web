@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { Vote } from '@/types/interfaces';
 import { VoteStatus, VoteArea } from '@/stores/voteFilterStore';
-import { getVotesClient } from '@/lib/data-fetching/vote-service';
+import useSWR from 'swr';
 
 interface UseVoteListParams {
   status?: VoteStatus;
   area?: VoteArea;
+  page?: number;
+  limit?: number;
   initialVotes?: Vote[];
 }
 
@@ -16,49 +16,40 @@ interface UseVoteListReturn {
   votes: Vote[];
   isLoading: boolean;
   error: Error | null;
-  refetch: () => Promise<void>;
+  refetch: () => void;
+  totalCount: number;
+  totalPages: number;
 }
 
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
 /**
- * 투표 리스트를 관리하는 단순화된 훅
+ * 투표 리스트를 관리하는 SWR 기반 훅
  */
 export function useVoteList({ 
   status, 
   area, 
+  page = 1,
+  limit = 10,
   initialVotes = [] 
 }: UseVoteListParams): UseVoteListReturn {
-  const supabase = createBrowserSupabaseClient();
-  const [votes, setVotes] = useState<Vote[]>(initialVotes);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
 
-  const fetchVotes = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const data = await getVotesClient(supabase, status, area);
-      setVotes(data);
-    } catch (err) {
-      console.error('투표 데이터 로드 오류:', err);
-      setError(err as Error);
-      setVotes([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [supabase, status, area]);
-
-  // 초기 로드 및 필터 변경 시 데이터 페칭
-  useEffect(() => {
-    if (initialVotes.length === 0) {
-      fetchVotes();
-    }
-  }, [fetchVotes, initialVotes.length]);
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (area) params.set('area', area);
+  params.set('page', page.toString());
+  params.set('limit', limit.toString());
+  
+  const { data, error, isLoading, mutate } = useSWR(`/api/votes?${params.toString()}`, fetcher, {
+    fallbackData: initialVotes.length > 0 ? { data: initialVotes, count: initialVotes.length } : undefined,
+  });
 
   return {
-    votes,
+    votes: data?.data || [],
     isLoading,
     error,
-    refetch: fetchVotes,
+    refetch: mutate,
+    totalCount: data?.count || 0,
+    totalPages: data?.totalPages || 1,
   };
 } 

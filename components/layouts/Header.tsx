@@ -2,23 +2,38 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Image from 'next/image';
-import {usePathname} from 'next/navigation';
-import {useAuth} from '@/lib/supabase/auth-provider';
-import {useLanguageStore} from '@/stores/languageStore';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/supabase/auth-provider';
+import { useLogout } from '@/lib/auth/logout';
+import { useLanguageStore } from '@/stores/languageStore';
 import NavigationLink from '@/components/client/NavigationLink';
-import {DefaultAvatar, ProfileImageContainer,} from '@/components/ui/ProfileImageContainer';
+import {
+  DefaultAvatar,
+  ProfileImageContainer,
+} from '@/components/ui/ProfileImageContainer';
 import PortalMenuItem from './PortalMenuItem';
 import MobileNavigationMenu from './MobileNavigationMenu';
 import MobilePortalMenu from './MobilePortalMenu';
-import {PORTAL_MENU} from '@/config/navigation';
-import {Menu as MenuIcon, ChevronRight} from 'lucide-react';
+import { PORTAL_MENU } from '@/config/navigation';
+import { Menu as MenuIcon, ChevronRight } from 'lucide-react';
 import LanguageSelector from './LanguageSelector';
+import useSWR from 'swr';
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const Header: React.FC = () => {
-  const { isAuthenticated, userProfile, user, signOut, isLoading, isInitialized } = useAuth();
+  const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth();
+  const performLogout = useLogout();
   const { currentLanguage } = useLanguageStore();
   const pathname = usePathname();
-  
+
+  // SWR로 사용자 프로필 정보 가져오기
+  const { data: profileData, isLoading: isProfileLoading } = useSWR(
+    isAuthenticated && user ? `/api/user/profile?userId=${user.id}` : null,
+    fetcher
+  );
+  const userProfile = profileData?.success ? profileData.user : null;
+
   // 스크롤 상태 관리
   const [isScrolled, setIsScrolled] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -68,88 +83,63 @@ const Header: React.FC = () => {
 
   // 🎯 DB 프로필 이미지만 사용 (OAuth 토큰 이미지 제외)
   const getUserInfo = useCallback(() => {
-    // 1. DB 프로필이 있으면 DB 사용 (사용자가 관리하는 프로필)
     if (userProfile) {
       return {
-        nickname: userProfile.nickname || userProfile.email?.split('@')[0] || user?.email?.split('@')[0] || '사용자',
-        email: userProfile.email || user?.email || '이메일 정보 없음', 
-        avatar_url: userProfile.avatar_url || null, // DB의 프로필 이미지만 사용
+        nickname: userProfile.name || user?.email?.split('@')[0] || '사용자',
+        email: userProfile.email || user?.email || '이메일 정보 없음',
+        avatar_url: userProfile.avatar_url || null,
         provider: 'profile',
-        source: 'userProfile'
+        source: 'userProfile',
       };
     }
-    
-    // 2. DB 프로필이 없을 때는 JWT 토큰의 기본 정보만 사용 (이미지 제외)
     if (user) {
       return {
-        nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || '사용자',
+        nickname: user.email?.split('@')[0] || '사용자',
         email: user.email || '이메일 정보 없음',
-        avatar_url: null, // JWT 토큰의 이미지는 사용하지 않음
+        avatar_url: null,
         provider: user.app_metadata?.provider || 'unknown',
-        source: 'token'
+        source: 'token',
       };
     }
-    
-    // 3. 기본값
     return {
       nickname: '사용자',
       email: '로그인 후 이메일이 표시됩니다',
       avatar_url: null,
       provider: 'none',
-      source: 'default'
+      source: 'default',
     };
-  }, [userProfile, user]); // userProfile 우선
+  }, [userProfile, user]);
 
   // 🔍 안정적인 인증 상태 확인 함수
   const getStableAuthState = useCallback(() => {
-    // 초기화가 완료되지 않은 경우
-    if (!isInitialized) {
+    if (isAuthLoading) {
       return {
         showUserArea: false,
         showHamburger: false,
         showLoading: true,
-        reason: 'not_initialized'
+        reason: 'auth_loading',
       };
     }
-
-    // 로딩 중인 경우
-    if (isLoading) {
-      return {
-        showUserArea: false,
-        showHamburger: false,
-        showLoading: true,
-        reason: 'loading'
-      };
-    }
-
-    // 인증되지 않은 경우
     if (!isAuthenticated || !user) {
       return {
         showUserArea: false,
         showHamburger: true,
         showLoading: false,
-        reason: 'not_authenticated'
+        reason: 'not_authenticated',
       };
     }
-
-    // 인증된 경우 (JWT만 있거나 프로필도 있는 경우 모두 사용자 영역 표시)
     return {
       showUserArea: true,
       showHamburger: false,
       showLoading: false,
-      reason: 'authenticated'
+      reason: 'authenticated',
     };
-  }, [isAuthenticated, user, isLoading, isInitialized]);
+  }, [isAuthenticated, user, isAuthLoading]);
 
   // 🔍 프로필 이미지 로딩 상태 확인
-  const isProfileImageLoading = useCallback(() => {
-    // DB 프로필이 로딩 중인지만 확인 (JWT 이미지는 사용하지 않음)
-    return isAuthenticated && user && userProfile === null;
-  }, [isAuthenticated, user, userProfile]);
-
-  // 사용자 정보 가져오기
+  const isProfileImageLoading = isAuthenticated && isProfileLoading;
+  
   const userInfo = getUserInfo();
-  const profileImageLoading = isProfileImageLoading();
   const stableAuthState = getStableAuthState();
 
   // 디버깅 로그 (개발 환경에서만)
@@ -158,14 +148,13 @@ const Header: React.FC = () => {
       console.log('🔍 [Header] 인증 상태 디버깅:', {
         '📊 기본 상태': {
           isAuthenticated,
-          isLoading,
-          isInitialized,
+          isLoading: isAuthLoading,
           hasUser: !!user,
           hasUserProfile: !!userProfile
         },
         '🎯 계산된 상태': {
           stableAuthState,
-          profileImageLoading,
+          profileImageLoading: isProfileImageLoading,
           userInfo: {
             source: userInfo.source,
             hasAvatar: !!userInfo.avatar_url,
@@ -175,7 +164,7 @@ const Header: React.FC = () => {
       });
 
       // 🚨 관리자 권한 상태 별도 로깅
-      if (isAuthenticated && !isLoading) {
+      if (isAuthenticated && !isAuthLoading) {
         const isAdminFromProfile = userProfile?.is_admin;
         const isSuperAdminFromProfile = userProfile?.is_super_admin;
         const isAdminFromMetadata = user?.user_metadata?.is_admin;
@@ -186,14 +175,14 @@ const Header: React.FC = () => {
         // 🐛 개발 환경 임시 관리자 체크
         const isDevTempAdmin = process.env.NODE_ENV === 'development' && 
                               isAuthenticated && 
-                              !isLoading && 
+                              !isAuthLoading && 
                               !userProfile &&
                               user;
 
         // 🔧 개발 환경 fallback 관리자 체크
         const isDevFallbackAdmin = process.env.NODE_ENV === 'development' && 
                                   isAuthenticated && 
-                                  !isLoading &&
+                                  !isAuthLoading &&
                                   user &&
                                   (Date.now() - (window as any).authStartTime || 0) > 2000;
 
@@ -213,7 +202,7 @@ const Header: React.FC = () => {
         });
       }
     }
-  }, [isAuthenticated, isLoading, userProfile, user, stableAuthState, profileImageLoading]);
+  }, [isAuthenticated, isAuthLoading, userProfile, user, stableAuthState, isProfileImageLoading]);
 
   return (
     <header className='border-b border-gray-200 bg-white relative'>
@@ -278,7 +267,7 @@ const Header: React.FC = () => {
                       }
 
                       // 🔄 userProfile 로딩 상태 체크
-                      const isUserProfileLoading = isAuthenticated && !userProfile && !isLoading;
+                      const isUserProfileLoading = isAuthenticated && !userProfile && !isAuthLoading;
 
                       // userProfile이 아직 로딩 중이면 메뉴를 숨김 (로딩 후 점진적 표시)
                       if (isUserProfileLoading) {
@@ -297,14 +286,14 @@ const Header: React.FC = () => {
                       // 🐛 개발 환경에서 userProfile이 없는 경우 임시 관리자 권한 부여
                       const isDevTempAdmin = process.env.NODE_ENV === 'development' && 
                                             isAuthenticated && 
-                                            !isLoading && 
+                                            !isAuthLoading && 
                                             !userProfile &&
                                             user; // JWT 사용자가 있으면 임시 관리자로 간주
 
                       // 🔧 개발 환경에서 userProfile 로딩이 실패한 경우도 고려
                       const isDevFallbackAdmin = process.env.NODE_ENV === 'development' && 
                                                 isAuthenticated && 
-                                                !isLoading &&
+                                                !isAuthLoading &&
                                                 user &&
                                                 // userProfile이 2초 이상 로드되지 않으면 개발환경에서는 관리자로 간주
                                                 (Date.now() - (window as any).authStartTime || 0) > 2000;
@@ -377,7 +366,7 @@ const Header: React.FC = () => {
                   href='/mypage' 
                   className='block w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-lg overflow-hidden'
                 >
-                  {profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
+                  {isProfileImageLoading ? (
                     // DB 프로필 로딩 중이거나 프로필 이미지가 없는 경우 shimmer 효과만 표시
                     <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200"></div>
                   ) : userInfo.avatar_url ? (

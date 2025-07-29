@@ -449,7 +449,7 @@ export function useVoteRealtimeEnhanced(
         serviceRef.current.removeDataSyncCallback(voteId);
       }
       
-      serviceRef.current.unsubscribeAll();
+      serviceRef.current.disconnectAll();
       serviceRef.current = null;
     }
     

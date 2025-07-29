@@ -1,24 +1,17 @@
-import React, { Suspense } from 'react';
-import { VoteDetailFetcher } from '@/components/server/vote/VoteDetailFetcher';
-import { LoadingState } from '@/components/server';
+'use client';
 
-interface VoteDetailProps {
-  id: string;
-}
+import React from 'react';
+import { HybridVoteDetailPresenter } from '@/components/client/vote/detail/HybridVoteDetailPresenter';
 
-/**
- * VoteDetail 공유 컴포넌트
- * 
- * 이 컴포넌트는 서버 컴포넌트와 클라이언트 컴포넌트 사이의 브릿지 역할을 합니다.
- * 페이지에서는 이 컴포넌트를 사용하여 필요한 데이터를 서버에서 가져오고
- * 클라이언트 측 상호작용을 처리합니다.
- */
-export default function VoteDetail({ id }: VoteDetailProps) {
+// 이제 voteData는 항상 존재한다고 가정하고, 로딩 상태는 상위 Suspense에서 처리합니다.
+const VoteDetail = ({ voteData }: { voteData: any }) => {
   return (
-    <Suspense 
-      fallback={<LoadingState message="투표 정보를 불러오고 있습니다..." />}
-    >
-      <VoteDetailFetcher voteId={id} />
-    </Suspense>
+    <HybridVoteDetailPresenter
+      vote={voteData.vote}
+      initialItems={voteData.voteItems}
+      rewards={voteData.rewards}
+    />
   );
-} 
+};
+
+export default VoteDetail; 

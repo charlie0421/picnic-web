@@ -1163,6 +1163,18 @@ export interface VoteShareBonus {
   userProfiles?: UserProfiles;
 }
 
+export interface UserVote {
+  userId: string;
+  voteId: number;
+  totalVotes: number;
+  voteCount: number;
+  votes: {
+    vote_item_id: number;
+    amount: number;
+  }[];
+  allVoteItems: number[];
+}
+
 export interface ViewTransactionAll {
   ad_network: string | null
   commission: number | null

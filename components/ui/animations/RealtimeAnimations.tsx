@@ -30,6 +30,10 @@ export function AnimatedCount({
     Math.floor(latest).toLocaleString(locale)
   );
 
+  useEffect(() => {
+    springValue.set(value);
+  }, [springValue, value]);
+
   return (
     <motion.span 
       className={className}

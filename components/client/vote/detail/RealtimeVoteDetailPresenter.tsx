@@ -17,7 +17,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/supabase/auth-provider';
 
 // Task 4에서 만든 리얼타임 컴포넌트들 import
 import { useVoteRealtime } from '@/hooks/useVoteRealtime';
@@ -47,6 +47,7 @@ export function RealtimeVoteDetailPresenter({
         '이 투표에 참여하려면 로그인이 필요합니다. 로그인하시겠습니까?',
     },
   });
+  const { user } = useAuth();
 
   // 기존 상태들
   const [selectedItem, setSelectedItem] = useState<VoteItem | null>(null);
@@ -77,9 +78,6 @@ export function RealtimeVoteDetailPresenter({
     isConnected,
     lastEvent,
     eventCount,
-    connect,
-    disconnect,
-    cleanup
   } = useVoteRealtime({
     voteId: vote.id,
     autoConnect: true,
@@ -88,28 +86,28 @@ export function RealtimeVoteDetailPresenter({
       
       // 이벤트에 따라 상태 업데이트
       if (event.type === 'vote_item_updated' && event.payload) {
-        const voteItem = event.payload;
+        const updatedItem = event.payload as unknown as VoteItem;
         
         setRealtimeVoteItems(prev => 
           prev.map(item => 
-            item.id === voteItem.id 
-              ? { ...item, vote_total: voteItem.vote_total }
+            item.id === updatedItem.id 
+              ? { ...item, vote_total: updatedItem.vote_total }
               : item
           )
         );
         
         // 총 투표 수 재계산
         setRealtimeTotalVotes(prev => {
-          const currentItem = realtimeVoteItems.find(item => item.id === voteItem.id);
+          const currentItem = realtimeVoteItems.find(item => item.id === updatedItem.id);
           const oldTotal = currentItem?.vote_total || 0;
-          return prev - oldTotal + (voteItem.vote_total || 0);
+          return prev - oldTotal + (updatedItem.vote_total || 0);
         });
-      } else if (event.type === 'vote_pick_created' && event.payload) {
+      } else if (event.type === 'vote_pick_created') {
         // 새로운 투표가 생성되었을 때의 처리
-        const votePick = event.payload;
-        console.log('새로운 투표 생성:', votePick);
-        // 여기서는 vote_item의 총합을 다시 계산해야 하지만
-        // 실제로는 데이터베이스 트리거에서 vote_item_updated 이벤트가 발생할 것입니다.
+        // 데이터베이스 트리거가 vote_item을 업데이트하므로,
+        // 클라이언트에서는 별도 처리가 필요 없을 수 있음.
+        // 필요한 경우, 여기서 관련 아이템을 다시 fetch 할 수 있음.
+        console.log('새로운 투표 생성:', event.payload);
       }
     },
     onConnectionStatusChange: (status) => {
@@ -153,13 +151,6 @@ export function RealtimeVoteDetailPresenter({
 
     return () => clearInterval(timer);
   }, [vote.stop_at, voteStatus]);
-
-  // 컴포넌트 언마운트 시 정리
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, [cleanup]);
 
   // 투표 기간 포맷팅 (시간대 정보 포함)
   const formatVotePeriod = () => {
@@ -298,39 +289,26 @@ export function RealtimeVoteDetailPresenter({
 
   // 투표 실행
   const confirmVote = async () => {
-    if (!voteCandidate || !canVote || isVoting) return;
+    if (!voteCandidate || !canVote || isVoting || !user) return;
 
     setIsVoting(true);
     try {
-      // 실제 투표 API 호출
       console.log('📤 [RealtimeVoteDetailPresenter] 투표 제출 시작:', {
         voteId: vote.id,
         voteItemId: voteCandidate.id,
         amount: voteAmount,
       });
 
-      // 사용자 정보 확인 (실제 구현에서는 인증된 사용자 정보 사용)
-      const supabase = createBrowserSupabaseClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user?.id) {
-        throw new Error('사용자 정보를 찾을 수 없습니다.');
-      }
-
-      // 투표 API 호출
       const voteData = {
         vote_id: vote.id,
         vote_item_id: voteCandidate.id,
         amount: voteAmount,
-        user_id: user.id,
-        total_bonus_remain: availableVotes,
       };
 
-      const response = await fetch('https://api.picnic.fan/functions/v1/voting', {
+      const response = await fetch('/api/vote/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.id}`,
         },
         body: JSON.stringify(voteData),
       });
@@ -587,14 +565,6 @@ export function RealtimeVoteDetailPresenter({
             <p>이벤트 수: {eventCount}</p>
             <p>마지막 이벤트: {lastEvent ? new Date().toLocaleTimeString() : 'None'}</p>
             <p>연결 상태: {connectionStatus}</p>
-            {!isConnected && (
-              <button 
-                onClick={connect}
-                className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-              >
-                수동 재연결
-              </button>
-            )}
           </div>
         </motion.div>
       )}

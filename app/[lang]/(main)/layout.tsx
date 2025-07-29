@@ -20,7 +20,9 @@ export default async function MainLayout(props: MainLayoutProps) {
 
   return (
     <ClientLayout initialLanguage={lang}>
-      <MainLayoutClient>{children}</MainLayoutClient>
+      <MainLayoutClient>
+        {children}
+      </MainLayoutClient>
     </ClientLayout>
   );
 }

@@ -7,5 +7,5 @@
 
 export { VoteListFetcher } from './VoteListFetcher';
 export { BannerListFetcher } from '../banner/BannerListFetcher';
-export { VoteDetailFetcher } from './VoteDetailFetcher';
+export { default as VoteDetailFetcher } from './VoteDetailFetcher';
 export { default as VoteListSkeleton } from './VoteListSkeleton';

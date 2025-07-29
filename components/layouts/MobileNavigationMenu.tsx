@@ -24,13 +24,22 @@ import {
 } from 'lucide-react';
 import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 import { useTranslations } from '@/hooks/useTranslations';
+import useSWR from 'swr';
 
 interface MobileNavigationMenuProps {
   className?: string;
 }
 
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
 const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className = '' }) => {
-  const { isAuthenticated, userProfile, user, isLoading } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
+  const { data: profileData, isLoading: isProfileLoading } = useSWR(
+    isAuthenticated && user ? `/api/user/profile?userId=${user.id}` : null, 
+    fetcher
+  );
+  const userProfile = profileData?.success ? profileData.user : null;
+  
   const { currentLocale, getLocalizedPath } = useLocaleRouter();
   const { isLoading: globalLoading, setIsLoading, forceStopLoading } = useGlobalLoading();
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +74,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
 
   // 안정적인 인증 상태 관리
   const stableAuthState = {
-    showLoading: isLoading && !isAuthenticated, // 인증되지 않은 상태에서만 로딩 표시
+    showLoading: isLoading,
     showUserArea: !isLoading && isAuthenticated,
     showGuestArea: !isLoading && !isAuthenticated,
   };
@@ -73,7 +82,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   // 사용자 정보 (안전하게 접근) - DB 프로필만 사용
   const userInfo = {
     avatar_url: userProfile?.avatar_url || null,
-    name: userProfile?.nickname || user?.user_metadata?.full_name || user?.email || null,
+    name: userProfile?.name || user?.email || null,
     is_admin: userProfile?.is_admin || false,
     star_candy: userProfile?.star_candy || 0,
     star_candy_bonus: userProfile?.star_candy_bonus || 0,
@@ -91,7 +100,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   };
 
   // 프로필 이미지 로딩 상태
-  const profileImageLoading = stableAuthState.showUserArea && !userInfo.name && isLoading;
+  const profileImageLoading = stableAuthState.showUserArea && isProfileLoading;
 
   // 관리자 권한에 따른 메뉴 필터링
   const getFilteredMenuItems = () => {
@@ -176,7 +185,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
           ) : stableAuthState.showUserArea ? (
             // 인증된 사용자 - 프로필 이미지 (크기를 24x24로 더 줄임)
-            profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
+            profileImageLoading ? (
               <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
             ) : userInfo.avatar_url ? (
               <ProfileImageContainer
@@ -204,7 +213,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
           {/* 심플한 사용자 정보 헤더 */}
           <div className="bg-gray-50 p-2.5 border-b border-gray-200">
             <div className="flex items-center space-x-2">
-              {profileImageLoading || (isAuthenticated && !userInfo.avatar_url && userProfile === null) ? (
+              {profileImageLoading ? (
                 <div className="w-6 h-6 rounded-md shimmer-effect bg-gray-200" />
               ) : userInfo.avatar_url ? (
                 <ProfileImageContainer

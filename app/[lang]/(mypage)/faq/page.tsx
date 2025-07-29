@@ -1,175 +1,54 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import React, { useState } from 'react';
+import useSWR from 'swr';
 import { getLocalizedString } from '@/utils/api/strings';
 import { useParams } from 'next/navigation';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
-import { useLanguageStore } from '@/stores/languageStore';
 
-interface MultilingualText {
-  en?: string;
-  ko?: string;
-  ja?: string;
-  zh?: string;
-  id?: string;
-}
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-interface FAQ {
-  id: number;
-  question: MultilingualText;
-  answer: MultilingualText;
-  category: string | null;
-  order_number: number | null;
-  status: string | null;
-}
-
-const FAQPage = () => {
-  const [faqs, setFaqs] = useState<FAQ[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [openFaqId, setOpenFaqId] = useState<number | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+const FaqPageClient = () => {
   const params = useParams();
-  const currentLang = (params?.lang as string) || 'ko';
-  const { t } = useLanguageStore();
-  useEffect(() => {
-    const fetchFaqs = async () => {
-      try {
-        const { data, error } = await createBrowserSupabaseClient()
-          .from('faqs')
-          .select('*')
-          .eq('status', 'PUBLISHED')
-          .order('order_number', { ascending: true });
-
-        if (error) throw error;
-        
-        // 데이터베이스 데이터를 FAQ 타입으로 변환
-        const transformedFaqs: FAQ[] = (data || []).map(item => ({
-          id: item.id,
-          question: item.question as MultilingualText,
-          answer: item.answer as MultilingualText,
-          category: item.category,
-          order_number: item.order_number,
-          status: item.status
-        }));
-        
-        setFaqs(transformedFaqs);
-      } catch (error) {
-        console.error('FAQ를 불러오는 중 오류가 발생했습니다:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFaqs();
-  }, []);
-
-  const getLocalizedText = (text: MultilingualText): string => {
-    if (typeof text === 'string') return text;
-    return (
-      text[currentLang as keyof MultilingualText] || text.ko || text.en || ''
-    );
-  };
+  const lang = params.lang as string;
+  const { data: faqs, error } = useSWR(`/api/faqs?lang=${lang}`, fetcher);
+  const [openId, setOpenId] = useState<number | null>(null);
 
   const toggleFaq = (id: number) => {
-    setOpenFaqId(openFaqId === id ? null : id);
+    setOpenId(openId === id ? null : id);
   };
 
-  // 카테고리 목록 추출
-  const categories = [
-    'all',
-    ...Array.from(
-      new Set(faqs.map((faq) => faq.category).filter(Boolean) as string[]),
-    ),
-  ];
-
-  // 선택된 카테고리에 따른 FAQ 필터링
-  const filteredFaqs =
-    selectedCategory === 'all'
-      ? faqs
-      : faqs.filter((faq) => faq.category === selectedCategory);
-
-  if (loading) {
-    return (
-      <div className='min-h-screen flex justify-center items-center'>
-        <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500'></div>
-      </div>
-    );
-  }
+  if (error) return <div>Failed to load FAQs.</div>;
+  if (!faqs) return <div>Loading...</div>;
 
   return (
-    <div className='container mx-auto px-4 py-6'>
-      <div className='bg-white rounded-lg shadow-md p-6'>
-        <h1 className='text-2xl font-bold mb-6 text-gray-900'>
-          {t('label_mypage_faq')}
-        </h1>
-
-        {/* 카테고리 선택 */}
-        <div className='mb-8'>
-          <div className='flex flex-wrap gap-4'>
-            {categories.map((category) => (
-              <label
-                key={category}
-                className='inline-flex items-center cursor-pointer'
-              >
-                <input
-                  type='radio'
-                  name='category'
-                  value={category}
-                  checked={selectedCategory === category}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className='hidden'
-                />
-                <span
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors
-                    ${
-                      selectedCategory === category
-                        ? 'bg-primary-100 text-primary-800'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                >
-                  {t(`faq_category_${category.toLowerCase()}`)}
-                </span>
-              </label>
-            ))}
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">자주 묻는 질문</h1>
+      <div className="space-y-4">
+        {faqs.map((faq: any) => (
+          <div key={faq.id} className="border-b">
+            <button
+              onClick={() => toggleFaq(faq.id)}
+              className="w-full text-left py-4 flex justify-between items-center"
+            >
+              <span className="font-semibold">{faq.question}</span>
+              <ChevronDownIcon
+                className={`w-5 h-5 transition-transform ${
+                  openId === faq.id ? 'transform rotate-180' : ''
+                }`}
+              />
+            </button>
+            {openId === faq.id && (
+              <div
+                className="pb-4 pr-8 text-gray-600"
+                dangerouslySetInnerHTML={{ __html: faq.answer }}
+              />
+            )}
           </div>
-        </div>
-
-        <div className='space-y-4'>
-          {filteredFaqs.length === 0 ? (
-            <p className='text-gray-600'>해당 카테고리의 FAQ가 없습니다.</p>
-          ) : (
-            <div className='divide-y divide-gray-200'>
-              {filteredFaqs.map((faq) => (
-                <div key={faq.id} className='py-4'>
-                  <button
-                    onClick={() => toggleFaq(faq.id)}
-                    className='w-full flex items-center justify-between text-left'
-                  >
-                    <div className='flex items-center space-x-2'>
-                      <span className='text-lg font-semibold text-gray-900'>
-                        {getLocalizedText(faq.question)}
-                      </span>
-                    </div>
-                    <ChevronDownIcon
-                      className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${
-                        openFaqId === faq.id ? 'transform rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-                  {openFaqId === faq.id && (
-                    <div className='mt-4 pl-2 text-gray-600 whitespace-pre-wrap'>
-                      {getLocalizedText(faq.answer)}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        ))}
       </div>
     </div>
   );
 };
 
-export default FAQPage;
+export default FaqPageClient;

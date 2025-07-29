@@ -11,17 +11,7 @@ export async function GET(request: NextRequest) {
     console.log('🔍 [Auth Verify API] 인증 상태 검증 요청 받음');
 
     // App Router에서 쿠키를 읽을 수 있는 서버사이드 Supabase 클라이언트 생성
-    const cookieStore = await cookies();
-    
-    const supabase = createServerSupabaseClientWithCookies({
-      get: (name: string) => {
-        const cookie = cookieStore.get(name);
-        return cookie ? { name: cookie.name, value: cookie.value } : undefined;
-      },
-      set: (cookie: { name: string; value: string; [key: string]: any }) => {
-        cookieStore.set(cookie.name, cookie.value, cookie);
-      }
-    });
+    const supabase = await createServerSupabaseClientWithCookies();
 
     console.log('🔍 [Auth Verify API] Supabase 클라이언트 생성 완료');
 

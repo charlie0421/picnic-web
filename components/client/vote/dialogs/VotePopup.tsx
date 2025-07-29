@@ -4,8 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
-import { SupabaseClient } from '@supabase/supabase-js';
+import useSWR from 'swr';
 
 interface VotePopupProps {
   isOpen: boolean;
@@ -22,6 +21,8 @@ interface UserBalance {
   totalAvailable: number;
 }
 
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
 const VotePopup: React.FC<VotePopupProps> = ({
   isOpen,
   onClose,
@@ -32,131 +33,33 @@ const VotePopup: React.FC<VotePopupProps> = ({
 }) => {
   const [voteAmount, setVoteAmount] = useState(1);
   const [useAllVotes, setUseAllVotes] = useState(false);
-  const [userBalance, setUserBalance] = useState<UserBalance | null>(null);
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const [balanceError, setBalanceError] = useState<string | null>(null);
 
   const { t, currentLanguage } = useLanguageStore();
-  const { user, userProfile, isAuthenticated } = useAuth();
-  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setSupabase(createBrowserSupabaseClient());
-    }
-  }, []);
+  // SWR을 사용하여 사용자 프로필(잔액) 정보 가져오기
+  const { 
+    data: profileData, 
+    error: balanceError, 
+    isLoading: isLoadingBalance,
+    mutate: mutateProfile 
+  } = useSWR(isOpen && user ? `/api/user/profile?userId=${user.id}` : null, fetcher, {
+    revalidateOnFocus: false,
+  });
 
-  // 디버깅: props 로깅 (간소화)
-  useEffect(() => {
-    if (isOpen && process.env.NODE_ENV === 'development') {
-      console.log('🔍 [VotePopup] 상태 확인:', {
-        voteId,
-        voteItemId,
-        artistName,
-        userId: user?.id?.substring(0, 8) + '...',
-        isAuthenticated,
-        userProfile: userProfile ? '로드됨' : 'null',
-        userBalance: userBalance ? `총 ${userBalance.totalAvailable}개` : 'null',
-        isLoadingBalance,
-        balanceError: balanceError || 'none'
-      });
-    }
-  }, [isOpen, userProfile, userBalance, isLoadingBalance, balanceError, user, isAuthenticated, voteId, voteItemId, artistName]);
-
-
-
-  // 사용자 잔액 로드
-  useEffect(() => {
-    if (isOpen && user) {
-      if (userProfile) {
-        // userProfile이 있는 경우: 기존 로직
-        const balance: UserBalance = {
-          starCandy: userProfile.star_candy || 0,
-          starCandyBonus: userProfile.star_candy_bonus || 0,
-          totalAvailable: (userProfile.star_candy || 0) + (userProfile.star_candy_bonus || 0),
-        };
-        setUserBalance(balance);
-        console.log('✅ [VotePopup] userProfile에서 캔디 정보 로드:', balance);
-      } else {
-        // userProfile이 없는 경우: 서버에서 직접 가져오기 (JWT 토큰 기반 인증 대응)
-        console.log('🔄 [VotePopup] userProfile이 없어서 서버에서 캔디 정보 가져오는 중...');
-        fetchUserBalance();
-      }
-    }
-  }, [isOpen, userProfile, user]);
-
-  // 서버에서 캔디 정보 직접 가져오기
-  const fetchUserBalance = async () => {
-    if (!user?.id) {
-      console.error('❌ [VotePopup] user.id가 없습니다.');
-      setBalanceError('사용자 정보가 없습니다.');
-      return;
-    }
-
-    setIsLoadingBalance(true);
-    setBalanceError(null);
-
-    try {
-      console.log('📡 [VotePopup] 서버에서 캔디 정보 요청 중...', { userId: user.id });
-      
-      // 사용자 프로필 정보를 서버에서 가져오기
-      const response = await fetch(`/api/user/profile?userId=${user.id}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server response: ${response.status}`);
-      }
-
-      const profileData = await response.json();
-      console.log('📡 [VotePopup] 서버 응답:', profileData);
-
-      if (profileData.success && profileData.user) {
-        const balance: UserBalance = {
-          starCandy: profileData.user.star_candy || 0,
-          starCandyBonus: profileData.user.star_candy_bonus || 0,
-          totalAvailable: (profileData.user.star_candy || 0) + (profileData.user.star_candy_bonus || 0),
-        };
-        setUserBalance(balance);
-        setBalanceError(null);
-        console.log('✅ [VotePopup] 서버에서 캔디 정보 로드 성공:', balance);
-      } else {
-        const errorMsg = profileData.message || '캔디 정보를 불러올 수 없습니다.';
-        console.warn('⚠️ [VotePopup] 서버 응답 구조가 올바르지 않습니다:', profileData);
-        setBalanceError(errorMsg);
-        // 기본값 설정
-        setUserBalance({
-          starCandy: 0,
-          starCandyBonus: 0,
-          totalAvailable: 0,
-        });
-      }
-    } catch (error) {
-      console.error('❌ [VotePopup] 캔디 정보 가져오기 실패:', error);
-      setBalanceError('네트워크 오류가 발생했습니다.');
-      // 네트워크 오류 시 기본값 설정
-      setUserBalance({
-        starCandy: 0,
-        starCandyBonus: 0,
-        totalAvailable: 0,
-      });
-    } finally {
-      setIsLoadingBalance(false);
-    }
-  };
-
+  const userBalance: UserBalance | null = profileData?.success ? {
+    starCandy: profileData.user.star_candy || 0,
+    starCandyBonus: profileData.user.star_candy_bonus || 0,
+    totalAvailable: profileData.user.total_candy || 0,
+  } : null;
+  
   // 전체 사용 체크박스 핸들러
   const handleUseAllChange = useCallback((checked: boolean) => {
     setUseAllVotes(checked);
     if (checked && userBalance) {
-      // 보유한 전체 투표권 설정
       setVoteAmount(userBalance.totalAvailable);
     } else {
       setVoteAmount(1);
@@ -171,7 +74,6 @@ const VotePopup: React.FC<VotePopupProps> = ({
     const newAmount = Math.max(1, Math.min(amount, maxAmount));
     setVoteAmount(newAmount);
     
-    // 전체 사용 체크박스 상태 업데이트
     setUseAllVotes(newAmount === maxAmount);
   }, [userBalance]);
 
@@ -179,7 +81,6 @@ const VotePopup: React.FC<VotePopupProps> = ({
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     
-    // 빈 값이면 1로 설정 (최소값 보장)
     if (value === '' || value === '0') {
       setVoteAmount(1);
       setUseAllVotes(false);
@@ -194,44 +95,38 @@ const VotePopup: React.FC<VotePopupProps> = ({
 
   // 투표 실행
   const handleVoteSubmit = useCallback(async () => {
-    if (!user || !userBalance || !supabase) return;
+    if (!user || !userBalance) return;
 
     setIsVoting(true);
     setVoteError(null);
 
     try {
-      // starCandy 및 starCandyBonus 사용량 계산
-      const bonusUsage = Math.min(voteAmount, userBalance.starCandyBonus);
-      const normalUsage = voteAmount - bonusUsage;
-
-      // 엣지 함수로 전송할 데이터 준비
       const voteData = {
         vote_id: voteId,
         vote_item_id: voteItemId,
         amount: voteAmount,
-        user_id: user.id,
-        star_candy_usage: normalUsage,
-        star_candy_bonus_usage: bonusUsage,
       };
 
-      console.log('📤 [VotePopup] 엣지 함수로 전송할 데이터:', voteData);
-
-      // 엣지 함수 voting-v2 호출
-      const { data, error } = await supabase.functions.invoke('voting-v2', {
-        body: voteData,
+      const response = await fetch('/api/vote/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(voteData),
       });
 
-      if (error) {
-        throw new Error(error.message || t('vote_popup_vote_failed'));
-      }
-      
-      console.log('✅ [VotePopup] 엣지 함수 호출 성공:', data);
+      const result = await response.json();
 
-      // 성공 처리
+      if (!response.ok) {
+        throw new Error(result.error || t('vote_popup_vote_failed'));
+      }
+
+      console.log('✅ [VotePopup] 투표 제출 성공:', result);
+      
+      // 잔액 정보 갱신
+      mutateProfile();
+
       setShowSuccess(true);
       onVoteSuccess?.(voteAmount);
       
-      // 2초 후 자동 닫기
       setTimeout(() => {
         setShowSuccess(false);
         onClose();
@@ -243,7 +138,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
     } finally {
       setIsVoting(false);
     }
-  }, [user, userProfile, userBalance, voteAmount, voteId, voteItemId, onVoteSuccess, onClose, t, supabase]);
+  }, [user, userBalance, voteAmount, voteId, voteItemId, onVoteSuccess, onClose, t, mutateProfile]);
 
   // 로케일 매핑
   const getLocale = useCallback(() => {
@@ -393,9 +288,9 @@ const VotePopup: React.FC<VotePopupProps> = ({
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <p className="text-red-600 font-medium text-sm">{balanceError}</p>
+                  <p className="text-red-600 font-medium text-sm">{balanceError.message || '캔디 정보를 불러올 수 없습니다.'}</p>
                   <button
-                    onClick={fetchUserBalance}
+                    onClick={mutateProfile}
                     className="mt-2 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded-lg transition-colors"
                   >
                     다시 시도

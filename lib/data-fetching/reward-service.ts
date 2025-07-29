@@ -13,8 +13,8 @@ import { Reward } from '@/types/interfaces';
 // 공개 Supabase 클라이언트 생성 (쿠키 없음 - ISR/정적 생성 호환)
 function createPublicClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_ANON_KEY!
   );
 }
 

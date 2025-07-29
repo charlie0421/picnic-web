@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { UserProfiles } from '@/types/interfaces';
-import { useQuickLogout } from '@/lib/auth/logout';
+import { useLogout } from '@/lib/auth/logout';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import NavigationLink from '@/components/client/NavigationLink';
 
@@ -79,7 +79,7 @@ interface ApiUserProfile {
 
 // 🎯 서버에서 받은 초기 데이터 기반 클라이언트 컴포넌트
 export default function MyPageClient({ initialUser, initialUserProfile, translations }: MyPageClientProps) {
-  const { logout } = useQuickLogout();
+  const logout = useLogout();
   const { setIsLoading } = useGlobalLoading();
   const [apiUserProfile, setApiUserProfile] = useState<ApiUserProfile | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(!!initialUser); // 로그인된 사용자만 로딩 상태

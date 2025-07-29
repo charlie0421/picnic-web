@@ -1,105 +1,14 @@
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import {Banner, Media, Reward, Vote, VoteItem, Popup} from "@/types/interfaces";
 import {withRetry} from "./retry-utils";
 
-// 서버 환경인지 여부 확인
-const isServer = typeof window === 'undefined';
-
-// 공개 데이터용 Supabase 클라이언트 (쿠키 없음)
-const getPublicSupabaseClient = async () => {
-  // 환경 변수 체크
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    console.error('[getPublicSupabaseClient] 필수 환경 변수가 설정되지 않았습니다');
-    throw new Error('Supabase 환경 변수가 설정되지 않았습니다.');
-  }
-
-  if (isServer) {
-    // 서버에서 공개 데이터용 클라이언트 (쿠키 없음)
-    try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const client = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      );
-      return client;
-    } catch (error) {
-      console.error('[getPublicSupabaseClient] 서버 공개 클라이언트 생성 오류:', error);
-      throw error;
-    }
-  } else {
-    // 클라이언트 환경에서는 기존 클라이언트 사용
-    try {
-      const { createBrowserSupabaseClient } = await import('../../lib/supabase/client');
-      return createBrowserSupabaseClient();
-    } catch (error) {
-      console.error('[getPublicSupabaseClient] 브라우저 클라이언트 생성 오류:', error);
-      throw error;
-    }
-  }
-};
-
-// 인증이 필요한 데이터용 클라이언트 (쿠키 사용)
 const getSupabaseClient = async () => {
-  // 환경 변수 체크
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    console.error('[getSupabaseClient] 필수 환경 변수가 설정되지 않았습니다:', {
-      hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      environment: process.env.NODE_ENV,
-      isServer
-    });
-    throw new Error('Supabase 환경 변수가 설정되지 않았습니다.');
-  }
-
-  if (isServer) {
-    // 서버 환경에서는 서버 클라이언트 사용
-    try {
-      console.log('[getSupabaseClient] 서버 클라이언트 생성 시도');
-      const { createClient } = await import("../supabase-server-client");
-      const client = await createClient();
-      console.log('[getSupabaseClient] 서버 클라이언트 생성 성공');
-      return client;
-    } catch (error) {
-      console.error('[getSupabaseClient] 서버 Supabase 클라이언트 생성 오류:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        environment: process.env.NODE_ENV
-      });
-      throw new Error(`서버 Supabase 클라이언트를 생성할 수 없습니다: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  } else {
-    // 클라이언트 환경에서는 클라이언트 측 Supabase 사용
-    try {
-      console.log('[getSupabaseClient] 브라우저 클라이언트 생성 시도');
-      const { createBrowserSupabaseClient } = await import('../../lib/supabase/client');
-      const client = createBrowserSupabaseClient();
-      console.log('[getSupabaseClient] 브라우저 클라이언트 생성 성공');
-      return client;
-    } catch (error) {
-      console.error('[getSupabaseClient] 클라이언트 Supabase 가져오기 오류:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        environment: process.env.NODE_ENV
-      });
-      throw new Error(`클라이언트 Supabase를 가져올 수 없습니다: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-};
+    return createSupabaseServerClient();
+}
 
 // API 요청 실패 로깅 및 디버깅을 위한 함수
 const logRequestError = (error: any, functionName: string) => {
   console.error(`[API 오류] ${functionName}:`, error);
-
-  // 환경 정보 추가 (브라우저에서만 실행)
-  if (typeof window !== 'undefined') {
-    console.error('요청 환경:', {
-      url: window.location.href,
-      hostname: window.location.hostname,
-      isProduction: process.env.NODE_ENV === 'production'
-    });
-  }
-
   return error;
 };
 
@@ -192,7 +101,7 @@ const _getVotes = async (
 // 리워드 데이터 가져오기
 const _getRewards = async (limit?: number): Promise<Reward[]> => {
   try {
-    const supabase = await getPublicSupabaseClient(); // 공개 클라이언트 사용
+    const supabase = await getSupabaseClient(); // 공개 클라이언트 사용
     let query = supabase
       .from("reward")
       .select("*")
@@ -266,7 +175,7 @@ const _getRewardById = async (id: string): Promise<Reward | null> => {
       return null;
     }
 
-    const supabase = await getPublicSupabaseClient(); // 공개 클라이언트 사용
+    const supabase = await getSupabaseClient(); // 공개 클라이언트 사용
     console.log(`[_getRewardById] Supabase 공개 클라이언트 준비 완료, ID ${id} 쿼리 실행`);
     
     const { data: rewardData, error: rewardError } = await supabase

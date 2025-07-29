@@ -1,95 +1,53 @@
+import 'server-only';
+import React from 'react';
 import { notFound } from 'next/navigation';
+import { Vote, VoteItem, Reward } from '@/types/interfaces';
+import type { User } from '@supabase/supabase-js';
 import { HybridVoteDetailPresenter } from '@/components/client/vote/detail/HybridVoteDetailPresenter';
-import { createPublicSupabaseClient } from '@/lib/supabase/server';
-import { Vote, VoteItem } from '@/types/interfaces';
 
-interface VoteDetailFetcherProps {
+export interface VoteDetailFetcherProps {
   voteId: string;
   className?: string;
 }
 
-/**
- * 투표 상세 데이터를 서버에서 가져오는 컴포넌트 (공개 데이터만)
- * 사용자 인증 관련 데이터는 클라이언트에서 처리하여 정적 렌더링 지원
- */
-export async function VoteDetailFetcher({
-  voteId,
-  className,
-}: VoteDetailFetcherProps) {
-  // 🔧 정적 렌더링 지원: 공개 데이터 전용 클라이언트 사용 (쿠키 없음)
-  const supabase = createPublicSupabaseClient();
+// API 라우트를 통해 데이터를 가져오는 함수
+async function getVoteDetailsFromApi(voteId: string) {
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://127.0.0.1:3100';
 
-  try {
-    // voteId를 숫자로 변환
-    const numericVoteId = parseInt(voteId, 10);
-    if (isNaN(numericVoteId)) {
-      console.error('Invalid vote ID:', voteId);
-      notFound();
-    }
+  const res = await fetch(`${baseUrl}/api/votes/${voteId}`, {
+    cache: 'no-store', // 실시간 투표 데이터를 위해 캐시 사용 안 함
+  });
 
-    // 🚀 공개 데이터만 서버에서 조회 (정적 렌더링 가능)
-    const [
-      { data: vote, error: voteError },
-      { data: voteItems, error: itemsError },
-      { data: rewards }
-    ] = await Promise.all([
-      // 투표 정보 조회 (공개 데이터)
-      supabase
-        .from('vote')
-        .select('*')
-        .eq('id', numericVoteId)
-        .single(),
-
-      // 투표 아이템들 조회 (공개 데이터)
-      supabase
-        .from('vote_item')
-        .select(`
-          *,
-          artist:artist_id (
-            id,
-            name,
-            image
-          )
-        `)
-        .eq('vote_id', numericVoteId)
-        .order('vote_total', { ascending: false }),
-
-      // 리워드 정보 조회 (공개 데이터)
-      supabase
-        .from('reward')
-        .select('*')
-        .eq('vote_id', numericVoteId)
-    ]);
-
-    if (voteError || !vote) {
-      console.error('Vote fetch error:', voteError);
-      notFound();
-    }
-
-    if (itemsError) {
-      console.error('Vote items fetch error:', itemsError);
-      throw new Error('Failed to fetch vote items');
-    }
-
-    console.log(`[VoteDetailFetcher] 서버 공개 데이터 로드 완료: ${voteItems?.length || 0}개 아이템`);
-
-    // ✨ 클라이언트 컴포넌트에 공개 데이터만 전달
-    // 사용자 인증 정보와 투표 상태는 클라이언트에서 처리
-    return (
-      <HybridVoteDetailPresenter
-        vote={vote as Vote}
-        initialItems={(voteItems || []) as unknown as VoteItem[]}
-        rewards={rewards || []}
-        initialUser={null} // 클라이언트에서 로드
-        initialUserVotes={[]} // 클라이언트에서 로드
-        className={className}
-        enableRealtime={true}
-        pollingInterval={1000}
-        maxRetries={3}
-      />
-    );
-  } catch (error) {
-    console.error('VoteDetailFetcher error:', error);
-    notFound();
+  if (!res.ok) {
+    console.error(`Failed to fetch vote details from API, status: ${res.status}`);
+    return null;
   }
+  return res.json();
+}
+
+export default async function VoteDetailFetcher({ voteId, className }: VoteDetailFetcherProps) {
+  const data = await getVoteDetailsFromApi(voteId);
+
+  if (!data) {
+    return notFound();
+  }
+
+  const { vote, rewards, user, userVotes } = data;
+  const voteItems = vote?.vote_item || [];
+
+  return (
+    <HybridVoteDetailPresenter
+      vote={vote as Vote}
+      initialItems={voteItems as unknown as VoteItem[]}
+      rewards={rewards as Reward[] || []}
+      initialUser={user as User | null}
+      initialUserVotes={userVotes as { vote_item_id: number; vote_count: number }[]}
+      className={className}
+      enableRealtime={true}
+      pollingInterval={10000}
+      maxRetries={3}
+    />
+  );
 }

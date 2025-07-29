@@ -76,23 +76,33 @@ export async function GET(request: NextRequest) {
     const totalStarCandyUsed = totalStarCandyData?.reduce((sum, item) => sum + (item.amount || 0), 0) || 0;
 
     // 2. 응원한 고유 아티스트 수 계산
-    const { data: uniqueArtistsData } = await supabase
+    const { data: uniqueArtistsData, error: artistsError } = await supabase
       .from('vote_pick')
-      .select(`
-        vote_item:vote_item_id (
-          artist_id
-        )
-      `)
+      .select('vote_item_id')
       .eq('user_id', user.id)
       .is('deleted_at', null);
 
-    const uniqueArtistIds = new Set();
-    uniqueArtistsData?.forEach(item => {
-      if (item.vote_item?.artist_id) {
-        uniqueArtistIds.add(item.vote_item.artist_id);
+    if (artistsError) {
+      console.error('고유 아티스트 조회 실패:', artistsError);
+      // 이 오류는 전체 로직을 중단시키지 않음
+    }
+
+    const uniqueArtistVoteItemIds = new Set(uniqueArtistsData?.map(item => item.vote_item_id).filter(Boolean));
+    
+    let totalSupportedArtists = 0;
+    if (uniqueArtistVoteItemIds.size > 0) {
+      const { data: artistIds, error: artistIdError } = await supabase
+        .from('vote_item')
+        .select('artist_id')
+        .in('id', Array.from(uniqueArtistVoteItemIds));
+
+      if (artistIdError) {
+        console.error('아티스트 ID 조회 실패:', artistIdError);
+      } else {
+        totalSupportedArtists = new Set(artistIds?.map(item => item.artist_id)).size;
       }
-    });
-    const totalSupportedArtists = uniqueArtistIds.size;
+    }
+
 
     // 안전한 다국어 텍스트 처리 함수
     const safeMultiLangText = (text: any) => {
@@ -109,23 +119,17 @@ export async function GET(request: NextRequest) {
 
     // 데이터 변환 (안전성 강화)
     const transformedHistory = voteHistory?.map(item => {
-      // 🐛 디버깅: 아티스트 이미지 URL 확인
-      const artistImage = item.vote_item?.artist?.image;
-      if (artistImage) {
-        console.log('🎨 API에서 아티스트 이미지 발견:', {
-          artistId: item.vote_item?.artist?.id,
-          artistName: item.vote_item?.artist?.name,
-          imageUrl: artistImage,
-          imageType: typeof artistImage,
-          imageLength: artistImage?.length
-        });
-      } else {
-        console.log('⚠️ 아티스트 이미지 없음:', {
-          artistId: item.vote_item?.artist?.id,
-          artistName: item.vote_item?.artist?.name,
-          hasArtist: !!item.vote_item?.artist,
-          hasVoteItem: !!item.vote_item
-        });
+      const voteData = Array.isArray(item.vote) ? item.vote[0] : item.vote;
+      const voteItemData = Array.isArray(item.vote_item) ? item.vote_item[0] : item.vote_item;
+      
+      let artistData: any = null;
+      if (voteItemData) {
+        artistData = Array.isArray(voteItemData.artist) ? voteItemData.artist[0] : voteItemData.artist;
+      }
+
+      let artistGroupData: any = null;
+      if (artistData) {
+        artistGroupData = Array.isArray(artistData.artist_group) ? artistData.artist_group[0] : artistData.artist_group;
       }
 
       return {
@@ -134,26 +138,26 @@ export async function GET(request: NextRequest) {
         voteItemId: item.vote_item_id,
         amount: item.amount,
         createdAt: item.created_at,
-        vote: item.vote ? {
-          id: item.vote.id,
-          title: safeMultiLangText(item.vote.title),
-          startAt: item.vote.start_at,
-          stopAt: item.vote.stop_at,
-          mainImage: item.vote.main_image,
-          area: item.vote.area || '',
-          voteCategory: safeMultiLangText(item.vote.vote_category)
+        vote: voteData ? {
+          id: voteData.id,
+          title: safeMultiLangText(voteData.title),
+          startAt: voteData.start_at,
+          stopAt: voteData.stop_at,
+          mainImage: voteData.main_image,
+          area: voteData.area || '',
+          voteCategory: safeMultiLangText(voteData.vote_category)
         } : null,
-        voteItem: item.vote_item ? {
-          id: item.vote_item.id,
-          artistId: item.vote_item.artist_id,
-          groupId: item.vote_item.group_id,
-          artist: item.vote_item.artist ? {
-            id: item.vote_item.artist.id,
-            name: safeMultiLangText(item.vote_item.artist.name),
-            image: item.vote_item.artist.image,
-            artistGroup: item.vote_item.artist.artist_group ? {
-              id: item.vote_item.artist.artist_group.id,
-              name: safeMultiLangText(item.vote_item.artist.artist_group.name)
+        voteItem: voteItemData ? {
+          id: voteItemData.id,
+          artistId: voteItemData.artist_id,
+          groupId: voteItemData.group_id,
+          artist: artistData ? {
+            id: artistData.id,
+            name: safeMultiLangText(artistData.name),
+            image: artistData.image,
+            artistGroup: artistGroupData ? {
+              id: artistGroupData.id,
+              name: safeMultiLangText(artistGroupData.name)
             } : null
           } : null
         } : null

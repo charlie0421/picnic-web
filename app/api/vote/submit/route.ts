@@ -1,130 +1,98 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase-server-client";
-
-interface VoteSubmissionRequest {
-    voteId: number;
-    voteItemId: number;
-    amount: number;
-    userId: string;
-    totalBonusRemain: number;
-}
+import { NextResponse, NextRequest } from 'next/server';
+import { createSupabaseServerClient, getServerUser } from '@/lib/supabase/server';
+import { SupabaseAuthError, SupabasePostgrestError } from '@/lib/supabase/error';
 
 export async function POST(request: NextRequest) {
-    try {
-        const body: VoteSubmissionRequest = await request.json();
-        const { voteId, voteItemId, amount, userId, totalBonusRemain } = body;
-
-        // 입력 검증
-        if (!voteId || !voteItemId || amount === undefined || !userId || totalBonusRemain === undefined) {
-            return NextResponse.json(
-                { error: "필수 필드가 누락되었습니다." },
-                { status: 400 }
-            );
-        }
-
-        if (amount <= 0) {
-            return NextResponse.json(
-                { error: "투표 금액은 0보다 커야 합니다." },
-                { status: 400 }
-            );
-        }
-
-        const supabase = await createClient();
-
-        // 1. 먼저 can_vote 함수로 투표 가능 여부 확인
-        try {
-            const { data: canVoteResult, error: canVoteError } = await supabase
-                .rpc("can_vote", {
-                    p_user_id: userId,
-                    p_vote_amount: amount,
-                });
-
-            if (canVoteError) {
-                console.error("[Vote Submit] can_vote 검증 실패:", canVoteError);
-
-                if (canVoteError.message.includes("Insufficient balance")) {
-                    return NextResponse.json(
-                        { error: "잔액이 부족합니다." },
-                        { status: 400 }
-                    );
-                }
-
-                if (canVoteError.message.includes("User not found")) {
-                    return NextResponse.json(
-                        { error: "사용자를 찾을 수 없습니다." },
-                        { status: 404 }
-                    );
-                }
-
-                return NextResponse.json(
-                    { error: `투표 자격 확인 실패: ${canVoteError.message}` },
-                    { status: 500 }
-                );
-            }
-
-            if (!canVoteResult) {
-                return NextResponse.json(
-                    { error: "투표가 허용되지 않습니다." },
-                    { status: 400 }
-                );
-            }
-
-            console.log("[Vote Submit] can_vote 검증 통과:", { userId, amount });
-
-        } catch (canVoteException: any) {
-            console.error("[Vote Submit] can_vote 예외:", canVoteException);
-
-            if (canVoteException.message?.includes("Insufficient balance")) {
-                return NextResponse.json(
-                    { error: "잔액이 부족합니다." },
-                    { status: 400 }
-                );
-            }
-
-            if (canVoteException.message?.includes("User not found")) {
-                return NextResponse.json(
-                    { error: "사용자를 찾을 수 없습니다." },
-                    { status: 404 }
-                );
-            }
-
-            return NextResponse.json(
-                { error: `투표 자격 확인 중 오류: ${canVoteException.message}` },
-                { status: 500 }
-            );
-        }
-
-        // 2. can_vote 검증 통과 후 실제 투표 처리 (엣지 함수 사용)
-        const { data, error } = await supabase.rpc("perform_vote_transaction", {
-            p_vote_id: voteId,
-            p_vote_item_id: voteItemId,
-            p_amount: amount,
-            p_user_id: userId,
-            p_total_bonus_remain: totalBonusRemain,
-        });
-
-        if (error) {
-            console.error("[Vote Submit] perform_vote_transaction 에러:", error);
-            return NextResponse.json(
-                { error: `투표 처리 실패: ${error.message}` },
-                { status: 500 }
-            );
-        }
-
-        console.log("[Vote Submit] perform_vote_transaction 성공:", data);
-
-        return NextResponse.json({
-            success: true,
-            data: data,
-            message: "투표가 성공적으로 제출되었습니다.",
-        });
-    } catch (error) {
-        console.error('투표 제출 처리 중 오류:', error);
-        return NextResponse.json(
-            { error: '서버 오류가 발생했습니다.' },
-            { status: 500 }
-        );
+  try {
+    const user = await getServerUser();
+    if (!user) {
+      throw new SupabaseAuthError('Authentication required.');
     }
+
+    const { vote_id, vote_item_id, amount } = await request.json();
+
+    if (!vote_id || !vote_item_id || !amount || amount <= 0) {
+      return NextResponse.json({ error: 'Invalid vote data' }, { status: 400 });
+    }
+
+    const supabase = await createSupabaseServerClient();
+    
+    // JMA 투표인지 확인
+    const { data: voteDataResult, error: voteError } = await supabase
+      .from('vote')
+      .select('partner')
+      .eq('id', vote_id)
+      .single();
+
+    if (voteError) {
+      throw new Error('투표 정보를 확인하는 중 오류가 발생했습니다.');
+    }
+
+    if (voteDataResult?.partner === 'jma') {
+      return NextResponse.json(
+        { error: 'JMA 투표는 웹에서 참여할 수 없습니다.' },
+        { status: 403 } // Forbidden
+      );
+    }
+    
+    // 1. 사용자 프로필에서 별사탕 잔액 조회
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('star_candy, star_candy_bonus')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !userProfile) {
+      throw new Error('사용자 프로필을 찾을 수 없거나 잔액 조회에 실패했습니다.');
+    }
+
+    const totalAvailable = (userProfile.star_candy || 0) + (userProfile.star_candy_bonus || 0);
+    if (totalAvailable < amount) {
+      return NextResponse.json({ error: '별사탕이 부족합니다.' }, { status: 400 });
+    }
+
+    // 2. 보너스/일반 별사탕 사용량 계산
+    const bonusUsage = Math.min(amount, userProfile.star_candy_bonus || 0);
+    const normalUsage = amount - bonusUsage;
+
+    const voteData = {
+      vote_id: vote_id,
+      vote_item_id: vote_item_id,
+      amount: amount,
+      user_id: user.id,
+      star_candy_usage: normalUsage,
+      star_candy_bonus_usage: bonusUsage,
+    };
+
+    // 'voting-v2' 엣지 함수를 호출하여 투표 처리
+    const { data, error } = await supabase.functions.invoke('voting-v2', {
+      body: voteData,
+    });
+
+    if (error) {
+      // 엣지 함수 에러를 PostgrestError와 유사한 형태로 처리
+      throw new SupabasePostgrestError(error.message, {
+        details: 'Edge function execution failed',
+        hint: 'Check the Supabase function logs for more details.',
+        code: 'EDGE_FUNCTION_ERROR',
+      });
+    }
+
+    return NextResponse.json({ success: true, data });
+
+  } catch (error) {
+    console.error('[/api/vote/submit] error:', error);
+    let status = 500;
+    if (error instanceof SupabaseAuthError) {
+      status = 401;
+    } else if (error instanceof SupabasePostgrestError) {
+      status = 400;
+    }
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'An error occurred' },
+      { status }
+    );
+  }
 }
 
 export async function GET(request: NextRequest) {

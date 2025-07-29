@@ -144,29 +144,15 @@ ErrorDisplay.displayName = 'ErrorDisplay';
 
 // 성능 모니터링 패널 (메모화)
 const PerformanceMonitoringPanel = memo(({ 
-  performanceMetrics,
   connectionStatus,
   eventCount
 }: {
-  performanceMetrics: any;
   connectionStatus: string;
   eventCount: number;
 }) => (
   <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
     <h4 className="text-sm font-medium text-gray-700 mb-2">성능 모니터링</h4>
     <div className="grid grid-cols-2 gap-4 text-sm">
-      <div>
-        <div className="text-gray-600">컴포넌트 렌더링:</div>
-        <div className="font-mono text-gray-900">{performanceMetrics.renderCount}회</div>
-      </div>
-      <div>
-        <div className="text-gray-600">메모리 사용량:</div>
-        <div className="font-mono text-gray-900">
-          {performanceMetrics.memoryUsage ? 
-            `${(performanceMetrics.memoryUsage / 1024 / 1024).toFixed(1)}MB` : 
-            'N/A'}
-        </div>
-      </div>
       <div>
         <div className="text-gray-600">연결 상태:</div>
         <div className="font-mono text-gray-900">{connectionStatus}</div>
@@ -190,28 +176,20 @@ const OptimizedRealtimeVoteResults = memo(({
 }: OptimizedRealtimeVoteResultsProps) => {
   const [showDetails, setShowDetails] = useState(false);
 
-  // 최적화된 실시간 훅 사용
+  // 최적화된 실시간 훅 사용 (반환 값 수정)
   const {
     voteItems,
     totalVotes,
     isLoading,
     connectionStatus,
-    connectionInfo,
-    systemStatus,
-    performanceMetrics,
     error,
     eventCount,
     lastUpdated,
     refreshData,
-    manualReconnect,
-    toggleSmartReconnect,
-    toggleBatterySaver
   } = useVoteRealtimeOptimized({
     voteId,
     artistVoteId,
     enabled: true,
-    enableSmartReconnect: true,
-    enableBatterySaver: true
   });
 
   // 정렬된 투표 아이템 (메모화)
@@ -220,7 +198,6 @@ const OptimizedRealtimeVoteResults = memo(({
     return [...voteItems].sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0));
   }, [voteItems]);
 
-  // 새로고침 핸들러 (메모화)
   const handleRefresh = useCallback(async () => {
     try {
       await refreshData();
@@ -228,13 +205,12 @@ const OptimizedRealtimeVoteResults = memo(({
       console.error('새로고침 실패:', err);
     }
   }, [refreshData]);
-
-  // 재연결 핸들러 (메모화)
+  
+  // 재연결 핸들러는 이제 새로고침을 호출
   const handleReconnect = useCallback(() => {
-    manualReconnect();
-  }, [manualReconnect]);
+    refreshData();
+  }, [refreshData]);
 
-  // 로딩 상태
   if (isLoading && !voteItems) {
     return (
       <div className="space-y-4">
@@ -246,22 +222,14 @@ const OptimizedRealtimeVoteResults = memo(({
     );
   }
 
-  // 오류 상태
   if (error && !voteItems) {
     return <ErrorDisplay error={error} onRetry={handleRefresh} />;
   }
 
   return (
     <div className="space-y-4">
-      {/* 연결 상태 표시 */}
       <OptimizedConnectionStatusDisplay
         connectionStatus={connectionStatus}
-        connectionInfo={connectionInfo}
-        systemStatus={systemStatus}
-        performanceMetrics={performanceMetrics}
-        onToggleSmartReconnect={toggleSmartReconnect}
-        onToggleBatterySaver={toggleBatterySaver}
-        showDetails={showDetails}
         isCompact={!showDebugInfo}
       />
 
@@ -333,7 +301,6 @@ const OptimizedRealtimeVoteResults = memo(({
       {/* 성능 모니터링 패널 */}
       {enablePerformanceMonitoring && (
         <PerformanceMonitoringPanel
-          performanceMetrics={performanceMetrics}
           connectionStatus={connectionStatus}
           eventCount={eventCount}
         />

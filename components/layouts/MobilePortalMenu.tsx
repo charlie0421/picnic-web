@@ -8,14 +8,23 @@ import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { PortalType } from '@/utils/enums';
 import { isVoteRelatedPath, PORTAL_MENU } from '@/config/navigation';
+import useSWR from 'swr';
 import menuConfig from '@/config/menu.json';
 
 interface MobilePortalMenuProps {
   className?: string;
 }
 
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
 const MobilePortalMenu: React.FC<MobilePortalMenuProps> = ({ className = '' }) => {
-  const { isAuthenticated, userProfile, user, isLoading } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
+  const { data: profileData } = useSWR(
+    isAuthenticated && user ? `/api/user/profile?userId=${user.id}` : null, 
+    fetcher
+  );
+  const userProfile = profileData?.success ? profileData.user : null;
+
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
   const { setIsLoading } = useGlobalLoading();
   const pathname = usePathname();

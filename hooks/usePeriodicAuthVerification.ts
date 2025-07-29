@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/supabase/auth-provider';
 
 // 검증 간격 설정 (기본: 5분)
@@ -65,7 +64,7 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
     includeWeChatVerification = true,
   } = options;
 
-  const { isAuthenticated, user, session } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isVerifyingRef = useRef(false);
   const verificationCountRef = useRef(0);
@@ -93,12 +92,11 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
       console.log(`🔍 [PeriodicAuth] 인증 상태 검증 시작 (${verificationCountRef.current}회차)`, {
         isAuthenticated,
         hasUser: !!user,
-        hasSession: !!session,
         timestamp: lastVerificationRef.current.toISOString(),
       });
 
       // 1. 기본 인증 상태 체크
-      if (!isAuthenticated || !user || !session) {
+      if (!isAuthenticated || !user) {
         console.warn('❌ [PeriodicAuth] 기본 인증 상태 실패');
         return {
           isValid: false,
@@ -106,31 +104,9 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
         };
       }
 
-      // 2. 세션 만료 체크
-      if (session.expires_at) {
-        const expiryTime = new Date(session.expires_at * 1000);
-        const now = new Date();
-        const timeUntilExpiry = expiryTime.getTime() - now.getTime();
-
-        if (timeUntilExpiry <= 0) {
-          console.warn('⏰ [PeriodicAuth] 세션이 만료됨');
-          return {
-            isValid: false,
-            reason: '세션이 만료되었습니다.',
-          };
-        }
-
-        // 만료 10분 전 경고
-        if (timeUntilExpiry < 10 * 60 * 1000) {
-          console.warn('⚠️ [PeriodicAuth] 세션이 곧 만료됩니다:', {
-            minutesLeft: Math.floor(timeUntilExpiry / 1000 / 60),
-          });
-        }
-      }
-
-      // 3. WeChat 인증 상태 체크 (선택적)
+      // 2. WeChat 인증 상태 체크 (선택적)
       if (includeWeChatVerification) {
-        const provider = session.user?.app_metadata?.provider;
+        const provider = user?.app_metadata?.provider;
         if (provider === 'wechat') {
           console.log('🔄 [PeriodicAuth] WeChat 인증 상태 검증');
           
@@ -149,7 +125,7 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
         }
       }
 
-      // 4. 서버사이드 인증 검증
+      // 3. 서버사이드 인증 검증
       try {
         const response = await fetch('/api/auth/verify', {
           method: 'GET',
@@ -205,7 +181,7 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
     } finally {
       isVerifyingRef.current = false;
     }
-  }, [isAuthenticated, user, session, includeWeChatVerification, onNetworkError]);
+  }, [isAuthenticated, user, includeWeChatVerification, onNetworkError]);
 
   /**
    * 수동 인증 상태 검증
@@ -274,7 +250,7 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
       return;
     }
 
-    if (isAuthenticated && user && session) {
+    if (isAuthenticated && user) {
       console.log('🟢 [PeriodicAuth] 인증된 상태 - 주기적 검증 시작');
       startPeriodicVerification();
     } else {
@@ -285,7 +261,7 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
     return () => {
       stopPeriodicVerification();
     };
-  }, [enabled, isAuthenticated, user, session, startPeriodicVerification, stopPeriodicVerification]);
+  }, [enabled, isAuthenticated, user, startPeriodicVerification, stopPeriodicVerification]);
 
   // 컴포넌트 언마운트 시 정리
   useEffect(() => {

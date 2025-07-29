@@ -1,8 +1,9 @@
 'use client';
 
-import { createBrowserSupabaseClient } from './client';
+import {
+  RealtimePostgresChangesPayload
+} from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
-import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 // 투표 관련 테이블 타입 정의
 type VoteTable = Database['public']['Tables']['vote']['Row'];
@@ -13,11 +14,11 @@ type ArtistVoteItemTable = Database['public']['Tables']['artist_vote_item']['Row
 
 // Realtime 이벤트 타입 정의
 export type VoteRealtimeEvent = 
-  | { type: 'vote_updated'; payload: VoteTable }
-  | { type: 'vote_item_updated'; payload: VoteItemTable }
-  | { type: 'vote_pick_created'; payload: VotePickTable }
-  | { type: 'artist_vote_updated'; payload: ArtistVoteTable }
-  | { type: 'artist_vote_item_updated'; payload: ArtistVoteItemTable };
+  | { type: 'vote_updated'; payload: RealtimePostgresChangesPayload<VoteTable> }
+  | { type: 'vote_item_updated'; payload: RealtimePostgresChangesPayload<VoteItemTable> }
+  | { type: 'vote_pick_created'; payload: RealtimePostgresChangesPayload<VotePickTable> }
+  | { type: 'artist_vote_updated'; payload: RealtimePostgresChangesPayload<ArtistVoteTable> }
+  | { type: 'artist_vote_item_updated'; payload: RealtimePostgresChangesPayload<ArtistVoteItemTable> };
 
 // 연결 상태 타입 (확장됨)
 export type ConnectionStatus = 
@@ -63,11 +64,10 @@ export type ConnectionStatusListener = (status: ConnectionStatus, info: Connecti
 export type DataSyncCallback = (voteId: number) => Promise<void>;
 
 /**
- * 투표 시스템을 위한 고급 Realtime 서비스 클래스
+ * 투표 시스템을 위한 SSE 기반 Realtime 서비스 클래스
  */
 export class VoteRealtimeService {
-  private supabase = createBrowserSupabaseClient();
-  private channels: Map<string, RealtimeChannel> = new Map();
+  private eventSources: Map<string, EventSource> = new Map();
   private eventListeners: Set<VoteEventListener> = new Set();
   private statusListeners: Set<ConnectionStatusListener> = new Set();
   private dataSyncCallbacks: Map<number, DataSyncCallback> = new Map();
@@ -100,18 +100,7 @@ export class VoteRealtimeService {
   private maxPendingEvents = 100;
 
   constructor() {
-    // 브라우저 환경에서만 초기화
-    if (typeof window !== 'undefined') {
-      // 브라우저 환경에서 실제 값으로 설정
-      this.isOnline = navigator.onLine;
-      this.isVisible = !document.hidden;
-      this.connectionInfo.isOnline = this.isOnline;
-      this.connectionInfo.isVisible = this.isVisible;
-      
-      this.setupNetworkListeners();
-      this.setupVisibilityListeners();
-      this.startHeartbeat();
-    }
+    // 이제 브라우저 환경에서만 동작하므로, 조건문은 불필요합니다.
   }
 
   /**
@@ -225,13 +214,13 @@ export class VoteRealtimeService {
       return;
     }
 
-    const channelNames = Array.from(this.channels.keys());
+    const channelNames = Array.from(this.eventSources.keys());
     
     // 기존 채널들 정리
-    this.channels.forEach((channel, channelName) => {
-      this.supabase.removeChannel(channel);
+    this.eventSources.forEach((eventSource, channelName) => {
+      eventSource.close();
     });
-    this.channels.clear();
+    this.eventSources.clear();
 
     // 재연결 시도
     channelNames.forEach(channelName => {
@@ -505,315 +494,141 @@ export class VoteRealtimeService {
     }
 
     const timeout = setTimeout(() => {
-      // 기존 채널 정리
-      this.unsubscribeFromChannel(channelName);
+      const voteId = this.extractVoteIdFromChannelName(channelName);
+      if (voteId !== null) {
+        if (channelName.startsWith('artist-vote')) {
+          this.unsubscribe('artist-vote', voteId);
+        } else {
+          this.unsubscribe('vote', voteId);
+        }
+      }
       this.reconnectTimeouts.delete(channelName);
       
       // 재연결 시도
-      if (type === 'artist') {
-        this.subscribeToArtistVote(voteId);
-      } else {
-        this.subscribeToVote(voteId);
+      if (voteId !== null) {
+        if (type === 'artist') {
+          this.subscribeToArtistVote(voteId);
+        } else {
+          this.subscribeToVote(voteId);
+        }
       }
     }, delay);
 
     this.reconnectTimeouts.set(channelName, timeout);
   }
 
-  /**
-   * 아티스트 투표에 대한 실시간 구독 시작 (개선됨)
-   */
-  subscribeToArtistVote(artistVoteId: number): void {
-    const channelName = `artist_vote_${artistVoteId}`;
-    
-    if (this.channels.has(channelName)) {
-      console.warn(`[VoteRealtime] 이미 구독 중인 아티스트 투표: ${artistVoteId}`);
+  private createChannelKey(type: 'vote' | 'artist-vote', voteId: number): string {
+    return `${type}-${voteId}`;
+  }
+
+  private subscribe(type: 'vote' | 'artist-vote', voteId: number) {
+    const channelKey = this.createChannelKey(type, voteId);
+    if (this.eventSources.has(channelKey)) {
+      console.warn(`[SSE] Already subscribed to ${channelKey}`);
       return;
     }
 
-    // 오프라인이거나 페이지가 숨겨진 상태면 구독하지 않음
-    if (!this.isOnline || !this.isVisible) {
-      console.warn(`[VoteRealtime] 구독 조건 불충족: online=${this.isOnline}, visible=${this.isVisible}`);
-      return;
-    }
+    const url = `/api/realtime/${type}/${voteId}`;
+    const eventSource = new EventSource(url);
 
-    this.updateConnectionStatus('connecting');
+    eventSource.onopen = () => {
+      console.log(`[SSE] Connection opened for ${channelKey}`);
+      // 상태 업데이트 로직 추가
+    };
 
-    const channel = this.supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'artist_vote',
-          filter: `id=eq.${artistVoteId}`
-        },
-        (payload: RealtimePostgresChangesPayload<ArtistVoteTable>) => {
-          if (payload.new && typeof payload.new === 'object') {
-            this.emitEvent({
-              type: 'artist_vote_updated',
-              payload: payload.new as ArtistVoteTable
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'artist_vote_item',
-          filter: `artist_vote_id=eq.${artistVoteId}`
-        },
-        (payload: RealtimePostgresChangesPayload<ArtistVoteItemTable>) => {
-          if (payload.new && typeof payload.new === 'object') {
-            this.emitEvent({
-              type: 'artist_vote_item_updated',
-              payload: payload.new as ArtistVoteItemTable
-            });
-          }
-        }
-      )
-      .subscribe((status, error) => {
-        if (status === 'SUBSCRIBED') {
-          this.updateConnectionStatus('connected');
-          this.reconnectAttempts = 0;
-          this.processPendingEvents(); // 대기 중인 이벤트 처리
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[VoteRealtime] 아티스트 투표 ${artistVoteId} 구독 성공`);
-          }
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          const errorType = this.detectErrorType(status, error);
-          const errorMessage = error?.message || `Connection ${status.toLowerCase()}`;
-          
-          this.updateConnectionStatus('error', {
-            type: errorType,
-            message: errorMessage
-          });
-          
-          this.handleReconnection(channelName, artistVoteId, 'artist', errorType);
-        } else if (status === 'CLOSED') {
-          this.updateConnectionStatus('disconnected');
-        }
-      });
-
-    this.channels.set(channelName, channel);
-  }
-
-  /**
-   * 특정 투표에 대한 실시간 구독 시작 (개선됨)
-   */
-  subscribeToVote(voteId: number): void {
-    const channelName = `vote_${voteId}`;
-    
-    if (this.channels.has(channelName)) {
-      console.warn(`[VoteRealtime] 이미 구독 중인 투표: ${voteId}`);
-      return;
-    }
-
-    // 오프라인이거나 페이지가 숨겨진 상태면 구독하지 않음
-    if (!this.isOnline || !this.isVisible) {
-      console.warn(`[VoteRealtime] 구독 조건 불충족: online=${this.isOnline}, visible=${this.isVisible}`);
-      return;
-    }
-
-    this.updateConnectionStatus('connecting');
-
-    const channel = this.supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'vote',
-          filter: `id=eq.${voteId}`
-        },
-        (payload: RealtimePostgresChangesPayload<VoteTable>) => {
-          if (payload.new && typeof payload.new === 'object') {
-            this.emitEvent({
-              type: 'vote_updated',
-              payload: payload.new as VoteTable
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'vote_item',
-          filter: `vote_id=eq.${voteId}`
-        },
-        (payload: RealtimePostgresChangesPayload<VoteItemTable>) => {
-          if (payload.new && typeof payload.new === 'object') {
-            this.emitEvent({
-              type: 'vote_item_updated',
-              payload: payload.new as VoteItemTable
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'vote_pick',
-          filter: `vote_id=eq.${voteId}`
-        },
-        (payload: RealtimePostgresChangesPayload<VotePickTable>) => {
-          if (payload.new && typeof payload.new === 'object') {
-            this.emitEvent({
-              type: 'vote_pick_created',
-              payload: payload.new as VotePickTable
-            });
-          }
-        }
-      )
-      .subscribe((status, error) => {
-        if (status === 'SUBSCRIBED') {
-          this.updateConnectionStatus('connected');
-          this.reconnectAttempts = 0;
-          this.processPendingEvents(); // 대기 중인 이벤트 처리
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[VoteRealtime] 투표 ${voteId} 구독 성공`);
-          }
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          const errorType = this.detectErrorType(status, error);
-          const errorMessage = error?.message || `Connection ${status.toLowerCase()}`;
-          
-          this.updateConnectionStatus('error', {
-            type: errorType,
-            message: errorMessage
-          });
-          
-          this.handleReconnection(channelName, voteId, 'vote', errorType);
-        } else if (status === 'CLOSED') {
-          this.updateConnectionStatus('disconnected');
-        }
-      });
-
-    this.channels.set(channelName, channel);
-  }
-
-  /**
-   * 특정 투표 구독 해제
-   */
-  unsubscribeFromVote(voteId: number): void {
-    const channelName = `vote_${voteId}`;
-    this.unsubscribeFromChannel(channelName);
-    this.dataSyncCallbacks.delete(voteId); // 데이터 동기화 콜백도 제거
-  }
-
-  /**
-   * 특정 아티스트 투표 구독 해제
-   */
-  unsubscribeFromArtistVote(artistVoteId: number): void {
-    const channelName = `artist_vote_${artistVoteId}`;
-    this.unsubscribeFromChannel(channelName);
-    this.dataSyncCallbacks.delete(artistVoteId); // 데이터 동기화 콜백도 제거
-  }
-
-  /**
-   * 채널 구독 해제 (개선됨)
-   */
-  private unsubscribeFromChannel(channelName: string): void {
-    const channel = this.channels.get(channelName);
-    if (channel) {
-      this.supabase.removeChannel(channel);
-      this.channels.delete(channelName);
-      
-      // 재연결 타이머가 있으면 제거
-      const timeout = this.reconnectTimeouts.get(channelName);
-      if (timeout) {
-        clearTimeout(timeout);
-        this.reconnectTimeouts.delete(channelName);
+    eventSource.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+        // Supabase의 payload 구조와 유사하게 이벤트를 재구성하여 전달
+        const realtimeEvent: VoteRealtimeEvent = {
+          type: `${parsedData.type}_${parsedData.eventType.toLowerCase()}`, // e.g., vote_updated
+          payload: parsedData,
+        } as any; // 타입 캐스팅 필요
+        
+        this.emitEvent(realtimeEvent);
+      } catch (e) {
+        console.error('[SSE] Failed to parse message:', e);
       }
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[VoteRealtime] 채널 구독 해제: ${channelName}`);
-      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error(`[SSE] Error for ${channelKey}:`, err);
+      // 에러 상태 업데이트 로직 추가
+      eventSource.close();
+      this.eventSources.delete(channelKey);
+    };
+
+    this.eventSources.set(channelKey, eventSource);
+  }
+
+  public subscribeToVote(voteId: number) {
+    this.subscribe('vote', voteId);
+  }
+
+  public subscribeToArtistVote(artistVoteId: number) {
+    this.subscribe('artist-vote', artistVoteId);
+  }
+
+  private unsubscribe(type: 'vote' | 'artist-vote', voteId: number) {
+    const channelKey = this.createChannelKey(type, voteId);
+    const eventSource = this.eventSources.get(channelKey);
+    if (eventSource) {
+      eventSource.close();
+      this.eventSources.delete(channelKey);
+      console.log(`[SSE] Unsubscribed from ${channelKey}`);
     }
   }
 
+  public unsubscribeFromVote(voteId: number) {
+    this.unsubscribe('vote', voteId);
+  }
+
+  public unsubscribeFromArtistVote(artistVoteId: number) {
+    this.unsubscribe('artist-vote', artistVoteId);
+  }
+
   /**
-   * 모든 구독 해제 및 정리 (개선됨)
+   * 모든 활성 구독을 해제하고 서비스를 정리합니다.
    */
-  unsubscribeAll(): void {
-    // 모든 채널 구독 해제
-    this.channels.forEach((channel, channelName) => {
-      this.supabase.removeChannel(channel);
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[VoteRealtime] 채널 구독 해제: ${channelName}`);
-      }
+  public disconnectAll(): void {
+    console.log('[SSE] Disconnecting all event sources...');
+    this.eventSources.forEach((eventSource) => {
+      eventSource.close();
     });
-    
-    // 모든 타이머 제거
-    this.reconnectTimeouts.forEach(timeout => clearTimeout(timeout));
+    this.eventSources.clear();
+    this.eventListeners.clear();
+    this.statusListeners.clear();
+    this.reconnectTimeouts.forEach(clearTimeout);
     this.reconnectTimeouts.clear();
-    
-    // 하트비트 중지
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
-    
-    // 이벤트 리스너 제거
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('online', this.handleOnline.bind(this));
-      window.removeEventListener('offline', this.handleOffline.bind(this));
-    }
-    if (typeof document !== 'undefined') {
-      document.removeEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
-    }
-    
-    // 상태 초기화
-    this.channels.clear();
-    this.eventListeners.clear();
-    this.statusListeners.clear();
-    this.dataSyncCallbacks.clear();
-    this.pendingEvents = [];
     this.updateConnectionStatus('disconnected');
-    this.reconnectAttempts = 0;
+    console.log('[SSE] All connections closed and service cleaned up.');
   }
 
-  /**
-   * 연결 상태 확인
-   */
+  // 연결 상태 확인
   isConnected(): boolean {
     return this.connectionStatus === 'connected';
   }
 
-  /**
-   * 활성 구독 수 반환
-   */
+  // 활성 구독 수 반환
   getActiveSubscriptionsCount(): number {
-    return this.channels.size;
+    return this.eventSources.size;
   }
 
-  /**
-   * 활성 구독 목록 반환
-   */
+  // 활성 구독 목록 반환
   getActiveSubscriptions(): string[] {
-    return Array.from(this.channels.keys());
+    return Array.from(this.eventSources.keys());
   }
 
-  /**
-   * 대기 중인 이벤트 수 반환
-   */
+  // 대기 중인 이벤트 수 반환
   getPendingEventsCount(): number {
     return this.pendingEvents.length;
   }
 
-  /**
-   * 연결 통계 반환
-   */
+  // 연결 통계 반환
   getConnectionStats() {
     return {
       status: this.connectionStatus,
@@ -847,7 +662,7 @@ export function getVoteRealtimeService(): VoteRealtimeService {
  */
 export function cleanupVoteRealtime(): void {
   if (voteRealtimeService) {
-    voteRealtimeService.unsubscribeAll();
+    voteRealtimeService.disconnectAll();
     voteRealtimeService = null;
   }
 } 
