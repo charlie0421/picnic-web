@@ -7,6 +7,7 @@ import { HybridVoteDetailPresenter } from '@/components/client/vote/detail/Hybri
 const VoteDetail = ({ voteData }: { voteData: any }) => {
   return (
     <HybridVoteDetailPresenter
+      
       vote={voteData.vote}
       initialItems={voteData.voteItems}
       rewards={voteData.rewards}

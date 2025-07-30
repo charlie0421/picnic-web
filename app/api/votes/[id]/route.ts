@@ -40,7 +40,7 @@ export async function GET(
     // 3. 사용자 정보 및 투표 기록 가져오기
     const { data: { user } } = await supabase.auth.getUser();
     
-    let userVotes = [];
+    let userVotes: { vote_item_id: number; vote_count: number }[] = [];
     if (user) {
       const { data, error: userVotesError } = await supabase
         .from('user_vote_history')

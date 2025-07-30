@@ -4,7 +4,6 @@ import React from 'react';
 import NavigationLink from '@/components/client/NavigationLink';
 import { usePathname } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
-import CurrentTime from '@/components/client/vote/common/CurrentTime';
 import menuConfig from '@/config/menu.json';
 
 export const Menu: React.FC = () => {

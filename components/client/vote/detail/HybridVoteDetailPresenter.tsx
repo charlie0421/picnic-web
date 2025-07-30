@@ -32,8 +32,6 @@ interface HybridVoteDetailPresenterProps {
   vote: Vote;
   initialItems: VoteItem[];
   rewards?: Reward[];
-  initialUser: User | null;
-  initialUserVotes: { vote_item_id: number; vote_count: number }[];
   className?: string;
   enableRealtime?: boolean;
   pollingInterval?: number;
@@ -44,8 +42,6 @@ export function HybridVoteDetailPresenter({
   vote,
   initialItems,
   rewards = [],
-  initialUser,
-  initialUserVotes,
   className,
   enableRealtime = true,
   pollingInterval = 10000,
@@ -79,19 +75,6 @@ export function HybridVoteDetailPresenter({
   const [searchHeight, setSearchHeight] = useState(0);
 
   const isVoteActionable = useMemo(() => voteStatus === 'ongoing', [voteStatus]);
-
-  const userVote: UserVote | null = useMemo(() => {
-    if (!initialUser || initialUserVotes.length === 0) return null;
-    const votes = initialUserVotes.map(v => ({ vote_item_id: v.vote_item_id, amount: v.vote_count }));
-    return {
-      userId: initialUser.id,
-      voteId: vote.id,
-      totalVotes: votes.reduce((sum, v) => sum + v.amount, 0),
-      voteCount: new Set(votes.map(v => v.vote_item_id)).size,
-      votes,
-      allVoteItems: Array.from(new Set(votes.map(v => v.vote_item_id))),
-    };
-  }, [initialUser, initialUserVotes, vote.id]);
 
   const formatVotePeriod = useCallback(() => {
     if (!vote.start_at || !vote.stop_at) return '';
@@ -464,18 +447,7 @@ export function HybridVoteDetailPresenter({
                       {item.rank}
                     </div>
                   )}
-                  {userVote && userVote.allVoteItems && userVote.allVoteItems.includes(item.id) ? (
-                    <div className='absolute top-1 right-1 z-10'>
-                      <div className='bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs px-1.5 py-0.5 rounded-full shadow-lg flex items-center gap-1'>
-                        <span>✓</span>
-                        {userVote.voteCount > 1 && (
-                          <span className="text-xs">
-                            {userVote.votes?.filter(v => v.vote_item_id === item.id).reduce((sum, v) => sum + (v.amount || 0), 0) || 0}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ) : isVoteActionable ? (
+                  {isVoteActionable ? (
                     <div className='absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
                       <div className='bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full shadow-lg'>
                         투표
