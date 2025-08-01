@@ -20,7 +20,6 @@ import { createBrowserSupabaseClient } from './client';
 // ⚡ 로딩 시간: 0.1초 미만 (기존 5-8초 → 거의 즉시)
 import { extractAvatarFromProvider } from '@/utils/image-utils';
 import { UserProfiles } from '@/types/interfaces';
-import { handleAuthError } from '@/utils/auth-error-handler';
 
 interface AuthContextType {
   session: Session | null;
