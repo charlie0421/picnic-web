@@ -86,17 +86,18 @@ export async function signInWithKakaoImpl(
     // 디버깅: OAuth 설정 확인
     console.log('🔍 Kakao OAuth Debug:', {
       redirectUrl,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
       originalScopes: scopes,
       uniqueScopes: uniqueScopes,
       finalScopeString: finalScopeString
     });
     
-    const clientId = getKakaoConfig().clientId;
+    const clientId = config.clientId;
     if (!clientId) {
       throw new Error('Kakao Client ID가 설정되지 않았습니다.');
     }
     
-    const targetRedirectUrl = redirectUrl || `${process.env.BASE_URL || 'https://www.picnic.fan'}/auth/callback/kakao`;
+    const targetRedirectUrl = redirectUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.picnic.fan'}/auth/callback/kakao`;
     
     console.log('🚀 Kakao OAuth 시도:', {
       targetRedirectUrl,
