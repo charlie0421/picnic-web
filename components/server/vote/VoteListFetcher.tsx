@@ -3,11 +3,12 @@ import { buildVoteQuery, formatVoteData } from '@/utils/vote-data-formatter';
 import { VoteListPresenter, VoteFilterSection } from '@/components/client/vote/list';
 import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
 import { Vote } from '@/types/interfaces';
+import { createServerSupabaseClient } from '@/lib/supabase';
 
 // 실제 Supabase에서 데이터를 가져오는 함수
 async function fetchVotes(status: VoteStatus, area: VoteArea): Promise<Vote[]> {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
     
     // 공통 쿼리 빌더 사용
     const query = buildVoteQuery(supabase, status, area);
