@@ -9,7 +9,7 @@
  */
 
 import { cache } from "react";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createPublicSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { Database } from "@/types/supabase";
 import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
@@ -737,11 +737,8 @@ export interface VersionInfo {
 export const getLatestVersion = cache(async (): Promise<VersionInfo | null> => {
   try {
     // 공개 데이터용 클라이언트 사용 (쿠키 없음)
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
+    const supabase = await  createPublicSupabaseClient();
+    
     
     const { data, error } = await supabase
       .from(TABLES.VERSION)
@@ -1355,3 +1352,7 @@ export const updateDataSafe = cache(async <T extends TableName>(
     throw error;
   }
 });
+function getSupabaseClient() {
+  throw new Error("Function not implemented.");
+}
+
