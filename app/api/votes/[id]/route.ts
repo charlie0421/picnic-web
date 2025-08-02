@@ -5,14 +5,17 @@ export async function GET(
   request: NextRequest,
   { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
-  const params = await paramsPromise;
-  const voteId = parseInt(params.id, 10);
-  if (isNaN(voteId)) {
-    return NextResponse.json({ error: 'Invalid vote ID' }, { status: 400 });
-  }
+      const params = await paramsPromise;
+    if (!params || typeof params.id !== 'string') {
+      return NextResponse.json({ error: 'Vote ID must be provided as a string.' }, { status: 400 });
+    }
+    const voteId = parseInt(params.id, 10);
+    if (isNaN(voteId)) {
+      return NextResponse.json({ error: 'Invalid vote ID format.' }, { status: 400 });
+    }
 
-  try {
-    const supabase = await createSupabaseServerClient();
+    try {
+      const supabase = await createSupabaseServerClient(true);
 
     // 1. 투표 기본 정보 및 아이템 정보 가져오기
     const { data: vote, error: voteError } = await supabase
