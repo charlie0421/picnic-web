@@ -15,7 +15,7 @@ export async function GET(
     }
 
     try {
-      const supabase = await createSupabaseServerClient(true);
+      const supabase = await createSupabaseServerClient();
 
     // 1. 투표 기본 정보 및 아이템 정보 가져오기
     const { data: vote, error: voteError } = await supabase
