@@ -4,6 +4,8 @@ import { getFaqs } from '@/lib/data-fetching/server/policy-service';
 import { getTranslations } from '@/lib/i18n/server';
 import FaqSkeleton from '@/components/server/mypage/FAQSkeleton';
 
+export const dynamic = 'force-dynamic';
+
 interface FaqPageProps {
   params: Promise<{
     lang: string;

@@ -8,6 +8,8 @@ import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { RewardListFetcher } from '@/components/server/reward';
 
+export const dynamic = 'force-dynamic';
+
 // ISR을 위한 메타데이터 구성 (60초마다 재검증)
 export const revalidate = 60;
 
