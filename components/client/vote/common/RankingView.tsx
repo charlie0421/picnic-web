@@ -105,10 +105,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[0].isAnimating && isInteractionEnabled}
                     voteChange={topItems[0].voteChange}
                     voteTotal={topItems[0].vote_total ?? 0}
-                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[0]) : undefined}
                     enableMotionAnimations={true}
-                    mode={mode}
-                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -128,10 +125,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[1].isAnimating && isInteractionEnabled}
                     voteChange={topItems[1].voteChange}
                     voteTotal={topItems[1].vote_total ?? 0}
-                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[1]) : undefined}
                     enableMotionAnimations={true}
-                    mode={mode}
-                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -163,10 +157,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[1].isAnimating && isInteractionEnabled}
                     voteChange={topItems[1].voteChange}
                     voteTotal={topItems[1].vote_total ?? 0}
-                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[1]) : undefined}
                     enableMotionAnimations={true}
-                    mode={mode}
-                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -188,10 +179,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[0].isAnimating && isInteractionEnabled}
                     voteChange={topItems[0].voteChange}
                     voteTotal={topItems[0].vote_total ?? 0}
-                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[0]) : undefined}
                     enableMotionAnimations={true}
-                    mode={mode}
-                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -213,10 +201,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                     isAnimating={topItems[2].isAnimating && isInteractionEnabled}
                     voteChange={topItems[2].voteChange}
                     voteTotal={topItems[2].vote_total ?? 0}
-                    onAuthenticatedVote={mode === 'detail' ? createAuthenticatedVoteHandler(topItems[2]) : undefined}
                     enableMotionAnimations={true}
-                    mode={mode}
-                    onNavigateToDetail={mode === 'list' && onNavigateToDetail ? () => onNavigateToDetail() : undefined}
                   />
                 </div>
               </div>
@@ -226,4 +211,4 @@ export const RankingView: React.FC<RankingViewProps> = ({
       </div>
     </div>
   );
-}; 
+};

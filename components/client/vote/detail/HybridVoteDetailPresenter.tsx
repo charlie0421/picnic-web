@@ -202,7 +202,7 @@ export function HybridVoteDetailPresenter({
     if (highlight) {
       // 하이라이트 추가
       console.log(`✨ [Highlight] 하이라이트 시작: ${itemId} (${duration}ms)`);
-      setRecentlyUpdatedItems(prev => new Set([...prev, itemId]));
+      setRecentlyUpdatedItems(prev => new Set(Array.from(prev).concat(itemId)));
       
       // 새 타이머 설정
       const timer = setTimeout(() => {

@@ -5,6 +5,7 @@ import { VoteRealtimeEvent, ConnectionStatus } from '@/lib/supabase/realtime';
 import { useVoteRealtime } from '@/hooks/useVoteRealtime';
 import { Database } from '@/types/supabase';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 // 투표 관련 타입 정의
 type VoteData = Database['public']['Tables']['vote']['Row'];
@@ -177,17 +178,19 @@ export function VoteRealtimeProvider({
   const handleRealtimeEvent = useCallback((event: VoteRealtimeEvent) => {
     dispatch({ type: 'INCREMENT_EVENT_COUNT' });
     
+    const payload = event.payload as RealtimePostgresChangesPayload<{[key: string]: any}>;
+
     switch (event.type) {
       case 'vote_updated':
-        dispatch({ type: 'UPDATE_VOTE', payload: event.payload });
+        dispatch({ type: 'UPDATE_VOTE', payload: payload.new as VoteData });
         break;
         
       case 'vote_item_updated':
-        dispatch({ type: 'UPDATE_VOTE_ITEM', payload: event.payload });
+        dispatch({ type: 'UPDATE_VOTE_ITEM', payload: payload.new as VoteItemData });
         break;
         
       case 'vote_pick_created':
-        dispatch({ type: 'ADD_VOTE_PICK', payload: event.payload });
+        dispatch({ type: 'ADD_VOTE_PICK', payload: payload.new as VotePickData });
         break;
         
       default:
@@ -337,4 +340,4 @@ export function useVoteItem(itemId: number) {
     totalVotes: getTotalVotesByItemId(itemId),
     percentage: getVotePercentage(itemId)
   };
-} 
+}
