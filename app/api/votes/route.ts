@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createPublicSupabaseClient } from '@/lib/supabase/server';
 import { SupabasePostgrestError } from '@/lib/supabase/error';
 
 export async function GET(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const supabase = createPublicSupabaseServerClient();
+    const supabase = createPublicSupabaseClient();
     let query = supabase
       .from('vote')
       .select('*, vote_item(*)')

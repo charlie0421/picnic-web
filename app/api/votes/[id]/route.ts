@@ -1,4 +1,4 @@
-import { createSupabaseServerClient, createPublicSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient, createPublicSupabaseClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
@@ -15,7 +15,7 @@ export async function GET(
     }
 
     try {
-      const publicSupabase = createPublicSupabaseServerClient();
+      const publicSupabase = createPublicSupabaseClient();
 
       // 1. 투표 기본 정보 및 아이템 정보 가져오기 (Public Client)
       const { data: vote, error: voteError } = await publicSupabase
