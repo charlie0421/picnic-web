@@ -46,7 +46,7 @@ export async function GET(
       let user: User | null = null;
       let userVotes: { vote_item_id: number; vote_count: number }[] = [];
       
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const hasAuth = cookieStore.get('sb-access-token') && cookieStore.get('sb-refresh-token');
 
       if (hasAuth) {
