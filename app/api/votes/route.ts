@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const supabase = await createSupabaseServerClient();
+    const supabase = createPublicSupabaseServerClient();
     let query = supabase
       .from('vote')
       .select('*, vote_item(*)')

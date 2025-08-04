@@ -53,7 +53,7 @@ export const createServerSupabaseClient = createSupabaseServerClient;
 export const createServerSupabaseClientWithCookies = createSupabaseServerClient;
 
 /** @deprecated use createSupabaseServerClient instead */
-export const createPublicSupabaseClient = createSupabaseServerClient;
+export const createPublicSupabaseClient = createPublicSupabaseServerClient;
 
 
 export async function getServerUser() {
