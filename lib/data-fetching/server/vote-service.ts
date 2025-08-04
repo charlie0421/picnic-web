@@ -120,10 +120,7 @@ export const getVotes = cache(async (
   area?: string,
 ): Promise<Vote[]> => {
   try {
-    const client = createPublicSupabaseClient(
-        process.env.SUPABASE_URL!,
-        process.env.SUPABASE_ANON_KEY!
-    );
+    const client = await createSupabaseServerClient();
     const query = buildVoteQuery(client, status, area);
     const { data, error } = await query;
 
@@ -147,10 +144,7 @@ export const getVoteById = cache(async (
   id: string | number,
 ): Promise<Vote | null> => {
   try {
-    const client = createPublicSupabaseClient(
-        process.env.SUPABASE_URL!,
-        process.env.SUPABASE_ANON_KEY!
-    );
+    const client = await createSupabaseServerClient();
 
     const { data, error } = await client
       .from("vote")
