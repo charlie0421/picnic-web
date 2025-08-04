@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import ClientLayout from '../ClientLayout';
 import MainLayoutClient from './MainLayoutClient';
-import { Menu } from '@/components/client/vote/Menu';
+import { PicnicMenu } from '@/components/client/common/PicnicMenu';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -22,7 +22,7 @@ export default async function MainLayout(props: MainLayoutProps) {
   return (
     <ClientLayout initialLanguage={lang}>
       <MainLayoutClient>
-        <Menu />
+        <PicnicMenu />
         {children}
       </MainLayoutClient>
     </ClientLayout>

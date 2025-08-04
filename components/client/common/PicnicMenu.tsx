@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import menuConfig from '@/config/menu.json';
 
-export const Menu: React.FC = () => {
+export const PicnicMenu: React.FC = () => {
   const pathname = usePathname();
   const { t, currentLanguage, isTranslationLoaded } = useLanguageStore();
 

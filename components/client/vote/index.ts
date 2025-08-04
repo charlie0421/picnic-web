@@ -11,7 +11,7 @@ export { VoteSearch } from './detail/VoteSearch';
 export { VoteRankCard } from './common/VoteRankCard';
 export { CompletedVoteItems } from './list/CompletedVoteItems';
 export { VoteButton } from './common/VoteButton';
-export { Menu } from './Menu'; 
+export { PicnicMenu as Menu } from '../common/PicnicMenu'; 
 export { VoteItems } from './list/VoteItems';
 export { default as VoteDetail } from './VoteDetail';
 export { default as VoteCard } from './list/VoteCard';
