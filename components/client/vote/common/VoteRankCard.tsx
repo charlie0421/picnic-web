@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { VoteItem } from '@/types/interfaces';
 import { Badge } from '@/components/common';
-import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
+import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
 
 export interface VoteRankCardProps {
@@ -28,11 +29,7 @@ export interface VoteRankCardProps {
   isAnimating?: boolean;
   voteTotal?: number;
   onVoteChange?: (newTotal: number) => void;
-  onAuthenticatedVote?: () => Promise<void>;
   enableMotionAnimations?: boolean;
-  // 새로운 props 추가
-  mode?: 'list' | 'detail'; // 투표 리스트 모드 vs 투표 상세 모드
-  onNavigateToDetail?: () => void; // 투표 상세로 이동하는 함수
 }
 
 export function VoteRankCard({
@@ -44,12 +41,15 @@ export function VoteRankCard({
   isAnimating = false,
   voteTotal,
   onVoteChange,
-  onAuthenticatedVote,
   enableMotionAnimations = true,
-  mode = 'detail', // 기본값은 detail (기존 동작 유지)
-  onNavigateToDetail,
 }: VoteRankCardProps) {
-  const { currentLanguage } = useLanguageStore();
+  const { currentLanguage, t } = useLanguageStore();
+  const { withAuth } = useRequireAuth({
+    customLoginMessage: {
+      title: t('vote_login_required_title'),
+      description: t('vote_login_required_description'),
+    },
+  });
   const [currentVoteChange, setCurrentVoteChange] = useState(voteChange);
   const [shouldShowVoteChange, setShouldShowVoteChange] = useState(false);
 
@@ -68,7 +68,7 @@ export function VoteRankCard({
     }
   }, [voteChange]);
 
-  // 카드 클릭 핸들러 - 모드에 따라 다른 동작 수행
+  // 카드 클릭 핸들러
   const handleCardClick = async (event: React.MouseEvent) => {
     // 이벤트 버블링 방지 - 상위 Link 컴포넌트의 클릭 이벤트가 실행되지 않도록 함
     event.stopPropagation();
@@ -76,58 +76,52 @@ export function VoteRankCard({
     console.log('🎯 [VoteRankCard] 카드 클릭됨:', {
       itemId: item.id,
       rank,
-      mode,
       hasOnVoteChange: !!onVoteChange,
-      hasOnAuthenticatedVote: !!onAuthenticatedVote,
-      hasOnNavigateToDetail: !!onNavigateToDetail,
       timestamp: new Date().toISOString(),
     });
 
-    // 투표 리스트 모드: 애니메이션 없이 투표 상세로 이동
-    if (mode === 'list') {
-      console.log('📋 [VoteRankCard] 리스트 모드 - 투표 상세로 이동');
-      if (onNavigateToDetail) {
-        onNavigateToDetail();
-      }
-      return;
-    }
-
-    // 투표 상세 모드: 기존 동작 (투표 다이얼로그 표시)
-    console.log('📊 [VoteRankCard] 상세 모드 - 투표 처리');
-
-    // onAuthenticatedVote가 있으면 우선 사용 (인증 처리가 상위에서 완료됨)
-    if (onAuthenticatedVote) {
-      console.log('🔐 [VoteRankCard] 인증된 투표 함수 호출');
-      await onAuthenticatedVote();
-      return;
-    }
-
     // onVoteChange가 없으면 클릭 무시
     if (!onVoteChange) {
-      console.log('❌ [VoteRankCard] 투표 함수가 없음 - 클릭 무시');
+      console.log('❌ [VoteRankCard] onVoteChange가 없음 - 클릭 무시');
       return;
     }
 
-    console.log('📊 [VoteRankCard] 직접 투표 처리 (인증 없음)');
-    
-    // 실제 투표 로직은 상위 컴포넌트에서 처리
-    // 여기서는 단순히 onVoteChange 콜백만 호출
-    const currentTotal = voteTotal !== undefined ? voteTotal : item.vote_total || 0;
-    const newTotal = currentTotal + 1; // 임시로 1 증가
+    console.log('🔐 [VoteRankCard] 인증 체크 시작 - withAuth 호출');
 
-    console.log('📊 [VoteRankCard] 투표 처리:', {
-      currentTotal,
-      newTotal,
-      itemId: item.id,
+    // 인증이 필요한 투표 액션을 실행
+    const result = await withAuth(async () => {
+      console.log('✅ [VoteRankCard] withAuth 내부 - 인증 성공, 투표 처리');
+
+      // 실제 투표 로직은 상위 컴포넌트에서 처리
+      // 여기서는 단순히 onVoteChange 콜백만 호출
+      const currentTotal =
+        voteTotal !== undefined ? voteTotal : item.vote_total || 0;
+      const newTotal = currentTotal + 1; // 임시로 1 증가
+
+      console.log('📊 [VoteRankCard] 투표 처리:', {
+        currentTotal,
+        newTotal,
+        itemId: item.id,
+      });
+
+      onVoteChange(newTotal);
+      return true;
     });
 
-    onVoteChange(newTotal);
+    console.log('🔍 [VoteRankCard] withAuth 결과:', result);
+
+    // withAuth가 null을 반환하면 인증 실패 (로그인 다이얼로그 표시됨)
+    if (!result) {
+      console.log('❌ [VoteRankCard] 인증 실패 - 투표 처리하지 않음');
+    } else {
+      console.log('✅ [VoteRankCard] 인증 성공 - 투표 처리 완료');
+    }
   };
 
   // 아티스트 이름 가져오기
   const artistName = item.artist
-    ? getLocalizedString(item.artist.name, currentLanguage) || '아티스트'
-    : '아티스트';
+    ? getLocalizedString(item.artist.name, currentLanguage) || t('artist_name_fallback')
+    : t('artist_name_fallback');
 
   // 아티스트 이미지 URL
   const imageUrl = item.artist?.image
@@ -142,21 +136,21 @@ export function VoteRankCard({
     switch (rank) {
       case 1:
         return {
-          image: 'w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24',
-          padding: 'p-1.5 sm:p-2',
-          name: 'text-xs sm:text-sm',
-          votes: 'text-xs sm:text-sm',
+          image: 'md:w-32 md:h-32 sm:w-32 sm:h-32',
+          padding: 'p-2 sm:p-3',
+          name: 'text-sm',
+          votes: 'text-sm',
         };
       case 2:
         return {
-          image: 'w-12 h-12 sm:w-16 sm:h-16 md:w-18 md:h-18',
-          padding: 'p-1 sm:p-1.5',
+          image: 'w-24 h-24 sm:w-20 sm:h-20',
+          padding: 'p-1 sm:p-2',
           name: 'text-xs',
           votes: 'text-xs',
         };
       case 3:
         return {
-          image: 'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14',
+          image: 'w-10 h-10 sm:w-13 sm:h-13',
           padding: 'p-1',
           name: 'text-xs',
           votes: 'text-xs',
@@ -201,11 +195,7 @@ export function VoteRankCard({
                 isUpdated ? 'border-green-400 shadow-green-200' : 'border-amber-300'
               } shadow-lg`
         } ${
-          onVoteChange || onAuthenticatedVote || onNavigateToDetail 
-            ? mode === 'list' 
-              ? 'cursor-pointer hover:scale-102' 
-              : 'cursor-pointer hover:scale-105' 
-            : 'cursor-default'
+          onVoteChange ? 'cursor-pointer hover:scale-105' : 'cursor-default'
         } ${className}`}
         onClick={handleCardClick}
       >
@@ -226,28 +216,14 @@ export function VoteRankCard({
             }}
           />
         </div>
-        <div className='flex flex-col items-center mt-1 flex-1 w-full justify-end'>
+        <div className='flex flex-col items-center mt-2 min-h-0 w-full overflow-hidden'>
           <h3
-            className={`font-bold text-center text-gray-800 ${sizeClasses.name} w-full px-0.5 mb-0.5 leading-tight`}
-            style={{ 
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
-            }}
+            className={`font-bold text-center ${sizeClasses.name} truncate w-full px-1 mb-1`}
           >
             {artistName}
           </h3>
-          {item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name) && (
-            <p 
-              className='text-xs text-gray-600 text-center w-full px-0.5 mb-0.5 leading-tight'
-              style={{ 
-                display: '-webkit-box',
-                WebkitLineClamp: 1,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
-              }}
-            >
+          {item.artist?.artistGroup?.name && (
+            <p className='text-xs text-gray-600 text-center truncate w-full px-1 mb-1'>
               {getLocalizedString(
                 item.artist.artistGroup.name,
                 currentLanguage,
@@ -257,7 +233,7 @@ export function VoteRankCard({
           <div className='relative w-full'>
             {shouldShowVoteChange && (
               <div
-                className={`absolute -top-5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
+                className={`absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
                   currentVoteChange > 0
                     ? 'bg-green-200 text-green-800'
                     : 'bg-red-200 text-red-800'
@@ -270,7 +246,7 @@ export function VoteRankCard({
             <p
               className={`font-bold ${
                 isUpdated ? 'text-green-600' : 'text-blue-600'
-              } ${sizeClasses.votes} w-full px-0.5 text-center transition-all duration-300 leading-tight ${
+              } ${sizeClasses.votes} truncate w-full px-1 text-center transition-all duration-300 ${
                 isUpdated ? 'scale-110' : 'scale-100'
               }`}
             >
@@ -305,7 +281,7 @@ export function VoteRankCard({
           : `bg-gradient-to-br from-amber-50 to-amber-100 border ${
               isUpdated ? 'border-green-400 shadow-green-200' : 'border-amber-300'
             } shadow-lg`
-      } ${onVoteChange || onAuthenticatedVote || onNavigateToDetail ? 'cursor-pointer' : 'cursor-default'} ${className}`}
+      } ${onVoteChange ? 'cursor-pointer' : 'cursor-default'} ${className}`}
       onClick={handleCardClick}
       initial={{ scale: 1, y: 0 }}
       animate={{
@@ -318,32 +294,20 @@ export function VoteRankCard({
           : '0 4px 15px -3px rgba(0, 0, 0, 0.1)',
       }}
       whileHover={
-        (onVoteChange || onAuthenticatedVote || onNavigateToDetail) && mode === 'detail'
+        onVoteChange
           ? {
               scale: 1.05,
               y: -4,
               transition: { duration: 0.2 },
             }
-          : mode === 'list' && onNavigateToDetail
-          ? {
-              // 투표 리스트 모드에서는 애니메이션 최소화
-              scale: 1.01,
-              transition: { duration: 0.1 },
-            }
           : {}
       }
       whileTap={
-        (onVoteChange || onAuthenticatedVote || onNavigateToDetail)
-          ? mode === 'detail'
-            ? {
-                scale: 0.98,
-                transition: { duration: 0.1 },
-              }
-            : {
-                // 투표 리스트 모드에서는 tap 애니메이션 최소화
-                scale: 0.99,
-                transition: { duration: 0.05 },
-              }
+        onVoteChange
+          ? {
+              scale: 0.98,
+              transition: { duration: 0.1 },
+            }
           : {}
       }
       transition={{
@@ -436,16 +400,10 @@ export function VoteRankCard({
       </motion.div>
 
       {/* 텍스트 그룹 - 하단 정렬 */}
-      <div className='flex flex-col items-center mt-1 flex-1 w-full justify-end relative z-[1]'>
+      <div className='flex flex-col items-center mt-2 min-h-0 w-full overflow-hidden relative z-[1]'>
         {/* 아티스트 이름 */}
         <motion.h3
-          className={`font-bold text-center text-gray-800 ${sizeClasses.name} w-full px-0.5 mb-0.5 leading-tight`}
-          style={{ 
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
-          }}
+          className={`font-bold text-center ${sizeClasses.name} truncate w-full px-1 mb-1`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -454,15 +412,9 @@ export function VoteRankCard({
         </motion.h3>
 
         {/* 그룹 이름 (있는 경우) */}
-        {item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name) && (
+        {item.artist?.artistGroup?.name && (
           <motion.p
-            className='text-xs text-gray-600 text-center w-full px-0.5 mb-0.5 leading-tight'
-            style={{ 
-              display: '-webkit-box',
-              WebkitLineClamp: 1,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
-            }}
+            className='text-xs text-gray-600 text-center truncate w-full px-1 mb-1'
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -480,7 +432,7 @@ export function VoteRankCard({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.5, y: -10 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-                className={`absolute -top-5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap z-20 ${
+                className={`absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap z-20 ${
                   currentVoteChange > 0
                     ? 'bg-green-200 text-green-800'
                     : 'bg-red-200 text-red-800'
@@ -493,7 +445,7 @@ export function VoteRankCard({
           </AnimatePresence>
 
           <motion.div
-            className={`font-bold text-blue-600 ${sizeClasses.votes} w-full px-0.5 text-center leading-tight`}
+            className={`font-bold text-blue-600 ${sizeClasses.votes} truncate w-full px-1 text-center`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ 
               opacity: 1, 

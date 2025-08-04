@@ -177,20 +177,17 @@ export function VoteRealtimeProvider({
   const handleRealtimeEvent = useCallback((event: VoteRealtimeEvent) => {
     dispatch({ type: 'INCREMENT_EVENT_COUNT' });
     
-    // payload에서 실제 데이터 추출 (Supabase Realtime v2 형식)
-    const payloadData = (event.payload as any)?.new || event.payload;
-
     switch (event.type) {
       case 'vote_updated':
-        dispatch({ type: 'UPDATE_VOTE', payload: payloadData as unknown as VoteData });
+        dispatch({ type: 'UPDATE_VOTE', payload: event.payload });
         break;
         
       case 'vote_item_updated':
-        dispatch({ type: 'UPDATE_VOTE_ITEM', payload: payloadData as unknown as VoteItemData });
+        dispatch({ type: 'UPDATE_VOTE_ITEM', payload: event.payload });
         break;
         
       case 'vote_pick_created':
-        dispatch({ type: 'ADD_VOTE_PICK', payload: payloadData as unknown as VotePickData });
+        dispatch({ type: 'ADD_VOTE_PICK', payload: event.payload });
         break;
         
       default:
