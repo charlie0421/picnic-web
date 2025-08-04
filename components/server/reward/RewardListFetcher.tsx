@@ -13,6 +13,8 @@ async function fetchRewards(): Promise<DBReward[]> {
       .select('*')
       .order('created_at', { ascending: false });
 
+    console.log('rewards', rewards) ;
+    
     if (error) {
       console.error('Failed to fetch rewards:', error);
       return [];

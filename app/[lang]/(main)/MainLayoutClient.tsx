@@ -13,7 +13,6 @@ interface MainLayoutClientProps {
 }
 
 const MainLayoutClient = ({ children }: MainLayoutClientProps) => {
-  const { data: banners, error: bannersError } = useSWR<Banner[]>('/api/banners', fetcher);
   const { data: popups, error: popupsError } = useSWR<Popup[]>('/api/popups', fetcher);
 
   const [activePopup, setActivePopup] = useState<Popup | null>(null);
@@ -28,7 +27,6 @@ const MainLayoutClient = ({ children }: MainLayoutClientProps) => {
     setActivePopup(null);
   };
   
-  if (bannersError) console.error('Failed to load banners', bannersError);
   if (popupsError) console.error('Failed to load popups', popupsError);
 
   return (

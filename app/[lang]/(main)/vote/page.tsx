@@ -61,6 +61,7 @@ export default async function VoteListPage({
         <section>
           <BannerListFetcher />
         </section>
+        
 
         {/* 투표 섹션 */}
         <section>

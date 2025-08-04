@@ -80,7 +80,7 @@ export const Menu: React.FC = () => {
   console.log('🔍 [Vote Menu] 정상 렌더링 시작');
 
   return (
-    <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center py-2'>
+    <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center px-12 py-2 bg-white'>
       <div className='flex overflow-x-auto scrollbar-hide whitespace-nowrap w-full sm:w-auto'>
         {subMenus.map((menuItem) => {
           const translatedText = menuItem.i18nKey ? t(menuItem.i18nKey) : menuItem.name;
