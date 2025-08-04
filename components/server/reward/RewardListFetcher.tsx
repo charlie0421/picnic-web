@@ -1,31 +1,8 @@
-import { createClient } from "@/utils/supabase-server-client";
 import { Reward as DBReward } from "@/types/interfaces";
 import { getLocalizedString } from "@/utils/api/strings";
 import { getCdnImageUrl } from "@/utils/api/image";
 import { RewardListPresenter } from "@/components/client/reward/RewardPresenter";
-
-// 활성 리워드 데이터를 서버에서 페칭
-async function fetchRewards(): Promise<DBReward[]> {
-  try {
-    const supabase = await createClient();
-    const { data: rewards, error } = await supabase
-      .from('reward')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    console.log('rewards', rewards) ;
-    
-    if (error) {
-      console.error('Failed to fetch rewards:', error);
-      return [];
-    }
-
-    return rewards || [];
-  } catch (error) {
-    console.error('Failed to fetch rewards:', error);
-    return [];
-  }
-}
+import { getRewards } from "@/utils/api/queries";
 
 // DB Reward 타입을 Client Reward 타입으로 변환
 function transformRewardData(dbRewards: DBReward[]): DBReward[] {
@@ -59,7 +36,7 @@ export async function RewardListFetcher({
   className, 
   showViewAllLink = false 
 }: RewardListFetcherProps = {}) {
-  const dbRewards = await fetchRewards();
+  const dbRewards = await getRewards();
   const clientRewards = transformRewardData(dbRewards);
   
   return (
@@ -70,4 +47,5 @@ export async function RewardListFetcher({
       />
     </div>
   );
-} 
+}
+ 

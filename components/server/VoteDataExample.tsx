@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getByIdOrNotFound, TABLES } from '@/lib/data-fetching/supabase-service';
+import { getByIdOrNotFound, TABLES } from '@/lib/data-fetching/server/supabase-service';
 import { ErrorState, LoadingState } from '@/components/server';
 import { AppError, ErrorCode } from '@/lib/supabase/error';
 

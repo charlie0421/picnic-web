@@ -11,7 +11,7 @@ interface StateComponentProps {
 }
 
 interface ErrorStateProps extends StateComponentProps {
-  error: string;
+  error: Error;
   onRetry: () => void;
 }
 
@@ -63,7 +63,7 @@ export const ErrorState = memo<ErrorStateProps>(({ error, onRetry, translations 
           <span className="text-red-500 text-2xl">⚠️</span>
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('label_error_occurred')}</h3>
-        <p className="text-gray-600 mb-4">{error}</p>
+        <p className="text-gray-600 mb-4">{error.message}</p>
         <button
           onClick={onRetry}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium"

@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { getServerUser } from '@/lib/supabase/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { UserProfiles } from '@/types/interfaces';
 import MyPageClient from './MyPageClient';
+import MyPageActivityMenu from '@/components/server/mypage/MyPageActivityMenu';
+import MyPageServiceMenu from '@/components/server/mypage/MyPageServiceMenu';
+import MyPageAccountMenu from '@/components/server/mypage/MyPageAccountMenu';
+import { LoadingState } from '@/components/server';
 
 // 🚀 서버 컴포넌트로 변경: 토큰 관리 문제 해결
 export default async function MyPage({ params }: { params: Promise<{ lang: string }> }) {
@@ -12,11 +16,6 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
   // 서버 사이드에서 인증 처리 - 토큰 관리 불필요
   const user = await getServerUser();
   
-  // 로그아웃 상태에서도 접근 허용 (리다이렉트 제거)
-  // if (!user) {
-  //   redirect('/login?returnTo=/mypage');
-  // }
-
   // 사용자 프로필도 서버에서 미리 가져오기 (로그인 상태일 때만)
   let userProfile: UserProfiles | null = null;
   if (user) {
@@ -89,12 +88,20 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
     label_mypage_last_login_via: localeMessages.label_mypage_last_login_via || 'via'
   };
 
-  // 클라이언트 컴포넌트에 초기 데이터와 번역 전달 (user는 null일 수 있음)
+  const isDebugMode = process.env.NODE_ENV === 'development' || 
+    (typeof window !== 'undefined' && window.location.hostname === 'localhost');
+
   return (
     <MyPageClient 
       initialUser={user} 
       initialUserProfile={userProfile}
       translations={translations}
-    />
+      showDebugMenus={isDebugMode}
+    >
+      <Suspense fallback={<LoadingState />}>
+        <MyPageActivityMenu translations={translations} />
+        <MyPageServiceMenu translations={translations} />
+      </Suspense>
+    </MyPageClient>
   );
 }

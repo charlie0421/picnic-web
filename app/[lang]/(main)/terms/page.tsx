@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getPolicyForCurrentLanguage } from '@/lib/data-fetching/policy-service';
+import { getPolicy } from '@/lib/data-fetching/server/policy-service';
 
 interface TermsPageProps {
   params: Promise<{
@@ -18,13 +18,19 @@ interface TermsPageProps {
 export default async function TermsPage({ params }: TermsPageProps) {
   const { lang } = await params;
   
-  // 정책 데이터 가져오기
-  const policy = await getPolicyForCurrentLanguage('terms', lang);
+  const policyContent = await getPolicy('terms', lang);
   
   // 정책이 없으면 404 페이지 표시
-  if (!policy) {
+  if (!policyContent) {
     notFound();
   }
+
+  // remark: getPolicy는 content만 반환하므로, 버전과 업데이트 날짜는 임시로 처리
+  const policy = {
+    content: policyContent,
+    version: '1.0', 
+    updated_at: new Date().toISOString(),
+  };
 
   // 마지막 업데이트 날짜 포맷팅
   const formatDate = (dateString: string) => {

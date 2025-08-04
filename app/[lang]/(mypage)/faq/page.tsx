@@ -1,54 +1,40 @@
-'use client';
+import React, { Suspense } from 'react';
+import FaqClient from './FaqClient';
+import { getFaqs } from '@/lib/data-fetching/server/policy-service';
+import { getTranslations } from '@/lib/i18n/server';
+import FaqSkeleton from '@/components/server/mypage/FAQSkeleton';
 
-import React, { useState } from 'react';
-import useSWR from 'swr';
-import { getLocalizedString } from '@/utils/api/strings';
-import { useParams } from 'next/navigation';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+interface FaqPageProps {
+  params: Promise<{
+    lang: string;
+  }>;
+}
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const FaqFetcher = async ({ lang }: { lang: string }) => {
+  const faqs = await getFaqs(lang);
+  const categories = [
+    'all',
+    ...Array.from(new Set(faqs.map((faq: any) => faq.category).filter(Boolean))),
+  ];
 
-const FaqPageClient = () => {
-  const params = useParams();
-  const lang = params.lang as string;
-  const { data: faqs, error } = useSWR(`/api/faqs?lang=${lang}`, fetcher);
-  const [openId, setOpenId] = useState<number | null>(null);
+  return <FaqClient faqs={faqs} categories={categories} />;
+};
 
-  const toggleFaq = (id: number) => {
-    setOpenId(openId === id ? null : id);
-  };
-
-  if (error) return <div>Failed to load FAQs.</div>;
-  if (!faqs) return <div>Loading...</div>;
+export default async function FaqPage(props: FaqPageProps) {
+  const params = await props.params;
+  const { lang } = params;
+  const t = await getTranslations(lang as any);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">자주 묻는 질문</h1>
-      <div className="space-y-4">
-        {faqs.map((faq: any) => (
-          <div key={faq.id} className="border-b">
-            <button
-              onClick={() => toggleFaq(faq.id)}
-              className="w-full text-left py-4 flex justify-between items-center"
-            >
-              <span className="font-semibold">{faq.question}</span>
-              <ChevronDownIcon
-                className={`w-5 h-5 transition-transform ${
-                  openId === faq.id ? 'transform rotate-180' : ''
-                }`}
-              />
-            </button>
-            {openId === faq.id && (
-              <div
-                className="pb-4 pr-8 text-gray-600"
-                dangerouslySetInnerHTML={{ __html: faq.answer }}
-              />
-            )}
-          </div>
-        ))}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-2xl font-bold mb-6 text-gray-900">
+          {t('label_mypage_faq')}
+        </h1>
+        <Suspense fallback={<FaqSkeleton />}>
+          <FaqFetcher lang={lang} />
+        </Suspense>
       </div>
     </div>
   );
-};
-
-export default FaqPageClient;
+}

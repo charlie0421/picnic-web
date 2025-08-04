@@ -7,7 +7,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Vote, VoteItem } from '@/types/interfaces';
-import { getVoteByIdClient, getVotesClient } from './client/vote-service.client';
+import { getVoteByIdClient, getVotesClient } from './vote-service.client';
 
 // API 응답 타입 정의
 export interface VoteSubmissionRequest {

@@ -10,7 +10,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Vote, VoteItem } from '@/types/interfaces';
-import { getVoteByIdClient, getVotesClient } from './vote-service';
+import { getVoteByIdClient, getVotesClient } from './vote-service.client';
 import {
   withVoteOptimization,
   withPerformanceMonitoring,

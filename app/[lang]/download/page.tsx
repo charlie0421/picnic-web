@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import DownloadClient from '@/app/[lang]/download/DownloadClient';
 import { SUPPORTED_LANGUAGES, type Language } from '@/config/settings';
-import { getLatestVersion } from '@/lib/data-fetching/supabase-service';
+import { getLatestVersion } from '@/lib/data-fetching/server/supabase-service';
 import { getTranslations } from '@/lib/i18n/server';
 
 export const revalidate = 3600;

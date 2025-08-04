@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { LoadingState } from '@/components/server';
-import { getListSafe, TABLES } from '@/lib/data-fetching/supabase-service';
+import { getListSafe, TABLES } from '@/lib/data-fetching/server/supabase-service';
 
 /**
  * 병렬 데이터 페칭 패턴

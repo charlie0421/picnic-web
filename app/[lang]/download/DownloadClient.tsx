@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { type VersionInfo } from '@/lib/data-fetching/supabase-service';
+import { type VersionInfo } from '@/lib/data-fetching/server/supabase-service';
 import { cn } from '@/components/utils/cn';
 
 interface DownloadClientProps {

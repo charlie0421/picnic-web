@@ -1,35 +1,6 @@
-import { createClient } from '@/utils/supabase-server-client';
-import { buildVoteQuery, formatVoteData } from '@/utils/vote-data-formatter';
 import { VoteListPresenter, VoteFilterSection } from '@/components/client/vote/list';
 import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
-import { Vote } from '@/types/interfaces';
-import { createServerSupabaseClient } from '@/lib/supabase';
-
-// 실제 Supabase에서 데이터를 가져오는 함수
-async function fetchVotes(status: VoteStatus, area: VoteArea): Promise<Vote[]> {
-  try {
-    const supabase = await createServerSupabaseClient();
-    
-    // 공통 쿼리 빌더 사용
-    const query = buildVoteQuery(supabase, status, area);
-    const { data: voteData, error } = await query;
-    
-    if (error) {
-      console.error('Vote fetch error:', error);
-      return [];
-    }
-    
-    if (!voteData || voteData.length === 0) {
-      return [];
-    }
-    
-    // 공통 포맷터 사용
-    return formatVoteData(voteData);
-  } catch (error) {
-    console.error('fetchVotes error:', error);
-    return [];
-  }
-}
+import { getVotes } from '@/lib/data-fetching/server/vote-service';
 
 interface VoteListFetcherProps {
   status: VoteStatus;
@@ -55,7 +26,7 @@ export async function VoteListFetcher({
   area = VOTE_AREAS.ALL, 
   className 
 }: VoteListFetcherProps) {
-  const votes = await fetchVotes(status, area);
+  const votes = await getVotes(status, area);
   
   return (
     <div className={className}>
@@ -63,4 +34,5 @@ export async function VoteListFetcher({
       <VoteListPresenter votes={votes} />
     </div>
   );
-} 
+}
+ 

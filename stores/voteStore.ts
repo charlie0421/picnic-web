@@ -8,7 +8,7 @@ import {
   calculateVoteStatus,
   calculateTimeLeft,
   VoteSubmissionRequest
-} from '@/lib/data-fetching/vote-api';
+} from '@/lib/data-fetching/client/vote-api-enhanced';
 import { 
   VoteRealtimeService,
   VoteRealtimeEvent, 
@@ -814,7 +814,7 @@ export const useVoteStore = create<VoteStore>()(
             return;
           }
 
-          const voteStatus = calculateVoteStatus(vote.start_at || '', vote.stop_at || '');
+          const voteStatus = calculateVoteStatus(vote);
           const timeLeft = voteStatus === 'ongoing' 
             ? calculateTimeLeft(vote.stop_at || '') 
             : voteStatus === 'upcoming' 
@@ -864,14 +864,14 @@ export const useVoteStore = create<VoteStore>()(
         startResultsLoading();
 
         try {
-          const response = await getVoteResults(voteId);
+          const responseData = await getVoteResults(voteId);
           
-          if (!response.success || !response.data) {
-            setResultsError(response.error || 'Failed to load vote results');
+          if (!responseData) {
+            setResultsError('Failed to load vote results: No data returned');
             return;
           }
 
-          const { results, totalVotes } = response.data;
+          const { results, totalVotes } = responseData;
           const voteItems: VoteItem[] = results.map((result) => ({
             id: result.id,
             vote_id: result.voteId,
@@ -977,20 +977,13 @@ export const useVoteStore = create<VoteStore>()(
           
           if (!currentVote.vote) return;
 
-          let targetDate: string | null = null;
-          if (currentVote.voteStatus === 'upcoming' && currentVote.vote.start_at) {
-            targetDate = currentVote.vote.start_at;
-          } else if (currentVote.voteStatus === 'ongoing' && currentVote.vote.stop_at) {
-            targetDate = currentVote.vote.stop_at;
-          }
-
-          if (targetDate) {
-            const timeLeft = calculateTimeLeft(targetDate);
+          if (currentVote.vote) {
+            const timeLeft = calculateTimeLeft(currentVote.vote);
             updateTimeLeft(timeLeft);
             
             // 상태 변경 체크
             if (currentVote.vote.start_at && currentVote.vote.stop_at) {
-              const newStatus = calculateVoteStatus(currentVote.vote.start_at, currentVote.vote.stop_at);
+              const newStatus = calculateVoteStatus(currentVote.vote);
               if (newStatus !== currentVote.voteStatus) {
                 set(
                   (state) => ({

@@ -211,7 +211,7 @@ async function VoteDataProvider() {
 사용자가 방문할 가능성이 높은 페이지의 데이터를 미리 가져와 캐시에 저장하는 기능입니다:
 
 ```tsx
-import { prefetchRecord, prefetchList } from '@/lib/data-fetching/supabase-service';
+import { prefetchRecord, prefetchList } from '@/lib/data-fetching/server/supabase-service';
 
 // 링크 호버 시 데이터 프리페치
 <Link 

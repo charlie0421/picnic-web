@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getRewardById } from '@/lib/data-fetching/reward-service';
+import { getRewardById } from '@/lib/data-fetching/server/reward-service';
 import {
   createPageMetadata,
   createImageMetadata,

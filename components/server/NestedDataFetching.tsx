@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { LoadingState } from '@/components/server';
-import { getByIdSafe, getListSafe, TABLES } from '@/lib/data-fetching/supabase-service';
+import { getByIdSafe, getListSafe, TABLES } from '@/lib/data-fetching/server/supabase-service';
 
 /**
  * 중첩된 Suspense 경계를 활용한 계층적 데이터 로딩 패턴

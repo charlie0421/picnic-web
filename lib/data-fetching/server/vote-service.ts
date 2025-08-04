@@ -1,24 +1,10 @@
-/**
- * 투표 관련 데이터 서비스
- *
- * 서버 컴포넌트와 클라이언트 컴포넌트에서 투표 데이터를 조회하는 서비스 함수들입니다.
- * 각 함수는 React의 cache를 사용하여 요청을 캐싱합니다.
- */
+'use server';
 
 import { cache } from "react";
-// 공개 데이터용 클라이언트 사용 (쿠키 없음)
-import { createClient } from "@supabase/supabase-js";
-import { CacheOptions } from "./fetchers";
+import { createClient as createPublicSupabaseClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
-
-// 공개 Supabase 클라이언트 생성 함수 (쿠키 없음)
-function createPublicClient() {
-  return createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!
-  );
-}
 
 // 기본 투표 테이블 조회 쿼리
 const DEFAULT_VOTE_QUERY = `
@@ -125,16 +111,19 @@ function buildVoteQuery(
   return query.order("start_at", { ascending: false });
 }
 
+
 /**
  * 투표 목록 조회 함수 (서버용)
  */
 export const getVotes = cache(async (
   status?: string,
   area?: string,
-  options?: CacheOptions,
 ): Promise<Vote[]> => {
   try {
-    const client = createPublicClient(); // 공개 클라이언트 사용
+    const client = createPublicSupabaseClient(
+        process.env.SUPABASE_URL!,
+        process.env.SUPABASE_ANON_KEY!
+    );
     const query = buildVoteQuery(client, status, area);
     const { data, error } = await query;
 
@@ -150,42 +139,18 @@ export const getVotes = cache(async (
   }
 });
 
-/**
- * 투표 목록 조회 함수 (클라이언트용)
- */
-export async function getVotesClient(
-  client: SupabaseClient,
-  status?: string,
-  area?: string,
-): Promise<Vote[]> {
-  try {
-    const query = buildVoteQuery(client, status, area);
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("[getVotesClient] 에러 발생:", error);
-      throw error;
-    }
-
-    return transformVoteData(data || []);
-  } catch (e) {
-    console.error("[getVotesClient] 에러:", e);
-    throw e;
-  }
-}
 
 /**
  * 단일 투표 조회 함수 (서버용)
  */
 export const getVoteById = cache(async (
   id: string | number,
-  options?: CacheOptions,
 ): Promise<Vote | null> => {
   try {
-    console.log("[getVoteById] 시작 - ID:", id, "Type:", typeof id);
-
-    const client = createPublicClient(); // 공개 클라이언트 사용
-    console.log("[getVoteById] 공개 Supabase 클라이언트 생성 완료");
+    const client = createPublicSupabaseClient(
+        process.env.SUPABASE_URL!,
+        process.env.SUPABASE_ANON_KEY!
+    );
 
     const { data, error } = await client
       .from("vote")
@@ -193,69 +158,10 @@ export const getVoteById = cache(async (
       .eq("id", id)
       .is("deleted_at", null)
       .single();
-
-    console.log("[getVoteById] Supabase 쿼리 완료");
-    console.log("[getVoteById] 에러:", error);
-    console.log("[getVoteById] 데이터 존재:", !!data);
 
     if (error) {
       console.error("[getVoteById] Supabase 에러 발생:", error);
-      console.error("[getVoteById] 에러 코드:", error.code);
-      console.error("[getVoteById] 에러 메시지:", error.message);
-      console.error("[getVoteById] 에러 세부사항:", error.details);
       return null;
-    }
-
-    if (!data) {
-      console.log(
-        "[getVoteById] 데이터가 null임 - ID가 존재하지 않거나 삭제됨:",
-        id,
-      );
-      return null;
-    }
-
-    console.log("[getVoteById] 원본 데이터:", {
-      id: data.id,
-      title: data.title,
-      deleted_at: data.deleted_at,
-      vote_item_count: data.vote_item?.length || 0,
-      vote_reward_count: data.vote_reward?.length || 0,
-    });
-
-    const transformedData = transformVoteData([data]);
-    const result = transformedData[0] || null;
-
-    console.log("[getVoteById] 변환된 데이터:", result ? "성공" : "실패");
-
-    return result;
-  } catch (e) {
-    console.error("[getVoteById] 예외 발생:", e);
-    console.error(
-      "[getVoteById] 예외 스택:",
-      e instanceof Error ? e.stack : "스택 없음",
-    );
-    return null;
-  }
-});
-
-/**
- * 단일 투표 조회 함수 (클라이언트용)
- */
-export async function getVoteByIdClient(
-  client: SupabaseClient,
-  id: string | number,
-): Promise<Vote | null> {
-  try {
-    const { data, error } = await client
-      .from("vote")
-      .select(DEFAULT_VOTE_QUERY)
-      .eq("id", id)
-      .is("deleted_at", null)
-      .single();
-
-    if (error) {
-      console.error("[getVoteByIdClient] 에러 발생:", error);
-      throw error;
     }
 
     if (!data) {
@@ -265,7 +171,79 @@ export async function getVoteByIdClient(
     const transformedData = transformVoteData([data]);
     return transformedData[0] || null;
   } catch (e) {
-    console.error("[getVoteByIdClient] 에러:", e);
-    throw e;
+    console.error("[getVoteById] 예외 발생:", e);
+    return null;
   }
-}
+});
+
+
+/**
+ * 투표 상세 정보 조회 함수 (서버용)
+ *
+ * 투표 기본 정보, 투표 아이템, 보상, 사용자 투표 기록을 모두 조회합니다.
+ * React의 cache를 사용하여 요청을 캐싱합니다.
+ */
+export const getVoteDetails = cache(async (
+  voteId: string | number,
+) => {
+  const numericVoteId = typeof voteId === 'string' ? parseInt(voteId, 10) : voteId;
+
+  if (isNaN(numericVoteId)) {
+    console.error('[getVoteDetails] Invalid vote ID format:', voteId);
+    return null;
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 1. 투표 기본 정보 및 아이템 정보 가져오기
+    const { data: vote, error: voteError } = await supabase
+      .from('vote')
+      .select('*, vote_item(*, artist(*, artist_group(*)))')
+      .eq('id', numericVoteId)
+      .single();
+
+    if (voteError || !vote) {
+      console.error(`[getVoteDetails] Error fetching vote for id ${numericVoteId}:`, voteError);
+      return null;
+    }
+
+    // 2. 보상 정보 가져오기
+    const { data: rewards, error: rewardsError } = await supabase
+      .from('vote_reward')
+      .select('reward(*)')
+      .eq('vote_id', numericVoteId);
+
+    if (rewardsError) {
+      console.error(`[getVoteDetails] Error fetching rewards for vote id ${numericVoteId}:`, rewardsError);
+    }
+
+    // 3. 사용자 정보 및 투표 기록 가져오기
+    const { data: { user } } = await supabase.auth.getUser();
+
+    let userVotes: { vote_item_id: number; vote_count: number }[] = [];
+    if (user) {
+      const { data, error: userVotesError } = await supabase
+        .from('user_vote_history')
+        .select('vote_item_id, vote_count')
+        .eq('user_id', user.id)
+        .eq('vote_id', numericVoteId);
+
+      if (userVotesError) {
+        console.error(`[getVoteDetails] Error fetching user vote history for user ${user.id}:`, userVotesError);
+      } else {
+        userVotes = data || [];
+      }
+    }
+
+    return {
+      vote,
+      rewards: rewards ? rewards.map(r => r.reward) : [],
+      user,
+      userVotes,
+    };
+  } catch (error) {
+    console.error(`[getVoteDetails] General error for voteId ${numericVoteId}:`, error);
+    return null;
+  }
+});

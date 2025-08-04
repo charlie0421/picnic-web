@@ -1,5 +1,5 @@
 import FAQSkeleton from '@/components/server/mypage/FAQSkeleton';
 
-export default function FAQLoading() {
+export default function Loading() {
   return <FAQSkeleton />;
-} 
+}

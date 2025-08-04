@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { getListSafe, TABLES } from '@/lib/data-fetching/supabase-service';
+import { getListSafe, TABLES } from '@/lib/data-fetching/server/supabase-service';
 import { LoadingState } from '@/components/server';
 import { VoteClientComponent } from '@/components/client';
 

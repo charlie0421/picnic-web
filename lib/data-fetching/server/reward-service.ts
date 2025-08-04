@@ -1,3 +1,5 @@
+'use server';
+
 /**
  * 보상 관련 데이터 서비스
  * 
@@ -107,4 +109,4 @@ export const getRewardById = cache(async (
       ? data.vote_reward.map((vr: any) => vr.vote).filter(Boolean)
       : [],
   } as Reward;
-}); 
+});
