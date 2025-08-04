@@ -21,7 +21,6 @@ import { Card } from '@/components/common/molecules';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
-import { useAuth } from '@/hooks/useAuth';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { useNotification } from '@/contexts/NotificationContext';
 import { useDebounce } from 'use-debounce';
@@ -32,6 +31,8 @@ interface HybridVoteDetailPresenterProps {
   vote: Vote;
   initialItems: VoteItem[];
   rewards?: Reward[];
+  user: User | null;
+  userVotes: UserVote[];
   className?: string;
   enableRealtime?: boolean;
   pollingInterval?: number;
@@ -42,13 +43,14 @@ export function HybridVoteDetailPresenter({
   vote,
   initialItems,
   rewards = [],
+  user,
+  userVotes,
   className,
   enableRealtime = true,
   pollingInterval = 10000,
   maxRetries = 3,
 }: HybridVoteDetailPresenterProps) {
   const { t, currentLanguage } = useLanguageStore();
-  const { user, isAuthenticated } = useAuth();
   const { addNotification } = useNotification();
   const { withAuth, isLoading: isAuthLoading } = useRequireAuth({
     customLoginMessage: {
