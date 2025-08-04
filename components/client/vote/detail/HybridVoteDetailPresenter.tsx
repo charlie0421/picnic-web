@@ -32,7 +32,7 @@ interface HybridVoteDetailPresenterProps {
   initialItems: VoteItem[];
   rewards?: Reward[];
   user: User | null;
-  userVotes: UserVote[];
+  userVotes: { vote_item_id: number; vote_count: number }[];
   className?: string;
   enableRealtime?: boolean;
   pollingInterval?: number;

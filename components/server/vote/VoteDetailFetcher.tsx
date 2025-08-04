@@ -43,7 +43,7 @@ export default async function VoteDetailFetcher({ voteId, className }: VoteDetai
       initialItems={voteItems as unknown as VoteItem[]}
       rewards={rewards as Reward[] || []}
       user={user as User | null}
-      userVotes={userVotes as { vote_item_id: number; vote_count: number }[]}
+      userVotes={userVotes}
       className={className}
       enableRealtime={true}
       pollingInterval={10000}
