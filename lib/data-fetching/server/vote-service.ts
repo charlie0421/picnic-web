@@ -1,8 +1,7 @@
 'use server';
 
 import { cache } from "react";
-import { createClient as createPublicSupabaseClient } from "@supabase/supabase-js";
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient, createPublicSupabaseServerClient } from '@/lib/supabase/server';
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
 
@@ -120,7 +119,7 @@ export const getVotes = cache(async (
   area?: string,
 ): Promise<Vote[]> => {
   try {
-    const client = await createSupabaseServerClient();
+    const client = createPublicSupabaseServerClient();
     const query = buildVoteQuery(client, status, area);
     const { data, error } = await query;
 
@@ -144,8 +143,7 @@ export const getVoteById = cache(async (
   id: string | number,
 ): Promise<Vote | null> => {
   try {
-    const client = await createSupabaseServerClient();
-
+    const client = createPublicSupabaseServerClient();
     const { data, error } = await client
       .from("vote")
       .select(DEFAULT_VOTE_QUERY)

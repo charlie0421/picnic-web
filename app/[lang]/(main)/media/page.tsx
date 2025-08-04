@@ -1,6 +1,8 @@
 import React from 'react';
 import { MediaListFetcher } from '@/components/server/media';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * 미디어 페이지
  * 

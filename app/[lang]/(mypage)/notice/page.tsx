@@ -3,6 +3,8 @@ import { getNotices } from '@/lib/data-fetching/server/notice-service';
 import NoticePageClient from './NoticePageClient';
 import NoticeSkeleton from '@/components/server/mypage/NoticeSkeleton';
 
+export const dynamic = 'force-dynamic';
+
 interface NoticePageProps {
   params: Promise<{
     lang: string;

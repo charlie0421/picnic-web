@@ -1,10 +1,8 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient, createPublicSupabaseClient } from '@/lib/supabase/server';
 import {Banner, Media, Reward, Vote, VoteItem, Popup} from "@/types/interfaces";
 import {withRetry} from "./retry-utils";
 
-const getSupabaseClient = async () => {
-    return createSupabaseServerClient();
-}
+
 
 // API 요청 실패 로깅 및 디버깅을 위한 함수
 const logRequestError = (error: any, functionName: string) => {
@@ -17,7 +15,7 @@ const _getVotes = async (
   sortBy: "votes" | "recent" = "votes",
 ): Promise<Vote[]> => {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     const now = new Date();
     const currentTime = now.toISOString();
 
@@ -101,7 +99,7 @@ const _getVotes = async (
 // 리워드 데이터 가져오기
 const _getRewards = async (limit?: number): Promise<Reward[]> => {
   try {
-    const supabase = await getSupabaseClient(); // 공개 클라이언트 사용
+    const supabase = createPublicSupabaseClient(); // 공개 클라이언트 사용
     let query = supabase
       .from("reward")
       .select("*")
@@ -136,7 +134,7 @@ const _getRewards = async (limit?: number): Promise<Reward[]> => {
 // 배너 데이터 가져오기
 const _getBanners = async (): Promise<Banner[]> => {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     
     const { data: bannerData, error: bannerError } = await supabase
       .from("banner")
@@ -175,7 +173,7 @@ const _getRewardById = async (id: string): Promise<Reward | null> => {
       return null;
     }
 
-    const supabase = await getSupabaseClient(); // 공개 클라이언트 사용
+    const supabase = createPublicSupabaseClient(); // 공개 클라이언트 사용
     console.log(`[_getRewardById] Supabase 공개 클라이언트 준비 완료, ID ${id} 쿼리 실행`);
     
     const { data: rewardData, error: rewardError } = await supabase
@@ -232,7 +230,7 @@ const _getRewardById = async (id: string): Promise<Reward | null> => {
 // 미디어 데이터 가져오기
 const _getMedias = async (): Promise<Media[]> => {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     const { data: mediaData, error: mediaError } = await supabase
       .from("media")
       .select("*")
@@ -262,7 +260,7 @@ const _getMedias = async (): Promise<Media[]> => {
 // 투표 상세 정보 가져오기
 const _getVoteById = async (id: number): Promise<Vote | null> => {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     const { data: voteData, error: voteError } = await supabase
       .from("vote")
       .select(`
@@ -300,7 +298,7 @@ const _getVoteById = async (id: number): Promise<Vote | null> => {
 // 투표 항목 데이터 가져오기
 const _getVoteItems = async (voteId: number): Promise<VoteItem[]> => {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     const { data: voteItemsData, error: voteItemsError } = await supabase
       .from("vote_item")
       .select(`
@@ -338,7 +336,7 @@ const _getVoteItems = async (voteId: number): Promise<VoteItem[]> => {
 // 투표 보상 데이터 가져오기
 const _getVoteRewards = async (voteId: number): Promise<Reward[]> => {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     const { data: voteRewardData, error: voteRewardError } = await supabase
       .from("vote_reward")
       .select(`
@@ -379,7 +377,7 @@ const _getVoteRewards = async (voteId: number): Promise<Reward[]> => {
 // 팝업 데이터 가져오기 (서버 시간 기준으로 활성 팝업만)
 const _getPopups = async (): Promise<Popup[]> => {
   try {
-    const supabase = await getSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     const { data: popupData, error: popupError } = await supabase
       .from("popup")
       .select("*")
