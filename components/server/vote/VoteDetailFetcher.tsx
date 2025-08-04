@@ -12,8 +12,8 @@ export interface VoteDetailFetcherProps {
 
 // API 라우트를 통해 데이터를 가져오는 함수
 async function getVoteDetailsFromApi(voteId: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+  const baseUrl = process.env.NEXT_PUBLIC_WEB_DOMAIN
+    ? `https://${process.env.NEXT_PUBLIC_WEB_DOMAIN}`
     : 'http://127.0.0.1:3100';
 
   const res = await fetch(`${baseUrl}/api/votes/${voteId}`, {
