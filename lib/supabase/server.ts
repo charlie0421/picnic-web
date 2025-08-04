@@ -5,10 +5,19 @@ import { createClient } from '@supabase/supabase-js'
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies()
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_URL is not set in environment variables.");
+  }
+  if (!supabaseServiceRoleKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set in environment variables.");
+  }
 
   return createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    supabaseUrl,
+    supabaseServiceRoleKey,
     {
       cookies: {
         get(name: string) {
@@ -38,9 +47,19 @@ export async function createSupabaseServerClient() {
 }
 
 export function createPublicSupabaseServerClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_URL is not set in environment variables.");
+  }
+  if (!supabaseAnonKey) {
+    throw new Error("SUPABASE_ANON_KEY is not set in environment variables.");
+  }
+
   return createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
   );
 }
 
