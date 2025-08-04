@@ -737,7 +737,7 @@ export interface VersionInfo {
 export const getLatestVersion = cache(async (): Promise<VersionInfo | null> => {
   try {
     // 공개 데이터용 클라이언트 사용 (쿠키 없음)
-    const supabase = await  createPublicSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     
     
     const { data, error } = await supabase
@@ -1352,7 +1352,5 @@ export const updateDataSafe = cache(async <T extends TableName>(
     throw error;
   }
 });
-function getSupabaseClient() {
-  throw new Error("Function not implemented.");
-}
+
 
