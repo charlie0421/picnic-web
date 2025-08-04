@@ -12,8 +12,6 @@ const VoteDetail = ({ voteData }: { voteData: any }) => {
       vote={vote}
       initialItems={voteItems}
       rewards={rewards}
-      user={user}
-      userVotes={userVotes}
     />
   );
 };
