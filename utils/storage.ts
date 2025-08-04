@@ -126,4 +126,18 @@ export function formatLastLoginTime(timestamp: string, language: SupportedLangua
 export function isLastLoginForUser(userId: string): boolean {
   const lastLogin = getLastLoginInfo();
   return lastLogin?.userId === userId;
+}
+
+/**
+ * Provider 이름을 표시용 이름으로 변환합니다.
+ */
+export function getProviderDisplayName(provider: string): string {
+  const displayNames: { [key: string]: string } = {
+    google: 'Google',
+    apple: 'Apple',
+    kakao: 'Kakao',
+    wechat: 'WeChat'
+  };
+  
+  return displayNames[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 } 

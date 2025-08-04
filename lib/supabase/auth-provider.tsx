@@ -20,6 +20,7 @@ import { createBrowserSupabaseClient } from './client';
 // ⚡ 로딩 시간: 0.1초 미만 (기존 5-8초 → 거의 즉시)
 import { extractAvatarFromProvider } from '@/utils/image-utils';
 import { UserProfiles } from '@/types/interfaces';
+import { setLastLoginInfo, getProviderDisplayName } from '@/utils/storage';
 
 interface AuthContextType {
   session: Session | null;
@@ -231,6 +232,36 @@ class AuthStore {
         }
 
         this.supabaseClient = createBrowserSupabaseClient();
+        
+        // 인증 상태 변경 리스너를 생성자에서 한 번만 등록
+        this.supabaseClient.auth.onAuthStateChange(async (event: string, session: any) => {
+          console.log(`[AuthStore] onAuthStateChange 이벤트 발생: ${event}`, { session });
+
+          if (event === 'SIGNED_IN' && session?.user) {
+            const provider = session.user.app_metadata?.provider;
+            console.log(`[AuthStore] SIGNED_IN 이벤트 내부, provider: ${provider}`);
+            if (provider && ['google', 'apple', 'kakao', 'wechat'].includes(provider)) {
+              setLastLoginInfo({
+                provider: provider,
+                providerDisplay: getProviderDisplayName(provider),
+                timestamp: new Date().toISOString(),
+                userId: session.user.id,
+              });
+            } else {
+               console.warn('[AuthStore] provider 정보가 없어 최근 로그인 정보를 저장하지 않습니다.', { provider });
+            }
+          }
+  
+          // 로그아웃 이벤트 처리
+          if (event === 'SIGNED_OUT' || !session) {
+            console.log('🚪 [AuthStore] 로그아웃 이벤트 - 상태 정리');
+            // 상태 업데이트 로직은 performInstantUserAuth에서 처리하므로 여기서는 로그만 남깁니다.
+            // 또는 여기서 직접 상태를 업데이트할 수도 있습니다.
+            // 현재 구조에서는 performInstantUserAuth가 쿠키 기반으로 상태를 결정하므로
+            // 이 리스너는 보조적인 역할(로그인 정보 저장 등)을 합니다.
+          }
+        });
+
         this.initPromise = this.initialize();
       } catch (error) {
         console.error('❌ [AuthStore] Supabase 클라이언트 생성 실패:', error);
@@ -413,6 +444,18 @@ class AuthStore {
         createdAt: user.created_at
       });
 
+      // 최근 로그인 정보 저장
+      const provider = user.app_metadata?.provider;
+      if (provider && ['google', 'apple', 'kakao', 'wechat'].includes(provider)) {
+        setLastLoginInfo({
+          provider: provider,
+          providerDisplay: getProviderDisplayName(provider),
+          timestamp: new Date().toISOString(),
+          userId: user.id,
+        });
+        console.log(`✅ [AuthStore] 최근 로그인 정보 저장 (from performInstantUserAuth): ${provider}`);
+      }
+
       // 세션 객체 생성 (JWT 기반)
       const instantSession = {
         user: user,
@@ -485,26 +528,6 @@ class AuthStore {
         console.warn('⚠️ [AuthStore] 토큰이 곧 만료됨 (30분 이내) - 재로그인 필요할 수 있음');
         // 백그라운드 네트워크 요청 없이 경고만 표시
       }
-
-      // 인증 상태 변경 리스너 등록 (쿠키 기반 모드)
-      this.supabaseClient.auth.onAuthStateChange(async (event: string, session: any) => {
-        // 로그아웃 이벤트만 처리 (다른 이벤트는 쿠키 기반으로 이미 처리됨)
-        if (event === 'SIGNED_OUT' || !session) {
-          console.log('🚪 [AuthStore] 로그아웃 이벤트 - 상태 정리');
-          this.updateState({
-            session: null,
-            user: null,
-            userProfile: null,
-            isAuthenticated: false,
-            isLoading: false,
-            isInitialized: true,
-            signOut: this.signOut.bind(this),
-            loadUserProfile: this.loadUserProfile.bind(this),
-          });
-        }
-        // 다른 이벤트(SIGNED_IN, TOKEN_REFRESHED 등)는 조용히 무시
-        // 쿠키 기반으로 이미 처리되므로 추가 로그 없이 무시
-      });
 
     } catch (error) {
       console.error('❌ [AuthStore] performInstantUserAuth 예외:', {

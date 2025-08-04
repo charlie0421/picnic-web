@@ -10,9 +10,9 @@ import { getSocialAuthService } from '@/lib/supabase/social';
 import type { SocialLoginProvider } from '@/lib/supabase/social/types';
 import { Button } from '@/components/common/atoms/Button';
 import { 
-  getLastLoginProvider, 
   sortProvidersByLastUsed
 } from '@/utils/auth-helpers';
+import type { LastLoginInfo } from '@/utils/storage';
 
 interface SocialLoginButtonsProps {
   onLoginStart?: () => void;
@@ -20,6 +20,7 @@ interface SocialLoginButtonsProps {
   onError?: (error: Error) => void;
   providers?: SocialLoginProvider[];
   size?: 'small' | 'medium' | 'large';
+  lastLoginInfo: LastLoginInfo | null;
 }
 
 // 모든 환경에서 동일 처리: 로컬 특별 로직 제거
@@ -30,20 +31,16 @@ export function SocialLoginButtons({
   onError,
   providers = ['google', 'apple'], // 'kakao' 임시 제거 - 웹에서 지원 안함
   size = 'medium',
+  lastLoginInfo,
 }: SocialLoginButtonsProps) {
   const [isLoading, setIsLoading] = useState<SocialLoginProvider | null>(null);
-  const [lastUsedProvider, setLastUsedProvider] = useState<SocialLoginProvider | null>(null);
-  const [sortedProviders, setSortedProviders] = useState<SocialLoginProvider[]>(providers);
   const { t } = useLanguageStore();
   const { isLoading: authLoading } = useAuth();
   const { setIsLoading: setGlobalLoading } = useGlobalLoading();
 
-  // 컴포넌트 마운트 시 최근 사용한 로그인 수단을 확인
-  useEffect(() => {
-    const lastProvider = getLastLoginProvider();
-    setLastUsedProvider(lastProvider);
-    setSortedProviders(sortProvidersByLastUsed(providers));
-  }, [providers]);
+  const lastUsedProvider = (lastLoginInfo?.provider as SocialLoginProvider) || null;
+  const sortedProviders = sortProvidersByLastUsed(providers, lastUsedProvider);
+
 
   const handleSocialLogin = useCallback(
     async (provider: SocialLoginProvider) => {

@@ -72,12 +72,8 @@ export default async function LanguageLayout({
 }) {
   const params = await paramsPromise;
   return (
-    <html lang={params.lang} suppressHydrationWarning>
-      <body>
-        <ClientLayout initialLanguage={params.lang}>
-          {children}
-        </ClientLayout>
-      </body>
-    </html>
+    <ClientLayout initialLanguage={params.lang}>
+      {children}
+    </ClientLayout>
   );
 }

@@ -66,14 +66,16 @@ export function clearLastLoginProvider(): void {
 /**
  * provider 배열을 최근 사용한 것을 우선순위로 정렬합니다.
  */
-export function sortProvidersByLastUsed(providers: SocialLoginProvider[]): SocialLoginProvider[] {
-  const lastProvider = getLastLoginProvider();
-  if (!lastProvider || !providers.includes(lastProvider)) {
+export function sortProvidersByLastUsed(
+  providers: SocialLoginProvider[],
+  lastUsedProvider: SocialLoginProvider | null,
+): SocialLoginProvider[] {
+  if (!lastUsedProvider || !providers.includes(lastUsedProvider)) {
     return providers;
   }
   
   // 최근 사용한 provider를 맨 앞으로 이동
-  return [lastProvider, ...providers.filter(p => p !== lastProvider)];
+  return [lastUsedProvider, ...providers.filter(p => p !== lastUsedProvider)];
 }
 
 /**
@@ -88,20 +90,6 @@ export function hasLastLoginProvider(): boolean {
  */
 export function isLastUsedProvider(provider: SocialLoginProvider): boolean {
   return getLastLoginProvider() === provider;
-}
-
-/**
- * Provider 이름을 한국어 표시명으로 변환합니다.
- */
-function getProviderDisplayName(provider: SocialLoginProvider): string {
-  const displayNames: Record<SocialLoginProvider, string> = {
-    google: 'Google',
-    apple: 'Apple',
-    kakao: 'Kakao',
-    wechat: 'WeChat'
-  };
-  
-  return displayNames[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
 /**
