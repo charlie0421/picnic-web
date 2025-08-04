@@ -5,12 +5,15 @@ import { HybridVoteDetailPresenter } from '@/components/client/vote/detail/Hybri
 
 // 이제 voteData는 항상 존재한다고 가정하고, 로딩 상태는 상위 Suspense에서 처리합니다.
 const VoteDetail = ({ voteData }: { voteData: any }) => {
+  const { vote, voteItems, rewards, user, userVotes } = voteData;
+
   return (
     <HybridVoteDetailPresenter
-      
-      vote={voteData.vote}
-      initialItems={voteData.voteItems}
-      rewards={voteData.rewards}
+      vote={vote}
+      initialItems={voteItems}
+      rewards={rewards}
+      user={user}
+      userVotes={userVotes}
     />
   );
 };
