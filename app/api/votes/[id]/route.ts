@@ -1,5 +1,6 @@
 import { createSupabaseServerClient, createPublicSupabaseClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import type { User } from '@supabase/supabase-js';
 
 export async function GET(
   request: NextRequest,
@@ -41,7 +42,7 @@ export async function GET(
       }
       
       // 3. 사용자 정보 및 투표 기록 가져오기 (Server Client for Auth)
-      let user = null;
+      let user: User | null = null;
       let userVotes: { vote_item_id: number; vote_count: number }[] = [];
 
       try {
