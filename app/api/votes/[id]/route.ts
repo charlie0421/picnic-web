@@ -1,6 +1,7 @@
 import { createSupabaseServerClient, createPublicSupabaseClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 export async function GET(
   request: NextRequest,
@@ -44,29 +45,32 @@ export async function GET(
       // 3. 사용자 정보 및 투표 기록 가져오기 (Server Client for Auth)
       let user: User | null = null;
       let userVotes: { vote_item_id: number; vote_count: number }[] = [];
+      
+      const cookieStore = cookies();
+      const hasAuth = cookieStore.get('sb-access-token') && cookieStore.get('sb-refresh-token');
 
-      try {
-        const supabase = await createSupabaseServerClient();
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        user = authUser;
-
-        if (user) {
-          const { data, error: userVotesError } = await supabase
-            .from('user_vote_history')
-            .select('vote_item_id, vote_count')
-            .eq('user_id', user.id)
-            .eq('vote_id', voteId);
+      if (hasAuth) {
+        try {
+          const supabase = await createSupabaseServerClient();
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          user = authUser;
   
-          if (userVotesError) {
-            console.error(`API Error fetching user vote history for user ${user.id}:`, userVotesError);
-          } else {
-            userVotes = data || [];
+          if (user) {
+            const { data, error: userVotesError } = await supabase
+              .from('user_vote_history')
+              .select('vote_item_id, vote_count')
+              .eq('user_id', user.id)
+              .eq('vote_id', voteId);
+    
+            if (userVotesError) {
+              console.error(`API Error fetching user vote history for user ${user.id}:`, userVotesError);
+            } else {
+              userVotes = data || [];
+            }
           }
+        } catch (e) {
+          console.warn('사용자 인증 정보 확인 중 에러 발생 (로그인하지 않은 사용자로 처리)', e);
         }
-      } catch (e) {
-        // 쿠키가 없거나 유효하지 않은 경우 에러가 발생할 수 있음
-        // 이 경우 사용자는 로그인하지 않은 상태로 간주
-        console.warn('사용자 인증 정보 확인 중 에러 발생 (로그인하지 않은 사용자로 처리)');
       }
 
       const responsePayload = {
