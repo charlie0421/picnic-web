@@ -182,42 +182,16 @@ export const VoteCard = React.memo(
             </div>
 
             {vote.voteReward && vote.voteReward.length > 0 && (
-              <div className='mt-2 bg-yellow-50 rounded-lg p-3 border border-yellow-100'>
-                <div className='flex items-center text-yellow-700 font-medium mb-2'>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    className='h-5 w-5 mr-1'
-                    viewBox='0 0 20 20'
-                    fill='currentColor'
+              <div className='mt-2 space-y-2'>
+                {vote.voteReward.map((reward) => (
+                  <NavigationLink
+                    key={reward.reward?.id}
+                    href={`/rewards/${reward.reward?.id}`}
+                    className='block hover:bg-gray-50 rounded-lg transition-colors'
                   >
-                    <path
-                      fillRule='evenodd'
-                      d='M5 5a3 3 0 015-2.236A3 3 0 0114.83 6H16a2 2 0 110 4h-5V9a1 1 0 10-2 0v1H4a2 2 0 110-4h1.17C5.06 5.687 5 5.35 5 5zm4 1V5a1 1 0 10-1 1h1zm3 0a1 1 0 10-1-1v1h1z'
-                      clipRule='evenodd'
-                    />
-                    <path d='M9 11H3v5a2 2 0 002 2h4v-7zM11 18h4a2 2 0 002-2v-5h-6v7z' />
-                  </svg>
-                  <span className='text-sm sm:text-base'>
-                    {t('text_vote_reward', {
-                      count: vote.voteReward.length.toString(),
-                    })}
-                  </span>
-                </div>
-                <div className='flex flex-wrap gap-2'>
-                  {vote.voteReward.slice(0, 2).map((reward) => (
-                    <RewardItem
-                      key={reward.reward?.id}
-                      reward={reward.reward!}
-                    />
-                  ))}
-                  {vote.voteReward.length > 2 && (
-                    <div className='w-full text-center'>
-                      <span className='text-xs text-gray-500'>
-                        +{vote.voteReward.length - 2}개 더보기
-                      </span>
-                    </div>
-                  )}
-                </div>
+                    <RewardItem reward={reward.reward!} />
+                  </NavigationLink>
+                ))}
               </div>
             )}
 

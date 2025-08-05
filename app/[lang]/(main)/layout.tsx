@@ -10,9 +10,9 @@ interface MainLayoutProps {
   };
 }
 
-export default function MainLayout(props: MainLayoutProps) {
+export default async function MainLayout(props: MainLayoutProps) {
   const { children, params } = props;
-  const { lang } = params;
+  const { lang } = await params;
 
   return (
     <ClientLayout initialLanguage={lang}>

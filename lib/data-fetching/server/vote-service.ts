@@ -54,10 +54,10 @@ function transformVoteData(data: any[]): Vote[] {
       ...vr,
       reward: vr.reward
         ? {
-          id: vr.reward.id,
-          name: vr.reward.name,
-          image: vr.reward.image,
-        }
+            id: vr.reward.id,
+            title: vr.reward.title,
+            thumbnail: vr.reward.thumbnail,
+          }
         : null,
     })) || [];
 
