@@ -1187,3 +1187,46 @@ export interface ViewTransactionAll {
   transaction_id: string | null
   user_id: string | null
 }
+
+export interface QnaThread {
+  id: number;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  status: 'OPEN' | 'CLOSED';
+  qna_messages: QnaMessage[];
+}
+
+export interface QnaMessage {
+  id: number;
+  thread_id: number;
+  user_id: string;
+  content: string;
+  created_at: string;
+  is_admin_message: boolean;
+  qna_attachments: QnaAttachment[];
+  user_profiles: {
+    avatar_url: string | null;
+    nickname: string | null;
+  } | null;
+}
+
+export interface QnaAttachment {
+  id: number;
+  message_id: number;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  file_size: number;
+  created_at: string;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}

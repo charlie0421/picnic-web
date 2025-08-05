@@ -46,6 +46,21 @@ export default function MyPageAccountMenu({ handleLogout, showDebugMenus }: MyPa
             </NavigationLink>
           )}
           
+          <NavigationLink href='/mypage/qna' className='group'>
+            <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-16'>
+              <div className='flex items-center justify-center space-x-2 h-full'>
+                <div className='w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center'>
+                  <span className='text-white text-sm'>💬</span>
+                </div>
+                <div>
+                  <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors text-sm'>
+                    {t('label_mypage_qna')}
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </NavigationLink>
+
           <button onClick={handleLogout} className='group text-left'>
             <div className='bg-gradient-to-r from-point-50 to-point-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-point-200 h-16'>
               <div className='flex items-center justify-center space-x-2 h-full'>
