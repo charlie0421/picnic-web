@@ -6,7 +6,7 @@ import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { PortalType } from '@/utils/enums';
-import { isVoteRelatedPath, PORTAL_MENU } from '@/config/navigation';
+import { PORTAL_MENU } from '@/config/navigation';
 import NavigationLink from '@/components/client/NavigationLink';
 import menuConfig from '@/config/menu.json';
 import { 
@@ -257,7 +257,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             {filteredMenuItems.length > 0 && (
               <div className="px-2 space-y-1">
                 {filteredMenuItems.map((item) => {
-                  const isActive = isVoteRelatedPath(pathname) && item.type === PortalType.VOTE;
+                  const isActive = pathname.includes('/vote') && item.type === PortalType.VOTE;
                   const translatedText = getMenuTranslation(item.type);
                   
                   return (

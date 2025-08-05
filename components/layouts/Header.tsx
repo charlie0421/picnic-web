@@ -1,46 +1,32 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/lib/supabase/auth-provider';
-import { useLogout } from '@/lib/auth/logout';
-import { useLanguageStore } from '@/stores/languageStore';
+import { useMenu } from '@/hooks/useMenu';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
+import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
+import { useTranslations } from '@/hooks/useTranslations';
 import NavigationLink from '@/components/client/NavigationLink';
-import {
-  DefaultAvatar,
-  ProfileImageContainer,
-} from '@/components/ui/ProfileImageContainer';
-import PortalMenuItem from './PortalMenuItem';
-import MobileNavigationMenu from './MobileNavigationMenu';
-import MobilePortalMenu from './MobilePortalMenu';
-import { PORTAL_MENU } from '@/config/navigation';
-import { Menu as MenuIcon, ChevronRight } from 'lucide-react';
+import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 import LanguageSelector from './LanguageSelector';
-import useSWR from 'swr';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { Menu, Settings, Vote, Users, Image as PictureIcon, BookOpen, Star, ChevronRight } from 'lucide-react';
 
 const Header: React.FC = () => {
-  const { isAuthenticated, user, isLoading: isAuthLoading } = useAuth();
-  const performLogout = useLogout();
-  const { currentLanguage } = useLanguageStore();
   const pathname = usePathname();
+  const { 
+    isAuthenticated, userProfile, isAdmin, portalMenuItems, activePortal, isAuthLoading, isProfileLoading 
+  } = useMenu();
+  const { getLocalizedPath } = useLocaleRouter();
+  const { isLoading: globalLoading, forceStopLoading } = useGlobalLoading();
+  const { tDynamic: t, translations } = useTranslations();
 
-  // SWR로 사용자 프로필 정보 가져오기
-  const { data: profileData, isLoading: isProfileLoading } = useSWR(
-    isAuthenticated && user ? `/api/user/profile?userId=${user.id}` : null,
-    fetcher
-  );
-  const userProfile = profileData?.success ? profileData.user : null;
-
-  // 스크롤 상태 관리
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const [showScrollHint, setShowScrollHint] = useState(false);
   const menuContainerRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
-  // 스크롤 상태 확인 함수
   const checkScrollState = useCallback(() => {
     if (menuContainerRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = menuContainerRef.current;
@@ -49,376 +35,147 @@ const Header: React.FC = () => {
     }
   }, []);
 
-  // 스크롤 이벤트 핸들러
-  const handleScroll = useCallback(() => {
+  useEffect(() => {
     checkScrollState();
+    const currentRef = menuContainerRef.current;
+    currentRef?.addEventListener('scroll', checkScrollState);
+    window.addEventListener('resize', checkScrollState);
+    return () => {
+      currentRef?.removeEventListener('scroll', checkScrollState);
+      window.removeEventListener('resize', checkScrollState);
+    };
   }, [checkScrollState]);
 
-  // 컴포넌트 마운트 시 스크롤 상태 체크 및 힌트 표시
   useEffect(() => {
-    const timer = setTimeout(() => {
-      checkScrollState();
-      if (canScrollRight) {
-        setShowScrollHint(true);
-        // 3초 후 힌트 숨김
-        setTimeout(() => setShowScrollHint(false), 3000);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
       }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [checkScrollState, canScrollRight]);
-
-  // 윈도우 리사이즈 시 스크롤 상태 재확인
-  useEffect(() => {
-    const handleResize = () => {
-      setTimeout(checkScrollState, 100);
     };
+    if (isMobileMenuOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobileMenuOpen]);
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [checkScrollState]);
-
-  // 🐛 디버그 모드 체크
-  const isDebugMode = process.env.NODE_ENV === 'development';
-
-  // 🎯 DB 프로필 이미지만 사용 (OAuth 토큰 이미지 제외)
-  const getUserInfo = useCallback(() => {
-    if (userProfile) {
-      return {
-        nickname: userProfile.name || user?.email?.split('@')[0] || '사용자',
-        email: userProfile.email || user?.email || '이메일 정보 없음',
-        avatar_url: userProfile.avatar_url || null,
-        provider: 'profile',
-        source: 'userProfile',
-      };
-    }
-    if (user) {
-      return {
-        nickname: user.email?.split('@')[0] || '사용자',
-        email: user.email || '이메일 정보 없음',
-        avatar_url: null,
-        provider: user.app_metadata?.provider || 'unknown',
-        source: 'token',
-      };
-    }
-    return {
-      nickname: '사용자',
-      email: '로그인 후 이메일이 표시됩니다',
-      avatar_url: null,
-      provider: 'none',
-      source: 'default',
-    };
-  }, [userProfile, user]);
-
-  // 🔍 안정적인 인증 상태 확인 함수
-  const getStableAuthState = useCallback(() => {
-    if (isAuthLoading) {
-      return {
-        showUserArea: false,
-        showHamburger: false,
-        showLoading: true,
-        reason: 'auth_loading',
-      };
-    }
-    if (!isAuthenticated || !user) {
-      return {
-        showUserArea: false,
-        showHamburger: true,
-        showLoading: false,
-        reason: 'not_authenticated',
-      };
-    }
-    return {
-      showUserArea: true,
-      showHamburger: false,
-      showLoading: false,
-      reason: 'authenticated',
-    };
-  }, [isAuthenticated, user, isAuthLoading]);
-
-  // 🔍 프로필 이미지 로딩 상태 확인
-  const isProfileImageLoading = isAuthenticated && isProfileLoading;
+  const handleMobileMenuClick = () => {
+    if (!isMobileMenuOpen && globalLoading) forceStopLoading();
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
   
-  const userInfo = getUserInfo();
-  const stableAuthState = getStableAuthState();
+  const getMenuTranslation = (type: string): string => {
+    if (translations?.nav?.menu?.[type]) return translations.nav.menu[type];
+    const fallbackMap: Record<string, string> = { vote: '투표', community: '커뮤니티', pic: 'PIC', novel: '소설', mypage: '마이페이지' };
+    return fallbackMap[type] || type;
+  };
 
-  // 디버깅 로그 (개발 환경에서만)
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 [Header] 인증 상태 디버깅:', {
-        '📊 기본 상태': {
-          isAuthenticated,
-          isLoading: isAuthLoading,
-          hasUser: !!user,
-          hasUserProfile: !!userProfile
-        },
-        '🎯 계산된 상태': {
-          stableAuthState,
-          profileImageLoading: isProfileImageLoading,
-          userInfo: {
-            source: userInfo.source,
-            hasAvatar: !!userInfo.avatar_url,
-            provider: userInfo.provider
-          }
-        }
-      });
-
-      // 🚨 관리자 권한 상태 별도 로깅
-      if (isAuthenticated && !isAuthLoading) {
-        const isAdminFromProfile = userProfile?.is_admin;
-        const isSuperAdminFromProfile = userProfile?.is_super_admin;
-        const isAdminFromMetadata = user?.user_metadata?.is_admin;
-        const isSuperAdminFromMetadata = user?.user_metadata?.is_super_admin;
-        
-        const finalIsAdmin = isAdminFromProfile || isSuperAdminFromProfile || isAdminFromMetadata || isSuperAdminFromMetadata;
-        
-        // 🐛 개발 환경 임시 관리자 체크
-        const isDevTempAdmin = process.env.NODE_ENV === 'development' && 
-                              isAuthenticated && 
-                              !isAuthLoading && 
-                              !userProfile &&
-                              user;
-
-        // 🔧 개발 환경 fallback 관리자 체크
-        const isDevFallbackAdmin = process.env.NODE_ENV === 'development' && 
-                                  isAuthenticated && 
-                                  !isAuthLoading &&
-                                  user &&
-                                  (Date.now() - (window as any).authStartTime || 0) > 2000;
-
-        console.log('🚨 [Header] 관리자 권한 상태:', {
-          '🔑 권한 정보': {
-            profile_isAdmin: isAdminFromProfile,
-            profile_isSuperAdmin: isSuperAdminFromProfile,
-            metadata_isAdmin: isAdminFromMetadata,
-            metadata_isSuperAdmin: isSuperAdminFromMetadata,
-            finalIsAdmin,
-            devTempAdmin: isDevTempAdmin,
-            devFallbackAdmin: isDevFallbackAdmin
-          },
-          '🎯 결과': {
-            showAdminMenus: finalIsAdmin || isDevTempAdmin || isDevFallbackAdmin ? '✅' : '❌'
-          }
-        });
-      }
+  const getMenuIcon = (type: string) => {
+    switch (type) {
+      case 'vote': return <Vote className="w-4 h-4" />;
+      case 'community': return <Users className="w-4 h-4" />;
+      case 'pic': return <PictureIcon className="w-4 h-4" />;
+      case 'novel': return <BookOpen className="w-4 h-4" />;
+      default: return <ChevronRight className="w-4 h-4" />;
     }
-  }, [isAuthenticated, isAuthLoading, userProfile, user, stableAuthState, isProfileImageLoading]);
+  };
+
+  const renderProfileIcon = () => (
+    isProfileLoading ? (
+      <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
+    ) : (
+      <ProfileImageContainer avatarUrl={userProfile?.avatar_url} width={24} height={24} borderRadius={6} className="w-6 h-6 object-cover"/>
+    )
+  );
 
   return (
     <header className='border-b border-gray-200 bg-white relative'>
       <div className='container mx-auto px-2 sm:px-4 py-2'>
-        {/* 메인 헤더 라인 */}
         <div className='flex items-center justify-between w-full gap-2 sm:gap-4'>
-          {/* 좌측: 로고 + 메뉴 */}
           <div className='flex items-center gap-2 sm:gap-4 flex-1 min-w-0'>
-            {/* 로고 */}
-            <div className='flex items-center flex-shrink-0'>
-              <NavigationLink 
-                href="/"
-              >
-                <Image
-                  src='/images/logo.png'
-                  alt='logo'
-                  width={40}
-                  height={40}
-                  priority
-                  className='w-8 h-8 sm:w-10 sm:h-10 rounded-lg'
-                />
-              </NavigationLink>
-            </div>
-
-            {/* 모바일 포털메뉴 - 모바일과 태블릿에서 표시 */}
-            <div className='md:hidden flex items-center'>
-              <MobilePortalMenu />
-            </div>
-
-            {/* 데스크탑 메뉴 - 데스크탑에서만 표시 */}
-            <div className='hidden md:flex flex-1 relative'>
-              {/* 메뉴 컨테이너 */}
-              <div 
-                ref={menuContainerRef}
-                className='overflow-x-auto scrollbar-hide scroll-smooth'
-                onScroll={handleScroll}
-                style={{
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                }}
-              >
-                <div className='flex items-center space-x-1 sm:space-x-2 min-w-max'>
-                  {PORTAL_MENU.map((menuItem) => {
-                    // 🔐 권한별 메뉴 노출 조건 (요구사항에 따라 수정)
-                    
-                    // VOTE 메뉴는 항상 노출
-                    if (menuItem.type === 'vote') {
-                      return (
-                        <PortalMenuItem
-                          key={menuItem.path}
-                          portalType={menuItem.type}
-                        />
-                      );
-                    }
-
-                    // COMMUNITY, PIC, NOVEL 메뉴는 로그인한 관리자만 노출
-                    const isAdminOnlyMenu = ['community', 'pic', 'novel'].includes(menuItem.type);
-                    if (isAdminOnlyMenu) {
-                      // 로그인하지 않았으면 숨김
-                      if (!isAuthenticated) {
-                        return null;
-                      }
-
-                      // 🔄 userProfile 로딩 상태 체크
-                      const isUserProfileLoading = isAuthenticated && !userProfile && !isAuthLoading;
-
-                      // userProfile이 아직 로딩 중이면 메뉴를 숨김 (로딩 후 점진적 표시)
-                      if (isUserProfileLoading) {
-                        if (process.env.NODE_ENV === 'development') {
-                          console.log(`⏳ [Header] ${menuItem.type} 메뉴 - userProfile 로딩 중...`);
-                        }
-                        return null;
-                      }
-
-                      // 🔍 관리자 권한 확인 (DB의 userProfile 우선, 백업으로 user metadata 활용)
-                      const isAdmin = userProfile?.is_admin || 
-                                     userProfile?.is_super_admin || 
-                                     user?.user_metadata?.is_admin || 
-                                     user?.user_metadata?.is_super_admin;
-
-                      // 🐛 개발 환경에서 userProfile이 없는 경우 임시 관리자 권한 부여
-                      const isDevTempAdmin = process.env.NODE_ENV === 'development' && 
-                                            isAuthenticated && 
-                                            !isAuthLoading && 
-                                            !userProfile &&
-                                            user; // JWT 사용자가 있으면 임시 관리자로 간주
-
-                      // 🔧 개발 환경에서 userProfile 로딩이 실패한 경우도 고려
-                      const isDevFallbackAdmin = process.env.NODE_ENV === 'development' && 
-                                                isAuthenticated && 
-                                                !isAuthLoading &&
-                                                user &&
-                                                // userProfile이 2초 이상 로드되지 않으면 개발환경에서는 관리자로 간주
-                                                (Date.now() - (window as any).authStartTime || 0) > 2000;
-
-                      // 디버깅용 로그 (개발 환경에서만)
-                      if (process.env.NODE_ENV === 'development') {
-                        console.log(`🔍 [Header] ${menuItem.type} 메뉴:`, {
-                          isAdmin,
-                          isDevTempAdmin,
-                          isDevFallbackAdmin,
-                          shouldShow: isAdmin || isDevTempAdmin || isDevFallbackAdmin,
-                          isLoading: isUserProfileLoading
-                        });
-                      }
-
-                      // 관리자가 아니면 숨김 (개발환경 임시관리자는 제외)
-                      if (!isAdmin && !isDevTempAdmin && !isDevFallbackAdmin) {
-                        return null;
-                      }
-                    }
-
-                    return (
-                      <PortalMenuItem
-                        key={menuItem.path}
-                        portalType={menuItem.type}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 오른쪽 그라디언트 페이드 효과 (더 많은 콘텐츠가 있을 때) */}
-              {canScrollRight && (
-                <div className='absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none flex items-center justify-end pr-1'>
-                  <ChevronRight 
-                    className={`w-3 h-3 text-gray-400 transition-all duration-300 ${
-                      showScrollHint ? 'animate-pulse' : ''
-                    }`} 
-                  />
-                </div>
-              )}
-
-              {/* 왼쪽 그라디언트 페이드 효과 (스크롤된 상태일 때) */}
-              {isScrolled && (
-                <div className='absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none' />
-              )}
-            </div>
+            <NavigationLink href="/" className='flex items-center flex-shrink-0'>
+              <Image src='/images/logo.png' alt='logo' width={40} height={40} priority className='w-8 h-8 sm:w-10 sm:h-10 rounded-lg' />
+            </NavigationLink>
+            <div className='flex-1 relative'>
+  <div ref={menuContainerRef} className='overflow-x-auto scrollbar-hide scroll-smooth'>
+    <div className='flex items-center space-x-1 sm:space-x-2 min-w-max'>
+      {portalMenuItems.map(item => (
+        <NavigationLink key={item.path} href={item.path} should_login={item.should_login} className={`group relative px-3 py-2 text-base font-medium transition-all duration-200 hover:scale-105 ${item.isActive ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'}`}>
+          {item.name}
+          <div className={`absolute -bottom-1 left-1/2 transform -translate-x-1/2 h-0.5 bg-blue-600 rounded-full transition-all duration-300 ${item.isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+          <div className={`absolute inset-0 bg-blue-50 rounded-lg transition-all duration-200 -z-10 ${item.isActive ? 'opacity-20' : 'opacity-0 group-hover:opacity-10'}`} />
+        </NavigationLink>
+      ))}
+    </div>
+  </div>
+  {canScrollRight && <div className='absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none flex items-center justify-end pr-1'><ChevronRight className='w-3 h-3 text-gray-400' /></div>}
+  {isScrolled && <div className='absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none' />}
+</div>
           </div>
 
-          {/* 우측 메뉴 - 항상 표시 */}
           <div className='flex items-center gap-3'>
-            {/* 언어 선택기 - 모든 화면에서 표시 */}
-            <div className='flex items-center justify-center h-8 sm:h-10'>
-              <LanguageSelector />
-            </div>
-
-            {/* 모바일 햄버거 메뉴 - 모바일과 태블릿에서 표시 */}
-            <div className='md:hidden flex items-center justify-center h-8 sm:h-10'>
-              <MobileNavigationMenu />
-            </div>
-
-            {/* 프로필/로그인 버튼 - 데스크탑에서만 표시 (모바일/태블릿은 MobileNavigationMenu가 처리) */}
-            <div className='hidden md:flex items-center justify-center h-8 sm:h-10'>
-              {stableAuthState.showLoading ? (
-                // 로딩 중일 때 shimmer 효과
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg shimmer-effect bg-gray-200 flex-shrink-0"></div>
-              ) : stableAuthState.showUserArea ? (
-                // 인증된 사용자 영역
-                <NavigationLink 
-                  href='/mypage' 
-                  className='block w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 rounded-lg overflow-hidden'
-                >
-                  {isProfileImageLoading ? (
-                    // DB 프로필 로딩 중이거나 프로필 이미지가 없는 경우 shimmer 효과만 표시
-                    <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200"></div>
-                  ) : userInfo.avatar_url ? (
-                    <ProfileImageContainer
-                      avatarUrl={userInfo.avatar_url}
-                      width={40} // 데스크탑 기준 40px
-                      height={40}
-                      borderRadius={8}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <DefaultAvatar 
-                      width={40} // 데스크탑 기준 40px
-                      height={40} 
-                      className="w-full h-full"
-                    />
+            <div className='h-8 sm:h-10 flex items-center justify-center'><LanguageSelector /></div>
+            
+            <div className='md:hidden h-8 sm:h-10 flex items-center justify-center' ref={mobileMenuRef}>
+              <button onClick={handleMobileMenuClick} className='relative hover:bg-gray-100 rounded-lg transition-colors w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center' aria-label={t('common.menu.openMenu')} aria-expanded={isMobileMenuOpen}>
+                {isAuthLoading ? <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" /> : isAuthenticated ? renderProfileIcon() : <div className="w-full h-full flex items-center justify-center"><Menu className="w-5 h-5 text-gray-600" /></div>}
+              </button>
+              {isMobileMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden animate-dropdown">
+                  {isAuthenticated && userProfile && (
+                    <div className="bg-gray-50 p-2.5 border-b border-gray-200">
+                      <div className="flex items-center space-x-2">
+                        {renderProfileIcon()}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{userProfile.name || userProfile.email || t('common.user.unknown')}</p>
+                          <div className="flex items-center space-x-2 mt-0.5">
+                            <div className="flex items-center space-x-1"><Star className="w-3 h-3 text-yellow-500 fill-current" /><span className="text-xs text-gray-600">{(userProfile.star_candy || 0).toLocaleString()}</span></div>
+                            {isAdmin && <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">관리자</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
+                  <div className="py-1.5">
+                  {portalMenuItems.map(item => (
+                    <NavigationLink key={item.id} href={item.path} should_login={item.should_login} className={`flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${item.isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                      <span className={item.isActive ? 'text-blue-600' : 'text-gray-500'}>{getMenuIcon(item.id)}</span>
+                      <span>{getMenuTranslation(item.id)}</span>
+                    </NavigationLink>
+                  ))}
+                    <div className="px-2 mt-1.5 pt-1.5 border-t border-gray-100">
+                      <NavigationLink href='/mypage' onClick={() => setIsMobileMenuOpen(false)} className={`flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${pathname.includes('/mypage') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
+                        <Settings className={`w-4 h-4 ${pathname.includes('/mypage') ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span>{getMenuTranslation('mypage')}</span>
+                      </NavigationLink>
+                    </div>
+                  </div>
+            </div>
+              )}
+            </div>
+
+            <div className='hidden md:flex items-center justify-center h-8 sm:h-10'>
+              {isAuthLoading ? <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg shimmer-effect bg-gray-200" /> : isAuthenticated ? (
+                <NavigationLink href='/mypage' className='block w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden'>
+                  <ProfileImageContainer avatarUrl={userProfile?.avatar_url} width={40} height={40} borderRadius={8} className="w-full h-full object-cover" />
                 </NavigationLink>
-              ) : stableAuthState.showHamburger ? (
-                // 미인증 사용자 햄버거 메뉴
-                <NavigationLink 
-                  href='/mypage' 
-                  className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0'
-                >
+              ) : (
+                <NavigationLink href='/mypage' className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10'>
                   <div className='w-full h-full hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200 flex items-center justify-center'>
-                    <MenuIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
+                    <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                   </div>
                 </NavigationLink>
-              ) : null}
+              )}
             </div>
           </div>
         </div>
-
-        {/* 모바일 포털 메뉴 라인 제거 - 상단으로 이동됨 */}
       </div>
-
       <style jsx>{`
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .shimmer-effect {
-          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s ease-in-out infinite;
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .shimmer-effect { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .animate-dropdown { animation: dropdown 0.15s ease-out; }
+        @keyframes dropdown {
+          0% { opacity: 0; transform: translateY(-5px) scale(0.98); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
     </header>

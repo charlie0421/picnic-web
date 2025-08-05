@@ -22,7 +22,9 @@ export default async function RootLayout({
   return (
     <html lang={currentLang}>
       <body>
-        {children}
+        <div className='bg-white'>
+          {children}
+        </div>
       </body>
     </html>
   )

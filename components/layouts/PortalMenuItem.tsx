@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/supabase/auth-provider';
 import { usePathname } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import { PortalType } from '@/utils/enums';
-import { PORTAL_MENU, isVoteRelatedPath } from '@/config/navigation';
+import { PORTAL_MENU } from '@/config/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import NavigationLink from '@/components/client/NavigationLink';
 import menuConfig from '@/config/menu.json';
@@ -33,7 +33,7 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
   // 특수 케이스: 리워드 페이지 방문 시 VOTE 메뉴 활성화
   const isActive =
     currentPath.startsWith(menuItem.path) ||
-    (portalType === PortalType.VOTE && isVoteRelatedPath(currentPath));
+    (portalType === PortalType.VOTE && currentPath.startsWith('/vote'));
 
   return (
     <NavigationLink 

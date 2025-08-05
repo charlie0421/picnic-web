@@ -7,7 +7,7 @@ import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { PortalType } from '@/utils/enums';
-import { isVoteRelatedPath, PORTAL_MENU } from '@/config/navigation';
+import { PORTAL_MENU } from '@/config/navigation';
 import useSWR from 'swr';
 import menuConfig from '@/config/menu.json';
 
@@ -63,7 +63,7 @@ const MobilePortalMenu: React.FC<MobilePortalMenuProps> = ({ className = '' }) =
     for (const menuItem of filteredMenuItems) {
       const isActive =
         currentPath.startsWith(menuItem.path) ||
-        (menuItem.type === PortalType.VOTE && isVoteRelatedPath(currentPath));
+        (menuItem.type === PortalType.VOTE && currentPath.startsWith('/vote'));
       
       if (isActive) {
         return menuItem;
