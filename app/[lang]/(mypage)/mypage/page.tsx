@@ -66,6 +66,7 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
     label_mypage_menu_service: localeMessages.label_mypage_menu_service || 'Service',
     label_mypage_notice: localeMessages.label_mypage_notice || 'Notice',
     label_mypage_faq: localeMessages.label_mypage_faq || 'FAQ',
+    label_mypage_download: localeMessages.label_mypage_download || 'Download',
     label_mypage_menu_policy: localeMessages.label_mypage_menu_policy || 'Policy',
     label_mypage_terms_of_use: localeMessages.label_mypage_terms_of_use || 'Terms of Use',
     label_mypage_privacy_policy: localeMessages.label_mypage_privacy_policy || 'Privacy Policy',

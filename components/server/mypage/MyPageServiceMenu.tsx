@@ -5,6 +5,7 @@ interface ServiceMenuTranslations {
   label_mypage_service_info: string;
   label_mypage_notice: string;
   label_mypage_faq: string;
+  label_mypage_download: string;
   label_mypage_terms_of_use: string;
   label_mypage_privacy_policy: string;
 }
@@ -76,6 +77,19 @@ export default function MyPageServiceMenu({ translations }: MyPageServiceMenuPro
                 </div>
                 <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-xs'>
                   {t('label_mypage_privacy_policy')}
+                </h3>
+              </div>
+            </div>
+          </NavigationLink>
+
+          <NavigationLink href='/download' className='group'>
+            <div className='bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-blue-200 h-20'>
+              <div className='text-center h-full flex flex-col justify-center'>
+                <div className='w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mx-auto mb-2'>
+                  <span className='text-white text-sm'>🚀</span>
+                </div>
+                <h3 className='font-semibold text-gray-900 group-hover:text-blue-600 transition-colors text-xs'>
+                  {t('label_mypage_download')}
                 </h3>
               </div>
             </div>
