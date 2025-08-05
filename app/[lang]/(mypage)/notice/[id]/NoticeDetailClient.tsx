@@ -24,14 +24,14 @@ const NoticeDetailClient = ({ notice }: NoticeDetailClientProps) => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="mb-6">
           <Link href={`/${lang}/notice`} className="text-blue-600 hover:underline">
-            {tDynamic('Mypage.notice_back_to_list')}
+            {tDynamic('notice_back_to_list')}
           </Link>
         </div>
         <div className="border-b pb-4 mb-6">
           <div className="flex items-center space-x-2 mb-2">
             {notice.is_pinned && (
               <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                {tDynamic('Mypage.notice_pinned')}
+                {tDynamic('notice_pinned')}
               </span>
             )}
             <h1 className="text-2xl font-bold text-gray-900">

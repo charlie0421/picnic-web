@@ -83,11 +83,14 @@ export async function getQnaThreadDetails(threadId: number) {
     .select(
       `
       id,
+      user_id,
       title,
       status,
       created_at,
+      updated_at,
       qna_messages (
         id,
+        thread_id,
         content,
         created_at,
         is_admin_message,
@@ -98,10 +101,12 @@ export async function getQnaThreadDetails(threadId: number) {
         ),
         qna_attachments (
           id,
+          message_id,
           file_name,
           file_path,
           file_type,
-          file_size
+          file_size,
+          created_at
         )
       )
     `
@@ -115,34 +120,38 @@ export async function getQnaThreadDetails(threadId: number) {
     return { data: null, error };
   }
   
-  if (data && data.qna_messages) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const customDomain = 'https://api.picnic.fan';
+      if (data && data.qna_messages) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const customDomain = 'https://api.picnic.fan';
 
-    console.log('[Debug QNA Service] Supabase URL from env:', supabaseUrl);
-    console.log('[Debug QNA Service] Custom Domain:', customDomain);
+      console.log('[Debug QNA Service] Supabase URL from env:', supabaseUrl);
+      console.log('[Debug QNA Service] Custom Domain:', customDomain);
 
-    for (const message of data.qna_messages) {
-      if (message.qna_attachments) {
-        for (const attachment of message.qna_attachments) {
-          if (attachment.file_path) {
-            const { data: publicUrlData } = supabase.storage
-              .from('qna_attachments')
-              .getPublicUrl(attachment.file_path);
-            
-            let publicUrl = publicUrlData.publicUrl;
-            console.log(`[Debug QNA Service] Original Public URL for ${attachment.file_path}:`, publicUrl);
-            
-            if (supabaseUrl) {
-                publicUrl = publicUrl.replace(supabaseUrl, customDomain);
-                console.log(`[Debug QNA Service] Modified URL for ${attachment.file_path}:`, publicUrl);
-            }
-            attachment.file_path = publicUrl;
-          }
+      data.qna_messages.forEach(message => {
+        if (Array.isArray(message.user_profiles)) {
+          (message as any).user_profiles = message.user_profiles[0] || null;
         }
-      }
-    }
-  }
 
-  return { data, error: null };
+        if (message.qna_attachments) {
+          message.qna_attachments.forEach(attachment => {
+            if (attachment.file_path) {
+              const { data: publicUrlData } = supabase.storage
+                .from('qna_attachments')
+                .getPublicUrl(attachment.file_path);
+              
+              let publicUrl = publicUrlData.publicUrl;
+              console.log(`[Debug QNA Service] Original Public URL for ${attachment.file_path}:`, publicUrl);
+              
+              if (supabaseUrl) {
+                  publicUrl = publicUrl.replace(supabaseUrl, customDomain);
+                  console.log(`[Debug QNA Service] Modified URL for ${attachment.file_path}:`, publicUrl);
+              }
+              attachment.file_path = publicUrl;
+            }
+          });
+        }
+      });
+    }
+
+  return { data: data as unknown as QnaThread, error: null };
 }

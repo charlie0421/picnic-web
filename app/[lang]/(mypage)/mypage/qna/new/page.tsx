@@ -22,7 +22,7 @@ function SubmitButton() {
 }
 
 export default function NewQnaPage() {
-  const [state, formAction] = useFormState(createQnaThreadAction, { error: null });
+  const [state, formAction] = useFormState(createQnaThreadAction, { error: null as string | null });
   const { tDynamic } = useTranslations();
   const t = (key: string) => tDynamic(key) || key;
 
