@@ -30,7 +30,7 @@ const MainLayoutClient = ({ children }: MainLayoutClientProps) => {
   if (popupsError) console.error('Failed to load popups', popupsError);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-white p-4">
       <Header />
       <main className="flex-grow">
         {children}

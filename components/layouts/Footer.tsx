@@ -35,7 +35,7 @@ const Footer: React.FC = () => {
   const currentContent = mounted && currentLanguage === 'ko' ? content.ko : content.en;
 
   return (
-    <footer className='w-full py-4 px-10 text-center text-gray-500 text-xs'>
+    <footer className='w-full py-4 px-10 text-center text-gray-500 text-xs border-t border-gray-200'>
       <p className='space-y-2'>
         <span className='block'>{currentContent.company}</span>
         <span className='block'>{currentContent.address}</span>

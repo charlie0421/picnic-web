@@ -10,6 +10,14 @@ export const PicnicMenu: React.FC = () => {
   const pathname = usePathname();
   const { t, currentLanguage, isTranslationLoaded } = useLanguageStore();
 
+  const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/';
+  const showPicnicMenu = pathWithoutLocale.startsWith(`/vote`) || pathWithoutLocale.startsWith(`/rewards`);
+
+  if (!showPicnicMenu) {
+    return null;
+  }
+
+
   // 현재 언어의 번역 로딩 상태 확인
   const isCurrentLanguageLoaded = isTranslationLoaded[currentLanguage];
 
@@ -80,7 +88,7 @@ export const PicnicMenu: React.FC = () => {
   console.log('🔍 [Vote Menu] 정상 렌더링 시작');
 
   return (
-    <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center px-12 py-2'>
+    <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-2'>
       <div className='flex overflow-x-auto scrollbar-hide whitespace-nowrap w-full sm:w-auto'>
         {subMenus.map((menuItem) => {
           const translatedText = menuItem.i18nKey ? t(menuItem.i18nKey) : menuItem.name;
