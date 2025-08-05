@@ -5,9 +5,9 @@ import { PicnicMenu } from '@/components/client/common/PicnicMenu';
 
 interface MainLayoutProps {
   children: ReactNode;
-  params: {
+  params: Promise<{
     lang: string;
-  };
+  }>;
 }
 
 export default async function MainLayout(props: MainLayoutProps) {

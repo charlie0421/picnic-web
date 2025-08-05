@@ -89,27 +89,18 @@ export const PicnicMenu: React.FC = () => {
 
   return (
     <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-2'>
-      <div className='flex overflow-x-auto scrollbar-hide whitespace-nowrap w-full sm:w-auto'>
+      <div className='flex flex-wrap gap-x-4 gap-y-2 w-full sm:w-auto'>
         {subMenus.map((menuItem) => {
           const translatedText = menuItem.i18nKey ? t(menuItem.i18nKey) : menuItem.name;
-          console.log('🔍 [Vote Menu] 메뉴 아이템:', { 
-            key: menuItem.key, 
-            path: menuItem.path, 
-            translatedText,
-            isActive: isActive(menuItem.path)
-          });
           
           return (
             <NavigationLink
               key={menuItem.key}
               href={menuItem.path}
-              className={`px-5 py-2 text-sm sm:text-base ${
-                isActive(menuItem.path) &&
-                // 투표홈은 하위 경로가 아닐 때만 활성화
-                (menuItem.key !== 'vote' ||
-                  (!isActive('/vote/chart') && !isActive('/rewards')))
-                  ? 'font-medium text-primary border-b-2 border-primary'
-                  : 'text-gray-500 hover:text-primary hover:border-b-2 hover:border-primary'
+              className={`px-3 py-2 text-sm sm:text-base rounded-md transition-colors ${
+                isActive(menuItem.path)
+                  ? 'font-bold text-primary bg-primary/10'
+                  : 'text-gray-600 hover:text-primary hover:bg-primary/5'
               }`}
             >
               {translatedText}
@@ -117,7 +108,7 @@ export const PicnicMenu: React.FC = () => {
           );
         })}
       </div>
-      <div className='mt-1 sm:mt-0'>
+      <div className='mt-2 sm:mt-0'>
         {/* <CurrentTime /> */}
       </div>
     </div>
