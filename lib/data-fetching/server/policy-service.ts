@@ -8,21 +8,33 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 export const getPolicy = cache(
   async (type: 'terms' | 'privacy', lang: string = 'ko') => {
     const supabase = await createServerSupabaseClient();
-    const policyKey = type === 'terms' ? 'TERMS_OF_SERVICE' : 'PRIVACY_POLICY';
 
     const { data, error } = await supabase
-      .from('app_policies')
-      .select('content')
-      .eq('key', policyKey)
-      .single();
+      .from('policy')
+      .select('content, language')
+      .eq('type', type)
+      .in('language', [lang, 'ko']);
 
     if (error) {
       console.error(`[getPolicy] ${type} 정책 조회 실패:`, error);
       return null;
     }
 
-    const content = data?.content as any;
-    return content?.[lang] || content?.['ko'] || null;
+    if (!data || data.length === 0) {
+      return null;
+    }
+
+    const policyForLang = data.find(p => p.language === lang);
+    if (policyForLang) {
+      return policyForLang.content;
+    }
+
+    const policyForKo = data.find(p => p.language === 'ko');
+    if (policyForKo) {
+      return policyForKo.content;
+    }
+
+    return null;
   }
 );
 
