@@ -17,7 +17,7 @@ import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
-import VoteDialogV2 from '../dialogs/VoteDialogV2';
+import VoteDialog from '../dialogs/VoteDialog';
 
 // 디바운싱 훅 추가
 function useDebounce<T>(value: T, delay: number): T {
@@ -1759,13 +1759,23 @@ export function HybridVoteDetailPresenter({
 
       {/* 투표 확인 팝업 (V2) */}
       {showVoteModal && (
-        <VoteDialogV2
+        <VoteDialog
           isOpen={showVoteModal}
           onClose={cancelVote}
-          onVote={confirmVote}
-          selectedArtist={voteCandidate}
-          votes={voteAmount}
-          setVotes={setVoteAmount}
+          voteId={vote.id}
+          voteItemId={voteCandidate?.id || 0}
+          artistName={
+            voteCandidate?.artist?.name
+              ? getLocalizedString(
+                  voteCandidate.artist.name,
+                  currentLanguage,
+                ) || ''
+              : ''
+          }
+          onVoteSuccess={(amount: number) => {
+            console.log(`${amount} votes successfully cast.`);
+            // 투표 성공 후 추가 작업이 필요하면 여기에 구현
+          }}
         />
       )}
 

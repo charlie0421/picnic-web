@@ -1,3 +1,4 @@
+'use client';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -6,7 +7,7 @@ import Image from 'next/image';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
 import useSWR from 'swr';
 
-interface VotePopupProps {
+interface VoteDialogProps {
   isOpen: boolean;
   onClose: () => void;
   voteId: number;
@@ -23,7 +24,7 @@ interface UserBalance {
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-const VotePopup: React.FC<VotePopupProps> = ({
+const VoteDialog: React.FC<VoteDialogProps> = ({
   isOpen,
   onClose,
   voteId,
@@ -115,7 +116,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
 
       const result = await response.json();
 
-      if (!response.ok) {
+        if (!response.ok) {
         throw new Error(result.error || t('vote_popup_vote_failed'));
       }
 
@@ -242,19 +243,19 @@ const VotePopup: React.FC<VotePopupProps> = ({
             )}
           </AnimatePresence>
 
-          {/* 헤더 */}
+        {/* 헤더 */}
           <div className="bg-gradient-to-r from-primary to-secondary p-6 text-white">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold">{artistName}</h2>
-              <button
-                onClick={onClose}
+          <button
+            onClick={onClose}
                 className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            </svg>
+          </button>
+        </div>
           </div>
 
           {/* 컨텐츠 */}
@@ -326,7 +327,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                       locale={getLocale()}
                     />
                   </div>
-                </div>
+              </div>
                 
                 <div className="mt-4 pt-3 border-t border-primary/30">
                   <div className="text-center">
@@ -338,8 +339,8 @@ const VotePopup: React.FC<VotePopupProps> = ({
                     >
                       <AnimatedCount value={userBalance.totalAvailable} suffix="" locale={getLocale()} />
                     </motion.div>
-                  </div>
-                </div>
+              </div>
+            </div>
               </motion.div>
             ) : (
               <motion.div
@@ -352,7 +353,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                 
                 <div className="text-center py-4">
                   <p className="text-gray-500 text-sm">캔디 정보를 불러오지 못했습니다.</p>
-                </div>
+          </div>
               </motion.div>
             )}
 
@@ -367,11 +368,11 @@ const VotePopup: React.FC<VotePopupProps> = ({
               
               {/* 투표 수량 입력 */}
               <div className="relative">
-                <input
-                  type="number"
+            <input
+              type="number"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  min="1"
+              min="1"
                   max={userBalance ? userBalance.totalAvailable : undefined}
                   value={voteAmount}
                   onChange={handleInputChange}
@@ -385,7 +386,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                   placeholder="1"
                 />
                 <div className="absolute inset-y-0 right-0 flex flex-col">
-                  <button
+            <button
                     onClick={() => handleAmountChange(voteAmount + 1)}
                     disabled={!userBalance || voteAmount >= userBalance.totalAvailable}
                     className="flex-1 px-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-tr-xl transition-colors"
@@ -398,9 +399,9 @@ const VotePopup: React.FC<VotePopupProps> = ({
                     className="flex-1 px-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-br-xl transition-colors"
                   >
                     ▼
-                  </button>
-                </div>
-              </div>
+            </button>
+          </div>
+        </div>
 
               {/* 전체 사용 체크박스 */}
               <label className="flex items-center space-x-3 cursor-pointer">
@@ -438,12 +439,12 @@ const VotePopup: React.FC<VotePopupProps> = ({
 
           {/* 버튼 영역 */}
           <div className="p-6 bg-gray-50 flex space-x-3">
-            <button
-              onClick={onClose}
+          <button
+            onClick={onClose}
               className="flex-1 py-3 px-4 bg-gray-200 text-gray-800 font-medium rounded-xl hover:bg-gray-300 transition-colors"
-            >
+          >
               {t('vote_popup_previous')}
-            </button>
+          </button>
             
             <motion.button
               onClick={handleVoteSubmit}
@@ -474,7 +475,7 @@ const VotePopup: React.FC<VotePopupProps> = ({
                     className="w-4 h-4 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
                     priority
                   />
-                </div>
+        </div>
               ) : (
                 t('vote_popup_next')
               )}
@@ -486,4 +487,4 @@ const VotePopup: React.FC<VotePopupProps> = ({
   );
 };
 
-export default VotePopup;
+export default VoteDialog;
