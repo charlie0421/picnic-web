@@ -1,5 +1,6 @@
 'use client';
 
+import { useAuth } from '@/lib/supabase/auth-provider';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 
@@ -8,21 +9,12 @@ import { toast } from 'react-toastify';
  * Navigates to the homepage and displays a success notification upon successful logout.
  */
 export const useLogout = () => {
+  const { signOut } = useAuth();
   const router = useRouter();
 
   const logout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Logout failed');
-      }
-
-      // Refresh server-side data and redirect to home
-      router.refresh();
+      await signOut();
       router.push('/');
       toast.success('로그아웃되었습니다.');
     } catch (error) {

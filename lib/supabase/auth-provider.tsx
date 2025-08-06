@@ -389,7 +389,17 @@ class AuthStore {
       if (error) {
         console.error('❌ [AuthStore] 로그아웃 에러:', error);
       } else {
-        console.log('✅ [AuthStore] 로그아웃 완료');
+        console.log('✅ [AuthStore] 로그아웃 완료, 클라이언트 상태 초기화');
+        this.updateState({
+          session: null,
+          user: null,
+          userProfile: null,
+          isAuthenticated: false,
+          isLoading: false,
+          isInitialized: true,
+          signOut: this.signOut.bind(this),
+          loadUserProfile: this.loadUserProfile.bind(this),
+        });
       }
     } catch (error) {
       console.error('❌ [AuthStore] 로그아웃 예외:', error);

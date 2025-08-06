@@ -4,9 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/hooks/useAuth';
 import { PortalType } from '@/utils/enums';
-import { PORTAL_MENU } from '@/config/navigation';
 import NavigationLink from '@/components/client/NavigationLink';
 import menuConfig from '@/config/menu.json';
 import { 
@@ -24,21 +23,13 @@ import {
 } from 'lucide-react';
 import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 import { useTranslations } from '@/hooks/useTranslations';
-import useSWR from 'swr';
 
 interface MobileNavigationMenuProps {
   className?: string;
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
-
 const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className = '' }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
-  const { data: profileData, isLoading: isProfileLoading } = useSWR(
-    isAuthenticated && user ? `/api/user/profile?userId=${user.id}` : null, 
-    fetcher
-  );
-  const userProfile = profileData?.success ? profileData.user : null;
+  const { isAuthenticated, user, isLoading, userProfile } = useAuth();
   
   const { currentLocale, getLocalizedPath } = useLocaleRouter();
   const { isLoading: globalLoading, setIsLoading, forceStopLoading } = useGlobalLoading();
@@ -46,6 +37,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { tDynamic: t, currentLanguage, translations } = useTranslations();
+  const isAdmin = userProfile?.is_admin === true;
 
   // 안전한 중첩 번역 함수
   const getMenuTranslation = (type: string): string => {
@@ -83,7 +75,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   const userInfo = {
     avatar_url: userProfile?.avatar_url || null,
     name: userProfile?.name || user?.email || null,
-    is_admin: userProfile?.is_admin || false,
+    is_admin: isAdmin,
     star_candy: userProfile?.star_candy || 0,
     star_candy_bonus: userProfile?.star_candy_bonus || 0,
   };
@@ -100,21 +92,15 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   };
 
   // 프로필 이미지 로딩 상태
-  const profileImageLoading = stableAuthState.showUserArea && isProfileLoading;
+  const profileImageLoading = stableAuthState.showUserArea && isLoading;
 
   // 관리자 권한에 따른 메뉴 필터링
-  const getFilteredMenuItems = () => {
-    const adminOnlyPortals = [PortalType.COMMUNITY, PortalType.PIC, PortalType.NOVEL];
-    
-    return PORTAL_MENU.filter(item => {
-      if (adminOnlyPortals.includes(item.type as PortalType)) {
-        return userInfo.is_admin;
-      }
-      return true;
-    });
-  };
-
-  const filteredMenuItems = getFilteredMenuItems();
+  const filteredMenuItems = menuConfig.portals.filter(item => {
+    if (item.adminOnly && !isAdmin) {
+      return false;
+    }
+    return true;
+  });
 
   // 메뉴 항목 클릭 핸들러
   const handleMenuItemClick = () => {
@@ -257,7 +243,8 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
             {filteredMenuItems.length > 0 && (
               <div className="px-2 space-y-1">
                 {filteredMenuItems.map((item) => {
-                  const isActive = pathname.includes('/vote') && item.type === PortalType.VOTE;
+                  const portalType = item.type as PortalType;
+                  const isActive = pathname.includes(item.path);
                   const translatedText = getMenuTranslation(item.type);
                   
                   return (

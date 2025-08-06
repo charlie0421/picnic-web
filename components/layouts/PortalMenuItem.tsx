@@ -1,11 +1,9 @@
 'use client';
 
 import React from 'react';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/hooks/useAuth';
 import { usePathname } from 'next/navigation';
-import { useLanguageStore } from '@/stores/languageStore';
 import { PortalType } from '@/utils/enums';
-import { PORTAL_MENU } from '@/config/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import NavigationLink from '@/components/client/NavigationLink';
 import menuConfig from '@/config/menu.json';
@@ -15,24 +13,26 @@ interface PortalMenuItemProps {
 }
 
 const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
+  const { userProfile } = useAuth();
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
   const pathname = usePathname();
+  const isAdmin = userProfile?.is_admin === true;
 
-  // 설정에서 메뉴 정보 가져오기
-  const menuItem = PORTAL_MENU.find((item) => item.type === portalType);
   const portalConfig = menuConfig.portals.find(portal => portal.type === portalType);
 
-  if (!menuItem || !portalConfig) return null;
+  if (!portalConfig || (portalConfig.adminOnly && !isAdmin)) {
+    return null;
+  }
 
   // 현재 경로에서 로케일 정보 추출
   const { path: currentPath } = extractLocaleFromPath(pathname);
   
   // 로케일화된 메뉴 경로 생성
-  const localizedMenuPath = getLocalizedPath(menuItem.path, currentLocale);
+  const localizedMenuPath = getLocalizedPath(portalConfig.path, currentLocale);
 
   // 특수 케이스: 리워드 페이지 방문 시 VOTE 메뉴 활성화
   const isActive =
-    currentPath.startsWith(menuItem.path) ||
+    currentPath.startsWith(portalConfig.path) ||
     (portalType === PortalType.VOTE && currentPath.startsWith('/vote'));
 
   return (
@@ -44,7 +44,7 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
           : 'text-gray-700 hover:text-blue-600'
       }`}
     >
-      {menuItem.name}
+      {portalConfig.name}
       
       {/* 활성 상태일 때 하단 언더라인 */}
       <div className={`absolute -bottom-1 left-1/2 transform -translate-x-1/2 h-0.5 bg-blue-600 rounded-full transition-all duration-300 ${

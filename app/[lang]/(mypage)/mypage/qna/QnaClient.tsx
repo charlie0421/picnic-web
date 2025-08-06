@@ -5,21 +5,18 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { QnaThread, Pagination } from '@/types/interfaces';
 import { PostgrestError } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { useTranslations } from '@/hooks/useTranslations';
 
 interface QnaClientProps {
   initialQnaThreads: QnaThread[] | null;
   initialPagination: Pagination | null;
   initialError: PostgrestError | string | null;
-  translations: {
-    [key: string]: string;
-  };
 }
 
 export default function QnaClient({
   initialQnaThreads,
   initialPagination,
   initialError,
-  translations,
 }: QnaClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -27,8 +24,8 @@ export default function QnaClient({
   const [qnaThreads, setQnaThreads] = useState(initialQnaThreads);
   const [pagination, setPagination] = useState(initialPagination);
   const [error, setError] = useState(initialError);
-
-  const t = (key: string) => translations[key] || key;
+  const { t: tDynamic } = useTranslations();
+  const t = (key: string) => tDynamic(key) || key;
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -55,10 +52,10 @@ export default function QnaClient({
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-gray-800">{t('label_mypage_qna')}</h1>
         <Link href={`${pathname}/new`}>
           <button className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-            {t('new_qna')}
+            {t('label_new_qna')}
           </button>
         </Link>
       </div>
@@ -78,7 +75,7 @@ export default function QnaClient({
                           : 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {t(`status_${thread.status.toLowerCase()}`)}
+                      {t(thread.status === 'OPEN' ? 'label_qna_status_open' : 'label_qna_status_closed')}
                     </span>
                   </div>
                   <p className="text-sm text-gray-500 mt-1">{formatDate(thread.created_at)}</p>
@@ -89,7 +86,7 @@ export default function QnaClient({
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-gray-500">{t('no_qna')}</p>
+          <p className="text-gray-500">{t('label_no_qna')}</p>
         </div>
       )}
 
