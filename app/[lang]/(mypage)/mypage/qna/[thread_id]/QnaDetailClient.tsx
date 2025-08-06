@@ -22,24 +22,71 @@ const formatDate = (dateString: string) => {
     }).format(date);
   };
   
-  // 시간 포맷 함수
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    }).format(date);
+// 시간 포맷 함수
+const formatTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+};
+
+// 비디오 썸네일 생성 함수
+const generateVideoThumbnail = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const url = URL.createObjectURL(file);
+  
+      video.src = url;
+      video.load();
+      video.onloadeddata = () => {
+        video.currentTime = 1; // 1초 지점의 프레임을 썸네일로 사용
+      };
+      video.onseeked = () => {
+        // 비디오 크기에 맞게 캔버스 크기 조절
+        const aspectRatio = video.videoWidth / video.videoHeight;
+        const width = 200;
+        const height = width / aspectRatio;
+        canvas.width = width;
+        canvas.height = height;
+  
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg'));
+          URL.revokeObjectURL(url);
+        }
+      };
+    });
   };
 
 export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   const [messages, setMessages] = useState<QnaMessage[]>(thread.qna_messages || []);
-  const [optimisticMessages, addOptimisticMessage] = useOptimistic<QnaMessage[], QnaMessage>(
+  const [optimisticMessages, addOptimisticMessage] = useOptimistic<QnaMessage[], QnaMessage & { client_video_url?: string; client_thumbnail_url?: string }>(
     messages,
-    (state, newMessage) => [...state, newMessage]
+    (state, newMessage) => {
+        const optimisticAttachment = newMessage.qna_attachments?.[0]
+          ? {
+              ...newMessage.qna_attachments[0],
+              file_path: newMessage.client_thumbnail_url || newMessage.qna_attachments[0].file_path,
+            }
+          : null;
+  
+        const finalMessage = {
+          ...newMessage,
+          qna_attachments: optimisticAttachment ? [optimisticAttachment] : [],
+        };
+  
+        const { client_video_url, client_thumbnail_url, ...messageToDisplay } = finalMessage;
+  
+        return [...state, messageToDisplay as QnaMessage];
+      }
   );
   const [attachment, setAttachment] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileObjectUrl, setFileObjectUrl] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
 
@@ -71,49 +118,68 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
 
   useEffect(scrollToBottom, [optimisticMessages]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setAttachment(file);
+      const objectUrl = URL.createObjectURL(file);
+      setFileObjectUrl(objectUrl);
+
       if (file.type.startsWith('image/')) {
-        setPreviewUrl(URL.createObjectURL(file));
-      } else {
+        setPreviewUrl(objectUrl);
+      } else if (file.type.startsWith('video/')) {
+        const thumbnailUrl = await generateVideoThumbnail(file);
+        setPreviewUrl(thumbnailUrl);
+      }
+       else {
         setPreviewUrl(null);
       }
     }
   };
 
   async function formAction(formData: FormData) {
+    if (!attachment && !(formData.get('content') as string).trim()) {
+        return; 
+    }
+    
     formData.append('attachment', attachment as File);
 
-    const optimisticAttachment = attachment
-    ? {
+    const content = formData.get('content') as string;
+    const optimisticMessage: QnaMessage & { client_video_url?: string; client_thumbnail_url?: string } = {
         id: Math.random(),
-        message_id: 0,
-        file_name: attachment.name,
-        file_path: previewUrl || '',
-        file_type: attachment.type,
-        file_size: attachment.size,
+        thread_id: thread.id,
+        user_id: '', // Placeholder
+        content,
         created_at: new Date().toISOString(),
-        is_image: attachment.type.startsWith('image/'),
-      }
-    : null;
+        is_admin_message: false,
+        qna_attachments: [], // Initially empty
+        user_profiles: { nickname: 'You', avatar_url: '' }, // Placeholder for optimistic update
+    };
 
-
-    addOptimisticMessage({
-      id: Math.random(),
-      thread_id: thread.id,
-      user_id: '', // Placeholder
-      content: formData.get('content') as string,
-      created_at: new Date().toISOString(),
-      is_admin_message: false,
-      qna_attachments: optimisticAttachment ? [optimisticAttachment] : [],
-      user_profiles: { nickname: 'You', avatar_url: '' }, // Placeholder for optimistic update
-    });
+    if (attachment) {
+        const isVideo = attachment.type.startsWith('video/');
+        optimisticMessage.qna_attachments = [{
+            id: Math.random(),
+            message_id: 0,
+            file_name: attachment.name,
+            file_path: isVideo ? (previewUrl || '') : (fileObjectUrl || ''),
+            file_type: attachment.type,
+            file_size: attachment.size,
+            created_at: new Date().toISOString(),
+            is_image: attachment.type.startsWith('image/'),
+        }];
+        if (isVideo) {
+            optimisticMessage.client_video_url = fileObjectUrl || '';
+            optimisticMessage.client_thumbnail_url = previewUrl || '';
+        }
+    }
+    
+    addOptimisticMessage(optimisticMessage);
     
     formRef.current?.reset();
     setAttachment(null);
     setPreviewUrl(null);
+    setFileObjectUrl(null);
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
     }
@@ -121,17 +187,21 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
     const result = await createQnaMessageAction(formData);
 
     if (result.success && result.data) {
-        setMessages(prev => [...prev, result.data as QnaMessage]);
+        setMessages(prev => {
+            const newMessages = prev.filter(m => m.id !== optimisticMessage.id);
+            return [...newMessages, result.data as QnaMessage];
+        });
     }
 
     if(result.error) {
         console.error(result.error);
+        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
     }
   }
 
   const renderMessagesWithDateDividers = () => {
     let lastDate: string | null = null;
-    return optimisticMessages.map((msg) => {
+    return (optimisticMessages as Array<QnaMessage & { client_video_url?: string }>).map((msg) => {
       const currentDate = new Date(msg.created_at).toDateString();
       const showDivider = currentDate !== lastDate;
       lastDate = currentDate;
@@ -145,8 +215,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
               </span>
             </div>
           )}
-          <div className={`flex flex-col gap-2 ${msg.is_admin_message ? 'items-start' : 'items-end'}`}>
-            {/* Avatar and Nickname */}
+          <div className={`flex flex-col gap-1 ${msg.is_admin_message ? 'items-start' : 'items-end'}`}>
             <div className={`flex items-center gap-2 ${msg.is_admin_message ? 'flex-row' : 'flex-row-reverse'}`}>
               <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0">
                 <img
@@ -159,72 +228,73 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                 {msg.is_admin_message ? t('admin_message') : msg.user_profiles?.nickname || '사용자'}
               </span>
             </div>
-
-            {/* Message bubble and time */}
-            <div className={`flex items-end max-w-full gap-2 ${msg.is_admin_message ? 'flex-row' : 'flex-row-reverse'}`}>
-              <div
-                className={`max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-lg ${
-                  msg.is_admin_message
-                    ? 'bg-white shadow-md'
-                    : 'bg-primary text-white'
-                }`}
-              >
-                {msg.qna_attachments && msg.qna_attachments.length > 0 && (
-                  <div className="mb-2">
-                    {msg.qna_attachments.map(att =>
-                      att.file_type.startsWith('image/') ? (
-                        <button
-                          key={att.id}
-                          onClick={() => setSelectedImage(att.file_path)}
-                          className="focus:outline-none"
-                        >
-                          <img
+            
+            <div className={`max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-lg mt-1 ${
+                msg.is_admin_message
+                  ? 'bg-white shadow-md'
+                  : 'bg-primary text-white'
+              }`}
+            >
+              {msg.qna_attachments && msg.qna_attachments.length > 0 && (
+                <div className="mb-2">
+                  {msg.qna_attachments.map(att =>
+                    att.file_type.startsWith('image/') ? (
+                      <button
+                        key={att.id}
+                        onClick={() => setSelectedImage(att.file_path)}
+                        className="focus:outline-none"
+                      >
+                        <img
+                          src={att.file_path}
+                          alt={att.file_name}
+                          style={{ width: 200, height: 'auto' }}
+                          className="rounded-lg cursor-pointer"
+                        />
+                      </button>
+                    ) : att.file_type.startsWith('video/') ? (
+                      <button
+                        key={att.id}
+                        onClick={() => setSelectedVideo(msg.client_video_url || att.file_path)}
+                        className="relative focus:outline-none w-[200px] h-auto bg-black rounded-lg flex items-center justify-center cursor-pointer aspect-video"
+                      >
+                         <img
                             src={att.file_path}
-                            alt={att.file_name}
-                            style={{ width: 200, height: 'auto' }}
-                            className="rounded-lg cursor-pointer"
+                            alt="Video thumbnail"
+                            className="w-full h-full object-cover rounded-lg absolute inset-0"
                           />
-                        </button>
-                      ) : att.file_type.startsWith('video/') ? (
-                        <button
-                          key={att.id}
-                          onClick={() => setSelectedVideo(att.file_path)}
-                          className="relative focus:outline-none w-[200px] h-auto bg-black rounded-lg flex items-center justify-center cursor-pointer aspect-video"
+                        <div className="absolute inset-0 bg-black opacity-50 rounded-lg"></div>
+                        <svg
+                          className="w-12 h-12 text-white z-10"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                          xmlns="http://www.w3.org/2000/svg"
                         >
-                          <div className="absolute inset-0 bg-black opacity-50 rounded-lg"></div>
-                          <svg
-                            className="w-12 h-12 text-white z-10"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </button>
-                      ) : (
-                        <a
-                          key={att.id}
-                          href={att.file_path}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 underline"
-                        >
-                          {att.file_name}
-                        </a>
-                      )
-                    )}
-                  </div>
-                )}
-                <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
-              </div>
-              <span className="text-xs text-gray-500 self-end">
-                {formatTime(msg.created_at)}
-              </span>
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    ) : (
+                      <a
+                        key={att.id}
+                        href={att.file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 underline"
+                      >
+                        {att.file_name}
+                      </a>
+                    )
+                  )}
+                </div>
+              )}
+              <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
             </div>
+            <span className={`text-xs text-gray-500 pt-1`}>
+              {formatTime(msg.created_at)}
+            </span>
           </div>
         </Fragment>
       );
@@ -242,7 +312,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
           </p>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 space-y-2">
+        <main className="flex-1 overflow-y-auto p-4 space-y-4">
           {renderMessagesWithDateDividers()}
           <div ref={messagesEndRef} />
         </main>
@@ -259,7 +329,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   <Image src={previewUrl} alt="Preview" layout="fill" objectFit="cover" className="rounded-lg" />
                   <button
                     type="button"
-                    onClick={() => { setAttachment(null); setPreviewUrl(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
+                    onClick={() => { setAttachment(null); setPreviewUrl(null); setFileObjectUrl(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
                     className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
                   >
                     X
@@ -280,6 +350,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
+                  accept="image/*,video/*"
                 />
                 <button
                   type="button"
