@@ -42,7 +42,7 @@ const generateVideoThumbnail = (file: File): Promise<string> => {
       video.addEventListener('error', (ex) => {
         reject(ex);
       });
-      video.addEventListener('canplay', () => {
+      video.addEventListener('loadedmetadata', () => {
         video.currentTime = 0.1;
       });
       video.addEventListener('seeked', () => {
@@ -107,6 +107,23 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   };
 
   useEffect(scrollToBottom, [optimisticMessages]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedImage(null);
+        setSelectedVideo(null);
+      }
+    };
+
+    if (selectedImage || selectedVideo) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedImage, selectedVideo]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -245,25 +262,25 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                     <button
                       key={attachment.id}
                       onClick={() => videoPath && setSelectedVideo(videoPath)}
-                      className="relative focus:outline-none w-[200px] h-auto bg-black rounded-lg flex items-center justify-center cursor-pointer"
+                      className="relative focus:outline-none w-[200px] bg-black rounded-lg flex items-center justify-center cursor-pointer overflow-hidden"
                     >
                       {/* 낙관적 메시지(새로 첨부)는 생성된 썸네일을, 기존 메시지는 비디오 태그를 사용합니다. */}
                       {msg.client_video_url ? (
                         <img
                           src={thumbnailPath}
                           alt="Video thumbnail"
-                          className="w-full h-full object-cover rounded-lg absolute inset-0"
+                          className="w-full h-auto"
                         />
                       ) : (
                         <video
                           src={thumbnailPath}
                           preload="metadata"
-                          className="w-full h-full object-cover rounded-lg absolute inset-0"
+                          className="w-full h-auto"
                         />
                       )}
                       <div className="absolute inset-0 bg-black opacity-50 rounded-lg"></div>
                       <svg
-                        className="w-12 h-12 text-white z-10"
+                        className="w-12 h-12 text-white z-10 absolute"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                         xmlns="http://www.w3.org/2000/svg"
