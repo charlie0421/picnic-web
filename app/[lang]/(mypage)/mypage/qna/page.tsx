@@ -3,16 +3,7 @@ import { Suspense } from 'react';
 import QnaClient from './QnaClient';
 import QnaSkeleton from '@/components/server/mypage/QnaSkeleton';
 
-interface QnaPageProps {
-  params: {
-    lang: string;
-  };
-  searchParams: {
-    page?: string | string[];
-  };
-}
-
-export default async function QnaPage({ searchParams }: QnaPageProps) {
+export default async function QnaPage({ searchParams }: any) {
 
   const pageQuery = searchParams.page ?? '1';
   const page = Number(Array.isArray(pageQuery) ? pageQuery[0] : pageQuery);
