@@ -81,7 +81,7 @@ const Header: React.FC = () => {
     isProfileLoading ? (
       <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
     ) : (
-      <ProfileImageContainer avatarUrl={userProfile?.avatar_url} width={24} height={24} borderRadius={6} className="w-6 h-6 object-cover"/>
+      <ProfileImageContainer avatarUrl={userProfile?.avatar_url || null} width={24} height={24} borderRadius={6} className="w-6 h-6 object-cover"/>
     )
   );
 
@@ -124,7 +124,7 @@ const Header: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         {renderProfileIcon()}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{userProfile.name || userProfile.email || t('common.user.unknown')}</p>
+                          <p className="text-sm font-medium text-gray-900 truncate">{userProfile.nickname || userProfile.email || t('common.user.unknown')}</p>
                           <div className="flex items-center space-x-2 mt-0.5">
                             <div className="flex items-center space-x-1"><Star className="w-3 h-3 text-yellow-500 fill-current" /><span className="text-xs text-gray-600">{(userProfile.star_candy || 0).toLocaleString()}</span></div>
                             {isAdmin && <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">관리자</span>}
@@ -154,7 +154,7 @@ const Header: React.FC = () => {
             <div className='hidden md:flex items-center justify-center h-8 sm:h-10'>
               {isAuthLoading ? <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg shimmer-effect bg-gray-200" /> : isAuthenticated ? (
                 <NavigationLink href='/mypage' className='block w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden'>
-                  <ProfileImageContainer avatarUrl={userProfile?.avatar_url} width={40} height={40} borderRadius={8} className="w-full h-full object-cover" />
+                  <ProfileImageContainer avatarUrl={userProfile?.avatar_url || null} width={40} height={40} borderRadius={8} className="w-full h-full object-cover" />
                 </NavigationLink>
               ) : (
                 <NavigationLink href='/mypage' className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10'>

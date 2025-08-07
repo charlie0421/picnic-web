@@ -12,6 +12,16 @@ const loadingPromises = new Map<string, Promise<Record<string, any>>>();
 export type TranslationKey = 
   // ... (기존 키 생략)
   | 'login_terms_notice_html'
+  | 'admin_message'
+  | 'send_button'
+  | 'qna_thread_is_closed'
+  | 'send_message_placeholder'
+  | 'file_attachment'
+  | 'label_mypage_qna'
+  | 'label_new_qna'
+  | 'label_qna_status_open'
+  | 'label_qna_status_closed'
+  | 'label_no_qna'
   // ... (기존 키 생략)
   ;
 
@@ -20,6 +30,16 @@ const DEFAULT_TRANSLATIONS: Record<string, string> = {
   // ... (기존 번역 생략)
   login_terms_notice_html:
     'By signing up, you agree to our <a href="/{termsUrl}" class="font-semibold text-blue-600 hover:underline">Terms of Service</a> and <a href="/{privacyUrl}" class="font-semibold text-blue-600 hover:underline">Privacy Policy</a>.',
+  admin_message: 'Admin',
+  send_button: 'Send',
+  qna_thread_is_closed: 'This inquiry is closed and you can no longer send messages.',
+  send_message_placeholder: 'Enter a message...',
+  file_attachment: 'Attach file',
+  label_mypage_qna: 'My Q&A',
+  label_new_qna: 'New Inquiry',
+  label_qna_status_open: 'Open',
+  label_qna_status_closed: 'Closed',
+  label_no_qna: 'No Q&A history.',
   // ... (기존 번역 생략)
 };
 

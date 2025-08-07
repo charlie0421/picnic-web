@@ -74,7 +74,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   // 사용자 정보 (안전하게 접근) - DB 프로필만 사용
   const userInfo = {
     avatar_url: userProfile?.avatar_url || null,
-    name: userProfile?.name || user?.email || null,
+    name: userProfile?.nickname || user?.email || null,
     is_admin: isAdmin,
     star_candy: userProfile?.star_candy || 0,
     star_candy_bonus: userProfile?.star_candy_bonus || 0,

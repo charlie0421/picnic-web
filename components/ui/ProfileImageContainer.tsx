@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface ProfileImageContainerProps {
-  avatarUrl: string;
+  avatarUrl: string | null;
   width: number;
   height: number;
   borderRadius?: number;
@@ -15,13 +15,15 @@ export const ProfileImageContainer: React.FC<ProfileImageContainerProps> = ({
   borderRadius = 0,
   className = ''
 }) => {
+  const imageUrl = avatarUrl || '/images/default-avatar.png';
+
   return (
     <div 
       style={{ borderRadius, overflow: 'hidden' }}
       className={className}
     >
       <img
-        src={avatarUrl}
+        src={imageUrl}
         alt="프로필 이미지"
         width={width}
         height={height}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useOptimistic, Fragment } from 'react';
-import { QnaThread, QnaMessage } from '@/types/interfaces';
+import { QnaThread, QnaMessage, QnaAttachment } from '@/types/interfaces';
 import { createQnaMessageAction } from '@/app/actions/qna';
 import { useFormStatus } from 'react-dom';
 import Image from 'next/image';
@@ -11,7 +11,10 @@ interface QnaDetailClientProps {
   thread: QnaThread;
 }
 
-// 날짜 포맷 함수
+interface UiQnaMessage extends QnaMessage {
+    client_video_url?: string;
+}
+
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('ko-KR', {
@@ -22,7 +25,6 @@ const formatDate = (dateString: string) => {
     }).format(date);
   };
   
-// 시간 포맷 함수
 const formatTime = (dateString: string) => {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('ko-KR', {
@@ -32,57 +34,46 @@ const formatTime = (dateString: string) => {
   }).format(date);
 };
 
-// 비디오 썸네일 생성 함수
 const generateVideoThumbnail = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const url = URL.createObjectURL(file);
-  
-      video.src = url;
+      video.setAttribute('src', URL.createObjectURL(file));
       video.load();
-      video.onloadeddata = () => {
-        video.currentTime = 1; // 1초 지점의 프레임을 썸네일로 사용
-      };
-      video.onseeked = () => {
-        // 비디오 크기에 맞게 캔버스 크기 조절
-        const aspectRatio = video.videoWidth / video.videoHeight;
-        const width = 200;
-        const height = width / aspectRatio;
-        canvas.width = width;
-        canvas.height = height;
+      video.addEventListener('error', (ex) => {
+        reject(ex);
+      });
+      video.addEventListener('canplay', () => {
+        video.currentTime = 0.1;
+      });
+      video.addEventListener('seeked', () => {
+          const canvas = document.createElement('canvas');
+          const aspectRatio = video.videoWidth / video.videoHeight;
+          const width = 200;
+          const height = width / aspectRatio;
+          canvas.width = width;
+          canvas.height = height;
   
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg'));
-          URL.revokeObjectURL(url);
-        }
-      };
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+              ctx.drawImage(video, 0, 0, width, height);
+              const dataUrl = canvas.toDataURL('image/jpeg');
+              URL.revokeObjectURL(video.src);
+              resolve(dataUrl);
+          } else {
+              URL.revokeObjectURL(video.src);
+              reject(new Error('Failed to get canvas context'));
+          }
+      });
     });
   };
 
 export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
-  const [messages, setMessages] = useState<QnaMessage[]>(thread.qna_messages || []);
-  const [optimisticMessages, addOptimisticMessage] = useOptimistic<QnaMessage[], QnaMessage & { client_video_url?: string; client_thumbnail_url?: string }>(
+  const [messages, setMessages] = useState<UiQnaMessage[]>(thread.qna_messages || []);
+  const [optimisticMessages, addOptimisticMessage] = useOptimistic<UiQnaMessage[], UiQnaMessage>(
     messages,
     (state, newMessage) => {
-        const optimisticAttachment = newMessage.qna_attachments?.[0]
-          ? {
-              ...newMessage.qna_attachments[0],
-              file_path: newMessage.client_thumbnail_url || newMessage.qna_attachments[0].file_path,
-            }
-          : null;
-  
-        const finalMessage = {
-          ...newMessage,
-          qna_attachments: optimisticAttachment ? [optimisticAttachment] : [],
-        };
-  
-        const { client_video_url, client_thumbnail_url, ...messageToDisplay } = finalMessage;
-  
-        return [...state, messageToDisplay as QnaMessage];
-      }
+      return [...state, newMessage];
+    }
   );
   const [attachment, setAttachment] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -95,8 +86,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { t: tDynamic } = useTranslations();
-  const t = (key: string) => tDynamic(key) || key;
+  const { t } = useTranslations();
 
   function SubmitButton({ disabled }: { disabled: boolean }) {
     const { pending } = useFormStatus();
@@ -128,8 +118,13 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
       if (file.type.startsWith('image/')) {
         setPreviewUrl(objectUrl);
       } else if (file.type.startsWith('video/')) {
-        const thumbnailUrl = await generateVideoThumbnail(file);
-        setPreviewUrl(thumbnailUrl);
+        try {
+            const thumbnailUrl = await generateVideoThumbnail(file);
+            setPreviewUrl(thumbnailUrl);
+        } catch (error) {
+            console.error("Failed to generate video thumbnail:", error);
+            setPreviewUrl(null);
+        }
       }
        else {
         setPreviewUrl(null);
@@ -142,23 +137,25 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         return; 
     }
     
-    formData.append('attachment', attachment as File);
+    if (attachment) {
+      formData.append('attachment', attachment);
+    }
 
     const content = formData.get('content') as string;
-    const optimisticMessage: QnaMessage & { client_video_url?: string; client_thumbnail_url?: string } = {
+    const optimisticMessage: UiQnaMessage = {
         id: Math.random(),
         thread_id: thread.id,
         user_id: '', // Placeholder
         content,
         created_at: new Date().toISOString(),
         is_admin_message: false,
-        qna_attachments: [], // Initially empty
-        user_profiles: { nickname: 'You', avatar_url: '' }, // Placeholder for optimistic update
+        qna_attachments: [],
+        user_profiles: { nickname: 'You', avatar_url: '' },
     };
 
     if (attachment) {
         const isVideo = attachment.type.startsWith('video/');
-        optimisticMessage.qna_attachments = [{
+        const optimisticAttachment: QnaAttachment = {
             id: Math.random(),
             message_id: 0,
             file_name: attachment.name,
@@ -166,11 +163,11 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
             file_type: attachment.type,
             file_size: attachment.size,
             created_at: new Date().toISOString(),
-            is_image: attachment.type.startsWith('image/'),
-        }];
+        };
+        optimisticMessage.qna_attachments = [optimisticAttachment];
+        
         if (isVideo) {
             optimisticMessage.client_video_url = fileObjectUrl || '';
-            optimisticMessage.client_thumbnail_url = previewUrl || '';
         }
     }
     
@@ -189,7 +186,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
     if (result.success && result.data) {
         setMessages(prev => {
             const newMessages = prev.filter(m => m.id !== optimisticMessage.id);
-            return [...newMessages, result.data as QnaMessage];
+            return [...newMessages, result.data as UiQnaMessage];
         });
     }
 
@@ -201,10 +198,17 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
 
   const renderMessagesWithDateDividers = () => {
     let lastDate: string | null = null;
-    return (optimisticMessages as Array<QnaMessage & { client_video_url?: string }>).map((msg) => {
+    return (optimisticMessages as UiQnaMessage[]).map((msg) => {
       const currentDate = new Date(msg.created_at).toDateString();
       const showDivider = currentDate !== lastDate;
       lastDate = currentDate;
+
+      const attachment = msg.qna_attachments?.[0] as QnaAttachment | undefined;
+      const isVideo = attachment?.file_type.startsWith('video/');
+
+      const thumbnailPath = attachment?.file_path;
+      const videoPath = isVideo && attachment ? (msg.client_video_url || attachment.file_path) : undefined;
+
 
       return (
         <Fragment key={msg.id}>
@@ -235,58 +239,65 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   : 'bg-primary text-white'
               }`}
             >
-              {msg.qna_attachments && msg.qna_attachments.length > 0 && (
+              {attachment && (
                 <div className="mb-2">
-                  {msg.qna_attachments.map(att =>
-                    att.file_type.startsWith('image/') ? (
-                      <button
-                        key={att.id}
-                        onClick={() => setSelectedImage(att.file_path)}
-                        className="focus:outline-none"
-                      >
+                  {isVideo ? (
+                    <button
+                      key={attachment.id}
+                      onClick={() => videoPath && setSelectedVideo(videoPath)}
+                      className="relative focus:outline-none w-[200px] h-auto bg-black rounded-lg flex items-center justify-center cursor-pointer"
+                    >
+                      {/* 낙관적 메시지(새로 첨부)는 생성된 썸네일을, 기존 메시지는 비디오 태그를 사용합니다. */}
+                      {msg.client_video_url ? (
                         <img
-                          src={att.file_path}
-                          alt={att.file_name}
-                          style={{ width: 200, height: 'auto' }}
-                          className="rounded-lg cursor-pointer"
+                          src={thumbnailPath}
+                          alt="Video thumbnail"
+                          className="w-full h-full object-cover rounded-lg absolute inset-0"
                         />
-                      </button>
-                    ) : att.file_type.startsWith('video/') ? (
-                      <button
-                        key={att.id}
-                        onClick={() => setSelectedVideo(msg.client_video_url || att.file_path)}
-                        className="relative focus:outline-none w-[200px] h-auto bg-black rounded-lg flex items-center justify-center cursor-pointer aspect-video"
+                      ) : (
+                        <video
+                          src={thumbnailPath}
+                          preload="metadata"
+                          className="w-full h-full object-cover rounded-lg absolute inset-0"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black opacity-50 rounded-lg"></div>
+                      <svg
+                        className="w-12 h-12 text-white z-10"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        xmlns="http://www.w3.org/2000/svg"
                       >
-                         <img
-                            src={att.file_path}
-                            alt="Video thumbnail"
-                            className="w-full h-full object-cover rounded-lg absolute inset-0"
-                          />
-                        <div className="absolute inset-0 bg-black opacity-50 rounded-lg"></div>
-                        <svg
-                          className="w-12 h-12 text-white z-10"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                    ) : (
-                      <a
-                        key={att.id}
-                        href={att.file_path}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 underline"
-                      >
-                        {att.file_name}
-                      </a>
-                    )
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  ) : attachment.file_type.startsWith('image/') ? (
+                    <button
+                      key={attachment.id}
+                      onClick={() => setSelectedImage(attachment.file_path)}
+                      className="focus:outline-none w-[200px] bg-gray-200 rounded-lg flex items-center justify-center"
+                    >
+                      <img
+                        src={attachment.file_path}
+                        alt={attachment.file_name}
+                        style={{ width: 200, height: 'auto' }}
+                        className="rounded-lg object-contain max-w-full max-h-full"
+                      />
+                    </button>
+                  ) : (
+                    <a
+                      key={attachment.id}
+                      href={attachment.file_path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline"
+                    >
+                      {attachment.file_name}
+                    </a>
                   )}
                 </div>
               )}
@@ -318,9 +329,9 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         </main>
 
         <footer className="p-4 border-t bg-white rounded-b-lg">
-          {thread.status === 'CLOSED' ? (
+          {(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED' ? (
             <div className="text-center text-gray-500 py-4">
-              <p>{t('qna_thread_is_closed', '이 문의는 종료되어 더 이상 메시지를 보낼 수 없습니다.')}</p>
+              <p>{t('qna_thread_is_closed')}</p>
             </div>
           ) : (
             <form ref={formRef} action={formAction} className="flex flex-col gap-2">
@@ -343,7 +354,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   name="content"
                   placeholder={t('send_message_placeholder')}
                   className="flex-1 p-2 border rounded-lg focus:ring-primary focus:border-primary"
-                  disabled={thread.status === 'CLOSED'}
+                  disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'}
                 />
                 <input
                   type="file"
@@ -356,11 +367,11 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="p-2 border rounded-lg hover:bg-gray-100"
-                  disabled={thread.status === 'CLOSED'}
+                  disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'}
                 >
                   📎 {t('file_attachment')}
                 </button>
-                <SubmitButton disabled={thread.status === 'CLOSED'} />
+                <SubmitButton disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'} />
               </div>
             </form>
           )}

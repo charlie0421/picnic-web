@@ -24,8 +24,7 @@ export default function QnaClient({
   const [qnaThreads, setQnaThreads] = useState(initialQnaThreads);
   const [pagination, setPagination] = useState(initialPagination);
   const [error, setError] = useState(initialError);
-  const { t: tDynamic } = useTranslations();
-  const t = (key: string) => tDynamic(key) || key;
+  const { t } = useTranslations();
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
