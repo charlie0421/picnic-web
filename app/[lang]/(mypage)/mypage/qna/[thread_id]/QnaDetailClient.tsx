@@ -6,6 +6,7 @@ import { createQnaMessageAction } from '@/app/actions/qna';
 import { useFormStatus } from 'react-dom';
 import Image from 'next/image';
 import { useTranslations } from '@/hooks/useTranslations';
+import { useRouter } from 'next/navigation';
 
 interface QnaDetailClientProps {
   thread: QnaThread;
@@ -87,6 +88,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { t } = useTranslations();
+  const router = useRouter();
 
   function SubmitButton({ disabled }: { disabled: boolean }) {
     const { pending } = useFormStatus();
@@ -94,7 +96,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
     return (
       <button
         type="submit"
-        className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark disabled:bg-gray-300"
+        className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark disabled:bg-primary/50"
         disabled={pending || disabled}
       >
         {pending ? '...' : t('send_button')}
@@ -231,14 +233,14 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         <Fragment key={msg.id}>
           {showDivider && (
             <div className="text-center my-4">
-              <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+              <span className="text-xs text-sub-700 bg-sub-100 px-2 py-1 rounded-full">
                 {formatDate(msg.created_at)}
               </span>
             </div>
           )}
           <div className={`flex flex-col gap-1 ${msg.is_admin_message ? 'items-start' : 'items-end'}`}>
             <div className={`flex items-center gap-2 ${msg.is_admin_message ? 'flex-row' : 'flex-row-reverse'}`}>
-              <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-primary-100 flex-shrink-0">
                 <img
                   src={msg.is_admin_message ? '/images/logo_alpha.png' : (msg.user_profiles?.avatar_url || '/images/default-avatar.png')}
                   alt={msg.is_admin_message ? 'Admin' : 'User'}
@@ -296,7 +298,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                     <button
                       key={attachment.id}
                       onClick={() => setSelectedImage(attachment.file_path)}
-                      className="focus:outline-none w-[200px] bg-gray-200 rounded-lg flex items-center justify-center"
+                      className="focus:outline-none w-[200px] bg-primary-100 rounded-lg flex items-center justify-center"
                     >
                       <img
                         src={attachment.file_path}
@@ -311,7 +313,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                       href={attachment.file_path}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-500 underline"
+                      className="text-secondary-300 underline"
                     >
                       {attachment.file_name}
                     </a>
@@ -320,7 +322,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
               )}
               <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
             </div>
-            <span className={`text-xs text-gray-500 pt-1`}>
+            <span className={`text-xs text-gray-400 pt-1`}>
               {formatTime(msg.created_at)}
             </span>
           </div>
@@ -332,12 +334,51 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
 
   return (
     <>
-      <div className="flex flex-col h-[calc(100vh-200px)] bg-gray-50 rounded-lg shadow-inner">
-        <header className="p-4 border-b bg-white rounded-t-lg">
-          <h1 className="text-xl font-bold">{thread.title}</h1>
-          <p className={`text-sm ${thread.status === 'OPEN' ? 'text-green-500' : 'text-gray-500'}`}>
-            {thread.status}
-          </p>
+      <div className="flex flex-col h-[calc(100vh-200px)] bg-primary-50 rounded-lg shadow-inner">
+        <header className="p-4 bg-gradient-to-r from-primary-700 to-primary-900 text-white rounded-t-lg shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.back()}
+                className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                aria-label={t('common.back', 'Back')}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              <h1 className="text-xl font-bold">{thread.title}</h1>
+            </div>
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                thread.status === 'OPEN'
+                  ? 'bg-secondary/20 text-secondary-300'
+                  : 'bg-point/20 text-point-300'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  thread.status === 'OPEN' ? 'bg-secondary' : 'bg-point'
+                }`}
+              />
+              <span>
+                {thread.status === 'OPEN'
+                  ? t('qna.status.open', 'OPEN')
+                  : t('qna.status.closed', 'CLOSED')}
+              </span>
+            </div>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -347,7 +388,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
 
         <footer className="p-4 border-t bg-white rounded-b-lg">
           {(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED' ? (
-            <div className="text-center text-gray-500 py-4">
+            <div className="text-center text-gray-400 py-4">
               <p>{t('qna_thread_is_closed')}</p>
             </div>
           ) : (
@@ -383,7 +424,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 border rounded-lg hover:bg-gray-100"
+                  className="p-2 border rounded-lg hover:bg-primary-100"
                   disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'}
                 >
                   📎 {t('file_attachment')}

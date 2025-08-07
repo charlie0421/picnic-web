@@ -8,6 +8,8 @@ import type { SupportedLanguage } from '@/types/mypage-common';
 const translationCache = new Map<string, Record<string, any>>();
 const loadingPromises = new Map<string, Promise<Record<string, any>>>();
 
+import get from 'lodash.get';
+
 // 타입 안전한 번역 키 정의
 export type TranslationKey = 
   // ... (기존 키 생략)
@@ -22,11 +24,14 @@ export type TranslationKey =
   | 'label_qna_status_open'
   | 'label_qna_status_closed'
   | 'label_no_qna'
+  | 'common.back'
+  | 'qna.status.open'
+  | 'qna.status.closed'
   // ... (기존 키 생략)
   ;
 
 // 기본 번역문 (폴백용)
-const DEFAULT_TRANSLATIONS: Record<string, string> = {
+const DEFAULT_TRANSLATIONS: Record<string, any> = {
   // ... (기존 번역 생략)
   login_terms_notice_html:
     'By signing up, you agree to our <a href="/{termsUrl}" class="font-semibold text-blue-600 hover:underline">Terms of Service</a> and <a href="/{privacyUrl}" class="font-semibold text-blue-600 hover:underline">Privacy Policy</a>.',
@@ -40,6 +45,15 @@ const DEFAULT_TRANSLATIONS: Record<string, string> = {
   label_qna_status_open: 'Open',
   label_qna_status_closed: 'Closed',
   label_no_qna: 'No Q&A history.',
+  common: {
+    back: 'Back',
+  },
+  qna: {
+    status: {
+      open: 'OPEN',
+      closed: 'CLOSED',
+    },
+  },
   // ... (기존 번역 생략)
 };
 
@@ -87,13 +101,13 @@ export function useTranslations() {
     const loadingPromise = (async () => {
       try {
         const i18nModule = await import(`../public/locales/${language}.json`);
-        const translations = i18nModule.default;
+        const translationsData = i18nModule.default;
         
         // 캐시에 저장
-        translationCache.set(cacheKey, translations);
+        translationCache.set(cacheKey, translationsData);
         loadingPromises.delete(cacheKey);
         
-        return translations;
+        return translationsData;
       } catch (error) {
         console.warn(`번역 파일 로드 실패 (${language}):`, error);
         loadingPromises.delete(cacheKey);
@@ -147,11 +161,12 @@ export function useTranslations() {
 
   // 타입 안전한 번역 함수
   const t = useCallback((key: TranslationKey, fallback?: string): string => {
-    return translations[key] || fallback || DEFAULT_TRANSLATIONS[key] || key;
+    const value = get(translations, key) || (fallback !== undefined ? fallback : get(DEFAULT_TRANSLATIONS, key));
+    return value || key;
   }, [translations]);
   
   const tHtml = useCallback((key: TranslationKey, replacements: Record<string, string>): string => {
-    let rawText = translations[key] || DEFAULT_TRANSLATIONS[key] || key;
+    let rawText = get(translations, key) || get(DEFAULT_TRANSLATIONS, key) || key;
     for (const [placeholder, value] of Object.entries(replacements)) {
       rawText = rawText.replace(new RegExp(`{${placeholder}}`, 'g'), value);
     }
@@ -160,7 +175,8 @@ export function useTranslations() {
 
   // 동적 키 지원 (기존 호환성)
   const tDynamic = useCallback((key: string, fallback?: string): string => {
-    return translations[key] || fallback || key;
+    const value = get(translations, key) || fallback;
+    return value || key;
   }, [translations]);
 
   return {

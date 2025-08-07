@@ -33,11 +33,11 @@ export default function QnaClient({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}.${month}.${day}`;
   };
 
   if (error) {
@@ -49,56 +49,63 @@ export default function QnaClient({
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">{t('label_mypage_qna')}</h1>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">{t('label_mypage_qna')}</h1>
         <Link href={`${pathname}/new`}>
-          <button className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+          <button className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
             {t('label_new_qna')}
           </button>
         </Link>
       </div>
 
       {qnaThreads && qnaThreads.length > 0 ? (
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
-          <ul className="divide-y divide-gray-200">
-            {qnaThreads.map((thread) => (
-              <li key={thread.id} className="p-4 hover:bg-gray-50 transition-colors duration-200">
-                <Link href={`${pathname}/${thread.id}`} className="block">
-                  <div className="flex justify-between items-center">
-                    <p className="text-lg font-semibold text-primary truncate">{thread.title}</p>
+        <div className="space-y-4">
+          {qnaThreads.map((thread) => (
+            <Link key={thread.id} href={`${pathname}/${thread.id}`} className="block">
+              <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-6 border-l-4 border-transparent hover:border-primary">
+                <div className="flex justify-between items-start">
+                  <div className="flex-grow">
+                    <p className="text-lg font-semibold text-gray-800 truncate pr-4">{thread.title}</p>
+                    <p className="text-sm text-sub-500 mt-2">{formatDate(thread.created_at)}</p>
+                  </div>
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                      thread.status === 'OPEN'
+                        ? 'bg-secondary/20 text-secondary-500'
+                        : 'bg-point/20 text-point-500'
+                    }`}
+                  >
                     <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        thread.status === 'OPEN'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                      className={`w-2 h-2 rounded-full ${
+                        thread.status === 'OPEN' ? 'bg-secondary' : 'bg-point'
                       }`}
-                    >
-                      {t(thread.status === 'OPEN' ? 'label_qna_status_open' : 'label_qna_status_closed')}
+                    />
+                    <span>
+                      {t(thread.status === 'OPEN' ? 'qna.status.open' : 'qna.status.closed')}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">{formatDate(thread.created_at)}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-500">{t('label_no_qna')}</p>
+        <div className="text-center py-20 bg-gray-50 rounded-lg">
+          <p className="text-sub-500 text-lg">{t('label_no_qna')}</p>
         </div>
       )}
 
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex justify-center mt-8 space-x-2">
+        <div className="flex justify-center mt-10 space-x-2">
           {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
             <button
               key={page}
               onClick={() => handlePageChange(page)}
-              className={`px-4 py-2 rounded-lg ${
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-300 ${
                 pagination.page === page
-                  ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 border'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-white text-sub-700 border border-sub-200 hover:bg-primary-50 hover:border-primary'
               }`}
             >
               {page}

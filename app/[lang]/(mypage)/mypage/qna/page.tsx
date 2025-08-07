@@ -4,16 +4,15 @@ import QnaClient from './QnaClient';
 import QnaSkeleton from '@/components/server/mypage/QnaSkeleton';
 
 interface QnaPageProps {
-  params: Promise<{
+  params: {
     lang: string;
-  }>;
-  searchParams: Promise<{
+  };
+  searchParams: {
     page?: string | string[];
-  }>;
+  };
 }
 
-export default async function QnaPage(props: QnaPageProps) {
-  const searchParams = await props.searchParams;
+export default async function QnaPage({ searchParams }: QnaPageProps) {
 
   const pageQuery = searchParams.page ?? '1';
   const page = Number(Array.isArray(pageQuery) ? pageQuery[0] : pageQuery);
