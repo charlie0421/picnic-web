@@ -214,25 +214,35 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         fileInputRef.current.value = '';
     }
 
-    let result: any = null;
+    let result: any = { success: false };
     try {
       const res = await fetch('/api/qna/messages', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
-      result = await res.json().catch(() => ({}));
+      try {
+        const json = await res.json();
+        if (json && typeof json === 'object') {
+          result = json;
+        }
+      } catch {
+        result = { success: false };
+      }
     } catch (e) {
       console.error('Failed to submit QnA message:', e);
+      result = { success: false, error: 'network_error' };
     }
 
-    if (result && result.success && result.data) {
+    const isSuccess = !!(result && typeof result === 'object' && 'success' in result && result.success === true && result.data);
+    if (isSuccess) {
         setMessages(prev => {
             const newMessages = prev.filter(m => m.id !== optimisticMessage.id);
             return [...newMessages, result.data as UiQnaMessage];
         });
     }
 
-    if (!result || result.error) {
+    if (!isSuccess) {
         console.error(result?.error || 'Unknown error');
         setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
     }

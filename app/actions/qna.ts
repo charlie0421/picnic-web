@@ -100,8 +100,7 @@ export async function createQnaMessageAction(formData: FormData) {
                 file_name: file.name,
                 file_path: filePath,
                 file_type: file.type,
-                file_size: file.size,
-                is_image: file.type.startsWith('image/'),
+                file_size: file.size
             });
         
         if (attachmentError) {

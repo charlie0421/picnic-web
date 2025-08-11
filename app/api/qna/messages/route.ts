@@ -46,10 +46,34 @@ export async function POST(req: Request) {
     if (files.length > 0) {
       for (const file of files) {
         if (!file || file.size === 0) continue;
-        const filePath = `${user.id}/${threadId}/${Date.now()}_${file.name}`;
+
+        // Generate UUID filename with safe extension
+        const uuid = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
+        let ext = '';
+        const originalName = file.name || '';
+        const dotIndex = originalName.lastIndexOf('.');
+        if (dotIndex !== -1 && dotIndex < originalName.length - 1) {
+          ext = originalName.slice(dotIndex).toLowerCase();
+        } else if (file.type) {
+          const mime = file.type.toLowerCase();
+          if (mime === 'image/jpeg') ext = '.jpg';
+          else if (mime === 'image/png') ext = '.png';
+          else if (mime === 'image/gif') ext = '.gif';
+          else if (mime === 'video/mp4') ext = '.mp4';
+          else if (mime === 'video/quicktime') ext = '.mov';
+          else if (mime === 'image/webp') ext = '.webp';
+          else ext = '';
+        }
+
+        const safeFileName = `${uuid}${ext}`;
+        const filePath = `${user.id}/${threadId}/${safeFileName}`;
+
         const { error: uploadError } = await supabase.storage
           .from('qna_attachments')
-          .upload(filePath, file);
+          .upload(filePath, file, {
+            contentType: file.type || undefined,
+            upsert: false,
+          });
 
         if (uploadError) {
           console.error('Error uploading file:', uploadError);
@@ -60,11 +84,10 @@ export async function POST(req: Request) {
           .from('qna_attachments')
           .insert({
             message_id: messageData.id,
-            file_name: file.name,
+            file_name: originalName || safeFileName,
             file_path: filePath,
             file_type: file.type,
-            file_size: file.size,
-            is_image: file.type.startsWith('image/'),
+            file_size: file.size
           });
 
         if (attachmentError) {
