@@ -6,13 +6,16 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const content = (formData.get('content') as string) || '';
     const threadId = formData.get('thread_id') as string;
-    const file = formData.get('attachment') as File | null;
+    // Support multiple attachments sent as repeated "attachments" fields
+    const files = (formData.getAll('attachments') as File[]).filter(
+      (f) => f && typeof f === 'object' && 'size' in f
+    );
 
     if (!threadId) {
       return NextResponse.json({ error: 'Thread ID is required.' }, { status: 400 });
     }
 
-    if (!content.trim() && (!file || file.size === 0)) {
+    if (!content.trim() && (files.length === 0 || files.every((f) => f.size === 0))) {
       return NextResponse.json({ error: 'Content or attachment is required.' }, { status: 400 });
     }
 
@@ -40,31 +43,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to create the message.' }, { status: 500 });
     }
 
-    if (file && file.size > 0) {
-      const filePath = `${user.id}/${threadId}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from('qna_attachments')
-        .upload(filePath, file);
+    if (files.length > 0) {
+      for (const file of files) {
+        if (!file || file.size === 0) continue;
+        const filePath = `${user.id}/${threadId}/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('qna_attachments')
+          .upload(filePath, file);
 
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        return NextResponse.json({ error: 'Failed to upload attachment.' }, { status: 500 });
-      }
+        if (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          return NextResponse.json({ error: 'Failed to upload attachment.' }, { status: 500 });
+        }
 
-      const { error: attachmentError } = await supabase
-        .from('qna_attachments')
-        .insert({
-          message_id: messageData.id,
-          file_name: file.name,
-          file_path: filePath,
-          file_type: file.type,
-          file_size: file.size,
-          is_image: file.type.startsWith('image/'),
-        });
+        const { error: attachmentError } = await supabase
+          .from('qna_attachments')
+          .insert({
+            message_id: messageData.id,
+            file_name: file.name,
+            file_path: filePath,
+            file_type: file.type,
+            file_size: file.size,
+            is_image: file.type.startsWith('image/'),
+          });
 
-      if (attachmentError) {
-        console.error('Error saving attachment metadata:', attachmentError);
-        return NextResponse.json({ error: 'Failed to save attachment metadata.' }, { status: 500 });
+        if (attachmentError) {
+          console.error('Error saving attachment metadata:', attachmentError);
+          return NextResponse.json({ error: 'Failed to save attachment metadata.' }, { status: 500 });
+        }
       }
     }
 

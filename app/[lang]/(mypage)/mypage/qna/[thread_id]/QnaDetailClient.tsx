@@ -76,9 +76,9 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
       return [...state, newMessage];
     }
   );
-  const [attachment, setAttachment] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [fileObjectUrl, setFileObjectUrl] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [fileObjectUrls, setFileObjectUrls] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
 
@@ -127,36 +127,50 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   }, [selectedImage, selectedVideo]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAttachment(file);
+    const fileList = e.target.files ? Array.from(e.target.files) : [];
+    if (fileList.length === 0) {
+      setAttachments([]);
+      setPreviewUrls([]);
+      setFileObjectUrls([]);
+      return;
+    }
+
+    const newObjectUrls: string[] = [];
+    const newPreviewUrls: string[] = [];
+
+    for (const file of fileList) {
       const objectUrl = URL.createObjectURL(file);
-      setFileObjectUrl(objectUrl);
+      newObjectUrls.push(objectUrl);
 
       if (file.type.startsWith('image/')) {
-        setPreviewUrl(objectUrl);
+        newPreviewUrls.push(objectUrl);
       } else if (file.type.startsWith('video/')) {
         try {
-            const thumbnailUrl = await generateVideoThumbnail(file);
-            setPreviewUrl(thumbnailUrl);
+          const thumbnailUrl = await generateVideoThumbnail(file);
+          newPreviewUrls.push(thumbnailUrl);
         } catch (error) {
-            console.error("Failed to generate video thumbnail:", error);
-            setPreviewUrl(null);
+          console.error('Failed to generate video thumbnail:', error);
+          newPreviewUrls.push(objectUrl);
         }
-      }
-       else {
-        setPreviewUrl(null);
+      } else {
+        newPreviewUrls.push(objectUrl);
       }
     }
+
+    setAttachments(fileList);
+    setFileObjectUrls(newObjectUrls);
+    setPreviewUrls(newPreviewUrls);
   };
 
   async function formAction(formData: FormData) {
-    if (!attachment && !(formData.get('content') as string).trim()) {
+    if (attachments.length === 0 && !(formData.get('content') as string).trim()) {
         return; 
     }
     
-    if (attachment) {
-      formData.append('attachment', attachment);
+    if (attachments.length > 0) {
+      for (const file of attachments) {
+        formData.append('attachments', file);
+      }
     }
 
     const content = formData.get('content') as string;
@@ -171,22 +185,21 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         user_profiles: { nickname: 'You', avatar_url: '' },
     };
 
-    if (attachment) {
-        const isVideo = attachment.type.startsWith('video/');
-        const optimisticAttachment: QnaAttachment = {
-            id: Math.random(),
-            message_id: 0,
-            file_name: attachment.name,
-            file_path: isVideo ? (previewUrl || '') : (fileObjectUrl || ''),
-            file_type: attachment.type,
-            file_size: attachment.size,
-            created_at: new Date().toISOString(),
-        };
-        optimisticMessage.qna_attachments = [optimisticAttachment];
-        
-        if (isVideo) {
-            optimisticMessage.client_video_url = fileObjectUrl || '';
-        }
+    if (attachments.length > 0) {
+      const optimisticAttachments: QnaAttachment[] = attachments.map((file, idx) => {
+        const isVideo = file.type.startsWith('video/');
+        const fileUrl = fileObjectUrls[idx] || '';
+        return {
+          id: Math.random(),
+          message_id: 0,
+          file_name: file.name,
+          file_path: fileUrl,
+          file_type: file.type,
+          file_size: file.size,
+          created_at: new Date().toISOString(),
+        } as QnaAttachment;
+      });
+      optimisticMessage.qna_attachments = optimisticAttachments;
     }
     
     startTransition(() => {
@@ -194,27 +207,33 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
     });
     
     formRef.current?.reset();
-    setAttachment(null);
-    setPreviewUrl(null);
-    setFileObjectUrl(null);
+    setAttachments([]);
+    setPreviewUrls([]);
+    setFileObjectUrls([]);
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
     }
 
-    const result = await fetch('/api/qna/messages', {
-      method: 'POST',
-      body: formData,
-    }).then(res => res.json());
+    let result: any = null;
+    try {
+      const res = await fetch('/api/qna/messages', {
+        method: 'POST',
+        body: formData,
+      });
+      result = await res.json().catch(() => ({}));
+    } catch (e) {
+      console.error('Failed to submit QnA message:', e);
+    }
 
-    if (result.success && result.data) {
+    if (result && result.success && result.data) {
         setMessages(prev => {
             const newMessages = prev.filter(m => m.id !== optimisticMessage.id);
             return [...newMessages, result.data as UiQnaMessage];
         });
     }
 
-    if(result.error) {
-        console.error(result.error);
+    if (!result || result.error) {
+        console.error(result?.error || 'Unknown error');
         setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
     }
   }
@@ -420,15 +439,19 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
             </div>
           ) : (
             <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-2">
-              {previewUrl && (
-                <div className="relative w-24 h-24">
-                  <Image src={previewUrl} alt="Preview" layout="fill" objectFit="cover" className="rounded-lg" />
+              {previewUrls.length > 0 && (
+                <div className="flex gap-2 flex-wrap">
+                  {previewUrls.map((url, idx) => (
+                    <div key={idx} className="relative w-24 h-24">
+                      <Image src={url} alt={`Preview ${idx + 1}`} fill className="rounded-lg object-cover" />
+                    </div>
+                  ))}
                   <button
                     type="button"
-                    onClick={() => { setAttachment(null); setPreviewUrl(null); setFileObjectUrl(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
-                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                    onClick={() => { setAttachments([]); setPreviewUrls([]); setFileObjectUrls([]); if(fileInputRef.current) fileInputRef.current.value = ''; }}
+                    className="px-2 py-1 text-xs border rounded-lg text-red-600 border-red-200"
                   >
-                    X
+                    모두 제거
                   </button>
                 </div>
               )}
@@ -446,6 +469,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   className="hidden"
+                  multiple
                   accept="image/*,video/*"
                 />
                 <button
