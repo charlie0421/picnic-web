@@ -12,11 +12,11 @@ export async function POST(req: Request) {
     );
 
     if (!threadId) {
-      return NextResponse.json({ error: 'Thread ID is required.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Thread ID is required.' }, { status: 400 });
     }
 
     if (!content.trim() && (files.length === 0 || files.every((f) => f.size === 0))) {
-      return NextResponse.json({ error: 'Content or attachment is required.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Content or attachment is required.' }, { status: 400 });
     }
 
     const supabase = await createSupabaseServerClient();
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'User not authenticated.' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'User not authenticated.' }, { status: 401 });
     }
 
     const { data: messageData, error: messageError } = await supabase
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     if (messageError || !messageData) {
       console.error('Error creating message:', messageError);
-      return NextResponse.json({ error: 'Failed to create the message.' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Failed to create the message.' }, { status: 500 });
     }
 
     if (files.length > 0) {
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
         if (uploadError) {
           console.error('Error uploading file:', uploadError);
-          return NextResponse.json({ error: 'Failed to upload attachment.' }, { status: 500 });
+          return NextResponse.json({ success: false, error: 'Failed to upload attachment.' }, { status: 500 });
         }
 
         const { error: attachmentError } = await supabase
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
         if (attachmentError) {
           console.error('Error saving attachment metadata:', attachmentError);
-          return NextResponse.json({ error: 'Failed to save attachment metadata.' }, { status: 500 });
+          return NextResponse.json({ success: false, error: 'Failed to save attachment metadata.' }, { status: 500 });
         }
       }
     }
@@ -138,7 +138,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, data: fullMessage });
   } catch (error) {
     console.error('Unexpected error in POST /api/qna/messages:', error);
-    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Internal server error.' }, { status: 500 });
   }
 }
 
