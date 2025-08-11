@@ -250,6 +250,21 @@ class AuthStore {
             } else {
                console.warn('[AuthStore] provider 정보가 없어 최근 로그인 정보를 저장하지 않습니다.', { provider });
             }
+
+            // 서버 쿠키 동기화 (신규 세션)
+            try {
+              await fetch('/api/auth/verify', { method: 'GET', credentials: 'include' });
+            } catch (_) {}
+          }
+
+          // 토큰 자동 갱신 시 서버 쿠키 동기화
+          if (event === 'TOKEN_REFRESHED') {
+            try {
+              await fetch('/api/auth/verify', { method: 'GET', credentials: 'include' });
+              console.log('[AuthStore] TOKEN_REFRESHED → 서버 쿠키 동기화 완료');
+            } catch (e) {
+              console.warn('[AuthStore] TOKEN_REFRESHED 쿠키 동기화 실패', e);
+            }
           }
   
           // 로그아웃 이벤트 처리
