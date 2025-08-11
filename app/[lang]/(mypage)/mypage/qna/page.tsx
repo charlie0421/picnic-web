@@ -3,12 +3,20 @@ import { Suspense } from 'react';
 import QnaClient from './QnaClient';
 import QnaSkeleton from '@/components/server/mypage/QnaSkeleton';
 
-export default async function QnaPage({ searchParams }: any) {
+interface QnaPageProps {
+  params: Promise<{ lang: string }>;
+  searchParams: Promise<{
+    page?: string | string[];
+  }>;
+}
+
+export default async function QnaPage(props: QnaPageProps) {
+  const searchParams = await props.searchParams;
 
   const pageQuery = searchParams.page ?? '1';
   const page = Number(Array.isArray(pageQuery) ? pageQuery[0] : pageQuery);
   const limit = 10;
-  
+
   const {
     qnaThreads,
     pagination,

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useOptimistic, Fragment } from 'react';
+import React, { useState, useRef, useEffect, useOptimistic, Fragment, startTransition } from 'react';
 import { QnaThread, QnaMessage, QnaAttachment } from '@/types/interfaces';
-import { createQnaMessageAction } from '@/app/actions/qna';
-import { useFormStatus } from 'react-dom';
+// import { createQnaMessageAction } from '@/app/actions/qna';
+// import { useFormStatus } from 'react-dom';
 import Image from 'next/image';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useRouter } from 'next/navigation';
@@ -89,17 +89,16 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
 
   const { t } = useTranslations();
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function SubmitButton({ disabled }: { disabled: boolean }) {
-    const { pending } = useFormStatus();
-  
+  function SubmitButton({ disabled, isSubmitting }: { disabled: boolean; isSubmitting: boolean }) {
     return (
       <button
         type="submit"
         className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark disabled:bg-primary/50"
-        disabled={pending || disabled}
+        disabled={isSubmitting || disabled}
       >
-        {pending ? '...' : t('send_button')}
+        {isSubmitting ? '...' : t('send_button')}
       </button>
     );
   }
@@ -190,7 +189,9 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         }
     }
     
-    addOptimisticMessage(optimisticMessage);
+    startTransition(() => {
+      addOptimisticMessage(optimisticMessage);
+    });
     
     formRef.current?.reset();
     setAttachment(null);
@@ -200,7 +201,10 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         fileInputRef.current.value = '';
     }
 
-    const result = await createQnaMessageAction(formData);
+    const result = await fetch('/api/qna/messages', {
+      method: 'POST',
+      body: formData,
+    }).then(res => res.json());
 
     if (result.success && result.data) {
         setMessages(prev => {
@@ -215,6 +219,18 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+      const fd = new FormData(e.currentTarget);
+      await formAction(fd);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const renderMessagesWithDateDividers = () => {
     let lastDate: string | null = null;
     return (optimisticMessages as UiQnaMessage[]).map((msg) => {
@@ -222,11 +238,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
       const showDivider = currentDate !== lastDate;
       lastDate = currentDate;
 
-      const attachment = msg.qna_attachments?.[0] as QnaAttachment | undefined;
-      const isVideo = attachment?.file_type.startsWith('video/');
-
-      const thumbnailPath = attachment?.file_path;
-      const videoPath = isVideo && attachment ? (msg.client_video_url || attachment.file_path) : undefined;
+      // Render all attachments (previously only the first one was shown)
 
 
       return (
@@ -258,66 +270,81 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   : 'bg-primary text-white'
               }`}
             >
-              {attachment && (
-                <div className="mb-2">
-                  {isVideo ? (
-                    <button
-                      key={attachment.id}
-                      onClick={() => videoPath && setSelectedVideo(videoPath)}
-                      className="relative focus:outline-none w-[200px] bg-black rounded-lg flex items-center justify-center cursor-pointer overflow-hidden"
-                    >
-                      {/* 낙관적 메시지(새로 첨부)는 생성된 썸네일을, 기존 메시지는 비디오 태그를 사용합니다. */}
-                      {msg.client_video_url ? (
-                        <img
-                          src={thumbnailPath}
-                          alt="Video thumbnail"
-                          className="w-full h-auto"
-                        />
-                      ) : (
-                        <video
-                          src={thumbnailPath}
-                          preload="metadata"
-                          className="w-full h-auto"
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-black opacity-50 rounded-lg"></div>
-                      <svg
-                        className="w-12 h-12 text-white z-10 absolute"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                        xmlns="http://www.w3.org/2000/svg"
+              {Array.isArray(msg.qna_attachments) && msg.qna_attachments.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {msg.qna_attachments.map((attachment: QnaAttachment) => {
+                    const isVideo = attachment.file_type?.startsWith('video/');
+                    const isImage = attachment.file_type?.startsWith('image/');
+                    const playUrl = isVideo ? (msg.client_video_url || attachment.file_path) : undefined;
+
+                    if (isVideo) {
+                      return (
+                        <button
+                          key={attachment.id}
+                          onClick={() => playUrl && setSelectedVideo(playUrl)}
+                          className="relative focus:outline-none w-[200px] bg-black rounded-lg flex items-center justify-center cursor-pointer overflow-hidden"
+                          aria-label="Play video attachment"
+                        >
+                          {msg.client_video_url ? (
+                            <img
+                              src={attachment.file_path}
+                              alt="Video thumbnail"
+                              className="w-full h-auto"
+                            />
+                          ) : (
+                            <video
+                              src={attachment.file_path}
+                              preload="metadata"
+                              className="w-full h-auto"
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-black opacity-50 rounded-lg"></div>
+                          <svg
+                            className="w-12 h-12 text-white z-10 absolute"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      );
+                    }
+
+                    if (isImage) {
+                      return (
+                        <button
+                          key={attachment.id}
+                          onClick={() => setSelectedImage(attachment.file_path)}
+                          className="focus:outline-none w-[200px] bg-primary-100 rounded-lg flex items-center justify-center"
+                          aria-label={attachment.file_name}
+                        >
+                          <img
+                            src={attachment.file_path}
+                            alt={attachment.file_name}
+                            style={{ width: 200, height: 'auto' }}
+                            className="rounded-lg object-contain max-w-full max-h-full"
+                          />
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <a
+                        key={attachment.id}
+                        href={attachment.file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-secondary-300 underline break-all"
                       >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  ) : attachment.file_type.startsWith('image/') ? (
-                    <button
-                      key={attachment.id}
-                      onClick={() => setSelectedImage(attachment.file_path)}
-                      className="focus:outline-none w-[200px] bg-primary-100 rounded-lg flex items-center justify-center"
-                    >
-                      <img
-                        src={attachment.file_path}
-                        alt={attachment.file_name}
-                        style={{ width: 200, height: 'auto' }}
-                        className="rounded-lg object-contain max-w-full max-h-full"
-                      />
-                    </button>
-                  ) : (
-                    <a
-                      key={attachment.id}
-                      href={attachment.file_path}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-secondary-300 underline"
-                    >
-                      {attachment.file_name}
-                    </a>
-                  )}
+                        {attachment.file_name}
+                      </a>
+                    );
+                  })}
                 </div>
               )}
               <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
@@ -392,7 +419,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
               <p>{t('qna_thread_is_closed')}</p>
             </div>
           ) : (
-            <form ref={formRef} action={formAction} className="flex flex-col gap-2">
+            <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-2">
               {previewUrl && (
                 <div className="relative w-24 h-24">
                   <Image src={previewUrl} alt="Preview" layout="fill" objectFit="cover" className="rounded-lg" />
@@ -429,7 +456,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                 >
                   📎 {t('file_attachment')}
                 </button>
-                <SubmitButton disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'} />
+                <SubmitButton disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'} isSubmitting={isSubmitting} />
               </div>
             </form>
           )}

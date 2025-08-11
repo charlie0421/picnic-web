@@ -110,6 +110,65 @@ export async function createQnaMessageAction(formData: FormData) {
         }
     }
 
-    revalidatePath(`/mypage/qna/${threadId}`);
-    return { success: true, data: messageData };
+    // Re-fetch the full message with relations so the client can update the list without a full page refresh
+    const { data: fullMessage, error: fetchError } = await supabase
+        .from('qna_messages')
+        .select(`
+            id,
+            thread_id,
+            user_id,
+            content,
+            created_at,
+            is_admin_message,
+            user_profiles (
+              avatar_url,
+              nickname
+            ),
+            qna_attachments (
+              id,
+              message_id,
+              file_name,
+              file_path,
+              file_type,
+              file_size,
+              created_at
+            )
+        `)
+        .eq('id', messageData.id)
+        .single();
+
+    if (fetchError || !fullMessage) {
+        console.error('Error fetching full message after insert:', fetchError);
+        return { success: true, data: messageData };
+    }
+
+    // Convert storage paths to public URLs (same logic as in qna-service)
+    try {
+        if (Array.isArray((fullMessage as any).user_profiles)) {
+            (fullMessage as any).user_profiles = (fullMessage as any).user_profiles[0] || null;
+        }
+
+        if ((fullMessage as any).qna_attachments) {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const customDomain = 'https://api.picnic.fan';
+
+            (fullMessage as any).qna_attachments.forEach((attachment: any) => {
+                if (attachment.file_path) {
+                    const { data: publicUrlData } = supabase.storage
+                        .from('qna_attachments')
+                        .getPublicUrl(attachment.file_path);
+                    let publicUrl = publicUrlData.publicUrl;
+                    if (supabaseUrl) {
+                        publicUrl = publicUrl.replace(supabaseUrl, customDomain);
+                    }
+                    attachment.file_path = publicUrl;
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('Failed to transform attachment URLs:', e);
+    }
+
+    // Do NOT call revalidatePath here to avoid full-route refresh; client updates list optimistically
+    return { success: true, data: fullMessage };
 }
