@@ -50,11 +50,17 @@ function LoginContentInner() {
   useAppleAuthHandler(mounted, setLoading, setError);
   useOAuthError(mounted, setError);
   
-  const providers: SocialLoginProvider[] = useMemo(() => 
-    process.env.NODE_ENV === 'development'
-      ? ['google', 'apple', 'wechat']
-      : ['google', 'apple'], 
-  []);
+  const providers: SocialLoginProvider[] = useMemo(() => {
+    const base: SocialLoginProvider[] = ['google', 'apple'];
+    // 프로덕션에서도 환경변수가 있으면 위챗 노출
+    if (process.env.NEXT_PUBLIC_WECHAT_APP_ID) {
+      base.push('wechat');
+    } else if (process.env.NODE_ENV === 'development') {
+      // 개발에서는 기본 노출하여 테스트 용이성 확보
+      base.push('wechat');
+    }
+    return base;
+  }, []);
 
   useEffect(() => {
     setMounted(true);

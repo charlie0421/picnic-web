@@ -85,7 +85,14 @@ export default function MyPageClient({
 
   const handleLoginRedirect = () => {
     setIsLoading(true);
-    window.location.href = '/login?returnTo=/mypage';
+    try {
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      const lang = path.split('/')?.[1] || 'en';
+      // returnTo도 언어 프리픽스를 포함하도록 수정
+      window.location.href = `/${lang}/login?returnTo=/${lang}/mypage`;
+    } catch {
+      window.location.href = '/login?returnTo=/mypage';
+    }
   };
 
   const getUserInfo = useCallback(() => {

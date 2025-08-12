@@ -55,10 +55,15 @@ export function isWeChatBrowser(): boolean {
  * @returns WeChat 로그인이 현재 환경에서 지원되는지 여부
  */
 export function isWeChatSupported(): boolean {
-  // 필수 환경 변수 확인
+  // 클라이언트와 서버에서의 환경변수 가시성이 다름
+  // - 클라이언트: NEXT_PUBLIC_* 만 접근 가능 → 앱ID만 체크
+  // - 서버: 시크릿까지 체크 가능
+  if (typeof window !== 'undefined') {
+    const appId = process.env.NEXT_PUBLIC_WECHAT_APP_ID;
+    return !!appId;
+  }
   const appId = process.env.NEXT_PUBLIC_WECHAT_APP_ID;
   const appSecret = process.env.WECHAT_APP_SECRET;
-  
   return !!(appId && appSecret);
 }
 

@@ -189,11 +189,12 @@ export function handlePostLoginRedirect(returnToParam?: string): string {
     // 저장된 URL 제거
     clearRedirectUrl();
 
-    // 리다이렉트 URL이 있고 유효하면 해당 URL로, 없으면 홈으로
+    // 리다이렉트 URL이 있고 유효하면 해당 URL로
     if (redirectUrl && isValidRedirectUrl(redirectUrl)) {
         return redirectUrl;
     }
 
+    // 기본 폴백: 사이트 루트로 이동 (원복)
     return "/";
 }
 

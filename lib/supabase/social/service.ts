@@ -338,6 +338,13 @@ export class SocialAuthService implements SocialAuthServiceInterface {
     this.log(`${provider} 콜백 처리`, params);
 
     try {
+      // WeChat은 Supabase 기본 OAuth 교환이 불가하므로 전용 콜백 처리로 우선 분기
+      if (provider === "wechat") {
+        const { handleWeChatCallback } = await import("./wechat");
+        const result = await handleWeChatCallback(this.supabase, params || {});
+        return result;
+      }
+
       // OAuth 콜백에서는 URL 해시나 검색 파라미터에서 세션 정보를 추출해야 함
       if (typeof window !== "undefined") {
         // 브라우저 환경에서 URL 해시 확인

@@ -193,7 +193,7 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                     onLogin: () => {
                         // URL은 이미 저장되었으므로 중복 저장하지 않음
                         console.log("🔄 로그인 페이지로 이동");
-                        router.push("/login");
+                        router.push(`/login`);
                     },
                 });
 
@@ -261,7 +261,7 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                     onLogin: () => {
                         // URL은 이미 저장되었으므로 중복 저장하지 않음
                         console.log("🔄 로그인 페이지로 이동");
-                        router.push("/login");
+                        router.push(`/login`);
                     },
                 });
 
