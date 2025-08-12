@@ -1,6 +1,10 @@
 import { redirect } from 'next/navigation';
 
-export default function Home() {
-  redirect('/vote');
-  return null;
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
+  redirect(`/${lang}/vote`);
 }
