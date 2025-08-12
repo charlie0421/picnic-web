@@ -162,6 +162,44 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
     setPreviewUrls(newPreviewUrls);
   };
 
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => {
+      const next = [...prev];
+      if (index >= 0 && index < next.length) {
+        next.splice(index, 1);
+      }
+      return next;
+    });
+
+    setPreviewUrls((prev) => {
+      const next = [...prev];
+      const urlToRevoke = next[index];
+      if (urlToRevoke && urlToRevoke.startsWith('blob:')) {
+        URL.revokeObjectURL(urlToRevoke);
+      }
+      if (index >= 0 && index < next.length) {
+        next.splice(index, 1);
+      }
+      return next;
+    });
+
+    setFileObjectUrls((prev) => {
+      const next = [...prev];
+      const urlToRevoke = next[index];
+      if (urlToRevoke && urlToRevoke.startsWith('blob:')) {
+        URL.revokeObjectURL(urlToRevoke);
+      }
+      if (index >= 0 && index < next.length) {
+        next.splice(index, 1);
+      }
+      return next;
+    });
+
+    if (fileInputRef.current && attachments.length <= 1) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   async function formAction(formData: FormData) {
     if (attachments.length === 0 && !(formData.get('content') as string).trim()) {
         return; 
@@ -454,6 +492,15 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   {previewUrls.map((url, idx) => (
                     <div key={idx} className="relative w-24 h-24">
                       <Image src={url} alt={`Preview ${idx + 1}`} fill className="rounded-lg object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(idx)}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow-md hover:bg-red-700"
+                        aria-label={`첨부 ${idx + 1} 제거`}
+                        title="제거"
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                   <button
@@ -485,7 +532,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 border rounded-lg hover:bg-primary-100"
+                  className="p-2 border rounded-lg hover:bg-primary-50 bg-white border-primary-300 text-primary-800 font-medium flex items-center gap-1"
                   disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'}
                 >
                   📎 {t('file_attachment')}
