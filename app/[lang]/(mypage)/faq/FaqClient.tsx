@@ -13,7 +13,7 @@ interface Faq {
 
 interface FaqClientProps {
   faqs: Faq[];
-  categories: string[];
+  categories: { code: string; label: string }[]; // e.g., [{code:'all', label:''}, {code:'PAYMENT', label:'결제'}]
 }
 
 const FaqClient = ({ faqs, categories }: FaqClientProps) => {
@@ -38,25 +38,27 @@ const FaqClient = ({ faqs, categories }: FaqClientProps) => {
         <div className="flex flex-wrap gap-4">
           {categories.map((category) => (
             <label
-              key={category}
+              key={category.code}
               className="inline-flex items-center cursor-pointer"
             >
               <input
                 type="radio"
                 name="category"
-                value={category}
-                checked={selectedCategory === category}
+                value={category.code}
+                checked={selectedCategory === category.code}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="hidden"
               />
               <span
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  selectedCategory === category
+                  selectedCategory === category.code
                     ? 'bg-primary text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {tDynamic(`faq_category_${category.toLowerCase()}`)}
+                {category.code === 'all'
+                  ? tDynamic('faq_category_all')
+                  : category.label}
               </span>
             </label>
           ))}

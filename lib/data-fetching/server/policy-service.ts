@@ -67,3 +67,38 @@ export const getFaqs = cache(async (lang: string = 'ko') => {
       return [];
     }
 });
+
+export interface FaqCategory {
+  code: string;
+  label: string;
+  order_number: number;
+  active: boolean;
+}
+
+export const getFaqCategories = cache(async (lang: string = 'ko') => {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from('faq_categories')
+      .select('code, label, order_number, active')
+      .eq('active', true)
+      .order('order_number', { ascending: true });
+
+    if (error) throw error;
+
+    const localized: FaqCategory[] = (data || []).map((row: any) => {
+      const label = row.label || {};
+      return {
+        code: row.code,
+        label: label?.[lang] || label?.['ko'] || row.code,
+        order_number: row.order_number ?? 0,
+        active: !!row.active,
+      };
+    });
+
+    return localized;
+  } catch (error) {
+    console.error('getFaqCategories error:', error);
+    return [] as FaqCategory[];
+  }
+});

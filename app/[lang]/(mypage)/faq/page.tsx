@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import FaqClient from './FaqClient';
-import { getFaqs } from '@/lib/data-fetching/server/policy-service';
+import { getFaqs, getFaqCategories } from '@/lib/data-fetching/server/policy-service';
 import { getTranslations } from '@/lib/i18n/server';
 import FaqSkeleton from '@/components/server/mypage/FAQSkeleton';
 
@@ -13,13 +13,18 @@ interface FaqPageProps {
 }
 
 const FaqFetcher = async ({ lang }: { lang: string }) => {
-  const faqs = await getFaqs(lang);
-  const categories = [
-    'all',
-    ...Array.from(new Set(faqs.map((faq: any) => faq.category).filter(Boolean))),
+  const [faqs, categories] = await Promise.all([
+    getFaqs(lang),
+    getFaqCategories(lang),
+  ]);
+
+  // 'all' 탭을 선두에 추가하고, i18n은 클라이언트에서 처리
+  const categoriesForClient = [
+    { code: 'all', label: '' },
+    ...categories.map(c => ({ code: c.code, label: c.label })),
   ];
 
-  return <FaqClient faqs={faqs} categories={categories} />;
+  return <FaqClient faqs={faqs} categories={categoriesForClient} />;
 };
 
 export default async function FaqPage(props: FaqPageProps) {
