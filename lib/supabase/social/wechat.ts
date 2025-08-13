@@ -58,6 +58,15 @@ export function isWeChatSupported(): boolean {
   // 클라이언트와 서버에서의 환경변수 가시성이 다름
   // - 클라이언트: NEXT_PUBLIC_* 만 접근 가능 → 앱ID만 체크
   // - 서버: 시크릿까지 체크 가능
+
+  console.log("🔍 isWeChatSupported 함수 시작");
+  console.log("🔍 process.env.NEXT_PUBLIC_WECHAT_APP_ID:", process.env.NEXT_PUBLIC_WECHAT_APP_ID);
+  console.log("🔍 process.env.WECHAT_APP_SECRET:", process.env.WECHAT_APP_SECRET);
+  console.log("🔍 process.env.WECHAT_OVERSEAS:", process.env.WECHAT_OVERSEAS);
+  console.log("🔍 process.env.NODE_ENV:", process.env.NODE_ENV);
+  console.log("🔍 process.env.NEXT_PUBLIC_SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL);
+  console.log("🔍 process.env.NEXT_PUBLIC_WECHAT_APP_ID:", process.env.NEXT_PUBLIC_WECHAT_APP_ID);
+
   if (typeof window !== 'undefined') {
     const appId = process.env.NEXT_PUBLIC_WECHAT_APP_ID;
     return !!appId;
@@ -400,51 +409,10 @@ export async function signInWithWeChatImpl(
     };
 
     console.log("🔍 WeChat OAuth 파라미터 준비 완료");
-    console.log("🔍 Supabase signInWithOAuth 호출 시작");
 
-    // WeChat은 Supabase에서 기본 지원하지 않으므로 커스텀 OAuth 플로우 구현
-    // 우선 일반적인 OAuth 방식으로 시도하고, 필요시 커스텀 구현으로 변경
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "wechat" as any, // WeChat은 Supabase에서 기본 지원하지 않음
-      options: {
-        redirectTo: redirectUrl,
-        scopes: scopes.join(" "),
-        queryParams: wechatParams,
-      },
-    });
-
-    console.log("🔍 Supabase signInWithOAuth 호출 완료, error:", error);
-
-    if (error) {
-      console.error("❌ WeChat OAuth 오류:", error);
-      
-      // WeChat이 Supabase에서 지원되지 않는 경우 커스텀 구현으로 폴백
-      if (error.message.includes("Provider not supported") || 
-          error.message.includes("wechat")) {
-        console.log("🔄 WeChat 커스텀 OAuth 플로우로 전환");
-        return await signInWithWeChatCustom(config, redirectUrl, scopes, wechatParams);
-      }
-      
-      // 상태 토큰 정리
-      clearStateToken();
-      
-      throw new SocialAuthError(
-        SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-        `WeChat 로그인 프로세스 실패: ${error.message}`,
-        "wechat",
-        error,
-      );
-    }
-
-    console.log("✅ WeChat OAuth 리다이렉션 시작");
-
-    // OAuth 리디렉션으로 인해 이 함수는 여기까지만 실행되고 리디렉션됨
-    // 리디렉션 후 콜백 처리는 callback 핸들러에서 수행
-    return {
-      success: true,
-      provider: "wechat",
-      message: "WeChat 로그인 리디렉션 중...",
-    };
+    // Supabase는 WeChat provider를 공식 지원하지 않으므로 항상 커스텀 플로우 사용
+    console.log("🔄 WeChat 커스텀 OAuth 플로우 사용 (Supabase OAuth 우회)");
+    return await signInWithWeChatCustom(config, redirectUrl, scopes, wechatParams);
   } catch (error) {
     console.error("🔍 signInWithWeChatImpl 오류:", error);
 
