@@ -449,30 +449,31 @@ async function signInWithWeChatCustom(
   params: Record<string, string>,
 ): Promise<AuthResult> {
   try {
-    // WeChat OAuth 엔드포인트 URL 구성
-    const isOverseas = (config.additionalConfig as any)?.isOverseas;
-    const baseUrl = isOverseas 
-      ? "https://open.weixin.qq.com/connect/qrconnect" // 해외 버전
-      : "https://open.weixin.qq.com/connect/oauth2/authorize"; // 중국 본토 버전
+    // Website App은 브라우저에서 QRConnect를 사용해야 하며,
+    // oauth2/authorize는 WeChat 인앱 브라우저(Official Account)에서만 동작
+    // "请在微信客户端打开链接" 메시지를 피하기 위해 항상 QRConnect 사용
+    const baseUrl = "https://open.weixin.qq.com/connect/qrconnect";
 
     const authUrl = new URL(baseUrl);
     authUrl.searchParams.set("appid", config.clientId);
-    authUrl.searchParams.set("redirect_uri", encodeURIComponent(redirectUrl));
+    // URLSearchParams가 자체 인코딩하므로 사전 인코딩 금지
+    authUrl.searchParams.set("redirect_uri", redirectUrl);
     authUrl.searchParams.set("response_type", params.response_type || "code");
-    authUrl.searchParams.set("scope", scopes.join(","));
+    // QRConnect에서는 scope로 snsapi_login 사용
+    const finalScope = scopes && scopes.length > 0 ? scopes.join(",") : "snsapi_login";
+    authUrl.searchParams.set("scope", finalScope);
     authUrl.searchParams.set("state", params.state || "wechat_oauth_state");
 
-    // 해외 버전의 경우 추가 파라미터
-    if (isOverseas) {
-      authUrl.searchParams.set("style", "black"); // QR 코드 스타일
-      authUrl.searchParams.set("href", ""); // 커스텀 스타일시트 URL (선택사항)
-    }
+    // 선택: QR 스타일 커스터마이즈 파라미터
+    authUrl.searchParams.set("style", "black");
 
-    console.log("🔍 WeChat 커스텀 OAuth URL:", authUrl.toString());
+    // 문서 요구사항에 따라 해시 추가
+    const finalUrl = `${authUrl.toString()}#wechat_redirect`;
+    console.log("🔍 WeChat 커스텀 OAuth URL:", finalUrl);
 
     // 브라우저에서 WeChat OAuth 페이지로 리다이렉트
     if (typeof window !== "undefined") {
-      window.location.href = authUrl.toString();
+      window.location.href = finalUrl;
     }
 
     return {
