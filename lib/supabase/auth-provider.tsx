@@ -621,6 +621,19 @@ class AuthStore {
 
   private async loadUserProfile(userId: string): Promise<UserProfiles | null> {
     try {
+      // 비로그인 상태 또는 사용자 불일치 시 호출 불필요 → 즉시 종료
+      if (!this.state.isAuthenticated || !this.state.user || this.state.user.id !== userId) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⏭️  [AuthStore] loadUserProfile 건너뜀:', {
+            isAuthenticated: this.state.isAuthenticated,
+            hasUser: !!this.state.user,
+            requestedUserId: userId?.substring(0, 8) + '...',
+            currentUserId: this.state.user?.id?.substring(0, 8) + '...'
+          });
+        }
+        return null;
+      }
+
       console.log('🔍 [AuthStore] API를 통한 프로필 조회 시작:', { userId: userId.substring(0, 8) + '...' });
       
       // 🚀 서버 API를 통해 프로필 조회 (RLS 정책 우회)
