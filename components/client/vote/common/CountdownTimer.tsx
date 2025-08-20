@@ -26,6 +26,8 @@ interface CountdownTimerProps {
   compact?: boolean;
   className?: string;
   showEmoji?: boolean;
+  showLabel?: boolean;    // 상단/부가 라벨("시작까지/종료까지") 표시 여부
+  showUnits?: boolean;    // 일/시/분/초 텍스트 단위 표시 여부
 }
 
 export function CountdownTimer({ 
@@ -37,7 +39,9 @@ export function CountdownTimer({
   variant = 'simple',
   compact = false,
   className = '',
-  showEmoji = true
+  showEmoji = true,
+  showLabel = true,
+  showUnits = true
 }: CountdownTimerProps) {
   const { t } = useLanguageStore();
   const isTranslationReady = useTranslationReady();
@@ -138,9 +142,11 @@ export function CountdownTimer({
   if (variant === 'simple') {
     return (
       <div className={`text-center py-2 ${className}`}>
-        <div className="text-xs text-gray-600 mb-1">
-          {getCountdownText()}
-        </div>
+        {showLabel && (
+          <div className="text-xs text-gray-600 mb-1">
+            {getCountdownText()}
+          </div>
+        )}
         <div className="flex justify-center items-center space-x-1 text-sm font-bold">
           <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs">
             {days} {t('time_unit_day')}
@@ -170,27 +176,35 @@ export function CountdownTimer({
         <span className={`bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded min-w-[20px] text-center ${compact ? 'text-xs px-1 py-0.5' : 'text-xs'}`}>
           {String(days).padStart(2, '0')}
         </span>
-        <span className={`text-blue-600 ${compact ? 'text-xs' : 'text-xs'}`}>
-          {t('time_unit_day')}
-        </span>
+        {showUnits && (
+          <span className={`text-blue-600 ${compact ? 'text-xs' : 'text-xs'}`}>
+            {t('time_unit_day')}
+          </span>
+        )}
         <span className={`bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded min-w-[20px] text-center ${compact ? 'text-xs px-1 py-0.5' : 'text-xs'}`}>
           {String(hours).padStart(2, '0')}
         </span>
-        <span className={`text-blue-600 ${compact ? 'text-xs' : 'text-xs'}`}>
-          {t('time_unit_hour')}
-        </span>
+        {showUnits && (
+          <span className={`text-blue-600 ${compact ? 'text-xs' : 'text-xs'}`}>
+            {t('time_unit_hour')}
+          </span>
+        )}
         <span className={`bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded min-w-[20px] text-center ${compact ? 'text-xs px-1 py-0.5' : 'text-xs'}`}>
           {String(minutes).padStart(2, '0')}
         </span>
-        <span className={`text-blue-600 ${compact ? 'text-xs' : 'text-xs'}`}>
-          {t('time_unit_minute')}
-        </span>
+        {showUnits && (
+          <span className={`text-blue-600 ${compact ? 'text-xs' : 'text-xs'}`}>
+            {t('time_unit_minute')}
+          </span>
+        )}
         <span className={`bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse min-w-[20px] text-center ${compact ? 'text-xs px-1 py-0.5' : 'text-xs'}`}>
           {String(seconds).padStart(2, '0')}
         </span>
-        <span className={`text-red-600 ${compact ? 'text-xs' : 'text-xs'}`}>
-          {t('time_unit_second')}
-        </span>
+        {showUnits && (
+          <span className={`text-red-600 ${compact ? 'text-xs' : 'text-xs'}`}>
+            {t('time_unit_second')}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import NavigationLink from '@/components/client/NavigationLink';
 import { Vote } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
 import { CountdownTimer } from '../common/CountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
-import { formatVotePeriodWithTimeZone } from '@/utils/date';
+import { formatVotePeriodWithTimeZone, formatRelativeTime } from '@/utils/date';
 import RewardItem from '@/components/common/RewardItem';
 import { VoteItems } from './VoteItems';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
@@ -20,9 +20,12 @@ const VOTE_STATUS = {
 type VoteStatus = (typeof VOTE_STATUS)[keyof typeof VOTE_STATUS];
 
 const STATUS_TAG_COLORS: Record<VoteStatus, string> = {
-  [VOTE_STATUS.UPCOMING]: 'bg-blue-500 text-white border border-blue-600',
-  [VOTE_STATUS.ONGOING]: 'bg-green-500 text-white border border-green-600',
-  [VOTE_STATUS.COMPLETED]: 'bg-gray-500 text-white border border-gray-600',
+  // 예정: secondary 토큰
+  [VOTE_STATUS.UPCOMING]: 'bg-secondary-100 text-secondary-700 border border-secondary-200',
+  // 진행중: primary 토큰
+  [VOTE_STATUS.ONGOING]: 'bg-primary-100 text-primary-700 border border-primary-200',
+  // 종료: sub 토큰
+  [VOTE_STATUS.COMPLETED]: 'bg-sub-100 text-sub-700 border border-sub-200',
 };
 
 // 카테고리별 색상
@@ -62,6 +65,8 @@ export const VoteCard = React.memo(
   ({ vote, onClick }: { vote: Vote; onClick?: () => void }) => {
     const { t, currentLanguage } = useLanguageStore();
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [tick, setTick] = useState(0); // 상대시간 갱신용
+    const queryTimeRef = useRef<Date>(new Date()); // 카드 조회 시각
     
     // 실시간 시간 업데이트 (1초마다 업데이트)
     useEffect(() => {
@@ -70,6 +75,12 @@ export const VoteCard = React.memo(
       }, 1000); // 1초마다 업데이트
 
       return () => clearInterval(timer);
+    }, []);
+    
+    // 상대시간은 1분 간격으로 갱신
+    useEffect(() => {
+      const interval = setInterval(() => setTick((p) => p + 1), 60 * 1000);
+      return () => clearInterval(interval);
     }, []);
     
     // 투표 상태 계산 (서버/클라이언트 일관성 보장)
@@ -102,9 +113,25 @@ export const VoteCard = React.memo(
       return { days, hours, minutes, seconds };
     }, [status, vote.stop_at, currentTime]);
 
+    // 사용자가 이 카드를 본 이후로 경과한 상대시간 (라벨 없이 간단 표시)
+    const relativeSinceQuery = useMemo(() => {
+      return formatRelativeTime(queryTimeRef.current, currentLanguage as any, {
+        useAbsolute: false,
+        showTime: false,
+      });
+    }, [tick, currentLanguage]);
+
+    // 카드 배경색/호버 효과: 종료된 투표는 회색 계열로 명확히 표시
+    const containerClass = useMemo(() => {
+      if (status === VOTE_STATUS.COMPLETED) {
+        return 'bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-200 hover:shadow-lg transition-all duration-300 h-full flex flex-col';
+      }
+      return 'bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col';
+    }, [status]);
+
     return (
       <NavigationLink href={`/vote/${vote.id}`}>
-        <div className='bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col'>
+        <div className={containerClass}>
           <div className='relative'>
             {vote.main_image && (
               <div className='bg-gray-200 relative overflow-hidden aspect-[4/3]'>
@@ -137,7 +164,7 @@ export const VoteCard = React.memo(
                   {t(`label_vote_${vote.vote_category}`)}
                 </span>
               )}
-              {vote.vote_sub_category && (
+              {vote.vote_sub_category && !vote.is_partnership && (
                 <span
                   className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
                     SUB_CATEGORY_COLORS[
@@ -160,13 +187,18 @@ export const VoteCard = React.memo(
               <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
             </h3>
 
-            <div className='flex justify-center mb-4'>
+            <div className='flex items-center justify-center gap-2 mb-4'>
               <CountdownTimer
                 timeLeft={timeLeft}
                 voteStatus={status as 'upcoming' | 'ongoing' | 'completed'}
                 variant="decorated"
                 compact={true}
+                showLabel={false}
+                showUnits={false}
               />
+              {status === VOTE_STATUS.ONGOING && (
+                <span className='text-sub-600 text-xs'>{relativeSinceQuery}</span>
+              )}
             </div>
 
             <div className='flex-1'>
@@ -194,30 +226,6 @@ export const VoteCard = React.memo(
                 ))}
               </div>
             )}
-
-            <div className='mt-1 pt-2 border-t border-gray-100'>
-              {vote.start_at && vote.stop_at && (
-                <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm gap-1 sm:gap-0'>
-                  <div className='flex items-center space-x-2 bg-primary/5 rounded-lg px-3 py-2'>
-                    <svg
-                      xmlns='http://www.w3.org/2000/svg'
-                      className='h-4 w-4 text-primary'
-                      viewBox='0 0 20 20'
-                      fill='currentColor'
-                    >
-                      <path
-                        fillRule='evenodd'
-                        d='M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z'
-                        clipRule='evenodd'
-                      />
-                    </svg>
-                    <span className='text-primary font-medium'>
-                      {formatVotePeriodWithTimeZone(vote.start_at, vote.stop_at, currentLanguage)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </NavigationLink>

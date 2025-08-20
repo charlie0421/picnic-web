@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Vote } from '@/types/interfaces';
-import { VoteCard } from './VoteCard';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Vote, VoteItem } from '@/types/interfaces';
+import Image from 'next/image';
+import { getLocalizedString } from '@/utils/api/strings';
+import { getCdnImageUrl } from '@/utils/api/image';
 import VoteLoadingSkeleton from './VoteLoadingSkeleton';
 import { useVoteStore } from '@/stores/voteStore';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -124,7 +126,7 @@ export function VoteList({
       {/* 투표 목록 그리드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {votes.map((vote) => (
-          <VoteCard
+          <VotePodiumCard
             key={vote.id}
             vote={vote}
             onClick={() => onVoteClick?.(vote.id)}
@@ -150,6 +152,132 @@ export function VoteList({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// 포디움 전용 카드 (상위 3개 랭킹 간단 표시)
+function VotePodiumCard({
+  vote,
+  onClick,
+}: {
+  vote: Vote;
+  onClick?: () => void;
+}) {
+  const { currentLocale, t, push } = useLocaleRouter();
+
+  const topItems = useMemo(() => {
+    const items = (vote.voteItem as Array<VoteItem & { artist?: any }> | undefined) || [];
+    return [...items]
+      .map((it) => ({
+        ...it,
+        vote_total: it.vote_total ?? 0,
+        artist: it.artist || null,
+      }))
+      .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
+      .slice(0, 3);
+  }, [vote.voteItem]);
+
+  const handleClick = () => {
+    if (onClick) return onClick();
+    push(`/vote/${vote.id}`);
+  };
+
+  return (
+    <div
+      className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300 h-full flex flex-col"
+      role="button"
+      onClick={handleClick}
+    >
+      {/* 헤더: 투표 제목 */}
+      <div className="p-4">
+        <h3 className="font-extrabold text-lg text-gray-900 truncate">
+          {getLocalizedString(vote.title, currentLocale)}
+        </h3>
+        <p className="mt-1 text-xs text-gray-500">{t('label_tabbar_vote_active')}</p>
+      </div>
+
+      {/* 포디움 영역 */}
+      <div className="px-4 pb-4 flex-1">
+        {topItems.length === 0 ? (
+          <div className="py-8 bg-gray-50 rounded-lg text-center text-gray-500">
+            {t('text_vote_processing')}
+          </div>
+        ) : (
+          <div className="flex items-end justify-center gap-3">
+            {/* 2위 */}
+            <PodiumItem item={topItems[1]} rank={2} locale={currentLocale} t={t} className="translate-y-2" />
+            {/* 1위 */}
+            <PodiumItem item={topItems[0]} rank={1} locale={currentLocale} t={t} highlight />
+            {/* 3위 */}
+            <PodiumItem item={topItems[2]} rank={3} locale={currentLocale} t={t} className="translate-y-3" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PodiumItem({
+  item,
+  rank,
+  locale,
+  t,
+  className = '',
+  highlight = false,
+}: {
+  item?: VoteItem & { artist?: any; vote_total?: number | null };
+  rank: 1 | 2 | 3;
+  locale: string;
+  t: (key: string, args?: Record<string, string>) => string;
+  className?: string;
+  highlight?: boolean;
+}) {
+  if (!item) {
+    return <div className="w-24 sm:w-28" />;
+  }
+
+  const artistName = item.artist?.name
+    ? getLocalizedString(item.artist.name, locale) || t('artist_name_fallback')
+    : t('artist_name_fallback');
+  const groupName = item.artist?.artistGroup?.name
+    ? getLocalizedString(item.artist.artistGroup.name, locale)
+    : (item.artist?.artist_group?.name
+      ? getLocalizedString(item.artist.artist_group.name, locale)
+      : '');
+  const imageUrl = item.artist?.image ? getCdnImageUrl(item.artist.image) : '/images/default-artist.png';
+  const total = item.vote_total ?? 0;
+  const formattedTotal = (total || 0).toLocaleString('ko-KR');
+
+  const size = rank === 1 ? 112 : rank === 2 ? 84 : 72;
+
+  return (
+    <div
+      className={`flex flex-col items-center ${className}`}
+      style={{ width: size + 20 }}
+    >
+      <div
+        className={`rounded-full border ${
+          highlight ? 'border-yellow-400 shadow-[0_8px_25px_-8px_rgba(250,204,21,0.7)]' : 'border-gray-200 shadow'
+        } overflow-hidden`}
+        style={{ width: size, height: size }}
+      >
+        <Image
+          src={imageUrl}
+          alt={artistName}
+          width={size}
+          height={size}
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="mt-2 max-w-[120px] text-center">
+        <div className={`text-[10px] font-bold ${rank === 1 ? 'text-yellow-600' : rank === 2 ? 'text-gray-600' : 'text-amber-600'}`}>#{rank}</div>
+        <div className="text-xs font-semibold text-gray-900 truncate">{artistName}</div>
+        {groupName && (
+          <div className="text-[10px] text-gray-600 truncate">{groupName}</div>
+        )}
+        <div className="text-[11px] text-blue-600 font-bold">{formattedTotal}</div>
+      </div>
     </div>
   );
 }

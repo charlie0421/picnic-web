@@ -61,7 +61,7 @@ export const VoteItems = ({ vote, mode = 'list', onNavigateToDetail }: VoteItems
       // 메인 투표 리스트에서는 onVoteChange를 전달하지 않아 투표 기능 비활성화
       return <OngoingVoteItems vote={vote} mode={mode} onNavigateToDetail={onNavigateToDetail} />;
     case VOTE_STATUS.COMPLETED:
-      return <CompletedVoteItems vote={vote} />;
+      return <CompletedVoteItems vote={vote} mode={mode} />;
     default:
       return null;
   }

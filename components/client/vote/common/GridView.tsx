@@ -20,6 +20,7 @@ interface GridViewProps {
   cardSize?: 'sm' | 'md' | 'lg';
   enablePagination?: boolean;
   itemsPerPage?: number;
+  rows?: number; // 표시할 행 수(반응형 컬럼 수에 맞춰 페이지 아이템 수 자동 계산)
   enableShuffle?: boolean;
   style?: 'circular' | 'card';
 }
@@ -33,6 +34,7 @@ export const GridView: React.FC<GridViewProps> = ({
   cardSize = 'md',
   enablePagination = false,
   itemsPerPage = 12,
+  rows,
   enableShuffle = false,
   style = 'circular',
 }) => {
@@ -41,15 +43,38 @@ export const GridView: React.FC<GridViewProps> = ({
     [],
   );
   const [mounted, setMounted] = useState(false);
+  const [columns, setColumns] = useState<number>(3);
 
   const effectiveItems = useMemo(() => items || [], [items]);
+  const computedItemsPerPage = useMemo(() => {
+    if (!rows) return itemsPerPage;
+    return rows * columns;
+  }, [rows, columns, itemsPerPage]);
   const totalPages = enablePagination
-    ? Math.ceil(effectiveItems.length / itemsPerPage)
+    ? Math.ceil(effectiveItems.length / computedItemsPerPage)
     : 1;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 반응형 컬럼 수 추정(원형 스타일 기준 브레이크포인트 적용)
+  useEffect(() => {
+    if (!rows) return;
+    const updateColumns = () => {
+      if (typeof window === 'undefined') return;
+      const w = window.innerWidth;
+      // tailwind 기준: sm: 640px
+      if (style === 'circular') {
+        setColumns(w < 640 ? 3 : 4);
+      } else {
+        setColumns(w < 768 ? 2 : 3);
+      }
+    };
+    updateColumns();
+    window.addEventListener('resize', updateColumns);
+    return () => window.removeEventListener('resize', updateColumns);
+  }, [rows, style]);
 
   // 아이템을 랜덤으로 섞는 함수
   const shuffleItems = (itemsToShuffle: Array<EnhancedVoteItem>) => {
@@ -90,10 +115,8 @@ export const GridView: React.FC<GridViewProps> = ({
       mounted && enableShuffle ? shuffledItems : effectiveItems;
 
     if (enablePagination) {
-      return sourceItems.slice(
-        currentPage * itemsPerPage,
-        (currentPage + 1) * itemsPerPage,
-      );
+      const pageSize = computedItemsPerPage;
+      return sourceItems.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
     }
     return sourceItems;
   };
@@ -120,8 +143,8 @@ export const GridView: React.FC<GridViewProps> = ({
   // 그리드 컬럼 클래스 설정 - 반응형
   const getGridColumns = () => {
     if (style === 'circular') {
-      // 원형 스타일: 모바일 4개, sm 이상 5개
-      return 'grid-cols-4 sm:grid-cols-5 md:grid-cols-5';
+      // 원형 스타일: 컬럼 수 축소 → 모바일 3개, sm 이상 4개 (가독성 향상)
+      return 'grid-cols-3 sm:grid-cols-4 md:grid-cols-4';
     }
     // 카드 스타일: 모바일 5개, md 이상 4개
     return 'grid-cols-5 md:grid-cols-4';
@@ -132,7 +155,7 @@ export const GridView: React.FC<GridViewProps> = ({
   // 원형 스타일 렌더링
   const renderCircularStyle = () => (
     <div className='flex flex-col' suppressHydrationWarning>
-      <div className={`grid ${gridColumnsClass} gap-1`}>
+      <div className={`grid ${gridColumnsClass} gap-2 sm:gap-3`}>
         {currentItems.map((item, index) => (
           <div
             key={`${keyPrefix}-${item.id}-${index}`}
@@ -151,11 +174,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 intersectionThreshold={0.1}
               />
             </div>
-            <div className='absolute bottom-0 left-0 right-0 text-center mt-1'>
-              <p className='text-gray-800 text-xs font-medium truncate bg-white/80 rounded-full py-1 px-1 mx-1'>
-                {getLocalizedString(item.artist?.name) || '아티스트'}
-              </p>
-            </div>
+            {/* 이름 제거 요청: 숨김 처리 */}
           </div>
         ))}
       </div>
