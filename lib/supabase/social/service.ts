@@ -74,7 +74,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
       this.callbackUrls = {
         google: `${baseUrl}/auth/callback/google`,
-        apple: `${baseUrl}/api/auth/apple`,
+        apple: `${baseUrl}/auth/callback/apple`,
         kakao: `${baseUrl}/auth/callback/kakao`,
         wechat: `${baseUrl}/auth/callback/wechat`,
       };

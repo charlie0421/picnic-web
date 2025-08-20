@@ -38,10 +38,11 @@ export async function POST(request: NextRequest) {
             return cookieStore.get(name)?.value;
           },
           set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
+            // 분할 쿠키가 생성될 수 있도록 넓은 경로/도메인 설정을 허용
+            cookieStore.set({ name, value, ...options, path: '/', sameSite: 'lax' });
           },
           remove(name: string, options: any) {
-            cookieStore.set({ name, value: '', ...options });
+            cookieStore.set({ name, value: '', ...options, path: '/', sameSite: 'lax' });
           },
         },
       }

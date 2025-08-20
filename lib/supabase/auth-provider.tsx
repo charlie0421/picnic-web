@@ -12,6 +12,7 @@ import React, {
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { createBrowserSupabaseClient } from './client';
+import { normalizeRedirectPath } from '@/utils/auth-redirect';
 
 // 🎯 완전 쿠키 기반 인증: 네트워크 요청 없는 즉시 JWT 파싱
 // ✅ getSession() 제거됨 - 타임아웃 문제 해결
@@ -82,9 +83,11 @@ class AuthStore {
             const checkCookieToken = (projectId: string) => {
               try {
                 const cookies = document.cookie.split(';');
+                const targetName = `sb-${projectId}-auth-token`;
                 for (let cookie of cookies) {
                   const [name, value] = cookie.trim().split('=');
-                  if (name && name.startsWith(`sb-${projectId}-auth-token`) && value) {
+                  // 정확히 인증 토큰 쿠키만 인정하고, code-verifier 등은 무시
+                  if (name === targetName && value) {
                     console.log(`🍪 [AuthStore] 쿠키에 토큰 (${name}): 있음`);
                     return true;
                   }
@@ -127,13 +130,19 @@ class AuthStore {
               }
             }
             
-            // 일반적인 쿠키 패턴 확인
+            // 일반적인 쿠키 패턴 확인 (code-verifier 제외)
             let hasCookie = false;
             try {
               const cookies = document.cookie.split(';');
               for (let cookie of cookies) {
                 const [name, value] = cookie.trim().split('=');
-                if (name && name.startsWith('sb-') && name.includes('auth-token') && value) {
+                if (
+                  name &&
+                  name.startsWith('sb-') &&
+                  name.includes('auth-token') &&
+                  !name.includes('auth-token-code-verifier') &&
+                  value
+                ) {
                   console.log(`🍪 [AuthStore] 쿠키에 토큰 (${name}): 있음`);
                   hasCookie = true;
                   break;
@@ -399,12 +408,54 @@ class AuthStore {
 
     try {
       console.log('🔄 [AuthStore] 로그아웃 시작');
-      const { error } = await this.supabaseClient.auth.signOut();
+      // 1) 서버 세션/쿠키 무효화 (httpOnly 쿠키 제거)
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store'
+        });
+      } catch (e) {
+        console.warn('[AuthStore] 서버 로그아웃 API 실패(무시):', e);
+      }
+
+      // 2) 클라이언트 세션 제거
+      const { error } = await this.supabaseClient.auth.signOut({ scope: 'global' });
       
       if (error) {
         console.error('❌ [AuthStore] 로그아웃 에러:', error);
       } else {
         console.log('✅ [AuthStore] 로그아웃 완료, 클라이언트 상태 초기화');
+        // 로컬 스토리지/세션 스토리지의 인증 관련 흔적도 최대한 정리
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+          const projectId = supabaseUrl ? supabaseUrl.split('.')[0]?.split('://')[1] : '';
+          const explicitKeys = [
+            'auth_session_active','auth_provider','auth_timestamp','auth_success',
+            'supabase.auth.token','supabase.auth.expires_at','supabase.auth.refresh_token',
+            'sb-auth-token','loginRedirectUrl','redirectUrl','auth_return_url'
+          ];
+          explicitKeys.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && (key.includes('sb-') || key.includes('supabase') || key.includes('auth'))) {
+              try { localStorage.removeItem(key); } catch {}
+            }
+          }
+          try { sessionStorage.removeItem('redirectUrl'); } catch {}
+          // 프론트 쿠키(비 httpOnly) 정리
+          try { document.cookie = 'auth_return_url=; Max-Age=0; Path=/; SameSite=Lax'; } catch {}
+          if (projectId) {
+            const names = [
+              `sb-${projectId}-auth-token`,'sb-auth-token','supabase-auth-token','sb-api-auth-token'
+            ];
+            names.forEach(n => {
+              try {
+                document.cookie = `${n}=; Max-Age=0; Path=/;`;
+              } catch {}
+            });
+          }
+        } catch {}
         this.updateState({
           session: null,
           user: null,
@@ -446,8 +497,62 @@ class AuthStore {
 
       if (!user) {
         console.warn('⚠️ [AuthStore] 쿠키에서 유효한 사용자 정보 없음');
-        
-        // 토큰이 없거나 만료됨
+
+        // 폴백: httpOnly 쿠키 기반 세션을 네트워크로 확인 (짧은 타임아웃)
+        try {
+          const supabase = this.supabaseClient || createBrowserSupabaseClient();
+          const timeoutMs = 1000;
+          const getUserPromise = supabase.auth.getUser();
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('getUser timeout')), timeoutMs));
+          const result: any = await Promise.race([getUserPromise, timeoutPromise]);
+
+          const fetchedUser = result?.data?.user;
+          if (fetchedUser) {
+            console.log('✅ [AuthStore] 네트워크 폴백으로 사용자 확인 성공 (httpOnly 쿠키)', {
+              userId: fetchedUser.id?.substring(0, 8) + '...',
+              email: fetchedUser.email,
+              provider: fetchedUser.app_metadata?.provider,
+            });
+
+            // 최근 로그인 정보 저장
+            const provider = fetchedUser.app_metadata?.provider;
+            if (provider && ['google', 'apple', 'kakao', 'wechat'].includes(provider)) {
+              setLastLoginInfo({
+                provider: provider,
+                providerDisplay: getProviderDisplayName(provider),
+                timestamp: new Date().toISOString(),
+                userId: fetchedUser.id,
+              });
+            }
+
+            const instantSession = {
+              user: fetchedUser,
+              access_token: 'token-from-cookie',
+              refresh_token: null,
+              expires_at: null,
+              token_type: 'bearer' as const,
+            };
+
+            this.updateState({
+              user: fetchedUser,
+              session: instantSession as any,
+              userProfile: null,
+              isLoading: false,
+              isInitialized: true,
+              isAuthenticated: true,
+              signOut: this.signOut.bind(this),
+              loadUserProfile: this.loadUserProfile.bind(this),
+            });
+
+            // 프로필 로드 트리거
+            this.loadUserProfile(fetchedUser.id).catch(() => {});
+            return;
+          }
+        } catch (e) {
+          console.warn('⚠️ [AuthStore] 네트워크 폴백 사용자 확인 실패:', (e as Error)?.message);
+        }
+
+        // 최종 실패: 비인증 처리
         this.updateState({
           session: null,
           user: null,
@@ -786,6 +891,35 @@ const AuthProviderComponent = memo(function AuthProviderInternal({ children }: A
 
     return unsubscribe;
   }, []);
+
+  // 인증 직후 보조 리다이렉트 가드: /auth/loading, /login, 혹은 로케일 루트에 머물러 있으면 저장된 복귀 경로로 이동
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!contextValue.isAuthenticated) return;
+
+    try {
+      const path = window.location.pathname || '/';
+      const isLocaleRoot = /^\/[a-z]{2}$/.test(path);
+      const isLoadingOrLogin = path.startsWith('/auth/loading') || path.includes('/login');
+      if (!isLocaleRoot && !isLoadingOrLogin) return;
+
+      const params = new URLSearchParams(window.location.search);
+      const qp = params.get('returnTo') || params.get('return_url');
+      const ck = (document.cookie.match(/(?:^|; )auth_return_url=([^;]+)/)?.[1]
+        ? decodeURIComponent(document.cookie.match(/(?:^|; )auth_return_url=([^;]+)/)![1])
+        : null);
+      const ls = localStorage.getItem('auth_return_url') || localStorage.getItem('loginRedirectUrl') || localStorage.getItem('redirectUrl');
+
+      const candidate = qp || ck || ls;
+      if (candidate) {
+        const target = normalizeRedirectPath(candidate);
+        if (target && target !== path) {
+          try { localStorage.removeItem('auth_return_url'); document.cookie = 'auth_return_url=; Max-Age=0; Path=/; SameSite=Lax'; } catch {}
+          window.location.replace(target);
+        }
+      }
+    } catch {}
+  }, [contextValue.isAuthenticated]);
 
   return (
     <AuthContext.Provider value={contextValue}>

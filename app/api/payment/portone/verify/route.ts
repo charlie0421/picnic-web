@@ -76,11 +76,12 @@ async function getPortOneToken(): Promise<string> {
   return data.response.access_token;
 }
 
-// Verify payment with Port One API
-async function verifyPortOnePayment(impUid: string): Promise<PortOnePaymentResponse['response']> {
+// Verify payment with Port One API using merchant_uid (our paymentId)
+async function verifyPortOnePaymentByMerchantUid(merchantUid: string): Promise<PortOnePaymentResponse['response']> {
   const token = await getPortOneToken();
 
-  const response = await fetch(`${PORTONE_API_URL}/payments/${impUid}`, {
+  // Using Iamport v1 API: find by merchant_uid
+  const response = await fetch(`${PORTONE_API_URL}/payments/find/${encodeURIComponent(merchantUid)}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     },
@@ -127,8 +128,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify payment with Port One
-    const paymentData = await verifyPortOnePayment(paymentId);
+    // Verify payment with Port One using our merchant_uid (paymentId)
+    const paymentData = await verifyPortOnePaymentByMerchantUid(paymentId);
 
     if (!paymentData) {
       return NextResponse.json(
@@ -159,12 +160,12 @@ export async function POST(request: NextRequest) {
 
     const { productId, starCandy, bonusAmount } = customData;
 
-    // Check if receipt already exists
+    // Check if receipt already exists using receipt_hash
     const { data: existingReceipt } = await supabase
       .from('receipts')
       .select('id')
-      .eq('receipt_data', paymentId)
-      .single();
+      .eq('receipt_hash', paymentId)
+      .maybeSingle();
 
     if (existingReceipt) {
       return NextResponse.json(

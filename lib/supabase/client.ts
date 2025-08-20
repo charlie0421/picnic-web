@@ -131,12 +131,17 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
     {
       auth: {
         flowType: 'pkce',
-        detectSessionInUrl: false, // 수동 Code Exchange를 위해 false로 설정
+        detectSessionInUrl: false,
         autoRefreshToken: true,
         persistSession: true,
-        storage: window.localStorage, // 명시적으로 localStorage 지정
+        storage: window.localStorage,
         storageKey: `sb-${SUPABASE_URL.split('.')[0].split('://')[1]}-auth-token`,
-        debug: false, // 디버그 로그 비활성화로 성능 향상
+        debug: false,
+        cookieOptions: {
+          // 쿠키 분할이 필요한 경우를 대비해 넓은 경로/도메인 허용
+          path: '/',
+          sameSite: 'lax',
+        } as any
       },
       global: {
         headers: {

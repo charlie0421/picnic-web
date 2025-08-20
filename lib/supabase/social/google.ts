@@ -13,6 +13,8 @@ import {
   SocialAuthErrorCode,
   SocialAuthOptions,
 } from "./types";
+import { securityUtils } from "@/utils/auth-redirect";
+import { logAuth, AuthLog } from "@/utils/auth-logger";
 
 /**
  * Google OAuth 설정
@@ -88,12 +90,41 @@ export async function signInWithGoogleImpl(
         : "server",
     });
 
-    // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
-    if (typeof localStorage !== "undefined") {
-      const returnUrl = options?.additionalParams?.return_url ||
-        window.location.pathname;
-      localStorage.setItem("auth_return_url", returnUrl);
-      console.log("🔍 로컬 스토리지에 return_url 저장:", returnUrl);
+    // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치) 및 redirectTo에 쿼리로 포함
+    let chosenForReturn: string | undefined;
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryReturnTo = urlParams.get('returnTo') || undefined;
+      const storedAuthReturn = localStorage.getItem('auth_return_url') || undefined;
+      const storedRedirect = localStorage.getItem('redirectUrl')
+        || localStorage.getItem('loginRedirectUrl')
+        || sessionStorage.getItem('redirectUrl')
+        || undefined;
+
+      console.log("🔍 로컬 스토리지 정보:", {
+        queryReturnTo,
+        storedAuthReturn,
+        storedRedirect,
+      });
+      
+      const candidates = [
+        options?.additionalParams?.return_url,
+        queryReturnTo,
+        storedAuthReturn,
+        storedRedirect,
+        window.location.pathname,
+      ].filter(Boolean) as string[];
+
+      // 첫 번째로 유효한 내부 경로 선택 (로그인/인증 경로 제외)
+      let chosen = candidates.find((c) => securityUtils.isValidRedirectUrl(c));
+
+      // 그래도 없으면 홈으로 대체
+      if (!chosen) {
+        chosen = '/';
+      }
+      chosenForReturn = chosen;
+      localStorage.setItem("auth_return_url", chosenForReturn);
+      logAuth(AuthLog.SaveReturnUrl, { chosen: chosenForReturn });
     }
 
     // Google 특화 추가 파라미터
@@ -108,19 +139,25 @@ export async function signInWithGoogleImpl(
     };
 
     console.log("🔍 Google OAuth 파라미터:", googleParams);
-    console.log("🔍 Supabase signInWithOAuth 호출 시작");
+    logAuth(AuthLog.OAuthParams, googleParams);
+    logAuth(AuthLog.OAuthStart);
+
+    // Google은 등록된 redirect_uri와의 완전 일치가 요구되므로
+    // redirect_uri(redirectTo)에는 쿼리를 추가하지 않는다. 복귀 주소는 쿠키/스토리지로 복구한다.
+    const redirectToNoQuery = redirectUrl;
 
     // Supabase OAuth 사용
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: redirectToNoQuery,
         scopes: scopes.join(" "),
         queryParams: googleParams,
       },
     });
 
     console.log("🔍 Supabase signInWithOAuth 호출 완료, error:", error);
+    logAuth(AuthLog.OAuthRedirect, { error: error?.message || null });
 
     if (error) {
       console.error("❌ Google OAuth 오류:", error);

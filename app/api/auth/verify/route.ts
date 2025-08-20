@@ -1,6 +1,6 @@
-import { createServerSupabaseClientWithCookies } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { headers, cookies } from 'next/headers';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 
 /**
  * 인증 상태 검증 API 엔드포인트
@@ -10,8 +10,26 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔍 [Auth Verify API] 인증 상태 검증 요청 받음');
 
-    // App Router에서 쿠키를 읽을 수 있는 서버사이드 Supabase 클라이언트 생성
-    const supabase = await createServerSupabaseClientWithCookies();
+    // App Router에서 쿠키를 읽을 수 있는 서버사이드 Supabase 클라이언트 생성 (anon key 사용!)
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            // verify는 읽기 목적이므로 set은 필요 없지만 타입상 구현 유지
+            cookieStore.set({ name, value, ...options, path: '/', sameSite: 'lax' });
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: '', ...options, path: '/', sameSite: 'lax' });
+          },
+        },
+      }
+    );
 
     console.log('🔍 [Auth Verify API] Supabase 클라이언트 생성 완료');
 

@@ -394,11 +394,14 @@ export async function signInWithWeChatImpl(
     });
 
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
-    if (typeof localStorage !== "undefined") {
-      const returnUrl = options?.additionalParams?.return_url ||
-        window.location.pathname;
-      localStorage.setItem("auth_return_url", returnUrl);
-      console.log("🔍 로컬 스토리지에 return_url 저장:", returnUrl);
+    let chosenForReturn: string | undefined;
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryReturnTo = urlParams.get('returnTo') || undefined;
+      const suppliedReturn = options?.additionalParams?.return_url;
+      chosenForReturn = suppliedReturn || queryReturnTo || window.location.pathname;
+      try { localStorage.setItem("auth_return_url", chosenForReturn); } catch {}
+      console.log("🔍 로컬 스토리지에 return_url 저장:", chosenForReturn);
     }
 
     // WeChat 특화 추가 파라미터
@@ -412,7 +415,7 @@ export async function signInWithWeChatImpl(
 
     // Supabase는 WeChat provider를 공식 지원하지 않으므로 항상 커스텀 플로우 사용
     console.log("🔄 WeChat 커스텀 OAuth 플로우 사용 (Supabase OAuth 우회)");
-    return await signInWithWeChatCustom(config, redirectUrl, scopes, wechatParams);
+    return await signInWithWeChatCustom(config, redirectUrl, scopes, wechatParams, chosenForReturn);
   } catch (error) {
     console.error("🔍 signInWithWeChatImpl 오류:", error);
 
@@ -447,6 +450,7 @@ async function signInWithWeChatCustom(
   redirectUrl: string,
   scopes: string[],
   params: Record<string, string>,
+  returnTo?: string,
 ): Promise<AuthResult> {
   try {
     // Website App은 브라우저에서 QRConnect를 사용해야 하며,
@@ -463,6 +467,14 @@ async function signInWithWeChatCustom(
     const finalScope = scopes && scopes.length > 0 ? scopes.join(",") : "snsapi_login";
     authUrl.searchParams.set("scope", finalScope);
     authUrl.searchParams.set("state", params.state || "wechat_oauth_state");
+
+    // 콜백에서 파라미터 전파를 위해 returnTo 부착
+    if (returnTo) {
+      const sep = redirectUrl.includes('?') ? '&' : '?';
+      // redirect_uri 자체에 returnTo 부착
+      const redirectWithReturn = `${redirectUrl}${sep}returnTo=${encodeURIComponent(returnTo)}`;
+      authUrl.searchParams.set("redirect_uri", redirectWithReturn);
+    }
 
     // 선택: QR 스타일 커스터마이즈 파라미터
     authUrl.searchParams.set("style", "black");

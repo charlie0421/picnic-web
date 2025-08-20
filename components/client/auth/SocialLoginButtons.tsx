@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
+import { logAuth, AuthLog } from '@/utils/auth-logger';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
@@ -13,6 +14,8 @@ import {
   sortProvidersByLastUsed
 } from '@/utils/auth-helpers';
 import type { LastLoginInfo } from '@/utils/storage';
+import { useSearchParams, usePathname } from 'next/navigation';
+import { getRedirectUrl, saveRedirectUrl } from '@/utils/auth-redirect';
 
 interface SocialLoginButtonsProps {
   onLoginStart?: () => void;
@@ -37,6 +40,8 @@ export function SocialLoginButtons({
   const { t } = useLanguageStore();
   const { isLoading: authLoading } = useAuth();
   const { setIsLoading: setGlobalLoading } = useGlobalLoading();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const lastUsedProvider = (lastLoginInfo?.provider as SocialLoginProvider) || null;
   const sortedProviders = sortProvidersByLastUsed(providers, lastUsedProvider);
@@ -54,16 +59,37 @@ export function SocialLoginButtons({
         
         // 로그인 시작 콜백
         onLoginStart?.();
+        logAuth(AuthLog.LoginStart, { provider });
 
         // 소셜 로그인 서비스 인스턴스 가져오기 (자동으로 Supabase 클라이언트 생성)
         const socialAuthService = getSocialAuthService();
         console.log(`🔗 [SocialLogin] ${provider.toUpperCase()} 인증 서비스 생성 완료`);
 
         // 선택된 제공자로 로그인 시도
-        console.log(`🔍 [SocialLoginButtons] ${provider} 로그인 서비스 호출 시작`);
-        const authResult = await socialAuthService.signInWithProvider(provider);
+        logAuth(AuthLog.ProviderInit, { provider });
+        // 원복 목적지 계산: URL 쿼리의 returnTo > 저장된 redirectUrl > 현재 경로
+        let desiredReturn = searchParams.get('returnTo') || getRedirectUrl() || pathname || '/';
+        // 안전: 절대경로나 외부 URL 방지 (이미 유틸에서 검증하지만 간단히 한 번 더)
+        if (desiredReturn.startsWith('http://') || desiredReturn.startsWith('https://')) {
+          desiredReturn = '/';
+        }
 
-        console.log(`🔗 [SocialLogin] ${provider.toUpperCase()} 인증 결과:`, authResult);
+        // 폴백 강화를 위해 즉시 보관 (공급자/환경에 따라 쿼리 전달이 누락돼도 복구 가능)
+        try {
+          // 세션/로컬 스토리지에도 저장하여 콜백/로딩 단계에서 복구 가능하게 함
+          saveRedirectUrl(desiredReturn);
+          localStorage.setItem('auth_return_url', desiredReturn);
+          // 서버 콜백에서도 사용할 수 있도록 짧은 수명의 쿠키로도 저장
+          const maxAge = 15 * 60; // 15분
+          document.cookie = `auth_return_url=${encodeURIComponent(desiredReturn)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+          logAuth(AuthLog.SaveReturnUrl, { desiredReturn });
+        } catch {}
+
+        const authResult = await socialAuthService.signInWithProvider(provider, {
+          additionalParams: { return_url: desiredReturn },
+        });
+
+        logAuth(AuthLog.OAuthRedirect, { provider, success: authResult.success });
         
         if (authResult.success) {
           // 로그인 리다이렉트 성공 - 실제 인증 완료는 콜백에서 처리됨
@@ -93,7 +119,7 @@ export function SocialLoginButtons({
       }
       // finally 블록 제거 - 성공 시에는 로딩 상태를 유지하여 리다이렉트까지 버튼 비활성화
     },
-    [onLoginStart, onError, t, providers, setGlobalLoading],
+    [onLoginStart, onError, t, providers, setGlobalLoading, searchParams, pathname],
   );
 
   // 각 소셜 로그인 버튼의 스타일 및 내용 설정

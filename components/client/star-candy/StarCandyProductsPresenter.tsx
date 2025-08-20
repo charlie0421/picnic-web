@@ -13,6 +13,9 @@ import { portOneService } from '@/lib/payment/portone';
 import { payPalService } from '@/lib/payment/paypal';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useLoginRequired } from '@/components/ui/Dialog';
+import { usePathname, useRouter } from 'next/navigation';
+import { saveRedirectUrl } from '@/utils/auth-redirect';
 
 interface StarCandyProductsPresenterProps {
   products: Products[];
@@ -30,6 +33,9 @@ export function StarCandyProductsPresenter({
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>('paypal');
   const [processingProductId, setProcessingProductId] = useState<string | null>(null);
+  const showLoginRequired = useLoginRequired();
+  const pathname = usePathname();
+  const router = useRouter();
 
   const formatPrice = (price: number | null, currency: 'KRW' | 'USD') => {
     if (!price) return '';
@@ -43,7 +49,32 @@ export function StarCandyProductsPresenter({
 
   const handlePurchase = async (product: Products) => {
     if (!user) {
-      alert(t('star_candy_login_required'));
+      // 비로그인 시: 로그인 다이얼로그 → 언어별 로그인 경로로 이동 (강건한 폴백 포함)
+      const returnTo = pathname || '/';
+      const langFromPath = pathname?.split('/')[1] || '';
+      const lang = langFromPath || currentLanguage || 'en';
+      try {
+        await showLoginRequired({
+          redirectUrl: returnTo,
+          onLogin: () => {
+            try { saveRedirectUrl(returnTo); } catch {}
+            const loginUrl = `/${lang}/login?returnTo=${encodeURIComponent(returnTo)}`;
+            if (typeof window !== 'undefined') {
+              window.location.href = loginUrl;
+            } else {
+              router.push(loginUrl);
+            }
+          },
+        });
+      } catch {
+        try { saveRedirectUrl(returnTo); } catch {}
+        const loginUrl = `/${lang}/login?returnTo=${encodeURIComponent(returnTo)}`;
+        if (typeof window !== 'undefined') {
+          window.location.href = loginUrl;
+        } else {
+          router.push(loginUrl);
+        }
+      }
       return;
     }
 
@@ -424,12 +455,10 @@ export function StarCandyProductsPresenter({
 
                 <button
                   onClick={() => handlePurchase(product)}
-                  disabled={!user || isProcessing}
+                  disabled={isProcessing}
                   className={`
                     w-full py-3 font-medium rounded-lg transition-colors
-                    ${!user
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : isProcessing
+                    ${isProcessing
                       ? 'bg-gray-400 text-white cursor-not-allowed'
                       : 'bg-primary text-white hover:bg-primary/90'
                     }
@@ -454,8 +483,6 @@ export function StarCandyProductsPresenter({
                       </svg>
                       {t('processing')}
                     </span>
-                  ) : !user ? (
-                    t('star_candy_login_required')
                   ) : (
                     t('star_candy_purchase')
                   )}

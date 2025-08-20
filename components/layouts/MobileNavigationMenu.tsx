@@ -29,7 +29,7 @@ interface MobileNavigationMenuProps {
 }
 
 const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className = '' }) => {
-  const { isAuthenticated, user, isLoading, userProfile } = useAuth();
+  const { isAuthenticated, user, isLoading, userProfile, isInitialized } = useAuth();
   
   const { currentLocale, getLocalizedPath } = useLocaleRouter();
   const { isLoading: globalLoading, setIsLoading, forceStopLoading } = useGlobalLoading();
@@ -64,11 +64,11 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
     return fallbackMap[type] || type;
   };
 
-  // 안정적인 인증 상태 관리
+  // 안정적인 인증 상태 관리 (초기화 전에는 로딩 처리하여 게스트 UI 깜빡임 방지)
   const stableAuthState = {
-    showLoading: isLoading,
-    showUserArea: !isLoading && isAuthenticated,
-    showGuestArea: !isLoading && !isAuthenticated,
+    showLoading: !isInitialized || isLoading,
+    showUserArea: isInitialized && !isLoading && (isAuthenticated || !!user || !!userProfile),
+    showGuestArea: isInitialized && !isLoading && !isAuthenticated,
   };
 
   // 사용자 정보 (안전하게 접근) - DB 프로필만 사용
@@ -92,7 +92,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   };
 
   // 프로필 이미지 로딩 상태
-  const profileImageLoading = stableAuthState.showUserArea && isLoading;
+  const profileImageLoading = (!isInitialized || isLoading) && !!(user || userProfile);
 
   // 관리자 권한에 따른 메뉴 필터링
   const filteredMenuItems = menuConfig.portals.filter(item => {

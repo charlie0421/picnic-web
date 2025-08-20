@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import { SocialLoginButtons } from '@/components/client/auth/SocialLoginButtons';
 import { useAuth } from '@/lib/supabase/auth-provider';
@@ -43,6 +43,7 @@ function LoginContentInner() {
   } = useLoginState();
   const [mounted, setMounted] = useState<boolean>(false);
   const [lastLoginInfo, setLastLoginInfo] = useState<LastLoginInfo | null>(null);
+  const searchParams = useSearchParams();
   
   const envCheckFailed = useEnvironmentCheck(mounted);
   
@@ -69,6 +70,20 @@ function LoginContentInner() {
     } catch (e) {
       debugLog('최근 로그인 정보 로드 실패', e);
     }
+  }, []);
+
+  // 로그인 페이지 진입 시 returnTo 파라미터만 최소 저장(쿠키/LS)하여 콜백 단계 복구
+  useEffect(() => {
+    try {
+      const returnTo = searchParams.get('returnTo');
+      if (returnTo) {
+        // loginRedirectUrl 같은 보조 키는 생성하지 않도록 간단 저장
+        localStorage.setItem('auth_return_url', returnTo);
+        const maxAge = 15 * 60; // 15분
+        document.cookie = `auth_return_url=${encodeURIComponent(returnTo)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -86,17 +86,21 @@ export async function signInWithAppleImpl(
     const scopes = options?.scopes || config.defaultScopes;
 
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
-    if (typeof localStorage !== "undefined") {
-      const returnUrl = options?.additionalParams?.return_url ||
-        window.location.pathname;
-      localStorage.setItem("auth_return_url", returnUrl);
+    let chosenForReturn: string | undefined;
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryReturnTo = urlParams.get('returnTo') || undefined;
+      const suppliedReturn = options?.additionalParams?.return_url;
+      chosenForReturn = suppliedReturn || queryReturnTo || window.location.pathname;
+      try { localStorage.setItem("auth_return_url", chosenForReturn); } catch {}
     }
 
     console.log("✅ 표준 Supabase Apple OAuth 시작");
 
     // 일관된 리디렉션 URL을 위해 환경 변수 사용
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-    const redirectTo = `${baseUrl}/auth/callback`;
+    let redirectTo = `${baseUrl}/auth/callback/apple`;
+    // Apple도 등록된 redirect_uri와 일치가 중요하므로 콜백에 쿼리를 붙이지 않는다.
 
     // 표준 Supabase OAuth 사용
     const { data, error } = await supabase.auth.signInWithOAuth({

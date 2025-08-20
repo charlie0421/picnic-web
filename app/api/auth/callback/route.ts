@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -9,10 +10,32 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/';
 
   if (code) {
-    const supabase = await createSupabaseServerClient();
+    const cookieStore = await cookies();
+    // 미리 리다이렉트 응답을 생성하고, 쿠키 set/remove가 이 응답 객체에 기록되도록 설정
+    const redirectResponse = NextResponse.redirect(`${origin}${next}`);
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            redirectResponse.cookies.set({ name, value, ...options, path: '/', sameSite: 'lax' });
+          },
+          remove(name: string, options: any) {
+            redirectResponse.cookies.set({ name, value: '', ...options, path: '/', sameSite: 'lax' });
+          },
+        },
+      }
+    );
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      try { await fetch(`${origin}/api/auth/verify`, { method: 'GET', headers: { 'Cache-Control': 'no-store' } }); } catch {}
+      return redirectResponse;
     }
   }
 
