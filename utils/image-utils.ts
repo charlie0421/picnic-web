@@ -58,6 +58,11 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
   if (!url || typeof url !== 'string') return false;
   
   try {
+    // 상대 경로(/images/..), data URL은 유효로 간주
+    if (url.startsWith('/') || url.startsWith('data:')) {
+      return true;
+    }
+
     const urlObj = new URL(url);
     
     // HTTP/HTTPS만 허용
@@ -88,8 +93,8 @@ export function isValidImageUrl(url: string | null | undefined): boolean {
     
     return hasImageExtension || isKnownImageService;
     
-  } catch (error) {
-    console.warn('🖼️ [ImageUtils] URL 검증 실패:', url, error);
+  } catch (_) {
+    // new URL 실패 + 상대경로도 아님 → 유효하지 않음
     return false;
   }
 }
@@ -131,15 +136,22 @@ export function preloadImage(url: string): Promise<boolean> {
  */
 export function getSafeAvatarUrl(
   avatarUrl: string | null | undefined, 
-  fallbackUrl: string = '/images/default-avatar.png',
+  fallbackUrl: string = '/images/default-avatar.svg',
   useProxy: boolean = false
 ): string {
   if (!avatarUrl) {
     return fallbackUrl;
   }
   
+  // 상대 경로 또는 data URL은 그대로 사용 (정적 에셋/인라인)
+  if (avatarUrl.startsWith('/') || avatarUrl.startsWith('data:')) {
+    return avatarUrl;
+  }
+
   if (!isValidImageUrl(avatarUrl)) {
-    console.warn('🖼️ [ImageUtils] 유효하지 않은 아바타 URL:', avatarUrl);
+    if (/^https?:/i.test(avatarUrl)) {
+      console.warn('🖼️ [ImageUtils] 유효하지 않은 아바타 URL:', avatarUrl);
+    }
     return fallbackUrl;
   }
   
@@ -162,7 +174,7 @@ export function getSafeAvatarUrl(
  * React 컴포넌트용 이미지 에러 핸들러 (개선된 버전)
  */
 export function createImageErrorHandler(
-  fallbackUrl: string = '/images/default-avatar.png',
+  fallbackUrl: string = '/images/default-avatar.svg',
   useProxy: boolean = false
 ) {
   return (event: React.SyntheticEvent<HTMLImageElement, Event>) => {

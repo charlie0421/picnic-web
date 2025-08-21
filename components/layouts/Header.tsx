@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useMenu } from '@/hooks/useMenu';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
+import { useAuth } from '@/hooks/useAuth';
+import { getSafeAvatarUrl } from '@/utils/image-utils';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useTranslations } from '@/hooks/useTranslations';
 import NavigationLink from '@/components/client/NavigationLink';
@@ -14,10 +16,10 @@ import { Menu, Settings, Vote, Users, Image as PictureIcon, BookOpen, Star, Chev
 
 const Header: React.FC = () => {
   const pathname = usePathname();
-  const { 
-    isAuthenticated, userProfile, isAdmin, portalMenuItems, activePortal, isAuthLoading, isProfileLoading 
-  } = useMenu();
+  const { isAdmin, portalMenuItems, activePortal } = useMenu();
+  const { user, isAuthenticated, isLoading: authLoading, userProfile, loadUserProfile } = useAuth();
   const { getLocalizedPath } = useLocaleRouter();
+  
   const { isLoading: globalLoading, forceStopLoading } = useGlobalLoading();
   const { tDynamic: t, translations } = useTranslations();
 
@@ -56,6 +58,13 @@ const Header: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobileMenuOpen]);
 
+  // 로그인 다이얼로그 경로에서 복귀 시 프로필이 아직 없다면 즉시 로드
+  useEffect(() => {
+    if (isAuthenticated && user?.id && !userProfile) {
+      try { loadUserProfile(user.id); } catch {}
+    }
+  }, [isAuthenticated, user?.id, !!userProfile, loadUserProfile]);
+
   const handleMobileMenuClick = () => {
     if (!isMobileMenuOpen && globalLoading) forceStopLoading();
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -77,11 +86,13 @@ const Header: React.FC = () => {
     }
   };
 
+  const headerAvatarUrl = getSafeAvatarUrl(userProfile?.avatar_url || null);
+
   const renderProfileIcon = () => (
-    isProfileLoading ? (
+    authLoading ? (
       <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
     ) : (
-      <ProfileImageContainer avatarUrl={userProfile?.avatar_url || null} width={24} height={24} borderRadius={6} className="w-6 h-6 object-cover"/>
+      <ProfileImageContainer avatarUrl={headerAvatarUrl} width={24} height={24} borderRadius={6} className="w-6 h-6 object-cover" />
     )
   );
 
@@ -115,7 +126,13 @@ const Header: React.FC = () => {
             
             <div className='md:hidden h-8 sm:h-10 flex items-center justify-center' ref={mobileMenuRef}>
               <button onClick={handleMobileMenuClick} className='relative hover:bg-gray-100 rounded-lg transition-colors w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center' aria-label={t('common.menu.openMenu')} aria-expanded={isMobileMenuOpen}>
-                {isAuthLoading ? <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" /> : isAuthenticated ? renderProfileIcon() : <div className="w-full h-full flex items-center justify-center"><Menu className="w-5 h-5 text-gray-600" /></div>}
+                {authLoading ? (
+                  <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
+                ) : (
+                  isAuthenticated
+                    ? renderProfileIcon()
+                    : <div className="w-full h-full flex items-center justify-center"><Menu className="w-5 h-5 text-gray-600" /></div>
+                )}
               </button>
               {isMobileMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden animate-dropdown">
@@ -152,16 +169,20 @@ const Header: React.FC = () => {
             </div>
 
             <div className='hidden md:flex items-center justify-center h-8 sm:h-10'>
-              {isAuthLoading ? <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg shimmer-effect bg-gray-200" /> : isAuthenticated ? (
-                <NavigationLink href='/mypage' className='block w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden'>
-                  <ProfileImageContainer avatarUrl={userProfile?.avatar_url || null} width={40} height={40} borderRadius={8} className="w-full h-full object-cover" />
-                </NavigationLink>
+              {authLoading ? (
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg shimmer-effect bg-gray-200" />
               ) : (
-                <NavigationLink href='/mypage' className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10'>
-                  <div className='w-full h-full hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200 flex items-center justify-center'>
-                    <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
-                  </div>
-                </NavigationLink>
+                isAuthenticated ? (
+                  <NavigationLink href='/mypage' className='block w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden'>
+                    <ProfileImageContainer avatarUrl={headerAvatarUrl} width={40} height={40} borderRadius={8} className="w-full h-full object-cover" />
+                  </NavigationLink>
+                ) : (
+                  <NavigationLink href='/mypage' className='flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10'>
+                    <div className='w-full h-full hover:bg-gray-100 rounded-lg transition-colors cursor-pointer border border-gray-200 flex items-center justify-center'>
+                      <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
+                    </div>
+                  </NavigationLink>
+                )
               )}
             </div>
           </div>

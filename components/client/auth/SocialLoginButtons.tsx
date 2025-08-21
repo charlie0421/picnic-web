@@ -15,7 +15,7 @@ import {
 } from '@/utils/auth-helpers';
 import type { LastLoginInfo } from '@/utils/storage';
 import { useSearchParams, usePathname } from 'next/navigation';
-import { getRedirectUrl, saveRedirectUrl } from '@/utils/auth-redirect';
+import { getRedirectUrl } from '@/utils/auth-redirect';
 
 interface SocialLoginButtonsProps {
   onLoginStart?: () => void;
@@ -66,6 +66,7 @@ export function SocialLoginButtons({
         console.log(`🔗 [SocialLogin] ${provider.toUpperCase()} 인증 서비스 생성 완료`);
 
         // 선택된 제공자로 로그인 시도
+        
         logAuth(AuthLog.ProviderInit, { provider });
         // 원복 목적지 계산: URL 쿼리의 returnTo > 저장된 redirectUrl > 현재 경로
         let desiredReturn = searchParams.get('returnTo') || getRedirectUrl() || pathname || '/';
@@ -76,10 +77,8 @@ export function SocialLoginButtons({
 
         // 폴백 강화를 위해 즉시 보관 (공급자/환경에 따라 쿼리 전달이 누락돼도 복구 가능)
         try {
-          // 세션/로컬 스토리지에도 저장하여 콜백/로딩 단계에서 복구 가능하게 함
-          saveRedirectUrl(desiredReturn);
+          // 리다이렉트에 사용하는 단일 키만 저장 (중복 방지)
           localStorage.setItem('auth_return_url', desiredReturn);
-          // 서버 콜백에서도 사용할 수 있도록 짧은 수명의 쿠키로도 저장
           const maxAge = 15 * 60; // 15분
           document.cookie = `auth_return_url=${encodeURIComponent(desiredReturn)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
           logAuth(AuthLog.SaveReturnUrl, { desiredReturn });

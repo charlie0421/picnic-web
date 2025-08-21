@@ -62,8 +62,7 @@ export default function AuthCallbackClient() {
           const res = await exchangeCode(code);
           error = res.error;
         }
-        // 교환 직후 즉시 쿠키 기반 사용자 재평가를 트리거하기 위해 AuthProvider가 구독하는 verify 엔드포인트 호출
-        try { await fetch('/api/auth/verify', { method: 'GET', credentials: 'include', cache: 'no-store' }); } catch {}
+        // 교환 직후 별도 verify 호출 없이 리다이렉트 진행
         if (error) {
           throw new Error(`인증 실패: ${error.message}`);
         }

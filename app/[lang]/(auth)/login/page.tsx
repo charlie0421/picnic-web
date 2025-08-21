@@ -66,7 +66,8 @@ function LoginContentInner() {
   useEffect(() => {
     setMounted(true);
     try {
-      setLastLoginInfo(getLastLoginInfo());
+      const strong = getLastLoginInfo();
+      if (strong) setLastLoginInfo(strong);
     } catch (e) {
       debugLog('최근 로그인 정보 로드 실패', e);
     }

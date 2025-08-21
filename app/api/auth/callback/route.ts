@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      try { await fetch(`${origin}/api/auth/verify`, { method: 'GET', headers: { 'Cache-Control': 'no-store' } }); } catch {}
+      // verify 호출 없이 바로 리디렉션
       return redirectResponse;
     }
   }

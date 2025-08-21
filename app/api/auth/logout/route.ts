@@ -85,10 +85,11 @@ export async function POST(request: NextRequest) {
       });
     } catch {}
 
-    // 강력 캐시/쿠키/스토리지 무효화 힌트
+    // 강력 캐시/쿠키 무효화 힌트
+    // 주의: storage를 포함하면 localStorage까지 삭제되어 'picnic_last_login' 보존이 불가하므로 제외
     response.headers.set('Cache-Control', 'no-store');
     try {
-      response.headers.set('Clear-Site-Data', '"cookies", "storage"');
+      response.headers.set('Clear-Site-Data', '"cookies"');
     } catch {}
     return response;
   } catch (error) {

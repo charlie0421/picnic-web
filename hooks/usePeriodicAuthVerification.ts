@@ -125,46 +125,7 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
         }
       }
 
-      // 3. 서버사이드 인증 검증
-      try {
-        const response = await fetch('/api/auth/verify', {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Cache-Control': 'no-cache',
-          },
-        });
-
-        if (!response.ok) {
-          console.warn('🚫 [PeriodicAuth] 서버 인증 검증 실패:', response.status);
-          return {
-            isValid: false,
-            reason: `서버 인증 검증 실패 (${response.status})`,
-          };
-        }
-
-        const data = await response.json();
-        if (!data.valid) {
-          console.warn('❌ [PeriodicAuth] 서버에서 인증 무효 응답:', data.message);
-          return {
-            isValid: false,
-            reason: data.message || '서버에서 인증이 무효하다고 응답했습니다.',
-          };
-        }
-
-        console.log('✅ [PeriodicAuth] 서버 인증 검증 성공');
-      } catch (error) {
-        const networkError = error instanceof Error ? error : new Error('알 수 없는 네트워크 오류');
-        console.warn('⚠️ [PeriodicAuth] 서버 인증 검증 네트워크 오류:', networkError.message);
-        
-        // 네트워크 오류는 인증 실패로 처리하지 않되, 콜백 호출
-        if (onNetworkError) {
-          onNetworkError(networkError);
-        }
-        
-        // 네트워크 오류 시에는 유효한 것으로 간주 (오프라인 허용)
-        return { isValid: true };
-      }
+      // 3. 서버사이드 인증 검증 단계 제거: 쿠키/세션은 Supabase가 관리, UI는 로컬 상태로 판단
 
       console.log('✅ [PeriodicAuth] 모든 인증 상태 검증 통과');
       return { isValid: true };

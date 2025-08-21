@@ -32,7 +32,7 @@ export function SafeAvatar({
   src,
   alt = '프로필 이미지',
   size = 'md',
-  fallbackUrl = '/images/default-avatar.png',
+  fallbackUrl = '/images/default-avatar.svg',
   className = '',
   useProxy = true, // 기본적으로 프록시 사용
   onImageLoad,
@@ -156,7 +156,7 @@ export function SimpleAvatar({
   src,
   alt = '프로필 이미지',
   size = 'md',
-  fallbackUrl = '/images/default-avatar.png',
+  fallbackUrl = '/images/default-avatar.svg',
   className = '',
   useProxy = true // 기본적으로 프록시 사용
 }: Omit<SafeAvatarProps, 'onImageLoad' | 'onImageError'>) {

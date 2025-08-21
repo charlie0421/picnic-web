@@ -51,10 +51,11 @@ export function getLastLoginProvider(): SocialLoginProvider | null {
  */
 export function clearLastLoginProvider(): void {
   try {
-    // 새로운 storage 시스템에서 삭제
-    clearLastLoginInfo();
-    
-    // 레거시 키도 삭제
+    // 최근 로그인 정보(`picnic_last_login`)는 로그아웃 후에도 유지하여
+    // 로그인 페이지에서 최근 로그인 수단 안내를 노출하기 위해 보존합니다.
+    // 따라서 새로운 storage 시스템의 clear는 수행하지 않습니다.
+
+    // 레거시 키만 삭제 (마이그레이션용)
     if (typeof window !== 'undefined') {
       localStorage.removeItem(LAST_LOGIN_PROVIDER_KEY);
     }

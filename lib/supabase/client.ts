@@ -1,11 +1,12 @@
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { createClient } from '@supabase/supabase-js';
 
 // 브라우저 클라이언트 타입을 미리 정의
-type BrowserSupabaseClient = ReturnType<typeof createBrowserClient<Database>>;
+type BrowserSupabaseClient = SupabaseClient<Database>;
 
 // 🔧 Singleton 패턴으로 Multiple GoTrueClient 문제 해결
 let browserSupabase: BrowserSupabaseClient | null = null;
@@ -137,11 +138,6 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
         storage: window.localStorage,
         storageKey: `sb-${SUPABASE_URL.split('.')[0].split('://')[1]}-auth-token`,
         debug: false,
-        cookieOptions: {
-          // 쿠키 분할이 필요한 경우를 대비해 넓은 경로/도메인 허용
-          path: '/',
-          sameSite: 'lax',
-        } as any
       },
       global: {
         headers: {
@@ -451,16 +447,22 @@ export async function signOut() {
       console.log(`🗑️ [SignOut] 명시적 키 ${removedExplicitKeys}개 제거 완료`);
 
       // 패턴 기반 키 제거 (supabase, auth 포함)
+      // 단, 최근 로그인 정보는 보존: 'picnic_last_login', 'picnic_last_login_hint'
+      const preserveKeys = new Set(['picnic_last_login']);
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && (
-          key.includes('supabase') || 
-          key.includes('auth') || 
-          key.includes('login') ||
-          key.includes('wechat') ||
-          key.includes('oauth')
-        )) {
+        if (
+          key &&
+          !preserveKeys.has(key) &&
+          (
+            key.includes('supabase') ||
+            key.includes('auth') ||
+            key.includes('login') ||
+            key.includes('wechat') ||
+            key.includes('oauth')
+          )
+        ) {
           keysToRemove.push(key);
         }
       }
@@ -474,6 +476,13 @@ export async function signOut() {
           console.warn(`⚠️ [SignOut] localStorage 패턴 키 제거 실패: ${key}`, e);
         }
       });
+
+      try {
+        const preserved = {
+          picnic_last_login: localStorage.getItem('picnic_last_login'),
+        };
+        console.log('🧪 [SignOut] after LS cleanup, preserved snapshot:', preserved);
+      } catch {}
 
       console.log(`✅ [SignOut] localStorage 정리 완료 (명시적: ${removedExplicitKeys}, 패턴: ${removedPatternKeys})`);
     } catch (e) {
@@ -685,11 +694,23 @@ export async function signOut() {
   } catch (error) {
     console.error('❌ [SignOut] 종합 로그아웃 중 치명적 오류:', error);
     
-    // 치명적 오류가 발생해도 기본 정리는 시도
+    // 치명적 오류가 발생해도 기본 정리는 시도 (최근 로그인 정보 보존)
     try {
-      localStorage.clear();
+      const preserve = new Set(['picnic_last_login']);
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && !preserve.has(key)) {
+          try { localStorage.removeItem(key); } catch {}
+        }
+      }
+      try {
+        const snapshot = {
+          picnic_last_login: localStorage.getItem('picnic_last_login'),
+        };
+        console.log('🧪 [SignOut] emergency cleanup preserved snapshot:', snapshot);
+      } catch {}
       sessionStorage.clear();
-      console.log('🔧 [SignOut] 응급 스토리지 전체 정리 완료');
+      console.log('🔧 [SignOut] 응급 스토리지 정리 완료(최근 로그인 보존)');
     } catch (e) {
       console.error('💥 [SignOut] 응급 정리마저 실패:', e);
     }
@@ -874,8 +895,20 @@ export function emergencySignOut() {
   console.log('🚨 [EmergencySignOut] 응급 로그아웃 실행');
   
   try {
-    // 최소한의 정리만 시도
-    localStorage.clear();
+    // 최소한의 정리만 시도 (최근 로그인 정보 보존)
+    const preserve = new Set(['picnic_last_login']);
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && !preserve.has(key)) {
+        try { localStorage.removeItem(key); } catch {}
+      }
+    }
+    try {
+      const snapshot = {
+        picnic_last_login: localStorage.getItem('picnic_last_login'),
+      };
+      console.log('🧪 [EmergencySignOut] preserved snapshot:', snapshot);
+    } catch {}
     sessionStorage.clear();
   } catch (e) {
     // 무시

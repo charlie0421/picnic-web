@@ -321,7 +321,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
             <div className={`flex items-center gap-2 ${msg.is_admin_message ? 'flex-row' : 'flex-row-reverse'}`}>
               <div className="w-8 h-8 rounded-full bg-primary-100 flex-shrink-0">
                 <img
-                  src={msg.is_admin_message ? '/images/logo_alpha.png' : (msg.user_profiles?.avatar_url || '/images/default-avatar.png')}
+                  src={msg.is_admin_message ? '/images/logo_alpha.png' : (msg.user_profiles?.avatar_url || '/images/default-avatar.svg')}
                   alt={msg.is_admin_message ? 'Admin' : 'User'}
                   className="w-full h-full rounded-full object-cover"
                 />

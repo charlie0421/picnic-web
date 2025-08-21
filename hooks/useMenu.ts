@@ -9,7 +9,8 @@ export const useMenu = () => {
   const pathname = usePathname();
   const { isAuthenticated, userProfile, isLoading: isAuthLoading } = useAuth();
 
-  const isProfileLoading = isAuthLoading;
+  // 프로필은 인증 직후 비동기 로드되므로, 로딩 플래그가 내려간 이후에도 프로필이 없으면 로딩으로 간주
+  const isProfileLoading = isAuthLoading || (isAuthenticated && !userProfile);
   const isAdmin = userProfile?.is_admin === true;
 
   const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/';

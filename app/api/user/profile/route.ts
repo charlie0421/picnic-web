@@ -1,4 +1,5 @@
 import { createServerSupabaseClientWithCookies } from '@/lib/supabase/server';
+import { extractAvatarFromProvider, getSafeAvatarUrl } from '@/utils/image-utils';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
@@ -122,6 +123,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 아바타 URL 결정 로직 (DB 우선, 없으면 제공자 메타데이터에서 안전 추출)
+    const providerAvatar = extractAvatarFromProvider(user?.user_metadata || {}, provider);
+    const effectiveAvatarUrl = getSafeAvatarUrl(profile.avatar_url || providerAvatar || null);
+
     console.log('✅ [User Profile API] 프로필 조회 성공:', {
       userId: profile.id,
       nickname: profile.nickname,
@@ -131,7 +136,9 @@ export async function GET(request: NextRequest) {
       is_admin: profile.is_admin,
       is_super_admin: profile.is_super_admin,
       provider: provider,
-      providerDisplayName: providerDisplayName
+      providerDisplayName: providerDisplayName,
+      hasDbAvatar: !!profile.avatar_url,
+      hasProviderAvatar: !!providerAvatar
     });
 
     return NextResponse.json({
@@ -140,7 +147,7 @@ export async function GET(request: NextRequest) {
         id: profile.id,
         email: profile.email,
         name: profile.nickname,
-        avatar_url: profile.avatar_url,
+        avatar_url: effectiveAvatarUrl,
         star_candy: profile.star_candy || 0,
         star_candy_bonus: profile.star_candy_bonus || 0,
         total_candy: (profile.star_candy || 0) + (profile.star_candy_bonus || 0),

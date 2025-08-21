@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { getSafeAvatarUrl, preloadImage } from '@/utils/image-utils';
 
 interface ProfileImageContainerProps {
   avatarUrl: string | null;
@@ -15,7 +16,39 @@ export const ProfileImageContainer: React.FC<ProfileImageContainerProps> = ({
   borderRadius = 0,
   className = ''
 }) => {
-  const imageUrl = avatarUrl || '/images/default-avatar.png';
+  const initialSrc = useMemo(() => getSafeAvatarUrl(avatarUrl || null), [avatarUrl]);
+
+  const [resolvedSrc, setResolvedSrc] = useState<string>(initialSrc || '/images/default-avatar.svg');
+  const [isFallback, setIsFallback] = useState<boolean>(!avatarUrl);
+
+  useEffect(() => {
+    let mounted = true;
+    const next = initialSrc || '/images/default-avatar.svg';
+
+    // 아바타가 있는 경우 사전 로드 후 설정하여 onError 루프 방지
+    const run = async () => {
+      if (!avatarUrl) {
+        if (!mounted) return;
+        setResolvedSrc('/images/default-avatar.svg');
+        setIsFallback(true);
+        return;
+      }
+      const ok = await preloadImage(next);
+      if (!mounted) return;
+      if (ok) {
+        setResolvedSrc(next);
+        setIsFallback(false);
+      } else {
+        setResolvedSrc('/images/default-avatar.svg');
+        setIsFallback(true);
+      }
+    };
+
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, [initialSrc, avatarUrl]);
 
   return (
     <div 
@@ -23,15 +56,19 @@ export const ProfileImageContainer: React.FC<ProfileImageContainerProps> = ({
       className={className}
     >
       <img
-        src={imageUrl}
+        src={resolvedSrc}
         alt="프로필 이미지"
         width={width}
         height={height}
         className="object-cover rounded-full bg-gray-200"
         loading="lazy"
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
         onError={(e) => {
-          // 이미지 로딩 실패 시 기본 이미지로 대체
-          e.currentTarget.src = '/images/default-avatar.png';
+          // 기본 이미지가 이미 적용된 경우 더 이상 변경하지 않음 (무한 루프 방지)
+          if (isFallback || e.currentTarget.src.includes('default-avatar')) return;
+          setResolvedSrc('/images/default-avatar.svg');
+          setIsFallback(true);
         }}
       />
     </div>

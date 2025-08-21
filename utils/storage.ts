@@ -14,7 +14,7 @@ export interface LastLoginInfo {
  * 로컬 스토리지 키 상수
  */
 const STORAGE_KEYS = {
-  LAST_LOGIN: 'picnic_last_login'
+  LAST_LOGIN: 'picnic_last_login',
 } as const;
 
 /**
@@ -141,3 +141,39 @@ export function getProviderDisplayName(provider: string): string {
   
   return displayNames[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 } 
+
+// ===== Provisional last-login HINT (no userId required) =====
+// (Removed) LastLoginHint provisional support
+
+// ===== Avatar URL LocalStorage helpers =====
+const AVATAR_STORAGE_KEY = 'picnic_avatar_url';
+
+export function setAvatarUrl(url: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (!url || typeof url !== 'string') return false;
+    localStorage.setItem(AVATAR_STORAGE_KEY, url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getAvatarUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(AVATAR_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearAvatarUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    localStorage.removeItem(AVATAR_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}

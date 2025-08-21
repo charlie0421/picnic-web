@@ -224,24 +224,16 @@ class AuthStore {
           return;
         }
         
-        // 저장된 토큰이 없고 일반 페이지에서도 빠른 초기화
+        // 저장된 토큰이 없더라도 onAuthStateChange 구독과 초기화는 진행
         if (!hasStoredToken && !isCallbackPage) {
-          console.log('⚡ [AuthStore] 저장된 토큰 없음 → 빠른 로그아웃 상태 처리');
-          this.updateState({
-            session: null,
-            user: null,
-            userProfile: null,
-            isAuthenticated: false,
-            isLoading: false,
-            isInitialized: true,
-            signOut: this.signOut.bind(this),
-            loadUserProfile: this.loadUserProfile.bind(this),
-          });
-          return;
+          console.log('⚠️ [AuthStore] 저장된 토큰 없음 → 구독 유지, 초기화 진행');
         }
 
         this.supabaseClient = createBrowserSupabaseClient();
-        
+
+        // 앱 시작 시 즉시 한 번 사용자 재평가 (SSR→CSR 경계에서 토큰 감지 누락 방지)
+        this.performInstantUserAuth().catch(() => {});
+
         // 인증 상태 변경 리스너를 생성자에서 한 번만 등록
         this.supabaseClient.auth.onAuthStateChange(async (event: string, session: any) => {
           console.log(`[AuthStore] onAuthStateChange 이벤트 발생: ${event}`, { session });
@@ -260,25 +252,20 @@ class AuthStore {
                console.warn('[AuthStore] provider 정보가 없어 최근 로그인 정보를 저장하지 않습니다.', { provider });
             }
 
-            // 서버 쿠키 동기화 (신규 세션)
-            try {
-              await fetch('/api/auth/verify', { method: 'GET', credentials: 'include' });
-            } catch (_) {}
+            // 상태 즉시 재평가하여 컨텍스트 갱신 (클라이언트 토큰 저장 여부와 무관하게)
+            try { await this.performInstantUserAuth(); } catch {}
+            // 신규 세션 시 별도 verify 호출 불필요
           }
 
-          // 토큰 자동 갱신 시 서버 쿠키 동기화
+          // 토큰 자동 갱신 시 별도 verify 호출 불필요
           if (event === 'TOKEN_REFRESHED') {
-            try {
-              await fetch('/api/auth/verify', { method: 'GET', credentials: 'include' });
-              console.log('[AuthStore] TOKEN_REFRESHED → 서버 쿠키 동기화 완료');
-            } catch (e) {
-              console.warn('[AuthStore] TOKEN_REFRESHED 쿠키 동기화 실패', e);
-            }
+            try { await this.performInstantUserAuth(); } catch {}
           }
   
           // 로그아웃 이벤트 처리
           if (event === 'SIGNED_OUT' || !session) {
             console.log('🚪 [AuthStore] 로그아웃 이벤트 - 상태 정리');
+            // 아바타 캐시는 단순화 버전에서는 사용하지 않음
             // 상태 업데이트 로직은 performInstantUserAuth에서 처리하므로 여기서는 로그만 남깁니다.
             // 또는 여기서 직접 상태를 업데이트할 수도 있습니다.
             // 현재 구조에서는 performInstantUserAuth가 쿠키 기반으로 상태를 결정하므로
@@ -428,6 +415,13 @@ class AuthStore {
         console.log('✅ [AuthStore] 로그아웃 완료, 클라이언트 상태 초기화');
         // 로컬 스토리지/세션 스토리지의 인증 관련 흔적도 최대한 정리
         try {
+          try {
+            const before = {
+              picnic_last_login: localStorage.getItem('picnic_last_login'),
+            };
+            console.log('🧪 [AuthStore.signOut] before LS cleanup snapshot:', before);
+          } catch {}
+
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
           const projectId = supabaseUrl ? supabaseUrl.split('.')[0]?.split('://')[1] : '';
           const explicitKeys = [
@@ -455,6 +449,13 @@ class AuthStore {
               } catch {}
             });
           }
+
+          try {
+            const after = {
+              picnic_last_login: localStorage.getItem('picnic_last_login'),
+            };
+            console.log('🧪 [AuthStore.signOut] after LS cleanup snapshot:', after);
+          } catch {}
         } catch {}
         this.updateState({
           session: null,
@@ -637,6 +638,7 @@ class AuthStore {
               ...this.state,
               userProfile: profile,
             });
+            // 아바타 캐시는 단순화 버전에서는 사용하지 않음
           } else {
             console.warn('⚠️ [AuthStore] 사용자 프로필 로드 결과가 null임');
           }

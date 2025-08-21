@@ -428,11 +428,16 @@ export function clearAllAuthData(): void {
         sessionKeysToRemove.forEach((key) => sessionStorage.removeItem(key));
 
         // localStorage에서 인증 관련 모든 데이터 제거
+        // 단, 최근 로그인 정보는 보존: 'picnic_last_login'
+        const PRESERVE_KEYS = new Set(["picnic_last_login"]);
+        try { console.log('[AuthRedirect.clearAllAuthData] localStorage scan start. preserve=', Array.from(PRESERVE_KEYS)); } catch {}
         const localKeysToRemove: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (
-                key && (
+                key &&
+                !PRESERVE_KEYS.has(key) &&
+                (
                     key.includes("auth") ||
                     key.includes("redirect") ||
                     key.includes("supabase") ||
@@ -442,7 +447,16 @@ export function clearAllAuthData(): void {
                 localKeysToRemove.push(key);
             }
         }
-        localKeysToRemove.forEach((key) => localStorage.removeItem(key));
+        try { console.log('[AuthRedirect.clearAllAuthData] removing keys:', localKeysToRemove); } catch {}
+        localKeysToRemove.forEach((key) => {
+            try { localStorage.removeItem(key); } catch {}
+        });
+        try {
+            const snapshot: Record<string, string | null> = {
+                picnic_last_login: localStorage.getItem('picnic_last_login'),
+            };
+            console.log('[AuthRedirect.clearAllAuthData] preserved snapshot after removal:', snapshot);
+        } catch {}
 
         console.log("모든 인증 관련 데이터가 정리되었습니다.");
     } catch (error) {
