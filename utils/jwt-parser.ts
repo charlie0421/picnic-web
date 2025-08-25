@@ -448,16 +448,24 @@ export function getTokenExpiry(): Date | null {
 }
 
 /**
- * 토큰이 곧 만료되는지 확인 (30분 이내)
+ * 토큰이 곧 만료되는지 확인 (기본: 5분 이내)
  */
 export function isTokenExpiringSoon(): boolean {
   const expiry = getTokenExpiry();
   if (!expiry) return false;
 
   const now = new Date();
-  const thirtyMinutes = 30 * 60 * 1000; // 30분
-  
-  return (expiry.getTime() - now.getTime()) < thirtyMinutes;
+  const thresholdMs = 5 * 60 * 1000; // 5분
+  return (expiry.getTime() - now.getTime()) < thresholdMs;
+}
+
+/**
+ * 토큰 남은 시간(ms). 없으면 null
+ */
+export function getTokenRemainingMs(): number | null {
+  const expiry = getTokenExpiry();
+  if (!expiry) return null;
+  return Math.max(0, expiry.getTime() - Date.now());
 }
 
 /**

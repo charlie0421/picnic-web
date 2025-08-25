@@ -56,6 +56,9 @@ class AuthStore {
     loadUserProfile: this.loadUserProfile.bind(this),
   };
   private initPromise: Promise<void> | null = null;
+  private lastExpiryWarningKey: string | null = null;
+  private isAuthEvaluating: boolean = false;
+  private profileLoadInFlightUserId: string | null = null;
 
   static getInstance(): AuthStore {
     if (!AuthStore.instance) {
@@ -231,14 +234,13 @@ class AuthStore {
 
         this.supabaseClient = createBrowserSupabaseClient();
 
-        // 앱 시작 시 즉시 한 번 사용자 재평가 (SSR→CSR 경계에서 토큰 감지 누락 방지)
-        this.performInstantUserAuth().catch(() => {});
-
         // 인증 상태 변경 리스너를 생성자에서 한 번만 등록
         this.supabaseClient.auth.onAuthStateChange(async (event: string, session: any) => {
           console.log(`[AuthStore] onAuthStateChange 이벤트 발생: ${event}`, { session });
 
           if (event === 'SIGNED_IN' && session?.user) {
+            // 새로운 세션이면 만료 경고 가드를 리셋
+            this.lastExpiryWarningKey = null;
             const provider = session.user.app_metadata?.provider;
             console.log(`[AuthStore] SIGNED_IN 이벤트 내부, provider: ${provider}`);
             if (provider && ['google', 'apple', 'kakao', 'wechat'].includes(provider)) {
@@ -259,12 +261,16 @@ class AuthStore {
 
           // 토큰 자동 갱신 시 별도 verify 호출 불필요
           if (event === 'TOKEN_REFRESHED') {
+            // 갱신된 토큰 만료시각에 대해 다시 한 번만 경고가 출력되도록 리셋
+            this.lastExpiryWarningKey = null;
             try { await this.performInstantUserAuth(); } catch {}
           }
   
           // 로그아웃 이벤트 처리
           if (event === 'SIGNED_OUT' || !session) {
             console.log('🚪 [AuthStore] 로그아웃 이벤트 - 상태 정리');
+            // 로그아웃 시 경고 가드 리셋
+            this.lastExpiryWarningKey = null;
             // 아바타 캐시는 단순화 버전에서는 사용하지 않음
             // 상태 업데이트 로직은 performInstantUserAuth에서 처리하므로 여기서는 로그만 남깁니다.
             // 또는 여기서 직접 상태를 업데이트할 수도 있습니다.
@@ -273,6 +279,7 @@ class AuthStore {
           }
         });
 
+        // 초기화는 한 곳에서만 실행 (performInstantUserAuth 중복 방지)
         this.initPromise = this.initialize();
       } catch (error) {
         console.error('❌ [AuthStore] Supabase 클라이언트 생성 실패:', error);
@@ -474,6 +481,11 @@ class AuthStore {
   }
 
   private async performInstantUserAuth(): Promise<void> {
+    if (this.isAuthEvaluating) {
+      console.log('⏭️  [AuthStore] performInstantUserAuth 중복 호출 건너뜀');
+      return;
+    }
+    this.isAuthEvaluating = true;
     try {
       console.log('🚀 [AuthStore] performInstantUserAuth 시작 (네트워크 요청 없음)');
       const startTime = performance.now();
@@ -638,9 +650,26 @@ class AuthStore {
               ...this.state,
               userProfile: profile,
             });
-            // 아바타 캐시는 단순화 버전에서는 사용하지 않음
           } else {
-            console.warn('⚠️ [AuthStore] 사용자 프로필 로드 결과가 null임');
+            // 초기 타이밍 이슈 대비: 짧은 지연 후 1회 재시도, 실패 시에만 경고
+            setTimeout(() => {
+              this.loadUserProfile(user.id).then(retryProfile => {
+                if (retryProfile) {
+                  console.log('✅ [AuthStore] 사용자 프로필 로드 성공(재시도):', {
+                    is_admin: retryProfile.is_admin,
+                    is_super_admin: retryProfile.is_super_admin
+                  });
+                  this.updateState({
+                    ...this.state,
+                    userProfile: retryProfile,
+                  });
+                } else {
+                  console.warn('⚠️ [AuthStore] 사용자 프로필 로드 결과가 null임 (재시도 후)');
+                }
+              }).catch(error => {
+                console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패(재시도):', error);
+              });
+            }, 400);
           }
         }).catch(error => {
           console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패:', error);
@@ -657,7 +686,16 @@ class AuthStore {
 
       // 토큰 만료 경고 (쿠키 기반)
       if (expiringSoon) {
-        console.warn('⚠️ [AuthStore] 토큰이 곧 만료됨 (30분 이내) - 재로그인 필요할 수 있음');
+        const expiryKey = tokenExpiry ? tokenExpiry.toISOString() : 'unknown-expiry';
+        if (this.lastExpiryWarningKey !== expiryKey) {
+          const remainingMs = tokenExpiry ? Math.max(0, tokenExpiry.getTime() - Date.now()) : null;
+          const remainingSec = remainingMs != null ? Math.ceil(remainingMs / 1000) : null;
+          const remainingMsg = remainingSec != null
+            ? (remainingSec >= 60 ? `${Math.ceil(remainingSec / 60)}분 이내` : `${remainingSec}초 이내`)
+            : '곧';
+          console.warn(`⚠️ [AuthStore] 토큰이 곧 만료됨 (${remainingMsg}) - 재로그인 필요할 수 있음`);
+          this.lastExpiryWarningKey = expiryKey;
+        }
         // 백그라운드 네트워크 요청 없이 경고만 표시
       }
 
@@ -680,6 +718,8 @@ class AuthStore {
       });
       
       console.log('🔄 [AuthStore] 오류로 인한 비인증 상태 설정 완료');
+    } finally {
+      this.isAuthEvaluating = false;
     }
   }
 
@@ -740,6 +780,14 @@ class AuthStore {
         }
         return null;
       }
+
+      if (this.profileLoadInFlightUserId === userId) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⏭️  [AuthStore] 동일 사용자 프로필 로드 중복 호출 건너뜀:', { userId: userId.substring(0, 8) + '...' });
+        }
+        return null;
+      }
+      this.profileLoadInFlightUserId = userId;
 
       console.log('🔍 [AuthStore] API를 통한 프로필 조회 시작:', { userId: userId.substring(0, 8) + '...' });
       
@@ -851,6 +899,10 @@ class AuthStore {
       }
       
       return null;
+    } finally {
+      if (this.profileLoadInFlightUserId === userId) {
+        this.profileLoadInFlightUserId = null;
+      }
     }
   }
 }
