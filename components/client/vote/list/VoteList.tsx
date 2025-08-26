@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Vote, VoteItem } from '@/types/interfaces';
 import Image from 'next/image';
 import { getLocalizedString } from '@/utils/api/strings';
@@ -53,6 +53,51 @@ export function VoteList({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // 상태 전환(예정→진행, 진행→마감) 시점에 페이지 자동 새로고침
+  const reloadTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    // votes 기준으로 가장 가까운 다음 전환 시각 계산
+    const now = Date.now();
+    let nextTimestamp: number | null = null;
+
+    for (const v of votes) {
+      if (!v) continue;
+      if (v.start_at) {
+        const ts = new Date(v.start_at).getTime();
+        if (!Number.isNaN(ts) && ts > now) {
+          nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
+        }
+      }
+      if (v.stop_at) {
+        const ts = new Date(v.stop_at).getTime();
+        if (!Number.isNaN(ts) && ts > now) {
+          nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
+        }
+      }
+    }
+
+    // 기존 타이머 정리
+    if (reloadTimerRef.current) {
+      window.clearTimeout(reloadTimerRef.current);
+      reloadTimerRef.current = null;
+    }
+
+    // 다음 전환 시각이 있으면 해당 시각에 새로고침 예약
+    if (nextTimestamp !== null) {
+      const delay = Math.max(0, nextTimestamp - Date.now());
+      reloadTimerRef.current = window.setTimeout(() => {
+        window.location.reload();
+      }, delay);
+    }
+
+    return () => {
+      if (reloadTimerRef.current) {
+        window.clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+    };
+  }, [votes]);
 
   // 로딩 상태 처리
   if (isLoading && votes.length === 0) {
