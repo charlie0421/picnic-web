@@ -36,7 +36,6 @@ export default async function QnaPage(props: QnaPageProps) {
           totalCount,
           totalPages,
           hasNext: page < totalPages,
-          hasPrevious: page > 1,
         }}
         initialError={error}
       />

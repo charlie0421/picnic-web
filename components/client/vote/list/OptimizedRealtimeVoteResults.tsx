@@ -34,19 +34,21 @@ const VoteItemRow = memo(({
 
   // 제목 추출 (아티스트 이름 우선, 그룹 이름은 별도 표시)
   const title = useMemo(() => {
-    if (item.artist?.name && hasValidLocalizedString(item.artist.name)) {
-      return getLocalizedString(item.artist.name, currentLanguage);
+    const a = (item as any).artist;
+    if (a?.name && hasValidLocalizedString(a.name)) {
+      return getLocalizedString(a.name, currentLanguage);
     }
     return `투표 항목 ${item.id}`;
-  }, [item.artist, item.id, currentLanguage]);
+  }, [item, item.id, currentLanguage]);
 
   // 그룹 이름 추출
   const groupName = useMemo(() => {
-    if (item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)) {
-      return getLocalizedString(item.artist.artistGroup.name, currentLanguage);
+    const ag = (item as any).artist?.artistGroup;
+    if (ag?.name && hasValidLocalizedString(ag.name)) {
+      return getLocalizedString(ag.name, currentLanguage);
     }
     return null;
-  }, [item.artist?.artistGroup, currentLanguage]);
+  }, [item, currentLanguage]);
 
   return (
     <div className={`p-4 border rounded-lg transition-all duration-300 ${

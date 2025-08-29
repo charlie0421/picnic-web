@@ -8,8 +8,15 @@
 DEFAULT_PORT=3100
 DEFAULT_PROJECT_NAME=$(basename "$(pwd)")
 
-# 포트 설정 (우선순위: 명령행 인수 > 환경변수 > 기본값)
-DEV_PORT=${DEV_PORT:-$DEFAULT_PORT}
+# .env.local 로드 (있으면)
+if [ -f ".env.local" ]; then
+    set -a
+    . ./.env.local
+    set +a
+fi
+
+# 포트 설정 (우선순위: 명령행 인수 > 환경변수(DEV_PORT, PORT) > 기본값)
+DEV_PORT=${DEV_PORT:-${PORT:-$DEFAULT_PORT}}
 PROJECT_NAME=${PROJECT_NAME:-$DEFAULT_PROJECT_NAME}
 
 # 명령행 인수 처리
@@ -66,7 +73,8 @@ if [ "$SHOW_HELP" = true ]; then
     echo "  --help, -h         이 도움말 표시"
     echo ""
     echo "환경변수:"
-    echo "  DEV_PORT          개발 서버 포트"
+    echo "  DEV_PORT          개발 서버 포트 (PORT보다 우선)"
+    echo "  PORT              개발 서버 포트 (.env.local 에서 로드 가능)"
     echo "  PROJECT_NAME      프로젝트 이름"
     echo ""
     echo "예시:"

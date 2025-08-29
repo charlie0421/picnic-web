@@ -165,11 +165,12 @@ export function VoteSubmit({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {voteItems.map((item) => {
           const isSelected = selectedItemId === item.id;
-          const artistName = item.artist?.name || '아티스트';
-          const artistGroup = item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)
-            ? item.artist.artistGroup.name
+          const a = (item as any).artist;
+          const artistName = a?.name || '아티스트';
+          const artistGroup = a?.artistGroup?.name && hasValidLocalizedString(a.artistGroup.name)
+            ? a.artistGroup.name
             : null;
-          const imageUrl = item.artist?.image || '/images/default-artist.png';
+          const imageUrl = a?.image || '/images/default-artist.png';
           const voteCount = item.vote_total || 0;
 
           return (

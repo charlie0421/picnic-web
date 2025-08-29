@@ -222,7 +222,13 @@ export function VoteRealtimeProvider({
         vote_category: 'artist',
         vote_content: t('vote.testVote.content') || '가장 좋아하는 아티스트를 선택하세요',
         vote_sub_category: 'kpop',
-        wait_image: null
+        wait_image: null,
+        // 추가 필드 (타입 정합성 보완)
+        is_partnership: null,
+        partner: null,
+        star_candy_bonus_total: 0,
+        star_candy_total: 0,
+        vote_total: 0
       };
 
       const mockVoteItems: VoteItemData[] = [
@@ -234,7 +240,9 @@ export function VoteRealtimeProvider({
           group_id: 1,
           updated_at: new Date().toISOString(),
           vote_id: targetVoteId,
-          vote_total: 150
+          vote_total: 150,
+          star_candy_bonus_total: 0,
+          star_candy_total: 0
         },
         {
           id: 2,
@@ -244,7 +252,9 @@ export function VoteRealtimeProvider({
           group_id: 2,
           updated_at: new Date().toISOString(),
           vote_id: targetVoteId,
-          vote_total: 120
+          vote_total: 120,
+          star_candy_bonus_total: 0,
+          star_candy_total: 0
         }
       ];
 

@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { QnaThread, Pagination } from '@/types/interfaces';
+import { QnaThreads as QnaThread } from '@/types/interfaces';
+import type { Pagination } from '@/types/mypage-common';
 import { PostgrestError } from '@supabase/supabase-js';
 
 interface GetQnaThreadsParams {
@@ -53,7 +54,6 @@ export async function getQnaThreads({
         totalCount,
         totalPages,
         hasNext: page < totalPages,
-        hasPrevious: page > 1,
       },
       error: null,
     };

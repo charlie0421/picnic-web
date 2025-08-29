@@ -266,9 +266,9 @@ export function RealtimeVoteDetailPresenter({
     if (!searchQuery) return rankedVoteItems;
 
     return rankedVoteItems.filter((item) => {
-      const artistName = item.artist?.name
+      const artistName = (item as any).artist?.name
         ? getLocalizedString(
-            item.artist.name,
+            (item as any).artist.name,
             currentLanguage,
           )?.toLowerCase() || ''
         : '';
@@ -482,8 +482,8 @@ export function RealtimeVoteDetailPresenter({
               
               <div className="mb-4">
                 <p className="text-gray-600 mb-2">
-                  {voteCandidate.artist?.name ? 
-                    getLocalizedString(voteCandidate.artist.name, currentLanguage) :
+                  {(voteCandidate as any)?.artist?.name ? 
+                    getLocalizedString((voteCandidate as any).artist.name, currentLanguage) :
                     '알 수 없는 아티스트'
                   }에게 투표하시겠습니까?
                 </p>

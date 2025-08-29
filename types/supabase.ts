@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.3 (519615d)"
+  }
   public: {
     Tables: {
       activities: {
@@ -170,6 +175,36 @@ export type Database = {
           },
         ]
       }
+      admin_whitelist: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          email: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       album: {
         Row: {
           created_at: string | null
@@ -325,7 +360,6 @@ export type Database = {
           deleted_at: string | null
           gallery_id: number
           id: number
-          title_en: string | null
           title_ko: string | null
           updated_at: string | null
         }
@@ -336,7 +370,6 @@ export type Database = {
           deleted_at?: string | null
           gallery_id: number
           id?: number
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string | null
         }
@@ -347,7 +380,6 @@ export type Database = {
           deleted_at?: string | null
           gallery_id?: number
           id?: number
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string | null
         }
@@ -438,7 +470,6 @@ export type Database = {
           id: number
           image: string | null
           order: number | null
-          title_en: string | null
           title_ko: string | null
           updated_at: string | null
         }
@@ -449,7 +480,6 @@ export type Database = {
           id?: number
           image?: string | null
           order?: number | null
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string | null
         }
@@ -460,7 +490,6 @@ export type Database = {
           id?: number
           image?: string | null
           order?: number | null
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string | null
         }
@@ -513,9 +542,12 @@ export type Database = {
           image: string | null
           is_kpop: boolean
           is_musical: boolean
+          is_partnership: boolean | null
           is_solo: boolean
           mm: number | null
           name: Json | null
+          partner: string | null
+          partner_data: string | null
           updated_at: string
           yy: number | null
         }
@@ -534,9 +566,12 @@ export type Database = {
           image?: string | null
           is_kpop?: boolean
           is_musical?: boolean
+          is_partnership?: boolean | null
           is_solo?: boolean
           mm?: number | null
           name?: Json | null
+          partner?: string | null
+          partner_data?: string | null
           updated_at?: string
           yy?: number | null
         }
@@ -555,9 +590,12 @@ export type Database = {
           image?: string | null
           is_kpop?: boolean
           is_musical?: boolean
+          is_partnership?: boolean | null
           is_solo?: boolean
           mm?: number | null
           name?: Json | null
+          partner?: string | null
+          partner_data?: string | null
           updated_at?: string
           yy?: number | null
         }
@@ -642,6 +680,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "artist"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_user_bookmark_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "artist_user_bookmark_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "artist_user_bookmark_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
           },
           {
             foreignKeyName: "artist_user_bookmark_user_profiles_id_fk"
@@ -732,6 +791,99 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action_description: string
+          action_type: string
+          changed_fields: string | null
+          classification: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          metadata: string | null
+          method: string | null
+          new_values: string | null
+          old_values: string | null
+          resource_id: string | null
+          resource_name: string | null
+          resource_type: string
+          retention_period: number | null
+          session_id: string | null
+          severity: string
+          status_code: number | null
+          success: boolean
+          tags: string | null
+          timestamp: string
+          updated_at: string
+          url: string | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+          user_roles: string | null
+        }
+        Insert: {
+          action_description: string
+          action_type: string
+          changed_fields?: string | null
+          classification?: string | null
+          created_at?: string
+          error_message?: string | null
+          id: string
+          ip_address?: string | null
+          metadata?: string | null
+          method?: string | null
+          new_values?: string | null
+          old_values?: string | null
+          resource_id?: string | null
+          resource_name?: string | null
+          resource_type: string
+          retention_period?: number | null
+          session_id?: string | null
+          severity: string
+          status_code?: number | null
+          success?: boolean
+          tags?: string | null
+          timestamp?: string
+          updated_at?: string
+          url?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_roles?: string | null
+        }
+        Update: {
+          action_description?: string
+          action_type?: string
+          changed_fields?: string | null
+          classification?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: string | null
+          method?: string | null
+          new_values?: string | null
+          old_values?: string | null
+          resource_id?: string | null
+          resource_name?: string | null
+          resource_type?: string
+          retention_period?: number | null
+          session_id?: string | null
+          severity?: string
+          status_code?: number | null
+          success?: boolean
+          tags?: string | null
+          timestamp?: string
+          updated_at?: string
+          url?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_roles?: string | null
+        }
+        Relationships: []
+      }
       awsdms_ddl_audit: {
         Row: {
           c_ddlqry: string | null
@@ -778,6 +930,8 @@ export type Database = {
           id: number
           image: Json | null
           link: string | null
+          link_target_id: number | null
+          link_type: string | null
           location: string | null
           order: number | null
           start_at: string | null
@@ -794,6 +948,8 @@ export type Database = {
           id?: number
           image?: Json | null
           link?: string | null
+          link_target_id?: number | null
+          link_type?: string | null
           location?: string | null
           order?: number | null
           start_at?: string | null
@@ -810,6 +966,8 @@ export type Database = {
           id?: number
           image?: Json | null
           link?: string | null
+          link_target_id?: number | null
+          link_type?: string | null
           location?: string | null
           order?: number | null
           start_at?: string | null
@@ -924,6 +1082,27 @@ export type Database = {
             referencedRelation: "artist"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_boards_artist"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fk_boards_artist"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fk_boards_artist"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       bonus_expiry_log: {
@@ -952,7 +1131,6 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
-          name_en: string | null
           name_ko: string | null
           thumbnail: string | null
           updated_at: string | null
@@ -961,7 +1139,6 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
-          name_en?: string | null
           name_ko?: string | null
           thumbnail?: string | null
           updated_at?: string | null
@@ -970,7 +1147,6 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
-          name_en?: string | null
           name_ko?: string | null
           thumbnail?: string | null
           updated_at?: string | null
@@ -1199,6 +1375,27 @@ export type Database = {
             referencedRelation: "artist"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       compatibility_results_i18n: {
@@ -1251,33 +1448,27 @@ export type Database = {
       compatibility_score_descriptions: {
         Row: {
           score: number | null
-          summary_en: string
           summary_ja: string
           summary_ko: string
           summary_zh: string
-          title_en: string | null
           title_ja: string | null
           title_ko: string | null
           title_zh: string | null
         }
         Insert: {
           score?: number | null
-          summary_en: string
           summary_ja: string
           summary_ko: string
           summary_zh: string
-          title_en?: string | null
           title_ja?: string | null
           title_ko?: string | null
           title_zh?: string | null
         }
         Update: {
           score?: number | null
-          summary_en?: string
           summary_ja?: string
           summary_ko?: string
           summary_zh?: string
-          title_en?: string | null
           title_ja?: string | null
           title_ko?: string | null
           title_zh?: string | null
@@ -1508,6 +1699,30 @@ export type Database = {
         }
         Relationships: []
       }
+      faq_categories: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          label: Json
+          order_number: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          label: Json
+          order_number?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          label?: Json
+          order_number?: number
+        }
+        Relationships: []
+      }
       faqs: {
         Row: {
           answer: Json
@@ -1543,6 +1758,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "faqs_category_fkey"
+            columns: ["category"]
+            isOneToOne: false
+            referencedRelation: "faq_categories"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "faqs_created_by_fkey"
             columns: ["created_by"]
@@ -1618,6 +1840,27 @@ export type Database = {
             referencedRelation: "artist"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fortune_generation_log_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_generation_log_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_generation_log_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       fortune_telling: {
@@ -1664,6 +1907,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "artist"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
           },
         ]
       }
@@ -1719,6 +1983,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fortune_telling_i18n_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_i18n_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_i18n_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+          {
             foreignKeyName: "fortune_telling_i18n_fortune_id_artist_id_year_fkey"
             columns: ["fortune_id", "artist_id", "year"]
             isOneToOne: false
@@ -1742,7 +2027,6 @@ export type Database = {
           deleted_at: string | null
           id: number
           title: Json | null
-          title_en: string | null
           title_ko: string | null
           updated_at: string
         }
@@ -1753,7 +2037,6 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           title?: Json | null
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string
         }
@@ -1764,7 +2047,6 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           title?: Json | null
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string
         }
@@ -2077,6 +2359,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "artist"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pic_vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "pic_vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "pic_vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
           },
           {
             foreignKeyName: "pic_vote_item_pic_vote_id_fk"
@@ -2467,12 +2770,12 @@ export type Database = {
           star_candy: number | null
           star_candy_bonus: number | null
           start_at: string | null
-          web_price_krw: number | null
-          web_price_usd: number | null
           web_bonus_amount: number | null
+          web_description: string | null
           web_display_order: number | null
           web_is_featured: boolean | null
-          web_description: string | null
+          web_price_krw: number | null
+          web_price_usd: number | null
         }
         Insert: {
           created_at?: string | null
@@ -2487,12 +2790,12 @@ export type Database = {
           star_candy?: number | null
           star_candy_bonus?: number | null
           start_at?: string | null
-          web_price_krw?: number | null
-          web_price_usd?: number | null
           web_bonus_amount?: number | null
+          web_description?: string | null
           web_display_order?: number | null
           web_is_featured?: boolean | null
-          web_description?: string | null
+          web_price_krw?: number | null
+          web_price_usd?: number | null
         }
         Update: {
           created_at?: string | null
@@ -2507,12 +2810,12 @@ export type Database = {
           star_candy?: number | null
           star_candy_bonus?: number | null
           start_at?: string | null
-          web_price_krw?: number | null
-          web_price_usd?: number | null
           web_bonus_amount?: number | null
+          web_description?: string | null
           web_display_order?: number | null
           web_is_featured?: boolean | null
-          web_description?: string | null
+          web_price_krw?: number | null
+          web_price_usd?: number | null
         }
         Relationships: []
       }
@@ -2605,57 +2908,115 @@ export type Database = {
         }
         Relationships: []
       }
-      qnas: {
+      qna_attachments: {
         Row: {
-          answer: string | null
-          answered_at: string | null
-          answered_by: string | null
           created_at: string | null
-          created_by: string | null
-          is_private: boolean | null
-          qna_id: number
-          question: string
-          status: string | null
-          title: string
-          updated_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: number
+          message_id: number | null
         }
         Insert: {
-          answer?: string | null
-          answered_at?: string | null
-          answered_by?: string | null
           created_at?: string | null
-          created_by?: string | null
-          is_private?: boolean | null
-          qna_id?: number
-          question: string
-          status?: string | null
-          title: string
-          updated_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: number
+          message_id?: number | null
         }
         Update: {
-          answer?: string | null
-          answered_at?: string | null
-          answered_by?: string | null
           created_at?: string | null
-          created_by?: string | null
-          is_private?: boolean | null
-          qna_id?: number
-          question?: string
-          status?: string | null
-          title?: string
-          updated_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: number
+          message_id?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "qnas_answered_by_fkey"
-            columns: ["answered_by"]
+            foreignKeyName: "qa_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "qna_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qna_messages: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: number
+          is_admin_message: boolean | null
+          thread_id: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: number
+          is_admin_message?: boolean | null
+          thread_id?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: number
+          is_admin_message?: boolean | null
+          thread_id?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qa_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "qna_threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qna_messages_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      qna_threads: {
+        Row: {
+          created_at: string | null
+          id: number
+          status: string | null
+          title: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
           {
-            foreignKeyName: "qnas_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "qna_threads_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
@@ -2672,6 +3033,7 @@ export type Database = {
           receipt_data: string
           receipt_hash: string | null
           status: string
+          tx_key: string | null
           user_id: string | null
           verification_data: Json | null
         }
@@ -2684,6 +3046,7 @@ export type Database = {
           receipt_data: string
           receipt_hash?: string | null
           status: string
+          tx_key?: string | null
           user_id?: string | null
           verification_data?: Json | null
         }
@@ -2696,6 +3059,7 @@ export type Database = {
           receipt_data?: string
           receipt_hash?: string | null
           status?: string
+          tx_key?: string | null
           user_id?: string | null
           verification_data?: Json | null
         }
@@ -2851,7 +3215,7 @@ export type Database = {
           parent_id: number | null
           remain_amount: number
           transaction_id: string | null
-          type: Database["public"]["Enums"]["candy_history_type"] | null
+          type: string | null
           updated_at: string
           user_id: string
           vote_pick_id: number | null
@@ -2865,7 +3229,7 @@ export type Database = {
           parent_id?: number | null
           remain_amount?: number
           transaction_id?: string | null
-          type?: Database["public"]["Enums"]["candy_history_type"] | null
+          type?: string | null
           updated_at?: string
           user_id: string
           vote_pick_id?: number | null
@@ -2879,7 +3243,7 @@ export type Database = {
           parent_id?: number | null
           remain_amount?: number
           transaction_id?: string | null
-          type?: Database["public"]["Enums"]["candy_history_type"] | null
+          type?: string | null
           updated_at?: string
           user_id?: string
           vote_pick_id?: number | null
@@ -3115,6 +3479,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           hmac: string
+          platform: string | null
           reward_amount: number | null
           reward_type: string | null
           transaction_id: string
@@ -3126,6 +3491,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           hmac: string
+          platform?: string | null
           reward_amount?: number | null
           reward_type?: string | null
           transaction_id: string
@@ -3137,6 +3503,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           hmac?: string
+          platform?: string | null
           reward_amount?: number | null
           reward_type?: string | null
           transaction_id?: string
@@ -3270,6 +3637,7 @@ export type Database = {
           id: string
           is_admin: boolean
           is_super_admin: boolean | null
+          jma_candy: number | null
           nickname: string | null
           open_ages: boolean
           open_gender: boolean
@@ -3288,6 +3656,7 @@ export type Database = {
           id: string
           is_admin?: boolean
           is_super_admin?: boolean | null
+          jma_candy?: number | null
           nickname?: string | null
           open_ages?: boolean
           open_gender?: boolean
@@ -3306,6 +3675,7 @@ export type Database = {
           id?: string
           is_admin?: boolean
           is_super_admin?: boolean | null
+          jma_candy?: number | null
           nickname?: string | null
           open_ages?: boolean
           open_gender?: boolean
@@ -3392,9 +3762,13 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           id: number
+          is_partnership: boolean | null
           main_image: string | null
           order: number | null
+          partner: string | null
           result_image: string | null
+          star_candy_bonus_total: number | null
+          star_candy_total: number | null
           start_at: string | null
           stop_at: string | null
           title: Json | null
@@ -3403,6 +3777,7 @@ export type Database = {
           vote_category: string | null
           vote_content: string | null
           vote_sub_category: string | null
+          vote_total: number | null
           wait_image: string | null
         }
         Insert: {
@@ -3410,9 +3785,13 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: number
+          is_partnership?: boolean | null
           main_image?: string | null
           order?: number | null
+          partner?: string | null
           result_image?: string | null
+          star_candy_bonus_total?: number | null
+          star_candy_total?: number | null
           start_at?: string | null
           stop_at?: string | null
           title?: Json | null
@@ -3421,6 +3800,7 @@ export type Database = {
           vote_category?: string | null
           vote_content?: string | null
           vote_sub_category?: string | null
+          vote_total?: number | null
           wait_image?: string | null
         }
         Update: {
@@ -3428,9 +3808,13 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           id?: number
+          is_partnership?: boolean | null
           main_image?: string | null
           order?: number | null
+          partner?: string | null
           result_image?: string | null
+          star_candy_bonus_total?: number | null
+          star_candy_total?: number | null
           start_at?: string | null
           stop_at?: string | null
           title?: Json | null
@@ -3439,6 +3823,7 @@ export type Database = {
           vote_category?: string | null
           vote_content?: string | null
           vote_sub_category?: string | null
+          vote_total?: number | null
           wait_image?: string | null
         }
         Relationships: []
@@ -3558,6 +3943,8 @@ export type Database = {
           deleted_at: string | null
           group_id: number
           id: number
+          star_candy_bonus_total: number
+          star_candy_total: number
           updated_at: string | null
           vote_id: number | null
           vote_total: number | null
@@ -3568,6 +3955,8 @@ export type Database = {
           deleted_at?: string | null
           group_id?: number
           id?: number
+          star_candy_bonus_total?: number
+          star_candy_total?: number
           updated_at?: string | null
           vote_id?: number | null
           vote_total?: number | null
@@ -3578,6 +3967,8 @@ export type Database = {
           deleted_at?: string | null
           group_id?: number
           id?: number
+          star_candy_bonus_total?: number
+          star_candy_total?: number
           updated_at?: string | null
           vote_id?: number | null
           vote_total?: number | null
@@ -3589,6 +3980,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "artist"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
           },
           {
             foreignKeyName: "vote_item_group_id_fkey"
@@ -3608,73 +4020,92 @@ export type Database = {
       }
       vote_item_request_users: {
         Row: {
-          artist_group: string | null
-          artist_name: string
+          artist_id: number
           created_at: string | null
           id: string
-          reason: string | null
           status: string
           updated_at: string | null
           user_id: string
+          vote_id: number
           vote_item_request_id: string
         }
         Insert: {
-          artist_group?: string | null
-          artist_name: string
+          artist_id?: number
           created_at?: string | null
           id?: string
-          reason?: string | null
           status?: string
           updated_at?: string | null
           user_id: string
+          vote_id?: number
           vote_item_request_id: string
         }
         Update: {
-          artist_group?: string | null
-          artist_name?: string
+          artist_id?: number
           created_at?: string | null
           id?: string
-          reason?: string | null
           status?: string
           updated_at?: string | null
           user_id?: string
+          vote_id?: number
           vote_item_request_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "vote_item_request_users_vote_item_request_id_fkey"
-            columns: ["vote_item_request_id"]
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
             isOneToOne: false
-            referencedRelation: "vote_item_requests"
+            referencedRelation: "artist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_vote_id_fkey"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
             referencedColumns: ["id"]
           },
         ]
       }
-      vote_item_requests: {
+      vote_item_requests_backup: {
         Row: {
           created_at: string | null
-          description: string | null
           id: string
           status: string
-          title: string
           updated_at: string | null
           vote_id: number
         }
         Insert: {
           created_at?: string | null
-          description?: string | null
           id?: string
           status?: string
-          title: string
           updated_at?: string | null
           vote_id: number
         }
         Update: {
           created_at?: string | null
-          description?: string | null
           id?: string
           status?: string
-          title?: string
           updated_at?: string | null
           vote_id?: number
         }
@@ -3694,6 +4125,8 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           id: number
+          star_candy_bonus_usage: number
+          star_candy_usage: number
           updated_at: string | null
           user_id: string | null
           vote_id: number | null
@@ -3704,6 +4137,8 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          star_candy_bonus_usage?: number
+          star_candy_usage?: number
           updated_at?: string | null
           user_id?: string | null
           vote_id?: number | null
@@ -3714,6 +4149,8 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          star_candy_bonus_usage?: number
+          star_candy_usage?: number
           updated_at?: string | null
           user_id?: string | null
           vote_id?: number | null
@@ -3817,6 +4254,80 @@ export type Database = {
       }
     }
     Views: {
+      artist_request_statistics: {
+        Row: {
+          approved_requests: number | null
+          artist_group: string | null
+          artist_id: number | null
+          artist_image: string | null
+          artist_name: string | null
+          first_request_at: string | null
+          last_updated_at: string | null
+          pending_requests: number | null
+          rejected_requests: number | null
+          total_requests: number | null
+        }
+        Relationships: []
+      }
+      audit_log_stats: {
+        Row: {
+          action_type: string | null
+          log_count: number | null
+          log_date: string | null
+          resource_type: string | null
+          severity: string | null
+          success: boolean | null
+          unique_users: number | null
+        }
+        Relationships: []
+      }
+      security_events_summary: {
+        Row: {
+          action_type: string | null
+          affected_users: number | null
+          event_count: number | null
+          event_date: string | null
+          severity: string | null
+          unique_ips: number | null
+        }
+        Relationships: []
+      }
+      user_activity_summary: {
+        Row: {
+          activity_date: string | null
+          failed_actions: number | null
+          first_activity: string | null
+          last_activity: string | null
+          total_actions: number | null
+          unique_action_types: number | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      user_vote_item_request_history: {
+        Row: {
+          artist_group: string | null
+          artist_id: number | null
+          artist_image: string | null
+          artist_name: string | null
+          request_status: string | null
+          request_status_text: string | null
+          requested_at: string | null
+          status_updated_at: string | null
+          user_id: string | null
+          vote_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_item_request_users_vote_id_fkey"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       view_transaction_all: {
         Row: {
           ad_network: string | null
@@ -3831,6 +4342,139 @@ export type Database = {
           user_id: string | null
         }
         Relationships: []
+      }
+      view_user_activity_unified: {
+        Row: {
+          ad_network: string | null
+          ad_reward_name: string | null
+          ad_source: string | null
+          amount: number | null
+          artist_name: Json | null
+          bonus_gain: number | null
+          created_at: string | null
+          expired_dt: string | null
+          receipt_environment: string | null
+          receipt_platform: string | null
+          receipt_product_id: string | null
+          receipt_status: string | null
+          remain_amount: number | null
+          source: string | null
+          star_gain: number | null
+          subtype: string | null
+          transaction_id: string | null
+          unified_id: string | null
+          user_id: string | null
+          vote_item_name: Json | null
+          vote_item_title: Json | null
+          vote_pick_id: number | null
+          vote_title: Json | null
+        }
+        Relationships: []
+      }
+      view_user_candy_ledger: {
+        Row: {
+          ad_network: string | null
+          balance: number | null
+          bonus_amount: number | null
+          category: string | null
+          created_at: string | null
+          detail: string | null
+          name: string | null
+          star_amount: number | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      vote_item_request_status_summary: {
+        Row: {
+          artist_group: string | null
+          artist_id: number | null
+          artist_name: string | null
+          first_request_at: string | null
+          last_updated_at: string | null
+          request_count: number | null
+          request_status: string | null
+          vote_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_item_request_users_vote_id_fkey"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vote_item_requests: {
+        Row: {
+          artist: Json | null
+          artist_id: number | null
+          created_at: string | null
+          id: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+          vote_id: number | null
+        }
+        Insert: {
+          artist?: never
+          artist_id?: number | null
+          created_at?: string | null
+          id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          vote_id?: number | null
+        }
+        Update: {
+          artist?: never
+          artist_id?: number | null
+          created_at?: string | null
+          id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          vote_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_vote_id_fkey"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -3849,12 +4493,20 @@ export type Database = {
       check_bonus_state: {
         Args: { check_time?: string }
         Returns: {
-          total_bonuses: number
           active_bonuses: number
-          expirable_bonuses: number
           earliest_expiry: string
+          expirable_bonuses: number
           latest_expiry: string
+          total_bonuses: number
         }[]
+      }
+      cleanup_deleted_qnas: {
+        Args: { days_old?: number }
+        Returns: number
+      }
+      cleanup_expired_audit_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       commit_transaction: {
         Args: Record<PropertyKey, never>
@@ -3872,26 +4524,38 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      create_vote_item_request_with_user: {
+        Args: {
+          artist_id_param: number
+          user_id_param: string
+          vote_id_param: number
+        }
+        Returns: Json
+      }
       deduct_star_candy: {
-        Args: { p_user_id: string; p_amount: number; p_vote_pick_id: number }
+        Args: { p_amount: number; p_user_id: string; p_vote_pick_id: number }
         Returns: undefined
       }
       deduct_star_candy_bonus: {
         Args: {
-          p_user_id: string
           p_amount: number
           p_bonus_id: number
+          p_user_id: string
           p_vote_pick_id: number
         }
         Returns: undefined
       }
       expire_star_candy_bonus: {
-        Args: { expiry_time?: string }
+        Args: Record<PropertyKey, never> | { expiry_time?: string }
         Returns: {
-          expired_count: number
-          expired_amount: number
           affected_users: number
+          updated_amount: number
+          updated_count: number
         }[]
+      }
+      get_artist_request_count: {
+        Args: { artist_id_param: number; vote_id_param: number }
+        Returns: number
       }
       get_current_splash_image: {
         Args: Record<PropertyKey, never>
@@ -3904,6 +4568,8 @@ export type Database = {
           id: number
           image: Json | null
           link: string | null
+          link_target_id: number | null
+          link_type: string | null
           location: string | null
           order: number | null
           start_at: string | null
@@ -3913,18 +4579,71 @@ export type Database = {
         }[]
       }
       get_expiring_bonus_prediction: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { uri: string }
         Returns: {
-          prediction_month: string
           expiring_amount: number
+          prediction_month: string
         }[]
       }
-      get_vote_and_user_info: {
-        Args: { p_vote_id: number; p_user_id: number }
+      get_expiring_bonus_prediction_v2: {
+        Args: { uri?: string }
         Returns: {
-          stop_at: string
+          prediction_month: string
+          sum: number
+        }[]
+      }
+      get_user_activity_unified: {
+        Args: { p_limit: number; p_offset: number; p_user_id: string }
+        Returns: {
+          ad_network: string
+          ad_reward_name: string
+          ad_source: string
+          amount: number
+          artist_name: Json
+          bonus_gain: number
+          created_at: string
+          receipt_environment: string
+          receipt_platform: string
+          receipt_product_id: string
+          receipt_status: string
+          source: string
+          star_gain: number
+          subtype: string
+          transaction_id: string
+          unified_id: string
+          user_id: string
+          vote_item_title: Json
+          vote_pick_id: number
+          vote_title: Json
+        }[]
+      }
+      get_user_activity_unified_count: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      get_user_profile: {
+        Args: { user_id: string }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          id: string
+          is_admin: boolean
+          nickname: string
+          star_candy: number
+          updated_at: string
+        }[]
+      }
+      get_user_qna_stats: {
+        Args: { user_id_param: string }
+        Returns: Json
+      }
+      get_vote_and_user_info: {
+        Args: { p_user_id: number; p_vote_id: number }
+        Returns: {
           star_candy: number
           star_candy_bonus: number
+          stop_at: string
           total_bonus_remain: number
         }[]
       }
@@ -3948,18 +4667,26 @@ export type Database = {
         Args: { "": unknown }
         Returns: unknown
       }
+      has_user_requested_artist: {
+        Args: {
+          artist_id_param: number
+          user_id_param: string
+          vote_id_param: number
+        }
+        Returns: boolean
+      }
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_delete: {
         Args:
+          | { content: string; content_type: string; uri: string }
           | { uri: string }
-          | { uri: string; content: string; content_type: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_get: {
-        Args: { uri: string } | { uri: string; data: Json }
+        Args: { data: Json; uri: string } | { uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_head: {
@@ -3978,17 +4705,17 @@ export type Database = {
         }[]
       }
       http_patch: {
-        Args: { uri: string; content: string; content_type: string }
+        Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_post: {
         Args:
-          | { uri: string; content: string; content_type: string }
-          | { uri: string; data: Json }
+          | { content: string; content_type: string; uri: string }
+          | { data: Json; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_put: {
-        Args: { uri: string; content: string; content_type: string }
+        Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
       }
       http_reset_curlopt: {
@@ -4000,7 +4727,7 @@ export type Database = {
         Returns: boolean
       }
       increment_user_star_candy_bonus: {
-        Args: { p_user_id: string; p_amount: number }
+        Args: { p_amount: number; p_user_id: string }
         Returns: undefined
       }
       increment_view_count: {
@@ -4008,6 +4735,14 @@ export type Database = {
         Returns: undefined
       }
       is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_admin_or_super: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_super_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
@@ -4021,10 +4756,10 @@ export type Database = {
       }
       perform_pic_vote_transaction: {
         Args: {
-          p_vote_id: number
-          p_vote_item_id: number
           p_amount: number
           p_user_id: string
+          p_vote_id: number
+          p_vote_item_id: number
         }
         Returns: Json
       }
@@ -4038,36 +4773,50 @@ export type Database = {
       }
       perform_vote_transaction: {
         Args: {
-          p_vote_id: number
-          p_vote_item_id: number
           p_amount: number
           p_user_id: string
+          p_vote_id: number
+          p_vote_item_id: number
         }
         Returns: Json
       }
       process_compatibility_payment: {
         Args: {
-          p_user_id: string
           p_compatibility_id: string
           p_star_candy_amount: number
+          p_user_id: string
         }
         Returns: undefined
       }
       process_vote: {
         Args: {
+          p_amount: number
+          p_total_bonus_remain: number
+          p_user_id: string
           p_vote_id: number
           p_vote_item_id: number
-          p_amount: number
-          p_user_id: string
-          p_total_bonus_remain: number
         }
         Returns: {
           vote_total: number
         }[]
       }
+      restore_qna: {
+        Args: { qna_id_param: number }
+        Returns: undefined
+      }
       rollback_transaction: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      search_artists: {
+        Args: { search_term?: string }
+        Returns: {
+          artist_group: Json
+          birth_date: string
+          id: number
+          image: Json
+          name: Json
+        }[]
       }
       set_limit: {
         Args: { "": number }
@@ -4081,20 +4830,42 @@ export type Database = {
         Args: { "": string }
         Returns: string[]
       }
+      soft_delete_qna: {
+        Args: { qna_id_param: number }
+        Returns: undefined
+      }
       test_expire_star_candy_bonus: {
         Args: { test_datetime: string }
         Returns: {
-          operation: string
           details: Json
+          operation: string
         }[]
+      }
+      test_realtime_update: {
+        Args: { vote_id_param: number }
+        Returns: string
       }
       text_to_bytea: {
         Args: { data: string }
         Returns: string
       }
+      update_vote_item_and_vote_totals: {
+        Args: { p_vote_item_id: number }
+        Returns: undefined
+      }
+      update_vote_totals_batch_bak: {
+        Args: { p_vote_ids: number[] }
+        Returns: undefined
+      }
       urlencode: {
         Args: { data: Json } | { string: string } | { string: string }
         Returns: string
+      }
+      use_star_candy_bonus: {
+        Args:
+          | { p_amount: number; p_user_id: string }
+          | { p_amount: number; p_user_id: string; p_vote_pick_id: number }
+        Returns: number
       }
     }
     Enums: {
@@ -4146,21 +4917,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -4178,14 +4953,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -4201,14 +4978,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -4224,14 +5003,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -4239,14 +5020,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never

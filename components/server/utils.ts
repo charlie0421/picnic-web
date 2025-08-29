@@ -153,7 +153,7 @@ export function sortVoteResults(items: VoteItem[]): VoteResult[] {
   return items
     .map(item => ({
       voteItemId: item.id,
-      title: item.artist?.name ? String(item.artist.name) : `항목 ${item.id}`,
+      title: (item as any)?.artist?.name ? String((item as any).artist.name) : `항목 ${item.id}`,
       voteCount: item.vote_total || 0,
       percentage: calculateVotePercentage(item, totalVotes),
       rank: 0

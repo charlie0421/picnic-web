@@ -878,6 +878,8 @@ export const useVoteStore = create<VoteStore>()(
             artist_id: result.artistId,
             group_id: result.groupId,
             vote_total: result.voteTotal,
+            star_candy_bonus_total: 0,
+            star_candy_total: 0,
             artist: result.artist ? {
               id: result.artist.id,
               birth_date: null,

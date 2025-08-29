@@ -213,9 +213,9 @@ export const VoteCard = React.memo(
                 />
             </div>
 
-            {vote.voteReward && vote.voteReward.length > 0 && (
+            {((vote as any)?.voteReward?.length || 0) > 0 && (
               <div className='mt-2 space-y-2'>
-                {vote.voteReward.map((reward) => (
+                {(vote as any).voteReward.map((reward: any) => (
                   <NavigationLink
                     key={reward.reward?.id}
                     href={`/rewards/${reward.reward?.id}`}

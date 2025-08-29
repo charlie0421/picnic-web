@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useOptimistic, Fragment, startTransition } from 'react';
-import { QnaThread, QnaMessage, QnaAttachment } from '@/types/interfaces';
+import { QnaThreads as QnaThread, QnaMessages as QnaMessage, QnaAttachments as QnaAttachment } from '@/types/interfaces';
+type QnaThreadWithRelations = QnaThread & { qna_messages?: UiQnaMessage[] };
 // import { createQnaMessageAction } from '@/app/actions/qna';
 // import { useFormStatus } from 'react-dom';
 import Image from 'next/image';
@@ -9,11 +10,13 @@ import { useTranslations } from '@/hooks/useTranslations';
 import { useRouter } from 'next/navigation';
 
 interface QnaDetailClientProps {
-  thread: QnaThread;
+  thread: QnaThreadWithRelations;
 }
 
 interface UiQnaMessage extends QnaMessage {
-    client_video_url?: string;
+  client_video_url?: string;
+  qna_attachments?: QnaAttachment[];
+  user_profiles?: { nickname?: string; avatar_url?: string };
 }
 
 const formatDate = (dateString: string) => {
@@ -69,7 +72,7 @@ const generateVideoThumbnail = (file: File): Promise<string> => {
   };
 
 export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
-  const [messages, setMessages] = useState<UiQnaMessage[]>(thread.qna_messages || []);
+  const [messages, setMessages] = useState<UiQnaMessage[]>((thread.qna_messages as UiQnaMessage[]) || []);
   const [optimisticMessages, addOptimisticMessage] = useOptimistic<UiQnaMessage[], UiQnaMessage>(
     messages,
     (state, newMessage) => {
@@ -87,7 +90,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { t } = useTranslations();
+  const { t, tDynamic } = useTranslations();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -100,6 +103,26 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
       >
         {isSubmitting ? '...' : t('send_button')}
       </button>
+    );
+  }
+
+  function ExpandableText({ text, maxChars = 200 }: { text: string; maxChars?: number }) {
+    const [expanded, setExpanded] = useState(false);
+    const isLong = (text || '').length > maxChars;
+    const display = expanded || !isLong ? text : (text || '').slice(0, maxChars) + '…';
+    return (
+      <div className="text-sm whitespace-pre-wrap break-words">
+        {display}
+        {isLong && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className={`ml-2 underline ${thread?.status === 'OPEN' ? 'text-white/90' : 'text-primary-700'}`}
+          >
+            {expanded ? tDynamic('dialog_button_close', '닫기') : tDynamic('post_comment_content_more', '더보기')}
+          </button>
+        )}
+      </div>
     );
   }
 
@@ -212,7 +235,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
     }
 
     const content = formData.get('content') as string;
-    const optimisticMessage: UiQnaMessage = {
+    const optimisticMessage = {
         id: Math.random(),
         thread_id: thread.id,
         user_id: '', // Placeholder
@@ -221,7 +244,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         is_admin_message: false,
         qna_attachments: [],
         user_profiles: { nickname: 'You', avatar_url: '' },
-    };
+    } as UiQnaMessage;
 
     if (attachments.length > 0) {
       const optimisticAttachments: QnaAttachment[] = attachments.map((file, idx) => {
@@ -301,7 +324,8 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   const renderMessagesWithDateDividers = () => {
     let lastDate: string | null = null;
     return (optimisticMessages as UiQnaMessage[]).map((msg) => {
-      const currentDate = new Date(msg.created_at).toDateString();
+      const createdAtStr = msg.created_at || new Date().toISOString();
+      const currentDate = new Date(createdAtStr).toDateString();
       const showDivider = currentDate !== lastDate;
       lastDate = currentDate;
 
@@ -313,7 +337,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
           {showDivider && (
             <div className="text-center my-4">
               <span className="text-xs text-sub-700 bg-sub-100 px-2 py-1 rounded-full">
-                {formatDate(msg.created_at)}
+                {formatDate(createdAtStr)}
               </span>
             </div>
           )}
@@ -414,10 +438,10 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   })}
                 </div>
               )}
-              <p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+              <ExpandableText text={msg.content || ''} />
             </div>
             <span className={`text-xs text-gray-400 pt-1`}>
-              {formatTime(msg.created_at)}
+              {formatTime(createdAtStr)}
             </span>
           </div>
         </Fragment>

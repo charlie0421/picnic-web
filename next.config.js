@@ -67,7 +67,9 @@ const nextConfig = {
   experimental: {
     // 서버 컴포넌트에서 React 18 스트리밍 활성화
     serverActions: {
-      enabled: true
+      enabled: true,
+      // 첨부파일 업로드를 위한 서버 액션 본문 크기 제한 상향 (기본 1MB)
+      bodySizeLimit: '25mb'
     },
     // 페이지당 개별 CSS 대신 앱 전체 CSS 번들링
     optimizeCss: true,

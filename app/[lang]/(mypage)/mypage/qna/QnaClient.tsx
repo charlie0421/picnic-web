@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { QnaThread, Pagination } from '@/types/interfaces';
+import { QnaThreads as QnaThread } from '@/types/interfaces';
+import type { Pagination } from '@/types/mypage-common';
 import { PostgrestError } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useTranslations } from '@/hooks/useTranslations';
@@ -32,8 +33,9 @@ export default function QnaClient({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (dateString: string | null) => {
+    const safe = dateString ?? new Date().toISOString();
+    const date = new Date(safe);
     const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');

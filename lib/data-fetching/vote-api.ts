@@ -135,7 +135,7 @@ export async function fetchVoteDetail(
 
     return {
       vote,
-      voteItems: vote.voteItem || [],
+      voteItems: ((vote as any)?.vote_item as VoteItem[]) || ((vote as any)?.voteItem as VoteItem[]) || [],
     };
   } catch (error) {
     console.error('Vote detail fetch error:', error);

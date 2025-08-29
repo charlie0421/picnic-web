@@ -11,8 +11,9 @@ interface UpcomingVoteItemsProps {
 export const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
   vote,
 }) => {
-  // 두 속성 모두 확인하여 유효한 항목 사용 (voteItem을 우선)
-  const effectiveItems = vote.voteItem || [];
+  // 스키마 차이를 흡수: vote_item 또는 voteItem 형태를 모두 허용
+  const effectiveItems: VoteItem[] =
+    ((vote as any)?.vote_item as VoteItem[]) || ((vote as any)?.voteItem as VoteItem[]) || [];
 
   if (effectiveItems.length === 0) {
     return null;

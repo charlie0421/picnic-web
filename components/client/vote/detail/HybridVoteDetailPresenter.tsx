@@ -110,8 +110,9 @@ export function HybridVoteDetailPresenter({
     return initialItems.map(item => ({
       ...item,
       // 호환성을 위한 추가 필드들 (GridView, VoteRankCard에서 사용)
-      name: item.artist?.name || 'Unknown',
-      image_url: item.artist?.image || '',
+      // artist 필드가 스키마에 없을 수 있으므로 optional 체이닝 사용, 없으면 기본값
+      name: (item as any).artist?.name || 'Unknown',
+      image_url: (item as any).artist?.image || '',
       total_votes: item.vote_total || 0,
     }));
   });
@@ -556,6 +557,8 @@ export function HybridVoteDetailPresenter({
           group_id: item.artist?.group?.id || 0,
           updated_at: new Date().toISOString(),
           vote_id: vote.id,
+          star_candy_bonus_total: 0,
+          star_candy_total: 0,
           // 호환성을 위한 추가 필드들 (기존 컴포넌트에서 사용)
           name: item.artist?.name,
           image_url: item.artist?.image,
@@ -1075,8 +1078,8 @@ export function HybridVoteDetailPresenter({
     // 검색 필터링 (디바운싱된 검색어 사용)
     const filtered = debouncedSearchQuery
       ? ranked.filter(item => {
-          const artistName = item.artist?.name
-            ? getLocalizedString(item.artist.name, currentLanguage)?.toLowerCase() || ''
+          const artistName = (item as any).artist?.name
+            ? getLocalizedString((item as any).artist.name, currentLanguage)?.toLowerCase() || ''
             : '';
           const query = debouncedSearchQuery.toLowerCase();
           return artistName.includes(query);
@@ -1170,7 +1173,7 @@ export function HybridVoteDetailPresenter({
         addNotification({
           type: 'success',
           title: '투표 완료',
-          message: `${getLocalizedString(voteCandidate.artist?.name || '', currentLanguage)}에게 ${voteAmount}표 투표했습니다.`,
+          message: `${getLocalizedString(((voteCandidate as any)?.artist?.name) || '', currentLanguage)}에게 ${voteAmount}표 투표했습니다.`,
           duration: 3000,
         });
       } catch (error) {
@@ -1567,12 +1570,12 @@ export function HybridVoteDetailPresenter({
       <div className='container mx-auto px-4 pb-8'>
         <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-3 md:gap-4'>
           {filteredItems.map((item, index) => {
-            const artistName = item.artist?.name
-              ? getLocalizedString(item.artist.name, currentLanguage) ||
+            const artistName = (item as any).artist?.name
+              ? getLocalizedString((item as any).artist.name, currentLanguage) ||
                 '아티스트'
               : '아티스트';
-            const imageUrl = item.artist?.image
-              ? getCdnImageUrl(item.artist.image)
+            const imageUrl = (item as any).artist?.image
+              ? getCdnImageUrl((item as any).artist.image)
               : '/images/default-artist.png';
 
             return (
@@ -1688,10 +1691,10 @@ export function HybridVoteDetailPresenter({
                         {artistName}
                       </h3>
 
-                      {item.artist?.artistGroup?.name && (
+                      {(item as any).artist?.artistGroup?.name && (
                         <p className='text-xs text-gray-500 mb-0.5 line-clamp-1 group-hover:text-gray-700 transition-colors'>
                           {getLocalizedString(
-                            item.artist.artistGroup.name,
+                            (item as any).artist.artistGroup.name,
                             currentLanguage,
                           )}
                         </p>
@@ -1765,9 +1768,9 @@ export function HybridVoteDetailPresenter({
           voteId={vote.id}
           voteItemId={voteCandidate?.id || 0}
           artistName={
-            voteCandidate?.artist?.name
+            (voteCandidate as any)?.artist?.name
               ? getLocalizedString(
-                  voteCandidate.artist.name,
+                  (voteCandidate as any).artist.name,
                   currentLanguage,
                 ) || ''
               : ''

@@ -187,16 +187,17 @@ export function VoteResults({
       {/* 결과 목록 */}
       <div className="space-y-4">
         {sortedResults.map((item) => {
-          const artistName = item.artist
-            ? getLocalizedString(item.artist.name, currentLanguage) || '아티스트'
+          const a = (item as any).artist;
+          const artistName = a
+            ? getLocalizedString(a.name, currentLanguage) || '아티스트'
             : '아티스트';
           
-          const artistGroup = item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)
-            ? getLocalizedString(item.artist.artistGroup.name, currentLanguage)
+          const artistGroup = a?.artistGroup?.name && hasValidLocalizedString(a.artistGroup.name)
+            ? getLocalizedString(a.artistGroup.name, currentLanguage)
             : null;
           
-          const imageUrl = item.artist?.image
-            ? getCdnImageUrl(item.artist.image)
+          const imageUrl = a?.image
+            ? getCdnImageUrl(a.image)
             : '/images/default-artist.png';
 
           const rankInfo = getRankingIcon(item.rank);

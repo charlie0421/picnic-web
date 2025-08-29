@@ -212,7 +212,7 @@ function VotePodiumCard({
   const { currentLocale, t, push } = useLocaleRouter();
 
   const topItems = useMemo(() => {
-    const items = (vote.voteItem as Array<VoteItem & { artist?: any }> | undefined) || [];
+    const items = (((vote as any).vote_item as Array<VoteItem & { artist?: any }>) || ((vote as any).voteItem as Array<VoteItem & { artist?: any }>)) || [];
     return [...items]
       .map((it) => ({
         ...it,
@@ -221,7 +221,7 @@ function VotePodiumCard({
       }))
       .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
       .slice(0, 3);
-  }, [vote.voteItem]);
+  }, [vote]);
 
   const handleClick = () => {
     if (onClick) return onClick();

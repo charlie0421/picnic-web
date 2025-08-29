@@ -41,6 +41,8 @@ export async function BannerListFetcher({ className }: BannerListFetcherProps = 
       end_at: banner.end_at,
       image: banner.image,
       link: banner.link,
+      link_target_id: (banner as any).link_target_id ?? null,
+      link_type: (banner as any).link_type ?? null,
       location: banner.location,
       order: banner.order,
       start_at: banner.start_at,

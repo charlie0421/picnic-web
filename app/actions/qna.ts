@@ -7,6 +7,10 @@ import { redirect } from 'next/navigation';
 export async function createQnaThreadAction(_: { error: string | null }, formData: FormData) {
   const title = formData.get('title') as string;
   const content = formData.get('content') as string;
+  const lang = (formData.get('lang') as string) || 'en';
+  const files = (formData.getAll('attachments') as File[]).filter(
+    (f) => f && typeof f === 'object' && 'size' in f && (f as File).size > 0
+  );
 
   if (!title.trim() || !content.trim()) {
     return { error: 'Title and content are required.' };
@@ -30,11 +34,15 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
     return { error: 'Failed to create a new Q&A thread.' };
   }
 
-  const { error: messageError } = await supabase.from('qna_messages').insert({
-    thread_id: threadData.id,
-    user_id: user.id,
-    content: content,
-  });
+  const { data: messageData, error: messageError } = await supabase
+    .from('qna_messages')
+    .insert({
+      thread_id: threadData.id,
+      user_id: user.id,
+      content: content,
+    })
+    .select()
+    .single();
 
   if (messageError) {
     console.error('Error creating initial message:', messageError);
@@ -43,8 +51,65 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
     return { error: 'Failed to create the initial message.' };
   }
 
-  revalidatePath('/mypage/qna');
-  redirect(`/mypage/qna/${threadData.id}`);
+  // Handle attachments for the initial message
+  if (files.length > 0 && messageData) {
+    for (const file of files) {
+      try {
+        const uuid = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
+        let ext = '';
+        const originalName = file.name || '';
+        const dotIndex = originalName.lastIndexOf('.');
+        if (dotIndex !== -1 && dotIndex < originalName.length - 1) {
+          ext = originalName.slice(dotIndex).toLowerCase();
+        } else if (file.type) {
+          const mime = file.type.toLowerCase();
+          if (mime === 'image/jpeg') ext = '.jpg';
+          else if (mime === 'image/png') ext = '.png';
+          else if (mime === 'image/gif') ext = '.gif';
+          else if (mime === 'video/mp4') ext = '.mp4';
+          else if (mime === 'video/quicktime') ext = '.mov';
+          else if (mime === 'image/webp') ext = '.webp';
+          else ext = '';
+        }
+
+        const safeFileName = `${uuid}${ext}`;
+        const filePath = `${user.id}/${threadData.id}/${safeFileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('qna_attachments')
+          .upload(filePath, file, {
+            contentType: file.type || undefined,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('Error uploading initial attachment:', uploadError);
+          return { error: 'Failed to upload attachment.' };
+        }
+
+        const { error: attachmentError } = await supabase
+          .from('qna_attachments')
+          .insert({
+            message_id: messageData.id,
+            file_name: originalName || safeFileName,
+            file_path: filePath,
+            file_type: file.type,
+            file_size: file.size,
+          });
+
+        if (attachmentError) {
+          console.error('Error saving initial attachment metadata:', attachmentError);
+          return { error: 'Failed to save attachment metadata.' };
+        }
+      } catch (e) {
+        console.error('Unexpected error while handling initial attachments:', e);
+        return { error: 'Failed to process attachments.' };
+      }
+    }
+  }
+
+  revalidatePath(`/${lang}/mypage/qna`);
+  redirect(`/${lang}/mypage/qna/${threadData.id}`);
 }
 
 export async function createQnaMessageAction(formData: FormData) {
