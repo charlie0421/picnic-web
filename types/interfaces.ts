@@ -591,6 +591,18 @@ export interface FortuneTellingI18n {
   year: number
 }
 
+export interface FunctionRequestLog {
+  code: number | null
+  function_name: string
+  id: number
+  ip: string | null
+  meta: Json | null
+  ok: boolean | null
+  reason: string | null
+  ts: string
+  user_id: string | null
+}
+
 export interface Gallery {
   celeb_id: number
   cover: string | null

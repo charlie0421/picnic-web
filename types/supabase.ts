@@ -2019,6 +2019,42 @@ export type Database = {
           },
         ]
       }
+      function_request_log: {
+        Row: {
+          code: number | null
+          function_name: string
+          id: number
+          ip: string | null
+          meta: Json | null
+          ok: boolean | null
+          reason: string | null
+          ts: string
+          user_id: string | null
+        }
+        Insert: {
+          code?: number | null
+          function_name: string
+          id?: number
+          ip?: string | null
+          meta?: Json | null
+          ok?: boolean | null
+          reason?: string | null
+          ts?: string
+          user_id?: string | null
+        }
+        Update: {
+          code?: number | null
+          function_name?: string
+          id?: number
+          ip?: string | null
+          meta?: Json | null
+          ok?: boolean | null
+          reason?: string | null
+          ts?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       gallery: {
         Row: {
           celeb_id: number

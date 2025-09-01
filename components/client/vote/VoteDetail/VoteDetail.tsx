@@ -9,6 +9,7 @@ const VoteDetail = ({ voteData }: { voteData: any }) => {
 
   // 상태 전환(예정→진행, 진행→마감) 시점에 페이지 자동 새로고침
   const reloadTimerRef = useRef<number | null>(null);
+  const nextTransitionTsRef = useRef<number | null>(null);
   useEffect(() => {
     const now = Date.now();
     let nextTimestamp: number | null = null;
@@ -32,17 +33,29 @@ const VoteDetail = ({ voteData }: { voteData: any }) => {
     }
 
     if (nextTimestamp !== null) {
+      nextTransitionTsRef.current = nextTimestamp;
       const delay = Math.max(0, nextTimestamp - Date.now());
       reloadTimerRef.current = window.setTimeout(() => {
         window.location.reload();
       }, delay);
     }
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const ts = nextTransitionTsRef.current;
+        if (ts !== null && Date.now() >= ts) {
+          window.location.reload();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       if (reloadTimerRef.current) {
         window.clearTimeout(reloadTimerRef.current);
         reloadTimerRef.current = null;
       }
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [vote?.start_at, vote?.stop_at]);
 

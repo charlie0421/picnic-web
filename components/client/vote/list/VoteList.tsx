@@ -56,6 +56,7 @@ export function VoteList({
 
   // 상태 전환(예정→진행, 진행→마감) 시점에 페이지 자동 새로고침
   const reloadTimerRef = useRef<number | null>(null);
+  const nextTransitionTsRef = useRef<number | null>(null);
   useEffect(() => {
     // votes 기준으로 가장 가까운 다음 전환 시각 계산
     const now = Date.now();
@@ -85,17 +86,29 @@ export function VoteList({
 
     // 다음 전환 시각이 있으면 해당 시각에 새로고침 예약
     if (nextTimestamp !== null) {
+      nextTransitionTsRef.current = nextTimestamp;
       const delay = Math.max(0, nextTimestamp - Date.now());
       reloadTimerRef.current = window.setTimeout(() => {
         window.location.reload();
       }, delay);
     }
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const ts = nextTransitionTsRef.current;
+        if (ts !== null && Date.now() >= ts) {
+          window.location.reload();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       if (reloadTimerRef.current) {
         window.clearTimeout(reloadTimerRef.current);
         reloadTimerRef.current = null;
       }
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [votes]);
 
