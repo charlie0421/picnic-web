@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Vote } from '@/types/interfaces';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -29,6 +29,49 @@ export function VoteListPresenter({
   const router = useRouter();
   const { t } = useLocaleRouter();
   const [selectedStatus, setSelectedStatus] = useState<VoteStatus | 'all'>('all');
+
+  // 상태 전환(예정→진행, 진행→마감) 시점에 페이지 자동 새로고침
+  const reloadTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    const now = Date.now();
+    let nextTimestamp: number | null = null;
+
+    for (const v of votes) {
+      if (!v) continue;
+      if (v.start_at) {
+        const ts = new Date(v.start_at).getTime();
+        if (!Number.isNaN(ts) && ts > now) {
+          nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
+        }
+      }
+      if (v.stop_at) {
+        const ts = new Date(v.stop_at).getTime();
+        if (!Number.isNaN(ts) && ts > now) {
+          nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
+        }
+      }
+    }
+
+    if (reloadTimerRef.current) {
+      window.clearTimeout(reloadTimerRef.current);
+      reloadTimerRef.current = null;
+    }
+
+    if (nextTimestamp !== null) {
+      const delay = Math.max(0, nextTimestamp - Date.now());
+      reloadTimerRef.current = window.setTimeout(() => {
+        // 전체 페이지 새로고침
+        window.location.reload();
+      }, delay);
+    }
+
+    return () => {
+      if (reloadTimerRef.current) {
+        window.clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+    };
+  }, [votes]);
   
   const filteredVotes = votes.filter(vote => {
     if (selectedStatus === 'all') return true;
