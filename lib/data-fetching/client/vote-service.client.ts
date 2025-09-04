@@ -4,6 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { VOTE_STATUS } from '@/stores/voteFilterStore';
 
 // 기본 투표 테이블 조회 쿼리 (클라이언트에서도 동일하게 사용될 수 있음)
 const DEFAULT_VOTE_QUERY = `
@@ -80,13 +81,17 @@ function buildVoteQuery(
   let query = client
     .from("vote")
     .select(DEFAULT_VOTE_QUERY)
-    .is("deleted_at", null)
-    .lte("visible_at", new Date().toISOString());
+    .is("deleted_at", null);
 
-  // 상태 필터링
-  if (status) {
-    const now = new Date().toISOString();
+  // visible_at 필터: admin 상태가 아닌 경우에만 적용
+  const nowIso = new Date().toISOString();
+  if (status !== VOTE_STATUS.ADMIN) {
+    query = query.lte("visible_at", nowIso);
+  }
 
+  // 상태 필터링 (admin일 때는 상태 필터를 적용하지 않음)
+  if (status && status !== VOTE_STATUS.ADMIN) {
+    const now = nowIso;
     switch (status) {
       case "upcoming":
         query = query.gt("start_at", now);

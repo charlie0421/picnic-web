@@ -5,6 +5,7 @@ export const VOTE_STATUS = {
   UPCOMING: 'upcoming',
   ONGOING: 'ongoing',
   COMPLETED: 'completed',
+  ADMIN: 'admin',
 } as const;
 
 export const VOTE_AREAS = {

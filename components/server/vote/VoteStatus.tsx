@@ -12,11 +12,12 @@ export function VoteStatus({ status, className }: VoteStatusProps) {
   const colorClass = getVoteStatusColor(status);
   
   // Badge variant 매핑
-  const variantMap: Record<VoteStatusType, 'info' | 'success' | 'default'> = {
+  const variantMap: Record<VoteStatusType, 'info' | 'success' | 'default' | 'warning'> = {
     upcoming: 'info',
     ongoing: 'success',
-    completed: 'default'
-  };
+    completed: 'default',
+    admin: 'warning'
+  } as const;
   
   return (
     <Badge 

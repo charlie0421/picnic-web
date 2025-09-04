@@ -1,5 +1,6 @@
-import { VoteListPresenter, VoteFilterSection } from '@/components/client/vote/list';
+import { VoteFilterSection, VoteListCSR } from '@/components/client/vote/list';
 import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
+import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import { getVotes } from '@/lib/data-fetching/server/vote-service';
 
 interface VoteListFetcherProps {
@@ -26,12 +27,21 @@ export async function VoteListFetcher({
   area = VOTE_AREAS.ALL, 
   className 
 }: VoteListFetcherProps) {
-  const votes = await getVotes(status, area);
+  // Admin 보호: status가 admin인 경우 서버에서 관리자 권한 확인
+  const userContext = await getCurrentUserContext();
+  const isAdmin = (userContext as any)?.isAdmin === true;
+
+  const safeStatus = status === VOTE_STATUS.ADMIN
+    ? (isAdmin ? VOTE_STATUS.ADMIN : VOTE_STATUS.ONGOING)
+    : status;
+
+  // 초기에는 1페이지만 로드 (CSR 더보기/무한스크롤이 이어받음)
+  const votes = await getVotes(safeStatus, area, 1, 12);
   
   return (
     <div className={className}>
       <VoteFilterSection />
-      <VoteListPresenter votes={votes} />
+      <VoteListCSR initialVotes={votes} />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import { cache } from "react";
 import { createSupabaseServerClient, createPublicSupabaseServerClient } from '@/lib/supabase/server';
+import { VOTE_STATUS } from '@/stores/voteFilterStore';
+import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
 
@@ -80,13 +82,17 @@ function buildVoteQuery(
   let query = client
     .from("vote")
     .select(DEFAULT_VOTE_QUERY)
-    .is("deleted_at", null)
-    .lte("visible_at", new Date().toISOString());
+    .is("deleted_at", null);
 
-  // 상태 필터링
-  if (status) {
-    const now = new Date().toISOString();
+  // visible_at 필터: 관리자(admin) 상태가 아닌 경우에만 적용
+  const nowIso = new Date().toISOString();
+  if (status !== VOTE_STATUS.ADMIN) {
+    query = query.lte("visible_at", nowIso);
+  }
 
+  // 상태 필터링 (admin일 때는 상태 필터 자체를 적용하지 않음)
+  if (status && status !== VOTE_STATUS.ADMIN) {
+    const now = nowIso;
     switch (status) {
       case "upcoming":
         query = query.gt("start_at", now);
@@ -117,10 +123,22 @@ function buildVoteQuery(
 export const getVotes = cache(async (
   status?: string,
   area?: string,
+  page?: number,
+  limit?: number,
 ): Promise<Vote[]> => {
   try {
     const client = createPublicSupabaseServerClient();
-    const query = buildVoteQuery(client, status, area);
+    let query = buildVoteQuery(client, status, area);
+
+    // 페이지네이션이 지정된 경우에만 range 적용 (기본: 전체)
+    if (page && limit) {
+      const p = Math.max(1, page);
+      const l = Math.max(1, Math.min(50, limit));
+      const from = (p - 1) * l;
+      const to = from + l - 1;
+      query = query.range(from, to);
+    }
+
     const { data, error } = await query;
 
     if (error) {

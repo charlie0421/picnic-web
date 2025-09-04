@@ -5,19 +5,19 @@ import { createClient } from '@supabase/supabase-js'
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies()
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl) {
-    throw new Error("SUPABASE_URL is not set in environment variables.");
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set in environment variables.");
   }
-  if (!supabaseServiceRoleKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set in environment variables.");
+  if (!supabaseAnonKey) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not set in environment variables.");
   }
 
   return createServerClient(
     supabaseUrl,
-    supabaseServiceRoleKey,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
@@ -28,8 +28,6 @@ export async function createSupabaseServerClient() {
             cookieStore.set({ name, value, ...options })
           } catch (error) {
             // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
         remove(name: string, options: CookieOptions) {
@@ -37,8 +35,6 @@ export async function createSupabaseServerClient() {
             cookieStore.set({ name, value: '', ...options })
           } catch (error) {
             // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
       },

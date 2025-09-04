@@ -17,3 +17,4 @@ export { VoteSubmit } from './VoteSubmit';
 export { default as OptimizedRealtimeVoteResults } from './OptimizedRealtimeVoteResults';
 export * from './VoteFilterSection';
 export * from './VoteListPresenter';
+export { VoteListCSR } from './VoteListCSR';

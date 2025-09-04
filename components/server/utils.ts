@@ -1,7 +1,7 @@
 import { Vote, VoteItem } from '@/types/interfaces';
 import { formatVotePeriodWithTimeZone, type SupportedLanguage } from '@/utils/date';
 
-export type VoteStatus = 'upcoming' | 'ongoing' | 'completed';
+export type VoteStatus = 'upcoming' | 'ongoing' | 'completed' | 'admin';
 
 export interface VoteResult {
   voteItemId: number;
@@ -172,7 +172,8 @@ export function getVoteStatusLabel(status: VoteStatus): string {
   const labels: Record<VoteStatus, string> = {
     upcoming: '예정',
     ongoing: '진행중',
-    completed: '종료'
+    completed: '종료',
+    admin: 'Admin'
   };
   return labels[status];
 }
@@ -184,7 +185,8 @@ export function getVoteStatusColor(status: VoteStatus): string {
   const colors: Record<VoteStatus, string> = {
     upcoming: 'text-blue-600 bg-blue-100',
     ongoing: 'text-green-600 bg-green-100',
-    completed: 'text-gray-600 bg-gray-100'
+    completed: 'text-gray-600 bg-gray-100',
+    admin: 'text-purple-600 bg-purple-100'
   };
   return colors[status];
 }
