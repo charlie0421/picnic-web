@@ -16,7 +16,7 @@
     "prenext-dev": "npm run -s gen:types || true",
     "predev": "npm run -s gen:types || true",
     "build": "next build",
-    "prebuild": "npm run -s gen:types",
+    "prebuild": "sh -c 'if [ \"$VERCEL\" != \"1\" ]; then npm run -s gen:types; else echo Skip gen:types on Vercel; fi'",
     "start": "next start",
     "prestart": "npm run -s gen:types || true",
     "predev:3000": "npm run -s gen:types || true",
