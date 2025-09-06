@@ -1188,6 +1188,15 @@ export interface VoteItemRequestsBackup {
   vote_id: number
 }
 
+export interface VoteItemUpdateQueue {
+  created_at: string
+  delta_amount: number
+  delta_bonus: number
+  delta_star: number
+  id: number
+  vote_item_id: number
+}
+
 export interface VotePick {
   amount: number | null
   created_at: string | null

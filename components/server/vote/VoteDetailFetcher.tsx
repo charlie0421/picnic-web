@@ -2,7 +2,7 @@ import 'server-only';
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { Vote, VoteItem, Reward } from '@/types/interfaces';
-import { HybridVoteDetailPresenter } from '@/components/client/vote/detail/HybridVoteDetailPresenter';
+import VoteDetailPresenter from '@/components/client/vote/detail/VoteDetailPresenter';
 import { getVoteById, getVoteItems, getVoteRewards } from '@/utils/api/queries';
 
 export interface VoteDetailFetcherProps {
@@ -36,13 +36,13 @@ export default async function VoteDetailFetcher({ voteId, className }: VoteDetai
     };
 
     return (
-      <HybridVoteDetailPresenter
+      <VoteDetailPresenter
         vote={vote as Vote}
         initialItems={(vote?.vote_item || []) as unknown as VoteItem[]}
         rewards={(rewards || []) as Reward[]}
         className={className}
-        enableRealtime={true}
-        pollingInterval={10000}
+        enableRealtime={false}
+        pollingInterval={1000}
         maxRetries={3}
       />
     );

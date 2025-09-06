@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { HybridVoteDetailPresenter } from '@/components/client/vote/detail/HybridVoteDetailPresenter';
+import VoteDetailPresenter from '@/components/client/vote/detail/VoteDetailPresenter';
 
 // 이제 voteData는 항상 존재한다고 가정하고, 로딩 상태는 상위 Suspense에서 처리합니다.
 const VoteDetail = ({ voteData }: { voteData: any }) => {
@@ -60,7 +60,7 @@ const VoteDetail = ({ voteData }: { voteData: any }) => {
   }, [vote?.start_at, vote?.stop_at]);
 
   return (
-    <HybridVoteDetailPresenter
+    <VoteDetailPresenter
       vote={vote}
       initialItems={voteItems}
       rewards={rewards}

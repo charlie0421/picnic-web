@@ -4155,6 +4155,33 @@ export type Database = {
           },
         ]
       }
+      vote_item_update_queue: {
+        Row: {
+          created_at: string
+          delta_amount: number
+          delta_bonus: number
+          delta_star: number
+          id: number
+          vote_item_id: number
+        }
+        Insert: {
+          created_at?: string
+          delta_amount: number
+          delta_bonus: number
+          delta_star: number
+          id?: number
+          vote_item_id: number
+        }
+        Update: {
+          created_at?: string
+          delta_amount?: number
+          delta_bonus?: number
+          delta_star?: number
+          id?: number
+          vote_item_id?: number
+        }
+        Relationships: []
+      }
       vote_pick: {
         Row: {
           amount: number | null
@@ -4835,6 +4862,10 @@ export type Database = {
         Returns: {
           vote_total: number
         }[]
+      }
+      process_vote_item_queue: {
+        Args: { p_vote_item_id: number }
+        Returns: undefined
       }
       restore_qna: {
         Args: { qna_id_param: number }
