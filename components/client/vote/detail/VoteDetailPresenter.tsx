@@ -803,7 +803,7 @@ export function VoteDetailPresenter({
                           <div className='absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300'></div>
                         </div>
                       </div>
-                      <h3 className='font-bold text-xs mb-0.5 line-clamp-1 group-hover:text-blue-600 transition-colors'>{artistName}</h3>
+                      <h3 className='font-bold text-xs mb-0.5 line-clamp-1 group-hover:text-blue-600 transition-colors text-gray-900'>{artistName}</h3>
                       {(item as any).artist?.artistGroup?.name && (
                         <p className='text-xs text-gray-500 mb-0.5 line-clamp-1 group-hover:text-gray-700 transition-colors'>
                           {getLocalizedString((item as any).artist.artistGroup.name, currentLanguage)}

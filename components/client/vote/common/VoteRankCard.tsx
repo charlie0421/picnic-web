@@ -218,7 +218,7 @@ export function VoteRankCard({
         </div>
         <div className='flex flex-col items-center mt-2 min-h-0 w-full overflow-hidden'>
           <h3
-            className={`font-bold text-center ${sizeClasses.name} truncate w-full px-1 mb-1`}
+            className={`font-bold text-center ${sizeClasses.name} truncate w-full px-1 mb-1 text-gray-900`}
           >
             {artistName}
           </h3>
@@ -403,7 +403,7 @@ export function VoteRankCard({
       <div className='flex flex-col items-center mt-2 min-h-0 w-full overflow-hidden relative z-[1]'>
         {/* 아티스트 이름 */}
         <motion.h3
-          className={`font-bold text-center ${sizeClasses.name} truncate w-full px-1 mb-1`}
+          className={`font-bold text-center ${sizeClasses.name} truncate w-full px-1 mb-1 text-gray-900`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
