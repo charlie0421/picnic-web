@@ -117,7 +117,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className={`ml-2 underline ${thread?.status === 'OPEN' ? 'text-white/90' : 'text-primary-700'}`}
+            className={`ml-2 underline ${thread?.status !== 'RESOLVED' ? 'text-white/90' : 'text-primary-700'}`}
           >
             {expanded ? tDynamic('dialog_button_close', '닫기') : tDynamic('post_comment_content_more', '더보기')}
           </button>
@@ -480,20 +480,28 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
             </div>
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                thread.status === 'OPEN'
+                thread.status === 'RECEIVED'
                   ? 'bg-secondary/20 text-secondary-300'
-                  : 'bg-point/20 text-point-300'
+                  : thread.status === 'IN_PROGRESS'
+                    ? 'bg-primary/20 text-primary-300'
+                    : 'bg-point/20 text-point-300'
               }`}
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  thread.status === 'OPEN' ? 'bg-secondary' : 'bg-point'
+                  thread.status === 'RECEIVED'
+                    ? 'bg-secondary'
+                    : thread.status === 'IN_PROGRESS'
+                      ? 'bg-primary'
+                      : 'bg-point'
                 }`}
               />
               <span>
-                {thread.status === 'OPEN'
-                  ? t('qna.status.open', 'OPEN')
-                  : t('qna.status.closed', 'CLOSED')}
+                {thread.status === 'RECEIVED'
+                  ? t('qna.status.received', 'RECEIVED')
+                  : thread.status === 'IN_PROGRESS'
+                    ? t('qna.status.in_progress', 'IN_PROGRESS')
+                    : t('qna.status.resolved', 'RESOLVED')}
               </span>
             </div>
           </div>
@@ -505,7 +513,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         </main>
 
         <footer className="p-4 border-t bg-white rounded-b-lg">
-          {(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED' ? (
+          {thread.status === 'RESOLVED' ? (
             <div className="text-center text-gray-400 py-4">
               <p>{t('qna_thread_is_closed')}</p>
             </div>
@@ -543,7 +551,6 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   name="content"
                   placeholder={t('send_message_placeholder')}
                   className="flex-1 p-2 border rounded-lg focus:ring-primary focus:border-primary"
-                  disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'}
                 />
                 <input
                   type="file"
@@ -557,11 +564,10 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="p-2 border rounded-lg hover:bg-primary-50 bg-white border-primary-300 text-primary-800 font-medium flex items-center gap-1"
-                  disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'}
                 >
                   📎 {t('file_attachment')}
                 </button>
-                <SubmitButton disabled={(thread.status as 'OPEN' | 'CLOSED') === 'CLOSED'} isSubmitting={isSubmitting} />
+                <SubmitButton disabled={false} isSubmitting={isSubmitting} />
               </div>
             </form>
           )}

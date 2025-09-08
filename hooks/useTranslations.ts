@@ -21,45 +21,22 @@ export type TranslationKey =
   | 'file_attachment'
   | 'label_mypage_qna'
   | 'label_new_qna'
-  | 'label_qna_status_open'
-  | 'label_qna_status_closed'
+  | 'label_qna_status_received'
+  | 'label_qna_status_in_progress'
+  | 'label_qna_status_resolved'
   | 'label_no_qna'
   | 'common.back'
-  | 'qna.status.open'
-  | 'qna.status.closed'
+  | 'qna.status.received'
+  | 'qna.status.in_progress'
+  | 'qna.status.resolved'
   // ... (기존 키 생략)
   ;
 
-// 기본 번역문 (폴백용)
-const DEFAULT_TRANSLATIONS: Record<string, any> = {
-  // ... (기존 번역 생략)
-  login_terms_notice_html:
-    'By signing up, you agree to our <a href="/{termsUrl}" class="font-semibold text-blue-600 hover:underline">Terms of Service</a> and <a href="/{privacyUrl}" class="font-semibold text-blue-600 hover:underline">Privacy Policy</a>.',
-  admin_message: 'Admin',
-  send_button: 'Send',
-  qna_thread_is_closed: 'This inquiry is closed and you can no longer send messages.',
-  send_message_placeholder: 'Enter a message...',
-  file_attachment: 'Attach file',
-  label_mypage_qna: 'My Q&A',
-  label_new_qna: 'New Inquiry',
-  label_qna_status_open: 'Open',
-  label_qna_status_closed: 'Closed',
-  label_no_qna: 'No Q&A history.',
-  common: {
-    back: 'Back',
-  },
-  qna: {
-    status: {
-      open: 'OPEN',
-      closed: 'CLOSED',
-    },
-  },
-  // ... (기존 번역 생략)
-};
+// 기본 폴백 번역 제거: 리소스가 없을 경우 키(또는 호출 시 전달된 fallback)를 그대로 노출
 
 export function useTranslations() {
   const pathname = usePathname();
-  const [translations, setTranslations] = useState<Record<string, any>>(DEFAULT_TRANSLATIONS);
+  const [translations, setTranslations] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentLangRef = useRef<SupportedLanguage>('en');
@@ -112,20 +89,8 @@ export function useTranslations() {
         console.warn(`번역 파일 로드 실패 (${language}):`, error);
         loadingPromises.delete(cacheKey);
         
-        // 영어 폴백 시도
-        if (language !== 'en') {
-          try {
-            const fallbackModule = await import('../public/locales/en.json');
-            const fallbackTranslations = fallbackModule.default;
-            translationCache.set('en', fallbackTranslations);
-            return fallbackTranslations;
-          } catch (fallbackError) {
-            console.error('영어 폴백도 실패:', fallbackError);
-            return DEFAULT_TRANSLATIONS;
-          }
-        }
-        
-        return DEFAULT_TRANSLATIONS;
+        // 폴백 제거: 번역 파일이 없으면 빈 객체 반환
+        return {};
       }
     })();
 
@@ -154,19 +119,20 @@ export function useTranslations() {
       .catch((error) => {
         console.error('번역 로드 실패:', error);
         setError(error instanceof Error ? error.message : 'Translation load failed');
-        setTranslations(DEFAULT_TRANSLATIONS);
+        setTranslations({});
         setIsLoading(false);
       });
   }, [getCurrentLanguage, loadTranslations, isLoading]);
 
   // 타입 안전한 번역 함수
-  const t = useCallback((key: TranslationKey, fallback?: string): string => {
-    const value = get(translations, key) || (fallback !== undefined ? fallback : get(DEFAULT_TRANSLATIONS, key));
-    return value || key;
+  const t = useCallback((key: TranslationKey, _fallback?: string): string => {
+    const value = get(translations, key);
+    if (value !== undefined && value !== null && value !== '') return value;
+    return key; // fallback 미사용: 키가 없으면 키 그대로 노출
   }, [translations]);
   
   const tHtml = useCallback((key: TranslationKey, replacements: Record<string, string>): string => {
-    let rawText = get(translations, key) || get(DEFAULT_TRANSLATIONS, key) || key;
+    let rawText = get(translations, key) || key;
     for (const [placeholder, value] of Object.entries(replacements)) {
       rawText = rawText.replace(new RegExp(`{${placeholder}}`, 'g'), value);
     }
@@ -174,9 +140,9 @@ export function useTranslations() {
   }, [translations]);
 
   // 동적 키 지원 (기존 호환성)
-  const tDynamic = useCallback((key: string, fallback?: string): string => {
-    const value = get(translations, key) || fallback;
-    return value || key;
+  const tDynamic = useCallback((key: string, _fallback?: string): string => {
+    const value = get(translations, key);
+    return value || key; // fallback 미사용
   }, [translations]);
 
   return {

@@ -24,6 +24,8 @@ export type PortalEnum = "vote" | "pic";
 
 export type ProductType = "consumable" | "non-consumable" | "subscription";
 
+export type QnaStatus = "RECEIVED" | "IN_PROGRESS" | "RESOLVED";
+
 export type SpecificPlatformEnum = "iOS" | "Android";
 
 export type SupportedLanguageEnum = "ko" | "en" | "ja" | "zh";
@@ -869,7 +871,7 @@ export interface QnaMessages {
 export interface QnaThreads {
   created_at: string | null
   id: number
-  status: string | null
+  status: QnaStatus | null
   title: string
   updated_at: string | null
   user_id: string | null

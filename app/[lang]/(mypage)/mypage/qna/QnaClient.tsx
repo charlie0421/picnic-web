@@ -73,18 +73,30 @@ export default function QnaClient({
                   </div>
                   <div
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                      thread.status === 'OPEN'
+                      thread.status === 'RECEIVED'
                         ? 'bg-secondary/20 text-secondary-500'
-                        : 'bg-point/20 text-point-500'
+                        : thread.status === 'IN_PROGRESS'
+                          ? 'bg-primary/20 text-primary-600'
+                          : 'bg-point/20 text-point-500'
                     }`}
                   >
                     <span
                       className={`w-2 h-2 rounded-full ${
-                        thread.status === 'OPEN' ? 'bg-secondary' : 'bg-point'
+                        thread.status === 'RECEIVED'
+                          ? 'bg-secondary'
+                          : thread.status === 'IN_PROGRESS'
+                            ? 'bg-primary'
+                            : 'bg-point'
                       }`}
                     />
                     <span>
-                      {t(thread.status === 'OPEN' ? 'qna.status.open' : 'qna.status.closed')}
+                      {t(
+                        thread.status === 'RECEIVED'
+                          ? 'qna.status.received'
+                          : thread.status === 'IN_PROGRESS'
+                            ? 'qna.status.in_progress'
+                            : 'qna.status.resolved'
+                      )}
                     </span>
                   </div>
                 </div>

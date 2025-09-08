@@ -3028,7 +3028,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: number
-          status: string | null
+          status: Database["public"]["Enums"]["qna_status"] | null
           title: string
           updated_at: string | null
           user_id: string | null
@@ -3036,7 +3036,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: number
-          status?: string | null
+          status?: Database["public"]["Enums"]["qna_status"] | null
           title: string
           updated_at?: string | null
           user_id?: string | null
@@ -3044,7 +3044,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: number
-          status?: string | null
+          status?: Database["public"]["Enums"]["qna_status"] | null
           title?: string
           updated_at?: string | null
           user_id?: string | null
@@ -4541,6 +4541,10 @@ export type Database = {
       }
     }
     Functions: {
+      auto_resolve_stale_qna_threads: {
+        Args: { inactivity_days?: number }
+        Returns: undefined
+      }
       begin_transaction: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -4958,6 +4962,7 @@ export type Database = {
         | "WITHDRAW_ACCOUNT_EN"
       portal_enum: "vote" | "pic"
       product_type_enum: "consumable" | "non-consumable" | "subscription"
+      qna_status: "RECEIVED" | "IN_PROGRESS" | "RESOLVED"
       specific_platform_enum: "iOS" | "Android"
       supported_language: "ko" | "en" | "ja" | "zh"
       user_gender_enum: "male" | "female" | "other"
@@ -5128,6 +5133,7 @@ export const Constants = {
       ],
       portal_enum: ["vote", "pic"],
       product_type_enum: ["consumable", "non-consumable", "subscription"],
+      qna_status: ["RECEIVED", "IN_PROGRESS", "RESOLVED"],
       specific_platform_enum: ["iOS", "Android"],
       supported_language: ["ko", "en", "ja", "zh"],
       user_gender_enum: ["male", "female", "other"],
