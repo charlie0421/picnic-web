@@ -35,6 +35,7 @@
     "i18n:fix": "tsx scripts/fix-i18n-keys.ts && npm run -s i18n:check",
     "i18n:auto": "tsx scripts/auto-translate.ts && npm run -s i18n:fix",
     "i18n:restore": "tsx scripts/restore-i18n-from-backups.ts && npm run -s i18n:check",
+    "i18n:restore-full": "tsx scripts/restore-i18n-to-most-complete.ts && npm run -s i18n:check",
     "i18n:seed-en": "tsx scripts/seed-i18n-en.ts && npm run -s i18n:auto",
     "i18n:fill": "tsx scripts/fill-placeholders.ts && npm run -s i18n:check",
     "i18n:fix-dialog": "tsx scripts/fix-dialog-shortcuts.ts && npm run -s i18n:check"

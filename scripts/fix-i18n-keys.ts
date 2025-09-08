@@ -177,15 +177,8 @@ function main() {
     return map;
   };
 
-  // 1) 미사용 키 제거 (usedKeys에 없는 키 제거)
+  // 1) 미사용 키 제거 비활성화: 보존을 위해 삭제하지 않음
   let flattenedByLang: Record<string, Set<string>> = computeFlatByLang();
-  for (const { lang } of localeFiles) {
-    const toDelete = Array.from(flattenedByLang[lang]).filter((k) => !usedKeys.has(k));
-    if (toDelete.length === 0) continue;
-    const clone = deepClone(locales[lang]);
-    toDelete.forEach((k) => deleteByPath(clone, k));
-    locales[lang] = clone;
-  }
 
   // 삭제 이후 재계산
   flattenedByLang = computeFlatByLang();
