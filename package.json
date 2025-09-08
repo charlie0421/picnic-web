@@ -34,7 +34,8 @@
     "i18n:check": "tsx scripts/check-i18n-keys.ts",
     "i18n:fix": "tsx scripts/fix-i18n-keys.ts && npm run -s i18n:check",
     "i18n:auto": "tsx scripts/auto-translate.ts && npm run -s i18n:fix",
-    "i18n:restore": "tsx scripts/restore-i18n-from-backups.ts && npm run -s i18n:check"
+    "i18n:restore": "tsx scripts/restore-i18n-from-backups.ts && npm run -s i18n:check",
+    "i18n:seed-en": "tsx scripts/seed-i18n-en.ts && npm run -s i18n:auto"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
