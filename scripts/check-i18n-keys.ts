@@ -22,6 +22,8 @@ const srcDirs = [
   'stores',
   'utils',
   'contexts',
+  // config 내 JSON에서 i18nKey를 사용하는 항목도 스캔 대상에 포함
+  'config',
 ];
 
 const localesDir = path.join(projectRoot, 'public', 'locales');
@@ -76,6 +78,27 @@ function loadLocaleFiles(): LangFile[] {
 const T_CALL_REGEX = /\b(?:t|tHtml|tDynamic)\(\s*(?:"([^"\n\r]*)"|'([^'\n\r]*)'|`([^`\n\r]*)`)/g;
 const GET_TRANSLATIONS_REGEX = /\bget\(\s*translations\s*,\s*(?:"([^"\n\r]*)"|'([^'\n\r]*)'|`([^`\n\r]*)`)\s*\)/g;
 
+// config/*.json에서 i18nKey 값을 추출
+function extractKeysFromConfigJson(filePath: string): string[] {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const json = JSON.parse(raw);
+    const keys: string[] = [];
+    const walk = (v: any) => {
+      if (Array.isArray(v)) {
+        v.forEach(walk);
+      } else if (v && typeof v === 'object') {
+        if (typeof v.i18nKey === 'string' && v.i18nKey.trim()) keys.push(v.i18nKey.trim());
+        Object.values(v).forEach(walk);
+      }
+    };
+    walk(json);
+    return keys;
+  } catch {
+    return [];
+  }
+}
+
 function extractKeysFromFile(filePath: string): string[] {
   const content = fs.readFileSync(filePath, 'utf-8');
   const keys: string[] = [];
@@ -126,6 +149,12 @@ function main() {
     } catch {
       // ignore file read/parse errors
     }
+  }
+
+  // config JSON의 i18nKey 추가 추출 (예: config/menu.json)
+  const configJsonFiles = walk(path.join(projectRoot, 'config'), ['.json']);
+  for (const f of configJsonFiles) {
+    extractKeysFromConfigJson(f).forEach((k) => usedKeys.add(k));
   }
 
   // 누락 키: 코드에서 사용했지만 특정 언어 파일에 없음

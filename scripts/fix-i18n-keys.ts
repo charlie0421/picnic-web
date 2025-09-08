@@ -14,7 +14,7 @@ import path from 'path';
 
 const projectRoot = process.cwd();
 const localesDir = path.join(projectRoot, 'public', 'locales');
-const srcDirs = ['app', 'components', 'hooks', 'lib', 'stores', 'utils', 'contexts'];
+const srcDirs = ['app', 'components', 'hooks', 'lib', 'stores', 'utils', 'contexts', 'config'];
 const DEFAULT_LANG = 'en';
 
 function timestamp() {
@@ -116,6 +116,29 @@ function extractKeysFromFile(filePath: string): string[] {
   return keys;
 }
 
+// config/*.json에서 i18nKey 수집
+function extractKeysFromConfigJson(filePath: string): string[] {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    const json = JSON.parse(raw);
+    const keys: string[] = [];
+    const walk = (v: any) => {
+      if (Array.isArray(v)) {
+        v.forEach(walk);
+      } else if (v && typeof v === 'object') {
+        if (typeof (v as any).i18nKey === 'string' && (v as any).i18nKey.trim()) {
+          keys.push((v as any).i18nKey.trim());
+        }
+        Object.values(v).forEach(walk);
+      }
+    };
+    walk(json);
+    return keys;
+  } catch {
+    return [];
+  }
+}
+
 function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -140,6 +163,10 @@ function main() {
   for (const dir of srcDirs) tsFiles.push(...walk(path.join(projectRoot, dir), ['.ts', '.tsx']));
   const usedKeys = new Set<string>();
   for (const f of tsFiles) extractKeysFromFile(f).forEach((k) => usedKeys.add(k));
+
+  // config JSON i18nKey 포함 (예: config/menu.json)
+  const configJsonFiles = walk(path.join(projectRoot, 'config'), ['.json']);
+  for (const f of configJsonFiles) extractKeysFromConfigJson(f).forEach((k) => usedKeys.add(k));
 
   // 현재 키 맵 산출 함수
   const computeFlatByLang = () => {
