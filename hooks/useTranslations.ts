@@ -26,6 +26,7 @@ export type TranslationKey =
   | 'label_qna_status_resolved'
   | 'label_no_qna'
   | 'common.back'
+  | 'qna.notice_admin_silence_14days'
   | 'qna.status.received'
   | 'qna.status.in_progress'
   | 'qna.status.resolved'

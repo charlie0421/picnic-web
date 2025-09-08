@@ -94,6 +94,18 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 최근 메시지를 created_at 기준으로 산정하여 안내 문구 노출 여부 결정
+  const latestMessage: UiQnaMessage | undefined = (optimisticMessages as UiQnaMessage[]).reduce(
+    (latest, m) => {
+      if (!latest) return m;
+      const lt = latest?.created_at ? new Date(latest.created_at).getTime() : 0;
+      const ct = m?.created_at ? new Date(m.created_at).getTime() : 0;
+      return ct >= lt ? m : latest;
+    },
+    undefined as UiQnaMessage | undefined
+  );
+  const showAdminSilenceNotice = !!latestMessage?.is_admin_message && thread.status !== 'RESOLVED';
+
   function SubmitButton({ disabled, isSubmitting }: { disabled: boolean; isSubmitting: boolean }) {
     return (
       <button
@@ -451,9 +463,9 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
 
 
   return (
-    <>
-      <div className="flex flex-col h-[calc(100vh-200px)] bg-primary-50 rounded-lg shadow-inner">
-        <header className="p-4 bg-gradient-to-r from-primary-700 to-primary-900 text-white rounded-t-lg shadow-lg">
+    <> 
+      <div className="relative z-0 flex flex-col h-[calc(100vh-200px)] bg-primary-50 rounded-lg shadow-inner">
+        <header className="relative z-0 overflow-visible p-4 bg-gradient-to-r from-primary-700 to-primary-900 text-white rounded-t-lg shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
@@ -508,6 +520,11 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
+          {showAdminSilenceNotice && (
+            <div className="rounded-md bg-primary-50 border border-primary-200 text-primary-800 px-3 py-2 text-xs">
+              {t('qna.notice_admin_silence_14days')}
+            </div>
+          )}
           {renderMessagesWithDateDividers()}
           <div ref={messagesEndRef} />
         </main>
