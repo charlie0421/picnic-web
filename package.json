@@ -32,13 +32,15 @@
     "audit:report": "npm audit --audit-level=moderate",
     "security:check": "npm audit && echo '\\n✅ 보안 감사 완료. 위의 결과를 확인해주세요.'",
     "i18n:check": "tsx scripts/check-i18n-keys.ts",
-    "i18n:fix": "tsx scripts/fix-i18n-keys.ts && npm run -s i18n:check"
+    "i18n:fix": "tsx scripts/fix-i18n-keys.ts && npm run -s i18n:check",
+    "i18n:auto": "tsx scripts/auto-translate.ts && npm run -s i18n:fix"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
     "@humanwhocodes/config-array": "^0.13.0",
+    "@iamtraction/google-translate": "^2.0.1",
     "@paypal/paypal-js": "^8.2.0",
     "@paypal/react-paypal-js": "^8.8.3",
     "@portone/browser-sdk": "^0.0.23",
@@ -49,6 +51,7 @@
     "@supabase/supabase-js": "^2.49.4",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
+    "@vitalets/google-translate-api": "^9.2.1",
     "bufferutil": "^4.0.9",
     "critters": "^0.0.23",
     "date-fns": "^4.1.0",

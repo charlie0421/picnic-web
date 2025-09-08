@@ -500,7 +500,8 @@ export function StarCandyProductsPresenter({
           <li>
             • {currentLanguage === 'ko' ? '환불은 ' : 
                currentLanguage === 'ja' ? '返金については' :
-               currentLanguage === 'zh' ? '退款请参考' :
+               currentLanguage === 'zh-cn' ? '退款请参考' :
+               currentLanguage === 'zh-tw' ? '退款請參考' :
                currentLanguage === 'id' ? 'Untuk pengembalian dana, silakan lihat ' :
                'Please refer to the '}
             <Link 
@@ -511,7 +512,8 @@ export function StarCandyProductsPresenter({
             </Link>
             {currentLanguage === 'ko' ? '을 참고바랍니다.' : 
              currentLanguage === 'ja' ? 'をご확認ください。' :
-             currentLanguage === 'zh' ? '。' :
+             currentLanguage === 'zh-cn' ? '。' :
+             currentLanguage === 'zh-tw' ? '。' :
              currentLanguage === 'id' ? '.' :
              ' for refund policy.'}
           </li>

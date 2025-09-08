@@ -42,7 +42,18 @@ export interface InfiniteScrollState {
 }
 
 // 언어 타입
-export type SupportedLanguage = 'en' | 'ko' | 'ja' | 'zh' | 'id';
+export type SupportedLanguage =
+  | 'en'
+  | 'ko'
+  | 'ja'
+  | 'zh-cn'  // 중국어(간체)
+  | 'zh-tw'  // 중국어(번체)
+  | 'id'
+  | 'es'     // 스페인어
+  | 'bn'     // 뱅골어(방글라데시)
+  | 'tl'     // 타갈로그어(필리핀)
+  | 'th'     // 태국어
+  | 'vi';    // 베트남어
 
 // 공통 페이지 props
 export interface BaseMypageProps {

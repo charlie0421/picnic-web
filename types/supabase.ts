@@ -3028,7 +3028,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: number
-          status: Database["public"]["Enums"]["qna_status"] | null
+          status: string | null
           title: string
           updated_at: string | null
           user_id: string | null
@@ -3036,7 +3036,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: number
-          status?: Database["public"]["Enums"]["qna_status"] | null
+          status?: string | null
           title: string
           updated_at?: string | null
           user_id?: string | null
@@ -3044,7 +3044,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: number
-          status?: Database["public"]["Enums"]["qna_status"] | null
+          status?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string | null

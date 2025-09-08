@@ -11,10 +11,9 @@ const inter = Inter({ subsets: ['latin'] });
 
 // 정적 경로 생성을 위한 `generateStaticParams`
 export async function generateStaticParams() {
-  // 사용 가능한 언어 목록 (예: 'ko', 'en', 'ja')
-  // 실제 프로젝트에서는 이 목록을 동적으로 가져올 수 있습니다 (예: i18n 설정 파일)
-  const languages = ['ko', 'en', 'ja', 'id', 'th'];
-  return languages.map((lang) => ({ lang }));
+  // config/settings.ts의 SUPPORTED_LANGUAGES를 사용하여 정적 경로 생성
+  const { SUPPORTED_LANGUAGES } = await import('@/config/settings');
+  return SUPPORTED_LANGUAGES.map((lang) => ({ lang }));
 }
 
 // Next.js 15에서 요구하는 viewport 내보내기

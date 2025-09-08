@@ -26,8 +26,10 @@ const ExclusiveOpenBadge: React.FC<ExclusiveOpenBadgeProps> = ({ className = '' 
         return 'Currently in exclusive open beta. Official service coming soon.';
       case 'ja':
         return '現在は限定オープンベータ期間です。まもなく正式サービスを開始します。';
-      case 'zh':
+      case 'zh-cn':
         return '目前处于独家公测阶段。即将推出正式服务。';
+      case 'zh-tw':
+        return '目前處於獨家公測階段。正式服務即將推出。';
       case 'id':
         return 'Saat ini dalam periode beta terbuka eksklusif. Layanan resmi akan segera hadir.';
       default:

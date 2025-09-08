@@ -9,27 +9,38 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 function getPreferredLanguageFromHeader(acceptLanguage: string | null): string {
   if (!acceptLanguage) return DEFAULT_LANGUAGE;
 
-  // Accept-Language 헤더 파싱 (예: "ko-KR,ko;q=0.9,en;q=0.8")
-  const languages = acceptLanguage
+  // Accept-Language 예: "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+  const candidates = acceptLanguage
     .split(',')
-    .map(lang => {
-      const [code, qValue] = lang.trim().split(';q=');
-      const langCode = code.split('-')[0]; // ko-KR -> ko
+    .map((entry) => {
+      const [rawCode, qValue] = entry.trim().split(';q=');
       const quality = qValue ? parseFloat(qValue) : 1.0;
-      return { code: langCode, quality };
+      // 코드 정규화: 소문자, '_' → '-', 공백 제거
+      const code = rawCode.trim().replace('_', '-').toLowerCase();
+      return { code, quality };
     })
     .sort((a, b) => b.quality - a.quality);
 
-  // 지원하는 언어 중에서 가장 선호도가 높은 언어 찾기
-  for (const lang of languages) {
-    if (SUPPORTED_LANGUAGES.includes(lang.code as any)) {
-      console.log(`✅ 브라우저 언어에서 지원되는 언어 발견: ${lang.code}`);
-      return lang.code;
+  for (const { code } of candidates) {
+    // 1) 완전 일치 (예: 'zh-tw')
+    if (SUPPORTED_LANGUAGES.includes(code as any)) {
+      return code;
+    }
+    // 2) 지역 분리 후 특수 매핑: zh-tw 지원
+    const [primary, region] = code.split('-');
+    if (region) {
+      const normalized = `${primary}-${region}` as typeof SUPPORTED_LANGUAGES[number];
+      if (SUPPORTED_LANGUAGES.includes(normalized as any)) {
+        return normalized;
+      }
+    }
+    // 3) 기본 언어만 매칭 (예: es-ES → es)
+    if (SUPPORTED_LANGUAGES.includes(primary as any)) {
+      return primary;
     }
   }
 
-  console.log(`⚠️ 브라우저 언어에서 지원되는 언어 없음, 영어로 대체: en`);
-  return 'en';
+  return DEFAULT_LANGUAGE;
 }
 
 /**

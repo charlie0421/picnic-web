@@ -7,8 +7,14 @@ const languages = [
   { code: 'ko', name: '한국어', shortName: '한', flag: '🇰🇷' },
   { code: 'en', name: 'English', shortName: 'EN', flag: '🇺🇸' },
   { code: 'ja', name: '日本語', shortName: '日', flag: '🇯🇵' },
-  { code: 'zh', name: '中文', shortName: '中', flag: '🇨🇳' },
+  { code: 'zh-cn', name: '简体中文', shortName: '中(简)', flag: '🇨🇳' },
+  { code: 'zh-tw', name: '繁體中文', shortName: '中(繁)', flag: '🇹🇼' },
   { code: 'id', name: 'Bahasa Indonesia', shortName: 'ID', flag: '🇮🇩' },
+  { code: 'es', name: 'Español', shortName: 'ES', flag: '🇪🇸' },
+  { code: 'bn', name: 'বাংলা', shortName: 'BN', flag: '🇧🇩' },
+  { code: 'tl', name: 'Filipino', shortName: 'TL', flag: '🇵🇭' },
+  { code: 'th', name: 'ไทย', shortName: 'TH', flag: '🇹🇭' },
+  { code: 'vi', name: 'Tiếng Việt', shortName: 'VI', flag: '🇻🇳' },
 ];
 
 const LanguageSelector = () => {

@@ -871,7 +871,7 @@ export interface QnaMessages {
 export interface QnaThreads {
   created_at: string | null
   id: number
-  status: QnaStatus | null
+  status: string | null
   title: string
   updated_at: string | null
   user_id: string | null

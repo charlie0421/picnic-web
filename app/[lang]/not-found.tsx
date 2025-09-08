@@ -20,7 +20,8 @@ const languages = [
   { code: 'ko', name: '한국어', flag: '🇰🇷' },
   { code: 'en', name: 'English', flag: '🇺🇸' },
   { code: 'ja', name: '日本語', flag: '🇯🇵' },
-  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'zh-cn', name: '简体中文', flag: '🇨🇳' },
+  { code: 'zh-tw', name: '繁體中文', flag: '🇹🇼' },
   { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩' },
 ];
 

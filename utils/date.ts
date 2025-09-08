@@ -12,13 +12,19 @@ export interface RemainingTime {
 }
 
 // 타입 안전성을 위한 지원 언어 정의
-export type SupportedLanguage = 'ko' | 'en' | 'ja' | 'zh' | 'id';
+export type SupportedLanguage = 'ko' | 'en' | 'ja' | 'zh-cn' | 'id' | 'zh-tw' | 'es' | 'bn' | 'tl' | 'th' | 'vi';
 
 // 상수 분리로 성능 최적화
 const LOCALE_MAP = {
   ko: 'ko-KR',
   ja: 'ja-JP', 
-  zh: 'zh-CN',
+  'zh-cn': 'zh-CN',
+  'zh-tw': 'zh-TW',
+  es: 'es-ES',
+  bn: 'bn-BD',
+  tl: 'fil-PH',
+  th: 'th-TH',
+  vi: 'vi-VN',
   en: 'en-US',
   id: 'id-ID'
 } as const;
@@ -26,7 +32,13 @@ const LOCALE_MAP = {
 const DATE_FNS_LOCALE_MAP = {
   ko,
   ja,
-  zh: zhCN,
+  'zh-cn': zhCN,
+  'zh-tw': zhCN,
+  es: enUS,
+  bn: enUS,
+  tl: enUS,
+  th: enUS,
+  vi: enUS,
   en: enUS,
   id: id,
 } as const;
@@ -35,7 +47,13 @@ const DATE_FORMAT_MAP = {
   ko: 'yyyy년 M월 d일 HH:mm',
   en: 'MMM d, yyyy HH:mm',
   ja: 'yyyy年M月d日 HH:mm', 
-  zh: 'yyyy年M月d日 HH:mm',
+  'zh-cn': 'yyyy年M月d日 HH:mm',
+  'zh-tw': 'yyyy年M月d日 HH:mm',
+  es: 'd MMM yyyy HH:mm',
+  bn: 'd MMM yyyy HH:mm',
+  tl: 'd MMM yyyy HH:mm',
+  th: 'd MMM yyyy HH:mm',
+  vi: 'd MMM yyyy HH:mm',
   id: 'dd MMM yyyy HH:mm'
 } as const;
 
@@ -43,7 +61,13 @@ const SIMPLE_DATE_FORMAT_MAP = {
   ko: 'M월 d일 HH:mm',
   en: 'MMM d HH:mm', 
   ja: 'M月d日 HH:mm',
-  zh: 'M月d日 HH:mm',
+  'zh-cn': 'M月d日 HH:mm',
+  'zh-tw': 'M月d日 HH:mm',
+  es: 'd MMM HH:mm',
+  bn: 'd MMM HH:mm',
+  tl: 'd MMM HH:mm',
+  th: 'd MMM HH:mm',
+  vi: 'd MMM HH:mm',
   id: 'dd MMM HH:mm'
 } as const;
 
@@ -88,13 +112,23 @@ const RELATIVE_TIME_FORMATS = {
     today: '今日',
     yesterday: '昨日',
   },
-  zh: {
+  'zh-cn': {
     justNow: '刚刚',
     minutesAgo: (n: number) => `${n}分钟前`,
     hoursAgo: (n: number) => `${n}小时前`,
     daysAgo: (n: number) => `${n}天前`,
     weeksAgo: (n: number) => `${n}周前`,
     monthsAgo: (n: number) => `${n}个月前`,
+    today: '今天',
+    yesterday: '昨天',
+  },
+  'zh-tw': {
+    justNow: '剛剛',
+    minutesAgo: (n: number) => `${n}分鐘前`,
+    hoursAgo: (n: number) => `${n}小時前`,
+    daysAgo: (n: number) => `${n}天前`,
+    weeksAgo: (n: number) => `${n}週前`,
+    monthsAgo: (n: number) => `${n}個月前`,
     today: '今天',
     yesterday: '昨天',
   },

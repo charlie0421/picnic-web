@@ -15,8 +15,8 @@ export default async function RootLayout({
   const headersList = await headers()
   const pathname = headersList.get('x-pathname') || headersList.get('x-url') || ''
   
-  // 경로에서 언어 추출 (예: /ko, /en, /ja 등)
-  const languageMatch = pathname.match(/^\/([a-z]{2})(?:\/|$)/)
+  // 경로에서 언어 추출 (예: /ko, /en, /ja, /zh-tw 등)
+  const languageMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/)
   const currentLang = languageMatch ? languageMatch[1] : 'ko'
 
   return (

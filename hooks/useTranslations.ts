@@ -21,21 +21,15 @@ export function useTranslations() {
   const [error, setError] = useState<string | null>(null);
   const currentLangRef = useRef<SupportedLanguage>('en');
 
-  // 현재 언어 추출
+  // 현재 언어 추출 (2자 또는 2자-2자, settings의 지원 목록에 없는 경우 en)
   const getCurrentLanguage = useCallback((): SupportedLanguage => {
-    const lang = pathname.split('/')[1];
-    switch (lang) {
-      case 'ko':
-        return 'ko';
-      case 'ja':
-        return 'ja';
-      case 'zh':
-        return 'zh';
-      case 'id':
-        return 'id';
-      default:
-        return 'en';
-    }
+    const segment = pathname.split('/')[1] || '';
+    // 정규식: xx 또는 xx-xx
+    const match = segment.match(/^([a-z]{2}(?:-[a-z]{2})?)$/i);
+    const candidate = (match ? match[1] : 'en').toLowerCase();
+    // 런타임 안전: 지원 목록에 있으면 그대로, 없으면 en
+    const supported: SupportedLanguage[] = ['en','ko','ja','zh-cn','zh-tw','id','es','bn','tl','th','vi'];
+    return (supported.includes(candidate as SupportedLanguage) ? candidate : 'en') as SupportedLanguage;
   }, [pathname]);
 
   // 번역 파일 로드 함수

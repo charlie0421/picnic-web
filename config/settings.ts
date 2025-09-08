@@ -1,4 +1,16 @@
-export const SUPPORTED_LANGUAGES = ['en', 'ko', 'zh', 'ja', 'id'] as const;
+export const SUPPORTED_LANGUAGES = [
+  'en',
+  'ko',
+  'zh-cn',   // 중국어(간체)
+  'zh-tw',   // 중국어(번체, 대만)
+  'ja',
+  'id',
+  'es',      // 스페인어
+  'bn',      // 뱅골어(방글라데시)
+  'tl',      // 타갈로그어(필리핀)
+  'th',      // 태국어
+  'vi',      // 베트남어
+] as const;
 export const DEFAULT_LANGUAGE = 'en';
 
 export type Language = typeof SUPPORTED_LANGUAGES[number];

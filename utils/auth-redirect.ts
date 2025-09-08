@@ -94,7 +94,7 @@ function getCurrentLocale(): string {
             return match[1];
         }
         const pathname = window.location.pathname || '/';
-        const pathLocale = pathname.match(/^\/([a-z]{2})(?:\/|$)/i)?.[1];
+        const pathLocale = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/i)?.[1];
         if (pathLocale) return pathLocale;
     } catch {}
     return DEFAULT_LANGUAGE;

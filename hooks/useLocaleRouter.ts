@@ -37,7 +37,9 @@ export function useLocaleRouter(): LocaleRouterReturn {
   // 현재 경로에서 로케일 추출
   const extractLocaleFromPath = (path: string): { locale: Language; path: string } => {
     const segments = path.split('/').filter(Boolean);
-    const firstSegment = segments[0];
+    let firstSegment = segments[0];
+    // 레거시 호환: '/zh' → 'zh-cn'
+    if (firstSegment === 'zh') firstSegment = 'zh-cn';
     
     if (firstSegment && isValidLocale(firstSegment)) {
       return {
