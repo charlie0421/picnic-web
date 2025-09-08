@@ -10,28 +10,7 @@ const loadingPromises = new Map<string, Promise<Record<string, any>>>();
 
 import get from 'lodash.get';
 
-// 타입 안전한 번역 키 정의
-export type TranslationKey = 
-  // ... (기존 키 생략)
-  | 'login_terms_notice_html'
-  | 'admin_message'
-  | 'send_button'
-  | 'qna_thread_is_closed'
-  | 'send_message_placeholder'
-  | 'file_attachment'
-  | 'label_mypage_qna'
-  | 'label_new_qna'
-  | 'label_qna_status_received'
-  | 'label_qna_status_in_progress'
-  | 'label_qna_status_resolved'
-  | 'label_no_qna'
-  | 'common.back'
-  | 'qna.notice_admin_silence_14days'
-  | 'qna.status.received'
-  | 'qna.status.in_progress'
-  | 'qna.status.resolved'
-  // ... (기존 키 생략)
-  ;
+// 타입 안전 키 목록은 유지하지 않습니다. 존재하지 않는 키는 그대로 노출됩니다.
 
 // 기본 폴백 번역 제거: 리소스가 없을 경우 키(또는 호출 시 전달된 fallback)를 그대로 노출
 
@@ -125,14 +104,14 @@ export function useTranslations() {
       });
   }, [getCurrentLanguage, loadTranslations, isLoading]);
 
-  // 타입 안전한 번역 함수
-  const t = useCallback((key: TranslationKey, _fallback?: string): string => {
+  // 번역 함수 (문자열 키)
+  const t = useCallback((key: string, _fallback?: string): string => {
     const value = get(translations, key);
     if (value !== undefined && value !== null && value !== '') return value;
     return key; // fallback 미사용: 키가 없으면 키 그대로 노출
   }, [translations]);
   
-  const tHtml = useCallback((key: TranslationKey, replacements: Record<string, string>): string => {
+  const tHtml = useCallback((key: string, replacements: Record<string, string>): string => {
     let rawText = get(translations, key) || key;
     for (const [placeholder, value] of Object.entries(replacements)) {
       rawText = rawText.replace(new RegExp(`{${placeholder}}`, 'g'), value);
