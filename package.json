@@ -33,7 +33,8 @@
     "security:check": "npm audit && echo '\\n✅ 보안 감사 완료. 위의 결과를 확인해주세요.'",
     "i18n:check": "tsx scripts/check-i18n-keys.ts",
     "i18n:fix": "tsx scripts/fix-i18n-keys.ts && npm run -s i18n:check",
-    "i18n:auto": "tsx scripts/auto-translate.ts && npm run -s i18n:fix"
+    "i18n:auto": "tsx scripts/auto-translate.ts && npm run -s i18n:fix",
+    "i18n:restore": "tsx scripts/restore-i18n-from-backups.ts && npm run -s i18n:check"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
