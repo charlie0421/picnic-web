@@ -22,6 +22,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { AlertDialog } from './AlertDialog';
 import { LoginRequiredDialog } from './LoginRequiredDialog';
 import { useLanguageStore } from '@/stores/languageStore';
+import { redirectToLogin } from '@/utils/auth-redirect';
 
 // 다이얼로그 컨텍스트 생성
 const DialogContext = createContext<DialogContextType | null>(null);
@@ -187,8 +188,24 @@ export function DialogProvider({ children }: DialogProviderProps) {
       return new Promise((resolve) => {
         const handleLogin = (redirectUrl?: string) => {
           console.log('🔄 [DialogProvider] Login 버튼 클릭됨:', redirectUrl);
-          if (props.onLogin) {
-            props.onLogin(redirectUrl);
+          const before = typeof window !== 'undefined' ? window.location.href : '';
+          let handled = false;
+          try {
+            if (props.onLogin) {
+              props.onLogin(redirectUrl);
+              handled = true;
+            }
+          } catch (e) {
+            console.warn('[DialogProvider] custom onLogin 실행 중 오류:', e);
+          }
+          // 폴백: 위치가 바뀌지 않았으면 강제로 로그인 페이지로 이동
+          try {
+            const afterCall = typeof window !== 'undefined' ? window.location.href : '';
+            if (!handled || before === afterCall) {
+              redirectToLogin(redirectUrl);
+            }
+          } catch (e) {
+            console.warn('[DialogProvider] redirectToLogin 폴백 실패:', e);
           }
           closeDialog();
           resolve(true);

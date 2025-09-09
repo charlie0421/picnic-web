@@ -109,6 +109,7 @@ export function normalizeRedirectPath(input: string): string {
         if (!input || typeof input !== 'string') return '/';
 
         let url = input.trim();
+        try { console.log('[AuthRedirect.normalize] input=', input); } catch {}
 
         // 동일 출처의 절대 URL은 상대 경로로 축약
         if (typeof window !== 'undefined' && (url.startsWith('http://') || url.startsWith('https://'))) {
@@ -131,9 +132,15 @@ export function normalizeRedirectPath(input: string): string {
         // 선행 슬래시 보장
         if (!url.startsWith('/')) url = `/${url}`;
 
-        // 로케일 prefix 보장
+        // 로케일 prefix 처리: 비로컬라이즈드 상위 라우트는 접두사 추가하지 않음
+        const NON_LOCALIZED_ROOTS = [
+            '/vote',
+            '/auth',
+            '/callback',
+        ];
         const hasLocale = /^\/[a-z]{2}(?:\/|$)/i.test(url);
-        if (!hasLocale) {
+        const isNonLocalized = NON_LOCALIZED_ROOTS.some((root) => url === root || url.startsWith(root + '/'));
+        if (!hasLocale && !isNonLocalized) {
             const locale = getCurrentLocale();
             url = `/${locale}${url === '/' ? '' : url}`;
         }
@@ -141,6 +148,7 @@ export function normalizeRedirectPath(input: string): string {
         // 중복 슬래시 정리
         url = url.replace(/\/{2,}/g, '/');
 
+        try { console.log('[AuthRedirect.normalize] output=', url); } catch {}
         return url || '/';
     } catch {
         return '/';
@@ -208,16 +216,22 @@ export function getRedirectUrl(): string | null {
             return null;
         }
 
-        // sessionStorage 우선 확인
+        // sessionStorage 우선 확인 (신규 키)
         const sessionUrl = sessionStorage.getItem(REDIRECT_URL_KEY);
         if (sessionUrl && isValidRedirectUrl(sessionUrl)) {
             return sessionUrl;
         }
 
-        // localStorage 백업 확인
-        const localUrl = localStorage.getItem(LOGIN_REDIRECT_KEY);
-        if (localUrl && isValidRedirectUrl(localUrl)) {
-            return localUrl;
+        // localStorage에서 신규 키 우선 확인
+        const localNew = localStorage.getItem(REDIRECT_URL_KEY);
+        if (localNew && isValidRedirectUrl(localNew)) {
+            return localNew;
+        }
+
+        // 레거시 키(loginRedirectUrl)도 보조로 확인 (과거 저장값 호환)
+        const localLegacy = localStorage.getItem(LOGIN_REDIRECT_KEY);
+        if (localLegacy && isValidRedirectUrl(localLegacy)) {
+            return localLegacy;
         }
 
         return null;
@@ -234,6 +248,8 @@ export function clearRedirectUrl(): void {
     try {
         sessionStorage.removeItem(REDIRECT_URL_KEY);
         sessionStorage.removeItem(REDIRECT_TIMESTAMP_KEY);
+        // 신규 및 레거시 키 모두 제거
+        localStorage.removeItem(REDIRECT_URL_KEY);
         localStorage.removeItem(LOGIN_REDIRECT_KEY);
         localStorage.removeItem(REDIRECT_TIMESTAMP_KEY);
 
@@ -283,6 +299,7 @@ export function handlePostLoginRedirect(returnToParam?: string): string {
 
     // 4. 저장된 리다이렉트 URL 확인 (기존 유틸 저장값)
     let redirectUrl = getRedirectUrl();
+    try { console.log('[AuthRedirect] stored redirectUrl (pre-clear)=', redirectUrl); } catch {}
 
     // 저장된 URL 제거
     clearRedirectUrl();
@@ -304,18 +321,23 @@ export function handlePostLoginRedirect(returnToParam?: string): string {
 export function redirectToLogin(currentUrl?: string): void {
     if (typeof window === "undefined") return;
 
-    const urlToSave = currentUrl ||
-        window.location.pathname + window.location.search;
+    const urlToSave = currentUrl || (window.location.pathname + window.location.search);
+    try { console.log('[AuthRedirect.redirectToLogin] urlToSave=', urlToSave); } catch {}
 
     // 로그인 페이지나 인증 관련 페이지는 저장하지 않음
     if (!shouldSaveUrl(urlToSave)) {
         clearRedirectUrl();
     } else {
         saveRedirectUrl(urlToSave);
+        try { console.log('[AuthRedirect.redirectToLogin] saved redirectUrl'); } catch {}
     }
 
-    // 로그인 페이지로 이동
-    window.location.href = "/login";
+    // 현재 로케일을 기준으로 언어 프리픽스 포함한 로그인 경로 구성 + returnTo 쿼리 전달
+    const locale = getCurrentLocale();
+    const normalizedReturnTo = normalizeRedirectPath(urlToSave);
+    const loginPath = `/${locale}/login?returnTo=${encodeURIComponent(normalizedReturnTo)}`;
+    try { console.log('[AuthRedirect.redirectToLogin] navigating to loginPath=', loginPath); } catch {}
+    window.location.href = loginPath;
 }
 
 /**

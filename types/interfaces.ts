@@ -859,6 +859,17 @@ export interface QnaAttachments {
   message_id: number | null
 }
 
+export interface QnaCategories {
+  active: boolean
+  answer_template: Json | null
+  code: string
+  created_at: string
+  id: string | null
+  label: Json
+  order_number: number
+  question_template: Json | null
+}
+
 export interface QnaMessages {
   content: string | null
   created_at: string | null
@@ -869,6 +880,7 @@ export interface QnaMessages {
 }
 
 export interface QnaThreads {
+  category_code: string | null
   created_at: string | null
   id: number
   status: string | null

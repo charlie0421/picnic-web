@@ -66,7 +66,7 @@ export const GridView: React.FC<GridViewProps> = ({
       const w = window.innerWidth;
       // tailwind 기준: sm: 640px
       if (style === 'circular') {
-        setColumns(w < 640 ? 3 : 4);
+        setColumns(4);
       } else {
         setColumns(w < 768 ? 2 : 3);
       }
@@ -143,8 +143,8 @@ export const GridView: React.FC<GridViewProps> = ({
   // 그리드 컬럼 클래스 설정 - 반응형
   const getGridColumns = () => {
     if (style === 'circular') {
-      // 원형 스타일: 컬럼 수 축소 → 모바일 3개, sm 이상 4개 (가독성 향상)
-      return 'grid-cols-3 sm:grid-cols-4 md:grid-cols-4';
+      // 원형 스타일: 모바일 포함 4컬럼 고정
+      return 'grid-cols-4 sm:grid-cols-4 md:grid-cols-4';
     }
     // 카드 스타일: 모바일 5개, md 이상 4개
     return 'grid-cols-5 md:grid-cols-4';
@@ -159,9 +159,9 @@ export const GridView: React.FC<GridViewProps> = ({
         {currentItems.map((item, index) => (
           <div
             key={`${keyPrefix}-${item.id}-${index}`}
-            className='relative aspect-square'
+            className='flex flex-col items-center'
           >
-            <div className='w-full h-full rounded-full overflow-hidden relative'>
+            <div className='relative w-full aspect-square rounded-full overflow-hidden'>
               <OptimizedImage
                 src={item.artist?.image || '/images/default-artist.png'}
                 alt={getLocalizedString(item.artist?.name) || '아티스트 이미지'}
@@ -174,7 +174,9 @@ export const GridView: React.FC<GridViewProps> = ({
                 intersectionThreshold={0.1}
               />
             </div>
-            {/* 이름 제거 요청: 숨김 처리 */}
+            <p className='mt-1 text-xs font-medium text-center truncate w-full'>
+              {getLocalizedString(item.artist?.name) || '아티스트'}
+            </p>
           </div>
         ))}
       </div>

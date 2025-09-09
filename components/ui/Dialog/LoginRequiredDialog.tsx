@@ -74,13 +74,31 @@ export function LoginRequiredDialog({
   };
 
   const handleLogin = () => {
+    const before = typeof window !== 'undefined' ? window.location.href : '';
+    let handled = false;
     if (onLogin) {
-      onLogin(redirectUrl);
-    } else {
+      try {
+        onLogin(redirectUrl);
+        handled = true;
+      } catch (e) {
+        console.warn('[LoginRequiredDialog] custom onLogin error:', e);
+      }
+    }
+    if (!handled) {
       if (redirectUrl) {
         saveRedirectUrl(redirectUrl);
       }
       redirectToLogin(redirectUrl);
+    } else {
+      try {
+        const after = typeof window !== 'undefined' ? window.location.href : '';
+        if (before === after) {
+          if (redirectUrl) {
+            saveRedirectUrl(redirectUrl);
+          }
+          redirectToLogin(redirectUrl);
+        }
+      } catch {}
     }
   };
 

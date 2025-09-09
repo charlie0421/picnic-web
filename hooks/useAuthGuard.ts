@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/supabase/auth-provider";
 import { useLoginRequired } from "@/components/ui/Dialog";
-import { saveRedirectUrl, securityUtils } from "@/utils/auth-redirect";
+import { saveRedirectUrl, securityUtils, redirectToLogin } from "@/utils/auth-redirect";
 
 const DEBUG_AUTH_GUARD = process.env.NEXT_PUBLIC_DEBUG_AUTH_GUARD === 'true';
 
@@ -189,11 +189,6 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                     description: customLoginMessage?.description,
                     loginText: customLoginMessage?.loginText,
                     cancelText: customLoginMessage?.cancelText,
-                    onLogin: () => {
-                        // URL은 이미 저장되었으므로 중복 저장하지 않음
-                        console.log("🔄 로그인 페이지로 이동");
-                        router.push(`/login`);
-                    },
                 });
 
                 if (DEBUG_AUTH_GUARD) console.log("🔄 showLoginRequired 결과:", loginDialogResult);
@@ -260,10 +255,8 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
                     loginText: customLoginMessage?.loginText,
                     cancelText: customLoginMessage?.cancelText,
                     onLogin: () => {
-                        // 언어별 로그인 경로로 이동
-                        const language = pathname.split('/')[1] || 'en';
                         try { saveRedirectUrl(path); } catch {}
-                        router.push(`/${language}/login?returnTo=${encodeURIComponent(path)}`);
+                        redirectToLogin(path);
                     },
                 });
 

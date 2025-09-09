@@ -24,8 +24,8 @@ export const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
       items={effectiveItems}
       style="circular"
       enablePagination={true}
-      itemsPerPage={8}
-      rows={4}
+      itemsPerPage={12}
+      rows={3}
       enableShuffle={true}
       keyPrefix="upcoming-vote"
     />

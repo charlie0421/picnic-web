@@ -2982,6 +2982,39 @@ export type Database = {
           },
         ]
       }
+      qna_categories: {
+        Row: {
+          active: boolean
+          answer_template: Json | null
+          code: string
+          created_at: string
+          id: string | null
+          label: Json
+          order_number: number
+          question_template: Json | null
+        }
+        Insert: {
+          active?: boolean
+          answer_template?: Json | null
+          code: string
+          created_at?: string
+          id?: string | null
+          label: Json
+          order_number?: number
+          question_template?: Json | null
+        }
+        Update: {
+          active?: boolean
+          answer_template?: Json | null
+          code?: string
+          created_at?: string
+          id?: string | null
+          label?: Json
+          order_number?: number
+          question_template?: Json | null
+        }
+        Relationships: []
+      }
       qna_messages: {
         Row: {
           content: string | null
@@ -3026,6 +3059,7 @@ export type Database = {
       }
       qna_threads: {
         Row: {
+          category_code: string | null
           created_at: string | null
           id: number
           status: string | null
@@ -3034,6 +3068,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          category_code?: string | null
           created_at?: string | null
           id?: number
           status?: string | null
@@ -3042,6 +3077,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          category_code?: string | null
           created_at?: string | null
           id?: number
           status?: string | null
@@ -3050,6 +3086,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "qna_threads_category_code_fkey"
+            columns: ["category_code"]
+            isOneToOne: false
+            referencedRelation: "qna_categories"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "qna_threads_user_id_fkey"
             columns: ["user_id"]
