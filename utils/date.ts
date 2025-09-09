@@ -142,6 +142,56 @@ const RELATIVE_TIME_FORMATS = {
     today: 'Hari ini',
     yesterday: 'Kemarin',
   },
+  es: {
+    justNow: 'Justo ahora',
+    minutesAgo: (n: number) => `hace ${n} minuto${n === 1 ? '' : 's'}`,
+    hoursAgo: (n: number) => `hace ${n} hora${n === 1 ? '' : 's'}`,
+    daysAgo: (n: number) => `hace ${n} día${n === 1 ? '' : 's'}`,
+    weeksAgo: (n: number) => `hace ${n} semana${n === 1 ? '' : 's'}`,
+    monthsAgo: (n: number) => `hace ${n} mes${n === 1 ? '' : 'es'}`,
+    today: 'Hoy',
+    yesterday: 'Ayer',
+  },
+  bn: {
+    justNow: 'এইমাত্র',
+    minutesAgo: (n: number) => `${n} মিনিট আগে`,
+    hoursAgo: (n: number) => `${n} ঘণ্টা আগে`,
+    daysAgo: (n: number) => `${n} দিন আগে`,
+    weeksAgo: (n: number) => `${n} সপ্তাহ আগে`,
+    monthsAgo: (n: number) => `${n} মাস আগে`,
+    today: 'আজ',
+    yesterday: 'গতকাল',
+  },
+  tl: {
+    justNow: 'Ngayon lang',
+    minutesAgo: (n: number) => `${n} minuto ang nakalipas`,
+    hoursAgo: (n: number) => `${n} oras ang nakalipas`,
+    daysAgo: (n: number) => `${n} araw ang nakalipas`,
+    weeksAgo: (n: number) => `${n} linggo ang nakalipas`,
+    monthsAgo: (n: number) => `${n} buwan ang nakalipas`,
+    today: 'Ngayon',
+    yesterday: 'Kahapon',
+  },
+  th: {
+    justNow: 'เมื่อสักครู่',
+    minutesAgo: (n: number) => `${n} นาทีที่แล้ว`,
+    hoursAgo: (n: number) => `${n} ชั่วโมงที่แล้ว`,
+    daysAgo: (n: number) => `${n} วันที่แล้ว`,
+    weeksAgo: (n: number) => `${n} สัปดาห์ที่แล้ว`,
+    monthsAgo: (n: number) => `${n} เดือนที่แล้ว`,
+    today: 'วันนี้',
+    yesterday: 'เมื่อวาน',
+  },
+  vi: {
+    justNow: 'Vừa xong',
+    minutesAgo: (n: number) => `${n} phút trước`,
+    hoursAgo: (n: number) => `${n} giờ trước`,
+    daysAgo: (n: number) => `${n} ngày trước`,
+    weeksAgo: (n: number) => `${n} tuần trước`,
+    monthsAgo: (n: number) => `${n} tháng trước`,
+    today: 'Hôm nay',
+    yesterday: 'Hôm qua',
+  },
 } as const;
 
 
@@ -497,7 +547,7 @@ export function formatRelativeTime(
     const now = new Date();
     const targetDate = new Date(date);
     const diff = now.getTime() - targetDate.getTime();
-    const formats = RELATIVE_TIME_FORMATS[language];
+    const formats = RELATIVE_TIME_FORMATS[language] || RELATIVE_TIME_FORMATS.en;
 
     // 미래 날짜 처리
     if (diff < 0) {

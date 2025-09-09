@@ -65,6 +65,23 @@ function listBackups(lang: string): string[] {
   });
 }
 
+function readEarliestBackupFlat(lang: string): Record<string, string> | null {
+  const backups = listBackups(lang);
+  const candidates = [...backups];
+  if (lang === 'zh-cn') {
+    // also consider legacy zh.json backups
+    const files = fs.readdirSync(localesDir);
+    candidates.push(...files.filter((f) => f.startsWith('zh.json.bak-')));
+    candidates.sort((a, b) => (a.split('.bak-')[1] ?? '').localeCompare(b.split('.bak-')[1] ?? ''));
+  }
+  if (candidates.length === 0) return null;
+  const earliest = candidates[0];
+  const p = path.join(localesDir, earliest);
+  const json = readJson(p);
+  if (!json) return null;
+  return flatten(json);
+}
+
 function getBackupValue(lang: string, key: string): string | undefined {
   const backups = listBackups(lang);
   for (const bak of backups) {
@@ -111,6 +128,18 @@ function main() {
       const bakVal = getBackupValue(lang, k);
       if (typeof bakVal === 'string' && bakVal && bakVal !== v) {
         currentFlat[k] = bakVal;
+        changed += 1;
+      }
+    }
+
+    // Restore missing keys from earliest backup for safe prefixes
+    const earliestFlat = readEarliestBackupFlat(lang) || {};
+    const RESTORE_PREFIXES = ['label_vote_', 'nav_'];
+    for (const [bk, bv] of Object.entries(earliestFlat)) {
+      if (currentFlat[bk] != null) continue;
+      if (!RESTORE_PREFIXES.some((p) => bk.startsWith(p))) continue;
+      if (typeof bv === 'string' && bv) {
+        currentFlat[bk] = bv;
         changed += 1;
       }
     }
