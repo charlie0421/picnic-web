@@ -85,6 +85,7 @@ export async function getQnaThreadDetails(threadId: number) {
       id,
       user_id,
       title,
+      category_code,
       status,
       created_at,
       updated_at,

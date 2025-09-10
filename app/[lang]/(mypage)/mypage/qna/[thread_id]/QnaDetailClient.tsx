@@ -7,6 +7,7 @@ type QnaThreadWithRelations = QnaThread & { qna_messages?: UiQnaMessage[] };
 // import { useFormStatus } from 'react-dom';
 import Image from 'next/image';
 import { useTranslations } from '@/hooks/useTranslations';
+import { useLanguage } from '@/hooks/useLanguage';
 import { useRouter } from 'next/navigation';
 
 interface QnaDetailClientProps {
@@ -91,8 +92,26 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { t, tDynamic } = useTranslations();
+  const { currentLanguage } = useLanguage();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/qna/categories', { credentials: 'include' });
+        const json = await res.json();
+        if (json?.success) setCategories(json.data || []);
+      } catch (e) {}
+    })();
+  }, []);
+
+  const getCategoryLabel = (code?: string | null) => {
+    if (!code) return null;
+    const c = categories.find((x) => x.code === code);
+    return (c?.label?.[currentLanguage] || c?.label?.en || c?.code || code) as string;
+  };
 
   // 최근 메시지를 created_at 기준으로 산정하여 안내 문구 노출 여부 결정
   const latestMessage: UiQnaMessage | undefined = (optimisticMessages as UiQnaMessage[]).reduce(
@@ -489,6 +508,11 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                 </svg>
               </button>
               <h1 className="text-xl font-bold">{thread.title}</h1>
+              {thread.category_code && (
+                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-white/15 text-white">
+                  {getCategoryLabel(thread.category_code)}
+                </span>
+              )}
             </div>
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${

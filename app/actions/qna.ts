@@ -8,6 +8,7 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
   const title = formData.get('title') as string;
   const content = formData.get('content') as string;
   const lang = (formData.get('lang') as string) || 'en';
+  const categoryCode = (formData.get('category_code') as string) || null;
   const files = (formData.getAll('attachments') as File[]).filter(
     (f) => f && typeof f === 'object' && 'size' in f && (f as File).size > 0
   );
@@ -25,7 +26,7 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
 
   const { data: threadData, error: threadError } = await supabase
     .from('qna_threads')
-    .insert({ title, user_id: user.id })
+    .insert({ title, user_id: user.id, category_code: categoryCode })
     .select()
     .single();
 

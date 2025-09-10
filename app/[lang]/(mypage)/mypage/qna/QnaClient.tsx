@@ -7,6 +7,7 @@ import type { Pagination } from '@/types/mypage-common';
 import { PostgrestError } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useTranslations } from '@/hooks/useTranslations';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface QnaClientProps {
   initialQnaThreads: QnaThread[] | null;
@@ -26,6 +27,26 @@ export default function QnaClient({
   const [pagination, setPagination] = useState(initialPagination);
   const [error, setError] = useState(initialError);
   const { t } = useTranslations();
+  const { currentLanguage } = useLanguage();
+  const [categories, setCategories] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/qna/categories', { credentials: 'include' });
+        const json = await res.json();
+        if (json?.success) setCategories(json.data || []);
+      } catch (e) {
+        // noop
+      }
+    })();
+  }, []);
+
+  const getCategoryLabel = (code?: string | null) => {
+    if (!code) return null;
+    const c = categories.find((x) => x.code === code);
+    return (c?.label?.[currentLanguage] || c?.label?.en || c?.code || code) as string;
+  };
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -69,6 +90,11 @@ export default function QnaClient({
                 <div className="flex justify-between items-start">
                   <div className="flex-grow">
                     <p className="text-lg font-semibold text-gray-800 truncate pr-4">{thread.title}</p>
+                    {thread.category_code && (
+                      <span className="inline-flex items-center mt-2 px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary-700">
+                        {getCategoryLabel(thread.category_code)}
+                      </span>
+                    )}
                     <p className="text-sm text-sub-500 mt-2">{formatDate(thread.created_at)}</p>
                   </div>
                   <div

@@ -33,6 +33,8 @@ export default function NewQnaPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [objectUrls, setObjectUrls] = useState<string[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   const handleFilesChange = (
     files: File[],
@@ -59,11 +61,58 @@ export default function NewQnaPage() {
     setSelectedFiles(Array.from(dt.files));
   };
 
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/qna/categories', { credentials: 'include' });
+        const json = await res.json();
+        if (json?.success) setCategories(json.data || []);
+      } catch (e) {
+        console.error('Failed to load categories', e);
+      }
+    })();
+  }, []);
+
+  const onCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const code = e.target.value;
+    setSelectedCategory(code);
+    const cat = categories.find((c) => c.code === code);
+    if (cat?.question_template) {
+      try {
+        const content = (cat.question_template?.content || cat.question_template?.ko || cat.question_template?.en);
+        const textarea = document.getElementById('content') as HTMLTextAreaElement | null;
+        if (textarea && typeof content === 'string') {
+          textarea.value = content;
+        }
+      } catch {}
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold mb-6">{t('qna_new_title')}</h1>
       <form action={formAction} className="bg-white p-6 rounded-lg shadow-md space-y-4">
         <input type="hidden" name="lang" value={currentLanguage} />
+        <div>
+          <label htmlFor="category_code" className="block text-sm font-medium text-gray-700">
+            {t('qna_new_label_category')}
+          </label>
+          <select
+            id="category_code"
+            name="category_code"
+            value={selectedCategory}
+            onChange={onCategoryChange}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+          >
+            <option value="">{t('qna_new_placeholder_category') || 'Select a category'}</option>
+            {categories.map((c) => {
+              const label = c?.label?.[currentLanguage] || c?.label?.en || c?.code;
+              return (
+                <option key={c.code} value={c.code}>{label}</option>
+              );
+            })}
+          </select>
+        </div>
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700">
             {t('qna_new_label_title')}
