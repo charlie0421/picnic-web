@@ -77,15 +77,12 @@ export default function NewQnaPage() {
     const code = e.target.value;
     setSelectedCategory(code);
     const cat = categories.find((c) => c.code === code);
-    if (cat?.question_template) {
-      try {
-        const content = (cat.question_template?.content || cat.question_template?.ko || cat.question_template?.en);
-        const textarea = document.getElementById('content') as HTMLTextAreaElement | null;
-        if (textarea && typeof content === 'string') {
-          textarea.value = content;
-        }
-      } catch {}
-    }
+    try {
+      const textarea = document.getElementById('content') as HTMLTextAreaElement | null;
+      if (!textarea) return;
+      const content = cat?.question_template?.content || cat?.question_template?.ko || cat?.question_template?.en;
+      textarea.value = typeof content === 'string' ? content : '';
+    } catch {}
   };
 
   return (
