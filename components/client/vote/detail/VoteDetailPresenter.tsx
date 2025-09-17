@@ -99,7 +99,9 @@ export function VoteDetailPresenter({
   });
 
   const [voteItems, setVoteItems] = React.useState<VoteItem[]>(() => {
-    return initialItems.map(item => ({
+    return initialItems
+      .filter(item => !(item as any).deleted_at)
+      .map(item => ({
       ...item,
       name: (item as any).artist?.name || 'Unknown',
       image_url: (item as any).artist?.image || '',
@@ -127,7 +129,7 @@ export function VoteDetailPresenter({
   const [notifications, setNotifications] = React.useState<NotificationState[]>([]);
 
   const [connectionState, setConnectionState] = React.useState<ConnectionState>({
-    mode: enableRealtime ? 'realtime' : 'static',
+    mode: 'polling',
     isConnected: false,
     lastUpdate: null,
     errorCount: 0,
@@ -155,9 +157,6 @@ export function VoteDetailPresenter({
   };
 
   const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const realtimeSubscriptionRef = React.useRef<any>(null);
-  const qualityCheckIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const realtimeRetryTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const initialDataNotifiedRef = React.useRef<boolean>(false);
   const requestStartTimeRef = React.useRef<number>(0);
   const [lastPollingUpdate, setLastPollingUpdate] = React.useState<Date | null>(null);
@@ -196,15 +195,7 @@ export function VoteDetailPresenter({
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   }, []);
 
-  const notifyConnectionStateChange = React.useCallback((from: DataSourceMode, to: DataSourceMode) => {
-    const modeNames = { realtime: '실시간', polling: '폴링', static: '정적' };
-    addNotification({
-      type: 'info',
-      title: '연결 모드 변경',
-      message: `${modeNames[from]}에서 ${modeNames[to]} 모드로 전환되었습니다.`,
-      duration: 3000,
-    });
-  }, [addNotification]);
+  // 실시간 모드 제거됨
 
   React.useEffect(() => {
     const getUser = async () => {
@@ -242,9 +233,7 @@ export function VoteDetailPresenter({
 
   const updateVoteDataPolling = React.useCallback(async () => {
     if (!vote?.id) return;
-    if (connectionState.mode === 'realtime') {
-      return;
-    }
+    // 실시간 모드 제거됨: 항상 폴링 수행
     const startTime = performance.now();
     requestStartTimeRef.current = startTime;
     try {
@@ -253,45 +242,19 @@ export function VoteDetailPresenter({
       if (shouldLog) {
         console.log('[Polling] Fetching vote data...');
       }
-      const { data: voteData, error: voteError } = await supabase
-        .from('vote')
-        .select(`
-          id,
-          title,
-          vote_content,
-          area,
-          start_at,
-          stop_at,
-          created_at,
-          updated_at,
-          vote_item (
-            id,
-            artist_id,
-            group_id,
-            vote_id,
-            vote_total,
-            created_at,
-            updated_at,
-            deleted_at,
-            artist:artist_id (
-              id,
-              name,
-              image,
-              birth_date,
-              gender,
-              group_id,
-              artistGroup:group_id (
-                id,
-                name,
-                image
-              )
-            )
-          )
-        `)
-        .eq('id', vote.id)
-        .single();
+      const response = await fetch(`/api/vote/${vote.id}/detail`, { cache: 'no-cache' });
       const responseTime = performance.now() - startTime;
-      if (voteError) {
+      if (response.status === 304) {
+        // 변경 없음: 정상 경로로 처리
+        if (shouldLog) {
+          console.log('[Polling] Not modified (304)');
+        }
+        updateConnectionQuality(true, responseTime);
+        setConnectionState(prev => ({ ...prev, lastUpdate: new Date(), errorCount: 0 }));
+        return;
+      }
+      if (!response.ok) {
+        const voteError = await response.json().catch(() => ({}));
         console.error('[Polling] Vote fetch error:', voteError);
         setPollingErrorCount(prev => prev + 1);
         updateConnectionQuality(false, responseTime);
@@ -303,11 +266,14 @@ export function VoteDetailPresenter({
         });
         return;
       }
+      const { vote: voteData } = await response.json();
       if (voteData) {
         if (shouldLog) {
           console.log('[Polling] Vote data received:', voteData);
         }
-        const transformedVoteItems = (voteData.vote_item || []).map((item: any) => ({
+        const transformedVoteItems = (voteData.vote_item || [])
+          .filter((item: any) => !item.deleted_at)
+          .map((item: any) => ({
           id: item.id,
           artist_id: item.artist_id,
           group_id: item.group_id,
@@ -398,43 +364,7 @@ export function VoteDetailPresenter({
     }
   }, [vote?.id, user, supabase, updateConnectionQuality, connectionState.mode, lastPollingUpdate]);
 
-  const connectRealtime = React.useCallback(async () => {
-    if (!enableRealtime || !vote?.id) return;
-    try {
-      const subscription = supabase
-        .channel('supabase_realtime')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'vote_item', filter: `vote_id=eq.${vote.id}` },
-          (payload) => {
-            if (connectionState.mode === 'realtime') {
-              updateVoteDataPolling();
-            }
-            updateConnectionQuality(true);
-          }
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            setConnectionState(prev => ({ ...prev, mode: 'realtime', isConnected: true, errorCount: 0, retryCount: 0 }));
-            updateConnectionQuality(true);
-            addNotification({ type: 'success', title: '실시간 연결 성공', message: '투표 결과가 실시간으로 업데이트됩니다.', duration: 3000 });
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            setConnectionState(prev => ({ ...prev, mode: 'polling', isConnected: false, errorCount: prev.errorCount + 1, retryCount: prev.retryCount + 1 }));
-            updateConnectionQuality(false);
-          } else if (status === 'CLOSED') {
-            setConnectionState(prev => ({ ...prev, isConnected: false }));
-            if (connectionState.mode === 'realtime') {
-              setConnectionState(prev => ({ ...prev, mode: 'polling', isConnected: false }));
-            }
-          }
-        });
-      realtimeSubscriptionRef.current = subscription;
-    } catch (error) {
-      setConnectionState(prev => ({ ...prev, mode: 'polling', isConnected: false, errorCount: prev.errorCount + 1, retryCount: prev.retryCount + 1 }));
-      updateConnectionQuality(false);
-      addNotification({ type: 'error', title: '실시간 연결 오류', message: '폴링 모드로 전환되었습니다.', duration: 4000 });
-    }
-  }, [enableRealtime, vote?.id, supabase, connectionState.mode, updateConnectionQuality]);
+  // 실시간 구독 제거됨
 
   const stopPollingMode = React.useCallback(() => {
     if (pollingIntervalRef.current) {
@@ -469,100 +399,24 @@ export function VoteDetailPresenter({
     pollingIntervalRef.current = interval as unknown as NodeJS.Timeout;
   }, [pollingInterval, updateVoteDataPolling]);
 
-  const startHybridMode = React.useCallback(() => {
-    setConnectionState(prev => ({ ...prev, mode: 'realtime', isConnected: false }));
-    connectRealtime();
-  }, [connectRealtime]);
+  // 하이브리드 모드 제거됨
 
-  const disconnectRealtime = React.useCallback(() => {
-    if (realtimeSubscriptionRef.current) {
-      realtimeSubscriptionRef.current.unsubscribe();
-      realtimeSubscriptionRef.current = null;
-    }
-  }, []);
+  // 실시간 구독 해제 로직 제거됨
 
-  const cleanupConnectionMonitor = React.useCallback(() => {
-    if (qualityCheckIntervalRef.current) {
-      clearInterval(qualityCheckIntervalRef.current);
-      qualityCheckIntervalRef.current = null;
-    }
-    if (realtimeRetryTimeoutRef.current) {
-      clearTimeout(realtimeRetryTimeoutRef.current);
-      realtimeRetryTimeoutRef.current = null;
-    }
-  }, []);
+  // 연결 모니터 제거됨
 
-  const switchMode = React.useCallback((targetMode: DataSourceMode) => {
-    const prevMode = connectionState.mode;
-    const nextMode: DataSourceMode = (targetMode === 'realtime' && !enableRealtime) ? 'polling' : targetMode;
-    if (connectionState.mode === 'realtime') {
-      disconnectRealtime();
-    } else if (connectionState.mode === 'polling') {
-      stopPollingMode();
-    }
-    setConnectionState(prev => ({ ...prev, mode: nextMode, isConnected: false }));
-    if (prevMode !== nextMode) {
-      notifyConnectionStateChange(prevMode, nextMode);
-    }
-    if (nextMode === 'realtime') {
-      setPollingStartTime(null);
-      connectRealtime();
-    } else if (nextMode === 'polling') {
-      setPollingStartTime(new Date());
-      startPollingMode();
-    } else {
-      setPollingStartTime(null);
-    }
-  }, [connectionState.mode, enableRealtime, disconnectRealtime, stopPollingMode, notifyConnectionStateChange, connectRealtime]);
+  // 모드 전환 제거됨 (항상 폴링)
 
   React.useEffect(() => {
-    if (enableRealtime) {
-      startHybridMode();
-      startConnectionQualityMonitor();
-    } else {
-      startPollingMode();
-    }
+    startPollingMode();
     return () => {
       stopPollingMode();
-      disconnectRealtime();
-      cleanupConnectionMonitor();
     };
-  }, [enableRealtime]);
+  }, []);
 
-  const startConnectionQualityMonitor = React.useCallback(() => {
-    if (qualityCheckIntervalRef.current) {
-      clearInterval(qualityCheckIntervalRef.current);
-    }
-    qualityCheckIntervalRef.current = setInterval(() => {
-      if (connectionState.mode === 'realtime' && connectionQuality.score < thresholds.minConnectionQuality) {
-        switchMode('polling');
-      }
-      if (connectionQuality.consecutiveErrors >= thresholds.maxConsecutiveErrors) {
-        if (connectionState.mode === 'realtime') {
-          switchMode('polling');
-        }
-      }
-      if (connectionState.mode === 'polling' && 
-          connectionQuality.score > thresholds.minConnectionQuality + 20 &&
-          connectionQuality.consecutiveSuccesses >= 15 &&
-          connectionQuality.errorRate < 0.1 &&
-          pollingStartTime &&
-          Date.now() - pollingStartTime.getTime() > 60000) {
-        attemptRealtimeReconnection();
-      }
-    }, thresholds.qualityCheckInterval);
-  }, [connectionQuality, connectionState.mode, thresholds, pollingStartTime, switchMode]);
+  // 연결 품질 모니터 제거됨
 
-  const attemptRealtimeReconnection = React.useCallback(() => {
-    if (realtimeRetryTimeoutRef.current) {
-      clearTimeout(realtimeRetryTimeoutRef.current);
-    }
-    realtimeRetryTimeoutRef.current = setTimeout(() => {
-      if (connectionState.mode === 'polling') {
-        switchMode('realtime');
-      }
-    }, thresholds.realtimeRetryDelay);
-  }, [connectionState.mode, thresholds.realtimeRetryDelay, switchMode]);
+  // 재연결 시도 제거됨
 
   useEffect(() => {
     const updateHeaderHeight = () => {

@@ -3062,7 +3062,7 @@ export type Database = {
           category_code: string | null
           created_at: string | null
           id: number
-          status: string | null
+          status: Database["public"]["Enums"]["qna_status"] | null
           title: string
           updated_at: string | null
           user_id: string | null
@@ -3071,7 +3071,7 @@ export type Database = {
           category_code?: string | null
           created_at?: string | null
           id?: number
-          status?: string | null
+          status?: Database["public"]["Enums"]["qna_status"] | null
           title: string
           updated_at?: string | null
           user_id?: string | null
@@ -3080,7 +3080,7 @@ export type Database = {
           category_code?: string | null
           created_at?: string | null
           id?: number
-          status?: string | null
+          status?: Database["public"]["Enums"]["qna_status"] | null
           title?: string
           updated_at?: string | null
           user_id?: string | null
@@ -4656,11 +4656,19 @@ export type Database = {
         Returns: undefined
       }
       expire_star_candy_bonus: {
-        Args: Record<PropertyKey, never> | { expiry_time?: string }
+        Args: { cutoff_time?: string }
         Returns: {
           affected_users: number
           updated_amount: number
           updated_count: number
+        }[]
+      }
+      expire_star_candy_bonus_batch: {
+        Args: { chunk_size?: number; cutoff_time: string }
+        Returns: {
+          batch_amount: number
+          batch_count: number
+          batch_users: number
         }[]
       }
       get_artist_request_count: {
@@ -4919,6 +4927,10 @@ export type Database = {
         Returns: undefined
       }
       rollback_transaction: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      run_expire_star_candy_bonus_once: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

@@ -883,7 +883,7 @@ export interface QnaThreads {
   category_code: string | null
   created_at: string | null
   id: number
-  status: string | null
+  status: QnaStatus | null
   title: string
   updated_at: string | null
   user_id: string | null

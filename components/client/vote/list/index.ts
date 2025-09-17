@@ -14,7 +14,6 @@ export { default as VoteEmptyState } from './VoteEmptyState';
 export { VoteResults } from './VoteResults';
 export { VoteItem } from './VoteItem';
 export { VoteSubmit } from './VoteSubmit';
-export { default as OptimizedRealtimeVoteResults } from './OptimizedRealtimeVoteResults';
 export * from './VoteFilterSection';
 export * from './VoteListPresenter';
 export { VoteListCSR } from './VoteListCSR';

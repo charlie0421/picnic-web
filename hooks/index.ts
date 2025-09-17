@@ -12,8 +12,5 @@ export { useSafeTranslation } from './useSafeTranslation';
 export { useSupabaseQuery } from './useSupabaseQuery';
 export { useTranslationReady } from './useTranslationReady';
 export { useVoteList } from './useVoteList';
-export { useVoteRealtime } from './useVoteRealtime';
-export { useVoteRealtimeEnhanced } from './useVoteRealtimeEnhanced';
-export { useVoteRealtimeOptimized } from './useVoteRealtimeOptimized';
 export { useVoteResults } from './useVoteResults';
 export { useVoteSubmit } from './useVoteSubmit'; 

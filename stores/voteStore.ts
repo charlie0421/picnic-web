@@ -9,13 +9,6 @@ import {
   calculateTimeLeft,
   VoteSubmissionRequest
 } from '@/lib/data-fetching/client/vote-api-enhanced';
-import { 
-  VoteRealtimeService,
-  VoteRealtimeEvent, 
-  ConnectionStatus,
-  VoteEventListener,
-  ConnectionStatusListener
-} from '@/lib/supabase/realtime';
 
 // 투표 상태 타입 정의
 export interface VoteSubmissionState {
@@ -55,16 +48,6 @@ export interface VoteDetailState {
   error: string | null;
 }
 
-// 실시간 상태 타입 추가
-export interface RealtimeState {
-  isConnected: boolean;
-  connectionStatus: ConnectionStatus;
-  currentVoteId: number | null;
-  eventCount: number;
-  lastEvent: VoteRealtimeEvent | null;
-  autoSync: boolean; // 자동 동기화 여부
-}
-
 // 메인 투표 스토어 인터페이스
 interface VoteStore {
   // 현재 투표 상세 정보
@@ -79,17 +62,11 @@ interface VoteStore {
   // 투표 결과 상태
   results: VoteResultsState;
   
-  // 실시간 구독 상태 (기존)
-  isSubscribed: boolean;
-  
-  // 실시간 상태 (새로 추가)
-  realtime: RealtimeState;
-  
   // Actions
   // 투표 데이터 설정
   setCurrentVote: (vote: Vote, voteItems: VoteItem[], voteStatus: 'upcoming' | 'ongoing' | 'ended') => void;
   
-  // 투표 아이템 업데이트 (실시간)
+  // 투표 아이템 업데이트
   updateVoteItems: (updatedItems: VoteItem[]) => void;
   
   // 개별 투표 아이템 업데이트
@@ -119,9 +96,6 @@ interface VoteStore {
   // 투표 결과 에러 설정
   setResultsError: (error: string) => void;
   
-  // 실시간 구독 상태 설정
-  setSubscriptionStatus: (isSubscribed: boolean) => void;
-  
   // 시간 남은 시간 업데이트
   updateTimeLeft: (timeLeft: { days: number; hours: number; minutes: number; seconds: number } | null) => void;
   
@@ -136,22 +110,6 @@ interface VoteStore {
   resetParticipationState: () => void;
   resetResultsState: () => void;
 
-  // 실시간 관련 액션들 (새로 추가)
-  // 실시간 연결 시작
-  startRealtimeConnection: (voteId: number) => Promise<void>;
-  
-  // 실시간 연결 중지
-  stopRealtimeConnection: () => Promise<void>;
-  
-  // 실시간 이벤트 처리
-  handleRealtimeEvent: (event: VoteRealtimeEvent) => void;
-  
-  // 연결 상태 업데이트
-  updateConnectionStatus: (status: ConnectionStatus) => void;
-  
-  // 자동 동기화 설정
-  setAutoSync: (enabled: boolean) => void;
-
   // API 연동 액션들
   // 투표 상세 정보 로드
   loadVoteDetail: (voteId: string | number) => Promise<void>;
@@ -159,15 +117,11 @@ interface VoteStore {
   // 투표 결과 로드
   loadVoteResults: (voteId: number) => Promise<void>;
   
-
-  
   // 투표 제출
   submitUserVote: (userId: string, totalBonusRemain?: number) => Promise<boolean>;
   
-  // 투표 상태 자동 업데이트 시작
+  // 투표 상태 자동 업데이트 시작/중지
   startStatusUpdates: () => void;
-  
-  // 투표 상태 자동 업데이트 중지
   stopStatusUpdates: () => void;
 }
 
@@ -204,38 +158,8 @@ const initialResultsState: VoteResultsState = {
   error: null,
 };
 
-// 실시간 초기 상태 (새로 추가)
-const initialRealtimeState: RealtimeState = {
-  isConnected: false,
-  connectionStatus: 'disconnected',
-  currentVoteId: null,
-  eventCount: 0,
-  lastEvent: null,
-  autoSync: true,
-};
-
 // 상태 업데이트 타이머 저장용
 let statusUpdateInterval: NodeJS.Timeout | null = null;
-
-// 실시간 서비스 및 리스너 참조 (지연 로딩)
-let realtimeService: VoteRealtimeService | null = null;
-let eventListener: VoteEventListener | null = null;
-let statusListener: ConnectionStatusListener | null = null;
-
-// 실시간 서비스 가져오기 (브라우저에서만)
-const getRealtimeServiceSafely = async () => {
-  if (typeof window === 'undefined') return null;
-  if (!realtimeService) {
-    try {
-      const { getVoteRealtimeService } = await import('@/lib/supabase/realtime');
-      realtimeService = getVoteRealtimeService();
-    } catch (error) {
-      console.error('[VoteStore] Failed to load realtime service:', error);
-      return null;
-    }
-  }
-  return realtimeService;
-};
 
 // Zustand 스토어 생성
 export const useVoteStore = create<VoteStore>()(
@@ -246,8 +170,6 @@ export const useVoteStore = create<VoteStore>()(
       participation: initialParticipationState,
       submission: initialSubmissionState,
       results: initialResultsState,
-      isSubscribed: false,
-      realtime: initialRealtimeState,
 
       // 기존 Actions 구현
       setCurrentVote: (vote, voteItems, voteStatus) =>
@@ -438,13 +360,6 @@ export const useVoteStore = create<VoteStore>()(
           'setResultsError'
         ),
 
-      setSubscriptionStatus: (isSubscribed) =>
-        set(
-          () => ({ isSubscribed }),
-          false,
-          'setSubscriptionStatus'
-        ),
-
       updateTimeLeft: (timeLeft) =>
         set(
           (state) => ({
@@ -488,8 +403,6 @@ export const useVoteStore = create<VoteStore>()(
             participation: initialParticipationState,
             submission: initialSubmissionState,
             results: initialResultsState,
-            isSubscribed: false,
-            realtime: initialRealtimeState,
           }),
           false,
           'resetVoteState'
@@ -522,257 +435,6 @@ export const useVoteStore = create<VoteStore>()(
           'resetResultsState'
         ),
 
-      // 실시간 관련 액션들 (새로 추가)
-      // 실시간 연결 시작
-      startRealtimeConnection: async (voteId) => {
-        // 기존 연결이 있다면 먼저 중지
-        get().stopRealtimeConnection();
-        
-        // 상태 업데이트
-        set(
-          (state) => ({
-            realtime: {
-              ...state.realtime,
-              currentVoteId: voteId,
-              connectionStatus: 'connecting',
-            },
-          }),
-          false,
-          'startRealtimeConnection:connecting'
-        );
-        
-        // 이벤트 리스너 생성
-        eventListener = (event: VoteRealtimeEvent) => {
-          get().handleRealtimeEvent(event);
-        };
-        
-        // 상태 리스너 생성
-        statusListener = (status: ConnectionStatus) => {
-          get().updateConnectionStatus(status);
-        };
-        
-        try {
-          // 실시간 서비스 가져오기
-          const service = await getRealtimeServiceSafely();
-          if (!service) {
-            console.warn('[VoteStore] 실시간 서비스를 사용할 수 없습니다.');
-            return;
-          }
-          
-          // 리스너 등록
-          service.addEventListener(eventListener);
-          service.addStatusListener(statusListener);
-          
-          // 투표 구독 시작
-          service.subscribeToVote(voteId);
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[VoteStore] 실시간 연결 시작: 투표 ${voteId}`);
-          }
-        } catch (error) {
-          console.error('[VoteStore] 실시간 연결 실패:', error);
-          set(
-            (state) => ({
-              realtime: {
-                ...state.realtime,
-                connectionStatus: 'error',
-              },
-            }),
-            false,
-            'startRealtimeConnection:error'
-          );
-        }
-      },
-      
-      // 실시간 연결 중지
-      stopRealtimeConnection: async () => {
-        const { realtime } = get();
-        
-        if (realtime.currentVoteId !== null) {
-          try {
-            const service = await getRealtimeServiceSafely();
-            if (service) {
-              // 구독 해제
-              service.unsubscribeFromVote(realtime.currentVoteId);
-              
-              if (process.env.NODE_ENV === 'development') {
-                console.log(`[VoteStore] 실시간 연결 중지: 투표 ${realtime.currentVoteId}`);
-              }
-            }
-          } catch (error) {
-            console.error('[VoteStore] 실시간 연결 해제 실패:', error);
-          }
-        }
-        
-        // 리스너 제거
-        if (eventListener) {
-          try {
-            const service = await getRealtimeServiceSafely();
-            if (service) {
-              service.removeEventListener(eventListener);
-            }
-          } catch (error) {
-            console.error('[VoteStore] 이벤트 리스너 제거 실패:', error);
-          }
-          eventListener = null;
-        }
-        
-        if (statusListener) {
-          try {
-            const service = await getRealtimeServiceSafely();
-            if (service) {
-              service.removeStatusListener(statusListener);
-            }
-          } catch (error) {
-            console.error('[VoteStore] 상태 리스너 제거 실패:', error);
-          }
-          statusListener = null;
-        }
-        
-        // 상태 초기화
-        set(
-          (state) => ({
-            realtime: {
-              ...state.realtime,
-              isConnected: false,
-              connectionStatus: 'disconnected',
-              currentVoteId: null,
-            },
-          }),
-          false,
-          'stopRealtimeConnection'
-        );
-      },
-      
-      // 실시간 이벤트 처리
-      handleRealtimeEvent: (event) => {
-        const { realtime, results } = get();
-        
-        // 이벤트 카운트 및 마지막 이벤트 업데이트
-        set(
-          (state) => ({
-            realtime: {
-              ...state.realtime,
-              eventCount: state.realtime.eventCount + 1,
-              lastEvent: event,
-            },
-          }),
-          false,
-          'handleRealtimeEvent:updateEvent'
-        );
-        
-        // 자동 동기화가 비활성화되어 있으면 이벤트만 기록하고 종료
-        if (!realtime.autoSync) {
-          return;
-        }
-        
-        // 이벤트 타입별 처리
-        switch (event.type) {
-          case 'vote_item_updated': {
-            const updatedItem = event.payload.new as VoteItem;
-            
-            // 현재 결과에서 해당 아이템 업데이트
-            const updatedVoteItems = results.voteItems.map(item => 
-              item.id === updatedItem.id 
-                ? { ...item, ...updatedItem }
-                : item
-            );
-            
-            // 총 투표수 재계산
-            const totalVotes = updatedVoteItems.reduce((sum, item) => sum + (item.vote_total || 0), 0);
-            
-            // 결과 업데이트
-            get().updateResults(updatedVoteItems, totalVotes);
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[VoteStore] 투표 아이템 업데이트:', updatedItem);
-            }
-            break;
-          }
-          
-          case 'vote_pick_created': {
-            const newPick = event.payload.new;
-            
-            // 해당 투표 아이템의 총 투표수 업데이트를 위해 전체 결과 새로고침
-            // 실제로는 더 효율적인 방법으로 특정 아이템만 업데이트할 수 있음
-            if (realtime.currentVoteId) {
-              get().loadVoteResults(realtime.currentVoteId);
-            }
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[VoteStore] 새 투표 생성:', newPick);
-            }
-            break;
-          }
-          
-          case 'vote_updated': {
-            const updatedVote = event.payload.new as Vote;
-            
-            // 투표 정보 업데이트
-            set(
-              (state) => ({
-                currentVote: {
-                  ...state.currentVote,
-                  vote: state.currentVote.vote 
-                    ? { ...state.currentVote.vote, ...updatedVote }
-                    : null,
-                },
-              }),
-              false,
-              'handleRealtimeEvent:voteUpdated'
-            );
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[VoteStore] 투표 정보 업데이트:', updatedVote);
-            }
-            break;
-          }
-          
-          default:
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[VoteStore] 처리되지 않은 이벤트:', event);
-            }
-            break;
-        }
-      },
-      
-      // 연결 상태 업데이트
-      updateConnectionStatus: (status) => {
-        set(
-          (state) => ({
-            realtime: {
-              ...state.realtime,
-              connectionStatus: status,
-              isConnected: status === 'connected',
-            },
-          }),
-          false,
-          'updateConnectionStatus'
-        );
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[VoteStore] 연결 상태 변경:', status);
-        }
-      },
-      
-      // 자동 동기화 설정
-      setAutoSync: (enabled) => {
-        set(
-          (state) => ({
-            realtime: {
-              ...state.realtime,
-              autoSync: enabled,
-            },
-          }),
-          false,
-          'setAutoSync'
-        );
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[VoteStore] 자동 동기화:', enabled ? '활성화' : '비활성화');
-        }
-      },
-
       // API 연동 액션들
       loadVoteDetail: async (voteId) => {
         set(
@@ -797,7 +459,6 @@ export const useVoteStore = create<VoteStore>()(
           const data = await response.json();
           const vote = data.data; // API 응답 형식에 맞게 수정
           const voteItems = vote.vote_item;
-
 
           if (!vote) {
             set(
@@ -924,8 +585,6 @@ export const useVoteStore = create<VoteStore>()(
           setResultsError('Failed to load vote results');
         }
       },
-
-
 
       submitUserVote: async (userId, totalBonusRemain = 0) => {
         const { currentVote, submission, startSubmission, completeSubmission } = get();
