@@ -72,7 +72,6 @@ export function VoteListPresenter({
           try {
             // next/navigation의 router.refresh는 서버 컴포넌트 데이터 재검증
             // useRouter는 상단에서 초기화됨
-            // eslint-disable-next-line @typescript-eslint/no-use-before-define
             router.refresh();
           } catch {
             window.location.reload();
@@ -90,7 +89,6 @@ export function VoteListPresenter({
           if (!reloadedRecently) {
             sessionStorage.setItem('vote-last-reload-ts', String(Date.now()))
             try {
-              // eslint-disable-next-line @typescript-eslint/no-use-before-define
               router.refresh();
             } catch {
               window.location.reload();
