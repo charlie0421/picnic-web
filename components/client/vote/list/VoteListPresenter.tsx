@@ -61,17 +61,41 @@ export function VoteListPresenter({
     if (nextTimestamp !== null) {
       nextTransitionTsRef.current = nextTimestamp;
       const delay = Math.max(0, nextTimestamp - Date.now());
-      reloadTimerRef.current = window.setTimeout(() => {
-        // 전체 페이지 새로고침
-        window.location.reload();
-      }, delay);
+
+      // 최근에 새로고침이 있었다면 스킵 (루프 방지)
+      const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
+      const reloadedRecently = Date.now() - lastReloadTs < 15000; // 15초 이내 재로드 방지
+      if (!reloadedRecently) {
+        reloadTimerRef.current = window.setTimeout(() => {
+          sessionStorage.setItem('vote-last-reload-ts', String(Date.now()))
+          // 전체 리로드 대신 소프트 리프레시로 깜빡임 완화 및 루프 방지
+          try {
+            // next/navigation의 router.refresh는 서버 컴포넌트 데이터 재검증
+            // useRouter는 상단에서 초기화됨
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            router.refresh();
+          } catch {
+            window.location.reload();
+          }
+        }, delay);
+      }
     }
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         const ts = nextTransitionTsRef.current;
         if (ts !== null && Date.now() >= ts) {
-          window.location.reload();
+          const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
+          const reloadedRecently = Date.now() - lastReloadTs < 15000;
+          if (!reloadedRecently) {
+            sessionStorage.setItem('vote-last-reload-ts', String(Date.now()))
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-use-before-define
+              router.refresh();
+            } catch {
+              window.location.reload();
+            }
+          }
         }
       }
     };

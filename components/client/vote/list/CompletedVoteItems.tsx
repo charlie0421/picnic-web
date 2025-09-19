@@ -27,7 +27,7 @@ export const CompletedVoteItems: React.FC<CompletedVoteItemsProps> = ({ vote, mo
   // vote 객체가 변경될 때마다 voteItems 상태 업데이트
   useEffect(() => {
     // voteItem 또는 voteItems 중 사용 가능한 데이터 선택 (voteItem 우선)
-    const effectiveItems = vote.voteItem || vote.voteItems || [];
+    const effectiveItems = (vote.voteItem || vote.voteItems || []).filter((it: any) => !it?.deleted_at);
 
     if (effectiveItems.length > 0) {
       // 투표 항목 데이터를 EnhancedVoteItem 형태로 변환

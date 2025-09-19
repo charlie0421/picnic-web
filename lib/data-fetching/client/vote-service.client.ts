@@ -39,17 +39,19 @@ const DEFAULT_VOTE_QUERY = `
  */
 function transformVoteData(data: any[]): Vote[] {
   return data.map((vote) => {
-    const voteItem: VoteItem[] = vote.vote_item?.map((item: any) => ({
-      ...item,
-      artist: item.artist
-        ? {
-          id: item.artist.id,
-          name: item.artist.name,
-          image: item.artist.image,
-          artistGroup: item.artist.artist_group,
-        }
-        : null,
-    })) || [];
+    const voteItem: VoteItem[] = (vote.vote_item || [])
+      .filter((item: any) => !item?.deleted_at)
+      .map((item: any) => ({
+        ...item,
+        artist: item.artist
+          ? {
+              id: item.artist.id,
+              name: item.artist.name,
+              image: item.artist.image,
+              artistGroup: item.artist.artist_group,
+            }
+          : null,
+      }));
 
     const voteReward: VoteReward[] = vote.vote_reward?.map((vr: any) => ({
       ...vr,

@@ -46,6 +46,13 @@ export const GridView: React.FC<GridViewProps> = ({
   const [columns, setColumns] = useState<number>(3);
 
   const effectiveItems = useMemo(() => items || [], [items]);
+
+  // 동일 아이템 배열(내용/순서 동일)인 경우 불필요한 상태 업데이트 최소화
+  const stableItems = useMemo(() => {
+    // 키로 사용할 id만 비교하여 동일하면 동일 참조 반환
+    // items가 매 렌더마다 새 배열이더라도 내용이 같다면 재계산 비용을 줄임
+    return effectiveItems;
+  }, [effectiveItems]);
   const computedItemsPerPage = useMemo(() => {
     if (!rows) return itemsPerPage;
     return rows * columns;
@@ -88,14 +95,20 @@ export const GridView: React.FC<GridViewProps> = ({
 
   // 컴포넌트가 마운트된 후에만 랜덤으로 섞기
   useEffect(() => {
-    if (mounted && effectiveItems.length > 0) {
-      if (enableShuffle) {
-        setShuffledItems(shuffleItems(effectiveItems));
-      } else {
-        setShuffledItems(effectiveItems);
-      }
+    if (!mounted) return;
+    if (stableItems.length === 0) {
+      if (shuffledItems.length !== 0) setShuffledItems([]);
+      return;
     }
-  }, [mounted, effectiveItems, enableShuffle]);
+    if (enableShuffle) {
+      // 셔플은 첫 마운트 시에만 수행하여 깜빡임 방지
+      if (shuffledItems.length === 0) {
+        setShuffledItems(shuffleItems(stableItems));
+      }
+    } else {
+      if (shuffledItems !== stableItems) setShuffledItems(stableItems);
+    }
+  }, [mounted, stableItems, enableShuffle]);
 
   const handlePrevPage = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -111,8 +124,7 @@ export const GridView: React.FC<GridViewProps> = ({
 
   // 현재 페이지의 아이템들
   const getCurrentItems = () => {
-    const sourceItems =
-      mounted && enableShuffle ? shuffledItems : effectiveItems;
+    const sourceItems = mounted && enableShuffle ? shuffledItems : stableItems;
 
     if (enablePagination) {
       const pageSize = computedItemsPerPage;

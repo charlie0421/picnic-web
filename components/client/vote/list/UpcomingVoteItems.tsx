@@ -12,8 +12,10 @@ export const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
   vote,
 }) => {
   // 스키마 차이를 흡수: vote_item 또는 voteItem 형태를 모두 허용
-  const effectiveItems: VoteItem[] =
-    ((vote as any)?.vote_item as VoteItem[]) || ((vote as any)?.voteItem as VoteItem[]) || [];
+  const rawItems: VoteItem[] = ((vote as any)?.vote_item as VoteItem[]) || ((vote as any)?.voteItem as VoteItem[]) || [];
+  const effectiveItems: VoteItem[] = React.useMemo(() => {
+    return rawItems.filter((it: any) => !it?.deleted_at);
+  }, [rawItems]);
 
   if (effectiveItems.length === 0) {
     return null;
@@ -26,7 +28,7 @@ export const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
       enablePagination={true}
       itemsPerPage={12}
       rows={3}
-      enableShuffle={true}
+      enableShuffle={false}
       keyPrefix="upcoming-vote"
     />
   );

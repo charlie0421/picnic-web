@@ -40,7 +40,9 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   useEffect(() => {
     if (vote.voteItem && vote.voteItem.length > 0) {
       // 투표 항목 데이터를 EnhancedVoteItem 형태로 변환
-      const enhancedItems: EnhancedVoteItem[] = vote.voteItem.map((item) => ({
+      const enhancedItems: EnhancedVoteItem[] = vote.voteItem
+        .filter((item: any) => !item?.deleted_at)
+        .map((item) => ({
         ...item,
         vote_total: item.vote_total || 0,
         artist: item.artist || null,

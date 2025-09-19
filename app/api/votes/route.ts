@@ -96,7 +96,9 @@ export async function GET(req: NextRequest) {
     // 서버에서 사용하는 형태로 필드명 보정 (vote_item -> voteItem, vote_reward -> voteReward)
     const normalized = (data || []).map((v: any) => ({
       ...v,
-      voteItem: Array.isArray(v?.vote_item) ? v.vote_item : [],
+      voteItem: Array.isArray(v?.vote_item)
+        ? v.vote_item.filter((item: any) => !item?.deleted_at)
+        : [],
       voteReward: Array.isArray(v?.vote_reward) ? v.vote_reward : [],
     }));
 
