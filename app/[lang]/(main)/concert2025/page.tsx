@@ -1,10 +1,9 @@
 import { Metadata } from 'next'
 import { getLanguageFromParams } from '@/utils/api/language'
 import Image from 'next/image'
-import fs from 'fs/promises'
-import path from 'path'
 
-export const runtime = 'nodejs'
+export const dynamic = 'force-static'
+export const revalidate = 86400
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   // 언어 경로와 관계없이 중국어 메타로 고정 (요청사항: 중국어만 노출 가능)
@@ -41,144 +40,51 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     amapKeyword: encodeURIComponent('Blue Square Seoul'),
   }
 
-  // 포스터 이미지 자동 로드 (image 하위)
-  const imagesDir = path.join(process.cwd(), 'public', 'concert2025', 'image')
-  let posters: { src: string; alt: string }[] = []
-  let imageFilesAll: string[] = []
-  try {
-    const files = await fs.readdir(imagesDir)
-    imageFilesAll = files.filter((f) => /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(f))
-    const imageFiles = imageFilesAll.filter((f) => /poster/i.test(f))
-    posters = imageFiles.map((file) => {
-      const base = file.replace(/\.[^.]+$/, '')
-      const alt = base.replace(/[-_]+/g, ' ')
-      return { src: `/concert2025/image/${file}`, alt }
-    })
-  } catch (_) {
-    posters = []
-  }
-
-  // poster 하위: slug 또는 slug-1/slug-2 파일명을 랜덤 노출 용도로 매핑
-  const posterDir = path.join(process.cwd(), 'public', 'concert2025', 'image', 'poster')
+  // 정적 포스터 매니페스트 (slug별)
   type PosterFile = { src: string; alt: string; slug: string; variant?: number }
-  const normalizeSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
-  let postersBySlug: Record<string, PosterFile[]> = {}
-  let postersBySlugNormalized: Record<string, PosterFile[]> = {}
-  let postersFlat: PosterFile[] = []
-  try {
-    const files = await fs.readdir(posterDir)
-    const imageFiles = files.filter((f) => /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(f))
-    for (const file of imageFiles) {
-      const base = file.replace(/\.[^.]+$/, '')
-      const m = base.match(/^([a-z0-9-]+)(?:[-_](\d+))?$/i)
-      if (!m) continue
-      const slug = m[1].toLowerCase()
-      const variant = m[2] ? parseInt(m[2], 10) : undefined
-      const pf: PosterFile = { src: `/concert2025/image/poster/${file}`, alt: slug, slug, variant }
-      const norm = normalizeSlug(slug)
-      postersBySlug[slug] = postersBySlug[slug] ? [...postersBySlug[slug], pf] : [pf]
-      postersBySlugNormalized[norm] = postersBySlugNormalized[norm] ? [...postersBySlugNormalized[norm], pf] : [pf]
-      postersFlat.push(pf)
-    }
-  } catch (_) {
-    postersBySlug = {}
-    postersBySlugNormalized = {}
-    postersFlat = []
+  const POSTERS_BY_SLUG: Record<string, PosterFile[]> = {
+    'eastshine': [
+      { src: '/concert2025/image/poster/eastshine-1.png', alt: 'eastshine-1', slug: 'eastshine', variant: 1 },
+      { src: '/concert2025/image/poster/eastshine-2.png', alt: 'eastshine-2', slug: 'eastshine', variant: 2 },
+    ],
+    'ifeye': [
+      { src: '/concert2025/image/poster/ifeye-1.png', alt: 'ifeye-1', slug: 'ifeye', variant: 1 },
+      { src: '/concert2025/image/poster/ifeye-2.png', alt: 'ifeye-2', slug: 'ifeye', variant: 2 },
+    ],
+    'gavy-nj': [
+      { src: '/concert2025/image/poster/gavy-nj.png', alt: 'gavy-nj', slug: 'gavy-nj', variant: 1 },
+    ],
+    'ryu-hwayoung': [
+      { src: '/concert2025/image/poster/ryu-hwayoung.png', alt: 'ryu-hwayoung', slug: 'ryu-hwayoung', variant: 1 },
+    ],
+    'iii': [
+      { src: '/concert2025/image/poster/iii.png', alt: 'iii', slug: 'iii', variant: 1 },
+    ],
+    'youngposse': [
+      { src: '/concert2025/image/poster/youngposse.png', alt: 'youngposse', slug: 'youngposse', variant: 1 },
+    ],
   }
+  const postersBySlug = POSTERS_BY_SLUG
+  const postersBySlugNormalized: Record<string, PosterFile[]> = Object.fromEntries(
+    Object.entries(POSTERS_BY_SLUG).map(([k, v]) => [k.replace(/[^a-z0-9]/gi, '').toLowerCase(), v])
+  )
+  const postersFlat: PosterFile[] = Object.values(POSTERS_BY_SLUG).flat()
+  const firstPosterSrc: string | undefined = postersFlat.length > 0 ? postersFlat[0].src : undefined
 
-  // slug 기반 이미지 선택 헬퍼 (image 하위 파일명 우선)
+  // slug 기반 대표 이미지 선택
   const pickImageBySlug = (slug: string): string | undefined => {
-    const lower = slug.toLowerCase()
-    const candidates = imageFilesAll
-      .map((f) => ({ f, fl: f.toLowerCase() }))
-    // 1) exact: slug.ext
-      .sort((a, b) => a.f.localeCompare(b.f))
-
-    const exact = candidates.find(({ fl }) => new RegExp(`^${lower}\.`, 'i').test(fl))
-    if (exact) return `/concert2025/image/${exact.f}`
-
-    // 2) slug-poster.ext or poster-slug.ext
-    const hyphenPoster = candidates.find(({ fl }) => new RegExp(`^${lower}[-_]?poster\.`, 'i').test(fl))
-    if (hyphenPoster) return `/concert2025/image/${hyphenPoster.f}`
-    const posterHyphen = candidates.find(({ fl }) => new RegExp(`^poster[-_]?${lower}\.`, 'i').test(fl))
-    if (posterHyphen) return `/concert2025/image/${posterHyphen.f}`
-
-    // 3) includes slug and 'poster'
-    const containsBoth = candidates.find(({ fl }) => fl.includes(lower) && /poster/i.test(fl))
-    if (containsBoth) return `/concert2025/image/${containsBoth.f}`
-
-    // 4) includes slug
-    const containsSlug = candidates.find(({ fl }) => fl.includes(lower))
-    if (containsSlug) return `/concert2025/image/${containsSlug.f}`
-
-    // 5) fallback: 첫 poster 이미지
-    if (posters[0]) return posters[0].src
+    const arr = POSTERS_BY_SLUG[slug]
+    if (!arr || arr.length === 0) return undefined
+    const v1 = arr.find(p => p.variant === 1)
+    return v1 ? v1.src : arr[0].src
   }
 
-  // 아티스트별 포스터: public/concert2025/artists/{slug}/ 내 'poster' 포함 이미지
-  const artistPosterMap: Record<string, { src: string; alt: string } | undefined> = {}
-  for (const a of lineup) {
-    const artistDir = path.join(process.cwd(), 'public', 'concert2025', 'artists', a.slug)
-    try {
-      const files = await fs.readdir(artistDir)
-      const posterFile = files.find((f) => /poster/i.test(f) && /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(f))
-      if (posterFile) {
-        const alt = a.name
-        artistPosterMap[a.slug] = { src: `/concert2025/artists/${a.slug}/${posterFile}`, alt }
-      }
-    } catch (_) {
-      artistPosterMap[a.slug] = undefined
-    }
-  }
-
-  // 장소 지도 이미지 (사용자가 업로드한 경우 사용): public/concert2025/map/*
-  let mapImage: { src: string; alt: string } | null = null
-  try {
-    const mapDir = path.join(process.cwd(), 'public', 'concert2025', 'map')
-    const files = await fs.readdir(mapDir)
-    const mapImg = files.find((f) => /\.(png|jpe?g|webp|avif|gif|svg)$/i.test(f))
-    if (mapImg) {
-      mapImage = { src: `/concert2025/map/${mapImg}`, alt: 'Blue Square Map' }
-    }
-  } catch (_) {
-    mapImage = null
-  }
-
-  // 소개 영상 자동 로드 (concert2025/video 또는 /video 폴더 지원)
-  const candidateVideoDirs = [
-    { fsPath: path.join(process.cwd(), 'public', 'concert2025', 'video'), urlBase: '/concert2025/video' },
-    { fsPath: path.join(process.cwd(), 'public', 'video'), urlBase: '/video' },
-  ]
+  // 소개 영상 정적 매니페스트 (베이스명 기준 그룹)
   type VideoSource = { src: string; type: string }
   type VideoGroup = { key: string; sources: VideoSource[] }
-  let videoGroups: VideoGroup[] = []
-  for (const dir of candidateVideoDirs) {
-    try {
-      const files = await fs.readdir(dir.fsPath)
-      const videoFiles = files.filter((f) => /\.(mp4|webm|ogg|m4v)$/i.test(f))
-      if (videoFiles.length > 0) {
-        const mimeMap: Record<string, string> = {
-          mp4: 'video/mp4',
-          webm: 'video/webm',
-          ogg: 'video/ogg',
-          m4v: 'video/x-m4v',
-        }
-        const groups = new Map<string, VideoSource[]>()
-        for (const file of videoFiles) {
-          const ext = file.split('.').pop()?.toLowerCase() || 'mp4'
-          const base = file.replace(/\.[^.]+$/, '')
-          const key = base.toLowerCase()
-          const list = groups.get(key) || []
-          list.push({ src: `${dir.urlBase}/${file}`, type: mimeMap[ext] || 'video/mp4' })
-          groups.set(key, list)
-        }
-        videoGroups = Array.from(groups.entries()).map(([key, sources]) => ({ key, sources }))
-        break
-      }
-    } catch (_) {
-      // skip
-    }
-  }
+  const videoGroups: VideoGroup[] = [
+    { key: 'gavy-nj', sources: [{ src: '/concert2025/video/GAVYNJ.mp4', type: 'video/mp4' }] },
+  ]
 
   // 비디오 키(파일 베이스명)로 포스터 찾기
   const getPosterForVideoKey = (key: string): string | undefined => {
@@ -265,26 +171,18 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
               </a>
             </div>
           </div>
-          {mapImage ? (
-            <div className="relative w-full overflow-hidden rounded-lg border">
-              <div className="relative w-full aspect-video">
-                <Image src={mapImage.src} alt={mapImage.alt} fill className="object-cover" />
-              </div>
+          <div className="relative w-full overflow-hidden rounded-lg border">
+            <div className="relative w-full aspect-video">
+              <iframe
+                title="Blue Square Seoul (AMap)"
+                className="absolute inset-0 h-full w-full"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://m.amap.com/search/mapview/keywords=${venue.amapKeyword}`}
+                allowFullScreen
+              />
             </div>
-          ) : (
-            <div className="relative w-full overflow-hidden rounded-lg border">
-              <div className="relative w-full aspect-video">
-                <iframe
-                  title="Blue Square Seoul (AMap)"
-                  className="absolute inset-0 h-full w-full"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  src={`https://m.amap.com/search/mapview/keywords=${venue.amapKeyword}`}
-                  allowFullScreen
-                />
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </section>
 
@@ -306,7 +204,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
             })
 
             // fallback poster if no slug-matched posters
-            const fallbackPoster = artistPosterMap[artist.slug]?.src || pickImageBySlug(artist.slug) || posters[idx]?.src
+            const fallbackPoster: string | undefined = pickImageBySlug(artist.slug) || firstPosterSrc
 
             return (
               <article key={artist.id} className="group relative rounded-xl overflow-hidden border border-primary/10 shadow">
@@ -340,8 +238,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 220px"
                           className="object-cover"
                         />
-                      ) : null}
-                      {!fallbackPoster && (
+                      ) : (
                         <div className="absolute inset-0 grid place-items-center text-xs text-gray-500">暂无海报</div>
                       )}
                     </div>
@@ -370,7 +267,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                 controls
                 playsInline
                 preload="metadata"
-                poster={getPosterForVideoKey(videoGroups[0].key) || postersFlat[0]?.src || posters[0]?.src}
+                poster={getPosterForVideoKey(videoGroups[0].key) || firstPosterSrc}
               >
                 {videoGroups[0].sources.map((v) => (
                   <source key={v.src} src={v.src} type={v.type} />
@@ -381,7 +278,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {videoGroups.map((group, i) => (
+            {videoGroups.map((group) => (
               <div key={group.key} className="rounded-xl overflow-hidden border bg-black">
                 <div className="relative w-full aspect-video">
                   <video
@@ -389,7 +286,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                     controls
                     playsInline
                     preload="metadata"
-                    poster={getPosterForVideoKey(group.key) || postersFlat[i]?.src || posters[i]?.src}
+                    poster={getPosterForVideoKey(group.key) || firstPosterSrc}
                   >
                     {group.sources.map((v) => (
                       <source key={v.src} src={v.src} type={v.type} />
