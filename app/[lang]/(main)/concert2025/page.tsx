@@ -39,8 +39,6 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     coord: { lng: 127.003, lat: 37.5405 },
     amapKeyword: encodeURIComponent('Blue Square Seoul'),
   }
-  const amapKey = 'ab403a9b356e63c917ff05b037cd3e7d'
-  const staticMapSrc = `https://restapi.amap.com/v3/staticmap?location=${venue.coord.lng},${venue.coord.lat}&zoom=16&size=750*420&markers=mid,0xFF0000,A:${venue.coord.lng},${venue.coord.lat}&key=${amapKey}`
 
   // 정적 포스터 매니페스트 (slug별)
   type PosterFile = { src: string; alt: string; slug: string; variant?: number }
@@ -85,7 +83,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
   type VideoSource = { src: string; type: string }
   type VideoGroup = { key: string; sources: VideoSource[] }
   const videoGroups: VideoGroup[] = [
-    { key: 'gavy-nj', sources: [{ src: '/concert2025/video/GAVYNJ-720p.mp4', type: 'video/mp4' }] },
+    { key: 'gavy-nj', sources: [{ src: '/concert2025/video/GAVYNJ-720p-v2.mp4', type: 'video/mp4' }] },
   ]
 
   // 비디오 키(파일 베이스명)로 포스터 찾기
@@ -173,22 +171,18 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
               </a>
             </div>
           </div>
-          <a
-            href={`https://uri.amap.com/marker?position=${venue.coord.lng},${venue.coord.lat}&name=${venue.amapKeyword}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block relative w-full overflow-hidden rounded-lg border"
-            aria-label="在高德地图查看位置 (新窗口打开)"
-          >
+          <div className="relative w-full overflow-hidden rounded-lg border">
             <div className="relative w-full aspect-video">
-              <img
-                src={staticMapSrc}
-                alt="Blue Square Seoul - 高德地图静态图"
-                className="absolute inset-0 h-full w-full object-cover"
+              <iframe
+                title="Blue Square Seoul (AMap)"
+                className="absolute inset-0 h-full w-full"
                 loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://m.amap.com/navi/?dest=${venue.coord.lng},${venue.coord.lat}&destName=${venue.amapKeyword}&key=ab403a9b356e63c917ff05b037cd3e7d`}
+                allowFullScreen
               />
             </div>
-          </a>
+          </div>
         </div>
       </section>
 
