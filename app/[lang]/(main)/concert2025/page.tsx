@@ -83,7 +83,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
   type VideoSource = { src: string; type: string }
   type VideoGroup = { key: string; sources: VideoSource[] }
   const videoGroups: VideoGroup[] = [
-    { key: 'gavy-nj', sources: [{ src: '/concert2025/video/GAVYNJ.mp4', type: 'video/mp4' }] },
+    { key: 'gavy-nj', sources: [{ src: '/concert2025/video/GAVYNJ-720p.mp4', type: 'video/mp4' }] },
   ]
 
   // 비디오 키(파일 베이스명)로 포스터 찾기
@@ -178,7 +178,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                 className="absolute inset-0 h-full w-full"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
-                src={`https://m.amap.com/search/mapview/keywords=${venue.amapKeyword}`}
+                src={`https://m.amap.com/navi/?dest=${venue.coord.lng},${venue.coord.lat}&destName=${venue.amapKeyword}&key=ab403a9b356e63c917ff05b037cd3e7d`}
                 allowFullScreen
               />
             </div>

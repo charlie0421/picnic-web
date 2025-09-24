@@ -40,7 +40,8 @@
     "i18n:restore-merge": "tsx scripts/restore-i18n-merge-best.ts && npm run -s i18n:check",
     "i18n:seed-en": "tsx scripts/seed-i18n-en.ts && npm run -s i18n:auto",
     "i18n:fill": "tsx scripts/fill-placeholders.ts && npm run -s i18n:check",
-    "i18n:fix-dialog": "tsx scripts/fix-dialog-shortcuts.ts && npm run -s i18n:check"
+    "i18n:fix-dialog": "tsx scripts/fix-dialog-shortcuts.ts && npm run -s i18n:check",
+    "transcode": "node scripts/transcode-gavynj.js"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
@@ -99,6 +100,8 @@
     "dotenv": "^16.5.0",
     "eslint": "^9.25.1",
     "eslint-config-next": "^15.3.1",
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.3",
     "postcss": "^8.5.3",
     "supabase": "^1.226.4",
     "tailwindcss": "^3.3.3",
