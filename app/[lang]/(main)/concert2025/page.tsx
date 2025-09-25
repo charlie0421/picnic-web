@@ -285,14 +285,9 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                   priority
                 />
               ) : (
-                <iframe
-                  title="Blue Square Seoul (AMap)"
-                  className="absolute inset-0 h-full w-full"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  src={`https://m.amap.com/navi/?dest=${venue.coord.lng},${venue.coord.lat}&destName=${venue.amapKeyword}&key=ab403a9b356e63c917ff05b037cd3e7d`}
-                  allowFullScreen
-                />
+                <div className="absolute inset-0 grid place-items-center text-sm text-gray-500">
+                  地图图片准备中（请上传 public/concert2025/image/map-zh.png）
+                </div>
               )}
             </div>
           </div>
