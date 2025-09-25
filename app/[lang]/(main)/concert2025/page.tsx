@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import { getLanguageFromParams } from '@/utils/api/language'
 import Image from 'next/image'
+import VideoSection from '@/components/client/VideoSection'
 import fs from 'fs'
 import path from 'path'
 
@@ -138,9 +139,9 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     <main className="relative container mx-auto px-4 py-12 md:py-16">
       {/* Decorative background */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute top-1/3 -right-24 h-72 w-72 rounded-full bg-point/20 blur-3xl" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-64 w-96 rounded-full bg-sub/20 blur-3xl" />
+        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/20 blur-xl" />
+        <div className="absolute top-1/3 -right-24 h-72 w-72 rounded-full bg-point/20 blur-xl" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-64 w-96 rounded-full bg-sub/20 blur-xl" />
       </div>
       {/* Hero */}
       <section className="text-center space-y-3 md:space-y-4" lang="zh">
@@ -170,53 +171,19 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
       </section>
 
       {/* Intro Video */}
-      <section className="mt-10" lang="zh">
+      <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
         <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">介绍视频</h2>
         {videoGroups.length === 0 ? (
           <p className="text-sm text-gray-500">视频即将公开（如为 .mov 文件，请转换为 .mp4 后上传）。</p>
-        ) : videoGroups.length === 1 ? (
-          <div className="rounded-xl overflow-hidden border bg-black">
-            <div className="relative w-full aspect-video">
-              <video
-                className="absolute inset-0 h-full w-full"
-                controls
-                playsInline
-                preload="metadata"
-                poster={getPosterForVideoKey(videoGroups[0].key) || firstPosterSrc}
-              >
-                {videoGroups[0].sources.map((v) => (
-                  <source key={v.src} src={v.src} type={v.type} />
-                ))}
-                您的浏览器不支持视频播放。
-              </video>
-            </div>
-          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {videoGroups.map((group) => (
-              <div key={group.key} className="rounded-xl overflow-hidden border bg-black">
-                <div className="relative w-full aspect-video">
-                  <video
-                    className="absolute inset-0 h-full w-full"
-                    controls
-                    playsInline
-                    preload="metadata"
-                    poster={getPosterForVideoKey(group.key) || firstPosterSrc}
-                  >
-                    {group.sources.map((v) => (
-                      <source key={v.src} src={v.src} type={v.type} />
-                    ))}
-                    您的浏览器不支持视频播放。
-                  </video>
-                </div>
-              </div>
-            ))}
-          </div>
+          <VideoSection
+            groups={videoGroups.map((g) => ({ key: g.key, sources: g.sources, poster: getPosterForVideoKey(g.key) || firstPosterSrc }))}
+          />
         )}
       </section>
 
       {/* Contact / WeChat QR */}
-      <section className="mt-10" lang="zh">
+      <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
         <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">联系方式</h2>
         <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
           <div>
@@ -245,8 +212,6 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                 width={288}
                 height={288}
                 className="object-contain"
-                unoptimized
-                priority
               />
             </div>
           </div>
@@ -254,7 +219,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
       </section>
 
       {/* Location / Map */}
-      <section className="mt-10" lang="zh">
+      <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
         <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">演出地点</h2>
         <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm">
           <div className="mb-4">
@@ -287,7 +252,6 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                 fill
                 sizes="100vw"
                 className="object-contain"
-                priority
               />
             </div>
           </div>
