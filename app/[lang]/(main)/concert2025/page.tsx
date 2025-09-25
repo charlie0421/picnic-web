@@ -42,6 +42,11 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     amapKeyword: encodeURIComponent('Blue Square Seoul'),
   }
 
+  // 지도 이미지(중국어) 사용 여부: public/concert2025/image/map-zh.png 이 있으면 이미지로 대체
+  const mapImagePublicRelative = path.join('concert2025', 'image', 'map-zh.png')
+  const mapImageFsPath = path.join(process.cwd(), 'public', mapImagePublicRelative)
+  const hasMapImage = fs.existsSync(mapImageFsPath)
+
   // 정적 포스터 매니페스트 (slug별)
   type PosterFile = { src: string; alt: string; slug: string; variant?: number }
   const POSTERS_BY_SLUG: Record<string, PosterFile[]> = {
@@ -269,15 +274,26 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
             </div>
           </div>
           <div className="relative w-full overflow-hidden rounded-lg border">
-            <div className="relative w-full aspect-video">
-              <iframe
-                title="Blue Square Seoul (AMap)"
-                className="absolute inset-0 h-full w-full"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                src={`https://m.amap.com/navi/?dest=${venue.coord.lng},${venue.coord.lat}&destName=${venue.amapKeyword}&key=ab403a9b356e63c917ff05b037cd3e7d`}
-                allowFullScreen
-              />
+            <div className="relative w-full aspect-video bg-white">
+              {hasMapImage ? (
+                <Image
+                  src={`/${mapImagePublicRelative}?v=1`}
+                  alt="演出地点地图"
+                  fill
+                  sizes="100vw"
+                  className="object-contain"
+                  priority
+                />
+              ) : (
+                <iframe
+                  title="Blue Square Seoul (AMap)"
+                  className="absolute inset-0 h-full w-full"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={`https://m.amap.com/navi/?dest=${venue.coord.lng},${venue.coord.lat}&destName=${venue.amapKeyword}&key=ab403a9b356e63c917ff05b037cd3e7d`}
+                  allowFullScreen
+                />
+              )}
             </div>
           </div>
         </div>
