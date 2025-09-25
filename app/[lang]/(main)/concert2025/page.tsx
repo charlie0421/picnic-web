@@ -78,6 +78,12 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
   const postersFlat: PosterFile[] = Object.values(POSTERS_BY_SLUG).flat()
   const firstPosterSrc: string | undefined = postersFlat.length > 0 ? postersFlat[0].src : undefined
 
+  // 포스터 → 아티스트명 매핑 (공백 없는 정규화 슬러그 기준)
+  const normalizeKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const slugToArtistName: Record<string, string> = Object.fromEntries(
+    lineup.map((a) => [normalizeKey(a.slug), a.name])
+  )
+
   // slug 기반 대표 이미지 선택
   const pickImageBySlug = (slug: string): string | undefined => {
     const arr = POSTERS_BY_SLUG[slug]
@@ -311,6 +317,11 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                       sizes="(max-width: 640px) 50vw, (max-width: 1280px) 25vw, 200px"
                       className="object-cover"
                     />
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-xs md:text-sm font-medium text-gray-900 truncate" title={slugToArtistName[normalizeKey(p.slug || '')] || p.alt || p.slug}>
+                      {slugToArtistName[normalizeKey(p.slug || '')] || p.alt || p.slug || '未知艺人'}
+                    </p>
                   </div>
                 </div>
               </article>
