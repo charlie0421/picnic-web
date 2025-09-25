@@ -330,6 +330,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
                 width={288}
                 height={288}
                 className="object-contain"
+                unoptimized
                 priority
               />
             </div>
