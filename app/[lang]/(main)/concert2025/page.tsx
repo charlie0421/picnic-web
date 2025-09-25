@@ -83,8 +83,8 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
   type VideoSource = { src: string; type: string }
   type VideoGroup = { key: string; sources: VideoSource[] }
   const videoGroups: VideoGroup[] = [
-    { key: 'gavynj', sources: [{ src: '/concert2025/video/gavynj.mp4', type: 'video/mp4' }] },
-    { key: 'youngposse', sources: [{ src: '/concert2025/video/youngposse.mp4', type: 'video/mp4' }] },
+    { key: 'gavynj', sources: [{ src: '/concert2025/video/gavynj.mp4?v=1', type: 'video/mp4' }] },
+    { key: 'youngposse', sources: [{ src: '/concert2025/video/youngposse.mp4?v=1', type: 'video/mp4' }] },
   ]
 
   // 비디오 키(파일 베이스명)로 포스터 찾기
