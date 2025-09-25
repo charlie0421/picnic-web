@@ -21,9 +21,9 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
   // 라인업 구조체 (slug는 폴더명으로 사용)
   type Artist = { id: number; name: string; slug: string }
   const lineup: Artist[] = [
-    { id: 1, name: 'T-ARA 柳和荣（류화영）', slug: 'ryu-hwayoung' },
-    { id: 2, name: 'ifeye', slug: 'ifeye' },
-    { id: 3, name: 'Gavy NJ（가비앤제이）', slug: 'gavy-nj' },
+    { id: 1, name: 'T-ARA 柳和荣（류화영）', slug: 'ryuhwayoung' },
+    { id: 2, name: 'ifeye(이프아이)', slug: 'ifeye' },
+    { id: 3, name: 'Gavy NJ（가비앤제이）', slug: 'gavynj' },
     { id: 4, name: 'EastShine（이스트샤인）', slug: 'eastshine' },
     { id: 5, name: 'iii（아이아이아이）', slug: 'iii' },
     { id: 6, name: 'Young Posse（영파씨）', slug: 'youngposse' },
@@ -91,6 +91,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     .filter((key, idx, arr) => arr.indexOf(key) === idx)
     .map((key) => {
       const filePath = path.join(publicVideoDir, `${key}.mp4`)
+      console.log('filePath', filePath)
       const exists = fs.existsSync(filePath)
       return exists
         ? { key, sources: [{ src: `/concert2025/video/${key}.mp4?v=1`, type: 'video/mp4' }] }
