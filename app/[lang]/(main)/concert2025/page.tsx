@@ -93,23 +93,22 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     return v1 ? v1.src : arr[0].src
   }
 
-  // 소개 영상: 라인업 slug를 정규화하여 public 디렉토리의 mp4 파일 존재 여부로 자동 구성
+  // 소개 영상: video 폴더의 mp4를 모두 노출 (한글/대소문자 파일명 포함)
   type VideoSource = { src: string; type: string }
   type VideoGroup = { key: string; sources: VideoSource[] }
   const publicVideoDir = path.join(process.cwd(), 'public', 'concert2025', 'video')
-  const normalizeSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
-  const videoGroups: VideoGroup[] = lineup
-    .map((a) => normalizeSlug(a.slug))
-    .filter((key, idx, arr) => arr.indexOf(key) === idx)
-    .map((key) => {
-      const filePath = path.join(publicVideoDir, `${key}.mp4`)
-      console.log('filePath', filePath)
-      const exists = fs.existsSync(filePath)
-      return exists
-        ? { key, sources: [{ src: `/concert2025/video/${key}.mp4?v=1`, type: 'video/mp4' }] }
-        : null
-    })
-    .filter((v): v is VideoGroup => v !== null)
+  const toKeyFromFilename = (name: string) => {
+    const base = name.replace(/\.mp4$/i, '')
+    const ascii = base.toLowerCase().replace(/[^a-z0-9]/g, '')
+    return ascii || base.toLowerCase()
+  }
+  const videoFiles = fs.existsSync(publicVideoDir)
+    ? fs.readdirSync(publicVideoDir).filter((f) => f.toLowerCase().endsWith('.mp4'))
+    : []
+  const videoGroups: VideoGroup[] = videoFiles.map((file) => ({
+    key: toKeyFromFilename(file),
+    sources: [{ src: `/concert2025/video/${encodeURIComponent(file)}?v=1`, type: 'video/mp4' }],
+  }))
 
   // 비디오 키(파일 베이스명)로 포스터 찾기
   const getPosterForVideoKey = (key: string): string | undefined => {
