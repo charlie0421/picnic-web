@@ -1,6 +1,8 @@
 import { Metadata } from 'next'
 import { getLanguageFromParams } from '@/utils/api/language'
 import Image from 'next/image'
+import fs from 'fs'
+import path from 'path'
 
 export const dynamic = 'force-static'
 export const revalidate = 86400
@@ -79,13 +81,22 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     return v1 ? v1.src : arr[0].src
   }
 
-  // 소개 영상 정적 매니페스트 (베이스명 기준 그룹)
+  // 소개 영상: 라인업 slug를 정규화하여 public 디렉토리의 mp4 파일 존재 여부로 자동 구성
   type VideoSource = { src: string; type: string }
   type VideoGroup = { key: string; sources: VideoSource[] }
-  const videoGroups: VideoGroup[] = [
-    { key: 'gavynj', sources: [{ src: '/concert2025/video/gavynj.mp4?v=1', type: 'video/mp4' }] },
-    { key: 'youngposse', sources: [{ src: '/concert2025/video/youngposse.mp4?v=1', type: 'video/mp4' }] },
-  ]
+  const publicVideoDir = path.join(process.cwd(), 'public', 'concert2025', 'video')
+  const normalizeSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const videoGroups: VideoGroup[] = lineup
+    .map((a) => normalizeSlug(a.slug))
+    .filter((key, idx, arr) => arr.indexOf(key) === idx)
+    .map((key) => {
+      const filePath = path.join(publicVideoDir, `${key}.mp4`)
+      const exists = fs.existsSync(filePath)
+      return exists
+        ? { key, sources: [{ src: `/concert2025/video/${key}.mp4?v=1`, type: 'video/mp4' }] }
+        : null
+    })
+    .filter((v): v is VideoGroup => v !== null)
 
   // 비디오 키(파일 베이스명)로 포스터 찾기
   const getPosterForVideoKey = (key: string): string | undefined => {
