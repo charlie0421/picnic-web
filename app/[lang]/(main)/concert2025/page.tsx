@@ -42,8 +42,12 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     amapKeyword: encodeURIComponent('Blue Square Seoul'),
   }
 
-  // 지도 이미지(중국어) 사용 여부: public/concert2025/image/map-zh.png 이 있으면 이미지로 대체
-  const mapImagePublicRelative = path.join('concert2025', 'image', 'map-zh.png')
+  // 지도 이미지: 우선순위 map-zh.png → map.png
+  const mapCandidates = [
+    path.join('concert2025', 'image', 'map-zh.png'),
+    path.join('concert2025', 'image', 'map.png'),
+  ]
+  const mapImagePublicRelative = mapCandidates.find((rel) => fs.existsSync(path.join(process.cwd(), 'public', rel))) || mapCandidates[0]
   const mapImageFsPath = path.join(process.cwd(), 'public', mapImagePublicRelative)
   const hasMapImage = fs.existsSync(mapImageFsPath)
 
