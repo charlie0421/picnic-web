@@ -42,14 +42,10 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
     amapKeyword: encodeURIComponent('Blue Square Seoul'),
   }
 
-  // 지도 이미지: 우선순위 map-zh.png → map.png
-  const mapCandidates = [
-    path.join('concert2025', 'image', 'map-zh.png'),
-    path.join('concert2025', 'image', 'map.png'),
-  ]
-  const mapImagePublicRelative = mapCandidates.find((rel) => fs.existsSync(path.join(process.cwd(), 'public', rel))) || mapCandidates[0]
+  // 지도 이미지는 항상 map.png를 사용 (SSG 캐시 이슈 방지)
+  const mapImagePublicRelative = path.join('concert2025', 'image', 'map.png')
   const mapImageFsPath = path.join(process.cwd(), 'public', mapImagePublicRelative)
-  const hasMapImage = fs.existsSync(mapImageFsPath)
+  const hasMapImage = true
 
   // 정적 포스터 매니페스트 (slug별)
   type PosterFile = { src: string; alt: string; slug: string; variant?: number }
@@ -279,20 +275,14 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
           </div>
           <div className="relative w-full overflow-hidden rounded-lg border">
             <div className="relative w-full aspect-video bg-white">
-              {hasMapImage ? (
-                <Image
-                  src={`/${mapImagePublicRelative}?v=1`}
-                  alt="演出地点地图"
-                  fill
-                  sizes="100vw"
-                  className="object-contain"
-                  priority
-                />
-              ) : (
-                <div className="absolute inset-0 grid place-items-center text-sm text-gray-500">
-                  地图图片准备中（请上传 public/concert2025/image/map-zh.png）
-                </div>
-              )}
+              <Image
+                src={`/${mapImagePublicRelative}?v=1`}
+                alt="演出地点地图"
+                fill
+                sizes="100vw"
+                className="object-contain"
+                priority
+              />
             </div>
           </div>
         </div>
