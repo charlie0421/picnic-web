@@ -176,7 +176,11 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
           <p className="text-sm text-gray-500">视频即将公开（如为 .mov 文件，请转换为 .mp4 后上传）。</p>
         ) : (
           <VideoSection
-            groups={videoGroups.map((g) => ({ key: g.key, sources: g.sources, poster: getPosterForVideoKey(g.key) || firstPosterSrc }))}
+            groups={videoGroups.map((g) => ({
+              key: g.key,
+              sources: g.sources,
+              poster: `/concert2025/video/thumbs/${encodeURIComponent(g.key)}.jpg`,
+            }))}
           />
         )}
       </section>
