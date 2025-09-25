@@ -206,7 +206,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
             </ul>
             <div className="mt-4">
               <a
-                href="/concert2025/image/image_20250925_10.30.47.png"
+                href="/concert2025/image/wechat-qr.png"
                 download
                 className="inline-flex items-center rounded-lg border border-primary/30 px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary/10"
               >
@@ -217,7 +217,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
           <div className="justify-self-center">
             <div className="relative rounded-xl border bg-white p-3 shadow-sm">
               <Image
-                src="/concert2025/image/image_20250925_10.30.47.png"
+                src="/concert2025/image/wechat-qr.png?v=1"
                 alt="WeChat QR"
                 width={288}
                 height={288}
