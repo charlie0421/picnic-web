@@ -95,7 +95,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
 
   // 소개 영상: video 폴더의 mp4를 모두 노출 (한글/대소문자 파일명 포함)
   type VideoSource = { src: string; type: string }
-  type VideoGroup = { key: string; sources: VideoSource[] }
+  type VideoGroup = { key: string; sources: VideoSource[]; thumb?: string }
   const publicVideoDir = path.join(process.cwd(), 'public', 'concert2025', 'video')
   const toKeyFromFilename = (name: string) => {
     const base = name.replace(/\.mp4$/i, '')
@@ -105,10 +105,15 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
   const videoFiles = fs.existsSync(publicVideoDir)
     ? fs.readdirSync(publicVideoDir).filter((f) => f.toLowerCase().endsWith('.mp4'))
     : []
-  const videoGroups: VideoGroup[] = videoFiles.map((file) => ({
-    key: toKeyFromFilename(file),
-    sources: [{ src: `/concert2025/video/${encodeURIComponent(file)}?v=1`, type: 'video/mp4' }],
-  }))
+  const videoGroups: VideoGroup[] = videoFiles.map((file) => {
+    const key = toKeyFromFilename(file)
+    const thumb = `/concert2025/video/thumbs/${encodeURIComponent(file.replace(/\.mp4$/i, '.jpg'))}`
+    return {
+      key,
+      sources: [{ src: `/concert2025/video/${encodeURIComponent(file)}?v=1`, type: 'video/mp4' }],
+      thumb,
+    }
+  })
 
   // 비디오 키(파일 베이스명)로 포스터 찾기
   const getPosterForVideoKey = (key: string): string | undefined => {
@@ -179,7 +184,7 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
             groups={videoGroups.map((g) => ({
               key: g.key,
               sources: g.sources,
-              poster: `/concert2025/video/thumbs/${encodeURIComponent(g.key)}.jpg`,
+              poster: g.thumb || getPosterForVideoKey(g.key) || firstPosterSrc,
             }))}
           />
         )}
