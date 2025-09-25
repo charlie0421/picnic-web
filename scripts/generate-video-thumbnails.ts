@@ -27,8 +27,8 @@ function runFfmpeg(input: string, output: string): Promise<void> {
 async function main() {
   ensureDir(thumbsDir)
   if (!fs.existsSync(videoDir)) {
-    console.error('Video directory not found:', videoDir)
-    process.exit(1)
+    console.log('[thumbs] Video directory not found, skipping:', videoDir)
+    process.exit(0)
   }
 
   const files = fs.readdirSync(videoDir).filter((f) => f.toLowerCase().endsWith('.mp4'))
