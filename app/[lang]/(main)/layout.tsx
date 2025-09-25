@@ -6,6 +6,7 @@ import NavigationLink from '@/components/client/NavigationLink';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useTranslations } from '@/hooks/useTranslations';
 import ExclusiveOpenBadge from '@/components/layouts/ExclusiveOpenBadge';
+import { usePathname } from 'next/navigation';
 
 const SubMenu: React.FC = () => {
   const { subMenuItems } = useMenu();
@@ -47,12 +48,16 @@ const SubMenu: React.FC = () => {
 import Footer from '@/components/layouts/Footer';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const hideBetaNotice = pathname?.includes('/concert2025');
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <div className='flex justify-center py-1 sm:py-2 bg-yellow-100'>
-        <ExclusiveOpenBadge />
-      </div>
+      {!hideBetaNotice && (
+        <div className='flex justify-center py-1 sm:py-2 bg-yellow-100'>
+          <ExclusiveOpenBadge />
+        </div>
+      )}
       <SubMenu />
       <main className="flex-1 container mx-auto">
         {children}
