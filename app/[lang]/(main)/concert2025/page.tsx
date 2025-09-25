@@ -299,6 +299,43 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
           </div>
         )}
       </section>
+
+      {/* Contact / WeChat QR */}
+      <section className="mt-10" lang="zh">
+        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">联系方式</h2>
+        <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          <div>
+            <p className="text-gray-700 leading-relaxed">
+              客服微信：请扫描右侧二维码添加好友，或将二维码保存到相册后在微信中识别。
+            </p>
+            <ul className="list-disc pl-5 mt-3 text-sm text-gray-600">
+              <li>服务时间：10:00 – 19:00（KST）</li>
+              <li>演出、购票及现场相关咨询均可留言</li>
+            </ul>
+            <div className="mt-4">
+              <a
+                href="/concert2025/image/image_20250925_10.30.47.png"
+                download
+                className="inline-flex items-center rounded-lg border border-primary/30 px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary/10"
+              >
+                下载二维码
+              </a>
+            </div>
+          </div>
+          <div className="justify-self-center">
+            <div className="relative rounded-xl border bg-white p-3 shadow-sm">
+              <Image
+                src="/concert2025/image/image_20250925_10.30.47.png"
+                alt="WeChat QR"
+                width={288}
+                height={288}
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   )
 }
