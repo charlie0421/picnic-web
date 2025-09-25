@@ -288,72 +288,34 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
         </div>
       </section>
 
-      {/* Lineup - Fancy Cards */}
+      {/* Posters - Flat Grid (no grouping) */}
       <section className="mt-10" lang="zh">
-        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">演出阵容</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          {lineup.map((artist, idx) => {
-            const normKey = artist.slug.replace(/[^a-z0-9]/gi, '').toLowerCase()
-            let listRaw = postersBySlug[artist.slug] || postersBySlugNormalized[normKey] || []
-            if (listRaw.length === 0) {
-              const slugLower = artist.slug.toLowerCase()
-              listRaw = postersFlat.filter(p => p.slug === slugLower || p.src.toLowerCase().includes(`/poster/${slugLower}`))
-            }
-            const list = [...listRaw].sort((a, b) => {
+        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">演出海报</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
+          {[...postersFlat]
+            .sort((a, b) => {
+              const as = (a.slug || '').localeCompare(b.slug || '')
+              if (as !== 0) return as
               const av = typeof a.variant === 'number' ? a.variant! : Number.MAX_SAFE_INTEGER
               const bv = typeof b.variant === 'number' ? b.variant! : Number.MAX_SAFE_INTEGER
               return av - bv
             })
-
-            // fallback poster if no slug-matched posters
-            const fallbackPoster: string | undefined = pickImageBySlug(artist.slug) || firstPosterSrc
-
-            return (
-              <article key={artist.id} className="group relative rounded-xl overflow-hidden border border-primary/10 shadow">
+            .map((p, i) => (
+              <article key={`${p.src}-${i}`} className="group relative rounded-xl overflow-hidden border border-primary/10 shadow">
                 <div className="p-2">
-                  {list.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-2">
-                      {list.map((p, i) => (
-                        <div key={p.src} className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
-                          <Image
-                            src={p.src}
-                            alt={`${artist.name} poster ${p.variant ?? i + 1}`}
-                            fill
-                            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 220px"
-                            className="object-cover"
-                          />
-                          <div className="absolute top-2 left-2">
-                            <span className="inline-flex items-center justify-center h-6 min-w-6 px-1 rounded-full bg-white/90 text-[10px] font-semibold shadow">
-                              {typeof p.variant === 'number' ? p.variant : i + 1}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden bg-gradient-to-br from-primary/15 via-sub/15 to-point/15">
-                      {fallbackPoster ? (
-                        <Image
-                          src={fallbackPoster}
-                          alt={artist.name}
-                          fill
-                          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 220px"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 grid place-items-center text-xs text-gray-500">暂无海报</div>
-                      )}
-                    </div>
-                  )}
-                  <div className="pt-2">
-                    <h3 className="text-gray-900 font-semibold text-sm md:text-base truncate" title={artist.name}>{artist.name}</h3>
+                  <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
+                    <Image
+                      src={p.src}
+                      alt={p.alt || p.slug || 'poster'}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1280px) 25vw, 200px"
+                      className="object-cover"
+                    />
                   </div>
                 </div>
               </article>
-            )
-          })}
+            ))}
         </div>
-        <p className="text-sm text-gray-500 mt-3">更多艺人即将公布…</p>
       </section>
     </main>
   )
