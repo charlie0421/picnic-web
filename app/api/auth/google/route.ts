@@ -33,6 +33,10 @@ export async function GET(request: NextRequest) {
     // 리다이렉트 URL 설정
     const redirectTo = `${baseUrl}/auth/callback/google`;
 
+    // 클라이언트가 전송한 return_url 쿼리를 그대로 전달해 복귀 경로 보존
+    const url = new URL(request.url);
+    const returnUrl = url.searchParams.get('return_url') || undefined;
+
     // Supabase를 통한 Google OAuth 로그인 시작
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -41,6 +45,7 @@ export async function GET(request: NextRequest) {
         queryParams: {
           access_type: "offline",
           prompt: "consent",
+          ...(returnUrl ? { return_url: returnUrl } : {}),
         },
       },
     });

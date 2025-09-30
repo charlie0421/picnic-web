@@ -84,6 +84,27 @@ export function SocialLoginButtons({
           logAuth(AuthLog.SaveReturnUrl, { desiredReturn });
         } catch {}
 
+        // KakaoTalk 인앱(안드로이드)에서는 구글이 웹뷰를 제한하므로 크롬 인텐트로 외부 브라우저에서 OAuth 시작
+        const isKakaoAndroid = () => {
+          if (typeof navigator === 'undefined') return false;
+          const ua = navigator.userAgent || '';
+          return /KAKAOTALK/i.test(ua) && /Android/i.test(ua);
+        };
+
+        if (provider === 'google' && typeof window !== 'undefined' && isKakaoAndroid()) {
+          try {
+            const origin = window.location.origin;
+            const target = `${origin}/api/auth/google?return_url=${encodeURIComponent(desiredReturn)}`;
+            const scheme = origin.startsWith('https') ? 'https' : 'http';
+            const intent = `intent://${target.replace(/^https?:\/\//, '')}#Intent;scheme=${scheme};package=com.android.chrome;end`;
+            console.log('🚪 Kakao Android 환경 감지 - Chrome 인텐트로 이동:', { target });
+            window.location.href = intent;
+            return; // 이후 로직 진행 필요 없음 (리다이렉트)
+          } catch (e) {
+            console.warn('Chrome 인텐트 리다이렉트 실패, 일반 경로로 진행:', e);
+          }
+        }
+
         const authResult = await socialAuthService.signInWithProvider(provider, {
           additionalParams: { return_url: desiredReturn },
         });
