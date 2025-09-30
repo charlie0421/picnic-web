@@ -31,7 +31,7 @@ export default async function OpenInBrowserPage({ searchParams }: Props) {
           <a href={intentHref} style={{ padding: '10px 16px', borderRadius: 8, background: '#2563eb', color: '#fff', textDecoration: 'none' }}>
             크롬으로 열기
           </a>
-          <a href={chromeMarket} onClick={(e) => { e.preventDefault(); (e.currentTarget as HTMLAnchorElement).setAttribute('href', chromeMarket); setTimeout(() => { try { (window as any).location.href = chromeMarketHttp; } catch {} }, 200); }} style={{ padding: '10px 16px', borderRadius: 8, background: '#e5e7eb', color: '#111827', textDecoration: 'none' }}>
+          <a href={chromeMarketHttp} style={{ padding: '10px 16px', borderRadius: 8, background: '#e5e7eb', color: '#111827', textDecoration: 'none' }}>
             크롬 설치/업데이트
           </a>
         </div>
