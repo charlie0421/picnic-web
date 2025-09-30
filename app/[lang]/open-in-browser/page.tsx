@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import OpenClient from './OpenClient';
 
 export const metadata: Metadata = {
   title: '외부 브라우저로 열기',
@@ -22,6 +23,7 @@ export default async function OpenInBrowserPage({ searchParams }: Props) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: '#ffffff', color: '#111' }}>
       <div style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
+        <OpenClient />
         <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>외부 브라우저로 열기</h1>
         <p style={{ color: '#4b5563', marginBottom: 20, lineHeight: 1.5 }}>
           카카오톡 인앱 브라우저에서는 구글 로그인이 제한됩니다. 아래 버튼을 눌러 크롬에서 열어주세요.
