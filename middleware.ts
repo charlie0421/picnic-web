@@ -68,6 +68,28 @@ export async function middleware(req: NextRequest) {
   // Create a response that we can modify cookies on
   const res = NextResponse.next({ request: { headers: req.headers } });
 
+  // In-app browser (KakaoTalk on Android) hard redirect to open-in-browser interstitial
+  try {
+    const ua = req.headers.get('user-agent') || '';
+    const url = new URL(req.url);
+    const pathname = url.pathname;
+
+    const isKakao = /KAKAOTALK/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    const isAlreadyOpenPage = /\/open-in-browser(\/|$)/.test(pathname);
+    const isApi = pathname.startsWith('/api/');
+    const isStatic = pathname.startsWith('/_next') || pathname === '/favicon.ico';
+    const isAuthCallback = pathname.startsWith('/auth/callback');
+
+    if (isKakao && isAndroid && !isAlreadyOpenPage && !isApi && !isStatic) {
+      const lang = getPreferredLanguage(req);
+      const returnTo = `${pathname}${url.search}` || '/';
+      const target = new URL(`/${lang}/open-in-browser`, url.origin);
+      target.searchParams.set('returnTo', returnTo);
+      return NextResponse.redirect(target);
+    }
+  } catch (_) {}
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
