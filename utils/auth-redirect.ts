@@ -132,6 +132,12 @@ export function normalizeRedirectPath(input: string): string {
         // 선행 슬래시 보장
         if (!url.startsWith('/')) url = `/${url}`;
 
+        // 잘못된 "/login/..." 프리픽스로 돌아오는 경우 교정
+        // 예: "/login/vote" → "/vote"
+        if (/^\/login\//i.test(url)) {
+            url = url.replace(/^\/login\//i, '/');
+        }
+
         // 로케일 prefix 처리: 비로컬라이즈드 상위 라우트는 접두사 추가하지 않음
         const NON_LOCALIZED_ROOTS = [
             '/vote',

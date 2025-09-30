@@ -21,6 +21,7 @@ import { useOAuthError } from '@/hooks/auth/useOAuthError';
 import { LoadingIndicator } from '@/components/client/auth/login/LoadingIndicator';
 import { EnvErrorDisplay } from '@/components/client/auth/login/EnvErrorDisplay';
 import { debugLog } from '@/utils/debug';
+import { normalizeRedirectPath } from '@/utils/auth-redirect';
 
 // AppleID 타입 정의 (전역)
 declare global {
@@ -71,10 +72,12 @@ function LoginContentInner() {
     try {
       const returnTo = searchParams.get('returnTo');
       if (returnTo) {
-        // loginRedirectUrl 같은 보조 키는 생성하지 않도록 간단 저장
-        localStorage.setItem('auth_return_url', returnTo);
+        // 잘못된 경로 유입 방지를 위해 정규화 후 저장
+        const normalized = normalizeRedirectPath(returnTo);
+        // loginRedirectUrl 같은 보조 키는 생성하지 않도록 단일 키만 저장
+        localStorage.setItem('auth_return_url', normalized);
         const maxAge = 15 * 60; // 15분
-        document.cookie = `auth_return_url=${encodeURIComponent(returnTo)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+        document.cookie = `auth_return_url=${encodeURIComponent(normalized)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
