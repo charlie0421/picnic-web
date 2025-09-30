@@ -82,9 +82,8 @@ export async function middleware(req: NextRequest) {
     const isAuthCallback = pathname.startsWith('/auth/callback');
 
     if (isKakao && isAndroid && !isAlreadyOpenPage && !isApi && !isStatic) {
-      const lang = getPreferredLanguage(req);
       const returnTo = `${pathname}${url.search}` || '/';
-      const target = new URL(`/${lang}/open-in-browser`, url.origin);
+      const target = new URL(`/open-in-browser`, url.origin);
       target.searchParams.set('returnTo', returnTo);
       return NextResponse.redirect(target);
     }
