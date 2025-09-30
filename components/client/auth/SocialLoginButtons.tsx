@@ -15,7 +15,7 @@ import {
 } from '@/utils/auth-helpers';
 import type { LastLoginInfo } from '@/utils/storage';
 import { useSearchParams, usePathname } from 'next/navigation';
-import { getRedirectUrl } from '@/utils/auth-redirect';
+import { getRedirectUrl, normalizeRedirectPath } from '@/utils/auth-redirect';
 
 interface SocialLoginButtonsProps {
   onLoginStart?: () => void;
@@ -77,11 +77,13 @@ export function SocialLoginButtons({
 
         // 폴백 강화를 위해 즉시 보관 (공급자/환경에 따라 쿼리 전달이 누락돼도 복구 가능)
         try {
+          // 리다이렉트 경로는 항상 정규화해서 저장
+          const normalizedReturn = normalizeRedirectPath(desiredReturn);
           // 리다이렉트에 사용하는 단일 키만 저장 (중복 방지)
-          localStorage.setItem('auth_return_url', desiredReturn);
+          localStorage.setItem('auth_return_url', normalizedReturn);
           const maxAge = 15 * 60; // 15분
-          document.cookie = `auth_return_url=${encodeURIComponent(desiredReturn)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
-          logAuth(AuthLog.SaveReturnUrl, { desiredReturn });
+          document.cookie = `auth_return_url=${encodeURIComponent(normalizedReturn)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+          logAuth(AuthLog.SaveReturnUrl, { desiredReturn: normalizedReturn });
         } catch {}
 
         // KakaoTalk 인앱(안드로이드)에서는 구글이 웹뷰를 제한하므로 크롬 인텐트로 외부 브라우저에서 OAuth 시작
@@ -94,7 +96,8 @@ export function SocialLoginButtons({
         if (provider === 'google' && typeof window !== 'undefined' && isKakaoAndroid()) {
           try {
             const origin = window.location.origin;
-            const target = `${origin}/api/auth/google?return_url=${encodeURIComponent(desiredReturn)}`;
+            const normalizedReturn = normalizeRedirectPath(desiredReturn);
+            const target = `${origin}/api/auth/google?return_url=${encodeURIComponent(normalizedReturn)}`;
             const scheme = origin.startsWith('https') ? 'https' : 'http';
             const intent = `intent://${target.replace(/^https?:\/\//, '')}#Intent;scheme=${scheme};package=com.android.chrome;end`;
             console.log('🚪 Kakao Android 환경 감지 - Chrome 인텐트로 이동:', { target });
@@ -106,7 +109,7 @@ export function SocialLoginButtons({
         }
 
         const authResult = await socialAuthService.signInWithProvider(provider, {
-          additionalParams: { return_url: desiredReturn },
+          additionalParams: { return_url: normalizeRedirectPath(desiredReturn) },
         });
 
         logAuth(AuthLog.OAuthRedirect, { provider, success: authResult.success });
