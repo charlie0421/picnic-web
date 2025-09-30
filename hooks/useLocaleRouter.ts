@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useLanguageStore } from '../stores/languageStore';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, type Language } from '../config/settings';
 
@@ -27,6 +27,7 @@ interface LocaleRouterReturn {
 export function useLocaleRouter(): LocaleRouterReturn {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { currentLanguage, setLanguage, translations, loadTranslations: storeLoadTranslations, t: storeT } = useLanguageStore();
 
   // 로케일 유효성 검사
@@ -109,7 +110,8 @@ export function useLocaleRouter(): LocaleRouterReturn {
     if (preservePath) {
       const currentPath = removeLocaleFromPath(pathname);
       const newPath = getLocalizedPath(currentPath, locale);
-      router.push(newPath);
+      const query = searchParams?.toString();
+      router.push(query ? `${newPath}?${query}` : newPath);
     } else {
       const newPath = getLocalizedPath('/', locale);
       router.push(newPath);

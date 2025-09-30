@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from '@/hooks/useTranslations';
 import { createQnaThreadAction } from '@/app/actions/qna';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -39,6 +39,8 @@ export default function NewQnaPage() {
   const [title, setTitle] = useState<string>('');
   const isConcert2025 = !!selectedCategory && selectedCategory.startsWith('CONCERT2025');
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const getCategoryLabel = (code: string | null | undefined) => {
     if (!code) return '';
@@ -150,6 +152,21 @@ export default function NewQnaPage() {
         content = qt?.[currentLanguage] || qt?.en || qt?.ko || qt?.content || '';
       }
       textarea.value = typeof content === 'string' ? content : '';
+    } catch {}
+
+    // URL 쿼리에 category_code 동기화 (언어 변경 시에도 보존되도록)
+    try {
+      const params = new URLSearchParams(searchParams?.toString());
+      if (code) {
+        params.set('category_code', code);
+        // 레거시 키 제거
+        params.delete('category');
+      } else {
+        params.delete('category_code');
+        params.delete('category');
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname);
     } catch {}
   };
 
