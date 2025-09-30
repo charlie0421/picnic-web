@@ -11,8 +11,10 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
+    // www로 강제 리디렉트(서브도메인 간 쿠키 일관성)
+    const appOrigin = origin.replace('://api.', '://www.');
     // 미리 리다이렉트 응답을 생성하고, 쿠키 set/remove가 이 응답 객체에 기록되도록 설정
-    const redirectResponse = NextResponse.redirect(`${origin}${next}`);
+    const redirectResponse = NextResponse.redirect(`${appOrigin}${next}`);
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,10 +25,10 @@ export async function GET(request: Request) {
             return cookieStore.get(name)?.value;
           },
           set(name: string, value: string, options: any) {
-            redirectResponse.cookies.set({ name, value, ...options, path: '/', sameSite: 'lax' });
+            redirectResponse.cookies.set({ name, value, ...options, path: '/', sameSite: 'lax', secure: true, domain: '.picnic.fan' });
           },
           remove(name: string, options: any) {
-            redirectResponse.cookies.set({ name, value: '', ...options, path: '/', sameSite: 'lax' });
+            redirectResponse.cookies.set({ name, value: '', ...options, path: '/', sameSite: 'lax', secure: true, domain: '.picnic.fan' });
           },
         },
       }
