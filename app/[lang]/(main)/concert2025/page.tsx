@@ -190,6 +190,63 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
         )}
       </section>
 
+      {/* Ticket Guide */}
+      <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
+        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">购票须知</h2>
+        <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm">
+          {/* Images Top - Large */}
+          <div className="space-y-4">
+            <figure className="relative rounded-lg overflow-hidden border bg-white">
+              <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-white">
+                <Image
+                  src="/concert2025/image/seating-1f.png?v=1"
+                  alt="一层座位"
+                  fill
+                  sizes="100vw"
+                  className="object-contain"
+                />
+              </div>
+              <figcaption className="px-2 py-1 text-center text-xs text-gray-600">一层座位（参考图）</figcaption>
+            </figure>
+            <figure className="relative rounded-lg overflow-hidden border bg-white">
+              <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-white">
+                <Image
+                  src="/concert2025/image/seating-2f.png?v=1"
+                  alt="二层座位"
+                  fill
+                  sizes="100vw"
+                  className="object-contain"
+                />
+              </div>
+              <figcaption className="px-2 py-1 text-center text-xs text-gray-600">二层座位（参考图）</figcaption>
+            </figure>
+          </div>
+
+          {/* Text Bottom */}
+          <div className="mt-6">
+            <p className="text-gray-700 leading-relaxed">以下账户信息用于本次演出的购票打款：</p>
+            <dl className="mt-4 space-y-3 text-sm text-gray-800">
+              <div className="grid grid-cols-3 gap-2">
+                <dt className="col-span-1 font-semibold">公司名称</dt>
+                <dd className="col-span-2 break-all">大连艾康星文化传媒有限公司</dd>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <dt className="col-span-1 font-semibold">账户号码</dt>
+                <dd className="col-span-2 break-all">285686624326</dd>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <dt className="col-span-1 font-semibold">开户行</dt>
+                <dd className="col-span-2 break-all">中国银行大连市分行营业部</dd>
+              </div>
+            </dl>
+            <div className="mt-4 rounded-lg border border-secondary/20 bg-secondary/5 p-3 text-xs text-gray-600">
+              <p>• 打款完成后请保留凭证，联系微信客服提交订单信息以便对账。</p>
+              <p className="mt-1">• 若有改期/退款政策，以主办方公告为准。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Contact / WeChat QR */}
       <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
         <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">联系方式</h2>
