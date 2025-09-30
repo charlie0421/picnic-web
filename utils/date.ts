@@ -12,7 +12,7 @@ export interface RemainingTime {
 }
 
 // 타입 안전성을 위한 지원 언어 정의
-export type SupportedLanguage = 'ko' | 'en' | 'ja' | 'zh-cn' | 'id' | 'zh-tw' | 'es' | 'bn' | 'tl' | 'th' | 'vi';
+export type SupportedLanguage = 'ko' | 'en' | 'ja' | 'zh-cn' | 'id' | 'zh-tw' | 'es' | 'bn' | 'tl' | 'th' | 'vi' | 'my';
 
 // 상수 분리로 성능 최적화
 const LOCALE_MAP = {
@@ -26,7 +26,8 @@ const LOCALE_MAP = {
   th: 'th-TH',
   vi: 'vi-VN',
   en: 'en-US',
-  id: 'id-ID'
+  id: 'id-ID',
+  my: 'my-MM'
 } as const;
 
 const DATE_FNS_LOCALE_MAP = {
@@ -41,6 +42,7 @@ const DATE_FNS_LOCALE_MAP = {
   vi: enUS,
   en: enUS,
   id: id,
+  my: enUS,
 } as const;
 
 const DATE_FORMAT_MAP = {
@@ -54,7 +56,8 @@ const DATE_FORMAT_MAP = {
   tl: 'd MMM yyyy HH:mm',
   th: 'd MMM yyyy HH:mm',
   vi: 'd MMM yyyy HH:mm',
-  id: 'dd MMM yyyy HH:mm'
+  id: 'dd MMM yyyy HH:mm',
+  my: 'd MMM yyyy HH:mm'
 } as const;
 
 const SIMPLE_DATE_FORMAT_MAP = {
@@ -68,7 +71,8 @@ const SIMPLE_DATE_FORMAT_MAP = {
   tl: 'd MMM HH:mm',
   th: 'd MMM HH:mm',
   vi: 'd MMM HH:mm',
-  id: 'dd MMM HH:mm'
+  id: 'dd MMM HH:mm',
+  my: 'd MMM HH:mm'
 } as const;
 
 // 상대적 시간 표시 상수

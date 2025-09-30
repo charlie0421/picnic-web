@@ -1,24 +1,30 @@
 import { Metadata } from 'next'
 import { getLanguageFromParams } from '@/utils/api/language'
 import Image from 'next/image'
+import Link from 'next/link'
+import BookingButtons from '@/components/client/concert2025/BookingButtons'
+import PosterGrid from '@/components/client/PosterGrid'
 import VideoSection from '@/components/client/VideoSection'
 import fs from 'fs'
 import path from 'path'
+import { getTranslations } from '@/lib/i18n/server'
 
 export const dynamic = 'force-static'
 export const revalidate = 86400
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
-  // 언어 경로와 관계없이 중국어 메타로 고정 (요청사항: 중국어만 노출 가능)
-  void getLanguageFromParams(await params)
+  const lang = getLanguageFromParams(await params)
+  const t = await getTranslations(lang)
   return {
-    title: '耀首尔·5代艺人专场演出 | Picnic',
-    description:
-      '星耀首尔，艺人盛宴！三组以上韩国5代人气艺人，首次为中国粉丝呈现专属舞台。2025年10月11日，首尔蓝色广场，不见不散！',
+    title: t('concert2025.meta.title'),
+    description: t('concert2025.meta.description'),
   }
 }
 
 export default async function Concert2025Page({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params
+  const isCn = (lang || '').toLowerCase().startsWith('zh-cn')
+  const t = await getTranslations(getLanguageFromParams(await params))
   // 라인업 구조체 (slug는 폴더명으로 사용)
   type Artist = { id: number; name: string; slug: string }
   const lineup: Artist[] = [
@@ -31,14 +37,14 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
   ]
 
   const info = {
-    dateTime: '2025年10月11日（周六）18:00 - 20:00',
-    entrance: '17:00入场开始',
-    venue: '首尔蓝色广场（Blue Square）',
+    dateTime: t('concert2025.info.dateTime'),
+    entrance: t('concert2025.info.entrance'),
+    venue: t('concert2025.info.venue'),
   }
 
   const venue = {
-    name: '首尔蓝色广场（Blue Square）',
-    address: '首尔特别市龙山区汉南洞（서울 용산구 한남동）',
+    name: '서울 블루스퀘어(Blue Square)',
+    address: '서울특별시 용산구 한남동',
     coord: { lng: 127.003, lat: 37.5405 },
     amapKeyword: encodeURIComponent('Blue Square Seoul'),
   }
@@ -140,17 +146,69 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
   }
 
   return (
-    <main className="relative container mx-auto px-4 py-12 md:py-16">
+    <main className="relative container mx-auto px-4 py-12 md:py-16 break-words">
       {/* Decorative background */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-primary/20 blur-xl" />
-        <div className="absolute top-1/3 -right-24 h-72 w-72 rounded-full bg-point/20 blur-xl" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-64 w-96 rounded-full bg-sub/20 blur-xl" />
-      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+        style={{
+          backgroundImage:
+            'radial-gradient(60% 60% at 15% 20%, rgba(118, 97, 255, 0.35), rgba(118,97,255,0) 60%),\
+             radial-gradient(60% 60% at 85% 25%, rgba(255, 123, 172, 0.30), rgba(255,123,172,0) 60%),\
+             radial-gradient(60% 60% at 50% 85%, rgba(255, 216, 170, 0.25), rgba(255,216,170,0) 60%),\
+             linear-gradient(180deg, #BEB7FF 0%, #E8A6CF 55%, #FFD4C7 100%)',
+        }}
+      />
+      <div className="relative z-10">
       {/* Hero */}
-      <section className="text-center space-y-3 md:space-y-4" lang="zh">
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-primary-700 via-point-600 to-secondary-600 bg-clip-text text-transparent">耀首尔·5代艺人专场演出</h1>
+      <section className="text-center space-y-2 md:space-y-3" lang="ko">
+        <div className="mx-auto w-full max-w-[720px]">
+          <div className="relative mx-auto w-full aspect-[16/7]">
+            <Image
+              src="/concert2025/image/logo.png?v=1"
+              alt={t('concert2025.hero.altLogo')}
+              fill
+              sizes="(max-width: 768px) 80vw, 720px"
+              priority
+              className="object-contain"
+            />
+          </div>
+        </div>
+              <h2
+                className="text-xl md:text-2xl font-bold mb-0 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent"
+                lang="en"
+              >
+                {t('concert2025.hero.tagline')}
+              </h2>
       </section>
+
+      {/* Notice (non-CN only) */}
+      {!isCn && (
+        <section className="mt-6" lang="ko">
+          <div className="rounded-xl border border-primary/30 bg-white/90 backdrop-blur p-5 shadow-sm">
+            <div className="text-sm md:text-base text-gray-800 text-center">
+              <pre className="whitespace-pre-line break-normal hyphens-none leading-relaxed" style={{ overflowWrap: 'normal', wordBreak: 'keep-all' }}>{t('concert2025.notice.koText')}</pre>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {isCn && (
+        <section className="mt-6" lang="zh">
+          <div className="rounded-xl border border-primary/30 bg-white/90 backdrop-blur p-5 shadow-sm">
+            <div className="text-sm md:text-base text-gray-800 text-center">
+              <pre className="whitespace-pre-line break-normal hyphens-none leading-relaxed" style={{ overflowWrap: 'normal', wordBreak: 'keep-all' }}>{
+`本链接为前来参加“Shining Seoul”演唱会的中国籍游客提供的特别专属链接。
+通过本链接购票的观众可享受优惠票价。
+在预订门票时，即视为已同意本页面所载的所有须知事项。
+本页面内容可能会根据情况进行补充或更改，恕不另行通知。
+因未仔细阅读入场及观演须知而造成的不便或损失，由观众本人承担。
+为避免观演受阻或产生不利影响，请您在入场前务必再次确认相关须知。`}
+              </pre>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Info Bar (일정/장소) */}
       <section className="mt-6">
@@ -165,198 +223,230 @@ export default async function Concert2025Page({ params }: { params: Promise<{ la
 
       {/* Posters section removed per request */}
 
-      {/* Description */}
-      <section className="mt-10" lang="zh">
-        <div className="rounded-xl border border-secondary/30 bg-white/80 backdrop-blur p-6 shadow-sm">
-          <p className="leading-relaxed text-gray-700">
-            星耀首尔，艺人盛宴！三组以上韩国5代人气艺人，首次为中国粉丝呈现专属舞台。2025年10月11日，首尔蓝色广场，不见不散！
-          </p>
+      {/* Description removed per request */}
+
+      {/* Intro Video moved below Korean guide per request */}
+
+      {/* Ticket Guide moved below to above video section for zh */}
+
+      {/* 한국어 안내사항 */}
+      <section className="mt-10" lang="ko" style={{ contentVisibility: 'auto' }}>
+        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">{t('concert2025.guide.title')}</h2>
+        <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm">
+          <div className="text-sm md:text-base text-gray-800 space-y-6">
+            <p>{t('concert2025.guide.intro')}</p>
+
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('concert2025.seating.title')}</h3>
+              {/* 좌석 안내 이미지 */}
+              <div className="mt-3 space-y-4">
+                <figure className="relative rounded-lg overflow-hidden border bg-white">
+                  <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-white">
+                    <Image
+                      src="/concert2025/image/seating-guide.png?v=1"
+                      alt={t('concert2025.seating.alt')}
+                      fill
+                      sizes="100vw"
+                      className="object-contain"
+                    />
+                  </div>
+                  <figcaption className="px-2 py-1 text-center text-xs text-gray-600">{t('concert2025.seating.caption')}</figcaption>
+                </figure>
+              </div>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>{t('concert2025.seating.b1')}</li>
+                <li>{t('concert2025.seating.b2')}</li>
+                <li>{t('concert2025.seating.b3')}</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('concert2025.booking.title')}</h3>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>{t('concert2025.booking.b1')}</li>
+                <li>{t('concert2025.booking.b2')}</li>
+                <li>{t('concert2025.booking.b3')}</li>
+                <li>{t('concert2025.booking.b4')}</li>
+                <li>{t('concert2025.booking.b5')}</li>
+                <li>{t('concert2025.booking.b6')}</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('concert2025.pickup.title')}</h3>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>{t('concert2025.pickup.b1')}</li>
+                <li>{t('concert2025.pickup.b2')}</li>
+                <li>{t('concert2025.pickup.b3')}</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('concert2025.entry.title')}</h3>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>{t('concert2025.entry.b1')}</li>
+                <li>{t('concert2025.entry.b2')}</li>
+                <li>{t('concert2025.entry.b3')}</li>
+                <li>{t('concert2025.entry.b4')}</li>
+                <li>{t('concert2025.entry.b5')}</li>
+                <li>{t('concert2025.entry.b6')}</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('concert2025.policy.title')}</h3>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>{t('concert2025.policy.b1')}</li>
+                <li>{t('concert2025.policy.b2')}</li>
+                <li>{t('concert2025.policy.b3')}</li>
+                <li>{t('concert2025.policy.b4')}</li>
+                <li>{t('concert2025.policy.b5')}</li>
+                <li>{t('concert2025.policy.b6')}</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('concert2025.storage.title')}</h3>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>{t('concert2025.storage.b1')}</li>
+                <li>{t('concert2025.storage.b2')}</li>
+                <li>{t('concert2025.storage.b3')}</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-gray-900">{t('concert2025.transit.title')}</h3>
+              <div className="mt-3 relative w-full overflow-hidden rounded-lg border">
+                <div className="relative w-full aspect-video bg-white">
+                  <Image
+                    src={`/${mapImagePublicRelative}?v=1`}
+                    alt={t('concert2025.transit.mapAlt')}
+                    fill
+                    sizes="100vw"
+                    className="object-contain"
+                  />
+                </div>
+              </div>
+              <p className="mt-2">{t('concert2025.transit.address')}</p>
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>{t('concert2025.transit.traffic1')}</li>
+                <li>{t('concert2025.transit.traffic2')}</li>
+              </ul>
+              <div className="mt-3 space-y-1">
+                <p className="font-medium">{t('concert2025.transit.publicTransitTitle')}</p>
+                <p className="text-gray-700">{t('concert2025.transit.subway')}</p>
+                <p className="text-gray-700">{t('concert2025.transit.bus')}</p>
+              </div>
+              <div className="mt-3">
+                <p className="font-medium">{t('concert2025.transit.parkingTitle')}</p>
+                <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <li>{t('concert2025.transit.parking1')}</li>
+                  <li>{t('concert2025.transit.parking2')}</li>
+                  <li>{t('concert2025.transit.parking3')}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Intro Video */}
-      <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
-        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">介绍视频</h2>
-        {videoGroups.length === 0 ? (
-          <p className="text-sm text-gray-500">视频即将公开（如为 .mov 文件，请转换为 .mp4 后上传）。</p>
-        ) : (
-          <VideoSection
-            groups={videoGroups.map((g) => ({
-              key: g.key,
-              sources: g.sources,
-              poster: g.thumb || getPosterForVideoKey(g.key) || firstPosterSrc,
-            }))}
+      {/* Booking buttons (ko/en etc) or Ticket Guide (zh) positioned ABOVE the video */}
+      <section className="mt-10" style={{ contentVisibility: 'auto' }}>
+        {!isCn ? (
+          <BookingButtons
+            lang={lang}
+            title={t('concert2025.bookingButtons.title')}
+            firstFloorLabel={t('concert2025.bookingButtons.firstFloor')}
+            secondFloorLabel={t('concert2025.bookingButtons.secondFloor')}
           />
+        ) : (
+          <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm" lang="zh">
+            <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">购票须知</h2>
+            <div className="mt-6">
+              <p className="text-gray-700 leading-relaxed">以下账户信息用于本次演出的购票打款：</p>
+              <dl className="mt-4 space-y-3 text-sm text-gray-800">
+                <div className="grid grid-cols-3 gap-2">
+                  <dt className="col-span-1 font-semibold">公司名称</dt>
+                  <dd className="col-span-2 break-all">大连艾康星文化传媒有限公司</dd>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <dt className="col-span-1 font-semibold">账户号码</dt>
+                  <dd className="col-span-2 break-all">285686624326</dd>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <dt className="col-span-1 font-semibold">开户行</dt>
+                  <dd className="col-span-2 break-all">中国银行大连市分行营业部</dd>
+                </div>
+              </dl>
+              <div className="mt-4 rounded-lg border border-secondary/20 bg-secondary/5 p-3 text-xs text-gray-600">
+                <p>• 打款完成后请保留凭证，联系微信客服提交订单信息以便对账。</p>
+                <p className="mt-1">• 若有改期/退款政策，以主办方公告为准。</p>
+              </div>
+            </div>
+          </div>
         )}
       </section>
 
-      {/* Ticket Guide */}
-      <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
-        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">购票须知</h2>
+      <section className="mt-10" lang="ko" style={{ contentVisibility: 'auto' }}>
+        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">{t('concert2025.introVideo.title')}</h2>
         <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm">
-          {/* Images Top - Large */}
-          <div className="space-y-4">
-            <figure className="relative rounded-lg overflow-hidden border bg-white">
-              <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-white">
-                <Image
-                  src="/concert2025/image/seating-1f.png?v=1"
-                  alt="一层座位"
-                  fill
-                  sizes="100vw"
-                  className="object-contain"
-                />
-              </div>
-              <figcaption className="px-2 py-1 text-center text-xs text-gray-600">一层座位（参考图）</figcaption>
-            </figure>
-            <figure className="relative rounded-lg overflow-hidden border bg-white">
-              <div className="relative w-full aspect-[16/9] md:aspect-[21/9] bg-white">
-                <Image
-                  src="/concert2025/image/seating-2f.png?v=1"
-                  alt="二层座位"
-                  fill
-                  sizes="100vw"
-                  className="object-contain"
-                />
-              </div>
-              <figcaption className="px-2 py-1 text-center text-xs text-gray-600">二层座位（参考图）</figcaption>
-            </figure>
-          </div>
-
-          {/* Text Bottom */}
-          <div className="mt-6">
-            <p className="text-gray-700 leading-relaxed">以下账户信息用于本次演出的购票打款：</p>
-            <dl className="mt-4 space-y-3 text-sm text-gray-800">
-              <div className="grid grid-cols-3 gap-2">
-                <dt className="col-span-1 font-semibold">公司名称</dt>
-                <dd className="col-span-2 break-all">大连艾康星文化传媒有限公司</dd>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <dt className="col-span-1 font-semibold">账户号码</dt>
-                <dd className="col-span-2 break-all">285686624326</dd>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <dt className="col-span-1 font-semibold">开户行</dt>
-                <dd className="col-span-2 break-all">中国银行大连市分行营业部</dd>
-              </div>
-            </dl>
-            <div className="mt-4 rounded-lg border border-secondary/20 bg-secondary/5 p-3 text-xs text-gray-600">
-              <p>• 打款完成后请保留凭证，联系微信客服提交订单信息以便对账。</p>
-              <p className="mt-1">• 若有改期/退款政策，以主办方公告为准。</p>
-            </div>
-          </div>
+          {videoGroups.length === 0 ? (
+            <p className="text-sm text-gray-500">{t('concert2025.introVideo.comingSoon')}</p>
+          ) : (
+            <VideoSection
+              groups={videoGroups.map((g) => ({
+                key: g.key,
+                sources: g.sources,
+                poster: g.thumb || getPosterForVideoKey(g.key) || firstPosterSrc,
+              }))}
+            />
+          )}
         </div>
       </section>
 
-      {/* Contact / WeChat QR */}
-      <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
-        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">联系方式</h2>
-        <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-          <div>
-            <p className="text-gray-700 leading-relaxed">
-              客服微信：请扫描右侧二维码添加好友，或将二维码保存到相册后在微信中识别。
-            </p>
-            <ul className="list-disc pl-5 mt-3 text-sm text-gray-600">
-              <li>服务时间：10:00 – 19:00（KST）</li>
-              <li>演出、购票及现场相关咨询均可留言</li>
-            </ul>
-            <div className="mt-4">
-              <a
-                href="/concert2025/image/wechat-qr.png"
-                download
-                className="inline-flex items-center rounded-lg border border-primary/30 px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary/10"
-              >
-                下载二维码
-              </a>
-            </div>
-          </div>
-          <div className="justify-self-center">
-            <div className="relative rounded-xl border bg-white p-3 shadow-sm">
-              <Image
-                src="/concert2025/image/wechat-qr.png?v=1"
-                alt="WeChat QR"
-                width={288}
-                height={288}
-                className="object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Location / Map */}
-      <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
-        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">演出地点</h2>
-        <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm">
-          <div className="mb-4">
-            <p className="font-semibold">{venue.name}</p>
-            <p className="text-sm text-gray-700">{venue.address}</p>
-            <div className="mt-2 flex flex-wrap gap-3 text-sm">
-              <a
-                href={`https://uri.amap.com/marker?position=${venue.coord.lng},${venue.coord.lat}&name=${venue.amapKeyword}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex text-primary-700 hover:underline"
-              >
-                在高德地图中打开
-              </a>
-              <a
-                href={`https://map.baidu.com/search/${venue.amapKeyword}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex text-primary-700 hover:underline"
-              >
-                在百度地图中打开
-              </a>
-            </div>
-          </div>
-          <div className="relative w-full overflow-hidden rounded-lg border">
-            <div className="relative w-full aspect-video bg-white">
-              <Image
-                src={`/${mapImagePublicRelative}?v=1`}
-                alt="演出地点地图"
-                fill
-                sizes="100vw"
-                className="object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Posters - Flat Grid (no grouping) */}
-      <section className="mt-10" lang="zh">
-        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">演出海报</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4">
-          {[...postersFlat]
-            .sort((a, b) => {
-              const as = (a.slug || '').localeCompare(b.slug || '')
-              if (as !== 0) return as
-              const av = typeof a.variant === 'number' ? a.variant! : Number.MAX_SAFE_INTEGER
-              const bv = typeof b.variant === 'number' ? b.variant! : Number.MAX_SAFE_INTEGER
-              return av - bv
-            })
-            .map((p, i) => (
-              <article key={`${p.src}-${i}`} className="group relative rounded-xl overflow-hidden border border-primary/10 shadow">
-                <div className="p-2">
-                  <div className="relative w-full aspect-[3/4] rounded-lg overflow-hidden">
+      {/* Contact / WeChat QR - CN only */}
+            {isCn && (
+              <section className="mt-10" lang="zh" style={{ contentVisibility: 'auto' }}>
+                <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm grid place-items-center">
+                  <div className="relative rounded-xl border bg-white p-3 shadow-sm">
                     <Image
-                      src={p.src}
-                      alt={p.alt || p.slug || 'poster'}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1280px) 25vw, 200px"
-                      className="object-cover"
+                      src="/concert2025/image/wechat-qr.png?v=1"
+                      alt=""
+                      width={288}
+                      height={288}
+                      className="object-contain"
                     />
                   </div>
-                  <div className="mt-2">
-                    <p className="text-xs md:text-sm font-medium text-gray-900 truncate" title={slugToArtistName[normalizeKey(p.slug || '')] || p.alt || p.slug}>
-                      {slugToArtistName[normalizeKey(p.slug || '')] || p.alt || p.slug || '未知艺人'}
-                    </p>
-                  </div>
                 </div>
-              </article>
-            ))}
+              </section>
+            )}
+
+      {/* Location / Map (removed per request) */}
+
+      {/* Posters - Flat Grid (no grouping) */}
+      <section className="mt-10" lang="ko">
+        <h2 className="text-xl md:text-2xl font-bold mb-4 bg-gradient-to-r from-primary-700 to-point-600 bg-clip-text text-transparent">{t('concert2025.posters.title')}</h2>
+        <div className="rounded-xl border border-primary/20 bg-white/80 backdrop-blur p-5 shadow-sm">
+          <PosterGrid
+            posters={[...postersFlat]
+              .sort((a, b) => {
+                const as = (a.slug || '').localeCompare(b.slug || '')
+                if (as !== 0) return as
+                const av = typeof a.variant === 'number' ? a.variant! : Number.MAX_SAFE_INTEGER
+                const bv = typeof b.variant === 'number' ? b.variant! : Number.MAX_SAFE_INTEGER
+                return av - bv
+              })
+              .map((p) => ({
+                src: p.src,
+                alt: slugToArtistName[normalizeKey(p.slug || '')] || p.alt || p.slug || t('concert2025.posters.unknownArtist'),
+                slug: p.slug,
+                variant: p.variant,
+              }))}
+          />
         </div>
       </section>
+      </div>
     </main>
   )
 }

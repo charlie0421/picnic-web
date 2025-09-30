@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import { useTranslations } from '@/hooks/useTranslations';
 
 interface AttachmentPickerProps {
   files: File[];
@@ -59,6 +60,9 @@ export default function AttachmentPicker({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [objectUrls, setObjectUrls] = useState<string[]>([]);
+  const { tDynamic } = useTranslations();
+  const i18nAttachLabel = attachLabel || tDynamic('file_attachment') || 'File attachment';
+  const i18nDeleteLabel = removeAllLabel || tDynamic('popup_label_delete') || 'Delete';
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newlySelected = e.target.files ? Array.from(e.target.files) : [];
@@ -146,7 +150,7 @@ export default function AttachmentPicker({
           disabled={disabled}
           className="p-2 border rounded-lg hover:bg-primary-50 bg-white border-primary-300 text-primary-800 font-medium flex items-center gap-1 disabled:opacity-50"
         >
-          📎 {attachLabel}
+          📎 {i18nAttachLabel}
         </button>
         {files.length > 0 && (
           <button
@@ -154,7 +158,7 @@ export default function AttachmentPicker({
             onClick={clearAll}
             className="px-2 py-1 text-xs border rounded-lg text-red-600 border-red-200"
           >
-            {removeAllLabel}
+            {i18nDeleteLabel}
           </button>
         )}
       </div>
@@ -174,8 +178,8 @@ export default function AttachmentPicker({
                 type="button"
                 onClick={() => removeAt(idx)}
                 className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 text-white text-xs flex items-center justify-center shadow-md hover:bg-red-700"
-                aria-label={`첨부 ${idx + 1} 제거`}
-                title="제거"
+                aria-label={`${i18nAttachLabel} ${idx + 1} ${i18nDeleteLabel}`}
+                title={i18nDeleteLabel}
               >
                 ×
               </button>

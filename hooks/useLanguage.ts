@@ -15,7 +15,7 @@ export function useLanguage() {
     const segment = (pathname.split('/')[1] || '').toLowerCase();
     const match = segment.match(/^([a-z]{2}(?:-[a-z]{2})?)$/i);
     const candidate = (match ? match[1] : 'en').toLowerCase();
-    const supported: SupportedLanguage[] = ['en','ko','ja','zh-cn','zh-tw','id','es','bn','tl','th','vi'];
+    const supported: SupportedLanguage[] = ['en','ko','ja','zh-cn','zh-tw','id','es','bn','tl','th','vi','my'];
     // 레거시 경로 호환: '/zh' 는 'zh-cn' 으로 간주
     const normalized = candidate === 'zh' ? 'zh-cn' : candidate;
     return (supported.includes(normalized as SupportedLanguage) ? normalized : 'en') as SupportedLanguage;

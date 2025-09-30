@@ -10,6 +10,7 @@ export const SUPPORTED_LANGUAGES = [
   'tl',      // 타갈로그어(필리핀)
   'th',      // 태국어
   'vi',      // 베트남어
+  'my',      // 미얀마어
 ] as const;
 export const DEFAULT_LANGUAGE = 'en';
 

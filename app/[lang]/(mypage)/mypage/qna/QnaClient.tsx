@@ -45,7 +45,21 @@ export default function QnaClient({
   const getCategoryLabel = (code?: string | null) => {
     if (!code) return null;
     const c = categories.find((x) => x.code === code);
-    return (c?.label?.[currentLanguage] || c?.label?.en || c?.code || code) as string;
+    if (!c) return null;
+    const raw = c.label;
+    // label이 문자열인 경우 그대로 사용
+    if (typeof raw === 'string') return raw;
+    // 객체인 경우 언어 우선순위로 선택
+    if (raw && typeof raw === 'object') {
+      const byLang = raw?.[currentLanguage] || raw?.en || raw?.ko;
+      if (typeof byLang === 'string') return byLang;
+      if (byLang != null) return String(byLang);
+      // 첫 번째 값 사용 (불완전 데이터 대비)
+      const first = Object.values(raw)[0];
+      if (typeof first === 'string') return first;
+      if (first != null) return String(first);
+    }
+    return null;
   };
 
   const handlePageChange = (newPage: number) => {
@@ -90,11 +104,14 @@ export default function QnaClient({
                 <div className="flex justify-between items-start">
                   <div className="flex-grow">
                     <p className="text-lg font-semibold text-gray-800 truncate pr-4">{thread.title}</p>
-                    {thread.category_code && (
-                      <span className="inline-flex items-center mt-2 px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary-700">
-                        {getCategoryLabel(thread.category_code)}
-                      </span>
-                    )}
+                    {(() => {
+                      const label = getCategoryLabel(thread.category_code);
+                      return label ? (
+                        <span className="inline-flex items-center mt-2 px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary-700">
+                          {label}
+                        </span>
+                      ) : null;
+                    })()}
                     <p className="text-sm text-sub-500 mt-2">{formatDate(thread.created_at)}</p>
                   </div>
                   <div

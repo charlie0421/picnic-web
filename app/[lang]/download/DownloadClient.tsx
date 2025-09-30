@@ -30,6 +30,7 @@ const languages = [
   { code: 'tl', name: 'Filipino', flag: '🇵🇭' },
   { code: 'th', name: 'ไทย', flag: '🇹🇭' },
   { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳' },
+  { code: 'my', name: 'မြန်မာဘာသာ', flag: '🇲🇲' },
 ];
 
 export default function DownloadClient({ versionInfo, translations: trans }: DownloadClientProps) {

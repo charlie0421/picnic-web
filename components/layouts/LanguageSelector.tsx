@@ -15,6 +15,7 @@ const languages = [
   { code: 'tl', name: 'Filipino', shortName: 'TL', flag: '🇵🇭' },
   { code: 'th', name: 'ไทย', shortName: 'TH', flag: '🇹🇭' },
   { code: 'vi', name: 'Tiếng Việt', shortName: 'VI', flag: '🇻🇳' },
+  { code: 'my', name: 'မြန်မာဘာသာ', shortName: 'MM', flag: '🇲🇲' },
 ];
 
 const LanguageSelector = () => {

@@ -209,7 +209,7 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           title: string | null
           updated_at: string | null
           user_id: number | null
@@ -217,7 +217,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id: number
           title?: string | null
           updated_at?: string | null
           user_id?: number | null
@@ -225,7 +225,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: number
           title?: string | null
           updated_at?: string | null
           user_id?: number | null
@@ -234,31 +234,31 @@ export type Database = {
       }
       album_image: {
         Row: {
-          album_id: number | null
-          image_id: number | null
+          album_id: number
+          image_id: number
         }
         Insert: {
-          album_id?: number | null
-          image_id?: number | null
+          album_id: number
+          image_id: number
         }
         Update: {
-          album_id?: number | null
-          image_id?: number | null
+          album_id?: number
+          image_id?: number
         }
         Relationships: []
       }
       album_image_user: {
         Row: {
-          image_id: number | null
-          user_id: number | null
+          image_id: number
+          user_id: number
         }
         Insert: {
-          image_id?: number | null
-          user_id?: number | null
+          image_id: number
+          user_id: number
         }
         Update: {
-          image_id?: number | null
-          user_id?: number | null
+          image_id?: number
+          user_id?: number
         }
         Relationships: []
       }
@@ -303,11 +303,13 @@ export type Database = {
           data: string | null
           environment: string | null
           id: string
+          id_old: string
           level: string
           line_number: number | null
           message: string
           platform: string | null
           request_id: string | null
+          rid: string
           session_id: string | null
           source_file: string | null
           stack_trace: string | null
@@ -320,12 +322,14 @@ export type Database = {
           created_at?: string
           data?: string | null
           environment?: string | null
-          id: string
+          id?: string
+          id_old: string
           level: string
           line_number?: number | null
           message: string
           platform?: string | null
           request_id?: string | null
+          rid?: string
           session_id?: string | null
           source_file?: string | null
           stack_trace?: string | null
@@ -339,11 +343,13 @@ export type Database = {
           data?: string | null
           environment?: string | null
           id?: string
+          id_old?: string
           level?: string
           line_number?: number | null
           message?: string
           platform?: string | null
           request_id?: string | null
+          rid?: string
           session_id?: string | null
           source_file?: string | null
           stack_trace?: string | null
@@ -400,7 +406,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           likes: number | null
           parent_id: number | null
           updated_at: string | null
@@ -412,7 +418,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           likes?: number | null
           parent_id?: number | null
           updated_at?: string | null
@@ -424,7 +430,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           likes?: number | null
           parent_id?: number | null
           updated_at?: string | null
@@ -434,31 +440,31 @@ export type Database = {
       }
       article_comment_like: {
         Row: {
-          comment_id: number | null
-          user_id: number | null
+          comment_id: number
+          user_id: number
         }
         Insert: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id: number
+          user_id: number
         }
         Update: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id?: number
+          user_id?: number
         }
         Relationships: []
       }
       article_comment_report: {
         Row: {
-          comment_id: number | null
-          user_id: number | null
+          comment_id: number
+          user_id: number
         }
         Insert: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id: number
+          user_id: number
         }
         Update: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id?: number
+          user_id?: number
         }
         Relationships: []
       }
@@ -800,6 +806,7 @@ export type Database = {
           created_at: string
           error_message: string | null
           id: string
+          id_old: string
           ip_address: string | null
           metadata: string | null
           method: string | null
@@ -809,6 +816,7 @@ export type Database = {
           resource_name: string | null
           resource_type: string
           retention_period: number | null
+          rid: string
           session_id: string | null
           severity: string
           status_code: number | null
@@ -829,7 +837,8 @@ export type Database = {
           classification?: string | null
           created_at?: string
           error_message?: string | null
-          id: string
+          id?: string
+          id_old: string
           ip_address?: string | null
           metadata?: string | null
           method?: string | null
@@ -839,6 +848,7 @@ export type Database = {
           resource_name?: string | null
           resource_type: string
           retention_period?: number | null
+          rid?: string
           session_id?: string | null
           severity: string
           status_code?: number | null
@@ -860,6 +870,7 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          id_old?: string
           ip_address?: string | null
           metadata?: string | null
           method?: string | null
@@ -869,6 +880,7 @@ export type Database = {
           resource_name?: string | null
           resource_type?: string
           retention_period?: number | null
+          rid?: string
           session_id?: string | null
           severity?: string
           status_code?: number | null
@@ -1007,18 +1019,24 @@ export type Database = {
       blocked_ips: {
         Row: {
           blocked_at: string | null
+          id: number
           ip_address: string
           reason: string | null
+          rid: string
         }
         Insert: {
           blocked_at?: string | null
+          id?: never
           ip_address: string
           reason?: string | null
+          rid?: string
         }
         Update: {
           blocked_at?: string | null
+          id?: never
           ip_address?: string
           reason?: string | null
+          rid?: string
         }
         Relationships: []
       }
@@ -1156,15 +1174,15 @@ export type Database = {
       celeb_bookmark_user: {
         Row: {
           celeb_id: number
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           celeb_id: number
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           celeb_id?: number
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -1213,7 +1231,7 @@ export type Database = {
       }
       comment_reports: {
         Row: {
-          comment_id: string | null
+          comment_id: string
           comment_report_id: string
           created_at: string | null
           deleted_at: string | null
@@ -1222,7 +1240,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          comment_id?: string | null
+          comment_id: string
           comment_report_id?: string
           created_at?: string | null
           deleted_at?: string | null
@@ -1231,7 +1249,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          comment_id?: string | null
+          comment_id?: string
           comment_report_id?: string
           created_at?: string | null
           deleted_at?: string | null
@@ -1243,7 +1261,7 @@ export type Database = {
           {
             foreignKeyName: "comment_reports_comment_id_fkey"
             columns: ["comment_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "comments"
             referencedColumns: ["comment_id"]
           },
@@ -1447,7 +1465,7 @@ export type Database = {
       }
       compatibility_score_descriptions: {
         Row: {
-          score: number | null
+          score: number
           summary_ja: string
           summary_ko: string
           summary_zh: string
@@ -1456,7 +1474,7 @@ export type Database = {
           title_zh: string | null
         }
         Insert: {
-          score?: number | null
+          score: number
           summary_ja: string
           summary_ko: string
           summary_zh: string
@@ -1465,7 +1483,7 @@ export type Database = {
           title_zh?: string | null
         }
         Update: {
-          score?: number | null
+          score?: number
           summary_ja?: string
           summary_ko?: string
           summary_zh?: string
@@ -1663,10 +1681,12 @@ export type Database = {
           created_at: string | null
           device_id: string
           device_info: Json | null
+          id: number
           is_banned: boolean | null
           last_ip: string | null
           last_seen: string | null
           last_updated: string | null
+          rid: string
           user_id: string | null
         }
         Insert: {
@@ -1677,10 +1697,12 @@ export type Database = {
           created_at?: string | null
           device_id: string
           device_info?: Json | null
+          id?: never
           is_banned?: boolean | null
           last_ip?: string | null
           last_seen?: string | null
           last_updated?: string | null
+          rid?: string
           user_id?: string | null
         }
         Update: {
@@ -1691,10 +1713,12 @@ export type Database = {
           created_at?: string | null
           device_id?: string
           device_info?: Json | null
+          id?: never
           is_banned?: boolean | null
           last_ip?: string | null
           last_seen?: string | null
           last_updated?: string | null
+          rid?: string
           user_id?: string | null
         }
         Relationships: []
@@ -1704,22 +1728,28 @@ export type Database = {
           active: boolean
           code: string
           created_at: string
+          id: number
           label: Json
           order_number: number
+          rid: string
         }
         Insert: {
           active?: boolean
           code: string
           created_at?: string
+          id?: never
           label: Json
           order_number?: number
+          rid?: string
         }
         Update: {
           active?: boolean
           code?: string
           created_at?: string
+          id?: never
           label?: Json
           order_number?: number
+          rid?: string
         }
         Relationships: []
       }
@@ -2098,16 +2128,16 @@ export type Database = {
       }
       gallery_user: {
         Row: {
-          gallery_id: number | null
-          user_id: number | null
+          gallery_id: number
+          user_id: number
         }
         Insert: {
-          gallery_id?: number | null
-          user_id?: number | null
+          gallery_id: number
+          user_id: number
         }
         Update: {
-          gallery_id?: number | null
-          user_id?: number | null
+          gallery_id?: number
+          user_id?: number
         }
         Relationships: []
       }
@@ -2139,7 +2169,7 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           title: string | null
           updated_at: string | null
           user_id: number | null
@@ -2147,7 +2177,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           title?: string | null
           updated_at?: string | null
           user_id?: number | null
@@ -2155,7 +2185,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           title?: string | null
           updated_at?: string | null
           user_id?: number | null
@@ -2164,16 +2194,16 @@ export type Database = {
       }
       library_image: {
         Row: {
-          image_id: number | null
-          library_id: number | null
+          image_id: number
+          library_id: number
         }
         Insert: {
-          image_id?: number | null
-          library_id?: number | null
+          image_id: number
+          library_id: number
         }
         Update: {
-          image_id?: number | null
-          library_id?: number | null
+          image_id?: number
+          library_id?: number
         }
         Relationships: []
       }
@@ -2803,6 +2833,7 @@ export type Database = {
           price: number | null
           product_name: string
           product_type: Database["public"]["Enums"]["product_type_enum"]
+          rid: string
           star_candy: number | null
           star_candy_bonus: number | null
           start_at: string | null
@@ -2823,6 +2854,7 @@ export type Database = {
           price?: number | null
           product_name: string
           product_type: Database["public"]["Enums"]["product_type_enum"]
+          rid?: string
           star_candy?: number | null
           star_candy_bonus?: number | null
           start_at?: string | null
@@ -2843,6 +2875,7 @@ export type Database = {
           price?: number | null
           product_name?: string
           product_type?: Database["public"]["Enums"]["product_type_enum"]
+          rid?: string
           star_candy?: number | null
           star_candy_bonus?: number | null
           start_at?: string | null
@@ -2988,30 +3021,30 @@ export type Database = {
           answer_template: Json | null
           code: string
           created_at: string
-          id: string | null
           label: Json
           order_number: number
           question_template: Json | null
+          rid: string
         }
         Insert: {
           active?: boolean
           answer_template?: Json | null
           code: string
           created_at?: string
-          id?: string | null
           label: Json
           order_number?: number
           question_template?: Json | null
+          rid?: string
         }
         Update: {
           active?: boolean
           answer_template?: Json | null
           code?: string
           created_at?: string
-          id?: string | null
           label?: Json
           order_number?: number
           question_template?: Json | null
+          rid?: string
         }
         Relationships: []
       }
@@ -3389,9 +3422,11 @@ export type Database = {
           ad_network: string | null
           created_at: string
           deleted_at: string | null
+          id: number
           key_id: string | null
           reward_amount: number | null
           reward_type: string | null
+          rid: string
           signature: string | null
           transaction_id: string
           updated_at: string
@@ -3401,9 +3436,11 @@ export type Database = {
           ad_network?: string | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           key_id?: string | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id: string
           updated_at?: string
@@ -3413,9 +3450,11 @@ export type Database = {
           ad_network?: string | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           key_id?: string | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id?: string
           updated_at?: string
@@ -3428,11 +3467,13 @@ export type Database = {
           ad_network: string | null
           created_at: string
           deleted_at: string | null
+          id: number
           key_id: string | null
           platform: string | null
           reward_amount: number | null
           reward_name: string | null
           reward_type: string | null
+          rid: string
           signature: string | null
           transaction_id: string
           updated_at: string
@@ -3442,11 +3483,13 @@ export type Database = {
           ad_network?: string | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           key_id?: string | null
           platform?: string | null
           reward_amount?: number | null
           reward_name?: string | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id: string
           updated_at?: string
@@ -3456,11 +3499,13 @@ export type Database = {
           ad_network?: string | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           key_id?: string | null
           platform?: string | null
           reward_amount?: number | null
           reward_name?: string | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id?: string
           updated_at?: string
@@ -3476,10 +3521,12 @@ export type Database = {
           commission: number | null
           created_at: string
           deleted_at: string | null
+          id: number
           menu_category1: string | null
           pub_key: number | null
           reward_amount: number | null
           reward_type: string | null
+          rid: string
           signature: string | null
           transaction_id: string
           updated_at: string
@@ -3492,10 +3539,12 @@ export type Database = {
           commission?: number | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           menu_category1?: string | null
           pub_key?: number | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id: string
           updated_at?: string
@@ -3508,10 +3557,12 @@ export type Database = {
           commission?: number | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           menu_category1?: string | null
           pub_key?: number | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id?: string
           updated_at?: string
@@ -3558,9 +3609,11 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           hmac: string
+          id: number
           platform: string | null
           reward_amount: number | null
           reward_type: string | null
+          rid: string
           transaction_id: string
           updated_at: string
           user_id: string
@@ -3570,9 +3623,11 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           hmac: string
+          id?: never
           platform?: string | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           transaction_id: string
           updated_at?: string
           user_id: string
@@ -3582,9 +3637,11 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           hmac?: string
+          id?: never
           platform?: string | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           transaction_id?: string
           updated_at?: string
           user_id?: string
@@ -3650,12 +3707,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_bonus_update_queue: {
+        Row: {
+          created_at: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_comment_like: {
         Row: {
           comment_id: number | null
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           updated_at: string | null
           user_id: number | null
         }
@@ -3663,7 +3738,7 @@ export type Database = {
           comment_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           updated_at?: string | null
           user_id?: number | null
         }
@@ -3671,7 +3746,7 @@ export type Database = {
           comment_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           updated_at?: string | null
           user_id?: number | null
         }
@@ -3682,7 +3757,7 @@ export type Database = {
           comment_id: number | null
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           updated_at: string | null
           user_id: number | null
         }
@@ -3690,7 +3765,7 @@ export type Database = {
           comment_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           updated_at?: string | null
           user_id?: number | null
         }
@@ -3698,7 +3773,7 @@ export type Database = {
           comment_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           updated_at?: string | null
           user_id?: number | null
         }
@@ -3910,21 +3985,21 @@ export type Database = {
       vote_achieve: {
         Row: {
           amount: number | null
-          id: number | null
+          id: number
           order: number | null
           reward_id: number | null
           vote_id: number | null
         }
         Insert: {
           amount?: number | null
-          id?: number | null
+          id?: never
           order?: number | null
           reward_id?: number | null
           vote_id?: number | null
         }
         Update: {
           amount?: number | null
-          id?: number | null
+          id?: never
           order?: number | null
           reward_id?: number | null
           vote_id?: number | null
@@ -3952,7 +4027,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           likes: number | null
           parent_id: number | null
           updated_at: string | null
@@ -3964,7 +4039,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           likes?: number | null
           parent_id?: number | null
           updated_at?: string | null
@@ -3976,7 +4051,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           likes?: number | null
           parent_id?: number | null
           updated_at?: string | null
@@ -3987,31 +4062,31 @@ export type Database = {
       }
       vote_comment_like: {
         Row: {
-          comment_id: number | null
-          user_id: number | null
+          comment_id: number
+          user_id: number
         }
         Insert: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id: number
+          user_id: number
         }
         Update: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id?: number
+          user_id?: number
         }
         Relationships: []
       }
       vote_comment_report: {
         Row: {
-          comment_id: number | null
-          user_id: number | null
+          comment_id: number
+          user_id: number
         }
         Insert: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id: number
+          user_id: number
         }
         Update: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id?: number
+          user_id?: number
         }
         Relationships: []
       }
@@ -4671,6 +4746,14 @@ export type Database = {
           batch_users: number
         }[]
       }
+      expire_star_candy_bonus_core: {
+        Args: { chunk_size?: number; cutoff_time: string }
+        Returns: {
+          batch_amount: number
+          batch_count: number
+          batch_users: number
+        }[]
+      }
       get_artist_request_count: {
         Args: { artist_id_param: number; vote_id_param: number }
         Returns: number
@@ -4959,6 +5042,12 @@ export type Database = {
       soft_delete_qna: {
         Args: { qna_id_param: number }
         Returns: undefined
+      }
+      sync_user_profiles_from_queue: {
+        Args: { max_rows?: number }
+        Returns: {
+          updated_users: number
+        }[]
       }
       test_expire_star_candy_bonus: {
         Args: { test_datetime: string }

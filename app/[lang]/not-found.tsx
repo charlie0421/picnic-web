@@ -23,6 +23,7 @@ const languages = [
   { code: 'zh-cn', name: '简体中文', flag: '🇨🇳' },
   { code: 'zh-tw', name: '繁體中文', flag: '🇹🇼' },
   { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩' },
+  { code: 'my', name: 'မြန်မာဘာသာ', flag: '🇲🇲' },
 ];
 
 // 번역 객체

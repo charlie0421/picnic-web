@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 export async function createQnaThreadAction(_: { error: string | null }, formData: FormData) {
-  const title = formData.get('title') as string;
+  let title = formData.get('title') as string;
   const content = formData.get('content') as string;
   const lang = (formData.get('lang') as string) || 'en';
   const categoryCode = (formData.get('category_code') as string) || null;
@@ -13,11 +13,30 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
     (f) => f && typeof f === 'object' && 'size' in f && (f as File).size > 0
   );
 
+  // Initialize supabase client early (needed to fetch category label)
+  const supabase = await createSupabaseServerClient();
+
+  // Enforce title for CONCERT2025* categories as the category label (localized)
+  if (categoryCode && categoryCode.startsWith('CONCERT2025')) {
+    try {
+      const { data: cat } = await supabase
+        .from('qna_categories')
+        .select('label')
+        .eq('code', categoryCode)
+        .single();
+      const labelObj: any = cat?.label || {};
+      const labelText = labelObj?.[lang] || labelObj?.['en'] || labelObj?.['ko'] || categoryCode || 'CONCERT2025';
+      title = typeof labelText === 'string' ? labelText : String(labelText);
+    } catch (e) {
+      // Fallback if fetch fails
+      title = 'CONCERT2025';
+    }
+  }
+
   if (!title.trim() || !content.trim()) {
     return { error: 'Title and content are required.' };
   }
 
-  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {

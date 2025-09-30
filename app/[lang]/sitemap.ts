@@ -78,7 +78,7 @@ function detectAppPages(): string[] {
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 다국어 지원을 위한 언어 목록
-    const languages = ['ko', 'en'];
+    const languages = ['ko', 'en', 'my'];
 
     // 1. 정적 페이지 사이트맵 항목 생성
     const staticPagesMaps = languages.flatMap(lang => 

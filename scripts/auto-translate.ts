@@ -16,7 +16,11 @@ const localesDir = path.join(projectRoot, 'public', 'locales');
 
 // Source language and targets
 const SOURCE_LANG = 'en';
-const TARGET_LANGS = ['zh-tw','es','bn','tl','th','vi'] as const;
+const TARGET_LANGS = ['zh-tw','es','bn','tl','th','vi','my'] as const;
+
+// CLI 인자로 대상 언어를 제한할 수 있음: 예) `tsx scripts/auto-translate.ts my`
+const cliTargets = process.argv.slice(2).filter(Boolean);
+const TARGETS: readonly string[] = cliTargets.length > 0 ? cliTargets : TARGET_LANGS;
 
 // Map for API language codes (if different)
 const API_LANG_MAP: Record<string, string> = {
@@ -94,7 +98,7 @@ async function main() {
   // Build cache for identical strings → translated string per target
   const valueCache: Record<string, Record<string, string>> = {};
 
-  for (const target of TARGET_LANGS) {
+  for (const target of TARGETS) {
     const targetPath = path.join(localesDir, `${target}.json`);
     const apiLang = API_LANG_MAP[target] || target;
 

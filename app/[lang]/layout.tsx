@@ -13,7 +13,7 @@ const inter = Inter({ subsets: ['latin'] });
 export async function generateStaticParams() {
   // config/settings.ts의 SUPPORTED_LANGUAGES 중, 빌드가 보장된 언어만 정적으로 생성
   const { SUPPORTED_LANGUAGES } = await import('@/config/settings');
-  const STATIC_LANGS = new Set(['en', 'ko']);
+  const STATIC_LANGS = new Set(['en', 'ko', 'my']);
   return SUPPORTED_LANGUAGES
     .filter((lang) => STATIC_LANGS.has(lang as any))
     .map((lang) => ({ lang }));

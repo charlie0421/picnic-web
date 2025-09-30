@@ -93,20 +93,20 @@ export interface AdminWhitelist {
 export interface Album {
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   title: string | null
   updated_at: string | null
   user_id: number | null
 }
 
 export interface AlbumImage {
-  album_id: number | null
-  image_id: number | null
+  album_id: number
+  image_id: number
 }
 
 export interface AlbumImageUser {
-  image_id: number | null
-  user_id: number | null
+  image_id: number
+  user_id: number
 }
 
 export interface AppSplash {
@@ -127,11 +127,13 @@ export interface ApplicationLogs {
   data: string | null
   environment: string | null
   id: string
+  id_old: string
   level: string
   line_number: number | null
   message: string
   platform: string | null
   request_id: string | null
+  rid: string
   session_id: string | null
   source_file: string | null
   stack_trace: string | null
@@ -156,7 +158,7 @@ export interface ArticleComment {
   content: string | null
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   likes: number | null
   parent_id: number | null
   updated_at: string | null
@@ -164,13 +166,13 @@ export interface ArticleComment {
 }
 
 export interface ArticleCommentLike {
-  comment_id: number | null
-  user_id: number | null
+  comment_id: number
+  user_id: number
 }
 
 export interface ArticleCommentReport {
-  comment_id: number | null
-  user_id: number | null
+  comment_id: number
+  user_id: number
 }
 
 export interface ArticleImage {
@@ -268,6 +270,7 @@ export interface AuditLogs {
   created_at: string
   error_message: string | null
   id: string
+  id_old: string
   ip_address: string | null
   metadata: string | null
   method: string | null
@@ -277,6 +280,7 @@ export interface AuditLogs {
   resource_name: string | null
   resource_type: string
   retention_period: number | null
+  rid: string
   session_id: string | null
   severity: string
   status_code: number | null
@@ -333,8 +337,10 @@ export interface BatchLog {
 
 export interface BlockedIps {
   blocked_at: string | null
+  id: number
   ip_address: string
   reason: string | null
+  rid: string
 }
 
 export interface Boards {
@@ -373,7 +379,7 @@ export interface Celeb {
 
 export interface CelebBookmarkUser {
   celeb_id: number
-  user_id: string | null
+  user_id: string
 }
 
 export interface CommentLikes {
@@ -386,7 +392,7 @@ export interface CommentLikes {
 }
 
 export interface CommentReports {
-  comment_id: string | null
+  comment_id: string
   comment_report_id: string
   created_at: string | null
   deleted_at: string | null
@@ -444,7 +450,7 @@ export interface CompatibilityResultsI18n {
 }
 
 export interface CompatibilityScoreDescriptions {
-  score: number | null
+  score: number
   summary_ja: string
   summary_ko: string
   summary_zh: string
@@ -518,10 +524,12 @@ export interface Devices {
   created_at: string | null
   device_id: string
   device_info: Json | null
+  id: number
   is_banned: boolean | null
   last_ip: string | null
   last_seen: string | null
   last_updated: string | null
+  rid: string
   user_id: string | null
 }
 
@@ -529,8 +537,10 @@ export interface FaqCategories {
   active: boolean
   code: string
   created_at: string
+  id: number
   label: Json
   order_number: number
+  rid: string
 }
 
 export interface Faqs {
@@ -617,8 +627,8 @@ export interface Gallery {
 }
 
 export interface GalleryUser {
-  gallery_id: number | null
-  user_id: number | null
+  gallery_id: number
+  user_id: number
 }
 
 export interface IpCountryMapping {
@@ -632,15 +642,15 @@ export interface IpCountryMapping {
 export interface Library {
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   title: string | null
   updated_at: string | null
   user_id: number | null
 }
 
 export interface LibraryImage {
-  image_id: number | null
-  library_id: number | null
+  image_id: number
+  library_id: number
 }
 
 export interface Media {
@@ -811,6 +821,7 @@ export interface Products {
   price: number | null
   product_name: string
   product_type: ProductType
+  rid: string
   star_candy: number | null
   star_candy_bonus: number | null
   start_at: string | null
@@ -864,10 +875,10 @@ export interface QnaCategories {
   answer_template: Json | null
   code: string
   created_at: string
-  id: string | null
   label: Json
   order_number: number
   question_template: Json | null
+  rid: string
 }
 
 export interface QnaMessages {
@@ -974,9 +985,11 @@ export interface TransactionAdmob {
   ad_network: string | null
   created_at: string
   deleted_at: string | null
+  id: number
   key_id: string | null
   reward_amount: number | null
   reward_type: string | null
+  rid: string
   signature: string | null
   transaction_id: string
   updated_at: string
@@ -987,11 +1000,13 @@ export interface TransactionPangle {
   ad_network: string | null
   created_at: string
   deleted_at: string | null
+  id: number
   key_id: string | null
   platform: string | null
   reward_amount: number | null
   reward_name: string | null
   reward_type: string | null
+  rid: string
   signature: string | null
   transaction_id: string
   updated_at: string
@@ -1005,10 +1020,12 @@ export interface TransactionPincrux {
   commission: number | null
   created_at: string
   deleted_at: string | null
+  id: number
   menu_category1: string | null
   pub_key: number | null
   reward_amount: number | null
   reward_type: string | null
+  rid: string
   signature: string | null
   transaction_id: string
   updated_at: string
@@ -1031,9 +1048,11 @@ export interface TransactionUnity {
   created_at: string
   deleted_at: string | null
   hmac: string
+  id: number
   platform: string | null
   reward_amount: number | null
   reward_type: string | null
+  rid: string
   transaction_id: string
   updated_at: string
   user_id: string
@@ -1056,11 +1075,17 @@ export interface UserBlocks {
   user_id: string
 }
 
+export interface UserBonusUpdateQueue {
+  created_at: string
+  id: number
+  user_id: string
+}
+
 export interface UserCommentLike {
   comment_id: number | null
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   updated_at: string | null
   user_id: number | null
 }
@@ -1069,7 +1094,7 @@ export interface UserCommentReport {
   comment_id: number | null
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   updated_at: string | null
   user_id: number | null
 }
@@ -1141,7 +1166,7 @@ export interface Vote {
 
 export interface VoteAchieve {
   amount: number | null
-  id: number | null
+  id: number
   order: number | null
   reward_id: number | null
   vote_id: number | null
@@ -1152,7 +1177,7 @@ export interface VoteComment {
   content: string | null
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   likes: number | null
   parent_id: number | null
   updated_at: string | null
@@ -1161,13 +1186,13 @@ export interface VoteComment {
 }
 
 export interface VoteCommentLike {
-  comment_id: number | null
-  user_id: number | null
+  comment_id: number
+  user_id: number
 }
 
 export interface VoteCommentReport {
-  comment_id: number | null
-  user_id: number | null
+  comment_id: number
+  user_id: number
 }
 
 export interface VoteItem {

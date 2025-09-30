@@ -53,7 +53,8 @@ export type SupportedLanguage =
   | 'bn'     // 뱅골어(방글라데시)
   | 'tl'     // 타갈로그어(필리핀)
   | 'th'     // 태국어
-  | 'vi';    // 베트남어
+  | 'vi'     // 베트남어
+  | 'my';    // 미얀마어
 
 // 공통 페이지 props
 export interface BaseMypageProps {

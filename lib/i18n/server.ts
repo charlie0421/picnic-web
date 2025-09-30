@@ -21,20 +21,26 @@ const loadTranslations = cache(async (lang: Language) => {
 
 export const getTranslations = async (lang: Language) => {
   const translations = await loadTranslations(lang);
+  const koTranslations = lang === 'ko' ? translations : await loadTranslations('ko');
+  const enTranslations = lang === 'en' ? translations : await loadTranslations('en');
 
   return (key: string, args?: Record<string, string>): string => {
-    const value = key.split('.').reduce((obj, k) => obj?.[k], translations);
+    const resolve = (source: any, path: string) => path.split('.').reduce((obj, k) => obj?.[k], source);
 
+    let value = resolve(translations, key);
     if (value === undefined) {
-      return `[${key}]`;
-    }
-    
-    let translation = value;
-
-    if (typeof translation !== 'string') {
-      return `[${key}]`;
+      // Prefer Korean fallback first for missing keys, then English
+      value = resolve(koTranslations, key);
+      if (value === undefined) {
+        value = resolve(enTranslations, key);
+      }
     }
 
+    if (value === undefined || typeof value !== 'string') {
+      return `[${key}]`;
+    }
+
+    let translation = value as string;
     if (args) {
       Object.entries(args).forEach(([argKey, argValue]) => {
         translation = translation.replace(`{${argKey}}`, String(argValue));
@@ -42,4 +48,4 @@ export const getTranslations = async (lang: Language) => {
     }
     return translation;
   };
-}; 
+};
