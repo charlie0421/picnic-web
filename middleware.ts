@@ -78,7 +78,9 @@ export async function middleware(req: NextRequest) {
     const isAndroid = /Android/i.test(ua);
     const isAlreadyOpenPage = /\/open-in-browser(\/|$)/.test(pathname);
     const isApi = pathname.startsWith('/api/');
-    const isStatic = pathname.startsWith('/_next') || pathname === '/favicon.ico';
+    // 정적 자산: Next 내부 정적 경로, 파비콘, 그리고 파일 확장자를 가진 퍼블릭 파일들(.txt, .xml, .json 등)
+    const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
+    const isStatic = pathname.startsWith('/_next') || pathname === '/favicon.ico' || hasFileExtension;
     const isAuthCallback = pathname.startsWith('/auth/callback');
 
     if (isKakao && isAndroid && !isAlreadyOpenPage && !isApi && !isStatic) {
@@ -130,5 +132,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // 정적 공개 파일들은 미들웨어 대상에서 제외 (퍼블릭 우선 서빙 보장)
+  // - robots.txt, app-ads.txt, ads.txt, sitemap(xml), 매니페스트, 애플 도메인 검증, .well-known/* 등
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*).*)",
+  ],
 };
