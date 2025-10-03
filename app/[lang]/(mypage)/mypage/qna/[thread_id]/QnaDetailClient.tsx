@@ -90,6 +90,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
 
   const { t, tDynamic } = useTranslations();
   const { currentLanguage } = useLanguage();
@@ -353,13 +354,15 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (submittingRef.current || isSubmitting) return;
     try {
+      submittingRef.current = true;
       setIsSubmitting(true);
       const fd = new FormData(e.currentTarget);
       await formAction(fd);
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   };
 
