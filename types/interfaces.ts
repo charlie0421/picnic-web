@@ -1099,6 +1099,14 @@ export interface UserCommentReport {
   user_id: number | null
 }
 
+export interface UserCountryEvents {
+  country_code: string
+  created_at: string
+  id: string
+  source: string
+  user_id: string
+}
+
 export interface UserProfiles {
   avatar_url: string | null
   birth_date: string | null

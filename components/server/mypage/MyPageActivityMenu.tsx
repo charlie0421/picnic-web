@@ -1,5 +1,6 @@
 import React from 'react';
 import NavigationLink from '@/components/client/NavigationLink';
+import { getServerUser, createServerSupabaseClient } from '@/lib/supabase/server';
 
 interface ActivityMenuTranslations {
   label_mypage_activity_history: string;
@@ -13,9 +14,26 @@ interface MyPageActivityMenuProps {
   translations: ActivityMenuTranslations;
 }
 
-export default function MyPageActivityMenu({ translations }: MyPageActivityMenuProps) {
+export default async function MyPageActivityMenu({ translations }: MyPageActivityMenuProps) {
   const t = (key: keyof ActivityMenuTranslations) => translations[key] || key;
-  
+
+  // 관리자 여부 서버에서 확인
+  let isAdmin = false;
+  try {
+    const user = await getServerUser();
+    if (user) {
+      const supabase = await createServerSupabaseClient();
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('is_admin, is_super_admin')
+        .eq('id', user.id)
+        .single();
+      isAdmin = !!(profile?.is_admin || profile?.is_super_admin);
+    }
+  } catch {
+    isAdmin = false;
+  }
+
   return (
     <div className='bg-gradient-to-r from-secondary-400 to-secondary-600 rounded-2xl p-1'>
       <div className='bg-white rounded-2xl p-4'>
@@ -68,18 +86,20 @@ export default function MyPageActivityMenu({ translations }: MyPageActivityMenuP
             </div>
           </NavigationLink>
           
-          <NavigationLink href='/mypage/recharge-history' className='group'>
-            <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
-              <div className='text-center h-full flex flex-col justify-center'>
-                <div className='w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-2'>
-                  <span className='text-white text-sm'>💳</span>
+          {isAdmin && (
+            <NavigationLink href='/mypage/recharge-history' className='group'>
+              <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
+                <div className='text-center h-full flex flex-col justify-center'>
+                  <div className='w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center mx-auto mb-2'>
+                    <span className='text-white text-sm'>💳</span>
+                  </div>
+                  <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors text-xs'>
+                    {t('label_mypage_my_recharge_history')}
+                  </h3>
                 </div>
-                <h3 className='font-semibold text-gray-900 group-hover:text-secondary-600 transition-colors text-xs'>
-                  {t('label_mypage_my_recharge_history')}
-                </h3>
               </div>
-            </div>
-          </NavigationLink>
+            </NavigationLink>
+          )}
         </div>
       </div>
     </div>

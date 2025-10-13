@@ -3779,6 +3779,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_country_events: {
+        Row: {
+          country_code: string
+          created_at: string
+          id: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          country_code: string
+          created_at?: string
+          id?: string
+          source?: string
+          user_id: string
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          id?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           avatar_url: string | null
@@ -4754,6 +4778,16 @@ export type Database = {
           batch_users: number
         }[]
       }
+      get_artist_paid_votes: {
+        Args: { p_exclude_admin?: boolean; p_vote_id?: number }
+        Returns: {
+          artist_id: number
+          artist_name: Json
+          paid_candy_sum: number
+          paid_vote_count: number
+          paid_voter_count: number
+        }[]
+      }
       get_artist_request_count: {
         Args: { artist_id_param: number; vote_id_param: number }
         Returns: number
@@ -5002,8 +5036,14 @@ export type Database = {
         }[]
       }
       process_vote_item_queue: {
-        Args: { p_vote_item_id: number }
-        Returns: undefined
+        Args:
+          | { p_limit: number; p_vote_item_id: number }
+          | { p_vote_item_id: number }
+        Returns: number
+      }
+      process_vote_item_update_queue: {
+        Args: Record<PropertyKey, never> | { p_limit: number }
+        Returns: number
       }
       restore_qna: {
         Args: { qna_id_param: number }
