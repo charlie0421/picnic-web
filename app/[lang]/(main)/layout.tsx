@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useEffect } from 'react';
 import Header from '@/components/layouts/Header';
 import { useMenu } from '@/hooks/useMenu';
 import NavigationLink from '@/components/client/NavigationLink';
@@ -46,8 +46,47 @@ const SubMenu: React.FC = () => {
 };
 
 import Footer from '@/components/layouts/Footer';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+
+function useFirebaseMessaging() {
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    (async () => {
+      try {
+        if (!('serviceWorker' in navigator)) return;
+        const { initializeApp } = await import('firebase/app');
+        const { getMessaging, getToken, onMessage, isSupported } = await import('firebase/messaging');
+        if (!(await isSupported())) return;
+        const app = initializeApp({
+          apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+          authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+          messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+          appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+        });
+        const messaging = getMessaging(app);
+        const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        const token = await getToken(messaging, { serviceWorkerRegistration: reg, vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
+        if (token) {
+          // forward to edge function
+          try {
+            const supabase = createBrowserSupabaseClient();
+            await supabase.functions.invoke('register-push-token', { body: { platform: 'web', token } });
+          } catch {}
+        }
+        unsub = onMessage(messaging, (payload) => {
+          console.log('[FCM] foreground message', payload);
+        });
+      } catch (e) {
+        console.warn('[FCM] init failed', e);
+      }
+    })();
+    return () => { if (unsub) unsub(); };
+  }, []);
+}
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  useFirebaseMessaging();
   const pathname = usePathname();
   const hideBetaNotice = pathname?.includes('/concert2025');
   return (

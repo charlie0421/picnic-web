@@ -128,6 +128,18 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
     }
   }
 
+  // Notify watchers/moderators (optional) about new question (basic: no watchers)
+  try {
+    await supabase.functions.invoke('notify-qna-event', {
+      body: {
+        type: 'question_created',
+        question_id: threadData.id,
+        question_author_id: user.id,
+        watchers: [],
+      }
+    });
+  } catch (_) {}
+
   revalidatePath(`/${lang}/mypage/qna`);
   redirect(`/${lang}/mypage/qna/${threadData.id}`);
 }
@@ -254,5 +266,25 @@ export async function createQnaMessageAction(formData: FormData) {
     }
 
     // Do NOT call revalidatePath here to avoid full-route refresh; client updates list optimistically
+    try {
+        // Fetch thread to find author
+        const { data: thread } = await supabase
+            .from('qna_threads')
+            .select('user_id')
+            .eq('id', parseInt(threadId, 10))
+            .single();
+        if (thread?.user_id) {
+            await supabase.functions.invoke('notify-qna-event', {
+                body: {
+                    type: 'answer_created',
+                    question_id: parseInt(threadId, 10),
+                    question_author_id: thread.user_id,
+                    answer_author_id: user.id,
+                    watchers: [],
+                }
+            });
+        }
+    } catch (_) {}
+
     return { success: true, data: fullMessage };
 }

@@ -53,6 +53,187 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_campaigns: {
+        Row: {
+          advertiser: string | null
+          created_at: string | null
+          cta_url: string | null
+          id: string
+          is_default: boolean
+          reward_comment: number
+          reward_like: number
+          reward_more: number
+          reward_subscribe: number
+          reward_view: number
+          served_count: number
+          status: string
+          title: string
+          total_cap: number | null
+          updated_at: string | null
+          video_key: string
+          visible_from: string | null
+          visible_to: string | null
+          weight: number
+        }
+        Insert: {
+          advertiser?: string | null
+          created_at?: string | null
+          cta_url?: string | null
+          id?: string
+          is_default?: boolean
+          reward_comment?: number
+          reward_like?: number
+          reward_more?: number
+          reward_subscribe?: number
+          reward_view?: number
+          served_count?: number
+          status?: string
+          title: string
+          total_cap?: number | null
+          updated_at?: string | null
+          video_key: string
+          visible_from?: string | null
+          visible_to?: string | null
+          weight?: number
+        }
+        Update: {
+          advertiser?: string | null
+          created_at?: string | null
+          cta_url?: string | null
+          id?: string
+          is_default?: boolean
+          reward_comment?: number
+          reward_like?: number
+          reward_more?: number
+          reward_subscribe?: number
+          reward_view?: number
+          served_count?: number
+          status?: string
+          title?: string
+          total_cap?: number | null
+          updated_at?: string | null
+          video_key?: string
+          visible_from?: string | null
+          visible_to?: string | null
+          weight?: number
+        }
+        Relationships: []
+      }
+      ad_impressions: {
+        Row: {
+          ad_id: string
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          ip_hash: string | null
+          issue_expires_at: string | null
+          issue_jti: string | null
+          issued_at: string
+          more_completed_at: string | null
+          more_reward_granted_at: string | null
+          user_agent: string | null
+          user_id: string
+          view_reward_granted_at: string | null
+        }
+        Insert: {
+          ad_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          issue_expires_at?: string | null
+          issue_jti?: string | null
+          issued_at?: string
+          more_completed_at?: string | null
+          more_reward_granted_at?: string | null
+          user_agent?: string | null
+          user_id: string
+          view_reward_granted_at?: string | null
+        }
+        Update: {
+          ad_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          issue_expires_at?: string | null
+          issue_jti?: string | null
+          issued_at?: string
+          more_completed_at?: string | null
+          more_reward_granted_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+          view_reward_granted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_impressions_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_impressions_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns_active"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_reward_events: {
+        Row: {
+          ad_id: string
+          amount: number
+          created_at: string | null
+          id: string
+          impression_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          ad_id: string
+          amount: number
+          created_at?: string | null
+          id?: string
+          impression_id: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          ad_id?: string
+          amount?: number
+          created_at?: string | null
+          id?: string
+          impression_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_reward_events_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_reward_events_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_reward_events_impression_id_fkey"
+            columns: ["impression_id"]
+            isOneToOne: false
+            referencedRelation: "ad_impressions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_permissions: {
         Row: {
           action: string
@@ -1141,6 +1322,39 @@ export type Database = {
           details?: Json | null
           id?: number
           operation?: string | null
+        }
+        Relationships: []
+      }
+      broadcast_notifications: {
+        Row: {
+          action_url: string | null
+          body: string
+          created_at: string
+          created_by: string | null
+          data: Json | null
+          id: number
+          title: string
+          type: string
+        }
+        Insert: {
+          action_url?: string | null
+          body: string
+          created_at?: string
+          created_by?: string | null
+          data?: Json | null
+          id?: number
+          title: string
+          type?: string
+        }
+        Update: {
+          action_url?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          data?: Json | null
+          id?: number
+          title?: string
+          type?: string
         }
         Relationships: []
       }
@@ -2640,6 +2854,32 @@ export type Database = {
         }
         Relationships: []
       }
+      post_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["post_id"]
+          },
+        ]
+      }
       post_reports: {
         Row: {
           created_at: string | null
@@ -3462,6 +3702,30 @@ export type Database = {
         }
         Relationships: []
       }
+      transaction_internal: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          platform: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          platform?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          platform?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transaction_pangle: {
         Row: {
           ad_network: string | null
@@ -3799,6 +4063,45 @@ export type Database = {
           created_at?: string
           id?: string
           source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_notifications: {
+        Row: {
+          action_url: string | null
+          body: string
+          created_at: string
+          data: Json | null
+          id: number
+          is_read: boolean
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          body: string
+          created_at?: string
+          data?: Json | null
+          id?: number
+          is_read?: boolean
+          read_at?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          body?: string
+          created_at?: string
+          data?: Json | null
+          id?: number
+          is_read?: boolean
+          read_at?: string | null
+          title?: string
+          type?: string
           user_id?: string
         }
         Relationships: []
@@ -4459,6 +4762,72 @@ export type Database = {
       }
     }
     Views: {
+      ad_campaigns_active: {
+        Row: {
+          advertiser: string | null
+          created_at: string | null
+          cta_url: string | null
+          id: string | null
+          is_default: boolean | null
+          reward_comment: number | null
+          reward_like: number | null
+          reward_more: number | null
+          reward_subscribe: number | null
+          reward_view: number | null
+          served_count: number | null
+          status: string | null
+          title: string | null
+          total_cap: number | null
+          updated_at: string | null
+          video_key: string | null
+          visible_from: string | null
+          visible_to: string | null
+          weight: number | null
+        }
+        Insert: {
+          advertiser?: string | null
+          created_at?: string | null
+          cta_url?: string | null
+          id?: string | null
+          is_default?: boolean | null
+          reward_comment?: number | null
+          reward_like?: number | null
+          reward_more?: number | null
+          reward_subscribe?: number | null
+          reward_view?: number | null
+          served_count?: number | null
+          status?: string | null
+          title?: string | null
+          total_cap?: number | null
+          updated_at?: string | null
+          video_key?: string | null
+          visible_from?: string | null
+          visible_to?: string | null
+          weight?: number | null
+        }
+        Update: {
+          advertiser?: string | null
+          created_at?: string | null
+          cta_url?: string | null
+          id?: string | null
+          is_default?: boolean | null
+          reward_comment?: number | null
+          reward_like?: number | null
+          reward_more?: number | null
+          reward_subscribe?: number | null
+          reward_view?: number | null
+          served_count?: number | null
+          status?: string | null
+          title?: string | null
+          total_cap?: number | null
+          updated_at?: string | null
+          video_key?: string | null
+          visible_from?: string | null
+          visible_to?: string | null
+          weight?: number | null
+        }
+        Relationships: []
+      }
       artist_request_statistics: {
         Row: {
           approved_requests: number | null

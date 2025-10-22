@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -11,10 +11,15 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
-    // www로 강제 리디렉트(서브도메인 간 쿠키 일관성)
-    const appOrigin = origin.replace('://api.', '://www.');
-    // 미리 리다이렉트 응답을 생성하고, 쿠키 set/remove가 이 응답 객체에 기록되도록 설정
-    const redirectResponse = NextResponse.redirect(`${appOrigin}${next}`);
+    const reqHeaders = headers();
+    const host = reqHeaders.get('host');
+    const proto = reqHeaders.get('x-forwarded-proto') || (origin.startsWith('https://') ? 'https' : 'http');
+    const isLocal = host?.includes('localhost') || host?.startsWith('127.') || host?.endsWith('.local');
+    const cookieDomain = !isLocal && (host === 'picnic.fan' || host?.endsWith('.picnic.fan')) ? '.picnic.fan' : undefined;
+    const secure = proto === 'https' && !isLocal;
+
+    // 동일 origin으로 리디렉트
+    const redirectResponse = NextResponse.redirect(`${origin}${next}`);
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,10 +30,12 @@ export async function GET(request: Request) {
             return cookieStore.get(name)?.value;
           },
           set(name: string, value: string, options: any) {
-            redirectResponse.cookies.set({ name, value, ...options, path: '/', sameSite: 'lax', secure: true, domain: '.picnic.fan' });
+            const base = { path: '/', sameSite: 'lax' as const };
+            redirectResponse.cookies.set({ name, value, ...base, ...(secure ? { secure: true } : {}), ...(cookieDomain ? { domain: cookieDomain } : {}), ...options });
           },
           remove(name: string, options: any) {
-            redirectResponse.cookies.set({ name, value: '', ...options, path: '/', sameSite: 'lax', secure: true, domain: '.picnic.fan' });
+            const base = { path: '/', sameSite: 'lax' as const };
+            redirectResponse.cookies.set({ name, value: '', ...base, ...(secure ? { secure: true } : {}), ...(cookieDomain ? { domain: cookieDomain } : {}), ...options });
           },
         },
       }

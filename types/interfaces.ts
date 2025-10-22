@@ -47,6 +47,54 @@ export interface Activities {
   user_id: string | null
 }
 
+export interface AdCampaigns {
+  advertiser: string | null
+  created_at: string | null
+  cta_url: string | null
+  id: string
+  is_default: boolean
+  reward_comment: number
+  reward_like: number
+  reward_more: number
+  reward_subscribe: number
+  reward_view: number
+  served_count: number
+  status: string
+  title: string
+  total_cap: number | null
+  updated_at: string | null
+  video_key: string
+  visible_from: string | null
+  visible_to: string | null
+  weight: number
+}
+
+export interface AdImpressions {
+  ad_id: string
+  completed_at: string | null
+  created_at: string | null
+  id: string
+  ip_hash: string | null
+  issue_expires_at: string | null
+  issue_jti: string | null
+  issued_at: string
+  more_completed_at: string | null
+  more_reward_granted_at: string | null
+  user_agent: string | null
+  user_id: string
+  view_reward_granted_at: string | null
+}
+
+export interface AdRewardEvents {
+  ad_id: string
+  amount: number
+  created_at: string | null
+  id: string
+  impression_id: string
+  type: string
+  user_id: string
+}
+
 export interface AdminPermissions {
   action: string
   created_at: string | null
@@ -366,6 +414,17 @@ export interface BonusExpiryLog {
   details: Json | null
   id: number
   operation: string | null
+}
+
+export interface BroadcastNotifications {
+  action_url: string | null
+  body: string
+  created_at: string
+  created_by: string | null
+  data: Json | null
+  id: number
+  title: string
+  type: string
 }
 
 export interface Celeb {
@@ -768,6 +827,12 @@ export interface PostAttachments {
   post_id: string | null
 }
 
+export interface PostLikes {
+  created_at: string
+  post_id: string
+  user_id: string
+}
+
 export interface PostReports {
   created_at: string | null
   deleted_at: string | null
@@ -996,6 +1061,14 @@ export interface TransactionAdmob {
   user_id: string | null
 }
 
+export interface TransactionInternal {
+  action: string
+  created_at: string
+  id: string
+  platform: string
+  user_id: string
+}
+
 export interface TransactionPangle {
   ad_network: string | null
   created_at: string
@@ -1104,6 +1177,19 @@ export interface UserCountryEvents {
   created_at: string
   id: string
   source: string
+  user_id: string
+}
+
+export interface UserNotifications {
+  action_url: string | null
+  body: string
+  created_at: string
+  data: Json | null
+  id: number
+  is_read: boolean
+  read_at: string | null
+  title: string
+  type: string
   user_id: string
 }
 
@@ -1269,6 +1355,28 @@ export interface VoteShareBonus {
   updated_at: string
   user_id: string
   vote_id: number
+}
+
+export interface AdCampaignsActive {
+  advertiser: string | null
+  created_at: string | null
+  cta_url: string | null
+  id: string | null
+  is_default: boolean | null
+  reward_comment: number | null
+  reward_like: number | null
+  reward_more: number | null
+  reward_subscribe: number | null
+  reward_view: number | null
+  served_count: number | null
+  status: string | null
+  title: string | null
+  total_cap: number | null
+  updated_at: string | null
+  video_key: string | null
+  visible_from: string | null
+  visible_to: string | null
+  weight: number | null
 }
 
 export interface ArtistRequestStatistics {

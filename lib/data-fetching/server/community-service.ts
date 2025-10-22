@@ -1,0 +1,370 @@
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+
+export interface CommunityPostSummary {
+  id: string
+  title: string
+  contentPreview: string | null
+  replyCount: number
+  viewCount: number
+  createdAt: string
+  userId: string
+}
+
+export interface CommunityPostDetail extends CommunityPostSummary {
+  content: unknown
+  attachments: string[] | null
+  likeCount?: number
+  likedByMe?: boolean
+}
+
+export interface CommunityComment {
+  commentId: string
+  content: unknown
+  createdAt: string
+  userId: string | null
+  likes: number
+  parentCommentId: string | null
+}
+
+export interface FeedResult {
+  posts: CommunityPostSummary[]
+  hasNext: boolean
+  nextPage: number | null
+}
+
+export interface CommunityBoardSummary {
+  id: string
+  boardId: string
+  name: string
+  description: string | null
+  isOfficial: boolean | null
+  artist?: { id: number; name: string; image: string | null; groupName?: string | null } | null
+}
+
+export async function getCommunityFeed({ page = 1, limit = 20 }: { page?: number; limit?: number }): Promise<FeedResult> {
+  const supabase = await createSupabaseServerClient()
+
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  // posts 테이블 필드 참조: types/interfaces.ts 의 Posts 인터페이스
+  const { data, error, count } = await supabase
+    .from('posts')
+    .select('post_id,id,title,content,reply_count,view_count,created_at,user_id', { count: 'exact' })
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .range(from, to)
+
+  if (error) {
+    console.error('[community] getCommunityFeed error:', error)
+    return { posts: [], hasNext: false, nextPage: null }
+  }
+
+  const total = count ?? 0
+  const totalPages = Math.ceil(total / limit)
+  const mapped: CommunityPostSummary[] = (data ?? []).map((p: any) => ({
+    id: p.post_id ?? p.id,
+    title: p.title,
+    contentPreview: Array.isArray(p.content) ? String(p.content?.[0]?.text ?? '') : null,
+    replyCount: p.reply_count ?? 0,
+    viewCount: p.view_count ?? 0,
+    createdAt: p.created_at,
+    userId: p.user_id,
+  }))
+
+  return {
+    posts: mapped,
+    hasNext: page < totalPages,
+    nextPage: page < totalPages ? page + 1 : null,
+  }
+}
+
+export async function getCommunityPost(postId: string): Promise<CommunityPostDetail | null> {
+  const supabase = await createSupabaseServerClient()
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select('post_id,id,title,content,attachments,reply_count,view_count,created_at,user_id')
+    .eq('post_id', postId)
+    .is('deleted_at', null)
+    .single()
+
+  if (error || !data) {
+    if (error) console.error('[community] getCommunityPost error:', error)
+    return null
+  }
+
+  // 좋아요 카운트 및 내 좋아요 여부
+  let likeCount: number | undefined = undefined
+  let likedByMe: boolean | undefined = undefined
+  try {
+    const [{ count }, { data: userResp }] = await Promise.all([
+      supabase
+        .from('post_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('post_id', data.post_id ?? data.id),
+      supabase.auth.getUser(),
+    ])
+    likeCount = count ?? 0
+    const userId = userResp?.user?.id
+    if (userId) {
+      const { data: existing } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .eq('post_id', data.post_id ?? data.id)
+        .eq('user_id', userId)
+        .maybeSingle()
+      likedByMe = !!existing
+    }
+  } catch (e) {
+    // 안전 무시
+  }
+
+  return {
+    id: data.post_id ?? data.id,
+    title: data.title,
+    contentPreview: Array.isArray(data.content) ? String(data.content?.[0]?.text ?? '') : null,
+    replyCount: data.reply_count ?? 0,
+    viewCount: data.view_count ?? 0,
+    createdAt: data.created_at,
+    userId: data.user_id,
+    content: data.content,
+    attachments: data.attachments ?? null,
+    likeCount,
+    likedByMe,
+  }
+}
+
+export async function getCommunityComments(postId: string): Promise<CommunityComment[]> {
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from('comments')
+    .select('comment_id,content,created_at,user_id,likes,parent_comment_id')
+    .eq('post_id', postId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('[community] getCommunityComments error:', error)
+    return []
+  }
+
+  return (data ?? []).map((c: any) => ({
+    commentId: c.comment_id,
+    content: c.content,
+    createdAt: c.created_at,
+    userId: c.user_id,
+    likes: c.likes ?? 0,
+    parentCommentId: c.parent_comment_id,
+  }))
+}
+
+export async function getBoards({ page = 1, limit = 20 }: { page?: number; limit?: number }): Promise<{ boards: CommunityBoardSummary[]; hasNext: boolean; nextPage: number | null; }> {
+  const supabase = await createSupabaseServerClient()
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  const { data, error, count } = await supabase
+    .from('boards')
+    .select('id,board_id,name,description,is_official,status,artist_id,order, artist:artist_id ( id, name, image, artist_group ( id, name ) )', { count: 'exact' })
+    .eq('status', 'approved')
+    .order('order', { ascending: true })
+    .range(from, to)
+
+  if (error) {
+    console.error('[community] getBoards error:', error)
+    return { boards: [], hasNext: false, nextPage: null }
+  }
+
+  const total = count ?? 0
+  const totalPages = Math.ceil(total / limit)
+  const boards: CommunityBoardSummary[] = (data ?? []).map((b: any) => ({
+    id: b.id,
+    boardId: b.board_id ?? b.id,
+    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+    isOfficial: b.is_official ?? null,
+    artist: b.artist ? {
+      id: b.artist.id,
+      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
+      image: b.artist.image ?? null,
+      groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
+    } : null,
+  }))
+
+  return { boards, hasNext: page < totalPages, nextPage: page < totalPages ? page + 1 : null }
+}
+
+export async function getBoardPosts(boardId: string, { page = 1, limit = 20 }: { page?: number; limit?: number }): Promise<FeedResult> {
+  const supabase = await createSupabaseServerClient()
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  const { data, error, count } = await supabase
+    .from('posts')
+    .select('post_id,id,title,content,reply_count,view_count,created_at,user_id,board_id')
+    .eq('board_id', boardId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .range(from, to)
+
+  if (error) {
+    console.error('[community] getBoardPosts error:', error)
+    return { posts: [], hasNext: false, nextPage: null }
+  }
+
+  const total = count ?? 0
+  const totalPages = Math.ceil(total / limit)
+  const posts: CommunityPostSummary[] = (data ?? []).map((p: any) => ({
+    id: p.post_id ?? p.id,
+    title: p.title,
+    contentPreview: Array.isArray(p.content) ? String(p.content?.[0]?.insert ?? p.content?.[0]?.text ?? '') : null,
+    replyCount: p.reply_count ?? 0,
+    viewCount: p.view_count ?? 0,
+    createdAt: p.created_at,
+    userId: p.user_id,
+  }))
+
+  return { posts, hasNext: page < totalPages, nextPage: page < totalPages ? page + 1 : null }
+}
+
+export async function getUserBookmarkedArtistIds(): Promise<number[]> {
+  const supabase = await createSupabaseServerClient()
+  const { data: userResp } = await supabase.auth.getUser()
+  const userId = userResp?.user?.id
+  if (!userId) return []
+
+  const { data, error } = await supabase
+    .from('artist_user_bookmark')
+    .select('artist_id')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+
+  if (error) {
+    console.warn('[community] getUserBookmarkedArtistIds error:', error)
+    return []
+  }
+  return (data ?? [])
+    .map((r: any) => r.artist_id)
+    .filter((v: any) => typeof v === 'number')
+}
+
+// 사용자의 즐겨찾는(북마크한) 아티스트의 게시판을 우선 노출
+export async function getBoardsPrioritizedForUser({ page = 1, limit = 50 }: { page?: number; limit?: number }) {
+  const supabase = await createSupabaseServerClient()
+
+  // 사용자 식별
+  const { data: userResp } = await supabase.auth.getUser()
+  const userId = userResp?.user?.id
+
+  // 기본 보드 목록(정렬 포함)
+  const { data: boardsData, error } = await supabase
+    .from('boards')
+    .select('id,board_id,name,description,is_official,status,artist_id,order, artist:artist_id ( id, name, image, artist_group ( id, name ) )')
+    .eq('status', 'approved')
+    .order('order', { ascending: true })
+    .range((page - 1) * limit, (page - 1) * limit + limit - 1)
+
+  if (error || !boardsData) {
+    if (error) console.error('[community] getBoardsPrioritizedForUser error:', error)
+    // 실패 시 일반 보드 API로 폴백
+    return getBoards({ page, limit })
+  }
+
+  if (!userId) {
+    // 비로그인 사용자는 기존 정렬 그대로 반환
+    const boards: CommunityBoardSummary[] = boardsData.map((b: any) => ({
+      id: b.id,
+      boardId: b.board_id ?? b.id,
+      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+      isOfficial: b.is_official ?? null,
+      artist: b.artist ? {
+        id: b.artist.id,
+        name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
+        image: b.artist.image ?? null,
+        groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
+      } : null,
+    }))
+    return { boards, hasNext: false, nextPage: null }
+  }
+
+  // 사용자가 북마크한 아티스트 조회
+  const { data: favs, error: favErr } = await supabase
+    .from('artist_user_bookmark')
+    .select('artist_id')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+
+  if (favErr) {
+    console.warn('[community] artist_user_bookmark fetch error:', favErr)
+  }
+
+  const favSet = new Set<number>((favs ?? []).map((r: any) => r.artist_id).filter((v: any) => typeof v === 'number'))
+
+  // 보드 목록을 사용자의 아티스트 보드 먼저 오도록 재배열(기존 order 정렬은 유지)
+  const myBoards = boardsData.filter((b: any) => favSet.has(b.artist_id))
+  const otherBoards = boardsData.filter((b: any) => !favSet.has(b.artist_id))
+  const arranged = [...myBoards, ...otherBoards]
+
+  const boards: CommunityBoardSummary[] = arranged.map((b: any) => ({
+    id: b.id,
+    boardId: b.board_id ?? b.id,
+    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+    isOfficial: b.is_official ?? null,
+    artist: b.artist ? {
+      id: b.artist.id,
+      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
+      image: b.artist.image ?? null,
+      groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
+    } : null,
+  }))
+
+  // 단순 페이징(상세 total 계산은 생략) — 기존 UX 동일
+  return { boards, hasNext: false, nextPage: null }
+}
+
+// 내가 북마크한 아티스트의 게시판만 반환
+export async function getBoardsForUserFavoritesOnly({ page = 1, limit = 50 }: { page?: number; limit?: number }) {
+  const supabase = await createSupabaseServerClient()
+
+  // 사용자 식별 및 즐겨찾기 아티스트 목록
+  const favArtistIds = await getUserBookmarkedArtistIds()
+  if (favArtistIds.length === 0) {
+    return { boards: [] as CommunityBoardSummary[], hasNext: false, nextPage: null }
+  }
+
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+
+  const { data, error } = await supabase
+    .from('boards')
+    .select('id,board_id,name,description,is_official,status,artist_id,order, artist:artist_id ( id, name, image, artist_group ( id, name ) )')
+    .eq('status', 'approved')
+    .in('artist_id', favArtistIds)
+    .order('order', { ascending: true })
+    .range(from, to)
+
+  if (error || !data) {
+    if (error) console.error('[community] getBoardsForUserFavoritesOnly error:', error)
+    return { boards: [] as CommunityBoardSummary[], hasNext: false, nextPage: null }
+  }
+
+  const boards: CommunityBoardSummary[] = data.map((b: any) => ({
+    id: b.id,
+    boardId: b.board_id ?? b.id,
+    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+    isOfficial: b.is_official ?? null,
+    artist: b.artist ? {
+      id: b.artist.id,
+      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
+      image: b.artist.image ?? null,
+    } : null,
+  }))
+
+  return { boards, hasNext: false, nextPage: null }
+}
+
+
