@@ -1,3 +1,5 @@
+"use client"
+ 
 import React from 'react'
 import BoardCard from './BoardCard'
 import { getCdnImageUrl } from '@/utils/api/image'
