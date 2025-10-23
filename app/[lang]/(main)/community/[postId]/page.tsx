@@ -9,6 +9,7 @@ import LikeButton from '@/components/community/LikeButton'
 import CommentForm from '@/components/community/CommentForm'
 import CommentList from '@/components/community/CommentList'
 import PostContent from '@/components/community/PostContent'
+import { getTranslations } from '@/lib/i18n/server'
 
 export const revalidate = 120
 
@@ -21,17 +22,18 @@ export async function generateMetadata({
   const lang = String(langParam || 'ko')
   const isrOptions = createISRMetadata(120)
   const post = await getCommunityPost(postId)
+  const t = await getTranslations(lang as any)
 
   return {
     ...createPageMetadata(
-      post ? `${post.title} - 커뮤니티` : '커뮤니티',
-      post?.contentPreview ?? '피크닠 커뮤니티 게시글',
+      post ? `${post.title} - ${t('community.meta.community')}` : t('community.meta.community'),
+      post?.contentPreview ?? t('community.meta.postDescription'),
       {
         alternates: {
           canonical: `${SITE_URL}/${lang}/community/${postId}`,
         },
         openGraph: {
-          title: post ? `${post.title} - 커뮤니티` : '커뮤니티',
+          title: post ? `${post.title} - ${t('community.meta.community')}` : t('community.meta.community'),
           description: post?.contentPreview ?? undefined,
           url: `${SITE_URL}/${lang}/community/${postId}`,
         },
@@ -48,12 +50,13 @@ export default async function CommunityPostDetailPage({
 }) {
   const { lang: langParam, postId } = await params
   const lang = String(langParam || 'ko')
+  const t = await getTranslations(lang as any)
   const post = await getCommunityPost(postId)
 
   if (!post) {
     return (
       <div className='container mx-auto px-4 py-6'>
-        <p>게시글을 찾을 수 없습니다.</p>
+        <p>{t('community.post.notFound')}</p>
       </div>
     )
   }
@@ -68,7 +71,7 @@ export default async function CommunityPostDetailPage({
           __html: JSON.stringify(
             createMediaSchema(
               post.title,
-              post.contentPreview || '피크닠 커뮤니티 게시글',
+              post.contentPreview || t('community.meta.postDescription'),
               undefined,
               post.createdAt,
               undefined,
@@ -77,18 +80,20 @@ export default async function CommunityPostDetailPage({
           ),
         }}
       />
-      <a href={`/${lang}/community`} className='text-sm text-gray-700'>&larr; 목록으로</a>
+      <a href={`/${lang}/community`} className='text-sm text-gray-700'>&larr; {t('community.post.backToList')}</a>
+      {/* 목록으로 */}
+      {/* 위 텍스트 자체는 아이콘+텍스트 조합으로 치환 */}
       <article className='space-y-3'>
         <h1 className='text-xl font-semibold'>{post.title}</h1>
         <PostContent value={post.content} />
-        <div className='text-xs text-gray-600'>댓글 {post.replyCount} · 조회 {post.viewCount}</div>
+        <div className='text-xs text-gray-600'>{t('community.post.commentsCount', { count: String(post.replyCount) })} · {t('community.post.viewsCount', { count: String(post.viewCount) })}</div>
         <div className='pt-2'>
           <LikeButton postId={post.id} lang={lang} liked={!!post.likedByMe} likeCount={post.likeCount} />
         </div>
       </article>
 
       <section className='space-y-3'>
-        <h2 className='text-lg font-medium'>댓글</h2>
+        <h2 className='text-lg font-medium'>{t('community.post.repliesHeading')}</h2>
         <CommentList comments={comments} />
         <CommentForm postId={post.id} lang={lang} />
       </section>

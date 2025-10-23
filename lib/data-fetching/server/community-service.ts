@@ -41,6 +41,13 @@ export interface CommunityBoardSummary {
   artist?: { id: number; name: string; image: string | null; groupName?: string | null } | null
 }
 
+export interface CommunityBoardMeta {
+  boardId: string
+  name: string
+  description: string | null
+  artist?: { id: number; name: string; image: string | null; groupName?: string | null } | null
+}
+
 export async function getCommunityFeed({ page = 1, limit = 20 }: { page?: number; limit?: number }): Promise<FeedResult> {
   const supabase = await createSupabaseServerClient()
 
@@ -228,6 +235,32 @@ export async function getBoardPosts(boardId: string, { page = 1, limit = 20 }: {
   return { posts, hasNext: page < totalPages, nextPage: page < totalPages ? page + 1 : null }
 }
 
+export async function getBoardMeta(boardId: string): Promise<CommunityBoardMeta | null> {
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from('boards')
+    .select('board_id,name,description, artist:artist_id ( id, name, image, artist_group ( id, name ) )')
+    .eq('board_id', boardId)
+    .maybeSingle()
+
+  if (error || !data) {
+    if (error) console.error('[community] getBoardMeta error:', error)
+    return null
+  }
+
+  return {
+    boardId: data.board_id ?? boardId,
+    name: typeof data.name === 'string' ? data.name : (data.name?.ko ?? data.name?.en ?? ''),
+    description: typeof data.description === 'string' ? data.description : (data.description?.ko ?? data.description?.en ?? null),
+    artist: data.artist ? {
+      id: data.artist.id,
+      name: typeof data.artist.name === 'string' ? data.artist.name : (data.artist.name?.ko ?? data.artist.name?.en ?? ''),
+      image: data.artist.image ?? null,
+      groupName: data.artist.artist_group ? (typeof data.artist.artist_group.name === 'string' ? data.artist.artist_group.name : (data.artist.artist_group.name?.ko ?? data.artist.artist_group.name?.en ?? '')) : null,
+    } : null,
+  }
+}
+
 export async function getUserBookmarkedArtistIds(): Promise<number[]> {
   const supabase = await createSupabaseServerClient()
   const { data: userResp } = await supabase.auth.getUser()
@@ -247,6 +280,96 @@ export async function getUserBookmarkedArtistIds(): Promise<number[]> {
   return (data ?? [])
     .map((r: any) => r.artist_id)
     .filter((v: any) => typeof v === 'number')
+}
+
+export async function getUserBookmarkedBoardIds(): Promise<string[]> {
+  const supabase = await createSupabaseServerClient()
+  const { data: userResp } = await supabase.auth.getUser()
+  const userId = userResp?.user?.id
+  if (!userId) return []
+
+  const { data, error } = await supabase
+    .from('board_user_bookmark')
+    .select('board_id')
+    .eq('user_id', userId)
+
+  if (error) {
+    console.warn('[community] getUserBookmarkedBoardIds error:', error)
+    return []
+  }
+  return (data ?? []).map((r: any) => String(r.board_id))
+}
+
+export async function searchBoards(query: string, { limit = 20 }: { limit?: number } = {}): Promise<CommunityBoardSummary[]> {
+  const supabase = await createSupabaseServerClient()
+  const q = (query || '').trim()
+  if (!q) return []
+
+  // 간단 ilike 검색: name/description/artist.name
+  const { data, error } = await supabase
+    .from('boards')
+    .select('id,board_id,name,description,is_official,status,artist_id,order, artist:artist_id ( id, name, image, artist_group ( id, name ) )')
+    .eq('status', 'approved')
+    .is('deleted_at', null)
+    // JSON 컬럼을 텍스트로 추출하여 검색 (PostgREST는 ::cast 미지원)
+    .or([
+      `name->>ko.ilike.*${q}*`,
+      `name->>en.ilike.*${q}*`,
+      `description->>ko.ilike.*${q}*`,
+      `description->>en.ilike.*${q}*`,
+    ].join(','))
+    .limit(limit)
+
+  if (error || !data) {
+    if (error) console.error('[community] searchBoards error:', error)
+    return []
+  }
+
+  return data.map((b: any) => ({
+    id: b.id,
+    boardId: b.board_id ?? b.id,
+    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+    isOfficial: b.is_official ?? null,
+    artist: b.artist ? {
+      id: b.artist.id,
+      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
+      image: b.artist.image ?? null,
+      groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
+    } : null,
+  }))
+}
+
+// 특정 board_id 목록으로 보드들을 조회
+export async function getBoardsByIds(ids: string[]): Promise<CommunityBoardSummary[]> {
+  const supabase = await createSupabaseServerClient()
+  const uniqueIds = Array.from(new Set(ids.map((v) => String(v)).filter(Boolean)))
+  if (uniqueIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('boards')
+    .select('id,board_id,name,description,is_official,status,artist_id,order, artist:artist_id ( id, name, image, artist_group ( id, name ) )')
+    .eq('status', 'approved')
+    .in('board_id', uniqueIds)
+
+  if (error || !data) {
+    if (error) console.error('[community] getBoardsByIds error:', error)
+    return []
+  }
+
+  return (data ?? []).map((b: any) => ({
+    id: b.id,
+    boardId: b.board_id ?? b.id,
+    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+    isOfficial: b.is_official ?? null,
+    artist: b.artist ? {
+      id: b.artist.id,
+      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
+      image: b.artist.image ?? null,
+      groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
+    } : null,
+  }))
 }
 
 // 사용자의 즐겨찾는(북마크한) 아티스트의 게시판을 우선 노출

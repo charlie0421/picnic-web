@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface Props {
   id: string
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function PostCard({ id, title, contentPreview, replyCount, viewCount, lang }: Props) {
+  const { t } = useTranslations()
   return (
     <li className='border rounded-md p-4 hover:bg-gray-50'>
       <a href={`/${lang}/community/${id}`} className='block'>
@@ -17,7 +19,7 @@ export default function PostCard({ id, title, contentPreview, replyCount, viewCo
         {contentPreview ? (
           <p className='text-sm text-gray-700 line-clamp-2 mt-1'>{contentPreview}</p>
         ) : null}
-        <div className='text-xs text-gray-600 mt-2'>댓글 {replyCount} · 조회 {viewCount}</div>
+        <div className='text-xs text-gray-600 mt-2'>{t('community.post.commentsCount', { count: String(replyCount) })} · {t('community.post.viewsCount', { count: String(viewCount) })}</div>
       </a>
     </li>
   )

@@ -3,8 +3,11 @@ import { Metadata } from 'next'
 import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils'
 import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils'
 import { SITE_URL } from '@/app/[lang]/constants/static-pages'
-import { getBoardPosts } from '@/lib/data-fetching/server/community-service'
+import { getBoardPosts, getBoardMeta, getUserBookmarkedBoardIds } from '@/lib/data-fetching/server/community-service'
+import { getCdnImageUrl } from '@/utils/api/image'
 import PostList from '@/components/community/PostList'
+import BoardBookmarkButton from '@/components/community/BoardBookmarkButton'
+import { getTranslations } from '@/lib/i18n/server'
 
 export const revalidate = 60
 
@@ -12,8 +15,9 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   const { lang: langParam, boardId } = await params
   const lang = String(langParam || 'ko')
   const isrOptions = createISRMetadata(60)
+  const t = await getTranslations(lang as any)
   return {
-    ...createPageMetadata(`커뮤니티 보드 - ${boardId}`, '해당 보드의 최신 게시글을 확인해보세요.', {
+    ...createPageMetadata(`${t('community.meta.boardTitle')} - ${boardId}`, t('community.meta.boardDescription'), {
       alternates: { canonical: `${SITE_URL}/${lang}/community/boards/${boardId}` },
     }),
     ...isrOptions,
@@ -23,25 +27,64 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 export default async function BoardFeedPage({ params, searchParams }: { params: Promise<{ lang: string; boardId: string }>; searchParams?: Promise<{ page?: string }> }) {
   const { lang: langParam, boardId } = await params
   const lang = String(langParam || 'ko')
+  const t = await getTranslations(lang as any)
   const sp = (await searchParams) || {}
   const page = Number(sp.page || 1)
 
-  const { posts, hasNext } = await getBoardPosts(boardId, { page, limit: 20 })
+  const [meta, { posts, hasNext }, bookmarkedBoardIds] = await Promise.all([
+    getBoardMeta(boardId),
+    getBoardPosts(boardId, { page, limit: 20 }),
+    getUserBookmarkedBoardIds(),
+  ])
+  const isBookmarked = bookmarkedBoardIds.includes(String(boardId))
 
   return (
     <div className='container mx-auto px-4 py-6 space-y-6'>
-      <a href={`/${lang}/community`} className='text-sm text-gray-600'>&larr; 보드 목록</a>
-      <h1 className='text-xl font-semibold'>보드: {boardId}</h1>
-      <PostList items={posts} lang={lang} />
+      <div className='flex items-start justify-between'>
+        <div>
+          <a href={`/${lang}/community`} className='text-sm text-gray-600'>&larr; {t('community.board.backToList')}</a>
+          <div className='mt-1 flex items-center gap-2'>
+            {meta?.artist?.image ? (
+              <img src={getCdnImageUrl(meta.artist.image, 80)} alt={meta.artist.name} className='w-8 h-8 rounded object-cover' />
+            ) : (
+              <div className='w-8 h-8 rounded bg-gray-200' />
+            )}
+            <div>
+              <h1 className='text-xl font-semibold'>{meta?.name ?? boardId}</h1>
+              {meta?.artist ? (
+                <div className='text-sm text-gray-600'>{meta.artist.groupName ? `${meta.artist.groupName} · ` : ''}{meta.artist.name}</div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <div className='flex items-center gap-2'>
+          <BoardBookmarkButton boardId={boardId} lang={lang} initialBookmarked={isBookmarked} />
+          <a href={`/${lang}/community/boards/${boardId}/write`} className='px-3 py-2 border rounded text-sm hover:bg-gray-50'>{t('community.common.write')}</a>
+        </div>
+      </div>
+      {posts.length === 0 ? (
+        <div className='border border-dashed rounded-lg p-8 text-center bg-gray-50'>
+          <div className='mx-auto mb-3 w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center'>
+            <span className='text-primary-600 text-xl'>✍️</span>
+          </div>
+          <p className='text-gray-800 font-medium mb-1'>{t('community.board.empty.title')}</p>
+          <p className='text-gray-600 text-sm mb-4'>{t('community.board.empty.desc')}</p>
+          <a href={`/${lang}/community/boards/${boardId}/write`} className='inline-flex items-center gap-2 px-4 py-2 rounded bg-primary text-white hover:bg-primary/90'>
+            {t('community.board.empty.cta')}
+          </a>
+        </div>
+      ) : (
+        <PostList items={posts} lang={lang} />
+      )}
       <div className='flex gap-2 justify-center pt-4'>
         {page > 1 && (
           <a className='px-3 py-1 border rounded' href={`/${lang}/community/boards/${boardId}?page=${page - 1}`}>
-            이전
+            {t('community.common.prev')}
           </a>
         )}
         {hasNext && (
           <a className='px-3 py-1 border rounded' href={`/${lang}/community/boards/${boardId}?page=${page + 1}`}>
-            다음
+            {t('community.common.next')}
           </a>
         )}
       </div>

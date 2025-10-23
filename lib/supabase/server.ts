@@ -33,7 +33,7 @@ export async function createSupabaseServerClient() {
     throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not set in environment variables.");
   }
 
-  const reqHeaders = headers();
+  const reqHeaders = await headers();
   const currentHost = reqHeaders.get('host');
   const cookieDomain = resolveCookieDomain(currentHost);
 

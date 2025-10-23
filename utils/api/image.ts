@@ -13,7 +13,7 @@ export const getCdnImageUrl = (
 ): string => {
   if (!path) return "";
 
-  const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || "";
+  const cdnUrl = (process.env.NEXT_PUBLIC_CDN_URL || "").replace(/\/$/, "");
   let currentLang = "en"; // 기본값으로 영어 설정
 
   try {
@@ -25,7 +25,7 @@ export const getCdnImageUrl = (
     console.error("언어 스토어 접근 오류:", e);
   }
 
-  // 이미 전체 URL인 경우 그대로 반환
+  // 이미 전체 URL인 경우: 변경하지 않고 그대로 반환 (CDN 경로 변경 시 안전한 기본값)
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path.trim();
   }
@@ -43,12 +43,9 @@ export const getCdnImageUrl = (
         ? localizedPath.substring(1)
         : localizedPath).trim();
 
-      // 최종 URL 생성
-      const widthParam = width ? `?w=${width}` : "";
-      const finalUrl = `${cdnUrl}/${normalizedPath}${widthParam}`;
-
-      console.log("finalUrl", finalUrl);
-
+      // 최종 URL 생성 (CDN이 있을 때만 width 파라미터 적용)
+      const widthParam = cdnUrl && width ? `?w=${width}` : "";
+      const finalUrl = cdnUrl ? `${cdnUrl}/${normalizedPath}${widthParam}` : `/${normalizedPath}`;
       return finalUrl;
     }
   } catch (e) {
@@ -60,9 +57,9 @@ export const getCdnImageUrl = (
   const normalizedPath = (path.startsWith("/") ? path.substring(1) : path)
     .trim();
 
-  // 최종 URL 생성
-  const widthParam = width ? `?w=${width}` : "";
-  const finalUrl = `${cdnUrl}/${normalizedPath}${widthParam}`;
+  // 최종 URL 생성 (CDN이 있을 때만 width 파라미터 적용)
+  const widthParam = cdnUrl && width ? `?w=${width}` : "";
+  const finalUrl = cdnUrl ? `${cdnUrl}/${normalizedPath}${widthParam}` : `/${normalizedPath}`;
 
   return finalUrl;
 };

@@ -1,5 +1,6 @@
 import React from 'react'
 import QuillDeltaRenderer from '@/lib/content/quill-delta-renderer'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface CommentItem {
   commentId: string
@@ -8,7 +9,8 @@ interface CommentItem {
 }
 
 export default function CommentList({ comments }: { comments: CommentItem[] }) {
-  if (!comments.length) return <p className='text-sm text-gray-700'>첫 댓글을 남겨보세요.</p>
+  const { t } = useTranslations()
+  if (!comments.length) return <p className='text-sm text-gray-700'>{t('community.comment.firstPrompt')}</p>
   return (
     <ul className='space-y-3'>
       {comments.map((c) => (
@@ -16,7 +18,7 @@ export default function CommentList({ comments }: { comments: CommentItem[] }) {
           <div className='text-sm text-gray-800'>
             <QuillDeltaRenderer value={c.content} />
           </div>
-          <div className='text-xs text-gray-600 mt-1'>좋아요 {c.likes}</div>
+          <div className='text-xs text-gray-600 mt-1'>{t('community.post.likesCount', { count: String(c.likes) })}</div>
         </li>
       ))}
     </ul>
