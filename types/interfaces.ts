@@ -391,6 +391,13 @@ export interface BlockedIps {
   rid: string
 }
 
+export interface BoardUserBookmark {
+  board_id: string
+  created_at: string
+  id: string
+  user_id: string
+}
+
 export interface Boards {
   artist_id: number
   board_id: string

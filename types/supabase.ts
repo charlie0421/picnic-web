@@ -1221,6 +1221,27 @@ export type Database = {
         }
         Relationships: []
       }
+      board_user_bookmark: {
+        Row: {
+          board_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       boards: {
         Row: {
           artist_id: number
@@ -5056,14 +5077,8 @@ export type Database = {
         Args: { inactivity_days?: number }
         Returns: undefined
       }
-      begin_transaction: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      bytea_to_text: {
-        Args: { data: string }
-        Returns: string
-      }
+      begin_transaction: { Args: never; Returns: undefined }
+      bytea_to_text: { Args: { data: string }; Returns: string }
       can_vote: {
         Args: { p_user_id: string; p_vote_amount: number }
         Returns: boolean
@@ -5078,30 +5093,15 @@ export type Database = {
           total_bonuses: number
         }[]
       }
-      cleanup_deleted_qnas: {
-        Args: { days_old?: number }
-        Returns: number
-      }
-      cleanup_expired_audit_logs: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      commit_transaction: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      create_boards_for_existing_artists: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_deleted_qnas: { Args: { days_old?: number }; Returns: number }
+      cleanup_expired_audit_logs: { Args: never; Returns: number }
+      commit_transaction: { Args: never; Returns: undefined }
+      create_boards_for_existing_artists: { Args: never; Returns: undefined }
       create_boards_for_existing_artists_meme: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: undefined
       }
-      create_monthly_votes: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      create_monthly_votes: { Args: never; Returns: undefined }
       create_vote_item_request_with_user: {
         Args: {
           artist_id_param: number
@@ -5110,6 +5110,7 @@ export type Database = {
         }
         Returns: Json
       }
+      create_weekly_votes: { Args: never; Returns: undefined }
       deduct_star_candy: {
         Args: { p_amount: number; p_user_id: string; p_vote_pick_id: number }
         Returns: undefined
@@ -5162,7 +5163,7 @@ export type Database = {
         Returns: number
       }
       get_current_splash_image: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           celeb_id: number | null
           created_at: string | null
@@ -5181,14 +5182,28 @@ export type Database = {
           title: Json
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "banner"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
-      get_expiring_bonus_prediction: {
-        Args: Record<PropertyKey, never> | { uri: string }
-        Returns: {
-          expiring_amount: number
-          prediction_month: string
-        }[]
-      }
+      get_expiring_bonus_prediction:
+        | {
+            Args: { uri: string }
+            Returns: {
+              expiring_amount: number
+              prediction_month: string
+            }[]
+          }
+        | {
+            Args: never
+            Returns: {
+              expiring_amount: number
+              prediction_month: string
+            }[]
+          }
       get_expiring_bonus_prediction_v2: {
         Args: { uri?: string }
         Returns: {
@@ -5238,10 +5253,7 @@ export type Database = {
           updated_at: string
         }[]
       }
-      get_user_qna_stats: {
-        Args: { user_id_param: string }
-        Returns: Json
-      }
+      get_user_qna_stats: { Args: { user_id_param: string }; Returns: Json }
       get_vote_and_user_info: {
         Args: { p_user_id: number; p_vote_id: number }
         Returns: {
@@ -5250,26 +5262,6 @@ export type Database = {
           stop_at: string
           total_bonus_remain: number
         }[]
-      }
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
-        Returns: undefined
-      }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
       }
       has_user_requested_artist: {
         Args: {
@@ -5282,27 +5274,77 @@ export type Database = {
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "http_request"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_delete: {
-        Args:
-          | { content: string; content_type: string; uri: string }
-          | { uri: string }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
-      http_get: {
-        Args: { data: Json; uri: string } | { uri: string }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
+      http_delete:
+        | {
+            Args: { uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { content: string; content_type: string; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+      http_get:
+        | {
+            Args: { uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { data: Json; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       http_head: {
         Args: { uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       http_header: {
         Args: { field: string; value: string }
         Returns: Database["public"]["CompositeTypes"]["http_header"]
+        SetofOptions: {
+          from: "*"
+          to: "http_header"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       http_list_curlopt: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           curlopt: string
           value: string
@@ -5311,21 +5353,45 @@ export type Database = {
       http_patch: {
         Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_post: {
-        Args:
-          | { content: string; content_type: string; uri: string }
-          | { data: Json; uri: string }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
+      http_post:
+        | {
+            Args: { content: string; content_type: string; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { data: Json; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       http_put: {
         Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_reset_curlopt: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      http_reset_curlopt: { Args: never; Returns: boolean }
       http_set_curlopt: {
         Args: { curlopt: string; value: string }
         Returns: boolean
@@ -5338,26 +5404,11 @@ export type Database = {
         Args: { post_id_param: string; viewer_id?: string }
         Returns: undefined
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_admin_or_super: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_super_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_vote_creator: {
-        Args: { vote_id: number }
-        Returns: boolean
-      }
-      is_vote_item_request_open: {
-        Args: { vote_id: number }
-        Returns: boolean
-      }
+      is_admin: { Args: never; Returns: boolean }
+      is_admin_or_super: { Args: never; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
+      is_vote_creator: { Args: { vote_id: number }; Returns: boolean }
+      is_vote_item_request_open: { Args: { vote_id: number }; Returns: boolean }
       perform_pic_vote_transaction: {
         Args: {
           p_amount: number
@@ -5404,28 +5455,15 @@ export type Database = {
           vote_total: number
         }[]
       }
-      process_vote_item_queue: {
-        Args:
-          | { p_limit: number; p_vote_item_id: number }
-          | { p_vote_item_id: number }
-        Returns: number
-      }
-      process_vote_item_update_queue: {
-        Args: Record<PropertyKey, never> | { p_limit: number }
-        Returns: number
-      }
-      restore_qna: {
-        Args: { qna_id_param: number }
-        Returns: undefined
-      }
-      rollback_transaction: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      run_expire_star_candy_bonus_once: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      process_vote_item_queue:
+        | { Args: { p_vote_item_id: number }; Returns: number }
+        | { Args: { p_limit: number; p_vote_item_id: number }; Returns: number }
+      process_vote_item_update_queue:
+        | { Args: never; Returns: number }
+        | { Args: { p_limit: number }; Returns: number }
+      restore_qna: { Args: { qna_id_param: number }; Returns: undefined }
+      rollback_transaction: { Args: never; Returns: undefined }
+      run_expire_star_candy_bonus_once: { Args: never; Returns: undefined }
       search_artists: {
         Args: { search_term?: string }
         Returns: {
@@ -5436,22 +5474,9 @@ export type Database = {
           name: Json
         }[]
       }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
-      }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
-      }
-      soft_delete_qna: {
-        Args: { qna_id_param: number }
-        Returns: undefined
-      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      soft_delete_qna: { Args: { qna_id_param: number }; Returns: undefined }
       sync_user_profiles_from_queue: {
         Args: { max_rows?: number }
         Returns: {
@@ -5465,14 +5490,8 @@ export type Database = {
           operation: string
         }[]
       }
-      test_realtime_update: {
-        Args: { vote_id_param: number }
-        Returns: string
-      }
-      text_to_bytea: {
-        Args: { data: string }
-        Returns: string
-      }
+      test_realtime_update: { Args: { vote_id_param: number }; Returns: string }
+      text_to_bytea: { Args: { data: string }; Returns: string }
       update_vote_item_and_vote_totals: {
         Args: { p_vote_item_id: number }
         Returns: undefined
@@ -5481,16 +5500,30 @@ export type Database = {
         Args: { p_vote_ids: number[] }
         Returns: undefined
       }
-      urlencode: {
-        Args: { data: Json } | { string: string } | { string: string }
-        Returns: string
-      }
-      use_star_candy_bonus: {
-        Args:
-          | { p_amount: number; p_user_id: string }
-          | { p_amount: number; p_user_id: string; p_vote_pick_id: number }
-        Returns: number
-      }
+      urlencode:
+        | { Args: { data: Json }; Returns: string }
+        | {
+            Args: { string: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { string: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+      use_star_candy_bonus:
+        | {
+            Args: {
+              p_amount: number
+              p_user_id: string
+              p_vote_pick_id: number
+            }
+            Returns: number
+          }
+        | { Args: { p_amount: number; p_user_id: string }; Returns: number }
     }
     Enums: {
       board_status_enum: "pending" | "approved" | "rejected"
@@ -5526,7 +5559,7 @@ export type Database = {
         value: string | null
       }
       http_request: {
-        method: unknown | null
+        method: unknown
         uri: string | null
         headers: Database["public"]["CompositeTypes"]["http_header"][] | null
         content_type: string | null

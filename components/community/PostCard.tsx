@@ -19,7 +19,7 @@ export default function PostCard({ id, title, contentPreview, replyCount, viewCo
         {contentPreview ? (
           <p className='text-sm text-gray-700 line-clamp-2 mt-1'>{contentPreview}</p>
         ) : null}
-        <div className='text-xs text-gray-600 mt-2'>{t('community.post.commentsCount', { count: String(replyCount) })} · {t('community.post.viewsCount', { count: String(viewCount) })}</div>
+        <div className='text-xs text-gray-600 mt-2'>{t('community.postCard.commentsCount')} {replyCount} · {t('community.postCard.viewsCount')} {viewCount}</div>
       </a>
     </li>
   )

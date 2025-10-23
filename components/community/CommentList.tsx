@@ -10,7 +10,7 @@ interface CommentItem {
 
 export default function CommentList({ comments }: { comments: CommentItem[] }) {
   const { t } = useTranslations()
-  if (!comments.length) return <p className='text-sm text-gray-700'>{t('community.comment.firstPrompt')}</p>
+  if (!comments.length) return <p className='text-sm text-gray-700'>{t('community.commentList.noComments')}</p>
   return (
     <ul className='space-y-3'>
       {comments.map((c) => (
@@ -18,7 +18,7 @@ export default function CommentList({ comments }: { comments: CommentItem[] }) {
           <div className='text-sm text-gray-800'>
             <QuillDeltaRenderer value={c.content} />
           </div>
-          <div className='text-xs text-gray-600 mt-1'>{t('community.post.likesCount', { count: String(c.likes) })}</div>
+          <div className='text-xs text-gray-600 mt-1'>{t('community.likeButton.like')} {c.likes}</div>
         </li>
       ))}
     </ul>

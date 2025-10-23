@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
-    const reqHeaders = headers();
+    const reqHeaders = await headers();
     const host = reqHeaders.get('host');
     const proto = reqHeaders.get('x-forwarded-proto') || (origin.startsWith('https://') ? 'https' : 'http');
     const isLocal = host?.includes('localhost') || host?.startsWith('127.') || host?.endsWith('.local');

@@ -21,18 +21,20 @@ export default function ShortformAdPlayerPage() {
   const [moreOpened, setMoreOpened] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const getAuthHeader = useCallback(async () => {
+  const getAuthToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return token ? `Bearer ${token}` : null;
   }, [supabase]);
 
   const invokeIssue = useCallback(async () => {
     setIssuing(true);
     try {
-      const headers = await getAuthHeader();
+      const auth = await getAuthToken();
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ad-shortform-issue`;
-      const res = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json', ...headers } });
+      const headers = new Headers({ 'Content-Type': 'application/json' });
+      if (auth) headers.set('Authorization', auth);
+      const res = await fetch(url, { method: 'GET', headers });
       if (!res.ok) throw new Error('issue failed');
       const json = await res.json();
       setAd(json.ad);
@@ -42,15 +44,17 @@ export default function ShortformAdPlayerPage() {
     } finally {
       setIssuing(false);
     }
-  }, [getAuthHeader]);
+  }, [getAuthToken]);
 
   const callView = useCallback(async () => {
     if (!tokens?.view_token || callingView) return;
     setCallingView(true);
     try {
-      const headers = await getAuthHeader();
+      const auth = await getAuthToken();
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/callback-ad-shortform-view`;
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ token: tokens.view_token }) });
+      const headers = new Headers({ 'Content-Type': 'application/json' });
+      if (auth) headers.set('Authorization', auth);
+      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ token: tokens.view_token }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'view failed');
     } catch (e) {
@@ -58,15 +62,17 @@ export default function ShortformAdPlayerPage() {
     } finally {
       setCallingView(false);
     }
-  }, [tokens?.view_token, getAuthHeader, callingView]);
+  }, [tokens?.view_token, getAuthToken, callingView]);
 
   const callMore = useCallback(async () => {
     if (!tokens?.more_token || callingMore) return;
     setCallingMore(true);
     try {
-      const headers = await getAuthHeader();
+      const auth = await getAuthToken();
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/callback-ad-shortform-more`;
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ token: tokens.more_token }) });
+      const headers = new Headers({ 'Content-Type': 'application/json' });
+      if (auth) headers.set('Authorization', auth);
+      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ token: tokens.more_token }) });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'more failed');
     } catch (e) {
@@ -74,7 +80,7 @@ export default function ShortformAdPlayerPage() {
     } finally {
       setCallingMore(false);
     }
-  }, [tokens?.more_token, getAuthHeader, callingMore]);
+  }, [tokens?.more_token, getAuthToken, callingMore]);
 
   // 페이지 진입 시 광고 발급
   useEffect(() => {

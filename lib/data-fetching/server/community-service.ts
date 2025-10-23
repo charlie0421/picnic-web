@@ -185,19 +185,23 @@ export async function getBoards({ page = 1, limit = 20 }: { page?: number; limit
 
   const total = count ?? 0
   const totalPages = Math.ceil(total / limit)
-  const boards: CommunityBoardSummary[] = (data ?? []).map((b: any) => ({
-    id: b.id,
-    boardId: b.board_id ?? b.id,
-    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-    isOfficial: b.is_official ?? null,
-    artist: b.artist ? {
-      id: b.artist.id,
-      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
-      image: b.artist.image ?? null,
-      groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
-    } : null,
-  }))
+  const boards: CommunityBoardSummary[] = (data ?? []).map((b: any) => {
+    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
+    const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
+    return {
+      id: b.id,
+      boardId: b.board_id ?? b.id,
+      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+      isOfficial: b.is_official ?? null,
+      artist: artistRaw ? {
+        id: artistRaw.id,
+        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
+        image: artistRaw.image ?? null,
+        groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
+      } : null,
+    }
+  })
 
   return { boards, hasNext: page < totalPages, nextPage: page < totalPages ? page + 1 : null }
 }
@@ -248,15 +252,17 @@ export async function getBoardMeta(boardId: string): Promise<CommunityBoardMeta 
     return null
   }
 
+  const artistRaw = data.artist ? (Array.isArray(data.artist) ? data.artist[0] : data.artist) : null
+  const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
   return {
     boardId: data.board_id ?? boardId,
     name: typeof data.name === 'string' ? data.name : (data.name?.ko ?? data.name?.en ?? ''),
     description: typeof data.description === 'string' ? data.description : (data.description?.ko ?? data.description?.en ?? null),
-    artist: data.artist ? {
-      id: data.artist.id,
-      name: typeof data.artist.name === 'string' ? data.artist.name : (data.artist.name?.ko ?? data.artist.name?.en ?? ''),
-      image: data.artist.image ?? null,
-      groupName: data.artist.artist_group ? (typeof data.artist.artist_group.name === 'string' ? data.artist.artist_group.name : (data.artist.artist_group.name?.ko ?? data.artist.artist_group.name?.en ?? '')) : null,
+    artist: artistRaw ? {
+      id: artistRaw.id,
+      name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
+      image: artistRaw.image ?? null,
+      groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
     } : null,
   }
 }
@@ -325,19 +331,23 @@ export async function searchBoards(query: string, { limit = 20 }: { limit?: numb
     return []
   }
 
-  return data.map((b: any) => ({
-    id: b.id,
-    boardId: b.board_id ?? b.id,
-    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-    isOfficial: b.is_official ?? null,
-    artist: b.artist ? {
-      id: b.artist.id,
-      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
-      image: b.artist.image ?? null,
-      groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
-    } : null,
-  }))
+  return data.map((b: any) => {
+    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
+    const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
+    return {
+      id: b.id,
+      boardId: b.board_id ?? b.id,
+      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+      isOfficial: b.is_official ?? null,
+      artist: artistRaw ? {
+        id: artistRaw.id,
+        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
+        image: artistRaw.image ?? null,
+        groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
+      } : null,
+    }
+  })
 }
 
 // 특정 board_id 목록으로 보드들을 조회
@@ -357,19 +367,23 @@ export async function getBoardsByIds(ids: string[]): Promise<CommunityBoardSumma
     return []
   }
 
-  return (data ?? []).map((b: any) => ({
-    id: b.id,
-    boardId: b.board_id ?? b.id,
-    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-    isOfficial: b.is_official ?? null,
-    artist: b.artist ? {
-      id: b.artist.id,
-      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
-      image: b.artist.image ?? null,
-      groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
-    } : null,
-  }))
+  return (data ?? []).map((b: any) => {
+    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
+    const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
+    return {
+      id: b.id,
+      boardId: b.board_id ?? b.id,
+      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+      isOfficial: b.is_official ?? null,
+      artist: artistRaw ? {
+        id: artistRaw.id,
+        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
+        image: artistRaw.image ?? null,
+        groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
+      } : null,
+    }
+  })
 }
 
 // 사용자의 즐겨찾는(북마크한) 아티스트의 게시판을 우선 노출
@@ -396,19 +410,23 @@ export async function getBoardsPrioritizedForUser({ page = 1, limit = 50 }: { pa
 
   if (!userId) {
     // 비로그인 사용자는 기존 정렬 그대로 반환
-    const boards: CommunityBoardSummary[] = boardsData.map((b: any) => ({
-      id: b.id,
-      boardId: b.board_id ?? b.id,
-      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-      isOfficial: b.is_official ?? null,
-      artist: b.artist ? {
-        id: b.artist.id,
-        name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
-        image: b.artist.image ?? null,
-        groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
-      } : null,
-    }))
+    const boards: CommunityBoardSummary[] = boardsData.map((b: any) => {
+      const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
+      const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
+      return {
+        id: b.id,
+        boardId: b.board_id ?? b.id,
+        name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+        description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+        isOfficial: b.is_official ?? null,
+        artist: artistRaw ? {
+          id: artistRaw.id,
+          name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
+          image: artistRaw.image ?? null,
+          groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
+        } : null,
+      }
+    })
     return { boards, hasNext: false, nextPage: null }
   }
 
@@ -430,19 +448,23 @@ export async function getBoardsPrioritizedForUser({ page = 1, limit = 50 }: { pa
   const otherBoards = boardsData.filter((b: any) => !favSet.has(b.artist_id))
   const arranged = [...myBoards, ...otherBoards]
 
-  const boards: CommunityBoardSummary[] = arranged.map((b: any) => ({
-    id: b.id,
-    boardId: b.board_id ?? b.id,
-    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-    isOfficial: b.is_official ?? null,
-    artist: b.artist ? {
-      id: b.artist.id,
-      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
-      image: b.artist.image ?? null,
-      groupName: b.artist.artist_group ? (typeof b.artist.artist_group.name === 'string' ? b.artist.artist_group.name : (b.artist.artist_group.name?.ko ?? b.artist.artist_group.name?.en ?? '')) : null,
-    } : null,
-  }))
+  const boards: CommunityBoardSummary[] = arranged.map((b: any) => {
+    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
+    const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
+    return {
+      id: b.id,
+      boardId: b.board_id ?? b.id,
+      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+      isOfficial: b.is_official ?? null,
+      artist: artistRaw ? {
+        id: artistRaw.id,
+        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
+        image: artistRaw.image ?? null,
+        groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
+      } : null,
+    }
+  })
 
   // 단순 페이징(상세 total 계산은 생략) — 기존 UX 동일
   return { boards, hasNext: false, nextPage: null }
@@ -474,18 +496,21 @@ export async function getBoardsForUserFavoritesOnly({ page = 1, limit = 50 }: { 
     return { boards: [] as CommunityBoardSummary[], hasNext: false, nextPage: null }
   }
 
-  const boards: CommunityBoardSummary[] = data.map((b: any) => ({
-    id: b.id,
-    boardId: b.board_id ?? b.id,
-    name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-    description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-    isOfficial: b.is_official ?? null,
-    artist: b.artist ? {
-      id: b.artist.id,
-      name: typeof b.artist.name === 'string' ? b.artist.name : (b.artist.name?.ko ?? b.artist.name?.en ?? ''),
-      image: b.artist.image ?? null,
-    } : null,
-  }))
+  const boards: CommunityBoardSummary[] = data.map((b: any) => {
+    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
+    return {
+      id: b.id,
+      boardId: b.board_id ?? b.id,
+      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
+      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
+      isOfficial: b.is_official ?? null,
+      artist: artistRaw ? {
+        id: artistRaw.id,
+        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
+        image: artistRaw.image ?? null,
+      } : null,
+    }
+  })
 
   return { boards, hasNext: false, nextPage: null }
 }

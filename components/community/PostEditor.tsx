@@ -5,7 +5,7 @@ import QuillBasicEditor from './QuillBasicEditor'
 import { useTranslations } from '@/hooks/useTranslations'
 
 export default function PostEditor({ lang, boardId }: { lang: string; boardId: string }) {
-  const { t } = useTranslations()
+  const { t, tHtml } = useTranslations()
   const [title, setTitle] = useState('')
   const [value, setValue] = useState<any>(null)
   const [files, setFiles] = useState<File[]>([])
@@ -42,14 +42,14 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
         <div className='absolute inset-0 z-10 bg-white/60 backdrop-blur-sm' role='status' aria-live='polite'>
           <div className='absolute inset-0 flex items-center justify-center gap-3'>
             <div className='w-24 h-24 rounded-lg bg-primary-200 animate-pulse-light' />
-            <span className='text-sm text-primary-700'>{t('community.button.submitting')}</span>
+            <span className='text-sm text-primary-700'>{t('community.postEditor.submitting')}</span>
           </div>
         </div>
       )}
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder={t('community.input.title.placeholder')}
+        placeholder={t('community.postEditor.titlePlaceholder')}
         className='w-full border rounded px-3 py-2'
         disabled={isPending}
       />
@@ -58,8 +58,8 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
       </div>
       <div className='flex items-center gap-2'>
         <input ref={fileInputRef} type='file' multiple onChange={(e) => setFiles(Array.from(e.target.files || []))} className='hidden' disabled={isPending} />
-        <button type='button' className='px-3 py-2 border rounded text-sm disabled:opacity-50' onClick={() => fileInputRef.current?.click()} disabled={isPending}>{t('community.button.attach')}</button>
-        {files.length > 0 && <span className='text-sm text-gray-600'>{t('community.input.filesSelected', { count: String(files.length) })}</span>}
+        <button type='button' className='px-3 py-2 border rounded text-sm disabled:opacity-50' onClick={() => fileInputRef.current?.click()} disabled={isPending}>{t('community.postEditor.attachFile')}</button>
+        {files.length > 0 && <span className='text-sm text-gray-600'>{tHtml('community.postEditor.filesSelected', { count: String(files.length) })}</span>}
       </div>
       <div className='flex gap-2'>
         <button
@@ -76,7 +76,7 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
             })
           }}
         >
-          {isPending ? t('community.button.submitting') : t('community.button.submit')}
+          {isPending ? t('community.postEditor.submitting') : t('community.postEditor.submit')}
         </button>
       </div>
     </div>
