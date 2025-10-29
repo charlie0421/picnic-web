@@ -3238,6 +3238,48 @@ export type Database = {
         }
         Relationships: []
       }
+      push_messages: {
+        Row: {
+          body: string
+          created_at: string | null
+          created_by: string | null
+          data: Json | null
+          failure_count: number | null
+          id: number
+          platform: string | null
+          success_count: number | null
+          target_type: string
+          target_user_ids: string[] | null
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string | null
+          created_by?: string | null
+          data?: Json | null
+          failure_count?: number | null
+          id?: number
+          platform?: string | null
+          success_count?: number | null
+          target_type: string
+          target_user_ids?: string[] | null
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string | null
+          created_by?: string | null
+          data?: Json | null
+          failure_count?: number | null
+          id?: number
+          platform?: string | null
+          success_count?: number | null
+          target_type?: string
+          target_user_ids?: string[] | null
+          title?: string
+        }
+        Relationships: []
+      }
       qna_attachments: {
         Row: {
           created_at: string | null
@@ -4132,6 +4174,7 @@ export type Database = {
           avatar_url: string | null
           birth_date: string | null
           birth_time: string | null
+          country_code: string | null
           created_at: string
           deleted_at: string | null
           email: string | null
@@ -4140,6 +4183,7 @@ export type Database = {
           is_admin: boolean
           is_super_admin: boolean | null
           jma_candy: number | null
+          last_ip: string | null
           nickname: string | null
           open_ages: boolean
           open_gender: boolean
@@ -4151,6 +4195,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           birth_time?: string | null
+          country_code?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -4159,6 +4204,7 @@ export type Database = {
           is_admin?: boolean
           is_super_admin?: boolean | null
           jma_candy?: number | null
+          last_ip?: string | null
           nickname?: string | null
           open_ages?: boolean
           open_gender?: boolean
@@ -4170,6 +4216,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           birth_time?: string | null
+          country_code?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -4178,12 +4225,49 @@ export type Database = {
           is_admin?: boolean
           is_super_admin?: boolean | null
           jma_candy?: number | null
+          last_ip?: string | null
           nickname?: string | null
           open_ages?: boolean
           open_gender?: boolean
           star_candy?: number
           star_candy_bonus?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_push_tokens: {
+        Row: {
+          created_at: string | null
+          id: number
+          token_android: string | null
+          token_ios: string | null
+          token_macos: string | null
+          token_web: string | null
+          token_windows: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          token_android?: string | null
+          token_ios?: string | null
+          token_macos?: string | null
+          token_web?: string | null
+          token_windows?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          token_android?: string | null
+          token_ios?: string | null
+          token_macos?: string | null
+          token_web?: string | null
+          token_windows?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -4938,6 +5022,21 @@ export type Database = {
         }
         Relationships: []
       }
+      view_transaction_all_base: {
+        Row: {
+          ad_network: string | null
+          commission: number | null
+          created_at: string | null
+          platform: string | null
+          reward_amount: number | null
+          reward_name: string | null
+          reward_type: string | null
+          source: string | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       view_user_activity_unified: {
         Row: {
           ad_network: string | null
@@ -5498,6 +5597,10 @@ export type Database = {
       }
       update_vote_totals_batch_bak: {
         Args: { p_vote_ids: number[] }
+        Returns: undefined
+      }
+      upsert_user_push_token: {
+        Args: { p_platform: string; p_token: string; p_user_id: string }
         Returns: undefined
       }
       urlencode:

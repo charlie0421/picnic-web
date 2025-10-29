@@ -12,6 +12,7 @@ export enum PolicyType {
 export enum PortalType {
   PUBLIC = 'public',
   VOTE = 'vote',
+  GOONG_HAP = 'goong-hap',
   PIC = 'pic',
   COMMUNITY = 'community',
   NOVEL = 'novel',

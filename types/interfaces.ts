@@ -932,6 +932,20 @@ export interface Prompts {
   version: number
 }
 
+export interface PushMessages {
+  body: string
+  created_at: string | null
+  created_by: string | null
+  data: Json | null
+  failure_count: number | null
+  id: number
+  platform: string | null
+  success_count: number | null
+  target_type: string
+  target_user_ids: string[] | null
+  title: string
+}
+
 export interface QnaAttachments {
   created_at: string | null
   file_name: string
@@ -1204,6 +1218,7 @@ export interface UserProfiles {
   avatar_url: string | null
   birth_date: string | null
   birth_time: string | null
+  country_code: string | null
   created_at: string
   deleted_at: string | null
   email: string | null
@@ -1212,12 +1227,25 @@ export interface UserProfiles {
   is_admin: boolean
   is_super_admin: boolean | null
   jma_candy: number | null
+  last_ip: string | null
   nickname: string | null
   open_ages: boolean
   open_gender: boolean
   star_candy: number
   star_candy_bonus: number
   updated_at: string
+}
+
+export interface UserPushTokens {
+  created_at: string | null
+  id: number
+  token_android: string | null
+  token_ios: string | null
+  token_macos: string | null
+  token_web: string | null
+  token_windows: string | null
+  updated_at: string | null
+  user_id: string
 }
 
 export interface UserRoles {
@@ -1443,6 +1471,19 @@ export interface UserVoteItemRequestHistory {
 }
 
 export interface ViewTransactionAll {
+  ad_network: string | null
+  commission: number | null
+  created_at: string | null
+  platform: string | null
+  reward_amount: number | null
+  reward_name: string | null
+  reward_type: string | null
+  source: string | null
+  transaction_id: string | null
+  user_id: string | null
+}
+
+export interface ViewTransactionAllBase {
   ad_network: string | null
   commission: number | null
   created_at: string | null

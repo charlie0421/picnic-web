@@ -84,6 +84,17 @@ export async function POST(request: NextRequest) {
       provider: data.user?.app_metadata?.provider
     });
 
+    // 로그인 직후: IP/국가 추적 함수 호출(비차단, 실패 무시)
+    try {
+      supabase
+        .functions
+        .invoke('track-country', { body: { source: 'login' } })
+        .then(() => console.log('🌏 [API] track-country invoked (login)'))
+        .catch((e) => console.warn('🌏 [API] track-country invoke failed:', e?.message || e));
+    } catch (e: any) {
+      console.warn('🌏 [API] track-country invoke threw:', e?.message || e);
+    }
+
     // 🍎 Apple 특화 프로필 처리 (또는 다른 소셜 프로필 처리)
     if (provider && ['apple', 'google'].includes(provider)) {
       try {
