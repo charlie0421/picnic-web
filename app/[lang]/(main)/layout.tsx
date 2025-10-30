@@ -65,14 +65,45 @@ function useFirebaseMessaging() {
           appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
         });
         const messaging = getMessaging(app);
-        const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        const swVersion = process.env.NEXT_PUBLIC_SW_VERSION || process.env.NEXT_PUBLIC_APP_VERSION || '1';
+        const reg = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?v=${swVersion}`);
+
+        // 명시적 권한 요청 (일부 브라우저는 getToken만으로 부족)
+        if ('Notification' in window) {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            console.warn('[FCM] notification permission not granted');
+            return;
+          }
+        }
+
         const token = await getToken(messaging, { serviceWorkerRegistration: reg, vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY });
         if (token) {
-          // forward to edge function
+          const supabase = createBrowserSupabaseClient();
           try {
-            const supabase = createBrowserSupabaseClient();
-            await supabase.functions.invoke('register-push-token', { body: { platform: 'web', token } });
-          } catch {}
+            const sess = await supabase.auth.getSession();
+            if (sess.data.session) {
+              await supabase.functions.invoke('register-push-token', { body: { platform: 'web', token } });
+              console.log('[FCM] token register success (immediate)');
+            } else {
+              // 로그인 이후로 지연 등록 (Supabase v2: (event, session))
+              const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+                try {
+                  if (event === 'SIGNED_IN') {
+                    await supabase.functions.invoke('register-push-token', { body: { platform: 'web', token } });
+                    console.log('[FCM] token register success (deferred)');
+                    subscription.unsubscribe();
+                  }
+                } catch (e) {
+                  console.warn('[FCM] deferred token register failed', e);
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('[FCM] token register failed', e);
+          }
+        } else {
+          console.warn('[FCM] getToken returned empty token');
         }
         unsub = onMessage(messaging, (payload) => {
           console.log('[FCM] foreground message', payload);

@@ -142,9 +142,11 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
       global: {
         headers: {
           'x-client-info': 'supabase-js-web',
-          // 🚨 웹 전용 RLS 우회를 위한 특별 헤더
-          'x-web-client': 'true',
-          'x-bypass-rls': 'development' // 개발 환경에서만
+          // 🚨 개발 환경에서만 커스텀 헤더 전송 (CORS 이슈 방지)
+          ...(process.env.NODE_ENV !== 'production' ? {
+            'x-web-client': 'true',
+            'x-bypass-rls': 'development',
+          } : {})
         }
       },
       // 🔧 웹 전용 데이터베이스 설정
