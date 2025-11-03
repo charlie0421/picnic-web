@@ -829,6 +829,7 @@ class AuthStore {
         email: data.user.email,
         nickname: data.user.name,
         avatar_url: data.user.avatar_url,
+        country_code: data.user.country_code ?? null,
         star_candy: data.user.star_candy || 0,
         star_candy_bonus: data.user.star_candy_bonus || 0,
         jma_candy: data.user.jma_candy ?? 0,
@@ -836,6 +837,7 @@ class AuthStore {
         is_super_admin: data.user.is_super_admin || false,
         created_at: data.user.created_at,
         updated_at: data.user.updated_at,
+        last_ip: data.user.last_ip ?? null,
         // 기본값 설정
         birth_date: null,
         birth_time: null,
@@ -876,6 +878,7 @@ class AuthStore {
                      currentUser.email?.split('@')[0] || 
                      'User',
             avatar_url: null, // JWT 토큰 이미지는 사용하지 않음
+            country_code: null,
             is_admin: true, // 개발환경에서 API 실패시 임시 관리자
             is_super_admin: false,
             star_candy: 0,
@@ -883,6 +886,7 @@ class AuthStore {
             jma_candy: 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            last_ip: null,
             birth_date: null,
             birth_time: null,
             deleted_at: null,
