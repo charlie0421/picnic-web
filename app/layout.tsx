@@ -1,9 +1,14 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
+import Script from 'next/script'
 
 export const metadata: Metadata = {
   title: 'Picnic',
   description: 'Picnic - Your favorite voting platform',
+  // AdSense 계정 메타 태그 (권장)
+  other: {
+    'google-adsense-account': 'ca-pub-1539304887624918',
+  },
 }
 
 export default async function RootLayout({
@@ -22,6 +27,14 @@ export default async function RootLayout({
   return (
     <html lang={currentLang}>
       <body>
+        {/* Google AdSense (Auto ads) */}
+        <Script
+          id="adsense"
+          strategy="afterInteractive"
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1539304887624918"
+          crossOrigin="anonymous"
+        />
         <div className='bg-white'>
           {children}
         </div>
