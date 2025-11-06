@@ -28,7 +28,7 @@ export type QnaStatus = "RECEIVED" | "IN_PROGRESS" | "RESOLVED";
 
 export type SpecificPlatformEnum = "iOS" | "Android";
 
-export type SupportedLanguageEnum = "ko" | "en" | "ja" | "zh";
+export type SupportedLanguageEnum = "ko" | "en" | "ja" | "zh" | "zh-CN" | "zh-TW" | "fil" | "id" | "th" | "vi" | "es" | "bn" | "my";
 
 export type SupportedLanguage = SupportedLanguageEnum;
 
@@ -508,7 +508,7 @@ export interface CompatibilityResultsI18n {
   created_at: string
   details: Json | null
   id: string
-  language: SupportedLanguageEnum
+  language: string
   score: number | null
   score_title: string | null
   tips: Json | null

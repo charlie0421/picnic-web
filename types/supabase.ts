@@ -1658,7 +1658,7 @@ export type Database = {
           created_at: string
           details: Json | null
           id: string
-          language: Database["public"]["Enums"]["supported_language"]
+          language: string
           score: number | null
           score_title: string | null
           tips: Json | null
@@ -1670,7 +1670,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          language: Database["public"]["Enums"]["supported_language"]
+          language: string
           score?: number | null
           score_title?: string | null
           tips?: Json | null
@@ -1682,7 +1682,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          language?: Database["public"]["Enums"]["supported_language"]
+          language?: string
           score?: number | null
           score_title?: string | null
           tips?: Json | null
@@ -5653,7 +5653,20 @@ export type Database = {
       product_type_enum: "consumable" | "non-consumable" | "subscription"
       qna_status: "RECEIVED" | "IN_PROGRESS" | "RESOLVED"
       specific_platform_enum: "iOS" | "Android"
-      supported_language: "ko" | "en" | "ja" | "zh"
+      supported_language:
+        | "ko"
+        | "en"
+        | "ja"
+        | "zh"
+        | "zh-CN"
+        | "zh-TW"
+        | "fil"
+        | "id"
+        | "th"
+        | "vi"
+        | "es"
+        | "bn"
+        | "my"
       user_gender_enum: "male" | "female" | "other"
     }
     CompositeTypes: {
@@ -5824,7 +5837,21 @@ export const Constants = {
       product_type_enum: ["consumable", "non-consumable", "subscription"],
       qna_status: ["RECEIVED", "IN_PROGRESS", "RESOLVED"],
       specific_platform_enum: ["iOS", "Android"],
-      supported_language: ["ko", "en", "ja", "zh"],
+      supported_language: [
+        "ko",
+        "en",
+        "ja",
+        "zh",
+        "zh-CN",
+        "zh-TW",
+        "fil",
+        "id",
+        "th",
+        "vi",
+        "es",
+        "bn",
+        "my",
+      ],
       user_gender_enum: ["male", "female", "other"],
     },
   },

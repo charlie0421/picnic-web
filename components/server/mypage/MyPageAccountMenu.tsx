@@ -27,7 +27,7 @@ export default function MyPageAccountMenu({ handleLogout, showDebugMenus }: MyPa
         
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
           {showDebugMenus && (
-            <NavigationLink href='/mypage/edit-profile' className='group'>
+            <NavigationLink href='/mypage/edit-profile' className='group' should_login>
               <div className='bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-primary-200 h-16'>
                 <div className='flex items-center justify-center space-x-2 h-full'>
                   <div className='w-8 h-8 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center'>
@@ -46,7 +46,7 @@ export default function MyPageAccountMenu({ handleLogout, showDebugMenus }: MyPa
             </NavigationLink>
           )}
           
-          <NavigationLink href='/mypage/qna' className='group'>
+          <NavigationLink href='/mypage/qna' className='group' should_login>
             <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-16'>
               <div className='flex items-center justify-center space-x-2 h-full'>
                 <div className='w-8 h-8 bg-gradient-to-r from-secondary-500 to-secondary-600 rounded-lg flex items-center justify-center'>
@@ -78,7 +78,7 @@ export default function MyPageAccountMenu({ handleLogout, showDebugMenus }: MyPa
 
           {showDebugMenus && (
             <div className='mt-4 pt-4 border-t border-gray-200 sm:col-span-2'>
-              <NavigationLink href='/mypage/withdrawal' className='group'>
+              <NavigationLink href='/mypage/withdrawal' className='group' should_login>
                 <div className='bg-gradient-to-r from-point-50 to-point-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-point-200'>
                   <div className='flex items-center justify-center space-x-2'>
                     <div className='w-8 h-8 bg-gradient-to-r from-point-500 to-point-600 rounded-lg flex items-center justify-center'>

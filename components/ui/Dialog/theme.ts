@@ -188,7 +188,7 @@ export const dialogTheme = {
     content:
         "w-full transform overflow-hidden rounded-lg sm:rounded-xl md:rounded-2xl bg-white p-4 sm:p-6 text-left align-middle shadow-xl transition-all",
     closeButton:
-        "absolute right-3 sm:right-4 top-3 sm:top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+        "absolute right-3 sm:right-4 top-3 sm:top-4 inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 dark:text-white/80 dark:hover:text-white dark:hover:bg-white/10 dark:focus:ring-white/40",
 };
 
 // 다이얼로그 테마 생성 함수

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 interface NavigationLinkProps {
   href: string;
@@ -39,18 +40,10 @@ export default function NavigationLink({
   const pathname = usePathname();
   const { extractLocaleFromPath, getLocalizedPath, currentLocale } = useLocaleRouter();
   const { isAuthenticated } = useAuth();
+  const { navigateWithAuth } = useAuthGuard();
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-
-    if (should_login && !isAuthenticated) {
-      const loginPath = getLocalizedPath('/login');
-      router.push(loginPath);
-      if (onClick) {
-        onClick();
-      }
-      return;
-    }
 
     const { path: currentCleanPath } = extractLocaleFromPath(pathname);
     const { path: targetCleanPath } = extractLocaleFromPath(href);
@@ -58,6 +51,19 @@ export default function NavigationLink({
     const normalizedTargetHref = href.startsWith(`/${currentLocale}/`)
       ? href
       : getLocalizedPath(href, currentLocale);
+
+    // 마이페이지 하위 경로는 기본적으로 로그인 필요로 간주(서비스 공지/FAQ 등은 /mypage 하위가 아님)
+    const requiresAuthByPath = /(^\/mypage\b)|(^\/[a-z]{2}\/[a-z-]{0,5}\/?mypage\b)/i.test(normalizedTargetHref);
+    const needAuth = should_login || requiresAuthByPath;
+
+    // 인증이 필요한 링크인 경우, 가드 기반 네비게이션 사용 (로그인 유도 다이얼로그 포함)
+    if (needAuth && !isAuthenticated) {
+      navigateWithAuth(normalizedTargetHref);
+      if (onClick) {
+        onClick();
+      }
+      return;
+    }
 
     if (currentCleanPath === targetCleanPath) {
       if (onClick) {
