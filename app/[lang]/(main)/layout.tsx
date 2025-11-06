@@ -63,7 +63,24 @@ function useFirebaseMessaging() {
           projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
           messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
           appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+          measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
         });
+        // Firebase Analytics 초기화 (지원 시)
+        try {
+          const { getAnalytics, logEvent, isSupported: isAnalyticsSupported } = await import('firebase/analytics');
+          if (await isAnalyticsSupported()) {
+            const analytics = getAnalytics(app);
+            // 초기 진입 page_view (DebugView 가시성 향상을 위해 표준 파라미터 + debug_mode 포함)
+            logEvent(analytics, 'page_view', {
+              page_path: window.location.pathname,
+              page_location: window.location.href,
+              page_title: document.title,
+              debug_mode: process.env.NODE_ENV !== 'production',
+            });
+          }
+        } catch (e) {
+          // Analytics 미지원 브라우저 등에서는 조용히 패스
+        }
         const messaging = getMessaging(app);
         const swVersion = process.env.NEXT_PUBLIC_SW_VERSION || process.env.NEXT_PUBLIC_APP_VERSION || '1';
         const reg = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?v=${swVersion}`);
@@ -120,6 +137,33 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   useFirebaseMessaging();
   const pathname = usePathname();
   const hideBetaNotice = pathname?.includes('/concert2025');
+  // 라우트 변경 시 page_view 로깅
+  useEffect(() => {
+    (async () => {
+      try {
+        const { isSupported, getAnalytics, logEvent } = await import('firebase/analytics');
+        if (!(await isSupported())) return;
+        const { getApps, initializeApp } = await import('firebase/app');
+        const app = getApps()[0] ?? initializeApp({
+          apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+          authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+          messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+          appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+          measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+        });
+        const analytics = getAnalytics(app);
+        logEvent(analytics, 'page_view', {
+          page_path: pathname || '/',
+          page_location: typeof window !== 'undefined' ? window.location.href : undefined,
+          page_title: typeof document !== 'undefined' ? document.title : undefined,
+          debug_mode: process.env.NODE_ENV !== 'production',
+        });
+      } catch {
+        // analytics 사용 불가 시 무시
+      }
+    })();
+  }, [pathname]);
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
