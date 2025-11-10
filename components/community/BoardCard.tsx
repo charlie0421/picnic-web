@@ -4,7 +4,7 @@ import { getCdnImageUrl } from '@/utils/api/image'
 
 export default function BoardCard({ boardId, name, description, lang, artist, initialBookmarked }: { boardId: string; name: string; description?: string | null; lang: string; artist?: { id: number; name: string; image: string | null; groupName?: string | null } | null; initialBookmarked?: boolean }) {
   return (
-    <li className='border rounded-md p-4 hover:bg-gray-50'>
+    <li className='border border-gray-200 rounded-md p-4 hover:bg-gray-50 bg-white'>
       <a href={`/${lang}/community/boards/${boardId}`} className='block'>
         <div className='flex items-center gap-3'>
           {artist?.image ? (

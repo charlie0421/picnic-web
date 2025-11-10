@@ -50,15 +50,15 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder={t('community.postEditor.titlePlaceholder')}
-        className='w-full border rounded px-3 py-2'
+        className='w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder:text-gray-500'
         disabled={isPending}
       />
-      <div className='border rounded'>
+      <div className='border border-gray-300 rounded'>
         <QuillBasicEditor value={value} onChange={setValue} minHeight={600} />
       </div>
       <div className='flex items-center gap-2'>
         <input ref={fileInputRef} type='file' multiple onChange={(e) => setFiles(Array.from(e.target.files || []))} className='hidden' disabled={isPending} />
-        <button type='button' className='px-3 py-2 border rounded text-sm disabled:opacity-50' onClick={() => fileInputRef.current?.click()} disabled={isPending}>{t('community.postEditor.attachFile')}</button>
+        <button type='button' className='px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white hover:bg-gray-50 disabled:opacity-50' onClick={() => fileInputRef.current?.click()} disabled={isPending}>{t('community.postEditor.attachFile')}</button>
         {files.length > 0 && <span className='text-sm text-gray-600'>{tHtml('community.postEditor.filesSelected', { count: String(files.length) })}</span>}
       </div>
       <div className='flex gap-2'>

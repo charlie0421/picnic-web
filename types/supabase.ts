@@ -4183,6 +4183,7 @@ export type Database = {
           is_admin: boolean
           is_super_admin: boolean | null
           jma_candy: number | null
+          language: string | null
           last_ip: string | null
           nickname: string | null
           open_ages: boolean
@@ -4204,6 +4205,7 @@ export type Database = {
           is_admin?: boolean
           is_super_admin?: boolean | null
           jma_candy?: number | null
+          language?: string | null
           last_ip?: string | null
           nickname?: string | null
           open_ages?: boolean
@@ -4225,6 +4227,7 @@ export type Database = {
           is_admin?: boolean
           is_super_admin?: boolean | null
           jma_candy?: number | null
+          language?: string | null
           last_ip?: string | null
           nickname?: string | null
           open_ages?: boolean
@@ -4269,7 +4272,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_user_push_tokens_user_profiles"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

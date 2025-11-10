@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import QuillDeltaRenderer from '@/lib/content/quill-delta-renderer'
 import { useTranslations } from '@/hooks/useTranslations'
@@ -14,7 +16,7 @@ export default function CommentList({ comments }: { comments: CommentItem[] }) {
   return (
     <ul className='space-y-3'>
       {comments.map((c) => (
-        <li key={c.commentId} className='border rounded-md p-3'>
+        <li key={c.commentId} className='border border-gray-200 rounded-md p-3 bg-white'>
           <div className='text-sm text-gray-800'>
             <QuillDeltaRenderer value={c.content} />
           </div>

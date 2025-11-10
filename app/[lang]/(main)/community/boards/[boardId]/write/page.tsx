@@ -18,7 +18,7 @@ export default async function BoardWritePage({ params }: { params: Promise<{ lan
   const meta = await getBoardMeta(boardId)
   return (
     <div className='container mx-auto px-4 py-6 space-y-4'>
-      <h1 className='text-xl font-semibold'>{t('community.common.write')} · {meta?.name ?? boardId}</h1>
+      <h1 className='text-xl font-semibold text-gray-900'>{t('community.common.write')} · {meta?.name ?? boardId}</h1>
       <PostEditor lang={lang} boardId={boardId} />
     </div>
   )

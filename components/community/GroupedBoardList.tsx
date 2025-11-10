@@ -36,7 +36,7 @@ export default function GroupedBoardList({ items, lang, bookmarkedBoardIds = [] 
     <div className='space-y-8'>
       {bookmarked.length > 0 && (
         <section>
-          <h2 className='text-lg font-semibold mb-3'>{t('community.list.myBookmarkedBoards')}</h2>
+          <h2 className='text-lg font-semibold mb-3 text-gray-900'>{t('community.list.myBookmarkedBoards')}</h2>
           <ul className='space-y-4'>
             {bookmarked.map((b) => (
               <BoardCard key={b.boardId} boardId={b.boardId} name={b.name} description={b.description} lang={lang} artist={b.artist || undefined} initialBookmarked={true} />
@@ -53,7 +53,7 @@ export default function GroupedBoardList({ items, lang, bookmarkedBoardIds = [] 
             ) : (
               <div className='w-8 h-8 rounded bg-gray-200' />
             )}
-            <h3 className='text-base font-medium'>{g.title === 'others' ? t('community.list.other') : g.title}</h3>
+            <h3 className='text-base font-medium text-gray-900'>{g.title === 'others' ? t('community.list.other') : g.title}</h3>
           </div>
           <ul className='space-y-4'>
             {g.items.map((b) => (

@@ -47,7 +47,7 @@ export default function BoardSearch({ lang }: { lang: string }) {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder={t('community.input.searchBoard.placeholder')}
-        className='w-full border rounded px-3 py-2 pr-9'
+        className='w-full border border-gray-300 rounded px-3 py-2 pr-9 bg-white text-gray-900 placeholder:text-gray-500'
         aria-label={t('community.input.searchBoard.placeholder')}
       />
       {/* loading indicator */}
@@ -55,7 +55,7 @@ export default function BoardSearch({ lang }: { lang: string }) {
         {loading ? <div className='w-4 h-4 rounded-full bg-primary-300 animate-pulse-light' /> : null}
       </div>
       {open && items.length > 0 && (
-        <div className='absolute z-10 mt-1 w-full bg-white border rounded shadow max-h-72 overflow-auto'>
+        <div className='absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow max-h-72 overflow-auto'>
           <ul className='max-h-64 overflow-auto'>
             {items.map((it) => (
               <li key={it.boardId}>

@@ -84,7 +84,7 @@ export default async function CommunityPostDetailPage({
       {/* 목록으로 */}
       {/* 위 텍스트 자체는 아이콘+텍스트 조합으로 치환 */}
       <article className='space-y-3'>
-        <h1 className='text-xl font-semibold'>{post.title}</h1>
+        <h1 className='text-xl font-semibold text-gray-900'>{post.title}</h1>
         <PostContent value={post.content} />
         <div className='text-xs text-gray-600'>{t('community.post.commentsCount', { count: String(post.replyCount) })} · {t('community.post.viewsCount', { count: String(post.viewCount) })}</div>
         <div className='pt-2'>
@@ -93,7 +93,7 @@ export default async function CommunityPostDetailPage({
       </article>
 
       <section className='space-y-3'>
-        <h2 className='text-lg font-medium'>{t('community.post.repliesHeading')}</h2>
+        <h2 className='text-lg font-medium text-gray-900'>{t('community.post.repliesHeading')}</h2>
         <CommentList comments={comments} />
         <CommentForm postId={post.id} lang={lang} />
       </section>

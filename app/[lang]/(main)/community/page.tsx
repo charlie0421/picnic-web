@@ -62,10 +62,10 @@ export default async function CommunityBoardListPage({
 
   return (
     <div className='container mx-auto px-4 py-6 space-y-6 text-gray-900'>
-      <h1 className='text-xl font-semibold'>{t('community.list.heading')}</h1>
+      <h1 className='text-xl font-semibold text-gray-900'>{t('community.list.heading')}</h1>
       <BoardSearch lang={lang} />
       {favoritesOnly.boards && favoritesOnly.boards.length > 0 ? (
-        <div className='rounded-md border bg-white p-3'>
+        <div className='rounded-md border bg-white border-gray-200 p-3'>
           <div className='text-sm font-medium text-gray-800 mb-2'>{t('community.list.myArtistBoards')}</div>
           {(() => {
             const groups = new Map<string, { title: string; image: string | null; items: typeof favoritesOnly.boards }>()
@@ -91,7 +91,7 @@ export default async function CommunityBoardListPage({
                     <a
                       key={b.boardId}
                       href={`/${lang}/community/boards/${b.boardId}`}
-                      className='inline-flex items-center px-2 py-1 rounded border text-xs text-gray-700 hover:bg-gray-50'
+                      className='inline-flex items-center px-2 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:bg-gray-50'
                     >
                       #{b.name}
                     </a>
@@ -103,14 +103,14 @@ export default async function CommunityBoardListPage({
         </div>
       ) : null}
       {bookmarkedBoards.length > 0 ? (
-        <div className='rounded-md border bg-white p-3'>
+        <div className='rounded-md border bg-white border-gray-200 p-3'>
           <div className='text-sm font-medium text-gray-800 mb-2'>{t('community.list.bookmarkedBoards')}</div>
           <div className='flex flex-wrap gap-2'>
             {bookmarkedBoards.map((b) => (
               <a
                 key={b.boardId}
                 href={`/${lang}/community/boards/${b.boardId}`}
-                className='inline-flex items-center px-2 py-1 rounded border text-xs text-gray-700 hover:bg-gray-50'
+                className='inline-flex items-center px-2 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:bg-gray-50'
               >
                 #{b.name}
               </a>

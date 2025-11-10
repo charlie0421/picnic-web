@@ -9,7 +9,7 @@ function renderText(text: string, attrs?: Record<string, any>) {
   if (attrs.bold) node = <strong>{node}</strong>
   if (attrs.italic) node = <em>{node}</em>
   if (attrs.underline) node = <u>{node}</u>
-  if (attrs.link) node = <a href={attrs.link} className='text-blue-600 dark:text-blue-400 underline' target='_blank' rel='noreferrer'>{node}</a>
+  if (attrs.link) node = <a href={attrs.link} className='text-blue-600 underline' target='_blank' rel='noreferrer'>{node}</a>
   return node
 }
 
@@ -62,7 +62,7 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
 
   const flushLine = () => {
     if (currentLine.length) {
-      blocks.push(<p key={`p-${blocks.length}`} className='whitespace-pre-wrap break-words'>{currentLine}</p>)
+      blocks.push(<p key={`p-${blocks.length}`} className='whitespace-pre-wrap break-words text-gray-900'>{currentLine}</p>)
       currentLine = []
     }
   }
@@ -106,11 +106,11 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
       }
       text = (text || '').trim()
       if (text.length) {
-        return <div className='prose max-w-none text-gray-800'><p className='whitespace-pre-wrap break-words'>{text}</p></div>
+        return <div className='prose max-w-none text-gray-900'><p className='whitespace-pre-wrap break-words text-gray-900'>{text}</p></div>
       }
     } catch {}
   }
-  return <div className='prose max-w-none text-gray-800'>{blocks}</div>
+  return <div className='prose max-w-none text-gray-900'>{blocks}</div>
 }
 
 export default QuillDeltaRenderer

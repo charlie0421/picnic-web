@@ -29,7 +29,7 @@ function LikeButtonBase({ postId, lang, liked, likeCount }: Props) {
         }
       })}
       disabled={isPending}
-      className={`px-3 py-1.5 rounded border text-sm disabled:opacity-60 ${liked ? 'bg-pink-50 border-pink-300 text-pink-700' : 'text-gray-800 bg-white hover:bg-gray-50'}`}
+      className={`px-3 py-1.5 rounded border text-sm disabled:opacity-60 ${liked ? 'bg-pink-50 border-pink-300 text-pink-700' : 'text-gray-800 bg-white border-gray-300 hover:bg-gray-50'}`}
     >
       {isPending ? t('community.common.processing') : (liked ? t('community.like.button.unlike') : t('community.like.button.like'))}{typeof likeCount === 'number' ? ` (${likeCount})` : ''}
     </button>

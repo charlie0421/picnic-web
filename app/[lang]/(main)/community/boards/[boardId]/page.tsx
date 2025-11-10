@@ -7,6 +7,7 @@ import { getBoardPosts, getBoardMeta, getUserBookmarkedBoardIds } from '@/lib/da
 import { getCdnImageUrl } from '@/utils/api/image'
 import PostList from '@/components/community/PostList'
 import BoardBookmarkButton from '@/components/community/BoardBookmarkButton'
+import WriteButton from '@/components/community/WriteButton'
 import { getTranslations } from '@/lib/i18n/server'
 
 export const revalidate = 60
@@ -42,7 +43,7 @@ export default async function BoardFeedPage({ params, searchParams }: { params: 
     <div className='container mx-auto px-4 py-6 space-y-6'>
       <div className='flex items-start justify-between'>
         <div>
-          <a href={`/${lang}/community`} className='text-sm text-gray-600'>&larr; {t('community.board.backToList')}</a>
+          <a href={`/${lang}/community`} className='text-sm text-gray-700'>&larr; {t('community.board.backToList')}</a>
           <div className='mt-1 flex items-center gap-2'>
             {meta?.artist?.image ? (
               <img src={getCdnImageUrl(meta.artist.image, 80)} alt={meta.artist.name} className='w-8 h-8 rounded object-cover' />
@@ -50,7 +51,7 @@ export default async function BoardFeedPage({ params, searchParams }: { params: 
               <div className='w-8 h-8 rounded bg-gray-200' />
             )}
             <div>
-              <h1 className='text-xl font-semibold'>{meta?.name ?? boardId}</h1>
+              <h1 className='text-xl font-semibold text-gray-900'>{meta?.name ?? boardId}</h1>
               {meta?.artist ? (
                 <div className='text-sm text-gray-600'>{meta.artist.groupName ? `${meta.artist.groupName} · ` : ''}{meta.artist.name}</div>
               ) : null}
@@ -59,31 +60,29 @@ export default async function BoardFeedPage({ params, searchParams }: { params: 
         </div>
         <div className='flex items-center gap-2'>
           <BoardBookmarkButton boardId={boardId} lang={lang} initialBookmarked={isBookmarked} />
-          <a href={`/${lang}/community/boards/${boardId}/write`} className='px-3 py-2 border rounded text-sm hover:bg-gray-50'>{t('community.common.write')}</a>
+          <WriteButton href={`/${lang}/community/boards/${boardId}/write`} />
         </div>
       </div>
       {posts.length === 0 ? (
-        <div className='border border-dashed rounded-lg p-8 text-center bg-gray-50'>
+        <div className='border border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50'>
           <div className='mx-auto mb-3 w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center'>
             <span className='text-primary-600 text-xl'>✍️</span>
           </div>
           <p className='text-gray-800 font-medium mb-1'>{t('community.board.empty.title')}</p>
           <p className='text-gray-600 text-sm mb-4'>{t('community.board.empty.desc')}</p>
-          <a href={`/${lang}/community/boards/${boardId}/write`} className='inline-flex items-center gap-2 px-4 py-2 rounded bg-primary text-white hover:bg-primary/90'>
-            {t('community.board.empty.cta')}
-          </a>
+          <WriteButton href={`/${lang}/community/boards/${boardId}/write`} variant='primary' />
         </div>
       ) : (
         <PostList items={posts} lang={lang} />
       )}
       <div className='flex gap-2 justify-center pt-4'>
         {page > 1 && (
-          <a className='px-3 py-1 border rounded' href={`/${lang}/community/boards/${boardId}?page=${page - 1}`}>
+          <a className='px-3 py-1 border border-gray-300 rounded text-gray-900 hover:bg-gray-50' href={`/${lang}/community/boards/${boardId}?page=${page - 1}`}>
             {t('community.common.prev')}
           </a>
         )}
         {hasNext && (
-          <a className='px-3 py-1 border rounded' href={`/${lang}/community/boards/${boardId}?page=${page + 1}`}>
+          <a className='px-3 py-1 border border-gray-300 rounded text-gray-900 hover:bg-gray-50' href={`/${lang}/community/boards/${boardId}?page=${page + 1}`}>
             {t('community.common.next')}
           </a>
         )}

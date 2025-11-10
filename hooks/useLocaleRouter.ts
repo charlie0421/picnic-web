@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useLanguageStore } from '../stores/languageStore';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, type Language } from '../config/settings';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 interface LocaleRouterReturn {
   currentLocale: Language;
@@ -101,6 +102,36 @@ export function useLocaleRouter(): LocaleRouterReturn {
     // 쿠키에 언어 설정 저장
     if (typeof document !== 'undefined') {
       document.cookie = `locale=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    }
+
+    // user_profiles.language 업데이트 (로그인한 사용자인 경우에만)
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // 언어 코드 정규화 (zh-cn -> zh, zh-tw -> zh-TW 등)
+        let normalizedLanguage: string = locale;
+        if (locale === 'zh-cn') {
+          normalizedLanguage = 'zh';
+        } else if (locale === 'zh-tw') {
+          normalizedLanguage = 'zh-TW';
+        }
+        
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({ language: normalizedLanguage } as any)
+          .eq('id', user.id);
+        
+        if (error) {
+          console.warn('Failed to update user_profiles.language:', error);
+        } else {
+          console.log('Updated user_profiles.language to:', normalizedLanguage);
+        }
+      }
+    } catch (error) {
+      // 로그인하지 않은 경우나 업데이트 실패는 무시 (앱 동작에는 영향 없음)
+      console.warn('Failed to update user_profiles.language:', error);
     }
 
     // 로컬 번역 로드

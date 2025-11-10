@@ -1227,6 +1227,7 @@ export interface UserProfiles {
   is_admin: boolean
   is_super_admin: boolean | null
   jma_candy: number | null
+  language: string | null
   last_ip: string | null
   nickname: string | null
   open_ages: boolean
