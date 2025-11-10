@@ -838,6 +838,7 @@ class AuthStore {
         created_at: data.user.created_at,
         updated_at: data.user.updated_at,
         last_ip: data.user.last_ip ?? null,
+        language: data.user.language ?? null,
         // 기본값 설정
         birth_date: null,
         birth_time: null,
@@ -887,6 +888,7 @@ class AuthStore {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             last_ip: null,
+            language: null,
             birth_date: null,
             birth_time: null,
             deleted_at: null,
