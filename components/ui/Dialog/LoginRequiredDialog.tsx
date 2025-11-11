@@ -156,8 +156,7 @@ export function LoginRequiredDialog({
             buttonTheme.base,
             buttonTheme.sizes.md,
             buttonTheme.variants.secondary,
-            // improve dark readability
-            'dark:bg-white/90 dark:text-gray-900 dark:hover:bg-white focus:ring-2 focus:ring-secondary-300',
+            'focus:ring-2 focus:ring-secondary-300',
             'w-full sm:w-auto order-2 sm:order-1',
           )}
         >
@@ -170,9 +169,7 @@ export function LoginRequiredDialog({
             buttonTheme.base,
             buttonTheme.sizes.md,
             // gradient primary → secondary
-            'bg-gradient-to-r from-primary-600 to-secondary-600 text-white hover:from-primary-700 hover:to-secondary-700 focus:ring-2 focus:ring-primary-200',
-            // dark mode enhancements
-            'dark:from-primary-500 dark:to-secondary-500 dark:text-white dark:focus:ring-secondary-300 shadow-md dark:shadow-primary-400/20',
+            'bg-gradient-to-r from-primary-600 to-secondary-600 text-white hover:from-primary-700 hover:to-secondary-700 focus:ring-2 focus:ring-primary-200 shadow-md',
             'w-full sm:w-auto order-1 sm:order-2',
           )}
         >

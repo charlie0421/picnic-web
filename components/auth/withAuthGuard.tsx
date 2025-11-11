@@ -120,10 +120,10 @@ export function withAuthGuard<P extends object>(
       return (
         <div className='flex items-center justify-center min-h-screen'>
           <div className='text-center'>
-            <h2 className='text-xl font-semibold text-gray-900 dark:text-white mb-2'>
+            <h2 className='text-xl font-semibold text-gray-900 mb-2'>
               {t('dialog.login_required.title') || '로그인이 필요합니다'}
             </h2>
-            <p className='text-gray-600 dark:text-gray-400'>
+            <p className='text-gray-600'>
               {t('dialog.login_required.description') ||
                 '이 페이지에 접근하려면 로그인이 필요합니다.'}
             </p>

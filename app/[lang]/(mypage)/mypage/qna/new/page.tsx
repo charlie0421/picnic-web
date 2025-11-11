@@ -171,9 +171,9 @@ export default function NewQnaPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 bg-white text-gray-900 dark:bg-white dark:text-gray-900">
+    <div className="container mx-auto px-4 py-6 bg-white text-gray-900">
       <h1 className="text-2xl font-bold mb-6">{t('qna_new_title')}</h1>
-      <form action={formAction} className="bg-white dark:bg-white p-6 rounded-lg shadow-md space-y-4">
+      <form action={formAction} className="bg-white p-6 rounded-lg shadow-md space-y-4">
         <input type="hidden" name="lang" value={currentLanguage} />
         <div>
           <label htmlFor="category_code" className="block text-sm font-medium text-gray-700">

@@ -69,30 +69,30 @@ export function StarCandyProductsPresenter({
       children: (
         <div className="space-y-4 py-2">
           {/* 충전 내용 */}
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
-            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300">{t('recharge_details')}</h4>
+          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <h4 className="font-semibold text-sm text-gray-700">{t('recharge_details')}</h4>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">{t('product_name_label')}:</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{productName}</span>
+                <span className="text-gray-600">{t('product_name_label')}:</span>
+                <span className="font-medium text-gray-900">{productName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">{t('recharge_star_candy_label')}:</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">
+                <span className="text-gray-600">{t('recharge_star_candy_label')}:</span>
+                <span className="font-medium text-gray-900">
                   {verifyResult.payment?.starCandy?.toLocaleString() || 0}{t('unit_count')}
                 </span>
               </div>
               {verifyResult.payment?.bonusAmount && verifyResult.payment.bonusAmount > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">{t('bonus_star_candy_label')}:</span>
-                  <span className="font-medium text-green-600 dark:text-green-400">
+                  <span className="text-gray-600">{t('bonus_star_candy_label')}:</span>
+                  <span className="font-medium text-green-600">
                     +{verifyResult.payment.bonusAmount.toLocaleString()}{t('unit_count')}
                   </span>
                 </div>
               )}
-              <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400">{t('payment_amount_label')}:</span>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">
+              <div className="flex justify-between pt-2 border-t border-gray-200">
+                <span className="text-gray-600">{t('payment_amount_label')}:</span>
+                <span className="font-semibold text-gray-900">
                   {verifyResult.payment?.amount?.toLocaleString() || 0}{t('currency_krw')}
                 </span>
               </div>
@@ -100,18 +100,18 @@ export function StarCandyProductsPresenter({
           </div>
           
           {/* 결과 내용 */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 space-y-2">
-            <h4 className="font-semibold text-sm text-blue-700 dark:text-blue-300">{t('recharge_result')}</h4>
+          <div className="bg-blue-50 rounded-lg p-4 space-y-2">
+            <h4 className="font-semibold text-sm text-blue-700">{t('recharge_result')}</h4>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-blue-600 dark:text-blue-400">{t('total_recharge_star_candy_label')}:</span>
-                <span className="font-semibold text-blue-700 dark:text-blue-300">
+                <span className="text-blue-600">{t('total_recharge_star_candy_label')}:</span>
+                <span className="font-semibold text-blue-700">
                   {((verifyResult.payment?.starCandy || 0) + (verifyResult.payment?.bonusAmount || 0)).toLocaleString()}{t('unit_count')}
                 </span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-blue-200 dark:border-blue-800">
-                <span className="text-blue-600 dark:text-blue-400">{t('current_balance_label')}:</span>
-                <span className="font-bold text-lg text-blue-700 dark:text-blue-300">
+              <div className="flex justify-between pt-2 border-t border-blue-200">
+                <span className="text-blue-600">{t('current_balance_label')}:</span>
+                <span className="font-bold text-lg text-blue-700">
                   {verifyResult.balance?.total?.toLocaleString() || 0}{t('unit_count')}
                 </span>
               </div>
