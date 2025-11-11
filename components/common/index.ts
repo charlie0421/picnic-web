@@ -16,4 +16,5 @@ export { GlobalErrorDisplay, ErrorToast, ErrorBar } from './GlobalErrorDisplay';
 export { GlobalNotifications } from './GlobalNotifications';
 export { default as EnvironmentValidator } from './EnvironmentValidator';
 
-// Common reusable components 
+// Common reusable components
+export { default as StarCandyBalanceBox } from './StarCandyBalanceBox'; 

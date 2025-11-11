@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useLoginRequired, useDialog } from '@/components/ui/Dialog';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { saveRedirectUrl } from '@/utils/auth-redirect';
+import StarCandyBalanceBox from '@/components/common/StarCandyBalanceBox';
 
 interface StarCandyProductsPresenterProps {
   products: Products[];
@@ -130,10 +131,12 @@ export function StarCandyProductsPresenter({
   useEffect(() => {
     const paymentStatus = searchParams.get('status');
     const paymentId = searchParams.get('paymentId');
+    const tossToken = searchParams.get('toss_token') || searchParams.get('token');
     
     // URL 파라미터에 paymentId나 status가 없으면 sessionStorage 정리 후 종료
     // (이전 세션의 sessionStorage에 남아있는 paymentId로 인한 오작동 방지)
-    if (!paymentId && !paymentStatus) {
+    // 단, 토스페이먼트 토큰이 있는 경우는 처리 진행
+    if (!paymentId && !paymentStatus && !tossToken) {
       setPendingPaymentId(null);
       setIsVerifying(false);
       if (typeof window !== 'undefined') {
@@ -145,7 +148,8 @@ export function StarCandyProductsPresenter({
     // sessionStorage에서도 pendingPaymentId 확인 (컴포넌트 재렌더링 시 유지)
     const storedPaymentId = typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
     // URL 파라미터가 있으면 우선적으로 사용
-    const effectivePaymentId = paymentId || storedPaymentId;
+    // 토스페이먼트 토큰이 있는 경우 sessionStorage의 paymentId를 사용
+    const effectivePaymentId = paymentId || (tossToken ? storedPaymentId : null) || storedPaymentId;
 
     if (effectivePaymentId && user) {
       // paymentId가 있으면 pendingPaymentId를 설정하여 주기적 검증 시작
@@ -220,10 +224,12 @@ export function StarCandyProductsPresenter({
     // URL 파라미터에서 paymentId나 status 확인
     const urlPaymentId = searchParams.get('paymentId');
     const urlStatus = searchParams.get('status');
+    const tossToken = searchParams.get('toss_token') || searchParams.get('token');
     
     // URL 파라미터에 paymentId나 status가 없으면 검증을 시작하지 않음
     // (이전 세션의 sessionStorage에 남아있는 paymentId로 인한 오작동 방지)
-    if (!urlPaymentId && !urlStatus) {
+    // 단, 토스페이먼트 토큰이 있는 경우는 처리 진행
+    if (!urlPaymentId && !urlStatus && !tossToken) {
       // URL 파라미터가 없으면 sessionStorage도 정리
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('pendingPaymentId');
@@ -238,7 +244,8 @@ export function StarCandyProductsPresenter({
     // sessionStorage에서도 pendingPaymentId 확인 (컴포넌트 재렌더링 시 유지)
     const storedPaymentId = typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
     // URL 파라미터가 있으면 우선적으로 사용, 없으면 sessionStorage 사용
-    const effectivePendingPaymentId = urlPaymentId || pendingPaymentId || storedPaymentId;
+    // 토스페이먼트 토큰이 있는 경우 sessionStorage의 paymentId를 사용
+    const effectivePendingPaymentId = urlPaymentId || (tossToken ? storedPaymentId : null) || pendingPaymentId || storedPaymentId;
     
     if (!effectivePendingPaymentId || !user) {
       isClearedRef.current = true;
@@ -716,6 +723,11 @@ export function StarCandyProductsPresenter({
 
   return (
     <div className={`space-y-6 ${className || ''}`}>
+      {/* 별사탕 잔액 박스 */}
+      <div className="mb-4">
+        <StarCandyBalanceBox autoFetch={true} compact={true} />
+      </div>
+
       <div className='text-center mb-8'>
         <h1 className='text-3xl font-bold mb-2 text-gray-900'>
           {t('star_candy_recharge_title')}

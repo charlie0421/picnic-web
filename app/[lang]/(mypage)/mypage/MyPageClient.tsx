@@ -6,6 +6,7 @@ import { UserProfiles } from '@/types/interfaces';
 import { useLogout } from '@/lib/auth/logout';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import MyPageAccountMenu from '@/components/server/mypage/MyPageAccountMenu';
+import StarCandyBalanceBox from '@/components/common/StarCandyBalanceBox';
 
 interface Translations {
   [key: string]: string;
@@ -267,23 +268,15 @@ export default function MyPageClient({
               </span>
             </div>
             {!isLoadingProfile && apiUserProfile && (
-              <div className='bg-sub-200 p-2 rounded-lg'>
-                <div className='text-center'>
-                  <div className='text-primary-500 font-semibold text-base mb-1'>
-                    {t('label_mypage_star_candy_total')}: {userInfo.total_candy.toLocaleString()}
-                  </div>
-                  <div className='text-xs text-gray-600 flex items-center justify-center gap-1'>
-                    <img 
-                      src="/images/star-candy/star_100.png" 
-                      alt={t('label_mypage_star_candy')} 
-                      className="w-5 h-5" 
-                    />
-                    <span>{userInfo.star_candy.toLocaleString()}</span>
-                {userInfo.star_candy_bonus > 0 && (
-                      <span> + 🎁 {userInfo.star_candy_bonus.toLocaleString()}</span>
-                    )}
-                  </div>
-                </div>
+              <div className="mt-3">
+                <StarCandyBalanceBox
+                  starCandy={userInfo.star_candy}
+                  starCandyBonus={userInfo.star_candy_bonus}
+                  totalCandy={userInfo.total_candy}
+                  isLoading={isLoadingProfile}
+                  autoFetch={false}
+                  compact={true}
+                />
               </div>
             )}
           </div>
