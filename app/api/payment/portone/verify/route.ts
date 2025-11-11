@@ -77,16 +77,43 @@ async function verifyPortOnePayment(paymentId: string): Promise<PortOneV2Payment
 
 export async function POST(request: NextRequest) {
   try {
+    // 디버깅: 요청 헤더와 쿠키 정보 로깅
+    const cookieHeader = request.headers.get('cookie');
+    const authHeader = request.headers.get('authorization');
+    console.log('[Verify] Request headers:', {
+      hasCookie: !!cookieHeader,
+      cookieLength: cookieHeader?.length || 0,
+      cookiePreview: cookieHeader ? cookieHeader.substring(0, 100) + '...' : 'none',
+      hasAuthHeader: !!authHeader,
+      host: request.headers.get('host'),
+      referer: request.headers.get('referer'),
+    });
+
     const supabase = await createServerSupabaseClient();
     
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      console.error('[Verify] Authentication failed:', {
+        error: authError?.message,
+        errorCode: authError?.status,
+        errorName: authError?.name,
+        hasUser: !!user,
+        userId: user?.id,
+        // 쿠키 정보도 함께 로깅
+        cookieHeader: cookieHeader ? cookieHeader.substring(0, 200) : 'none',
+        supabaseCookies: request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })),
+      });
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
         { status: 401 }
       );
     }
+
+    console.log('[Verify] Authentication successful:', {
+      userId: user.id,
+      email: user.email,
+    });
 
     const body = await request.json();
     const { paymentId } = body;

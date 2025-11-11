@@ -40,12 +40,35 @@ export function StarCandyProductsPresenter({
   const isVerifyingRef = useRef(false); // 중복 호출 방지 플래그
   const isClearedRef = useRef(false);
   const currentPaymentIdRef = useRef<string | null>(null);
+  const [balanceBoxKey, setBalanceBoxKey] = useState(0); // StarCandyBalanceBox 강제 리렌더링용
   const dialogContext = useDialog();
   const showLoginRequired = dialogContext.showLoginRequired;
   const showDialog = dialogContext.showDialog;
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // sessionStorage 헬퍼 함수
+  const getStoredPaymentId = useCallback((): string | null => {
+    return typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
+  }, []);
+
+  const setStoredPaymentId = useCallback((paymentId: string): void => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('pendingPaymentId', paymentId);
+    }
+  }, []);
+
+  const removeStoredPaymentId = useCallback((): void => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('pendingPaymentId');
+    }
+  }, []);
+
+  // 결제 검증 결과 확인 헬퍼 함수
+  const isPaymentVerified = useCallback((result: { verified?: boolean | string | number }): boolean => {
+    return result.verified === true || result.verified === 'true' || result.verified === 1;
+  }, []);
 
   // 성공 Dialog 표시 헬퍼 함수
   const showSuccessDialog = useCallback((verifyResult: {
@@ -127,135 +150,50 @@ export function StarCandyProductsPresenter({
     });
   }, [showDialog, products, currentLanguage, router, pathname, t]);
 
-  // 페이지 로드 시 URL 파라미터에서 결제 상태 확인
+  // 페이지 로드 시 URL 파라미터 확인 (모바일 환경에서 리다이렉트된 경우만)
+  // PC 환경에서는 PortOne v2 브라우저 SDK가 Promise로 결과를 반환하므로 리다이렉트가 발생하지 않음
   useEffect(() => {
-    const paymentStatus = searchParams.get('status');
     const paymentId = searchParams.get('paymentId');
     const tossToken = searchParams.get('toss_token') || searchParams.get('token');
     
-    // URL 파라미터에 paymentId나 status가 없으면 sessionStorage 정리 후 종료
-    // (이전 세션의 sessionStorage에 남아있는 paymentId로 인한 오작동 방지)
-    // 단, 토스페이먼트 토큰이 있는 경우는 처리 진행
-    if (!paymentId && !paymentStatus && !tossToken) {
-      setPendingPaymentId(null);
-      setIsVerifying(false);
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('pendingPaymentId');
-      }
-      return;
-    }
-    
-    // sessionStorage에서도 pendingPaymentId 확인 (컴포넌트 재렌더링 시 유지)
-    const storedPaymentId = typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
-    // URL 파라미터가 있으면 우선적으로 사용
-    // 토스페이먼트 토큰이 있는 경우 sessionStorage의 paymentId를 사용
-    const effectivePaymentId = paymentId || (tossToken ? storedPaymentId : null) || storedPaymentId;
-
-    if (effectivePaymentId && user) {
-      // paymentId가 있으면 pendingPaymentId를 설정하여 주기적 검증 시작
-      // 첫 번째 useEffect는 한 번만 검증 시도하고, 이미 완료되었으면 즉시 처리
-      const verifyPaymentOnce = async () => {
-        // 중복 호출 방지
-        if (isVerifyingRef.current) {
-          return;
-        }
-
-        isVerifyingRef.current = true;
-
-        try {
-          const verifyResponse = await fetch('/api/payment/portone/verify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ paymentId: effectivePaymentId }),
-          });
-
-          const verifyResult = await verifyResponse.json();
-          
-          // verified가 true인지 확인
-          const isVerified = verifyResult.verified === true || verifyResult.verified === 'true' || verifyResult.verified === 1;
-          
-          if (isVerified) {
-            // 결제 완료 및 검증 성공
-            isVerifyingRef.current = false;
-            setPendingPaymentId(null);
-            if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('pendingPaymentId');
-            }
-            showSuccessDialog(verifyResult);
-          } else if (verifyResult.status === 'READY' || (verifyResult.status === 'PAID' && verifyResult.verified === false)) {
-            // 결제가 아직 처리 중인 경우
-            isVerifyingRef.current = false;
-            setPendingPaymentId(effectivePaymentId);
-            if (typeof window !== 'undefined') {
-              sessionStorage.setItem('pendingPaymentId', effectivePaymentId);
-            }
-          } else {
-            // 검증 실패
-            isVerifyingRef.current = false;
-            alert(t('payment_verification_failed'));
-            router.replace(pathname || '/ko/star-candy');
-          }
-        } catch (error) {
-          console.error('[Client] Payment verification error:', error);
-          isVerifyingRef.current = false;
-          // 에러가 발생했지만 웹훅이 처리할 수 있으므로 pendingPaymentId 설정
-          setPendingPaymentId(effectivePaymentId);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('pendingPaymentId', effectivePaymentId);
-          }
-        }
-      };
-
-      verifyPaymentOnce();
-    } else if (!effectivePaymentId) {
-      // paymentId가 없으면 pendingPaymentId 초기화
-      setPendingPaymentId(null);
-      // sessionStorage에서도 제거
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('pendingPaymentId');
+    if (paymentId) {
+      // URL 파라미터의 paymentId가 있으면 저장 (모바일 리다이렉트)
+      setPendingPaymentId(paymentId);
+      setStoredPaymentId(paymentId);
+    } else if (tossToken) {
+      // 토스페이먼트 토큰이 있으면 저장된 paymentId 복원
+      const storedId = getStoredPaymentId();
+      if (storedId) {
+        setPendingPaymentId(storedId);
       }
     }
-  }, [searchParams, user, router, pathname, t, products, currentLanguage, showSuccessDialog]);
+  }, [searchParams, getStoredPaymentId, setStoredPaymentId]);
 
-  // 결제 요청 후 주기적으로 검증 시도 (콜백이 호출되지 않은 경우 대비)
+  // 결제 요청 후 주기적으로 검증 시도 (polling 방식)
+  // PortOne v2 브라우저 SDK는 PC 환경에서 리다이렉트 없이 Promise로 결과를 반환하므로
+  // polling 방식으로 결제 상태를 주기적으로 확인합니다
   useEffect(() => {
-    // URL 파라미터에서 paymentId나 status 확인
-    const urlPaymentId = searchParams.get('paymentId');
-    const urlStatus = searchParams.get('status');
-    const tossToken = searchParams.get('toss_token') || searchParams.get('token');
-    
-    // URL 파라미터에 paymentId나 status가 없으면 검증을 시작하지 않음
-    // (이전 세션의 sessionStorage에 남아있는 paymentId로 인한 오작동 방지)
-    // 단, 토스페이먼트 토큰이 있는 경우는 처리 진행
-    if (!urlPaymentId && !urlStatus && !tossToken) {
-      // URL 파라미터가 없으면 sessionStorage도 정리
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('pendingPaymentId');
-      }
-      setPendingPaymentId(null);
-      setIsVerifying(false);
+    if (!user) {
       isClearedRef.current = true;
-      currentPaymentIdRef.current = null;
+      setIsVerifying(false);
       return;
     }
+
+    const storedPaymentId = getStoredPaymentId();
+    const effectivePendingPaymentId = pendingPaymentId || storedPaymentId;
     
-    // sessionStorage에서도 pendingPaymentId 확인 (컴포넌트 재렌더링 시 유지)
-    const storedPaymentId = typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
-    // URL 파라미터가 있으면 우선적으로 사용, 없으면 sessionStorage 사용
-    // 토스페이먼트 토큰이 있는 경우 sessionStorage의 paymentId를 사용
-    const effectivePendingPaymentId = urlPaymentId || (tossToken ? storedPaymentId : null) || pendingPaymentId || storedPaymentId;
-    
-    if (!effectivePendingPaymentId || !user) {
+    // paymentId가 없으면 polling 시작하지 않음
+    if (!effectivePendingPaymentId) {
+      // 상태도 없고 sessionStorage도 없으면 정리
+      removeStoredPaymentId();
       isClearedRef.current = true;
       currentPaymentIdRef.current = null;
       setIsVerifying(false);
       return;
     }
     
-    // sessionStorage에 있으면 상태에도 설정
-    if (storedPaymentId && !pendingPaymentId) {
+    // sessionStorage에 있으면 상태에도 동기화
+    if (storedPaymentId && storedPaymentId !== pendingPaymentId) {
       setPendingPaymentId(storedPaymentId);
     }
 
@@ -267,21 +205,22 @@ export function StarCandyProductsPresenter({
 
     let attemptCount = 0;
 
-    // 검증 시작 시 펄스 애니메이션 표시 (URL 파라미터가 있을 때만)
-    setIsVerifying(true);
+    // PC 환경에서는 리다이렉트가 없으므로 항상 백그라운드에서 조용히 검증
+    // (페이지 진입 시 로딩바가 나타나지 않도록)
+    // 첫 번째 시도에서 완료되지 않았을 때만 로딩바 표시
+    let isFirstAttemptRef = { current: true }; // 첫 번째 시도인지 추적
 
-    const verifyInterval = setInterval(async () => {
+    const verifyPayment = async () => {
       // 이미 정리되었거나 paymentId가 변경된 경우 중단
       if (isClearedRef.current || currentPaymentIdRef.current !== effectivePendingPaymentId) {
-        clearInterval(verifyInterval);
-        return;
+        return false; // 더 이상 검증하지 않음
       }
 
       attemptCount++;
 
       // 중복 호출 방지: 이미 검증 중이면 스킵
       if (isVerifyingRef.current) {
-        return;
+        return true; // 계속 검증
       }
 
       isVerifyingRef.current = true;
@@ -292,47 +231,131 @@ export function StarCandyProductsPresenter({
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'include', // 쿠키 포함
           body: JSON.stringify({ paymentId: effectivePendingPaymentId }),
         });
 
+        // 401 에러 처리
+        if (verifyResponse.status === 401) {
+          const errorData = await verifyResponse.json().catch(() => ({}));
+          console.error('[Client] Authentication failed during payment verification:', {
+            status: verifyResponse.status,
+            statusText: verifyResponse.statusText,
+            error: errorData.error,
+            message: errorData.message,
+            paymentId: effectivePendingPaymentId,
+            hasUser: !!user,
+            userId: user?.id,
+          });
+          isVerifyingRef.current = false;
+          // 세션 만료 시 재로그인 요청
+          const returnTo = pathname || '/';
+          const langFromPath = pathname?.split('/')[1] || '';
+          const lang = langFromPath || currentLanguage || 'en';
+          try {
+            await showLoginRequired({
+              redirectUrl: returnTo,
+              onLogin: () => {
+                try { saveRedirectUrl(returnTo); } catch {}
+                const loginUrl = `/${lang}/login?returnTo=${encodeURIComponent(returnTo)}`;
+                if (typeof window !== 'undefined') {
+                  window.location.href = loginUrl;
+                } else {
+                  router.push(loginUrl);
+                }
+              },
+            });
+          } catch {
+            // 폴백: 직접 로그인 페이지로 이동
+            try { saveRedirectUrl(returnTo); } catch {}
+            const loginUrl = `/${lang}/login?returnTo=${encodeURIComponent(returnTo)}`;
+            if (typeof window !== 'undefined') {
+              window.location.href = loginUrl;
+            } else {
+              router.push(loginUrl);
+            }
+          }
+          return false; // 검증 중단
+        }
+
+        if (!verifyResponse.ok) {
+          console.error('[Client] Payment verification failed:', verifyResponse.status, verifyResponse.statusText);
+          isVerifyingRef.current = false;
+          return true; // 계속 검증 시도 (일시적 오류일 수 있음)
+        }
+
         const verifyResult = await verifyResponse.json();
-        
-        // verified가 true인지 확인
-        const isVerified = verifyResult.verified === true || verifyResult.verified === 'true' || verifyResult.verified === 1;
-        
-        // 검증 완료 후 플래그 해제
-        isVerifyingRef.current = false;
+        const isVerified = isPaymentVerified(verifyResult);
 
         if (isVerified) {
-          // 결제 완료 및 검증 성공
+          // 결제 완료 및 검증 성공 - 정리 및 성공 처리
           isClearedRef.current = true;
-          clearInterval(verifyInterval);
           setIsVerifying(false);
-          isVerifyingRef.current = false;
           setPendingPaymentId(null);
           currentPaymentIdRef.current = null;
-          if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('pendingPaymentId');
-          }
+          removeStoredPaymentId();
+          // 별사탕 박스 강제 갱신
+          setBalanceBoxKey(prev => prev + 1);
           showSuccessDialog(verifyResult);
-        } else if (verifyResult.status === 'READY' || (verifyResult.status === 'PAID' && verifyResult.verified === false)) {
-          // READY 상태이거나 PAID 상태이지만 웹훅이 아직 처리하지 않은 경우 계속 시도
+          return false; // 더 이상 검증하지 않음
         }
+        
+        // 첫 번째 시도에서 완료되지 않았으면 로딩바 표시
+        if (isFirstAttemptRef.current) {
+          setIsVerifying(true);
+          isFirstAttemptRef.current = false;
+        }
+        
+        // READY 또는 PAID 상태면 계속 검증 (웹훅이 처리할 수 있음)
+        return verifyResult.status === 'READY' || (verifyResult.status === 'PAID' && verifyResult.verified === false);
       } catch (error) {
         console.error(`[Client] Verification error (attempt ${attemptCount}):`, error);
+        // 첫 번째 시도에서 완료되지 않았으면 로딩바 표시
+        if (isFirstAttemptRef.current) {
+          setIsVerifying(true);
+          isFirstAttemptRef.current = false;
+        }
+        return true; // 계속 검증
+      } finally {
+        // 항상 플래그 해제
         isVerifyingRef.current = false;
       }
-    }, intervalMs);
+    };
 
-    // 컴포넌트 언마운트 시 인터벌 정리
+    // 첫 검증 시도는 지연 후 시작 (페이지 진입 시 로딩바 방지)
+    const initialDelay = 2000; // 2초 지연
+    
+    let verifyInterval: NodeJS.Timeout | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const startVerification = () => {
+      verifyPayment().then((shouldContinue) => {
+        if (!shouldContinue) return; // 검증 완료되었으면 중단
+        
+        // 주기적으로 검증 (첫 시도 후)
+        verifyInterval = setInterval(async () => {
+          const shouldContinue = await verifyPayment();
+          if (!shouldContinue && verifyInterval) {
+            clearInterval(verifyInterval);
+            verifyInterval = null;
+          }
+        }, intervalMs);
+      });
+    };
+
+    // 지연 후 검증 시작 (페이지 진입 시 로딩바가 나타나지 않도록)
+    timeoutId = setTimeout(startVerification, initialDelay);
+
+    // 컴포넌트 언마운트 시 정리
     return () => {
       isClearedRef.current = true;
       setIsVerifying(false);
       isVerifyingRef.current = false;
       currentPaymentIdRef.current = null;
-      clearInterval(verifyInterval);
+      timeoutId && clearTimeout(timeoutId);
+      verifyInterval && clearInterval(verifyInterval);
     };
-  }, [pendingPaymentId, user, showSuccessDialog, searchParams]);
+  }, [pendingPaymentId, user, showSuccessDialog, getStoredPaymentId, removeStoredPaymentId, isPaymentVerified]);
 
   const formatPrice = (price: number | null, currency: 'KRW' | 'USD') => {
     if (!price) return '';
@@ -427,58 +450,22 @@ export function StarCandyProductsPresenter({
       };
 
       // Request payment using Port One v2 (automatic payment method selection)
-      // 포트원 v2 브라우저 SDK는 결제 창을 열고, 사용자가 결제를 완료하면
-      // redirectUrl로 리다이렉트하거나 Promise를 resolve할 수 있습니다.
-      // 리다이렉트되지 않는 경우를 대비하여 주기적 검증을 시작합니다.
-      // 주기적 검증을 위해 paymentId를 상태에 저장합니다.
+      // 포트원 v2 브라우저 SDK는 PC 환경에서 Promise로 결과를 반환하므로
+      // polling 방식으로 결제 상태를 주기적으로 확인합니다
       setPendingPaymentId(paymentId);
-      // sessionStorage에도 저장 (컴포넌트 재렌더링 시 유지)
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('pendingPaymentId', paymentId);
-      }
+      setStoredPaymentId(paymentId);
       
       try {
         const response = await portOneService.requestPaymentAuto(paymentRequest);
 
         if (response.success && response.paymentId) {
           // 결제가 성공적으로 완료되었습니다
-          // 포트원 v2 브라우저 SDK가 Promise를 resolve한 경우 즉시 검증
-          try {
-            const verifyResponse = await fetch('/api/payment/portone/verify', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ paymentId: response.paymentId }),
-            });
-
-            const verifyResult = await verifyResponse.json();
-            
-            if (verifyResult.verified === true) {
-              // 결제 완료 및 검증 성공
-              setPendingPaymentId(null);
-              if (typeof window !== 'undefined') {
-                sessionStorage.removeItem('pendingPaymentId');
-              }
-              showSuccessDialog(verifyResult);
-            } else if (verifyResult.status === 'READY' || (verifyResult.status === 'PAID' && verifyResult.verified === false)) {
-              // 결제가 아직 처리 중인 경우
-              const currentUrl = new URL(window.location.href);
-              currentUrl.searchParams.set('paymentId', response.paymentId);
-              currentUrl.searchParams.set('status', 'processing');
-              window.location.href = currentUrl.toString();
-            }
-          } catch (error) {
-            console.error('[Client] Payment verification error:', error);
-          }
-        } else {
+          // polling이 이미 시작되어 있으므로 별도 검증 불필요
+          // polling에서 자동으로 검증 및 성공 처리됨
+        } else if (paymentRequest.paymentId) {
           // 결제 실패 또는 취소 - paymentId가 있으면 주기적 검증 계속 진행
-          if (paymentRequest.paymentId) {
-            setPendingPaymentId(paymentRequest.paymentId);
-            if (typeof window !== 'undefined') {
-              sessionStorage.setItem('pendingPaymentId', paymentRequest.paymentId);
-            }
-          }
+          setPendingPaymentId(paymentRequest.paymentId);
+          setStoredPaymentId(paymentRequest.paymentId);
         }
       } catch (error) {
         // requestPayment가 reject된 경우 (리다이렉트되거나 결제 창이 닫힌 경우)
@@ -725,7 +712,7 @@ export function StarCandyProductsPresenter({
     <div className={`space-y-6 ${className || ''}`}>
       {/* 별사탕 잔액 박스 */}
       <div className="mb-4">
-        <StarCandyBalanceBox autoFetch={true} compact={true} />
+        <StarCandyBalanceBox key={balanceBoxKey} autoFetch={true} compact={true} />
       </div>
 
       <div className='text-center mb-8'>

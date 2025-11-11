@@ -15,7 +15,7 @@
     "next-dev": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; next dev --turbopack --port ${PORT:-3100}'",
     "prenext-dev": "npm run -s gen:types || true",
     "predev": "npm run -s gen:types || true",
-    "build": "npm run gen:thumbs && next build",
+    "build": "next build",
     "prebuild": "sh -c 'if [ \"$VERCEL\" != \"1\" ]; then npm run -s gen:types; else echo Skip gen:types on Vercel; fi'",
     "start": "next start",
     "prestart": "npm run -s gen:types || true",
