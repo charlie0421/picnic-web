@@ -125,6 +125,16 @@ export default function StarCandyBalanceBox({
 
   const { starCandy, starCandyBonus, totalCandy, isLoading } = getStarCandyData();
 
+  // 비로그인 상태에서는 컴포넌트를 표시하지 않음
+  // autoFetch가 true일 때는 user가 없으면 표시하지 않음
+  // autoFetch가 false일 때는 props로 데이터가 전달되더라도 user가 없으면 표시하지 않음
+  if (autoFetch && !user) {
+    return null;
+  }
+  if (!autoFetch && !user && propStarCandy === undefined) {
+    return null;
+  }
+
   if (compact) {
     return (
       <div
