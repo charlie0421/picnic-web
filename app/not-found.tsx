@@ -14,8 +14,15 @@ const languages = {
   ko: { name: '한국어', flag: '🇰🇷' },
   en: { name: 'English', flag: '🇺🇸' },
   ja: { name: '日本語', flag: '🇯🇵' },
-  zh: { name: '中文', flag: '🇨🇳' },
-  id: { name: 'Bahasa Indonesia', flag: '🇮🇩' }
+  'zh-cn': { name: '简体中文', flag: '🇨🇳' },
+  'zh-tw': { name: '繁體中文', flag: '🇹🇼' },
+  id: { name: 'Bahasa Indonesia', flag: '🇮🇩' },
+  es: { name: 'Español', flag: '🇪🇸' },
+  bn: { name: 'বাংলা', flag: '🇧🇩' },
+  tl: { name: 'Filipino', flag: '🇵🇭' },
+  th: { name: 'ไทย', flag: '🇹🇭' },
+  vi: { name: 'Tiếng Việt', flag: '🇻🇳' },
+  my: { name: 'မြန်မာဘာသာ', flag: '🇲🇲' },
 };
 
 const translations = {
@@ -43,13 +50,21 @@ const translations = {
     backButton: '戻る',
     languageSelect: '言語選択'
   },
-  zh: {
+  'zh-cn': {
     title: '找不到页面',
     subtitle: '您请求的页面不存在。',
     description: '请重新检查地址或返回首页。',
     homeButton: '返回首页',
     backButton: '返回',
     languageSelect: '选择语言'
+  },
+  'zh-tw': {
+    title: '頁面未找到',
+    subtitle: '您請求的頁面不存在。',
+    description: '請重新檢查地址或返回首頁。',
+    homeButton: '返回首頁',
+    backButton: '返回',
+    languageSelect: '選擇語言'
   },
   id: {
     title: 'Halaman Tidak Ditemukan',
@@ -58,6 +73,54 @@ const translations = {
     homeButton: 'Ke Beranda',
     backButton: 'Kembali',
     languageSelect: 'Pilih Bahasa'
+  },
+  es: {
+    title: 'Página No Encontrada',
+    subtitle: 'La página que solicitaste no existe.',
+    description: 'Por favor, verifica la dirección nuevamente o regresa a la página de inicio.',
+    homeButton: 'Ir al Inicio',
+    backButton: 'Volver',
+    languageSelect: 'Seleccionar Idioma'
+  },
+  bn: {
+    title: 'পৃষ্ঠা পাওয়া যায়নি',
+    subtitle: 'আপনি যে পৃষ্ঠাটি অনুরোধ করেছেন তা বিদ্যমান নেই।',
+    description: 'অনুগ্রহ করে ঠিকানা আবার পরীক্ষা করুন বা হোমপেজে ফিরে যান।',
+    homeButton: 'হোমে যান',
+    backButton: 'ফিরে যান',
+    languageSelect: 'ভাষা নির্বাচন করুন'
+  },
+  tl: {
+    title: 'Hindi Natagpuan ang Pahina',
+    subtitle: 'Ang pahinang hiniling mo ay hindi umiiral.',
+    description: 'Mangyaring suriin muli ang address o bumalik sa homepage.',
+    homeButton: 'Pumunta sa Home',
+    backButton: 'Bumalik',
+    languageSelect: 'Pumili ng Wika'
+  },
+  th: {
+    title: 'ไม่พบหน้า',
+    subtitle: 'หน้าที่คุณร้องขอไม่มีอยู่',
+    description: 'กรุณาตรวจสอบที่อยู่อีกครั้งหรือกลับไปที่หน้าแรก',
+    homeButton: 'ไปที่หน้าแรก',
+    backButton: 'กลับ',
+    languageSelect: 'เลือกภาษา'
+  },
+  vi: {
+    title: 'Không Tìm Thấy Trang',
+    subtitle: 'Trang bạn yêu cầu không tồn tại.',
+    description: 'Vui lòng kiểm tra lại địa chỉ hoặc quay lại trang chủ.',
+    homeButton: 'Về Trang Chủ',
+    backButton: 'Quay Lại',
+    languageSelect: 'Chọn Ngôn Ngữ'
+  },
+  my: {
+    title: 'စာမျက်နှာ မတွေ့ရှိပါ',
+    subtitle: 'သင်တောင်းဆိုထားသော စာမျက်နှာသည် မရှိပါ။',
+    description: 'ကျေးဇူးပြု၍ လိပ်စာကို ထပ်မံစစ်ဆေးပါ သို့မဟုတ် ပင်မစာမျက်နှာသို့ ပြန်သွားပါ။',
+    homeButton: 'ပင်မစာမျက်နှာသို့ သွားရန်',
+    backButton: 'ပြန်သွားရန်',
+    languageSelect: 'ဘာသာစကား ရွေးချယ်ရန်'
   }
 };
 
@@ -74,12 +137,25 @@ export default function GlobalNotFound() {
       const pathname = window.location.pathname;
       setCurrentPath(pathname);
       
-      // URL에서 언어 추출 (예: /ja/vote2 → ja)
-      const languageMatch = pathname.match(/^\/([a-z]{2})(?:\/|$)/);
-      const detectedLang = languageMatch ? languageMatch[1] : 'ko';
+      // URL에서 언어 추출 (예: /ja/vote2 → ja, /zh-cn/vote → zh-cn)
+      const languageMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/);
+      let detectedLang: keyof typeof languages = 'ko';
+      
+      if (languageMatch) {
+        const langCode = languageMatch[1];
+        // zh-cn, zh-tw 같은 코드는 그대로 사용
+        if (langCode === 'zh-cn' || langCode === 'zh-tw') {
+          detectedLang = langCode as keyof typeof languages;
+        } else if (langCode === 'zh') {
+          // zh만 있으면 zh-cn으로 기본값 설정
+          detectedLang = 'zh-cn';
+        } else {
+          detectedLang = langCode as keyof typeof languages;
+        }
+      }
       
       // 지원하는 언어인지 확인
-      if (languages[detectedLang as keyof typeof languages]) {
+      if (languages[detectedLang]) {
         setCurrentLanguage(detectedLang);
       } else {
         setCurrentLanguage('ko');
@@ -93,11 +169,14 @@ export default function GlobalNotFound() {
     isClient
   });
 
-  const t = translations[currentLanguage as keyof typeof translations] || translations.ko;
+  // zh로 시작하는 경우 zh-cn으로 기본값 설정
+  const normalizedLang = currentLanguage === 'zh' ? 'zh-cn' : currentLanguage;
+  const t = translations[normalizedLang as keyof typeof translations] || translations.ko;
 
   const handleGoHome = () => {
-    console.log('🚀 [GlobalNotFound] 홈으로 리다이렉트:', `/${currentLanguage}`);
-    router.push(`/${currentLanguage}`);
+    const langPath = normalizedLang;
+    console.log('🚀 [GlobalNotFound] 홈으로 리다이렉트:', `/${langPath}`);
+    router.push(`/${langPath}`);
   };
 
   const handleGoBack = () => {
@@ -273,42 +352,45 @@ export default function GlobalNotFound() {
             justifyContent: 'center',
             flexWrap: 'wrap'
           }}>
-            {Object.entries(languages).map(([lang, { name, flag }]) => (
-              <button
-                key={lang}
-                onClick={() => handleLanguageChange(lang)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: lang === currentLanguage ? '#7c3aed' : 'rgba(243, 244, 246, 0.9)',
-                  color: lang === currentLanguage ? 'white' : '#374151',
-                  border: lang === currentLanguage ? '2px solid #7c3aed' : '2px solid rgba(229, 231, 235, 0.9)',
-                  borderRadius: '20px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  backdropFilter: 'blur(5px)'
-                }}
-                onMouseOver={(e) => {
-                  if (lang !== currentLanguage) {
-                    e.currentTarget.style.backgroundColor = 'rgba(229, 231, 235, 0.9)';
-                    e.currentTarget.style.borderColor = 'rgba(209, 213, 219, 0.9)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (lang !== currentLanguage) {
-                    e.currentTarget.style.backgroundColor = 'rgba(243, 244, 246, 0.9)';
-                    e.currentTarget.style.borderColor = 'rgba(229, 231, 235, 0.9)';
-                  }
-                }}
-              >
-                <span style={{ fontSize: '1.1em' }}>{flag}</span>
-                <span>{name}</span>
-              </button>
-            ))}
+            {Object.entries(languages).map(([lang, { name, flag }]) => {
+              const isSelected = lang === normalizedLang;
+              return (
+                <button
+                  key={lang}
+                  onClick={() => handleLanguageChange(lang)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: isSelected ? '#7c3aed' : 'rgba(243, 244, 246, 0.9)',
+                    color: isSelected ? 'white' : '#374151',
+                    border: isSelected ? '2px solid #7c3aed' : '2px solid rgba(229, 231, 235, 0.9)',
+                    borderRadius: '20px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backdropFilter: 'blur(5px)'
+                  }}
+                  onMouseOver={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.backgroundColor = 'rgba(229, 231, 235, 0.9)';
+                      e.currentTarget.style.borderColor = 'rgba(209, 213, 219, 0.9)';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!isSelected) {
+                      e.currentTarget.style.backgroundColor = 'rgba(243, 244, 246, 0.9)';
+                      e.currentTarget.style.borderColor = 'rgba(229, 231, 235, 0.9)';
+                    }
+                  }}
+                >
+                  <span style={{ fontSize: '1.1em' }}>{flag}</span>
+                  <span>{name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
