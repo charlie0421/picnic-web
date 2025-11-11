@@ -23,6 +23,11 @@ const languages = [
   { code: 'zh-cn', name: '简体中文', flag: '🇨🇳' },
   { code: 'zh-tw', name: '繁體中文', flag: '🇹🇼' },
   { code: 'id', name: 'Bahasa Indonesia', flag: '🇮🇩' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'bn', name: 'বাংলা', flag: '🇧🇩' },
+  { code: 'tl', name: 'Filipino', flag: '🇵🇭' },
+  { code: 'th', name: 'ไทย', flag: '🇹🇭' },
+  { code: 'vi', name: 'Tiếng Việt', flag: '🇻🇳' },
   { code: 'my', name: 'မြန်မာဘာသာ', flag: '🇲🇲' },
 ];
 
@@ -52,13 +57,21 @@ const translations = {
     backButton: '前のページ',
     languageSelect: '言語',
   },
-  zh: {
+  'zh-cn': {
     title: '页面未找到',
     subtitle: '404',
     description: '您正在寻找的页面已被删除、重命名或暂时不可用。',
     homeButton: '首页',
     backButton: '上一页',
     languageSelect: '语言',
+  },
+  'zh-tw': {
+    title: '頁面未找到',
+    subtitle: '404',
+    description: '您正在尋找的頁面已被刪除、重新命名或暫時不可用。',
+    homeButton: '首頁',
+    backButton: '上一頁',
+    languageSelect: '語言',
   },
   id: {
     title: 'Halaman Tidak Ditemukan',
@@ -67,6 +80,54 @@ const translations = {
     homeButton: 'Beranda',
     backButton: 'Halaman Sebelumnya',
     languageSelect: 'Bahasa',
+  },
+  es: {
+    title: 'Página No Encontrada',
+    subtitle: '404',
+    description: 'La página que buscas ha sido eliminada, renombrada o no está disponible temporalmente.',
+    homeButton: 'Inicio',
+    backButton: 'Página Anterior',
+    languageSelect: 'Idioma',
+  },
+  bn: {
+    title: 'পৃষ্ঠা পাওয়া যায়নি',
+    subtitle: '404',
+    description: 'আপনি যে পৃষ্ঠাটি খুঁজছেন তা মুছে ফেলা হয়েছে, নাম পরিবর্তন করা হয়েছে বা সাময়িকভাবে উপলব্ধ নয়।',
+    homeButton: 'হোম',
+    backButton: 'পূর্ববর্তী পৃষ্ঠা',
+    languageSelect: 'ভাষা',
+  },
+  tl: {
+    title: 'Hindi Natagpuan ang Pahina',
+    subtitle: '404',
+    description: 'Ang pahinang hinahanap mo ay natanggal, pinalitan ng pangalan, o pansamantalang hindi available.',
+    homeButton: 'Home',
+    backButton: 'Nakaraang Pahina',
+    languageSelect: 'Wika',
+  },
+  th: {
+    title: 'ไม่พบหน้า',
+    subtitle: '404',
+    description: 'หน้าที่คุณกำลังมองหาถูกลบ เปลี่ยนชื่อ หรือไม่พร้อมใช้งานชั่วคราว',
+    homeButton: 'หน้าแรก',
+    backButton: 'หน้าก่อนหน้า',
+    languageSelect: 'ภาษา',
+  },
+  vi: {
+    title: 'Không Tìm Thấy Trang',
+    subtitle: '404',
+    description: 'Trang bạn đang tìm kiếm đã bị xóa, đổi tên hoặc tạm thời không khả dụng.',
+    homeButton: 'Trang Chủ',
+    backButton: 'Trang Trước',
+    languageSelect: 'Ngôn Ngữ',
+  },
+  my: {
+    title: 'စာမျက်နှာ မတွေ့ရှိပါ',
+    subtitle: '404',
+    description: 'သင်ရှာဖွေနေသော စာမျက်နှာကို ဖျက်လိုက်ပြီး၊ အမည်ပြောင်းလိုက်ပြီး သို့မဟုတ် ယာယီအားဖြင့် မရရှိနိုင်ပါ။',
+    homeButton: 'ပင်မစာမျက်နှာ',
+    backButton: 'ယခင်စာမျက်နှာ',
+    languageSelect: 'ဘာသာစကား',
   },
 };
 
@@ -98,7 +159,9 @@ export default function LanguageNotFound() {
     return <div>Loading...</div>;
   }
 
-  const trans = translations[currentLang as keyof typeof translations] || translations.ko;
+  // zh로 시작하는 경우 zh-cn으로 기본값 설정
+  const normalizedLang = currentLang === 'zh' ? 'zh-cn' : currentLang;
+  const trans = translations[normalizedLang as keyof typeof translations] || translations.ko;
 
   const handleLanguageChange = (newLang: string) => {
     if (isValidLanguage(newLang)) {

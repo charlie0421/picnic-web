@@ -14,8 +14,15 @@ const languages = {
   ko: { name: '한국어', flag: '🇰🇷' },
   en: { name: 'English', flag: '🇺🇸' },
   ja: { name: '日本語', flag: '🇯🇵' },
-  zh: { name: '中文', flag: '🇨🇳' },
-  id: { name: 'Bahasa Indonesia', flag: '🇮🇩' }
+  'zh-cn': { name: '简体中文', flag: '🇨🇳' },
+  'zh-tw': { name: '繁體中文', flag: '🇹🇼' },
+  id: { name: 'Bahasa Indonesia', flag: '🇮🇩' },
+  es: { name: 'Español', flag: '🇪🇸' },
+  bn: { name: 'বাংলা', flag: '🇧🇩' },
+  tl: { name: 'Filipino', flag: '🇵🇭' },
+  th: { name: 'ไทย', flag: '🇹🇭' },
+  vi: { name: 'Tiếng Việt', flag: '🇻🇳' },
+  my: { name: 'မြန်မာဘာသာ', flag: '🇲🇲' },
 };
 
 const translations = {
@@ -49,7 +56,7 @@ const translations = {
     languageSelect: '言語選択',
     errorCode: 'エラーコード: 500'
   },
-  zh: {
+  'zh-cn': {
     title: '服务器错误',
     subtitle: '抱歉，遇到了临时的服务器问题。',
     description: '请稍后再试。如果问题持续，请联系客服。',
@@ -58,6 +65,16 @@ const translations = {
     retryButton: '重试',
     languageSelect: '选择语言',
     errorCode: '错误代码: 500'
+  },
+  'zh-tw': {
+    title: '伺服器錯誤',
+    subtitle: '抱歉，遇到了暫時的伺服器問題。',
+    description: '請稍後再試。如果問題持續，請聯絡客服。',
+    homeButton: '回到首頁',
+    backButton: '返回',
+    retryButton: '重試',
+    languageSelect: '選擇語言',
+    errorCode: '錯誤代碼: 500'
   },
   id: {
     title: 'Terjadi Kesalahan Server',
@@ -68,6 +85,66 @@ const translations = {
     retryButton: 'Coba Lagi',
     languageSelect: 'Pilih Bahasa',
     errorCode: 'Kode Error: 500'
+  },
+  es: {
+    title: 'Error del Servidor',
+    subtitle: 'Lo sentimos, encontramos un problema temporal del servidor.',
+    description: 'Por favor, inténtalo de nuevo en un momento. Si el problema continúa, contacta con el servicio al cliente.',
+    homeButton: 'Ir al Inicio',
+    backButton: 'Volver',
+    retryButton: 'Reintentar',
+    languageSelect: 'Seleccionar Idioma',
+    errorCode: 'Código de Error: 500'
+  },
+  bn: {
+    title: 'সার্ভার ত্রুটি ঘটেছে',
+    subtitle: 'দুঃখিত, আমরা একটি অস্থায়ী সার্ভার সমস্যার সম্মুখীন হয়েছি।',
+    description: 'অনুগ্রহ করে একটু পরে আবার চেষ্টা করুন। সমস্যা অব্যাহত থাকলে, গ্রাহক সেবার সাথে যোগাযোগ করুন।',
+    homeButton: 'হোমে যান',
+    backButton: 'ফিরে যান',
+    retryButton: 'আবার চেষ্টা করুন',
+    languageSelect: 'ভাষা নির্বাচন করুন',
+    errorCode: 'ত্রুটি কোড: 500'
+  },
+  tl: {
+    title: 'Naganap ang Server Error',
+    subtitle: 'Paumanhin, nakatagpo kami ng pansamantalang server issue.',
+    description: 'Mangyaring subukan muli sa ilang sandali. Kung patuloy ang problema, makipag-ugnayan sa customer service.',
+    homeButton: 'Pumunta sa Home',
+    backButton: 'Bumalik',
+    retryButton: 'Subukan Muli',
+    languageSelect: 'Pumili ng Wika',
+    errorCode: 'Error Code: 500'
+  },
+  th: {
+    title: 'เกิดข้อผิดพลาดของเซิร์ฟเวอร์',
+    subtitle: 'ขออภัย พบปัญหาชั่วคราวของเซิร์ฟเวอร์',
+    description: 'กรุณาลองใหม่อีกครั้งในอีกสักครู่ หากปัญหายังคงอยู่ กรุณาติดต่อฝ่ายบริการลูกค้า',
+    homeButton: 'ไปที่หน้าแรก',
+    backButton: 'กลับ',
+    retryButton: 'ลองอีกครั้ง',
+    languageSelect: 'เลือกภาษา',
+    errorCode: 'รหัสข้อผิดพลาด: 500'
+  },
+  vi: {
+    title: 'Lỗi Máy Chủ',
+    subtitle: 'Xin lỗi, chúng tôi gặp phải sự cố tạm thời của máy chủ.',
+    description: 'Vui lòng thử lại sau một lúc. Nếu vấn đề vẫn tiếp tục, vui lòng liên hệ dịch vụ khách hàng.',
+    homeButton: 'Về Trang Chủ',
+    backButton: 'Quay Lại',
+    retryButton: 'Thử Lại',
+    languageSelect: 'Chọn Ngôn Ngữ',
+    errorCode: 'Mã Lỗi: 500'
+  },
+  my: {
+    title: 'ဆာဗား အမှားအယွင်း ဖြစ်ပွားခဲ့သည်',
+    subtitle: 'ဝမ်းနည်းပါတယ်၊ ကျွန်ုပ်တို့သည် ယာယီဆာဗား ပြဿနာတစ်ခုနှင့် ရင်ဆိုင်ခဲ့ရသည်။',
+    description: 'ကျေးဇူးပြု၍ ခဏအကြာတွင် ထပ်မံကြိုးစားပါ။ ပြဿနာ ဆက်လက်ရှိနေပါက၊ ဖောက်သည်ဝန်ဆောင်မှုသို့ ဆက်သွယ်ပါ။',
+    homeButton: 'ပင်မစာမျက်နှာသို့ သွားရန်',
+    backButton: 'ပြန်သွားရန်',
+    retryButton: 'ထပ်မံကြိုးစားရန်',
+    languageSelect: 'ဘာသာစကား ရွေးချယ်ရန်',
+    errorCode: 'အမှားအယွင်း ကုဒ်: 500'
   }
 };
 
@@ -93,8 +170,22 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => {
     if (isClient && typeof window !== 'undefined') {
       const pathname = window.location.pathname;
-      const languageMatch = pathname.match(/^\/([a-z]{2})(?:\/|$)/);
-      const detectedLang = languageMatch ? languageMatch[1] as Language : 'ko';
+      // zh-cn, zh-tw 같은 하이픈 포함 언어 코드도 처리
+      const languageMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/);
+      let detectedLang: Language = 'ko';
+      
+      if (languageMatch) {
+        const langCode = languageMatch[1];
+        // zh-cn, zh-tw 같은 코드는 그대로 사용
+        if (langCode === 'zh-cn' || langCode === 'zh-tw') {
+          detectedLang = langCode as Language;
+        } else if (langCode === 'zh') {
+          // zh만 있으면 zh-cn으로 기본값 설정
+          detectedLang = 'zh-cn';
+        } else {
+          detectedLang = langCode as Language;
+        }
+      }
       
       if (languages[detectedLang]) {
         setCurrentLanguage(detectedLang);
@@ -108,7 +199,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
     }
   }, [isClient]);
 
-  const t = translations[currentLanguage];
+  const t = translations[currentLanguage] || translations.ko;
 
   const handleLanguageChange = (newLang: Language) => {
     setCurrentLanguage(newLang);
@@ -256,36 +347,43 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             flexWrap: 'wrap', 
             gap: '8px' 
           }}>
-            {Object.entries(languages).map(([code, lang]) => (
-              <button
-                key={code}
-                onClick={() => handleLanguageChange(code as Language)}
-                style={{
-                  padding: '8px 12px',
-                  border: 'none',
-                  borderRadius: '20px',
-                  backgroundColor: currentLanguage === code ? '#8b5cf6' : '#e5e7eb',
-                  color: currentLanguage === code ? 'white' : '#374151',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  backdropFilter: 'blur(5px)',
-                  fontWeight: currentLanguage === code ? 'bold' : 'normal'
-                }}
-                onMouseEnter={(e) => {
-                  if (currentLanguage !== code) {
-                    e.currentTarget.style.backgroundColor = '#d1d5db'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (currentLanguage !== code) {
-                    e.currentTarget.style.backgroundColor = '#e5e7eb'
-                  }
-                }}
-              >
-                {lang.flag} {lang.name}
-              </button>
-            ))}
+            {Object.entries(languages).map(([code, lang]) => {
+              const isCurrentLang = currentLanguage === code;
+              return (
+                <button
+                  key={code}
+                  onClick={() => handleLanguageChange(code as Language)}
+                  style={{
+                    padding: '8px 12px',
+                    border: 'none',
+                    borderRadius: '20px',
+                    backgroundColor: isCurrentLang ? '#8b5cf6' : '#e5e7eb',
+                    color: isCurrentLang ? 'white' : '#374151',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    backdropFilter: 'blur(5px)',
+                    fontWeight: isCurrentLang ? 'bold' : 'normal',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isCurrentLang) {
+                      e.currentTarget.style.backgroundColor = '#d1d5db'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isCurrentLang) {
+                      e.currentTarget.style.backgroundColor = '#e5e7eb'
+                    }
+                  }}
+                >
+                  <span>{lang.flag}</span>
+                  <span>{lang.name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
