@@ -131,8 +131,20 @@ export function StarCandyProductsPresenter({
     const paymentStatus = searchParams.get('status');
     const paymentId = searchParams.get('paymentId');
     
+    // URL 파라미터에 paymentId나 status가 없으면 sessionStorage 정리 후 종료
+    // (이전 세션의 sessionStorage에 남아있는 paymentId로 인한 오작동 방지)
+    if (!paymentId && !paymentStatus) {
+      setPendingPaymentId(null);
+      setIsVerifying(false);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('pendingPaymentId');
+      }
+      return;
+    }
+    
     // sessionStorage에서도 pendingPaymentId 확인 (컴포넌트 재렌더링 시 유지)
     const storedPaymentId = typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
+    // URL 파라미터가 있으면 우선적으로 사용
     const effectivePaymentId = paymentId || storedPaymentId;
 
     if (effectivePaymentId && user) {
@@ -205,13 +217,33 @@ export function StarCandyProductsPresenter({
 
   // 결제 요청 후 주기적으로 검증 시도 (콜백이 호출되지 않은 경우 대비)
   useEffect(() => {
+    // URL 파라미터에서 paymentId나 status 확인
+    const urlPaymentId = searchParams.get('paymentId');
+    const urlStatus = searchParams.get('status');
+    
+    // URL 파라미터에 paymentId나 status가 없으면 검증을 시작하지 않음
+    // (이전 세션의 sessionStorage에 남아있는 paymentId로 인한 오작동 방지)
+    if (!urlPaymentId && !urlStatus) {
+      // URL 파라미터가 없으면 sessionStorage도 정리
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('pendingPaymentId');
+      }
+      setPendingPaymentId(null);
+      setIsVerifying(false);
+      isClearedRef.current = true;
+      currentPaymentIdRef.current = null;
+      return;
+    }
+    
     // sessionStorage에서도 pendingPaymentId 확인 (컴포넌트 재렌더링 시 유지)
     const storedPaymentId = typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
-    const effectivePendingPaymentId = pendingPaymentId || storedPaymentId;
+    // URL 파라미터가 있으면 우선적으로 사용, 없으면 sessionStorage 사용
+    const effectivePendingPaymentId = urlPaymentId || pendingPaymentId || storedPaymentId;
     
     if (!effectivePendingPaymentId || !user) {
       isClearedRef.current = true;
       currentPaymentIdRef.current = null;
+      setIsVerifying(false);
       return;
     }
     
@@ -228,7 +260,7 @@ export function StarCandyProductsPresenter({
 
     let attemptCount = 0;
 
-    // 검증 시작 시 펄스 애니메이션 표시
+    // 검증 시작 시 펄스 애니메이션 표시 (URL 파라미터가 있을 때만)
     setIsVerifying(true);
 
     const verifyInterval = setInterval(async () => {
@@ -293,7 +325,7 @@ export function StarCandyProductsPresenter({
       currentPaymentIdRef.current = null;
       clearInterval(verifyInterval);
     };
-  }, [pendingPaymentId, user, showSuccessDialog]);
+  }, [pendingPaymentId, user, showSuccessDialog, searchParams]);
 
   const formatPrice = (price: number | null, currency: 'KRW' | 'USD') => {
     if (!price) return '';
