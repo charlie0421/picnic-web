@@ -56,7 +56,7 @@ export function DialogProvider({ children }: DialogProviderProps) {
   }, []);
 
   const showDialog = useCallback(
-    (props: DialogProps) => {
+    (props: Omit<DialogProps, 'isOpen' | 'onClose'>) => {
       setDialogState({
         isOpen: true,
         type: 'dialog',

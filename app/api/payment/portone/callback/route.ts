@@ -5,10 +5,34 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const returnTo = url.searchParams.get('returnTo') || '/star-candy';
-    return NextResponse.redirect(new URL(returnTo, request.url));
-  } catch {
-    return NextResponse.redirect(new URL('/star-candy', request.url));
+    console.log('[Callback] Full URL:', url.toString());
+    console.log('[Callback] Search params:', Object.fromEntries(url.searchParams.entries()));
+    
+    const returnTo = url.searchParams.get('returnTo') || '/ko/star-candy';
+    
+    // 포트원 v2 브라우저 SDK는 redirectUrl에 paymentId를 쿼리 파라미터로 전달할 수 있습니다
+    // 또는 URL 해시에 포함될 수 있습니다
+    const paymentId = url.searchParams.get('paymentId') || 
+                      url.searchParams.get('imp_uid') ||
+                      url.searchParams.get('merchant_uid') ||
+                      url.searchParams.get('payment_id');
+    
+    console.log('[Callback] Extracted paymentId:', paymentId);
+    
+    // 결제 ID가 있으면 쿼리 파라미터로 전달
+    const redirectUrl = new URL(returnTo, request.url);
+    if (paymentId) {
+      redirectUrl.searchParams.set('paymentId', paymentId);
+      redirectUrl.searchParams.set('status', 'success');
+      console.log('[Callback] Redirecting to:', redirectUrl.toString());
+    } else {
+      console.warn('[Callback] No paymentId found in callback URL');
+    }
+    
+    return NextResponse.redirect(redirectUrl);
+  } catch (error) {
+    console.error('[Callback] PortOne callback error:', error);
+    return NextResponse.redirect(new URL('/ko/star-candy', request.url));
   }
 }
 

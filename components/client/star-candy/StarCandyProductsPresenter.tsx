@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { Products } from '@/types/interfaces';
 import { getCdnImageUrl } from '@/utils/api/image';
@@ -13,8 +13,8 @@ import { portOneService } from '@/lib/payment/portone';
 import { payPalService } from '@/lib/payment/paypal';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useLoginRequired } from '@/components/ui/Dialog';
-import { usePathname, useRouter } from 'next/navigation';
+import { useLoginRequired, useDialog } from '@/components/ui/Dialog';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { saveRedirectUrl } from '@/utils/auth-redirect';
 
 interface StarCandyProductsPresenterProps {
@@ -29,13 +29,271 @@ export function StarCandyProductsPresenter({
   className
 }: StarCandyProductsPresenterProps) {
   const { t, currentLanguage } = useLanguageStore();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin || false;
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>('paypal');
   const [processingProductId, setProcessingProductId] = useState<string | null>(null);
-  const showLoginRequired = useLoginRequired();
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const isVerifyingRef = useRef(false); // 중복 호출 방지 플래그
+  const isClearedRef = useRef(false);
+  const currentPaymentIdRef = useRef<string | null>(null);
+  const dialogContext = useDialog();
+  const showLoginRequired = dialogContext.showLoginRequired;
+  const showDialog = dialogContext.showDialog;
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 성공 Dialog 표시 헬퍼 함수
+  const showSuccessDialog = useCallback((verifyResult: {
+    payment?: { productId?: string; starCandy?: number; bonusAmount?: number; amount?: number };
+    balance?: { total?: number };
+  }) => {
+    if (!showDialog) {
+      alert(t('payment_success'));
+      router.replace(pathname || '/ko/star-candy');
+      window.location.reload();
+      return;
+    }
+
+    const product = products.find(p => p.id === verifyResult.payment?.productId);
+    const productName = product ? getLocalizedString(product.product_name, currentLanguage) : '';
+
+    showDialog({
+      type: 'success',
+      size: 'md',
+      title: t('payment_completed_title'),
+      description: t('payment_completed_description'),
+      children: (
+        <div className="space-y-4 py-2">
+          {/* 충전 내용 */}
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
+            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300">{t('recharge_details')}</h4>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400">{t('product_name_label')}:</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">{productName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400">{t('recharge_star_candy_label')}:</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {verifyResult.payment?.starCandy?.toLocaleString() || 0}{t('unit_count')}
+                </span>
+              </div>
+              {verifyResult.payment?.bonusAmount && verifyResult.payment.bonusAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">{t('bonus_star_candy_label')}:</span>
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    +{verifyResult.payment.bonusAmount.toLocaleString()}{t('unit_count')}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400">{t('payment_amount_label')}:</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                  {verifyResult.payment?.amount?.toLocaleString() || 0}{t('currency_krw')}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* 결과 내용 */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 space-y-2">
+            <h4 className="font-semibold text-sm text-blue-700 dark:text-blue-300">{t('recharge_result')}</h4>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-blue-600 dark:text-blue-400">{t('total_recharge_star_candy_label')}:</span>
+                <span className="font-semibold text-blue-700 dark:text-blue-300">
+                  {((verifyResult.payment?.starCandy || 0) + (verifyResult.payment?.bonusAmount || 0)).toLocaleString()}{t('unit_count')}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-blue-200 dark:border-blue-800">
+                <span className="text-blue-600 dark:text-blue-400">{t('current_balance_label')}:</span>
+                <span className="font-bold text-lg text-blue-700 dark:text-blue-300">
+                  {verifyResult.balance?.total?.toLocaleString() || 0}{t('unit_count')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+      onClose: () => {
+        router.replace(pathname || '/ko/star-candy');
+        window.location.reload();
+      },
+    });
+  }, [showDialog, products, currentLanguage, router, pathname, t]);
+
+  // 페이지 로드 시 URL 파라미터에서 결제 상태 확인
+  useEffect(() => {
+    const paymentStatus = searchParams.get('status');
+    const paymentId = searchParams.get('paymentId');
+    
+    // sessionStorage에서도 pendingPaymentId 확인 (컴포넌트 재렌더링 시 유지)
+    const storedPaymentId = typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
+    const effectivePaymentId = paymentId || storedPaymentId;
+
+    if (effectivePaymentId && user) {
+      // paymentId가 있으면 pendingPaymentId를 설정하여 주기적 검증 시작
+      // 첫 번째 useEffect는 한 번만 검증 시도하고, 이미 완료되었으면 즉시 처리
+      const verifyPaymentOnce = async () => {
+        // 중복 호출 방지
+        if (isVerifyingRef.current) {
+          return;
+        }
+
+        isVerifyingRef.current = true;
+
+        try {
+          const verifyResponse = await fetch('/api/payment/portone/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ paymentId: effectivePaymentId }),
+          });
+
+          const verifyResult = await verifyResponse.json();
+          
+          // verified가 true인지 확인
+          const isVerified = verifyResult.verified === true || verifyResult.verified === 'true' || verifyResult.verified === 1;
+          
+          if (isVerified) {
+            // 결제 완료 및 검증 성공
+            isVerifyingRef.current = false;
+            setPendingPaymentId(null);
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('pendingPaymentId');
+            }
+            showSuccessDialog(verifyResult);
+          } else if (verifyResult.status === 'READY' || (verifyResult.status === 'PAID' && verifyResult.verified === false)) {
+            // 결제가 아직 처리 중인 경우
+            isVerifyingRef.current = false;
+            setPendingPaymentId(effectivePaymentId);
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('pendingPaymentId', effectivePaymentId);
+            }
+          } else {
+            // 검증 실패
+            isVerifyingRef.current = false;
+            alert(t('payment_verification_failed'));
+            router.replace(pathname || '/ko/star-candy');
+          }
+        } catch (error) {
+          console.error('[Client] Payment verification error:', error);
+          isVerifyingRef.current = false;
+          // 에러가 발생했지만 웹훅이 처리할 수 있으므로 pendingPaymentId 설정
+          setPendingPaymentId(effectivePaymentId);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('pendingPaymentId', effectivePaymentId);
+          }
+        }
+      };
+
+      verifyPaymentOnce();
+    } else if (!effectivePaymentId) {
+      // paymentId가 없으면 pendingPaymentId 초기화
+      setPendingPaymentId(null);
+      // sessionStorage에서도 제거
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('pendingPaymentId');
+      }
+    }
+  }, [searchParams, user, router, pathname, t, products, currentLanguage, showSuccessDialog]);
+
+  // 결제 요청 후 주기적으로 검증 시도 (콜백이 호출되지 않은 경우 대비)
+  useEffect(() => {
+    // sessionStorage에서도 pendingPaymentId 확인 (컴포넌트 재렌더링 시 유지)
+    const storedPaymentId = typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
+    const effectivePendingPaymentId = pendingPaymentId || storedPaymentId;
+    
+    if (!effectivePendingPaymentId || !user) {
+      isClearedRef.current = true;
+      currentPaymentIdRef.current = null;
+      return;
+    }
+    
+    // sessionStorage에 있으면 상태에도 설정
+    if (storedPaymentId && !pendingPaymentId) {
+      setPendingPaymentId(storedPaymentId);
+    }
+
+    const intervalMs = 2000; // 2초마다 시도
+
+    // 새로운 결제 ID로 시작할 때 플래그 초기화
+    isClearedRef.current = false;
+    currentPaymentIdRef.current = effectivePendingPaymentId;
+
+    let attemptCount = 0;
+
+    // 검증 시작 시 펄스 애니메이션 표시
+    setIsVerifying(true);
+
+    const verifyInterval = setInterval(async () => {
+      // 이미 정리되었거나 paymentId가 변경된 경우 중단
+      if (isClearedRef.current || currentPaymentIdRef.current !== effectivePendingPaymentId) {
+        clearInterval(verifyInterval);
+        return;
+      }
+
+      attemptCount++;
+
+      // 중복 호출 방지: 이미 검증 중이면 스킵
+      if (isVerifyingRef.current) {
+        return;
+      }
+
+      isVerifyingRef.current = true;
+
+      try {
+        const verifyResponse = await fetch('/api/payment/portone/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ paymentId: effectivePendingPaymentId }),
+        });
+
+        const verifyResult = await verifyResponse.json();
+        
+        // verified가 true인지 확인
+        const isVerified = verifyResult.verified === true || verifyResult.verified === 'true' || verifyResult.verified === 1;
+        
+        // 검증 완료 후 플래그 해제
+        isVerifyingRef.current = false;
+
+        if (isVerified) {
+          // 결제 완료 및 검증 성공
+          isClearedRef.current = true;
+          clearInterval(verifyInterval);
+          setIsVerifying(false);
+          isVerifyingRef.current = false;
+          setPendingPaymentId(null);
+          currentPaymentIdRef.current = null;
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('pendingPaymentId');
+          }
+          showSuccessDialog(verifyResult);
+        } else if (verifyResult.status === 'READY' || (verifyResult.status === 'PAID' && verifyResult.verified === false)) {
+          // READY 상태이거나 PAID 상태이지만 웹훅이 아직 처리하지 않은 경우 계속 시도
+        }
+      } catch (error) {
+        console.error(`[Client] Verification error (attempt ${attemptCount}):`, error);
+        isVerifyingRef.current = false;
+      }
+    }, intervalMs);
+
+    // 컴포넌트 언마운트 시 인터벌 정리
+    return () => {
+      isClearedRef.current = true;
+      setIsVerifying(false);
+      isVerifyingRef.current = false;
+      currentPaymentIdRef.current = null;
+      clearInterval(verifyInterval);
+    };
+  }, [pendingPaymentId, user, showSuccessDialog]);
 
   const formatPrice = (price: number | null, currency: 'KRW' | 'USD') => {
     if (!price) return '';
@@ -100,7 +358,13 @@ export function StarCandyProductsPresenter({
 
   const handlePortOnePayment = async (product: Products) => {
     try {
-      // Generate unique payment ID
+      // 사용자 인증 확인
+      if (!user?.id) {
+        alert('로그인이 필요합니다. 다시 로그인해주세요.');
+        return;
+      }
+
+      // Generate unique payment ID (merchant_uid)
       const paymentId = `PAY_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // Prepare payment request
@@ -110,6 +374,7 @@ export function StarCandyProductsPresenter({
         totalAmount: product.web_price_krw || 0,
         currency: 'KRW' as const,
         customer: {
+          userId: user.id, // 웹훅에서 사용자 식별용 (필수)
           fullName: user?.user_metadata?.name || '사용자',
           email: user?.email || '',
           phoneNumber: user?.user_metadata?.phone,
@@ -123,20 +388,66 @@ export function StarCandyProductsPresenter({
       };
 
       // Request payment using Port One v2 (automatic payment method selection)
-      const response = await portOneService.requestPaymentAuto(paymentRequest);
+      // 포트원 v2 브라우저 SDK는 결제 창을 열고, 사용자가 결제를 완료하면
+      // redirectUrl로 리다이렉트하거나 Promise를 resolve할 수 있습니다.
+      // 리다이렉트되지 않는 경우를 대비하여 주기적 검증을 시작합니다.
+      // 주기적 검증을 위해 paymentId를 상태에 저장합니다.
+      setPendingPaymentId(paymentId);
+      // sessionStorage에도 저장 (컴포넌트 재렌더링 시 유지)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('pendingPaymentId', paymentId);
+      }
+      
+      try {
+        const response = await portOneService.requestPaymentAuto(paymentRequest);
 
-      if (response.success && response.paymentId) {
-        // Verify payment on server
-        const verified = await portOneService.verifyPayment(response.paymentId);
-        
-        if (verified) {
-          alert(t('payment_success'));
-          window.location.reload();
+        if (response.success && response.paymentId) {
+          // 결제가 성공적으로 완료되었습니다
+          // 포트원 v2 브라우저 SDK가 Promise를 resolve한 경우 즉시 검증
+          try {
+            const verifyResponse = await fetch('/api/payment/portone/verify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ paymentId: response.paymentId }),
+            });
+
+            const verifyResult = await verifyResponse.json();
+            
+            if (verifyResult.verified === true) {
+              // 결제 완료 및 검증 성공
+              setPendingPaymentId(null);
+              if (typeof window !== 'undefined') {
+                sessionStorage.removeItem('pendingPaymentId');
+              }
+              showSuccessDialog(verifyResult);
+            } else if (verifyResult.status === 'READY' || (verifyResult.status === 'PAID' && verifyResult.verified === false)) {
+              // 결제가 아직 처리 중인 경우
+              const currentUrl = new URL(window.location.href);
+              currentUrl.searchParams.set('paymentId', response.paymentId);
+              currentUrl.searchParams.set('status', 'processing');
+              window.location.href = currentUrl.toString();
+            }
+          } catch (error) {
+            console.error('[Client] Payment verification error:', error);
+          }
         } else {
-          alert(t('payment_verification_failed'));
+          // 결제 실패 또는 취소 - paymentId가 있으면 주기적 검증 계속 진행
+          if (paymentRequest.paymentId) {
+            setPendingPaymentId(paymentRequest.paymentId);
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('pendingPaymentId', paymentRequest.paymentId);
+            }
+          }
         }
-      } else {
-        alert(response.error?.message || t('payment_failed'));
+      } catch (error) {
+        // requestPayment가 reject된 경우 (리다이렉트되거나 결제 창이 닫힌 경우)
+        // redirectUrl로 리다이렉트되었을 수 있으므로, 에러를 표시하지 않고
+        // callback에서 처리하도록 합니다.
+        console.error('[Client] Payment request error:', error);
+        // 에러를 표시하지 않고, redirectUrl로 리다이렉트되거나 웹훅이 처리할 때까지 기다립니다.
+        // 사용자가 결제 창을 닫은 경우는 useEffect에서 처리합니다.
       }
     } catch (error) {
       console.error('Port One payment error:', error);
@@ -455,10 +766,10 @@ export function StarCandyProductsPresenter({
 
                 <button
                   onClick={() => handlePurchase(product)}
-                  disabled={isProcessing}
+                  disabled={isProcessing || !isAdmin}
                   className={`
                     w-full py-3 font-medium rounded-lg transition-colors
-                    ${isProcessing
+                    ${isProcessing || !isAdmin
                       ? 'bg-gray-400 text-white cursor-not-allowed'
                       : 'bg-primary text-white hover:bg-primary/90'
                     }
@@ -520,6 +831,30 @@ export function StarCandyProductsPresenter({
           <li>• {t('star_candy_notice_3')}</li>
         </ul>
       </div>
+
+      {/* 결제 검증 중 펄스 애니메이션 오버레이 */}
+      {isVerifying && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center">
+            {/* 로고 아이콘 with 펄스 애니메이션 */}
+            <div className="relative inline-block">
+              <Image
+                src="/images/logo.png"
+                alt="Picnic Loading"
+                width={80}
+                height={80}
+                priority
+                className="w-20 h-20 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
+              />
+            </div>
+            
+            {/* 로딩 텍스트 */}
+            <div className="mt-6 text-white text-sm font-medium animate-scale-pulse">
+              결제를 확인하는 중입니다...
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

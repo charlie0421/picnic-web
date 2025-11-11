@@ -7,6 +7,9 @@ import { PortalType } from '@/utils/enums';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
+// PortalType을 re-export하여 다른 컴포넌트에서 사용할 수 있도록 함
+export { PortalType };
+
 interface PortalProps {
   type?: PortalType;
   children: React.ReactNode;
