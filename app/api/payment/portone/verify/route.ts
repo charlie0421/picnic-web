@@ -75,6 +75,95 @@ async function verifyPortOnePayment(paymentId: string): Promise<PortOneV2Payment
 }
 
 
+/**
+ * 쿠키에서 JWT 토큰을 읽어서 만료 시간만 확인 (토큰 갱신 없이)
+ * Supabase 쿠키에서 access_token을 추출하여 만료 시간 확인
+ */
+function decodeJWTPayload(token: string): any | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = parts[1]
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    const padded = payload + '='.repeat((4 - payload.length % 4) % 4);
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf-8'));
+  } catch (error) {
+    return null;
+  }
+}
+
+function getAccessTokenFromCookies(request: NextRequest): string | null {
+  const cookieHeader = request.headers.get('cookie');
+  if (!cookieHeader) return null;
+
+  // Supabase 프로젝트 ID 추출
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return null;
+  
+  const urlParts = supabaseUrl.split('.');
+  const projectId = urlParts[0]?.split('://')[1];
+  if (!projectId) return null;
+
+  // 쿠키에서 access_token 찾기
+  const cookiePattern = `sb-${projectId}-auth-token`;
+  const cookies = cookieHeader.split(';');
+  
+  // 분할된 쿠키 조합 시도
+  const chunks: { [key: string]: string } = {};
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name && name.startsWith(cookiePattern) && value) {
+      const chunkMatch = name.match(/\.(\d+)$/);
+      if (chunkMatch) {
+        chunks[chunkMatch[1]] = decodeURIComponent(value);
+      } else if (name === cookiePattern) {
+        // 분할되지 않은 쿠키
+        return decodeURIComponent(value);
+      }
+    }
+  }
+
+  // 분할된 쿠키 조합
+  if (Object.keys(chunks).length > 0) {
+    const sortedKeys = Object.keys(chunks).sort((a, b) => parseInt(a) - parseInt(b));
+    const combined = sortedKeys.map(key => chunks[key]).join('');
+    try {
+      const parsed = JSON.parse(combined);
+      return parsed.access_token || null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function isTokenValidWithoutRefresh(request: NextRequest): { isValid: boolean; userId?: string; error?: string } {
+  try {
+    const accessToken = getAccessTokenFromCookies(request);
+    if (!accessToken) {
+      return { isValid: false, error: 'No access token found' };
+    }
+
+    const payload = decodeJWTPayload(accessToken);
+    if (!payload) {
+      return { isValid: false, error: 'Invalid token format' };
+    }
+
+    // 토큰 만료 시간 확인
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) {
+      return { isValid: false, error: 'Token expired' };
+    }
+
+    // 토큰이 유효하면 사용자 ID 반환 (갱신 없이)
+    return { isValid: true, userId: payload.sub };
+  } catch (error) {
+    return { isValid: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // 디버깅: 요청 헤더와 쿠키 정보 로깅
@@ -89,31 +178,60 @@ export async function POST(request: NextRequest) {
       referer: request.headers.get('referer'),
     });
 
+    // 토큰 갱신 없이 인증 확인 (폴링 시 불필요한 토큰 갱신 방지)
+    const tokenCheck = isTokenValidWithoutRefresh(request);
     const supabase = await createServerSupabaseClient();
-    
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      console.error('[Verify] Authentication failed:', {
-        error: authError?.message,
-        errorCode: authError?.status,
-        errorName: authError?.name,
-        hasUser: !!user,
-        userId: user?.id,
-        // 쿠키 정보도 함께 로깅
-        cookieHeader: cookieHeader ? cookieHeader.substring(0, 200) : 'none',
-        supabaseCookies: request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })),
-      });
-      return NextResponse.json(
-        { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    let user: { id: string; email?: string } | null = null;
 
-    console.log('[Verify] Authentication successful:', {
-      userId: user.id,
-      email: user.email,
-    });
+    if (tokenCheck.isValid && tokenCheck.userId) {
+      // 토큰이 유효하면 JWT에서 추출한 userId 사용 (토큰 갱신 방지)
+      // 하지만 실제 user 객체가 필요한 경우를 위해 Supabase 호출
+      // 토큰이 유효하면 getUser()는 갱신을 시도하지 않음
+      console.log('[Verify] Token valid without refresh, verifying with Supabase:', {
+        userId: tokenCheck.userId,
+      });
+      const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !verifiedUser) {
+        console.error('[Verify] Token parsed but Supabase validation failed:', {
+          error: authError?.message,
+          parsedUserId: tokenCheck.userId,
+        });
+        return NextResponse.json(
+          { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
+          { status: 401 }
+        );
+      }
+      user = verifiedUser;
+      console.log('[Verify] Authentication successful (token valid, no refresh needed):', {
+        userId: user.id,
+        email: user.email,
+      });
+    } else {
+      // 토큰이 만료되었거나 없으면 Supabase로 재확인 (이 경우에만 갱신 시도)
+      console.log('[Verify] Token invalid or expired, checking with Supabase:', {
+        error: tokenCheck.error,
+      });
+      const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !verifiedUser) {
+        console.error('[Verify] Authentication failed:', {
+          error: authError?.message,
+          errorCode: authError?.status,
+          errorName: authError?.name,
+          hasUser: !!verifiedUser,
+          userId: verifiedUser?.id,
+          supabaseCookies: request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })),
+        });
+        return NextResponse.json(
+          { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
+          { status: 401 }
+        );
+      }
+      user = verifiedUser;
+      console.log('[Verify] Authentication successful (via Supabase getUser):', {
+        userId: user.id,
+        email: user.email,
+      });
+    }
 
     const body = await request.json();
     const { paymentId } = body;

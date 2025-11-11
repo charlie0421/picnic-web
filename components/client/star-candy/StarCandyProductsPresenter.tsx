@@ -197,7 +197,9 @@ export function StarCandyProductsPresenter({
       setPendingPaymentId(storedPaymentId);
     }
 
-    const intervalMs = 2000; // 2초마다 시도
+    const baseIntervalMs = 5000; // 기본 5초마다 시도 (토큰 갱신 부하 감소)
+    let currentIntervalMs = baseIntervalMs; // 동적 간격 (429 에러 시 증가)
+    let consecutive429Errors = 0; // 연속된 429 에러 카운트
 
     // 새로운 결제 ID로 시작할 때 플래그 초기화
     isClearedRef.current = false;
@@ -234,6 +236,23 @@ export function StarCandyProductsPresenter({
           credentials: 'include', // 쿠키 포함
           body: JSON.stringify({ paymentId: effectivePendingPaymentId }),
         });
+
+        // 429 에러 처리 (Rate Limit) - exponential backoff 적용
+        if (verifyResponse.status === 429) {
+          consecutive429Errors++;
+          // Exponential backoff: 5초 → 10초 → 20초 → 30초 (최대)
+          currentIntervalMs = Math.min(baseIntervalMs * Math.pow(2, consecutive429Errors - 1), 30000);
+          console.warn(`[Client] Rate limit (429) encountered. Increasing polling interval to ${currentIntervalMs}ms (consecutive errors: ${consecutive429Errors})`);
+          isVerifyingRef.current = false;
+          // 간격을 늘려서 재시도 (너무 빈번한 요청 방지)
+          return true; // 계속 검증하되 간격 증가
+        }
+
+        // 429가 아니면 카운터 리셋
+        if (consecutive429Errors > 0) {
+          consecutive429Errors = 0;
+          currentIntervalMs = baseIntervalMs;
+        }
 
         // 401 에러 처리
         if (verifyResponse.status === 401) {
@@ -327,19 +346,40 @@ export function StarCandyProductsPresenter({
     
     let verifyInterval: NodeJS.Timeout | null = null;
     let timeoutId: NodeJS.Timeout | null = null;
+    let isPollingActive = true;
+
+    // 동적 간격으로 polling하는 함수
+    const scheduleNextVerification = () => {
+      if (!isPollingActive || isClearedRef.current) {
+        return;
+      }
+
+      verifyInterval = setTimeout(async () => {
+        if (!isPollingActive || isClearedRef.current) {
+          return;
+        }
+
+        const shouldContinue = await verifyPayment();
+        if (!shouldContinue) {
+          // 검증 완료되었으면 중단
+          if (verifyInterval) {
+            clearTimeout(verifyInterval);
+            verifyInterval = null;
+          }
+          return;
+        }
+
+        // 다음 검증 스케줄링 (동적 간격 사용)
+        scheduleNextVerification();
+      }, currentIntervalMs);
+    };
 
     const startVerification = () => {
       verifyPayment().then((shouldContinue) => {
         if (!shouldContinue) return; // 검증 완료되었으면 중단
         
-        // 주기적으로 검증 (첫 시도 후)
-        verifyInterval = setInterval(async () => {
-          const shouldContinue = await verifyPayment();
-          if (!shouldContinue && verifyInterval) {
-            clearInterval(verifyInterval);
-            verifyInterval = null;
-          }
-        }, intervalMs);
+        // 주기적으로 검증 시작 (동적 간격 사용)
+        scheduleNextVerification();
       });
     };
 
@@ -349,11 +389,12 @@ export function StarCandyProductsPresenter({
     // 컴포넌트 언마운트 시 정리
     return () => {
       isClearedRef.current = true;
+      isPollingActive = false;
       setIsVerifying(false);
       isVerifyingRef.current = false;
       currentPaymentIdRef.current = null;
       timeoutId && clearTimeout(timeoutId);
-      verifyInterval && clearInterval(verifyInterval);
+      verifyInterval && clearTimeout(verifyInterval);
     };
   }, [pendingPaymentId, user, showSuccessDialog, getStoredPaymentId, removeStoredPaymentId, isPaymentVerified]);
 
