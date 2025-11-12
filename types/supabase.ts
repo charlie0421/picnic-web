@@ -3768,23 +3768,32 @@ export type Database = {
       transaction_internal: {
         Row: {
           action: string
+          ad_campaign_id: string | null
           created_at: string
           id: string
           platform: string
+          reward_amount: number
+          reward_type: string
           user_id: string
         }
         Insert: {
           action: string
+          ad_campaign_id?: string | null
           created_at?: string
           id?: string
           platform?: string
+          reward_amount?: number
+          reward_type?: string
           user_id: string
         }
         Update: {
           action?: string
+          ad_campaign_id?: string | null
           created_at?: string
           id?: string
           platform?: string
+          reward_amount?: number
+          reward_type?: string
           user_id?: string
         }
         Relationships: []
