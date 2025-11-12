@@ -38,12 +38,6 @@ interface StarCandyBalanceBoxProps {
   compact?: boolean;
 }
 
-interface ApiUserProfile {
-  star_candy: number;
-  star_candy_bonus: number;
-  total_candy: number;
-}
-
 export default function StarCandyBalanceBox({
   starCandy: propStarCandy,
   starCandyBonus: propStarCandyBonus,
@@ -54,37 +48,35 @@ export default function StarCandyBalanceBox({
   compact = false,
 }: StarCandyBalanceBoxProps) {
   const { t } = useLanguageStore();
-  const { user, userProfile } = useAuth();
-  const [apiUserProfile, setApiUserProfile] = useState<ApiUserProfile | null>(null);
+  const { user, userProfile, loadUserProfile } = useAuth();
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   // autoFetch가 true이고 user가 있으면 API에서 최신 데이터를 가져옵니다
   useEffect(() => {
-    if (!autoFetch || !user) return;
+    if (!autoFetch || !user) {
+      setIsLoadingProfile(false);
+      return;
+    }
 
-    const fetchUserProfile = async () => {
-      try {
-        setIsLoadingProfile(true);
-        const response = await fetch('/api/user/profile');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.user) {
-            setApiUserProfile({
-              star_candy: data.user.star_candy || 0,
-              star_candy_bonus: data.user.star_candy_bonus || 0,
-              total_candy: data.user.total_candy || 0,
-            });
-          }
+    if (userProfile) {
+      setIsLoadingProfile(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingProfile(true);
+
+    loadUserProfile(user.id)
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingProfile(false);
         }
-      } catch (error) {
-        console.error('프로필 정보 로드 실패:', error);
-      } finally {
-        setIsLoadingProfile(false);
-      }
-    };
+      });
 
-    fetchUserProfile();
-  }, [autoFetch, user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [autoFetch, user, userProfile, loadUserProfile]);
 
   // 데이터 우선순위: props > API > userProfile > 기본값
   const getStarCandyData = () => {
@@ -94,15 +86,6 @@ export default function StarCandyBalanceBox({
         starCandyBonus: propStarCandyBonus,
         totalCandy: propTotalCandy,
         isLoading: propIsLoading || false,
-      };
-    }
-
-    if (apiUserProfile) {
-      return {
-        starCandy: apiUserProfile.star_candy,
-        starCandyBonus: apiUserProfile.star_candy_bonus,
-        totalCandy: apiUserProfile.total_candy,
-        isLoading: isLoadingProfile,
       };
     }
 

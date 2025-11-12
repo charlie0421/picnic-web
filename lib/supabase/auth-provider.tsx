@@ -23,6 +23,23 @@ import { extractAvatarFromProvider } from '@/utils/image-utils';
 import { UserProfiles } from '@/types/interfaces';
 import { setLastLoginInfo, getProviderDisplayName } from '@/utils/storage';
 
+const authDebug =
+  process.env.NEXT_PUBLIC_AUTH_DEBUG === 'true' ||
+  process.env.NEXT_PUBLIC_SUPABASE_DEBUG === 'true' ||
+  process.env.NEXT_PUBLIC_VERBOSE_LOGS === 'true';
+
+const debugLog = (...args: unknown[]) => {
+  if (authDebug) {
+    console.log(...args);
+  }
+};
+
+const debugWarn = (...args: unknown[]) => {
+  if (authDebug) {
+    console.warn(...args);
+  }
+};
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
@@ -58,7 +75,7 @@ class AuthStore {
   private initPromise: Promise<void> | null = null;
   private lastExpiryWarningKey: string | null = null;
   private isAuthEvaluating: boolean = false;
-  private profileLoadInFlightUserId: string | null = null;
+  private profileLoadPromises: Map<string, Promise<UserProfiles | null>> = new Map();
 
   static getInstance(): AuthStore {
     if (!AuthStore.instance) {
@@ -70,7 +87,7 @@ class AuthStore {
   private constructor() {
     if (typeof window !== 'undefined') {
       try {
-        console.log('🔄 [AuthStore] 초기화 시작');
+        debugLog('🔄 [AuthStore] 초기화 시작');
         
         // localStorage에서 Supabase Auth 토큰 체크 (동적 키 확인)
         const checkStoredToken = () => {
@@ -91,7 +108,7 @@ class AuthStore {
                   const [name, value] = cookie.trim().split('=');
                   // 정확히 인증 토큰 쿠키만 인정하고, code-verifier 등은 무시
                   if (name === targetName && value) {
-                    console.log(`🍪 [AuthStore] 쿠키에 토큰 (${name}): 있음`);
+                    debugLog(`🍪 [AuthStore] 쿠키에 토큰 (${name}): 있음`);
                     return true;
                   }
                 }
@@ -107,13 +124,13 @@ class AuthStore {
               
               // 1단계: localStorage 확인
               const hasLocalStorageToken = localStorage.getItem(authKey);
-              console.log(`🔍 [AuthStore] localStorage에 토큰 (${authKey}):`, hasLocalStorageToken ? '있음' : '없음');
+              debugLog(`🔍 [AuthStore] localStorage에 토큰 (${authKey}):`, hasLocalStorageToken ? '있음' : '없음');
               
               // 2단계: 쿠키 확인
               const hasCookieToken = checkCookieToken(projectId);
               
               const hasAnyToken = !!hasLocalStorageToken || hasCookieToken;
-              console.log(`🔍 [AuthStore] 토큰 총합:`, {
+              debugLog(`🔍 [AuthStore] 토큰 총합:`, {
                 localStorage: !!hasLocalStorageToken,
                 cookie: hasCookieToken,
                 hasAnyToken
@@ -128,7 +145,7 @@ class AuthStore {
               const key = localStorage.key(i);
               if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
                 const hasToken = localStorage.getItem(key);
-                console.log(`🔍 [AuthStore] localStorage에 토큰 (${key}):`, hasToken ? '있음' : '없음');
+                debugLog(`🔍 [AuthStore] localStorage에 토큰 (${key}):`, hasToken ? '있음' : '없음');
                 if (hasToken) hasLocalStorage = true;
               }
             }
@@ -146,7 +163,7 @@ class AuthStore {
                   !name.includes('auth-token-code-verifier') &&
                   value
                 ) {
-                  console.log(`🍪 [AuthStore] 쿠키에 토큰 (${name}): 있음`);
+                  debugLog(`🍪 [AuthStore] 쿠키에 토큰 (${name}): 있음`);
                   hasCookie = true;
                   break;
                 }
@@ -156,7 +173,7 @@ class AuthStore {
             }
             
             const hasAnyToken = hasLocalStorage || hasCookie;
-            console.log(`🔍 [AuthStore] 전체 토큰 상태:`, {
+            debugLog(`🔍 [AuthStore] 전체 토큰 상태:`, {
               localStorage: hasLocalStorage,
               cookie: hasCookie,
               hasAnyToken
@@ -173,7 +190,7 @@ class AuthStore {
         const isLoginPage = window.location.pathname.includes('/login');
         const isCallbackPage = window.location.pathname.includes('/callback');
         
-        console.log('🔍 [AuthStore] 초기화 컨텍스트:', {
+        debugLog('🔍 [AuthStore] 초기화 컨텍스트:', {
           hasStoredToken,
           isLoginPage,
           isCallbackPage,
@@ -203,7 +220,7 @@ class AuthStore {
 
         // 🚀 순수 getUser() 기반 빠른 인증: getSession 완전히 우회
         if (hasStoredToken) {
-          console.log('🚀 [AuthStore] 쿠키 토큰 존재 → 순수 getUser() 기반 빠른 인증 처리');
+          debugLog('🚀 [AuthStore] 쿠키 토큰 존재 → 순수 getUser() 기반 빠른 인증 처리');
           this.supabaseClient = createBrowserSupabaseClient();
           
           // getUser()로 직접 사용자 정보 확인 (매우 빠르고 안정적)
@@ -213,7 +230,7 @@ class AuthStore {
         
         // 🚀 로그인 페이지 성능 최적화: 토큰이 없으면 즉시 로그아웃 상태 처리
         if (!hasStoredToken && isLoginPage) {
-          console.log('⚡ [AuthStore] 로그인 페이지에서 토큰 없음 → 즉시 로그아웃 상태 처리 (getSession 건너뛰기)');
+          debugLog('⚡ [AuthStore] 로그인 페이지에서 토큰 없음 → 즉시 로그아웃 상태 처리 (getSession 건너뛰기)');
           this.updateState({
             session: null,
             user: null,
@@ -229,20 +246,20 @@ class AuthStore {
         
         // 저장된 토큰이 없더라도 onAuthStateChange 구독과 초기화는 진행
         if (!hasStoredToken && !isCallbackPage) {
-          console.log('⚠️ [AuthStore] 저장된 토큰 없음 → 구독 유지, 초기화 진행');
+          debugLog('⚠️ [AuthStore] 저장된 토큰 없음 → 구독 유지, 초기화 진행');
         }
 
         this.supabaseClient = createBrowserSupabaseClient();
 
         // 인증 상태 변경 리스너를 생성자에서 한 번만 등록
         this.supabaseClient.auth.onAuthStateChange(async (event: string, session: any) => {
-          console.log(`[AuthStore] onAuthStateChange 이벤트 발생: ${event}`, { session });
+          debugLog(`[AuthStore] onAuthStateChange 이벤트 발생: ${event}`, { session });
 
           if (event === 'SIGNED_IN' && session?.user) {
             // 새로운 세션이면 만료 경고 가드를 리셋
             this.lastExpiryWarningKey = null;
             const provider = session.user.app_metadata?.provider;
-            console.log(`[AuthStore] SIGNED_IN 이벤트 내부, provider: ${provider}`);
+            debugLog(`[AuthStore] SIGNED_IN 이벤트 내부, provider: ${provider}`);
             if (provider && ['google', 'apple', 'kakao', 'wechat'].includes(provider)) {
               setLastLoginInfo({
                 provider: provider,
@@ -268,7 +285,7 @@ class AuthStore {
   
           // 로그아웃 이벤트 처리
           if (event === 'SIGNED_OUT' || !session) {
-            console.log('🚪 [AuthStore] 로그아웃 이벤트 - 상태 정리');
+            debugLog('🚪 [AuthStore] 로그아웃 이벤트 - 상태 정리');
             // 로그아웃 시 경고 가드 리셋
             this.lastExpiryWarningKey = null;
             // 아바타 캐시는 단순화 버전에서는 사용하지 않음
@@ -298,7 +315,7 @@ class AuthStore {
       }
     } else {
       // SSR 환경에서는 기본 상태로 초기화
-      console.log('🌐 [AuthStore] SSR 환경에서 기본 초기화');
+      debugLog('🌐 [AuthStore] SSR 환경에서 기본 초기화');
       this.updateState({
         session: null,
         user: null,
@@ -325,17 +342,17 @@ class AuthStore {
 
     // 이미 초기화된 경우 재초기화 방지
     if (this.state.isInitialized) {
-      console.log('✅ [AuthStore] 이미 초기화됨 - 재초기화 건너뜀');
+      debugLog('✅ [AuthStore] 이미 초기화됨 - 재초기화 건너뜀');
       return;
     }
 
     try {
-      console.log('🚀 [AuthStore] 완전 쿠키 기반 초기화 시작 (네트워크 요청 0개)');
+      debugLog('🚀 [AuthStore] 완전 쿠키 기반 초기화 시작 (네트워크 요청 0개)');
       
       // 🎯 완전히 쿠키 기반: JWT 파싱만 사용, getUser() 및 getSession() 완전 제거
       await this.performInstantUserAuth();
       
-      console.log('✅ [AuthStore] 쿠키 기반 초기화 완료 (네트워크 요청 없음)');
+      debugLog('✅ [AuthStore] 쿠키 기반 초기화 완료 (네트워크 요청 없음)');
     } catch (error) {
       console.error('❌ [AuthStore] 초기화 에러:', error);
       this.updateState({
@@ -355,7 +372,7 @@ class AuthStore {
     
     // 디버깅: 상태 변경 로그
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔄 [AuthStore] 상태 변경:', {
+      debugLog('🔄 [AuthStore] 상태 변경:', {
         변경전: {
           isAuthenticated: prevState.isAuthenticated,
           isLoading: prevState.isLoading,
@@ -401,7 +418,7 @@ class AuthStore {
     if (!this.supabaseClient) return;
 
     try {
-      console.log('🔄 [AuthStore] 로그아웃 시작');
+      debugLog('🔄 [AuthStore] 로그아웃 시작');
       // 1) 서버 세션/쿠키 무효화 (httpOnly 쿠키 제거)
       try {
         await fetch('/api/auth/logout', {
@@ -419,14 +436,14 @@ class AuthStore {
       if (error) {
         console.error('❌ [AuthStore] 로그아웃 에러:', error);
       } else {
-        console.log('✅ [AuthStore] 로그아웃 완료, 클라이언트 상태 초기화');
+        debugLog('✅ [AuthStore] 로그아웃 완료, 클라이언트 상태 초기화');
         // 로컬 스토리지/세션 스토리지의 인증 관련 흔적도 최대한 정리
         try {
           try {
             const before = {
               picnic_last_login: localStorage.getItem('picnic_last_login'),
             };
-            console.log('🧪 [AuthStore.signOut] before LS cleanup snapshot:', before);
+            debugLog('🧪 [AuthStore.signOut] before LS cleanup snapshot:', before);
           } catch {}
 
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -461,7 +478,7 @@ class AuthStore {
             const after = {
               picnic_last_login: localStorage.getItem('picnic_last_login'),
             };
-            console.log('🧪 [AuthStore.signOut] after LS cleanup snapshot:', after);
+            debugLog('🧪 [AuthStore.signOut] after LS cleanup snapshot:', after);
           } catch {}
         } catch {}
         this.updateState({
@@ -482,12 +499,12 @@ class AuthStore {
 
   private async performInstantUserAuth(): Promise<void> {
     if (this.isAuthEvaluating) {
-      console.log('⏭️  [AuthStore] performInstantUserAuth 중복 호출 건너뜀');
+      debugLog('⏭️  [AuthStore] performInstantUserAuth 중복 호출 건너뜀');
       return;
     }
     this.isAuthEvaluating = true;
     try {
-      console.log('🚀 [AuthStore] performInstantUserAuth 시작 (네트워크 요청 없음)');
+      debugLog('🚀 [AuthStore] performInstantUserAuth 시작 (네트워크 요청 없음)');
       const startTime = performance.now();
       
       // 🎯 쿠키에서 즉시 JWT 파싱 (네트워크 요청 없음!)
@@ -499,7 +516,7 @@ class AuthStore {
       
       const endTime = performance.now();
       
-      console.log('✅ [AuthStore] JWT 파싱 완료:', {
+      debugLog('✅ [AuthStore] JWT 파싱 완료:', {
         duration: `${(endTime - startTime).toFixed(2)}ms`,
         hasUser: !!user,
         userEmail: user?.email,
@@ -521,7 +538,7 @@ class AuthStore {
 
           const fetchedUser = result?.data?.user;
           if (fetchedUser) {
-            console.log('✅ [AuthStore] 네트워크 폴백으로 사용자 확인 성공 (httpOnly 쿠키)', {
+            debugLog('✅ [AuthStore] 네트워크 폴백으로 사용자 확인 성공 (httpOnly 쿠키)', {
               userId: fetchedUser.id?.substring(0, 8) + '...',
               email: fetchedUser.email,
               provider: fetchedUser.app_metadata?.provider,
@@ -580,7 +597,7 @@ class AuthStore {
       }
 
       // 사용자가 있으면 즉시 인증된 상태로 설정
-      console.log('✅ [AuthStore] JWT에서 사용자 확인 성공:', {
+      debugLog('✅ [AuthStore] JWT에서 사용자 확인 성공:', {
         userId: user.id?.substring(0, 8) + '...',
         email: user.email,
         provider: user.app_metadata?.provider,
@@ -596,7 +613,7 @@ class AuthStore {
           timestamp: new Date().toISOString(),
           userId: user.id,
         });
-        console.log(`✅ [AuthStore] 최근 로그인 정보 저장 (from performInstantUserAuth): ${provider}`);
+        debugLog(`✅ [AuthStore] 최근 로그인 정보 저장 (from performInstantUserAuth): ${provider}`);
       }
 
       // 세션 객체 생성 (JWT 기반)
@@ -608,7 +625,7 @@ class AuthStore {
         token_type: 'bearer'
       };
 
-      console.log('🔄 [AuthStore] 인증 상태 업데이트 중...');
+      debugLog('🔄 [AuthStore] 인증 상태 업데이트 중...');
       this.updateState({
         user: user,
         session: instantSession as any,
@@ -620,7 +637,7 @@ class AuthStore {
         loadUserProfile: this.loadUserProfile.bind(this),
       });
       
-      console.log('🎉 [AuthStore] 인증 상태 업데이트 완료 - 로딩 해제됨 (JWT 방식)');
+      debugLog('🎉 [AuthStore] 인증 상태 업데이트 완료 - 로딩 해제됨 (JWT 방식)');
 
       // 🔧 개발 환경에서 userProfile 로딩 시간 추적
       if (process.env.NODE_ENV === 'development') {
@@ -632,7 +649,7 @@ class AuthStore {
                                (this.state.userProfile?.id !== user.id);
       
       if (shouldLoadProfile) {
-        console.log('🔄 [AuthStore] 사용자 프로필 로드 시작:', {
+        debugLog('🔄 [AuthStore] 사용자 프로필 로드 시작:', {
           userId: user.id?.substring(0, 8) + '...',
           hasUserId: !!user.id,
           userEmail: user.email,
@@ -640,42 +657,36 @@ class AuthStore {
           previousUserId: this.state.userProfile?.id?.substring(0, 8) + '...' || 'none'
         });
         
-        this.loadUserProfile(user.id).then(profile => {
-          if (profile) {
-            console.log('✅ [AuthStore] 사용자 프로필 로드 성공:', {
-              is_admin: profile.is_admin,
-              is_super_admin: profile.is_super_admin
-            });
-            this.updateState({
-              ...this.state,
-              userProfile: profile,
-            });
-          } else {
-            // 초기 타이밍 이슈 대비: 짧은 지연 후 1회 재시도, 실패 시에만 경고
-            setTimeout(() => {
-              this.loadUserProfile(user.id).then(retryProfile => {
-                if (retryProfile) {
-                  console.log('✅ [AuthStore] 사용자 프로필 로드 성공(재시도):', {
-                    is_admin: retryProfile.is_admin,
-                    is_super_admin: retryProfile.is_super_admin
-                  });
-                  this.updateState({
-                    ...this.state,
-                    userProfile: retryProfile,
-                  });
-                } else {
-                  console.warn('⚠️ [AuthStore] 사용자 프로필 로드 결과가 null임 (재시도 후)');
-                }
-              }).catch(error => {
+        const loadProfileWithRetry = (attempt: number) => {
+          this.loadUserProfile(user.id)
+            .then(profile => {
+              if (profile) {
+                debugLog(`✅ [AuthStore] 사용자 프로필 로드 성공${attempt > 0 ? '(재시도)' : ''}:`, {
+                  is_admin: profile.is_admin,
+                  is_super_admin: profile.is_super_admin
+                });
+                return;
+              }
+
+              if (attempt === 0) {
+                setTimeout(() => loadProfileWithRetry(attempt + 1), 400);
+              } else {
+                console.warn('⚠️ [AuthStore] 사용자 프로필 로드 결과가 null임 (재시도 후)');
+              }
+            })
+            .catch(error => {
+              if (attempt === 0) {
+                console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패, 재시도 시도 예정:', error);
+                setTimeout(() => loadProfileWithRetry(attempt + 1), 400);
+              } else {
                 console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패(재시도):', error);
-              });
-            }, 400);
-          }
-        }).catch(error => {
-          console.warn('⚠️ [AuthStore] 사용자 프로필 로드 실패:', error);
-        });
+              }
+            });
+        };
+
+        loadProfileWithRetry(0);
       } else {
-          console.log('✅ [AuthStore] 동일 사용자 프로필이 이미 캐시됨 - 재로딩 건너뜀:', {
+          debugLog('✅ [AuthStore] 동일 사용자 프로필이 이미 캐시됨 - 재로딩 건너뜀:', {
             userId: user.id?.substring(0, 8) + '...',
             cachedProfile: {
               nickname: this.state.userProfile?.nickname,
@@ -717,7 +728,7 @@ class AuthStore {
         loadUserProfile: this.loadUserProfile.bind(this),
       });
       
-      console.log('🔄 [AuthStore] 오류로 인한 비인증 상태 설정 완료');
+      debugLog('🔄 [AuthStore] 오류로 인한 비인증 상태 설정 완료');
     } finally {
       this.isAuthEvaluating = false;
     }
@@ -727,7 +738,7 @@ class AuthStore {
 
   private async checkTokenStatusFromCookies(): Promise<void> {
     try {
-      console.log('🔄 [AuthStore] 쿠키 기반 토큰 상태 체크');
+      debugLog('🔄 [AuthStore] 쿠키 기반 토큰 상태 체크');
       
       // 완전히 쿠키 기반 - 네트워크 요청 없음
       const { getInstantUserFromCookies, getTokenExpiry } = await import('@/utils/jwt-parser');
@@ -760,164 +771,174 @@ class AuthStore {
         return;
       }
 
-      console.log('✅ [AuthStore] 쿠키 기반 토큰 상태 체크 완료 - 유효함');
+      debugLog('✅ [AuthStore] 쿠키 기반 토큰 상태 체크 완료 - 유효함');
     } catch (error) {
       console.warn('⚠️ [AuthStore] 쿠키 기반 토큰 체크 중 오류:', error);
     }
   }
 
   private async loadUserProfile(userId: string): Promise<UserProfiles | null> {
-    try {
-      // 비로그인 상태 또는 사용자 불일치 시 호출 불필요 → 즉시 종료
-      if (!this.state.isAuthenticated || !this.state.user || this.state.user.id !== userId) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('⏭️  [AuthStore] loadUserProfile 건너뜀:', {
-            isAuthenticated: this.state.isAuthenticated,
-            hasUser: !!this.state.user,
-            requestedUserId: userId?.substring(0, 8) + '...',
-            currentUserId: this.state.user?.id?.substring(0, 8) + '...'
-          });
-        }
-        return null;
-      }
-
-      if (this.profileLoadInFlightUserId === userId) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('⏭️  [AuthStore] 동일 사용자 프로필 로드 중복 호출 건너뜀:', { userId: userId.substring(0, 8) + '...' });
-        }
-        return null;
-      }
-      this.profileLoadInFlightUserId = userId;
-
-      console.log('🔍 [AuthStore] API를 통한 프로필 조회 시작:', { userId: userId.substring(0, 8) + '...' });
-      
-      // 🚀 서버 API를 통해 프로필 조회 (RLS 정책 우회)
-      const response = await fetch('/api/user/profile', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // 쿠키 포함
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.warn('⚠️ [AuthStore] API 프로필 조회 실패:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
+    // 비로그인 상태 또는 사용자 불일치 시 호출 불필요 → 즉시 종료
+    if (!this.state.isAuthenticated || !this.state.user || this.state.user.id !== userId) {
+      if (process.env.NODE_ENV === 'development') {
+        debugLog('⏭️  [AuthStore] loadUserProfile 건너뜀:', {
+          isAuthenticated: this.state.isAuthenticated,
+          hasUser: !!this.state.user,
+          requestedUserId: userId?.substring(0, 8) + '...',
+          currentUserId: this.state.user?.id?.substring(0, 8) + '...'
         });
-        
-        // 404나 403 에러인 경우 null 반환 (프로필 없음)
-        if (response.status === 404 || response.status === 403) {
+      }
+      return null;
+    }
+
+    const cachedPromise = this.profileLoadPromises.get(userId);
+    if (cachedPromise) {
+      if (process.env.NODE_ENV === 'development') {
+        debugLog('⏳ [AuthStore] 프로필 로딩 Promise 재사용:', {
+          userId: userId.substring(0, 8) + '...',
+        });
+      }
+      return cachedPromise;
+    }
+
+    const loadPromise = (async () => {
+      try {
+        debugLog('🔍 [AuthStore] API를 통한 프로필 조회 시작:', { userId: userId.substring(0, 8) + '...' });
+
+        const response = await fetch('/api/user/profile', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // 쿠키 포함
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          console.warn('⚠️ [AuthStore] API 프로필 조회 실패:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData
+          });
+
+          // 404나 403 에러인 경우 null 반환 (프로필 없음)
+          if (response.status === 404 || response.status === 403) {
+            return null;
+          }
+
+          throw new Error(`API 응답 실패: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.user) {
+          console.warn('⚠️ [AuthStore] API 응답에서 사용자 정보 없음:', data);
           return null;
         }
-        
-        throw new Error(`API 응답 실패: ${response.status} ${response.statusText}`);
-      }
 
-      const data = await response.json();
-      
-      if (!data.success || !data.user) {
-        console.warn('⚠️ [AuthStore] API 응답에서 사용자 정보 없음:', data);
+        const userProfile: UserProfiles = {
+          id: data.user.id,
+          email: data.user.email,
+          nickname: data.user.name,
+          avatar_url: data.user.avatar_url,
+          country_code: data.user.country_code ?? null,
+          star_candy: data.user.star_candy || 0,
+          star_candy_bonus: data.user.star_candy_bonus || 0,
+          jma_candy: data.user.jma_candy ?? 0,
+          is_admin: data.user.is_admin || false,
+          is_super_admin: data.user.is_super_admin || false,
+          created_at: data.user.created_at,
+          updated_at: data.user.updated_at,
+          last_ip: data.user.last_ip ?? null,
+          language: data.user.language ?? null,
+          birth_date: null,
+          birth_time: null,
+          deleted_at: null,
+          gender: null,
+          open_ages: false,
+          open_gender: false
+        };
+
+        debugLog('✅ [AuthStore] API를 통한 프로필 조회 성공:', {
+          id: userProfile.id?.substring(0, 8) + '...',
+          nickname: userProfile.nickname,
+          email: userProfile.email,
+          hasAvatar: !!userProfile.avatar_url,
+          is_admin: userProfile.is_admin,
+          is_super_admin: userProfile.is_super_admin,
+          star_candy: userProfile.star_candy
+        });
+
+        this.updateState({
+          ...this.state,
+          userProfile,
+        });
+
+        return userProfile;
+      } catch (error) {
+        console.error('❌ [AuthStore] API 프로필 조회 예외:', error);
+
+        if (process.env.NODE_ENV === 'development') {
+          debugLog('🔧 [AuthStore] 개발환경 - 기본 프로필 fallback');
+
+          const { data: { user: currentUser } } = await this.supabaseClient?.auth.getUser() || { data: { user: null } };
+
+          if (currentUser && currentUser.id === userId) {
+            const fallbackProfile: UserProfiles = {
+              id: userId,
+              email: currentUser.email || null,
+              nickname: currentUser.user_metadata?.name ||
+                       currentUser.user_metadata?.full_name ||
+                       currentUser.email?.split('@')[0] ||
+                       'User',
+              avatar_url: null,
+              country_code: null,
+              is_admin: true,
+              is_super_admin: false,
+              star_candy: 0,
+              star_candy_bonus: 0,
+              jma_candy: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              last_ip: null,
+              language: null,
+              birth_date: null,
+              birth_time: null,
+              deleted_at: null,
+              gender: null,
+              open_ages: false,
+              open_gender: false
+            };
+
+            debugLog('🐛 [AuthStore] 개발환경 fallback 프로필 생성:', {
+              nickname: fallbackProfile.nickname,
+              is_admin: fallbackProfile.is_admin
+            });
+
+            this.updateState({
+              ...this.state,
+              userProfile: fallbackProfile,
+            });
+
+            return fallbackProfile;
+          }
+        }
+
         return null;
       }
-
-      // API 응답을 UserProfiles 형식으로 변환
-      const userProfile: UserProfiles = {
-        id: data.user.id,
-        email: data.user.email,
-        nickname: data.user.name,
-        avatar_url: data.user.avatar_url,
-        country_code: data.user.country_code ?? null,
-        star_candy: data.user.star_candy || 0,
-        star_candy_bonus: data.user.star_candy_bonus || 0,
-        jma_candy: data.user.jma_candy ?? 0,
-        is_admin: data.user.is_admin || false,
-        is_super_admin: data.user.is_super_admin || false,
-        created_at: data.user.created_at,
-        updated_at: data.user.updated_at,
-        last_ip: data.user.last_ip ?? null,
-        language: data.user.language ?? null,
-        // 기본값 설정
-        birth_date: null,
-        birth_time: null,
-        deleted_at: null,
-        gender: null,
-        open_ages: false,
-        open_gender: false
-      };
-
-      console.log('✅ [AuthStore] API를 통한 프로필 조회 성공:', {
-        id: userProfile.id?.substring(0, 8) + '...',
-        nickname: userProfile.nickname,
-        email: userProfile.email,
-        hasAvatar: !!userProfile.avatar_url,
-        is_admin: userProfile.is_admin,
-        is_super_admin: userProfile.is_super_admin,
-        star_candy: userProfile.star_candy
+    })()
+      .finally(() => {
+        this.profileLoadPromises.delete(userId);
       });
 
-      return userProfile;
-
-    } catch (error) {
-      console.error('❌ [AuthStore] API 프로필 조회 예외:', error);
-      
-      // API 호출 실패시 fallback으로 기본 프로필 반환 (개발 환경)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔧 [AuthStore] 개발환경 - 기본 프로필 fallback');
-        
-        // 현재 사용자 정보 가져오기
-        const { data: { user: currentUser } } = await this.supabaseClient?.auth.getUser() || { data: { user: null } };
-        
-        if (currentUser && currentUser.id === userId) {
-          const fallbackProfile: UserProfiles = {
-            id: userId,
-            email: currentUser.email || null,
-            nickname: currentUser.user_metadata?.name || 
-                     currentUser.user_metadata?.full_name || 
-                     currentUser.email?.split('@')[0] || 
-                     'User',
-            avatar_url: null, // JWT 토큰 이미지는 사용하지 않음
-            country_code: null,
-            is_admin: true, // 개발환경에서 API 실패시 임시 관리자
-            is_super_admin: false,
-            star_candy: 0,
-            star_candy_bonus: 0,
-            jma_candy: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            last_ip: null,
-            language: null,
-            birth_date: null,
-            birth_time: null,
-            deleted_at: null,
-            gender: null,
-            open_ages: false,
-            open_gender: false
-          };
-          
-          console.log('🐛 [AuthStore] 개발환경 fallback 프로필 생성:', {
-            nickname: fallbackProfile.nickname,
-            is_admin: fallbackProfile.is_admin
-          });
-          
-          return fallbackProfile;
-        }
-      }
-      
-      return null;
-    } finally {
-      if (this.profileLoadInFlightUserId === userId) {
-        this.profileLoadInFlightUserId = null;
-      }
-    }
+    this.profileLoadPromises.set(userId, loadPromise);
+    return loadPromise;
   }
 }
 
 // AuthProvider 컴포넌트를 memo로 감싸서 완전히 안정화
 const AuthProviderComponent = memo(function AuthProviderInternal({ children }: AuthProviderProps) {
-  console.log('🏗️ [AuthProvider] 컴포넌트 생성/재렌더링');
+  debugLog('🏗️ [AuthProvider] 컴포넌트 생성/재렌더링');
   
   const [contextValue, setContextValue] = useState<AuthContextType>(() => {
     return AuthStore.getInstance().getState();
@@ -930,7 +951,7 @@ const AuthProviderComponent = memo(function AuthProviderInternal({ children }: A
     const initializeAndSubscribe = async () => {
       try {
         await authStore.waitForInitialization();
-        console.log('✅ [AuthProvider] 초기화 완료 대기 성공');
+        debugLog('✅ [AuthProvider] 초기화 완료 대기 성공');
       } catch (error) {
         console.error('❌ [AuthProvider] 초기화 대기 중 오류:', error);
       }
@@ -940,7 +961,7 @@ const AuthProviderComponent = memo(function AuthProviderInternal({ children }: A
     
     // 상태 변경 구독
     const unsubscribe = authStore.subscribe((newState) => {
-      console.log('🔄 [AuthProvider] Context 값 변경:', {
+      debugLog('🔄 [AuthProvider] Context 값 변경:', {
         isLoading: newState.isLoading,
         isInitialized: newState.isInitialized,
         isAuthenticated: newState.isAuthenticated,

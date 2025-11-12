@@ -1,7 +1,6 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { getServerUser } from '@/lib/supabase/server';
 import NotificationsClient from './NotificationsClient';
-import { LoadingState } from '@/components/server';
 
 export default async function NotificationsPage({
   params,
@@ -32,10 +31,6 @@ export default async function NotificationsPage({
     notifications_all_read: localeMessages.notifications_all_read || '모든 알림을 읽음 처리했습니다',
   };
 
-  return (
-    <Suspense fallback={<LoadingState />}>
-      <NotificationsClient initialUser={user} translations={translations} />
-    </Suspense>
-  );
+  return <NotificationsClient initialUser={user} translations={translations} />;
 }
 

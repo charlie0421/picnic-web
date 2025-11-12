@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { UserProfiles } from '@/types/interfaces';
 import { useLogout } from '@/lib/auth/logout';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import MyPageAccountMenu from '@/components/server/mypage/MyPageAccountMenu';
 import StarCandyBalanceBox from '@/components/common/StarCandyBalanceBox';
+import { useAuth } from '@/lib/supabase/auth-provider';
+import { getProviderDisplayName } from '@/utils/storage';
 
 interface Translations {
   [key: string]: string;
@@ -20,22 +22,6 @@ interface MyPageClientProps {
   showDebugMenus: boolean;
 }
 
-interface ApiUserProfile {
-  id: string;
-  email: string;
-  name: string;
-  avatar_url?: string;
-  star_candy: number;
-  star_candy_bonus: number;
-  total_candy: number;
-  is_admin: boolean;
-  is_super_admin: boolean;
-  provider: string;
-  provider_display_name: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export default function MyPageClient({ 
   initialUser, 
   initialUserProfile, 
@@ -45,34 +31,40 @@ export default function MyPageClient({
 }: MyPageClientProps) {
   const logout = useLogout();
   const { setIsLoading } = useGlobalLoading();
-  const [apiUserProfile, setApiUserProfile] = useState<ApiUserProfile | null>(null);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(!!initialUser);
+  const { user, userProfile, loadUserProfile } = useAuth();
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(() => !!initialUser && !initialUserProfile);
   
   const t = (key: string) => translations[key] || key;
 
   const isGuest = !initialUser;
 
+  const initialUserId = initialUser?.id ?? null;
+
   useEffect(() => {
-    if (!initialUser) return;
+    if (!initialUserId) {
+      setIsLoadingProfile(false);
+      return;
+    }
 
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch('/api/user/profile');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.user) {
-            setApiUserProfile(data.user);
-          }
+    if (userProfile) {
+      setIsLoadingProfile(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingProfile(true);
+
+    loadUserProfile(initialUserId)
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingProfile(false);
         }
-      } catch (error) {
-        console.error('프로필 정보 로드 실패:', error);
-      } finally {
-        setIsLoadingProfile(false);
-      }
-    };
+      });
 
-    fetchUserProfile();
-  }, [initialUser]);
+    return () => {
+      cancelled = true;
+    };
+  }, [initialUserId, userProfile, loadUserProfile]);
 
   const handleLogout = async () => {
     try {
@@ -96,6 +88,16 @@ export default function MyPageClient({
     }
   };
 
+  const resolvedProfile = useMemo<UserProfiles | null>(() => {
+    if (userProfile) {
+      return userProfile;
+    }
+    if (initialUserProfile) {
+      return initialUserProfile;
+    }
+    return null;
+  }, [userProfile, initialUserProfile]);
+
   const getUserInfo = useCallback(() => {
     if (isGuest) {
       return {
@@ -111,45 +113,37 @@ export default function MyPageClient({
       };
     }
 
-    if (apiUserProfile) {
-      return {
-        nickname: apiUserProfile.name || t('label_default_user'),
-        email: apiUserProfile.email || t('label_default_email'),
-        avatar_url: apiUserProfile.avatar_url || null,
-        provider: apiUserProfile.provider || 'email',
-        provider_display_name: apiUserProfile.provider_display_name || t('label_mypage_provider_default'),
-        star_candy: apiUserProfile.star_candy || 0,
-        star_candy_bonus: apiUserProfile.star_candy_bonus || 0,
-        total_candy: apiUserProfile.total_candy || 0,
-        source: 'api'
-      };
-    }
+    if (resolvedProfile) {
+      const starCandy = resolvedProfile.star_candy || 0;
+      const starCandyBonus = resolvedProfile.star_candy_bonus || 0;
+      const providerKey = user?.app_metadata?.provider || 'email';
+      const providerDisplay = getProviderDisplayName(providerKey) || t('label_mypage_provider_default');
 
-    if (initialUserProfile) {
       return {
-        nickname: initialUserProfile.nickname || initialUser?.email?.split('@')[0] || t('label_default_user'),
-        email: initialUserProfile.email || initialUser?.email || t('label_default_email'), 
-        avatar_url: initialUserProfile.avatar_url || null,
-        provider: 'email',
-        provider_display_name: t('label_mypage_provider_default'),
-        star_candy: initialUserProfile.star_candy || 0,
-        star_candy_bonus: initialUserProfile.star_candy_bonus || 0,
-        total_candy: (initialUserProfile.star_candy || 0) + (initialUserProfile.star_candy_bonus || 0),
-        source: 'userProfile'
+        nickname: resolvedProfile.nickname || initialUser?.email?.split('@')[0] || t('label_default_user'),
+        email: resolvedProfile.email || initialUser?.email || t('label_default_email'), 
+        avatar_url: resolvedProfile.avatar_url || null,
+        provider: providerKey,
+        provider_display_name: providerDisplay,
+        star_candy: starCandy,
+        star_candy_bonus: starCandyBonus,
+        total_candy: starCandy + starCandyBonus,
+        source: userProfile ? 'context' : 'userProfile'
       };
     }
     
     if (initialUser) {
+      const providerKey = initialUser.app_metadata?.provider || 'email';
       return {
         nickname: initialUser.user_metadata?.name || initialUser.email?.split('@')[0] || t('label_default_user'),
         email: initialUser.email || t('label_default_email'),
         avatar_url: null,
-        provider: initialUser.app_metadata?.provider || 'email',
-        provider_display_name: initialUser.app_metadata?.provider || t('label_mypage_provider_default'),
+        provider: providerKey,
+        provider_display_name: getProviderDisplayName(providerKey) || t('label_mypage_provider_default'),
         star_candy: 0,
         star_candy_bonus: 0,
         total_candy: 0,
-        source: 'token'
+        source: 'user'
       };
     }
 
@@ -164,7 +158,7 @@ export default function MyPageClient({
       total_candy: 0,
       source: 'default'
     };
-  }, [apiUserProfile, initialUserProfile, initialUser, t, isGuest]);
+  }, [resolvedProfile, initialUser, user, t, isGuest, userProfile]);
 
   const userInfo = getUserInfo();
 
@@ -267,7 +261,7 @@ export default function MyPageClient({
                 </span>
               </span>
             </div>
-            {!isLoadingProfile && apiUserProfile && (
+            {!isLoadingProfile && resolvedProfile && (
               <div className="mt-3">
                 <StarCandyBalanceBox
                   starCandy={userInfo.star_candy}

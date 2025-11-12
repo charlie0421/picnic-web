@@ -9,6 +9,28 @@ import { useAuth } from '@/hooks/useAuth';
 import PortalGuard from '@/components/PortalGuard';
 import { PortalType } from '@/utils/enums';
 
+const mergeNotificationLists = (
+  previous: UserNotification[],
+  incoming: UserNotification[],
+  reset: boolean
+) => {
+  const base = reset ? [] : previous;
+  const map = new Map<string, UserNotification>();
+
+  base.forEach((item) => {
+    map.set(String(item.id), item);
+  });
+
+  incoming.forEach((item) => {
+    map.set(String(item.id), item);
+  });
+
+  const merged = Array.from(map.values());
+  const newlyAdded = merged.length - base.length;
+
+  return { merged, newlyAdded };
+};
+
 interface NotificationsClientProps {
   initialUser: any;
   translations: Record<string, string>;
@@ -34,32 +56,39 @@ export default function NotificationsClient({
   const currentLang = pathname?.split('/')[1] || 'ko';
 
   // 알림 목록 로드
-  const loadNotifications = useCallback(async (reset = false) => {
-    if (loading) return;
+  const loadNotifications = useCallback(
+    async (reset = false) => {
+      if (loading) return;
 
-    setLoading(true);
-    try {
-      const startFrom = reset ? 0 : from;
-      const list = await NotificationInboxService.fetchNotifications({
-        from: startFrom,
-        limit,
-      });
+      setLoading(true);
+      try {
+        const startFrom = reset ? 0 : from;
+        const list = await NotificationInboxService.fetchNotifications({
+          from: startFrom,
+          limit,
+        });
 
-      if (reset) {
-        setNotifications(list);
-        setFrom(list.length);
-      } else {
-        setNotifications((prev) => [...prev, ...list]);
-        setFrom((prev) => prev + list.length);
+        setNotifications((prev) => {
+          const { merged, newlyAdded } = mergeNotificationLists(prev, list, reset);
+
+          if (reset) {
+            setFrom(merged.length);
+          } else {
+            setFrom((prevFrom) => prevFrom + newlyAdded);
+          }
+
+          setHasMore(list.length === limit && newlyAdded > 0);
+
+          return merged;
+        });
+      } catch (error) {
+        console.error('알림 로드 실패:', error);
+      } finally {
+        setLoading(false);
       }
-
-      setHasMore(list.length === limit);
-    } catch (error) {
-      console.error('알림 로드 실패:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [from, loading]);
+    },
+    [from, loading, limit]
+  );
 
   // 초기 로드
   useEffect(() => {

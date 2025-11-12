@@ -102,6 +102,12 @@ export function useTranslations() {
   const t = useCallback((key: string, fallback?: string): string => {
     const value = get(translations, key);
     if (value !== undefined && value !== null && value !== '') return value;
+
+    // 번역 로드 중에는 경고를 발생시키지 않고 fallback 또는 빈 문자열 반환
+    if (isLoading) {
+      return fallback ?? '';
+    }
+
     // 번역이 없을 경우: fallback이 제공되면 사용, 없으면 개발 환경에서만 키 표시, 프로덕션에서는 빈 문자열
     if (fallback) return fallback;
     if (process.env.NODE_ENV === 'development') {
@@ -109,11 +115,14 @@ export function useTranslations() {
       return `[${key}]`;
     }
     return ''; // 프로덕션에서는 빈 문자열 반환
-  }, [translations, getCurrentLanguage]);
+  }, [translations, isLoading, getCurrentLanguage]);
   
   const tHtml = useCallback((key: string, replacements: Record<string, string>): string => {
     let rawText = get(translations, key);
     if (!rawText || rawText === '') {
+      if (isLoading) {
+        return '';
+      }
       if (process.env.NODE_ENV === 'development') {
         console.warn(`[Translation] Missing key: "${key}" for language: ${getCurrentLanguage()}`);
         rawText = `[${key}]`;
@@ -125,19 +134,24 @@ export function useTranslations() {
       rawText = rawText.replace(new RegExp(`{${placeholder}}`, 'g'), value);
     }
     return rawText;
-  }, [translations, getCurrentLanguage]);
+  }, [translations, isLoading, getCurrentLanguage]);
 
   // 동적 키 지원 (기존 호환성)
   const tDynamic = useCallback((key: string, fallback?: string): string => {
     const value = get(translations, key);
     if (value !== undefined && value !== null && value !== '') return value;
+
+    if (isLoading) {
+      return fallback ?? '';
+    }
+
     if (fallback) return fallback;
     if (process.env.NODE_ENV === 'development') {
       console.warn(`[Translation] Missing key: "${key}" for language: ${getCurrentLanguage()}`);
       return `[${key}]`;
     }
     return '';
-  }, [translations, getCurrentLanguage]);
+  }, [translations, isLoading, getCurrentLanguage]);
 
   return {
     t,                      // 타입 안전한 번역 함수
