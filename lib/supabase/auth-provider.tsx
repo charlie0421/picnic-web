@@ -563,10 +563,16 @@ class AuthStore {
               token_type: 'bearer' as const,
             };
 
+            const previousUserId = this.state.user?.id;
+            const previousUserProfile = this.state.userProfile;
+            const isSameUser = previousUserId === fetchedUser.id && !!previousUserId;
+            const nextUserProfile = isSameUser ? previousUserProfile : null;
+            const shouldLoadProfile = !nextUserProfile;
+
             this.updateState({
               user: fetchedUser,
               session: instantSession as any,
-              userProfile: null,
+              userProfile: nextUserProfile,
               isLoading: false,
               isInitialized: true,
               isAuthenticated: true,
@@ -574,8 +580,14 @@ class AuthStore {
               loadUserProfile: this.loadUserProfile.bind(this),
             });
 
-            // 프로필 로드 트리거
-            this.loadUserProfile(fetchedUser.id).catch(() => {});
+            if (shouldLoadProfile) {
+              // 프로필 로드 트리거
+              this.loadUserProfile(fetchedUser.id).catch(() => {});
+            } else if (process.env.NODE_ENV === 'development') {
+              debugLog('✅ [AuthStore] 동일 사용자 프로필이 이미 캐시됨 - 폴백 경로 재로딩 건너뜀:', {
+                userId: fetchedUser.id?.substring(0, 8) + '...',
+              });
+            }
             return;
           }
         } catch (e) {
@@ -625,11 +637,17 @@ class AuthStore {
         token_type: 'bearer'
       };
 
+      const previousUserId = this.state.user?.id;
+      const previousUserProfile = this.state.userProfile;
+      const isSameUser = previousUserId === user.id && !!previousUserId;
+      const nextUserProfile = isSameUser ? previousUserProfile : null;
+      const shouldLoadProfile = !nextUserProfile;
+
       debugLog('🔄 [AuthStore] 인증 상태 업데이트 중...');
       this.updateState({
         user: user,
         session: instantSession as any,
-        userProfile: null,
+        userProfile: nextUserProfile,
         isLoading: false, // 즉시 로딩 완료
         isInitialized: true,
         isAuthenticated: true,
@@ -645,16 +663,13 @@ class AuthStore {
       }
 
       // 프로필 캐싱 로직: 프로필이 없거나 사용자가 변경된 경우에만 로드
-      const shouldLoadProfile = !this.state.userProfile || 
-                               (this.state.userProfile?.id !== user.id);
-      
       if (shouldLoadProfile) {
         debugLog('🔄 [AuthStore] 사용자 프로필 로드 시작:', {
           userId: user.id?.substring(0, 8) + '...',
           hasUserId: !!user.id,
           userEmail: user.email,
-          reason: !this.state.userProfile ? 'profile_not_cached' : 'user_changed',
-          previousUserId: this.state.userProfile?.id?.substring(0, 8) + '...' || 'none'
+          reason: nextUserProfile ? 'explicit_refresh' : 'profile_not_cached',
+          previousUserId: previousUserProfile?.id?.substring(0, 8) + '...' || 'none'
         });
         
         const loadProfileWithRetry = (attempt: number) => {
@@ -689,8 +704,8 @@ class AuthStore {
           debugLog('✅ [AuthStore] 동일 사용자 프로필이 이미 캐시됨 - 재로딩 건너뜀:', {
             userId: user.id?.substring(0, 8) + '...',
             cachedProfile: {
-              nickname: this.state.userProfile?.nickname,
-              is_admin: this.state.userProfile?.is_admin
+              nickname: nextUserProfile?.nickname,
+              is_admin: nextUserProfile?.is_admin
             }
           });
         }

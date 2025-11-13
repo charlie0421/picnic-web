@@ -1084,9 +1084,12 @@ export interface TransactionAdmob {
 
 export interface TransactionInternal {
   action: string
+  ad_campaign_id: string | null
   created_at: string
   id: string
   platform: string
+  reward_amount: number
+  reward_type: string
   user_id: string
 }
 
@@ -1472,6 +1475,7 @@ export interface UserVoteItemRequestHistory {
 }
 
 export interface ViewTransactionAll {
+  ad_campaign_id: string | null
   ad_network: string | null
   commission: number | null
   created_at: string | null

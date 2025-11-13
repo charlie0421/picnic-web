@@ -5029,6 +5029,7 @@ export type Database = {
       }
       view_transaction_all: {
         Row: {
+          ad_campaign_id: string | null
           ad_network: string | null
           commission: number | null
           created_at: string | null
