@@ -4,6 +4,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { createClient } from '@supabase/supabase-js';
+import { emitSupabaseAuthRateLimit } from './events';
 
 const supabaseDebug =
   process.env.NEXT_PUBLIC_SUPABASE_DEBUG === 'true' ||
@@ -30,6 +31,87 @@ let isCreatingClient = false;
 
 // 로그아웃 진행 상태 추적을 위한 전역 변수
 let isSigningOut = false;
+
+const AUTH_REFRESH_ENDPOINT = '/auth/v1/token';
+const RATE_LIMIT_THROTTLE_WINDOW_MS = 2000;
+let lastRateLimitHandledAt = 0;
+
+function resolveRequestUrl(input: RequestInfo | URL): string | null {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.toString();
+  if (typeof Request !== 'undefined' && input instanceof Request) return input.url;
+  if (typeof input === 'object' && input && 'url' in input) {
+    try {
+      return (input as Request).url;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function getBodyAsString(init?: RequestInit): string | null {
+  if (!init?.body) return null;
+  if (typeof init.body === 'string') return init.body;
+  if (typeof URLSearchParams !== 'undefined' && init.body instanceof URLSearchParams) {
+    return init.body.toString();
+  }
+  return null;
+}
+
+function isRefreshTokenRequest(url: string | null, init?: RequestInit): boolean {
+  if (!url) return false;
+  if (!url.includes(AUTH_REFRESH_ENDPOINT)) return false;
+  if (url.includes('grant_type=refresh_token')) return true;
+  const bodyString = getBodyAsString(init);
+  if (bodyString?.includes('grant_type=refresh_token')) {
+    return true;
+  }
+  return false;
+}
+
+function triggerSupabaseRefreshRateLimitHandling() {
+  if (supabaseDebug) {
+    debugWarn('⚠️ [Client] Refresh 토큰 요청이 429를 반환했습니다. 강제 로그아웃을 진행합니다.');
+  }
+
+  if (typeof window !== 'undefined') {
+    emitSupabaseAuthRateLimit();
+  }
+
+  void (async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      debugWarn('⚠️ [Client] 강제 로그아웃 처리 중 오류가 발생했습니다:', error);
+    }
+  })();
+}
+
+const supabaseAuthFetch: typeof fetch = async (input, init) => {
+  const response = await fetch(input, init);
+
+  try {
+    const requestUrl = resolveRequestUrl(input);
+    const shouldHandleRateLimit = isRefreshTokenRequest(requestUrl, init) && response.status === 429;
+
+    if (shouldHandleRateLimit) {
+      const now = Date.now();
+      if (now - lastRateLimitHandledAt > RATE_LIMIT_THROTTLE_WINDOW_MS) {
+        lastRateLimitHandledAt = now;
+        triggerSupabaseRefreshRateLimitHandling();
+      } else if (supabaseDebug) {
+        debugWarn('⏱️ [Client] 429 처리 스로틀링으로 인해 로그아웃이 중복 실행되지 않습니다.');
+      }
+    }
+  } catch (error) {
+    if (supabaseDebug) {
+      debugWarn('⚠️ [Client] 429 처리 로직에서 오류가 발생했습니다:', error);
+    }
+  }
+
+  return response;
+};
 
 // 🔧 환경변수에서 Supabase 설정 로드 (이제 정상 작동함)
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -154,6 +236,7 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
         storage: window.localStorage,
         storageKey: `sb-${SUPABASE_URL.split('.')[0].split('://')[1]}-auth-token`,
         debug: false,
+        fetch: supabaseAuthFetch,
       },
       global: {
         headers: {

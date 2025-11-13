@@ -1,6 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import { SUPABASE_AUTH_RATE_LIMIT_EVENT, SupabaseAuthRateLimitDetail } from '@/lib/supabase/events';
+import { useTranslations } from '@/hooks/useTranslations';
 
 interface NotificationState {
   id: string;
@@ -34,6 +36,7 @@ interface NotificationProviderProps {
 
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const [notifications, setNotifications] = useState<NotificationState[]>([]);
+  const { t } = useTranslations();
 
   const addNotification = useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -62,6 +65,34 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     setNotifications([]);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleSupabaseRateLimit = (event: Event) => {
+      const detail = (event as CustomEvent<SupabaseAuthRateLimitDetail>).detail;
+      const titleKey = detail?.titleKey ?? 'notifications.auth.rateLimitTitle';
+      const messageKey = detail?.messageKey ?? 'notifications.auth.rateLimitMessage';
+      const defaultTitle = detail?.title ?? 'Session expired';
+      const defaultMessage =
+        detail?.message ?? 'You were automatically signed out after too many requests. Please sign in again.';
+      const notificationTitle = t(titleKey, defaultTitle) || defaultTitle;
+      const notificationMessage = t(messageKey, defaultMessage) || defaultMessage;
+
+      addNotification({
+        type: detail?.type ?? 'warning',
+        title: notificationTitle,
+        message: notificationMessage,
+        duration: detail?.duration ?? 8000,
+      });
+    };
+
+    window.addEventListener(SUPABASE_AUTH_RATE_LIMIT_EVENT, handleSupabaseRateLimit);
+
+    return () => {
+      window.removeEventListener(SUPABASE_AUTH_RATE_LIMIT_EVENT, handleSupabaseRateLimit);
+    };
+  }, [addNotification, t]);
+
   const value = {
     notifications,
     addNotification,
@@ -74,4 +105,4 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       {children}
     </NotificationContext.Provider>
   );
-} 
+}
