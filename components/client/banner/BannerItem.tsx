@@ -2,11 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Banner } from '@/types/interfaces';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString } from '@/utils/api/strings';
 import { transformBannerLink } from '@/utils/api/link-transformer';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 export interface BannerItemProps {
   banner: Banner;
@@ -16,8 +15,8 @@ export function BannerItem({ banner }: BannerItemProps) {
   const content = (
     <div className='relative w-full bg-gray-200 overflow-hidden hover:shadow-lg transition-shadow rounded-lg banner-aspect-ratio'>
       {banner.image ? (
-        <Image
-          src={getCdnImageUrl(getLocalizedString(banner.image))}
+        <OptimizedImage
+          src={getLocalizedString(banner.image)}
           alt={getLocalizedString(banner.title)}
           fill
           sizes='(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 33vw'

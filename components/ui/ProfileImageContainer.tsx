@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getSafeAvatarUrl, preloadImage } from '@/utils/image-utils';
+import { resolveAvatarUrlClient } from '@/utils/image-utils';
 
 interface ProfileImageContainerProps {
   avatarUrl: string | null;
@@ -14,41 +14,58 @@ export const ProfileImageContainer: React.FC<ProfileImageContainerProps> = ({
   width,
   height,
   borderRadius = 0,
-  className = ''
+  className = '',
 }) => {
-  const initialSrc = useMemo(() => getSafeAvatarUrl(avatarUrl || null), [avatarUrl]);
+  const fallbackUrl = '/images/default-avatar.svg';
+  const transformOptions = useMemo(
+    () => ({
+      width,
+      height,
+      resize: 'cover' as const,
+      quality: 85,
+    }),
+    [width, height],
+  );
 
-  const [resolvedSrc, setResolvedSrc] = useState<string>(initialSrc || '/images/default-avatar.svg');
+  const [resolvedSrc, setResolvedSrc] = useState<string>(fallbackUrl);
   const [isFallback, setIsFallback] = useState<boolean>(!avatarUrl);
 
   useEffect(() => {
-    let mounted = true;
-    const next = initialSrc || '/images/default-avatar.svg';
+    let cancelled = false;
+    const controller = new AbortController();
 
-    // 아바타가 있는 경우 사전 로드 후 설정하여 onError 루프 방지
-    const run = async () => {
-      if (!avatarUrl) {
-        if (!mounted) return;
-        setResolvedSrc('/images/default-avatar.svg');
-        setIsFallback(true);
-        return;
-      }
-      const ok = await preloadImage(next);
-      if (!mounted) return;
-      if (ok) {
-        setResolvedSrc(next);
-        setIsFallback(false);
-      } else {
-        setResolvedSrc('/images/default-avatar.svg');
-        setIsFallback(true);
+    const loadAvatar = async () => {
+      try {
+        const result = await resolveAvatarUrlClient(
+          avatarUrl,
+          transformOptions,
+          {
+            fallbackUrl,
+            signal: controller.signal,
+          },
+        );
+        if (cancelled) return;
+        setResolvedSrc(result.url);
+        setIsFallback(result.isFallback);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        if (!cancelled) {
+          console.warn('🖼️ [ProfileImageContainer] 아바타 로드 실패:', error);
+          setResolvedSrc(fallbackUrl);
+          setIsFallback(true);
+        }
       }
     };
 
-    run();
+    loadAvatar();
+
     return () => {
-      mounted = false;
+      cancelled = true;
+      controller.abort();
     };
-  }, [initialSrc, avatarUrl]);
+  }, [avatarUrl, transformOptions, fallbackUrl]);
 
   return (
     <div 

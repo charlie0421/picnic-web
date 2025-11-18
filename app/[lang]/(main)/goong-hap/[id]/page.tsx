@@ -6,7 +6,6 @@ import { useTranslations } from '@/hooks/useTranslations';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { SafeAvatar } from '@/components/ui/SafeAvatar';
-import { getCdnImageUrl } from '@/utils/api/image';
 
 export default function GoongHapDetailPage() {
   const params = useParams();
@@ -20,8 +19,9 @@ export default function GoongHapDetailPage() {
   const [data, setData] = useState<any>(null);
   const [artist, setArtist] = useState<{ id: number; name: any; image?: string | null } | null>(null);
   const artistImageUrl = useMemo(() => {
-    const raw = (artist?.image as string) || (data?.artist_image as string) || '';
-    return getCdnImageUrl(raw, 256);
+    const raw =
+      (artist?.image as string) || (data?.artist_image as string) || null;
+    return raw;
   }, [artist?.image, data?.artist_image]);
   const [processing, setProcessing] = useState(false);
   const [invokeStatus, setInvokeStatus] = useState<{ ok: boolean; message?: string } | null>(null);

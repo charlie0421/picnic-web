@@ -1,7 +1,6 @@
 import { MediaListPresenter } from "@/components/client/media";
 import { Media } from "@/types/interfaces";
 import { getLocalizedString } from "@/utils/api/strings";
-import { getCdnImageUrl } from "@/utils/api/image";
 import { getMedias } from "@/utils/api/queries";
 
 export interface MediaListFetcherProps {
@@ -33,7 +32,7 @@ export async function MediaListFetcher({ className }: MediaListFetcherProps = {}
     const formattedMedia: Media[] = mediaData.map((item) => ({
       ...item,
       title: getLocalizedString(item.title),
-      thumbnail_url: item.thumbnail_url ? getCdnImageUrl(item.thumbnail_url) : null,
+      thumbnail_url: item.thumbnail_url,
       video_url: item.video_url, // 비디오 URL은 CDN 처리하지 않음
     }));
 

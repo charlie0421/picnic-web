@@ -29,6 +29,9 @@ function extractLanguageFromPath(pathname: string): Language {
  * 개발용 디버그 정보 컴포넌트
  * hydration mismatch를 방지하기 위해 완전히 준비된 후에만 표시
  */
+const ENABLE_LANGUAGE_DEBUG =
+  process.env.NEXT_PUBLIC_ENABLE_LANGUAGE_DEBUG === 'true';
+
 function DebugInfo({ 
   mounted, 
   isHydrated, 
@@ -42,7 +45,7 @@ function DebugInfo({
   isTranslationReady: boolean;
   currentLanguage: Language;
 }) {
-  if (process.env.NODE_ENV !== 'development') return null;
+  if (!ENABLE_LANGUAGE_DEBUG) return null;
 
   return (
     <div className="fixed bottom-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded text-xs z-50">
@@ -212,19 +215,6 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
   }, [mounted, isHydrated, isTranslationReady, isLoading, currentLanguage, loadTranslations]);
 
   // 준비되지 않은 경우 null 반환 → 각 페이지의 Suspense fallback이 표시됨
-  if (!mounted || !isHydrated || isLoading || !isTranslationReady) {
-    return (
-      <DebugInfo 
-        mounted={mounted}
-        isHydrated={isHydrated}
-        isLoading={isLoading}
-        isTranslationReady={isTranslationReady}
-        currentLanguage={currentLanguage}
-      />
-    );
-  }
-
-  // 준비 완료 시 children 렌더링
   return (
     <>
       {children}

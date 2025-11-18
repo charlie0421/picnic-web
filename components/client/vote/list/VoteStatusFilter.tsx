@@ -18,64 +18,48 @@ const VoteStatusFilter = React.memo(
     const { userProfile } = useAuth();
     const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
 
+    const fallbackTexts: Record<VoteStatus, string> = {
+      [VOTE_STATUS.ONGOING]: 'Ongoing',
+      [VOTE_STATUS.UPCOMING]: 'Upcoming',
+      [VOTE_STATUS.COMPLETED]: 'Completed',
+      [VOTE_STATUS.ADMIN]: 'Admin',
+    };
+
     const getButtonText = (status: VoteStatus) => {
       if (!isTranslationReady) {
-        // 번역이 로드되지 않은 경우 fallback 텍스트 사용
-        switch (status) {
-          case VOTE_STATUS.ONGOING:
-            return t('vote_status_fallback_ongoing');
-          case VOTE_STATUS.UPCOMING:
-            return t('vote_status_fallback_upcoming');
-          case VOTE_STATUS.COMPLETED:
-            return t('vote_status_fallback_completed');
-          case VOTE_STATUS.ADMIN:
-            return 'Admin';
-          default:
-            return '';
-        }
+        return fallbackTexts[status];
       }
 
       switch (status) {
         case VOTE_STATUS.ONGOING:
-          return t('label_tabbar_vote_active');
+          return t('label_tabbar_vote_active') || fallbackTexts[status];
         case VOTE_STATUS.UPCOMING:
-          return t('label_tabbar_vote_upcoming');
+          return t('label_tabbar_vote_upcoming') || fallbackTexts[status];
         case VOTE_STATUS.COMPLETED:
-          return t('label_tabbar_vote_end');
+          return t('label_tabbar_vote_end') || fallbackTexts[status];
         case VOTE_STATUS.ADMIN:
-          return t('label_tabbar_vote_admin');
+          return t('label_tabbar_vote_admin') || fallbackTexts[status];
         default:
-          return '';
+          return fallbackTexts[status];
       }
     };
 
     const getAriaLabel = (status: VoteStatus) => {
       if (!isTranslationReady) {
-        switch (status) {
-          case VOTE_STATUS.ONGOING:
-            return t('vote_status_ongoing_aria_label');
-          case VOTE_STATUS.UPCOMING:
-            return t('vote_status_upcoming_aria_label');
-          case VOTE_STATUS.COMPLETED:
-            return t('vote_status_completed_aria_label');
-          case VOTE_STATUS.ADMIN:
-            return 'Admin';
-          default:
-            return '';
-        }
+        return fallbackTexts[status];
       }
 
       switch (status) {
         case VOTE_STATUS.ONGOING:
-          return t('label_tabbar_vote_active');
+          return t('label_tabbar_vote_active') || fallbackTexts[status];
         case VOTE_STATUS.UPCOMING:
-          return t('label_tabbar_vote_upcoming');
+          return t('label_tabbar_vote_upcoming') || fallbackTexts[status];
         case VOTE_STATUS.COMPLETED:
-          return t('label_tabbar_vote_end');
+          return t('label_tabbar_vote_end') || fallbackTexts[status];
         case VOTE_STATUS.ADMIN:
-          return t('label_tabbar_vote_admin');
+          return t('label_tabbar_vote_admin') || fallbackTexts[status];
         default:
-          return '';
+          return fallbackTexts[status];
       }
     };
 

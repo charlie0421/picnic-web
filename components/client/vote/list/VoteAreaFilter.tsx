@@ -15,56 +15,43 @@ const VoteAreaFilter = React.memo(
     const { t } = useLanguageStore();
     const isTranslationReady = useTranslationReady();
 
+    const fallbackTexts: Record<VoteArea, string> = {
+      [VOTE_AREAS.ALL]: 'All',
+      [VOTE_AREAS.KPOP]: 'K-POP',
+      [VOTE_AREAS.MUSICAL]: 'Musical',
+    };
+
     const getAreaText = (area: VoteArea) => {
       if (!isTranslationReady) {
-        // 번역이 로드되지 않은 경우 fallback 텍스트 사용
-        switch (area) {
-          case VOTE_AREAS.ALL:
-            return t('vote_area_fallback_all');
-          case VOTE_AREAS.KPOP:
-            return t('vote_area_fallback_kpop');
-          case VOTE_AREAS.MUSICAL:
-            return t('vote_area_fallback_musical');
-          default:
-            return '';
-        }
+        return fallbackTexts[area];
       }
 
       switch (area) {
         case VOTE_AREAS.ALL:
-          return t('label_area_filter_all');
+          return t('label_area_filter_all') || fallbackTexts[area];
         case VOTE_AREAS.KPOP:
-          return t('label_area_filter_kpop');
+          return t('label_area_filter_kpop') || fallbackTexts[area];
         case VOTE_AREAS.MUSICAL:
-          return t('label_area_filter_musical');
+          return t('label_area_filter_musical') || fallbackTexts[area];
         default:
-          return '';
+          return fallbackTexts[area];
       }
     };
 
     const getAriaLabel = (area: VoteArea) => {
       if (!isTranslationReady) {
-        switch (area) {
-          case VOTE_AREAS.ALL:
-            return t('vote_area_aria_all');
-          case VOTE_AREAS.KPOP:
-            return t('vote_area_aria_kpop');
-          case VOTE_AREAS.MUSICAL:
-            return t('vote_area_aria_musical');
-          default:
-            return '';
-        }
+        return fallbackTexts[area];
       }
 
       switch (area) {
         case VOTE_AREAS.ALL:
-          return t('label_area_filter_all');
+          return t('label_area_filter_all') || fallbackTexts[area];
         case VOTE_AREAS.KPOP:
-          return t('label_area_filter_kpop');
+          return t('label_area_filter_kpop') || fallbackTexts[area];
         case VOTE_AREAS.MUSICAL:
-          return t('label_area_filter_musical');
+          return t('label_area_filter_musical') || fallbackTexts[area];
         default:
-          return '';
+          return fallbackTexts[area];
       }
     };
 

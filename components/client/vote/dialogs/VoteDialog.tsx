@@ -188,7 +188,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
                     transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                   >
                     <Image
-                      src="/images/logo.png"
+                      src="/images/logo.webp"
                       alt="Vote Loading"
                       width={32}
                       height={32}
@@ -456,7 +456,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
               {isVoting ? (
                 <span className="flex items-center justify-center space-x-2">
                   <Image
-                    src="/images/logo.png"
+                    src="/images/logo.webp"
                     alt="Voting"
                     width={16}
                     height={16}
@@ -468,7 +468,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
               ) : isLoadingBalance ? (
                 <div className="flex items-center justify-center">
                   <Image
-                    src="/images/logo.png"
+                    src="/images/logo.webp"
                     alt="Loading Balance"
                     width={16}
                     height={16}

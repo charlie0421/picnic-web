@@ -1,6 +1,6 @@
 import React from 'react'
 import BoardBookmarkButton from './BoardBookmarkButton'
-import { getCdnImageUrl } from '@/utils/api/image'
+import { OptimizedImage } from '@/components/ui/OptimizedImage'
 
 export default function BoardCard({ boardId, name, description, lang, artist, initialBookmarked }: { boardId: string; name: string; description?: string | null; lang: string; artist?: { id: number; name: string; image: string | null; groupName?: string | null } | null; initialBookmarked?: boolean }) {
   return (
@@ -8,7 +8,7 @@ export default function BoardCard({ boardId, name, description, lang, artist, in
       <a href={`/${lang}/community/boards/${boardId}`} className='block'>
         <div className='flex items-center gap-3'>
           {artist?.image ? (
-            <img src={getCdnImageUrl(artist.image, 80)} alt='' className='w-10 h-10 rounded-md object-cover flex-shrink-0' />
+            <OptimizedImage src={artist.image} alt='' width={80} height={80} className='w-10 h-10 rounded-md object-cover flex-shrink-0' />
           ) : (
             <div className='w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center text-gray-500 text-xs'>IMG</div>
           )}

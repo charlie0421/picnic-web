@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { getSafeAvatarUrl, createImageErrorHandler, isFailedImageUrl } from '@/utils/image-utils';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createImageErrorHandler, isFailedImageUrl, resolveAvatarUrlClient } from '@/utils/image-utils';
 
 interface SafeAvatarProps {
   src?: string | null;
@@ -21,6 +21,13 @@ const sizeClasses = {
   xl: 'w-24 h-24'
 };
 
+const sizeDimensions = {
+  sm: 32,
+  md: 48,
+  lg: 64,
+  xl: 96,
+} as const;
+
 /**
  * 안전한 아바타 이미지 컴포넌트
  * - 이미지 로딩 실패 시 자동 폴백
@@ -38,22 +45,94 @@ export function SafeAvatar({
   onImageLoad,
   onImageError
 }: SafeAvatarProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  
-  // 안전한 이미지 URL 가져오기 (Google 이미지 최적화 및 프록시 포함)
-  const safeImageUrl = getSafeAvatarUrl(src, fallbackUrl, useProxy);
-  
-  // 이전에 실패한 URL인지 확인하여 즉시 폴백 사용
-  const shouldUseFallback = src && isFailedImageUrl(src);
-  const finalImageUrl = shouldUseFallback ? fallbackUrl : safeImageUrl;
-  
+  const transformOptions = useMemo(
+    () => ({
+      width: sizeDimensions[size],
+      height: sizeDimensions[size],
+      resize: 'cover' as const,
+      quality: 85,
+    }),
+    [size],
+  );
+
+  const [imageUrl, setImageUrl] = useState<string>(fallbackUrl);
+  const [isLoading, setIsLoading] = useState<boolean>(!!src);
+  const [hasError, setHasError] = useState<boolean>(!src);
+  const [usedFallback, setUsedFallback] = useState<boolean>(!src);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const resolve = async () => {
+      if (src && isFailedImageUrl(src)) {
+        setImageUrl(fallbackUrl);
+        setHasError(true);
+        setUsedFallback(true);
+        setIsLoading(false);
+        onImageError?.(src);
+        return;
+      }
+
+      setIsLoading(!!src);
+      setHasError(false);
+      setUsedFallback(false);
+
+      try {
+        const result = await resolveAvatarUrlClient(
+          src,
+          transformOptions,
+          {
+            fallbackUrl,
+            useProxy,
+            signal: controller.signal,
+          },
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setImageUrl(result.url);
+        setHasError(result.isFallback);
+        setUsedFallback(result.isFallback);
+        setIsLoading(false);
+
+        if (result.isFallback && src) {
+          onImageError?.(src);
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        if (!cancelled) {
+          console.warn('🖼️ [SafeAvatar] 아바타 로드 실패:', error);
+          setImageUrl(fallbackUrl);
+          setHasError(true);
+          setUsedFallback(true);
+          setIsLoading(false);
+          if (src) {
+            onImageError?.(src);
+          }
+        }
+      }
+    };
+
+    resolve();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [src, transformOptions, fallbackUrl, useProxy, onImageError]);
+
   // 이미지 로딩 완료 핸들러
   const handleImageLoad = useCallback(() => {
     setIsLoading(false);
-    setHasError(false);
-    onImageLoad?.();
-  }, [onImageLoad]);
+    if (!usedFallback) {
+      onImageLoad?.();
+    }
+  }, [onImageLoad, usedFallback]);
   
   // 이미지 에러 핸들러 (프록시 옵션 포함)
   const handleImageError = useCallback(
@@ -66,6 +145,8 @@ export function SafeAvatar({
     const originalSrc = event.currentTarget.src;
     setIsLoading(false);
     setHasError(true);
+    setUsedFallback(true);
+    setImageUrl(fallbackUrl);
     
     // 기본 에러 핸들러 실행
     handleImageError(event);
@@ -91,7 +172,7 @@ export function SafeAvatar({
   return (
     <div className="relative inline-block">
       {/* 로딩 중 표시 */}
-      {isLoading && !shouldUseFallback && (
+      {isLoading && (
         <div 
           className={`
             ${loadingClasses} 
@@ -111,11 +192,11 @@ export function SafeAvatar({
       
       {/* 실제 이미지 */}
       <img
-        src={finalImageUrl}
+        src={imageUrl}
         alt={alt}
         className={`
           ${baseClasses}
-          ${isLoading && !shouldUseFallback ? 'opacity-0 absolute inset-0' : 'opacity-100'}
+          ${isLoading ? 'opacity-0 absolute inset-0' : 'opacity-100'}
           transition-opacity duration-200
         `}
         onLoad={handleImageLoad}
@@ -133,7 +214,7 @@ export function SafeAvatar({
           )}
           
           {/* Google 이미지 429 에러 표시 */}
-          {shouldUseFallback && src?.includes('googleusercontent.com') && (
+          {usedFallback && src?.includes('googleusercontent.com') && (
             <div className="absolute -top-1 -left-1 w-3 h-3 bg-yellow-500 rounded-full border border-white" 
                  title={`Google 이미지 429 에러로 폴백 사용: ${src}`} />
           )}
@@ -160,17 +241,66 @@ export function SimpleAvatar({
   className = '',
   useProxy = true // 기본적으로 프록시 사용
 }: Omit<SafeAvatarProps, 'onImageLoad' | 'onImageError'>) {
-  const safeImageUrl = getSafeAvatarUrl(src, fallbackUrl, useProxy);
+  const transformOptions = useMemo(
+    () => ({
+      width: sizeDimensions[size],
+      height: sizeDimensions[size],
+      resize: 'cover' as const,
+      quality: 85,
+    }),
+    [size],
+  );
+
+  const [imageUrl, setImageUrl] = useState<string>(fallbackUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const resolve = async () => {
+      if (src && isFailedImageUrl(src)) {
+        setImageUrl(fallbackUrl);
+        return;
+      }
+
+      try {
+        const result = await resolveAvatarUrlClient(
+          src,
+          transformOptions,
+          {
+            fallbackUrl,
+            useProxy,
+            signal: controller.signal,
+          },
+        );
+        if (!cancelled) {
+          setImageUrl(result.url);
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        if (!cancelled) {
+          console.warn('🖼️ [SimpleAvatar] 아바타 로드 실패:', error);
+          setImageUrl(fallbackUrl);
+        }
+      }
+    };
+
+    resolve();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [src, transformOptions, fallbackUrl, useProxy]);
+
   const handleImageError = createImageErrorHandler(fallbackUrl, useProxy);
-  
-  // 이전에 실패한 URL인지 확인하여 즉시 폴백 사용
-  const shouldUseFallback = src && isFailedImageUrl(src);
-  const finalImageUrl = shouldUseFallback ? fallbackUrl : safeImageUrl;
 
   return (
     <div className="relative inline-block">
       <img
-        src={finalImageUrl}
+        src={imageUrl}
         alt={alt}
         className={`
           rounded-full object-cover bg-gray-200 
@@ -185,7 +315,7 @@ export function SimpleAvatar({
       {false && process.env.NODE_ENV === 'development' && (
         <>
           {/* Google 이미지 429 에러 표시 */}
-          {shouldUseFallback && src?.includes('googleusercontent.com') && (
+          {imageUrl === fallbackUrl && src?.includes('googleusercontent.com') && (
             <div className="absolute -top-1 -left-1 w-3 h-3 bg-yellow-500 rounded-full border border-white" 
                  title={`Google 이미지 429 에러로 폴백 사용: ${src}`} />
           )}

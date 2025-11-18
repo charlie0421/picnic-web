@@ -299,7 +299,7 @@ export function VoteLoadingSpinner({
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
       <Image
-        src="/images/logo.png"
+        src="/images/logo.webp"
         alt="Vote Loading"
         width={sizeValues[size].width}
         height={sizeValues[size].height}

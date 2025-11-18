@@ -1,7 +1,61 @@
 import { createSupabaseServerClient, createPublicSupabaseClient } from '@/lib/supabase/server';
-import {Banner, Media, Reward, Vote, VoteItem, Popup} from "@/types/interfaces";
-import {withRetry} from "./retry-utils";
+import { Banner, Media, Reward, Vote, VoteItem, Popup } from "@/types/interfaces";
+import { withRetry } from "./retry-utils";
 
+const SUPABASE_TIMEOUT_MS = 4000;
+const GET_REWARDS_TIMEOUT_MS = 7000;
+const DEFAULT_REWARD_LIMIT = 24;
+const REWARD_SELECT_COLUMNS = `
+  id,
+  title,
+  thumbnail,
+  location,
+  location_images,
+  overview_images,
+  size_guide,
+  size_guide_images,
+  "order",
+  created_at,
+  updated_at,
+  deleted_at
+`;
+const FALLBACK_VOTES: Vote[] = [];
+const FALLBACK_REWARDS: Reward[] = [
+  {
+    id: -1,
+    title: {
+      ko: '샘플 리워드',
+      en: 'Sample Reward',
+    } as any,
+    thumbnail: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    deleted_at: null,
+    location: null,
+    location_images: null,
+    order: 0,
+    overview_images: null,
+    size_guide: null,
+    size_guide_images: null,
+  },
+];
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  fallback: T,
+  label: string,
+  timeoutMs: number = SUPABASE_TIMEOUT_MS
+): Promise<T> {
+  return Promise.race<T>([
+    promise,
+    new Promise<T>((resolve) => {
+      setTimeout(() => {
+        console.warn(`[supabase-timeout] ${label} exceeded ${timeoutMs}ms. Using fallback data.`);
+        resolve(fallback);
+      }, timeoutMs);
+    }),
+  ]);
+}
 
 
 // API 요청 실패 로깅 및 디버깅을 위한 함수
@@ -14,121 +68,145 @@ const logRequestError = (error: any, functionName: string) => {
 const _getVotes = async (
   sortBy: "votes" | "recent" = "votes",
 ): Promise<Vote[]> => {
-  try {
-    const supabase = createPublicSupabaseClient();
-    const now = new Date();
-    const currentTime = now.toISOString();
-
-    const { data: voteData, error: voteError } = await supabase
-      .from("vote")
-      .select(`
-        *,
-        vote_item!vote_id (
-          id,
-          vote_id,
-          artist_id,
-          group_id,
-          vote_total,
-          created_at,
-          updated_at,
-          deleted_at,
-          artist (
+  const supabaseFetch = (async () => {
+    try {
+      const supabase = createPublicSupabaseClient();
+      const { data: voteData, error: voteError } = await supabase
+        .from("vote")
+        .select(`
+          *,
+          vote_item!vote_id (
             id,
-            name,
-            image,
-            artist_group (
+            vote_id,
+            artist_id,
+            group_id,
+            vote_total,
+            created_at,
+            updated_at,
+            deleted_at,
+            artist (
               id,
-              name
+              name,
+              image,
+              artist_group (
+                id,
+                name
+              )
             )
+          ),
+          vote_reward (
+            reward_id,
+            reward:reward_id (*)
           )
-        ),
-        vote_reward (
-          reward_id,
-          reward:reward_id (*)
-        )
-      `)
-      .is("deleted_at", null)
-      .order("start_at", { ascending: false });
+        `)
+        .is("deleted_at", null)
+        .order("start_at", { ascending: false });
 
-    if (voteError) throw voteError;
-    if (!voteData || voteData.length === 0) return [];
+      if (voteError) throw voteError;
+      if (!voteData || voteData.length === 0) return FALLBACK_VOTES;
 
-    return voteData.map((vote: any) => ({
-      ...vote,
-      deletedAt: vote.deleted_at,
-      startAt: vote.start_at,
-      stopAt: vote.stop_at,
-      createdAt: vote.created_at,
-      updatedAt: vote.updated_at,
-      mainImage: vote.main_image,
-      resultImage: vote.result_image,
-      waitImage: vote.wait_image,
-      voteCategory: vote.vote_category,
-      voteContent: vote.vote_content,
-      voteSubCategory: vote.vote_sub_category,
-      visibleAt: vote.visible_at,
-      voteItems: vote.vote_item
-        ? vote.vote_item.map((item: any) => ({
-          ...item,
-          deletedAt: item.deleted_at,
-          createdAt: item.created_at,
-          updatedAt: item.updated_at,
-          voteId: item.vote_id,
-          artistId: item.artist_id,
-          groupId: item.group_id,
-          voteTotal: item.vote_total || 0,
-          artist: item.artist
-            ? {
-              ...item.artist,
-              image: item.artist.image,
-            }
-            : null,
-        }))
-        : [],
-      rewards: vote.vote_reward
-        ? vote.vote_reward.map((vr: any) => vr.reward).filter(Boolean)
-        : [],
-      title: vote.title || "제목 없음",
-    }));
-  } catch (error) {
-    logRequestError(error, 'getVotes');
-    return [];
-  }
+      return voteData.map((vote: any) => ({
+        ...vote,
+        deletedAt: vote.deleted_at,
+        startAt: vote.start_at,
+        stopAt: vote.stop_at,
+        createdAt: vote.created_at,
+        updatedAt: vote.updated_at,
+        mainImage: vote.main_image,
+        resultImage: vote.result_image,
+        waitImage: vote.wait_image,
+        voteCategory: vote.vote_category,
+        voteContent: vote.vote_content,
+        voteSubCategory: vote.vote_sub_category,
+        visibleAt: vote.visible_at,
+        voteItems: vote.vote_item
+          ? vote.vote_item.map((item: any) => ({
+            ...item,
+            deletedAt: item.deleted_at,
+            createdAt: item.created_at,
+            updatedAt: item.updated_at,
+            voteId: item.vote_id,
+            artistId: item.artist_id,
+            groupId: item.group_id,
+            voteTotal: item.vote_total || 0,
+            artist: item.artist
+              ? {
+                ...item.artist,
+                image: item.artist.image,
+              }
+              : null,
+          }))
+          : [],
+        rewards: vote.vote_reward
+          ? vote.vote_reward.map((vr: any) => vr.reward).filter(Boolean)
+          : [],
+        title: vote.title || "제목 없음",
+      }));
+    } catch (error) {
+      logRequestError(error, 'getVotes');
+      return FALLBACK_VOTES;
+    }
+  })();
+
+  return withTimeout(supabaseFetch, FALLBACK_VOTES, 'getVotes');
 };
 
 // 리워드 데이터 가져오기
 const _getRewards = async (limit?: number): Promise<Reward[]> => {
-  try {
-    const supabase = createPublicSupabaseClient(); // 공개 클라이언트 사용
-    let query = supabase
-      .from("reward")
-      .select("*")
-      .is("deleted_at", null)
-      .order("order", { ascending: true });
+  const fetchRewards = withRetry(
+    async (limitParam?: number): Promise<Reward[]> => {
+      const supabase = createPublicSupabaseClient();
+      const effectiveLimit = limitParam ?? DEFAULT_REWARD_LIMIT;
 
-    if (limit) {
-      query = query.limit(limit);
+      let query = supabase
+        .from("reward")
+        .select(REWARD_SELECT_COLUMNS, { count: 'estimated' })
+        .is("deleted_at", null)
+        .order("order", { ascending: true });
+
+      query = query.limit(effectiveLimit);
+
+      const { data: rewardData, error: rewardError } = await query;
+
+      if (rewardError) {
+        throw rewardError;
+      }
+
+      if (!rewardData || rewardData.length === 0) {
+        return FALLBACK_REWARDS;
+      }
+
+      return rewardData.map((reward: any) => ({
+        ...reward,
+        deletedAt: reward.deleted_at,
+        createdAt: reward.created_at,
+        updatedAt: reward.updated_at,
+        locationImages: reward.location_images,
+        overviewImages: reward.overview_images,
+        sizeGuide: reward.size_guide,
+        sizeGuideImages: reward.size_guide_images,
+      }));
+    },
+    {
+      maxRetries: 2,
+      initialDelay: 300,
+      maxDelay: 1500,
+      onRetry: (error, attempt) => {
+        console.warn(`[getRewards] Retry attempt ${attempt} due to error:`, error?.message ?? error);
+      },
     }
+  );
 
-    const { data: rewardData, error: rewardError } = await query;
+  const supabaseFetch = (async () => {
+    try {
+      return await fetchRewards(limit);
+    } catch (error) {
+      logRequestError(error, 'getRewards');
+      return FALLBACK_REWARDS;
+    }
+  })();
 
-    if (rewardError) throw rewardError;
-    if (!rewardData || rewardData.length === 0) return [];
-
-    return rewardData.map((reward: any) => ({
-      ...reward,
-      deletedAt: reward.deleted_at,
-      createdAt: reward.created_at,
-      updatedAt: reward.updated_at,
-      locationImages: reward.location_images,
-      overviewImages: reward.overview_images,
-      sizeGuide: reward.size_guide,
-      sizeGuideImages: reward.size_guide_images,
-    }));
-  } catch (error) {
-    logRequestError(error, 'getRewards');
-    return [];
-  }
+  return withTimeout(supabaseFetch, FALLBACK_REWARDS, 'getRewards', GET_REWARDS_TIMEOUT_MS);
 };
 
 // 배너 데이터 가져오기

@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { Products } from '@/types/interfaces';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString } from '@/utils/api/strings';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { motion } from 'framer-motion';
@@ -911,7 +910,8 @@ export function StarCandyProductsPresenter({
             {/* 로고 아이콘 with 펄스 애니메이션 */}
             <div className="relative inline-block">
               <Image
-                src="/images/logo.png"
+                
+                src="/images/logo.webp"
                 alt="Picnic Loading"
                 width={80}
                 height={80}

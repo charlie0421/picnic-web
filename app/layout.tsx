@@ -24,17 +24,21 @@ export default async function RootLayout({
   const languageMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/)
   const currentLang = languageMatch ? languageMatch[1] : 'ko'
 
+  const shouldLoadAds = process.env.NODE_ENV === 'production';
+
   return (
     <html lang={currentLang}>
       <body>
-        {/* Google AdSense (Auto ads) */}
-        <Script
-          id="adsense"
-          strategy="afterInteractive"
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1539304887624918"
-          crossOrigin="anonymous"
-        />
+        {/* Google AdSense (Auto ads) - 프로덕션에서만 지연 로딩 */}
+        {shouldLoadAds && (
+          <Script
+            id="adsense"
+            strategy="lazyOnload"
+            async
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1539304887624918"
+            crossOrigin="anonymous"
+          />
+        )}
         <div className='bg-white'>
           {children}
         </div>

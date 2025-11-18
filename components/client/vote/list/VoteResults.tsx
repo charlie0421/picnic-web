@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { VoteItem } from '@/types/interfaces';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useVoteStore } from '@/stores/voteStore';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 export interface VoteResultsProps {
   voteItems?: Array<VoteItem & { artist?: any }>;
@@ -196,9 +196,7 @@ export function VoteResults({
             ? getLocalizedString(a.artistGroup.name, currentLanguage)
             : null;
           
-          const imageUrl = a?.image
-            ? getCdnImageUrl(a.image)
-            : '/images/default-artist.png';
+          const imageSrc = a?.image || null;
 
           const rankInfo = getRankingIcon(item.rank);
 
@@ -217,16 +215,14 @@ export function VoteResults({
               )}
 
               {/* 아티스트 이미지 */}
-              <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 shadow-sm mr-4 flex-shrink-0">
-                <img
-                  src={imageUrl}
+              <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 shadow-sm mr-4 flex-shrink-0 relative">
+                <OptimizedImage
+                  src={imageSrc || '/images/default-artist.png'}
                   alt={artistName}
+                  width={48}
+                  height={48}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/images/default-artist.png';
-                    target.onerror = null;
-                  }}
+                  fallbackSrc="/images/default-artist.png"
                 />
               </div>
 

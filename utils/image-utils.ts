@@ -2,6 +2,698 @@
  * 이미지 URL 검증 및 안전한 처리 유틸리티
  */
 
+export interface AvatarTransformOptions {
+  width?: number;
+  height?: number;
+  quality?: number;
+  resize?: 'cover' | 'contain' | 'fill' | 'inside' | 'outside';
+  format?: 'webp' | 'png' | 'jpg' | 'jpeg' | 'avif';
+}
+
+const SUPABASE_RENDER_PATH = '/storage/v1/render/image/';
+const SUPABASE_RENDER_SIGN_PATH = '/storage/v1/render/image/sign/';
+const SUPABASE_OBJECT_PATH = '/storage/v1/object/';
+const ENABLE_AVATAR_DEBUG =
+  process.env.NEXT_PUBLIC_ENABLE_AVATAR_LOG === 'true';
+
+type AvatarDebugStep = {
+  stage: string;
+  url?: string | null;
+  result?: 'success' | 'error';
+  message?: string;
+  isSignedCandidate?: boolean;
+  timestamp?: number;
+};
+
+interface AvatarDebugLogPayload {
+  original: string | null | undefined;
+  final: string;
+  isFallback: boolean;
+  isSigned: boolean;
+  transform: AvatarTransformOptions;
+  steps: AvatarDebugStep[];
+}
+ 
+export interface SupabaseStorageReference {
+  bucket: string;
+  path: string;
+  isSigned: boolean;
+  isPublic: boolean;
+  originalUrl?: string;
+}
+
+export interface ResolveAvatarOptions {
+  fallbackUrl?: string;
+  useProxy?: boolean;
+  signal?: AbortSignal;
+  expiresIn?: number;
+}
+
+function hasTransformOptions(options: AvatarTransformOptions): boolean {
+  return Boolean(
+    options &&
+      (options.width ||
+        options.height ||
+        options.quality ||
+        options.resize ||
+        options.format),
+  );
+}
+
+function sanitizeDimension(value?: number): number | undefined {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return undefined;
+  }
+  return Math.max(1, Math.round(value));
+}
+
+function clampQuality(value?: number): number | undefined {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return undefined;
+  }
+  return Math.min(100, Math.max(1, Math.round(value)));
+}
+
+function encodePathSegment(segment: string): string {
+  try {
+    return encodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+function buildSupabaseObjectUrl(
+  reference: SupabaseStorageReference,
+): string | null {
+  if (!reference.isPublic) {
+    return null;
+  }
+  const base = getSupabaseBase();
+  if (!base) return null;
+
+  const bucket = encodePathSegment(reference.bucket);
+  const pathSegments = reference.path
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodePathSegment(segment));
+
+  const objectPath = `${SUPABASE_OBJECT_PATH}public/${bucket}/${pathSegments.join('/')}`;
+  return `${base}${objectPath}`;
+}
+
+function sendAvatarDebugLog(payload: AvatarDebugLogPayload) {
+  if (!ENABLE_AVATAR_DEBUG) return;
+  try {
+    const body = JSON.stringify({
+      ...payload,
+      loggedAt: Date.now(),
+    });
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      const blob = new Blob([body], { type: 'application/json' });
+      navigator.sendBeacon('/api/logs/avatar', blob);
+    } else if (typeof fetch !== 'undefined') {
+      fetch('/api/logs/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    } else {
+      console.info('🖼️ [AvatarDebug]', payload);
+    }
+  } catch (error) {
+    console.warn('🖼️ [AvatarDebug] 로그 전송 실패:', error);
+  }
+}
+
+function getSupabaseBase(): string | null {
+  const supabaseBase =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || null;
+  if (!supabaseBase) {
+    return null;
+  }
+  return supabaseBase.replace(/\/$/, '');
+}
+
+function getSupabaseHost(): string | null {
+  const base = getSupabaseBase();
+  if (!base) return null;
+  try {
+    return new URL(base).host;
+  } catch {
+    return null;
+  }
+}
+
+export function extractSupabaseStorageReference(
+  source: string | null | undefined,
+): SupabaseStorageReference | null {
+  if (!source) return null;
+
+  const supabaseHost = getSupabaseHost();
+  if (!supabaseHost) return null;
+
+  const decodePathSegments = (segments: string[]) =>
+    segments.map((segment) => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    });
+
+  if (source.startsWith('http://') || source.startsWith('https://')) {
+    try {
+      const url = new URL(source);
+      if (url.host !== supabaseHost) {
+        return null;
+      }
+
+      const segments = url.pathname.split('/').filter(Boolean);
+      const token = url.searchParams.get('token') || undefined;
+      let bucket: string | undefined;
+      let pathSegments: string[] = [];
+      let isSigned = Boolean(token);
+      let isPublic = false;
+
+      const objectIndex = segments.indexOf('object');
+      const renderIndex = segments.indexOf('render');
+
+      if (objectIndex !== -1) {
+        let idx = objectIndex + 1;
+        if (segments[idx] === 'public') {
+          isPublic = true;
+          idx += 1;
+        } else if (segments[idx] === 'sign') {
+          isSigned = true;
+          idx += 1;
+        }
+        bucket = segments[idx];
+        pathSegments = segments.slice(idx + 1);
+      } else if (renderIndex !== -1) {
+        let idx = renderIndex + 2; // skip 'render', 'image'
+        if (segments[idx - 1] !== 'image') {
+          return null;
+        }
+    if (segments[idx] === 'sign') {
+          isSigned = true;
+          idx += 1;
+    } else if (segments[idx] === 'public') {
+      isPublic = true;
+      idx += 1;
+        }
+        bucket = segments[idx];
+        pathSegments = segments.slice(idx + 1);
+      }
+
+      if (!bucket || pathSegments.length === 0) {
+        return null;
+      }
+
+      return {
+        bucket,
+        path: decodePathSegments(pathSegments).join('/'),
+        isSigned,
+        isPublic,
+        originalUrl: url.toString(),
+      };
+    } catch (error) {
+      console.warn('🖼️ [ImageUtils] Supabase URL 파싱 실패:', {
+        source,
+        error,
+      });
+      return null;
+    }
+  }
+
+  const cleaned = source.replace(/^\/+/, '');
+  const parts = cleaned.split('/').filter(Boolean);
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const [bucket, ...rest] = parts;
+  return {
+    bucket,
+    path: decodePathSegments(rest).join('/'),
+    isSigned: false,
+    isPublic: false,
+    originalUrl: source,
+  };
+}
+
+export async function fetchSignedSupabaseImageUrl(
+  reference: SupabaseStorageReference | null,
+  transform: AvatarTransformOptions = {},
+  options: { signal?: AbortSignal; expiresIn?: number } = {},
+): Promise<string | null> {
+  if (!reference || reference.isSigned) {
+    return null;
+  }
+
+  if (typeof fetch === 'undefined') {
+    return null;
+  }
+
+  try {
+    const response = await fetch('/api/storage/signed-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        bucket: reference.bucket,
+        path: reference.path,
+        expiresIn: options.expiresIn ?? 60 * 60, // 1 hour
+        transform,
+      }),
+      signal: options.signal,
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      console.warn('🖼️ [ImageUtils] 서명 URL 생성 실패:', {
+        status: response.status,
+        body: errorText,
+      });
+      return null;
+    }
+
+    const data = await response.json();
+    return typeof data?.url === 'string' ? data.url : null;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return null;
+    }
+    console.warn('🖼️ [ImageUtils] 서명 URL 요청 오류:', error);
+    return null;
+  }
+}
+
+export async function resolveAvatarUrlClient(
+  avatarUrl: string | null | undefined,
+  transform: AvatarTransformOptions = {},
+  options: ResolveAvatarOptions = {},
+): Promise<{ url: string; isFallback: boolean; isSigned: boolean }> {
+  const debugSteps: AvatarDebugStep[] = [];
+  const recordStep = ENABLE_AVATAR_DEBUG
+    ? (step: AvatarDebugStep) => {
+        debugSteps.push({ ...step, timestamp: Date.now() });
+      }
+    : () => {};
+  const finalize = (result: {
+    url: string;
+    isFallback: boolean;
+    isSigned: boolean;
+  }) => {
+    if (ENABLE_AVATAR_DEBUG) {
+      sendAvatarDebugLog({
+        original: avatarUrl ?? null,
+        final: result.url,
+        isFallback: result.isFallback,
+        isSigned: result.isSigned,
+        transform,
+        steps: debugSteps,
+      });
+    }
+    return result;
+  };
+
+  recordStep({ stage: 'start', url: avatarUrl || null });
+
+  const fallbackUrl = options.fallbackUrl ?? '/images/default-avatar.svg';
+  const useProxy = options.useProxy ?? false;
+
+  if (typeof window === 'undefined') {
+    const resolved = getSafeAvatarUrl(
+      avatarUrl,
+      fallbackUrl,
+      useProxy,
+      transform,
+    );
+    const isFallback = !avatarUrl || !resolved || resolved === fallbackUrl;
+    recordStep({
+      stage: 'ssr',
+      url: resolved,
+      result: isFallback ? 'error' : 'success',
+    });
+    return finalize({
+      url: isFallback ? fallbackUrl : resolved,
+      isFallback,
+      isSigned: false,
+    });
+  }
+
+  if (!avatarUrl) {
+    recordStep({
+      stage: 'empty-avatar',
+      url: fallbackUrl,
+      result: 'error',
+      message: 'avatarUrl is empty',
+    });
+    return finalize({ url: fallbackUrl, isFallback: true, isSigned: false });
+  }
+
+  const reference =
+    extractSupabaseStorageReference(avatarUrl) ||
+    extractSupabaseStorageReference(
+      getSafeAvatarUrl(avatarUrl, fallbackUrl, useProxy),
+    );
+
+  const originalUrlWithoutTransform = getSafeAvatarUrl(
+    avatarUrl,
+    fallbackUrl,
+    useProxy,
+  );
+
+  let finalUrl = getSafeAvatarUrl(
+    avatarUrl,
+    fallbackUrl,
+    useProxy,
+    transform,
+  ) || fallbackUrl;
+  let wasSigned = false;
+
+  if (reference && options.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+
+  if (reference && !reference.isSigned) {
+    const signedUrl = await fetchSignedSupabaseImageUrl(reference, transform, {
+      signal: options.signal,
+      expiresIn: options.expiresIn,
+    });
+    if (options.signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    if (signedUrl) {
+      finalUrl = signedUrl;
+      wasSigned = true;
+      recordStep({
+        stage: 'signed-url',
+        url: signedUrl,
+        isSignedCandidate: true,
+      });
+    }
+  }
+
+  if (!finalUrl) {
+    recordStep({
+      stage: 'no-final-url',
+      url: fallbackUrl,
+      result: 'error',
+      message: 'finalUrl is empty',
+    });
+    return finalize({ url: fallbackUrl, isFallback: true, isSigned: wasSigned });
+  }
+
+  try {
+    const ok = await preloadImage(finalUrl);
+    if (ok) {
+      recordStep({
+        stage: 'initial-load',
+        url: finalUrl,
+        result: 'success',
+        isSignedCandidate: wasSigned,
+      });
+      return finalize({ url: finalUrl, isFallback: false, isSigned: wasSigned });
+    }
+    recordStep({
+      stage: 'initial-load',
+      url: finalUrl,
+      result: 'error',
+      message: 'preload_image_false',
+      isSignedCandidate: wasSigned,
+    });
+  } catch (error) {
+    recordStep({
+      stage: 'initial-load',
+      url: finalUrl,
+      result: 'error',
+      message: error instanceof Error ? error.message : String(error),
+      isSignedCandidate: wasSigned,
+    });
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error;
+    }
+    console.warn('🖼️ [ImageUtils] 아바타 이미지 사전 로드 실패:', {
+      avatarUrl,
+      error,
+    });
+  }
+
+  const fallbackCandidates: Array<{
+    url: string;
+    isSigned: boolean;
+  }> = [];
+
+  if (reference) {
+    if (wasSigned && hasTransformOptions(transform)) {
+      const signedWithoutTransform = await fetchSignedSupabaseImageUrl(
+        reference,
+        {},
+        { signal: options.signal, expiresIn: options.expiresIn },
+      );
+      if (options.signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      if (signedWithoutTransform) {
+        fallbackCandidates.push({
+          url: signedWithoutTransform,
+          isSigned: true,
+        });
+      }
+    }
+
+    if (!reference.isSigned) {
+      const objectUrl = buildSupabaseObjectUrl(reference);
+      if (objectUrl) {
+        fallbackCandidates.push({
+          url: objectUrl,
+          isSigned: false,
+        });
+      }
+    }
+  }
+
+  if (
+    originalUrlWithoutTransform &&
+    originalUrlWithoutTransform !== finalUrl &&
+    originalUrlWithoutTransform !== fallbackUrl
+  ) {
+    fallbackCandidates.push({
+      url: originalUrlWithoutTransform,
+      isSigned: wasSigned,
+    });
+  }
+
+  if (avatarUrl && avatarUrl !== finalUrl) {
+    fallbackCandidates.push({
+      url: avatarUrl,
+      isSigned: wasSigned,
+    });
+  }
+
+  for (const candidate of fallbackCandidates) {
+    if (!candidate.url) continue;
+    recordStep({
+      stage: 'fallback-candidate',
+      url: candidate.url,
+      isSignedCandidate: candidate.isSigned,
+    });
+    if (options.signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    try {
+      const ok = await preloadImage(candidate.url);
+      if (ok) {
+        recordStep({
+          stage: 'fallback-candidate',
+          url: candidate.url,
+          result: 'success',
+          isSignedCandidate: candidate.isSigned,
+        });
+        return finalize({
+          url: candidate.url,
+          isFallback: false,
+          isSigned: candidate.isSigned,
+        });
+      }
+      recordStep({
+        stage: 'fallback-candidate',
+        url: candidate.url,
+        result: 'error',
+        message: 'preload_image_false',
+        isSignedCandidate: candidate.isSigned,
+      });
+    } catch (error) {
+      recordStep({
+        stage: 'fallback-candidate',
+        url: candidate.url,
+        result: 'error',
+        message: error instanceof Error ? error.message : String(error),
+        isSignedCandidate: candidate.isSigned,
+      });
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw error;
+      }
+      console.warn('🖼️ [ImageUtils] 아바타 폴백 로드 실패:', {
+        candidate: candidate.url,
+        error,
+      });
+    }
+  }
+
+  if (reference) {
+    const objectUrl = buildSupabaseObjectUrl(reference);
+    if (objectUrl) {
+      recordStep({
+        stage: 'object-url',
+        url: objectUrl,
+        isSignedCandidate: reference.isSigned,
+      });
+      try {
+        const ok = await preloadImage(objectUrl);
+        if (ok) {
+          recordStep({
+            stage: 'object-url',
+            url: objectUrl,
+            result: 'success',
+            isSignedCandidate: reference.isSigned,
+          });
+          return finalize({
+            url: objectUrl,
+            isFallback: false,
+            isSigned: reference.isSigned,
+          });
+        }
+        recordStep({
+          stage: 'object-url',
+          url: objectUrl,
+          result: 'error',
+          message: 'preload_image_false',
+          isSignedCandidate: reference.isSigned,
+        });
+      } catch (error) {
+        recordStep({
+          stage: 'object-url',
+          url: objectUrl,
+          result: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        });
+        console.warn('🖼️ [ImageUtils] 공개 오브젝트 URL 로드 실패:', {
+          objectUrl,
+          error,
+        });
+      }
+    }
+  }
+
+  recordStep({
+    stage: 'final-fallback',
+    url: fallbackUrl,
+    result: 'error',
+    message: '모든 폴백 실패',
+  });
+  return finalize({ url: fallbackUrl, isFallback: true, isSigned: wasSigned });
+}
+
+function getOptimizedSupabaseImageUrl(
+  originalUrl: string,
+  options: AvatarTransformOptions,
+): string | null {
+  if (!hasTransformOptions(options)) {
+    return null;
+  }
+
+  const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseBase) {
+    return null;
+  }
+
+  try {
+    const normalizedBase = supabaseBase.replace(/\/$/, '');
+    const sourceUrl = new URL(originalUrl);
+    const supabaseUrl = new URL(normalizedBase);
+
+    if (sourceUrl.origin !== supabaseUrl.origin) {
+      return null;
+    }
+
+    let resourcePath: string | null = null;
+    let isSignedPath = false;
+
+    if (sourceUrl.pathname.startsWith(`${SUPABASE_OBJECT_PATH}sign/`)) {
+      isSignedPath = true;
+      resourcePath = sourceUrl.pathname.slice(
+        `${SUPABASE_OBJECT_PATH}sign/`.length,
+      );
+    } else if (sourceUrl.pathname.startsWith(SUPABASE_OBJECT_PATH)) {
+      resourcePath = sourceUrl.pathname.slice(SUPABASE_OBJECT_PATH.length);
+    } else if (sourceUrl.pathname.startsWith(SUPABASE_RENDER_PATH)) {
+      resourcePath = sourceUrl.pathname.slice(SUPABASE_RENDER_PATH.length);
+    } else if (sourceUrl.pathname.startsWith(SUPABASE_RENDER_SIGN_PATH)) {
+      isSignedPath = true;
+      resourcePath = sourceUrl.pathname.slice(SUPABASE_RENDER_SIGN_PATH.length);
+    }
+
+    if (!resourcePath) {
+      return null;
+    }
+
+    if (resourcePath.startsWith('/')) {
+      resourcePath = resourcePath.slice(1);
+    }
+
+    const params = new URLSearchParams(sourceUrl.search);
+    ['w', 'width', 'h', 'height', 'resize', 'quality', 'format'].forEach(
+      (key) => params.delete(key),
+    );
+
+    const width = sanitizeDimension(options.width);
+    const height = sanitizeDimension(options.height);
+    const quality = clampQuality(options.quality);
+
+    if (width) {
+      params.set('width', width.toString());
+    }
+    if (height) {
+      params.set('height', height.toString());
+    }
+
+    if (options.resize) {
+      params.set('resize', options.resize);
+    } else if (width || height) {
+      params.set('resize', 'cover');
+    }
+
+    if (quality) {
+      params.set('quality', quality.toString());
+    } else if (width || height) {
+      params.set('quality', '85');
+    }
+
+    if (options.format) {
+      params.set('format', options.format);
+    }
+
+    const query = params.toString();
+    const renderPath = isSignedPath
+      ? `${normalizedBase}${SUPABASE_RENDER_SIGN_PATH}${resourcePath}`
+      : `${normalizedBase}${SUPABASE_RENDER_PATH}${resourcePath}`;
+
+    return `${renderPath}${query ? `?${query}` : ''}`;
+  } catch (error) {
+    console.warn('🖼️ [ImageUtils] Supabase 이미지 변환 실패:', {
+      originalUrl,
+      options,
+      error,
+    });
+    return null;
+  }
+}
+
 /**
  * 프록시를 통해 이미지 URL을 가져오는 함수
  */
@@ -137,7 +829,8 @@ export function preloadImage(url: string): Promise<boolean> {
 export function getSafeAvatarUrl(
   avatarUrl: string | null | undefined, 
   fallbackUrl: string = '/images/default-avatar.svg',
-  useProxy: boolean = false
+  useProxy: boolean = false,
+  transformOptions: AvatarTransformOptions = {}
 ): string {
   if (!avatarUrl) {
     return fallbackUrl;
@@ -154,10 +847,20 @@ export function getSafeAvatarUrl(
     }
     return fallbackUrl;
   }
+
+  let processedUrl = avatarUrl;
+
+  const supabaseOptimizedUrl = getOptimizedSupabaseImageUrl(
+    processedUrl,
+    transformOptions,
+  );
+  if (supabaseOptimizedUrl) {
+    processedUrl = supabaseOptimizedUrl;
+  }
   
   // Google 이미지 URL인 경우 안전한 형태로 변환
-  if (avatarUrl.includes('googleusercontent.com')) {
-    const safeUrl = getSafeGoogleImageUrl(avatarUrl);
+  if (processedUrl.includes('googleusercontent.com')) {
+    const safeUrl = getSafeGoogleImageUrl(processedUrl);
     
     // 프록시 사용 옵션이 활성화된 경우
     if (useProxy) {
@@ -167,7 +870,7 @@ export function getSafeAvatarUrl(
     return safeUrl;
   }
   
-  return avatarUrl;
+  return processedUrl;
 }
 
 /**

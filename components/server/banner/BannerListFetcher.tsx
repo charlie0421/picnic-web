@@ -1,7 +1,6 @@
 import { createClient } from "@/utils/supabase-server-client";
 import { Banner as DBBanner } from "@/types/interfaces";
 import { getLocalizedString } from "@/utils/api/strings";
-import { getCdnImageUrl } from "@/utils/api/image";
 import { BannerListPresenter } from "@/components/client/banner";
 import { getBanners } from "@/utils/api/queries";
 

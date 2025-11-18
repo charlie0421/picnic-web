@@ -160,7 +160,7 @@ export const VirtualScrollList = memo(<T,>({
               {loadingComponent || (
                 <div className="flex justify-center items-center h-full">
                   <Image
-                    src="/images/logo.png"
+                    src="/images/logo.webp"
                     alt="Loading"
                     width={24}
                     height={24}

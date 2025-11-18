@@ -1,12 +1,11 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { VoteItem } from '@/types/interfaces';
 import { getLocalizedString } from '@/utils/api/strings';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { useLanguageStore } from '@/stores/languageStore';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface EnhancedVoteItem extends VoteItem {
   artist?: any;
@@ -260,7 +259,7 @@ function PodiumItemSmall({
   const artistName = item.artist
     ? getLocalizedString(item.artist.name, currentLanguage) || t('artist_name_fallback')
     : t('artist_name_fallback');
-  const imageUrl = item.artist?.image ? getCdnImageUrl(item.artist.image) : '/images/default-artist.png';
+  const imageSrc = item.artist?.image || null;
   const total = item.vote_total ?? 0;
   const formattedTotal = (total || 0).toLocaleString('ko-KR');
   const groupName = item.artist?.artistGroup?.name
@@ -276,7 +275,14 @@ function PodiumItemSmall({
         className={`rounded-full border ${highlight ? 'border-yellow-400 shadow-[0_8px_25px_-8px_rgba(250,204,21,0.7)]' : 'border-gray-200 shadow'} overflow-hidden`}
         style={{ width: size, height: size }}
       >
-        <Image src={imageUrl} alt={artistName} width={size} height={size} className='w-full h-full object-cover' />
+        <OptimizedImage
+          src={imageSrc || '/images/default-artist.png'}
+          alt={artistName}
+          width={size}
+          height={size}
+          className='w-full h-full object-cover'
+          fallbackSrc='/images/default-artist.png'
+        />
       </div>
       <div className='mt-2 max-w-[120px] text-center'>
         <div className={`text-[10px] font-bold ${rank === 1 ? 'text-yellow-600' : rank === 2 ? 'text-gray-600' : 'text-amber-600'}`}>#{rank}</div>

@@ -1,15 +1,14 @@
 import React from 'react';
-import Image from 'next/image';
 import { Reward } from '@/types/interfaces';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString } from '@/utils/api/strings';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 const RewardItem = React.memo(({ reward }: { reward: Reward }) => (
   <div className='flex items-center bg-white rounded-lg p-2 shadow-sm border border-yellow-200 w-full'>
     {reward.thumbnail && (
       <div className='w-10 h-10 rounded overflow-hidden mr-2'>
-        <Image
-          src={getCdnImageUrl(reward.thumbnail)}
+        <OptimizedImage
+          src={reward.thumbnail}
           alt={getLocalizedString(reward.title)}
           width={40}
           height={40}

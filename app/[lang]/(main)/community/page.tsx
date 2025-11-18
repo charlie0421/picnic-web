@@ -7,7 +7,7 @@ import { getTranslations } from '@/lib/i18n/server'
 import { getBoardsPrioritizedForUser, getUserBookmarkedArtistIds, getBoardsForUserFavoritesOnly, getUserBookmarkedBoardIds, getBoardsByIds } from '@/lib/data-fetching/server/community-service'
 import GroupedBoardList from '@/components/community/GroupedBoardList'
 import BoardSearch from '@/components/community/BoardSearch'
-import { getCdnImageUrl } from '@/utils/api/image'
+import { OptimizedImage } from '@/components/ui/OptimizedImage'
 
 export const revalidate = 60
 
@@ -80,7 +80,7 @@ export default async function CommunityBoardListPage({
               <div key={g.title} className='mb-2'>
                 <div className='flex items-center gap-2 mb-1'>
                   {g.image ? (
-                    <img src={getCdnImageUrl(g.image, 80)} alt={g.title} className='w-5 h-5 rounded object-cover' />
+                    <OptimizedImage src={g.image} alt={g.title} width={80} height={80} className='w-5 h-5 rounded object-cover' />
                   ) : (
                     <div className='w-5 h-5 rounded bg-gray-200' />
                   )}

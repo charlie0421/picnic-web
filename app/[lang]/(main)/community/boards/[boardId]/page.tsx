@@ -4,7 +4,7 @@ import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils'
 import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils'
 import { SITE_URL } from '@/app/[lang]/constants/static-pages'
 import { getBoardPosts, getBoardMeta, getUserBookmarkedBoardIds } from '@/lib/data-fetching/server/community-service'
-import { getCdnImageUrl } from '@/utils/api/image'
+import { OptimizedImage } from '@/components/ui/OptimizedImage'
 import PostList from '@/components/community/PostList'
 import BoardBookmarkButton from '@/components/community/BoardBookmarkButton'
 import WriteButton from '@/components/community/WriteButton'
@@ -46,7 +46,7 @@ export default async function BoardFeedPage({ params, searchParams }: { params: 
           <a href={`/${lang}/community`} className='text-sm text-gray-700'>&larr; {t('community.board.backToList')}</a>
           <div className='mt-1 flex items-center gap-2'>
             {meta?.artist?.image ? (
-              <img src={getCdnImageUrl(meta.artist.image, 80)} alt={meta.artist.name} className='w-8 h-8 rounded object-cover' />
+              <OptimizedImage src={meta.artist.image} alt={meta.artist.name} width={80} height={80} className='w-8 h-8 rounded object-cover' />
             ) : (
               <div className='w-8 h-8 rounded bg-gray-200' />
             )}

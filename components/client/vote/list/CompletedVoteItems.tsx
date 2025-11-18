@@ -3,9 +3,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Vote, VoteItem } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
-import Image from 'next/image';
 import { getLocalizedString } from '@/utils/api/strings';
-import { getCdnImageUrl } from '@/utils/api/image';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 // 확장된 VoteItem 타입 정의
 interface EnhancedVoteItem extends VoteItem {
@@ -173,7 +172,7 @@ function renderPodiumItem(
     : (item.artist?.artist_group?.name
       ? getLocalizedString(item.artist.artist_group.name, currentLanguage)
       : '');
-  const imageUrl = item.artist?.image ? getCdnImageUrl(item.artist.image) : '/images/default-artist.png';
+  const imageSrc = item.artist?.image || null;
   const total = item.vote_total ?? 0;
   const formattedTotal = (total || 0).toLocaleString('ko-KR');
   const size = rank === 1 ? 112 : rank === 2 ? 84 : 72;
@@ -184,7 +183,14 @@ function renderPodiumItem(
         className={`rounded-full border ${highlight ? 'border-yellow-400 shadow-[0_8px_25px_-8px_rgba(250,204,21,0.7)]' : 'border-gray-200 shadow'} overflow-hidden`}
         style={{ width: size, height: size }}
       >
-        <Image src={imageUrl} alt={artistName} width={size} height={size} className='w-full h-full object-cover' />
+        <OptimizedImage
+          src={imageSrc || '/images/default-artist.png'}
+          alt={artistName}
+          width={size}
+          height={size}
+          className='w-full h-full object-cover'
+          fallbackSrc='/images/default-artist.png'
+        />
       </div>
       <div className='mt-2 text-center overflow-hidden' style={{ width: size }}>
         <div className={`text-[10px] font-bold ${rank === 1 ? 'text-yellow-600' : rank === 2 ? 'text-gray-600' : 'text-amber-600'}`}>#{rank}</div>

@@ -1,7 +1,58 @@
 import { createServerSupabaseClientWithCookies } from '@/lib/supabase/server';
-import { extractAvatarFromProvider, getSafeAvatarUrl } from '@/utils/image-utils';
+import {
+  extractAvatarFromProvider,
+  extractSupabaseStorageReference,
+  getSafeAvatarUrl,
+  type AvatarTransformOptions,
+} from '@/utils/image-utils';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
+import type { TransformOptions } from '@supabase/storage-js';
+
+function toSupabaseTransformOptions(
+  transform?: AvatarTransformOptions,
+): TransformOptions | undefined {
+  if (!transform) {
+    return undefined;
+  }
+
+  const normalized: TransformOptions = {};
+
+  if (typeof transform.width === 'number' && !Number.isNaN(transform.width)) {
+    normalized.width = Math.max(1, Math.round(transform.width));
+  }
+
+  if (typeof transform.height === 'number' && !Number.isNaN(transform.height)) {
+    normalized.height = Math.max(1, Math.round(transform.height));
+  }
+
+  if (
+    typeof transform.quality === 'number' &&
+    !Number.isNaN(transform.quality)
+  ) {
+    normalized.quality = Math.min(100, Math.max(20, Math.round(transform.quality)));
+  }
+
+  if (transform.resize) {
+    const resizeMap: Record<
+      NonNullable<AvatarTransformOptions['resize']>,
+      TransformOptions['resize']
+    > = {
+      cover: 'cover',
+      contain: 'contain',
+      fill: 'fill',
+      inside: 'contain',
+      outside: 'cover',
+    };
+
+    const mappedResize = resizeMap[transform.resize];
+    if (mappedResize) {
+      normalized.resize = mappedResize;
+    }
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
 
 /**
  * 사용자 프로필 정보 API 엔드포인트
@@ -124,8 +175,85 @@ export async function GET(request: NextRequest) {
     }
 
     // 아바타 URL 결정 로직 (DB 우선, 없으면 제공자 메타데이터에서 안전 추출)
-    const providerAvatar = extractAvatarFromProvider(user?.user_metadata || {}, provider);
-    const effectiveAvatarUrl = getSafeAvatarUrl(profile.avatar_url || providerAvatar || null);
+    const providerAvatar = extractAvatarFromProvider(
+      user?.user_metadata || {},
+      provider,
+    );
+
+    const transformOptions: AvatarTransformOptions = {
+      width: 256,
+      height: 256,
+      resize: 'cover',
+      quality: 85,
+    };
+
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    let effectiveAvatarUrl: string | null = null;
+
+    if (profile.avatar_url) {
+      const storageRef = extractSupabaseStorageReference(profile.avatar_url);
+
+      if (
+        storageRef &&
+        !storageRef.isSigned &&
+        supabaseUrl &&
+        supabaseServiceRoleKey
+      ) {
+        try {
+          const normalizedSupabaseUrl = supabaseUrl.replace(/\/$/, '');
+          const serviceClient = createClient(
+            normalizedSupabaseUrl,
+            supabaseServiceRoleKey,
+            { auth: { persistSession: false } },
+          );
+
+          const supabaseTransformOptions =
+            toSupabaseTransformOptions(transformOptions);
+
+          const { data: signedData, error: signError } =
+            await serviceClient.storage
+              .from(storageRef.bucket)
+              .createSignedUrl(
+                storageRef.path,
+                60 * 60,
+                supabaseTransformOptions
+                  ? { transform: supabaseTransformOptions }
+                  : undefined,
+              );
+
+          if (!signError && signedData?.signedUrl) {
+            effectiveAvatarUrl = signedData.signedUrl;
+          }
+        } catch (error) {
+          console.warn('⚠️ [User Profile API] 아바타 서명 URL 생성 실패:', error);
+        }
+      }
+
+      if (!effectiveAvatarUrl) {
+        effectiveAvatarUrl = getSafeAvatarUrl(
+          profile.avatar_url,
+          '/images/default-avatar.svg',
+          false,
+          transformOptions,
+        );
+      }
+    }
+
+    if (!effectiveAvatarUrl && providerAvatar) {
+      effectiveAvatarUrl = getSafeAvatarUrl(
+        providerAvatar,
+        '/images/default-avatar.svg',
+        false,
+        transformOptions,
+      );
+    }
+
+    if (!effectiveAvatarUrl) {
+      effectiveAvatarUrl = '/images/default-avatar.svg';
+    }
 
     console.log('✅ [User Profile API] 프로필 조회 성공:', {
       userId: profile.id,

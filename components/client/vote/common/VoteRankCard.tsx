@@ -2,11 +2,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Image from 'next/image';
 import { VoteItem } from '@/types/interfaces';
 import { Badge } from '@/components/common';
 import { getLocalizedString } from '@/utils/api/strings';
-import { getCdnImageUrl } from '@/utils/api/image';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
@@ -124,9 +123,7 @@ export function VoteRankCard({
     : t('artist_name_fallback');
 
   // 아티스트 이미지 URL
-  const imageUrl = item.artist?.image
-    ? getCdnImageUrl(item.artist.image)
-    : '/images/default-artist.png';
+  const imageSrc = item.artist?.image || null;
 
   // 투표수 결정 (voteTotal prop이 있으면 사용, 없으면 item.voteTotal 사용)
   const displayVoteTotal =
@@ -203,17 +200,13 @@ export function VoteRankCard({
         <div
           className={`${sizeClasses.image} rounded-full overflow-hidden border border-white shadow-sm mx-auto flex-shrink-0`}
         >
-          <Image
-            src={imageUrl}
+          <OptimizedImage
+            src={imageSrc || '/images/default-artist.png'}
             alt={artistName}
             width={100}
             height={100}
             className='w-full h-full object-cover'
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/images/default-artist.png';
-              target.onerror = null;
-            }}
+            fallbackSrc='/images/default-artist.png'
           />
         </div>
         <div className='flex flex-col items-center mt-2 min-h-0 w-full overflow-hidden'>
@@ -384,17 +377,13 @@ export function VoteRankCard({
         <motion.div
           className={`${sizeClasses.image} rounded-full overflow-hidden border border-white shadow-sm mx-auto flex-shrink-0`}
         >
-          <Image
-            src={imageUrl}
+          <OptimizedImage
+            src={imageSrc || '/images/default-artist.png'}
             alt={artistName}
             width={100}
             height={100}
             className='w-full h-full object-cover'
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/images/default-artist.png';
-              target.onerror = null;
-            }}
+            fallbackSrc='/images/default-artist.png'
           />
         </motion.div>
       </motion.div>

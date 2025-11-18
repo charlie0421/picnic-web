@@ -128,7 +128,7 @@ export function LoginRequiredDialog({
             <div className="relative h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-primary-500 to-secondary-500 p-[2px]">
               <div className="h-full w-full rounded-[10px] bg-white flex items-center justify-center">
                 <Image
-                  src="/images/logo.png"
+                  src="/images/logo.webp"
                   alt="Picnic"
                   width={24}
                   height={24}

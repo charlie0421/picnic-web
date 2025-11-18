@@ -45,81 +45,163 @@ const SUB_CATEGORY_COLORS = {
   all: 'bg-gray-50 text-gray-600 border border-gray-100',
 } as const;
 
-const getStatusText = (
+const STATUS_LABEL_FALLBACK: Record<VoteStatus, string> = {
+  [VOTE_STATUS.UPCOMING]: 'Upcoming',
+  [VOTE_STATUS.ONGOING]: 'In Progress',
+  [VOTE_STATUS.COMPLETED]: 'Completed',
+};
+
+const computeVoteStatus = (
+  startAt: string | null | undefined,
+  stopAt: string | null | undefined,
+  referenceTime: Date,
+): VoteStatus => {
+  if (!startAt || !stopAt) return VOTE_STATUS.UPCOMING;
+  const start = new Date(startAt);
+  const end = new Date(stopAt);
+  if (referenceTime < start) return VOTE_STATUS.UPCOMING;
+  if (referenceTime > end) return VOTE_STATUS.COMPLETED;
+  return VOTE_STATUS.ONGOING;
+};
+
+const computeTimeLeft = (
   status: VoteStatus,
+  stopAt: string | null | undefined,
+  referenceTime: Date,
+): {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+} | null => {
+  if (status !== VOTE_STATUS.ONGOING || !stopAt) return null;
+
+  const now = referenceTime.getTime();
+  const endTime = new Date(stopAt).getTime();
+  const difference = endTime - now;
+
+  if (difference <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+
+  const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+  return { days, hours, minutes, seconds };
+};
+
+interface VoteTimeInfo {
+  status: VoteStatus;
+  timeLeft: {
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null;
+  relativeSinceQuery: string | null;
+}
+
+const CATEGORY_LABEL_FALLBACK: Record<string, string> = {
+  birthday: 'Birthday',
+  debut: 'Debut',
+  accumulated: 'Accumulated',
+  special: 'Special',
+  event: 'Event',
+  weekly: 'Weekly',
+};
+
+const SUBCATEGORY_LABEL_FALLBACK: Record<string, string> = {
+  male: 'Male',
+  female: 'Female',
+  group: 'Group',
+  all: 'All',
+};
+
+const getStatusText = (status: VoteStatus, t: (key: string) => string): string => {
+  const text = (() => {
+    switch (status) {
+      case VOTE_STATUS.UPCOMING:
+        return t('label_tabbar_vote_upcoming') || STATUS_LABEL_FALLBACK[status];
+      case VOTE_STATUS.ONGOING:
+        return t('label_tabbar_vote_active') || STATUS_LABEL_FALLBACK[status];
+      case VOTE_STATUS.COMPLETED:
+        return t('label_tabbar_vote_end') || STATUS_LABEL_FALLBACK[status];
+      default:
+        return STATUS_LABEL_FALLBACK[VOTE_STATUS.ONGOING];
+    }
+  })();
+
+  return text?.trim() ?? '';
+};
+
+const toTitleCase = (value: string) =>
+  value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, char => char.toUpperCase());
+
+const getCategoryLabel = (
+  category: string | undefined | null,
   t: (key: string) => string,
-): string => {
-  switch (status) {
-    case VOTE_STATUS.UPCOMING:
-      return t('label_tabbar_vote_upcoming');
-    case VOTE_STATUS.ONGOING:
-      return t('label_tabbar_vote_active');
-    case VOTE_STATUS.COMPLETED:
-      return t('label_tabbar_vote_end');
-    default:
-      return '';
-  }
+): string | null => {
+  if (!category) return null;
+  return (
+    t(`label_vote_${category}`) ||
+    CATEGORY_LABEL_FALLBACK[category] ||
+    toTitleCase(category)
+  );
+};
+
+const getSubCategoryLabel = (
+  subCategory: string | undefined | null,
+  t: (key: string) => string,
+): string | null => {
+  if (!subCategory) return null;
+  return (
+    t(`compatibility_gender_${subCategory}`) ||
+    SUBCATEGORY_LABEL_FALLBACK[subCategory] ||
+    toTitleCase(subCategory)
+  );
 };
 
 export const VoteCard = React.memo(
   ({ vote, onClick }: { vote: Vote; onClick?: () => void }) => {
     const { t, currentLanguage } = useLanguageStore();
-    const [currentTime, setCurrentTime] = useState(new Date());
-    const [tick, setTick] = useState(0); // 상대시간 갱신용
     const queryTimeRef = useRef<Date>(new Date()); // 카드 조회 시각
-    
-    // 실시간 시간 업데이트 (1초마다 업데이트)
-    useEffect(() => {
-      const timer = setInterval(() => {
-        setCurrentTime(new Date());
-      }, 1000); // 1초마다 업데이트
+    const [timeInfo, setTimeInfo] = useState<VoteTimeInfo>(() => {
+      const initialStatus = computeVoteStatus(vote.start_at, vote.stop_at, new Date());
+      return {
+        status: initialStatus,
+        timeLeft: computeTimeLeft(initialStatus, vote.stop_at, new Date()),
+        relativeSinceQuery: formatRelativeTime(queryTimeRef.current, currentLanguage as any, {
+          useAbsolute: false,
+          showTime: false,
+        }),
+      };
+    });
 
+    useEffect(() => {
+      const updateTime = () => {
+        const now = new Date();
+        const status = computeVoteStatus(vote.start_at, vote.stop_at, now);
+        const timeLeft = computeTimeLeft(status, vote.stop_at, now);
+        setTimeInfo({
+          status,
+          timeLeft,
+          relativeSinceQuery: formatRelativeTime(queryTimeRef.current, currentLanguage as any, {
+            useAbsolute: false,
+            showTime: false,
+          }),
+        });
+      };
+
+      updateTime();
+      const timer = setInterval(updateTime, 1000);
       return () => clearInterval(timer);
-    }, []);
-    
-    // 상대시간은 1분 간격으로 갱신
-    useEffect(() => {
-      const interval = setInterval(() => setTick((p) => p + 1), 60 * 1000);
-      return () => clearInterval(interval);
-    }, []);
-    
-    // 투표 상태 계산 (서버/클라이언트 일관성 보장)
-    const status = useMemo(() => {
-      if (!vote.start_at || !vote.stop_at) return VOTE_STATUS.UPCOMING;
-      
-      const start = new Date(vote.start_at);
-      const end = new Date(vote.stop_at);
-      
-      if (currentTime < start) return VOTE_STATUS.UPCOMING;
-      if (currentTime > end) return VOTE_STATUS.COMPLETED;
-      return VOTE_STATUS.ONGOING;
-    }, [vote.start_at, vote.stop_at, currentTime]);
+    }, [vote.start_at, vote.stop_at, currentLanguage]);
 
-    // 남은 시간 계산
-    const timeLeft = useMemo(() => {
-      if (status !== VOTE_STATUS.ONGOING || !vote.stop_at) return null;
-      
-      const now = currentTime.getTime();
-      const endTime = new Date(vote.stop_at).getTime();
-      const difference = endTime - now;
-
-      if (difference <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
-
-      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-      return { days, hours, minutes, seconds };
-    }, [status, vote.stop_at, currentTime]);
-
-    // 사용자가 이 카드를 본 이후로 경과한 상대시간 (라벨 없이 간단 표시)
-    const relativeSinceQuery = useMemo(() => {
-      return formatRelativeTime(queryTimeRef.current, currentLanguage as any, {
-        useAbsolute: false,
-        showTime: false,
-      });
-    }, [tick, currentLanguage]);
+    const { status, timeLeft, relativeSinceQuery } = timeInfo;
 
     // 카드 배경색/호버 효과: 종료된 투표는 회색 계열로 명확히 표시
     const containerClass = useMemo(() => {
@@ -153,29 +235,32 @@ export const VoteCard = React.memo(
 
           <div className='p-1 sm:p-2 flex-1 flex flex-col'>
             <div className='flex flex-wrap gap-0.5 mb-1'>
-              {vote.vote_category && (
+              {getCategoryLabel(vote.vote_category, t) && (
                 <span
+                  suppressHydrationWarning
                   className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
                     CATEGORY_COLORS[
                       vote.vote_category as keyof typeof CATEGORY_COLORS
                     ] || 'bg-gray-100 text-gray-800 border border-gray-200'
                   }`}
                 >
-                  {t(`label_vote_${vote.vote_category}`)}
+                  {getCategoryLabel(vote.vote_category, t)}
                 </span>
               )}
-              {vote.vote_sub_category && !vote.is_partnership && (
+              {getSubCategoryLabel(vote.vote_sub_category, t) && !vote.is_partnership && (
                 <span
+                  suppressHydrationWarning
                   className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
                     SUB_CATEGORY_COLORS[
                       vote.vote_sub_category as keyof typeof SUB_CATEGORY_COLORS
                     ] || 'bg-gray-50 text-gray-600 border border-gray-100'
                   }`}
                 >
-                  {t(`compatibility_gender_${vote.vote_sub_category}`)}
+                  {getSubCategoryLabel(vote.vote_sub_category, t)}
                 </span>
               )}
               <span
+                suppressHydrationWarning
                 className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ml-auto ${STATUS_TAG_COLORS[status]}`}
               >
                 {getStatusText(status, t)}
@@ -197,7 +282,9 @@ export const VoteCard = React.memo(
                 showUnits={false}
               />
               {status === VOTE_STATUS.ONGOING && (
-                <span className='text-sub-600 text-xs'>{relativeSinceQuery}</span>
+                <span className='text-sub-600 text-xs' suppressHydrationWarning>
+                  {relativeSinceQuery}
+                </span>
               )}
             </div>
 

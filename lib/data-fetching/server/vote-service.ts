@@ -7,8 +7,42 @@ import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-servi
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
 
-// 기본 투표 테이블 조회 쿼리
-const DEFAULT_VOTE_QUERY = `
+const VOTE_LIST_SELECT = `
+  id,
+  title,
+  main_image,
+  start_at,
+  stop_at,
+  updated_at,
+  vote_category,
+  vote_sub_category,
+  is_partnership,
+  visible_at,
+  vote_item (
+    id,
+    vote_total,
+    updated_at,
+    artist (
+      id,
+      name,
+      image,
+      artist_group (
+        id,
+        name
+      )
+    )
+  ),
+  vote_reward (
+    reward_id,
+    reward (
+      id,
+      title,
+      thumbnail
+    )
+  )
+`;
+
+const VOTE_DETAIL_SELECT = `
   *,
   vote_item!vote_id (
     id,
@@ -83,7 +117,7 @@ function buildVoteQuery(
 ) {
   let query = client
     .from("vote")
-    .select(DEFAULT_VOTE_QUERY)
+    .select(VOTE_LIST_SELECT)
     .is("deleted_at", null);
 
   // visible_at 필터: 관리자(admin) 상태가 아닌 경우에만 적용
@@ -115,7 +149,11 @@ function buildVoteQuery(
     query = query.eq("area", area);
   }
 
-  return query.order("start_at", { ascending: false });
+  return query
+    .is("vote_item.deleted_at", null)
+    .order("start_at", { ascending: false })
+    .order("vote_total", { ascending: false, referencedTable: "vote_item" })
+    .limit(3, { referencedTable: "vote_item" });
 }
 
 
@@ -166,7 +204,7 @@ export const getVoteById = cache(async (
     const client = createPublicSupabaseServerClient();
     const { data, error } = await client
       .from("vote")
-      .select(DEFAULT_VOTE_QUERY)
+      .select(VOTE_DETAIL_SELECT)
       .eq("id", id)
       .is("deleted_at", null)
       .single();

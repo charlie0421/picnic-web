@@ -1,6 +1,5 @@
 import { Reward as DBReward } from "@/types/interfaces";
 import { getLocalizedString } from "@/utils/api/strings";
-import { getCdnImageUrl } from "@/utils/api/image";
 import { RewardListPresenter } from "@/components/client/reward/RewardPresenter";
 import { getRewards } from "@/utils/api/queries";
 
@@ -9,7 +8,7 @@ function transformRewardData(dbRewards: DBReward[]): DBReward[] {
   return dbRewards.map(reward => ({
     ...reward,
     title: getLocalizedString(reward.title) || '리워드',
-    thumbnail: reward.thumbnail ? getCdnImageUrl(reward.thumbnail) : null,
+    thumbnail: reward.thumbnail ?? null,
     createdAt: reward.created_at || new Date().toISOString()
   }));
 }
@@ -32,11 +31,13 @@ export interface RewardListFetcherProps {
  * <RewardListFetcher className="my-4" showViewAllLink={true} />
  * ```
  */
+const DEFAULT_LIMIT = 8;
+
 export async function RewardListFetcher({ 
   className, 
   showViewAllLink = false 
 }: RewardListFetcherProps = {}) {
-  const dbRewards = await getRewards();
+  const dbRewards = await getRewards(DEFAULT_LIMIT);
   const clientRewards = transformRewardData(dbRewards);
   
   return (

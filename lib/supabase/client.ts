@@ -23,7 +23,7 @@ const debugWarn = (...args: unknown[]) => {
 };
 
 // 브라우저 클라이언트 타입을 미리 정의
-type BrowserSupabaseClient = SupabaseClient<Database>;
+type BrowserSupabaseClient = SupabaseClient<Database, 'public', Database['public']>;
 
 // 🔧 Singleton 패턴으로 Multiple GoTrueClient 문제 해결
 let browserSupabase: BrowserSupabaseClient | null = null;
@@ -224,7 +224,7 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
   
   const clientStartTime = performance.now();
   
-  browserSupabase = createBrowserClient<Database>(
+  browserSupabase = createBrowserClient<Database, 'public'>(
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     {
@@ -236,9 +236,9 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
         storage: window.localStorage,
         storageKey: `sb-${SUPABASE_URL.split('.')[0].split('://')[1]}-auth-token`,
         debug: false,
-        fetch: supabaseAuthFetch,
       },
       global: {
+        fetch: supabaseAuthFetch,
         headers: {
           'x-client-info': 'supabase-js-web',
           // 커스텀 헤더 제거: Edge Functions CORS 프리플라이트 차단 방지
@@ -260,7 +260,7 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
         reconnectAfterMs: () => 30000, // 재연결 시도 간격 증가
       },
     }
-  );
+  ) as unknown as BrowserSupabaseClient;
 
   const clientEndTime = performance.now();
   const creationTime = clientEndTime - clientStartTime;

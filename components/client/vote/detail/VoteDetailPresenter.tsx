@@ -14,7 +14,7 @@ import { VoteButton } from '../common/VoteButton';
 import { Badge, Card } from '@/components/common';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
-import { getCdnImageUrl } from '@/utils/api/image';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import VoteDialog from '../dialogs/VoteDialog';
@@ -623,7 +623,7 @@ export function VoteDetailPresenter({
         <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-3 md:gap-4'>
           {filteredItems.map((item, index) => {
             const artistName = (item as any).artist?.name ? getLocalizedString((item as any).artist.name, currentLanguage) || '아티스트' : '아티스트';
-            const imageUrl = (item as any).artist?.image ? getCdnImageUrl((item as any).artist.image) : '/images/default-artist.png';
+            const imageSrc = (item as any).artist?.image || null;
             return (
               <div key={item.id} className='transform transition-all duration-300 hover:scale-105 hover:-translate-y-2' style={{ animationDelay: `${index * 50}ms` }} onClick={() => { if (canVote) { handleCardClick(item); } }}>
                 <Card hoverable={canVote} className={`
@@ -653,7 +653,13 @@ export function VoteDetailPresenter({
                     <div className='text-center'>
                       <div className='relative mb-1.5 group'>
                         <div className='relative w-full aspect-square bg-gray-100 rounded overflow-hidden'>
-                          <img src={imageUrl} alt={artistName} className='w-full h-full object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-110' onError={(e) => { const target = e.target as HTMLImageElement; target.src = '/images/default-artist.png'; target.onerror = null; }} />
+                          <OptimizedImage
+                            src={imageSrc || '/images/default-artist.png'}
+                            alt={artistName}
+                            fill
+                            className='object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-110'
+                            fallbackSrc='/images/default-artist.png'
+                          />
                           <div className='absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300'></div>
                         </div>
                       </div>

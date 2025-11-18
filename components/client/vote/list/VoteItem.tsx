@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { VoteItem as VoteItemType } from '@/types/interfaces';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useVoteStore } from '@/stores/voteStore';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 export interface VoteItemProps {
   item: VoteItemType & { artist?: any };
@@ -56,9 +56,7 @@ export function VoteItem({
     : null;
 
   // 이미지 URL
-  const imageUrl = item.artist?.image
-    ? getCdnImageUrl(item.artist.image)
-    : '/images/default-artist.png';
+  const imageSrc = item.artist?.image || null;
 
   // 투표수
   const voteCount = item.vote_total || 0;
@@ -150,15 +148,13 @@ export function VoteItem({
     >
       {/* 이미지 */}
       <div className={`${styles.image} overflow-hidden border border-gray-200 shadow-sm`}>
-        <img
-          src={imageUrl}
+        <OptimizedImage
+          src={imageSrc || '/images/default-artist.png'}
           alt={artistName}
+          width={variant === 'compact' ? 32 : variant === 'list' ? 48 : 80}
+          height={variant === 'compact' ? 32 : variant === 'list' ? 48 : 80}
           className='w-full h-full object-cover transition-transform duration-200 hover:scale-105'
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = '/images/default-artist.png';
-            target.onerror = null;
-          }}
+          fallbackSrc='/images/default-artist.png'
         />
       </div>
 

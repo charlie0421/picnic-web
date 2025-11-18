@@ -9,6 +9,7 @@ import MyPageAccountMenu from '@/components/server/mypage/MyPageAccountMenu';
 import StarCandyBalanceBox from '@/components/common/StarCandyBalanceBox';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { getProviderDisplayName } from '@/utils/storage';
+import { ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 
 interface Translations {
   [key: string]: string;
@@ -231,21 +232,13 @@ export default function MyPageClient({
           <div className='relative'>
             <div className='w-20 h-20 rounded-full border-2 border-primary'>
               <div className='w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden'>
-                {userInfo.avatar_url ? (
-                  <img
-                    src={userInfo.avatar_url}
-                    alt={userInfo.nickname}
-                    className='w-full h-full object-cover'
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      target.nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                ) : null}
-                <div className={`text-2xl text-gray-600 ${userInfo.avatar_url ? 'hidden' : ''}`}>
-                  👤
-                </div>
+                <ProfileImageContainer
+                  avatarUrl={userInfo.avatar_url}
+                  width={80}
+                  height={80}
+                  borderRadius={80}
+                  className="w-full h-full"
+                />
               </div>
             </div>
           </div>

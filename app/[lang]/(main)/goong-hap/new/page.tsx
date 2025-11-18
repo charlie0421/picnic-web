@@ -5,8 +5,7 @@ import { useTranslations } from '@/hooks/useTranslations';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import NavigationLink from '@/components/client/NavigationLink';
-import { getSafeAvatarUrl, createImageErrorHandler } from '@/utils/image-utils';
-import { getCdnImageUrl } from '@/utils/api/image';
+import { ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function NewGoongHapPage() {
@@ -317,7 +316,17 @@ export default function NewGoongHapPage() {
                         checked={selectedArtistId === a.id}
                         onChange={() => setSelectedArtistId(a.id)}
                       />
-                      {a.image && <img src={getSafeAvatarUrl(getCdnImageUrl(a.image), '/images/default-avatar.svg', false)} onError={createImageErrorHandler()} alt='' className='w-8 h-8 rounded object-cover' />}
+                      {a.image && (
+                        <div className='w-8 h-8 rounded overflow-hidden'>
+                          <ProfileImageContainer
+                            avatarUrl={a.image || null}
+                        width={32}
+                        height={32}
+                        borderRadius={8}
+                        className='w-full h-full'
+                          />
+                        </div>
+                      )}
                       <span className='text-sm text-gray-900'>{typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || a.name?.ja || '')}</span>
                     </label>
                   ))}
@@ -335,7 +344,17 @@ export default function NewGoongHapPage() {
                       checked={selectedArtistId === a.id}
                       onChange={() => setSelectedArtistId(a.id)}
                     />
-                    {a.image && <img src={getSafeAvatarUrl(getCdnImageUrl(a.image), '/images/default-avatar.svg', false)} onError={createImageErrorHandler()} alt='' className='w-8 h-8 rounded object-cover' />}
+                    {a.image && (
+                      <div className='w-8 h-8 rounded overflow-hidden'>
+                        <ProfileImageContainer
+                          avatarUrl={a.image || null}
+                          width={32}
+                          height={32}
+                          borderRadius={8}
+                          className='w-full h-full'
+                        />
+                      </div>
+                    )}
                     <span className='text-sm text-gray-900'>{typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || a.name?.ja || '')}</span>
                   </label>
                 ))}

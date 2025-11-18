@@ -2,7 +2,7 @@
  
 import React from 'react'
 import BoardCard from './BoardCard'
-import { getCdnImageUrl } from '@/utils/api/image'
+import { OptimizedImage } from '@/components/ui/OptimizedImage'
 import { useTranslations } from '@/hooks/useTranslations'
 
 interface BoardItem {
@@ -49,7 +49,7 @@ export default function GroupedBoardList({ items, lang, bookmarkedBoardIds = [] 
         <section key={g.key}>
           <div className='flex items-center gap-2 mb-2'>
             {g.image ? (
-              <img src={getCdnImageUrl(g.image, 80)} alt={g.title} className='w-8 h-8 rounded object-cover' />
+              <OptimizedImage src={g.image} alt={g.title} width={80} height={80} className='w-8 h-8 rounded object-cover' />
             ) : (
               <div className='w-8 h-8 rounded bg-gray-200' />
             )}

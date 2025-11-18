@@ -44,7 +44,7 @@ export default function CallbackLoading() {
       <style dangerouslySetInnerHTML={{ __html: animationStyles }} />
       <div style={wrapperStyle}>
         <img
-          src="/images/logo.png"
+          src="/images/logo.webp"
           alt="Picnic Loading"
           style={imageStyle}
           className="animate-scale-pulse-auth" // 애니메이션 클래스는 <style> 태그를 통해 적용

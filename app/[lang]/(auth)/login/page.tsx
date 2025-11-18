@@ -221,7 +221,7 @@ function LoginContent() {
           <div className='transition-transform duration-200 hover:scale-105 mb-3'>
             <Link href='/' className='group'>
                 <div className='relative bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 group-hover:shadow-2xl transition-all duration-300'>
-                    <Image src='/images/logo.png' alt='Picnic Logo' width={48} height={48} className='w-12 h-12 sm:w-16 sm:h-16 mx-auto filter drop-shadow-lg' priority />
+                    <Image src='/images/logo.webp' alt='Picnic Logo' width={48} height={48} className='w-12 h-12 sm:w-16 sm:h-16 mx-auto filter drop-shadow-lg' priority />
               </div>
             </Link>
           </div>

@@ -175,7 +175,7 @@ export function createMediaSchema(
       name: '피크닠',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://picnic.com/images/logo.png',
+        url: 'https://picnic.com/images/logo.webp',
       },
     },
   };

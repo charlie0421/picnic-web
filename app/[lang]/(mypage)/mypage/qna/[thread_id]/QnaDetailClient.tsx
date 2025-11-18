@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useRouter } from 'next/navigation';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface QnaDetailClientProps {
   thread: QnaThreadWithRelations;
@@ -581,7 +582,7 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
                 <div className="flex gap-2 flex-wrap">
                   {previewUrls.map((url, idx) => (
                     <div key={idx} className="relative w-24 h-24">
-                      <Image src={url} alt={`Preview ${idx + 1}`} fill className="rounded-lg object-cover" />
+                      <OptimizedImage src={url} alt={`Preview ${idx + 1}`} fill className="rounded-lg object-cover" />
                       <button
                         type="button"
                         onClick={() => removeAttachment(idx)}

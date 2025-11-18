@@ -10,6 +10,7 @@ import { useLanguageStore } from "@/stores/languageStore";
 export const getCdnImageUrl = (
   path: string | null | undefined,
   width?: number,
+  height?: number,
 ): string => {
   if (!path) return "";
 
@@ -27,7 +28,32 @@ export const getCdnImageUrl = (
 
   // 이미 전체 URL인 경우: 변경하지 않고 그대로 반환 (CDN 경로 변경 시 안전한 기본값)
   if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path.trim();
+    if (!cdnUrl) {
+      return path.trim();
+    }
+
+    try {
+      const absoluteUrl = new URL(path);
+      const cdnHost = new URL(cdnUrl).host;
+
+      if (absoluteUrl.host === cdnHost) {
+        if (width) {
+          absoluteUrl.searchParams.set("w", String(width));
+        }
+        if (height) {
+          absoluteUrl.searchParams.set("h", String(height));
+        }
+        if (!absoluteUrl.searchParams.has("f")) {
+          absoluteUrl.searchParams.set("f", "webp");
+        }
+        return absoluteUrl.toString();
+      }
+
+      return path.trim();
+    } catch (e) {
+      console.error("절대 경로 파싱 오류:", e);
+      return path.trim();
+    }
   }
 
   try {
@@ -44,8 +70,23 @@ export const getCdnImageUrl = (
         : localizedPath).trim();
 
       // 최종 URL 생성 (CDN이 있을 때만 width 파라미터 적용)
-      const widthParam = cdnUrl && width ? `?w=${width}` : "";
-      const finalUrl = cdnUrl ? `${cdnUrl}/${normalizedPath}${widthParam}` : `/${normalizedPath}`;
+      let query = "";
+      if (cdnUrl) {
+        const params = new URLSearchParams();
+        if (width) {
+          params.set("w", String(width));
+          params.set("width", String(width));
+        }
+        if (height) {
+          params.set("h", String(height));
+          params.set("height", String(height));
+        }
+        if (!params.has("f")) {
+          params.set("f", "webp");
+        }
+        query = `?${params.toString()}`;
+      }
+      const finalUrl = cdnUrl ? `${cdnUrl}/${normalizedPath}${query}` : `/${normalizedPath}`;
       return finalUrl;
     }
   } catch (e) {
@@ -58,8 +99,23 @@ export const getCdnImageUrl = (
     .trim();
 
   // 최종 URL 생성 (CDN이 있을 때만 width 파라미터 적용)
-  const widthParam = cdnUrl && width ? `?w=${width}` : "";
-  const finalUrl = cdnUrl ? `${cdnUrl}/${normalizedPath}${widthParam}` : `/${normalizedPath}`;
+  let query = "";
+  if (cdnUrl) {
+    const params = new URLSearchParams();
+    if (width) {
+      params.set("w", String(width));
+      params.set("width", String(width));
+    }
+    if (height) {
+      params.set("h", String(height));
+      params.set("height", String(height));
+    }
+    if (!params.has("f")) {
+      params.set("f", "webp");
+    }
+    query = `?${params.toString()}`;
+  }
+  const finalUrl = cdnUrl ? `${cdnUrl}/${normalizedPath}${query}` : `/${normalizedPath}`;
 
   return finalUrl;
 };

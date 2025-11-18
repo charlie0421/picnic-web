@@ -29,7 +29,7 @@ export function Spinner({
   return (
     <div className={cn('inline-block', className)}>
       <Image
-        src="/images/logo.png"
+        src="/images/logo.webp"
         alt="Loading"
         width={sizeValues[size].width}
         height={sizeValues[size].height}

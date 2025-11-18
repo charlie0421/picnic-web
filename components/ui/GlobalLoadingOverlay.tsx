@@ -39,7 +39,7 @@ export default function GlobalLoadingOverlay() {
         }}
       >
         <Image
-          src="/images/logo.png"
+          src="/images/logo.webp"
           alt="Picnic Loading"
           width={80}
           height={80}

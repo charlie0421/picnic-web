@@ -20,6 +20,7 @@ interface OptimizedImageProps {
   onError?: () => void;
   // Intersection Observer 기반 lazy loading
   intersectionThreshold?: number;
+  unoptimized?: boolean;
 }
 
 export function OptimizedImage({
@@ -37,6 +38,7 @@ export function OptimizedImage({
   onLoad,
   onError,
   intersectionThreshold = 0.1,
+  unoptimized = false,
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -147,6 +149,7 @@ export function OptimizedImage({
           priority={priority}
           quality={quality}
           loading={priority ? 'eager' : 'lazy'}
+          unoptimized={unoptimized}
           onLoad={handleImageLoad}
           onError={handleImageError}
         />

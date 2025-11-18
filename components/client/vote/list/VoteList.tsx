@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Vote, VoteItem } from '@/types/interfaces';
-import Image from 'next/image';
 import { getLocalizedString } from '@/utils/api/strings';
-import { getCdnImageUrl } from '@/utils/api/image';
 import VoteLoadingSkeleton from './VoteLoadingSkeleton';
 import { useVoteStore } from '@/stores/voteStore';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 export interface VoteListProps {
   votes?: Vote[];
@@ -303,7 +302,7 @@ function PodiumItem({
     : (item.artist?.artist_group?.name
       ? getLocalizedString(item.artist.artist_group.name, locale)
       : '');
-  const imageUrl = item.artist?.image ? getCdnImageUrl(item.artist.image) : '/images/default-artist.png';
+  const imageSrc = item.artist?.image || null;
   const total = item.vote_total ?? 0;
   const formattedTotal = (total || 0).toLocaleString('ko-KR');
 
@@ -320,12 +319,13 @@ function PodiumItem({
         } overflow-hidden`}
         style={{ width: size, height: size }}
       >
-        <Image
-          src={imageUrl}
+        <OptimizedImage
+          src={imageSrc || '/images/default-artist.png'}
           alt={artistName}
           width={size}
           height={size}
           className="w-full h-full object-cover"
+          fallbackSrc="/images/default-artist.png"
         />
       </div>
       <div className="mt-2 max-w-[120px] text-center">
