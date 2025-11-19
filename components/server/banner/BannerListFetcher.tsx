@@ -1,17 +1,8 @@
-import dynamic from 'next/dynamic';
 import { headers } from 'next/headers';
-import { BannerSkeleton } from '@/components/server';
+import { BannerListPresenter } from '@/components/client/banner/BannerListPresenter';
 import { Banner as DBBanner } from '@/types/interfaces';
 import { getBanners } from '@/utils/api/queries';
 import { transformBannerLink } from '@/utils/api/link-transformer';
-
-const BannerListPresenter = dynamic(
-  () => import('@/components/client/banner/BannerListPresenter').then((mod) => mod.BannerListPresenter),
-  {
-    ssr: false,
-    loading: () => <BannerSkeleton />,
-  },
-);
 
 export interface BannerListFetcherProps {
   className?: string;
@@ -38,7 +29,7 @@ export async function BannerListFetcher({ className }: BannerListFetcherProps = 
       return null; // 배너가 없으면 아무것도 렌더링하지 않음
     }
 
-    const headersList = headers();
+    const headersList = await headers();
     const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
     const langMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/i);
     const currentLang = langMatch ? langMatch[1] : 'ko';
@@ -52,7 +43,7 @@ export async function BannerListFetcher({ className }: BannerListFetcherProps = 
       duration: banner.duration,
       end_at: banner.end_at,
       image: banner.image,
-      link: transformBannerLink(banner.link, currentLang),
+      link: banner.link ? transformBannerLink(banner.link, currentLang) : null,
       link_target_id: (banner as any).link_target_id ?? null,
       link_type: (banner as any).link_type ?? null,
       location: banner.location,
