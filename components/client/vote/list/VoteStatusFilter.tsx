@@ -63,15 +63,22 @@ const VoteStatusFilter = React.memo(
       }
     };
 
+    const baseClasses =
+      'px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500';
+
+    const getButtonClasses = (status: VoteStatus) =>
+      [
+        baseClasses,
+        selectedStatus === status
+          ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
+          : 'bg-white text-primary-700 border border-primary/40 hover:bg-primary/10 hover:text-primary-700 hover:shadow-sm',
+      ].join(' ');
+
     return (
       <div className='flex flex-wrap justify-end gap-1 sm:gap-1.5 bg-white/50 backdrop-blur-sm p-1.5 rounded-lg shadow-sm border border-gray-100'>
         <button
           onClick={() => onStatusChange(VOTE_STATUS.ONGOING)}
-          className={`px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
-            selectedStatus === VOTE_STATUS.ONGOING
-              ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-              : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-          }`}
+          className={getButtonClasses(VOTE_STATUS.ONGOING)}
           aria-label={getAriaLabel(VOTE_STATUS.ONGOING)}
           aria-pressed={selectedStatus === VOTE_STATUS.ONGOING}
         >
@@ -79,11 +86,7 @@ const VoteStatusFilter = React.memo(
         </button>
         <button
           onClick={() => onStatusChange(VOTE_STATUS.UPCOMING)}
-          className={`px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
-            selectedStatus === VOTE_STATUS.UPCOMING
-              ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-              : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-          }`}
+          className={getButtonClasses(VOTE_STATUS.UPCOMING)}
           aria-label={getAriaLabel(VOTE_STATUS.UPCOMING)}
           aria-pressed={selectedStatus === VOTE_STATUS.UPCOMING}
         >
@@ -91,11 +94,7 @@ const VoteStatusFilter = React.memo(
         </button>
         <button
           onClick={() => onStatusChange(VOTE_STATUS.COMPLETED)}
-          className={`px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
-            selectedStatus === VOTE_STATUS.COMPLETED
-              ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-              : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-          }`}
+          className={getButtonClasses(VOTE_STATUS.COMPLETED)}
           aria-label={getAriaLabel(VOTE_STATUS.COMPLETED)}
           aria-pressed={selectedStatus === VOTE_STATUS.COMPLETED}
         >
@@ -104,11 +103,7 @@ const VoteStatusFilter = React.memo(
         {isAdmin && (
           <button
             onClick={() => onStatusChange(VOTE_STATUS.ADMIN)}
-            className={`px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
-              selectedStatus === VOTE_STATUS.ADMIN
-                ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-                : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-            }`}
+            className={getButtonClasses(VOTE_STATUS.ADMIN)}
             aria-label={getAriaLabel(VOTE_STATUS.ADMIN)}
             aria-pressed={selectedStatus === VOTE_STATUS.ADMIN}
           >

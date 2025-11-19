@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import Script from 'next/script'
+import ConsentAwareAdsense from '@/components/client/ads/ConsentAwareAdsense'
 
 export const metadata: Metadata = {
   title: 'Picnic',
@@ -31,13 +31,7 @@ export default async function RootLayout({
       <body>
         {/* Google AdSense (Auto ads) - 프로덕션에서만 지연 로딩 */}
         {shouldLoadAds && (
-          <Script
-            id="adsense"
-            strategy="lazyOnload"
-            async
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1539304887624918"
-            crossOrigin="anonymous"
-          />
+          <ConsentAwareAdsense clientId="ca-pub-1539304887624918" />
         )}
         <div className='bg-white'>
           {children}

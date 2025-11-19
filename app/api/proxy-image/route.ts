@@ -27,12 +27,30 @@ export async function GET(request: NextRequest) {
         'graph.facebook.com',
         'pbs.twimg.com',
         'cdn.discordapp.com',
-        'avatars.githubusercontent.com'
+        'avatars.githubusercontent.com',
+      ];
+
+      try {
+        const supabaseUrl =
+          process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+        if (supabaseUrl) {
+          const supabaseHost = new URL(supabaseUrl).host;
+          allowedDomains.push(supabaseHost);
+        }
+      } catch (error) {
+        console.warn('🖼️ [ImageProxy] Supabase 도메인 파싱 실패:', error);
+      }
+      
+      const supabaseWildcardDomains = [
+        '.supabase.co',
+        '.supabase.in',
       ];
       
-      const isAllowed = allowedDomains.some(domain => 
-        url.hostname.includes(domain)
-      );
+      const isAllowed =
+        allowedDomains.some((domain) => url.hostname.includes(domain)) ||
+        supabaseWildcardDomains.some((suffix) =>
+          url.hostname.endsWith(suffix),
+        );
       
       if (!isAllowed) {
         return NextResponse.json(
@@ -122,4 +140,5 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type'
     }
   });
-} 
+}
+

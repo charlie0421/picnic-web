@@ -55,12 +55,13 @@ const VoteAreaFilter = React.memo(
       }
     };
 
-    const getButtonClasses = (area: VoteArea) => 
-      `px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
+    const getButtonClasses = (area: VoteArea) =>
+      [
+        'px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
         selectedArea === area
           ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-          : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-      }`;
+          : 'bg-white text-primary-700 border border-primary/40 hover:bg-primary/10 hover:text-primary-700 hover:shadow-sm',
+      ].join(' ');
 
     return (
       <div className='flex flex-wrap justify-start gap-1 sm:gap-1.5 bg-white/50 backdrop-blur-sm p-1.5 rounded-lg shadow-sm border border-gray-100'>

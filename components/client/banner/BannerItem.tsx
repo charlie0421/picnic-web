@@ -4,14 +4,14 @@ import React from 'react';
 import Link from 'next/link';
 import { Banner } from '@/types/interfaces';
 import { getLocalizedString } from '@/utils/api/strings';
-import { transformBannerLink } from '@/utils/api/link-transformer';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 export interface BannerItemProps {
   banner: Banner;
+  priority?: boolean;
 }
 
-export function BannerItem({ banner }: BannerItemProps) {
+export function BannerItem({ banner, priority = false }: BannerItemProps) {
   const content = (
     <div className='relative w-full bg-gray-200 overflow-hidden hover:shadow-lg transition-shadow rounded-lg banner-aspect-ratio'>
       {banner.image ? (
@@ -21,7 +21,7 @@ export function BannerItem({ banner }: BannerItemProps) {
           fill
           sizes='(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 33vw'
           className='object-cover'
-          priority
+          priority={priority}
         />
       ) : (
         <div className='absolute inset-0 flex items-center justify-center'>
@@ -45,11 +45,13 @@ export function BannerItem({ banner }: BannerItemProps) {
   );
 
   if (banner.link) {
-    // 배너 링크를 웹 친화적인 형태로 변환
-    const transformedLink = transformBannerLink(banner.link);
-    
     return (
-      <Link href={transformedLink} className='block'>
+      <Link
+        href={banner.link}
+        className='block'
+        aria-label={getLocalizedString(banner.title as string)}
+        title={getLocalizedString(banner.title as string)}
+      >
         {content}
       </Link>
     );

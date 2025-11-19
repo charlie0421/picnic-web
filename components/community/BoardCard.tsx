@@ -8,7 +8,13 @@ export default function BoardCard({ boardId, name, description, lang, artist, in
       <a href={`/${lang}/community/boards/${boardId}`} className='block'>
         <div className='flex items-center gap-3'>
           {artist?.image ? (
-            <OptimizedImage src={artist.image} alt='' width={80} height={80} className='w-10 h-10 rounded-md object-cover flex-shrink-0' />
+            <OptimizedImage
+              src={artist.image}
+              alt={`${artist?.name ?? name} thumbnail`}
+              width={80}
+              height={80}
+              className='w-10 h-10 rounded-md object-cover flex-shrink-0'
+            />
           ) : (
             <div className='w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center text-gray-500 text-xs'>IMG</div>
           )}

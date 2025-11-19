@@ -77,6 +77,14 @@ const nextConfig = {
     optimisticClientCache: true,
     // 스크롤 복원 개선
     scrollRestoration: true,
+    // date-fns 등 대형 유틸 패키지의 개별 모듈 import 강제
+    optimizePackageImports: ['date-fns', 'date-fns-tz', 'react-toastify'],
+  },
+
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{member}}',
+    },
   },
   
   // 성능 최적화를 위한 webpack 설정

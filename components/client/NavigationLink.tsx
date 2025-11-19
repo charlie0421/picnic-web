@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -42,23 +43,25 @@ export default function NavigationLink({
   const { isAuthenticated } = useAuth();
   const { navigateWithAuth } = useAuthGuard();
 
-  const handleClick = (e: React.MouseEvent) => {
+  const resolvedHref = useMemo(() => {
+    return href.startsWith(`/${currentLocale}/`)
+      ? href
+      : getLocalizedPath(href, currentLocale);
+  }, [currentLocale, getLocalizedPath, href]);
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
 
     const { path: currentCleanPath } = extractLocaleFromPath(pathname);
     const { path: targetCleanPath } = extractLocaleFromPath(href);
 
-    const normalizedTargetHref = href.startsWith(`/${currentLocale}/`)
-      ? href
-      : getLocalizedPath(href, currentLocale);
-
     // 마이페이지 하위 경로는 기본적으로 로그인 필요로 간주(서비스 공지/FAQ 등은 /mypage 하위가 아님)
-    const requiresAuthByPath = /(^\/mypage\b)|(^\/[a-z]{2}\/[a-z-]{0,5}\/?mypage\b)/i.test(normalizedTargetHref);
+    const requiresAuthByPath = /(^\/mypage\b)|(^\/[a-z]{2}\/[a-z-]{0,5}\/?mypage\b)/i.test(resolvedHref);
     const needAuth = should_login || requiresAuthByPath;
 
     // 인증이 필요한 링크인 경우, 가드 기반 네비게이션 사용 (로그인 유도 다이얼로그 포함)
     if (needAuth && !isAuthenticated) {
-      navigateWithAuth(normalizedTargetHref);
+      navigateWithAuth(resolvedHref);
       if (onClick) {
         onClick();
       }
@@ -74,38 +77,31 @@ export default function NavigationLink({
 
     setIsLoading(true);
     setIsNavigating(true);
-    router.push(normalizedTargetHref);
+    router.push(resolvedHref);
 
     if (onClick) {
       onClick();
     }
   };
 
-  const safeDivProps = {
+  const linkProps = {
     title,
     'aria-label': ariaLabel,
     'aria-describedby': ariaDescribedBy,
     id,
-    role: role || 'button',
-    tabIndex: tabIndex || 0,
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleClick(e as any);
-    }
+    role,
+    tabIndex,
   };
 
   return (
-    <div
+    <Link
+      href={resolvedHref}
       onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      className={`${className} ${isNavigating ? 'opacity-90' : 'opacity-100'} transition-opacity duration-200 cursor-pointer`}
+      className={`${className} ${isNavigating ? 'opacity-90' : 'opacity-100'} transition-opacity duration-200 inline-block`}
       style={{ userSelect: 'none' }}
-      {...safeDivProps}
+      {...linkProps}
     >
       {children}
-    </div>
+    </Link>
   );
 }

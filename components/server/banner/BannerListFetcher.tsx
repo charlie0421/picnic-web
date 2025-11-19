@@ -1,9 +1,17 @@
-import { createClient } from "@/utils/supabase-server-client";
-import { Banner as DBBanner } from "@/types/interfaces";
-import { getLocalizedString } from "@/utils/api/strings";
-import { BannerListPresenter } from "@/components/client/banner";
-import { getBanners } from "@/utils/api/queries";
+import dynamic from 'next/dynamic';
+import { headers } from 'next/headers';
+import { BannerSkeleton } from '@/components/server';
+import { Banner as DBBanner } from '@/types/interfaces';
+import { getBanners } from '@/utils/api/queries';
+import { transformBannerLink } from '@/utils/api/link-transformer';
 
+const BannerListPresenter = dynamic(
+  () => import('@/components/client/banner/BannerListPresenter').then((mod) => mod.BannerListPresenter),
+  {
+    ssr: false,
+    loading: () => <BannerSkeleton />,
+  },
+);
 
 export interface BannerListFetcherProps {
   className?: string;
@@ -30,6 +38,11 @@ export async function BannerListFetcher({ className }: BannerListFetcherProps = 
       return null; // 배너가 없으면 아무것도 렌더링하지 않음
     }
 
+    const headersList = headers();
+    const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
+    const langMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/i);
+    const currentLang = langMatch ? langMatch[1] : 'ko';
+
     // 데이터 변환 - DBBanner를 클라이언트용 Banner로 변환
     const clientBanners = banners.map((banner) => ({
       id: banner.id,
@@ -39,7 +52,7 @@ export async function BannerListFetcher({ className }: BannerListFetcherProps = 
       duration: banner.duration,
       end_at: banner.end_at,
       image: banner.image,
-      link: banner.link,
+      link: transformBannerLink(banner.link, currentLang),
       link_target_id: (banner as any).link_target_id ?? null,
       link_type: (banner as any).link_type ?? null,
       location: banner.location,

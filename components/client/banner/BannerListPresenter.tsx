@@ -75,7 +75,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   if (banners.length === 1) {
     return (
       <div className={className}>
-        <BannerItem banner={banners[0]} />
+        <BannerItem banner={banners[0]} priority />
       </div>
     );
   }
@@ -105,9 +105,9 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
         loop={banners.length > 3} // 3개 이상일 때만 무한 루프
         className='banner-swiper'
       >
-        {banners.map((banner) => (
+        {banners.map((banner, index) => (
           <SwiperSlide key={banner.id}>
-            <BannerItem banner={banner} />
+            <BannerItem banner={banner} priority={index === 0} />
           </SwiperSlide>
         ))}
       </Swiper>
