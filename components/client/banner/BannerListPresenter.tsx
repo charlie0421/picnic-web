@@ -42,15 +42,13 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     setIsClient(true);
   }, []);
 
+  const containerClassName = ['relative w-full', className].filter(Boolean).join(' ');
+
   // 서버 사이드에서는 기본 로딩 상태 표시
   if (!isClient) {
     return (
-      <div className={`w-full bg-gray-100 rounded-lg animate-pulse banner-aspect-ratio ${className}`}>
-        <style jsx>{`
-          .banner-aspect-ratio {
-            aspect-ratio: 700/356;
-          }
-        `}</style>
+      <div className={containerClassName}>
+        <div className='w-full bg-gray-100 rounded-lg animate-pulse' />
       </div>
     );
   }
@@ -58,15 +56,12 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   // 배너가 없는 경우
   if (banners.length === 0) {
     return (
-      <div className={`bg-gray-100 p-6 rounded-lg text-center banner-aspect-ratio ${className}`}>
-        <div className='flex items-center justify-center h-full'>
-          <p className='text-gray-500'>현재 표시할 배너가 없습니다.</p>
+      <div className={containerClassName}>
+        <div className='bg-gray-100 p-6 rounded-lg text-center w-full min-h-[180px]'>
+          <div className='flex items-center justify-center h-full'>
+            <p className='text-gray-500'>현재 표시할 배너가 없습니다.</p>
+          </div>
         </div>
-        <style jsx>{`
-          .banner-aspect-ratio {
-            aspect-ratio: 700/356;
-          }
-        `}</style>
       </div>
     );
   }
@@ -74,14 +69,14 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   // 배너가 1개인 경우 (캐러셀 없이 단일 표시)
   if (banners.length === 1) {
     return (
-      <div className={className}>
+      <div className={containerClassName}>
         <BannerItem banner={banners[0]} priority />
       </div>
     );
   }
 
   return (
-    <div className={`banner-carousel relative ${className}`}>
+    <div className={`${containerClassName} banner-carousel`}>
       <Swiper
         modules={[Navigation, Pagination, Autoplay]}
         spaceBetween={16}
@@ -103,7 +98,8 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
           pauseOnMouseEnter: true,
         }}
         loop={banners.length > 3} // 3개 이상일 때만 무한 루프
-        className='banner-swiper'
+        autoHeight
+        className='banner-swiper pb-5'
       >
         {banners.map((banner, index) => (
           <SwiperSlide key={banner.id}>
@@ -154,7 +150,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
 
       <style jsx>{`
         .banner-swiper {
-          padding-bottom: 50px;
+          padding-bottom: 20px;
         }
         
         :global(.swiper-pagination-bullet-custom) {

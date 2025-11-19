@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { VoteItem } from '@/types/interfaces';
 import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
@@ -44,6 +44,7 @@ export const GridView: React.FC<GridViewProps> = ({
   );
   const [mounted, setMounted] = useState(false);
   const [columns, setColumns] = useState<number>(3);
+  const lastShuffleSignatureRef = useRef<string | null>(null);
 
   const effectiveItems = useMemo(() => items || [], [items]);
 
@@ -93,20 +94,29 @@ export const GridView: React.FC<GridViewProps> = ({
     return shuffled;
   };
 
+  const buildSignature = (list: Array<EnhancedVoteItem>) =>
+    list.map((item) => `${item?.id ?? ''}`).join('|');
+
   // 컴포넌트가 마운트된 후에만 랜덤으로 섞기
   useEffect(() => {
     if (!mounted) return;
     if (stableItems.length === 0) {
       if (shuffledItems.length !== 0) setShuffledItems([]);
+      lastShuffleSignatureRef.current = null;
       return;
     }
     if (enableShuffle) {
-      // 셔플은 첫 마운트 시에만 수행하여 깜빡임 방지
-      if (shuffledItems.length === 0) {
+      const signature = buildSignature(stableItems);
+      if (
+        signature !== lastShuffleSignatureRef.current ||
+        shuffledItems.length === 0
+      ) {
+        lastShuffleSignatureRef.current = signature;
         setShuffledItems(shuffleItems(stableItems));
       }
     } else {
       if (shuffledItems !== stableItems) setShuffledItems(stableItems);
+      lastShuffleSignatureRef.current = buildSignature(stableItems);
     }
   }, [mounted, stableItems, enableShuffle]);
 

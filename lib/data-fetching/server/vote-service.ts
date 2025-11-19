@@ -149,11 +149,14 @@ function buildVoteQuery(
     query = query.eq("area", area);
   }
 
+  const voteItemPreviewLimit =
+    status === VOTE_STATUS.UPCOMING ? 24 : 3;
+
   return query
     .is("vote_item.deleted_at", null)
     .order("start_at", { ascending: false })
     .order("vote_total", { ascending: false, referencedTable: "vote_item" })
-    .limit(3, { referencedTable: "vote_item" });
+    .limit(voteItemPreviewLimit, { referencedTable: "vote_item" });
 }
 
 

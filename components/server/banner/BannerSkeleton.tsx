@@ -1,14 +1,18 @@
 import React from 'react';
 
+interface BannerSkeletonProps {
+  className?: string;
+}
+
 /**
  * 배너 로딩 시 표시될 스켈레톤 UI
  * 실제 BannerListPresenter의 Swiper 스타일에 맞게 구성
  */
-export default function BannerSkeleton() {
+export default function BannerSkeleton({ className = '' }: BannerSkeletonProps) {
   return (
-    <div className="w-full">
+    <div className={`w-full ${className}`}>
       {/* Swiper 스타일의 그리드 레이아웃 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-12">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, index) => (
           <div
             key={index}

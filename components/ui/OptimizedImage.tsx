@@ -73,7 +73,7 @@ export function OptimizedImage({
 
     const optimizedSrc = getCdnImageUrl(src, width || 300);
     setCurrentSrc(optimizedSrc);
-    setShowShimmer(false);
+    setShowShimmer(true);
   }, [isInView, src, width]);
 
   const handleImageLoad = () => {
@@ -103,19 +103,7 @@ export function OptimizedImage({
           <div 
             className={`${placeholderClass} ${className} overflow-hidden`}
           >
-            <div className="relative w-full h-full bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-shimmer rounded-lg">
-              {/* 부드러운 shimmer 오버레이 */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-60 animate-shimmer"></div>
-              
-              {/* 중앙 로딩 아이콘 */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full bg-gray-300 animate-pulse flex items-center justify-center">
-                  <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+            <div className="w-full h-full bg-gray-200 rounded-lg animate-pulse" />
           </div>
         );
       

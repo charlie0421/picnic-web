@@ -203,119 +203,131 @@ export const VoteCard = React.memo(
 
     const { status, timeLeft, relativeSinceQuery } = timeInfo;
 
-    // 카드 배경색/호버 효과: 종료된 투표는 회색 계열로 명확히 표시
     const containerClass = useMemo(() => {
-      if (status === VOTE_STATUS.COMPLETED) {
-        return 'bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-200 hover:shadow-lg transition-all duration-300 h-full flex flex-col';
-      }
-      return 'bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 h-full flex flex-col';
+      const baseClass =
+        'bg-gradient-to-br rounded-xl shadow-lg overflow-hidden transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl border h-full flex flex-col';
+
+      const statusTone: Record<VoteStatus, string> = {
+        [VOTE_STATUS.UPCOMING]: 'from-secondary-50 via-white to-white border-secondary-100/70',
+        [VOTE_STATUS.ONGOING]: 'from-primary-50 via-white to-white border-primary-100/70',
+        [VOTE_STATUS.COMPLETED]: 'from-gray-100 via-gray-50 to-gray-200 border-gray-200',
+      };
+
+      return `${baseClass} ${statusTone[status]}`;
     }, [status]);
 
+    const rewards = ((vote as any)?.voteReward?.length || 0) > 0 ? (vote as any).voteReward : [];
+
     return (
-      <NavigationLink href={`/vote/${vote.id}`}>
-        <div className={containerClass}>
-          <div className='relative'>
-            {vote.main_image && (
-              <div className='bg-gray-200 relative overflow-hidden aspect-[4/3]'>
-                <OptimizedImage
-                  src={vote.main_image}
-                  alt={getLocalizedString(vote.title, currentLanguage)}
-                  fill
-                  sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
-                  className='object-cover'
-                  priority={false}
-                  placeholder='skeleton'
-                  quality={85}
-                  intersectionThreshold={0.2}
-                />
-                <div className='absolute inset-0 bg-gradient-to-t from-black/30 to-transparent' />
-              </div>
-            )}
-          </div>
-
-          <div className='p-1 sm:p-2 flex-1 flex flex-col'>
-            <div className='flex flex-wrap gap-0.5 mb-1'>
-              {getCategoryLabel(vote.vote_category, t) && (
-                <span
-                  suppressHydrationWarning
-                  className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
-                    CATEGORY_COLORS[
-                      vote.vote_category as keyof typeof CATEGORY_COLORS
-                    ] || 'bg-gray-100 text-gray-800 border border-gray-200'
-                  }`}
-                >
-                  {getCategoryLabel(vote.vote_category, t)}
-                </span>
-              )}
-              {getSubCategoryLabel(vote.vote_sub_category, t) && !vote.is_partnership && (
-                <span
-                  suppressHydrationWarning
-                  className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
-                    SUB_CATEGORY_COLORS[
-                      vote.vote_sub_category as keyof typeof SUB_CATEGORY_COLORS
-                    ] || 'bg-gray-50 text-gray-600 border border-gray-100'
-                  }`}
-                >
-                  {getSubCategoryLabel(vote.vote_sub_category, t)}
-                </span>
-              )}
-              <span
-                suppressHydrationWarning
-                className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ml-auto ${STATUS_TAG_COLORS[status]}`}
-              >
-                {getStatusText(status, t)}
-              </span>
-            </div>
-
-            <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 truncate p-2 relative group'>
-              {getLocalizedString(vote.title, currentLanguage)}
-              <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
-            </h3>
-
-            <div className='flex items-center justify-center gap-2 mb-4'>
-              <CountdownTimer
-                timeLeft={timeLeft}
-                voteStatus={status as 'upcoming' | 'ongoing' | 'completed'}
-                variant="decorated"
-                compact={true}
-                showLabel={false}
-                showUnits={false}
-              />
-              {status === VOTE_STATUS.ONGOING && (
-                <span className='text-sub-600 text-xs' suppressHydrationWarning>
-                  {relativeSinceQuery}
-                </span>
+      <div className={containerClass}>
+        <NavigationLink
+          href={`/vote/${vote.id}`}
+          className='!block w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 rounded-xl'
+        >
+          <div className='flex flex-col h-full'>
+            <div className='relative'>
+              {vote.main_image && (
+                <div className='bg-gray-200 relative overflow-hidden aspect-[4/3]'>
+                  <OptimizedImage
+                    src={vote.main_image}
+                    alt={getLocalizedString(vote.title, currentLanguage)}
+                    fill
+                    sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
+                    className='object-cover'
+                    priority={false}
+                  placeholder='shimmer'
+                    quality={85}
+                    intersectionThreshold={0.2}
+                  />
+                  <div className='absolute inset-0 bg-gradient-to-t from-black/30 to-transparent' />
+                </div>
               )}
             </div>
 
-            <div className='flex-1'>
-                <VoteItems 
-                  vote={vote} 
-                  mode="list" 
-                  onNavigateToDetail={() => {
-                    // VoteRankCard 클릭 시 투표 상세로 이동
-                    // NavigationLink의 href와 같은 경로로 프로그래매틱 네비게이션
-                    window.location.href = `/vote/${vote.id}`;
-                  }} 
-                />
-            </div>
-
-            {((vote as any)?.voteReward?.length || 0) > 0 && (
-              <div className='mt-2 space-y-2'>
-                {(vote as any).voteReward.map((reward: any) => (
-                  <NavigationLink
-                    key={reward.reward?.id}
-                    href={`/rewards/${reward.reward?.id}`}
-                    className='block hover:bg-gray-50 rounded-lg transition-colors'
+            <div className='p-1 sm:p-2 flex-1 flex flex-col'>
+              <div className='flex flex-wrap gap-0.5 mb-1'>
+                {getCategoryLabel(vote.vote_category, t) && (
+                  <span
+                    suppressHydrationWarning
+                    className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
+                      CATEGORY_COLORS[
+                        vote.vote_category as keyof typeof CATEGORY_COLORS
+                      ] || 'bg-gray-100 text-gray-800 border border-gray-200'
+                    }`}
                   >
-                    <RewardItem reward={reward.reward!} />
-                  </NavigationLink>
-                ))}
+                    {getCategoryLabel(vote.vote_category, t)}
+                  </span>
+                )}
+                {getSubCategoryLabel(vote.vote_sub_category, t) && !vote.is_partnership && (
+                  <span
+                    suppressHydrationWarning
+                    className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
+                      SUB_CATEGORY_COLORS[
+                        vote.vote_sub_category as keyof typeof SUB_CATEGORY_COLORS
+                      ] || 'bg-gray-50 text-gray-600 border border-gray-100'
+                    }`}
+                  >
+                    {getSubCategoryLabel(vote.vote_sub_category, t)}
+                  </span>
+                )}
+                <span
+                  suppressHydrationWarning
+                  className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ml-auto ${STATUS_TAG_COLORS[status]}`}
+                >
+                  {getStatusText(status, t)}
+                </span>
               </div>
-            )}
+
+              <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 truncate p-2 relative group'>
+                {getLocalizedString(vote.title, currentLanguage)}
+                <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
+              </h3>
+
+              <div className='flex items-center justify-center gap-2 mb-4'>
+                <CountdownTimer
+                  timeLeft={timeLeft}
+                  voteStatus={status as 'upcoming' | 'ongoing' | 'completed'}
+                  variant="decorated"
+                  compact={true}
+                  showLabel={false}
+                  showUnits={false}
+                />
+                {status === VOTE_STATUS.ONGOING && (
+                  <span className='text-sub-600 text-xs' suppressHydrationWarning>
+                    {relativeSinceQuery}
+                  </span>
+                )}
+              </div>
+
+              <div className='flex-1'>
+                  <VoteItems 
+                    vote={vote} 
+                    mode="list" 
+                    onNavigateToDetail={() => {
+                      // VoteRankCard 클릭 시 투표 상세로 이동
+                      // NavigationLink의 href와 같은 경로로 프로그래매틱 네비게이션
+                      window.location.href = `/vote/${vote.id}`;
+                    }} 
+                  />
+              </div>
+            </div>
           </div>
-        </div>
-      </NavigationLink>
+        </NavigationLink>
+
+        {rewards.length > 0 && (
+          <div className='px-1 sm:px-2 pb-2 pt-1 space-y-2'>
+            {rewards.map((reward: any) => (
+              <NavigationLink
+                key={reward.reward?.id}
+                href={`/rewards/${reward.reward?.id}`}
+                className='block w-full rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 transition-transform duration-200 hover:scale-[1.01]'
+              >
+                <RewardItem reward={reward.reward!} />
+              </NavigationLink>
+            ))}
+          </div>
+        )}
+      </div>
     );
   },
 );

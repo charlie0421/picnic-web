@@ -60,10 +60,18 @@ export default async function VoteListPage({
       />
       <main className='container mx-auto px-4 py-6 space-y-8'>
         {/* 배너 섹션 */}
-        <section>
-          <Suspense fallback={<BannerSkeleton />}>
-            <BannerListFetcher />
-          </Suspense>
+        <section className='vote-banner-section'>
+          <div className='relative w-full min-h-[180px]'>
+            <Suspense
+              fallback={
+                <div className='h-full min-h-[inherit]'>
+                  <BannerSkeleton className='h-full min-h-[inherit]' />
+                </div>
+              }
+            >
+              <BannerListFetcher className='h-full min-h-[inherit]' />
+            </Suspense>
+          </div>
         </section>
         
 

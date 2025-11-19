@@ -21,6 +21,8 @@ export const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
     return null;
   }
 
+  const keyPrefix = `upcoming-vote-${vote.id}`;
+
   return (
     <GridView
       items={effectiveItems}
@@ -28,8 +30,8 @@ export const UpcomingVoteItems: React.FC<UpcomingVoteItemsProps> = ({
       enablePagination={true}
       itemsPerPage={12}
       rows={3}
-      enableShuffle={false}
-      keyPrefix="upcoming-vote"
+      enableShuffle={true}
+      keyPrefix={keyPrefix}
     />
   );
 };

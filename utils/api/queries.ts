@@ -210,13 +210,13 @@ const _getRewards = async (limit?: number): Promise<Reward[]> => {
 };
 
 // 배너 데이터 가져오기
-const _getBanners = async (): Promise<Banner[]> => {
+const _getBanners = async ({ columns }: { columns?: string } = {}): Promise<Banner[]> => {
   try {
     const supabase = createPublicSupabaseClient();
     
     const { data: bannerData, error: bannerError } = await supabase
       .from("banner")
-      .select("*")
+      .select(columns || "*")
       .is("deleted_at", null)
       .eq("location", "vote_home")
       .order("order", { ascending: true })
@@ -228,12 +228,12 @@ const _getBanners = async (): Promise<Banner[]> => {
       throw bannerError;
     }
     
-    if (!bannerData || bannerData.length === 0) {
+    if (!bannerData || (Array.isArray(bannerData) && bannerData.length === 0)) {
       console.log('[getBanners] 조회된 배너 데이터가 없습니다.');
       return [];
     }
     
-    return bannerData;
+    return (bannerData as unknown as Banner[]) ?? [];
   } catch (error) {
     console.error('[getBanners] 오류 발생:', error);
     logRequestError(error, 'getBanners');
