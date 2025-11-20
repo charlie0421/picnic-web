@@ -182,10 +182,36 @@ export const VoteCard = React.memo(
     });
 
     useEffect(() => {
+      let timeoutId: number | undefined;
+
+      const scheduleNextUpdate = (
+        status: VoteStatus,
+        stopAt: string | null | undefined,
+        referenceTime: Date,
+      ) => {
+        if (!stopAt || status !== VOTE_STATUS.ONGOING) {
+          return 60_000;
+        }
+
+        const endTime = new Date(stopAt).getTime();
+        const remaining = endTime - referenceTime.getTime();
+
+        if (remaining <= 60_000) {
+          return 1_000;
+        }
+
+        if (remaining <= 10 * 60_000) {
+          return 10_000;
+        }
+
+        return 60_000;
+      };
+
       const updateTime = () => {
         const now = new Date();
         const status = computeVoteStatus(vote.start_at, vote.stop_at, now);
         const timeLeft = computeTimeLeft(status, vote.stop_at, now);
+
         setTimeInfo({
           status,
           timeLeft,
@@ -194,11 +220,18 @@ export const VoteCard = React.memo(
             showTime: false,
           }),
         });
+
+        const nextDelay = scheduleNextUpdate(status, vote.stop_at, now);
+        timeoutId = window.setTimeout(updateTime, nextDelay);
       };
 
       updateTime();
-      const timer = setInterval(updateTime, 1000);
-      return () => clearInterval(timer);
+
+      return () => {
+        if (timeoutId !== undefined) {
+          window.clearTimeout(timeoutId);
+        }
+      };
     }, [vote.start_at, vote.stop_at, currentLanguage]);
 
     const { status, timeLeft, relativeSinceQuery } = timeInfo;

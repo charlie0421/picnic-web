@@ -23,6 +23,19 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const cdnOrigin = (() => {
+    const rawCdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
+    if (!rawCdnUrl) {
+      return null;
+    }
+    try {
+      const url = new URL(rawCdnUrl);
+      return url.origin;
+    } catch {
+      return null;
+    }
+  })();
+
   // 현재 경로에서 언어 감지
   const headersList = await headers();
   const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
@@ -35,6 +48,14 @@ export default async function RootLayout({
 
   return (
     <html lang={currentLang}>
+      <head>
+        {cdnOrigin && (
+          <>
+            <link rel="preconnect" href={cdnOrigin} crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href={cdnOrigin} />
+          </>
+        )}
+      </head>
       <body className={inter.className}>
         {/* Google AdSense (Auto ads) - 프로덕션에서만 지연 로딩 */}
         {shouldLoadAds && (
