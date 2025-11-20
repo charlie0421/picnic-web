@@ -24,6 +24,14 @@ const GlobalLoadingOverlay = dynamic(
   { ssr: false, loading: () => null },
 );
 
+const LcpReporter = dynamic(
+  () =>
+    import('@/components/client/metrics/LcpReporter').then((mod) => ({
+      default: mod.LcpReporter,
+    })),
+  { ssr: false, loading: () => null },
+);
+
 // Avatar localStorage 동기화는 제거하여 단순화
 
 interface ClientLayoutProps {
@@ -51,6 +59,7 @@ const ClientLayoutComponent = memo(function ClientLayoutInternal({
                 <AuthRedirectHandler>
                   <AvatarSyncEffect />
                   {children}
+                  <LcpReporter />
                   <GlobalNotifications />
                   <GlobalLoadingOverlay />
                   <Analytics />
