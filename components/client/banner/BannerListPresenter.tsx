@@ -10,6 +10,8 @@ import React, {
 } from 'react';
 import { BannerItem } from './BannerItem';
 import { Banner } from '@/types/interfaces';
+import { getLocalizedString } from '@/utils/api/strings';
+import { getCdnImageUrl } from '@/utils/api/image';
 
 export interface BannerListProps {
   banners: Banner[];
@@ -38,6 +40,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   const containerClassName = ['relative w-full', className]
     .filter(Boolean)
     .join(' ');
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const initialLoadedCount =
     totalSlides === 0 ? 0 : Math.min(INITIAL_VISIBLE, totalSlides);
@@ -52,6 +55,12 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   );
   const autoplayRef = useRef<number>();
   const prefersReducedMotionRef = useRef<boolean>(false);
+  const [isVisible, setIsVisible] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return true;
+  });
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === 'undefined') {
@@ -103,6 +112,76 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     markVisibleAsLoaded(currentIndex);
   }, [currentIndex, markVisibleAsLoaded]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const preloadCount = Math.min(initialLoadedCount, INITIAL_VISIBLE);
+    const links: HTMLLinkElement[] = [];
+
+    for (let i = 0; i < preloadCount; i += 1) {
+      const banner = banners[i];
+      if (!banner || !banner.image) {
+        continue;
+      }
+      const rawSrc = getLocalizedString(banner.image);
+      if (!rawSrc) {
+        continue;
+      }
+      const href = getCdnImageUrl(rawSrc, 700, 356);
+      if (!href) {
+        continue;
+      }
+
+      if (
+        document.head.querySelector(
+          `link[data-banner-preload="${href}"]`,
+        )
+      ) {
+        continue;
+      }
+
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = href;
+      link.fetchPriority = 'high';
+      link.setAttribute('data-banner-preload', href);
+      document.head.appendChild(link);
+      links.push(link);
+    }
+
+    return () => {
+      links.forEach((link) => {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+      });
+    };
+  }, [banners, initialLoadedCount]);
+
+  useEffect(() => {
+    if (!containerRef.current || typeof window === 'undefined') {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      {
+        threshold: 0.25,
+      },
+    );
+
+    observer.observe(containerRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   const computeNextIndex = useCallback(
     (index: number) => {
       if (index >= maxIndex) {
@@ -144,9 +223,13 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   }, [computeNextIndex, slidesPerView, stopAutoplay, totalSlides]);
 
   useEffect(() => {
-    startAutoplay();
-    return () => stopAutoplay();
-  }, [startAutoplay, stopAutoplay]);
+    if (isVisible) {
+      startAutoplay();
+      return () => stopAutoplay();
+    }
+    stopAutoplay();
+    return undefined;
+  }, [isVisible, startAutoplay, stopAutoplay]);
 
   const handleNext = useCallback(() => {
     stopAutoplay();
@@ -203,6 +286,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
       className={`${containerClassName} banner-carousel`}
       role='region'
       aria-label='프로모션 배너 슬라이더'
+      ref={containerRef}
     >
       <div className='overflow-hidden relative'>
         <div

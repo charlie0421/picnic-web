@@ -74,10 +74,11 @@ export function OptimizedImage({
     if (!isInView || !src) return;
 
     const targetWidth = width ?? (fill ? 700 : 300);
-    const optimizedSrc = getCdnImageUrl(src, targetWidth);
+    const targetHeight = height ?? (fill ? 356 : undefined);
+    const optimizedSrc = getCdnImageUrl(src, targetWidth, targetHeight);
     setCurrentSrc(optimizedSrc);
     setShowShimmer(true);
-  }, [fill, isInView, src, width]);
+  }, [fill, height, isInView, src, width]);
 
   const handleImageLoad = () => {
     setIsLoaded(true);
