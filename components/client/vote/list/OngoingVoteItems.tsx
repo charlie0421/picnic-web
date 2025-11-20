@@ -8,14 +8,24 @@ import { formatRelativeTime } from '@/utils/date';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 // 확장된 VoteItem 타입 정의
-interface EnhancedVoteItem extends VoteItem {
-  artist?: any;
+type VoteItemWithOptionalArtist = VoteItem & {
+  artist?: {
+    artist_group?: string | null;
+    artistGroup?: string | null;
+    [key: string]: any;
+  } | null;
+  deleted_at?: string | null;
+};
+
+interface EnhancedVoteItem
+  extends Omit<VoteItemWithOptionalArtist, 'vote_total'> {
   isAnimating?: boolean;
   voteChange?: number;
+  vote_total: number;
 }
 
 interface OngoingVoteItemsProps {
-  vote: Vote & { voteItem?: EnhancedVoteItem[] };
+  vote: Vote & { voteItem?: VoteItemWithOptionalArtist[] };
   onVoteChange?: (
     voteId: string | number,
     itemId: string | number,
@@ -25,6 +35,34 @@ interface OngoingVoteItemsProps {
   onNavigateToDetail?: (voteId?: string | number) => void; // 투표 상세로 이동
 }
 
+const normalizeVoteItems = (
+  vote: Vote & { voteItem?: VoteItemWithOptionalArtist[] },
+): EnhancedVoteItem[] => {
+  if (!Array.isArray(vote.voteItem) || vote.voteItem.length === 0) {
+    return [];
+  }
+
+  return vote.voteItem
+    .filter((item) => !item?.deleted_at)
+    .map((item) => {
+      const artist = item.artist
+        ? ({
+            ...item.artist,
+            artist_group:
+              item.artist?.artist_group ?? item.artist?.artistGroup ?? null,
+            artistGroup:
+              item.artist?.artistGroup ?? item.artist?.artist_group ?? null,
+          })
+        : null;
+
+      return {
+        ...item,
+        artist,
+        vote_total: item.vote_total ?? 0,
+      };
+    });
+};
+
 export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   vote,
   onVoteChange,
@@ -32,25 +70,14 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   onNavigateToDetail,
 }) => {
   const { t, currentLanguage } = useLanguageStore();
-  const [voteItems, setVoteItems] = useState<EnhancedVoteItem[]>([]);
+  const [voteItems, setVoteItems] = useState<EnhancedVoteItem[]>(() =>
+    normalizeVoteItems(vote),
+  );
   const [tick, setTick] = useState(0); // 상대 시간 갱신용 타이머
 
   // vote 객체가 변경될 때마다 voteItems 상태 업데이트
   useEffect(() => {
-    if (vote.voteItem && vote.voteItem.length > 0) {
-      // 투표 항목 데이터를 EnhancedVoteItem 형태로 변환
-      const enhancedItems: EnhancedVoteItem[] = vote.voteItem
-        .filter((item: any) => !item?.deleted_at)
-        .map((item) => ({
-        ...item,
-        vote_total: item.vote_total || 0,
-        artist: item.artist || null,
-      }));
-
-      setVoteItems(enhancedItems);
-    } else {
-      setVoteItems([]);
-    }
+    setVoteItems(normalizeVoteItems(vote));
   }, [vote.id, vote.voteItem]); // voteItem도 명시적으로 의존성 배열에 추가
 
   // 1분 간격으로 상대 시간 갱신
@@ -67,41 +94,15 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
     }
 
     // 정렬을 위해 깊은 복사 후 voteTotal이 null/undefined인 경우 0으로 처리
-    try {
-      const sortedItems = [...voteItems]
-        .map((item) => {
-          // artist 객체가 있는 경우 artist_group과 artistGroup 모두 처리
-          const artist = item.artist
-            ? {
-                ...item.artist,
-                // 둘 중 하나만 있는 경우 다른 하나로 복사
-                artist_group:
-                  item.artist.artist_group || item.artist.artistGroup,
-                artistGroup:
-                  item.artist.artistGroup || item.artist.artist_group,
-              }
-            : null;
+    const sortedItems = [...voteItems].sort(
+      (a, b) => (b.vote_total || 0) - (a.vote_total || 0),
+    );
 
-          return {
-            ...item,
-            vote_total: item.vote_total ?? 0,
-            artist,
-          };
-        })
-        .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0));
-
-      // 2명만 있는 경우: 항상 1위, 2위 순으로 가운데 정렬되도록 반환
-      if (sortedItems.length === 2) {
-        return sortedItems; // 이미 내림차순 정렬됨 → [1위, 2위]
-      }
-
-      return sortedItems.slice(0, 3);
-
+    if (sortedItems.length === 2) {
       return sortedItems;
-    } catch (error) {
-      console.error('[OngoingVoteItems] 항목 정렬 중 오류:', error);
-      return [];
     }
+
+    return sortedItems.slice(0, 3);
   }, [voteItems]);
 
   // 투표 변경 핸들러
@@ -236,11 +237,17 @@ function renderPodiumItem(
   const artistName = item.artist
     ? getLocalizedString(item.artist.name, currentLanguage) || t('artist_name_fallback')
     : t('artist_name_fallback');
-  const groupName = item.artist?.artistGroup?.name
-    ? getLocalizedString(item.artist.artistGroup.name, currentLanguage)
-    : (item.artist?.artist_group?.name
-      ? getLocalizedString(item.artist.artist_group.name, currentLanguage)
-      : '');
+  const rawGroup =
+    item.artist?.artistGroup ?? item.artist?.artist_group ?? null;
+  let groupName = '';
+  if (typeof rawGroup === 'string') {
+    groupName = rawGroup;
+  } else if (rawGroup && typeof rawGroup === 'object') {
+    const candidate = (rawGroup as { name?: string }).name;
+    groupName = candidate
+      ? getLocalizedString(candidate, currentLanguage)
+      : '';
+  }
   const imageSrc = item.artist?.image || null;
   const total = item.vote_total ?? 0;
   const formattedTotal = (total || 0).toLocaleString('ko-KR');
