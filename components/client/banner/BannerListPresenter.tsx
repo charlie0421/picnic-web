@@ -18,7 +18,7 @@ export interface BannerListProps {
   className?: string;
 }
 
-const INITIAL_VISIBLE = 3;
+const MIN_PRIORITY_COUNT = 1;
 const AUTO_PLAY_DELAY = 5000;
 
 const getSlidesPerView = (width: number) => {
@@ -42,16 +42,21 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     .join(' ');
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const initialLoadedCount =
-    totalSlides === 0 ? 0 : Math.min(INITIAL_VISIBLE, totalSlides);
   const initialSlidesPerView =
     typeof window !== 'undefined'
       ? getSlidesPerView(window.innerWidth)
-      : Math.max(1, Math.min(INITIAL_VISIBLE, totalSlides || INITIAL_VISIBLE));
+      : MIN_PRIORITY_COUNT;
+  const initialPreloadCount =
+    totalSlides === 0
+      ? 0
+      : Math.min(
+          Math.max(initialSlidesPerView, MIN_PRIORITY_COUNT),
+          totalSlides,
+        );
   const [slidesPerView, setSlidesPerView] = useState(initialSlidesPerView);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadedIndices, setLoadedIndices] = useState<Set<number>>(
-    () => new Set(Array.from({ length: initialLoadedCount }, (_, i) => i)),
+    () => new Set(Array.from({ length: initialPreloadCount }, (_, i) => i)),
   );
   const autoplayRef = useRef<number>();
   const prefersReducedMotionRef = useRef<boolean>(false);
@@ -82,11 +87,23 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   }, []);
 
   useEffect(() => {
-    setCurrentIndex(0);
-    setLoadedIndices(
-      new Set(Array.from({ length: initialLoadedCount }, (_, i) => i)),
+    const preloadCount = Math.min(
+      Math.max(slidesPerView, MIN_PRIORITY_COUNT),
+      totalSlides,
     );
-  }, [totalSlides, initialLoadedCount]);
+    setLoadedIndices((prev) => {
+      const next = new Set<number>();
+      for (let i = 0; i < preloadCount; i += 1) {
+        next.add(i);
+      }
+      prev.forEach((value) => {
+        if (value < totalSlides) {
+          next.add(value);
+        }
+      });
+      return next;
+    });
+  }, [slidesPerView, totalSlides]);
 
   const maxIndex = useMemo(
     () => Math.max(totalSlides - slidesPerView, 0),
@@ -113,11 +130,25 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   }, [currentIndex, markVisibleAsLoaded]);
 
   useEffect(() => {
+    if (totalSlides === 0) {
+      setCurrentIndex(0);
+      return;
+    }
+    setCurrentIndex((prev) => {
+      const clamped = Math.min(prev, Math.max(totalSlides - slidesPerView, 0));
+      return clamped < 0 ? 0 : clamped;
+    });
+  }, [totalSlides, slidesPerView]);
+
+  useEffect(() => {
     if (typeof document === 'undefined') {
       return;
     }
 
-    const preloadCount = Math.min(initialLoadedCount, INITIAL_VISIBLE);
+    const preloadCount = Math.min(
+      Math.max(slidesPerView, MIN_PRIORITY_COUNT),
+      totalSlides,
+    );
     const links: HTMLLinkElement[] = [];
 
     for (let i = 0; i < preloadCount; i += 1) {
@@ -159,7 +190,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
         }
       });
     };
-  }, [banners, initialLoadedCount]);
+  }, [banners, slidesPerView, totalSlides]);
 
   useEffect(() => {
     if (!containerRef.current || typeof window === 'undefined') {
@@ -260,6 +291,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   );
   const slideWidthPercent = 100 / slidesPerView;
   const translateX = currentIndex * slideWidthPercent;
+  const priorityCount = Math.max(slidesPerView, MIN_PRIORITY_COUNT);
 
   if (!hasSlides) {
     return (
@@ -295,7 +327,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
         >
           {banners.map((banner, index) => {
             const isLoaded = loadedIndices.has(index);
-            const priority = index < INITIAL_VISIBLE;
+            const priority = index < priorityCount;
             return (
               <div
                 key={banner.id}
