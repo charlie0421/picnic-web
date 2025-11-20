@@ -34,6 +34,27 @@ const getSlidesPerView = (width: number) => {
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
+const resolveSlidesPerViewFromCss = (
+  element: HTMLElement | null,
+): number => {
+  if (typeof window === 'undefined') {
+    return MIN_PRIORITY_COUNT;
+  }
+
+  if (element) {
+    const value = window
+      .getComputedStyle(element)
+      .getPropertyValue('--banner-slides-per-view')
+      .trim();
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed >= MIN_PRIORITY_COUNT) {
+      return parsed;
+    }
+  }
+
+  return getSlidesPerView(window.innerWidth);
+};
+
 export function BannerListPresenter({ banners, className }: BannerListProps) {
   const totalSlides = banners.length;
   const hasSlides = totalSlides > 0;
@@ -60,7 +81,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     }
 
     const updateSlidesPerView = () => {
-      setSlidesPerView(getSlidesPerView(window.innerWidth));
+      setSlidesPerView(resolveSlidesPerViewFromCss(containerRef.current));
     };
 
     prefersReducedMotionRef.current = window.matchMedia(
@@ -276,10 +297,15 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     pages - 1,
     Math.floor(currentIndex / safeSlidesPerView),
   );
-  const slideWidthPercent = 100 / safeSlidesPerView;
-  const translateX = currentIndex * slideWidthPercent;
   const heroIndex = currentIndex;
   const loadedSet = useMemo(() => new Set(loadedIndices), [loadedIndices]);
+  const trackStyle = useMemo(
+    () =>
+      ({
+        '--banner-current-index': currentIndex,
+      }) as React.CSSProperties,
+    [currentIndex],
+  );
 
   if (!hasSlides) {
     return (
@@ -310,8 +336,8 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     >
       <div className='overflow-hidden relative'>
         <div
-          className='flex transition-transform duration-500 ease-out will-change-transform'
-          style={{ transform: `translate3d(-${translateX}%, 0, 0)` }}
+          className='flex transition-transform duration-500 ease-out will-change-transform banner-track'
+          style={trackStyle}
         >
           {banners.map((banner, index) => {
             const isLoaded = loadedSet.has(index);
@@ -319,8 +345,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
             return (
               <div
                 key={banner.id}
-                className='px-2 md:px-3 lg:px-3'
-                style={{ flex: `0 0 ${slideWidthPercent}%` }}
+                className='px-2 md:px-3 lg:px-3 banner-slide'
               >
                 {isLoaded ? (
                   <BannerItem
@@ -403,6 +428,38 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
           })}
         </div>
       )}
+      <style jsx>{`
+        .banner-carousel {
+          --banner-slides-per-view: ${MIN_PRIORITY_COUNT};
+        }
+
+        @media (min-width: 768px) {
+          .banner-carousel {
+            --banner-slides-per-view: 2;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .banner-carousel {
+            --banner-slides-per-view: 3;
+          }
+        }
+
+        .banner-carousel .banner-slide {
+          flex: 0 0 calc(100% / var(--banner-slides-per-view, ${MIN_PRIORITY_COUNT}));
+        }
+
+        .banner-carousel .banner-track {
+          transform: translate3d(
+            calc(
+              var(--banner-current-index, 0) * -100% /
+                var(--banner-slides-per-view, ${MIN_PRIORITY_COUNT})
+            ),
+            0,
+            0
+          );
+        }
+      `}</style>
     </div>
   );
 }

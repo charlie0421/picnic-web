@@ -28,6 +28,7 @@ export function BannerItem({
           className='object-cover'
           priority={priority}
           fetchPriority={fetchPriority}
+          quality={priority ? 60 : 72}
         />
       ) : (
         <div className='absolute inset-0 flex items-center justify-center'>
