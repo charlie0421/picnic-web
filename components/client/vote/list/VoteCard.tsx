@@ -320,9 +320,12 @@ export const VoteCard = React.memo(
               <NavigationLink
                 key={reward.reward?.id}
                 href={`/rewards/${reward.reward?.id}`}
-                className='block w-full rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 transition-transform duration-200 hover:scale-[1.01]'
+                className='block w-full rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-sub-200 transition-transform duration-200 hover:scale-[1.01]'
               >
-                <RewardItem reward={reward.reward!} />
+                <RewardItem
+                  reward={reward.reward!}
+                  className='bg-sub-50 border-sub-200 text-gray-900 hover:border-sub-300 focus-within:border-sub-300 shadow-none'
+                />
               </NavigationLink>
             ))}
           </div>
