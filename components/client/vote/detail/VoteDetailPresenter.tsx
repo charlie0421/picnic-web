@@ -319,12 +319,19 @@ export function VoteDetailPresenter({
         }
       }
       if (user) {
+        type VotePickRow = {
+          vote_item_id: number;
+          amount: number | null;
+          created_at: string;
+        };
+
         const { data: userVoteData, error: userVoteError } = await supabase
           .from('vote_pick')
           .select('vote_item_id, amount, created_at')
           .eq('vote_id', vote.id)
           .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .returns<VotePickRow[]>();
         if (userVoteError) {
           console.error('[Polling] User vote fetch error:', userVoteError);
           updateConnectionQuality(false);

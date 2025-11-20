@@ -23,7 +23,7 @@ const debugWarn = (...args: unknown[]) => {
 };
 
 // 브라우저 클라이언트 타입을 미리 정의
-type BrowserSupabaseClient = SupabaseClient<Database, 'public', Database['public']>;
+type BrowserSupabaseClient = SupabaseClient<Database>;
 
 // 🔧 Singleton 패턴으로 Multiple GoTrueClient 문제 해결
 let browserSupabase: BrowserSupabaseClient | null = null;

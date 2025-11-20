@@ -190,7 +190,7 @@ export class NotificationInboxService {
   static async markAsRead(id: number): Promise<boolean> {
     try {
       const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_notifications')
         .update({
           is_read: true,

@@ -7,6 +7,13 @@ import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-servi
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
 
+type VoteWithRelations = Vote & {
+  voteItem: VoteItem[];
+  vote_item?: VoteItem[];
+  voteReward: VoteReward[];
+  vote_reward?: VoteReward[];
+};
+
 const VOTE_LIST_SELECT = `
   id,
   title,
@@ -72,7 +79,7 @@ const VOTE_DETAIL_SELECT = `
 /**
  * 투표 데이터를 표준 형식으로 변환
  */
-function transformVoteData(data: any[]): Vote[] {
+function transformVoteData(data: any[]): VoteWithRelations[] {
   return data.map((vote) => {
     const voteItem: VoteItem[] = (vote.vote_item || [])
       .filter((item: any) => !item?.deleted_at)
@@ -86,7 +93,8 @@ function transformVoteData(data: any[]): Vote[] {
               artistGroup: item.artist.artist_group,
             }
           : null,
-      }));
+      }))
+      .sort((a: any, b: any) => (b?.vote_total ?? 0) - (a?.vote_total ?? 0));
 
     const voteReward: VoteReward[] = vote.vote_reward?.map((vr: any) => ({
       ...vr,
@@ -99,9 +107,13 @@ function transformVoteData(data: any[]): Vote[] {
         : null,
     })) || [];
 
+    const { vote_item, vote_reward, ...rest } = vote;
+
     return {
-      ...vote,
+      ...rest,
+      vote_item: voteItem,
       voteItem,
+      vote_reward: voteReward,
       voteReward,
     };
   });
@@ -115,6 +127,15 @@ function buildVoteQuery(
   status?: string,
   area?: string,
 ) {
+  const voteItemLimit =
+    status === VOTE_STATUS.ADMIN
+      ? undefined
+      : status === VOTE_STATUS.ONGOING || status === VOTE_STATUS.COMPLETED
+        ? 3
+        : status === VOTE_STATUS.UPCOMING
+          ? 24
+          : undefined;
+
   let query = client
     .from("vote")
     .select(VOTE_LIST_SELECT)
@@ -149,14 +170,18 @@ function buildVoteQuery(
     query = query.eq("area", area);
   }
 
-  const voteItemPreviewLimit =
-    status === VOTE_STATUS.UPCOMING ? 24 : 3;
-
-  return query
+  query = query
     .is("vote_item.deleted_at", null)
     .order("start_at", { ascending: false })
-    .order("vote_total", { ascending: false, referencedTable: "vote_item" })
-    .limit(voteItemPreviewLimit, { referencedTable: "vote_item" });
+    .order("vote_total", { ascending: false, referencedTable: "vote_item" });
+
+  if (typeof voteItemLimit === 'number') {
+    const normalizedLimit = Math.max(1, voteItemLimit);
+    query = query
+      .limit(normalizedLimit, { referencedTable: "vote_item" });
+  }
+
+  return query;
 }
 
 
@@ -168,7 +193,7 @@ export const getVotes = cache(async (
   area?: string,
   page?: number,
   limit?: number,
-): Promise<Vote[]> => {
+): Promise<VoteWithRelations[]> => {
   try {
     const client = createPublicSupabaseServerClient();
     let query = buildVoteQuery(client, status, area);
@@ -189,7 +214,39 @@ export const getVotes = cache(async (
       return [];
     }
 
-    return transformVoteData(data || []);
+    const transformedVotes = transformVoteData(data || []);
+
+    if (status === VOTE_STATUS.ONGOING || status === VOTE_STATUS.COMPLETED) {
+      const MAX_TOP_ITEMS = 3;
+
+      return transformedVotes.map((vote) => {
+        const items = vote.voteItem || [];
+        const limitedItems = items.slice(0, MAX_TOP_ITEMS);
+
+        return {
+          ...vote,
+          voteItem: limitedItems,
+          vote_item: limitedItems,
+        };
+      });
+    }
+
+    if (status === VOTE_STATUS.UPCOMING) {
+      const MAX_UPCOMING_ITEMS = 24;
+
+      return transformedVotes.map((vote) => {
+        const items = vote.voteItem || [];
+        const limitedItems = items.slice(0, MAX_UPCOMING_ITEMS);
+
+        return {
+          ...vote,
+          voteItem: limitedItems,
+          vote_item: limitedItems,
+        };
+      });
+    }
+
+    return transformedVotes;
   } catch (e) {
     console.error("[getVotes] 에러:", e);
     return [];

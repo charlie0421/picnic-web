@@ -93,14 +93,39 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 서버에서 사용하는 형태로 필드명 보정 (vote_item -> voteItem, vote_reward -> voteReward)
-    const normalized = (data || []).map((v: any) => ({
-      ...v,
-      voteItem: Array.isArray(v?.vote_item)
+    const isOngoingOrCompleted =
+      status === VOTE_STATUS.ONGOING || status === VOTE_STATUS.COMPLETED;
+    const isUpcoming = status === VOTE_STATUS.UPCOMING;
+
+    const MAX_TOP_ITEMS = 3;
+    const MAX_UPCOMING_ITEMS = 24;
+
+    // 서버에서 사용하는 형태로 필드명 보정 + 상위 득표 아이템만 유지
+    const normalized = (data || []).map((v: any) => {
+      const rawItems = Array.isArray(v?.vote_item)
         ? v.vote_item.filter((item: any) => !item?.deleted_at)
-        : [],
-      voteReward: Array.isArray(v?.vote_reward) ? v.vote_reward : [],
-    }));
+        : [];
+
+      const sortedItems = [...rawItems].sort(
+        (a, b) => (b?.vote_total ?? 0) - (a?.vote_total ?? 0),
+      );
+
+      let limitedItems = sortedItems;
+
+      if (isOngoingOrCompleted) {
+        limitedItems = sortedItems.slice(0, MAX_TOP_ITEMS);
+      } else if (isUpcoming) {
+        limitedItems = sortedItems.slice(0, MAX_UPCOMING_ITEMS);
+      }
+
+      return {
+        ...v,
+        vote_item: limitedItems,
+        vote_reward: Array.isArray(v?.vote_reward) ? v.vote_reward : [],
+        voteItem: limitedItems,
+        voteReward: Array.isArray(v?.vote_reward) ? v.vote_reward : [],
+      };
+    });
 
     const totalCount = count || 0;
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));

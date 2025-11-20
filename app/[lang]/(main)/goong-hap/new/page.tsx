@@ -222,10 +222,10 @@ export default function NewGoongHapPage() {
         .from('compatibility_results')
         .insert(payload)
         .select('id')
-        .single();
+        .single<{ id: string }>();
       if (error) throw error;
 
-      const newId = data?.id as string;
+      const newId = data.id;
 
       // 백그라운드 처리 트리거 (앱: functions.invoke('compatibility'))
       try {

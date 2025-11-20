@@ -153,9 +153,9 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
                   normalizedLanguage = 'zh-TW';
                 }
                 
-                const { error } = await supabase
+                const { error } = await (supabase as any)
                   .from('user_profiles')
-                  .update({ language: normalizedLanguage } as any)
+                  .update({ language: normalizedLanguage })
                   .eq('id', user.id);
                 
                 if (error) {
