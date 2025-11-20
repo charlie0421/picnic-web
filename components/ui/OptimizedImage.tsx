@@ -21,6 +21,7 @@ interface OptimizedImageProps {
   // Intersection Observer 기반 lazy loading
   intersectionThreshold?: number;
   unoptimized?: boolean;
+  fetchPriority?: 'high' | 'low' | 'auto';
 }
 
 export function OptimizedImage({
@@ -39,6 +40,7 @@ export function OptimizedImage({
   onError,
   intersectionThreshold = 0.1,
   unoptimized = false,
+  fetchPriority = 'auto',
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -71,10 +73,11 @@ export function OptimizedImage({
   useEffect(() => {
     if (!isInView || !src) return;
 
-    const optimizedSrc = getCdnImageUrl(src, width || 300);
+    const targetWidth = width ?? (fill ? 700 : 300);
+    const optimizedSrc = getCdnImageUrl(src, targetWidth);
     setCurrentSrc(optimizedSrc);
     setShowShimmer(true);
-  }, [isInView, src, width]);
+  }, [fill, isInView, src, width]);
 
   const handleImageLoad = () => {
     setIsLoaded(true);
@@ -140,6 +143,8 @@ export function OptimizedImage({
           unoptimized={unoptimized}
           onLoad={handleImageLoad}
           onError={handleImageError}
+          fetchPriority={fetchPriority}
+          decoding='async'
         />
       )}
 

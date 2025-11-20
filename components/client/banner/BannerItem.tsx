@@ -9,9 +9,14 @@ import { OptimizedImage } from '@/components/ui/OptimizedImage';
 export interface BannerItemProps {
   banner: Banner;
   priority?: boolean;
+  fetchPriority?: 'high' | 'low' | 'auto';
 }
 
-export function BannerItem({ banner, priority = false }: BannerItemProps) {
+export function BannerItem({
+  banner,
+  priority = false,
+  fetchPriority = 'auto',
+}: BannerItemProps) {
   const content = (
     <div className='relative w-full bg-gray-200 overflow-hidden hover:shadow-lg transition-shadow rounded-lg banner-aspect-ratio'>
       {banner.image ? (
@@ -22,6 +27,7 @@ export function BannerItem({ banner, priority = false }: BannerItemProps) {
           sizes='(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 33vw'
           className='object-cover'
           priority={priority}
+          fetchPriority={fetchPriority}
         />
       ) : (
         <div className='absolute inset-0 flex items-center justify-center'>

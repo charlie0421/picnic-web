@@ -1,60 +1,184 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination, Autoplay } from 'swiper/modules';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { BannerItem } from './BannerItem';
 import { Banner } from '@/types/interfaces';
-
-// Swiper CSS 스타일 import
-import 'swiper/css';
-import 'swiper/css/navigation';
-import 'swiper/css/pagination';
 
 export interface BannerListProps {
   banners: Banner[];
   className?: string;
 }
 
-// 화면 크기별 배너 갯수 설정
-const getBreakpoints = () => ({
-  // 모바일: 2개
-  320: {
-    slidesPerView: 2,
-    spaceBetween: 12,
-  },
-  // 태블릿: 3개
-  768: {
-    slidesPerView: 3,
-    spaceBetween: 16,
-  },
-  // 데스크탑: 3개
-  1024: {
-    slidesPerView: 3,
-    spaceBetween: 20,
-  },
-});
+const INITIAL_VISIBLE = 3;
+const AUTO_PLAY_DELAY = 5000;
+
+const getSlidesPerView = (width: number) => {
+  if (width >= 1024) {
+    return 3;
+  }
+  if (width >= 768) {
+    return 2;
+  }
+  return 1;
+};
+
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 export function BannerListPresenter({ banners, className }: BannerListProps) {
-  const [isClient, setIsClient] = useState(false);
+  const totalSlides = banners.length;
+  const hasSlides = totalSlides > 0;
+  const containerClassName = ['relative w-full', className]
+    .filter(Boolean)
+    .join(' ');
 
-  useEffect(() => {
-    setIsClient(true);
+  const initialLoadedCount =
+    totalSlides === 0 ? 0 : Math.min(INITIAL_VISIBLE, totalSlides);
+  const initialSlidesPerView =
+    typeof window !== 'undefined'
+      ? getSlidesPerView(window.innerWidth)
+      : Math.max(1, Math.min(INITIAL_VISIBLE, totalSlides || INITIAL_VISIBLE));
+  const [slidesPerView, setSlidesPerView] = useState(initialSlidesPerView);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loadedIndices, setLoadedIndices] = useState<Set<number>>(
+    () => new Set(Array.from({ length: initialLoadedCount }, (_, i) => i)),
+  );
+  const autoplayRef = useRef<number>();
+  const prefersReducedMotionRef = useRef<boolean>(false);
+
+  useIsomorphicLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const updateSlidesPerView = () => {
+      setSlidesPerView(getSlidesPerView(window.innerWidth));
+    };
+
+    prefersReducedMotionRef.current = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+
+    updateSlidesPerView();
+
+    window.addEventListener('resize', updateSlidesPerView);
+    return () => window.removeEventListener('resize', updateSlidesPerView);
   }, []);
 
-  const containerClassName = ['relative w-full', className].filter(Boolean).join(' ');
-
-  // 서버 사이드에서는 기본 로딩 상태 표시
-  if (!isClient) {
-    return (
-      <div className={containerClassName}>
-        <div className='w-full bg-gray-100 rounded-lg animate-pulse' />
-      </div>
+  useEffect(() => {
+    setCurrentIndex(0);
+    setLoadedIndices(
+      new Set(Array.from({ length: initialLoadedCount }, (_, i) => i)),
     );
-  }
+  }, [totalSlides, initialLoadedCount]);
 
-  // 배너가 없는 경우
-  if (banners.length === 0) {
+  const maxIndex = useMemo(
+    () => Math.max(totalSlides - slidesPerView, 0),
+    [totalSlides, slidesPerView],
+  );
+
+  const markVisibleAsLoaded = useCallback(
+    (nextIndex: number) => {
+      const start = nextIndex;
+      const end = Math.min(nextIndex + slidesPerView, totalSlides);
+      setLoadedIndices((prev) => {
+        const next = new Set(prev);
+        for (let i = start; i < end; i += 1) {
+          next.add(i);
+        }
+        return next;
+      });
+    },
+    [slidesPerView, totalSlides],
+  );
+
+  useEffect(() => {
+    markVisibleAsLoaded(currentIndex);
+  }, [currentIndex, markVisibleAsLoaded]);
+
+  const computeNextIndex = useCallback(
+    (index: number) => {
+      if (index >= maxIndex) {
+        return 0;
+      }
+      const candidate = index + slidesPerView;
+      return candidate > maxIndex ? maxIndex : candidate;
+    },
+    [maxIndex, slidesPerView],
+  );
+
+  const computePrevIndex = useCallback(
+    (index: number) => {
+      if (index === 0) {
+        return maxIndex;
+      }
+      const candidate = index - slidesPerView;
+      return candidate < 0 ? 0 : candidate;
+    },
+    [maxIndex, slidesPerView],
+  );
+
+  const stopAutoplay = useCallback(() => {
+    if (autoplayRef.current) {
+      window.clearInterval(autoplayRef.current);
+      autoplayRef.current = undefined;
+    }
+  }, []);
+
+  const startAutoplay = useCallback(() => {
+    if (totalSlides <= slidesPerView || prefersReducedMotionRef.current) {
+      return;
+    }
+
+    stopAutoplay();
+    autoplayRef.current = window.setInterval(() => {
+      setCurrentIndex((index) => computeNextIndex(index));
+    }, AUTO_PLAY_DELAY);
+  }, [computeNextIndex, slidesPerView, stopAutoplay, totalSlides]);
+
+  useEffect(() => {
+    startAutoplay();
+    return () => stopAutoplay();
+  }, [startAutoplay, stopAutoplay]);
+
+  const handleNext = useCallback(() => {
+    stopAutoplay();
+    setCurrentIndex((index) => computeNextIndex(index));
+    startAutoplay();
+  }, [computeNextIndex, startAutoplay, stopAutoplay]);
+
+  const handlePrev = useCallback(() => {
+    stopAutoplay();
+    setCurrentIndex((index) => computePrevIndex(index));
+    startAutoplay();
+  }, [computePrevIndex, startAutoplay, stopAutoplay]);
+
+  const goToPage = useCallback(
+    (page: number) => {
+      stopAutoplay();
+      const target = Math.min(page * slidesPerView, maxIndex);
+      setCurrentIndex(target);
+      startAutoplay();
+    },
+    [maxIndex, slidesPerView, startAutoplay, stopAutoplay],
+  );
+
+  const pages = Math.ceil(totalSlides / slidesPerView);
+  const currentPage = Math.min(
+    pages - 1,
+    Math.floor(currentIndex / slidesPerView),
+  );
+  const slideWidthPercent = 100 / slidesPerView;
+  const translateX = currentIndex * slideWidthPercent;
+
+  if (!hasSlides) {
     return (
       <div className={containerClassName}>
         <div className='bg-gray-100 p-6 rounded-lg text-center w-full min-h-[180px]'>
@@ -66,112 +190,115 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     );
   }
 
-  // 배너가 1개인 경우 (캐러셀 없이 단일 표시)
-  if (banners.length === 1) {
+  if (totalSlides === 1) {
     return (
       <div className={containerClassName}>
-        <BannerItem banner={banners[0]} priority />
+        <BannerItem banner={banners[0]} priority fetchPriority='high' />
       </div>
     );
   }
 
   return (
-    <div className={`${containerClassName} banner-carousel`}>
-      <Swiper
-        modules={[Navigation, Pagination, Autoplay]}
-        spaceBetween={16}
-        slidesPerView={2} // 기본값 (모바일)
-        breakpoints={getBreakpoints()}
-        navigation={{
-          nextEl: '.swiper-button-next-custom',
-          prevEl: '.swiper-button-prev-custom',
-        }}
-        pagination={{
-          el: '.swiper-pagination-custom',
-          clickable: true,
-          bulletClass: 'swiper-pagination-bullet-custom',
-          bulletActiveClass: 'swiper-pagination-bullet-active-custom',
-        }}
-        autoplay={{
-          delay: 5000,
-          disableOnInteraction: false,
-          pauseOnMouseEnter: true,
-        }}
-        loop={banners.length > 3} // 3개 이상일 때만 무한 루프
-        autoHeight
-        className='banner-swiper pb-5'
-      >
-        {banners.map((banner, index) => (
-          <SwiperSlide key={banner.id}>
-            <BannerItem banner={banner} priority={index === 0} />
-          </SwiperSlide>
-        ))}
-      </Swiper>
-
-      {/* 커스텀 네비게이션 버튼 */}
-      <button
-        className='swiper-button-prev-custom absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/30 text-white rounded-full p-2 hover:bg-black/50 focus:outline-none z-10 transition-all duration-200'
-        aria-label='이전 배너'
-      >
-        <svg
-          xmlns='http://www.w3.org/2000/svg'
-          className='h-5 w-5'
-          viewBox='0 0 20 20'
-          fill='currentColor'
+    <div
+      className={`${containerClassName} banner-carousel`}
+      role='region'
+      aria-label='프로모션 배너 슬라이더'
+    >
+      <div className='overflow-hidden relative'>
+        <div
+          className='flex transition-transform duration-500 ease-out will-change-transform'
+          style={{ transform: `translate3d(-${translateX}%, 0, 0)` }}
         >
-          <path
-            fillRule='evenodd'
-            d='M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z'
-            clipRule='evenodd'
-          />
-        </svg>
-      </button>
-      
-      <button
-        className='swiper-button-next-custom absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/30 text-white rounded-full p-2 hover:bg-black/50 focus:outline-none z-10 transition-all duration-200'
-        aria-label='다음 배너'
-      >
-        <svg
-          xmlns='http://www.w3.org/2000/svg'
-          className='h-5 w-5'
-          viewBox='0 0 20 20'
-          fill='currentColor'
-        >
-          <path
-            fillRule='evenodd'
-            d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z'
-            clipRule='evenodd'
-          />
-        </svg>
-      </button>
+          {banners.map((banner, index) => {
+            const isLoaded = loadedIndices.has(index);
+            const priority = index < INITIAL_VISIBLE;
+            return (
+              <div
+                key={banner.id}
+                className='px-2 md:px-3 lg:px-3'
+                style={{ flex: `0 0 ${slideWidthPercent}%` }}
+              >
+                {isLoaded ? (
+                  <BannerItem
+                    banner={banner}
+                    priority={priority}
+                    fetchPriority={priority ? 'high' : 'auto'}
+                  />
+                ) : (
+                  <div
+                    className='relative w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse'
+                    style={{ aspectRatio: '700 / 356' }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
-      {/* 커스텀 페이지네이션 */}
-      <div className='swiper-pagination-custom absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2'></div>
+      {totalSlides > slidesPerView && (
+        <>
+          <button
+            type='button'
+            className='absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 bg-black/30 text-white rounded-full p-2 hover:bg-black/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black transition-all duration-200'
+            aria-label='이전 배너'
+            onClick={handlePrev}
+          >
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              className='h-5 w-5'
+              viewBox='0 0 20 20'
+              fill='currentColor'
+            >
+              <path
+                fillRule='evenodd'
+                d='M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z'
+                clipRule='evenodd'
+              />
+            </svg>
+          </button>
 
-      <style jsx>{`
-        .banner-swiper {
-          padding-bottom: 20px;
-        }
-        
-        :global(.swiper-pagination-bullet-custom) {
-          width: 8px;
-          height: 8px;
-          background: rgba(255, 255, 255, 0.5);
-          border-radius: 50%;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-        
-        :global(.swiper-pagination-bullet-active-custom) {
-          background: white;
-          transform: scale(1.2);
-        }
-        
-        :global(.swiper-button-prev-custom:hover),
-        :global(.swiper-button-next-custom:hover) {
-          transform: translateY(-50%) scale(1.1);
-        }
-      `}</style>
+          <button
+            type='button'
+            className='absolute right-2 lg:right-4 top-1/2 -translate-y-1/2 bg-black/30 text-white rounded-full p-2 hover:bg-black/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black transition-all duration-200'
+            aria-label='다음 배너'
+            onClick={handleNext}
+          >
+            <svg
+              xmlns='http://www.w3.org/2000/svg'
+              className='h-5 w-5'
+              viewBox='0 0 20 20'
+              fill='currentColor'
+            >
+              <path
+                fillRule='evenodd'
+                d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z'
+                clipRule='evenodd'
+              />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {pages > 1 && (
+        <div className='flex justify-center gap-2 mt-4'>
+          {Array.from({ length: pages }).map((_, page) => {
+            const isActive = page === currentPage;
+            return (
+              <button
+                key={page}
+                type='button'
+                aria-label={`${page + 1}번째 배너 보기`}
+                aria-pressed={isActive}
+                className={`h-2.5 w-2.5 rounded-full transition-all duration-200 ${
+                  isActive ? 'bg-white scale-110' : 'bg-white/50 hover:bg-white/80'
+                }`}
+                onClick={() => goToPage(page)}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
-} 
+}
