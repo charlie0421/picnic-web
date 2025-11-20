@@ -42,30 +42,17 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     .join(' ');
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const initialSlidesPerView =
-    typeof window !== 'undefined'
-      ? getSlidesPerView(window.innerWidth)
-      : MIN_PRIORITY_COUNT;
+  const initialSlidesPerView = MIN_PRIORITY_COUNT;
   const initialPreloadCount =
-    totalSlides === 0
-      ? 0
-      : Math.min(
-          Math.max(initialSlidesPerView, MIN_PRIORITY_COUNT),
-          totalSlides,
-        );
+    totalSlides === 0 ? 0 : Math.min(MIN_PRIORITY_COUNT, totalSlides);
   const [slidesPerView, setSlidesPerView] = useState(initialSlidesPerView);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loadedIndices, setLoadedIndices] = useState<Set<number>>(
-    () => new Set(Array.from({ length: initialPreloadCount }, (_, i) => i)),
+  const [loadedIndices, setLoadedIndices] = useState<number[]>(() =>
+    Array.from({ length: initialPreloadCount }, (_, i) => i),
   );
   const autoplayRef = useRef<number>();
   const prefersReducedMotionRef = useRef<boolean>(false);
-  const [isVisible, setIsVisible] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    return true;
-  });
+  const [isVisible, setIsVisible] = useState<boolean>(false);
 
   useIsomorphicLayoutEffect(() => {
     if (typeof window === 'undefined') {
@@ -87,10 +74,11 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   }, []);
 
   useEffect(() => {
-    const preloadCount = Math.min(
-      Math.max(slidesPerView, MIN_PRIORITY_COUNT),
-      totalSlides,
-    );
+    const preloadCount = Math.min(slidesPerView, totalSlides);
+    if (preloadCount === 0) {
+      setLoadedIndices([]);
+      return;
+    }
     setLoadedIndices((prev) => {
       const next = new Set<number>();
       for (let i = 0; i < preloadCount; i += 1) {
@@ -101,7 +89,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
           next.add(value);
         }
       });
-      return next;
+      return Array.from(next).sort((a, b) => a - b);
     });
   }, [slidesPerView, totalSlides]);
 
@@ -119,7 +107,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
         for (let i = start; i < end; i += 1) {
           next.add(i);
         }
-        return next;
+        return Array.from(next).sort((a, b) => a - b);
       });
     },
     [slidesPerView, totalSlides],
@@ -141,36 +129,34 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   }, [totalSlides, slidesPerView]);
 
   useEffect(() => {
-    if (typeof document === 'undefined') {
+    if (typeof document === 'undefined' || totalSlides === 0) {
       return;
     }
 
-    const preloadCount = Math.min(
-      Math.max(slidesPerView, MIN_PRIORITY_COUNT),
-      totalSlides,
-    );
-    const links: HTMLLinkElement[] = [];
+    const preloadCandidates = new Set<number>();
+    preloadCandidates.add(currentIndex);
 
-    for (let i = 0; i < preloadCount; i += 1) {
-      const banner = banners[i];
+    const cleanupLinks: HTMLLinkElement[] = [];
+
+    preloadCandidates.forEach((index) => {
+      const banner = banners[index];
       if (!banner || !banner.image) {
-        continue;
+        return;
       }
       const rawSrc = getLocalizedString(banner.image);
       if (!rawSrc) {
-        continue;
+        return;
       }
       const href = getCdnImageUrl(rawSrc, 700, 356);
       if (!href) {
-        continue;
+        return;
       }
 
-      if (
-        document.head.querySelector(
-          `link[data-banner-preload="${href}"]`,
-        )
-      ) {
-        continue;
+      const existing = document.head.querySelector(
+        `link[data-banner-preload="${href}"]`,
+      );
+      if (existing) {
+        return;
       }
 
       const link = document.createElement('link');
@@ -180,17 +166,17 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
       link.fetchPriority = 'high';
       link.setAttribute('data-banner-preload', href);
       document.head.appendChild(link);
-      links.push(link);
-    }
+      cleanupLinks.push(link);
+    });
 
     return () => {
-      links.forEach((link) => {
+      cleanupLinks.forEach((link) => {
         if (link.parentNode) {
           link.parentNode.removeChild(link);
         }
       });
     };
-  }, [banners, slidesPerView, totalSlides]);
+  }, [banners, currentIndex, totalSlides]);
 
   useEffect(() => {
     if (!containerRef.current || typeof window === 'undefined') {
@@ -284,14 +270,16 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     [maxIndex, slidesPerView, startAutoplay, stopAutoplay],
   );
 
-  const pages = Math.ceil(totalSlides / slidesPerView);
+  const safeSlidesPerView = Math.max(slidesPerView, MIN_PRIORITY_COUNT);
+  const pages = Math.ceil(totalSlides / safeSlidesPerView);
   const currentPage = Math.min(
     pages - 1,
-    Math.floor(currentIndex / slidesPerView),
+    Math.floor(currentIndex / safeSlidesPerView),
   );
-  const slideWidthPercent = 100 / slidesPerView;
+  const slideWidthPercent = 100 / safeSlidesPerView;
   const translateX = currentIndex * slideWidthPercent;
-  const priorityCount = Math.max(slidesPerView, MIN_PRIORITY_COUNT);
+  const heroIndex = currentIndex;
+  const loadedSet = useMemo(() => new Set(loadedIndices), [loadedIndices]);
 
   if (!hasSlides) {
     return (
@@ -326,8 +314,8 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
           style={{ transform: `translate3d(-${translateX}%, 0, 0)` }}
         >
           {banners.map((banner, index) => {
-            const isLoaded = loadedIndices.has(index);
-            const priority = index < priorityCount;
+            const isLoaded = loadedSet.has(index);
+            const priority = index === heroIndex;
             return (
               <div
                 key={banner.id}

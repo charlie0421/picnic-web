@@ -6,8 +6,6 @@ type LcpEntry = LargestContentfulPaint & {
   element?: Element;
 };
 
-let hasLogged = false;
-
 const serializeElement = (element: Element | undefined | null) => {
   if (!element) {
     return null;
@@ -34,26 +32,35 @@ const serializeElement = (element: Element | undefined | null) => {
   return base;
 };
 
-const logLcp = (entry: LcpEntry) => {
-  if (hasLogged) {
-    return;
-  }
-  hasLogged = true;
+const pushToWindowLog = (payload: Record<string, unknown>) => {
+  const globalObject = window as typeof window & {
+    __PICNIC_LCP__?: Record<string, unknown>[];
+  };
+  const existing = Array.isArray(globalObject.__PICNIC_LCP__)
+    ? globalObject.__PICNIC_LCP__
+    : [];
+  existing.push(payload);
+  globalObject.__PICNIC_LCP__ = existing.slice(-5);
+};
 
+const logLcp = (entry: LcpEntry) => {
   const elementInfo = serializeElement(entry.element ?? null);
   const payload = {
     value: entry.renderTime || entry.loadTime || entry.startTime,
     size: entry.size,
     url: entry.url || (entry.element instanceof HTMLImageElement ? entry.element.currentSrc : undefined),
     element: elementInfo,
+    timestamp: Date.now(),
   };
 
   if (typeof window !== 'undefined') {
-    (window as any).__PICNIC_LCP__ = payload;
+    pushToWindowLog(payload);
   }
 
-  // eslint-disable-next-line no-console
-  console.info('[perf] LCP candidate', payload);
+  if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.info('[perf] LCP candidate', payload);
+  }
 };
 
 export function LcpReporter() {
@@ -71,8 +78,18 @@ export function LcpReporter() {
 
     try {
       let latestEntry: LcpEntry | null = null;
+      let hasFlushed = false;
+      let observer: PerformanceObserver | null = null;
 
-      const observer = new PerformanceObserver((entryList) => {
+      const flush = () => {
+        if (hasFlushed || !latestEntry) {
+          return;
+        }
+        hasFlushed = true;
+        logLcp(latestEntry);
+      };
+
+      observer = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           latestEntry = entry as LcpEntry;
         }
@@ -81,17 +98,15 @@ export function LcpReporter() {
       observer.observe({ type: 'largest-contentful-paint', buffered: true });
 
       const handleVisibilityChange = () => {
-        if (document.visibilityState === 'hidden' && latestEntry) {
-          logLcp(latestEntry);
-          observer.disconnect();
+        if (document.visibilityState === 'hidden') {
+          flush();
+          observer?.disconnect();
         }
       };
 
       const handlePageHide = () => {
-        if (latestEntry) {
-          logLcp(latestEntry);
-        }
-        observer.disconnect();
+        flush();
+        observer?.disconnect();
       };
 
       document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -100,7 +115,7 @@ export function LcpReporter() {
       return () => {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('pagehide', handlePageHide);
-        observer.disconnect();
+        observer?.disconnect();
       };
     } catch (error) {
       // eslint-disable-next-line no-console
