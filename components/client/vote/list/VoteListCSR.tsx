@@ -1,17 +1,16 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
-import useSWR from 'swr';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Vote } from '@/types/interfaces';
 import { VoteListPresenter } from './VoteListPresenter';
 import { VOTE_AREAS, VOTE_STATUS, VoteArea, VoteStatus } from '@/stores/voteFilterStore';
 import { useSearchParams } from 'next/navigation';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
-
 interface VoteListCSRProps {
   initialVotes: Vote[];
 }
+
+const PAGE_SIZE = 12;
 
 export function VoteListCSR({ initialVotes }: VoteListCSRProps) {
   const searchParams = useSearchParams();
@@ -20,54 +19,91 @@ export function VoteListCSR({ initialVotes }: VoteListCSRProps) {
 
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<Vote[]>(initialVotes || []);
+  const [hasMore, setHasMore] = useState(() => (initialVotes?.length ?? 0) >= PAGE_SIZE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(false);
+  const firstRenderRef = useRef(true);
+  const latestKeyRef = useRef(`${statusParam}__${areaParam}`);
 
-  const limit = 12;
-  const query = useMemo(() => {
-    const params = new URLSearchParams();
-    params.set('status', statusParam);
-    params.set('area', areaParam);
-    params.set('page', String(page));
-    params.set('limit', String(limit));
-    return `/api/votes?${params.toString()}`;
-  }, [statusParam, areaParam, page]);
+  const fetchVotes = useCallback(
+    async (targetPage: number) => {
+      const params = new URLSearchParams();
+      params.set('status', statusParam);
+      params.set('area', areaParam);
+      params.set('page', String(targetPage));
+      params.set('limit', String(PAGE_SIZE));
+      const url = `/api/votes?${params.toString()}`;
 
-  const { data, isLoading, mutate } = useSWR(query, fetcher, {
-    fallbackData: page === 1 ? { data: initialVotes, count: initialVotes.length, totalPages: 1, hasMore: initialVotes.length >= limit } : undefined,
-    revalidateOnFocus: false,
-  });
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch votes: ${response.status}`);
+      }
+      const json = await response.json();
+      const data: Vote[] = Array.isArray(json?.data) ? json.data : [];
+      const nextHasMore =
+        typeof json?.hasMore === 'boolean' ? json.hasMore : data.length >= PAGE_SIZE;
 
-  const hasMore = Boolean(data?.hasMore);
+      return { data, hasMore: nextHasMore };
+    },
+    [areaParam, statusParam],
+  );
 
-  const onLoadMore = useCallback(async () => {
-    const nextPage = page + 1;
-    const params = new URLSearchParams();
-    params.set('status', statusParam);
-    params.set('area', areaParam);
-    params.set('page', String(nextPage));
-    params.set('limit', String(limit));
-    const url = `/api/votes?${params.toString()}`;
-    const res = await fetch(url);
-    const json = await res.json();
-    if (Array.isArray(json?.data)) {
-      setItems(prev => [...prev, ...json.data]);
-      setPage(nextPage);
+  useEffect(() => {
+    const key = `${statusParam}__${areaParam}`;
+    latestKeyRef.current = key;
+
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false;
+      return;
     }
-  }, [page, statusParam, areaParam]);
 
-  // 필터(status/area)가 바뀌면 첫 페이지부터 다시 시작해야 함 (SWR key가 바뀌므로 items를 초기화)
-  React.useEffect(() => {
-    setPage(1);
-    setItems(initialVotes || []);
-    mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setIsHydrating(true);
   }, [statusParam, areaParam]);
 
+  useEffect(() => {
+    setItems(initialVotes || []);
+    setPage(1);
+    setHasMore((initialVotes?.length ?? 0) >= PAGE_SIZE);
+    setIsHydrating(false);
+  }, [initialVotes]);
+
+  const onLoadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) {
+      return;
+    }
+
+    const currentKey = latestKeyRef.current;
+    const nextPage = page + 1;
+
+    try {
+      setIsLoadingMore(true);
+      const { data: nextItems, hasMore: nextHasMore } = await fetchVotes(nextPage);
+      if (latestKeyRef.current !== currentKey) {
+        return;
+      }
+      setItems((prev) => [...prev, ...nextItems]);
+      setPage(nextPage);
+      setHasMore(nextHasMore);
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error(error);
+      }
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [fetchVotes, hasMore, isLoadingMore, page]);
+
+  const handleLoadMore = useCallback(() => {
+    void onLoadMore();
+  }, [onLoadMore]);
+
   return (
-    <VoteListPresenter 
+    <VoteListPresenter
       votes={items}
       hasMore={hasMore}
-      isLoading={isLoading}
-      onLoadMore={onLoadMore}
+      isLoading={isLoadingMore}
+      isInitialLoading={isHydrating}
+      onLoadMore={handleLoadMore}
     />
   );
 }

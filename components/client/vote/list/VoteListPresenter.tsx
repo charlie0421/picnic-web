@@ -9,6 +9,11 @@ import { getVoteStatus } from '@/components/server/utils';
 import { VoteStatus } from '@/stores/voteFilterStore';
 import { VoteCard } from '..';
 
+type WindowWithIdleCallback = Window & {
+  requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
 export interface VoteListPresenterProps {
   votes: Vote[];
   onVoteClick?: (voteId: string | number) => void;
@@ -16,6 +21,7 @@ export interface VoteListPresenterProps {
   hasMore?: boolean;
   isLoading?: boolean;
   onLoadMore?: () => void;
+  isInitialLoading?: boolean;
 }
 
 export function VoteListPresenter({ 
@@ -24,7 +30,8 @@ export function VoteListPresenter({
   className,
   hasMore = false,
   isLoading = false,
-  onLoadMore
+  onLoadMore,
+  isInitialLoading = false,
 }: VoteListPresenterProps) {
   const router = useRouter();
   const { t } = useLocaleRouter();
@@ -34,79 +41,106 @@ export function VoteListPresenter({
   const reloadTimerRef = useRef<number | null>(null);
   const nextTransitionTsRef = useRef<number | null>(null);
   useEffect(() => {
+    if (typeof window === 'undefined' || votes.length === 0) {
+      return;
+    }
+
+    const win = window as WindowWithIdleCallback;
     const now = Date.now();
-    let nextTimestamp: number | null = null;
+    const scheduleTransitionCheck = () => {
+      let nextTimestamp: number | null = null;
 
-    for (const v of votes) {
-      if (!v) continue;
-      if (v.start_at) {
-        const ts = new Date(v.start_at).getTime();
-        if (!Number.isNaN(ts) && ts > now) {
-          nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
-        }
-      }
-      if (v.stop_at) {
-        const ts = new Date(v.stop_at).getTime();
-        if (!Number.isNaN(ts) && ts > now) {
-          nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
-        }
-      }
-    }
-
-    if (reloadTimerRef.current) {
-      window.clearTimeout(reloadTimerRef.current);
-      reloadTimerRef.current = null;
-    }
-
-    if (nextTimestamp !== null) {
-      nextTransitionTsRef.current = nextTimestamp;
-      const delay = Math.max(0, nextTimestamp - Date.now());
-
-      // 최근에 새로고침이 있었다면 스킵 (루프 방지)
-      const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
-      const reloadedRecently = Date.now() - lastReloadTs < 15000; // 15초 이내 재로드 방지
-      if (!reloadedRecently) {
-        reloadTimerRef.current = window.setTimeout(() => {
-          sessionStorage.setItem('vote-last-reload-ts', String(Date.now()))
-          // 전체 리로드 대신 소프트 리프레시로 깜빡임 완화 및 루프 방지
-          try {
-            // next/navigation의 router.refresh는 서버 컴포넌트 데이터 재검증
-            // useRouter는 상단에서 초기화됨
-            router.refresh();
-          } catch {
-            window.location.reload();
+      for (const v of votes) {
+        if (!v) continue;
+        if (v.start_at) {
+          const ts = new Date(v.start_at).getTime();
+          if (!Number.isNaN(ts) && ts > now) {
+            nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
           }
-        }, delay);
+        }
+        if (v.stop_at) {
+          const ts = new Date(v.stop_at).getTime();
+          if (!Number.isNaN(ts) && ts > now) {
+            nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
+          }
+        }
       }
-    }
 
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        const ts = nextTransitionTsRef.current;
-        if (ts !== null && Date.now() >= ts) {
-          const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
-          const reloadedRecently = Date.now() - lastReloadTs < 15000;
-          if (!reloadedRecently) {
-            sessionStorage.setItem('vote-last-reload-ts', String(Date.now()))
+      if (reloadTimerRef.current) {
+        window.clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+
+      if (nextTimestamp !== null) {
+        nextTransitionTsRef.current = nextTimestamp;
+        const delay = Math.max(0, nextTimestamp - Date.now());
+
+        const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
+        const reloadedRecently = Date.now() - lastReloadTs < 15000;
+        if (!reloadedRecently) {
+          reloadTimerRef.current = window.setTimeout(() => {
+            sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
             try {
               router.refresh();
             } catch {
               window.location.reload();
             }
-          }
+          }, delay);
         }
       }
+
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') {
+          const ts = nextTransitionTsRef.current;
+          if (ts !== null && Date.now() >= ts) {
+            const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
+            const reloadedRecently = Date.now() - lastReloadTs < 15000;
+            if (!reloadedRecently) {
+              sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
+              try {
+                router.refresh();
+              } catch {
+                window.location.reload();
+              }
+            }
+          }
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibility);
+
+      return () => {
+        if (reloadTimerRef.current) {
+          window.clearTimeout(reloadTimerRef.current);
+          reloadTimerRef.current = null;
+        }
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
     };
-    document.addEventListener('visibilitychange', handleVisibility);
+
+    let idleHandle: number | null = null;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    const run = () => {
+      if (cancelled) return;
+      cleanup = scheduleTransitionCheck();
+    };
+
+    if (typeof win.requestIdleCallback === 'function') {
+      idleHandle = win.requestIdleCallback(run, { timeout: 1000 });
+    } else {
+      run();
+    }
 
     return () => {
-      if (reloadTimerRef.current) {
-        window.clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = null;
+      cancelled = true;
+      if (idleHandle !== null && typeof win.cancelIdleCallback === 'function') {
+        win.cancelIdleCallback(idleHandle);
       }
-      document.removeEventListener('visibilitychange', handleVisibility);
+      cleanup?.();
     };
-  }, [votes]);
+  }, [votes, router]);
   
   const filteredVotes = votes.filter(vote => {
     if (selectedStatus === 'all') return true;
@@ -123,6 +157,21 @@ export function VoteListPresenter({
     }
   };
   
+  if (isInitialLoading) {
+    return (
+      <div className={className}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-56 rounded-xl bg-gray-200/70 animate-pulse"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={className}>
       {/* 투표 목록 */}

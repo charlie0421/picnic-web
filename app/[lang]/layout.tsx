@@ -1,13 +1,10 @@
 import { ReactNode } from 'react';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import './layout.css';
 import { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import ClientLayout from './ClientLayout';
 import { DEFAULT_METADATA } from './utils/metadata-utils';
-
-const inter = Inter({ subsets: ['latin'] });
 
 
 // 정적 경로 생성을 위한 `generateStaticParams`
