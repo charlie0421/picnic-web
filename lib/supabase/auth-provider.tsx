@@ -62,20 +62,13 @@ class AuthStore {
   private static instance: AuthStore | null = null;
   private supabaseClient: any = null;
   private listeners: Set<(state: AuthContextType) => void> = new Set();
-  private state: AuthContextType = {
-    session: null,
-    user: null,
-    userProfile: null as UserProfiles | null,
-    isAuthenticated: false,
-    isLoading: true,
-    isInitialized: false,
-    signOut: this.signOut.bind(this),
-    loadUserProfile: this.loadUserProfile.bind(this),
-  };
+  private state: AuthContextType;
   private initPromise: Promise<void> | null = null;
   private lastExpiryWarningKey: string | null = null;
   private isAuthEvaluating: boolean = false;
   private profileLoadPromises: Map<string, Promise<UserProfiles | null>> = new Map();
+  private readonly signOutFn: AuthContextType['signOut'];
+  private readonly loadUserProfileFn: AuthContextType['loadUserProfile'];
 
   static getInstance(): AuthStore {
     if (!AuthStore.instance) {
@@ -85,6 +78,19 @@ class AuthStore {
   }
 
   private constructor() {
+    this.signOutFn = this.signOut.bind(this);
+    this.loadUserProfileFn = this.loadUserProfile.bind(this);
+    this.state = {
+      session: null,
+      user: null,
+      userProfile: null,
+      isAuthenticated: false,
+      isLoading: true,
+      isInitialized: false,
+      signOut: this.signOutFn,
+      loadUserProfile: this.loadUserProfileFn,
+    };
+
     if (typeof window !== 'undefined') {
       try {
         debugLog('🔄 [AuthStore] 초기화 시작');
@@ -212,8 +218,8 @@ class AuthStore {
             isAuthenticated: false,
             isLoading: false,
             isInitialized: true,
-            signOut: this.signOut.bind(this),
-            loadUserProfile: this.loadUserProfile.bind(this),
+            signOut: this.signOutFn,
+            loadUserProfile: this.loadUserProfileFn,
           });
           return;
         }
@@ -238,8 +244,8 @@ class AuthStore {
             isAuthenticated: false,
             isLoading: false,
             isInitialized: true,
-            signOut: this.signOut.bind(this),
-            loadUserProfile: this.loadUserProfile.bind(this),
+            signOut: this.signOutFn,
+            loadUserProfile: this.loadUserProfileFn,
           });
           return;
         }
@@ -309,8 +315,8 @@ class AuthStore {
           isAuthenticated: false,
           isLoading: false,
           isInitialized: true,
-          signOut: this.signOut.bind(this),
-          loadUserProfile: this.loadUserProfile.bind(this),
+          signOut: this.signOutFn,
+          loadUserProfile: this.loadUserProfileFn,
         });
       }
     } else {
@@ -323,8 +329,8 @@ class AuthStore {
         isAuthenticated: false,
         isLoading: false,
         isInitialized: true,
-        signOut: this.signOut.bind(this),
-        loadUserProfile: this.loadUserProfile.bind(this),
+        signOut: this.signOutFn,
+        loadUserProfile: this.loadUserProfileFn,
       });
     }
   }
@@ -488,8 +494,8 @@ class AuthStore {
           isAuthenticated: false,
           isLoading: false,
           isInitialized: true,
-          signOut: this.signOut.bind(this),
-          loadUserProfile: this.loadUserProfile.bind(this),
+          signOut: this.signOutFn,
+          loadUserProfile: this.loadUserProfileFn,
         });
       }
     } catch (error) {
@@ -576,8 +582,8 @@ class AuthStore {
               isLoading: false,
               isInitialized: true,
               isAuthenticated: true,
-              signOut: this.signOut.bind(this),
-              loadUserProfile: this.loadUserProfile.bind(this),
+              signOut: this.signOutFn,
+              loadUserProfile: this.loadUserProfileFn,
             });
 
             if (shouldLoadProfile) {
@@ -602,8 +608,8 @@ class AuthStore {
           isAuthenticated: false,
           isLoading: false,
           isInitialized: true,
-          signOut: this.signOut.bind(this),
-          loadUserProfile: this.loadUserProfile.bind(this),
+          signOut: this.signOutFn,
+          loadUserProfile: this.loadUserProfileFn,
         });
         return;
       }
@@ -651,8 +657,8 @@ class AuthStore {
         isLoading: false, // 즉시 로딩 완료
         isInitialized: true,
         isAuthenticated: true,
-        signOut: this.signOut.bind(this),
-        loadUserProfile: this.loadUserProfile.bind(this),
+        signOut: this.signOutFn,
+        loadUserProfile: this.loadUserProfileFn,
       });
       
       debugLog('🎉 [AuthStore] 인증 상태 업데이트 완료 - 로딩 해제됨 (JWT 방식)');
@@ -739,8 +745,8 @@ class AuthStore {
         isAuthenticated: false,
         isLoading: false,
         isInitialized: true,
-        signOut: this.signOut.bind(this),
-        loadUserProfile: this.loadUserProfile.bind(this),
+        signOut: this.signOutFn,
+        loadUserProfile: this.loadUserProfileFn,
       });
       
       debugLog('🔄 [AuthStore] 오류로 인한 비인증 상태 설정 완료');
