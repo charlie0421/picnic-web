@@ -1,7 +1,7 @@
 'use client';
 
 import { createBrowserClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient, Session } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { createClient } from '@supabase/supabase-js';
 import { emitSupabaseAuthRateLimit } from './events';
@@ -31,10 +31,102 @@ let isCreatingClient = false;
 
 // 로그아웃 진행 상태 추적을 위한 전역 변수
 let isSigningOut = false;
+type AutoRefreshState = 'started' | 'stopped' | 'unknown';
+let autoRefreshState: AutoRefreshState = 'unknown';
+let autoRefreshSubscription: { unsubscribe: () => void } | null = null;
 
 const AUTH_REFRESH_ENDPOINT = '/auth/v1/token';
 const RATE_LIMIT_THROTTLE_WINDOW_MS = 2000;
 let lastRateLimitHandledAt = 0;
+
+function getSupabaseProjectId(): string | null {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return null;
+  const urlParts = supabaseUrl.split('.');
+  if (!urlParts.length) return null;
+  const projectHost = urlParts[0];
+  if (!projectHost) return null;
+  const segments = projectHost.split('://');
+  return segments.length > 1 ? segments[1] : segments[0];
+}
+
+function getSupabaseAuthStorageKey(): string | null {
+  const projectId = getSupabaseProjectId();
+  if (!projectId) return null;
+  return `sb-${projectId}-auth-token`;
+}
+
+function hasValidRefreshToken(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '' && value !== 'null' && value !== 'undefined';
+}
+
+function readStoredRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const storageKey = getSupabaseAuthStorageKey();
+  if (!storageKey) return null;
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const candidate =
+      parsed?.currentSession?.refresh_token ??
+      parsed?.refresh_token ??
+      parsed?.session?.refresh_token ??
+      parsed?.data?.session?.refresh_token ??
+      null;
+    if (hasValidRefreshToken(candidate)) {
+      return candidate;
+    }
+  } catch (error) {
+    if (supabaseDebug) {
+      debugWarn('⚠️ [Client] 저장된 Supabase 세션 파싱 실패:', error);
+    }
+  }
+  return null;
+}
+
+function hasPersistedRefreshToken(): boolean {
+  return hasValidRefreshToken(readStoredRefreshToken());
+}
+
+function updateAutoRefreshBehavior(session?: Session | null) {
+  if (!browserSupabase?.auth?.stopAutoRefresh || !browserSupabase.auth.startAutoRefresh) {
+    return;
+  }
+
+  const hasRefreshToken = hasValidRefreshToken(session?.refresh_token) || hasPersistedRefreshToken();
+  const desiredState: AutoRefreshState = hasRefreshToken ? 'started' : 'stopped';
+
+  if (desiredState === autoRefreshState) {
+    return;
+  }
+
+  if (desiredState === 'started') {
+    browserSupabase.auth.startAutoRefresh();
+    if (supabaseDebug) {
+      debugLog('🔄 [Client] Refresh 토큰을 감지하여 자동 갱신을 재개합니다.');
+    }
+  } else {
+    browserSupabase.auth.stopAutoRefresh();
+    if (supabaseDebug) {
+      debugWarn('⏹️ [Client] Refresh 토큰이 없어 자동 갱신을 중단합니다.');
+    }
+  }
+
+  autoRefreshState = desiredState;
+}
+
+function ensureAutoRefreshListener() {
+  if (!browserSupabase || autoRefreshSubscription) {
+    return;
+  }
+
+  const { data } = browserSupabase.auth.onAuthStateChange((_event, session) => {
+    updateAutoRefreshBehavior(session);
+  });
+
+  autoRefreshSubscription = data?.subscription ?? null;
+}
 
 function resolveRequestUrl(input: RequestInfo | URL): string | null {
   if (typeof input === 'string') return input;
@@ -139,6 +231,8 @@ if (supabaseDebug && typeof window !== 'undefined') {
 export function createBrowserSupabaseClient(): BrowserSupabaseClient {
   // 🔧 강화된 Singleton 패턴: 이미 존재하면 즉시 반환
   if (browserSupabase) {
+    ensureAutoRefreshListener();
+    updateAutoRefreshBehavior();
     // 로그 출력을 더 제한적으로: 개발 환경에서만, 5초마다 최대 1번
     if (supabaseDebug && typeof window !== 'undefined') {
       const now = Date.now();
@@ -261,6 +355,9 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
       },
     }
   ) as unknown as BrowserSupabaseClient;
+
+  ensureAutoRefreshListener();
+  updateAutoRefreshBehavior();
 
   const clientEndTime = performance.now();
   const creationTime = clientEndTime - clientStartTime;
