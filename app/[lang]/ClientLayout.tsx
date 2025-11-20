@@ -1,6 +1,7 @@
 'use client';
 
-import React, { memo, useEffect } from 'react';
+import React, { memo } from 'react';
+import dynamic from 'next/dynamic';
 import { AuthProvider } from '@/lib/supabase/auth-provider';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { GlobalLoadingProvider } from '@/contexts/GlobalLoadingContext';
@@ -9,9 +10,20 @@ import { DialogProvider } from '@/components/ui/Dialog';
 import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler';
 import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
 import { NotificationProvider } from '@/contexts/NotificationContext';
-import { GlobalNotifications } from '@/components/common/GlobalNotifications';
-import GlobalLoadingOverlay from '@/components/ui/GlobalLoadingOverlay';
-import { useAuth } from '@/hooks/useAuth';
+
+const GlobalNotifications = dynamic(
+  () =>
+    import('@/components/common/GlobalNotifications').then((mod) => ({
+      default: mod.GlobalNotifications,
+    })),
+  { ssr: false, loading: () => null },
+);
+
+const GlobalLoadingOverlay = dynamic(
+  () => import('@/components/ui/GlobalLoadingOverlay'),
+  { ssr: false, loading: () => null },
+);
+
 // Avatar localStorage 동기화는 제거하여 단순화
 
 interface ClientLayoutProps {

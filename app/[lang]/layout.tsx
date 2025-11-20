@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 import './globals.css';
-import './layout.css';
 import { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import ClientLayout from './ClientLayout';

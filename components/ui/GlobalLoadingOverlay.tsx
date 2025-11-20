@@ -7,9 +7,6 @@ import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 export default function GlobalLoadingOverlay() {
   const { isLoading } = useGlobalLoading();
 
-  // 디버깅용 콘솔 로그
-  console.log('🔍 [GlobalLoadingOverlay] 렌더링:', { isLoading });
-
   if (!isLoading) return null;
 
   return (
