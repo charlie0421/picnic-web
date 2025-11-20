@@ -48,6 +48,11 @@ export interface CommunityBoardMeta {
   artist?: { id: number; name: string; image: string | null; groupName?: string | null } | null
 }
 
+export interface CommunityHotPostSummary extends CommunityPostSummary {
+  boardId: string | null
+  boardName?: string | null
+}
+
 export async function getCommunityFeed({ page = 1, limit = 20 }: { page?: number; limit?: number }): Promise<FeedResult> {
   const supabase = await createSupabaseServerClient()
 
@@ -140,6 +145,79 @@ export async function getCommunityPost(postId: string): Promise<CommunityPostDet
     likeCount,
     likedByMe,
   }
+}
+
+export async function getHotCommunityPosts({ limit = 5, days = 7 }: { limit?: number; days?: number } = {}): Promise<CommunityHotPostSummary[]> {
+  const supabase = await createSupabaseServerClient()
+  const safeLimit = Math.max(1, Math.min(limit ?? 5, 20))
+  const sinceIso = typeof days === 'number' && days > 0
+    ? (() => {
+        const since = new Date()
+        since.setDate(since.getDate() - days)
+        return since.toISOString()
+      })()
+    : undefined
+
+  const fetchHotPosts = async (since?: string) => {
+    let query = supabase
+      .from('posts')
+      .select('post_id,id,title,content,reply_count,view_count,created_at,user_id,board_id')
+      .is('deleted_at', null)
+      .order('view_count', { ascending: false })
+      .limit(safeLimit)
+    if (since) {
+      query = query.gte('created_at', since)
+    }
+    const { data, error } = await query
+    if (error) {
+      console.error('[community] getHotCommunityPosts error:', error)
+    }
+    return data ?? []
+  }
+
+  let primaryPosts: any[] = []
+  if (sinceIso) {
+    primaryPosts = await fetchHotPosts(sinceIso)
+  }
+  if (!sinceIso || primaryPosts.length < safeLimit) {
+    const fallbackPosts = await fetchHotPosts()
+    const seen = new Set(primaryPosts.map((p) => String(p.post_id ?? p.id)))
+    for (const post of fallbackPosts) {
+      const id = String(post.post_id ?? post.id)
+      if (!seen.has(id)) {
+        primaryPosts.push(post)
+        seen.add(id)
+      }
+      if (primaryPosts.length >= safeLimit) break
+    }
+  }
+
+  if (primaryPosts.length === 0) {
+    return []
+  }
+
+  const boardIds = Array.from(new Set(primaryPosts.map((p: any) => p.board_id).filter((id: any) => !!id).map((id: any) => String(id))))
+  let boardNameMap = new Map<string, string>()
+  if (boardIds.length > 0) {
+    try {
+      const boards = await getBoardsByIds(boardIds)
+      boardNameMap = new Map(boards.map((b) => [String(b.boardId), b.name]))
+    } catch (e) {
+      console.warn('[community] getHotCommunityPosts board fetch error:', e)
+    }
+  }
+
+  return primaryPosts.slice(0, safeLimit).map((p: any) => ({
+    id: p.post_id ?? p.id,
+    title: p.title ?? '',
+    contentPreview: Array.isArray(p.content) ? String(p.content?.[0]?.text ?? '') : null,
+    replyCount: p.reply_count ?? 0,
+    viewCount: p.view_count ?? 0,
+    createdAt: p.created_at,
+    userId: p.user_id,
+    boardId: p.board_id ? String(p.board_id) : null,
+    boardName: p.board_id ? boardNameMap.get(String(p.board_id)) ?? null : null,
+  }))
 }
 
 export async function getCommunityComments(postId: string): Promise<CommunityComment[]> {

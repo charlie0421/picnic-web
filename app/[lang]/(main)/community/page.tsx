@@ -4,12 +4,26 @@ import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils'
 import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils'
 import { SITE_URL } from '@/app/[lang]/constants/static-pages'
 import { getTranslations } from '@/lib/i18n/server'
-import { getBoardsPrioritizedForUser, getUserBookmarkedArtistIds, getBoardsForUserFavoritesOnly, getUserBookmarkedBoardIds, getBoardsByIds } from '@/lib/data-fetching/server/community-service'
+import { getBoardsPrioritizedForUser, getUserBookmarkedArtistIds, getBoardsForUserFavoritesOnly, getUserBookmarkedBoardIds, getBoardsByIds, getHotCommunityPosts } from '@/lib/data-fetching/server/community-service'
 import GroupedBoardList from '@/components/community/GroupedBoardList'
 import BoardSearch from '@/components/community/BoardSearch'
 import { OptimizedImage } from '@/components/ui/OptimizedImage'
+import HotPostList from '@/components/community/HotPostList'
 
 export const revalidate = 60
+
+const localeMap: Record<string, string> = {
+  ko: 'ko-KR',
+  en: 'en-US',
+  'zh-cn': 'zh-CN',
+  'zh-tw': 'zh-TW',
+  ja: 'ja-JP',
+}
+
+function resolveLocale(lang: string) {
+  const key = (lang || '').toLowerCase()
+  return localeMap[key] ?? lang ?? 'en'
+}
 
 export async function generateMetadata({
   params,
@@ -47,11 +61,12 @@ export default async function CommunityBoardListPage({
   const { lang: langParam } = await params
   const lang = String(langParam || 'ko')
   const t = await getTranslations(lang as any)
-  const [favArtistIds, favoritesOnly, prioritized, bookmarkedBoardIds] = await Promise.all([
+  const [favArtistIds, favoritesOnly, prioritized, bookmarkedBoardIds, hotPosts] = await Promise.all([
     getUserBookmarkedArtistIds(),
     getBoardsForUserFavoritesOnly({ page: 1, limit: 50 }),
     getBoardsPrioritizedForUser({ page: 1, limit: 50 }),
     getUserBookmarkedBoardIds(),
+    getHotCommunityPosts({ limit: 6, days: 30 }),
   ])
   // 하단 리스트에서는 즐겨찾는 아티스트의 보드를 제외하고 노출
   const favBoardIdSet = new Set((favoritesOnly.boards ?? []).map((b: any) => String(b.boardId)))
@@ -59,10 +74,33 @@ export default async function CommunityBoardListPage({
   const boardsForList = (prioritized.boards ?? []).filter((b: any) => !favBoardIdSet.has(String(b.boardId)) && !b.artist)
   // 북마크한 보드가 현재 목록에 없을 수 있으므로 별도로 조회
   const bookmarkedBoards = (await getBoardsByIds(bookmarkedBoardIds))
+  const locale = resolveLocale(lang)
+  const numberFormatter = new Intl.NumberFormat(locale)
+  const dateFormatter = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' })
+  const hotPostItems = hotPosts.map((post) => {
+    const createdDate = post.createdAt ? new Date(post.createdAt) : null
+    const createdLabel = createdDate && !Number.isNaN(createdDate.getTime()) ? dateFormatter.format(createdDate) : undefined
+    return {
+      id: post.id,
+      href: `/${lang}/community/${post.id}`,
+      title: post.title,
+      boardName: post.boardName,
+      viewLabel: t('community.post.viewsCount', { count: numberFormatter.format(post.viewCount ?? 0) }),
+      replyLabel: t('community.post.commentsCount', { count: numberFormatter.format(post.replyCount ?? 0) }),
+      createdLabel,
+    }
+  })
 
   return (
     <div className='container mx-auto px-4 py-6 space-y-6 text-gray-900'>
       <h1 className='text-xl font-semibold text-gray-900'>{t('community.list.heading')}</h1>
+      <HotPostList
+        heading={t('community.list.hotPosts.heading')}
+        description={t('community.list.hotPosts.description')}
+        emptyLabel={t('community.list.hotPosts.empty')}
+        fallbackTitle={t('community.list.hotPosts.untitled')}
+        posts={hotPostItems}
+      />
       <BoardSearch lang={lang} />
       {favoritesOnly.boards && favoritesOnly.boards.length > 0 ? (
         <div className='rounded-md border bg-white border-gray-200 p-3'>
