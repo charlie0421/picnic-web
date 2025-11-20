@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import NavigationLink from '@/components/client/NavigationLink';
 import { Vote } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
@@ -8,7 +9,6 @@ import { CountdownTimer } from '../common/CountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
 import { formatVotePeriodWithTimeZone, formatRelativeTime } from '@/utils/date';
 import RewardItem from '@/components/common/RewardItem';
-import { VoteItems } from './VoteItems';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 const VOTE_STATUS = {
@@ -50,6 +50,29 @@ const STATUS_LABEL_FALLBACK: Record<VoteStatus, string> = {
   [VOTE_STATUS.ONGOING]: 'In Progress',
   [VOTE_STATUS.COMPLETED]: 'Completed',
 };
+
+const VoteItemsSkeleton = () => (
+  <div className='mt-6 grid grid-cols-3 gap-4 min-h-[96px]' aria-hidden='true'>
+    {Array.from({ length: 3 }).map((_, index) => (
+      <div
+        key={`vote-item-skeleton-${index}`}
+        className='flex w-full flex-col items-center rounded-xl bg-gray-100/70 px-3 py-4'
+      >
+        <div className='h-12 w-12 rounded-full bg-gray-200 animate-pulse' />
+        <div className='mt-3 h-3 w-16 rounded-full bg-gray-200 animate-pulse' />
+        <div className='mt-1 h-3 w-10 rounded-full bg-gray-200 animate-pulse' />
+      </div>
+    ))}
+  </div>
+);
+
+const VoteItems = dynamic(
+  () => import('./VoteItems').then((mod) => mod.VoteItems),
+  {
+    ssr: false,
+    loading: () => <VoteItemsSkeleton />,
+  },
+);
 
 const computeVoteStatus = (
   startAt: string | null | undefined,

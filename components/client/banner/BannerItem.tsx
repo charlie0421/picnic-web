@@ -24,7 +24,7 @@ export function BannerItem({
           src={getLocalizedString(banner.image)}
           alt={getLocalizedString(banner.title)}
           fill
-          sizes='(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw'
+          sizes='(max-width: 639px) 92vw, (max-width: 1023px) 46vw, 33vw'
           className='object-cover'
           priority={priority}
           fetchPriority={fetchPriority}
