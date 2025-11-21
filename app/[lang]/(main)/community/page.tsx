@@ -91,12 +91,6 @@ export default async function CommunityBoardListPage({
       createdLabel,
     }
   })
-  const stats = [
-    { label: t('community.list.hotPosts.heading'), value: hotPostItems.length },
-    { label: t('community.list.myArtistBoards'), value: favoritesOnly.boards?.length ?? 0 },
-    { label: t('community.list.bookmarkedBoards'), value: bookmarkedBoards.length },
-  ]
-
   return (
     <div className='container mx-auto space-y-8 px-4 py-8 text-gray-900'>
       <section className='relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 via-primary-500 to-point-500 px-6 py-10 text-white shadow-2xl'>
@@ -119,14 +113,6 @@ export default async function CommunityBoardListPage({
               <path d='M12 5l7 7-7 7' />
             </svg>
           </a>
-        </div>
-        <div className='relative mt-8 grid gap-4 sm:grid-cols-3'>
-          {stats.map((stat) => (
-            <div key={stat.label} className='rounded-2xl border border-white/30 bg-white/10 px-4 py-3 text-center'>
-              <div className='text-2xl font-semibold'>{numberFormatter.format(stat.value)}</div>
-              <div className='text-xs text-white/80'>{stat.label}</div>
-            </div>
-          ))}
         </div>
       </section>
 
