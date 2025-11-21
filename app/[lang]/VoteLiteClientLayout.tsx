@@ -2,7 +2,6 @@
 
 import React, { memo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import { AuthProvider } from '@/lib/supabase/auth-provider';
 import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
 
 type ProviderProps = {
@@ -29,6 +28,16 @@ const GlobalLoadingProviderDeferred = dynamic<ProviderProps>(
   },
 );
 
+const AuthProviderDeferred = dynamic<ProviderProps>(
+  () =>
+    import('@/lib/supabase/auth-provider').then((mod) => ({
+      default: mod.AuthProvider,
+    })),
+  {
+    ssr: false,
+  },
+);
+
 interface VoteLiteClientLayoutProps {
   children: React.ReactNode;
   initialLanguage: string;
@@ -43,7 +52,7 @@ const VoteLiteClientLayoutComponent = memo(function VoteLiteClientLayout({
       <NavigationProviderDeferred>
         <GlobalLoadingProviderDeferred>
           <LanguageSyncProvider initialLanguage={initialLanguage}>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProviderDeferred>{children}</AuthProviderDeferred>
           </LanguageSyncProvider>
         </GlobalLoadingProviderDeferred>
       </NavigationProviderDeferred>
