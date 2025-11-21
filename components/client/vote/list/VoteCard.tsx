@@ -228,7 +228,7 @@ const getSubCategoryLabel = (
   );
 };
 
-interface VoteCardProps {
+export interface VoteCardProps {
   vote: Vote;
   onClick?: () => void;
   isHero?: boolean;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Vote } from '@/types/interfaces';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -8,6 +8,10 @@ import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { getVoteStatus } from '@/components/server/utils';
 import { VoteStatus } from '@/stores/voteFilterStore';
 import VoteCard from './VoteCard';
+
+const VoteCardSkeleton = () => (
+  <div className="h-full rounded-xl border border-gray-100 bg-gray-100/80 animate-pulse" />
+);
 
 type WindowWithIdleCallback = Window & {
   requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
@@ -24,8 +28,10 @@ export interface VoteListPresenterProps {
   isInitialLoading?: boolean;
 }
 
-export function VoteListPresenter({ 
-  votes, 
+const INITIAL_VISIBLE_CARDS = 3;
+
+export function VoteListPresenter({
+  votes,
   onVoteClick,
   className,
   hasMore = false,
@@ -36,6 +42,9 @@ export function VoteListPresenter({
   const router = useRouter();
   const { t } = useLocaleRouter();
   const [selectedStatus, setSelectedStatus] = useState<VoteStatus | 'all'>('all');
+  const [visibleCount, setVisibleCount] = useState(() =>
+    Math.min(votes.length, INITIAL_VISIBLE_CARDS),
+  );
 
   // 상태 전환(예정→진행, 진행→마감) 시점에 페이지 자동 새로고침
   const reloadTimerRef = useRef<number | null>(null);
@@ -142,11 +151,44 @@ export function VoteListPresenter({
     };
   }, [votes, router]);
   
-  const filteredVotes = votes.filter(vote => {
-    if (selectedStatus === 'all') return true;
-    const voteStatus = getVoteStatus(vote);
-    return voteStatus === selectedStatus;
-  });
+  const filteredVotes = useMemo(() => {
+    return votes.filter((vote) => {
+      if (selectedStatus === 'all') return true;
+      const voteStatus = getVoteStatus(vote);
+      return voteStatus === selectedStatus;
+    });
+  }, [votes, selectedStatus]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    setVisibleCount(Math.min(filteredVotes.length, INITIAL_VISIBLE_CARDS));
+
+    const win = window as WindowWithIdleCallback;
+    const reveal = () => setVisibleCount(filteredVotes.length);
+    let idleHandle: number | null = null;
+    let timeoutHandle: number | null = null;
+
+    if (typeof win.requestIdleCallback === 'function') {
+      idleHandle = win.requestIdleCallback(reveal, { timeout: 1200 });
+    } else {
+      timeoutHandle = window.setTimeout(reveal, 600);
+    }
+
+    return () => {
+      if (idleHandle !== null && typeof win.cancelIdleCallback === 'function') {
+        win.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle);
+      }
+    };
+  }, [filteredVotes.length]);
+
+  const resolvedVisibleCount = Math.min(visibleCount, filteredVotes.length);
+  const hiddenCount = Math.max(0, filteredVotes.length - resolvedVisibleCount);
   
   const handleVoteClick = (voteId: string | number) => {
     if (onVoteClick) {
@@ -178,7 +220,7 @@ export function VoteListPresenter({
       {filteredVotes.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredVotes.map((vote, index) => (
+            {filteredVotes.slice(0, resolvedVisibleCount).map((vote, index) => (
               <VoteCard
                 key={vote.id}
                 vote={vote}
@@ -186,6 +228,10 @@ export function VoteListPresenter({
                 onClick={() => handleVoteClick(vote.id)}
               />
             ))}
+            {hiddenCount > 0 &&
+              Array.from({ length: hiddenCount }).map((_, idx) => (
+                <VoteCardSkeleton key={`vote-card-skeleton-${idx}`} />
+              ))}
           </div>
           
           {/* 페이지네이션 */}
