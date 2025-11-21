@@ -8,11 +8,12 @@ import { useSearchParams } from 'next/navigation';
 
 interface VoteListCSRProps {
   initialVotes: Vote[];
+  initialLocale?: string;
 }
 
 const PAGE_SIZE = 12;
 
-export function VoteListCSR({ initialVotes }: VoteListCSRProps) {
+export function VoteListCSR({ initialVotes, initialLocale }: VoteListCSRProps) {
   const searchParams = useSearchParams();
   const statusParam = (searchParams.get('status') as VoteStatus) || VOTE_STATUS.ONGOING;
   const areaParam = (searchParams.get('area') as VoteArea) || VOTE_AREAS.ALL;
@@ -27,9 +28,9 @@ export function VoteListCSR({ initialVotes }: VoteListCSRProps) {
 
   const fetchVotes = useCallback(
     async (targetPage: number) => {
-      const params = new URLSearchParams();
-      params.set('status', statusParam);
-      params.set('area', areaParam);
+    const params = new URLSearchParams();
+    params.set('status', statusParam);
+    params.set('area', areaParam);
       params.set('page', String(targetPage));
       params.set('limit', String(PAGE_SIZE));
       const url = `/api/votes?${params.toString()}`;
@@ -98,12 +99,13 @@ export function VoteListCSR({ initialVotes }: VoteListCSRProps) {
   }, [onLoadMore]);
 
   return (
-    <VoteListPresenter
+    <VoteListPresenter 
       votes={items}
       hasMore={hasMore}
       isLoading={isLoadingMore}
       isInitialLoading={isHydrating}
       onLoadMore={handleLoadMore}
+      locale={initialLocale}
     />
   );
 }

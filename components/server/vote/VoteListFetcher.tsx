@@ -7,6 +7,7 @@ interface VoteListFetcherProps {
   status: VoteStatus;
   area: VoteArea;
   className?: string;
+  locale?: string;
 }
 
 /**
@@ -22,10 +23,11 @@ interface VoteListFetcherProps {
  * <VoteListFetcher status="ongoing" area="all" className="my-4" />
  * ```
  */
-export async function VoteListFetcher({ 
-  status = VOTE_STATUS.ONGOING, 
-  area = VOTE_AREAS.ALL, 
-  className 
+export async function VoteListFetcher({
+  status = VOTE_STATUS.ONGOING,
+  area = VOTE_AREAS.ALL,
+  className,
+  locale,
 }: VoteListFetcherProps) {
   // Admin 보호: status가 admin인 경우 서버에서 관리자 권한 확인
   const userContext = await getCurrentUserContext();
@@ -41,7 +43,7 @@ export async function VoteListFetcher({
   return (
     <div className={className}>
       <VoteFilterSectionDeferred />
-      <VoteListCSR initialVotes={votes} />
+      <VoteListCSR initialVotes={votes} initialLocale={locale} />
     </div>
   );
 }

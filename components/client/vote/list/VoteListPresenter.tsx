@@ -26,6 +26,7 @@ export interface VoteListPresenterProps {
   isLoading?: boolean;
   onLoadMore?: () => void;
   isInitialLoading?: boolean;
+  locale?: string;
 }
 
 const INITIAL_VISIBLE_CARDS = 3;
@@ -38,6 +39,7 @@ export function VoteListPresenter({
   isLoading = false,
   onLoadMore,
   isInitialLoading = false,
+  locale,
 }: VoteListPresenterProps) {
   const router = useRouter();
   const { t } = useLocaleRouter();
@@ -57,74 +59,74 @@ export function VoteListPresenter({
     const win = window as WindowWithIdleCallback;
     const now = Date.now();
     const scheduleTransitionCheck = () => {
-      let nextTimestamp: number | null = null;
+    let nextTimestamp: number | null = null;
 
-      for (const v of votes) {
-        if (!v) continue;
-        if (v.start_at) {
-          const ts = new Date(v.start_at).getTime();
-          if (!Number.isNaN(ts) && ts > now) {
-            nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
-          }
-        }
-        if (v.stop_at) {
-          const ts = new Date(v.stop_at).getTime();
-          if (!Number.isNaN(ts) && ts > now) {
-            nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
-          }
+    for (const v of votes) {
+      if (!v) continue;
+      if (v.start_at) {
+        const ts = new Date(v.start_at).getTime();
+        if (!Number.isNaN(ts) && ts > now) {
+          nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
         }
       }
-
-      if (reloadTimerRef.current) {
-        window.clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = null;
+      if (v.stop_at) {
+        const ts = new Date(v.stop_at).getTime();
+        if (!Number.isNaN(ts) && ts > now) {
+          nextTimestamp = nextTimestamp === null ? ts : Math.min(nextTimestamp, ts);
+        }
       }
+    }
 
-      if (nextTimestamp !== null) {
-        nextTransitionTsRef.current = nextTimestamp;
-        const delay = Math.max(0, nextTimestamp - Date.now());
+    if (reloadTimerRef.current) {
+      window.clearTimeout(reloadTimerRef.current);
+      reloadTimerRef.current = null;
+    }
 
-        const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
+    if (nextTimestamp !== null) {
+      nextTransitionTsRef.current = nextTimestamp;
+      const delay = Math.max(0, nextTimestamp - Date.now());
+
+      const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
         const reloadedRecently = Date.now() - lastReloadTs < 15000;
-        if (!reloadedRecently) {
-          reloadTimerRef.current = window.setTimeout(() => {
+      if (!reloadedRecently) {
+        reloadTimerRef.current = window.setTimeout(() => {
             sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
+          try {
+            router.refresh();
+          } catch {
+            window.location.reload();
+          }
+        }, delay);
+      }
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const ts = nextTransitionTsRef.current;
+        if (ts !== null && Date.now() >= ts) {
+          const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
+          const reloadedRecently = Date.now() - lastReloadTs < 15000;
+          if (!reloadedRecently) {
+              sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
             try {
               router.refresh();
             } catch {
               window.location.reload();
             }
-          }, delay);
-        }
-      }
-
-      const handleVisibility = () => {
-        if (document.visibilityState === 'visible') {
-          const ts = nextTransitionTsRef.current;
-          if (ts !== null && Date.now() >= ts) {
-            const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
-            const reloadedRecently = Date.now() - lastReloadTs < 15000;
-            if (!reloadedRecently) {
-              sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
-              try {
-                router.refresh();
-              } catch {
-                window.location.reload();
-              }
-            }
           }
         }
-      };
+      }
+    };
 
-      document.addEventListener('visibilitychange', handleVisibility);
+    document.addEventListener('visibilitychange', handleVisibility);
 
-      return () => {
-        if (reloadTimerRef.current) {
-          window.clearTimeout(reloadTimerRef.current);
-          reloadTimerRef.current = null;
-        }
-        document.removeEventListener('visibilitychange', handleVisibility);
-      };
+    return () => {
+      if (reloadTimerRef.current) {
+        window.clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
     };
 
     let idleHandle: number | null = null;
@@ -153,10 +155,10 @@ export function VoteListPresenter({
   
   const filteredVotes = useMemo(() => {
     return votes.filter((vote) => {
-      if (selectedStatus === 'all') return true;
-      const voteStatus = getVoteStatus(vote);
-      return voteStatus === selectedStatus;
-    });
+    if (selectedStatus === 'all') return true;
+    const voteStatus = getVoteStatus(vote);
+    return voteStatus === selectedStatus;
+  });
   }, [votes, selectedStatus]);
 
   useEffect(() => {
@@ -213,7 +215,7 @@ export function VoteListPresenter({
       </div>
     );
   }
-
+  
   return (
     <div className={className}>
       {/* 투표 목록 */}
@@ -226,12 +228,13 @@ export function VoteListPresenter({
                 vote={vote}
                 isHero={index === 0}
                 onClick={() => handleVoteClick(vote.id)}
+                locale={locale}
               />
             ))}
             {hiddenCount > 0 &&
               Array.from({ length: hiddenCount }).map((_, idx) => (
                 <VoteCardSkeleton key={`vote-card-skeleton-${idx}`} />
-              ))}
+            ))}
           </div>
           
           {/* 페이지네이션 */}

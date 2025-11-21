@@ -34,15 +34,18 @@ export async function generateMetadata({
 
 interface VoteListPageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  params: Promise<{ lang: string }>;
 }
 
 export default async function VoteListPage({
   searchParams,
+  params,
 }: VoteListPageProps) {
   // URL 파라미터에서 status와 area 가져오기
-  const resolvedSearchParams = await searchParams;
+  const [resolvedSearchParams, resolvedParams] = await Promise.all([searchParams, params]);
   const status = resolvedSearchParams.status || VOTE_STATUS.ONGOING;
   const area = resolvedSearchParams.area || VOTE_AREAS.ALL;
+  const lang = resolvedParams?.lang || 'ko';
 
   return (
     <>
@@ -82,6 +85,7 @@ export default async function VoteListPage({
               className='w-full'
               status={status as any}
               area={area as any}
+              locale={lang}
             />
           </Suspense>
         </section>

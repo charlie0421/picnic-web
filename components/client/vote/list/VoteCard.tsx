@@ -232,11 +232,13 @@ export interface VoteCardProps {
   vote: Vote;
   onClick?: () => void;
   isHero?: boolean;
+  locale?: string;
 }
 
 export const VoteCard = React.memo(
-  ({ vote, onClick, isHero = false }: VoteCardProps) => {
-    const { t, currentLanguage } = useLanguageStore();
+  ({ vote, onClick, isHero = false, locale }: VoteCardProps) => {
+    const { t, currentLanguage, isHydrated } = useLanguageStore();
+    const displayLanguage = (isHydrated ? currentLanguage : locale || currentLanguage) as string;
     const queryTimeRef = useRef<Date>(new Date()); // 카드 조회 시각
     const [timeInfo, setTimeInfo] = useState<VoteTimeInfo>(() => {
       const initialStatus = computeVoteStatus(vote.start_at, vote.stop_at, new Date());
@@ -332,7 +334,7 @@ export const VoteCard = React.memo(
                 <div className='bg-gray-200 relative overflow-hidden aspect-[4/3]'>
                   <OptimizedImage
                     src={vote.main_image}
-                    alt={getLocalizedString(vote.title, currentLanguage)}
+                    alt={getLocalizedString(vote.title, displayLanguage)}
                     fill
                     sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
                     className='object-cover'
@@ -381,8 +383,8 @@ export const VoteCard = React.memo(
                 </span>
               </div>
 
-              <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 p-2 relative group line-clamp-2 leading-tight min-h-[3.5rem]'>
-                {getLocalizedString(vote.title, currentLanguage)}
+              <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 p-2 relative group truncate leading-tight min-h-[1.75rem]'>
+                {getLocalizedString(vote.title, displayLanguage)}
                 <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
               </h3>
 
