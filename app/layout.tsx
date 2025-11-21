@@ -57,8 +57,7 @@ export default async function RootLayout({
 
   const shouldLoadAds = process.env.NODE_ENV === 'production';
   const voteRoutePattern = /^\/[a-z]{2}(?:-[a-z]{2})?\/vote(?:\/|$)/i;
-  const shouldRenderAds =
-    shouldLoadAds && !voteRoutePattern.test(pathname || '');
+  const shouldDelayAds = voteRoutePattern.test(pathname || '');
 
   return (
     <html lang={currentLang}>
@@ -72,8 +71,12 @@ export default async function RootLayout({
       </head>
       <body className={inter.className}>
         {/* Google AdSense (Auto ads) - 프로덕션에서만 지연 로딩 */}
-        {shouldRenderAds && (
-          <ConsentAwareAdsense clientId="ca-pub-1539304887624918" />
+        {shouldLoadAds && (
+          <ConsentAwareAdsense
+            clientId="ca-pub-1539304887624918"
+            delayUntilIdle={shouldDelayAds}
+            idleTimeout={shouldDelayAds ? 2200 : 1200}
+          />
         )}
         <div className="bg-white">
           {children}
