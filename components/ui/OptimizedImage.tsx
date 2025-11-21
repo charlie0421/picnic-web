@@ -232,8 +232,8 @@ export function OptimizedImage({
   // Shimmer 플레이스홀더
   const renderPlaceholder = () => {
     if (!showShimmer || isLoaded || isError) return null;
-    const placeholderClass = fill
-      ? 'absolute inset-0'
+    const placeholderClass = fill 
+      ? 'absolute inset-0' 
       : 'w-full';
     const placeholderStyle =
       !fill && height ? { height: `${height}px` } : !fill ? { aspectRatio: '1 / 1' } : undefined;
@@ -241,7 +241,7 @@ export function OptimizedImage({
     switch (placeholder) {
       case 'shimmer':
         return (
-          <div
+          <div 
             className={`${placeholderClass} ${className} overflow-hidden`}
             style={placeholderStyle}
           >
@@ -251,7 +251,7 @@ export function OptimizedImage({
       
       case 'skeleton':
         return (
-          <div
+          <div 
             className={`${placeholderClass} animate-pulse bg-gray-200 rounded-lg ${className}`}
             style={placeholderStyle}
           />

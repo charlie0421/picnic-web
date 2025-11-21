@@ -98,7 +98,7 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
       (a, b) => (b.vote_total || 0) - (a.vote_total || 0),
     );
 
-    if (sortedItems.length === 2) {
+      if (sortedItems.length === 2) {
       return sortedItems;
     }
 
