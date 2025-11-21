@@ -8,7 +8,6 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { CountdownTimer } from '../common/CountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
 import { formatVotePeriodWithTimeZone, formatRelativeTime } from '@/utils/date';
-import RewardItem from '@/components/common/RewardItem';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 const VOTE_STATUS = {
@@ -71,6 +70,24 @@ const VoteItems = dynamic(
   {
     ssr: false,
     loading: () => <VoteItemsSkeleton />,
+  },
+);
+
+const RewardItemSkeleton = () => (
+  <div className='flex items-center gap-3 rounded-xl px-3 py-2 w-full min-h-[56px] border border-gray-100 bg-gray-50/80'>
+    <div className='w-12 h-12 rounded-lg bg-gray-200 animate-pulse' />
+    <div className='flex-1 space-y-2'>
+      <div className='h-3 w-24 rounded-full bg-gray-200 animate-pulse' />
+      <div className='h-3 w-16 rounded-full bg-gray-100 animate-pulse' />
+    </div>
+  </div>
+);
+
+const RewardItem = dynamic(
+  () => import('@/components/common/RewardItem').then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => <RewardItemSkeleton />,
   },
 );
 
@@ -301,7 +318,7 @@ export const VoteCard = React.memo(
             </div>
 
             <div className='p-1 sm:p-2 flex-1 flex flex-col'>
-              <div className='flex flex-wrap gap-0.5 mb-1'>
+              <div className='flex flex-wrap gap-0.5 mb-1 min-h-[32px] items-center'>
                 {getCategoryLabel(vote.vote_category, t) && (
                   <span
                     suppressHydrationWarning
@@ -334,12 +351,12 @@ export const VoteCard = React.memo(
                 </span>
               </div>
 
-              <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 truncate p-2 relative group'>
+              <h3 className='font-extrabold text-base sm:text-lg mb-4 text-gray-900 p-2 relative group line-clamp-2 leading-tight min-h-[3.5rem]'>
                 {getLocalizedString(vote.title, currentLanguage)}
                 <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
               </h3>
 
-              <div className='flex items-center justify-center gap-2 mb-4'>
+              <div className='flex items-center justify-center gap-2 mb-4 min-h-[32px]'>
                 <CountdownTimer
                   timeLeft={timeLeft}
                   voteStatus={status as 'upcoming' | 'ongoing' | 'completed'}
@@ -348,14 +365,15 @@ export const VoteCard = React.memo(
                   showLabel={false}
                   showUnits={false}
                 />
-                {status === VOTE_STATUS.ONGOING && (
-                  <span className='text-sub-600 text-xs' suppressHydrationWarning>
-                    {relativeSinceQuery}
-                  </span>
-                )}
+                <span
+                  className='text-sub-600 text-xs min-w-[60px] text-center'
+                  suppressHydrationWarning
+                >
+                  {status === VOTE_STATUS.ONGOING ? relativeSinceQuery : '\u00A0'}
+                </span>
               </div>
 
-              <div className='flex-1'>
+              <div className='flex-1 min-h-[9.5rem]'>
                   <VoteItems 
                     vote={vote} 
                     mode="list" 
