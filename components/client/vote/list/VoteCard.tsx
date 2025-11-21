@@ -228,8 +228,14 @@ const getSubCategoryLabel = (
   );
 };
 
+interface VoteCardProps {
+  vote: Vote;
+  onClick?: () => void;
+  isHero?: boolean;
+}
+
 export const VoteCard = React.memo(
-  ({ vote, onClick }: { vote: Vote; onClick?: () => void }) => {
+  ({ vote, onClick, isHero = false }: VoteCardProps) => {
     const { t, currentLanguage } = useLanguageStore();
     const queryTimeRef = useRef<Date>(new Date()); // 카드 조회 시각
     const [timeInfo, setTimeInfo] = useState<VoteTimeInfo>(() => {
@@ -330,7 +336,8 @@ export const VoteCard = React.memo(
                     fill
                     sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
                     className='object-cover'
-                    priority={false}
+                    priority={isHero}
+                    fetchPriority={isHero ? 'high' : 'low'}
                   placeholder='shimmer'
                     quality={85}
                     intersectionThreshold={0.2}
@@ -393,7 +400,7 @@ export const VoteCard = React.memo(
                   suppressHydrationWarning
                 >
                   {status === VOTE_STATUS.ONGOING ? relativeSinceQuery : '\u00A0'}
-                </span>
+                  </span>
               </div>
 
               <div className='flex-1 min-h-[9.5rem]'>

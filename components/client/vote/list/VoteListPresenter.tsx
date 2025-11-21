@@ -7,7 +7,7 @@ import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 import { getVoteStatus } from '@/components/server/utils';
 import { VoteStatus } from '@/stores/voteFilterStore';
-import { VoteCard } from '..';
+import VoteCard from './VoteCard';
 
 type WindowWithIdleCallback = Window & {
   requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
@@ -178,10 +178,11 @@ export function VoteListPresenter({
       {filteredVotes.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredVotes.map(vote => (
+            {filteredVotes.map((vote, index) => (
               <VoteCard
                 key={vote.id}
                 vote={vote}
+                isHero={index === 0}
                 onClick={() => handleVoteClick(vote.id)}
               />
             ))}
