@@ -1,10 +1,33 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { AuthProvider } from '@/lib/supabase/auth-provider';
-import { NavigationProvider } from '@/contexts/NavigationContext';
-import { GlobalLoadingProvider } from '@/contexts/GlobalLoadingContext';
 import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
+
+type ProviderProps = {
+  children: React.ReactNode;
+};
+
+const NavigationProviderDeferred = dynamic<ProviderProps>(
+  () =>
+    import('@/contexts/NavigationContext').then((mod) => ({
+      default: mod.NavigationProvider,
+    })),
+  {
+    ssr: false,
+  },
+);
+
+const GlobalLoadingProviderDeferred = dynamic<ProviderProps>(
+  () =>
+    import('@/contexts/GlobalLoadingContext').then((mod) => ({
+      default: mod.GlobalLoadingProvider,
+    })),
+  {
+    ssr: false,
+  },
+);
 
 interface VoteLiteClientLayoutProps {
   children: React.ReactNode;
@@ -16,13 +39,15 @@ const VoteLiteClientLayoutComponent = memo(function VoteLiteClientLayout({
   initialLanguage,
 }: VoteLiteClientLayoutProps) {
   return (
-    <NavigationProvider>
-      <GlobalLoadingProvider>
-        <LanguageSyncProvider initialLanguage={initialLanguage}>
-          <AuthProvider>{children}</AuthProvider>
-        </LanguageSyncProvider>
-      </GlobalLoadingProvider>
-    </NavigationProvider>
+    <Suspense fallback={children}>
+      <NavigationProviderDeferred>
+        <GlobalLoadingProviderDeferred>
+          <LanguageSyncProvider initialLanguage={initialLanguage}>
+            <AuthProvider>{children}</AuthProvider>
+          </LanguageSyncProvider>
+        </GlobalLoadingProviderDeferred>
+      </NavigationProviderDeferred>
+    </Suspense>
   );
 });
 
