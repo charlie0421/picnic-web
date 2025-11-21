@@ -11,6 +11,7 @@ export { default as VoteFilterSection } from './VoteFilterSection';
 export { default as VoteStatusFilter } from './VoteStatusFilter';
 export { default as VoteAreaFilter } from './VoteAreaFilter';
 export { default as VoteEmptyState } from './VoteEmptyState';
+export { default as VoteFilterSectionDeferred } from './VoteFilterSectionDeferred';
 export { VoteResults } from './VoteResults';
 export { VoteItem } from './VoteItem';
 export { VoteSubmit } from './VoteSubmit';

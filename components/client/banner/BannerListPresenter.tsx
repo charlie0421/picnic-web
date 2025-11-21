@@ -20,6 +20,7 @@ export interface BannerListProps {
 
 const MIN_PRIORITY_COUNT = 1;
 const AUTO_PLAY_DELAY = 5000;
+const AUTOPLAY_INITIAL_DELAY = 4000;
 
 const getSlidesPerView = (width: number) => {
   if (width >= 1024) {
@@ -72,6 +73,7 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     Array.from({ length: initialPreloadCount }, (_, i) => i),
   );
   const autoplayRef = useRef<number>();
+  const autoplayDelayTimeoutRef = useRef<number>();
   const prefersReducedMotionRef = useRef<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
@@ -247,6 +249,10 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
       window.clearInterval(autoplayRef.current);
       autoplayRef.current = undefined;
     }
+    if (autoplayDelayTimeoutRef.current) {
+      window.clearTimeout(autoplayDelayTimeoutRef.current);
+      autoplayDelayTimeoutRef.current = undefined;
+    }
   }, []);
 
   const startAutoplay = useCallback(() => {
@@ -255,9 +261,11 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     }
 
     stopAutoplay();
-    autoplayRef.current = window.setInterval(() => {
-      setCurrentIndex((index) => computeNextIndex(index));
-    }, AUTO_PLAY_DELAY);
+    autoplayDelayTimeoutRef.current = window.setTimeout(() => {
+      autoplayRef.current = window.setInterval(() => {
+        setCurrentIndex((index) => computeNextIndex(index));
+      }, AUTO_PLAY_DELAY);
+    }, AUTOPLAY_INITIAL_DELAY);
   }, [computeNextIndex, slidesPerView, stopAutoplay, totalSlides]);
 
   useEffect(() => {

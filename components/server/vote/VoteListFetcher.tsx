@@ -1,4 +1,4 @@
-import { VoteFilterSection, VoteListCSR } from '@/components/client/vote/list';
+import { VoteFilterSectionDeferred, VoteListCSR } from '@/components/client/vote/list';
 import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
 import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import { getVotes } from '@/lib/data-fetching/server/vote-service';
@@ -40,7 +40,7 @@ export async function VoteListFetcher({
   
   return (
     <div className={className}>
-      <VoteFilterSection />
+      <VoteFilterSectionDeferred />
       <VoteListCSR initialVotes={votes} />
     </div>
   );
