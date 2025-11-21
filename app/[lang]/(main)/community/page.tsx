@@ -8,6 +8,7 @@ import { getBoardsPrioritizedForUser, getUserBookmarkedArtistIds, getBoardsForUs
 import GroupedBoardList from '@/components/community/GroupedBoardList'
 import BoardSearch from '@/components/community/BoardSearch'
 import { OptimizedImage } from '@/components/ui/OptimizedImage'
+import NavigationLink from '@/components/client/NavigationLink'
 import HotPostList from '@/components/community/HotPostList'
 
 export const revalidate = 60
@@ -103,8 +104,9 @@ export default async function CommunityBoardListPage({
             <h1 className='text-3xl font-semibold tracking-tight'>{t('community.list.heading')}</h1>
             <p className='max-w-2xl text-sm text-white/80'>{t('community.meta.description')}</p>
           </div>
-          <a
+          <NavigationLink
             href={`/${lang}/community/new`}
+            should_login
             className='inline-flex items-center gap-2 self-start rounded-full bg-white/90 px-5 py-3 text-sm font-semibold text-primary-600 shadow-lg shadow-primary-900/20 transition hover:translate-y-[-2px] hover:bg-white md:self-auto'
           >
             {t('community.board.empty.cta')}
@@ -112,19 +114,19 @@ export default async function CommunityBoardListPage({
               <path d='M5 12h14' />
               <path d='M12 5l7 7-7 7' />
             </svg>
-          </a>
+          </NavigationLink>
         </div>
       </section>
 
       <div className='grid grid-cols-1 gap-6 lg:grid-cols-12'>
         <div className='space-y-6 lg:col-span-7 xl:col-span-8'>
-          <HotPostList
-            heading={t('community.list.hotPosts.heading')}
-            description={t('community.list.hotPosts.description')}
-            emptyLabel={t('community.list.hotPosts.empty')}
-            fallbackTitle={t('community.list.hotPosts.untitled')}
-            posts={hotPostItems}
-          />
+      <HotPostList
+        heading={t('community.list.hotPosts.heading')}
+        description={t('community.list.hotPosts.description')}
+        emptyLabel={t('community.list.hotPosts.empty')}
+        fallbackTitle={t('community.list.hotPosts.untitled')}
+        posts={hotPostItems}
+      />
           <div className='rounded-3xl border border-white/70 bg-white/80 p-6 shadow-lg shadow-primary-900/5'>
             <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
               <div>
@@ -139,7 +141,7 @@ export default async function CommunityBoardListPage({
           </div>
         </div>
         <div className='space-y-6 lg:col-span-5 xl:col-span-4'>
-          {favoritesOnly.boards && favoritesOnly.boards.length > 0 ? (
+      {favoritesOnly.boards && favoritesOnly.boards.length > 0 ? (
             <div className='rounded-3xl border border-white/20 bg-gradient-to-br from-primary-600/90 via-sub-400/70 to-point-500/80 p-6 text-white shadow-xl shadow-primary-900/20'>
               <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
                 <div>
@@ -160,43 +162,43 @@ export default async function CommunityBoardListPage({
                 </a>
               </div>
               <div className='space-y-4'>
-                {(() => {
-                  const groups = new Map<string, { title: string; image: string | null; items: typeof favoritesOnly.boards }>()
-                  for (const it of favoritesOnly.boards) {
-                    const key = it.artist?.id ? `artist:${it.artist.id}` : (it.artist?.groupName ? `group:${it.artist.groupName}` : 'others')
-                    const title = it.artist?.name || it.artist?.groupName || t('community.list.other')
-                    const image = it.artist?.image ?? null
-                    if (!groups.has(key)) groups.set(key, { title, image, items: [] as any })
-                    groups.get(key)!.items.push(it)
-                  }
-                  return Array.from(groups.values()).map((g) => (
+          {(() => {
+            const groups = new Map<string, { title: string; image: string | null; items: typeof favoritesOnly.boards }>()
+            for (const it of favoritesOnly.boards) {
+              const key = it.artist?.id ? `artist:${it.artist.id}` : (it.artist?.groupName ? `group:${it.artist.groupName}` : 'others')
+              const title = it.artist?.name || it.artist?.groupName || t('community.list.other')
+              const image = it.artist?.image ?? null
+              if (!groups.has(key)) groups.set(key, { title, image, items: [] as any })
+              groups.get(key)!.items.push(it)
+            }
+            return Array.from(groups.values()).map((g) => (
                     <div key={g.title} className='rounded-2xl bg-white/10 p-3'>
                       <div className='mb-2 flex items-center gap-3'>
-                        {g.image ? (
+                  {g.image ? (
                           <OptimizedImage src={g.image} alt={g.title} width={48} height={48} className='h-8 w-8 rounded-full object-cover' />
-                        ) : (
+                  ) : (
                           <div className='h-8 w-8 rounded-full bg-white/30' />
-                        )}
+                  )}
                         <div className='text-sm font-semibold'>{g.title}</div>
-                      </div>
-                      <div className='flex flex-wrap gap-2'>
-                        {g.items.map((b) => (
-                          <a
-                            key={b.boardId}
-                            href={`/${lang}/community/boards/${b.boardId}`}
+                </div>
+                <div className='flex flex-wrap gap-2'>
+                  {g.items.map((b) => (
+                    <a
+                      key={b.boardId}
+                      href={`/${lang}/community/boards/${b.boardId}`}
                             className='inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:-translate-y-0.5'
-                          >
-                            #{b.name}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  ))
-                })()}
+                    >
+                      #{b.name}
+                    </a>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : null}
-          {bookmarkedBoards.length > 0 ? (
+            ))
+          })()}
+              </div>
+        </div>
+      ) : null}
+      {bookmarkedBoards.length > 0 ? (
             <div className='rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-primary-900/10'>
               <div className='mb-3 flex items-center justify-between'>
                 <div>
@@ -210,19 +212,19 @@ export default async function CommunityBoardListPage({
                   {t('community.list.heading')}
                 </a>
               </div>
-              <div className='flex flex-wrap gap-2'>
-                {bookmarkedBoards.map((b) => (
-                  <a
-                    key={b.boardId}
-                    href={`/${lang}/community/boards/${b.boardId}`}
+          <div className='flex flex-wrap gap-2'>
+            {bookmarkedBoards.map((b) => (
+              <a
+                key={b.boardId}
+                href={`/${lang}/community/boards/${b.boardId}`}
                     className='inline-flex items-center rounded-full border border-primary-100 bg-primary-50/70 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:-translate-y-0.5'
-                  >
-                    #{b.name}
-                  </a>
-                ))}
-              </div>
-            </div>
-          ) : null}
+              >
+                #{b.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
         </div>
       </div>
 
