@@ -97,6 +97,7 @@ export default function NavigationLink({
     <Link
       href={resolvedHref}
       onClick={handleClick}
+      prefetch={false}
       className={`${className} ${isNavigating ? 'opacity-90' : 'opacity-100'} transition-opacity duration-200 inline-block`}
       style={{ userSelect: 'none' }}
       {...linkProps}
