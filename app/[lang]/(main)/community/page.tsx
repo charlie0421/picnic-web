@@ -4,8 +4,7 @@ import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils'
 import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils'
 import { SITE_URL } from '@/app/[lang]/constants/static-pages'
 import { getTranslations } from '@/lib/i18n/server'
-import { getBoardsPrioritizedForUser, getUserBookmarkedArtistIds, getBoardsForUserFavoritesOnly, getUserBookmarkedBoardIds, getBoardsByIds, getHotCommunityPosts } from '@/lib/data-fetching/server/community-service'
-import GroupedBoardList from '@/components/community/GroupedBoardList'
+import { getBoardsForUserFavoritesOnly, getUserBookmarkedBoardIds, getBoardsByIds, getHotCommunityPosts } from '@/lib/data-fetching/server/community-service'
 import BoardSearch from '@/components/community/BoardSearch'
 import { OptimizedImage } from '@/components/ui/OptimizedImage'
 import NavigationLink from '@/components/client/NavigationLink'
@@ -62,23 +61,16 @@ export default async function CommunityBoardListPage({
   const { lang: langParam } = await params
   const lang = String(langParam || 'ko')
   const t = await getTranslations(lang as any)
-  const [favArtistIds, favoritesOnly, prioritized, bookmarkedBoardIds, hotPosts] = await Promise.all([
-    getUserBookmarkedArtistIds(),
+  const [favoritesOnly, bookmarkedBoardIds, hotPosts] = await Promise.all([
     getBoardsForUserFavoritesOnly({ page: 1, limit: 50 }),
-    getBoardsPrioritizedForUser({ page: 1, limit: 50 }),
     getUserBookmarkedBoardIds(),
     getHotCommunityPosts({ limit: 6, days: 30 }),
   ])
-  // 하단 리스트에서는 즐겨찾는 아티스트의 보드를 제외하고 노출
-  const favBoardIdSet = new Set((favoritesOnly.boards ?? []).map((b: any) => String(b.boardId)))
-  // 하단에는 아티스트 보드 자체를 모두 제외
-  const boardsForList = (prioritized.boards ?? []).filter((b: any) => !favBoardIdSet.has(String(b.boardId)) && !b.artist)
   // 북마크한 보드가 현재 목록에 없을 수 있으므로 별도로 조회
   const bookmarkedBoards = (await getBoardsByIds(bookmarkedBoardIds))
   const locale = resolveLocale(lang)
   const numberFormatter = new Intl.NumberFormat(locale)
   const dateFormatter = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' })
-  const boardsSectionId = 'community-boards-overview'
   const hotPostItems = hotPosts.map((post) => {
     const createdDate = post.createdAt ? new Date(post.createdAt) : null
     const createdLabel = createdDate && !Number.isNaN(createdDate.getTime()) ? dateFormatter.format(createdDate) : undefined
@@ -104,17 +96,29 @@ export default async function CommunityBoardListPage({
             <h1 className='text-3xl font-semibold tracking-tight'>{t('community.list.heading')}</h1>
             <p className='max-w-2xl text-sm text-white/80'>{t('community.meta.description')}</p>
           </div>
-          <NavigationLink
-            href={`/${lang}/community/new`}
-            should_login
-            className='inline-flex items-center gap-2 self-start rounded-full bg-white/90 px-5 py-3 text-sm font-semibold text-primary-600 shadow-lg shadow-primary-900/20 transition hover:translate-y-[-2px] hover:bg-white md:self-auto'
-          >
-            {t('community.board.empty.cta')}
-            <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
-              <path d='M5 12h14' />
-              <path d='M12 5l7 7-7 7' />
-            </svg>
-          </NavigationLink>
+          <div className='flex flex-col gap-3 self-start sm:flex-row md:self-auto'>
+            <NavigationLink
+              href={`/${lang}/community/new`}
+              should_login
+              className='inline-flex items-center gap-2 rounded-full bg-white/90 px-5 py-3 text-sm font-semibold text-primary-600 shadow-lg shadow-primary-900/20 transition hover:translate-y-[-2px] hover:bg-white'
+            >
+              {t('community.board.empty.cta')}
+              <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                <path d='M5 12h14' />
+                <path d='M12 5l7 7-7 7' />
+              </svg>
+            </NavigationLink>
+            <NavigationLink
+              href={`/${lang}/community/posts`}
+              className='inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary-900/10 transition hover:translate-y-[-2px] hover:bg-white/20'
+            >
+              {t('community.feed.cta')}
+              <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                <path d='M5 12h14' />
+                <path d='M12 5l7 7-7 7' />
+              </svg>
+            </NavigationLink>
+          </div>
         </div>
       </section>
 
@@ -151,7 +155,7 @@ export default async function CommunityBoardListPage({
                   </p>
                 </div>
                 <a
-                  href={`#${boardsSectionId}`}
+                  href={`/${lang}/community/posts`}
                   className='inline-flex items-center gap-1 text-xs font-semibold text-white/90 underline-offset-2 hover:underline'
                 >
                   {t('community.list.heading')}
@@ -206,7 +210,7 @@ export default async function CommunityBoardListPage({
                   <p className='text-xs text-gray-500'>{t('community.meta.description')}</p>
                 </div>
                 <a
-                  href={`#${boardsSectionId}`}
+                  href={`/${lang}/community/posts`}
                   className='text-xs font-semibold text-primary-600 underline-offset-2 hover:underline'
                 >
                   {t('community.list.heading')}
@@ -228,37 +232,7 @@ export default async function CommunityBoardListPage({
         </div>
       </div>
 
-      <section
-        id={boardsSectionId}
-        className='rounded-3xl border border-white/80 bg-white/80 p-6 shadow-xl shadow-primary-900/5'
-      >
-        <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
-          <div>
-            <p className='text-sm font-semibold text-gray-900'>{t('community.list.heading')}</p>
-            <p className='text-sm text-gray-500'>{t('community.meta.description')}</p>
-          </div>
-          <a
-            href={`/${lang}/community`}
-            className='inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50'
-          >
-            {t('community.list.heading')}
-            <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
-              <path d='M5 12h14' />
-              <path d='M12 5l7 7-7 7' />
-            </svg>
-          </a>
-        </div>
-        <GroupedBoardList
-          items={boardsForList.map((b) => ({
-            boardId: b.boardId,
-            name: b.name,
-            description: b.description,
-            artist: b.artist || null,
-          }))}
-          lang={lang}
-          bookmarkedBoardIds={bookmarkedBoardIds}
-        />
-      </section>
+      {/* 전체 보드 섹션 제거 */}
     </div>
   )
 }

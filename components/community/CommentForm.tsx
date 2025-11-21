@@ -1,20 +1,38 @@
 'use client'
 import React, { useState, useTransition } from 'react'
 import { createComment } from '@/app/actions/community'
-import { withRequireAuth } from '@/components/auth/withAuthGuard'
 import { useNotification } from '@/contexts/NotificationContext'
 import { useTranslations } from '@/hooks/useTranslations'
+import { useAuth } from '@/lib/supabase/auth-provider'
+import { redirectToLogin } from '@/utils/auth-redirect'
 
 interface Props {
   postId: string
   lang: string
 }
 
-function CommentFormBase({ postId, lang }: Props) {
+export default function CommentForm({ postId, lang }: Props) {
   const [content, setContent] = useState('')
   const [isPending, startTransition] = useTransition()
   const { addNotification } = useNotification()
   const { t } = useTranslations()
+  const { isAuthenticated } = useAuth()
+  const redirectUrl = `/${lang}/community/${postId}`
+
+  if (!isAuthenticated) {
+    return (
+      <div className='rounded-2xl border border-dashed border-gray-300 bg-white/70 px-4 py-6 text-center text-sm text-gray-600'>
+        <p className='mb-3 text-gray-800'>{t('community.comment.firstPrompt')}</p>
+        <button
+          type='button'
+          onClick={() => redirectToLogin(redirectUrl)}
+          className='inline-flex items-center justify-center rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary-500'
+        >
+          {t('community.common.write')}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <form
@@ -47,9 +65,3 @@ function CommentFormBase({ postId, lang }: Props) {
     </form>
   )
 }
-
-export const CommentForm = withRequireAuth(CommentFormBase)
-
-export default CommentForm
-
-
