@@ -77,6 +77,7 @@ export default async function CommunityBoardListPage({
   const locale = resolveLocale(lang)
   const numberFormatter = new Intl.NumberFormat(locale)
   const dateFormatter = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' })
+  const boardsSectionId = 'community-boards-overview'
   const hotPostItems = hotPosts.map((post) => {
     const createdDate = post.createdAt ? new Date(post.createdAt) : null
     const createdLabel = createdDate && !Number.isNaN(createdDate.getTime()) ? dateFormatter.format(createdDate) : undefined
@@ -90,73 +91,186 @@ export default async function CommunityBoardListPage({
       createdLabel,
     }
   })
+  const stats = [
+    { label: t('community.list.hotPosts.heading'), value: hotPostItems.length },
+    { label: t('community.list.myArtistBoards'), value: favoritesOnly.boards?.length ?? 0 },
+    { label: t('community.list.bookmarkedBoards'), value: bookmarkedBoards.length },
+  ]
 
   return (
-    <div className='container mx-auto px-4 py-6 space-y-6 text-gray-900'>
-      <h1 className='text-xl font-semibold text-gray-900'>{t('community.list.heading')}</h1>
-      <HotPostList
-        heading={t('community.list.hotPosts.heading')}
-        description={t('community.list.hotPosts.description')}
-        emptyLabel={t('community.list.hotPosts.empty')}
-        fallbackTitle={t('community.list.hotPosts.untitled')}
-        posts={hotPostItems}
-      />
-      <BoardSearch lang={lang} />
-      {favoritesOnly.boards && favoritesOnly.boards.length > 0 ? (
-        <div className='rounded-md border bg-white border-gray-200 p-3'>
-          <div className='text-sm font-medium text-gray-800 mb-2'>{t('community.list.myArtistBoards')}</div>
-          {(() => {
-            const groups = new Map<string, { title: string; image: string | null; items: typeof favoritesOnly.boards }>()
-            for (const it of favoritesOnly.boards) {
-              const key = it.artist?.id ? `artist:${it.artist.id}` : (it.artist?.groupName ? `group:${it.artist.groupName}` : 'others')
-              const title = it.artist?.name || it.artist?.groupName || t('community.list.other')
-              const image = it.artist?.image ?? null
-              if (!groups.has(key)) groups.set(key, { title, image, items: [] as any })
-              groups.get(key)!.items.push(it)
-            }
-            return Array.from(groups.values()).map((g) => (
-              <div key={g.title} className='mb-2'>
-                <div className='flex items-center gap-2 mb-1'>
-                  {g.image ? (
-                    <OptimizedImage src={g.image} alt={g.title} width={80} height={80} className='w-5 h-5 rounded object-cover' />
-                  ) : (
-                    <div className='w-5 h-5 rounded bg-gray-200' />
-                  )}
-                  <div className='text-xs font-semibold text-gray-700'>{g.title}</div>
-                </div>
-                <div className='flex flex-wrap gap-2'>
-                  {g.items.map((b) => (
-                    <a
-                      key={b.boardId}
-                      href={`/${lang}/community/boards/${b.boardId}`}
-                      className='inline-flex items-center px-2 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:bg-gray-50'
-                    >
-                      #{b.name}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ))
-          })()}
+    <div className='container mx-auto space-y-8 px-4 py-8 text-gray-900'>
+      <section className='relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 via-primary-500 to-pink-500 px-6 py-10 text-white shadow-2xl'>
+        <div className='absolute inset-0 opacity-30'>
+          <div className='h-full w-full bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.4),_transparent_60%)]' />
         </div>
-      ) : null}
-      {bookmarkedBoards.length > 0 ? (
-        <div className='rounded-md border bg-white border-gray-200 p-3'>
-          <div className='text-sm font-medium text-gray-800 mb-2'>{t('community.list.bookmarkedBoards')}</div>
-          <div className='flex flex-wrap gap-2'>
-            {bookmarkedBoards.map((b) => (
-              <a
-                key={b.boardId}
-                href={`/${lang}/community/boards/${b.boardId}`}
-                className='inline-flex items-center px-2 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:bg-gray-50'
-              >
-                #{b.name}
-              </a>
-            ))}
+        <div className='relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between'>
+          <div className='space-y-3'>
+            <p className='text-xs font-semibold uppercase tracking-[0.2em] text-white/80'>{t('community.meta.title')}</p>
+            <h1 className='text-3xl font-semibold tracking-tight'>{t('community.list.heading')}</h1>
+            <p className='max-w-2xl text-sm text-white/80'>{t('community.meta.description')}</p>
+          </div>
+          <a
+            href={`/${lang}/community/new`}
+            className='inline-flex items-center gap-2 self-start rounded-full bg-white/90 px-5 py-3 text-sm font-semibold text-primary-600 shadow-lg shadow-primary-900/20 transition hover:translate-y-[-2px] hover:bg-white md:self-auto'
+          >
+            {t('community.board.empty.cta')}
+            <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+              <path d='M5 12h14' />
+              <path d='M12 5l7 7-7 7' />
+            </svg>
+          </a>
+        </div>
+        <div className='relative mt-8 grid gap-4 sm:grid-cols-3'>
+          {stats.map((stat) => (
+            <div key={stat.label} className='rounded-2xl border border-white/30 bg-white/10 px-4 py-3 text-center'>
+              <div className='text-2xl font-semibold'>{numberFormatter.format(stat.value)}</div>
+              <div className='text-xs text-white/80'>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className='grid grid-cols-1 gap-6 lg:grid-cols-12'>
+        <div className='space-y-6 lg:col-span-7 xl:col-span-8'>
+          <HotPostList
+            heading={t('community.list.hotPosts.heading')}
+            description={t('community.list.hotPosts.description')}
+            emptyLabel={t('community.list.hotPosts.empty')}
+            fallbackTitle={t('community.list.hotPosts.untitled')}
+            posts={hotPostItems}
+          />
+          <div className='rounded-3xl border border-white/70 bg-white/80 p-6 shadow-lg shadow-primary-900/5'>
+            <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-wide text-primary-500'>
+                  {t('community.input.searchBoard.placeholder')}
+                </p>
+                <h2 className='text-lg font-semibold text-gray-900'>{t('community.list.heading')}</h2>
+                <p className='text-sm text-gray-500'>{t('community.list.hotPosts.description')}</p>
+              </div>
+            </div>
+            <BoardSearch lang={lang} className='mt-4' />
           </div>
         </div>
-      ) : null}
-      <GroupedBoardList items={boardsForList.map(b => ({ boardId: b.boardId, name: b.name, description: b.description, artist: b.artist || null }))} lang={lang} bookmarkedBoardIds={bookmarkedBoardIds} />
+        <div className='space-y-6 lg:col-span-5 xl:col-span-4'>
+          {favoritesOnly.boards && favoritesOnly.boards.length > 0 ? (
+            <div className='rounded-3xl border border-white/20 bg-gradient-to-br from-primary-600/90 to-pink-500/80 p-6 text-white shadow-xl shadow-primary-900/20'>
+              <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+                <div>
+                  <p className='text-sm font-semibold'>{t('community.list.myArtistBoards')}</p>
+                  <p className='text-xs text-white/80'>
+                    {t('community.list.hotPosts.description')}
+                  </p>
+                </div>
+                <a
+                  href={`#${boardsSectionId}`}
+                  className='inline-flex items-center gap-1 text-xs font-semibold text-white/90 underline-offset-2 hover:underline'
+                >
+                  {t('community.list.heading')}
+                  <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                    <path d='M5 12h14' />
+                    <path d='M12 5l7 7-7 7' />
+                  </svg>
+                </a>
+              </div>
+              <div className='space-y-4'>
+                {(() => {
+                  const groups = new Map<string, { title: string; image: string | null; items: typeof favoritesOnly.boards }>()
+                  for (const it of favoritesOnly.boards) {
+                    const key = it.artist?.id ? `artist:${it.artist.id}` : (it.artist?.groupName ? `group:${it.artist.groupName}` : 'others')
+                    const title = it.artist?.name || it.artist?.groupName || t('community.list.other')
+                    const image = it.artist?.image ?? null
+                    if (!groups.has(key)) groups.set(key, { title, image, items: [] as any })
+                    groups.get(key)!.items.push(it)
+                  }
+                  return Array.from(groups.values()).map((g) => (
+                    <div key={g.title} className='rounded-2xl bg-white/10 p-3'>
+                      <div className='mb-2 flex items-center gap-3'>
+                        {g.image ? (
+                          <OptimizedImage src={g.image} alt={g.title} width={48} height={48} className='h-8 w-8 rounded-full object-cover' />
+                        ) : (
+                          <div className='h-8 w-8 rounded-full bg-white/30' />
+                        )}
+                        <div className='text-sm font-semibold'>{g.title}</div>
+                      </div>
+                      <div className='flex flex-wrap gap-2'>
+                        {g.items.map((b) => (
+                          <a
+                            key={b.boardId}
+                            href={`/${lang}/community/boards/${b.boardId}`}
+                            className='inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:-translate-y-0.5'
+                          >
+                            #{b.name}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
+            </div>
+          ) : null}
+          {bookmarkedBoards.length > 0 ? (
+            <div className='rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-primary-900/10'>
+              <div className='mb-3 flex items-center justify-between'>
+                <div>
+                  <p className='text-sm font-semibold text-gray-900'>{t('community.list.bookmarkedBoards')}</p>
+                  <p className='text-xs text-gray-500'>{t('community.meta.description')}</p>
+                </div>
+                <a
+                  href={`#${boardsSectionId}`}
+                  className='text-xs font-semibold text-primary-600 underline-offset-2 hover:underline'
+                >
+                  {t('community.list.heading')}
+                </a>
+              </div>
+              <div className='flex flex-wrap gap-2'>
+                {bookmarkedBoards.map((b) => (
+                  <a
+                    key={b.boardId}
+                    href={`/${lang}/community/boards/${b.boardId}`}
+                    className='inline-flex items-center rounded-full border border-primary-100 bg-primary-50/70 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:-translate-y-0.5'
+                  >
+                    #{b.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <section
+        id={boardsSectionId}
+        className='rounded-3xl border border-white/80 bg-white/80 p-6 shadow-xl shadow-primary-900/5'
+      >
+        <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+          <div>
+            <p className='text-sm font-semibold text-gray-900'>{t('community.list.heading')}</p>
+            <p className='text-sm text-gray-500'>{t('community.meta.description')}</p>
+          </div>
+          <a
+            href={`/${lang}/community`}
+            className='inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50'
+          >
+            {t('community.list.heading')}
+            <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+              <path d='M5 12h14' />
+              <path d='M12 5l7 7-7 7' />
+            </svg>
+          </a>
+        </div>
+        <GroupedBoardList
+          items={boardsForList.map((b) => ({
+            boardId: b.boardId,
+            name: b.name,
+            description: b.description,
+            artist: b.artist || null,
+          }))}
+          lang={lang}
+          bookmarkedBoardIds={bookmarkedBoardIds}
+        />
+      </section>
     </div>
   )
 }
