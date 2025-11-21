@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import NavigationLink from '@/components/client/NavigationLink';
 import { Vote } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
-import { CountdownTimer } from '../common/CountdownTimer';
 import { getLocalizedString } from '@/utils/api/strings';
 import { formatVotePeriodWithTimeZone, formatRelativeTime } from '@/utils/date';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
@@ -88,6 +87,30 @@ const RewardItem = dynamic(
   {
     ssr: false,
     loading: () => <RewardItemSkeleton />,
+  },
+);
+
+const CountdownTimerSkeleton = () => (
+  <div className='flex items-center gap-1 justify-center min-h-[32px] text-xs text-gray-400'>
+    {Array.from({ length: 4 }).map((_, idx) => (
+      <span
+        key={`countdown-skeleton-${idx}`}
+        className='px-1.5 py-0.5 rounded bg-gray-100 animate-pulse w-8 text-center'
+      >
+        --
+      </span>
+    ))}
+  </div>
+);
+
+const CountdownTimer = dynamic(
+  () =>
+    import('../common/CountdownTimer').then((mod) => ({
+      default: mod.CountdownTimer,
+    })),
+  {
+    ssr: false,
+    loading: () => <CountdownTimerSkeleton />,
   },
 );
 
