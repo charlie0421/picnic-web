@@ -99,7 +99,7 @@ export default async function CommunityBoardListPage({
 
   return (
     <div className='container mx-auto space-y-8 px-4 py-8 text-gray-900'>
-      <section className='relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 via-primary-500 to-pink-500 px-6 py-10 text-white shadow-2xl'>
+      <section className='relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 via-primary-500 to-point-500 px-6 py-10 text-white shadow-2xl'>
         <div className='absolute inset-0 opacity-30'>
           <div className='h-full w-full bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.4),_transparent_60%)]' />
         </div>
@@ -154,7 +154,7 @@ export default async function CommunityBoardListPage({
         </div>
         <div className='space-y-6 lg:col-span-5 xl:col-span-4'>
           {favoritesOnly.boards && favoritesOnly.boards.length > 0 ? (
-            <div className='rounded-3xl border border-white/20 bg-gradient-to-br from-primary-600/90 to-pink-500/80 p-6 text-white shadow-xl shadow-primary-900/20'>
+            <div className='rounded-3xl border border-white/20 bg-gradient-to-br from-primary-600/90 via-sub-400/70 to-point-500/80 p-6 text-white shadow-xl shadow-primary-900/20'>
               <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
                 <div>
                   <p className='text-sm font-semibold'>{t('community.list.myArtistBoards')}</p>
