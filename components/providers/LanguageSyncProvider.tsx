@@ -4,7 +4,23 @@ import { useEffect, useState, memo, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import { Language, settings } from '@/config/settings';
-import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+type IdleCallback = () => void;
+
+const runWhenIdle = (callback: IdleCallback) => {
+  if (typeof window === 'undefined') {
+    setTimeout(callback, 0);
+    return;
+  }
+
+  const ric = (window as typeof window & { requestIdleCallback?: (cb: IdleCallback) => void })
+    .requestIdleCallback;
+
+  if (typeof ric === 'function') {
+    ric(callback);
+  } else {
+    setTimeout(callback, 600);
+  }
+};
 
 interface LanguageSyncProviderProps {
   children: React.ReactNode;
@@ -141,6 +157,7 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
             
             // user_profiles.language 업데이트 (로그인한 사용자인 경우에만)
             try {
+              const { createBrowserSupabaseClient } = await import('@/lib/supabase/client');
               const supabase = createBrowserSupabaseClient();
               const { data: { user } } = await supabase.auth.getUser();
               
@@ -177,7 +194,7 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
       }
     };
     
-    detectAndUpdateDeviceLanguage();
+    runWhenIdle(detectAndUpdateDeviceLanguage);
   }, [mounted, currentLanguage, setCurrentLang]);
 
   // 서버에서 전달된 initialLanguage로 초기화 (hydration mismatch 방지)
