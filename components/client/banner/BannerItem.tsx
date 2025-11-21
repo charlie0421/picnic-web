@@ -29,6 +29,7 @@ export function BannerItem({
           priority={priority}
           fetchPriority={fetchPriority}
           quality={priority ? 60 : 72}
+          forceOptimized={priority}
         />
       ) : (
         <div className='absolute inset-0 flex items-center justify-center'>

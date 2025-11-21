@@ -33,6 +33,7 @@ interface OptimizedImageProps {
   intersectionThreshold?: number;
   unoptimized?: boolean;
   fetchPriority?: 'high' | 'low' | 'auto';
+  forceOptimized?: boolean;
 }
 
 export function OptimizedImage({
@@ -52,6 +53,7 @@ export function OptimizedImage({
   intersectionThreshold = 0.1,
   unoptimized = false,
   fetchPriority = 'auto',
+  forceOptimized = false,
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -198,6 +200,9 @@ export function OptimizedImage({
   };
 
   const shouldBypassNextImage = useMemo(() => {
+    if (forceOptimized) {
+      return false;
+    }
     if (unoptimized) {
       return true;
     }
@@ -222,7 +227,7 @@ export function OptimizedImage({
     } catch {
       return currentSrc.includes('cdn.picnic.fan');
     }
-  }, [currentSrc, unoptimized]);
+  }, [currentSrc, forceOptimized, unoptimized]);
 
   // Shimmer 플레이스홀더
   const renderPlaceholder = () => {
