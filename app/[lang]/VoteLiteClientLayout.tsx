@@ -3,6 +3,7 @@
 import React, { memo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
+import { LcpReporter } from '@/components/client/metrics/LcpReporter';
 
 type ProviderProps = {
   children: React.ReactNode;
@@ -52,6 +53,7 @@ const VoteLiteClientLayoutComponent = memo(function VoteLiteClientLayout({
       <NavigationProviderDeferred>
         <GlobalLoadingProviderDeferred>
           <LanguageSyncProvider initialLanguage={initialLanguage}>
+            <LcpReporter />
             <AuthProviderDeferred>{children}</AuthProviderDeferred>
           </LanguageSyncProvider>
         </GlobalLoadingProviderDeferred>

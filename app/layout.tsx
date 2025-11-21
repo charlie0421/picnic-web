@@ -38,13 +38,27 @@ export default async function RootLayout({
 
   // 현재 경로에서 언어 감지
   const headersList = await headers();
-  const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
+  const rawPathHeader = headersList.get('x-pathname');
+  const rawUrlHeader = headersList.get('x-url');
+  const pathname = (() => {
+    if (rawPathHeader) return rawPathHeader;
+    if (!rawUrlHeader) return '';
+    try {
+      const url = new URL(rawUrlHeader);
+      return url.pathname;
+    } catch {
+      return rawUrlHeader;
+    }
+  })();
   
   // 경로에서 언어 추출 (예: /ko, /en, /ja, /zh-tw 등)
   const languageMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/);
   const currentLang = languageMatch ? languageMatch[1] : 'ko';
 
   const shouldLoadAds = process.env.NODE_ENV === 'production';
+  const voteRoutePattern = /^\/[a-z]{2}(?:-[a-z]{2})?\/vote(?:\/|$)/i;
+  const shouldRenderAds =
+    shouldLoadAds && !voteRoutePattern.test(pathname || '');
 
   return (
     <html lang={currentLang}>
@@ -58,7 +72,7 @@ export default async function RootLayout({
       </head>
       <body className={inter.className}>
         {/* Google AdSense (Auto ads) - 프로덕션에서만 지연 로딩 */}
-        {shouldLoadAds && (
+        {shouldRenderAds && (
           <ConsentAwareAdsense clientId="ca-pub-1539304887624918" />
         )}
         <div className="bg-white">
