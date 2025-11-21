@@ -7,16 +7,29 @@ import {
 } from '@/utils/image-utils';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import type { TransformOptions } from '@supabase/storage-js';
+
+/**
+ * Next.js 15의 기본 TypeScript 설정(moduleResolution: bundler)에서는
+ * `@supabase/storage-js` 패키지의 루트 타입 선언을 탐지하지 못해
+ * `Cannot find module '@supabase/storage-js'` 오류가 발생한다.
+ * 필요한 TransformOptions 형태만 직접 정의해 타입 의존성을 끊어 빌드 오류를 방지한다.
+ */
+type StorageTransformOptions = {
+  width?: number;
+  height?: number;
+  resize?: 'cover' | 'contain' | 'fill';
+  quality?: number;
+  format?: 'origin';
+};
 
 function toSupabaseTransformOptions(
   transform?: AvatarTransformOptions,
-): TransformOptions | undefined {
+): StorageTransformOptions | undefined {
   if (!transform) {
     return undefined;
   }
 
-  const normalized: TransformOptions = {};
+  const normalized: StorageTransformOptions = {};
 
   if (typeof transform.width === 'number' && !Number.isNaN(transform.width)) {
     normalized.width = Math.max(1, Math.round(transform.width));
@@ -36,7 +49,7 @@ function toSupabaseTransformOptions(
   if (transform.resize) {
     const resizeMap: Record<
       NonNullable<AvatarTransformOptions['resize']>,
-      TransformOptions['resize']
+      StorageTransformOptions['resize']
     > = {
       cover: 'cover',
       contain: 'contain',

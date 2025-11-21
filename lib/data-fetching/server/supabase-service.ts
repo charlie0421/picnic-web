@@ -13,7 +13,6 @@ import { createPublicSupabaseClient, createServerSupabaseClient } from "@/lib/su
 import { Database } from "@/types/supabase";
 import { PostgrestError, PostgrestSingleResponse } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
-import { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 import { unstable_cache } from "next/cache";
 import { handleSupabaseError } from "@/lib/supabase/error";
 
@@ -905,13 +904,13 @@ function generateCacheTag(
  *
  * 이 함수는 쿼리에 필터 옵션을 적용합니다.
  */
-function applyFilters<T = any>(
-  query: PostgrestFilterBuilder<any, any, T[], unknown>,
+function applyFilters<TQuery>(
+  query: TQuery,
   filters?: FilterOptions,
-): PostgrestFilterBuilder<any, any, T[], unknown> {
+): TQuery {
   if (!filters) return query;
 
-  let filteredQuery = query;
+  let filteredQuery = query as any;
 
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null) continue;
@@ -943,7 +942,7 @@ function applyFilters<T = any>(
     }
   }
 
-  return filteredQuery;
+  return filteredQuery as TQuery;
 }
 
 /**
@@ -951,13 +950,13 @@ function applyFilters<T = any>(
  *
  * 이 함수는 쿼리에 정렬 옵션을 적용합니다.
  */
-function applyOrderBy<T = any>(
-  query: PostgrestFilterBuilder<any, any, T[], unknown>,
+function applyOrderBy<TQuery>(
+  query: TQuery,
   orderBy?: OrderByOptions,
-): PostgrestFilterBuilder<any, any, T[], unknown> {
+): TQuery {
   if (!orderBy) return query;
 
-  return query.order(orderBy.column, {
+  return (query as any).order(orderBy.column, {
     ascending: orderBy.ascending !== false,
   });
 }
@@ -967,12 +966,12 @@ function applyOrderBy<T = any>(
  *
  * 이 함수는 쿼리에 페이지네이션 옵션을 적용합니다.
  */
-function applyPagination<T = any>(
-  query: PostgrestFilterBuilder<any, any, T[], unknown>,
+function applyPagination<TQuery>(
+  query: TQuery,
   limit?: number,
   offset?: number,
-): PostgrestFilterBuilder<any, any, T[], unknown> {
-  let result = query;
+): TQuery {
+  let result = query as any;
 
   if (limit) {
     result = result.limit(limit);
@@ -982,7 +981,7 @@ function applyPagination<T = any>(
     result = result.range(offset, offset + (limit || 10) - 1);
   }
 
-  return result;
+  return result as TQuery;
 }
 
 /**
