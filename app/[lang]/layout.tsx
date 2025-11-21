@@ -3,6 +3,7 @@ import './globals.css';
 import { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import ClientLayout from './ClientLayout';
+import VoteLiteClientLayout from './VoteLiteClientLayout';
 import { DEFAULT_METADATA } from './utils/metadata-utils';
 
 
@@ -75,10 +76,18 @@ export default async function LanguageLayout({
   const headersList = await headers();
   const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
   const isOpenInBrowser = pathname.includes('/open-in-browser');
+  const isVotePath = /^\/[a-z]{2}(?:-[a-z]{2})?\/vote(?:\/|$)/.test(pathname);
 
   if (isOpenInBrowser) {
-    // 최소 래핑: Provider 미적용으로 렌더 리스크 최소화
     return <>{children}</>;
+  }
+
+  if (isVotePath) {
+    return (
+      <VoteLiteClientLayout initialLanguage={params.lang}>
+        {children}
+      </VoteLiteClientLayout>
+    );
   }
 
   return (
