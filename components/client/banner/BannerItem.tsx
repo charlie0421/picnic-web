@@ -59,6 +59,7 @@ export function BannerItem({
         className='block'
         aria-label={getLocalizedString(banner.title as string)}
         title={getLocalizedString(banner.title as string)}
+        prefetch={false}
       >
         {content}
       </Link>
