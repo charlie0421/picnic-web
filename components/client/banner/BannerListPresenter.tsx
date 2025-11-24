@@ -32,20 +32,10 @@ function HeroBannerFallback({ banners, className }: BannerListProps) {
     () => ['relative w-full', className].filter(Boolean).join(' '),
     [className],
   );
-
-  if (banners.length === 0) {
-    return (
-      <div className={containerClassName}>
-        <div className='bg-gray-100 p-6 rounded-lg text-center w-full min-h-[180px]'>
-          <div className='flex items-center justify-center h-full'>
-            <p className='text-gray-500'>현재 표시할 배너가 없습니다.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const placeholderCount = useMemo(() => {
+    if (banners.length === 0) {
+      return 0;
+    }
     if (banners.length === 1) {
       return 1;
     }
@@ -65,6 +55,18 @@ function HeroBannerFallback({ banners, className }: BannerListProps) {
       })),
     [banners, placeholderCount],
   );
+
+  if (banners.length === 0) {
+    return (
+      <div className={containerClassName}>
+        <div className='bg-gray-100 p-6 rounded-lg text-center w-full min-h-[180px]'>
+          <div className='flex items-center justify-center h-full'>
+            <p className='text-gray-500'>현재 표시할 배너가 없습니다.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={containerClassName}>
