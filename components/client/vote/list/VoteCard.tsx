@@ -433,7 +433,7 @@ export const VoteCard = React.memo(
               >
                 <RewardItem
                   reward={reward.reward!}
-                  className='bg-secondary-50 border-secondary-200 text-gray-900 hover:border-sub-300 focus-within:border-sub-300 shadow-none'
+                  className='bg-secondary-200/60 border-secondary-200/50 text-gray-900 hover:border-secondary-200 focus-within:border-secondary-200 shadow-sm'
                 />
               </NavigationLink>
             ))}
