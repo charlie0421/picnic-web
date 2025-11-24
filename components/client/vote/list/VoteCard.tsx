@@ -371,6 +371,7 @@ export const VoteCard = React.memo(
               >
                 <RewardItem
                   reward={reward.reward!}
+                  tone='custom'
                   className='bg-secondary-200/70 border-secondary-200/50 text-gray-900 hover:border-secondary-200 focus-within:border-secondary-200 shadow-sm'
                   displayLanguage={displayLanguage}
                 />

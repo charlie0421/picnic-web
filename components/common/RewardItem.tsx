@@ -8,17 +8,24 @@ interface RewardItemProps {
   reward: Reward;
   className?: string;
   displayLanguage?: string;
+  /**
+   * default: 기본 카드 톤 (흰색)
+   * custom: 부모 컴포넌트가 배경/보더를 정의
+   */
+  tone?: 'default' | 'custom';
 }
 
-const RewardItem = React.memo(({ reward, className, displayLanguage }: RewardItemProps) => {
+const RewardItem = React.memo(
+  ({ reward, className, displayLanguage, tone = 'default' }: RewardItemProps) => {
   const title = getLocalizedString(reward.title, displayLanguage);
 
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-xl px-3 py-2 w-full min-h-[56px] border transition-colors duration-200',
-        'bg-white/95 border-point-200/60 shadow-sm hover:border-point-300 focus-within:border-point-300',
-        className,
+          'flex items-center gap-3 rounded-xl px-3 py-2 w-full min-h-[56px] border transition-colors duration-200',
+          tone === 'default' &&
+            'bg-white/95 border-point-200/60 shadow-sm hover:border-point-300 focus-within:border-point-300',
+          className,
       )}
     >
       {reward.thumbnail && (
@@ -38,8 +45,9 @@ const RewardItem = React.memo(({ reward, className, displayLanguage }: RewardIte
         </p>
       </div>
     </div>
-  );
-});
+    );
+  },
+);
 
 RewardItem.displayName = 'RewardItem';
 
