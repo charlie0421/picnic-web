@@ -156,6 +156,14 @@ export function OptimizedImage({
     return () => observer.disconnect();
   }, [priority, intersectionThreshold]);
 
+  const getEffectiveDpr = () => {
+    if (typeof window === 'undefined') {
+      return 1;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    return Math.min(Math.max(dpr, 1), 3);
+  };
+
   // 이미지 소스 설정
   useEffect(() => {
     if (!isInView || !src) return;
@@ -169,6 +177,8 @@ export function OptimizedImage({
       if (fill) return DEFAULT_FILL_WIDTH;
       return 300;
     })();
+    const effectiveDpr = getEffectiveDpr();
+    const scaledWidth = Math.round(inferredWidth * effectiveDpr);
 
     const baseRatio =
       width && height
@@ -177,9 +187,13 @@ export function OptimizedImage({
         ? height / inferredWidth
         : DEFAULT_FILL_HEIGHT / DEFAULT_FILL_WIDTH;
 
-    const targetWidth = inferredWidth;
+    const targetWidth = scaledWidth;
     const targetHeight =
-      height ?? (fill ? Math.round(inferredWidth * baseRatio) : undefined);
+      height
+        ? Math.round(height * effectiveDpr)
+        : fill
+        ? Math.round(scaledWidth * baseRatio)
+        : undefined;
 
     const optimizedSrc = getCdnImageUrl(src, targetWidth, targetHeight);
     setCurrentSrc(optimizedSrc);
