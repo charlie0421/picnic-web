@@ -4,7 +4,7 @@ import { createComment } from '@/app/actions/community'
 import { useNotification } from '@/contexts/NotificationContext'
 import { useTranslations } from '@/hooks/useTranslations'
 import { useAuth } from '@/lib/supabase/auth-provider'
-import { redirectToLogin } from '@/utils/auth-redirect'
+import { useLoginRequired } from '@/components/ui/Dialog'
 
 interface Props {
   postId: string
@@ -17,6 +17,7 @@ export default function CommentForm({ postId, lang }: Props) {
   const { addNotification } = useNotification()
   const { t } = useTranslations()
   const { isAuthenticated } = useAuth()
+  const showLoginRequired = useLoginRequired()
   const redirectUrl = `/${lang}/community/${postId}`
 
   if (!isAuthenticated) {
@@ -25,7 +26,11 @@ export default function CommentForm({ postId, lang }: Props) {
         <p className='mb-3 text-gray-800'>{t('community.comment.firstPrompt')}</p>
         <button
           type='button'
-          onClick={() => redirectToLogin(redirectUrl)}
+          onClick={() => {
+            showLoginRequired({
+              redirectUrl,
+            })
+          }}
           className='inline-flex items-center justify-center rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-primary-500'
         >
           {t('community.common.write')}

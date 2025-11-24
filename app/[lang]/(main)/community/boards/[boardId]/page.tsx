@@ -73,7 +73,7 @@ export default async function BoardFeedPage({ params, searchParams }: { params: 
           <WriteButton href={`/${lang}/community/boards/${boardId}/write`} variant='primary' />
         </div>
       ) : (
-        <PostList items={posts} lang={lang} />
+        <PostList items={posts} lang={lang} showArtist={false} />
       )}
       <div className='flex gap-2 justify-center pt-4'>
         {page > 1 && (

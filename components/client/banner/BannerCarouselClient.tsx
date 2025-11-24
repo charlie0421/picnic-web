@@ -20,7 +20,7 @@ export interface BannerCarouselClientProps {
 
 const MIN_PRIORITY_COUNT = 1;
 const AUTO_PLAY_DELAY = 5000;
-const AUTOPLAY_INITIAL_DELAY = 4000;
+const AUTOPLAY_INITIAL_DELAY = 7000;
 
 const getSlidesPerView = (width: number) => {
   if (width >= 1024) {
@@ -99,7 +99,7 @@ export function BannerCarouselClient({
     return () => window.removeEventListener('resize', updateSlidesPerView);
   }, []);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const preloadCount = Math.min(slidesPerView, totalSlides);
     if (preloadCount === 0) {
       setLoadedIndices([]);
@@ -154,55 +154,7 @@ export function BannerCarouselClient({
     });
   }, [totalSlides, slidesPerView]);
 
-  useEffect(() => {
-    if (typeof document === 'undefined' || totalSlides === 0) {
-      return;
-    }
-
-    const preloadCandidates = new Set<number>();
-    preloadCandidates.add(currentIndex);
-
-    const cleanupLinks: HTMLLinkElement[] = [];
-
-    preloadCandidates.forEach((index) => {
-      const banner = banners[index];
-      if (!banner || !banner.image) {
-        return;
-      }
-      const rawSrc = getLocalizedString(banner.image);
-      if (!rawSrc) {
-        return;
-      }
-      const href = getCdnImageUrl(rawSrc, 700, 356);
-      if (!href) {
-        return;
-      }
-
-      const existing = document.head.querySelector(
-        `link[data-banner-preload="${href}"]`,
-      );
-      if (existing) {
-        return;
-      }
-
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      link.href = href;
-      link.fetchPriority = 'high';
-      link.setAttribute('data-banner-preload', href);
-      document.head.appendChild(link);
-      cleanupLinks.push(link);
-    });
-
-    return () => {
-      cleanupLinks.forEach((link) => {
-        if (link.parentNode) {
-          link.parentNode.removeChild(link);
-        }
-      });
-    };
-  }, [banners, currentIndex, totalSlides]);
+  // manual preload 제거 (Next priority 및 fetchPriority로 충분)
 
   useEffect(() => {
     if (!containerRef.current || typeof window === 'undefined') {
@@ -310,6 +262,16 @@ export function BannerCarouselClient({
   );
   const heroIndex = currentIndex;
   const loadedSet = useMemo(() => new Set(loadedIndices), [loadedIndices]);
+  const prioritySet = useMemo(() => {
+    const indices = new Set<number>();
+    const aheadCount = Math.max(slidesPerView * 2, MIN_PRIORITY_COUNT);
+    const start = heroIndex;
+    const end = Math.min(heroIndex + aheadCount, totalSlides);
+    for (let i = start; i < end; i += 1) {
+      indices.add(i);
+    }
+    return indices;
+  }, [heroIndex, slidesPerView, totalSlides]);
   const trackStyle = useMemo(
     () =>
       ({
@@ -352,7 +314,7 @@ export function BannerCarouselClient({
         >
           {banners.map((banner, index) => {
             const isLoaded = loadedSet.has(index);
-            const priority = index === heroIndex;
+            const priority = index === heroIndex || prioritySet.has(index);
             return (
               <div
                 key={banner.id}

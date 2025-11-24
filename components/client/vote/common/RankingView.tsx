@@ -268,6 +268,7 @@ function PodiumItemSmall({
       ? getLocalizedString(item.artist.artist_group.name, currentLanguage)
       : '');
   const size = rank === 1 ? 112 : rank === 2 ? 84 : 72;
+  const isPrimaryVisual = rank === 1;
 
   return (
     <div className={`flex flex-col items-center ${className}`} style={{ width: size + 20 }}>
@@ -282,6 +283,8 @@ function PodiumItemSmall({
           height={size}
           className='w-full h-full object-cover'
           fallbackSrc='/images/default-artist.png'
+          priority={isPrimaryVisual}
+          fetchPriority={isPrimaryVisual ? 'high' : 'auto'}
         />
       </div>
       <div className='mt-2 max-w-[120px] text-center'>

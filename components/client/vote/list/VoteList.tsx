@@ -307,6 +307,7 @@ function PodiumItem({
   const formattedTotal = (total || 0).toLocaleString('ko-KR');
 
   const size = rank === 1 ? 112 : rank === 2 ? 84 : 72;
+  const isPrimaryVisual = rank === 1;
 
   return (
     <div
@@ -326,6 +327,8 @@ function PodiumItem({
           height={size}
           className="w-full h-full object-cover"
           fallbackSrc="/images/default-artist.png"
+          priority={isPrimaryVisual}
+          fetchPriority={isPrimaryVisual ? 'high' : 'auto'}
         />
       </div>
       <div className="mt-2 max-w-[120px] text-center">

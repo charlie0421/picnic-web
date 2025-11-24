@@ -12,19 +12,6 @@ import HotPostList from '@/components/community/HotPostList'
 
 export const revalidate = 60
 
-const localeMap: Record<string, string> = {
-  ko: 'ko-KR',
-  en: 'en-US',
-  'zh-cn': 'zh-CN',
-  'zh-tw': 'zh-TW',
-  ja: 'ja-JP',
-}
-
-function resolveLocale(lang: string) {
-  const key = (lang || '').toLowerCase()
-  return localeMap[key] ?? lang ?? 'en'
-}
-
 export async function generateMetadata({
   params,
 }: {
@@ -68,22 +55,14 @@ export default async function CommunityBoardListPage({
   ])
   // 북마크한 보드가 현재 목록에 없을 수 있으므로 별도로 조회
   const bookmarkedBoards = (await getBoardsByIds(bookmarkedBoardIds))
-  const locale = resolveLocale(lang)
-  const numberFormatter = new Intl.NumberFormat(locale)
-  const dateFormatter = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' })
-  const hotPostItems = hotPosts.map((post) => {
-    const createdDate = post.createdAt ? new Date(post.createdAt) : null
-    const createdLabel = createdDate && !Number.isNaN(createdDate.getTime()) ? dateFormatter.format(createdDate) : undefined
-    return {
-      id: post.id,
-      href: `/${lang}/community/${post.id}`,
-      title: post.title,
-      boardName: post.boardName,
-      viewLabel: t('community.post.viewsCount', { count: numberFormatter.format(post.viewCount ?? 0) }),
-      replyLabel: t('community.post.commentsCount', { count: numberFormatter.format(post.replyCount ?? 0) }),
-      createdLabel,
-    }
-  })
+  const hotPostItems = hotPosts.map((post) => ({
+    id: post.id,
+    title: post.title?.trim() ? post.title : t('community.list.hotPosts.untitled'),
+    contentPreview: post.contentPreview,
+    replyCount: post.replyCount,
+    viewCount: post.viewCount,
+    boardArtist: post.boardArtist ?? null,
+  }))
   return (
     <div className='container mx-auto space-y-8 px-4 py-8 text-gray-900'>
       <section className='relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 via-primary-500 to-point-500 px-6 py-10 text-white shadow-2xl'>
@@ -124,13 +103,14 @@ export default async function CommunityBoardListPage({
 
       <div className='grid grid-cols-1 gap-6 lg:grid-cols-12'>
         <div className='space-y-6 lg:col-span-7 xl:col-span-8'>
-      <HotPostList
-        heading={t('community.list.hotPosts.heading')}
-        description={t('community.list.hotPosts.description')}
-        emptyLabel={t('community.list.hotPosts.empty')}
-        fallbackTitle={t('community.list.hotPosts.untitled')}
-        posts={hotPostItems}
-      />
+          <HotPostList
+            heading={t('community.list.hotPosts.heading')}
+            description={t('community.list.hotPosts.description')}
+            emptyLabel={t('community.list.hotPosts.empty')}
+            fallbackTitle={t('community.list.hotPosts.untitled')}
+            posts={hotPostItems}
+            lang={lang}
+          />
           <div className='rounded-3xl border border-white/70 bg-white/80 p-6 shadow-lg shadow-primary-900/5'>
             <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
               <div>

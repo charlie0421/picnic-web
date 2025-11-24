@@ -252,6 +252,7 @@ function renderPodiumItem(
   const total = item.vote_total ?? 0;
   const formattedTotal = (total || 0).toLocaleString('ko-KR');
   const size = rank === 1 ? 112 : rank === 2 ? 84 : 72;
+  const isPrimaryVisual = rank === 1;
 
   return (
     <div className='flex flex-col items-center' style={{ width: size + 28 }}>
@@ -266,6 +267,8 @@ function renderPodiumItem(
           height={size}
           className='w-full h-full object-cover'
           fallbackSrc='/images/default-artist.png'
+          priority={isPrimaryVisual}
+          fetchPriority={isPrimaryVisual ? 'high' : 'auto'}
         />
       </div>
       <div className='mt-2 text-center overflow-hidden' style={{ width: size }}>

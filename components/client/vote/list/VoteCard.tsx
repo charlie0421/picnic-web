@@ -340,7 +340,7 @@ export const VoteCard = React.memo(
                     className='object-cover'
                     priority={isHero}
                     fetchPriority={isHero ? 'high' : 'low'}
-                  placeholder='shimmer'
+                    placeholder='shimmer'
                     quality={85}
                     intersectionThreshold={0.2}
                   />
@@ -363,18 +363,19 @@ export const VoteCard = React.memo(
                     {getCategoryLabel(vote.vote_category, t)}
                   </span>
                 )}
-                {getSubCategoryLabel(vote.vote_sub_category, t) && !vote.is_partnership && (
-                  <span
-                    suppressHydrationWarning
-                    className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
-                      SUB_CATEGORY_COLORS[
-                        vote.vote_sub_category as keyof typeof SUB_CATEGORY_COLORS
-                      ] || 'bg-gray-50 text-gray-600 border border-gray-100'
-                    }`}
-                  >
-                    {getSubCategoryLabel(vote.vote_sub_category, t)}
-                  </span>
-                )}
+                {getSubCategoryLabel(vote.vote_sub_category, t) &&
+                  !vote.is_partnership && (
+                    <span
+                      suppressHydrationWarning
+                      className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ${
+                        SUB_CATEGORY_COLORS[
+                          vote.vote_sub_category as keyof typeof SUB_CATEGORY_COLORS
+                        ] || 'bg-gray-50 text-gray-600 border border-gray-100'
+                      }`}
+                    >
+                      {getSubCategoryLabel(vote.vote_sub_category, t)}
+                    </span>
+                  )}
                 <span
                   suppressHydrationWarning
                   className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium shadow-sm whitespace-nowrap ml-auto ${STATUS_TAG_COLORS[status]}`}
@@ -392,7 +393,7 @@ export const VoteCard = React.memo(
                 <CountdownTimer
                   timeLeft={timeLeft}
                   voteStatus={status as 'upcoming' | 'ongoing' | 'completed'}
-                  variant="decorated"
+                  variant='decorated'
                   compact={true}
                   showLabel={false}
                   showUnits={false}
@@ -401,20 +402,22 @@ export const VoteCard = React.memo(
                   className='text-sub-600 text-xs min-w-[60px] text-center'
                   suppressHydrationWarning
                 >
-                  {status === VOTE_STATUS.ONGOING ? relativeSinceQuery : '\u00A0'}
-                  </span>
+                  {status === VOTE_STATUS.ONGOING
+                    ? relativeSinceQuery
+                    : '\u00A0'}
+                </span>
               </div>
 
               <div className='flex-1 min-h-[9.5rem]'>
-                  <VoteItems 
-                    vote={vote} 
-                    mode="list" 
-                    onNavigateToDetail={() => {
-                      // VoteRankCard 클릭 시 투표 상세로 이동
-                      // NavigationLink의 href와 같은 경로로 프로그래매틱 네비게이션
-                      window.location.href = `/vote/${vote.id}`;
-                    }} 
-                  />
+                <VoteItems
+                  vote={vote}
+                  mode='list'
+                  onNavigateToDetail={() => {
+                    // VoteRankCard 클릭 시 투표 상세로 이동
+                    // NavigationLink의 href와 같은 경로로 프로그래매틱 네비게이션
+                    window.location.href = `/vote/${vote.id}`;
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -430,7 +433,7 @@ export const VoteCard = React.memo(
               >
                 <RewardItem
                   reward={reward.reward!}
-                  className='bg-sub-50 border-sub-200 text-gray-900 hover:border-sub-300 focus-within:border-sub-300 shadow-none'
+                  className='bg-secondary-50 border-secondary-200 text-gray-900 hover:border-sub-300 focus-within:border-sub-300 shadow-none'
                 />
               </NavigationLink>
             ))}

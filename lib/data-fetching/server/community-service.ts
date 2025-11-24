@@ -1,5 +1,12 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
+export interface CommunityArtistInfo {
+  id: number
+  name: string
+  image: string | null
+  groupName?: string | null
+}
+
 export interface CommunityPostSummary {
   id: string
   title: string
@@ -8,6 +15,8 @@ export interface CommunityPostSummary {
   viewCount: number
   createdAt: string
   userId: string
+  boardId?: string | null
+  boardArtist?: CommunityArtistInfo | null
 }
 
 export interface CommunityPostDetail extends CommunityPostSummary {
@@ -38,18 +47,17 @@ export interface CommunityBoardSummary {
   name: string
   description: string | null
   isOfficial: boolean | null
-  artist?: { id: number; name: string; image: string | null; groupName?: string | null } | null
+  artist?: CommunityArtistInfo | null
 }
 
 export interface CommunityBoardMeta {
   boardId: string
   name: string
   description: string | null
-  artist?: { id: number; name: string; image: string | null; groupName?: string | null } | null
+  artist?: CommunityArtistInfo | null
 }
 
 export interface CommunityHotPostSummary extends CommunityPostSummary {
-  boardId: string | null
   boardName?: string | null
 }
 
@@ -62,7 +70,7 @@ export async function getCommunityFeed({ page = 1, limit = 20 }: { page?: number
   // posts 테이블 필드 참조: types/interfaces.ts 의 Posts 인터페이스
   const { data, error, count } = await supabase
     .from('posts')
-    .select('post_id,id,title,content,reply_count,view_count,created_at,user_id', { count: 'exact' })
+    .select('post_id,id,title,content,reply_count,view_count,created_at,user_id,board_id', { count: 'exact' })
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .range(from, to)
@@ -74,7 +82,7 @@ export async function getCommunityFeed({ page = 1, limit = 20 }: { page?: number
 
   const total = count ?? 0
   const totalPages = Math.ceil(total / limit)
-  const mapped: CommunityPostSummary[] = (data ?? []).map((p: any) => ({
+  const rawPosts: CommunityPostSummary[] = (data ?? []).map((p: any) => ({
     id: p.post_id ?? p.id,
     title: p.title,
     contentPreview: Array.isArray(p.content) ? String(p.content?.[0]?.text ?? '') : null,
@@ -82,6 +90,30 @@ export async function getCommunityFeed({ page = 1, limit = 20 }: { page?: number
     viewCount: p.view_count ?? 0,
     createdAt: p.created_at,
     userId: p.user_id,
+    boardId: p.board_id ? String(p.board_id) : null,
+    boardArtist: null,
+  }))
+
+  const boardIds = Array.from(
+    new Set(
+      rawPosts
+        .map((post) => post.boardId)
+        .filter((id): id is string => typeof id === 'string' && !!id),
+    ),
+  )
+  let boardMap = new Map<string, CommunityBoardSummary>()
+  if (boardIds.length > 0) {
+    try {
+      const boards = await getBoardsByIds(boardIds)
+      boardMap = new Map(boards.map((b) => [String(b.boardId), b]))
+    } catch (e) {
+      console.warn('[community] getCommunityFeed board fetch error:', e)
+    }
+  }
+
+  const mapped: CommunityPostSummary[] = rawPosts.map((post) => ({
+    ...post,
+    boardArtist: post.boardId ? boardMap.get(post.boardId)?.artist ?? null : null,
   }))
 
   return {
@@ -197,11 +229,11 @@ export async function getHotCommunityPosts({ limit = 5, days = 7 }: { limit?: nu
   }
 
   const boardIds = Array.from(new Set(primaryPosts.map((p: any) => p.board_id).filter((id: any) => !!id).map((id: any) => String(id))))
-  let boardNameMap = new Map<string, string>()
+  let boardMap = new Map<string, CommunityBoardSummary>()
   if (boardIds.length > 0) {
     try {
       const boards = await getBoardsByIds(boardIds)
-      boardNameMap = new Map(boards.map((b) => [String(b.boardId), b.name]))
+      boardMap = new Map(boards.map((b) => [String(b.boardId), b]))
     } catch (e) {
       console.warn('[community] getHotCommunityPosts board fetch error:', e)
     }
@@ -216,7 +248,8 @@ export async function getHotCommunityPosts({ limit = 5, days = 7 }: { limit?: nu
     createdAt: p.created_at,
     userId: p.user_id,
     boardId: p.board_id ? String(p.board_id) : null,
-    boardName: p.board_id ? boardNameMap.get(String(p.board_id)) ?? null : null,
+    boardName: p.board_id ? boardMap.get(String(p.board_id))?.name ?? null : null,
+    boardArtist: p.board_id ? boardMap.get(String(p.board_id))?.artist ?? null : null,
   }))
 }
 
@@ -304,6 +337,14 @@ export async function getBoardPosts(boardId: string, { page = 1, limit = 20 }: {
 
   const total = count ?? 0
   const totalPages = Math.ceil(total / limit)
+  let boardArtist: CommunityArtistInfo | null = null
+  try {
+    const boards = await getBoardsByIds([boardId])
+    boardArtist = boards[0]?.artist ?? null
+  } catch (e) {
+    console.warn('[community] getBoardPosts board fetch error:', e)
+  }
+
   const posts: CommunityPostSummary[] = (data ?? []).map((p: any) => ({
     id: p.post_id ?? p.id,
     title: p.title,
@@ -312,6 +353,8 @@ export async function getBoardPosts(boardId: string, { page = 1, limit = 20 }: {
     viewCount: p.view_count ?? 0,
     createdAt: p.created_at,
     userId: p.user_id,
+    boardId: p.board_id ? String(p.board_id) : boardId,
+    boardArtist,
   }))
 
   return { posts, hasNext: page < totalPages, nextPage: page < totalPages ? page + 1 : null }

@@ -1,8 +1,8 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import React, { useEffect, useMemo, useState } from 'react';
 import { BannerItem } from './BannerItem';
+import { BannerCarouselClient } from './BannerCarouselClient';
 import { Banner } from '@/types/interfaces';
 import { getLocalizedString } from '@/utils/api/strings';
 
@@ -10,14 +10,6 @@ export interface BannerListProps {
   banners: Banner[];
   className?: string;
 }
-
-const BannerCarouselClient = dynamic(
-  () => import('./BannerCarouselClient'),
-  {
-    ssr: false,
-    loading: () => null,
-  },
-);
 
 const runWhenIdle = (callback: () => void, timeout = 800) => {
   if (typeof window === 'undefined') return () => {};
@@ -35,10 +27,7 @@ const runWhenIdle = (callback: () => void, timeout = 800) => {
   return () => clearTimeout(handle);
 };
 
-function HeroBannerFallback({
-  banners,
-  className,
-}: BannerListProps) {
+function HeroBannerFallback({ banners, className }: BannerListProps) {
   const containerClassName = useMemo(
     () => ['relative w-full', className].filter(Boolean).join(' '),
     [className],
@@ -56,31 +45,46 @@ function HeroBannerFallback({
     );
   }
 
-  const hero = banners[0];
-  const previewBanners = banners.slice(1, 3);
+  const placeholderCount = useMemo(() => {
+    if (banners.length === 1) {
+      return 1;
+    }
+    if (banners.length === 2) {
+      return 2;
+    }
+    return Math.max(Math.min(banners.length, 3), 2);
+  }, [banners.length]);
+
+  const placeholders = useMemo(
+    () =>
+      Array.from({ length: placeholderCount }).map((_, index) => ({
+        id: banners[index]?.id ?? `placeholder-${index}`,
+        title: banners[index]?.title
+          ? getLocalizedString(banners[index]?.title)
+          : null,
+      })),
+    [banners, placeholderCount],
+  );
 
   return (
     <div className={containerClassName}>
-      <BannerItem
-        banner={hero}
-        priority
-        fetchPriority='high'
-      />
-      {previewBanners.length > 0 && (
-        <div className='grid grid-cols-2 md:grid-cols-3 gap-3 mt-4'>
-          {previewBanners.map((banner) => (
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3'>
+        {placeholders.map((placeholder, index) => (
+          <div key={placeholder.id ?? index} className='space-y-3'>
             <div
-              key={banner.id}
-              className='rounded-lg bg-gradient-to-r from-gray-100 to-gray-200 p-3 shadow-inner'
-              style={{ minHeight: '96px' }}
-            >
-              <p className='text-sm font-semibold text-gray-700 line-clamp-2'>
-                {getLocalizedString(banner.title)}
+              className='relative w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse'
+              style={{ aspectRatio: '700 / 356' }}
+            />
+            {placeholder.title ? (
+              <p className='text-sm font-semibold text-gray-600 line-clamp-2'>
+                {placeholder.title}
               </p>
-            </div>
-          ))}
-        </div>
-      )}
+            ) : (
+              <div className='h-4 bg-gray-100 rounded w-2/3 animate-pulse' />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -89,6 +93,11 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
   const [isInteractiveReady, setIsInteractiveReady] = useState(
     banners.length <= 1,
   );
+  const wrapperClassName = useMemo(
+    () => ['relative w-full', className].filter(Boolean).join(' '),
+    [className],
+  );
+  const shouldShowFallback = !isInteractiveReady && banners.length > 1;
 
   useEffect(() => {
     if (banners.length <= 1) {
@@ -109,11 +118,22 @@ export function BannerListPresenter({ banners, className }: BannerListProps) {
     };
   }, [banners.length]);
 
-  if (!isInteractiveReady) {
-    return <HeroBannerFallback banners={banners} className={className} />;
-  }
-
   return (
-    <BannerCarouselClient banners={banners} className={className} />
+    <div className={wrapperClassName}>
+      <div
+        className={`h-full transition-opacity duration-300 ${
+          shouldShowFallback
+            ? 'opacity-0 pointer-events-none select-none'
+            : 'opacity-100'
+        }`}
+      >
+        <BannerCarouselClient banners={banners} className={className} />
+      </div>
+      {shouldShowFallback && (
+        <div className='absolute inset-0 pointer-events-none select-none'>
+          <HeroBannerFallback banners={banners} className='h-full' />
+        </div>
+      )}
+    </div>
   );
 }
