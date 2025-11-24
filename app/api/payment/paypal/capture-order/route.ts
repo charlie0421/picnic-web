@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 
 const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production' 
   ? 'https://api-m.paypal.com' 
@@ -174,9 +175,7 @@ export async function POST(request: NextRequest) {
 
     // Record bonus if applicable
     if (bonusAmount > 0) {
-      const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + 1); // Next month
-      expiryDate.setDate(15); // 15th of next month
+      const expiredAt = getStarCandyBonusExpiryISO();
 
       const { error: bonusError } = await supabase
         .from('star_candy_bonus_history')
@@ -186,7 +185,7 @@ export async function POST(request: NextRequest) {
           remain_amount: bonusAmount,
           type: 'PURCHASE',
           transaction_id: transactionId,
-          expired_dt: expiryDate.toISOString(),
+          expired_dt: expiredAt,
         });
 
       if (bonusError) {

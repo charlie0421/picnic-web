@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHmac } from 'crypto';
 import { PaymentClient } from '@portone/server-sdk';
+import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 
 // Port One API configuration (v2 API)
 const PORTONE_API_SECRET = process.env.PORTONE_API_SECRET || '';
@@ -470,9 +471,7 @@ export async function POST(request: NextRequest) {
 
     // 보너스 별사탕 처리
     if (bonusAmount > 0) {
-      const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
-      expiryDate.setDate(15);
+      const expiredAt = getStarCandyBonusExpiryISO();
 
       const { error: bonusError } = await supabase
         .from('star_candy_bonus_history')
@@ -482,7 +481,7 @@ export async function POST(request: NextRequest) {
           remain_amount: bonusAmount,
           type: 'PURCHASE',
           transaction_id: transactionId,
-          expired_dt: expiryDate.toISOString(),
+          expired_dt: expiredAt,
         });
 
       if (bonusError) {
