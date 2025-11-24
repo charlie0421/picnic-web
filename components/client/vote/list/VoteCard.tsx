@@ -5,7 +5,7 @@ import NavigationLink from '@/components/client/NavigationLink';
 import { Vote } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
-import { formatVotePeriodWithTimeZone, formatRelativeTime } from '@/utils/date';
+import { formatVotePeriodWithTimeZone, formatRelativeTime, formatSimpleDateWithTimeZone } from '@/utils/date';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import RewardItem from '@/components/common/RewardItem';
 import { CountdownTimer } from '../common/CountdownTimer';
@@ -26,6 +26,12 @@ const STATUS_TAG_COLORS: Record<VoteStatus, string> = {
   [VOTE_STATUS.ONGOING]: 'bg-primary-100 text-primary-700 border border-primary-200',
   // 종료: sub 토큰
   [VOTE_STATUS.COMPLETED]: 'bg-sub-100 text-sub-700 border border-sub-200',
+};
+
+const TIMELINE_TONES: Record<VoteStatus, string> = {
+  [VOTE_STATUS.UPCOMING]: 'bg-secondary-50/80 border-secondary-200 text-secondary-800',
+  [VOTE_STATUS.ONGOING]: 'bg-primary-50/80 border-primary-200 text-primary-800',
+  [VOTE_STATUS.COMPLETED]: 'bg-sub-50/80 border-sub-200 text-sub-800',
 };
 
 // 카테고리별 색상
@@ -66,6 +72,7 @@ const computeVoteStatus = (
 
 const computeTimeLeft = (
   status: VoteStatus,
+  startAt: string | null | undefined,
   stopAt: string | null | undefined,
   referenceTime: Date,
 ): {
@@ -74,11 +81,16 @@ const computeTimeLeft = (
   minutes: number;
   seconds: number;
 } | null => {
-  if (status !== VOTE_STATUS.ONGOING || !stopAt) return null;
+  const target =
+    status === VOTE_STATUS.UPCOMING ? startAt :
+    status === VOTE_STATUS.ONGOING ? stopAt :
+    null;
+
+  if (!target) return null;
 
   const now = referenceTime.getTime();
-  const endTime = new Date(stopAt).getTime();
-  const difference = endTime - now;
+  const targetTime = new Date(target).getTime();
+  const difference = targetTime - now;
 
   if (difference <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
 
@@ -181,7 +193,7 @@ export const VoteCard = React.memo(
       const initialStatus = computeVoteStatus(vote.start_at, vote.stop_at, new Date());
       return {
         status: initialStatus,
-        timeLeft: computeTimeLeft(initialStatus, vote.stop_at, new Date()),
+        timeLeft: computeTimeLeft(initialStatus, vote.start_at, vote.stop_at, new Date()),
         relativeSinceQuery: formatRelativeTime(queryTimeRef.current, currentLanguage as any, {
           useAbsolute: false,
           showTime: false,
@@ -194,15 +206,21 @@ export const VoteCard = React.memo(
 
       const scheduleNextUpdate = (
         status: VoteStatus,
+        startAt: string | null | undefined,
         stopAt: string | null | undefined,
         referenceTime: Date,
       ) => {
-        if (!stopAt || status !== VOTE_STATUS.ONGOING) {
+        const target =
+          status === VOTE_STATUS.UPCOMING ? startAt :
+          status === VOTE_STATUS.ONGOING ? stopAt :
+          null;
+
+        if (!target) {
           return 60_000;
         }
 
-        const endTime = new Date(stopAt).getTime();
-        const remaining = endTime - referenceTime.getTime();
+        const targetTime = new Date(target).getTime();
+        const remaining = targetTime - referenceTime.getTime();
 
         if (remaining <= 60_000) {
           return 1_000;
@@ -218,7 +236,7 @@ export const VoteCard = React.memo(
       const updateTime = () => {
         const now = new Date();
         const status = computeVoteStatus(vote.start_at, vote.stop_at, now);
-        const timeLeft = computeTimeLeft(status, vote.stop_at, now);
+        const timeLeft = computeTimeLeft(status, vote.start_at, vote.stop_at, now);
 
         setTimeInfo({
           status,
@@ -229,7 +247,7 @@ export const VoteCard = React.memo(
           }),
         });
 
-        const nextDelay = scheduleNextUpdate(status, vote.stop_at, now);
+        const nextDelay = scheduleNextUpdate(status, vote.start_at, vote.stop_at, now);
         timeoutId = window.setTimeout(updateTime, nextDelay);
       };
 
@@ -243,6 +261,32 @@ export const VoteCard = React.memo(
     }, [vote.start_at, vote.stop_at, currentLanguage]);
 
     const { status, timeLeft, relativeSinceQuery } = timeInfo;
+
+    const startDateLabel =
+      vote.start_at && displayLanguage
+        ? formatSimpleDateWithTimeZone(
+            vote.start_at,
+            displayLanguage as any,
+            undefined,
+            true,
+          )
+        : null;
+
+    const periodLabel =
+      vote.start_at && vote.stop_at && displayLanguage
+        ? formatVotePeriodWithTimeZone(
+            vote.start_at,
+            vote.stop_at,
+            displayLanguage as any,
+          )
+        : null;
+
+    const countdownStatus =
+      status === VOTE_STATUS.UPCOMING
+        ? 'scheduled'
+        : status === VOTE_STATUS.ONGOING
+          ? 'in_progress'
+          : 'ended';
 
     const containerClass = useMemo(() => {
       const baseClass =
@@ -326,23 +370,41 @@ export const VoteCard = React.memo(
                 <span className='absolute bottom-0 left-2 right-2 h-[2px] bg-primary/30 group-hover:bg-primary/50 transition-colors duration-300'></span>
               </h3>
 
-              <div className='flex items-center justify-center gap-2 mb-4 min-h-[32px]'>
-                <CountdownTimer
-                  timeLeft={timeLeft}
-                  voteStatus={status as 'upcoming' | 'ongoing' | 'completed'}
-                  variant='decorated'
-                  compact={true}
-                  showLabel={false}
-                  showUnits={false}
-                />
-                <span
-                  className='text-sub-600 text-xs min-w-[60px] text-center'
+              <div className='w-full mb-4'>
+                <div
+                  className={`flex flex-col items-center gap-1 rounded-xl border px-3 py-2 text-sm font-semibold text-center ${TIMELINE_TONES[status]}`}
                   suppressHydrationWarning
                 >
-                  {status === VOTE_STATUS.ONGOING
-                    ? relativeSinceQuery
-                    : '\u00A0'}
-                </span>
+                  {(status === VOTE_STATUS.UPCOMING || status === VOTE_STATUS.ONGOING) && (
+                    <div className='flex items-center justify-center gap-2 w-full'>
+                      <CountdownTimer
+                        timeLeft={timeLeft}
+                        status={countdownStatus as any}
+                        voteStatus={status === VOTE_STATUS.ONGOING ? 'ongoing' : undefined}
+                        variant='decorated'
+                        compact={true}
+                        showLabel={false}
+                        showUnits={false}
+                        showEmoji={status === VOTE_STATUS.UPCOMING}
+                      />
+                      <span className='text-[11px] font-medium'>
+                        {status === VOTE_STATUS.ONGOING ? relativeSinceQuery : '\u00A0'}
+                      </span>
+                    </div>
+                  )}
+
+                  {status === VOTE_STATUS.UPCOMING && startDateLabel && (
+                    <span className='text-[11px] font-medium opacity-80'>
+                      {(t('text_vote_start_schedule') || '시작 예정')} · {startDateLabel}
+                    </span>
+                  )}
+
+                  {status === VOTE_STATUS.COMPLETED && periodLabel && (
+                    <span className='text-[11px] font-medium opacity-90' suppressHydrationWarning>
+                      {periodLabel}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className='flex-1 min-h-[9.5rem]'>

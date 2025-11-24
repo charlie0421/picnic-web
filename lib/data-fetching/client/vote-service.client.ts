@@ -75,6 +75,24 @@ function transformVoteData(data: any[]): Vote[] {
 /**
  * 공통 투표 쿼리 빌더 (클라이언트에서도 동일하게 사용될 수 있음)
  */
+type VoteOrderConfig = {
+  column: 'start_at' | 'stop_at';
+  ascending: boolean;
+};
+
+const getVoteOrderConfig = (status?: string): VoteOrderConfig => {
+  switch (status) {
+    case VOTE_STATUS.ONGOING:
+      return { column: 'stop_at', ascending: true };
+    case VOTE_STATUS.UPCOMING:
+      return { column: 'start_at', ascending: true };
+    case VOTE_STATUS.COMPLETED:
+      return { column: 'stop_at', ascending: false };
+    default:
+      return { column: 'start_at', ascending: false };
+  }
+};
+
 function buildVoteQuery(
   client: SupabaseClient,
   status?: string,
@@ -114,7 +132,8 @@ function buildVoteQuery(
     query = query.eq("area", area);
   }
 
-  return query.order("start_at", { ascending: false });
+  const { column, ascending } = getVoteOrderConfig(status);
+  return query.order(column, { ascending });
 }
 
 /**

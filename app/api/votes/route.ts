@@ -31,6 +31,24 @@ const DEFAULT_VOTE_QUERY = `
   )
 `;
 
+type VoteOrderConfig = {
+  column: 'start_at' | 'stop_at';
+  ascending: boolean;
+};
+
+const getVoteOrderConfig = (status: string): VoteOrderConfig => {
+  switch (status) {
+    case VOTE_STATUS.ONGOING:
+      return { column: 'stop_at', ascending: true }; // 진행: 마감 임박순
+    case VOTE_STATUS.UPCOMING:
+      return { column: 'start_at', ascending: true }; // 예정: 오픈 임박순
+    case VOTE_STATUS.COMPLETED:
+      return { column: 'stop_at', ascending: false }; // 종료: 최신 마감순
+    default:
+      return { column: 'start_at', ascending: false };
+  }
+};
+
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
@@ -84,8 +102,9 @@ export async function GET(req: NextRequest) {
     }
 
     // 정렬 + 페이지네이션
+    const { column, ascending } = getVoteOrderConfig(status);
     query = query
-      .order('start_at', { ascending: false })
+      .order(column, { ascending })
       .range(offset, offset + limit - 1);
 
     const { data, error, count } = await query;

@@ -122,6 +122,24 @@ function transformVoteData(data: any[]): VoteWithRelations[] {
 /**
  * 공통 투표 쿼리 빌더
  */
+type VoteOrderConfig = {
+  column: 'start_at' | 'stop_at';
+  ascending: boolean;
+};
+
+const getVoteOrderConfig = (status?: string): VoteOrderConfig => {
+  switch (status) {
+    case VOTE_STATUS.ONGOING:
+      return { column: 'stop_at', ascending: true }; // 진행: 마감 임박순
+    case VOTE_STATUS.UPCOMING:
+      return { column: 'start_at', ascending: true }; // 예정: 오픈 임박순
+    case VOTE_STATUS.COMPLETED:
+      return { column: 'stop_at', ascending: false }; // 종료: 최신 마감순
+    default:
+      return { column: 'start_at', ascending: false };
+  }
+};
+
 function buildVoteQuery(
   client: SupabaseClient,
   status?: string,
@@ -170,9 +188,11 @@ function buildVoteQuery(
     query = query.eq("area", area);
   }
 
+  const { column, ascending } = getVoteOrderConfig(status);
+
   query = query
     .is("vote_item.deleted_at", null)
-    .order("start_at", { ascending: false })
+    .order(column, { ascending })
     .order("vote_total", { ascending: false, referencedTable: "vote_item" });
 
   if (typeof voteItemLimit === 'number') {

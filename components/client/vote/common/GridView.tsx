@@ -24,6 +24,8 @@ interface GridViewProps {
   enableShuffle?: boolean;
   style?: 'circular' | 'card';
   displayLanguage?: string;
+  fixedColumns?: number;
+  gridColumnsClassName?: string;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -39,13 +41,15 @@ export const GridView: React.FC<GridViewProps> = ({
   enableShuffle = false,
   style = 'circular',
   displayLanguage,
+  fixedColumns,
+  gridColumnsClassName,
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [shuffledItems, setShuffledItems] = useState<Array<EnhancedVoteItem>>(
     [],
   );
   const [mounted, setMounted] = useState(false);
-  const [columns, setColumns] = useState<number>(3);
+  const [columns, setColumns] = useState<number>(fixedColumns ?? 3);
   const lastShuffleSignatureRef = useRef<string | null>(null);
 
   const effectiveItems = useMemo(() => items || [], [items]);
@@ -71,6 +75,11 @@ export const GridView: React.FC<GridViewProps> = ({
   // 반응형 컬럼 수 추정(원형 스타일 기준 브레이크포인트 적용)
   useEffect(() => {
     if (!rows) return;
+    if (fixedColumns) {
+      setColumns(fixedColumns);
+      return;
+    }
+
     const updateColumns = () => {
       if (typeof window === 'undefined') return;
       const w = window.innerWidth;
@@ -81,10 +90,17 @@ export const GridView: React.FC<GridViewProps> = ({
         setColumns(w < 768 ? 2 : 3);
       }
     };
+
     updateColumns();
     window.addEventListener('resize', updateColumns);
     return () => window.removeEventListener('resize', updateColumns);
-  }, [rows, style]);
+  }, [rows, style, fixedColumns]);
+
+  useEffect(() => {
+    if (fixedColumns) {
+      setColumns(fixedColumns);
+    }
+  }, [fixedColumns]);
 
   // 아이템을 랜덤으로 섞는 함수
   const shuffleItems = (itemsToShuffle: Array<EnhancedVoteItem>) => {
@@ -166,6 +182,7 @@ export const GridView: React.FC<GridViewProps> = ({
 
   // 그리드 컬럼 클래스 설정 - 반응형
   const getGridColumns = () => {
+    if (gridColumnsClassName) return gridColumnsClassName;
     if (style === 'circular') {
       // 원형 스타일: 모바일 포함 4컬럼 고정
       return 'grid-cols-4 sm:grid-cols-4 md:grid-cols-4';
