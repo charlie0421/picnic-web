@@ -50,26 +50,29 @@ export default async function VoteListPage({
   const area = (resolvedSearchParams.area || VOTE_AREAS.ALL) as VoteArea;
   const lang = resolvedParams?.lang || 'ko';
 
-  const bannerPromise = getBanners({
-    columns: `
-      id,
-      celeb_id,
-      created_at,
-      deleted_at,
-      duration,
-      end_at,
-      image,
-      link,
-      link_target_id,
-      link_type,
-      location,
-      "order",
-      start_at,
-      thumbnail,
-      title,
-      updated_at
-    `,
-  });
+  const bannerPromise = (async () =>
+    await (
+      await getBanners({
+        columns: `
+          id,
+          celeb_id,
+          created_at,
+          deleted_at,
+          duration,
+          end_at,
+          image,
+          link,
+          link_target_id,
+          link_type,
+          location,
+          "order",
+          start_at,
+          thumbnail,
+          title,
+          updated_at
+        `,
+      })
+    ))();
 
   const userContextPromise = getCurrentUserContext();
   const safeStatusPromise: Promise<VoteStatus> = (async () => {
