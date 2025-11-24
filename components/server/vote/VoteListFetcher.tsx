@@ -2,12 +2,15 @@ import { VoteFilterSectionDeferred, VoteListCSR } from '@/components/client/vote
 import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
 import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import { getVotes } from '@/lib/data-fetching/server/vote-service';
+import { Vote } from '@/types/interfaces';
 
 interface VoteListFetcherProps {
   status: VoteStatus;
   area: VoteArea;
   className?: string;
   locale?: string;
+  prefetchedVotesPromise?: Promise<Vote[]>;
+  safeStatusOverride?: Promise<VoteStatus> | VoteStatus;
 }
 
 /**
@@ -28,17 +31,26 @@ export async function VoteListFetcher({
   area = VOTE_AREAS.ALL,
   className,
   locale,
+  prefetchedVotesPromise,
+  safeStatusOverride,
 }: VoteListFetcherProps) {
   // Admin 보호: status가 admin인 경우 서버에서 관리자 권한 확인
-  const userContext = await getCurrentUserContext();
-  const isAdmin = (userContext as any)?.isAdmin === true;
-
-  const safeStatus = status === VOTE_STATUS.ADMIN
-    ? (isAdmin ? VOTE_STATUS.ADMIN : VOTE_STATUS.ONGOING)
-    : status;
+  let safeStatus: VoteStatus;
+  if (safeStatusOverride) {
+    safeStatus = await safeStatusOverride;
+  } else {
+    const userContext = await getCurrentUserContext();
+    const isAdmin = (userContext as any)?.isAdmin === true;
+    safeStatus =
+      status === VOTE_STATUS.ADMIN
+        ? (isAdmin ? VOTE_STATUS.ADMIN : VOTE_STATUS.ONGOING)
+        : status;
+  }
 
   // 초기에는 1페이지만 로드 (CSR 더보기/무한스크롤이 이어받음)
-  const votes = await getVotes(safeStatus, area, 1, 12);
+  const votes = prefetchedVotesPromise
+    ? await prefetchedVotesPromise
+    : await getVotes(safeStatus, area, 1, 12);
   
   return (
     <div className={className}>

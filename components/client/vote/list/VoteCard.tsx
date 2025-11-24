@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import dynamic from 'next/dynamic';
 import NavigationLink from '@/components/client/NavigationLink';
 import { Vote } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { formatVotePeriodWithTimeZone, formatRelativeTime } from '@/utils/date';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import RewardItem from '@/components/common/RewardItem';
+import { CountdownTimer } from '../common/CountdownTimer';
+import { VoteItems } from './VoteItems';
 
 const VOTE_STATUS = {
   UPCOMING: 'upcoming',
@@ -48,71 +50,6 @@ const STATUS_LABEL_FALLBACK: Record<VoteStatus, string> = {
   [VOTE_STATUS.ONGOING]: 'In Progress',
   [VOTE_STATUS.COMPLETED]: 'Completed',
 };
-
-const VoteItemsSkeleton = () => (
-  <div className='mt-6 grid grid-cols-3 gap-4 min-h-[96px]' aria-hidden='true'>
-    {Array.from({ length: 3 }).map((_, index) => (
-      <div
-        key={`vote-item-skeleton-${index}`}
-        className='flex w-full flex-col items-center rounded-xl bg-gray-100/70 px-3 py-4'
-      >
-        <div className='h-12 w-12 rounded-full bg-gray-200 animate-pulse' />
-        <div className='mt-3 h-3 w-16 rounded-full bg-gray-200 animate-pulse' />
-        <div className='mt-1 h-3 w-10 rounded-full bg-gray-200 animate-pulse' />
-      </div>
-    ))}
-  </div>
-);
-
-const VoteItems = dynamic(
-  () => import('./VoteItems').then((mod) => mod.VoteItems),
-  {
-    ssr: false,
-    loading: () => <VoteItemsSkeleton />,
-  },
-);
-
-const RewardItemSkeleton = () => (
-  <div className='flex items-center gap-3 rounded-xl px-3 py-2 w-full min-h-[56px] border border-gray-100 bg-gray-50/80'>
-    <div className='w-12 h-12 rounded-lg bg-gray-200 animate-pulse' />
-    <div className='flex-1 space-y-2'>
-      <div className='h-3 w-24 rounded-full bg-gray-200 animate-pulse' />
-      <div className='h-3 w-16 rounded-full bg-gray-100 animate-pulse' />
-    </div>
-  </div>
-);
-
-const RewardItem = dynamic(
-  () => import('@/components/common/RewardItem').then((mod) => mod.default),
-  {
-    ssr: false,
-    loading: () => <RewardItemSkeleton />,
-  },
-);
-
-const CountdownTimerSkeleton = () => (
-  <div className='flex items-center gap-1 justify-center min-h-[32px] text-xs text-gray-400'>
-    {Array.from({ length: 4 }).map((_, idx) => (
-      <span
-        key={`countdown-skeleton-${idx}`}
-        className='px-1.5 py-0.5 rounded bg-gray-100 animate-pulse w-8 text-center'
-      >
-        --
-      </span>
-    ))}
-  </div>
-);
-
-const CountdownTimer = dynamic(
-  () =>
-    import('../common/CountdownTimer').then((mod) => ({
-      default: mod.CountdownTimer,
-    })),
-  {
-    ssr: false,
-    loading: () => <CountdownTimerSkeleton />,
-  },
-);
 
 const computeVoteStatus = (
   startAt: string | null | undefined,
@@ -412,6 +349,7 @@ export const VoteCard = React.memo(
                 <VoteItems
                   vote={vote}
                   mode='list'
+                  displayLanguage={displayLanguage}
                   onNavigateToDetail={() => {
                     // VoteRankCard 클릭 시 투표 상세로 이동
                     // NavigationLink의 href와 같은 경로로 프로그래매틱 네비게이션
@@ -433,7 +371,8 @@ export const VoteCard = React.memo(
               >
                 <RewardItem
                   reward={reward.reward!}
-                  className='bg-secondary-200/60 border-secondary-200/50 text-gray-900 hover:border-secondary-200 focus-within:border-secondary-200 shadow-sm'
+                  className='bg-secondary-200/70 border-secondary-200/50 text-gray-900 hover:border-secondary-200 focus-within:border-secondary-200 shadow-sm'
+                  displayLanguage={displayLanguage}
                 />
               </NavigationLink>
             ))}

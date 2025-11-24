@@ -33,6 +33,7 @@ interface OngoingVoteItemsProps {
   ) => void;
   mode?: 'list' | 'detail'; // 투표 리스트 vs 투표 상세 모드
   onNavigateToDetail?: (voteId?: string | number) => void; // 투표 상세로 이동
+  displayLanguage?: string;
 }
 
 const normalizeVoteItems = (
@@ -68,8 +69,10 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   onVoteChange,
   mode = 'detail', // 기본값은 detail (기존 동작 유지)
   onNavigateToDetail,
+  displayLanguage,
 }) => {
   const { t, currentLanguage } = useLanguageStore();
+  const effectiveLanguage = displayLanguage ?? currentLanguage;
   const [voteItems, setVoteItems] = useState<EnhancedVoteItem[]>(() =>
     normalizeVoteItems(vote),
   );
@@ -170,7 +173,11 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   if (mode === 'list') {
     const lastUpdatedIso = computeLastUpdatedIso(voteItems, vote.updated_at);
     const relativeUpdated = lastUpdatedIso
-      ? formatRelativeTime(lastUpdatedIso, currentLanguage as any, { useAbsolute: true, absoluteThreshold: 3, showTime: true })
+      ? formatRelativeTime(lastUpdatedIso, effectiveLanguage as any, {
+          useAbsolute: true,
+          absoluteThreshold: 3,
+          showTime: true,
+        })
       : null;
     return (
       <div className='w-full'>
@@ -181,17 +188,17 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
                 className='flex justify-center items-end gap-1 sm:gap-2'
                 onClick={() => onNavigateToDetail?.(vote.id)}
               >
-                {renderPodiumItem(topItems[0], 1, t, true)}
-                {renderPodiumItem(topItems[1], 2, t)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
               </div>
             ) : (
               <div
                 className='flex justify-center items-end gap-1 sm:gap-2'
                 onClick={() => onNavigateToDetail?.(vote.id)}
               >
-                {renderPodiumItem(topItems[1], 2, t)}
-                {renderPodiumItem(topItems[0], 1, t, true)}
-                {renderPodiumItem(topItems[2], 3, t)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+                {renderPodiumItem(topItems[2], 3, t, effectiveLanguage)}
               </div>
             )}
           </div>
@@ -208,14 +215,14 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
           <div className='w-full rounded-3xl ring-1 ring-secondary-300 bg-gradient-to-b from-secondary-50 to-secondary-100/60 shadow-lg p-3 sm:p-4 md:p-5 overflow-hidden'>
             {topItems.length === 2 ? (
               <div className='flex justify-center items-end gap-2 sm:gap-3'>
-                {renderPodiumItem(topItems[0], 1, t, true)}
-                {renderPodiumItem(topItems[1], 2, t)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
               </div>
             ) : (
               <div className='flex justify-center items-end gap-2 sm:gap-3'>
-                {renderPodiumItem(topItems[1], 2, t)}
-                {renderPodiumItem(topItems[0], 1, t, true)}
-                {renderPodiumItem(topItems[2], 3, t)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+                {renderPodiumItem(topItems[2], 3, t, effectiveLanguage)}
               </div>
             )}
           </div>
@@ -229,11 +236,11 @@ function renderPodiumItem(
   item: EnhancedVoteItem | undefined,
   rank: 1 | 2 | 3,
   t: (key: string, args?: Record<string, string>) => string,
+  currentLanguage: string,
   highlight: boolean = false,
 ) {
   if (!item) return <div className='w-20 sm:w-24' />;
 
-  const { currentLanguage } = useLanguageStore.getState();
   const artistName = item.artist
     ? getLocalizedString(item.artist.name, currentLanguage) || t('artist_name_fallback')
     : t('artist_name_fallback');

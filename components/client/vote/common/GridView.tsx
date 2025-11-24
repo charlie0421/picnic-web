@@ -23,6 +23,7 @@ interface GridViewProps {
   rows?: number; // 표시할 행 수(반응형 컬럼 수에 맞춰 페이지 아이템 수 자동 계산)
   enableShuffle?: boolean;
   style?: 'circular' | 'card';
+  displayLanguage?: string;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -37,6 +38,7 @@ export const GridView: React.FC<GridViewProps> = ({
   rows,
   enableShuffle = false,
   style = 'circular',
+  displayLanguage,
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [shuffledItems, setShuffledItems] = useState<Array<EnhancedVoteItem>>(
@@ -186,7 +188,10 @@ export const GridView: React.FC<GridViewProps> = ({
             <div className='relative w-full aspect-square rounded-full overflow-hidden'>
               <OptimizedImage
                 src={item.artist?.image || '/images/default-artist.png'}
-                alt={getLocalizedString(item.artist?.name) || '아티스트 이미지'}
+                alt={
+                  getLocalizedString(item.artist?.name, displayLanguage) ||
+                  '아티스트 이미지'
+                }
                 fill
                 sizes='(max-width: 768px) 25vw, (max-width: 1200px) 20vw, 15vw'
                 className='object-cover'
@@ -197,7 +202,7 @@ export const GridView: React.FC<GridViewProps> = ({
               />
             </div>
             <p className='mt-1 text-xs font-medium text-center truncate w-full'>
-              {getLocalizedString(item.artist?.name) || '아티스트'}
+              {getLocalizedString(item.artist?.name, displayLanguage) || '아티스트'}
             </p>
           </div>
         ))}
@@ -277,7 +282,10 @@ export const GridView: React.FC<GridViewProps> = ({
               >
                 <OptimizedImage
                   src={item.artist?.image || '/images/default-artist.png'}
-                  alt={getLocalizedString(item.artist?.name) || '아티스트 이미지'}
+                  alt={
+                    getLocalizedString(item.artist?.name, displayLanguage) ||
+                    '아티스트 이미지'
+                  }
                   fill
                   sizes='(max-width: 768px) 20vw, (max-width: 1200px) 15vw, 10vw'
                   className='object-cover'
@@ -288,7 +296,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 />
               </div>
               <p className='text-xs font-medium text-center truncate w-full mt-1'>
-                {getLocalizedString(item.artist?.name) || '아티스트'}
+                {getLocalizedString(item.artist?.name, displayLanguage) || '아티스트'}
               </p>
             </div>
           ))}

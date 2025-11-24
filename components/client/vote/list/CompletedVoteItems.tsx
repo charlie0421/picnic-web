@@ -17,10 +17,16 @@ interface CompletedVoteItemsProps {
     voteItems?: Array<VoteItem & { artist?: any }>; // 이전 속성 호환성 유지
   };
   mode?: 'list' | 'detail';
+  displayLanguage?: string;
 }
 
-export const CompletedVoteItems: React.FC<CompletedVoteItemsProps> = ({ vote, mode = 'detail' }) => {
-  const { t } = useLanguageStore();
+export const CompletedVoteItems: React.FC<CompletedVoteItemsProps> = ({
+  vote,
+  mode = 'detail',
+  displayLanguage,
+}) => {
+  const { t, currentLanguage } = useLanguageStore();
+  const effectiveLanguage = displayLanguage ?? currentLanguage;
   const [voteItems, setVoteItems] = useState<EnhancedVoteItem[]>([]);
 
   // vote 객체가 변경될 때마다 voteItems 상태 업데이트
@@ -120,14 +126,14 @@ export const CompletedVoteItems: React.FC<CompletedVoteItemsProps> = ({ vote, mo
         <div className='flex flex-col items-center'>
           {topItems.length === 2 ? (
             <div className='flex justify-center items-end gap-2 sm:gap-3 px-4 sm:px-6 mx-auto opacity-70'>
-              {renderPodiumItem(topItems[0], 1, t, true)}
-              {renderPodiumItem(topItems[1], 2, t)}
+              {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+              {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
             </div>
           ) : (
             <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg gap-2 sm:gap-3 px-4 sm:px-6 mx-auto opacity-70'>
-              {renderPodiumItem(topItems[1], 2, t)}
-              {renderPodiumItem(topItems[0], 1, t, true)}
-              {renderPodiumItem(topItems[2], 3, t)}
+              {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+              {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+              {renderPodiumItem(topItems[2], 3, t, effectiveLanguage)}
             </div>
           )}
         </div>
@@ -140,14 +146,14 @@ export const CompletedVoteItems: React.FC<CompletedVoteItemsProps> = ({ vote, mo
       <div className='flex flex-col items-center'>
         {topItems.length === 2 ? (
           <div className='flex justify-center items-end gap-2 sm:gap-3 px-4 sm:px-6 mx-auto opacity-70'>
-            {renderPodiumItem(topItems[0], 1, t, true)}
-            {renderPodiumItem(topItems[1], 2, t)}
+            {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+            {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
           </div>
         ) : (
           <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg gap-2 sm:gap-3 px-4 sm:px-6 mx-auto opacity-70'>
-            {renderPodiumItem(topItems[1], 2, t)}
-            {renderPodiumItem(topItems[0], 1, t, true)}
-            {renderPodiumItem(topItems[2], 3, t)}
+            {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+            {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+            {renderPodiumItem(topItems[2], 3, t, effectiveLanguage)}
           </div>
         )}
       </div>
@@ -159,11 +165,11 @@ function renderPodiumItem(
   item: EnhancedVoteItem | undefined,
   rank: 1 | 2 | 3,
   t: (key: string, args?: Record<string, string>) => string,
+  currentLanguage: string,
   highlight: boolean = false,
 ) {
   if (!item) return <div className='w-20 sm:w-24' />;
 
-  const { currentLanguage } = useLanguageStore.getState();
   const artistName = item.artist
     ? getLocalizedString(item.artist.name, currentLanguage) || t('artist_name_fallback')
     : t('artist_name_fallback');

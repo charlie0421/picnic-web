@@ -6,6 +6,7 @@ import { transformBannerLink } from '@/utils/api/link-transformer';
 
 export interface BannerListFetcherProps {
   className?: string;
+  prefetchedBannersPromise?: Promise<DBBanner[]>;
 }
 
 /**
@@ -21,28 +22,32 @@ export interface BannerListFetcherProps {
  * <BannerListFetcher className="my-4" />
  * ```
  */
-export async function BannerListFetcher({ className }: BannerListFetcherProps = {}) {
+export async function BannerListFetcher({
+  className,
+  prefetchedBannersPromise,
+}: BannerListFetcherProps = {}) {
   try {
-    const banners = await getBanners({
-      columns: `
-        id,
-        celeb_id,
-        created_at,
-        deleted_at,
-        duration,
-        end_at,
-        image,
-        link,
-        link_target_id,
-        link_type,
-        location,
-        "order",
-        start_at,
-        thumbnail,
-        title,
-        updated_at
-      `,
-    });
+    const banners = await (prefetchedBannersPromise ??
+      getBanners({
+        columns: `
+          id,
+          celeb_id,
+          created_at,
+          deleted_at,
+          duration,
+          end_at,
+          image,
+          link,
+          link_target_id,
+          link_type,
+          location,
+          "order",
+          start_at,
+          thumbnail,
+          title,
+          updated_at
+        `,
+      }));
     
     if (!banners || banners.length === 0) {
       return null; // 배너가 없으면 아무것도 렌더링하지 않음
