@@ -801,6 +801,104 @@ export interface PicVoteReward {
   vote_id: number
 }
 
+export interface PocapopBaseFrames {
+  category: string
+  color_tone: string | null
+  created_at: string | null
+  id: string
+  name: string
+  png_url: string
+  thumbnail_url: string
+}
+
+export interface PocapopCommunityComments {
+  content: string
+  created_at: string
+  id: string
+  post_id: string
+  updated_at: string
+  user_id: string
+}
+
+export interface PocapopCommunityLikes {
+  created_at: string
+  id: string
+  post_id: string
+  user_id: string
+}
+
+export interface PocapopCommunityPosts {
+  artist_tags: string[] | null
+  auto_shared: boolean | null
+  country: string | null
+  created_at: string | null
+  frame_id: string
+  id: string
+  nickname: string
+  thumbnail_url: string
+  user_id: string
+}
+
+export interface PocapopDownloadLogs {
+  download_type: string
+  downloaded_at: string | null
+  frame_id: string | null
+  id: string
+  user_id: string | null
+}
+
+export interface PocapopFramePurchases {
+  frame_id: string
+  id: string
+  price_paid: number
+  purchased_at: string
+  user_id: string
+}
+
+export interface PocapopHdDownloadCounts {
+  count: number | null
+  date: string
+  id: string
+  updated_at: string | null
+  user_id: string
+}
+
+export interface PocapopMarketFrames {
+  category: string | null
+  created_at: string
+  creator_id: string
+  description: string | null
+  id: string
+  image_url: string
+  price_star_candy: number | null
+  status: string | null
+  tags: string[] | null
+  title: string
+  updated_at: string
+}
+
+export interface PocapopUserFrames {
+  artist_name: string
+  base_frame_id: string | null
+  concept_keywords: string[] | null
+  created_at: string | null
+  frame_type: string | null
+  hd_image_url: string
+  id: string
+  poka_size: string | null
+  sd_image_url: string
+  user_id: string | null
+}
+
+export interface PocapopUserSubscriptions {
+  created_at: string | null
+  id: string
+  subscription_expires_at: string | null
+  subscription_type: string | null
+  updated_at: string | null
+  user_id: string
+}
+
 export interface Policy {
   content: string
   created_at: string
@@ -1172,9 +1270,22 @@ export interface UserBlocks {
   user_id: string
 }
 
+export interface UserBonusQueueAudit {
+  deleted_at: string
+  note: string | null
+  source: string | null
+  user_id: string
+}
+
 export interface UserBonusUpdateQueue {
+  attempts: number
   created_at: string
   id: number
+  last_enqueued_at: string
+  last_error: string | null
+  last_source: string | null
+  next_run_at: string
+  updated_at: string
   user_id: string
 }
 
@@ -1560,4 +1671,12 @@ export interface VoteItemRequests {
   updated_at: string | null
   user_id: string | null
   vote_id: number | null
+}
+
+export interface VwStarCandyBonusDrift {
+  delta: number | null
+  history_bonus: number | null
+  last_history_at: string | null
+  profile_bonus: number | null
+  user_id: string | null
 }

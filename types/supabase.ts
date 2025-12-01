@@ -896,6 +896,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "artist_user_bookmark_user_profiles_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       artist_vote: {
@@ -1560,6 +1567,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       compatibility_results: {
@@ -2036,6 +2050,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faqs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2514,6 +2535,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       partition_creation_log: {
@@ -2731,6 +2759,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pic_vote_pick_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "pic_vote_pick_vote_id_fkey"
             columns: ["vote_id"]
             isOneToOne: false
@@ -2773,6 +2808,477 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "reward"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      pocapop_base_frames: {
+        Row: {
+          category: string
+          color_tone: string | null
+          created_at: string | null
+          id: string
+          name: string
+          png_url: string
+          thumbnail_url: string
+        }
+        Insert: {
+          category: string
+          color_tone?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          png_url: string
+          thumbnail_url: string
+        }
+        Update: {
+          category?: string
+          color_tone?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          png_url?: string
+          thumbnail_url?: string
+        }
+        Relationships: []
+      }
+      pocapop_community_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          post_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_community_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_community_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_community_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_community_posts: {
+        Row: {
+          artist_tags: string[] | null
+          auto_shared: boolean | null
+          country: string | null
+          created_at: string | null
+          frame_id: string
+          id: string
+          nickname: string
+          thumbnail_url: string
+          user_id: string
+        }
+        Insert: {
+          artist_tags?: string[] | null
+          auto_shared?: boolean | null
+          country?: string | null
+          created_at?: string | null
+          frame_id: string
+          id?: string
+          nickname: string
+          thumbnail_url: string
+          user_id: string
+        }
+        Update: {
+          artist_tags?: string[] | null
+          auto_shared?: boolean | null
+          country?: string | null
+          created_at?: string | null
+          frame_id?: string
+          id?: string
+          nickname?: string
+          thumbnail_url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_community_posts_frame_id_fkey"
+            columns: ["frame_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_user_frames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_download_logs: {
+        Row: {
+          download_type: string
+          downloaded_at: string | null
+          frame_id: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          download_type: string
+          downloaded_at?: string | null
+          frame_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          download_type?: string
+          downloaded_at?: string | null
+          frame_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_download_logs_frame_id_fkey"
+            columns: ["frame_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_user_frames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_download_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_download_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_frame_purchases: {
+        Row: {
+          frame_id: string
+          id: string
+          price_paid: number
+          purchased_at: string
+          user_id: string
+        }
+        Insert: {
+          frame_id: string
+          id?: string
+          price_paid: number
+          purchased_at?: string
+          user_id: string
+        }
+        Update: {
+          frame_id?: string
+          id?: string
+          price_paid?: number
+          purchased_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_frame_purchases_frame_id_fkey"
+            columns: ["frame_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_market_frames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_frame_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_frame_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_hd_download_counts: {
+        Row: {
+          count: number | null
+          date: string
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          count?: number | null
+          date: string
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          count?: number | null
+          date?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_hd_download_counts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_hd_download_counts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_market_frames: {
+        Row: {
+          category: string | null
+          created_at: string
+          creator_id: string
+          description: string | null
+          id: string
+          image_url: string
+          price_star_candy: number | null
+          status: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          id?: string
+          image_url: string
+          price_star_candy?: number | null
+          status?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          id?: string
+          image_url?: string
+          price_star_candy?: number | null
+          status?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_market_frames_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_market_frames_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_user_frames: {
+        Row: {
+          artist_name: string
+          base_frame_id: string | null
+          concept_keywords: string[] | null
+          created_at: string | null
+          frame_type: string | null
+          hd_image_url: string
+          id: string
+          poka_size: string | null
+          sd_image_url: string
+          user_id: string | null
+        }
+        Insert: {
+          artist_name: string
+          base_frame_id?: string | null
+          concept_keywords?: string[] | null
+          created_at?: string | null
+          frame_type?: string | null
+          hd_image_url: string
+          id?: string
+          poka_size?: string | null
+          sd_image_url: string
+          user_id?: string | null
+        }
+        Update: {
+          artist_name?: string
+          base_frame_id?: string | null
+          concept_keywords?: string[] | null
+          created_at?: string | null
+          frame_type?: string | null
+          hd_image_url?: string
+          id?: string
+          poka_size?: string | null
+          sd_image_url?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_user_frames_base_frame_id_fkey"
+            columns: ["base_frame_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_base_frames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_frames_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_frames_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_user_subscriptions: {
+        Row: {
+          created_at: string | null
+          id: string
+          subscription_expires_at: string | null
+          subscription_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          subscription_expires_at?: string | null
+          subscription_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          subscription_expires_at?: string | null
+          subscription_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2979,6 +3485,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "post_scraps_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       post_views: {
@@ -3011,6 +3524,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -3080,6 +3600,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -3391,6 +3918,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "qna_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       qna_threads: {
@@ -3435,6 +3969,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qna_threads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -3670,6 +4211,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "star_candy_bonus_history_user_profiles_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -4017,6 +4565,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_agreement_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       user_blocks: {
@@ -4043,20 +4598,59 @@ export type Database = {
         }
         Relationships: []
       }
-      user_bonus_update_queue: {
+      user_bonus_queue_audit: {
         Row: {
-          created_at: string
-          id: number
+          deleted_at: string
+          note: string | null
+          source: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
-          id?: number
+          deleted_at?: string
+          note?: string | null
+          source?: string | null
           user_id: string
         }
         Update: {
+          deleted_at?: string
+          note?: string | null
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_bonus_update_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: number
+          last_enqueued_at: string
+          last_error: string | null
+          last_source: string | null
+          next_run_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
           created_at?: string
           id?: number
+          last_enqueued_at?: string
+          last_error?: string | null
+          last_source?: string | null
+          next_run_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: number
+          last_enqueued_at?: string
+          last_error?: string | null
+          last_source?: string | null
+          next_run_at?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -4288,6 +4882,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_user_push_tokens_user_profiles"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -4798,6 +5399,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "vote_pick_user_profiles_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "vote_pick_vote_id_fkey"
             columns: ["vote_id"]
             isOneToOne: false
@@ -4875,6 +5483,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_share_bonus_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "vote_share_bonus_vote_id_fkey"
@@ -5191,6 +5806,16 @@ export type Database = {
           },
         ]
       }
+      vw_star_candy_bonus_drift: {
+        Row: {
+          delta: number | null
+          history_bonus: number | null
+          last_history_at: string | null
+          profile_bonus: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       auto_resolve_stale_qna_threads: {
@@ -5242,6 +5867,10 @@ export type Database = {
           p_user_id: string
           p_vote_pick_id: number
         }
+        Returns: undefined
+      }
+      enqueue_bonus_recalc: {
+        Args: { p_error?: string; p_source?: string; p_user_id: string }
         Returns: undefined
       }
       expire_star_candy_bonus: {
@@ -5529,6 +6158,36 @@ export type Database = {
       is_super_admin: { Args: never; Returns: boolean }
       is_vote_creator: { Args: { vote_id: number }; Returns: boolean }
       is_vote_item_request_open: { Args: { vote_id: number }; Returns: boolean }
+      list_bonus_drift:
+        | {
+            Args: {
+              p_page?: number
+              p_page_size?: number
+              p_threshold?: number
+            }
+            Returns: {
+              delta: number
+              history_bonus: number
+              last_history_at: string
+              profile_bonus: number
+              total_count: number
+              user_id: string
+            }[]
+          }
+        | {
+            Args: { p_limit?: number; p_threshold?: number }
+            Returns: {
+              delta: number
+              history_bonus: number
+              last_history_at: string
+              profile_bonus: number
+              user_id: string
+            }[]
+          }
+      next_star_candy_bonus_expiry: {
+        Args: { p_source?: string }
+        Returns: string
+      }
       perform_pic_vote_transaction: {
         Args: {
           p_amount: number
@@ -5554,6 +6213,15 @@ export type Database = {
           p_vote_item_id: number
         }
         Returns: Json
+      }
+      process_bonus_recalc: {
+        Args: { p_limit?: number }
+        Returns: {
+          message: string
+          processed_at: string
+          status: string
+          user_id: string
+        }[]
       }
       process_compatibility_payment: {
         Args: {
@@ -5581,6 +6249,21 @@ export type Database = {
       process_vote_item_update_queue:
         | { Args: never; Returns: number }
         | { Args: { p_limit: number }; Returns: number }
+      recompute_user_bonus: { Args: { p_user_id: string }; Returns: number }
+      repair_bonus_balance: {
+        Args: { p_user_id: string }
+        Returns: {
+          new_bonus: number
+          old_bonus: number
+          user_id: string
+        }[]
+      }
+      repair_bonus_balance_bulk: {
+        Args: { p_limit?: number; p_threshold?: number }
+        Returns: {
+          queued_user_id: string
+        }[]
+      }
       restore_qna: { Args: { qna_id_param: number }; Returns: undefined }
       rollback_transaction: { Args: never; Returns: undefined }
       run_expire_star_candy_bonus_once: { Args: never; Returns: undefined }
