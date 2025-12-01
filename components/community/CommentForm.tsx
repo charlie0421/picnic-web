@@ -5,6 +5,7 @@ import { useNotification } from '@/contexts/NotificationContext'
 import { useTranslations } from '@/hooks/useTranslations'
 import { useAuth } from '@/lib/supabase/auth-provider'
 import { useLoginRequired } from '@/components/ui/Dialog'
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard'
 
 interface Props {
   postId: string
@@ -19,6 +20,7 @@ export default function CommentForm({ postId, lang }: Props) {
   const { isAuthenticated } = useAuth()
   const showLoginRequired = useLoginRequired()
   const redirectUrl = `/${lang}/community/${postId}`
+  const ensureActiveMembership = useWithdrawalGuard()
 
   if (!isAuthenticated) {
     return (
@@ -41,9 +43,12 @@ export default function CommentForm({ postId, lang }: Props) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault()
         if (!content.trim()) return
+        if (await ensureActiveMembership()) {
+          return
+        }
         startTransition(async () => {
           const res = await createComment(postId, content, lang)
           if (res?.ok) {

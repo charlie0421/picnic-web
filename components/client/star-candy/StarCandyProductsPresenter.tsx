@@ -16,6 +16,7 @@ import { useLoginRequired, useDialog } from '@/components/ui/Dialog';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { saveRedirectUrl } from '@/utils/auth-redirect';
 import StarCandyBalanceBox from '@/components/common/StarCandyBalanceBox';
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 
 interface StarCandyProductsPresenterProps {
   products: Products[];
@@ -29,7 +30,7 @@ export function StarCandyProductsPresenter({
   className
 }: StarCandyProductsPresenterProps) {
   const { t, currentLanguage } = useLanguageStore();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loadUserProfile } = useAuth();
   const isAdmin = userProfile?.is_admin || false;
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>('paypal');
@@ -46,6 +47,8 @@ export function StarCandyProductsPresenter({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const ensureActiveMembership = useWithdrawalGuard();
 
   // sessionStorage 헬퍼 함수
   const getStoredPaymentId = useCallback((): string | null => {
@@ -440,6 +443,10 @@ export function StarCandyProductsPresenter({
 
     if (processingProductId) {
       return; // 이미 처리 중인 결제가 있음
+    }
+
+    if (await ensureActiveMembership()) {
+      return;
     }
 
     setProcessingProductId(product.id);

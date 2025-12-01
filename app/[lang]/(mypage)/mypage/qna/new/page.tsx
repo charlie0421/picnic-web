@@ -8,6 +8,7 @@ import { useTranslations } from '@/hooks/useTranslations';
 import { createQnaThreadAction } from '@/app/actions/qna';
 import { useLanguage } from '@/hooks/useLanguage';
 import AttachmentPicker from '@/components/client/qna/AttachmentPicker';
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -41,6 +42,14 @@ export default function NewQnaPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const ensureActiveMembership = useWithdrawalGuard();
+
+  const guardedFormAction = async (formData: FormData) => {
+    if (await ensureActiveMembership()) {
+      return { error: t('error_message_withdrawal') };
+    }
+    return formAction(formData);
+  };
 
   const getCategoryLabel = (code: string | null | undefined) => {
     if (!code) return '';
@@ -173,7 +182,7 @@ export default function NewQnaPage() {
   return (
     <div className="container mx-auto px-4 py-6 bg-white text-gray-900">
       <h1 className="text-2xl font-bold mb-6">{t('qna_new_title')}</h1>
-      <form action={formAction} className="bg-white p-6 rounded-lg shadow-md space-y-4">
+      <form action={guardedFormAction} className="bg-white p-6 rounded-lg shadow-md space-y-4">
         <input type="hidden" name="lang" value={currentLanguage} />
         <div>
           <label htmlFor="category_code" className="block text-sm font-medium text-gray-700">

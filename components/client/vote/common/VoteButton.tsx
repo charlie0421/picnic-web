@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/common';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { useLanguageStore } from '@/stores/languageStore';
 
 export interface VoteButtonProps {
@@ -27,6 +28,7 @@ export const VoteButton = ({
   const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { t } = useLanguageStore();
+  const ensureActiveMembership = useWithdrawalGuard();
 
   const { withAuth, isAuthenticated } = useRequireAuth({
     // 커스텀 로그인 다이얼로그 메시지
@@ -43,6 +45,9 @@ export const VoteButton = ({
   const handleVote = async () => {
     if (disabled || hasVoted || isVoting) return;
 
+    if (await ensureActiveMembership()) {
+      return;
+    }
     // 인증이 필요한 투표 액션을 실행
     await withAuth(async () => {
       setIsVoting(true);

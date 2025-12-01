@@ -8,6 +8,7 @@ import { PostgrestError } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 
 interface QnaClientProps {
   initialQnaThreads: QnaThread[] | null;
@@ -29,6 +30,14 @@ export default function QnaClient({
   const { t } = useTranslations();
   const { currentLanguage } = useLanguage();
   const [categories, setCategories] = useState<any[]>([]);
+  const ensureActiveMembership = useWithdrawalGuard();
+
+  const handleCreateNew = async () => {
+    if (await ensureActiveMembership()) {
+      return;
+    }
+    router.push(`${pathname}/new`);
+  };
 
   React.useEffect(() => {
     (async () => {
@@ -89,11 +98,13 @@ export default function QnaClient({
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">{t('label_mypage_qna')}</h1>
-        <Link href={`${pathname}/new`}>
-          <button className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300">
-            {t('label_new_qna')}
-          </button>
-        </Link>
+        <button
+          type="button"
+          onClick={handleCreateNew}
+          className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+        >
+          {t('label_new_qna')}
+        </button>
       </div>
 
       {qnaThreads && qnaThreads.length > 0 ? (

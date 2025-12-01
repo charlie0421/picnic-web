@@ -3,6 +3,7 @@ import React, { useRef, useState, useTransition } from 'react'
 import { createPost } from '@/app/actions/community'
 import QuillBasicEditor from './QuillBasicEditor'
 import { useTranslations } from '@/hooks/useTranslations'
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard'
 
 export default function PostEditor({ lang, boardId }: { lang: string; boardId: string }) {
   const { t, tHtml } = useTranslations()
@@ -11,6 +12,7 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
   const [files, setFiles] = useState<File[]>([])
   const [isPending, startTransition] = useTransition()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const ensureActiveMembership = useWithdrawalGuard()
 
   async function handleUploadAndGetUrls(localFiles: File[]): Promise<{ name: string; url: string; type?: string; size?: number }[]> {
     const out: { name: string; url: string; type?: string; size?: number }[] = []
@@ -66,7 +68,10 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
           type='button'
           disabled={isPending || !title.trim()}
           className={`px-4 py-2 rounded text-white disabled:opacity-50 ${isPending ? 'bg-primary-500 animate-pulse-light' : 'bg-primary-600'}`}
-          onClick={() => {
+          onClick={async () => {
+            if (await ensureActiveMembership()) {
+              return
+            }
             startTransition(async () => {
               const attachments = await handleUploadAndGetUrls(files)
               const res = await createPost({ title, deltaJson: value, boardId, attachments }, lang)

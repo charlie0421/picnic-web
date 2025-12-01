@@ -1,5 +1,6 @@
 'use client';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,6 +40,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
   const [showSuccess, setShowSuccess] = useState(false);
 
   const { t, currentLanguage } = useLanguageStore();
+  const ensureActiveMembership = useWithdrawalGuard();
   const { user, isAuthenticated } = useAuth();
 
   // SWR을 사용하여 사용자 프로필(잔액) 정보 가져오기
@@ -97,6 +99,9 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
   // 투표 실행
   const handleVoteSubmit = useCallback(async () => {
     if (!user || !userBalance) return;
+    if (await ensureActiveMembership()) {
+      return;
+    }
 
     setIsVoting(true);
     setVoteError(null);
@@ -139,7 +144,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     } finally {
       setIsVoting(false);
     }
-  }, [user, userBalance, voteAmount, voteId, voteItemId, onVoteSuccess, onClose, t, mutateProfile]);
+  }, [user, userBalance, voteAmount, voteId, voteItemId, onVoteSuccess, onClose, t, mutateProfile, ensureActiveMembership]);
 
   // 로케일 매핑
   const getLocale = useCallback(() => {

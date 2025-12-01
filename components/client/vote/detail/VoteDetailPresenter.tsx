@@ -16,6 +16,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import VoteDialog from '../dialogs/VoteDialog';
 
@@ -97,6 +98,7 @@ export function VoteDetailPresenter({
         '이 투표에 참여하려면 로그인이 필요합니다. 로그인하시겠습니까?',
     },
   });
+  const ensureActiveMembership = useWithdrawalGuard();
 
   const [voteItems, setVoteItems] = React.useState<VoteItem[]>(() => {
     return initialItems
@@ -447,6 +449,9 @@ export function VoteDetailPresenter({
 
   const handleCardClick = async (item: VoteItem) => {
     if (!canVote) return;
+    if (await ensureActiveMembership()) {
+      return;
+    }
     const result = await withAuth(async () => {
       setVoteCandidate(item);
       setVoteAmount(1);
@@ -460,6 +465,9 @@ export function VoteDetailPresenter({
 
   const confirmVote = async () => {
     if (!voteCandidate || voteAmount <= 0 || voteAmount > availableVotes) return;
+    if (await ensureActiveMembership()) {
+      return;
+    }
     const result = await withAuth(async () => {
       setIsVoting(true);
       setShowVoteModal(false);
