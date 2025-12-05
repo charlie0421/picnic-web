@@ -45,3 +45,4 @@ export function useWithdrawalGuard() {
   }, [user?.id, userProfile, loadUserProfile, showDialog, t]);
 }
 
+

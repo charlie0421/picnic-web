@@ -2005,6 +2005,7 @@ export type Database = {
       faqs: {
         Row: {
           answer: Json
+          answer_delta: Json | null
           category: string | null
           created_at: string | null
           created_by: string | null
@@ -2016,6 +2017,7 @@ export type Database = {
         }
         Insert: {
           answer: Json
+          answer_delta?: Json | null
           category?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -2027,6 +2029,7 @@ export type Database = {
         }
         Update: {
           answer?: Json
+          answer_delta?: Json | null
           category?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -2816,6 +2819,7 @@ export type Database = {
           category: string
           color_tone: string | null
           created_at: string | null
+          generation_type: string | null
           id: string
           name: string
           png_url: string
@@ -2825,6 +2829,7 @@ export type Database = {
           category: string
           color_tone?: string | null
           created_at?: string | null
+          generation_type?: string | null
           id?: string
           name: string
           png_url: string
@@ -2834,10 +2839,38 @@ export type Database = {
           category?: string
           color_tone?: string | null
           created_at?: string | null
+          generation_type?: string | null
           id?: string
           name?: string
           png_url?: string
           thumbnail_url?: string
+        }
+        Relationships: []
+      }
+      pocapop_categories: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          labels: Json
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          labels?: Json
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          labels?: Json
+          name?: string
+          sort_order?: number | null
         }
         Relationships: []
       }
@@ -2990,6 +3023,85 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      pocapop_coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          id: string
+          redeemed_at: string | null
+          trial_count_added: number
+          user_id: string
+        }
+        Insert: {
+          coupon_id: string
+          id?: string
+          redeemed_at?: string | null
+          trial_count_added?: number
+          user_id: string
+        }
+        Update: {
+          coupon_id?: string
+          id?: string
+          redeemed_at?: string | null
+          trial_count_added?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_coupon_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_coupon_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_coupons: {
+        Row: {
+          code: string
+          created_at: string | null
+          current_uses: number | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          max_uses: number | null
+          trial_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          current_uses?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          trial_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          current_uses?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          trial_count?: number
+        }
+        Relationships: []
       }
       pocapop_download_logs: {
         Row: {
@@ -3244,6 +3356,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          pro_trial_count: number | null
           subscription_expires_at: string | null
           subscription_type: string | null
           updated_at: string | null
@@ -3252,6 +3365,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          pro_trial_count?: number | null
           subscription_expires_at?: string | null
           subscription_type?: string | null
           updated_at?: string | null
@@ -3260,6 +3374,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          pro_trial_count?: number | null
           subscription_expires_at?: string | null
           subscription_type?: string | null
           updated_at?: string | null

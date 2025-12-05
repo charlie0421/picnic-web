@@ -611,6 +611,7 @@ export interface FaqCategories {
 
 export interface Faqs {
   answer: Json
+  answer_delta: Json | null
   category: string | null
   created_at: string | null
   created_by: string | null
@@ -805,10 +806,20 @@ export interface PocapopBaseFrames {
   category: string
   color_tone: string | null
   created_at: string | null
+  generation_type: string | null
   id: string
   name: string
   png_url: string
   thumbnail_url: string
+}
+
+export interface PocapopCategories {
+  created_at: string | null
+  id: string
+  is_active: boolean | null
+  labels: Json
+  name: string
+  sort_order: number | null
 }
 
 export interface PocapopCommunityComments {
@@ -837,6 +848,25 @@ export interface PocapopCommunityPosts {
   nickname: string
   thumbnail_url: string
   user_id: string
+}
+
+export interface PocapopCouponRedemptions {
+  coupon_id: string
+  id: string
+  redeemed_at: string | null
+  trial_count_added: number
+  user_id: string
+}
+
+export interface PocapopCoupons {
+  code: string
+  created_at: string | null
+  current_uses: number | null
+  expires_at: string | null
+  id: string
+  is_active: boolean | null
+  max_uses: number | null
+  trial_count: number
 }
 
 export interface PocapopDownloadLogs {
@@ -893,6 +923,7 @@ export interface PocapopUserFrames {
 export interface PocapopUserSubscriptions {
   created_at: string | null
   id: string
+  pro_trial_count: number | null
   subscription_expires_at: string | null
   subscription_type: string | null
   updated_at: string | null
