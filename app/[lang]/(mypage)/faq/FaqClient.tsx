@@ -3,11 +3,13 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useTranslations } from '@/hooks/useTranslations';
+import QuillDeltaRenderer from '@/lib/content/quill-delta-renderer';
 
 interface Faq {
   id: number;
   question: string;
   answer: string;
+  answerDelta?: unknown; // Quill Delta 형식
   category: string | null;
 }
 
@@ -80,10 +82,13 @@ const FaqClient = ({ faqs, categories }: FaqClientProps) => {
               />
             </button>
             {openId === faq.id && (
-              <div
-                className="pb-4 pr-8 text-gray-600"
-                dangerouslySetInnerHTML={{ __html: faq.answer.replace(/\n/g, '<br />') }}
-              />
+              <div className="pb-4 pr-8 text-gray-600">
+                {faq.answerDelta ? (
+                  <QuillDeltaRenderer value={faq.answerDelta} />
+                ) : (
+                  <div dangerouslySetInnerHTML={{ __html: faq.answer.replace(/\n/g, '<br />') }} />
+                )}
+              </div>
             )}
           </div>
         ))}

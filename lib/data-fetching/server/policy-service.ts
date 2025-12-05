@@ -43,24 +43,27 @@ export const getFaqs = cache(async (lang: string = 'ko') => {
       const supabase = await createServerSupabaseClient();
       const { data, error } = await supabase
         .from('faqs')
-        .select('id, question, answer, category, created_at')
+        .select('id, question, answer, answer_delta, category, created_at')
         .eq('status', 'PUBLISHED')
         .order('order_number', { ascending: true });
-  
+
       if (error) {
         throw error;
       }
-  
+
       const localizedData = (data || []).map(item => {
         const question = item.question as any;
         const answer = item.answer as any;
+        const answerDelta = item.answer_delta as any;
         return {
           ...item,
           question: question?.[lang] || question?.['ko'] || '',
           answer: answer?.[lang] || answer?.['ko'] || '',
+          // answer_delta가 있으면 해당 언어의 Delta 반환
+          answerDelta: answerDelta?.[lang] || answerDelta?.['ko'] || null,
         }
       });
-  
+
       return localizedData;
     } catch (error) {
       console.error('getFaqs error:', error);

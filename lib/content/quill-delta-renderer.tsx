@@ -1,4 +1,6 @@
-import React from 'react'
+'use client'
+
+import React, { useState, useCallback } from 'react'
 
 type DeltaOp = { insert?: string | { image?: string }; attributes?: Record<string, any> }
 type Delta = { ops: DeltaOp[] } | DeltaOp[] | any
@@ -13,7 +15,47 @@ function renderText(text: string, attrs?: Record<string, any>) {
   return node
 }
 
+// Lightbox 컴포넌트
+function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80"
+      onClick={onClose}
+    >
+      {/* 닫기 버튼 - fixed로 화면 기준 위치 고정 */}
+      <button
+        className="fixed top-4 right-4 z-[10000] p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation()
+          onClose()
+        }}
+        aria-label="Close"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <img
+        src={src}
+        alt=""
+        className="max-w-[90vw] max-h-[90vh] object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  )
+}
+
 export function QuillDeltaRenderer({ value }: { value: unknown }) {
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null)
+
+  const handleImageClick = useCallback((src: string) => {
+    setLightboxImage(src)
+  }, [])
+
+  const closeLightbox = useCallback(() => {
+    setLightboxImage(null)
+  }, [])
+
   if (value === null || value === undefined) return null
 
   let parsed: any = value
@@ -80,7 +122,16 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
     } else if (op.insert && typeof op.insert === 'object' && (op.insert as any).image) {
       flushLine()
       const src = (op.insert as any).image
-      blocks.push(<figure key={`img-${idx}`} className='my-3'><img src={src} alt='' className='max-w-full rounded' /></figure>)
+      blocks.push(
+        <figure key={`img-${idx}`} className='my-3'>
+          <img
+            src={src}
+            alt=''
+            className='max-w-full rounded cursor-pointer hover:opacity-90 transition-opacity'
+            onClick={() => handleImageClick(src)}
+          />
+        </figure>
+      )
     }
   })
 
@@ -110,7 +161,13 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
       }
     } catch {}
   }
-  return <div className='prose max-w-none text-gray-900'>{blocks}</div>
+
+  return (
+    <>
+      <div className='prose max-w-none text-gray-900'>{blocks}</div>
+      {lightboxImage && <ImageLightbox src={lightboxImage} onClose={closeLightbox} />}
+    </>
+  )
 }
 
 export default QuillDeltaRenderer
