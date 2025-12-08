@@ -55,8 +55,10 @@ export default function NavigationLink({
     const { path: currentCleanPath } = extractLocaleFromPath(pathname);
     const { path: targetCleanPath } = extractLocaleFromPath(href);
 
-    // 마이페이지 하위 경로는 기본적으로 로그인 필요로 간주(서비스 공지/FAQ 등은 /mypage 하위가 아님)
-    const requiresAuthByPath = /(^\/mypage\b)|(^\/[a-z]{2}\/[a-z-]{0,5}\/?mypage\b)/i.test(resolvedHref);
+    // 마이페이지 하위 경로만 로그인 필요 (메인 마이페이지는 비로그인 접근 허용)
+    // /mypage, /en/mypage 등은 허용하고, /mypage/vote-history, /en/mypage/posts 등만 로그인 필요
+    const mypageSubPathRegex = /^(\/[a-z]{2}(-[a-z]+)?)?\/mypage\/.+$/i;
+    const requiresAuthByPath = mypageSubPathRegex.test(resolvedHref);
     const needAuth = should_login || requiresAuthByPath;
 
     // 인증이 필요한 링크인 경우, 가드 기반 네비게이션 사용 (로그인 유도 다이얼로그 포함)
