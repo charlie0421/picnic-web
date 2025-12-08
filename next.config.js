@@ -22,9 +22,10 @@ const buildTime = new Date().toISOString();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  
-  // Source Maps 설정 (Sentry 업로드용)
-  productionBrowserSourceMaps: true,
+
+  // Source Maps 설정 - 프로덕션에서는 비활성화 (빌드 속도 개선)
+  // Sentry는 서버 소스맵만으로도 에러 추적 가능
+  productionBrowserSourceMaps: false,
   
   // 환경변수 명시적 설정 (브라우저에서 사용 가능하도록)
   env: {
@@ -71,14 +72,14 @@ const nextConfig = {
       // 첨부파일 업로드를 위한 서버 액션 본문 크기 제한 상향 (기본 1MB)
       bodySizeLimit: '25mb'
     },
-    // 페이지당 개별 CSS 대신 앱 전체 CSS 번들링
-    optimizeCss: true,
+    // CSS 최적화 비활성화 (빌드 속도 개선 - critters가 느림)
+    optimizeCss: false,
     // 프리페치 최적화 활성화
     optimisticClientCache: true,
     // 스크롤 복원 개선
     scrollRestoration: true,
     // date-fns 등 대형 유틸 패키지의 개별 모듈 import 강제
-    optimizePackageImports: ['date-fns', 'date-fns-tz', 'react-toastify'],
+    optimizePackageImports: ['date-fns', 'date-fns-tz', 'react-toastify', 'lucide-react', '@heroicons/react'],
   },
 
   modularizeImports: {
@@ -187,21 +188,9 @@ const sentryWebpackPluginOptions = {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   // 릴리즈 정보
   release: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
-  // sourcemap 업로드 필터링
-  include: [
-    {
-      paths: ['.next/static/'],
-      ignore: [
-        '**/client-reference-manifest.js',
-        '**/middleware-build-manifest.js',
-        '**/middleware-react-loadable-manifest.js',
-        '**/next-font-manifest.js',
-        '**/server-reference-manifest.js',
-        '**/_buildManifest.js',
-        '**/_ssgManifest.js'
-      ]
-    }
-  ],
+  // 빌드 속도 개선: 소스맵 업로드 비활성화 (필요시 CI에서 별도 실행)
+  disableServerWebpackPlugin: true,
+  disableClientWebpackPlugin: true,
 };
 
 module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
