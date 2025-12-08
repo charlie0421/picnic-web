@@ -61,6 +61,10 @@ const nextConfig = {
       { protocol: 'https', hostname: 'picnic-fan.s3.ap-northeast-2.amazonaws.com' },
       { protocol: 'https', hostname: 'img.youtube.com' }
     ],
+    // Next.js 16: 로컬 이미지에 쿼리 스트링 허용
+    localPatterns: [
+      { pathname: '/**' },
+    ],
     minimumCacheTTL: 60, // 이미지 캐시 시간 설정 (초 단위)
   },
   
@@ -82,12 +86,6 @@ const nextConfig = {
     optimizePackageImports: ['date-fns', 'date-fns-tz', 'react-toastify', 'lucide-react', '@heroicons/react'],
   },
 
-  modularizeImports: {
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{member}}',
-    },
-  },
-  
   // 성능 최적화를 위한 webpack 설정
   webpack: (config, { dev, isServer }) => {
     // 프로덕션 빌드에서만 최적화 적용

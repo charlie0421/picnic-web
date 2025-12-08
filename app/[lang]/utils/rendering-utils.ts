@@ -36,14 +36,15 @@ export function createISRMetadata(revalidateSeconds: number = 60) {
 
 /**
  * ISR 캐시 태그를 무효화하는 함수
- * 
+ *
  * @param tag 무효화할 태그 이름
+ * @param cacheLife 캐시 라이프 프로필 (Next.js 16+에서 필수)
  */
-export async function revalidateTagHelper(tag: string): Promise<boolean> {
+export async function revalidateTagHelper(tag: string, cacheLife: string = 'max'): Promise<boolean> {
   try {
-    // Next.js 14의 revalidateTag API를 사용
+    // Next.js 16의 revalidateTag API - 두 번째 인자로 cacheLife 프로필 필요
     const { revalidateTag } = await import('next/cache');
-    revalidateTag(tag);
+    revalidateTag(tag, cacheLife);
     return true;
   } catch (error) {
     console.error(`캐시 태그 무효화 중 오류 발생 (${tag}):`, error);
