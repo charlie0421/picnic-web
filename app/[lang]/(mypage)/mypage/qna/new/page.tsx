@@ -44,11 +44,11 @@ export default function NewQnaPage() {
   const pathname = usePathname();
   const ensureActiveMembership = useWithdrawalGuard();
 
-  const guardedFormAction = async (formData: FormData) => {
+  const guardedFormAction = async (formData: FormData): Promise<void> => {
     if (await ensureActiveMembership()) {
-      return { error: t('error_message_withdrawal') };
+      return;
     }
-    return formAction(formData);
+    formAction(formData);
   };
 
   const getCategoryLabel = (code: string | null | undefined) => {
