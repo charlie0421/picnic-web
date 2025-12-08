@@ -141,6 +141,7 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
   } catch (_) {}
 
   revalidatePath(`/${lang}/mypage/qna`);
+  revalidatePath(`/${lang}/mypage/qna/${threadData.id}`);
   redirect(`/${lang}/mypage/qna/${threadData.id}`);
 }
 

@@ -1,8 +1,8 @@
 import { getQnaThreadDetails } from '@/lib/data-fetching/server/qna-service';
 import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
 import QnaDetailClient from './QnaDetailClient';
-import QnaSkeleton from '@/components/server/mypage/QnaSkeleton';
+
+export const dynamic = 'force-dynamic';
 
 interface QnaDetailPageProps {
   params: Promise<{
@@ -25,12 +25,6 @@ export default async function QnaDetailPage(props: QnaDetailPageProps) {
   if (error || !thread) {
     notFound();
   }
-  
-  return (
-    <Suspense fallback={<QnaSkeleton />}>
-      <QnaDetailClient 
-        thread={thread}
-      />
-    </Suspense>
-  );
+
+  return <QnaDetailClient thread={thread} />;
 }
