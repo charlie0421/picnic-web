@@ -353,9 +353,9 @@ export async function POST(request: NextRequest) {
         metadataKeys: paymentData.metadata ? Object.keys(paymentData.metadata) : [],
         customerEmail: paymentData.customer?.email,
       });
-      
+
       return NextResponse.json(
-        { 
+        {
           error: 'Missing required data - customData must include userId and productId',
           details: {
             paymentId,
@@ -367,6 +367,25 @@ export async function POST(request: NextRequest) {
           }
         },
         { status: 400 }
+      );
+    }
+
+    // 탈퇴 회원 체크
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from('user_profiles')
+      .select('deleted_at')
+      .eq('id', userId)
+      .single();
+
+    if (userProfileError) {
+      console.error('[Webhook] Failed to check user profile:', userProfileError);
+    }
+
+    if (userProfile?.deleted_at) {
+      console.warn(`[Webhook] User ${userId} is a withdrawn user, rejecting payment`);
+      return NextResponse.json(
+        { error: 'User is deleted or deactivated' },
+        { status: 403 }
       );
     }
 

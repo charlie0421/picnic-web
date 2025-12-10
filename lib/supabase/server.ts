@@ -118,12 +118,43 @@ export async function getServerUser() {
       console.warn(`[Auth] Supabase getUser error: ${error.message}`);
       return null;
     }
-    
+
     return user;
   } catch (error) {
     console.error('[Auth] Unexpected error in getServerUser:', error);
     return null;
   }
+}
+
+/**
+ * 탈퇴 회원 에러 클래스
+ */
+export class WithdrawnUserError extends Error {
+  constructor(message = 'A member who has unsubscribed.') {
+    super(message);
+    this.name = 'WithdrawnUserError';
+  }
+}
+
+/**
+ * 사용자가 탈퇴 회원인지 확인
+ * @param userId 확인할 사용자 ID
+ * @returns 탈퇴 회원이면 true, 아니면 false
+ */
+export async function isWithdrawnUser(userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data: profile, error } = await supabase
+    .from('user_profiles')
+    .select('deleted_at')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.warn(`[Auth] Failed to check user withdrawal status: ${error.message}`);
+    return false;
+  }
+
+  return profile?.deleted_at != null;
 }
 
 export async function withAuth<T>(
@@ -133,5 +164,26 @@ export async function withAuth<T>(
   if (!user) {
     throw new SupabaseAuthError('Authentication required.');
   }
+  return callback(user.id);
+}
+
+/**
+ * 인증 및 탈퇴 회원 체크를 포함한 래퍼 함수
+ * 탈퇴 회원이면 WithdrawnUserError를 throw
+ */
+export async function withAuthAndWithdrawalCheck<T>(
+  callback: (userId: string) => Promise<T>
+): Promise<T> {
+  const user = await getServerUser();
+  if (!user) {
+    throw new SupabaseAuthError('Authentication required.');
+  }
+
+  // 탈퇴 회원 체크
+  const isWithdrawn = await isWithdrawnUser(user.id);
+  if (isWithdrawn) {
+    throw new WithdrawnUserError();
+  }
+
   return callback(user.id);
 } 

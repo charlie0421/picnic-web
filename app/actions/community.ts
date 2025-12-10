@@ -1,6 +1,6 @@
 'use server'
 import { revalidatePath } from 'next/cache'
-import { createSupabaseServerClient, withAuth } from '@/lib/supabase/server'
+import { createSupabaseServerClient, withAuth, withAuthAndWithdrawalCheck, WithdrawnUserError } from '@/lib/supabase/server'
 import { getBoardMeta } from '@/lib/data-fetching/server/community-service'
 
 export async function likePost(postId: string, lang: string) {
@@ -92,49 +92,56 @@ export async function createPost(
   payload: { title: string; deltaJson: unknown; isAnonymous?: boolean; boardId: string; attachments?: { name: string; url: string; type?: string; size?: number }[] },
   lang: string,
 ) {
-  return withAuth(async (userId) => {
-    const supabase = await createSupabaseServerClient()
-    // 게시글 생성
-    const { data, error } = await supabase
-      .from('posts')
-      .insert({
-        title: payload.title,
-        content: payload.deltaJson,
-        user_id: userId,
-        is_anonymous: !!payload.isAnonymous,
-        is_temporary: false,
-        board_id: payload.boardId,
-      })
-      .select('id,post_id')
-      .single()
+  try {
+    return await withAuthAndWithdrawalCheck(async (userId) => {
+      const supabase = await createSupabaseServerClient()
+      // 게시글 생성
+      const { data, error } = await supabase
+        .from('posts')
+        .insert({
+          title: payload.title,
+          content: payload.deltaJson,
+          user_id: userId,
+          is_anonymous: !!payload.isAnonymous,
+          is_temporary: false,
+          board_id: payload.boardId,
+        })
+        .select('id,post_id')
+        .single()
 
-    if (error) {
-      console.error('[community] createPost error:', error)
-      return { ok: false as const }
-    }
-
-    const postId = data.post_id ?? data.id
-
-    // 첨부 저장 (있을 경우)
-    if (payload.attachments && payload.attachments.length > 0) {
-      const attachments = payload.attachments.map((f) => ({
-        post_id: postId,
-        file_name: f.name,
-        file_path: f.url,
-        file_type: f.type ?? 'unknown',
-        file_size: f.size ?? null,
-      }))
-      const { error: attErr } = await supabase.from('post_attachments').insert(attachments)
-      if (attErr) {
-        console.error('[community] createPost attachments error:', attErr)
-        // 첨부 저장 실패는 치명적이지 않게 처리
+      if (error) {
+        console.error('[community] createPost error:', error)
+        return { ok: false as const }
       }
-    }
 
-    revalidatePath(`/${lang}/community`)
-    revalidatePath(`/${lang}/community/boards/${payload.boardId}`)
-    return { ok: true as const, id: postId }
-  })
+      const postId = data.post_id ?? data.id
+
+      // 첨부 저장 (있을 경우)
+      if (payload.attachments && payload.attachments.length > 0) {
+        const attachments = payload.attachments.map((f) => ({
+          post_id: postId,
+          file_name: f.name,
+          file_path: f.url,
+          file_type: f.type ?? 'unknown',
+          file_size: f.size ?? null,
+        }))
+        const { error: attErr } = await supabase.from('post_attachments').insert(attachments)
+        if (attErr) {
+          console.error('[community] createPost attachments error:', attErr)
+          // 첨부 저장 실패는 치명적이지 않게 처리
+        }
+      }
+
+      revalidatePath(`/${lang}/community`)
+      revalidatePath(`/${lang}/community/boards/${payload.boardId}`)
+      return { ok: true as const, id: postId }
+    })
+  } catch (error) {
+    if (error instanceof WithdrawnUserError) {
+      return { ok: false as const, error: 'A member who has unsubscribed.' }
+    }
+    throw error
+  }
 }
 
 export async function createComment(
@@ -142,25 +149,32 @@ export async function createComment(
   content: string,
   lang: string,
 ) {
-  return withAuth(async (userId) => {
-    const supabase = await createSupabaseServerClient()
-    const { error } = await supabase
-      .from('comments')
-      .insert({
-        post_id: postId,
-        content: { type: 'text', text: content },
-        user_id: userId,
-      })
+  try {
+    return await withAuthAndWithdrawalCheck(async (userId) => {
+      const supabase = await createSupabaseServerClient()
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          content: { type: 'text', text: content },
+          user_id: userId,
+        })
 
-    if (error) {
-      console.error('[community] createComment error:', error)
-      return { ok: false }
+      if (error) {
+        console.error('[community] createComment error:', error)
+        return { ok: false }
+      }
+
+      revalidatePath(`/${lang}/community`)
+      revalidatePath(`/${lang}/community/${postId}`)
+      return { ok: true }
+    })
+  } catch (error) {
+    if (error instanceof WithdrawnUserError) {
+      return { ok: false, error: 'A member who has unsubscribed.' }
     }
-
-    revalidatePath(`/${lang}/community`)
-    revalidatePath(`/${lang}/community/${postId}`)
-    return { ok: true }
-  })
+    throw error
+  }
 }
 
 

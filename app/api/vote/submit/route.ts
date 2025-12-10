@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { createSupabaseServerClient, getServerUser } from '@/lib/supabase/server';
+import { createSupabaseServerClient, getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 import { SupabaseAuthError, SupabasePostgrestError } from '@/lib/supabase/error';
 
 export async function POST(request: NextRequest) {
@@ -7,6 +7,15 @@ export async function POST(request: NextRequest) {
     const user = await getServerUser();
     if (!user) {
       throw new SupabaseAuthError('Authentication required.');
+    }
+
+    // 탈퇴 회원 체크
+    const isWithdrawn = await isWithdrawnUser(user.id);
+    if (isWithdrawn) {
+      return NextResponse.json(
+        { error: 'A member who has unsubscribed.' },
+        { status: 403 }
+      );
     }
 
     const { vote_id, vote_item_id, amount } = await request.json();

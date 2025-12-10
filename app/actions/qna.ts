@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseServerClient, isWithdrawnUser } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
@@ -41,6 +41,12 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
 
   if (!user) {
     return { error: 'User not authenticated.' };
+  }
+
+  // 탈퇴 회원 체크
+  const isWithdrawn = await isWithdrawnUser(user.id);
+  if (isWithdrawn) {
+    return { error: 'A member who has unsubscribed.' };
   }
 
   const { data: threadData, error: threadError } = await supabase
@@ -159,6 +165,12 @@ export async function createQnaMessageAction(formData: FormData) {
 
     if (!user) {
         return { error: 'User not authenticated.' };
+    }
+
+    // 탈퇴 회원 체크
+    const isWithdrawn = await isWithdrawnUser(user.id);
+    if (isWithdrawn) {
+        return { error: 'A member who has unsubscribed.' };
     }
 
     // Insert the message first

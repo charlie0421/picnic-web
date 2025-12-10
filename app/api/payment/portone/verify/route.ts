@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 import { PaymentClient } from '@portone/server-sdk';
 
 // Port One API configuration (v2 API)
@@ -231,6 +231,16 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         email: user.email,
       });
+    }
+
+    // 탈퇴 회원 체크
+    const isWithdrawn = await isWithdrawnUser(user.id);
+    if (isWithdrawn) {
+      console.warn('[Verify] User is a withdrawn user:', { userId: user.id });
+      return NextResponse.json(
+        { error: 'User is deleted or deactivated' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
