@@ -31,6 +31,8 @@ let isCreatingClient = false;
 
 // 로그아웃 진행 상태 추적을 위한 전역 변수
 let isSigningOut = false;
+// 429 Rate Limit 처리 중 플래그 (무한 루프 방지)
+let isHandlingRateLimit = false;
 type AutoRefreshState = 'started' | 'stopped' | 'unknown';
 let autoRefreshState: AutoRefreshState = 'unknown';
 let autoRefreshSubscription: { unsubscribe: () => void } | null = null;
@@ -163,6 +165,19 @@ function isRefreshTokenRequest(url: string | null, init?: RequestInit): boolean 
 }
 
 function triggerSupabaseRefreshRateLimitHandling() {
+  // 🔧 무한 루프 방지: 이미 429 처리 중이거나 로그아웃 중이면 중단
+  if (isHandlingRateLimit) {
+    debugWarn('⏹️ [Client] 이미 429 Rate Limit 처리 중 - 중복 실행 방지');
+    return;
+  }
+
+  if (isSigningOut) {
+    debugWarn('⏹️ [Client] 로그아웃 진행 중 - 429 처리 건너뜀');
+    return;
+  }
+
+  isHandlingRateLimit = true;
+
   if (supabaseDebug) {
     debugWarn('⚠️ [Client] Refresh 토큰 요청이 429를 반환했습니다. 강제 로그아웃을 진행합니다.');
   }
@@ -176,6 +191,9 @@ function triggerSupabaseRefreshRateLimitHandling() {
       await signOut();
     } catch (error) {
       debugWarn('⚠️ [Client] 강제 로그아웃 처리 중 오류가 발생했습니다:', error);
+    } finally {
+      // 처리 완료 후 플래그 리셋
+      isHandlingRateLimit = false;
     }
   })();
 }
@@ -580,12 +598,14 @@ export async function signOut() {
     }
 
     // 2. Supabase 세션 제거 (타임아웃 적용)
+    // 🔧 scope: 'local' 사용 - 429 무한 루프 방지
+    // 'global'은 Supabase 서버에 추가 요청을 보내 또 429를 유발할 수 있음
     try {
-      debugLog('🔄 [SignOut] Supabase 세션 제거 시작...');
-      
+      debugLog('🔄 [SignOut] Supabase 세션 제거 시작 (local scope)...');
+
       // 타임아웃을 위한 Promise.race 사용
       const signOutPromise = supabase.auth.signOut({
-        scope: 'global'
+        scope: 'local'  // 🔧 global → local: 서버 호출 없이 로컬만 정리
       });
       
       const timeoutPromise = new Promise<{ error: { message: string } }>((_, reject) => {

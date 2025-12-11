@@ -35,10 +35,14 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.signOut({ scope: 'global' });
+    // 🔧 scope: 'local' 사용 - 429 무한 루프 방지
+    // 'global'은 Supabase 서버에 추가 요청을 보내 Rate Limit 상황에서 또 429를 유발할 수 있음
+    // 'local'은 서버 호출 없이 쿠키만 정리하므로 안전함
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
 
     if (error) {
-      throw new SupabaseAuthError('Logout failed.', 500);
+      // 로컬 로그아웃 실패는 거의 발생하지 않지만, 발생해도 쿠키 정리는 계속 진행
+      console.warn('[/api/auth/logout] Supabase local signOut warning:', error);
     }
 
     // 추가적으로 흔히 남는 인증 관련 쿠키들을 정리 (보강)
