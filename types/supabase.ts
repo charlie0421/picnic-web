@@ -6055,14 +6055,14 @@ export type Database = {
       }
       get_expiring_bonus_prediction:
         | {
-            Args: { uri: string }
+            Args: never
             Returns: {
               expiring_amount: number
               prediction_month: string
             }[]
           }
         | {
-            Args: never
+            Args: { uri: string }
             Returns: {
               expiring_amount: number
               prediction_month: string
@@ -6275,6 +6275,16 @@ export type Database = {
       is_vote_item_request_open: { Args: { vote_id: number }; Returns: boolean }
       list_bonus_drift:
         | {
+            Args: { p_limit?: number; p_threshold?: number }
+            Returns: {
+              delta: number
+              history_bonus: number
+              last_history_at: string
+              profile_bonus: number
+              user_id: string
+            }[]
+          }
+        | {
             Args: {
               p_page?: number
               p_page_size?: number
@@ -6286,16 +6296,6 @@ export type Database = {
               last_history_at: string
               profile_bonus: number
               total_count: number
-              user_id: string
-            }[]
-          }
-        | {
-            Args: { p_limit?: number; p_threshold?: number }
-            Returns: {
-              delta: number
-              history_bonus: number
-              last_history_at: string
-              profile_bonus: number
               user_id: string
             }[]
           }
@@ -6359,8 +6359,8 @@ export type Database = {
         }[]
       }
       process_vote_item_queue:
-        | { Args: { p_vote_item_id: number }; Returns: number }
         | { Args: { p_limit: number; p_vote_item_id: number }; Returns: number }
+        | { Args: { p_vote_item_id: number }; Returns: number }
       process_vote_item_update_queue:
         | { Args: never; Returns: number }
         | { Args: { p_limit: number }; Returns: number }
@@ -6437,6 +6437,7 @@ export type Database = {
             } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
       use_star_candy_bonus:
+        | { Args: { p_amount: number; p_user_id: string }; Returns: number }
         | {
             Args: {
               p_amount: number
@@ -6445,7 +6446,6 @@ export type Database = {
             }
             Returns: number
           }
-        | { Args: { p_amount: number; p_user_id: string }; Returns: number }
     }
     Enums: {
       board_status_enum: "pending" | "approved" | "rejected"
