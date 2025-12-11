@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { Inter } from 'next/font/google';
 import ConsentAwareAdsense from '@/components/client/ads/ConsentAwareAdsense';
+import CookieConsentBanner from '@/components/client/ads/CookieConsentBanner';
 
 export const metadata: Metadata = {
   title: 'Picnic',
@@ -81,6 +82,8 @@ export default async function RootLayout({
         <div className="bg-white">
           {children}
         </div>
+        {/* Cookie Consent Banner - 프로덕션에서만 표시 */}
+        {shouldLoadAds && <CookieConsentBanner />}
       </body>
     </html>
   );
