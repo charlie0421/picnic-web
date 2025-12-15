@@ -80,22 +80,7 @@ export function VoteResults({
   // 스토어 에러 처리
   if (error) {
     return (
-      <div className={`text-center py-12 ${className}`}>
-        <div className="mb-4">
-          <svg
-            className="w-16 h-16 text-red-300 mx-auto"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"
-            />
-          </svg>
-        </div>
+      <div className={`text-center py-8 ${className}`}>
         <p className="text-red-500 mb-4">{error}</p>
         <button
           onClick={() => window.location.reload()}
@@ -132,23 +117,8 @@ export function VoteResults({
   // 빈 상태
   if (!isMounted || sortedResults.length === 0) {
     return (
-      <div className={`text-center py-12 ${className}`}>
-        <div className="mb-4">
-          <svg
-            className="w-16 h-16 text-gray-300 mx-auto"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
-          </svg>
-        </div>
-        <p className="text-gray-500 text-lg">{emptyMessage}</p>
+      <div className={`text-center py-8 ${className}`}>
+        <p className="text-gray-500">{emptyMessage}</p>
       </div>
     );
   }

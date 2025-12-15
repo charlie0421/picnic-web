@@ -2,7 +2,7 @@
 
 import { cache } from "react";
 import { createSupabaseServerClient, createPublicSupabaseServerClient } from '@/lib/supabase/server';
-import { VOTE_STATUS } from '@/stores/voteFilterStore';
+import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
 import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
@@ -183,9 +183,15 @@ function buildVoteQuery(
     }
   }
 
-  // 지역 필터링 - 'all'인 경우 필터링하지 않음
-  if (area && area !== 'all') {
-    query = query.eq("area", area);
+  // 지역/타입 필터링 - 'all'인 경우 필터링하지 않음
+  if (area && area !== VOTE_AREAS.ALL) {
+    if (area === VOTE_AREAS.PIC_CHART) {
+      // PIC-CHART: vote_category가 'image' 또는 'weekly'인 것
+      query = query.in("vote_category", ['image', 'weekly']);
+    } else {
+      // K-POP, K-MUSICAL: area 컬럼으로 필터링
+      query = query.eq("area", area);
+    }
   }
 
   const { column, ascending } = getVoteOrderConfig(status);

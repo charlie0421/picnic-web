@@ -69,79 +69,16 @@ export async function VoteListFetcher({
   );
 }
 
-const FALLBACK_VOTE_STORIES = [
-  {
-    title: 'Global Debut Support',
-    description: '연습생과 신인 아티스트를 위해 전 세계 팬들이 함께 만드는 데뷔 응원전입니다.',
-    highlights: ['실시간 응원 그래프', '팬 커뮤니티 분석 리포트', '맞춤형 응원 배지'],
-  },
-  {
-    title: 'Encore Stage Project',
-    description: '투표를 통해 다시 보고 싶은 무대를 선정하고, 합동 앙코르 공연을 준비합니다.',
-    highlights: ['360° 스테이지 연출', 'AR 응원봉 연동', '라이브 스트리밍 오픈채팅'],
-  },
-  {
-    title: 'City Pop-up Exhibition',
-    description: '지역별 팝업 전시와 임팩트 광고를 연결해 도시 곳곳에서 아이돌을 만나는 캠페인입니다.',
-    highlights: ['미디어 파사드', '메트로 광고 큐레이션', '현장 포토카드 수령'],
-  },
-];
-
 function VoteShowcaseFallback({ locale }: { locale?: string }) {
   const isEnglish = locale?.startsWith('en');
-  const headline = isEnglish
-    ? 'Vote campaigns are being prepared.'
-    : '새로운 투표 캠페인을 준비하고 있어요.';
-  const sub = isEnglish
-    ? 'We are curating verified projects so that every visit delivers meaningful participation.'
-    : '방문할 때마다 의미 있는 참여 경험을 제공하기 위해 검증된 프로젝트를 큐레이션하고 있습니다.';
+  const message = isEnglish
+    ? 'No votes available.'
+    : '해당되는 투표가 없습니다.';
 
   return (
-    <section className='rounded-3xl border border-primary/10 bg-white/90 px-6 py-8 shadow-sm space-y-6'>
-      <div>
-        <p className='text-sm font-semibold text-primary-500 uppercase tracking-widest'>
-          PICNIC VOTE LAB
-        </p>
-        <h2 className='mt-2 text-2xl font-bold text-gray-900'>{headline}</h2>
-        <p className='mt-2 text-gray-600 leading-relaxed'>{sub}</p>
-      </div>
-
-      <div className='grid gap-4 md:grid-cols-3'>
-        {FALLBACK_VOTE_STORIES.map((story) => (
-          <article
-            key={story.title}
-            className='rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/5 via-white to-point/5 p-5 shadow-sm flex flex-col'
-          >
-            <div className='flex items-center gap-2 text-xs font-medium text-primary-600 uppercase tracking-wider'>
-              <span className='inline-block h-2 w-2 rounded-full bg-primary' />
-              Coming Soon
-            </div>
-            <h3 className='mt-3 text-lg font-semibold text-gray-900'>{story.title}</h3>
-            <p className='mt-2 text-sm text-gray-600 flex-1'>{story.description}</p>
-            <ul className='mt-4 space-y-1 text-sm text-gray-700'>
-              {story.highlights.map((item) => (
-                <li key={item} className='flex items-center gap-2'>
-                  <span className='h-1.5 w-1.5 rounded-full bg-point-500' />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </div>
-
-      <div className='rounded-2xl bg-gradient-to-r from-primary-600 to-point-500 px-6 py-5 text-white'>
-        <p className='text-sm font-semibold tracking-wide uppercase'>Next update</p>
-        <p className='mt-1 text-lg font-semibold'>
-          {isEnglish ? 'Pilot campaigns and mock data are published every week.' : '매주 파일럿 캠페인과 공개 데이터가 업데이트됩니다.'}
-        </p>
-        <p className='mt-2 text-sm text-white/80'>
-          {isEnglish
-            ? 'If you would like to showcase a project, contact us via support@picnic.fan.'
-            : '공개 테스트에 참여하고 싶다면 support@picnic.fan 으로 문의해주세요.'}
-        </p>
-      </div>
-    </section>
+    <div className='text-center py-8'>
+      <p className='text-gray-500'>{message}</p>
+    </div>
   );
 }
  

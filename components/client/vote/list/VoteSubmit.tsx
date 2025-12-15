@@ -143,7 +143,7 @@ export function VoteSubmit({
   // 빈 상태
   if (voteItems.length === 0) {
     return (
-      <div className={`text-center py-12 ${className}`}>
+      <div className={`text-center py-8 ${className}`}>
         <p className="text-gray-500">투표할 수 있는 항목이 없습니다.</p>
       </div>
     );

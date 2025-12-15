@@ -211,7 +211,7 @@ export function VoteListPresenter({
           )}
         </>
       ) : (
-        <div className="text-center py-12">
+        <div className="text-center py-8">
           <p className="text-gray-500">{t('text_vote_no_items')}</p>
         </div>
       )}

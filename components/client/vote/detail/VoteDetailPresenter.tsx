@@ -707,10 +707,8 @@ export function VoteDetailPresenter({
           })}
         </div>
         {filteredItems.length === 0 && (
-          <div className='text-center py-16'>
-            <div className='text-6xl mb-4'>🔍</div>
-            <p className='text-xl text-gray-500 font-medium'>검색 결과가 없습니다.</p>
-            <p className='text-sm text-gray-400 mt-2'>다른 검색어를 시도해보세요.</p>
+          <div className='text-center py-8'>
+            <p className='text-gray-500'>검색 결과가 없습니다.</p>
           </div>
         )}
       </div>

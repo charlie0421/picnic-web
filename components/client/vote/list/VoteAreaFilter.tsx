@@ -19,6 +19,7 @@ const VoteAreaFilter = React.memo(
       [VOTE_AREAS.ALL]: 'All',
       [VOTE_AREAS.KPOP]: 'K-POP',
       [VOTE_AREAS.MUSICAL]: 'Musical',
+      [VOTE_AREAS.PIC_CHART]: 'PIC-CHART',
     };
 
     const getAreaText = (area: VoteArea) => {
@@ -33,6 +34,8 @@ const VoteAreaFilter = React.memo(
           return t('label_area_filter_kpop') || fallbackTexts[area];
         case VOTE_AREAS.MUSICAL:
           return t('label_area_filter_musical') || fallbackTexts[area];
+        case VOTE_AREAS.PIC_CHART:
+          return t('label_area_filter_pic_chart') || fallbackTexts[area];
         default:
           return fallbackTexts[area];
       }
@@ -50,6 +53,8 @@ const VoteAreaFilter = React.memo(
           return t('label_area_filter_kpop') || fallbackTexts[area];
         case VOTE_AREAS.MUSICAL:
           return t('label_area_filter_musical') || fallbackTexts[area];
+        case VOTE_AREAS.PIC_CHART:
+          return t('label_area_filter_pic_chart') || fallbackTexts[area];
         default:
           return fallbackTexts[area];
       }
@@ -88,6 +93,14 @@ const VoteAreaFilter = React.memo(
           aria-pressed={selectedArea === VOTE_AREAS.MUSICAL}
         >
           {getAreaText(VOTE_AREAS.MUSICAL)}
+        </button>
+        <button
+          onClick={() => onAreaChange(VOTE_AREAS.PIC_CHART)}
+          className={getButtonClasses(VOTE_AREAS.PIC_CHART)}
+          aria-label={getAriaLabel(VOTE_AREAS.PIC_CHART)}
+          aria-pressed={selectedArea === VOTE_AREAS.PIC_CHART}
+        >
+          {getAreaText(VOTE_AREAS.PIC_CHART)}
         </button>
       </div>
     );

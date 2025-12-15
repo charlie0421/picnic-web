@@ -4,7 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { VOTE_STATUS } from '@/stores/voteFilterStore';
+import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
 
 // 기본 투표 테이블 조회 쿼리 (클라이언트에서도 동일하게 사용될 수 있음)
 const DEFAULT_VOTE_QUERY = `
@@ -127,9 +127,15 @@ function buildVoteQuery(
     }
   }
 
-  // 지역 필터링 - 'all'인 경우 필터링하지 않음
-  if (area && area !== 'all') {
-    query = query.eq("area", area);
+  // 지역/타입 필터링 - 'all'인 경우 필터링하지 않음
+  if (area && area !== VOTE_AREAS.ALL) {
+    if (area === VOTE_AREAS.PIC_CHART) {
+      // PIC-CHART: vote_category가 'image' 또는 'weekly'인 것
+      query = query.in("vote_category", ['image', 'weekly']);
+    } else {
+      // K-POP, K-MUSICAL: area 컬럼으로 필터링
+      query = query.eq("area", area);
+    }
   }
 
   const { column, ascending } = getVoteOrderConfig(status);

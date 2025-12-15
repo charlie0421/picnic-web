@@ -12,6 +12,7 @@ export const VOTE_AREAS = {
   ALL: 'all',
   KPOP: 'kpop',
   MUSICAL: 'musical',
+  PIC_CHART: 'pic-chart',
 } as const;
 
 export type VoteStatus = (typeof VOTE_STATUS)[keyof typeof VOTE_STATUS];
