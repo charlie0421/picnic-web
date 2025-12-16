@@ -9,6 +9,7 @@ import LikeButton from '@/components/community/LikeButton'
 import CommentForm from '@/components/community/CommentForm'
 import CommentList from '@/components/community/CommentList'
 import PostContent from '@/components/community/PostContent'
+import AdBanner from '@/components/client/ads/AdBanner'
 import { getTranslations } from '@/lib/i18n/server'
 
 export const revalidate = 120
@@ -91,6 +92,9 @@ export default async function CommunityPostDetailPage({
           <LikeButton postId={post.id} lang={lang} liked={!!post.likedByMe} likeCount={post.likeCount} />
         </div>
       </article>
+
+      {/* AdSense 배너 광고 */}
+      <AdBanner className='my-4' />
 
       <section className='space-y-3'>
         <h2 className='text-lg font-medium text-gray-900'>{t('community.post.repliesHeading')}</h2>

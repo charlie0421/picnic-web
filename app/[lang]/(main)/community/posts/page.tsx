@@ -6,6 +6,7 @@ import { SITE_URL } from '@/app/[lang]/constants/static-pages'
 import { getCommunityFeed } from '@/lib/data-fetching/server/community-service'
 import PostList from '@/components/community/PostList'
 import WriteButton from '@/components/community/WriteButton'
+import AdBanner from '@/components/client/ads/AdBanner'
 import { getTranslations } from '@/lib/i18n/server'
 
 export const revalidate = 60
@@ -83,6 +84,9 @@ export default async function CommunityAllPostsPage({
           <PostList items={posts} lang={lang} />
         )}
       </section>
+
+      {/* AdSense 배너 광고 */}
+      <AdBanner className='my-4' />
 
       <div className='flex justify-center gap-2 pt-2'>
         {page > 1 && (

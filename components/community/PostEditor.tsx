@@ -11,8 +11,11 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
   const [value, setValue] = useState<any>(null)
   const [files, setFiles] = useState<File[]>([])
   const [isPending, startTransition] = useTransition()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const ensureActiveMembership = useWithdrawalGuard()
+
+  const isDisabled = isPending || isSubmitting
 
   async function handleUploadAndGetUrls(localFiles: File[]): Promise<{ name: string; url: string; type?: string; size?: number }[]> {
     const out: { name: string; url: string; type?: string; size?: number }[] = []
@@ -40,7 +43,7 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
 
   return (
     <div className='relative space-y-3'>
-      {isPending && (
+      {isDisabled && (
         <div className='absolute inset-0 z-10 bg-white/60 backdrop-blur-sm' role='status' aria-live='polite'>
           <div className='absolute inset-0 flex items-center justify-center gap-3'>
             <div className='w-24 h-24 rounded-lg bg-primary-200 animate-pulse-light' />
@@ -53,35 +56,47 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
         onChange={(e) => setTitle(e.target.value)}
         placeholder={t('community.postEditor.titlePlaceholder')}
         className='w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder:text-gray-500'
-        disabled={isPending}
+        disabled={isDisabled}
       />
       <div className='border border-gray-300 rounded'>
         <QuillBasicEditor value={value} onChange={setValue} minHeight={600} />
       </div>
       <div className='flex items-center gap-2'>
-        <input ref={fileInputRef} type='file' multiple onChange={(e) => setFiles(Array.from(e.target.files || []))} className='hidden' disabled={isPending} />
-        <button type='button' className='px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white hover:bg-gray-50 disabled:opacity-50' onClick={() => fileInputRef.current?.click()} disabled={isPending}>{t('community.postEditor.attachFile')}</button>
+        <input ref={fileInputRef} type='file' multiple onChange={(e) => setFiles(Array.from(e.target.files || []))} className='hidden' disabled={isDisabled} />
+        <button type='button' className='px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 bg-white hover:bg-gray-50 disabled:opacity-50' onClick={() => fileInputRef.current?.click()} disabled={isDisabled}>{t('community.postEditor.attachFile')}</button>
         {files.length > 0 && <span className='text-sm text-gray-600'>{tHtml('community.postEditor.filesSelected', { count: String(files.length) })}</span>}
       </div>
       <div className='flex gap-2'>
         <button
           type='button'
-          disabled={isPending || !title.trim()}
-          className={`px-4 py-2 rounded text-white disabled:opacity-50 ${isPending ? 'bg-primary-500 animate-pulse-light' : 'bg-primary-600'}`}
+          disabled={isDisabled || !title.trim()}
+          className={`px-4 py-2 rounded text-white disabled:opacity-50 ${isDisabled ? 'bg-primary-500 animate-pulse-light' : 'bg-primary-600'}`}
           onClick={async () => {
-            if (await ensureActiveMembership()) {
+            if (isSubmitting) return
+            setIsSubmitting(true)
+
+            const blocked = await ensureActiveMembership()
+            if (blocked) {
+              setIsSubmitting(false)
               return
             }
+
             startTransition(async () => {
-              const attachments = await handleUploadAndGetUrls(files)
-              const res = await createPost({ title, deltaJson: value, boardId, attachments }, lang)
-              if (res?.ok) {
-                window.location.href = `/${lang}/community/boards/${boardId}`
+              try {
+                const attachments = await handleUploadAndGetUrls(files)
+                const res = await createPost({ title, deltaJson: value, boardId, attachments }, lang)
+                if (res?.ok) {
+                  window.location.href = `/${lang}/community/boards/${boardId}`
+                } else {
+                  setIsSubmitting(false)
+                }
+              } catch {
+                setIsSubmitting(false)
               }
             })
           }}
         >
-          {isPending ? t('community.postEditor.submitting') : t('community.postEditor.submit')}
+          {isDisabled ? t('community.postEditor.submitting') : t('community.postEditor.submit')}
         </button>
       </div>
     </div>
