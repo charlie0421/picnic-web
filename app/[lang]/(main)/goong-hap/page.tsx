@@ -8,22 +8,57 @@ import { useEffect, useMemo, useState } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import GoongHapIntroPopup from './GoongHapIntroPopup';
+import { ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
+
+interface CompatibilityResult {
+  id: string;
+  artist_id: number;
+  score: number | null;
+  status: Database['public']['Enums']['compatibility_status'];
+  created_at: string;
+  artist?: {
+    id: number;
+    name: any;
+    image: string | null;
+  } | null;
+  i18n: Array<{
+    score_title: string | null;
+    compatibility_summary: string | null;
+    language: string;
+  }>;
+}
+
+// 로케일을 DB language 코드로 변환
+function localeToDbLanguage(locale: string): string {
+  const mapping: Record<string, string> = {
+    'ko': 'ko',
+    'en': 'en',
+    'ja': 'ja',
+    'zh-cn': 'zh',
+    'zh-tw': 'zh-TW',
+    'vi': 'vi',
+    'th': 'th',
+    'id': 'id',
+    'es': 'es',
+    'bn': 'bn',
+    'my': 'my',
+    'tl': 'fil',
+  };
+  return mapping[locale] || 'en';
+}
 
 export default function GoongHapPage() {
   const { tDynamic: t } = useTranslations();
-  const { getLocalizedPath } = useLocaleRouter();
+  const { getLocalizedPath, currentLocale } = useLocaleRouter();
   const { userProfile, isInitialized } = useAuth();
   const isAdmin = userProfile?.is_admin === true;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<Array<{
-    id: string;
-    artist_id: number;
-    score: number | null;
-    status: Database['public']['Enums']['compatibility_status'];
-    created_at: string;
-    i18n?: Array<{ score_title: string | null; compatibility_summary: string | null; language: string }>;
-  }>>([]);
+  const [showIntroPopup, setShowIntroPopup] = useState(false);
+  const [results, setResults] = useState<CompatibilityResult[]>([]);
+
+  const dbLanguage = useMemo(() => localeToDbLanguage(currentLocale), [currentLocale]);
 
   useEffect(() => {
     let mounted = true;
@@ -38,15 +73,25 @@ export default function GoongHapPage() {
           return;
         }
 
+        // 아티스트 정보와 i18n 데이터 함께 가져오기
         const { data, error } = await supabase
           .from('compatibility_results')
-          .select('id, artist_id, score, status, created_at, compatibility_results_i18n(score_title,compatibility_summary,language)')
+          .select(`
+            id,
+            artist_id,
+            score,
+            status,
+            created_at,
+            artist:artist(id, name, image),
+            compatibility_results_i18n(score_title, compatibility_summary, language)
+          `)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(20);
 
         if (error) throw error;
         if (!mounted) return;
+
         setResults(
           (data || []).map((row: any) => ({
             id: row.id,
@@ -54,6 +99,7 @@ export default function GoongHapPage() {
             score: row.score,
             status: row.status,
             created_at: row.created_at,
+            artist: row.artist,
             i18n: row.compatibility_results_i18n || [],
           }))
         );
@@ -66,93 +112,223 @@ export default function GoongHapPage() {
     return () => { mounted = false; };
   }, []);
 
+  // 현재 로케일에 맞는 i18n 데이터 가져오기
+  const getLocalizedI18n = (i18nList: CompatibilityResult['i18n']) => {
+    // 현재 로케일 우선
+    let result = i18nList.find(item => item.language === dbLanguage);
+    // 없으면 영어
+    if (!result) result = i18nList.find(item => item.language === 'en');
+    // 그것도 없으면 첫 번째
+    if (!result) result = i18nList[0];
+    return result;
+  };
+
+  // 아티스트 이름 가져오기 (로케일 적용)
+  const getArtistName = (artist: CompatibilityResult['artist']) => {
+    if (!artist?.name) return 'Unknown';
+    if (typeof artist.name === 'string') return artist.name;
+    // name이 객체인 경우 (다국어)
+    return artist.name[currentLocale] || artist.name['en'] || artist.name['ko'] || Object.values(artist.name)[0] || 'Unknown';
+  };
+
   const hasResults = useMemo(() => (results?.length || 0) > 0, [results]);
 
-  if (isInitialized && !isAdmin) {
-    return (
-      <div className='px-4 py-6 sm:py-10'>
-        <div className='max-w-2xl mx-auto'>
-          <div className='rounded-xl border border-amber-200 p-6 bg-amber-50 text-amber-800'>
-            관리자 전용 메뉴입니다.
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // 관리자 전용 체크 (클라이언트에서만)
+  const showAdminOnlyMessage = isInitialized && !isAdmin;
 
   return (
-    <div className='px-4 py-6 sm:py-10'>
-      <div className='max-w-4xl mx-auto'>
-        <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4'>Goong-Hap</h1>
-        <p className='text-gray-600 mb-6'>
-          {t('compatibility_page_title') || '궁합'}
-        </p>
+    <>
+      {/* 궁합 소개 팝업 */}
+      <GoongHapIntroPopup
+        isOpen={showIntroPopup}
+        onClose={() => setShowIntroPopup(false)}
+      />
 
-        {/* 신규 궁합 버튼 */}
-        <div className='mb-4'>
-          <NavigationLink
-            href={getLocalizedPath('/goong-hap/new')}
-            className='inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90 transition shadow-sm'
-          >
-            {t('compatibility_new_compatibility') || '새 Goong-Hap 계산하기'}
-          </NavigationLink>
-        </div>
+      <div className='min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50'>
+        <div className='px-4 py-6 sm:py-10'>
+          <div className='max-w-2xl mx-auto'>
+            {/* 관리자 전용 메시지 */}
+            {showAdminOnlyMessage && (
+              <div className='rounded-xl border border-amber-200 p-6 bg-amber-50 text-amber-800 mb-6'>
+                관리자 전용 메뉴입니다.
+              </div>
+            )}
 
-        {/* 로딩/에러 상태 */}
-        {loading && (
-          <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm text-gray-600'>
-            {t('common.loading') || '불러오는 중...'}
-          </div>
-        )}
-        {(!loading && error) && (
-          <div className='rounded-xl border border-red-200 p-6 bg-red-50 shadow-sm text-red-700'>
-            {t('compatibility_snackbar_error') || '오류가 발생했습니다.'}
-          </div>
-        )}
+            {/* 메인 컨텐츠 (관리자만) */}
+            {!showAdminOnlyMessage && (
+              <>
+            {/* 헤더 영역 */}
+            <div className='mb-8'>
+              {/* 제목: 한글 → 중국어 → 영어 순서 */}
+              <div className='flex items-center gap-4 mb-4'>
+                <h1 className='text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
+                  궁합
+                </h1>
+                <div className='flex flex-col'>
+                  <span className='text-xl font-bold text-gray-600'>宮合</span>
+                  <span className='text-sm text-gray-400'>Goong-Hap</span>
+                </div>
+              </div>
 
-        {/* 결과 목록 또는 빈 상태 */}
-        {!loading && !error && hasResults && (
-          <div className='space-y-3'>
-            {results.map((r) => {
-              const summary = r.i18n?.[0]?.compatibility_summary || null;
-              const scoreTitle = r.i18n?.[0]?.score_title || null;
-              return (
-                <NavigationLink key={r.id} href={getLocalizedPath(`/goong-hap/${r.id}`)} className='block rounded-xl border border-gray-200 p-4 bg-white shadow-sm hover:bg-gray-50 transition-colors'>
-                  <div className='flex items-center justify-between'>
-                    <div>
-                      <p className='text-sm text-gray-500'>#{r.id.slice(0, 8)}</p>
-                      <p className='text-base font-semibold text-gray-900'>{scoreTitle || (t('compatibility_share_hashtag') || 'Goong-Hap')}</p>
-                    </div>
-                    <div className='text-right'>
-                      <p className='text-lg font-extrabold text-primary'>{r.score ?? '-'}<span className='text-sm font-medium text-gray-500 ml-1'>pt</span></p>
-                      <p className='text-xs text-gray-500'>{new Date(r.created_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  {summary && <p className='text-gray-700 mt-2'>{summary}</p>}
+              {/* 버튼 영역 */}
+              <div className='flex flex-wrap items-center gap-3'>
+                {/* 궁합이란? 버튼 */}
+                <button
+                  type='button'
+                  onClick={() => setShowIntroPopup(true)}
+                  className='inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-purple-500/10 to-pink-500/10 text-purple-600 rounded-full border border-purple-200/50 hover:from-purple-500/20 hover:to-pink-500/20 hover:border-purple-300 transition-all duration-200 hover:shadow-sm'
+                >
+                  <span className='text-sm'>✨</span>
+                  {t('goongHap.whatIsGoongHap', '궁합이란?')}
+                </button>
+
+                {/* 신규 궁합 버튼 */}
+                <NavigationLink
+                  href={getLocalizedPath('/goong-hap/new')}
+                  className='inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg'
+                >
+                  <span>✚</span>
+                  {t('compatibility_new_compatibility', '새 궁합 계산')}
                 </NavigationLink>
-              );
-            })}
-          </div>
-        )}
-
-        {!loading && !error && !hasResults && (
-          <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
-            <p className='text-gray-700 mb-4'>
-              {t('compatibility_new_compatibility_ask') || '새로운 Goong-Hap을 확인해 보시겠어요?'}
-            </p>
-            <div className='flex flex-wrap gap-3'>
-              <NavigationLink
-                href={getLocalizedPath('/goong-hap/new')}
-                className='inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90 transition shadow-sm'
-              >
-                {t('compatibility_new_compatibility') || '새 Goong-Hap 계산하기'}
-              </NavigationLink>
+              </div>
             </div>
+
+            {/* 로딩 상태 */}
+            {loading && (
+              <div className='flex justify-center py-12'>
+                <div className='animate-spin rounded-full h-10 w-10 border-4 border-purple-200 border-t-purple-500'></div>
+              </div>
+            )}
+
+            {/* 에러 상태 */}
+            {(!loading && error) && (
+              <div className='rounded-2xl border border-red-200 p-6 bg-red-50 shadow-sm text-red-700'>
+                {t('compatibility_snackbar_error', '오류가 발생했습니다.')}
+              </div>
+            )}
+
+            {/* 결과 목록 */}
+            {!loading && !error && hasResults && (
+              <div className='flex flex-col gap-4'>
+                {results.map((r) => {
+                  const localizedI18n = getLocalizedI18n(r.i18n);
+                  const artistName = getArtistName(r.artist);
+                  const scoreTitle = localizedI18n?.score_title;
+                  const summary = localizedI18n?.compatibility_summary;
+
+                  return (
+                    <NavigationLink
+                      key={r.id}
+                      href={getLocalizedPath(`/goong-hap/${r.id}`)}
+                      className='block w-full rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group'
+                    >
+                      {/* 상단: 점수 배경 */}
+                      <div className='relative bg-gradient-to-r from-purple-500 to-pink-500 px-5 py-4'>
+                        <div className='flex items-center justify-between'>
+                          {/* 이미지들 */}
+                          <div className='flex items-center -space-x-3'>
+                            {/* 사용자 이미지 */}
+                            <div className='relative z-10 ring-2 ring-white rounded-full'>
+                              <ProfileImageContainer
+                                avatarUrl={userProfile?.avatar_url || null}
+                                width={48}
+                                height={48}
+                                borderRadius={24}
+                              />
+                            </div>
+                            {/* 하트 아이콘 */}
+                            <div className='relative z-20 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md'>
+                              <span className='text-pink-500 text-sm'>💕</span>
+                            </div>
+                            {/* 아티스트 이미지 */}
+                            <div className='relative z-10 ring-2 ring-white rounded-full'>
+                              <ProfileImageContainer
+                                avatarUrl={r.artist?.image || null}
+                                width={48}
+                                height={48}
+                                borderRadius={24}
+                              />
+                            </div>
+                          </div>
+
+                          {/* 점수 */}
+                          <div className='text-right'>
+                            <p className='text-white/80 text-xs font-medium'>
+                              {t('compatibility_score', '궁합 점수')}
+                            </p>
+                            <p className='text-white text-3xl font-extrabold'>
+                              {r.score ?? '-'}
+                              <span className='text-lg ml-0.5'>%</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 하단: 정보 */}
+                      <div className='px-5 py-4'>
+                        <div className='flex items-start justify-between gap-4'>
+                          <div className='flex-1 min-w-0'>
+                            {/* 아티스트 이름 */}
+                            <p className='text-gray-500 text-xs mb-1'>
+                              with <span className='font-medium text-gray-700'>{artistName}</span>
+                            </p>
+                            {/* 점수 제목 */}
+                            <h3 className='text-gray-900 font-bold text-lg truncate group-hover:text-purple-600 transition-colors'>
+                              {scoreTitle || t('compatibility_share_hashtag', 'Goong-Hap')}
+                            </h3>
+                            {/* 요약 */}
+                            {summary && (
+                              <p className='text-gray-600 text-sm mt-1 line-clamp-2'>
+                                {summary}
+                              </p>
+                            )}
+                          </div>
+                          {/* 화살표 */}
+                          <div className='flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-purple-100 transition-colors'>
+                            <span className='text-gray-400 group-hover:text-purple-500 transition-colors'>→</span>
+                          </div>
+                        </div>
+                        {/* 날짜 */}
+                        <p className='text-gray-400 text-xs mt-3'>
+                          {new Date(r.created_at).toLocaleDateString(currentLocale, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                    </NavigationLink>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 빈 상태 */}
+            {!loading && !error && !hasResults && (
+              <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg p-8 text-center'>
+                <div className='w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center'>
+                  <span className='text-4xl'>💫</span>
+                </div>
+                <h3 className='text-gray-900 font-bold text-lg mb-2'>
+                  {t('compatibility_empty_state_title', '아직 궁합 결과가 없어요')}
+                </h3>
+                <p className='text-gray-600 mb-6'>
+                  {t('compatibility_new_compatibility_ask', '새로운 Goong-Hap을 확인해 보시겠어요?')}
+                </p>
+                <NavigationLink
+                  href={getLocalizedPath('/goong-hap/new')}
+                  className='inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg'
+                >
+                  <span>✨</span>
+                  {t('compatibility_new_compatibility', '새 궁합 계산하기')}
+                </NavigationLink>
+              </div>
+            )}
+              </>
+            )}
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
-
-

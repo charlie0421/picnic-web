@@ -264,11 +264,13 @@ export default function NewGoongHapPage() {
   }
 
   return (
-    <div className='px-4 py-6 sm:py-10'>
-      <div className='max-w-2xl mx-auto'>
-        <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4'>
-          {t('compatibility_new_compatibility') || '새 Goong-Hap 계산'}
-        </h1>
+      <div className='px-4 py-6 sm:py-10'>
+        <div className='max-w-2xl mx-auto'>
+          <div className='mb-4'>
+            <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900'>
+              {t('compatibility_new_compatibility') || '새 Goong-Hap 계산'}
+            </h1>
+          </div>
 
         {!userId && (
           <div className='rounded-xl border border-amber-200 p-4 bg-amber-50 text-amber-800 mb-4'>
@@ -316,17 +318,12 @@ export default function NewGoongHapPage() {
                         checked={selectedArtistId === a.id}
                         onChange={() => setSelectedArtistId(a.id)}
                       />
-                      {a.image && (
-                        <div className='w-8 h-8 rounded overflow-hidden'>
-                          <ProfileImageContainer
-                            avatarUrl={a.image || null}
+                      <ProfileImageContainer
+                        avatarUrl={a.image || null}
                         width={32}
                         height={32}
-                        borderRadius={8}
-                        className='w-full h-full'
-                          />
-                        </div>
-                      )}
+                        borderRadius={16}
+                      />
                       <span className='text-sm text-gray-900'>{typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || a.name?.ja || '')}</span>
                     </label>
                   ))}
@@ -344,17 +341,12 @@ export default function NewGoongHapPage() {
                       checked={selectedArtistId === a.id}
                       onChange={() => setSelectedArtistId(a.id)}
                     />
-                    {a.image && (
-                      <div className='w-8 h-8 rounded overflow-hidden'>
-                        <ProfileImageContainer
-                          avatarUrl={a.image || null}
-                          width={32}
-                          height={32}
-                          borderRadius={8}
-                          className='w-full h-full'
-                        />
-                      </div>
-                    )}
+                    <ProfileImageContainer
+                      avatarUrl={a.image || null}
+                      width={32}
+                      height={32}
+                      borderRadius={16}
+                    />
                     <span className='text-sm text-gray-900'>{typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || a.name?.ja || '')}</span>
                   </label>
                 ))}
@@ -425,8 +417,8 @@ export default function NewGoongHapPage() {
             </button>
           </div>
         </form>
+        </div>
       </div>
-    </div>
   );
 }
 
