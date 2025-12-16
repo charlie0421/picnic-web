@@ -6,16 +6,18 @@ import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import NavigationLink from '@/components/client/NavigationLink';
 import { useEffect, useMemo, useState } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
-import type { Database } from '@/types/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import GoongHapIntroPopup from './GoongHapIntroPopup';
 import { ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
+
+type CompatibilityStatus = 'pending' | 'completed' | 'failed';
 
 interface CompatibilityResult {
   id: string;
   artist_id: number;
   score: number | null;
-  status: Database['public']['Enums']['compatibility_status'];
+  status: CompatibilityStatus;
   created_at: string;
   artist?: {
     id: number;
@@ -73,7 +75,7 @@ export default function GoongHapPage() {
           return;
         }
 
-        // 아티스트 정보와 i18n 데이터 함께 가져오기
+        // 궁합 결과 가져오기
         const { data, error } = await supabase
           .from('compatibility_results')
           .select(`
@@ -82,7 +84,6 @@ export default function GoongHapPage() {
             score,
             status,
             created_at,
-            artist:artist(id, name, image),
             compatibility_results_i18n(score_title, compatibility_summary, language)
           `)
           .eq('user_id', user.id)
@@ -92,6 +93,24 @@ export default function GoongHapPage() {
         if (error) throw error;
         if (!mounted) return;
 
+        // 아티스트 ID 목록 추출
+        const artistIds = Array.from(new Set((data || []).map((row: any) => row.artist_id).filter(Boolean)));
+
+        // 아티스트 정보 별도 조회
+        let artistMap: Record<number, { id: number; name: any; image: string | null }> = {};
+        if (artistIds.length > 0) {
+          const { data: artists } = await supabase
+            .from('artist')
+            .select('id, name, image')
+            .in('id', artistIds);
+
+          if (artists) {
+            artistMap = Object.fromEntries(artists.map((a: any) => [a.id, a]));
+          }
+        }
+
+        if (!mounted) return;
+
         setResults(
           (data || []).map((row: any) => ({
             id: row.id,
@@ -99,7 +118,7 @@ export default function GoongHapPage() {
             score: row.score,
             status: row.status,
             created_at: row.created_at,
-            artist: row.artist,
+            artist: artistMap[row.artist_id] || null,
             i18n: row.compatibility_results_i18n || [],
           }))
         );
@@ -225,25 +244,32 @@ export default function GoongHapPage() {
                       {/* 상단: 점수 배경 */}
                       <div className='relative bg-gradient-to-r from-purple-500 to-pink-500 px-5 py-4'>
                         <div className='flex items-center justify-between'>
-                          {/* 이미지들 */}
+                          {/* 이미지들: 아티스트(왼쪽) - 하트 - 사용자(오른쪽) */}
                           <div className='flex items-center -space-x-3'>
-                            {/* 사용자 이미지 */}
-                            <div className='relative z-10 ring-2 ring-white rounded-full'>
-                              <ProfileImageContainer
-                                avatarUrl={userProfile?.avatar_url || null}
-                                width={48}
-                                height={48}
-                                borderRadius={24}
-                              />
+                            {/* 아티스트 이미지 (왼쪽) */}
+                            <div className='relative z-10 ring-2 ring-white rounded-full overflow-hidden w-12 h-12'>
+                              {r.artist?.image ? (
+                                <OptimizedImage
+                                  src={r.artist.image}
+                                  alt={artistName}
+                                  width={48}
+                                  height={48}
+                                  className='w-full h-full object-cover'
+                                />
+                              ) : (
+                                <div className='w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium'>
+                                  {artistName.charAt(0)}
+                                </div>
+                              )}
                             </div>
                             {/* 하트 아이콘 */}
                             <div className='relative z-20 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md'>
                               <span className='text-pink-500 text-sm'>💕</span>
                             </div>
-                            {/* 아티스트 이미지 */}
+                            {/* 사용자 이미지 (오른쪽) */}
                             <div className='relative z-10 ring-2 ring-white rounded-full'>
                               <ProfileImageContainer
-                                avatarUrl={r.artist?.image || null}
+                                avatarUrl={userProfile?.avatar_url || null}
                                 width={48}
                                 height={48}
                                 borderRadius={24}

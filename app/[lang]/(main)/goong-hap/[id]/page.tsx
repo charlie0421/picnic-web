@@ -1,14 +1,23 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from '@/hooks/useTranslations';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { SafeAvatar } from '@/components/ui/SafeAvatar';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import AdBanner from '@/components/client/ads/AdBanner';
+import NavigationLink from '@/components/client/NavigationLink';
+
+// 30초 광고 대기 시간 (앱과 동일)
+const AD_WAIT_SECONDS = 30;
 
 export default function GoongHapDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const { getLocalizedPath } = useLocaleRouter();
   const id = Array.isArray(params?.id) ? params?.id[0] : (params?.id as string);
   const langParam = Array.isArray(params?.lang) ? params?.lang[0] : (params?.lang as string);
   const { tDynamic: t } = useTranslations();
@@ -27,6 +36,12 @@ export default function GoongHapDetailPage() {
   const [invokeStatus, setInvokeStatus] = useState<{ ok: boolean; message?: string } | null>(null);
   const invokedRef = useRef(false);
   const [i18nLoading, setI18nLoading] = useState(false);
+
+  // 30초 광고 대기 상태
+  const [adWaitSeconds, setAdWaitSeconds] = useState(AD_WAIT_SECONDS);
+  const [showAdScreen, setShowAdScreen] = useState(false);
+  const adTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const adCompletedRef = useRef(false);
 
   const refreshDetail = async () => {
     try {
@@ -86,6 +101,61 @@ export default function GoongHapDetailPage() {
     })();
   }, [data?.artist_id]);
 
+  // 30초 광고 대기 로직: is_ads가 false이면 30초 대기 후 결과 표시
+  useEffect(() => {
+    if (!data || loading) return;
+
+    // 이미 광고를 본 경우 (is_ads === true) 또는 이미 완료한 경우 스킵
+    if (data.is_ads === true || adCompletedRef.current) {
+      setShowAdScreen(false);
+      return;
+    }
+
+    // is_ads가 false이면 30초 대기 화면 표시
+    setShowAdScreen(true);
+    setAdWaitSeconds(AD_WAIT_SECONDS);
+
+    // 1초마다 카운트다운
+    adTimerRef.current = setInterval(() => {
+      setAdWaitSeconds((prev) => {
+        if (prev <= 1) {
+          // 타이머 완료
+          if (adTimerRef.current) {
+            clearInterval(adTimerRef.current);
+            adTimerRef.current = null;
+          }
+          // is_ads를 true로 업데이트
+          (async () => {
+            try {
+              const supabase = createBrowserSupabaseClient();
+              await supabase
+                .from('compatibility_results')
+                .update({ is_ads: true })
+                .eq('id', id);
+              adCompletedRef.current = true;
+              setShowAdScreen(false);
+              // 데이터 새로고침
+              await refreshDetail();
+            } catch (e) {
+              console.error('Failed to update is_ads:', e);
+              adCompletedRef.current = true;
+              setShowAdScreen(false);
+            }
+          })();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (adTimerRef.current) {
+        clearInterval(adTimerRef.current);
+        adTimerRef.current = null;
+      }
+    };
+  }, [data, loading, id]);
+
   const getLangCandidates = (lang: string | undefined): string[] => {
     const raw = String(lang || '').trim();
     if (!raw) return [];
@@ -121,6 +191,20 @@ export default function GoongHapDetailPage() {
     // 초기 로딩 등 langParam이 없을 때만 첫 번째로 폴백
     return byLang || rows[0] || null;
   }, [data, langParam]);
+
+  // 아티스트 이름 가져오기 (로케일 적용)
+  const artistName = useMemo(() => {
+    const n = artist?.name ?? (data?.artist_name as any);
+    if (!n) return t('artist_name_fallback') || 'Artist';
+    if (typeof n === 'string') return n;
+    const cands = getLangCandidates(langParam);
+    for (const c of cands) {
+      const key = c.includes('-') ? c.split('-')[0] : c;
+      if (n?.[c]) return n[c];
+      if (n?.[key]) return n[key];
+    }
+    return n?.ko || n?.en || n?.ja || t('artist_name_fallback') || 'Artist';
+  }, [artist?.name, data?.artist_name, langParam, t]);
 
   // 앱 로직을 따라: pending이면 edge function 호출 후 일정 시간 뒤 재조회
   useEffect(() => {
@@ -234,10 +318,67 @@ export default function GoongHapDetailPage() {
     );
   }
 
+  // 30초 광고 대기 화면
+  if (showAdScreen && !loading && data) {
+    const progressPercent = ((AD_WAIT_SECONDS - adWaitSeconds) / AD_WAIT_SECONDS) * 100;
+    return (
+      <div className='px-4 py-6 sm:py-10'>
+        <div className='max-w-2xl mx-auto space-y-6'>
+          <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900 text-center'>
+            {t('goongHap.analyzing') || '궁합 분석 중...'}
+          </h1>
+
+          {/* 진행률 바 */}
+          <div className='space-y-2'>
+            <div className='flex justify-between text-sm text-gray-600'>
+              <span>{t('goongHap.waitingForResult') || '결과를 불러오는 중입니다'}</span>
+              <span className='font-medium text-primary'>{adWaitSeconds}{t('goongHap.seconds') || '초'}</span>
+            </div>
+            <div className='w-full h-3 bg-gray-200 rounded-full overflow-hidden'>
+              <div
+                className='h-full bg-gradient-to-r from-primary to-secondary transition-all duration-1000 ease-linear'
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 상단 광고 배너 */}
+          <AdBanner className='my-4' />
+
+          {/* 안내 메시지 */}
+          <div className='rounded-xl border border-amber-200 p-4 bg-amber-50 text-amber-800 text-center space-y-2'>
+            <p className='text-sm font-medium'>
+              {t('goongHap.waitingMessage') || '잠시만 기다려 주세요. 궁합 결과를 분석하고 있습니다.'}
+            </p>
+            <p className='text-xs text-amber-600'>
+              {t('goongHap.warningExit') || '페이지를 벗어나면 분석이 중단될 수 있습니다.'}
+            </p>
+          </div>
+
+          {/* 하단 광고 배너 */}
+          <AdBanner className='my-4' />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className='px-4 py-6 sm:py-10'>
       <div className='max-w-4xl mx-auto'>
-        <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4'>Goong-Hap</h1>
+        {/* 뒤로가기 + 제목 */}
+        <div className='flex items-center gap-3 mb-4'>
+          <button
+            type='button'
+            onClick={() => router.back()}
+            className='inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors'
+            aria-label={t('common.back') || '뒤로가기'}
+          >
+            <svg xmlns='http://www.w3.org/2000/svg' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+              <path strokeLinecap='round' strokeLinejoin='round' d='M15 19l-7-7 7-7' />
+            </svg>
+          </button>
+          <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900'>Goong-Hap</h1>
+        </div>
 
         {loading && (
           <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm text-gray-600'>
@@ -270,27 +411,26 @@ export default function GoongHapDetailPage() {
             <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/90 via-secondary/80 to-rose-500/80 text-white shadow-md'>
               <div className='absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white,transparent_35%),radial-gradient(circle_at_70%_80%,white,transparent_35%)]' />
               <div className='relative px-6 py-8 sm:px-8 sm:py-10'>
+                {/* 아티스트(왼쪽) - 하트 - 사용자(오른쪽) */}
                 <div className='flex items-center justify-center gap-5 sm:gap-8'>
                   <div className='flex flex-col items-center'>
-                    <SafeAvatar src={userProfile?.avatar_url || ''} size='xl' className='rounded-full ring-4 ring-white/30 shadow-lg' />
-                    <span className='mt-2 text-xs sm:text-sm text-white/80'>{userProfile?.nickname || 'You'}</span>
+                    <div className='w-24 h-24 rounded-full overflow-hidden ring-4 ring-white/30 shadow-lg'>
+                      <OptimizedImage
+                        src={artistImageUrl || '/images/default-artist.png'}
+                        alt='Artist'
+                        width={96}
+                        height={96}
+                        className='w-full h-full object-cover'
+                        fallbackSrc='/images/default-artist.png'
+                      />
+                    </div>
+                    <span className='mt-2 text-xs sm:text-sm text-white/80'>{artistName || 'Artist'}</span>
                   </div>
                   <div className='text-3xl sm:text-4xl animate-pulse'>❤️</div>
                   <div className='flex flex-col items-center'>
-                    <SafeAvatar src={artistImageUrl} size='xl' className='rounded-full ring-4 ring-white/30 shadow-lg' />
+                    <SafeAvatar src={userProfile?.avatar_url || ''} size='xl' className='rounded-full ring-4 ring-white/30 shadow-lg' />
                     <span className='mt-2 text-xs sm:text-sm text-white/80'>
-                      {(() => {
-                        const n = artist?.name ?? (data?.artist_name as any);
-                        if (!n) return t('artist_name_fallback') || 'Artist';
-                        if (typeof n === 'string') return n;
-                        const cands = getLangCandidates(langParam);
-                        for (const c of cands) {
-                          const key = c.includes('-') ? c.split('-')[0] : c;
-                          if (n?.[c]) return n[c];
-                          if (n?.[key]) return n[key];
-                        }
-                        return n?.ko || n?.en || n?.ja || t('artist_name_fallback') || 'Artist';
-                      })()}
+                      {userProfile?.nickname || t('goongHap.you') || 'You'}
                     </span>
                   </div>
                 </div>

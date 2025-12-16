@@ -5,7 +5,7 @@ import { useTranslations } from '@/hooks/useTranslations';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import NavigationLink from '@/components/client/NavigationLink';
-import { ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function NewGoongHapPage() {
@@ -318,12 +318,21 @@ export default function NewGoongHapPage() {
                         checked={selectedArtistId === a.id}
                         onChange={() => setSelectedArtistId(a.id)}
                       />
-                      <ProfileImageContainer
-                        avatarUrl={a.image || null}
-                        width={32}
-                        height={32}
-                        borderRadius={16}
-                      />
+                      <div className='w-8 h-8 rounded-full overflow-hidden flex-shrink-0'>
+                        {a.image ? (
+                          <OptimizedImage
+                            src={a.image}
+                            alt={typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || '')}
+                            width={32}
+                            height={32}
+                            className='w-full h-full object-cover'
+                          />
+                        ) : (
+                          <div className='w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs'>
+                            {(typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || '')).charAt(0)}
+                          </div>
+                        )}
+                      </div>
                       <span className='text-sm text-gray-900'>{typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || a.name?.ja || '')}</span>
                     </label>
                   ))}
@@ -341,12 +350,21 @@ export default function NewGoongHapPage() {
                       checked={selectedArtistId === a.id}
                       onChange={() => setSelectedArtistId(a.id)}
                     />
-                    <ProfileImageContainer
-                      avatarUrl={a.image || null}
-                      width={32}
-                      height={32}
-                      borderRadius={16}
-                    />
+                    <div className='w-8 h-8 rounded-full overflow-hidden flex-shrink-0'>
+                      {a.image ? (
+                        <OptimizedImage
+                          src={a.image}
+                          alt={typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || '')}
+                          width={32}
+                          height={32}
+                          className='w-full h-full object-cover'
+                        />
+                      ) : (
+                        <div className='w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs'>
+                          {(typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || '')).charAt(0)}
+                        </div>
+                      )}
+                    </div>
                     <span className='text-sm text-gray-900'>{typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || a.name?.ja || '')}</span>
                   </label>
                 ))}
