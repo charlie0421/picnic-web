@@ -14,6 +14,9 @@ import NavigationLink from '@/components/client/NavigationLink';
 // 30초 광고 대기 시간 (앱과 동일)
 const AD_WAIT_SECONDS = 30;
 
+// 별사탕 소모량
+const STAR_CANDY_COST = 100;
+
 export default function GoongHapDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -42,6 +45,13 @@ export default function GoongHapDetailPage() {
   const [showAdScreen, setShowAdScreen] = useState(false);
   const adTimerRef = useRef<NodeJS.Timeout | null>(null);
   const adCompletedRef = useRef(false);
+
+  // 별사탕 결제 상태
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [userStarCandy, setUserStarCandy] = useState<number | null>(null);
+  const lastPurchaseTime = useRef<number>(0);
 
   const refreshDetail = async () => {
     try {
@@ -205,6 +215,85 @@ export default function GoongHapDetailPage() {
     }
     return n?.ko || n?.en || n?.ja || t('artist_name_fallback') || 'Artist';
   }, [artist?.name, data?.artist_name, langParam, t]);
+
+  // is_paid 여부 (결제 완료 시 true)
+  const isPaid = data?.is_paid === true;
+
+  // 별사탕 잔액 조회
+  const fetchUserStarCandy = useCallback(async () => {
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('star_candy')
+        .eq('id', user.id)
+        .single();
+      setUserStarCandy(profile?.star_candy ?? 0);
+    } catch {
+      setUserStarCandy(0);
+    }
+  }, []);
+
+  // 구매 확인 다이얼로그 열기
+  const handleOpenPurchaseDialog = useCallback(async () => {
+    // 연타 방지 (1초)
+    const now = Date.now();
+    if (now - lastPurchaseTime.current < 1000) return;
+    lastPurchaseTime.current = now;
+
+    setPurchaseError(null);
+    await fetchUserStarCandy();
+    setShowPurchaseDialog(true);
+  }, [fetchUserStarCandy]);
+
+  // 구매 처리
+  const handlePurchase = useCallback(async () => {
+    if (purchasing) return;
+    setPurchasing(true);
+    setPurchaseError(null);
+
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setPurchaseError(t('common.auth.login') || '로그인이 필요합니다');
+        return;
+      }
+
+      // 별사탕 잔액 확인
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('star_candy')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || (profile.star_candy ?? 0) < STAR_CANDY_COST) {
+        setPurchaseError(t('fortune_lack_of_star_candy_message') || `별사탕이 부족합니다. (필요: ${STAR_CANDY_COST}개)`);
+        return;
+      }
+
+      // Edge function 호출하여 결제 처리
+      const { error: fnError } = await supabase.functions.invoke('open-compatibility', {
+        body: { userId: user.id, compatibilityId: id },
+      });
+
+      if (fnError) {
+        setPurchaseError(fnError.message || '결제 처리 중 오류가 발생했습니다');
+        return;
+      }
+
+      // 성공 - 다이얼로그 닫고 데이터 새로고침
+      setShowPurchaseDialog(false);
+      await refreshDetail();
+      await fetchUserStarCandy();
+    } catch (e: any) {
+      setPurchaseError(e?.message || '결제 처리 중 오류가 발생했습니다');
+    } finally {
+      setPurchasing(false);
+    }
+  }, [id, purchasing, t, fetchUserStarCandy]);
 
   // 앱 로직을 따라: pending이면 edge function 호출 후 일정 시간 뒤 재조회
   useEffect(() => {
@@ -447,46 +536,183 @@ export default function GoongHapDetailPage() {
               </div>
             </div>
 
-            {/* 공통 글로벌 로딩 오버레이로 대체 (별도 페이지 내 오버레이 제거) */}
+            {/* 상세 콘텐츠 영역 - 결제 여부에 따라 표시 */}
+            {!isPaid ? (
+              /* 미결제 상태: 플레이스홀더 + 구매 버튼 (실제 내용은 렌더링하지 않음) */
+              <div className='relative'>
+                {/* 플레이스홀더 콘텐츠 - 실제 데이터 없이 형태만 표시 */}
+                <div className='select-none pointer-events-none opacity-60'>
+                  {/* 스타일 플레이스홀더 */}
+                  <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm mb-6'>
+                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('compatibility_style_title') || '스타일'}</h2>
+                    <div className='space-y-2'>
+                      <div className='h-4 bg-gray-200 rounded w-3/4 animate-pulse' />
+                      <div className='h-4 bg-gray-200 rounded w-2/3 animate-pulse' />
+                      <div className='h-4 bg-gray-200 rounded w-4/5 animate-pulse' />
+                    </div>
+                  </div>
 
-            {/* 궁합 스타일 카드 */}
-            {localized?.details?.style && (
-              <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
-                <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_style_title') || '스타일'}</h2>
-                <div className='text-gray-700 space-y-1'>
-                  <p>{localized.details.style.idol_style}</p>
-                  <p>{localized.details.style.user_style}</p>
-                  <p>{localized.details.style.couple_style}</p>
+                  {/* 추천 활동 플레이스홀더 */}
+                  <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm mb-6'>
+                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('compatibility_activities_title') || '추천 활동'}</h2>
+                    <div className='space-y-2'>
+                      <div className='h-4 bg-gray-200 rounded w-1/2 animate-pulse' />
+                      <div className='h-4 bg-gray-200 rounded w-2/3 animate-pulse' />
+                      <div className='h-4 bg-gray-200 rounded w-3/5 animate-pulse' />
+                    </div>
+                  </div>
+
+                  {/* 팁 플레이스홀더 */}
+                  <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
+                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('compatibility_tips_title') || '팁'}</h2>
+                    <div className='space-y-2'>
+                      <div className='h-4 bg-gray-200 rounded w-4/5 animate-pulse' />
+                      <div className='h-4 bg-gray-200 rounded w-3/4 animate-pulse' />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 구매 오버레이 */}
+                <div className='absolute inset-0 flex flex-col items-center justify-center bg-white/70 backdrop-blur-[1px] rounded-xl'>
+                  {/* 별사탕 아이콘 + 비용 표시 */}
+                  <div className='bg-white rounded-xl shadow-lg border border-gray-200 px-6 py-3 mb-4'>
+                    <div className='flex items-center gap-2'>
+                      <span className='text-2xl'>⭐</span>
+                      <span className='text-xl font-bold text-gray-900'>{STAR_CANDY_COST}</span>
+                    </div>
+                  </div>
+
+                  {/* 구매 버튼 */}
+                  <button
+                    type='button'
+                    onClick={handleOpenPurchaseDialog}
+                    className='px-8 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-base hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]'
+                  >
+                    {t('fortune_purchase_by_star_candy') || '별사탕으로 열람하기'}
+                  </button>
+
+                  <p className='mt-3 text-sm text-gray-500'>
+                    {t('goongHap.purchaseHint') || '상세 궁합 결과를 확인하려면 별사탕이 필요해요'}
+                  </p>
                 </div>
               </div>
-            )}
+            ) : (
+              /* 결제 완료 상태: 전체 콘텐츠 표시 */
+              <>
+                {/* 궁합 스타일 카드 */}
+                {localized?.details?.style && (
+                  <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
+                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_style_title') || '스타일'}</h2>
+                    <div className='text-gray-700 space-y-1'>
+                      <p>{localized.details.style.idol_style}</p>
+                      <p>{localized.details.style.user_style}</p>
+                      <p>{localized.details.style.couple_style}</p>
+                    </div>
+                  </div>
+                )}
 
-            {/* 추천 활동 카드 */}
-            {localized?.details?.activities && (
-              <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
-                <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_activities_title') || '추천 활동'}</h2>
-                <div className='text-gray-700 space-y-1'>
-                  {(localized.details.activities.recommended || []).map((it: string, idx: number) => (
-                    <p key={idx}>• {it}</p>
-                  ))}
-                  {!!localized.details.activities.description && (
-                    <p className='text-gray-600 mt-2'>{localized.details.activities.description}</p>
+                {/* 추천 활동 카드 */}
+                {localized?.details?.activities && (
+                  <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
+                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_activities_title') || '추천 활동'}</h2>
+                    <div className='text-gray-700 space-y-1'>
+                      {(localized.details.activities.recommended || []).map((it: string, idx: number) => (
+                        <p key={idx}>• {it}</p>
+                      ))}
+                      {!!localized.details.activities.description && (
+                        <p className='text-gray-600 mt-2'>{localized.details.activities.description}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 팁 섹션: i18n.tips 배열이 있으면 렌더링 */}
+                {Array.isArray(localized?.tips) && (localized?.tips?.length ?? 0) > 0 && (
+                  <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
+                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_tips_title') || '팁'}</h2>
+                    <div className='text-gray-700 space-y-1'>
+                      {localized.tips.map((tip: string, idx: number) => (
+                        <p key={idx}>• {tip}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 구매 확인 다이얼로그 */}
+        {showPurchaseDialog && (
+          <div
+            className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'
+            onClick={() => !purchasing && setShowPurchaseDialog(false)}
+          >
+            <div
+              className='bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden'
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 헤더 */}
+              <div className='bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4'>
+                <h3 className='text-white text-lg font-bold text-center'>
+                  {t('compatibility_purchase_confirm_title') || '궁합 결과 열람'}
+                </h3>
+              </div>
+
+              {/* 본문 */}
+              <div className='px-6 py-5 space-y-4'>
+                <p className='text-gray-700 text-center'>
+                  {t('compatibility_purchase_confirm_message') || '별사탕 100개를 사용하여 상세 궁합 결과를 열람하시겠습니까?'}
+                </p>
+
+                {/* 별사탕 잔액 표시 */}
+                <div className='flex items-center justify-center gap-2 py-3 bg-gray-50 rounded-lg'>
+                  <span className='text-gray-600 text-sm'>{t('goongHap.currentBalance') || '현재 보유'}</span>
+                  <span className='text-xl'>⭐</span>
+                  <span className='text-lg font-bold text-gray-900'>{userStarCandy ?? '-'}</span>
+                </div>
+
+                {/* 차감 안내 */}
+                <div className='flex items-center justify-center gap-2 text-sm'>
+                  <span className='text-gray-500'>{t('goongHap.willDeduct') || '차감될 별사탕'}</span>
+                  <span className='font-bold text-pink-500'>-{STAR_CANDY_COST}</span>
+                </div>
+
+                {/* 에러 메시지 */}
+                {purchaseError && (
+                  <div className='text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg'>
+                    {purchaseError}
+                  </div>
+                )}
+              </div>
+
+              {/* 버튼 영역 */}
+              <div className='px-6 pb-5 flex gap-3'>
+                <button
+                  type='button'
+                  onClick={() => setShowPurchaseDialog(false)}
+                  disabled={purchasing}
+                  className='flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50'
+                >
+                  {t('cancel') || '취소'}
+                </button>
+                <button
+                  type='button'
+                  onClick={handlePurchase}
+                  disabled={purchasing || (userStarCandy !== null && userStarCandy < STAR_CANDY_COST)}
+                  className='flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+                >
+                  {purchasing ? (
+                    <span className='flex items-center justify-center gap-2'>
+                      <span className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin' />
+                      {t('common.processing') || '처리 중...'}
+                    </span>
+                  ) : (
+                    t('confirm') || '확인'
                   )}
-                </div>
+                </button>
               </div>
-            )}
-
-            {/* 팁 섹션: i18n.tips 배열이 있으면 렌더링 */}
-            {Array.isArray(localized?.tips) && (localized?.tips?.length ?? 0) > 0 && (
-              <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
-                <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_tips_title') || '팁'}</h2>
-                <div className='text-gray-700 space-y-1'>
-                  {localized.tips.map((tip: string, idx: number) => (
-                    <p key={idx}>• {tip}</p>
-                  ))}
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         )}
       </div>
