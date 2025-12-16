@@ -56,12 +56,8 @@ export default function GoongHapDetailPage() {
   const refreshDetail = async () => {
     try {
       const supabase = createBrowserSupabaseClient();
-      const { data, error } = await supabase
-        .from('compatibility_results')
-        .select('*, compatibility_results_i18n(*)')
-        .eq('id', id)
-        .limit(1)
-        .single();
+      // 보안을 위해 RPC 함수 사용 (is_paid=false일 때 details, tips 숨김)
+      const { data, error } = await supabase.rpc('get_compatibility_result', { p_id: id });
       if (error) throw error;
       setData(data);
     } catch (e: any) {
@@ -75,12 +71,8 @@ export default function GoongHapDetailPage() {
       try {
         if (!id) { setError('Invalid id'); setLoading(false); return; }
         const supabase = createBrowserSupabaseClient();
-        const { data, error } = await supabase
-          .from('compatibility_results')
-          .select('*, compatibility_results_i18n(*)')
-          .eq('id', id)
-          .limit(1)
-          .single();
+        // 보안을 위해 RPC 함수 사용 (is_paid=false일 때 details, tips 숨김)
+        const { data, error } = await supabase.rpc('get_compatibility_result', { p_id: id });
         if (error) throw error;
         if (!mounted) return;
         setData(data);
