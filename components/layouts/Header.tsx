@@ -172,9 +172,9 @@ const Header: React.FC = () => {
             
             {/* 알림함 아이콘 - 관리자만 표시 */}
             {isAdmin && (
-              <NavigationLink 
-                href='/mypage/notifications' 
-                should_login 
+              <NavigationLink
+                href='/mypage/notifications'
+                should_login
                 className='relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0'
                 aria-label={t('label_mypage_notifications') || '알림함'}
               >
