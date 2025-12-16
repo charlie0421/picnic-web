@@ -28,7 +28,7 @@ export function useTranslations() {
     const match = segment.match(/^([a-z]{2}(?:-[a-z]{2})?)$/i);
     const candidate = (match ? match[1] : 'en').toLowerCase();
     // 런타임 안전: 지원 목록에 있으면 그대로, 없으면 en
-    const supported: SupportedLanguage[] = ['en','ko','ja','zh-cn','zh-tw','id','es','bn','tl','th','vi'];
+    const supported: SupportedLanguage[] = ['en','ko','ja','zh-cn','zh-tw','id','es','bn','tl','th','vi','my'];
     return (supported.includes(candidate as SupportedLanguage) ? candidate : 'en') as SupportedLanguage;
   }, [pathname]);
 

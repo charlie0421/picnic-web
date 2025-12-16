@@ -26,6 +26,11 @@ export default function GoongHapDetailPage() {
   const { tDynamic: t } = useTranslations();
   const { userProfile, isInitialized } = useAuth();
   const isAdmin = userProfile?.is_admin === true;
+
+  // 클라이언트 마운트 상태 (hydration mismatch 방지)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
@@ -65,11 +70,20 @@ export default function GoongHapDetailPage() {
     }
   };
 
+  // 언어 변경 추적을 위한 ref
+  const prevLangRef = useRef<string | null>(null);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         if (!id) { setError('Invalid id'); setLoading(false); return; }
+
+        // 언어 변경 시에만 로딩 표시하지 않음 (첫 로딩만)
+        const isLangChange = prevLangRef.current !== null && prevLangRef.current !== langParam;
+        if (!isLangChange) setLoading(true);
+        prevLangRef.current = langParam;
+
         const supabase = createBrowserSupabaseClient();
         // 보안을 위해 RPC 함수 사용 (is_paid=false일 때 details, tips 숨김)
         const { data, error } = await supabase.rpc('get_compatibility_result', { p_id: id });
@@ -83,7 +97,7 @@ export default function GoongHapDetailPage() {
       }
     })();
     return () => { mounted = false; };
-  }, [id]);
+  }, [id, langParam]);
 
   // artist_id 기반 아티스트 정보 로드
   useEffect(() => {
@@ -186,12 +200,12 @@ export default function GoongHapDetailPage() {
 
   const localized = useMemo(() => {
     const rows = data?.compatibility_results_i18n || [];
-    const cands = getLangCandidates(langParam);
+    // langParam이 없으면 URL에서 직접 추출 시도
+    const effectiveLang = langParam || (typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'ko');
+    const cands = getLangCandidates(effectiveLang);
     const byLang = rows.find((r: any) => cands.includes(String(r.language || '').toLowerCase()));
-    // 언어 후보가 주어진 경우에는 임의 첫 번째(대개 ko)로 폴백하지 않음
-    if (cands.length > 0) return byLang || null;
-    // 초기 로딩 등 langParam이 없을 때만 첫 번째로 폴백
-    return byLang || rows[0] || null;
+    // 찾은 번역 반환, 없으면 null (한국어 폴백 하지 않음)
+    return byLang || null;
   }, [data, langParam]);
 
   // 아티스트 이름 가져오기 (로케일 적용)
@@ -319,13 +333,21 @@ export default function GoongHapDetailPage() {
   // i18n 지연 로딩: 현재 로케일 번역이 없으면 생성 요청 후 재조회
   const i18nInvokedRef = useRef(false);
   const i18nAttemptedRef = useRef<Set<string>>(new Set());
+
+  // 언어 변경 시 i18n ref 초기화
+  useEffect(() => {
+    i18nInvokedRef.current = false;
+  }, [langParam]);
+
   useEffect(() => {
     (async () => {
       if (!id || !data) return;
       if (data.status !== 'completed') return;
       const rows = data?.compatibility_results_i18n || [];
+      // langParam이 없으면 URL에서 직접 추출
+      const effectiveLang = langParam || (typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'ko');
       // 서버 호환 로케일 정규화 (Edge: zh, zh-CN, zh-TW, en, ja 등)
-      const normalizedForServer = normalizeForServer(langParam);
+      const normalizedForServer = normalizeForServer(effectiveLang);
 
       const exists = rows.some((r: any) => String(r.language || '').toLowerCase() === String(normalizedForServer).toLowerCase());
       const attemptKey = `${id}:${normalizedForServer}:initial`;
@@ -362,7 +384,9 @@ export default function GoongHapDetailPage() {
       if (!id || !data) return;
       if (data.status !== 'completed') return;
       if (!localized) return;
-      const target = normalizeForServer(langParam);
+      // langParam이 없으면 URL에서 직접 추출
+      const effectiveLang = langParam || (typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'ko');
+      const target = normalizeForServer(effectiveLang);
       if (!target || target.toLowerCase() === 'ko') return;
       const hasHangul = /[\u3131-\uD79D]/.test(JSON.stringify(localized));
       const attemptKey = `${id}:${target}:overwrite`;
@@ -387,7 +411,20 @@ export default function GoongHapDetailPage() {
     })();
   }, [id, data, langParam, localized]);
 
-  if (isInitialized && !isAdmin) {
+  // 클라이언트 마운트 전까지는 로딩 표시 (hydration mismatch 방지)
+  if (!mounted || !isInitialized) {
+    return (
+      <div className='px-4 py-6 sm:py-10'>
+        <div className='max-w-2xl mx-auto'>
+          <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm text-gray-600'>
+            {t('common.loading') || '불러오는 중...'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className='px-4 py-6 sm:py-10'>
         <div className='max-w-2xl mx-auto'>
@@ -565,27 +602,28 @@ export default function GoongHapDetailPage() {
                 </div>
 
                 {/* 구매 오버레이 */}
-                <div className='absolute inset-0 flex flex-col items-center justify-center bg-white/70 backdrop-blur-[1px] rounded-xl'>
-                  {/* 별사탕 아이콘 + 비용 표시 */}
-                  <div className='bg-white rounded-xl shadow-lg border border-gray-200 px-6 py-3 mb-4'>
-                    <div className='flex items-center gap-2'>
+                <div className='absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-xl'>
+                  {/* 구매 박스 */}
+                  <div className='bg-white rounded-2xl shadow-xl border border-gray-200 px-8 py-6 flex flex-col items-center'>
+                    {/* 별사탕 아이콘 + 비용 표시 */}
+                    <div className='flex items-center gap-2 mb-4'>
                       <span className='text-2xl'>⭐</span>
                       <span className='text-xl font-bold text-gray-900'>{STAR_CANDY_COST}</span>
                     </div>
+
+                    {/* 구매 버튼 */}
+                    <button
+                      type='button'
+                      onClick={handleOpenPurchaseDialog}
+                      className='px-8 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-base hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]'
+                    >
+                      {t('fortune_purchase_by_star_candy') || '별사탕으로 열람하기'}
+                    </button>
+
+                    <p className='mt-3 text-sm text-gray-500 text-center'>
+                      {t('goongHap.purchaseHint') || '상세 궁합 결과를 확인하려면 별사탕이 필요해요'}
+                    </p>
                   </div>
-
-                  {/* 구매 버튼 */}
-                  <button
-                    type='button'
-                    onClick={handleOpenPurchaseDialog}
-                    className='px-8 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-base hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]'
-                  >
-                    {t('fortune_purchase_by_star_candy') || '별사탕으로 열람하기'}
-                  </button>
-
-                  <p className='mt-3 text-sm text-gray-500'>
-                    {t('goongHap.purchaseHint') || '상세 궁합 결과를 확인하려면 별사탕이 필요해요'}
-                  </p>
                 </div>
               </div>
             ) : (
@@ -697,7 +735,7 @@ export default function GoongHapDetailPage() {
                   {purchasing ? (
                     <span className='flex items-center justify-center gap-2'>
                       <span className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin' />
-                      {t('common.processing') || '처리 중...'}
+                      {t('processing') || '처리 중...'}
                     </span>
                   ) : (
                     t('confirm') || '확인'

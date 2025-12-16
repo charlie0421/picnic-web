@@ -14,6 +14,10 @@ export default function NewGoongHapPage() {
   const { userProfile, isInitialized } = useAuth();
   const isAdmin = userProfile?.is_admin === true;
 
+  // 클라이언트 마운트 상태 (hydration mismatch 방지)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const [artistQuery, setArtistQuery] = useState('');
   const [artistResults, setArtistResults] = useState<Array<{ id: number; name: any; image?: string | null }>>([]);
   const [myArtists, setMyArtists] = useState<Array<{ id: number; name: any; image?: string | null }>>([]);
@@ -251,7 +255,20 @@ export default function NewGoongHapPage() {
     }
   };
 
-  if (isInitialized && !isAdmin) {
+  // 클라이언트 마운트 전까지는 로딩 표시 (hydration mismatch 방지)
+  if (!mounted || !isInitialized) {
+    return (
+      <div className='px-4 py-6 sm:py-10'>
+        <div className='max-w-2xl mx-auto'>
+          <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm text-gray-600'>
+            {t('common.loading') || '불러오는 중...'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className='px-4 py-6 sm:py-10'>
         <div className='max-w-2xl mx-auto'>
