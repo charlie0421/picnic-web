@@ -5,7 +5,7 @@ import QuillBasicEditor from './QuillBasicEditor'
 import { useTranslations } from '@/hooks/useTranslations'
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard'
 import { useDialog, useWithdrawnUserDialog } from '@/components/ui/Dialog'
-import PulseOverlay from '@/components/ui/PulseOverlay'
+import Image from 'next/image'
 
 export default function PostEditor({ lang, boardId }: { lang: string; boardId: string }) {
   const { t, tHtml } = useTranslations()
@@ -47,7 +47,20 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
 
   return (
     <div className='relative space-y-3'>
-      <PulseOverlay visible={isDisabled} label={t('community.postEditor.submitting')} />
+      {isDisabled && (
+        <div className='absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center'>
+          <Image
+            src="/images/logo.webp"
+            alt="Loading"
+            width={64}
+            height={64}
+            className="w-16 h-16 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
+          />
+          <div className="mt-4 text-gray-600 text-sm font-medium animate-scale-pulse">
+            {t('community.postEditor.submitting')}
+          </div>
+        </div>
+      )}
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
