@@ -11,13 +11,13 @@ import GoongHapIntroPopup from './GoongHapIntroPopup';
 import { ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
-type CompatibilityStatus = 'pending' | 'completed' | 'failed';
+type GoonghapStatus = 'pending' | 'completed' | 'failed';
 
-interface CompatibilityResult {
+interface GoonghapResult {
   id: string;
   artist_id: number;
   score: number | null;
-  status: CompatibilityStatus;
+  status: GoonghapStatus;
   created_at: string;
   artist?: {
     id: number;
@@ -26,10 +26,13 @@ interface CompatibilityResult {
   } | null;
   i18n: Array<{
     score_title: string | null;
-    compatibility_summary: string | null;
+    goonghap_summary: string | null;
     language: string;
   }>;
 }
+
+// Backward compatibility type alias
+type CompatibilityResult = GoonghapResult;
 
 // 로케일을 DB language 코드로 변환
 function localeToDbLanguage(locale: string): string {
@@ -58,7 +61,7 @@ export default function GoongHapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showIntroPopup, setShowIntroPopup] = useState(false);
-  const [results, setResults] = useState<CompatibilityResult[]>([]);
+  const [results, setResults] = useState<GoonghapResult[]>([]);
 
   const dbLanguage = useMemo(() => localeToDbLanguage(currentLocale), [currentLocale]);
 
@@ -77,14 +80,14 @@ export default function GoongHapPage() {
 
         // 궁합 결과 가져오기
         const { data, error } = await supabase
-          .from('compatibility_results')
+          .from('goonghap_results')
           .select(`
             id,
             artist_id,
             score,
             status,
             created_at,
-            compatibility_results_i18n(score_title, compatibility_summary, language)
+            goonghap_results_i18n(score_title, goonghap_summary, language)
           `)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
@@ -119,7 +122,7 @@ export default function GoongHapPage() {
             status: row.status,
             created_at: row.created_at,
             artist: artistMap[row.artist_id] || null,
-            i18n: row.compatibility_results_i18n || [],
+            i18n: row.goonghap_results_i18n || [],
           }))
         );
       } catch (e: any) {
@@ -132,7 +135,7 @@ export default function GoongHapPage() {
   }, []);
 
   // 현재 로케일에 맞는 i18n 데이터 가져오기
-  const getLocalizedI18n = (i18nList: CompatibilityResult['i18n']) => {
+  const getLocalizedI18n = (i18nList: GoonghapResult['i18n']) => {
     // 현재 로케일 우선
     let result = i18nList.find(item => item.language === dbLanguage);
     // 없으면 영어
@@ -143,7 +146,7 @@ export default function GoongHapPage() {
   };
 
   // 아티스트 이름 가져오기 (로케일 적용)
-  const getArtistName = (artist: CompatibilityResult['artist']) => {
+  const getArtistName = (artist: GoonghapResult['artist']) => {
     if (!artist?.name) return 'Unknown';
     if (typeof artist.name === 'string') return artist.name;
     // name이 객체인 경우 (다국어)
@@ -207,7 +210,7 @@ export default function GoongHapPage() {
                   className='inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg'
                 >
                   <span>✚</span>
-                  {t('compatibility_new_compatibility', '새 궁합 계산')}
+                  {t('goonghap_new_compatibility', '새 궁합 계산')}
                 </NavigationLink>
               </div>
             </div>
@@ -222,7 +225,7 @@ export default function GoongHapPage() {
             {/* 에러 상태 */}
             {(!loading && error) && (
               <div className='rounded-2xl border border-red-200 p-6 bg-red-50 shadow-sm text-red-700'>
-                {t('compatibility_snackbar_error', '오류가 발생했습니다.')}
+                {t('goonghap_snackbar_error', '오류가 발생했습니다.')}
               </div>
             )}
 
@@ -233,7 +236,7 @@ export default function GoongHapPage() {
                   const localizedI18n = getLocalizedI18n(r.i18n);
                   const artistName = getArtistName(r.artist);
                   const scoreTitle = localizedI18n?.score_title;
-                  const summary = localizedI18n?.compatibility_summary;
+                  const summary = localizedI18n?.goonghap_summary;
 
                   return (
                     <NavigationLink
@@ -280,7 +283,7 @@ export default function GoongHapPage() {
                           {/* 점수 */}
                           <div className='text-right'>
                             <p className='text-white/80 text-xs font-medium'>
-                              {t('compatibility_score', '궁합 점수')}
+                              {t('goonghap_score', '궁합 점수')}
                             </p>
                             <p className='text-white text-3xl font-extrabold'>
                               {r.score ?? '-'}
@@ -300,7 +303,7 @@ export default function GoongHapPage() {
                             </p>
                             {/* 점수 제목 */}
                             <h3 className='text-gray-900 font-bold text-lg truncate group-hover:text-purple-600 transition-colors'>
-                              {scoreTitle || t('compatibility_share_hashtag', 'Goong-Hap')}
+                              {scoreTitle || t('goonghap_share_hashtag', 'Goong-Hap')}
                             </h3>
                             {/* 요약 */}
                             {summary && (
@@ -336,17 +339,17 @@ export default function GoongHapPage() {
                   <span className='text-4xl'>💫</span>
                 </div>
                 <h3 className='text-gray-900 font-bold text-lg mb-2'>
-                  {t('compatibility_empty_state_title', '아직 궁합 결과가 없어요')}
+                  {t('goonghap_empty_state_title', '아직 궁합 결과가 없어요')}
                 </h3>
                 <p className='text-gray-600 mb-6'>
-                  {t('compatibility_new_compatibility_ask', '새로운 Goong-Hap을 확인해 보시겠어요?')}
+                  {t('goonghap_new_compatibility_ask', '새로운 Goong-Hap을 확인해 보시겠어요?')}
                 </p>
                 <NavigationLink
                   href={getLocalizedPath('/goong-hap/new')}
                   className='inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg'
                 >
                   <span>✨</span>
-                  {t('compatibility_new_compatibility', '새 궁합 계산하기')}
+                  {t('goonghap_new_compatibility', '새 궁합 계산하기')}
                 </NavigationLink>
               </div>
             )}

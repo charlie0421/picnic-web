@@ -4,6 +4,8 @@ import { createPost } from '@/app/actions/community'
 import QuillBasicEditor from './QuillBasicEditor'
 import { useTranslations } from '@/hooks/useTranslations'
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard'
+import { useDialog, useWithdrawnUserDialog } from '@/components/ui/Dialog'
+import PulseOverlay from '@/components/ui/PulseOverlay'
 
 export default function PostEditor({ lang, boardId }: { lang: string; boardId: string }) {
   const { t, tHtml } = useTranslations()
@@ -14,6 +16,8 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const ensureActiveMembership = useWithdrawalGuard()
+  const { showDialog } = useDialog()
+  const showWithdrawnUserDialog = useWithdrawnUserDialog()
 
   const isDisabled = isPending || isSubmitting
 
@@ -43,14 +47,7 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
 
   return (
     <div className='relative space-y-3'>
-      {isDisabled && (
-        <div className='absolute inset-0 z-10 bg-white/60 backdrop-blur-sm' role='status' aria-live='polite'>
-          <div className='absolute inset-0 flex items-center justify-center gap-3'>
-            <div className='w-24 h-24 rounded-lg bg-primary-200 animate-pulse-light' />
-            <span className='text-sm text-primary-700'>{t('community.postEditor.submitting')}</span>
-          </div>
-        </div>
-      )}
+      <PulseOverlay visible={isDisabled} label={t('community.postEditor.submitting')} />
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -87,7 +84,16 @@ export default function PostEditor({ lang, boardId }: { lang: string; boardId: s
                 const res = await createPost({ title, deltaJson: value, boardId, attachments }, lang)
                 if (res?.ok) {
                   window.location.href = `/${lang}/community/boards/${boardId}`
+                } else if ('error' in res && res?.error === 'A member who has unsubscribed.') {
+                  await showWithdrawnUserDialog()
+                  setIsSubmitting(false)
                 } else {
+                  showDialog({
+                    type: 'error',
+                    size: 'sm',
+                    title: t('community.postEditor.submitFail') || t('error.title'),
+                    description: t('community.common.retryLater'),
+                  })
                   setIsSubmitting(false)
                 }
               } catch {

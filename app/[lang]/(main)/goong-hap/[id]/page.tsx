@@ -62,7 +62,7 @@ export default function GoongHapDetailPage() {
     try {
       const supabase = createBrowserSupabaseClient();
       // 보안을 위해 RPC 함수 사용 (is_paid=false일 때 details, tips 숨김)
-      const { data, error } = await supabase.rpc('get_compatibility_result', { p_id: id });
+      const { data, error } = await supabase.rpc('get_goonghap_result', { p_id: id });
       if (error) throw error;
       setData(data);
     } catch (e: any) {
@@ -86,7 +86,7 @@ export default function GoongHapDetailPage() {
 
         const supabase = createBrowserSupabaseClient();
         // 보안을 위해 RPC 함수 사용 (is_paid=false일 때 details, tips 숨김)
-        const { data, error } = await supabase.rpc('get_compatibility_result', { p_id: id });
+        const { data, error } = await supabase.rpc('get_goonghap_result', { p_id: id });
         if (error) throw error;
         if (!mounted) return;
         setData(data);
@@ -145,7 +145,7 @@ export default function GoongHapDetailPage() {
             try {
               const supabase = createBrowserSupabaseClient();
               await supabase
-                .from('compatibility_results')
+                .from('goonghap_results')
                 .update({ is_ads: true })
                 .eq('id', id);
               adCompletedRef.current = true;
@@ -199,7 +199,7 @@ export default function GoongHapDetailPage() {
   };
 
   const localized = useMemo(() => {
-    const rows = data?.compatibility_results_i18n || [];
+    const rows = data?.goonghap_results_i18n || [];
     // langParam이 없으면 URL에서 직접 추출 시도
     const effectiveLang = langParam || (typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'ko');
     const cands = getLangCandidates(effectiveLang);
@@ -281,8 +281,8 @@ export default function GoongHapDetailPage() {
       }
 
       // Edge function 호출하여 결제 처리
-      const { error: fnError } = await supabase.functions.invoke('open-compatibility', {
-        body: { userId: user.id, compatibilityId: id },
+      const { error: fnError } = await supabase.functions.invoke('open-goonghap', {
+        body: { userId: user.id, goonghapId: id },
       });
 
       if (fnError) {
@@ -310,7 +310,7 @@ export default function GoongHapDetailPage() {
         setProcessing(true);
         try {
           const supabase = createBrowserSupabaseClient();
-          const { data: fnData, error: fnError } = await supabase.functions.invoke('compatibility', { body: { compatibility_id: id } });
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('goonghap', { body: { goonghap_id: id } });
           if (fnError) setInvokeStatus({ ok: false, message: fnError.message });
           else setInvokeStatus({ ok: true });
         } catch (e: any) {
@@ -343,7 +343,7 @@ export default function GoongHapDetailPage() {
     (async () => {
       if (!id || !data) return;
       if (data.status !== 'completed') return;
-      const rows = data?.compatibility_results_i18n || [];
+      const rows = data?.goonghap_results_i18n || [];
       // langParam이 없으면 URL에서 직접 추출
       const effectiveLang = langParam || (typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'ko');
       // 서버 호환 로케일 정규화 (Edge: zh, zh-CN, zh-TW, en, ja 등)
@@ -357,10 +357,10 @@ export default function GoongHapDetailPage() {
         try {
           // 공통 글로벌 로딩 시작 (오버레이)
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('startGlobalLoading', { detail: { source: 'compatibility-i18n' } }));
+            window.dispatchEvent(new CustomEvent('startGlobalLoading', { detail: { source: 'goonghap-i18n' } }));
           }
           const supabase = createBrowserSupabaseClient();
-          await supabase.functions.invoke('compatibility-i18n', { body: { compatibility_id: id, language: String(normalizedForServer) } });
+          await supabase.functions.invoke('goonghap-i18n', { body: { goonghap_id: id, language: String(normalizedForServer) } });
           await refreshDetail();
         } catch (e) {
           // 무시하고 원문 표시 유지
@@ -370,7 +370,7 @@ export default function GoongHapDetailPage() {
           setI18nLoading(false);
           // 공통 글로벌 로딩 종료
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('stopGlobalLoading', { detail: { source: 'compatibility-i18n' } }));
+            window.dispatchEvent(new CustomEvent('stopGlobalLoading', { detail: { source: 'goonghap-i18n' } }));
           }
         }
       }
@@ -394,16 +394,16 @@ export default function GoongHapDetailPage() {
         i18nFixRef.current = true;
         try {
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('startGlobalLoading', { detail: { source: 'compatibility-i18n-overwrite' } }));
+            window.dispatchEvent(new CustomEvent('startGlobalLoading', { detail: { source: 'goonghap-i18n-overwrite' } }));
           }
           const supabase = createBrowserSupabaseClient();
-          await supabase.functions.invoke('compatibility-i18n', { body: { compatibility_id: id, language: String(target), overwrite: true } });
+          await supabase.functions.invoke('goonghap-i18n', { body: { goonghap_id: id, language: String(target), overwrite: true } });
           await refreshDetail();
         } catch {}
         finally {
           i18nAttemptedRef.current.add(attemptKey);
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('stopGlobalLoading', { detail: { source: 'compatibility-i18n-overwrite' } }));
+            window.dispatchEvent(new CustomEvent('stopGlobalLoading', { detail: { source: 'goonghap-i18n-overwrite' } }));
           }
           i18nFixRef.current = false;
         }
@@ -505,7 +505,7 @@ export default function GoongHapDetailPage() {
         )}
         {(!loading && error) && (
           <div className='rounded-xl border border-red-200 p-6 bg-red-50 shadow-sm text-red-700'>
-            {t('compatibility_snackbar_error') || '오류가 발생했습니다.'}
+            {t('goonghap_snackbar_error') || '오류가 발생했습니다.'}
           </div>
         )}
         {!loading && !error && data?.status === 'pending' && (
@@ -559,8 +559,8 @@ export default function GoongHapDetailPage() {
                     <p className='text-[10px] sm:text-xs opacity-90'>{new Date(data.created_at).toLocaleString()}</p>
                   </div>
                 </div>
-                {localized?.compatibility_summary && (
-                  <p className='mt-3 sm:mt-4 text-sm sm:text-base text-white/95'>{localized.compatibility_summary}</p>
+                {localized?.goonghap_summary && (
+                  <p className='mt-3 sm:mt-4 text-sm sm:text-base text-white/95'>{localized.goonghap_summary}</p>
                 )}
               </div>
             </div>
@@ -573,7 +573,7 @@ export default function GoongHapDetailPage() {
                 <div className='select-none pointer-events-none opacity-60'>
                   {/* 스타일 플레이스홀더 */}
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm mb-6'>
-                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('compatibility_style_title') || '스타일'}</h2>
+                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('goonghap_style_title') || '스타일'}</h2>
                     <div className='space-y-2'>
                       <div className='h-4 bg-gray-200 rounded w-3/4 animate-pulse' />
                       <div className='h-4 bg-gray-200 rounded w-2/3 animate-pulse' />
@@ -583,7 +583,7 @@ export default function GoongHapDetailPage() {
 
                   {/* 추천 활동 플레이스홀더 */}
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm mb-6'>
-                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('compatibility_activities_title') || '추천 활동'}</h2>
+                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('goonghap_activities_title') || '추천 활동'}</h2>
                     <div className='space-y-2'>
                       <div className='h-4 bg-gray-200 rounded w-1/2 animate-pulse' />
                       <div className='h-4 bg-gray-200 rounded w-2/3 animate-pulse' />
@@ -593,7 +593,7 @@ export default function GoongHapDetailPage() {
 
                   {/* 팁 플레이스홀더 */}
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
-                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('compatibility_tips_title') || '팁'}</h2>
+                    <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('goonghap_tips_title') || '팁'}</h2>
                     <div className='space-y-2'>
                       <div className='h-4 bg-gray-200 rounded w-4/5 animate-pulse' />
                       <div className='h-4 bg-gray-200 rounded w-3/4 animate-pulse' />
@@ -632,7 +632,7 @@ export default function GoongHapDetailPage() {
                 {/* 궁합 스타일 카드 */}
                 {localized?.details?.style && (
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
-                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_style_title') || '스타일'}</h2>
+                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('goonghap_style_title') || '스타일'}</h2>
                     <div className='text-gray-700 space-y-1'>
                       <p>{localized.details.style.idol_style}</p>
                       <p>{localized.details.style.user_style}</p>
@@ -644,7 +644,7 @@ export default function GoongHapDetailPage() {
                 {/* 추천 활동 카드 */}
                 {localized?.details?.activities && (
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
-                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_activities_title') || '추천 활동'}</h2>
+                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('goonghap_activities_title') || '추천 활동'}</h2>
                     <div className='text-gray-700 space-y-1'>
                       {(localized.details.activities.recommended || []).map((it: string, idx: number) => (
                         <p key={idx}>• {it}</p>
@@ -659,7 +659,7 @@ export default function GoongHapDetailPage() {
                 {/* 팁 섹션: i18n.tips 배열이 있으면 렌더링 */}
                 {Array.isArray(localized?.tips) && (localized?.tips?.length ?? 0) > 0 && (
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
-                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('compatibility_tips_title') || '팁'}</h2>
+                    <h2 className='text-lg font-bold text-gray-900 mb-2'>{t('goonghap_tips_title') || '팁'}</h2>
                     <div className='text-gray-700 space-y-1'>
                       {localized.tips.map((tip: string, idx: number) => (
                         <p key={idx}>• {tip}</p>
@@ -685,14 +685,14 @@ export default function GoongHapDetailPage() {
               {/* 헤더 */}
               <div className='bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4'>
                 <h3 className='text-white text-lg font-bold text-center'>
-                  {t('compatibility_purchase_confirm_title') || '궁합 결과 열람'}
+                  {t('goonghap_purchase_confirm_title') || '궁합 결과 열람'}
                 </h3>
               </div>
 
               {/* 본문 */}
               <div className='px-6 py-5 space-y-4'>
                 <p className='text-gray-700 text-center'>
-                  {t('compatibility_purchase_confirm_message') || '별사탕 100개를 사용하여 상세 궁합 결과를 열람하시겠습니까?'}
+                  {t('goonghap_purchase_confirm_message') || '별사탕 100개를 사용하여 상세 궁합 결과를 열람하시겠습니까?'}
                 </p>
 
                 {/* 별사탕 잔액 표시 */}

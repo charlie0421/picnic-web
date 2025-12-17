@@ -171,7 +171,7 @@ const getSubCategoryLabel = (
 ): string | null => {
   if (!subCategory) return null;
   return (
-    t(`compatibility_gender_${subCategory}`) ||
+    t(`goonghap_gender_${subCategory}`) ||
     SUBCATEGORY_LABEL_FALLBACK[subCategory] ||
     toTitleCase(subCategory)
   );

@@ -135,7 +135,7 @@ export interface DialogContextType {
 // 다이얼로그 상태
 export interface DialogState {
     isOpen: boolean;
-    type: "dialog" | "action" | "confirm" | "alert" | "loginRequired";
+    type: "dialog" | "action" | "confirm" | "alert" | "loginRequired" | "withdrawnUser";
     props: any;
     resolve?: (value: any) => void;
 }

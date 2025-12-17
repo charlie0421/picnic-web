@@ -4,7 +4,7 @@ import { createComment } from '@/app/actions/community'
 import { useNotification } from '@/contexts/NotificationContext'
 import { useTranslations } from '@/hooks/useTranslations'
 import { useAuth } from '@/lib/supabase/auth-provider'
-import { useLoginRequired } from '@/components/ui/Dialog'
+import { useLoginRequired, useWithdrawnUserDialog } from '@/components/ui/Dialog'
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard'
 
 interface Props {
@@ -19,6 +19,7 @@ export default function CommentForm({ postId, lang }: Props) {
   const { t } = useTranslations()
   const { isAuthenticated } = useAuth()
   const showLoginRequired = useLoginRequired()
+  const showWithdrawnUserDialog = useWithdrawnUserDialog()
   const redirectUrl = `/${lang}/community/${postId}`
   const ensureActiveMembership = useWithdrawalGuard()
 
@@ -54,6 +55,8 @@ export default function CommentForm({ postId, lang }: Props) {
           if (res?.ok) {
             setContent('')
             addNotification({ type: 'success', title: t('community.comment.write'), message: t('community.common.ok') })
+          } else if ('error' in res && res?.error === 'A member who has unsubscribed.') {
+            await showWithdrawnUserDialog()
           } else {
             addNotification({ type: 'error', title: t('community.comment.writeFail'), message: t('community.common.retryLater') })
           }

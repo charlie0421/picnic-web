@@ -10,9 +10,12 @@ export type Json =
 
 export type BoardStatus = "pending" | "approved" | "rejected";
 
-export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION";
+export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "OPEN_GOONGHAP" | "MISSION";
 
+/** @deprecated Use GoonghapStatus instead */
 export type CompatibilityStatus = "pending" | "completed" | "error";
+
+export type GoonghapStatus = "pending" | "completed" | "error";
 
 export type PlatformEnum = "iOS" | "Android" | "Both";
 
@@ -482,6 +485,7 @@ export interface Comments {
   user_id: string | null
 }
 
+/** @deprecated Use GoonghapResults instead */
 export interface CompatibilityResults {
   artist_id: number
   completed_at: string | null
@@ -502,6 +506,27 @@ export interface CompatibilityResults {
   user_id: string
 }
 
+export interface GoonghapResults {
+  artist_id: number
+  completed_at: string | null
+  created_at: string
+  details: Json | null
+  error_message: string | null
+  gender: UserGenderEnum | null
+  id: string
+  idol_birth_date: string
+  is_ads: boolean | null
+  is_paid: boolean
+  paid_at: string | null
+  score: number | null
+  status: GoonghapStatus
+  tips: Json | null
+  user_birth_date: string
+  user_birth_time: string | null
+  user_id: string
+}
+
+/** @deprecated Use GoonghapResultsI18n instead */
 export interface CompatibilityResultsI18n {
   compatibility_id: string
   compatibility_summary: string | null
@@ -515,7 +540,31 @@ export interface CompatibilityResultsI18n {
   updated_at: string
 }
 
+export interface GoonghapResultsI18n {
+  goonghap_id: string
+  goonghap_summary: string | null
+  created_at: string
+  details: Json | null
+  id: string
+  language: string
+  score: number | null
+  score_title: string | null
+  tips: Json | null
+  updated_at: string
+}
+
+/** @deprecated Use GoonghapScoreDescriptions instead */
 export interface CompatibilityScoreDescriptions {
+  score: number
+  summary_ja: string
+  summary_ko: string
+  summary_zh: string
+  title_ja: string | null
+  title_ko: string | null
+  title_zh: string | null
+}
+
+export interface GoonghapScoreDescriptions {
   score: number
   summary_ja: string
   summary_ko: string

@@ -223,7 +223,7 @@ export default function NewGoongHapPage() {
 
       // 아이돌 생일은 optional (앱은 artist.birthDate 사용) - 여기서는 테이블에 null 허용 시 생략
       const { data, error } = await supabase
-        .from('compatibility_results')
+        .from('goonghap_results')
         .insert(payload)
         .select('id')
         .single<{ id: string }>();
@@ -231,9 +231,9 @@ export default function NewGoongHapPage() {
 
       const newId = data.id;
 
-      // 백그라운드 처리 트리거 (앱: functions.invoke('compatibility'))
+      // 백그라운드 처리 트리거 (앱: functions.invoke('goonghap'))
       try {
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('compatibility', { body: { compatibility_id: newId } });
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('goonghap', { body: { goonghap_id: newId } });
         if (fnError) {
           console.error('⚠️ Edge function error:', fnError);
           setEdgeInvokeInfo({ ok: false, message: fnError.message });
@@ -285,7 +285,7 @@ export default function NewGoongHapPage() {
         <div className='max-w-2xl mx-auto'>
           <div className='mb-4'>
             <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900'>
-              {t('compatibility_new_compatibility') || '새 Goong-Hap 계산'}
+              {t('goonghap_new_compatibility') || '새 Goong-Hap 계산'}
             </h1>
           </div>
 
