@@ -20,7 +20,7 @@ export default function CommentList({ comments }: { comments: CommentItem[] }) {
           <div className='text-sm text-gray-800'>
             <QuillDeltaRenderer value={c.content} />
           </div>
-          <div className='text-xs text-gray-600 mt-1'>{t('community.likeButton.like')} {c.likes}</div>
+          <div className='text-xs text-gray-600 mt-1'>{t('community.like.button.like')} {c.likes}</div>
         </li>
       ))}
     </ul>

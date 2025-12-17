@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useTransition } from 'react'
+import Image from 'next/image'
 import { createComment } from '@/app/actions/community'
 import { useNotification } from '@/contexts/NotificationContext'
 import { useTranslations } from '@/hooks/useTranslations'
@@ -43,38 +44,55 @@ export default function CommentForm({ postId, lang }: Props) {
   }
 
   return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault()
-        if (!content.trim()) return
-        if (await ensureActiveMembership()) {
-          return
-        }
-        startTransition(async () => {
-          const res = await createComment(postId, content, lang)
-          if (res?.ok) {
-            setContent('')
-            addNotification({ type: 'success', title: t('community.comment.write'), message: t('community.common.ok') })
-          } else if ('error' in res && res?.error === 'A member who has unsubscribed.') {
-            await showWithdrawnUserDialog()
-          } else {
-            addNotification({ type: 'error', title: t('community.comment.writeFail'), message: t('community.common.retryLater') })
+    <div className='relative'>
+      {isPending && (
+        <div className='absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center rounded'>
+          <Image
+            src="/images/logo.webp"
+            alt="Loading"
+            width={48}
+            height={48}
+            className="w-12 h-12 rounded-full animate-scale-pulse drop-shadow-lg object-cover"
+          />
+          <div className="mt-3 text-gray-600 text-sm font-medium animate-scale-pulse">
+            {t('community.comment.writing')}
+          </div>
+        </div>
+      )}
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault()
+          if (!content.trim()) return
+          if (await ensureActiveMembership()) {
+            return
           }
-        })
-      }}
-      className='space-y-2'
-    >
-      <textarea
-        placeholder={t('community.input.comment.placeholder')}
-        className='w-full border border-gray-300 rounded px-3 py-2 min-h-[100px] bg-white text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
-      <div className='flex justify-end'>
-        <button type='submit' disabled={isPending} className='px-3 py-1.5 rounded bg-black text-white disabled:opacity-60'>
-          {isPending ? t('community.comment.writing') : t('community.comment.write')}
-        </button>
-      </div>
-    </form>
+          startTransition(async () => {
+            const res = await createComment(postId, content, lang)
+            if (res?.ok) {
+              setContent('')
+              addNotification({ type: 'success', title: t('community.comment.write'), message: t('community.common.ok') })
+            } else if ('error' in res && res?.error === 'A member who has unsubscribed.') {
+              await showWithdrawnUserDialog()
+            } else {
+              addNotification({ type: 'error', title: t('community.comment.writeFail'), message: t('community.common.retryLater') })
+            }
+          })
+        }}
+        className='space-y-2'
+      >
+        <textarea
+          placeholder={t('community.input.comment.placeholder')}
+          className='w-full border border-gray-300 rounded px-3 py-2 min-h-[100px] bg-white text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500'
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          disabled={isPending}
+        />
+        <div className='flex justify-end'>
+          <button type='submit' disabled={isPending} className='px-3 py-1.5 rounded bg-black text-white disabled:opacity-60'>
+            {t('community.comment.write')}
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
