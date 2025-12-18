@@ -80,6 +80,19 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
     const maybeText = (parsed as any).text
     if (typeof maybeText === 'string') {
       parsed = [{ insert: maybeText }]
+    } else {
+      // 다국어 JSON 형식 처리: { "en": "text", "ko": "텍스트" }
+      // 언어 코드로 보이는 키(2-5자)가 있고 값이 문자열인 경우
+      const keys = Object.keys(parsed as object)
+      const langKey = keys.find(k => k.length >= 2 && k.length <= 5 && typeof (parsed as any)[k] === 'string')
+      if (langKey) {
+        // 브라우저 언어 또는 첫 번째 키 사용
+        const browserLang = typeof window !== 'undefined' ? window.navigator.language?.split('-')[0] : 'en'
+        const langText = (parsed as any)[browserLang] || (parsed as any)[langKey] || ''
+        if (langText) {
+          parsed = [{ insert: langText }]
+        }
+      }
     }
   }
 

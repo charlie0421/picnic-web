@@ -19,11 +19,19 @@ export interface CommunityPostSummary {
   boardArtist?: CommunityArtistInfo | null
 }
 
+export interface CommunityAuthor {
+  nickname: string | null
+  avatarUrl: string | null
+}
+
 export interface CommunityPostDetail extends CommunityPostSummary {
   content: unknown
   attachments: string[] | null
   likeCount?: number
   likedByMe?: boolean
+  isDeleted?: boolean
+  isAnonymous?: boolean
+  author?: CommunityAuthor | null
 }
 
 export interface CommunityComment {
@@ -33,6 +41,7 @@ export interface CommunityComment {
   userId: string | null
   likes: number
   parentCommentId: string | null
+  likedByMe?: boolean
 }
 
 export interface FeedResult {
@@ -126,17 +135,21 @@ export async function getCommunityFeed({ page = 1, limit = 20 }: { page?: number
 export async function getCommunityPost(postId: string): Promise<CommunityPostDetail | null> {
   const supabase = await createSupabaseServerClient()
 
+  // 삭제된 게시물도 조회 (댓글은 유지되므로)
+  // user_profiles 조인하여 작성자 정보 가져오기
   const { data, error } = await supabase
     .from('posts')
-    .select('post_id,id,title,content,attachments,reply_count,view_count,created_at,user_id')
+    .select('post_id,id,title,content,attachments,reply_count,view_count,created_at,user_id,deleted_at,is_anonymous,user_profiles!posts_user_id_fkey(nickname,avatar_url)')
     .eq('post_id', postId)
-    .is('deleted_at', null)
     .single()
 
   if (error || !data) {
     if (error) console.error('[community] getCommunityPost error:', error)
     return null
   }
+
+  const isDeleted = !!data.deleted_at
+  const userProfile = data.user_profiles as { nickname: string | null; avatar_url: string | null } | null
 
   // 좋아요 카운트 및 내 좋아요 여부
   let likeCount: number | undefined = undefined
@@ -176,6 +189,12 @@ export async function getCommunityPost(postId: string): Promise<CommunityPostDet
     attachments: data.attachments ?? null,
     likeCount,
     likedByMe,
+    isDeleted,
+    isAnonymous: data.is_anonymous ?? false,
+    author: userProfile ? {
+      nickname: userProfile.nickname,
+      avatarUrl: userProfile.avatar_url,
+    } : null,
   }
 }
 
@@ -255,16 +274,34 @@ export async function getHotCommunityPosts({ limit = 5, days = 7 }: { limit?: nu
 
 export async function getCommunityComments(postId: string): Promise<CommunityComment[]> {
   const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from('comments')
-    .select('comment_id,content,created_at,user_id,likes,parent_comment_id')
-    .eq('post_id', postId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
+
+  const [{ data, error }, { data: userResp }] = await Promise.all([
+    supabase
+      .from('comments')
+      .select('comment_id,content,created_at,user_id,likes,parent_comment_id')
+      .eq('post_id', postId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true }),
+    supabase.auth.getUser(),
+  ])
 
   if (error) {
     console.error('[community] getCommunityComments error:', error)
     return []
+  }
+
+  const userId = userResp?.user?.id
+  let likedCommentIds = new Set<string>()
+
+  // 로그인 사용자인 경우 좋아요한 댓글 목록 조회
+  if (userId && data && data.length > 0) {
+    const commentIds = data.map((c: any) => c.comment_id)
+    const { data: likes } = await supabase
+      .from('comment_likes')
+      .select('comment_id')
+      .eq('user_id', userId)
+      .in('comment_id', commentIds)
+    likedCommentIds = new Set((likes ?? []).map((l: any) => l.comment_id))
   }
 
   return (data ?? []).map((c: any) => ({
@@ -274,6 +311,7 @@ export async function getCommunityComments(postId: string): Promise<CommunityCom
     userId: c.user_id,
     likes: c.likes ?? 0,
     parentCommentId: c.parent_comment_id,
+    likedByMe: likedCommentIds.has(c.comment_id),
   }))
 }
 

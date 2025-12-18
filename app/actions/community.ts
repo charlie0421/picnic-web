@@ -144,10 +144,54 @@ export async function createPost(
   }
 }
 
+export async function deletePost(postId: string, lang: string) {
+  return withAuth(async (userId) => {
+    const supabase = await createSupabaseServerClient()
+
+    // 게시물 작성자 확인
+    const { data: post, error: fetchError } = await supabase
+      .from('posts')
+      .select('user_id, board_id')
+      .eq('post_id', postId)
+      .is('deleted_at', null)
+      .single()
+
+    if (fetchError || !post) {
+      console.error('[community] deletePost fetch error:', fetchError)
+      return { ok: false, error: 'post_not_found' }
+    }
+
+    // 본인 게시물인지 확인
+    if (post.user_id !== userId) {
+      return { ok: false, error: 'not_owner' }
+    }
+
+    // 소프트 딜리트 (deleted_at 업데이트)
+    const { error } = await supabase
+      .from('posts')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('post_id', postId)
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('[community] deletePost error:', error)
+      return { ok: false, error: 'delete_failed' }
+    }
+
+    revalidatePath(`/${lang}/community`)
+    revalidatePath(`/${lang}/community/${postId}`)
+    if (post.board_id) {
+      revalidatePath(`/${lang}/community/boards/${post.board_id}`)
+    }
+    return { ok: true }
+  })
+}
+
 export async function createComment(
   postId: string,
   content: string,
   lang: string,
+  parentCommentId?: string,
 ) {
   try {
     return await withAuthAndWithdrawalCheck(async (userId) => {
@@ -158,6 +202,7 @@ export async function createComment(
           post_id: postId,
           content: { type: 'text', text: content },
           user_id: userId,
+          parent_comment_id: parentCommentId || null,
         })
 
       if (error) {
@@ -175,6 +220,87 @@ export async function createComment(
     }
     throw error
   }
+}
+
+export async function likeComment(commentId: string, postId: string, lang: string) {
+  return withAuth(async (userId) => {
+    const supabase = await createSupabaseServerClient()
+
+    // 토글 방식: 존재 여부 확인 후 insert/delete
+    const { data: existing, error: checkError } = await supabase
+      .from('comment_likes')
+      .select('comment_like_id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (checkError) {
+      console.error('[community] likeComment check error:', checkError)
+      return { ok: false }
+    }
+
+    if (existing) {
+      const { error } = await supabase
+        .from('comment_likes')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('user_id', userId)
+      if (error) {
+        console.error('[community] likeComment delete error:', error)
+        return { ok: false }
+      }
+    } else {
+      const { error } = await supabase
+        .from('comment_likes')
+        .insert({ comment_id: commentId, user_id: userId })
+      if (error) {
+        console.error('[community] likeComment insert error:', error)
+        return { ok: false }
+      }
+    }
+
+    revalidatePath(`/${lang}/community/${postId}`)
+    return { ok: true }
+  })
+}
+
+export async function reportComment(commentId: string, postId: string, reason: string, lang: string) {
+  return withAuth(async (userId) => {
+    const supabase = await createSupabaseServerClient()
+
+    // 중복 신고 확인
+    const { data: existing, error: checkError } = await supabase
+      .from('comment_reports')
+      .select('comment_report_id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (checkError) {
+      console.error('[community] reportComment check error:', checkError)
+      return { ok: false, error: 'check_failed' }
+    }
+
+    if (existing) {
+      return { ok: false, error: 'already_reported' }
+    }
+
+    const { error } = await supabase
+      .from('comment_reports')
+      .insert({
+        comment_id: commentId,
+        user_id: userId,
+        reason,
+      })
+
+    if (error) {
+      console.error('[community] reportComment error:', error)
+      return { ok: false, error: 'report_failed' }
+    }
+
+    revalidatePath(`/${lang}/community/${postId}`)
+    return { ok: true }
+  })
 }
 
 
