@@ -410,19 +410,74 @@ export default function GoongHapDetailPage() {
     })();
   }, [id, data, langParam, localized]);
 
-  // 클라이언트 마운트 전까지는 로딩 표시 (hydration mismatch 방지)
-  if (!mounted || !isInitialized) {
-    return (
-      <div className='px-4 py-6 sm:py-10'>
-        <div className='max-w-2xl mx-auto'>
-          <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm text-gray-600'>
-            {t('common.loading') || '불러오는 중...'}
+  // 전체 화면 스켈레톤 로딩 컴포넌트
+  const FullPageSkeleton = () => (
+    <div className='px-4 py-6 sm:py-10 animate-pulse'>
+      <div className='max-w-4xl mx-auto'>
+        {/* 뒤로가기 + 제목 스켈레톤 */}
+        <div className='flex items-center gap-3 mb-4'>
+          <div className='w-10 h-10 rounded-full bg-gray-200' />
+          <div className='h-8 w-32 bg-gray-200 rounded' />
+        </div>
+
+        {/* 헤더 카드 스켈레톤 */}
+        <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-200 via-gray-300 to-gray-200 shadow-md'>
+          <div className='px-6 py-8 sm:px-8 sm:py-10'>
+            {/* 아바타들 */}
+            <div className='flex items-center justify-center gap-5 sm:gap-8'>
+              <div className='flex flex-col items-center'>
+                <div className='w-24 h-24 rounded-full bg-gray-300' />
+                <div className='mt-2 h-4 w-16 bg-gray-300 rounded' />
+              </div>
+              <div className='w-10 h-10 rounded-full bg-gray-300' />
+              <div className='flex flex-col items-center'>
+                <div className='w-24 h-24 rounded-full bg-gray-300' />
+                <div className='mt-2 h-4 w-12 bg-gray-300 rounded' />
+              </div>
+            </div>
+            {/* 점수 영역 */}
+            <div className='mt-6 flex items-center justify-between'>
+              <div className='h-6 w-28 bg-gray-300 rounded' />
+              <div className='text-right space-y-1'>
+                <div className='h-10 w-20 bg-gray-300 rounded ml-auto' />
+                <div className='h-3 w-24 bg-gray-300 rounded ml-auto' />
+              </div>
+            </div>
+            {/* 요약 */}
+            <div className='mt-4 space-y-2'>
+              <div className='h-4 bg-gray-300 rounded w-full' />
+              <div className='h-4 bg-gray-300 rounded w-3/4' />
+            </div>
           </div>
         </div>
+
+        {/* 콘텐츠 카드들 스켈레톤 */}
+        <div className='mt-6 space-y-6'>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
+              <div className='h-5 w-24 bg-gray-200 rounded mb-4' />
+              <div className='space-y-2'>
+                <div className='h-4 bg-gray-200 rounded w-full' />
+                <div className='h-4 bg-gray-200 rounded w-5/6' />
+                <div className='h-4 bg-gray-200 rounded w-4/5' />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    );
+    </div>
+  );
+
+  // 클라이언트 마운트 전까지는 로딩 표시 (hydration mismatch 방지)
+  if (!mounted || !isInitialized) {
+    return <FullPageSkeleton />;
   }
 
+
+  // 데이터 로딩 중일 때 전체 스켈레톤 표시
+  if (loading) {
+    return <FullPageSkeleton />;
+  }
 
   // 30초 광고 대기 화면
   if (showAdScreen && !loading && data) {
@@ -486,17 +541,12 @@ export default function GoongHapDetailPage() {
           <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900'>Goong-Hap</h1>
         </div>
 
-        {loading && (
-          <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm text-gray-600'>
-            {t('common.loading') || '불러오는 중...'}
-          </div>
-        )}
-        {(!loading && error) && (
+        {error && (
           <div className='rounded-xl border border-red-200 p-6 bg-red-50 shadow-sm text-red-700'>
             {t('goonghap_snackbar_error') || '오류가 발생했습니다.'}
           </div>
         )}
-        {!loading && !error && data?.status === 'pending' && (
+        {!error && data?.status === 'pending' && (
           <div className='rounded-xl border border-amber-200 p-6 bg-amber-50 shadow-sm text-amber-800 mb-4'>
             처리 중입니다. 잠시만 기다려 주세요...
             <div className='mt-4'>
@@ -506,12 +556,12 @@ export default function GoongHapDetailPage() {
             </div>
           </div>
         )}
-        {!loading && !error && data?.status === 'pending' && invokeStatus && (
+        {!error && data?.status === 'pending' && invokeStatus && (
           <div className={`rounded-xl p-4 mb-4 shadow-sm ${invokeStatus.ok ? 'border border-emerald-200 bg-emerald-50 text-emerald-800' : 'border border-amber-200 bg-amber-50 text-amber-800'}`}>
             {invokeStatus.ok ? '처리 요청 전달 완료' : `처리 요청 중 문제가 발생했습니다: ${invokeStatus.message || ''}`}
           </div>
         )}
-        {!loading && !error && data && (
+        {!error && data && (
           <div className='space-y-6'>
             {/* 펜시 헤더: 사용자/아티스트 아바타 + 점수 */}
             <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/90 via-secondary/80 to-rose-500/80 text-white shadow-md'>
