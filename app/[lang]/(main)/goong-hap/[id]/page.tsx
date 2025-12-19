@@ -25,7 +25,6 @@ export default function GoongHapDetailPage() {
   const langParam = Array.isArray(params?.lang) ? params?.lang[0] : (params?.lang as string);
   const { tDynamic: t } = useTranslations();
   const { userProfile, isInitialized } = useAuth();
-  const isAdmin = userProfile?.is_admin === true;
 
   // 클라이언트 마운트 상태 (hydration mismatch 방지)
   const [mounted, setMounted] = useState(false);
@@ -424,17 +423,6 @@ export default function GoongHapDetailPage() {
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <div className='px-4 py-6 sm:py-10'>
-        <div className='max-w-2xl mx-auto'>
-          <div className='rounded-xl border border-amber-200 p-6 bg-amber-50 text-amber-800'>
-            관리자 전용 메뉴입니다.
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // 30초 광고 대기 화면
   if (showAdScreen && !loading && data) {

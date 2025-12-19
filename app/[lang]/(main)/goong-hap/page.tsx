@@ -56,8 +56,7 @@ function localeToDbLanguage(locale: string): string {
 export default function GoongHapPage() {
   const { tDynamic: t } = useTranslations();
   const { getLocalizedPath, currentLocale } = useLocaleRouter();
-  const { userProfile, isInitialized } = useAuth();
-  const isAdmin = userProfile?.is_admin === true;
+  const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showIntroPopup, setShowIntroPopup] = useState(false);
@@ -155,8 +154,6 @@ export default function GoongHapPage() {
 
   const hasResults = useMemo(() => (results?.length || 0) > 0, [results]);
 
-  // 관리자 전용 체크 (클라이언트에서만)
-  const showAdminOnlyMessage = isInitialized && !isAdmin;
 
   return (
     <>
@@ -169,16 +166,8 @@ export default function GoongHapPage() {
       <div className='min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50'>
         <div className='px-4 py-6 sm:py-10'>
           <div className='max-w-2xl mx-auto'>
-            {/* 관리자 전용 메시지 */}
-            {showAdminOnlyMessage && (
-              <div className='rounded-xl border border-amber-200 p-6 bg-amber-50 text-amber-800 mb-6'>
-                관리자 전용 메뉴입니다.
-              </div>
-            )}
-
-            {/* 메인 컨텐츠 (관리자만) */}
-            {!showAdminOnlyMessage && (
-              <>
+            {/* 메인 컨텐츠 */}
+            <>
             {/* 헤더 영역 */}
             <div className='mb-8'>
               {/* 제목: 한글 → 중국어 → 영어 순서 */}
@@ -354,7 +343,6 @@ export default function GoongHapPage() {
               </div>
             )}
               </>
-            )}
           </div>
         </div>
       </div>
