@@ -188,15 +188,20 @@ const Header: React.FC = () => {
             )}
             
             <div className='md:hidden h-8 sm:h-10 flex items-center justify-center' ref={mobileMenuRef}>
-              <button onClick={handleMobileMenuClick} className='relative hover:bg-gray-100 rounded-lg transition-colors w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center' aria-label={openMenuLabel} aria-expanded={isMobileMenuOpen}>
-                {isAuthLoading ? (
-                  <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
-                ) : (
-                  isAuthenticated
-                    ? renderProfileIcon()
-                    : <div className="w-full h-full flex items-center justify-center"><Menu className="w-5 h-5 text-gray-600" /></div>
-                )}
-              </button>
+              {/* 비로그인 시 바로 마이페이지로 이동 (데스크탑과 동일) */}
+              {!isAuthLoading && !isAuthenticated ? (
+                <NavigationLink href='/mypage' className='relative hover:bg-gray-100 rounded-lg transition-colors w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center' aria-label={openMenuLabel}>
+                  <div className="w-full h-full flex items-center justify-center"><Menu className="w-5 h-5 text-gray-600" /></div>
+                </NavigationLink>
+              ) : (
+                <button onClick={handleMobileMenuClick} className='relative hover:bg-gray-100 rounded-lg transition-colors w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center' aria-label={openMenuLabel} aria-expanded={isMobileMenuOpen}>
+                  {isAuthLoading ? (
+                    <div className="w-full h-full rounded-lg shimmer-effect bg-gray-200" />
+                  ) : (
+                    renderProfileIcon()
+                  )}
+                </button>
+              )}
               {isMobileMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden animate-dropdown">
                   {isAuthenticated && userProfile && (

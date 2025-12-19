@@ -146,7 +146,7 @@ function CommentItemComponent({
           onClick={() => setShowReplyForm(!showReplyForm)}
           className='text-gray-500 hover:text-gray-700'
         >
-          {t('community.comment.reply')}
+          {t('community.comment.reply', '답글')}
         </button>
 
         <button
@@ -154,7 +154,7 @@ function CommentItemComponent({
           onClick={() => setShowReportModal(true)}
           className='text-gray-400 hover:text-red-500'
         >
-          {t('community.report.button')}
+          {t('community.report.button', '신고')}
         </button>
       </div>
 
@@ -164,7 +164,7 @@ function CommentItemComponent({
           <textarea
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            placeholder={t('community.comment.replyPlaceholder')}
+            placeholder={t('community.comment.replyPlaceholder', '답글을 입력하세요')}
             className='w-full p-2 text-sm border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-pink-400'
             rows={2}
           />
