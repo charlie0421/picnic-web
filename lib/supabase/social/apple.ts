@@ -97,8 +97,10 @@ export async function signInWithAppleImpl(
 
     console.log("✅ 표준 Supabase Apple OAuth 시작");
 
-    // 일관된 리디렉션 URL을 위해 환경 변수 사용
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    // 현재 브라우저 origin 우선 사용 (개발/프로덕션 모두)
+    const baseUrl = typeof window !== "undefined"
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_SITE_URL || "https://www.picnic.fan");
     let redirectTo = `${baseUrl}/auth/callback/apple`;
     // Apple도 등록된 redirect_uri와 일치가 중요하므로 콜백에 쿼리를 붙이지 않는다.
 

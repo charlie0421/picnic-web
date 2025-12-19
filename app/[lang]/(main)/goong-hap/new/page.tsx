@@ -7,6 +7,7 @@ import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import NavigationLink from '@/components/client/NavigationLink';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useAuth } from '@/hooks/useAuth';
+import { LogIn } from 'lucide-react';
 
 export default function NewGoongHapPage() {
   const { tDynamic: t } = useTranslations();
@@ -277,17 +278,31 @@ export default function NewGoongHapPage() {
             </h1>
           </div>
 
+        {/* 비로그인 상태 - 로그인 유도 */}
         {!userId && (
-          <div className='rounded-xl border border-amber-200 p-4 bg-amber-50 text-amber-800 mb-4'>
-            {t('common.auth.login') || '로그인이 필요합니다.'}
-            <div className='mt-2'>
-              <NavigationLink href={getLocalizedPath('/mypage')} className='text-primary underline'>
-                {t('common.auth.login') || '로그인하기'}
-              </NavigationLink>
+          <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg p-8 text-center'>
+            <div className='w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center'>
+              <span className='text-4xl'>💫</span>
             </div>
+            <h3 className='text-gray-900 font-bold text-lg mb-2'>
+              {t('goongHap.loginRequired.title', '로그인이 필요해요')}
+            </h3>
+            <p className='text-gray-600 mb-6'>
+              {t('goongHap.loginRequired.description', '궁합을 확인하려면 로그인해 주세요')}
+            </p>
+            <NavigationLink
+              href={getLocalizedPath('/mypage')}
+              className='inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg'
+            >
+              <LogIn className='w-5 h-5' />
+              {t('common.login', '로그인')}
+            </NavigationLink>
           </div>
         )}
 
+        {/* 로그인 된 경우에만 폼 표시 */}
+        {userId && (
+          <>
         {error && (
           <div className='rounded-xl border border-red-200 p-4 bg-red-50 text-red-700 mb-4'>{error}</div>
         )}
@@ -440,6 +455,8 @@ export default function NewGoongHapPage() {
             </button>
           </div>
         </form>
+          </>
+        )}
         </div>
       </div>
   );

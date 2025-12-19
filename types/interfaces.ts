@@ -10,10 +10,7 @@ export type Json =
 
 export type BoardStatus = "pending" | "approved" | "rejected";
 
-export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "OPEN_GOONGHAP" | "MISSION";
-
-/** @deprecated Use GoonghapStatus instead */
-export type CompatibilityStatus = "pending" | "completed" | "error";
+export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION";
 
 export type GoonghapStatus = "pending" | "completed" | "error";
 
@@ -485,95 +482,6 @@ export interface Comments {
   user_id: string | null
 }
 
-/** @deprecated Use GoonghapResults instead */
-export interface CompatibilityResults {
-  artist_id: number
-  completed_at: string | null
-  created_at: string
-  details: Json | null
-  error_message: string | null
-  gender: UserGenderEnum | null
-  id: string
-  idol_birth_date: string
-  is_ads: boolean | null
-  is_paid: boolean
-  paid_at: string | null
-  score: number | null
-  status: CompatibilityStatus
-  tips: Json | null
-  user_birth_date: string
-  user_birth_time: string | null
-  user_id: string
-}
-
-export interface GoonghapResults {
-  artist_id: number
-  completed_at: string | null
-  created_at: string
-  details: Json | null
-  error_message: string | null
-  gender: UserGenderEnum | null
-  id: string
-  idol_birth_date: string
-  is_ads: boolean | null
-  is_paid: boolean
-  paid_at: string | null
-  score: number | null
-  status: GoonghapStatus
-  tips: Json | null
-  user_birth_date: string
-  user_birth_time: string | null
-  user_id: string
-}
-
-/** @deprecated Use GoonghapResultsI18n instead */
-export interface CompatibilityResultsI18n {
-  compatibility_id: string
-  compatibility_summary: string | null
-  created_at: string
-  details: Json | null
-  id: string
-  language: string
-  score: number | null
-  score_title: string | null
-  tips: Json | null
-  updated_at: string
-}
-
-export interface GoonghapResultsI18n {
-  goonghap_id: string
-  goonghap_summary: string | null
-  created_at: string
-  details: Json | null
-  id: string
-  language: string
-  score: number | null
-  score_title: string | null
-  tips: Json | null
-  updated_at: string
-}
-
-/** @deprecated Use GoonghapScoreDescriptions instead */
-export interface CompatibilityScoreDescriptions {
-  score: number
-  summary_ja: string
-  summary_ko: string
-  summary_zh: string
-  title_ja: string | null
-  title_ko: string | null
-  title_zh: string | null
-}
-
-export interface GoonghapScoreDescriptions {
-  score: number
-  summary_ja: string
-  summary_ko: string
-  summary_zh: string
-  title_ja: string | null
-  title_ko: string | null
-  title_zh: string | null
-}
-
 export interface Config {
   created_at: string | null
   id: string | null
@@ -747,6 +655,49 @@ export interface GalleryUser {
   user_id: number
 }
 
+export interface GoonghapResults {
+  artist_id: number
+  completed_at: string | null
+  created_at: string
+  details: Json | null
+  error_message: string | null
+  gender: UserGenderEnum | null
+  id: string
+  idol_birth_date: string
+  is_ads: boolean | null
+  is_paid: boolean
+  paid_at: string | null
+  score: number | null
+  status: GoonghapStatus
+  tips: Json | null
+  user_birth_date: string
+  user_birth_time: string | null
+  user_id: string
+}
+
+export interface GoonghapResultsI18n {
+  created_at: string
+  details: Json | null
+  goonghap_id: string
+  goonghap_summary: string | null
+  id: string
+  language: string
+  score: number | null
+  score_title: string | null
+  tips: Json | null
+  updated_at: string
+}
+
+export interface GoonghapScoreDescriptions {
+  score: number
+  summary_ja: string
+  summary_ko: string
+  summary_zh: string
+  title_ja: string | null
+  title_ko: string | null
+  title_zh: string | null
+}
+
 export interface IpCountryMapping {
   country_code: string
   id: number
@@ -875,6 +826,7 @@ export interface PocapopCommunityComments {
   content: string
   created_at: string
   id: string
+  parent_comment_id: string | null
   post_id: string
   updated_at: string
   user_id: string
@@ -954,6 +906,26 @@ export interface PocapopMarketFrames {
   tags: string[] | null
   title: string
   updated_at: string
+}
+
+export interface PocapopReports {
+  comment_id: string | null
+  created_at: string | null
+  id: string
+  post_id: string | null
+  reason: string | null
+  report_type: string
+  reported_user_id: string | null
+  reporter_id: string
+  status: string | null
+  updated_at: string | null
+}
+
+export interface PocapopUserBlocks {
+  blocked_id: string
+  blocker_id: string
+  created_at: string | null
+  id: string
 }
 
 export interface PocapopUserFrames {
@@ -1630,6 +1602,49 @@ export interface AuditLogStats {
   severity: string | null
   success: boolean | null
   unique_users: number | null
+}
+
+export interface CompatibilityResults {
+  artist_id: number | null
+  completed_at: string | null
+  created_at: string | null
+  details: Json | null
+  error_message: string | null
+  gender: UserGenderEnum | null
+  id: string | null
+  idol_birth_date: string | null
+  is_ads: boolean | null
+  is_paid: boolean | null
+  paid_at: string | null
+  score: number | null
+  status: GoonghapStatus | null
+  tips: Json | null
+  user_birth_date: string | null
+  user_birth_time: string | null
+  user_id: string | null
+}
+
+export interface CompatibilityResultsI18n {
+  compatibility_id: string | null
+  compatibility_summary: string | null
+  created_at: string | null
+  details: Json | null
+  id: string | null
+  language: string | null
+  score: number | null
+  score_title: string | null
+  tips: Json | null
+  updated_at: string | null
+}
+
+export interface CompatibilityScoreDescriptions {
+  score: number | null
+  summary_ja: string | null
+  summary_ko: string | null
+  summary_zh: string | null
+  title_ja: string | null
+  title_ko: string | null
+  title_zh: string | null
 }
 
 export interface SecurityEventsSummary {

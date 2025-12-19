@@ -12,9 +12,18 @@ import { createServerClient } from '@supabase/ssr';
 
 export async function POST(request: NextRequest) {
   try {
-    // 현재 호스트 기반 리다이렉트 응답 생성 (브라우저가 쿠키 반영을 더 확실히 처리)
     const url = new URL(request.url);
-    const response = NextResponse.redirect(`${url.origin}/`, 303);
+
+    // fetch API로 호출된 경우 JSON 응답, 브라우저 직접 접근시 리다이렉트
+    const acceptHeader = request.headers.get('accept') || '';
+    const isFetchRequest = acceptHeader.includes('application/json') ||
+                           request.headers.get('x-requested-with') === 'XMLHttpRequest' ||
+                           acceptHeader.includes('*/*');
+
+    // fetch 요청이면 JSON 응답 준비, 아니면 리다이렉트 응답
+    const response = isFetchRequest
+      ? NextResponse.json({ success: true, message: 'Logged out successfully' })
+      : NextResponse.redirect(`${url.origin}/`, 303);
 
     const cookieStore = await cookies();
     const supabase = createServerClient(

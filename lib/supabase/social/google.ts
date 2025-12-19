@@ -55,24 +55,19 @@ export async function signInWithGoogleImpl(
     const config = getGoogleConfig();
     console.log("🔍 Google 설정 로드 완료:", config);
 
-    // 리다이렉트 URL 결정 (환경변수 우선 사용)
+    // 리다이렉트 URL 결정 (현재 브라우저 origin 우선 사용)
     let redirectUrl = options?.redirectUrl;
     if (!redirectUrl) {
-      // 개발 환경에서는 환경변수 또는 localhost 사용
-      if (process.env.NODE_ENV === "development") {
+      // 브라우저 환경에서는 현재 origin 사용 (개발/프로덕션 모두)
+      if (typeof window !== "undefined") {
+        redirectUrl = `${window.location.origin}/auth/callback/google`;
+      } else {
+        // SSR 환경 폴백
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
         if (siteUrl) {
           redirectUrl = `${siteUrl}/auth/callback/google`;
-        } else if (typeof window !== "undefined") {
-          // 환경변수가 없으면 현재 origin 사용
-          redirectUrl = `${window.location.origin}/auth/callback/google`;
-        } else {
+        } else if (process.env.NODE_ENV === "development") {
           redirectUrl = "http://localhost:3100/auth/callback/google";
-        }
-      } else {
-        // 프로덕션 환경
-        if (typeof window !== "undefined") {
-          redirectUrl = `${window.location.origin}/auth/callback/google`;
         } else {
           redirectUrl = "https://www.picnic.fan/auth/callback/google";
         }

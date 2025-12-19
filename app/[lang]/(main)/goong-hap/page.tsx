@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import GoongHapIntroPopup from './GoongHapIntroPopup';
 import { ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { LogIn } from 'lucide-react';
 
 type GoonghapStatus = 'pending' | 'completed' | 'failed';
 
@@ -56,7 +57,7 @@ function localeToDbLanguage(locale: string): string {
 export default function GoongHapPage() {
   const { tDynamic: t } = useTranslations();
   const { getLocalizedPath, currentLocale } = useLocaleRouter();
-  const { userProfile } = useAuth();
+  const { userProfile, isAuthenticated, isLoading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showIntroPopup, setShowIntroPopup] = useState(false);
@@ -69,8 +70,8 @@ export default function GoongHapPage() {
     (async () => {
       try {
         const supabase = createBrowserSupabaseClient();
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
+        const { data: { user } } = await supabase.auth.getUser();
+        // 비로그인 시 에러 없이 빈 결과로 처리
         if (!user) {
           setResults([]);
           setLoading(false);
@@ -321,8 +322,30 @@ export default function GoongHapPage() {
               </div>
             )}
 
-            {/* 빈 상태 */}
-            {!loading && !error && !hasResults && (
+            {/* 비로그인 상태 - 로그인 유도 */}
+            {!loading && !authLoading && !isAuthenticated && (
+              <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg p-8 text-center'>
+                <div className='w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center'>
+                  <span className='text-4xl'>💫</span>
+                </div>
+                <h3 className='text-gray-900 font-bold text-lg mb-2'>
+                  {t('goongHap.loginRequired.title', '로그인이 필요해요')}
+                </h3>
+                <p className='text-gray-600 mb-6'>
+                  {t('goongHap.loginRequired.description', '궁합을 확인하려면 로그인해 주세요')}
+                </p>
+                <NavigationLink
+                  href={getLocalizedPath('/mypage')}
+                  className='inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg'
+                >
+                  <LogIn className='w-5 h-5' />
+                  {t('common.login', '로그인')}
+                </NavigationLink>
+              </div>
+            )}
+
+            {/* 빈 상태 (로그인했지만 결과 없음) */}
+            {!loading && !error && isAuthenticated && !hasResults && (
               <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg p-8 text-center'>
                 <div className='w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center'>
                   <span className='text-4xl'>💫</span>
