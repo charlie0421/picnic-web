@@ -714,6 +714,17 @@ export default function GoongHapDetailPage() {
                     {purchaseError}
                   </div>
                 )}
+
+                {/* 별사탕 부족 시 상점 이동 버튼 */}
+                {userStarCandy !== null && userStarCandy < STAR_CANDY_COST && (
+                  <NavigationLink
+                    href={getLocalizedPath('/star-candy')}
+                    className='flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-xl hover:from-amber-500 hover:to-orange-600 transition-all shadow-md'
+                  >
+                    <span>⭐</span>
+                    <span>{t('goongHap.goToStore') || '상점에서 별사탕 충전하기'}</span>
+                  </NavigationLink>
+                )}
               </div>
 
               {/* 버튼 영역 */}
