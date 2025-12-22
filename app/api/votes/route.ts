@@ -96,9 +96,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 지역 필터
+    // 지역 필터 - areas 배열에 해당 값이 포함되어 있는지 확인
     if (area && area !== VOTE_AREAS.ALL) {
-      query = query.eq('area', area);
+      query = query.contains('areas', [area]);
     }
 
     // 정렬 + 페이지네이션

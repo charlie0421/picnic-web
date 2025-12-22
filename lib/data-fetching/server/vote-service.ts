@@ -189,8 +189,8 @@ function buildVoteQuery(
       // PIC-CHART: vote_category가 'image' 또는 'weekly'인 것
       query = query.in("vote_category", ['image', 'weekly']);
     } else {
-      // K-POP, K-MUSICAL: area 컬럼으로 필터링
-      query = query.eq("area", area);
+      // K-POP, K-MUSICAL: areas 배열에 해당 값이 포함되어 있는지 확인
+      query = query.contains("areas", [area]);
     }
   }
 
