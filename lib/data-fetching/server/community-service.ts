@@ -149,7 +149,10 @@ export async function getCommunityPost(postId: string): Promise<CommunityPostDet
   }
 
   const isDeleted = !!data.deleted_at
-  const userProfile = data.user_profiles as { nickname: string | null; avatar_url: string | null } | null
+  const userProfileData = data.user_profiles as unknown
+  const userProfile = Array.isArray(userProfileData)
+    ? (userProfileData[0] as { nickname: string | null; avatar_url: string | null } | undefined) ?? null
+    : (userProfileData as { nickname: string | null; avatar_url: string | null } | null)
 
   // 좋아요 카운트 및 내 좋아요 여부
   let likeCount: number | undefined = undefined

@@ -10,7 +10,7 @@ export type Json =
 
 export type BoardStatus = "pending" | "approved" | "rejected";
 
-export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION";
+export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION" | "OPEN_GOONGHAP";
 
 export type GoonghapStatus = "pending" | "completed" | "error";
 
@@ -1210,6 +1210,7 @@ export interface StarCandyHistory {
   deleted_at: string | null
   id: number
   parent_id: number | null
+  reference_id: string | null
   transaction_id: string | null
   type: CandyHistoryType | null
   updated_at: string
@@ -1438,6 +1439,7 @@ export interface Version {
 
 export interface Vote {
   area: string
+  areas: string[] | null
   created_at: string
   deleted_at: string | null
   id: number

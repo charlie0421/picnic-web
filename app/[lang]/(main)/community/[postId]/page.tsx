@@ -131,7 +131,7 @@ export default async function CommunityPostDetailPage({
             </div>
           )}
           <span className='font-medium'>
-            {post.isAnonymous ? t('community.post.anonymous', '익명') : (post.author?.nickname || t('community.post.unknownUser', '사용자'))}
+            {post.isAnonymous ? t('community.post.anonymous') : (post.author?.nickname || t('community.post.unknownUser'))}
           </span>
           <span>·</span>
           <span>{new Date(post.createdAt).toLocaleDateString()}</span>

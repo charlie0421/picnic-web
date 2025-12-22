@@ -4492,6 +4492,7 @@ export type Database = {
           deleted_at: string | null
           id: number
           parent_id: number | null
+          reference_id: string | null
           transaction_id: string | null
           type: Database["public"]["Enums"]["candy_history_type"] | null
           updated_at: string
@@ -4504,6 +4505,7 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           parent_id?: number | null
+          reference_id?: string | null
           transaction_id?: string | null
           type?: Database["public"]["Enums"]["candy_history_type"] | null
           updated_at?: string
@@ -4516,6 +4518,7 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           parent_id?: number | null
+          reference_id?: string | null
           transaction_id?: string | null
           type?: Database["public"]["Enums"]["candy_history_type"] | null
           updated_at?: string
@@ -5230,6 +5233,7 @@ export type Database = {
       vote: {
         Row: {
           area: string
+          areas: string[] | null
           created_at: string
           deleted_at: string | null
           id: number
@@ -5253,6 +5257,7 @@ export type Database = {
         }
         Insert: {
           area: string
+          areas?: string[] | null
           created_at?: string
           deleted_at?: string | null
           id?: number
@@ -5276,6 +5281,7 @@ export type Database = {
         }
         Update: {
           area?: string
+          areas?: string[] | null
           created_at?: string
           deleted_at?: string | null
           id?: number
@@ -6795,6 +6801,7 @@ export type Database = {
         | "VOTE_SHARE_BONUS"
         | "OPEN_COMPATIBILITY"
         | "MISSION"
+        | "OPEN_GOONGHAP"
       goonghap_status: "pending" | "completed" | "error"
       platform_enum: "iOS" | "Android" | "Both"
       policy_language_enum: "ko" | "en"
@@ -6977,6 +6984,7 @@ export const Constants = {
         "VOTE_SHARE_BONUS",
         "OPEN_COMPATIBILITY",
         "MISSION",
+        "OPEN_GOONGHAP",
       ],
       goonghap_status: ["pending", "completed", "error"],
       platform_enum: ["iOS", "Android", "Both"],
