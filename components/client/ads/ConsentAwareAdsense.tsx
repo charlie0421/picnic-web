@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import Script from 'next/script';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 interface ConsentAwareAdsenseProps {
   clientId: string;
@@ -11,6 +10,7 @@ interface ConsentAwareAdsenseProps {
 
 const CONSENT_STORAGE_KEY = 'picnic-cookie-consent';
 const CONSENT_UPDATED_EVENT = 'picnic-consent-updated';
+const ADSENSE_SCRIPT_ID = 'adsense-script';
 
 /**
  * 사용자 동의 여부에 따라 AdSense 스크립트를 지연 로드합니다.
@@ -40,6 +40,7 @@ export function ConsentAwareAdsense({
 }: ConsentAwareAdsenseProps) {
   const [canLoadAds, setCanLoadAds] = useState(false);
   const [isIdleReady, setIsIdleReady] = useState(() => !delayUntilIdle);
+  const scriptLoaded = useRef(false);
 
   const resolveConsent = useCallback(() => {
     try {
@@ -86,19 +87,29 @@ export function ConsentAwareAdsense({
     return dispose;
   }, [delayUntilIdle, idleTimeout, isIdleReady]);
 
-  if (!canLoadAds || (delayUntilIdle && !isIdleReady)) {
-    return null;
-  }
+  // 동적으로 AdSense 스크립트 삽입 (data-nscript 속성 문제 회피)
+  useEffect(() => {
+    if (!canLoadAds || (delayUntilIdle && !isIdleReady) || scriptLoaded.current) {
+      return;
+    }
 
-  return (
-    <Script
-      id='adsense-script'
-      strategy='lazyOnload'
-      async
-      src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`}
-      crossOrigin='anonymous'
-    />
-  );
+    // 이미 스크립트가 존재하는지 확인
+    if (document.getElementById(ADSENSE_SCRIPT_ID)) {
+      scriptLoaded.current = true;
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = ADSENSE_SCRIPT_ID;
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`;
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+
+    document.head.appendChild(script);
+    scriptLoaded.current = true;
+  }, [canLoadAds, delayUntilIdle, isIdleReady, clientId]);
+
+  return null;
 }
 
 export default ConsentAwareAdsense;
