@@ -531,8 +531,8 @@ export default function NewGoongHapPage() {
                   placeholderText={t('goonghap_birthday_placeholder', '생년월일 선택')}
                   className='w-full border-2 border-pink-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all bg-white/50'
                   wrapperClassName='w-full'
-                  popperClassName='!z-[9999]'
-                  popperPlacement='bottom-start'
+                  withPortal
+                  portalId='datepicker-portal'
                 />
               </div>
 
@@ -678,6 +678,8 @@ export default function NewGoongHapPage() {
         )}
         </div>
       </div>
+      {/* DatePicker 포털 컨테이너 */}
+      <div id='datepicker-portal' />
     </div>
   );
 }
