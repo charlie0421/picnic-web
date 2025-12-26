@@ -511,6 +511,7 @@ export default function NewGoongHapPage() {
                 </label>
                 <input
                   type='date'
+                  lang={currentLocale}
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
                   className='w-full border-2 border-pink-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all bg-white/50'
