@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/hooks/useTranslations';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -13,6 +14,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { ko, ja, zhCN, zhTW, vi, th, id, es, bn, enUS } from 'date-fns/locale';
 
 export default function NewGoongHapPage() {
+  const router = useRouter();
   const { tDynamic: t } = useTranslations();
   const { getLocalizedPath, currentLocale } = useLocaleRouter();
 
@@ -299,17 +301,16 @@ export default function NewGoongHapPage() {
         <div className='max-w-2xl mx-auto'>
           {/* 헤더 영역 */}
           <div className='mb-8'>
-            {/* 뒤로 가기 버튼 */}
-            <NavigationLink
-              href={getLocalizedPath('/goong-hap')}
-              className='inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 mb-4 transition-colors'
-            >
-              <ChevronLeft className='w-5 h-5' />
-              <span className='text-sm font-medium'>{t('common_back', '뒤로')}</span>
-            </NavigationLink>
-
-            {/* 제목: 한글 → 중국어 → 영어 (브랜드 아이덴티티로 고정) */}
+            {/* 뒤로 가기 버튼 + 제목 */}
             <div className='flex items-center gap-4 mb-4'>
+              <button
+                type='button'
+                onClick={() => router.back()}
+                className='inline-flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors'
+                aria-label={t('common_back', '뒤로가기')}
+              >
+                <ChevronLeft className='w-5 h-5' />
+              </button>
               <h1 className='text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
                 궁합
               </h1>

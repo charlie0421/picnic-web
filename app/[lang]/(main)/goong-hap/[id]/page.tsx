@@ -544,7 +544,7 @@ export default function GoongHapDetailPage() {
           <button
             type='button'
             onClick={() => router.back()}
-            className='inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors'
+            className='inline-flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 hover:bg-purple-200 text-purple-600 transition-colors'
             aria-label={t('common.back') || '뒤로가기'}
           >
             <svg xmlns='http://www.w3.org/2000/svg' className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
