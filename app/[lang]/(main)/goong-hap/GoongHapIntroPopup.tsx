@@ -89,6 +89,42 @@ const GoongHapIntroPopup: React.FC<GoongHapIntroPopupProps> = ({
             </div>
           </div>
 
+          {/* 십이지신 설명 */}
+          <div className='flex items-start gap-3'>
+            <div className='flex-shrink-0 w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-lg'>
+              🐲
+            </div>
+            <div className='min-w-0'>
+              <h3 className='font-bold text-gray-900 text-sm'>
+                {t('goongHap.zodiac.title', '십이지신과 시간')}
+              </h3>
+              <p className='text-gray-600 text-xs leading-relaxed mt-0.5'>
+                {t('goongHap.zodiac.description', '궁합에서는 태어난 시간도 중요해요! 한국에서는 12가지 동물로 시간을 나누는 전통이 있어요.')}
+              </p>
+            </div>
+          </div>
+
+          {/* 12지간 동물 리스트 */}
+          <div className='bg-amber-50 rounded-lg p-3'>
+            <p className='text-gray-700 text-[10px] font-medium mb-2 text-center'>
+              {t('goongHap.zodiac.subtitle', '태어난 시간에 따른 12가지 동물띠')}
+            </p>
+            <div className='grid grid-cols-2 gap-1 text-[9px] text-gray-600'>
+              <span>{t('goongHap.zodiac.animals.rat', '🐭 자시 (쥐) 23:00~01:00')}</span>
+              <span>{t('goongHap.zodiac.animals.ox', '🐮 축시 (소) 01:00~03:00')}</span>
+              <span>{t('goongHap.zodiac.animals.tiger', '🐯 인시 (호랑이) 03:00~05:00')}</span>
+              <span>{t('goongHap.zodiac.animals.rabbit', '🐰 묘시 (토끼) 05:00~07:00')}</span>
+              <span>{t('goongHap.zodiac.animals.dragon', '🐲 진시 (용) 07:00~09:00')}</span>
+              <span>{t('goongHap.zodiac.animals.snake', '🐍 사시 (뱀) 09:00~11:00')}</span>
+              <span>{t('goongHap.zodiac.animals.horse', '🐴 오시 (말) 11:00~13:00')}</span>
+              <span>{t('goongHap.zodiac.animals.sheep', '🐑 미시 (양) 13:00~15:00')}</span>
+              <span>{t('goongHap.zodiac.animals.monkey', '🐒 신시 (원숭이) 15:00~17:00')}</span>
+              <span>{t('goongHap.zodiac.animals.rooster', '🐔 유시 (닭) 17:00~19:00')}</span>
+              <span>{t('goongHap.zodiac.animals.dog', '🐶 술시 (개) 19:00~21:00')}</span>
+              <span>{t('goongHap.zodiac.animals.pig', '🐷 해시 (돼지) 21:00~23:00')}</span>
+            </div>
+          </div>
+
           {/* 참고 안내 */}
           <div className='bg-gray-50 rounded-lg p-3'>
             <p className='text-gray-500 text-[11px] text-center leading-relaxed'>

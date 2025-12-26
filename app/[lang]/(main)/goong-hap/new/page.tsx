@@ -7,11 +7,19 @@ import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import NavigationLink from '@/components/client/NavigationLink';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useAuth } from '@/hooks/useAuth';
-import { LogIn } from 'lucide-react';
+import { LogIn, ChevronLeft } from 'lucide-react';
 
 export default function NewGoongHapPage() {
   const { tDynamic: t } = useTranslations();
-  const { getLocalizedPath } = useLocaleRouter();
+  const { getLocalizedPath, currentLocale } = useLocaleRouter();
+
+  // 아티스트 이름을 현재 로케일 우선, en fallback으로 가져오는 헬퍼 함수
+  const getArtistName = (name: any): string => {
+    if (typeof name === 'string') return name;
+    if (!name) return '';
+    // 현재 로케일 → en → ko 순서로 fallback
+    return name[currentLocale] || name['en'] || name['ko'] || '';
+  };
   const { userProfile, isInitialized } = useAuth();
 
   // 클라이언트 마운트 상태 (hydration mismatch 방지)
@@ -32,21 +40,30 @@ export default function NewGoongHapPage() {
   const searchTimer = useRef<number | null>(null);
   const [edgeInvokeInfo, setEdgeInvokeInfo] = useState<{ ok: boolean; message?: string } | null>(null);
 
-  // 동물시(十二支) 매핑
-  const ANIMAL_TIME_SLOTS: Array<{ key: string; label: string; range: [number, number] }> = [
-    { key: '1',  label: '🐭 자시 (쥐) 23:00~01:00', range: [23, 1] },
-    { key: '2',  label: '🐮 축시 (소) 01:00~03:00', range: [1, 3] },
-    { key: '3',  label: '🐯 인시 (호랑이) 03:00~05:00', range: [3, 5] },
-    { key: '4',  label: '🐰 묘시 (토끼) 05:00~07:00', range: [5, 7] },
-    { key: '5',  label: '🐲 진시 (용) 07:00~09:00', range: [7, 9] },
-    { key: '6',  label: '🐍 사시 (뱀) 09:00~11:00', range: [9, 11] },
-    { key: '7',  label: '🐴 오시 (말) 11:00~13:00', range: [11, 13] },
-    { key: '8',  label: '🐑 미시 (양) 13:00~15:00', range: [13, 15] },
-    { key: '9',  label: '🐒 신시 (원숭이) 15:00~17:00', range: [15, 17] },
-    { key: '10', label: '🐔 유시 (닭) 17:00~19:00', range: [17, 19] },
-    { key: '11', label: '🐶 술시 (개) 19:00~21:00', range: [19, 21] },
-    { key: '12', label: '🐷 해시 (돼지) 21:00~23:00', range: [21, 23] },
+  // 동물시(十二支) 매핑 - 번역 키 사용
+  const ANIMAL_TIME_SLOTS: Array<{ key: string; translationKey: string }> = [
+    { key: '1',  translationKey: 'goonghap_time_slot1' },
+    { key: '2',  translationKey: 'goonghap_time_slot2' },
+    { key: '3',  translationKey: 'goonghap_time_slot3' },
+    { key: '4',  translationKey: 'goonghap_time_slot4' },
+    { key: '5',  translationKey: 'goonghap_time_slot5' },
+    { key: '6',  translationKey: 'goonghap_time_slot6' },
+    { key: '7',  translationKey: 'goonghap_time_slot7' },
+    { key: '8',  translationKey: 'goonghap_time_slot8' },
+    { key: '9',  translationKey: 'goonghap_time_slot9' },
+    { key: '10', translationKey: 'goonghap_time_slot10' },
+    { key: '11', translationKey: 'goonghap_time_slot11' },
+    { key: '12', translationKey: 'goonghap_time_slot12' },
   ];
+
+  // 번역된 시간 슬롯 파싱 함수: "이름|(시간범위)|이모지" 형식
+  const parseTimeSlot = (translatedValue: string) => {
+    const parts = translatedValue.split('|');
+    const name = parts[0]?.trim() || '';
+    const timeRange = parts[1]?.replace(/[()]/g, '').trim() || '';
+    const emoji = parts[2]?.trim() || '🕐';
+    return { name, timeRange, emoji };
+  };
 
   const legacyAnimalKeyToCode: Record<string, string> = {
     ja: '1', chuk: '2', in: '3', myo: '4', jin: '5', sa: '6', o: '7', mi: '8', sin: '9', yu: '10', sul: '11', ha: '12'
@@ -207,7 +224,7 @@ export default function NewGoongHapPage() {
       }
 
       if (!idolBirthDateIso) {
-        throw new Error('선택한 아티스트의 생일 정보를 찾을 수 없습니다. 다른 아티스트를 선택해 주세요.');
+        throw new Error(t('goonghap_error_no_artist_birthday', '선택한 아티스트의 생일 정보를 찾을 수 없습니다. 다른 아티스트를 선택해 주세요.'));
       }
 
       const payload: any = {
@@ -270,12 +287,33 @@ export default function NewGoongHapPage() {
 
 
   return (
+    <div className='min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50'>
       <div className='px-4 py-6 sm:py-10'>
         <div className='max-w-2xl mx-auto'>
-          <div className='mb-4'>
-            <h1 className='text-2xl sm:text-3xl font-extrabold text-gray-900'>
-              {t('goonghap_new_compatibility') || '새 Goong-Hap 계산'}
-            </h1>
+          {/* 헤더 영역 */}
+          <div className='mb-8'>
+            {/* 뒤로 가기 버튼 */}
+            <NavigationLink
+              href={getLocalizedPath('/goong-hap')}
+              className='inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 mb-4 transition-colors'
+            >
+              <ChevronLeft className='w-5 h-5' />
+              <span className='text-sm font-medium'>{t('common_back', '뒤로')}</span>
+            </NavigationLink>
+
+            {/* 제목: 한글 → 중국어 → 영어 (브랜드 아이덴티티로 고정) */}
+            <div className='flex items-center gap-4 mb-4'>
+              <h1 className='text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
+                궁합
+              </h1>
+              <div className='flex flex-col'>
+                <span className='text-xl font-bold text-gray-600'>宮合</span>
+                <span className='text-sm text-gray-400'>Goong-Hap</span>
+              </div>
+            </div>
+            <p className='text-gray-600'>
+              {t('goonghap_new_compatibility_ask', '새로운 Goong-Hap을 확인해 보세요')}
+            </p>
           </div>
 
         {/* 비로그인 상태 - 로그인 유도 */}
@@ -308,150 +346,312 @@ export default function NewGoongHapPage() {
         )}
         {edgeInvokeInfo && (
           <div className={`rounded-xl p-4 mb-4 shadow-sm ${edgeInvokeInfo.ok ? 'border border-emerald-200 bg-emerald-50 text-emerald-800' : 'border border-amber-200 bg-amber-50 text-amber-800'}`}>
-            {edgeInvokeInfo.ok ? '처리 요청을 정상적으로 전달했습니다.' : `처리 요청 중 문제가 발생했습니다: ${edgeInvokeInfo.message || ''}`}
+            {edgeInvokeInfo.ok ? t('goonghap_request_success', '처리 요청을 정상적으로 전달했습니다.') : `${t('goonghap_request_error', '처리 요청 중 문제가 발생했습니다')}: ${edgeInvokeInfo.message || ''}`}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm text-gray-700 space-y-6'>
-          {/* 아이돌 검색 */}
-          <div>
-            <label className='block text-sm font-medium text-gray-700 mb-1'>아이돌</label>
-            <div className='flex gap-2'>
-              <input
-                type='text'
-                value={artistQuery}
-                onChange={(e) => setArtistQuery(e.target.value)}
-                className='flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary'
-                placeholder='이름으로 검색(실시간)'
-              />
+        <form onSubmit={handleSubmit} className='space-y-6'>
+          {/* 아이돌 검색 섹션 */}
+          <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg overflow-hidden'>
+            {/* 섹션 헤더 */}
+            <div className='bg-gradient-to-r from-purple-500 to-pink-500 px-5 py-3'>
+              <div className='flex items-center gap-2'>
+                <span className='text-lg'>🎤</span>
+                <h2 className='text-white font-bold'>{t('goonghap_select_artist', '아티스트 선택')}</h2>
+              </div>
             </div>
-            {myArtists.length > 0 && (
-              <div className='mt-3'>
-                <p className='text-xs text-gray-500 mb-2'>나의 아티스트</p>
-                <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-                  {myArtists.map((a) => (
-                    <label key={a.id} className='flex items-center gap-3 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50'>
-                      <input
-                        type='radio'
-                        name='artist'
-                        value={a.id}
-                        checked={selectedArtistId === a.id}
-                        onChange={() => setSelectedArtistId(a.id)}
-                      />
-                      <div className='w-8 h-8 rounded-full overflow-hidden flex-shrink-0'>
-                        {a.image ? (
+
+            <div className='p-5'>
+              {/* 검색 입력 */}
+              <div className='relative'>
+                <input
+                  type='text'
+                  value={artistQuery}
+                  onChange={(e) => setArtistQuery(e.target.value)}
+                  className='w-full border-2 border-purple-200 rounded-xl px-4 py-3 pl-10 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all bg-white/50'
+                  placeholder={t('goonghap_search_artist', '아티스트 이름으로 검색')}
+                />
+                <span className='absolute left-3 top-1/2 -translate-y-1/2 text-purple-400'>🔍</span>
+              </div>
+
+              {/* 선택된 아티스트 표시 */}
+              {selectedArtistId && (() => {
+                const selectedArtist = [...myArtists, ...artistResults].find(a => a.id === selectedArtistId);
+                if (!selectedArtist) return null;
+                const name = getArtistName(selectedArtist.name);
+                return (
+                  <div className='mt-4 p-4 rounded-xl bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-300'>
+                    <p className='text-xs text-purple-600 font-medium mb-2'>{t('goonghap_selected', '선택됨')}</p>
+                    <div className='flex items-center gap-3'>
+                      <div className='w-12 h-12 rounded-full overflow-hidden ring-2 ring-purple-400 ring-offset-2'>
+                        {selectedArtist.image ? (
                           <OptimizedImage
-                            src={a.image}
-                            alt={typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || '')}
-                            width={32}
-                            height={32}
+                            src={selectedArtist.image}
+                            alt={name}
+                            width={48}
+                            height={48}
                             className='w-full h-full object-cover'
                           />
                         ) : (
-                          <div className='w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs'>
-                            {(typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || '')).charAt(0)}
+                          <div className='w-full h-full bg-gradient-to-br from-purple-200 to-pink-200 flex items-center justify-center text-purple-600 font-bold'>
+                            {name.charAt(0)}
                           </div>
                         )}
                       </div>
-                      <span className='text-sm text-gray-900'>{typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || a.name?.ja || '')}</span>
-                    </label>
-                  ))}
+                      <span className='font-bold text-gray-900'>{name}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 나의 아티스트 */}
+              {myArtists.length > 0 && (
+                <div className='mt-4'>
+                  <p className='text-sm font-medium text-purple-600 mb-3 flex items-center gap-1'>
+                    <span>⭐</span> {t('goonghap_my_artists', '나의 아티스트')}
+                  </p>
+                  <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
+                    {myArtists.map((a) => {
+                      const name = getArtistName(a.name);
+                      const isSelected = selectedArtistId === a.id;
+                      return (
+                        <button
+                          key={a.id}
+                          type='button'
+                          onClick={() => setSelectedArtistId(a.id)}
+                          className={`flex items-center gap-2 p-2 rounded-xl transition-all ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
+                              : 'bg-white hover:bg-purple-50 border border-purple-100 hover:border-purple-300'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ${isSelected ? 'ring-2 ring-white' : ''}`}>
+                            {a.image ? (
+                              <OptimizedImage
+                                src={a.image}
+                                alt={name}
+                                width={32}
+                                height={32}
+                                className='w-full h-full object-cover'
+                              />
+                            ) : (
+                              <div className={`w-full h-full flex items-center justify-center text-xs font-bold ${isSelected ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-600'}`}>
+                                {name.charAt(0)}
+                              </div>
+                            )}
+                          </div>
+                          <span className={`text-xs font-medium truncate ${isSelected ? 'text-white' : 'text-gray-700'}`}>{name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 검색 결과 */}
+              {artistResults.length > 0 && (
+                <div className='mt-4'>
+                  <p className='text-sm font-medium text-gray-500 mb-2'>{t('goonghap_search_results', '검색 결과')}</p>
+                  <div className='max-h-56 overflow-auto rounded-xl border border-purple-100 divide-y divide-purple-50'>
+                    {artistResults.map((a) => {
+                      const name = getArtistName(a.name);
+                      const isSelected = selectedArtistId === a.id;
+                      return (
+                        <button
+                          key={a.id}
+                          type='button'
+                          onClick={() => setSelectedArtistId(a.id)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 transition-all ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-purple-100 to-pink-100'
+                              : 'bg-white hover:bg-purple-50'
+                          }`}
+                        >
+                          <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 ${isSelected ? 'ring-2 ring-purple-400' : ''}`}>
+                            {a.image ? (
+                              <OptimizedImage
+                                src={a.image}
+                                alt={name}
+                                width={40}
+                                height={40}
+                                className='w-full h-full object-cover'
+                              />
+                            ) : (
+                              <div className='w-full h-full bg-gradient-to-br from-purple-200 to-pink-200 flex items-center justify-center text-purple-600 text-sm font-bold'>
+                                {name.charAt(0)}
+                              </div>
+                            )}
+                          </div>
+                          <span className={`text-sm font-medium ${isSelected ? 'text-purple-700' : 'text-gray-900'}`}>{name}</span>
+                          {isSelected && <span className='ml-auto text-purple-500'>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 내 정보 섹션 */}
+          <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg overflow-hidden'>
+            {/* 섹션 헤더 */}
+            <div className='bg-gradient-to-r from-pink-500 to-rose-500 px-5 py-3'>
+              <div className='flex items-center gap-2'>
+                <span className='text-lg'>✨</span>
+                <h2 className='text-white font-bold'>{t('goonghap_my_info', '내 정보')}</h2>
+              </div>
+            </div>
+
+            <div className='p-5 space-y-5'>
+              {/* 생년월일 */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1'>
+                  <span>🎂</span> {t('goonghap_birthday', '내 생일')}
+                </label>
+                <input
+                  type='date'
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  className='w-full border-2 border-pink-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all bg-white/50'
+                />
+              </div>
+
+              {/* 성별 */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1'>
+                  <span>👤</span> {t('goonghap_gender', '성별')}
+                </label>
+                <div className='grid grid-cols-2 gap-3'>
+                  <button
+                    type='button'
+                    onClick={() => setGender('male')}
+                    className={`py-3 px-4 rounded-xl font-medium transition-all ${
+                      gender === 'male'
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md'
+                        : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-300'
+                    }`}
+                  >
+                    <span className='mr-1'>♂</span> {t('goonghap_gender_male', '남성')}
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => setGender('female')}
+                    className={`py-3 px-4 rounded-xl font-medium transition-all ${
+                      gender === 'female'
+                        ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md'
+                        : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-pink-300'
+                    }`}
+                  >
+                    <span className='mr-1'>♀</span> {t('goonghap_gender_female', '여성')}
+                  </button>
                 </div>
               </div>
-            )}
-            {artistResults.length > 0 && (
-              <div className='mt-3 max-h-56 overflow-auto border border-gray-200 rounded-lg divide-y'>
-                {artistResults.map((a) => (
-                  <label key={a.id} className='flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50'>
-                    <input
-                      type='radio'
-                      name='artist'
-                      value={a.id}
-                      checked={selectedArtistId === a.id}
-                      onChange={() => setSelectedArtistId(a.id)}
-                    />
-                    <div className='w-8 h-8 rounded-full overflow-hidden flex-shrink-0'>
-                      {a.image ? (
-                        <OptimizedImage
-                          src={a.image}
-                          alt={typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || '')}
-                          width={32}
-                          height={32}
-                          className='w-full h-full object-cover'
-                        />
-                      ) : (
-                        <div className='w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs'>
-                          {(typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || '')).charAt(0)}
-                        </div>
-                      )}
-                    </div>
-                    <span className='text-sm text-gray-900'>{typeof a.name === 'string' ? a.name : (a.name?.ko || a.name?.en || a.name?.ja || '')}</span>
-                  </label>
-                ))}
+            </div>
+          </div>
+
+          {/* 출생 시간 (동물시) 섹션 */}
+          <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg overflow-hidden'>
+            {/* 섹션 헤더 */}
+            <div className='bg-gradient-to-r from-indigo-500 to-purple-500 px-5 py-3'>
+              <div className='flex items-center gap-2'>
+                <span className='text-lg'>🕐</span>
+                <h2 className='text-white font-bold'>{t('goonghap_birth_time', '출생 시간')}</h2>
+                <span className='text-xs bg-white/20 text-white px-2 py-0.5 rounded-full'>{t('common_optional', '선택')}</span>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* 생년월일 */}
-          <div>
-            <label className='block text-sm font-medium text-gray-700 mb-1'>내 생일</label>
-            <input
-              type='date'
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              className='border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary'
-            />
-          </div>
-
-          {/* 출생 시간 (동물시) */}
-          <div>
-            <label className='block text-sm font-medium text-gray-700 mb-1'>출생 시간 (동물시)</label>
-            <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
-              {ANIMAL_TIME_SLOTS.map((slot) => (
-                <label key={slot.key} className='flex items-center gap-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50'>
-                  <input
-                    type='radio'
-                    name='birth_time_animal'
-                    value={slot.key}
-                    checked={birthTimeAnimal === slot.key}
-                    onChange={() => setBirthTimeAnimal(slot.key)}
-                  />
-                  <span className='text-sm text-gray-900'>{slot.label}</span>
-                </label>
-              ))}
+            <div className='p-5'>
+              <p className='text-sm text-gray-500 mb-4'>{t('goonghap_birth_time_desc', '더 정확한 궁합을 위해 출생 시간을 선택해 주세요')}</p>
+              <div className='grid grid-cols-3 sm:grid-cols-4 gap-2'>
+                {/* 모름 버튼 */}
+                <button
+                  type='button'
+                  onClick={() => setBirthTimeAnimal('')}
+                  className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${
+                    !birthTimeAnimal
+                      ? 'bg-gradient-to-br from-gray-500 to-gray-600 text-white shadow-md scale-105'
+                      : 'bg-white border border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className='text-2xl'>❓</span>
+                  <span className={`text-xs font-medium ${!birthTimeAnimal ? 'text-white' : 'text-gray-700'}`}>{t('goonghap_time_slot_unknown', '모름')}</span>
+                </button>
+                {ANIMAL_TIME_SLOTS.map((slot) => {
+                  const isSelected = birthTimeAnimal === slot.key;
+                  const translatedValue = t(slot.translationKey, '');
+                  const { name, timeRange, emoji } = parseTimeSlot(translatedValue);
+                  return (
+                    <button
+                      key={slot.key}
+                      type='button'
+                      onClick={() => setBirthTimeAnimal(isSelected ? '' : slot.key)}
+                      className={`p-2 sm:p-3 rounded-xl transition-all flex flex-col items-center gap-0.5 ${
+                        isSelected
+                          ? 'bg-gradient-to-br from-indigo-500 to-purple-500 text-white shadow-md scale-105'
+                          : 'bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      <span className='text-xl sm:text-2xl'>{emoji}</span>
+                      <span className={`text-xs font-medium ${isSelected ? 'text-white' : 'text-gray-700'}`}>{name}</span>
+                      <span className={`text-[10px] ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>{timeRange}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {birthTimeAnimal && (() => {
+                const selectedSlot = ANIMAL_TIME_SLOTS.find(s => s.key === birthTimeAnimal);
+                if (!selectedSlot) return null;
+                const translatedValue = t(selectedSlot.translationKey, '');
+                const { name, timeRange, emoji } = parseTimeSlot(translatedValue);
+                return (
+                  <p className='mt-3 text-sm text-purple-600 text-center'>
+                    {emoji} {name} ({timeRange})
+                  </p>
+                );
+              })()}
             </div>
           </div>
 
-          {/* 성별 */}
-          <div>
-            <label className='block text-sm font-medium text-gray-700 mb-1'>성별</label>
-            <div className='flex gap-4'>
-              <label className='inline-flex items-center gap-2'>
-                <input type='radio' name='gender' value='male' checked={gender==='male'} onChange={() => setGender('male')} />
-                남성
-              </label>
-              <label className='inline-flex items-center gap-2'>
-                <input type='radio' name='gender' value='female' checked={gender==='female'} onChange={() => setGender('female')} />
-                여성
-              </label>
-            </div>
-          </div>
-
-          {/* 저장 동의 */}
-          <div>
-            <label className='inline-flex items-center gap-2'>
-              <input type='checkbox' checked={agreeSaveProfile} onChange={(e) => setAgreeSaveProfile(e.target.checked)} />
-              <span className='text-sm text-gray-700'>내 정보(생일/성별) 저장에 동의합니다.</span>
+          {/* 저장 동의 & 제출 */}
+          <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg p-5'>
+            <label className='flex items-center gap-3 cursor-pointer group'>
+              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                agreeSaveProfile
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 border-transparent'
+                  : 'border-gray-300 group-hover:border-purple-400'
+              }`}>
+                {agreeSaveProfile && <span className='text-white text-sm'>✓</span>}
+              </div>
+              <input
+                type='checkbox'
+                checked={agreeSaveProfile}
+                onChange={(e) => setAgreeSaveProfile(e.target.checked)}
+                className='sr-only'
+              />
+              <span className='text-sm text-gray-700'>{t('goonghap_agree_save', '내 정보(생일/성별) 저장에 동의합니다.')}</span>
             </label>
-          </div>
 
-          <div className='pt-2'>
             <button
               type='submit'
               disabled={!canSubmit || submitting}
-              className={`px-5 py-2 rounded-lg text-white ${(!canSubmit || submitting) ? 'bg-gray-400' : 'bg-primary hover:opacity-90'} transition`}
+              className={`mt-5 w-full py-4 rounded-xl font-bold text-lg transition-all ${
+                (!canSubmit || submitting)
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl hover:from-purple-600 hover:to-pink-600 active:scale-[0.98]'
+              }`}
             >
-              {submitting ? '처리 중...' : '궁합 계산 시작'}
+              {submitting ? (
+                <span className='flex items-center justify-center gap-2'>
+                  <span className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin'></span>
+                  {t('common_processing', '처리 중...')}
+                </span>
+              ) : (
+                <span className='flex items-center justify-center gap-2'>
+                  <span>💫</span>
+                  {t('goonghap_calculate', '궁합 계산하기')}
+                </span>
+              )}
             </button>
           </div>
         </form>
@@ -459,6 +659,7 @@ export default function NewGoongHapPage() {
         )}
         </div>
       </div>
+    </div>
   );
 }
 
