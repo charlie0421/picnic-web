@@ -8,6 +8,9 @@ import NavigationLink from '@/components/client/NavigationLink';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useAuth } from '@/hooks/useAuth';
 import { LogIn, ChevronLeft } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { ko, ja, zhCN, zhTW, vi, th, id, es, bn, enUS } from 'date-fns/locale';
 
 export default function NewGoongHapPage() {
   const { tDynamic: t } = useTranslations();
@@ -22,6 +25,12 @@ export default function NewGoongHapPage() {
   };
   const { userProfile, isInitialized } = useAuth();
 
+  // date-fns 로케일 매핑 (지원하지 않는 로케일은 enUS fallback)
+  const dateLocaleMap: Record<string, any> = {
+    ko, ja, 'zh-cn': zhCN, 'zh-tw': zhTW, vi, th, id, es, bn, en: enUS
+  };
+  const dateLocale = dateLocaleMap[currentLocale] || enUS;
+
   // 클라이언트 마운트 상태 (hydration mismatch 방지)
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -30,7 +39,7 @@ export default function NewGoongHapPage() {
   const [artistResults, setArtistResults] = useState<Array<{ id: number; name: any; image?: string | null }>>([]);
   const [myArtists, setMyArtists] = useState<Array<{ id: number; name: any; image?: string | null }>>([]);
   const [selectedArtistId, setSelectedArtistId] = useState<number | null>(null);
-  const [birthDate, setBirthDate] = useState(''); // yyyy-mm-dd
+  const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [birthTimeAnimal, setBirthTimeAnimal] = useState<string>(''); // 동물시 코드: 자시부터 1~12
   const [gender, setGender] = useState<'male' | 'female' | ''>('');
   const [agreeSaveProfile, setAgreeSaveProfile] = useState(false);
@@ -105,26 +114,24 @@ export default function NewGoongHapPage() {
             // 생일 컬럼 후보: birthday(date), birth_date(date), birthdate(text), user_birth_date(text)
             const bdRaw = (profile as any)?.birthday || (profile as any)?.birth_date || (profile as any)?.birthdate || (profile as any)?.user_birth_date;
             if (bdRaw) {
-              let yyyyMmDd = '';
+              let parsedDate: Date | null = null;
               if (typeof bdRaw === 'string') {
                 const s = bdRaw.trim();
                 // 1) yyyy-mm-dd
                 if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-                  yyyyMmDd = s;
+                  parsedDate = new Date(s);
                 // 2) yyyymmdd
                 } else if (/^\d{8}$/.test(s)) {
-                  yyyyMmDd = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
+                  parsedDate = new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`);
                 // 3) ISO
                 } else {
-                  const d = new Date(s);
-                  if (!isNaN(d.getTime())) yyyyMmDd = d.toISOString().slice(0, 10);
+                  parsedDate = new Date(s);
                 }
               } else {
                 // date 타입일 수 있음
-                const d = new Date(bdRaw);
-                if (!isNaN(d.getTime())) yyyyMmDd = d.toISOString().slice(0, 10);
+                parsedDate = new Date(bdRaw);
               }
-              if (yyyyMmDd) setBirthDate(yyyyMmDd);
+              if (parsedDate && !isNaN(parsedDate.getTime())) setBirthDate(parsedDate);
             }
             const g = (profile as any)?.gender;
             if (g === 'male' || g === 'female') setGender(g);
@@ -230,7 +237,7 @@ export default function NewGoongHapPage() {
       const payload: any = {
         user_id: user.id,
         artist_id: selectedArtistId!,
-        user_birth_date: new Date(birthDate).toISOString(),
+        user_birth_date: birthDate!.toISOString(),
         user_birth_time: birthTimeAnimal || null,
         gender: gender,
         status: 'pending',
@@ -509,12 +516,21 @@ export default function NewGoongHapPage() {
                 <label className='block text-sm font-medium text-gray-700 mb-2 flex items-center gap-1'>
                   <span>🎂</span> {t('goonghap_birthday', '내 생일')}
                 </label>
-                <input
-                  type='date'
-                  lang={currentLocale}
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
+                <DatePicker
+                  selected={birthDate}
+                  onChange={(date) => setBirthDate(date)}
+                  locale={dateLocale}
+                  dateFormat="yyyy-MM-dd"
+                  showYearDropdown
+                  showMonthDropdown
+                  dropdownMode="select"
+                  yearDropdownItemNumber={100}
+                  scrollableYearDropdown
+                  maxDate={new Date()}
+                  minDate={new Date(1900, 0, 1)}
+                  placeholderText={t('goonghap_birthday_placeholder', '생년월일 선택')}
                   className='w-full border-2 border-pink-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition-all bg-white/50'
+                  wrapperClassName='w-full'
                 />
               </div>
 
