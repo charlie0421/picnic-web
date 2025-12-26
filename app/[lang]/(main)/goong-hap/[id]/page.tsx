@@ -43,6 +43,7 @@ export default function GoongHapDetailPage() {
   const [invokeStatus, setInvokeStatus] = useState<{ ok: boolean; message?: string } | null>(null);
   const invokedRef = useRef(false);
   const [i18nLoading, setI18nLoading] = useState(false);
+  const [countdown, setCountdown] = useState(30); // 30초 카운트다운
 
   // 30초 광고 대기 상태
   const [adWaitSeconds, setAdWaitSeconds] = useState(AD_WAIT_SECONDS);
@@ -97,6 +98,18 @@ export default function GoongHapDetailPage() {
     })();
     return () => { mounted = false; };
   }, [id, langParam]);
+
+  // pending 상태일 때 30초 카운트다운
+  useEffect(() => {
+    if (data?.status !== 'pending') {
+      setCountdown(30);
+      return;
+    }
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [data?.status]);
 
   // artist_id 기반 아티스트 정보 로드
   useEffect(() => {
@@ -548,11 +561,15 @@ export default function GoongHapDetailPage() {
         )}
         {!error && data?.status === 'pending' && (
           <div className='rounded-xl border border-amber-200 p-6 bg-amber-50 shadow-sm text-amber-800 mb-4'>
-            처리 중입니다. 잠시만 기다려 주세요...
-            <div className='mt-4'>
-              <div className='w-full h-2 bg-amber-100 rounded'>
-                <div className='h-2 w-1/2 bg-amber-400 rounded' />
-              </div>
+            <div className='flex items-center justify-between mb-3'>
+              <span>{t('goongHap.waitingMessage') || '처리 중입니다. 잠시만 기다려 주세요...'}</span>
+              <span className='font-bold text-lg'>{countdown}{t('goongHap.seconds') || '초'}</span>
+            </div>
+            <div className='w-full h-4 bg-amber-100 rounded-full overflow-hidden'>
+              <div
+                className='h-4 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-1000 ease-linear'
+                style={{ width: `${(countdown / 30) * 100}%` }}
+              />
             </div>
           </div>
         )}
