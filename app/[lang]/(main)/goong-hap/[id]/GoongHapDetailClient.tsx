@@ -10,6 +10,7 @@ import { SafeAvatar } from '@/components/ui/SafeAvatar';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import AdBanner from '@/components/client/ads/AdBanner';
 import NavigationLink from '@/components/client/NavigationLink';
+import { useGoonghapStore } from '@/stores/goonghapStore';
 
 // 30초 광고 대기 시간 (앱과 동일)
 const AD_WAIT_SECONDS = 30;
@@ -29,14 +30,21 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
   const { tDynamic: t } = useTranslations();
   const { userProfile, isInitialized } = useAuth();
 
+  // Zustand 스토어에서 캐시된 데이터 가져오기
+  const cachedResult = useGoonghapStore((state) => state.getCachedResult(id));
+  const setCachedResult = useGoonghapStore((state) => state.setCachedResult);
+
+  // 초기 데이터 우선순위: 서버 데이터 > 캐시 데이터
+  const effectiveInitialData = initialData || cachedResult;
+
   // 클라이언트 마운트 상태 (hydration mismatch 방지)
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  // 서버에서 받은 초기 데이터 사용 - 클라이언트에서 다시 로드하지 않음
-  const [loading, setLoading] = useState(!initialData);
-  const [error, setError] = useState<string | null>(initialData ? null : 'Failed to load');
-  const [data, setData] = useState<any>(initialData);
+  // 캐시 또는 서버 데이터가 있으면 즉시 표시
+  const [loading, setLoading] = useState(!effectiveInitialData);
+  const [error, setError] = useState<string | null>(effectiveInitialData ? null : 'Failed to load');
+  const [data, setData] = useState<any>(effectiveInitialData);
 
   // artist 정보는 이제 RPC에서 함께 반환됨 (artist_name, artist_image)
   const artistImageUrl = useMemo(() => {
@@ -65,38 +73,58 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
     try {
       const supabase = createBrowserSupabaseClient();
       // 보안을 위해 RPC 함수 사용 (is_paid=false일 때 details, tips 숨김)
-      const { data, error } = await supabase.rpc('get_goonghap_result', { p_id: id });
+      const { data: newData, error } = await supabase.rpc('get_goonghap_result', { p_id: id });
       if (error) throw error;
-      setData(data);
+      setData(newData);
+      // 캐시 업데이트 (타입 체크)
+      if (newData && typeof newData === 'object' && 'id' in newData) {
+        setCachedResult(id, newData as any);
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to refresh');
     }
   };
 
-  // 초기 데이터가 없는 경우에만 클라이언트에서 로드
+  // 캐시가 있으면 백그라운드에서 최신 데이터 로드, 없으면 즉시 로드
   useEffect(() => {
-    if (initialData) return; // 서버에서 데이터를 받았으면 스킵
+    // 캐시 데이터가 있으면 즉시 표시하고 백그라운드에서 업데이트
+    if (cachedResult && !initialData) {
+      setData(cachedResult);
+      setLoading(false);
+      setError(null);
+      // 백그라운드에서 최신 데이터 로드
+      refreshDetail();
+      return;
+    }
 
-    let mounted = true;
+    // 서버 데이터가 있으면 스킵
+    if (initialData) return;
+
+    // 둘 다 없으면 로드
+    let isMounted = true;
     (async () => {
       try {
         if (!id) { setError('Invalid id'); setLoading(false); return; }
         setLoading(true);
 
         const supabase = createBrowserSupabaseClient();
-        const { data, error } = await supabase.rpc('get_goonghap_result', { p_id: id });
+        const { data: newData, error } = await supabase.rpc('get_goonghap_result', { p_id: id });
         if (error) throw error;
-        if (!mounted) return;
-        setData(data);
+        if (!isMounted) return;
+        setData(newData);
         setError(null);
+        // 캐시 업데이트 (타입 체크)
+        if (newData && typeof newData === 'object' && 'id' in newData) {
+          setCachedResult(id, newData as any);
+        }
       } catch (e: any) {
         setError(e?.message || 'Failed to load');
       } finally {
-        if (mounted) setLoading(false);
+        if (isMounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
-  }, [id, initialData]);
+    return () => { isMounted = false; };
+  }, [id, initialData, cachedResult, setCachedResult]);
 
   // pending 상태일 때 30초 카운트다운
   useEffect(() => {

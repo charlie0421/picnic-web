@@ -11,10 +11,11 @@ import GoongHapIntroPopup from './GoongHapIntroPopup';
 import { ProfileImageContainer } from '@/components/ui/ProfileImageContainer';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { LogIn } from 'lucide-react';
+import { useGoonghapStore, GoonghapResult as StoreGoonghapResult } from '@/stores/goonghapStore';
 
 type GoonghapStatus = 'pending' | 'completed' | 'failed';
 
-interface GoonghapResult {
+interface GoonghapListItem {
   id: string;
   artist_id: number;
   score: number | null;
@@ -31,9 +32,6 @@ interface GoonghapResult {
     language: string;
   }>;
 }
-
-// Backward compatibility type alias
-type CompatibilityResult = GoonghapResult;
 
 // 로케일을 DB language 코드로 변환
 function localeToDbLanguage(locale: string): string {
@@ -61,7 +59,8 @@ export default function GoongHapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showIntroPopup, setShowIntroPopup] = useState(false);
-  const [results, setResults] = useState<GoonghapResult[]>([]);
+  const [results, setResults] = useState<GoonghapListItem[]>([]);
+  const setListResults = useGoonghapStore((state) => state.setListResults);
 
   const dbLanguage = useMemo(() => localeToDbLanguage(currentLocale), [currentLocale]);
 
@@ -114,17 +113,37 @@ export default function GoongHapPage() {
 
         if (!mounted) return;
 
-        setResults(
-          (data || []).map((row: any) => ({
-            id: row.id,
-            artist_id: row.artist_id,
-            score: row.score,
-            status: row.status,
-            created_at: row.created_at,
-            artist: artistMap[row.artist_id] || null,
-            i18n: row.goonghap_results_i18n || [],
-          }))
-        );
+        const mappedResults = (data || []).map((row: any) => ({
+          id: row.id,
+          artist_id: row.artist_id,
+          score: row.score,
+          status: row.status,
+          created_at: row.created_at,
+          artist: artistMap[row.artist_id] || null,
+          i18n: row.goonghap_results_i18n || [],
+        }));
+
+        setResults(mappedResults);
+
+        // 스토어에 캐싱 (상세 페이지에서 즉시 사용)
+        const storeResults: StoreGoonghapResult[] = mappedResults.map((r: GoonghapListItem) => ({
+          id: r.id,
+          artist_id: r.artist_id,
+          score: r.score,
+          status: r.status as StoreGoonghapResult['status'],
+          is_paid: false, // 목록에서는 알 수 없음, 상세에서 업데이트
+          is_ads: false,
+          created_at: r.created_at,
+          artist_name: r.artist?.name,
+          artist_image: r.artist?.image,
+          artist: r.artist,
+          goonghap_results_i18n: r.i18n.map((i) => ({
+            ...i,
+            details: null,
+            tips: null,
+          })),
+        }));
+        setListResults(storeResults);
       } catch (e: any) {
         setError(e?.message || 'Failed to load');
       } finally {
@@ -135,7 +154,7 @@ export default function GoongHapPage() {
   }, []);
 
   // 현재 로케일에 맞는 i18n 데이터 가져오기
-  const getLocalizedI18n = (i18nList: GoonghapResult['i18n']) => {
+  const getLocalizedI18n = (i18nList: GoonghapListItem['i18n']) => {
     // 현재 로케일 우선
     let result = i18nList.find(item => item.language === dbLanguage);
     // 없으면 영어
@@ -146,7 +165,7 @@ export default function GoongHapPage() {
   };
 
   // 아티스트 이름 가져오기 (로케일 적용)
-  const getArtistName = (artist: GoonghapResult['artist']) => {
+  const getArtistName = (artist: GoonghapListItem['artist']) => {
     if (!artist?.name) return 'Unknown';
     if (typeof artist.name === 'string') return artist.name;
     // name이 객체인 경우 (다국어)
