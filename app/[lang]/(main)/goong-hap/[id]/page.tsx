@@ -412,7 +412,7 @@ export default function GoongHapDetailPage() {
 
   // 전체 화면 스켈레톤 로딩 컴포넌트
   const FullPageSkeleton = () => (
-    <div className='px-4 py-6 sm:py-10 animate-pulse'>
+    <div className='px-4 py-6 sm:py-10'>
       <div className='max-w-4xl mx-auto'>
         {/* 뒤로가기 + 제목 스켈레톤 */}
         <div className='flex items-center gap-3 mb-4'>
@@ -551,7 +551,7 @@ export default function GoongHapDetailPage() {
             처리 중입니다. 잠시만 기다려 주세요...
             <div className='mt-4'>
               <div className='w-full h-2 bg-amber-100 rounded'>
-                <div className='h-2 w-1/2 bg-amber-400 rounded animate-pulse' />
+                <div className='h-2 w-1/2 bg-amber-400 rounded' />
               </div>
             </div>
           </div>
@@ -582,7 +582,7 @@ export default function GoongHapDetailPage() {
                     </div>
                     <span className='mt-2 text-xs sm:text-sm text-white/80'>{artistName || 'Artist'}</span>
                   </div>
-                  <div className='text-3xl sm:text-4xl animate-pulse'>❤️</div>
+                  <div className='text-3xl sm:text-4xl'>❤️</div>
                   <div className='flex flex-col items-center'>
                     <SafeAvatar src={userProfile?.avatar_url || ''} size='xl' className='rounded-full ring-4 ring-white/30 shadow-lg' />
                     <span className='mt-2 text-xs sm:text-sm text-white/80'>
@@ -613,9 +613,9 @@ export default function GoongHapDetailPage() {
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm mb-6'>
                     <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('goonghap_style_title') || '스타일'}</h2>
                     <div className='space-y-2'>
-                      <div className='h-4 bg-gray-200 rounded w-3/4 animate-pulse' />
-                      <div className='h-4 bg-gray-200 rounded w-2/3 animate-pulse' />
-                      <div className='h-4 bg-gray-200 rounded w-4/5 animate-pulse' />
+                      <div className='h-4 bg-gray-200 rounded w-3/4' />
+                      <div className='h-4 bg-gray-200 rounded w-2/3' />
+                      <div className='h-4 bg-gray-200 rounded w-4/5' />
                     </div>
                   </div>
 
@@ -623,9 +623,9 @@ export default function GoongHapDetailPage() {
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm mb-6'>
                     <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('goonghap_activities_title') || '추천 활동'}</h2>
                     <div className='space-y-2'>
-                      <div className='h-4 bg-gray-200 rounded w-1/2 animate-pulse' />
-                      <div className='h-4 bg-gray-200 rounded w-2/3 animate-pulse' />
-                      <div className='h-4 bg-gray-200 rounded w-3/5 animate-pulse' />
+                      <div className='h-4 bg-gray-200 rounded w-1/2' />
+                      <div className='h-4 bg-gray-200 rounded w-2/3' />
+                      <div className='h-4 bg-gray-200 rounded w-3/5' />
                     </div>
                   </div>
 
@@ -633,8 +633,8 @@ export default function GoongHapDetailPage() {
                   <div className='rounded-xl border border-gray-200 p-6 bg-white shadow-sm'>
                     <h2 className='text-lg font-bold text-gray-900 mb-3'>{t('goonghap_tips_title') || '팁'}</h2>
                     <div className='space-y-2'>
-                      <div className='h-4 bg-gray-200 rounded w-4/5 animate-pulse' />
-                      <div className='h-4 bg-gray-200 rounded w-3/4 animate-pulse' />
+                      <div className='h-4 bg-gray-200 rounded w-4/5' />
+                      <div className='h-4 bg-gray-200 rounded w-3/4' />
                     </div>
                   </div>
                 </div>
