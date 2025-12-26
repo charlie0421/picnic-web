@@ -28,7 +28,7 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
   const router = useRouter();
   const { getLocalizedPath } = useLocaleRouter();
   const { tDynamic: t } = useTranslations();
-  const { userProfile, isInitialized } = useAuth();
+  const { userProfile } = useAuth();
 
   // Zustand 스토어에서 캐시된 데이터 가져오기
   const cachedResult = useGoonghapStore((state) => state.getCachedResult(id));
@@ -499,13 +499,13 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
   );
 
   // 클라이언트 마운트 전까지는 로딩 표시 (hydration mismatch 방지)
-  if (!mounted || !isInitialized) {
+  // 캐시 데이터가 있으면 isInitialized를 기다리지 않음
+  if (!mounted) {
     return <FullPageSkeleton />;
   }
 
-
-  // 데이터 로딩 중일 때 전체 스켈레톤 표시
-  if (loading) {
+  // 데이터 로딩 중일 때 전체 스켈레톤 표시 (캐시가 없는 경우만)
+  if (loading && !data) {
     return <FullPageSkeleton />;
   }
 
