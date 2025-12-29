@@ -12,6 +12,7 @@ import { LogIn, ChevronLeft } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ko, ja, zhCN, zhTW, vi, th, id, es, bn, enUS } from 'date-fns/locale';
+import { useGoonghapStore } from '@/stores/goonghapStore';
 
 export default function NewGoongHapPage() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function NewGoongHapPage() {
     return name[currentLocale] || name['en'] || name['ko'] || '';
   };
   const { userProfile, isInitialized } = useAuth();
+  const { setCachedResult } = useGoonghapStore();
 
   // date-fns 로케일 매핑 (지원하지 않는 로케일은 enUS fallback)
   const dateLocaleMap: Record<string, any> = {
@@ -50,6 +52,10 @@ export default function NewGoongHapPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const searchTimer = useRef<number | null>(null);
   const [edgeInvokeInfo, setEdgeInvokeInfo] = useState<{ ok: boolean; message?: string } | null>(null);
+
+  // 중복 궁합 다이얼로그 상태
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [duplicateResult, setDuplicateResult] = useState<{ id: string; score: number | null; created_at: string; details?: any; tips?: any; goonghap_results_i18n?: any[] } | null>(null);
 
   // 동물시(十二支) 매핑 - 번역 키 사용
   const ANIMAL_TIME_SLOTS: Array<{ key: string; translationKey: string }> = [
@@ -196,9 +202,9 @@ export default function NewGoongHapPage() {
     };
   }, [artistQuery]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canSubmit || submitting) return;
+
+  // 새 궁합 생성 로직 (기존 결과가 있으면 데이터 복사)
+  const createNewGoonghap = async (existingResult?: { id: string; score: number | null; details?: any; tips?: any; goonghap_results_i18n?: any[] } | null) => {
     setSubmitting(true);
     setError(null);
     try {
@@ -236,18 +242,26 @@ export default function NewGoongHapPage() {
         throw new Error(t('goonghap_error_no_artist_birthday', '선택한 아티스트의 생일 정보를 찾을 수 없습니다. 다른 아티스트를 선택해 주세요.'));
       }
 
+      // 새 궁합 생성 (기존 결과가 있으면 데이터 복사)
       const payload: any = {
         user_id: user.id,
         artist_id: selectedArtistId!,
         user_birth_date: birthDate!.toISOString(),
         user_birth_time: birthTimeAnimal || null,
         gender: gender,
-        status: 'pending',
+        status: existingResult ? 'completed' : 'pending', // 기존 결과 있으면 바로 completed
         is_paid: false,
+        is_ads: false, // 30초 광고 대기 필요
         idol_birth_date: idolBirthDateIso,
+        // 기존 결과 데이터 복사
+        ...(existingResult && {
+          score: existingResult.score,
+          details: existingResult.details,
+          tips: existingResult.tips,
+          completed_at: new Date().toISOString(),
+        }),
       };
 
-      // 아이돌 생일은 optional (앱은 artist.birthDate 사용) - 여기서는 테이블에 null 허용 시 생략
       const { data, error } = await supabase
         .from('goonghap_results')
         .insert(payload)
@@ -257,26 +271,100 @@ export default function NewGoongHapPage() {
 
       const newId = data.id;
 
-      // 백그라운드 처리 트리거 (앱: functions.invoke('goonghap'))
-      try {
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('goonghap', { body: { goonghap_id: newId } });
-        if (fnError) {
-          console.error('⚠️ Edge function error:', fnError);
-          setEdgeInvokeInfo({ ok: false, message: fnError.message });
-        } else {
-          console.log('✅ Edge function invoked:', fnData);
-          setEdgeInvokeInfo({ ok: true });
+      // 기존 결과가 있으면 i18n 데이터도 복사
+      if (existingResult && existingResult.goonghap_results_i18n) {
+        const i18nRows = existingResult.goonghap_results_i18n as any[];
+        if (i18nRows.length > 0) {
+          const i18nPayloads = i18nRows.map((row: any) => ({
+            goonghap_id: newId,
+            language: row.language,
+            score_title: row.score_title,
+            goonghap_summary: row.goonghap_summary,
+            details: row.details,
+            tips: row.tips,
+          }));
+          await supabase.from('goonghap_results_i18n').insert(i18nPayloads);
         }
-      } catch (edgeErr: any) {
-        console.error('⚠️ Edge function exception:', edgeErr);
-        setEdgeInvokeInfo({ ok: false, message: String(edgeErr?.message || edgeErr) });
       }
+
+      // 기존 결과가 없으면 백그라운드 처리 트리거
+      if (!existingResult) {
+        try {
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('goonghap', { body: { goonghap_id: newId } });
+          if (fnError) {
+            setEdgeInvokeInfo({ ok: false, message: fnError.message });
+          } else {
+            setEdgeInvokeInfo({ ok: true });
+          }
+        } catch (edgeErr: any) {
+          setEdgeInvokeInfo({ ok: false, message: String(edgeErr?.message || edgeErr) });
+        }
+      }
+
+      // 캐시에 저장하여 상세 페이지에서 즉시 광고 화면 표시
+      setCachedResult(newId, {
+        id: newId,
+        artist_id: selectedArtistId!,
+        score: existingResult?.score ?? null,
+        status: existingResult ? 'completed' : 'pending',
+        is_paid: false,
+        is_ads: false, // 30초 광고 대기 필요
+        created_at: new Date().toISOString(),
+      });
 
       // 상세 페이지로 이동
       window.location.href = getLocalizedPath(`/goong-hap/${newId}`);
     } catch (e: any) {
       setError(e?.message || 'Submit failed');
     } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { throw new Error(t('common.auth.login') || '로그인이 필요합니다'); }
+
+      // 기존 궁합 확인: 같은 user_id, artist_id, user_birth_date, user_birth_time, gender 조합
+      const userBirthDateOnly = birthDate!.toISOString().split('T')[0]; // YYYY-MM-DD
+      let existingQuery = supabase
+        .from('goonghap_results')
+        .select('id, score, status, details, tips, created_at, goonghap_results_i18n(*)')
+        .eq('user_id', user.id)
+        .eq('artist_id', selectedArtistId!)
+        .eq('gender', gender as 'male' | 'female')
+        .eq('status', 'completed') // 완료된 결과만
+        .gte('user_birth_date', `${userBirthDateOnly}T00:00:00.000Z`)
+        .lt('user_birth_date', `${userBirthDateOnly}T23:59:59.999Z`);
+
+      // birth_time이 있으면 추가 조건
+      if (birthTimeAnimal) {
+        existingQuery = existingQuery.eq('user_birth_time', birthTimeAnimal);
+      } else {
+        existingQuery = existingQuery.is('user_birth_time', null);
+      }
+
+      const { data: existingResults } = await existingQuery.order('created_at', { ascending: false }).limit(1);
+      const existingResult = existingResults?.[0];
+
+      if (existingResult) {
+        // 중복 궁합 발견 - 다이얼로그 표시
+        setDuplicateResult(existingResult);
+        setShowDuplicateDialog(true);
+        setSubmitting(false);
+        return;
+      }
+
+      // 중복 없음 - 바로 생성
+      await createNewGoonghap(null);
+    } catch (e: any) {
+      setError(e?.message || 'Submit failed');
       setSubmitting(false);
     }
   };
@@ -681,6 +769,79 @@ export default function NewGoongHapPage() {
       </div>
       {/* DatePicker 포털 컨테이너 */}
       <div id='datepicker-portal' />
+
+      {/* 중복 궁합 확인 다이얼로그 */}
+      {showDuplicateDialog && duplicateResult && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'
+          onClick={() => setShowDuplicateDialog(false)}
+        >
+          <div
+            className='bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden'
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className='bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4'>
+              <h3 className='text-white text-lg font-bold text-center'>
+                {t('goonghap_duplicate_data_title', '이미 존재하는 궁합 데이터')}
+              </h3>
+            </div>
+
+            {/* 본문 */}
+            <div className='px-6 py-5 space-y-4'>
+              <div className='text-center'>
+                <span className='text-4xl'>💫</span>
+              </div>
+              <p className='text-gray-700 text-center'>
+                {t('goonghap_duplicate_data_message', '동일한 조건의 궁합 데이터가 이미 존재합니다.')}
+              </p>
+
+              {/* 기존 결과 정보 */}
+              {duplicateResult.score !== null && (
+                <div className='flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg'>
+                  <span className='text-gray-600 text-sm'>{t('goonghap_score', '궁합 점수')}</span>
+                  <span className='text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
+                    {duplicateResult.score}
+                  </span>
+                  <span className='text-gray-500 text-sm'>pt</span>
+                </div>
+              )}
+
+              <p className='text-xs text-gray-500 text-center'>
+                {new Date(duplicateResult.created_at).toLocaleDateString()}
+              </p>
+
+              {/* 앱과 동일한 안내 메시지 */}
+              <p className='text-sm text-gray-600 text-center font-medium'>
+                {t('goonghap_new_ask', '새로 분석하시겠습니까?')}
+              </p>
+            </div>
+
+            {/* 버튼 영역 */}
+            <div className='px-6 pb-5 flex gap-3'>
+              <button
+                type='button'
+                onClick={() => setShowDuplicateDialog(false)}
+                className='flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors'
+              >
+                {t('button_cancel', '취소')}
+              </button>
+              <button
+                type='button'
+                disabled={submitting}
+                onClick={async () => {
+                  setShowDuplicateDialog(false);
+                  // 새 궁합 생성 (기존 데이터 복사)
+                  await createNewGoonghap(duplicateResult);
+                }}
+                className='flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50'
+              >
+                {submitting ? t('common_processing', '처리 중...') : t('goonghap_analyze_start', '분석 시작')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

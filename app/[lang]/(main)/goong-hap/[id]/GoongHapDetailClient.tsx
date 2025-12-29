@@ -11,9 +11,7 @@ import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import AdBanner from '@/components/client/ads/AdBanner';
 import NavigationLink from '@/components/client/NavigationLink';
 import { useGoonghapStore } from '@/stores/goonghapStore';
-
-// 30초 광고 대기 시간 (앱과 동일)
-const AD_WAIT_SECONDS = 30;
+import AdWaitScreen from './AdWaitScreen';
 
 // 별사탕 소모량
 const STAR_CANDY_COST = 100;
@@ -56,11 +54,9 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
   const [i18nLoading, setI18nLoading] = useState(false);
   const [countdown, setCountdown] = useState(30); // 30초 카운트다운
 
-  // 30초 광고 대기 상태
-  const [adWaitSeconds, setAdWaitSeconds] = useState(AD_WAIT_SECONDS);
-  const [showAdScreen, setShowAdScreen] = useState(false);
-  const adTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const adCompletedRef = useRef(false);
+  // 30초 광고 대기 상태 (is_ads가 false이면 광고 화면 표시)
+  const [adCompleted, setAdCompleted] = useState(false);
+  const showAdScreen = data && !loading && data.is_ads !== true && !adCompleted;
 
   // 별사탕 결제 상태
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
@@ -141,60 +137,11 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
   // artist 정보는 이제 get_goonghap_result RPC에서 함께 반환됨
   // 별도의 artist 테이블 조회 불필요
 
-  // 30초 광고 대기 로직: is_ads가 false이면 30초 대기 후 결과 표시
-  useEffect(() => {
-    if (!data || loading) return;
-
-    // 이미 광고를 본 경우 (is_ads === true) 또는 이미 완료한 경우 스킵
-    if (data.is_ads === true || adCompletedRef.current) {
-      setShowAdScreen(false);
-      return;
-    }
-
-    // is_ads가 false이면 30초 대기 화면 표시
-    setShowAdScreen(true);
-    setAdWaitSeconds(AD_WAIT_SECONDS);
-
-    // 1초마다 카운트다운
-    adTimerRef.current = setInterval(() => {
-      setAdWaitSeconds((prev) => {
-        if (prev <= 1) {
-          // 타이머 완료
-          if (adTimerRef.current) {
-            clearInterval(adTimerRef.current);
-            adTimerRef.current = null;
-          }
-          // is_ads를 true로 업데이트
-          (async () => {
-            try {
-              const supabase = createBrowserSupabaseClient();
-              await supabase
-                .from('goonghap_results')
-                .update({ is_ads: true })
-                .eq('id', id);
-              adCompletedRef.current = true;
-              setShowAdScreen(false);
-              // 데이터 새로고침
-              await refreshDetail();
-            } catch (e) {
-              console.error('Failed to update is_ads:', e);
-              adCompletedRef.current = true;
-              setShowAdScreen(false);
-            }
-          })();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (adTimerRef.current) {
-        clearInterval(adTimerRef.current);
-        adTimerRef.current = null;
-      }
-    };
-  }, [data, loading, id]);
+  // 광고 대기 완료 핸들러
+  const handleAdComplete = useCallback(() => {
+    setAdCompleted(true);
+    refreshDetail(); // 데이터 새로고침
+  }, []);
 
   const getLangCandidates = (lang: string | undefined): string[] => {
     const raw = String(lang || '').trim();
@@ -510,67 +457,8 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
   }
 
   // 30초 광고 대기 화면
-  if (showAdScreen && !loading && data) {
-    const progressPercent = ((AD_WAIT_SECONDS - adWaitSeconds) / AD_WAIT_SECONDS) * 100;
-    return (
-      <div className='min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50'>
-        <div className='px-4 py-6 sm:py-10'>
-          <div className='max-w-2xl mx-auto space-y-6'>
-            {/* 헤더 영역 */}
-            <div className='text-center mb-4'>
-              <div className='flex items-center justify-center gap-4 mb-4'>
-                <h1 className='text-5xl sm:text-6xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
-                  궁합
-                </h1>
-                <div className='flex flex-col text-left'>
-                  <span className='text-xl font-bold text-gray-600'>宮合</span>
-                  <span className='text-sm text-gray-400'>Goong-Hap</span>
-                </div>
-              </div>
-              <p className='text-gray-600'>{t('goongHap.analyzing') || '궁합 분석 중...'}</p>
-            </div>
-
-            {/* 진행률 카드 */}
-            <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-white/50 shadow-lg overflow-hidden'>
-              <div className='bg-gradient-to-r from-purple-500 to-pink-500 px-5 py-3'>
-                <div className='flex items-center gap-2'>
-                  <span className='text-lg'>✨</span>
-                  <h2 className='text-white font-bold'>{t('goongHap.waitingForResult') || '결과를 불러오는 중입니다'}</h2>
-                </div>
-              </div>
-              <div className='p-5'>
-                <div className='flex justify-between items-center mb-3'>
-                  <span className='text-gray-600'>{t('goongHap.progress') || '진행률'}</span>
-                  <span className='font-bold text-lg text-purple-600'>{adWaitSeconds}{t('goongHap.seconds') || '초'}</span>
-                </div>
-                <div className='w-full h-4 bg-purple-100 rounded-full overflow-hidden'>
-                  <div
-                    className='h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-1000 ease-linear'
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 상단 광고 배너 */}
-            <AdBanner className='my-4' />
-
-            {/* 안내 메시지 */}
-            <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-amber-200 p-5 text-amber-800 text-center space-y-2 shadow-lg'>
-              <p className='text-sm font-medium'>
-                {t('goongHap.waitingMessage') || '잠시만 기다려 주세요. 궁합 결과를 분석하고 있습니다.'}
-              </p>
-              <p className='text-xs text-amber-600'>
-                {t('goongHap.warningExit') || '페이지를 벗어나면 분석이 중단될 수 있습니다.'}
-              </p>
-            </div>
-
-            {/* 하단 광고 배너 */}
-            <AdBanner className='my-4' />
-          </div>
-        </div>
-      </div>
-    );
+  if (showAdScreen) {
+    return <AdWaitScreen id={id} onComplete={handleAdComplete} />;
   }
 
   return (
@@ -609,8 +497,8 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
           {!error && data?.status === 'pending' && (
             <div className='rounded-2xl bg-white/80 backdrop-blur-sm border border-amber-200 p-6 shadow-lg text-amber-800 mb-6'>
               <div className='flex items-center justify-between mb-3'>
-                <span className='font-medium'>{t('goongHap.waitingMessage') || '처리 중입니다. 잠시만 기다려 주세요...'}</span>
-                <span className='font-bold text-lg'>{countdown}{t('goongHap.seconds') || '초'}</span>
+                <span className='font-medium'>{t('goongHap.waitingMessage', '처리 중입니다. 잠시만 기다려 주세요...')}</span>
+                <span className='font-bold text-lg'>{countdown}{t('goongHap.seconds', '초')}</span>
               </div>
               <div className='w-full h-4 bg-amber-100 rounded-full overflow-hidden'>
                 <div
@@ -650,7 +538,7 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
                     <div className='flex flex-col items-center'>
                       <SafeAvatar src={userProfile?.avatar_url || ''} size='xl' className='rounded-full ring-4 ring-white/30 shadow-lg' />
                       <span className='mt-2 text-xs sm:text-sm text-white/80'>
-                        {userProfile?.nickname || t('goongHap.you') || 'You'}
+                        {userProfile?.nickname || t('goongHap.you', 'You')}
                       </span>
                     </div>
                   </div>
@@ -729,7 +617,7 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
                       </button>
 
                       <p className='mt-3 text-sm text-gray-500 text-center'>
-                        {t('goongHap.purchaseHint') || '상세 궁합 결과를 확인하려면 별사탕이 필요해요'}
+                        {t('goongHap.purchaseHint', '상세 궁합 결과를 확인하려면 별사탕이 필요해요')}
                       </p>
                     </div>
                   </div>
@@ -820,14 +708,14 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
 
                   {/* 별사탕 잔액 표시 */}
                   <div className='flex items-center justify-center gap-2 py-3 bg-gray-50 rounded-lg'>
-                    <span className='text-gray-600 text-sm'>{t('goongHap.currentBalance') || '현재 보유'}</span>
+                    <span className='text-gray-600 text-sm'>{t('goongHap.currentBalance', '현재 보유')}</span>
                     <span className='text-xl'>⭐</span>
                     <span className='text-lg font-bold text-gray-900'>{userStarCandy ?? '-'}</span>
                   </div>
 
                   {/* 차감 안내 */}
                   <div className='flex items-center justify-center gap-2 text-sm'>
-                    <span className='text-gray-500'>{t('goongHap.willDeduct') || '차감될 별사탕'}</span>
+                    <span className='text-gray-500'>{t('goongHap.willDeduct', '차감될 별사탕')}</span>
                     <span className='font-bold text-pink-500'>-{STAR_CANDY_COST}</span>
                   </div>
 
@@ -845,7 +733,7 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
                       className='flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-xl hover:from-amber-500 hover:to-orange-600 transition-all shadow-md'
                     >
                       <span>⭐</span>
-                      <span>{t('goongHap.goToStore') || '상점에서 별사탕 충전하기'}</span>
+                      <span>{t('goongHap.goToStore', '상점에서 별사탕 충전하기')}</span>
                     </NavigationLink>
                   )}
                 </div>

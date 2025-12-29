@@ -20,6 +20,7 @@ interface GoonghapListItem {
   artist_id: number;
   score: number | null;
   status: GoonghapStatus;
+  is_ads: boolean | null;
   created_at: string;
   artist?: {
     id: number;
@@ -85,6 +86,7 @@ export default function GoongHapPage() {
             artist_id,
             score,
             status,
+            is_ads,
             created_at,
             goonghap_results_i18n(score_title, goonghap_summary, language)
           `)
@@ -118,6 +120,7 @@ export default function GoongHapPage() {
           artist_id: row.artist_id,
           score: row.score,
           status: row.status,
+          is_ads: row.is_ads,
           created_at: row.created_at,
           artist: artistMap[row.artist_id] || null,
           i18n: row.goonghap_results_i18n || [],
@@ -132,7 +135,7 @@ export default function GoongHapPage() {
           score: r.score,
           status: r.status as StoreGoonghapResult['status'],
           is_paid: false, // 목록에서는 알 수 없음, 상세에서 업데이트
-          is_ads: false,
+          is_ads: r.is_ads ?? false,
           created_at: r.created_at,
           artist_name: r.artist?.name,
           artist_image: r.artist?.image,
