@@ -475,6 +475,15 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
     return <FullPageSkeleton />;
   }
 
+  // i18n 로딩 중이거나 현재 언어 번역이 없을 때 스켈레톤 표시 (언어 전환 시 이전 언어가 보이는 것 방지)
+  const normalizedCurrentLang = normalizeForServer(currentLang).toLowerCase();
+  const localizedLang = localized?.language?.toLowerCase() || '';
+  const isLangMismatch = data?.status === 'completed' && localized && localizedLang !== normalizedCurrentLang && !normalizedCurrentLang.startsWith(localizedLang) && !localizedLang.startsWith(normalizedCurrentLang.split('-')[0]);
+
+  if (i18nLoading || isLangMismatch) {
+    return <FullPageSkeleton />;
+  }
+
   // 30초 광고 대기 화면
   if (showAdScreen) {
     return <AdWaitScreen id={id} onComplete={handleAdComplete} />;
