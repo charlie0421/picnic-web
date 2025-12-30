@@ -231,6 +231,23 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
     }
   }, [mounted, isHydrated, isTranslationReady, isLoading, currentLanguage, loadTranslations]);
 
+  // 번역 로딩 중일 때 GlobalLoading 표시
+  const prevIsLoadingRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // 로딩 상태가 변경되었을 때만 이벤트 발생
+    if (isLoading && !prevIsLoadingRef.current) {
+      console.log('🔄 [LanguageSyncProvider] Translation loading started, showing GlobalLoading');
+      window.dispatchEvent(new CustomEvent('startGlobalLoading', { detail: { source: 'translation-loading' } }));
+    } else if (!isLoading && prevIsLoadingRef.current) {
+      console.log('✅ [LanguageSyncProvider] Translation loading completed, hiding GlobalLoading');
+      window.dispatchEvent(new CustomEvent('stopGlobalLoading', { detail: { source: 'translation-loading' } }));
+    }
+
+    prevIsLoadingRef.current = isLoading;
+  }, [isLoading]);
+
   // 준비되지 않은 경우 null 반환 → 각 페이지의 Suspense fallback이 표시됨
   return (
     <>

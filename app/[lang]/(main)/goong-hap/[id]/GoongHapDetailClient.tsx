@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
@@ -24,9 +24,21 @@ interface GoongHapDetailClientProps {
 
 export default function GoongHapDetailClient({ initialData, id, lang: langParam }: GoongHapDetailClientProps) {
   const router = useRouter();
-  const { getLocalizedPath } = useLocaleRouter();
+  const pathname = usePathname();
+  const { getLocalizedPath, currentLocale } = useLocaleRouter();
   const { tDynamic: t } = useTranslations();
   const { userProfile } = useAuth();
+
+  // URL 경로에서 현재 언어 추출 (langParam보다 현재 URL이 우선)
+  const currentLang = useMemo(() => {
+    if (pathname) {
+      const segments = pathname.split('/').filter(Boolean);
+      if (segments[0]) {
+        return segments[0];
+      }
+    }
+    return currentLocale || langParam || 'ko';
+  }, [pathname, currentLocale, langParam]);
 
   // Zustand 스토어에서 캐시된 데이터 가져오기
   const cachedResult = useGoonghapStore((state) => state.getCachedResult(id));
@@ -171,27 +183,26 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
 
   const localized = useMemo(() => {
     const rows = data?.goonghap_results_i18n || [];
-    // langParam이 없으면 URL에서 직접 추출 시도
-    const effectiveLang = langParam || (typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'ko');
-    const cands = getLangCandidates(effectiveLang);
+    // 현재 URL 경로에서 추출한 언어 사용
+    const cands = getLangCandidates(currentLang);
     const byLang = rows.find((r: any) => cands.includes(String(r.language || '').toLowerCase()));
     // 찾은 번역 반환, 없으면 null (한국어 폴백 하지 않음)
     return byLang || null;
-  }, [data, langParam]);
+  }, [data, currentLang]);
 
   // 아티스트 이름 가져오기 (로케일 적용) - RPC에서 artist_name 반환
   const artistName = useMemo(() => {
     const n = data?.artist_name as any;
     if (!n) return t('artist_name_fallback') || 'Artist';
     if (typeof n === 'string') return n;
-    const cands = getLangCandidates(langParam);
+    const cands = getLangCandidates(currentLang);
     for (const c of cands) {
       const key = c.includes('-') ? c.split('-')[0] : c;
       if (n?.[c]) return n[c];
       if (n?.[key]) return n[key];
     }
     return n?.ko || n?.en || n?.ja || t('artist_name_fallback') || 'Artist';
-  }, [data?.artist_name, langParam, t]);
+  }, [data?.artist_name, currentLang, t]);
 
   // is_paid 여부 (결제 완료 시 true)
   const isPaid = data?.is_paid === true;
@@ -304,16 +315,26 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
   // i18n 지연 로딩: 현재 로케일 번역이 없으면 생성 요청 후 재조회
   const i18nInvokedRef = useRef(false);
   const i18nAttemptedRef = useRef<Set<string>>(new Set());
+  const i18nFixRef = useRef(false);
+  const prevLangRef = useRef<string>(currentLang);
+
+  // 언어가 변경되면 i18n ref들 리셋
+  useEffect(() => {
+    if (prevLangRef.current !== currentLang) {
+      console.log(`🔄 [GoongHap] Language changed: ${prevLangRef.current} → ${currentLang}, resetting i18n refs`);
+      i18nInvokedRef.current = false;
+      i18nFixRef.current = false;
+      prevLangRef.current = currentLang;
+    }
+  }, [currentLang]);
 
   useEffect(() => {
     (async () => {
       if (!id || !data) return;
       if (data.status !== 'completed') return;
       const rows = data?.goonghap_results_i18n || [];
-      // langParam이 없으면 URL에서 직접 추출
-      const effectiveLang = langParam || (typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'ko');
-      // 서버 호환 로케일 정규화 (Edge: zh, zh-CN, zh-TW, en, ja 등)
-      const normalizedForServer = normalizeForServer(effectiveLang);
+      // 현재 URL 경로에서 추출한 언어 사용
+      const normalizedForServer = normalizeForServer(currentLang);
 
       const exists = rows.some((r: any) => String(r.language || '').toLowerCase() === String(normalizedForServer).toLowerCase());
       const attemptKey = `${id}:${normalizedForServer}:initial`;
@@ -341,18 +362,16 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
         }
       }
     })();
-  }, [id, data, langParam]);
+  }, [id, data, currentLang]);
 
   // 번역이 존재하지만 비한글 로케일에서 한글이 남아있는 경우 강제 재번역(overwrite)
-  const i18nFixRef = useRef(false);
   useEffect(() => {
     (async () => {
       if (!id || !data) return;
       if (data.status !== 'completed') return;
       if (!localized) return;
-      // langParam이 없으면 URL에서 직접 추출
-      const effectiveLang = langParam || (typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : 'ko');
-      const target = normalizeForServer(effectiveLang);
+      // 현재 URL 경로에서 추출한 언어 사용
+      const target = normalizeForServer(currentLang);
       if (!target || target.toLowerCase() === 'ko') return;
       const hasHangul = /[\u3131-\uD79D]/.test(JSON.stringify(localized));
       const attemptKey = `${id}:${target}:overwrite`;
@@ -375,7 +394,7 @@ export default function GoongHapDetailClient({ initialData, id, lang: langParam 
         }
       }
     })();
-  }, [id, data, langParam, localized]);
+  }, [id, data, currentLang, localized]);
 
   // 전체 화면 스켈레톤 로딩 컴포넌트
   const FullPageSkeleton = () => (
