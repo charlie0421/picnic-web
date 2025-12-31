@@ -122,11 +122,15 @@ export async function getQnaThreadDetails(threadId: number) {
   }
   
       if (data && data.qna_messages) {
+      // 메시지를 created_at 기준 오름차순으로 정렬 (작성 순서대로)
+      data.qna_messages.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateA - dateB;
+      });
+
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const customDomain = 'https://api.picnic.fan';
-
-      console.log('[Debug QNA Service] Supabase URL from env:', supabaseUrl);
-      console.log('[Debug QNA Service] Custom Domain:', customDomain);
 
       data.qna_messages.forEach(message => {
         if (Array.isArray(message.user_profiles)) {
