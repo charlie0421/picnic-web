@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       Bucket: bucket,
       Key: key,
       Conditions: [
-        ['content-length-range', 0, 20 * 1024 * 1024],
+        ['content-length-range', 0, 100 * 1024 * 1024], // 100MB
         ['starts-with', '$Content-Type', ''],
       ],
       Expires: 60,
