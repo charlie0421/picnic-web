@@ -266,7 +266,7 @@ class AuthStore {
             this.lastExpiryWarningKey = null;
             const provider = session.user.app_metadata?.provider;
             debugLog(`[AuthStore] SIGNED_IN 이벤트 내부, provider: ${provider}`);
-            if (provider && ['google', 'apple', 'kakao', 'wechat'].includes(provider)) {
+            if (provider && ['google', 'apple', 'kakao'].includes(provider)) {
               setLastLoginInfo({
                 provider: provider,
                 providerDisplay: getProviderDisplayName(provider),
@@ -552,7 +552,7 @@ class AuthStore {
 
             // 최근 로그인 정보 저장
             const provider = fetchedUser.app_metadata?.provider;
-            if (provider && ['google', 'apple', 'kakao', 'wechat'].includes(provider)) {
+            if (provider && ['google', 'apple', 'kakao'].includes(provider)) {
               setLastLoginInfo({
                 provider: provider,
                 providerDisplay: getProviderDisplayName(provider),
@@ -624,7 +624,7 @@ class AuthStore {
 
       // 최근 로그인 정보 저장
       const provider = user.app_metadata?.provider;
-      if (provider && ['google', 'apple', 'kakao', 'wechat'].includes(provider)) {
+      if (provider && ['google', 'apple', 'kakao'].includes(provider)) {
         setLastLoginInfo({
           provider: provider,
           providerDisplay: getProviderDisplayName(provider),

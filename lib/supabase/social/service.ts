@@ -1,7 +1,7 @@
 /**
  * 소셜 로그인 서비스 구현
  *
- * 이 파일은 다양한 소셜 로그인 제공자(Google, Apple, Kakao, WeChat)에 대한
+ * 이 파일은 다양한 소셜 로그인 제공자(Google, Apple, Kakao)에 대한
  * 통합 인증 서비스를 구현합니다.
  */
 
@@ -48,7 +48,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
     google: "",
     apple: "",
     kakao: "",
-    wechat: "",
   };
 
   /**
@@ -76,7 +75,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         google: `${baseUrl}/auth/callback/google`,
         apple: `${baseUrl}/auth/callback/apple`,
         kakao: `${baseUrl}/auth/callback/kakao`,
-        wechat: `${baseUrl}/auth/callback/wechat`,
       };
 
       console.log("🔍 SocialAuth 콜백 URL 초기화:", this.callbackUrls);
@@ -244,52 +242,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
   }
 
   /**
-   * WeChat 로그인 처리
-   *
-   * @param options 인증 옵션
-   * @returns 인증 결과
-   */
-  async signInWithWeChat(options?: SocialAuthOptions): Promise<AuthResult> {
-    try {
-      this.log("WeChat 로그인 시작", options);
-      this.preventRapidRequests("wechat");
-
-      const redirectUrl = options?.redirectUrl || this.callbackUrls.wechat;
-
-      // 실제 구현에서는 import된 함수 사용
-      const { signInWithWeChatImpl } = await import("./wechat");
-      return await signInWithWeChatImpl(this.supabase, {
-        ...options,
-        redirectUrl,
-      });
-    } catch (error) {
-      this.logError("WeChat 로그인 오류", error);
-
-      if (error instanceof SocialAuthError) {
-        return {
-          success: false,
-          error,
-          provider: "wechat",
-          message: error.message,
-        };
-      }
-
-      return {
-        success: false,
-        error: new SocialAuthError(
-          SocialAuthErrorCode.AUTH_PROCESS_FAILED,
-          error instanceof Error
-            ? error.message
-            : "알 수 없는 WeChat 로그인 오류",
-          "wechat",
-          error,
-        ),
-        provider: "wechat",
-      };
-    }
-  }
-
-  /**
    * 통합 소셜 로그인 처리
    *
    * @param provider 소셜 로그인 제공자
@@ -309,8 +261,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         return this.signInWithApple(options);
       case "kakao":
         return this.signInWithKakao(options);
-      case "wechat":
-        return this.signInWithWeChat(options);
       default:
         return {
           success: false,
@@ -338,13 +288,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
     this.log(`${provider} 콜백 처리`, params);
 
     try {
-      // WeChat은 Supabase 기본 OAuth 교환이 불가하므로 전용 콜백 처리로 우선 분기
-      if (provider === "wechat") {
-        const { handleWeChatCallback } = await import("./wechat");
-        const result = await handleWeChatCallback(this.supabase, params || {});
-        return result;
-      }
-
       // OAuth 콜백에서는 URL 해시나 검색 파라미터에서 세션 정보를 추출해야 함
       if (typeof window !== "undefined") {
         // 브라우저 환경에서 URL 해시 확인

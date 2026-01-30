@@ -34,7 +34,7 @@ export interface AuthError {
   message: string;
 }
 
-export type AuthProvider = 'google' | 'kakao' | 'apple' | 'wechat';
+export type AuthProvider = 'google' | 'kakao' | 'apple';
 
 export interface SocialAuthData {
   provider: AuthProvider;

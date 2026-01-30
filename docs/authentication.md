@@ -36,12 +36,6 @@
   - 개발 환경: `http://localhost:3000/auth/callback`
   - 프로덕션: `https://www.picnic.fan/auth/callback`
 
-### 4. WeChat 로그인
-- WeChat Open Platform에서 웹사이트 애플리케이션 등록
-- 도메인 및 리디렉션 URL 설정:
-  - 개발 환경: `http://localhost:3000/auth/callback`
-  - 프로덕션: `https://www.picnic.fan/auth/callback`
-
 ## 환경 변수 설정
 
 Supabase 프로젝트 설정을 위한 환경 변수를 `.env.local` 파일에 설정:

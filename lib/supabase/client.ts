@@ -646,12 +646,7 @@ export async function signOut() {
         'supabase.auth.expires_at',
         'supabase.auth.refresh_token',
         'sb-auth-token',
-        
-        // WeChat 관련 키들
-        'wechat_auth_token',
-        'wechat_auth_state',
-        'wechat_login_state',
-        
+
         // 기타 소셜 로그인 키들
         'google_auth_state',
         'kakao_auth_state',
@@ -689,7 +684,6 @@ export async function signOut() {
             key.includes('supabase') ||
             key.includes('auth') ||
             key.includes('login') ||
-            key.includes('wechat') ||
             key.includes('oauth')
           )
         ) {
@@ -728,7 +722,6 @@ export async function signOut() {
         'auth_redirect_url',
         'login_redirect',
         'oauth_state',
-        'wechat_auth_code',
       ];
 
       // 명시적 키 제거
@@ -750,11 +743,10 @@ export async function signOut() {
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
         if (key && (
-          key.includes('auth') || 
-          key.includes('redirect') || 
+          key.includes('auth') ||
+          key.includes('redirect') ||
           key.includes('login') ||
-          key.includes('oauth') ||
-          key.includes('wechat')
+          key.includes('oauth')
         )) {
           sessionKeysToRemove.push(key);
         }
@@ -784,7 +776,6 @@ export async function signOut() {
         'auth-refresh-token',
         'sb-auth-token',
         'supabase-auth-token',
-        'wechat-auth',
         'oauth-state',
         'session-id',
         'user-session',
@@ -819,8 +810,7 @@ export async function signOut() {
             cookieName.includes('auth') || 
             cookieName.includes('supabase') ||
             cookieName.includes('login') ||
-            cookieName.includes('oauth') ||
-            cookieName.includes('wechat')
+            cookieName.includes('oauth')
           )) {
             const domains = ['', `.${window.location.hostname}`, window.location.hostname];
             const paths = ['/', '/auth', '/api'];
@@ -858,7 +848,6 @@ export async function signOut() {
           '__auth_user',
           '__user_profile',
           '__auth_session',
-          'wechatAuth',
           'googleAuth',
           'kakaoAuth',
         ];
@@ -882,20 +871,7 @@ export async function signOut() {
       console.warn('⚠️ [SignOut] 메모리 캐시 정리 오류 (계속 진행):', e);
     }
 
-    // 7. WeChat SDK 로그아웃 시도 (WeChat이 활성화된 경우)
-    try {
-      if (typeof window !== 'undefined' && (window as any).WeixinJSBridge) {
-        debugLog('🔄 [SignOut] WeChat SDK 로그아웃 시도');
-        // WeChat SDK 특별 처리 (필요시)
-        debugLog('✅ [SignOut] WeChat SDK 처리 완료');
-      } else {
-        debugLog('ℹ️ [SignOut] WeChat SDK 미감지, 건너뜀');
-      }
-    } catch (e) {
-      console.warn('⚠️ [SignOut] WeChat SDK 로그아웃 오류 (계속 진행):', e);
-    }
-
-    // 8. 리다이렉트 URL 정리 (auth-redirect.ts의 clearAllAuthData 호출)
+    // 7. 리다이렉트 URL 정리 (auth-redirect.ts의 clearAllAuthData 호출)
     try {
       debugLog('🔄 [SignOut] 리다이렉트 데이터 정리 시작...');
       // 동적 import로 clearAllAuthData 함수 사용

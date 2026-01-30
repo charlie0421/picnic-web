@@ -219,7 +219,7 @@ export enum SocialAuthErrorCode {
 /**
  * 소셜 로그인 제공자 타입
  */
-export type SocialLoginProvider = 'google' | 'apple' | 'kakao' | 'wechat';
+export type SocialLoginProvider = 'google' | 'apple' | 'kakao';
 
 /**
  * 소셜 인증 에러 클래스 (AppError 확장)

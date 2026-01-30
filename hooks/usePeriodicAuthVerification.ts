@@ -6,13 +6,6 @@ import { useAuth } from '@/lib/supabase/auth-provider';
 // 검증 간격 설정 (기본: 5분)
 const DEFAULT_VERIFICATION_INTERVAL = 5 * 60 * 1000;
 
-// WeChat 관련 인증 키들
-const WECHAT_AUTH_KEYS = [
-  'wechat_auth_token',
-  'wechat_auth_state', 
-  'wechat_login_state',
-];
-
 export interface PeriodicAuthVerificationOptions {
   /**
    * 검증 간격 (밀리초)
@@ -41,11 +34,6 @@ export interface PeriodicAuthVerificationOptions {
    */
   enabled?: boolean;
   
-  /**
-   * WeChat 로그인 처리 여부
-   * @default true
-   */
-  includeWeChatVerification?: boolean;
 }
 
 /**
@@ -61,7 +49,6 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
     onAuthSuccess,
     onNetworkError,
     enabled = true,
-    includeWeChatVerification = true,
   } = options;
 
   const { isAuthenticated, user } = useAuth();
@@ -104,28 +91,7 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
         };
       }
 
-      // 2. WeChat 인증 상태 체크 (선택적)
-      if (includeWeChatVerification) {
-        const provider = user?.app_metadata?.provider;
-        if (provider === 'wechat') {
-          console.log('🔄 [PeriodicAuth] WeChat 인증 상태 검증');
-          
-          const wechatTokenValid = WECHAT_AUTH_KEYS.some(key => {
-            const value = localStorage.getItem(key);
-            return value && value !== 'null' && value !== 'undefined';
-          });
-
-          if (!wechatTokenValid) {
-            console.warn('🔒 [PeriodicAuth] WeChat 토큰이 유효하지 않음');
-            return {
-              isValid: false,
-              reason: 'WeChat 인증 토큰이 유효하지 않습니다.',
-            };
-          }
-        }
-      }
-
-      // 3. 서버사이드 인증 검증 단계 제거: 쿠키/세션은 Supabase가 관리, UI는 로컬 상태로 판단
+      // 2. 서버사이드 인증 검증 단계 제거: 쿠키/세션은 Supabase가 관리, UI는 로컬 상태로 판단
 
       console.log('✅ [PeriodicAuth] 모든 인증 상태 검증 통과');
       return { isValid: true };
@@ -142,7 +108,7 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
     } finally {
       isVerifyingRef.current = false;
     }
-  }, [isAuthenticated, user, includeWeChatVerification, onNetworkError]);
+  }, [isAuthenticated, user, onNetworkError]);
 
   /**
    * 수동 인증 상태 검증

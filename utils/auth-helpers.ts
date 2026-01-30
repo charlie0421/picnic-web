@@ -22,7 +22,7 @@ export function getLastLoginProvider(): SocialLoginProvider | null {
     const lastLoginInfo = getLastLoginInfo();
     if (lastLoginInfo?.provider) {
       // 유효한 provider인지 확인
-      const validProviders: SocialLoginProvider[] = ['google', 'apple', 'kakao', 'wechat'];
+      const validProviders: SocialLoginProvider[] = ['google', 'apple', 'kakao'];
       if (validProviders.includes(lastLoginInfo.provider as SocialLoginProvider)) {
         return lastLoginInfo.provider as SocialLoginProvider;
       }
@@ -31,7 +31,7 @@ export function getLastLoginProvider(): SocialLoginProvider | null {
     // 레거시 시스템에서 확인 (마이그레이션용 - 읽기만)
     if (typeof window !== 'undefined') {
       const lastProvider = localStorage.getItem(LAST_LOGIN_PROVIDER_KEY);
-      if (lastProvider && ['google', 'apple', 'kakao', 'wechat'].includes(lastProvider)) {
+      if (lastProvider && ['google', 'apple', 'kakao'].includes(lastProvider)) {
         console.log('🔄 [auth-helpers] 레거시 로그인 정보 발견 - 읽기만 수행');
         
         // 레거시 키 삭제만 수행 (새로운 시스템으로 마이그레이션하지 않음)
@@ -114,7 +114,7 @@ export function incrementProviderUsage(provider: SocialLoginProvider): void {
 export function clearProviderUsageStats(): void {
   try {
     if (typeof window !== 'undefined') {
-      const providers: SocialLoginProvider[] = ['google', 'apple', 'kakao', 'wechat'];
+      const providers: SocialLoginProvider[] = ['google', 'apple', 'kakao'];
       providers.forEach(provider => {
         localStorage.removeItem(`picnic_provider_usage_${provider}`);
       });

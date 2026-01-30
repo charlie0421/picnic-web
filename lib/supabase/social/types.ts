@@ -10,7 +10,7 @@ import { Database } from '@/types/supabase';
 /**
  * 지원하는 소셜 로그인 제공자 타입
  */
-export type SocialLoginProvider = 'google' | 'apple' | 'kakao' | 'wechat';
+export type SocialLoginProvider = 'google' | 'apple' | 'kakao';
 
 /**
  * 소셜 로그인 요청 옵션
@@ -135,11 +135,6 @@ export interface SocialAuthServiceInterface {
    * Kakao 로그인 처리
    */
   signInWithKakao(options?: SocialAuthOptions): Promise<AuthResult>;
-  
-  /**
-   * WeChat 로그인 처리
-   */
-  signInWithWeChat(options?: SocialAuthOptions): Promise<AuthResult>;
   
   /**
    * 통합 소셜 로그인 처리

@@ -52,7 +52,6 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
     label_mypage_provider_google: localeMessages.label_mypage_provider_google || 'Google',
     label_mypage_provider_apple: localeMessages.label_mypage_provider_apple || 'Apple',
     label_mypage_provider_kakao: localeMessages.label_mypage_provider_kakao || 'Kakao',
-    label_mypage_provider_wechat: localeMessages.label_mypage_provider_wechat || 'WeChat',
     label_mypage_provider_default: localeMessages.label_mypage_provider_default || 'Email',
     label_mypage_account_management: localeMessages.label_mypage_account_management || 'Account Management',
     label_mypage_edit_profile: localeMessages.label_mypage_edit_profile || 'Edit Profile',

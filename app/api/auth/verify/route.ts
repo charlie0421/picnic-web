@@ -68,14 +68,7 @@ export async function GET(request: NextRequest) {
       // 프로필 체크 실패는 인증 실패로 처리하지 않음
     }
 
-    // WeChat 로그인 특별 검증
     const provider = userData.user.app_metadata?.provider;
-    if (provider === 'wechat') {
-      console.log('🔄 [Auth Verify API] WeChat 로그인 특별 검증');
-      
-      // WeChat 토큰 유효성 추가 검증 (필요시 구현)
-      // 현재는 기본 사용자 검증으로 충분
-    }
 
     console.log('✅ [Auth Verify API] 인증 상태 검증 성공:', {
       userId: userData.user.id,

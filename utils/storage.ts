@@ -135,8 +135,7 @@ export function getProviderDisplayName(provider: string): string {
   const displayNames: { [key: string]: string } = {
     google: 'Google',
     apple: 'Apple',
-    kakao: 'Kakao',
-    wechat: 'WeChat'
+    kakao: 'Kakao'
   };
   
   return displayNames[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);

@@ -44,13 +44,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 4. 콜백 처리 확인
 5. 세션 유지 확인
 
-### 2.3 WeChat 로그인 테스트
-1. WeChat Open Platform에서 테스트 계정 설정
-2. 로그인 페이지에서 WeChat 로그인 버튼 클릭
-3. 테스트 계정으로 로그인
-4. 콜백 처리 확인
-5. 세션 유지 확인
-
 ## 3. 일반 로그인 테스트
 
 ### 3.1 이메일/비밀번호 로그인

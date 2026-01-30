@@ -179,13 +179,6 @@ export function SocialLoginButtons({
       hoverColor: 'hover:bg-yellow-500',
       iconPath: '/images/auth/kakao.svg',
     },
-    wechat: {
-      label: t('label_login_with_wechat') || 'WeChat으로 로그인',
-      bgColor: 'bg-green-500',
-      textColor: 'text-white',
-      hoverColor: 'hover:bg-green-600',
-      iconPath: '/images/auth/wechat.svg',
-    },
   };
 
   // 최근 사용한 provider가 있는지 확인
@@ -250,8 +243,6 @@ export function SocialLoginButtons({
           return baseStyle + 'bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 border-2 border-gray-800 hover:border-gray-700 !text-white hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
         case 'kakao':
           return baseStyle + 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 border-2 border-yellow-400 hover:border-yellow-500 !text-gray-900 hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
-        case 'wechat':
-          return baseStyle + 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 border-2 border-green-600 hover:border-green-700 !text-white hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
         default:
           return baseStyle + 'bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-300 !text-gray-700';
       }
@@ -294,7 +285,6 @@ export function SocialLoginButtons({
                 provider === 'apple' ? 'filter brightness-0 invert' : ''
               }`}
               priority={provider === 'google' || isLastUsed}
-              unoptimized={provider === 'wechat'} // WeChat SVG의 렌더링 문제 해결
             />
           </div>
           
@@ -302,8 +292,7 @@ export function SocialLoginButtons({
           <span className={`font-medium text-xs sm:text-sm md:text-base whitespace-nowrap transition-all duration-300 ${
             provider === 'google' ? '!text-gray-700' :
             provider === 'apple' ? '!text-white' :
-            provider === 'kakao' ? '!text-gray-900' :
-            provider === 'wechat' ? '!text-white' : '!text-gray-700'
+            provider === 'kakao' ? '!text-gray-900' : '!text-gray-700'
           } ${isLoading === provider ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'}`}>
             {isLoading === provider ? (t('label_logging_in') || '로그인 중...') : config.label}
           </span>
