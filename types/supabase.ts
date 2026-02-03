@@ -985,6 +985,33 @@ export type Database = {
           },
         ]
       }
+      attendance_check: {
+        Row: {
+          check_date: string
+          created_at: string
+          id: number
+          reward_amount: number
+          user_id: string
+          weekly_bonus_amount: number
+        }
+        Insert: {
+          check_date: string
+          created_at?: string
+          id?: never
+          reward_amount?: number
+          user_id: string
+          weekly_bonus_amount?: number
+        }
+        Update: {
+          check_date?: string
+          created_at?: string
+          id?: never
+          reward_amount?: number
+          user_id?: string
+          weekly_bonus_amount?: number
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action_description: string
@@ -5111,6 +5138,7 @@ export type Database = {
       user_push_tokens: {
         Row: {
           created_at: string | null
+          device_locale: string | null
           id: number
           token_android: string | null
           token_ios: string | null
@@ -5122,6 +5150,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          device_locale?: string | null
           id?: number
           token_android?: string | null
           token_ios?: string | null
@@ -5133,6 +5162,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          device_locale?: string | null
           id?: number
           token_android?: string | null
           token_ios?: string | null
@@ -6261,12 +6291,24 @@ export type Database = {
       }
     }
     Functions: {
+      auto_fix_bonus_drift: {
+        Args: never
+        Returns: {
+          new_bonus: number
+          old_bonus: number
+          user_id: string
+        }[]
+      }
       auto_resolve_stale_qna_threads: {
         Args: { inactivity_days?: number }
         Returns: undefined
       }
       begin_transaction: { Args: never; Returns: undefined }
       bytea_to_text: { Args: { data: string }; Returns: string }
+      call_edge_function: {
+        Args: { function_name: string; payload?: Json }
+        Returns: number
+      }
       can_vote: {
         Args: { p_user_id: string; p_vote_amount: number }
         Returns: boolean
@@ -6282,8 +6324,20 @@ export type Database = {
         }[]
       }
       cleanup_deleted_qnas: { Args: { days_old?: number }; Returns: number }
+      cleanup_exhausted_buckets_batch: {
+        Args: { batch_limit?: number }
+        Returns: number
+      }
       cleanup_expired_audit_logs: { Args: never; Returns: number }
       commit_transaction: { Args: never; Returns: undefined }
+      consolidate_bonus_buckets: {
+        Args: { target_user_id?: string }
+        Returns: {
+          affected_user_id: string
+          buckets_after: number
+          buckets_before: number
+        }[]
+      }
       create_boards_for_existing_artists: { Args: never; Returns: undefined }
       create_boards_for_existing_artists_meme: {
         Args: never
@@ -6761,10 +6815,20 @@ export type Database = {
         Args: { p_vote_ids: number[] }
         Returns: undefined
       }
-      upsert_user_push_token: {
-        Args: { p_platform: string; p_token: string; p_user_id: string }
-        Returns: undefined
-      }
+      upsert_user_push_token:
+        | {
+            Args: { p_platform: string; p_token: string; p_user_id: string }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_device_locale?: string
+              p_platform: string
+              p_token: string
+              p_user_id: string
+            }
+            Returns: undefined
+          }
       urlencode:
         | { Args: { data: Json }; Returns: string }
         | {
@@ -6802,6 +6866,7 @@ export type Database = {
         | "OPEN_COMPATIBILITY"
         | "MISSION"
         | "OPEN_GOONGHAP"
+        | "ADMIN_ADJUST"
       goonghap_status: "pending" | "completed" | "error"
       platform_enum: "iOS" | "Android" | "Both"
       policy_language_enum: "ko" | "en"
@@ -6985,6 +7050,7 @@ export const Constants = {
         "OPEN_COMPATIBILITY",
         "MISSION",
         "OPEN_GOONGHAP",
+        "ADMIN_ADJUST",
       ],
       goonghap_status: ["pending", "completed", "error"],
       platform_enum: ["iOS", "Android", "Both"],

@@ -10,7 +10,7 @@ export type Json =
 
 export type BoardStatus = "pending" | "approved" | "rejected";
 
-export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION" | "OPEN_GOONGHAP";
+export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION" | "OPEN_GOONGHAP" | "ADMIN_ADJUST";
 
 export type GoonghapStatus = "pending" | "completed" | "error";
 
@@ -308,6 +308,15 @@ export interface ArtistVoteItem {
   title: Json | null
   updated_at: string | null
   vote_total: number | null
+}
+
+export interface AttendanceCheck {
+  check_date: string
+  created_at: string
+  id: number
+  reward_amount: number
+  user_id: string
+  weekly_bonus_amount: number
 }
 
 export interface AuditLogs {
@@ -1406,6 +1415,7 @@ export interface UserProfiles {
 
 export interface UserPushTokens {
   created_at: string | null
+  device_locale: string | null
   id: number
   token_android: string | null
   token_ios: string | null
