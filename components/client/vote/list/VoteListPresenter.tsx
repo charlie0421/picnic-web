@@ -14,6 +14,9 @@ type WindowWithIdleCallback = Window & {
   cancelIdleCallback?: (handle: number) => void;
 };
 
+/** Minimum interval between automatic page reloads (ms) */
+const RELOAD_COOLDOWN_MS = 15000;
+
 export interface VoteListPresenterProps {
   votes: Vote[];
   onVoteClick?: (voteId: string | number) => void;
@@ -78,7 +81,7 @@ export function VoteListPresenter({
       const delay = Math.max(0, nextTimestamp - Date.now());
 
       const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
-        const reloadedRecently = Date.now() - lastReloadTs < 15000;
+        const reloadedRecently = Date.now() - lastReloadTs < RELOAD_COOLDOWN_MS;
       if (!reloadedRecently) {
         reloadTimerRef.current = window.setTimeout(() => {
             sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
@@ -96,7 +99,7 @@ export function VoteListPresenter({
         const ts = nextTransitionTsRef.current;
         if (ts !== null && Date.now() >= ts) {
           const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
-          const reloadedRecently = Date.now() - lastReloadTs < 15000;
+          const reloadedRecently = Date.now() - lastReloadTs < RELOAD_COOLDOWN_MS;
           if (!reloadedRecently) {
               sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
             try {

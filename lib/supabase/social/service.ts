@@ -77,7 +77,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         kakao: `${baseUrl}/auth/callback/kakao`,
       };
 
-      console.log("🔍 SocialAuth 콜백 URL 초기화:", this.callbackUrls);
     }
 
     this.log("서비스 초기화 완료");
@@ -97,32 +96,17 @@ export class SocialAuthService implements SocialAuthServiceInterface {
       // Supabase OAuth 인터페이스 활용
       const redirectUrl = options?.redirectUrl || this.callbackUrls.google;
 
-      console.log(
-        "🔍 SocialAuthService: Google 로그인 시작, redirectUrl:",
-        redirectUrl,
-      );
-      console.log("🔍 SocialAuthService: signInWithGoogleImpl import 시작");
-
       // 내부 구현은 별도 파일로 분리하여 세부 구현 숨김
       // 실제 구현에서는 import된 함수 사용
       const { signInWithGoogleImpl } = await import("./google");
-
-      console.log("🔍 SocialAuthService: signInWithGoogleImpl import 완료");
-      console.log("🔍 SocialAuthService: signInWithGoogleImpl 호출 시작");
 
       const result = await signInWithGoogleImpl(this.supabase, {
         ...options,
         redirectUrl,
       });
 
-      console.log(
-        "🔍 SocialAuthService: signInWithGoogleImpl 호출 완료, result:",
-        result,
-      );
-
       return result;
     } catch (error) {
-      console.error("🔍 SocialAuthService: Google 로그인 오류:", error);
       this.logError("Google 로그인 오류", error);
 
       if (error instanceof SocialAuthError) {
@@ -419,22 +403,22 @@ export class SocialAuthService implements SocialAuthServiceInterface {
       this.log(`${provider} Code Exchange 실패/불가 - 기존 사용자 확인으로 폴백`);
       
       // 먼저 빠른 사용자 체크 (getUser()는 getSession()보다 빠름)
-      let userData: any = null;
-      let userError: any = null;
-      
+      let userData: { user: import("@supabase/supabase-js").User | null } | null = null;
+      let userError: unknown = null;
+
       try {
         const userPromise = this.supabase.auth.getUser();
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('getUser timeout')), 300) // getUser는 더 빠르므로 300ms
         );
-        
+
         const result = await Promise.race([
           userPromise,
           timeoutPromise
         ]);
-        
-        userData = (result as any)?.data;
-        userError = (result as any)?.error;
+
+        userData = result.data;
+        userError = result.error;
         
         this.log(`${provider} 사용자 확인 결과`, { 
           hasData: !!userData, 
@@ -455,22 +439,22 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         await new Promise(resolve => setTimeout(resolve, 300));
         
         // 빠른 재시도
-        let retryData: any = null;
-        let retryError: any = null;
-        
+        let retryData: { user: import("@supabase/supabase-js").User | null } | null = null;
+        let retryError: unknown = null;
+
         try {
           const retryPromise = this.supabase.auth.getUser();
-          const retryTimeoutPromise = new Promise((_, reject) => 
+          const retryTimeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('retry getUser timeout')), 300)
           );
-          
+
           const retryResult = await Promise.race([
             retryPromise,
             retryTimeoutPromise
           ]);
-          
-          retryData = (retryResult as any)?.data;
-          retryError = (retryResult as any)?.error;
+
+          retryData = retryResult.data;
+          retryError = retryResult.error;
           
         } catch (retryTimeoutError) {
           this.log(`${provider} 재시도 getUser도 타임아웃 - 페이지 새로고침 안내`);
@@ -480,7 +464,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         if (retryError || !retryData?.user) {
           throw new SocialAuthError(
             SocialAuthErrorCode.CALLBACK_FAILED,
-            `인증 사용자 가져오기 실패: ${userError?.message || retryError?.message}`,
+            `인증 사용자 가져오기 실패: ${userError instanceof Error ? userError.message : retryError instanceof Error ? retryError.message : 'Unknown error'}`,
             provider,
             userError || retryError,
           );
@@ -501,12 +485,12 @@ export class SocialAuthService implements SocialAuthServiceInterface {
           
           // Google 특화 처리
           if (provider === "google") {
-            await this.handleGoogleProfile(simpleSession as any, params);
+            await this.handleGoogleProfile(simpleSession as unknown as Session, params);
           }
 
           // Apple 특화 처리
           if (provider === "apple") {
-            await this.handleAppleProfile(simpleSession as any, params);
+            await this.handleAppleProfile(simpleSession as unknown as Session, params);
           }
 
           // 로컬 스토리지에 인증 성공 정보 저장
@@ -518,7 +502,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
           return {
             success: true,
-            session: simpleSession as any,
+            session: simpleSession as unknown as Session,
             user: retryData.user,
             provider,
             message: `${provider} 로그인 성공`,
@@ -550,12 +534,12 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
       // Google 특화 처리
       if (provider === "google") {
-        await this.handleGoogleProfile(sessionForProfile as any, params);
+        await this.handleGoogleProfile(sessionForProfile as unknown as Session, params);
       }
 
       // Apple 특화 처리
       if (provider === "apple") {
-        await this.handleAppleProfile(sessionForProfile as any, params);
+        await this.handleAppleProfile(sessionForProfile as unknown as Session, params);
       }
 
       // 로컬 스토리지에 인증 성공 정보 저장 (기존 코드와의 호환성)
@@ -567,7 +551,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
       return {
         success: true,
-        session: sessionForProfile as any,
+        session: sessionForProfile as unknown as Session,
         user: userData.user,
         provider,
         message: `${provider} 로그인 성공`,
@@ -647,13 +631,10 @@ export class SocialAuthService implements SocialAuthServiceInterface {
                   updated_at: new Date().toISOString(),
                 };
                 
-                console.log('🔧 [Google] 프로필 생성 시도:', insertData);
                 const { error: insertError } = await this.supabase.from("user_profiles").insert(insertData);
-                
+
                 if (insertError) {
                   console.error('❌ [Google] 프로필 생성 실패:', insertError);
-                } else {
-                  console.log('✅ [Google] 프로필 생성 성공');
                 }
               } else {
                 // 필요한 필드만 업데이트
@@ -684,13 +665,10 @@ export class SocialAuthService implements SocialAuthServiceInterface {
           updated_at: new Date().toISOString(),
         };
         
-        console.log('🔧 [Google] 기본 프로필 생성 시도:', basicProfileData);
         const { error: basicInsertError } = await this.supabase.from("user_profiles").insert(basicProfileData);
-        
+
         if (basicInsertError) {
           console.error('❌ [Google] 기본 프로필 생성 실패:', basicInsertError);
-        } else {
-          console.log('✅ [Google] 기본 프로필 생성 성공');
         }
       }
     } catch (error) {
@@ -711,8 +689,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
   ): Promise<void> {
     try {
       const user = session.user;
-      console.log('🍎 [Apple Profile] 처리 시작:', { userId: user.id, email: user.email });
-
       // 사용자 프로필이 이미 존재하는지 확인
       const { data: existingProfile, error: profileCheckError } = await this.supabase
         .from("user_profiles")
@@ -725,22 +701,16 @@ export class SocialAuthService implements SocialAuthServiceInterface {
         console.error('🍎 [Apple Profile] 기존 프로필 확인 오류:', profileCheckError);
       }
 
-      console.log('🍎 [Apple Profile] 기존 프로필 확인:', { 
-        hasProfile: !!existingProfile,
-        profileId: existingProfile?.id 
-      });
-
       // Apple은 첫 로그인 시에만 name과 email 정보를 제공합니다.
       // user 정보가 URL 파라미터로 제공된 경우 (첫 로그인)
-      let userObject: any = null;
+      let userObject: { name?: { firstName?: string; lastName?: string }; email?: string } | null = null;
 
       if (params?.user) {
         try {
           userObject = JSON.parse(decodeURIComponent(params.user));
-          console.log('🍎 [Apple Profile] 첫 로그인 사용자 데이터 파싱 성공:', userObject);
 
           // localStorage에 저장 (향후 사용)
-          if (typeof localStorage !== "undefined") {
+          if (typeof localStorage !== "undefined" && userObject) {
             localStorage.setItem(
               "apple_user_name",
               JSON.stringify(userObject.name),
@@ -749,7 +719,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
               "apple_user_email",
               userObject.email || user.email || "",
             );
-            console.log('🍎 [Apple Profile] 사용자 정보 localStorage 저장 완료');
           }
         } catch (error) {
           console.error("🍎 [Apple Profile] 사용자 데이터 파싱 오류:", error);
@@ -758,7 +727,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
       // ID 토큰이 있는 경우 (API 검증 시도)
       if (params?.id_token) {
-        console.log('🍎 [Apple Profile] ID 토큰 발견, API 검증 시작');
         try {
           // API를 호출하여 ID 토큰을 검증하고 프로필 정보 가져오기
           const response = await fetch("/api/auth/apple", {
@@ -774,8 +742,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
           if (response.ok) {
             const data = await response.json();
-            console.log('🍎 [Apple Profile] API 응답:', data);
-            
+
             if (data.success && data.profile) {
               // 사용자 프로필이 없으면 생성, 있으면 업데이트
               if (!existingProfile) {
@@ -790,20 +757,17 @@ export class SocialAuthService implements SocialAuthServiceInterface {
                   updated_at: new Date().toISOString(),
                 };
                 
-                console.log('🍎 [Apple Profile] API 검증 후 프로필 생성 시도:', appleInsertData);
                 const { error: appleInsertError } = await this.supabase
                   .from("user_profiles")
                   .insert(appleInsertData);
-                
+
                 if (appleInsertError) {
-                  console.error('❌ [Apple Profile] API 검증 후 프로필 생성 실패:', appleInsertError);
+                  console.error('❌ [Apple Profile] 프로필 생성 실패:', appleInsertError);
                 } else {
-                  console.log('✅ [Apple Profile] API 검증 후 프로필 생성 성공');
                   return; // 성공적으로 생성했으므로 함수 종료
                 }
               } else {
                 // 기존 프로필 업데이트
-                console.log('🍎 [Apple Profile] 기존 프로필 업데이트 시도');
                 const { error: updateError } = await this.supabase
                   .from("user_profiles")
                   .update({
@@ -816,15 +780,10 @@ export class SocialAuthService implements SocialAuthServiceInterface {
                 if (updateError) {
                   console.error('❌ [Apple Profile] 프로필 업데이트 실패:', updateError);
                 } else {
-                  console.log('✅ [Apple Profile] 프로필 업데이트 성공');
                   return; // 성공적으로 업데이트했으므로 함수 종료
                 }
               }
-            } else {
-              console.log('🍎 [Apple Profile] API 응답에 프로필 정보 없음, 기본 처리로 진행');
             }
-          } else {
-            console.error('🍎 [Apple Profile] API 응답 실패:', response.status, response.statusText);
           }
         } catch (error) {
           console.error("🍎 [Apple Profile] API 호출 오류:", error);
@@ -834,8 +793,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
 
       // API 검증 실패 또는 ID 토큰 없음 → 기본 프로필 처리
       if (!existingProfile) {
-        console.log('🍎 [Apple Profile] 기본 프로필 생성 시작');
-        
         // localStorage에서 이전에 저장한 정보 사용
         let name = "";
         if (typeof localStorage !== "undefined") {
@@ -844,7 +801,6 @@ export class SocialAuthService implements SocialAuthServiceInterface {
             if (savedName) {
               const parsedName = JSON.parse(savedName);
               name = [parsedName.firstName, parsedName.lastName].filter(Boolean).join(" ");
-              console.log('🍎 [Apple Profile] localStorage에서 이름 복원:', name);
             }
           } catch (e) {
             console.error("🍎 [Apple Profile] 저장된 이름 파싱 오류:", e);
@@ -867,18 +823,13 @@ export class SocialAuthService implements SocialAuthServiceInterface {
           updated_at: new Date().toISOString(),
         };
         
-        console.log('🍎 [Apple Profile] 기본 프로필 생성 시도:', appleBasicData);
         const { error: appleBasicError } = await this.supabase
           .from("user_profiles")
           .insert(appleBasicData);
-        
+
         if (appleBasicError) {
           console.error('❌ [Apple Profile] 기본 프로필 생성 실패:', appleBasicError);
-        } else {
-          console.log('✅ [Apple Profile] 기본 프로필 생성 성공');
         }
-      } else {
-        console.log('🍎 [Apple Profile] 기존 프로필 존재, 추가 처리 없음');
       }
     } catch (error) {
       console.error("🍎 [Apple Profile] 처리 중 전체 오류:", error);
@@ -930,7 +881,6 @@ export function getSocialAuthService(
     if (typeof window !== "undefined") {
       const { createBrowserSupabaseClient } = require("@/lib/supabase/client");
       client = createBrowserSupabaseClient();
-      console.log("🔍 getSocialAuthService: 브라우저 Supabase 클라이언트 자동 생성");
     } else {
       throw new Error("서버 환경에서는 Supabase 클라이언트를 명시적으로 전달해야 합니다.");
     }
@@ -938,7 +888,6 @@ export function getSocialAuthService(
 
   if (!socialAuthServiceInstance) {
     socialAuthServiceInstance = new SocialAuthService(client as SupabaseClient<Database>);
-    console.log("🔍 getSocialAuthService: 새로운 SocialAuthService 인스턴스 생성");
   }
 
   return socialAuthServiceInstance;
@@ -949,5 +898,4 @@ export function getSocialAuthService(
  */
 export function resetSocialAuthService(): void {
   socialAuthServiceInstance = null;
-  console.log("🔄 getSocialAuthService: 인스턴스 재설정 완료");
 }

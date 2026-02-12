@@ -63,26 +63,12 @@ async function verifyPortOnePayment(paymentId: string): Promise<any> {
     throw new Error('PORTONE_API_SECRET must be set in environment variables');
   }
 
-  console.log('[Webhook] Verifying payment with SDK:', { 
-    paymentId,
-    hasClient: !!paymentClient,
-  });
-  
   try {
     // 포트원 서버 SDK를 사용하여 결제 정보 조회
     const payment = await paymentClient.getPayment({ paymentId });
-    
-    console.log('[Webhook] Payment verified successfully:', {
-      paymentId,
-      status: payment.status,
-    });
-    
     return payment;
   } catch (error) {
-    console.error('[Webhook] Payment verification failed:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    console.error('[Webhook] Payment verification failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -136,30 +122,16 @@ export async function POST(request: NextRequest) {
     const status = body.status || body.payment_status;
     const normalizedStatus = status?.toUpperCase();
     
-    // 웹훅 상태 로깅 (디버깅용)
-    console.log('[Webhook] Webhook received with status:', {
-      status,
-      normalizedStatus,
-      paymentId: body.paymentId || body.payment_id || body.merchant_uid || body.id,
-      timestamp: new Date().toISOString(),
-    });
-    
     if (normalizedStatus === 'READY') {
       // Ready 상태는 결제 시작 알림일 뿐이므로, 즉시 성공 응답 반환
       // Supabase 클라이언트 생성이나 다른 처리를 하지 않음
-      console.log('[Webhook] READY status webhook - returning early without processing');
       return NextResponse.json({ ok: true, message: 'Payment is ready, waiting for completion' });
     }
-    
-    // READY가 아닌 경우에만 로깅 및 처리 진행
-    console.log('[Webhook] Received payload:', JSON.stringify(body, null, 2));
-    console.log('[Webhook] Headers:', Object.fromEntries(request.headers.entries()));
     
     // Supabase Service Role Client 생성
     let supabase;
     try {
       supabase = createServiceRoleSupabaseClient();
-      console.log('[Webhook] Supabase client created successfully');
     } catch (error) {
       console.error('[Webhook] Failed to create Supabase client:', error);
       return NextResponse.json(
@@ -191,16 +163,9 @@ export async function POST(request: NextRequest) {
                        body.id;
     const txId = body.tx_id || body.txId;
 
-    console.log('[Webhook] Extracted values:', {
-      paymentId,
-      txId,
-      status,
-      bodyKeys: Object.keys(body),
-    });
-
     // paymentId는 반드시 필요
     if (!paymentId) {
-      console.error('[Webhook] Missing paymentId in webhook payload. Full body:', JSON.stringify(body, null, 2));
+      console.error('[Webhook] Missing paymentId in webhook payload');
       return NextResponse.json(
         { error: 'Missing paymentId', receivedBody: body },
         { status: 400 }
@@ -209,7 +174,6 @@ export async function POST(request: NextRequest) {
     
     // READY가 아닌 다른 상태도 확인 (PAID가 아닌 경우)
     if (normalizedStatus !== 'PAID') {
-      console.log(`[Webhook] Payment status is ${status}, skipping processing`);
       return NextResponse.json({ ok: true });
     }
 
@@ -226,18 +190,9 @@ export async function POST(request: NextRequest) {
     }
     
     try {
-      console.log('[Webhook] Verifying payment with paymentId:', paymentId);
-      if (txId) {
-        console.log('[Webhook] txId available (for reference):', txId);
-      }
       paymentData = await verifyPortOnePayment(paymentId);
-      console.log('[Webhook] Payment verification successful with paymentId');
     } catch (error) {
-      console.error('[Webhook] Payment verification error:', {
-        error: error instanceof Error ? error.message : String(error),
-        paymentId,
-        txId: txId || 'not provided',
-      });
+      console.error('[Webhook] Payment verification error:', error instanceof Error ? error.message : String(error));
 
       // Never fall back to unverified webhook data for payment processing.
       // Reject the webhook and let PortOne retry later.
@@ -248,7 +203,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!paymentData) {
-      console.error('[Webhook] Payment verification returned null');
       return NextResponse.json(
         { error: 'Payment verification failed - no data returned' },
         { status: 400 }
@@ -258,7 +212,6 @@ export async function POST(request: NextRequest) {
     // 결제 완료 상태 확인 (포트원 v2 SDK: 'PAID')
     const paymentStatus = paymentData.status?.toUpperCase();
     if (paymentStatus !== 'PAID') {
-      console.log(`[Webhook] Payment not completed. Status: ${paymentData.status}`);
       return NextResponse.json({ ok: true });
     }
 
@@ -272,13 +225,6 @@ export async function POST(request: NextRequest) {
                             paymentData.metadata?.customData ||
                             paymentData.metadata?.custom_data ||
                             '';
-      console.log('[Webhook] Payment data customData (raw):', customDataString);
-      console.log('[Webhook] Payment data structure:', {
-        hasCustomData: !!paymentData.customData,
-        hasMetadata: !!paymentData.metadata,
-        metadataKeys: paymentData.metadata ? Object.keys(paymentData.metadata) : [],
-      });
-      
       // customData가 문자열인 경우 파싱 시도
       if (typeof customDataString === 'string' && customDataString.trim()) {
         try {
@@ -286,7 +232,6 @@ export async function POST(request: NextRequest) {
           const firstParse = JSON.parse(customDataString);
           // 파싱 결과가 문자열이면 한 번 더 파싱 (이중 stringify된 경우)
           if (typeof firstParse === 'string') {
-            console.log('[Webhook] customData is double-stringified, parsing again');
             customData = JSON.parse(firstParse);
           } else {
             customData = firstParse;
@@ -300,10 +245,8 @@ export async function POST(request: NextRequest) {
         customData = {};
       }
       
-      console.log('[Webhook] Parsed customData:', customData);
     } catch (e) {
       console.error('[Webhook] Failed to parse custom data:', e);
-      console.error('[Webhook] Raw paymentData.customData:', paymentData.customData);
       return NextResponse.json(
         { error: 'Invalid payment data', details: e instanceof Error ? e.message : 'Parse error' },
         { status: 400 }
@@ -315,16 +258,8 @@ export async function POST(request: NextRequest) {
     const starCandy = customData.starCandy || 0;
     const bonusAmount = customData.bonusAmount || 0;
 
-    console.log('[Webhook] Extracted custom data:', {
-      userId,
-      productId,
-      starCandy,
-      bonusAmount,
-    });
-
     // userId가 없으면 paymentData.customer.email로 사용자 찾기 (fallback)
     if (!userId && paymentData.customer?.email) {
-      console.log('[Webhook] userId not found in customData, attempting to find user by email:', paymentData.customer.email);
       try {
         const { data: userByEmail } = await supabase
           .from('user_profiles')
@@ -334,9 +269,6 @@ export async function POST(request: NextRequest) {
         
         if (userByEmail?.user_id) {
           userId = userByEmail.user_id;
-          console.log('[Webhook] Found user by email:', userId);
-        } else {
-          console.warn('[Webhook] User not found by email:', paymentData.customer.email);
         }
       } catch (emailLookupError) {
         console.error('[Webhook] Failed to lookup user by email:', emailLookupError);
@@ -345,16 +277,7 @@ export async function POST(request: NextRequest) {
 
     // customData에서 필수 정보 확인
     if (!userId || !productId) {
-      console.error('[Webhook] Missing userId or productId in custom data');
-      console.error('[Webhook] Full webhook body:', JSON.stringify(body, null, 2));
-      console.error('[Webhook] Full customData:', JSON.stringify(customData, null, 2));
-      console.error('[Webhook] Full paymentData:', JSON.stringify(paymentData, null, 2));
-      console.error('[Webhook] Payment data structure:', {
-        hasCustomData: !!paymentData.customData,
-        hasMetadata: !!paymentData.metadata,
-        metadataKeys: paymentData.metadata ? Object.keys(paymentData.metadata) : [],
-        customerEmail: paymentData.customer?.email,
-      });
+      console.error('[Webhook] Missing userId or productId in custom data:', { paymentId });
 
       return NextResponse.json(
         {
@@ -394,10 +317,6 @@ export async function POST(request: NextRequest) {
     // paymentData에서 실제 paymentId 가져오기 (포트원 v2: paymentId)
     const actualPaymentId = paymentData.paymentId || paymentId;
 
-    console.log('[Webhook] Using payment identifier:', {
-      paymentId: actualPaymentId,
-    });
-
     // 중복 처리 방지: receipt_hash로 확인
     const receiptHash = actualPaymentId;
     const { data: existingReceipt } = await supabase
@@ -407,8 +326,6 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingReceipt) {
-      // 이미 완료된 결제는 중복 처리 방지
-      console.log(`[Webhook] Receipt already exists for paymentId: ${receiptHash}`);
       return NextResponse.json({ ok: true, message: 'Already processed' });
     }
 
@@ -443,7 +360,6 @@ export async function POST(request: NextRequest) {
     if (receiptError) {
       // 중복 키 에러는 이미 처리된 것으로 간주
       if (receiptError.code === '23505') {
-        console.log(`Duplicate receipt detected: ${actualPaymentId}`);
         return NextResponse.json({ ok: true, message: 'Already processed' });
       }
       
@@ -512,16 +428,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[Webhook] Processed successfully for paymentId: ${receiptHash}`);
     return NextResponse.json({ ok: true, receipt_id: receipt.id });
 
   } catch (error) {
-    console.error('[Webhook] Processing error:', error);
-    console.error('[Webhook] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    console.error('[Webhook] Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-    });
+    console.error('[Webhook] Processing error:', error instanceof Error ? error.message : String(error));
     
     // 웹훅은 200 OK를 반환하여 재시도 방지 (에러는 로그로만 기록)
     // 하지만 실제 에러 정보는 로그에 기록

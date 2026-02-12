@@ -255,11 +255,12 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
     if (supabaseDebug && typeof window !== 'undefined') {
       const now = Date.now();
       const lastLogKey = '_supabase_last_reuse_log';
-      const lastLogTime = (window as any)[lastLogKey] || 0;
-      
+      const win = window as unknown as Record<string, unknown>;
+      const lastLogTime = (win[lastLogKey] as number) || 0;
+
       if (now - lastLogTime > 5000) { // 5초마다 최대 1번으로 변경
         debugLog('🔄 [Client] 기존 Supabase 클라이언트 재사용');
-        (window as any)[lastLogKey] = now;
+        win[lastLogKey] = now;
       }
     }
     
@@ -322,11 +323,13 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
   
   // 3. 네트워크 상태 체크
   if (supabaseDebug && typeof navigator !== 'undefined' && 'onLine' in navigator) {
+    const nav = navigator as unknown as Record<string, unknown>;
+    const conn = nav.connection as Record<string, unknown> | undefined;
     debugLog('🌐 [진단] 네트워크 상태:', {
       online: navigator.onLine,
-      connection: (navigator as any).connection ? {
-        effectiveType: (navigator as any).connection.effectiveType,
-        downlink: (navigator as any).connection.downlink
+      connection: conn ? {
+        effectiveType: conn.effectiveType,
+        downlink: conn.downlink
       } : 'N/A'
     });
   }
@@ -397,11 +400,12 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
     }
 
     // 🧪 개발 환경에서 디버깅을 위해 전역으로 노출
-    (window as any).supabase = browserSupabase;
-    (window as any).createBrowserSupabaseClient = createBrowserSupabaseClient;
-    
+    const globalWindow = window as unknown as Record<string, unknown>;
+    globalWindow.supabase = browserSupabase;
+    globalWindow.createBrowserSupabaseClient = createBrowserSupabaseClient;
+
     // 🔧 로그아웃 디버깅 도구들 전역 노출
-    (window as any).debugLogout = {
+    globalWindow.debugLogout = {
       // 포괄적인 로그아웃 (기존)
       signOut: signOut,
       
@@ -853,10 +857,11 @@ export async function signOut() {
         ];
         
         let deletedVars = 0;
+        const globalWin = window as unknown as Record<string, unknown>;
         globalVarsToDelete.forEach(varName => {
           try {
-            if ((window as any)[varName] !== undefined) {
-              delete (window as any)[varName];
+            if (globalWin[varName] !== undefined) {
+              delete globalWin[varName];
               deletedVars++;
             }
           } catch (e) {

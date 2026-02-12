@@ -910,9 +910,7 @@ export function createImageErrorHandler(
       
       // 프록시 사용 옵션이 활성화된 경우 프록시로 재시도
       if (useProxy) {
-        const proxiedUrl = getProxiedImageUrl(originalSrc);
-        console.log('🖼️ [ImageUtils] 프록시로 재시도:', proxiedUrl);
-        img.src = proxiedUrl;
+        img.src = getProxiedImageUrl(originalSrc);
         return;
       }
       

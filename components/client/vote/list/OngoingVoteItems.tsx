@@ -24,6 +24,12 @@ interface EnhancedVoteItem
   vote_total: number;
 }
 
+/** Number of top-ranked items to display */
+const TOP_ITEMS_DISPLAY_COUNT = 3;
+
+/** Timer tick interval for relative time updates (ms) */
+const RELATIVE_TIME_TICK_MS = 60 * 1000;
+
 interface OngoingVoteItemsProps {
   vote: Vote & { voteItem?: VoteItemWithOptionalArtist[] };
   onVoteChange?: (
@@ -85,7 +91,7 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
 
   // 1분 간격으로 상대 시간 갱신
   useEffect(() => {
-    const interval = setInterval(() => setTick((prev) => prev + 1), 60 * 1000);
+    const interval = setInterval(() => setTick((prev) => prev + 1), RELATIVE_TIME_TICK_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -105,7 +111,7 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
       return sortedItems;
     }
 
-    return sortedItems.slice(0, 3);
+    return sortedItems.slice(0, TOP_ITEMS_DISPLAY_COUNT);
   }, [voteItems]);
 
   // 투표 변경 핸들러

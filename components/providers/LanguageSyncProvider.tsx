@@ -145,8 +145,6 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
           }
           
           if (detectedLanguage && detectedLanguage !== currentLanguage) {
-            console.log(`🌐 [LanguageSyncProvider] Detected device language: ${detectedLanguage} (device: ${deviceLanguage})`);
-            
             // 언어 스토어 업데이트
             setCurrentLang(detectedLanguage);
             
@@ -177,8 +175,6 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
                 
                 if (error) {
                   console.warn('Failed to update user_profiles.language (device detection):', error);
-                } else {
-                  console.log('Updated user_profiles.language to:', normalizedLanguage, '(from device)');
                 }
               }
             } catch (error) {
@@ -205,7 +201,6 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
         ? initialLanguage as Language 
         : settings.languages.default;
       
-      console.log(`🔄 [LanguageSyncProvider] Initializing with server language: ${validLanguage}`);
       setCurrentLang(validLanguage);
     }
   }, [mounted, isHydrated, initialLanguage, currentLanguage, setCurrentLang]);
@@ -238,10 +233,8 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
 
     // 로딩 상태가 변경되었을 때만 이벤트 발생
     if (isLoading && !prevIsLoadingRef.current) {
-      console.log('🔄 [LanguageSyncProvider] Translation loading started, showing GlobalLoading');
       window.dispatchEvent(new CustomEvent('startGlobalLoading', { detail: { source: 'translation-loading' } }));
     } else if (!isLoading && prevIsLoadingRef.current) {
-      console.log('✅ [LanguageSyncProvider] Translation loading completed, hiding GlobalLoading');
       window.dispatchEvent(new CustomEvent('stopGlobalLoading', { detail: { source: 'translation-loading' } }));
     }
 

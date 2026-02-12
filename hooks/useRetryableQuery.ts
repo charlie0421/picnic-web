@@ -109,7 +109,7 @@ export interface RetryableQueryResult<T> {
  * 에러를 글로벌 에러 상태로 전파할 수 있습니다.
  */
 export function useRetryableQuery<T>(
-  queryKey: any[],
+  queryKey: unknown[],
   queryFn: () => Promise<T>,
   options: RetryableQueryOptions<T> = {}
 ): RetryableQueryResult<T> {
@@ -330,7 +330,7 @@ export function useRetryableMutation<T, V = void>(
  * 네트워크 요청용 재시도 가능한 쿼리 훅 (글로벌 에러 통합)
  */
 export function useNetworkQuery<T>(
-  queryKey: any[],
+  queryKey: unknown[],
   url: string,
   options: RetryableQueryOptions<T> & { fetchOptions?: RequestInit } = {}
 ) {
@@ -364,8 +364,8 @@ export function useNetworkQuery<T>(
  * Supabase 쿼리용 재시도 가능한 훅 (글로벌 에러 통합)
  */
 export function useSupabaseQuery<T>(
-  queryKey: any[],
-  queryFn: () => Promise<{ data: T | null; error: any }>,
+  queryKey: unknown[],
+  queryFn: () => Promise<{ data: T | null; error: (Error & { [key: string]: unknown }) | null }>,
   options: RetryableQueryOptions<T> = {}
 ) {
   return useRetryableQuery(
@@ -409,7 +409,7 @@ export function useSupabaseQuery<T>(
  * 투표 관련 쿼리용 특화된 훅
  */
 export function useVoteQuery<T>(
-  queryKey: any[],
+  queryKey: unknown[],
   queryFn: () => Promise<T>,
   options: RetryableQueryOptions<T> = {}
 ) {
@@ -460,7 +460,7 @@ export function useVoteMutation<T, V = void>(
  * 인증 관련 쿼리용 특화된 훅
  */
 export function useAuthQuery<T>(
-  queryKey: any[],
+  queryKey: unknown[],
   queryFn: () => Promise<T>,
   options: RetryableQueryOptions<T> = {}
 ) {
@@ -483,7 +483,7 @@ export function useAuthQuery<T>(
  * 실시간 데이터용 쿼리 훅
  */
 export function useRealtimeQuery<T>(
-  queryKey: any[],
+  queryKey: unknown[],
   queryFn: () => Promise<T>,
   options: RetryableQueryOptions<T> & { pollingInterval?: number } = {}
 ) {
@@ -523,7 +523,7 @@ export function useRealtimeQuery<T>(
  * 파일 업로드용 쿼리 훅
  */
 export function useFileUploadQuery<T>(
-  queryKey: any[],
+  queryKey: unknown[],
   uploadFn: () => Promise<T>,
   options: RetryableQueryOptions<T> = {}
 ) {
@@ -552,7 +552,7 @@ export function useFileUploadQuery<T>(
  * 에러 바운더리와 함께 사용할 수 있는 재시도 가능한 쿼리 훅
  */
 export function useSafeRetryableQuery<T>(
-  queryKey: any[],
+  queryKey: unknown[],
   queryFn: () => Promise<T>,
   options: RetryableQueryOptions<T> & { 
     fallbackData?: T;

@@ -109,7 +109,6 @@ export function normalizeRedirectPath(input: string): string {
         if (!input || typeof input !== 'string') return '/';
 
         let url = input.trim();
-        try { console.log('[AuthRedirect.normalize] input=', input); } catch {}
 
         // 동일 출처의 절대 URL은 상대 경로로 축약
         if (typeof window !== 'undefined' && (url.startsWith('http://') || url.startsWith('https://'))) {
@@ -154,7 +153,6 @@ export function normalizeRedirectPath(input: string): string {
         // 중복 슬래시 정리
         url = url.replace(/\/{2,}/g, '/');
 
-        try { console.log('[AuthRedirect.normalize] output=', url); } catch {}
         return url || '/';
     } catch {
         return '/';
@@ -273,10 +271,8 @@ export function clearRedirectUrl(): void {
  * 로그인 후 적절한 페이지로 리다이렉트합니다.
  */
 export function handlePostLoginRedirect(returnToParam?: string): string {
-    try { console.log('[AuthRedirect] handlePostLoginRedirect called with param:', returnToParam); } catch {}
     // 1. URL 파라미터에서 returnTo 확인 (우선순위 가장 높음)
     if (returnToParam && isValidRedirectUrl(returnToParam)) {
-        try { console.log('[AuthRedirect] using returnToParam:', returnToParam); } catch {}
         return normalizeRedirectPath(returnToParam);
     }
 
@@ -285,7 +281,6 @@ export function handlePostLoginRedirect(returnToParam?: string): string {
         const urlParams = new URLSearchParams(window.location.search);
         const returnTo = urlParams.get('returnTo') || urlParams.get('return_url');
         if (returnTo && isValidRedirectUrl(returnTo)) {
-            try { console.log('[AuthRedirect] using query returnTo/return_url:', returnTo); } catch {}
             return normalizeRedirectPath(returnTo);
         }
     }
@@ -297,7 +292,6 @@ export function handlePostLoginRedirect(returnToParam?: string): string {
             if (altReturn && isValidRedirectUrl(altReturn)) {
                 // 일회성 사용 후 정리
                 localStorage.removeItem('auth_return_url');
-                try { console.log('[AuthRedirect] using auth_return_url:', altReturn); } catch {}
                 return normalizeRedirectPath(altReturn);
             }
         }
@@ -305,19 +299,16 @@ export function handlePostLoginRedirect(returnToParam?: string): string {
 
     // 4. 저장된 리다이렉트 URL 확인 (기존 유틸 저장값)
     let redirectUrl = getRedirectUrl();
-    try { console.log('[AuthRedirect] stored redirectUrl (pre-clear)=', redirectUrl); } catch {}
 
     // 저장된 URL 제거
     clearRedirectUrl();
 
     // 리다이렉트 URL이 있고 유효하면 해당 URL로
     if (redirectUrl && isValidRedirectUrl(redirectUrl)) {
-        try { console.log('[AuthRedirect] using stored redirectUrl/loginRedirectUrl:', redirectUrl); } catch {}
         return normalizeRedirectPath(redirectUrl);
     }
 
     // 기본 폴백: 사이트 루트로 이동 (원복)
-    try { console.log('[AuthRedirect] fallback to /'); } catch {}
     return normalizeRedirectPath("/");
 }
 
@@ -328,21 +319,18 @@ export function redirectToLogin(currentUrl?: string): void {
     if (typeof window === "undefined") return;
 
     const urlToSave = currentUrl || (window.location.pathname + window.location.search);
-    try { console.log('[AuthRedirect.redirectToLogin] urlToSave=', urlToSave); } catch {}
 
     // 로그인 페이지나 인증 관련 페이지는 저장하지 않음
     if (!shouldSaveUrl(urlToSave)) {
         clearRedirectUrl();
     } else {
         saveRedirectUrl(urlToSave);
-        try { console.log('[AuthRedirect.redirectToLogin] saved redirectUrl'); } catch {}
     }
 
     // 현재 로케일을 기준으로 언어 프리픽스 포함한 로그인 경로 구성 + returnTo 쿼리 전달
     const locale = getCurrentLocale();
     const normalizedReturnTo = normalizeRedirectPath(urlToSave);
     const loginPath = `/${locale}/login?returnTo=${encodeURIComponent(normalizedReturnTo)}`;
-    try { console.log('[AuthRedirect.redirectToLogin] navigating to loginPath=', loginPath); } catch {}
     window.location.href = loginPath;
 }
 
@@ -458,7 +446,6 @@ export function clearAllAuthData(): void {
         // localStorage에서 인증 관련 모든 데이터 제거
         // 단, 최근 로그인 정보는 보존: 'picnic_last_login'
         const PRESERVE_KEYS = new Set(["picnic_last_login"]);
-        try { console.log('[AuthRedirect.clearAllAuthData] localStorage scan start. preserve=', Array.from(PRESERVE_KEYS)); } catch {}
         const localKeysToRemove: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -475,18 +462,9 @@ export function clearAllAuthData(): void {
                 localKeysToRemove.push(key);
             }
         }
-        try { console.log('[AuthRedirect.clearAllAuthData] removing keys:', localKeysToRemove); } catch {}
         localKeysToRemove.forEach((key) => {
             try { localStorage.removeItem(key); } catch {}
         });
-        try {
-            const snapshot: Record<string, string | null> = {
-                picnic_last_login: localStorage.getItem('picnic_last_login'),
-            };
-            console.log('[AuthRedirect.clearAllAuthData] preserved snapshot after removal:', snapshot);
-        } catch {}
-
-        console.log("모든 인증 관련 데이터가 정리되었습니다.");
     } catch (error) {
         console.warn("인증 데이터 정리 실패:", error);
     }

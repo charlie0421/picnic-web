@@ -10,6 +10,9 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
 
+/** Duration for vote change animation display (ms) */
+const VOTE_CHANGE_ANIMATION_MS = 3000;
+
 export interface VoteRankCardProps {
   item: VoteItem & {
     artist?: any;
@@ -61,7 +64,7 @@ export function VoteRankCard({
       const timer = setTimeout(() => {
         setShouldShowVoteChange(false);
         setCurrentVoteChange(0);
-      }, 3000);
+      }, VOTE_CHANGE_ANIMATION_MS);
 
       return () => clearTimeout(timer);
     }

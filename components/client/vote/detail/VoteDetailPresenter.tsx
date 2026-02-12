@@ -59,6 +59,22 @@ interface ThresholdConfig {
   qualityCheckInterval: number;
 }
 
+/** Connection quality scoring weights */
+const ERROR_RATE_PENALTY = 50;
+const CONSECUTIVE_ERROR_PENALTY = 15;
+
+/** Polling log throttle interval (ms) */
+const POLLING_LOG_THROTTLE_MS = 5000;
+
+/** Default notification duration (ms) */
+const DEFAULT_NOTIFICATION_DURATION_MS = 5000;
+
+/** Debounce delay for search input (ms) */
+const SEARCH_DEBOUNCE_MS = 300;
+
+/** Header height recalculation delay (ms) */
+const HEADER_RECALC_DELAY_MS = 100;
+
 export interface VoteDetailPresenterProps {
   vote: Vote;
   initialItems: VoteItem[];
@@ -166,7 +182,7 @@ export function VoteDetailPresenter({
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const voteStatus = getVoteStatus(vote);
   const canVote = voteStatus === 'ongoing';
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
 
   const addNotification = React.useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
     const newNotification: NotificationState = {
@@ -175,7 +191,7 @@ export function VoteDetailPresenter({
       timestamp: new Date(),
     };
     setNotifications(prev => [...prev, newNotification]);
-    const duration = notification.duration || 5000;
+    const duration = notification.duration || DEFAULT_NOTIFICATION_DURATION_MS;
     setTimeout(() => {
       removeNotification(newNotification.id);
     }, duration);
@@ -201,8 +217,8 @@ export function VoteDetailPresenter({
       const newConsecutiveSuccesses = success ? prev.consecutiveSuccesses + 1 : 0;
       const newErrorRate = success ? Math.max(0, prev.errorRate - 0.1) : Math.min(1, prev.errorRate + 0.2);
       let newScore = 100;
-      newScore -= newErrorRate * 50;
-      newScore -= newConsecutiveErrors * 15;
+      newScore -= newErrorRate * ERROR_RATE_PENALTY;
+      newScore -= newConsecutiveErrors * CONSECUTIVE_ERROR_PENALTY;
       newScore = Math.max(0, Math.min(100, newScore));
       const newLatency = responseTime ? responseTime : prev.latency;
       const newAverageResponseTime = responseTime 
@@ -228,7 +244,7 @@ export function VoteDetailPresenter({
     requestStartTimeRef.current = startTime;
     try {
       const shouldLog = connectionState.mode === 'polling' && 
-        (!lastPollingUpdate || (Date.now() - lastPollingUpdate.getTime()) > 5000);
+        (!lastPollingUpdate || (Date.now() - lastPollingUpdate.getTime()) > POLLING_LOG_THROTTLE_MS);
       if (shouldLog) {
         console.log('[Polling] Fetching vote data...');
       }
@@ -427,7 +443,7 @@ export function VoteDetailPresenter({
     if (headerRef.current) {
       observer.observe(headerRef.current, { childList: true, subtree: true, attributes: true });
     }
-    const timer = setTimeout(updateHeaderHeight, 100);
+    const timer = setTimeout(updateHeaderHeight, HEADER_RECALC_DELAY_MS);
     return () => {
       window.removeEventListener('resize', updateHeaderHeight);
       observer.disconnect();

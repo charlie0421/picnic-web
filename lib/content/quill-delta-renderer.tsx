@@ -2,10 +2,21 @@
 
 import React, { useState, useCallback } from 'react'
 
-type DeltaOp = { insert?: string | { image?: string }; attributes?: Record<string, any> }
-type Delta = { ops: DeltaOp[] } | DeltaOp[] | any
+interface DeltaInsertImage {
+  image?: string
+}
 
-function renderText(text: string, attrs?: Record<string, any>) {
+interface DeltaAttributes {
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  link?: string
+  [key: string]: unknown
+}
+
+type DeltaOp = { insert?: string | DeltaInsertImage; text?: string; attributes?: DeltaAttributes }
+
+function renderText(text: string, attrs?: DeltaAttributes) {
   let node: React.ReactNode = text
   if (!attrs) return node
   if (attrs.bold) node = <strong>{node}</strong>
@@ -58,7 +69,7 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
 
   if (value === null || value === undefined) return null
 
-  let parsed: any = value
+  let parsed: unknown = value
   if (typeof value === 'string') {
     const str = value.trim()
     try {
@@ -76,38 +87,40 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
   }
 
   // 객체형인데 ops가 없고 text만 있는 케이스 { type: 'text', text: '...' } → 배열로 정규화
-  if (!Array.isArray(parsed) && typeof parsed === 'object' && parsed && !('ops' in (parsed as any))) {
-    const maybeText = (parsed as any).text
-    if (typeof maybeText === 'string') {
-      parsed = [{ insert: maybeText }]
-    } else {
-      // 다국어 JSON 형식 처리: { "en": "text", "ko": "텍스트" }
-      // 언어 코드로 보이는 키(2-5자)가 있고 값이 문자열인 경우
-      const keys = Object.keys(parsed as object)
-      const langKey = keys.find(k => k.length >= 2 && k.length <= 5 && typeof (parsed as any)[k] === 'string')
-      if (langKey) {
-        // 브라우저 언어 또는 첫 번째 키 사용
-        const browserLang = typeof window !== 'undefined' ? window.navigator.language?.split('-')[0] : 'en'
-        const langText = (parsed as any)[browserLang] || (parsed as any)[langKey] || ''
-        if (langText) {
-          parsed = [{ insert: langText }]
+  if (!Array.isArray(parsed) && typeof parsed === 'object' && parsed !== null) {
+    const parsedObj = parsed as Record<string, unknown>
+    if (!('ops' in parsedObj)) {
+      const maybeText = parsedObj.text
+      if (typeof maybeText === 'string') {
+        parsed = [{ insert: maybeText }]
+      } else {
+        // 다국어 JSON 형식 처리: { "en": "text", "ko": "텍스트" }
+        const keys = Object.keys(parsedObj)
+        const langKey = keys.find(k => k.length >= 2 && k.length <= 5 && typeof parsedObj[k] === 'string')
+        if (langKey) {
+          const browserLang = typeof window !== 'undefined' ? window.navigator.language?.split('-')[0] : 'en'
+          const langText = (parsedObj[browserLang] as string) || (parsedObj[langKey] as string) || ''
+          if (langText) {
+            parsed = [{ insert: langText }]
+          }
         }
       }
     }
   }
 
-  const rawOps: any[] = Array.isArray(parsed)
-    ? (parsed as any[])
-    : (typeof parsed === 'object' && parsed && 'ops' in (parsed as any))
-      ? (parsed as any).ops
+  const rawOps: unknown[] = Array.isArray(parsed)
+    ? parsed
+    : (typeof parsed === 'object' && parsed !== null && 'ops' in (parsed as Record<string, unknown>))
+      ? (parsed as Record<string, unknown>).ops as unknown[]
       : []
 
   // 일부 데이터는 { text: "..." } 형태를 사용하므로 insert로 정규화
-  const ops: DeltaOp[] = rawOps.map((op: any) => {
+  const ops: DeltaOp[] = rawOps.map((op) => {
     if (op && typeof op === 'object') {
-      if (typeof op.insert === 'string') return op as DeltaOp
-      if (typeof op.text === 'string') return { insert: op.text, attributes: op.attributes }
-      if (op.insert && typeof op.insert === 'object' && op.insert.image) return op as DeltaOp
+      const o = op as Record<string, unknown>
+      if (typeof o.insert === 'string') return o as unknown as DeltaOp
+      if (typeof o.text === 'string') return { insert: o.text, attributes: o.attributes as DeltaAttributes | undefined }
+      if (o.insert && typeof o.insert === 'object' && (o.insert as Record<string, unknown>).image) return o as unknown as DeltaOp
     }
     return op as DeltaOp
   })
@@ -132,9 +145,9 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
           flushLine()
         }
       })
-    } else if (op.insert && typeof op.insert === 'object' && (op.insert as any).image) {
+    } else if (op.insert && typeof op.insert === 'object' && (op.insert as DeltaInsertImage).image) {
       flushLine()
-      const src = (op.insert as any).image
+      const src = (op.insert as DeltaInsertImage).image!
       blocks.push(
         <figure key={`img-${idx}`} className='my-3'>
           <img
@@ -156,17 +169,22 @@ export function QuillDeltaRenderer({ value }: { value: unknown }) {
       if (typeof parsed === 'string') {
         text = parsed
       } else if (Array.isArray(parsed)) {
-        parsed.forEach((op: any) => {
-          if (typeof op?.insert === 'string') text += op.insert
-          else if (typeof op?.text === 'string') text += op.text
+        parsed.forEach((op: unknown) => {
+          const o = op as Record<string, unknown> | null
+          if (typeof o?.insert === 'string') text += o.insert
+          else if (typeof o?.text === 'string') text += o.text
         })
-      } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).ops)) {
-        ;(parsed as any).ops.forEach((op: any) => {
-          if (typeof op?.insert === 'string') text += op.insert
-          else if (typeof op?.text === 'string') text += op.text
-        })
-      } else if (parsed && typeof parsed === 'object' && typeof (parsed as any).text === 'string') {
-        text = (parsed as any).text
+      } else if (parsed && typeof parsed === 'object') {
+        const parsedObj = parsed as Record<string, unknown>
+        if (Array.isArray(parsedObj.ops)) {
+          (parsedObj.ops as unknown[]).forEach((op: unknown) => {
+            const o = op as Record<string, unknown> | null
+            if (typeof o?.insert === 'string') text += o.insert
+            else if (typeof o?.text === 'string') text += o.text
+          })
+        } else if (typeof parsedObj.text === 'string') {
+          text = parsedObj.text
+        }
       }
       text = (text || '').trim()
       if (text.length) {

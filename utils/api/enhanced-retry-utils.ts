@@ -23,8 +23,8 @@ interface EnhancedRetryOptions {
   factor: number;
   timeout: number;
   jitter: boolean;
-  retryCondition?: (error: any) => boolean;
-  onRetry?: (error: any, attempt: number) => void;
+  retryCondition?: (error: unknown) => boolean;
+  onRetry?: (error: unknown, attempt: number) => void;
 }
 
 // 회로 차단기 옵션
@@ -125,23 +125,27 @@ function calculateDelayWithJitter(baseDelay: number, jitter: boolean): number {
 /**
  * 재시도 조건 확인
  */
-function shouldRetry(error: any, retryCondition?: (error: any) => boolean): boolean {
+function shouldRetry(error: unknown, retryCondition?: (error: unknown) => boolean): boolean {
   if (retryCondition) {
     return retryCondition(error);
   }
 
   // 기본 재시도 조건
-  if (error?.name === 'AbortError') return false;
-  if (error?.code === 'AUTH_ERROR') return false;
-  if (error?.status === 401 || error?.status === 403) return false;
-  if (error?.status >= 400 && error?.status < 500) return false;
-  
+  const err = error as Record<string, unknown> | null | undefined;
+  if (err?.name === 'AbortError') return false;
+  if (err?.code === 'AUTH_ERROR') return false;
+  if (typeof err?.status === 'number') {
+    if (err.status === 401 || err.status === 403) return false;
+    if (err.status >= 400 && err.status < 500) return false;
+  }
+
   return true;
 }
 
 /**
  * 향상된 재시도 메커니즘과 회로 차단기가 적용된 함수 래퍼
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic wrapper requires any for function constraint
 export function withEnhancedRetry<T extends (...args: any[]) => Promise<any>>(
   fn: T,
   options: Partial<EnhancedRetryOptions> = {}
@@ -150,7 +154,7 @@ export function withEnhancedRetry<T extends (...args: any[]) => Promise<any>>(
 
   return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
     return globalCircuitBreaker.execute(async () => {
-      let lastError: any;
+      let lastError: unknown;
       let delay = retryOptions.initialDelay;
 
       for (let attempt = 0; attempt <= retryOptions.maxRetries; attempt++) {
@@ -188,6 +192,7 @@ export function withEnhancedRetry<T extends (...args: any[]) => Promise<any>>(
 /**
  * 프로필 조회 전용 최적화된 함수
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic wrapper requires any for function constraint
 export function withProfileOptimization<T extends (...args: any[]) => Promise<any>>(
   fn: T
 ): (...args: Parameters<T>) => Promise<ReturnType<T>> {
@@ -200,13 +205,14 @@ export function withProfileOptimization<T extends (...args: any[]) => Promise<an
     jitter: true,
     retryCondition: (error) => {
       // 프로필 조회 특화 재시도 조건
-      if (error?.message?.includes('프로필 조회 타임아웃')) return true;
-      if (error?.code === 'PGRST301') return true; // DB 연결 실패
-      if (error?.code === 'ENOTFOUND') return true; // 네트워크 오류
+      const err = error as Record<string, unknown> | null | undefined;
+      if (typeof err?.message === 'string' && err.message.includes('프로필 조회 타임아웃')) return true;
+      if (err?.code === 'PGRST301') return true; // DB 연결 실패
+      if (err?.code === 'ENOTFOUND') return true; // 네트워크 오류
       return shouldRetry(error);
     },
     onRetry: (error, attempt) => {
-      console.log(`프로필 조회 재시도 (${attempt}회):`, error.message);
+      console.log(`프로필 조회 재시도 (${attempt}회):`, error instanceof Error ? error.message : error);
     }
   });
 }
@@ -214,6 +220,7 @@ export function withProfileOptimization<T extends (...args: any[]) => Promise<an
 /**
  * 투표 API 전용 최적화된 함수
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic wrapper requires any for function constraint
 export function withVoteOptimization<T extends (...args: any[]) => Promise<any>>(
   fn: T
 ): (...args: Parameters<T>) => Promise<ReturnType<T>> {
@@ -226,12 +233,13 @@ export function withVoteOptimization<T extends (...args: any[]) => Promise<any>>
     jitter: true,
     retryCondition: (error) => {
       // 투표 관련 특화 재시도 조건
-      if (error?.status === 409) return false; // 중복 투표는 재시도 안함
-      if (error?.message?.includes('이미 투표')) return false;
+      const err = error as Record<string, unknown> | null | undefined;
+      if (typeof err?.status === 'number' && err.status === 409) return false; // 중복 투표는 재시도 안함
+      if (typeof err?.message === 'string' && err.message.includes('이미 투표')) return false;
       return shouldRetry(error);
     },
     onRetry: (error, attempt) => {
-      console.log(`투표 요청 재시도 (${attempt}회):`, error.message);
+      console.log(`투표 요청 재시도 (${attempt}회):`, error instanceof Error ? error.message : error);
     }
   });
 }
@@ -247,7 +255,7 @@ export function getCircuitBreakerStats() {
  * 요청 큐 관리 클래스
  */
 class RequestQueue {
-  private queue: Array<() => Promise<any>> = [];
+  private queue: Array<() => Promise<unknown>> = [];
   private processing = false;
   private maxConcurrent = 3;
   private currentCount = 0;
@@ -295,6 +303,7 @@ const globalRequestQueue = new RequestQueue();
 /**
  * 요청 큐잉이 적용된 함수 래퍼
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic wrapper requires any for function constraint
 export function withRequestQueue<T extends (...args: any[]) => Promise<any>>(
   fn: T
 ): (...args: Parameters<T>) => Promise<ReturnType<T>> {
@@ -351,6 +360,7 @@ export class PerformanceMetrics {
 /**
  * 성능 모니터링이 적용된 함수 래퍼
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic wrapper requires any for function constraint
 export function withPerformanceMonitoring<T extends (...args: any[]) => Promise<any>>(
   fn: T,
   metricKey: string

@@ -26,7 +26,7 @@ const FALLBACK_REWARDS: Reward[] = [
     title: {
       ko: '샘플 리워드',
       en: 'Sample Reward',
-    } as any,
+    } as unknown as string,
     thumbnail: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -59,7 +59,7 @@ async function withTimeout<T>(
 
 
 // API 요청 실패 로깅 및 디버깅을 위한 함수
-const logRequestError = (error: any, functionName: string) => {
+const logRequestError = (error: unknown, functionName: string) => {
   console.error(`[API 오류] ${functionName}:`, error);
   return error;
 };
@@ -105,7 +105,7 @@ const _getVotes = async (
       if (voteError) throw voteError;
       if (!voteData || voteData.length === 0) return FALLBACK_VOTES;
 
-      return voteData.map((vote: any) => ({
+      return voteData.map((vote) => ({
         ...vote,
         deletedAt: vote.deleted_at,
         startAt: vote.start_at,
@@ -120,7 +120,7 @@ const _getVotes = async (
         voteSubCategory: vote.vote_sub_category,
         visibleAt: vote.visible_at,
         voteItems: vote.vote_item
-          ? vote.vote_item.map((item: any) => ({
+          ? vote.vote_item.map((item) => ({
             ...item,
             deletedAt: item.deleted_at,
             createdAt: item.created_at,
@@ -138,7 +138,7 @@ const _getVotes = async (
           }))
           : [],
         rewards: vote.vote_reward
-          ? vote.vote_reward.map((vr: any) => vr.reward).filter(Boolean)
+          ? vote.vote_reward.map((vr) => vr.reward).filter(Boolean)
           : [],
         title: vote.title || "제목 없음",
       }));
@@ -176,7 +176,7 @@ const _getRewards = async (limit?: number): Promise<Reward[]> => {
         return FALLBACK_REWARDS;
       }
 
-      return rewardData.map((reward: any) => ({
+      return rewardData.map((reward) => ({
         ...reward,
         deletedAt: reward.deleted_at,
         createdAt: reward.created_at,
@@ -229,7 +229,6 @@ const _getBanners = async ({ columns }: { columns?: string } = {}): Promise<Bann
     }
     
     if (!bannerData || (Array.isArray(bannerData) && bannerData.length === 0)) {
-      console.log('[getBanners] 조회된 배너 데이터가 없습니다.');
       return [];
     }
     
@@ -244,16 +243,13 @@ const _getBanners = async ({ columns }: { columns?: string } = {}): Promise<Bann
 // 리워드 상세 정보 가져오기
 const _getRewardById = async (id: string): Promise<Reward | null> => {
   try {
-    console.log(`[_getRewardById] 리워드 ID ${id} 조회 시작`);
-    
     if (!id || id.trim() === '') {
       console.error('[_getRewardById] 유효하지 않은 ID:', id);
       return null;
     }
 
-    const supabase = createPublicSupabaseClient(); // 공개 클라이언트 사용
-    console.log(`[_getRewardById] Supabase 공개 클라이언트 준비 완료, ID ${id} 쿼리 실행`);
-    
+    const supabase = createPublicSupabaseClient();
+
     const { data: rewardData, error: rewardError } = await supabase
       .from("reward")
       .select("*")
@@ -272,7 +268,6 @@ const _getRewardById = async (id: string): Promise<Reward | null> => {
       
       // PGRST116은 "no rows returned" 에러 (데이터가 없음)
       if (rewardError.code === 'PGRST116') {
-        console.log(`[_getRewardById] 리워드 ID ${id} 데이터 없음 (정상)`);
         return null;
       }
       
@@ -280,15 +275,8 @@ const _getRewardById = async (id: string): Promise<Reward | null> => {
     }
     
     if (!rewardData) {
-      console.log(`[_getRewardById] 리워드 ID ${id} 데이터 없음`);
       return null;
     }
-
-    console.log(`[_getRewardById] 리워드 ID ${id} 조회 성공:`, {
-      id: rewardData.id,
-      title: rewardData.title,
-      hasData: !!rewardData
-    });
 
     return rewardData;
   } catch (error) {
@@ -319,7 +307,7 @@ const _getMedias = async (): Promise<Media[]> => {
     if (!mediaData || mediaData.length === 0) return [];
 
     // 스네이크 케이스에서 캐멀 케이스로 필드 변환
-    return mediaData.map((media: any) => ({
+    return mediaData.map((media) => ({
       id: media.id,
       created_at: media.created_at,
       updated_at: media.updated_at,
@@ -394,7 +382,7 @@ const _getVoteItems = async (voteId: number): Promise<VoteItem[]> => {
     if (voteItemsError) throw voteItemsError;
     if (!voteItemsData || voteItemsData.length === 0) return [];
 
-    return voteItemsData.map((item: any) => ({
+    return voteItemsData.map((item) => ({
       ...item,
       deletedAt: item.deleted_at,
       createdAt: item.created_at,
@@ -425,7 +413,7 @@ const _getVoteRewards = async (voteId: number): Promise<Reward[]> => {
     if (voteRewardError) throw voteRewardError;
     if (!voteRewardData || voteRewardData.length === 0) return [];
 
-    const rewardIds = voteRewardData.map((vr: any) => vr.reward_id);
+    const rewardIds = voteRewardData.map((vr) => vr.reward_id);
 
     const { data: rewardData, error: rewardError } = await supabase
       .from("reward")
@@ -470,11 +458,10 @@ const _getPopups = async (): Promise<Popup[]> => {
     }
     
     if (!popupData || popupData.length === 0) {
-      console.log('[getPopups] 조회된 팝업 데이터가 없습니다.');
       return [];
     }
 
-    return popupData.map((popup: any) => ({
+    return popupData.map((popup) => ({
       ...popup,
       createdAt: popup.created_at,
       updatedAt: popup.updated_at,

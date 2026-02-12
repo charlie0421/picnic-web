@@ -48,28 +48,14 @@ async function verifyPortOnePayment(paymentId: string): Promise<PortOneV2Payment
     throw new Error('PORTONE_API_SECRET must be set in environment variables');
   }
 
-  console.log('[Verify] Verifying payment with PortOne SDK:', { 
-    paymentId,
-    hasClient: !!paymentClient,
-  });
-  
   try {
     // 포트원 서버 SDK를 사용하여 결제 정보 조회
     // paymentId는 merchant_uid로 사용됨
     const payment = await paymentClient.getPayment({ paymentId });
     
-    console.log('[Verify] PortOne SDK verification completed:', {
-      paymentId: (payment as any).id || paymentId,
-      status: (payment as any).status,
-      amount: (payment as any).totalAmount,
-    });
-    
     return payment as unknown as PortOneV2PaymentResponse;
   } catch (error) {
-    console.error('[Verify] Payment verification failed:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    console.error('[Verify] Payment verification failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -166,18 +152,6 @@ function isTokenValidWithoutRefresh(request: NextRequest): { isValid: boolean; u
 
 export async function POST(request: NextRequest) {
   try {
-    // 디버깅: 요청 헤더와 쿠키 정보 로깅
-    const cookieHeader = request.headers.get('cookie');
-    const authHeader = request.headers.get('authorization');
-    console.log('[Verify] Request headers:', {
-      hasCookie: !!cookieHeader,
-      cookieLength: cookieHeader?.length || 0,
-      cookiePreview: cookieHeader ? cookieHeader.substring(0, 100) + '...' : 'none',
-      hasAuthHeader: !!authHeader,
-      host: request.headers.get('host'),
-      referer: request.headers.get('referer'),
-    });
-
     // 토큰 갱신 없이 인증 확인 (폴링 시 불필요한 토큰 갱신 방지)
     const tokenCheck = isTokenValidWithoutRefresh(request);
     const supabase = await createServerSupabaseClient();
@@ -187,56 +161,31 @@ export async function POST(request: NextRequest) {
       // 토큰이 유효하면 JWT에서 추출한 userId 사용 (토큰 갱신 방지)
       // 하지만 실제 user 객체가 필요한 경우를 위해 Supabase 호출
       // 토큰이 유효하면 getUser()는 갱신을 시도하지 않음
-      console.log('[Verify] Token valid without refresh, verifying with Supabase:', {
-        userId: tokenCheck.userId,
-      });
       const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !verifiedUser) {
-        console.error('[Verify] Token parsed but Supabase validation failed:', {
-          error: authError?.message,
-          parsedUserId: tokenCheck.userId,
-        });
+        console.error('[Verify] Auth failed:', authError?.message);
         return NextResponse.json(
           { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
           { status: 401 }
         );
       }
       user = verifiedUser;
-      console.log('[Verify] Authentication successful (token valid, no refresh needed):', {
-        userId: user.id,
-        email: user.email,
-      });
     } else {
       // 토큰이 만료되었거나 없으면 Supabase로 재확인 (이 경우에만 갱신 시도)
-      console.log('[Verify] Token invalid or expired, checking with Supabase:', {
-        error: tokenCheck.error,
-      });
       const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !verifiedUser) {
-        console.error('[Verify] Authentication failed:', {
-          error: authError?.message,
-          errorCode: authError?.status,
-          errorName: authError?.name,
-          hasUser: !!verifiedUser,
-          userId: verifiedUser?.id,
-          supabaseCookies: request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })),
-        });
+        console.error('[Verify] Auth failed:', authError?.message);
         return NextResponse.json(
           { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
           { status: 401 }
         );
       }
       user = verifiedUser;
-      console.log('[Verify] Authentication successful (via Supabase getUser):', {
-        userId: user.id,
-        email: user.email,
-      });
     }
 
     // 탈퇴 회원 체크
     const isWithdrawn = await isWithdrawnUser(user.id);
     if (isWithdrawn) {
-      console.warn('[Verify] User is a withdrawn user:', { userId: user.id });
       return NextResponse.json(
         { error: 'User is deleted or deactivated' },
         { status: 403 }
@@ -254,18 +203,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 웹훅이 이미 처리했는지 확인 (중복 처리 방지)
-    console.log('[Verify] Step 1: Checking if webhook already processed payment (receipt check #1)');
     const { data: existingReceipt } = await supabase
       .from('receipts')
       .select('id, status')
       .eq('receipt_hash', paymentId)
       .maybeSingle();
-
-    console.log('[Verify] Step 1 result:', {
-      found: !!existingReceipt,
-      status: existingReceipt?.status,
-      paymentId,
-    });
 
     if (existingReceipt && existingReceipt.status === 'completed') {
       // 이미 웹훅에서 처리되었으므로 성공 응답 반환
@@ -333,7 +275,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify payment with Port One v2 API using paymentId
-    console.log('[Verify] Step 2: Verifying payment status with PortOne SDK');
     const paymentData = await verifyPortOnePayment(paymentId);
 
     if (!paymentData) {
@@ -349,7 +290,6 @@ export async function POST(request: NextRequest) {
     // READY 상태인 경우, 결제가 아직 완료되지 않았으므로 웹훅이 처리할 가능성이 없음
     // Step 1에서 이미 receipt를 확인했으므로 추가 확인 없이 바로 반환
     if (normalizedStatus === 'READY') {
-      console.log('[Verify] Payment is READY (not completed yet). Step 1 already checked receipt, returning READY status.');
       return NextResponse.json(
         { 
           verified: false,
@@ -367,11 +307,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // PAID 상태이지만 웹훅이 아직 처리하지 않은 경우
-    // 웹훅이 처리할 때까지 기다리도록 클라이언트에 알림
-    // 검증 API는 읽기 전용으로만 사용하고, 실제 처리는 웹훅에서만 수행
-    console.log('[Verify] Step 3: Payment is PAID, checking receipts table (receipt check #2) for webhook processing status');
-    
     // 웹훅이 처리했는지 다시 확인 (Race condition 방지)
     const { data: finalCheckReceipt } = await supabase
       .from('receipts')
@@ -379,16 +314,7 @@ export async function POST(request: NextRequest) {
       .eq('receipt_hash', paymentId)
       .maybeSingle();
 
-    console.log('[Verify] Step 3 result (receipt check #2 for PAID):', {
-      found: !!finalCheckReceipt,
-      status: finalCheckReceipt?.status,
-      paymentId,
-    });
-
     if (finalCheckReceipt && finalCheckReceipt.status === 'completed') {
-      // 웹훅이 이미 처리했으므로 성공 응답 반환
-      console.log('[Verify] Payment is PAID and already processed by webhook');
-      
       const { data: receiptData } = await supabase
         .from('receipts')
         .select('receipt_data, product_id')
@@ -450,10 +376,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // PAID 상태이지만 웹훅이 아직 처리하지 않은 경우
-    // 웹훅이 처리할 때까지 기다리도록 클라이언트에 알림
-    // 검증 API는 receipt를 생성하지 않고, 웹훅만 처리하도록 함
-    console.log('[Verify] Payment is PAID but webhook has not processed yet. Waiting for webhook...');
     return NextResponse.json(
       { 
         verified: false,

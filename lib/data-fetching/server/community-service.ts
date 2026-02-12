@@ -1,5 +1,64 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
+// Board row type from Supabase query with artist join
+interface BoardQueryRow {
+  id: string
+  board_id: string
+  name: unknown
+  description: unknown
+  is_official: boolean | null
+  status: string
+  artist_id: number | null
+  order: number | null
+  artist: {
+    id: number
+    name: unknown
+    image: string | null
+    artist_group: { id: number; name: unknown } | { id: number; name: unknown }[] | null
+  } | {
+    id: number
+    name: unknown
+    image: string | null
+    artist_group: { id: number; name: unknown } | { id: number; name: unknown }[] | null
+  }[] | null
+}
+
+function extractLocalizedString(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>
+    return String(obj.ko ?? obj.en ?? '')
+  }
+  return ''
+}
+
+function extractLocalizedStringOrNull(value: unknown): string | null {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>
+    return (obj.ko ?? obj.en ?? null) as string | null
+  }
+  return null
+}
+
+function mapBoardRowToSummary(b: BoardQueryRow): CommunityBoardSummary {
+  const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
+  const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
+  return {
+    id: b.id,
+    boardId: b.board_id ?? b.id,
+    name: extractLocalizedString(b.name),
+    description: extractLocalizedStringOrNull(b.description),
+    isOfficial: b.is_official ?? null,
+    artist: artistRaw ? {
+      id: artistRaw.id,
+      name: extractLocalizedString(artistRaw.name),
+      image: artistRaw.image ?? null,
+      groupName: groupRaw ? extractLocalizedString(groupRaw.name) : null,
+    } : null,
+  }
+}
+
 export interface CommunityArtistInfo {
   id: number
   name: string
@@ -91,7 +150,7 @@ export async function getCommunityFeed({ page = 1, limit = 20 }: { page?: number
 
   const total = count ?? 0
   const totalPages = Math.ceil(total / limit)
-  const rawPosts: CommunityPostSummary[] = (data ?? []).map((p: any) => ({
+  const rawPosts: CommunityPostSummary[] = (data ?? []).map((p) => ({
     id: p.post_id ?? p.id,
     title: p.title,
     contentPreview: Array.isArray(p.content) ? String(p.content?.[0]?.text ?? '') : null,
@@ -229,7 +288,8 @@ export async function getHotCommunityPosts({ limit = 5, days = 7 }: { limit?: nu
     return data ?? []
   }
 
-  let primaryPosts: any[] = []
+  type HotPostRow = Awaited<ReturnType<typeof fetchHotPosts>>[number]
+  let primaryPosts: HotPostRow[] = []
   if (sinceIso) {
     primaryPosts = await fetchHotPosts(sinceIso)
   }
@@ -250,7 +310,7 @@ export async function getHotCommunityPosts({ limit = 5, days = 7 }: { limit?: nu
     return []
   }
 
-  const boardIds = Array.from(new Set(primaryPosts.map((p: any) => p.board_id).filter((id: any) => !!id).map((id: any) => String(id))))
+  const boardIds = Array.from(new Set(primaryPosts.map((p) => p.board_id).filter((id): id is number => !!id).map((id) => String(id))))
   let boardMap = new Map<string, CommunityBoardSummary>()
   if (boardIds.length > 0) {
     try {
@@ -261,7 +321,7 @@ export async function getHotCommunityPosts({ limit = 5, days = 7 }: { limit?: nu
     }
   }
 
-  return primaryPosts.slice(0, safeLimit).map((p: any) => ({
+  return primaryPosts.slice(0, safeLimit).map((p) => ({
     id: p.post_id ?? p.id,
     title: p.title ?? '',
     contentPreview: Array.isArray(p.content) ? String(p.content?.[0]?.text ?? '') : null,
@@ -298,16 +358,16 @@ export async function getCommunityComments(postId: string): Promise<CommunityCom
 
   // 로그인 사용자인 경우 좋아요한 댓글 목록 조회
   if (userId && data && data.length > 0) {
-    const commentIds = data.map((c: any) => c.comment_id)
+    const commentIds = data.map((c) => c.comment_id)
     const { data: likes } = await supabase
       .from('comment_likes')
       .select('comment_id')
       .eq('user_id', userId)
       .in('comment_id', commentIds)
-    likedCommentIds = new Set((likes ?? []).map((l: any) => l.comment_id))
+    likedCommentIds = new Set((likes ?? []).map((l) => l.comment_id))
   }
 
-  return (data ?? []).map((c: any) => ({
+  return (data ?? []).map((c) => ({
     commentId: c.comment_id,
     content: c.content,
     createdAt: c.created_at,
@@ -337,23 +397,7 @@ export async function getBoards({ page = 1, limit = 20 }: { page?: number; limit
 
   const total = count ?? 0
   const totalPages = Math.ceil(total / limit)
-  const boards: CommunityBoardSummary[] = (data ?? []).map((b: any) => {
-    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
-    const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
-    return {
-      id: b.id,
-      boardId: b.board_id ?? b.id,
-      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-      isOfficial: b.is_official ?? null,
-      artist: artistRaw ? {
-        id: artistRaw.id,
-        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
-        image: artistRaw.image ?? null,
-        groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
-      } : null,
-    }
-  })
+  const boards: CommunityBoardSummary[] = (data ?? []).map((b) => mapBoardRowToSummary(b as unknown as BoardQueryRow))
 
   return { boards, hasNext: page < totalPages, nextPage: page < totalPages ? page + 1 : null }
 }
@@ -386,7 +430,7 @@ export async function getBoardPosts(boardId: string, { page = 1, limit = 20 }: {
     console.warn('[community] getBoardPosts board fetch error:', e)
   }
 
-  const posts: CommunityPostSummary[] = (data ?? []).map((p: any) => ({
+  const posts: CommunityPostSummary[] = (data ?? []).map((p) => ({
     id: p.post_id ?? p.id,
     title: p.title,
     contentPreview: Array.isArray(p.content) ? String(p.content?.[0]?.insert ?? p.content?.[0]?.text ?? '') : null,
@@ -414,18 +458,13 @@ export async function getBoardMeta(boardId: string): Promise<CommunityBoardMeta 
     return null
   }
 
-  const artistRaw = data.artist ? (Array.isArray(data.artist) ? data.artist[0] : data.artist) : null
-  const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
+  const boardRow = data as unknown as BoardQueryRow
+  const mapped = mapBoardRowToSummary(boardRow)
   return {
-    boardId: data.board_id ?? boardId,
-    name: typeof data.name === 'string' ? data.name : (data.name?.ko ?? data.name?.en ?? ''),
-    description: typeof data.description === 'string' ? data.description : (data.description?.ko ?? data.description?.en ?? null),
-    artist: artistRaw ? {
-      id: artistRaw.id,
-      name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
-      image: artistRaw.image ?? null,
-      groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
-    } : null,
+    boardId: mapped.boardId ?? boardId,
+    name: mapped.name,
+    description: mapped.description,
+    artist: mapped.artist,
   }
 }
 
@@ -446,8 +485,8 @@ export async function getUserBookmarkedArtistIds(): Promise<number[]> {
     return []
   }
   return (data ?? [])
-    .map((r: any) => r.artist_id)
-    .filter((v: any) => typeof v === 'number')
+    .map((r) => r.artist_id)
+    .filter((v): v is number => typeof v === 'number')
 }
 
 export async function getUserBookmarkedBoardIds(): Promise<string[]> {
@@ -465,7 +504,7 @@ export async function getUserBookmarkedBoardIds(): Promise<string[]> {
     console.warn('[community] getUserBookmarkedBoardIds error:', error)
     return []
   }
-  return (data ?? []).map((r: any) => String(r.board_id))
+  return (data ?? []).map((r) => String(r.board_id))
 }
 
 export async function searchBoards(query: string, { limit = 20 }: { limit?: number } = {}): Promise<CommunityBoardSummary[]> {
@@ -493,23 +532,7 @@ export async function searchBoards(query: string, { limit = 20 }: { limit?: numb
     return []
   }
 
-  return data.map((b: any) => {
-    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
-    const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
-    return {
-      id: b.id,
-      boardId: b.board_id ?? b.id,
-      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-      isOfficial: b.is_official ?? null,
-      artist: artistRaw ? {
-        id: artistRaw.id,
-        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
-        image: artistRaw.image ?? null,
-        groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
-      } : null,
-    }
-  })
+  return data.map((b) => mapBoardRowToSummary(b as unknown as BoardQueryRow))
 }
 
 // 특정 board_id 목록으로 보드들을 조회
@@ -529,23 +552,7 @@ export async function getBoardsByIds(ids: string[]): Promise<CommunityBoardSumma
     return []
   }
 
-  return (data ?? []).map((b: any) => {
-    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
-    const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
-    return {
-      id: b.id,
-      boardId: b.board_id ?? b.id,
-      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-      isOfficial: b.is_official ?? null,
-      artist: artistRaw ? {
-        id: artistRaw.id,
-        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
-        image: artistRaw.image ?? null,
-        groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
-      } : null,
-    }
-  })
+  return (data ?? []).map((b) => mapBoardRowToSummary(b as unknown as BoardQueryRow))
 }
 
 // 사용자의 즐겨찾는(북마크한) 아티스트의 게시판을 우선 노출
@@ -572,23 +579,7 @@ export async function getBoardsPrioritizedForUser({ page = 1, limit = 50 }: { pa
 
   if (!userId) {
     // 비로그인 사용자는 기존 정렬 그대로 반환
-    const boards: CommunityBoardSummary[] = boardsData.map((b: any) => {
-      const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
-      const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
-      return {
-        id: b.id,
-        boardId: b.board_id ?? b.id,
-        name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-        description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-        isOfficial: b.is_official ?? null,
-        artist: artistRaw ? {
-          id: artistRaw.id,
-          name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
-          image: artistRaw.image ?? null,
-          groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
-        } : null,
-      }
-    })
+    const boards: CommunityBoardSummary[] = boardsData.map((b) => mapBoardRowToSummary(b as unknown as BoardQueryRow))
     return { boards, hasNext: false, nextPage: null }
   }
 
@@ -603,30 +594,14 @@ export async function getBoardsPrioritizedForUser({ page = 1, limit = 50 }: { pa
     console.warn('[community] artist_user_bookmark fetch error:', favErr)
   }
 
-  const favSet = new Set<number>((favs ?? []).map((r: any) => r.artist_id).filter((v: any) => typeof v === 'number'))
+  const favSet = new Set<number>((favs ?? []).map((r) => r.artist_id).filter((v): v is number => typeof v === 'number'))
 
   // 보드 목록을 사용자의 아티스트 보드 먼저 오도록 재배열(기존 order 정렬은 유지)
-  const myBoards = boardsData.filter((b: any) => favSet.has(b.artist_id))
-  const otherBoards = boardsData.filter((b: any) => !favSet.has(b.artist_id))
+  const myBoards = boardsData.filter((b) => typeof b.artist_id === 'number' && favSet.has(b.artist_id))
+  const otherBoards = boardsData.filter((b) => !(typeof b.artist_id === 'number' && favSet.has(b.artist_id)))
   const arranged = [...myBoards, ...otherBoards]
 
-  const boards: CommunityBoardSummary[] = arranged.map((b: any) => {
-    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
-    const groupRaw = artistRaw?.artist_group ? (Array.isArray(artistRaw.artist_group) ? artistRaw.artist_group[0] : artistRaw.artist_group) : null
-    return {
-      id: b.id,
-      boardId: b.board_id ?? b.id,
-      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-      isOfficial: b.is_official ?? null,
-      artist: artistRaw ? {
-        id: artistRaw.id,
-        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
-        image: artistRaw.image ?? null,
-        groupName: groupRaw ? (typeof groupRaw.name === 'string' ? groupRaw.name : (groupRaw.name?.ko ?? groupRaw.name?.en ?? '')) : null,
-      } : null,
-    }
-  })
+  const boards: CommunityBoardSummary[] = arranged.map((b) => mapBoardRowToSummary(b as unknown as BoardQueryRow))
 
   // 단순 페이징(상세 total 계산은 생략) — 기존 UX 동일
   return { boards, hasNext: false, nextPage: null }
@@ -658,21 +633,7 @@ export async function getBoardsForUserFavoritesOnly({ page = 1, limit = 50 }: { 
     return { boards: [] as CommunityBoardSummary[], hasNext: false, nextPage: null }
   }
 
-  const boards: CommunityBoardSummary[] = data.map((b: any) => {
-    const artistRaw = b.artist ? (Array.isArray(b.artist) ? b.artist[0] : b.artist) : null
-    return {
-      id: b.id,
-      boardId: b.board_id ?? b.id,
-      name: typeof b.name === 'string' ? b.name : (b.name?.ko ?? b.name?.en ?? ''),
-      description: typeof b.description === 'string' ? b.description : (b.description?.ko ?? b.description?.en ?? null),
-      isOfficial: b.is_official ?? null,
-      artist: artistRaw ? {
-        id: artistRaw.id,
-        name: typeof artistRaw.name === 'string' ? artistRaw.name : (artistRaw.name?.ko ?? artistRaw.name?.en ?? ''),
-        image: artistRaw.image ?? null,
-      } : null,
-    }
-  })
+  const boards: CommunityBoardSummary[] = data.map((b) => mapBoardRowToSummary(b as unknown as BoardQueryRow))
 
   return { boards, hasNext: false, nextPage: null }
 }

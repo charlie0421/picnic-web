@@ -87,7 +87,7 @@ export type FilterOperator<T> = {
 /**
  * 필터 옵션 타입
  */
-export type FilterOptions = Record<string, any | FilterOperator<any>>;
+export type FilterOptions = Record<string, unknown>;
 
 /**
  * 정렬 옵션 타입
@@ -298,7 +298,7 @@ export const getList = cache(async <T>(
     options = DEFAULT_OPTIONS,
   }: {
     columns?: string;
-    filters?: Record<string, any | FilterOperator<any>>;
+    filters?: Record<string, unknown>;
     orderBy?: { column: string; ascending?: boolean };
     limit?: number;
     offset?: number;
@@ -315,7 +315,7 @@ export const getList = cache(async <T>(
         query = query.in(key, value);
       } else if (typeof value === "object") {
         // 연산자 객체인 경우 적절한 필터 적용
-        Object.entries(value as FilterOperator<any>).forEach(
+        Object.entries(value as Record<string, unknown>).forEach(
           ([operator, operatorValue]) => {
             if (operatorValue !== undefined) {
               switch (operator) {
@@ -347,16 +347,16 @@ export const getList = cache(async <T>(
                   query = query.is(key, operatorValue as boolean | null);
                   break;
                 case "in":
-                  query = query.in(key, operatorValue as any[]);
+                  query = query.in(key, operatorValue as unknown[]);
                   break;
                 case "contains":
-                  query = query.contains(key, operatorValue);
+                  query = query.contains(key, operatorValue as string);
                   break;
                 case "containedBy":
-                  query = query.containedBy(key, operatorValue as any[]);
+                  query = query.containedBy(key, operatorValue as unknown[]);
                   break;
                 case "overlaps":
-                  query = query.overlaps(key, operatorValue as any[]);
+                  query = query.overlaps(key, operatorValue as unknown[]);
                   break;
                 case "textSearch":
                   query = query.textSearch(key, operatorValue as string);
@@ -420,7 +420,7 @@ export const getPaginatedList = cache(async <T>(
     options = DEFAULT_OPTIONS,
   }: {
     columns?: string;
-    filters?: Record<string, any | FilterOperator<any>>;
+    filters?: Record<string, unknown>;
     orderBy?: { column: string; ascending?: boolean };
     page?: number;
     pageSize?: number;
@@ -441,7 +441,7 @@ export const getPaginatedList = cache(async <T>(
       if (value !== undefined && value !== null) {
         if (typeof value === "object" && !Array.isArray(value)) {
           // 연산자 객체인 경우 적절한 필터 적용
-          Object.entries(value as FilterOperator<any>).forEach(
+          Object.entries(value as Record<string, unknown>).forEach(
             ([operator, operatorValue]) => {
               if (operatorValue !== undefined) {
                 // countQuery에도 동일한 필터 적용 로직 추가 (getList의 로직과 유사)
@@ -477,7 +477,7 @@ export const getPaginatedList = cache(async <T>(
                     );
                     break;
                   case "in":
-                    countQuery = countQuery.in(key, operatorValue as any[]);
+                    countQuery = countQuery.in(key, operatorValue as unknown[]);
                     break;
                 }
               }
@@ -545,9 +545,9 @@ export const getPaginatedList = cache(async <T>(
  */
 export const insertData = cache(async <T extends TableName>(
   table: T,
-  data: any,
+  data: TableInsert<T>,
   options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<any> => {
+): Promise<TableRow<T>> => {
   const supabase = await createServerSupabaseClient();
   const { data: insertedData, error } = await supabase
     .from(table)
@@ -818,9 +818,9 @@ export const getManyByIds = cache(async <T>(
  */
 export const bulkInsert = cache(async <T extends TableName>(
   table: T,
-  data: any[],
+  data: TableInsert<T>[],
   options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<any[]> => {
+): Promise<TableRow<T>[]> => {
   if (!data.length) return [];
 
   const supabase = await createServerSupabaseClient();
@@ -847,9 +847,9 @@ export const bulkInsert = cache(async <T extends TableName>(
  */
 export const bulkUpdate = cache(async <T extends TableName>(
   table: T,
-  data: { id: string | number; data: any }[],
+  data: { id: string | number; data: TableUpdate<T> }[],
   options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<any[]> => {
+): Promise<TableRow<T>[]> => {
   if (!data.length) return [];
 
   const promises = data.map((item) =>
@@ -910,39 +910,42 @@ function applyFilters<TQuery>(
 ): TQuery {
   if (!filters) return query;
 
-  let filteredQuery = query as any;
+  // These helper functions operate on Supabase query builder objects
+  // which have dynamic method signatures; we use unknown to bridge the gap
+  let filteredQuery = query as unknown as Record<string, (...args: unknown[]) => unknown>;
 
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null) continue;
 
     if (typeof value === "object" && !Array.isArray(value)) {
-      if ("eq" in value) {
-        filteredQuery = filteredQuery.eq(key, value.eq as any);
-      } else if ("neq" in value) {
-        filteredQuery = filteredQuery.neq(key, value.neq as any);
-      } else if ("gt" in value) {
-        filteredQuery = filteredQuery.gt(key, value.gt as any);
-      } else if ("gte" in value) {
-        filteredQuery = filteredQuery.gte(key, value.gte as any);
-      } else if ("lt" in value) {
-        filteredQuery = filteredQuery.lt(key, value.lt as any);
-      } else if ("lte" in value) {
-        filteredQuery = filteredQuery.lte(key, value.lte as any);
-      } else if ("like" in value) {
-        filteredQuery = filteredQuery.like(key, value.like as string);
-      } else if ("ilike" in value) {
-        filteredQuery = filteredQuery.ilike(key, value.ilike as string);
-      } else if ("in" in value && Array.isArray(value.in)) {
-        filteredQuery = filteredQuery.in(key, value.in);
-      } else if ("is" in value) {
-        filteredQuery = filteredQuery.is(key, value.is as any);
+      const filterObj = value as Record<string, unknown>;
+      if ("eq" in filterObj) {
+        filteredQuery = filteredQuery.eq(key, filterObj.eq) as typeof filteredQuery;
+      } else if ("neq" in filterObj) {
+        filteredQuery = filteredQuery.neq(key, filterObj.neq) as typeof filteredQuery;
+      } else if ("gt" in filterObj) {
+        filteredQuery = filteredQuery.gt(key, filterObj.gt) as typeof filteredQuery;
+      } else if ("gte" in filterObj) {
+        filteredQuery = filteredQuery.gte(key, filterObj.gte) as typeof filteredQuery;
+      } else if ("lt" in filterObj) {
+        filteredQuery = filteredQuery.lt(key, filterObj.lt) as typeof filteredQuery;
+      } else if ("lte" in filterObj) {
+        filteredQuery = filteredQuery.lte(key, filterObj.lte) as typeof filteredQuery;
+      } else if ("like" in filterObj) {
+        filteredQuery = filteredQuery.like(key, filterObj.like as string) as typeof filteredQuery;
+      } else if ("ilike" in filterObj) {
+        filteredQuery = filteredQuery.ilike(key, filterObj.ilike as string) as typeof filteredQuery;
+      } else if ("in" in filterObj && Array.isArray(filterObj.in)) {
+        filteredQuery = filteredQuery.in(key, filterObj.in) as typeof filteredQuery;
+      } else if ("is" in filterObj) {
+        filteredQuery = filteredQuery.is(key, filterObj.is as boolean | null) as typeof filteredQuery;
       }
     } else {
-      filteredQuery = filteredQuery.eq(key, value);
+      filteredQuery = filteredQuery.eq(key, value) as typeof filteredQuery;
     }
   }
 
-  return filteredQuery as TQuery;
+  return filteredQuery as unknown as TQuery;
 }
 
 /**
@@ -956,7 +959,7 @@ function applyOrderBy<TQuery>(
 ): TQuery {
   if (!orderBy) return query;
 
-  return (query as any).order(orderBy.column, {
+  return (query as unknown as Record<string, (...args: unknown[]) => TQuery>).order(orderBy.column, {
     ascending: orderBy.ascending !== false,
   });
 }
@@ -971,17 +974,17 @@ function applyPagination<TQuery>(
   limit?: number,
   offset?: number,
 ): TQuery {
-  let result = query as any;
+  let result = query as unknown as Record<string, (...args: unknown[]) => unknown>;
 
   if (limit) {
-    result = result.limit(limit);
+    result = result.limit(limit) as typeof result;
   }
 
   if (offset) {
-    result = result.range(offset, offset + (limit || 10) - 1);
+    result = result.range(offset, offset + (limit || 10) - 1) as typeof result;
   }
 
-  return result as TQuery;
+  return result as unknown as TQuery;
 }
 
 /**
@@ -1178,7 +1181,7 @@ export const getListSafe = cache(async <T>(
                     query = query.in(key, operatorValue as any[]);
                     break;
                   case "contains":
-                    query = query.contains(key, operatorValue);
+                    query = query.contains(key, operatorValue as string);
                     break;
                   case "containedBy":
                     query = query.containedBy(key, operatorValue as any[]);
@@ -1247,9 +1250,9 @@ export const getListSafe = cache(async <T>(
  */
 export const insertDataSafe = cache(async <T extends TableName>(
   table: T,
-  data: any,
+  data: TableInsert<T>,
   options: QueryOptions = DEFAULT_OPTIONS,
-): Promise<any> => {
+): Promise<TableRow<T>> => {
   const userContext = await getCurrentUserContext();
   
   if (!userContext.isAuthenticated) {
@@ -1264,8 +1267,9 @@ export const insertDataSafe = cache(async <T extends TableName>(
 
   // 사용자 소유 데이터에 user_id 자동 설정
   const userOwnedTables = ['vote_pick', 'vote_comment'];
-  if (userOwnedTables.includes(table) && !data.user_id && userContext.userId) {
-    data.user_id = userContext.userId;
+  const mutableData = data as Record<string, unknown>;
+  if (userOwnedTables.includes(table) && !mutableData.user_id && userContext.userId) {
+    mutableData.user_id = userContext.userId;
   }
 
   try {

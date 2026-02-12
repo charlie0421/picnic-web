@@ -68,7 +68,6 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
     try {
       // 중복 검증 방지
       if (isVerifyingRef.current) {
-        console.log('🔄 [PeriodicAuth] 이미 검증 중 - 스킵');
         return { isValid: true };
       }
 
@@ -76,15 +75,8 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
       verificationCountRef.current += 1;
       lastVerificationRef.current = new Date();
 
-      console.log(`🔍 [PeriodicAuth] 인증 상태 검증 시작 (${verificationCountRef.current}회차)`, {
-        isAuthenticated,
-        hasUser: !!user,
-        timestamp: lastVerificationRef.current.toISOString(),
-      });
-
       // 1. 기본 인증 상태 체크
       if (!isAuthenticated || !user) {
-        console.warn('❌ [PeriodicAuth] 기본 인증 상태 실패');
         return {
           isValid: false,
           reason: '기본 인증 상태가 유효하지 않습니다.',
@@ -93,7 +85,6 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
 
       // 2. 서버사이드 인증 검증 단계 제거: 쿠키/세션은 Supabase가 관리, UI는 로컬 상태로 판단
 
-      console.log('✅ [PeriodicAuth] 모든 인증 상태 검증 통과');
       return { isValid: true };
 
     } catch (error) {
@@ -114,14 +105,11 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
    * 수동 인증 상태 검증
    */
   const manualVerification = useCallback(async () => {
-    console.log('🔍 [PeriodicAuth] 수동 인증 검증 요청');
     const result = await verifyAuthState();
-    
+
     if (result.isValid) {
-      console.log('✅ [PeriodicAuth] 수동 검증 성공');
       onAuthSuccess?.();
     } else {
-      console.warn('❌ [PeriodicAuth] 수동 검증 실패:', result.reason);
       onAuthFailure?.(result.reason || '인증 검증 실패');
     }
 
@@ -136,18 +124,12 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
       clearInterval(intervalRef.current);
     }
 
-    console.log(`🕐 [PeriodicAuth] 주기적 검증 시작 (${interval / 1000}초 간격)`);
-
     intervalRef.current = setInterval(async () => {
-      console.log('⏰ [PeriodicAuth] 주기적 검증 실행');
-      
       const result = await verifyAuthState();
-      
+
       if (result.isValid) {
-        console.log('✅ [PeriodicAuth] 주기적 검증 성공');
         onAuthSuccess?.();
       } else {
-        console.warn('❌ [PeriodicAuth] 주기적 검증 실패 - 자동 로그아웃 필요:', result.reason);
         onAuthFailure?.(result.reason || '주기적 인증 검증 실패');
         
         // 검증 실패 시 주기적 검증 중단
@@ -164,7 +146,6 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
    */
   const stopPeriodicVerification = useCallback(() => {
     if (intervalRef.current) {
-      console.log('🛑 [PeriodicAuth] 주기적 검증 중단');
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
@@ -178,10 +159,8 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
     }
 
     if (isAuthenticated && user) {
-      console.log('🟢 [PeriodicAuth] 인증된 상태 - 주기적 검증 시작');
       startPeriodicVerification();
     } else {
-      console.log('🔴 [PeriodicAuth] 비인증 상태 - 주기적 검증 중단');
       stopPeriodicVerification();
     }
 
@@ -203,7 +182,6 @@ export function usePeriodicAuthVerification(options: PeriodicAuthVerificationOpt
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('👁️ [PeriodicAuth] 페이지 가시성 복구 - 즉시 검증 실행');
         manualVerification();
       }
     };

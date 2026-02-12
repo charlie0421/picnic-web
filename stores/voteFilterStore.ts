@@ -62,11 +62,10 @@ export const useVoteFilterStore = create<VoteFilterState>()(
         }
       },
       resetFilters: () => {
-        set({ 
-          selectedStatus: DEFAULT_STATUS, 
-          selectedArea: DEFAULT_AREA 
+        set({
+          selectedStatus: DEFAULT_STATUS,
+          selectedArea: DEFAULT_AREA
         });
-        console.log('[VoteFilterStore] Filters reset to default values');
       },
       validateAndFixState: () => {
         const state = get();
@@ -87,7 +86,6 @@ export const useVoteFilterStore = create<VoteFilterState>()(
 
         if (hasInvalidState) {
           set(newState);
-          console.log('[VoteFilterStore] State validation completed with fixes');
         }
       },
     }),

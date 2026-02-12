@@ -35,7 +35,7 @@ const LcpReporter = dynamic(
 // Avatar localStorage 동기화는 제거하여 단순화
 
 interface ClientLayoutProps {
-  children: any;
+  children: React.ReactNode;
   initialLanguage: string;
 }
 
@@ -53,9 +53,7 @@ const ClientLayoutComponent = memo(function ClientLayoutInternal({
         <LanguageSyncProvider initialLanguage={initialLanguage}>
           <AuthProvider>
             <NotificationProvider>
-              {/* @ts-ignore */}
               <DialogProvider>
-                {/* @ts-ignore */}
                 <AuthRedirectHandler>
                   <AvatarSyncEffect />
                   {children}

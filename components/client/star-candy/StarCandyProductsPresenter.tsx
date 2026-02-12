@@ -18,6 +18,22 @@ import { saveRedirectUrl } from '@/utils/auth-redirect';
 import StarCandyBalanceBox from '@/components/common/StarCandyBalanceBox';
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 
+/** Featured product thresholds (star candy amounts) */
+const FEATURED_PRODUCT_AMOUNTS = [600, 10000] as const;
+
+/** PayPal checkout popup dimensions */
+const PAYPAL_POPUP_WIDTH = 500;
+const PAYPAL_POPUP_HEIGHT = 600;
+
+/** PayPal payment polling interval (ms) */
+const PAYMENT_POLL_INTERVAL_MS = 1000;
+
+/** PayPal payment polling timeout (ms) - 10 minutes */
+const PAYMENT_POLL_TIMEOUT_MS = 600000;
+
+/** Initial delay before first payment verification (ms) */
+const VERIFY_INITIAL_DELAY_MS = 2000;
+
 interface StarCandyProductsPresenterProps {
   products: Products[];
   error: string | null;
@@ -344,7 +360,7 @@ export function StarCandyProductsPresenter({
     };
 
     // 첫 검증 시도는 지연 후 시작 (페이지 진입 시 로딩바 방지)
-    const initialDelay = 2000; // 2초 지연
+    const initialDelay = VERIFY_INITIAL_DELAY_MS;
     
     let verifyInterval: NodeJS.Timeout | null = null;
     let timeoutId: NodeJS.Timeout | null = null;
@@ -561,8 +577,8 @@ export function StarCandyProductsPresenter({
         const approvalUrl = `https://www.${process.env.NEXT_PUBLIC_PAYPAL_ENV === 'production' ? '' : 'sandbox.'}paypal.com/checkoutnow?token=${orderID}`;
         
         // Open PayPal in a centered popup window
-        const width = 500;
-        const height = 600;
+        const width = PAYPAL_POPUP_WIDTH;
+        const height = PAYPAL_POPUP_HEIGHT;
         const left = (window.screen.width / 2) - (width / 2);
         const top = (window.screen.height / 2) - (height / 2);
         
@@ -587,9 +603,8 @@ export function StarCandyProductsPresenter({
                     alert(t('payment_success'));
                     window.location.reload();
                   }
-                } catch (error) {
+                } catch {
                   // Payment likely was not completed
-                  console.log('Payment was cancelled or not completed');
                 }
                 return;
               }
@@ -616,15 +631,15 @@ export function StarCandyProductsPresenter({
             } catch (error) {
               console.error('Error polling payment status:', error);
             }
-          }, 1000);
+          }, PAYMENT_POLL_INTERVAL_MS);
 
-          // Clear interval after 10 minutes
+          // Clear interval after timeout
           setTimeout(() => {
             clearInterval(interval);
             if (paypalWindow && !paypalWindow.closed) {
               paypalWindow.close();
             }
-          }, 600000);
+          }, PAYMENT_POLL_TIMEOUT_MS);
         };
 
         pollForCompletion();
@@ -777,7 +792,7 @@ export function StarCandyProductsPresenter({
       <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6'>
         {getSortedProducts().map((product, index) => {
           // 추천 상품을 600개, 10,000개 상품만으로 제한 (최대 2개)
-          const isFeatured = product.star_candy === 600 || product.star_candy === 10000;
+          const isFeatured = FEATURED_PRODUCT_AMOUNTS.includes(product.star_candy as typeof FEATURED_PRODUCT_AMOUNTS[number]);
           const isProcessing = processingProductId === product.id;
 
           return (
