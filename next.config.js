@@ -65,7 +65,7 @@ const nextConfig = {
     localPatterns: [
       { pathname: '/**' },
     ],
-    minimumCacheTTL: 60, // 이미지 캐시 시간 설정 (초 단위)
+    minimumCacheTTL: 3600, // 이미지 캐시 시간 설정 (1시간, 초 단위)
   },
   
   // 실험적 기능 활성화

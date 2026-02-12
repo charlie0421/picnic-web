@@ -1,15 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerUser } from '@/lib/supabase/server';
 
 // PortOne v2 브라우저 SDK confirmUrl 엔드포인트
 // 브라우저 SDK가 결제 직전 서버 컨펌을 위해 호출.
 export async function POST(request: NextRequest) {
-  // 비즈니스 로직상, 서버에서 결제 가능 여부를 판단해 true/false를 반환할 수 있음
   try {
-    // TODO: 필요 시 재고/금액/유저 상태 검증 로직 추가
+    // Verify user is authenticated
+    const user = await getServerUser();
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, reason: 'unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { paymentId, orderName, totalAmount, customData } = body;
+
+    // Validate required fields
+    if (!paymentId || !totalAmount) {
+      return NextResponse.json(
+        { ok: false, reason: 'missing_required_fields' },
+        { status: 400 }
+      );
+    }
+
+    // Validate that totalAmount is a positive number
+    if (typeof totalAmount !== 'number' || totalAmount <= 0) {
+      return NextResponse.json(
+        { ok: false, reason: 'invalid_amount' },
+        { status: 400 }
+      );
+    }
+
+    // Validate customData contains userId matching the authenticated user
+    let parsedCustomData;
+    try {
+      parsedCustomData = typeof customData === 'string' ? JSON.parse(customData) : customData;
+    } catch {
+      return NextResponse.json(
+        { ok: false, reason: 'invalid_custom_data' },
+        { status: 400 }
+      );
+    }
+
+    if (parsedCustomData?.userId && parsedCustomData.userId !== user.id) {
+      return NextResponse.json(
+        { ok: false, reason: 'user_mismatch' },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ ok: false, reason: 'confirm_failed' }, { status: 400 });
+    console.error('[PortOne Confirm] Error:', e);
+    return NextResponse.json(
+      { ok: false, reason: 'confirm_failed' },
+      { status: 400 }
+    );
   }
 }
-
-

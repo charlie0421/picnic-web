@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+function isValidInternalRedirect(path: string): boolean {
+  if (!path || typeof path !== 'string') return false;
+  if (!path.startsWith('/') || path.startsWith('//')) return false;
+  try {
+    const url = new URL(path, 'http://localhost');
+    if (url.origin !== 'http://localhost') return false;
+  } catch { return false; }
+  return true;
+}
+
 // PortOne 결제 완료 후 리다이렉트 콜백
 // 사용자가 결제 창에서 돌아오면 구매 페이지로 안내합니다.
 export async function GET(request: NextRequest) {
@@ -7,8 +17,9 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     console.log('[Callback] Full URL:', url.toString());
     console.log('[Callback] Search params:', Object.fromEntries(url.searchParams.entries()));
-    
-    const returnTo = url.searchParams.get('returnTo') || '/ko/star-candy';
+
+    const rawReturnTo = url.searchParams.get('returnTo') || '/ko/star-candy';
+    const returnTo = isValidInternalRedirect(rawReturnTo) ? rawReturnTo : '/ko/star-candy';
     
     // 포트원 v2 브라우저 SDK는 redirectUrl에 paymentId를 쿼리 파라미터로 전달할 수 있습니다
     // 또는 URL 해시에 포함될 수 있습니다

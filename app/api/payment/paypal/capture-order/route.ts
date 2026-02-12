@@ -138,24 +138,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update user profile star candy balance
-    const { data: currentProfile } = await supabase
-      .from('user_profiles')
-      .select('star_candy')
-      .eq('id', user.id)
-      .single();
+    // Atomic increment of star_candy balance to prevent race conditions
+    const { error: profileError } = await supabase
+      .rpc('increment_star_candy', {
+        p_user_id: user.id,
+        p_amount: starCandy,
+      });
 
-    if (currentProfile) {
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .update({
-          star_candy: (currentProfile.star_candy || 0) + starCandy,
-        })
-        .eq('id', user.id);
-
-      if (profileError) {
-        console.error('Failed to update user profile:', profileError);
-      }
+    if (profileError) {
+      console.error('Failed to update star_candy balance:', profileError);
     }
 
     // Record star candy history
@@ -190,22 +181,13 @@ export async function POST(request: NextRequest) {
 
       if (bonusError) {
         console.error('Failed to record bonus:', bonusError);
-      }
-
-      // Also update user's bonus balance
-      const { data: profileForBonus } = await supabase
-        .from('user_profiles')
-        .select('star_candy_bonus')
-        .eq('id', user.id)
-        .single();
-
-      if (profileForBonus) {
+      } else {
+        // Atomic increment of bonus balance
         const { error: bonusUpdateError } = await supabase
-          .from('user_profiles')
-          .update({
-            star_candy_bonus: (profileForBonus.star_candy_bonus || 0) + bonusAmount,
-          })
-          .eq('id', user.id);
+          .rpc('increment_star_candy_bonus', {
+            p_user_id: user.id,
+            p_amount: bonusAmount,
+          });
 
         if (bonusUpdateError) {
           console.error('Failed to update bonus balance:', bonusUpdateError);

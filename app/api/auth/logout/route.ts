@@ -126,18 +126,13 @@ export async function GET(request: NextRequest) {
     const debug = url.searchParams.get('debug') === 'true';
 
     if (debug && process.env.NODE_ENV === 'development') {
-      // Return debugging information in development
+      // Return basic debugging information in development
       return NextResponse.json({
         endpoint: '/api/auth/logout',
         methods: ['POST', 'GET'],
         description: 'Server-side logout endpoint',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV,
-        features: {
-          supabase_logout: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-          redis_cache: !!process.env.REDIS_URL,
-          audit_logging: (process.env.NODE_ENV as string) === 'production'
-        }
       });
     }
 

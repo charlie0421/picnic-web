@@ -34,10 +34,8 @@ export async function GET(request: NextRequest) {
     }
     if (!provider) provider = 'google';
 
-    // 현재 호스트를 동적으로 감지하여 리다이렉트 URL 생성
-    const host = request.headers.get("host") || "localhost:3000";
-    const protocol = host.includes("localhost") ? "http" : "https";
-    const baseUrl = `${protocol}://${host}`;
+    // 환경 변수에서 안전한 base URL 사용 (Host 헤더 주입 방지)
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || "https://www.picnic.fan";
 
     const redirectUrl = `${baseUrl}/auth/callback/${provider}?${params.toString()}`;
     console.log("🔐 OAuth 콜백 프록시 리다이렉트:", redirectUrl);
@@ -46,10 +44,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("🚨 OAuth 콜백 프록시 오류:", error);
 
-    // 현재 호스트를 동적으로 감지하여 오류 페이지로 리다이렉트
-    const host = request.headers.get("host") || "localhost:3000";
-    const protocol = host.includes("localhost") ? "http" : "https";
-    const baseUrl = `${protocol}://${host}`;
+    // 환경 변수에서 안전한 base URL 사용 (Host 헤더 주입 방지)
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || "https://www.picnic.fan";
 
     return NextResponse.redirect(`${baseUrl}/?error=auth_callback_failed`);
   }

@@ -1,5 +1,3 @@
-'use server';
-
 import 'server-only';
 import { cache } from 'react';
 import { createServerSupabaseClient, getServerUser } from '@/lib/supabase/server';

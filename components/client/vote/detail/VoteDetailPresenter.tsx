@@ -17,21 +17,9 @@ import { getLocalizedString } from '@/utils/api/strings';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
+import { useDebounce } from '@/hooks/useDebounce';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import VoteDialog from '../dialogs/VoteDialog';
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 interface NotificationState {
   id: string;
@@ -163,7 +151,7 @@ export function VoteDetailPresenter({
   const requestStartTimeRef = React.useRef<number>(0);
   const [lastPollingUpdate, setLastPollingUpdate] = React.useState<Date | null>(null);
   const [pollingErrorCount, setPollingErrorCount] = React.useState(0);
-  const [recentlyUpdatedItems, setRecentlyUpdatedItems] = React.useState<Set<string | number>>(new Set());
+  const recentlyUpdatedItemsRef = React.useRef<Set<string | number>>(new Set());
   const highlightTimersRef = React.useRef<Map<string | number, NodeJS.Timeout>>(new Map());
 
   React.useEffect(() => {
@@ -175,7 +163,7 @@ export function VoteDetailPresenter({
     };
   }, []);
 
-  const supabase = createBrowserSupabaseClient();
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
   const voteStatus = getVoteStatus(vote);
   const canVote = voteStatus === 'ongoing';
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -505,7 +493,7 @@ export function VoteDetailPresenter({
       .map((item, index) => ({
         ...item,
         rank: index + 1,
-        _realtimeInfo: { isHighlighted: recentlyUpdatedItems.has(item.id), isUpdated: recentlyUpdatedItems.has(item.id), rankChange: 'same' as const },
+        _realtimeInfo: { isHighlighted: recentlyUpdatedItemsRef.current.has(item.id), isUpdated: recentlyUpdatedItemsRef.current.has(item.id), rankChange: 'same' as const },
       }));
     const filtered = debouncedSearchQuery
       ? ranked.filter(item => {
@@ -516,7 +504,7 @@ export function VoteDetailPresenter({
       : ranked;
     const total = voteItems.reduce((sum, item) => sum + (item.vote_total || 0), 0);
     return { rankedVoteItems: ranked, filteredItems: filtered, totalVotes: total };
-  }, [voteItems, debouncedSearchQuery, currentLanguage, recentlyUpdatedItems]);
+  }, [voteItems, debouncedSearchQuery, currentLanguage]);
 
   const formatVotePeriod = () => {
     if (!vote.start_at || !vote.stop_at) return '';

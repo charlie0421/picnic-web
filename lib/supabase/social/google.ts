@@ -211,8 +211,33 @@ export function normalizeGoogleProfile(profile: any): Record<string, any> {
 }
 
 /**
- * Google ID 토큰 검증 및 파싱
+ * Google ID 토큰을 암호학적으로 검증하고 파싱합니다.
+ * Google JWKS 엔드포인트에서 공개 키를 가져와 서명을 검증합니다.
  *
+ * @param idToken Google에서 반환된 ID 토큰
+ * @returns 검증된 토큰 페이로드
+ * @throws 서명 검증 실패 시 에러
+ */
+export async function verifyGoogleIdToken(idToken: string): Promise<Record<string, any>> {
+  const { createRemoteJWKSet, jwtVerify } = await import("jose");
+
+  const GOOGLE_JWKS_URL = new URL("https://www.googleapis.com/oauth2/v3/certs");
+  const jwks = createRemoteJWKSet(GOOGLE_JWKS_URL);
+
+  const expectedAudience = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+
+  const { payload } = await jwtVerify(idToken, jwks, {
+    issuer: ["https://accounts.google.com", "accounts.google.com"],
+    audience: expectedAudience,
+  });
+
+  return payload as Record<string, any>;
+}
+
+/**
+ * Google ID 토큰 파싱 (서명 미검증 - 표시 목적 전용)
+ *
+ * @deprecated verifyGoogleIdToken을 사용하세요.
  * @param idToken Google에서 반환된 ID 토큰
  * @returns 파싱된 토큰 페이로드
  */

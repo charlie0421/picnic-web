@@ -113,23 +113,13 @@ export async function POST(request: NextRequest) {
     // Supabase에 사용자가 이미 존재하는지 확인
     if (normalizedProfile.email) {
       try {
-        // listUsers에서 filter 옵션이 지원되지 않으므로 결과에서 직접 필터링
-        const { data: users, error: userError } = await supabase.auth.admin.listUsers();
-        
-        if (userError) {
-          console.error('Supabase 사용자 조회 실패:', userError.message);
-          return NextResponse.json(
-            { error: 'Supabase 사용자 조회 실패' },
-            { status: 500 }
-          );
-        }
-        
-        // 이메일로 필터링하여 일치하는 사용자 찾기
-        const matchedUser = users?.users.find(u => u.email === normalizedProfile.email);
-        const user = matchedUser ? { user: matchedUser } : null;
-        
-        if (user?.user) {
-          // 사용자가 존재하면 반환
+        const { data: existingProfile } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('email', normalizedProfile.email)
+          .maybeSingle();
+
+        if (existingProfile) {
           return NextResponse.json({
             success: true,
             profile: normalizedProfile,

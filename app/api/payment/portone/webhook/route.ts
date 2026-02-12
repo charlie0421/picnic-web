@@ -90,15 +90,32 @@ async function verifyPortOnePayment(paymentId: string): Promise<any> {
 // Verify webhook signature
 function verifyWebhookSignature(payload: any, signature: string): boolean {
   if (!PORTONE_WEBHOOK_SECRET) {
-    console.warn('PORTONE_WEBHOOK_SECRET not set, skipping signature verification');
-    return true; // 개발 환경에서는 시크릿이 없을 수 있음
+    console.error('[Webhook] PORTONE_WEBHOOK_SECRET is not configured - rejecting webhook');
+    return false; // Never bypass signature verification
+  }
+
+  if (!signature) {
+    console.error('[Webhook] No signature provided in webhook request');
+    return false;
   }
 
   const calculatedSignature = createHmac('sha256', PORTONE_WEBHOOK_SECRET)
     .update(JSON.stringify(payload))
     .digest('hex');
 
-  return calculatedSignature === signature;
+  // Use timing-safe comparison to prevent timing attacks
+  if (calculatedSignature.length !== signature.length) {
+    return false;
+  }
+
+  const a = Buffer.from(calculatedSignature, 'hex');
+  const b = Buffer.from(signature, 'hex');
+  try {
+    const { timingSafeEqual } = require('crypto');
+    return timingSafeEqual(a, b);
+  } catch {
+    return calculatedSignature === signature;
+  }
 }
 
 /**
@@ -151,16 +168,16 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 웹훅 서명 검증 (포트원에서 제공하는 경우)
-    const signature = request.headers.get('x-portone-signature') || 
+    // 웹훅 서명 검증 (필수)
+    const signature = request.headers.get('x-portone-signature') ||
                       request.headers.get('x-iamport-signature') ||
                       request.headers.get('portone-signature') ||
                       '';
-    
-    if (signature && !verifyWebhookSignature(body, signature)) {
-      console.error('[Webhook] Invalid webhook signature');
+
+    if (!verifyWebhookSignature(body, signature)) {
+      console.error('[Webhook] Webhook signature verification failed');
       return NextResponse.json(
-        { error: 'Invalid signature' },
+        { error: 'Invalid or missing signature' },
         { status: 401 }
       );
     }
@@ -219,30 +236,15 @@ export async function POST(request: NextRequest) {
       console.error('[Webhook] Payment verification error:', {
         error: error instanceof Error ? error.message : String(error),
         paymentId,
-        txId: txId || 'not provided', // 참고용으로만 로깅
+        txId: txId || 'not provided',
       });
-      
-      // 검증 실패 시 웹훅 데이터를 직접 사용
-      // 포트원 v2 웹훅은 customData를 포함하지 않을 수 있으므로
-      // payment_id를 사용하여 클라이언트에서 전달한 정보를 복원해야 함
-      console.warn('[Webhook] Payment verification failed, using webhook data directly');
-      console.log('[Webhook] Full webhook body for debugging:', JSON.stringify(body, null, 2));
-      
-      paymentData = {
-        id: paymentId,
-        paymentId: paymentId,
-        status: normalizedStatus,
-        totalAmount: body.amount || body.totalAmount || 0,
-        currency: body.currency || 'KRW',
-        method: body.method || 'port_one',
-        customData: body.customData || body.metadata?.customData || body.custom_data || '',
-        metadata: body.metadata || {},
-      };
-      
-      // 웹훅 페이로드에서 직접 customData 추출 시도
-      if (!paymentData.customData && body.customData) {
-        paymentData.customData = body.customData;
-      }
+
+      // Never fall back to unverified webhook data for payment processing.
+      // Reject the webhook and let PortOne retry later.
+      return NextResponse.json(
+        { error: 'Payment verification failed', paymentId },
+        { status: 502 }
+      );
     }
 
     if (!paymentData) {
@@ -452,25 +454,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 사용자 프로필에서 별사탕 잔액 업데이트
-    const { data: currentProfile } = await supabase
-      .from('user_profiles')
-      .select('star_candy')
-      .eq('id', userId)
-      .single();
+    // Atomic increment of star_candy balance to prevent race conditions
+    const { error: profileError } = await supabase
+      .rpc('increment_star_candy', {
+        p_user_id: userId,
+        p_amount: starCandy,
+      });
 
-    if (currentProfile) {
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .update({
-          star_candy: (currentProfile.star_candy || 0) + starCandy,
-        })
-        .eq('id', userId);
-
-      if (profileError) {
-        console.error('Failed to update user profile:', profileError);
-        // 영수증은 이미 생성되었으므로 에러를 반환하지 않음
-      }
+    if (profileError) {
+      console.error('Failed to update star_candy balance:', profileError);
+      // 영수증은 이미 생성되었으므로 에러를 반환하지 않음
     }
 
     // 별사탕 히스토리 기록
@@ -506,24 +499,15 @@ export async function POST(request: NextRequest) {
       if (bonusError) {
         console.error('Failed to record bonus:', bonusError);
       } else {
-        // 보너스 잔액 업데이트
-        const { data: profileForBonus } = await supabase
-          .from('user_profiles')
-          .select('star_candy_bonus')
-          .eq('id', userId)
-          .single();
+        // Atomic increment of bonus balance
+        const { error: bonusUpdateError } = await supabase
+          .rpc('increment_star_candy_bonus', {
+            p_user_id: userId,
+            p_amount: bonusAmount,
+          });
 
-        if (profileForBonus) {
-          const { error: bonusUpdateError } = await supabase
-            .from('user_profiles')
-            .update({
-              star_candy_bonus: (profileForBonus.star_candy_bonus || 0) + bonusAmount,
-            })
-            .eq('id', userId);
-
-          if (bonusUpdateError) {
-            console.error('Failed to update bonus balance:', bonusUpdateError);
-          }
+        if (bonusUpdateError) {
+          console.error('Failed to update bonus balance:', bonusUpdateError);
         }
       }
     }

@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { cache } from 'react';

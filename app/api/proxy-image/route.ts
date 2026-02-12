@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       ];
       
       const isAllowed =
-        allowedDomains.some((domain) => url.hostname.includes(domain)) ||
+        allowedDomains.some((domain) => url.hostname === domain || url.hostname.endsWith('.' + domain)) ||
         supabaseWildcardDomains.some((suffix) =>
           url.hostname.endsWith(suffix),
         );

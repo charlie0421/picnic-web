@@ -2,12 +2,23 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies, headers } from 'next/headers';
 
+function isValidInternalRedirect(path: string): boolean {
+  if (!path || typeof path !== 'string') return false;
+  if (!path.startsWith('/') || path.startsWith('//')) return false;
+  try {
+    const url = new URL(path, 'http://localhost');
+    if (url.origin !== 'http://localhost') return false;
+  } catch { return false; }
+  return true;
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   // 만약 소셜 로그인 제공자로부터 'next' 파라미터를 받는다면,
   // 로그인 후 해당 경로로 리디렉션할 수 있습니다.
-  const next = searchParams.get('next') ?? '/';
+  const rawNext = searchParams.get('next') ?? '/';
+  const next = isValidInternalRedirect(rawNext) ? rawNext : '/';
 
   if (code) {
     const cookieStore = await cookies();

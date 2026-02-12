@@ -9,7 +9,6 @@ export * from './useProfileDetails';
 export * from './useDebounce';
 export { useRetryableQuery } from './useRetryableQuery';
 export { useSafeTranslation } from './useSafeTranslation';
-export { useSupabaseQuery } from './useSupabaseQuery';
 export { useTranslationReady } from './useTranslationReady';
 export { useVoteList } from './useVoteList';
 export { useVoteResults } from './useVoteResults';

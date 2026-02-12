@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getServerUser } from '@/lib/supabase/server';
 import {
   extractSupabaseStorageReference,
   type AvatarTransformOptions,
@@ -10,6 +11,9 @@ export const dynamic = 'force-dynamic';
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+/** Buckets that authenticated users are allowed to generate signed URLs for. */
+const ALLOWED_BUCKETS = ['avatars', 'media', 'public'];
 
 interface RequestPayload {
   bucket?: string;
@@ -55,6 +59,15 @@ function sanitizeTransformOptions(
 }
 
 export async function POST(request: NextRequest) {
+  // Authentication check: only logged-in users can generate signed URLs
+  const user = await getServerUser();
+  if (!user) {
+    return NextResponse.json(
+      { error: '인증이 필요합니다.' },
+      { status: 401 },
+    );
+  }
+
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json(
       { error: 'Supabase 환경변수가 설정되지 않았습니다.' },
@@ -89,6 +102,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: 'bucket 또는 path 정보가 부족합니다.' },
       { status: 400 },
+    );
+  }
+
+  // Validate bucket against allowlist to prevent access to unauthorized storage
+  if (!ALLOWED_BUCKETS.includes(bucket)) {
+    return NextResponse.json(
+      { error: '허용되지 않은 버킷입니다.' },
+      { status: 403 },
     );
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Vote } from '@/types/interfaces';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -152,14 +152,14 @@ export function VoteListPresenter({
   });
   }, [votes, selectedStatus]);
 
-  const handleVoteClick = (voteId: string | number) => {
+  const handleVoteClick = useCallback((voteId: string | number) => {
     if (onVoteClick) {
       onVoteClick(voteId);
     } else {
       // 기본 라우팅 동작
       router.push(`/vote/${voteId}`);
     }
-  };
+  }, [onVoteClick, router]);
   
   if (isInitialLoading && votes.length === 0) {
     return (
