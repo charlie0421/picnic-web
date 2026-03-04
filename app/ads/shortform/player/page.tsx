@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import HlsVideo from '@/components/client/HlsVideo';
 
 type IssuedAd = {
   id: string;
@@ -135,7 +136,7 @@ export default function ShortformAdPlayerPage() {
         <div>{issuing ? '광고 불러오는 중...' : '광고가 없습니다.'}</div>
       ) : (
         <div>
-          <video
+          <HlsVideo
             ref={videoRef}
             style={{ width: '100%', borderRadius: 8, background: '#000' }}
             src={ad.video_url}
