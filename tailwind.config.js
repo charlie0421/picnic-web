@@ -81,11 +81,21 @@ module.exports = {
           },
         },
         'scale-pulse': {
-          '0%, 100%': { 
+          '0%, 100%': {
             transform: 'scale(1)',
           },
-          '50%': { 
+          '50%': {
             transform: 'scale(1.1)',
+          },
+        },
+        'confetti': {
+          '0%': {
+            transform: 'translateY(-10px) rotate(0deg)',
+            opacity: '1',
+          },
+          '100%': {
+            transform: 'translateY(400px) rotate(720deg)',
+            opacity: '0',
           },
         },
       },
@@ -101,6 +111,7 @@ module.exports = {
         'slide-up': 'slide-up 0.5s ease-out',
         'scale-in': 'scale-in 0.3s ease-out',
         'scale-pulse': 'scale-pulse 2s ease-in-out infinite',
+        'confetti': 'confetti 2.5s ease-out forwards',
       },
       colors: {
         primary: {

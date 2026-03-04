@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { useTranslations } from '@/hooks/useTranslations';
-import AttendanceCheck from '@/components/client/attendance/AttendanceCheck';
+import { CalendarCheck } from 'lucide-react';
 
 interface Props {
   purchaseContent: ReactNode;
@@ -40,7 +40,15 @@ export default function StarCandyPageTabs({ purchaseContent }: Props) {
 
       {/* Tab Content */}
       {activeTab === 'free' ? (
-        <AttendanceCheck />
+        <div className="flex flex-col items-center justify-center gap-4 py-12 text-gray-500">
+          <CalendarCheck className="w-12 h-12 text-purple-300" />
+          <p className="text-sm text-center">
+            {t('label_attendance_moved_to_header') || '출석체크가 상단 헤더로 이동했습니다.'}
+          </p>
+          <p className="text-xs text-gray-400 text-center">
+            {t('label_attendance_moved_to_header_desc') || '헤더의 캘린더 아이콘을 눌러 출석체크하세요.'}
+          </p>
+        </div>
       ) : (
         purchaseContent
       )}
