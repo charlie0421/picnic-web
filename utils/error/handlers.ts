@@ -1,10 +1,11 @@
 /**
- * 에러 핸들러, 변환기, 유틸리티 모듈
+ * 에러 핸들러, 변환기 모듈
  */
 
 import { PostgrestError } from '@supabase/supabase-js';
 
-import { AppError, ErrorCategory, ErrorSeverity, DEFAULT_RETRY_CONFIG, type ErrorContext, type RetryConfig } from './core';
+import { AppError, ErrorCategory, ErrorSeverity, type ErrorContext, type RetryConfig } from './core';
+import { ErrorLogger, ConsoleErrorLogger, RetryUtility, ErrorContextBuilder } from './error-retry';
 import { SocialAuthErrorCode, SocialAuthError, type SocialLoginProvider } from './social-auth-error';
 import { DataFetchingErrorType, DataFetchingError } from './data-fetching-error';
 
@@ -159,83 +160,6 @@ export class ErrorTransformer {
 }
 
 /**
- * 에러 로깅 인터페이스
- */
-export interface ErrorLogger {
-  log(error: AppError): void | Promise<void>;
-}
-
-/**
- * 콘솔 에러 로거
- */
-export class ConsoleErrorLogger implements ErrorLogger {
-  log(error: AppError): void {
-    const logData = error.toLogData();
-
-    switch (error.severity) {
-      case ErrorSeverity.CRITICAL:
-        console.error('🚨 CRITICAL ERROR:', logData);
-        break;
-      case ErrorSeverity.HIGH:
-        console.error('❌ HIGH SEVERITY ERROR:', logData);
-        break;
-      case ErrorSeverity.MEDIUM:
-        console.warn('⚠️ MEDIUM SEVERITY ERROR:', logData);
-        break;
-      case ErrorSeverity.LOW:
-        console.info('ℹ️ LOW SEVERITY ERROR:', logData);
-        break;
-    }
-  }
-}
-
-/**
- * 재시도 유틸리티
- */
-export class RetryUtility {
-  /**
-   * 지수 백오프를 사용한 재시도 실행
-   */
-  static async withRetry<T>(
-    operation: () => Promise<T>,
-    config: Partial<RetryConfig> = {},
-    context?: ErrorContext
-  ): Promise<T> {
-    const finalConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
-    let lastError: AppError;
-
-    for (let attempt = 1; attempt <= finalConfig.maxAttempts; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = ErrorTransformer.fromUnknownError(error, context);
-
-        // 재시도 불가능한 에러인 경우 즉시 throw
-        if (!lastError.isRetryable || !finalConfig.retryableCategories.includes(lastError.category)) {
-          throw lastError;
-        }
-
-        // 마지막 시도인 경우 throw
-        if (attempt === finalConfig.maxAttempts) {
-          throw lastError;
-        }
-
-        // 백오프 지연
-        const delay = Math.min(
-          finalConfig.baseDelay * Math.pow(finalConfig.backoffMultiplier, attempt - 1),
-          finalConfig.maxDelay
-        );
-
-        console.warn(`재시도 ${attempt}/${finalConfig.maxAttempts} - ${delay}ms 후 재시도:`, lastError.message);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-
-    throw lastError!;
-  }
-}
-
-/**
  * 중앙화된 에러 핸들러
  */
 export class ErrorHandler {
@@ -289,56 +213,12 @@ export class ErrorHandler {
     context?: ErrorContext
   ): Promise<{ data?: T; error?: AppError }> {
     try {
-      const data = await RetryUtility.withRetry(operation, retryConfig, context);
+      const data = await RetryUtility.withRetry(operation, retryConfig, context, ErrorTransformer.fromUnknownError);
       return { data };
     } catch (error) {
       const appError = await this.handle(error, context);
       return { error: appError };
     }
-  }
-}
-
-/**
- * 컨텍스트 생성 유틸리티
- */
-export class ErrorContextBuilder {
-  private context: ErrorContext = {};
-
-  setUserId(userId: string): this {
-    this.context.userId = userId;
-    return this;
-  }
-
-  setSessionId(sessionId: string): this {
-    this.context.sessionId = sessionId;
-    return this;
-  }
-
-  setRequestId(requestId: string): this {
-    this.context.requestId = requestId;
-    return this;
-  }
-
-  setUserAgent(userAgent: string): this {
-    this.context.userAgent = userAgent;
-    return this;
-  }
-
-  setUrl(url: string): this {
-    this.context.url = url;
-    return this;
-  }
-
-  setAdditionalData(data: Record<string, unknown>): this {
-    this.context.additionalData = { ...this.context.additionalData, ...data };
-    return this;
-  }
-
-  build(): ErrorContext {
-    return {
-      ...this.context,
-      timestamp: new Date(),
-    };
   }
 }
 
@@ -400,3 +280,10 @@ export const handleSupabaseError = (error: PostgrestError): AppError => {
 export const handleError = (error: unknown): AppError => {
   return ErrorTransformer.fromUnknownError(error);
 };
+
+/**
+ * Barrel re-exports from error-retry.ts
+ * 기존 handlers.ts 에서 export 하던 타입/클래스를 유지합니다.
+ */
+export { ConsoleErrorLogger, RetryUtility, ErrorContextBuilder } from './error-retry';
+export type { ErrorLogger } from './error-retry';
