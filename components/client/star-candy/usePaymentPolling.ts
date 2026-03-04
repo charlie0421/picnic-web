@@ -1,23 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getLocalizedString } from '@/utils/api/strings';
-import { Products } from '@/types/interfaces';
-import { User } from '@supabase/supabase-js';
-import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
-import { VERIFY_INITIAL_DELAY_MS, buildLoginRedirect, ShowLoginRequired } from './star-candy-utils';
-import { DialogProps } from '@/components/ui/Dialog/types';
-import React from 'react';
-
-interface UsePaymentPollingParams {
-  products: Products[];
-  user: User | null;
-  router: AppRouterInstance;
-  pathname: string | null;
-  currentLanguage: string;
-  showDialog: ((props: Omit<DialogProps, 'isOpen' | 'onClose'>) => void) | null;
-  showLoginRequired: ShowLoginRequired;
-  t: (key: string) => string;
-}
+import { VERIFY_INITIAL_DELAY_MS, buildLoginRedirect } from './star-candy-utils';
+import {
+  UsePaymentPollingParams,
+  getStoredPaymentId,
+  setStoredPaymentId,
+  removeStoredPaymentId,
+  isPaymentVerified,
+  showSuccessDialogOrAlert,
+} from './payment-polling-helpers';
 
 export function usePaymentPolling({
   products,
@@ -37,101 +28,18 @@ export function usePaymentPolling({
   const [balanceBoxKey, setBalanceBoxKey] = useState(0); // StarCandyBalanceBox 강제 리렌더링용
   const searchParams = useSearchParams();
 
-  // sessionStorage 헬퍼 함수
-  const getStoredPaymentId = useCallback((): string | null => {
-    return typeof window !== 'undefined' ? sessionStorage.getItem('pendingPaymentId') : null;
-  }, []);
-
-  const setStoredPaymentId = useCallback((paymentId: string): void => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('pendingPaymentId', paymentId);
-    }
-  }, []);
-
-  const removeStoredPaymentId = useCallback((): void => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('pendingPaymentId');
-    }
-  }, []);
-
-  // 결제 검증 결과 확인 헬퍼 함수
-  const isPaymentVerified = useCallback((result: { verified?: boolean | string | number }): boolean => {
-    return result.verified === true || result.verified === 'true' || result.verified === 1;
-  }, []);
-
   // 성공 Dialog 표시 헬퍼 함수
   const showSuccessDialog = useCallback((verifyResult: {
     payment?: { productId?: string; starCandy?: number; bonusAmount?: number; amount?: number };
     balance?: { total?: number };
   }) => {
-    if (!showDialog) {
-      alert(t('payment_success'));
-      router.replace(pathname || '/ko/star-candy');
-      window.location.reload();
-      return;
-    }
-
-    const product = products.find(p => p.id === verifyResult.payment?.productId);
-    const productName = product ? getLocalizedString(product.product_name, currentLanguage) : '';
-
-    showDialog({
-      type: 'success',
-      size: 'md',
-      title: t('payment_completed_title'),
-      description: t('payment_completed_description'),
-      children: (
-        React.createElement('div', { className: 'space-y-4 py-2' },
-          React.createElement('div', { className: 'bg-gray-50 rounded-lg p-4 space-y-2' },
-            React.createElement('h4', { className: 'font-semibold text-sm text-gray-700' }, t('recharge_details')),
-            React.createElement('div', { className: 'space-y-1.5 text-sm' },
-              React.createElement('div', { className: 'flex justify-between' },
-                React.createElement('span', { className: 'text-gray-600' }, t('product_name_label'), ':'),
-                React.createElement('span', { className: 'font-medium text-gray-900' }, productName),
-              ),
-              React.createElement('div', { className: 'flex justify-between' },
-                React.createElement('span', { className: 'text-gray-600' }, t('recharge_star_candy_label'), ':'),
-                React.createElement('span', { className: 'font-medium text-gray-900' },
-                  (verifyResult.payment?.starCandy?.toLocaleString() || 0), t('unit_count'),
-                ),
-              ),
-              verifyResult.payment?.bonusAmount && verifyResult.payment.bonusAmount > 0 &&
-                React.createElement('div', { className: 'flex justify-between' },
-                  React.createElement('span', { className: 'text-gray-600' }, t('bonus_star_candy_label'), ':'),
-                  React.createElement('span', { className: 'font-medium text-green-600' },
-                    '+', verifyResult.payment.bonusAmount.toLocaleString(), t('unit_count'),
-                  ),
-                ),
-              React.createElement('div', { className: 'flex justify-between pt-2 border-t border-gray-200' },
-                React.createElement('span', { className: 'text-gray-600' }, t('payment_amount_label'), ':'),
-                React.createElement('span', { className: 'font-semibold text-gray-900' },
-                  (verifyResult.payment?.amount?.toLocaleString() || 0), t('currency_krw'),
-                ),
-              ),
-            ),
-          ),
-          React.createElement('div', { className: 'bg-blue-50 rounded-lg p-4 space-y-2' },
-            React.createElement('h4', { className: 'font-semibold text-sm text-blue-700' }, t('recharge_result')),
-            React.createElement('div', { className: 'space-y-1.5 text-sm' },
-              React.createElement('div', { className: 'flex justify-between' },
-                React.createElement('span', { className: 'text-blue-600' }, t('total_recharge_star_candy_label'), ':'),
-                React.createElement('span', { className: 'font-semibold text-blue-700' },
-                  ((verifyResult.payment?.starCandy || 0) + (verifyResult.payment?.bonusAmount || 0)).toLocaleString(), t('unit_count'),
-                ),
-              ),
-              React.createElement('div', { className: 'flex justify-between pt-2 border-t border-blue-200' },
-                React.createElement('span', { className: 'text-blue-600' }, t('current_balance_label'), ':'),
-                React.createElement('span', { className: 'font-bold text-lg text-blue-700' },
-                  (verifyResult.balance?.total?.toLocaleString() || 0), t('unit_count'),
-                ),
-              ),
-            ),
-          ),
-        )
-      ),
-      onClose: () => {
-        router.replace(pathname || '/ko/star-candy');
-        window.location.reload();
-      },
+    showSuccessDialogOrAlert(verifyResult, {
+      products,
+      currentLanguage,
+      router,
+      pathname,
+      showDialog,
+      t,
     });
   }, [showDialog, products, currentLanguage, router, pathname, t]);
 
@@ -152,7 +60,7 @@ export function usePaymentPolling({
         setPendingPaymentId(storedId);
       }
     }
-  }, [searchParams, getStoredPaymentId, setStoredPaymentId]);
+  }, [searchParams]);
 
   // 결제 요청 후 주기적으로 검증 시도 (polling 방식)
   // PortOne v2 브라우저 SDK는 PC 환경에서 리다이렉트 없이 Promise로 결과를 반환하므로
@@ -356,7 +264,7 @@ export function usePaymentPolling({
       timeoutId && clearTimeout(timeoutId);
       verifyInterval && clearTimeout(verifyInterval);
     };
-  }, [pendingPaymentId, user, showSuccessDialog, getStoredPaymentId, removeStoredPaymentId, isPaymentVerified]);
+  }, [pendingPaymentId, user, showSuccessDialog]);
 
   return {
     pendingPaymentId,
