@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useNetworkQuery } from './useRetryableQuery';
+import { useNetworkQuery } from './retryable-query-presets';
 import { AppError, ErrorCategory } from '@/utils/error';
 
 export interface VoteResultItem {
