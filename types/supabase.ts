@@ -6331,11 +6331,18 @@ export type Database = {
       cleanup_expired_audit_logs: { Args: never; Returns: number }
       commit_transaction: { Args: never; Returns: undefined }
       consolidate_bonus_buckets: {
-        Args: { target_user_id?: string }
+        Args: { p_user_id: string }
         Returns: {
-          affected_user_id: string
-          buckets_after: number
-          buckets_before: number
+          consolidated_count: number
+          new_bucket_count: number
+        }[]
+      }
+      consolidate_bonus_buckets_batch: {
+        Args: { p_limit?: number; p_min_buckets?: number }
+        Returns: {
+          consolidated_count: number
+          new_bucket_count: number
+          user_id: string
         }[]
       }
       create_boards_for_existing_artists: { Args: never; Returns: undefined }
@@ -6649,6 +6656,14 @@ export type Database = {
         Args: { curlopt: string; value: string }
         Returns: boolean
       }
+      increment_star_candy: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: number
+      }
+      increment_star_candy_bonus: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: number
+      }
       increment_user_star_candy_bonus: {
         Args: { p_amount: number; p_user_id: string }
         Returns: undefined
@@ -6715,6 +6730,18 @@ export type Database = {
           p_user_id: string
           p_vote_id: number
           p_vote_item_id: number
+        }
+        Returns: Json
+      }
+      process_attendance_check: {
+        Args: {
+          p_check_date: string
+          p_expired_dt: string
+          p_reward_amount: number
+          p_transaction_id: string
+          p_user_id: string
+          p_weekly_bonus_amount: number
+          p_weekly_transaction_id?: string
         }
         Returns: Json
       }
@@ -6813,6 +6840,15 @@ export type Database = {
       }
       update_vote_totals_batch_bak: {
         Args: { p_vote_ids: number[] }
+        Returns: undefined
+      }
+      upsert_ad_bonus: {
+        Args: {
+          p_amount: number
+          p_expired_dt: string
+          p_transaction_id: string
+          p_user_id: string
+        }
         Returns: undefined
       }
       upsert_user_push_token:
