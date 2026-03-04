@@ -13,6 +13,7 @@ import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileIma
 import LanguageSelector from './LanguageSelector';
 import { Menu, Settings, Vote, Users, Image as PictureIcon, BookOpen, Star, ChevronRight, Bell } from 'lucide-react';
 import { NotificationInboxService } from '@/lib/data-fetching/client/notification-service';
+import AttendanceIconButton from '@/components/client/attendance/AttendanceIconButton';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
@@ -169,7 +170,10 @@ const Header: React.FC = () => {
 
           <div className='flex items-center gap-2 sm:gap-3'>
             <div className='h-8 sm:h-10 flex items-center justify-center'><LanguageSelector /></div>
-            
+
+            {/* 출석체크 아이콘 - 로그인 사용자 표시 */}
+            <AttendanceIconButton />
+
             {/* 알림함 아이콘 - 관리자만 표시 */}
             {isAdmin && (
               <NavigationLink

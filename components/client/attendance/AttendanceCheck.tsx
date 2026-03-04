@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -24,6 +25,7 @@ export default function AttendanceCheck() {
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [checkInResult, setCheckInResult] = useState<AttendanceCheckResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
   const resultTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const dayLabels = currentLanguage === 'ko' ? DAY_LABELS_KO : DAY_LABELS_EN;
@@ -65,6 +67,7 @@ export default function AttendanceCheck() {
       setError(null);
       const result = await performAttendanceCheck();
       setCheckInResult(result);
+      setShowConfetti(true);
 
       // Update local status
       setStatus((prev) =>
@@ -78,9 +81,10 @@ export default function AttendanceCheck() {
           : prev,
       );
 
-      // Clear result display after 3s
+      // Clear result display and confetti after 3s
       resultTimeoutRef.current = setTimeout(() => {
         setCheckInResult(null);
+        setShowConfetti(false);
       }, 3000);
     } catch (err: any) {
       if (err.code === 'ALREADY_CHECKED') {
@@ -115,7 +119,7 @@ export default function AttendanceCheck() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12">
+      <div className="flex flex-col items-center justify-center gap-3 py-8">
         <p className="text-red-500 text-sm">{error}</p>
         <button
           onClick={fetchStatus}
@@ -132,16 +136,47 @@ export default function AttendanceCheck() {
   const { weeklyStatus, todayChecked, deadlineKST } = status;
 
   return (
-    <div className="flex flex-col items-center gap-5 px-4 py-6">
-      {/* KST Notice */}
-      <p className="text-xs text-gray-400">{t('label_attendance_kst_notice')}</p>
-
-      {/* New user notice */}
-      {weeklyStatus.isNewUser && (
-        <div className="w-full rounded-lg bg-purple-50 px-4 py-2.5 text-center text-sm text-purple-600">
-          {t('label_attendance_new_user_notice')}
+    <div className="relative flex flex-col gap-3 px-4 py-4">
+      {/* Confetti animation overlay */}
+      {showConfetti && (
+        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+          {Array.from({ length: 24 }).map((_, i) => (
+            <span
+              key={i}
+              className="absolute animate-confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 0.8}s`,
+                animationDuration: `${1.5 + Math.random() * 1.5}s`,
+                backgroundColor: ['#a855f7', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#ef4444'][i % 6],
+                width: `${6 + Math.random() * 4}px`,
+                height: `${6 + Math.random() * 4}px`,
+                borderRadius: i % 3 === 0 ? '50%' : '1px',
+              }}
+            />
+          ))}
         </div>
       )}
+
+      {/* Progress header */}
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center rounded-full bg-gradient-to-r from-purple-500 to-purple-400 px-2.5 py-0.5 text-[10px] font-semibold text-white">
+          {weeklyStatus.checkedCount}/{weeklyStatus.totalRequired}
+        </span>
+        <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-purple-500 transition-all duration-500"
+            style={{ width: `${Math.min((weeklyStatus.checkedCount / weeklyStatus.totalRequired) * 100, 100)}%` }}
+          />
+        </div>
+        {deadlineKST && (
+          <AttendanceDeadlineTimer
+            deadlineUTC={deadlineKST}
+            label=""
+            onDeadlineReached={handleDeadlineReached}
+          />
+        )}
+      </div>
 
       {/* Weekly Calendar */}
       <AttendanceWeeklyCalendar
@@ -153,25 +188,42 @@ export default function AttendanceCheck() {
         checkedCount={weeklyStatus.checkedCount}
       />
 
-      {/* Weekly Bonus Banner */}
-      <div className="w-full rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 px-4 py-3 text-center">
-        <p className="text-sm font-semibold text-amber-700">
-          {t('label_attendance_weekly_bonus')}: 120 Star Candy
-        </p>
-        <p className="text-xs text-amber-500 mt-0.5">
-          {t('label_attendance_weekly_bonus_desc')}
-        </p>
+      {/* Reward info banner */}
+      <div className="flex flex-col items-center gap-0.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 px-3 py-2">
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-gray-500">
+            {t('label_attendance_check_in') || '출석'}
+          </span>
+          <Image src="/images/star-candy/bonus.png" alt="" width={14} height={14} />
+          <span className="text-[10px] font-semibold text-gray-700">+60</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-gray-500">
+            {t('label_attendance_weekly_bonus') || '주간보너스'}
+          </span>
+          <Image src="/images/star-candy/bonus.png" alt="" width={14} height={14} />
+          <span className="text-[10px] font-semibold text-orange-700">+120</span>
+          <span className="text-xs">🎁</span>
+        </div>
       </div>
 
-      {/* Check-in Result Animation */}
+      {/* New user notice */}
+      {weeklyStatus.isNewUser && (
+        <div className="rounded-lg bg-purple-50 px-3 py-2 text-center text-xs text-purple-600">
+          {t('label_attendance_new_user_notice')}
+        </div>
+      )}
+
+      {/* Check-in result animation */}
       {checkInResult && (
-        <div className="animate-bounce rounded-xl bg-purple-500 px-6 py-3 text-center text-white shadow-lg">
-          <p className="text-lg font-bold">
-            +{checkInResult.rewardAmount}
-          </p>
+        <div className="animate-bounce rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 text-center text-white shadow-lg">
+          <div className="flex items-center justify-center gap-2">
+            <Image src="/images/star-candy/bonus.png" alt="" width={22} height={22} />
+            <span className="text-xl font-bold">+{checkInResult.totalReward}</span>
+          </div>
           {checkInResult.weeklyBonusAmount > 0 && (
-            <p className="text-sm mt-1">
-              +{checkInResult.weeklyBonusAmount} {t('label_attendance_weekly_bonus')}!
+            <p className="text-xs mt-1 opacity-90">
+              {t('label_attendance_weekly_bonus')} +{checkInResult.weeklyBonusAmount} 🎉
             </p>
           )}
         </div>
@@ -181,29 +233,32 @@ export default function AttendanceCheck() {
       <button
         onClick={handleCheckIn}
         disabled={todayChecked || isCheckingIn}
-        className={`w-full max-w-xs rounded-2xl px-8 py-4 text-lg font-bold shadow-md transition-all ${
-          todayChecked
-            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+        className={`
+          w-full rounded-xl px-6 py-3 text-base font-bold transition-all duration-200
+          ${todayChecked
+            ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
             : isCheckingIn
               ? 'bg-purple-300 text-white cursor-wait'
-              : 'bg-purple-500 text-white hover:bg-purple-600 hover:shadow-lg active:scale-95'
-        }`}
+              : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md shadow-purple-200 hover:shadow-lg hover:shadow-purple-300 active:scale-[0.98]'
+          }
+        `}
       >
-        {isCheckingIn
-          ? '...'
-          : todayChecked
-            ? t('label_attendance_checked')
-            : t('label_attendance_check_in')}
+        {isCheckingIn ? (
+          <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+        ) : (
+          <span className="flex items-center justify-center gap-2">
+            {!todayChecked && (
+              <Image src="/images/star-candy/bonus.png" alt="" width={18} height={18} />
+            )}
+            {todayChecked
+              ? t('label_attendance_checked') || '출석완료'
+              : t('label_attendance_check_in') || '출석하기'}
+            {!todayChecked && (
+              <span className="opacity-70">+60</span>
+            )}
+          </span>
+        )}
       </button>
-
-      {/* Deadline Timer */}
-      {deadlineKST && (
-        <AttendanceDeadlineTimer
-          deadlineUTC={deadlineKST}
-          label={t('label_attendance_deadline')}
-          onDeadlineReached={handleDeadlineReached}
-        />
-      )}
     </div>
   );
 }
