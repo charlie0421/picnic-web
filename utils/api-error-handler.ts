@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ErrorHandler, AppError, createContext, ErrorCategory, ErrorSeverity } from '@/utils/error';
-import { logger, createRequestLogger } from '@/utils/logger';
+import { logger } from '@/utils/logger';
+import { createRequestLogger } from '@/utils/logger-utils';
 
 /**
  * API 에러 응답 인터페이스
