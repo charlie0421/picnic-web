@@ -13,9 +13,13 @@ import {
   extractSupabaseStorageReference,
   fetchSignedSupabaseImageUrl,
   sendAvatarDebugLog,
-  buildSupabaseObjectUrl,
 } from './supabase-storage';
 import { isValidImageUrl, getSafeAvatarUrl } from './provider-avatar';
+import {
+  buildFallbackCandidates,
+  tryLoadCandidates,
+  tryObjectUrl,
+} from './avatar-resolver-fallback';
 
 export async function resolveAvatarUrlClient(
   avatarUrl: string | null | undefined,
@@ -169,151 +173,32 @@ export async function resolveAvatarUrlClient(
     });
   }
 
-  const fallbackCandidates: Array<{
-    url: string;
-    isSigned: boolean;
-  }> = [];
+  // Build fallback candidates
+  const fallbackCandidates = await buildFallbackCandidates({
+    reference,
+    wasSigned,
+    hasTransformOpts: hasTransformOptions(transform),
+    originalUrlWithoutTransform,
+    avatarUrl,
+    finalUrl,
+    fallbackUrl,
+    transform,
+    options,
+  });
 
+  // Try fallback candidates
+  const candidateResult = await tryLoadCandidates(
+    fallbackCandidates,
+    options,
+    recordStep,
+    preloadImage,
+  );
+  if (candidateResult) return finalize(candidateResult);
+
+  // Try object URL as last resort
   if (reference) {
-    if (wasSigned && hasTransformOptions(transform)) {
-      const signedWithoutTransform = await fetchSignedSupabaseImageUrl(
-        reference,
-        {},
-        { signal: options.signal, expiresIn: options.expiresIn },
-      );
-      if (options.signal?.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
-      }
-      if (signedWithoutTransform) {
-        fallbackCandidates.push({
-          url: signedWithoutTransform,
-          isSigned: true,
-        });
-      }
-    }
-
-    if (!reference.isSigned) {
-      const objectUrl = buildSupabaseObjectUrl(reference);
-      if (objectUrl) {
-        fallbackCandidates.push({
-          url: objectUrl,
-          isSigned: false,
-        });
-      }
-    }
-  }
-
-  if (
-    originalUrlWithoutTransform &&
-    originalUrlWithoutTransform !== finalUrl &&
-    originalUrlWithoutTransform !== fallbackUrl
-  ) {
-    fallbackCandidates.push({
-      url: originalUrlWithoutTransform,
-      isSigned: wasSigned,
-    });
-  }
-
-  if (avatarUrl && avatarUrl !== finalUrl) {
-    fallbackCandidates.push({
-      url: avatarUrl,
-      isSigned: wasSigned,
-    });
-  }
-
-  for (const candidate of fallbackCandidates) {
-    if (!candidate.url) continue;
-    recordStep({
-      stage: 'fallback-candidate',
-      url: candidate.url,
-      isSignedCandidate: candidate.isSigned,
-    });
-    if (options.signal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError');
-    }
-    try {
-      const ok = await preloadImage(candidate.url);
-      if (ok) {
-        recordStep({
-          stage: 'fallback-candidate',
-          url: candidate.url,
-          result: 'success',
-          isSignedCandidate: candidate.isSigned,
-        });
-        return finalize({
-          url: candidate.url,
-          isFallback: false,
-          isSigned: candidate.isSigned,
-        });
-      }
-      recordStep({
-        stage: 'fallback-candidate',
-        url: candidate.url,
-        result: 'error',
-        message: 'preload_image_false',
-        isSignedCandidate: candidate.isSigned,
-      });
-    } catch (error) {
-      recordStep({
-        stage: 'fallback-candidate',
-        url: candidate.url,
-        result: 'error',
-        message: error instanceof Error ? error.message : String(error),
-        isSignedCandidate: candidate.isSigned,
-      });
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        throw error;
-      }
-      console.warn('🖼️ [ImageUtils] 아바타 폴백 로드 실패:', {
-        candidate: candidate.url,
-        error,
-      });
-    }
-  }
-
-  if (reference) {
-    const objectUrl = buildSupabaseObjectUrl(reference);
-    if (objectUrl) {
-      recordStep({
-        stage: 'object-url',
-        url: objectUrl,
-        isSignedCandidate: reference.isSigned,
-      });
-      try {
-        const ok = await preloadImage(objectUrl);
-        if (ok) {
-          recordStep({
-            stage: 'object-url',
-            url: objectUrl,
-            result: 'success',
-            isSignedCandidate: reference.isSigned,
-          });
-          return finalize({
-            url: objectUrl,
-            isFallback: false,
-            isSigned: reference.isSigned,
-          });
-        }
-        recordStep({
-          stage: 'object-url',
-          url: objectUrl,
-          result: 'error',
-          message: 'preload_image_false',
-          isSignedCandidate: reference.isSigned,
-        });
-      } catch (error) {
-        recordStep({
-          stage: 'object-url',
-          url: objectUrl,
-          result: 'error',
-          message: error instanceof Error ? error.message : String(error),
-        });
-        console.warn('🖼️ [ImageUtils] 공개 오브젝트 URL 로드 실패:', {
-          objectUrl,
-          error,
-        });
-      }
-    }
+    const objectResult = await tryObjectUrl(reference, recordStep, preloadImage);
+    if (objectResult) return finalize(objectResult);
   }
 
   recordStep({

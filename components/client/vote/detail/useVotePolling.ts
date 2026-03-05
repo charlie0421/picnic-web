@@ -1,24 +1,21 @@
-import React, { useMemo, useCallback, useRef, useState } from 'react';
-import { Vote, VoteItem } from '@/types/interfaces';
+import React, { useMemo } from 'react';
+import { VoteItem } from '@/types/interfaces';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import {
   NotificationState,
-  ConnectionState,
-  ConnectionQuality,
-  ThresholdConfig,
-  ERROR_RATE_PENALTY,
-  CONSECUTIVE_ERROR_PENALTY,
   POLLING_LOG_THROTTLE_MS,
   DEFAULT_NOTIFICATION_DURATION_MS,
 } from './vote-detail-types';
-
-interface UseVotePollingParams {
-  vote: Vote;
-  voteId: number | string;
-  initialItems: VoteItem[];
-  pollingInterval: number;
-  enableRealtime: boolean;
-}
+import {
+  UseVotePollingParams,
+  DEFAULT_THRESHOLDS,
+  createInitialConnectionState,
+  createInitialConnectionQuality,
+  computeConnectionQuality,
+  transformVoteItems,
+  VotePickRow,
+  buildUserVoteSummary,
+} from './vote-polling-data';
 
 export function useVotePolling({
   vote,
@@ -27,48 +24,18 @@ export function useVotePolling({
   pollingInterval,
   enableRealtime,
 }: UseVotePollingParams) {
-  const [voteItems, setVoteItems] = React.useState<VoteItem[]>(() => {
-    return initialItems
-      .filter(item => !(item as any).deleted_at)
-      .map(item => ({
-        ...item,
-        name: (item as any).artist?.name || 'Unknown',
-        image_url: (item as any).artist?.image || '',
-        total_votes: item.vote_total || 0,
-      }));
-  });
+  const [voteItems, setVoteItems] = React.useState<VoteItem[]>(() => transformVoteItems(initialItems));
 
   const [user, setUser] = React.useState<any>(null);
   const [userVote, setUserVote] = React.useState<any>(null);
   const [notifications, setNotifications] = React.useState<NotificationState[]>([]);
 
-  const [connectionState, setConnectionState] = React.useState<ConnectionState>({
-    mode: 'polling',
-    isConnected: false,
-    lastUpdate: null,
-    errorCount: 0,
-    retryCount: 0,
-  });
+  const [connectionState, setConnectionState] = React.useState(createInitialConnectionState);
 
   const [pollingStartTime, setPollingStartTime] = React.useState<Date | null>(null);
-  const [connectionQuality, setConnectionQuality] = React.useState<ConnectionQuality>({
-    score: 100,
-    latency: 0,
-    errorRate: 0,
-    consecutiveErrors: 0,
-    consecutiveSuccesses: 0,
-    lastConnectionTime: null,
-    averageResponseTime: 0,
-  });
+  const [connectionQuality, setConnectionQuality] = React.useState(createInitialConnectionQuality);
 
-  const thresholds: ThresholdConfig = {
-    maxErrorCount: 3,
-    maxConsecutiveErrors: 2,
-    minConnectionQuality: 70,
-    realtimeRetryDelay: 30000,
-    pollingInterval: 1000,
-    qualityCheckInterval: 15000,
-  };
+  const thresholds = DEFAULT_THRESHOLDS;
 
   const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const initialDataNotifiedRef = React.useRef<boolean>(false);
@@ -117,29 +84,7 @@ export function useVotePolling({
   }, [supabase]);
 
   const updateConnectionQuality = React.useCallback((success: boolean, responseTime?: number) => {
-    setConnectionQuality(prev => {
-      const newConsecutiveErrors = success ? 0 : prev.consecutiveErrors + 1;
-      const newConsecutiveSuccesses = success ? prev.consecutiveSuccesses + 1 : 0;
-      const newErrorRate = success ? Math.max(0, prev.errorRate - 0.1) : Math.min(1, prev.errorRate + 0.2);
-      let newScore = 100;
-      newScore -= newErrorRate * ERROR_RATE_PENALTY;
-      newScore -= newConsecutiveErrors * CONSECUTIVE_ERROR_PENALTY;
-      newScore = Math.max(0, Math.min(100, newScore));
-      const newLatency = responseTime ? responseTime : prev.latency;
-      const newAverageResponseTime = responseTime
-        ? (prev.averageResponseTime * 0.8 + responseTime * 0.2)
-        : prev.averageResponseTime;
-      return {
-        ...prev,
-        score: newScore,
-        latency: newLatency,
-        errorRate: newErrorRate,
-        consecutiveErrors: newConsecutiveErrors,
-        consecutiveSuccesses: newConsecutiveSuccesses,
-        lastConnectionTime: success ? new Date() : prev.lastConnectionTime,
-        averageResponseTime: newAverageResponseTime,
-      };
-    });
+    setConnectionQuality(prev => computeConnectionQuality(prev, success, responseTime));
   }, []);
 
   const updateVoteDataPolling = React.useCallback(async () => {
@@ -182,35 +127,7 @@ export function useVotePolling({
         if (shouldLog) {
           console.log('[Polling] Vote data received:', voteData);
         }
-        const transformedVoteItems = (voteData.vote_item || [])
-          .filter((item: any) => !item.deleted_at)
-          .map((item: any) => ({
-          id: item.id,
-          artist_id: item.artist_id,
-          group_id: item.group_id,
-          vote_id: item.vote_id,
-          vote_total: item.vote_total || 0,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          deleted_at: item.deleted_at,
-          artist: item.artist ? {
-            id: item.artist.id,
-            name: item.artist.name,
-            image: item.artist.image,
-            ...item.artist
-          } : null,
-          name: item.artist?.name || 'Unknown',
-          image_url: item.artist?.image || '',
-          total_votes: item.vote_total || 0,
-          rank: 0
-        }));
-        const sortedItems = transformedVoteItems
-          .sort((a: any, b: any) => (b.total_votes || 0) - (a.total_votes || 0))
-          .map((item: any, index: number) => ({
-            ...item,
-            rank: index + 1
-          }));
-        setVoteItems(sortedItems);
+        setVoteItems(transformVoteItems(voteData.vote_item || []));
         setLastPollingUpdate(new Date());
         setPollingErrorCount(0);
         updateConnectionQuality(true, responseTime);
@@ -230,12 +147,6 @@ export function useVotePolling({
         }
       }
       if (user) {
-        type VotePickRow = {
-          vote_item_id: number;
-          amount: number | null;
-          created_at: string;
-        };
-
         const { data: userVoteData, error: userVoteError } = await supabase
           .from('vote_pick')
           .select('vote_item_id, amount, created_at')
@@ -246,28 +157,8 @@ export function useVotePolling({
         if (userVoteError) {
           console.error('[Polling] User vote fetch error:', userVoteError);
           updateConnectionQuality(false);
-        } else if (userVoteData && userVoteData.length > 0) {
-          if (userVoteData.length > 1 && shouldLog) {
-            console.log(`[Polling] 사용자가 ${userVoteData.length}번 투표함:`, userVoteData);
-            const voteSummary = {
-              totalVotes: userVoteData.reduce((sum, vote) => sum + (vote.amount || 0), 0),
-              voteCount: userVoteData.length,
-              lastVoteItem: userVoteData[0].vote_item_id,
-              allVoteItems: Array.from(new Set(userVoteData.map(v => v.vote_item_id))),
-              votes: userVoteData
-            };
-            setUserVote(voteSummary);
-          } else {
-            setUserVote({
-              totalVotes: userVoteData[0].amount || 0,
-              voteCount: 1,
-              lastVoteItem: userVoteData[0].vote_item_id,
-              allVoteItems: [userVoteData[0].vote_item_id],
-              votes: userVoteData
-            });
-          }
         } else {
-          setUserVote(null);
+          setUserVote(buildUserVoteSummary(userVoteData || [], shouldLog));
         }
       }
     } catch (error) {
