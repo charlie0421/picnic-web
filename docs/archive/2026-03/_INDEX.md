@@ -16,3 +16,4 @@
 | weekly-refactor-batch12 | 2026-03-05 | 88% | [Plan](weekly-refactor-batch12/weekly-refactor-batch12.plan.md) · [Analysis](weekly-refactor-batch12/weekly-refactor-batch12.analysis.md) · [Report](weekly-refactor-batch12/weekly-refactor-batch12.report.md) |
 | weekly-refactor-batch13 | 2026-03-05 | 98% | [Plan](weekly-refactor-batch13/weekly-refactor-batch13.plan.md) · [Analysis](weekly-refactor-batch13/weekly-refactor-batch13.analysis.md) · [Report](weekly-refactor-batch13/weekly-refactor-batch13.report.md) |
 | weekly-refactor-batch14 | 2026-03-05 | 95% | [Plan](weekly-refactor-batch14/weekly-refactor-batch14.plan.md) · [Analysis](weekly-refactor-batch14/weekly-refactor-batch14.analysis.md) · [Report](weekly-refactor-batch14/weekly-refactor-batch14.report.md) |
+| weekly-refactor-batch15 | 2026-03-08 | 100% | [Analysis](weekly-refactor-batch15/weekly-refactor-batch15.analysis.md) · [Report](weekly-refactor-batch15/weekly-refactor-batch15.report.md) |
