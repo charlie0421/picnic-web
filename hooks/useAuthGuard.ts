@@ -211,7 +211,6 @@ export function useAuthGuard(options: AuthGuardOptions = {}) {
         redirectUrl,
         pathname,
         showLoginRequired,
-        router,
         onError,
         customLoginMessage,
         isLoading,

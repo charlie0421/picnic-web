@@ -3,8 +3,12 @@
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { getRedirectUrl, clearRedirectUrl } from '@/utils/auth-redirect';
+import { notFound } from 'next/navigation';
 
 export default function TestRedirectPage() {
+  if (process.env.NODE_ENV === 'production') {
+    notFound();
+  }
   const { isAuthenticated, user } = useAuth();
   const { withAuth } = useRequireAuth();
 
