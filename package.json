@@ -42,7 +42,11 @@
     "i18n:seed-en": "tsx scripts/seed-i18n-en.ts && npm run -s i18n:auto",
     "i18n:fill": "tsx scripts/fill-placeholders.ts && npm run -s i18n:check",
     "i18n:fix-dialog": "tsx scripts/fix-dialog-shortcuts.ts && npm run -s i18n:check",
-    "transcode": "node scripts/transcode-gavynj.js"
+    "transcode": "node scripts/transcode-gavynj.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@auth/core": "0.34.2",
@@ -103,6 +107,7 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
     "@types/luxon": "^3.6.2",
     "@types/node": "^20.4.5",
@@ -110,16 +115,20 @@
     "@types/react-datepicker": "^6.2.0",
     "@types/react-dom": "^18.3.7",
     "@types/swiper": "^5.4.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.0",
     "autoprefixer": "^10.4.14",
     "dotenv": "^16.5.0",
     "eslint": "^9.25.1",
     "eslint-config-next": "^15.3.1",
     "ffmpeg-static": "^5.2.0",
     "fluent-ffmpeg": "^2.1.3",
+    "jsdom": "^29.0.0",
     "postcss": "^8.5.3",
     "supabase": "^1.226.4",
     "tailwindcss": "^3.3.3",
     "ts-node": "^10.9.2",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "vitest": "^4.1.0"
   }
 }
