@@ -9,9 +9,11 @@ import { QnaDetailClientProps, UiQnaMessage } from './qna-utils';
 import { useQnaForm } from './useQnaForm';
 import QnaMessageList from './QnaMessageList';
 import QnaMediaModal from './QnaMediaModal';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
-export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
-  const [messages, setMessages] = useState<UiQnaMessage[]>((thread.qna_messages as UiQnaMessage[]) || []);
+export default function QnaDetailClient({ thread: initialThread }: QnaDetailClientProps) {
+  const [thread, setThread] = useState(initialThread);
+  const [messages, setMessages] = useState<UiQnaMessage[]>((initialThread.qna_messages as UiQnaMessage[]) || []);
   const [optimisticMessages, addOptimisticMessage] = useOptimistic<UiQnaMessage[], UiQnaMessage>(
     messages,
     (state, newMessage) => {
@@ -20,6 +22,32 @@ export default function QnaDetailClient({ thread }: QnaDetailClientProps) {
   );
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient();
+    const channel = supabase
+      .channel(`qna_thread_status_${thread.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'qna_threads',
+          filter: `id=eq.${thread.id}`,
+        },
+        (payload) => {
+          const newStatus = payload.new?.status;
+          if (newStatus) {
+            setThread((prev) => ({ ...prev, status: newStatus }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [thread.id]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

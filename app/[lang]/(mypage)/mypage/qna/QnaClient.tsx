@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { QnaThreads as QnaThread } from '@/types/interfaces';
 import type { Pagination } from '@/types/mypage-common';
@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 interface QnaClientProps {
   initialQnaThreads: QnaThread[] | null;
@@ -31,6 +32,37 @@ export default function QnaClient({
   const { currentLanguage } = useLanguage();
   const [categories, setCategories] = useState<any[]>([]);
   const ensureActiveMembership = useWithdrawalGuard();
+
+  useEffect(() => {
+    if (!qnaThreads?.length) return;
+    const supabase = createBrowserSupabaseClient();
+    const channel = supabase
+      .channel('qna_thread_list')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'qna_threads',
+        },
+        (payload) => {
+          const updatedId = payload.new?.id;
+          const newStatus = payload.new?.status;
+          if (updatedId && newStatus) {
+            setQnaThreads((prev) =>
+              prev?.map((t) =>
+                t.id === updatedId ? { ...t, status: newStatus } : t
+              ) ?? null
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qnaThreads?.length]);
 
   const handleCreateNew = async () => {
     if (await ensureActiveMembership()) {
