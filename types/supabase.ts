@@ -6291,6 +6291,23 @@ export type Database = {
       }
     }
     Functions: {
+      admin_adjust_user_bonus: {
+        Args: {
+          bonus_amount: number
+          expired_days?: number
+          reason: string
+          target_user_id: string
+        }
+        Returns: Json
+      }
+      admin_check_bonus_drift: {
+        Args: { target_user_id: string }
+        Returns: Json
+      }
+      admin_get_user_bonus_history: {
+        Args: { limit_count?: number; target_user_id: string }
+        Returns: Json
+      }
       auto_fix_bonus_drift: {
         Args: never
         Returns: {
@@ -6302,6 +6319,21 @@ export type Database = {
       auto_resolve_stale_qna_threads: {
         Args: { inactivity_days?: number }
         Returns: undefined
+      }
+      batch_revoke_abuser_bonus: {
+        Args: {
+          p_admin_id?: string
+          p_dry_run?: boolean
+          p_reason: string
+          p_user_ids: string[]
+        }
+        Returns: {
+          affected_records: number
+          total_revoked: number
+          user_id: string
+          user_nickname: string
+          user_was_banned: boolean
+        }[]
       }
       begin_transaction: { Args: never; Returns: undefined }
       bytea_to_text: { Args: { data: string }; Returns: string }
@@ -6372,6 +6404,24 @@ export type Database = {
           p_vote_pick_id: number
         }
         Returns: undefined
+      }
+      detect_abuser_candidates: {
+        Args: {
+          p_daily_threshold?: number
+          p_lookback_days?: number
+          p_min_days?: number
+        }
+        Returns: {
+          active_bonus: number
+          daily_avg: number
+          email: string
+          is_banned: boolean
+          max_daily: number
+          nickname: string
+          suspicious_days: number
+          total_bonus: number
+          user_id: string
+        }[]
       }
       enqueue_bonus_recalc: {
         Args: { p_error?: string; p_source?: string; p_user_id: string }
@@ -6804,6 +6854,21 @@ export type Database = {
         }[]
       }
       restore_qna: { Args: { qna_id_param: number }; Returns: undefined }
+      revoke_abuser_bonus: {
+        Args: {
+          p_admin_id?: string
+          p_dry_run?: boolean
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: {
+          affected_records: number
+          total_revoked: number
+          user_nickname: string
+          user_was_banned: boolean
+          was_dry_run: boolean
+        }[]
+      }
       rollback_transaction: { Args: never; Returns: undefined }
       run_expire_star_candy_bonus_once: { Args: never; Returns: undefined }
       search_artists: {
