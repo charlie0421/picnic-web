@@ -55,7 +55,11 @@ export function VoteResults({
     if (!voteItems || voteItems.length === 0) return [];
 
     // 투표수로 정렬 (내림차순)
-    const sorted = [...voteItems].sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0));
+    const sorted = [...voteItems].sort((a, b) => {
+      const voteDiff = (b.vote_total || 0) - (a.vote_total || 0);
+      if (voteDiff !== 0) return voteDiff;
+      return (a.id || 0) - (b.id || 0);
+    });
     
     // 최대 표시 개수만큼 제한
     const limited = sorted.slice(0, maxDisplayItems);

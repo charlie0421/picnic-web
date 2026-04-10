@@ -79,7 +79,11 @@ export const CompletedVoteItems: React.FC<CompletedVoteItemsProps> = ({
             artist,
           };
         })
-        .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0));
+        .sort((a, b) => {
+          const voteDiff = (b.vote_total || 0) - (a.vote_total || 0);
+          if (voteDiff !== 0) return voteDiff;
+          return (a.id || 0) - (b.id || 0);
+        });
 
       if (sortedItems.length === 2) {
         return sortedItems; // [1위, 2위]

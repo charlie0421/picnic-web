@@ -171,7 +171,11 @@ export function useVoteDetail({
 
   const { rankedVoteItems, filteredItems, totalVotes } = useMemo(() => {
     const ranked = [...voteItems]
-      .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
+      .sort((a, b) => {
+        const voteDiff = (b.vote_total || 0) - (a.vote_total || 0);
+        if (voteDiff !== 0) return voteDiff;
+        return (a.id || 0) - (b.id || 0);
+      })
       .map((item, index) => ({
         ...item,
         rank: index + 1,

@@ -119,7 +119,11 @@ export function transformVoteItems(items: any[]): VoteItem[] {
       total_votes: item.vote_total || 0,
       rank: 0,
     }))
-    .sort((a: any, b: any) => (b.total_votes || 0) - (a.total_votes || 0))
+    .sort((a: any, b: any) => {
+      const voteDiff = (b.total_votes || 0) - (a.total_votes || 0);
+      if (voteDiff !== 0) return voteDiff;
+      return (a.id || 0) - (b.id || 0);
+    })
     .map((item: any, index: number) => ({ ...item, rank: index + 1 }));
 }
 

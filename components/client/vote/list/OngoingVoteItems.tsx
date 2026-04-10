@@ -103,9 +103,11 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
     }
 
     // 정렬을 위해 깊은 복사 후 voteTotal이 null/undefined인 경우 0으로 처리
-    const sortedItems = [...voteItems].sort(
-      (a, b) => (b.vote_total || 0) - (a.vote_total || 0),
-    );
+    const sortedItems = [...voteItems].sort((a, b) => {
+      const voteDiff = (b.vote_total || 0) - (a.vote_total || 0);
+      if (voteDiff !== 0) return voteDiff;
+      return (a.id || 0) - (b.id || 0);
+    });
 
       if (sortedItems.length === 2) {
       return sortedItems;
