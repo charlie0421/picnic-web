@@ -3,6 +3,21 @@ import { NextResponse } from "next/server";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
+function extractLangFromPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const match = path.match(/^\/([a-z]{2}(-[a-z]{2})?)(?=\/|$)/i);
+  if (!match) return null;
+  const candidate = match[1].toLowerCase();
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(candidate)
+    ? candidate
+    : null;
+}
+
+function isLoginPath(pathname: string): boolean {
+  // /login, /ko/login, /en/login 등
+  return /^\/([a-z]{2}(-[a-z]{2})?\/)?login(\/|$)/i.test(pathname);
+}
+
 /**
  * 브라우저의 Accept-Language 헤더에서 선호 언어 추출
  */
@@ -123,7 +138,59 @@ export async function middleware(req: NextRequest) {
 
   // Touch the user to trigger refresh if needed (no-op if valid)
   try {
-    await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // 탈퇴(soft delete) 계정 방어계층 — 로그인 페이지가 아닌 경로에서만 차단 및 리다이렉트
+    if (user?.id) {
+      const url = new URL(req.url);
+      const pathname = url.pathname;
+
+      if (!isLoginPath(pathname)) {
+        try {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('deleted_at')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profile?.deleted_at) {
+            // 세션 즉시 종료
+            try {
+              await supabase.auth.signOut();
+            } catch (_) {}
+
+            const lang =
+              extractLangFromPath(pathname) ||
+              req.cookies.get('locale')?.value ||
+              DEFAULT_LANGUAGE;
+            const redirectLang = (SUPPORTED_LANGUAGES as readonly string[]).includes(lang)
+              ? lang
+              : DEFAULT_LANGUAGE;
+
+            const redirectUrl = new URL(`/${redirectLang}/login`, url.origin);
+            redirectUrl.searchParams.set('error', 'withdrawn');
+
+            const blockRes = NextResponse.redirect(redirectUrl);
+            // signOut 에서 cleared 된 쿠키들을 응답에 복사
+            for (const cookie of res.cookies.getAll()) {
+              blockRes.cookies.set({
+                name: cookie.name,
+                value: cookie.value,
+                path: cookie.path,
+                maxAge: cookie.maxAge,
+                domain: cookie.domain,
+                secure: cookie.secure,
+                sameSite: cookie.sameSite,
+                httpOnly: cookie.httpOnly,
+              });
+            }
+            return blockRes;
+          }
+        } catch (_) {
+          // 조회 실패 시 fail-open (기존 플로우 유지 — 콜백/프로필 API에서 2차 차단됨)
+        }
+      }
+    }
   } catch (_) {
     // Ignore auth errors in middleware
   }

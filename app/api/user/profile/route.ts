@@ -130,7 +130,8 @@ export async function GET(request: NextRequest) {
         is_admin,
         is_super_admin,
         created_at,
-        updated_at
+        updated_at,
+        deleted_at
       `)
       .eq('id', currentUserId)
       .single();
@@ -297,7 +298,8 @@ export async function GET(request: NextRequest) {
         provider: provider,
         provider_display_name: providerDisplayName,
         created_at: profile.created_at,
-        updated_at: profile.updated_at
+        updated_at: profile.updated_at,
+        deleted_at: profile.deleted_at ?? null
       }
     });
 

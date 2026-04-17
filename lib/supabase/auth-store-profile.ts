@@ -164,11 +164,42 @@ export async function loadUserProfileImpl(store: AuthStoreAccessor, userId: stri
         language: data.user.language ?? null,
         birth_date: null,
         birth_time: null,
-        deleted_at: null,
+        deleted_at: data.user.deleted_at ?? null,
         gender: null,
         open_ages: false,
         open_gender: false
       };
+
+      // 탈퇴(soft delete) 처리된 계정은 즉시 로그아웃 후 로그인 페이지로 이동
+      if (userProfile.deleted_at) {
+        console.warn('🗑️ [AuthStore] 탈퇴 계정 감지 - 강제 로그아웃 처리:', {
+          userId: userProfile.id?.substring(0, 8) + '...',
+          deleted_at: userProfile.deleted_at,
+        });
+
+        try {
+          await store.getSignOutFn()();
+        } catch (signOutError) {
+          console.warn('⚠️ [AuthStore] 탈퇴 계정 강제 로그아웃 중 오류:', signOutError);
+        }
+
+        if (typeof window !== 'undefined') {
+          // 현재 pathname 에서 lang prefix 추출 (없으면 'en' 기본값)
+          const langMatch = window.location.pathname.match(
+            /^\/([a-z]{2}(-[a-z]{2})?)(?=\/|$)/i,
+          );
+          const lang = langMatch ? langMatch[1].toLowerCase() : 'en';
+          const targetPath = `/${lang}/login`;
+          const alreadyOnLogin =
+            window.location.pathname === targetPath ||
+            window.location.pathname === '/login';
+          if (!alreadyOnLogin) {
+            window.location.replace(`${targetPath}?error=withdrawn`);
+          }
+        }
+
+        return null;
+      }
 
       debugLog('✅ [AuthStore] API를 통한 프로필 조회 성공:', {
         id: userProfile.id?.substring(0, 8) + '...',
