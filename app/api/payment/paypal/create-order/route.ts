@@ -81,6 +81,29 @@ export async function POST(request: NextRequest) {
 
     const priceValue = product.web_price_usd.toFixed(2);
 
+    // PayPal v2 caps `custom_id` at 127 characters and silently truncates
+    // anything longer. Truncation here would corrupt the JSON we read back at
+    // capture time and cause every subsequent capture to fail JSON.parse —
+    // failing closed early is much easier to diagnose than the silent capture-
+    // side regression. We abort instead of hashing because the only inputs are
+    // a UUID + product id; if this guard ever trips, the upstream id format
+    // changed and we want to know.
+    const customIdPayload = JSON.stringify({
+      productId: product.id,
+      userId: user.id,
+    });
+    if (customIdPayload.length > 127) {
+      console.error('PayPal custom_id payload exceeds 127-byte limit', {
+        length: customIdPayload.length,
+        productId: product.id,
+        userId: user.id,
+      });
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
     // Get PayPal access token
     const accessToken = await getPayPalAccessToken();
 
@@ -94,10 +117,7 @@ export async function POST(request: NextRequest) {
           currency_code: 'USD',
           value: priceValue,
         },
-        custom_id: JSON.stringify({
-          productId: product.id,
-          userId: user.id,
-        }),
+        custom_id: customIdPayload,
       }],
       application_context: {
         brand_name: 'Picnic',

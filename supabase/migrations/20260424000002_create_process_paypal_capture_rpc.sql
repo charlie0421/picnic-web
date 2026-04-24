@@ -36,6 +36,21 @@
 --      processed" path via receipts_web_completed_unique partial index).
 --   Both layers return NULL so the caller treats the call as a no-op.
 
+-- SECURITY: This function is SECURITY DEFINER and writes directly to balance
+-- columns (user_profiles.star_candy / star_candy_bonus) and history tables. It
+-- intentionally trusts the caller-supplied amount/product arguments — there is
+-- NO authorization check inside the function. The capture-order route is
+-- expected to (1) authenticate the request via user JWT, (2) verify that the
+-- captured PayPal order matches the authenticated user, and (3) re-derive
+-- amounts from the products table before invoking this RPC.
+--
+-- For that contract to hold, this function MUST NOT be callable by a normal
+-- logged-in user. EXECUTE is granted ONLY to service_role; the route obtains a
+-- service-role client (separate from the user-bound supabase client used for
+-- auth) and invokes this RPC server-side after all validations pass. Granting
+-- EXECUTE to `authenticated` would let any logged-in user POST directly to
+-- /rest/v1/rpc/process_paypal_capture with arbitrary star_candy / bonus values
+-- and credit themselves — bypassing every check the route performs.
 CREATE OR REPLACE FUNCTION public.process_paypal_capture(
   p_user_id uuid,
   p_order_id text,
@@ -61,6 +76,10 @@ DECLARE
   v_transaction_id text := 'PAYPAL_' || p_order_id;
   v_receipt_data jsonb;
 BEGIN
+  -- Caller must be service_role; this function trusts caller-supplied amounts
+  -- because the route validates them server-side first (auth check, user-id
+  -- match against captured order, server-derived star_candy / bonus from the
+  -- products table). See the GRANT block at the bottom of this file.
   v_receipt_data := jsonb_build_object(
     'order_id', p_order_id,
     'capture_id', p_capture_id,
@@ -187,11 +206,17 @@ COMMENT ON FUNCTION public.process_paypal_capture(
   'Both idempotent paths emit a RAISE LOG line distinguishing which layer '
   'short-circuited (search Postgres logs for "process_paypal_capture: idempotent").';
 
--- Limit who can invoke this function. Application calls should come from the
--- server-side Supabase client running with the user JWT (authenticated role).
+-- Limit who can invoke this function. SECURITY DEFINER + caller-trusted
+-- amount/product args mean we cannot allow direct invocation by normal
+-- logged-in users. The capture-order route uses a service-role client to call
+-- this RPC after performing auth + amount validation; that is the only
+-- supported caller path.
 REVOKE ALL ON FUNCTION public.process_paypal_capture(
   uuid, text, text, text, int, int, text, text, text, text, jsonb, jsonb, timestamptz
 ) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.process_paypal_capture(
+  uuid, text, text, text, int, int, text, text, text, text, jsonb, jsonb, timestamptz
+) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.process_paypal_capture(
   uuid, text, text, text, int, int, text, text, text, text, jsonb, jsonb, timestamptz
-) TO authenticated, service_role;
+) TO service_role;

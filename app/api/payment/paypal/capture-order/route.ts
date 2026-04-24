@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 
@@ -120,8 +121,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract custom data — only productId/userId are trusted from custom_id
-    const purchaseUnit = captureData.purchase_units[0];
+    // Extract custom data — only productId/userId are trusted from custom_id.
+    // Defensive guard: PayPal v2 contract guarantees purchase_units[0] for a
+    // single-unit order, but if the field is ever missing or empty we should
+    // 400 cleanly rather than throw a TypeError on the next line.
+    const purchaseUnit = captureData.purchase_units?.[0];
+    if (!purchaseUnit) {
+      console.error('PayPal capture missing purchase_units:', { orderID });
+      return NextResponse.json(
+        { error: 'Invalid PayPal response' },
+        { status: 400 }
+      );
+    }
     let customData: { productId?: string; userId?: string };
     try {
       customData = JSON.parse(purchaseUnit.custom_id || '{}');
@@ -240,12 +251,26 @@ export async function POST(request: NextRequest) {
     // leaving the user permanently uncredited (the receipt's unique index would
     // reject every retry as "already processed"). Now any internal failure
     // rolls back the receipt insert too, restoring retry safety.
+    //
+    // SECURITY: The RPC is SECURITY DEFINER and trusts caller-supplied amounts
+    // (it has no internal authorization check). EXECUTE is granted to
+    // service_role only — granting it to `authenticated` would let any
+    // logged-in user POST directly to /rest/v1/rpc/process_paypal_capture and
+    // credit themselves arbitrary star_candy. We therefore invoke it with a
+    // dedicated service-role client; the user-bound `supabase` above is only
+    // used for auth and product lookups (both still enforce RLS).
     // Cast: `process_paypal_capture` is added by migration
     // 20260424000002_create_process_paypal_capture_rpc.sql. The generated
     // Supabase types lag the migration until `npm run gen:types` is rerun
     // post-deploy, so we temporarily widen the rpc surface here.
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
     const { data: rpcResult, error: rpcError } = await (
-      supabase.rpc as unknown as (
+      supabaseAdmin.rpc as unknown as (
         fn: string,
         params: Record<string, unknown>
       ) => Promise<{ data: { receipt_id: number } | null; error: unknown }>

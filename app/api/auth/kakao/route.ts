@@ -119,16 +119,23 @@ export async function POST(request: NextRequest) {
     // 프로필 정보 정규화
     const normalizedProfile = normalizeKakaoProfile(userInfo);
     
-    // Supabase에 사용자가 이미 존재하는지 확인
+    // Supabase에 사용자가 이미 존재하는지 확인.
+    // NOTE: user_profiles.email has no DB-level unique constraint, so two rows
+    // with the same email can legitimately exist (e.g. legacy data, manual
+    // backfill). `.maybeSingle()` raises PGRST116 in that case and breaks the
+    // login flow. Use `.limit(1)` and pick the first row instead — for the
+    // existence check we only need to know whether *any* profile already
+    // exists for this email; picking a deterministic ordering would be nicer
+    // but is a separate concern.
     if (normalizedProfile.email) {
       try {
-        const { data: existingProfile } = await supabase
+        const { data: existingProfiles } = await supabase
           .from('user_profiles')
           .select('user_id')
           .eq('email', normalizedProfile.email)
-          .maybeSingle();
+          .limit(1);
 
-        if (existingProfile) {
+        if (existingProfiles && existingProfiles.length > 0) {
           return NextResponse.json({
             success: true,
             profile: normalizedProfile,

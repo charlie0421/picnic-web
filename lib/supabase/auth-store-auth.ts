@@ -70,14 +70,16 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
             });
           }
 
-          const instantSession = {
-            user: fetchedUser,
-            access_token: 'token-from-cookie',
-            refresh_token: null,
-            expires_at: null,
-            token_type: 'bearer' as const,
-          };
-
+          // SECURITY: Do NOT fabricate a Session object with a placeholder
+          // `access_token: 'token-from-cookie'`. The real access token lives
+          // in the Supabase httpOnly auth cookie and is not readable from
+          // here. If anything later treated this fake string as a Bearer
+          // token (e.g. a ported component that read `state.session.access_token`)
+          // it would emit unauthorized requests. Callers that need a real
+          // token must call `supabase.auth.getSession()` themselves; the
+          // canonical signal of "logged in" exposed here is `isAuthenticated`
+          // / `user`, not a synthesized session. See the matching change in
+          // lib/supabase/social/callback-handler.ts for the same reasoning.
           const currentState = store.getState();
           const previousUserId = currentState.user?.id;
           const previousUserProfile = currentState.userProfile;
@@ -87,7 +89,7 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
 
           store.updateState({
             user: fetchedUser,
-            session: instantSession as any,
+            session: null,
             userProfile: nextUserProfile,
             isLoading: false,
             isInitialized: true,
@@ -142,14 +144,14 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
       debugLog(`✅ [AuthStore] 최근 로그인 정보 저장 (from performInstantUserAuth): ${provider}`);
     }
 
-    const instantSession = {
-      user: user,
-      access_token: 'token-from-jwt',
-      refresh_token: null,
-      expires_at: tokenExpiry ? Math.floor(tokenExpiry.getTime() / 1000) : null,
-      token_type: 'bearer'
-    };
-
+    // SECURITY: Do NOT fabricate a Session object with a placeholder
+    // `access_token: 'token-from-jwt'`. We have parsed the user out of the JWT
+    // payload but we deliberately do not surface a Bearer-shaped string here —
+    // any caller that confused this with a real token would emit unauthorized
+    // requests. Real tokens must be obtained via `supabase.auth.getSession()`.
+    // The authoritative "logged in" signal exposed by the store is
+    // `isAuthenticated` + `user`. See lib/supabase/social/callback-handler.ts
+    // for the same reasoning.
     const currentState = store.getState();
     const previousUserId = currentState.user?.id;
     const previousUserProfile = currentState.userProfile;
@@ -160,7 +162,7 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
     debugLog('🔄 [AuthStore] 인증 상태 업데이트 중...');
     store.updateState({
       user: user,
-      session: instantSession as any,
+      session: null,
       userProfile: nextUserProfile,
       isLoading: false,
       isInitialized: true,

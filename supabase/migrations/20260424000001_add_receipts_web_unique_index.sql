@@ -75,6 +75,85 @@
 --   live payments. The manual SQL Editor step is a one-time cost; the
 --   zero-downtime build is permanent.
 --
+-- ============== CODE DEPLOYMENT ORDERING ==============
+-- The migration files in this PR have a strict apply order. Code deploy must
+-- happen LAST. Out-of-order application leaves money on the table:
+--
+--   1. CLI:          20260424000000_cleanup_duplicate_web_receipts.sql
+--                    (`supabase db push` — plain DML, safe in CLI's tx wrapper)
+--   2. SQL Editor:   The DDL block at the bottom of THIS file
+--                    (CREATE INDEX CONCURRENTLY + COMMENT, manual step)
+--                    + INSERT into supabase_migrations.schema_migrations
+--                      (see step 5 above) so CLI doesn't try to re-run it
+--   3. CLI:          20260424000002_create_process_paypal_capture_rpc.sql
+--                    (PayPal RPC + GRANT EXECUTE TO service_role only)
+--   4. CLI:          20260424000003_create_process_portone_capture_rpc.sql
+--                    (PortOne RPC + GRANT EXECUTE TO service_role only)
+--   5. App deploy:   route.ts changes
+--                    - app/api/payment/paypal/capture-order/route.ts
+--                      (invokes process_paypal_capture via service-role client)
+--                    - app/api/payment/portone/webhook/route.ts
+--                      (invokes process_portone_capture via service-role client)
+--
+-- Why steps 3 and 4 are independent CLI files (not unified):
+--   The two RPCs share an identical structure but stay separate so the
+--   PURCHASE_<paymentId> vs PAYPAL_<orderId> transaction_id prefixes (and
+--   provider-specific receipt payload shapes) remain stable for analytics /
+--   CS / refund tooling. See the file header of
+--   20260424000003_create_process_portone_capture_rpc.sql for the full
+--   rationale.
+--
+-- Ordering hazards:
+--   - Code deployed BEFORE step 3 OR step 4 (one of the RPCs missing): the
+--     corresponding payment path returns 500 "Failed to record payment" and
+--     the user is uncredited. Receipt insert never happens because the route
+--     now goes through the RPC; rollback of the code deploy is the recovery.
+--     IMPORTANT: PayPal and PortOne are independent — if only one RPC is
+--     deployed, only the matching provider's route can be safely rolled out.
+--     Do not deploy a PR that updates both routes until both RPCs exist.
+--   - RPC applied BEFORE code deploy: SAFE. The route still calls the old
+--     direct-insert path until the new bundle is live.
+--   - Code + RPC applied BEFORE the unique index is in place: SAFE-ISH. The
+--     RPC's pre-check on history rows still catches most duplicate captures,
+--     but the partial-index TOCTOU race window reopens. Don't sit in this
+--     state long. Especially risky for PortOne, where webhook retries can
+--     fire concurrent inserts within milliseconds.
+--   - Index applied BEFORE the cleanup migration: CREATE INDEX CONCURRENTLY
+--     will fail or build INVALID against existing duplicates. Always run
+--     step 1 first.
+--   - PortOne webhook re-enabled BEFORE step 4: PortOne will keep retrying
+--     for up to ~24h. Every retry will 500 until process_portone_capture
+--     exists, but no double-credit can occur — the webhook now wraps every
+--     write in the RPC's transaction. Backlog clears automatically once the
+--     RPC is in place.
+--
+-- ============== ROLLBACK ==============
+-- Reverse the steps above:
+--
+--   1. Roll back the app deploy first (so neither route calls its RPC).
+--      Both routes (PayPal capture-order + PortOne webhook) must roll back
+--      in the same deploy — leaving one calling its RPC while the other
+--      reverts to direct-insert is supported but pointless.
+--   2. Drop the PortOne RPC:
+--        DROP FUNCTION IF EXISTS public.process_portone_capture(
+--          uuid, text, text, int, int, numeric, text, text, text, text,
+--          jsonb, jsonb, timestamptz
+--        );
+--      DELETE the matching schema_migrations row for 20260424000003.
+--   3. Drop the PayPal RPC:
+--        DROP FUNCTION IF EXISTS public.process_paypal_capture(
+--          uuid, text, text, text, int, int, text, text, text, text,
+--          jsonb, jsonb, timestamptz
+--        );
+--      DELETE the matching schema_migrations row for 20260424000002.
+--   4. Drop the partial unique index (Dashboard SQL Editor — CONCURRENTLY
+--      again because the table is hot):
+--        DROP INDEX CONCURRENTLY IF EXISTS public.receipts_web_completed_unique;
+--      DELETE the matching schema_migrations row for 20260424000001.
+--   5. Cleanup migration (000000) is data-only normalization and does not
+--      need to be reverted unless the new state caused a regression. If it
+--      did, restore from the dated backup snapshot taken before this PR.
+--
 -- Scope choice: platform = 'web' AND status = 'completed' only.
 --   - iOS/Android receipts legitimately repeat the same receipt_hash across
 --     rows (App Store / Play Store re-validation is surfaced with
