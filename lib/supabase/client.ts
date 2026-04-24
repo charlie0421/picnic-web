@@ -158,28 +158,6 @@ export async function getCurrentUser() {
   return user;
 }
 
-/**
- * 현재 인증 세션을 가져오는 편의 함수입니다.
- * 내부적으로 getUser()를 사용하며, 더 빠른 getCurrentUser()를 직접 사용하는 것을 권장합니다.
- */
-export async function getCurrentSession() {
-  const supabase = createBrowserSupabaseClient();
-
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return null;
-  }
-
-  return {
-    user,
-    access_token: 'token-from-cookies',
-    refresh_token: null,
-    expires_at: null,
-    token_type: 'bearer' as const
-  };
-}
-
 // --- Re-export sign-out functions (기존 import 경로 호환) ---
 
 /**

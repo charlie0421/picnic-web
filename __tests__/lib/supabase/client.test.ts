@@ -68,7 +68,6 @@ vi.mock('@/lib/supabase/client-internals', () => ({
 import {
   createBrowserSupabaseClient,
   getCurrentUser,
-  getCurrentSession,
   signOut,
   simpleSignOut,
   emergencySignOut,
@@ -167,48 +166,6 @@ describe('lib/supabase/client', () => {
 
       const user = await getCurrentUser();
       expect(user).toBeNull();
-    });
-  });
-
-  describe('getCurrentSession', () => {
-    it('should return session-like object when user exists', async () => {
-      const mockUser = { id: 'user-123', email: 'test@example.com' };
-      mockCreateBrowserClient.mockReturnValue(
-        createMockClient({
-          getUser: vi.fn().mockResolvedValue({ data: { user: mockUser }, error: null }),
-        })
-      );
-
-      const session = await getCurrentSession();
-      expect(session).toEqual({
-        user: mockUser,
-        access_token: 'token-from-cookies',
-        refresh_token: null,
-        expires_at: null,
-        token_type: 'bearer',
-      });
-    });
-
-    it('should return null when getUser returns error', async () => {
-      mockCreateBrowserClient.mockReturnValue(
-        createMockClient({
-          getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: new Error('No session') }),
-        })
-      );
-
-      const session = await getCurrentSession();
-      expect(session).toBeNull();
-    });
-
-    it('should return null when no user and no error', async () => {
-      mockCreateBrowserClient.mockReturnValue(
-        createMockClient({
-          getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
-        })
-      );
-
-      const session = await getCurrentSession();
-      expect(session).toBeNull();
     });
   });
 

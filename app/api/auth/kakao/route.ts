@@ -11,8 +11,21 @@ import { normalizeKakaoProfile } from '@/lib/supabase/social/kakao';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { code, accessToken } = await request.json();
-    
+    // SECURITY: We only accept the OAuth `code` and exchange it server-side.
+    // Previously this endpoint also accepted a client-supplied `accessToken`,
+    // which let any caller use this server (with our service-role-backed
+    // Supabase client) to query Kakao APIs on behalf of arbitrary tokens.
+    // The /unlink path on DELETE still legitimately needs the client's token
+    // and is unchanged.
+    const { code } = await request.json();
+
+    if (!code) {
+      return NextResponse.json(
+        { error: 'Authorization code is required.' },
+        { status: 400 }
+      );
+    }
+
     // 서버 측 Supabase 클라이언트 생성
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,11 +37,11 @@ export async function POST(request: NextRequest) {
         }
       }
     );
-    
+
     // Kakao API 설정
     const clientId = process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID;
     const clientSecret = process.env.KAKAO_CLIENT_SECRET;
-    
+
     if (!clientId) {
       console.error('Kakao 클라이언트 ID가 설정되지 않았습니다.');
       return NextResponse.json(
@@ -36,65 +49,53 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
-    let token = accessToken;
-    
-    // 코드가 있으면 액세스 토큰으로 교환
-    if (code && !token) {
-      // SECURITY: Do NOT derive redirect_uri from request headers (referer/origin) — both are
-      // attacker-controllable and could be used to redirect the OAuth code to a malicious URI
-      // (or simply break the exchange because Kakao requires an exact registered match).
-      // Use a server-side env var instead. The chosen URI MUST be registered in the Kakao
-      // Developer Console (Redirect URI 목록). Keep this in sync with the Supabase OAuth
-      // callback path used by signInWithKakaoImpl in lib/supabase/social/kakao.ts.
-      const baseUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        process.env.BASE_URL ||
-        'https://www.picnic.fan';
-      const redirectUri = `${baseUrl}/auth/callback/kakao`;
 
-      const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: clientId,
-          ...(clientSecret && { client_secret: clientSecret }),
-          redirect_uri: redirectUri,
-          code
-        }).toString()
-      });
-      
-      if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        console.error('액세스 토큰 요청 실패:', errorText);
-        return NextResponse.json(
-          { error: '액세스 토큰 요청 실패' },
-          { status: 502 }
-        );
-      }
-      
-      const tokenData = await tokenResponse.json();
-      token = tokenData.access_token;
-      
-      if (!token) {
-        console.error('Kakao 액세스 토큰을 획득하지 못했습니다.');
-        return NextResponse.json(
-          { error: 'Kakao 액세스 토큰을 획득하지 못했습니다.' },
-          { status: 502 }
-        );
-      }
-    }
-    
-    if (!token) {
+    // SECURITY: Do NOT derive redirect_uri from request headers (referer/origin) — both are
+    // attacker-controllable and could be used to redirect the OAuth code to a malicious URI
+    // (or simply break the exchange because Kakao requires an exact registered match).
+    // Use a server-side env var instead. The chosen URI MUST be registered in the Kakao
+    // Developer Console (Redirect URI 목록). Keep this in sync with the Supabase OAuth
+    // callback path used by signInWithKakaoImpl in lib/supabase/social/kakao.ts.
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.BASE_URL ||
+      'https://www.picnic.fan';
+    const redirectUri = `${baseUrl}/auth/callback/kakao`;
+
+    const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        ...(clientSecret && { client_secret: clientSecret }),
+        redirect_uri: redirectUri,
+        code
+      }).toString()
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('액세스 토큰 요청 실패:', errorText);
       return NextResponse.json(
-        { error: 'Kakao 액세스 토큰이 필요합니다.' },
-        { status: 400 }
+        { error: '액세스 토큰 요청 실패' },
+        { status: 502 }
       );
     }
-    
+
+    const tokenData = await tokenResponse.json();
+    const token: string | undefined = tokenData.access_token;
+
+    if (!token) {
+      console.error('Kakao 액세스 토큰을 획득하지 못했습니다.');
+      return NextResponse.json(
+        { error: 'Kakao 액세스 토큰을 획득하지 못했습니다.' },
+        { status: 502 }
+      );
+    }
+
     // 사용자 정보 요청
     const userInfoResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
       method: 'GET',

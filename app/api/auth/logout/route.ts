@@ -105,11 +105,19 @@ export async function POST(request: NextRequest) {
 
     const url = new URL(request.url);
 
-    // fetch API로 호출된 경우 JSON 응답, 브라우저 직접 접근시 리다이렉트
+    // fetch API로 호출된 경우 JSON 응답, 브라우저 직접 접근(form submit 포함)시 리다이렉트.
+    //
+    // SECURITY: We deliberately do NOT treat `Accept: */*` as a fetch signal. A
+    // classic <form method="POST"> submit sends `Accept: text/html,...,*/*` which
+    // would have matched the old wildcard branch and silently swallowed a CSRF
+    // attempt as JSON instead of producing the visible redirect that would tip
+    // the victim off. We require an explicit fetch signal instead.
     const acceptHeader = request.headers.get('accept') || '';
-    const isFetchRequest = acceptHeader.includes('application/json') ||
-                           request.headers.get('x-requested-with') === 'XMLHttpRequest' ||
-                           acceptHeader.includes('*/*');
+    const secFetchMode = request.headers.get('sec-fetch-mode');
+    const isFetchRequest =
+      acceptHeader.includes('application/json') ||
+      request.headers.get('x-requested-with') === 'XMLHttpRequest' ||
+      secFetchMode === 'cors';
 
     // fetch 요청이면 JSON 응답 준비, 아니면 리다이렉트 응답
     const response = isFetchRequest

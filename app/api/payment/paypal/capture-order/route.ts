@@ -157,7 +157,9 @@ export async function POST(request: NextRequest) {
     const starCandy = product.star_candy ?? 0;
     const bonusAmount = product.web_bonus_amount ?? 0;
 
-    // Check if receipt already exists — maybeSingle avoids PGRST116 false-error path
+    // Fast-path idempotency check — maybeSingle avoids PGRST116 false-error path.
+    // Authoritative idempotency is enforced below via the receipts_receipt_hash_unique
+    // partial index; this lookup just lets us short-circuit before doing extra work.
     const { data: existingReceipt, error: existingReceiptError } = await supabase
       .from('receipts')
       .select('id')
@@ -179,18 +181,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create receipt data
+    // PII hardening: PayPal capture responses contain payer.email_address. We must
+    // not persist that in plaintext. Strip it from any payload that lands in the
+    // receipt row. The email can always be re-fetched from PayPal by capture_id
+    // if ever needed for ops/refund flows.
+    const sanitizeCaptureData = <T extends { payer?: any }>(data: T): T => {
+      if (!data || !data.payer) return data;
+      const { email_address: _omit, ...payerRest } = data.payer;
+      return { ...data, payer: payerRest } as T;
+    };
+    const sanitizedCaptureData = sanitizeCaptureData(captureData);
+
+    // Create receipt data (no PII)
     const receiptData = {
       order_id: orderID,
       capture_id: captureData.id,
       amount: purchaseUnit.amount.value,
       currency: purchaseUnit.amount.currency_code,
       status: captureData.status,
-      payer_email: captureData.payer?.email_address,
-      payment_details: captureData,
+      payment_details: sanitizedCaptureData,
     };
 
-    // Create receipt
+    // Create receipt. The DB has a partial unique index on receipt_hash; if a
+    // concurrent request already inserted a row with the same orderID, this
+    // INSERT will fail with Postgres error code 23505 (unique_violation). That
+    // is the canonical "already processed" signal — closing the TOCTOU window
+    // between the lookup above and this insert.
     const { data: receipt, error: receiptError } = await supabase
       .from('receipts')
       .insert({
@@ -201,12 +217,23 @@ export async function POST(request: NextRequest) {
         status: 'completed',
         platform: 'web',
         environment: process.env.PAYPAL_ENV === 'production' ? 'production' : 'sandbox',
-        verification_data: captureData,
+        verification_data: sanitizedCaptureData,
       })
       .select()
       .single();
 
     if (receiptError) {
+      const isDuplicate =
+        (receiptError as { code?: string }).code === '23505' ||
+        /duplicate key/i.test(receiptError.message ?? '');
+      if (isDuplicate) {
+        // Lost the race against a concurrent capture for the same orderID.
+        // Treat as idempotent: the other request already credited star_candy.
+        return NextResponse.json(
+          { error: 'Payment already processed' },
+          { status: 400 }
+        );
+      }
       console.error('Failed to create receipt:', receiptError);
       return NextResponse.json(
         { error: 'Failed to record payment' },
