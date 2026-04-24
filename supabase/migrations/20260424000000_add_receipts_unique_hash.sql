@@ -1,26 +1,44 @@
--- Add a unique constraint on receipts.receipt_hash to enforce idempotency at the
--- DB level and close a TOCTOU race in PayPal capture-order: a concurrent double
--- capture (same orderID submitted twice) would otherwise pass the application
--- "existingReceipt" check on both requests and insert two rows, causing a
--- duplicate star_candy grant.
+-- Enforce idempotency for web payment receipts at the DB level to close the
+-- TOCTOU race in PayPal capture-order.
 --
--- We use a partial unique index (NULLs excluded) rather than a column constraint
--- because legacy receipts may have NULL receipt_hash and a plain UNIQUE
--- constraint would still allow only one NULL in some Postgres semantics, but
--- more importantly we want this to be idempotent and CREATE UNIQUE INDEX
--- IF NOT EXISTS is the cleanest way to achieve that.
+-- Scope choice: platform = 'web' AND status = 'completed' only.
+--   - iOS/Android receipts legitimately repeat the same receipt_hash across
+--     rows (App Store / Play Store re-validation is surfaced with
+--     status = 'duplicate'). A cross-platform unique index would clash with
+--     thousands of these intentional rows.
+--   - Web payments (PayPal orderID, PortOne PAY_xxx) are expected to be unique
+--     per capture. A duplicate completed row there indicates a real race or
+--     double-credit.
 --
--- If pre-existing duplicate non-NULL receipt_hash rows exist, this migration
--- will fail. Run the diagnostic below first to identify them:
---   SELECT receipt_hash, COUNT(*) FROM public.receipts
---   WHERE receipt_hash IS NOT NULL
---   GROUP BY receipt_hash HAVING COUNT(*) > 1;
+-- Historical cleanup: a single known incident on 2025-11-11 produced 53 rows
+-- with receipt_hash = 'PAY_1762841580152_dcvjip8k0', all status='completed'.
+-- We preserve the earliest row and re-mark the rest as 'duplicate' so the
+-- partial unique index can apply. No money flow is changed by this update —
+-- only the status marker, matching the iOS/Android convention.
 
-CREATE UNIQUE INDEX IF NOT EXISTS receipts_receipt_hash_unique
+BEGIN;
+
+UPDATE public.receipts
+SET status = 'duplicate'
+WHERE id IN (
+  SELECT id FROM public.receipts
+  WHERE receipt_hash = 'PAY_1762841580152_dcvjip8k0'
+    AND platform = 'web'
+    AND status = 'completed'
+  ORDER BY created_at ASC
+  OFFSET 1
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS receipts_web_completed_unique
   ON public.receipts (receipt_hash)
-  WHERE receipt_hash IS NOT NULL;
+  WHERE platform = 'web'
+    AND status = 'completed'
+    AND receipt_hash IS NOT NULL;
 
-COMMENT ON INDEX public.receipts_receipt_hash_unique IS
-  'Enforces idempotency for payment receipts keyed by orderID/receipt_hash. '
-  'Application code (PayPal capture-order route) catches the resulting 23505 '
-  'unique_violation as the canonical "already processed" signal.';
+COMMENT ON INDEX public.receipts_web_completed_unique IS
+  'Enforces idempotency for web payment receipts keyed by receipt_hash. '
+  'Scoped to platform=web + status=completed to avoid clashing with iOS/Android '
+  'duplicate markers. Application code (PayPal capture-order route) catches '
+  'the resulting 23505 unique_violation as the canonical "already processed" signal.';
+
+COMMIT;
