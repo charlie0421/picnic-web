@@ -22,6 +22,19 @@
 --     capture). The caller should treat this as "already processed".
 --   - Any other error is re-raised to the caller and rolls back the
 --     transaction in full.
+--
+-- Idempotency layers (defense in depth):
+--   1. Pre-check on star_candy_history / star_candy_bonus_history by
+--      transaction_id BEFORE any write. This guards against legacy desync
+--      states where history rows already exist but the matching receipt does
+--      not (e.g. admin-deleted receipt, partially-applied legacy data, manual
+--      backfill). Without this check, the receipts INSERT would succeed, then
+--      the history INSERT would raise 23505 against
+--      ux_star_candy_history_tx / uq_sc_bonus_user_tx, rolling back the entire
+--      transaction every retry — permanent stuck state.
+--   2. unique_violation trap on the receipts insert (canonical "already
+--      processed" path via receipts_web_completed_unique partial index).
+--   Both layers return NULL so the caller treats the call as a no-op.
 
 CREATE OR REPLACE FUNCTION public.process_paypal_capture(
   p_user_id uuid,
@@ -57,6 +70,27 @@ BEGIN
     'payment_details', p_payment_details
   );
 
+  -- 0. Pre-check: if star_candy_history or star_candy_bonus_history already
+  --    has this transaction_id, the user has already been credited (possibly
+  --    by a legacy code path or manual operation) and the matching receipt
+  --    row may have been deleted out from under us. Returning NULL here makes
+  --    the call idempotent. Without this check, the receipts INSERT would
+  --    succeed and then the star_candy_history INSERT (or bonus INSERT) would
+  --    hit ux_star_candy_history_tx / uq_sc_bonus_user_tx (23505), rolling
+  --    back the receipt insert and leaving every retry permanently stuck.
+  IF EXISTS (
+    SELECT 1 FROM public.star_candy_history
+    WHERE transaction_id = v_transaction_id
+  ) OR EXISTS (
+    SELECT 1 FROM public.star_candy_bonus_history
+    WHERE user_id = p_user_id
+      AND transaction_id = v_transaction_id
+  ) THEN
+    RAISE LOG 'process_paypal_capture: idempotent skip via history pre-check, transaction_id=%, user_id=%, order_id=%',
+      v_transaction_id, p_user_id, p_order_id;
+    RETURN NULL;
+  END IF;
+
   -- 1. Insert the receipt. The partial unique index
   -- (receipts_web_completed_unique) raises 23505 if a concurrent or prior
   -- capture already credited this orderID; we trap that case and return NULL
@@ -84,6 +118,8 @@ BEGIN
     RETURNING id INTO v_receipt_id;
   EXCEPTION
     WHEN unique_violation THEN
+      RAISE LOG 'process_paypal_capture: idempotent skip via receipts unique index, order_id=%, user_id=%',
+        p_order_id, p_user_id;
       RETURN NULL;
   END;
 
@@ -142,9 +178,14 @@ COMMENT ON FUNCTION public.process_paypal_capture(
 ) IS
   'Atomically records a completed PayPal web capture: inserts the receipt, '
   'records star_candy / bonus history, and increments user balances in a '
-  'single transaction. Returns NULL when the receipt already exists '
-  '(idempotent retry). Any internal failure rolls back the entire transaction '
-  'so the user can safely retry the capture.';
+  'single transaction. Idempotency is enforced by two layers: (1) a pre-check '
+  'against star_candy_history / star_candy_bonus_history by transaction_id '
+  '(guards against legacy desync where history exists without receipt), and '
+  '(2) the receipts_web_completed_unique partial index on the receipts INSERT. '
+  'Returns NULL in either idempotent path; any other internal failure rolls '
+  'back the entire transaction so the user can safely retry the capture. '
+  'Both idempotent paths emit a RAISE LOG line distinguishing which layer '
+  'short-circuited (search Postgres logs for "process_paypal_capture: idempotent").';
 
 -- Limit who can invoke this function. Application calls should come from the
 -- server-side Supabase client running with the user JWT (authenticated role).
