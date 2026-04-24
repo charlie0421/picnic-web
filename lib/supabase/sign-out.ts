@@ -180,7 +180,9 @@ export async function signOut(getClient: () => BrowserSupabaseClient) {
         debugLog('🧪 [SignOut] emergency cleanup preserved snapshot:', snapshot);
       } catch {}
       sessionStorage.clear();
-      debugLog('🔧 [SignOut] 응급 스토리지 정리 완료(최근 로그인 보존)');
+      // cookie 기반 세션이므로 sb-* cookie 청소가 필수
+      try { clearAuthCookies(); } catch {}
+      debugLog('🔧 [SignOut] 응급 스토리지/쿠키 정리 완료(최근 로그인 보존)');
     } catch (e) {
       console.error('💥 [SignOut] 응급 정리마저 실패:', e);
     }
@@ -299,6 +301,8 @@ export function emergencySignOut() {
       debugLog('🧪 [EmergencySignOut] preserved snapshot:', snapshot);
     } catch {}
     sessionStorage.clear();
+    // cookie 기반 세션이므로 sb-* cookie 청소가 필수
+    try { clearAuthCookies(); } catch {}
   } catch (e) {
     // 무시
   }

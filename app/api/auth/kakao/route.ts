@@ -41,10 +41,18 @@ export async function POST(request: NextRequest) {
     
     // 코드가 있으면 액세스 토큰으로 교환
     if (code && !token) {
-      const redirectUri = request.headers.get('referer')?.includes('callback')
-        ? `${request.headers.get('origin')}/auth/callback/kakao`
-        : `${request.headers.get('origin')}/api/auth/kakao`;
-      
+      // SECURITY: Do NOT derive redirect_uri from request headers (referer/origin) — both are
+      // attacker-controllable and could be used to redirect the OAuth code to a malicious URI
+      // (or simply break the exchange because Kakao requires an exact registered match).
+      // Use a server-side env var instead. The chosen URI MUST be registered in the Kakao
+      // Developer Console (Redirect URI 목록). Keep this in sync with the Supabase OAuth
+      // callback path used by signInWithKakaoImpl in lib/supabase/social/kakao.ts.
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        process.env.BASE_URL ||
+        'https://www.picnic.fan';
+      const redirectUri = `${baseUrl}/auth/callback/kakao`;
+
       const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
         method: 'POST',
         headers: {
@@ -54,7 +62,7 @@ export async function POST(request: NextRequest) {
           grant_type: 'authorization_code',
           client_id: clientId,
           ...(clientSecret && { client_secret: clientSecret }),
-          redirect_uri: redirectUri || '',
+          redirect_uri: redirectUri,
           code
         }).toString()
       });

@@ -80,64 +80,50 @@ if (supabaseDebug && typeof window !== 'undefined') {
 
 // --- Pure helpers ---
 
-function getSupabaseProjectId(): string | null {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!supabaseUrl) return null;
-  const urlParts = supabaseUrl.split('.');
-  if (!urlParts.length) return null;
-  const projectHost = urlParts[0];
-  if (!projectHost) return null;
-  const segments = projectHost.split('://');
-  return segments.length > 1 ? segments[1] : segments[0];
-}
-
-function getSupabaseAuthStorageKey(): string | null {
-  const projectId = getSupabaseProjectId();
-  if (!projectId) return null;
-  return `sb-${projectId}-auth-token`;
-}
-
 function hasValidRefreshToken(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '' && value !== 'null' && value !== 'undefined';
 }
 
-function readStoredRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  const storageKey = getSupabaseAuthStorageKey();
-  if (!storageKey) return null;
+// 쿠키에 sb-* 인증 쿠키가 존재하는지 검사합니다.
+// localStorage 마이그레이션 이후 refresh token은 httpOnly 영역(서버) 또는
+// supabase가 관리하는 cookie에 보관되므로, 클라이언트는 존재 여부만 확인합니다.
+function hasPersistedAuthCookie(): boolean {
+  if (typeof document === 'undefined') return false;
   try {
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    const candidate =
-      parsed?.currentSession?.refresh_token ??
-      parsed?.refresh_token ??
-      parsed?.session?.refresh_token ??
-      parsed?.data?.session?.refresh_token ??
-      null;
-    if (hasValidRefreshToken(candidate)) {
-      return candidate;
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const name = cookie.trim().split('=')[0];
+      if (
+        name &&
+        name.startsWith('sb-') &&
+        name.includes('auth-token') &&
+        !name.includes('auth-token-code-verifier')
+      ) {
+        return true;
+      }
     }
   } catch (error) {
     if (supabaseDebug) {
-      debugWarn('⚠️ [Client] 저장된 Supabase 세션 파싱 실패:', error);
+      debugWarn('⚠️ [Client] 쿠키 검사 실패:', error);
     }
   }
-  return null;
-}
-
-function hasPersistedRefreshToken(): boolean {
-  return hasValidRefreshToken(readStoredRefreshToken());
+  return false;
 }
 
 // --- Auto-refresh management ---
 
+// @supabase/ssr 기본 cookie 저장소를 사용하면 SDK가 native로 자동 갱신을 관리합니다.
+// 여기서는 onAuthStateChange 이벤트 기반으로만 start/stop을 호출하여 단순화합니다.
 export function updateAutoRefreshBehavior(session?: { refresh_token?: string | null } | null) {
   if (!browserSupabase?.auth?.stopAutoRefresh || !browserSupabase.auth.startAutoRefresh) {
     return;
   }
 
-  const hasRefreshToken = hasValidRefreshToken(session?.refresh_token) || hasPersistedRefreshToken();
+  // 세션 인자가 명시적으로 전달되면 그것을 신뢰. 없으면 cookie 존재 여부로 판정.
+  const hasRefreshToken =
+    session !== undefined
+      ? hasValidRefreshToken(session?.refresh_token)
+      : hasPersistedAuthCookie();
   const desiredState: AutoRefreshState = hasRefreshToken ? 'started' : 'stopped';
 
   if (desiredState === autoRefreshState) {
@@ -147,12 +133,12 @@ export function updateAutoRefreshBehavior(session?: { refresh_token?: string | n
   if (desiredState === 'started') {
     browserSupabase.auth.startAutoRefresh();
     if (supabaseDebug) {
-      debugLog('🔄 [Client] Refresh 토큰을 감지하여 자동 갱신을 재개합니다.');
+      debugLog('🔄 [Client] 세션을 감지하여 자동 갱신을 재개합니다.');
     }
   } else {
     browserSupabase.auth.stopAutoRefresh();
     if (supabaseDebug) {
-      debugWarn('⏹️ [Client] Refresh 토큰이 없어 자동 갱신을 중단합니다.');
+      debugWarn('⏹️ [Client] 세션이 없어 자동 갱신을 중단합니다.');
     }
   }
 

@@ -61,7 +61,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'picnic-fan.s3.ap-northeast-2.amazonaws.com' },
       { protocol: 'https', hostname: 'img.youtube.com' }
     ],
-    // Next.js 16: 로컬 이미지에 쿼리 스트링 허용
+    // 로컬 이미지에 쿼리 스트링 허용 (Next.js 15+)
     localPatterns: [
       { pathname: '/**' },
     ],

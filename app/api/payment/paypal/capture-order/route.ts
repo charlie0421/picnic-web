@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 
-const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production' 
-  ? 'https://api-m.paypal.com' 
+const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production'
+  ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
 
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
@@ -12,7 +12,7 @@ const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
 // Get PayPal access token
 async function getPayPalAccessToken(): Promise<string> {
   const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
-  
+
   const response = await fetch(`${PAYPAL_API_URL}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
@@ -23,7 +23,7 @@ async function getPayPalAccessToken(): Promise<string> {
   });
 
   const data = await response.json();
-  
+
   if (!response.ok) {
     throw new Error('Failed to get PayPal access token');
   }
@@ -34,7 +34,7 @@ async function getPayPalAccessToken(): Promise<string> {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    
+
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -84,17 +84,93 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract custom data
+    // Extract custom data — only productId/userId are trusted from custom_id
     const purchaseUnit = captureData.purchase_units[0];
-    const customData = JSON.parse(purchaseUnit.custom_id || '{}');
-    const { productId, starCandy, bonusAmount } = customData;
+    let customData: { productId?: string; userId?: string };
+    try {
+      customData = JSON.parse(purchaseUnit.custom_id || '{}');
+    } catch {
+      console.error('Invalid custom_id payload:', purchaseUnit.custom_id);
+      return NextResponse.json(
+        { error: 'Invalid payment metadata' },
+        { status: 400 }
+      );
+    }
 
-    // Check if receipt already exists
-    const { data: existingReceipt } = await supabase
+    const { productId, userId } = customData;
+
+    if (!productId || !userId) {
+      return NextResponse.json(
+        { error: 'Invalid payment metadata' },
+        { status: 400 }
+      );
+    }
+
+    // Prevent payment hijacking: the captured order's userId must match the authenticated user
+    if (userId !== user.id) {
+      console.error('User mismatch on capture', { orderID, customUserId: userId, authUserId: user.id });
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    // Server-authoritative product lookup — re-derive amounts from DB, never trust custom_id
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('id, web_price_usd, star_candy, web_bonus_amount')
+      .eq('id', productId)
+      .maybeSingle();
+
+    if (productError) {
+      console.error('Product lookup failed on capture:', productError);
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
+    if (!product || product.web_price_usd == null) {
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
+    // Tamper detection: PayPal-captured amount/currency must match DB price
+    const expectedValue = product.web_price_usd.toFixed(2);
+    if (
+      purchaseUnit.amount?.value !== expectedValue ||
+      purchaseUnit.amount?.currency_code !== 'USD'
+    ) {
+      console.error('Amount mismatch on capture', {
+        orderID,
+        expected: expectedValue,
+        actual: purchaseUnit.amount,
+      });
+      return NextResponse.json(
+        { error: 'Payment amount mismatch' },
+        { status: 400 }
+      );
+    }
+
+    const starCandy = product.star_candy ?? 0;
+    const bonusAmount = product.web_bonus_amount ?? 0;
+
+    // Check if receipt already exists — maybeSingle avoids PGRST116 false-error path
+    const { data: existingReceipt, error: existingReceiptError } = await supabase
       .from('receipts')
       .select('id')
       .eq('receipt_hash', orderID)
-      .single();
+      .maybeSingle();
+
+    if (existingReceiptError) {
+      console.error('Receipt lookup failed:', existingReceiptError);
+      return NextResponse.json(
+        { error: 'Failed to record payment' },
+        { status: 500 }
+      );
+    }
 
     if (existingReceipt) {
       return NextResponse.json(
@@ -204,7 +280,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Capture order error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -1,17 +1,19 @@
-import { Session, SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient, User } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 
 /**
  * Google 로그인 후 프로필 정보 처리
+ *
+ * NOTE: Receives `User` directly (not `Session`). The full session is not required —
+ * the handler only needs the authenticated user record. See callback-handler.ts for
+ * the rationale (avoids fabricating placeholder sessions on the cookie-only path).
  */
 export async function handleGoogleProfile(
   supabase: SupabaseClient<Database>,
-  session: Session,
+  user: User,
   params?: Record<string, string>,
 ): Promise<void> {
   try {
-    const user = session.user;
-
     // 사용자 프로필이 이미 존재하는지 확인
     const { data: existingProfile } = await supabase
       .from("user_profiles")
@@ -97,14 +99,15 @@ export async function handleGoogleProfile(
 
 /**
  * Apple 로그인 후 프로필 정보 처리
+ *
+ * NOTE: Receives `User` directly (not `Session`). See `handleGoogleProfile` above.
  */
 export async function handleAppleProfile(
   supabase: SupabaseClient<Database>,
-  session: Session,
+  user: User,
   params?: Record<string, string>,
 ): Promise<void> {
   try {
-    const user = session.user;
     // 사용자 프로필이 이미 존재하는지 확인
     const { data: existingProfile, error: profileCheckError } = await supabase
       .from("user_profiles")

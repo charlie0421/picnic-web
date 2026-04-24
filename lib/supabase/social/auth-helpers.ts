@@ -38,9 +38,15 @@ export function wrapSignInError(
 
 /**
  * 성공 AuthResult 생성 헬퍼
+ *
+ * NOTE: `session` is nullable to support the cookie-only success path in
+ * `handleCallbackImpl`, where Supabase has set the auth cookie but we never
+ * had access to the raw session (e.g., PKCE handled by the SDK on first load).
+ * In that case we return `session: null` rather than fabricating a fake
+ * session containing placeholder access/refresh tokens.
  */
 export function createSuccessResult(
-  session: Session,
+  session: Session | null,
   user: User,
   provider: SocialLoginProvider,
   message: string,

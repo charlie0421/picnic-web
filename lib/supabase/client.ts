@@ -90,8 +90,8 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
         detectSessionInUrl: false,
         autoRefreshToken: true,
         persistSession: true,
-        storage: window.localStorage,
-        storageKey: `sb-${SUPABASE_URL.split('.')[0].split('://')[1]}-auth-token`,
+        // 보안: localStorage(XSS 토큰 탈취 위험)에서 @supabase/ssr 기본 cookie 저장소로 마이그레이션.
+        // storage / storageKey 오버라이드 없음 → SSR과 동일한 cookie 기반 세션 사용.
         debug: false,
       },
       global: {
