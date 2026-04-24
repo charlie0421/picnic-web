@@ -31,6 +31,42 @@ async function getPayPalAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+// Whitelist of PayPal capture-orders v2 fields safe to persist in receipts.
+//
+// Why a whitelist (not a strip-list): the v2 response embeds PII in several
+// places (payer.email_address, payer.name, purchase_units[].shipping.name /
+// .address, purchase_units[].payments.captures[].payee.email_address, etc.).
+// Stripping known paths is fragile — any new PayPal field would leak by
+// default. We extract only what audit/debugging actually needs:
+// identifiers, status, timestamps, and the amount tuple. Anything missing
+// (full payer record, shipping, payee) can be re-fetched from PayPal by
+// capture_id from an ops console when needed.
+function extractSafeCaptureFields(captureData: any) {
+  return {
+    id: captureData?.id,
+    status: captureData?.status,
+    create_time: captureData?.create_time,
+    update_time: captureData?.update_time,
+    intent: captureData?.intent,
+    purchase_units: captureData?.purchase_units?.map((unit: any) => ({
+      reference_id: unit?.reference_id,
+      amount: unit?.amount, // { currency_code, value }
+      custom_id: unit?.custom_id,
+      // payee, shipping, payer intentionally omitted (PII / non-essential)
+      payments: {
+        captures: unit?.payments?.captures?.map((cap: any) => ({
+          id: cap?.id,
+          status: cap?.status,
+          amount: cap?.amount,
+          create_time: cap?.create_time,
+          update_time: cap?.update_time,
+          // payee intentionally omitted
+        })),
+      },
+    })),
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -158,12 +194,20 @@ export async function POST(request: NextRequest) {
     const bonusAmount = product.web_bonus_amount ?? 0;
 
     // Fast-path idempotency check — maybeSingle avoids PGRST116 false-error path.
-    // Authoritative idempotency is enforced below via the receipts_receipt_hash_unique
+    // Authoritative idempotency is enforced below via the receipts_web_completed_unique
     // partial index; this lookup just lets us short-circuit before doing extra work.
+    //
+    // Scope: must match the partial unique index (platform='web', status='completed').
+    // Without these filters, a row with the same receipt_hash on another platform
+    // (iOS/Android) or with status='duplicate' would (a) yield a false-positive
+    // "already processed" response, and (b) cause maybeSingle to fail with a
+    // multi-row error if more than one such row exists.
     const { data: existingReceipt, error: existingReceiptError } = await supabase
       .from('receipts')
       .select('id')
       .eq('receipt_hash', orderID)
+      .eq('platform', 'web')
+      .eq('status', 'completed')
       .maybeSingle();
 
     if (existingReceiptError) {
@@ -181,126 +225,67 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // PII hardening: PayPal capture responses contain payer.email_address. We must
-    // not persist that in plaintext. Strip it from any payload that lands in the
-    // receipt row. The email can always be re-fetched from PayPal by capture_id
-    // if ever needed for ops/refund flows.
-    const sanitizeCaptureData = <T extends { payer?: any }>(data: T): T => {
-      if (!data || !data.payer) return data;
-      const { email_address: _omit, ...payerRest } = data.payer;
-      return { ...data, payer: payerRest } as T;
-    };
-    const sanitizedCaptureData = sanitizeCaptureData(captureData);
+    // PII hardening: PayPal capture-orders v2 responses contain payer/shipping/
+    // payee data we have no business persisting (email addresses, full name,
+    // address, merchant payee). We use a strict whitelist instead of stripping
+    // known fields so future PayPal additions cannot silently leak new PII into
+    // our receipts table. Anything we'd ever need for ops/refund flows can be
+    // re-fetched from PayPal by capture_id.
+    const safeCaptureData = extractSafeCaptureFields(captureData);
 
-    // Create receipt data (no PII)
-    const receiptData = {
-      order_id: orderID,
-      capture_id: captureData.id,
-      amount: purchaseUnit.amount.value,
-      currency: purchaseUnit.amount.currency_code,
-      status: captureData.status,
-      payment_details: sanitizedCaptureData,
-    };
+    // Atomic processing: receipt insert + star_candy history + balance increment
+    // (and bonus equivalents) all happen inside a single PL/pgSQL transaction
+    // via process_paypal_capture. This closes the prior failure mode where the
+    // receipt row was inserted but a downstream balance update failed silently,
+    // leaving the user permanently uncredited (the receipt's unique index would
+    // reject every retry as "already processed"). Now any internal failure
+    // rolls back the receipt insert too, restoring retry safety.
+    // Cast: `process_paypal_capture` is added by migration
+    // 20260424000002_create_process_paypal_capture_rpc.sql. The generated
+    // Supabase types lag the migration until `npm run gen:types` is rerun
+    // post-deploy, so we temporarily widen the rpc surface here.
+    const { data: rpcResult, error: rpcError } = await (
+      supabase.rpc as unknown as (
+        fn: string,
+        params: Record<string, unknown>
+      ) => Promise<{ data: { receipt_id: number } | null; error: unknown }>
+    )('process_paypal_capture', {
+      p_user_id: user.id,
+      p_order_id: orderID,
+      p_capture_id: captureData.id,
+      p_product_id: productId,
+      p_star_candy: starCandy,
+      p_bonus_amount: bonusAmount,
+      p_amount: purchaseUnit.amount.value,
+      p_currency: purchaseUnit.amount.currency_code,
+      p_status: captureData.status,
+      p_environment: process.env.PAYPAL_ENV === 'production' ? 'production' : 'sandbox',
+      p_payment_details: safeCaptureData,
+      p_verification_data: safeCaptureData,
+      p_bonus_expiry: getStarCandyBonusExpiryISO(),
+    });
 
-    // Create receipt. The DB has a partial unique index on receipt_hash; if a
-    // concurrent request already inserted a row with the same orderID, this
-    // INSERT will fail with Postgres error code 23505 (unique_violation). That
-    // is the canonical "already processed" signal — closing the TOCTOU window
-    // between the lookup above and this insert.
-    const { data: receipt, error: receiptError } = await supabase
-      .from('receipts')
-      .insert({
-        user_id: user.id,
-        product_id: productId,
-        receipt_data: JSON.stringify(receiptData),
-        receipt_hash: orderID,
-        status: 'completed',
-        platform: 'web',
-        environment: process.env.PAYPAL_ENV === 'production' ? 'production' : 'sandbox',
-        verification_data: sanitizedCaptureData,
-      })
-      .select()
-      .single();
-
-    if (receiptError) {
-      const isDuplicate =
-        (receiptError as { code?: string }).code === '23505' ||
-        /duplicate key/i.test(receiptError.message ?? '');
-      if (isDuplicate) {
-        // Lost the race against a concurrent capture for the same orderID.
-        // Treat as idempotent: the other request already credited star_candy.
-        return NextResponse.json(
-          { error: 'Payment already processed' },
-          { status: 400 }
-        );
-      }
-      console.error('Failed to create receipt:', receiptError);
+    if (rpcError) {
+      console.error('process_paypal_capture failed:', rpcError);
       return NextResponse.json(
         { error: 'Failed to record payment' },
         { status: 500 }
       );
     }
 
-    // Atomic increment of star_candy balance to prevent race conditions
-    const { error: profileError } = await supabase
-      .rpc('increment_star_candy', {
-        p_user_id: user.id,
-        p_amount: starCandy,
-      });
-
-    if (profileError) {
-      console.error('Failed to update star_candy balance:', profileError);
-    }
-
-    // Record star candy history
-    const transactionId = `PAYPAL_${orderID}`;
-    const { error: historyError } = await supabase
-      .from('star_candy_history')
-      .insert({
-        user_id: user.id,
-        amount: starCandy,
-        type: 'PURCHASE',
-        transaction_id: transactionId,
-      });
-
-    if (historyError) {
-      console.error('Failed to record star candy history:', historyError);
-    }
-
-    // Record bonus if applicable
-    if (bonusAmount > 0) {
-      const expiredAt = getStarCandyBonusExpiryISO();
-
-      const { error: bonusError } = await supabase
-        .from('star_candy_bonus_history')
-        .insert({
-          user_id: user.id,
-          amount: bonusAmount,
-          remain_amount: bonusAmount,
-          type: 'PURCHASE',
-          transaction_id: transactionId,
-          expired_dt: expiredAt,
-        });
-
-      if (bonusError) {
-        console.error('Failed to record bonus:', bonusError);
-      } else {
-        // Atomic increment of bonus balance
-        const { error: bonusUpdateError } = await supabase
-          .rpc('increment_star_candy_bonus', {
-            p_user_id: user.id,
-            p_amount: bonusAmount,
-          });
-
-        if (bonusUpdateError) {
-          console.error('Failed to update bonus balance:', bonusUpdateError);
-        }
-      }
+    // RPC returns NULL when the receipts unique index trips — i.e. another
+    // concurrent capture (or earlier successful retry) already credited this
+    // orderID. Treat as idempotent.
+    if (rpcResult == null) {
+      return NextResponse.json(
+        { error: 'Payment already processed' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      receipt_id: receipt.id,
+      receipt_id: rpcResult.receipt_id,
       message: 'Payment captured and processed successfully',
     });
 
