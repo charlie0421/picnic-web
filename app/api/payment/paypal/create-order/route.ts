@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
-const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production' 
-  ? 'https://api-m.paypal.com' 
+const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production'
+  ? 'https://api-m.paypal.com'
   : 'https://api-m.sandbox.paypal.com';
 
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
@@ -10,18 +10,12 @@ const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
 
 interface CreateOrderRequest {
   productId: string;
-  productName: string;
-  amount: number;
-  starCandy: number;
-  bonusAmount: number;
-  userId: string;
-  userEmail: string;
 }
 
 // Get PayPal access token
 async function getPayPalAccessToken(): Promise<string> {
   const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
-  
+
   const response = await fetch(`${PAYPAL_API_URL}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
@@ -32,7 +26,7 @@ async function getPayPalAccessToken(): Promise<string> {
   });
 
   const data = await response.json();
-  
+
   if (!response.ok) {
     throw new Error('Failed to get PayPal access token');
   }
@@ -43,7 +37,7 @@ async function getPayPalAccessToken(): Promise<string> {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    
+
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -54,10 +48,56 @@ export async function POST(request: NextRequest) {
     }
 
     const body: CreateOrderRequest = await request.json();
-    const { productId, productName, amount, starCandy, bonusAmount } = body;
+    const { productId } = body;
 
-    // Validate request
-    if (!productId || !amount || amount <= 0) {
+    if (!productId) {
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
+    // Server-authoritative product lookup — never trust client-provided price/quantity
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('id, product_name, web_price_usd, star_candy, web_bonus_amount')
+      .eq('id', productId)
+      .maybeSingle();
+
+    if (productError) {
+      console.error('Product lookup failed:', productError);
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
+    if (!product || product.web_price_usd == null) {
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      );
+    }
+
+    const priceValue = product.web_price_usd.toFixed(2);
+
+    // PayPal v2 caps `custom_id` at 127 characters and silently truncates
+    // anything longer. Truncation here would corrupt the JSON we read back at
+    // capture time and cause every subsequent capture to fail JSON.parse —
+    // failing closed early is much easier to diagnose than the silent capture-
+    // side regression. We abort instead of hashing because the only inputs are
+    // a UUID + product id; if this guard ever trips, the upstream id format
+    // changed and we want to know.
+    const customIdPayload = JSON.stringify({
+      productId: product.id,
+      userId: user.id,
+    });
+    if (customIdPayload.length > 127) {
+      console.error('PayPal custom_id payload exceeds 127-byte limit', {
+        length: customIdPayload.length,
+        productId: product.id,
+        userId: user.id,
+      });
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -71,18 +111,13 @@ export async function POST(request: NextRequest) {
     const orderData = {
       intent: 'CAPTURE',
       purchase_units: [{
-        reference_id: productId,
-        description: `${productName} - ${starCandy} Star Candy`,
+        reference_id: product.id,
+        description: `${product.product_name ?? 'Star Candy'} - ${product.star_candy ?? 0} Star Candy`,
         amount: {
           currency_code: 'USD',
-          value: amount.toFixed(2),
+          value: priceValue,
         },
-        custom_id: JSON.stringify({
-          productId,
-          starCandy,
-          bonusAmount,
-          userId: user.id,
-        }),
+        custom_id: customIdPayload,
       }],
       application_context: {
         brand_name: 'Picnic',
@@ -98,7 +133,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
-        'PayPal-Request-Id': `${productId}-${Date.now()}`,
+        'PayPal-Request-Id': `${product.id}-${Date.now()}`,
       },
       body: JSON.stringify(orderData),
     });
@@ -118,7 +153,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Create order error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -3,8 +3,11 @@
 /**
  * 인증 토큰 감지/체크 유틸리티
  *
- * localStorage 및 쿠키에서 Supabase 인증 토큰을 감지하는 순수 함수들입니다.
+ * 쿠키에서 Supabase 인증 토큰을 감지하는 순수 함수들입니다.
  * AuthStore의 constructor에서 사용됩니다.
+ *
+ * NOTE: 보안 마이그레이션(@supabase/ssr cookie 기반)으로 localStorage 검사는 제거되었습니다.
+ * 토큰은 SDK가 관리하는 sb-* cookie에만 존재합니다.
  */
 
 const authDebug =
@@ -52,78 +55,45 @@ export function checkCookieAuthToken(projectId: string): boolean {
 }
 
 /**
- * localStorage 및 쿠키에서 저장된 인증 토큰을 감지합니다.
+ * 쿠키에서 저장된 Supabase 인증 토큰을 감지합니다.
+ *
+ * cookie 기반 세션 마이그레이션 이후, 모든 토큰은 sb-* cookie에만 존재합니다.
+ * (XSS 시 탈취 가능한 localStorage 검사는 제거됨)
  *
  * @returns 토큰이 존재하면 true
  */
 export function detectStoredAuthToken(): boolean {
   try {
+    if (typeof document === 'undefined') return false;
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) return false;
+    const projectId = supabaseUrl ? getSupabaseProjectIdFromUrl(supabaseUrl) : null;
 
-    const projectId = getSupabaseProjectIdFromUrl(supabaseUrl);
-
+    // 프로젝트 ID가 있으면 정확한 cookie name으로 검사
     if (projectId) {
-      const authKey = `sb-${projectId}-auth-token`;
-
-      // 1단계: localStorage 확인
-      const hasLocalStorageToken = localStorage.getItem(authKey);
-      debugLog(`🔍 [AuthTokenUtils] localStorage에 토큰 (${authKey}):`, hasLocalStorageToken ? '있음' : '없음');
-
-      // 2단계: 쿠키 확인
       const hasCookieToken = checkCookieAuthToken(projectId);
-
-      const hasAnyToken = !!hasLocalStorageToken || hasCookieToken;
-      debugLog(`🔍 [AuthTokenUtils] 토큰 총합:`, {
-        localStorage: !!hasLocalStorageToken,
-        cookie: hasCookieToken,
-        hasAnyToken
-      });
-
-      return hasAnyToken;
+      debugLog(`🔍 [AuthTokenUtils] sb-${projectId}-auth-token cookie:`, hasCookieToken ? '있음' : '없음');
+      if (hasCookieToken) return true;
     }
 
-    // 프로젝트 ID를 추출할 수 없는 경우 모든 Supabase 키 확인
-    let hasLocalStorage = false;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
-        const hasToken = localStorage.getItem(key);
-        debugLog(`🔍 [AuthTokenUtils] localStorage에 토큰 (${key}):`, hasToken ? '있음' : '없음');
-        if (hasToken) hasLocalStorage = true;
+    // 폴백: 일반적인 sb-* cookie 패턴 검사 (code-verifier 제외)
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (
+        name &&
+        name.startsWith('sb-') &&
+        name.includes('auth-token') &&
+        !name.includes('auth-token-code-verifier') &&
+        value
+      ) {
+        debugLog(`🍪 [AuthTokenUtils] 쿠키에 토큰 (${name}): 있음`);
+        return true;
       }
     }
 
-    // 일반적인 쿠키 패턴 확인 (code-verifier 제외)
-    let hasCookie = false;
-    try {
-      const cookies = document.cookie.split(';');
-      for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (
-          name &&
-          name.startsWith('sb-') &&
-          name.includes('auth-token') &&
-          !name.includes('auth-token-code-verifier') &&
-          value
-        ) {
-          debugLog(`🍪 [AuthTokenUtils] 쿠키에 토큰 (${name}): 있음`);
-          hasCookie = true;
-          break;
-        }
-      }
-    } catch (error) {
-      console.warn('⚠️ [AuthTokenUtils] 일반 쿠키 확인 중 오류:', error);
-    }
-
-    const hasAnyToken = hasLocalStorage || hasCookie;
-    debugLog(`🔍 [AuthTokenUtils] 전체 토큰 상태:`, {
-      localStorage: hasLocalStorage,
-      cookie: hasCookie,
-      hasAnyToken
-    });
-
-    return hasAnyToken;
+    debugLog('🔍 [AuthTokenUtils] 저장된 인증 cookie 없음');
+    return false;
   } catch (error) {
     console.warn('⚠️ [AuthTokenUtils] 토큰 체크 중 오류:', error);
     return false;

@@ -1,4 +1,4 @@
-import { Session, SupabaseClient, User } from "@supabase/supabase-js";
+import { SupabaseClient, User } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
   AuthResult,
@@ -12,14 +12,19 @@ import { createSuccessResult, saveAuthState, cleanCallbackUrl } from "./auth-hel
 export interface CallbackHelpers {
   log: LogFunction;
   logError: LogFunction;
+  // NOTE: profile handlers receive the authenticated `User` (not the full `Session`).
+  // Previously these accepted a `Session`, which forced us to fabricate a fake session
+  // (with `access_token: 'token-from-cookie'`) on the cookie-only / fallback path.
+  // The handlers only ever read `session.user` anyway, so passing `User` directly removes
+  // the need for the dangerous `as unknown as Session` cast and the fake-token sentinel.
   handleGoogleProfile: (
     supabase: SupabaseClient<Database>,
-    session: Session,
+    user: User,
     params?: Record<string, string>,
   ) => Promise<void>;
   handleAppleProfile: (
     supabase: SupabaseClient<Database>,
-    session: Session,
+    user: User,
     params?: Record<string, string>,
   ) => Promise<void>;
 }
@@ -30,15 +35,15 @@ export interface CallbackHelpers {
 async function runProfileHandlers(
   supabase: SupabaseClient<Database>,
   provider: SocialLoginProvider,
-  session: Session,
+  user: User,
   params: Record<string, string> | undefined,
   helpers: CallbackHelpers,
 ): Promise<void> {
   if (provider === "google") {
-    await helpers.handleGoogleProfile(supabase, session, params);
+    await helpers.handleGoogleProfile(supabase, user, params);
   }
   if (provider === "apple") {
-    await helpers.handleAppleProfile(supabase, session, params);
+    await helpers.handleAppleProfile(supabase, user, params);
   }
 }
 
@@ -54,59 +59,15 @@ export async function handleCallbackImpl(
   helpers.log(`${provider} 콜백 처리`, params);
 
   try {
-    // OAuth 콜백에서는 URL 해시나 검색 파라미터에서 세션 정보를 추출해야 함
-    if (typeof window !== "undefined") {
-      // 브라우저 환경에서 URL 해시 확인
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const searchParams = new URLSearchParams(window.location.search);
+    // SECURITY: The previous implementation also accepted access_token / refresh_token
+    // directly from window.location.hash or window.location.search and called
+    // `supabase.auth.setSession()` with them. That implicit-flow fallback is unsafe:
+    //   - There is no `state` verification, so a CSRF/session-fixation attacker can
+    //     inject their own tokens into a victim's browser.
+    //   - It bypasses PKCE, which is the only flow Supabase recommends for browsers.
+    // We now ONLY accept the PKCE `code` exchange path below.
 
-      // access_token이나 code가 있는지 확인
-      const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
-      const code = searchParams.get('code');
-
-      helpers.log(`${provider} 콜백 파라미터 확인`, {
-        hasAccessToken: !!accessToken,
-        hasRefreshToken: !!refreshToken,
-        hasCode: !!code,
-        hashParams: Object.fromEntries(hashParams.entries()),
-        searchParams: Object.fromEntries(searchParams.entries())
-      });
-
-      // 토큰이 URL에 있으면 세션 설정
-      if (accessToken) {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
-        });
-
-        if (error) {
-          throw new SocialAuthError(
-            SocialAuthErrorCode.CALLBACK_FAILED,
-            `토큰으로 세션 설정 실패: ${error.message}`,
-            provider,
-            error,
-          );
-        }
-
-        if (data.session) {
-          helpers.log(`${provider} 토큰으로 세션 생성 성공`);
-
-          await runProfileHandlers(supabase, provider, data.session, params, helpers);
-          saveAuthState(provider);
-          cleanCallbackUrl(["hash", "access_token", "refresh_token", "expires_in", "token_type"]);
-
-          return createSuccessResult(
-            data.session,
-            data.session.user,
-            provider,
-            `${provider} 로그인 성공`,
-          );
-        }
-      }
-    }
-
-    // 최적화된 방식: OAuth Code Exchange 우선 시도
+    // OAuth Code Exchange (PKCE) — the only supported browser flow
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const code = params?.code || searchParams?.get('code');
     if (code) {
@@ -119,7 +80,7 @@ export async function handleCallbackImpl(
           helpers.log(`${provider} Code Exchange 성공! 즉시 완료`);
 
           cleanCallbackUrl(["code", "state"]);
-          await runProfileHandlers(supabase, provider, exchangeData.session, params, helpers);
+          await runProfileHandlers(supabase, provider, exchangeData.session.user, params, helpers);
           saveAuthState(provider);
 
           return createSuccessResult(
@@ -207,24 +168,19 @@ export async function handleCallbackImpl(
         );
       }
 
-      // 재시도로 사용자를 얻었다면 간단한 세션 객체 생성
+      // 재시도로 사용자를 얻었다면 프로필 처리 진행 (세션은 쿠키에 저장되어 있음)
       if (retryData.user) {
         helpers.log(`${provider} 재시도로 사용자 확인 성공`);
 
-        // 간단한 세션 객체 생성 (프로필 처리용)
-        const simpleSession = {
-          user: retryData.user,
-          access_token: 'token-from-cookie',
-          refresh_token: null,
-          expires_at: null,
-          token_type: 'bearer'
-        };
-
-        await runProfileHandlers(supabase, provider, simpleSession as unknown as Session, params, helpers);
+        // SECURITY: We deliberately pass only `User` (no fabricated `Session`).
+        // The previous code synthesized a session with `access_token: 'token-from-cookie'`
+        // which is not a real token; treating it as one elsewhere would be a bug.
+        // The actual session lives in the Supabase auth cookie set by the SDK.
+        await runProfileHandlers(supabase, provider, retryData.user, params, helpers);
         saveAuthState(provider);
 
         return createSuccessResult(
-          simpleSession as unknown as Session,
+          null,
           retryData.user,
           provider,
           `${provider} 로그인 성공`,
@@ -245,20 +201,12 @@ export async function handleCallbackImpl(
 
     helpers.log(`${provider} 기존 사용자 확인 성공`);
 
-    // 간단한 세션 객체 생성 (프로필 처리용)
-    const sessionForProfile = {
-      user: userData.user,
-      access_token: 'token-from-cookie',
-      refresh_token: null,
-      expires_at: null,
-      token_type: 'bearer'
-    };
-
-    await runProfileHandlers(supabase, provider, sessionForProfile as unknown as Session, params, helpers);
+    // SECURITY: Pass only `User` (no fabricated `Session`). See note above re: cookie path.
+    await runProfileHandlers(supabase, provider, userData.user, params, helpers);
     saveAuthState(provider);
 
     return createSuccessResult(
-      sessionForProfile as unknown as Session,
+      null,
       userData.user,
       provider,
       `${provider} 로그인 성공`,

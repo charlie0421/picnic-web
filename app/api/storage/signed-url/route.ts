@@ -15,6 +15,20 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 /** Buckets that authenticated users are allowed to generate signed URLs for. */
 const ALLOWED_BUCKETS = ['avatars', 'media', 'public'];
 
+/** Maximum signed URL lifetime (1 hour) to limit blast radius of leaked URLs. */
+const MAX_EXPIRES_IN = 60 * 60;
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUserScopedPath(path: string): { uuid: string } | null {
+  const firstSegment = path.split('/')[0] ?? '';
+  if (UUID_REGEX.test(firstSegment)) {
+    return { uuid: firstSegment };
+  }
+  return null;
+}
+
 interface RequestPayload {
   bucket?: string;
   path?: string;
@@ -113,6 +127,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Per-bucket path ownership enforcement.
+  // - 'media': user-uploaded content. If the first segment is a UUID, it must
+  //   match the authenticated user. Non-UUID prefixes (shared/common media)
+  //   are allowed by design.
+  // - 'avatars': intentionally NOT prefix-checked. Avatars are publicly
+  //   readable across users, and we have no reliable way to distinguish
+  //   "viewing another user's avatar" (legitimate) from "signing someone
+  //   else's avatar path" (also harmless, since avatars are public-read).
+  //   Adding a check here would break legitimate cross-user avatar fetches.
+  // - 'public': shared assets, no user ownership concept.
+  if (bucket === 'media') {
+    const scoped = isUserScopedPath(path);
+    if (scoped && scoped.uuid.toLowerCase() !== user.id.toLowerCase()) {
+      return NextResponse.json(
+        { error: '해당 경로에 대한 권한이 없습니다.' },
+        { status: 403 },
+      );
+    }
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
       persistSession: false,
@@ -130,10 +164,14 @@ export async function POST(request: NextRequest) {
     options.transform = sanitizedTransform;
   }
 
-  const duration =
+  const requestedExpires =
     typeof expiresIn === 'number' && !Number.isNaN(expiresIn)
-      ? Math.max(1, Math.floor(expiresIn))
-      : 60 * 60;
+      ? expiresIn
+      : MAX_EXPIRES_IN;
+  const duration = Math.min(
+    MAX_EXPIRES_IN,
+    Math.max(1, Math.floor(requestedExpires)),
+  );
 
   try {
     const { data, error } = await supabase.storage
@@ -141,8 +179,11 @@ export async function POST(request: NextRequest) {
       .createSignedUrl(path, duration, options);
 
     if (error || !data?.signedUrl) {
+      // Never surface Supabase error.message to clients — it can leak bucket
+      // internals or path existence. Log server-side only.
+      console.error('🖼️ [API] Supabase 서명 URL 생성 실패:', error);
       return NextResponse.json(
-        { error: error?.message || '서명 URL 생성에 실패했습니다.' },
+        { error: '서명 URL 생성에 실패했습니다.' },
         { status: 400 },
       );
     }

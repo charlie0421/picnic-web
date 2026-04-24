@@ -90,8 +90,8 @@ export function createBrowserSupabaseClient(): BrowserSupabaseClient {
         detectSessionInUrl: false,
         autoRefreshToken: true,
         persistSession: true,
-        storage: window.localStorage,
-        storageKey: `sb-${SUPABASE_URL.split('.')[0].split('://')[1]}-auth-token`,
+        // 보안: localStorage(XSS 토큰 탈취 위험)에서 @supabase/ssr 기본 cookie 저장소로 마이그레이션.
+        // storage / storageKey 오버라이드 없음 → SSR과 동일한 cookie 기반 세션 사용.
         debug: false,
       },
       global: {
@@ -156,28 +156,6 @@ export async function getCurrentUser() {
   const supabase = createBrowserSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
-}
-
-/**
- * 현재 인증 세션을 가져오는 편의 함수입니다.
- * 내부적으로 getUser()를 사용하며, 더 빠른 getCurrentUser()를 직접 사용하는 것을 권장합니다.
- */
-export async function getCurrentSession() {
-  const supabase = createBrowserSupabaseClient();
-
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    return null;
-  }
-
-  return {
-    user,
-    access_token: 'token-from-cookies',
-    refresh_token: null,
-    expires_at: null,
-    token_type: 'bearer' as const
-  };
 }
 
 // --- Re-export sign-out functions (기존 import 경로 호환) ---

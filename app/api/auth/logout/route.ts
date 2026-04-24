@@ -10,15 +10,114 @@ import { SupabaseAuthError } from '@/lib/supabase/error';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 
+/**
+ * Allow-listed origins for CORS preflight + same-site/CSRF checks on logout.
+ *
+ * SECURITY:
+ *   - Previously this endpoint advertised `Access-Control-Allow-Origin: *` and had no
+ *     CSRF protection, meaning any third-party site could force a logged-in user to
+ *     log out (a low-impact CSRF, but still unwanted UX manipulation).
+ *   - We now restrict to a server-controlled allow-list and additionally require the
+ *     POST to look same-origin (Sec-Fetch-Site, Origin, or Referer).
+ *
+ * The list is derived from env so production/staging can differ without a redeploy
+ * of this file. Localhost variants are added in non-production for dev convenience.
+ */
+function getAllowedOrigins(): string[] {
+  const origins = new Set<string>();
+  const add = (value?: string | null) => {
+    if (!value) return;
+    try {
+      // Normalize (strip trailing slash) and validate.
+      const u = new URL(value);
+      origins.add(`${u.protocol}//${u.host}`);
+    } catch {
+      // ignore malformed env values
+    }
+  };
+
+  add(process.env.NEXT_PUBLIC_SITE_URL);
+  add(process.env.BASE_URL);
+  add(process.env.NEXT_PUBLIC_STAGING_URL);
+  // Sensible production fallback so we are never wide-open if env is missing.
+  add('https://www.picnic.fan');
+
+  if (process.env.NODE_ENV !== 'production') {
+    add('http://localhost:3000');
+    add('http://localhost:3100');
+  }
+
+  return Array.from(origins);
+}
+
+function isAllowedOrigin(origin: string | null | undefined): boolean {
+  if (!origin) return false;
+  try {
+    const u = new URL(origin);
+    const normalized = `${u.protocol}//${u.host}`;
+    return getAllowedOrigins().includes(normalized);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * CSRF check for the logout POST.
+ *
+ * Strategy (defense in depth):
+ *   1. If `Sec-Fetch-Site` is present (modern browsers), require `same-origin` /
+ *      `same-site` / `none` (`none` = direct user navigation, e.g. typing the URL).
+ *   2. If `Sec-Fetch-Site` is absent (older browsers, server-to-server, curl), fall
+ *      back to validating `Origin` or `Referer` against the allow-list. We never
+ *      assume an absent header means "trusted".
+ */
+function isSameSiteRequest(request: NextRequest): boolean {
+  const secFetchSite = request.headers.get('sec-fetch-site');
+  if (secFetchSite) {
+    return (
+      secFetchSite === 'same-origin' ||
+      secFetchSite === 'same-site' ||
+      secFetchSite === 'none'
+    );
+  }
+
+  // Fallback for legacy clients without Sec-Fetch-Site.
+  const origin = request.headers.get('origin');
+  if (origin) return isAllowedOrigin(origin);
+
+  const referer = request.headers.get('referer');
+  if (referer) return isAllowedOrigin(referer);
+
+  // No origin signals at all — refuse rather than assume same-site.
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: CSRF / cross-site origin guard. Without this, a third-party site
+    // could submit a form / fetch to /api/auth/logout and forcibly log the user out.
+    if (!isSameSiteRequest(request)) {
+      return NextResponse.json(
+        { error: 'Forbidden: cross-site logout requests are not allowed.' },
+        { status: 403 }
+      );
+    }
+
     const url = new URL(request.url);
 
-    // fetch API로 호출된 경우 JSON 응답, 브라우저 직접 접근시 리다이렉트
+    // fetch API로 호출된 경우 JSON 응답, 브라우저 직접 접근(form submit 포함)시 리다이렉트.
+    //
+    // SECURITY: We deliberately do NOT treat `Accept: */*` as a fetch signal. A
+    // classic <form method="POST"> submit sends `Accept: text/html,...,*/*` which
+    // would have matched the old wildcard branch and silently swallowed a CSRF
+    // attempt as JSON instead of producing the visible redirect that would tip
+    // the victim off. We require an explicit fetch signal instead.
     const acceptHeader = request.headers.get('accept') || '';
-    const isFetchRequest = acceptHeader.includes('application/json') ||
-                           request.headers.get('x-requested-with') === 'XMLHttpRequest' ||
-                           acceptHeader.includes('*/*');
+    const secFetchMode = request.headers.get('sec-fetch-mode');
+    const isFetchRequest =
+      acceptHeader.includes('application/json') ||
+      request.headers.get('x-requested-with') === 'XMLHttpRequest' ||
+      secFetchMode === 'cors';
 
     // fetch 요청이면 JSON 응답 준비, 아니면 리다이렉트 응답
     const response = isFetchRequest
@@ -151,17 +250,36 @@ export async function GET(request: NextRequest) {
 
 /**
  * OPTIONS /api/auth/logout
- * 
- * CORS preflight handler
+ *
+ * CORS preflight handler.
+ *
+ * SECURITY: We do NOT echo `Access-Control-Allow-Origin: *` anymore. We only
+ * echo the request `Origin` if it appears in the allow-list (see
+ * `getAllowedOrigins`). Browsers will block the preflight (and therefore the
+ * actual POST) for any other origin, which neutralizes cross-site forced-logout
+ * attacks via fetch() with credentials.
+ *
+ * Including `Vary: Origin` is required so caches don't serve a response keyed
+ * for one origin to another origin.
  */
-export async function OPTIONS(): Promise<NextResponse> {
+export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
+  const headers: Record<string, string> = {
+    'Allow': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+    'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
+  };
+
+  const requestOrigin = request.headers.get('origin');
+  if (isAllowedOrigin(requestOrigin)) {
+    headers['Access-Control-Allow-Origin'] = requestOrigin as string;
+  }
+  // If the origin is not allowed, we deliberately omit Allow-Origin so the
+  // browser blocks the cross-site request.
+
   return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Allow': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
+    status: 204,
+    headers,
   });
 }
