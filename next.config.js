@@ -102,11 +102,18 @@ const nextConfig = {
   },
   
   async headers() {
+    // SECURITY: `Access-Control-Allow-Origin: *` combined with
+    // `Access-Control-Allow-Credentials: true` is rejected by browsers per
+    // the CORS spec (the spec disallows wildcard + credentials), so the
+    // combo never worked for credentialed requests anyway. Routes that
+    // need credentialed cross-origin support (e.g. /api/auth/logout)
+    // already echo a specific Origin from a route-local allowlist. Here
+    // we keep wildcard for non-credentialed reads (proxy compatibility)
+    // and drop the misleading credentials flag.
     return [
       {
         source: '/api/:path*',
         headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, apikey, Authorization' },
@@ -115,7 +122,6 @@ const nextConfig = {
       {
         source: '/supabase-proxy/:path*',
         headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, apikey' },
@@ -124,7 +130,6 @@ const nextConfig = {
       {
         source: '/:lang/supabase-proxy/:path*',
         headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, apikey' },
