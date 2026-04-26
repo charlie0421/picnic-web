@@ -2,9 +2,10 @@
   "version": 2,
   "git": {
     "deploymentEnabled": {
-      "main": false
+      "main": true,
+      "production": false
     },
-    "productionBranch": "production"
+    "productionBranch": "main"
   },
   "buildCommand": "npm run build",
   "installCommand": "npm install",
