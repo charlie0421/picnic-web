@@ -22,8 +22,15 @@ export function useVoteDetail({
   enableRealtime = true,
   pollingInterval = 1000,
   maxRetries = 3,
+  lang,
 }: VoteDetailPresenterProps) {
-  const { currentLanguage } = useLanguageStore();
+  const storeLanguage = useLanguageStore((s) => s.currentLanguage);
+  // SSR 과 client first-render 일치 보장: mount 전까지는 URL lang prop 사용.
+  // zustand persist 가 localStorage 값으로 hydrate 하면 SSR(default 'en')과 달라
+  // i18n 텍스트 (vote.title 등) 가 hydration mismatch 를 일으킴.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const currentLanguage = mounted ? storeLanguage : lang;
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
       title: '투표하려면 로그인이 필요합니다',
@@ -208,6 +215,8 @@ export function useVoteDetail({
     if (!vote.start_at || !vote.stop_at) return '';
     const startDate = new Date(vote.start_at);
     const endDate = new Date(vote.stop_at);
+    // timeZone 을 명시하지 않으면 SSR(서버 TZ, 보통 UTC) vs CSR(사용자 로컬) 결과가
+    // 달라져 hydration mismatch 가 발생. K-pop 투표 마감 기준은 KST.
     const formatDate = (date: Date) =>
       date.toLocaleDateString('ko-KR', {
         year: 'numeric',
@@ -215,6 +224,7 @@ export function useVoteDetail({
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: 'Asia/Seoul',
       });
     return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
   };

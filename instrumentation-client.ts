@@ -55,6 +55,23 @@ if (SENTRY_DSN) {
         if (error?.value?.includes('hydration') && process.env.NODE_ENV === 'development') {
           return null;
         }
+        // Drop errors originating from third-party ad SDK frames
+        // (Google AdSense / DoubleClick / Twitter in-app webview injected globals).
+        // 우리 코드와 무관하며 disposed iframe race / 외부 전역 변수 미정의가 대다수.
+        const frames = error?.stacktrace?.frames ?? [];
+        const isThirdPartyAd = frames.some((f) => {
+          const fn = f.filename ?? '';
+          return (
+            fn.includes('/pagead/') ||
+            fn.includes('googlesyndication.com') ||
+            fn.includes('googletagservices.com') ||
+            fn.includes('doubleclick.net') ||
+            fn.includes('adsbygoogle')
+          );
+        });
+        if (isThirdPartyAd) {
+          return null;
+        }
       }
       return event;
     },
@@ -81,6 +98,17 @@ if (SENTRY_DSN) {
       // Ignore Next.js hydration errors in development
       'Hydration failed',
       'There was an error while hydrating',
+      // 외부 SDK / 인앱 브라우저 주입 변수 (Twitter, Facebook 등 in-app webview)
+      "Can't find variable: CONFIG",
+      'CONFIG is not defined',
+      // Google AdSense iframe disposal race (우리가 제어 불가)
+      'Accessing domItems after disposal',
+      'adsbygoogle.push() error',
+      // 사용자가 페이지 이탈/요청 취소 시 발생, 정상 흐름
+      'AbortError',
+      'The user aborted a request',
+      // Supabase realtime 채널 정상 종료
+      'Connection closed',
     ],
     maxBreadcrumbs: 30,
   });
