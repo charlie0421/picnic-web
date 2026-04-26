@@ -36,11 +36,11 @@ const getCurrentLanguageFromPath = (): Language => {
   return settings.languages.default;
 };
 
-// 초기 언어 설정은 항상 URL 경로에서 가져옴 (클라이언트에서만)
-const initialLanguage: Language = (() => {
-  if (typeof window === "undefined") return settings.languages.default;
-  return getCurrentLanguageFromPath();
-})();
+// 초기 언어는 항상 default 로 고정한다. SSR 과 CSR 의 module-evaluation 결과가
+// 같아야 첫 render 시 hydration mismatch 가 안 일어남. URL/localStorage 기반
+// 실제 언어 동기화는 mount 후 LanguageSyncProvider 가 처리한다 (skipHydration
+// + persist.rehydrate + setCurrentLang).
+const initialLanguage: Language = settings.languages.default;
 
 interface LanguageState {
   currentLanguage: Language;
@@ -321,6 +321,10 @@ export const useLanguageStore = create<LanguageState>()(
     }),
     {
       name: "language-storage",
+      // import-time 자동 hydrate 를 막아 SSR(default) 과 CSR 첫 render 가
+      // 동일한 default 값으로 mount 되도록 한다. 명시적 rehydrate 는
+      // LanguageSyncProvider 가 mount 후 호출.
+      skipHydration: true,
       partialize: (state) => ({
         currentLanguage: state.currentLanguage,
       }),
