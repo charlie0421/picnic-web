@@ -10,6 +10,7 @@ export default function QuillBasicEditor({ value, onChange, minHeight = 600 }: {
 
   useEffect(() => {
     let isMounted = true
+    let textChangeHandler: (() => void) | null = null
     ;(async () => {
       const Quill = (await import('quill')).default
       if (!isMounted || !editorRef.current) return
@@ -35,13 +36,32 @@ export default function QuillBasicEditor({ value, onChange, minHeight = 600 }: {
             el.style.minHeight = `${minHeight}px`
           }
         } catch {}
-        quillRef.current.on('text-change', () => {
+        textChangeHandler = () => {
+          if (!isMounted || !quillRef.current) return
           const delta = quillRef.current.getContents()
           onChange(delta)
-        })
+        }
+        quillRef.current.on('text-change', textChangeHandler)
       }
     })()
-    return () => { isMounted = false }
+    return () => {
+      isMounted = false
+      // Detach the listener and drop the Quill instance so the editor DOM,
+      // toolbar, and text-change subscribers are eligible for GC. Without
+      // this, navigating away from the editor leaks the entire Quill
+      // instance and can fire onChange after unmount (setState warnings).
+      if (quillRef.current) {
+        try {
+          if (textChangeHandler) {
+            quillRef.current.off('text-change', textChangeHandler)
+          }
+          // Quill has no .destroy(); clearing the host node and dropping
+          // the ref is the documented teardown pattern.
+          if (editorRef.current) editorRef.current.innerHTML = ''
+        } catch {}
+        quillRef.current = null
+      }
+    }
   }, [])
 
   useEffect(() => {
