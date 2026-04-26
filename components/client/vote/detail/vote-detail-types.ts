@@ -60,4 +60,5 @@ export interface VoteDetailPresenterProps {
   enableRealtime?: boolean;
   pollingInterval?: number;
   maxRetries?: number;
+  lang: import('@/config/settings').Language;
 }

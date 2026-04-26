@@ -2,9 +2,10 @@
 
 import React, { useEffect, useRef } from 'react';
 import VoteDetailPresenter from '@/components/client/vote/detail/VoteDetailPresenter';
+import type { Language } from '@/config/settings';
 
 // 이제 voteData는 항상 존재한다고 가정하고, 로딩 상태는 상위 Suspense에서 처리합니다.
-const VoteDetail = ({ voteData }: { voteData: any }) => {
+const VoteDetail = ({ voteData, lang }: { voteData: any; lang: Language }) => {
   const { vote, voteItems, rewards, user, userVotes } = voteData;
 
   // 상태 전환(예정→진행, 진행→마감) 시점에 페이지 자동 새로고침
@@ -64,6 +65,7 @@ const VoteDetail = ({ voteData }: { voteData: any }) => {
       vote={vote}
       initialItems={voteItems}
       rewards={rewards}
+      lang={lang}
     />
   );
 };

@@ -4,13 +4,15 @@ import { notFound } from 'next/navigation';
 import { Vote, VoteItem, Reward } from '@/types/interfaces';
 import VoteDetailPresenter from '@/components/client/vote/detail/VoteDetailPresenter';
 import { getVoteById, getVoteItems, getVoteRewards } from '@/utils/api/queries';
+import type { Language } from '@/config/settings';
 
 export interface VoteDetailFetcherProps {
   voteId: string;
+  lang: Language;
   className?: string;
 }
 
-export default async function VoteDetailFetcher({ voteId, className }: VoteDetailFetcherProps) {
+export default async function VoteDetailFetcher({ voteId, lang, className }: VoteDetailFetcherProps) {
   const numericVoteId = parseInt(voteId, 10);
 
   if (isNaN(numericVoteId)) {
@@ -44,6 +46,7 @@ export default async function VoteDetailFetcher({ voteId, className }: VoteDetai
         enableRealtime={false}
         pollingInterval={1000}
         maxRetries={3}
+        lang={lang}
       />
     );
   } catch (error) {
