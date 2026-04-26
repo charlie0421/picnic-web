@@ -206,9 +206,19 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
   }, [mounted, isHydrated, initialLanguage, currentLanguage, setCurrentLang]);
 
   // 클라이언트 hydration 처리
+  // store 는 skipHydration: true 라 import-time 에 persist 가 적용되지 않는다.
+  // mount 직후 rehydrate 를 명시적으로 호출해 localStorage 값을 store 에 반영한다.
+  // (이 시점은 첫 hydration render 가 끝난 직후라 SSR/CSR mismatch 가 발생하지 않음.)
   useEffect(() => {
     if (mounted && !isHydrated) {
-      setHydrated(true);
+      const rehydrate = (useLanguageStore as unknown as {
+        persist?: { rehydrate: () => void | Promise<void> };
+      }).persist?.rehydrate;
+      if (typeof rehydrate === 'function') {
+        Promise.resolve(rehydrate()).finally(() => setHydrated(true));
+      } else {
+        setHydrated(true);
+      }
     }
   }, [mounted, isHydrated, setHydrated]);
 
