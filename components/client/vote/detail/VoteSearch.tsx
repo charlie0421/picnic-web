@@ -20,6 +20,8 @@ export interface VoteSearchProps {
 
 export type SearchFilter = 'all' | 'artist' | 'group';
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function VoteSearch({
   onSearch,
   onFilterChange,
@@ -40,7 +42,7 @@ export function VoteSearch({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);

@@ -141,7 +141,7 @@ export default function VoteListSkeleton({
       <div className="flex justify-center items-center py-8">
         <div className="flex items-center space-x-3 text-gray-500">
           <Image
-            src="/images/logo.png"
+            src="/images/logo.webp"
             alt="Vote List Loading"
             width={20}
             height={20}

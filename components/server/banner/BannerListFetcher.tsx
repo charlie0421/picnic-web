@@ -1,13 +1,12 @@
-import { createClient } from "@/utils/supabase-server-client";
-import { Banner as DBBanner } from "@/types/interfaces";
-import { getLocalizedString } from "@/utils/api/strings";
-import { getCdnImageUrl } from "@/utils/api/image";
-import { BannerListPresenter } from "@/components/client/banner";
-import { getBanners } from "@/utils/api/queries";
-
+import { headers } from 'next/headers';
+import { BannerListPresenter } from '@/components/client/banner/BannerListPresenter';
+import { Banner as DBBanner } from '@/types/interfaces';
+import { getBanners } from '@/utils/api/queries';
+import { transformBannerLink } from '@/utils/api/link-transformer';
 
 export interface BannerListFetcherProps {
   className?: string;
+  prefetchedBannersPromise?: Promise<DBBanner[]>;
 }
 
 /**
@@ -23,13 +22,41 @@ export interface BannerListFetcherProps {
  * <BannerListFetcher className="my-4" />
  * ```
  */
-export async function BannerListFetcher({ className }: BannerListFetcherProps = {}) {
+export async function BannerListFetcher({
+  className,
+  prefetchedBannersPromise,
+}: BannerListFetcherProps = {}) {
   try {
-    const banners = await getBanners();
+    const banners = await (prefetchedBannersPromise ??
+      getBanners({
+        columns: `
+          id,
+          celeb_id,
+          created_at,
+          deleted_at,
+          duration,
+          end_at,
+          image,
+          link,
+          link_target_id,
+          link_type,
+          location,
+          "order",
+          start_at,
+          thumbnail,
+          title,
+          updated_at
+        `,
+      }));
     
     if (!banners || banners.length === 0) {
       return null; // 배너가 없으면 아무것도 렌더링하지 않음
     }
+
+    const headersList = await headers();
+    const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
+    const langMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/i);
+    const currentLang = langMatch ? langMatch[1] : 'ko';
 
     // 데이터 변환 - DBBanner를 클라이언트용 Banner로 변환
     const clientBanners = banners.map((banner) => ({
@@ -40,7 +67,9 @@ export async function BannerListFetcher({ className }: BannerListFetcherProps = 
       duration: banner.duration,
       end_at: banner.end_at,
       image: banner.image,
-      link: banner.link,
+      link: banner.link ? transformBannerLink(banner.link, currentLang) : null,
+      link_target_id: banner.link_target_id ?? null,
+      link_type: banner.link_type ?? null,
       location: banner.location,
       order: banner.order,
       start_at: banner.start_at,

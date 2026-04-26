@@ -16,11 +16,14 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const quickReleaseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isCallbackPage = pathname?.includes('/auth/callback');
+  // 수동(Global Event) 로딩 활성 카운터 (중첩 지원)
+  const manualCountRef = useRef(0);
 
   // 커스텀 이벤트 리스너 등록 (콜백 페이지에서 즉시 로딩 시작용)
   useEffect(() => {
     const handleStartGlobalLoading = (event: CustomEvent) => {
       console.log('🔍 [GlobalLoading] 커스텀 이벤트 수신 (시작):', event.detail);
+      manualCountRef.current += 1;
       setIsLoading(true);
       
       // 기존 자동 해제 타이머 클리어
@@ -32,7 +35,10 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
 
     const handleStopGlobalLoading = (event: CustomEvent) => {
       console.log('🔍 [GlobalLoading] 커스텀 이벤트 수신 (중지):', event.detail);
-      setIsLoading(false);
+      manualCountRef.current = Math.max(0, manualCountRef.current - 1);
+      if (manualCountRef.current === 0) {
+        setIsLoading(false);
+      }
       if (quickReleaseTimeoutRef.current) {
         clearTimeout(quickReleaseTimeoutRef.current);
         quickReleaseTimeoutRef.current = null;
@@ -79,7 +85,10 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
     // 페이지 로드 완료 후 스켈레톤이 렌더링될 시간을 충분히 줌
     const pageLoadTimeout = setTimeout(() => {
       console.log('🔍 [GlobalLoading] Page loaded - hiding loading bar for skeleton display');
-      setIsLoading(false);
+      // 수동 로딩 중이면 자동 해제하지 않음
+      if (manualCountRef.current === 0) {
+        setIsLoading(false);
+      }
     }, 300); // 스켈레톤 렌더링 대기 시간
     
     if (quickReleaseTimeoutRef.current) {

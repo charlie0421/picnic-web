@@ -1,11 +1,10 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { NavigationLink } from '@/components/client';
-import {Reward} from '@/types/interfaces';
-import {getCdnImageUrl} from '@/utils/api/image';
-import {getLocalizedString} from '@/utils/api/strings';
+import { Reward } from '@/types/interfaces';
+import { getLocalizedString } from '@/utils/api/strings';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface RewardListProps {
   rewards: Reward[];
@@ -23,7 +22,7 @@ export const RewardListPresenter: React.FC<RewardListProps> = ({
         </div>
       ) : (
         <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-          {rewards.map((reward) => (
+          {rewards.map((reward, index) => (
             <NavigationLink
               key={reward.id}
               href={`/rewards/${reward.id}`}
@@ -31,15 +30,16 @@ export const RewardListPresenter: React.FC<RewardListProps> = ({
             >
               <div className='aspect-square bg-gray-200 relative'>
                 {reward.thumbnail ? (
-                  <Image
-                    src={getCdnImageUrl(reward.thumbnail, 320)}
+                  <OptimizedImage
+                    src={reward.thumbnail}
                     alt={
                       typeof reward.title === 'string' ? reward.title : '리워드'
                     }
                     width={320}
                     height={320}
                     className='w-full h-full object-cover'
-                    priority
+                    priority={index === 0}
+                    quality={80}
                   />
                 ) : (
                   <div className='w-full h-full flex items-center justify-center'>

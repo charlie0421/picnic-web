@@ -1,180 +1,17 @@
 /**
  * 백엔드 에러 로깅 및 모니터링 시스템
- * 
+ *
  * 다양한 로그 레벨과 컨텍스트를 지원하는 중앙화된 로깅 시스템입니다.
  */
 
-import { createServerActionClient } from '@/utils/supabase-server-client';
-import { AppError, ErrorContext, ErrorSeverity } from '@/utils/error';
+import { AppError, ErrorSeverity } from '@/utils/error';
+import { LogLevel, LogEntry, LogTarget } from './logger-types';
+import { ConsoleLogTarget, SupabaseLogTarget } from './logger-targets';
 
-/**
- * 로그 레벨 정의
- */
-export enum LogLevel {
-  DEBUG = 'debug',
-  INFO = 'info',
-  WARN = 'warn',
-  ERROR = 'error',
-  FATAL = 'fatal',
-}
+// Barrel re-exports — 기존 import 경로(@/utils/logger) 유지
+export * from './logger-types';
+export { ConsoleLogTarget, SupabaseLogTarget, ExternalMonitoringTarget } from './logger-targets';
 
-/**
- * 로그 엔트리 인터페이스
- */
-export interface LogEntry {
-  id?: string;
-  timestamp: string;
-  level: LogLevel;
-  message: string;
-  context?: Record<string, any>;
-  error?: {
-    name: string;
-    message: string;
-    stack?: string;
-    category?: string;
-    statusCode?: number;
-  };
-  user?: {
-    id?: string;
-    email?: string;
-  };
-  request?: {
-    method?: string;
-    url?: string;
-    userAgent?: string;
-    ip?: string;
-    headers?: Record<string, string>;
-  };
-  environment: string;
-  service: string;
-  version?: string;
-}
-
-/**
- * 로그 대상 인터페이스
- */
-export interface LogTarget {
-  name: string;
-  write(entry: LogEntry): Promise<void>;
-}
-
-/**
- * 콘솔 로그 대상
- */
-export class ConsoleLogTarget implements LogTarget {
-  name = 'console';
-
-  async write(entry: LogEntry): Promise<void> {
-    const timestamp = new Date(entry.timestamp).toISOString();
-    const level = entry.level.toUpperCase();
-    const message = entry.message;
-    
-    const logData = {
-      timestamp,
-      level,
-      message,
-      ...(entry.context && { context: entry.context }),
-      ...(entry.error && { error: entry.error }),
-      ...(entry.user && { user: entry.user }),
-      ...(entry.request && { request: entry.request }),
-    };
-
-    switch (entry.level) {
-      case LogLevel.DEBUG:
-        console.debug(`[${timestamp}] ${level}: ${message}`, logData);
-        break;
-      case LogLevel.INFO:
-        console.info(`[${timestamp}] ${level}: ${message}`, logData);
-        break;
-      case LogLevel.WARN:
-        console.warn(`[${timestamp}] ${level}: ${message}`, logData);
-        break;
-      case LogLevel.ERROR:
-      case LogLevel.FATAL:
-        console.error(`[${timestamp}] ${level}: ${message}`, logData);
-        break;
-      default:
-        console.log(`[${timestamp}] ${level}: ${message}`, logData);
-    }
-  }
-}
-
-/**
- * Supabase 로그 대상
- */
-export class SupabaseLogTarget implements LogTarget {
-  name = 'supabase';
-
-  async write(entry: LogEntry): Promise<void> {
-    try {
-      const supabase = await createServerActionClient();
-      
-      const { error } = await supabase
-        .from('error_logs')
-        .insert({
-          timestamp: entry.timestamp,
-          level: entry.level,
-          message: entry.message,
-          context: entry.context || {},
-          error_details: entry.error || null,
-          user_details: entry.user || null,
-          request_details: entry.request || null,
-          environment: entry.environment,
-          service: entry.service,
-          version: entry.version || null,
-        });
-
-      if (error) {
-        console.error('Supabase 로그 저장 실패:', error);
-      }
-    } catch (error) {
-      console.error('Supabase 로그 대상 오류:', error);
-    }
-  }
-}
-
-/**
- * 외부 모니터링 서비스 로그 대상 (예: Sentry, LogRocket 등)
- */
-export class ExternalMonitoringTarget implements LogTarget {
-  name = 'external';
-
-  async write(entry: LogEntry): Promise<void> {
-    try {
-      // 여기에 외부 모니터링 서비스 연동 로직 추가
-      // 예: Sentry, LogRocket, DataDog 등
-      
-      if (entry.level === LogLevel.ERROR || entry.level === LogLevel.FATAL) {
-        // 에러 레벨의 로그만 외부 서비스로 전송
-        await this.sendToExternalService(entry);
-      }
-    } catch (error) {
-      console.error('외부 모니터링 서비스 전송 실패:', error);
-    }
-  }
-
-  private async sendToExternalService(entry: LogEntry): Promise<void> {
-    // 실제 외부 서비스 연동 구현
-    // 예시: Sentry
-    /*
-    if (typeof window === 'undefined' && process.env.SENTRY_DSN) {
-      const Sentry = await import('@sentry/node');
-      Sentry.captureException(new Error(entry.message), {
-        level: entry.level as any,
-        contexts: {
-          error: entry.error,
-          user: entry.user,
-          request: entry.request,
-        },
-        tags: {
-          environment: entry.environment,
-          service: entry.service,
-        },
-      });
-    }
-    */
-  }
-}
 
 /**
  * 중앙화된 로거 클래스
@@ -194,7 +31,7 @@ export class Logger {
     this.environment = options.environment || process.env.NODE_ENV || 'development';
     this.service = options.service || 'picnic-web';
     this.version = options.version || process.env.npm_package_version;
-    
+
     // 기본 타겟 설정
     this.targets = options.targets || [
       new ConsoleLogTarget(),
@@ -350,7 +187,7 @@ export class Logger {
   ): Promise<void> {
     const level = appError.severity === ErrorSeverity.HIGH || appError.severity === ErrorSeverity.CRITICAL ? LogLevel.FATAL : LogLevel.ERROR;
     const message = `[${appError.category}] ${appError.message}`;
-    
+
     const enhancedContext = {
       ...context,
       category: appError.category,
@@ -368,119 +205,3 @@ export class Logger {
  * 글로벌 로거 인스턴스
  */
 export const logger = new Logger();
-
-/**
- * 요청 컨텍스트에서 로거 생성
- */
-export function createRequestLogger(request: Request): Logger {
-  const requestLogger = new Logger();
-  
-  // 요청 정보 추출
-  const url = new URL(request.url);
-  const userAgent = request.headers.get('user-agent') || undefined;
-  const ip = request.headers.get('x-forwarded-for') || 
-             request.headers.get('x-real-ip') || 
-             undefined;
-
-  // 요청별 컨텍스트 설정
-  const requestContext = {
-    method: request.method,
-    url: url.pathname + url.search,
-    userAgent,
-    ip,
-    headers: Object.fromEntries(request.headers.entries()),
-  };
-
-  // 로거 메서드 오버라이드하여 요청 컨텍스트 자동 추가
-  const originalError = requestLogger.error.bind(requestLogger);
-  const originalFatal = requestLogger.fatal.bind(requestLogger);
-  const originalLogAppError = requestLogger.logAppError.bind(requestLogger);
-
-  requestLogger.error = async (message, error, context, user) => {
-    return originalError(message, error, context, user, requestContext);
-  };
-
-  requestLogger.fatal = async (message, error, context, user) => {
-    return originalFatal(message, error, context, user, requestContext);
-  };
-
-  requestLogger.logAppError = async (appError, context, user) => {
-    return originalLogAppError(appError, context, user, requestContext);
-  };
-
-  return requestLogger;
-}
-
-/**
- * 성능 모니터링을 위한 타이머 클래스
- */
-export class PerformanceTimer {
-  private startTime: number;
-  private logger: Logger;
-  private operation: string;
-
-  constructor(operation: string, loggerInstance?: Logger) {
-    this.operation = operation;
-    this.logger = loggerInstance || logger;
-    this.startTime = Date.now();
-  }
-
-  /**
-   * 타이머 종료 및 로깅
-   */
-  async end(context?: Record<string, any>): Promise<number> {
-    const duration = Date.now() - this.startTime;
-    
-    await this.logger.info(`Operation completed: ${this.operation}`, {
-      ...context,
-      duration,
-      operation: this.operation,
-    });
-
-    return duration;
-  }
-
-  /**
-   * 타이머 종료 및 에러 로깅
-   */
-  async endWithError(error: Error | AppError, context?: Record<string, any>): Promise<number> {
-    const duration = Date.now() - this.startTime;
-    
-    await this.logger.error(`Operation failed: ${this.operation}`, error, {
-      ...context,
-      duration,
-      operation: this.operation,
-    });
-
-    return duration;
-  }
-}
-
-/**
- * 성능 타이머 생성 헬퍼
- */
-export function startTimer(operation: string, loggerInstance?: Logger): PerformanceTimer {
-  return new PerformanceTimer(operation, loggerInstance);
-}
-
-/**
- * 로깅 데코레이터 (함수 래핑용)
- */
-export function withLogging<T extends (...args: any[]) => any>(
-  fn: T,
-  operation: string,
-  loggerInstance?: Logger
-): T {
-  return (async (...args: any[]) => {
-    const timer = startTimer(operation, loggerInstance);
-    
-    try {
-      const result = await fn(...args);
-      await timer.end({ args: args.length });
-      return result;
-    } catch (error) {
-      await timer.endWithError(error as Error, { args: args.length });
-      throw error;
-    }
-  }) as T;
-} 

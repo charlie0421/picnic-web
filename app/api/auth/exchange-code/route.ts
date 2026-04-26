@@ -7,8 +7,6 @@ import { getSocialAuthService } from '@/lib/supabase/social/service';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔧 [API] OAuth 코드 교환 시작');
-    
     const body = await request.json();
     const { code, provider, user, id_token, state } = body;
 
@@ -19,14 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🔐 [API] OAuth 코드 수신:', { 
-      code: code.substring(0, 10) + '...', 
-      provider,
-      hasAppleUser: !!user,
-      hasAppleIdToken: !!id_token
-    });
-
-    // 🚀 서버사이드 Supabase 클라이언트 생성
+    // 서버사이드 Supabase 클라이언트 생성
     const cookieStore = await cookies();
     
     const supabase = createServerClient(
@@ -38,56 +29,48 @@ export async function POST(request: NextRequest) {
             return cookieStore.get(name)?.value;
           },
           set(name: string, value: string, options: any) {
-            cookieStore.set({ name, value, ...options });
+            // 분할 쿠키가 생성될 수 있도록 넓은 경로/도메인 설정을 허용
+            cookieStore.set({ name, value, ...options, path: '/', sameSite: 'lax' });
           },
           remove(name: string, options: any) {
-            cookieStore.set({ name, value: '', ...options });
+            cookieStore.set({ name, value: '', ...options, path: '/', sameSite: 'lax' });
           },
         },
       }
     );
 
-    console.log('🔧 [API] 서버사이드 Supabase 클라이언트 생성 완료');
-
-    // 모든 제공자 동일 처리: 표준 Supabase OAuth만 사용
-
-    // 🌐 모든 제공자 공통: 표준 Supabase OAuth 사용
-    console.log('🌐 [API] 표준 Supabase OAuth 사용 (모든 제공자 동일)');
-    
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
+      // SECURITY: never echo Supabase auth error details to clients —
+      // they leak project metadata and internal state useful to attackers.
       console.error('❌ [API] OAuth 코드 교환 실패:', error);
       return NextResponse.json(
-        { 
-          error: `OAuth 코드 교환 실패: ${error.message}`, 
-          success: false,
-          details: error 
-        },
+        { error: 'OAuth 코드 교환 실패', success: false },
         { status: 400 }
       );
     }
 
     if (!data?.session) {
-      console.error('❌ [API] 세션이 생성되지 않음');
       return NextResponse.json(
         { error: '세션이 생성되지 않았습니다', success: false },
         { status: 400 }
       );
     }
 
-    console.log('✅ [API] OAuth 인증 성공:', {
-      hasSession: !!data.session,
-      hasUser: !!data.user,
-      userId: data.user?.id?.substring(0, 8) + '...',
-      provider: data.user?.app_metadata?.provider
-    });
+    // 로그인 직후: IP/국가 추적 함수 호출(비차단, 실패 무시)
+    try {
+      supabase
+        .functions
+        .invoke('track-country', { body: { source: 'login' } })
+        .catch(() => {});
+    } catch {
+      // track-country 실패는 무시
+    }
 
     // 🍎 Apple 특화 프로필 처리 (또는 다른 소셜 프로필 처리)
     if (provider && ['apple', 'google'].includes(provider)) {
       try {
-        console.log(`🔧 [API] ${provider} 프로필 처리 시작`);
-        
         // SocialAuthService를 통한 프로필 처리
         const socialAuthService = getSocialAuthService(supabase);
         
@@ -105,13 +88,11 @@ export async function POST(request: NextRequest) {
           callbackParams
         );
         
-        if (callbackResult.success) {
-          console.log(`✅ [API] ${provider} 프로필 처리 성공`);
-        } else {
-          console.error(`❌ [API] ${provider} 프로필 처리 실패:`, callbackResult.error?.message);
+        if (!callbackResult.success) {
+          console.error(`[API] ${provider} 프로필 처리 실패:`, callbackResult.error?.message);
         }
       } catch (profileError) {
-        console.error(`❌ [API] ${provider} 프로필 처리 중 오류:`, profileError);
+        console.error(`[API] ${provider} 프로필 처리 중 오류:`, profileError);
         // 프로필 처리 실패해도 로그인 자체는 성공으로 처리
       }
     }
@@ -126,15 +107,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
-    console.error('❌ [API] 서버 오류:', error);
+  } catch (error) {
+    // SECURITY: stack traces and raw error messages must not reach API
+    // responses, even in development — client-side telemetry can capture
+    // them and forward to third parties.
+    console.error('[API] exchange-code 서버 오류:', error);
     return NextResponse.json(
-      { 
-        error: `서버 오류: ${error.message}`, 
-        success: false,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { error: '서버 오류가 발생했습니다.', success: false },
       { status: 500 }
     );
   }
-} 
+}

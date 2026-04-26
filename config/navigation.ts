@@ -5,7 +5,7 @@ export interface PortalMenuItem {
     name: string;
     path: string;
     type: string;
-    should_admin?: boolean;
+    adminOnly?: boolean;
     should_login?: boolean;
     isActive?: boolean;
     subMenus?: MenuItem[];
@@ -16,9 +16,8 @@ export interface MenuItem {
     name: string;
     path: string;
     i18nKey?: string;
-    should_admin?: boolean;
+    adminOnly?: boolean;
     should_login?: boolean;
     isActive?: boolean;
 }
 
-export const PORTAL_MENU: PortalMenuItem[] = menuConfig.portals;

@@ -1,114 +1,18 @@
-'use server';
+import 'server-only';
 
 import { cache } from "react";
 import { createSupabaseServerClient, createPublicSupabaseServerClient } from '@/lib/supabase/server';
-import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
-import { SupabaseClient } from "@supabase/supabase-js";
+import { VOTE_STATUS } from '@/stores/voteFilterStore';
+import { Vote } from "@/types/interfaces";
+import {
+  VoteWithRelations,
+  VOTE_DETAIL_SELECT,
+  transformVoteData,
+  buildVoteQuery,
+} from './vote-service-query';
 
-// 기본 투표 테이블 조회 쿼리
-const DEFAULT_VOTE_QUERY = `
-  *,
-  vote_item!vote_id (
-    id,
-    vote_id,
-    artist_id,
-    group_id,
-    vote_total,
-    created_at,
-    updated_at,
-    deleted_at,
-    artist (
-      id,
-      name,
-      image,
-      artist_group (
-        id,
-        name
-      )
-    )
-  ),
-  vote_reward (
-    reward_id,
-    reward:reward_id (*)
-  )
-`;
-
-/**
- * 투표 데이터를 표준 형식으로 변환
- */
-function transformVoteData(data: any[]): Vote[] {
-  return data.map((vote) => {
-    const voteItem: VoteItem[] = vote.vote_item?.map((item: any) => ({
-      ...item,
-      artist: item.artist
-        ? {
-          id: item.artist.id,
-          name: item.artist.name,
-          image: item.artist.image,
-          artistGroup: item.artist.artist_group,
-        }
-        : null,
-    })) || [];
-
-    const voteReward: VoteReward[] = vote.vote_reward?.map((vr: any) => ({
-      ...vr,
-      reward: vr.reward
-        ? {
-            id: vr.reward.id,
-            title: vr.reward.title,
-            thumbnail: vr.reward.thumbnail,
-          }
-        : null,
-    })) || [];
-
-    return {
-      ...vote,
-      voteItem,
-      voteReward,
-    };
-  });
-}
-
-/**
- * 공통 투표 쿼리 빌더
- */
-function buildVoteQuery(
-  client: SupabaseClient,
-  status?: string,
-  area?: string,
-) {
-  let query = client
-    .from("vote")
-    .select(DEFAULT_VOTE_QUERY)
-    .is("deleted_at", null)
-    .lte("visible_at", new Date().toISOString());
-
-  // 상태 필터링
-  if (status) {
-    const now = new Date().toISOString();
-
-    switch (status) {
-      case "upcoming":
-        query = query.gt("start_at", now);
-        break;
-      case "ongoing":
-        query = query
-          .lte("start_at", now)
-          .gt("stop_at", now);
-        break;
-      case "completed":
-        query = query.lte("stop_at", now);
-        break;
-    }
-  }
-
-  // 지역 필터링 - 'all'인 경우 필터링하지 않음
-  if (area && area !== 'all') {
-    query = query.eq("area", area);
-  }
-
-  return query.order("start_at", { ascending: false });
-}
+// Re-export types/utilities so existing deep imports (if any) keep working
+export type { VoteWithRelations };
 
 
 /**
@@ -117,10 +21,22 @@ function buildVoteQuery(
 export const getVotes = cache(async (
   status?: string,
   area?: string,
-): Promise<Vote[]> => {
+  page?: number,
+  limit?: number,
+): Promise<VoteWithRelations[]> => {
   try {
     const client = createPublicSupabaseServerClient();
-    const query = buildVoteQuery(client, status, area);
+    let query = buildVoteQuery(client, status, area);
+
+    // 페이지네이션이 지정된 경우에만 range 적용 (기본: 전체)
+    if (page && limit) {
+      const p = Math.max(1, page);
+      const l = Math.max(1, Math.min(50, limit));
+      const from = (p - 1) * l;
+      const to = from + l - 1;
+      query = query.range(from, to);
+    }
+
     const { data, error } = await query;
 
     if (error) {
@@ -128,7 +44,39 @@ export const getVotes = cache(async (
       return [];
     }
 
-    return transformVoteData(data || []);
+    const transformedVotes = transformVoteData(data || []);
+
+    if (status === VOTE_STATUS.ONGOING || status === VOTE_STATUS.COMPLETED) {
+      const MAX_TOP_ITEMS = 3;
+
+      return transformedVotes.map((vote) => {
+        const items = vote.voteItem || [];
+        const limitedItems = items.slice(0, MAX_TOP_ITEMS);
+
+        return {
+          ...vote,
+          voteItem: limitedItems,
+          vote_item: limitedItems,
+        };
+      });
+    }
+
+    if (status === VOTE_STATUS.UPCOMING) {
+      const MAX_UPCOMING_ITEMS = 24;
+
+      return transformedVotes.map((vote) => {
+        const items = vote.voteItem || [];
+        const limitedItems = items.slice(0, MAX_UPCOMING_ITEMS);
+
+        return {
+          ...vote,
+          voteItem: limitedItems,
+          vote_item: limitedItems,
+        };
+      });
+    }
+
+    return transformedVotes;
   } catch (e) {
     console.error("[getVotes] 에러:", e);
     return [];
@@ -146,7 +94,7 @@ export const getVoteById = cache(async (
     const client = createPublicSupabaseServerClient();
     const { data, error } = await client
       .from("vote")
-      .select(DEFAULT_VOTE_QUERY)
+      .select(VOTE_DETAIL_SELECT)
       .eq("id", id)
       .is("deleted_at", null)
       .single();

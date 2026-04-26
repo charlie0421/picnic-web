@@ -1,27 +1,28 @@
 import { ReactNode } from 'react';
-import { Inter } from 'next/font/google';
 import './globals.css';
-import './layout.css';
 import { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import ClientLayout from './ClientLayout';
+import VoteLiteClientLayout from './VoteLiteClientLayout';
 import { DEFAULT_METADATA } from './utils/metadata-utils';
-
-const inter = Inter({ subsets: ['latin'] });
 
 
 // 정적 경로 생성을 위한 `generateStaticParams`
 export async function generateStaticParams() {
-  // 사용 가능한 언어 목록 (예: 'ko', 'en', 'ja')
-  // 실제 프로젝트에서는 이 목록을 동적으로 가져올 수 있습니다 (예: i18n 설정 파일)
-  const languages = ['ko', 'en', 'ja', 'id', 'th'];
-  return languages.map((lang) => ({ lang }));
+  // config/settings.ts의 SUPPORTED_LANGUAGES 중, 빌드가 보장된 언어만 정적으로 생성
+  const { SUPPORTED_LANGUAGES } = await import('@/config/settings');
+  const STATIC_LANGS = new Set(['en', 'ko', 'my']);
+  return SUPPORTED_LANGUAGES
+    .filter((lang) => STATIC_LANGS.has(lang as any))
+    .map((lang) => ({ lang }));
 }
 
 // Next.js 15에서 요구하는 viewport 내보내기
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 
@@ -71,6 +72,24 @@ export default async function LanguageLayout({
   params: Promise<{ lang: string }>;
 }) {
   const params = await paramsPromise;
+  // 특정 경로에서는 무거운 클라이언트 레이아웃을 우회 (인앱 호환성 개선)
+  const headersList = await headers();
+  const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
+  const isOpenInBrowser = pathname.includes('/open-in-browser');
+  const isVotePath = /^\/[a-z]{2}(?:-[a-z]{2})?\/vote(?:\/|$)/.test(pathname);
+
+  if (isOpenInBrowser) {
+    return <>{children}</>;
+  }
+
+  if (isVotePath) {
+    return (
+      <VoteLiteClientLayout initialLanguage={params.lang}>
+        {children}
+      </VoteLiteClientLayout>
+    );
+  }
+
   return (
     <ClientLayout initialLanguage={params.lang}>
       {children}

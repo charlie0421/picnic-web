@@ -1,11 +1,16 @@
-import { VoteListPresenter, VoteFilterSection } from '@/components/client/vote/list';
+import { VoteFilterSectionDeferred, VoteListCSR } from '@/components/client/vote/list';
 import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
+import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import { getVotes } from '@/lib/data-fetching/server/vote-service';
+import { Vote } from '@/types/interfaces';
 
 interface VoteListFetcherProps {
   status: VoteStatus;
   area: VoteArea;
   className?: string;
+  locale?: string;
+  prefetchedVotesPromise?: Promise<Vote[]>;
+  safeStatusOverride?: Promise<VoteStatus> | VoteStatus;
 }
 
 /**
@@ -21,17 +26,58 @@ interface VoteListFetcherProps {
  * <VoteListFetcher status="ongoing" area="all" className="my-4" />
  * ```
  */
-export async function VoteListFetcher({ 
-  status = VOTE_STATUS.ONGOING, 
-  area = VOTE_AREAS.ALL, 
-  className 
+export async function VoteListFetcher({
+  status = VOTE_STATUS.ONGOING,
+  area = VOTE_AREAS.ALL,
+  className,
+  locale,
+  prefetchedVotesPromise,
+  safeStatusOverride,
 }: VoteListFetcherProps) {
-  const votes = await getVotes(status, area);
-  
+  // Admin 보호: status가 admin인 경우 서버에서 관리자 권한 확인
+  let safeStatus: VoteStatus;
+  if (safeStatusOverride) {
+    safeStatus = await safeStatusOverride;
+  } else {
+    const userContext = await getCurrentUserContext();
+    const isAdmin = (userContext as any)?.isAdmin === true;
+    safeStatus =
+      status === VOTE_STATUS.ADMIN
+        ? (isAdmin ? VOTE_STATUS.ADMIN : VOTE_STATUS.ONGOING)
+        : status;
+  }
+
+  // 초기에는 1페이지만 로드 (CSR 더보기/무한스크롤이 이어받음)
+  const votes = prefetchedVotesPromise
+    ? await prefetchedVotesPromise
+    : await getVotes(safeStatus, area, 1, 12);
+
+  if (!votes || votes.length === 0) {
+    return (
+      <div className={className}>
+        <VoteFilterSectionDeferred />
+        <VoteShowcaseFallback locale={locale} />
+      </div>
+    );
+  }
+
   return (
     <div className={className}>
-      <VoteFilterSection />
-      <VoteListPresenter votes={votes} />
+      <VoteFilterSectionDeferred />
+      <VoteListCSR initialVotes={votes} initialLocale={locale} />
+    </div>
+  );
+}
+
+function VoteShowcaseFallback({ locale }: { locale?: string }) {
+  const isEnglish = locale?.startsWith('en');
+  const message = isEnglish
+    ? 'No votes available.'
+    : '해당되는 투표가 없습니다.';
+
+  return (
+    <div className='text-center py-8'>
+      <p className='text-gray-500'>{message}</p>
     </div>
   );
 }

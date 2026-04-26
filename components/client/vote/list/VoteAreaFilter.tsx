@@ -15,65 +15,58 @@ const VoteAreaFilter = React.memo(
     const { t } = useLanguageStore();
     const isTranslationReady = useTranslationReady();
 
+    const fallbackTexts: Record<VoteArea, string> = {
+      [VOTE_AREAS.ALL]: 'All',
+      [VOTE_AREAS.KPOP]: 'K-POP',
+      [VOTE_AREAS.MUSICAL]: 'Musical',
+      [VOTE_AREAS.PIC_CHART]: 'PIC-CHART',
+    };
+
     const getAreaText = (area: VoteArea) => {
       if (!isTranslationReady) {
-        // 번역이 로드되지 않은 경우 fallback 텍스트 사용
-        switch (area) {
-          case VOTE_AREAS.ALL:
-            return t('vote_area_fallback_all');
-          case VOTE_AREAS.KPOP:
-            return t('vote_area_fallback_kpop');
-          case VOTE_AREAS.MUSICAL:
-            return t('vote_area_fallback_musical');
-          default:
-            return '';
-        }
+        return fallbackTexts[area];
       }
 
       switch (area) {
         case VOTE_AREAS.ALL:
-          return t('label_area_filter_all');
+          return t('label_area_filter_all') || fallbackTexts[area];
         case VOTE_AREAS.KPOP:
-          return t('label_area_filter_kpop');
+          return t('label_area_filter_kpop') || fallbackTexts[area];
         case VOTE_AREAS.MUSICAL:
-          return t('label_area_filter_musical');
+          return t('label_area_filter_musical') || fallbackTexts[area];
+        case VOTE_AREAS.PIC_CHART:
+          return t('label_area_filter_pic_chart') || fallbackTexts[area];
         default:
-          return '';
+          return fallbackTexts[area];
       }
     };
 
     const getAriaLabel = (area: VoteArea) => {
       if (!isTranslationReady) {
-        switch (area) {
-          case VOTE_AREAS.ALL:
-            return t('vote_area_aria_all');
-          case VOTE_AREAS.KPOP:
-            return t('vote_area_aria_kpop');
-          case VOTE_AREAS.MUSICAL:
-            return t('vote_area_aria_musical');
-          default:
-            return '';
-        }
+        return fallbackTexts[area];
       }
 
       switch (area) {
         case VOTE_AREAS.ALL:
-          return t('label_area_filter_all');
+          return t('label_area_filter_all') || fallbackTexts[area];
         case VOTE_AREAS.KPOP:
-          return t('label_area_filter_kpop');
+          return t('label_area_filter_kpop') || fallbackTexts[area];
         case VOTE_AREAS.MUSICAL:
-          return t('label_area_filter_musical');
+          return t('label_area_filter_musical') || fallbackTexts[area];
+        case VOTE_AREAS.PIC_CHART:
+          return t('label_area_filter_pic_chart') || fallbackTexts[area];
         default:
-          return '';
+          return fallbackTexts[area];
       }
     };
 
-    const getButtonClasses = (area: VoteArea) => 
-      `px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
+    const getButtonClasses = (area: VoteArea) =>
+      [
+        'px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
         selectedArea === area
           ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-          : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-      }`;
+          : 'bg-white text-primary-700 border border-primary/40 hover:bg-primary/10 hover:text-primary-700 hover:shadow-sm',
+      ].join(' ');
 
     return (
       <div className='flex flex-wrap justify-start gap-1 sm:gap-1.5 bg-white/50 backdrop-blur-sm p-1.5 rounded-lg shadow-sm border border-gray-100'>
@@ -100,6 +93,14 @@ const VoteAreaFilter = React.memo(
           aria-pressed={selectedArea === VOTE_AREAS.MUSICAL}
         >
           {getAreaText(VOTE_AREAS.MUSICAL)}
+        </button>
+        <button
+          onClick={() => onAreaChange(VOTE_AREAS.PIC_CHART)}
+          className={getButtonClasses(VOTE_AREAS.PIC_CHART)}
+          aria-label={getAriaLabel(VOTE_AREAS.PIC_CHART)}
+          aria-pressed={selectedArea === VOTE_AREAS.PIC_CHART}
+        >
+          {getAreaText(VOTE_AREAS.PIC_CHART)}
         </button>
       </div>
     );

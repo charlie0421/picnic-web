@@ -12,19 +12,13 @@ export function useLanguage() {
 
   // 현재 언어 추출
   const getCurrentLanguage = useCallback((): SupportedLanguage => {
-    const lang = pathname.split('/')[1];
-    switch (lang) {
-      case 'ko':
-        return 'ko';
-      case 'ja':
-        return 'ja';
-      case 'zh':
-        return 'zh';
-      case 'id':
-        return 'id';
-      default:
-        return 'en';
-    }
+    const segment = (pathname.split('/')[1] || '').toLowerCase();
+    const match = segment.match(/^([a-z]{2}(?:-[a-z]{2})?)$/i);
+    const candidate = (match ? match[1] : 'en').toLowerCase();
+    const supported: SupportedLanguage[] = ['en','ko','ja','zh-cn','zh-tw','id','es','bn','tl','th','vi','my'];
+    // 레거시 경로 호환: '/zh' 는 'zh-cn' 으로 간주
+    const normalized = candidate === 'zh' ? 'zh-cn' : candidate;
+    return (supported.includes(normalized as SupportedLanguage) ? normalized : 'en') as SupportedLanguage;
   }, [pathname]);
 
   // 기본 날짜 포맷팅 (기존 호환성 유지)

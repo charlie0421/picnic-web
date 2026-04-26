@@ -1,18 +1,24 @@
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://picnic.com';
+const DEFAULT_SITE_URL = 'https://www.picnic.fan';
+
+export const SITE_URL =
+  (process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? DEFAULT_SITE_URL);
 
 /**
  * 사이트맵 및 SEO 도구에서 사용하는 정적 페이지 목록
  */
 export const STATIC_PAGES = [
     '/',
-    '/login',
     '/media',
     '/vote',
     '/rewards',
-    '/mypage',
     '/faq',
     '/notice',
-    '/streaming-example',
+    '/community',
+    '/concert2025',
+    '/star-candy',
+    '/download',
+    '/terms',
+    '/privacy',
 ];
 
 /**

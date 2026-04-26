@@ -122,7 +122,7 @@ export interface LoginRequiredDialogProps
 
 // DialogProvider Context 타입
 export interface DialogContextType {
-    showDialog: (props: DialogProps) => void;
+    showDialog: (props: Omit<DialogProps, 'isOpen' | 'onClose'>) => void;
     showActionDialog: (props: ActionDialogProps) => Promise<boolean>;
     showConfirmDialog: (props: ConfirmDialogProps) => Promise<boolean>;
     showAlertDialog: (props: AlertDialogProps) => Promise<void>;
@@ -135,7 +135,7 @@ export interface DialogContextType {
 // 다이얼로그 상태
 export interface DialogState {
     isOpen: boolean;
-    type: "dialog" | "action" | "confirm" | "alert" | "loginRequired";
+    type: "dialog" | "action" | "confirm" | "alert" | "loginRequired" | "withdrawnUser";
     props: any;
     resolve?: (value: any) => void;
 }

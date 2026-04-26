@@ -2,7 +2,6 @@
 
 import { useCallback } from 'react';
 import Link from 'next/link';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTranslations } from '@/hooks/useTranslations';
 import { MypageHeader } from '@/components/mypage/MypageHeader';

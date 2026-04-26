@@ -1,38 +1,37 @@
-import { AuthCallbackClient } from '@/components/client/auth';
+// app/auth/callback/[provider]/page.tsx
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 
-interface CallbackPageProps {
-  params: Promise<{ provider: string }>;
-}
+export const dynamic = 'force-dynamic';
 
-export default async function CallbackPage({ params }: CallbackPageProps) {
-  // Next.js 15 요구사항: params를 await로 unwrap
-  const { provider } = await params;
-  
-  return (
-    <>
-      {/* 전역 로딩바 즉시 시작 */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            // OAuth 콜백 페이지 진입 즉시 전역 로딩바 시작
-            (function() {
-              console.log('🔄 [OAuth Callback] ${provider} 콜백 페이지 진입 - 전역 로딩바 시작');
-              
-              // 전역 로딩바 즉시 표시
-              try {
-                const event = new CustomEvent('startGlobalLoading', { detail: { reason: 'oauth-callback' } });
-                window.dispatchEvent(event);
-                console.log('🚀 [OAuth Callback] 전역 로딩바 이벤트 발송 완료');
-              } catch (error) {
-                console.warn('⚠️ [OAuth Callback] 전역 로딩바 이벤트 발송 실패:', error);
-              }
-            })();
-          `
-        }}
-      />
+/**
+ * 각 OAuth 제공자별 콜백을 처리하는 라우트 핸들러.
+ * 빌드 오류를 해결하기 위해 props 타입을 any로 지정합니다.
+ */
+export default async function ProviderCallbackPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const codeParam = params?.code;
+  const returnToParam = params?.returnTo;
+  const returnUrlParam = params?.return_url; // Supabase OAuth query param
+  const cookieHeader = await cookies();
 
-      {/* 클라이언트 컴포넌트 */}
-      <AuthCallbackClient provider={provider} />
-    </>
-  );
+  const code = Array.isArray(codeParam) ? codeParam[0] : codeParam;
+  const returnTo = Array.isArray(returnToParam) ? returnToParam[0] : returnToParam;
+  const returnUrl = Array.isArray(returnUrlParam) ? returnUrlParam[0] : returnUrlParam;
+  const cookieReturn = cookieHeader.get('auth_return_url')?.value;
+
+  if (code) {
+    const finalReturn = returnTo || returnUrl || cookieReturn || '/';
+    // 서버 라우트에서 코드 교환 및 쿠키 세팅을 보장하기 위해 API 콜백으로 위임
+    const nextParam = encodeURIComponent(finalReturn);
+    redirect(`/api/auth/callback?code=${code}&next=${nextParam}`);
+  } else {
+    redirect('/login?error=auth_code_missing');
+  }
+
+  return null;
 }

@@ -80,11 +80,6 @@ export function getProviderInfo(provider: AuthProvider) {
       name: 'Apple',
       icon: '🍎',
       color: 'bg-black hover:bg-gray-900 text-white'
-    },
-    wechat: {
-      name: 'WeChat',
-      icon: '💚',
-      color: 'bg-green-500 hover:bg-green-600 text-white'
     }
   };
   

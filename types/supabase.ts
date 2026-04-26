@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.3 (519615d)"
+  }
   public: {
     Tables: {
       activities: {
@@ -47,6 +52,187 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      ad_campaigns: {
+        Row: {
+          advertiser: string | null
+          created_at: string | null
+          cta_url: string | null
+          id: string
+          is_default: boolean
+          reward_comment: number
+          reward_like: number
+          reward_more: number
+          reward_subscribe: number
+          reward_view: number
+          served_count: number
+          status: string
+          title: string
+          total_cap: number | null
+          updated_at: string | null
+          video_key: string
+          visible_from: string | null
+          visible_to: string | null
+          weight: number
+        }
+        Insert: {
+          advertiser?: string | null
+          created_at?: string | null
+          cta_url?: string | null
+          id?: string
+          is_default?: boolean
+          reward_comment?: number
+          reward_like?: number
+          reward_more?: number
+          reward_subscribe?: number
+          reward_view?: number
+          served_count?: number
+          status?: string
+          title: string
+          total_cap?: number | null
+          updated_at?: string | null
+          video_key: string
+          visible_from?: string | null
+          visible_to?: string | null
+          weight?: number
+        }
+        Update: {
+          advertiser?: string | null
+          created_at?: string | null
+          cta_url?: string | null
+          id?: string
+          is_default?: boolean
+          reward_comment?: number
+          reward_like?: number
+          reward_more?: number
+          reward_subscribe?: number
+          reward_view?: number
+          served_count?: number
+          status?: string
+          title?: string
+          total_cap?: number | null
+          updated_at?: string | null
+          video_key?: string
+          visible_from?: string | null
+          visible_to?: string | null
+          weight?: number
+        }
+        Relationships: []
+      }
+      ad_impressions: {
+        Row: {
+          ad_id: string
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          ip_hash: string | null
+          issue_expires_at: string | null
+          issue_jti: string | null
+          issued_at: string
+          more_completed_at: string | null
+          more_reward_granted_at: string | null
+          user_agent: string | null
+          user_id: string
+          view_reward_granted_at: string | null
+        }
+        Insert: {
+          ad_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          issue_expires_at?: string | null
+          issue_jti?: string | null
+          issued_at?: string
+          more_completed_at?: string | null
+          more_reward_granted_at?: string | null
+          user_agent?: string | null
+          user_id: string
+          view_reward_granted_at?: string | null
+        }
+        Update: {
+          ad_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          issue_expires_at?: string | null
+          issue_jti?: string | null
+          issued_at?: string
+          more_completed_at?: string | null
+          more_reward_granted_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+          view_reward_granted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_impressions_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_impressions_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns_active"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_reward_events: {
+        Row: {
+          ad_id: string
+          amount: number
+          created_at: string | null
+          id: string
+          impression_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          ad_id: string
+          amount: number
+          created_at?: string | null
+          id?: string
+          impression_id: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          ad_id?: string
+          amount?: number
+          created_at?: string | null
+          id?: string
+          impression_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_reward_events_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_reward_events_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_reward_events_impression_id_fkey"
+            columns: ["impression_id"]
+            isOneToOne: false
+            referencedRelation: "ad_impressions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       admin_permissions: {
         Row: {
@@ -170,11 +356,41 @@ export type Database = {
           },
         ]
       }
+      admin_whitelist: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          email: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       album: {
         Row: {
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           title: string | null
           updated_at: string | null
           user_id: number | null
@@ -182,7 +398,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id: number
           title?: string | null
           updated_at?: string | null
           user_id?: number | null
@@ -190,7 +406,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: number
           title?: string | null
           updated_at?: string | null
           user_id?: number | null
@@ -199,31 +415,31 @@ export type Database = {
       }
       album_image: {
         Row: {
-          album_id: number | null
-          image_id: number | null
+          album_id: number
+          image_id: number
         }
         Insert: {
-          album_id?: number | null
-          image_id?: number | null
+          album_id: number
+          image_id: number
         }
         Update: {
-          album_id?: number | null
-          image_id?: number | null
+          album_id?: number
+          image_id?: number
         }
         Relationships: []
       }
       album_image_user: {
         Row: {
-          image_id: number | null
-          user_id: number | null
+          image_id: number
+          user_id: number
         }
         Insert: {
-          image_id?: number | null
-          user_id?: number | null
+          image_id: number
+          user_id: number
         }
         Update: {
-          image_id?: number | null
-          user_id?: number | null
+          image_id?: number
+          user_id?: number
         }
         Relationships: []
       }
@@ -268,11 +484,13 @@ export type Database = {
           data: string | null
           environment: string | null
           id: string
+          id_old: string
           level: string
           line_number: number | null
           message: string
           platform: string | null
           request_id: string | null
+          rid: string
           session_id: string | null
           source_file: string | null
           stack_trace: string | null
@@ -285,12 +503,14 @@ export type Database = {
           created_at?: string
           data?: string | null
           environment?: string | null
-          id: string
+          id?: string
+          id_old: string
           level: string
           line_number?: number | null
           message: string
           platform?: string | null
           request_id?: string | null
+          rid?: string
           session_id?: string | null
           source_file?: string | null
           stack_trace?: string | null
@@ -304,11 +524,13 @@ export type Database = {
           data?: string | null
           environment?: string | null
           id?: string
+          id_old?: string
           level?: string
           line_number?: number | null
           message?: string
           platform?: string | null
           request_id?: string | null
+          rid?: string
           session_id?: string | null
           source_file?: string | null
           stack_trace?: string | null
@@ -325,7 +547,6 @@ export type Database = {
           deleted_at: string | null
           gallery_id: number
           id: number
-          title_en: string | null
           title_ko: string | null
           updated_at: string | null
         }
@@ -336,7 +557,6 @@ export type Database = {
           deleted_at?: string | null
           gallery_id: number
           id?: number
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string | null
         }
@@ -347,7 +567,6 @@ export type Database = {
           deleted_at?: string | null
           gallery_id?: number
           id?: number
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string | null
         }
@@ -368,7 +587,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           likes: number | null
           parent_id: number | null
           updated_at: string | null
@@ -380,7 +599,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           likes?: number | null
           parent_id?: number | null
           updated_at?: string | null
@@ -392,7 +611,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           likes?: number | null
           parent_id?: number | null
           updated_at?: string | null
@@ -402,31 +621,31 @@ export type Database = {
       }
       article_comment_like: {
         Row: {
-          comment_id: number | null
-          user_id: number | null
+          comment_id: number
+          user_id: number
         }
         Insert: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id: number
+          user_id: number
         }
         Update: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id?: number
+          user_id?: number
         }
         Relationships: []
       }
       article_comment_report: {
         Row: {
-          comment_id: number | null
-          user_id: number | null
+          comment_id: number
+          user_id: number
         }
         Insert: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id: number
+          user_id: number
         }
         Update: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id?: number
+          user_id?: number
         }
         Relationships: []
       }
@@ -438,7 +657,6 @@ export type Database = {
           id: number
           image: string | null
           order: number | null
-          title_en: string | null
           title_ko: string | null
           updated_at: string | null
         }
@@ -449,7 +667,6 @@ export type Database = {
           id?: number
           image?: string | null
           order?: number | null
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string | null
         }
@@ -460,7 +677,6 @@ export type Database = {
           id?: number
           image?: string | null
           order?: number | null
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string | null
         }
@@ -513,9 +729,12 @@ export type Database = {
           image: string | null
           is_kpop: boolean
           is_musical: boolean
+          is_partnership: boolean | null
           is_solo: boolean
           mm: number | null
           name: Json | null
+          partner: string | null
+          partner_data: string | null
           updated_at: string
           yy: number | null
         }
@@ -534,9 +753,12 @@ export type Database = {
           image?: string | null
           is_kpop?: boolean
           is_musical?: boolean
+          is_partnership?: boolean | null
           is_solo?: boolean
           mm?: number | null
           name?: Json | null
+          partner?: string | null
+          partner_data?: string | null
           updated_at?: string
           yy?: number | null
         }
@@ -555,9 +777,12 @@ export type Database = {
           image?: string | null
           is_kpop?: boolean
           is_musical?: boolean
+          is_partnership?: boolean | null
           is_solo?: boolean
           mm?: number | null
           name?: Json | null
+          partner?: string | null
+          partner_data?: string | null
           updated_at?: string
           yy?: number | null
         }
@@ -644,11 +869,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "artist_user_bookmark_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "artist_user_bookmark_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "artist_user_bookmark_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+          {
             foreignKeyName: "artist_user_bookmark_user_profiles_id_fk"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_user_bookmark_user_profiles_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -732,6 +985,132 @@ export type Database = {
           },
         ]
       }
+      attendance_check: {
+        Row: {
+          check_date: string
+          created_at: string
+          id: number
+          reward_amount: number
+          user_id: string
+          weekly_bonus_amount: number
+        }
+        Insert: {
+          check_date: string
+          created_at?: string
+          id?: never
+          reward_amount?: number
+          user_id: string
+          weekly_bonus_amount?: number
+        }
+        Update: {
+          check_date?: string
+          created_at?: string
+          id?: never
+          reward_amount?: number
+          user_id?: string
+          weekly_bonus_amount?: number
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action_description: string
+          action_type: string
+          changed_fields: string | null
+          classification: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          id_old: string
+          ip_address: string | null
+          metadata: string | null
+          method: string | null
+          new_values: string | null
+          old_values: string | null
+          resource_id: string | null
+          resource_name: string | null
+          resource_type: string
+          retention_period: number | null
+          rid: string
+          session_id: string | null
+          severity: string
+          status_code: number | null
+          success: boolean
+          tags: string | null
+          timestamp: string
+          updated_at: string
+          url: string | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+          user_roles: string | null
+        }
+        Insert: {
+          action_description: string
+          action_type: string
+          changed_fields?: string | null
+          classification?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          id_old: string
+          ip_address?: string | null
+          metadata?: string | null
+          method?: string | null
+          new_values?: string | null
+          old_values?: string | null
+          resource_id?: string | null
+          resource_name?: string | null
+          resource_type: string
+          retention_period?: number | null
+          rid?: string
+          session_id?: string | null
+          severity: string
+          status_code?: number | null
+          success?: boolean
+          tags?: string | null
+          timestamp?: string
+          updated_at?: string
+          url?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_roles?: string | null
+        }
+        Update: {
+          action_description?: string
+          action_type?: string
+          changed_fields?: string | null
+          classification?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          id_old?: string
+          ip_address?: string | null
+          metadata?: string | null
+          method?: string | null
+          new_values?: string | null
+          old_values?: string | null
+          resource_id?: string | null
+          resource_name?: string | null
+          resource_type?: string
+          retention_period?: number | null
+          rid?: string
+          session_id?: string | null
+          severity?: string
+          status_code?: number | null
+          success?: boolean
+          tags?: string | null
+          timestamp?: string
+          updated_at?: string
+          url?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_roles?: string | null
+        }
+        Relationships: []
+      }
       awsdms_ddl_audit: {
         Row: {
           c_ddlqry: string | null
@@ -778,6 +1157,8 @@ export type Database = {
           id: number
           image: Json | null
           link: string | null
+          link_target_id: number | null
+          link_type: string | null
           location: string | null
           order: number | null
           start_at: string | null
@@ -794,6 +1175,8 @@ export type Database = {
           id?: number
           image?: Json | null
           link?: string | null
+          link_target_id?: number | null
+          link_type?: string | null
           location?: string | null
           order?: number | null
           start_at?: string | null
@@ -810,6 +1193,8 @@ export type Database = {
           id?: number
           image?: Json | null
           link?: string | null
+          link_target_id?: number | null
+          link_type?: string | null
           location?: string | null
           order?: number | null
           start_at?: string | null
@@ -849,18 +1234,45 @@ export type Database = {
       blocked_ips: {
         Row: {
           blocked_at: string | null
+          id: number
           ip_address: string
           reason: string | null
+          rid: string
         }
         Insert: {
           blocked_at?: string | null
+          id?: never
           ip_address: string
           reason?: string | null
+          rid?: string
         }
         Update: {
           blocked_at?: string | null
+          id?: never
           ip_address?: string
           reason?: string | null
+          rid?: string
+        }
+        Relationships: []
+      }
+      board_user_bookmark: {
+        Row: {
+          board_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -924,6 +1336,27 @@ export type Database = {
             referencedRelation: "artist"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_boards_artist"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fk_boards_artist"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fk_boards_artist"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       bonus_expiry_log: {
@@ -947,12 +1380,44 @@ export type Database = {
         }
         Relationships: []
       }
+      broadcast_notifications: {
+        Row: {
+          action_url: string | null
+          body: string
+          created_at: string
+          created_by: string | null
+          data: Json | null
+          id: number
+          title: string
+          type: string
+        }
+        Insert: {
+          action_url?: string | null
+          body: string
+          created_at?: string
+          created_by?: string | null
+          data?: Json | null
+          id?: number
+          title: string
+          type?: string
+        }
+        Update: {
+          action_url?: string | null
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          data?: Json | null
+          id?: number
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       celeb: {
         Row: {
           created_at: string | null
           deleted_at: string | null
           id: number
-          name_en: string | null
           name_ko: string | null
           thumbnail: string | null
           updated_at: string | null
@@ -961,7 +1426,6 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
-          name_en?: string | null
           name_ko?: string | null
           thumbnail?: string | null
           updated_at?: string | null
@@ -970,7 +1434,6 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
-          name_en?: string | null
           name_ko?: string | null
           thumbnail?: string | null
           updated_at?: string | null
@@ -980,15 +1443,15 @@ export type Database = {
       celeb_bookmark_user: {
         Row: {
           celeb_id: number
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           celeb_id: number
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           celeb_id?: number
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -1037,7 +1500,7 @@ export type Database = {
       }
       comment_reports: {
         Row: {
-          comment_id: string | null
+          comment_id: string
           comment_report_id: string
           created_at: string | null
           deleted_at: string | null
@@ -1046,7 +1509,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          comment_id?: string | null
+          comment_id: string
           comment_report_id?: string
           created_at?: string | null
           deleted_at?: string | null
@@ -1055,7 +1518,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          comment_id?: string | null
+          comment_id?: string
           comment_report_id?: string
           created_at?: string | null
           deleted_at?: string | null
@@ -1067,7 +1530,7 @@ export type Database = {
           {
             foreignKeyName: "comment_reports_comment_id_fkey"
             columns: ["comment_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "comments"
             referencedColumns: ["comment_id"]
           },
@@ -1131,158 +1594,14 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      compatibility_results: {
-        Row: {
-          artist_id: number
-          completed_at: string | null
-          created_at: string
-          details: Json | null
-          error_message: string | null
-          gender: Database["public"]["Enums"]["user_gender_enum"] | null
-          id: string
-          idol_birth_date: string
-          is_ads: boolean | null
-          is_paid: boolean
-          paid_at: string | null
-          score: number | null
-          status: Database["public"]["Enums"]["compatibility_status"]
-          tips: Json | null
-          user_birth_date: string
-          user_birth_time: string | null
-          user_id: string
-        }
-        Insert: {
-          artist_id: number
-          completed_at?: string | null
-          created_at?: string
-          details?: Json | null
-          error_message?: string | null
-          gender?: Database["public"]["Enums"]["user_gender_enum"] | null
-          id?: string
-          idol_birth_date: string
-          is_ads?: boolean | null
-          is_paid?: boolean
-          paid_at?: string | null
-          score?: number | null
-          status?: Database["public"]["Enums"]["compatibility_status"]
-          tips?: Json | null
-          user_birth_date: string
-          user_birth_time?: string | null
-          user_id: string
-        }
-        Update: {
-          artist_id?: number
-          completed_at?: string | null
-          created_at?: string
-          details?: Json | null
-          error_message?: string | null
-          gender?: Database["public"]["Enums"]["user_gender_enum"] | null
-          id?: string
-          idol_birth_date?: string
-          is_ads?: boolean | null
-          is_paid?: boolean
-          paid_at?: string | null
-          score?: number | null
-          status?: Database["public"]["Enums"]["compatibility_status"]
-          tips?: Json | null
-          user_birth_date?: string
-          user_birth_time?: string | null
-          user_id?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "compatibility_results_artist_id_fkey"
-            columns: ["artist_id"]
+            foreignKeyName: "comments_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "artist"
-            referencedColumns: ["id"]
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
-      }
-      compatibility_results_i18n: {
-        Row: {
-          compatibility_id: string
-          compatibility_summary: string | null
-          created_at: string
-          details: Json | null
-          id: string
-          language: Database["public"]["Enums"]["supported_language"]
-          score: number | null
-          score_title: string | null
-          tips: Json | null
-          updated_at: string
-        }
-        Insert: {
-          compatibility_id: string
-          compatibility_summary?: string | null
-          created_at?: string
-          details?: Json | null
-          id?: string
-          language: Database["public"]["Enums"]["supported_language"]
-          score?: number | null
-          score_title?: string | null
-          tips?: Json | null
-          updated_at?: string
-        }
-        Update: {
-          compatibility_id?: string
-          compatibility_summary?: string | null
-          created_at?: string
-          details?: Json | null
-          id?: string
-          language?: Database["public"]["Enums"]["supported_language"]
-          score?: number | null
-          score_title?: string | null
-          tips?: Json | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_compatibility"
-            columns: ["compatibility_id"]
-            isOneToOne: false
-            referencedRelation: "compatibility_results"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      compatibility_score_descriptions: {
-        Row: {
-          score: number | null
-          summary_en: string
-          summary_ja: string
-          summary_ko: string
-          summary_zh: string
-          title_en: string | null
-          title_ja: string | null
-          title_ko: string | null
-          title_zh: string | null
-        }
-        Insert: {
-          score?: number | null
-          summary_en: string
-          summary_ja: string
-          summary_ko: string
-          summary_zh: string
-          title_en?: string | null
-          title_ja?: string | null
-          title_ko?: string | null
-          title_zh?: string | null
-        }
-        Update: {
-          score?: number | null
-          summary_en?: string
-          summary_ja?: string
-          summary_ko?: string
-          summary_zh?: string
-          title_en?: string | null
-          title_ja?: string | null
-          title_ko?: string | null
-          title_zh?: string | null
-        }
-        Relationships: []
       }
       config: {
         Row: {
@@ -1472,10 +1791,12 @@ export type Database = {
           created_at: string | null
           device_id: string
           device_info: Json | null
+          id: number
           is_banned: boolean | null
           last_ip: string | null
           last_seen: string | null
           last_updated: string | null
+          rid: string
           user_id: string | null
         }
         Insert: {
@@ -1486,10 +1807,12 @@ export type Database = {
           created_at?: string | null
           device_id: string
           device_info?: Json | null
+          id?: never
           is_banned?: boolean | null
           last_ip?: string | null
           last_seen?: string | null
           last_updated?: string | null
+          rid?: string
           user_id?: string | null
         }
         Update: {
@@ -1500,17 +1823,50 @@ export type Database = {
           created_at?: string | null
           device_id?: string
           device_info?: Json | null
+          id?: never
           is_banned?: boolean | null
           last_ip?: string | null
           last_seen?: string | null
           last_updated?: string | null
+          rid?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      faq_categories: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: number
+          label: Json
+          order_number: number
+          rid: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: never
+          label: Json
+          order_number?: number
+          rid?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: never
+          label?: Json
+          order_number?: number
+          rid?: string
         }
         Relationships: []
       }
       faqs: {
         Row: {
           answer: Json
+          answer_delta: Json | null
           category: string | null
           created_at: string | null
           created_by: string | null
@@ -1522,6 +1878,7 @@ export type Database = {
         }
         Insert: {
           answer: Json
+          answer_delta?: Json | null
           category?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -1533,6 +1890,7 @@ export type Database = {
         }
         Update: {
           answer?: Json
+          answer_delta?: Json | null
           category?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -1544,11 +1902,25 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "faqs_category_fkey"
+            columns: ["category"]
+            isOneToOne: false
+            referencedRelation: "faq_categories"
+            referencedColumns: ["code"]
+          },
+          {
             foreignKeyName: "faqs_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faqs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1618,6 +1990,27 @@ export type Database = {
             referencedRelation: "artist"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fortune_generation_log_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_generation_log_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_generation_log_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
         ]
       }
       fortune_telling: {
@@ -1664,6 +2057,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "artist"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
           },
         ]
       }
@@ -1719,6 +2133,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fortune_telling_i18n_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_i18n_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "fortune_telling_i18n_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+          {
             foreignKeyName: "fortune_telling_i18n_fortune_id_artist_id_year_fkey"
             columns: ["fortune_id", "artist_id", "year"]
             isOneToOne: false
@@ -1734,6 +2169,42 @@ export type Database = {
           },
         ]
       }
+      function_request_log: {
+        Row: {
+          code: number | null
+          function_name: string
+          id: number
+          ip: string | null
+          meta: Json | null
+          ok: boolean | null
+          reason: string | null
+          ts: string
+          user_id: string | null
+        }
+        Insert: {
+          code?: number | null
+          function_name: string
+          id?: number
+          ip?: string | null
+          meta?: Json | null
+          ok?: boolean | null
+          reason?: string | null
+          ts?: string
+          user_id?: string | null
+        }
+        Update: {
+          code?: number | null
+          function_name?: string
+          id?: number
+          ip?: string | null
+          meta?: Json | null
+          ok?: boolean | null
+          reason?: string | null
+          ts?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       gallery: {
         Row: {
           celeb_id: number
@@ -1742,7 +2213,6 @@ export type Database = {
           deleted_at: string | null
           id: number
           title: Json | null
-          title_en: string | null
           title_ko: string | null
           updated_at: string
         }
@@ -1753,7 +2223,6 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           title?: Json | null
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string
         }
@@ -1764,7 +2233,6 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           title?: Json | null
-          title_en?: string | null
           title_ko?: string | null
           updated_at?: string
         }
@@ -1780,16 +2248,189 @@ export type Database = {
       }
       gallery_user: {
         Row: {
-          gallery_id: number | null
-          user_id: number | null
+          gallery_id: number
+          user_id: number
         }
         Insert: {
-          gallery_id?: number | null
-          user_id?: number | null
+          gallery_id: number
+          user_id: number
         }
         Update: {
-          gallery_id?: number | null
-          user_id?: number | null
+          gallery_id?: number
+          user_id?: number
+        }
+        Relationships: []
+      }
+      goonghap_results: {
+        Row: {
+          artist_id: number
+          completed_at: string | null
+          created_at: string
+          details: Json | null
+          error_message: string | null
+          gender: Database["public"]["Enums"]["user_gender_enum"] | null
+          id: string
+          idol_birth_date: string
+          is_ads: boolean | null
+          is_paid: boolean
+          paid_at: string | null
+          score: number | null
+          status: Database["public"]["Enums"]["goonghap_status"]
+          tips: Json | null
+          user_birth_date: string
+          user_birth_time: string | null
+          user_id: string
+        }
+        Insert: {
+          artist_id: number
+          completed_at?: string | null
+          created_at?: string
+          details?: Json | null
+          error_message?: string | null
+          gender?: Database["public"]["Enums"]["user_gender_enum"] | null
+          id?: string
+          idol_birth_date: string
+          is_ads?: boolean | null
+          is_paid?: boolean
+          paid_at?: string | null
+          score?: number | null
+          status?: Database["public"]["Enums"]["goonghap_status"]
+          tips?: Json | null
+          user_birth_date: string
+          user_birth_time?: string | null
+          user_id: string
+        }
+        Update: {
+          artist_id?: number
+          completed_at?: string | null
+          created_at?: string
+          details?: Json | null
+          error_message?: string | null
+          gender?: Database["public"]["Enums"]["user_gender_enum"] | null
+          id?: string
+          idol_birth_date?: string
+          is_ads?: boolean | null
+          is_paid?: boolean
+          paid_at?: string | null
+          score?: number | null
+          status?: Database["public"]["Enums"]["goonghap_status"]
+          tips?: Json | null
+          user_birth_date?: string
+          user_birth_time?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+        ]
+      }
+      goonghap_results_i18n: {
+        Row: {
+          created_at: string
+          details: Json | null
+          goonghap_id: string
+          goonghap_summary: string | null
+          id: string
+          language: string
+          score: number | null
+          score_title: string | null
+          tips: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          goonghap_id: string
+          goonghap_summary?: string | null
+          id?: string
+          language: string
+          score?: number | null
+          score_title?: string | null
+          tips?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          goonghap_id?: string
+          goonghap_summary?: string | null
+          id?: string
+          language?: string
+          score?: number | null
+          score_title?: string | null
+          tips?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_compatibility"
+            columns: ["goonghap_id"]
+            isOneToOne: false
+            referencedRelation: "compatibility_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_compatibility"
+            columns: ["goonghap_id"]
+            isOneToOne: false
+            referencedRelation: "goonghap_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goonghap_score_descriptions: {
+        Row: {
+          score: number
+          summary_ja: string
+          summary_ko: string
+          summary_zh: string
+          title_ja: string | null
+          title_ko: string | null
+          title_zh: string | null
+        }
+        Insert: {
+          score: number
+          summary_ja: string
+          summary_ko: string
+          summary_zh: string
+          title_ja?: string | null
+          title_ko?: string | null
+          title_zh?: string | null
+        }
+        Update: {
+          score?: number
+          summary_ja?: string
+          summary_ko?: string
+          summary_zh?: string
+          title_ja?: string | null
+          title_ko?: string | null
+          title_zh?: string | null
         }
         Relationships: []
       }
@@ -1821,7 +2462,7 @@ export type Database = {
         Row: {
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           title: string | null
           updated_at: string | null
           user_id: number | null
@@ -1829,7 +2470,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           title?: string | null
           updated_at?: string | null
           user_id?: number | null
@@ -1837,7 +2478,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           title?: string | null
           updated_at?: string | null
           user_id?: number | null
@@ -1846,16 +2487,16 @@ export type Database = {
       }
       library_image: {
         Row: {
-          image_id: number | null
-          library_id: number | null
+          image_id: number
+          library_id: number
         }
         Insert: {
-          image_id?: number | null
-          library_id?: number | null
+          image_id: number
+          library_id: number
         }
         Update: {
-          image_id?: number | null
-          library_id?: number | null
+          image_id?: number
+          library_id?: number
         }
         Relationships: []
       }
@@ -1930,6 +2571,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2079,6 +2727,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pic_vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "pic_vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "pic_vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+          {
             foreignKeyName: "pic_vote_item_pic_vote_id_fk"
             columns: ["vote_id"]
             isOneToOne: false
@@ -2127,6 +2796,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pic_vote_pick_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "pic_vote_pick_vote_id_fkey"
             columns: ["vote_id"]
             isOneToOne: false
@@ -2169,6 +2845,731 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "reward"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      pocapop_base_frames: {
+        Row: {
+          category: string
+          color_tone: string | null
+          created_at: string | null
+          generation_type: string | null
+          id: string
+          name: string
+          png_url: string
+          thumbnail_url: string
+        }
+        Insert: {
+          category: string
+          color_tone?: string | null
+          created_at?: string | null
+          generation_type?: string | null
+          id?: string
+          name: string
+          png_url: string
+          thumbnail_url: string
+        }
+        Update: {
+          category?: string
+          color_tone?: string | null
+          created_at?: string | null
+          generation_type?: string | null
+          id?: string
+          name?: string
+          png_url?: string
+          thumbnail_url?: string
+        }
+        Relationships: []
+      }
+      pocapop_categories: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          labels: Json
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          labels?: Json
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          labels?: Json
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      pocapop_community_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          parent_comment_id: string | null
+          post_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          parent_comment_id?: string | null
+          post_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          parent_comment_id?: string | null
+          post_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_community_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_community_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_community_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_community_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_community_posts: {
+        Row: {
+          artist_tags: string[] | null
+          auto_shared: boolean | null
+          country: string | null
+          created_at: string | null
+          frame_id: string
+          id: string
+          nickname: string
+          thumbnail_url: string
+          user_id: string
+        }
+        Insert: {
+          artist_tags?: string[] | null
+          auto_shared?: boolean | null
+          country?: string | null
+          created_at?: string | null
+          frame_id: string
+          id?: string
+          nickname: string
+          thumbnail_url: string
+          user_id: string
+        }
+        Update: {
+          artist_tags?: string[] | null
+          auto_shared?: boolean | null
+          country?: string | null
+          created_at?: string | null
+          frame_id?: string
+          id?: string
+          nickname?: string
+          thumbnail_url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_community_posts_frame_id_fkey"
+            columns: ["frame_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_user_frames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_community_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          id: string
+          redeemed_at: string | null
+          trial_count_added: number
+          user_id: string
+        }
+        Insert: {
+          coupon_id: string
+          id?: string
+          redeemed_at?: string | null
+          trial_count_added?: number
+          user_id: string
+        }
+        Update: {
+          coupon_id?: string
+          id?: string
+          redeemed_at?: string | null
+          trial_count_added?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_coupon_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_coupon_redemptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_coupons: {
+        Row: {
+          code: string
+          created_at: string | null
+          current_uses: number | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          max_uses: number | null
+          trial_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          current_uses?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          trial_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          current_uses?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_uses?: number | null
+          trial_count?: number
+        }
+        Relationships: []
+      }
+      pocapop_download_logs: {
+        Row: {
+          download_type: string
+          downloaded_at: string | null
+          frame_id: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          download_type: string
+          downloaded_at?: string | null
+          frame_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          download_type?: string
+          downloaded_at?: string | null
+          frame_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_download_logs_frame_id_fkey"
+            columns: ["frame_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_user_frames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_download_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_download_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_frame_purchases: {
+        Row: {
+          frame_id: string
+          id: string
+          price_paid: number
+          purchased_at: string
+          user_id: string
+        }
+        Insert: {
+          frame_id: string
+          id?: string
+          price_paid: number
+          purchased_at?: string
+          user_id: string
+        }
+        Update: {
+          frame_id?: string
+          id?: string
+          price_paid?: number
+          purchased_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_frame_purchases_frame_id_fkey"
+            columns: ["frame_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_market_frames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_frame_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_frame_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_hd_download_counts: {
+        Row: {
+          count: number | null
+          date: string
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          count?: number | null
+          date: string
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          count?: number | null
+          date?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_hd_download_counts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_hd_download_counts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_market_frames: {
+        Row: {
+          category: string | null
+          created_at: string
+          creator_id: string
+          description: string | null
+          id: string
+          image_url: string
+          price_star_candy: number | null
+          status: string | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          id?: string
+          image_url: string
+          price_star_candy?: number | null
+          status?: string | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          id?: string
+          image_url?: string
+          price_star_candy?: number | null
+          status?: string | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_market_frames_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_market_frames_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_reports: {
+        Row: {
+          comment_id: string | null
+          created_at: string | null
+          id: string
+          post_id: string | null
+          reason: string | null
+          report_type: string
+          reported_user_id: string | null
+          reporter_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          comment_id?: string | null
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          reason?: string | null
+          report_type: string
+          reported_user_id?: string | null
+          reporter_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          comment_id?: string | null
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          reason?: string | null
+          report_type?: string
+          reported_user_id?: string | null
+          reporter_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_reports_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_community_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_reports_reported_user_id_fkey"
+            columns: ["reported_user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_reports_reported_user_id_fkey"
+            columns: ["reported_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pocapop_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_user_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_user_frames: {
+        Row: {
+          artist_name: string
+          base_frame_id: string | null
+          concept_keywords: string[] | null
+          created_at: string | null
+          frame_type: string | null
+          hd_image_url: string
+          id: string
+          poka_size: string | null
+          sd_image_url: string
+          user_id: string | null
+        }
+        Insert: {
+          artist_name: string
+          base_frame_id?: string | null
+          concept_keywords?: string[] | null
+          created_at?: string | null
+          frame_type?: string | null
+          hd_image_url: string
+          id?: string
+          poka_size?: string | null
+          sd_image_url: string
+          user_id?: string | null
+        }
+        Update: {
+          artist_name?: string
+          base_frame_id?: string | null
+          concept_keywords?: string[] | null
+          created_at?: string | null
+          frame_type?: string | null
+          hd_image_url?: string
+          id?: string
+          poka_size?: string | null
+          sd_image_url?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_user_frames_base_frame_id_fkey"
+            columns: ["base_frame_id"]
+            isOneToOne: false
+            referencedRelation: "pocapop_base_frames"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_frames_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_frames_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pocapop_user_subscriptions: {
+        Row: {
+          created_at: string | null
+          id: string
+          pro_trial_count: number | null
+          subscription_expires_at: string | null
+          subscription_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          pro_trial_count?: number | null
+          subscription_expires_at?: string | null
+          subscription_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          pro_trial_count?: number | null
+          subscription_expires_at?: string | null
+          subscription_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pocapop_user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pocapop_user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2271,6 +3672,32 @@ export type Database = {
         }
         Relationships: []
       }
+      post_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["post_id"]
+          },
+        ]
+      }
       post_reports: {
         Row: {
           created_at: string | null
@@ -2349,6 +3776,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "post_scraps_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       post_views: {
@@ -2381,6 +3815,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2451,6 +3892,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       products: {
@@ -2464,15 +3912,16 @@ export type Database = {
           price: number | null
           product_name: string
           product_type: Database["public"]["Enums"]["product_type_enum"]
+          rid: string
           star_candy: number | null
           star_candy_bonus: number | null
           start_at: string | null
-          web_price_krw: number | null
-          web_price_usd: number | null
           web_bonus_amount: number | null
+          web_description: string | null
           web_display_order: number | null
           web_is_featured: boolean | null
-          web_description: string | null
+          web_price_krw: number | null
+          web_price_usd: number | null
         }
         Insert: {
           created_at?: string | null
@@ -2484,15 +3933,16 @@ export type Database = {
           price?: number | null
           product_name: string
           product_type: Database["public"]["Enums"]["product_type_enum"]
+          rid?: string
           star_candy?: number | null
           star_candy_bonus?: number | null
           start_at?: string | null
-          web_price_krw?: number | null
-          web_price_usd?: number | null
           web_bonus_amount?: number | null
+          web_description?: string | null
           web_display_order?: number | null
           web_is_featured?: boolean | null
-          web_description?: string | null
+          web_price_krw?: number | null
+          web_price_usd?: number | null
         }
         Update: {
           created_at?: string | null
@@ -2504,15 +3954,16 @@ export type Database = {
           price?: number | null
           product_name?: string
           product_type?: Database["public"]["Enums"]["product_type_enum"]
+          rid?: string
           star_candy?: number | null
           star_candy_bonus?: number | null
           start_at?: string | null
-          web_price_krw?: number | null
-          web_price_usd?: number | null
           web_bonus_amount?: number | null
+          web_description?: string | null
           web_display_order?: number | null
           web_is_featured?: boolean | null
-          web_description?: string | null
+          web_price_krw?: number | null
+          web_price_usd?: number | null
         }
         Relationships: []
       }
@@ -2605,60 +4056,217 @@ export type Database = {
         }
         Relationships: []
       }
-      qnas: {
+      push_messages: {
         Row: {
-          answer: string | null
-          answered_at: string | null
-          answered_by: string | null
+          body: string
           created_at: string | null
           created_by: string | null
-          is_private: boolean | null
-          qna_id: number
-          question: string
-          status: string | null
+          data: Json | null
+          failure_count: number | null
+          id: number
+          platform: string | null
+          success_count: number | null
+          target_type: string
+          target_user_ids: string[] | null
           title: string
-          updated_at: string | null
         }
         Insert: {
-          answer?: string | null
-          answered_at?: string | null
-          answered_by?: string | null
+          body: string
           created_at?: string | null
           created_by?: string | null
-          is_private?: boolean | null
-          qna_id?: number
-          question: string
-          status?: string | null
+          data?: Json | null
+          failure_count?: number | null
+          id?: number
+          platform?: string | null
+          success_count?: number | null
+          target_type: string
+          target_user_ids?: string[] | null
           title: string
-          updated_at?: string | null
         }
         Update: {
-          answer?: string | null
-          answered_at?: string | null
-          answered_by?: string | null
+          body?: string
           created_at?: string | null
           created_by?: string | null
-          is_private?: boolean | null
-          qna_id?: number
-          question?: string
-          status?: string | null
+          data?: Json | null
+          failure_count?: number | null
+          id?: number
+          platform?: string | null
+          success_count?: number | null
+          target_type?: string
+          target_user_ids?: string[] | null
           title?: string
-          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      qna_attachments: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: number
+          message_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: number
+          message_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: number
+          message_id?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "qnas_answered_by_fkey"
-            columns: ["answered_by"]
+            foreignKeyName: "qa_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "qna_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      qna_categories: {
+        Row: {
+          active: boolean
+          answer_template: Json | null
+          code: string
+          created_at: string
+          label: Json
+          order_number: number
+          question_template: Json | null
+          rid: string
+        }
+        Insert: {
+          active?: boolean
+          answer_template?: Json | null
+          code: string
+          created_at?: string
+          label: Json
+          order_number?: number
+          question_template?: Json | null
+          rid?: string
+        }
+        Update: {
+          active?: boolean
+          answer_template?: Json | null
+          code?: string
+          created_at?: string
+          label?: Json
+          order_number?: number
+          question_template?: Json | null
+          rid?: string
+        }
+        Relationships: []
+      }
+      qna_messages: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: number
+          is_admin_message: boolean | null
+          thread_id: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: number
+          is_admin_message?: boolean | null
+          thread_id?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: number
+          is_admin_message?: boolean | null
+          thread_id?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qa_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "qna_threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qna_messages_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "qnas_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "qna_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      qna_threads: {
+        Row: {
+          category_code: string | null
+          created_at: string | null
+          id: number
+          status: Database["public"]["Enums"]["qna_status"] | null
+          title: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category_code?: string | null
+          created_at?: string | null
+          id?: number
+          status?: Database["public"]["Enums"]["qna_status"] | null
+          title: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category_code?: string | null
+          created_at?: string | null
+          id?: number
+          status?: Database["public"]["Enums"]["qna_status"] | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qna_threads_category_code_fkey"
+            columns: ["category_code"]
+            isOneToOne: false
+            referencedRelation: "qna_categories"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "qna_threads_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qna_threads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2672,6 +4280,7 @@ export type Database = {
           receipt_data: string
           receipt_hash: string | null
           status: string
+          tx_key: string | null
           user_id: string | null
           verification_data: Json | null
         }
@@ -2684,6 +4293,7 @@ export type Database = {
           receipt_data: string
           receipt_hash?: string | null
           status: string
+          tx_key?: string | null
           user_id?: string | null
           verification_data?: Json | null
         }
@@ -2696,6 +4306,7 @@ export type Database = {
           receipt_data?: string
           receipt_hash?: string | null
           status?: string
+          tx_key?: string | null
           user_id?: string | null
           verification_data?: Json | null
         }
@@ -2851,7 +4462,7 @@ export type Database = {
           parent_id: number | null
           remain_amount: number
           transaction_id: string | null
-          type: Database["public"]["Enums"]["candy_history_type"] | null
+          type: string | null
           updated_at: string
           user_id: string
           vote_pick_id: number | null
@@ -2865,7 +4476,7 @@ export type Database = {
           parent_id?: number | null
           remain_amount?: number
           transaction_id?: string | null
-          type?: Database["public"]["Enums"]["candy_history_type"] | null
+          type?: string | null
           updated_at?: string
           user_id: string
           vote_pick_id?: number | null
@@ -2879,7 +4490,7 @@ export type Database = {
           parent_id?: number | null
           remain_amount?: number
           transaction_id?: string | null
-          type?: Database["public"]["Enums"]["candy_history_type"] | null
+          type?: string | null
           updated_at?: string
           user_id?: string
           vote_pick_id?: number | null
@@ -2892,6 +4503,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "star_candy_bonus_history_user_profiles_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       star_candy_history: {
@@ -2901,6 +4519,7 @@ export type Database = {
           deleted_at: string | null
           id: number
           parent_id: number | null
+          reference_id: string | null
           transaction_id: string | null
           type: Database["public"]["Enums"]["candy_history_type"] | null
           updated_at: string
@@ -2913,6 +4532,7 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           parent_id?: number | null
+          reference_id?: string | null
           transaction_id?: string | null
           type?: Database["public"]["Enums"]["candy_history_type"] | null
           updated_at?: string
@@ -2925,6 +4545,7 @@ export type Database = {
           deleted_at?: string | null
           id?: number
           parent_id?: number | null
+          reference_id?: string | null
           transaction_id?: string | null
           type?: Database["public"]["Enums"]["candy_history_type"] | null
           updated_at?: string
@@ -2946,9 +4567,11 @@ export type Database = {
           ad_network: string | null
           created_at: string
           deleted_at: string | null
+          id: number
           key_id: string | null
           reward_amount: number | null
           reward_type: string | null
+          rid: string
           signature: string | null
           transaction_id: string
           updated_at: string
@@ -2958,9 +4581,11 @@ export type Database = {
           ad_network?: string | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           key_id?: string | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id: string
           updated_at?: string
@@ -2970,13 +4595,48 @@ export type Database = {
           ad_network?: string | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           key_id?: string | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id?: string
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      transaction_internal: {
+        Row: {
+          action: string
+          ad_campaign_id: string | null
+          created_at: string
+          id: string
+          platform: string
+          reward_amount: number
+          reward_type: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          ad_campaign_id?: string | null
+          created_at?: string
+          id?: string
+          platform?: string
+          reward_amount?: number
+          reward_type?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          ad_campaign_id?: string | null
+          created_at?: string
+          id?: string
+          platform?: string
+          reward_amount?: number
+          reward_type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2985,11 +4645,13 @@ export type Database = {
           ad_network: string | null
           created_at: string
           deleted_at: string | null
+          id: number
           key_id: string | null
           platform: string | null
           reward_amount: number | null
           reward_name: string | null
           reward_type: string | null
+          rid: string
           signature: string | null
           transaction_id: string
           updated_at: string
@@ -2999,11 +4661,13 @@ export type Database = {
           ad_network?: string | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           key_id?: string | null
           platform?: string | null
           reward_amount?: number | null
           reward_name?: string | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id: string
           updated_at?: string
@@ -3013,11 +4677,13 @@ export type Database = {
           ad_network?: string | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           key_id?: string | null
           platform?: string | null
           reward_amount?: number | null
           reward_name?: string | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id?: string
           updated_at?: string
@@ -3033,10 +4699,12 @@ export type Database = {
           commission: number | null
           created_at: string
           deleted_at: string | null
+          id: number
           menu_category1: string | null
           pub_key: number | null
           reward_amount: number | null
           reward_type: string | null
+          rid: string
           signature: string | null
           transaction_id: string
           updated_at: string
@@ -3049,10 +4717,12 @@ export type Database = {
           commission?: number | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           menu_category1?: string | null
           pub_key?: number | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id: string
           updated_at?: string
@@ -3065,10 +4735,12 @@ export type Database = {
           commission?: number | null
           created_at?: string
           deleted_at?: string | null
+          id?: never
           menu_category1?: string | null
           pub_key?: number | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           signature?: string | null
           transaction_id?: string
           updated_at?: string
@@ -3115,8 +4787,11 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           hmac: string
+          id: number
+          platform: string | null
           reward_amount: number | null
           reward_type: string | null
+          rid: string
           transaction_id: string
           updated_at: string
           user_id: string
@@ -3126,8 +4801,11 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           hmac: string
+          id?: never
+          platform?: string | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           transaction_id: string
           updated_at?: string
           user_id: string
@@ -3137,8 +4815,11 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           hmac?: string
+          id?: never
+          platform?: string | null
           reward_amount?: number | null
           reward_type?: string | null
+          rid?: string
           transaction_id?: string
           updated_at?: string
           user_id?: string
@@ -3178,6 +4859,13 @@ export type Database = {
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_agreement_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       user_blocks: {
@@ -3204,12 +4892,69 @@ export type Database = {
         }
         Relationships: []
       }
+      user_bonus_queue_audit: {
+        Row: {
+          deleted_at: string
+          note: string | null
+          source: string | null
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          note?: string | null
+          source?: string | null
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string
+          note?: string | null
+          source?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_bonus_update_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: number
+          last_enqueued_at: string
+          last_error: string | null
+          last_source: string | null
+          next_run_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: number
+          last_enqueued_at?: string
+          last_error?: string | null
+          last_source?: string | null
+          next_run_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: number
+          last_enqueued_at?: string
+          last_error?: string | null
+          last_source?: string | null
+          next_run_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_comment_like: {
         Row: {
           comment_id: number | null
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           updated_at: string | null
           user_id: number | null
         }
@@ -3217,7 +4962,7 @@ export type Database = {
           comment_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           updated_at?: string | null
           user_id?: number | null
         }
@@ -3225,7 +4970,7 @@ export type Database = {
           comment_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           updated_at?: string | null
           user_id?: number | null
         }
@@ -3236,7 +4981,7 @@ export type Database = {
           comment_id: number | null
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           updated_at: string | null
           user_id: number | null
         }
@@ -3244,7 +4989,7 @@ export type Database = {
           comment_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           updated_at?: string | null
           user_id?: number | null
         }
@@ -3252,9 +4997,72 @@ export type Database = {
           comment_id?: number | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           updated_at?: string | null
           user_id?: number | null
+        }
+        Relationships: []
+      }
+      user_country_events: {
+        Row: {
+          country_code: string
+          created_at: string
+          id: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          country_code: string
+          created_at?: string
+          id?: string
+          source?: string
+          user_id: string
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          id?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_notifications: {
+        Row: {
+          action_url: string | null
+          body: string
+          created_at: string
+          data: Json | null
+          id: number
+          is_read: boolean
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          body: string
+          created_at?: string
+          data?: Json | null
+          id?: number
+          is_read?: boolean
+          read_at?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          body?: string
+          created_at?: string
+          data?: Json | null
+          id?: number
+          is_read?: boolean
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -3263,6 +5071,7 @@ export type Database = {
           avatar_url: string | null
           birth_date: string | null
           birth_time: string | null
+          country_code: string | null
           created_at: string
           deleted_at: string | null
           email: string | null
@@ -3270,6 +5079,9 @@ export type Database = {
           id: string
           is_admin: boolean
           is_super_admin: boolean | null
+          jma_candy: number | null
+          language: string | null
+          last_ip: string | null
           nickname: string | null
           open_ages: boolean
           open_gender: boolean
@@ -3281,6 +5093,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           birth_time?: string | null
+          country_code?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -3288,6 +5101,9 @@ export type Database = {
           id: string
           is_admin?: boolean
           is_super_admin?: boolean | null
+          jma_candy?: number | null
+          language?: string | null
+          last_ip?: string | null
           nickname?: string | null
           open_ages?: boolean
           open_gender?: boolean
@@ -3299,6 +5115,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           birth_time?: string | null
+          country_code?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -3306,6 +5123,9 @@ export type Database = {
           id?: string
           is_admin?: boolean
           is_super_admin?: boolean | null
+          jma_candy?: number | null
+          language?: string | null
+          last_ip?: string | null
           nickname?: string | null
           open_ages?: boolean
           open_gender?: boolean
@@ -3314,6 +5134,60 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      user_push_tokens: {
+        Row: {
+          created_at: string | null
+          device_locale: string | null
+          id: number
+          token_android: string | null
+          token_ios: string | null
+          token_macos: string | null
+          token_web: string | null
+          token_windows: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          device_locale?: string | null
+          id?: number
+          token_android?: string | null
+          token_ios?: string | null
+          token_macos?: string | null
+          token_web?: string | null
+          token_windows?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          device_locale?: string | null
+          id?: number
+          token_android?: string | null
+          token_ios?: string | null
+          token_macos?: string | null
+          token_web?: string | null
+          token_windows?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_user_push_tokens_user_profiles"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_user_push_tokens_user_profiles"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -3389,12 +5263,17 @@ export type Database = {
       vote: {
         Row: {
           area: string
+          areas: string[] | null
           created_at: string
           deleted_at: string | null
           id: number
+          is_partnership: boolean | null
           main_image: string | null
           order: number | null
+          partner: string | null
           result_image: string | null
+          star_candy_bonus_total: number | null
+          star_candy_total: number | null
           start_at: string | null
           stop_at: string | null
           title: Json | null
@@ -3403,16 +5282,22 @@ export type Database = {
           vote_category: string | null
           vote_content: string | null
           vote_sub_category: string | null
+          vote_total: number | null
           wait_image: string | null
         }
         Insert: {
           area: string
+          areas?: string[] | null
           created_at?: string
           deleted_at?: string | null
           id?: number
+          is_partnership?: boolean | null
           main_image?: string | null
           order?: number | null
+          partner?: string | null
           result_image?: string | null
+          star_candy_bonus_total?: number | null
+          star_candy_total?: number | null
           start_at?: string | null
           stop_at?: string | null
           title?: Json | null
@@ -3421,16 +5306,22 @@ export type Database = {
           vote_category?: string | null
           vote_content?: string | null
           vote_sub_category?: string | null
+          vote_total?: number | null
           wait_image?: string | null
         }
         Update: {
           area?: string
+          areas?: string[] | null
           created_at?: string
           deleted_at?: string | null
           id?: number
+          is_partnership?: boolean | null
           main_image?: string | null
           order?: number | null
+          partner?: string | null
           result_image?: string | null
+          star_candy_bonus_total?: number | null
+          star_candy_total?: number | null
           start_at?: string | null
           stop_at?: string | null
           title?: Json | null
@@ -3439,6 +5330,7 @@ export type Database = {
           vote_category?: string | null
           vote_content?: string | null
           vote_sub_category?: string | null
+          vote_total?: number | null
           wait_image?: string | null
         }
         Relationships: []
@@ -3446,21 +5338,21 @@ export type Database = {
       vote_achieve: {
         Row: {
           amount: number | null
-          id: number | null
+          id: number
           order: number | null
           reward_id: number | null
           vote_id: number | null
         }
         Insert: {
           amount?: number | null
-          id?: number | null
+          id?: never
           order?: number | null
           reward_id?: number | null
           vote_id?: number | null
         }
         Update: {
           amount?: number | null
-          id?: number | null
+          id?: never
           order?: number | null
           reward_id?: number | null
           vote_id?: number | null
@@ -3488,7 +5380,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           deleted_at: string | null
-          id: number | null
+          id: number
           likes: number | null
           parent_id: number | null
           updated_at: string | null
@@ -3500,7 +5392,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           likes?: number | null
           parent_id?: number | null
           updated_at?: string | null
@@ -3512,7 +5404,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           deleted_at?: string | null
-          id?: number | null
+          id?: never
           likes?: number | null
           parent_id?: number | null
           updated_at?: string | null
@@ -3523,31 +5415,31 @@ export type Database = {
       }
       vote_comment_like: {
         Row: {
-          comment_id: number | null
-          user_id: number | null
+          comment_id: number
+          user_id: number
         }
         Insert: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id: number
+          user_id: number
         }
         Update: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id?: number
+          user_id?: number
         }
         Relationships: []
       }
       vote_comment_report: {
         Row: {
-          comment_id: number | null
-          user_id: number | null
+          comment_id: number
+          user_id: number
         }
         Insert: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id: number
+          user_id: number
         }
         Update: {
-          comment_id?: number | null
-          user_id?: number | null
+          comment_id?: number
+          user_id?: number
         }
         Relationships: []
       }
@@ -3558,6 +5450,8 @@ export type Database = {
           deleted_at: string | null
           group_id: number
           id: number
+          star_candy_bonus_total: number
+          star_candy_total: number
           updated_at: string | null
           vote_id: number | null
           vote_total: number | null
@@ -3568,6 +5462,8 @@ export type Database = {
           deleted_at?: string | null
           group_id?: number
           id?: number
+          star_candy_bonus_total?: number
+          star_candy_total?: number
           updated_at?: string | null
           vote_id?: number | null
           vote_total?: number | null
@@ -3578,6 +5474,8 @@ export type Database = {
           deleted_at?: string | null
           group_id?: number
           id?: number
+          star_candy_bonus_total?: number
+          star_candy_total?: number
           updated_at?: string | null
           vote_id?: number | null
           vote_total?: number | null
@@ -3589,6 +5487,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "artist"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_artist_id_fk"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
           },
           {
             foreignKeyName: "vote_item_group_id_fkey"
@@ -3608,73 +5527,92 @@ export type Database = {
       }
       vote_item_request_users: {
         Row: {
-          artist_group: string | null
-          artist_name: string
+          artist_id: number
           created_at: string | null
           id: string
-          reason: string | null
           status: string
           updated_at: string | null
           user_id: string
+          vote_id: number
           vote_item_request_id: string
         }
         Insert: {
-          artist_group?: string | null
-          artist_name: string
+          artist_id?: number
           created_at?: string | null
           id?: string
-          reason?: string | null
           status?: string
           updated_at?: string | null
           user_id: string
+          vote_id?: number
           vote_item_request_id: string
         }
         Update: {
-          artist_group?: string | null
-          artist_name?: string
+          artist_id?: number
           created_at?: string | null
           id?: string
-          reason?: string | null
           status?: string
           updated_at?: string | null
           user_id?: string
+          vote_id?: number
           vote_item_request_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "vote_item_request_users_vote_item_request_id_fkey"
-            columns: ["vote_item_request_id"]
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
             isOneToOne: false
-            referencedRelation: "vote_item_requests"
+            referencedRelation: "artist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_vote_id_fkey"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
             referencedColumns: ["id"]
           },
         ]
       }
-      vote_item_requests: {
+      vote_item_requests_backup: {
         Row: {
           created_at: string | null
-          description: string | null
           id: string
           status: string
-          title: string
           updated_at: string | null
           vote_id: number
         }
         Insert: {
           created_at?: string | null
-          description?: string | null
           id?: string
           status?: string
-          title: string
           updated_at?: string | null
           vote_id: number
         }
         Update: {
           created_at?: string | null
-          description?: string | null
           id?: string
           status?: string
-          title?: string
           updated_at?: string | null
           vote_id?: number
         }
@@ -3688,12 +5626,41 @@ export type Database = {
           },
         ]
       }
+      vote_item_update_queue: {
+        Row: {
+          created_at: string
+          delta_amount: number
+          delta_bonus: number
+          delta_star: number
+          id: number
+          vote_item_id: number
+        }
+        Insert: {
+          created_at?: string
+          delta_amount: number
+          delta_bonus: number
+          delta_star: number
+          id?: number
+          vote_item_id: number
+        }
+        Update: {
+          created_at?: string
+          delta_amount?: number
+          delta_bonus?: number
+          delta_star?: number
+          id?: number
+          vote_item_id?: number
+        }
+        Relationships: []
+      }
       vote_pick: {
         Row: {
           amount: number | null
           created_at: string | null
           deleted_at: string | null
           id: number
+          star_candy_bonus_usage: number
+          star_candy_usage: number
           updated_at: string | null
           user_id: string | null
           vote_id: number | null
@@ -3704,6 +5671,8 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          star_candy_bonus_usage?: number
+          star_candy_usage?: number
           updated_at?: string | null
           user_id?: string | null
           vote_id?: number | null
@@ -3714,6 +5683,8 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          star_candy_bonus_usage?: number
+          star_candy_usage?: number
           updated_at?: string | null
           user_id?: string | null
           vote_id?: number | null
@@ -3726,6 +5697,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_pick_user_profiles_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "vote_pick_vote_id_fkey"
@@ -3807,6 +5785,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "vote_share_bonus_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "vote_share_bonus_vote_id_fkey"
             columns: ["vote_id"]
             isOneToOne: false
@@ -3817,7 +5802,336 @@ export type Database = {
       }
     }
     Views: {
+      ad_campaigns_active: {
+        Row: {
+          advertiser: string | null
+          created_at: string | null
+          cta_url: string | null
+          id: string | null
+          is_default: boolean | null
+          reward_comment: number | null
+          reward_like: number | null
+          reward_more: number | null
+          reward_subscribe: number | null
+          reward_view: number | null
+          served_count: number | null
+          status: string | null
+          title: string | null
+          total_cap: number | null
+          updated_at: string | null
+          video_key: string | null
+          visible_from: string | null
+          visible_to: string | null
+          weight: number | null
+        }
+        Insert: {
+          advertiser?: string | null
+          created_at?: string | null
+          cta_url?: string | null
+          id?: string | null
+          is_default?: boolean | null
+          reward_comment?: number | null
+          reward_like?: number | null
+          reward_more?: number | null
+          reward_subscribe?: number | null
+          reward_view?: number | null
+          served_count?: number | null
+          status?: string | null
+          title?: string | null
+          total_cap?: number | null
+          updated_at?: string | null
+          video_key?: string | null
+          visible_from?: string | null
+          visible_to?: string | null
+          weight?: number | null
+        }
+        Update: {
+          advertiser?: string | null
+          created_at?: string | null
+          cta_url?: string | null
+          id?: string | null
+          is_default?: boolean | null
+          reward_comment?: number | null
+          reward_like?: number | null
+          reward_more?: number | null
+          reward_subscribe?: number | null
+          reward_view?: number | null
+          served_count?: number | null
+          status?: string | null
+          title?: string | null
+          total_cap?: number | null
+          updated_at?: string | null
+          video_key?: string | null
+          visible_from?: string | null
+          visible_to?: string | null
+          weight?: number | null
+        }
+        Relationships: []
+      }
+      artist_request_statistics: {
+        Row: {
+          approved_requests: number | null
+          artist_group: string | null
+          artist_id: number | null
+          artist_image: string | null
+          artist_name: string | null
+          first_request_at: string | null
+          last_updated_at: string | null
+          pending_requests: number | null
+          rejected_requests: number | null
+          total_requests: number | null
+        }
+        Relationships: []
+      }
+      audit_log_stats: {
+        Row: {
+          action_type: string | null
+          log_count: number | null
+          log_date: string | null
+          resource_type: string | null
+          severity: string | null
+          success: boolean | null
+          unique_users: number | null
+        }
+        Relationships: []
+      }
+      compatibility_results: {
+        Row: {
+          artist_id: number | null
+          completed_at: string | null
+          created_at: string | null
+          details: Json | null
+          error_message: string | null
+          gender: Database["public"]["Enums"]["user_gender_enum"] | null
+          id: string | null
+          idol_birth_date: string | null
+          is_ads: boolean | null
+          is_paid: boolean | null
+          paid_at: string | null
+          score: number | null
+          status: Database["public"]["Enums"]["goonghap_status"] | null
+          tips: Json | null
+          user_birth_date: string | null
+          user_birth_time: string | null
+          user_id: string | null
+        }
+        Insert: {
+          artist_id?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          details?: Json | null
+          error_message?: string | null
+          gender?: Database["public"]["Enums"]["user_gender_enum"] | null
+          id?: string | null
+          idol_birth_date?: string | null
+          is_ads?: boolean | null
+          is_paid?: boolean | null
+          paid_at?: string | null
+          score?: number | null
+          status?: Database["public"]["Enums"]["goonghap_status"] | null
+          tips?: Json | null
+          user_birth_date?: string | null
+          user_birth_time?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          artist_id?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          details?: Json | null
+          error_message?: string | null
+          gender?: Database["public"]["Enums"]["user_gender_enum"] | null
+          id?: string | null
+          idol_birth_date?: string | null
+          is_ads?: boolean | null
+          is_paid?: boolean | null
+          paid_at?: string | null
+          score?: number | null
+          status?: Database["public"]["Enums"]["goonghap_status"] | null
+          tips?: Json | null
+          user_birth_date?: string | null
+          user_birth_time?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "compatibility_results_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+        ]
+      }
+      compatibility_results_i18n: {
+        Row: {
+          compatibility_id: string | null
+          compatibility_summary: string | null
+          created_at: string | null
+          details: Json | null
+          id: string | null
+          language: string | null
+          score: number | null
+          score_title: string | null
+          tips: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          compatibility_id?: string | null
+          compatibility_summary?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string | null
+          language?: string | null
+          score?: number | null
+          score_title?: string | null
+          tips?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          compatibility_id?: string | null
+          compatibility_summary?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string | null
+          language?: string | null
+          score?: number | null
+          score_title?: string | null
+          tips?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_compatibility"
+            columns: ["compatibility_id"]
+            isOneToOne: false
+            referencedRelation: "compatibility_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_compatibility"
+            columns: ["compatibility_id"]
+            isOneToOne: false
+            referencedRelation: "goonghap_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compatibility_score_descriptions: {
+        Row: {
+          score: number | null
+          summary_ja: string | null
+          summary_ko: string | null
+          summary_zh: string | null
+          title_ja: string | null
+          title_ko: string | null
+          title_zh: string | null
+        }
+        Insert: {
+          score?: number | null
+          summary_ja?: string | null
+          summary_ko?: string | null
+          summary_zh?: string | null
+          title_ja?: string | null
+          title_ko?: string | null
+          title_zh?: string | null
+        }
+        Update: {
+          score?: number | null
+          summary_ja?: string | null
+          summary_ko?: string | null
+          summary_zh?: string | null
+          title_ja?: string | null
+          title_ko?: string | null
+          title_zh?: string | null
+        }
+        Relationships: []
+      }
+      security_events_summary: {
+        Row: {
+          action_type: string | null
+          affected_users: number | null
+          event_count: number | null
+          event_date: string | null
+          severity: string | null
+          unique_ips: number | null
+        }
+        Relationships: []
+      }
+      user_activity_summary: {
+        Row: {
+          activity_date: string | null
+          failed_actions: number | null
+          first_activity: string | null
+          last_activity: string | null
+          total_actions: number | null
+          unique_action_types: number | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      user_vote_item_request_history: {
+        Row: {
+          artist_group: string | null
+          artist_id: number | null
+          artist_image: string | null
+          artist_name: string | null
+          request_status: string | null
+          request_status_text: string | null
+          requested_at: string | null
+          status_updated_at: string | null
+          user_id: string | null
+          vote_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_item_request_users_vote_id_fkey"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       view_transaction_all: {
+        Row: {
+          ad_campaign_id: string | null
+          ad_network: string | null
+          commission: number | null
+          created_at: string | null
+          platform: string | null
+          reward_amount: number | null
+          reward_name: string | null
+          reward_type: string | null
+          source: string | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      view_transaction_all_base: {
         Row: {
           ad_network: string | null
           commission: number | null
@@ -3832,15 +6146,200 @@ export type Database = {
         }
         Relationships: []
       }
+      view_user_activity_unified: {
+        Row: {
+          ad_network: string | null
+          ad_reward_name: string | null
+          ad_source: string | null
+          amount: number | null
+          artist_name: Json | null
+          bonus_gain: number | null
+          created_at: string | null
+          expired_dt: string | null
+          receipt_environment: string | null
+          receipt_platform: string | null
+          receipt_product_id: string | null
+          receipt_status: string | null
+          remain_amount: number | null
+          source: string | null
+          star_gain: number | null
+          subtype: string | null
+          transaction_id: string | null
+          unified_id: string | null
+          user_id: string | null
+          vote_item_name: Json | null
+          vote_item_title: Json | null
+          vote_pick_id: number | null
+          vote_title: Json | null
+        }
+        Relationships: []
+      }
+      view_user_candy_ledger: {
+        Row: {
+          ad_network: string | null
+          balance: number | null
+          bonus_amount: number | null
+          category: string | null
+          created_at: string | null
+          detail: string | null
+          name: string | null
+          star_amount: number | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      vote_item_request_status_summary: {
+        Row: {
+          artist_group: string | null
+          artist_id: number | null
+          artist_name: string | null
+          first_request_at: string | null
+          last_updated_at: string | null
+          request_count: number | null
+          request_status: string | null
+          vote_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_item_request_users_vote_id_fkey"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vote_item_requests: {
+        Row: {
+          artist: Json | null
+          artist_id: number | null
+          created_at: string | null
+          id: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+          vote_id: number | null
+        }
+        Insert: {
+          artist?: never
+          artist_id?: number | null
+          created_at?: string | null
+          id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          vote_id?: number | null
+        }
+        Update: {
+          artist?: never
+          artist_id?: number | null
+          created_at?: string | null
+          id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          vote_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artist_request_statistics"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "user_vote_item_request_history"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "vote_item_request_status_summary"
+            referencedColumns: ["artist_id"]
+          },
+          {
+            foreignKeyName: "vote_item_request_users_vote_id_fkey"
+            columns: ["vote_id"]
+            isOneToOne: false
+            referencedRelation: "vote"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_star_candy_bonus_drift: {
+        Row: {
+          delta: number | null
+          history_bonus: number | null
+          last_history_at: string | null
+          profile_bonus: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      begin_transaction: {
-        Args: Record<PropertyKey, never>
+      admin_adjust_user_bonus: {
+        Args: {
+          bonus_amount: number
+          expired_days?: number
+          reason: string
+          target_user_id: string
+        }
+        Returns: Json
+      }
+      admin_check_bonus_drift: {
+        Args: { target_user_id: string }
+        Returns: Json
+      }
+      admin_get_user_bonus_history: {
+        Args: { limit_count?: number; target_user_id: string }
+        Returns: Json
+      }
+      auto_fix_bonus_drift: {
+        Args: never
+        Returns: {
+          new_bonus: number
+          old_bonus: number
+          user_id: string
+        }[]
+      }
+      auto_resolve_stale_qna_threads: {
+        Args: { inactivity_days?: number }
         Returns: undefined
       }
-      bytea_to_text: {
-        Args: { data: string }
-        Returns: string
+      batch_revoke_abuser_bonus: {
+        Args: {
+          p_admin_id?: string
+          p_dry_run?: boolean
+          p_reason: string
+          p_user_ids: string[]
+        }
+        Returns: {
+          affected_records: number
+          total_revoked: number
+          user_id: string
+          user_nickname: string
+          user_was_banned: boolean
+        }[]
+      }
+      begin_transaction: { Args: never; Returns: undefined }
+      bytea_to_text: { Args: { data: string }; Returns: string }
+      call_edge_function: {
+        Args: { function_name: string; payload?: Json }
+        Returns: number
       }
       can_vote: {
         Args: { p_user_id: string; p_vote_amount: number }
@@ -3849,52 +6348,130 @@ export type Database = {
       check_bonus_state: {
         Args: { check_time?: string }
         Returns: {
-          total_bonuses: number
           active_bonuses: number
-          expirable_bonuses: number
           earliest_expiry: string
+          expirable_bonuses: number
           latest_expiry: string
+          total_bonuses: number
         }[]
       }
-      commit_transaction: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      cleanup_deleted_qnas: { Args: { days_old?: number }; Returns: number }
+      cleanup_exhausted_buckets_batch: {
+        Args: { batch_limit?: number }
+        Returns: number
       }
-      create_boards_for_existing_artists: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      cleanup_expired_audit_logs: { Args: never; Returns: number }
+      commit_transaction: { Args: never; Returns: undefined }
+      consolidate_bonus_buckets: {
+        Args: { p_user_id: string }
+        Returns: {
+          consolidated_count: number
+          new_bucket_count: number
+        }[]
       }
+      consolidate_bonus_buckets_batch: {
+        Args: { p_limit?: number; p_min_buckets?: number }
+        Returns: {
+          consolidated_count: number
+          new_bucket_count: number
+          user_id: string
+        }[]
+      }
+      create_boards_for_existing_artists: { Args: never; Returns: undefined }
       create_boards_for_existing_artists_meme: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: undefined
       }
-      create_monthly_votes: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      create_monthly_votes: { Args: never; Returns: undefined }
+      create_vote_item_request_with_user: {
+        Args: {
+          artist_id_param: number
+          user_id_param: string
+          vote_id_param: number
+        }
+        Returns: Json
       }
+      create_weekly_votes: { Args: never; Returns: undefined }
       deduct_star_candy: {
-        Args: { p_user_id: string; p_amount: number; p_vote_pick_id: number }
+        Args: { p_amount: number; p_user_id: string; p_vote_pick_id: number }
         Returns: undefined
       }
       deduct_star_candy_bonus: {
         Args: {
-          p_user_id: string
           p_amount: number
           p_bonus_id: number
+          p_user_id: string
           p_vote_pick_id: number
         }
         Returns: undefined
       }
-      expire_star_candy_bonus: {
-        Args: { expiry_time?: string }
+      detect_abuser_candidates: {
+        Args: {
+          p_daily_threshold?: number
+          p_lookback_days?: number
+          p_min_days?: number
+        }
         Returns: {
-          expired_count: number
-          expired_amount: number
-          affected_users: number
+          active_bonus: number
+          daily_avg: number
+          email: string
+          is_banned: boolean
+          max_daily: number
+          nickname: string
+          suspicious_days: number
+          total_bonus: number
+          user_id: string
         }[]
       }
+      enqueue_bonus_recalc: {
+        Args: { p_error?: string; p_source?: string; p_user_id: string }
+        Returns: undefined
+      }
+      expire_star_candy_bonus: {
+        Args: { cutoff_time?: string }
+        Returns: {
+          affected_users: number
+          updated_amount: number
+          updated_count: number
+        }[]
+      }
+      expire_star_candy_bonus_batch: {
+        Args: { chunk_size?: number; cutoff_time: string }
+        Returns: {
+          batch_amount: number
+          batch_count: number
+          batch_users: number
+        }[]
+      }
+      expire_star_candy_bonus_core: {
+        Args: { chunk_size?: number; cutoff_time: string }
+        Returns: {
+          batch_amount: number
+          batch_count: number
+          batch_users: number
+        }[]
+      }
+      get_artist_paid_votes: {
+        Args: { p_exclude_admin?: boolean; p_vote_id?: number }
+        Returns: {
+          artist_id: number
+          artist_name: Json
+          paid_candy_sum: number
+          paid_vote_count: number
+          paid_voter_count: number
+        }[]
+      }
+      get_artist_request_count: {
+        Args: { artist_id_param: number; vote_id_param: number }
+        Returns: number
+      }
+      get_compatibility_i18n: {
+        Args: { p_compatibility_id: string }
+        Returns: Json
+      }
+      get_compatibility_result: { Args: { p_id: string }; Returns: Json }
       get_current_splash_image: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           celeb_id: number | null
           created_at: string | null
@@ -3904,6 +6481,8 @@ export type Database = {
           id: number
           image: Json | null
           link: string | null
+          link_target_id: number | null
+          link_type: string | null
           location: string | null
           order: number | null
           start_at: string | null
@@ -3911,120 +6490,279 @@ export type Database = {
           title: Json
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "banner"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
-      get_expiring_bonus_prediction: {
-        Args: Record<PropertyKey, never>
+      get_expiring_bonus_prediction:
+        | {
+            Args: never
+            Returns: {
+              expiring_amount: number
+              prediction_month: string
+            }[]
+          }
+        | {
+            Args: { uri: string }
+            Returns: {
+              expiring_amount: number
+              prediction_month: string
+            }[]
+          }
+      get_expiring_bonus_prediction_v2: {
+        Args: { uri?: string }
         Returns: {
           prediction_month: string
-          expiring_amount: number
+          sum: number
         }[]
       }
-      get_vote_and_user_info: {
-        Args: { p_vote_id: number; p_user_id: number }
+      get_goonghap_i18n: { Args: { p_goonghap_id: string }; Returns: Json }
+      get_goonghap_result: { Args: { p_id: string }; Returns: Json }
+      get_user_activity_unified: {
+        Args: { p_limit: number; p_offset: number; p_user_id: string }
         Returns: {
-          stop_at: string
+          ad_network: string
+          ad_reward_name: string
+          ad_source: string
+          amount: number
+          artist_name: Json
+          bonus_gain: number
+          created_at: string
+          receipt_environment: string
+          receipt_platform: string
+          receipt_product_id: string
+          receipt_status: string
+          source: string
+          star_gain: number
+          subtype: string
+          transaction_id: string
+          unified_id: string
+          user_id: string
+          vote_item_title: Json
+          vote_pick_id: number
+          vote_title: Json
+        }[]
+      }
+      get_user_activity_unified_count: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      get_user_profile: {
+        Args: { user_id: string }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          id: string
+          is_admin: boolean
+          nickname: string
+          star_candy: number
+          updated_at: string
+        }[]
+      }
+      get_user_qna_stats: { Args: { user_id_param: string }; Returns: Json }
+      get_vote_and_user_info: {
+        Args: { p_user_id: number; p_vote_id: number }
+        Returns: {
           star_candy: number
           star_candy_bonus: number
+          stop_at: string
           total_bonus_remain: number
         }[]
       }
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
-        Returns: undefined
-      }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
+      has_user_requested_artist: {
+        Args: {
+          artist_id_param: number
+          user_id_param: string
+          vote_id_param: number
+        }
+        Returns: boolean
       }
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "http_request"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_delete: {
-        Args:
-          | { uri: string }
-          | { uri: string; content: string; content_type: string }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
-      http_get: {
-        Args: { uri: string } | { uri: string; data: Json }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
+      http_delete:
+        | {
+            Args: { uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { content: string; content_type: string; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+      http_get:
+        | {
+            Args: { uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { data: Json; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       http_head: {
         Args: { uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       http_header: {
         Args: { field: string; value: string }
         Returns: Database["public"]["CompositeTypes"]["http_header"]
+        SetofOptions: {
+          from: "*"
+          to: "http_header"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       http_list_curlopt: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           curlopt: string
           value: string
         }[]
       }
       http_patch: {
-        Args: { uri: string; content: string; content_type: string }
+        Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_post: {
-        Args:
-          | { uri: string; content: string; content_type: string }
-          | { uri: string; data: Json }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
+      http_post:
+        | {
+            Args: { content: string; content_type: string; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { data: Json; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       http_put: {
-        Args: { uri: string; content: string; content_type: string }
+        Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_reset_curlopt: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      http_reset_curlopt: { Args: never; Returns: boolean }
       http_set_curlopt: {
         Args: { curlopt: string; value: string }
         Returns: boolean
       }
+      increment_star_candy: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: number
+      }
+      increment_star_candy_bonus: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: number
+      }
       increment_user_star_candy_bonus: {
-        Args: { p_user_id: string; p_amount: number }
+        Args: { p_amount: number; p_user_id: string }
         Returns: undefined
       }
       increment_view_count: {
         Args: { post_id_param: string; viewer_id?: string }
         Returns: undefined
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_vote_creator: {
-        Args: { vote_id: number }
-        Returns: boolean
-      }
-      is_vote_item_request_open: {
-        Args: { vote_id: number }
-        Returns: boolean
+      is_admin: { Args: never; Returns: boolean }
+      is_admin_or_super: { Args: never; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
+      is_vote_creator: { Args: { vote_id: number }; Returns: boolean }
+      is_vote_item_request_open: { Args: { vote_id: number }; Returns: boolean }
+      list_bonus_drift:
+        | {
+            Args: { p_limit?: number; p_threshold?: number }
+            Returns: {
+              delta: number
+              history_bonus: number
+              last_history_at: string
+              profile_bonus: number
+              user_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_page?: number
+              p_page_size?: number
+              p_threshold?: number
+            }
+            Returns: {
+              delta: number
+              history_bonus: number
+              last_history_at: string
+              profile_bonus: number
+              total_count: number
+              user_id: string
+            }[]
+          }
+      next_star_candy_bonus_expiry: {
+        Args: { p_source?: string }
+        Returns: string
       }
       perform_pic_vote_transaction: {
         Args: {
-          p_vote_id: number
-          p_vote_item_id: number
           p_amount: number
           p_user_id: string
+          p_vote_id: number
+          p_vote_item_id: number
         }
         Returns: Json
       }
@@ -4038,64 +6776,220 @@ export type Database = {
       }
       perform_vote_transaction: {
         Args: {
-          p_vote_id: number
-          p_vote_item_id: number
           p_amount: number
           p_user_id: string
+          p_vote_id: number
+          p_vote_item_id: number
         }
         Returns: Json
       }
+      process_attendance_check: {
+        Args: {
+          p_check_date: string
+          p_expired_dt: string
+          p_reward_amount: number
+          p_transaction_id: string
+          p_user_id: string
+          p_weekly_bonus_amount: number
+          p_weekly_transaction_id?: string
+        }
+        Returns: Json
+      }
+      process_bonus_recalc: {
+        Args: { p_limit?: number }
+        Returns: {
+          message: string
+          processed_at: string
+          status: string
+          user_id: string
+        }[]
+      }
       process_compatibility_payment: {
         Args: {
-          p_user_id: string
           p_compatibility_id: string
-          p_star_candy_amount: number
+          p_star_candy_amount?: number
+          p_user_id: string
         }
         Returns: undefined
       }
+      process_goonghap_payment: {
+        Args: {
+          p_goonghap_id: string
+          p_star_candy_amount?: number
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      process_paypal_capture: {
+        Args: {
+          p_amount: string
+          p_bonus_amount: number
+          p_bonus_expiry: string
+          p_capture_id: string
+          p_currency: string
+          p_environment: string
+          p_order_id: string
+          p_payment_details: Json
+          p_product_id: string
+          p_star_candy: number
+          p_status: string
+          p_user_id: string
+          p_verification_data: Json
+        }
+        Returns: Json
+      }
+      process_portone_capture: {
+        Args: {
+          p_bonus_amount: number
+          p_bonus_expiry: string
+          p_currency: string
+          p_environment: string
+          p_method: string
+          p_payment_id: string
+          p_product_id: string
+          p_receipt_data: Json
+          p_star_candy: number
+          p_status: string
+          p_total_amount: number
+          p_user_id: string
+          p_verification_data: Json
+        }
+        Returns: Json
+      }
       process_vote: {
         Args: {
+          p_amount: number
+          p_total_bonus_remain: number
+          p_user_id: string
           p_vote_id: number
           p_vote_item_id: number
-          p_amount: number
-          p_user_id: string
-          p_total_bonus_remain: number
         }
         Returns: {
           vote_total: number
         }[]
       }
-      rollback_transaction: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      process_vote_item_queue:
+        | { Args: { p_limit: number; p_vote_item_id: number }; Returns: number }
+        | { Args: { p_vote_item_id: number }; Returns: number }
+      process_vote_item_update_queue:
+        | { Args: never; Returns: number }
+        | { Args: { p_limit: number }; Returns: number }
+      recompute_user_bonus: { Args: { p_user_id: string }; Returns: number }
+      repair_bonus_balance: {
+        Args: { p_user_id: string }
+        Returns: {
+          new_bonus: number
+          old_bonus: number
+          user_id: string
+        }[]
       }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
+      repair_bonus_balance_bulk: {
+        Args: { p_limit?: number; p_threshold?: number }
+        Returns: {
+          queued_user_id: string
+        }[]
       }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
+      restore_qna: { Args: { qna_id_param: number }; Returns: undefined }
+      revoke_abuser_bonus: {
+        Args: {
+          p_admin_id?: string
+          p_dry_run?: boolean
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: {
+          affected_records: number
+          total_revoked: number
+          user_nickname: string
+          user_was_banned: boolean
+          was_dry_run: boolean
+        }[]
       }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
+      rollback_transaction: { Args: never; Returns: undefined }
+      run_expire_star_candy_bonus_once: { Args: never; Returns: undefined }
+      search_artists: {
+        Args: { search_term?: string }
+        Returns: {
+          artist_group: Json
+          birth_date: string
+          id: number
+          image: Json
+          name: Json
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      soft_delete_qna: { Args: { qna_id_param: number }; Returns: undefined }
+      sync_user_profiles_from_queue: {
+        Args: { max_rows?: number }
+        Returns: {
+          updated_users: number
+        }[]
       }
       test_expire_star_candy_bonus: {
         Args: { test_datetime: string }
         Returns: {
-          operation: string
           details: Json
+          operation: string
         }[]
       }
-      text_to_bytea: {
-        Args: { data: string }
-        Returns: string
+      test_realtime_update: { Args: { vote_id_param: number }; Returns: string }
+      text_to_bytea: { Args: { data: string }; Returns: string }
+      update_vote_item_and_vote_totals: {
+        Args: { p_vote_item_id: number }
+        Returns: undefined
       }
-      urlencode: {
-        Args: { data: Json } | { string: string } | { string: string }
-        Returns: string
+      update_vote_totals_batch_bak: {
+        Args: { p_vote_ids: number[] }
+        Returns: undefined
       }
+      upsert_ad_bonus: {
+        Args: {
+          p_amount: number
+          p_expired_dt: string
+          p_transaction_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      upsert_user_push_token:
+        | {
+            Args: { p_platform: string; p_token: string; p_user_id: string }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_device_locale?: string
+              p_platform: string
+              p_token: string
+              p_user_id: string
+            }
+            Returns: undefined
+          }
+      urlencode:
+        | { Args: { data: Json }; Returns: string }
+        | {
+            Args: { string: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { string: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+      use_star_candy_bonus:
+        | { Args: { p_amount: number; p_user_id: string }; Returns: number }
+        | {
+            Args: {
+              p_amount: number
+              p_user_id: string
+              p_vote_pick_id: number
+            }
+            Returns: number
+          }
     }
     Enums: {
       board_status_enum: "pending" | "approved" | "rejected"
@@ -4108,7 +7002,9 @@ export type Database = {
         | "VOTE_SHARE_BONUS"
         | "OPEN_COMPATIBILITY"
         | "MISSION"
-      compatibility_status: "pending" | "completed" | "error"
+        | "OPEN_GOONGHAP"
+        | "ADMIN_ADJUST"
+      goonghap_status: "pending" | "completed" | "error"
       platform_enum: "iOS" | "Android" | "Both"
       policy_language_enum: "ko" | "en"
       policy_type_enum:
@@ -4120,8 +7016,22 @@ export type Database = {
         | "WITHDRAW_ACCOUNT_EN"
       portal_enum: "vote" | "pic"
       product_type_enum: "consumable" | "non-consumable" | "subscription"
+      qna_status: "RECEIVED" | "IN_PROGRESS" | "RESOLVED"
       specific_platform_enum: "iOS" | "Android"
-      supported_language: "ko" | "en" | "ja" | "zh"
+      supported_language:
+        | "ko"
+        | "en"
+        | "ja"
+        | "zh"
+        | "zh-CN"
+        | "zh-TW"
+        | "fil"
+        | "id"
+        | "th"
+        | "vi"
+        | "es"
+        | "bn"
+        | "my"
       user_gender_enum: "male" | "female" | "other"
     }
     CompositeTypes: {
@@ -4130,7 +7040,7 @@ export type Database = {
         value: string | null
       }
       http_request: {
-        method: unknown | null
+        method: unknown
         uri: string | null
         headers: Database["public"]["CompositeTypes"]["http_header"][] | null
         content_type: string | null
@@ -4146,21 +7056,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -4178,14 +7092,16 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -4201,14 +7117,16 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -4224,14 +7142,16 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -4239,14 +7159,16 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
@@ -4264,8 +7186,10 @@ export const Constants = {
         "VOTE_SHARE_BONUS",
         "OPEN_COMPATIBILITY",
         "MISSION",
+        "OPEN_GOONGHAP",
+        "ADMIN_ADJUST",
       ],
-      compatibility_status: ["pending", "completed", "error"],
+      goonghap_status: ["pending", "completed", "error"],
       platform_enum: ["iOS", "Android", "Both"],
       policy_language_enum: ["ko", "en"],
       policy_type_enum: [
@@ -4278,8 +7202,23 @@ export const Constants = {
       ],
       portal_enum: ["vote", "pic"],
       product_type_enum: ["consumable", "non-consumable", "subscription"],
+      qna_status: ["RECEIVED", "IN_PROGRESS", "RESOLVED"],
       specific_platform_enum: ["iOS", "Android"],
-      supported_language: ["ko", "en", "ja", "zh"],
+      supported_language: [
+        "ko",
+        "en",
+        "ja",
+        "zh",
+        "zh-CN",
+        "zh-TW",
+        "fil",
+        "id",
+        "th",
+        "vi",
+        "es",
+        "bn",
+        "my",
+      ],
       user_gender_enum: ["male", "female", "other"],
     },
   },

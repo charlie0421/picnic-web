@@ -1,0 +1,62 @@
+name: Deploy picnic-web to ECR/ECS (global & cn)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy (default: github.sha)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env: global
+            aws-region: ap-northeast-2
+            aws-account-id: 851725635868
+            aws-access-key-id: ${{ secrets.AWS_GLOBAL_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_GLOBAL_SECRET_ACCESS_KEY }}
+          - env: cn
+            aws-region: cn-north-1
+            aws-account-id: 606940464839
+            aws-access-key-id: ${{ secrets.AWS_CN_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_CN_SECRET_ACCESS_KEY }}
+
+    env:
+      IMAGE_TAG: ${{ github.event.inputs.tag != '' && github.event.inputs.tag || github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ matrix.aws-access-key-id }}
+          aws-secret-access-key: ${{ matrix.aws-secret-access-key }}
+          aws-region: ${{ matrix.aws-region }}
+
+      - name: Ensure script is executable
+        run: chmod +x scripts/deploy-ecr-ecs.sh
+
+      - name: Deploy ${{ matrix.env }}
+        env:
+          AWS_PROFILE: ${{ matrix.env == 'global' && 'aws-global' || 'aws-cn' }}
+          AWS_REGION: ${{ matrix.aws-region }}
+          ACCOUNT_ID: ${{ matrix.aws-account-id }}
+        run: |
+          ./scripts/deploy-ecr-ecs.sh ${{ matrix.env }} "$IMAGE_TAG"

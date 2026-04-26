@@ -4,7 +4,7 @@
  * @param link 변환할 링크 URL
  * @returns 변환된 웹 친화적인 URL
  */
-export function transformBannerLink(link: string): string {
+export function transformBannerLink(link: string, lang?: string): string {
   if (!link) return link;
 
   try {
@@ -13,6 +13,29 @@ export function transformBannerLink(link: string): string {
     
     // /vote/detail/을 /vote/로 변환
     transformedLink = transformedLink.replace('/vote/detail/', '/vote/');
+
+    if (lang) {
+      const safeLang = lang.toLowerCase();
+      const localePrefixed = new RegExp(`^/(?:${safeLang})(/|$)`, 'i');
+      const knownLocalePattern = /^\/(ko|en|my|ja|jp|zh|zh-tw)(\/|$)/i;
+      const hasProtocol = /^https?:\/\//i.test(transformedLink);
+
+      if (hasProtocol) {
+        const url = new URL(transformedLink);
+        if (url.hostname.endsWith('picnic.fan') && !knownLocalePattern.test(url.pathname)) {
+          const normalizedPath = url.pathname.startsWith('/')
+            ? url.pathname
+            : `/${url.pathname}`;
+          url.pathname = `/${safeLang}${normalizedPath}`;
+          transformedLink = url.toString();
+        }
+      } else if (!localePrefixed.test(transformedLink) && !knownLocalePattern.test(transformedLink)) {
+        const normalizedPath = transformedLink.startsWith('/')
+          ? transformedLink
+          : `/${transformedLink}`;
+        transformedLink = `/${safeLang}${normalizedPath}`;
+      }
+    }
     
     return transformedLink;
   } catch (error) {

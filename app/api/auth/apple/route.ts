@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { parseAppleIdentityToken, normalizeAppleProfile } from '@/lib/supabase/social/apple';
+import { verifyAppleIdentityToken, normalizeAppleProfile } from '@/lib/supabase/social/apple';
 
 interface AppleAuthRequest {
   id_token: string;
@@ -20,25 +20,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🍎 [Apple API] ID 토큰 처리 시작');
-
-    // Apple ID 토큰 파싱
-    const tokenPayload = parseAppleIdentityToken(id_token);
-    
-    if (!tokenPayload || !tokenPayload.sub) {
-      console.error('🍎 [Apple API] ID 토큰 파싱 실패');
+    // Apple ID 토큰을 JWKS로 암호학적 검증
+    let tokenPayload: Record<string, any>;
+    try {
+      tokenPayload = await verifyAppleIdentityToken(id_token);
+    } catch (verifyError) {
+      console.error('[Apple API] ID 토큰 서명 검증 실패:', verifyError);
       return NextResponse.json(
-        { error: 'Apple ID 토큰 파싱 실패' },
-        { status: 400 }
+        { error: 'Apple ID 토큰 검증 실패' },
+        { status: 401 }
       );
     }
 
-    console.log('🍎 [Apple API] ID 토큰 파싱 성공:', {
-      sub: tokenPayload.sub,
-      email: tokenPayload.email,
-      email_verified: tokenPayload.email_verified,
-      hasUserData: !!user
-    });
+    if (!tokenPayload || !tokenPayload.sub) {
+      return NextResponse.json(
+        { error: 'Apple ID 토큰에 필수 클레임이 없습니다' },
+        { status: 400 }
+      );
+    }
 
     // Apple 프로필 정보 정규화
     const userProfile = normalizeAppleProfile(tokenPayload, user);

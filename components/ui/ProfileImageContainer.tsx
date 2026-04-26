@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { resolveAvatarUrlClient } from '@/utils/image-utils';
 
 interface ProfileImageContainerProps {
-  avatarUrl: string;
+  avatarUrl: string | null;
   width: number;
   height: number;
   borderRadius?: number;
@@ -13,23 +14,78 @@ export const ProfileImageContainer: React.FC<ProfileImageContainerProps> = ({
   width,
   height,
   borderRadius = 0,
-  className = ''
+  className = '',
 }) => {
+  const fallbackUrl = '/images/default-avatar.svg';
+  const transformOptions = useMemo(
+    () => ({
+      width,
+      height,
+      resize: 'cover' as const,
+      quality: 85,
+    }),
+    [width, height],
+  );
+
+  const [resolvedSrc, setResolvedSrc] = useState<string>(fallbackUrl);
+  const [isFallback, setIsFallback] = useState<boolean>(!avatarUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const loadAvatar = async () => {
+      try {
+        const result = await resolveAvatarUrlClient(
+          avatarUrl,
+          transformOptions,
+          {
+            fallbackUrl,
+            signal: controller.signal,
+          },
+        );
+        if (cancelled) return;
+        setResolvedSrc(result.url);
+        setIsFallback(result.isFallback);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        if (!cancelled) {
+          console.warn('🖼️ [ProfileImageContainer] 아바타 로드 실패:', error);
+          setResolvedSrc(fallbackUrl);
+          setIsFallback(true);
+        }
+      }
+    };
+
+    loadAvatar();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [avatarUrl, transformOptions, fallbackUrl]);
+
   return (
     <div 
       style={{ borderRadius, overflow: 'hidden' }}
       className={className}
     >
       <img
-        src={avatarUrl}
+        src={resolvedSrc}
         alt="프로필 이미지"
         width={width}
         height={height}
         className="object-cover rounded-full bg-gray-200"
         loading="lazy"
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
         onError={(e) => {
-          // 이미지 로딩 실패 시 기본 이미지로 대체
-          e.currentTarget.src = '/images/default-avatar.png';
+          // 기본 이미지가 이미 적용된 경우 더 이상 변경하지 않음 (무한 루프 방지)
+          if (isFallback || e.currentTarget.src.includes('default-avatar')) return;
+          setResolvedSrc('/images/default-avatar.svg');
+          setIsFallback(true);
         }}
       />
     </div>

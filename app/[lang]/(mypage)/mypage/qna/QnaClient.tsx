@@ -1,25 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { QnaThread, Pagination } from '@/types/interfaces';
+import { QnaThreads as QnaThread } from '@/types/interfaces';
+import type { Pagination } from '@/types/mypage-common';
 import { PostgrestError } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { useTranslations } from '@/hooks/useTranslations';
+import { useLanguage } from '@/hooks/useLanguage';
+import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 interface QnaClientProps {
   initialQnaThreads: QnaThread[] | null;
   initialPagination: Pagination | null;
   initialError: PostgrestError | string | null;
-  translations: {
-    [key: string]: string;
-  };
 }
 
 export default function QnaClient({
   initialQnaThreads,
   initialPagination,
   initialError,
-  translations,
 }: QnaClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -27,8 +28,80 @@ export default function QnaClient({
   const [qnaThreads, setQnaThreads] = useState(initialQnaThreads);
   const [pagination, setPagination] = useState(initialPagination);
   const [error, setError] = useState(initialError);
+  const { t } = useTranslations();
+  const { currentLanguage } = useLanguage();
+  const [categories, setCategories] = useState<any[]>([]);
+  const ensureActiveMembership = useWithdrawalGuard();
 
-  const t = (key: string) => translations[key] || key;
+  useEffect(() => {
+    if (!qnaThreads?.length) return;
+    const supabase = createBrowserSupabaseClient();
+    const channel = supabase
+      .channel('qna_thread_list')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'qna_threads',
+        },
+        (payload) => {
+          const updatedId = payload.new?.id;
+          const newStatus = payload.new?.status;
+          if (updatedId && newStatus) {
+            setQnaThreads((prev) =>
+              prev?.map((t) =>
+                t.id === updatedId ? { ...t, status: newStatus } : t
+              ) ?? null
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qnaThreads?.length]);
+
+  const handleCreateNew = async () => {
+    if (await ensureActiveMembership()) {
+      return;
+    }
+    router.push(`${pathname}/new`);
+  };
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/qna/categories', { credentials: 'include' });
+        const json = await res.json();
+        if (json?.success) setCategories(json.data || []);
+      } catch (e) {
+        // noop
+      }
+    })();
+  }, []);
+
+  const getCategoryLabel = (code?: string | null) => {
+    if (!code) return null;
+    const c = categories.find((x) => x.code === code);
+    if (!c) return null;
+    const raw = c.label;
+    // label이 문자열인 경우 그대로 사용
+    if (typeof raw === 'string') return raw;
+    // 객체인 경우 언어 우선순위로 선택
+    if (raw && typeof raw === 'object') {
+      const byLang = raw?.[currentLanguage] || raw?.en || raw?.ko;
+      if (typeof byLang === 'string') return byLang;
+      if (byLang != null) return String(byLang);
+      // 첫 번째 값 사용 (불완전 데이터 대비)
+      const first = Object.values(raw)[0];
+      if (typeof first === 'string') return first;
+      if (first != null) return String(first);
+    }
+    return null;
+  };
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -36,12 +109,13 @@ export default function QnaClient({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+  const formatDate = (dateString: string | null) => {
+    const safe = dateString ?? new Date().toISOString();
+    const date = new Date(safe);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}.${month}.${day}`;
   };
 
   if (error) {
@@ -53,56 +127,85 @@ export default function QnaClient({
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">{t('title')}</h1>
-        <Link href={`${pathname}/new`}>
-          <button className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-            {t('new_qna')}
-          </button>
-        </Link>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">{t('label_mypage_qna')}</h1>
+        <button
+          type="button"
+          onClick={handleCreateNew}
+          className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+        >
+          {t('label_new_qna')}
+        </button>
       </div>
 
       {qnaThreads && qnaThreads.length > 0 ? (
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
-          <ul className="divide-y divide-gray-200">
-            {qnaThreads.map((thread) => (
-              <li key={thread.id} className="p-4 hover:bg-gray-50 transition-colors duration-200">
-                <Link href={`${pathname}/${thread.id}`} className="block">
-                  <div className="flex justify-between items-center">
-                    <p className="text-lg font-semibold text-primary truncate">{thread.title}</p>
+        <div className="space-y-4">
+          {qnaThreads.map((thread) => (
+            <Link key={thread.id} href={`${pathname}/${thread.id}`} className="block">
+              <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-6 border-l-4 border-transparent hover:border-primary">
+                <div className="flex justify-between items-start">
+                  <div className="flex-grow">
+                    <p className="text-lg font-semibold text-gray-800 truncate pr-4">{thread.title}</p>
+                    {(() => {
+                      const label = getCategoryLabel(thread.category_code);
+                      return label ? (
+                        <span className="inline-flex items-center mt-2 px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary-700">
+                          {label}
+                        </span>
+                      ) : null;
+                    })()}
+                    <p className="text-sm text-sub-500 mt-2">{formatDate(thread.created_at)}</p>
+                  </div>
+                  <div
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                      thread.status === 'RECEIVED'
+                        ? 'bg-secondary/20 text-secondary-500'
+                        : thread.status === 'IN_PROGRESS'
+                          ? 'bg-primary/20 text-primary-600'
+                          : 'bg-point/20 text-point-500'
+                    }`}
+                  >
                     <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        thread.status === 'OPEN'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
+                      className={`w-2 h-2 rounded-full ${
+                        thread.status === 'RECEIVED'
+                          ? 'bg-secondary'
+                          : thread.status === 'IN_PROGRESS'
+                            ? 'bg-primary'
+                            : 'bg-point'
                       }`}
-                    >
-                      {t(`status_${thread.status.toLowerCase()}`)}
+                    />
+                    <span>
+                      {t(
+                        thread.status === 'RECEIVED'
+                          ? 'qna.status.received'
+                          : thread.status === 'IN_PROGRESS'
+                            ? 'qna.status.in_progress'
+                            : 'qna.status.resolved'
+                      )}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">{formatDate(thread.created_at)}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-500">{t('no_qna')}</p>
+        <div className="text-center py-20 bg-gray-50 rounded-lg">
+          <p className="text-sub-500 text-lg">{t('label_no_qna')}</p>
         </div>
       )}
 
       {pagination && pagination.totalPages > 1 && (
-        <div className="flex justify-center mt-8 space-x-2">
+        <div className="flex justify-center mt-10 space-x-2">
           {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
             <button
               key={page}
               onClick={() => handlePageChange(page)}
-              className={`px-4 py-2 rounded-lg ${
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-300 ${
                 pagination.page === page
-                  ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 border'
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-white text-sub-700 border border-sub-200 hover:bg-primary-50 hover:border-primary'
               }`}
             >
               {page}

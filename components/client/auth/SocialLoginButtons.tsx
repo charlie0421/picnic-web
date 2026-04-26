@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
+import { logAuth, AuthLog } from '@/utils/auth-logger';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
@@ -13,6 +14,8 @@ import {
   sortProvidersByLastUsed
 } from '@/utils/auth-helpers';
 import type { LastLoginInfo } from '@/utils/storage';
+import { useSearchParams, usePathname } from 'next/navigation';
+import { getRedirectUrl, normalizeRedirectPath } from '@/utils/auth-redirect';
 
 interface SocialLoginButtonsProps {
   onLoginStart?: () => void;
@@ -37,6 +40,8 @@ export function SocialLoginButtons({
   const { t } = useLanguageStore();
   const { isLoading: authLoading } = useAuth();
   const { setIsLoading: setGlobalLoading } = useGlobalLoading();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const lastUsedProvider = (lastLoginInfo?.provider as SocialLoginProvider) || null;
   const sortedProviders = sortProvidersByLastUsed(providers, lastUsedProvider);
@@ -54,16 +59,60 @@ export function SocialLoginButtons({
         
         // 로그인 시작 콜백
         onLoginStart?.();
+        logAuth(AuthLog.LoginStart, { provider });
 
         // 소셜 로그인 서비스 인스턴스 가져오기 (자동으로 Supabase 클라이언트 생성)
         const socialAuthService = getSocialAuthService();
         console.log(`🔗 [SocialLogin] ${provider.toUpperCase()} 인증 서비스 생성 완료`);
 
         // 선택된 제공자로 로그인 시도
-        console.log(`🔍 [SocialLoginButtons] ${provider} 로그인 서비스 호출 시작`);
-        const authResult = await socialAuthService.signInWithProvider(provider);
+        
+        logAuth(AuthLog.ProviderInit, { provider });
+        // 원복 목적지 계산: URL 쿼리의 returnTo > 저장된 redirectUrl > 현재 경로
+        let desiredReturn = searchParams.get('returnTo') || getRedirectUrl() || pathname || '/';
+        // 안전: 절대경로나 외부 URL 방지 (이미 유틸에서 검증하지만 간단히 한 번 더)
+        if (desiredReturn.startsWith('http://') || desiredReturn.startsWith('https://')) {
+          desiredReturn = '/';
+        }
 
-        console.log(`🔗 [SocialLogin] ${provider.toUpperCase()} 인증 결과:`, authResult);
+        // 폴백 강화를 위해 즉시 보관 (공급자/환경에 따라 쿼리 전달이 누락돼도 복구 가능)
+        try {
+          // 리다이렉트 경로는 항상 정규화해서 저장
+          const normalizedReturn = normalizeRedirectPath(desiredReturn);
+          // 리다이렉트에 사용하는 단일 키만 저장 (중복 방지)
+          localStorage.setItem('auth_return_url', normalizedReturn);
+          const maxAge = 15 * 60; // 15분
+          document.cookie = `auth_return_url=${encodeURIComponent(normalizedReturn)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+          logAuth(AuthLog.SaveReturnUrl, { desiredReturn: normalizedReturn });
+        } catch {}
+
+        // KakaoTalk 인앱(안드로이드)에서는 구글이 웹뷰를 제한하므로 크롬 인텐트로 외부 브라우저에서 OAuth 시작
+        const isKakaoAndroid = () => {
+          if (typeof navigator === 'undefined') return false;
+          const ua = navigator.userAgent || '';
+          return /KAKAOTALK/i.test(ua) && /Android/i.test(ua);
+        };
+
+        if (provider === 'google' && typeof window !== 'undefined' && isKakaoAndroid()) {
+          try {
+            const origin = window.location.origin;
+            const normalizedReturn = normalizeRedirectPath(desiredReturn);
+            const target = `${origin}/api/auth/google?return_url=${encodeURIComponent(normalizedReturn)}`;
+            const scheme = origin.startsWith('https') ? 'https' : 'http';
+            const intent = `intent://${target.replace(/^https?:\/\//, '')}#Intent;scheme=${scheme};package=com.android.chrome;end`;
+            console.log('🚪 Kakao Android 환경 감지 - Chrome 인텐트로 이동:', { target });
+            window.location.href = intent;
+            return; // 이후 로직 진행 필요 없음 (리다이렉트)
+          } catch (e) {
+            console.warn('Chrome 인텐트 리다이렉트 실패, 일반 경로로 진행:', e);
+          }
+        }
+
+        const authResult = await socialAuthService.signInWithProvider(provider, {
+          additionalParams: { return_url: normalizeRedirectPath(desiredReturn) },
+        });
+
+        logAuth(AuthLog.OAuthRedirect, { provider, success: authResult.success });
         
         if (authResult.success) {
           // 로그인 리다이렉트 성공 - 실제 인증 완료는 콜백에서 처리됨
@@ -93,7 +142,7 @@ export function SocialLoginButtons({
       }
       // finally 블록 제거 - 성공 시에는 로딩 상태를 유지하여 리다이렉트까지 버튼 비활성화
     },
-    [onLoginStart, onError, t, providers, setGlobalLoading],
+    [onLoginStart, onError, t, providers, setGlobalLoading, searchParams, pathname],
   );
 
   // 각 소셜 로그인 버튼의 스타일 및 내용 설정
@@ -129,13 +178,6 @@ export function SocialLoginButtons({
       textColor: 'text-gray-900',
       hoverColor: 'hover:bg-yellow-500',
       iconPath: '/images/auth/kakao.svg',
-    },
-    wechat: {
-      label: t('label_login_with_wechat') || 'WeChat으로 로그인',
-      bgColor: 'bg-green-500',
-      textColor: 'text-white',
-      hoverColor: 'hover:bg-green-600',
-      iconPath: '/images/auth/wechat.svg',
     },
   };
 
@@ -201,8 +243,6 @@ export function SocialLoginButtons({
           return baseStyle + 'bg-gradient-to-r from-gray-900 to-black hover:from-black hover:to-gray-900 border-2 border-gray-800 hover:border-gray-700 !text-white hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
         case 'kakao':
           return baseStyle + 'bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 border-2 border-yellow-400 hover:border-yellow-500 !text-gray-900 hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
-        case 'wechat':
-          return baseStyle + 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 border-2 border-green-600 hover:border-green-700 !text-white hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]';
         default:
           return baseStyle + 'bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-300 !text-gray-700';
       }
@@ -245,7 +285,6 @@ export function SocialLoginButtons({
                 provider === 'apple' ? 'filter brightness-0 invert' : ''
               }`}
               priority={provider === 'google' || isLastUsed}
-              unoptimized={provider === 'wechat'} // WeChat SVG의 렌더링 문제 해결
             />
           </div>
           
@@ -253,8 +292,7 @@ export function SocialLoginButtons({
           <span className={`font-medium text-xs sm:text-sm md:text-base whitespace-nowrap transition-all duration-300 ${
             provider === 'google' ? '!text-gray-700' :
             provider === 'apple' ? '!text-white' :
-            provider === 'kakao' ? '!text-gray-900' :
-            provider === 'wechat' ? '!text-white' : '!text-gray-700'
+            provider === 'kakao' ? '!text-gray-900' : '!text-gray-700'
           } ${isLoading === provider ? 'opacity-0 translate-x-2' : 'opacity-100 translate-x-0'}`}>
             {isLoading === provider ? (t('label_logging_in') || '로그인 중...') : config.label}
           </span>

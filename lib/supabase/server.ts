@@ -1,23 +1,45 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { SupabaseAuthError } from './error'
 import { createClient } from '@supabase/supabase-js'
 
+function resolveCookieDomain(hostname: string | null | undefined) {
+  if (!hostname) return undefined;
+  // 로컬/개발 환경: 도메인 강제 설정 금지 (host-only 쿠키)
+  if (
+    hostname.includes('localhost') ||
+    hostname.startsWith('127.') ||
+    hostname.endsWith('.local')
+  ) {
+    return undefined;
+  }
+  // 프로덕션 도메인: picnic.fan 하위 도메인에서만 루트 도메인으로 고정
+  if (hostname === 'picnic.fan' || hostname.endsWith('.picnic.fan')) {
+    return '.picnic.fan';
+  }
+  // 이외 호스트(프리뷰/브랜치 등): 잘못된 크로스 도메인 방지를 위해 도메인 미설정
+  return undefined;
+}
+
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies()
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl) {
-    throw new Error("SUPABASE_URL is not set in environment variables.");
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set in environment variables.");
   }
-  if (!supabaseServiceRoleKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set in environment variables.");
+  if (!supabaseAnonKey) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not set in environment variables.");
   }
+
+  const reqHeaders = await headers();
+  const currentHost = reqHeaders.get('host');
+  const cookieDomain = resolveCookieDomain(currentHost);
 
   return createServerClient(
     supabaseUrl,
-    supabaseServiceRoleKey,
+    supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
@@ -25,20 +47,29 @@ export async function createSupabaseServerClient() {
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options })
+            const sanitized: CookieOptions = { ...options };
+            // 도메인 강제/제거 정책 적용
+            if (cookieDomain) {
+              sanitized.domain = cookieDomain;
+            } else if (sanitized.domain) {
+              delete sanitized.domain;
+            }
+            cookieStore.set({ name, value, ...sanitized })
           } catch (error) {
             // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options })
+            const sanitized: CookieOptions = { ...options };
+            if (cookieDomain) {
+              sanitized.domain = cookieDomain;
+            } else if (sanitized.domain) {
+              delete sanitized.domain;
+            }
+            cookieStore.set({ name, value: '', ...sanitized })
           } catch (error) {
             // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
           }
         },
       },
@@ -87,12 +118,43 @@ export async function getServerUser() {
       console.warn(`[Auth] Supabase getUser error: ${error.message}`);
       return null;
     }
-    
+
     return user;
   } catch (error) {
     console.error('[Auth] Unexpected error in getServerUser:', error);
     return null;
   }
+}
+
+/**
+ * 탈퇴 회원 에러 클래스
+ */
+export class WithdrawnUserError extends Error {
+  constructor(message = 'A member who has unsubscribed.') {
+    super(message);
+    this.name = 'WithdrawnUserError';
+  }
+}
+
+/**
+ * 사용자가 탈퇴 회원인지 확인
+ * @param userId 확인할 사용자 ID
+ * @returns 탈퇴 회원이면 true, 아니면 false
+ */
+export async function isWithdrawnUser(userId: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data: profile, error } = await supabase
+    .from('user_profiles')
+    .select('deleted_at')
+    .eq('id', userId)
+    .single();
+
+  if (error) {
+    console.warn(`[Auth] Failed to check user withdrawal status: ${error.message}`);
+    return false;
+  }
+
+  return profile?.deleted_at != null;
 }
 
 export async function withAuth<T>(
@@ -102,5 +164,26 @@ export async function withAuth<T>(
   if (!user) {
     throw new SupabaseAuthError('Authentication required.');
   }
+  return callback(user.id);
+}
+
+/**
+ * 인증 및 탈퇴 회원 체크를 포함한 래퍼 함수
+ * 탈퇴 회원이면 WithdrawnUserError를 throw
+ */
+export async function withAuthAndWithdrawalCheck<T>(
+  callback: (userId: string) => Promise<T>
+): Promise<T> {
+  const user = await getServerUser();
+  if (!user) {
+    throw new SupabaseAuthError('Authentication required.');
+  }
+
+  // 탈퇴 회원 체크
+  const isWithdrawn = await isWithdrawnUser(user.id);
+  if (isWithdrawn) {
+    throw new WithdrawnUserError();
+  }
+
   return callback(user.id);
 } 

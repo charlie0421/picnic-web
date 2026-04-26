@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 const Footer: React.FC = () => {
   const { currentLanguage } = useLanguageStore();
+  const { getLocalizedPath } = useLocaleRouter();
   const [mounted, setMounted] = useState(false);
 
   // 컴포넌트가 마운트된 후에만 언어 변경을 적용
@@ -19,6 +22,8 @@ const Footer: React.FC = () => {
       contact:
         '전화번호: 070-8058-9950 | 통신판매업번호: 제2024-성남수정-0657호',
       copyright: '© 2024 IconCasting Inc. All rights reserved.',
+      privacyPolicy: '개인정보처리방침',
+      termsOfService: '이용약관',
     },
     en: {
       company:
@@ -28,6 +33,8 @@ const Footer: React.FC = () => {
       contact:
         'Phone: 070-8058-9950 | E-commerce Registration No: 2024-Seongnam-Sujeong-0657',
       copyright: '© 2024 IconCasting Inc. All rights reserved.',
+      privacyPolicy: 'Privacy Policy',
+      termsOfService: 'Terms of Service',
     },
   };
 
@@ -36,12 +43,29 @@ const Footer: React.FC = () => {
 
   return (
     <footer className='w-full py-4 px-10 text-center text-gray-500 text-xs border-t border-gray-200'>
-      <p className='space-y-2'>
-        <span className='block'>{currentContent.company}</span>
-        <span className='block'>{currentContent.address}</span>
-        <span className='block'>{currentContent.contact}</span>
-        <span className='block mt-4'>{currentContent.copyright}</span>
-      </p>
+      <div className='space-y-2'>
+        <div className='flex justify-center items-center gap-4 mb-3'>
+          <Link
+            href={getLocalizedPath('/privacy')}
+            className='text-gray-600 hover:text-gray-800 underline transition-colors'
+          >
+            {currentContent.privacyPolicy}
+          </Link>
+          <span className='text-gray-400'>|</span>
+          <Link
+            href={getLocalizedPath('/terms')}
+            className='text-gray-600 hover:text-gray-800 underline transition-colors'
+          >
+            {currentContent.termsOfService}
+          </Link>
+        </div>
+        <p className='space-y-2'>
+          <span className='block'>{currentContent.company}</span>
+          <span className='block'>{currentContent.address}</span>
+          <span className='block'>{currentContent.contact}</span>
+          <span className='block mt-4'>{currentContent.copyright}</span>
+        </p>
+      </div>
     </footer>
   );
 };

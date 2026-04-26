@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { VoteItem } from '@/types/interfaces';
-import { getCdnImageUrl } from '@/utils/api/image';
 import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useVoteStore } from '@/stores/voteStore';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 export interface VoteResultsProps {
   voteItems?: Array<VoteItem & { artist?: any }>;
@@ -55,7 +55,11 @@ export function VoteResults({
     if (!voteItems || voteItems.length === 0) return [];
 
     // 투표수로 정렬 (내림차순)
-    const sorted = [...voteItems].sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0));
+    const sorted = [...voteItems].sort((a, b) => {
+      const voteDiff = (b.vote_total || 0) - (a.vote_total || 0);
+      if (voteDiff !== 0) return voteDiff;
+      return (a.id || 0) - (b.id || 0);
+    });
     
     // 최대 표시 개수만큼 제한
     const limited = sorted.slice(0, maxDisplayItems);
@@ -80,22 +84,7 @@ export function VoteResults({
   // 스토어 에러 처리
   if (error) {
     return (
-      <div className={`text-center py-12 ${className}`}>
-        <div className="mb-4">
-          <svg
-            className="w-16 h-16 text-red-300 mx-auto"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"
-            />
-          </svg>
-        </div>
+      <div className={`text-center py-8 ${className}`}>
         <p className="text-red-500 mb-4">{error}</p>
         <button
           onClick={() => window.location.reload()}
@@ -132,23 +121,8 @@ export function VoteResults({
   // 빈 상태
   if (!isMounted || sortedResults.length === 0) {
     return (
-      <div className={`text-center py-12 ${className}`}>
-        <div className="mb-4">
-          <svg
-            className="w-16 h-16 text-gray-300 mx-auto"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
-          </svg>
-        </div>
-        <p className="text-gray-500 text-lg">{emptyMessage}</p>
+      <div className={`text-center py-8 ${className}`}>
+        <p className="text-gray-500">{emptyMessage}</p>
       </div>
     );
   }
@@ -187,17 +161,16 @@ export function VoteResults({
       {/* 결과 목록 */}
       <div className="space-y-4">
         {sortedResults.map((item) => {
-          const artistName = item.artist
-            ? getLocalizedString(item.artist.name, currentLanguage) || '아티스트'
+          const a = (item as any).artist;
+          const artistName = a
+            ? getLocalizedString(a.name, currentLanguage) || '아티스트'
             : '아티스트';
           
-          const artistGroup = item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)
-            ? getLocalizedString(item.artist.artistGroup.name, currentLanguage)
+          const artistGroup = a?.artistGroup?.name && hasValidLocalizedString(a.artistGroup.name)
+            ? getLocalizedString(a.artistGroup.name, currentLanguage)
             : null;
           
-          const imageUrl = item.artist?.image
-            ? getCdnImageUrl(item.artist.image)
-            : '/images/default-artist.png';
+          const imageSrc = a?.image || null;
 
           const rankInfo = getRankingIcon(item.rank);
 
@@ -216,16 +189,14 @@ export function VoteResults({
               )}
 
               {/* 아티스트 이미지 */}
-              <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 shadow-sm mr-4 flex-shrink-0">
-                <img
-                  src={imageUrl}
+              <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200 shadow-sm mr-4 flex-shrink-0 relative">
+                <OptimizedImage
+                  src={imageSrc || '/images/default-artist.png'}
                   alt={artistName}
+                  width={48}
+                  height={48}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/images/default-artist.png';
-                    target.onerror = null;
-                  }}
+                  fallbackSrc="/images/default-artist.png"
                 />
               </div>
 

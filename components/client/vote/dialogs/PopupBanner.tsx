@@ -1,6 +1,7 @@
 import { useLanguageStore } from '@/stores/languageStore';
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface Slide {
   imageUrl?: string;
@@ -124,7 +125,7 @@ const PopupBanner: React.FC<PopupBannerProps> = ({
               className='w-full flex-shrink-0 rounded-t-lg overflow-hidden bg-gray-100'
               style={{ position: 'relative', paddingTop: '56.25%' }}
             >
-              <Image
+              <OptimizedImage
                 src={imageUrl || '/images/logo_alpha.png'}
                 alt='popup'
                 fill

@@ -5,12 +5,14 @@ export const VOTE_STATUS = {
   UPCOMING: 'upcoming',
   ONGOING: 'ongoing',
   COMPLETED: 'completed',
+  ADMIN: 'admin',
 } as const;
 
 export const VOTE_AREAS = {
   ALL: 'all',
   KPOP: 'kpop',
   MUSICAL: 'musical',
+  PIC_CHART: 'pic-chart',
 } as const;
 
 export type VoteStatus = (typeof VOTE_STATUS)[keyof typeof VOTE_STATUS];
@@ -60,11 +62,10 @@ export const useVoteFilterStore = create<VoteFilterState>()(
         }
       },
       resetFilters: () => {
-        set({ 
-          selectedStatus: DEFAULT_STATUS, 
-          selectedArea: DEFAULT_AREA 
+        set({
+          selectedStatus: DEFAULT_STATUS,
+          selectedArea: DEFAULT_AREA
         });
-        console.log('[VoteFilterStore] Filters reset to default values');
       },
       validateAndFixState: () => {
         const state = get();
@@ -85,7 +86,6 @@ export const useVoteFilterStore = create<VoteFilterState>()(
 
         if (hasInvalidState) {
           set(newState);
-          console.log('[VoteFilterStore] State validation completed with fixes');
         }
       },
     }),

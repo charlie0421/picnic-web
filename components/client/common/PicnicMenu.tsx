@@ -5,12 +5,22 @@ import NavigationLink from '@/components/client/NavigationLink';
 import { usePathname } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import menuConfig from '@/config/menu.json';
+import { useAuth } from '@/hooks/useAuth';
 
 export const PicnicMenu: React.FC = () => {
   const pathname = usePathname();
   const { t, currentLanguage, isTranslationLoaded } = useLanguageStore();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin === true;
 
   const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/';
+  
+  const votePortalInfo = menuConfig.portals.find(portal => portal.id === 'vote');
+
+  if (!votePortalInfo || (votePortalInfo.adminOnly && !isAdmin)) {
+    return null;
+  }
+  
   const showPicnicMenu = pathWithoutLocale.startsWith(`/vote`) || pathWithoutLocale.startsWith(`/rewards`);
 
   if (!showPicnicMenu) {
@@ -22,15 +32,14 @@ export const PicnicMenu: React.FC = () => {
   const isCurrentLanguageLoaded = isTranslationLoaded[currentLanguage];
 
   // Vote 포털의 서브메뉴 가져오기
-  const votePortal = menuConfig.portals.find(portal => portal.id === 'vote');
-  const subMenus = votePortal?.subMenus || [];
+  const subMenus = votePortalInfo?.subMenus || [];
 
   // 디버깅 로그 추가
   console.log('🔍 [Vote Menu] 렌더링:', {
     pathname,
     currentLanguage,
     isCurrentLanguageLoaded,
-    votePortal: !!votePortal,
+    votePortal: !!votePortalInfo,
     subMenusCount: subMenus.length,
     subMenus: subMenus.map(m => ({ key: m.key, path: m.path }))
   });
@@ -54,8 +63,8 @@ export const PicnicMenu: React.FC = () => {
   };
 
   // 메뉴가 없는 경우 에러 상태 표시
-  if (!votePortal || subMenus.length === 0) {
-    console.error('🚨 [Vote Menu] 메뉴 설정을 찾을 수 없습니다:', { votePortal, subMenus });
+  if (!votePortalInfo || subMenus.length === 0) {
+    console.error('🚨 [Vote Menu] 메뉴 설정을 찾을 수 없습니다:', { votePortal: votePortalInfo, subMenus });
     return (
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center py-2'>
         <div className='text-red-500 text-sm'>메뉴 로드 실패</div>

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import { SocialLoginButtons } from '@/components/client/auth/SocialLoginButtons';
 import { useAuth } from '@/lib/supabase/auth-provider';
@@ -21,6 +21,7 @@ import { useOAuthError } from '@/hooks/auth/useOAuthError';
 import { LoadingIndicator } from '@/components/client/auth/login/LoadingIndicator';
 import { EnvErrorDisplay } from '@/components/client/auth/login/EnvErrorDisplay';
 import { debugLog } from '@/utils/debug';
+import { normalizeRedirectPath } from '@/utils/auth-redirect';
 
 // AppleID 타입 정의 (전역)
 declare global {
@@ -43,6 +44,7 @@ function LoginContentInner() {
   } = useLoginState();
   const [mounted, setMounted] = useState<boolean>(false);
   const [lastLoginInfo, setLastLoginInfo] = useState<LastLoginInfo | null>(null);
+  const searchParams = useSearchParams();
   
   const envCheckFailed = useEnvironmentCheck(mounted);
   
@@ -50,19 +52,35 @@ function LoginContentInner() {
   useAppleAuthHandler(mounted, setLoading, setError);
   useOAuthError(mounted, setError);
   
-  const providers: SocialLoginProvider[] = useMemo(() => 
-    process.env.NODE_ENV === 'development'
-      ? ['google', 'apple', 'wechat']
-      : ['google', 'apple'], 
-  []);
+  const providers: SocialLoginProvider[] = useMemo(() => {
+    const base: SocialLoginProvider[] = ['google', 'apple'];
+    return base;
+  }, []);
 
   useEffect(() => {
     setMounted(true);
     try {
-      setLastLoginInfo(getLastLoginInfo());
+      const strong = getLastLoginInfo();
+      if (strong) setLastLoginInfo(strong);
     } catch (e) {
       debugLog('최근 로그인 정보 로드 실패', e);
     }
+  }, []);
+
+  // 로그인 페이지 진입 시 returnTo 파라미터만 최소 저장(쿠키/LS)하여 콜백 단계 복구
+  useEffect(() => {
+    try {
+      const returnTo = searchParams.get('returnTo');
+      if (returnTo) {
+        // 잘못된 경로 유입 방지를 위해 정규화 후 저장
+        const normalized = normalizeRedirectPath(returnTo);
+        // loginRedirectUrl 같은 보조 키는 생성하지 않도록 단일 키만 저장
+        localStorage.setItem('auth_return_url', normalized);
+        const maxAge = 15 * 60; // 15분
+        document.cookie = `auth_return_url=${encodeURIComponent(normalized)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -203,7 +221,7 @@ function LoginContent() {
           <div className='transition-transform duration-200 hover:scale-105 mb-3'>
             <Link href='/' className='group'>
                 <div className='relative bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200 group-hover:shadow-2xl transition-all duration-300'>
-                    <Image src='/images/logo.png' alt='Picnic Logo' width={48} height={48} className='w-12 h-12 sm:w-16 sm:h-16 mx-auto filter drop-shadow-lg' priority />
+                    <Image src='/images/logo.webp' alt='Picnic Logo' width={48} height={48} className='w-12 h-12 sm:w-16 sm:h-16 mx-auto filter drop-shadow-lg' priority />
               </div>
             </Link>
           </div>

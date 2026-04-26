@@ -1,8 +1,9 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useLanguageStore } from '../stores/languageStore';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, type Language } from '../config/settings';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 interface LocaleRouterReturn {
   currentLocale: Language;
@@ -27,6 +28,7 @@ interface LocaleRouterReturn {
 export function useLocaleRouter(): LocaleRouterReturn {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { currentLanguage, setLanguage, translations, loadTranslations: storeLoadTranslations, t: storeT } = useLanguageStore();
 
   // 로케일 유효성 검사
@@ -37,7 +39,9 @@ export function useLocaleRouter(): LocaleRouterReturn {
   // 현재 경로에서 로케일 추출
   const extractLocaleFromPath = (path: string): { locale: Language; path: string } => {
     const segments = path.split('/').filter(Boolean);
-    const firstSegment = segments[0];
+    let firstSegment = segments[0];
+    // 레거시 호환: '/zh' → 'zh-cn'
+    if (firstSegment === 'zh') firstSegment = 'zh-cn';
     
     if (firstSegment && isValidLocale(firstSegment)) {
       return {
@@ -100,6 +104,36 @@ export function useLocaleRouter(): LocaleRouterReturn {
       document.cookie = `locale=${locale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
     }
 
+    // user_profiles.language 업데이트 (로그인한 사용자인 경우에만)
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // 언어 코드 정규화 (zh-cn -> zh, zh-tw -> zh-TW 등)
+        let normalizedLanguage: string = locale;
+        if (locale === 'zh-cn') {
+          normalizedLanguage = 'zh';
+        } else if (locale === 'zh-tw') {
+          normalizedLanguage = 'zh-TW';
+        }
+        
+        const { error } = await (supabase as any)
+          .from('user_profiles')
+          .update({ language: normalizedLanguage })
+          .eq('id', user.id);
+        
+        if (error) {
+          console.warn('Failed to update user_profiles.language:', error);
+        } else {
+          console.log('Updated user_profiles.language to:', normalizedLanguage);
+        }
+      }
+    } catch (error) {
+      // 로그인하지 않은 경우나 업데이트 실패는 무시 (앱 동작에는 영향 없음)
+      console.warn('Failed to update user_profiles.language:', error);
+    }
+
     // 로컬 번역 로드
     await loadTranslations(locale);
 
@@ -107,7 +141,8 @@ export function useLocaleRouter(): LocaleRouterReturn {
     if (preservePath) {
       const currentPath = removeLocaleFromPath(pathname);
       const newPath = getLocalizedPath(currentPath, locale);
-      router.push(newPath);
+      const query = searchParams?.toString();
+      router.push(query ? `${newPath}?${query}` : newPath);
     } else {
       const newPath = getLocalizedPath('/', locale);
       router.push(newPath);

@@ -1,0 +1,220 @@
+import React from 'react'
+import { Metadata } from 'next'
+import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils'
+import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils'
+import { SITE_URL } from '@/app/[lang]/constants/static-pages'
+import { getTranslations } from '@/lib/i18n/server'
+import { getBoardsForUserFavoritesOnly, getUserBookmarkedBoardIds, getBoardsByIds, getHotCommunityPosts } from '@/lib/data-fetching/server/community-service'
+import BoardSearch from '@/components/community/BoardSearch'
+import { OptimizedImage } from '@/components/ui/OptimizedImage'
+import NavigationLink from '@/components/client/NavigationLink'
+import HotPostList from '@/components/community/HotPostList'
+
+export const revalidate = 60
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ lang: string }>
+}): Promise<Metadata> {
+  const { lang: langParam } = await params
+  const lang = String(langParam || 'ko')
+  const isrOptions = createISRMetadata(60)
+  const t = await getTranslations(lang as any)
+
+  return {
+    ...createPageMetadata(
+      t('community.meta.title'),
+      t('community.meta.description'),
+      {
+        alternates: {
+          canonical: `${SITE_URL}/${lang}/community`,
+          languages: {
+            'ko-KR': `${SITE_URL}/ko/community`,
+            'en-US': `${SITE_URL}/en/community`,
+          },
+        },
+      },
+    ),
+    ...isrOptions,
+  }
+}
+
+export default async function CommunityBoardListPage({
+  params,
+}: {
+  params: Promise<{ lang: string }>
+}) {
+  const { lang: langParam } = await params
+  const lang = String(langParam || 'ko')
+  const t = await getTranslations(lang as any)
+  const [favoritesOnly, bookmarkedBoardIds, hotPosts] = await Promise.all([
+    getBoardsForUserFavoritesOnly({ page: 1, limit: 50 }),
+    getUserBookmarkedBoardIds(),
+    getHotCommunityPosts({ limit: 6, days: 30 }),
+  ])
+  // 북마크한 보드가 현재 목록에 없을 수 있으므로 별도로 조회
+  const bookmarkedBoards = (await getBoardsByIds(bookmarkedBoardIds))
+  const hotPostItems = hotPosts.map((post) => ({
+    id: post.id,
+    title: post.title?.trim() ? post.title : t('community.list.hotPosts.untitled'),
+    contentPreview: post.contentPreview,
+    replyCount: post.replyCount,
+    viewCount: post.viewCount,
+    boardArtist: post.boardArtist ?? null,
+  }))
+  return (
+    <div className='container mx-auto space-y-8 px-4 py-8 text-gray-900'>
+      <section className='relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 via-primary-500 to-point-500 px-6 py-10 text-white shadow-2xl'>
+        <div className='absolute inset-0 opacity-30'>
+          <div className='h-full w-full bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.4),_transparent_60%)]' />
+        </div>
+        <div className='relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between'>
+          <div className='space-y-3'>
+            <p className='text-xs font-semibold uppercase tracking-[0.2em] text-white/80'>{t('community.meta.title')}</p>
+            <h1 className='text-3xl font-semibold tracking-tight'>{t('community.list.heading')}</h1>
+            <p className='max-w-2xl text-sm text-white/80'>{t('community.meta.description')}</p>
+          </div>
+          <div className='flex flex-col gap-3 self-start sm:flex-row md:self-auto'>
+            <NavigationLink
+              href={`/${lang}/community/new`}
+              should_login
+              className='inline-flex items-center gap-2 rounded-full bg-white/90 px-5 py-3 text-sm font-semibold text-primary-600 shadow-lg shadow-primary-900/20 transition hover:translate-y-[-2px] hover:bg-white'
+            >
+              {t('community.board.empty.cta')}
+              <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                <path d='M5 12h14' />
+                <path d='M12 5l7 7-7 7' />
+              </svg>
+            </NavigationLink>
+            <NavigationLink
+              href={`/${lang}/community/posts`}
+              className='inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-primary-900/10 transition hover:translate-y-[-2px] hover:bg-white/20'
+            >
+              {t('community.feed.cta')}
+              <svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                <path d='M5 12h14' />
+                <path d='M12 5l7 7-7 7' />
+              </svg>
+            </NavigationLink>
+          </div>
+        </div>
+      </section>
+
+      <div className='grid grid-cols-1 gap-6 lg:grid-cols-12'>
+        <div className='space-y-6 lg:col-span-7 xl:col-span-8'>
+          <HotPostList
+            heading={t('community.list.hotPosts.heading')}
+            description={t('community.list.hotPosts.description')}
+            emptyLabel={t('community.list.hotPosts.empty')}
+            fallbackTitle={t('community.list.hotPosts.untitled')}
+            posts={hotPostItems}
+            lang={lang}
+          />
+          <div className='rounded-3xl border border-white/70 bg-white/80 p-6 shadow-lg shadow-primary-900/5'>
+            <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-wide text-primary-500'>
+                  {t('community.input.searchBoard.placeholder')}
+                </p>
+                <h2 className='text-lg font-semibold text-gray-900'>{t('community.list.heading')}</h2>
+                <p className='text-sm text-gray-500'>{t('community.list.hotPosts.description')}</p>
+              </div>
+            </div>
+            <BoardSearch lang={lang} className='mt-4' />
+          </div>
+        </div>
+        <div className='space-y-6 lg:col-span-5 xl:col-span-4'>
+      {favoritesOnly.boards && favoritesOnly.boards.length > 0 ? (
+            <div className='rounded-3xl border border-white/20 bg-gradient-to-br from-primary-600/90 via-sub-400/70 to-point-500/80 p-6 text-white shadow-xl shadow-primary-900/20'>
+              <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+                <div>
+                  <p className='text-sm font-semibold'>{t('community.list.myArtistBoards')}</p>
+                  <p className='text-xs text-white/80'>
+                    {t('community.list.hotPosts.description')}
+                  </p>
+                </div>
+                <a
+                  href={`/${lang}/community/posts`}
+                  className='inline-flex items-center gap-1 text-xs font-semibold text-white/90 underline-offset-2 hover:underline'
+                >
+                  {t('community.list.heading')}
+                  <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'>
+                    <path d='M5 12h14' />
+                    <path d='M12 5l7 7-7 7' />
+                  </svg>
+                </a>
+              </div>
+              <div className='space-y-4'>
+          {(() => {
+            const groups = new Map<string, { title: string; image: string | null; items: typeof favoritesOnly.boards }>()
+            for (const it of favoritesOnly.boards) {
+              const key = it.artist?.id ? `artist:${it.artist.id}` : (it.artist?.groupName ? `group:${it.artist.groupName}` : 'others')
+              const title = it.artist?.name || it.artist?.groupName || t('community.list.other')
+              const image = it.artist?.image ?? null
+              if (!groups.has(key)) groups.set(key, { title, image, items: [] as any })
+              groups.get(key)!.items.push(it)
+            }
+            return Array.from(groups.values()).map((g) => (
+                    <div key={g.title} className='rounded-2xl bg-white/10 p-3'>
+                      <div className='mb-2 flex items-center gap-3'>
+                  {g.image ? (
+                          <OptimizedImage src={g.image} alt={g.title} width={48} height={48} className='h-8 w-8 rounded-full object-cover' />
+                  ) : (
+                          <div className='h-8 w-8 rounded-full bg-white/30' />
+                  )}
+                        <div className='text-sm font-semibold'>{g.title}</div>
+                </div>
+                <div className='flex flex-wrap gap-2'>
+                  {g.items.map((b) => (
+                    <a
+                      key={b.boardId}
+                      href={`/${lang}/community/boards/${b.boardId}`}
+                            className='inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:-translate-y-0.5'
+                    >
+                      #{b.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ))
+          })()}
+              </div>
+        </div>
+      ) : null}
+      {bookmarkedBoards.length > 0 ? (
+            <div className='rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg shadow-primary-900/10'>
+              <div className='mb-3 flex items-center justify-between'>
+                <div>
+                  <p className='text-sm font-semibold text-gray-900'>{t('community.list.bookmarkedBoards')}</p>
+                  <p className='text-xs text-gray-500'>{t('community.meta.description')}</p>
+                </div>
+                <a
+                  href={`/${lang}/community/posts`}
+                  className='text-xs font-semibold text-primary-600 underline-offset-2 hover:underline'
+                >
+                  {t('community.list.heading')}
+                </a>
+              </div>
+          <div className='flex flex-wrap gap-2'>
+            {bookmarkedBoards.map((b) => (
+              <a
+                key={b.boardId}
+                href={`/${lang}/community/boards/${b.boardId}`}
+                    className='inline-flex items-center rounded-full border border-primary-100 bg-primary-50/70 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:-translate-y-0.5'
+              >
+                #{b.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+        </div>
+      </div>
+
+      {/* 전체 보드 섹션 제거 */}
+    </div>
+  )
+}
+
+

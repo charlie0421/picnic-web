@@ -86,17 +86,23 @@ export async function signInWithAppleImpl(
     const scopes = options?.scopes || config.defaultScopes;
 
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
-    if (typeof localStorage !== "undefined") {
-      const returnUrl = options?.additionalParams?.return_url ||
-        window.location.pathname;
-      localStorage.setItem("auth_return_url", returnUrl);
+    let chosenForReturn: string | undefined;
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryReturnTo = urlParams.get('returnTo') || undefined;
+      const suppliedReturn = options?.additionalParams?.return_url;
+      chosenForReturn = suppliedReturn || queryReturnTo || window.location.pathname;
+      try { localStorage.setItem("auth_return_url", chosenForReturn); } catch {}
     }
 
     console.log("✅ 표준 Supabase Apple OAuth 시작");
 
-    // 일관된 리디렉션 URL을 위해 환경 변수 사용
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-    const redirectTo = `${baseUrl}/auth/callback`;
+    // 현재 브라우저 origin 우선 사용 (개발/프로덕션 모두)
+    const baseUrl = typeof window !== "undefined"
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_SITE_URL || "https://www.picnic.fan");
+    let redirectTo = `${baseUrl}/auth/callback/apple`;
+    // Apple도 등록된 redirect_uri와 일치가 중요하므로 콜백에 쿼리를 붙이지 않는다.
 
     // 표준 Supabase OAuth 사용
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -146,8 +152,34 @@ export async function signInWithAppleImpl(
 }
 
 /**
- * Apple ID 토큰 파싱
+ * Apple ID 토큰을 암호학적으로 검증하고 파싱합니다.
+ * Apple JWKS 엔드포인트에서 공개 키를 가져와 서명을 검증합니다.
  *
+ * @param idToken Apple에서 반환된 ID 토큰
+ * @returns 검증된 토큰 페이로드
+ * @throws 서명 검증 실패 시 에러
+ */
+export async function verifyAppleIdentityToken(idToken: string): Promise<Record<string, any>> {
+  const { createRemoteJWKSet, jwtVerify } = await import("jose");
+
+  const APPLE_JWKS_URL = new URL("https://appleid.apple.com/auth/keys");
+  const jwks = createRemoteJWKSet(APPLE_JWKS_URL);
+
+  const expectedAudience = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ||
+    process.env.NEXT_PUBLIC_APPLE_WEB_CLIENT_ID || "";
+
+  const { payload } = await jwtVerify(idToken, jwks, {
+    issuer: "https://appleid.apple.com",
+    audience: expectedAudience,
+  });
+
+  return payload as Record<string, any>;
+}
+
+/**
+ * Apple ID 토큰 파싱 (서명 미검증 - 표시 목적 전용)
+ *
+ * @deprecated verifyAppleIdentityToken을 사용하세요.
  * @param idToken Apple에서 반환된 ID 토큰
  * @returns 파싱된 사용자 정보
  */

@@ -58,9 +58,13 @@ export async function signInWithKakaoImpl(
     const scopes = options?.scopes || config.defaultScopes;
     
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
-    if (typeof localStorage !== 'undefined') {
-      const returnUrl = options?.additionalParams?.return_url || window.location.pathname;
-      localStorage.setItem('auth_return_url', returnUrl);
+    let chosenForReturn: string | undefined;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryReturnTo = urlParams.get('returnTo') || undefined;
+      const suppliedReturn = options?.additionalParams?.return_url;
+      chosenForReturn = suppliedReturn || queryReturnTo || window.location.pathname;
+      try { localStorage.setItem('auth_return_url', chosenForReturn); } catch {}
     }
     
     // Kakao 특화 파라미터
@@ -97,7 +101,12 @@ export async function signInWithKakaoImpl(
       throw new Error('Kakao Client ID가 설정되지 않았습니다.');
     }
     
-    const targetRedirectUrl = redirectUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.picnic.fan'}/auth/callback/kakao`;
+    let targetRedirectUrl = redirectUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.picnic.fan'}/auth/callback/kakao`;
+    if (chosenForReturn) {
+      const hasQuery = targetRedirectUrl.includes('?');
+      const sep = hasQuery ? '&' : '?';
+      targetRedirectUrl = `${targetRedirectUrl}${sep}returnTo=${encodeURIComponent(chosenForReturn)}`;
+    }
     
     console.log('🚀 Kakao OAuth 시도:', {
       targetRedirectUrl,

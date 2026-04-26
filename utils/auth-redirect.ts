@@ -2,199 +2,67 @@
  * 인증 관련 리다이렉트 유틸리티
  */
 
-// 리다이렉트 URL 저장 키
-const REDIRECT_URL_KEY = "redirectUrl";
-const LOGIN_REDIRECT_KEY = "loginRedirectUrl";
-const REDIRECT_TIMESTAMP_KEY = "redirectTimestamp";
+// Barrel re-exports — 기존 소비자들이 '@/utils/auth-redirect' 경로를 그대로 사용할 수 있도록 함
+export * from './auth-redirect-validators';
+export * from './auth-redirect-storage';
 
-// 리다이렉트 URL 만료 시간 (30분)
-const REDIRECT_URL_EXPIRY = 30 * 60 * 1000;
+import {
+    isValidRedirectUrl,
+    shouldSaveUrl,
+    getCurrentLocale,
+    normalizeRedirectPath,
+} from './auth-redirect-validators';
 
-/**
- * URL이 안전한지 검증합니다.
- */
-function isValidRedirectUrl(url: string): boolean {
-    try {
-        // 빈 문자열이나 null 체크
-        if (!url || typeof url !== "string") {
-            return false;
-        }
-
-        // 상대 경로만 허용 (절대 URL 차단)
-        if (
-            url.startsWith("http://") || url.startsWith("https://") ||
-            url.startsWith("//")
-        ) {
-            return false;
-        }
-
-        // 프로토콜 스키마 차단 (javascript:, data:, etc.)
-        if (url.includes(":")) {
-            return false;
-        }
-
-        // 백슬래시 차단 (Windows 경로 방지)
-        if (url.includes("\\")) {
-            return false;
-        }
-
-        // 상위 디렉토리 탐색 방지
-        if (url.includes("../") || url.includes("..\\")) {
-            return false;
-        }
-
-        // URL 객체로 파싱 시도 (상대 경로)
-        const testUrl = new URL(url, "https://example.com");
-
-        // 허용된 경로 패턴 확인
-        const allowedPaths = [
-            "/vote",
-            "/mypage",
-            "/rewards",
-            "/media",
-            "/notice",
-            "/faq",
-            "/",
-        ];
-
-        const pathname = testUrl.pathname;
-        const isAllowedPath = allowedPaths.some((path) =>
-            pathname === path || pathname.startsWith(path + "/")
-        );
-
-        return isAllowedPath;
-    } catch (error) {
-        console.warn("URL 검증 실패:", error);
-        return false;
-    }
-}
-
-/**
- * 리다이렉트 URL이 만료되었는지 확인합니다.
- */
-function isRedirectUrlExpired(): boolean {
-    try {
-        const timestamp = sessionStorage.getItem(REDIRECT_TIMESTAMP_KEY) ||
-            localStorage.getItem(REDIRECT_TIMESTAMP_KEY);
-
-        if (!timestamp) {
-            return true;
-        }
-
-        const savedTime = parseInt(timestamp, 10);
-        const currentTime = Date.now();
-
-        return (currentTime - savedTime) > REDIRECT_URL_EXPIRY;
-    } catch (error) {
-        console.warn("리다이렉트 URL 만료 확인 실패:", error);
-        return true;
-    }
-}
-
-/**
- * 로그인 후 리다이렉트할 URL을 저장합니다.
- */
-export function saveRedirectUrl(url: string): void {
-    try {
-        // URL 검증
-        if (!isValidRedirectUrl(url)) {
-            console.warn("유효하지 않은 리다이렉트 URL:", url);
-            return;
-        }
-
-        const timestamp = Date.now().toString();
-
-        sessionStorage.setItem(REDIRECT_URL_KEY, url);
-        sessionStorage.setItem(REDIRECT_TIMESTAMP_KEY, timestamp);
-
-        // 백업으로 localStorage에도 저장
-        localStorage.setItem(LOGIN_REDIRECT_KEY, url);
-        localStorage.setItem(REDIRECT_TIMESTAMP_KEY, timestamp);
-    } catch (error) {
-        console.warn("리다이렉트 URL 저장 실패:", error);
-    }
-}
-
-/**
- * 저장된 리다이렉트 URL을 가져옵니다.
- */
-export function getRedirectUrl(): string | null {
-    try {
-        // 만료 확인
-        if (isRedirectUrlExpired()) {
-            clearRedirectUrl();
-            return null;
-        }
-
-        // sessionStorage 우선 확인
-        const sessionUrl = sessionStorage.getItem(REDIRECT_URL_KEY);
-        if (sessionUrl && isValidRedirectUrl(sessionUrl)) {
-            return sessionUrl;
-        }
-
-        // localStorage 백업 확인
-        const localUrl = localStorage.getItem(LOGIN_REDIRECT_KEY);
-        if (localUrl && isValidRedirectUrl(localUrl)) {
-            return localUrl;
-        }
-
-        return null;
-    } catch (error) {
-        console.warn("리다이렉트 URL 조회 실패:", error);
-        return null;
-    }
-}
-
-/**
- * 저장된 리다이렉트 URL을 제거합니다.
- */
-export function clearRedirectUrl(): void {
-    try {
-        sessionStorage.removeItem(REDIRECT_URL_KEY);
-        sessionStorage.removeItem(REDIRECT_TIMESTAMP_KEY);
-        localStorage.removeItem(LOGIN_REDIRECT_KEY);
-        localStorage.removeItem(REDIRECT_TIMESTAMP_KEY);
-
-        // 추가로 다른 키 패턴들도 정리
-        sessionStorage.removeItem("auth_redirect_url");
-        sessionStorage.removeItem("auth_redirect_timestamp");
-        localStorage.removeItem("auth_redirect_url");
-        localStorage.removeItem("auth_redirect_timestamp");
-    } catch (error) {
-        console.warn("리다이렉트 URL 제거 실패:", error);
-    }
-}
+import {
+    saveRedirectUrl,
+    getRedirectUrl,
+    clearRedirectUrl,
+    isRedirectUrlExpired,
+} from './auth-redirect-storage';
 
 /**
  * 로그인 후 적절한 페이지로 리다이렉트합니다.
  */
 export function handlePostLoginRedirect(returnToParam?: string): string {
-    // 1. URL 파라미터에서 returnTo 확인 (우선순위 높음)
+    // 1. URL 파라미터에서 returnTo 확인 (우선순위 가장 높음)
     if (returnToParam && isValidRedirectUrl(returnToParam)) {
-        return returnToParam;
+        return normalizeRedirectPath(returnToParam);
     }
 
-    // 2. 브라우저 URL에서 returnTo 파라미터 확인
+    // 2. 브라우저 URL에서 returnTo / return_url 파라미터 확인
     if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
-        const returnTo = urlParams.get('returnTo');
+        const returnTo = urlParams.get('returnTo') || urlParams.get('return_url');
         if (returnTo && isValidRedirectUrl(returnTo)) {
-            return returnTo;
+            return normalizeRedirectPath(returnTo);
         }
     }
 
-    // 3. 저장된 리다이렉트 URL 확인
-    const redirectUrl = getRedirectUrl();
+    // 3. 소셜 로그인에서 강제 저장한 auth_return_url 우선 사용
+    try {
+        if (typeof window !== 'undefined') {
+            const altReturn = localStorage.getItem('auth_return_url');
+            if (altReturn && isValidRedirectUrl(altReturn)) {
+                // 일회성 사용 후 정리
+                localStorage.removeItem('auth_return_url');
+                return normalizeRedirectPath(altReturn);
+            }
+        }
+    } catch {}
+
+    // 4. 저장된 리다이렉트 URL 확인 (기존 유틸 저장값)
+    let redirectUrl = getRedirectUrl();
 
     // 저장된 URL 제거
     clearRedirectUrl();
 
-    // 리다이렉트 URL이 있고 유효하면 해당 URL로, 없으면 홈으로
+    // 리다이렉트 URL이 있고 유효하면 해당 URL로
     if (redirectUrl && isValidRedirectUrl(redirectUrl)) {
-        return redirectUrl;
+        return normalizeRedirectPath(redirectUrl);
     }
 
-    return "/";
+    // 기본 폴백: 사이트 루트로 이동 (원복)
+    return normalizeRedirectPath("/");
 }
 
 /**
@@ -203,8 +71,7 @@ export function handlePostLoginRedirect(returnToParam?: string): string {
 export function redirectToLogin(currentUrl?: string): void {
     if (typeof window === "undefined") return;
 
-    const urlToSave = currentUrl ||
-        window.location.pathname + window.location.search;
+    const urlToSave = currentUrl || (window.location.pathname + window.location.search);
 
     // 로그인 페이지나 인증 관련 페이지는 저장하지 않음
     if (!shouldSaveUrl(urlToSave)) {
@@ -213,28 +80,11 @@ export function redirectToLogin(currentUrl?: string): void {
         saveRedirectUrl(urlToSave);
     }
 
-    // 로그인 페이지로 이동
-    window.location.href = "/login";
-}
-
-/**
- * URL이 저장할 가치가 있는지 확인합니다.
- */
-function shouldSaveUrl(url: string): boolean {
-    const excludePatterns = [
-        "/login",
-        "/auth/",
-        "/callback",
-        "/logout",
-        "/signup",
-        "/reset-password",
-        "/error",
-        "/404",
-        "/500",
-    ];
-
-    return !excludePatterns.some((pattern) => url.includes(pattern)) &&
-        isValidRedirectUrl(url);
+    // 현재 로케일을 기준으로 언어 프리픽스 포함한 로그인 경로 구성 + returnTo 쿼리 전달
+    const locale = getCurrentLocale();
+    const normalizedReturnTo = normalizeRedirectPath(urlToSave);
+    const loginPath = `/${locale}/login?returnTo=${encodeURIComponent(normalizedReturnTo)}`;
+    window.location.href = loginPath;
 }
 
 /**
@@ -300,51 +150,3 @@ export const securityUtils = {
         );
     },
 };
-
-/**
- * 로그아웃 시 모든 인증 관련 데이터를 완전히 정리합니다.
- */
-export function clearAllAuthData(): void {
-    try {
-        // 리다이렉트 URL 정리
-        clearRedirectUrl();
-
-        // sessionStorage에서 인증 관련 모든 데이터 제거
-        const sessionKeysToRemove: string[] = [];
-        for (let i = 0; i < sessionStorage.length; i++) {
-            const key = sessionStorage.key(i);
-            if (
-                key && (
-                    key.includes("auth") ||
-                    key.includes("redirect") ||
-                    key.includes("supabase") ||
-                    key.includes("login")
-                )
-            ) {
-                sessionKeysToRemove.push(key);
-            }
-        }
-        sessionKeysToRemove.forEach((key) => sessionStorage.removeItem(key));
-
-        // localStorage에서 인증 관련 모든 데이터 제거
-        const localKeysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (
-                key && (
-                    key.includes("auth") ||
-                    key.includes("redirect") ||
-                    key.includes("supabase") ||
-                    key.includes("login")
-                )
-            ) {
-                localKeysToRemove.push(key);
-            }
-        }
-        localKeysToRemove.forEach((key) => localStorage.removeItem(key));
-
-        console.log("모든 인증 관련 데이터가 정리되었습니다.");
-    } catch (error) {
-        console.warn("인증 데이터 정리 실패:", error);
-    }
-}

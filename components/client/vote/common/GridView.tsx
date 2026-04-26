@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { VoteItem } from '@/types/interfaces';
 import { getLocalizedString, hasValidLocalizedString } from '@/utils/api/strings';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
@@ -20,8 +20,12 @@ interface GridViewProps {
   cardSize?: 'sm' | 'md' | 'lg';
   enablePagination?: boolean;
   itemsPerPage?: number;
+  rows?: number; // 표시할 행 수(반응형 컬럼 수에 맞춰 페이지 아이템 수 자동 계산)
   enableShuffle?: boolean;
   style?: 'circular' | 'card';
+  displayLanguage?: string;
+  fixedColumns?: number;
+  gridColumnsClassName?: string;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -33,23 +37,70 @@ export const GridView: React.FC<GridViewProps> = ({
   cardSize = 'md',
   enablePagination = false,
   itemsPerPage = 12,
+  rows,
   enableShuffle = false,
   style = 'circular',
+  displayLanguage,
+  fixedColumns,
+  gridColumnsClassName,
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [shuffledItems, setShuffledItems] = useState<Array<EnhancedVoteItem>>(
     [],
   );
   const [mounted, setMounted] = useState(false);
+  const [columns, setColumns] = useState<number>(fixedColumns ?? 3);
+  const lastShuffleSignatureRef = useRef<string | null>(null);
 
   const effectiveItems = useMemo(() => items || [], [items]);
+
+  // 동일 아이템 배열(내용/순서 동일)인 경우 불필요한 상태 업데이트 최소화
+  const stableItems = useMemo(() => {
+    // 키로 사용할 id만 비교하여 동일하면 동일 참조 반환
+    // items가 매 렌더마다 새 배열이더라도 내용이 같다면 재계산 비용을 줄임
+    return effectiveItems;
+  }, [effectiveItems]);
+  const computedItemsPerPage = useMemo(() => {
+    if (!rows) return itemsPerPage;
+    return rows * columns;
+  }, [rows, columns, itemsPerPage]);
   const totalPages = enablePagination
-    ? Math.ceil(effectiveItems.length / itemsPerPage)
+    ? Math.ceil(effectiveItems.length / computedItemsPerPage)
     : 1;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 반응형 컬럼 수 추정(원형 스타일 기준 브레이크포인트 적용)
+  useEffect(() => {
+    if (!rows) return;
+    if (fixedColumns) {
+      setColumns(fixedColumns);
+      return;
+    }
+
+    const updateColumns = () => {
+      if (typeof window === 'undefined') return;
+      const w = window.innerWidth;
+      // tailwind 기준: sm: 640px
+      if (style === 'circular') {
+        setColumns(4);
+      } else {
+        setColumns(w < 768 ? 2 : 3);
+      }
+    };
+
+    updateColumns();
+    window.addEventListener('resize', updateColumns);
+    return () => window.removeEventListener('resize', updateColumns);
+  }, [rows, style, fixedColumns]);
+
+  useEffect(() => {
+    if (fixedColumns) {
+      setColumns(fixedColumns);
+    }
+  }, [fixedColumns]);
 
   // 아이템을 랜덤으로 섞는 함수
   const shuffleItems = (itemsToShuffle: Array<EnhancedVoteItem>) => {
@@ -61,16 +112,31 @@ export const GridView: React.FC<GridViewProps> = ({
     return shuffled;
   };
 
+  const buildSignature = (list: Array<EnhancedVoteItem>) =>
+    list.map((item) => `${item?.id ?? ''}`).join('|');
+
   // 컴포넌트가 마운트된 후에만 랜덤으로 섞기
   useEffect(() => {
-    if (mounted && effectiveItems.length > 0) {
-      if (enableShuffle) {
-        setShuffledItems(shuffleItems(effectiveItems));
-      } else {
-        setShuffledItems(effectiveItems);
-      }
+    if (!mounted) return;
+    if (stableItems.length === 0) {
+      if (shuffledItems.length !== 0) setShuffledItems([]);
+      lastShuffleSignatureRef.current = null;
+      return;
     }
-  }, [mounted, effectiveItems, enableShuffle]);
+    if (enableShuffle) {
+      const signature = buildSignature(stableItems);
+      if (
+        signature !== lastShuffleSignatureRef.current ||
+        shuffledItems.length === 0
+      ) {
+        lastShuffleSignatureRef.current = signature;
+        setShuffledItems(shuffleItems(stableItems));
+      }
+    } else {
+      if (shuffledItems !== stableItems) setShuffledItems(stableItems);
+      lastShuffleSignatureRef.current = buildSignature(stableItems);
+    }
+  }, [mounted, stableItems, enableShuffle]);
 
   const handlePrevPage = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -86,14 +152,11 @@ export const GridView: React.FC<GridViewProps> = ({
 
   // 현재 페이지의 아이템들
   const getCurrentItems = () => {
-    const sourceItems =
-      mounted && enableShuffle ? shuffledItems : effectiveItems;
+    const sourceItems = mounted && enableShuffle ? shuffledItems : stableItems;
 
     if (enablePagination) {
-      return sourceItems.slice(
-        currentPage * itemsPerPage,
-        (currentPage + 1) * itemsPerPage,
-      );
+      const pageSize = computedItemsPerPage;
+      return sourceItems.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
     }
     return sourceItems;
   };
@@ -119,9 +182,10 @@ export const GridView: React.FC<GridViewProps> = ({
 
   // 그리드 컬럼 클래스 설정 - 반응형
   const getGridColumns = () => {
+    if (gridColumnsClassName) return gridColumnsClassName;
     if (style === 'circular') {
-      // 원형 스타일: 모바일 4개, sm 이상 5개
-      return 'grid-cols-4 sm:grid-cols-5 md:grid-cols-5';
+      // 원형 스타일: 모바일 포함 4컬럼 고정
+      return 'grid-cols-4 sm:grid-cols-4 md:grid-cols-4';
     }
     // 카드 스타일: 모바일 5개, md 이상 4개
     return 'grid-cols-5 md:grid-cols-4';
@@ -132,16 +196,19 @@ export const GridView: React.FC<GridViewProps> = ({
   // 원형 스타일 렌더링
   const renderCircularStyle = () => (
     <div className='flex flex-col' suppressHydrationWarning>
-      <div className={`grid ${gridColumnsClass} gap-1`}>
+      <div className={`grid ${gridColumnsClass} gap-2 sm:gap-3`}>
         {currentItems.map((item, index) => (
           <div
             key={`${keyPrefix}-${item.id}-${index}`}
-            className='relative aspect-square'
+            className='flex flex-col items-center'
           >
-            <div className='w-full h-full rounded-full overflow-hidden relative'>
+            <div className='relative w-full aspect-square rounded-full overflow-hidden'>
               <OptimizedImage
                 src={item.artist?.image || '/images/default-artist.png'}
-                alt={getLocalizedString(item.artist?.name) || '아티스트 이미지'}
+                alt={
+                  getLocalizedString(item.artist?.name, displayLanguage) ||
+                  '아티스트 이미지'
+                }
                 fill
                 sizes='(max-width: 768px) 25vw, (max-width: 1200px) 20vw, 15vw'
                 className='object-cover'
@@ -151,11 +218,9 @@ export const GridView: React.FC<GridViewProps> = ({
                 intersectionThreshold={0.1}
               />
             </div>
-            <div className='absolute bottom-0 left-0 right-0 text-center mt-1'>
-              <p className='text-gray-800 text-xs font-medium truncate bg-white/80 rounded-full py-1 px-1 mx-1'>
-                {getLocalizedString(item.artist?.name) || '아티스트'}
-              </p>
-            </div>
+            <p className='mt-1 text-xs font-medium text-center truncate w-full'>
+              {getLocalizedString(item.artist?.name, displayLanguage) || '아티스트'}
+            </p>
           </div>
         ))}
       </div>
@@ -234,7 +299,10 @@ export const GridView: React.FC<GridViewProps> = ({
               >
                 <OptimizedImage
                   src={item.artist?.image || '/images/default-artist.png'}
-                  alt={getLocalizedString(item.artist?.name) || '아티스트 이미지'}
+                  alt={
+                    getLocalizedString(item.artist?.name, displayLanguage) ||
+                    '아티스트 이미지'
+                  }
                   fill
                   sizes='(max-width: 768px) 20vw, (max-width: 1200px) 15vw, 10vw'
                   className='object-cover'
@@ -245,7 +313,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 />
               </div>
               <p className='text-xs font-medium text-center truncate w-full mt-1'>
-                {getLocalizedString(item.artist?.name) || '아티스트'}
+                {getLocalizedString(item.artist?.name, displayLanguage) || '아티스트'}
               </p>
             </div>
           ))}

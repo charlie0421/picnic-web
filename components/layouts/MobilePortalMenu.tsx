@@ -5,25 +5,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
-import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuth } from '@/hooks/useAuth';
 import { PortalType } from '@/utils/enums';
-import { PORTAL_MENU } from '@/config/navigation';
-import useSWR from 'swr';
 import menuConfig from '@/config/menu.json';
 
 interface MobilePortalMenuProps {
   className?: string;
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
-
 const MobilePortalMenu: React.FC<MobilePortalMenuProps> = ({ className = '' }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
-  const { data: profileData } = useSWR(
-    isAuthenticated && user ? `/api/user/profile?userId=${user.id}` : null, 
-    fetcher
-  );
-  const userProfile = profileData?.success ? profileData.user : null;
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin === true;
 
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
   const { setIsLoading } = useGlobalLoading();
@@ -33,37 +25,20 @@ const MobilePortalMenu: React.FC<MobilePortalMenuProps> = ({ className = '' }) =
   const { path: currentPath } = extractLocaleFromPath(pathname);
 
   // 관리자 권한에 따른 메뉴 필터링
-  const getFilteredMenuItems = () => {
-    return PORTAL_MENU.filter(item => {
-      // VOTE는 항상 표시
-      if (item.type === PortalType.VOTE) return true;
-      
-      // 나머지는 관리자만 표시
-      if (!isAuthenticated || isLoading) return false;
-      
-      const isAdmin = userProfile?.is_admin || 
-                     userProfile?.is_super_admin || 
-                     user?.user_metadata?.is_admin || 
-                     user?.user_metadata?.is_super_admin;
-
-      // 개발 환경에서 임시 관리자 권한
-      const isDevTempAdmin = process.env.NODE_ENV === 'development' && 
-                            isAuthenticated && 
-                            !isLoading && 
-                            user;
-
-      return isAdmin || isDevTempAdmin;
-    });
-  };
-
-  const filteredMenuItems = getFilteredMenuItems();
+  const filteredMenuItems = menuConfig.portals.filter(item => {
+    if (item.adminOnly && !isAdmin) {
+      return false;
+    }
+    return true;
+  });
 
   // 현재 활성화된 포탈 메뉴 찾기
   const getCurrentActiveMenuItem = () => {
     for (const menuItem of filteredMenuItems) {
+      const portalType = menuItem.type as PortalType;
       const isActive =
         currentPath.startsWith(menuItem.path) ||
-        (menuItem.type === PortalType.VOTE && currentPath.startsWith('/vote'));
+        (portalType === PortalType.VOTE && currentPath.startsWith('/vote'));
       
       if (isActive) {
         return menuItem;
@@ -82,9 +57,6 @@ const MobilePortalMenu: React.FC<MobilePortalMenuProps> = ({ className = '' }) =
 
   // 활성화된 포탈 메뉴가 없으면 아무것도 표시하지 않음
   if (!activeMenuItem) return null;
-
-  const portalConfig = menuConfig.portals.find(portal => portal.type === activeMenuItem.type);
-  if (!portalConfig) return null;
 
   const localizedMenuPath = getLocalizedPath(activeMenuItem.path, currentLocale);
 

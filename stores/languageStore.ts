@@ -3,6 +3,22 @@ import { persist } from "zustand/middleware";
 import { type Language, settings } from "@/config/settings";
 import { translationLogger } from "@/utils/translationLogger";
 
+const languageStoreDebug =
+  process.env.NEXT_PUBLIC_LANG_DEBUG === "true" ||
+  process.env.NEXT_PUBLIC_VERBOSE_LOGS === "true";
+
+const debugLog = (...args: unknown[]) => {
+  if (languageStoreDebug) {
+    console.log(...args);
+  }
+};
+
+const debugWarn = (...args: unknown[]) => {
+  if (languageStoreDebug) {
+    console.warn(...args);
+  }
+};
+
 // 진행 중인 번역 로딩 Promise들을 추적하는 맵
 const loadingPromises = new Map<Language, Promise<void>>();
 
@@ -51,21 +67,21 @@ async function loadLocalTranslations(
   
   try {
     const url = `/locales/${lang}.json`;
-    console.log(`🔄 Loading local translations from: ${url}`);
+    debugLog(`🔄 Loading local translations from: ${url}`);
     
     const response = await fetch(url);
-    console.log(`📥 Response status for ${lang}:`, response.status, response.ok);
+    debugLog(`📥 Response status for ${lang}:`, response.status, response.ok);
     
     if (!response.ok) {
       throw new Error(`Failed to load local translations for ${lang}: ${response.status}`);
     }
     
     const translations: Record<string, string> = await response.json();
-    console.log(`✅ Loaded ${Object.keys(translations).length} translation keys for ${lang}`);
+    debugLog(`✅ Loaded ${Object.keys(translations).length} translation keys for ${lang}`);
     
     return translations;
   } catch (error) {
-    console.warn(`❌ Local translations not found for ${lang}:`, error);
+    debugWarn(`❌ Local translations not found for ${lang}:`, error);
     return null;
   }
 }
@@ -92,7 +108,7 @@ export const useLanguageStore = create<LanguageState>()(
         }
 
         const { currentLanguage } = get();
-        console.log(`🔄 setLanguage called: ${lang}`);
+        debugLog(`🔄 setLanguage called: ${lang}`);
         translationLogger.logLanguageSync(currentLanguage, lang, 'setLanguage');
         
         set({ currentLanguage: lang });
@@ -110,17 +126,17 @@ export const useLanguageStore = create<LanguageState>()(
         
         // hydration이 완료되지 않은 경우 대기
         if (!isHydrated) {
-          console.log('🔄 [syncLanguageWithPath] Waiting for hydration to complete...');
+          debugLog('🔄 [syncLanguageWithPath] Waiting for hydration to complete...');
           return;
         }
         
         const langFromPath = getCurrentLanguageFromPath();
         const { currentLanguage, isTranslationLoaded } = get();
         
-        console.log(`🔄 [syncLanguageWithPath] Current: ${currentLanguage}, Path: ${langFromPath}`);
+        debugLog(`🔄 [syncLanguageWithPath] Current: ${currentLanguage}, Path: ${langFromPath}`);
         
         if (langFromPath !== currentLanguage) {
-          console.log(`🔄 [syncLanguageWithPath] Language mismatch detected, updating store from ${currentLanguage} to ${langFromPath}`);
+          debugLog(`🔄 [syncLanguageWithPath] Language mismatch detected, updating store from ${currentLanguage} to ${langFromPath}`);
           translationLogger.logLanguageSync(currentLanguage, langFromPath, 'syncLanguageWithPath');
           
           // 언어 상태 즉시 업데이트
@@ -128,23 +144,23 @@ export const useLanguageStore = create<LanguageState>()(
           
           // 번역이 로드되지 않은 경우에만 로드
           if (!isTranslationLoaded[langFromPath]) {
-            console.log(`🔄 [syncLanguageWithPath] Loading translations for ${langFromPath}`);
+            debugLog(`🔄 [syncLanguageWithPath] Loading translations for ${langFromPath}`);
             await get().loadTranslations(langFromPath);
           } else {
-            console.log(`✅ [syncLanguageWithPath] Translations for ${langFromPath} already loaded`);
+            debugLog(`✅ [syncLanguageWithPath] Translations for ${langFromPath} already loaded`);
           }
         } else {
-          console.log(`✅ [syncLanguageWithPath] Language already synchronized: ${currentLanguage}`);
+          debugLog(`✅ [syncLanguageWithPath] Language already synchronized: ${currentLanguage}`);
           
           // 언어는 맞지만 번역이 로드되지 않은 경우
           if (!isTranslationLoaded[currentLanguage]) {
-            console.log(`🔄 [syncLanguageWithPath] Loading missing translations for ${currentLanguage}`);
+            debugLog(`🔄 [syncLanguageWithPath] Loading missing translations for ${currentLanguage}`);
             await get().loadTranslations(currentLanguage);
           }
         }
       },
       setHydrated: (hydrated: boolean) => {
-        console.log(`🔄 Setting hydration status: ${hydrated}`);
+        debugLog(`🔄 Setting hydration status: ${hydrated}`);
         set({ isHydrated: hydrated });
       },
       t: (key: string, args?: Record<string, string>) => {
@@ -211,7 +227,7 @@ export const useLanguageStore = create<LanguageState>()(
 
         // 이미 진행 중인 로딩이 있는지 확인
         if (loadingPromises.has(lang)) {
-          console.log(`🔄 Translation loading already in progress for ${lang}, waiting...`);
+          debugLog(`🔄 Translation loading already in progress for ${lang}, waiting...`);
           return loadingPromises.get(lang);
         }
 
@@ -220,15 +236,15 @@ export const useLanguageStore = create<LanguageState>()(
         const isMarkedAsLoaded = isTranslationLoaded[lang];
         
         if (isMarkedAsLoaded && hasTranslations) {
-          console.log(`✅ Translations for ${lang} already loaded with ${Object.keys(translations[lang]).length} keys, skipping`);
+          debugLog(`✅ Translations for ${lang} already loaded with ${Object.keys(translations[lang]).length} keys, skipping`);
           return;
         }
         
         if (isMarkedAsLoaded && !hasTranslations) {
-          console.log(`⚠️ ${lang} marked as loaded but has no translations, force reloading...`);
+          debugLog(`⚠️ ${lang} marked as loaded but has no translations, force reloading...`);
         }
 
-        console.log(`🔄 Starting to load translations for ${lang}`);
+        debugLog(`🔄 Starting to load translations for ${lang}`);
         
         // Promise 생성 및 캐싱
         const loadingPromise = (async () => {
@@ -242,7 +258,7 @@ export const useLanguageStore = create<LanguageState>()(
               const localTranslations = await loadLocalTranslations(lang);
               if (localTranslations) {
                 translationsData = { ...translationsData, ...localTranslations };
-                console.log(`✅ Local translations loaded for ${lang}:`, Object.keys(localTranslations).length, 'keys');
+                debugLog(`✅ Local translations loaded for ${lang}:`, Object.keys(localTranslations).length, 'keys');
                 translationLogger.logTranslationSuccess(lang, Object.keys(localTranslations).length, 'local');
               }
             } catch (error) {
@@ -251,7 +267,7 @@ export const useLanguageStore = create<LanguageState>()(
 
             // 번역이 없는 경우 기본 언어로 fallback
             if (Object.keys(translationsData).length === 0 && lang !== settings.languages.default) {
-              console.warn(
+              debugWarn(
                 `No translations found for ${lang}, falling back to ${settings.languages.default}`,
               );
               try {
@@ -265,7 +281,7 @@ export const useLanguageStore = create<LanguageState>()(
               }
             }
 
-            console.log(`🎉 Final translations for ${lang}:`, Object.keys(translationsData).length, 'keys');
+            debugLog(`🎉 Final translations for ${lang}:`, Object.keys(translationsData).length, 'keys');
 
             set((state) => ({
               translations: {
@@ -279,7 +295,7 @@ export const useLanguageStore = create<LanguageState>()(
               },
             }));
 
-            console.log(`✅ Translation loading completed for ${lang}`);
+            debugLog(`✅ Translation loading completed for ${lang}`);
           } catch (error) {
             console.error(`Failed to load translations for ${lang}:`, error);
             translationLogger.logLoadingError(lang, error as Error, 'local');
@@ -310,7 +326,7 @@ export const useLanguageStore = create<LanguageState>()(
       }),
       onRehydrateStorage: () => (state) => {
         if (state && typeof window !== "undefined") {
-          console.log('🔄 Rehydrating language store:', state.currentLanguage);
+          debugLog('🔄 Rehydrating language store:', state.currentLanguage);
           
           // hydration 완료 표시
           state.setHydrated(true);
@@ -318,7 +334,7 @@ export const useLanguageStore = create<LanguageState>()(
           // 리하이드레이션 후 현재 언어의 번역이 로드되지 않았다면 로드
           // setTimeout을 사용하여 렌더링 사이클과 분리
           if (!state.isTranslationLoaded[state.currentLanguage]) {
-            console.log('🔄 Loading translations after rehydration');
+            debugLog('🔄 Loading translations after rehydration');
             setTimeout(() => {
               state.loadTranslations(state.currentLanguage);
             }, 0);

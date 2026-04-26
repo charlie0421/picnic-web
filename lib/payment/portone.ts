@@ -11,6 +11,7 @@ interface PaymentRequest {
   currency: 'KRW';
   payMethod: 'CARD' | 'TRANS' | 'VBANK' | 'PHONE';
   customer: {
+    userId: string; // 웹훅에서 사용자 식별용
     fullName: string;
     email: string;
     phoneNumber?: string;
@@ -44,9 +45,19 @@ class PortOneService {
   private isInitialized: boolean = false;
 
   constructor() {
+    const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID || '';
+    const channelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY || '';
+    
+    if (!storeId || !channelKey) {
+      console.warn(
+        'PortOne 환경 변수가 설정되지 않았습니다. ' +
+        'NEXT_PUBLIC_PORTONE_STORE_ID와 NEXT_PUBLIC_PORTONE_CHANNEL_KEY를 확인해주세요.'
+      );
+    }
+    
     this.config = {
-      storeId: process.env.NEXT_PUBLIC_PORTONE_STORE_ID || '',
-      channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY || '',
+      storeId,
+      channelKey,
       environment: (process.env.NEXT_PUBLIC_PORTONE_ENV as 'test' | 'production') || 'test',
     };
   }
@@ -76,7 +87,7 @@ class PortOneService {
   private loadScript(): Promise<void> {
     return new Promise((resolve, reject) => {
       // Check if already loaded
-      if (window.PortOne) {
+      if (window.PortOne && typeof window.PortOne.requestPayment === 'function') {
         resolve();
         return;
       }
@@ -84,7 +95,20 @@ class PortOneService {
       const script = document.createElement('script');
       script.src = 'https://cdn.portone.io/v2/browser-sdk.js';
       script.async = true;
-      script.onload = () => resolve();
+      script.onload = () => {
+        // Wait for PortOne to be available with retry logic
+        const checkPortOne = (attempts = 0) => {
+          if (window.PortOne && typeof window.PortOne.requestPayment === 'function') {
+            resolve();
+          } else if (attempts < 10) {
+            // Retry up to 10 times (1 second total)
+            setTimeout(() => checkPortOne(attempts + 1), 100);
+          } else {
+            reject(new Error('Port One SDK loaded but PortOne object is not available'));
+          }
+        };
+        checkPortOne();
+      };
       script.onerror = () => reject(new Error('Failed to load Port One v2 SDK'));
       
       document.head.appendChild(script);
@@ -96,17 +120,34 @@ class PortOneService {
    */
   async requestPayment(request: PaymentRequest): Promise<PaymentResponse> {
     try {
+      // Validate required configuration
+      if (!this.config.storeId || !this.config.channelKey) {
+        throw new Error(
+          'PortOne 설정이 완료되지 않았습니다. ' +
+          'NEXT_PUBLIC_PORTONE_STORE_ID와 NEXT_PUBLIC_PORTONE_CHANNEL_KEY 환경 변수를 확인해주세요.'
+        );
+      }
+
       // Ensure SDK is initialized
       const initialized = await this.initialize();
       if (!initialized) {
         throw new Error('Port One v2 SDK not initialized');
       }
 
+      // Validate storeId before creating payment request
+      if (!this.config.storeId || !this.config.channelKey) {
+        throw new Error(
+          'PortOne 설정이 완료되지 않았습니다. ' +
+          'NEXT_PUBLIC_PORTONE_STORE_ID와 NEXT_PUBLIC_PORTONE_CHANNEL_KEY 환경 변수를 확인해주세요.'
+        );
+      }
+
       // Prepare payment request for v2 API
+      // 포트원 v2 브라우저 SDK는 paymentId를 merchant_uid로 사용
       const paymentRequest = {
         storeId: this.config.storeId,
         channelKey: this.config.channelKey,
-        paymentId: request.paymentId,
+        paymentId: request.paymentId, // 이것이 merchant_uid로 사용됨
         orderName: request.orderName,
         totalAmount: request.totalAmount,
         currency: request.currency,
@@ -116,18 +157,40 @@ class PortOneService {
           email: request.customer.email,
           phoneNumber: request.customer.phoneNumber,
         },
-        customData: {
+        customData: JSON.stringify({
+          userId: request.customer.userId, // 웹훅에서 사용자 식별용
           productId: request.productInfo.id,
           starCandy: request.productInfo.starCandy,
           bonusAmount: request.productInfo.bonusAmount,
-        },
-        redirectUrl: `${window.location.origin}/api/payment/portone/callback`,
+        }),
+        redirectUrl: `${window.location.origin}/api/payment/portone/callback?returnTo=${encodeURIComponent(window.location.pathname)}&paymentId=${encodeURIComponent(request.paymentId)}`,
         noticeUrl: `${window.location.origin}/api/payment/portone/webhook`,
         confirmUrl: `${window.location.origin}/api/payment/portone/confirm`,
       };
 
+      // Debug logging
+      console.log('[PortOne] Payment request:', {
+        storeId: paymentRequest.storeId,
+        channelKey: paymentRequest.channelKey ? '***' : undefined,
+        paymentId: paymentRequest.paymentId,
+        orderName: paymentRequest.orderName,
+        totalAmount: paymentRequest.totalAmount,
+      });
+
+      // Verify PortOne is available before calling
+      if (!window.PortOne || typeof window.PortOne.requestPayment !== 'function') {
+        throw new Error('Port One SDK is not available. Please ensure the SDK is properly loaded.');
+      }
+
       // Request payment using v2 API
+      console.log('[PortOne] Calling requestPayment with redirectUrl:', paymentRequest.redirectUrl);
       const response = await window.PortOne.requestPayment(paymentRequest);
+      console.log('[PortOne] requestPayment response:', {
+        code: response.code,
+        paymentId: response.paymentId,
+        transactionId: response.transactionId,
+        message: response.message,
+      });
 
       if (response.code === null && response.paymentId) {
         // Payment completed successfully

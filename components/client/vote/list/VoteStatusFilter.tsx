@@ -4,6 +4,7 @@ import React from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useTranslationReady } from '@/hooks/useTranslationReady';
 import { VOTE_STATUS, VoteStatus } from '@/stores/voteFilterStore';
+import { useAuth } from '@/hooks/useAuth';
 
 interface VoteStatusFilterProps {
   selectedStatus: VoteStatus;
@@ -14,69 +15,70 @@ const VoteStatusFilter = React.memo(
   ({ selectedStatus, onStatusChange }: VoteStatusFilterProps) => {
     const { t } = useLanguageStore();
     const isTranslationReady = useTranslationReady();
+    const { userProfile } = useAuth();
+    const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
+
+    const fallbackTexts: Record<VoteStatus, string> = {
+      [VOTE_STATUS.ONGOING]: 'Ongoing',
+      [VOTE_STATUS.UPCOMING]: 'Upcoming',
+      [VOTE_STATUS.COMPLETED]: 'Completed',
+      [VOTE_STATUS.ADMIN]: 'Admin',
+    };
 
     const getButtonText = (status: VoteStatus) => {
       if (!isTranslationReady) {
-        // 번역이 로드되지 않은 경우 fallback 텍스트 사용
-        switch (status) {
-          case VOTE_STATUS.ONGOING:
-            return t('vote_status_fallback_ongoing');
-          case VOTE_STATUS.UPCOMING:
-            return t('vote_status_fallback_upcoming');
-          case VOTE_STATUS.COMPLETED:
-            return t('vote_status_fallback_completed');
-          default:
-            return '';
-        }
+        return fallbackTexts[status];
       }
 
       switch (status) {
         case VOTE_STATUS.ONGOING:
-          return t('label_tabbar_vote_active');
+          return t('label_tabbar_vote_active') || fallbackTexts[status];
         case VOTE_STATUS.UPCOMING:
-          return t('label_tabbar_vote_upcoming');
+          return t('label_tabbar_vote_upcoming') || fallbackTexts[status];
         case VOTE_STATUS.COMPLETED:
-          return t('label_tabbar_vote_end');
+          return t('label_tabbar_vote_end') || fallbackTexts[status];
+        case VOTE_STATUS.ADMIN:
+          return t('label_tabbar_vote_admin') || fallbackTexts[status];
         default:
-          return '';
+          return fallbackTexts[status];
       }
     };
 
     const getAriaLabel = (status: VoteStatus) => {
       if (!isTranslationReady) {
-        switch (status) {
-          case VOTE_STATUS.ONGOING:
-            return t('vote_status_ongoing_aria_label');
-          case VOTE_STATUS.UPCOMING:
-            return t('vote_status_upcoming_aria_label');
-          case VOTE_STATUS.COMPLETED:
-            return t('vote_status_completed_aria_label');
-          default:
-            return '';
-        }
+        return fallbackTexts[status];
       }
 
       switch (status) {
         case VOTE_STATUS.ONGOING:
-          return t('label_tabbar_vote_active');
+          return t('label_tabbar_vote_active') || fallbackTexts[status];
         case VOTE_STATUS.UPCOMING:
-          return t('label_tabbar_vote_upcoming');
+          return t('label_tabbar_vote_upcoming') || fallbackTexts[status];
         case VOTE_STATUS.COMPLETED:
-          return t('label_tabbar_vote_end');
+          return t('label_tabbar_vote_end') || fallbackTexts[status];
+        case VOTE_STATUS.ADMIN:
+          return t('label_tabbar_vote_admin') || fallbackTexts[status];
         default:
-          return '';
+          return fallbackTexts[status];
       }
     };
+
+    const baseClasses =
+      'px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500';
+
+    const getButtonClasses = (status: VoteStatus) =>
+      [
+        baseClasses,
+        selectedStatus === status
+          ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
+          : 'bg-white text-primary-700 border border-primary/40 hover:bg-primary/10 hover:text-primary-700 hover:shadow-sm',
+      ].join(' ');
 
     return (
       <div className='flex flex-wrap justify-end gap-1 sm:gap-1.5 bg-white/50 backdrop-blur-sm p-1.5 rounded-lg shadow-sm border border-gray-100'>
         <button
           onClick={() => onStatusChange(VOTE_STATUS.ONGOING)}
-          className={`px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
-            selectedStatus === VOTE_STATUS.ONGOING
-              ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-              : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-          }`}
+          className={getButtonClasses(VOTE_STATUS.ONGOING)}
           aria-label={getAriaLabel(VOTE_STATUS.ONGOING)}
           aria-pressed={selectedStatus === VOTE_STATUS.ONGOING}
         >
@@ -84,11 +86,7 @@ const VoteStatusFilter = React.memo(
         </button>
         <button
           onClick={() => onStatusChange(VOTE_STATUS.UPCOMING)}
-          className={`px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
-            selectedStatus === VOTE_STATUS.UPCOMING
-              ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-              : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-          }`}
+          className={getButtonClasses(VOTE_STATUS.UPCOMING)}
           aria-label={getAriaLabel(VOTE_STATUS.UPCOMING)}
           aria-pressed={selectedStatus === VOTE_STATUS.UPCOMING}
         >
@@ -96,16 +94,22 @@ const VoteStatusFilter = React.memo(
         </button>
         <button
           onClick={() => onStatusChange(VOTE_STATUS.COMPLETED)}
-          className={`px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
-            selectedStatus === VOTE_STATUS.COMPLETED
-              ? 'bg-primary text-white shadow-sm transform scale-[1.02]'
-              : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary hover:shadow-sm'
-          }`}
+          className={getButtonClasses(VOTE_STATUS.COMPLETED)}
           aria-label={getAriaLabel(VOTE_STATUS.COMPLETED)}
           aria-pressed={selectedStatus === VOTE_STATUS.COMPLETED}
         >
           {getButtonText(VOTE_STATUS.COMPLETED)}
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => onStatusChange(VOTE_STATUS.ADMIN)}
+            className={getButtonClasses(VOTE_STATUS.ADMIN)}
+            aria-label={getAriaLabel(VOTE_STATUS.ADMIN)}
+            aria-pressed={selectedStatus === VOTE_STATUS.ADMIN}
+          >
+            {getButtonText(VOTE_STATUS.ADMIN)}
+          </button>
+        )}
       </div>
     );
   },

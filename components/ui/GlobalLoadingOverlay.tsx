@@ -7,9 +7,6 @@ import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 export default function GlobalLoadingOverlay() {
   const { isLoading } = useGlobalLoading();
 
-  // 디버깅용 콘솔 로그
-  console.log('🔍 [GlobalLoadingOverlay] 렌더링:', { isLoading });
-
   if (!isLoading) return null;
 
   return (
@@ -39,7 +36,7 @@ export default function GlobalLoadingOverlay() {
         }}
       >
         <Image
-          src="/images/logo.png"
+          src="/images/logo.webp"
           alt="Picnic Loading"
           width={80}
           height={80}

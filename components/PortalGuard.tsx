@@ -7,6 +7,9 @@ import { PortalType } from '@/utils/enums';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
+// PortalType을 re-export하여 다른 컴포넌트에서 사용할 수 있도록 함
+export { PortalType };
+
 interface PortalProps {
   type?: PortalType;
   children: React.ReactNode;
@@ -25,7 +28,9 @@ export default function PortalGuard({ type = PortalType.PUBLIC, children }: Port
 
     // 인증된 사용자만 접근 가능한 페이지인데, 인증되지 않은 경우
     if (type === PortalType.PRIVATE && !isAuthenticated) {
-      router.push('/login');
+      const language = (pathname?.split('/')[1]) || 'en';
+      const returnTo = pathname || '/';
+      router.push(`/${language}/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
     
     // 인증되지 않은 사용자만 접근 가능한 페이지(예: 로그인)인데, 인증된 경우

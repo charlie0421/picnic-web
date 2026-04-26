@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { QnaThread, Pagination } from '@/types/interfaces';
+import { QnaThreads as QnaThread } from '@/types/interfaces';
+import type { Pagination } from '@/types/mypage-common';
 import { PostgrestError } from '@supabase/supabase-js';
 
 interface GetQnaThreadsParams {
@@ -53,7 +54,6 @@ export async function getQnaThreads({
         totalCount,
         totalPages,
         hasNext: page < totalPages,
-        hasPrevious: page > 1,
       },
       error: null,
     };
@@ -85,6 +85,7 @@ export async function getQnaThreadDetails(threadId: number) {
       id,
       user_id,
       title,
+      category_code,
       status,
       created_at,
       updated_at,
@@ -121,11 +122,15 @@ export async function getQnaThreadDetails(threadId: number) {
   }
   
       if (data && data.qna_messages) {
+      // 메시지를 created_at 기준 오름차순으로 정렬 (작성 순서대로)
+      data.qna_messages.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateA - dateB;
+      });
+
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const customDomain = 'https://api.picnic.fan';
-
-      console.log('[Debug QNA Service] Supabase URL from env:', supabaseUrl);
-      console.log('[Debug QNA Service] Custom Domain:', customDomain);
 
       data.qna_messages.forEach(message => {
         if (Array.isArray(message.user_profiles)) {

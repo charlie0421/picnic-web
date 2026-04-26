@@ -38,7 +38,7 @@ const DialogTitle = React.memo<React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, children, ...props }) => (
     <HeadlessDialog.Title
       as='h3'
-      className={cn('text-base sm:text-lg font-semibold leading-6 text-gray-900 dark:text-white', className)}
+      className={cn('text-base sm:text-lg font-semibold leading-6 text-gray-900', className)}
       {...props}
     >
       {children}
@@ -51,7 +51,7 @@ const DialogDescription = React.memo<
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }) => (
   <HeadlessDialog.Description
-    className={cn('mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-300', className)}
+    className={cn('mt-2 text-sm sm:text-base text-gray-600', className)}
     {...props}
   >
     {children}

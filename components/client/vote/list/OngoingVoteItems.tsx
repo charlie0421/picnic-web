@@ -3,17 +3,35 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Vote, VoteItem } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
-import { RankingView } from '../common/RankingView';
+import { getLocalizedString } from '@/utils/api/strings';
+import { formatRelativeTime } from '@/utils/date';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 // 확장된 VoteItem 타입 정의
-interface EnhancedVoteItem extends VoteItem {
-  artist?: any;
+type VoteItemWithOptionalArtist = VoteItem & {
+  artist?: {
+    artist_group?: string | null;
+    artistGroup?: string | null;
+    [key: string]: any;
+  } | null;
+  deleted_at?: string | null;
+};
+
+interface EnhancedVoteItem
+  extends Omit<VoteItemWithOptionalArtist, 'vote_total'> {
   isAnimating?: boolean;
   voteChange?: number;
+  vote_total: number;
 }
 
+/** Number of top-ranked items to display */
+const TOP_ITEMS_DISPLAY_COUNT = 3;
+
+/** Timer tick interval for relative time updates (ms) */
+const RELATIVE_TIME_TICK_MS = 60 * 1000;
+
 interface OngoingVoteItemsProps {
-  vote: Vote & { voteItem?: EnhancedVoteItem[] };
+  vote: Vote & { voteItem?: VoteItemWithOptionalArtist[] };
   onVoteChange?: (
     voteId: string | number,
     itemId: string | number,
@@ -21,32 +39,61 @@ interface OngoingVoteItemsProps {
   ) => void;
   mode?: 'list' | 'detail'; // 투표 리스트 vs 투표 상세 모드
   onNavigateToDetail?: (voteId?: string | number) => void; // 투표 상세로 이동
+  displayLanguage?: string;
 }
+
+const normalizeVoteItems = (
+  vote: Vote & { voteItem?: VoteItemWithOptionalArtist[] },
+): EnhancedVoteItem[] => {
+  if (!Array.isArray(vote.voteItem) || vote.voteItem.length === 0) {
+    return [];
+  }
+
+  return vote.voteItem
+    .filter((item) => !item?.deleted_at)
+    .map((item) => {
+      const artist = item.artist
+        ? ({
+            ...item.artist,
+            artist_group:
+              item.artist?.artist_group ?? item.artist?.artistGroup ?? null,
+            artistGroup:
+              item.artist?.artistGroup ?? item.artist?.artist_group ?? null,
+          })
+        : null;
+
+      return {
+        ...item,
+        artist,
+        vote_total: item.vote_total ?? 0,
+      };
+    });
+};
 
 export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   vote,
   onVoteChange,
   mode = 'detail', // 기본값은 detail (기존 동작 유지)
   onNavigateToDetail,
+  displayLanguage,
 }) => {
-  const { t } = useLanguageStore();
-  const [voteItems, setVoteItems] = useState<EnhancedVoteItem[]>([]);
+  const { t, currentLanguage } = useLanguageStore();
+  const effectiveLanguage = displayLanguage ?? currentLanguage;
+  const [voteItems, setVoteItems] = useState<EnhancedVoteItem[]>(() =>
+    normalizeVoteItems(vote),
+  );
+  const [tick, setTick] = useState(0); // 상대 시간 갱신용 타이머
 
   // vote 객체가 변경될 때마다 voteItems 상태 업데이트
   useEffect(() => {
-    if (vote.voteItem && vote.voteItem.length > 0) {
-      // 투표 항목 데이터를 EnhancedVoteItem 형태로 변환
-      const enhancedItems: EnhancedVoteItem[] = vote.voteItem.map((item) => ({
-        ...item,
-        vote_total: item.vote_total || 0,
-        artist: item.artist || null,
-      }));
-
-      setVoteItems(enhancedItems);
-    } else {
-      setVoteItems([]);
-    }
+    setVoteItems(normalizeVoteItems(vote));
   }, [vote.id, vote.voteItem]); // voteItem도 명시적으로 의존성 배열에 추가
+
+  // 1분 간격으로 상대 시간 갱신
+  useEffect(() => {
+    const interval = setInterval(() => setTick((prev) => prev + 1), RELATIVE_TIME_TICK_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   // 표시할 상위 항목
   const topItems = useMemo(() => {
@@ -56,35 +103,17 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
     }
 
     // 정렬을 위해 깊은 복사 후 voteTotal이 null/undefined인 경우 0으로 처리
-    try {
-      const sortedItems = [...voteItems]
-        .map((item) => {
-          // artist 객체가 있는 경우 artist_group과 artistGroup 모두 처리
-          const artist = item.artist
-            ? {
-                ...item.artist,
-                // 둘 중 하나만 있는 경우 다른 하나로 복사
-                artist_group:
-                  item.artist.artist_group || item.artist.artistGroup,
-                artistGroup:
-                  item.artist.artistGroup || item.artist.artist_group,
-              }
-            : null;
+    const sortedItems = [...voteItems].sort((a, b) => {
+      const voteDiff = (b.vote_total || 0) - (a.vote_total || 0);
+      if (voteDiff !== 0) return voteDiff;
+      return (a.id || 0) - (b.id || 0);
+    });
 
-          return {
-            ...item,
-            vote_total: item.vote_total ?? 0,
-            artist,
-          };
-        })
-        .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
-        .slice(0, 3);
-
+      if (sortedItems.length === 2) {
       return sortedItems;
-    } catch (error) {
-      console.error('[OngoingVoteItems] 항목 정렬 중 오류:', error);
-      return [];
     }
+
+    return sortedItems.slice(0, TOP_ITEMS_DISPLAY_COUNT);
   }, [voteItems]);
 
   // 투표 변경 핸들러
@@ -148,18 +177,149 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
     );
   }
 
+  // 리스트 모드에서는 인라인 포디움 UI 렌더링 (RankingView 제거)
+  if (mode === 'list') {
+    const lastUpdatedIso = computeLastUpdatedIso(voteItems, vote.updated_at);
+    const relativeUpdated = lastUpdatedIso
+      ? formatRelativeTime(lastUpdatedIso, effectiveLanguage as any, {
+          useAbsolute: true,
+          absoluteThreshold: 3,
+          showTime: true,
+        })
+      : null;
+    return (
+      <div className='w-full'>
+        <div className='flex flex-col items-center'>
+          <div className='w-full rounded-3xl ring-1 ring-primary-300 bg-gradient-to-b from-primary-50 to-primary-100/60 shadow-lg p-2 sm:p-3 md:p-4 overflow-hidden'>
+            {topItems.length === 2 ? (
+              <div
+                className='flex justify-center items-end gap-1 sm:gap-2'
+                onClick={() => onNavigateToDetail?.(vote.id)}
+              >
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+              </div>
+            ) : (
+              <div
+                className='flex justify-center items-end gap-1 sm:gap-2'
+                onClick={() => onNavigateToDetail?.(vote.id)}
+              >
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+                {renderPodiumItem(topItems[2], 3, t, effectiveLanguage)}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 상세 모드에서는 기존 인터랙션 유지가 필요하다면 RankingView로 유지 가능 (필요 시 추후 개선)
   return (
     <div className='w-full'>
       <div className='flex flex-col items-center'>
-        <RankingView
-          items={topItems}
-          showVoteChange={true}
-          onVoteChange={onVoteChange ? handleVoteChange : undefined}
-          keyPrefix='ongoing'
-          mode={mode}
-          onNavigateToDetail={onNavigateToDetail ? () => onNavigateToDetail(vote.id) : undefined}
-        />
+        <div className='w-full px-2 sm:px-3'>
+          <div className='w-full rounded-3xl ring-1 ring-secondary-300 bg-gradient-to-b from-secondary-50 to-secondary-100/60 shadow-lg p-3 sm:p-4 md:p-5 overflow-hidden'>
+            {topItems.length === 2 ? (
+              <div className='flex justify-center items-end gap-2 sm:gap-3'>
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+              </div>
+            ) : (
+              <div className='flex justify-center items-end gap-2 sm:gap-3'>
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
+                {renderPodiumItem(topItems[2], 3, t, effectiveLanguage)}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 };
+
+function renderPodiumItem(
+  item: EnhancedVoteItem | undefined,
+  rank: 1 | 2 | 3,
+  t: (key: string, args?: Record<string, string>) => string,
+  currentLanguage: string,
+  highlight: boolean = false,
+) {
+  if (!item) return <div className='w-20 sm:w-24' />;
+
+  const artistName = item.artist
+    ? getLocalizedString(item.artist.name, currentLanguage) || t('artist_name_fallback')
+    : t('artist_name_fallback');
+  const rawGroup =
+    item.artist?.artistGroup ?? item.artist?.artist_group ?? null;
+  let groupName = '';
+  if (typeof rawGroup === 'string') {
+    groupName = rawGroup;
+  } else if (rawGroup && typeof rawGroup === 'object') {
+    const candidate = (rawGroup as { name?: string }).name;
+    groupName = candidate
+      ? getLocalizedString(candidate, currentLanguage)
+      : '';
+  }
+  const imageSrc = item.artist?.image || null;
+  const total = item.vote_total ?? 0;
+  const formattedTotal = (total || 0).toLocaleString('ko-KR');
+  const size = rank === 1 ? 112 : rank === 2 ? 84 : 72;
+  const isPrimaryVisual = rank === 1;
+
+  return (
+    <div className='flex flex-col items-center' style={{ width: size + 28 }}>
+      <div
+        className={`rounded-full border ${highlight ? 'border-yellow-400 shadow-[0_8px_25px_-8px_rgba(250,204,21,0.7)]' : 'border-white shadow'} overflow-hidden`}
+        style={{ width: size, height: size }}
+      >
+        <OptimizedImage
+          src={imageSrc || '/images/default-artist.png'}
+          alt={artistName}
+          width={size}
+          height={size}
+          className='w-full h-full object-cover'
+          fallbackSrc='/images/default-artist.png'
+          priority={isPrimaryVisual}
+          fetchPriority={isPrimaryVisual ? 'high' : 'auto'}
+        />
+      </div>
+      <div className='mt-2 text-center overflow-hidden' style={{ width: size }}>
+        <div className={`text-[10px] font-bold ${rank === 1 ? 'text-yellow-600' : rank === 2 ? 'text-gray-600' : 'text-amber-600'}`}>#{rank}</div>
+        <div className='text-xs font-semibold text-gray-900 truncate whitespace-nowrap'>{artistName}</div>
+        <div style={{ minHeight: 16 }}>
+          {groupName ? (
+            <div className='text-[10px] text-gray-600 truncate whitespace-nowrap'>{groupName}</div>
+          ) : (
+            <div className='invisible text-[10px] text-gray-600 truncate whitespace-nowrap'>-</div>
+          )}
+        </div>
+        <div className='text-[11px] text-blue-600 font-bold'>{formattedTotal}</div>
+      </div>
+    </div>
+  );
+}
+
+// 리스트용 업데이트 시각 계산기: 항목들의 updated_at과 상위 vote.updated_at 중 가장 최근 값을 반환
+function computeLastUpdatedIso(
+  items: EnhancedVoteItem[],
+  voteUpdatedAt?: string | null,
+): string | null {
+  const times: number[] = [];
+
+  if (voteUpdatedAt) {
+    const t = Date.parse(voteUpdatedAt);
+    if (!Number.isNaN(t)) times.push(t);
+  }
+
+  for (const it of items) {
+    const ts = it?.updated_at ? Date.parse(it.updated_at as string) : NaN;
+    if (!Number.isNaN(ts)) times.push(ts);
+  }
+
+  if (times.length === 0) return null;
+  const max = Math.max(...times);
+  return new Date(max).toISOString();
+}

@@ -8,19 +8,29 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type BoardStatusEnum = "pending" | "approved" | "rejected";
+export type BoardStatus = "pending" | "approved" | "rejected";
 
-export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION";
+export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION" | "OPEN_GOONGHAP" | "ADMIN_ADJUST";
 
-export type CompatibilityStatus = "pending" | "completed" | "error";
+export type GoonghapStatus = "pending" | "completed" | "error";
 
 export type PlatformEnum = "iOS" | "Android" | "Both";
 
 export type PolicyLanguageEnum = "ko" | "en";
 
-export type ProductTypeEnum = "consumable" | "non-consumable" | "subscription";
+export type PolicyType = "PRIVACY_KO" | "PRIVACY_EN" | "TERMS_KO" | "TERMS_EN" | "WITHDRAW_ACCOUNT_KO" | "WITHDRAW_ACCOUNT_EN";
 
-export type SupportedLanguage = "ko" | "en" | "ja" | "zh";
+export type PortalEnum = "vote" | "pic";
+
+export type ProductType = "consumable" | "non-consumable" | "subscription";
+
+export type QnaStatus = "RECEIVED" | "IN_PROGRESS" | "RESOLVED";
+
+export type SpecificPlatformEnum = "iOS" | "Android";
+
+export type SupportedLanguageEnum = "ko" | "en" | "ja" | "zh" | "zh-CN" | "zh-TW" | "fil" | "id" | "th" | "vi" | "es" | "bn" | "my";
+
+export type SupportedLanguage = SupportedLanguageEnum;
 
 export type UserGenderEnum = "male" | "female" | "other";
 
@@ -35,6 +45,54 @@ export interface Activities {
   timestamp: string
   user_agent: string | null
   user_id: string | null
+}
+
+export interface AdCampaigns {
+  advertiser: string | null
+  created_at: string | null
+  cta_url: string | null
+  id: string
+  is_default: boolean
+  reward_comment: number
+  reward_like: number
+  reward_more: number
+  reward_subscribe: number
+  reward_view: number
+  served_count: number
+  status: string
+  title: string
+  total_cap: number | null
+  updated_at: string | null
+  video_key: string
+  visible_from: string | null
+  visible_to: string | null
+  weight: number
+}
+
+export interface AdImpressions {
+  ad_id: string
+  completed_at: string | null
+  created_at: string | null
+  id: string
+  ip_hash: string | null
+  issue_expires_at: string | null
+  issue_jti: string | null
+  issued_at: string
+  more_completed_at: string | null
+  more_reward_granted_at: string | null
+  user_agent: string | null
+  user_id: string
+  view_reward_granted_at: string | null
+}
+
+export interface AdRewardEvents {
+  ad_id: string
+  amount: number
+  created_at: string | null
+  id: string
+  impression_id: string
+  type: string
+  user_id: string
 }
 
 export interface AdminPermissions {
@@ -70,23 +128,33 @@ export interface AdminUserRoles {
   user_id: string
 }
 
+export interface AdminWhitelist {
+  created_at: string | null
+  created_by: string | null
+  email: string
+  id: string
+  is_active: boolean | null
+  notes: string | null
+  updated_at: string | null
+}
+
 export interface Album {
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   title: string | null
   updated_at: string | null
   user_id: number | null
 }
 
 export interface AlbumImage {
-  album_id: number | null
-  image_id: number | null
+  album_id: number
+  image_id: number
 }
 
 export interface AlbumImageUser {
-  image_id: number | null
-  user_id: number | null
+  image_id: number
+  user_id: number
 }
 
 export interface AppSplash {
@@ -107,11 +175,13 @@ export interface ApplicationLogs {
   data: string | null
   environment: string | null
   id: string
+  id_old: string
   level: string
   line_number: number | null
   message: string
   platform: string | null
   request_id: string | null
+  rid: string
   session_id: string | null
   source_file: string | null
   stack_trace: string | null
@@ -126,7 +196,6 @@ export interface Article {
   deleted_at: string | null
   gallery_id: number
   id: number
-  title_en: string | null
   title_ko: string | null
   updated_at: string | null
 }
@@ -137,7 +206,7 @@ export interface ArticleComment {
   content: string | null
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   likes: number | null
   parent_id: number | null
   updated_at: string | null
@@ -145,13 +214,13 @@ export interface ArticleComment {
 }
 
 export interface ArticleCommentLike {
-  comment_id: number | null
-  user_id: number | null
+  comment_id: number
+  user_id: number
 }
 
 export interface ArticleCommentReport {
-  comment_id: number | null
-  user_id: number | null
+  comment_id: number
+  user_id: number
 }
 
 export interface ArticleImage {
@@ -161,7 +230,6 @@ export interface ArticleImage {
   id: number
   image: string | null
   order: number | null
-  title_en: string | null
   title_ko: string | null
   updated_at: string | null
 }
@@ -186,13 +254,14 @@ export interface Artist {
   image: string | null
   is_kpop: boolean
   is_musical: boolean
+  is_partnership: boolean | null
   is_solo: boolean
   mm: number | null
   name: Json | null
+  partner: string | null
+  partner_data: string | null
   updated_at: string
   yy: number | null
-  artistGroup?: ArtistGroup;
-  voteItem?: VoteItem[];
 }
 
 export interface ArtistGroup {
@@ -206,8 +275,6 @@ export interface ArtistGroup {
   image: string | null
   name: Json | null
   updated_at: string
-  artist?: Artist[];
-  voteItem?: VoteItem[];
 }
 
 export interface ArtistUserBookmark {
@@ -243,6 +310,48 @@ export interface ArtistVoteItem {
   vote_total: number | null
 }
 
+export interface AttendanceCheck {
+  check_date: string
+  created_at: string
+  id: number
+  reward_amount: number
+  user_id: string
+  weekly_bonus_amount: number
+}
+
+export interface AuditLogs {
+  action_description: string
+  action_type: string
+  changed_fields: string | null
+  classification: string | null
+  created_at: string
+  error_message: string | null
+  id: string
+  id_old: string
+  ip_address: string | null
+  metadata: string | null
+  method: string | null
+  new_values: string | null
+  old_values: string | null
+  resource_id: string | null
+  resource_name: string | null
+  resource_type: string
+  retention_period: number | null
+  rid: string
+  session_id: string | null
+  severity: string
+  status_code: number | null
+  success: boolean
+  tags: string | null
+  timestamp: string
+  updated_at: string
+  url: string | null
+  user_agent: string | null
+  user_email: string | null
+  user_id: string | null
+  user_roles: string | null
+}
+
 export interface AwsdmsDdlAudit {
   c_ddlqry: string | null
   c_key: number
@@ -264,6 +373,8 @@ export interface Banner {
   id: number
   image: Json | null
   link: string | null
+  link_target_id: number | null
+  link_type: string | null
   location: string | null
   order: number | null
   start_at: string | null
@@ -283,8 +394,17 @@ export interface BatchLog {
 
 export interface BlockedIps {
   blocked_at: string | null
+  id: number
   ip_address: string
   reason: string | null
+  rid: string
+}
+
+export interface BoardUserBookmark {
+  board_id: string
+  created_at: string
+  id: string
+  user_id: string
 }
 
 export interface Boards {
@@ -301,7 +421,7 @@ export interface Boards {
   order: number | null
   parent_board_id: string | null
   request_message: string | null
-  status: BoardStatusEnum
+  status: BoardStatus
   updated_at: string
 }
 
@@ -312,11 +432,21 @@ export interface BonusExpiryLog {
   operation: string | null
 }
 
+export interface BroadcastNotifications {
+  action_url: string | null
+  body: string
+  created_at: string
+  created_by: string | null
+  data: Json | null
+  id: number
+  title: string
+  type: string
+}
+
 export interface Celeb {
   created_at: string | null
   deleted_at: string | null
   id: number
-  name_en: string | null
   name_ko: string | null
   thumbnail: string | null
   updated_at: string | null
@@ -324,7 +454,7 @@ export interface Celeb {
 
 export interface CelebBookmarkUser {
   celeb_id: number
-  user_id: string | null
+  user_id: string
 }
 
 export interface CommentLikes {
@@ -337,7 +467,7 @@ export interface CommentLikes {
 }
 
 export interface CommentReports {
-  comment_id: string | null
+  comment_id: string
   comment_report_id: string
   created_at: string | null
   deleted_at: string | null
@@ -359,51 +489,6 @@ export interface Comments {
   replies: number
   updated_at: string
   user_id: string | null
-}
-
-export interface CompatibilityResults {
-  artist_id: number
-  completed_at: string | null
-  created_at: string
-  details: Json | null
-  error_message: string | null
-  gender: UserGenderEnum | null
-  id: string
-  idol_birth_date: string
-  is_ads: boolean | null
-  is_paid: boolean
-  paid_at: string | null
-  score: number | null
-  status: CompatibilityStatus
-  tips: Json | null
-  user_birth_date: string
-  user_birth_time: string | null
-  user_id: string
-}
-
-export interface CompatibilityResultsI18n {
-  compatibility_id: string
-  compatibility_summary: string | null
-  created_at: string
-  details: Json | null
-  id: string
-  language: SupportedLanguage
-  score: number | null
-  score_title: string | null
-  tips: Json | null
-  updated_at: string
-}
-
-export interface CompatibilityScoreDescriptions {
-  score: number | null
-  summary_en: string
-  summary_ja: string
-  summary_ko: string
-  summary_zh: string
-  title_en: string | null
-  title_ja: string | null
-  title_ko: string | null
-  title_zh: string | null
 }
 
 export interface Config {
@@ -471,15 +556,28 @@ export interface Devices {
   created_at: string | null
   device_id: string
   device_info: Json | null
+  id: number
   is_banned: boolean | null
   last_ip: string | null
   last_seen: string | null
   last_updated: string | null
+  rid: string
   user_id: string | null
+}
+
+export interface FaqCategories {
+  active: boolean
+  code: string
+  created_at: string
+  id: number
+  label: Json
+  order_number: number
+  rid: string
 }
 
 export interface Faqs {
   answer: Json
+  answer_delta: Json | null
   category: string | null
   created_at: string | null
   created_by: string | null
@@ -538,6 +636,18 @@ export interface FortuneTellingI18n {
   year: number
 }
 
+export interface FunctionRequestLog {
+  code: number | null
+  function_name: string
+  id: number
+  ip: string | null
+  meta: Json | null
+  ok: boolean | null
+  reason: string | null
+  ts: string
+  user_id: string | null
+}
+
 export interface Gallery {
   celeb_id: number
   cover: string | null
@@ -545,14 +655,56 @@ export interface Gallery {
   deleted_at: string | null
   id: number
   title: Json | null
-  title_en: string | null
   title_ko: string | null
   updated_at: string
 }
 
 export interface GalleryUser {
-  gallery_id: number | null
-  user_id: number | null
+  gallery_id: number
+  user_id: number
+}
+
+export interface GoonghapResults {
+  artist_id: number
+  completed_at: string | null
+  created_at: string
+  details: Json | null
+  error_message: string | null
+  gender: UserGenderEnum | null
+  id: string
+  idol_birth_date: string
+  is_ads: boolean | null
+  is_paid: boolean
+  paid_at: string | null
+  score: number | null
+  status: GoonghapStatus
+  tips: Json | null
+  user_birth_date: string
+  user_birth_time: string | null
+  user_id: string
+}
+
+export interface GoonghapResultsI18n {
+  created_at: string
+  details: Json | null
+  goonghap_id: string
+  goonghap_summary: string | null
+  id: string
+  language: string
+  score: number | null
+  score_title: string | null
+  tips: Json | null
+  updated_at: string
+}
+
+export interface GoonghapScoreDescriptions {
+  score: number
+  summary_ja: string
+  summary_ko: string
+  summary_zh: string
+  title_ja: string | null
+  title_ko: string | null
+  title_zh: string | null
 }
 
 export interface IpCountryMapping {
@@ -566,15 +718,15 @@ export interface IpCountryMapping {
 export interface Library {
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   title: string | null
   updated_at: string | null
   user_id: number | null
 }
 
 export interface LibraryImage {
-  image_id: number | null
-  library_id: number | null
+  image_id: number
+  library_id: number
 }
 
 export interface Media {
@@ -659,6 +811,155 @@ export interface PicVoteReward {
   vote_id: number
 }
 
+export interface PocapopBaseFrames {
+  category: string
+  color_tone: string | null
+  created_at: string | null
+  generation_type: string | null
+  id: string
+  name: string
+  png_url: string
+  thumbnail_url: string
+}
+
+export interface PocapopCategories {
+  created_at: string | null
+  id: string
+  is_active: boolean | null
+  labels: Json
+  name: string
+  sort_order: number | null
+}
+
+export interface PocapopCommunityComments {
+  content: string
+  created_at: string
+  id: string
+  parent_comment_id: string | null
+  post_id: string
+  updated_at: string
+  user_id: string
+}
+
+export interface PocapopCommunityLikes {
+  created_at: string
+  id: string
+  post_id: string
+  user_id: string
+}
+
+export interface PocapopCommunityPosts {
+  artist_tags: string[] | null
+  auto_shared: boolean | null
+  country: string | null
+  created_at: string | null
+  frame_id: string
+  id: string
+  nickname: string
+  thumbnail_url: string
+  user_id: string
+}
+
+export interface PocapopCouponRedemptions {
+  coupon_id: string
+  id: string
+  redeemed_at: string | null
+  trial_count_added: number
+  user_id: string
+}
+
+export interface PocapopCoupons {
+  code: string
+  created_at: string | null
+  current_uses: number | null
+  expires_at: string | null
+  id: string
+  is_active: boolean | null
+  max_uses: number | null
+  trial_count: number
+}
+
+export interface PocapopDownloadLogs {
+  download_type: string
+  downloaded_at: string | null
+  frame_id: string | null
+  id: string
+  user_id: string | null
+}
+
+export interface PocapopFramePurchases {
+  frame_id: string
+  id: string
+  price_paid: number
+  purchased_at: string
+  user_id: string
+}
+
+export interface PocapopHdDownloadCounts {
+  count: number | null
+  date: string
+  id: string
+  updated_at: string | null
+  user_id: string
+}
+
+export interface PocapopMarketFrames {
+  category: string | null
+  created_at: string
+  creator_id: string
+  description: string | null
+  id: string
+  image_url: string
+  price_star_candy: number | null
+  status: string | null
+  tags: string[] | null
+  title: string
+  updated_at: string
+}
+
+export interface PocapopReports {
+  comment_id: string | null
+  created_at: string | null
+  id: string
+  post_id: string | null
+  reason: string | null
+  report_type: string
+  reported_user_id: string | null
+  reporter_id: string
+  status: string | null
+  updated_at: string | null
+}
+
+export interface PocapopUserBlocks {
+  blocked_id: string
+  blocker_id: string
+  created_at: string | null
+  id: string
+}
+
+export interface PocapopUserFrames {
+  artist_name: string
+  base_frame_id: string | null
+  concept_keywords: string[] | null
+  created_at: string | null
+  frame_type: string | null
+  hd_image_url: string
+  id: string
+  poka_size: string | null
+  sd_image_url: string
+  user_id: string | null
+}
+
+export interface PocapopUserSubscriptions {
+  created_at: string | null
+  id: string
+  pro_trial_count: number | null
+  subscription_expires_at: string | null
+  subscription_type: string | null
+  updated_at: string | null
+  user_id: string
+}
+
 export interface Policy {
   content: string
   created_at: string
@@ -690,6 +991,12 @@ export interface PostAttachments {
   file_size: number
   file_type: string
   post_id: string | null
+}
+
+export interface PostLikes {
+  created_at: string
+  post_id: string
+  user_id: string
 }
 
 export interface PostReports {
@@ -744,16 +1051,17 @@ export interface Products {
   platform: PlatformEnum
   price: number | null
   product_name: string
-  product_type: ProductTypeEnum
+  product_type: ProductType
+  rid: string
   star_candy: number | null
   star_candy_bonus: number | null
   start_at: string | null
-  web_price_krw: number | null
-  web_price_usd: number | null
   web_bonus_amount: number | null
+  web_description: string | null
   web_display_order: number | null
   web_is_featured: boolean | null
-  web_description: string | null
+  web_price_krw: number | null
+  web_price_usd: number | null
 }
 
 export interface PromptUsageLogs {
@@ -783,18 +1091,58 @@ export interface Prompts {
   version: number
 }
 
-export interface Qnas {
-  answer: string | null
-  answered_at: string | null
-  answered_by: string | null
+export interface PushMessages {
+  body: string
   created_at: string | null
   created_by: string | null
-  is_private: boolean | null
-  qna_id: number
-  question: string
-  status: string | null
+  data: Json | null
+  failure_count: number | null
+  id: number
+  platform: string | null
+  success_count: number | null
+  target_type: string
+  target_user_ids: string[] | null
+  title: string
+}
+
+export interface QnaAttachments {
+  created_at: string | null
+  file_name: string
+  file_path: string
+  file_size: number | null
+  file_type: string | null
+  id: number
+  message_id: number | null
+}
+
+export interface QnaCategories {
+  active: boolean
+  answer_template: Json | null
+  code: string
+  created_at: string
+  label: Json
+  order_number: number
+  question_template: Json | null
+  rid: string
+}
+
+export interface QnaMessages {
+  content: string | null
+  created_at: string | null
+  id: number
+  is_admin_message: boolean | null
+  thread_id: number | null
+  user_id: string | null
+}
+
+export interface QnaThreads {
+  category_code: string | null
+  created_at: string | null
+  id: number
+  status: QnaStatus | null
   title: string
   updated_at: string | null
+  user_id: string | null
 }
 
 export interface Receipts {
@@ -806,6 +1154,7 @@ export interface Receipts {
   receipt_data: string
   receipt_hash: string | null
   status: string
+  tx_key: string | null
   user_id: string | null
   verification_data: Json | null
 }
@@ -823,8 +1172,6 @@ export interface Reward {
   thumbnail: string | null
   title: Json | null
   updated_at: string
-  voteReward?: VoteReward[];
-  voteAchieve?: VoteAchieve[];
 }
 
 export interface RolePermissions {
@@ -860,7 +1207,7 @@ export interface StarCandyBonusHistory {
   parent_id: number | null
   remain_amount: number
   transaction_id: string | null
-  type: CandyHistoryType | null
+  type: string | null
   updated_at: string
   user_id: string
   vote_pick_id: number | null
@@ -872,6 +1219,7 @@ export interface StarCandyHistory {
   deleted_at: string | null
   id: number
   parent_id: number | null
+  reference_id: string | null
   transaction_id: string | null
   type: CandyHistoryType | null
   updated_at: string
@@ -883,24 +1231,39 @@ export interface TransactionAdmob {
   ad_network: string | null
   created_at: string
   deleted_at: string | null
+  id: number
   key_id: string | null
   reward_amount: number | null
   reward_type: string | null
+  rid: string
   signature: string | null
   transaction_id: string
   updated_at: string
   user_id: string | null
 }
 
+export interface TransactionInternal {
+  action: string
+  ad_campaign_id: string | null
+  created_at: string
+  id: string
+  platform: string
+  reward_amount: number
+  reward_type: string
+  user_id: string
+}
+
 export interface TransactionPangle {
   ad_network: string | null
   created_at: string
   deleted_at: string | null
+  id: number
   key_id: string | null
   platform: string | null
   reward_amount: number | null
   reward_name: string | null
   reward_type: string | null
+  rid: string
   signature: string | null
   transaction_id: string
   updated_at: string
@@ -914,10 +1277,12 @@ export interface TransactionPincrux {
   commission: number | null
   created_at: string
   deleted_at: string | null
+  id: number
   menu_category1: string | null
   pub_key: number | null
   reward_amount: number | null
   reward_type: string | null
+  rid: string
   signature: string | null
   transaction_id: string
   updated_at: string
@@ -940,8 +1305,11 @@ export interface TransactionUnity {
   created_at: string
   deleted_at: string | null
   hmac: string
+  id: number
+  platform: string | null
   reward_amount: number | null
   reward_type: string | null
+  rid: string
   transaction_id: string
   updated_at: string
   user_id: string
@@ -964,11 +1332,30 @@ export interface UserBlocks {
   user_id: string
 }
 
+export interface UserBonusQueueAudit {
+  deleted_at: string
+  note: string | null
+  source: string | null
+  user_id: string
+}
+
+export interface UserBonusUpdateQueue {
+  attempts: number
+  created_at: string
+  id: number
+  last_enqueued_at: string
+  last_error: string | null
+  last_source: string | null
+  next_run_at: string
+  updated_at: string
+  user_id: string
+}
+
 export interface UserCommentLike {
   comment_id: number | null
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   updated_at: string | null
   user_id: number | null
 }
@@ -977,15 +1364,37 @@ export interface UserCommentReport {
   comment_id: number | null
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   updated_at: string | null
   user_id: number | null
+}
+
+export interface UserCountryEvents {
+  country_code: string
+  created_at: string
+  id: string
+  source: string
+  user_id: string
+}
+
+export interface UserNotifications {
+  action_url: string | null
+  body: string
+  created_at: string
+  data: Json | null
+  id: number
+  is_read: boolean
+  read_at: string | null
+  title: string
+  type: string
+  user_id: string
 }
 
 export interface UserProfiles {
   avatar_url: string | null
   birth_date: string | null
   birth_time: string | null
+  country_code: string | null
   created_at: string
   deleted_at: string | null
   email: string | null
@@ -993,17 +1402,28 @@ export interface UserProfiles {
   id: string
   is_admin: boolean
   is_super_admin: boolean | null
+  jma_candy: number | null
+  language: string | null
+  last_ip: string | null
   nickname: string | null
   open_ages: boolean
   open_gender: boolean
   star_candy: number
   star_candy_bonus: number
   updated_at: string
-  votePick?: VotePick[];
-  voteComment?: VoteComment[];
-  voteCommentLike?: VoteCommentLike[];
-  voteCommentReport?: VoteCommentReport[];
-  voteShareBonus?: VoteShareBonus[];
+}
+
+export interface UserPushTokens {
+  created_at: string | null
+  device_locale: string | null
+  id: number
+  token_android: string | null
+  token_ios: string | null
+  token_macos: string | null
+  token_web: string | null
+  token_windows: string | null
+  updated_at: string | null
+  user_id: string
 }
 
 export interface UserRoles {
@@ -1029,14 +1449,17 @@ export interface Version {
 
 export interface Vote {
   area: string
+  areas: string[] | null
   created_at: string
   deleted_at: string | null
   id: number
-  is_partnership?: boolean // 파트너십 여부
-  partner?: string | null // 파트너사 식별자
+  is_partnership: boolean | null
   main_image: string | null
   order: number | null
+  partner: string | null
   result_image: string | null
+  star_candy_bonus_total: number | null
+  star_candy_total: number | null
   start_at: string | null
   stop_at: string | null
   title: Json | null
@@ -1045,23 +1468,16 @@ export interface Vote {
   vote_category: string | null
   vote_content: string | null
   vote_sub_category: string | null
+  vote_total: number | null
   wait_image: string | null
-  voteItem?: VoteItem[];
-  votePick?: VotePick[];
-  voteComment?: VoteComment[];
-  voteReward?: VoteReward[];
-  voteShareBonus?: VoteShareBonus[];
-  voteAchieve?: VoteAchieve[];
 }
 
 export interface VoteAchieve {
   amount: number | null
-  id: number | null
+  id: number
   order: number | null
   reward_id: number | null
   vote_id: number | null
-  vote?: Vote;
-  reward?: Reward;
 }
 
 export interface VoteComment {
@@ -1069,30 +1485,22 @@ export interface VoteComment {
   content: string | null
   created_at: string | null
   deleted_at: string | null
-  id: number | null
+  id: number
   likes: number | null
   parent_id: number | null
   updated_at: string | null
   user_id: number | null
   vote_id: number | null
-  vote?: Vote;
-  userProfiles?: UserProfiles;
-  voteCommentLike?: VoteCommentLike[];
-  voteCommentReport?: VoteCommentReport[];
 }
 
 export interface VoteCommentLike {
-  comment_id: number | null
-  user_id: number | null
-  voteComment?: VoteComment;
-  userProfiles?: UserProfiles;
+  comment_id: number
+  user_id: number
 }
 
 export interface VoteCommentReport {
-  comment_id: number | null
-  user_id: number | null
-  voteComment?: VoteComment;
-  userProfiles?: UserProfiles;
+  comment_id: number
+  user_id: number
 }
 
 export interface VoteItem {
@@ -1101,34 +1509,39 @@ export interface VoteItem {
   deleted_at: string | null
   group_id: number
   id: number
+  star_candy_bonus_total: number
+  star_candy_total: number
   updated_at: string | null
   vote_id: number | null
   vote_total: number | null
-  vote?: Vote;
-  artist?: Artist;
-  artistGroup?: ArtistGroup;
 }
 
 export interface VoteItemRequestUsers {
-  artist_group: string | null
-  artist_name: string
+  artist_id: number
   created_at: string | null
   id: string
-  reason: string | null
   status: string
   updated_at: string | null
   user_id: string
+  vote_id: number
   vote_item_request_id: string
 }
 
-export interface VoteItemRequests {
+export interface VoteItemRequestsBackup {
   created_at: string | null
-  description: string | null
   id: string
   status: string
-  title: string
   updated_at: string | null
   vote_id: number
+}
+
+export interface VoteItemUpdateQueue {
+  created_at: string
+  delta_amount: number
+  delta_bonus: number
+  delta_star: number
+  id: number
+  vote_item_id: number
 }
 
 export interface VotePick {
@@ -1136,20 +1549,17 @@ export interface VotePick {
   created_at: string | null
   deleted_at: string | null
   id: number
+  star_candy_bonus_usage: number
+  star_candy_usage: number
   updated_at: string | null
   user_id: string | null
   vote_id: number | null
   vote_item_id: number
-  vote?: Vote;
-  voteItem?: VoteItem;
-  userProfiles?: UserProfiles;
 }
 
 export interface VoteReward {
   reward_id: number
   vote_id: number
-  vote?: Vote;
-  reward?: Reward;
 }
 
 export interface VoteShareBonus {
@@ -1159,23 +1569,131 @@ export interface VoteShareBonus {
   updated_at: string
   user_id: string
   vote_id: number
-  vote?: Vote;
-  userProfiles?: UserProfiles;
 }
 
-export interface UserVote {
-  userId: string;
-  voteId: number;
-  totalVotes: number;
-  voteCount: number;
-  votes: {
-    vote_item_id: number;
-    amount: number;
-  }[];
-  allVoteItems: number[];
+export interface AdCampaignsActive {
+  advertiser: string | null
+  created_at: string | null
+  cta_url: string | null
+  id: string | null
+  is_default: boolean | null
+  reward_comment: number | null
+  reward_like: number | null
+  reward_more: number | null
+  reward_subscribe: number | null
+  reward_view: number | null
+  served_count: number | null
+  status: string | null
+  title: string | null
+  total_cap: number | null
+  updated_at: string | null
+  video_key: string | null
+  visible_from: string | null
+  visible_to: string | null
+  weight: number | null
+}
+
+export interface ArtistRequestStatistics {
+  approved_requests: number | null
+  artist_group: string | null
+  artist_id: number | null
+  artist_image: string | null
+  artist_name: string | null
+  first_request_at: string | null
+  last_updated_at: string | null
+  pending_requests: number | null
+  rejected_requests: number | null
+  total_requests: number | null
+}
+
+export interface AuditLogStats {
+  action_type: string | null
+  log_count: number | null
+  log_date: string | null
+  resource_type: string | null
+  severity: string | null
+  success: boolean | null
+  unique_users: number | null
+}
+
+export interface CompatibilityResults {
+  artist_id: number | null
+  completed_at: string | null
+  created_at: string | null
+  details: Json | null
+  error_message: string | null
+  gender: UserGenderEnum | null
+  id: string | null
+  idol_birth_date: string | null
+  is_ads: boolean | null
+  is_paid: boolean | null
+  paid_at: string | null
+  score: number | null
+  status: GoonghapStatus | null
+  tips: Json | null
+  user_birth_date: string | null
+  user_birth_time: string | null
+  user_id: string | null
+}
+
+export interface CompatibilityResultsI18n {
+  compatibility_id: string | null
+  compatibility_summary: string | null
+  created_at: string | null
+  details: Json | null
+  id: string | null
+  language: string | null
+  score: number | null
+  score_title: string | null
+  tips: Json | null
+  updated_at: string | null
+}
+
+export interface CompatibilityScoreDescriptions {
+  score: number | null
+  summary_ja: string | null
+  summary_ko: string | null
+  summary_zh: string | null
+  title_ja: string | null
+  title_ko: string | null
+  title_zh: string | null
+}
+
+export interface SecurityEventsSummary {
+  action_type: string | null
+  affected_users: number | null
+  event_count: number | null
+  event_date: string | null
+  severity: string | null
+  unique_ips: number | null
+}
+
+export interface UserActivitySummary {
+  activity_date: string | null
+  failed_actions: number | null
+  first_activity: string | null
+  last_activity: string | null
+  total_actions: number | null
+  unique_action_types: number | null
+  user_email: string | null
+  user_id: string | null
+}
+
+export interface UserVoteItemRequestHistory {
+  artist_group: string | null
+  artist_id: number | null
+  artist_image: string | null
+  artist_name: string | null
+  request_status: string | null
+  request_status_text: string | null
+  requested_at: string | null
+  status_updated_at: string | null
+  user_id: string | null
+  vote_id: number | null
 }
 
 export interface ViewTransactionAll {
+  ad_campaign_id: string | null
   ad_network: string | null
   commission: number | null
   created_at: string | null
@@ -1188,45 +1706,84 @@ export interface ViewTransactionAll {
   user_id: string | null
 }
 
-export interface QnaThread {
-  id: number;
-  user_id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-  status: 'OPEN' | 'CLOSED';
-  qna_messages: QnaMessage[];
+export interface ViewTransactionAllBase {
+  ad_network: string | null
+  commission: number | null
+  created_at: string | null
+  platform: string | null
+  reward_amount: number | null
+  reward_name: string | null
+  reward_type: string | null
+  source: string | null
+  transaction_id: string | null
+  user_id: string | null
 }
 
-export interface QnaMessage {
-  id: number;
-  thread_id: number;
-  user_id: string;
-  content: string;
-  created_at: string;
-  is_admin_message: boolean;
-  qna_attachments: QnaAttachment[];
-  user_profiles: {
-    avatar_url: string | null;
-    nickname: string | null;
-  } | null;
+export interface ViewUserActivityUnified {
+  ad_network: string | null
+  ad_reward_name: string | null
+  ad_source: string | null
+  amount: number | null
+  artist_name: Json | null
+  bonus_gain: number | null
+  created_at: string | null
+  expired_dt: string | null
+  receipt_environment: string | null
+  receipt_platform: string | null
+  receipt_product_id: string | null
+  receipt_status: string | null
+  remain_amount: number | null
+  source: string | null
+  star_gain: number | null
+  subtype: string | null
+  transaction_id: string | null
+  unified_id: string | null
+  user_id: string | null
+  vote_item_name: Json | null
+  vote_item_title: Json | null
+  vote_pick_id: number | null
+  vote_title: Json | null
 }
 
-export interface QnaAttachment {
-  id: number;
-  message_id: number;
-  file_name: string;
-  file_path: string;
-  file_type: string;
-  file_size: number;
-  created_at: string;
+export interface ViewUserCandyLedger {
+  ad_network: string | null
+  balance: number | null
+  bonus_amount: number | null
+  category: string | null
+  created_at: string | null
+  detail: string | null
+  name: string | null
+  star_amount: number | null
+  transaction_id: string | null
+  user_id: string | null
 }
 
-export interface Pagination {
-  page: number;
-  limit: number;
-  totalCount: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
+export interface VoteItemRequestStatusSummary {
+  artist_group: string | null
+  artist_id: number | null
+  artist_name: string | null
+  first_request_at: string | null
+  last_updated_at: string | null
+  request_count: number | null
+  request_status: string | null
+  vote_id: number | null
+}
+
+export interface VoteItemRequests {
+  artist: Json | null
+  artist_id: number | null
+  created_at: string | null
+  id: string | null
+  status: string | null
+  updated_at: string | null
+  user_id: string | null
+  vote_id: number | null
+}
+
+export interface VwStarCandyBonusDrift {
+  delta: number | null
+  history_bonus: number | null
+  last_history_at: string | null
+  profile_bonus: number | null
+  user_id: string | null
 }

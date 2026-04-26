@@ -11,7 +11,7 @@ export const defaultDialogTheme: DialogTheme = {
     // 패널 스타일
     panel: {
         base:
-            "relative bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 max-h-[85vh] sm:max-h-[90vh] md:max-h-[85vh] overflow-hidden w-full",
+            "relative bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 max-h-[85vh] sm:max-h-[90vh] md:max-h-[85vh] overflow-hidden w-full",
 
         // 크기별 스타일 - 모바일에서 더 작은 크기로 조정
         size: {
@@ -37,21 +37,21 @@ export const defaultDialogTheme: DialogTheme = {
     header: "flex items-start justify-between p-3 sm:p-6 pb-2 sm:pb-4",
 
     // 제목 스타일 - 모바일에서 더 작은 폰트
-    title: "text-sm sm:text-lg md:text-xl font-semibold text-gray-900 dark:text-white pr-4 sm:pr-8",
+    title: "text-sm sm:text-lg md:text-xl font-semibold text-gray-900 pr-4 sm:pr-8",
 
     // 설명 스타일 - 모바일에서 더 작은 폰트
-    description: "mt-1 sm:mt-2 text-xs sm:text-base text-gray-600 dark:text-gray-300",
+    description: "mt-1 sm:mt-2 text-xs sm:text-base text-gray-600",
 
     // 콘텐츠 스타일 - 모바일에서 더 작은 패딩
     content: "px-3 sm:px-6 py-1 sm:py-2 overflow-y-auto",
 
     // 푸터 스타일 - 모바일에서 더 작은 패딩
     footer:
-        "flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-3 sm:p-6 pt-2 sm:pt-4 bg-gray-50 dark:bg-gray-800/50",
+        "flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-3 sm:p-6 pt-2 sm:pt-4 bg-gray-50",
 
     // 닫기 버튼 스타일 - 모바일에서 더 작은 크기
     closeButton:
-        "absolute top-2 right-2 sm:top-4 sm:right-4 inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors",
+        "absolute top-2 right-2 sm:top-4 sm:right-4 inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors",
 
     // 액션 버튼 스타일 추가
     actions: {
@@ -82,23 +82,23 @@ export const dialogIcons = {
 export const dialogColors = {
     info: {
         icon: "text-blue-500",
-        background: "bg-blue-50 dark:bg-blue-900/20",
+        background: "bg-blue-50",
     },
     warning: {
         icon: "text-amber-500",
-        background: "bg-amber-50 dark:bg-amber-900/20",
+        background: "bg-amber-50",
     },
     error: {
         icon: "text-red-500",
-        background: "bg-red-50 dark:bg-red-900/20",
+        background: "bg-red-50",
     },
     success: {
         icon: "text-green-500",
-        background: "bg-green-50 dark:bg-green-900/20",
+        background: "bg-green-50",
     },
     confirmation: {
         icon: "text-purple-500",
-        background: "bg-purple-50 dark:bg-purple-900/20",
+        background: "bg-purple-50",
     },
 } as const;
 
@@ -188,7 +188,7 @@ export const dialogTheme = {
     content:
         "w-full transform overflow-hidden rounded-lg sm:rounded-xl md:rounded-2xl bg-white p-4 sm:p-6 text-left align-middle shadow-xl transition-all",
     closeButton:
-        "absolute right-3 sm:right-4 top-3 sm:top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
+        "absolute right-3 sm:right-4 top-3 sm:top-4 inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2",
 };
 
 // 다이얼로그 테마 생성 함수

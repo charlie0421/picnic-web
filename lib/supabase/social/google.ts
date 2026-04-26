@@ -13,6 +13,8 @@ import {
   SocialAuthErrorCode,
   SocialAuthOptions,
 } from "./types";
+import { securityUtils } from "@/utils/auth-redirect";
+import { logAuth, AuthLog } from "@/utils/auth-logger";
 
 /**
  * Google OAuth 설정
@@ -53,24 +55,19 @@ export async function signInWithGoogleImpl(
     const config = getGoogleConfig();
     console.log("🔍 Google 설정 로드 완료:", config);
 
-    // 리다이렉트 URL 결정 (환경변수 우선 사용)
+    // 리다이렉트 URL 결정 (현재 브라우저 origin 우선 사용)
     let redirectUrl = options?.redirectUrl;
     if (!redirectUrl) {
-      // 개발 환경에서는 환경변수 또는 localhost 사용
-      if (process.env.NODE_ENV === "development") {
+      // 브라우저 환경에서는 현재 origin 사용 (개발/프로덕션 모두)
+      if (typeof window !== "undefined") {
+        redirectUrl = `${window.location.origin}/auth/callback/google`;
+      } else {
+        // SSR 환경 폴백
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
         if (siteUrl) {
           redirectUrl = `${siteUrl}/auth/callback/google`;
-        } else if (typeof window !== "undefined") {
-          // 환경변수가 없으면 현재 origin 사용
-          redirectUrl = `${window.location.origin}/auth/callback/google`;
-        } else {
+        } else if (process.env.NODE_ENV === "development") {
           redirectUrl = "http://localhost:3100/auth/callback/google";
-        }
-      } else {
-        // 프로덕션 환경
-        if (typeof window !== "undefined") {
-          redirectUrl = `${window.location.origin}/auth/callback/google`;
         } else {
           redirectUrl = "https://www.picnic.fan/auth/callback/google";
         }
@@ -88,12 +85,41 @@ export async function signInWithGoogleImpl(
         : "server",
     });
 
-    // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
-    if (typeof localStorage !== "undefined") {
-      const returnUrl = options?.additionalParams?.return_url ||
-        window.location.pathname;
-      localStorage.setItem("auth_return_url", returnUrl);
-      console.log("🔍 로컬 스토리지에 return_url 저장:", returnUrl);
+    // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치) 및 redirectTo에 쿼리로 포함
+    let chosenForReturn: string | undefined;
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryReturnTo = urlParams.get('returnTo') || undefined;
+      const storedAuthReturn = localStorage.getItem('auth_return_url') || undefined;
+      const storedRedirect = localStorage.getItem('redirectUrl')
+        || localStorage.getItem('loginRedirectUrl')
+        || sessionStorage.getItem('redirectUrl')
+        || undefined;
+
+      console.log("🔍 로컬 스토리지 정보:", {
+        queryReturnTo,
+        storedAuthReturn,
+        storedRedirect,
+      });
+      
+      const candidates = [
+        options?.additionalParams?.return_url,
+        queryReturnTo,
+        storedAuthReturn,
+        storedRedirect,
+        window.location.pathname,
+      ].filter(Boolean) as string[];
+
+      // 첫 번째로 유효한 내부 경로 선택 (로그인/인증 경로 제외)
+      let chosen = candidates.find((c) => securityUtils.isValidRedirectUrl(c));
+
+      // 그래도 없으면 홈으로 대체
+      if (!chosen) {
+        chosen = '/';
+      }
+      chosenForReturn = chosen;
+      localStorage.setItem("auth_return_url", chosenForReturn);
+      logAuth(AuthLog.SaveReturnUrl, { chosen: chosenForReturn });
     }
 
     // Google 특화 추가 파라미터
@@ -108,19 +134,25 @@ export async function signInWithGoogleImpl(
     };
 
     console.log("🔍 Google OAuth 파라미터:", googleParams);
-    console.log("🔍 Supabase signInWithOAuth 호출 시작");
+    logAuth(AuthLog.OAuthParams, googleParams);
+    logAuth(AuthLog.OAuthStart);
+
+    // Google은 등록된 redirect_uri와의 완전 일치가 요구되므로
+    // redirect_uri(redirectTo)에는 쿼리를 추가하지 않는다. 복귀 주소는 쿠키/스토리지로 복구한다.
+    const redirectToNoQuery = redirectUrl;
 
     // Supabase OAuth 사용
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: redirectUrl,
+        redirectTo: redirectToNoQuery,
         scopes: scopes.join(" "),
         queryParams: googleParams,
       },
     });
 
     console.log("🔍 Supabase signInWithOAuth 호출 완료, error:", error);
+    logAuth(AuthLog.OAuthRedirect, { error: error?.message || null });
 
     if (error) {
       console.error("❌ Google OAuth 오류:", error);
@@ -179,8 +211,33 @@ export function normalizeGoogleProfile(profile: any): Record<string, any> {
 }
 
 /**
- * Google ID 토큰 검증 및 파싱
+ * Google ID 토큰을 암호학적으로 검증하고 파싱합니다.
+ * Google JWKS 엔드포인트에서 공개 키를 가져와 서명을 검증합니다.
  *
+ * @param idToken Google에서 반환된 ID 토큰
+ * @returns 검증된 토큰 페이로드
+ * @throws 서명 검증 실패 시 에러
+ */
+export async function verifyGoogleIdToken(idToken: string): Promise<Record<string, any>> {
+  const { createRemoteJWKSet, jwtVerify } = await import("jose");
+
+  const GOOGLE_JWKS_URL = new URL("https://www.googleapis.com/oauth2/v3/certs");
+  const jwks = createRemoteJWKSet(GOOGLE_JWKS_URL);
+
+  const expectedAudience = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+
+  const { payload } = await jwtVerify(idToken, jwks, {
+    issuer: ["https://accounts.google.com", "accounts.google.com"],
+    audience: expectedAudience,
+  });
+
+  return payload as Record<string, any>;
+}
+
+/**
+ * Google ID 토큰 파싱 (서명 미검증 - 표시 목적 전용)
+ *
+ * @deprecated verifyGoogleIdToken을 사용하세요.
  * @param idToken Google에서 반환된 ID 토큰
  * @returns 파싱된 토큰 페이로드
  */

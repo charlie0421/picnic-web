@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Media } from '@/types/interfaces';
 import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
-import { preloadImage, createImageErrorHandler } from '@/utils/image-utils';
+import { preloadImage } from '@/utils/image-utils';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface MediaListProps {
   media: Media[];
@@ -32,37 +32,38 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
       const priorityMedia = media.slice(0, 3);
       
       const preloadPromises = priorityMedia.map(async (mediaItem, index) => {
-        const imageUrl = getOptimizedImageUrl(mediaItem);
-        if (imageUrl && imageUrl !== '/images/logo.png') {
+        const source = getImageSource(mediaItem);
+        const preloadUrl = source.preload;
+        if (preloadUrl && preloadUrl !== '/images/logo.webp') {
           try {
-            const success = await preloadImage(imageUrl);
+            const success = await preloadImage(preloadUrl);
             if (success) {
               setLoadedImages(prev => {
                 const newSet = new Set(prev);
-                newSet.add(imageUrl);
+                newSet.add(preloadUrl);
                 return newSet;
               });
               if (process.env.NODE_ENV === 'development') {
-                console.log(`🖼️ [MediaList] 이미지 프리로드 성공 [${index + 1}]:`, imageUrl);
+                console.log(`🖼️ [MediaList] 이미지 프리로드 성공 [${index + 1}]:`, preloadUrl);
               }
             } else {
               setImageErrors(prev => {
                 const newSet = new Set(prev);
-                newSet.add(imageUrl);
+                newSet.add(preloadUrl);
                 return newSet;
               });
               if (process.env.NODE_ENV === 'development') {
-                console.warn(`🖼️ [MediaList] 이미지 프리로드 실패 [${index + 1}]:`, imageUrl);
+                console.warn(`🖼️ [MediaList] 이미지 프리로드 실패 [${index + 1}]:`, preloadUrl);
               }
             }
           } catch (error) {
             setImageErrors(prev => {
               const newSet = new Set(prev);
-              newSet.add(imageUrl);
+              newSet.add(preloadUrl);
               return newSet;
             });
             if (process.env.NODE_ENV === 'development') {
-              console.warn(`🖼️ [MediaList] 이미지 프리로드 에러 [${index + 1}]:`, imageUrl, error);
+              console.warn(`🖼️ [MediaList] 이미지 프리로드 에러 [${index + 1}]:`, preloadUrl, error);
             }
           }
         }
@@ -77,7 +78,7 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
   }, [media]);
 
   // 최적화된 이미지 URL 생성
-  const getOptimizedImageUrl = useCallback((mediaItem: Media): string => {
+  const getImageSource = useCallback((mediaItem: Media): { raw: string; preload: string; unoptimized: boolean } => {
     const hasValidVideoId =
       mediaItem.video_id &&
       typeof mediaItem.video_id === 'string' &&
@@ -85,21 +86,29 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
 
     // 1. CDN 썸네일 우선 사용 (크기 최적화)
     if (mediaItem.thumbnail_url) {
-      return getCdnImageUrl(mediaItem.thumbnail_url, 400); // 400px로 최적화
+      return {
+        raw: mediaItem.thumbnail_url,
+        preload: getCdnImageUrl(mediaItem.thumbnail_url, 400),
+        unoptimized: false,
+      };
     }
     
     // 2. YouTube 썸네일 (고화질 버전 사용)
     if (hasValidVideoId) {
-      return `https://img.youtube.com/vi/${mediaItem.video_id}/hqdefault.jpg`;
+      const youtubeUrl = `https://img.youtube.com/vi/${mediaItem.video_id}/hqdefault.jpg`;
+      return {
+        raw: youtubeUrl,
+        preload: youtubeUrl,
+        unoptimized: true,
+      };
     }
     
     // 3. 기본 이미지
-    return '/images/logo.png';
-  }, []);
-
-  // 개선된 이미지 에러 핸들러
-  const handleImageError = useCallback((mediaItem: Media) => {
-    return createImageErrorHandler('/images/logo.png', true);
+    return {
+      raw: '/images/logo.webp',
+      preload: '/images/logo.webp',
+      unoptimized: false,
+    };
   }, []);
 
   // 이미지 로딩 완료 핸들러
@@ -112,9 +121,10 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
   }, []);
 
   const renderThumbnail = (mediaItem: Media, index: number) => {
-    const imageUrl = getOptimizedImageUrl(mediaItem);
-    const isLoaded = loadedImages.has(imageUrl);
-    const hasError = imageErrors.has(imageUrl);
+    const source = getImageSource(mediaItem);
+    const preloadUrl = source.preload;
+    const isLoaded = loadedImages.has(preloadUrl);
+    const hasError = imageErrors.has(preloadUrl);
     const isPriority = index < 3; // 첫 3개 이미지는 우선순위
 
     return (
@@ -126,8 +136,8 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
           </div>
         )}
 
-        <Image
-          src={imageUrl}
+        <OptimizedImage
+          src={source.raw}
           alt={getTitleString(mediaItem.title)}
           fill
           className={`
@@ -137,13 +147,18 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
             ${hasError ? 'grayscale' : ''}
           `}
           sizes='(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw'
-          priority={isPriority} // 첫 3개 이미지만 우선 로딩
-          loading={isPriority ? 'eager' : 'lazy'}
-          unoptimized={imageUrl.includes('youtube.com')} // YouTube 이미지만 unoptimized
-          onLoad={() => handleImageLoad(imageUrl)}
-          onError={handleImageError(mediaItem)}
-          placeholder="blur"
-          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+          priority={isPriority}
+          unoptimized={source.unoptimized}
+          onLoad={() => handleImageLoad(preloadUrl)}
+          onError={() => {
+            setImageErrors(prev => {
+              const newSet = new Set(prev);
+              newSet.add(preloadUrl);
+              return newSet;
+            });
+          }}
+          placeholder="shimmer"
+          fallbackSrc="/images/logo.webp"
         />
 
         {/* 플레이 버튼 오버레이 (비디오인 경우) */}

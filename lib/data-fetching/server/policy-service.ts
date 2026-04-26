@@ -1,5 +1,3 @@
-'use server';
-
 import 'server-only';
 import { cache } from 'react';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -43,27 +41,65 @@ export const getFaqs = cache(async (lang: string = 'ko') => {
       const supabase = await createServerSupabaseClient();
       const { data, error } = await supabase
         .from('faqs')
-        .select('id, question, answer, category, created_at')
+        .select('id, question, answer, answer_delta, category, created_at')
         .eq('status', 'PUBLISHED')
         .order('order_number', { ascending: true });
-  
+
       if (error) {
         throw error;
       }
-  
+
       const localizedData = (data || []).map(item => {
         const question = item.question as any;
         const answer = item.answer as any;
+        const answerDelta = item.answer_delta as any;
         return {
           ...item,
           question: question?.[lang] || question?.['ko'] || '',
           answer: answer?.[lang] || answer?.['ko'] || '',
+          // answer_delta가 있으면 해당 언어의 Delta 반환
+          answerDelta: answerDelta?.[lang] || answerDelta?.['ko'] || null,
         }
       });
-  
+
       return localizedData;
     } catch (error) {
       console.error('getFaqs error:', error);
       return [];
     }
+});
+
+export interface FaqCategory {
+  code: string;
+  label: string;
+  order_number: number;
+  active: boolean;
+}
+
+export const getFaqCategories = cache(async (lang: string = 'ko') => {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from('faq_categories')
+      .select('code, label, order_number, active')
+      .eq('active', true)
+      .order('order_number', { ascending: true });
+
+    if (error) throw error;
+
+    const localized: FaqCategory[] = (data || []).map((row: any) => {
+      const label = row.label || {};
+      return {
+        code: row.code,
+        label: label?.[lang] || label?.['ko'] || row.code,
+        order_number: row.order_number ?? 0,
+        active: !!row.active,
+      };
+    });
+
+    return localized;
+  } catch (error) {
+    console.error('getFaqCategories error:', error);
+    return [] as FaqCategory[];
+  }
 });

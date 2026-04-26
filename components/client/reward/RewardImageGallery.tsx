@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
-import { getCdnImageUrl } from '@/utils/api/image';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface RewardImageGalleryProps {
   images: string[];
@@ -50,9 +49,9 @@ const RewardImageGallery: React.FC<RewardImageGalleryProps> = ({
         )}
 
         {images.length > 0 && (
-          <Image
+          <OptimizedImage
             key={`${images[currentImageIndex]}-${currentImageIndex}`}
-            src={getCdnImageUrl(images[currentImageIndex], 300)}
+            src={images[currentImageIndex]}
             alt={`${title} 이미지 ${currentImageIndex + 1}`}
             fill
             className='object-contain'
@@ -106,8 +105,8 @@ const RewardImageGallery: React.FC<RewardImageGalleryProps> = ({
                 index === currentImageIndex ? 'ring-2 ring-primary' : ''
               }`}
             >
-              <Image
-                src={getCdnImageUrl(image, 200)}
+              <OptimizedImage
+                src={image}
                 alt={`${title} 썸네일 ${index + 1}`}
                 fill
                 className='object-cover'

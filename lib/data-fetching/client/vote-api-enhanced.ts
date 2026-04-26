@@ -88,7 +88,6 @@ function withDuplicateRequestPrevention<T extends (...args: any[]) => Promise<an
     // 기존 요청 확인
     const existing = requestQueue.get(key);
     if (existing && now - existing.timestamp < 10000) { // 10초 내 중복 요청 방지
-      console.log(`[Enhanced Vote API] 중복 요청 방지: ${key}`);
       return existing.promise;
     }
 
@@ -115,13 +114,6 @@ function withDuplicateRequestPrevention<T extends (...args: any[]) => Promise<an
 export const submitVoteEnhanced = withDuplicateRequestPrevention(
   withPerformanceMonitoring(
     withVoteOptimization(async (request: VoteSubmissionRequest): Promise<VoteSubmissionResponse> => {
-      console.log('[Enhanced Vote API] 투표 제출 시작:', {
-        voteId: request.voteId,
-        voteItemId: request.voteItemId,
-        amount: request.amount,
-        userId: request.userId?.slice(0, 8) + '...'
-      });
-
       try {
         const response = await fetch('/api/vote/submit', {
           method: 'POST',
@@ -145,8 +137,6 @@ export const submitVoteEnhanced = withDuplicateRequestPrevention(
             details: result.details
           };
         }
-
-        console.log('[Enhanced Vote API] 투표 제출 성공');
 
         // 성공 시 관련 캐시 무효화
         voteResultsCache.delete(request.voteId);
@@ -175,11 +165,8 @@ export const getVoteResultsEnhanced = withPerformanceMonitoring(
     // 캐시 확인
     const cached = voteResultsCache.get(voteId);
     if (cached && now - cached.timestamp < RESULTS_CACHE_TTL) {
-      console.log('[Enhanced Vote API] 캐시된 투표 결과 사용:', voteId);
       return cached.data;
     }
-
-    console.log('[Enhanced Vote API] 투표 결과 조회 시작:', voteId);
 
     try {
       const response = await fetch(`/api/vote/results?voteId=${voteId}`);
@@ -194,8 +181,6 @@ export const getVoteResultsEnhanced = withPerformanceMonitoring(
 
         throw new Error(result.error || 'Failed to fetch vote results');
       }
-
-      console.log('[Enhanced Vote API] 투표 결과 조회 성공:', voteId);
 
       // 캐시에 저장
       voteResultsCache.set(voteId, {
@@ -219,18 +204,8 @@ export const getVoteResultsEnhanced = withPerformanceMonitoring(
  */
 export const fetchVoteDetailEnhanced = withPerformanceMonitoring(
   withVoteOptimization(async (supabaseClient: SupabaseClient, voteId: string | number): Promise<Vote | null> => {
-    console.log('[Enhanced Vote API] 투표 상세 정보 조회 시작:', voteId);
-
     try {
-      const result = await getVoteByIdClient(supabaseClient, Number(voteId));
-      
-      if (result) {
-        console.log('[Enhanced Vote API] 투표 상세 정보 조회 성공:', voteId);
-      } else {
-        console.warn('[Enhanced Vote API] 투표 상세 정보 없음:', voteId);
-      }
-
-      return result;
+      return await getVoteByIdClient(supabaseClient, Number(voteId));
     } catch (error) {
       console.error('[Enhanced Vote API] 투표 상세 정보 조회 예외:', error);
       return null;
@@ -244,15 +219,8 @@ export const fetchVoteDetailEnhanced = withPerformanceMonitoring(
  */
 export const fetchVoteListEnhanced = withPerformanceMonitoring(
   withVoteOptimization(async (supabaseClient: SupabaseClient): Promise<Vote[]> => {
-    console.log('[Enhanced Vote API] 투표 목록 조회 시작');
-
     try {
       const result = await getVotesClient(supabaseClient);
-      
-      console.log('[Enhanced Vote API] 투표 목록 조회 성공:', {
-        count: result?.length || 0
-      });
-
       return result || [];
     } catch (error) {
       console.error('[Enhanced Vote API] 투표 목록 조회 예외:', error);
@@ -328,10 +296,8 @@ export function getVoteAPICircuitStats() {
 export function clearVoteResultsCache(voteId?: number) {
   if (voteId) {
     voteResultsCache.delete(voteId);
-    console.log(`[Enhanced Vote API] 투표 결과 캐시 무효화: ${voteId}`);
   } else {
     voteResultsCache.clear();
-    console.log('[Enhanced Vote API] 모든 투표 결과 캐시 무효화');
   }
 }
 

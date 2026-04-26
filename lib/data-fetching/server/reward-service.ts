@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 /**
  * 보상 관련 데이터 서비스

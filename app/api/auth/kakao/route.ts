@@ -11,8 +11,21 @@ import { normalizeKakaoProfile } from '@/lib/supabase/social/kakao';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { code, accessToken } = await request.json();
-    
+    // SECURITY: We only accept the OAuth `code` and exchange it server-side.
+    // Previously this endpoint also accepted a client-supplied `accessToken`,
+    // which let any caller use this server (with our service-role-backed
+    // Supabase client) to query Kakao APIs on behalf of arbitrary tokens.
+    // The /unlink path on DELETE still legitimately needs the client's token
+    // and is unchanged.
+    const { code } = await request.json();
+
+    if (!code) {
+      return NextResponse.json(
+        { error: 'Authorization code is required.' },
+        { status: 400 }
+      );
+    }
+
     // 서버 측 Supabase 클라이언트 생성
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,11 +37,11 @@ export async function POST(request: NextRequest) {
         }
       }
     );
-    
+
     // Kakao API 설정
     const clientId = process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID;
     const clientSecret = process.env.KAKAO_CLIENT_SECRET;
-    
+
     if (!clientId) {
       console.error('Kakao 클라이언트 ID가 설정되지 않았습니다.');
       return NextResponse.json(
@@ -36,57 +49,53 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
-    let token = accessToken;
-    
-    // 코드가 있으면 액세스 토큰으로 교환
-    if (code && !token) {
-      const redirectUri = request.headers.get('referer')?.includes('callback')
-        ? `${request.headers.get('origin')}/auth/callback/kakao`
-        : `${request.headers.get('origin')}/api/auth/kakao`;
-      
-      const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: clientId,
-          ...(clientSecret && { client_secret: clientSecret }),
-          redirect_uri: redirectUri || '',
-          code
-        }).toString()
-      });
-      
-      if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        console.error('액세스 토큰 요청 실패:', errorText);
-        return NextResponse.json(
-          { error: '액세스 토큰 요청 실패' },
-          { status: 502 }
-        );
-      }
-      
-      const tokenData = await tokenResponse.json();
-      token = tokenData.access_token;
-      
-      if (!token) {
-        console.error('Kakao 액세스 토큰을 획득하지 못했습니다.');
-        return NextResponse.json(
-          { error: 'Kakao 액세스 토큰을 획득하지 못했습니다.' },
-          { status: 502 }
-        );
-      }
-    }
-    
-    if (!token) {
+
+    // SECURITY: Do NOT derive redirect_uri from request headers (referer/origin) — both are
+    // attacker-controllable and could be used to redirect the OAuth code to a malicious URI
+    // (or simply break the exchange because Kakao requires an exact registered match).
+    // Use a server-side env var instead. The chosen URI MUST be registered in the Kakao
+    // Developer Console (Redirect URI 목록). Keep this in sync with the Supabase OAuth
+    // callback path used by signInWithKakaoImpl in lib/supabase/social/kakao.ts.
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.BASE_URL ||
+      'https://www.picnic.fan';
+    const redirectUri = `${baseUrl}/auth/callback/kakao`;
+
+    const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        ...(clientSecret && { client_secret: clientSecret }),
+        redirect_uri: redirectUri,
+        code
+      }).toString()
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('액세스 토큰 요청 실패:', errorText);
       return NextResponse.json(
-        { error: 'Kakao 액세스 토큰이 필요합니다.' },
-        { status: 400 }
+        { error: '액세스 토큰 요청 실패' },
+        { status: 502 }
       );
     }
-    
+
+    const tokenData = await tokenResponse.json();
+    const token: string | undefined = tokenData.access_token;
+
+    if (!token) {
+      console.error('Kakao 액세스 토큰을 획득하지 못했습니다.');
+      return NextResponse.json(
+        { error: 'Kakao 액세스 토큰을 획득하지 못했습니다.' },
+        { status: 502 }
+      );
+    }
+
     // 사용자 정보 요청
     const userInfoResponse = await fetch('https://kapi.kakao.com/v2/user/me', {
       method: 'GET',
@@ -110,26 +119,23 @@ export async function POST(request: NextRequest) {
     // 프로필 정보 정규화
     const normalizedProfile = normalizeKakaoProfile(userInfo);
     
-    // Supabase에 사용자가 이미 존재하는지 확인
+    // Supabase에 사용자가 이미 존재하는지 확인.
+    // NOTE: user_profiles.email has no DB-level unique constraint, so two rows
+    // with the same email can legitimately exist (e.g. legacy data, manual
+    // backfill). `.maybeSingle()` raises PGRST116 in that case and breaks the
+    // login flow. Use `.limit(1)` and pick the first row instead — for the
+    // existence check we only need to know whether *any* profile already
+    // exists for this email; picking a deterministic ordering would be nicer
+    // but is a separate concern.
     if (normalizedProfile.email) {
       try {
-        // listUsers에서 filter 옵션이 지원되지 않으므로 결과에서 직접 필터링
-        const { data: users, error: userError } = await supabase.auth.admin.listUsers();
-        
-        if (userError) {
-          console.error('Supabase 사용자 조회 실패:', userError.message);
-          return NextResponse.json(
-            { error: 'Supabase 사용자 조회 실패' },
-            { status: 500 }
-          );
-        }
-        
-        // 이메일로 필터링하여 일치하는 사용자 찾기
-        const matchedUser = users?.users.find(u => u.email === normalizedProfile.email);
-        const user = matchedUser ? { user: matchedUser } : null;
-        
-        if (user?.user) {
-          // 사용자가 존재하면 반환
+        const { data: existingProfiles } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('email', normalizedProfile.email)
+          .limit(1);
+
+        if (existingProfiles && existingProfiles.length > 0) {
           return NextResponse.json({
             success: true,
             profile: normalizedProfile,

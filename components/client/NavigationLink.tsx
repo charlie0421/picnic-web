@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { useAuth } from '@/lib/supabase/auth-provider';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
 
 interface NavigationLinkProps {
   href: string;
@@ -39,25 +41,34 @@ export default function NavigationLink({
   const pathname = usePathname();
   const { extractLocaleFromPath, getLocalizedPath, currentLocale } = useLocaleRouter();
   const { isAuthenticated } = useAuth();
+  const { navigateWithAuth } = useAuthGuard();
 
-  const handleClick = (e: React.MouseEvent) => {
+  const resolvedHref = useMemo(() => {
+    return href.startsWith(`/${currentLocale}/`)
+      ? href
+      : getLocalizedPath(href, currentLocale);
+  }, [currentLocale, getLocalizedPath, href]);
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
 
-    if (should_login && !isAuthenticated) {
-      const loginPath = getLocalizedPath('/login');
-      router.push(loginPath);
+    const { path: currentCleanPath } = extractLocaleFromPath(pathname);
+    const { path: targetCleanPath } = extractLocaleFromPath(href);
+
+    // 마이페이지 하위 경로만 로그인 필요 (메인 마이페이지는 비로그인 접근 허용)
+    // /mypage, /en/mypage 등은 허용하고, /mypage/vote-history, /en/mypage/posts 등만 로그인 필요
+    const mypageSubPathRegex = /^(\/[a-z]{2}(-[a-z]+)?)?\/mypage\/.+$/i;
+    const requiresAuthByPath = mypageSubPathRegex.test(resolvedHref);
+    const needAuth = should_login || requiresAuthByPath;
+
+    // 인증이 필요한 링크인 경우, 가드 기반 네비게이션 사용 (로그인 유도 다이얼로그 포함)
+    if (needAuth && !isAuthenticated) {
+      navigateWithAuth(resolvedHref);
       if (onClick) {
         onClick();
       }
       return;
     }
-
-    const { path: currentCleanPath } = extractLocaleFromPath(pathname);
-    const { path: targetCleanPath } = extractLocaleFromPath(href);
-
-    const normalizedTargetHref = href.startsWith(`/${currentLocale}/`)
-      ? href
-      : getLocalizedPath(href, currentLocale);
 
     if (currentCleanPath === targetCleanPath) {
       if (onClick) {
@@ -68,38 +79,32 @@ export default function NavigationLink({
 
     setIsLoading(true);
     setIsNavigating(true);
-    router.push(normalizedTargetHref);
+    router.push(resolvedHref);
 
     if (onClick) {
       onClick();
     }
   };
 
-  const safeDivProps = {
+  const linkProps = {
     title,
     'aria-label': ariaLabel,
     'aria-describedby': ariaDescribedBy,
     id,
-    role: role || 'button',
-    tabIndex: tabIndex || 0,
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleClick(e as any);
-    }
+    role,
+    tabIndex,
   };
 
   return (
-    <div
+    <Link
+      href={resolvedHref}
       onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      className={`${className} ${isNavigating ? 'opacity-90' : 'opacity-100'} transition-opacity duration-200 cursor-pointer`}
+      prefetch={false}
+      className={`${className} ${isNavigating ? 'opacity-90' : 'opacity-100'} transition-opacity duration-200 inline-block`}
       style={{ userSelect: 'none' }}
-      {...safeDivProps}
+      {...linkProps}
     >
       {children}
-    </div>
+    </Link>
   );
 }

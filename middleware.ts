@@ -1,6 +1,22 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+
+function extractLangFromPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const match = path.match(/^\/([a-z]{2}(-[a-z]{2})?)(?=\/|$)/i);
+  if (!match) return null;
+  const candidate = match[1].toLowerCase();
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(candidate)
+    ? candidate
+    : null;
+}
+
+function isLoginPath(pathname: string): boolean {
+  // /login, /ko/login, /en/login 등
+  return /^\/([a-z]{2}(-[a-z]{2})?\/)?login(\/|$)/i.test(pathname);
+}
 
 /**
  * 브라우저의 Accept-Language 헤더에서 선호 언어 추출
@@ -8,27 +24,38 @@ import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
 function getPreferredLanguageFromHeader(acceptLanguage: string | null): string {
   if (!acceptLanguage) return DEFAULT_LANGUAGE;
 
-  // Accept-Language 헤더 파싱 (예: "ko-KR,ko;q=0.9,en;q=0.8")
-  const languages = acceptLanguage
+  // Accept-Language 예: "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+  const candidates = acceptLanguage
     .split(',')
-    .map(lang => {
-      const [code, qValue] = lang.trim().split(';q=');
-      const langCode = code.split('-')[0]; // ko-KR -> ko
+    .map((entry) => {
+      const [rawCode, qValue] = entry.trim().split(';q=');
       const quality = qValue ? parseFloat(qValue) : 1.0;
-      return { code: langCode, quality };
+      // 코드 정규화: 소문자, '_' → '-', 공백 제거
+      const code = rawCode.trim().replace('_', '-').toLowerCase();
+      return { code, quality };
     })
     .sort((a, b) => b.quality - a.quality);
 
-  // 지원하는 언어 중에서 가장 선호도가 높은 언어 찾기
-  for (const lang of languages) {
-    if (SUPPORTED_LANGUAGES.includes(lang.code as any)) {
-      console.log(`✅ 브라우저 언어에서 지원되는 언어 발견: ${lang.code}`);
-      return lang.code;
+  for (const { code } of candidates) {
+    // 1) 완전 일치 (예: 'zh-tw')
+    if (SUPPORTED_LANGUAGES.includes(code as any)) {
+      return code;
+    }
+    // 2) 지역 분리 후 특수 매핑: zh-tw 지원
+    const [primary, region] = code.split('-');
+    if (region) {
+      const normalized = `${primary}-${region}` as typeof SUPPORTED_LANGUAGES[number];
+      if (SUPPORTED_LANGUAGES.includes(normalized as any)) {
+        return normalized;
+      }
+    }
+    // 3) 기본 언어만 매칭 (예: es-ES → es)
+    if (SUPPORTED_LANGUAGES.includes(primary as any)) {
+      return primary;
     }
   }
 
-  console.log(`⚠️ 브라우저 언어에서 지원되는 언어 없음, 영어로 대체: en`);
-  return 'en';
+  return DEFAULT_LANGUAGE;
 }
 
 /**
@@ -52,134 +79,129 @@ function getPreferredLanguage(request: NextRequest): string {
   return getPreferredLanguageFromHeader(acceptLanguage);
 }
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export async function middleware(req: NextRequest) {
+  // Create a response that we can modify cookies on
+  const res = NextResponse.next({ request: { headers: req.headers } });
 
-  // applink.picnic.fan/vote/detail/ 경로를 vote/로 리다이렉트
-  if (pathname.includes("/vote/detail/")) {
-    const voteId = pathname.split("/").pop();
-    console.log("voteId", voteId);
-    return NextResponse.redirect(new URL(`/vote/${voteId}`, request.url));
-  }
+  // In-app browser (KakaoTalk on Android) hard redirect to open-in-browser interstitial
+  try {
+    const ua = req.headers.get('user-agent') || '';
+    const url = new URL(req.url);
+    const pathname = url.pathname;
 
-  // /download 또는 /download.html 경로를 먼저 처리
-  if (pathname === "/download" || pathname === "/download.html") {
-    const preferredLang = getPreferredLanguage(request);
-    console.log(`🔄 Download 페이지 리다이렉트: ${pathname} -> /${preferredLang}/download`);
-    
-    const newUrl = new URL(request.url);
-    newUrl.pathname = `/${preferredLang}/download`;
-    
-    const response = NextResponse.redirect(newUrl);
-    response.cookies.set("locale", preferredLang, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax"
-    });
-    
-    return response;
-  }
+    const isKakao = /KAKAOTALK/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    const isAlreadyOpenPage = /\/open-in-browser(\/|$)/.test(pathname);
+    const isApi = pathname.startsWith('/api/');
+    // 정적 자산: Next 내부 정적 경로, 파비콘, 그리고 파일 확장자를 가진 퍼블릭 파일들(.txt, .xml, .json 등)
+    const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
+    const isStatic = pathname.startsWith('/_next') || pathname === '/favicon.ico' || hasFileExtension;
+    const isAuthCallback = pathname.startsWith('/auth/callback');
 
-  // 정적 파일, API 경로는 언어 처리에서 제외
-  if (
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/static/") ||
-    pathname.includes(".")
-  ) {
-    return NextResponse.next();
-  }
-
-  // auth/callback 경로는 언어 경로 추가 없이 직접 처리
-  // /auth/callback 또는 /auth/callback/[provider] 형태로 동적 라우트 사용
-  if (pathname.startsWith("/auth/callback")) {
-    console.log(`✅ auth/callback 경로 직접 처리: ${pathname}`);
-    return NextResponse.next();
-  }
-
-  // auth 관련 경로 전체를 언어 리다이렉트에서 제외
-  if (pathname.startsWith("/auth/")) {
-    console.log(`✅ auth 경로 직접 처리: ${pathname}`);
-    return NextResponse.next();
-  }
-
-  // 언어 경로가 포함된 auth/callback 처리 (Apple Developer Console 호환성)
-  // /en/auth/callback -> /auth/callback로 리다이렉트
-  for (const lang of SUPPORTED_LANGUAGES) {
-    if (pathname.startsWith(`/${lang}/auth/callback`)) {
-      const newPathname = pathname.replace(`/${lang}`, "");
-      const newUrl = new URL(request.url);
-      newUrl.pathname = newPathname;
-      console.log(`언어 경로 제거 리다이렉트: ${pathname} -> ${newPathname}`);
-      return NextResponse.redirect(newUrl);
+    if (isKakao && isAndroid && !isAlreadyOpenPage && !isApi && !isStatic) {
+      const returnTo = `${pathname}${url.search}` || '/';
+      const target = new URL(`/open-in-browser`, url.origin);
+      target.searchParams.set('returnTo', returnTo);
+      return NextResponse.redirect(target);
     }
+  } catch (_) {}
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return res;
   }
 
-  // 경로에서 언어 코드 추출
-  const pathLangCode = pathname.split('/')[1];
-  
-  // 지원하지 않는 언어 경로인지 확인 (예: /fr/, /de/ 등)
-  if (pathLangCode && pathLangCode.length === 2 && !SUPPORTED_LANGUAGES.includes(pathLangCode as any)) {
-    console.log(`❌ 지원하지 않는 언어 경로: ${pathLangCode} -> 영어로 리다이렉트`);
-    const newUrl = new URL(request.url);
-    newUrl.pathname = pathname.replace(`/${pathLangCode}`, `/en`);
-    
-    const response = NextResponse.redirect(newUrl);
-    response.cookies.set("locale", "en", {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax"
-    });
-    
-    return response;
-  }
-
-  // 이미 지원되는 언어가 포함된 경로인지 확인
-  const pathnameHasLang = SUPPORTED_LANGUAGES.some((lang) =>
-    pathname.startsWith(`/${lang}/`) || pathname === `/${lang}`
-  );
-
-  if (pathnameHasLang) {
-    // 언어가 포함된 경로에서 쿠키 업데이트
-    const currentLangFromPath = pathname.split('/')[1];
-    if (SUPPORTED_LANGUAGES.includes(currentLangFromPath as any)) {
-      console.log(`✅ 지원되는 언어 경로: ${currentLangFromPath}`);
-      const response = NextResponse.next();
-      
-      // useLocaleRouter와 일치하는 'locale' 쿠키 설정
-      response.cookies.set("locale", currentLangFromPath, {
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365, // 1년
-        sameSite: "lax"
-      });
-      
-      return response;
-    }
-    return NextResponse.next();
-  }
-
-  // 선호 언어 결정
-  const preferredLang = getPreferredLanguage(request);
-  console.log(`🌐 선호 언어 결정: ${preferredLang} (지원 언어: ${SUPPORTED_LANGUAGES.join(', ')})`);
-
-  // 모든 언어에 대해 명시적으로 언어 경로로 리다이렉트
-
-  // 언어 경로로 리다이렉트
-  const newUrl = new URL(request.url);
-  newUrl.pathname = `/${preferredLang}${pathname}`;
-  
-  const response = NextResponse.redirect(newUrl);
-  
-  // 쿠키 설정
-  response.cookies.set("locale", preferredLang, {
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365, // 1년
-    sameSite: "lax"
+  // Create a Supabase client that reads/writes cookies via the middleware response
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return req.cookies.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        try {
+          res.cookies.set({ name, value, ...options });
+        } catch (_) {
+          // Ignore set errors in middleware
+        }
+      },
+      remove(name: string, options: CookieOptions) {
+        try {
+          res.cookies.set({ name, value: '', ...options });
+        } catch (_) {
+          // Ignore delete errors in middleware
+        }
+      },
+    },
   });
-  
-  return response;
+
+  // Touch the user to trigger refresh if needed (no-op if valid)
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // 탈퇴(soft delete) 계정 방어계층 — 로그인 페이지가 아닌 경로에서만 차단 및 리다이렉트
+    if (user?.id) {
+      const url = new URL(req.url);
+      const pathname = url.pathname;
+
+      if (!isLoginPath(pathname)) {
+        try {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('deleted_at')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profile?.deleted_at) {
+            // 세션 즉시 종료
+            try {
+              await supabase.auth.signOut();
+            } catch (_) {}
+
+            const lang =
+              extractLangFromPath(pathname) ||
+              req.cookies.get('locale')?.value ||
+              DEFAULT_LANGUAGE;
+            const redirectLang = (SUPPORTED_LANGUAGES as readonly string[]).includes(lang)
+              ? lang
+              : DEFAULT_LANGUAGE;
+
+            const redirectUrl = new URL(`/${redirectLang}/login`, url.origin);
+            redirectUrl.searchParams.set('error', 'withdrawn');
+
+            const blockRes = NextResponse.redirect(redirectUrl);
+            // signOut 에서 cleared 된 쿠키들을 응답에 복사
+            for (const cookie of res.cookies.getAll()) {
+              blockRes.cookies.set({
+                name: cookie.name,
+                value: cookie.value,
+                path: cookie.path,
+                maxAge: cookie.maxAge,
+                domain: cookie.domain,
+                secure: cookie.secure,
+                sameSite: cookie.sameSite,
+                httpOnly: cookie.httpOnly,
+              });
+            }
+            return blockRes;
+          }
+        } catch (_) {
+          // 조회 실패 시 fail-open (기존 플로우 유지 — 콜백/프로필 API에서 2차 차단됨)
+        }
+      }
+    }
+  } catch (_) {
+    // Ignore auth errors in middleware
+  }
+
+  return res;
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // 정적 공개 파일들은 미들웨어 대상에서 제외 (퍼블릭 우선 서빙 보장)
+  // - robots.txt, app-ads.txt, ads.txt, sitemap(xml), 매니페스트, 애플 도메인 검증, .well-known/* 등
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*).*)",
+  ],
 };

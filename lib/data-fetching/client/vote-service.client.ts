@@ -4,6 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
 
 // 기본 투표 테이블 조회 쿼리 (클라이언트에서도 동일하게 사용될 수 있음)
 const DEFAULT_VOTE_QUERY = `
@@ -38,17 +39,19 @@ const DEFAULT_VOTE_QUERY = `
  */
 function transformVoteData(data: any[]): Vote[] {
   return data.map((vote) => {
-    const voteItem: VoteItem[] = vote.vote_item?.map((item: any) => ({
-      ...item,
-      artist: item.artist
-        ? {
-          id: item.artist.id,
-          name: item.artist.name,
-          image: item.artist.image,
-          artistGroup: item.artist.artist_group,
-        }
-        : null,
-    })) || [];
+    const voteItem: VoteItem[] = (vote.vote_item || [])
+      .filter((item: any) => !item?.deleted_at)
+      .map((item: any) => ({
+        ...item,
+        artist: item.artist
+          ? {
+              id: item.artist.id,
+              name: item.artist.name,
+              image: item.artist.image,
+              artistGroup: item.artist.artist_group,
+            }
+          : null,
+      }));
 
     const voteReward: VoteReward[] = vote.vote_reward?.map((vr: any) => ({
       ...vr,
@@ -72,6 +75,24 @@ function transformVoteData(data: any[]): Vote[] {
 /**
  * 공통 투표 쿼리 빌더 (클라이언트에서도 동일하게 사용될 수 있음)
  */
+type VoteOrderConfig = {
+  column: 'start_at' | 'stop_at';
+  ascending: boolean;
+};
+
+const getVoteOrderConfig = (status?: string): VoteOrderConfig => {
+  switch (status) {
+    case VOTE_STATUS.ONGOING:
+      return { column: 'stop_at', ascending: true };
+    case VOTE_STATUS.UPCOMING:
+      return { column: 'start_at', ascending: true };
+    case VOTE_STATUS.COMPLETED:
+      return { column: 'stop_at', ascending: false };
+    default:
+      return { column: 'start_at', ascending: false };
+  }
+};
+
 function buildVoteQuery(
   client: SupabaseClient,
   status?: string,
@@ -80,13 +101,17 @@ function buildVoteQuery(
   let query = client
     .from("vote")
     .select(DEFAULT_VOTE_QUERY)
-    .is("deleted_at", null)
-    .lte("visible_at", new Date().toISOString());
+    .is("deleted_at", null);
 
-  // 상태 필터링
-  if (status) {
-    const now = new Date().toISOString();
+  // visible_at 필터: admin 상태가 아닌 경우에만 적용
+  const nowIso = new Date().toISOString();
+  if (status !== VOTE_STATUS.ADMIN) {
+    query = query.lte("visible_at", nowIso);
+  }
 
+  // 상태 필터링 (admin일 때는 상태 필터를 적용하지 않음)
+  if (status && status !== VOTE_STATUS.ADMIN) {
+    const now = nowIso;
     switch (status) {
       case "upcoming":
         query = query.gt("start_at", now);
@@ -102,12 +127,19 @@ function buildVoteQuery(
     }
   }
 
-  // 지역 필터링 - 'all'인 경우 필터링하지 않음
-  if (area && area !== 'all') {
-    query = query.eq("area", area);
+  // 지역/타입 필터링 - 'all'인 경우 필터링하지 않음
+  if (area && area !== VOTE_AREAS.ALL) {
+    if (area === VOTE_AREAS.PIC_CHART) {
+      // PIC-CHART: vote_category가 'image' 또는 'weekly'인 것
+      query = query.in("vote_category", ['image', 'weekly']);
+    } else {
+      // K-POP, K-MUSICAL: areas 배열에 해당 값이 포함되어 있는지 확인
+      query = query.contains("areas", [area]);
+    }
   }
 
-  return query.order("start_at", { ascending: false });
+  const { column, ascending } = getVoteOrderConfig(status);
+  return query.order(column, { ascending });
 }
 
 /**

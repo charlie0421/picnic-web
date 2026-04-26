@@ -4,12 +4,14 @@ export { ActionDialog } from "./ActionDialog";
 export { ConfirmDialog } from "./ConfirmDialog";
 export { AlertDialog } from "./AlertDialog";
 export { LoginRequiredDialog } from "./LoginRequiredDialog";
+export { WithdrawnUserDialog } from "./WithdrawnUserDialog";
 export {
     DialogProvider,
     useAlert,
     useConfirm,
     useDialog,
     useLoginRequired,
+    useWithdrawnUserDialog,
 } from "./DialogProvider";
 export { DialogIcon } from "./DialogIcon";
 
@@ -26,6 +28,7 @@ export type {
     DialogType,
     LoginRequiredDialogProps,
 } from "./types";
+export type { WithdrawnUserDialogProps } from "./WithdrawnUserDialog";
 
 // 테마 exports
 export {

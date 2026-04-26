@@ -143,7 +143,7 @@ export function VoteSubmit({
   // 빈 상태
   if (voteItems.length === 0) {
     return (
-      <div className={`text-center py-12 ${className}`}>
+      <div className={`text-center py-8 ${className}`}>
         <p className="text-gray-500">투표할 수 있는 항목이 없습니다.</p>
       </div>
     );
@@ -165,11 +165,12 @@ export function VoteSubmit({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {voteItems.map((item) => {
           const isSelected = selectedItemId === item.id;
-          const artistName = item.artist?.name || '아티스트';
-          const artistGroup = item.artist?.artistGroup?.name && hasValidLocalizedString(item.artist.artistGroup.name)
-            ? item.artist.artistGroup.name
+          const a = (item as any).artist;
+          const artistName = a?.name || '아티스트';
+          const artistGroup = a?.artistGroup?.name && hasValidLocalizedString(a.artistGroup.name)
+            ? a.artistGroup.name
             : null;
-          const imageUrl = item.artist?.image || '/images/default-artist.png';
+          const imageUrl = a?.image || '/images/default-artist.png';
           const voteCount = item.vote_total || 0;
 
           return (

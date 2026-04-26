@@ -16,7 +16,7 @@ export function register() {
 }
 
 // onRequestError 훅 설정 - Next.js 15.3.1 최신 방식
-export function onRequestError({ error, request }: { error: Error; request: Request }) {
+export function onRequestError({ error, request }: { error: any; request: Request }) {
   // 에러를 Sentry로 전송
   Sentry.captureException(error, {
     tags: {
@@ -37,6 +37,11 @@ export function onRequestError({ error, request }: { error: Error; request: Requ
   });
   
   if (process.env.NODE_ENV === 'development') {
-    console.error('🚨 Request error captured by Sentry:', error.message);
+    try {
+      const msg = (error && (error.message || error.toString?.())) || 'Unknown error';
+      console.error('🚨 Request error captured by Sentry:', msg);
+    } catch {
+      console.error('🚨 Request error captured by Sentry');
+    }
   }
 } 

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
   normalizeGoogleProfile,
-  parseGoogleIdToken,
+  verifyGoogleIdToken,
 } from "@/lib/supabase/social/google";
 
 // Next.js 15.3.1에서는 GET 핸들러도 기본적으로 캐싱되지 않도록 변경되었습니다.
@@ -25,13 +25,13 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
-    // 현재 호스트를 동적으로 감지하여 리다이렉트 URL 생성
-    const host = request.headers.get("host") || "localhost:3000";
-    const protocol = host.includes("localhost") ? "http" : "https";
-    const baseUrl = `${protocol}://${host}`;
-
-    // 리다이렉트 URL 설정
+    // Use BASE_URL env var instead of Host header to prevent host header injection
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || "https://www.picnic.fan";
     const redirectTo = `${baseUrl}/auth/callback/google`;
+
+    // 클라이언트가 전송한 return_url 쿼리를 그대로 전달해 복귀 경로 보존
+    const url = new URL(request.url);
+    const returnUrl = url.searchParams.get('return_url') || undefined;
 
     // Supabase를 통한 Google OAuth 로그인 시작
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
         queryParams: {
           access_type: "offline",
           prompt: "consent",
+          ...(returnUrl ? { return_url: returnUrl } : {}),
         },
       },
     });
@@ -103,10 +104,10 @@ export async function POST(request: NextRequest) {
       },
     );
 
-    // ID 토큰이 제공된 경우, 해당 토큰 파싱 및 검증
+    // ID 토큰이 제공된 경우, JWKS로 암호학적 검증 후 파싱
     if (idToken) {
       try {
-        const payload = parseGoogleIdToken(idToken);
+        const payload = await verifyGoogleIdToken(idToken);
         const userProfile = normalizeGoogleProfile(payload);
 
         return NextResponse.json({
@@ -114,10 +115,10 @@ export async function POST(request: NextRequest) {
           profile: userProfile,
         });
       } catch (error) {
-        console.error('ID 토큰 검증 실패:', error);
+        console.error('[Google API] ID 토큰 서명 검증 실패:', error);
         return NextResponse.json(
           { error: "ID 토큰 검증 실패" },
-          { status: 400 }
+          { status: 401 }
         );
       }
     }
@@ -130,10 +131,8 @@ export async function POST(request: NextRequest) {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-    // 현재 호스트를 동적으로 감지하여 리다이렉트 URL 생성
-    const host = request.headers.get("host") || "localhost:3000";
-    const protocol = host.includes("localhost") ? "http" : "https";
-    const baseUrl = `${protocol}://${host}`;
+    // Use BASE_URL env var instead of Host header to prevent host header injection
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || "https://www.picnic.fan";
     const redirectUri = `${baseUrl}/auth/callback/google`;
 
     if (!clientId || !clientSecret) {
@@ -193,14 +192,10 @@ export async function POST(request: NextRequest) {
     const userData = await userInfoResponse.json();
     const userProfile = normalizeGoogleProfile(userData);
 
+    // Do not expose raw OAuth tokens (especially refresh_token) to the client.
+    // Only return the user profile. Session should be managed via secure cookies.
     return NextResponse.json({
       success: true,
-      tokens: {
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        id_token: tokenData.id_token,
-        expires_in: tokenData.expires_in,
-      },
       profile: userProfile,
     });
   } catch (error) {

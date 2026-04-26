@@ -8,43 +8,28 @@ import type { SupportedLanguage } from '@/types/mypage-common';
 const translationCache = new Map<string, Record<string, any>>();
 const loadingPromises = new Map<string, Promise<Record<string, any>>>();
 
-// 타입 안전한 번역 키 정의
-export type TranslationKey = 
-  // ... (기존 키 생략)
-  | 'login_terms_notice_html'
-  // ... (기존 키 생략)
-  ;
+import get from 'lodash.get';
 
-// 기본 번역문 (폴백용)
-const DEFAULT_TRANSLATIONS: Record<string, string> = {
-  // ... (기존 번역 생략)
-  login_terms_notice_html:
-    'By signing up, you agree to our <a href="/{termsUrl}" class="font-semibold text-blue-600 hover:underline">Terms of Service</a> and <a href="/{privacyUrl}" class="font-semibold text-blue-600 hover:underline">Privacy Policy</a>.',
-  // ... (기존 번역 생략)
-};
+// 타입 안전 키 목록은 유지하지 않습니다. 존재하지 않는 키는 그대로 노출됩니다.
+
+// 기본 폴백 번역 제거: 리소스가 없을 경우 키(또는 호출 시 전달된 fallback)를 그대로 노출
 
 export function useTranslations() {
   const pathname = usePathname();
-  const [translations, setTranslations] = useState<Record<string, any>>(DEFAULT_TRANSLATIONS);
+  const [translations, setTranslations] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentLangRef = useRef<SupportedLanguage>('en');
 
-  // 현재 언어 추출
+  // 현재 언어 추출 (2자 또는 2자-2자, settings의 지원 목록에 없는 경우 en)
   const getCurrentLanguage = useCallback((): SupportedLanguage => {
-    const lang = pathname.split('/')[1];
-    switch (lang) {
-      case 'ko':
-        return 'ko';
-      case 'ja':
-        return 'ja';
-      case 'zh':
-        return 'zh';
-      case 'id':
-        return 'id';
-      default:
-        return 'en';
-    }
+    const segment = pathname.split('/')[1] || '';
+    // 정규식: xx 또는 xx-xx
+    const match = segment.match(/^([a-z]{2}(?:-[a-z]{2})?)$/i);
+    const candidate = (match ? match[1] : 'en').toLowerCase();
+    // 런타임 안전: 지원 목록에 있으면 그대로, 없으면 en
+    const supported: SupportedLanguage[] = ['en','ko','ja','zh-cn','zh-tw','id','es','bn','tl','th','vi','my'];
+    return (supported.includes(candidate as SupportedLanguage) ? candidate : 'en') as SupportedLanguage;
   }, [pathname]);
 
   // 번역 파일 로드 함수
@@ -67,31 +52,19 @@ export function useTranslations() {
     const loadingPromise = (async () => {
       try {
         const i18nModule = await import(`../public/locales/${language}.json`);
-        const translations = i18nModule.default;
+        const translationsData = i18nModule.default;
         
         // 캐시에 저장
-        translationCache.set(cacheKey, translations);
+        translationCache.set(cacheKey, translationsData);
         loadingPromises.delete(cacheKey);
         
-        return translations;
+        return translationsData;
       } catch (error) {
         console.warn(`번역 파일 로드 실패 (${language}):`, error);
         loadingPromises.delete(cacheKey);
         
-        // 영어 폴백 시도
-        if (language !== 'en') {
-          try {
-            const fallbackModule = await import('../public/locales/en.json');
-            const fallbackTranslations = fallbackModule.default;
-            translationCache.set('en', fallbackTranslations);
-            return fallbackTranslations;
-          } catch (fallbackError) {
-            console.error('영어 폴백도 실패:', fallbackError);
-            return DEFAULT_TRANSLATIONS;
-          }
-        }
-        
-        return DEFAULT_TRANSLATIONS;
+        // 폴백 제거: 번역 파일이 없으면 빈 객체 반환
+        return {};
       }
     })();
 
@@ -120,28 +93,65 @@ export function useTranslations() {
       .catch((error) => {
         console.error('번역 로드 실패:', error);
         setError(error instanceof Error ? error.message : 'Translation load failed');
-        setTranslations(DEFAULT_TRANSLATIONS);
+        setTranslations({});
         setIsLoading(false);
       });
   }, [getCurrentLanguage, loadTranslations, isLoading]);
 
-  // 타입 안전한 번역 함수
-  const t = useCallback((key: TranslationKey, fallback?: string): string => {
-    return translations[key] || fallback || DEFAULT_TRANSLATIONS[key] || key;
-  }, [translations]);
+  // 번역 함수 (문자열 키)
+  const t = useCallback((key: string, fallback?: string): string => {
+    const value = get(translations, key);
+    if (value !== undefined && value !== null && value !== '') return value;
+
+    // 번역 로드 중에는 경고를 발생시키지 않고 fallback 또는 빈 문자열 반환
+    if (isLoading) {
+      return fallback ?? '';
+    }
+
+    // 번역이 없을 경우: fallback이 제공되면 사용, 없으면 개발 환경에서만 키 표시, 프로덕션에서는 빈 문자열
+    if (fallback) return fallback;
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`[Translation] Missing key: "${key}" for language: ${getCurrentLanguage()}`);
+      return `[${key}]`;
+    }
+    return ''; // 프로덕션에서는 빈 문자열 반환
+  }, [translations, isLoading, getCurrentLanguage]);
   
-  const tHtml = useCallback((key: TranslationKey, replacements: Record<string, string>): string => {
-    let rawText = translations[key] || DEFAULT_TRANSLATIONS[key] || key;
+  const tHtml = useCallback((key: string, replacements: Record<string, string>): string => {
+    let rawText = get(translations, key);
+    if (!rawText || rawText === '') {
+      if (isLoading) {
+        return '';
+      }
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`[Translation] Missing key: "${key}" for language: ${getCurrentLanguage()}`);
+        rawText = `[${key}]`;
+      } else {
+        rawText = '';
+      }
+    }
     for (const [placeholder, value] of Object.entries(replacements)) {
       rawText = rawText.replace(new RegExp(`{${placeholder}}`, 'g'), value);
     }
     return rawText;
-  }, [translations]);
+  }, [translations, isLoading, getCurrentLanguage]);
 
   // 동적 키 지원 (기존 호환성)
   const tDynamic = useCallback((key: string, fallback?: string): string => {
-    return translations[key] || fallback || key;
-  }, [translations]);
+    const value = get(translations, key);
+    if (value !== undefined && value !== null && value !== '') return value;
+
+    if (isLoading) {
+      return fallback ?? '';
+    }
+
+    if (fallback) return fallback;
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`[Translation] Missing key: "${key}" for language: ${getCurrentLanguage()}`);
+      return `[${key}]`;
+    }
+    return '';
+  }, [translations, isLoading, getCurrentLanguage]);
 
   return {
     t,                      // 타입 안전한 번역 함수

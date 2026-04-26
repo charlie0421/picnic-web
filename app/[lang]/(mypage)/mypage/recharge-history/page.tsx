@@ -3,6 +3,8 @@ import { getRechargeHistory } from '@/lib/data-fetching/server/user-service';
 import { Suspense } from 'react';
 import RechargeHistoryClient from './RechargeHistoryClient';
 import RechargeHistorySkeleton from '@/components/server/mypage/RechargeHistorySkeleton';
+import { notFound } from 'next/navigation';
+import { getServerUser, createServerSupabaseClient } from '@/lib/supabase/server';
 
 interface RechargeHistoryPageProps {
   params: Promise<{
@@ -18,11 +20,31 @@ export default async function RechargeHistoryPage(
 ) {
   const params = await props.params;
   const searchParams = await props.searchParams;
+  const { lang } = params;
   
+  // 관리자만 접근 허용
+  const user = await getServerUser();
+  if (!user) {
+    notFound();
+  }
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('is_admin, is_super_admin')
+      .eq('id', user!.id)
+      .single();
+    const isAdmin = !!(profile?.is_admin || profile?.is_super_admin);
+    if (!isAdmin) {
+      notFound();
+    }
+  } catch {
+    notFound();
+  }
+
   const pageQuery = searchParams.page ?? '1';
   const page = Number(Array.isArray(pageQuery) ? pageQuery[0] : pageQuery);
   const limit = 10;
-  const { lang } = params;
 
   const t = await getTranslations(lang as any);
   const {

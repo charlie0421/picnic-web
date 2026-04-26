@@ -11,8 +11,6 @@ export * from './types';
 export * from './google';
 export * from './apple';
 export * from './kakao';
-export * from './wechat';
-
 // 통합 서비스 내보내기
 export { SocialAuthService } from './service';
  
