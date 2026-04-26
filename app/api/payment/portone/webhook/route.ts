@@ -152,27 +152,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let userId = customData.userId || customData.user_id;
+    const userId = customData.userId || customData.user_id;
     const productId = customData.productId;
     const starCandy = customData.starCandy || 0;
     const bonusAmount = customData.bonusAmount || 0;
 
-    // userId가 없으면 paymentData.customer.email로 사용자 찾기 (fallback)
-    if (!userId && paymentData.customer?.email) {
-      try {
-        const { data: userByEmail } = await supabase
-          .from('user_profiles')
-          .select('user_id')
-          .eq('email', paymentData.customer.email)
-          .maybeSingle();
-
-        if (userByEmail?.user_id) {
-          userId = userByEmail.user_id;
-        }
-      } catch (emailLookupError) {
-        console.error('[Webhook] Failed to lookup user by email:', emailLookupError);
-      }
-    }
+    // SECURITY: Email-based user lookup fallback was removed. user_profiles.email
+    // is not unique-constrained and is set by the user on registration; allowing
+    // it to identify the credit recipient meant a duplicate-email account or an
+    // attacker who can influence paymentData.customer.email could redirect a
+    // legitimate payment's star_candy to a different account. The PortOne checkout
+    // flow MUST embed a verified userId in customData; missing → 400.
 
     // customData에서 필수 정보 확인
     if (!userId || !productId) {
@@ -247,30 +237,27 @@ export async function POST(request: NextRequest) {
     // the service-role client created above; `createServiceRoleSupabaseClient`
     // already uses SUPABASE_SERVICE_ROLE_KEY (see webhook-helpers.ts).
     //
-    // Cast: `process_portone_capture` is added by migration
-    // 20260424000003_create_process_portone_capture_rpc.sql. The generated
-    // Supabase types lag the migration until `npm run gen:types` is rerun
-    // post-deploy, so we temporarily widen the rpc surface here.
-    const { data: rpcResult, error: rpcError } = await (
-      supabase.rpc as unknown as (
-        fn: string,
-        params: Record<string, unknown>
-      ) => Promise<{ data: { receipt_id: number } | null; error: unknown }>
-    )('process_portone_capture', {
-      p_user_id: userId,
-      p_payment_id: actualPaymentId,
-      p_product_id: productId,
-      p_star_candy: starCandy,
-      p_bonus_amount: bonusAmount,
-      p_total_amount: paymentData.totalAmount ?? 0,
-      p_currency: paymentData.currency ?? null,
-      p_status: paymentData.status ?? 'PAID',
-      p_method: paymentData.method ?? 'port_one',
-      p_environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox',
-      p_receipt_data: receiptData,
-      p_verification_data: paymentData,
-      p_bonus_expiry: getStarCandyBonusExpiryISO(),
-    });
+    // process_portone_capture is now in generated Database types after
+    // npm run gen:types, so the temporary `as unknown as ...` widening cast
+    // has been removed.
+    const { data: rpcResult, error: rpcError } = await supabase.rpc(
+      'process_portone_capture',
+      {
+        p_user_id: userId,
+        p_payment_id: actualPaymentId,
+        p_product_id: productId,
+        p_star_candy: starCandy,
+        p_bonus_amount: bonusAmount,
+        p_total_amount: paymentData.totalAmount ?? 0,
+        p_currency: paymentData.currency ?? null,
+        p_status: paymentData.status ?? 'PAID',
+        p_method: paymentData.method ?? 'port_one',
+        p_environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox',
+        p_receipt_data: receiptData,
+        p_verification_data: paymentData,
+        p_bonus_expiry: getStarCandyBonusExpiryISO(),
+      },
+    );
 
     if (rpcError) {
       console.error('[Webhook] process_portone_capture failed:', rpcError);
