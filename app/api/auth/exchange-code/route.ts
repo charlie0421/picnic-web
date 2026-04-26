@@ -42,13 +42,11 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
+      // SECURITY: never echo Supabase auth error details to clients —
+      // they leak project metadata and internal state useful to attackers.
       console.error('❌ [API] OAuth 코드 교환 실패:', error);
       return NextResponse.json(
-        { 
-          error: `OAuth 코드 교환 실패: ${error.message}`, 
-          success: false,
-          details: error 
-        },
+        { error: 'OAuth 코드 교환 실패', success: false },
         { status: 400 }
       );
     }
@@ -109,15 +107,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
-  } catch (error: any) {
+  } catch (error) {
+    // SECURITY: stack traces and raw error messages must not reach API
+    // responses, even in development — client-side telemetry can capture
+    // them and forward to third parties.
     console.error('[API] exchange-code 서버 오류:', error);
     return NextResponse.json(
-      { 
-        error: `서버 오류: ${error.message}`, 
-        success: false,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { error: '서버 오류가 발생했습니다.', success: false },
       { status: 500 }
     );
   }
-} 
+}

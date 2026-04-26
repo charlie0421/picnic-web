@@ -259,36 +259,33 @@ export async function POST(request: NextRequest) {
     // credit themselves arbitrary star_candy. We therefore invoke it with a
     // dedicated service-role client; the user-bound `supabase` above is only
     // used for auth and product lookups (both still enforce RLS).
-    // Cast: `process_paypal_capture` is added by migration
-    // 20260424000002_create_process_paypal_capture_rpc.sql. The generated
-    // Supabase types lag the migration until `npm run gen:types` is rerun
-    // post-deploy, so we temporarily widen the rpc surface here.
+    // process_paypal_capture is now in generated Database types after
+    // npm run gen:types, so the temporary `as unknown as ...` widening cast
+    // has been removed.
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data: rpcResult, error: rpcError } = await (
-      supabaseAdmin.rpc as unknown as (
-        fn: string,
-        params: Record<string, unknown>
-      ) => Promise<{ data: { receipt_id: number } | null; error: unknown }>
-    )('process_paypal_capture', {
-      p_user_id: user.id,
-      p_order_id: orderID,
-      p_capture_id: captureData.id,
-      p_product_id: productId,
-      p_star_candy: starCandy,
-      p_bonus_amount: bonusAmount,
-      p_amount: purchaseUnit.amount.value,
-      p_currency: purchaseUnit.amount.currency_code,
-      p_status: captureData.status,
-      p_environment: process.env.PAYPAL_ENV === 'production' ? 'production' : 'sandbox',
-      p_payment_details: safeCaptureData,
-      p_verification_data: safeCaptureData,
-      p_bonus_expiry: getStarCandyBonusExpiryISO(),
-    });
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
+      'process_paypal_capture',
+      {
+        p_user_id: user.id,
+        p_order_id: orderID,
+        p_capture_id: captureData.id,
+        p_product_id: productId,
+        p_star_candy: starCandy,
+        p_bonus_amount: bonusAmount,
+        p_amount: purchaseUnit.amount.value,
+        p_currency: purchaseUnit.amount.currency_code,
+        p_status: captureData.status,
+        p_environment: process.env.PAYPAL_ENV === 'production' ? 'production' : 'sandbox',
+        p_payment_details: safeCaptureData,
+        p_verification_data: safeCaptureData,
+        p_bonus_expiry: getStarCandyBonusExpiryISO(),
+      },
+    );
 
     if (rpcError) {
       console.error('process_paypal_capture failed:', rpcError);

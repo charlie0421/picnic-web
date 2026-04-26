@@ -6820,6 +6820,42 @@ export type Database = {
         }
         Returns: undefined
       }
+      process_paypal_capture: {
+        Args: {
+          p_amount: string
+          p_bonus_amount: number
+          p_bonus_expiry: string
+          p_capture_id: string
+          p_currency: string
+          p_environment: string
+          p_order_id: string
+          p_payment_details: Json
+          p_product_id: string
+          p_star_candy: number
+          p_status: string
+          p_user_id: string
+          p_verification_data: Json
+        }
+        Returns: Json
+      }
+      process_portone_capture: {
+        Args: {
+          p_bonus_amount: number
+          p_bonus_expiry: string
+          p_currency: string
+          p_environment: string
+          p_method: string
+          p_payment_id: string
+          p_product_id: string
+          p_receipt_data: Json
+          p_star_candy: number
+          p_status: string
+          p_total_amount: number
+          p_user_id: string
+          p_verification_data: Json
+        }
+        Returns: Json
+      }
       process_vote: {
         Args: {
           p_amount: number
