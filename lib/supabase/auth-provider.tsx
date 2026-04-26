@@ -37,16 +37,46 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Hydration-safe initial state. Both SSR and the first CSR render must produce
+// the SAME tree, otherwise React reports "Hydration failed - the server
+// rendered HTML didn't match the client." The previous initializer
+// (`AuthStore.getInstance().getState()`) could diverge on mobile browsers
+// (Samsung Internet / Chrome Mobile / Safari Mobile) when the AuthStore
+// singleton's window-side init produced different visible state during
+// hydration than what SSR computed (cookie/localStorage timing skew). We now
+// hand-build a stable empty state for the first render on both sides, then
+// hydrate from the real store inside useEffect — guaranteeing identical first
+// paint regardless of platform.
+const NOOP_SIGN_OUT: AuthContextType['signOut'] = async () => {};
+const NOOP_LOAD_USER_PROFILE: AuthContextType['loadUserProfile'] = async () => null;
+
+const SSR_SAFE_INITIAL_STATE: AuthContextType = {
+  session: null,
+  user: null,
+  userProfile: null,
+  isAuthenticated: false,
+  isLoading: true,
+  isInitialized: false,
+  signOut: NOOP_SIGN_OUT,
+  loadUserProfile: NOOP_LOAD_USER_PROFILE,
+};
+
 // AuthProvider 컴포넌트를 memo로 감싸서 완전히 안정화
 const AuthProviderComponent = memo(function AuthProviderInternal({ children }: AuthProviderProps) {
   debugLog('🏗️ [AuthProvider] 컴포넌트 생성/재렌더링');
 
-  const [contextValue, setContextValue] = useState<AuthContextType>(() => {
-    return AuthStore.getInstance().getState();
-  });
+  // First render must be deterministic between SSR and CSR — never read the
+  // singleton state here. The real store state is synced in the effect below.
+  const [contextValue, setContextValue] = useState<AuthContextType>(SSR_SAFE_INITIAL_STATE);
 
   useEffect(() => {
     const authStore = AuthStore.getInstance();
+
+    // Sync immediately to whatever the store currently holds. This may produce
+    // a second render with the actual session/user, but since this runs after
+    // mount it cannot trigger hydration mismatch — the first render already
+    // matched SSR's empty state.
+    setContextValue(authStore.getState());
 
     const initializeAndSubscribe = async () => {
       try {
