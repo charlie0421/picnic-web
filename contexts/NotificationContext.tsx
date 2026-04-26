@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, ReactNode, useEffect } from 'react';
 import { SUPABASE_AUTH_RATE_LIMIT_EVENT, SupabaseAuthRateLimitDetail } from '@/lib/supabase/events';
 import { useTranslations } from '@/hooks/useTranslations';
 
@@ -37,9 +37,29 @@ interface NotificationProviderProps {
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const [notifications, setNotifications] = useState<NotificationState[]>([]);
   const { t } = useTranslations();
+  // Track active dismiss timers so we can cancel them on unmount or when
+  // a notification is removed early. The previous implementation never
+  // cleared its setTimeout handles, leaving setState callbacks armed past
+  // unmount and producing setState-on-unmounted warnings.
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const removeNotification = useCallback((id: string) => {
+    const timer = timersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
+    }
+    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  }, []);
 
   const addNotification = useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    // crypto.randomUUID() is collision-safe; the previous Math.random().substr
+    // pattern produced ~10-byte ids that could clash on rapid successive
+    // notifications and used the deprecated substr() API.
+    const id =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `n_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const newNotification: NotificationState = {
       ...notification,
       id,
@@ -48,21 +68,29 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
     setNotifications(prev => [...prev, newNotification]);
 
-    // 자동 제거 (기본 5초, 또는 지정된 duration)
     const duration = notification.duration || 5000;
     if (duration > 0) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        timersRef.current.delete(id);
         setNotifications(prev => prev.filter(n => n.id !== id));
       }, duration);
+      timersRef.current.set(id, timer);
     }
   }, []);
 
-  const removeNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  const clearAllNotifications = useCallback(() => {
+    for (const timer of Array.from(timersRef.current.values())) clearTimeout(timer);
+    timersRef.current.clear();
+    setNotifications([]);
   }, []);
 
-  const clearAllNotifications = useCallback(() => {
-    setNotifications([]);
+  // Clear any pending dismiss timers on unmount.
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      for (const timer of Array.from(timers.values())) clearTimeout(timer);
+      timers.clear();
+    };
   }, []);
 
   useEffect(() => {

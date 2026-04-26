@@ -12,6 +12,22 @@ interface UseInfiniteScrollOptions<T> {
 export function useInfiniteScroll<T>(options: UseInfiniteScrollOptions<T>) {
   const { apiEndpoint, limit = 10, onSuccess, onError, transform } = options;
 
+  // Stable refs for callbacks/transform so fetchData identity stays stable
+  // across renders even when callers pass inline arrow functions. The prior
+  // implementation listed onSuccess/onError/transform in fetchData's deps,
+  // making fetchData re-create every render and re-arming the
+  // IntersectionObserver effect (deps include fetchData). Combined with the
+  // initial-load effect's empty deps, the first call closed over a stale
+  // fetchData on first render.
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+  const transformRef = useRef(transform);
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+    transformRef.current = transform;
+  }, [onSuccess, onError, transform]);
+
   // 상태 관리
   const [state, setState] = useState<InfiniteScrollState>({
     page: 1,
@@ -59,9 +75,10 @@ export function useInfiniteScroll<T>(options: UseInfiniteScrollOptions<T>) {
       const data: BaseResponse<T> = await response.json();
 
       if (data.success) {
-        // 데이터 변환 적용
-        const transformedData = transform 
-          ? data.data.map(transform)
+        // 데이터 변환 적용 — read latest transform via ref so fetchData stays stable
+        const t = transformRef.current;
+        const transformedData = t
+          ? data.data.map(t)
           : data.data;
 
         setItems(prev => reset ? transformedData : [...prev, ...transformedData]);
@@ -79,24 +96,23 @@ export function useInfiniteScroll<T>(options: UseInfiniteScrollOptions<T>) {
           setStatistics((data as any).statistics);
         }
 
-        onSuccess?.(data);
+        onSuccessRef.current?.(data);
       } else {
         throw new Error(data.error || '데이터 조회에 실패했습니다.');
       }
     } catch (err) {
-      // AbortError는 무시
       if (err instanceof Error && err.name === 'AbortError') {
         return;
       }
-      
+
       const errorMessage = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
       setState(prev => ({
         ...prev,
         error: errorMessage,
         isInitialLoad: false
       }));
-      
-      onError?.(errorMessage);
+
+      onErrorRef.current?.(errorMessage);
     } finally {
       setState(prev => ({
         ...prev,
@@ -104,7 +120,7 @@ export function useInfiniteScroll<T>(options: UseInfiniteScrollOptions<T>) {
         isLoadingMore: false
       }));
     }
-  }, [apiEndpoint, limit, transform, onSuccess, onError]);
+  }, [apiEndpoint, limit]);
 
   // 재시도 함수
   const retry = useCallback(() => {

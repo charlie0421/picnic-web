@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import QuillDeltaRenderer from '@/lib/content/quill-delta-renderer'
 import { useTranslations } from '@/hooks/useTranslations'
 import { useNotification } from '@/contexts/NotificationContext'
@@ -242,7 +243,7 @@ function CommentItemComponent({
 
 export default function CommentList({ comments, lang = 'ko', postId }: CommentListProps) {
   const { t } = useTranslations()
-  const [, forceUpdate] = useState(0)
+  const router = useRouter()
 
   // 부모 댓글과 대댓글 분리
   const parentComments = comments.filter(c => !c.parentCommentId)
@@ -255,8 +256,11 @@ export default function CommentList({ comments, lang = 'ko', postId }: CommentLi
     repliesMap.get(parentId)!.push(c)
   })
 
+  // Reply가 성공해도 comments는 server prop이라 forceUpdate(n+1)만으로는
+  // 새 reply가 화면에 안 나타남. router.refresh()로 server data를 다시 받아
+  // 부모 page를 재렌더해야 함.
   const handleReplySuccess = () => {
-    forceUpdate(n => n + 1)
+    router.refresh()
   }
 
   if (!parentComments.length) return <p className='text-sm text-gray-700'>{t('community.commentList.noComments')}</p>
