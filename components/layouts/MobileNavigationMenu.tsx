@@ -221,10 +221,10 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
                   <div className="flex items-center space-x-1">
                     <Star className="w-3 h-3 text-yellow-500 fill-current" />
                     <span className="text-xs text-gray-600">
-                      {userInfo.star_candy.toLocaleString()}
+                      {userInfo.star_candy.toLocaleString('en-US')}
                     </span>
                     <span className="text-xs text-gray-400">
-                      +{userInfo.star_candy_bonus.toLocaleString()}
+                      +{userInfo.star_candy_bonus.toLocaleString('en-US')}
                     </span>
                   </div>
                   {userInfo.is_admin && (

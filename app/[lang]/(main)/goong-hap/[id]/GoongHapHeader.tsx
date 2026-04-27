@@ -52,7 +52,7 @@ export function GoongHapHeader({
           <p className='text-xl sm:text-2xl font-extrabold drop-shadow'>{localized?.score_title || 'Compatibility'}</p>
           <div className='text-right'>
             <p className='text-3xl sm:text-4xl font-extrabold drop-shadow'>{data.score ?? '-'}<span className='text-base sm:text-lg font-medium ml-1 opacity-90'>pt</span></p>
-            <p className='text-[10px] sm:text-xs opacity-90'>{new Date(data.created_at).toLocaleString()}</p>
+            <p className='text-[10px] sm:text-xs opacity-90'>{new Date(data.created_at).toLocaleString('en-US', { timeZone: 'Asia/Seoul' })}</p>
           </div>
         </div>
         {localized?.goonghap_summary && (

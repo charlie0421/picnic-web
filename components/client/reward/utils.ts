@@ -70,7 +70,7 @@ export function getTimeUntilExpiry(expiryDate: string): string {
 export function formatRewardValue(reward: RewardItem): string {
   switch (reward.type) {
     case 'point':
-      return `${reward.value.toLocaleString()} ${reward.currency || '포인트'}`;
+      return `${reward.value.toLocaleString('en-US')} ${reward.currency || '포인트'}`;
     case 'coupon':
       return `${reward.value}% 할인`;
     case 'badge':
@@ -78,7 +78,7 @@ export function formatRewardValue(reward: RewardItem): string {
     case 'item':
       return `${reward.title} x${reward.value}`;
     case 'experience':
-      return `${reward.value.toLocaleString()} EXP`;
+      return `${reward.value.toLocaleString('en-US')} EXP`;
     default:
       return String(reward.value);
   }
