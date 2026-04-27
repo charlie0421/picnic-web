@@ -209,7 +209,7 @@ export default function VoteHistoryClient({
                           </div>
                           <span className="font-bold text-yellow-800 text-sm">{t('label_vote_amount')}</span>
                         </div>
-                        <span className="text-gray-900 font-semibold text-sm">{vote.amount?.toLocaleString()}</span>
+                        <span className="text-gray-900 font-semibold text-sm">{vote.amount?.toLocaleString('en-US')}</span>
                       </div>
                       <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-3 border border-purple-200/50">
                         <div className="flex items-center space-x-2 mb-2">

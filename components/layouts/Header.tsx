@@ -215,7 +215,7 @@ const Header: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{userProfile.nickname || userProfile.email || t('common.user.unknown')}</p>
                           <div className="flex items-center space-x-2 mt-0.5">
-                            <div className="flex items-center space-x-1"><Star className="w-3 h-3 text-yellow-500 fill-current" /><span className="text-xs text-gray-600">{(userProfile.star_candy || 0).toLocaleString()}</span></div>
+                            <div className="flex items-center space-x-1"><Star className="w-3 h-3 text-yellow-500 fill-current" /><span className="text-xs text-gray-600">{(userProfile.star_candy || 0).toLocaleString('en-US')}</span></div>
                             {isAdmin && <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">관리자</span>}
                           </div>
                         </div>

@@ -30,7 +30,7 @@ const StatisticsCard = memo(({ stat }: { stat: StatisticCard }) => (
     ) : (
       <>
         <p className={`${stat.textColor} font-bold text-lg mb-1`}>
-          {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
+          {typeof stat.value === 'number' ? stat.value.toLocaleString('en-US') : stat.value}
         </p>
         <p className={`${stat.textColor} text-xs opacity-75`}>
           {stat.description}

@@ -77,7 +77,7 @@ export default function AttendanceModal({ isOpen, onClose }: AttendanceModalProp
                     {t('jma_voting_my_star_candy') || '나의 별사탕'}
                   </p>
                   <p className="text-sm font-bold text-amber-300">
-                    {starCandy.toLocaleString()}
+                    {starCandy.toLocaleString('en-US')}
                   </p>
                 </div>
               </div>
@@ -97,7 +97,7 @@ export default function AttendanceModal({ isOpen, onClose }: AttendanceModalProp
                     {t('label_bonus') || '보너스'}
                   </p>
                   <p className="text-sm font-bold text-amber-300">
-                    {starCandyBonus.toLocaleString()}
+                    {starCandyBonus.toLocaleString('en-US')}
                   </p>
                 </div>
               </div>

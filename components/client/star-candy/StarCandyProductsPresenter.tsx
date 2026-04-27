@@ -165,12 +165,12 @@ export function StarCandyProductsPresenter({
                   </div>
 
                   <h3 className='text-xl font-bold mb-1 text-gray-900'>
-                    {(product.star_candy || 0).toLocaleString()} {t('star_candy_unit')}
+                    {(product.star_candy || 0).toLocaleString('en-US')} {t('star_candy_unit')}
                   </h3>
 
                   {product.web_bonus_amount && product.web_bonus_amount > 0 ? (
                     <p className='text-sm text-green-600 font-medium'>
-                      +{product.web_bonus_amount.toLocaleString()}{' '}
+                      +{product.web_bonus_amount.toLocaleString('en-US')}{' '}
                       {t('star_candy_bonus')}
                     </p>
                   ) : (

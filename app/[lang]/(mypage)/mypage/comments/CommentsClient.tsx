@@ -192,7 +192,7 @@ export default function CommentsClient({
                           </div>
                           <span className="font-bold text-primary-800 text-sm">{tDynamic('label_likes')}</span>
                         </div>
-                        <span className="text-gray-900 font-bold text-lg">{comment.likeCount.toLocaleString()}</span>
+                        <span className="text-gray-900 font-bold text-lg">{comment.likeCount.toLocaleString('en-US')}</span>
                       </div>
                       <div className="relative bg-gradient-to-br from-sub-50 to-secondary-50 rounded-xl p-3 border border-sub-100/50">
                         <div className="flex items-center space-x-2 mb-2">

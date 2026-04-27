@@ -135,7 +135,7 @@ export default function StarCandyBalanceBox({
             <div>
               <div className="text-xs opacity-90 leading-tight">{t('label_mypage_star_candy_total')}</div>
               <div className="text-base font-bold leading-tight">
-                {isLoading ? '...' : totalCandy.toLocaleString()}
+                {isLoading ? '...' : totalCandy.toLocaleString('en-US')}
               </div>
             </div>
           </div>
@@ -147,14 +147,14 @@ export default function StarCandyBalanceBox({
                 width={28}
                 height={28}
               />
-              <span className="opacity-90">{starCandy.toLocaleString()}</span>
+              <span className="opacity-90">{starCandy.toLocaleString('en-US')}</span>
             </div>
             {starCandyBonus > 0 && (
               <>
                 <span className="opacity-50">+</span>
                 <div className="flex items-center gap-1 bg-white/20 px-1.5 py-0.5 rounded">
                   <span className="text-xs">🎁</span>
-                  <span className="text-xs font-semibold">{starCandyBonus.toLocaleString()}</span>
+                  <span className="text-xs font-semibold">{starCandyBonus.toLocaleString('en-US')}</span>
                 </div>
               </>
             )}
@@ -176,7 +176,7 @@ export default function StarCandyBalanceBox({
             {isLoading ? (
               <span className="inline-block animate-pulse">...</span>
             ) : (
-              totalCandy.toLocaleString()
+              totalCandy.toLocaleString('en-US')
             )}
           </div>
         </div>
@@ -198,7 +198,7 @@ export default function StarCandyBalanceBox({
             <div>
               <div className="text-xs opacity-80">별사탕</div>
               <div className="text-lg font-semibold">
-                {isLoading ? '...' : starCandy.toLocaleString()}
+                {isLoading ? '...' : starCandy.toLocaleString('en-US')}
               </div>
             </div>
           </div>
@@ -209,7 +209,7 @@ export default function StarCandyBalanceBox({
               <span className="text-2xl">🎁</span>
               <div>
                 <div className="text-xs opacity-90">보너스</div>
-                <div className="text-lg font-semibold">{starCandyBonus.toLocaleString()}</div>
+                <div className="text-lg font-semibold">{starCandyBonus.toLocaleString('en-US')}</div>
               </div>
             </div>
           )}

@@ -190,7 +190,7 @@ export default function PostsClient({
                             </div>
                     <span className="font-bold text-purple-800 text-sm">{tDynamic('views')}</span>
                           </div>
-                          <span className="text-gray-900 font-semibold text-sm">{post.viewCount?.toLocaleString()}</span>
+                          <span className="text-gray-900 font-semibold text-sm">{post.viewCount?.toLocaleString('en-US')}</span>
                         </div>
                         <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-3 border border-orange-200/50">
                           <div className="flex items-center space-x-2 mb-2">
@@ -199,7 +199,7 @@ export default function PostsClient({
                             </div>
                     <span className="font-bold text-orange-800 text-sm">{tDynamic('comments')}</span>
                           </div>
-                          <span className="text-gray-900 font-semibold text-sm">{post.commentCount?.toLocaleString()}</span>
+                          <span className="text-gray-900 font-semibold text-sm">{post.commentCount?.toLocaleString('en-US')}</span>
                         </div>
                       </div>
 

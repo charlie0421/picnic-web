@@ -191,7 +191,7 @@ export default function RechargeHistoryClient({
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <InfoCard title={tDynamic('label_received_star_candy')} icon="⭐">
                     <span className="text-lg font-bold bg-gradient-to-r from-primary to-point bg-clip-text text-transparent">
-                      {(recharge.starCandyAmount + recharge.bonusAmount).toLocaleString()}
+                      {(recharge.starCandyAmount + recharge.bonusAmount).toLocaleString('en-US')}
                           </span>
                   </InfoCard>
                   <InfoCard title={tDynamic('label_product_code')} icon="🏷️">
