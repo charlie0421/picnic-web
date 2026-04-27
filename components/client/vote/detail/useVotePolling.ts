@@ -44,10 +44,25 @@ export function useVotePolling({
   const [pollingErrorCount, setPollingErrorCount] = React.useState(0);
   const recentlyUpdatedItemsRef = React.useRef<Set<string | number>>(new Set());
   const highlightTimersRef = React.useRef<Map<string | number, NodeJS.Timeout>>(new Map());
+  // unmount 후 in-flight fetch / 비동기 콜백의 setState 가 deleted fiber 에 닿아
+  // React reconciler 가 removeChild on null 을 일으키는 race condition (PICNIC-WEB-5N)
+  // 을 차단. 모든 비동기 후 setState 호출 직전에 가드한다.
+  const isMountedRef = React.useRef(true);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const notificationTimersRef = React.useRef<Set<NodeJS.Timeout>>(new Set());
 
   // Highlight timers cleanup
   React.useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
+      // in-flight fetch 취소
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+      // notification auto-dismiss 타이머 정리
+      notificationTimersRef.current.forEach((t) => clearTimeout(t));
+      notificationTimersRef.current.clear();
+      // highlight 타이머 정리
       highlightTimersRef.current.forEach((timer) => {
         clearTimeout(timer);
       });
@@ -58,6 +73,7 @@ export function useVotePolling({
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const addNotification = React.useCallback((notification: Omit<NotificationState, 'id' | 'timestamp'>) => {
+    if (!isMountedRef.current) return;
     const newNotification: NotificationState = {
       ...notification,
       id: Math.random().toString(36).substr(2, 9),
@@ -65,22 +81,31 @@ export function useVotePolling({
     };
     setNotifications(prev => [...prev, newNotification]);
     const duration = notification.duration || DEFAULT_NOTIFICATION_DURATION_MS;
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      notificationTimersRef.current.delete(timer);
+      if (!isMountedRef.current) return;
       removeNotification(newNotification.id);
     }, duration);
+    notificationTimersRef.current.add(timer);
   }, []);
 
   const removeNotification = React.useCallback((id: string) => {
+    if (!isMountedRef.current) return;
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   }, []);
 
   // User fetching effect
   React.useEffect(() => {
+    let cancelled = false;
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled || !isMountedRef.current) return;
       setUser(user);
     };
     getUser();
+    return () => {
+      cancelled = true;
+    };
   }, [supabase]);
 
   const updateConnectionQuality = React.useCallback((success: boolean, responseTime?: number) => {
@@ -89,6 +114,12 @@ export function useVotePolling({
 
   const updateVoteDataPolling = React.useCallback(async () => {
     if (!vote?.id) return;
+    if (!isMountedRef.current) return;
+    // 직전 in-flight fetch 가 있으면 abort 한다 (race + double setState 방지).
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     // 실시간 모드 제거됨: 항상 폴링 수행
     const startTime = performance.now();
     requestStartTimeRef.current = startTime;
@@ -98,8 +129,12 @@ export function useVotePolling({
       if (shouldLog) {
         console.log('[Polling] Fetching vote data...');
       }
-      const response = await fetch(`/api/vote/${vote.id}/detail`, { cache: 'no-cache' });
+      const response = await fetch(`/api/vote/${vote.id}/detail`, {
+        cache: 'no-cache',
+        signal: controller.signal,
+      });
       const responseTime = performance.now() - startTime;
+      if (!isMountedRef.current) return;
       if (response.status === 304) {
         // 변경 없음: 정상 경로로 처리
         if (shouldLog) {
@@ -111,6 +146,7 @@ export function useVotePolling({
       }
       if (!response.ok) {
         const voteError = await response.json().catch(() => ({}));
+        if (!isMountedRef.current) return;
         console.error('[Polling] Vote fetch error:', voteError);
         setPollingErrorCount(prev => prev + 1);
         updateConnectionQuality(false, responseTime);
@@ -123,6 +159,7 @@ export function useVotePolling({
         return;
       }
       const { vote: voteData } = await response.json();
+      if (!isMountedRef.current) return;
       if (voteData) {
         if (shouldLog) {
           console.log('[Polling] Vote data received:', voteData);
@@ -154,6 +191,7 @@ export function useVotePolling({
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .returns<VotePickRow[]>();
+        if (!isMountedRef.current) return;
         if (userVoteError) {
           console.error('[Polling] User vote fetch error:', userVoteError);
           updateConnectionQuality(false);
@@ -162,6 +200,9 @@ export function useVotePolling({
         }
       }
     } catch (error) {
+      // AbortError 는 정상 cleanup 흐름이라 noise 로 처리하지 않는다.
+      if ((error as { name?: string } | null)?.name === 'AbortError') return;
+      if (!isMountedRef.current) return;
       const responseTime = performance.now() - startTime;
       console.error('[Polling] Unexpected error:', error);
       setPollingErrorCount(prev => prev + 1);
@@ -221,6 +262,9 @@ export function useVotePolling({
     startPollingMode();
     return () => {
       stopPollingMode();
+      // 진행 중인 fetch 도 즉시 취소 (interval 외)
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
     };
   }, []);
 
