@@ -175,7 +175,7 @@ export function VoteItem({
         {/* 투표수 (표시 옵션이 활성화된 경우) */}
         {showVoteCount && isMounted && (
           <div className={`${styles.votes} text-primary`}>
-            {voteCount.toLocaleString()} 표
+            {voteCount.toLocaleString('en-US')} 표
           </div>
         )}
       </div>
