@@ -148,7 +148,7 @@ export function VoteResults({
         <h2 className="text-xl font-bold text-gray-900 mb-2">{title}</h2>
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-600">
-            총 {sortedResults.reduce((sum, item) => sum + item.voteCount, 0).toLocaleString()}표
+            총 {sortedResults.reduce((sum, item) => sum + item.voteCount, 0).toLocaleString('en-US')}표
           </p>
           {useStore && results.lastUpdateTime && (
             <p className="text-xs text-gray-400">
@@ -225,7 +225,7 @@ export function VoteResults({
               {/* 투표 결과 */}
               <div className="text-right flex-shrink-0">
                 <div className="text-lg font-bold text-gray-900">
-                  {item.voteCount.toLocaleString()}표
+                  {item.voteCount.toLocaleString('en-US')}표
                 </div>
                 {showPercentage && (
                   <div className="text-sm text-primary font-medium">

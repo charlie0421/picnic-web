@@ -228,7 +228,7 @@ export function VoteSubmit({
                 )}
                 {showVoteCount && (
                   <p className="text-sm font-bold text-primary">
-                    {voteCount.toLocaleString()} 표
+                    {voteCount.toLocaleString('en-US')} 표
                   </p>
                 )}
               </div>
