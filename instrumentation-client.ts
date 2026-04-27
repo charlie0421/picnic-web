@@ -73,6 +73,23 @@ if (SENTRY_DSN) {
           return null;
         }
       }
+      // 인앱 브라우저 (Twitter/X, Facebook, Instagram, KakaoTalk, Line, NAVER 등) 의
+      // hydration / replay_hydration_error 는 외부에서 DOM 을 mutate 하기 때문에
+      // 우리 코드로 100% 제거 불가능. 노이즈 차단.
+      const isHydrationError =
+        event.exception?.values?.[0]?.value?.toLowerCase().includes('hydrat') ||
+        (typeof event.message === 'string' && event.message.toLowerCase().includes('hydrat')) ||
+        event.tags?.['issue.type'] === 'replay_hydration_error';
+      if (isHydrationError) {
+        const ua = (event.request?.headers as Record<string, string> | undefined)?.['user-agent'] ?? '';
+        const browserName = (event.contexts?.browser?.name as string | undefined) ?? '';
+        const isInAppBrowser =
+          /KAKAOTALK|FBAV|FBAN|FB_IAB|Instagram|Twitter|TwitterAndroid|Line\/|NAVER\(inapp/i.test(ua) ||
+          /Twitter|Facebook|Instagram|KakaoTalk|Line|NAVER/i.test(browserName);
+        if (isInAppBrowser) {
+          return null;
+        }
+      }
       return event;
     },
     // Breadcrumb filtering (drop noisy console/info logs)

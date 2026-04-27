@@ -83,22 +83,35 @@ export async function middleware(req: NextRequest) {
   // Create a response that we can modify cookies on
   const res = NextResponse.next({ request: { headers: req.headers } });
 
-  // In-app browser (KakaoTalk on Android) hard redirect to open-in-browser interstitial
+  // 인앱 브라우저 (KakaoTalk, Twitter/X, Facebook, Instagram, Line, NAVER) hard redirect.
+  // 인앱은 DOM mutation, OAuth third-party cookie 차단, 결제 redirect 제약 등으로
+  // 핵심 기능이 자주 깨진다. /open-in-browser interstitial 로 외부 브라우저 유도.
   try {
     const ua = req.headers.get('user-agent') || '';
     const url = new URL(req.url);
     const pathname = url.pathname;
 
-    const isKakao = /KAKAOTALK/i.test(ua);
-    const isAndroid = /Android/i.test(ua);
+    // SNS 미리보기/검색엔진 봇은 redirect 하지 않는다 (OGP, 인덱싱 영향).
+    const isBot = /bot|crawler|spider|googlebot|bingbot|duckduckbot|yandexbot|baiduspider|facebookexternalhit|twitterbot|linkedinbot|slackbot|whatsapp|telegrambot|discordbot|kakaobot|naverbot|yeti/i.test(ua);
+
+    // 인앱 브라우저 식별. UA 패턴은 각 앱 공식 문서/실측 기준.
+    // - KakaoTalk: "KAKAOTALK"
+    // - Facebook: "FBAV", "FBAN", "FB_IAB" (in-app browser)
+    // - Instagram: "Instagram"
+    // - Twitter/X: "Twitter for iPhone/iPad", "TwitterAndroid", "Twitter Lite"
+    // - Line: "Line/"
+    // - NAVER: "NAVER(inapp" (네이버 앱)
+    const isInApp = !isBot && /KAKAOTALK|FBAV|FBAN|FB_IAB|Instagram|Twitter for|TwitterAndroid|Twitter Lite|Line\/|NAVER\(inapp/i.test(ua);
+
     const isAlreadyOpenPage = /\/open-in-browser(\/|$)/.test(pathname);
     const isApi = pathname.startsWith('/api/');
     // 정적 자산: Next 내부 정적 경로, 파비콘, 그리고 파일 확장자를 가진 퍼블릭 파일들(.txt, .xml, .json 등)
     const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
     const isStatic = pathname.startsWith('/_next') || pathname === '/favicon.ico' || hasFileExtension;
+    // OAuth callback 은 인앱에서도 통과시켜야 callback handler 가 동작
     const isAuthCallback = pathname.startsWith('/auth/callback');
 
-    if (isKakao && isAndroid && !isAlreadyOpenPage && !isApi && !isStatic) {
+    if (isInApp && !isAlreadyOpenPage && !isApi && !isStatic && !isAuthCallback) {
       const returnTo = `${pathname}${url.search}` || '/';
       const target = new URL(`/open-in-browser`, url.origin);
       target.searchParams.set('returnTo', returnTo);
