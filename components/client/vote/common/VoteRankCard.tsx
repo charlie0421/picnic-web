@@ -27,6 +27,13 @@ export function VoteRankCard({
   onVoteChange,
   enableMotionAnimations = true,
 }: VoteRankCardProps) {
+  // SSR / CSR first render 에서는 framer-motion 분기를 끈다. motion 컴포넌트는
+  // mount 시점에 inline style (transform / boxShadow / spring 값) 을 계산해
+  // SSR HTML 에 없는 attribute 를 추가하므로, 그 자체가 hydration mismatch 의
+  // 알려진 원인 (PICNIC-WEB-5C 의 vote/[id] + Podium 케이스). mount 후에만 motion 활성.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const motionEnabled = enableMotionAnimations && mounted;
   const { currentLanguage, t } = useLanguageStore();
   const { withAuth } = useRequireAuth({
     customLoginMessage: {
@@ -124,7 +131,7 @@ export function VoteRankCard({
   const sizeClasses = getFullWidthSize(rank);
 
   // 애니메이션이 비활성화된 경우 기본 렌더링
-  if (!enableMotionAnimations) {
+  if (!motionEnabled) {
     return (
       <div
         className={`relative flex flex-col justify-center items-center ${
