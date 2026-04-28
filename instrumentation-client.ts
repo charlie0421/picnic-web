@@ -91,15 +91,18 @@ if (SENTRY_DSN) {
         }
         // Google AdSense Auto ads (특히 #google_vignette interstitial) 가 hydration
         // 종료 전에 DOM 을 mutate 하면 우리 코드와 무관한 hydration mismatch 가
-        // 잡힌다. URL fragment / request URL 이 광고 단서면 drop.
-        const reqUrl =
-          (typeof event.request?.url === 'string' ? event.request.url : '') ||
-          (event.tags && (event.tags as Record<string, string>)['url']) ||
-          '';
+        // 잡힌다. event.request.url 은 HTTP 요청 URL 이라 fragment(#...) 가 빠지므로
+        // window.location.href 와 tags.url 까지 합쳐서 검사한다.
+        const reqUrl = typeof event.request?.url === 'string' ? event.request.url : '';
+        const tagUrl =
+          (event.tags && (event.tags as Record<string, string>)['url']) || '';
+        const winUrl = typeof window !== 'undefined' ? window.location.href : '';
+        const allUrls = `${reqUrl}|${tagUrl}|${winUrl}`;
         if (
-          reqUrl.includes('#google_vignette') ||
-          reqUrl.includes('googlesyndication') ||
-          reqUrl.includes('googleadservices')
+          allUrls.includes('#google_vignette') ||
+          allUrls.includes('googlesyndication') ||
+          allUrls.includes('googleadservices') ||
+          allUrls.includes('googleads')
         ) {
           return null;
         }
