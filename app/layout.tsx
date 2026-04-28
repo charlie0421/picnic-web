@@ -76,7 +76,10 @@ export default async function RootLayout({
           <ConsentAwareAdsense
             clientId="ca-pub-1539304887624918"
             delayUntilIdle={shouldDelayAds}
-            idleTimeout={shouldDelayAds ? 2200 : 1200}
+            // vote 라우트는 React hydration 종료를 충분히 보장하기 위해 5s 로 늘림.
+            // AdSense Auto ads / vignette 가 hydration 전에 DOM 을 mutate 하면
+            // PICNIC-WEB-5C (replay_hydration_error) 가 #google_vignette URL 로 발생.
+            idleTimeout={shouldDelayAds ? 5000 : 1200}
           />
         )}
         <div className="bg-white">
