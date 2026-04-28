@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
 
 // 실시간 카운트 애니메이션
@@ -21,6 +21,13 @@ export function AnimatedCount({
   suffix = '',
   locale = 'en-US'
 }: AnimatedCountProps) {
+  // SSR / CSR first render 일치 보장을 위해 mount 전엔 plain span 으로
+  // 정적 숫자만 출력. mount 후에야 framer-motion spring 으로 transition.
+  // motion.span 의 initial/animate transform 과 useTransform display 가
+  // SSR HTML 에 없는 attribute 를 추가해 hydration mismatch 를 일으키므로.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const springValue = useSpring(value, {
     duration: duration * 1000,
     bounce: 0.1
@@ -32,6 +39,16 @@ export function AnimatedCount({
   useEffect(() => {
     springValue.set(value);
   }, [springValue, value]);
+
+  if (!mounted) {
+    return (
+      <span className={className}>
+        {prefix}
+        {Math.floor(value).toLocaleString(locale)}
+        {suffix}
+      </span>
+    );
+  }
 
   return (
     <motion.span
