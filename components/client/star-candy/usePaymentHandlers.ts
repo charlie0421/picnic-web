@@ -174,25 +174,10 @@ export function usePaymentHandlers({
                 return;
               }
 
-              // Check popup URL for success/cancel indicators
-              try {
-                const currentUrl = paypalWindow?.location?.href;
-                if (currentUrl && currentUrl.includes('success')) {
-                  clearInterval(interval);
-                  paypalWindow?.close();
-
-                  // Capture the order
-                  const result = await payPalService.captureOrder(orderID);
-                  if (result.success) {
-                    alert(t('payment_success'));
-                    window.location.reload();
-                  } else {
-                    alert(t('payment_failed'));
-                  }
-                }
-              } catch (error) {
-                // Cross-origin restriction, continue polling
-              }
+              // popup 이 paypal.com 으로 redirect 된 뒤 location.href 를 읽으면
+              // SecurityError(cross-origin) 가 매 tick 마다 throw 되어 sentry 에
+              // 노이즈가 쌓인다. 결제 완료 detect 는 위의 closed→captureOrder
+              // 경로로 충분하므로 URL polling 은 제거.
             } catch (error) {
               console.error('Error polling payment status:', error);
             }
