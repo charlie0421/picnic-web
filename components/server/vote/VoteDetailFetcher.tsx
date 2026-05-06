@@ -2,7 +2,7 @@ import 'server-only';
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { Vote, VoteItem, Reward } from '@/types/interfaces';
-import VoteDetailPresenter from '@/components/client/vote/detail/VoteDetailPresenter';
+import VoteDetailClientOnly from '@/components/client/vote/detail/VoteDetailClientOnly';
 import { getVoteById, getVoteItems, getVoteRewards } from '@/utils/api/queries';
 import type { Language } from '@/config/settings';
 
@@ -38,7 +38,7 @@ export default async function VoteDetailFetcher({ voteId, lang, className }: Vot
     };
 
     return (
-      <VoteDetailPresenter
+      <VoteDetailClientOnly
         vote={vote as Vote}
         initialItems={(vote?.vote_item || []) as unknown as VoteItem[]}
         rewards={(rewards || []) as Reward[]}
