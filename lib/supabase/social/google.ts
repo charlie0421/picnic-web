@@ -16,6 +16,7 @@ import {
 import { securityUtils } from "@/utils/auth-redirect";
 import { logAuth, AuthLog } from "@/utils/auth-logger";
 import { runSignupPrecheck } from "@/lib/anti-abuse/signupAntiAbuseService";
+import { AntiAbuseError } from "@/lib/anti-abuse/handler";
 
 /**
  * Google OAuth 설정
@@ -182,6 +183,12 @@ export async function signInWithGoogleImpl(
     };
   } catch (error) {
     console.error("🔍 signInWithGoogleImpl 오류:", error);
+
+    // anti-abuse rate-limited (precheck 차단) 는 caller (UI) 가 dialog 표시.
+    // SocialAuthError 로 감싸지 말고 그대로 throw.
+    if (error instanceof AntiAbuseError) {
+      throw error;
+    }
 
     if (error instanceof SocialAuthError) {
       throw error;

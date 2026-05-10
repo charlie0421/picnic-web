@@ -14,6 +14,7 @@ import {
   SocialAuthOptions,
 } from "./types";
 import { runSignupPrecheck } from "@/lib/anti-abuse/signupAntiAbuseService";
+import { AntiAbuseError } from "@/lib/anti-abuse/handler";
 
 /**
  * Apple OAuth 설정
@@ -142,6 +143,11 @@ export async function signInWithAppleImpl(
       message: "Apple 로그인 리디렉션 중...",
     };
   } catch (error) {
+    // anti-abuse rate-limited (precheck 차단) 는 caller (UI) 가 dialog 표시.
+    if (error instanceof AntiAbuseError) {
+      throw error;
+    }
+
     if (error instanceof SocialAuthError) {
       throw error;
     }
