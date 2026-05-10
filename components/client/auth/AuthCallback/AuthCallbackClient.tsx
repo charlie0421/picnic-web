@@ -62,11 +62,24 @@ export default function AuthCallbackClient() {
           const res = await exchangeCode(code);
           error = res.error;
         }
-        // 교환 직후 별도 verify 호출 없이 리다이렉트 진행
         if (error) {
           throw new Error(`인증 실패: ${error.message}`);
         }
         logAuth(AuthLog.CodeExchangeDone);
+
+        // Anti-abuse signup-verify (Plan 7 Phase 2 web) — sessionStorage 의 hint 로
+        // server 가 raw_app_meta_data 의 signup_pending → signup_verified/unverified 전환.
+        // fire-and-forget. 실패해도 사용자 흐름 영향 없음 (Phase 3 grace 까지 손실 없음).
+        try {
+          const { getStoredSignupHint, runSignupVerify, clearStoredSignupHint } =
+            await import('@/lib/anti-abuse/signupAntiAbuseService');
+          const hint = getStoredSignupHint();
+          if (hint) {
+            runSignupVerify(hint).finally(() => clearStoredSignupHint());
+          }
+        } catch (verifyErr) {
+          console.warn('[anti-abuse] callback verify wiring failed', verifyErr);
+        }
 
         const elapsedTime = Date.now() - startTime;
         const remainingTime = MIN_LOADING_TIME_MS - elapsedTime;

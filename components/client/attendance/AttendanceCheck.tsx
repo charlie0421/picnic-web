@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useAuth } from '@/hooks/useAuth';
+import { AntiAbuseError } from '@/lib/anti-abuse/handler';
 import {
   getAttendanceStatus,
   performAttendanceCheck,
@@ -11,6 +12,7 @@ import {
   AttendanceCheckResponse,
   AttendanceDayStatus,
 } from '@/lib/api/attendance';
+import { RateLimitedDialog } from '@/components/anti-abuse/RateLimitedDialog';
 import AttendanceWeeklyCalendar from './AttendanceWeeklyCalendar';
 import AttendanceDeadlineTimer from './AttendanceDeadlineTimer';
 
@@ -26,6 +28,7 @@ export default function AttendanceCheck() {
   const [checkInResult, setCheckInResult] = useState<AttendanceCheckResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [rateLimitedChannel, setRateLimitedChannel] = useState<string | null>(null);
   const resultTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const dayLabels = currentLanguage === 'ko' ? DAY_LABELS_KO : DAY_LABELS_EN;
@@ -38,7 +41,11 @@ export default function AttendanceCheck() {
       const data = await getAttendanceStatus();
       setStatus(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
+      if (err instanceof AntiAbuseError) {
+        setRateLimitedChannel(err.channel);
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +94,9 @@ export default function AttendanceCheck() {
         setShowConfetti(false);
       }, 3000);
     } catch (err: any) {
-      if (err.code === 'ALREADY_CHECKED') {
+      if (err instanceof AntiAbuseError) {
+        setRateLimitedChannel(err.channel);
+      } else if (err.code === 'ALREADY_CHECKED') {
         setStatus((prev) => (prev ? { ...prev, todayChecked: true } : prev));
       } else {
         setError(err instanceof Error ? err.message : 'Check-in failed');
@@ -137,6 +146,13 @@ export default function AttendanceCheck() {
 
   return (
     <div className="relative flex flex-col gap-3 px-4 py-4">
+      {rateLimitedChannel && (
+        <RateLimitedDialog
+          isOpen
+          channel={rateLimitedChannel}
+          onClose={() => setRateLimitedChannel(null)}
+        />
+      )}
       {/* Confetti animation overlay */}
       {showConfetti && (
         <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">

@@ -13,6 +13,7 @@ import {
   SocialAuthErrorCode,
   SocialAuthOptions,
 } from "./types";
+import { runSignupPrecheck } from "@/lib/anti-abuse/signupAntiAbuseService";
 
 /**
  * Apple OAuth 설정
@@ -96,6 +97,9 @@ export async function signInWithAppleImpl(
     }
 
     console.log("✅ 표준 Supabase Apple OAuth 시작");
+
+    // Anti-abuse precheck — 차단 IP 면 throw, 통과 시 sig hint sessionStorage 저장.
+    await runSignupPrecheck();
 
     // 현재 브라우저 origin 우선 사용 (개발/프로덕션 모두)
     const baseUrl = typeof window !== "undefined"

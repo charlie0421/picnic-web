@@ -16,6 +16,8 @@ import {
 import type { LastLoginInfo } from '@/utils/storage';
 import { useSearchParams, usePathname } from 'next/navigation';
 import { getRedirectUrl, normalizeRedirectPath } from '@/utils/auth-redirect';
+import { AntiAbuseError } from '@/lib/anti-abuse/handler';
+import { RateLimitedDialog } from '@/components/anti-abuse/RateLimitedDialog';
 
 interface SocialLoginButtonsProps {
   onLoginStart?: () => void;
@@ -37,6 +39,7 @@ export function SocialLoginButtons({
   lastLoginInfo,
 }: SocialLoginButtonsProps) {
   const [isLoading, setIsLoading] = useState<SocialLoginProvider | null>(null);
+  const [rateLimitedChannel, setRateLimitedChannel] = useState<string | null>(null);
   const { t } = useLanguageStore();
   const { isLoading: authLoading } = useAuth();
   const { setIsLoading: setGlobalLoading } = useGlobalLoading();
@@ -130,6 +133,14 @@ export function SocialLoginButtons({
           setGlobalLoading(false); // 전역 로딩바 종료
         }
       } catch (error) {
+        if (error instanceof AntiAbuseError) {
+          // anti-abuse-signup-precheck 가 차단된 IP 면 throw — 사용자에게 dialog 노출.
+          console.warn(`[SocialLogin] ${provider} 차단됨 (anti-abuse:${error.channel})`);
+          setRateLimitedChannel(error.channel);
+          setIsLoading(null);
+          setGlobalLoading(false);
+          return;
+        }
         console.error(`💥 [SocialLoginButtons] ${provider} 소셜 로그인 오류:`, error);
         onError?.(
           error instanceof Error
@@ -189,6 +200,13 @@ export function SocialLoginButtons({
 
   return (
     <div className='flex flex-col w-full gap-2 sm:gap-3'>
+      {rateLimitedChannel && (
+        <RateLimitedDialog
+          isOpen
+          channel={rateLimitedChannel}
+          onClose={() => setRateLimitedChannel(null)}
+        />
+      )}
       {/* 최근 사용한 로그인 수단 섹션 */}
       {hasLastUsedProvider && (
         <div className="space-y-2">

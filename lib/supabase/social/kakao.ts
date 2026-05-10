@@ -6,13 +6,14 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
-import { 
-  SocialAuthOptions, 
+import {
+  SocialAuthOptions,
   AuthResult,
   OAuthProviderConfig,
   SocialAuthError,
   SocialAuthErrorCode
 } from './types';
+import { runSignupPrecheck } from "@/lib/anti-abuse/signupAntiAbuseService";
 
 /**
  * Kakao OAuth 설정
@@ -117,7 +118,10 @@ export async function signInWithKakaoImpl(
       redirectUri: targetRedirectUrl,
       scopes: finalScopeString
     });
-    
+
+    // Anti-abuse precheck — 차단 IP 면 throw, 통과 시 sig hint sessionStorage 저장.
+    await runSignupPrecheck();
+
     // 🎯 Supabase 표준 OAuth 사용 (PKCE 자동 처리)
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
