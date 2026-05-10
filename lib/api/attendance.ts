@@ -1,5 +1,6 @@
 'use client';
 
+import { mapAntiAbuseError, AntiAbuseError } from '@/lib/anti-abuse/handler';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 export interface AttendanceDayStatus {
@@ -41,7 +42,11 @@ export async function getAttendanceStatus(): Promise<AttendanceStatusResponse> {
     method: 'GET',
   });
 
-  if (error) throw error;
+  if (error) {
+    const aa = mapAntiAbuseError(error);
+    if (aa instanceof AntiAbuseError) throw aa;
+    throw error;
+  }
   if (!data?.success) throw new Error(data?.error?.message || 'Failed to fetch attendance status');
   return data.data;
 }
@@ -52,7 +57,11 @@ export async function performAttendanceCheck(): Promise<AttendanceCheckResponse>
     method: 'POST',
   });
 
-  if (error) throw error;
+  if (error) {
+    const aa = mapAntiAbuseError(error);
+    if (aa instanceof AntiAbuseError) throw aa;
+    throw error;
+  }
   if (!data?.success) {
     const err = new Error(data?.error?.message || 'Failed to check in');
     (err as any).code = data?.error?.code;

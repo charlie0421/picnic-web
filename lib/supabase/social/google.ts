@@ -15,6 +15,8 @@ import {
 } from "./types";
 import { securityUtils } from "@/utils/auth-redirect";
 import { logAuth, AuthLog } from "@/utils/auth-logger";
+import { runSignupPrecheck } from "@/lib/anti-abuse/signupAntiAbuseService";
+import { AntiAbuseError } from "@/lib/anti-abuse/handler";
 
 /**
  * Google OAuth 설정
@@ -137,6 +139,12 @@ export async function signInWithGoogleImpl(
     logAuth(AuthLog.OAuthParams, googleParams);
     logAuth(AuthLog.OAuthStart);
 
+    // Anti-abuse precheck — 차단된 IP 면 AntiAbuseError(signup) throw, 통과 시 sig hint 발급.
+    // hint 는 signupAntiAbuseService 가 sessionStorage 에 저장 → callback 페이지에서 읽음.
+    // 실패 (네트워크 등) 는 silent fallback. precheck 자체에서 throw 되는 경우는 caller (UI 버튼 핸들러)
+    // 가 catch 후 RateLimitedDialog 표시.
+    await runSignupPrecheck();
+
     // Google은 등록된 redirect_uri와의 완전 일치가 요구되므로
     // redirect_uri(redirectTo)에는 쿼리를 추가하지 않는다. 복귀 주소는 쿠키/스토리지로 복구한다.
     const redirectToNoQuery = redirectUrl;
@@ -175,6 +183,12 @@ export async function signInWithGoogleImpl(
     };
   } catch (error) {
     console.error("🔍 signInWithGoogleImpl 오류:", error);
+
+    // anti-abuse rate-limited (precheck 차단) 는 caller (UI) 가 dialog 표시.
+    // SocialAuthError 로 감싸지 말고 그대로 throw.
+    if (error instanceof AntiAbuseError) {
+      throw error;
+    }
 
     if (error instanceof SocialAuthError) {
       throw error;

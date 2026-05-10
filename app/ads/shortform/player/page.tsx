@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import { AntiAbuseError, mapAntiAbuseError } from '@/lib/anti-abuse/handler';
+import { RateLimitedDialog } from '@/components/anti-abuse/RateLimitedDialog';
 import HlsVideo from '@/components/client/HlsVideo';
 
 type IssuedAd = {
@@ -20,7 +23,9 @@ export default function ShortformAdPlayerPage() {
   const [callingView, setCallingView] = useState(false);
   const [callingMore, setCallingMore] = useState(false);
   const [moreOpened, setMoreOpened] = useState(false);
+  const [rateLimitedChannel, setRateLimitedChannel] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const router = useRouter();
 
   const getAuthToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -36,7 +41,16 @@ export default function ShortformAdPlayerPage() {
       const headers = new Headers({ 'Content-Type': 'application/json' });
       if (auth) headers.set('Authorization', auth);
       const res = await fetch(url, { method: 'GET', headers });
-      if (!res.ok) throw new Error('issue failed');
+      if (!res.ok) {
+        // anti-abuse 429 매핑 — RateLimitedDialog 노출 후 페이지 종료
+        const body = await res.json().catch(() => null);
+        const aa = mapAntiAbuseError({ status: res.status, details: body });
+        if (aa instanceof AntiAbuseError) {
+          setRateLimitedChannel(aa.channel);
+          return;
+        }
+        throw new Error('issue failed');
+      }
       const json = await res.json();
       setAd(json.ad);
       setTokens(json.tokens);
@@ -131,6 +145,16 @@ export default function ShortformAdPlayerPage() {
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: 16 }}>
+      {rateLimitedChannel && (
+        <RateLimitedDialog
+          isOpen
+          channel={rateLimitedChannel}
+          onClose={() => {
+            setRateLimitedChannel(null);
+            router.back();
+          }}
+        />
+      )}
       <h3>숏폼 광고 플레이어</h3>
       {!ad ? (
         <div>{issuing ? '광고 불러오는 중...' : '광고가 없습니다.'}</div>

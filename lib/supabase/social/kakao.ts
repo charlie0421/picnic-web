@@ -6,13 +6,15 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
-import { 
-  SocialAuthOptions, 
+import {
+  SocialAuthOptions,
   AuthResult,
   OAuthProviderConfig,
   SocialAuthError,
   SocialAuthErrorCode
 } from './types';
+import { runSignupPrecheck } from "@/lib/anti-abuse/signupAntiAbuseService";
+import { AntiAbuseError } from "@/lib/anti-abuse/handler";
 
 /**
  * Kakao OAuth 설정
@@ -117,7 +119,10 @@ export async function signInWithKakaoImpl(
       redirectUri: targetRedirectUrl,
       scopes: finalScopeString
     });
-    
+
+    // Anti-abuse precheck — 차단 IP 면 throw, 통과 시 sig hint sessionStorage 저장.
+    await runSignupPrecheck();
+
     // 🎯 Supabase 표준 OAuth 사용 (PKCE 자동 처리)
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
@@ -146,10 +151,15 @@ export async function signInWithKakaoImpl(
     };
     
   } catch (error) {
+    // anti-abuse rate-limited (precheck 차단) 는 caller (UI) 가 dialog 표시.
+    if (error instanceof AntiAbuseError) {
+      throw error;
+    }
+
     if (error instanceof SocialAuthError) {
       throw error;
     }
-    
+
     throw new SocialAuthError(
       SocialAuthErrorCode.AUTH_PROCESS_FAILED,
       error instanceof Error ? error.message : '알 수 없는 Kakao 로그인 오류',

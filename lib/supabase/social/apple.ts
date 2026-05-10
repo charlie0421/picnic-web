@@ -13,6 +13,8 @@ import {
   SocialAuthErrorCode,
   SocialAuthOptions,
 } from "./types";
+import { runSignupPrecheck } from "@/lib/anti-abuse/signupAntiAbuseService";
+import { AntiAbuseError } from "@/lib/anti-abuse/handler";
 
 /**
  * Apple OAuth 설정
@@ -97,6 +99,9 @@ export async function signInWithAppleImpl(
 
     console.log("✅ 표준 Supabase Apple OAuth 시작");
 
+    // Anti-abuse precheck — 차단 IP 면 throw, 통과 시 sig hint sessionStorage 저장.
+    await runSignupPrecheck();
+
     // 현재 브라우저 origin 우선 사용 (개발/프로덕션 모두)
     const baseUrl = typeof window !== "undefined"
       ? window.location.origin
@@ -138,6 +143,11 @@ export async function signInWithAppleImpl(
       message: "Apple 로그인 리디렉션 중...",
     };
   } catch (error) {
+    // anti-abuse rate-limited (precheck 차단) 는 caller (UI) 가 dialog 표시.
+    if (error instanceof AntiAbuseError) {
+      throw error;
+    }
+
     if (error instanceof SocialAuthError) {
       throw error;
     }
