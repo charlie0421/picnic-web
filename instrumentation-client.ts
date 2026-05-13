@@ -72,6 +72,24 @@ if (SENTRY_DSN) {
         if (isThirdPartyAd) {
           return null;
         }
+        // AdSense Auto Ads / Funding Choices CMP 가 cross-origin iframe 에
+        // access 시도하면 stacktrace 에 우리 chunk 의 minified line 만 남고
+        // 광고 SDK filename 이 안 보여 위의 isThirdPartyAd 가 못 잡는다.
+        // 메시지 패턴으로 추가 차단.
+        //   - "Blocked a frame with origin ... cross-origin frame" (PICNIC-WEB-5D)
+        //   - "The request was denied." DOMException code 18 (PICNIC-WEB-61)
+        const errType = error?.type ?? '';
+        const errValue = error?.value ?? '';
+        const isCrossOriginSecurityError =
+          errType === 'SecurityError' &&
+          (
+            errValue.includes('cross-origin frame') ||
+            errValue.includes('Blocked a frame') ||
+            errValue === 'The request was denied.'
+          );
+        if (isCrossOriginSecurityError) {
+          return null;
+        }
       }
       // 인앱 브라우저 (Twitter/X, Facebook, Instagram, KakaoTalk, Line, NAVER 등) 의
       // hydration / replay_hydration_error 는 외부에서 DOM 을 mutate 하기 때문에
