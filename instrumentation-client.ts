@@ -90,6 +90,21 @@ if (SENTRY_DSN) {
         if (isCrossOriginSecurityError) {
           return null;
         }
+        // Chrome Mobile iOS 가 페이지에 주입하는 외부 스크립트(번역/리더/content
+        // blocker 등) 가 무한 재귀에 빠질 때 window.onerror 로 새는 노이즈.
+        // stacktrace 가 비어 있어(`undefined:31`) 식별 불가, 우리 코드 무관.
+        // /login, /download, /open-in-browser 등 무관한 라우트에서 동일 패턴
+        // 발생 (Chrome iOS 100%, mechanism=onerror, 유효 frame 0). PICNIC-WEB-5T.
+        const mechType = error?.mechanism?.type ?? '';
+        const isRangeErrorFromExternal =
+          errType === 'RangeError' &&
+          errValue.includes('Maximum call stack size exceeded') &&
+          mechType === 'onerror' &&
+          (frames.length === 0 ||
+            frames.every((f) => !f.filename || f.filename === '<anonymous>'));
+        if (isRangeErrorFromExternal) {
+          return null;
+        }
       }
       // 인앱 브라우저 (Twitter/X, Facebook, Instagram, KakaoTalk, Line, NAVER 등) 의
       // hydration / replay_hydration_error 는 외부에서 DOM 을 mutate 하기 때문에

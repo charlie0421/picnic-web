@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
-import OpenClient from './OpenClient';
 
 const L = {
   ko: {
@@ -85,7 +84,6 @@ export default async function OpenInBrowserPage({ params, searchParams }: Props)
       }}
     >
       <div style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
-        <OpenClient />
         <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>{t.title}</h1>
         <p style={{ color: '#4b5563', marginBottom: 20, lineHeight: 1.5 }}>{t.desc}</p>
         <p style={{ marginBottom: 16, fontSize: 12, color: '#6b7280', wordBreak: 'break-all' }}>
