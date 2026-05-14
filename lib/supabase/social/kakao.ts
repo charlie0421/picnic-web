@@ -13,7 +13,6 @@ import {
   SocialAuthError,
   SocialAuthErrorCode
 } from './types';
-import { runSignupPrecheck } from "@/lib/anti-abuse/signupAntiAbuseService";
 import { AntiAbuseError } from "@/lib/anti-abuse/handler";
 
 /**
@@ -119,9 +118,6 @@ export async function signInWithKakaoImpl(
       redirectUri: targetRedirectUrl,
       scopes: finalScopeString
     });
-
-    // Anti-abuse precheck — 차단 IP 면 throw, 통과 시 sig hint sessionStorage 저장.
-    await runSignupPrecheck();
 
     // 🎯 Supabase 표준 OAuth 사용 (PKCE 자동 처리)
     const { data, error } = await supabase.auth.signInWithOAuth({
