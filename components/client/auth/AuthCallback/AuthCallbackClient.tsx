@@ -67,23 +67,6 @@ export default function AuthCallbackClient() {
         }
         logAuth(AuthLog.CodeExchangeDone);
 
-        // Anti-abuse signup-verify (Plan 7 Phase 2 web) — sessionStorage 의 hint 로
-        // server 가 raw_app_meta_data 의 signup_pending → signup_verified/unverified 전환.
-        // 1.5s 타임아웃까지 await — `window.location.replace` 직전에 in-flight fetch 가
-        // 중단되는 race 회피. 타임아웃 후엔 진행 (verify 누락은 Phase 3 grace 까지 무해).
-        try {
-          const { getStoredSignupHint, runSignupVerify, clearStoredSignupHint } =
-            await import('@/lib/anti-abuse/signupAntiAbuseService');
-          const hint = getStoredSignupHint();
-          if (hint) {
-            const verifyPromise = runSignupVerify(hint).finally(() => clearStoredSignupHint());
-            const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 1500));
-            await Promise.race([verifyPromise, timeoutPromise]);
-          }
-        } catch (verifyErr) {
-          console.warn('[anti-abuse] callback verify wiring failed', verifyErr);
-        }
-
         const elapsedTime = Date.now() - startTime;
         const remainingTime = MIN_LOADING_TIME_MS - elapsedTime;
         if (remainingTime > 0) {
