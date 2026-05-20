@@ -47,10 +47,13 @@ export function useGoonghapForm() {
           try {
             const { data } = await supabase
               .from('artist_user_bookmark')
-              .select('artist:artist(id,name,image)')
+              .select('artist:artist(id,name,image,deleted_at)')
               .eq('user_id', user.id)
               .limit(50);
-            const mapped = (data || []).map((row: any) => row.artist).filter(Boolean);
+            // soft-deleted 아티스트는 '내 아티스트' 목록에서 제외
+            const mapped = (data || [])
+              .map((row: any) => row.artist)
+              .filter((a: any) => a && !a.deleted_at);
             setMyArtists(mapped);
           } catch {}
 
@@ -112,6 +115,7 @@ export function useGoonghapForm() {
       const { data, error } = await supabase
         .from('artist')
         .select('id,name,image')
+        .is('deleted_at', null) // soft-deleted 아티스트 제외
         .or(`name->>ko.ilike.%${q}%,name->>en.ilike.%${q}%,name->>ja.ilike.%${q}%`)
         .order('id', { ascending: true })
         .limit(20);
@@ -155,6 +159,7 @@ export function useGoonghapForm() {
           .from('artist')
           .select('id, birth_date, yy, mm, dd')
           .eq('id', selectedArtistId!)
+          .is('deleted_at', null) // soft-deleted 아티스트 선택 차단
           .single();
         if (artistErr) throw artistErr;
 
