@@ -1,6 +1,5 @@
 import { Metadata } from 'next';
 import StarCandyProductsFetcherServer from '@/components/server/star-candy/StarCandyProductsFetcher';
-import StarCandyPageTabs from '@/components/client/star-candy/StarCandyPageTabs';
 import { getLanguageFromParams } from '@/utils/api/language';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -31,9 +30,7 @@ export default async function StarCandyPage({ params }: { params: Promise<{ lang
         }}
       />
       <main className="container mx-auto px-4 py-6">
-        <StarCandyPageTabs
-          purchaseContent={<StarCandyProductsFetcherServer />}
-        />
+        <StarCandyProductsFetcherServer />
       </main>
     </>
   );
