@@ -40,10 +40,10 @@ const ExclusiveOpenBadge: React.FC<ExclusiveOpenBadgeProps> = ({ className = '' 
   return (
     <div
       role="status"
-      className={`w-full bg-amber-400 text-amber-950 border-b border-amber-500 ${className}`}
+      className={`w-full bg-orange-500 text-white border-b-2 border-orange-700 shadow-sm ${className}`}
     >
       <div className="container mx-auto flex items-center justify-center gap-2 px-3 py-1.5 text-center sm:py-2">
-        <span className="shrink-0 inline-flex items-center rounded bg-amber-950 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-50 sm:text-xs">
+        <span className="shrink-0 inline-flex items-center rounded bg-white px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-orange-700 sm:text-xs">
           Beta
         </span>
         <span className="text-xs font-semibold leading-snug sm:text-sm">

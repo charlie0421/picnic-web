@@ -150,7 +150,7 @@ const Header: React.FC = () => {
             <NavigationLink href="/" className='flex items-center flex-shrink-0'>
               <Image src='/images/logo.webp' alt='logo' width={40} height={40} priority className='w-8 h-8 sm:w-10 sm:h-10 rounded-lg' />
             </NavigationLink>
-            <span className='flex-shrink-0 inline-flex items-center rounded-md bg-amber-400 px-1.5 py-0.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-amber-950'>
+            <span className='flex-shrink-0 inline-flex items-center rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-white'>
               Beta
             </span>
             <div className='flex-1 relative'>
