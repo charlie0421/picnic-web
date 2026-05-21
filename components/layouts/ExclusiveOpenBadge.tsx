@@ -21,7 +21,7 @@ const ExclusiveOpenBadge: React.FC<ExclusiveOpenBadgeProps> = ({ className = '' 
 
     switch (currentLanguage) {
       case 'ko':
-        return '현재는 배타 오픈 기간입니다. 곧 정식 서비스를 제공할 예정입니다.';
+        return '현재는 베타 오픈 기간입니다. 곧 정식 서비스를 제공할 예정입니다.';
       case 'en':
         return 'Currently in exclusive open beta. Official service coming soon.';
       case 'ja':
@@ -38,9 +38,18 @@ const ExclusiveOpenBadge: React.FC<ExclusiveOpenBadgeProps> = ({ className = '' 
   };
 
   return (
-    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ${className}`}>
-      <span className="mr-1">🎯</span>
-      {getExclusiveOpenText()}
+    <div
+      role="status"
+      className={`w-full bg-amber-400 text-amber-950 border-b border-amber-500 ${className}`}
+    >
+      <div className="container mx-auto flex items-center justify-center gap-2 px-3 py-1.5 text-center sm:py-2">
+        <span className="shrink-0 inline-flex items-center rounded bg-amber-950 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-50 sm:text-xs">
+          Beta
+        </span>
+        <span className="text-xs font-semibold leading-snug sm:text-sm">
+          {getExclusiveOpenText()}
+        </span>
+      </div>
     </div>
   );
 };
