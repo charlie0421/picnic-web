@@ -37,18 +37,22 @@ const ExclusiveOpenBadge: React.FC<ExclusiveOpenBadgeProps> = ({ className = '' 
     }
   };
 
+  // 주황 배경은 콘텐츠(둥근 배너)에만 한정. 바깥 행은 흰색 → AdSense Auto Ads 가
+  // 이 근처에 광고를 주입해도 주황 배경이 광고 영역으로 번지지 않음(구조적 보장).
   return (
-    <div
-      role="status"
-      className={`w-full bg-orange-500 text-white border-b-2 border-orange-700 shadow-sm ${className}`}
-    >
-      <div className="container mx-auto flex items-center justify-center gap-2 px-3 py-1.5 text-center sm:py-2">
-        <span className="shrink-0 inline-flex items-center rounded bg-white px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-orange-700 sm:text-xs">
-          Beta
-        </span>
-        <span className="text-xs font-semibold leading-snug sm:text-sm">
-          {getExclusiveOpenText()}
-        </span>
+    <div className={`w-full bg-white border-b border-gray-200 ${className}`}>
+      <div className="container mx-auto px-3 py-2">
+        <div
+          role="status"
+          className="flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-white shadow-sm"
+        >
+          <span className="shrink-0 inline-flex items-center rounded bg-white px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-orange-700 sm:text-xs">
+            Beta
+          </span>
+          <span className="text-xs font-semibold leading-snug sm:text-sm text-center">
+            {getExclusiveOpenText()}
+          </span>
+        </div>
       </div>
     </div>
   );
