@@ -99,11 +99,7 @@ export default function MainLayoutClient({ children, initialLanguage }: MainLayo
               <DialogProvider>
                 <AuthRedirectHandler>
                   <Header />
-                  {!hideBetaNotice && (
-                    <div className='flex justify-center py-1 sm:py-2 bg-yellow-100'>
-                      <ExclusiveOpenBadge />
-                    </div>
-                  )}
+                  {!hideBetaNotice && <ExclusiveOpenBadge />}
                   <SubMenu />
                   <main className='flex-1 container mx-auto'>
                     {children}
