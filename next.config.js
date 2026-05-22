@@ -23,9 +23,10 @@ const buildTime = new Date().toISOString();
 const nextConfig = {
   reactStrictMode: true,
 
-  // Source Maps 설정 - 프로덕션에서는 비활성화 (빌드 속도 개선)
-  // Sentry는 서버 소스맵만으로도 에러 추적 가능
-  productionBrowserSourceMaps: false,
+  // Sentry 가 client-side 에러를 decode 할 수 있도록 browser sourcemap 생성.
+  // Sentry plugin 의 hideSourceMaps:true 가 업로드 후 .map 파일을 삭제하므로
+  // public 노출은 없음 (`Yd` 같은 식별 불가 minified 에러를 풀기 위함).
+  productionBrowserSourceMaps: true,
   
   // 환경변수 명시적 설정 (브라우저에서 사용 가능하도록)
   env: {
@@ -184,16 +185,22 @@ const nextConfig = {
 
 const sentryWebpackPluginOptions = {
   silent: true, // 로그 비활성화
-  hideSourceMaps: true, // 소스맵 숨기기
+  hideSourceMaps: true, // 업로드 후 .map 파일 public 노출 방지
   // Sentry 조직 및 프로젝트 정보 명시적 설정
-  org: process.env.SENTRY_ORG || 'picnic-global',
+  org: process.env.SENTRY_ORG || 'icon-casting',
   project: process.env.SENTRY_PROJECT || 'picnic-web',
   authToken: process.env.SENTRY_AUTH_TOKEN,
   // 릴리즈 정보
   release: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
-  // 빌드 속도 개선: 소스맵 업로드 비활성화 (필요시 CI에서 별도 실행)
-  disableServerWebpackPlugin: true,
-  disableClientWebpackPlugin: true,
+  // 기본값은 `static/chunks/pages/` + `static/chunks/app/` 만 업로드 — Supabase
+  // 등 공유 vendor 청크가 제외돼 'Yd' 같은 SDK 내부 minified 클래스가 안 풀린다.
+  // PICNIC-WEB-5S/5V 처럼 root cause 가 vendor chunk 인 케이스를 decode 하려면
+  // 모든 client chunk 가 필요.
+  widenClientFileUpload: true,
+  // SENTRY_AUTH_TOKEN 있을 때만 소스맵 업로드 (Vercel 빌드에선 활성, 로컬 빌드
+  // 에선 자동 비활성).
+  disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
+  disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
 };
 
 module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
