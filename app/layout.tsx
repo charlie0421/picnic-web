@@ -56,8 +56,13 @@ export default async function RootLayout({
   const languageMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/);
   const currentLang = languageMatch ? languageMatch[1] : 'ko';
 
-  const shouldLoadAds = process.env.NODE_ENV === 'production';
   const voteRoutePattern = /^\/[a-z]{2}(?:-[a-z]{2})?\/vote(?:\/|$)/i;
+  // /download 는 앱스토어로 빠르게 빠지는 landing page 라 AdSense 노출 가치가
+  // 거의 없는 반면, Auto ads / vignette 가 slow mobile 의 hydration 완료 전에
+  // DOM 을 mutate 해 PICNIC-WEB-5C 단일 culprit 으로 누적됨.
+  const downloadRoutePattern = /^\/[a-z]{2}(?:-[a-z]{2})?\/download(?:\/|$)/i;
+  const isAdFreeRoute = downloadRoutePattern.test(pathname || '');
+  const shouldLoadAds = process.env.NODE_ENV === 'production' && !isAdFreeRoute;
   const shouldDelayAds = voteRoutePattern.test(pathname || '');
 
   return (
