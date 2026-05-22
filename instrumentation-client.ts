@@ -49,25 +49,41 @@ if (SENTRY_DSN) {
     
     // Event filtering
     beforeSend(event) {
-      // Filter out known development errors
+      // window.onerror 로 캡처된 cross-origin / 외부 에러는 Sentry SDK 가 종종
+      // outer `Error` wrapper 로 감싸 event.exception.values 에 두 entry 가
+      // 들어온다 ([{ type:'Error', value:'SecurityError: ...' },
+      // { type:'SecurityError', value:'Blocked a frame...' }] 처럼).
+      // values[0] 만 검사하면 type 매치가 실패해 노이즈가 새므로 (PR #25 이후
+      // PICNIC-WEB-5D 가 계속 firing 한 원인) 모든 시그니처 체크는 values
+      // 전체에 대해 some() 으로 매치한다.
       if (event.exception) {
-        const error = event.exception.values?.[0];
-        if (error?.value?.includes('hydration') && process.env.NODE_ENV === 'development') {
+        const values = event.exception.values ?? [];
+        type ExceptionValue = (typeof values)[number];
+        const matchesAnyValue = (predicate: (v: ExceptionValue) => boolean) =>
+          values.some(predicate);
+
+        if (
+          process.env.NODE_ENV === 'development' &&
+          matchesAnyValue((v) => v.value?.includes('hydration') ?? false)
+        ) {
           return null;
         }
+
         // Drop errors originating from third-party ad SDK frames
         // (Google AdSense / DoubleClick / Twitter in-app webview injected globals).
         // 우리 코드와 무관하며 disposed iframe race / 외부 전역 변수 미정의가 대다수.
-        const frames = error?.stacktrace?.frames ?? [];
-        const isThirdPartyAd = frames.some((f) => {
-          const fn = f.filename ?? '';
-          return (
-            fn.includes('/pagead/') ||
-            fn.includes('googlesyndication.com') ||
-            fn.includes('googletagservices.com') ||
-            fn.includes('doubleclick.net') ||
-            fn.includes('adsbygoogle')
-          );
+        const isThirdPartyAd = matchesAnyValue((v) => {
+          const frames = v.stacktrace?.frames ?? [];
+          return frames.some((f) => {
+            const fn = f.filename ?? '';
+            return (
+              fn.includes('/pagead/') ||
+              fn.includes('googlesyndication.com') ||
+              fn.includes('googletagservices.com') ||
+              fn.includes('doubleclick.net') ||
+              fn.includes('adsbygoogle')
+            );
+          });
         });
         if (isThirdPartyAd) {
           return null;
@@ -78,15 +94,16 @@ if (SENTRY_DSN) {
         // 메시지 패턴으로 추가 차단.
         //   - "Blocked a frame with origin ... cross-origin frame" (PICNIC-WEB-5D)
         //   - "The request was denied." DOMException code 18 (PICNIC-WEB-61)
-        const errType = error?.type ?? '';
-        const errValue = error?.value ?? '';
-        const isCrossOriginSecurityError =
-          errType === 'SecurityError' &&
-          (
-            errValue.includes('cross-origin frame') ||
-            errValue.includes('Blocked a frame') ||
-            errValue === 'The request was denied.'
+        const isCrossOriginSecurityError = matchesAnyValue((v) => {
+          const errType = v.type ?? '';
+          const errValue = v.value ?? '';
+          return (
+            errType === 'SecurityError' &&
+            (errValue.includes('cross-origin frame') ||
+              errValue.includes('Blocked a frame') ||
+              errValue === 'The request was denied.')
           );
+        });
         if (isCrossOriginSecurityError) {
           return null;
         }
@@ -95,13 +112,19 @@ if (SENTRY_DSN) {
         // stacktrace 가 비어 있어(`undefined:31`) 식별 불가, 우리 코드 무관.
         // /login, /download, /open-in-browser 등 무관한 라우트에서 동일 패턴
         // 발생 (Chrome iOS 100%, mechanism=onerror, 유효 frame 0). PICNIC-WEB-5T.
-        const mechType = error?.mechanism?.type ?? '';
-        const isRangeErrorFromExternal =
-          errType === 'RangeError' &&
-          errValue.includes('Maximum call stack size exceeded') &&
-          mechType === 'onerror' &&
-          (frames.length === 0 ||
-            frames.every((f) => !f.filename || f.filename === '<anonymous>'));
+        const isRangeErrorFromExternal = matchesAnyValue((v) => {
+          const errType = v.type ?? '';
+          const errValue = v.value ?? '';
+          const frames = v.stacktrace?.frames ?? [];
+          const mechType = v.mechanism?.type ?? '';
+          return (
+            errType === 'RangeError' &&
+            errValue.includes('Maximum call stack size exceeded') &&
+            mechType === 'onerror' &&
+            (frames.length === 0 ||
+              frames.every((f) => !f.filename || f.filename === '<anonymous>'))
+          );
+        });
         if (isRangeErrorFromExternal) {
           return null;
         }
