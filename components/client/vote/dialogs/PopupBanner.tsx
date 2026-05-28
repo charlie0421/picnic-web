@@ -121,14 +121,13 @@ const PopupBanner: React.FC<PopupBannerProps> = ({
             }`}
           >
             {/* 이미지 영역 */}
-            <div
-              className='w-full flex-shrink-0 rounded-t-lg overflow-hidden bg-gray-100'
-              style={{ position: 'relative', paddingTop: '56.25%' }}
-            >
+            <div className='relative w-full aspect-video flex-shrink-0 rounded-t-lg overflow-hidden bg-gray-100'>
               <OptimizedImage
                 src={imageUrl || '/images/logo_alpha.png'}
                 alt='popup'
                 fill
+                priority
+                sizes='(max-width: 640px) 100vw, 384px'
                 className={`${imageUrl ? 'object-cover' : 'object-contain'}`}
               />
             </div>
