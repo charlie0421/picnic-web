@@ -39,6 +39,11 @@ const AuthProviderDeferred = dynamic<ProviderProps>(
   },
 );
 
+const PopupBannerLoader = dynamic(
+  () => import('@/components/client/common/PopupBannerLoader'),
+  { ssr: false, loading: () => null },
+);
+
 interface VoteLiteClientLayoutProps {
   children: React.ReactNode;
   initialLanguage: string;
@@ -54,7 +59,10 @@ const VoteLiteClientLayoutComponent = memo(function VoteLiteClientLayout({
         <GlobalLoadingProviderDeferred>
           <LanguageSyncProvider initialLanguage={initialLanguage}>
             <LcpReporter />
-            <AuthProviderDeferred>{children}</AuthProviderDeferred>
+            <AuthProviderDeferred>
+              {children}
+              <PopupBannerLoader />
+            </AuthProviderDeferred>
           </LanguageSyncProvider>
         </GlobalLoadingProviderDeferred>
       </NavigationProviderDeferred>
