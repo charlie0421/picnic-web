@@ -32,6 +32,11 @@ const LcpReporter = dynamic(
   { ssr: false, loading: () => null },
 );
 
+const PopupBannerLoader = dynamic(
+  () => import('@/components/client/common/PopupBannerLoader'),
+  { ssr: false, loading: () => null },
+);
+
 // Avatar localStorage 동기화는 제거하여 단순화
 
 interface ClientLayoutProps {
@@ -60,6 +65,7 @@ const ClientLayoutComponent = memo(function ClientLayoutInternal({
                   <LcpReporter />
                   <GlobalNotifications />
                   <GlobalLoadingOverlay />
+                  <PopupBannerLoader />
                   <Analytics />
                 </AuthRedirectHandler>
               </DialogProvider>
