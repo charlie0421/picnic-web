@@ -129,13 +129,8 @@ function buildVoteQuery(
 
   // 지역/타입 필터링 - 'all'인 경우 필터링하지 않음
   if (area && area !== VOTE_AREAS.ALL) {
-    if (area === VOTE_AREAS.PIC_CHART) {
-      // PIC-CHART: vote_category가 'image' 또는 'weekly'인 것
-      query = query.in("vote_category", ['image', 'weekly']);
-    } else {
-      // K-POP, K-MUSICAL: areas 배열에 해당 값이 포함되어 있는지 확인
-      query = query.contains("areas", [area]);
-    }
+    // 모든 area 탭(pic-chart 포함) — areas 배열에 값 포함 여부로 필터
+    query = query.contains("areas", [area]);
   }
 
   const { column, ascending } = getVoteOrderConfig(status);
