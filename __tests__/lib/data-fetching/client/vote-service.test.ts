@@ -187,12 +187,12 @@ describe('vote-service.client', () => {
       expect(mockQuery.contains).toHaveBeenCalledWith('areas', ['kpop']);
     });
 
-    it('should apply pic-chart area filter using vote_category', async () => {
+    it('should apply pic-chart area filter using areas array', async () => {
       const client = createMockSupabaseClient({ data: [] });
       await getVotesClient(client as any, undefined, 'pic-chart');
 
       const mockQuery = client._mockQuery;
-      expect(mockQuery.in).toHaveBeenCalledWith('vote_category', ['image', 'weekly']);
+      expect(mockQuery.contains).toHaveBeenCalledWith('areas', ['pic-chart']);
     });
 
     it('should not apply area filter for "all"', async () => {
