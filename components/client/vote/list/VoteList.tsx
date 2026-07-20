@@ -201,7 +201,7 @@ function VotePodiumCard({
   const allItems = useMemo(() => (
     (((vote as any).vote_item as Array<VoteItem & { artist?: any }>) ||
       ((vote as any).voteItem as Array<VoteItem & { artist?: any }>)) || []
-  ), [vote]);
+  ).filter((item) => !item.deleted_at), [vote]);
   const totalVotes = useMemo(() => sumVoteTotals(allItems), [allItems]);
   const voteStatus = getVoteStatus(vote);
 

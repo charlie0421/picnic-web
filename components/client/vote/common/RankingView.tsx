@@ -37,7 +37,8 @@ export const RankingView: React.FC<RankingViewProps> = ({
   const { t } = useLanguageStore();
   const { userProfile } = useAuth();
   const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
-  const totalVotes = sumVoteTotals(items);
+  const activeItems = items.filter((item) => !item.deleted_at);
+  const totalVotes = sumVoteTotals(activeItems);
   const display = (item: EnhancedVoteItem) => formatCandidateVote({
     votes: item.vote_total,
     totalVotes,
@@ -54,7 +55,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
   });
 
   // 상위 3개 아이템만 추출
-  const topItems = items.slice(0, 3);
+  const topItems = activeItems.slice(0, 3);
 
   if (topItems.length === 0) {
     return null;
