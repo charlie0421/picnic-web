@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatCandidateVote,
+  filterActiveVoteItems,
   formatVoteShare,
   sharePercentDecimals,
   sumVoteTotals,
@@ -74,5 +75,11 @@ describe('vote display utilities', () => {
       { vote_total: 50, deleted_at: '2026-01-01' },
       { vote_total: 25 },
     ])).toBe(125);
+  });
+
+  it('filters deleted candidates before ranking or rendering', () => {
+    const active = { id: 1, vote_total: 70 };
+    const deleted = { id: 2, vote_total: 1000, deleted_at: '2026-01-01' };
+    expect(filterActiveVoteItems([active, deleted, null])).toEqual([active]);
   });
 });

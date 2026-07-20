@@ -14,7 +14,7 @@ import {
   HEADER_RECALC_DELAY_MS,
 } from './vote-detail-types';
 import { useVotePolling } from './useVotePolling';
-import { sumVoteTotals } from '../common/vote-display-utils';
+import { filterActiveVoteItems, sumVoteTotals } from '../common/vote-display-utils';
 
 export function useVoteDetail({
   vote,
@@ -181,7 +181,8 @@ export function useVoteDetail({
   };
 
   const { rankedVoteItems, filteredItems, totalVotes } = useMemo(() => {
-    const ranked = [...voteItems]
+    const activeVoteItems = filterActiveVoteItems(voteItems);
+    const ranked = [...activeVoteItems]
       .sort((a, b) => {
         const voteDiff = (b.vote_total || 0) - (a.vote_total || 0);
         if (voteDiff !== 0) return voteDiff;
@@ -208,7 +209,7 @@ export function useVoteDetail({
           return artistName.includes(query);
         })
       : ranked;
-    const total = sumVoteTotals(voteItems);
+    const total = sumVoteTotals(activeVoteItems);
     return { rankedVoteItems: ranked, filteredItems: filtered, totalVotes: total };
   }, [voteItems, debouncedSearchQuery, currentLanguage]);
 

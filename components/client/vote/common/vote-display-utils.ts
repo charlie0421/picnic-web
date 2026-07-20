@@ -5,6 +5,12 @@ interface VoteTotalLike {
   deleted_at?: string | null;
 }
 
+export function filterActiveVoteItems<T extends { deleted_at?: string | null }>(
+  items: Array<T | null | undefined>,
+): T[] {
+  return items.filter((item): item is T => Boolean(item && !item.deleted_at));
+}
+
 interface FormatCandidateVoteOptions {
   votes: number | null | undefined;
   totalVotes: number;
@@ -56,8 +62,7 @@ export function formatCandidateVote({
 export function sumVoteTotals(
   items: Array<VoteTotalLike | null | undefined>,
 ): number {
-  return items.reduce((total, item) => {
-    if (!item || item.deleted_at) return total;
+  return filterActiveVoteItems(items).reduce((total, item) => {
     return total + Math.max(0, item.vote_total ?? 0);
   }, 0);
 }

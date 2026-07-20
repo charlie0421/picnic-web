@@ -5,7 +5,7 @@ import { VoteItem } from '@/types/interfaces';
 import { useVoteStore } from '@/stores/voteStore';
 import { getLocalizedString, getLocalizedJson, hasValidLocalizedString } from '@/utils/api/strings';
 import { useAuth } from '@/hooks/useAuth';
-import { formatCandidateVote, sumVoteTotals } from '../common/vote-display-utils';
+import { filterActiveVoteItems, formatCandidateVote, sumVoteTotals } from '../common/vote-display-utils';
 
 export interface VoteSubmitProps {
   voteItems?: Array<VoteItem & { artist?: any }>;
@@ -49,10 +49,11 @@ export function VoteSubmit({
 
   // 스토어 사용 여부에 따라 상태 결정
   const voteItems = useStore ? currentVote.voteItems : (propVoteItems || []);
+  const activeVoteItems = filterActiveVoteItems(voteItems);
   const selectedItemId = useStore ? submission.selectedItemId : propSelectedItemId;
   const isSubmitting = useStore ? submission.isSubmitting : propIsSubmitting;
   const submissionError = useStore ? submission.error : null;
-  const totalVotes = sumVoteTotals(voteItems);
+  const totalVotes = sumVoteTotals(activeVoteItems);
 
   const [validationError, setValidationError] = useState<string>('');
   const [isMounted, setIsMounted] = useState(false);
@@ -168,7 +169,7 @@ export function VoteSubmit({
 
       {/* 투표 항목 그리드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {voteItems.map((item) => {
+        {activeVoteItems.map((item) => {
           const isSelected = selectedItemId === item.id;
           const a = (item as any).artist;
           const artistName = a?.name || '아티스트';
