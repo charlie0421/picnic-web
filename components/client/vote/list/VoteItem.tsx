@@ -17,6 +17,7 @@ export interface VoteItemProps {
   variant?: 'card' | 'list' | 'compact';
   // 스토어 사용 여부 (기본값: false - 기존 동작 유지)
   useStore?: boolean;
+  voteDisplay?: string;
 }
 
 export function VoteItem({
@@ -27,7 +28,8 @@ export function VoteItem({
   onSelect,
   className = '',
   variant = 'card',
-  useStore = false
+  useStore = false,
+  voteDisplay,
 }: VoteItemProps) {
   const { currentLanguage } = useLanguageStore();
   
@@ -175,7 +177,7 @@ export function VoteItem({
         {/* 투표수 (표시 옵션이 활성화된 경우) */}
         {showVoteCount && isMounted && (
           <div className={`${styles.votes} text-primary`}>
-            {voteCount.toLocaleString('en-US')} 표
+            {voteDisplay ?? `${voteCount.toLocaleString('en-US')} 표`}
           </div>
         )}
       </div>
@@ -207,4 +209,4 @@ export function VoteItem({
   );
 }
 
-export default VoteItem; 
+export default VoteItem;

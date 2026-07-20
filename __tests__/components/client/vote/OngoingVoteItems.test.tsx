@@ -46,4 +46,10 @@ describe('OngoingVoteItems vote shares', () => {
     expect(screen.getByText('70.00% (70)')).toBeInTheDocument();
     expect(screen.getByText('30.00% (30)')).toBeInTheDocument();
   });
+
+  it('shows raw counts in parentheses to super admins', () => {
+    profile = { is_super_admin: true };
+    render(<OngoingVoteItems vote={vote} mode="list" />);
+    expect(screen.getByText('70.00% (70)')).toBeInTheDocument();
+  });
 });

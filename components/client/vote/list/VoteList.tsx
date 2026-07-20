@@ -7,6 +7,9 @@ import VoteLoadingSkeleton from './VoteLoadingSkeleton';
 import { useVoteStore } from '@/stores/voteStore';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { useAuth } from '@/hooks/useAuth';
+import { getVoteStatus } from '@/components/server/utils';
+import { formatCandidateVote, sumVoteTotals } from '../common/vote-display-utils';
 
 export interface VoteListProps {
   votes?: Vote[];
@@ -192,10 +195,18 @@ function VotePodiumCard({
   onClick?: () => void;
 }) {
   const { currentLocale, t, push } = useLocaleRouter();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
+
+  const allItems = useMemo(() => (
+    (((vote as any).vote_item as Array<VoteItem & { artist?: any }>) ||
+      ((vote as any).voteItem as Array<VoteItem & { artist?: any }>)) || []
+  ), [vote]);
+  const totalVotes = useMemo(() => sumVoteTotals(allItems), [allItems]);
+  const voteStatus = getVoteStatus(vote);
 
   const topItems = useMemo(() => {
-    const items = (((vote as any).vote_item as Array<VoteItem & { artist?: any }>) || ((vote as any).voteItem as Array<VoteItem & { artist?: any }>)) || [];
-    return [...items]
+    return [...allItems]
       .map((it) => ({
         ...it,
         vote_total: it.vote_total ?? 0,
@@ -203,7 +214,7 @@ function VotePodiumCard({
       }))
       .sort((a, b) => (b.vote_total || 0) - (a.vote_total || 0))
       .slice(0, 3);
-  }, [vote]);
+  }, [allItems]);
 
   const handleClick = () => {
     if (onClick) return onClick();
@@ -233,11 +244,11 @@ function VotePodiumCard({
         ) : (
           <div className="flex items-end justify-center gap-3">
             {/* 2위 */}
-            <PodiumItem item={topItems[1]} rank={2} locale={currentLocale} t={t} className="translate-y-2" />
+            <PodiumItem item={topItems[1]} rank={2} locale={currentLocale} t={t} totalVotes={totalVotes} voteStatus={voteStatus} isAdmin={isAdmin} className="translate-y-2" />
             {/* 1위 */}
-            <PodiumItem item={topItems[0]} rank={1} locale={currentLocale} t={t} highlight />
+            <PodiumItem item={topItems[0]} rank={1} locale={currentLocale} t={t} totalVotes={totalVotes} voteStatus={voteStatus} isAdmin={isAdmin} highlight />
             {/* 3위 */}
-            <PodiumItem item={topItems[2]} rank={3} locale={currentLocale} t={t} className="translate-y-3" />
+            <PodiumItem item={topItems[2]} rank={3} locale={currentLocale} t={t} totalVotes={totalVotes} voteStatus={voteStatus} isAdmin={isAdmin} className="translate-y-3" />
           </div>
         )}
       </div>
@@ -252,6 +263,9 @@ function PodiumItem({
   t,
   className = '',
   highlight = false,
+  totalVotes,
+  voteStatus,
+  isAdmin,
 }: {
   item?: VoteItem & { artist?: any; vote_total?: number | null };
   rank: 1 | 2 | 3;
@@ -259,6 +273,9 @@ function PodiumItem({
   t: (key: string, args?: Record<string, string>) => string;
   className?: string;
   highlight?: boolean;
+  totalVotes: number;
+  voteStatus: 'upcoming' | 'ongoing' | 'completed' | 'admin';
+  isAdmin: boolean;
 }) {
   if (!item) {
     return <div className="w-24 sm:w-28" />;
@@ -274,7 +291,12 @@ function PodiumItem({
       : '');
   const imageSrc = item.artist?.image || null;
   const total = item.vote_total ?? 0;
-  const formattedTotal = (total || 0).toLocaleString('ko-KR');
+  const formattedTotal = formatCandidateVote({
+    votes: total,
+    totalVotes,
+    status: voteStatus,
+    isAdmin,
+  });
 
   const size = rank === 1 ? 112 : rank === 2 ? 84 : 72;
   const isPrimaryVisual = rank === 1;
@@ -313,4 +335,4 @@ function PodiumItem({
   );
 }
 
-export default VoteList; 
+export default VoteList;

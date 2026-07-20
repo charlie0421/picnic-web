@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { VoteItem } from '@/types/interfaces';
 import { useVoteStore } from '@/stores/voteStore';
 import { getLocalizedString, getLocalizedJson, hasValidLocalizedString } from '@/utils/api/strings';
+import { useAuth } from '@/hooks/useAuth';
+import { formatCandidateVote, sumVoteTotals } from '../common/vote-display-utils';
 
 export interface VoteSubmitProps {
   voteItems?: Array<VoteItem & { artist?: any }>;
@@ -33,6 +35,8 @@ export function VoteSubmit({
   showVoteCount = true,
   useStore = true
 }: VoteSubmitProps) {
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
   // Zustand 스토어 상태
   const {
     currentVote,
@@ -48,6 +52,7 @@ export function VoteSubmit({
   const selectedItemId = useStore ? submission.selectedItemId : propSelectedItemId;
   const isSubmitting = useStore ? submission.isSubmitting : propIsSubmitting;
   const submissionError = useStore ? submission.error : null;
+  const totalVotes = sumVoteTotals(voteItems);
 
   const [validationError, setValidationError] = useState<string>('');
   const [isMounted, setIsMounted] = useState(false);
@@ -228,7 +233,12 @@ export function VoteSubmit({
                 )}
                 {showVoteCount && (
                   <p className="text-sm font-bold text-primary">
-                    {voteCount.toLocaleString('en-US')} 표
+                    {formatCandidateVote({
+                      votes: voteCount,
+                      totalVotes,
+                      status: 'ongoing',
+                      isAdmin,
+                    })}
                   </p>
                 )}
               </div>
@@ -268,4 +278,4 @@ export function VoteSubmit({
   );
 }
 
-export default VoteSubmit; 
+export default VoteSubmit;

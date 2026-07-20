@@ -14,6 +14,7 @@ import {
   HEADER_RECALC_DELAY_MS,
 } from './vote-detail-types';
 import { useVotePolling } from './useVotePolling';
+import { sumVoteTotals } from '../common/vote-display-utils';
 
 export function useVoteDetail({
   vote,
@@ -207,10 +208,7 @@ export function useVoteDetail({
           return artistName.includes(query);
         })
       : ranked;
-    const total = voteItems.reduce(
-      (sum, item) => sum + (item.vote_total || 0),
-      0,
-    );
+    const total = sumVoteTotals(voteItems);
     return { rankedVoteItems: ranked, filteredItems: filtered, totalVotes: total };
   }, [voteItems, debouncedSearchQuery, currentLanguage]);
 

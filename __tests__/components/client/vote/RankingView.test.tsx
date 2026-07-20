@@ -19,6 +19,10 @@ vi.mock('@/hooks/useAuthGuard', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ userProfile: null }),
+}));
+
 vi.mock('@/utils/api/strings', () => ({
   getLocalizedString: (value: any, lang?: string) => {
     if (!value) return '';
@@ -150,13 +154,26 @@ describe('RankingView', () => {
     expect(screen.getByText('#3')).toBeInTheDocument();
   });
 
-  it('PodiumItemSmall shows vote total formatted', () => {
+  it('PodiumItemSmall shows vote shares', () => {
     const items = [makeItem(1)]; // vote_total = 100
     // Need at least 2 items for rendering
     items.push(makeItem(2)); // vote_total = 200
     render(<RankingView items={items} mode="list" />);
-    expect(screen.getByText('100')).toBeInTheDocument();
-    expect(screen.getByText('200')).toBeInTheDocument();
+    expect(screen.getByText('33.33%')).toBeInTheDocument();
+    expect(screen.getByText('66.67%')).toBeInTheDocument();
+  });
+
+  it('uses every item as the denominator even when only the top three render', () => {
+    const items = [
+      { ...makeItem(1), vote_total: 40 },
+      { ...makeItem(2), vote_total: 30 },
+      { ...makeItem(3), vote_total: 20 },
+      { ...makeItem(4), vote_total: 10 },
+    ];
+    render(<RankingView items={items} mode="list" />);
+    expect(screen.getByText('40.00%')).toBeInTheDocument();
+    expect(screen.getByText('30.00%')).toBeInTheDocument();
+    expect(screen.getByText('20.00%')).toBeInTheDocument();
   });
 
   it('PodiumItemSmall shows group name', () => {

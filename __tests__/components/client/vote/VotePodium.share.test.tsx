@@ -45,4 +45,18 @@ describe('VotePodium vote shares', () => {
     );
     expect(screen.getByText('1:70.00% (70)')).toBeInTheDocument();
   });
+
+  it('keeps completed vote counts raw', () => {
+    render(
+      <VotePodium
+        rankedItems={items}
+        renderTimer={() => null}
+        headerHeight={0}
+        totalVotes={100}
+        voteStatus="completed"
+        isAdmin
+      />,
+    );
+    expect(screen.getByText('1:70')).toBeInTheDocument();
+  });
 });
