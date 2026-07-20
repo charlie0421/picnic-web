@@ -20,6 +20,7 @@ export interface VoteRankCardProps {
   voteChange?: number;
   isAnimating?: boolean;
   voteTotal?: number;
+  voteDisplay?: string;
   onVoteChange?: (newTotal: number) => void;
   enableMotionAnimations?: boolean;
 }
