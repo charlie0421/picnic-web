@@ -14,6 +14,7 @@ import { VoteDetailPresenterProps } from './vote-detail-types';
 import { VotePodium } from './VotePodium';
 import { VoteNotifications } from './VoteNotifications';
 import { useVoteDetail } from './useVoteDetail';
+import { formatCandidateVote } from '../common/vote-display-utils';
 
 export type { VoteDetailPresenterProps } from './vote-detail-types';
 
@@ -24,7 +25,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
     updateVoteDataPolling, user, isVoting, timeLeft, showVoteModal,
     voteCandidate, headerHeight, headerRef, voteStatus, canVote,
     searchQuery, handleCardClick, cancelVote, handleSearch,
-    rankedVoteItems, filteredItems, formatVotePeriod,
+    rankedVoteItems, filteredItems, totalVotes, isAdmin, formatVotePeriod,
     vote, rewards, className,
   } = useVoteDetail(props);
 
@@ -73,7 +74,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
               <div className='flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-600 mb-2'>
                 <span>📅 {formatVotePeriod()}</span>
                 <span className="hidden sm:inline">•</span>
-                <span>👥 총 {voteItems.reduce((sum, item) => sum + (item.vote_total || 0), 0).toLocaleString('en-US')} 표</span>
+                <span>👥 총 {totalVotes.toLocaleString('en-US')} 표</span>
               </div>
               <div className="flex items-center justify-between">
                 {renderTimer()}
@@ -88,7 +89,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
       </div>
 
       {voteStatus !== 'upcoming' && rankedVoteItems.length > 0 && (
-        <VotePodium rankedItems={rankedVoteItems} renderTimer={renderTimer} headerHeight={headerHeight} />
+        <VotePodium rankedItems={rankedVoteItems} renderTimer={renderTimer} headerHeight={headerHeight} totalVotes={totalVotes} voteStatus={voteStatus} isAdmin={isAdmin} />
       )}
 
       <div className='container mx-auto px-4 pb-8'>
@@ -143,7 +144,13 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
                       )}
                       <div className='space-y-0.5'>
                         <p className='text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>
-                          {(item.vote_total || 0).toLocaleString('en-US')}<span className='text-xs text-gray-500 ml-0.5'> 표</span>
+                          {formatCandidateVote({
+                            votes: item.vote_total,
+                            totalVotes,
+                            status: voteStatus,
+                            isAdmin,
+                            includeVoteUnit: voteStatus === 'completed',
+                          })}
                         </p>
                         {item.rank && (
                           <div className='flex items-center justify-center gap-0.5'>

@@ -19,6 +19,10 @@ vi.mock('@/hooks/useAuthGuard', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ userProfile: null }),
+}));
+
 vi.mock('@/utils/api/strings', () => ({
   getLocalizedString: (value: any, lang?: string) => {
     if (!value) return '';
@@ -86,12 +90,7 @@ describe('RankingView', () => {
   });
 
   it('renders 2 items in detail mode (default) which uses dynamic require for VoteRankCard', () => {
-    // Detail mode uses require('./VoteRankCard') with a relative path that can't be easily mocked in vitest
-    // We verify that the component at least attempts to render and doesn't crash the entire test suite
     const items = [makeItem(1), makeItem(2)];
-    // The require('./VoteRankCard') will throw in test env; the component catches it implicitly
-    // by the conditional `require('./VoteRankCard').VoteRankCard &&` guard.
-    // However in vitest the require itself throws. So we expect a render error.
     expect(() => render(<RankingView items={items} mode="detail" />)).toThrow();
   });
 
@@ -150,13 +149,38 @@ describe('RankingView', () => {
     expect(screen.getByText('#3')).toBeInTheDocument();
   });
 
-  it('PodiumItemSmall shows vote total formatted', () => {
+  it('PodiumItemSmall shows vote shares', () => {
     const items = [makeItem(1)]; // vote_total = 100
     // Need at least 2 items for rendering
     items.push(makeItem(2)); // vote_total = 200
     render(<RankingView items={items} mode="list" />);
-    expect(screen.getByText('100')).toBeInTheDocument();
-    expect(screen.getByText('200')).toBeInTheDocument();
+    expect(screen.getByText('33.33%')).toBeInTheDocument();
+    expect(screen.getByText('66.67%')).toBeInTheDocument();
+  });
+
+  it('uses every item as the denominator even when only the top three render', () => {
+    const items = [
+      { ...makeItem(1), vote_total: 40 },
+      { ...makeItem(2), vote_total: 30 },
+      { ...makeItem(3), vote_total: 20 },
+      { ...makeItem(4), vote_total: 10 },
+    ];
+    render(<RankingView items={items} mode="list" />);
+    expect(screen.getByText('40.00%')).toBeInTheDocument();
+    expect(screen.getByText('30.00%')).toBeInTheDocument();
+    expect(screen.getByText('20.00%')).toBeInTheDocument();
+  });
+
+  it('excludes deleted candidates from both rendering and denominator', () => {
+    const items = [
+      { ...makeItem(1), vote_total: 70 },
+      { ...makeItem(2), vote_total: 30 },
+      { ...makeItem(3), vote_total: 1000, deleted_at: '2026-01-01' },
+    ];
+    render(<RankingView items={items} mode="list" />);
+    expect(screen.getByText('70.00%')).toBeInTheDocument();
+    expect(screen.getByText('30.00%')).toBeInTheDocument();
+    expect(screen.queryByText('Artist 3')).not.toBeInTheDocument();
   });
 
   it('PodiumItemSmall shows group name', () => {

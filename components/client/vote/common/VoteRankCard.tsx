@@ -24,6 +24,7 @@ export function VoteRankCard({
   voteChange = 0,
   isAnimating = false,
   voteTotal,
+  voteDisplay,
   onVoteChange,
   enableMotionAnimations = true,
 }: VoteRankCardProps) {
@@ -190,11 +191,13 @@ export function VoteRankCard({
                 isUpdated ? 'scale-110' : 'scale-100'
               }`}
             >
-              <AnimatedCount
-                value={displayVoteTotal}
-                suffix=''
-                className='font-inherit'
-              />
+              {voteDisplay ?? (
+                <AnimatedCount
+                  value={displayVoteTotal}
+                  suffix=''
+                  className='font-inherit'
+                />
+              )}
             </p>
           </div>
         </div>
@@ -211,6 +214,7 @@ export function VoteRankCard({
       artistName={artistName}
       imageSrc={imageSrc}
       displayVoteTotal={displayVoteTotal}
+      voteDisplay={voteDisplay}
       currentVoteChange={currentVoteChange}
       shouldShowVoteChange={shouldShowVoteChange}
       isHighlighted={isHighlighted}

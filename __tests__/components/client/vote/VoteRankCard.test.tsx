@@ -47,7 +47,7 @@ vi.mock('@/components/client/vote/common/VoteRankCardAnimated', () => ({
   default: (props: any) => (
     <div data-testid="animated-card">
       <span>{props.artistName}</span>
-      <span>{props.displayVoteTotal}</span>
+      <span>{props.voteDisplay ?? props.displayVoteTotal}</span>
     </div>
   ),
 }));
@@ -174,6 +174,25 @@ describe('VoteRankCard', () => {
       />,
     );
     expect(screen.getByText('999')).toBeInTheDocument();
+  });
+
+  it('renders an explicit vote display label in the static card', () => {
+    render(
+      <VoteRankCard
+        item={makeItem()}
+        rank={1}
+        voteDisplay="50.00% (500)"
+        enableMotionAnimations={false}
+      />,
+    );
+    expect(screen.getByText('50.00% (500)')).toBeInTheDocument();
+  });
+
+  it('passes an explicit vote display label to the animated card', () => {
+    render(
+      <VoteRankCard item={makeItem()} rank={1} voteDisplay="50.00%" />,
+    );
+    expect(screen.getByText('50.00%')).toBeInTheDocument();
   });
 
   it('falls back to item.vote_total when voteTotal is undefined', () => {

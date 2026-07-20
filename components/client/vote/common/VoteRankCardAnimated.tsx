@@ -23,6 +23,7 @@ export interface VoteRankCardAnimatedProps {
   artistName: string;
   imageSrc: string | null;
   displayVoteTotal: number;
+  voteDisplay?: string;
   currentVoteChange: number;
   shouldShowVoteChange: boolean;
   isHighlighted?: boolean;
@@ -43,6 +44,7 @@ export default function VoteRankCardAnimated({
   artistName,
   imageSrc,
   displayVoteTotal,
+  voteDisplay,
   currentVoteChange,
   shouldShowVoteChange,
   isHighlighted,
@@ -242,14 +244,16 @@ export default function VoteRankCardAnimated({
               },
             }}
           >
-            <AnimatedCount
-              key={`vote-count-${item.id}-${isUpdated ? 'updated' : 'normal'}`}
-              value={displayVoteTotal}
-              suffix=''
-              className={`font-inherit transition-all duration-700 ease-in-out ${
-                isUpdated ? 'text-green-600' : 'text-blue-600'
-              }`}
-            />
+            {voteDisplay ?? (
+              <AnimatedCount
+                key={`vote-count-${item.id}-${isUpdated ? 'updated' : 'normal'}`}
+                value={displayVoteTotal}
+                suffix=''
+                className={`font-inherit transition-all duration-700 ease-in-out ${
+                  isUpdated ? 'text-green-600' : 'text-blue-600'
+                }`}
+              />
+            )}
           </motion.div>
         </div>
       </div>

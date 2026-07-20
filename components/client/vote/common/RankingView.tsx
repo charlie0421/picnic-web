@@ -6,6 +6,8 @@ import { getLocalizedString } from '@/utils/api/strings';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { useLanguageStore } from '@/stores/languageStore';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { useAuth } from '@/hooks/useAuth';
+import { formatCandidateVote, sumVoteTotals } from './vote-display-utils';
 
 interface EnhancedVoteItem extends VoteItem {
   artist?: any;
@@ -33,6 +35,16 @@ export const RankingView: React.FC<RankingViewProps> = ({
   onNavigateToDetail
 }) => {
   const { t } = useLanguageStore();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
+  const activeItems = items.filter((item) => !item.deleted_at);
+  const totalVotes = sumVoteTotals(activeItems);
+  const display = (item: EnhancedVoteItem) => formatCandidateVote({
+    votes: item.vote_total,
+    totalVotes,
+    status: 'ongoing',
+    isAdmin,
+  });
   
   // 한 번만 인증 훅을 호출
   const { withAuth } = useRequireAuth({
@@ -43,7 +55,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
   });
 
   // 상위 3개 아이템만 추출
-  const topItems = items.slice(0, 3);
+  const topItems = activeItems.slice(0, 3);
 
   if (topItems.length === 0) {
     return null;
@@ -93,8 +105,8 @@ export const RankingView: React.FC<RankingViewProps> = ({
         <div className={containerClass}>
           <div className='flex flex-col items-center justify-center'>
             <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md gap-2 sm:gap-3 px-4 sm:px-6 mx-auto' onClick={() => onNavigateToDetail?.()}>
-              <PodiumItemSmall item={topItems[0]} rank={1} className='z-10' highlight />
-              <PodiumItemSmall item={topItems[1]} rank={2} />
+              <PodiumItemSmall item={topItems[0]} rank={1} voteDisplay={display(topItems[0])} className='z-10' highlight />
+              <PodiumItemSmall item={topItems[1]} rank={2} voteDisplay={display(topItems[1])} />
             </div>
           </div>
         </div>
@@ -120,6 +132,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                       isAnimating: topItems[0].isAnimating && isInteractionEnabled,
                       voteChange: topItems[0].voteChange,
                       voteTotal: topItems[0].vote_total ?? 0,
+                      voteDisplay: display(topItems[0]),
                       enableMotionAnimations: true,
                     })
                   )}
@@ -140,6 +153,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                       isAnimating: topItems[1].isAnimating && isInteractionEnabled,
                       voteChange: topItems[1].voteChange,
                       voteTotal: topItems[1].vote_total ?? 0,
+                      voteDisplay: display(topItems[1]),
                       enableMotionAnimations: true,
                     })
                   )}
@@ -158,9 +172,9 @@ export const RankingView: React.FC<RankingViewProps> = ({
       <div className={containerClass}>
         <div className='flex flex-col items-center justify-center'>
           <div className='flex justify-center items-end w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg gap-1 sm:gap-2 px-4 sm:px-6 mx-auto' onClick={() => onNavigateToDetail?.()}>
-            {topItems[1] && <PodiumItemSmall item={topItems[1]} rank={2} />}
-            {topItems[0] && <PodiumItemSmall item={topItems[0]} rank={1} highlight className='z-10' />}
-            {topItems[2] && <PodiumItemSmall item={topItems[2]} rank={3} />}
+            {topItems[1] && <PodiumItemSmall item={topItems[1]} rank={2} voteDisplay={display(topItems[1])} />}
+            {topItems[0] && <PodiumItemSmall item={topItems[0]} rank={1} voteDisplay={display(topItems[0])} highlight className='z-10' />}
+            {topItems[2] && <PodiumItemSmall item={topItems[2]} rank={3} voteDisplay={display(topItems[2])} />}
           </div>
         </div>
       </div>
@@ -186,6 +200,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                       isAnimating: topItems[1].isAnimating && isInteractionEnabled,
                       voteChange: topItems[1].voteChange,
                       voteTotal: topItems[1].vote_total ?? 0,
+                      voteDisplay: display(topItems[1]),
                       enableMotionAnimations: true,
                     })
                   )}
@@ -208,6 +223,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                       isAnimating: topItems[0].isAnimating && isInteractionEnabled,
                       voteChange: topItems[0].voteChange,
                       voteTotal: topItems[0].vote_total ?? 0,
+                      voteDisplay: display(topItems[0]),
                       enableMotionAnimations: true,
                     })
                   )}
@@ -230,6 +246,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                       isAnimating: topItems[2].isAnimating && isInteractionEnabled,
                       voteChange: topItems[2].voteChange,
                       voteTotal: topItems[2].vote_total ?? 0,
+                      voteDisplay: display(topItems[2]),
                       enableMotionAnimations: true,
                     })
                   )}
@@ -249,11 +266,13 @@ function PodiumItemSmall({
   rank,
   className = '',
   highlight = false,
+  voteDisplay,
 }: {
   item: EnhancedVoteItem;
   rank: 1 | 2 | 3;
   className?: string;
   highlight?: boolean;
+  voteDisplay: string;
 }) {
   const { currentLanguage, t } = useLanguageStore();
   const artistName = item.artist
@@ -261,7 +280,6 @@ function PodiumItemSmall({
     : t('artist_name_fallback');
   const imageSrc = item.artist?.image || null;
   const total = item.vote_total ?? 0;
-  const formattedTotal = (total || 0).toLocaleString('ko-KR');
   const groupName = item.artist?.artistGroup?.name
     ? getLocalizedString(item.artist.artistGroup.name, currentLanguage)
     : (item.artist?.artist_group?.name
@@ -293,7 +311,7 @@ function PodiumItemSmall({
         {groupName && (
           <div className='text-[10px] text-gray-600 truncate'>{groupName}</div>
         )}
-        <div className='text-[11px] text-blue-600 font-bold'>{formattedTotal}</div>
+        <div className='text-[11px] text-blue-600 font-bold'>{voteDisplay}</div>
       </div>
     </div>
   );

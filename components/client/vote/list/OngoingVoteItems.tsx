@@ -6,6 +6,11 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { formatRelativeTime } from '@/utils/date';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  formatCandidateVote,
+  sumVoteTotals,
+} from '../common/vote-display-utils';
 
 // 확장된 VoteItem 타입 정의
 type VoteItemWithOptionalArtist = VoteItem & {
@@ -78,6 +83,8 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
   displayLanguage,
 }) => {
   const { t, currentLanguage } = useLanguageStore();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
   const effectiveLanguage = displayLanguage ?? currentLanguage;
   const [voteItems, setVoteItems] = useState<EnhancedVoteItem[]>(() =>
     normalizeVoteItems(vote),
@@ -115,6 +122,7 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
 
     return sortedItems.slice(0, TOP_ITEMS_DISPLAY_COUNT);
   }, [voteItems]);
+  const totalVotes = useMemo(() => sumVoteTotals(voteItems), [voteItems]);
 
   // 투표 변경 핸들러
   const handleVoteChange = useCallback(
@@ -196,17 +204,17 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
                 className='flex justify-center items-end gap-1 sm:gap-2'
                 onClick={() => onNavigateToDetail?.(vote.id)}
               >
-                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
-                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, totalVotes, isAdmin, true)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage, totalVotes, isAdmin)}
               </div>
             ) : (
               <div
                 className='flex justify-center items-end gap-1 sm:gap-2'
                 onClick={() => onNavigateToDetail?.(vote.id)}
               >
-                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
-                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
-                {renderPodiumItem(topItems[2], 3, t, effectiveLanguage)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage, totalVotes, isAdmin)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, totalVotes, isAdmin, true)}
+                {renderPodiumItem(topItems[2], 3, t, effectiveLanguage, totalVotes, isAdmin)}
               </div>
             )}
           </div>
@@ -223,14 +231,14 @@ export const OngoingVoteItems: React.FC<OngoingVoteItemsProps> = ({
           <div className='w-full rounded-3xl ring-1 ring-secondary-300 bg-gradient-to-b from-secondary-50 to-secondary-100/60 shadow-lg p-3 sm:p-4 md:p-5 overflow-hidden'>
             {topItems.length === 2 ? (
               <div className='flex justify-center items-end gap-2 sm:gap-3'>
-                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
-                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, totalVotes, isAdmin, true)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage, totalVotes, isAdmin)}
               </div>
             ) : (
               <div className='flex justify-center items-end gap-2 sm:gap-3'>
-                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage)}
-                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, true)}
-                {renderPodiumItem(topItems[2], 3, t, effectiveLanguage)}
+                {renderPodiumItem(topItems[1], 2, t, effectiveLanguage, totalVotes, isAdmin)}
+                {renderPodiumItem(topItems[0], 1, t, effectiveLanguage, totalVotes, isAdmin, true)}
+                {renderPodiumItem(topItems[2], 3, t, effectiveLanguage, totalVotes, isAdmin)}
               </div>
             )}
           </div>
@@ -245,6 +253,8 @@ function renderPodiumItem(
   rank: 1 | 2 | 3,
   t: (key: string, args?: Record<string, string>) => string,
   currentLanguage: string,
+  totalVotes: number,
+  isAdmin: boolean,
   highlight: boolean = false,
 ) {
   if (!item) return <div className='w-20 sm:w-24' />;
@@ -265,7 +275,12 @@ function renderPodiumItem(
   }
   const imageSrc = item.artist?.image || null;
   const total = item.vote_total ?? 0;
-  const formattedTotal = (total || 0).toLocaleString('ko-KR');
+  const formattedTotal = formatCandidateVote({
+    votes: total,
+    totalVotes,
+    status: 'ongoing',
+    isAdmin,
+  });
   const size = rank === 1 ? 112 : rank === 2 ? 84 : 72;
   const isPrimaryVisual = rank === 1;
 

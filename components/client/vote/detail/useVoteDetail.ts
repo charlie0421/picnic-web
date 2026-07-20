@@ -5,6 +5,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
+import { useAuth } from '@/hooks/useAuth';
 import { useDebounce } from '@/hooks/useDebounce';
 
 import {
@@ -13,6 +14,7 @@ import {
   HEADER_RECALC_DELAY_MS,
 } from './vote-detail-types';
 import { useVotePolling } from './useVotePolling';
+import { filterActiveVoteItems, sumVoteTotals } from '../common/vote-display-utils';
 
 export function useVoteDetail({
   vote,
@@ -39,6 +41,8 @@ export function useVoteDetail({
     },
   });
   const ensureActiveMembership = useWithdrawalGuard();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
 
   const {
     voteItems,
@@ -177,7 +181,8 @@ export function useVoteDetail({
   };
 
   const { rankedVoteItems, filteredItems, totalVotes } = useMemo(() => {
-    const ranked = [...voteItems]
+    const activeVoteItems = filterActiveVoteItems(voteItems);
+    const ranked = [...activeVoteItems]
       .sort((a, b) => {
         const voteDiff = (b.vote_total || 0) - (a.vote_total || 0);
         if (voteDiff !== 0) return voteDiff;
@@ -204,10 +209,7 @@ export function useVoteDetail({
           return artistName.includes(query);
         })
       : ranked;
-    const total = voteItems.reduce(
-      (sum, item) => sum + (item.vote_total || 0),
-      0,
-    );
+    const total = sumVoteTotals(activeVoteItems);
     return { rankedVoteItems: ranked, filteredItems: filtered, totalVotes: total };
   }, [voteItems, debouncedSearchQuery, currentLanguage]);
 
@@ -267,6 +269,7 @@ export function useVoteDetail({
     rankedVoteItems,
     filteredItems,
     totalVotes,
+    isAdmin,
     // Helpers
     formatVotePeriod,
     // Pass-through props
