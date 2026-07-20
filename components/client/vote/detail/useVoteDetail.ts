@@ -5,6 +5,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { getLocalizedString } from '@/utils/api/strings';
 import { useRequireAuth } from '@/hooks/useAuthGuard';
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
+import { useAuth } from '@/hooks/useAuth';
 import { useDebounce } from '@/hooks/useDebounce';
 
 import {
@@ -39,6 +40,8 @@ export function useVoteDetail({
     },
   });
   const ensureActiveMembership = useWithdrawalGuard();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.is_admin === true || userProfile?.is_super_admin === true;
 
   const {
     voteItems,
@@ -267,6 +270,7 @@ export function useVoteDetail({
     rankedVoteItems,
     filteredItems,
     totalVotes,
+    isAdmin,
     // Helpers
     formatVotePeriod,
     // Pass-through props
