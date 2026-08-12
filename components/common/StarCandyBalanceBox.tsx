@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useWalletSummary } from '@/hooks/useWalletSummary';
+import { formatWalletAmount } from '@/lib/wallet/parse';
 import Image from 'next/image';
 
 const STAR_CANDY_IMAGE_URL = '/images/star-candy/star_100.png';
@@ -47,9 +49,23 @@ export default function StarCandyBalanceBox({
   className = '',
   compact = false,
 }: StarCandyBalanceBoxProps) {
-  const { t } = useLanguageStore();
+  const { t, currentLanguage } = useLanguageStore();
   const { user, userProfile, loadUserProfile } = useAuth();
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const { wallet } = useWalletSummary();
+
+  const localeMap: Record<string, string> = {
+    ko: 'ko-KR',
+    en: 'en-US',
+    ja: 'ja-JP',
+    zh: 'zh-CN',
+    id: 'id-ID',
+  };
+  const locale = localeMap[currentLanguage] || 'en-US';
+
+  // 코튼캔디는 autoFetch 일 때만 표시(내부 훅이 지갑을 스스로 조회). 값이 '0'/null 이면 자연스럽게 숨는다.
+  const cottonCandy = autoFetch && wallet ? wallet.cotton : null;
+  const cottonExpiringAmount = autoFetch && wallet ? wallet.cotton_expiring_amount : null;
 
   // autoFetch가 true이고 user가 있으면 API에서 최신 데이터를 가져옵니다
   useEffect(() => {
@@ -214,6 +230,23 @@ export default function StarCandyBalanceBox({
             </div>
           )}
         </div>
+
+        {/* 코튼캔디 (플래그 OFF 동안 '0' 이라 자연스럽게 미노출) */}
+        {cottonCandy && cottonCandy !== '0' && (
+          <>
+            <div className="border-t border-white/20"></div>
+            <div className="flex justify-between text-sm">
+              <span className="opacity-90">{t('wallet_cotton_candy')}</span>
+              <span className="font-semibold">{formatWalletAmount(cottonCandy, locale)}</span>
+            </div>
+            {cottonExpiringAmount && cottonExpiringAmount !== '0' && (
+              <div className="text-xs opacity-80">
+                {t('wallet_cotton_expires_today', { amount: formatWalletAmount(cottonExpiringAmount, locale) })}
+              </div>
+            )}
+            <p className="text-xs opacity-70">{t('cotton_candy_daily_expiry_notice')}</p>
+          </>
+        )}
       </div>
     </div>
   );
