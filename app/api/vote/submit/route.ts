@@ -1,7 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createSupabaseServerClient, getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 import { SupabaseAuthError } from '@/lib/supabase/error';
-import { parseWalletSummary, totalAvailable } from '@/lib/wallet/parse';
 import { mapVoteEdgeError } from '@/lib/wallet/vote-error';
 import { MAX_VOTE_AMOUNT } from '@/lib/wallet/limits';
 
@@ -47,18 +46,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'JMA 투표는 웹에서 참여할 수 없습니다.' }, { status: 403 });
     }
 
-    // 잔액 사전검증: 서버 지갑 요약(star+bonus+cotton). 플래그 OFF 동안 cotton='0'.
-    const { data: walletRaw, error: walletError } = await (supabase.rpc as any)('get_wallet_summary');
-    if (walletError) {
-      console.error('[/api/vote/submit] get_wallet_summary error:', walletError.message);
-      return NextResponse.json({ error: 'WALLET_LOAD_FAILED' }, { status: 500 });
-    }
-    const wallet = parseWalletSummary(walletRaw);
-    if (totalAvailable(wallet) < BigInt(amount)) {
-      // Edge(voting-v2)가 같은 코드를 판정하면 409(계약)이므로, 사전검증도 409로 통일한다.
-      // 레이어/레이스에 따라 400/409가 갈리면 클라이언트가 상태코드로 분기하기 어렵다.
-      return NextResponse.json({ error: 'WALLET_INSUFFICIENT_BALANCE' }, { status: 409 });
-    }
+    // 잔액 사전검증은 하지 않는다.
+    //
+    // 사전검증을 두면 멱등 재생이 깨진다: 잔액 5에서 5표를 request_id A 로 제출해 Edge 가 커밋했지만
+    // 응답만 유실된 뒤 같은 A 로 재시도하면, 잔액이 이미 0이라 사전검증이 409 를 먼저 반환해
+    // voting-v2 의 "같은 request_id 는 같은 결과" 재생에 도달하지 못한다.
+    // 잔액 판정은 서버(voting-v2)가 원자적으로 수행하며 부족 시 409 WALLET_INSUFFICIENT_BALANCE 를
+    // 반환하므로 사용자에게 보이는 결과는 동일하다. UI 는 /api/user/wallet 잔액으로 이미 입력을 제한한다.
 
     // voting-v2 신규 계약: 정확히 4개 키, amount 는 문자열. 배분은 서버 전결(코튼→보너스→스타).
     const { data, error } = await supabase.functions.invoke('voting-v2', {

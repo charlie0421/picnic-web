@@ -1,10 +1,10 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import useSWR from 'swr';
 import type { VoteUsage } from '@/types/wallet';
-import { randomUUIDSafe } from '@/lib/uuid';
+import { acquireVoteRequestId, releaseVoteRequestId } from '@/lib/wallet/vote-request-id';
 import { MAX_VOTE_AMOUNT } from '@/lib/wallet/limits';
 
 export interface UserBalance {
@@ -13,25 +13,6 @@ export interface UserBalance {
   cottonCandy: string;
   totalAvailable: string;
   cottonNextExpiresAt: string | null;
-}
-
-interface PendingRequest {
-  id: string;
-  voteId: number;
-  voteItemId: number;
-  amount: number;
-}
-
-export function nextRequestId(
-  prev: PendingRequest | null,
-  voteId: number,
-  voteItemId: number,
-  amount: number,
-): PendingRequest {
-  if (prev && prev.voteId === voteId && prev.voteItemId === voteItemId && prev.amount === amount) {
-    return prev;
-  }
-  return { id: randomUUIDSafe(), voteId, voteItemId, amount };
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -60,7 +41,6 @@ export function useVoteDialog({
   const { t, currentLanguage } = useLanguageStore();
   const ensureActiveMembership = useWithdrawalGuard();
   const { user, isAuthenticated } = useAuth();
-  const requestIdRef = useRef<PendingRequest | null>(null);
   const [lastUsage, setLastUsage] = useState<VoteUsage | null>(null);
 
   // SWR을 사용하여 지갑(잔액) 정보 가져오기 — wallet.v1 계약(decimal string)
@@ -142,14 +122,16 @@ export function useVoteDialog({
     setIsVoting(true);
     setVoteError(null);
 
-    requestIdRef.current = nextRequestId(requestIdRef.current, voteId, voteItemId, voteAmount);
+    // 멱등 키는 다이얼로그 언마운트(닫았다 다시 열기)를 넘어 유지되어야 한다.
+    const requestKey = { userId: user.id, voteId, voteItemId, amount: voteAmount };
+    const requestId = acquireVoteRequestId(requestKey);
 
     try {
       const voteData = {
         vote_id: voteId,
         vote_item_id: voteItemId,
         amount: voteAmount,
-        request_id: requestIdRef.current.id,
+        request_id: requestId,
       };
 
       const response = await fetch('/api/vote/submit', {
@@ -170,8 +152,8 @@ export function useVoteDialog({
 
       console.log('✅ [VotePopup] 투표 제출 성공:', result);
 
-      // 성공 — 다음 제출을 위해 request_id 를 비우고 사후 usage 표기
-      requestIdRef.current = null;
+      // 성공 확정 — 이때만 멱등 키를 비운다. 실패/타임아웃에서 비우면 이중 차감이 가능해진다.
+      releaseVoteRequestId(requestKey);
       setLastUsage(result.data?.usage ?? null);
 
       // 잔액 정보 갱신
@@ -186,7 +168,7 @@ export function useVoteDialog({
       }, 2000);
 
     } catch (error) {
-      // 실패 — request_id 를 유지해 동일 파라미터 재시도 시 멱등이 성립하도록 한다
+      // 실패 — 멱등 키를 비우지 않는다. 동일 파라미터 재시도가 같은 request_id 를 재사용해야 한다
       console.error('Vote submission error:', error);
       setVoteError(error instanceof Error ? error.message : t('vote_popup_vote_failed'));
     } finally {
