@@ -33,10 +33,13 @@ export default function CandyHistoryClient() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 코튼 잔액 0과 기능 OFF는 다르다 — 잔액을 대용으로 쓰지 않고 API 의 disabled 신호를 그대로 반영한다.
+  const [isDisabled, setIsDisabled] = useState(false);
 
   const loadPage = useCallback(async (currency: Tab, cursor: string | null, append: boolean) => {
     setIsLoading(true);
     setError(null);
+    if (!append) setIsDisabled(false);
     try {
       const params = new URLSearchParams({ currency, limit: '20' });
       if (cursor) params.set('cursor', cursor);
@@ -46,6 +49,7 @@ export default function CandyHistoryClient() {
         throw new Error(result.error || 'WALLET_HISTORY_LOAD_FAILED');
       }
       const page: CurrencyHistoryPage = result.page;
+      setIsDisabled(!!result.disabled);
       setItems((prev) => (append ? [...prev, ...page.items] : page.items));
       setNextCursor(page.next_cursor);
     } catch (e) {
@@ -83,7 +87,11 @@ export default function CandyHistoryClient() {
         <div className="text-red-600 text-sm mb-4">{error}</div>
       )}
 
-      {!isLoading && !error && items.length === 0 && (
+      {!isLoading && !error && isDisabled && (
+        <p className="text-gray-500 text-sm py-8 text-center">{t('wallet_cotton_read_disabled')}</p>
+      )}
+
+      {!isLoading && !error && !isDisabled && items.length === 0 && (
         <p className="text-gray-500 text-sm py-8 text-center">{t('wallet_history_empty')}</p>
       )}
 
