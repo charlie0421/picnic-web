@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { useAuth } from '@/lib/supabase/auth-provider';
@@ -37,6 +37,8 @@ export function useVoteDialog({
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  // 성공 오버레이(2초) 동안·제출 중에는 재진입을 막는다. state 는 비동기라 ref 로 동기 가드한다.
+  const submitLockRef = useRef(false);
 
   const { t, currentLanguage } = useLanguageStore();
   const ensureActiveMembership = useWithdrawalGuard();
@@ -115,7 +117,13 @@ export function useVoteDialog({
   // 투표 실행
   const handleVoteSubmit = useCallback(async () => {
     if (!user || !userBalance) return;
+    // 성공 오버레이는 시각적 가림일 뿐이라 버튼이 여전히 활성이다(포커스·보조기기 활성화 가능).
+    // 성공 시 멱등 키를 비웠으므로 재진입하면 새 UUID 로 두 번째 차감이 일어난다.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+
     if (await ensureActiveMembership()) {
+      submitLockRef.current = false;
       return;
     }
 
@@ -143,8 +151,9 @@ export function useVoteDialog({
       const result = await response.json();
 
         if (!response.ok) {
-        // 구 번들이 request_id 없이 제출한 경우 — 재시도해도 계속 실패하므로 새로고침을 안내한다.
-        if (result.error === 'VOTE_CLIENT_UPGRADE_REQUIRED') {
+        // 서버가 기계 코드를 code 로 준다(error 는 구 번들이 그대로 띄울 사람용 문장).
+        // 재시도해도 계속 실패하므로 새로고침을 안내한다.
+        if (result.code === 'VOTE_CLIENT_UPGRADE_REQUIRED') {
           throw new Error(t('vote_client_upgrade_required'));
         }
         throw new Error(result.error || t('vote_popup_vote_failed'));
@@ -164,6 +173,7 @@ export function useVoteDialog({
 
       setTimeout(() => {
         setShowSuccess(false);
+        submitLockRef.current = false;
         onClose();
       }, 2000);
 
@@ -171,6 +181,8 @@ export function useVoteDialog({
       // 실패 — 멱등 키를 비우지 않는다. 동일 파라미터 재시도가 같은 request_id 를 재사용해야 한다
       console.error('Vote submission error:', error);
       setVoteError(error instanceof Error ? error.message : t('vote_popup_vote_failed'));
+      // 실패는 재시도를 허용해야 하므로 잠금을 푼다. 멱등 키는 유지되므로 같은 id 로 재시도된다.
+      submitLockRef.current = false;
     } finally {
       setIsVoting(false);
     }

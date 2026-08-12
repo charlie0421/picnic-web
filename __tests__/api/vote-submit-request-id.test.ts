@@ -59,7 +59,11 @@ describe('POST /api/vote/submit request_id handling', () => {
     }));
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'VOTE_CLIENT_UPGRADE_REQUIRED' });
+    const body = await res.json();
+    expect(body.code).toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    // 구 번들은 error 문자열을 그대로 띄우므로 기계 코드가 들어가면 안 된다.
+    expect(body.error).not.toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    expect(body.error).toMatch(/refresh|새로고침|再読み込み|刷新/i);
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
@@ -71,7 +75,11 @@ describe('POST /api/vote/submit request_id handling', () => {
     }));
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'VOTE_CLIENT_UPGRADE_REQUIRED' });
+    const body = await res.json();
+    expect(body.code).toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    // 구 번들은 error 문자열을 그대로 띄우므로 기계 코드가 들어가면 안 된다.
+    expect(body.error).not.toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    expect(body.error).toMatch(/refresh|새로고침|再読み込み|刷新/i);
     // 멱등 키 없이 Edge 로 흘러가면 응답 유실 재시도에서 이중 차감이 발생하므로 절대 호출되면 안 된다
     expect(invokeMock).not.toHaveBeenCalled();
   });
@@ -85,7 +93,11 @@ describe('POST /api/vote/submit request_id handling', () => {
     }));
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'VOTE_CLIENT_UPGRADE_REQUIRED' });
+    const body = await res.json();
+    expect(body.code).toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    // 구 번들은 error 문자열을 그대로 띄우므로 기계 코드가 들어가면 안 된다.
+    expect(body.error).not.toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    expect(body.error).toMatch(/refresh|새로고침|再読み込み|刷新/i);
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
@@ -100,7 +112,11 @@ describe('POST /api/vote/submit request_id handling', () => {
       }));
 
       expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ error: 'VOTE_CLIENT_UPGRADE_REQUIRED' });
+      const body = await res.json();
+    expect(body.code).toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    // 구 번들은 error 문자열을 그대로 띄우므로 기계 코드가 들어가면 안 된다.
+    expect(body.error).not.toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    expect(body.error).toMatch(/refresh|새로고침|再読み込み|刷新/i);
       expect(invokeMock).not.toHaveBeenCalled();
     }
   });

@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { createSupabaseServerClient, getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 import { SupabaseAuthError } from '@/lib/supabase/error';
 import { mapVoteEdgeError } from '@/lib/wallet/vote-error';
+import { clientUpgradeMessage } from '@/lib/wallet/client-upgrade-message';
 import { MAX_VOTE_AMOUNT } from '@/lib/wallet/limits';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,7 +31,17 @@ export async function POST(request: NextRequest) {
       console.warn(
         '[/api/vote/submit] request_id missing or malformed — rejecting (client upgrade required)',
       );
-      return NextResponse.json({ error: 'VOTE_CLIENT_UPGRADE_REQUIRED' }, { status: 400 });
+      // 이 응답을 실제로 받는 쪽은 request_id 를 안 보내는 "구 번들"이다.
+      // 구 번들은 `error` 문자열을 그대로 화면에 띄우므로 여기에 기계 코드를 넣으면
+      // 사용자에게 토큰이 노출된다. 사람이 읽을 문장을 `error` 에 두고,
+      // 신규 번들이 분기할 기계 코드는 `code` 로 따로 준다.
+      return NextResponse.json(
+        {
+          error: clientUpgradeMessage(request.headers.get('accept-language')),
+          code: 'VOTE_CLIENT_UPGRADE_REQUIRED',
+        },
+        { status: 400 },
+      );
     }
     const requestId = request_id;
 
