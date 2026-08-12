@@ -18,6 +18,25 @@ describe('parseWalletSummary', () => {
   it('필수 키 누락 시 throw 한다', () => {
     expect(() => parseWalletSummary({ star: '1' })).toThrow();
   });
+
+  describe('잔액 필드(star/bonus/cotton/cotton_expiring_amount) 형식 검증', () => {
+    const invalidValues = [null, undefined, '', ' ', '1.5', '-1', 'abc'];
+    for (const field of ['star', 'bonus', 'cotton', 'cotton_expiring_amount'] as const) {
+      for (const value of invalidValues) {
+        it(`${field}=${JSON.stringify(value)} 는 throw 한다`, () => {
+          expect(() => parseWalletSummary({ ...summary, [field]: value })).toThrow();
+        });
+      }
+      it(`${field} 가 안전정수를 초과하는 정상 decimal string 이면 통과한다`, () => {
+        expect(() =>
+          parseWalletSummary({ ...summary, [field]: '9007199254740993' }),
+        ).not.toThrow();
+      });
+      it(`${field}='0' 은 통과한다`, () => {
+        expect(() => parseWalletSummary({ ...summary, [field]: '0' })).not.toThrow();
+      });
+    }
+  });
 });
 
 describe('totalAvailable', () => {
