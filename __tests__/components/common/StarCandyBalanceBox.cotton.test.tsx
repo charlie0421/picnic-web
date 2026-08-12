@@ -31,16 +31,48 @@ vi.mock('@/stores/languageStore', () => ({
 
 import StarCandyBalanceBox from '@/components/common/StarCandyBalanceBox';
 
-describe('StarCandyBalanceBox cotton', () => {
-  it("cotton 이 '0' 이면 코튼캔디 행을 렌더하지 않는다", () => {
+describe('StarCandyBalanceBox cotton — 실사용 조합', () => {
+  // /ko/star-candy 사용 조합: StarCandyProductsPresenter.tsx:114-119
+  it('compact+autoFetch: cotton 이 비0이면 컴팩트에서도 코튼 행을 렌더한다', () => {
+    mockWallet({ star: '100', bonus: '20', cotton: '40', cotton_expiring_amount: '10', cotton_next_expires_at: '2026-07-22T00:00:00.000Z' });
+    render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
+    expect(screen.getByText('wallet_cotton_candy')).toBeInTheDocument();
+  });
+
+  it('compact+autoFetch: cotton 이 0이면 컴팩트에서도 코튼 행을 렌더하지 않는다', () => {
     mockWallet({ star: '100', bonus: '20', cotton: '0', cotton_expiring_amount: '0', cotton_next_expires_at: null });
-    render(<StarCandyBalanceBox />);
+    render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
     expect(screen.queryByText('wallet_cotton_candy')).toBeNull();
   });
-  it("cotton 이 비0 이면 행과 만료 안내를 렌더한다", () => {
-    mockWallet({ star: '100', bonus: '20', cotton: '40', cotton_expiring_amount: '10', cotton_next_expires_at: '2026-07-22T00:00:00.000Z' });
-    render(<StarCandyBalanceBox />);
+
+  // /ko/mypage 사용 조합: MyPageClient.tsx:259-265 (props 로 star/bonus/total 전달, autoFetch=false)
+  it('compact+props(autoFetch=false): 지갑에 코튼이 있으면 렌더한다', () => {
+    mockWallet({ star: '100', bonus: '20', cotton: '40', cotton_expiring_amount: '0', cotton_next_expires_at: null });
+    render(
+      <StarCandyBalanceBox
+        starCandy={100}
+        starCandyBonus={20}
+        totalCandy={120}
+        autoFetch={false}
+        compact={true}
+      />,
+    );
     expect(screen.getByText('wallet_cotton_candy')).toBeInTheDocument();
-    expect(screen.getByText('cotton_candy_daily_expiry_notice')).toBeInTheDocument();
+  });
+
+  it('안전정수를 초과하는 잔액도 wallet.v1 문자열 기준으로 정밀도 손실 없이 표시한다 (compact)', () => {
+    mockWallet({ star: '9007199254740993', bonus: '7', cotton: '40', cotton_expiring_amount: '0', cotton_next_expires_at: null });
+    render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
+    expect(screen.getByText('9,007,199,254,740,993')).toBeInTheDocument();
+    expect(screen.getByText('7')).toBeInTheDocument();
+    expect(screen.getByText('9,007,199,254,741,000')).toBeInTheDocument();
+  });
+
+  it('안전정수를 초과하는 잔액도 wallet.v1 문자열 기준으로 정밀도 손실 없이 표시한다 (non-compact)', () => {
+    mockWallet({ star: '9007199254740993', bonus: '7', cotton: '40', cotton_expiring_amount: '10', cotton_next_expires_at: '2026-07-22T00:00:00.000Z' });
+    render(<StarCandyBalanceBox autoFetch={true} compact={false} />);
+    expect(screen.getByText('9,007,199,254,740,993')).toBeInTheDocument();
+    expect(screen.getByText('9,007,199,254,741,000')).toBeInTheDocument();
+    expect(screen.getByText('wallet_cotton_candy')).toBeInTheDocument();
   });
 });
