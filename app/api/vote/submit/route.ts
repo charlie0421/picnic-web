@@ -61,7 +61,9 @@ export async function POST(request: NextRequest) {
     }
     const wallet = parseWalletSummary(walletRaw);
     if (totalAvailable(wallet) < BigInt(amount)) {
-      return NextResponse.json({ error: 'WALLET_INSUFFICIENT_BALANCE' }, { status: 400 });
+      // Edge(voting-v2)가 같은 코드를 판정하면 409(계약)이므로, 사전검증도 409로 통일한다.
+      // 레이어/레이스에 따라 400/409가 갈리면 클라이언트가 상태코드로 분기하기 어렵다.
+      return NextResponse.json({ error: 'WALLET_INSUFFICIENT_BALANCE' }, { status: 409 });
     }
 
     // voting-v2 신규 계약: 정확히 4개 키, amount 는 문자열. 배분은 서버 전결(코튼→보너스→스타).
