@@ -27,9 +27,13 @@ export function VotePodium({ rankedItems, renderTimer, headerHeight, totalVotes,
   const gap = runnerUpGap(rankedItems, voteStatus);
   const [gapNoticeShown, setGapNoticeShown] = React.useState(false);
   const [gapNoticeVisible, setGapNoticeVisible] = React.useState(true);
+  // 표시 중 폴링으로 gap이 null이 되어도(동률/유일 2위 소멸) "0표 차이"로 오인되지 않도록
+  // 최초 표시 시점의 gap 값을 고정한다. 안내가 갑자기 사라지지도 않는다.
+  const [fixedGap, setFixedGap] = React.useState<number | null>(null);
   React.useEffect(() => {
     if (gap !== null && !gapNoticeShown) {
       setGapNoticeShown(true); // 마운트(상세 진입)당 1회 — gap 값이 폴링으로 변해도 재표시하지 않음
+      setFixedGap(gap);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gap]);
@@ -54,7 +58,7 @@ export function VotePodium({ rankedItems, renderTimer, headerHeight, totalVotes,
               <div className='relative'>
                 {gapNoticeShown && gapNoticeVisible && (
                   <div className='absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gray-900/80 px-2 py-0.5 text-[10px] text-white'>
-                    {t('vote_runner_up_gap_notice').replace('{gap}', (gap ?? 0).toLocaleString('en-US'))}
+                    {t('vote_runner_up_gap_notice').replace('{gap}', (fixedGap ?? 0).toLocaleString('en-US'))}
                   </div>
                 )}
                 <div className='absolute -inset-1 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
