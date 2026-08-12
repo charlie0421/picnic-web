@@ -1,21 +1,13 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createSupabaseServerClient, getServerUser } from '@/lib/supabase/server';
 import type { CurrencyHistoryPage } from '@/types/wallet';
+import { normalizeHistoryError } from '@/lib/wallet/history-error';
 
 const ALLOWED_CURRENCIES = ['STAR_CANDY', 'BONUS_STAR_CANDY', 'COTTON_CANDY'] as const;
 type AllowedCurrency = (typeof ALLOWED_CURRENCIES)[number];
 
 function isAllowedCurrency(value: unknown): value is AllowedCurrency {
   return typeof value === 'string' && (ALLOWED_CURRENCIES as readonly string[]).includes(value);
-}
-
-// 플래그 OFF 동안 유일하게 명시적으로 에러를 던지는 지점(WALLET_COTTON_READ_DISABLED, P0001)에 대한 방어.
-// 그 외 에러는 500 처리 대상이므로 null.
-export function normalizeHistoryError(message: string | undefined): CurrencyHistoryPage | null {
-  if (message && message.includes('WALLET_COTTON_READ_DISABLED')) {
-    return { items: [], total_count: '0', next_cursor: null, snapshot_at: null };
-  }
-  return null;
 }
 
 export async function GET(request: NextRequest) {
