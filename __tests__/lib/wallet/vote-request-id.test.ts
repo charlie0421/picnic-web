@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { acquireVoteRequestId, releaseVoteRequestId } from '@/lib/wallet/vote-request-id';
+import {
+  acquireVoteRequestId,
+  releaseVoteRequestId,
+  __resetVoteRequestIdMemory,
+} from '@/lib/wallet/vote-request-id';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -7,11 +11,13 @@ const KEY = { userId: 'user-1', voteId: 100, voteItemId: 10, amount: 5 };
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  __resetVoteRequestIdMemory();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   window.sessionStorage.clear();
+  __resetVoteRequestIdMemory();
 });
 
 describe('acquireVoteRequestId', () => {
@@ -54,24 +60,60 @@ describe('acquireVoteRequestId', () => {
     expect(id).not.toBe('garbage');
   });
 
-  it('sessionStorage 를 못 쓰면 예외 없이 새 UUID 로 degrade 한다', () => {
+  it('sessionStorage 쓰기가 막혀도 같은 페이지 안에서는 같은 id 를 유지한다', () => {
+    // 저장 실패를 "매번 새 UUID" 로 degrade 하면 이중 차감이 조용히 되살아난다.
+    // 모듈 스코프 Map 이 언마운트/재오픈 경로를 커버해야 한다.
     vi.spyOn(window.sessionStorage, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
     });
 
-    const id = acquireVoteRequestId(KEY);
-    expect(id).toMatch(UUID_RE);
+    const first = acquireVoteRequestId(KEY);
+    const second = acquireVoteRequestId(KEY);
+
+    expect(first).toMatch(UUID_RE);
+    expect(second).toBe(first);
+  });
+
+  it('저장소가 가득 차도 이미 저장된 기존 키는 읽어서 재사용한다', () => {
+    // 쓰기 probe 를 읽기보다 먼저 하면 이 경우 저장돼 있던 멱등 키를 잃는다.
+    const original = acquireVoteRequestId(KEY);
+    __resetVoteRequestIdMemory(); // 새 페이지 로드 상황 — Map 은 비고 저장소만 남음
+
+    vi.spyOn(window.sessionStorage, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+
+    expect(acquireVoteRequestId(KEY)).toBe(original);
+  });
+
+  it('저장소 읽기가 throw 해도 예외 없이 동작한다', () => {
+    vi.spyOn(window.sessionStorage, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError');
+    });
+
+    const first = acquireVoteRequestId(KEY);
+    expect(first).toMatch(UUID_RE);
+    expect(acquireVoteRequestId(KEY)).toBe(first);
+  });
+
+  it('새로고침(Map 초기화)에서도 저장소 값이 있으면 같은 id 를 유지한다', () => {
+    const before = acquireVoteRequestId(KEY);
+    __resetVoteRequestIdMemory();
+    expect(acquireVoteRequestId(KEY)).toBe(before);
   });
 });
 
 describe('releaseVoteRequestId', () => {
-  it('성공 확정 후 비우면 다음 제출은 새 id 를 받는다', () => {
+  it('성공 확정 후 비우면 다음 제출은 새 id 를 받는다 (Map·저장소 모두 정리)', () => {
     const first = acquireVoteRequestId(KEY);
     releaseVoteRequestId(KEY);
     const second = acquireVoteRequestId(KEY);
 
     expect(second).toMatch(UUID_RE);
     expect(second).not.toBe(first);
+    // Map 만 지우고 저장소를 남기면 다음 acquire 가 옛 id 를 되살린다
+    __resetVoteRequestIdMemory();
+    expect(acquireVoteRequestId(KEY)).not.toBe(first);
   });
 
   it('다른 payload 의 키는 건드리지 않는다', () => {

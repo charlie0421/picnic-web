@@ -27,9 +27,20 @@ describe('clientUpgradeMessage', () => {
     expect(clientUpgradeMessage('')).toBe(clientUpgradeMessage('en'));
   });
 
+  it('중국어는 간체/번체를 구분한다', () => {
+    const cn = clientUpgradeMessage('zh-CN');
+    const tw = clientUpgradeMessage('zh-TW');
+    expect(cn).not.toBe(tw);
+    // public/locales 의 실제 문구와 일치해야 한다
+    expect(cn).toBe('应用已更新，请刷新页面后重试。');
+    expect(tw).toBe('應用程式已更新，請重新整理頁面後再試一次。');
+    // Hant 지역 변형도 번체로 떨어져야 한다면 base zh 로 가는 현재 동작을 문서화한다
+    expect(clientUpgradeMessage('zh')).toBe(cn);
+  });
+
   it('앱 지원 언어를 모두 커버하고 각 언어가 영어 기본값으로 새지 않는다', () => {
     const english = clientUpgradeMessage('en');
-    for (const lang of ['ko', 'ja', 'zh', 'es', 'vi', 'id', 'th', 'bn', 'tl', 'my']) {
+    for (const lang of ['ko', 'ja', 'zh-cn', 'zh-tw', 'es', 'vi', 'id', 'th', 'bn', 'tl', 'my']) {
       const msg = clientUpgradeMessage(lang);
       expect(msg, `${lang} 문구 누락`).toBeTruthy();
       expect(msg, `${lang} 가 영어 기본값으로 새고 있다`).not.toBe(english);

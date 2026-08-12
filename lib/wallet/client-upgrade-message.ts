@@ -13,7 +13,9 @@ const MESSAGES: Record<string, string> = {
   ko: '앱이 업데이트되었습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.',
   en: 'The app has been updated. Please refresh the page and try again.',
   ja: 'アプリが更新されました。ページを再読み込みしてからもう一度お試しください。',
-  zh: '应用已更新，请刷新页面后重试。',
+  'zh-cn': '应用已更新，请刷新页面后重试。',
+  'zh-tw': '應用程式已更新，請重新整理頁面後再試一次。',
+  zh: '应用已更新，请刷新页面后重试。', // base zh fallback = 간체
   es: 'La aplicación se ha actualizado. Actualiza la página e inténtalo de nuevo.',
   vi: 'Ứng dụng đã được cập nhật. Vui lòng tải lại trang và thử lại.',
   id: 'Aplikasi telah diperbarui. Muat ulang halaman lalu coba lagi.',

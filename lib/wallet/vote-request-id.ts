@@ -7,16 +7,21 @@ import { randomUUIDSafe } from '@/lib/uuid';
  * 따라서 "같은 사용자가 같은 투표에 같은 수량을 다시 제출"하는 동안에는 **같은 id 를 유지**해야
  * 응답 유실 후 재시도에서 이중 차감이 나지 않는다.
  *
- * 컴포넌트 내 useRef 로는 부족하다. 투표 다이얼로그는 조건부 렌더라서 사용자가 오류를 보고
- * 창을 닫았다 다시 열면 언마운트되며 ref 가 사라지고, 새 id 가 발급돼 이중 차감이 발생한다.
- * 그래서 sessionStorage 에 payload 키로 보관하고, **확정 성공 시에만** 비운다.
+ * 보관은 2단이다.
+ * 1. 모듈 스코프 Map — 다이얼로그가 언마운트돼도(조건부 렌더로 닫았다 다시 열기) 살아남는다.
+ * 2. sessionStorage — 새로고침·탭 복원까지 살아남는다.
  *
- * sessionStorage 를 못 쓰는 환경(프라이빗 모드, 저장소 차단)에서는 매번 새 id 를 만들어
- * 기존 동작으로 degrade 한다. 그 경우 멱등이 보장되지 않는 것은 이 모듈 도입 이전과 같다.
+ * 저장소를 못 쓰는 환경(프라이빗 모드, 저장소 가득참)에서는 Map 만으로 동작한다.
+ * 이 경우 "응답 유실 + 새로고침 + 재시도" 가 겹치면 멱등이 깨지지만, 저장소 실패를 이유로
+ * 투표 자체를 막으면 정상 사용자의 가용성을 더 크게 해치므로 이 잔여 위험을 택했다.
+ * (Map 이 커버하는 언마운트/재오픈 경로가 실제 보고된 이중 차감 시나리오다.)
  */
 
 const KEY_PREFIX = 'picnic:vote-request-id:';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** 저장소가 없거나 실패해도 같은 페이지 안에서는 멱등을 유지한다. */
+const memoryStore = new Map<string, string>();
 
 export interface VoteRequestKey {
   userId: string;
@@ -31,17 +36,27 @@ function storageKey({ userId, voteId, voteItemId, amount }: VoteRequestKey): str
   return `${KEY_PREFIX}${userId}:${voteId}:${voteItemId}:${amount}`;
 }
 
-function getStore(): Storage | null {
+/**
+ * 읽기 전용 접근. **쓰기 probe 를 하지 않는다.**
+ * 저장소가 가득 찬 상태에서 probe 를 먼저 하면 이미 저장돼 있던 멱등 키까지 못 읽게 된다.
+ */
+function readStored(key: string): string | null {
   try {
     if (typeof window === 'undefined') return null;
-    const s = window.sessionStorage;
-    // 프라이빗 모드 등에서 접근 시 throw 하는 브라우저가 있어 실제 쓰기까지 확인한다.
-    const probe = `${KEY_PREFIX}__probe__`;
-    s.setItem(probe, '1');
-    s.removeItem(probe);
-    return s;
+    return window.sessionStorage.getItem(key);
   } catch {
     return null;
+  }
+}
+
+/** 저장 시도. 성공 여부는 read-back 으로 확인한다(조용히 삼키는 구현 대비). */
+function persist(key: string, value: string): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    window.sessionStorage.setItem(key, value);
+    return window.sessionStorage.getItem(key) === value;
+  } catch {
+    return false;
   }
 }
 
@@ -50,20 +65,24 @@ function getStore(): Storage | null {
  * 재시도에서 같은 payload 로 다시 호출하면 같은 값을 돌려준다.
  */
 export function acquireVoteRequestId(key: VoteRequestKey): string {
-  const store = getStore();
-  if (!store) return randomUUIDSafe();
-
   const k = storageKey(key);
-  try {
-    const existing = store.getItem(k);
-    if (existing && UUID_RE.test(existing)) return existing;
 
-    const id = randomUUIDSafe();
-    store.setItem(k, id);
-    return id;
-  } catch {
-    return randomUUIDSafe();
+  // 1) 같은 페이지 안의 기존 값
+  const inMemory = memoryStore.get(k);
+  if (inMemory && UUID_RE.test(inMemory)) return inMemory;
+
+  // 2) 저장소의 기존 값 — 쓰기 가능 여부와 무관하게 먼저 읽는다
+  const stored = readStored(k);
+  if (stored && UUID_RE.test(stored)) {
+    memoryStore.set(k, stored);
+    return stored;
   }
+
+  // 3) 신규 발급. 저장 실패해도 Map 에는 반드시 남긴다.
+  const id = randomUUIDSafe();
+  memoryStore.set(k, id);
+  persist(k, id);
+  return id;
 }
 
 /**
@@ -71,11 +90,17 @@ export function acquireVoteRequestId(key: VoteRequestKey): string {
  * 그 상태에서 비우면 다음 시도가 새 id 를 받아 이중 차감이 가능해진다.
  */
 export function releaseVoteRequestId(key: VoteRequestKey): void {
-  const store = getStore();
-  if (!store) return;
+  const k = storageKey(key);
+  memoryStore.delete(k);
   try {
-    store.removeItem(storageKey(key));
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.removeItem(k);
   } catch {
-    /* 무시 — 남아 있어도 다음 성공에서 정리된다 */
+    /* 무시 — Map 은 이미 비웠고, 저장소 잔여값은 다음 성공에서 정리된다 */
   }
+}
+
+/** 테스트 전용 — 모듈 스코프 Map 초기화 */
+export function __resetVoteRequestIdMemory(): void {
+  memoryStore.clear();
 }
