@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { formatWalletAmount } from '@/lib/wallet/parse';
@@ -36,7 +36,12 @@ export default function CandyHistoryClient() {
   // 코튼 잔액 0과 기능 OFF는 다르다 — 잔액을 대용으로 쓰지 않고 API 의 disabled 신호를 그대로 반영한다.
   const [isDisabled, setIsDisabled] = useState(false);
 
+  // 탭을 빠르게 전환하면 이전 탭 요청이 나중에 도착해 현재 탭 상태(items/disabled)를 덮어쓸 수 있다.
+  // 최신 요청 번호만 state 를 commit 하도록 해서 out-of-order 응답을 버린다.
+  const requestSeqRef = useRef(0);
+
   const loadPage = useCallback(async (currency: Tab, cursor: string | null, append: boolean) => {
+    const seq = ++requestSeqRef.current;
     setIsLoading(true);
     setError(null);
     if (!append) setIsDisabled(false);
@@ -45,6 +50,7 @@ export default function CandyHistoryClient() {
       if (cursor) params.set('cursor', cursor);
       const response = await fetch(`/api/user/wallet/history?${params.toString()}`);
       const result = await response.json();
+      if (seq !== requestSeqRef.current) return; // 낡은 응답 — 무시
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'WALLET_HISTORY_LOAD_FAILED');
       }
@@ -53,9 +59,10 @@ export default function CandyHistoryClient() {
       setItems((prev) => (append ? [...prev, ...page.items] : page.items));
       setNextCursor(page.next_cursor);
     } catch (e) {
+      if (seq !== requestSeqRef.current) return; // 낡은 요청의 실패도 현재 탭에 표시하지 않는다
       setError(e instanceof Error ? e.message : 'WALLET_HISTORY_LOAD_FAILED');
     } finally {
-      setIsLoading(false);
+      if (seq === requestSeqRef.current) setIsLoading(false);
     }
   }, []);
 
