@@ -13,7 +13,6 @@ export const STATIC_PAGES = [
     '/rewards',
     '/faq',
     '/notice',
-    '/community',
     '/concert2025',
     '/star-candy',
     '/download',
