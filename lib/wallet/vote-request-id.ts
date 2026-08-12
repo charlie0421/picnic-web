@@ -12,13 +12,25 @@ import { randomUUIDSafe } from '@/lib/uuid';
  * 2. sessionStorage — 새로고침·탭 복원까지 살아남는다.
  *
  * 저장소를 못 쓰는 환경(프라이빗 모드, 저장소 가득참)에서는 Map 만으로 동작한다.
- * 이 경우 "응답 유실 + 새로고침 + 재시도" 가 겹치면 멱등이 깨지지만, 저장소 실패를 이유로
- * 투표 자체를 막으면 정상 사용자의 가용성을 더 크게 해치므로 이 잔여 위험을 택했다.
- * (Map 이 커버하는 언마운트/재오픈 경로가 실제 보고된 이중 차감 시나리오다.)
+ *
+ * 남는 위험은 아래 3가지가 **모두** 겹칠 때뿐이다.
+ *   1. sessionStorage 가 읽기·쓰기를 모두 거부
+ *   2. Edge 가 커밋한 뒤 응답만 유실
+ *   3. **JS realm 소실** 후 같은 payload 재시도 — 전체 새로고침, 또는 다른 탭에서의 재시도
+ *      (Map 과 sessionStorage 는 탭마다 독립이다)
+ * 이 경우 새 id 가 발급돼 이중 차감이 가능하다.
+ *
+ * 저장소 실패 시 제출 자체를 막는(fail-closed) 선택지도 있었으나 채택하지 않았다.
+ * fail-closed 는 저장소를 못 쓰는 사용자의 투표를 **상시** 차단하는 확정 손실인 반면,
+ * 위 잔여 위험은 그 사용자 집합의 부분집합에서 3중 조건이 겹칠 때만 발생한다.
+ * Map 이 커버하는 언마운트/재오픈 경로가 실제 보고된 이중 차감 시나리오이고, 그건 닫혔다.
  */
 
 const KEY_PREFIX = 'picnic:vote-request-id:';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** 삭제에 실패한 저장소 항목을 무효화하는 표식. UUID 형식이 아니라 acquire 가 무시한다. */
+const RELEASED_TOMBSTONE = 'released';
 
 /** 저장소가 없거나 실패해도 같은 페이지 안에서는 멱등을 유지한다. */
 const memoryStore = new Map<string, string>();
@@ -92,11 +104,22 @@ export function acquireVoteRequestId(key: VoteRequestKey): string {
 export function releaseVoteRequestId(key: VoteRequestKey): void {
   const k = storageKey(key);
   memoryStore.delete(k);
+
   try {
     if (typeof window === 'undefined') return;
-    window.sessionStorage.removeItem(k);
+    const s = window.sessionStorage;
+    s.removeItem(k);
+
+    // removeItem 이 throw 하거나 조용히 no-op 하는 저장소가 있다. 그대로 두면 완료된 id 가
+    // 남아, 다음에 같은 payload 로 "새로" 투표할 때 readStored 가 그 id 를 되살린다.
+    // 그러면 Edge 가 이전 성공을 replay 해 UI 는 성공인데 표는 늘지 않는다.
+    // 지우지 못했으면 UUID 가 아닌 tombstone 으로 덮어 acquire 가 무시하게 만든다.
+    if (s.getItem(k) !== null) {
+      s.setItem(k, RELEASED_TOMBSTONE);
+    }
   } catch {
-    /* 무시 — Map 은 이미 비웠고, 저장소 잔여값은 다음 성공에서 정리된다 */
+    // 저장소 접근 자체가 막힌 경우. Map 은 이미 비웠고, 저장소 값은 읽을 수도 없으므로
+    // acquire 의 readStored 도 실패해 새 id 가 발급된다 — 되살아날 경로가 없다.
   }
 }
 

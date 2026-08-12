@@ -71,12 +71,24 @@ describe('useVoteDialog 제출 계약', () => {
     );
     expect(body.vote_id).toBe(100);
     expect(body.vote_item_id).toBe(10);
+    // amount 를 문자열로 바꾸는 회귀를 잡아야 한다 (BFF 가 Number.isInteger 로 검증한다)
+    expect(body.amount).toBe(1);
+    expect(typeof body.amount).toBe('number');
     expect(body.request_id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
   });
 
-  it('네트워크 실패 후 언마운트·재마운트해도 같은 request_id 로 재시도한다', async () => {
+  it('네트워크 실패 후 언마운트·재마운트해도 같은 request_id 로 재시도한다 (저장소 차단 상태)', async () => {
+    // 저장소를 막아야 모듈 Map 이 실제로 기여하는지 검증된다.
+    // 정상 저장소에서는 sessionStorage 만으로도 통과해 Map 회귀를 놓친다.
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError');
+    });
+
     const fetchMock = vi.fn().mockRejectedValue(new Error('network down'));
     global.fetch = fetchMock as never;
 
@@ -109,6 +121,31 @@ describe('useVoteDialog 제출 계약', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(bodyOf(fetchMock.mock.calls[1]).request_id).not.toBe(firstId);
+  });
+
+  it('응답 전 연속 클릭에도 fetch 는 1회만 나간다 (동시 더블클릭 가드)', async () => {
+    let resolveFetch: ((v: unknown) => void) | null = null;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = () =>
+            resolve({ ok: true, json: async () => ({ success: true, data: { usage: {} } }) });
+        }),
+    );
+    global.fetch = fetchMock as never;
+
+    const { result } = renderHook(() => useVoteDialog(PARAMS));
+
+    await act(async () => {
+      // 첫 요청이 pending 인 상태에서 즉시 두 번째 호출
+      const a = result.current.handleVoteSubmit();
+      const b = result.current.handleVoteSubmit();
+      await Promise.resolve();
+      resolveFetch!(undefined);
+      await Promise.all([a, b]);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('성공 오버레이가 떠 있는 동안 재제출을 차단한다 (이중 차감 방지)', async () => {
@@ -170,5 +207,9 @@ describe('useVoteDialog 제출 계약', () => {
     await act(async () => { await result.current.handleVoteSubmit(); });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    // 실패 재시도는 반드시 같은 멱등 키여야 한다 — 다르면 이중 차감이 가능해진다
+    expect(bodyOf(fetchMock.mock.calls[1]).request_id).toBe(
+      bodyOf(fetchMock.mock.calls[0]).request_id,
+    );
   });
 });

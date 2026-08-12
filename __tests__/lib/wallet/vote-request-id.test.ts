@@ -48,22 +48,25 @@ describe('acquireVoteRequestId', () => {
     expect(acquireVoteRequestId({ ...KEY, userId: 'user-2' })).not.toBe(base);
   });
 
-  it('저장된 값이 손상돼 있으면 새 UUID 로 대체한다', () => {
+  it('저장된 값이 손상돼 있으면 새 UUID 로 대체하고 저장소도 갱신한다', () => {
     acquireVoteRequestId(KEY);
     const storageKey = Object.keys(window.sessionStorage).find((k) =>
       k.startsWith('picnic:vote-request-id:'),
     )!;
     window.sessionStorage.setItem(storageKey, 'garbage');
+    // Map 이 남아 있으면 storage 를 읽지 않아 교체 branch 를 타지 않는다.
+    __resetVoteRequestIdMemory();
 
     const id = acquireVoteRequestId(KEY);
     expect(id).toMatch(UUID_RE);
     expect(id).not.toBe('garbage');
+    expect(window.sessionStorage.getItem(storageKey)).toBe(id);
   });
 
   it('sessionStorage 쓰기가 막혀도 같은 페이지 안에서는 같은 id 를 유지한다', () => {
     // 저장 실패를 "매번 새 UUID" 로 degrade 하면 이중 차감이 조용히 되살아난다.
     // 모듈 스코프 Map 이 언마운트/재오픈 경로를 커버해야 한다.
-    vi.spyOn(window.sessionStorage, 'setItem').mockImplementation(() => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
     });
 
@@ -79,7 +82,7 @@ describe('acquireVoteRequestId', () => {
     const original = acquireVoteRequestId(KEY);
     __resetVoteRequestIdMemory(); // 새 페이지 로드 상황 — Map 은 비고 저장소만 남음
 
-    vi.spyOn(window.sessionStorage, 'setItem').mockImplementation(() => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
     });
 
@@ -87,7 +90,7 @@ describe('acquireVoteRequestId', () => {
   });
 
   it('저장소 읽기가 throw 해도 예외 없이 동작한다', () => {
-    vi.spyOn(window.sessionStorage, 'getItem').mockImplementation(() => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('SecurityError');
     });
 
@@ -114,6 +117,36 @@ describe('releaseVoteRequestId', () => {
     // Map 만 지우고 저장소를 남기면 다음 acquire 가 옛 id 를 되살린다
     __resetVoteRequestIdMemory();
     expect(acquireVoteRequestId(KEY)).not.toBe(first);
+  });
+
+  it('removeItem 이 조용히 no-op 해도 완료된 id 가 되살아나지 않는다', () => {
+    const first = acquireVoteRequestId(KEY);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      /* no-op 저장소 */
+    });
+
+    releaseVoteRequestId(KEY);
+    __resetVoteRequestIdMemory(); // 새 페이지 로드
+
+    const second = acquireVoteRequestId(KEY);
+    expect(second).not.toBe(first);
+    expect(second).toMatch(UUID_RE);
+  });
+
+  it('removeItem 이 throw 해도 완료된 id 가 되살아나지 않는다', () => {
+    const first = acquireVoteRequestId(KEY);
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError');
+    });
+
+    releaseVoteRequestId(KEY);
+    __resetVoteRequestIdMemory();
+
+    const second = acquireVoteRequestId(KEY);
+    expect(second).not.toBe(first);
   });
 
   it('다른 payload 의 키는 건드리지 않는다', () => {
