@@ -15,6 +15,9 @@ interface MyPageActivityMenuProps {
   translations: ActivityMenuTranslations;
 }
 
+// VOTE 단독화: 커뮤니티 의존 메뉴 비노출 (롤백 시 true)
+const COMMUNITY_MENU_ENABLED = false;
+
 export default async function MyPageActivityMenu({ translations }: MyPageActivityMenuProps) {
   const t = (key: keyof ActivityMenuTranslations) => translations[key] || key;
 
@@ -31,7 +34,7 @@ export default async function MyPageActivityMenu({ translations }: MyPageActivit
           </h2>
         </div>
         
-        <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+        <div className='grid grid-cols-3 gap-3'>
           <NavigationLink href='/mypage/vote-history' className='group' should_login>
             <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
               <div className='text-center h-full flex flex-col justify-center'>
@@ -45,6 +48,7 @@ export default async function MyPageActivityMenu({ translations }: MyPageActivit
             </div>
           </NavigationLink>
           
+          {COMMUNITY_MENU_ENABLED && (
           <NavigationLink href='/mypage/posts' className='group' should_login>
             <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
               <div className='text-center h-full flex flex-col justify-center'>
@@ -57,7 +61,9 @@ export default async function MyPageActivityMenu({ translations }: MyPageActivit
               </div>
             </div>
           </NavigationLink>
-          
+          )}
+
+          {COMMUNITY_MENU_ENABLED && (
           <NavigationLink href='/mypage/comments' className='group' should_login>
             <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
               <div className='text-center h-full flex flex-col justify-center'>
@@ -70,7 +76,8 @@ export default async function MyPageActivityMenu({ translations }: MyPageActivit
               </div>
             </div>
           </NavigationLink>
-          
+          )}
+
           <NavigationLink href='/mypage/recharge-history' className='group' should_login>
               <div className='bg-gradient-to-r from-secondary-50 to-secondary-100 rounded-xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-transparent hover:border-secondary-200 h-20'>
                 <div className='text-center h-full flex flex-col justify-center'>

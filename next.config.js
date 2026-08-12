@@ -165,7 +165,33 @@ const nextConfig = {
         source: '/:lang/download.html',
         destination: '/:lang/download',
         permanent: false
-      }
+      },
+      // VOTE 단독 서비스화 — 비-VOTE 서비스 진입 URL 은 VOTE 홈으로 (롤백: 이 블록 삭제)
+      { source: '/goong-hap/:path*',        destination: '/vote',        permanent: false },
+      { source: '/:lang/goong-hap/:path*',  destination: '/:lang/vote',  permanent: false },
+      { source: '/community/:path*',        destination: '/vote',        permanent: false },
+      { source: '/:lang/community/:path*',  destination: '/:lang/vote',  permanent: false },
+      { source: '/pic/:path*',              destination: '/vote',        permanent: false },
+      { source: '/:lang/pic/:path*',        destination: '/:lang/vote',  permanent: false },
+      { source: '/novel/:path*',            destination: '/vote',        permanent: false },
+      { source: '/:lang/novel/:path*',      destination: '/:lang/vote',  permanent: false },
+      { source: '/goong-hap',               destination: '/vote',        permanent: false },
+      { source: '/:lang/goong-hap',         destination: '/:lang/vote',  permanent: false },
+      { source: '/community',               destination: '/vote',        permanent: false },
+      { source: '/:lang/community',         destination: '/:lang/vote',  permanent: false },
+      { source: '/pic',                     destination: '/vote',        permanent: false },
+      { source: '/:lang/pic',               destination: '/:lang/vote',  permanent: false },
+      { source: '/novel',                   destination: '/vote',        permanent: false },
+      { source: '/:lang/novel',             destination: '/:lang/vote',  permanent: false },
+      // 커뮤니티 데이터 의존 마이페이지 하위 메뉴
+      { source: '/mypage/posts/:path*',       destination: '/mypage',       permanent: false },
+      { source: '/:lang/mypage/posts/:path*', destination: '/:lang/mypage', permanent: false },
+      { source: '/mypage/posts',              destination: '/mypage',       permanent: false },
+      { source: '/:lang/mypage/posts',        destination: '/:lang/mypage', permanent: false },
+      { source: '/mypage/comments/:path*',       destination: '/mypage',       permanent: false },
+      { source: '/:lang/mypage/comments/:path*', destination: '/:lang/mypage', permanent: false },
+      { source: '/mypage/comments',              destination: '/mypage',       permanent: false },
+      { source: '/:lang/mypage/comments',        destination: '/:lang/mypage', permanent: false }
     ];
   },
   

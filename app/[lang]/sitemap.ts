@@ -5,7 +5,6 @@ import { SITE_URL, STATIC_PAGES } from "./constants/static-pages";
 import { SUPPORTED_LANGUAGES } from '@/config/settings';
 import { getVotes } from '@/lib/data-fetching/server/vote-service';
 import { getRewards } from '@/utils/api/queries';
-import { getCommunityFeed } from '@/lib/data-fetching/server/community-service';
 import { getNotices } from '@/lib/data-fetching/server/notice-service';
 
 interface Vote {
@@ -28,7 +27,6 @@ const ROUTE_PRIORITY: Record<string, number> = {
     '/vote': 0.9,
     '/rewards': 0.85,
     '/media': 0.8,
-    '/community': 0.85,
     '/concert2025': 0.8,
     '/star-candy': 0.75,
     '/faq': 0.7,
@@ -43,7 +41,6 @@ const ROUTE_FREQUENCY: Record<string, ChangeFreq> = {
     '/vote': 'daily',
     '/rewards': 'weekly',
     '/media': 'weekly',
-    '/community': 'daily',
     '/concert2025': 'weekly',
     '/star-candy': 'weekly',
     '/faq': 'monthly',
@@ -199,24 +196,6 @@ export async function buildSitemapEntries(
         console.error('사이트맵 생성 중 리워드 데이터 가져오기 실패:', error);
     }
 
-    // 4. 커뮤니티 게시글 페이지 사이트맵 항목 생성
-    let communityMaps: MetadataRoute.Sitemap = [];
-    try {
-        const communityFeed = await getCommunityFeed({ page: 1, limit: 30 });
-        const posts = communityFeed?.posts ?? [];
-
-        communityMaps = languages.flatMap(lang =>
-            posts.map(post => ({
-                url: `${SITE_URL}/${lang}/community/${post.id}`,
-                lastModified: new Date((post as any).updatedAt ?? post.createdAt ?? Date.now()),
-                changeFrequency: 'weekly' as const,
-                priority: 0.7,
-            })),
-        );
-    } catch (error) {
-        console.error('사이트맵 생성 중 커뮤니티 데이터 가져오기 실패:', error);
-    }
-
     // 5. 공지 상세 페이지 사이트맵 항목 생성
     let noticeMaps: MetadataRoute.Sitemap = [];
     try {
@@ -242,7 +221,6 @@ export async function buildSitemapEntries(
         ...staticPagesMaps,
         ...votesMaps,
         ...rewardsMaps,
-        ...communityMaps,
         ...noticeMaps,
     ];
 }

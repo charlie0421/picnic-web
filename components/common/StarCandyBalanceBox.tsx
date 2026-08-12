@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useWalletSummary } from '@/hooks/useWalletSummary';
+import { formatWalletAmount } from '@/lib/wallet/parse';
 import Image from 'next/image';
 
 const STAR_CANDY_IMAGE_URL = '/images/star-candy/star_100.png';
@@ -47,9 +49,24 @@ export default function StarCandyBalanceBox({
   className = '',
   compact = false,
 }: StarCandyBalanceBoxProps) {
-  const { t } = useLanguageStore();
+  const { t, currentLanguage } = useLanguageStore();
   const { user, userProfile, loadUserProfile } = useAuth();
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const { wallet } = useWalletSummary();
+
+  const localeMap: Record<string, string> = {
+    ko: 'ko-KR',
+    en: 'en-US',
+    ja: 'ja-JP',
+    zh: 'zh-CN',
+    id: 'id-ID',
+  };
+  const locale = localeMap[currentLanguage] || 'en-US';
+
+  // useWalletSummary 는 autoFetch prop 과 무관하게 항상 지갑을 조회한다.
+  // 값이 '0'/null 이면 자연스럽게 숨는다.
+  const cottonCandy = wallet ? wallet.cotton : null;
+  const cottonExpiringAmount = wallet ? wallet.cotton_expiring_amount : null;
 
   // autoFetch가 true이고 user가 있으면 API에서 최신 데이터를 가져옵니다
   useEffect(() => {
@@ -78,30 +95,45 @@ export default function StarCandyBalanceBox({
     };
   }, [autoFetch, user, userProfile, loadUserProfile]);
 
-  // 데이터 우선순위: props > API > userProfile > 기본값
-  const getStarCandyData = () => {
+  // 데이터 우선순위: wallet.v1(문자열, 안전정수 초과 보존) > props > userProfile > 기본값.
+  // props/userProfile 은 number 라 안전정수 초과분의 정밀도를 보존할 수 없어 wallet 이 없을 때의 fallback으로만 쓴다.
+  const getStarCandyData = (): {
+    starCandy: string;
+    starCandyBonus: string;
+    totalCandy: string;
+    isLoading: boolean;
+  } => {
+    if (wallet) {
+      return {
+        starCandy: wallet.star,
+        starCandyBonus: wallet.bonus,
+        totalCandy: (BigInt(wallet.star) + BigInt(wallet.bonus)).toString(),
+        isLoading: false,
+      };
+    }
+
     if (propStarCandy !== undefined && propStarCandyBonus !== undefined && propTotalCandy !== undefined) {
       return {
-        starCandy: propStarCandy,
-        starCandyBonus: propStarCandyBonus,
-        totalCandy: propTotalCandy,
+        starCandy: String(propStarCandy),
+        starCandyBonus: String(propStarCandyBonus),
+        totalCandy: String(propTotalCandy),
         isLoading: propIsLoading || false,
       };
     }
 
     if (userProfile) {
       return {
-        starCandy: userProfile.star_candy || 0,
-        starCandyBonus: userProfile.star_candy_bonus || 0,
-        totalCandy: (userProfile.star_candy || 0) + (userProfile.star_candy_bonus || 0),
+        starCandy: String(userProfile.star_candy || 0),
+        starCandyBonus: String(userProfile.star_candy_bonus || 0),
+        totalCandy: String((userProfile.star_candy || 0) + (userProfile.star_candy_bonus || 0)),
         isLoading: false,
       };
     }
 
     return {
-      starCandy: 0,
-      starCandyBonus: 0,
-      totalCandy: 0,
+      starCandy: '0',
+      starCandyBonus: '0',
+      totalCandy: '0',
       isLoading: isLoadingProfile,
     };
   };
@@ -135,7 +167,7 @@ export default function StarCandyBalanceBox({
             <div>
               <div className="text-xs opacity-90 leading-tight">{t('label_mypage_star_candy_total')}</div>
               <div className="text-base font-bold leading-tight">
-                {isLoading ? '...' : totalCandy.toLocaleString('en-US')}
+                {isLoading ? '...' : formatWalletAmount(totalCandy, locale)}
               </div>
             </div>
           </div>
@@ -147,19 +179,27 @@ export default function StarCandyBalanceBox({
                 width={28}
                 height={28}
               />
-              <span className="opacity-90">{starCandy.toLocaleString('en-US')}</span>
+              <span className="opacity-90">{formatWalletAmount(starCandy, locale)}</span>
             </div>
-            {starCandyBonus > 0 && (
+            {starCandyBonus !== '0' && (
               <>
                 <span className="opacity-50">+</span>
                 <div className="flex items-center gap-1 bg-white/20 px-1.5 py-0.5 rounded">
                   <span className="text-xs">🎁</span>
-                  <span className="text-xs font-semibold">{starCandyBonus.toLocaleString('en-US')}</span>
+                  <span className="text-xs font-semibold">{formatWalletAmount(starCandyBonus, locale)}</span>
                 </div>
               </>
             )}
           </div>
         </div>
+
+        {/* 코튼캔디 (플래그 OFF 동안 '0' 이라 자연스럽게 미노출) */}
+        {cottonCandy && cottonCandy !== '0' && (
+          <div className="mt-2 pt-2 border-t border-white/20 flex justify-between text-xs">
+            <span className="opacity-90">{t('wallet_cotton_candy')}</span>
+            <span className="font-semibold">{formatWalletAmount(cottonCandy, locale)}</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -176,7 +216,7 @@ export default function StarCandyBalanceBox({
             {isLoading ? (
               <span className="inline-block animate-pulse">...</span>
             ) : (
-              totalCandy.toLocaleString('en-US')
+              formatWalletAmount(totalCandy, locale)
             )}
           </div>
         </div>
@@ -198,22 +238,39 @@ export default function StarCandyBalanceBox({
             <div>
               <div className="text-xs opacity-80">별사탕</div>
               <div className="text-lg font-semibold">
-                {isLoading ? '...' : starCandy.toLocaleString('en-US')}
+                {isLoading ? '...' : formatWalletAmount(starCandy, locale)}
               </div>
             </div>
           </div>
 
           {/* 보너스 별사탕 */}
-          {starCandyBonus > 0 && (
+          {starCandyBonus !== '0' && (
             <div className="flex items-center gap-2 bg-gradient-to-r from-point-400 to-point-500 px-4 py-2 rounded-lg shadow-md animate-scale-in">
               <span className="text-2xl">🎁</span>
               <div>
                 <div className="text-xs opacity-90">보너스</div>
-                <div className="text-lg font-semibold">{starCandyBonus.toLocaleString('en-US')}</div>
+                <div className="text-lg font-semibold">{formatWalletAmount(starCandyBonus, locale)}</div>
               </div>
             </div>
           )}
         </div>
+
+        {/* 코튼캔디 (플래그 OFF 동안 '0' 이라 자연스럽게 미노출) */}
+        {cottonCandy && cottonCandy !== '0' && (
+          <>
+            <div className="border-t border-white/20"></div>
+            <div className="flex justify-between text-sm">
+              <span className="opacity-90">{t('wallet_cotton_candy')}</span>
+              <span className="font-semibold">{formatWalletAmount(cottonCandy, locale)}</span>
+            </div>
+            {cottonExpiringAmount && cottonExpiringAmount !== '0' && (
+              <div className="text-xs opacity-80">
+                {t('wallet_cotton_expires_today', { amount: formatWalletAmount(cottonExpiringAmount, locale) })}
+              </div>
+            )}
+            <p className="text-xs opacity-70">{t('cotton_candy_daily_expiry_notice')}</p>
+          </>
+        )}
       </div>
     </div>
   );

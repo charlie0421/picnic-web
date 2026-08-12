@@ -9,6 +9,14 @@ vi.mock('@/components/client/vote', () => ({
   ),
 }));
 
+vi.mock('@/stores/languageStore', () => ({
+  useLanguageStore: () => ({
+    t: (key: string) => key,
+    currentLanguage: 'en',
+    isHydrated: true,
+  }),
+}));
+
 const items = [
   { id: 1, vote_total: 70 },
   { id: 2, vote_total: 20 },
@@ -58,5 +66,54 @@ describe('VotePodium vote shares', () => {
       />,
     );
     expect(screen.getByText('1:70')).toBeInTheDocument();
+  });
+});
+
+describe('VotePodium runner-up gap notice', () => {
+  it('진행중이고 유일 2위면 갭 안내를 표시한다', () => {
+    render(
+      <VotePodium
+        rankedItems={items}
+        renderTimer={() => null}
+        headerHeight={0}
+        totalVotes={100}
+        voteStatus="ongoing"
+        isAdmin={false}
+      />,
+    );
+    expect(screen.getByText('vote_runner_up_gap_notice')).toBeInTheDocument();
+  });
+
+  it('종료된 투표에는 갭 안내를 표시하지 않는다', () => {
+    render(
+      <VotePodium
+        rankedItems={items}
+        renderTimer={() => null}
+        headerHeight={0}
+        totalVotes={100}
+        voteStatus="completed"
+        isAdmin={false}
+      />,
+    );
+    expect(screen.queryByText('vote_runner_up_gap_notice')).toBeNull();
+  });
+
+  it('2위가 동률이면 갭 안내를 표시하지 않는다', () => {
+    const tiedItems = [
+      { id: 1, vote_total: 70 },
+      { id: 2, vote_total: 20 },
+      { id: 3, vote_total: 20 },
+    ] as any;
+    render(
+      <VotePodium
+        rankedItems={tiedItems}
+        renderTimer={() => null}
+        headerHeight={0}
+        totalVotes={110}
+        voteStatus="ongoing"
+        isAdmin={false}
+      />,
+    );
+    expect(screen.queryByText('vote_runner_up_gap_notice')).toBeNull();
   });
 });

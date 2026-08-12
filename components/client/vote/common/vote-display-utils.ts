@@ -66,3 +66,19 @@ export function sumVoteTotals(
     return total + Math.max(0, item.vote_total ?? 0);
   }, 0);
 }
+
+export function runnerUpGap(
+  items: Array<{ vote_total?: number | null; deleted_at?: string | null }>,
+  status: VoteDisplayStatus,
+): number | null {
+  if (status !== 'ongoing') return null;
+  const totals = filterActiveVoteItems(items)
+    .map((item) => Math.max(0, item.vote_total ?? 0))
+    .sort((a, b) => b - a);
+  if (totals.length < 2) return null;
+  const [first, second] = totals;
+  const gap = first - second;
+  if (gap <= 0) return null; // 1·2위 동률 포함
+  if (totals.length >= 3 && totals[2] === second) return null; // 2위 동률 → 유일 2위 아님
+  return gap;
+}

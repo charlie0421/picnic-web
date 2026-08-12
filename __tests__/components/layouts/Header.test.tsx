@@ -1,17 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
-const mockMenuItems = [
-  { id: 'vote', path: '/vote', name: 'Vote', isActive: true, should_login: false },
-  { id: 'community', path: '/community', name: 'Community', isActive: false, should_login: false },
+const singlePortal = [
+  { id: 'vote', path: '/vote', name: 'VOTE', isActive: true, should_login: false },
 ];
 
+const multiplePortals = [
+  { id: 'vote', path: '/vote', name: 'VOTE', isActive: true, should_login: false },
+  { id: 'community', path: '/community', name: 'COMMUNITY', isActive: false, should_login: false },
+];
+
+const mockUseMenu = vi.fn();
+
 vi.mock('@/hooks/useMenu', () => ({
-  useMenu: () => ({
-    isAdmin: false,
-    portalMenuItems: mockMenuItems,
-    activePortal: null,
-  }),
+  useMenu: () => mockUseMenu(),
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -83,16 +85,12 @@ vi.mock('@/lib/data-fetching/client/notification-service', () => ({
   },
 }));
 
-vi.mock('@/components/client/attendance/AttendanceIconButton', () => ({
-  __esModule: true,
-  default: () => <div data-testid="attendance-icon" />,
-}));
-
 import Header from '@/components/layouts/Header';
 
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseMenu.mockReturnValue({ isAdmin: false, portalMenuItems: singlePortal, activePortal: null });
   });
 
   it('renders without crashing', () => {
@@ -106,10 +104,20 @@ describe('Header', () => {
     expect(logo).toBeInTheDocument();
   });
 
-  it('renders navigation menu items', () => {
+  it('renders navigation menu items when multiple portals exist', () => {
+    mockUseMenu.mockReturnValue({ isAdmin: false, portalMenuItems: multiplePortals, activePortal: null });
     render(<Header />);
-    expect(screen.getByText('Vote')).toBeInTheDocument();
-    expect(screen.getByText('Community')).toBeInTheDocument();
+    expect(screen.getByText('VOTE')).toBeInTheDocument();
+    expect(screen.getByText('COMMUNITY')).toBeInTheDocument();
+    const voteLink = screen.getByText('VOTE').closest('a');
+    expect(voteLink).toHaveClass('text-blue-600');
+  });
+
+  it('포털이 VOTE 하나뿐이면 포털 선택 메뉴를 렌더하지 않는다', () => {
+    render(<Header />);
+    expect(screen.queryByText('VOTE')).toBeNull();
+    expect(screen.queryByText('COMMUNITY')).toBeNull();
+    expect(screen.queryByText('Goong-Hap')).toBeNull();
   });
 
   it('renders language selector', () => {
@@ -117,21 +125,10 @@ describe('Header', () => {
     expect(screen.getByTestId('language-selector')).toBeInTheDocument();
   });
 
-  it('renders attendance icon', () => {
-    render(<Header />);
-    expect(screen.getByTestId('attendance-icon')).toBeInTheDocument();
-  });
-
   it('renders link to home page for logo', () => {
     render(<Header />);
     const homeLink = screen.getByAltText('logo').closest('a');
     expect(homeLink).toHaveAttribute('href', '/');
-  });
-
-  it('shows active indicator on active menu item', () => {
-    render(<Header />);
-    const voteLink = screen.getByText('Vote').closest('a');
-    expect(voteLink).toHaveClass('text-blue-600');
   });
 
   it('renders header element with border', () => {

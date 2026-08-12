@@ -31,6 +31,9 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     voteError,
     showSuccess,
     userBalance,
+    maxAmount,
+    isBalanceAboveMaxVoteAmount,
+    lastUsage,
     isLoadingBalance,
     balanceError,
     handleUseAllChange,
@@ -65,7 +68,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
           <VotingOverlay isVoting={isVoting} t={t} />
 
           {/* 성공 애니메이션 오버레이 */}
-          <SuccessOverlay showSuccess={showSuccess} t={t} />
+          <SuccessOverlay showSuccess={showSuccess} lastUsage={lastUsage} getLocale={getLocale} t={t} />
 
         {/* 헤더 */}
           <div className="bg-gradient-to-r from-primary to-secondary p-6 text-white">
@@ -110,7 +113,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
                   inputMode="numeric"
                   pattern="[0-9]*"
               min="1"
-                  max={userBalance ? userBalance.totalAvailable : undefined}
+                  max={userBalance ? maxAmount : undefined}
                   value={voteAmount}
                   onChange={handleInputChange}
                   onBlur={() => {
@@ -125,7 +128,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
                 <div className="absolute inset-y-0 right-0 flex flex-col">
             <button
                     onClick={() => handleAmountChange(voteAmount + 1)}
-                    disabled={!userBalance || voteAmount >= userBalance.totalAvailable}
+                    disabled={!userBalance || voteAmount >= maxAmount}
                     className="flex-1 px-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-tr-xl transition-colors"
                   >
                     ▲
@@ -140,16 +143,21 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
           </div>
         </div>
 
-              {/* 전체 사용 체크박스 */}
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useAllVotes}
-                  onChange={(e) => handleUseAllChange(e.target.checked)}
-                  className="w-5 h-5 text-primary border-2 border-primary/30 rounded focus:ring-primary"
-                />
-                <span className="text-gray-900 font-medium">{t('vote_popup_use_all')}</span>
-              </label>
+              {/* 전체 사용 체크박스 — 잔액이 1회 최대 수량(MAX_VOTE_AMOUNT)을 넘으면
+                  maxAmount 는 실제 잔액 전부가 아니므로 "전체 사용"이라는 표시가 부정확해진다. */}
+              {isBalanceAboveMaxVoteAmount ? (
+                <p className="text-sm text-gray-500">{t('vote_popup_amount_capped_at_max')}</p>
+              ) : (
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useAllVotes}
+                    onChange={(e) => handleUseAllChange(e.target.checked)}
+                    className="w-5 h-5 text-primary border-2 border-primary/30 rounded focus:ring-primary"
+                  />
+                  <span className="text-gray-900 font-medium">{t('vote_popup_use_all')}</span>
+                </label>
+              )}
             </motion.div>
 
 
@@ -185,7 +193,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
 
             <motion.button
               onClick={handleVoteSubmit}
-              disabled={isVoting || isLoadingBalance || !userBalance || voteAmount > userBalance.totalAvailable}
+              disabled={isVoting || isLoadingBalance || !userBalance || voteAmount > maxAmount}
               className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-secondary text-white font-medium rounded-xl hover:from-primary/90 hover:to-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
