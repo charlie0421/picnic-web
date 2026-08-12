@@ -26,6 +26,19 @@ export async function GET(request: NextRequest) {
   const limit = Number.isInteger(limitParam) ? Math.min(100, Math.max(1, limitParam)) : 20;
 
   const supabase = await createSupabaseServerClient();
+
+  // 캔디 내역은 앱과 동일하게 관리자 전용(§1-5). 페이지 가드(candy-history/page.tsx)만으로는
+  // API 를 직접 호출하는 경로를 막지 못하므로 BFF 에서도 동일하게 확인한다.
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('is_admin, is_super_admin')
+    .eq('id', user.id)
+    .single();
+  const isAdmin = !!(profile?.is_admin || profile?.is_super_admin);
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const { data, error } = await (supabase.rpc as any)('get_currency_history', {
     p_currency: currencyParam,
     p_cursor: cursor ?? null,
