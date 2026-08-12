@@ -26,9 +26,20 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json({ error: 'Invalid vote data' }, { status: 400 });
     }
+    // request_id가 있는데 형식이 틀리면 조용히 치환하지 않고 명시적으로 거부한다.
+    if (request_id !== undefined && request_id !== null) {
+      if (typeof request_id !== 'string' || !UUID_RE.test(request_id)) {
+        return NextResponse.json({ error: 'Invalid request_id' }, { status: 400 });
+      }
+    }
     // 구 클라이언트 번들 호환: request_id 미전달 시 서버 생성 (멱등 미보장 — 오늘과 동일)
-    const requestId =
-      typeof request_id === 'string' && UUID_RE.test(request_id) ? request_id : randomUUID();
+    let requestId: string;
+    if (typeof request_id === 'string') {
+      requestId = request_id;
+    } else {
+      console.warn('[/api/vote/submit] request_id missing — legacy client, idempotency not guaranteed');
+      requestId = randomUUID();
+    }
 
     const supabase = await createSupabaseServerClient();
 
