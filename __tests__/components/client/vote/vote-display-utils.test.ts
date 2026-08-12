@@ -3,6 +3,7 @@ import {
   formatCandidateVote,
   filterActiveVoteItems,
   formatVoteShare,
+  runnerUpGap,
   sharePercentDecimals,
   sumVoteTotals,
 } from '@/components/client/vote/common/vote-display-utils';
@@ -81,5 +82,27 @@ describe('vote display utilities', () => {
     const active = { id: 1, vote_total: 70 };
     const deleted = { id: 2, vote_total: 1000, deleted_at: '2026-01-01' };
     expect(filterActiveVoteItems([active, deleted, null])).toEqual([active]);
+  });
+});
+
+describe('runnerUpGap', () => {
+  const items = (totals: number[]) => totals.map((t) => ({ vote_total: t, deleted_at: null }));
+
+  it('유일 2위이고 갭이 양수면 갭을 반환한다', () => {
+    expect(runnerUpGap(items([100, 70, 30]), 'ongoing')).toBe(30);
+  });
+  it('1위와 2위 동률이면 null (유일 2위 아님)', () => {
+    expect(runnerUpGap(items([100, 100, 30]), 'ongoing')).toBeNull();
+  });
+  it('2위 동률이면 null', () => {
+    expect(runnerUpGap(items([100, 70, 70]), 'ongoing')).toBeNull();
+  });
+  it('진행중이 아니면 null', () => {
+    expect(runnerUpGap(items([100, 70]), 'completed')).toBeNull();
+    expect(runnerUpGap(items([100, 70]), 'upcoming')).toBeNull();
+  });
+  it('후보가 2명 미만이거나 삭제 후보 제외 후 2명 미만이면 null', () => {
+    expect(runnerUpGap(items([100]), 'ongoing')).toBeNull();
+    expect(runnerUpGap([{ vote_total: 100, deleted_at: null }, { vote_total: 70, deleted_at: '2026-01-01' }], 'ongoing')).toBeNull();
   });
 });
