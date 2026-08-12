@@ -4,6 +4,7 @@ import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import useSWR from 'swr';
 import type { VoteUsage } from '@/types/wallet';
+import { randomUUIDSafe } from '@/lib/uuid';
 import { MAX_VOTE_AMOUNT } from '@/lib/wallet/limits';
 
 export interface UserBalance {
@@ -30,7 +31,7 @@ export function nextRequestId(
   if (prev && prev.voteId === voteId && prev.voteItemId === voteItemId && prev.amount === amount) {
     return prev;
   }
-  return { id: crypto.randomUUID(), voteId, voteItemId, amount };
+  return { id: randomUUIDSafe(), voteId, voteItemId, amount };
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
