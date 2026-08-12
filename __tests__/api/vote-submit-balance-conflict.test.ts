@@ -49,7 +49,12 @@ describe('POST /api/vote/submit 사전 잔액 부족은 409 (Edge 판정과 동�
   });
 
   it('사전검증에서 걸린 잔액 부족은 400이 아니라 409를 반환한다', async () => {
-    const res = await POST(makeRequest({ vote_id: 1, vote_item_id: 10, amount: 5 }));
+    const res = await POST(makeRequest({
+      vote_id: 1,
+      vote_item_id: 10,
+      amount: 5,
+      request_id: '22222222-2222-4222-8222-222222222222',
+    }));
     const body = await res.json();
 
     expect(res.status).toBe(409);

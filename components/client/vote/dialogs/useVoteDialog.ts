@@ -160,6 +160,10 @@ export function useVoteDialog({
       const result = await response.json();
 
         if (!response.ok) {
+        // 구 번들이 request_id 없이 제출한 경우 — 재시도해도 계속 실패하므로 새로고침을 안내한다.
+        if (result.error === 'VOTE_CLIENT_UPGRADE_REQUIRED') {
+          throw new Error(t('vote_client_upgrade_required'));
+        }
         throw new Error(result.error || t('vote_popup_vote_failed'));
       }
 

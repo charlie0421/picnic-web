@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { randomUUID } from 'crypto';
 import { createSupabaseServerClient, getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 import { SupabaseAuthError } from '@/lib/supabase/error';
 import { parseWalletSummary, totalAvailable } from '@/lib/wallet/parse';
@@ -26,20 +25,15 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json({ error: 'Invalid vote data' }, { status: 400 });
     }
-    // request_id가 있는데 형식이 틀리면 조용히 치환하지 않고 명시적으로 거부한다.
-    if (request_id !== undefined && request_id !== null) {
-      if (typeof request_id !== 'string' || !UUID_RE.test(request_id)) {
-        return NextResponse.json({ error: 'Invalid request_id' }, { status: 400 });
-      }
+    // request_id 는 필수다. 서버가 대신 생성하면 응답 유실 후 재시도가 매번 새 작업이 되어
+    // 이중 차감이 발생한다. 누락·형식오류 모두 전환 응답으로 거부하고 클라이언트 갱신을 요구한다.
+    if (typeof request_id !== 'string' || !UUID_RE.test(request_id)) {
+      console.warn(
+        '[/api/vote/submit] request_id missing or malformed — rejecting (client upgrade required)',
+      );
+      return NextResponse.json({ error: 'VOTE_CLIENT_UPGRADE_REQUIRED' }, { status: 400 });
     }
-    // 구 클라이언트 번들 호환: request_id 미전달 시 서버 생성 (멱등 미보장 — 오늘과 동일)
-    let requestId: string;
-    if (typeof request_id === 'string') {
-      requestId = request_id;
-    } else {
-      console.warn('[/api/vote/submit] request_id missing — legacy client, idempotency not guaranteed');
-      requestId = randomUUID();
-    }
+    const requestId = request_id;
 
     const supabase = await createSupabaseServerClient();
 
