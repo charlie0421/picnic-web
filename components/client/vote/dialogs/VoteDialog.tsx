@@ -193,7 +193,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
 
             <motion.button
               onClick={handleVoteSubmit}
-              disabled={isVoting || isLoadingBalance || !userBalance || voteAmount > maxAmount}
+              disabled={isVoting || showSuccess || isLoadingBalance || !userBalance || voteAmount > maxAmount}
               className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-secondary text-white font-medium rounded-xl hover:from-primary/90 hover:to-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}

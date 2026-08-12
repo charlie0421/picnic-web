@@ -50,7 +50,7 @@ describe('POST /api/vote/submit request_id handling', () => {
     invokeMock.mockResolvedValue({ data: { success: true }, error: null });
   });
 
-  it('malformed request_id 는 조용히 치환되지 않고 400을 반환한다', async () => {
+  it('malformed request_id 는 조용히 치환되지 않고 전환 응답으로 거부한다', async () => {
     const res = await POST(makeRequest({
       vote_id: 1,
       vote_item_id: 10,
@@ -59,22 +59,66 @@ describe('POST /api/vote/submit request_id handling', () => {
     }));
 
     expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    // 구 번들은 error 문자열을 그대로 띄우므로 기계 코드가 들어가면 안 된다.
+    expect(body.error).not.toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    expect(body.error).toMatch(/refresh|새로고침|再読み込み|刷新/i);
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it('request_id 누락 시 서버가 생성한 유효 UUID를 Edge로 전달한다', async () => {
+  it('request_id 누락 시 서버가 대신 생성하지 않고 전환 응답으로 거부한다', async () => {
     const res = await POST(makeRequest({
       vote_id: 1,
       vote_item_id: 10,
       amount: 5,
     }));
 
-    expect(res.status).toBe(200);
-    expect(invokeMock).toHaveBeenCalledTimes(1);
-    const sentBody = invokeMock.mock.calls[0][1].body;
-    expect(sentBody.request_id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    // 구 번들은 error 문자열을 그대로 띄우므로 기계 코드가 들어가면 안 된다.
+    expect(body.error).not.toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    expect(body.error).toMatch(/refresh|새로고침|再読み込み|刷新/i);
+    // 멱등 키 없이 Edge 로 흘러가면 응답 유실 재시도에서 이중 차감이 발생하므로 절대 호출되면 안 된다
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it('request_id 가 null 이어도 거부한다', async () => {
+    const res = await POST(makeRequest({
+      vote_id: 1,
+      vote_item_id: 10,
+      amount: 5,
+      request_id: null,
+    }));
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    // 구 번들은 error 문자열을 그대로 띄우므로 기계 코드가 들어가면 안 된다.
+    expect(body.error).not.toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    expect(body.error).toMatch(/refresh|새로고침|再読み込み|刷新/i);
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it('request_id 가 문자열이 아니면 거부한다', async () => {
+    for (const bad of [123, true, {}, []]) {
+      invokeMock.mockClear();
+      const res = await POST(makeRequest({
+        vote_id: 1,
+        vote_item_id: 10,
+        amount: 5,
+        request_id: bad,
+      }));
+
+      expect(res.status).toBe(400);
+      const body = await res.json();
+    expect(body.code).toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    // 구 번들은 error 문자열을 그대로 띄우므로 기계 코드가 들어가면 안 된다.
+    expect(body.error).not.toBe('VOTE_CLIENT_UPGRADE_REQUIRED');
+    expect(body.error).toMatch(/refresh|새로고침|再読み込み|刷新/i);
+      expect(invokeMock).not.toHaveBeenCalled();
+    }
   });
 
   it('유효한 UUID request_id는 그대로 Edge에 전달된다', async () => {

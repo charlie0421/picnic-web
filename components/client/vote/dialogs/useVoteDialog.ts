@@ -4,6 +4,7 @@ import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import useSWR from 'swr';
 import type { VoteUsage } from '@/types/wallet';
+import { acquireVoteRequestId, releaseVoteRequestId } from '@/lib/wallet/vote-request-id';
 import { MAX_VOTE_AMOUNT } from '@/lib/wallet/limits';
 
 export interface UserBalance {
@@ -12,25 +13,6 @@ export interface UserBalance {
   cottonCandy: string;
   totalAvailable: string;
   cottonNextExpiresAt: string | null;
-}
-
-interface PendingRequest {
-  id: string;
-  voteId: number;
-  voteItemId: number;
-  amount: number;
-}
-
-export function nextRequestId(
-  prev: PendingRequest | null,
-  voteId: number,
-  voteItemId: number,
-  amount: number,
-): PendingRequest {
-  if (prev && prev.voteId === voteId && prev.voteItemId === voteItemId && prev.amount === amount) {
-    return prev;
-  }
-  return { id: crypto.randomUUID(), voteId, voteItemId, amount };
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -55,11 +37,12 @@ export function useVoteDialog({
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  // 성공 오버레이(2초) 동안·제출 중에는 재진입을 막는다. state 는 비동기라 ref 로 동기 가드한다.
+  const submitLockRef = useRef(false);
 
   const { t, currentLanguage } = useLanguageStore();
   const ensureActiveMembership = useWithdrawalGuard();
   const { user, isAuthenticated } = useAuth();
-  const requestIdRef = useRef<PendingRequest | null>(null);
   const [lastUsage, setLastUsage] = useState<VoteUsage | null>(null);
 
   // SWR을 사용하여 지갑(잔액) 정보 가져오기 — wallet.v1 계약(decimal string)
@@ -134,21 +117,29 @@ export function useVoteDialog({
   // 투표 실행
   const handleVoteSubmit = useCallback(async () => {
     if (!user || !userBalance) return;
+    // 성공 오버레이는 시각적 가림일 뿐이라 버튼이 여전히 활성이다(포커스·보조기기 활성화 가능).
+    // 성공 시 멱등 키를 비웠으므로 재진입하면 새 UUID 로 두 번째 차감이 일어난다.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+
     if (await ensureActiveMembership()) {
+      submitLockRef.current = false;
       return;
     }
 
     setIsVoting(true);
     setVoteError(null);
 
-    requestIdRef.current = nextRequestId(requestIdRef.current, voteId, voteItemId, voteAmount);
+    // 멱등 키는 다이얼로그 언마운트(닫았다 다시 열기)를 넘어 유지되어야 한다.
+    const requestKey = { userId: user.id, voteId, voteItemId, amount: voteAmount };
+    const requestId = acquireVoteRequestId(requestKey);
 
     try {
       const voteData = {
         vote_id: voteId,
         vote_item_id: voteItemId,
         amount: voteAmount,
-        request_id: requestIdRef.current.id,
+        request_id: requestId,
       };
 
       const response = await fetch('/api/vote/submit', {
@@ -160,13 +151,18 @@ export function useVoteDialog({
       const result = await response.json();
 
         if (!response.ok) {
+        // 서버가 기계 코드를 code 로 준다(error 는 구 번들이 그대로 띄울 사람용 문장).
+        // 재시도해도 계속 실패하므로 새로고침을 안내한다.
+        if (result.code === 'VOTE_CLIENT_UPGRADE_REQUIRED') {
+          throw new Error(t('vote_client_upgrade_required'));
+        }
         throw new Error(result.error || t('vote_popup_vote_failed'));
       }
 
       console.log('✅ [VotePopup] 투표 제출 성공:', result);
 
-      // 성공 — 다음 제출을 위해 request_id 를 비우고 사후 usage 표기
-      requestIdRef.current = null;
+      // 성공 확정 — 이때만 멱등 키를 비운다. 실패/타임아웃에서 비우면 이중 차감이 가능해진다.
+      releaseVoteRequestId(requestKey);
       setLastUsage(result.data?.usage ?? null);
 
       // 잔액 정보 갱신
@@ -177,13 +173,16 @@ export function useVoteDialog({
 
       setTimeout(() => {
         setShowSuccess(false);
+        submitLockRef.current = false;
         onClose();
       }, 2000);
 
     } catch (error) {
-      // 실패 — request_id 를 유지해 동일 파라미터 재시도 시 멱등이 성립하도록 한다
+      // 실패 — 멱등 키를 비우지 않는다. 동일 파라미터 재시도가 같은 request_id 를 재사용해야 한다
       console.error('Vote submission error:', error);
       setVoteError(error instanceof Error ? error.message : t('vote_popup_vote_failed'));
+      // 실패는 재시도를 허용해야 하므로 잠금을 푼다. 멱등 키는 유지되므로 같은 id 로 재시도된다.
+      submitLockRef.current = false;
     } finally {
       setIsVoting(false);
     }
