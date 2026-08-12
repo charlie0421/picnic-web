@@ -1,6 +1,6 @@
 'use client';
 import { motion } from 'framer-motion';
-import { AnimatedCount } from '@/components/ui/animations/RealtimeAnimations';
+import { formatWalletAmount } from '@/lib/wallet/parse';
 import type { UserBalance } from './useVoteDialog';
 
 interface VoteBalanceDisplayProps {
@@ -78,24 +78,30 @@ export function VoteBalanceDisplay({
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
             <div className="text-sm text-gray-800 font-medium mb-1">{t('vote_popup_star_candy')}</div>
-            <AnimatedCount
-              value={userBalance.starCandy}
-              className="text-2xl font-bold text-primary"
-              suffix=""
-              locale={getLocale()}
-            />
+            <div className="text-2xl font-bold text-primary">
+              {formatWalletAmount(userBalance.starCandy, getLocale())}
+            </div>
           </div>
 
           <div className="text-center">
             <div className="text-sm text-gray-800 font-medium mb-1">{t('vote_popup_star_candy_bonus')}</div>
-            <AnimatedCount
-              value={userBalance.starCandyBonus}
-              className="text-2xl font-bold text-secondary-600"
-              suffix=""
-              locale={getLocale()}
-            />
+            <div className="text-2xl font-bold text-secondary-600">
+              {formatWalletAmount(userBalance.starCandyBonus, getLocale())}
+            </div>
           </div>
       </div>
+
+        {userBalance.cottonCandy !== '0' && (
+          <div className="flex justify-between text-sm mt-3 pt-3 border-t border-primary/20">
+            <span className="text-gray-800 font-medium">{t('vote_popup_cotton_candy')}</span>
+            <span className="font-semibold text-primary">
+              {formatWalletAmount(userBalance.cottonCandy, getLocale())}
+            </span>
+          </div>
+        )}
+        {userBalance.cottonCandy !== '0' && (
+          <p className="text-xs text-gray-500 mt-1">{t('cotton_candy_daily_expiry_notice')}</p>
+        )}
 
         <div className="mt-4 pt-3 border-t border-primary/30">
           <div className="text-center">
@@ -105,7 +111,7 @@ export function VoteBalanceDisplay({
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <AnimatedCount value={userBalance.totalAvailable} suffix="" locale={getLocale()} />
+              {formatWalletAmount(userBalance.totalAvailable, getLocale())}
             </motion.div>
           </div>
         </div>

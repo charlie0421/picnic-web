@@ -31,6 +31,8 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     voteError,
     showSuccess,
     userBalance,
+    maxAmount,
+    lastUsage,
     isLoadingBalance,
     balanceError,
     handleUseAllChange,
@@ -65,7 +67,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
           <VotingOverlay isVoting={isVoting} t={t} />
 
           {/* 성공 애니메이션 오버레이 */}
-          <SuccessOverlay showSuccess={showSuccess} t={t} />
+          <SuccessOverlay showSuccess={showSuccess} lastUsage={lastUsage} getLocale={getLocale} t={t} />
 
         {/* 헤더 */}
           <div className="bg-gradient-to-r from-primary to-secondary p-6 text-white">
@@ -110,7 +112,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
                   inputMode="numeric"
                   pattern="[0-9]*"
               min="1"
-                  max={userBalance ? userBalance.totalAvailable : undefined}
+                  max={userBalance ? maxAmount : undefined}
                   value={voteAmount}
                   onChange={handleInputChange}
                   onBlur={() => {
@@ -125,7 +127,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
                 <div className="absolute inset-y-0 right-0 flex flex-col">
             <button
                     onClick={() => handleAmountChange(voteAmount + 1)}
-                    disabled={!userBalance || voteAmount >= userBalance.totalAvailable}
+                    disabled={!userBalance || voteAmount >= maxAmount}
                     className="flex-1 px-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-tr-xl transition-colors"
                   >
                     ▲
@@ -185,7 +187,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
 
             <motion.button
               onClick={handleVoteSubmit}
-              disabled={isVoting || isLoadingBalance || !userBalance || voteAmount > userBalance.totalAvailable}
+              disabled={isVoting || isLoadingBalance || !userBalance || voteAmount > maxAmount}
               className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-secondary text-white font-medium rounded-xl hover:from-primary/90 hover:to-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}

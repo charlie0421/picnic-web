@@ -1,6 +1,8 @@
 'use client';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { formatWalletAmount } from '@/lib/wallet/parse';
+import type { VoteUsage } from '@/types/wallet';
 
 interface VotingOverlayProps {
   isVoting: boolean;
@@ -57,10 +59,22 @@ export function VotingOverlay({ isVoting, t }: VotingOverlayProps) {
 
 interface SuccessOverlayProps {
   showSuccess: boolean;
+  lastUsage?: VoteUsage | null;
+  getLocale?: () => string;
   t: (key: string) => string;
 }
 
-export function SuccessOverlay({ showSuccess, t }: SuccessOverlayProps) {
+export function SuccessOverlay({ showSuccess, lastUsage, getLocale, t }: SuccessOverlayProps) {
+  const locale = getLocale ? getLocale() : 'en-US';
+  // 사후 표기 순서: 코튼 → 보너스 → 스타. 값이 '0' 인 통화는 숨긴다.
+  const usageRows = lastUsage
+    ? [
+        { key: 'vote_popup_cotton_candy', value: lastUsage.cotton_candy_usage },
+        { key: 'vote_popup_star_candy_bonus', value: lastUsage.star_candy_bonus_usage },
+        { key: 'vote_popup_star_candy', value: lastUsage.star_candy_usage },
+      ].filter((row) => row.value !== '0')
+    : [];
+
   return (
     <AnimatePresence>
       {showSuccess && (
@@ -82,6 +96,16 @@ export function SuccessOverlay({ showSuccess, t }: SuccessOverlayProps) {
               </svg>
             </motion.div>
             <h3 className="text-xl font-bold">{t('vote_popup_vote_success')}</h3>
+            {usageRows.length > 0 && (
+              <div className="mt-3 space-y-1 text-sm text-white/90">
+                {usageRows.map((row) => (
+                  <div key={row.key} className="flex items-center justify-center space-x-2">
+                    <span>{t(row.key)}</span>
+                    <span className="font-semibold">{formatWalletAmount(row.value, locale)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
       )}
