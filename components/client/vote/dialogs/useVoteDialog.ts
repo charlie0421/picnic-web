@@ -15,17 +15,21 @@ export interface UserBalance {
 
 interface PendingRequest {
   id: string;
+  voteId: number;
   voteItemId: number;
   amount: number;
 }
 
 export function nextRequestId(
   prev: PendingRequest | null,
+  voteId: number,
   voteItemId: number,
   amount: number,
 ): PendingRequest {
-  if (prev && prev.voteItemId === voteItemId && prev.amount === amount) return prev;
-  return { id: crypto.randomUUID(), voteItemId, amount };
+  if (prev && prev.voteId === voteId && prev.voteItemId === voteItemId && prev.amount === amount) {
+    return prev;
+  }
+  return { id: crypto.randomUUID(), voteId, voteItemId, amount };
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -132,7 +136,7 @@ export function useVoteDialog({
     setIsVoting(true);
     setVoteError(null);
 
-    requestIdRef.current = nextRequestId(requestIdRef.current, voteItemId, voteAmount);
+    requestIdRef.current = nextRequestId(requestIdRef.current, voteId, voteItemId, voteAmount);
 
     try {
       const voteData = {
