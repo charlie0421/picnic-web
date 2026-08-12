@@ -4,9 +4,9 @@ import { createSupabaseServerClient, getServerUser, isWithdrawnUser } from '@/li
 import { SupabaseAuthError } from '@/lib/supabase/error';
 import { parseWalletSummary, totalAvailable } from '@/lib/wallet/parse';
 import { mapVoteEdgeError } from '@/lib/wallet/vote-error';
+import { MAX_VOTE_AMOUNT } from '@/lib/wallet/limits';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MAX_AMOUNT = 2147483647; // voting-v2 계약 상한 (int4)
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     if (
       !Number.isInteger(vote_id) || !Number.isInteger(vote_item_id) ||
-      !Number.isInteger(amount) || amount <= 0 || amount > MAX_AMOUNT
+      !Number.isInteger(amount) || amount <= 0 || amount > MAX_VOTE_AMOUNT
     ) {
       return NextResponse.json({ error: 'Invalid vote data' }, { status: 400 });
     }

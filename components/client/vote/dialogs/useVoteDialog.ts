@@ -4,6 +4,7 @@ import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import useSWR from 'swr';
 import type { VoteUsage } from '@/types/wallet';
+import { MAX_VOTE_AMOUNT } from '@/lib/wallet/limits';
 
 export interface UserBalance {
   starCandy: string;
@@ -81,11 +82,15 @@ export function useVoteDialog({
     cottonNextExpiresAt: profileData.wallet.cotton_next_expires_at,
   } : null;
 
-  // UI 입력값(number)이 다룰 수 있는 상한 — 안전정수 초과분은 캡
+  // UI가 다룰 수 있는 상한 — 서버(voting-v2) int4 상한을 초과할 수 없다.
+  // 이 상한보다 큰 값을 "전체"로 표시하면 실제 잔액보다 적은 수량이 전체로 오인된다.
+  const isBalanceAboveMaxVoteAmount = userBalance
+    ? BigInt(userBalance.totalAvailable) > BigInt(MAX_VOTE_AMOUNT)
+    : false;
   const maxAmount = userBalance
     ? Number(
-        BigInt(userBalance.totalAvailable) > BigInt(Number.MAX_SAFE_INTEGER)
-          ? Number.MAX_SAFE_INTEGER
+        BigInt(userBalance.totalAvailable) > BigInt(MAX_VOTE_AMOUNT)
+          ? MAX_VOTE_AMOUNT
           : userBalance.totalAvailable,
       )
     : 0;
@@ -205,6 +210,7 @@ export function useVoteDialog({
     showSuccess,
     userBalance,
     maxAmount,
+    isBalanceAboveMaxVoteAmount,
     lastUsage,
     isLoadingBalance,
     balanceError,

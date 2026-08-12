@@ -32,6 +32,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     showSuccess,
     userBalance,
     maxAmount,
+    isBalanceAboveMaxVoteAmount,
     lastUsage,
     isLoadingBalance,
     balanceError,
@@ -142,16 +143,21 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
           </div>
         </div>
 
-              {/* 전체 사용 체크박스 */}
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useAllVotes}
-                  onChange={(e) => handleUseAllChange(e.target.checked)}
-                  className="w-5 h-5 text-primary border-2 border-primary/30 rounded focus:ring-primary"
-                />
-                <span className="text-gray-900 font-medium">{t('vote_popup_use_all')}</span>
-              </label>
+              {/* 전체 사용 체크박스 — 잔액이 1회 최대 수량(MAX_VOTE_AMOUNT)을 넘으면
+                  maxAmount 는 실제 잔액 전부가 아니므로 "전체 사용"이라는 표시가 부정확해진다. */}
+              {isBalanceAboveMaxVoteAmount ? (
+                <p className="text-sm text-gray-500">{t('vote_popup_amount_capped_at_max')}</p>
+              ) : (
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useAllVotes}
+                    onChange={(e) => handleUseAllChange(e.target.checked)}
+                    className="w-5 h-5 text-primary border-2 border-primary/30 rounded focus:ring-primary"
+                  />
+                  <span className="text-gray-900 font-medium">{t('vote_popup_use_all')}</span>
+                </label>
+              )}
             </motion.div>
 
 
