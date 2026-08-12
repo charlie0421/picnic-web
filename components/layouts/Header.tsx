@@ -153,6 +153,7 @@ const Header: React.FC = () => {
             <span className='flex-shrink-0 inline-flex items-center rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-white'>
               Beta
             </span>
+            {portalMenuItems.length > 1 && (
             <div className='flex-1 relative'>
   <div ref={menuContainerRef} className='overflow-x-auto scrollbar-hide scroll-smooth'>
     <div className='flex items-center space-x-1 sm:space-x-2 min-w-max'>
@@ -168,6 +169,7 @@ const Header: React.FC = () => {
   {canScrollRight && <div className='absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none flex items-center justify-end pr-1'><ChevronRight className='w-3 h-3 text-gray-400' /></div>}
   {isScrolled && <div className='absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none' />}
 </div>
+            )}
           </div>
 
           <div className='flex items-center gap-2 sm:gap-3'>
@@ -222,7 +224,7 @@ const Header: React.FC = () => {
                     </div>
                   )}
                   <div className="py-1.5">
-                  {portalMenuItems.map(item => (
+                  {portalMenuItems.length > 1 && portalMenuItems.map(item => (
                     <NavigationLink key={item.id} href={item.path} should_login={item.should_login} className={`flex items-center space-x-2 w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${item.isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}`}>
                       <span className={item.isActive ? 'text-blue-600' : 'text-gray-500'}>{getMenuIcon(item.id)}</span>
                       <span>{getMenuTranslation(item.id)}</span>
