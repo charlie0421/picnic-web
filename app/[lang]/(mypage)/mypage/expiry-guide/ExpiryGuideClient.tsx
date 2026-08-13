@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
+import { intlLocale } from '@/lib/i18n/locale';
 import { useLanguageStore } from '@/stores/languageStore';
 import { formatWalletAmount } from '@/lib/wallet/parse';
 import { CURRENCY_ICON } from '@/lib/wallet/currency-icons';
@@ -14,14 +15,6 @@ import type { WalletSummary } from '@/types/wallet';
 
 const WALLET_KEY = '/api/user/wallet';
 const EXPIRING_KEY = '/api/user/wallet/expiring-bonus';
-
-const localeMap: Record<string, string> = {
-  ko: 'ko-KR',
-  en: 'en-US',
-  ja: 'ja-JP',
-  zh: 'zh-CN',
-  id: 'id-ID',
-};
 
 /** 재화 / 소멸 예정일 / 수량 3열 표의 한 행 */
 function ExpiryRow({
@@ -49,7 +42,7 @@ function ExpiryRow({
 
 export default function ExpiryGuideClient() {
   const { t, currentLanguage } = useLanguageStore();
-  const locale = localeMap[currentLanguage] || 'en-US';
+  const locale = intlLocale(currentLanguage);
 
   // 소멸 경계를 넘기면 값이 바뀌므로 포커스 재검증을 켠다(기본 화면들과 달리 stale 이 위험하다).
   const {
@@ -83,10 +76,11 @@ export default function ExpiryGuideClient() {
   const wallet: WalletSummary | null = walletRes?.wallet ?? null;
   const months: ExpiringBonusMonth[] | null = bonusRes?.months ?? null;
 
+  // 앱과 동일: 지갑이 로드되면 코튼 행을 **0이어도** 그린다.
+  // 숨기면 "오늘 소멸할 게 없다"는 정보 자체가 사라져 사용자가 확인할 방법이 없다.
   const cottonExpiring = wallet?.cotton_expiring_amount ?? '0';
-  const hasCotton = cottonExpiring !== '0';
-  const bonusMonths = (months ?? []).filter((m) => m.expiring_amount > 0);
-  const hasAnyExpiring = hasCotton || bonusMonths.length > 0;
+  // 서버가 검증을 통과시킨 행은 임의로 거르지 않는다(앱도 0 여부와 무관하게 전부 그린다).
+  const bonusMonths = months ?? [];
 
   // jsonFetcher 가 HTTP 오류·success:false 를 throw 하므로 error 만 보면 된다.
   const walletFailed = !!walletError;
@@ -126,7 +120,7 @@ export default function ExpiryGuideClient() {
             </p>
           )}
 
-          {!isLoading && hasCotton && (
+          {!isLoading && !walletFailed && wallet && (
             <ExpiryRow
               icon={CURRENCY_ICON.cotton}
               currency={t('wallet_cotton_candy')}
@@ -145,11 +139,6 @@ export default function ExpiryGuideClient() {
             />
           ))}
 
-          {!isLoading && !walletFailed && !bonusFailed && !hasAnyExpiring && (
-            <p className="py-6 text-center text-sm text-gray-500">
-              {t('wallet_history_empty')}
-            </p>
-          )}
         </div>
       </section>
 

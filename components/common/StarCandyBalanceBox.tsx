@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { intlLocale } from '@/lib/i18n/locale';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useWalletSummary } from '@/hooks/useWalletSummary';
@@ -57,15 +58,7 @@ export default function StarCandyBalanceBox({
   const { user, userProfile, loadUserProfile } = useAuth();
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const { wallet } = useWalletSummary();
-
-  const localeMap: Record<string, string> = {
-    ko: 'ko-KR',
-    en: 'en-US',
-    ja: 'ja-JP',
-    zh: 'zh-CN',
-    id: 'id-ID',
-  };
-  const locale = localeMap[currentLanguage] || 'en-US';
+  const locale = intlLocale(currentLanguage);
 
   // useWalletSummary 는 autoFetch prop 과 무관하게 항상 지갑을 조회한다.
   // 값이 '0'/null 이면 자연스럽게 숨는다.

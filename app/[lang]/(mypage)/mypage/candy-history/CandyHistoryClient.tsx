@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { intlLocale } from '@/lib/i18n/locale';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { formatWalletAmount } from '@/lib/wallet/parse';
@@ -15,18 +16,10 @@ const TABS: { key: Tab; labelKey: string }[] = [
   { key: 'COTTON_CANDY', labelKey: 'wallet_cotton_candy' },
 ];
 
-const localeMap: Record<string, string> = {
-  ko: 'ko-KR',
-  en: 'en-US',
-  ja: 'ja-JP',
-  zh: 'zh-CN',
-  id: 'id-ID',
-};
-
 export default function CandyHistoryClient() {
   const { t, currentLanguage } = useLanguageStore();
   const { formatDate } = useLanguage();
-  const locale = localeMap[currentLanguage] || 'en-US';
+  const locale = intlLocale(currentLanguage);
 
   const [tab, setTab] = useState<Tab>('STAR_CANDY');
   const [items, setItems] = useState<CurrencyHistoryItem[]>([]);
