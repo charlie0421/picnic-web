@@ -65,9 +65,12 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
   [ -n "${NEXT_PUBLIC_SUPABASE_URL:-}" ] && BUILD_ARGS="$BUILD_ARGS --build-arg NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}"
   [ -n "${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}" ] && BUILD_ARGS="$BUILD_ARGS --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
   [ -n "${NEXT_PUBLIC_WEB_DOMAIN:-}" ] && BUILD_ARGS="$BUILD_ARGS --build-arg NEXT_PUBLIC_WEB_DOMAIN=${NEXT_PUBLIC_WEB_DOMAIN}"
-  # 배포 스큐 보호: 이미지 태그(기본 github.sha)가 배포 단위 불변 ID 다.
-  # 같은 아티팩트를 재배포하면 같은 ID, 다른 아티팩트면 반드시 다른 ID 가 된다.
-  BUILD_ARGS="$BUILD_ARGS --build-arg NEXT_DEPLOYMENT_ID=${IMAGE_TAG}"
+  # 배포 스큐 보호용 ID.
+  #
+  # CI 는 커밋과 빌드 실행을 합친 값을 NEXT_DEPLOYMENT_ID 로 넘긴다(deploy.yml 참고).
+  # 이미지 태그는 재사용될 수 있어 배포 ID 로 쓰기에 부적합하다.
+  # 로컬 수동 실행처럼 값이 없을 때만 태그로 폴백한다.
+  BUILD_ARGS="$BUILD_ARGS --build-arg NEXT_DEPLOYMENT_ID=${NEXT_DEPLOYMENT_ID:-$IMAGE_TAG}"
 
   if docker buildx version >/dev/null 2>&1; then
     # Ensure a builder exists

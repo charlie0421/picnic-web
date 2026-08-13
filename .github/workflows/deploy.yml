@@ -32,6 +32,15 @@ jobs:
 
     env:
       IMAGE_TAG: ${{ github.event.inputs.tag != '' && github.event.inputs.tag || github.sha }}
+      # 배포 스큐 보호용 ID. 이미지 태그와 분리한다.
+      #
+      # tag 입력은 검증 없이 재사용될 수 있어(같은 태그를 다른 커밋에 지정) 서로 다른
+      # 아티팩트가 같은 ID 를 갖게 된다. 또 같은 SHA 를 다시 빌드해도 buildVersion 과
+      # buildTime 이 새로 생성되므로 클라이언트 산출물은 달라진다.
+      #
+      # 따라서 커밋과 빌드 실행을 함께 식별한다. 이러면 어떤 두 빌드도 같은 ID 를
+      # 갖지 않고, 같은 이미지를 재배포할 때는 이미지에 구워진 값이 그대로 쓰인다.
+      NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}.${{ github.run_attempt }}
 
     steps:
       - name: Checkout
