@@ -42,10 +42,10 @@ describe('parseCurrencyHistoryPage', () => {
     expect(() => [...page.items]).not.toThrow();
   });
 
-  it('total_count 가 null 이면 문자열 0 이다 (Number 로 바꾸지 않는다)', () => {
+  // '0 건'과 '개수를 모름'은 다르다. 없는 값을 0 으로 위장하지 않는다.
+  it('total_count 가 null 이면 null 로 남긴다', () => {
     const page = parseCurrencyHistoryPage({ items: [], total_count: null });
-    expect(page.total_count).toBe('0');
-    expect(typeof page.total_count).toBe('string');
+    expect(page.total_count).toBeNull();
   });
 
   it('total_count 의 큰 값을 정밀도 손실 없이 유지한다', () => {
@@ -82,6 +82,63 @@ describe('parseCurrencyHistoryPage', () => {
   it('next_cursor 가 문자열이 아니면 던진다', () => {
     expect(() => parseCurrencyHistoryPage({ items: [], next_cursor: 5 })).toThrow(
       'WALLET_HISTORY_INVALID_next_cursor',
+    );
+  });
+
+  // 생성 타입상 item 의 모든 필드가 nullable 이다. 클라이언트는 item.id 를
+  // 직접 읽으므로 null row 가 통과하면 TypeError 로 죽는다.
+  it('items 에 null 이 섞이면 던진다 (클라이언트 TypeError 차단)', () => {
+    expect(() => parseCurrencyHistoryPage({ items: [null] })).toThrow(
+      'WALLET_HISTORY_INVALID_item_0',
+    );
+  });
+
+  it('필수 필드가 null 인 row 를 정상 item 으로 위장하지 않는다', () => {
+    for (const key of ['id', 'event_type', 'origin', 'created_at'] as const) {
+      expect(() =>
+        parseCurrencyHistoryPage({ items: [{ ...item, [key]: null }] }),
+      ).toThrow(`WALLET_HISTORY_INVALID_item_0_${key}`);
+    }
+  });
+
+  it('통화 enum 밖의 값을 거부한다', () => {
+    expect(() =>
+      parseCurrencyHistoryPage({ items: [{ ...item, currency: 'GOLD_CANDY' }] }),
+    ).toThrow('WALLET_HISTORY_INVALID_item_0_currency');
+  });
+
+  it.each(['delta', 'balance_effect'] as const)(
+    '%s 가 decimal string 이 아니면 던진다',
+    (key) => {
+      expect(() =>
+        parseCurrencyHistoryPage({ items: [{ ...item, [key]: null }] }),
+      ).toThrow(`WALLET_HISTORY_INVALID_item_0_${key}`);
+      expect(() =>
+        parseCurrencyHistoryPage({ items: [{ ...item, [key]: 12 }] }),
+      ).toThrow(`WALLET_HISTORY_INVALID_item_0_${key}`);
+      expect(() =>
+        parseCurrencyHistoryPage({ items: [{ ...item, [key]: '1.5' }] }),
+      ).toThrow(`WALLET_HISTORY_INVALID_item_0_${key}`);
+    },
+  );
+
+  it('delta 의 음수와 초대형 값을 문자열로 보존한다', () => {
+    const page = parseCurrencyHistoryPage({
+      items: [{ ...item, delta: '-9007199254740993', balance_effect: '0' }],
+    });
+    expect(page.items[0].delta).toBe('-9007199254740993');
+  });
+
+  it('nullable 필드는 null 을 허용하고 누락 시 null 로 채운다', () => {
+    const { expires_at, purchase_id, ...withoutNullable } = item;
+    const page = parseCurrencyHistoryPage({ items: [withoutNullable] });
+    expect(page.items[0].expires_at).toBeNull();
+    expect(page.items[0].purchase_id).toBeNull();
+  });
+
+  it('몇 번째 row 가 잘못됐는지 알린다', () => {
+    expect(() => parseCurrencyHistoryPage({ items: [item, item, null] })).toThrow(
+      'WALLET_HISTORY_INVALID_item_2',
     );
   });
 });
