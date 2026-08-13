@@ -8,6 +8,7 @@ import { formatWalletAmount } from '@/lib/wallet/parse';
 import { formatExpiryDate } from '@/lib/wallet/format-expiry';
 import { CURRENCY_ICON } from '@/lib/wallet/currency-icons';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const STAR_CANDY_IMAGE_URL = '/images/star-candy/star_100.png';
 
@@ -163,6 +164,13 @@ export default function StarCandyBalanceBox({
       >
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-gray-900">{t('wallet_pouch_title')}</h3>
+          {/* 앱 "별사탕 파우치" 헤더의 소멸 예정 캔디 안내 링크와 동일 */}
+          <Link
+            href={`/${currentLanguage}/mypage/expiry-guide`}
+            className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
+          >
+            {t('expiring_bonus_candy_guide')}
+          </Link>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
