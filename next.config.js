@@ -23,6 +23,19 @@ const buildTime = new Date().toISOString();
 const nextConfig = {
   reactStrictMode: true,
 
+  // 배포 스큐 보호(skew protection).
+  //
+  // 배포가 나가면 브라우저에 남아 있는 구 번들은 사라진 청크·구 서버 액션을 참조한다.
+  // deploymentId 를 주면 Next 가 요청에 이 값을 실어 보내고, 불일치를 감지하면
+  // 클라이언트가 하드 내비게이션으로 최신 번들을 받는다.
+  //
+  // Vercel 은 배포마다 VERCEL_DEPLOYMENT_ID 를 주고, ECR/ECS 경로에서는 기존
+  // buildVersion(scripts/generate-build-version)이 같은 역할을 한다.
+  // 둘 다 없는 로컬 개발에서는 설정하지 않는다(매 재시작마다 값이 바뀌면 HMR 이 방해받는다).
+  ...(process.env.VERCEL_DEPLOYMENT_ID || buildVersion
+    ? { deploymentId: process.env.VERCEL_DEPLOYMENT_ID || buildVersion }
+    : {}),
+
   // Sentry 가 client-side 에러를 decode 할 수 있도록 browser sourcemap 생성.
   // Sentry plugin 의 hideSourceMaps:true 가 업로드 후 .map 파일을 삭제하므로
   // public 노출은 없음 (`Yd` 같은 식별 불가 minified 에러를 풀기 위함).
