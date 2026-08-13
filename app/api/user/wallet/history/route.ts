@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { data, error } = await (supabase.rpc as any)('get_currency_history', {
+  const { data, error } = await supabase.rpc('get_currency_history', {
     p_currency: currencyParam,
     p_cursor: cursor ?? null,
     p_limit: limit,

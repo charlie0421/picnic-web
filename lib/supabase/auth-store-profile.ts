@@ -155,6 +155,9 @@ export async function loadUserProfileImpl(store: AuthStoreAccessor, userId: stri
         country_code: data.user.country_code ?? null,
         star_candy: data.user.star_candy || 0,
         star_candy_bonus: data.user.star_candy_bonus || 0,
+        // 잔액 표시는 get_wallet_summary(RPC) 가 담당한다. 이 프로필 필드는
+        // /api/user/profile 이 선택하지 않으므로 항상 0 으로 남는다.
+        cotton_candy: data.user.cotton_candy ?? 0,
         jma_candy: data.user.jma_candy ?? 0,
         is_admin: data.user.is_admin || false,
         is_super_admin: data.user.is_super_admin || false,
@@ -240,6 +243,7 @@ export async function loadUserProfileImpl(store: AuthStoreAccessor, userId: stri
             is_super_admin: false,
             star_candy: 0,
             star_candy_bonus: 0,
+            cotton_candy: 0,
             jma_candy: 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
