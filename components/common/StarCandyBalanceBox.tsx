@@ -5,9 +5,17 @@ import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useWalletSummary } from '@/hooks/useWalletSummary';
 import { formatWalletAmount } from '@/lib/wallet/parse';
+import { formatExpiryDate } from '@/lib/wallet/format-expiry';
 import Image from 'next/image';
 
 const STAR_CANDY_IMAGE_URL = '/images/star-candy/star_100.png';
+
+// 앱(picnic_lib/assets/icons/store)과 동일한 통화 아이콘. 3종 모두 192x192.
+const CURRENCY_ICON = {
+  star: '/images/currency/currency_star_candy.png',
+  bonus: '/images/currency/currency_bonus_star_candy.png',
+  cotton: '/images/currency/currency_cotton_candy.png',
+} as const;
 
 interface StarCandyBalanceBoxProps {
   /**
@@ -67,6 +75,7 @@ export default function StarCandyBalanceBox({
   // 값이 '0'/null 이면 자연스럽게 숨는다.
   const cottonCandy = wallet ? wallet.cotton : null;
   const cottonExpiringAmount = wallet ? wallet.cotton_expiring_amount : null;
+  const cottonNextExpiresAt = wallet ? wallet.cotton_next_expires_at : null;
 
   // autoFetch가 true이고 user가 있으면 API에서 최신 데이터를 가져옵니다
   useEffect(() => {
@@ -151,53 +160,88 @@ export default function StarCandyBalanceBox({
   }
 
   if (compact) {
+    // 앱의 "별사탕 파우치" 와 동일한 3통화 카드 구조.
+    // 코튼캔디는 만료가 다른 별도 통화라 스타캔디 합계에 섞지 않는다(앱도 합계를 두지 않는다).
     return (
       <div
-        className={`bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 rounded-lg shadow-md p-3 text-white ${className}`}
+        className={`bg-white rounded-xl shadow-md border border-primary-200 p-3 ${className}`}
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Image
-              src={STAR_CANDY_IMAGE_URL}
-              alt={t('label_mypage_star_candy')}
-              width={48}
-              height={48}
-              className="animate-scale-pulse"
-            />
-            <div>
-              <div className="text-xs opacity-90 leading-tight">{t('label_mypage_star_candy_total')}</div>
-              <div className="text-base font-bold leading-tight">
-                {isLoading ? '...' : formatWalletAmount(totalCandy, locale)}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="flex items-center gap-1">
-              <Image
-                src={STAR_CANDY_IMAGE_URL}
-                alt={t('label_mypage_star_candy')}
-                width={28}
-                height={28}
-              />
-              <span className="opacity-90">{formatWalletAmount(starCandy, locale)}</span>
-            </div>
-            {starCandyBonus !== '0' && (
-              <>
-                <span className="opacity-50">+</span>
-                <div className="flex items-center gap-1 bg-white/20 px-1.5 py-0.5 rounded">
-                  <span className="text-xs">🎁</span>
-                  <span className="text-xs font-semibold">{formatWalletAmount(starCandyBonus, locale)}</span>
-                </div>
-              </>
-            )}
-          </div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-bold text-gray-900">{t('wallet_pouch_title')}</h3>
         </div>
 
-        {/* 코튼캔디 (플래그 OFF 동안 '0' 이라 자연스럽게 미노출) */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-lg bg-gray-50 p-2 text-center">
+            <Image
+              src={CURRENCY_ICON.star}
+              alt=""
+              width={32}
+              height={32}
+              className="mx-auto"
+            />
+            <div className="mt-1 text-[11px] text-gray-500 leading-tight">
+              {t('wallet_star_candy')}
+            </div>
+            <div className="text-sm font-bold text-gray-900">
+              {isLoading ? '...' : formatWalletAmount(starCandy, locale)}
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-gray-50 p-2 text-center">
+            <Image
+              src={CURRENCY_ICON.bonus}
+              alt=""
+              width={32}
+              height={32}
+              className="mx-auto"
+            />
+            <div className="mt-1 text-[11px] text-gray-500 leading-tight">
+              {t('wallet_bonus_star_candy')}
+            </div>
+            <div className="text-sm font-bold text-gray-900">
+              {isLoading ? '...' : formatWalletAmount(starCandyBonus, locale)}
+            </div>
+          </div>
+
+          {/* 코튼캔디 — 서버 플래그 OFF 동안 '0' 이라 자연스럽게 미노출 */}
+          {cottonCandy && cottonCandy !== '0' ? (
+            <div className="rounded-lg bg-pink-50 p-2 text-center">
+              <Image
+                src={CURRENCY_ICON.cotton}
+                alt=""
+                width={32}
+                height={32}
+                className="mx-auto"
+              />
+              <div className="mt-1 text-[11px] text-gray-500 leading-tight">
+                {t('wallet_cotton_candy')}
+              </div>
+              <div className="text-sm font-bold text-pink-600">
+                {formatWalletAmount(cottonCandy, locale)}
+              </div>
+            </div>
+          ) : (
+            <div aria-hidden />
+          )}
+        </div>
+
+        {/* 만료 안내 — 코튼캔디는 다음 KST 자정에 소멸하므로 금액만 보여주면 안 된다 */}
         {cottonCandy && cottonCandy !== '0' && (
-          <div className="mt-2 pt-2 border-t border-white/20 flex justify-between text-xs">
-            <span className="opacity-90">{t('wallet_cotton_candy')}</span>
-            <span className="font-semibold">{formatWalletAmount(cottonCandy, locale)}</span>
+          <div className="mt-2 rounded-lg bg-pink-50 px-2 py-1.5 text-[11px] text-pink-700 space-y-0.5">
+            {cottonExpiringAmount && cottonExpiringAmount !== '0' && (
+              <p>
+                {t('wallet_cotton_expires_today', {
+                  amount: formatWalletAmount(cottonExpiringAmount, locale),
+                })}
+              </p>
+            )}
+            {cottonNextExpiresAt && (
+              <p>
+                {t('wallet_cotton_next_expiry', {
+                  date: formatExpiryDate(cottonNextExpiresAt, locale),
+                })}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -246,7 +290,7 @@ export default function StarCandyBalanceBox({
           {/* 보너스 별사탕 */}
           {starCandyBonus !== '0' && (
             <div className="flex items-center gap-2 bg-gradient-to-r from-point-400 to-point-500 px-4 py-2 rounded-lg shadow-md animate-scale-in">
-              <span className="text-2xl">🎁</span>
+              <Image src={CURRENCY_ICON.bonus} alt="" width={28} height={28} />
               <div>
                 <div className="text-xs opacity-90">보너스</div>
                 <div className="text-lg font-semibold">{formatWalletAmount(starCandyBonus, locale)}</div>
