@@ -30,6 +30,20 @@ describe('parseExpiringBonus', () => {
     }
   });
 
+  it('음수·소수·안전정수 초과는 거부한다 — 소멸 수량이 될 수 없는 값이다', () => {
+    for (const bad of [-1, -0.5, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() =>
+        parseExpiringBonus([{ prediction_month: '2026-09', expiring_amount: bad }]),
+      ).toThrow('EXPIRING_BONUS_INVALID_AMOUNT');
+    }
+  });
+
+  it('0 은 정상 값이다 (소멸 예정 없음)', () => {
+    expect(parseExpiringBonus([{ prediction_month: '2026-09', expiring_amount: 0 }])).toEqual([
+      { prediction_month: '2026-09', expiring_amount: 0 },
+    ]);
+  });
+
   it('수량이 숫자가 아니거나 유한하지 않으면 거부한다', () => {
     for (const bad of ['10', null, undefined, NaN, Infinity]) {
       expect(() =>

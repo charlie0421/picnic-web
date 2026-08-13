@@ -36,7 +36,13 @@ export function parseExpiringBonus(raw: unknown): ExpiringBonusMonth[] {
     if (typeof prediction_month !== 'string' || !MONTH_RE.test(prediction_month)) {
       throw new Error('EXPIRING_BONUS_INVALID_MONTH');
     }
-    if (typeof expiring_amount !== 'number' || !Number.isFinite(expiring_amount)) {
+    // 소멸 수량은 비음수 정수다. Number.isFinite 만 보면 -1 이나 1.5 가 그대로
+    // 화면에 뜬다(Edge 는 bigint 합계를 주므로 그런 값이 오면 계약 위반이다).
+    if (
+      typeof expiring_amount !== 'number' ||
+      !Number.isSafeInteger(expiring_amount) ||
+      expiring_amount < 0
+    ) {
       throw new Error('EXPIRING_BONUS_INVALID_AMOUNT');
     }
 
