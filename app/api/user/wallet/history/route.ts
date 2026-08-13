@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createSupabaseServerClient, getServerUser } from '@/lib/supabase/server';
-import type { CurrencyHistoryPage } from '@/types/wallet';
 import { normalizeHistoryError } from '@/lib/wallet/history-error';
+import { parseCurrencyHistoryPage } from '@/lib/wallet/parse-history';
+import { callRpc } from '@/lib/supabase/typed-rpc';
 
 const ALLOWED_CURRENCIES = ['STAR_CANDY', 'BONUS_STAR_CANDY', 'COTTON_CANDY'] as const;
 type AllowedCurrency = (typeof ALLOWED_CURRENCIES)[number];
@@ -39,9 +40,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { data, error } = await supabase.rpc('get_currency_history', {
+  const { data, error } = await callRpc(supabase, 'get_currency_history', {
     p_currency: currencyParam,
-    p_cursor: cursor ?? null,
+    // 첫 페이지는 커서가 없다. 생성 타입은 함수 인자의 nullable 을 표현하지 못해
+    // p_cursor 를 non-null string 으로 내보내므로 이 인자 한 곳만 좁게 격리한다.
+    p_cursor: (cursor ?? null) as unknown as string,
     p_limit: limit,
   });
 
@@ -54,5 +57,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'WALLET_HISTORY_LOAD_FAILED' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, page: data as CurrencyHistoryPage });
+  try {
+    return NextResponse.json({ success: true, page: parseCurrencyHistoryPage(data) });
+  } catch (e) {
+    console.error('[/api/user/wallet/history] parse error:', e);
+    return NextResponse.json({ error: 'WALLET_HISTORY_LOAD_FAILED' }, { status: 500 });
+  }
 }
