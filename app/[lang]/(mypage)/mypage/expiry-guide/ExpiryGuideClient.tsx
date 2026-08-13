@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import useSWR from 'swr';
 import Image from 'next/image';
 import { useLanguageStore } from '@/stores/languageStore';
@@ -7,9 +8,12 @@ import { formatWalletAmount } from '@/lib/wallet/parse';
 import { CURRENCY_ICON } from '@/lib/wallet/currency-icons';
 import { bonusExpiryDateLabel, type ExpiringBonusMonth } from '@/lib/wallet/expiring-bonus';
 import { fillExampleMonths } from '@/lib/wallet/expiry-example';
+import { jsonFetcher } from '@/lib/wallet/json-fetcher';
+import { msUntilNextKstMidnight } from '@/lib/wallet/next-kst-midnight';
 import type { WalletSummary } from '@/types/wallet';
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const WALLET_KEY = '/api/user/wallet';
+const EXPIRING_KEY = '/api/user/wallet/expiring-bonus';
 
 const localeMap: Record<string, string> = {
   ko: 'ko-KR',
@@ -47,25 +51,47 @@ export default function ExpiryGuideClient() {
   const { t, currentLanguage } = useLanguageStore();
   const locale = localeMap[currentLanguage] || 'en-US';
 
-  const { data: walletRes, error: walletError } = useSWR('/api/user/wallet', fetcher, {
-    revalidateOnFocus: false,
-  });
-  const { data: bonusRes, error: bonusError } = useSWR(
-    '/api/user/wallet/expiring-bonus',
-    fetcher,
-    { revalidateOnFocus: false },
-  );
+  // 소멸 경계를 넘기면 값이 바뀌므로 포커스 재검증을 켠다(기본 화면들과 달리 stale 이 위험하다).
+  const {
+    data: walletRes,
+    error: walletError,
+    isLoading: walletLoading,
+    mutate: mutateWallet,
+  } = useSWR(WALLET_KEY, jsonFetcher<{ wallet: WalletSummary }>);
+  const {
+    data: bonusRes,
+    error: bonusError,
+    isLoading: bonusLoading,
+    mutate: mutateBonus,
+  } = useSWR(EXPIRING_KEY, jsonFetcher<{ months: ExpiringBonusMonth[] }>);
 
-  const wallet: WalletSummary | null = walletRes?.success ? walletRes.wallet : null;
-  const months: ExpiringBonusMonth[] | null = bonusRes?.success ? bonusRes.months : null;
+  // 코튼캔디는 KST 자정에 소멸한다. 화면을 열어둔 채 자정을 넘기면 이미 사라진 수량과
+  // "오늘밤 자정" 문구가 남으므로 경계에서 다시 불러온다.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const arm = () => {
+      timer = setTimeout(() => {
+        mutateWallet();
+        mutateBonus();
+        arm();
+      }, msUntilNextKstMidnight());
+    };
+    arm();
+    return () => clearTimeout(timer);
+  }, [mutateWallet, mutateBonus]);
+
+  const wallet: WalletSummary | null = walletRes?.wallet ?? null;
+  const months: ExpiringBonusMonth[] | null = bonusRes?.months ?? null;
 
   const cottonExpiring = wallet?.cotton_expiring_amount ?? '0';
   const hasCotton = cottonExpiring !== '0';
   const bonusMonths = (months ?? []).filter((m) => m.expiring_amount > 0);
   const hasAnyExpiring = hasCotton || bonusMonths.length > 0;
 
-  const walletFailed = !!walletError || walletRes?.success === false;
-  const bonusFailed = !!bonusError || bonusRes?.success === false;
+  // jsonFetcher 가 HTTP 오류·success:false 를 throw 하므로 error 만 보면 된다.
+  const walletFailed = !!walletError;
+  const bonusFailed = !!bonusError;
+  const isLoading = walletLoading || bonusLoading;
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-2xl">
@@ -85,16 +111,22 @@ export default function ExpiryGuideClient() {
             <span className="text-right">{t('expiry_quantity_amount')}</span>
           </div>
 
-          {walletFailed && (
+          {isLoading && (
+            <div className="flex justify-center py-8">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          )}
+
+          {!isLoading && walletFailed && (
             <p className="py-4 text-sm text-red-600">{t('wallet_load_failed')}</p>
           )}
-          {bonusFailed && (
+          {!isLoading && bonusFailed && (
             <p className="py-4 text-sm text-red-600">
               {t('bonus_candy_expiration_policy_load_fail')}
             </p>
           )}
 
-          {hasCotton && (
+          {!isLoading && hasCotton && (
             <ExpiryRow
               icon={CURRENCY_ICON.cotton}
               currency={t('wallet_cotton_candy')}
@@ -103,7 +135,7 @@ export default function ExpiryGuideClient() {
             />
           )}
 
-          {bonusMonths.map((m) => (
+          {!isLoading && bonusMonths.map((m) => (
             <ExpiryRow
               key={m.prediction_month}
               icon={CURRENCY_ICON.bonus}
@@ -113,7 +145,7 @@ export default function ExpiryGuideClient() {
             />
           ))}
 
-          {!walletFailed && !bonusFailed && !hasAnyExpiring && (
+          {!isLoading && !walletFailed && !bonusFailed && !hasAnyExpiring && (
             <p className="py-6 text-center text-sm text-gray-500">
               {t('wallet_history_empty')}
             </p>
