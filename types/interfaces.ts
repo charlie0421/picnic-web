@@ -1,5 +1,7 @@
 // Auto-generated interfaces from Supabase types
 
+import type { Database } from './supabase';
+
 export type Json =
   | string
   | number
@@ -10,7 +12,7 @@ export type Json =
 
 export type BoardStatus = "pending" | "approved" | "rejected";
 
-export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION" | "OPEN_GOONGHAP" | "ADMIN_ADJUST";
+export type CandyHistoryType = "AD" | "VOTE" | "PURCHASE" | "GIFT" | "EXPIRED" | "VOTE_SHARE_BONUS" | "OPEN_COMPATIBILITY" | "MISSION" | "OPEN_GOONGHAP" | "ADMIN_ADJUST" | "CANDY_BOOST" | "REFUND_REVERSAL" | "DEBT_RECOVERY" | "CORRECTION";
 
 export type GoonghapStatus = "pending" | "completed" | "error";
 
@@ -33,6 +35,16 @@ export type SupportedLanguageEnum = "ko" | "en" | "ja" | "zh" | "zh-CN" | "zh-TW
 export type SupportedLanguage = SupportedLanguageEnum;
 
 export type UserGenderEnum = "male" | "female" | "other";
+
+export type WalletCurrencyEnum = "STAR_CANDY" | "BONUS_STAR_CANDY" | "COTTON_CANDY";
+
+export type WalletCurrency = WalletCurrencyEnum;
+
+export type WalletOperationKindEnum = "CREDIT" | "DEBIT";
+
+export type WalletOperationKind = WalletOperationKindEnum;
+
+export type WalletOperationStatus = "PENDING" | "PROCESSING" | "SUCCEEDED" | "DEAD";
 
 export interface Activities {
   activity_type: string
@@ -69,6 +81,27 @@ export interface AdCampaigns {
   weight: number
 }
 
+export interface AdFraudDecisions {
+  created_at: string
+  decision: string
+  id: number
+  impression_id: string
+  mode: string
+  observed_seconds: number
+  signal: string
+  threshold_seconds: number
+  user_id: string
+}
+
+export interface AdFraudPolicy {
+  enabled: boolean
+  id: number
+  min_gap_seconds: number
+  min_watch_seconds: number
+  mode: string
+  updated_at: string
+}
+
 export interface AdImpressions {
   ad_id: string
   completed_at: string | null
@@ -82,7 +115,31 @@ export interface AdImpressions {
   more_reward_granted_at: string | null
   user_agent: string | null
   user_id: string
+  view_result_grant_id: number | null
+  view_reward_acknowledged_at: string | null
   view_reward_granted_at: string | null
+  view_reward_payload_hash: string | null
+  view_reward_status: string
+}
+
+export interface AdRewardClaims {
+  acknowledged_at: string | null
+  channel: string
+  client_request_id: string
+  created_at: string
+  environment: string
+  expires_at: string
+  id: string
+  payload_hash: string
+  placement_id: string
+  platform: string
+  provider_occurred_at: string | null
+  provider_payload_hash: string | null
+  provider_received_at: string | null
+  provider_transaction_id: string | null
+  result_grant_id: number | null
+  status: string
+  user_id: string
 }
 
 export interface AdRewardEvents {
@@ -100,6 +157,7 @@ export interface AdminPermissions {
   created_at: string | null
   description: string | null
   id: string
+  permission_key: string | null
   resource: string
   updated_at: string | null
 }
@@ -155,6 +213,42 @@ export interface AlbumImage {
 export interface AlbumImageUser {
   image_id: number
   user_id: number
+}
+
+export interface AntiAbuseAlertLog {
+  dedup_key: string
+  id: number
+  payload: Json | null
+  rule: string
+  sent_at: string
+}
+
+export interface AntiAbuseDailyStats {
+  action_type: string
+  count: number
+  day: string
+  decision: string
+  mode: string
+}
+
+export interface AntiAbusePolicies {
+  action_type: string
+  block_threshold: number
+  count_strategy: string
+  created_at: string
+  device_block_threshold: number | null
+  device_suspect_threshold: number | null
+  enabled: boolean
+  enforce_since: string | null
+  id: number
+  link_loose_window_seconds: number | null
+  link_tight_window_seconds: number | null
+  mode: string
+  note: string | null
+  suspect_threshold: number
+  updated_at: string
+  updated_by: string | null
+  window_seconds: number
 }
 
 export interface AppSplash {
@@ -377,6 +471,7 @@ export interface Banner {
   link_type: string | null
   location: string | null
   order: number | null
+  promotion_campaign_owned: boolean
   start_at: string | null
   thumbnail: string | null
   title: Json
@@ -499,6 +594,48 @@ export interface Config {
   value: string | null
 }
 
+export interface ConfigAuditLog {
+  changed_at: string
+  changed_by: string | null
+  config_key: string
+  id: number
+  new_value: string | null
+  old_value: string | null
+  op: string
+}
+
+export interface CottonCandyGrants {
+  canonical_payload_hash: string
+  claim_id: string | null
+  expires_at: string
+  granted_at: string
+  id: number
+  idempotency_key: string
+  impression_id: string | null
+  metadata: Json
+  original_amount: number
+  provider_payload_hash: string
+  remain_amount: number
+  reward_policy_version: string
+  source_environment: string
+  source_event_type: string
+  source_provider: string
+  source_transaction_id: string
+  user_id: string
+}
+
+export interface CottonCandyLedger {
+  amount_delta: number
+  created_at: string
+  event_type: string
+  grant_id: number
+  id: number
+  operation_key: string
+  source_reference: string | null
+  user_id: string
+  vote_pick_id: number | null
+}
+
 export interface CountryInfo {
   country_code: string
   country_name: string
@@ -515,6 +652,16 @@ export interface CronLogs {
   log_message: string | null
   started_at: string
   status: string | null
+}
+
+export interface Cs411AdFastAnalysis {
+  min_real_gap: number | null
+  sub_classification: string | null
+  sub1_real_fast: number | null
+  sub5_real_fast: number | null
+  sub5_sdk_retry: number | null
+  sub5_total: number | null
+  user_id: string
 }
 
 export interface CustomLogs {
@@ -707,6 +854,29 @@ export interface GoonghapScoreDescriptions {
   title_zh: string | null
 }
 
+export interface IpBlockDecisions {
+  action_type: string
+  applied_window: number
+  attempt_count: number
+  attempted_email: string | null
+  attempted_provider: string | null
+  cs_resolution: string | null
+  decision: string
+  expires_at: string | null
+  first_seen_at: string
+  id: number
+  ip_hash: string
+  last_seen_at: string
+  mode: string
+  observed_value: number
+  raw_ip: string | null
+  reason: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+  threshold_used: number
+  user_id: string | null
+}
+
 export interface IpCountryMapping {
   country_code: string
   id: number
@@ -749,6 +919,24 @@ export interface Notices {
   status: string | null
   title: Json
   updated_at: string | null
+}
+
+export interface OpsAlerts {
+  acknowledged_at: string | null
+  acknowledged_by: string | null
+  details: Json
+  fingerprint: string
+  first_seen_at: string
+  id: string
+  last_seen_at: string
+  notified_at: string | null
+  occurrence_count: number
+  resolved_at: string | null
+  resolved_by: string | null
+  row_version: number
+  severity: string
+  status: string
+  title: string
 }
 
 export interface PartitionCreationLog {
@@ -1064,6 +1252,39 @@ export interface Products {
   web_price_usd: number | null
 }
 
+export interface PromotionCampaignVersions {
+  campaign_id: number
+  change_reason: string
+  changed_by: string
+  created_at: string
+  effective_from: string
+  end_iso_day: number
+  end_local_time: string
+  extra_bonus_bps: number
+  home_banner_id: number | null
+  id: number
+  is_active: boolean
+  localized_name: Json
+  rollout_policy: Json
+  start_iso_day: number
+  start_local_time: string
+  surfaces: Json
+  timezone: string
+  version: number
+}
+
+export interface PromotionCampaigns {
+  code: string
+  id: number
+  kind: string
+}
+
+export interface PromotionHomeBannerOwners {
+  campaign_id: number
+  created_at: string
+  home_banner_id: number
+}
+
 export interface PromptUsageLogs {
   created_at: string | null
   error: string | null
@@ -1089,6 +1310,138 @@ export interface Prompts {
   updated_at: string | null
   variables: string[]
   version: number
+}
+
+export interface PurchasePromotionAwards {
+  allocation_id: number
+  allocation_kind: string
+  award_amount: number
+  award_payload_hash: string
+  campaign_version_id: number
+  created_at: string
+  id: string
+  resolution_id: string
+  snapshot_id: string
+}
+
+export interface PurchasePromotionResolutionEvents {
+  audit_event_id: string | null
+  event_no: number
+  from_state: string | null
+  id: number
+  occurred_at: string
+  reason: string
+  resolution_id: string
+  to_state: string
+}
+
+export interface PurchasePromotionResolutionInputs {
+  campaign_version_id: number | null
+  created_at: string
+  eligibility_input_snapshot: Json
+  eligibility_payload_hash: string
+  operation_key: string
+  resolution_id: string
+  snapshot_id: string
+  verified_provider_occurred_at: string
+}
+
+export interface PurchasePromotionResolutions {
+  campaign_version_id: number
+  created_at: string
+  eligibility_basis: Json
+  id: string
+  resolution_key: string
+  resolved_at: string | null
+  snapshot_id: string
+  state: string
+}
+
+export interface PurchaseRefundAllocations {
+  allocation_no: number
+  applied_at: string | null
+  component: string
+  created_at: string
+  cumulative_target_amount: number
+  currency_type: WalletCurrencyEnum
+  debt_created_amount: number
+  id: string
+  incremental_reversal_amount: number
+  operation_key: string
+  original_reward_allocation_id: number
+  original_snapshot_id: string
+  recovery_plan: Json
+  recovery_plan_hash: string
+  refund_event_id: string
+  user_id: string
+  wallet_recovered_amount: number
+}
+
+export interface PurchaseRefundEvents {
+  canonical_payload_hash: string
+  created_at: string
+  cumulative_refunded_numerator: number
+  id: string
+  operation_key: string
+  payload_hash: string
+  provider_occurred_at: string
+  provider_refund_event_id: string
+  refund_denominator: number
+  refund_ratio_basis: string
+  snapshot_id: string
+  user_id: string
+}
+
+export interface PurchaseRewardAllocations {
+  allocation_kind: string
+  allocation_no: number
+  created_at: string
+  credit_allocation_id: number | null
+  currency_type: WalletCurrencyEnum
+  debt_offset_amount: number
+  gross_amount: number
+  id: number
+  net_wallet_credit_amount: number
+  snapshot_id: string
+  user_id: string
+}
+
+export interface PurchaseRewardSnapshots {
+  attestation_id: string | null
+  base_bonus_amount: number
+  base_operation_id: string | null
+  base_policy_snapshot: Json
+  base_star_amount: number
+  canonical_purchase_payload_hash: string
+  channel: string
+  created_at: string
+  eligibility_input_snapshot: Json
+  eligibility_payload_hash: string
+  environment: string
+  id: string
+  inbox_id: string | null
+  initial_provider_occurred_at: string | null
+  intake_provider_transaction_id: string
+  product_id: string
+  provider: string
+  provider_currency: string | null
+  provider_original_quantity: number | null
+  provider_paid_amount_minor: number | null
+  provider_transaction_id: string
+  purchase_key: string
+  quantity: number
+  receipt_id: number | null
+  refund_denominator: number
+  refund_ratio_basis: string
+  request_app_build: number
+  request_app_version: string
+  request_platform: string
+  rollout_cohort_version: string
+  source_payload_hash: string
+  unit_bonus_amount: number
+  unit_star_amount: number
+  user_id: string
+  verified_at: string
 }
 
 export interface PushMessages {
@@ -1157,6 +1510,16 @@ export interface Receipts {
   tx_key: string | null
   user_id: string | null
   verification_data: Json | null
+}
+
+export interface RequestIpLog {
+  action_type: string
+  created_at: string
+  device_hash: string | null
+  id: number
+  ip_hash: string
+  metadata: Json | null
+  user_id: string | null
 }
 
 export interface Reward {
@@ -1315,6 +1678,17 @@ export interface TransactionUnity {
   user_id: string
 }
 
+export interface UserAbuseReviewQueue {
+  created_at: string
+  id: number
+  resolution_note: string | null
+  resolved_at: string | null
+  resolved_by: string | null
+  source_decision_id: number
+  status: string
+  user_id: string
+}
+
 export interface UserAgreement {
   created_at: string | null
   deleted_at: string | null
@@ -1394,6 +1768,7 @@ export interface UserProfiles {
   avatar_url: string | null
   birth_date: string | null
   birth_time: string | null
+  cotton_candy: number
   country_code: string | null
   created_at: string
   deleted_at: string | null
@@ -1520,6 +1895,7 @@ export interface VoteItemRequestUsers {
   artist_id: number
   created_at: string | null
   id: string
+  ip_hash: string | null
   status: string
   updated_at: string | null
   user_id: string
@@ -1546,9 +1922,11 @@ export interface VoteItemUpdateQueue {
 
 export interface VotePick {
   amount: number | null
+  cotton_candy_usage: number
   created_at: string | null
   deleted_at: string | null
   id: number
+  request_id: string | null
   star_candy_bonus_usage: number
   star_candy_usage: number
   updated_at: string | null
@@ -1569,6 +1947,379 @@ export interface VoteShareBonus {
   updated_at: string
   user_id: string
   vote_id: number
+}
+
+export interface WalletAdminCommandExecutions {
+  action_code: string
+  actor_user_id: string
+  canonical_request_hash: string
+  created_at: string
+  request_id: string
+  response_envelope: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+}
+
+export interface WalletAdminLimitVersions {
+  action_code: string
+  change_reason: string
+  changed_by: string
+  created_at: string
+  currency_type: WalletCurrencyEnum
+  effective_from: string
+  id: number
+  max_amount: number
+  role_name: string
+  version: number
+}
+
+export interface WalletAdminRoleAssignmentApprovals {
+  approver_user_id: string
+  consumed_at: string | null
+  expires_at: string
+  id: string
+  request_hash: string
+  request_id: string
+  role_name: string
+  target_user_id: string
+}
+
+export interface WalletAuditEvents {
+  action: string
+  actor_id: string | null
+  actor_role: string
+  after_state: Json | null
+  before_state: Json | null
+  campaign_id: string | null
+  created_at: string
+  id: string
+  occurred_at: string
+  operation_id: string | null
+  reason_code: string | null
+  request_id: string | null
+  resource_id: string
+  resource_type: string
+  ticket_reference: string | null
+}
+
+export interface WalletBonusProjectionViolations {
+  detected_at: string
+  id: number
+  ledger_amount: number
+  profile_amount: number
+  resolved_at: string | null
+  user_id: string
+}
+
+export interface WalletCommandApprovalEvents {
+  actor_id: string
+  approval_request_id: string
+  event_audit_id: string
+  id: number
+  occurred_at: string
+  status: string
+}
+
+export interface WalletCommandApprovalRequests {
+  action_code: string
+  approval_reference: string
+  command_payload: Json
+  command_payload_hash: string
+  created_at: string
+  creation_audit_id: string
+  currency_type: WalletCurrencyEnum
+  expires_at: string
+  id: string
+  limit_version_id: number
+  operation_key: string
+  requester_id: string
+  role_name: string
+}
+
+export interface WalletCorrectionApprovalRequests {
+  approval_reference: string
+  approved_at: string | null
+  approved_by: string | null
+  audit_id: string
+  command_payload: Json
+  command_payload_hash: string
+  created_at: string
+  expires_at: string
+  id: string
+  operation_key: string
+  requester_id: string
+}
+
+export interface WalletCreditAllocations {
+  allocation_no: number
+  created_at: string
+  credit_operation_id: string
+  currency_type: WalletCurrencyEnum
+  debt_offset_amount: number
+  expires_at: string | null
+  gross_amount: number
+  id: number
+  net_wallet_credit_amount: number
+  reason: string
+  star_candy_bonus_history_id: number | null
+  star_candy_history_id: number | null
+  user_id: string
+}
+
+export interface WalletCreditOperations {
+  created_at: string
+  financial_operation_id: string
+  id: string
+}
+
+export interface WalletCreditSourceRegistry {
+  classification: string
+  evidence: Json
+  migrated: boolean
+  migrated_at: string | null
+  owner_plan: string
+  source_key: string
+  target_interface: string
+  writer_kind: string
+}
+
+export interface WalletDebitAllocations {
+  allocation_no: number
+  created_at: string
+  currency_type: WalletCurrencyEnum
+  debit_operation_id: string
+  debt_created_amount: number
+  id: number
+  requested_amount: number
+  user_id: string
+  wallet_debit_amount: number
+}
+
+export interface WalletDebitBucketAllocations {
+  amount: number
+  bucket_kind: string
+  created_at: string
+  currency_type: WalletCurrencyEnum
+  debit_allocation_id: number
+  id: number
+  star_candy_bonus_history_id: number | null
+  star_candy_history_id: number | null
+  user_id: string
+}
+
+export interface WalletDebitOperations {
+  allow_debt: boolean
+  created_at: string
+  debit_kind: string
+  financial_operation_id: string
+  user_id: string
+}
+
+export interface WalletFinancialOperations {
+  completed_at: string | null
+  created_at: string
+  error_code: string | null
+  id: string
+  operation_key: string
+  operation_kind: WalletOperationKindEnum
+  payload_hash: string
+  result: Json | null
+  source_event_at: string | null
+  source_reference: string
+  source_type: string
+  status: WalletOperationStatus
+  user_id: string
+}
+
+export interface WalletInvariantViolations {
+  actual: Json
+  consistent_scans: number
+  expected: Json
+  first_seen_at: string
+  last_seen_at: string
+  resolved_at: string | null
+  severity: string
+  user_id: string
+  violation_type: string
+}
+
+export interface WalletMutationRouteRegistry {
+  classification: string
+  domain: string
+  evidence: Json
+  lock_interface: string
+  migrated: boolean
+  migrated_at: string | null
+  owner_plan: string
+  route_key: string
+}
+
+export interface WalletOperationClaimCursor {
+  next_type: string
+  singleton: boolean
+}
+
+export interface WalletPromotionTimeAttestations {
+  environment: string
+  id: string
+  inbox_id: string
+  intake_provider_transaction_id: string
+  provider: string
+  provider_verification_payload_hash: string
+  snapshot_id: string
+  verified_at: string
+  verified_fields_hash: string
+  verified_provider_occurred_at: string
+}
+
+export interface WalletProviderEventInbox {
+  attempt_count: number
+  completed_at: string | null
+  created_at: string
+  encrypted_payload: string
+  id: string
+  idempotency_key: string
+  last_error_code: string | null
+  last_error_retryable: boolean | null
+  lease_token: string | null
+  lease_until: string | null
+  locked_by: string | null
+  next_retry_at: string
+  occurred_at: string
+  operation_id: string
+  operation_type: string
+  payload_hash: string
+  purchase_environment: string | null
+  purchase_product_id: string | null
+  purchase_provider: string | null
+  purchase_provider_transaction_id: string | null
+  purchase_user_id: string | null
+  result_id: string | null
+  result_type: string | null
+  row_version: number
+  status: string
+  updated_at: string
+}
+
+export interface WalletProviderVerificationAttestations {
+  authoritative_provider_transaction_id: string
+  durable_proof_hash: string
+  environment: string
+  id: string
+  inbox_id: string
+  intake_provider_transaction_id: string
+  product_id: string
+  provider: string
+  provider_currency: string | null
+  provider_occurred_at: string | null
+  provider_original_quantity: number | null
+  provider_paid_amount_minor: number | null
+  provider_verification_payload_hash: string
+  quantity: number
+  refund_ratio_basis: string
+  user_id: string
+  verified_at: string
+  verified_fields_hash: string
+}
+
+export interface WalletRecoveryDebtEvents {
+  amount: number
+  audit_event_id: string | null
+  currency_type: WalletCurrencyEnum
+  debt_id: string
+  event_no: number
+  event_type: string
+  id: number
+  occurred_at: string
+  operation_key: string | null
+  recovered_amount_after: number
+  refund_allocation_no: number | null
+  source_debit_allocation_id: number | null
+  source_refund_allocation_id: string | null
+  user_id: string
+  waived_amount_after: number
+  wallet_credit_allocation_id: number | null
+}
+
+export interface WalletRecoveryDebts {
+  created_at: string
+  currency_type: WalletCurrencyEnum
+  id: string
+  owed_amount: number
+  reason: string
+  receipt_id: number | null
+  recovered_amount: number
+  row_version: number
+  source_debit_allocation_id: number | null
+  source_refund_allocation_id: string | null
+  user_id: string
+  waived_amount: number
+}
+
+export interface WalletRepairOperations {
+  amount: number
+  audit_event_id: string
+  canonical_payload: Json
+  canonical_payload_hash: string
+  created_at: string
+  currency_type: WalletCurrencyEnum
+  direction: string
+  expected_state: Json
+  id: string
+  observed_state: Json
+  operation_key: string
+  user_id: string
+}
+
+export interface WalletRepairPreviews {
+  audit_id: string
+  command_payload: Json
+  command_payload_hash: string
+  created_at: string
+  executed_at: string | null
+  executed_by: string | null
+  expires_at: string
+  id: string
+  operation_key: string
+  preview_reference: string
+  requester_id: string
+  result_hash: string
+  result_payload: Json
+}
+
+export interface WalletRewardEntitlements {
+  amount: number
+  created_at: string
+  expires_at: string
+  reference_id: string
+  source_key: string
+  user_id: string
+}
+
+export interface WalletRuntimeFlags {
+  changed_at: string
+  changed_by: string | null
+  flag_key: string
+  reason: string
+  value_json: Json
+  version: number
+}
+
+export interface WalletWorkerHealth {
+  clean_scans: number
+  deployed_version: string
+  last_result: Json
+  last_success_at: string | null
+  scan_had_skips: boolean
+  worker_key: string
+}
+
+export interface WalletWorkerHeartbeats {
+  created_at: string
+  instance_id: string
+  last_heartbeat_at: string
+  metadata: Json
+  updated_at: string
+  worker_id: string
+  worker_type: string
 }
 
 export interface AdCampaignsActive {
@@ -1657,6 +2408,23 @@ export interface CompatibilityScoreDescriptions {
   title_ja: string | null
   title_ko: string | null
   title_zh: string | null
+}
+
+export interface Cs411Classification {
+  account_active: boolean | null
+  ad_max_per_min: number | null
+  admob_median_s: number | null
+  admob_min_s: number | null
+  admob_sub5s: number | null
+  admob_sub5s_pct: number | null
+  admob_total_gaps: number | null
+  already_restored: boolean | null
+  att_dup: number | null
+  classification: string | null
+  confiscated_4_11: number | null
+  email: string | null
+  nickname: string | null
+  user_id: string | null
 }
 
 export interface SecurityEventsSummary {
@@ -1759,11 +2527,8 @@ export interface ViewUserCandyLedger {
 }
 
 export interface VoteItemRequestStatusSummary {
-  artist_group: string | null
   artist_id: number | null
   artist_name: string | null
-  first_request_at: string | null
-  last_updated_at: string | null
   request_count: number | null
   request_status: string | null
   vote_id: number | null
@@ -1786,4 +2551,11 @@ export interface VwStarCandyBonusDrift {
   last_history_at: string | null
   profile_bonus: number | null
   user_id: string | null
+}
+
+export interface WalletCreditSourceCoverage {
+  coverage_percent: number | null
+  migrated_sources: number | null
+  owner_plan: string | null
+  total_sources: number | null
 }
