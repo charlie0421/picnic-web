@@ -106,21 +106,22 @@ export default function ExpiryGuideClient() {
           </div>
 
           {isLoading && (
-            <div className="flex justify-center py-8">
+            <div className="flex justify-center py-8" role="status" aria-live="polite">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <span className="sr-only">{t('expiry_quantity_title')}</span>
             </div>
           )}
 
-          {!isLoading && walletFailed && (
+          {walletFailed && (
             <p className="py-4 text-sm text-red-600">{t('wallet_load_failed')}</p>
           )}
-          {!isLoading && bonusFailed && (
+          {bonusFailed && (
             <p className="py-4 text-sm text-red-600">
               {t('bonus_candy_expiration_policy_load_fail')}
             </p>
           )}
 
-          {!isLoading && !walletFailed && wallet && (
+          {!walletFailed && wallet && (
             <ExpiryRow
               icon={CURRENCY_ICON.cotton}
               currency={t('wallet_cotton_candy')}
@@ -129,7 +130,9 @@ export default function ExpiryGuideClient() {
             />
           )}
 
-          {!isLoading && bonusMonths.map((m) => (
+          {/* 재검증 실패 시 캐시된 행을 그대로 두면 이미 소멸한 수량을 보여준다.
+              SWR 은 error 와 캐시 data 를 함께 유지하므로 명시적으로 막아야 한다. */}
+          {!bonusFailed && bonusMonths.map((m) => (
             <ExpiryRow
               key={m.prediction_month}
               icon={CURRENCY_ICON.bonus}

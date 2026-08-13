@@ -17,12 +17,34 @@ describe('intlLocale', () => {
     expect(set.size).toBe(SUPPORTED_LANGUAGES.length);
   });
 
-  it('주요 언어 매핑이 정확하다', () => {
-    expect(intlLocale('ko')).toBe('ko-KR');
-    expect(intlLocale('zh-cn')).toBe('zh-CN');
-    expect(intlLocale('zh-tw')).toBe('zh-TW');
-    expect(intlLocale('tl')).toBe('fil-PH');
-    expect(intlLocale('my')).toBe('my-MM');
+  it('12개 언어 매핑이 전부 정확하다 (두 언어를 맞바꿔도 잡힌다)', () => {
+    expect({
+      en: intlLocale('en'),
+      ko: intlLocale('ko'),
+      ja: intlLocale('ja'),
+      'zh-cn': intlLocale('zh-cn'),
+      'zh-tw': intlLocale('zh-tw'),
+      es: intlLocale('es'),
+      vi: intlLocale('vi'),
+      id: intlLocale('id'),
+      th: intlLocale('th'),
+      bn: intlLocale('bn'),
+      tl: intlLocale('tl'),
+      my: intlLocale('my'),
+    }).toEqual({
+      en: 'en-US',
+      ko: 'ko-KR',
+      ja: 'ja-JP',
+      'zh-cn': 'zh-CN',
+      'zh-tw': 'zh-TW',
+      es: 'es-ES',
+      vi: 'vi-VN',
+      id: 'id-ID',
+      th: 'th-TH',
+      bn: 'bn-BD',
+      tl: 'fil-PH',
+      my: 'my-MM',
+    });
   });
 
   it('모르는 언어는 en-US 로 떨어진다', () => {
