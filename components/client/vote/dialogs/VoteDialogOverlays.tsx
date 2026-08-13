@@ -69,9 +69,9 @@ export function SuccessOverlay({ showSuccess, lastUsage, getLocale, t }: Success
   // 사후 표기 순서: 코튼 → 보너스 → 스타. 값이 '0' 인 통화는 숨긴다.
   const usageRows = lastUsage
     ? [
-        { key: 'vote_popup_cotton_candy', value: lastUsage.cotton_candy_usage },
-        { key: 'vote_popup_star_candy_bonus', value: lastUsage.star_candy_bonus_usage },
-        { key: 'vote_popup_star_candy', value: lastUsage.star_candy_usage },
+        { key: 'wallet_cotton_candy', value: lastUsage.cotton_candy_usage },
+        { key: 'wallet_bonus_star_candy', value: lastUsage.star_candy_bonus_usage },
+        { key: 'wallet_star_candy', value: lastUsage.star_candy_usage },
       ].filter((row) => row.value !== '0')
     : [];
 

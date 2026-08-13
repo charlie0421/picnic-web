@@ -6,16 +6,11 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { useWalletSummary } from '@/hooks/useWalletSummary';
 import { formatWalletAmount } from '@/lib/wallet/parse';
 import { formatExpiryDate } from '@/lib/wallet/format-expiry';
+import { CURRENCY_ICON } from '@/lib/wallet/currency-icons';
 import Image from 'next/image';
 
 const STAR_CANDY_IMAGE_URL = '/images/star-candy/star_100.png';
 
-// 앱(picnic_lib/assets/icons/store)과 동일한 통화 아이콘. 3종 모두 192x192.
-const CURRENCY_ICON = {
-  star: '/images/currency/currency_star_candy.png',
-  bonus: '/images/currency/currency_bonus_star_candy.png',
-  cotton: '/images/currency/currency_cotton_candy.png',
-} as const;
 
 interface StarCandyBalanceBoxProps {
   /**
