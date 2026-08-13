@@ -40,7 +40,7 @@ describe('CandyHistoryClient — cotton read OFF disabled 신호 처리', () => 
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
 
-    await user.click(screen.getByText('vote_popup_cotton_candy'));
+    await user.click(screen.getByText('wallet_cotton_candy'));
 
     await waitFor(() => {
       expect(screen.queryByText('wallet_history_empty')).toBeNull();
@@ -83,11 +83,11 @@ describe('CandyHistoryClient — cotton read OFF disabled 신호 처리', () => 
     await waitFor(() => expect(screen.getByText('wallet_history_empty')).toBeInTheDocument());
 
     // COTTON 탭으로 이동 — 응답은 아직 pending
-    await user.click(screen.getByText('vote_popup_cotton_candy'));
+    await user.click(screen.getByText('wallet_cotton_candy'));
     await waitFor(() => expect(resolveCotton).not.toBeNull());
 
     // 응답이 오기 전에 STAR 탭으로 복귀 (STAR 응답은 즉시 성공)
-    await user.click(screen.getByText('vote_popup_star_candy'));
+    await user.click(screen.getByText('wallet_star_candy'));
     await waitFor(() => expect(screen.getByText('wallet_history_empty')).toBeInTheDocument());
 
     // 이제서야 COTTON 의 disabled 응답이 도착한다 — 현재 탭은 STAR 이므로 무시되어야 한다

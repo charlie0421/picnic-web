@@ -1,6 +1,8 @@
 'use client';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { formatWalletAmount } from '@/lib/wallet/parse';
+import { CURRENCY_ICON } from '@/lib/wallet/currency-icons';
 import type { UserBalance } from './useVoteDialog';
 
 interface VoteBalanceDisplayProps {
@@ -77,14 +79,28 @@ export function VoteBalanceDisplay({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
-            <div className="text-sm text-gray-800 font-medium mb-1">{t('vote_popup_star_candy')}</div>
+            <Image
+              src={CURRENCY_ICON.star}
+              alt=""
+              width={32}
+              height={32}
+              className="mx-auto mb-1"
+            />
+            <div className="text-sm text-gray-800 font-medium mb-1">{t('wallet_star_candy')}</div>
             <div className="text-2xl font-bold text-primary">
               {formatWalletAmount(userBalance.starCandy, getLocale())}
             </div>
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-gray-800 font-medium mb-1">{t('vote_popup_star_candy_bonus')}</div>
+            <Image
+              src={CURRENCY_ICON.bonus}
+              alt=""
+              width={32}
+              height={32}
+              className="mx-auto mb-1"
+            />
+            <div className="text-sm text-gray-800 font-medium mb-1">{t('wallet_bonus_star_candy')}</div>
             <div className="text-2xl font-bold text-secondary-600">
               {formatWalletAmount(userBalance.starCandyBonus, getLocale())}
             </div>
@@ -92,8 +108,11 @@ export function VoteBalanceDisplay({
       </div>
 
         {userBalance.cottonCandy !== '0' && (
-          <div className="flex justify-between text-sm mt-3 pt-3 border-t border-primary/20">
-            <span className="text-gray-800 font-medium">{t('vote_popup_cotton_candy')}</span>
+          <div className="flex justify-between items-center text-sm mt-3 pt-3 border-t border-primary/20">
+            <span className="flex items-center gap-1.5 text-gray-800 font-medium">
+              <Image src={CURRENCY_ICON.cotton} alt="" width={20} height={20} />
+              {t('wallet_cotton_candy')}
+            </span>
             <span className="font-semibold text-primary">
               {formatWalletAmount(userBalance.cottonCandy, getLocale())}
             </span>

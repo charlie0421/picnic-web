@@ -10,9 +10,9 @@ type Tab = 'STAR_CANDY' | 'BONUS_STAR_CANDY' | 'COTTON_CANDY';
 
 // 지갑 표시 순서(스타 → 보너스 → 코튼)와 동일
 const TABS: { key: Tab; labelKey: string }[] = [
-  { key: 'STAR_CANDY', labelKey: 'vote_popup_star_candy' },
-  { key: 'BONUS_STAR_CANDY', labelKey: 'vote_popup_star_candy_bonus' },
-  { key: 'COTTON_CANDY', labelKey: 'vote_popup_cotton_candy' },
+  { key: 'STAR_CANDY', labelKey: 'wallet_star_candy' },
+  { key: 'BONUS_STAR_CANDY', labelKey: 'wallet_bonus_star_candy' },
+  { key: 'COTTON_CANDY', labelKey: 'wallet_cotton_candy' },
 ];
 
 const localeMap: Record<string, string> = {
