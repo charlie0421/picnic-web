@@ -63,9 +63,35 @@ describe('StarCandyBalanceBox cotton — 실사용 조합', () => {
   it('안전정수를 초과하는 잔액도 wallet.v1 문자열 기준으로 정밀도 손실 없이 표시한다 (compact)', () => {
     mockWallet({ star: '9007199254740993', bonus: '7', cotton: '40', cotton_expiring_amount: '0', cotton_next_expires_at: null });
     render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
+    // compact 는 앱 "별사탕 파우치" 와 동일하게 통화별 카드만 보여준다(합계 없음).
+    // 각 통화가 문자열 그대로 정밀하게 렌더돼야 한다 — number 로 다루면 ...741,000 으로 뭉개진다.
     expect(screen.getByText('9,007,199,254,740,993')).toBeInTheDocument();
     expect(screen.getByText('7')).toBeInTheDocument();
-    expect(screen.getByText('9,007,199,254,741,000')).toBeInTheDocument();
+    expect(screen.queryByText('9,007,199,254,741,000')).toBeNull();
+  });
+
+  it('compact 에는 통화를 뭉갠 합계를 표시하지 않는다 (앱과 동일)', () => {
+    // 합계를 두면 "Total 7,715" 옆에 "코튼 12" 가 붙어 7,727 을 기대하게 만든다.
+    mockWallet({ star: '100', bonus: '20', cotton: '40', cotton_expiring_amount: '0', cotton_next_expires_at: null });
+    render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
+
+    expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.getByText('20')).toBeInTheDocument();
+    expect(screen.getByText('40')).toBeInTheDocument();
+    expect(screen.queryByText('120')).toBeNull();
+    expect(screen.queryByText('160')).toBeNull();
+  });
+
+  it('compact 에서 코튼 만료 정보를 함께 보여준다 (금액만 보여주면 안 된다)', () => {
+    mockWallet({
+      star: '100', bonus: '20', cotton: '12',
+      cotton_expiring_amount: '12',
+      cotton_next_expires_at: '2026-08-13T15:00:00.000Z', // 2026-08-14 00:00 KST
+    });
+    render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
+
+    expect(screen.getByText(/wallet_cotton_expires_today/)).toBeInTheDocument();
+    expect(screen.getByText(/wallet_cotton_next_expiry/)).toBeInTheDocument();
   });
 
   it('안전정수를 초과하는 잔액도 wallet.v1 문자열 기준으로 정밀도 손실 없이 표시한다 (non-compact)', () => {
