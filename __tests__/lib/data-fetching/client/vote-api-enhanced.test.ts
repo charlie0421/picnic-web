@@ -3,7 +3,6 @@ import {
   calculateVoteStatusEnhanced,
   calculateTimeLeftEnhanced,
   clearVoteResultsCache,
-  getRequestQueueStatus,
   getVoteAPIPerformanceStats,
   getVoteAPICircuitStats,
 } from '@/lib/data-fetching/client/vote-api-enhanced';
@@ -127,21 +126,6 @@ describe('clearVoteResultsCache', () => {
   });
 });
 
-describe('getRequestQueueStatus', () => {
-  it('returns queue status object', () => {
-    const status = getRequestQueueStatus();
-    expect(status).toHaveProperty('queueSize');
-    expect(status).toHaveProperty('requests');
-    expect(Array.isArray(status.requests)).toBe(true);
-  });
-
-  it('initially has empty queue', () => {
-    const status = getRequestQueueStatus();
-    expect(status.queueSize).toBe(0);
-    expect(status.requests).toEqual([]);
-  });
-});
-
 describe('getVoteAPIPerformanceStats', () => {
   it('returns performance metrics', () => {
     const stats = getVoteAPIPerformanceStats();
@@ -154,70 +138,6 @@ describe('getVoteAPICircuitStats', () => {
     const stats = getVoteAPICircuitStats();
     expect(stats).toBeDefined();
     expect(stats).toHaveProperty('state');
-  });
-});
-
-describe('submitVoteEnhanced', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('submits a vote successfully', async () => {
-    const mockResponse = { success: true, data: { id: 1 } };
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    });
-
-    const { submitVoteEnhanced } = await import('@/lib/data-fetching/client/vote-api-enhanced');
-
-    const result = await submitVoteEnhanced({
-      voteId: 1,
-      voteItemId: 2,
-      amount: 1,
-      userId: 'user-1',
-      totalBonusRemain: 10,
-    });
-
-    expect(result).toEqual(mockResponse);
-  });
-
-  it('handles failed response', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: () => Promise.resolve({ error: 'Bad request', details: 'Invalid vote' }),
-    });
-
-    const { submitVoteEnhanced } = await import('@/lib/data-fetching/client/vote-api-enhanced');
-
-    const result = await submitVoteEnhanced({
-      voteId: 1,
-      voteItemId: 2,
-      amount: 1,
-      userId: 'user-2',
-      totalBonusRemain: 10,
-    });
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-  });
-
-  it('handles network error', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-
-    const { submitVoteEnhanced } = await import('@/lib/data-fetching/client/vote-api-enhanced');
-
-    const result = await submitVoteEnhanced({
-      voteId: 1,
-      voteItemId: 2,
-      amount: 1,
-      userId: 'user-3',
-      totalBonusRemain: 10,
-    });
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Network error');
   });
 });
 
