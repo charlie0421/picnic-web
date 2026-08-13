@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { intlLocale } from '@/lib/i18n/locale';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useWithdrawalGuard } from '@/hooks/useWithdrawalGuard';
 import { useAuth } from '@/lib/supabase/auth-provider';
@@ -190,14 +191,7 @@ export function useVoteDialog({
 
   // 로케일 매핑
   const getLocale = useCallback(() => {
-    const localeMap: Record<string, string> = {
-      ko: 'ko-KR',
-      en: 'en-US',
-      ja: 'ja-JP',
-      zh: 'zh-CN',
-      id: 'id-ID',
-    };
-    return localeMap[currentLanguage] || 'en-US';
+    return intlLocale(currentLanguage);
   }, [currentLanguage]);
 
   return {

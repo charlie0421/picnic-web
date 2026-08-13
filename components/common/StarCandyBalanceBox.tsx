@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { intlLocale } from '@/lib/i18n/locale';
 import { useAuth } from '@/lib/supabase/auth-provider';
 import { useLanguageStore } from '@/stores/languageStore';
 import { useWalletSummary } from '@/hooks/useWalletSummary';
@@ -8,6 +9,7 @@ import { formatWalletAmount } from '@/lib/wallet/parse';
 import { formatExpiryDate } from '@/lib/wallet/format-expiry';
 import { CURRENCY_ICON } from '@/lib/wallet/currency-icons';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const STAR_CANDY_IMAGE_URL = '/images/star-candy/star_100.png';
 
@@ -56,15 +58,7 @@ export default function StarCandyBalanceBox({
   const { user, userProfile, loadUserProfile } = useAuth();
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const { wallet } = useWalletSummary();
-
-  const localeMap: Record<string, string> = {
-    ko: 'ko-KR',
-    en: 'en-US',
-    ja: 'ja-JP',
-    zh: 'zh-CN',
-    id: 'id-ID',
-  };
-  const locale = localeMap[currentLanguage] || 'en-US';
+  const locale = intlLocale(currentLanguage);
 
   // useWalletSummary 는 autoFetch prop 과 무관하게 항상 지갑을 조회한다.
   // 값이 '0'/null 이면 자연스럽게 숨는다.
@@ -163,6 +157,13 @@ export default function StarCandyBalanceBox({
       >
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-gray-900">{t('wallet_pouch_title')}</h3>
+          {/* 앱 "별사탕 파우치" 헤더의 소멸 예정 캔디 안내 링크와 동일 */}
+          <Link
+            href={`/${currentLanguage}/mypage/expiry-guide`}
+            className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
+          >
+            {t('expiring_bonus_candy_guide')}
+          </Link>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
