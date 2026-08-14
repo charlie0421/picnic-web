@@ -3,7 +3,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Vote } from '@/types/interfaces';
 import { VoteListPresenter } from './VoteListPresenter';
-import { VOTE_AREAS, VOTE_STATUS, VoteArea, VoteStatus } from '@/stores/voteFilterStore';
+import {
+  VOTE_STATUS,
+  VoteStatus,
+  normalizeVoteStatus,
+  normalizeVoteArea,
+} from '@/stores/voteFilterStore';
 import { useSearchParams } from 'next/navigation';
 
 interface VoteListCSRProps {
@@ -15,8 +20,9 @@ const PAGE_SIZE = 12;
 
 export function VoteListCSR({ initialVotes, initialLocale }: VoteListCSRProps) {
   const searchParams = useSearchParams();
-  const statusParam = (searchParams.get('status') as VoteStatus) || VOTE_STATUS.ONGOING;
-  const areaParam = (searchParams.get('area') as VoteArea) || VOTE_AREAS.ALL;
+  // 더보기 요청도 정규값으로만 나가야 SSR 첫 페이지와 같은 목록을 이어받는다.
+  const statusParam = normalizeVoteStatus(searchParams.get('status'));
+  const areaParam = normalizeVoteArea(searchParams.get('area'));
 
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<Vote[]>(initialVotes || []);

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-const mockSelectedStatus = { value: 'ongoing' };
+const mockStatusParam = { value: 'ongoing' as string | null };
 
 vi.mock('@/stores/languageStore', () => ({
   useLanguageStore: () => ({
@@ -18,14 +18,10 @@ vi.mock('@/stores/languageStore', () => ({
   }),
 }));
 
-vi.mock('@/stores/voteFilterStore', () => ({
-  VOTE_STATUS: {
-    ONGOING: 'ongoing',
-    UPCOMING: 'upcoming',
-    COMPLETED: 'completed',
-  },
-  useVoteFilterStore: () => ({
-    selectedStatus: mockSelectedStatus.value,
+// 필터의 진실은 URL 쿼리다 (스토어는 저장하지 않으므로 항상 기본값에 머문다).
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => ({
+    get: (key: string) => (key === 'status' ? mockStatusParam.value : null),
   }),
 }));
 
@@ -33,7 +29,7 @@ import VoteEmptyState from '@/components/client/vote/list/VoteEmptyState';
 
 describe('VoteEmptyState', () => {
   beforeEach(() => {
-    mockSelectedStatus.value = 'ongoing';
+    mockStatusParam.value = 'ongoing';
   });
 
   it('renders without crashing', () => {
@@ -42,27 +38,34 @@ describe('VoteEmptyState', () => {
   });
 
   it('shows ongoing empty message', () => {
-    mockSelectedStatus.value = 'ongoing';
+    mockStatusParam.value = 'ongoing';
     render(<VoteEmptyState />);
     expect(screen.getByText('No ongoing votes.')).toBeInTheDocument();
   });
 
   it('shows upcoming empty message', () => {
-    mockSelectedStatus.value = 'upcoming';
+    mockStatusParam.value = 'upcoming';
     render(<VoteEmptyState />);
     expect(screen.getByText('No upcoming votes.')).toBeInTheDocument();
   });
 
   it('shows completed empty message', () => {
-    mockSelectedStatus.value = 'completed';
+    mockStatusParam.value = 'completed';
     render(<VoteEmptyState />);
     expect(screen.getByText('No completed votes.')).toBeInTheDocument();
   });
 
-  it('shows default empty message for unknown status', () => {
-    mockSelectedStatus.value = 'unknown';
+  it('falls back to ongoing message for an unknown status in the URL', () => {
+    // 알 수 없는 값은 normalizeVoteStatus 가 기본값(ongoing)으로 좁힌다.
+    mockStatusParam.value = 'unknown';
     render(<VoteEmptyState />);
-    expect(screen.getByText('No votes available.')).toBeInTheDocument();
+    expect(screen.getByText('No ongoing votes.')).toBeInTheDocument();
+  });
+
+  it('prefers an explicit selectedStatus prop over the URL', () => {
+    mockStatusParam.value = 'ongoing';
+    render(<VoteEmptyState selectedStatus='completed' />);
+    expect(screen.getByText('No completed votes.')).toBeInTheDocument();
   });
 
   it('renders with text-center class', () => {

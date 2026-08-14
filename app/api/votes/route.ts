@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPublicSupabaseServerClient } from '@/lib/supabase/server';
-import { VOTE_AREAS, VOTE_STATUS } from '@/stores/voteFilterStore';
+import {
+  VOTE_AREAS,
+  VOTE_STATUS,
+  normalizeVoteStatus,
+  normalizeVoteArea,
+} from '@/stores/voteFilterStore';
+import { shouldOrderByArea } from '@/lib/vote/vote-order';
 import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 
 // 기본 투표 테이블 조회 쿼리 (서버/클라이언트 서비스와 동일 구조 유지)
@@ -32,7 +38,7 @@ const DEFAULT_VOTE_QUERY = `
 `;
 
 type VoteOrderConfig = {
-  column: 'start_at' | 'stop_at';
+  column: 'start_at' | 'stop_at' | 'id';
   ascending: boolean;
 };
 
@@ -44,6 +50,9 @@ const getVoteOrderConfig = (status: string): VoteOrderConfig => {
       return { column: 'start_at', ascending: true }; // 예정: 오픈 임박순
     case VOTE_STATUS.COMPLETED:
       return { column: 'stop_at', ascending: false }; // 종료: 최신 마감순
+    case VOTE_STATUS.ADMIN:
+      // 앱 debug 는 finalSort='id', finalOrder='DESC' 다 (vote_list_provider.dart).
+      return { column: 'id', ascending: false };
     default:
       return { column: 'start_at', ascending: false };
   }
@@ -52,8 +61,10 @@ const getVoteOrderConfig = (status: string): VoteOrderConfig => {
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
-    const statusParam = (url.searchParams.get('status') || VOTE_STATUS.ONGOING) as string;
-    const areaParam = (url.searchParams.get('area') || VOTE_AREAS.ALL) as string;
+    // 신뢰 경계 — 알 수 없는 값은 기본값으로 좁힌다. 그대로 흘리면 status 는
+    // 어느 case 에도 안 걸려 날짜 필터가 통째로 빠지고, area 는 빈 결과를 만든다.
+    const statusParam: string = normalizeVoteStatus(url.searchParams.get('status'));
+    const areaParam: string = normalizeVoteArea(url.searchParams.get('area'));
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
     const limit = Math.max(1, Math.min(50, parseInt(url.searchParams.get('limit') || '12', 10)));
 
@@ -103,6 +114,10 @@ export async function GET(req: NextRequest) {
 
     // 정렬 + 페이지네이션
     const { column, ascending } = getVoteOrderConfig(status);
+    // 앱과 동일하게 관리자 목록의 전체 탭에서만 area 로 먼저 묶는다 (shouldOrderByArea 참고).
+    if (shouldOrderByArea(status, area)) {
+      query = query.order('area', { ascending: true });
+    }
     query = query
       .order(column, { ascending })
       .range(offset, offset + limit - 1);

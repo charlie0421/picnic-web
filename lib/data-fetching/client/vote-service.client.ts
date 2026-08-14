@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
+import { shouldOrderByArea } from '@/lib/vote/vote-order';
 
 // 기본 투표 테이블 조회 쿼리 (클라이언트에서도 동일하게 사용될 수 있음)
 const DEFAULT_VOTE_QUERY = `
@@ -76,7 +77,7 @@ function transformVoteData(data: any[]): Vote[] {
  * 공통 투표 쿼리 빌더 (클라이언트에서도 동일하게 사용될 수 있음)
  */
 type VoteOrderConfig = {
-  column: 'start_at' | 'stop_at';
+  column: 'start_at' | 'stop_at' | 'id';
   ascending: boolean;
 };
 
@@ -88,6 +89,9 @@ const getVoteOrderConfig = (status?: string): VoteOrderConfig => {
       return { column: 'start_at', ascending: true };
     case VOTE_STATUS.COMPLETED:
       return { column: 'stop_at', ascending: false };
+    case VOTE_STATUS.ADMIN:
+      // 앱 debug 는 finalSort='id', finalOrder='DESC' 다 (vote_list_provider.dart).
+      return { column: 'id', ascending: false };
     default:
       return { column: 'start_at', ascending: false };
   }
@@ -134,6 +138,10 @@ function buildVoteQuery(
   }
 
   const { column, ascending } = getVoteOrderConfig(status);
+  // 앱과 동일하게 관리자 목록의 전체 탭에서만 area 로 먼저 묶는다.
+  if (shouldOrderByArea(status, area)) {
+    query = query.order("area", { ascending: true });
+  }
   return query.order(column, { ascending });
 }
 

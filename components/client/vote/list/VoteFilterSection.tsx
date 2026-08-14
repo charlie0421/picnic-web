@@ -4,23 +4,34 @@ import React, { useCallback } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import VoteStatusFilter from './VoteStatusFilter';
 import VoteAreaFilter from './VoteAreaFilter';
-import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
+import {
+  VoteStatus,
+  VoteArea,
+  normalizeVoteStatus,
+  normalizeVoteArea,
+} from '@/stores/voteFilterStore';
 
+/**
+ * 투표 목록 필터.
+ *
+ * 앱 `VoteListContent` 와 같은 배치 — 위에 종류 태그 칩(가로 스크롤),
+ * 아래 오른쪽에 상태 드롭다운. 필터의 진실은 URL 쿼리이며 저장하지 않는다.
+ */
 const VoteFilterSection: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // 현재 URL 파라미터에서 상태 읽기
-  const currentStatus = (searchParams.get('status') as VoteStatus) || VOTE_STATUS.ONGOING;
-  const currentArea = (searchParams.get('area') as VoteArea) || VOTE_AREAS.ALL;
+  // 현재 URL 파라미터에서 상태 읽기. 알 수 없는 값이 오면 기본값으로 좁힌다.
+  const currentStatus = normalizeVoteStatus(searchParams.get('status'));
+  const currentArea = normalizeVoteArea(searchParams.get('area'));
 
   // URL 업데이트 함수 - useCallback으로 안정화
   const updateURL = useCallback((newStatus: VoteStatus, newArea: VoteArea) => {
     const params = new URLSearchParams();
     params.set('status', newStatus);
     params.set('area', newArea);
-    
+
     const newURL = `${pathname}?${params.toString()}`;
     router.push(newURL, { scroll: false });
   }, [pathname, router]);
@@ -36,14 +47,12 @@ const VoteFilterSection: React.FC = () => {
   }, [updateURL, currentStatus]);
 
   return (
-    <div className='flex justify-between items-center mb-4'>
-      <div className='justify-start'>
-        <VoteAreaFilter
-          selectedArea={currentArea}
-          onAreaChange={handleAreaChange}
-        />
-      </div>
-      <div className='justify-end'>
+    <div className='mb-4 flex flex-col gap-2.5'>
+      <VoteAreaFilter
+        selectedArea={currentArea}
+        onAreaChange={handleAreaChange}
+      />
+      <div className='flex justify-end'>
         <VoteStatusFilter
           selectedStatus={currentStatus}
           onStatusChange={handleStatusChange}
@@ -53,4 +62,4 @@ const VoteFilterSection: React.FC = () => {
   );
 };
 
-export default VoteFilterSection; 
+export default VoteFilterSection;

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
+import { shouldOrderByArea } from '@/lib/vote/vote-order';
 import { Vote, VoteItem, VoteReward } from '@/types/interfaces';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -120,7 +121,7 @@ export function transformVoteData(data: any[]): VoteWithRelations[] {
  * 공통 투표 쿼리 빌더
  */
 type VoteOrderConfig = {
-  column: 'start_at' | 'stop_at';
+  column: 'start_at' | 'stop_at' | 'id';
   ascending: boolean;
 };
 
@@ -132,6 +133,9 @@ export const getVoteOrderConfig = (status?: string): VoteOrderConfig => {
       return { column: 'start_at', ascending: true }; // 예정: 오픈 임박순
     case VOTE_STATUS.COMPLETED:
       return { column: 'stop_at', ascending: false }; // 종료: 최신 마감순
+    case VOTE_STATUS.ADMIN:
+      // 앱 debug 는 finalSort='id', finalOrder='DESC' 다 (vote_list_provider.dart).
+      return { column: 'id', ascending: false };
     default:
       return { column: 'start_at', ascending: false };
   }
@@ -188,8 +192,17 @@ export function buildVoteQuery(
 
   const { column, ascending } = getVoteOrderConfig(status);
 
+  query = query.is("vote_item.deleted_at", null);
+
+  // 앱과 동일한 area 우선 정렬. 앱(vote_list_provider.dart)은 `area == 'all' &&
+  // finalSort == 'id'` 일 때만 이 정렬을 붙이는데, finalSort 가 'id' 로 남는 것은
+  // debug(=웹의 admin) 상태뿐이다. 진행중/예정/종료는 stop_at·start_at 으로
+  // 덮어써지므로 area 정렬이 적용되지 않는다. 같은 조건으로 좁혀 둔다.
+  if (shouldOrderByArea(status, area)) {
+    query = query.order("area", { ascending: true });
+  }
+
   query = query
-    .is("vote_item.deleted_at", null)
     .order(column, { ascending })
     .order("vote_total", { ascending: false, referencedTable: "vote_item" });
 
