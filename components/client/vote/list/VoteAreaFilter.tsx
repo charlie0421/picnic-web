@@ -27,8 +27,10 @@ const VoteAreaFilter = React.memo(
       ].join(' ');
 
     return (
+      /* tablist/tab 은 쓰지 않는다. 연결된 tabpanel 도, 화살표 이동 계약도 없는
+         단순 토글 필터라 aria-pressed 버튼이 실제 동작과 맞는 의미다. */
       <div
-        role='tablist'
+        role='group'
         aria-label='Vote type'
         // 가로 스크롤. 스크롤바는 숨기고 터치 스크롤만 남긴다.
         className='flex gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
@@ -37,11 +39,10 @@ const VoteAreaFilter = React.memo(
           <button
             key={area}
             type='button'
-            role='tab'
             onClick={() => onAreaChange(area)}
             className={getButtonClasses(area)}
             aria-label={label}
-            aria-selected={selectedArea === area}
+            aria-pressed={selectedArea === area}
           >
             {label}
           </button>

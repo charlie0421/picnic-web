@@ -6,7 +6,12 @@ import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { BannerListFetcher, BannerSkeleton, VoteListSkeleton } from '@/components/server';
 import { VoteListFetcher } from '@/components/server/vote/VoteListFetcher';
-import { VOTE_STATUS, VOTE_AREAS, VoteStatus, VoteArea } from '@/stores/voteFilterStore';
+import {
+  VOTE_STATUS,
+  VoteStatus,
+  normalizeVoteStatus,
+  normalizeVoteArea,
+} from '@/stores/voteFilterStore';
 import { getBanners } from '@/utils/api/queries';
 import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import { getVotes } from '@/lib/data-fetching/server/vote-service';
@@ -46,8 +51,10 @@ export default async function VoteListPage({
 }: VoteListPageProps) {
   // URL 파라미터에서 status와 area 가져오기
   const [resolvedSearchParams, resolvedParams] = await Promise.all([searchParams, params]);
-  const status = (resolvedSearchParams.status || VOTE_STATUS.ONGOING) as VoteStatus;
-  const area = (resolvedSearchParams.area || VOTE_AREAS.ALL) as VoteArea;
+  // 신뢰 경계 — 알 수 없는 값은 여기서 기본값으로 좁힌다. 그래야 필터 UI 표시와
+  // 실제 쿼리가 어긋나지 않는다 (?status=bogus 가 날짜 필터를 통째로 건너뛰던 문제).
+  const status = normalizeVoteStatus(resolvedSearchParams.status);
+  const area = normalizeVoteArea(resolvedSearchParams.area);
   const lang = resolvedParams?.lang || 'ko';
 
   const bannerPromise = (async () =>

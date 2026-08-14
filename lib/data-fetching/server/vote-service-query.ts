@@ -121,7 +121,7 @@ export function transformVoteData(data: any[]): VoteWithRelations[] {
  * 공통 투표 쿼리 빌더
  */
 type VoteOrderConfig = {
-  column: 'start_at' | 'stop_at';
+  column: 'start_at' | 'stop_at' | 'id';
   ascending: boolean;
 };
 
@@ -133,6 +133,9 @@ export const getVoteOrderConfig = (status?: string): VoteOrderConfig => {
       return { column: 'start_at', ascending: true }; // 예정: 오픈 임박순
     case VOTE_STATUS.COMPLETED:
       return { column: 'stop_at', ascending: false }; // 종료: 최신 마감순
+    case VOTE_STATUS.ADMIN:
+      // 앱 debug 는 finalSort='id', finalOrder='DESC' 다 (vote_list_provider.dart).
+      return { column: 'id', ascending: false };
     default:
       return { column: 'start_at', ascending: false };
   }

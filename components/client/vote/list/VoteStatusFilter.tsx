@@ -11,13 +11,20 @@ interface VoteStatusFilterProps {
   onStatusChange: (status: VoteStatus) => void;
 }
 
-// 앱 `vote_list_page.dart` `_statusColor` 와 같은 색. 진행중=민트, 종료=회색,
-// 예정=앰버, Admin=레드.
+/**
+ * 앱 `vote_list_page.dart` `_statusColor` 의 실제 색.
+ *
+ * - 진행중 = `AppColors.secondary500` = `Environment.secondaryColor`
+ *   = `picnic_app/config/prod.json` 의 `0xFF83FBC8`
+ * - 종료 = `AppColors.grey400` = `0xFFA6A8AF` (`ui/style.dart`)
+ * - 예정 = `0xFFFFB020` (하드코딩)
+ * - Admin = `AppColors.statusError` = `0xFFFF4242` (`ui/style.dart`)
+ */
 const STATUS_DOT_COLOR: Record<VoteStatus, string> = {
-  [VOTE_STATUS.ONGOING]: '#3ECFB2',
-  [VOTE_STATUS.COMPLETED]: '#9CA3AF',
+  [VOTE_STATUS.ONGOING]: '#83FBC8',
+  [VOTE_STATUS.COMPLETED]: '#A6A8AF',
   [VOTE_STATUS.UPCOMING]: '#FFB020',
-  [VOTE_STATUS.ADMIN]: '#EF4444',
+  [VOTE_STATUS.ADMIN]: '#FF4242',
 };
 
 // 앱 `_buildStatusDropdown` 의 나열 순서 (진행중 → 종료 → 예정 → Admin).
@@ -57,9 +64,14 @@ const VoteStatusFilter = React.memo(
       userProfile?.is_admin === true || userProfile?.is_super_admin === true;
 
     const [isOpen, setIsOpen] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
     const listboxId = useId();
 
+    // 관리자 목록에만 Admin 항목을 덧붙인다. 비관리자가 URL 로 ?status=admin 을 넣어도
+    // 서버(app/api/votes/route.ts, SSR)가 ongoing 으로 강등하므로 데이터는 보호된다.
     const statuses = isAdmin ? [...STATUS_ORDER, VOTE_STATUS.ADMIN] : STATUS_ORDER;
 
     const getLabel = useCallback(
@@ -73,7 +85,20 @@ const VoteStatusFilter = React.memo(
       [isTranslationReady, t],
     );
 
-    // 바깥 클릭·Escape 로 닫는다.
+    const closeAndRefocus = useCallback(() => {
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    }, []);
+
+    const openAt = useCallback(
+      (index: number) => {
+        setActiveIndex(Math.max(0, Math.min(index, statuses.length - 1)));
+        setIsOpen(true);
+      },
+      [statuses.length],
+    );
+
+    // 바깥 클릭으로 닫는다. Escape 는 목록 안에서 처리하므로 여기서는 다루지 않는다.
     useEffect(() => {
       if (!isOpen) return;
 
@@ -82,26 +107,65 @@ const VoteStatusFilter = React.memo(
           setIsOpen(false);
         }
       };
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === 'Escape') setIsOpen(false);
-      };
 
       document.addEventListener('mousedown', handlePointerDown);
       document.addEventListener('touchstart', handlePointerDown);
-      document.addEventListener('keydown', handleKeyDown);
       return () => {
         document.removeEventListener('mousedown', handlePointerDown);
         document.removeEventListener('touchstart', handlePointerDown);
-        document.removeEventListener('keydown', handleKeyDown);
       };
     }, [isOpen]);
 
-    // 관리자 권한이 사라졌는데 admin 필터가 선택돼 있으면 진행중으로 되돌린다.
+    // listbox 를 선언한 이상 열릴 때 포커스가 목록 안으로 들어가야 한다.
     useEffect(() => {
-      if (!isAdmin && selectedStatus === VOTE_STATUS.ADMIN) {
-        onStatusChange(VOTE_STATUS.ONGOING);
+      if (!isOpen) return;
+      optionRefs.current[activeIndex]?.focus();
+    }, [isOpen, activeIndex]);
+
+    const handleListKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          setActiveIndex((prev) => (prev + 1) % statuses.length);
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          setActiveIndex((prev) => (prev - 1 + statuses.length) % statuses.length);
+          break;
+        case 'Home':
+          event.preventDefault();
+          setActiveIndex(0);
+          break;
+        case 'End':
+          event.preventDefault();
+          setActiveIndex(statuses.length - 1);
+          break;
+        case 'Escape':
+        case 'Tab':
+          // Tab 은 기본 이동을 막지 않고 목록만 닫는다.
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            closeAndRefocus();
+          } else {
+            setIsOpen(false);
+          }
+          break;
       }
-    }, [isAdmin, selectedStatus, onStatusChange]);
+    };
+
+    const handleTriggerKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      const selectedIndex = Math.max(0, statuses.indexOf(selectedStatus));
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        openAt(isOpen ? selectedIndex : selectedIndex);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        openAt(statuses.length - 1);
+      } else if (event.key === 'Escape' && isOpen) {
+        event.preventDefault();
+        setIsOpen(false);
+      }
+    };
 
     const renderRow = (status: VoteStatus, selected: boolean) => (
       <>
@@ -119,8 +183,16 @@ const VoteStatusFilter = React.memo(
     return (
       <div ref={containerRef} className='relative'>
         <button
+          ref={triggerRef}
           type='button'
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={() => {
+            if (isOpen) {
+              setIsOpen(false);
+            } else {
+              openAt(Math.max(0, statuses.indexOf(selectedStatus)));
+            }
+          }}
+          onKeyDown={handleTriggerKeyDown}
           aria-haspopup='listbox'
           aria-expanded={isOpen}
           aria-controls={isOpen ? listboxId : undefined}
@@ -145,19 +217,25 @@ const VoteStatusFilter = React.memo(
             id={listboxId}
             role='listbox'
             aria-label={getLabel(selectedStatus)}
+            onKeyDown={handleListKeyDown}
             className='absolute right-0 z-20 mt-1 min-w-[9rem] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg'
           >
-            {statuses.map((status) => {
+            {statuses.map((status, index) => {
               const selected = status === selectedStatus;
               return (
                 <li key={status} role='none'>
                   <button
+                    ref={(node) => {
+                      optionRefs.current[index] = node;
+                    }}
                     type='button'
                     role='option'
                     aria-selected={selected}
+                    // roving tabIndex — 목록 안에서는 화살표로 이동하고 Tab 은 목록을 벗어난다.
+                    tabIndex={index === activeIndex ? 0 : -1}
                     onClick={() => {
                       onStatusChange(status);
-                      setIsOpen(false);
+                      closeAndRefocus();
                     }}
                     className={`flex w-full items-center gap-2 px-3.5 py-2 text-left text-xs sm:text-sm text-gray-900 transition-colors hover:bg-gray-50 ${selected ? 'bg-gray-50' : ''}`}
                   >
