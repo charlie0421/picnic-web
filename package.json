@@ -2,6 +2,9 @@
   "name": "picnic-web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "./scripts/dev-server-manager.sh --start",
     "dev:clean": "./scripts/dev-server-manager.sh --clear-cache --start",
