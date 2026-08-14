@@ -68,9 +68,20 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
   # 배포 스큐 보호용 ID.
   #
   # CI 는 커밋과 빌드 실행을 합친 값을 NEXT_DEPLOYMENT_ID 로 넘긴다(deploy.yml 참고).
-  # 이미지 태그는 재사용될 수 있어 배포 ID 로 쓰기에 부적합하다.
-  # 로컬 수동 실행처럼 값이 없을 때만 태그로 폴백한다.
-  BUILD_ARGS="$BUILD_ARGS --build-arg NEXT_DEPLOYMENT_ID=${NEXT_DEPLOYMENT_ID:-$IMAGE_TAG}"
+  #
+  # IMAGE_TAG 로 폴백하지 않는다. 이 스크립트는 로컬 실행이어도 build/push 후
+  # task definition 등록과 ECS service 갱신까지 하는 실제 배포 경로다. 태그는
+  # 재사용될 수 있으므로(같은 태그로 다른 소스를 두 번 빌드) 서로 다른 아티팩트가
+  # 같은 ID 를 광고하게 되고, 롤링 윈도에서 구/신 태스크의 불일치를 감지하지 못한다.
+  #
+  # 값이 없으면 커밋과 빌드 시각으로 이 빌드에만 해당하는 ID 를 만든다.
+  # 어떤 두 빌드도 같은 값을 갖지 않는다.
+  if [ -z "${NEXT_DEPLOYMENT_ID:-}" ]; then
+    DEPLOY_ID_SHA=$(git rev-parse HEAD 2>/dev/null || echo nogit)
+    NEXT_DEPLOYMENT_ID="${DEPLOY_ID_SHA}-local.$(date -u +%Y%m%d%H%M%S).$$"
+    echo "NEXT_DEPLOYMENT_ID 미지정 — 이 빌드용으로 생성: ${NEXT_DEPLOYMENT_ID}"
+  fi
+  BUILD_ARGS="$BUILD_ARGS --build-arg NEXT_DEPLOYMENT_ID=${NEXT_DEPLOYMENT_ID}"
 
   if docker buildx version >/dev/null 2>&1; then
     # Ensure a builder exists

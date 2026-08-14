@@ -122,6 +122,17 @@ describe('parseCurrencyHistoryPage', () => {
     },
   );
 
+  // DB 는 integer/bigint 를 ::text 로 변환해 내려준다. 그 출력에는 부호(+),
+  // 선행 0, 지수, 소수점, 공백이 없다. 정규식을 넓히면 이 계약이 무너진다.
+  it.each(['+1', '007', '1e3', '1.0', ' 1', '1 ', '', 'abc'])(
+    'DB 의 ::text 출력이 아닌 %s 를 거부한다',
+    (bad) => {
+      expect(() =>
+        parseCurrencyHistoryPage({ items: [{ ...item, delta: bad }] }),
+      ).toThrow('WALLET_HISTORY_INVALID_item_0_delta');
+    },
+  );
+
   it('delta 의 음수와 초대형 값을 문자열로 보존한다', () => {
     const page = parseCurrencyHistoryPage({
       items: [{ ...item, delta: '-9007199254740993', balance_effect: '0' }],
