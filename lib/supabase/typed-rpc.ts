@@ -46,12 +46,19 @@ export async function callRpc<K extends RpcName>(
   // 여기가 유일한 캐스트 지점이다. 위 오버로드가 호출 지점을 이미 검사했다.
   // rpc() 는 Promise 가 아니라 thenable 인 PostgrestFilterBuilder 를 반환하므로
   // 직접 캐스트가 겹치지 않는다. unknown 을 거친다.
-  const rpc = supabase.rpc as unknown as (
-    name: string,
-    params?: unknown,
-  ) => Promise<{ data: unknown; error: PostgrestError | null }>;
+  //
+  // 반드시 **메서드로** 호출해야 한다. `const rpc = supabase.rpc` 처럼 함수만 뽑아
+  // 호출하면 this 바인딩이 끊겨 PostgrestClient 내부에서
+  // "Cannot read properties of undefined (reading 'rest')" 로 죽는다.
+  const client = supabase as unknown as {
+    rpc: (
+      name: string,
+      params?: unknown,
+    ) => Promise<{ data: unknown; error: PostgrestError | null }>;
+  };
 
-  const { data, error } = args === undefined ? await rpc(fn as string) : await rpc(fn as string, args);
+  const { data, error } =
+    args === undefined ? await client.rpc(fn as string) : await client.rpc(fn as string, args);
 
   if (error) {
     return { data: null, error };
