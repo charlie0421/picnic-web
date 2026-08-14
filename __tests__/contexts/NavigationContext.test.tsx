@@ -37,7 +37,7 @@ function ControlComponent() {
       </button>
       <button
         data-testid="set-portal"
-        onClick={() => setCurrentPortalType(PortalType.GOONG_HAP)}
+        onClick={() => setCurrentPortalType(PortalType.MYPAGE)}
       >
         Set Portal
       </button>
@@ -145,7 +145,7 @@ describe('NavigationContext', () => {
         screen.getByTestId('set-portal').click()
       })
 
-      expect(screen.getByTestId('portal').textContent).toBe(PortalType.GOONG_HAP)
+      expect(screen.getByTestId('portal').textContent).toBe(PortalType.MYPAGE)
     })
   })
 })
