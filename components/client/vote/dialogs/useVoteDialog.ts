@@ -7,6 +7,8 @@ import useSWR from 'swr';
 import type { VoteUsage } from '@/types/wallet';
 import { acquireVoteRequestId, releaseVoteRequestId } from '@/lib/wallet/vote-request-id';
 import { MAX_VOTE_AMOUNT } from '@/lib/wallet/limits';
+import { parseExpiringBonus, type ExpiringBonusMonth } from '@/lib/wallet/expiring-bonus';
+import { findImminentBonus } from '@/lib/wallet/imminent-bonus';
 
 export interface UserBalance {
   starCandy: string;
@@ -55,6 +57,25 @@ export function useVoteDialog({
   } = useSWR(isOpen && user ? '/api/user/wallet' : null, fetcher, {
     revalidateOnFocus: false,
   });
+
+  // 곧 소멸할 보너스 스타캔디. 앱은 이 정보를 소멸 예정 안내 화면에서만 보여주지만,
+  // 소멸이 코앞이면 투표 수량 결정이 실제로 달라지므로 임박한 경우에만 끌어올린다.
+  //
+  // 조회 실패는 투표를 막지 않는다. 이 안내는 부가 정보이므로 조용히 접는다.
+  const { data: expiringBonusData } = useSWR(
+    isOpen && user ? '/api/user/wallet/expiring-bonus' : null,
+    fetcher,
+    { revalidateOnFocus: false, shouldRetryOnError: false },
+  );
+
+  let expiringMonths: ExpiringBonusMonth[] | null = null;
+  try {
+    expiringMonths = expiringBonusData?.success ? parseExpiringBonus(expiringBonusData.months) : null;
+  } catch {
+    // 계약을 벗어난 응답이면 안내를 띄우지 않는다. 잘못된 소멸 시점을 보여주는 것보다 낫다.
+    expiringMonths = null;
+  }
+  const imminentBonus = findImminentBonus(expiringMonths, Date.now());
 
   const userBalance: UserBalance | null = profileData?.success ? {
     starCandy: profileData.wallet.star,
@@ -207,6 +228,8 @@ export function useVoteDialog({
     lastUsage,
     isLoadingBalance,
     balanceError,
+    imminentBonus,
+    currentLanguage,
     handleUseAllChange,
     handleAmountChange,
     handleInputChange,

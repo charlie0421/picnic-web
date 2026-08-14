@@ -36,6 +36,8 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     lastUsage,
     isLoadingBalance,
     balanceError,
+    imminentBonus,
+    currentLanguage,
     handleUseAllChange,
     handleAmountChange,
     handleInputChange,
@@ -95,6 +97,8 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
               getLocale={getLocale}
               mutateProfile={mutateProfile}
               t={t}
+              imminentBonus={imminentBonus}
+              currentLanguage={currentLanguage}
             />
 
             {/* 투표 수량 설정 */}

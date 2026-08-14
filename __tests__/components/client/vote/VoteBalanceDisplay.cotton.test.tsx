@@ -20,7 +20,7 @@ vi.mock('next/image', () => ({
 const t = (key: string) => key;
 const getLocale = () => 'ko-KR';
 
-function renderWith(cotton: string) {
+function renderWith(cotton: string, extra: Record<string, unknown> = {}) {
   return render(
     <VoteBalanceDisplay
       isLoadingBalance={false}
@@ -34,6 +34,7 @@ function renderWith(cotton: string) {
       getLocale={getLocale}
       mutateProfile={() => {}}
       t={t}
+      {...extra}
     />,
   );
 }
@@ -81,5 +82,32 @@ describe('VoteBalanceDisplay — 코튼캔디 노출 정책', () => {
     expect(grid!.textContent).toContain('wallet_star_candy');
     expect(grid!.textContent).toContain('wallet_bonus_star_candy');
     expect(grid!.textContent).toContain('wallet_cotton_candy');
+  });
+
+  // A: 캔디를 얼마나 쓸지 정하는 화면이라 소멸 정책으로 가는 경로가 필요하다.
+  it('언어가 주어지면 소멸 예정 캔디 안내 링크를 건다', () => {
+    const { container } = renderWith('0', { currentLanguage: 'ko' });
+    const link = container.querySelector('a[href="/ko/mypage/expiry-guide"]');
+    expect(link).not.toBeNull();
+    expect(link!.textContent).toContain('expiring_bonus_candy_guide');
+  });
+
+  // B: 보너스 소멸은 임박할 때만 끌어올린다.
+  it('임박한 보너스 소멸이 없으면 보너스 안내를 띄우지 않는다', () => {
+    const { container } = renderWith('0', { imminentBonus: null });
+    expect(container.textContent).not.toContain('2026');
+  });
+
+  it('임박한 보너스 소멸이 있으면 통화명·소멸일·수량을 함께 보여준다', () => {
+    const { container } = renderWith('0', {
+      imminentBonus: { prediction_month: '2026-08', expiring_amount: 44 },
+    });
+    const line = Array.from(container.querySelectorAll('p')).find((el) =>
+      el.textContent?.includes('wallet_bonus_star_candy'),
+    );
+    expect(line).toBeDefined();
+    // 주어(통화명)와 수량이 같은 줄에 있어야 무엇이 언제 사라지는지 알 수 있다.
+    expect(line!.textContent).toContain('44');
+    expect(line!.textContent).toMatch(/2026/);
   });
 });
