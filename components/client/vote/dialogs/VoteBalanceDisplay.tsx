@@ -1,8 +1,10 @@
 'use client';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import Link from 'next/link';
 import { formatWalletAmount } from '@/lib/wallet/parse';
 import { CURRENCY_ICON } from '@/lib/wallet/currency-icons';
+import { bonusExpiryDateLabel, type ExpiringBonusMonth } from '@/lib/wallet/expiring-bonus';
 import type { UserBalance } from './useVoteDialog';
 
 interface VoteBalanceDisplayProps {
@@ -12,6 +14,10 @@ interface VoteBalanceDisplayProps {
   getLocale: () => string;
   mutateProfile: () => void;
   t: (key: string) => string;
+  /** 임박한 보너스 소멸 건. 없으면 null. */
+  imminentBonus?: ExpiringBonusMonth | null;
+  /** 소멸 예정 캔디 안내 링크용 언어 세그먼트 */
+  currentLanguage?: string;
 }
 
 export function VoteBalanceDisplay({
@@ -21,6 +27,8 @@ export function VoteBalanceDisplay({
   getLocale,
   mutateProfile,
   t,
+  imminentBonus = null,
+  currentLanguage,
 }: VoteBalanceDisplayProps) {
   if (isLoadingBalance) {
     return (
@@ -75,7 +83,19 @@ export function VoteBalanceDisplay({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('vote_popup_total_available')}</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-gray-900">{t('vote_popup_total_available')}</h3>
+          {/* 캔디를 얼마나 쓸지 정하는 화면이라 소멸 정책으로 가는 경로가 필요하다.
+              파우치에는 이미 같은 링크가 있다. */}
+          {currentLanguage && (
+            <Link
+              href={`/${currentLanguage}/mypage/expiry-guide`}
+              className="text-xs text-primary underline underline-offset-2 hover:opacity-80 shrink-0"
+            >
+              {t('expiring_bonus_candy_guide')}
+            </Link>
+          )}
+        </div>
 
         {/* 앱 wallet_summary_panel.dart 와 동일한 3열 구성.
             코튼캔디만 아래로 내리지 않는다. */}
@@ -134,6 +154,20 @@ export function VoteBalanceDisplay({
             {t('wallet_cotton_candy')} · {t('cotton_candy_daily_expiry_notice')}
           </span>
         </p>
+
+        {/* 보너스 소멸은 보통 몇 주 뒤라 상시 노출하면 문구가 무뎌진다.
+            임박했을 때만 끌어올린다. 형식은 소멸 예정 안내 화면의 행과 같다
+            (통화명 · 소멸일 · 수량) — 새 번역 없이 기존 키를 쓴다. */}
+        {imminentBonus && (
+          <p className="flex items-center justify-center gap-1.5 text-xs text-amber-700 mt-1">
+            <Image src={CURRENCY_ICON.bonus} alt="" width={14} height={14} />
+            <span>
+              {t('wallet_bonus_star_candy')} ·{' '}
+              {bonusExpiryDateLabel(imminentBonus.prediction_month, getLocale())} ·{' '}
+              {imminentBonus.expiring_amount.toLocaleString(getLocale())}
+            </span>
+          </p>
+        )}
 
         <div className="mt-4 pt-3 border-t border-primary/30">
           <div className="text-center">
