@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPublicSupabaseServerClient } from '@/lib/supabase/server';
 import { VOTE_AREAS, VOTE_STATUS } from '@/stores/voteFilterStore';
+import { shouldOrderByArea } from '@/lib/vote/vote-order';
 import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 
 // 기본 투표 테이블 조회 쿼리 (서버/클라이언트 서비스와 동일 구조 유지)
@@ -103,6 +104,10 @@ export async function GET(req: NextRequest) {
 
     // 정렬 + 페이지네이션
     const { column, ascending } = getVoteOrderConfig(status);
+    // 앱과 동일하게 관리자 목록의 전체 탭에서만 area 로 먼저 묶는다 (shouldOrderByArea 참고).
+    if (shouldOrderByArea(status, area)) {
+      query = query.order('area', { ascending: true });
+    }
     query = query
       .order(column, { ascending })
       .range(offset, offset + limit - 1);

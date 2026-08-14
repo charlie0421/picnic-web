@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Vote, VoteItem, VoteReward } from "@/types/interfaces";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { VOTE_STATUS, VOTE_AREAS } from '@/stores/voteFilterStore';
+import { shouldOrderByArea } from '@/lib/vote/vote-order';
 
 // 기본 투표 테이블 조회 쿼리 (클라이언트에서도 동일하게 사용될 수 있음)
 const DEFAULT_VOTE_QUERY = `
@@ -134,6 +135,10 @@ function buildVoteQuery(
   }
 
   const { column, ascending } = getVoteOrderConfig(status);
+  // 앱과 동일하게 관리자 목록의 전체 탭에서만 area 로 먼저 묶는다.
+  if (shouldOrderByArea(status, area)) {
+    query = query.order("area", { ascending: true });
+  }
   return query.order(column, { ascending });
 }
 
