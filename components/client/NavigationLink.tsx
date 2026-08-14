@@ -56,7 +56,7 @@ export default function NavigationLink({
     const { path: targetCleanPath } = extractLocaleFromPath(href);
 
     // 마이페이지 하위 경로만 로그인 필요 (메인 마이페이지는 비로그인 접근 허용)
-    // /mypage, /en/mypage 등은 허용하고, /mypage/vote-history, /en/mypage/posts 등만 로그인 필요
+    // /mypage, /en/mypage 등은 허용하고, /mypage/vote-history, /en/mypage/recharge-history 등만 로그인 필요
     const mypageSubPathRegex = /^(\/[a-z]{2}(-[a-z]+)?)?\/mypage\/.+$/i;
     const requiresAuthByPath = mypageSubPathRegex.test(resolvedHref);
     const needAuth = should_login || requiresAuthByPath;

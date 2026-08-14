@@ -13,11 +13,8 @@ import {
   X, 
   User, 
   LogIn, 
-  Settings, 
+  Settings,
   Vote,
-  Users,
-  Image as PictureIcon,
-  BookOpen,
   Star,
   ChevronRight
 } from 'lucide-react';
@@ -55,9 +52,6 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
     // 폴백 매핑
     const fallbackMap: Record<string, string> = {
       vote: '투표',
-      community: '커뮤니티', 
-      pic: 'PIC',
-      novel: '소설',
       mypage: '마이페이지'
     };
     
@@ -84,9 +78,6 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   const getMenuIcon = (type: string) => {
     switch (type) {
       case 'vote': return <Vote className="w-4 h-4" />;
-      case 'community': return <Users className="w-4 h-4" />;
-      case 'pic': return <PictureIcon className="w-4 h-4" />;
-      case 'novel': return <BookOpen className="w-4 h-4" />;
       default: return <ChevronRight className="w-4 h-4" />;
     }
   };

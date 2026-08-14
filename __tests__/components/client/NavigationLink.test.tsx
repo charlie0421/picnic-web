@@ -84,8 +84,8 @@ describe('NavigationLink', () => {
   it('calls onClick handler', () => {
     const onClick = vi.fn();
     render(
-      <NavigationLink href="/community" onClick={onClick}>
-        Community
+      <NavigationLink href="/rewards" onClick={onClick}>
+        Rewards
       </NavigationLink>,
     );
 
@@ -95,11 +95,11 @@ describe('NavigationLink', () => {
 
   it('navigates to different path on click', () => {
     render(
-      <NavigationLink href="/community">Community</NavigationLink>,
+      <NavigationLink href="/rewards">Rewards</NavigationLink>,
     );
 
     fireEvent.click(screen.getByRole('link'));
-    expect(mockPush).toHaveBeenCalledWith('/en/community');
+    expect(mockPush).toHaveBeenCalledWith('/en/rewards');
   });
 
   it('does not navigate when clicking link to current path', () => {
@@ -113,7 +113,7 @@ describe('NavigationLink', () => {
 
   it('shows loading state when navigating', () => {
     render(
-      <NavigationLink href="/community">Community</NavigationLink>,
+      <NavigationLink href="/rewards">Rewards</NavigationLink>,
     );
 
     fireEvent.click(screen.getByRole('link'));

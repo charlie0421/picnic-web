@@ -176,7 +176,7 @@ export default function NotificationsClient({
         case 'post':
           const postId = data['post_id'] || data['id'];
           if (postId) {
-            router.push(`/${currentLang}/community/${postId}`);
+            router.push(`/${currentLang}/vote`);
           }
           break;
         case 'qna':

@@ -7,7 +7,7 @@ const singlePortal = [
 
 const multiplePortals = [
   { id: 'vote', path: '/vote', name: 'VOTE', isActive: true, should_login: false },
-  { id: 'community', path: '/community', name: 'COMMUNITY', isActive: false, should_login: false },
+  { id: 'mypage', path: '/mypage', name: 'MYPAGE', isActive: false, should_login: false },
 ];
 
 const mockUseMenu = vi.fn();
@@ -108,7 +108,7 @@ describe('Header', () => {
     mockUseMenu.mockReturnValue({ isAdmin: false, portalMenuItems: multiplePortals, activePortal: null });
     render(<Header />);
     expect(screen.getByText('VOTE')).toBeInTheDocument();
-    expect(screen.getByText('COMMUNITY')).toBeInTheDocument();
+    expect(screen.getByText('MYPAGE')).toBeInTheDocument();
     const voteLink = screen.getByText('VOTE').closest('a');
     expect(voteLink).toHaveClass('text-blue-600');
   });
@@ -116,8 +116,7 @@ describe('Header', () => {
   it('포털이 VOTE 하나뿐이면 포털 선택 메뉴를 렌더하지 않는다', () => {
     render(<Header />);
     expect(screen.queryByText('VOTE')).toBeNull();
-    expect(screen.queryByText('COMMUNITY')).toBeNull();
-    expect(screen.queryByText('Goong-Hap')).toBeNull();
+    expect(screen.queryByText('MYPAGE')).toBeNull();
   });
 
   it('renders language selector', () => {
