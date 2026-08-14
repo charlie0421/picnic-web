@@ -46,7 +46,6 @@ export default defineConfig({
         'hooks/retryable-query-types.ts',
         'hooks/retryable-query-presets.ts',
         // Stores
-        'stores/goonghapStore.ts',
         'stores/voteFilterStore.ts',
         // Contexts
         'contexts/error-context-reducer.ts',

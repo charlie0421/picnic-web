@@ -15,7 +15,6 @@ interface Vote {
     status?: string; // 투표 상태 (활성/예정/종료)
 }
 
-const ADMIN_ONLY_SEGMENTS = new Set(['goong-hap']);
 const SYSTEM_ONLY_SEGMENTS = new Set(['debug-env', 'test-redirect', 'open-in-browser']);
 const PRIVATE_ONLY_SEGMENTS = new Set(['login', 'mypage']);
 const HIDDEN_EXACT_PATHS = new Set(['/login', '/mypage', '/streaming-example']);
@@ -58,7 +57,6 @@ function shouldSkipRoute(route: string): boolean {
     const [first] = route.split('/').filter(Boolean);
     if (!first) return false;
     return (
-        ADMIN_ONLY_SEGMENTS.has(first) ||
         SYSTEM_ONLY_SEGMENTS.has(first) ||
         PRIVATE_ONLY_SEGMENTS.has(first)
     );
