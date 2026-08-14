@@ -23,6 +23,7 @@ const buildTime = new Date().toISOString();
 const nextConfig = {
   reactStrictMode: true,
 
+
   // Sentry 가 client-side 에러를 decode 할 수 있도록 browser sourcemap 생성.
   // Sentry plugin 의 hideSourceMaps:true 가 업로드 후 .map 파일을 삭제하므로
   // public 노출은 없음 (`Yd` 같은 식별 불가 minified 에러를 풀기 위함).

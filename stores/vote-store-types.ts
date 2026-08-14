@@ -1,5 +1,4 @@
 import { Vote, VoteItem } from '@/types/interfaces';
-import { VoteSubmissionRequest } from '@/lib/data-fetching/client/vote-api-enhanced';
 
 // 투표 상태 타입 정의
 export interface VoteSubmissionState {
@@ -107,9 +106,6 @@ export interface VoteStore {
 
   // 투표 결과 로드
   loadVoteResults: (voteId: number) => Promise<void>;
-
-  // 투표 제출
-  submitUserVote: (userId: string, totalBonusRemain?: number) => Promise<boolean>;
 
   // 투표 상태 자동 업데이트 시작/중지
   startStatusUpdates: () => void;

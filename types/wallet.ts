@@ -42,7 +42,8 @@ export interface CurrencyHistoryItem {
 
 export interface CurrencyHistoryPage {
   items: CurrencyHistoryItem[];
-  total_count: string;
+  // RPC 가 개수를 주지 않을 수 있다. 없는 값을 '0' 으로 위장하지 않는다.
+  total_count: string | null;
   next_cursor: string | null;
   snapshot_at: string | null;
 }

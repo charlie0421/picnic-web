@@ -12,4 +12,3 @@ export { useSafeTranslation } from './useSafeTranslation';
 export { useTranslationReady } from './useTranslationReady';
 export { useVoteList } from './useVoteList';
 export { useVoteResults } from './useVoteResults';
-export { useVoteSubmit } from './useVoteSubmit'; 

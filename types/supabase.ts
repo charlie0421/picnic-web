@@ -119,6 +119,69 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_fraud_decisions: {
+        Row: {
+          created_at: string
+          decision: string
+          id: number
+          impression_id: string
+          mode: string
+          observed_seconds: number
+          signal: string
+          threshold_seconds: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decision?: string
+          id?: number
+          impression_id: string
+          mode: string
+          observed_seconds: number
+          signal: string
+          threshold_seconds: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          id?: number
+          impression_id?: string
+          mode?: string
+          observed_seconds?: number
+          signal?: string
+          threshold_seconds?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ad_fraud_policy: {
+        Row: {
+          enabled: boolean
+          id: number
+          min_gap_seconds: number
+          min_watch_seconds: number
+          mode: string
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: number
+          min_gap_seconds?: number
+          min_watch_seconds?: number
+          mode?: string
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: number
+          min_gap_seconds?: number
+          min_watch_seconds?: number
+          mode?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ad_impressions: {
         Row: {
           ad_id: string
@@ -133,7 +196,11 @@ export type Database = {
           more_reward_granted_at: string | null
           user_agent: string | null
           user_id: string
+          view_result_grant_id: number | null
+          view_reward_acknowledged_at: string | null
           view_reward_granted_at: string | null
+          view_reward_payload_hash: string | null
+          view_reward_status: string
         }
         Insert: {
           ad_id: string
@@ -148,7 +215,11 @@ export type Database = {
           more_reward_granted_at?: string | null
           user_agent?: string | null
           user_id: string
+          view_result_grant_id?: number | null
+          view_reward_acknowledged_at?: string | null
           view_reward_granted_at?: string | null
+          view_reward_payload_hash?: string | null
+          view_reward_status?: string
         }
         Update: {
           ad_id?: string
@@ -163,7 +234,11 @@ export type Database = {
           more_reward_granted_at?: string | null
           user_agent?: string | null
           user_id?: string
+          view_result_grant_id?: number | null
+          view_reward_acknowledged_at?: string | null
           view_reward_granted_at?: string | null
+          view_reward_payload_hash?: string | null
+          view_reward_status?: string
         }
         Relationships: [
           {
@@ -179,6 +254,95 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ad_campaigns_active"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_impressions_view_grant_user_fk"
+            columns: ["view_result_grant_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "cotton_candy_grants"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      ad_reward_claims: {
+        Row: {
+          acknowledged_at: string | null
+          channel: string
+          client_request_id: string
+          created_at: string
+          environment: string
+          expires_at: string
+          id: string
+          payload_hash: string
+          placement_id: string
+          platform: string
+          provider_occurred_at: string | null
+          provider_payload_hash: string | null
+          provider_received_at: string | null
+          provider_transaction_id: string | null
+          result_grant_id: number | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          channel: string
+          client_request_id: string
+          created_at?: string
+          environment: string
+          expires_at: string
+          id?: string
+          payload_hash: string
+          placement_id: string
+          platform: string
+          provider_occurred_at?: string | null
+          provider_payload_hash?: string | null
+          provider_received_at?: string | null
+          provider_transaction_id?: string | null
+          result_grant_id?: number | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          channel?: string
+          client_request_id?: string
+          created_at?: string
+          environment?: string
+          expires_at?: string
+          id?: string
+          payload_hash?: string
+          placement_id?: string
+          platform?: string
+          provider_occurred_at?: string | null
+          provider_payload_hash?: string | null
+          provider_received_at?: string | null
+          provider_transaction_id?: string | null
+          result_grant_id?: number | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_reward_claims_result_grant_id_user_id_fkey"
+            columns: ["result_grant_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "cotton_candy_grants"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "ad_reward_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_reward_claims_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -240,6 +404,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          permission_key: string | null
           resource: string
           updated_at: string | null
         }
@@ -248,6 +413,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          permission_key?: string | null
           resource: string
           updated_at?: string | null
         }
@@ -256,6 +422,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          permission_key?: string | null
           resource?: string
           updated_at?: string | null
         }
@@ -440,6 +607,114 @@ export type Database = {
         Update: {
           image_id?: number
           user_id?: number
+        }
+        Relationships: []
+      }
+      anti_abuse_alert_log: {
+        Row: {
+          dedup_key: string
+          id: number
+          payload: Json | null
+          rule: string
+          sent_at: string
+        }
+        Insert: {
+          dedup_key: string
+          id?: number
+          payload?: Json | null
+          rule: string
+          sent_at?: string
+        }
+        Update: {
+          dedup_key?: string
+          id?: number
+          payload?: Json | null
+          rule?: string
+          sent_at?: string
+        }
+        Relationships: []
+      }
+      anti_abuse_daily_stats: {
+        Row: {
+          action_type: string
+          count: number
+          day: string
+          decision: string
+          mode: string
+        }
+        Insert: {
+          action_type: string
+          count: number
+          day: string
+          decision: string
+          mode: string
+        }
+        Update: {
+          action_type?: string
+          count?: number
+          day?: string
+          decision?: string
+          mode?: string
+        }
+        Relationships: []
+      }
+      anti_abuse_policies: {
+        Row: {
+          action_type: string
+          block_threshold: number
+          count_strategy: string
+          created_at: string
+          device_block_threshold: number | null
+          device_suspect_threshold: number | null
+          enabled: boolean
+          enforce_since: string | null
+          id: number
+          link_loose_window_seconds: number | null
+          link_tight_window_seconds: number | null
+          mode: string
+          note: string | null
+          suspect_threshold: number
+          updated_at: string
+          updated_by: string | null
+          window_seconds: number
+        }
+        Insert: {
+          action_type: string
+          block_threshold: number
+          count_strategy: string
+          created_at?: string
+          device_block_threshold?: number | null
+          device_suspect_threshold?: number | null
+          enabled?: boolean
+          enforce_since?: string | null
+          id?: number
+          link_loose_window_seconds?: number | null
+          link_tight_window_seconds?: number | null
+          mode?: string
+          note?: string | null
+          suspect_threshold: number
+          updated_at?: string
+          updated_by?: string | null
+          window_seconds: number
+        }
+        Update: {
+          action_type?: string
+          block_threshold?: number
+          count_strategy?: string
+          created_at?: string
+          device_block_threshold?: number | null
+          device_suspect_threshold?: number | null
+          enabled?: boolean
+          enforce_since?: string | null
+          id?: number
+          link_loose_window_seconds?: number | null
+          link_tight_window_seconds?: number | null
+          mode?: string
+          note?: string | null
+          suspect_threshold?: number
+          updated_at?: string
+          updated_by?: string | null
+          window_seconds?: number
         }
         Relationships: []
       }
@@ -1161,6 +1436,7 @@ export type Database = {
           link_type: string | null
           location: string | null
           order: number | null
+          promotion_campaign_owned: boolean
           start_at: string | null
           thumbnail: string | null
           title: Json
@@ -1179,6 +1455,7 @@ export type Database = {
           link_type?: string | null
           location?: string | null
           order?: number | null
+          promotion_campaign_owned?: boolean
           start_at?: string | null
           thumbnail?: string | null
           title?: Json
@@ -1197,6 +1474,7 @@ export type Database = {
           link_type?: string | null
           location?: string | null
           order?: number | null
+          promotion_campaign_owned?: boolean
           start_at?: string | null
           thumbnail?: string | null
           title?: Json
@@ -1627,6 +1905,183 @@ export type Database = {
         }
         Relationships: []
       }
+      config_audit_log: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          config_key: string
+          id: number
+          new_value: string | null
+          old_value: string | null
+          op: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          config_key: string
+          id?: number
+          new_value?: string | null
+          old_value?: string | null
+          op: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          config_key?: string
+          id?: number
+          new_value?: string | null
+          old_value?: string | null
+          op?: string
+        }
+        Relationships: []
+      }
+      cotton_candy_grants: {
+        Row: {
+          canonical_payload_hash: string
+          claim_id: string | null
+          expires_at: string
+          granted_at: string
+          id: number
+          idempotency_key: string
+          impression_id: string | null
+          metadata: Json
+          original_amount: number
+          provider_payload_hash: string
+          remain_amount: number
+          reward_policy_version: string
+          source_environment: string
+          source_event_type: string
+          source_provider: string
+          source_transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          canonical_payload_hash: string
+          claim_id?: string | null
+          expires_at: string
+          granted_at: string
+          id?: never
+          idempotency_key: string
+          impression_id?: string | null
+          metadata?: Json
+          original_amount: number
+          provider_payload_hash: string
+          remain_amount: number
+          reward_policy_version: string
+          source_environment: string
+          source_event_type: string
+          source_provider: string
+          source_transaction_id: string
+          user_id: string
+        }
+        Update: {
+          canonical_payload_hash?: string
+          claim_id?: string | null
+          expires_at?: string
+          granted_at?: string
+          id?: never
+          idempotency_key?: string
+          impression_id?: string | null
+          metadata?: Json
+          original_amount?: number
+          provider_payload_hash?: string
+          remain_amount?: number
+          reward_policy_version?: string
+          source_environment?: string
+          source_event_type?: string
+          source_provider?: string
+          source_transaction_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotton_candy_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotton_candy_grants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cotton_grant_claim_user_fk"
+            columns: ["claim_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "ad_reward_claims"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "cotton_grant_impression_user_fk"
+            columns: ["impression_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "ad_impressions"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      cotton_candy_ledger: {
+        Row: {
+          amount_delta: number
+          created_at: string
+          event_type: string
+          grant_id: number
+          id: number
+          operation_key: string
+          source_reference: string | null
+          user_id: string
+          vote_pick_id: number | null
+        }
+        Insert: {
+          amount_delta: number
+          created_at?: string
+          event_type: string
+          grant_id: number
+          id?: never
+          operation_key: string
+          source_reference?: string | null
+          user_id: string
+          vote_pick_id?: number | null
+        }
+        Update: {
+          amount_delta?: number
+          created_at?: string
+          event_type?: string
+          grant_id?: number
+          id?: never
+          operation_key?: string
+          source_reference?: string | null
+          user_id?: string
+          vote_pick_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotton_candy_ledger_grant_id_user_id_fkey"
+            columns: ["grant_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "cotton_candy_grants"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "cotton_candy_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotton_candy_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       country_info: {
         Row: {
           country_code: string
@@ -1678,6 +2133,36 @@ export type Database = {
           log_message?: string | null
           started_at?: string
           status?: string | null
+        }
+        Relationships: []
+      }
+      cs_4_11_ad_fast_analysis: {
+        Row: {
+          min_real_gap: number | null
+          sub_classification: string | null
+          sub1_real_fast: number | null
+          sub5_real_fast: number | null
+          sub5_sdk_retry: number | null
+          sub5_total: number | null
+          user_id: string
+        }
+        Insert: {
+          min_real_gap?: number | null
+          sub_classification?: string | null
+          sub1_real_fast?: number | null
+          sub5_real_fast?: number | null
+          sub5_sdk_retry?: number | null
+          sub5_total?: number | null
+          user_id: string
+        }
+        Update: {
+          min_real_gap?: number | null
+          sub_classification?: string | null
+          sub1_real_fast?: number | null
+          sub5_real_fast?: number | null
+          sub5_sdk_retry?: number | null
+          sub5_total?: number | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -2434,6 +2919,75 @@ export type Database = {
         }
         Relationships: []
       }
+      ip_block_decisions: {
+        Row: {
+          action_type: string
+          applied_window: number
+          attempt_count: number
+          attempted_email: string | null
+          attempted_provider: string | null
+          cs_resolution: string | null
+          decision: string
+          expires_at: string | null
+          first_seen_at: string
+          id: number
+          ip_hash: string
+          last_seen_at: string
+          mode: string
+          observed_value: number
+          raw_ip: string | null
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          threshold_used: number
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          applied_window: number
+          attempt_count?: number
+          attempted_email?: string | null
+          attempted_provider?: string | null
+          cs_resolution?: string | null
+          decision: string
+          expires_at?: string | null
+          first_seen_at?: string
+          id?: number
+          ip_hash: string
+          last_seen_at?: string
+          mode: string
+          observed_value: number
+          raw_ip?: string | null
+          reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          threshold_used: number
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          applied_window?: number
+          attempt_count?: number
+          attempted_email?: string | null
+          attempted_provider?: string | null
+          cs_resolution?: string | null
+          decision?: string
+          expires_at?: string | null
+          first_seen_at?: string
+          id?: number
+          ip_hash?: string
+          last_seen_at?: string
+          mode?: string
+          observed_value?: number
+          raw_ip?: string | null
+          reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          threshold_used?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ip_country_mapping: {
         Row: {
           country_code: string
@@ -2580,6 +3134,60 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      ops_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          details: Json
+          fingerprint: string
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          notified_at: string | null
+          occurrence_count: number
+          resolved_at: string | null
+          resolved_by: string | null
+          row_version: number
+          severity: string
+          status: string
+          title: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          details?: Json
+          fingerprint: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          notified_at?: string | null
+          occurrence_count?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          row_version?: number
+          severity: string
+          status?: string
+          title: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          details?: Json
+          fingerprint?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          notified_at?: string | null
+          occurrence_count?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          row_version?: number
+          severity?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
       }
       partition_creation_log: {
         Row: {
@@ -3967,6 +4575,135 @@ export type Database = {
         }
         Relationships: []
       }
+      promotion_campaign_versions: {
+        Row: {
+          campaign_id: number
+          change_reason: string
+          changed_by: string
+          created_at: string
+          effective_from: string
+          end_iso_day: number
+          end_local_time: string
+          extra_bonus_bps: number
+          home_banner_id: number | null
+          id: number
+          is_active: boolean
+          localized_name: Json
+          rollout_policy: Json
+          start_iso_day: number
+          start_local_time: string
+          surfaces: Json
+          timezone: string
+          version: number
+        }
+        Insert: {
+          campaign_id: number
+          change_reason: string
+          changed_by: string
+          created_at?: string
+          effective_from: string
+          end_iso_day: number
+          end_local_time: string
+          extra_bonus_bps: number
+          home_banner_id?: number | null
+          id?: never
+          is_active: boolean
+          localized_name: Json
+          rollout_policy: Json
+          start_iso_day: number
+          start_local_time: string
+          surfaces: Json
+          timezone: string
+          version: number
+        }
+        Update: {
+          campaign_id?: number
+          change_reason?: string
+          changed_by?: string
+          created_at?: string
+          effective_from?: string
+          end_iso_day?: number
+          end_local_time?: string
+          extra_bonus_bps?: number
+          home_banner_id?: number | null
+          id?: never
+          is_active?: boolean
+          localized_name?: Json
+          rollout_policy?: Json
+          start_iso_day?: number
+          start_local_time?: string
+          surfaces?: Json
+          timezone?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_campaign_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "promotion_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_campaign_versions_home_banner_id_fkey"
+            columns: ["home_banner_id"]
+            isOneToOne: false
+            referencedRelation: "banner"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotion_campaigns: {
+        Row: {
+          code: string
+          id: number
+          kind: string
+        }
+        Insert: {
+          code: string
+          id?: never
+          kind: string
+        }
+        Update: {
+          code?: string
+          id?: never
+          kind?: string
+        }
+        Relationships: []
+      }
+      promotion_home_banner_owners: {
+        Row: {
+          campaign_id: number
+          created_at: string
+          home_banner_id: number
+        }
+        Insert: {
+          campaign_id: number
+          created_at?: string
+          home_banner_id: number
+        }
+        Update: {
+          campaign_id?: number
+          created_at?: string
+          home_banner_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_home_banner_owners_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "promotion_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_home_banner_owners_home_banner_id_fkey"
+            columns: ["home_banner_id"]
+            isOneToOne: true
+            referencedRelation: "banner"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prompt_usage_logs: {
         Row: {
           created_at: string | null
@@ -4055,6 +4792,586 @@ export type Database = {
           version?: number
         }
         Relationships: []
+      }
+      purchase_promotion_awards: {
+        Row: {
+          allocation_id: number
+          allocation_kind: string
+          award_amount: number
+          award_payload_hash: string
+          campaign_version_id: number
+          created_at: string
+          id: string
+          resolution_id: string
+          snapshot_id: string
+        }
+        Insert: {
+          allocation_id: number
+          allocation_kind?: string
+          award_amount: number
+          award_payload_hash: string
+          campaign_version_id: number
+          created_at?: string
+          id?: string
+          resolution_id: string
+          snapshot_id: string
+        }
+        Update: {
+          allocation_id?: number
+          allocation_kind?: string
+          award_amount?: number
+          award_payload_hash?: string
+          campaign_version_id?: number
+          created_at?: string
+          id?: string
+          resolution_id?: string
+          snapshot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_promotion_awards_allocation_id_snapshot_id_alloca_fkey"
+            columns: ["allocation_id", "snapshot_id", "allocation_kind"]
+            isOneToOne: false
+            referencedRelation: "purchase_reward_allocations"
+            referencedColumns: ["id", "snapshot_id", "allocation_kind"]
+          },
+          {
+            foreignKeyName: "purchase_promotion_awards_campaign_version_id_fkey"
+            columns: ["campaign_version_id"]
+            isOneToOne: false
+            referencedRelation: "promotion_campaign_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_promotion_awards_resolution_id_snapshot_id_campai_fkey"
+            columns: ["resolution_id", "snapshot_id", "campaign_version_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_promotion_resolutions"
+            referencedColumns: ["id", "snapshot_id", "campaign_version_id"]
+          },
+        ]
+      }
+      purchase_promotion_resolution_events: {
+        Row: {
+          audit_event_id: string | null
+          event_no: number
+          from_state: string | null
+          id: number
+          occurred_at: string
+          reason: string
+          resolution_id: string
+          to_state: string
+        }
+        Insert: {
+          audit_event_id?: string | null
+          event_no: number
+          from_state?: string | null
+          id?: never
+          occurred_at?: string
+          reason: string
+          resolution_id: string
+          to_state: string
+        }
+        Update: {
+          audit_event_id?: string | null
+          event_no?: number
+          from_state?: string | null
+          id?: never
+          occurred_at?: string
+          reason?: string
+          resolution_id?: string
+          to_state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_promotion_resolution_events_audit_event_id_fkey"
+            columns: ["audit_event_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_audit_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_promotion_resolution_events_resolution_id_fkey"
+            columns: ["resolution_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_promotion_resolutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_promotion_resolution_inputs: {
+        Row: {
+          campaign_version_id: number | null
+          created_at: string
+          eligibility_input_snapshot: Json
+          eligibility_payload_hash: string
+          operation_key: string
+          resolution_id: string
+          snapshot_id: string
+          verified_provider_occurred_at: string
+        }
+        Insert: {
+          campaign_version_id?: number | null
+          created_at?: string
+          eligibility_input_snapshot: Json
+          eligibility_payload_hash: string
+          operation_key: string
+          resolution_id: string
+          snapshot_id: string
+          verified_provider_occurred_at: string
+        }
+        Update: {
+          campaign_version_id?: number | null
+          created_at?: string
+          eligibility_input_snapshot?: Json
+          eligibility_payload_hash?: string
+          operation_key?: string
+          resolution_id?: string
+          snapshot_id?: string
+          verified_provider_occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_promotion_resolution_inputs_campaign_version_id_fkey"
+            columns: ["campaign_version_id"]
+            isOneToOne: false
+            referencedRelation: "promotion_campaign_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_promotion_resolution_inputs_resolution_id_fkey"
+            columns: ["resolution_id"]
+            isOneToOne: true
+            referencedRelation: "purchase_promotion_resolutions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_promotion_resolution_inputs_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_reward_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_promotion_resolutions: {
+        Row: {
+          campaign_version_id: number
+          created_at: string
+          eligibility_basis: Json
+          id: string
+          resolution_key: string
+          resolved_at: string | null
+          snapshot_id: string
+          state: string
+        }
+        Insert: {
+          campaign_version_id: number
+          created_at?: string
+          eligibility_basis?: Json
+          id?: string
+          resolution_key: string
+          resolved_at?: string | null
+          snapshot_id: string
+          state: string
+        }
+        Update: {
+          campaign_version_id?: number
+          created_at?: string
+          eligibility_basis?: Json
+          id?: string
+          resolution_key?: string
+          resolved_at?: string | null
+          snapshot_id?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_promotion_resolutions_campaign_version_id_fkey"
+            columns: ["campaign_version_id"]
+            isOneToOne: false
+            referencedRelation: "promotion_campaign_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_promotion_resolutions_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_reward_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_refund_allocations: {
+        Row: {
+          allocation_no: number
+          applied_at: string | null
+          component: string
+          created_at: string
+          cumulative_target_amount: number
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debt_created_amount: number
+          id: string
+          incremental_reversal_amount: number
+          operation_key: string
+          original_reward_allocation_id: number
+          original_snapshot_id: string
+          recovery_plan: Json
+          recovery_plan_hash: string
+          refund_event_id: string
+          user_id: string
+          wallet_recovered_amount: number
+        }
+        Insert: {
+          allocation_no: number
+          applied_at?: string | null
+          component: string
+          created_at?: string
+          cumulative_target_amount: number
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debt_created_amount: number
+          id?: string
+          incremental_reversal_amount: number
+          operation_key: string
+          original_reward_allocation_id: number
+          original_snapshot_id: string
+          recovery_plan: Json
+          recovery_plan_hash: string
+          refund_event_id: string
+          user_id: string
+          wallet_recovered_amount: number
+        }
+        Update: {
+          allocation_no?: number
+          applied_at?: string | null
+          component?: string
+          created_at?: string
+          cumulative_target_amount?: number
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          debt_created_amount?: number
+          id?: string
+          incremental_reversal_amount?: number
+          operation_key?: string
+          original_reward_allocation_id?: number
+          original_snapshot_id?: string
+          recovery_plan?: Json
+          recovery_plan_hash?: string
+          refund_event_id?: string
+          user_id?: string
+          wallet_recovered_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_refund_allocations_original_reward_allocation_id__fkey"
+            columns: [
+              "original_reward_allocation_id",
+              "original_snapshot_id",
+              "component",
+            ]
+            isOneToOne: false
+            referencedRelation: "purchase_reward_allocations"
+            referencedColumns: ["id", "snapshot_id", "allocation_kind"]
+          },
+          {
+            foreignKeyName: "purchase_refund_allocations_refund_event_id_user_id_fkey"
+            columns: ["refund_event_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_refund_events"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      purchase_refund_events: {
+        Row: {
+          canonical_payload_hash: string
+          created_at: string
+          cumulative_refunded_numerator: number
+          id: string
+          operation_key: string
+          payload_hash: string
+          provider_occurred_at: string
+          provider_refund_event_id: string
+          refund_denominator: number
+          refund_ratio_basis: string
+          snapshot_id: string
+          user_id: string
+        }
+        Insert: {
+          canonical_payload_hash: string
+          created_at?: string
+          cumulative_refunded_numerator: number
+          id?: string
+          operation_key: string
+          payload_hash: string
+          provider_occurred_at: string
+          provider_refund_event_id: string
+          refund_denominator: number
+          refund_ratio_basis: string
+          snapshot_id: string
+          user_id: string
+        }
+        Update: {
+          canonical_payload_hash?: string
+          created_at?: string
+          cumulative_refunded_numerator?: number
+          id?: string
+          operation_key?: string
+          payload_hash?: string
+          provider_occurred_at?: string
+          provider_refund_event_id?: string
+          refund_denominator?: number
+          refund_ratio_basis?: string
+          snapshot_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_refund_events_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_reward_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_refund_events_snapshot_id_refund_ratio_basis_refu_fkey"
+            columns: ["snapshot_id", "refund_ratio_basis", "refund_denominator"]
+            isOneToOne: false
+            referencedRelation: "purchase_reward_snapshots"
+            referencedColumns: [
+              "id",
+              "refund_ratio_basis",
+              "refund_denominator",
+            ]
+          },
+          {
+            foreignKeyName: "purchase_refund_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_refund_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      purchase_reward_allocations: {
+        Row: {
+          allocation_kind: string
+          allocation_no: number
+          created_at: string
+          credit_allocation_id: number | null
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debt_offset_amount: number
+          gross_amount: number
+          id: number
+          net_wallet_credit_amount: number
+          snapshot_id: string
+          user_id: string
+        }
+        Insert: {
+          allocation_kind: string
+          allocation_no: number
+          created_at?: string
+          credit_allocation_id?: number | null
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debt_offset_amount?: number
+          gross_amount: number
+          id?: never
+          net_wallet_credit_amount: number
+          snapshot_id: string
+          user_id: string
+        }
+        Update: {
+          allocation_kind?: string
+          allocation_no?: number
+          created_at?: string
+          credit_allocation_id?: number | null
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          debt_offset_amount?: number
+          gross_amount?: number
+          id?: never
+          net_wallet_credit_amount?: number
+          snapshot_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_reward_allocations_credit_allocation_id_currency__fkey"
+            columns: ["credit_allocation_id", "currency_type", "user_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_credit_allocations"
+            referencedColumns: ["id", "currency_type", "user_id"]
+          },
+          {
+            foreignKeyName: "purchase_reward_allocations_snapshot_id_user_id_fkey"
+            columns: ["snapshot_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_reward_snapshots"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      purchase_reward_snapshots: {
+        Row: {
+          attestation_id: string | null
+          base_bonus_amount: number
+          base_operation_id: string | null
+          base_policy_snapshot: Json
+          base_star_amount: number
+          canonical_purchase_payload_hash: string
+          channel: string
+          created_at: string
+          eligibility_input_snapshot: Json
+          eligibility_payload_hash: string
+          environment: string
+          id: string
+          inbox_id: string | null
+          initial_provider_occurred_at: string | null
+          intake_provider_transaction_id: string
+          product_id: string
+          provider: string
+          provider_currency: string | null
+          provider_original_quantity: number | null
+          provider_paid_amount_minor: number | null
+          provider_transaction_id: string
+          purchase_key: string
+          quantity: number
+          receipt_id: number | null
+          refund_denominator: number
+          refund_ratio_basis: string
+          request_app_build: number
+          request_app_version: string
+          request_platform: string
+          rollout_cohort_version: string
+          source_payload_hash: string
+          unit_bonus_amount: number
+          unit_star_amount: number
+          user_id: string
+          verified_at: string
+        }
+        Insert: {
+          attestation_id?: string | null
+          base_bonus_amount: number
+          base_operation_id?: string | null
+          base_policy_snapshot: Json
+          base_star_amount: number
+          canonical_purchase_payload_hash: string
+          channel: string
+          created_at?: string
+          eligibility_input_snapshot: Json
+          eligibility_payload_hash: string
+          environment: string
+          id?: string
+          inbox_id?: string | null
+          initial_provider_occurred_at?: string | null
+          intake_provider_transaction_id: string
+          product_id: string
+          provider: string
+          provider_currency?: string | null
+          provider_original_quantity?: number | null
+          provider_paid_amount_minor?: number | null
+          provider_transaction_id: string
+          purchase_key: string
+          quantity: number
+          receipt_id?: number | null
+          refund_denominator: number
+          refund_ratio_basis: string
+          request_app_build: number
+          request_app_version: string
+          request_platform: string
+          rollout_cohort_version: string
+          source_payload_hash: string
+          unit_bonus_amount: number
+          unit_star_amount: number
+          user_id: string
+          verified_at: string
+        }
+        Update: {
+          attestation_id?: string | null
+          base_bonus_amount?: number
+          base_operation_id?: string | null
+          base_policy_snapshot?: Json
+          base_star_amount?: number
+          canonical_purchase_payload_hash?: string
+          channel?: string
+          created_at?: string
+          eligibility_input_snapshot?: Json
+          eligibility_payload_hash?: string
+          environment?: string
+          id?: string
+          inbox_id?: string | null
+          initial_provider_occurred_at?: string | null
+          intake_provider_transaction_id?: string
+          product_id?: string
+          provider?: string
+          provider_currency?: string | null
+          provider_original_quantity?: number | null
+          provider_paid_amount_minor?: number | null
+          provider_transaction_id?: string
+          purchase_key?: string
+          quantity?: number
+          receipt_id?: number | null
+          refund_denominator?: number
+          refund_ratio_basis?: string
+          request_app_build?: number
+          request_app_version?: string
+          request_platform?: string
+          rollout_cohort_version?: string
+          source_payload_hash?: string
+          unit_bonus_amount?: number
+          unit_star_amount?: number
+          user_id?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_reward_snapshots_attestation_id_fkey"
+            columns: ["attestation_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_provider_verification_attestations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_reward_snapshots_base_operation_id_fkey"
+            columns: ["base_operation_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_financial_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_reward_snapshots_inbox_id_fkey"
+            columns: ["inbox_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_provider_event_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_reward_snapshots_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: true
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_reward_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_reward_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       push_messages: {
         Row: {
@@ -4309,6 +5626,36 @@ export type Database = {
           tx_key?: string | null
           user_id?: string | null
           verification_data?: Json | null
+        }
+        Relationships: []
+      }
+      request_ip_log: {
+        Row: {
+          action_type: string
+          created_at: string
+          device_hash: string | null
+          id: number
+          ip_hash: string
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          device_hash?: string | null
+          id?: number
+          ip_hash: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          device_hash?: string | null
+          id?: number
+          ip_hash?: string
+          metadata?: Json | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -4826,6 +6173,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_abuse_review_queue: {
+        Row: {
+          created_at: string
+          id: number
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          source_decision_id: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_decision_id: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_decision_id?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_abuse_review_queue_source_decision_id_fkey"
+            columns: ["source_decision_id"]
+            isOneToOne: false
+            referencedRelation: "ip_block_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_agreement: {
         Row: {
           created_at: string | null
@@ -5071,6 +6459,7 @@ export type Database = {
           avatar_url: string | null
           birth_date: string | null
           birth_time: string | null
+          cotton_candy: number
           country_code: string | null
           created_at: string
           deleted_at: string | null
@@ -5093,6 +6482,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           birth_time?: string | null
+          cotton_candy?: number
           country_code?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -5115,6 +6505,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           birth_time?: string | null
+          cotton_candy?: number
           country_code?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -5530,6 +6921,7 @@ export type Database = {
           artist_id: number
           created_at: string | null
           id: string
+          ip_hash: string | null
           status: string
           updated_at: string | null
           user_id: string
@@ -5540,6 +6932,7 @@ export type Database = {
           artist_id?: number
           created_at?: string | null
           id?: string
+          ip_hash?: string | null
           status?: string
           updated_at?: string | null
           user_id: string
@@ -5550,6 +6943,7 @@ export type Database = {
           artist_id?: number
           created_at?: string | null
           id?: string
+          ip_hash?: string | null
           status?: string
           updated_at?: string | null
           user_id?: string
@@ -5656,9 +7050,11 @@ export type Database = {
       vote_pick: {
         Row: {
           amount: number | null
+          cotton_candy_usage: number
           created_at: string | null
           deleted_at: string | null
           id: number
+          request_id: string | null
           star_candy_bonus_usage: number
           star_candy_usage: number
           updated_at: string | null
@@ -5668,9 +7064,11 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          cotton_candy_usage?: number
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          request_id?: string | null
           star_candy_bonus_usage?: number
           star_candy_usage?: number
           updated_at?: string | null
@@ -5680,9 +7078,11 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          cotton_candy_usage?: number
           created_at?: string | null
           deleted_at?: string | null
           id?: number
+          request_id?: string | null
           star_candy_bonus_usage?: number
           star_candy_usage?: number
           updated_at?: string | null
@@ -5799,6 +7199,1412 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      wallet_admin_command_executions: {
+        Row: {
+          action_code: string
+          actor_user_id: string
+          canonical_request_hash: string
+          created_at: string
+          request_id: string
+          response_envelope: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        }
+        Insert: {
+          action_code: string
+          actor_user_id: string
+          canonical_request_hash: string
+          created_at?: string
+          request_id: string
+          response_envelope: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        }
+        Update: {
+          action_code?: string
+          actor_user_id?: string
+          canonical_request_hash?: string
+          created_at?: string
+          request_id?: string
+          response_envelope?: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        }
+        Relationships: []
+      }
+      wallet_admin_limit_versions: {
+        Row: {
+          action_code: string
+          change_reason: string
+          changed_by: string
+          created_at: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          effective_from: string
+          id: number
+          max_amount: number
+          role_name: string
+          version: number
+        }
+        Insert: {
+          action_code: string
+          change_reason: string
+          changed_by: string
+          created_at?: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          effective_from: string
+          id?: never
+          max_amount: number
+          role_name: string
+          version: number
+        }
+        Update: {
+          action_code?: string
+          change_reason?: string
+          changed_by?: string
+          created_at?: string
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          effective_from?: string
+          id?: never
+          max_amount?: number
+          role_name?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      wallet_admin_role_assignment_approvals: {
+        Row: {
+          approver_user_id: string
+          consumed_at: string | null
+          expires_at: string
+          id: string
+          request_hash: string
+          request_id: string
+          role_name: string
+          target_user_id: string
+        }
+        Insert: {
+          approver_user_id: string
+          consumed_at?: string | null
+          expires_at: string
+          id?: string
+          request_hash: string
+          request_id: string
+          role_name: string
+          target_user_id: string
+        }
+        Update: {
+          approver_user_id?: string
+          consumed_at?: string | null
+          expires_at?: string
+          id?: string
+          request_hash?: string
+          request_id?: string
+          role_name?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_audit_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: string
+          after_state: Json | null
+          before_state: Json | null
+          campaign_id: string | null
+          created_at: string
+          id: string
+          occurred_at: string
+          operation_id: string | null
+          reason_code: string | null
+          request_id: string | null
+          resource_id: string
+          resource_type: string
+          ticket_reference: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role: string
+          after_state?: Json | null
+          before_state?: Json | null
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          occurred_at?: string
+          operation_id?: string | null
+          reason_code?: string | null
+          request_id?: string | null
+          resource_id: string
+          resource_type: string
+          ticket_reference?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          occurred_at?: string
+          operation_id?: string | null
+          reason_code?: string | null
+          request_id?: string | null
+          resource_id?: string
+          resource_type?: string
+          ticket_reference?: string | null
+        }
+        Relationships: []
+      }
+      wallet_bonus_projection_violations: {
+        Row: {
+          detected_at: string
+          id: number
+          ledger_amount: number
+          profile_amount: number
+          resolved_at: string | null
+          user_id: string
+        }
+        Insert: {
+          detected_at?: string
+          id?: never
+          ledger_amount: number
+          profile_amount: number
+          resolved_at?: string | null
+          user_id: string
+        }
+        Update: {
+          detected_at?: string
+          id?: never
+          ledger_amount?: number
+          profile_amount?: number
+          resolved_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_bonus_projection_violations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_bonus_projection_violations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      wallet_command_approval_events: {
+        Row: {
+          actor_id: string
+          approval_request_id: string
+          event_audit_id: string
+          id: number
+          occurred_at: string
+          status: string
+        }
+        Insert: {
+          actor_id: string
+          approval_request_id: string
+          event_audit_id: string
+          id?: never
+          occurred_at?: string
+          status: string
+        }
+        Update: {
+          actor_id?: string
+          approval_request_id?: string
+          event_audit_id?: string
+          id?: never
+          occurred_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_command_approval_events_approval_request_id_fkey"
+            columns: ["approval_request_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_command_approval_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_command_approval_events_event_audit_id_fkey"
+            columns: ["event_audit_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_audit_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_command_approval_requests: {
+        Row: {
+          action_code: string
+          approval_reference: string
+          command_payload: Json
+          command_payload_hash: string
+          created_at: string
+          creation_audit_id: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          expires_at: string
+          id: string
+          limit_version_id: number
+          operation_key: string
+          requester_id: string
+          role_name: string
+        }
+        Insert: {
+          action_code: string
+          approval_reference: string
+          command_payload: Json
+          command_payload_hash: string
+          created_at?: string
+          creation_audit_id: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          expires_at: string
+          id?: string
+          limit_version_id: number
+          operation_key: string
+          requester_id: string
+          role_name: string
+        }
+        Update: {
+          action_code?: string
+          approval_reference?: string
+          command_payload?: Json
+          command_payload_hash?: string
+          created_at?: string
+          creation_audit_id?: string
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          expires_at?: string
+          id?: string
+          limit_version_id?: number
+          operation_key?: string
+          requester_id?: string
+          role_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_command_approval_reque_limit_version_id_role_name_a_fkey"
+            columns: [
+              "limit_version_id",
+              "role_name",
+              "action_code",
+              "currency_type",
+            ]
+            isOneToOne: false
+            referencedRelation: "wallet_admin_limit_versions"
+            referencedColumns: [
+              "id",
+              "role_name",
+              "action_code",
+              "currency_type",
+            ]
+          },
+          {
+            foreignKeyName: "wallet_command_approval_requests_creation_audit_id_fkey"
+            columns: ["creation_audit_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_audit_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_correction_approval_requests: {
+        Row: {
+          approval_reference: string
+          approved_at: string | null
+          approved_by: string | null
+          audit_id: string
+          command_payload: Json
+          command_payload_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          operation_key: string
+          requester_id: string
+        }
+        Insert: {
+          approval_reference: string
+          approved_at?: string | null
+          approved_by?: string | null
+          audit_id: string
+          command_payload: Json
+          command_payload_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          operation_key: string
+          requester_id: string
+        }
+        Update: {
+          approval_reference?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          audit_id?: string
+          command_payload?: Json
+          command_payload_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          operation_key?: string
+          requester_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_correction_approval_requests_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_audit_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_credit_allocations: {
+        Row: {
+          allocation_no: number
+          created_at: string
+          credit_operation_id: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debt_offset_amount: number
+          expires_at: string | null
+          gross_amount: number
+          id: number
+          net_wallet_credit_amount: number
+          reason: string
+          star_candy_bonus_history_id: number | null
+          star_candy_history_id: number | null
+          user_id: string
+        }
+        Insert: {
+          allocation_no: number
+          created_at?: string
+          credit_operation_id: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debt_offset_amount?: number
+          expires_at?: string | null
+          gross_amount: number
+          id?: never
+          net_wallet_credit_amount: number
+          reason: string
+          star_candy_bonus_history_id?: number | null
+          star_candy_history_id?: number | null
+          user_id: string
+        }
+        Update: {
+          allocation_no?: number
+          created_at?: string
+          credit_operation_id?: string
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          debt_offset_amount?: number
+          expires_at?: string | null
+          gross_amount?: number
+          id?: never
+          net_wallet_credit_amount?: number
+          reason?: string
+          star_candy_bonus_history_id?: number | null
+          star_candy_history_id?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_credit_allocations_credit_operation_id_fkey"
+            columns: ["credit_operation_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_credit_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_credit_operations: {
+        Row: {
+          created_at: string
+          financial_operation_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          financial_operation_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          financial_operation_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_credit_operations_financial_operation_id_fkey"
+            columns: ["financial_operation_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_financial_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_credit_source_registry: {
+        Row: {
+          classification: string
+          evidence: Json
+          migrated: boolean
+          migrated_at: string | null
+          owner_plan: string
+          source_key: string
+          target_interface: string
+          writer_kind: string
+        }
+        Insert: {
+          classification: string
+          evidence?: Json
+          migrated?: boolean
+          migrated_at?: string | null
+          owner_plan: string
+          source_key: string
+          target_interface: string
+          writer_kind: string
+        }
+        Update: {
+          classification?: string
+          evidence?: Json
+          migrated?: boolean
+          migrated_at?: string | null
+          owner_plan?: string
+          source_key?: string
+          target_interface?: string
+          writer_kind?: string
+        }
+        Relationships: []
+      }
+      wallet_debit_allocations: {
+        Row: {
+          allocation_no: number
+          created_at: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debit_operation_id: string
+          debt_created_amount: number
+          id: number
+          requested_amount: number
+          user_id: string
+          wallet_debit_amount: number
+        }
+        Insert: {
+          allocation_no: number
+          created_at?: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debit_operation_id: string
+          debt_created_amount?: number
+          id?: never
+          requested_amount: number
+          user_id: string
+          wallet_debit_amount: number
+        }
+        Update: {
+          allocation_no?: number
+          created_at?: string
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          debit_operation_id?: string
+          debt_created_amount?: number
+          id?: never
+          requested_amount?: number
+          user_id?: string
+          wallet_debit_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_debit_allocations_debit_operation_id_user_id_fkey"
+            columns: ["debit_operation_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_debit_operations"
+            referencedColumns: ["financial_operation_id", "user_id"]
+          },
+          {
+            foreignKeyName: "wallet_debit_allocations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_debit_allocations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      wallet_debit_bucket_allocations: {
+        Row: {
+          amount: number
+          bucket_kind: string
+          created_at: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debit_allocation_id: number
+          id: number
+          star_candy_bonus_history_id: number | null
+          star_candy_history_id: number | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bucket_kind: string
+          created_at?: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debit_allocation_id: number
+          id?: never
+          star_candy_bonus_history_id?: number | null
+          star_candy_history_id?: number | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bucket_kind?: string
+          created_at?: string
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          debit_allocation_id?: number
+          id?: never
+          star_candy_bonus_history_id?: number | null
+          star_candy_history_id?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_debit_bucket_allocatio_debit_allocation_id_user_id__fkey"
+            columns: ["debit_allocation_id", "user_id", "currency_type"]
+            isOneToOne: false
+            referencedRelation: "wallet_debit_allocations"
+            referencedColumns: ["id", "user_id", "currency_type"]
+          },
+        ]
+      }
+      wallet_debit_operations: {
+        Row: {
+          allow_debt: boolean
+          created_at: string
+          debit_kind: string
+          financial_operation_id: string
+          user_id: string
+        }
+        Insert: {
+          allow_debt?: boolean
+          created_at?: string
+          debit_kind: string
+          financial_operation_id: string
+          user_id: string
+        }
+        Update: {
+          allow_debt?: boolean
+          created_at?: string
+          debit_kind?: string
+          financial_operation_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_debit_operations_financial_operation_id_user_id_fkey"
+            columns: ["financial_operation_id", "user_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_financial_operations"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      wallet_financial_operations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_code: string | null
+          id: string
+          operation_key: string
+          operation_kind: Database["public"]["Enums"]["wallet_operation_kind"]
+          payload_hash: string
+          result: Json | null
+          source_event_at: string | null
+          source_reference: string
+          source_type: string
+          status: Database["public"]["Enums"]["wallet_operation_status"]
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          operation_key: string
+          operation_kind: Database["public"]["Enums"]["wallet_operation_kind"]
+          payload_hash: string
+          result?: Json | null
+          source_event_at?: string | null
+          source_reference: string
+          source_type: string
+          status?: Database["public"]["Enums"]["wallet_operation_status"]
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          operation_key?: string
+          operation_kind?: Database["public"]["Enums"]["wallet_operation_kind"]
+          payload_hash?: string
+          result?: Json | null
+          source_event_at?: string | null
+          source_reference?: string
+          source_type?: string
+          status?: Database["public"]["Enums"]["wallet_operation_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_financial_operations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_financial_operations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      wallet_invariant_violations: {
+        Row: {
+          actual: Json
+          consistent_scans: number
+          expected: Json
+          first_seen_at: string
+          last_seen_at: string
+          resolved_at: string | null
+          severity: string
+          user_id: string
+          violation_type: string
+        }
+        Insert: {
+          actual: Json
+          consistent_scans?: number
+          expected: Json
+          first_seen_at: string
+          last_seen_at: string
+          resolved_at?: string | null
+          severity: string
+          user_id: string
+          violation_type: string
+        }
+        Update: {
+          actual?: Json
+          consistent_scans?: number
+          expected?: Json
+          first_seen_at?: string
+          last_seen_at?: string
+          resolved_at?: string | null
+          severity?: string
+          user_id?: string
+          violation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_invariant_violations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_invariant_violations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      wallet_mutation_route_registry: {
+        Row: {
+          classification: string
+          domain: string
+          evidence: Json
+          lock_interface: string
+          migrated: boolean
+          migrated_at: string | null
+          owner_plan: string
+          route_key: string
+        }
+        Insert: {
+          classification: string
+          domain: string
+          evidence?: Json
+          lock_interface: string
+          migrated?: boolean
+          migrated_at?: string | null
+          owner_plan: string
+          route_key: string
+        }
+        Update: {
+          classification?: string
+          domain?: string
+          evidence?: Json
+          lock_interface?: string
+          migrated?: boolean
+          migrated_at?: string | null
+          owner_plan?: string
+          route_key?: string
+        }
+        Relationships: []
+      }
+      wallet_operation_claim_cursor: {
+        Row: {
+          next_type: string
+          singleton: boolean
+        }
+        Insert: {
+          next_type: string
+          singleton?: boolean
+        }
+        Update: {
+          next_type?: string
+          singleton?: boolean
+        }
+        Relationships: []
+      }
+      wallet_promotion_time_attestations: {
+        Row: {
+          environment: string
+          id: string
+          inbox_id: string
+          intake_provider_transaction_id: string
+          provider: string
+          provider_verification_payload_hash: string
+          snapshot_id: string
+          verified_at: string
+          verified_fields_hash: string
+          verified_provider_occurred_at: string
+        }
+        Insert: {
+          environment: string
+          id?: string
+          inbox_id: string
+          intake_provider_transaction_id: string
+          provider: string
+          provider_verification_payload_hash: string
+          snapshot_id: string
+          verified_at?: string
+          verified_fields_hash: string
+          verified_provider_occurred_at: string
+        }
+        Update: {
+          environment?: string
+          id?: string
+          inbox_id?: string
+          intake_provider_transaction_id?: string
+          provider?: string
+          provider_verification_payload_hash?: string
+          snapshot_id?: string
+          verified_at?: string
+          verified_fields_hash?: string
+          verified_provider_occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_promotion_time_attestations_inbox_id_fkey"
+            columns: ["inbox_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_provider_event_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_promotion_time_attestations_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: true
+            referencedRelation: "purchase_reward_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_provider_event_inbox: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          encrypted_payload: string
+          id: string
+          idempotency_key: string
+          last_error_code: string | null
+          last_error_retryable: boolean | null
+          lease_token: string | null
+          lease_until: string | null
+          locked_by: string | null
+          next_retry_at: string
+          occurred_at: string
+          operation_id: string
+          operation_type: string
+          payload_hash: string
+          purchase_environment: string | null
+          purchase_product_id: string | null
+          purchase_provider: string | null
+          purchase_provider_transaction_id: string | null
+          purchase_user_id: string | null
+          result_id: string | null
+          result_type: string | null
+          row_version: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          encrypted_payload: string
+          id?: string
+          idempotency_key: string
+          last_error_code?: string | null
+          last_error_retryable?: boolean | null
+          lease_token?: string | null
+          lease_until?: string | null
+          locked_by?: string | null
+          next_retry_at?: string
+          occurred_at: string
+          operation_id?: string
+          operation_type: string
+          payload_hash: string
+          purchase_environment?: string | null
+          purchase_product_id?: string | null
+          purchase_provider?: string | null
+          purchase_provider_transaction_id?: string | null
+          purchase_user_id?: string | null
+          result_id?: string | null
+          result_type?: string | null
+          row_version?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          encrypted_payload?: string
+          id?: string
+          idempotency_key?: string
+          last_error_code?: string | null
+          last_error_retryable?: boolean | null
+          lease_token?: string | null
+          lease_until?: string | null
+          locked_by?: string | null
+          next_retry_at?: string
+          occurred_at?: string
+          operation_id?: string
+          operation_type?: string
+          payload_hash?: string
+          purchase_environment?: string | null
+          purchase_product_id?: string | null
+          purchase_provider?: string | null
+          purchase_provider_transaction_id?: string | null
+          purchase_user_id?: string | null
+          result_id?: string | null
+          result_type?: string | null
+          row_version?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wallet_provider_verification_attestations: {
+        Row: {
+          authoritative_provider_transaction_id: string
+          durable_proof_hash: string
+          environment: string
+          id: string
+          inbox_id: string
+          intake_provider_transaction_id: string
+          product_id: string
+          provider: string
+          provider_currency: string | null
+          provider_occurred_at: string | null
+          provider_original_quantity: number | null
+          provider_paid_amount_minor: number | null
+          provider_verification_payload_hash: string
+          quantity: number
+          refund_ratio_basis: string
+          user_id: string
+          verified_at: string
+          verified_fields_hash: string
+        }
+        Insert: {
+          authoritative_provider_transaction_id: string
+          durable_proof_hash: string
+          environment: string
+          id?: string
+          inbox_id: string
+          intake_provider_transaction_id: string
+          product_id: string
+          provider: string
+          provider_currency?: string | null
+          provider_occurred_at?: string | null
+          provider_original_quantity?: number | null
+          provider_paid_amount_minor?: number | null
+          provider_verification_payload_hash: string
+          quantity: number
+          refund_ratio_basis: string
+          user_id: string
+          verified_at?: string
+          verified_fields_hash: string
+        }
+        Update: {
+          authoritative_provider_transaction_id?: string
+          durable_proof_hash?: string
+          environment?: string
+          id?: string
+          inbox_id?: string
+          intake_provider_transaction_id?: string
+          product_id?: string
+          provider?: string
+          provider_currency?: string | null
+          provider_occurred_at?: string | null
+          provider_original_quantity?: number | null
+          provider_paid_amount_minor?: number | null
+          provider_verification_payload_hash?: string
+          quantity?: number
+          refund_ratio_basis?: string
+          user_id?: string
+          verified_at?: string
+          verified_fields_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_provider_verification_attestations_inbox_id_fkey"
+            columns: ["inbox_id"]
+            isOneToOne: true
+            referencedRelation: "wallet_provider_event_inbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_recovery_debt_events: {
+        Row: {
+          amount: number
+          audit_event_id: string | null
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debt_id: string
+          event_no: number
+          event_type: string
+          id: number
+          occurred_at: string
+          operation_key: string | null
+          recovered_amount_after: number
+          refund_allocation_no: number | null
+          source_debit_allocation_id: number | null
+          source_refund_allocation_id: string | null
+          user_id: string
+          waived_amount_after: number
+          wallet_credit_allocation_id: number | null
+        }
+        Insert: {
+          amount: number
+          audit_event_id?: string | null
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          debt_id: string
+          event_no: number
+          event_type: string
+          id?: never
+          occurred_at?: string
+          operation_key?: string | null
+          recovered_amount_after: number
+          refund_allocation_no?: number | null
+          source_debit_allocation_id?: number | null
+          source_refund_allocation_id?: string | null
+          user_id: string
+          waived_amount_after: number
+          wallet_credit_allocation_id?: number | null
+        }
+        Update: {
+          amount?: number
+          audit_event_id?: string | null
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          debt_id?: string
+          event_no?: number
+          event_type?: string
+          id?: never
+          occurred_at?: string
+          operation_key?: string | null
+          recovered_amount_after?: number
+          refund_allocation_no?: number | null
+          source_debit_allocation_id?: number | null
+          source_refund_allocation_id?: string | null
+          user_id?: string
+          waived_amount_after?: number
+          wallet_credit_allocation_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_recovery_debt_events_audit_event_id_fkey"
+            columns: ["audit_event_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_audit_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_recovery_debt_events_credit_allocation_fk"
+            columns: ["wallet_credit_allocation_id", "currency_type", "user_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_credit_allocations"
+            referencedColumns: ["id", "currency_type", "user_id"]
+          },
+          {
+            foreignKeyName: "wallet_recovery_debt_events_debit_allocation_fk"
+            columns: ["source_debit_allocation_id", "user_id", "currency_type"]
+            isOneToOne: false
+            referencedRelation: "wallet_debit_allocations"
+            referencedColumns: ["id", "user_id", "currency_type"]
+          },
+          {
+            foreignKeyName: "wallet_recovery_debt_events_debt_id_user_id_currency_type_fkey"
+            columns: ["debt_id", "user_id", "currency_type"]
+            isOneToOne: false
+            referencedRelation: "wallet_recovery_debts"
+            referencedColumns: ["id", "user_id", "currency_type"]
+          },
+          {
+            foreignKeyName: "wallet_recovery_debt_events_refund_allocation_fk"
+            columns: ["source_refund_allocation_id", "user_id", "currency_type"]
+            isOneToOne: false
+            referencedRelation: "purchase_refund_allocations"
+            referencedColumns: ["id", "user_id", "currency_type"]
+          },
+        ]
+      }
+      wallet_recovery_debts: {
+        Row: {
+          created_at: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          id: string
+          owed_amount: number
+          reason: string
+          receipt_id: number | null
+          recovered_amount: number
+          row_version: number
+          source_debit_allocation_id: number | null
+          source_refund_allocation_id: string | null
+          user_id: string
+          waived_amount: number
+        }
+        Insert: {
+          created_at?: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          id?: string
+          owed_amount: number
+          reason: string
+          receipt_id?: number | null
+          recovered_amount?: number
+          row_version?: number
+          source_debit_allocation_id?: number | null
+          source_refund_allocation_id?: string | null
+          user_id: string
+          waived_amount?: number
+        }
+        Update: {
+          created_at?: string
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          id?: string
+          owed_amount?: number
+          reason?: string
+          receipt_id?: number | null
+          recovered_amount?: number
+          row_version?: number
+          source_debit_allocation_id?: number | null
+          source_refund_allocation_id?: string | null
+          user_id?: string
+          waived_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_recovery_debts_correction_source_fk"
+            columns: ["source_debit_allocation_id", "user_id", "currency_type"]
+            isOneToOne: false
+            referencedRelation: "wallet_debit_allocations"
+            referencedColumns: ["id", "user_id", "currency_type"]
+          },
+          {
+            foreignKeyName: "wallet_recovery_debts_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_recovery_debts_refund_allocation_fk"
+            columns: ["source_refund_allocation_id", "user_id", "currency_type"]
+            isOneToOne: false
+            referencedRelation: "purchase_refund_allocations"
+            referencedColumns: ["id", "user_id", "currency_type"]
+          },
+          {
+            foreignKeyName: "wallet_recovery_debts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_recovery_debts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      wallet_repair_operations: {
+        Row: {
+          amount: number
+          audit_event_id: string
+          canonical_payload: Json
+          canonical_payload_hash: string
+          created_at: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          direction: string
+          expected_state: Json
+          id: string
+          observed_state: Json
+          operation_key: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          audit_event_id: string
+          canonical_payload: Json
+          canonical_payload_hash: string
+          created_at?: string
+          currency_type: Database["public"]["Enums"]["wallet_currency"]
+          direction: string
+          expected_state: Json
+          id?: string
+          observed_state: Json
+          operation_key: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          audit_event_id?: string
+          canonical_payload?: Json
+          canonical_payload_hash?: string
+          created_at?: string
+          currency_type?: Database["public"]["Enums"]["wallet_currency"]
+          direction?: string
+          expected_state?: Json
+          id?: string
+          observed_state?: Json
+          operation_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_repair_operations_audit_event_id_fkey"
+            columns: ["audit_event_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_audit_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_repair_operations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_repair_operations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      wallet_repair_previews: {
+        Row: {
+          audit_id: string
+          command_payload: Json
+          command_payload_hash: string
+          created_at: string
+          executed_at: string | null
+          executed_by: string | null
+          expires_at: string
+          id: string
+          operation_key: string
+          preview_reference: string
+          requester_id: string
+          result_hash: string
+          result_payload: Json
+        }
+        Insert: {
+          audit_id: string
+          command_payload: Json
+          command_payload_hash: string
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          expires_at: string
+          id?: string
+          operation_key: string
+          preview_reference: string
+          requester_id: string
+          result_hash: string
+          result_payload: Json
+        }
+        Update: {
+          audit_id?: string
+          command_payload?: Json
+          command_payload_hash?: string
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          expires_at?: string
+          id?: string
+          operation_key?: string
+          preview_reference?: string
+          requester_id?: string
+          result_hash?: string
+          result_payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_repair_previews_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_audit_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_reward_entitlements: {
+        Row: {
+          amount: number
+          created_at: string
+          expires_at: string
+          reference_id: string
+          source_key: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          expires_at: string
+          reference_id: string
+          source_key: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expires_at?: string
+          reference_id?: string
+          source_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_reward_entitlements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_reward_entitlements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_star_candy_bonus_drift"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      wallet_runtime_flags: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          flag_key: string
+          reason: string
+          value_json: Json
+          version: number
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          flag_key: string
+          reason: string
+          value_json: Json
+          version: number
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          flag_key?: string
+          reason?: string
+          value_json?: Json
+          version?: number
+        }
+        Relationships: []
+      }
+      wallet_worker_health: {
+        Row: {
+          clean_scans: number
+          deployed_version: string
+          last_result: Json
+          last_success_at: string | null
+          scan_had_skips: boolean
+          worker_key: string
+        }
+        Insert: {
+          clean_scans?: number
+          deployed_version: string
+          last_result?: Json
+          last_success_at?: string | null
+          scan_had_skips?: boolean
+          worker_key: string
+        }
+        Update: {
+          clean_scans?: number
+          deployed_version?: string
+          last_result?: Json
+          last_success_at?: string | null
+          scan_had_skips?: boolean
+          worker_key?: string
+        }
+        Relationships: []
+      }
+      wallet_worker_heartbeats: {
+        Row: {
+          created_at: string
+          instance_id: string
+          last_heartbeat_at: string
+          metadata: Json
+          updated_at: string
+          worker_id: string
+          worker_type: string
+        }
+        Insert: {
+          created_at?: string
+          instance_id: string
+          last_heartbeat_at?: string
+          metadata?: Json
+          updated_at?: string
+          worker_id: string
+          worker_type: string
+        }
+        Update: {
+          created_at?: string
+          instance_id?: string
+          last_heartbeat_at?: string
+          metadata?: Json
+          updated_at?: string
+          worker_id?: string
+          worker_type?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -6068,6 +8874,25 @@ export type Database = {
         }
         Relationships: []
       }
+      cs_4_11_classification: {
+        Row: {
+          account_active: boolean | null
+          ad_max_per_min: number | null
+          admob_median_s: number | null
+          admob_min_s: number | null
+          admob_sub5s: number | null
+          admob_sub5s_pct: number | null
+          admob_total_gaps: number | null
+          already_restored: boolean | null
+          att_dup: number | null
+          classification: string | null
+          confiscated_4_11: number | null
+          email: string | null
+          nickname: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       security_events_summary: {
         Row: {
           action_type: string | null
@@ -6191,11 +9016,8 @@ export type Database = {
       }
       vote_item_request_status_summary: {
         Row: {
-          artist_group: string | null
           artist_id: number | null
           artist_name: string | null
-          first_request_at: string | null
-          last_updated_at: string | null
           request_count: number | null
           request_status: string | null
           vote_id: number | null
@@ -6289,8 +9111,66 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_credit_source_coverage: {
+        Row: {
+          coverage_percent: number | null
+          migrated_sources: number | null
+          owner_plan: string | null
+          total_sources: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      aa_device_cohort_count: {
+        Args: {
+          p_action: string
+          p_device_hash: string
+          p_user_id: string
+          p_window_start: string
+        }
+        Returns: number
+      }
+      aa_device_cohort_ip_count: {
+        Args: {
+          p_action: string
+          p_device_hash: string
+          p_ip_hash: string
+          p_window_start: string
+        }
+        Returns: number
+      }
+      aa_hash_ip: { Args: { p_ip: string }; Returns: string }
+      acknowledge_ad_reward: {
+        Args: { p_reference_id: string; p_reference_type: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_ad_reward_status"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ad_reward_status"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_ack_wallet_ops_alert: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_adjust_star_bonus: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_adjust_user_bonus: {
         Args: {
           bonus_amount: number
@@ -6304,8 +9184,296 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: Json
       }
+      admin_create_promotion_version: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_create_promotion_version_internal: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_emergency_set_wallet_flags: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_execute_wallet_repair: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_get_user_bonus_history: {
         Args: { limit_count?: number; target_user_id: string }
+        Returns: Json
+      }
+      admin_get_user_cs_summary: {
+        Args: { p_user_id: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_cs_summary"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_cs_summary"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_get_wallet_actor_context: {
+        Args: never
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_actor_context"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_actor_context"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_get_wallet_ops_summary: {
+        Args: { p_at?: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_ops_summary"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_ops_summary"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_get_wallet_runtime_flags: {
+        Args: never
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_runtime_flags"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_runtime_flags"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_get_worker_health: {
+        Args: never
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_worker_health_item"][]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_worker_health_item"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      admin_list_ops_alerts: {
+        Args: { p_cursor?: string; p_filters: Json; p_limit?: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_alert_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_alert_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_list_promotion_campaign_versions: {
+        Args: { p_campaign_id: string; p_cursor?: string; p_limit?: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_campaign_version_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_campaign_version_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_list_promotion_campaigns: {
+        Args: { p_cursor?: string; p_filters: Json; p_limit?: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_campaign_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_campaign_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_list_user_currency_history: {
+        Args: {
+          p_currency: Database["public"]["Enums"]["wallet_currency"]
+          p_cursor?: string
+          p_filters: Json
+          p_limit?: number
+          p_user_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_currency_history_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_currency_history_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_list_user_money_timeline: {
+        Args: {
+          p_cursor?: string
+          p_filters: Json
+          p_limit?: number
+          p_user_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_timeline_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_timeline_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_list_user_wallet_debts: {
+        Args: {
+          p_cursor?: string
+          p_filters: Json
+          p_limit?: number
+          p_user_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_debt_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_debt_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_list_wallet_audit_events: {
+        Args: { p_cursor?: string; p_filters: Json; p_limit?: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_audit_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_audit_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_list_wallet_home_banners: { Args: never; Returns: Json }
+      admin_list_wallet_invariant_violations: {
+        Args: { p_cursor?: string; p_filters: Json; p_limit?: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_invariant_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_invariant_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_list_wallet_operations: {
+        Args: { p_cursor?: string; p_filters: Json; p_limit?: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_operation_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_operation_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_preview_promotion_campaign: {
+        Args: { p_at: string; p_campaign_id: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_admin_promotion_preview"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_admin_promotion_preview"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_preview_wallet_repair: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_request_wallet_operation_retry: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_waive_wallet_debt: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      aggregate_anti_abuse_daily_stats: {
+        Args: { p_target_day?: string }
+        Returns: undefined
+      }
+      apply_wallet_correction: {
+        Args: { p_actor_user_id: string; p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      assert_anti_abuse_permission: {
+        Args: { p_permission_key: string }
+        Returns: undefined
+      }
+      attest_promotion_time: {
+        Args: {
+          p_inbox_id: string
+          p_lease_token: string
+          p_provider_verification_payload_hash: string
+          p_snapshot_id: string
+          p_verified_provider_occurred_at: string
+          p_worker_mac: string
+        }
+        Returns: string
+      }
+      attest_verified_purchase: {
+        Args: {
+          p_authoritative_provider_transaction_id: string
+          p_environment: string
+          p_inbox_id: string
+          p_intake_provider_transaction_id: string
+          p_lease_token: string
+          p_product_id: string
+          p_provider: string
+          p_provider_currency: string
+          p_provider_occurred_at: string
+          p_provider_original_quantity: number
+          p_provider_paid_amount_minor: number
+          p_provider_verification_payload_hash: string
+          p_quantity: number
+          p_refund_ratio_basis: string
+          p_user_id: string
+          p_verified_at: string
+          p_worker_mac: string
+        }
         Returns: Json
       }
       auto_fix_bonus_drift: {
@@ -6345,6 +9513,10 @@ export type Database = {
         Args: { p_user_id: string; p_vote_amount: number }
         Returns: boolean
       }
+      check_ad_view_fraud: {
+        Args: { p_impression_id: string; p_user_id: string }
+        Returns: string
+      }
       check_bonus_state: {
         Args: { check_time?: string }
         Returns: {
@@ -6355,13 +9527,126 @@ export type Database = {
           total_bonuses: number
         }[]
       }
+      check_ip_quota: {
+        Args: {
+          p_action: string
+          p_device_hash?: string
+          p_ip_hash: string
+          p_raw_ip?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      check_ip_quota_clustered: {
+        Args: {
+          p_action: string
+          p_device_hash?: string
+          p_ip_hash: string
+          p_raw_ip?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      claim_promotion_award_event: {
+        Args: {
+          p_inbox_id: string
+          p_lease_seconds: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempt_count: number
+          encrypted_payload: string
+          id: string
+          lease_token: string
+          operation_type: string
+        }[]
+      }
+      claim_provider_event_batch: {
+        Args: { p_lease_seconds: number; p_limit: number; p_worker_id: string }
+        Returns: {
+          attempt_count: number
+          encrypted_payload: string
+          id: string
+          lease_token: string
+          operation_type: string
+        }[]
+      }
+      claim_purchase_provider_event: {
+        Args: {
+          p_inbox_id: string
+          p_lease_seconds: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempt_count: number
+          encrypted_payload: string
+          id: string
+          lease_token: string
+          operation_type: string
+        }[]
+      }
+      claim_purchase_refund_event: {
+        Args: {
+          p_inbox_id: string
+          p_lease_seconds: number
+          p_worker_id: string
+        }
+        Returns: {
+          attempt_count: number
+          encrypted_payload: string
+          id: string
+          lease_token: string
+          operation_type: string
+        }[]
+      }
+      claim_wallet_alert_notifications: {
+        Args: { p_limit?: number }
+        Returns: {
+          alert_id: string
+          payload: Json
+        }[]
+      }
+      claim_wallet_operation_batch: {
+        Args: { p_lease_seconds: number; p_limit: number; p_worker_id: string }
+        Returns: {
+          attempt_count: number
+          encrypted_payload: string
+          id: string
+          lease_token: string
+          operation_type: string
+        }[]
+      }
       cleanup_deleted_qnas: { Args: { days_old?: number }; Returns: number }
       cleanup_exhausted_buckets_batch: {
         Args: { batch_limit?: number }
         Returns: number
       }
       cleanup_expired_audit_logs: { Args: never; Returns: number }
+      cleanup_stale_wallet_claims: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
       commit_transaction: { Args: never; Returns: undefined }
+      complete_cancelled_promotion_event: {
+        Args: { p_inbox_id: string; p_lease_token: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_purchase_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_purchase_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      complete_provider_event: {
+        Args: {
+          p_inbox_id: string
+          p_lease_token: string
+          p_result_id: string
+          p_result_type: string
+        }
+        Returns: undefined
+      }
+      compute_bonus_expiry: { Args: { at_ts?: string }; Returns: string }
       consolidate_bonus_buckets: {
         Args: { p_user_id: string }
         Returns: {
@@ -6377,6 +9662,20 @@ export type Database = {
           user_id: string
         }[]
       }
+      create_ad_reward_claim: {
+        Args: {
+          p_client_request_id: string
+          p_placement_id: string
+          p_platform: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_ad_claim_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ad_claim_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_boards_for_existing_artists: { Args: never; Returns: undefined }
       create_boards_for_existing_artists_meme: {
         Args: never
@@ -6386,12 +9685,53 @@ export type Database = {
       create_vote_item_request_with_user: {
         Args: {
           artist_id_param: number
+          p_ip_hash?: string
           user_id_param: string
           vote_id_param: number
         }
         Returns: Json
       }
       create_weekly_votes: { Args: never; Returns: undefined }
+      credit_event_reward: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_credit_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_credit_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      credit_gift_reward: {
+        Args: { p_gift_id: string; p_user_id: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_credit_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_credit_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      credit_mission_reward: {
+        Args: { p_mission_id: string; p_user_id: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_credit_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_credit_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      credit_vote_share_bonus: {
+        Args: { p_expires_at: string; p_user_id: string; p_vote_id: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_credit_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_credit_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       deduct_star_candy: {
         Args: { p_amount: number; p_user_id: string; p_vote_pick_id: number }
         Returns: undefined
@@ -6402,6 +9742,14 @@ export type Database = {
           p_bonus_id: number
           p_user_id: string
           p_vote_pick_id: number
+        }
+        Returns: undefined
+      }
+      delete_anti_abuse_policy: {
+        Args: {
+          p_action_type: string
+          p_admin_user_id: string
+          p_window: number
         }
         Returns: undefined
       }
@@ -6427,6 +9775,28 @@ export type Database = {
         Args: { p_error?: string; p_source?: string; p_user_id: string }
         Returns: undefined
       }
+      evaluate_wallet_worker_heartbeats: { Args: never; Returns: number }
+      expire_cotton_candy_batch: {
+        Args: { p_limit: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_batch_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_batch_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      expire_cotton_candy_batch_release_unguarded: {
+        Args: { p_limit: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_batch_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_batch_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      expire_old_suspect_decisions: { Args: never; Returns: number }
       expire_star_candy_bonus: {
         Args: { cutoff_time?: string }
         Returns: {
@@ -6451,6 +9821,108 @@ export type Database = {
           batch_users: number
         }[]
       }
+      fail_provider_event: {
+        Args: {
+          p_error_code: string
+          p_inbox_id: string
+          p_lease_token: string
+          p_next_retry_at: string
+          p_retryable: boolean
+        }
+        Returns: undefined
+      }
+      get_active_block_spike: {
+        Args: never
+        Returns: {
+          baseline: number
+          current_count: number
+          ratio: number
+        }[]
+      }
+      get_active_promotion_campaigns: {
+        Args: { surface: string }
+        Returns: Json
+      }
+      get_ad_reward_status: {
+        Args: { p_reference_id: string; p_reference_type: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_ad_reward_status"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ad_reward_status"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_alert_blocked_rows: {
+        Args: { p_since: string }
+        Returns: {
+          action_type: string
+          applied_window: number
+          attempt_count: number
+          country_code: string
+          cs_resolution: string
+          decision: string
+          expires_at: string
+          first_seen_at: string
+          id: number
+          ip_hash: string
+          ip_is_fallback: boolean
+          ip_user_count: number
+          last_ip: string
+          mode: string
+          observed_value: number
+          reason: string
+          threshold_used: number
+          user_email: string
+          user_id: string
+          user_nickname: string
+        }[]
+      }
+      get_anti_abuse_summary: {
+        Args: { p_window_days?: number }
+        Returns: {
+          active_blocked_ips: number
+          active_enforce_blocks: number
+          blocked_count: number
+          enforce_count: number
+          fp_ratio: number
+          shadow_count: number
+          suspect_count: number
+          total_decisions: number
+        }[]
+      }
+      get_anti_abuse_timeseries: {
+        Args: {
+          p_granularity?: string
+          p_metric?: string
+          p_window_days?: number
+        }
+        Returns: {
+          action_type: string
+          bucket: string
+          count: number
+          decision: string
+          mode: string
+        }[]
+      }
+      get_anti_abuse_top_ips: {
+        Args: { p_limit?: number; p_window_days?: number }
+        Returns: {
+          block_count: number
+          channels: Json
+          country_code: string
+          distinct_user_ids: number
+          has_active_shadow_block: boolean
+          has_resolved: boolean
+          ip_hash: string
+          is_active_block: boolean
+          last_ip: string
+          last_seen_at: string
+          max_observed: number
+          suspect_count: number
+          total_attempts: number
+        }[]
+      }
       get_artist_paid_votes: {
         Args: { p_exclude_admin?: boolean; p_vote_id?: number }
         Returns: {
@@ -6465,11 +9937,38 @@ export type Database = {
         Args: { artist_id_param: number; vote_id_param: number }
         Returns: number
       }
+      get_artist_vote_breakdown: {
+        Args: {
+          p_end?: string
+          p_exclude_admin?: boolean
+          p_limit?: number
+          p_start?: string
+        }
+        Returns: Json
+      }
       get_compatibility_i18n: {
         Args: { p_compatibility_id: string }
         Returns: Json
       }
       get_compatibility_result: { Args: { p_id: string }; Returns: Json }
+      get_cotton_ad_limit_status: {
+        Args: { p_platform: string; p_user_id: string }
+        Returns: Json
+      }
+      get_currency_history: {
+        Args: {
+          p_currency: Database["public"]["Enums"]["wallet_currency"]
+          p_cursor: string
+          p_limit: number
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_currency_history_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_currency_history_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_current_splash_image: {
         Args: never
         Returns: {
@@ -6485,6 +9984,7 @@ export type Database = {
           link_type: string | null
           location: string | null
           order: number | null
+          promotion_campaign_owned: boolean
           start_at: string | null
           thumbnail: string | null
           title: Json
@@ -6519,8 +10019,149 @@ export type Database = {
           sum: number
         }[]
       }
+      get_fp_ratios_24h: {
+        Args: never
+        Returns: {
+          action_type: string
+          fp_count: number
+          fp_ratio: number
+          total: number
+        }[]
+      }
       get_goonghap_i18n: { Args: { p_goonghap_id: string }; Returns: Json }
       get_goonghap_result: { Args: { p_id: string }; Returns: Json }
+      get_ip_block_decision_detail: {
+        Args: { p_decision_id: number }
+        Returns: {
+          action_type: string
+          applied_window: number
+          attempt_count: number
+          attempted_email: string | null
+          attempted_provider: string | null
+          cs_resolution: string | null
+          decision: string
+          expires_at: string | null
+          first_seen_at: string
+          id: number
+          ip_hash: string
+          last_seen_at: string
+          mode: string
+          observed_value: number
+          raw_ip: string | null
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          threshold_used: number
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ip_block_decisions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_ip_hash_meta: {
+        Args: { p_ip_hash: string; p_window_days?: number }
+        Returns: {
+          country_code: string
+          last_ip: string
+          user_count: number
+        }[]
+      }
+      get_payment_breakdown: {
+        Args: { p_dimension?: string; p_end?: string; p_start?: string }
+        Returns: Json
+      }
+      get_promotion_resolution_for_lease: {
+        Args: { p_inbox_id: string; p_lease_token: string }
+        Returns: {
+          snapshot_id: string
+          state: string
+        }[]
+      }
+      get_purchase_inbox_outcome: {
+        Args: { p_inbox_id: string }
+        Returns: {
+          attempt_count: number
+          last_error_code: string
+          last_error_retryable: boolean
+          lease_active: boolean
+          next_retry_at: string
+          status: string
+        }[]
+      }
+      get_purchase_result_for_inbox: {
+        Args: { p_inbox_id: string }
+        Returns: Database["public"]["CompositeTypes"]["wallet_purchase_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_purchase_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_refund_snapshot_for_lease: {
+        Args: {
+          p_environment: string
+          p_inbox_id: string
+          p_lease_token: string
+          p_provider: string
+          p_provider_transaction_id: string
+        }
+        Returns: {
+          refund_denominator: number
+          snapshot_id: string
+        }[]
+      }
+      get_request_ip_activity: {
+        Args: { p_ip_hash: string; p_limit?: number; p_window_days?: number }
+        Returns: {
+          action_type: string
+          created_at: string
+          device_hash: string | null
+          id: number
+          ip_hash: string
+          metadata: Json | null
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "request_ip_log"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_suspect_burst: {
+        Args: never
+        Returns: {
+          baseline: number
+          current_count: number
+          ratio: number
+        }[]
+      }
+      get_user_abuse_status: {
+        Args: { p_user_id: string; p_window_days?: number }
+        Returns: {
+          action_type: string
+          applied_window: number
+          attempt_count: number
+          cs_resolution: string
+          decision: string
+          expires_at: string
+          first_seen_at: string
+          id: number
+          ip_hash: string
+          is_active_block: boolean
+          last_seen_at: string
+          mode: string
+          observed_value: number
+          reason: string
+          reviewed_at: string
+          reviewed_by: string
+          threshold_used: number
+        }[]
+      }
       get_user_activity_unified: {
         Args: { p_limit: number; p_offset: number; p_user_id: string }
         Returns: {
@@ -6564,6 +10205,28 @@ export type Database = {
         }[]
       }
       get_user_qna_stats: { Args: { user_id_param: string }; Returns: Json }
+      get_users_abuse_summary: {
+        Args: { p_user_ids: string[]; p_window_days?: number }
+        Returns: {
+          decision_count: number
+          earliest_active_expires: string
+          has_active_block: boolean
+          user_id: string
+        }[]
+      }
+      get_users_for_ip_hash: {
+        Args: { p_ip_hash: string; p_window_days?: number }
+        Returns: {
+          country_code: string
+          created_at: string
+          email: string
+          is_banned: boolean
+          last_ip: string
+          nickname: string
+          sources: string
+          user_id: string
+        }[]
+      }
       get_vote_and_user_info: {
         Args: { p_user_id: number; p_vote_id: number }
         Returns: {
@@ -6573,6 +10236,97 @@ export type Database = {
           total_bonus_remain: number
         }[]
       }
+      get_wallet_operation_event_type: {
+        Args: { p_inbox_id: string }
+        Returns: string
+      }
+      get_wallet_summary: {
+        Args: never
+        Returns: Database["public"]["CompositeTypes"]["wallet_summary"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_summary"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_weekday_stats: {
+        Args: { p_end?: string; p_start?: string }
+        Returns: Json
+      }
+      grant_ad_cotton: {
+        Args: {
+          p_amount: number
+          p_claim_id: string
+          p_impression_id: string
+          p_metadata: Json
+          p_operation_key: string
+          p_payload_hash: string
+          p_reward_policy_version: string
+          p_source_environment: string
+          p_source_event_type: string
+          p_source_provider: string
+          p_source_transaction_id: string
+          p_user_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_ad_grant_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ad_grant_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      grant_ad_cotton_release_unguarded: {
+        Args: {
+          p_amount: number
+          p_claim_id: string
+          p_impression_id: string
+          p_metadata: Json
+          p_operation_key: string
+          p_payload_hash: string
+          p_reward_policy_version: string
+          p_source_environment: string
+          p_source_event_type: string
+          p_source_provider: string
+          p_source_transaction_id: string
+          p_user_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_ad_grant_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ad_grant_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      grant_verified_purchase: {
+        Args: {
+          p_environment: string
+          p_inbox_id: string
+          p_lease_token: string
+          p_operation_key: string
+          p_product_id: string
+          p_provider: string
+          p_provider_currency: string
+          p_provider_occurred_at: string
+          p_provider_original_quantity: number
+          p_provider_paid_amount_minor: number
+          p_provider_transaction_id: string
+          p_quantity: number
+          p_refund_ratio_basis: string
+          p_request_context: Json
+          p_user_id: string
+          p_verification_payload_hash: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_purchase_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_purchase_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_user_requested_artist: {
         Args: {
           artist_id_param: number
@@ -6581,6 +10335,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      hook_signup_ip_rate_limit: { Args: { event: Json }; Returns: Json }
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
@@ -6724,9 +10479,38 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_super: { Args: never; Returns: boolean }
+      is_request_admin: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       is_vote_creator: { Args: { vote_id: number }; Returns: boolean }
       is_vote_item_request_open: { Args: { vote_id: number }; Returns: boolean }
+      list_anti_abuse_policies: {
+        Args: never
+        Returns: {
+          action_type: string
+          block_threshold: number
+          count_strategy: string
+          created_at: string
+          device_block_threshold: number | null
+          device_suspect_threshold: number | null
+          enabled: boolean
+          enforce_since: string | null
+          id: number
+          link_loose_window_seconds: number | null
+          link_tight_window_seconds: number | null
+          mode: string
+          note: string | null
+          suspect_threshold: number
+          updated_at: string
+          updated_by: string | null
+          window_seconds: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "anti_abuse_policies"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_bonus_drift:
         | {
             Args: { p_limit?: number; p_threshold?: number }
@@ -6753,11 +10537,41 @@ export type Database = {
               user_id: string
             }[]
           }
+      list_claimable_promotion_award_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+        }[]
+      }
+      list_claimable_purchase_provider_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+        }[]
+      }
+      list_claimable_wallet_operation_events: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          operation_type: string
+        }[]
+      }
+      list_my_anti_abuse_permissions: { Args: never; Returns: string[] }
+      list_unacknowledged_ad_rewards: {
+        Args: { p_cursor: string; p_limit: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_ad_reward_status_page"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ad_reward_status_page"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       next_star_candy_bonus_expiry: {
         Args: { p_source?: string }
         Returns: string
       }
-      perform_pic_vote_transaction: {
+      perform_pic_vote_transaction_without_wallet_lock: {
         Args: {
           p_amount: number
           p_user_id: string
@@ -6783,6 +10597,53 @@ export type Database = {
         }
         Returns: Json
       }
+      perform_vote_transaction_v3: {
+        Args: {
+          p_amount: number
+          p_request_id: string
+          p_user_id: string
+          p_vote_id: number
+          p_vote_item_id: number
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_vote_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_vote_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      prepare_promotion_time_attestation: {
+        Args: {
+          p_inbox_id: string
+          p_lease_token: string
+          p_provider_verification_payload_hash: string
+          p_snapshot_id: string
+          p_verified_provider_occurred_at: string
+        }
+        Returns: Json
+      }
+      prepare_purchase_attestation: {
+        Args: {
+          p_authoritative_provider_transaction_id: string
+          p_environment: string
+          p_inbox_id: string
+          p_intake_provider_transaction_id: string
+          p_lease_token: string
+          p_product_id: string
+          p_provider: string
+          p_provider_currency: string
+          p_provider_occurred_at: string
+          p_provider_original_quantity: number
+          p_provider_paid_amount_minor: number
+          p_provider_verification_payload_hash: string
+          p_quantity: number
+          p_refund_ratio_basis: string
+          p_user_id: string
+          p_verified_at: string
+        }
+        Returns: Json
+      }
       process_attendance_check: {
         Args: {
           p_check_date: string
@@ -6804,7 +10665,7 @@ export type Database = {
           user_id: string
         }[]
       }
-      process_compatibility_payment: {
+      process_compatibility_payment_without_wallet_lock: {
         Args: {
           p_compatibility_id: string
           p_star_candy_amount?: number
@@ -6812,7 +10673,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      process_goonghap_payment: {
+      process_goonghap_payment_without_wallet_lock: {
         Args: {
           p_goonghap_id: string
           p_star_candy_amount?: number
@@ -6874,7 +10735,96 @@ export type Database = {
       process_vote_item_update_queue:
         | { Args: never; Returns: number }
         | { Args: { p_limit: number }; Returns: number }
+      receive_provider_event: {
+        Args: {
+          p_encrypted_payload: string
+          p_idempotency_key: string
+          p_occurred_at: string
+          p_operation_type: string
+          p_payload_hash: string
+        }
+        Returns: {
+          operation_id: string
+          replayed: boolean
+        }[]
+      }
+      receive_purchase_provider_event: {
+        Args: {
+          p_environment: string
+          p_payload: Json
+          p_payload_hash: string
+          p_product_id: string
+          p_provider: string
+          p_provider_transaction_id: string
+          p_received_at?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       recompute_user_bonus: { Args: { p_user_id: string }; Returns: number }
+      reconcile_wallet_batch: {
+        Args: { p_after_user_id?: string; p_limit: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_batch_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_batch_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reconcile_wallet_batch_release_unguarded: {
+        Args: { p_after_user_id?: string; p_limit: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_batch_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_batch_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      record_request_ip: {
+        Args: {
+          p_action: string
+          p_device_hash?: string
+          p_ip_hash: string
+          p_metadata?: Json
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      record_wallet_command_failure: {
+        Args: { p_request: Json }
+        Returns: Database["public"]["CompositeTypes"]["wallet_stable_command_envelope"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_stable_command_envelope"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      record_wallet_worker_heartbeat: {
+        Args: {
+          p_instance_id: string
+          p_metadata: Json
+          p_worker_id: string
+          p_worker_type: string
+        }
+        Returns: undefined
+      }
+      refund_verified_purchase: {
+        Args: {
+          p_cumulative_refunded_numerator: number
+          p_inbox_id?: string
+          p_lease_token?: string
+          p_operation_key: string
+          p_payload_hash: string
+          p_provider_occurred_at: string
+          p_provider_refund_event_id: string
+          p_refund_denominator: number
+          p_snapshot_id: string
+        }
+        Returns: Json
+      }
       repair_bonus_balance: {
         Args: { p_user_id: string }
         Returns: {
@@ -6888,6 +10838,23 @@ export type Database = {
         Returns: {
           queued_user_id: string
         }[]
+      }
+      resolve_clean_wallet_invariant_alerts: { Args: never; Returns: number }
+      resolve_purchase_promotion: {
+        Args: {
+          p_inbox_id: string
+          p_lease_token: string
+          p_operation_key: string
+          p_snapshot_id: string
+          p_verified_provider_occurred_at: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_purchase_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_purchase_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       restore_qna: { Args: { qna_id_param: number }; Returns: undefined }
       revoke_abuser_bonus: {
@@ -6907,6 +10874,16 @@ export type Database = {
       }
       rollback_transaction: { Args: never; Returns: undefined }
       run_expire_star_candy_bonus_once: { Args: never; Returns: undefined }
+      run_wallet_reconciliation_checkpoint: {
+        Args: { p_limit: number }
+        Returns: Database["public"]["CompositeTypes"]["wallet_batch_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_batch_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       search_artists: {
         Args: { search_term?: string }
         Returns: {
@@ -6917,8 +10894,103 @@ export type Database = {
           name: Json
         }[]
       }
+      set_wallet_runtime_flag: {
+        Args: {
+          p_expected_version: number
+          p_flag_key: string
+          p_reason: string
+          p_value_json: Json
+        }
+        Returns: {
+          changed_at: string
+          changed_by: string | null
+          flag_key: string
+          reason: string
+          value_json: Json
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "wallet_runtime_flags"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_wallet_runtime_flag_promotion_unguarded: {
+        Args: {
+          p_expected_version: number
+          p_flag_key: string
+          p_reason: string
+          p_value_json: Json
+        }
+        Returns: {
+          changed_at: string
+          changed_by: string | null
+          flag_key: string
+          reason: string
+          value_json: Json
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "wallet_runtime_flags"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      settle_pangle_ad_reward: {
+        Args: {
+          p_claim_id: string
+          p_claim_payload_hash: string
+          p_environment: string
+          p_expires_at: string
+          p_placement_id: string
+          p_platform: string
+          p_provider_occurred_at: string
+          p_provider_payload_hash: string
+          p_provider_transaction_id: string
+          p_user_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_ad_grant_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ad_grant_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      settle_shortform_view_reward: {
+        Args: {
+          p_impression_id: string
+          p_issue_jti: string
+          p_payload_hash: string
+          p_token_expires_at: string
+          p_user_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_ad_grant_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_ad_grant_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      simulate_threshold_change: {
+        Args: {
+          p_action_type: string
+          p_new_block: number
+          p_new_suspect: number
+          p_window: number
+        }
+        Returns: {
+          current_blocked: number
+          current_suspect: number
+          would_be_blocked: number
+          would_be_suspect: number
+        }[]
+      }
       soft_delete_qna: { Args: { qna_id_param: number }; Returns: undefined }
       sync_user_profiles_from_queue: {
         Args: { max_rows?: number }
@@ -6949,6 +11021,18 @@ export type Database = {
           p_expired_dt: string
           p_transaction_id: string
           p_user_id: string
+        }
+        Returns: undefined
+      }
+      upsert_anti_abuse_policy: {
+        Args: {
+          p_action_type: string
+          p_admin_user_id: string
+          p_block: number
+          p_enabled: boolean
+          p_mode: string
+          p_suspect: number
+          p_window: number
         }
         Returns: undefined
       }
@@ -6990,6 +11074,36 @@ export type Database = {
             }
             Returns: number
           }
+      verify_ip_hash_sig: {
+        Args: {
+          p_action: string
+          p_exp: number
+          p_ip_hash: string
+          p_secret: string
+          p_sig: string
+        }
+        Returns: boolean
+      }
+      wallet_credit_bonus: {
+        Args: {
+          p_bonus_amount: number
+          p_bonus_expires_at: string
+          p_metadata?: Json
+          p_operation_key: string
+          p_reason: Database["public"]["Enums"]["candy_history_type"]
+          p_reference_id: string
+          p_reference_type: string
+          p_source_key: string
+          p_user_id: string
+        }
+        Returns: Database["public"]["CompositeTypes"]["wallet_credit_result"]
+        SetofOptions: {
+          from: "*"
+          to: "wallet_credit_result"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       board_status_enum: "pending" | "approved" | "rejected"
@@ -7004,6 +11118,10 @@ export type Database = {
         | "MISSION"
         | "OPEN_GOONGHAP"
         | "ADMIN_ADJUST"
+        | "CANDY_BOOST"
+        | "REFUND_REVERSAL"
+        | "DEBT_RECOVERY"
+        | "CORRECTION"
       goonghap_status: "pending" | "completed" | "error"
       platform_enum: "iOS" | "Android" | "Both"
       policy_language_enum: "ko" | "en"
@@ -7033,6 +11151,9 @@ export type Database = {
         | "bn"
         | "my"
       user_gender_enum: "male" | "female" | "other"
+      wallet_currency: "STAR_CANDY" | "BONUS_STAR_CANDY" | "COTTON_CANDY"
+      wallet_operation_kind: "CREDIT" | "DEBIT"
+      wallet_operation_status: "PENDING" | "PROCESSING" | "SUCCEEDED" | "DEAD"
     }
     CompositeTypes: {
       http_header: {
@@ -7051,6 +11172,454 @@ export type Database = {
         content_type: string | null
         headers: Database["public"]["CompositeTypes"]["http_header"][] | null
         content: string | null
+      }
+      wallet_ad_claim_result: {
+        id: string | null
+        user_id: string | null
+        channel: string | null
+        environment: string | null
+        platform: string | null
+        placement_id: string | null
+        client_request_id: string | null
+        status: string | null
+        expires_at: string | null
+        payload_hash: string | null
+        replayed: boolean | null
+      }
+      wallet_ad_grant_result: {
+        operation_id: string | null
+        replayed: boolean | null
+        grant_id: number | null
+        amount: number | null
+        granted_at: string | null
+        expires_at: string | null
+        cotton_balance: number | null
+        cotton_expiring_amount: number | null
+        cotton_next_expires_at: string | null
+        snapshot_at: string | null
+      }
+      wallet_ad_reward_grant: {
+        id: string | null
+        currency: Database["public"]["Enums"]["wallet_currency"] | null
+        amount: string | null
+        granted_at: string | null
+        expires_at: string | null
+      }
+      wallet_ad_reward_reference: {
+        type: string | null
+        id: string | null
+      }
+      wallet_ad_reward_status: {
+        reference:
+          | Database["public"]["CompositeTypes"]["wallet_ad_reward_reference"]
+          | null
+        state: string | null
+        grant:
+          | Database["public"]["CompositeTypes"]["wallet_ad_reward_grant"]
+          | null
+        wallet: Database["public"]["CompositeTypes"]["wallet_summary"] | null
+        snapshot_at: string | null
+      }
+      wallet_ad_reward_status_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_ad_reward_status"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_actor_context: {
+        actor_id: string | null
+        actor_role: string | null
+        permissions: string[] | null
+      }
+      wallet_admin_alert_item: {
+        id: string | null
+        severity: string | null
+        status: string | null
+        summary: string | null
+        occurrence_count: string | null
+        resource_type: string | null
+        resource_id: string | null
+        first_seen_at: string | null
+        last_seen_at: string | null
+        row_version: string | null
+        audit_id: string | null
+      }
+      wallet_admin_alert_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_alert_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_audit_item: {
+        id: string | null
+        actor_user_id: string | null
+        actor_role: string | null
+        action_code: string | null
+        resource_type: string | null
+        resource_id: string | null
+        operation_id: string | null
+        request_id: string | null
+        reason: string | null
+        cs_ticket: string | null
+        before_json: Json | null
+        after_json: Json | null
+        campaign_version_id: string | null
+        created_at: string | null
+      }
+      wallet_admin_audit_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_audit_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_campaign_item: {
+        id: string | null
+        code: string | null
+        kind: string | null
+        latest_version:
+          | Database["public"]["CompositeTypes"]["wallet_admin_campaign_version_item"]
+          | null
+      }
+      wallet_admin_campaign_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_campaign_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_campaign_version_item: {
+        id: string | null
+        campaign_id: string | null
+        version: string | null
+        effective_from: string | null
+        is_active: boolean | null
+        timezone: string | null
+        weekly_start_isodow: number | null
+        weekly_start_time: string | null
+        weekly_end_isodow: number | null
+        weekly_end_time: string | null
+        extra_bonus_bps: string | null
+        display_name: Json | null
+        show_home_banner: boolean | null
+        show_in_store: boolean | null
+        home_banner_id: number | null
+        rollout_policy: Json | null
+        change_reason: string | null
+        created_by: string | null
+        created_at: string | null
+        audit_id: string | null
+      }
+      wallet_admin_campaign_version_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_campaign_version_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_cs_summary: {
+        user_id: string | null
+        balances: Json | null
+        open_debt: Json | null
+        cotton_expiring_amount: string | null
+        cotton_next_expires_at: string | null
+        invariant_status: string | null
+        authoritative_totals: Json | null
+        recent_operation:
+          | Database["public"]["CompositeTypes"]["wallet_admin_operation_item"]
+          | null
+        snapshot_at: string | null
+      }
+      wallet_admin_currency_history_item: {
+        id: string | null
+        currency: Database["public"]["Enums"]["wallet_currency"] | null
+        event_type: string | null
+        origin: string | null
+        delta: string | null
+        balance_effect: string | null
+        expires_at: string | null
+        purchase_id: string | null
+        refund_id: string | null
+        grant_id: string | null
+        operation_id: string | null
+        created_at: string | null
+      }
+      wallet_admin_currency_history_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_currency_history_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_debt_item: {
+        id: string | null
+        user_id: string | null
+        currency: Database["public"]["Enums"]["wallet_currency"] | null
+        reason: string | null
+        status: string | null
+        owed_amount: string | null
+        recovered_amount: string | null
+        waived_amount: string | null
+        outstanding_amount: string | null
+        source_refund_allocation_id: string | null
+        source_debit_allocation_id: string | null
+        row_version: string | null
+        created_at: string | null
+        updated_at: string | null
+      }
+      wallet_admin_debt_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_debt_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_invariant_item: {
+        id: string | null
+        status: string | null
+        resource_type: string | null
+        resource_id: string | null
+        currency: Database["public"]["Enums"]["wallet_currency"] | null
+        expected_amount: string | null
+        actual_amount: string | null
+        operation_id: string | null
+        support_ref: string | null
+        detected_at: string | null
+      }
+      wallet_admin_invariant_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_invariant_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_operation_item: {
+        id: string | null
+        operation_type: string | null
+        status: Database["public"]["Enums"]["wallet_operation_status"] | null
+        retryable: boolean | null
+        attempt_count: string | null
+        next_retry_at: string | null
+        last_error_code: string | null
+        support_ref: string | null
+        row_version: string | null
+        approval_reference: string | null
+        approval_status: string | null
+        requested_by: string | null
+        operation_key: string | null
+        requested_currency:
+          | Database["public"]["Enums"]["wallet_currency"]
+          | null
+        requested_direction: string | null
+        requested_amount: string | null
+        created_at: string | null
+        updated_at: string | null
+      }
+      wallet_admin_operation_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_operation_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_ops_summary: {
+        inbox_pending_count: string | null
+        inbox_dead_count: string | null
+        inbox_oldest_pending_seconds: string | null
+        debt_open_amount: Json | null
+        debt_oldest_open_seconds: Json | null
+        debt_recovery_rate_bps: string | null
+        campaign_conflict_count: string | null
+        audit_completeness_bps: string | null
+        expiry_status: string | null
+        reconciliation_status: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_promotion_preview: {
+        campaign_id: string | null
+        evaluated_at: string | null
+        status: string | null
+        effective_version:
+          | Database["public"]["CompositeTypes"]["wallet_admin_campaign_version_item"]
+          | null
+        window_start: string | null
+        window_end: string | null
+        surfaces: string[] | null
+      }
+      wallet_admin_runtime_flags: {
+        flag_version: string | null
+        values: Json | null
+        changed_at: string | null
+        changed_by: string | null
+        snapshot_at: string | null
+        versions: Json | null
+      }
+      wallet_admin_timeline_item: {
+        id: string | null
+        kind: string | null
+        allocations: Json | null
+        provider_occurred_at: string | null
+        campaign_version_id: string | null
+        audit_id: string | null
+        operation_id: string | null
+        created_at: string | null
+      }
+      wallet_admin_timeline_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_admin_timeline_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_admin_worker_health_item: {
+        worker_name: string | null
+        status: string | null
+        last_heartbeat_at: string | null
+        last_success_at: string | null
+        lag_seconds: string | null
+        support_ref: string | null
+      }
+      wallet_batch_result: {
+        processed: number | null
+        skipped_locked: number | null
+        next_cursor: string | null
+      }
+      wallet_credit_result: {
+        operation_id: string | null
+        replayed: boolean | null
+        star_gross: number | null
+        star_debt_offset: number | null
+        star_net_wallet_credit: number | null
+        star_balance: number | null
+        bonus_gross: number | null
+        bonus_debt_offset: number | null
+        bonus_net_wallet_credit: number | null
+        bonus_balance: number | null
+      }
+      wallet_currency_history_item: {
+        id: string | null
+        currency: Database["public"]["Enums"]["wallet_currency"] | null
+        event_type: string | null
+        origin: string | null
+        delta: string | null
+        balance_effect: string | null
+        expires_at: string | null
+        purchase_id: string | null
+        refund_id: string | null
+        grant_id: string | null
+        operation_id: string | null
+        created_at: string | null
+      }
+      wallet_currency_history_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_currency_history_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+      }
+      wallet_promotion_campaign_surface_item_v1: {
+        campaign_id: string | null
+        campaign_version_id: string | null
+        code: string | null
+        display_name: Json | null
+        extra_bonus_bps: number | null
+        window_starts_at: string | null
+        window_ends_at: string | null
+        show_in_store: boolean | null
+        show_home_banner: boolean | null
+        home_creative: Json | null
+      }
+      wallet_promotion_campaign_surface_page_v1: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_promotion_campaign_surface_item_v1"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+        campaign_owned_home_banner_ids: number[] | null
+      }
+      wallet_promotion_surface_item: {
+        campaign_code: string | null
+        campaign_kind: string | null
+        version: number | null
+        name: Json | null
+        extra_bonus_bps: number | null
+        home_banner_id: number | null
+      }
+      wallet_promotion_surface_page: {
+        items:
+          | Database["public"]["CompositeTypes"]["wallet_promotion_surface_item"][]
+          | null
+        total_count: string | null
+        next_cursor: string | null
+        snapshot_at: string | null
+        campaign_owned_home_banner_ids: number[] | null
+      }
+      wallet_purchase_promotion_result: {
+        resolution_id: string | null
+        state: string | null
+        campaign_version_id: string | null
+        promo_bonus_amount: string | null
+        domain_code: string | null
+      }
+      wallet_purchase_result: {
+        contract_version: string | null
+        operation_id: string | null
+        replayed: boolean | null
+        base_star_amount: string | null
+        base_bonus_amount: string | null
+        promotion:
+          | Database["public"]["CompositeTypes"]["wallet_purchase_promotion_result"]
+          | null
+        wallet: Database["public"]["CompositeTypes"]["wallet_summary"] | null
+      }
+      wallet_stable_command_envelope: {
+        ok: boolean | null
+        domain_code: string | null
+        retryable: boolean | null
+        operation_id: string | null
+        audit_id: string | null
+        payload: Json | null
+        support_ref: string | null
+      }
+      wallet_summary: {
+        contract_version: string | null
+        star: string | null
+        bonus: string | null
+        cotton: string | null
+        cotton_expiring_amount: string | null
+        cotton_next_expires_at: string | null
+        snapshot_at: string | null
+      }
+      wallet_vote_result: {
+        vote_pick_id: number | null
+        updated_vote_total: number | null
+        added_vote_total: number | null
+        updated_at: string | null
+        operation_id: string | null
+        replayed: boolean | null
+        cotton_spent: number | null
+        bonus_spent: number | null
+        star_spent: number | null
+        star_balance: number | null
+        bonus_balance: number | null
+        cotton_balance: number | null
+        cotton_expiring_amount: number | null
+        cotton_next_expires_at: string | null
+        snapshot_at: string | null
       }
     }
   }
@@ -7188,6 +11757,10 @@ export const Constants = {
         "MISSION",
         "OPEN_GOONGHAP",
         "ADMIN_ADJUST",
+        "CANDY_BOOST",
+        "REFUND_REVERSAL",
+        "DEBT_RECOVERY",
+        "CORRECTION",
       ],
       goonghap_status: ["pending", "completed", "error"],
       platform_enum: ["iOS", "Android", "Both"],
@@ -7220,6 +11793,9 @@ export const Constants = {
         "my",
       ],
       user_gender_enum: ["male", "female", "other"],
+      wallet_currency: ["STAR_CANDY", "BONUS_STAR_CANDY", "COTTON_CANDY"],
+      wallet_operation_kind: ["CREDIT", "DEBIT"],
+      wallet_operation_status: ["PENDING", "PROCESSING", "SUCCEEDED", "DEAD"],
     },
   },
 } as const

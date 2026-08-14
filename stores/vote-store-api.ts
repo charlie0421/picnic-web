@@ -1,10 +1,8 @@
 import { VoteItem } from '@/types/interfaces';
 import {
-  submitVote,
   getVoteResults,
   calculateVoteStatus,
   calculateTimeLeft,
-  VoteSubmissionRequest,
 } from '@/lib/data-fetching/client/vote-api-enhanced';
 import { VoteStore } from './vote-store-types';
 
@@ -179,46 +177,6 @@ export function createVoteApiActions(set: SetFn, get: GetFn) {
       } catch (error) {
         console.error('Load vote results error:', error);
         setResultsError('Failed to load vote results');
-      }
-    },
-
-    submitUserVote: async (userId: string, totalBonusRemain: number = 0) => {
-      const { currentVote, submission, startSubmission, completeSubmission } = get();
-
-      if (!currentVote.vote || !submission.selectedItemId) {
-        completeSubmission(false, 'Invalid vote data');
-        return false;
-      }
-
-      startSubmission();
-
-      try {
-        const request: VoteSubmissionRequest = {
-          voteId: currentVote.vote.id,
-          voteItemId: submission.selectedItemId as number,
-          amount: submission.voteAmount,
-          userId,
-          totalBonusRemain,
-        };
-
-        const response = await submitVote(request);
-
-        if (!response.success) {
-          completeSubmission(false, response.error || 'Failed to submit vote');
-          return false;
-        }
-
-        completeSubmission(true);
-
-        // 성공 후 투표 결과 새로고침
-        const { loadVoteResults } = get();
-        await loadVoteResults(currentVote.vote.id);
-
-        return true;
-      } catch (error) {
-        console.error('Submit vote error:', error);
-        completeSubmission(false, 'Failed to submit vote');
-        return false;
       }
     },
 

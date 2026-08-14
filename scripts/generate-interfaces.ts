@@ -164,7 +164,15 @@ function generateInterfaces() {
   log('📝 인터페이스 파일 작성 중...');
 
   // Write to file
-  const output = '// Auto-generated interfaces from Supabase types\n\n' + interfaces.join('\n\n');
+  const body = interfaces.join('\n\n');
+  // Enums 는 위에서 로컬 별칭으로 치환되지만, CompositeTypes 처럼 매핑되지 않은
+  // Database[...] 참조는 그대로 남는다. 남아 있으면 supabase.ts 에서 타입을 가져와야
+  // interfaces.ts 가 단독으로 컴파일된다 (없으면 TS2304: Cannot find name 'Database').
+  const needsDatabaseImport = /\bDatabase\["public"\]/.test(body);
+  const header =
+    '// Auto-generated interfaces from Supabase types\n\n' +
+    (needsDatabaseImport ? "import type { Database } from './supabase';\n\n" : '');
+  const output = header + body;
   fs.writeFileSync(path.join(__dirname, '../types/interfaces.ts'), output);
   log('✨ 인터페이스 파일 작성 완료');
 }
