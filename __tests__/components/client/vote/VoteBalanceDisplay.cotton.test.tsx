@@ -47,9 +47,16 @@ describe('VoteBalanceDisplay — 코튼캔디 노출 정책', () => {
     expect(screen.getByText('0')).toBeInTheDocument();
   });
 
-  it('cotton 이 0이어도 매일 소멸 안내를 함께 보여준다', () => {
-    renderWith('0');
-    expect(screen.getByText('cotton_candy_daily_expiry_notice')).toBeInTheDocument();
+  // 주어 없이 "매일 자정 소멸" 만 두면 세 통화 전체에 걸리는 말로 읽힌다.
+  // 앱처럼 통화명과 함께 묶어 코튼캔디 안내임을 분명히 한다.
+  it('소멸 안내를 코튼캔디 통화명과 함께 보여준다', () => {
+    const { container } = renderWith('0');
+    const notice = Array.from(container.querySelectorAll('p')).find((el) =>
+      el.textContent?.includes('cotton_candy_daily_expiry_notice'),
+    );
+    expect(notice).toBeDefined();
+    // 같은 문단 안에 통화명이 있어야 주어가 분명해진다.
+    expect(notice!.textContent).toContain('wallet_cotton_candy');
   });
 
   it('cotton 이 비0이면 금액을 로케일 형식으로 표시한다', () => {
