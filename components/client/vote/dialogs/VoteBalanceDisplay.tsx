@@ -107,8 +107,9 @@ export function VoteBalanceDisplay({
           </div>
       </div>
 
-        {userBalance.cottonCandy !== '0' && (
-          <div className="flex justify-between items-center text-sm mt-3 pt-3 border-t border-primary/20">
+        {/* 코튼캔디는 잔액 0 이어도 항상 노출한다(정책). 통화가 화면에서 사라지면
+            사용자는 재화 자체가 없어진 것으로 오인한다. */}
+        <div className="flex justify-between items-center text-sm mt-3 pt-3 border-t border-primary/20">
             <span className="flex items-center gap-1.5 text-gray-800 font-medium">
               <Image src={CURRENCY_ICON.cotton} alt="" width={20} height={20} />
               {t('wallet_cotton_candy')}
@@ -116,11 +117,8 @@ export function VoteBalanceDisplay({
             <span className="font-semibold text-primary">
               {formatWalletAmount(userBalance.cottonCandy, getLocale())}
             </span>
-          </div>
-        )}
-        {userBalance.cottonCandy !== '0' && (
-          <p className="text-xs text-gray-500 mt-1">{t('cotton_candy_daily_expiry_notice')}</p>
-        )}
+        </div>
+        <p className="text-xs text-gray-500 mt-1">{t('cotton_candy_daily_expiry_notice')}</p>
 
         <div className="mt-4 pt-3 border-t border-primary/30">
           <div className="text-center">

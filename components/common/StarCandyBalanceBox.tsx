@@ -63,6 +63,10 @@ export default function StarCandyBalanceBox({
   // useWalletSummary 는 autoFetch prop 과 무관하게 항상 지갑을 조회한다.
   // 값이 '0'/null 이면 자연스럽게 숨는다.
   const cottonCandy = wallet ? wallet.cotton : null;
+  // 앱(wallet_summary_panel.dart)은 코튼캔디 카드를 금액과 무관하게 항상 그린다.
+  // 웹은 dark launch 기간에 '0' 이면 숨기도록 해두었는데, 코튼캔디가 오픈된 뒤로는
+  // 잔액이 0 인 날 통화 자체가 사라져 앱과 달라진다. 지갑이 로드되면 항상 보여준다.
+  const showCotton = cottonCandy !== null;
   const cottonExpiringAmount = wallet ? wallet.cotton_expiring_amount : null;
   const cottonNextExpiresAt = wallet ? wallet.cotton_next_expires_at : null;
 
@@ -199,8 +203,8 @@ export default function StarCandyBalanceBox({
             </div>
           </div>
 
-          {/* 코튼캔디 — 서버 플래그 OFF 동안 '0' 이라 자연스럽게 미노출 */}
-          {cottonCandy && cottonCandy !== '0' ? (
+          {/* 코튼캔디 — 앱과 동일하게 잔액 0 이어도 표시한다 */}
+          {showCotton ? (
             <div className="rounded-lg bg-pink-50 p-2 text-center">
               <Image
                 src={CURRENCY_ICON.cotton}
@@ -221,8 +225,9 @@ export default function StarCandyBalanceBox({
           )}
         </div>
 
-        {/* 만료 안내 — 코튼캔디는 다음 KST 자정에 소멸하므로 금액만 보여주면 안 된다 */}
-        {cottonCandy && cottonCandy !== '0' && (
+        {/* 만료 안내 — 코튼캔디는 다음 KST 자정에 소멸하므로 금액만 보여주면 안 된다.
+            카드와 마찬가지로 잔액 0 이어도 노출한다. 개별 문구는 각자 조건이 있다. */}
+        {showCotton && (
           <div className="mt-2 rounded-lg bg-pink-50 px-2 py-1.5 text-[11px] text-pink-700 space-y-0.5">
             {cottonExpiringAmount && cottonExpiringAmount !== '0' && (
               <p>
@@ -295,8 +300,8 @@ export default function StarCandyBalanceBox({
           )}
         </div>
 
-        {/* 코튼캔디 (플래그 OFF 동안 '0' 이라 자연스럽게 미노출) */}
-        {cottonCandy && cottonCandy !== '0' && (
+        {/* 코튼캔디 — 앱과 동일하게 잔액 0 이어도 표시한다 */}
+        {showCotton && (
           <>
             <div className="border-t border-white/20"></div>
             <div className="flex justify-between text-sm">

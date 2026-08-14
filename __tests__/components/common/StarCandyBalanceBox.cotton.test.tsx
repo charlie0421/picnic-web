@@ -7,7 +7,7 @@ const mockWalletState: { wallet: any; isLoading: boolean; error: any } = {
   error: null,
 };
 
-function mockWallet(wallet: Record<string, string | null>) {
+function mockWallet(wallet: Record<string, string | null> | null) {
   mockWalletState.wallet = wallet;
 }
 
@@ -39,8 +39,24 @@ describe('StarCandyBalanceBox cotton — 실사용 조합', () => {
     expect(screen.getByText('wallet_cotton_candy')).toBeInTheDocument();
   });
 
-  it('compact+autoFetch: cotton 이 0이면 컴팩트에서도 코튼 행을 렌더하지 않는다', () => {
+  // 정책: 코튼캔디는 잔액 0 이어도 항상 노출한다(앱 wallet_summary_panel.dart 와 동일).
+  // 통화가 화면에서 사라지면 사용자는 재화 자체가 없어진 것으로 오인한다.
+  // 예전에는 dark launch 기간에 항상 0 이라 숨겼는데, 오픈 후에는 그 장치가 오작동한다.
+  it('compact+autoFetch: cotton 이 0이어도 코튼 행을 렌더한다', () => {
     mockWallet({ star: '100', bonus: '20', cotton: '0', cotton_expiring_amount: '0', cotton_next_expires_at: null });
+    render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
+    expect(screen.getByText('wallet_cotton_candy')).toBeInTheDocument();
+    expect(screen.getByText('0')).toBeInTheDocument();
+  });
+
+  it('non-compact: cotton 이 0이어도 코튼 행을 렌더한다', () => {
+    mockWallet({ star: '100', bonus: '20', cotton: '0', cotton_expiring_amount: '0', cotton_next_expires_at: null });
+    render(<StarCandyBalanceBox autoFetch={true} compact={false} />);
+    expect(screen.getByText('wallet_cotton_candy')).toBeInTheDocument();
+  });
+
+  it('지갑을 아직 못 불러왔으면 코튼 행을 그리지 않는다 (0 과 미로드는 다르다)', () => {
+    mockWallet(null);
     render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
     expect(screen.queryByText('wallet_cotton_candy')).toBeNull();
   });
