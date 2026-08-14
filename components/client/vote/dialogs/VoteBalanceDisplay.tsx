@@ -125,7 +125,15 @@ export function VoteBalanceDisplay({
           </div>
         </div>
 
-        <p className="text-xs text-gray-500 mt-2 text-center">{t('cotton_candy_daily_expiry_notice')}</p>
+        {/* 주어 없이 "매일 자정 소멸" 만 두면 세 통화 전체에 걸리는 말로 읽힌다.
+            앱(usage_policy_dialog.dart)처럼 아이콘·통화명과 함께 묶어 코튼캔디에 대한
+            안내임을 분명히 한다. 새 번역 없이 기존 두 키를 조합한다. */}
+        <p className="flex items-center justify-center gap-1.5 text-xs text-gray-500 mt-2">
+          <Image src={CURRENCY_ICON.cotton} alt="" width={14} height={14} />
+          <span>
+            {t('wallet_cotton_candy')} · {t('cotton_candy_daily_expiry_notice')}
+          </span>
+        </p>
 
         <div className="mt-4 pt-3 border-t border-primary/30">
           <div className="text-center">
