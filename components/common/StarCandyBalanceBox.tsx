@@ -69,6 +69,10 @@ export default function StarCandyBalanceBox({
   const showCotton = cottonCandy !== null;
   const cottonExpiringAmount = wallet ? wallet.cotton_expiring_amount : null;
   const cottonNextExpiresAt = wallet ? wallet.cotton_next_expires_at : null;
+  // 앱의 buildCottonExpiryText 와 동일하게, 실제로 보여줄 문구가 있을 때만 소멸 안내를 그린다.
+  // 컨테이너를 무조건 렌더하면 잔액 0 인 날 빈 분홍 띠만 남는다.
+  const hasCottonExpiryNotice =
+    showCotton && ((!!cottonExpiringAmount && cottonExpiringAmount !== '0') || !!cottonNextExpiresAt);
 
   // autoFetch가 true이고 user가 있으면 API에서 최신 데이터를 가져옵니다
   useEffect(() => {
@@ -226,8 +230,8 @@ export default function StarCandyBalanceBox({
         </div>
 
         {/* 만료 안내 — 코튼캔디는 다음 KST 자정에 소멸하므로 금액만 보여주면 안 된다.
-            카드와 마찬가지로 잔액 0 이어도 노출한다. 개별 문구는 각자 조건이 있다. */}
-        {showCotton && (
+            보여줄 문구가 없으면 컨테이너 자체를 그리지 않는다(빈 띠 방지). */}
+        {hasCottonExpiryNotice && (
           <div className="mt-2 rounded-lg bg-pink-50 px-2 py-1.5 text-[11px] text-pink-700 space-y-0.5">
             {cottonExpiringAmount && cottonExpiringAmount !== '0' && (
               <p>

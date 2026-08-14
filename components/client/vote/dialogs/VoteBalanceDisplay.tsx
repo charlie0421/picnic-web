@@ -77,7 +77,9 @@ export function VoteBalanceDisplay({
       >
         <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('vote_popup_total_available')}</h3>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* 앱 wallet_summary_panel.dart 와 동일한 3열 구성.
+            코튼캔디만 아래로 내리지 않는다. */}
+        <div className="grid grid-cols-3 gap-2">
           <div className="text-center">
             <Image
               src={CURRENCY_ICON.star}
@@ -86,8 +88,8 @@ export function VoteBalanceDisplay({
               height={32}
               className="mx-auto mb-1"
             />
-            <div className="text-sm text-gray-800 font-medium mb-1">{t('wallet_star_candy')}</div>
-            <div className="text-2xl font-bold text-primary">
+            <div className="text-xs text-gray-800 font-medium mb-1 leading-tight">{t('wallet_star_candy')}</div>
+            <div className="text-xl font-bold text-primary">
               {formatWalletAmount(userBalance.starCandy, getLocale())}
             </div>
           </div>
@@ -100,25 +102,30 @@ export function VoteBalanceDisplay({
               height={32}
               className="mx-auto mb-1"
             />
-            <div className="text-sm text-gray-800 font-medium mb-1">{t('wallet_bonus_star_candy')}</div>
-            <div className="text-2xl font-bold text-secondary-600">
+            <div className="text-xs text-gray-800 font-medium mb-1 leading-tight">{t('wallet_bonus_star_candy')}</div>
+            <div className="text-xl font-bold text-secondary-600">
               {formatWalletAmount(userBalance.starCandyBonus, getLocale())}
             </div>
           </div>
-      </div>
 
-        {/* 코튼캔디는 잔액 0 이어도 항상 노출한다(정책). 통화가 화면에서 사라지면
-            사용자는 재화 자체가 없어진 것으로 오인한다. */}
-        <div className="flex justify-between items-center text-sm mt-3 pt-3 border-t border-primary/20">
-            <span className="flex items-center gap-1.5 text-gray-800 font-medium">
-              <Image src={CURRENCY_ICON.cotton} alt="" width={20} height={20} />
-              {t('wallet_cotton_candy')}
-            </span>
-            <span className="font-semibold text-primary">
+          {/* 코튼캔디 — 잔액 0 이어도 항상 노출한다(정책). 통화가 화면에서 사라지면
+              사용자는 재화 자체가 없어진 것으로 오인한다. 앱과 동일하게 강조한다. */}
+          <div className="text-center rounded-lg bg-pink-50/70 py-1">
+            <Image
+              src={CURRENCY_ICON.cotton}
+              alt=""
+              width={32}
+              height={32}
+              className="mx-auto mb-1"
+            />
+            <div className="text-xs text-gray-800 font-medium mb-1 leading-tight">{t('wallet_cotton_candy')}</div>
+            <div className="text-xl font-bold text-pink-600">
               {formatWalletAmount(userBalance.cottonCandy, getLocale())}
-            </span>
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-gray-500 mt-1">{t('cotton_candy_daily_expiry_notice')}</p>
+
+        <p className="text-xs text-gray-500 mt-2 text-center">{t('cotton_candy_daily_expiry_notice')}</p>
 
         <div className="mt-4 pt-3 border-t border-primary/30">
           <div className="text-center">

@@ -49,6 +49,21 @@ describe('StarCandyBalanceBox cotton — 실사용 조합', () => {
     expect(screen.getByText('0')).toBeInTheDocument();
   });
 
+  // 잔액 0 이면 보여줄 소멸 문구가 없다. 컨테이너만 남으면 빈 분홍 띠가 보인다.
+  it('보여줄 소멸 문구가 없으면 소멸 안내 컨테이너를 그리지 않는다', () => {
+    mockWallet({ star: '100', bonus: '20', cotton: '0', cotton_expiring_amount: '0', cotton_next_expires_at: null });
+    const { container } = render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
+    // 카드(bg-pink-50)는 남고, 그 아래 안내 컨테이너(mt-2 가 붙은 것)는 없어야 한다.
+    expect(screen.getByText('wallet_cotton_candy')).toBeInTheDocument();
+    expect(container.querySelector('.mt-2.rounded-lg.bg-pink-50')).toBeNull();
+  });
+
+  it('소멸할 잔액이 있으면 소멸 안내를 그린다', () => {
+    mockWallet({ star: '100', bonus: '20', cotton: '40', cotton_expiring_amount: '40', cotton_next_expires_at: null });
+    const { container } = render(<StarCandyBalanceBox autoFetch={true} compact={true} />);
+    expect(container.querySelector('.mt-2.rounded-lg.bg-pink-50')).not.toBeNull();
+  });
+
   it('non-compact: cotton 이 0이어도 코튼 행을 렌더한다', () => {
     mockWallet({ star: '100', bonus: '20', cotton: '0', cotton_expiring_amount: '0', cotton_next_expires_at: null });
     render(<StarCandyBalanceBox autoFetch={true} compact={false} />);

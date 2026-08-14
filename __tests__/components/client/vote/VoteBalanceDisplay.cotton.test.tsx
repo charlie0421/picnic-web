@@ -62,4 +62,17 @@ describe('VoteBalanceDisplay — 코튼캔디 노출 정책', () => {
     renderWith('9007199254740993');
     expect(screen.getByText('9,007,199,254,740,993')).toBeInTheDocument();
   });
+
+  // 앱 wallet_summary_panel.dart 는 star/bonus/cotton 을 한 줄 3열로 배치한다.
+  // 코튼캔디만 아래로 내려가면 재화 위계가 달라 보인다.
+  it('세 통화를 앱과 같은 한 줄 3열로 배치한다', () => {
+    const { container } = renderWith('0');
+    const grid = container.querySelector('.grid');
+    expect(grid).not.toBeNull();
+    expect(grid!.className).toContain('grid-cols-3');
+    // 3열 안에 세 통화가 모두 들어 있어야 한다.
+    expect(grid!.textContent).toContain('wallet_star_candy');
+    expect(grid!.textContent).toContain('wallet_bonus_star_candy');
+    expect(grid!.textContent).toContain('wallet_cotton_candy');
+  });
 });
