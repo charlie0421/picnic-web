@@ -59,8 +59,6 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
     label_mypage_logout: localeMessages.label_mypage_logout || 'Logout',
     label_mypage_activity_history: localeMessages.label_mypage_activity_history || 'Activity History',
     label_mypage_my_votes: localeMessages.label_mypage_my_votes || 'My Votes',
-    label_mypage_my_posts: localeMessages.label_mypage_my_posts || 'My Posts',
-    label_mypage_my_comments: localeMessages.label_mypage_my_comments || 'My Comments',
     label_mypage_notifications: localeMessages.label_mypage_notifications || 'Notifications',
     label_mypage_service_info: localeMessages.label_mypage_service_info || 'Service Information',
     label_mypage_menu_service: localeMessages.label_mypage_menu_service || 'Service',

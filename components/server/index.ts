@@ -38,6 +38,4 @@ export { default as MyPageSkeleton } from './mypage/MyPageSkeleton';
 export { default as NoticeSkeleton } from './mypage/NoticeSkeleton';
 export { default as FAQSkeleton } from './mypage/FAQSkeleton';
 export { default as VoteHistorySkeleton } from './mypage/VoteHistorySkeleton';
-export { default as CommentsSkeleton } from './mypage/CommentsSkeleton';
-export { default as PostsSkeleton } from './mypage/PostsSkeleton';
 export { default as RechargeHistorySkeleton } from './mypage/RechargeHistorySkeleton'; 
