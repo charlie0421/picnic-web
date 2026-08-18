@@ -1,5 +1,6 @@
 'use client';
 
+import { isAdminProfile } from '@/lib/auth/is-admin';
 import React from 'react';
 import NavigationLink from '@/components/client/NavigationLink';
 import { usePathname } from 'next/navigation';
@@ -11,7 +12,7 @@ export const PicnicMenu: React.FC = () => {
   const pathname = usePathname();
   const { t, currentLanguage, isTranslationLoaded } = useLanguageStore();
   const { userProfile } = useAuth();
-  const isAdmin = userProfile?.is_admin === true;
+  const isAdmin = isAdminProfile(userProfile);
 
   const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/';
   

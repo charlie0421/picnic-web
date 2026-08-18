@@ -1,5 +1,6 @@
 'use client';
 
+import { isAdminProfile } from '@/lib/auth/is-admin';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import menuConfig from '@/config/menu.json';
@@ -11,7 +12,7 @@ export const useMenu = () => {
 
   // 프로필은 인증 직후 비동기 로드되므로, 로딩 플래그가 내려간 이후에도 프로필이 없으면 로딩으로 간주
   const isProfileLoading = isAuthLoading || (isAuthenticated && !userProfile);
-  const isAdmin = userProfile?.is_admin === true;
+  const isAdmin = isAdminProfile(userProfile);
 
   const pathWithoutLocale = pathname.replace(/^\/[a-z]{2}/, '') || '/';
 

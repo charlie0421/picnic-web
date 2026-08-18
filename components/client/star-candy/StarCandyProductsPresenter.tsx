@@ -1,5 +1,6 @@
 'use client';
 
+import { isAdminProfile } from '@/lib/auth/is-admin';
 import React, { useState } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { Products } from '@/types/interfaces';
@@ -35,7 +36,7 @@ export function StarCandyProductsPresenter({
 }: StarCandyProductsPresenterProps) {
   const { t, currentLanguage } = useLanguageStore();
   const { user, userProfile, loadUserProfile } = useAuth();
-  const isAdmin = userProfile?.is_admin || false;
+  const isAdmin = isAdminProfile(userProfile);
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>('paypal');
   const dialogContext = useDialog();

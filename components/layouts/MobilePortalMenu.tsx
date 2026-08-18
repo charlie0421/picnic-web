@@ -1,5 +1,6 @@
 'use client';
 
+import { isAdminProfile } from '@/lib/auth/is-admin';
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -15,7 +16,7 @@ interface MobilePortalMenuProps {
 
 const MobilePortalMenu: React.FC<MobilePortalMenuProps> = ({ className = '' }) => {
   const { userProfile } = useAuth();
-  const isAdmin = userProfile?.is_admin === true;
+  const isAdmin = isAdminProfile(userProfile);
 
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
   const { setIsLoading } = useGlobalLoading();

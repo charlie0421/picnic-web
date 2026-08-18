@@ -1,5 +1,6 @@
 'use client';
 
+import { isAdminProfile } from '@/lib/auth/is-admin';
 import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -34,7 +35,7 @@ const MobileNavigationMenu: React.FC<MobileNavigationMenuProps> = ({ className =
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { tDynamic: t, currentLanguage, translations } = useTranslations();
-  const isAdmin = userProfile?.is_admin === true;
+  const isAdmin = isAdminProfile(userProfile);
 
   // 안전한 중첩 번역 함수
   const getMenuTranslation = (type: string): string => {
