@@ -89,14 +89,18 @@ describe('RankingView', () => {
     expect(screen.getByText('Artist 3')).toBeInTheDocument();
   });
 
-  it('renders 2 items in detail mode (default) which uses dynamic require for VoteRankCard', () => {
+  // 예전에는 detail 모드가 렌더 중 require('./VoteRankCard') 를 동기 호출해 터졌고,
+  // 테스트가 그 크래시를 toThrow() 로 고정하고 있었다. 정적 import 로 바꿔 정상 렌더한다.
+  it('renders 2 items in detail mode (default)', () => {
     const items = [makeItem(1), makeItem(2)];
-    expect(() => render(<RankingView items={items} mode="detail" />)).toThrow();
+    render(<RankingView items={items} mode="detail" />);
+    expect(screen.getAllByTestId(/^vote-rank-card-/)).toHaveLength(2);
   });
 
-  it('renders 3 items in detail mode which uses dynamic require', () => {
+  it('renders 3 items in detail mode', () => {
     const items = [makeItem(1), makeItem(2), makeItem(3)];
-    expect(() => render(<RankingView items={items} mode="detail" />)).toThrow();
+    render(<RankingView items={items} mode="detail" />);
+    expect(screen.getAllByTestId(/^vote-rank-card-/)).toHaveLength(3);
   });
 
   it('applies disabled styling when disabled prop is true', () => {

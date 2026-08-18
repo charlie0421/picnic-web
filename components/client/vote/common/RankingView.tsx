@@ -8,6 +8,7 @@ import { useLanguageStore } from '@/stores/languageStore';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCandidateVote, sumVoteTotals } from './vote-display-utils';
+import { VoteRankCard } from './VoteRankCard';
 
 interface EnhancedVoteItem extends VoteItem {
   artist?: any;
@@ -122,8 +123,8 @@ export const RankingView: React.FC<RankingViewProps> = ({
                 <div className='absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
                 <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
                   {/* 기존 공통 카드 사용은 detail 모드에서만 */}
-                  {require('./VoteRankCard').VoteRankCard && (
-                    React.createElement(require('./VoteRankCard').VoteRankCard, {
+                  {(
+                    React.createElement(VoteRankCard, {
                       className: 'w-full h-40 sm:h-44 md:h-48',
                       key: `${keyPrefix}-rank-${topItems[0].id}-0`,
                       item: topItems[0],
@@ -143,8 +144,8 @@ export const RankingView: React.FC<RankingViewProps> = ({
               <div className='relative w/full max-w-[85px] sm:max-w-[100px] md:max-w-[110px]'>
                 <div className='absolute -inset-0.5 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
                 <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
-                  {require('./VoteRankCard').VoteRankCard && (
-                    React.createElement(require('./VoteRankCard').VoteRankCard, {
+                  {(
+                    React.createElement(VoteRankCard, {
                       className: 'w-full h-32 sm:h-36 md:h-40',
                       key: `${keyPrefix}-rank-${topItems[1].id}-1`,
                       item: topItems[1],
@@ -190,8 +191,8 @@ export const RankingView: React.FC<RankingViewProps> = ({
               <div className='relative w-full max-w-[85px] sm:max-w-[100px] md:max-w-[110px]'>
                 <div className='absolute -inset-0.5 bg-gradient-to-r from-gray-400 to-gray-600 rounded blur opacity-30'></div>
                 <div className='relative bg-gradient-to-br from-gray-100 to-gray-200 p-1 rounded border border-gray-300 shadow-lg'>
-                  {require('./VoteRankCard').VoteRankCard && (
-                    React.createElement(require('./VoteRankCard').VoteRankCard, {
+                  {(
+                    React.createElement(VoteRankCard, {
                       className: 'w-full h-32 sm:h-36 md:h-40',
                       key: `${keyPrefix}-rank-${topItems[1].id}-1`,
                       item: topItems[1],
@@ -213,8 +214,8 @@ export const RankingView: React.FC<RankingViewProps> = ({
               <div className='relative w-full max-w/[100px] sm:max-w/[120px] md:max-w/[135px]'>
                 <div className='absolute -inset-1 bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 rounded blur opacity-40 animate-pulse'></div>
                 <div className='relative bg-gradient-to-br from-yellow-100 to-orange-100 p-1.5 rounded border-2 border-yellow-400 shadow-xl'>
-                  {require('./VoteRankCard').VoteRankCard && (
-                    React.createElement(require('./VoteRankCard').VoteRankCard, {
+                  {(
+                    React.createElement(VoteRankCard, {
                       className: 'w-full h-40 sm:h-44 md:h-48',
                       key: `${keyPrefix}-rank-${topItems[0].id}-0`,
                       item: topItems[0],
@@ -236,8 +237,8 @@ export const RankingView: React.FC<RankingViewProps> = ({
               <div className='relative w/full max-w-[75px] sm:max-w-[90px] md:max-w-[100px]'>
                 <div className='absolute -inset-0.5 bg-gradient-to-r from-amber-400 to-orange-500 rounded blur opacity-30'></div>
                 <div className='relative bg-gradient-to-br from-amber-100 to-orange-100 p-1 rounded border border-amber-400 shadow-lg'>
-                  {require('./VoteRankCard').VoteRankCard && (
-                    React.createElement(require('./VoteRankCard').VoteRankCard, {
+                  {(
+                    React.createElement(VoteRankCard, {
                       className: 'w-full h-28 sm:h-32 md:h-36',
                       key: `${keyPrefix}-rank-${topItems[2].id}-2`,
                       item: topItems[2],
