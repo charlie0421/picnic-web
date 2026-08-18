@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>picnic-web 핸드오프 — 2026-08-14</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #5c6370; --line: #e3e6eb; --bg: #ffffff;
+    --code-bg: #f6f8fa; --accent: #6b46e5; --warn-bg: #fff8e6; --warn-line: #e6b800;
+    --bad-bg: #fdf0f0; --bad-line: #d64545; --good-bg: #f0f8f2; --good-line: #3a9a5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 24px 96px; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+      "Noto Sans KR", Segoe UI, sans-serif;
+    line-height: 1.75; font-size: 16px;
+  }
+  main { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 30px; line-height: 1.3; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 22px; margin: 56px 0 16px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--line); letter-spacing: -0.01em;
+  }
+  h3 { font-size: 17px; margin: 32px 0 10px; }
+  p, li { color: var(--ink); }
+  .sub { color: var(--muted); margin: 0 0 32px; font-size: 15px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    border: 1px solid var(--line); white-space: nowrap;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; white-space: pre; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14.5px; }
+  th, td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td code { white-space: normal; }
+  .box { border-radius: 8px; padding: 14px 18px; margin: 18px 0; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--warn-line); }
+  .bad  { background: var(--bad-bg);  border-left: 4px solid var(--bad-line); }
+  .good { background: var(--good-bg); border-left: 4px solid var(--good-line); }
+  .box p:first-child { margin-top: 0; }
+  .box p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  .tag {
+    display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px;
+    background: var(--code-bg); border: 1px solid var(--line); color: var(--muted);
+    white-space: nowrap;
+  }
+  hr { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
+  .footnote { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>picnic-web 핸드오프</h1>
+<p class="sub">2026-08-14 · <code>main</code> = <code>df157170</code> · 열린 PR 없음 · 배포 전부 success</p>
+
+<div class="box good">
+<p><strong>한 줄 요약.</strong> 비-VOTE 코드 물리 삭제(−12,237줄)를 끝냈고, 투표 필터를 앱과 동기화했고, 프로덕션 Node 를 22→24 로 올렸고, <code>Database</code> 제네릭 <code>never</code> 붕괴의 원인을 규명해 <strong>타입 오류를 0으로 만들었다.</strong> 테스트는 <strong>2,010건 전부 green</strong>. 이후 백로그 2건도 모두 해소했다 — 남은 것은 1건뿐이다(§6).</p>
+</div>
+
+<div class="box warn">
+<p><strong>이 문서는 자족적으로 썼다.</strong> 지난 핸드오프는 세션 임시 디렉터리에 뒀다가 사라졌다. 그래서 조사 원문 대신 <strong>결론과 재현 방법을 본문에 담았다.</strong> 이 파일은 <code>docs/</code> 에 있지만 <strong>아직 커밋되지 않았다</strong> — 남겨두려면 커밋할 것.</p>
+</div>
+
+<h2>1. 이번에 한 일</h2>
+
+<table>
+  <tr><th>커밋</th><th>내용</th></tr>
+  <tr><td><code>d097435a</code> (#53)</td><td>비-VOTE 코드 물리 삭제 — community / goong-hap / mypage posts·comments. 84파일, <strong>−12,237줄</strong></td></tr>
+  <tr><td><code>7ecacf62</code> (#54)</td><td>투표 필터를 앱과 동기화 — SPOTLIGHT 추가, 칩 UI, 상태 드롭다운, 정렬</td></tr>
+  <tr><td><code>0e61010f</code></td><td>Node 24 런타임 고정 (<code>engines</code> + <code>.nvmrc</code>)</td></tr>
+  <tr><td><code>bef3791c</code> (#59)</td><td><code>.jest-cache</code> 1,030파일 untrack, <code>.gitignore</code> 2,288→903줄, <code>jest.config.js</code> 제거</td></tr>
+  <tr><td><code>4998d2c6</code> (#57)</td><td><code>RankingView</code> 의 렌더 내 <code>require</code> → 정적 import</td></tr>
+  <tr><td><code>2415b10e</code> (#58)</td><td>미사용 의존성 4개(quill·react-quill·react-datepicker·@types) + 미사용 i18n 키</td></tr>
+  <tr><td><code>7d6a2e1c</code> (#55)</td><td>관리자 판정 <code>is_super_admin</code> 누락 수정 — 서버 4곳 + 클라이언트 6곳 통일</td></tr>
+  <tr><td><code>177cd314</code> (#56)</td><td><code>Database</code> 제네릭 부착 — <code>never</code> 붕괴 원인 규명, tsc 229→0</td></tr>
+  <tr><td><code>077cfa7e</code> (#60)</td><td>방치된 <code>pnpm-lock.yaml</code> 제거 — Vercel 이 pnpm 으로 인식하던 것을 npm 으로 정정</td></tr>
+  <tr><td><code>df157170</code> (#61)</td><td><code>@supabase/ssr</code> 0.6.1 → 0.12.4 — <strong>never 붕괴 근본 해결</strong>, 격리 캐스트 제거</td></tr>
+</table>
+
+<h2>2. 가장 중요한 발견 — <code>never</code> 붕괴의 원인 <span class="tag">해결됨</span></h2>
+
+<div class="box bad">
+<p><strong>원인은 패키지 세대 불일치였다.</strong></p>
+<p><code>@supabase/ssr@0.6.1</code> 은 반환 타입을 <code>SupabaseClient&lt;Database, SchemaName, Schema&gt;</code> <strong>3-슬롯</strong>으로 하드코딩하는데, 설치된 <code>@supabase/supabase-js@2.86.2</code> 의 <code>SupabaseClient</code> 는 <code>&lt;Database, SchemaNameOrClientOptions, SchemaName, Schema, ClientOptions&gt;</code> <strong>5-슬롯</strong>이다. ssr 이 3번째로 넘기는 <strong>Schema 객체</strong>가 신형의 <code>SchemaName</code>(제약: <code>string &amp; keyof ...</code>) 슬롯에 대입돼 TS2344 제약 위반이 나는데, 위반 지점이 <code>node_modules</code> 의 <code>.d.ts</code> 안이라 <strong><code>skipLibCheck: true</code> 가 진단을 삼킨다.</strong> 그 결과 <code>Schema</code> 슬롯이 <code>never</code> 로 떨어지고 <code>.from()</code> 의 행 타입이 전부 <code>never</code> 가 됐다.</p>
+</div>
+
+<p>실측 근거(재현 가능):</p>
+<table>
+  <tr><th>실험</th><th>결과</th></tr>
+  <tr><td>제네릭만 부착</td><td>129건 (TS2339 102 · TS2769 10 · TS2345 8 · TS2322 7 · TS2698 2)</td></tr>
+  <tr><td>래퍼 반환 타입 명시</td><td><strong>29건</strong> — TS2339 가 102 → 0</td></tr>
+  <tr><td><code>skipLibCheck: false</code></td><td><strong>TS2344 4건</strong>, 전부 <code>@supabase/ssr</code> 의 <code>.d.ts</code> — 은폐 확정</td></tr>
+</table>
+
+<div class="box good">
+<p><strong>#61 에서 근본 해결됐다.</strong> <code>ssr 0.7.0</code> 부터 반환 타입이 <code>SupabaseClient&lt;Database, SchemaName&gt;</code> <strong>2-슬롯</strong>으로 바뀌어 불일치가 사라진다 — 3-슬롯 버그는 <strong>0.6.x 한정</strong>이었다. 최신(0.12.4 + supabase-js 2.112.3)으로 올리고 <code>lib/supabase/server.ts</code> 의 격리 캐스트를 제거했다.</p>
+<p>완치 판정: <code>skipLibCheck: false</code> 에서 <strong>TS2344 0건, <code>@supabase</code> 관련 0건</strong>. (남은 11건은 framer-motion·next·rolldown 등 무관한 서드파티 타입)</p>
+</div>
+
+<div class="box warn">
+<p><strong>이전 핸드오프의 수치는 틀렸다.</strong> "414건 / community·qna 121건 / 잔존 293건" 은 실측이 아니라 코드 리딩 추정이었다. 실측은 <strong>229건</strong>이었고, 삭제 후 129건, 원인 해소 후 <strong>0건</strong>이다.</p>
+</div>
+
+<h3><code>never</code> 가 걷히자 드러난 실제 결함</h3>
+<p>이전 조사의 "개별 버그는 한 건도 없다"는 결론은 <code>never</code> 가 전부를 가리고 있었기 때문이다. 원인을 걷어내니 진짜 부채가 나왔고, #56 에서 모두 고쳤다.</p>
+<ul>
+  <li><strong>죽은 <code>getVoteDetails</code> 가 존재하지 않는 테이블 <code>user_vote_history</code> 를 조회</strong>하고 있었다. 에러가 <code>console.error</code> 로 삼켜져 항상 빈 배열. 외부 참조 0건이라 <code>VoteDetail</code> 컴포넌트와 함께 삭제</li>
+  <li><code>receipts.id</code>·<code>VoteHistoryItem.id</code> 가 <code>number</code> 인데 <code>string</code> 선언 — 런타임은 계속 number 였다</li>
+  <li><code>policy-service</code> 가 12개 로케일 <code>lang</code> 을 <code>'ko'|'en'</code> 컬럼에 전달</li>
+  <li><code>getVoteById</code>·<code>_getRewardById</code> 가 <code>string</code> id 를 <code>number</code> 컬럼에 전달</li>
+</ul>
+<p>#61 에서 타입이 더 정확해지자 하나 더 나왔다 — <code>lib/supabase/social/profile-handlers.ts</code> 가 <code>user_profiles</code> 에 <strong>존재하지 않는 <code>provider</code>·<code>provider_id</code> 컬럼</strong>을 insert/update 하고 있었다(라이브 DB 가 <code>42703</code> 반환). Google/Apple 4곳 전부이고 에러는 <code>console.error</code> 로 삼켜졌다. 프로필 행 자체는 트리거 <code>handle_new_user()</code> 가 만들어 신규 가입은 정상이었지만, <strong>재로그인 시 <code>avatar_url</code>·<code>nickname</code> 갱신이 계속 실패</strong>해 왔다. 두 컬럼을 제거해 이제 반영된다 — <strong>동작 변경이므로 소셜 재로그인 시 아바타 갱신 확인이 필요하다.</strong></p>
+
+<h2>3. 이전 핸드오프에서 <strong>정정된 것</strong></h2>
+
+<div class="box bad">
+<p><strong>QNA 는 삭제 대상이 아니다.</strong> 한동안 "QNA 종료"가 후속 작업으로 잡혀 있었으나 <strong>근거가 없었다.</strong></p>
+<ul>
+  <li><code>next.config.js</code> 의 VOTE 단독화 리다이렉트 목록: community · goong-hap · pic · novel · mypage/posts · mypage/comments — <strong>QNA 없음</strong></li>
+  <li>웹 마이페이지 메뉴(<code>MyPageAccountMenu.tsx:49</code>)에 QNA 링크가 <strong>살아 있음</strong></li>
+  <li><strong>앱(Flutter)</strong> <code>picnic_lib/lib/presentation/pages/my_page/qna/</code> 에 화면 <strong>11개가 현역</strong></li>
+</ul>
+<p>QNA 는 양쪽 플랫폼에서 돌아가는 <strong>현역 고객문의 기능</strong>이다. 인벤토리 워커가 "mypage 하위"라는 이유로 삭제 후보에 올린 것을 후속 목록으로 잘못 이어받은 것이다. <code>concert2025</code> 예약 CTA 대체 채널을 고민할 필요도 없다.</p>
+</div>
+
+<div class="box warn">
+<p><strong><code>/media</code> 도 삭제 대상이 아니다.</strong> PIC 잔재처럼 보이지만 <code>config/menu.json</code> 이 <strong>VOTE 포털의 공개 서브메뉴</strong>로 노출한다. 리다이렉트도 없어 지우면 404 다.</p>
+</div>
+
+<div class="box warn">
+<p><strong><code>client.test.ts</code> 는 flake 가 아니었다.</strong> "병렬 실행 간섭"으로 기록돼 있었으나 실제 원인은 테스트 버그였다. <code>vi.doUnmock</code> 은 모듈 레지스트리가 리셋된 뒤의 import 에만 적용되는데 리셋 없이 <code>await import</code> 해서, 파일 상단 <code>vi.mock</code> 의 3개짜리 mock 이 반환됐고 거기 없는 <code>clearAuthSessionStorage</code> 호출에서 죽었다. 실행 방식에 따라 레지스트리 상태가 달라져 간헐 실패로 보였다. <code>vi.importActual</code> 로 고쳤다(#55).</p>
+</div>
+
+<h2>4. 반드시 알고 있어야 할 계약</h2>
+
+<h3>wallet.v1 — 금액은 전부 decimal string</h3>
+<p><code>star</code>, <code>bonus</code>, <code>cotton</code>, <code>delta</code>, <code>total_count</code> 는 모두 문자열이다. <code>MAX_SAFE_INTEGER</code> 초과 값이 실재하므로 <strong><code>Number()</code>·<code>parseInt()</code> 금지.</strong> 합산은 <code>BigInt</code>, 표시는 <code>formatWalletAmount()</code>.</p>
+
+<h3>voting-v2 — 정확히 4개 키</h3>
+<pre><code>{ vote_id: number, vote_item_id: number, amount: string, request_id: uuid }</code></pre>
+<p>키가 더 있으면 Edge Function 이 <code>400 Invalid vote payload</code>. BFF(<code>app/api/vote/submit/route.ts</code>)는 <strong>snake_case</strong> 로 구조분해한다.</p>
+
+<h3>request_id 는 서버 멱등성 키</h3>
+<p>서버가 대신 생성하면 응답 유실 후 재시도가 매번 새 작업이 되어 <strong>이중 차감</strong>이 난다. BFF 는 누락·오형식을 400 으로 거절한다. 클라이언트는 <code>lib/wallet/vote-request-id.ts</code> 가 module-scope Map + <code>sessionStorage</code> 2단으로 보존한다. 잔액 사전검증은 하지 않는다 — 멱등 재생을 가로막는다.</p>
+
+<h3>코튼캔디</h3>
+<p>매일 <strong>KST 자정</strong> 소멸. <strong>잔액 0 은 정상 상태이고 항상 노출한다</strong> — 통화가 사라지면 사용자는 재화가 없어진 것으로 오인한다. 차감 순서(코튼→보너스→스타)는 서버 전결.</p>
+
+<h3>관리자 판정 — 단일 출처</h3>
+<p><code>lib/auth/is-admin.ts</code> 의 <code>isAdminProfile()</code> 과 <code>ADMIN_FLAG_COLUMNS</code> 를 쓴다. <strong>사본을 만들지 마라</strong> — 판정이 4벌로 복사돼 있었고 그중 하나만 <code>is_admin</code> 단독을 봐서 super-admin 전용 계정이 강등되던 게 이번 버그였다. <code>=== true</code> 로만 인정한다(truthy 검사는 문자열 <code>"false"</code> 를 관리자로 연다). 컬럼 목록도 상수로 쓴다 — 한쪽만 <code>select</code> 하면 판정 함수가 옳아도 무너진다.</p>
+
+<h3>웹 결제는 sandbox · 관리자 전용이다 <span class="tag">실서비스 아님</span></h3>
+<p>프로덕션 실결제는 <strong>앱에서만</strong> 일어난다. 웹의 결제 UI 는 관리자 전용 테스트 경로다.</p>
+<table>
+  <tr><th>근거</th><th>확인 결과</th></tr>
+  <tr><td>구매 버튼</td><td><code>StarCandyProductsPresenter.tsx:204</code> 가 <code>disabled={isProcessing || !isAdmin}</code> — <strong>관리자만 활성화</strong></td></tr>
+  <tr><td><code>receipts</code> 중 <code>platform=web</code></td><td>77건, <strong>전부 <code>environment=sandbox</code></strong></td></tr>
+  <tr><td>마지막 웹 결제</td><td><strong>2025-11-11</strong></td></tr>
+  <tr><td>프로덕션 실결제</td><td>android 525 / ios 1475 — 앱 전용</td></tr>
+</table>
+<p><strong>영향:</strong> 웹 결제 코드를 고쳐도 일반 사용자에게 노출되지 않는다. 반대로 <strong>관리자 판정이 깨지면 테스트 결제가 막힌다</strong> — <code>is_admin=false, is_super_admin=true</code> 계정이 구매 버튼을 못 누르던 게 그 사례다(#55 에서 해결). 웹 결제 관련 변경의 Production 확인은 <strong>관리자 계정으로만</strong> 가능하다.</p>
+<p><code>app/api/payment/portone/verify/*</code> 는 <strong>브라우저 결제 검증</strong> 라우트다. 앱은 <code>webhook</code>·<code>capture-order</code> 경로를 쓰므로 verify 쪽 변경은 앱과 무관하다.</p>
+
+<h3>투표 필터 — 앱과 동기화 대상</h3>
+<table>
+  <tr><td><code>stores/voteFilterStore.ts</code> 의 <code>VOTE_AREA_TABS</code></td><td>순서가 곧 UI 노출 순서. 앱 <code>vote_list_page.dart</code> 의 <code>_voteTabs</code> 와 맞춘다</td></tr>
+  <tr><td>라벨</td><td>전 로케일 공통 <strong>영문 하드코딩</strong>. 앱이 <code>AppLocalizations</code> 를 안 거치므로 i18n 을 태우면 플랫폼별로 문구가 갈린다. <code>kpop</code> 표기는 <strong>PICNIC</strong></td></tr>
+  <tr><td>필터 저장</td><td><strong>안 한다.</strong> 진실은 URL 쿼리이고 스토어는 기본값 보관소</td></tr>
+  <tr><td>area 우선 정렬</td><td><code>lib/vote/vote-order.ts</code> 의 <code>shouldOrderByArea</code> — <strong>admin + 전체 탭에서만</strong> 참</td></tr>
+  <tr><td>SPOTLIGHT</td><td>DB 에 <strong>0건</strong>(vote 234건: kpop 129·pic-chart 77·musical 28). 앱이 노출 중이라 맞췄고, 콘텐츠 유입 전까지 빈 탭이 정상</td></tr>
+</table>
+
+<h3>문자열 검색으로 삭제하지 마라</h3>
+<p><code>pic</code> → <code>VOTE_AREAS.PIC_CHART</code>·<code>label_area_filter_pic_chart</code> 는 VOTE 기능이다. <code>goonghap_gender_*</code> 는 VOTE 카드가 쓴다. <strong>경로 기반으로만</strong> 삭제할 것.</p>
+
+<h2>5. 함정</h2>
+
+<div class="box bad">
+<p><strong><code>npm run build</code> 를 쓰지 마라.</strong> <code>prebuild</code> 훅이 <code>VERCEL != 1</code> 일 때 <code>types/supabase.ts</code>(6,000줄+)를 덮어쓰고, <code>postbuild</code> 가 Sentry release 를 만든다. <strong><code>./node_modules/.bin/next build</code></strong> 를 쓴다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>이 레포에는 Vercel Preview 배포가 없다.</strong> <code>vercel.json</code> 의 <code>git.deploymentEnabled</code> 가 <code>{ main: true, production: false }</code> 다. <strong>머지 전 눈으로 확인할 방법이 없다.</strong> 검증은 로컬이 전부이고, 로그인 필요 화면과 브라우저 시각 검증은 <strong>머지 후 Production</strong> 에서만 가능하다. PR 본문에 "미수행"으로 명기하고 사용자에게 확인을 요청할 것.</p>
+</div>
+
+<div class="box warn">
+<p><strong><code>.next</code> 캐시 주의.</strong> 브랜치를 리베이스하거나 라우트가 삭제된 뒤에는 <code>.next/types</code> 의 옛 라우트 shim 이 남아 <code>tsc</code> 가 존재하지 않는 모듈을 못 찾는다고 실패한다. <code>rm -rf .next tsconfig.tsbuildinfo</code> 후 재실행하면 사라진다. <strong>실제 오류가 아니다.</strong></p>
+</div>
+
+<ul>
+  <li>빌드가 <code>public/sitemap*.xml</code> 을 수정한다 → 커밋 전 <code>git checkout -- public/</code></li>
+  <li>Route Handler 는 HTTP 메서드와 세그먼트 설정만 export 할 수 있다. 헬퍼를 <code>route.ts</code> 에서 export 하면 <code>tsc</code>·<code>vitest</code> 는 통과하고 <code>next build</code> 에서만 깨진다 → <code>lib/</code> 로 분리</li>
+  <li><code>__tests__/**</code> 는 tsconfig 에서 제외돼 타입 검증이 안 된다 → 컴파일 범위 안의 <code>*.type-test.ts</code> 를 쓴다</li>
+  <li>jsdom 에서 <code>vi.spyOn(window.sessionStorage, …)</code> 는 가로채지 못한다 → <code>Storage.prototype</code> 에 걸 것</li>
+  <li><strong>이 레포에 <code>supabase/migrations/*.sql</code> 을 추가하지 마라.</strong> 스키마는 <code>picnic-supabase</code> 소유 (project ref <code>xtijtefcycoeqludlngc</code>)</li>
+  <li>Node 는 <strong>24 로 통일</strong>됐다 — <code>engines: {node: "24.x"}</code> + <code>.nvmrc 24.18.0</code> + Vercel 대시보드 <code>24.x</code>. <code>engines</code> 는 대시보드를 <strong>항상 덮어쓴다</strong>. 패치 하한(<code>&gt;=24.18.0</code>)을 걸면 Vercel 이미지 미달 시 빌드가 하드 실패하므로 메이저 고정을 쓴다. <code>vercel project update</code> CLI 로는 Node 버전을 못 바꾼다(대시보드·REST API 만)</li>
+</ul>
+
+<h2>6. 남은 작업 <span class="tag">1건</span></h2>
+
+<div class="box good">
+<p><strong>이전 백로그 2건은 해소됐다.</strong> <code>@supabase/ssr</code> 업그레이드(#61)와 lockfile 이중화(#60) 모두 머지·배포 완료. §2 의 격리 캐스트도 걷어냈다.</p>
+<p>ssr 은 0.6.1 → <strong>0.12.4</strong>, supabase-js 는 2.86.2 → <strong>2.112.3</strong>. <strong>3-슬롯 버그는 0.6.x 한정</strong>이었고 0.7.0 부터 2-슬롯으로 바뀌어 있었다. 완치 판정(<code>skipLibCheck: false</code> 에서 TS2344 0건, <code>@supabase</code> 관련 0건)을 통과했다.</p>
+<p>lockfile 제거의 실제 효과는 빌드 로그가 확인해줬다 — <code>Skipping build cache since Package Manager changed from "pnpm" to "npm"</code>. Vercel 이 그동안 <strong>pnpm 을 패키지 매니저로 인식</strong>하고 있었다.</p>
+</div>
+
+<h3>#1 <code>.npmrc</code> 의 <code>legacy-peer-deps=true</code> 제거 <span class="tag">next-auth 선행</span></h3>
+<p><strong>이 플래그가 애초에 어긋난 supabase 조합을 설치하게 만든 원인이다.</strong> npm 이 peer 충돌을 무시하기 때문에, ssr 0.6.1 × supabase-js 2.86.2 처럼 peer 를 만족하지 않는 쌍이 조용히 설치됐다. 제거하면 같은 사고가 설치 단계에서 걸린다.</p>
+<p>다만 지금은 제거할 수 없다. <strong>supabase 와 무관한 충돌</strong>이 막는다:</p>
+<pre><code>npm error Conflicting peer dependency: @auth/core@0.34.3
+npm error   peerOptional @auth/core@"0.34.3" from next-auth@4.24.14
+npm error   node_modules/next-auth
+npm error     next-auth@"^4.24.11" from the root project</code></pre>
+<p><code>package.json</code> 이 <code>@auth/core</code> 를 <code>0.34.2</code> 로 핀해두었는데 <code>next-auth@4.24.14</code> 는 <code>0.34.3</code> 을 요구한다. <strong>next-auth / @auth/core 정리가 선행</strong>이다. 그 뒤 <code>npm install --no-legacy-peer-deps</code> 가 통과하면 플래그를 지운다.</p>
+<p>같이 검토할 만한 것: <code>tsconfig</code> 의 <code>skipLibCheck</code> 를 <code>false</code> 로 상시화. 이번 <code>never</code> 붕괴를 은폐한 것이 이 옵션이었다. 현재 <code>false</code> 로 두면 framer-motion·next·rolldown 등 무관한 서드파티 타입 오류가 11건 나므로, 그것들을 어떻게 처리할지 함께 정해야 한다.</p>
+
+<h3>참고 — 손대지 않기로 한 것</h3>
+<ul>
+  <li><code>app/api/uploads/presign</code> — 유일 caller 였던 community <code>PostEditor</code> 가 삭제됐지만, 인증 필요 endpoint 라 외부/Flutter caller 를 이 레포만으로 반증할 수 없다. 프로덕션 접근 로그 확인 후 제거하거나 JSON 410</li>
+  <li><code>utils/api/queries-vote.ts</code> 의 camelCase 별칭 — 런타임을 바꾸지 않으려고 타입(<code>VoteWithCamelAliases</code>)으로 표현만 했다. 소비자는 테스트 1곳뿐이라 별도 작업으로 한 번에 걷어내는 편이 낫다</li>
+  <li>배포 DB 의 RLS 를 <code>is_admin_or_super</code> 기준으로 맞출지 — <code>vote_pick</code> 의 SELECT 정책은 <code>auth.uid() = user_id</code> 뿐이라 관리자 예외가 없다. 앱 필터보다 RLS 가 엄격해 fail-closed 이므로 급하지 않다. 참고로 자기 권한 상승은 트리거 <code>trg_guard_user_profiles_protected</code> 가 막고 있다</li>
+</ul>
+
+<h2>7. 이번에 값을 치르고 배운 것</h2>
+
+<div class="box bad">
+<p><strong>테스트가 결함을 잠그고 있는 사례를 두 번 만났다.</strong></p>
+<p><code>RankingView.test.tsx</code> 는 detail 모드가 크래시하는 것을 <code>expect(() =&gt; render(...)).toThrow()</code> 로 고정하고 있었다. 동작이 아니라 결함을 잠근 테스트다.</p>
+<p>투표 필터 작업에서 내가 처음 넣은 테스트 12개도 상수·헬퍼만 검증해서, <strong>잘못된 색 3개와 잘못된 정렬 컬럼이 12/12 통과</strong>했다. 리뷰어가 지적해 실제 결함을 잡는 테스트로 교체했다(렌더된 DOM 의 <code>rgb()</code> 실측, mock 체인의 <code>.order()</code> 호출 순서).</p>
+<p><strong>교훈:</strong> "상수가 이 값이다"를 확인하는 테스트는 그 상수가 <em>틀렸을 때</em> 알려주지 않는다. 외부 기준(앱 소스)이 있으면 그 기준에서 파생된 관측 가능한 결과를 검증해야 한다.</p>
+</div>
+
+<div class="box good">
+<p><strong>교차 리뷰가 실제로 값을 했다.</strong> 매번 다른 모델이 앞 단계를 반박했다.</p>
+<ul>
+  <li>인벤토리가 <code>/media</code> 를 삭제 후보로 올림 → 위험 감사가 "VOTE 포털 공개 서브메뉴"라고 반박. <strong>반박이 맞았다</strong></li>
+  <li>위험 감사가 QNA 삭제 시 <code>concert2025</code> 예약 CTA 가 끊긴다는 걸 발견</li>
+  <li>최종 리뷰가 상태 점 색 4개 중 3개가 근사값이고 Admin 2차 정렬이 앱과 다르다는 걸 잡음 — 앱 원본(<code>ui/style.dart</code>, <code>prod.json</code>)으로 확인하니 맞았다</li>
+  <li>권한 리뷰가 <code>!!(a || b)</code> 의 fail-open 을 지적</li>
+</ul>
+</div>
+
+<div class="box warn">
+<p><strong>앱을 요약하지 말고 조건문을 그대로 읽어라.</strong> 앱의 area 우선 정렬을 "ALL 탭에서 kpop 우선"으로 요약했는데, 실제 조건은 <code>area == 'all' &amp;&amp; finalSort == 'id'</code> 이고 <code>finalSort</code> 가 <code>'id'</code> 로 남는 건 <strong>debug(=웹 admin) 상태뿐</strong>이었다. 요약대로 구현했으면 일반 탭 목록 순서가 앱과 달라졌을 것이다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>Orca <code>dispatch --inject</code> 텍스트가 부팅 중 워커에서 삼켜진다.</strong> Claude·Codex 양쪽에서 재현됐다. <code>terminal wait --for tui-idle</code> 가 satisfied 여도 초기화 중이면 발생한다. 디스패치 직후 <code>terminal read</code> 로 실제 실행(Working·컨텍스트·비용)을 확인하고, 삼켜졌으면 <strong>지시서를 파일로 써서 짧은 프롬프트로 재전달</strong>한다. 단, <code>terminal send</code> 재전달은 lifecycle capability 를 주입하지 않아 <code>worker_done</code> 이 <code>dispatch_capability_invalid</code> 로 거부된다 → 보고서를 직접 읽고 <code>task-update --status completed</code> 로 복구 정산.</p>
+<p>또 워커를 새 워크트리에 띄울 때 <code>.claude/settings.local.json</code> 을 복사하지 않으면 <code>dontAsk</code> 모드에서 <code>tsc</code> 조차 실행하지 못하고 조사 결과가 실측 없이 나온다. 실제로 한 번 당했다.</p>
+</div>
+
+<h2>8. 검증 커맨드</h2>
+
+<pre><code># 타입
+./node_modules/.bin/tsc --noEmit                    # 현재 0건
+
+# 테스트 (현재 116 files / 2,010 tests 전부 green)
+./node_modules/.bin/vitest run
+
+# 빌드 — npm run build 금지
+./node_modules/.bin/next build
+
+# 프로덕션 서버 스모크
+./node_modules/.bin/next start -p 3200
+
+# 린트
+./node_modules/.bin/next lint
+
+# i18n — exit 1 은 기존 지갑/결제 계열 누락 때문이다.
+# 판정 방법: 변경 전후로 "▶ 누락 키" 섹션이 동일한지 비교할 것.
+npm run -s i18n:check
+
+# 빌드가 건드린 산출물 되돌리기
+git checkout -- public/
+
+# 배포 확인
+gh api "repos/:owner/:repo/deployments?per_page=1" --jq '.[0] | "\(.environment) \(.ref)"'</code></pre>
+
+<h3>웹 결제가 여전히 sandbox 뿐인지 확인</h3>
+<pre><code>set -a; . ./.env.local; set +a
+curl -s "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/receipts?select=environment,status&platform=eq.web" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+# 기대: environment 가 전부 sandbox. production 이 섞이면 웹 실결제가 열린 것이므로
+# 위 "웹 결제는 sandbox · 관리자 전용" 계약을 다시 판단할 것.</code></pre>
+
+<h3>런타임 플래그 조회</h3>
+<pre><code>set -a; . ./.env.local; set +a
+curl -s "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/wallet_runtime_flags?select=flag_key,value_json" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"</code></pre>
+<p class="footnote">코튼 관련 <code>wallet.cotton_read_enabled</code> / <code>cotton_spend_enabled</code> / <code>cotton_expiry_enabled</code> 는 2026-08-12 부터 모두 <code>true</code>. dark launch 는 끝났다.</p>
+
+<h2>9. 주요 파일 지도</h2>
+
+<table>
+  <tr><th>경로</th><th>역할</th></tr>
+  <tr><td><code>lib/auth/is-admin.ts</code></td><td><strong>관리자 판정 단일 출처.</strong> 서버 4곳·클라이언트 6곳이 공유</td></tr>
+  <tr><td><code>lib/supabase/server.ts</code></td><td>서버 클라이언트. <strong>@supabase/ssr 세대 불일치 격리 지점</strong>(주석에 전체 설명)</td></tr>
+  <tr><td><code>lib/supabase/typed-rpc.ts</code></td><td><code>callRpc</code> — RPC 호출 지점 타입 검사. 캐스트가 여기 한 곳에 격리</td></tr>
+  <tr><td><code>lib/vote/vote-order.ts</code></td><td><code>shouldOrderByArea</code> — 서버·클라이언트·API 3곳이 공유</td></tr>
+  <tr><td><code>stores/voteFilterStore.ts</code></td><td><code>VOTE_AREA_TABS</code> — 앱 <code>_voteTabs</code> 와 동기화 대상. 정규화 함수도 여기</td></tr>
+  <tr><td><code>app/api/vote/submit/route.ts</code></td><td>투표 BFF. <code>request_id</code> 필수 검증, voting-v2 4키 호출</td></tr>
+  <tr><td><code>app/api/user/wallet/route.ts</code></td><td>지갑 요약(<code>get_wallet_summary</code>)</td></tr>
+  <tr><td><code>lib/wallet/parse.ts</code> · <code>parse-history.ts</code></td><td>지갑 응답 런타임 검증. 계약 위반은 조용히 넘기지 않고 던진다</td></tr>
+  <tr><td><code>lib/wallet/vote-request-id.ts</code></td><td>멱등성 키 보존(2단)</td></tr>
+  <tr><td><code>lib/i18n/locale.ts</code></td><td>12개 언어 → Intl 로케일</td></tr>
+  <tr><td><code>scripts/generate-interfaces.ts</code></td><td><code>types/interfaces.ts</code> 생성기</td></tr>
+</table>
+
+<hr>
+
+<p class="footnote">
+앱 레포: <code>~/Repositories/picnic-app</code> — 투표 필터 기준은
+<code>picnic_lib/lib/presentation/pages/vote/vote_list_page.dart</code>(<code>_voteTabs</code>, <code>_buildStatusDropdown</code>, <code>_statusColor</code>)와
+<code>presentation/providers/vote_list_provider.dart</code>(정렬 분기). 색 정의는 <code>ui/style.dart</code> · <code>picnic_app/config/prod.json</code>.<br>
+스키마 레포: <code>~/Repositories/picnic-supabase</code><br>
+관련 기존 문서: <code>docs/policy-sync-2026-08.md</code>
+</p>
+
+</main>
+</body>
+</html>
