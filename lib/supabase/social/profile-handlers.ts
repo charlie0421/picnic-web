@@ -2,7 +2,87 @@ import { SupabaseClient, User } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 
 /**
- * Google 로그인 후 프로필 정보 처리
+ * 소셜 로그인 후 프로필 처리.
+ *
+ * ## 하지 않는 것 — 기존 프로필은 갱신하지 않는다
+ *
+ * `user_profiles.nickname` 과 `avatar_url` 은 **사용자 소유 데이터**다. 앱에서 직접
+ * 바꾼다 — 닉네임은 `update-nickname` Edge Function, 아바타는 `avatars` 스토리지
+ * 업로드 후 `avatar_url` 갱신(picnic_lib `my_profile.dart`). 로그인할 때마다 소셜
+ * 계정 값으로 덮으면 사용자가 설정한 사진과 이름이 사라진다.
+ *
+ * ## 하는 것 — 프로필이 없을 때만 만든다
+ *
+ * 정상 경로에서는 DB 트리거 `handle_new_user()` 가 auth.users 삽입 시 프로필을
+ * 만든다. 여기 insert 는 그게 실패했을 때를 위한 폴백이다.
+ *
+ * ## 제거된 죽은 경로 (2026-08-18)
+ *
+ * 이전 구현은 `fetch("/api/auth/google")` 로 자기 API 를 호출해 프로필을 받아
+ * 갱신하려 했으나 실제로는 한 번도 동작하지 않았다:
+ *
+ * 1. 이 코드는 **서버**에서 돈다(`app/api/auth/exchange-code/route.ts` → `handleCallback`).
+ *    상대 URL fetch 는 Node 에서 `Failed to parse URL` 로 throw 되고 catch 가 삼켰다.
+ * 2. Google 은 애초에 도달하지 못했다 — `exchange-code` 가 `id_token` 을
+ *    **apple 일 때만** params 에 담는다.
+ * 3. `user_profiles` 에 없는 `provider`/`provider_id` 컬럼을 써서, 설령 실행됐어도
+ *    PostgREST 가 `42703` 을 반환했다.
+ * 4. `localStorage` 를 참조하는 분기도 있었다 — 서버에는 존재하지 않아 항상 건너뛴다.
+ *
+ * 소셜 프로필 갱신이 필요해지면 이 파일이 아니라 **사용자가 명시적으로 실행하는
+ * 동작**으로 만들어야 한다. 참고로 Apple 은 `user_metadata` 에 아바타를 주지 않고
+ * 이름도 최초 인증 때만 준다(실측: apple 26명 전원 `avatar_url` 없음).
+ */
+
+/** 소셜 프로필에서 얻을 수 있는 최선의 표시 이름. */
+function resolveNickname(user: User, fallbackName?: string): string {
+  return (
+    fallbackName ||
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split("@")[0] ||
+    "User"
+  );
+}
+
+/** 프로필 생성 폴백. 트리거가 이미 만들었으면 호출되지 않는다. */
+async function insertProfileIfMissing(
+  supabase: SupabaseClient<Database>,
+  user: User,
+  logPrefix: string,
+  fields: { nickname: string; avatarUrl: string | null },
+): Promise<void> {
+  const { data: existingProfile, error: checkError } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (checkError) {
+    console.error(`${logPrefix} 기존 프로필 확인 오류:`, checkError);
+    return;
+  }
+
+  // 이미 있으면 아무것도 하지 않는다 — 위 주석의 "갱신하지 않는다" 참조.
+  if (existingProfile) return;
+
+  const now = new Date().toISOString();
+  const { error: insertError } = await supabase.from("user_profiles").insert({
+    id: user.id,
+    nickname: fields.nickname,
+    email: user.email,
+    avatar_url: fields.avatarUrl,
+    created_at: now,
+    updated_at: now,
+  });
+
+  if (insertError) {
+    console.error(`${logPrefix} 프로필 생성 실패:`, insertError);
+  }
+}
+
+/**
+ * Google 로그인 후 프로필 처리.
  *
  * NOTE: Receives `User` directly (not `Session`). The full session is not required —
  * the handler only needs the authenticated user record. See callback-handler.ts for
@@ -11,89 +91,23 @@ import { Database } from "@/types/supabase";
 export async function handleGoogleProfile(
   supabase: SupabaseClient<Database>,
   user: User,
-  params?: Record<string, string>,
+  _params?: Record<string, string>,
 ): Promise<void> {
   try {
-    // 사용자 프로필이 이미 존재하는지 확인
-    const { data: existingProfile } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    // ID 토큰이 있는 경우 (콜백에서 제공)
-    if (params?.id_token) {
-      try {
-        // API를 호출하여 ID 토큰을 검증하고 프로필 정보 가져오기
-        const response = await fetch("/api/auth/google", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            idToken: params.id_token,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.profile) {
-            // 사용자 프로필이 없으면 생성, 있으면 업데이트
-            if (!existingProfile) {
-              const insertData = {
-                id: user.id,
-                nickname: data.profile.name || user.email?.split("@")[0] || "User",
-                avatar_url: data.profile.avatar || null,
-                email: data.profile.email || user.email,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              };
-
-              const { error: insertError } = await supabase.from("user_profiles").insert(insertData);
-
-              if (insertError) {
-                console.error('❌ [Google] 프로필 생성 실패:', insertError);
-              }
-            } else {
-              // 필요한 필드만 업데이트
-              await supabase.from("user_profiles").update({
-                avatar_url: data.profile.avatar || existingProfile.avatar_url,
-                updated_at: new Date().toISOString(),
-              }).eq("id", user.id);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Google 프로필 처리 오류:", error);
-        // 오류 발생 시 기본 프로필만 사용
-      }
-    }
-
-    // 최소한의 프로필 정보가 없는 경우 기본 프로필 생성
-    if (!existingProfile) {
-      const basicProfileData = {
-        id: user.id,
-        nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
-        email: user.email,
-        avatar_url: null, // JWT 토큰 이미지는 사용하지 않음
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error: basicInsertError } = await supabase.from("user_profiles").insert(basicProfileData);
-
-      if (basicInsertError) {
-        console.error('❌ [Google] 기본 프로필 생성 실패:', basicInsertError);
-      }
-    }
+    await insertProfileIfMissing(supabase, user, "❌ [Google]", {
+      nickname: resolveNickname(user),
+      // Google 은 user_metadata 에 avatar_url·picture 를 준다 (실측 확인).
+      // 생성 시점에만 쓰므로 사용자가 설정한 값을 덮지 않는다.
+      avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+    });
   } catch (error) {
-    console.error("Google 프로필 업데이트 오류:", error);
-    // 프로필 업데이트 실패해도 로그인 자체는 성공으로 처리
+    // 프로필 처리 실패해도 로그인 자체는 성공으로 처리한다.
+    console.error("Google 프로필 처리 오류:", error);
   }
 }
 
 /**
- * Apple 로그인 후 프로필 정보 처리
+ * Apple 로그인 후 프로필 처리.
  *
  * NOTE: Receives `User` directly (not `Session`). See `handleGoogleProfile` above.
  */
@@ -103,145 +117,27 @@ export async function handleAppleProfile(
   params?: Record<string, string>,
 ): Promise<void> {
   try {
-    // 사용자 프로필이 이미 존재하는지 확인
-    const { data: existingProfile, error: profileCheckError } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (profileCheckError && profileCheckError.code !== 'PGRST116') {
-      // PGRST116 = 데이터 없음 (정상), 다른 에러는 로깅
-      console.error('🍎 [Apple Profile] 기존 프로필 확인 오류:', profileCheckError);
-    }
-
-    // Apple은 첫 로그인 시에만 name과 email 정보를 제공합니다.
-    // user 정보가 URL 파라미터로 제공된 경우 (첫 로그인)
-    let userObject: { name?: { firstName?: string; lastName?: string }; email?: string } | null = null;
-
+    // Apple 은 최초 인증 때만 이름을 준다. 그때는 콜백 URL 의 user 파라미터로 온다.
+    let firstAuthName: string | undefined;
     if (params?.user) {
       try {
-        userObject = JSON.parse(decodeURIComponent(params.user));
-
-        // localStorage에 저장 (향후 사용)
-        if (typeof localStorage !== "undefined" && userObject) {
-          localStorage.setItem(
-            "apple_user_name",
-            JSON.stringify(userObject.name),
-          );
-          localStorage.setItem(
-            "apple_user_email",
-            userObject.email || user.email || "",
-          );
-        }
+        const parsed = JSON.parse(decodeURIComponent(params.user)) as {
+          name?: { firstName?: string; lastName?: string };
+        };
+        firstAuthName =
+          [parsed.name?.firstName, parsed.name?.lastName].filter(Boolean).join(" ") ||
+          undefined;
       } catch (error) {
-        console.error("🍎 [Apple Profile] 사용자 데이터 파싱 오류:", error);
+        console.error("🍎 [Apple] 사용자 데이터 파싱 오류:", error);
       }
     }
 
-    // ID 토큰이 있는 경우 (API 검증 시도)
-    if (params?.id_token) {
-      try {
-        // API를 호출하여 ID 토큰을 검증하고 프로필 정보 가져오기
-        const response = await fetch("/api/auth/apple", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id_token: params.id_token,
-            user: userObject,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-
-          if (data.success && data.profile) {
-            // 사용자 프로필이 없으면 생성, 있으면 업데이트
-            if (!existingProfile) {
-              const appleInsertData = {
-                id: user.id,
-                nickname: data.profile.name || userObject?.name?.firstName || user.email?.split("@")[0] || "User",
-                avatar_url: null, // Apple은 프로필 이미지를 제공하지 않음
-                email: data.profile.email || user.email,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              };
-
-              const { error: appleInsertError } = await supabase
-                .from("user_profiles")
-                .insert(appleInsertData);
-
-              if (appleInsertError) {
-                console.error('❌ [Apple Profile] 프로필 생성 실패:', appleInsertError);
-              } else {
-                return; // 성공적으로 생성했으므로 함수 종료
-              }
-            } else {
-              // 기존 프로필 업데이트
-              const { error: updateError } = await supabase
-                .from("user_profiles")
-                .update({
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", user.id);
-
-              if (updateError) {
-                console.error('❌ [Apple Profile] 프로필 업데이트 실패:', updateError);
-              } else {
-                return; // 성공적으로 업데이트했으므로 함수 종료
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error("🍎 [Apple Profile] API 호출 오류:", error);
-        // 오류 발생 시 기본 프로필 처리로 진행
-      }
-    }
-
-    // API 검증 실패 또는 ID 토큰 없음 → 기본 프로필 처리
-    if (!existingProfile) {
-      // localStorage에서 이전에 저장한 정보 사용
-      let name = "";
-      if (typeof localStorage !== "undefined") {
-        try {
-          const savedName = localStorage.getItem("apple_user_name");
-          if (savedName) {
-            const parsedName = JSON.parse(savedName);
-            name = [parsedName.firstName, parsedName.lastName].filter(Boolean).join(" ");
-          }
-        } catch (e) {
-          console.error("🍎 [Apple Profile] 저장된 이름 파싱 오류:", e);
-        }
-      }
-
-      // 기본 프로필 데이터 생성
-      const appleBasicData = {
-        id: user.id,
-        nickname: name ||
-                 userObject?.name?.firstName ||
-                 user.user_metadata?.name ||
-                 user.user_metadata?.full_name ||
-                 user.email?.split("@")[0] ||
-                 "User",
-        email: user.email,
-        avatar_url: null, // Apple은 프로필 이미지 제공 안함
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error: appleBasicError } = await supabase
-        .from("user_profiles")
-        .insert(appleBasicData);
-
-      if (appleBasicError) {
-        console.error('❌ [Apple Profile] 기본 프로필 생성 실패:', appleBasicError);
-      }
-    }
+    await insertProfileIfMissing(supabase, user, "❌ [Apple]", {
+      nickname: resolveNickname(user, firstAuthName),
+      // Apple 은 프로필 이미지를 제공하지 않는다.
+      avatarUrl: null,
+    });
   } catch (error) {
-    console.error("🍎 [Apple Profile] 처리 중 전체 오류:", error);
-    // 프로필 업데이트 실패해도 로그인 자체는 성공으로 처리
+    console.error("🍎 [Apple] 프로필 처리 오류:", error);
   }
 }
