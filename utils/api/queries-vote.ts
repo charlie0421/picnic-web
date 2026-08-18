@@ -90,7 +90,30 @@ export const _getVotes = async (
 };
 
 // 투표 상세 정보 가져오기
-export const _getVoteById = async (id: number): Promise<Vote | null> => {
+/**
+ * `_getVoteById` 의 실제 반환 모양.
+ *
+ * 생성 타입 `Vote` 는 순수 snake_case 인데 이 함수는 호환을 위해 camelCase 별칭을
+ * 덧붙여 반환한다. 예전에는 `Database = any` 라 불일치가 드러나지 않았다.
+ * 런타임 동작을 바꾸지 않으려고 별칭을 지우는 대신 타입을 실제 모양에 맞춘다.
+ * (별칭 소비자는 현재 0건이므로, 정리하려면 별도 작업으로 한 번에 걷어내는 편이 낫다.)
+ */
+export type VoteWithCamelAliases = Vote & {
+  deletedAt: Vote['deleted_at'];
+  startAt: Vote['start_at'];
+  stopAt: Vote['stop_at'];
+  createdAt: Vote['created_at'];
+  updatedAt: Vote['updated_at'];
+  mainImage: Vote['main_image'];
+  resultImage: Vote['result_image'];
+  waitImage: Vote['wait_image'];
+  voteCategory: Vote['vote_category'];
+  voteContent: Vote['vote_content'];
+  voteSubCategory: Vote['vote_sub_category'];
+  visibleAt: Vote['visible_at'];
+};
+
+export const _getVoteById = async (id: number): Promise<VoteWithCamelAliases | null> => {
   try {
     const supabase = createPublicSupabaseClient();
     const { data: voteData, error: voteError } = await supabase

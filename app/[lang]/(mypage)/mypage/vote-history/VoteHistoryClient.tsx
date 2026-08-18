@@ -16,11 +16,13 @@ type MultiLanguageText = {
 } | string;
 
 interface VoteHistoryItem {
-  id: string;
-  voteId: number;
+  // vote_pick 실제 컬럼 타입에 맞춘다. 예전에는 Database = any 라 어긋남이 드러나지 않았고
+  // id 는 항상 number 가 흘러왔다 (아래 React key 조합에만 쓰인다).
+  id: number;
+  voteId: number | null;
   voteItemId: number;
-  amount: number;
-  createdAt: string;
+  amount: number | null;
+  createdAt: string | null;
   vote: {
     id: number;
     title: MultiLanguageText;
@@ -243,7 +245,7 @@ export default function VoteHistoryClient({
                       </div>
                       <div className="mt-2 space-y-1">
                         <span className="text-gray-900 font-semibold text-sm block">
-                          {formatDate(vote.createdAt)}
+                          {vote.createdAt ? formatDate(vote.createdAt) : '-'}
                         </span>
                       </div>
                     </div>

@@ -154,11 +154,11 @@ export function isTokenValidWithoutRefresh(request: NextRequest): { isValid: boo
  */
 export async function buildReceiptResponse(
   supabase: any,
-  receiptId: string,
+  receiptId: number,
   productId: string | null,
   userId: string
 ): Promise<{
-  receipt_id: string;
+  receipt_id: number;
   message: string;
   payment: { productId: string | undefined; starCandy: number; bonusAmount: number; amount: number; currency: string };
   balance: { starCandy: number; starCandyBonus: number; total: number };

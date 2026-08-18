@@ -27,7 +27,10 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
         .eq('id', user.id)
         .single();
       
-      userProfile = data;
+      // select('*') 의 결과 타입이 생성 Row 와 어긋난다(is_admin/is_super_admin 누락).
+      // Row 와 UserProfiles 의 키·타입은 동일함을 타입 프로브로 확인했으므로
+      // supabase-js 의 '*' 추론 쪽 아티팩트다. 런타임은 전체 행을 반환한다.
+      userProfile = data as UserProfiles | null;
     } catch (error) {
       console.warn('사용자 프로필 로드 실패:', error);
     }

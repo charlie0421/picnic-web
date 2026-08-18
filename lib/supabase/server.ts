@@ -1,3 +1,5 @@
+import type { Database } from '@/types/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies, headers } from 'next/headers'
 import { SupabaseAuthError } from './error'
@@ -21,7 +23,7 @@ function resolveCookieDomain(hostname: string | null | undefined) {
   return undefined;
 }
 
-export async function createSupabaseServerClient() {
+export async function createSupabaseServerClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies()
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -37,7 +39,21 @@ export async function createSupabaseServerClient() {
   const currentHost = reqHeaders.get('host');
   const cookieDomain = resolveCookieDomain(currentHost);
 
-  return createServerClient(
+  // ── @supabase/ssr 세대 불일치 격리 지점 ──────────────────────────────────
+  // 설치된 @supabase/ssr@0.6.1 은 반환 타입을 SupabaseClient<Database, SchemaName, Schema>
+  // 3-슬롯으로 하드코딩하는데, @supabase/supabase-js@2.86.2 의 SupabaseClient 는
+  // <Database, SchemaNameOrClientOptions, SchemaName, Schema, ClientOptions> 5-슬롯이다.
+  // 그래서 ssr 이 3번째로 넘기는 Schema 객체가 신형의 SchemaName(문자열 제약) 슬롯에
+  // 대입돼 TS2344 제약 위반이 나는데, 위반 지점이 node_modules 의 .d.ts 안이라
+  // skipLibCheck: true 가 진단을 삼킨다. 그 결과 Schema 슬롯이 기본값 평가에서 never 로
+  // 떨어지고, 이 클라이언트를 쓰는 모든 곳에서 .from() 의 행 타입이 never 가 된다
+  // (제네릭만 붙였을 때 129건).
+  //
+  // 캐스트를 이 한 곳에 격리해 호출 지점들이 올바른 Database 타입을 받게 한다.
+  // lib/supabase/typed-rpc.ts 가 RPC 에 대해 쓰는 것과 같은 전략이다.
+  // 근본 해결은 @supabase/ssr 을 5-슬롯 세대에 맞는 버전으로 올리는 것이며,
+  // 그때 tsconfig 의 skipLibCheck 를 false 로 두고 TS2344 가 사라지면 완치 판정이다.
+  return createServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
     {
@@ -74,10 +90,10 @@ export async function createSupabaseServerClient() {
         },
       },
     }
-  )
+  ) as unknown as SupabaseClient<Database>
 }
 
-export function createPublicSupabaseServerClient() {
+export function createPublicSupabaseServerClient(): SupabaseClient<Database> {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 

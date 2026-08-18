@@ -21,6 +21,20 @@ import {
 } from "./types";
 
 /**
+ * 제네릭 테이블 연산의 타입 브리지.
+ *
+ * `supabase.from(table)` 에서 `table` 이 `T extends TableName` 유니온이면
+ * TypeScript 는 `.insert()`/`.update()`/`.eq()` 의 인자를 유니온 전 멤버에 대해
+ * 동시에 만족시키라고 요구해 좁히지 못한다. 개별 테이블로 호출하면 문제가 없다.
+ *
+ * 공개 API 는 이미 `TableInsert<T>`/`TableUpdate<T>`/`TableRow<T>` 로 호출자에게
+ * 타입 안전하므로, 좁혀지지 않는 내부 경계에만 캐스트를 둔다.
+ * `lib/supabase/typed-rpc.ts` 가 RPC 에 대해 쓰는 것과 같은 격리 전략이다.
+ */
+const asTablePayload = <V,>(value: V) => value as never;
+const asTableRow = <V,>(value: unknown) => value as V;
+
+/**
  * 데이터 삽입 (레거시 - RLS 호환성을 위해 insertDataSafe 사용 권장)
  */
 export const insertData = cache(async <T extends TableName>(
@@ -31,7 +45,7 @@ export const insertData = cache(async <T extends TableName>(
   const supabase = await createServerSupabaseClient();
   const { data: insertedData, error } = await supabase
     .from(table)
-    .insert(data)
+    .insert(asTablePayload(data))
     .select()
     .single();
 
@@ -43,7 +57,7 @@ export const insertData = cache(async <T extends TableName>(
     throw appError;
   }
 
-  return insertedData;
+  return asTableRow<TableRow<T>>(insertedData);
 });
 
 /**
@@ -58,8 +72,8 @@ export const updateData = cache(async <T extends TableName>(
   const supabase = await createServerSupabaseClient();
   const { data: updatedData, error } = await supabase
     .from(table)
-    .update(data)
-    .eq("id", id)
+    .update(asTablePayload(data))
+    .eq("id", asTablePayload(id))
     .select()
     .single();
 
@@ -71,7 +85,7 @@ export const updateData = cache(async <T extends TableName>(
     throw appError;
   }
 
-  return updatedData;
+  return asTableRow<TableRow<T>>(updatedData);
 });
 
 /**
@@ -86,7 +100,7 @@ export const deleteData = cache(async <T extends TableName>(
   const { data: deletedData, error } = await supabase
     .from(table)
     .delete()
-    .eq("id", id)
+    .eq("id", asTablePayload(id))
     .select();
 
   if (error) {
@@ -97,7 +111,7 @@ export const deleteData = cache(async <T extends TableName>(
     throw appError;
   }
 
-  return deletedData;
+  return asTableRow<TableRow<T>[]>(deletedData);
 });
 
 /**
@@ -113,7 +127,7 @@ export const bulkInsert = cache(async <T extends TableName>(
   const supabase = await createServerSupabaseClient();
   const { data: insertedData, error } = await supabase
     .from(table)
-    .insert(data)
+    .insert(asTablePayload(data))
     .select();
 
   if (error) {
@@ -126,7 +140,7 @@ export const bulkInsert = cache(async <T extends TableName>(
     );
   }
 
-  return insertedData;
+  return asTableRow<TableRow<T>[]>(insertedData);
 });
 
 /**
@@ -190,7 +204,7 @@ export const executeCustomQuery = cache(async <T>(
       );
     }
 
-    return data;
+    return asTableRow<T>(data);
   } catch (error) {
     console.error("사용자 지정 쿼리 오류:", error);
     if (error instanceof DataFetchingError) {

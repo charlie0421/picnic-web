@@ -23,6 +23,20 @@ import { applyFilters, applyOrderBy, applyPagination } from "./query-helpers";
 import { ADMIN_FLAG_COLUMNS, isAdminProfile } from "@/lib/auth/is-admin";
 
 /**
+ * 제네릭 테이블 연산의 타입 브리지.
+ *
+ * `supabase.from(table)` 에서 `table` 이 `T extends TableName` 유니온이면
+ * TypeScript 는 `.insert()`/`.update()`/`.eq()` 의 인자를 유니온 전 멤버에 대해
+ * 동시에 만족시키라고 요구해 좁히지 못한다. 개별 테이블로 호출하면 문제가 없다.
+ *
+ * 공개 API 는 이미 `TableInsert<T>`/`TableUpdate<T>`/`TableRow<T>` 로 호출자에게
+ * 타입 안전하므로, 좁혀지지 않는 내부 경계에만 캐스트를 둔다.
+ * `lib/supabase/typed-rpc.ts` 가 RPC 에 대해 쓰는 것과 같은 격리 전략이다.
+ */
+const asTablePayload = <V,>(value: V) => value as never;
+const asTableRow = <V,>(value: unknown) => value as V;
+
+/**
  * RLS 정책 호환성을 위한 사용자 컨텍스트 인터페이스
  */
 export interface UserContext {
@@ -77,7 +91,7 @@ export const getByIdSafe = cache(async <T>(
     const { data, error } = await supabase
       .from(table)
       .select(columns)
-      .eq("id", id)
+      .eq("id", asTablePayload(id))
       .single();
 
     if (error) {
@@ -136,7 +150,7 @@ export const getListSafe = cache(async <T>(
       // 사용자 소유 데이터만 조회하는 테이블들
       const userOwnedTables = ['vote_pick', 'vote_comment', 'user_profiles'];
       if (userOwnedTables.includes(table)) {
-        query = query.eq('user_id', userContext.userId);
+        query = query.eq('user_id', asTablePayload(userContext.userId));
       }
     }
 
@@ -199,7 +213,7 @@ export const insertDataSafe = cache(async <T extends TableName>(
   try {
     const { data: insertedData, error } = await supabase
       .from(table)
-      .insert(data)
+      .insert(asTablePayload(data))
       .select()
       .single();
 
@@ -209,7 +223,7 @@ export const insertDataSafe = cache(async <T extends TableName>(
       throw appError;
     }
 
-    return insertedData;
+    return asTableRow<TableRow<T>>(insertedData);
   } catch (error) {
     if (error instanceof Error && error.message.includes('RLS')) {
       throw new DataFetchingError(
@@ -247,13 +261,13 @@ export const updateDataSafe = cache(async <T extends TableName>(
   try {
     let query = supabase
       .from(table)
-      .update(data)
-      .eq("id", id);
+      .update(asTablePayload(data))
+      .eq("id", asTablePayload(id));
 
     // 사용자 소유 데이터는 추가 필터링
     const userOwnedTables = ['vote_pick', 'vote_comment', 'user_profiles'];
     if (userOwnedTables.includes(table) && !userContext.isAdmin && userContext.userId) {
-      query = query.eq('user_id', userContext.userId);
+      query = query.eq('user_id', asTablePayload(userContext.userId));
     }
 
     const { data: updatedData, error } = await query
@@ -266,7 +280,7 @@ export const updateDataSafe = cache(async <T extends TableName>(
       throw appError;
     }
 
-    return updatedData;
+    return asTableRow<TableRow<T>>(updatedData);
   } catch (error) {
     if (error instanceof Error && error.message.includes('RLS')) {
       throw new DataFetchingError(
@@ -304,12 +318,12 @@ export const deleteDataSafe = cache(async <T extends TableName>(
     let query = supabase
       .from(table)
       .delete()
-      .eq("id", id);
+      .eq("id", asTablePayload(id));
 
     // 사용자 소유 데이터는 추가 필터링
     const userOwnedTables = ['vote_pick', 'vote_comment'];
     if (userOwnedTables.includes(table) && !userContext.isAdmin && userContext.userId) {
-      query = query.eq('user_id', userContext.userId);
+      query = query.eq('user_id', asTablePayload(userContext.userId));
     }
 
     const { data: deletedData, error } = await query
@@ -321,7 +335,7 @@ export const deleteDataSafe = cache(async <T extends TableName>(
       throw appError;
     }
 
-    return deletedData;
+    return asTableRow<TableRow<T>[]>(deletedData);
   } catch (error) {
     if (error instanceof Error && error.message.includes('RLS')) {
       throw new DataFetchingError(
