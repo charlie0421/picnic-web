@@ -11,7 +11,10 @@ export const getPolicy = cache(
       .from('policy')
       .select('content, language')
       .eq('type', type)
-      .in('language', [lang, 'ko']);
+      // policy.language 컬럼은 'ko' | 'en' 만 가진다. 라우트 lang 은 12개 로케일이라
+      // 그대로 넘기면 타입이 맞지 않고, 실제로도 ko 행만 매치돼 왔다. 같은 결과를
+      // 내면서 타입이 맞도록 지원 언어로 좁힌다.
+      .in('language', [lang === 'en' ? 'en' : 'ko', 'ko']);
 
     if (error) {
       console.error(`[getPolicy] ${type} 정책 조회 실패:`, error);

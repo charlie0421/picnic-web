@@ -107,12 +107,19 @@ export const _getRewardById = async (id: string): Promise<Reward | null> => {
       return null;
     }
 
+    // reward.id 는 number 다. 이 함수는 문자열 id 를 받으므로 여기서 좁힌다.
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) {
+      console.error('[_getRewardById] 유효하지 않은 ID:', id);
+      return null;
+    }
+
     const supabase = createPublicSupabaseClient();
 
     const { data: rewardData, error: rewardError } = await supabase
       .from("reward")
       .select("*")
-      .eq("id", id)
+      .eq("id", numericId)
       .is("deleted_at", null)
       .single();
 

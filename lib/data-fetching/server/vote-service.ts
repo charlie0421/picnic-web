@@ -91,11 +91,18 @@ export const getVoteById = cache(async (
   id: string | number,
 ): Promise<Vote | null> => {
   try {
+    // vote.id 는 number 다. 호출부가 라우트 파라미터(string)를 그대로 넘기므로 여기서 좁힌다.
+    const numericId = typeof id === 'string' ? Number(id) : id;
+    if (!Number.isFinite(numericId)) {
+      console.error('[getVoteById] Invalid vote ID format:', id);
+      return null;
+    }
+
     const client = createPublicSupabaseServerClient();
     const { data, error } = await client
       .from("vote")
       .select(VOTE_DETAIL_SELECT)
-      .eq("id", id)
+      .eq("id", numericId)
       .is("deleted_at", null)
       .single();
 
@@ -117,73 +124,3 @@ export const getVoteById = cache(async (
 });
 
 
-/**
- * 투표 상세 정보 조회 함수 (서버용)
- *
- * 투표 기본 정보, 투표 아이템, 보상, 사용자 투표 기록을 모두 조회합니다.
- * React의 cache를 사용하여 요청을 캐싱합니다.
- */
-export const getVoteDetails = cache(async (
-  voteId: string | number,
-) => {
-  const numericVoteId = typeof voteId === 'string' ? parseInt(voteId, 10) : voteId;
-
-  if (isNaN(numericVoteId)) {
-    console.error('[getVoteDetails] Invalid vote ID format:', voteId);
-    return null;
-  }
-
-  try {
-    const supabase = await createSupabaseServerClient();
-
-    // 1. 투표 기본 정보 및 아이템 정보 가져오기
-    const { data: vote, error: voteError } = await supabase
-      .from('vote')
-      .select('*, vote_item(*, artist(*, artist_group(*)))')
-      .eq('id', numericVoteId)
-      .single();
-
-    if (voteError || !vote) {
-      console.error(`[getVoteDetails] Error fetching vote for id ${numericVoteId}:`, voteError);
-      return null;
-    }
-
-    // 2. 보상 정보 가져오기
-    const { data: rewards, error: rewardsError } = await supabase
-      .from('vote_reward')
-      .select('reward(*)')
-      .eq('vote_id', numericVoteId);
-
-    if (rewardsError) {
-      console.error(`[getVoteDetails] Error fetching rewards for vote id ${numericVoteId}:`, rewardsError);
-    }
-
-    // 3. 사용자 정보 및 투표 기록 가져오기
-    const { data: { user } } = await supabase.auth.getUser();
-
-    let userVotes: { vote_item_id: number; vote_count: number }[] = [];
-    if (user) {
-      const { data, error: userVotesError } = await supabase
-        .from('user_vote_history')
-        .select('vote_item_id, vote_count')
-        .eq('user_id', user.id)
-        .eq('vote_id', numericVoteId);
-
-      if (userVotesError) {
-        console.error(`[getVoteDetails] Error fetching user vote history for user ${user.id}:`, userVotesError);
-      } else {
-        userVotes = data || [];
-      }
-    }
-
-    return {
-      vote,
-      rewards: rewards ? rewards.map(r => r.reward) : [],
-      user,
-      userVotes,
-    };
-  } catch (error) {
-    console.error(`[getVoteDetails] General error for voteId ${numericVoteId}:`, error);
-    return null;
-  }
-});
