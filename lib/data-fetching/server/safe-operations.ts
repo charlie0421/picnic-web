@@ -20,6 +20,7 @@ import {
   DEFAULT_OPTIONS,
 } from "./types";
 import { applyFilters, applyOrderBy, applyPagination } from "./query-helpers";
+import { ADMIN_FLAG_COLUMNS, isAdminProfile } from "@/lib/auth/is-admin";
 
 /**
  * RLS 정책 호환성을 위한 사용자 컨텍스트 인터페이스
@@ -45,13 +46,13 @@ export const getCurrentUserContext = cache(async (): Promise<UserContext> => {
     // 사용자 프로필에서 관리자 여부 확인
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
-      .select('is_admin')
+      .select(ADMIN_FLAG_COLUMNS)
       .eq('id', user.id)
       .single();
 
     return {
       userId: user.id,
-      isAdmin: profile?.is_admin || false,
+      isAdmin: isAdminProfile(profile),
       isAuthenticated: true,
     };
   } catch (error) {

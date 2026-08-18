@@ -1,5 +1,6 @@
 'use client';
 
+import { isAdminProfile } from '@/lib/auth/is-admin';
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePathname } from 'next/navigation';
@@ -16,7 +17,7 @@ const PortalMenuItem = ({ portalType }: PortalMenuItemProps) => {
   const { userProfile } = useAuth();
   const { currentLocale, getLocalizedPath, extractLocaleFromPath } = useLocaleRouter();
   const pathname = usePathname();
-  const isAdmin = userProfile?.is_admin === true;
+  const isAdmin = isAdminProfile(userProfile);
 
   const portalConfig = menuConfig.portals.find(portal => portal.type === portalType);
 

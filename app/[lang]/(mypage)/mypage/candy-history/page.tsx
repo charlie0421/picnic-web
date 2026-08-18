@@ -1,3 +1,4 @@
+import { ADMIN_FLAG_COLUMNS, isAdminProfile } from '@/lib/auth/is-admin';
 import { redirect } from 'next/navigation';
 import { getServerUser, createServerSupabaseClient } from '@/lib/supabase/server';
 import CandyHistoryClient from './CandyHistoryClient';
@@ -18,10 +19,10 @@ export default async function CandyHistoryPage(props: CandyHistoryPageProps) {
   const supabase = await createServerSupabaseClient();
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('is_admin, is_super_admin')
+    .select(ADMIN_FLAG_COLUMNS)
     .eq('id', user.id)
     .single();
-  const isAdmin = !!(profile?.is_admin || profile?.is_super_admin);
+  const isAdmin = isAdminProfile(profile);
   if (!isAdmin) {
     redirect(`/${lang}/mypage`);
   }

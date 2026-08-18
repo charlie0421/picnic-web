@@ -203,18 +203,19 @@ describe('lib/supabase/storage-cleanup', () => {
     vi.clearAllMocks();
     localStorage.clear();
     sessionStorage.clear();
-    // Use the real implementation for storage-cleanup
-    vi.doUnmock('@/lib/supabase/storage-cleanup');
-    storageCleanup = await import('@/lib/supabase/storage-cleanup');
-  });
-
-  afterEach(() => {
-    // Re-mock for other tests
-    vi.doMock('@/lib/supabase/storage-cleanup', () => ({
-      clearBrowserAuthState: vi.fn(),
-      clearAuthLocalStorage: vi.fn(),
-      clearAuthCookies: vi.fn(),
-    }));
+    // 이 describe 는 storage-cleanup 의 실제 구현을 검증한다.
+    //
+    // 예전에는 `vi.doUnmock` + `await import` 로 실제 모듈을 가져오려 했는데,
+    // `doUnmock` 은 모듈 레지스트리가 리셋된 뒤의 import 에만 적용된다.
+    // 리셋 없이 import 하면 파일 상단 `vi.mock` 이 등록해둔 3개짜리 mock 이
+    // 그대로 반환되고, 거기 없는 `clearAuthSessionStorage` 를 호출하는 순간
+    // "No export is defined on the mock" 으로 죽었다. 레지스트리 상태가
+    // 실행 방식(단독 vs 전체)에 따라 달라져 간헐 실패처럼 보였다.
+    //
+    // `importActual` 은 mock 을 우회해 항상 실제 모듈을 준다.
+    storageCleanup = await vi.importActual<typeof import('@/lib/supabase/storage-cleanup')>(
+      '@/lib/supabase/storage-cleanup',
+    );
   });
 
   describe('clearAuthLocalStorage', () => {

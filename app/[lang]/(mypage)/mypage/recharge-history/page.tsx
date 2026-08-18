@@ -1,3 +1,4 @@
+import { ADMIN_FLAG_COLUMNS, isAdminProfile } from '@/lib/auth/is-admin';
 import { getTranslations } from '@/lib/i18n/server';
 import { getRechargeHistory } from '@/lib/data-fetching/server/user-service';
 import { Suspense } from 'react';
@@ -31,10 +32,10 @@ export default async function RechargeHistoryPage(
     const supabase = await createServerSupabaseClient();
     const { data: profile } = await supabase
       .from('user_profiles')
-      .select('is_admin, is_super_admin')
+      .select(ADMIN_FLAG_COLUMNS)
       .eq('id', user!.id)
       .single();
-    const isAdmin = !!(profile?.is_admin || profile?.is_super_admin);
+    const isAdmin = isAdminProfile(profile);
     if (!isAdmin) {
       notFound();
     }
