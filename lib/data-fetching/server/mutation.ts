@@ -21,6 +21,15 @@ import {
 } from "./types";
 
 /**
+ * 제네릭 테이블 연산의 컬럼명 브리지.
+ *
+ * `T extends TableName` 유니온에서는 `.eq(asTableColumn('id'), ...)` 의 컬럼명도 유니온 전 멤버에
+ * 대해 동시에 유효해야 해서 좁혀지지 않는다. 개별 테이블로 호출하면 문제가 없다.
+ * 값 브리지(asTablePayload)와 같은 이유·같은 격리 전략이다.
+ */
+const asTableColumn = <V,>(value: V) => value as never;
+
+/**
  * 제네릭 테이블 연산의 타입 브리지.
  *
  * `supabase.from(table)` 에서 `table` 이 `T extends TableName` 유니온이면
@@ -73,7 +82,7 @@ export const updateData = cache(async <T extends TableName>(
   const { data: updatedData, error } = await supabase
     .from(table)
     .update(asTablePayload(data))
-    .eq("id", asTablePayload(id))
+    .eq(asTableColumn("id"), asTablePayload(id))
     .select()
     .single();
 
@@ -100,7 +109,7 @@ export const deleteData = cache(async <T extends TableName>(
   const { data: deletedData, error } = await supabase
     .from(table)
     .delete()
-    .eq("id", asTablePayload(id))
+    .eq(asTableColumn("id"), asTablePayload(id))
     .select();
 
   if (error) {

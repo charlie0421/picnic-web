@@ -45,8 +45,6 @@ export async function handleGoogleProfile(
                 nickname: data.profile.name || user.email?.split("@")[0] || "User",
                 avatar_url: data.profile.avatar || null,
                 email: data.profile.email || user.email,
-                provider: "google",
-                provider_id: data.profile.id,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
               };
@@ -60,8 +58,6 @@ export async function handleGoogleProfile(
               // 필요한 필드만 업데이트
               await supabase.from("user_profiles").update({
                 avatar_url: data.profile.avatar || existingProfile.avatar_url,
-                provider: "google",
-                provider_id: data.profile.id,
                 updated_at: new Date().toISOString(),
               }).eq("id", user.id);
             }
@@ -80,7 +76,6 @@ export async function handleGoogleProfile(
         nickname: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
         email: user.email,
         avatar_url: null, // JWT 토큰 이미지는 사용하지 않음
-        provider: "google",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -170,8 +165,6 @@ export async function handleAppleProfile(
                 nickname: data.profile.name || userObject?.name?.firstName || user.email?.split("@")[0] || "User",
                 avatar_url: null, // Apple은 프로필 이미지를 제공하지 않음
                 email: data.profile.email || user.email,
-                provider: "apple",
-                provider_id: data.profile.id,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
               };
@@ -190,8 +183,6 @@ export async function handleAppleProfile(
               const { error: updateError } = await supabase
                 .from("user_profiles")
                 .update({
-                  provider: "apple",
-                  provider_id: data.profile.id,
                   updated_at: new Date().toISOString(),
                 })
                 .eq("id", user.id);
@@ -237,7 +228,6 @@ export async function handleAppleProfile(
                  "User",
         email: user.email,
         avatar_url: null, // Apple은 프로필 이미지 제공 안함
-        provider: "apple",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

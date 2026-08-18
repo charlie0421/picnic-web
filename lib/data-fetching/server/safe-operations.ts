@@ -23,6 +23,15 @@ import { applyFilters, applyOrderBy, applyPagination } from "./query-helpers";
 import { ADMIN_FLAG_COLUMNS, isAdminProfile } from "@/lib/auth/is-admin";
 
 /**
+ * 제네릭 테이블 연산의 컬럼명 브리지.
+ *
+ * `T extends TableName` 유니온에서는 `.eq(asTableColumn('id'), ...)` 의 컬럼명도 유니온 전 멤버에
+ * 대해 동시에 유효해야 해서 좁혀지지 않는다. 개별 테이블로 호출하면 문제가 없다.
+ * 값 브리지(asTablePayload)와 같은 이유·같은 격리 전략이다.
+ */
+const asTableColumn = <V,>(value: V) => value as never;
+
+/**
  * 제네릭 테이블 연산의 타입 브리지.
  *
  * `supabase.from(table)` 에서 `table` 이 `T extends TableName` 유니온이면
@@ -61,7 +70,7 @@ export const getCurrentUserContext = cache(async (): Promise<UserContext> => {
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select(ADMIN_FLAG_COLUMNS)
-      .eq('id', user.id)
+      .eq(asTableColumn('id'), user.id)
       .single();
 
     return {
@@ -91,7 +100,7 @@ export const getByIdSafe = cache(async <T>(
     const { data, error } = await supabase
       .from(table)
       .select(columns)
-      .eq("id", asTablePayload(id))
+      .eq(asTableColumn("id"), asTablePayload(id))
       .single();
 
     if (error) {
@@ -150,7 +159,7 @@ export const getListSafe = cache(async <T>(
       // 사용자 소유 데이터만 조회하는 테이블들
       const userOwnedTables = ['vote_pick', 'vote_comment', 'user_profiles'];
       if (userOwnedTables.includes(table)) {
-        query = query.eq('user_id', asTablePayload(userContext.userId));
+        query = query.eq(asTableColumn('user_id'), asTablePayload(userContext.userId));
       }
     }
 
@@ -262,12 +271,12 @@ export const updateDataSafe = cache(async <T extends TableName>(
     let query = supabase
       .from(table)
       .update(asTablePayload(data))
-      .eq("id", asTablePayload(id));
+      .eq(asTableColumn("id"), asTablePayload(id));
 
     // 사용자 소유 데이터는 추가 필터링
     const userOwnedTables = ['vote_pick', 'vote_comment', 'user_profiles'];
     if (userOwnedTables.includes(table) && !userContext.isAdmin && userContext.userId) {
-      query = query.eq('user_id', asTablePayload(userContext.userId));
+      query = query.eq(asTableColumn('user_id'), asTablePayload(userContext.userId));
     }
 
     const { data: updatedData, error } = await query
@@ -318,12 +327,12 @@ export const deleteDataSafe = cache(async <T extends TableName>(
     let query = supabase
       .from(table)
       .delete()
-      .eq("id", asTablePayload(id));
+      .eq(asTableColumn("id"), asTablePayload(id));
 
     // 사용자 소유 데이터는 추가 필터링
     const userOwnedTables = ['vote_pick', 'vote_comment'];
     if (userOwnedTables.includes(table) && !userContext.isAdmin && userContext.userId) {
-      query = query.eq('user_id', asTablePayload(userContext.userId));
+      query = query.eq(asTableColumn('user_id'), asTablePayload(userContext.userId));
     }
 
     const { data: deletedData, error } = await query
