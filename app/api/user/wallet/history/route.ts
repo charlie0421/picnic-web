@@ -1,3 +1,4 @@
+import { ADMIN_FLAG_COLUMNS, isAdminProfile } from '@/lib/auth/is-admin';
 import { NextResponse, NextRequest } from 'next/server';
 import { createSupabaseServerClient, getServerUser } from '@/lib/supabase/server';
 import { normalizeHistoryError } from '@/lib/wallet/history-error';
@@ -32,10 +33,10 @@ export async function GET(request: NextRequest) {
   // API 를 직접 호출하는 경로를 막지 못하므로 BFF 에서도 동일하게 확인한다.
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('is_admin, is_super_admin')
+    .select(ADMIN_FLAG_COLUMNS)
     .eq('id', user.id)
     .single();
-  const isAdmin = !!(profile?.is_admin || profile?.is_super_admin);
+  const isAdmin = isAdminProfile(profile);
   if (!isAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
