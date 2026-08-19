@@ -15,7 +15,7 @@ interface Vote {
     status?: string; // 투표 상태 (활성/예정/종료)
 }
 
-const SYSTEM_ONLY_SEGMENTS = new Set(['debug-env', 'test-redirect', 'open-in-browser']);
+const SYSTEM_ONLY_SEGMENTS = new Set(['open-in-browser']);
 const PRIVATE_ONLY_SEGMENTS = new Set(['login', 'mypage']);
 const HIDDEN_EXACT_PATHS = new Set(['/login', '/mypage', '/streaming-example']);
 
