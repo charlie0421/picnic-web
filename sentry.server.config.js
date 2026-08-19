@@ -38,9 +38,6 @@ if (SENTRY_DSN) {
           },
         },
       }),
-      
-      // Node.js profiling integration
-      Sentry.nodeProfilingIntegration(),
     ],
     
     // Server-specific options
