@@ -1,3 +1,8 @@
+> **경고 (2026-08 확인):** 이 문서가 참조하던 `scripts/rls-policies.sql`·`test-rls-policies.sql` 은 제거됐다.
+> 프로덕션 조회 결과 문서가 전제하는 `auth.is_admin` / `auth.owns_resource` 는 존재하지 않으며,
+> 실제로는 `public.is_admin` 과 `app_auth.is_admin_cached` 가 다른 스키마에 있다.
+> 스키마의 단일 출처는 `picnic-supabase` 레포다. 이 문서는 역사적 참고용이다.
+
 # Row-Level Security (RLS) Implementation Guide
 
 ## 📋 개요

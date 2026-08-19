@@ -1,3 +1,8 @@
+> **경고 (2026-08 확인):** 이 문서가 참조하던 `scripts/create-error-logs-table.sql` 은 제거됐다.
+> 프로덕션에 `error_logs` 테이블이 존재하지 않는다(`types/supabase.ts` 에도 없음).
+> 즉 이 가이드가 설명하는 Supabase 에러 로깅은 실제로 동작하지 않는다.
+> 스키마의 단일 출처는 `picnic-supabase` 레포다.
+
 # 에러 로깅 및 모니터링 시스템 가이드
 
 ## 개요
