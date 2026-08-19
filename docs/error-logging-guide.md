@@ -1,22 +1,16 @@
-> **경고 (2026-08 확인):** 이 문서가 참조하던 `scripts/create-error-logs-table.sql` 은 제거됐다.
-> 프로덕션에 `error_logs` 테이블이 존재하지 않는다(`types/supabase.ts` 에도 없음).
-> 즉 이 가이드가 설명하는 Supabase 에러 로깅은 실제로 동작하지 않는다.
-> 스키마의 단일 출처는 `picnic-supabase` 레포다.
-
 # 에러 로깅 및 모니터링 시스템 가이드
 
 ## 개요
 
-Picnic Web 애플리케이션의 중앙화된 에러 로깅 및 모니터링 시스템입니다. 이 시스템은 다양한 로그 레벨과 컨텍스트를 지원하며, 개발 환경에서는 콘솔에, 프로덕션 환경에서는 Supabase에 로그를 저장합니다.
+Picnic Web 애플리케이션의 중앙화된 에러 로깅 및 모니터링 시스템입니다. 이 시스템은 다양한 로그 레벨과 컨텍스트를 지원하며, 개발 환경에서는 콘솔에, 프로덕션 환경에서는 콘솔과 Sentry에 로그를 보냅니다.
 
 ## 주요 기능
 
 - **다중 로그 레벨**: DEBUG, INFO, WARN, ERROR, FATAL
-- **다중 로그 대상**: 콘솔, Supabase, 외부 모니터링 서비스
+- **다중 로그 대상**: 콘솔, Sentry
 - **자동 컨텍스트 수집**: 요청 정보, 사용자 정보, 에러 스택 트레이스
 - **성능 모니터링**: 작업 실행 시간 측정
 - **자동 에러 분류**: 카테고리, 심각도, 재시도 가능성
-- **통합 에러 핸들링**: API 라우트, 서버 액션과 자동 통합
 
 ## 기본 사용법
 
@@ -67,7 +61,7 @@ await logger.logAppError(appError, {
 ### 3. 요청 컨텍스트 로깅
 
 ```typescript
-import { createRequestLogger } from '@/utils/logger';
+import { createRequestLogger } from '@/utils/logger-utils';
 
 // API 라우트에서
 export async function GET(request: Request) {
@@ -115,112 +109,15 @@ const fetchUserData = withLogging(
 );
 ```
 
-## API 라우트 통합
-
-### 자동 에러 핸들링
-
-```typescript
-import { withApiErrorHandler } from '@/utils/api-error-handler';
-
-export const GET = withApiErrorHandler(async (request) => {
-  // 요청 시작/완료/실패가 자동으로 로깅됨
-  const data = await fetchData();
-  return Response.json(data);
-});
-```
-
-### 수동 로깅
-
-```typescript
-import { createRequestLogger } from '@/utils/logger';
-import { ApiErrorHandler } from '@/utils/api-error-handler';
-
-export async function POST(request: Request) {
-  const requestLogger = createRequestLogger(request);
-  
-  try {
-    const body = await request.json();
-    
-    await requestLogger.info('투표 생성 요청', { 
-      title: body.title,
-      optionCount: body.options?.length 
-    });
-    
-    const vote = await createVote(body);
-    
-    await requestLogger.info('투표 생성 완료', { 
-      voteId: vote.id 
-    });
-    
-    return ApiErrorHandler.createSuccessResponse(vote);
-  } catch (error) {
-    return ApiErrorHandler.handleApiError(error, request);
-  }
-}
-```
-
-## 서버 액션 통합
-
-### 자동 에러 핸들링
-
-```typescript
-import { withServerActionErrorHandler } from '@/utils/server-action-error-handler';
-
-export const submitVote = withServerActionErrorHandler(
-  async (voteId: string, optionId: string) => {
-    // 액션 시작/완료/실패가 자동으로 로깅됨
-    return await database.vote.update({
-      where: { id: voteId },
-      data: { selectedOption: optionId }
-    });
-  },
-  'submit-vote'
-);
-```
-
-### 수동 로깅
-
-```typescript
-import { logger } from '@/utils/logger';
-import { ServerActionErrorHandler } from '@/utils/server-action-error-handler';
-
-export async function createVote(formData: FormData) {
-  try {
-    const title = formData.get('title') as string;
-    
-    await logger.info('투표 생성 시작', { 
-      title,
-      isServerAction: true 
-    });
-    
-    const vote = await database.vote.create({
-      data: { title, options: [] }
-    });
-    
-    await logger.info('투표 생성 완료', { 
-      voteId: vote.id,
-      isServerAction: true 
-    });
-    
-    return ServerActionErrorHandler.createSuccessResult(vote);
-  } catch (error) {
-    return ServerActionErrorHandler.handleServerActionError(
-      error, 
-      'create-vote'
-    );
-  }
-}
-```
-
 ## 로그 대상 설정
 
 ### 기본 설정
 
 ```typescript
-import { Logger, ConsoleLogTarget, SupabaseLogTarget } from '@/utils/logger';
+import { Logger } from '@/utils/logger';
 
 // 개발 환경: 콘솔만
-// 프로덕션 환경: 콘솔 + Supabase
+// 프로덕션 환경: 콘솔 + Sentry
 const logger = new Logger({
   environment: process.env.NODE_ENV,
   service: 'picnic-web',
@@ -231,166 +128,71 @@ const logger = new Logger({
 ### 커스텀 설정
 
 ```typescript
-import { 
-  Logger, 
-  ConsoleLogTarget, 
-  SupabaseLogTarget, 
-  ExternalMonitoringTarget 
-} from '@/utils/logger';
+import { Logger, ConsoleLogTarget, SentryLogTarget } from '@/utils/logger';
 
 const customLogger = new Logger({
   environment: 'production',
   service: 'picnic-api',
   targets: [
     new ConsoleLogTarget(),
-    new SupabaseLogTarget(),
-    new ExternalMonitoringTarget(), // Sentry, LogRocket 등
+    new SentryLogTarget(),
   ],
 });
-
-// 외부 모니터링 서비스 추가
-customLogger.addTarget(new ExternalMonitoringTarget());
 
 // 특정 타겟 제거
 customLogger.removeTarget('console');
 ```
 
-## Supabase 설정
+### SentryLogTarget 동작
 
-### 1. 테이블 생성
+- `ERROR` 와 `FATAL` 레벨만 Sentry 로 전송한다. 그보다 낮은 레벨까지 보내면
+  이슈 목록이 잡음으로 덮인다.
+- 원본 Error 의 스택 트레이스를 보존한다.
+- `service` / `environment` / `version` 은 태그로, `context` 와 `request` 는
+  컨텍스트로, `user` 는 Sentry user 로 붙는다.
+- Sentry 전송이 실패해도 예외를 던지지 않는다. 로깅 실패가 요청을 깨뜨리면 안 된다.
 
-`scripts/create-error-logs-table.sql` 파일을 Supabase SQL Editor에서 실행:
-
-```sql
--- 에러 로그 테이블과 관련 인덱스, 뷰, 함수 생성
--- (파일 내용 참조)
-```
-
-### 2. RLS 정책
-
-- **관리자**: 모든 로그 접근 가능
-- **사용자**: 자신의 로그만 조회 가능
-- **서비스**: 로그 삽입 가능
-
-### 3. 자동 정리
-
-```sql
--- 매일 새벽 2시에 오래된 로그 정리
-SELECT cron.schedule(
-  'cleanup-error-logs', 
-  '0 2 * * *', 
-  'SELECT cleanup_old_error_logs();'
-);
-```
+Sentry 초기화는 `instrumentation-client.ts`, `sentry.server.config.js`,
+`sentry.edge.config.js` 에 있다.
 
 ## 모니터링 및 알림
 
-### 에러 통계 조회
+에러는 Sentry 대시보드에서 확인한다. 이슈 검색에 다음 태그를 쓸 수 있다.
 
-```sql
--- 최근 24시간 에러 통계
-SELECT * FROM error_log_stats;
-
--- 최근 1시간 치명적 에러
-SELECT * FROM recent_errors;
-
--- 에러 트렌드 분석
-SELECT * FROM get_error_trends('2024-01-01'::timestamptz, NOW());
-```
-
-### 실시간 알림
-
-```sql
--- 치명적 에러 발생 시 자동 알림 (트리거)
--- notify_critical_error() 함수에서 외부 알림 시스템 연동
-```
+- `service:picnic-web`
+- `environment:production`
+- `level:error` / `level:fatal`
 
 ## 외부 서비스 연동
 
-### Sentry 연동 예시
+Sentry 연동은 `SentryLogTarget` 으로 이미 구현돼 있다 (`utils/logger-targets.ts`).
+별도 연동 코드를 작성할 필요가 없다.
+
+다른 서비스(LogRocket, DataDog 등)를 붙이려면 `LogTarget` 인터페이스를 구현하고
+`logger.addTarget()` 으로 등록한다.
 
 ```typescript
-// utils/logger.ts의 ExternalMonitoringTarget에서
-import * as Sentry from '@sentry/node';
+import { logger } from '@/utils/logger';
+import type { LogEntry, LogTarget } from '@/utils/logger-types';
 
-private async sendToExternalService(entry: LogEntry): Promise<void> {
-  if (process.env.SENTRY_DSN) {
-    Sentry.captureException(new Error(entry.message), {
-      level: entry.level as any,
-      contexts: {
-        error: entry.error,
-        user: entry.user,
-        request: entry.request,
-      },
-      tags: {
-        environment: entry.environment,
-        service: entry.service,
-      },
-    });
+class MyTarget implements LogTarget {
+  name = 'my-service';
+  async write(entry: LogEntry): Promise<void> {
+    // 전송 실패가 요청을 깨뜨리지 않도록 반드시 try/catch 로 감싼다
   }
 }
-```
 
-## 베스트 프랙티스
-
-### 1. 로그 레벨 선택
-
-- **DEBUG**: 개발 중 디버깅 정보 (프로덕션에서는 기록되지 않음)
-- **INFO**: 일반적인 애플리케이션 흐름 정보
-- **WARN**: 잠재적 문제나 예상치 못한 상황
-- **ERROR**: 처리 가능한 에러 상황
-- **FATAL**: 애플리케이션 중단을 야기할 수 있는 치명적 에러
-
-### 2. 컨텍스트 정보
-
-```typescript
-// 좋은 예: 충분한 컨텍스트 제공
-await logger.error('사용자 인증 실패', error, {
-  userId: user.id,
-  loginAttempt: 3,
-  ipAddress: request.ip,
-  userAgent: request.headers['user-agent'],
-  timestamp: new Date().toISOString(),
-});
-
-// 나쁜 예: 컨텍스트 부족
-await logger.error('인증 실패', error);
-```
-
-### 3. 민감한 정보 보호
-
-```typescript
-// 좋은 예: 민감한 정보 마스킹
-await logger.info('사용자 로그인', {
-  userId: user.id,
-  email: user.email.replace(/(.{2}).*(@.*)/, '$1***$2'),
-  // 비밀번호나 토큰은 절대 로깅하지 않음
-});
-
-// 나쁜 예: 민감한 정보 노출
-await logger.info('사용자 로그인', {
-  password: user.password, // 절대 하지 말 것!
-  token: authToken, // 절대 하지 말 것!
-});
-```
-
-### 4. 성능 고려사항
-
-```typescript
-// 좋은 예: 비동기 로깅으로 성능 영향 최소화
-logger.info('작업 완료', context); // await 없이 호출 가능
-
-// 중요한 에러는 반드시 await
-await logger.fatal('치명적 에러', error, context);
+logger.addTarget(new MyTarget());
 ```
 
 ## 문제 해결
 
-### 1. Supabase 연결 실패
+### 1. Sentry 전송 실패
 
 ```typescript
-// SupabaseLogTarget에서 자동으로 콘솔로 폴백
-// 에러 로그에서 "Supabase 로그 저장 실패" 메시지 확인
+// SentryLogTarget 은 실패해도 예외를 던지지 않는다.
+// 콘솔에서 "Sentry 로그 전송 실패" 메시지를 확인한다.
+// 프로덕션이 아니면 SentryLogTarget 은 애초에 등록되지 않는다.
 ```
 
 ### 2. 로그 누락
@@ -408,7 +210,6 @@ await logger.fatal('치명적 에러', error, context);
 ## 관련 파일
 
 - `utils/logger.ts` - 메인 로깅 시스템
-- `utils/api-error-handler.ts` - API 라우트 통합
-- `utils/server-action-error-handler.ts` - 서버 액션 통합
-- `scripts/create-error-logs-table.sql` - Supabase 테이블 설정
+- `instrumentation.ts` - Sentry 서버/edge 초기화 진입점
+- `utils/logger-targets.ts` - 로그 대상 구현 (ConsoleLogTarget, SentryLogTarget)
 - `docs/error-logging-guide.md` - 이 가이드 문서 

@@ -1,14 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock supabase server client before importing
-vi.mock('@/utils/supabase-server-client', () => ({
-  createServerActionClient: vi.fn().mockResolvedValue({
-    from: () => ({
-      insert: vi.fn().mockResolvedValue({ error: null }),
-    }),
-  }),
-}));
-
 vi.mock('@/utils/error', () => ({
   AppError: class AppError extends Error {
     category: string;
@@ -38,7 +29,7 @@ vi.mock('@/utils/error', () => ({
 }));
 
 import { Logger, LogLevel, logger } from '@/utils/logger';
-import { ConsoleLogTarget, ExternalMonitoringTarget } from '@/utils/logger-targets';
+import { ConsoleLogTarget } from '@/utils/logger-targets';
 import type { LogEntry, LogTarget } from '@/utils/logger-types';
 import { PerformanceTimer, startTimer, withLogging } from '@/utils/logger-utils';
 
@@ -267,25 +258,6 @@ describe('ConsoleLogTarget', () => {
   it('calls console.error for FATAL level', async () => {
     await target.write(makeEntry(LogLevel.FATAL));
     expect(consoleSpy.error).toHaveBeenCalled();
-  });
-});
-
-describe('ExternalMonitoringTarget', () => {
-  it('has name "external"', () => {
-    const target = new ExternalMonitoringTarget();
-    expect(target.name).toBe('external');
-  });
-
-  it('does not throw for non-error level logs', async () => {
-    const target = new ExternalMonitoringTarget();
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level: LogLevel.INFO,
-      message: 'info',
-      environment: 'test',
-      service: 'test',
-    };
-    await expect(target.write(entry)).resolves.not.toThrow();
   });
 });
 

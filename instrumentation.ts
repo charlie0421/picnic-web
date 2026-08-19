@@ -1,23 +1,27 @@
-// Sentry 설정을 등록하기 위한 파일
+// Sentry 초기화 진입점
+//
+// @sentry/nextjs v8+ 부터 sentry.server.config / sentry.edge.config 는
+// 자동으로 로드되지 않는다. 이 파일에서 런타임별로 직접 import 해야
+// Sentry.init 이 실행된다. 클라이언트는 Next 가 instrumentation-client.ts 를
+// 자동 로드하므로 여기서 다루지 않는다.
 import * as Sentry from '@sentry/nextjs';
 
-export function register() {
-  // Sentry 초기화 - 환경에 따라 적절한 설정 파일이 로드됨
-  // - 클라이언트: sentry.client.config.js
-  // - 서버: sentry.server.config.js  
-  // - Edge: sentry.edge.config.js
-  
-  // Sentry 경고 메시지 억제
-  process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';
-  
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('./sentry.server.config');
+  }
+
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    await import('./sentry.edge.config');
+  }
+
   if (process.env.NODE_ENV === 'development') {
-    console.log('🔧 Sentry instrumentation registered for', process.env.NODE_ENV);
+    console.log('🔧 Sentry instrumentation registered for', process.env.NEXT_RUNTIME);
   }
 }
 
-// onRequestError 훅 설정 - Next.js 15.3.1 최신 방식
+// onRequestError 훅 - Next.js 15 방식
 export function onRequestError({ error, request }: { error: any; request: Request }) {
-  // 에러를 Sentry로 전송
   Sentry.captureException(error, {
     tags: {
       component: 'instrumentation',
@@ -35,7 +39,7 @@ export function onRequestError({ error, request }: { error: any; request: Reques
       }
     }
   });
-  
+
   if (process.env.NODE_ENV === 'development') {
     try {
       const msg = (error && (error.message || error.toString?.())) || 'Unknown error';
@@ -44,4 +48,4 @@ export function onRequestError({ error, request }: { error: any; request: Reques
       console.error('🚨 Request error captured by Sentry');
     }
   }
-} 
+}
