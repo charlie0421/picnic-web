@@ -48,8 +48,12 @@ if (SENTRY_DSN) {
     maxBreadcrumbs: 10,
     
     // Edge runtime identifier
-    tags: {
-      runtime: 'edge',
+    // tags 는 Sentry.init 의 옵션이 아니다. 이벤트에 기본 태그를 붙이려면
+    // initialScope 를 써야 한다.
+    initialScope: {
+      tags: {
+        runtime: 'edge',
+      },
     },
   });
   
