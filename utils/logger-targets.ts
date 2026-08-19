@@ -4,7 +4,6 @@
  * 콘솔, Supabase, 외부 모니터링 서비스 로그 대상을 구현합니다.
  */
 
-import { createServerActionClient } from '@/utils/supabase-server-client';
 import { LogLevel, LogEntry, LogTarget } from './logger-types';
 
 /**
@@ -49,78 +48,50 @@ export class ConsoleLogTarget implements LogTarget {
 }
 
 /**
- * Supabase 로그 대상
+ * Sentry 로그 대상
+ *
+ * ERROR / FATAL 레벨만 Sentry 로 보낸다. 그보다 낮은 레벨까지 보내면
+ * 이슈 목록이 잡음으로 덮인다.
  */
-export class SupabaseLogTarget implements LogTarget {
-  name = 'supabase';
+export class SentryLogTarget implements LogTarget {
+  name = 'sentry';
 
   async write(entry: LogEntry): Promise<void> {
-    try {
-      const supabase = await createServerActionClient();
-
-      const { error } = await supabase
-        .from('error_logs')
-        .insert({
-          timestamp: entry.timestamp,
-          level: entry.level,
-          message: entry.message,
-          context: entry.context || {},
-          error_details: entry.error || null,
-          user_details: entry.user || null,
-          request_details: entry.request || null,
-          environment: entry.environment,
-          service: entry.service,
-          version: entry.version || null,
-        });
-
-      if (error) {
-        console.error('Supabase 로그 저장 실패:', error);
-      }
-    } catch (error) {
-      console.error('Supabase 로그 대상 오류:', error);
+    if (entry.level !== LogLevel.ERROR && entry.level !== LogLevel.FATAL) {
+      return;
     }
-  }
-}
 
-/**
- * 외부 모니터링 서비스 로그 대상 (예: Sentry, LogRocket 등)
- */
-export class ExternalMonitoringTarget implements LogTarget {
-  name = 'external';
-
-  async write(entry: LogEntry): Promise<void> {
     try {
-      // 여기에 외부 모니터링 서비스 연동 로직 추가
-      // 예: Sentry, LogRocket, DataDog 등
+      const Sentry = await import('@sentry/nextjs');
 
-      if (entry.level === LogLevel.ERROR || entry.level === LogLevel.FATAL) {
-        // 에러 레벨의 로그만 외부 서비스로 전송
-        await this.sendToExternalService(entry);
+      // 원본 Error 를 재사용해야 스택 트레이스가 보존된다.
+      const error = new Error(entry.message);
+      if (entry.error?.stack) {
+        error.stack = entry.error.stack;
       }
-    } catch (error) {
-      console.error('외부 모니터링 서비스 전송 실패:', error);
-    }
-  }
+      if (entry.error?.name) {
+        error.name = entry.error.name;
+      }
 
-  private async sendToExternalService(entry: LogEntry): Promise<void> {
-    // 실제 외부 서비스 연동 구현
-    // 예시: Sentry
-    /*
-    if (typeof window === 'undefined' && process.env.SENTRY_DSN) {
-      const Sentry = await import('@sentry/node');
-      Sentry.captureException(new Error(entry.message), {
-        level: entry.level as any,
-        contexts: {
-          error: entry.error,
-          user: entry.user,
-          request: entry.request,
-        },
+      Sentry.captureException(error, {
+        level: entry.level === LogLevel.FATAL ? 'fatal' : 'error',
         tags: {
-          environment: entry.environment,
           service: entry.service,
+          environment: entry.environment,
+          ...(entry.version ? { version: entry.version } : {}),
+        },
+        user: entry.user,
+        contexts: {
+          log: {
+            timestamp: entry.timestamp,
+            ...(entry.context ?? {}),
+          },
+          ...(entry.request ? { request: entry.request } : {}),
         },
       });
+    } catch (err) {
+      // 로깅 실패가 요청을 깨뜨리면 안 된다.
+      console.error('Sentry 로그 전송 실패:', err);
     }
-    */
   }
 }

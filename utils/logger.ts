@@ -6,11 +6,11 @@
 
 import { AppError, ErrorSeverity } from '@/utils/error';
 import { LogLevel, LogEntry, LogTarget } from './logger-types';
-import { ConsoleLogTarget, SupabaseLogTarget } from './logger-targets';
+import { ConsoleLogTarget, SentryLogTarget } from './logger-targets';
 
 // Barrel re-exports — 기존 import 경로(@/utils/logger) 유지
 export * from './logger-types';
-export { ConsoleLogTarget, SupabaseLogTarget, ExternalMonitoringTarget } from './logger-targets';
+export { ConsoleLogTarget, SentryLogTarget } from './logger-targets';
 
 
 /**
@@ -35,7 +35,7 @@ export class Logger {
     // 기본 타겟 설정
     this.targets = options.targets || [
       new ConsoleLogTarget(),
-      ...(this.environment === 'production' ? [new SupabaseLogTarget()] : []),
+      ...(this.environment === 'production' ? [new SentryLogTarget()] : []),
     ];
   }
 
