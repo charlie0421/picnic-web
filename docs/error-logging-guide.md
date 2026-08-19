@@ -110,103 +110,6 @@ const fetchUserData = withLogging(
 );
 ```
 
-## API 라우트 통합
-
-### 자동 에러 핸들링
-
-```typescript
-import { withApiErrorHandler } from '@/utils/api-error-handler';
-
-export const GET = withApiErrorHandler(async (request) => {
-  // 요청 시작/완료/실패가 자동으로 로깅됨
-  const data = await fetchData();
-  return Response.json(data);
-});
-```
-
-### 수동 로깅
-
-```typescript
-import { createRequestLogger } from '@/utils/logger';
-import { ApiErrorHandler } from '@/utils/api-error-handler';
-
-export async function POST(request: Request) {
-  const requestLogger = createRequestLogger(request);
-  
-  try {
-    const body = await request.json();
-    
-    await requestLogger.info('투표 생성 요청', { 
-      title: body.title,
-      optionCount: body.options?.length 
-    });
-    
-    const vote = await createVote(body);
-    
-    await requestLogger.info('투표 생성 완료', { 
-      voteId: vote.id 
-    });
-    
-    return ApiErrorHandler.createSuccessResponse(vote);
-  } catch (error) {
-    return ApiErrorHandler.handleApiError(error, request);
-  }
-}
-```
-
-## 서버 액션 통합
-
-### 자동 에러 핸들링
-
-```typescript
-import { withServerActionErrorHandler } from '@/utils/server-action-error-handler';
-
-export const submitVote = withServerActionErrorHandler(
-  async (voteId: string, optionId: string) => {
-    // 액션 시작/완료/실패가 자동으로 로깅됨
-    return await database.vote.update({
-      where: { id: voteId },
-      data: { selectedOption: optionId }
-    });
-  },
-  'submit-vote'
-);
-```
-
-### 수동 로깅
-
-```typescript
-import { logger } from '@/utils/logger';
-import { ServerActionErrorHandler } from '@/utils/server-action-error-handler';
-
-export async function createVote(formData: FormData) {
-  try {
-    const title = formData.get('title') as string;
-    
-    await logger.info('투표 생성 시작', { 
-      title,
-      isServerAction: true 
-    });
-    
-    const vote = await database.vote.create({
-      data: { title, options: [] }
-    });
-    
-    await logger.info('투표 생성 완료', { 
-      voteId: vote.id,
-      isServerAction: true 
-    });
-    
-    return ServerActionErrorHandler.createSuccessResult(vote);
-  } catch (error) {
-    return ServerActionErrorHandler.handleServerActionError(
-      error, 
-      'create-vote'
-    );
-  }
-}
-```
-
 ## 로그 대상 설정
 
 ### 기본 설정
@@ -261,26 +164,6 @@ Sentry 초기화는 `instrumentation-client.ts`, `sentry.server.config.js`,
 - `environment:production`
 - `level:error` / `level:fatal`
 
-### 에러 통계 조회
-
-```sql
--- 최근 24시간 에러 통계
-SELECT * FROM error_log_stats;
-
--- 최근 1시간 치명적 에러
-SELECT * FROM recent_errors;
-
--- 에러 트렌드 분석
-SELECT * FROM get_error_trends('2024-01-01'::timestamptz, NOW());
-```
-
-### 실시간 알림
-
-```sql
--- 치명적 에러 발생 시 자동 알림 (트리거)
--- notify_critical_error() 함수에서 외부 알림 시스템 연동
-```
-
 ## 외부 서비스 연동
 
 Sentry 연동은 `SentryLogTarget` 으로 이미 구현돼 있다 (`utils/logger-targets.ts`).
@@ -328,7 +211,6 @@ logger.addTarget(new MyTarget());
 ## 관련 파일
 
 - `utils/logger.ts` - 메인 로깅 시스템
+- `instrumentation.ts` - Sentry 서버/edge 초기화 진입점
 - `utils/logger-targets.ts` - 로그 대상 구현 (ConsoleLogTarget, SentryLogTarget)
-- `utils/api-error-handler.ts` - API 라우트 통합
-- `utils/server-action-error-handler.ts` - 서버 액션 통합
 - `docs/error-logging-guide.md` - 이 가이드 문서 

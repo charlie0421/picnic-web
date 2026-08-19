@@ -1,7 +1,7 @@
 /**
  * 백엔드 에러 로깅 및 모니터링 시스템 - 로그 대상 구현
  *
- * 콘솔, Supabase, 외부 모니터링 서비스 로그 대상을 구현합니다.
+ * 콘솔과 Sentry 로그 대상을 구현합니다.
  */
 
 import { LogLevel, LogEntry, LogTarget } from './logger-types';
@@ -61,17 +61,18 @@ export class SentryLogTarget implements LogTarget {
       return;
     }
 
+    // Error 는 await 앞에서 만든다. async 경계를 넘은 뒤 생성하면
+    // entry.error 없이 message 만 로깅할 때 호출부 프레임이 사라진다.
+    const error = new Error(entry.message);
+    if (entry.error?.stack) {
+      error.stack = entry.error.stack;
+    }
+    if (entry.error?.name) {
+      error.name = entry.error.name;
+    }
+
     try {
       const Sentry = await import('@sentry/nextjs');
-
-      // 원본 Error 를 재사용해야 스택 트레이스가 보존된다.
-      const error = new Error(entry.message);
-      if (entry.error?.stack) {
-        error.stack = entry.error.stack;
-      }
-      if (entry.error?.name) {
-        error.name = entry.error.name;
-      }
 
       Sentry.captureException(error, {
         level: entry.level === LogLevel.FATAL ? 'fatal' : 'error',
