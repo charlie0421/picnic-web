@@ -7,11 +7,10 @@ Picnic Web 애플리케이션의 중앙화된 에러 로깅 및 모니터링 시
 ## 주요 기능
 
 - **다중 로그 레벨**: DEBUG, INFO, WARN, ERROR, FATAL
-- **다중 로그 대상**: 콘솔, Supabase, 외부 모니터링 서비스
+- **다중 로그 대상**: 콘솔, Sentry
 - **자동 컨텍스트 수집**: 요청 정보, 사용자 정보, 에러 스택 트레이스
 - **성능 모니터링**: 작업 실행 시간 측정
 - **자동 에러 분류**: 카테고리, 심각도, 재시도 가능성
-- **통합 에러 핸들링**: API 라우트, 서버 액션과 자동 통합
 
 ## 기본 사용법
 
@@ -62,7 +61,7 @@ await logger.logAppError(appError, {
 ### 3. 요청 컨텍스트 로깅
 
 ```typescript
-import { createRequestLogger } from '@/utils/logger';
+import { createRequestLogger } from '@/utils/logger-utils';
 
 // API 라우트에서
 export async function GET(request: Request) {
