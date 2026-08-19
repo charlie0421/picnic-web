@@ -27,12 +27,6 @@ vi.mock('next/headers', () => ({
   headers: () => new Map(),
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => 'ko',
-  getTranslations: vi.fn(() => (key: string) => key),
-}))
-
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
