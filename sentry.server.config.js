@@ -71,9 +71,6 @@ if (SENTRY_DSN) {
     // Additional server options
     maxBreadcrumbs: 50,
     
-    // Capture unhandled rejections
-    captureUnhandledRejections: true,
-    
     // Server name for identification
     serverName: process.env.SENTRY_SERVER_NAME || 'picnic-web-server',
   });
