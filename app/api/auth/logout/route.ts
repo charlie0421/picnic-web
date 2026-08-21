@@ -6,6 +6,7 @@
  */
 
 import { NextResponse, NextRequest } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { SupabaseAuthError } from '@/lib/supabase/error';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
@@ -205,7 +206,7 @@ export async function POST(request: NextRequest) {
     } catch {}
     return response;
   } catch (error) {
-    console.error('[/api/auth/logout] error:', error);
+    logError('[/api/auth/logout] error:', error);
     const status = error instanceof SupabaseAuthError ? error.status : 500;
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Logout failed' },
@@ -240,7 +241,7 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('로그아웃 상태 조회 중 오류:', error);
+    logError('로그아웃 상태 조회 중 오류:', error);
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다.' },
       { status: 500 }

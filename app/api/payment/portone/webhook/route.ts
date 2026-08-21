@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 import {
   createServiceRoleSupabaseClient,
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     try {
       supabase = createServiceRoleSupabaseClient();
     } catch (error) {
-      console.error('[Webhook] Failed to create Supabase client:', error);
+      logError('[Webhook] Failed to create Supabase client:', error);
       return NextResponse.json(
         { error: 'Failed to initialize database', details: error instanceof Error ? error.message : 'Unknown error' },
         { status: 500 }
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
                       '';
 
     if (!verifyWebhookSignature(body, signature)) {
-      console.error('[Webhook] Webhook signature verification failed');
+      logError('[Webhook] Webhook signature verification failed');
       return NextResponse.json(
         { error: 'Invalid or missing signature' },
         { status: 401 }
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // paymentId는 반드시 필요
     if (!paymentId) {
-      console.error('[Webhook] Missing paymentId in webhook payload');
+      logError('[Webhook] Missing paymentId in webhook payload');
       return NextResponse.json(
         { error: 'Missing paymentId', receivedBody: body },
         { status: 400 }
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
     try {
       paymentData = await verifyPortOnePayment(paymentId);
     } catch (error) {
-      console.error('[Webhook] Payment verification error:', error instanceof Error ? error.message : String(error));
+      logError('[Webhook] Payment verification error:', error instanceof Error ? error.message : String(error));
 
       // Never fall back to unverified webhook data for payment processing.
       // Reject the webhook and let PortOne retry later.
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
     try {
       customData = parseCustomData(paymentData);
     } catch (e) {
-      console.error('[Webhook] Failed to parse custom data:', e);
+      logError('[Webhook] Failed to parse custom data:', e);
       return NextResponse.json(
         { error: 'Invalid payment data', details: e instanceof Error ? e.message : 'Parse error' },
         { status: 400 }
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     // customData에서 필수 정보 확인
     if (!userId || !productId) {
-      console.error('[Webhook] Missing userId or productId in custom data:', { paymentId });
+      logError('[Webhook] Missing userId or productId in custom data:', { paymentId });
 
       return NextResponse.json(
         {
@@ -192,7 +193,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (userProfileError) {
-      console.error('[Webhook] Failed to check user profile:', userProfileError);
+      logError('[Webhook] Failed to check user profile:', userProfileError);
     }
 
     if (userProfile?.deleted_at) {
@@ -260,7 +261,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (rpcError) {
-      console.error('[Webhook] process_portone_capture failed:', rpcError);
+      logError('[Webhook] process_portone_capture failed:', rpcError);
       // 500 so PortOne retries — the RPC either rolled back cleanly (nothing
       // to reconcile) or failed before any write, so retry is safe.
       return NextResponse.json(
@@ -279,7 +280,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, receipt_id: rpcResult.receipt_id });
 
   } catch (error) {
-    console.error('[Webhook] Processing error:', error instanceof Error ? error.message : String(error));
+    logError('[Webhook] Processing error:', error instanceof Error ? error.message : String(error));
 
     // 500을 반환하여 PortOne이 재시도하도록 한다. 이제 모든 DB write 는
     // 단일 트랜잭션이므로 재시도해도 중복 적립이 발생하지 않는다 (receipts

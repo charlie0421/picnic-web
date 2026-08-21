@@ -5,6 +5,7 @@
  */
 
 import { LogLevel, LogEntry, LogTarget } from './logger-types';
+import { redactLogEntry } from './log-redaction';
 
 /**
  * 콘솔 로그 대상
@@ -56,10 +57,14 @@ export class ConsoleLogTarget implements LogTarget {
 export class SentryLogTarget implements LogTarget {
   name = 'sentry';
 
-  async write(entry: LogEntry): Promise<void> {
-    if (entry.level !== LogLevel.ERROR && entry.level !== LogLevel.FATAL) {
+  async write(rawEntry: LogEntry): Promise<void> {
+    if (rawEntry.level !== LogLevel.ERROR && rawEntry.level !== LogLevel.FATAL) {
       return;
     }
+
+    // 외부로 나가기 직전에 민감 값을 걷어낸다. 호출부가 무엇을 넣든
+    // 여기서 한 번 걸러진다.
+    const entry = redactLogEntry(rawEntry);
 
     // Error 는 await 앞에서 만든다. async 경계를 넘은 뒤 생성하면
     // entry.error 없이 message 만 로깅할 때 호출부 프레임이 사라진다.

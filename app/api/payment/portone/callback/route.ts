@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 
 function isValidInternalRedirect(path: string): boolean {
   if (!path || typeof path !== 'string') return false;
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
-    console.error('[Callback] PortOne callback error:', error);
+    logError('[Callback] PortOne callback error:', error);
     return NextResponse.redirect(new URL('/ko/star-candy', request.url));
   }
 }

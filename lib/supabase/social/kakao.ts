@@ -5,6 +5,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { logError } from '@/utils/log-error';
 import { Database } from '@/types/supabase';
 import {
   SocialAuthOptions,
@@ -129,7 +130,7 @@ export async function signInWithKakaoImpl(
     });
     
     if (error) {
-      console.error('❌ Supabase Kakao OAuth 오류:', error);
+      logError('❌ Supabase Kakao OAuth 오류:', error);
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
         `Supabase Kakao OAuth 실패: ${error.message}`,
@@ -218,7 +219,7 @@ export async function getKakaoUserInfo(accessToken: string): Promise<Record<stri
     const userData = await response.json();
     return userData;
   } catch (error) {
-    console.error('Kakao 사용자 정보 가져오기 실패:', error);
+    logError('Kakao 사용자 정보 가져오기 실패:', error);
     throw new SocialAuthError(
       SocialAuthErrorCode.PROFILE_FETCH_FAILED,
       '카카오 사용자 정보를 가져오는데 실패했습니다.',
@@ -263,7 +264,7 @@ export async function refreshKakaoToken(refreshToken: string): Promise<Record<st
     const tokenData = await response.json();
     return tokenData;
   } catch (error) {
-    console.error('Kakao 토큰 갱신 실패:', error);
+    logError('Kakao 토큰 갱신 실패:', error);
     throw new SocialAuthError(
       SocialAuthErrorCode.TOKEN_REFRESH_FAILED, 
       '카카오 토큰 갱신에 실패했습니다.',
