@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { normalizeKakaoProfile } from '@/lib/supabase/social/kakao';
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     const clientSecret = process.env.KAKAO_CLIENT_SECRET;
 
     if (!clientId) {
-      console.error('Kakao 클라이언트 ID가 설정되지 않았습니다.');
+      logError('Kakao 클라이언트 ID가 설정되지 않았습니다.');
       return NextResponse.json(
         { error: 'Kakao 클라이언트 ID가 설정되지 않았습니다.' },
         { status: 500 }
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('액세스 토큰 요청 실패:', errorText);
+      logError('액세스 토큰 요청 실패:', errorText);
       return NextResponse.json(
         { error: '액세스 토큰 요청 실패' },
         { status: 502 }
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     const token: string | undefined = tokenData.access_token;
 
     if (!token) {
-      console.error('Kakao 액세스 토큰을 획득하지 못했습니다.');
+      logError('Kakao 액세스 토큰을 획득하지 못했습니다.');
       return NextResponse.json(
         { error: 'Kakao 액세스 토큰을 획득하지 못했습니다.' },
         { status: 502 }
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
     
     if (!userInfoResponse.ok) {
       const errorText = await userInfoResponse.text();
-      console.error('Kakao 사용자 정보 요청 실패:', errorText);
+      logError('Kakao 사용자 정보 요청 실패:', errorText);
       return NextResponse.json(
         { error: 'Kakao 사용자 정보 요청 실패' },
         { status: 502 }
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
       existingUser: false
     });
   } catch (error) {
-    console.error('Kakao 인증 처리 중 오류:', error);
+    logError('Kakao 인증 처리 중 오류:', error);
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다.' },
       { status: 500 }
@@ -188,7 +189,7 @@ export async function DELETE(request: NextRequest) {
     
     if (!unlinkResponse.ok) {
       const errorText = await unlinkResponse.text();
-      console.error('Kakao 연결 해제 요청 실패:', errorText);
+      logError('Kakao 연결 해제 요청 실패:', errorText);
       return NextResponse.json(
         { error: 'Kakao 연결 해제 요청 실패' },
         { status: 502 }
@@ -202,7 +203,7 @@ export async function DELETE(request: NextRequest) {
       id: unlinkData.id
     });
   } catch (error) {
-    console.error('Kakao 연결 해제 처리 중 오류:', error);
+    logError('Kakao 연결 해제 처리 중 오류:', error);
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다.' },
       { status: 500 }

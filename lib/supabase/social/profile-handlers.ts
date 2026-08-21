@@ -1,4 +1,5 @@
 import { SupabaseClient, User } from "@supabase/supabase-js";
+import { logError } from '@/utils/log-error';
 import { Database } from "@/types/supabase";
 
 /**
@@ -59,7 +60,7 @@ async function insertProfileIfMissing(
     .maybeSingle();
 
   if (checkError) {
-    console.error(`${logPrefix} 기존 프로필 확인 오류:`, checkError);
+    logError(`${logPrefix} 기존 프로필 확인 오류:`, checkError);
     return;
   }
 
@@ -77,7 +78,7 @@ async function insertProfileIfMissing(
   });
 
   if (insertError) {
-    console.error(`${logPrefix} 프로필 생성 실패:`, insertError);
+    logError(`${logPrefix} 프로필 생성 실패:`, insertError);
   }
 }
 
@@ -102,7 +103,7 @@ export async function handleGoogleProfile(
     });
   } catch (error) {
     // 프로필 처리 실패해도 로그인 자체는 성공으로 처리한다.
-    console.error("Google 프로필 처리 오류:", error);
+    logError("Google 프로필 처리 오류:", error);
   }
 }
 
@@ -128,7 +129,7 @@ export async function handleAppleProfile(
           [parsed.name?.firstName, parsed.name?.lastName].filter(Boolean).join(" ") ||
           undefined;
       } catch (error) {
-        console.error("🍎 [Apple] 사용자 데이터 파싱 오류:", error);
+        logError("🍎 [Apple] 사용자 데이터 파싱 오류:", error);
       }
     }
 
@@ -138,6 +139,6 @@ export async function handleAppleProfile(
       avatarUrl: null,
     });
   } catch (error) {
-    console.error("🍎 [Apple] 프로필 처리 오류:", error);
+    logError("🍎 [Apple] 프로필 처리 오류:", error);
   }
 }

@@ -79,4 +79,30 @@ describe('SentryLogTarget', () => {
 
     await expect(new SentryLogTarget().write(entry(LogLevel.ERROR))).resolves.toBeUndefined();
   });
+
+  it('민감 헤더와 쿼리스트링을 제거한 뒤 전송한다', async () => {
+    await new SentryLogTarget().write(
+      entry(LogLevel.ERROR, {
+        user: { id: 'u1', email: 'a@b.com' },
+        request: {
+          method: 'GET',
+          url: '/api/user/profile?token=secret-value',
+          ip: '203.0.113.9',
+          headers: { authorization: 'Bearer leaked', accept: 'application/json' },
+        },
+        context: { operation: 'vote', accessToken: 'tok-leaked' },
+      }),
+    );
+
+    const payload = JSON.stringify(captureException.mock.calls[0][1]);
+    expect(payload).not.toContain('Bearer leaked');
+    expect(payload).not.toContain('secret-value');
+    expect(payload).not.toContain('tok-leaked');
+    expect(payload).not.toContain('a@b.com');
+    expect(payload).not.toContain('203.0.113.9');
+    // 진단에 필요한 값은 남아야 한다
+    expect(payload).toContain('u1');
+    expect(payload).toContain('/api/user/profile');
+    expect(payload).toContain('application/json');
+  });
 });

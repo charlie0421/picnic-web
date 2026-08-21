@@ -7,6 +7,27 @@
 import { AppError } from '@/utils/error';
 import { Logger, logger } from './logger';
 
+/** 로그에 남겨도 안전한 요청 헤더 allowlist. */
+const SAFE_REQUEST_HEADERS = [
+  'accept',
+  'accept-language',
+  'content-type',
+  'user-agent',
+  'referer',
+  'x-request-id',
+];
+
+/** allowlist 에 있는 헤더만 뽑는다. */
+function collectSafeHeaders(headers: Headers): Record<string, string> {
+  const out: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    if (SAFE_REQUEST_HEADERS.includes(key.toLowerCase())) {
+      out[key] = value;
+    }
+  });
+  return out;
+}
+
 /**
  * 요청 컨텍스트에서 로거 생성
  */
@@ -26,7 +47,9 @@ export function createRequestLogger(request: Request): Logger {
     url: url.pathname + url.search,
     userAgent,
     ip,
-    headers: Object.fromEntries(request.headers.entries()),
+    // 헤더 원문을 통째로 담지 않는다. redactLogEntry 가 한 번 더 걸러주지만
+    // 애초에 담지 않는 편이 안전하다.
+    headers: collectSafeHeaders(request.headers),
   };
 
   // 로거 메서드 오버라이드하여 요청 컨텍스트 자동 추가
