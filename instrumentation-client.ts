@@ -34,9 +34,13 @@ if (SENTRY_DSN) {
     integrations: [
       // Session Replay integration for debugging
       Sentry.replayIntegration({
-        // Mask all text content, but not input values
-        maskAllText: false,
-        // Block all media elements
+        // 화면의 모든 텍스트를 마스킹한다. false 로 두면 로그인·마이페이지·QnA
+        // 같은 화면에서 오류가 한 번만 나도 사용자 텍스트가 그대로 외부로
+        // 전송된다(SDK 기본값도 true 다).
+        maskAllText: true,
+        // 입력값은 항상 마스킹한다
+        maskAllInputs: true,
+        // 미디어 요소 차단
         blockAllMedia: true,
       }),
       

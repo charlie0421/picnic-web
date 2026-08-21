@@ -23,19 +23,20 @@ if (SENTRY_DSN) {
     // Integrations for server-side
     integrations: [
       // HTTP integration for tracking HTTP requests
+      // ignoreIncomingRequests / ignoreOutgoingRequests 는 HttpOptions 의
+      // 최상위 옵션이다. tracing 하위에 두면 SDK 가 읽지 않아 필터가
+      // 통째로 무시된다(@sentry/node 9.x HttpOptions 참조).
       Sentry.httpIntegration({
-        tracing: {
-          // Don't track requests to health check endpoints
-          ignoreIncomingRequests: (url) => {
-            return url.includes('/api/health') || 
-                   url.includes('/api/ping') ||
-                   url.includes('/_next/static') ||
-                   url.includes('/favicon.ico');
-          },
-          // Don't track outgoing requests to certain domains
-          ignoreOutgoingRequests: (url) => {
-            return url.includes('sentry.io');
-          },
+        // Don't track requests to health check endpoints
+        ignoreIncomingRequests: (url) => {
+          return url.includes('/api/health') ||
+                 url.includes('/api/ping') ||
+                 url.includes('/_next/static') ||
+                 url.includes('/favicon.ico');
+        },
+        // Don't track outgoing requests to certain domains
+        ignoreOutgoingRequests: (url) => {
+          return url.includes('sentry.io');
         },
       }),
     ],
