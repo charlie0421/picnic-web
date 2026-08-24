@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production'
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (productError) {
-      console.error('Product lookup failed:', productError);
+      logError('Product lookup failed:', productError);
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
     if (customIdPayload.length > 127) {
-      console.error('PayPal custom_id payload exceeds 127-byte limit', {
+      logError('PayPal custom_id payload exceeds 127-byte limit', {
         length: customIdPayload.length,
         productId: product.id,
         userId: user.id,
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
     const order = await response.json();
 
     if (!response.ok) {
-      console.error('PayPal order creation failed:', order);
+      logError('PayPal order creation failed:', order);
       return NextResponse.json(
         { error: 'Failed to create PayPal order' },
         { status: 500 }
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ orderID: order.id });
 
   } catch (error) {
-    console.error('Create order error:', error);
+    logError('Create order error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

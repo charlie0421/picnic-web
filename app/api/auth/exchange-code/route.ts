@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getSocialAuthService } from '@/lib/supabase/social/service';
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       // SECURITY: never echo Supabase auth error details to clients —
       // they leak project metadata and internal state useful to attackers.
-      console.error('❌ [API] OAuth 코드 교환 실패:', error);
+      logError('❌ [API] OAuth 코드 교환 실패:', error);
       return NextResponse.json(
         { error: 'OAuth 코드 교환 실패', success: false },
         { status: 400 }
@@ -89,10 +90,10 @@ export async function POST(request: NextRequest) {
         );
         
         if (!callbackResult.success) {
-          console.error(`[API] ${provider} 프로필 처리 실패:`, callbackResult.error?.message);
+          logError(`[API] ${provider} 프로필 처리 실패:`, callbackResult.error?.message);
         }
       } catch (profileError) {
-        console.error(`[API] ${provider} 프로필 처리 중 오류:`, profileError);
+        logError(`[API] ${provider} 프로필 처리 중 오류:`, profileError);
         // 프로필 처리 실패해도 로그인 자체는 성공으로 처리
       }
     }
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
     // SECURITY: stack traces and raw error messages must not reach API
     // responses, even in development — client-side telemetry can capture
     // them and forward to third parties.
-    console.error('[API] exchange-code 서버 오류:', error);
+    logError('[API] exchange-code 서버 오류:', error);
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다.', success: false },
       { status: 500 }

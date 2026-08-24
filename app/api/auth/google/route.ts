@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logError } from '@/utils/log-error';
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (error) {
-      console.error('Google OAuth 시작 실패:', error);
+      logError('Google OAuth 시작 실패:', error);
       return NextResponse.json(
         { error: `Google OAuth 시작 실패: ${error.message}` },
         { status: 400 }
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } catch (error) {
-    console.error('Google OAuth GET API 에러:', error);
+    logError('Google OAuth GET API 에러:', error);
     return NextResponse.json(
       { error: '서버 내부 오류가 발생했습니다' },
       { status: 500 }
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
           profile: userProfile,
         });
       } catch (error) {
-        console.error('[Google API] ID 토큰 서명 검증 실패:', error);
+        logError('[Google API] ID 토큰 서명 검증 실패:', error);
         return NextResponse.json(
           { error: "ID 토큰 검증 실패" },
           { status: 401 }
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json();
-      console.error('토큰 교환 실패:', errorData);
+      logError('토큰 교환 실패:', errorData);
       return NextResponse.json(
         { error: `토큰 교환 실패: ${errorData.error}` },
         { status: 400 }
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
 
     if (!userInfoResponse.ok) {
       const errorData = await userInfoResponse.json();
-      console.error('사용자 정보 가져오기 실패:', errorData);
+      logError('사용자 정보 가져오기 실패:', errorData);
       return NextResponse.json(
         { error: "사용자 정보 가져오기 실패" },
         { status: 400 }
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
       profile: userProfile,
     });
   } catch (error) {
-    console.error('Google OAuth POST API 에러:', error);
+    logError('Google OAuth POST API 에러:', error);
     return NextResponse.json(
       { error: '서버 내부 오류가 발생했습니다' },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { SupabaseAuthError } from '@/lib/supabase/error';
 
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     // 이메일 인증이 활성화된 경우, user 객체는 있지만 session은 null일 수 있습니다.
     return NextResponse.json({ user: data.user, session: data.session });
   } catch (error) {
-    console.error('[/api/auth/register] error:', error);
+    logError('[/api/auth/register] error:', error);
     const status = error instanceof SupabaseAuthError ? error.status : 500;
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Registration failed' },

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { PaymentClient } from '@portone/server-sdk';
 
 // Port One API configuration (v2 API)
@@ -41,7 +42,7 @@ export interface PortOneV2PaymentResponse {
 // Verify payment with Port One v2 API using paymentId (서버 SDK 사용)
 export async function verifyPortOnePayment(paymentId: string): Promise<PortOneV2PaymentResponse> {
   if (!paymentClient) {
-    console.error('[Verify] Payment client not initialized:', {
+    logError('[Verify] Payment client not initialized:', {
       hasApiSecret: !!PORTONE_API_SECRET,
     });
     throw new Error('PORTONE_API_SECRET must be set in environment variables');
@@ -54,7 +55,7 @@ export async function verifyPortOnePayment(paymentId: string): Promise<PortOneV2
 
     return payment as unknown as PortOneV2PaymentResponse;
   } catch (error) {
-    console.error('[Verify] Payment verification failed:', error instanceof Error ? error.message : String(error));
+    logError('[Verify] Payment verification failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

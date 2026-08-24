@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { getServerUser } from '@/lib/supabase/server';
 
 export async function GET() {
@@ -18,7 +19,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('[/api/auth/session] error:', error);
+    logError('[/api/auth/session] error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred.' },
       { status: 500 }
