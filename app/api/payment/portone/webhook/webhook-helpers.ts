@@ -61,7 +61,8 @@ export function verifyWebhookSignature(payload: any, signature: string): boolean
   }
 
   if (!signature) {
-    logError('[Webhook] No signature provided in webhook request');
+    // 호출부(route)가 검증 실패를 한 번 기록한다. 여기서 또 기록하면
+    // 익명 요청 한 번에 이벤트가 두 건 생긴다.
     return false;
   }
 

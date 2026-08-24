@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logError, logWarn } from '@/utils/log-error';
 import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 import {
   verifyPortOnePayment,
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       // 토큰이 유효하면 getUser()는 갱신을 시도하지 않음
       const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !verifiedUser) {
-        logError('[Verify] Auth failed:', authError?.message);
+        logWarn('[Verify] Auth failed:', authError?.message);
         return NextResponse.json(
           { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
           { status: 401 }
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       // 토큰이 만료되었거나 없으면 Supabase로 재확인 (이 경우에만 갱신 시도)
       const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !verifiedUser) {
-        logError('[Verify] Auth failed:', authError?.message);
+        logWarn('[Verify] Auth failed:', authError?.message);
         return NextResponse.json(
           { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
           { status: 401 }

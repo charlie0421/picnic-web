@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const errorSpy = vi.fn();
+const warnSpy = vi.fn();
 vi.mock('@/utils/logger', () => ({
-  logger: { error: (...a: unknown[]) => { errorSpy(...a); return Promise.resolve(); } },
+  logger: {
+    error: (...a: unknown[]) => { errorSpy(...a); return Promise.resolve(); },
+    warn: (...a: unknown[]) => { warnSpy(...a); return Promise.resolve(); },
+  },
 }));
 
-import { logError } from '@/utils/log-error';
+import { logError, logWarn } from '@/utils/log-error';
 
 function throwingGetter() {
   const o: any = {};
@@ -14,7 +18,7 @@ function throwingGetter() {
 }
 
 describe('logError', () => {
-  beforeEach(() => errorSpy.mockClear());
+  beforeEach(() => { errorSpy.mockClear(); warnSpy.mockClear(); });
 
   it('동기 함수다 — 반환값이 Promise 가 아니다', () => {
     expect(logError('boom')).toBeUndefined();
@@ -76,5 +80,44 @@ describe('logError', () => {
     // fallback context 가 원본을 다시 spread 하면 여기서 throw 한다.
     expect(() => logError('결제 실패', throwingGetter(), throwingGetter())).not.toThrow();
     expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('logWarn', () => {
+  beforeEach(() => { errorSpy.mockClear(); warnSpy.mockClear(); });
+
+  it('logger.warn 을 호출한다 — error 가 아니다', () => {
+    // SentryLogTarget 은 ERROR/FATAL 만 보낸다. 예상 가능한 4xx 를 warn 으로
+    // 내려야 공개 엔드포인트가 익명 요청으로 Sentry quota 를 태우지 않는다.
+    logWarn('[Webhook] signature 검증 실패');
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('동기 함수다', () => {
+    expect(logWarn('x')).toBeUndefined();
+  });
+
+  it('logError 와 같은 시그니처를 쓴다 — 객체는 context 로 승격한다', () => {
+    logWarn('실패', { paymentId: 'p1' });
+    expect(warnSpy.mock.calls[0][1]).toEqual({ paymentId: 'p1' });
+  });
+
+  it('Error 나 문자열도 받는다 — 전환 시 호출부를 고치지 않아도 된다', () => {
+    logWarn('검증 실패', 'bad_jwt');
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(() => logWarn('검증 실패', new Error('boom'))).not.toThrow();
+  });
+
+  it('getter 가 throw 해도 로그를 유실하지 않는다', () => {
+    const o: any = {};
+    Object.defineProperty(o, 'boom', { get() { throw new Error('x'); }, enumerable: true });
+    logWarn('실패', o);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('logger 가 throw 해도 예외를 던지지 않는다', () => {
+    warnSpy.mockImplementationOnce(() => { throw new Error('down'); });
+    expect(() => logWarn('x')).not.toThrow();
   });
 });

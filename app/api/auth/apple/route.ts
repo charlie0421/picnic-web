@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logError, logWarn } from '@/utils/log-error';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAppleIdentityToken, normalizeAppleProfile } from '@/lib/supabase/social/apple';
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     try {
       tokenPayload = await verifyAppleIdentityToken(id_token);
     } catch (verifyError) {
-      logError('[Apple API] ID 토큰 서명 검증 실패:', verifyError);
+      logWarn('[Apple API] ID 토큰 서명 검증 실패:', verifyError);
       return NextResponse.json(
         { error: 'Apple ID 토큰 검증 실패' },
         { status: 401 }

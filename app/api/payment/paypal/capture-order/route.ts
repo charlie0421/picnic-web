@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logError, logWarn } from '@/utils/log-error';
 import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     // 400 cleanly rather than throw a TypeError on the next line.
     const purchaseUnit = captureData.purchase_units?.[0];
     if (!purchaseUnit) {
-      logError('PayPal capture missing purchase_units:', { orderID });
+      logWarn('PayPal capture missing purchase_units:', { orderID });
       return NextResponse.json(
         { error: 'Invalid PayPal response' },
         { status: 400 }
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     try {
       customData = JSON.parse(purchaseUnit.custom_id || '{}');
     } catch {
-      logError('Invalid custom_id payload:', purchaseUnit.custom_id);
+      logWarn('Invalid custom_id payload:', purchaseUnit.custom_id);
       return NextResponse.json(
         { error: 'Invalid payment metadata' },
         { status: 400 }
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     // Prevent payment hijacking: the captured order's userId must match the authenticated user
     if (userId !== user.id) {
-      logError('User mismatch on capture', { orderID, customUserId: userId, authUserId: user.id });
+      logWarn('User mismatch on capture', { orderID, customUserId: userId, authUserId: user.id });
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }

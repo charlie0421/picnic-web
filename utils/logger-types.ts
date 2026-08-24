@@ -30,6 +30,8 @@ export interface LogEntry {
     stack?: string;
     category?: string;
     statusCode?: number;
+    /** Error 하위 클래스의 추가 진단 필드(status, code, cause 등). */
+    details?: Record<string, unknown>;
   };
   user?: {
     id?: string;

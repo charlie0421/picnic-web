@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logError, logWarn } from '@/utils/log-error';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 import {
   createServiceRoleSupabaseClient,
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
                       '';
 
     if (!verifyWebhookSignature(body, signature)) {
-      logError('[Webhook] Webhook signature verification failed');
+      logWarn('[Webhook] Webhook signature verification failed');
       return NextResponse.json(
         { error: 'Invalid or missing signature' },
         { status: 401 }
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // paymentId는 반드시 필요
     if (!paymentId) {
-      logError('[Webhook] Missing paymentId in webhook payload');
+      logWarn('[Webhook] Missing paymentId in webhook payload');
       return NextResponse.json(
         { error: 'Missing paymentId', receivedBody: body },
         { status: 400 }
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
     try {
       customData = parseCustomData(paymentData);
     } catch (e) {
-      logError('[Webhook] Failed to parse custom data:', e);
+      logWarn('[Webhook] Failed to parse custom data:', e);
       return NextResponse.json(
         { error: 'Invalid payment data', details: e instanceof Error ? e.message : 'Parse error' },
         { status: 400 }
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     // customData에서 필수 정보 확인
     if (!userId || !productId) {
-      logError('[Webhook] Missing userId or productId in custom data:', { paymentId });
+      logWarn('[Webhook] Missing userId or productId in custom data:', { paymentId });
 
       return NextResponse.json(
         {

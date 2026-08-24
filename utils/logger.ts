@@ -13,6 +13,59 @@ export * from './logger-types';
 export { ConsoleLogTarget, SentryLogTarget } from './logger-targets';
 
 
+/** Error 의 표준 필드 — details 로 중복 수집하지 않는다. */
+const STANDARD_ERROR_KEYS = new Set(['name', 'message', 'stack', 'category', 'statusCode']);
+
+/**
+ * Error 하위 클래스가 들고 있는 추가 진단 필드를 수집한다.
+ *
+ * Supabase AuthApiError 의 status/code, PortOne 오류 코드처럼
+ * console.error 가 보여 주던 정보가 name/message/stack 만 담으면 사라진다.
+ */
+function collectErrorDetails(error: Error): Record<string, unknown> | undefined {
+  const out: Record<string, unknown> = {};
+
+  try {
+    for (const key of Object.keys(error)) {
+      if (STANDARD_ERROR_KEYS.has(key)) continue;
+      try {
+        const value = (error as unknown as Record<string, unknown>)[key];
+        if (value === undefined) continue;
+        // 중첩 객체는 한 겹만 얕게 담는다. 순환 참조를 피한다.
+        out[key] = typeof value === 'object' && value !== null ? shallowDescribe(value) : value;
+      } catch {
+        out[key] = '[Unreadable]';
+      }
+    }
+
+    const cause = (error as { cause?: unknown }).cause;
+    if (cause !== undefined) {
+      out.cause = cause instanceof Error ? { name: cause.name, message: cause.message } : shallowDescribe(cause);
+    }
+  } catch {
+    return undefined;
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** 중첩 값을 한 겹만 문자열/원시값으로 요약한다. */
+function shallowDescribe(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (value instanceof Error) return { name: value.name, message: value.message };
+  if (Array.isArray(value)) return `[Array(${value.length})]`;
+  const out: Record<string, unknown> = {};
+  try {
+    for (const k of Object.keys(value as Record<string, unknown>)) {
+      const v = (value as Record<string, unknown>)[k];
+      out[k] = typeof v === 'object' && v !== null ? '[Object]' : v;
+    }
+  } catch {
+    return '[Unreadable]';
+  }
+  return out;
+}
+
 /**
  * 중앙화된 로거 클래스
  */
@@ -82,6 +135,7 @@ export class Logger {
 
     // 에러 정보 추가
     if (error) {
+      const details = collectErrorDetails(error);
       entry.error = {
         name: error.name,
         message: error.message,
@@ -90,6 +144,7 @@ export class Logger {
           category: error.category,
           statusCode: error.statusCode,
         }),
+        ...(details && { details }),
       };
     }
 
