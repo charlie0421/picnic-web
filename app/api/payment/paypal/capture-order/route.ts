@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logError, logWarn } from '@/utils/log-error';
+import { logError } from '@/utils/log-error';
 import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';

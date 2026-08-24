@@ -40,25 +40,6 @@ function toError(error?: unknown): Error | undefined {
 }
 
 
-/** error 인자와 context 를 안전하게 정규화한다. */
-function normalize(
-  error: unknown,
-  context?: Record<string, unknown>,
-): { normalizedError?: Error; mergedContext?: Record<string, unknown> } {
-  try {
-    // 평범한 객체는 error 가 아니라 context 로 올린다.
-    // spread 는 getter 를 호출하므로 여기서 throw 할 수 있다.
-    return isPlainContext(error)
-      ? { normalizedError: undefined, mergedContext: { ...error, ...(context ?? {}) } }
-      : { normalizedError: toError(error), mergedContext: context };
-  } catch {
-    // 정제에 실패해도 로그 자체를 버리지 않는다. 메시지는 반드시 남긴다.
-    // fallback 은 안전한 상수만 담는다. 여기서 context 를 다시 spread 하면
-    // throwing getter 를 재차 읽어 이 함수가 실제로 throw 한다.
-    return { normalizedError: undefined, mergedContext: { contextUnavailable: true } };
-  }
-}
-
 /**
  * 에러를 콘솔과 Sentry 로 함께 남긴다.
  *
@@ -71,47 +52,24 @@ export function logError(
   error?: unknown,
   context?: Record<string, unknown>,
 ): void {
-  const { normalizedError, mergedContext } = normalize(error, context);
+  let normalizedError: Error | undefined;
+  let mergedContext: Record<string, unknown> | undefined;
+
+  try {
+    // 평범한 객체는 error 가 아니라 context 로 보낸다. 그래야 redaction 을 탄다.
+    // spread 는 getter 를 호출하므로 여기서 throw 할 수 있다.
+    mergedContext = isPlainContext(error) ? { ...error, ...(context ?? {}) } : context;
+    normalizedError = isPlainContext(error) ? undefined : toError(error);
+  } catch {
+    // 정제에 실패해도 로그 자체를 버리지 않는다. 메시지는 반드시 남긴다.
+    // fallback 은 안전한 상수만 담는다. 여기서 context 를 다시 spread 하면
+    // throwing getter 를 재차 읽어 이 함수가 실제로 throw 한다.
+    mergedContext = { contextUnavailable: true };
+    normalizedError = undefined;
+  }
 
   try {
     void logger.error(message, normalizedError, mergedContext)?.catch?.(() => {});
-  } catch {
-    // 로깅 실패는 무시한다.
-  }
-}
-
-/**
- * 예상 가능한 실패를 경고로 남긴다.
- *
- * SentryLogTarget 은 ERROR / FATAL 만 전송하므로 warn 은 콘솔에만 남는다.
- * 공개 엔드포인트의 서명 검증 실패나 잘못된 입력처럼 인증 없이 외부에서
- * 반복 유발할 수 있는 실패는 여기로 보낸다. error 로 두면 익명 요청이
- * Sentry quota 와 rate limit 을 소진시킨다.
- *
- * 서버 내부 결함(DB 오류, 설정 오류 등)에는 쓰지 말고 logError 를 쓴다.
- */
-export function logWarn(
-  message: string,
-  detail?: unknown,
-  context?: Record<string, unknown>,
-): void {
-  // logError 와 같은 정규화를 쓴다. 두 함수 사이를 옮길 때 호출부를
-  // 고치지 않아도 되게 한다.
-  const { normalizedError, mergedContext } = normalize(detail, context);
-
-  let warnContext = mergedContext;
-  try {
-    // message 는 getter 일 수 있다. Proxy Error 가 여기서 throw 하면
-    // logWarn 자체가 호출자에게 예외를 던진다.
-    if (normalizedError) {
-      warnContext = { ...(mergedContext ?? {}), error: normalizedError.message };
-    }
-  } catch {
-    warnContext = { ...(mergedContext ?? {}), error: '[Unreadable]' };
-  }
-
-  try {
-    void logger.warn(message, warnContext)?.catch?.(() => {});
   } catch {
     // 로깅 실패는 무시한다.
   }

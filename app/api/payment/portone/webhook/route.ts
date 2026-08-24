@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logError, logWarn } from '@/utils/log-error';
+import { logError } from '@/utils/log-error';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 import {
   createServiceRoleSupabaseClient,
@@ -84,23 +84,7 @@ export async function POST(request: NextRequest) {
                       '';
 
     if (!verifyWebhookSignature(body, signature)) {
-      // 서명 헤더 유무로 갈라 기록한다.
-      //
-      // 헤더가 아예 없으면 스캐너·봇 트래픽이다. error 로 두면 익명 요청이
-      // Sentry quota 를 태운다.
-      //
-      // 헤더가 있는데 불일치면 다르다. 이 웹훅은 PortOne 결제의 유일한
-      // 적립 경로이고, 시크릿 로테이션이나 오타 배포로 값이 틀어지면 모든
-      // 결제가 카드 청구 완료 + 적립 0건이 된다. 그 전면 장애의 유일한
-      // 신호이므로 반드시 알림을 받아야 한다.
-      if (signature) {
-        logError('[Webhook] Webhook signature mismatch — 시크릿 불일치 가능성', {
-          signaturePresent: true,
-        });
-      } else {
-        logWarn('[Webhook] No signature provided in webhook request');
-      }
-
+      logError('[Webhook] Webhook signature verification failed');
       return NextResponse.json(
         { error: 'Invalid or missing signature' },
         { status: 401 }
@@ -162,7 +146,7 @@ export async function POST(request: NextRequest) {
     try {
       customData = parseCustomData(paymentData);
     } catch (e) {
-      logWarn('[Webhook] Failed to parse custom data:', e);
+      logError('[Webhook] Failed to parse custom data:', e);
       return NextResponse.json(
         { error: 'Invalid payment data', details: e instanceof Error ? e.message : 'Parse error' },
         { status: 400 }

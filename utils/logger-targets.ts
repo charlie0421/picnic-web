@@ -63,13 +63,7 @@ export class SentryLogTarget implements LogTarget {
 
     // Error 는 await 앞에서 만든다. async 경계를 넘은 뒤 생성하면
     // entry.error 없이 message 만 로깅할 때 호출부 프레임이 사라진다.
-    // 원본 오류 메시지를 함께 담는다. 로그 메시지만 남기면 Sentry 이슈에서
-    // 실제 원인(invalid token 등)을 볼 수 없다.
-    const error = new Error(
-      entry.error?.message && entry.error.message !== entry.message
-        ? `${entry.message}: ${entry.error.message}`
-        : entry.message,
-    );
+    const error = new Error(entry.message);
     if (entry.error?.stack) {
       error.stack = entry.error.stack;
     }
@@ -93,9 +87,6 @@ export class SentryLogTarget implements LogTarget {
             timestamp: entry.timestamp,
             ...(entry.context ?? {}),
           },
-          // Error 하위 클래스의 진단 필드(status, code, hint 등).
-          // Logger 가 allowlist 로 수집한 값만 들어온다.
-          ...(entry.error?.details ? { errorDetails: entry.error.details } : {}),
           ...(entry.request ? { request: entry.request } : {}),
         },
       });

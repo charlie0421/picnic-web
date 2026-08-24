@@ -55,8 +55,7 @@ export async function verifyPortOnePayment(paymentId: string): Promise<PortOneV2
 
     return payment as unknown as PortOneV2PaymentResponse;
   } catch (error) {
-    // 여기서 기록하지 않는다. 호출부가 catch 해서 한 번 기록한다.
-    // 계층마다 기록하면 오류 한 건이 이벤트 두 건이 된다.
+    logError('[Verify] Payment verification failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

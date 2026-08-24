@@ -14,83 +14,6 @@ export { ConsoleLogTarget, SentryLogTarget } from './logger-targets';
 
 
 /**
- * details 로 수집할 진단 필드 allowlist.
- *
- * 열거 가능한 모든 필드를 담으면 안 된다. jose 의 JWTExpired 는 payload 에
- * JWT Claims Set 전체(sub, email, nonce)를 들고 있어 그대로 로그에 실린다.
- * 알려진 진단 필드만 명시적으로 허용한다.
- */
-const ALLOWED_ERROR_DETAIL_KEYS = new Set([
-  'status',      // Supabase AuthApiError, HTTP 계열
-  'statusCode',
-  'code',        // Supabase, jose, PostgREST
-  'hint',        // PostgrestError
-  'details',     // PostgrestError (문자열 설명)
-  'claim',       // jose — 실패한 클레임 이름
-  'reason',      // jose — 실패 사유 코드
-  'type',        // PortOne
-]);
-
-/** details 값의 길이 상한. 큰 객체가 로그를 뒤덮지 않게 한다. */
-const MAX_DETAIL_STRING = 500;
-
-/**
- * Error 하위 클래스가 들고 있는 추가 진단 필드를 수집한다.
- *
- * Supabase AuthApiError 의 status/code, PortOne 오류 코드처럼
- * console.error 가 보여 주던 정보가 name/message/stack 만 담으면 사라진다.
- */
-function collectErrorDetails(error: Error): Record<string, unknown> | undefined {
-  const out: Record<string, unknown> = {};
-
-  try {
-    for (const key of Object.keys(error)) {
-      if (!ALLOWED_ERROR_DETAIL_KEYS.has(key)) continue;
-      try {
-        const value = (error as unknown as Record<string, unknown>)[key];
-        if (value === undefined) continue;
-        out[key] = typeof value === 'object' && value !== null ? shallowDescribe(value) : truncate(value);
-      } catch {
-        out[key] = '[Unreadable]';
-      }
-    }
-
-    // cause 는 Error 일 때만, 그것도 name/message 만 담는다.
-    const cause = (error as { cause?: unknown }).cause;
-    if (cause instanceof Error) {
-      out.cause = { name: cause.name, message: truncate(cause.message) };
-    }
-  } catch {
-    return undefined;
-  }
-
-  return Object.keys(out).length > 0 ? out : undefined;
-}
-
-/** 긴 문자열을 자른다. */
-function truncate(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  return value.length > MAX_DETAIL_STRING ? `${value.slice(0, MAX_DETAIL_STRING)}…` : value;
-}
-
-/** 중첩 값을 한 겹만 문자열/원시값으로 요약한다. */
-function shallowDescribe(value: unknown): unknown {
-  if (value === null || typeof value !== 'object') return value;
-  if (value instanceof Error) return { name: value.name, message: value.message };
-  if (Array.isArray(value)) return `[Array(${value.length})]`;
-  const out: Record<string, unknown> = {};
-  try {
-    for (const k of Object.keys(value as Record<string, unknown>)) {
-      const v = (value as Record<string, unknown>)[k];
-      out[k] = typeof v === 'object' && v !== null ? '[Object]' : v;
-    }
-  } catch {
-    return '[Unreadable]';
-  }
-  return out;
-}
-
-/**
  * 중앙화된 로거 클래스
  */
 export class Logger {
@@ -159,7 +82,6 @@ export class Logger {
 
     // 에러 정보 추가
     if (error) {
-      const details = collectErrorDetails(error);
       entry.error = {
         name: error.name,
         message: error.message,
@@ -168,7 +90,6 @@ export class Logger {
           category: error.category,
           statusCode: error.statusCode,
         }),
-        ...(details && { details }),
       };
     }
 

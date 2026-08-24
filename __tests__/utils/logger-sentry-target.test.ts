@@ -79,34 +79,4 @@ describe('SentryLogTarget', () => {
 
     await expect(new SentryLogTarget().write(entry(LogLevel.ERROR))).resolves.toBeUndefined();
   });
-
-  it('원본 error 의 message 를 Sentry 이벤트에서 볼 수 있다', async () => {
-    await new SentryLogTarget().write(
-      entry(LogLevel.ERROR, {
-        message: '인증 실패',
-        error: { name: 'AuthApiError', message: 'invalid token', stack: 'Error: invalid token\n at x' },
-      }),
-    );
-    // Error.message 는 non-enumerable 이라 JSON.stringify 로는 보이지 않는다.
-    // Sentry 가 실제로 읽는 값을 직접 확인한다.
-    const [err] = captureException.mock.calls[0];
-    // 로그 메시지만 남고 원본 오류 메시지가 사라지면 Sentry 에서 원인을 알 수 없다.
-    expect((err as Error).message).toContain('invalid token');
-    expect((err as Error).message).toContain('인증 실패');
-  });
-
-  it('error.details 를 Sentry 컨텍스트로 전달한다', async () => {
-    await new SentryLogTarget().write(
-      entry(LogLevel.ERROR, {
-        error: {
-          name: 'AuthApiError',
-          message: 'invalid token',
-          details: { status: 401, code: 'bad_jwt' },
-        },
-      }),
-    );
-    const payload = JSON.stringify(captureException.mock.calls[0][1]);
-    expect(payload).toContain('401');
-    expect(payload).toContain('bad_jwt');
-  });
 });

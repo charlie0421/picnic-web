@@ -61,8 +61,7 @@ export function verifyWebhookSignature(payload: any, signature: string): boolean
   }
 
   if (!signature) {
-    // 호출부(route)가 검증 실패를 한 번 기록한다. 여기서 또 기록하면
-    // 익명 요청 한 번에 이벤트가 두 건 생긴다.
+    logError('[Webhook] No signature provided in webhook request');
     return false;
   }
 
@@ -99,8 +98,7 @@ export async function verifyPortOnePayment(paymentId: string): Promise<any> {
     const payment = await paymentClient.getPayment({ paymentId });
     return payment;
   } catch (error) {
-    // 여기서 기록하지 않는다. 호출부가 catch 해서 한 번 기록한다.
-    // 계층마다 기록하면 오류 한 건이 이벤트 두 건이 된다.
+    logError('[Webhook] Payment verification failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
