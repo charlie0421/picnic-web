@@ -5,42 +5,13 @@
  * 호출부가 무엇을 넣든 여기서 한 번 걸러지도록 중앙에 둔다.
  */
 import type { LogEntry } from './logger-types';
-
-/** 통째로 제거할 키. 소문자 비교하며 부분 일치를 쓴다. */
-const SENSITIVE_KEY_PATTERNS = [
-  'authorization',
-  'cookie',
-  'apikey',
-  'api-key',
-  'api_key',
-  'token',
-  'secret',
-  'password',
-  'passwd',
-  'credential',
-  'session',
-  'auth',
-];
+import { isSensitiveKey, sanitizeUrlValue } from './sentry-sanitize';
 
 const MAX_DEPTH = 6;
 
-function isSensitiveKey(key: string): boolean {
-  const k = key.toLowerCase();
-  return SENSITIVE_KEY_PATTERNS.some((p) => k.includes(p));
-}
-
 /** URL 에서 쿼리스트링을 떼고 경로만 남긴다. */
 export function stripQueryString(url: string): string {
-  if (!url) return url;
-  const withoutHash = url.split('#')[0];
-  const [beforeQuery] = withoutHash.split('?');
-  try {
-    // 절대 URL 이면 경로만 남긴다(호스트는 유지 가치가 낮고 토큰이 섞이기 쉽다).
-    const parsed = new URL(beforeQuery);
-    return parsed.pathname;
-  } catch {
-    return beforeQuery;
-  }
+  return sanitizeUrlValue(url);
 }
 
 function looksLikeUrl(value: string): boolean {
@@ -65,9 +36,13 @@ function redactValue(value: unknown, depth: number, seen: WeakSet<object>): unkn
   }
 
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+  for (const k of Object.keys(value as Record<string, unknown>)) {
     if (isSensitiveKey(k)) continue;
-    out[k] = redactValue(v, depth + 1, seen);
+    try {
+      out[k] = redactValue((value as Record<string, unknown>)[k], depth + 1, seen);
+    } catch {
+      out[k] = '[Unreadable]';
+    }
   }
   return out;
 }
@@ -77,7 +52,8 @@ function redactHeaders(headers?: Record<string, string>): Record<string, string>
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(headers)) {
     if (isSensitiveKey(k)) continue;
-    out[k] = v;
+    // referer 처럼 값 자체가 URL 인 헤더는 값도 정제한다.
+    out[k] = typeof v === 'string' ? sanitizeUrlValue(v) : v;
   }
   return out;
 }

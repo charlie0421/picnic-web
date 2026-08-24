@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from '@sentry/nextjs';
+import { sanitizeSentryEvent, sanitizeBreadcrumb } from './utils/sentry-sanitize';
 
 const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -26,7 +27,15 @@ if (SENTRY_DSN) {
     ],
     
     // Edge runtime specific options
+    // Console integration 이 만드는 breadcrumb 에도 원문이 실린다.
+    beforeBreadcrumb(breadcrumb) {
+      return sanitizeBreadcrumb(breadcrumb);
+    },
+
     beforeSend(event) {
+      // 모든 경로(자동 수집 RequestData 포함)를 여기서 한 번 정제한다.
+      event = sanitizeSentryEvent(event);
+
       // Filter middleware-specific errors in development
       if (process.env.NODE_ENV === 'development') {
         if (event.exception) {

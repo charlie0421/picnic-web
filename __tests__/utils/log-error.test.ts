@@ -59,4 +59,30 @@ describe('logError', () => {
     logError('실패', { a: 1 }, { b: 2 });
     expect(errorSpy.mock.calls[0][2]).toEqual({ a: 1, b: 2 });
   });
+
+  it('getter 가 throw 하는 객체여도 로그를 유실하지 않는다', () => {
+    const evil: any = {};
+    Object.defineProperty(evil, 'boom', { get() { throw new Error('getter throws'); }, enumerable: true });
+    logError('결제 실패', evil);
+    // 정제에 실패해도 최소한 메시지는 남아야 한다.
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0][0]).toBe('결제 실패');
+  });
+
+  it('Vercel 요청 컨텍스트가 있으면 waitUntil 로 전송 완료를 보장한다', () => {
+    const waitUntil = vi.fn();
+    const key = Symbol.for('@vercel/request-context');
+    (globalThis as any)[key] = { get: () => ({ waitUntil }) };
+    try {
+      logError('serverless 경로');
+      expect(waitUntil).toHaveBeenCalledTimes(1);
+      expect(waitUntil.mock.calls[0][0]).toBeInstanceOf(Promise);
+    } finally {
+      delete (globalThis as any)[key];
+    }
+  });
+
+  it('요청 컨텍스트가 없어도 throw 하지 않는다', () => {
+    expect(() => logError('상주 서버 경로')).not.toThrow();
+  });
 });

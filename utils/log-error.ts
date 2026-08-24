@@ -32,6 +32,27 @@ function toError(error?: unknown): Error | undefined {
   return new Error(String(error));
 }
 
+
+/**
+ * Vercel serverless 에서 응답 반환 후에도 전송이 끝나도록 보장한다.
+ *
+ * fire-and-forget 만 하면 함수 인스턴스가 정리되며 이벤트가 유실될 수 있다.
+ * Vercel 은 요청 컨텍스트를 전역 심볼로 노출하며, 그 waitUntil 에 Promise 를
+ * 넘기면 완료까지 기다려 준다. 컨텍스트가 없으면(로컬 상주 서버, 브라우저)
+ * 아무 것도 하지 않는다.
+ */
+function registerWaitUntil(promise: Promise<unknown>): void {
+  try {
+    const ctx = (globalThis as Record<symbol, any>)[Symbol.for('@vercel/request-context')];
+    const waitUntil = ctx?.get?.()?.waitUntil;
+    if (typeof waitUntil === 'function') {
+      waitUntil(promise);
+    }
+  } catch {
+    // 컨텍스트 조회 실패는 무시한다.
+  }
+}
+
 /**
  * 에러를 콘솔과 Sentry 로 함께 남긴다.
  *
@@ -44,14 +65,26 @@ export function logError(
   error?: unknown,
   context?: Record<string, unknown>,
 ): void {
+  let normalizedError: Error | undefined;
+  let mergedContext: Record<string, unknown> | undefined;
+
   try {
     // 평범한 객체는 error 가 아니라 context 로 보낸다. 그래야 redaction 을 탄다.
-    const mergedContext = isPlainContext(error)
-      ? { ...error, ...(context ?? {}) }
-      : context;
-    const normalizedError = isPlainContext(error) ? undefined : toError(error);
+    // spread 는 getter 를 호출하므로 여기서 throw 할 수 있다.
+    mergedContext = isPlainContext(error) ? { ...error, ...(context ?? {}) } : context;
+    normalizedError = isPlainContext(error) ? undefined : toError(error);
+  } catch {
+    // 정제에 실패해도 로그 자체를 버리지 않는다. 메시지는 반드시 남긴다.
+    mergedContext = { ...(context ?? {}), contextUnavailable: true };
+    normalizedError = undefined;
+  }
 
-    void logger.error(message, normalizedError, mergedContext)?.catch?.(() => {});
+  try {
+    const pending = logger.error(message, normalizedError, mergedContext);
+    if (pending && typeof pending.catch === 'function') {
+      const settled = pending.catch(() => {});
+      registerWaitUntil(settled);
+    }
   } catch {
     // 로깅 실패는 무시한다.
   }

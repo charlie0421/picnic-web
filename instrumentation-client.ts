@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from '@sentry/nextjs';
+import { sanitizeSentryEvent, sanitizeBreadcrumb } from '@/utils/sentry-sanitize';
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
 const SENTRY_DEBUG = process.env.NEXT_PUBLIC_SENTRY_DEBUG === 'true';
@@ -53,6 +54,8 @@ if (SENTRY_DSN) {
     
     // Event filtering
     beforeSend(event) {
+      event = sanitizeSentryEvent(event);
+
       // window.onerror 로 캡처된 cross-origin / 외부 에러는 Sentry SDK 가 종종
       // outer `Error` wrapper 로 감싸 event.exception.values 에 두 entry 가
       // 들어온다 ([{ type:'Error', value:'SecurityError: ...' },
@@ -171,6 +174,8 @@ if (SENTRY_DSN) {
     },
     // Breadcrumb filtering (drop noisy console/info logs)
     beforeBreadcrumb(breadcrumb) {
+      breadcrumb = sanitizeBreadcrumb(breadcrumb);
+
       if (breadcrumb.category === 'console' && (breadcrumb.level === 'log' || breadcrumb.level === 'debug')) {
         return null;
       }
