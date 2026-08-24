@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { createServerClient } from '@supabase/ssr';
 import { cookies, headers } from 'next/headers';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/config/settings';
@@ -123,7 +124,7 @@ export async function GET(request: Request) {
             return withdrawnResponse;
           }
         } catch (withdrawalCheckError) {
-          console.error(
+          logError(
             '❌ [Auth Callback] 탈퇴 여부 확인 중 오류:',
             withdrawalCheckError,
           );

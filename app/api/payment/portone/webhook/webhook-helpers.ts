@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { logError } from '@/utils/log-error';
 import { createHmac } from 'crypto';
 import { PaymentClient } from '@portone/server-sdk';
 
@@ -55,12 +56,12 @@ export function createServiceRoleSupabaseClient() {
 // Verify webhook signature
 export function verifyWebhookSignature(payload: any, signature: string): boolean {
   if (!PORTONE_WEBHOOK_SECRET) {
-    console.error('[Webhook] PORTONE_WEBHOOK_SECRET is not configured - rejecting webhook');
+    logError('[Webhook] PORTONE_WEBHOOK_SECRET is not configured - rejecting webhook');
     return false; // Never bypass signature verification
   }
 
   if (!signature) {
-    console.error('[Webhook] No signature provided in webhook request');
+    logError('[Webhook] No signature provided in webhook request');
     return false;
   }
 
@@ -86,7 +87,7 @@ export function verifyWebhookSignature(payload: any, signature: string): boolean
 // Verify payment with Port One v2 API using paymentId (서버 SDK 사용)
 export async function verifyPortOnePayment(paymentId: string): Promise<any> {
   if (!paymentClient) {
-    console.error('[Webhook] Payment client not initialized:', {
+    logError('[Webhook] Payment client not initialized:', {
       hasApiSecret: !!PORTONE_API_SECRET,
     });
     throw new Error('PORTONE_API_SECRET must be set in environment variables');
@@ -97,7 +98,7 @@ export async function verifyPortOnePayment(paymentId: string): Promise<any> {
     const payment = await paymentClient.getPayment({ paymentId });
     return payment;
   } catch (error) {
-    console.error('[Webhook] Payment verification failed:', error instanceof Error ? error.message : String(error));
+    logError('[Webhook] Payment verification failed:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -197,7 +198,7 @@ export async function processStarCandyBonus(
     });
 
   if (bonusError) {
-    console.error('Failed to record bonus:', bonusError);
+    logError('Failed to record bonus:', bonusError);
   } else {
     // Atomic increment of bonus balance
     const { error: bonusUpdateError } = await supabase
@@ -207,7 +208,7 @@ export async function processStarCandyBonus(
       });
 
     if (bonusUpdateError) {
-      console.error('Failed to update bonus balance:', bonusUpdateError);
+      logError('Failed to update bonus balance:', bonusUpdateError);
     }
   }
 }
@@ -231,7 +232,7 @@ export async function updateStarCandyBalance(
     });
 
   if (profileError) {
-    console.error('Failed to update star_candy balance:', profileError);
+    logError('Failed to update star_candy balance:', profileError);
     // 영수증은 이미 생성되었으므로 에러를 반환하지 않음
   }
 
@@ -246,6 +247,6 @@ export async function updateStarCandyBalance(
     });
 
   if (historyError) {
-    console.error('Failed to record star candy history:', historyError);
+    logError('Failed to record star candy history:', historyError);
   }
 }

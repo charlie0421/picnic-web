@@ -6,6 +6,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
+import { logError } from '@/utils/log-error';
 import { Database } from "@/types/supabase";
 import {
   AuthResult,
@@ -67,7 +68,7 @@ export class SocialAuthService implements SocialAuthServiceInterface {
     };
 
     this.logError = (message: string, data?: any) => {
-      console.error(`❌ SocialAuth Error: ${message}`, data || "");
+      logError(`❌ SocialAuth Error: ${message}`, data || "");
     };
 
     // 콜백 URL 초기화 (모든 환경에서 동일)

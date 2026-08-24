@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
     const captureData = await response.json();
 
     if (!response.ok) {
-      console.error('PayPal capture failed:', captureData);
+      logError('PayPal capture failed:', captureData);
       return NextResponse.json(
         { error: 'Failed to capture PayPal order' },
         { status: 500 }
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
     // 400 cleanly rather than throw a TypeError on the next line.
     const purchaseUnit = captureData.purchase_units?.[0];
     if (!purchaseUnit) {
-      console.error('PayPal capture missing purchase_units:', { orderID });
+      logError('PayPal capture missing purchase_units:', { orderID });
       return NextResponse.json(
         { error: 'Invalid PayPal response' },
         { status: 400 }
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
     try {
       customData = JSON.parse(purchaseUnit.custom_id || '{}');
     } catch {
-      console.error('Invalid custom_id payload:', purchaseUnit.custom_id);
+      logError('Invalid custom_id payload:', purchaseUnit.custom_id);
       return NextResponse.json(
         { error: 'Invalid payment metadata' },
         { status: 400 }
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     // Prevent payment hijacking: the captured order's userId must match the authenticated user
     if (userId !== user.id) {
-      console.error('User mismatch on capture', { orderID, customUserId: userId, authUserId: user.id });
+      logError('User mismatch on capture', { orderID, customUserId: userId, authUserId: user.id });
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -170,7 +171,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (productError) {
-      console.error('Product lookup failed on capture:', productError);
+      logError('Product lookup failed on capture:', productError);
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -190,7 +191,7 @@ export async function POST(request: NextRequest) {
       purchaseUnit.amount?.value !== expectedValue ||
       purchaseUnit.amount?.currency_code !== 'USD'
     ) {
-      console.error('Amount mismatch on capture', {
+      logError('Amount mismatch on capture', {
         orderID,
         expected: expectedValue,
         actual: purchaseUnit.amount,
@@ -222,7 +223,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingReceiptError) {
-      console.error('Receipt lookup failed:', existingReceiptError);
+      logError('Receipt lookup failed:', existingReceiptError);
       return NextResponse.json(
         { error: 'Failed to record payment' },
         { status: 500 }
@@ -288,7 +289,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (rpcError) {
-      console.error('process_paypal_capture failed:', rpcError);
+      logError('process_paypal_capture failed:', rpcError);
       return NextResponse.json(
         { error: 'Failed to record payment' },
         { status: 500 }
@@ -312,7 +313,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Capture order error:', error);
+    logError('Capture order error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

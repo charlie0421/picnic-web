@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { getServerUser } from '@/lib/supabase/server';
 
 // PortOne v2 브라우저 SDK confirmUrl 엔드포인트
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error('[PortOne Confirm] Error:', e);
+    logError('[PortOne Confirm] Error:', e);
     return NextResponse.json(
       { ok: false, reason: 'confirm_failed' },
       { status: 400 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logError } from '@/utils/log-error';
 
 /**
  * Supabase Apple OAuth 콜백 프록시
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
-    console.error("🚨 OAuth 콜백 프록시 오류:", error);
+    logError("🚨 OAuth 콜백 프록시 오류:", error);
 
     // 환경 변수에서 안전한 base URL 사용 (Host 헤더 주입 방지)
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || "https://www.picnic.fan";

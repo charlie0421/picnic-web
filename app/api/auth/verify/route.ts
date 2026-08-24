@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logError } from '@/utils/log-error';
 import { createServerSupabaseClientWithCookies } from '@/lib/supabase/server';
 
 /**
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('💥 [Auth Verify API] 처리 중 오류:', error);
+    logError('💥 [Auth Verify API] 처리 중 오류:', error);
     
     return NextResponse.json(
       { 

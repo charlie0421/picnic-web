@@ -5,6 +5,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
+import { logError } from '@/utils/log-error';
 import { Database } from "@/types/supabase";
 import {
   AuthResult,
@@ -122,7 +123,7 @@ export async function signInWithAppleImpl(
     });
 
     if (error) {
-      console.error("❌ Supabase Apple OAuth 오류:", error);
+      logError("❌ Supabase Apple OAuth 오류:", error);
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
         error.message,
@@ -195,7 +196,7 @@ export function parseAppleIdentityToken(idToken: string): Record<string, any> {
     const decodedPayload = Buffer.from(payload, "base64").toString("utf8");
     return JSON.parse(decodedPayload);
   } catch (error) {
-    console.error("Apple ID 토큰 파싱 오류:", error);
+    logError("Apple ID 토큰 파싱 오류:", error);
     return {};
   }
 }
@@ -247,7 +248,7 @@ export async function generateAppleClientSecret(): Promise<string | null> {
   );
 
   if (typeof window !== "undefined") {
-    console.error(
+    logError(
       "보안상의 이유로 클라이언트에서 Apple 클라이언트 시크릿을 생성할 수 없습니다.",
     );
     return null;
@@ -258,7 +259,7 @@ export async function generateAppleClientSecret(): Promise<string | null> {
     // Next.js API 라우트 또는 서버 액션에서 사용하는 것이 적합합니다.
     return null;
   } catch (error) {
-    console.error("Apple 클라이언트 시크릿 생성 오류:", error);
+    logError("Apple 클라이언트 시크릿 생성 오류:", error);
     return null;
   }
 }

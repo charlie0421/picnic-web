@@ -5,6 +5,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
+import { logError } from '@/utils/log-error';
 import { Database } from "@/types/supabase";
 import {
   AuthResult,
@@ -156,7 +157,7 @@ export async function signInWithGoogleImpl(
     logAuth(AuthLog.OAuthRedirect, { error: error?.message || null });
 
     if (error) {
-      console.error("❌ Google OAuth 오류:", error);
+      logError("❌ Google OAuth 오류:", error);
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
         `Google 로그인 프로세스 실패: ${error.message}`,
@@ -175,7 +176,7 @@ export async function signInWithGoogleImpl(
       message: "Google 로그인 리디렉션 중...",
     };
   } catch (error) {
-    console.error("🔍 signInWithGoogleImpl 오류:", error);
+    logError("🔍 signInWithGoogleImpl 오류:", error);
 
     // anti-abuse rate-limited (precheck 차단) 는 caller (UI) 가 dialog 표시.
     // SocialAuthError 로 감싸지 말고 그대로 throw.
@@ -254,7 +255,7 @@ export function parseGoogleIdToken(idToken: string): Record<string, any> {
     const decoded = Buffer.from(payload, "base64").toString("utf8");
     return JSON.parse(decoded);
   } catch (error) {
-    console.error("Google ID 토큰 파싱 오류:", error);
+    logError("Google ID 토큰 파싱 오류:", error);
     return {};
   }
 }
