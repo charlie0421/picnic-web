@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logError, logWarn } from '@/utils/log-error';
+import { isClientTokenError } from '@/utils/jose-error-severity';
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
@@ -116,7 +117,12 @@ export async function POST(request: NextRequest) {
           profile: userProfile,
         });
       } catch (error) {
-        logWarn('[Google API] ID 토큰 서명 검증 실패:', error);
+        // 클라이언트 토큰 문제는 warn, JWKS·env 등 인프라 장애는 error.
+        if (isClientTokenError(error)) {
+          logWarn('[Google API] ID 토큰 검증 실패 (클라이언트 토큰)', error);
+        } else {
+          logError('[Google API] ID 토큰 검증 인프라 오류', error);
+        }
         return NextResponse.json(
           { error: "ID 토큰 검증 실패" },
           { status: 401 }

@@ -99,7 +99,8 @@ export async function verifyPortOnePayment(paymentId: string): Promise<any> {
     const payment = await paymentClient.getPayment({ paymentId });
     return payment;
   } catch (error) {
-    logError('[Webhook] Payment verification failed:', error instanceof Error ? error.message : String(error));
+    // 여기서 기록하지 않는다. 호출부가 catch 해서 한 번 기록한다.
+    // 계층마다 기록하면 오류 한 건이 이벤트 두 건이 된다.
     throw error;
   }
 }

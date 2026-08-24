@@ -84,7 +84,23 @@ export async function POST(request: NextRequest) {
                       '';
 
     if (!verifyWebhookSignature(body, signature)) {
-      logWarn('[Webhook] Webhook signature verification failed');
+      // 서명 헤더 유무로 갈라 기록한다.
+      //
+      // 헤더가 아예 없으면 스캐너·봇 트래픽이다. error 로 두면 익명 요청이
+      // Sentry quota 를 태운다.
+      //
+      // 헤더가 있는데 불일치면 다르다. 이 웹훅은 PortOne 결제의 유일한
+      // 적립 경로이고, 시크릿 로테이션이나 오타 배포로 값이 틀어지면 모든
+      // 결제가 카드 청구 완료 + 적립 0건이 된다. 그 전면 장애의 유일한
+      // 신호이므로 반드시 알림을 받아야 한다.
+      if (signature) {
+        logError('[Webhook] Webhook signature mismatch — 시크릿 불일치 가능성', {
+          signaturePresent: true,
+        });
+      } else {
+        logWarn('[Webhook] No signature provided in webhook request');
+      }
+
       return NextResponse.json(
         { error: 'Invalid or missing signature' },
         { status: 401 }
@@ -100,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     // paymentId는 반드시 필요
     if (!paymentId) {
-      logWarn('[Webhook] Missing paymentId in webhook payload');
+      logError('[Webhook] Missing paymentId in webhook payload');
       return NextResponse.json(
         { error: 'Missing paymentId', receivedBody: body },
         { status: 400 }
@@ -167,7 +183,7 @@ export async function POST(request: NextRequest) {
 
     // customData에서 필수 정보 확인
     if (!userId || !productId) {
-      logWarn('[Webhook] Missing userId or productId in custom data:', { paymentId });
+      logError('[Webhook] Missing userId or productId in custom data:', { paymentId });
 
       return NextResponse.json(
         {

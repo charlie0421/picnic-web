@@ -13,8 +13,26 @@ export * from './logger-types';
 export { ConsoleLogTarget, SentryLogTarget } from './logger-targets';
 
 
-/** Error 의 표준 필드 — details 로 중복 수집하지 않는다. */
-const STANDARD_ERROR_KEYS = new Set(['name', 'message', 'stack', 'category', 'statusCode']);
+/**
+ * details 로 수집할 진단 필드 allowlist.
+ *
+ * 열거 가능한 모든 필드를 담으면 안 된다. jose 의 JWTExpired 는 payload 에
+ * JWT Claims Set 전체(sub, email, nonce)를 들고 있어 그대로 로그에 실린다.
+ * 알려진 진단 필드만 명시적으로 허용한다.
+ */
+const ALLOWED_ERROR_DETAIL_KEYS = new Set([
+  'status',      // Supabase AuthApiError, HTTP 계열
+  'statusCode',
+  'code',        // Supabase, jose, PostgREST
+  'hint',        // PostgrestError
+  'details',     // PostgrestError (문자열 설명)
+  'claim',       // jose — 실패한 클레임 이름
+  'reason',      // jose — 실패 사유 코드
+  'type',        // PortOne
+]);
+
+/** details 값의 길이 상한. 큰 객체가 로그를 뒤덮지 않게 한다. */
+const MAX_DETAIL_STRING = 500;
 
 /**
  * Error 하위 클래스가 들고 있는 추가 진단 필드를 수집한다.
@@ -27,26 +45,32 @@ function collectErrorDetails(error: Error): Record<string, unknown> | undefined 
 
   try {
     for (const key of Object.keys(error)) {
-      if (STANDARD_ERROR_KEYS.has(key)) continue;
+      if (!ALLOWED_ERROR_DETAIL_KEYS.has(key)) continue;
       try {
         const value = (error as unknown as Record<string, unknown>)[key];
         if (value === undefined) continue;
-        // 중첩 객체는 한 겹만 얕게 담는다. 순환 참조를 피한다.
-        out[key] = typeof value === 'object' && value !== null ? shallowDescribe(value) : value;
+        out[key] = typeof value === 'object' && value !== null ? shallowDescribe(value) : truncate(value);
       } catch {
         out[key] = '[Unreadable]';
       }
     }
 
+    // cause 는 Error 일 때만, 그것도 name/message 만 담는다.
     const cause = (error as { cause?: unknown }).cause;
-    if (cause !== undefined) {
-      out.cause = cause instanceof Error ? { name: cause.name, message: cause.message } : shallowDescribe(cause);
+    if (cause instanceof Error) {
+      out.cause = { name: cause.name, message: truncate(cause.message) };
     }
   } catch {
     return undefined;
   }
 
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** 긴 문자열을 자른다. */
+function truncate(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  return value.length > MAX_DETAIL_STRING ? `${value.slice(0, MAX_DETAIL_STRING)}…` : value;
 }
 
 /** 중첩 값을 한 겹만 문자열/원시값으로 요약한다. */

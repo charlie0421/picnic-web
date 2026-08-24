@@ -98,9 +98,17 @@ export function logWarn(
   // logError 와 같은 정규화를 쓴다. 두 함수 사이를 옮길 때 호출부를
   // 고치지 않아도 되게 한다.
   const { normalizedError, mergedContext } = normalize(detail, context);
-  const warnContext = normalizedError
-    ? { ...(mergedContext ?? {}), error: normalizedError.message }
-    : mergedContext;
+
+  let warnContext = mergedContext;
+  try {
+    // message 는 getter 일 수 있다. Proxy Error 가 여기서 throw 하면
+    // logWarn 자체가 호출자에게 예외를 던진다.
+    if (normalizedError) {
+      warnContext = { ...(mergedContext ?? {}), error: normalizedError.message };
+    }
+  } catch {
+    warnContext = { ...(mergedContext ?? {}), error: '[Unreadable]' };
+  }
 
   try {
     void logger.warn(message, warnContext)?.catch?.(() => {});

@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     // 400 cleanly rather than throw a TypeError on the next line.
     const purchaseUnit = captureData.purchase_units?.[0];
     if (!purchaseUnit) {
-      logWarn('PayPal capture missing purchase_units:', { orderID });
+      logError('PayPal capture missing purchase_units:', { orderID });
       return NextResponse.json(
         { error: 'Invalid PayPal response' },
         { status: 400 }
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     try {
       customData = JSON.parse(purchaseUnit.custom_id || '{}');
     } catch {
-      logWarn('Invalid custom_id payload:', purchaseUnit.custom_id);
+      logError('Invalid custom_id payload:', purchaseUnit.custom_id);
       return NextResponse.json(
         { error: 'Invalid payment metadata' },
         { status: 400 }
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     // Prevent payment hijacking: the captured order's userId must match the authenticated user
     if (userId !== user.id) {
-      logWarn('User mismatch on capture', { orderID, customUserId: userId, authUserId: user.id });
+      logError('User mismatch on capture', { orderID, customUserId: userId, authUserId: user.id });
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }

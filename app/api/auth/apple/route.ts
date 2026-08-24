@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logError, logWarn } from '@/utils/log-error';
+import { isClientTokenError } from '@/utils/jose-error-severity';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAppleIdentityToken, normalizeAppleProfile } from '@/lib/supabase/social/apple';
 
@@ -26,7 +27,14 @@ export async function POST(request: NextRequest) {
     try {
       tokenPayload = await verifyAppleIdentityToken(id_token);
     } catch (verifyError) {
-      logWarn('[Apple API] ID 토큰 서명 검증 실패:', verifyError);
+      // 클라이언트 토큰 문제(위조·만료)는 warn, JWKS 조회 실패나 audience
+      // env 누락 같은 서버·인프라 장애는 error. 구분하지 않으면 소셜 로그인
+      // 전면 장애가 위조 토큰 소음에 묻힌다.
+      if (isClientTokenError(verifyError)) {
+        logWarn('[Apple API] ID 토큰 검증 실패 (클라이언트 토큰)', verifyError);
+      } else {
+        logError('[Apple API] ID 토큰 검증 인프라 오류', verifyError);
+      }
       return NextResponse.json(
         { error: 'Apple ID 토큰 검증 실패' },
         { status: 401 }
