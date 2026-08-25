@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>picnic-web 핸드오프 — 2026-08-25</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #5c6370; --line: #e3e6eb; --bg: #ffffff;
+    --code-bg: #f6f8fa; --accent: #6b46e5; --warn-bg: #fff8e6; --warn-line: #e6b800;
+    --bad-bg: #fdf0f0; --bad-line: #d64545; --good-bg: #f0f8f2; --good-line: #3a9a5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 24px 96px; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+      "Noto Sans KR", Segoe UI, sans-serif;
+    line-height: 1.75; font-size: 16px;
+  }
+  main { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 30px; line-height: 1.3; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 22px; margin: 56px 0 16px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--line); letter-spacing: -0.01em;
+  }
+  h3 { font-size: 17px; margin: 32px 0 10px; }
+  p, li { color: var(--ink); }
+  .sub { color: var(--muted); margin: 0 0 32px; font-size: 15px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    border: 1px solid var(--line); white-space: nowrap;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; white-space: pre; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14.5px; }
+  th, td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td code { white-space: normal; }
+  .box { border-radius: 8px; padding: 14px 18px; margin: 18px 0; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--warn-line); }
+  .bad  { background: var(--bad-bg);  border-left: 4px solid var(--bad-line); }
+  .good { background: var(--good-bg); border-left: 4px solid var(--good-line); }
+  .box p:first-child { margin-top: 0; }
+  .box p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  .tag {
+    display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px;
+    background: var(--code-bg); border: 1px solid var(--line); color: var(--muted);
+    white-space: nowrap;
+  }
+  hr { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
+  .footnote { color: var(--muted); font-size: 14px; }
+</style></head>
+<body>
+<main>
+
+<h1>picnic-web 핸드오프</h1>
+<p class="sub">2026-08-25 · <code>main</code> = <code>b5aec514</code> · 열린 PR 없음 · 열린 이슈 5건</p>
+
+<div class="box good">
+<p><strong>한 줄 요약.</strong> 정리 작업으로 시작해 <strong>프로덕션 장애 6건</strong>을 찾아 고쳤다. PR 7건 머지, 코드·문서·의존성 약 4,400줄 정리, 로컬 디스크 2.5GB 회수. 테스트 <strong>2,042건 green</strong>, tsc 0.</p>
+</div>
+
+<div class="box bad">
+<p><strong>가장 중요한 것 하나.</strong> 후반부 로그 레벨 작업에서 <strong>내 수정이 네 라운드 연속 새 결함을 만들었고 결국 되돌렸다.</strong> 원인은 하나다 — 어떤 값이 민감한지, 어떤 오류가 어느 부류인지를 <strong>코드에서 추측</strong>했다. 같은 작업을 다시 하려면 <strong>#76 을 먼저 읽어라.</strong> 실패한 접근 4가지와 각각의 이유가 적혀 있다.</p>
+</div>
+
+<h2>1. 이번에 한 일</h2>
+
+<table>
+  <tr><th>커밋</th><th>내용</th></tr>
+  <tr><td><code>f6f8b2da</code></td><td><code>.gitignore</code> 903→49줄 — coverage 개별 경로 856줄을 <code>coverage/</code> 한 줄로</td></tr>
+  <tr><td><code>7676aca4</code> (#64)</td><td><strong>프로덕션 노출 디버그 라우트 4개 제거</strong> + 죽은 컴포넌트 <code>EnvironmentValidator</code></td></tr>
+  <tr><td><code>b32b9ca7</code> (#65)</td><td>미사용 패키지 19개 제거(약 27MB) + <strong>미선언 의존성 <code>jose</code> 추가</strong></td></tr>
+  <tr><td><code>0aa5baf1</code> (#66)</td><td>죽은 스크립트·문서 23개 + SQL 초안 11개 — 2,750줄</td></tr>
+  <tr><td><code>7ac389ff</code> (#68)</td><td>죽은 에러 로깅 파이프라인을 Sentry 로 교체. <code>error_logs</code> 테이블 부재</td></tr>
+  <tr><td><code>d9322f7d</code> (#69)</td><td><code>Sentry.init</code> 이 무시하던 무효 옵션 2건 정정</td></tr>
+  <tr><td><code>8b6d3fc4</code> (#70)</td><td><strong>요청 오류 훅 시그니처 + Replay 마스킹</strong> — 교차 리뷰가 잡은 HIGH 2건</td></tr>
+  <tr><td><code>b5aec514</code> (#72)</td><td>결제·인증 오류 80건을 <code>console.error</code> → <code>logError</code> 로 이관</td></tr>
+</table>
+
+<p>main 에 직접 반영한 것: 로컬 캐시 2.5GB 삭제(<code>.next</code>·<code>.lighthouseci</code>·<code>.jest-cache</code>), <code>npm ci</code> 로 4개월 stale <code>node_modules</code> 해소(supabase 2.86.2→2.112.3), 방치 브랜치 <code>feat/pic-chart-area-based</code> 삭제.</p>
+
+<h2>2. 찾아서 고친 프로덕션 장애</h2>
+
+<p>전부 <strong>정리 작업 중에 우연히 드러난 것</strong>이다. 처음부터 찾으려던 게 아니다.</p>
+
+<table>
+  <tr><th>#</th><th>문제</th><th>발견 경위</th></tr>
+  <tr><td>1</td><td><code>debug-env</code> 라우트가 프로덕션에 열려 있었다. localStorage 전 키·값(Supabase 토큰 포함)을 화면 출력</td><td>디렉터리 훑다 발견</td></tr>
+  <tr><td>2</td><td><code>jose</code> 가 미선언 의존성. 소셜 로그인이 <strong>개발 도구</strong>(<code>@playwright/mcp</code>)의 전이 의존성에 얹혀 있었다</td><td>패키지 정리 중 <code>@playwright/mcp</code> 를 지우자 드러남</td></tr>
+  <tr><td>3</td><td><code>error_logs</code> 테이블이 없는데 코드가 거기 쓰고 있었다. 프로덕션 에러 로그 적재가 전부 실패</td><td>SQL 초안 정리 중 DB 대조</td></tr>
+  <tr><td>4</td><td>서버·edge 에서 <code>Sentry.init</code> 이 실행된 적 없다. <code>instrumentation.ts</code> 가 config 를 import 하지 않음(v8+ 부터 자동 로드 안 됨)</td><td>#68 교차 리뷰</td></tr>
+  <tr><td>5</td><td><code>onRequestError</code> 시그니처 오류. Next 는 <code>(error, request, ctx)</code> 3인자인데 첫 인자를 구조분해 → <strong>모든 서버 요청 오류가 <code>undefined</code> 로 전송</strong></td><td>#70 교차 리뷰</td></tr>
+  <tr><td>6</td><td>Session Replay 가 <code>maskAllText: false</code>. 오류 1회에 사용자 텍스트가 마스킹 없이 외부 전송</td><td>#70 교차 리뷰</td></tr>
+</table>
+
+<div class="box warn">
+<p><strong>3·5·6 은 리뷰어가 잡았다.</strong> 셋 다 <code>tsc</code>·테스트·<code>next build</code> 가 <strong>전부 green 인 상태</strong>에서 나왔다. 그리고 내가 #68 을 고치면서 <strong>새로 만든</strong> 부팅 장애도 있었다 — 아래 §3.</p>
+</div>
+
+<h2>3. 값을 치르고 배운 것</h2>
+
+<h3>설정 파일은 정적 검증을 통째로 빠져나간다</h3>
+
+<p>#68 에서 <code>instrumentation.ts</code> 가 서버 config 를 로드하게 고쳤더니, 그 config 안에 잠복해 있던 <code>Sentry.nodeProfilingIntegration()</code> 이 격발됐다. 이 API 는 <code>@sentry/nextjs</code> v9 에 <strong>없다</strong>(<code>typeof</code> → <code>undefined</code>).</p>
+
+<pre><code>Failed to prepare server TypeError: An error occurred while loading
+instrumentation hook: d.nodeProfilingIntegration is not a function</code></pre>
+
+<p>배포됐으면 <strong>전 요청 500</strong> 이었다. 그런데 <code>tsc</code>·<code>vitest</code>·<code>next build</code> 는 모두 통과한다. 설정 파일은 빌드 시 실행되지 않기 때문이다. <strong>리뷰어가 서버를 직접 띄워서 잡았다.</strong></p>
+
+<div class="box good">
+<p><strong>교훈:</strong> 설정 파일을 건드렸으면 <code>next start</code> 로 부팅하고 요청을 보내라. 이 부류를 막으려고 <code>__tests__/sentry-config-contract.test.ts</code> 를 만들었다 — 소스를 구조로 읽어 계약 위반을 잡는다. <strong>수정 전 커밋에 대고 돌려 실패하는 것을 확인한 뒤</strong> 통과시켰다.</p>
+</div>
+
+<h3>번들 포함 ≠ 실행 성공</h3>
+
+<p>#68 을 검증할 때 빌드 산출물에서 config 고유 문자열(<code>/api/ping</code>)을 찾아 "서버 config 가 번들에 들어갔다"까지 확인하고 완료로 봤다. <strong>그 코드가 실행될 때 어떻게 되는지는 확인하지 않았다.</strong> 위 부팅 장애가 그 틈으로 나왔다.</p>
+
+<h3>내 수정이 네 라운드 연속 새 결함을 만들었다</h3>
+
+<p>#72 의 로그 레벨 작업에서 벌어진 일이다. 매 라운드 리뷰가 결함을 찾았고, 고칠 때마다 새 결함이 나왔다. 원인이 <strong>매번 같았다</strong>.</p>
+
+<table>
+  <tr><th>라운드</th><th>내가 한 것</th><th>왜 틀렸나</th></tr>
+  <tr><td>1</td><td>"익명 유발 가능하면 warn"</td><td>축이 틀렸다. 올바른 축은 <strong>"운영자 조치가 필요한가"</strong></td></tr>
+  <tr><td>2</td><td>jose 오류 코드로 분기</td><td>가장 중요한 두 경우가 <strong>반대로</strong> 동작. <code>audience</code> env 누락(서버 사고)이 <code>ERR_JWT_CLAIM_VALIDATION_FAILED</code> → warn 으로 침묵</td></tr>
+  <tr><td>3</td><td>Error 메타데이터 allowlist</td><td><code>PostgrestError.details</code> 는 진단 필드가 아니라 <strong>위반한 행·값</strong>. <code>Key (email)=(secret@example.com) already exists.</code> 가 그대로 전송</td></tr>
+  <tr><td>4</td><td>웹훅 서명 분기</td><td><code>if (signature)</code> 는 문자열 존재만 본다. 공격자가 헤더 한 줄 붙이면 우회</td></tr>
+</table>
+
+<div class="box bad">
+<p><strong>공통 원인:</strong> 어떤 값이 민감한지, 어떤 오류가 어느 부류인지를 <strong>코드에서 추측</strong>했다. 3번이 특히 나쁘다 — <strong>#73 에 "키 패턴 추측을 버릴 것" 이라고 내가 직접 적어 놓고</strong> 같은 실수를 반복했다. 타입 정의는 조사했지만 <strong>그 필드에 실제로 무엇이 담기는지</strong>는 확인하지 않았다.</p>
+<p>결국 <code>ce801bd3</code>(이관 80건)으로 되돌리고 #76 에 기록했다. <strong>정제가 있다는 착각이 정제가 없는 것보다 위험하다</strong>고 판단했다.</p>
+</div>
+
+<h3>테스트가 결함을 통과시킨 방식</h3>
+
+<p>지난 핸드오프에도 같은 항목이 있었는데 또 나왔다.</p>
+<ul>
+  <li><code>ExternalMonitoringTarget</code> 테스트 2건은 이름과 "throw 안 함"만 확인해서 <strong>본문이 통째로 주석 처리된 빈 스텁으로도 통과</strong>했다</li>
+  <li>신규 테스트 6건이 mock 기반이라 <strong>SDK event processor·breadcrumb·RequestData 를 전혀 거치지 않았다.</strong> 2,000건 넘는 테스트가 green 인 상태에서 HIGH 결함이 나왔다</li>
+</ul>
+
+<p>후반부터는 <strong>구현 전에 RED 를 확인</strong>하는 것을 원칙으로 삼았다. 수정 전 커밋에 대고 테스트를 돌려 실패하는 것을 본 뒤 통과시켰다.</p>
+
+<h2>4. 반드시 알고 있어야 할 것</h2>
+
+<h3>Sentry 는 기본 integration 으로 자동 수집한다</h3>
+<p><code>Console</code> 과 <code>RequestData</code> 가 SDK 기본 16개에 포함된다. <strong>애플리케이션 코드를 거치지 않는다.</strong> <code>console.error</code> 원문이 breadcrumb 가 되고, 헤더·쿠키·쿼리스트링이 자동 수집된다. 로그 타겟 한 곳만 정제해서는 새어 나간다.</p>
+
+<h3><code>beforeSend</code> 는 에러 이벤트 전용이다</h3>
+<pre><code>// @sentry/core build/cjs/client.js:888-892
+if (isErrorEvent(processedEvent) &amp;&amp; beforeSend) return beforeSend(...);
+if (isTransactionEvent(processedEvent)) { if (beforeSendSpan) ... }</code></pre>
+<p>transaction/span 은 <code>beforeSendTransaction</code>/<code>beforeSendSpan</code>, Replay 는 <code>beforeAddRecordingEvent</code> 가 따로 처리한다. 하나라도 빠지면 우회로가 된다.</p>
+
+<h3>스키마는 <code>picnic-supabase</code> 소유다</h3>
+<p>이 레포에 <code>supabase/migrations/*.sql</code> 를 만들지 않는다. #66 에서 <code>scripts/*.sql</code> 11개를 지운 근거는 <strong>프로덕션 <code>pg_proc</code> 직접 조회</strong>다 — 함수 14개 중 12개 부재, 존재하는 2개도 스키마가 달랐다(<code>auth.is_admin</code> → 실제 <code>public.is_admin</code>).</p>
+
+<h3>이 레포는 Vercel Preview 배포가 없다</h3>
+<p>머지 전 시각 확인이 불가능하다. 검증은 로컬(<code>next start</code>), 시각 확인은 머지 후 Production.</p>
+
+<h2>5. 함정</h2>
+
+<div class="box warn">
+<p><strong><code>.env.vercel</code> 을 신뢰하지 마라.</strong> 2025-07 에 pull 된 낡은 파일이고 키가 31개뿐이다(<code>.env.local</code> 은 65개). PortOne 키가 없어서 "프로덕션에 미설정"으로 오판할 뻔했다. 실제 확인은 <code>npx vercel env ls production</code>.</p>
+</div>
+
+<div class="box warn">
+<p><strong><code>next.config.js:46</code> 의 <code>removeConsole</code> 이 프로덕션 빌드에서 <code>console.log</code> 를 제거한다.</strong> 초기화 로그가 안 보인다고 초기화가 안 된 게 아니다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>빌드 캐시가 오래되면 <code>tsc</code> 가 유령 오류를 낸다.</strong> <code>.next/types/validator.ts</code> 가 삭제된 라우트를 참조한다. <code>rm -rf .next</code> 후 재확인할 것.</p>
+</div>
+
+<div class="box warn">
+<p><strong>Orca <code>dispatch --inject</code> 가 부팅 중 워커에서 삼켜진다.</strong> 지난 핸드오프에도 있던 항목인데 이번에도 재현됐다. 디스패치 직후 <code>terminal read</code> 로 실제 실행(비용·시간)을 확인하고, 삼켜졌으면 지시서를 파일로 써서 짧은 프롬프트로 재전달한다.</p>
+</div>
+
+<h2>6. 열린 이슈 5건</h2>
+
+<table>
+  <tr><th>#</th><th>제목</th><th>성격</th></tr>
+  <tr><td>73</td><td>Sentry 페이로드에 중앙 redaction 이 없다</td><td>재설계. 실패한 접근 2가지 기록됨</td></tr>
+  <tr><td>74</td><td><code>logError</code> 가 Sentry 전달을 보장하지 않는다</td><td>serverless 유실 가능. <code>captureException</code> 은 transport Promise 를 반환하지 않는다</td></tr>
+  <tr><td>75</td><td>로그 레벨 반대편 미적용</td><td><code>register</code> 중복 이메일 등 익명 고빈도 4xx 가 아직 error</td></tr>
+  <tr><td>76</td><td>로그 레벨 정책 설계</td><td><strong>실패한 접근 4가지 기록.</strong> 이 작업 재시도 전 필독</td></tr>
+  <tr><td>77</td><td>PortOne 웹훅 서명 검증 스킴 불일치</td><td><strong>PortOne 적용 전 차단 항목.</strong> 지금은 미적용이라 사고 아님</td></tr>
+</table>
+
+<h3>#77 이 가장 중요하다</h3>
+<p>레포 코드와 PortOne V2(Standard Webhooks)의 서명 스킴이 <strong>5가지 모두 다르다</strong> — 헤더 이름, 서명 값 형식, HMAC 키 유도, 서명 대상, 출력 인코딩. 프로덕션 시크릿이 <code>whsec_</code> 접두어(Standard Webhooks 규격)인데 코드는 그 문자열을 원본 키로 쓴다.</p>
+<p>웹훅은 <strong>PortOne 결제의 유일한 적립 경로</strong>다(<code>verify</code> 는 <code>"pending"</code> 만 반환). PortOne 을 켜는 순간 첫 결제부터 <strong>청구 완료 + 적립 0건</strong>이 된다. 오픈 체크리스트에 넣을 것.</p>
+
+<h2>7. 사용자 확인이 필요한 것</h2>
+
+<div class="box warn">
+<p><strong>Sentry 대시보드에서 <code>service:picnic-web</code> 서버 이벤트 수신 확인.</strong> #68·#70 의 목표 달성 여부는 이걸로만 확정된다. 이전에는 0건이었다. 내가 검증할 수 있는 범위는 "서버에서 Sentry 클라이언트가 바인딩됨"까지였다.</p>
+</div>
+
+<h2>8. 검증 커맨드</h2>
+
+<pre><code># 기본
+npm ci &amp;&amp; rm -rf .next
+npx tsc --noEmit          # 0 이어야 함
+npm run -s test           # 120파일 2042건
+
+# 설정 파일을 건드렸으면 반드시
+npx next build
+npx next start -p 3199
+curl -s -o /dev/null -w "%{http_code}\n" -L http://localhost:3199/
+grep -cE "Failed to prepare|unhandledRejection|is not a function" &lt;서버로그&gt;
+
+# Sentry API 존재 확인 (v9 에 없는 API 를 부르면 부팅이 깨진다)
+node -e "const S=require('@sentry/nextjs'); console.log(typeof S.nodeProfilingIntegration)"
+
+# Vercel 실제 환경변수 (.env.vercel 말고)
+npx vercel env ls production</code></pre>
+
+<h2>9. 주요 파일 지도</h2>
+
+<table>
+  <tr><th>파일</th><th>역할</th></tr>
+  <tr><td><code>instrumentation.ts</code></td><td>Sentry 서버·edge 초기화 진입점. <code>NEXT_RUNTIME</code> 별 config dynamic import + <code>onRequestError</code></td></tr>
+  <tr><td><code>instrumentation-client.ts</code></td><td>클라이언트 Sentry. Next 가 자동 로드한다</td></tr>
+  <tr><td><code>sentry.server.config.js</code> / <code>sentry.edge.config.js</code></td><td>런타임별 <code>Sentry.init</code>. <strong>instrumentation.ts 가 import 해야만 실행된다</strong></td></tr>
+  <tr><td><code>utils/logger.ts</code></td><td>Logger 클래스. 프로덕션에서만 <code>SentryLogTarget</code> 등록</td></tr>
+  <tr><td><code>utils/logger-targets.ts</code></td><td><code>ConsoleLogTarget</code>, <code>SentryLogTarget</code>(ERROR/FATAL 만 전송)</td></tr>
+  <tr><td><code>utils/log-error.ts</code></td><td><code>console.error</code> 대체 동기 래퍼. <strong>알려진 한계가 주석에 적혀 있다</strong></td></tr>
+  <tr><td><code>__tests__/sentry-config-contract.test.ts</code></td><td>설정 파일 계약 테스트. 무효 옵션 재유입 가드</td></tr>
+  <tr><td><code>app/api/payment/portone/webhook/</code></td><td>PortOne 유일 적립 경로. <strong>#77 참조</strong></td></tr>
+</table>
+
+<hr>
+<p class="footnote">작성: 2026-08-25 · <code>main</code> <code>b5aec514</code> · 이전 핸드오프: <code>docs/handoff-2026-08-14.html</code></p>
+
+</main>
+</body>
+</html>
