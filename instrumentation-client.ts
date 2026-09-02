@@ -30,7 +30,9 @@ const frameHasAppKey = (frame: StackFrame, key: string): boolean =>
 // 붙은 URL 이고, 이벤트 프레임은 Next SDK 가 event processor 에서
 // `app:///_next/...` 로 재작성한 뒤 beforeSend 에 도착하기 때문이다. 행·열은
 // 재작성되지 않는다.
-type FrameLocation = { file: string; lineno: number; colno: number | undefined };
+// colno 는 필수다: 열 번호를 생략하는 스택(Gecko eval, WinJS 등)에서 undefined
+// 끼리 같다고 보면 같은 청크 같은 행의 우리 프레임이 전부 래퍼로 오인된다.
+type FrameLocation = { file: string; lineno: number; colno: number };
 let wrapperFrameLocation: FrameLocation | undefined;
 
 const frameFile = (filename: string | undefined): string => (filename ?? '').split('/').pop() ?? '';
@@ -50,7 +52,9 @@ function probeWrapperFrameLocation() {
   // [래퍼, 이 함수] 두 프레임이 있어야 한다. 하나뿐이면 래퍼가 없는 것이다.
   if (frames.length < 2) return;
   const outermost = frames[0];
-  if (!outermost?.filename || outermost.lineno === undefined) return;
+  if (!outermost?.filename || typeof outermost.lineno !== 'number' || typeof outermost.colno !== 'number') {
+    return;
+  }
   wrapperFrameLocation = {
     file: frameFile(outermost.filename),
     lineno: outermost.lineno,
@@ -60,6 +64,7 @@ function probeWrapperFrameLocation() {
 
 const isSentryWrapperFrame = (frame: StackFrame): boolean =>
   !!wrapperFrameLocation &&
+  typeof frame.colno === 'number' &&
   frameFile(frame.filename) === wrapperFrameLocation.file &&
   frame.lineno === wrapperFrameLocation.lineno &&
   frame.colno === wrapperFrameLocation.colno;

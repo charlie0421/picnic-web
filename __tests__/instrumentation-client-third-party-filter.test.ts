@@ -249,6 +249,34 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
         expect(runPipeline(client, event)).not.toBeNull();
       });
 
+      it('열 번호가 없는 스택(Gecko eval·WinJS 등)에서는 보정하지 않는다', async () => {
+        // 프로브·이벤트 양쪽에 colno 가 없으면 undefined === undefined 로 같은 파일
+        // 1행의 우리 프레임이 전부 래퍼와 "일치" 한다 (교차 리뷰 3라운드 지적).
+        const noColProbe = probeFrames().map((f) => ({ ...f, colno: undefined }));
+        vi.resetModules();
+        init.mockClear();
+        vi.stubEnv('NEXT_PUBLIC_SENTRY_DSN', 'https://public@o0.ingest.sentry.io/0');
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXT_PUBLIC_SENTRY_APPLICATION_KEY', APP_KEY);
+        stackParser.mockReset();
+        stackParser.mockReturnValue(noColProbe);
+        await import('@/instrumentation-client');
+        await new Promise((r) => setTimeout(r, 0));
+        const options = init.mock.calls[0][0] as InitOptions;
+        const filter = options.integrations.find((i) => i.name === 'ThirdPartyErrorsFilter');
+
+        // 우리 코드가 외부 SDK 를 호출하다 난 에러 — 같은 청크 1행, colno 없음.
+        const event = errorEvent([wrapperFrame({ function: 'o', colno: undefined }), externalFrame()]);
+        expect(runPipeline({ options, filter }, event)).not.toBeNull();
+      });
+
+      it('이벤트 프레임에만 열 번호가 없으면 보정하지 않는다', async () => {
+        const client = await loadClient(env);
+        const event = errorEvent([wrapperFrame({ colno: undefined }), externalFrame()]);
+
+        expect(runPipeline(client, event)).not.toBeNull();
+      });
+
       it('프로브 스택에 래퍼 프레임이 없으면(프레임 1개 이하) 보정하지 않는다', async () => {
         stackParser.mockReturnValue(probeFrames().slice(1));
         // loadClient 가 기본 프로브 프레임을 다시 넣으므로 import 뒤에 덮어쓴다.
