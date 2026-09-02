@@ -14,11 +14,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ErrorEvent, Integration, StackFrame } from '@sentry/core';
 
 const init = vi.fn();
+/**
+ * 래퍼 프레임 프로브가 쓰는 stackParser 스텁. 프로브는 setTimeout 콜백 안에서
+ * `new Error().stack` 을 파싱하는데, 실제 브라우저에선 Sentry 가 타이머 콜백을
+ * sentryWrapped 로 감싸므로 최외곽 프레임이 래퍼다. 여기서는 그 결과를 흉내낸다.
+ */
+const stackParser = vi.fn<(stack: string) => StackFrame[]>();
 
 vi.mock('@sentry/nextjs', async () => {
   const core = await vi.importActual<typeof import('@sentry/core')>('@sentry/core');
   return {
     init: (...args: unknown[]) => init(...args),
+    getClient: () => ({ getOptions: () => ({ stackParser }) }),
     replayIntegration: () => ({ name: 'Replay' }),
     browserTracingIntegration: () => ({ name: 'BrowserTracing' }),
     thirdPartyErrorFilterIntegration: core.thirdPartyErrorFilterIntegration,
@@ -33,9 +40,31 @@ const OUR_METADATA = { [`_sentryBundlerPluginAppKey:${APP_KEY}`]: true };
 const ourFrame = (over: Partial<StackFrame> = {}): StackFrame => ({
   filename: 'https://www.picnic.fan/_next/static/chunks/4bd1b696-7d5c0a1e2f3a4b5c.js',
   function: 'r',
+  lineno: 1,
+  colno: 5120,
   module_metadata: OUR_METADATA,
   ...over,
 });
+
+/**
+ * Sentry SDK 가 번들된 청크 안의 sentryWrapped 호출 지점. 프로브가 파싱하는
+ * raw 프레임은 origin 이 붙은 URL 이고, 이벤트 프레임은 Next SDK 가
+ * `app:///_next/...` 로 재작성한 뒤 beforeSend 에 도착한다. 행·열은 같다.
+ */
+const WRAPPER_RAW = {
+  filename: 'https://www.picnic.fan/_next/static/chunks/9a1c2e3f-sentry.js',
+  function: 'r',
+  lineno: 1,
+  colno: 48213,
+};
+const wrapperFrame = (over: Partial<StackFrame> = {}): StackFrame =>
+  ourFrame({ ...WRAPPER_RAW, filename: 'app:///_next/static/chunks/9a1c2e3f-sentry.js', ...over });
+
+/** 프로브 스택: [sentryWrapped, 프로브 함수]. */
+const probeFrames = (): StackFrame[] => [
+  { ...WRAPPER_RAW },
+  { filename: 'https://www.picnic.fan/_next/static/chunks/main-app.js', function: 'probeWrapperFrameSignature', lineno: 1, colno: 777 },
+];
 
 /** 외부(확장/주입 스크립트) 프레임. 메타데이터 없음. */
 const externalFrame = (over: Partial<StackFrame> = {}): StackFrame => ({
@@ -63,14 +92,18 @@ type InitOptions = {
   beforeSend: (event: ErrorEvent, hint: Record<string, never>) => ErrorEvent | null;
 };
 
-async function loadClient(env: Record<string, string | undefined>) {
+async function loadClient(env: Record<string, string | undefined>, { awaitProbe = true } = {}) {
   vi.resetModules();
   init.mockClear();
+  stackParser.mockReset();
+  stackParser.mockReturnValue(probeFrames());
   vi.stubEnv('NEXT_PUBLIC_SENTRY_DSN', 'https://public@o0.ingest.sentry.io/0');
   vi.stubEnv('NODE_ENV', 'production');
   for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
 
   await import('@/instrumentation-client');
+  // 래퍼 프레임 프로브는 setTimeout(…, 0) 콜백에서 돈다.
+  if (awaitProbe) await new Promise((r) => setTimeout(r, 0));
 
   expect(init).toHaveBeenCalledTimes(1);
   const options = init.mock.calls[0][0] as InitOptions;
@@ -152,15 +185,23 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
     describe('Sentry SDK 래퍼 프레임 보정 (PICNIC-WEB-6S, getsentry/sentry-javascript#13835)', () => {
       // v9 helpers.js 의 sentryWrapped 는 페이지의 모든 timer/event/XHR 핸들러를
       // 감싸므로 외부 콜백의 최외곽 JS 프레임이 우리 청크(앱 키 있음)가 된다.
-      // 통합은 그 한 프레임 때문에 "전부 외부" 판정을 못 내린다. v10 의
-      // ignoreSentryInternalFrames 와 같은 조건(최외곽 1개, 축약된 함수명)으로
-      // 그 프레임을 무시한다.
+      // 통합은 그 한 프레임 때문에 "전부 외부" 판정을 못 내린다. 부팅 직후
+      // 타이머 콜백에서 스택을 떠 래퍼 프레임의 위치(파일·행·열)를 확보하고,
+      // 최외곽 프레임이 정확히 그 위치일 때만 래퍼로 본다. 함수명은 축약돼
+      // 우리 코드의 `r` 과 구분되지 않으므로 쓰지 않는다.
+
+      it('부팅 후 타이머 콜백에서 스택을 파싱해 래퍼 위치를 확보한다', async () => {
+        await loadClient(env);
+
+        expect(stackParser).toHaveBeenCalledTimes(1);
+        expect(stackParser.mock.calls[0][0]).toContain('Error');
+      });
 
       it('PICNIC-WEB-6S: 최외곽 래퍼 프레임 하나만 우리 것이고 나머지가 전부 외부면 드롭한다', async () => {
         const client = await loadClient(env);
         // 실제 6S 최신 이벤트의 프레임 구성 그대로.
         const event = errorEvent([
-          ourFrame({ function: 'r' }), // @sentry/browser helpers.js (minified)
+          wrapperFrame({ function: 'r' }), // @sentry/browser helpers.js (minified)
           externalFrame({ function: 'XMLHttpRequest.onreadystatechange' }),
           externalFrame({ function: 'Z' }),
         ]);
@@ -168,37 +209,63 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
         expect(runPipeline(client, event)).toBeNull();
       });
 
-      it('개발 빌드의 sentryWrapped 이름도 래퍼로 본다', async () => {
-        const client = await loadClient(env);
-        const event = errorEvent([ourFrame({ function: 'sentryWrapped' }), externalFrame()]);
-
-        expect(runPipeline(client, event)).toBeNull();
-      });
-
-      it('우리 프레임이 둘 이상이면 래퍼 보정을 적용하지 않는다', async () => {
-        // [래퍼, 우리 핸들러, 외부 SDK] — 우리 코드가 외부 SDK 를 호출하다 난 에러.
+      it('우리 축약 함수 `r` 이 외부 SDK 를 직접 호출하다 난 에러는 유지한다', async () => {
+        // 래퍼와 같은 청크·같은 함수명이어도 행·열이 다르면 우리 코드다.
         const client = await loadClient(env);
         const event = errorEvent([
-          ourFrame({ function: 'r' }),
-          ourFrame({ function: 'o' }),
+          ourFrame({ function: 'r', filename: wrapperFrame().filename, colno: WRAPPER_RAW.colno + 900 }),
           externalFrame(),
         ]);
 
         expect(runPipeline(client, event)).not.toBeNull();
       });
 
-      it('최외곽 프레임의 함수명이 축약되지 않았으면 래퍼로 보지 않는다', async () => {
+      it('이름 없는 최상위 모듈 프레임 `?` 이 외부 SDK 를 호출하다 난 에러는 유지한다', async () => {
         const client = await loadClient(env);
-        const event = errorEvent([ourFrame({ function: 'handleClick' }), externalFrame()]);
+        const event = errorEvent([ourFrame({ function: '?' }), externalFrame()]);
 
         expect(runPipeline(client, event)).not.toBeNull();
       });
 
-      it('우리 프레임이 최외곽이 아니면 래퍼 보정을 적용하지 않는다', async () => {
+      it('우리 프레임이 둘 이상이면 래퍼 보정을 적용하지 않는다', async () => {
+        // [래퍼, 우리 핸들러, 외부 SDK] — 우리 코드가 외부 SDK 를 호출하다 난 에러.
         const client = await loadClient(env);
-        const event = errorEvent([externalFrame(), ourFrame({ function: 'r' })]);
+        const event = errorEvent([wrapperFrame(), ourFrame({ function: 'o' }), externalFrame()]);
 
         expect(runPipeline(client, event)).not.toBeNull();
+      });
+
+      it('래퍼 위치 프레임이 최외곽이 아니면 래퍼 보정을 적용하지 않는다', async () => {
+        const client = await loadClient(env);
+        const event = errorEvent([externalFrame(), wrapperFrame()]);
+
+        expect(runPipeline(client, event)).not.toBeNull();
+      });
+
+      it('프로브가 아직 돌기 전이면 보정하지 않는다 (안전한 기본값은 유지)', async () => {
+        const client = await loadClient(env, { awaitProbe: false });
+        const event = errorEvent([wrapperFrame(), externalFrame()]);
+
+        expect(runPipeline(client, event)).not.toBeNull();
+      });
+
+      it('프로브 스택에 래퍼 프레임이 없으면(프레임 1개 이하) 보정하지 않는다', async () => {
+        stackParser.mockReturnValue(probeFrames().slice(1));
+        // loadClient 가 기본 프로브 프레임을 다시 넣으므로 import 뒤에 덮어쓴다.
+        vi.resetModules();
+        init.mockClear();
+        vi.stubEnv('NEXT_PUBLIC_SENTRY_DSN', 'https://public@o0.ingest.sentry.io/0');
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXT_PUBLIC_SENTRY_APPLICATION_KEY', APP_KEY);
+        stackParser.mockReset();
+        stackParser.mockReturnValue(probeFrames().slice(1));
+        await import('@/instrumentation-client');
+        await new Promise((r) => setTimeout(r, 0));
+        const options = init.mock.calls[0][0] as InitOptions;
+        const filter = options.integrations.find((i) => i.name === 'ThirdPartyErrorsFilter');
+
+        const event = errorEvent([wrapperFrame(), externalFrame()]);
+        expect(runPipeline({ options, filter }, event)).not.toBeNull();
       });
 
       it('exception 값이 둘 이상(체인)이면 래퍼 보정을 적용하지 않는다', async () => {

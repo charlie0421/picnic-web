@@ -25,11 +25,44 @@ type StackFrame = Sentry.StackFrame;
 const frameHasAppKey = (frame: StackFrame, key: string): boolean =>
   !!(frame.module_metadata as Record<string, unknown> | undefined)?.[`${APP_KEY_METADATA_PREFIX}${key}`];
 
-// v10 ignoreSentryInternalFrames 의 판별 조건과 동일: 개발 빌드는 이름이 남고,
-// 프로덕션은 축약된 1~2자 이름에 context line 이 없다.
-const isLikelySentryWrapperFrame = (frame: StackFrame): boolean =>
-  frame.function === 'sentryWrapped' ||
-  (!frame.context_line && !frame.pre_context && !!frame.function && frame.function.length <= 2);
+// Sentry v9 helpers.js 의 sentryWrapped 가 콜백을 호출하는 지점(`fn.apply`)의
+// 위치. 파일은 basename 만 비교한다 — 프로브가 파싱하는 raw 프레임은 origin 이
+// 붙은 URL 이고, 이벤트 프레임은 Next SDK 가 event processor 에서
+// `app:///_next/...` 로 재작성한 뒤 beforeSend 에 도착하기 때문이다. 행·열은
+// 재작성되지 않는다.
+type FrameLocation = { file: string; lineno: number; colno: number | undefined };
+let wrapperFrameLocation: FrameLocation | undefined;
+
+const frameFile = (filename: string | undefined): string => (filename ?? '').split('/').pop() ?? '';
+
+/**
+ * 부팅 직후 타이머 콜백에서 스택을 떠 래퍼 프레임의 위치를 확보한다.
+ * browserApiErrors 통합(기본 활성)이 setTimeout 콜백을 sentryWrapped 로 감싸므로
+ * 이 함수의 스택 최외곽 프레임이 곧 래퍼다. 함수명은 프로덕션에서 `r` 처럼
+ * 축약돼 우리 코드와 구분되지 않기 때문에 위치로만 식별한다.
+ * 실패하면 위치를 비워 두고 보정을 건너뛴다 (안전한 기본값은 "유지").
+ */
+function probeWrapperFrameLocation() {
+  const stackParser = Sentry.getClient()?.getOptions().stackParser;
+  if (!stackParser) return;
+  // core 의 stackParser 는 최외곽(oldest) 프레임이 [0] 이 되도록 뒤집어 준다.
+  const frames = stackParser(new Error('sentry-wrapper-probe').stack ?? '');
+  // [래퍼, 이 함수] 두 프레임이 있어야 한다. 하나뿐이면 래퍼가 없는 것이다.
+  if (frames.length < 2) return;
+  const outermost = frames[0];
+  if (!outermost?.filename || outermost.lineno === undefined) return;
+  wrapperFrameLocation = {
+    file: frameFile(outermost.filename),
+    lineno: outermost.lineno,
+    colno: outermost.colno,
+  };
+}
+
+const isSentryWrapperFrame = (frame: StackFrame): boolean =>
+  !!wrapperFrameLocation &&
+  frameFile(frame.filename) === wrapperFrameLocation.file &&
+  frame.lineno === wrapperFrameLocation.lineno &&
+  frame.colno === wrapperFrameLocation.colno;
 
 // DSN이 없으면 Sentry 초기화를 건너뛰기 (개발 환경에서 네트워크 에러 방지)
 if (SENTRY_DSN) {
@@ -125,10 +158,10 @@ if (SENTRY_DSN) {
         // Sentry v9 helpers.js 의 sentryWrapped 는 페이지의 모든 timer/event/XHR
         // 핸들러를 감싼다. 외부 스크립트 콜백에서 난 에러는 최외곽 JS 프레임이
         // 그 래퍼(우리 청크라 앱 키가 붙음)라서 위 통합이 "전부 외부" 판정을
-        // 못 내린다 (PICNIC-WEB-6S, getsentry/sentry-javascript#13835). v10 의
-        // ignoreSentryInternalFrames 와 같은 조건으로 그 프레임을 무시한다:
-        // exception 값 1개, 파일명 있는 프레임 중 최외곽 하나만 우리 것,
-        // 그 프레임이 래퍼처럼 보이고, 나머지는 전부 외부.
+        // 못 내린다 (PICNIC-WEB-6S, getsentry/sentry-javascript#13835). 다음을
+        // 전부 만족할 때만 그 프레임을 무시하고 드롭한다: exception 값 1개,
+        // 파일명 있는 프레임 중 최외곽이 프로브로 확보한 래퍼 위치와 정확히
+        // 일치, 나머지는 1개 이상이며 전부 외부.
         // [래퍼, 우리 핸들러, 외부 SDK] 처럼 우리 프레임이 둘 이상이면 우리
         // 코드가 외부 SDK 를 호출하다 난 에러일 수 있으므로 건드리지 않는다.
         if (APPLICATION_KEY && values.length === 1) {
@@ -139,7 +172,7 @@ if (SENTRY_DSN) {
             outermost &&
             inner.length > 0 &&
             frameHasAppKey(outermost, APPLICATION_KEY) &&
-            isLikelySentryWrapperFrame(outermost) &&
+            isSentryWrapperFrame(outermost) &&
             inner.every((f) => !frameHasAppKey(f, APPLICATION_KEY))
           ) {
             return null;
@@ -286,7 +319,13 @@ if (SENTRY_DSN) {
     ],
     maxBreadcrumbs: 30,
   });
-  
+
+  // 래퍼 프레임 위치 확보 (위 probeWrapperFrameLocation 참조). init 이 끝나
+  // browserApiErrors 통합이 setTimeout 을 감싼 뒤라야 하므로 여기서 예약한다.
+  if (APPLICATION_KEY) {
+    setTimeout(probeWrapperFrameLocation, 0);
+  }
+
   if (SENTRY_DEBUG) {
     // eslint-disable-next-line no-console
     console.log('🔧 Sentry 클라이언트 초기화 완료:', process.env.NODE_ENV, {
