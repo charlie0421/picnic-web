@@ -19,6 +19,17 @@ if (!buildVersion && process.env.NODE_ENV === 'production') {
 // 빌드 시간 생성 (중복 정의 방지를 위해 변수로 분리)
 const buildTime = new Date().toISOString();
 
+// Sentry 번들러 플러그인은 SENTRY_AUTH_TOKEN 이 있을 때만 실행된다 (Vercel 빌드
+// 에선 활성, 로컬 빌드에선 자동 비활성). 소스맵 업로드와 아래 앱 키 주입이
+// 모두 이 플러그인에 실린다.
+const sentryPluginEnabled = !!process.env.SENTRY_AUTH_TOKEN;
+// thirdPartyErrorFilterIntegration 용 앱 키. 플러그인이 우리 청크마다
+// 메타데이터로 심고, 클라이언트(instrumentation-client.ts)는 이 키가 없는
+// 프레임을 외부 코드로 분류한다. 플러그인이 꺼진 빌드에서는 키를 노출하지
+// 않아 클라이언트가 통합을 등록하지 않게 한다 — 메타데이터 없는 번들에서
+// 통합을 켜면 모든 이벤트가 외부 코드로 보인다.
+const SENTRY_APPLICATION_KEY = 'picnic-web';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -38,6 +49,11 @@ const nextConfig = {
     NEXT_PUBLIC_BUILD_TIME: buildTime,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
+    // 비활성 분기는 undefined 가 아니라 빈 문자열: Next 는 config.env 의
+    // null/undefined 항목을 건너뛰어(lib/static-env.js getNextConfigEnv) 셸이나
+    // Vercel 에 잔존하는 raw NEXT_PUBLIC_SENTRY_APPLICATION_KEY 가 그대로
+    // 인라인된다. 빈 문자열은 raw 값을 덮는다.
+    NEXT_PUBLIC_SENTRY_APPLICATION_KEY: sentryPluginEnabled ? SENTRY_APPLICATION_KEY : '',
   },
   
   // 페이지 및 레이아웃 최적화 설정
@@ -226,8 +242,13 @@ const sentryWebpackPluginOptions = {
   widenClientFileUpload: true,
   // SENTRY_AUTH_TOKEN 있을 때만 소스맵 업로드 (Vercel 빌드에선 활성, 로컬 빌드
   // 에선 자동 비활성).
-  disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
-  disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
+  disableServerWebpackPlugin: !sentryPluginEnabled,
+  disableClientWebpackPlugin: !sentryPluginEnabled,
+  // 각 청크에 `_sentryBundlerPluginAppKey:<key>` 메타데이터를 심는다.
+  // withSentryConfig 최상위 옵션엔 없고 플러그인 옵션으로만 전달된다.
+  unstable_sentryWebpackPluginOptions: {
+    applicationKey: SENTRY_APPLICATION_KEY,
+  },
 };
 
 module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
