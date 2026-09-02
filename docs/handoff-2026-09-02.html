@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>picnic-web 핸드오프 — 2026-09-02</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #5c6370; --line: #e3e6eb; --bg: #ffffff;
+    --code-bg: #f6f8fa; --accent: #6b46e5; --warn-bg: #fff8e6; --warn-line: #e6b800;
+    --bad-bg: #fdf0f0; --bad-line: #d64545; --good-bg: #f0f8f2; --good-line: #3a9a5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 24px 96px; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+      "Noto Sans KR", Segoe UI, sans-serif;
+    line-height: 1.75; font-size: 16px;
+  }
+  main { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 30px; line-height: 1.3; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 22px; margin: 56px 0 16px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--line); letter-spacing: -0.01em;
+  }
+  h3 { font-size: 17px; margin: 32px 0 10px; }
+  p, li { color: var(--ink); }
+  .sub { color: var(--muted); margin: 0 0 32px; font-size: 15px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    border: 1px solid var(--line); white-space: nowrap;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; white-space: pre; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14.5px; }
+  th, td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td code { white-space: normal; }
+  .box { border-radius: 8px; padding: 14px 18px; margin: 18px 0; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--warn-line); }
+  .bad  { background: var(--bad-bg);  border-left: 4px solid var(--bad-line); }
+  .good { background: var(--good-bg); border-left: 4px solid var(--good-line); }
+  .box p:first-child { margin-top: 0; }
+  .box p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
+  .footnote { color: var(--muted); font-size: 14px; }
+</style></head>
+<body>
+<main>
+
+<h1>picnic-web 핸드오프</h1>
+<p class="sub">2026-09-02 · <code>main</code> = <code>aa69fd30</code> (변동 없음) · 열린 PR 없음 · 열린 이슈 5건</p>
+
+<div class="box good">
+<p><strong>한 줄 요약.</strong> 지난 세션이 남긴 숙제 “Sentry 가 정말 동작하는가”를 확인하는 작업이었다. 답은 <strong>서버 파이프라인은 정상이었고, 에러가 안 보인 건 조직 쿼터가 <code>picnic-app</code> 버그 하나에 전부 타버렸기 때문</strong>이었다. 그 버그의 수정 효과까지 대조 데이터로 확정했고, <code>picnic-web</code> 이 리플레이 쿼터를 태우던 설정 오류도 잡았다. <strong>코드 커밋은 0건</strong> — 전부 설정과 관측의 문제였다.</p>
+</div>
+
+<div class="box bad">
+<p><strong>가장 중요한 것 하나.</strong> 이번 세션에서 <strong>내가 확신을 갖고 말한 판단 3건이 틀렸다.</strong> 셋 다 원인이 같다 — <strong>관측되지 않는 것을 “없는 것”으로, 도구의 동작을 “아는 것”으로 단정</strong>했다. 다행히 2건은 실행 직전 재검증으로 막았지만 1건은 사용자에게 잘못 보고한 뒤 정정했다. 자세한 건 <strong>§4를 반드시 읽어라.</strong></p>
+</div>
+
+<h2>1. 이번에 한 일</h2>
+
+<p>이 세션은 <strong>레포 코드를 한 줄도 바꾸지 않았다.</strong> <code>main</code> 은 <code>aa69fd30</code> 그대로다. 변경한 것은 전부 Vercel 환경변수와 Sentry 상태다.</p>
+
+<table>
+  <tr><th>대상</th><th>변경</th><th>비고</th></tr>
+  <tr><td>Vercel prod env</td><td><code>NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE</code> <code>1.0</code> → <code>0</code></td><td>리플레이 세션 녹화 중단</td></tr>
+  <tr><td>Vercel prod env</td><td><code>NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE</code> <code>1.0</code> → <code>0</code></td><td>에러 리플레이도 중단(사용자 요청: 완전 제거)</td></tr>
+  <tr><td>Vercel prod env</td><td><code>NEXT_PUBLIC_SENTRY_TRACE_SAMPLE_RATE</code> <code>1.0</code> → <code>0.1</code></td><td>span 90% 절감</td></tr>
+  <tr><td>Vercel prod env</td><td><code>NEXT_PUBLIC_SENTRY_PROFILE_SAMPLE_RATE</code> <strong>삭제</strong></td><td>코드가 읽지 않는 죽은 변수</td></tr>
+  <tr><td>Vercel</td><td>프로덕션 재배포 <code>picnic-ej0xmnb76</code></td><td><code>NEXT_PUBLIC_*</code> 는 빌드 시 인라인 → 재배포 필수</td></tr>
+  <tr><td>Sentry 결제</td><td>Pay-as-you-go <code>$10</code> → <code>$20</code></td><td>사용자가 직접 설정</td></tr>
+  <tr><td>Sentry 이슈</td><td><code>PICNIC-APP-5GQ</code> archived (untilEscalating)</td><td>광고 no-fill 노이즈</td></tr>
+  <tr><td>Sentry 이슈</td><td><code>PICNIC-APP-5G9</code> 검증 노트 2건 기록</td><td>해제 릴리스는 <strong>의도적으로 유지</strong> — §5 참조</td></tr>
+</table>
+
+<h2>2. 확정된 결론 — 5G9 수정은 성공했다</h2>
+
+<p>지난 세션 이후 최대 미결 항목이었다. 대조군 비교로 확정했다.</p>
+
+<table>
+  <tr><th>릴리스</th><th class="num">세션 (24h)</th><th class="num">점유</th><th class="num">5G9 이벤트</th><th class="num">세션당</th></tr>
+  <tr><td><code>1.3.1+130104</code> (수정 포함)</td><td class="num">13,218</td><td class="num">94%</td><td class="num"><strong>0</strong></td><td class="num">0</td></tr>
+  <tr><td><code>1.3.0+130007</code> (버그)</td><td class="num">661</td><td class="num">4%</td><td class="num">계속 유입</td><td class="num">0.61</td></tr>
+</table>
+
+<p>쿼터 재개 후 7일간 수집된 5G9 이벤트 <strong>1,304건이 100% 구버전</strong>에서 나왔고 신버전은 <strong>0건</strong>이다. 구버전 발생률(0.61건/세션)을 신버전 세션 13,218개에 적용하면 약 8,000건이 나왔어야 한다. 0건이므로 수정(<code>0598d8a10</code>, <code>4c4dfb1b2</code> — picnic-app <code>pangle_platform.dart</code> 의 <code>PangleClaimPreflight.execute</code>)이 유효하다.</p>
+
+<div class="box good">
+<p><strong>남은 유입은 미업데이트 4% 사용자 몫이며 자연 감소한다.</strong> 별도 조치 불필요.</p>
+</div>
+
+<h2>3. 원인 규명 — 왜 에러가 하나도 안 보였나</h2>
+
+<p>지난 핸드오프 §7의 “Sentry 대시보드에서 서버 이벤트 수신 확인” 항목에 대한 답이다.</p>
+
+<h3>서버 파이프라인은 처음부터 정상이었다</h3>
+<p><code>http.server</code> 트랜잭션이 24시간 <strong>8,070건</strong>, <code>platform: node</code>, 현재 프로덕션 릴리스 태그를 달고 들어오고 있었다. 수락량이 하루 ~400 → ~7,700건으로 뛴 시점이 <strong>8/19(#68 배포일)</strong> 과 정확히 일치한다. 즉 <strong>#68·#70 은 목표를 달성했다.</strong></p>
+
+<h3>에러만 0건이었던 이유: 조직 쿼터 소진</h3>
+<table>
+  <tr><th>프로젝트</th><th class="num">30일 수락</th><th class="num">쿼터 드롭</th></tr>
+  <tr><td><strong>picnic-app</strong></td><td class="num">78,927</td><td class="num">43,713</td></tr>
+  <tr><td>1stype-web</td><td class="num">6,473</td><td class="num">702</td></tr>
+  <tr><td><strong>picnic-web</strong></td><td class="num">27</td><td class="num">28</td></tr>
+</table>
+
+<p>Team 플랜 에러 예약량 50,000 을 <code>picnic-app</code> 의 <code>PICNIC-APP-5G9</code> 단일 이슈가 <strong>77,731건</strong>으로 태웠다. 8/20 13:40Z 부터 조직 전체 에러가 입구에서 버려졌고, picnic-web 의 에러 28건도 같이 죽었다. <strong>picnic-web 은 전체의 0.03% 였다.</strong></p>
+
+<h3>리플레이 쿼터를 태운 건 picnic-web 이었다</h3>
+<p>코드(<code>instrumentation-client.ts:10</code>)의 프로덕션 기본값은 <code>replaysSessionSampleRate = 0.0</code> 인데, <strong>Vercel 환경변수가 <code>1.0</code> 으로 덮어쓰고 있었다</strong>(486일 전 설정). 방문자 전원 녹화라 50건 한도가 하루면 터진다.</p>
+
+<div class="box warn">
+<p><strong>코드의 기본값을 믿지 마라.</strong> <code>process.env.X || 기본값</code> 패턴은 환경변수가 있으면 기본값이 죽는다. 실제 값은 <code>npx vercel env pull</code> 로 확인해야 한다.</p>
+</div>
+
+<h2>4. 값을 치르고 배운 것 — 내가 틀린 판단 3건</h2>
+
+<table>
+  <tr><th>#</th><th>내가 한 말</th><th>왜 틀렸나</th><th>결과</th></tr>
+  <tr>
+    <td>1</td>
+    <td>“5G9 는 8/20 이후 0건이니 <strong>이미 패치로 잡혔다</strong>”</td>
+    <td>0건이 된 건 수정이 아니라 <strong>쿼터 소진</strong>이었다. 같은 시각 <code>rate_limited</code> 가 0 → 781 로 튀는 걸 안 봤다. 앱은 계속 보내고 있었다</td>
+    <td><strong>사용자에게 잘못 보고 후 정정</strong></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>“5GQ 를 뮤트하면 <strong>예산 여유가 생긴다</strong>”</td>
+    <td>Sentry 아카이브는 이벤트를 <strong>여전히 수집·과금</strong>하고 이슈 스트림에서만 숨긴다. 쿼터와 무관하다</td>
+    <td>실행 시점에 자체 발견해 정정</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>“5G9 해제를 <code>1.3.1+130104</code> 로 <strong>재지정하자</strong>”</td>
+    <td>Sentry 는 해제 릴리스보다 <strong>다음</strong> 릴리스에서 발생해야 regression 으로 잡는다. 130104 로 바꾸면 정작 감시 대상인 130104 자체의 재발을 놓친다</td>
+    <td><strong>실행 직전 재검증으로 차단</strong></td>
+  </tr>
+</table>
+
+<div class="box bad">
+<p><strong>공통 원인:</strong> 1번은 <strong>관측되지 않는 것을 “없는 것”으로</strong> 읽었고, 2·3번은 <strong>도구(Sentry)의 동작을 확인 없이 “아는 것”으로</strong> 단정했다. 지난 핸드오프 §3이 “코드에서 추측했다”였는데, 이번엔 대상이 <strong>플랫폼 동작</strong>으로 바뀌었을 뿐 같은 실패다.</p>
+<p><strong>효과가 있었던 습관:</strong> 상태를 바꾸는 API 를 호출하기 <strong>직전에</strong> “이 설정이 정확히 무엇을 하는가”를 한 번 더 확인한 것. 3번은 그 한 번의 확인으로 막혔다. <strong>쓰기 직전 재확인을 규칙으로 유지할 것.</strong></p>
+</div>
+
+<h2>5. 반드시 알고 있어야 할 것</h2>
+
+<h3>Sentry 쿼터는 카테고리별로 따로 걸린다</h3>
+<p>errors 가 터져도 <strong>spans/transactions 는 계속 들어온다.</strong> 이번에 “서버 SDK 가 살아 있다”를 증명한 게 정확히 이 트랜잭션 데이터다. 에러가 안 보인다고 파이프라인이 죽은 게 아니다.</p>
+<p>또한 <strong>쿼터 초과 상태에서도 outcome 통계(<code>stats_v2</code>)는 계속 집계된다.</strong> 이벤트 <em>내용</em>은 못 봐도 “몇 건이 왔다가 버려졌는지”는 알 수 있다. 이게 §4-1을 정정할 수 있었던 근거다.</p>
+
+<h3><code>resolved in release</code> 의 의미론</h3>
+<pre><code>해제 릴리스 X 로 마크된 이슈
+  → X 보다 "다음" 릴리스에서 발생해야 regression
+  → X 자신 또는 X 이전 릴리스의 이벤트는 조용히 흡수</code></pre>
+<p>현재 5G9 는 <code>1.3.0+130007</code> 로 해제돼 있다. <strong>이게 의도한 설정이다:</strong> 1.3.0 꼬리(하루 수백 건)는 알림 없이 흡수되고, <code>1.3.1+130104</code> 이상에서 1건이라도 나오면 regression 알림이 뜬다. <strong>바꾸지 마라.</strong></p>
+
+<h3>아카이브(ignore)는 비용을 줄이지 않는다</h3>
+<p>쿼터를 실제로 아끼려면 <strong>클라이언트에서 보내지 않게</strong> 해야 한다. Sentry 쪽 조치는 스트림 정리·알림 억제 효과만 있다.</p>
+
+<h3>키별 rate limit 은 Team 플랜에서 안 된다</h3>
+<p>API 가 <code>200</code> 을 반환하면서 값을 <strong>조용히 무시</strong>한다(<code>rateLimit: null</code> 유지). Business 플랜 기능이다. 현재 조직의 폭주 방어선은 <strong>Spike Protection</strong>(작동 중, 지난 폭주 때 2,937건 차단)과 <strong>PAYG 금액 상한</strong> 둘뿐이다.</p>
+
+<h2>6. 현재 수치 (2026-09-02 기준)</h2>
+
+<table>
+  <tr><th>항목</th><th>값</th><th>판단</th></tr>
+  <tr><td>Pay-as-you-go</td><td><strong>$11.14 / $20</strong></td><td>9/14 리셋까지 12일, 예상 총 ~$16 — 여유</td></tr>
+  <tr><td>errors</td><td>71,392 / 50,000</td><td>초과분은 PAYG 흡수 중</td></tr>
+  <tr><td>spans</td><td>1,148,886 / 5,000,000</td><td>trace 0.1 적용 후 여유</td></tr>
+  <tr><td>일일 수락 에러</td><td>8/31 1,141 · 9/1 1,186</td><td>5G9 꼬리 감소로 하락 예상</td></tr>
+  <tr><td>picnic-web 리플레이 (3일)</td><td><strong>4건</strong></td><td>사실상 0 — 차단 성공 (이전 하루 수백 건)</td></tr>
+  <tr><td>1.3.1 보급률</td><td><strong>94%</strong></td><td>정상 진행</td></tr>
+</table>
+
+<h2>7. 관찰 중인 이슈 (Sentry, GitHub 이슈 아님)</h2>
+
+<table>
+  <tr><th>이슈</th><th>내용</th><th>상태</th></tr>
+  <tr>
+    <td><code>PICNIC-WEB-6R</code><br><code>PICNIC-WEB-6S</code></td>
+    <td><code>TypeError: Cannot read properties of undefined (reading 'M_ID')</code> · 155 + 5건 · 사용자 4명</td>
+    <td><strong>9/1 03:08 이후 멎음.</strong> 단발성 버스트였다</td>
+  </tr>
+  <tr>
+    <td><code>PICNIC-APP-5GQ</code></td>
+    <td>광고 SDK <code>LoadFailed</code> (no-fill / 지역 제한) · 300건/일</td>
+    <td>archived (untilEscalating)</td>
+  </tr>
+  <tr>
+    <td><code>PICNIC-APP-5G9</code></td>
+    <td>수정 확정. 1.3.0 꼬리만 유입</td>
+    <td>resolved in <code>1.3.0+130007</code> — 유지</td>
+  </tr>
+</table>
+
+<h3>6R/6S 는 우리 버그가 아니다 (실측 근거)</h3>
+<table>
+  <tr><th>확인 항목</th><th>결과</th></tr>
+  <tr><td>스택 프레임</td><td><code>app:///executors/200.js</code> <strong>단 하나</strong> (+ Sentry 래퍼)</td></tr>
+  <tr><td>프로덕션에서 서빙되나</td><td><code>/executors/200.js</code> → <strong>404</strong></td></tr>
+  <tr><td>레포에 있나</td><td><strong>없음</strong></td></tr>
+  <tr><td>번들의 <code>M_ID</code></td><td><code>APPLE_TEAM_ID</code> 의 부분 문자열 — 무관</td></tr>
+  <tr><td>mechanism</td><td><code>onunhandledrejection</code>, handled=no</td></tr>
+  <tr><td>6S breadcrumbs</td><td>googlesyndication / adtrafficquality / fundingchoicesmessages(sodar)</td></tr>
+</table>
+
+<p>브라우저 확장 또는 광고 CMP 가 주입한 스크립트다. <strong>기존 필터가 못 잡은 이유:</strong> <code>instrumentation-client.ts:79</code> 의 <code>isThirdPartyAd</code> 는 파일명에 <code>googlesyndication.com</code>·<code>/pagead/</code>·<code>doubleclick.net</code> 등 <strong>광고사 도메인이 들어있을 때만</strong> 매칭한다. <code>executors/200.js</code> 는 일반 경로라 통과했다.</p>
+
+<h2>8. 다음 작업 — 우선순위</h2>
+
+<div class="box warn">
+<p><strong>급한 것은 없다.</strong> 5G9 는 해결됐고 예산은 여유가 있으며 6R/6S 는 멎었다. 아래는 전부 “해두면 좋은” 수준이다.</p>
+</div>
+
+<table>
+  <tr><th>순위</th><th>작업</th><th>근거 / 주의</th></tr>
+  <tr>
+    <td>1</td>
+    <td><strong>서드파티 스택 필터 보강</strong><br><code>instrumentation-client.ts</code></td>
+    <td>6R 은 멎었지만 <strong>구조적 구멍은 그대로</strong>다. 다음 확장/광고 스크립트가 같은 경로로 샌다. Sentry 공식 <code>thirdPartyErrorFilterIntegration</code>(빌드 시 <code>applicationKey</code> 주입)을 <strong>수제 휴리스틱보다 먼저 검토</strong>할 것. 실제 6R 이벤트 페이로드로 <strong>RED 확인 후</strong> 구현</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>picnic-app 광고 no-fill 레벨 강등</td>
+    <td>실익 하루 300건 ≈ <strong>$0.11</strong>. 단독 OTA 는 과하다. <strong>다음 Dart 변경에 묶어서</strong> 내보낼 것</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>Spend Allocation 설정</td>
+    <td>조직 설정에서 picnic-web 에 에러 쿼터를 고정 배정하면, 앱이 또 폭주해도 웹 에러가 같이 죽지 않는다</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>기존 열린 이슈 #73~#77</td>
+    <td>지난 세션에서 그대로. <strong>#77(PortOne)은 여전히 오픈 전 차단 항목</strong> — PortOne 은 아직 미오픈이라 사고 아님</td>
+  </tr>
+</table>
+
+<h2>9. 열린 이슈 5건 (변동 없음)</h2>
+
+<table>
+  <tr><th>#</th><th>제목</th><th>성격</th></tr>
+  <tr><td>73</td><td>Sentry 페이로드에 중앙 redaction 이 없다</td><td>재설계. 실패한 접근 2가지 기록됨</td></tr>
+  <tr><td>74</td><td><code>logError</code> 가 Sentry 전달을 보장하지 않는다</td><td>serverless 유실 가능</td></tr>
+  <tr><td>75</td><td>로그 레벨 반대편 미적용</td><td>익명 고빈도 4xx 가 아직 error</td></tr>
+  <tr><td>76</td><td>로그 레벨 정책 설계</td><td><strong>실패한 접근 4가지 기록. 재시도 전 필독</strong></td></tr>
+  <tr><td>77</td><td>PortOne 웹훅 서명 검증 스킴 불일치</td><td><strong>PortOne 오픈 전 차단 항목.</strong> 현재 미적용이라 사고 아님</td></tr>
+</table>
+
+<div class="box warn">
+<p><strong>#74 는 이제 검증 가능해졌다.</strong> 쿼터가 열렸으니 <code>logError</code> 경로를 타는 서버 오류가 실제로 Sentry 이벤트가 되는지 관찰할 수 있다. 이 세션 기준으로는 <strong>표본이 아직 0건</strong>이다 — picnic-web 에 들어온 에러는 전부 브라우저발이었다(<code>runtime.name:node</code> 조회 결과 0건).</p>
+</div>
+
+<h2>10. 함정</h2>
+
+<div class="box warn">
+<p><strong><code>NEXT_PUBLIC_*</code> 변경은 재배포해야 반영된다.</strong> 빌드 시 번들에 인라인되므로 <code>vercel env</code> 만 바꾸면 아무 일도 안 일어난다. 확인법은 번들에서 <code>parseFloat("...")</code> 를 직접 grep 하는 것.</p>
+</div>
+
+<div class="box warn">
+<p><strong>Vercel CLI 로는 기존 환경변수 값을 못 바꾼다.</strong> <code>vercel env add</code> 는 “이미 모든 환경에 존재한다”며 거부하고, <code>rm</code> → <code>add</code> 조합은 이 세션에서 조용히 실패했다. <strong>REST API 로 <code>PATCH</code></strong> 하는 게 확실하다(항목 ID 유지, target 유지).</p>
+</div>
+
+<div class="box warn">
+<p><strong>같은 이름의 환경변수가 target 별로 여러 항목일 수 있다.</strong> 이 레포는 <code>development</code> 용과 <code>preview+production</code> 용이 <strong>별도 항목</strong>으로 존재한다. 하나만 고치면 절반만 바뀐다.</p>
+</div>
+
+<div class="box warn">
+<p><strong><code>zsh</code> 에서 <code>--include=*.ts</code> 는 no matches 로 죽는다.</strong> <code>grep -rn -e 패턴 경로</code> 형태로 쓰거나 따옴표로 감쌀 것. 이 세션에서 두 번 걸렸다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>클라우드 루틴(<code>/schedule</code>)은 Sentry 를 볼 수 없다.</strong> <code>.env.local</code> 은 gitignore 대상이고 claude.ai 커넥터 목록에 Sentry 가 없다(Vercel/Gmail/Drive/Calendar 만). 9/1 루틴은 Vercel 데이터만으로 돌았고 <code>/vi/rewards</code> 의 <strong>504 1건</strong>(edge-middleware 25초 타임아웃, 8/31 12:20Z, 단발성)을 잡아냈다. Sentry 항목을 자동화하려면 claude.ai 에 Sentry 커넥터를 먼저 연결해야 한다.</p>
+</div>
+
+<h2>11. 검증 커맨드</h2>
+
+<pre><code># Sentry 조회 (로컬 .env.local 의 SENTRY_READ_TOKEN 필요)
+#   scopes: event:read, member:read, org:read, project:read
+#   쓰기(이슈 상태 변경)에는 event:write 가 필요 — 이 토큰엔 없다.
+#   쓰기는 Sentry MCP OAuth 승인 후 update_issue / add_issue_note 사용.
+
+ORG=icon-casting; APP=4507695242739712; WEB=4507964278046720
+
+# 쿼터·PAYG 현황
+curl -s -H "Authorization: Bearer $SENTRY_READ_TOKEN" \
+  "https://sentry.io/api/0/customers/$ORG/" | jq '{onDemandMaxSpend, onDemandSpendUsed, errors:.categories.errors}'
+
+# 5G9 재발 여부 — 릴리스별 분해가 핵심
+curl -s -G -H "Authorization: Bearer $SENTRY_READ_TOKEN" \
+  "https://sentry.io/api/0/organizations/$ORG/events/" \
+  -d project=$APP -d statsPeriod=7d -d dataset=errors \
+  -d 'query=issue:PICNIC-APP-5G9' -d field=release -d 'field=count()'
+#   → 1.3.1+130104 가 나오면 수정 실패. 1.3.0+130007 만 나오면 정상.
+
+# 서버 이벤트가 실제로 잡히는가 (#74 검증)
+curl -s -G -H "Authorization: Bearer $SENTRY_READ_TOKEN" \
+  "https://sentry.io/api/0/organizations/$ORG/events/" \
+  -d project=$WEB -d statsPeriod=24h -d dataset=errors \
+  -d 'query=runtime.name:node' -d 'field=count()'
+#   → 0 이면 아직 서버 에러 이벤트 표본 없음 (breadcrumb 는 이벤트가 아니다)
+
+# 쿼터가 터져도 이건 집계된다 — 드롭 사유 확인용
+curl -s -G -H "Authorization: Bearer $SENTRY_READ_TOKEN" \
+  "https://sentry.io/api/0/organizations/$ORG/stats_v2/" \
+  -d statsPeriod=7d -d interval=1d -d category=error \
+  -d 'field=sum(quantity)' -d groupBy=outcome -d groupBy=project
+
+# Vercel 실제 환경변수 (.env.vercel 말고)
+npx vercel env pull --environment=production /tmp/.env.prod && grep SAMPLE_RATE /tmp/.env.prod
+
+# 번들에 실제로 인라인됐는지
+curl -sL https://www.picnic.fan/_next/static/chunks/main-app-*.js | grep -oE 'parseFloat\("[0-9.]*"\)'</code></pre>
+
+<h2>12. 설정 지도</h2>
+
+<table>
+  <tr><th>위치</th><th>역할</th></tr>
+  <tr><td><code>instrumentation-client.ts:10-11</code></td><td>리플레이 rate. <strong>Vercel env 가 덮어쓴다</strong> — 코드 기본값을 믿지 말 것</td></tr>
+  <tr><td><code>instrumentation-client.ts:55</code></td><td><code>beforeSend</code> — 노이즈 필터 3종(<code>isThirdPartyAd</code>, cross-origin SecurityError, 외부 RangeError)</td></tr>
+  <tr><td><code>instrumentation-client.ts:79</code></td><td><code>isThirdPartyAd</code> — <strong>광고사 도메인명 매칭만 한다.</strong> 6R 이 샌 구멍</td></tr>
+  <tr><td><code>instrumentation-client.ts:188</code></td><td><code>ignoreErrors</code> 메시지 패턴 목록</td></tr>
+  <tr><td>Vercel env (prod)</td><td><code>SESSION=0</code> · <code>ERROR=0</code> · <code>TRACE=0.1</code> · <code>PROFILE</code> 삭제됨</td></tr>
+  <tr><td>Sentry 조직</td><td><code>icon-casting</code>, Team 플랜, 청구 8/15~9/14, PAYG $20</td></tr>
+  <tr><td>Sentry 프로젝트 ID</td><td>picnic-web <code>4507964278046720</code> · picnic-app <code>4507695242739712</code></td></tr>
+  <tr><td>Vercel 프로젝트</td><td><code>prj_usUFvrrtA2cR1fevYuILYIQbiUTk</code> / team <code>team_IAmig9b6UtRgCZGKdnxORxkr</code></td></tr>
+</table>
+
+<p>지난 핸드오프의 파일 지도(<code>instrumentation.ts</code>, <code>sentry.*.config.js</code>, <code>utils/logger*.ts</code>, <code>utils/log-error.ts</code>)는 <strong>변동 없이 유효</strong>하다.</p>
+
+<hr>
+<p class="footnote">작성: 2026-09-02 · <code>main</code> <code>aa69fd30</code> · 이전 핸드오프: <code>docs/handoff-2026-08-25.html</code></p>
+
+</main>
+</body>
+</html>
