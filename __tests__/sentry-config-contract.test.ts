@@ -67,4 +67,54 @@ describe('Sentry 설정 계약', () => {
       }
     });
   });
+
+  describe('서드파티 스택 필터 — 앱 키 계약 (next.config.js ↔ instrumentation-client.ts)', () => {
+    const nextConfig = read('next.config.js');
+    const client = read('instrumentation-client.ts');
+
+    it('앱 키를 플러그인 옵션으로 전달한다', () => {
+      // withSentryConfig 최상위엔 applicationKey 옵션이 없다. 플러그인 옵션으로만
+      // 들어가며, 그래야 청크에 `_sentryBundlerPluginAppKey:<key>` 가 심긴다.
+      expect(nextConfig).toMatch(
+        /unstable_sentryWebpackPluginOptions:\s*\{[^}]*applicationKey:\s*SENTRY_APPLICATION_KEY/,
+      );
+    });
+
+    it('이 SDK 버전의 플러그인 옵션 조립기가 applicationKey 를 실제로 통과시킨다', async () => {
+      // 내부 경로라 SDK 업그레이드 때 깨질 수 있다. 깨지면 applicationKey 전달
+      // 방식이 바뀐 것이므로 next.config.js 를 같이 고쳐야 한다.
+      // 패키지 exports 가 subpath 를 막으므로 파일 경로로 직접 읽는다.
+      const { createRequire } = await import('module');
+      const { getWebpackPluginOptions } = createRequire(import.meta.url)(
+        path.join(root, 'node_modules/@sentry/nextjs/build/cjs/config/webpackPluginOptions.js'),
+      );
+      const opts = getWebpackPluginOptions(
+        { isServer: false, config: {}, dir: root, nextRuntime: undefined },
+        { unstable_sentryWebpackPluginOptions: { applicationKey: 'picnic-web' } },
+        undefined,
+      );
+      expect(opts.applicationKey).toBe('picnic-web');
+    });
+
+    it('앱 키 노출과 플러그인 활성화가 같은 조건을 쓴다', () => {
+      // 플러그인이 꺼진 빌드(메타데이터 없음)에 키가 노출되면 클라이언트가
+      // 통합을 켜고, 모든 프레임을 외부로 봐서 이벤트 전부가 드롭된다.
+      expect(nextConfig).toMatch(
+        /NEXT_PUBLIC_SENTRY_APPLICATION_KEY:\s*sentryPluginEnabled\s*\?\s*SENTRY_APPLICATION_KEY\s*:\s*undefined/,
+      );
+      expect(nextConfig).toMatch(/disableClientWebpackPlugin:\s*!sentryPluginEnabled/);
+    });
+
+    it('클라이언트는 키를 하드코딩하지 않고 빌드가 노출한 값을 읽는다', () => {
+      expect(client).toContain('process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY');
+      expect(client).not.toMatch(/filterKeys:\s*\[\s*['"]/);
+    });
+
+    it('통합은 드롭 모드가 아니라 태그 모드로 등록한다', () => {
+      // 드롭 모드는 프레임 0개 이벤트까지 버린다. 드롭은 beforeSend 가 프레임
+      // 존재를 확인한 뒤 한다 (instrumentation-client-third-party-filter.test.ts).
+      expect(client).toContain("behaviour: 'apply-tag-if-exclusively-contains-third-party-frames'");
+      expect(client).not.toMatch(/behaviour:\s*'drop-/);
+    });
+  });
 });

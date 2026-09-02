@@ -9,6 +9,11 @@ const SENTRY_DEBUG = process.env.NEXT_PUBLIC_SENTRY_DEBUG === 'true';
 const TRACES_RATE = parseFloat(process.env.NEXT_PUBLIC_SENTRY_TRACE_SAMPLE_RATE || (process.env.NODE_ENV === 'production' ? '0.02' : '0.1'));
 const REPLAY_SESSION_RATE = parseFloat(process.env.NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE || (process.env.NODE_ENV === 'production' ? '0.0' : '0.02'));
 const REPLAY_ERROR_RATE = parseFloat(process.env.NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE || '1.0');
+// Sentry 번들러 플러그인이 우리 청크마다 심는 앱 키 (next.config.js 의
+// applicationKey). 플러그인이 실제로 실행되는 빌드에서만 노출된다. 키 없이
+// 필터 통합을 켜면 메타데이터가 없는 모든 프레임이 외부로 보여 이벤트 전부가
+// 외부 코드로 분류되므로, 키가 없으면 통합 자체를 등록하지 않는다.
+const APPLICATION_KEY = process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY;
 
 // DSN이 없으면 Sentry 초기화를 건너뛰기 (개발 환경에서 네트워크 에러 방지)
 if (SENTRY_DSN) {
@@ -49,6 +54,25 @@ if (SENTRY_DSN) {
         // Automatic route change tracking for Next.js App Router
         // nextRouterInstrumentation is deprecated in v9+
       }),
+
+      // 브라우저 확장·광고 CMP 가 주입한 스크립트(PICNIC-WEB-6R 의
+      // `executors/200.js`, MetaMask inpage.js, zaloJSV2 등) 에서 난 에러 차단.
+      // 아래 isThirdPartyAd 는 광고사 도메인명만 매칭해 일반 경로의 주입
+      // 스크립트를 놓친다. 이 통합은 "우리 청크 프레임이 하나도 없는가" 를
+      // 빌드 시 심은 앱 키로 판정하므로 파일명 패턴에 의존하지 않는다.
+      // 드롭 모드 대신 태그 모드를 쓰고 beforeSend 에서 드롭하는 이유는
+      // beforeSend 의 주석 참조.
+      // 알려진 공백: Sentry SDK 래퍼(helpers.js) 프레임은 우리 청크에 번들돼
+      // 앱 키가 붙으므로 그 프레임이 섞인 외부 에러(PICNIC-WEB-6S)는 못 잡는다.
+      // getsentry/sentry-javascript#13835 — v10 의 ignoreSentryInternalFrames 필요.
+      ...(APPLICATION_KEY
+        ? [
+            Sentry.thirdPartyErrorFilterIntegration({
+              filterKeys: [APPLICATION_KEY],
+              behaviour: 'apply-tag-if-exclusively-contains-third-party-frames',
+            }),
+          ]
+        : []),
     ],
     
     // Event filtering
@@ -65,6 +89,22 @@ if (SENTRY_DSN) {
         type ExceptionValue = (typeof values)[number];
         const matchesAnyValue = (predicate: (v: ExceptionValue) => boolean) =>
           values.some(predicate);
+
+        // thirdPartyErrorFilterIntegration 이 "파일명 있는 프레임이 전부 외부" 로
+        // 판정해 붙인 태그. 통합의 드롭 모드를 직접 쓰지 않는 이유: 그 판정은
+        // 파일명 있는 프레임이 0개인 이벤트도 외부로 본다([].every === true).
+        // 스택이 비는 건 외부 코드라는 증거가 아니므로(PICNIC-WEB-5Y 같은
+        // IndexedDB 오류), 실제 외부 프레임이 있을 때만 드롭하고 아니면 태그를
+        // 걷어낸다.
+        if (event.tags?.third_party_code === true) {
+          const hasNamedFrame = matchesAnyValue((v) =>
+            (v.stacktrace?.frames ?? []).some((f) => !!f.filename),
+          );
+          if (hasNamedFrame) {
+            return null;
+          }
+          delete event.tags.third_party_code;
+        }
 
         if (
           process.env.NODE_ENV === 'development' &&
