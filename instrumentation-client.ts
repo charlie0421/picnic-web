@@ -15,6 +15,22 @@ const REPLAY_ERROR_RATE = parseFloat(process.env.NEXT_PUBLIC_SENTRY_ERROR_SAMPLE
 // 외부 코드로 분류되므로, 키가 없으면 통합 자체를 등록하지 않는다.
 const APPLICATION_KEY = process.env.NEXT_PUBLIC_SENTRY_APPLICATION_KEY;
 
+// thirdPartyErrorFilterIntegration 이 프레임에 붙이는 앱 키 메타데이터의 접두어.
+// @sentry/core 내부 상수(BUNDLER_PLUGIN_APP_KEY_PREFIX) — 계약 테스트가 SDK
+// 소스와 대조한다.
+const APP_KEY_METADATA_PREFIX = '_sentryBundlerPluginAppKey:';
+
+type StackFrame = Sentry.StackFrame;
+
+const frameHasAppKey = (frame: StackFrame, key: string): boolean =>
+  !!(frame.module_metadata as Record<string, unknown> | undefined)?.[`${APP_KEY_METADATA_PREFIX}${key}`];
+
+// v10 ignoreSentryInternalFrames 의 판별 조건과 동일: 개발 빌드는 이름이 남고,
+// 프로덕션은 축약된 1~2자 이름에 context line 이 없다.
+const isLikelySentryWrapperFrame = (frame: StackFrame): boolean =>
+  frame.function === 'sentryWrapped' ||
+  (!frame.context_line && !frame.pre_context && !!frame.function && frame.function.length <= 2);
+
 // DSN이 없으면 Sentry 초기화를 건너뛰기 (개발 환경에서 네트워크 에러 방지)
 if (SENTRY_DSN) {
   Sentry.init({
@@ -104,6 +120,30 @@ if (SENTRY_DSN) {
             return null;
           }
           delete event.tags.third_party_code;
+        }
+
+        // Sentry v9 helpers.js 의 sentryWrapped 는 페이지의 모든 timer/event/XHR
+        // 핸들러를 감싼다. 외부 스크립트 콜백에서 난 에러는 최외곽 JS 프레임이
+        // 그 래퍼(우리 청크라 앱 키가 붙음)라서 위 통합이 "전부 외부" 판정을
+        // 못 내린다 (PICNIC-WEB-6S, getsentry/sentry-javascript#13835). v10 의
+        // ignoreSentryInternalFrames 와 같은 조건으로 그 프레임을 무시한다:
+        // exception 값 1개, 파일명 있는 프레임 중 최외곽 하나만 우리 것,
+        // 그 프레임이 래퍼처럼 보이고, 나머지는 전부 외부.
+        // [래퍼, 우리 핸들러, 외부 SDK] 처럼 우리 프레임이 둘 이상이면 우리
+        // 코드가 외부 SDK 를 호출하다 난 에러일 수 있으므로 건드리지 않는다.
+        if (APPLICATION_KEY && values.length === 1) {
+          const [outermost, ...inner] = (values[0].stacktrace?.frames ?? []).filter(
+            (f) => !!f.filename,
+          );
+          if (
+            outermost &&
+            inner.length > 0 &&
+            frameHasAppKey(outermost, APPLICATION_KEY) &&
+            isLikelySentryWrapperFrame(outermost) &&
+            inner.every((f) => !frameHasAppKey(f, APPLICATION_KEY))
+          ) {
+            return null;
+          }
         }
 
         if (

@@ -49,7 +49,11 @@ const nextConfig = {
     NEXT_PUBLIC_BUILD_TIME: buildTime,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
-    NEXT_PUBLIC_SENTRY_APPLICATION_KEY: sentryPluginEnabled ? SENTRY_APPLICATION_KEY : undefined,
+    // 비활성 분기는 undefined 가 아니라 빈 문자열: Next 는 config.env 의
+    // null/undefined 항목을 건너뛰어(lib/static-env.js getNextConfigEnv) 셸이나
+    // Vercel 에 잔존하는 raw NEXT_PUBLIC_SENTRY_APPLICATION_KEY 가 그대로
+    // 인라인된다. 빈 문자열은 raw 값을 덮는다.
+    NEXT_PUBLIC_SENTRY_APPLICATION_KEY: sentryPluginEnabled ? SENTRY_APPLICATION_KEY : '',
   },
   
   // 페이지 및 레이아웃 최적화 설정

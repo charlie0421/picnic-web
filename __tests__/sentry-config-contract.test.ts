@@ -99,10 +99,23 @@ describe('Sentry 설정 계약', () => {
     it('앱 키 노출과 플러그인 활성화가 같은 조건을 쓴다', () => {
       // 플러그인이 꺼진 빌드(메타데이터 없음)에 키가 노출되면 클라이언트가
       // 통합을 켜고, 모든 프레임을 외부로 봐서 이벤트 전부가 드롭된다.
+      // 비활성 분기는 undefined 가 아니라 빈 문자열이어야 한다: Next 의
+      // getNextConfigEnv 는 null/undefined 항목을 건너뛰어(lib/static-env.js)
+      // 셸·Vercel 에 잔존하는 raw NEXT_PUBLIC_SENTRY_APPLICATION_KEY 가 그대로
+      // 인라인된다. 빈 문자열은 raw 값을 덮는다.
       expect(nextConfig).toMatch(
-        /NEXT_PUBLIC_SENTRY_APPLICATION_KEY:\s*sentryPluginEnabled\s*\?\s*SENTRY_APPLICATION_KEY\s*:\s*undefined/,
+        /NEXT_PUBLIC_SENTRY_APPLICATION_KEY:\s*sentryPluginEnabled\s*\?\s*SENTRY_APPLICATION_KEY\s*:\s*''/,
       );
       expect(nextConfig).toMatch(/disableClientWebpackPlugin:\s*!sentryPluginEnabled/);
+    });
+
+    it('클라이언트가 읽는 앱 키 메타데이터 접두어가 SDK 소스와 일치한다', () => {
+      // 래퍼 프레임 보정은 frame.module_metadata 의 키를 직접 읽는다. 접두어는
+      // @sentry/core 내부 상수라 업그레이드 때 바뀔 수 있다.
+      const core = read('node_modules/@sentry/core/build/esm/integrations/third-party-errors-filter.js');
+      const m = core.match(/BUNDLER_PLUGIN_APP_KEY_PREFIX = '([^']+)'/);
+      expect(m?.[1]).toBeDefined();
+      expect(client).toContain(`'${m?.[1]}'`);
     });
 
     it('클라이언트는 키를 하드코딩하지 않고 빌드가 노출한 값을 읽는다', () => {

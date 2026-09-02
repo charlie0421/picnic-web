@@ -108,13 +108,19 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
       expect(runPipeline(client, event)).toBeNull();
     });
 
-    it('우리 번들 프레임이 하나라도 섞이면 유지한다', async () => {
+    it('우리 번들 프레임이 안쪽에 섞여 있으면 유지한다', async () => {
+      // 최외곽 하나만 우리 것인 형태는 래퍼 보정(아래 describe) 대상이므로 제외.
       const client = await loadClient(env);
-      const event = errorEvent([ourFrame(), externalFrame()]);
+      const shapes = [
+        [ourFrame({ function: 'r' }), externalFrame(), ourFrame({ function: 'o' })],
+        [externalFrame(), ourFrame({ function: 'o' })],
+      ];
 
-      const result = runPipeline(client, event);
-      expect(result).not.toBeNull();
-      expect(result?.tags?.third_party_code).toBeUndefined();
+      for (const frames of shapes) {
+        const result = runPipeline(client, errorEvent(frames));
+        expect(result, frames.map((f) => f.filename).join(' > ')).not.toBeNull();
+        expect(result?.tags?.third_party_code).toBeUndefined();
+      }
     });
 
     it('우리 번들 프레임만 있으면 유지한다', async () => {
@@ -143,18 +149,71 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
       }
     });
 
-    it('PICNIC-WEB-6S: Sentry SDK 래퍼 프레임이 섞이면 v9 통합은 못 잡는다 (알려진 공백)', async () => {
-      // 래퍼(helpers.js sentryWrapped) 는 우리 청크 안에 번들되므로 앱 키가 붙는다.
-      // getsentry/sentry-javascript#13835 — v10 의 ignoreSentryInternalFrames 로만
-      // 해결된다. 업그레이드 후 이 테스트가 실패하면 기대값을 null 로 바꿀 것.
-      const client = await loadClient(env);
-      const event = errorEvent([
-        ourFrame({ function: 'r' }), // @sentry/browser helpers.js
-        externalFrame({ function: 'XMLHttpRequest.onreadystatechange' }),
-        externalFrame({ function: 'Z' }),
-      ]);
+    describe('Sentry SDK 래퍼 프레임 보정 (PICNIC-WEB-6S, getsentry/sentry-javascript#13835)', () => {
+      // v9 helpers.js 의 sentryWrapped 는 페이지의 모든 timer/event/XHR 핸들러를
+      // 감싸므로 외부 콜백의 최외곽 JS 프레임이 우리 청크(앱 키 있음)가 된다.
+      // 통합은 그 한 프레임 때문에 "전부 외부" 판정을 못 내린다. v10 의
+      // ignoreSentryInternalFrames 와 같은 조건(최외곽 1개, 축약된 함수명)으로
+      // 그 프레임을 무시한다.
 
-      expect(runPipeline(client, event)).not.toBeNull();
+      it('PICNIC-WEB-6S: 최외곽 래퍼 프레임 하나만 우리 것이고 나머지가 전부 외부면 드롭한다', async () => {
+        const client = await loadClient(env);
+        // 실제 6S 최신 이벤트의 프레임 구성 그대로.
+        const event = errorEvent([
+          ourFrame({ function: 'r' }), // @sentry/browser helpers.js (minified)
+          externalFrame({ function: 'XMLHttpRequest.onreadystatechange' }),
+          externalFrame({ function: 'Z' }),
+        ]);
+
+        expect(runPipeline(client, event)).toBeNull();
+      });
+
+      it('개발 빌드의 sentryWrapped 이름도 래퍼로 본다', async () => {
+        const client = await loadClient(env);
+        const event = errorEvent([ourFrame({ function: 'sentryWrapped' }), externalFrame()]);
+
+        expect(runPipeline(client, event)).toBeNull();
+      });
+
+      it('우리 프레임이 둘 이상이면 래퍼 보정을 적용하지 않는다', async () => {
+        // [래퍼, 우리 핸들러, 외부 SDK] — 우리 코드가 외부 SDK 를 호출하다 난 에러.
+        const client = await loadClient(env);
+        const event = errorEvent([
+          ourFrame({ function: 'r' }),
+          ourFrame({ function: 'o' }),
+          externalFrame(),
+        ]);
+
+        expect(runPipeline(client, event)).not.toBeNull();
+      });
+
+      it('최외곽 프레임의 함수명이 축약되지 않았으면 래퍼로 보지 않는다', async () => {
+        const client = await loadClient(env);
+        const event = errorEvent([ourFrame({ function: 'handleClick' }), externalFrame()]);
+
+        expect(runPipeline(client, event)).not.toBeNull();
+      });
+
+      it('우리 프레임이 최외곽이 아니면 래퍼 보정을 적용하지 않는다', async () => {
+        const client = await loadClient(env);
+        const event = errorEvent([externalFrame(), ourFrame({ function: 'r' })]);
+
+        expect(runPipeline(client, event)).not.toBeNull();
+      });
+
+      it('exception 값이 둘 이상(체인)이면 래퍼 보정을 적용하지 않는다', async () => {
+        const client = await loadClient(env);
+        const event: ErrorEvent = {
+          exception: {
+            values: [
+              { type: 'Error', value: 'outer', stacktrace: { frames: [ourFrame({ function: 'r' }), externalFrame()] } },
+              { type: 'TypeError', value: 'inner', stacktrace: { frames: [externalFrame()] } },
+            ],
+          },
+        };
+
+        expect(runPipeline(client, event)).not.toBeNull();
+      });
     });
   });
 
