@@ -121,6 +121,7 @@ export async function GET(request: NextRequest) {
             .eq("vote_id", voteIdNumber)
             .is("deleted_at", null)
             // NULLS LAST: vote_item_vote_id_total_active_idx 와 방향을 맞춰 전체 정렬을 피한다.
+            // vote_total 은 nullable(기본 0)이다. NULL 은 맨 뒤(최하위 순위)로 가는 것이 의도다.
             .order("vote_total", { ascending: false, nullsFirst: false });
 
         if (itemsError) {

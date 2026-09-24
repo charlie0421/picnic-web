@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { PostgrestClient } from '@supabase/postgrest-js';
 import { buildVoteQuery } from '@/lib/data-fetching/server/vote-service-query';
 
 /**
@@ -8,8 +9,8 @@ import { buildVoteQuery } from '@/lib/data-fetching/server/vote-service-query';
  * WHERE deleted_at IS NULL 이다. supabase-js 의 `ascending: false` 는 기본이 NULLS FIRST 라
  * 이 인덱스와 방향이 어긋나고, PostgreSQL 은 투표마다 후보 전체를 정렬했다
  * (운영 pg_stat_statements 6721025931549208208: 웹 목록 SSR 평균 1.7초). 앱
- * (picnic-app vote_list_provider) 은 이미 NULLS LAST 로 요청한다. vote_total 은 NOT NULL
- * 이라 결과 순서는 바뀌지 않는다.
+ * (picnic-app vote_list_provider) 은 이미 NULLS LAST 로 요청한다. vote_total 은 nullable
+ * (기본값 0)이고 운영 NULL 행은 0건이다. NULL 이 생기면 맨 뒤(최하위)로 가는 것이 의도다.
  */
 type OrderCall = { column: string; ascending?: boolean; nullsFirst?: boolean; referencedTable?: string };
 
@@ -80,5 +81,27 @@ describe('투표 결과 API — 후보 득표순 NULLS LAST', () => {
 
     expect(res.status).toBe(200);
     expect(orderCalls).toEqual([{ column: 'vote_total', ascending: false, nullsFirst: false }]);
+  });
+});
+
+describe('실제 PostgREST URL 직렬화', () => {
+  // 모의 빌더는 인자만 본다. 실제 postgrest-js 가 nullsFirst:false 를 .nullslast 로 보내는지 고정한다.
+  const client = new PostgrestClient('http://localhost/rest/v1');
+
+  it('buildVoteQuery 의 후보 정렬은 vote_item.order=vote_total.desc.nullslast 로 나간다', () => {
+    const query: any = buildVoteQuery(client as any, 'ongoing', 'all');
+    const url = new URL(query.url.toString());
+    expect(url.searchParams.get('vote_item.order')).toBe('vote_total.desc.nullslast');
+  });
+
+  it('결과 API 모양의 직접 정렬은 order=vote_total.desc.nullslast 로 나간다', () => {
+    const query: any = client
+      .from('vote_item')
+      .select('id')
+      .eq('vote_id', 1)
+      .is('deleted_at', null)
+      .order('vote_total', { ascending: false, nullsFirst: false });
+    const url = new URL(query.url.toString());
+    expect(url.searchParams.get('order')).toBe('vote_total.desc.nullslast');
   });
 });
