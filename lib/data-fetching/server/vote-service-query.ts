@@ -202,9 +202,13 @@ export function buildVoteQuery(
     query = query.order("area", { ascending: true });
   }
 
+  // 후보 정렬은 NULLS LAST 로 요청한다. supabase-js 의 `ascending: false` 기본은 NULLS FIRST 라
+  // 부분 인덱스 vote_item_vote_id_total_active_idx (vote_id, vote_total DESC NULLS LAST) 와
+  // 방향이 어긋나 투표마다 후보 전체를 정렬했다(웹 목록 SSR 평균 1.7초). vote_total 은
+  // NOT NULL 이라 결과 순서는 같다. 앱(vote_list_provider)과도 같은 요청이다.
   query = query
     .order(column, { ascending })
-    .order("vote_total", { ascending: false, referencedTable: "vote_item" });
+    .order("vote_total", { ascending: false, nullsFirst: false, referencedTable: "vote_item" });
 
   if (typeof voteItemLimit === 'number') {
     const normalizedLimit = Math.max(1, voteItemLimit);
