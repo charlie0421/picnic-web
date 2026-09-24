@@ -1,5 +1,12 @@
 # Task Master AI - Claude Code Integration Guide
 
+> **Database schema is owned by [`picnic-supabase`](https://github.com/charlie0421/picnic-supabase).**
+> All Supabase migrations and DDL changes for `PICNIC-PROD` (project ref `xtijtefcycoeqludlngc`) live there.
+> Do **not** add `supabase/migrations/*.sql` files to this repo. New schema work:
+> `cd ~/Repositories/picnic-supabase && supabase migration new <name>` → SQL → PR → `supabase db push`.
+
+> `AGENTS.md` is the canonical shared instruction file for all agents. `CLAUDE.md` is a thin wrapper that imports it via `@AGENTS.md`.
+
 ## Essential Commands
 
 ### Core Workflow Commands
@@ -47,7 +54,8 @@ task-master generate                                         # Update task markd
 
 ### Claude Code Integration Files
 
-- `CLAUDE.md` - Auto-loaded context for Claude Code (this file)
+- `AGENTS.md` - Canonical shared instructions for all agents (this file)
+- `CLAUDE.md` - Auto-loaded context for Claude Code; thin wrapper that imports `AGENTS.md`
 - `.claude/settings.json` - Claude Code tool allowlist and preferences
 - `.claude/commands/` - Custom slash commands for repeated workflows
 - `.mcp.json` - MCP server configuration (project-specific)
@@ -73,7 +81,8 @@ project/
 │   └── commands/         # Custom slash commands
 ├── .env                  # API keys
 ├── .mcp.json            # MCP configuration
-└── CLAUDE.md            # This file - auto-loaded by Claude Code
+├── AGENTS.md            # This file - canonical shared instructions
+└── CLAUDE.md            # Wrapper - imports AGENTS.md for Claude Code
 ```
 
 ## MCP Integration
@@ -289,7 +298,7 @@ task-master models --set-fallback gpt-4o-mini
 ### Context Management
 
 - Use `/clear` between different tasks to maintain focus
-- This CLAUDE.md file is automatically loaded for context
+- This AGENTS.md file is loaded automatically for context (Claude Code via the `CLAUDE.md` `@AGENTS.md` import)
 - Use `task-master show <id>` to pull specific task context when needed
 
 ### Iterative Implementation
