@@ -39,8 +39,11 @@ export function useVotePolling({
 
   const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const initialDataNotifiedRef = React.useRef<boolean>(false);
+  const hadPollingErrorRef = React.useRef<boolean>(false);
+  const consecutivePollingErrorsRef = React.useRef<number>(0);
   const requestStartTimeRef = React.useRef<number>(0);
   const [lastPollingUpdate, setLastPollingUpdate] = React.useState<Date | null>(null);
+  const lastPollingUpdateRef = React.useRef<Date | null>(null);
   const [pollingErrorCount, setPollingErrorCount] = React.useState(0);
   const recentlyUpdatedItemsRef = React.useRef<Set<string | number>>(new Set());
   const highlightTimersRef = React.useRef<Map<string | number, NodeJS.Timeout>>(new Map());
@@ -112,6 +115,40 @@ export function useVotePolling({
     setConnectionQuality(prev => computeConnectionQuality(prev, success, responseTime));
   }, []);
 
+  const markPollingSuccess = React.useCallback((responseTime: number) => {
+    consecutivePollingErrorsRef.current = 0;
+    setPollingErrorCount(0);
+    updateConnectionQuality(true, responseTime);
+    setConnectionState(prev => ({
+      ...prev,
+      lastUpdate: new Date(),
+      errorCount: 0,
+    }));
+
+    if (!initialDataNotifiedRef.current || hadPollingErrorRef.current) {
+      addNotification({
+        type: 'success',
+        title: '실시간 연결 성공',
+        message: '투표 결과가 실시간으로 업데이트됩니다.',
+        duration: 3000,
+      });
+      initialDataNotifiedRef.current = true;
+    }
+    hadPollingErrorRef.current = false;
+  }, [addNotification, updateConnectionQuality]);
+
+  const markPollingFailure = React.useCallback((responseTime?: number) => {
+    const nextErrorCount = consecutivePollingErrorsRef.current + 1;
+    consecutivePollingErrorsRef.current = nextErrorCount;
+    hadPollingErrorRef.current = true;
+    setPollingErrorCount(nextErrorCount);
+    updateConnectionQuality(false, responseTime);
+    setConnectionState(prev => ({
+      ...prev,
+      errorCount: nextErrorCount,
+    }));
+  }, [updateConnectionQuality]);
+
   const updateVoteDataPolling = React.useCallback(async () => {
     if (!vote?.id) return;
     if (!isMountedRef.current) return;
@@ -124,8 +161,8 @@ export function useVotePolling({
     const startTime = performance.now();
     requestStartTimeRef.current = startTime;
     try {
-      const shouldLog = connectionState.mode === 'polling' &&
-        (!lastPollingUpdate || (Date.now() - lastPollingUpdate.getTime()) > POLLING_LOG_THROTTLE_MS);
+      const shouldLog = !lastPollingUpdateRef.current ||
+        (Date.now() - lastPollingUpdateRef.current.getTime()) > POLLING_LOG_THROTTLE_MS;
       if (shouldLog) {
         console.log('[Polling] Fetching vote data...');
       }
@@ -140,16 +177,14 @@ export function useVotePolling({
         if (shouldLog) {
           console.log('[Polling] Not modified (304)');
         }
-        updateConnectionQuality(true, responseTime);
-        setConnectionState(prev => ({ ...prev, lastUpdate: new Date(), errorCount: 0 }));
+        markPollingSuccess(responseTime);
         return;
       }
       if (!response.ok) {
         const voteError = await response.json().catch(() => ({}));
         if (!isMountedRef.current) return;
         console.error('[Polling] Vote fetch error:', voteError);
-        setPollingErrorCount(prev => prev + 1);
-        updateConnectionQuality(false, responseTime);
+        markPollingFailure(responseTime);
         addNotification({
           type: 'error',
           title: '데이터 로딩 오류',
@@ -165,23 +200,10 @@ export function useVotePolling({
           console.log('[Polling] Vote data received:', voteData);
         }
         setVoteItems(transformVoteItems(voteData.vote_item || []));
-        setLastPollingUpdate(new Date());
-        setPollingErrorCount(0);
-        updateConnectionQuality(true, responseTime);
-        setConnectionState(prev => ({
-          ...prev,
-          lastUpdate: new Date(),
-          errorCount: 0,
-        }));
-        if (!initialDataNotifiedRef.current) {
-          addNotification({
-            type: 'success',
-            title: '실시간 연결 성공',
-            message: '투표 결과가 실시간으로 업데이트됩니다.',
-            duration: 3000,
-          });
-          initialDataNotifiedRef.current = true;
-        }
+        const updatedAt = new Date();
+        lastPollingUpdateRef.current = updatedAt;
+        setLastPollingUpdate(updatedAt);
+        markPollingSuccess(responseTime);
       }
       if (user) {
         const { data: userVoteData, error: userVoteError } = await supabase
@@ -205,68 +227,82 @@ export function useVotePolling({
       if (!isMountedRef.current) return;
       const responseTime = performance.now() - startTime;
       console.error('[Polling] Unexpected error:', error);
-      setPollingErrorCount(prev => prev + 1);
-      updateConnectionQuality(false, responseTime);
-      setConnectionState(prev => ({
-        ...prev,
-        errorCount: prev.errorCount + 1,
-      }));
+      markPollingFailure(responseTime);
     }
-  }, [vote?.id, user, supabase, updateConnectionQuality, connectionState.mode, lastPollingUpdate]);
+  }, [vote?.id, user, supabase, markPollingFailure, markPollingSuccess, addNotification]);
 
   // 실시간 구독 제거됨
 
-  const stopPollingMode = React.useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  }, []);
-
-  // 폴링 시작
-  const startPollingMode = React.useCallback(() => {
-    // 기존 인터벌 정리
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-
-    // 상태 갱신 및 즉시 한 번 데이터 가져오기
-    setConnectionState(prev => ({
-      ...prev,
-      mode: 'polling',
-      isConnected: true,
-    }));
-    setPollingStartTime(new Date());
-    updateVoteDataPolling();
-
-    // 주기적 폴링 시작 (기본 1초)
-    const intervalMs = Math.max(1000, Number(pollingInterval) || 1000);
-    const interval = setInterval(() => {
-      updateVoteDataPolling();
-    }, intervalMs);
-    // 브라우저/노드 타입 차이를 피하기 위해 캐스팅
-    pollingIntervalRef.current = interval as unknown as NodeJS.Timeout;
-  }, [pollingInterval, updateVoteDataPolling]);
-
-  // 하이브리드 모드 제거됨
-
-  // 실시간 구독 해제 로직 제거됨
-
-  // 연결 모니터 제거됨
-
-  // 모드 전환 제거됨 (항상 폴링)
-
   // Polling lifecycle effect
   React.useEffect(() => {
-    startPollingMode();
+    let cancelled = false;
+    const baseIntervalMs = Math.max(1000, Number(pollingInterval) || 5000);
+
+    const hasVoteEnded = () => {
+      if (!vote?.stop_at) return false;
+      const stopAt = Date.parse(vote.stop_at);
+      return Number.isFinite(stopAt) && stopAt <= Date.now();
+    };
+
+    const shouldPause = () => document.hidden || hasVoteEnded();
+
+    const clearPollingTimer = () => {
+      if (pollingIntervalRef.current) {
+        clearTimeout(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+
+    const scheduleNextPoll = () => {
+      clearPollingTimer();
+      if (cancelled || shouldPause()) return;
+
+      const backoffMultiplier = 2 ** Math.min(consecutivePollingErrorsRef.current, 4);
+      const delayMs = Math.min(baseIntervalMs * backoffMultiplier, 60_000);
+      pollingIntervalRef.current = setTimeout(async () => {
+        pollingIntervalRef.current = null;
+        if (cancelled || shouldPause()) return;
+        await updateVoteDataPolling();
+        if (!cancelled) scheduleNextPoll();
+      }, delayMs) as unknown as NodeJS.Timeout;
+    };
+
+    const startPolling = async () => {
+      clearPollingTimer();
+      if (cancelled || shouldPause()) return;
+
+      setConnectionState(prev => ({
+        ...prev,
+        mode: 'polling',
+        isConnected: true,
+      }));
+      setPollingStartTime(new Date());
+      await updateVoteDataPolling();
+      if (!cancelled) scheduleNextPoll();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearPollingTimer();
+        abortControllerRef.current?.abort();
+        abortControllerRef.current = null;
+        return;
+      }
+      void startPolling();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    void startPolling();
+
     return () => {
-      stopPollingMode();
+      cancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearPollingTimer();
       // 진행 중인 fetch 도 즉시 취소 (interval 외)
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, []);
+  }, [pollingInterval, updateVoteDataPolling, vote?.stop_at]);
 
   // 연결 품질 모니터 제거됨
 

@@ -44,7 +44,7 @@ export default async function VoteDetailFetcher({ voteId, lang, className }: Vot
         rewards={(rewards || []) as Reward[]}
         className={className}
         enableRealtime={false}
-        pollingInterval={1000}
+        pollingInterval={5000}
         maxRetries={3}
         lang={lang}
       />
