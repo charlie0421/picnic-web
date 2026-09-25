@@ -104,21 +104,6 @@ const nextConfig = {
     optimizePackageImports: ['date-fns', 'date-fns-tz', 'react-toastify', 'lucide-react', '@heroicons/react'],
   },
 
-  // 성능 최적화를 위한 webpack 설정
-  webpack: (config, { dev, isServer }) => {
-    // 프로덕션 빌드에서만 최적화 적용
-    if (!dev) {
-      // 코드 스플리팅 최적화
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        maxInitialRequests: 25,
-        minSize: 20000,
-      };
-    }
-    
-    return config;
-  },
-  
   async headers() {
     // SECURITY: `Access-Control-Allow-Origin: *` combined with
     // `Access-Control-Allow-Credentials: true` is rejected by browsers per
@@ -171,6 +156,13 @@ const nextConfig = {
   
   async redirects() {
     return [
+      // 진입 경로를 페이지 함수 없이 최종 투표 목록으로 바로 보낸다.
+      { source: '/', destination: '/en/vote', permanent: false },
+      {
+        source: '/:lang(en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)',
+        destination: '/:lang/vote',
+        permanent: false
+      },
       // download.html을 download로 리디렉션 (middleware가 언어 처리)
       {
         source: '/download.html',
