@@ -79,9 +79,27 @@ function getPreferredLanguage(request: NextRequest): string {
   return getPreferredLanguageFromHeader(acceptLanguage);
 }
 
+// 경로 기반 요청 헤더는 middleware 만 만든다 — 클라이언트가 보낸 값은 버린다.
+// - x-locale: 경로의 지원 로케일. app/layout.tsx 의 <html lang>, 배너 링크 언어가 읽는다.
+// - x-pathname / x-url: 레이아웃의 VoteLite·광고 분기 입력. 분기 활성화는 별도 결정이라
+//   아직 주입하지 않고, 위조 헤더로 켜지지 않도록 지우기만 한다.
+const ROUTING_REQUEST_HEADERS = ['x-locale', 'x-pathname', 'x-url'] as const;
+
+function buildForwardedRequestHeaders(req: NextRequest): Headers {
+  const headers = new Headers(req.headers);
+  for (const name of ROUTING_REQUEST_HEADERS) {
+    headers.delete(name);
+  }
+  const locale = extractLangFromPath(req.nextUrl.pathname);
+  if (locale) {
+    headers.set('x-locale', locale);
+  }
+  return headers;
+}
+
 export async function middleware(req: NextRequest) {
   // Create a response that we can modify cookies on
-  const res = NextResponse.next({ request: { headers: req.headers } });
+  const res = NextResponse.next({ request: { headers: buildForwardedRequestHeaders(req) } });
 
   // 인앱 브라우저 (KakaoTalk, Twitter/X, Facebook, Instagram, Line, NAVER) hard redirect.
   // 인앱은 DOM mutation, OAuth third-party cookie 차단, 결제 redirect 제약 등으로
@@ -214,7 +232,9 @@ export async function middleware(req: NextRequest) {
 export const config = {
   // 정적 공개 파일들은 미들웨어 대상에서 제외 (퍼블릭 우선 서빙 보장)
   // - robots.txt, app-ads.txt, ads.txt, sitemap(xml), 매니페스트, 애플 도메인 검증, .well-known/* 등
+  // - 자산 확장자(/images, /favicon, /locales, 서비스 워커 등): 세션 갱신·프로필 조회가 필요 없다.
+  //   인앱 redirect·탈퇴 차단·x-locale 주입은 HTML 경로에서 그대로 동작한다.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*|.*\\.(?:png|jpe?g|webp|avif|gif|svg|ico|json|txt|xml|js|css|map|woff2?|ttf|otf|mp4|webm|webmanifest)$).*)",
   ],
 };

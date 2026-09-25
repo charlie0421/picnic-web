@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { Inter } from 'next/font/google';
 import ConsentAwareAdsense from '@/components/client/ads/ConsentAwareAdsense';
 import CookieConsentBanner from '@/components/client/ads/CookieConsentBanner';
+import { getLanguageTag } from '@/app/[lang]/utils/metadata-utils';
 
 export const metadata: Metadata = {
   title: 'Picnic',
@@ -39,6 +40,8 @@ export default async function RootLayout({
 
   // 현재 경로에서 언어 감지
   const headersList = await headers();
+  // middleware 가 경로에서 검증해 넣는 로케일 (클라이언트가 보낸 값은 middleware 가 지운다)
+  const localeTag = getLanguageTag(headersList.get('x-locale'));
   const rawPathHeader = headersList.get('x-pathname');
   const rawUrlHeader = headersList.get('x-url');
   const pathname = (() => {
@@ -54,7 +57,7 @@ export default async function RootLayout({
   
   // 경로에서 언어 추출 (예: /ko, /en, /ja, /zh-tw 등)
   const languageMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/);
-  const currentLang = languageMatch ? languageMatch[1] : 'ko';
+  const currentLang = localeTag ?? (languageMatch ? languageMatch[1] : 'ko');
 
   const voteRoutePattern = /^\/[a-z]{2}(?:-[a-z]{2})?\/vote(?:\/|$)/i;
   // /download 는 앱스토어로 빠르게 빠지는 landing page 라 AdSense 노출 가치가

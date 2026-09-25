@@ -3,6 +3,7 @@ import { BannerListPresenter } from '@/components/client/banner/BannerListPresen
 import { Banner as DBBanner } from '@/types/interfaces';
 import { getBanners } from '@/utils/api/queries';
 import { transformBannerLink } from '@/utils/api/link-transformer';
+import { SUPPORTED_LANGUAGES } from '@/config/settings';
 
 export interface BannerListFetcherProps {
   className?: string;
@@ -55,9 +56,16 @@ export async function BannerListFetcher({
     }
 
     const headersList = await headers();
+    // middleware 가 경로에서 검증해 넣는 로케일 우선, 없으면 기존 판별
+    const localeHeader = headersList.get('x-locale');
     const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
     const langMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/i);
-    const currentLang = langMatch ? langMatch[1] : 'ko';
+    const currentLang =
+      localeHeader && (SUPPORTED_LANGUAGES as readonly string[]).includes(localeHeader)
+        ? localeHeader
+        : langMatch
+          ? langMatch[1]
+          : 'ko';
 
     // 데이터 변환 - DBBanner를 클라이언트용 Banner로 변환
     const clientBanners = banners.map((banner) => ({
