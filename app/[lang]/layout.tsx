@@ -4,7 +4,7 @@ import { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import ClientLayout from './ClientLayout';
 import VoteLiteClientLayout from './VoteLiteClientLayout';
-import { DEFAULT_METADATA } from './utils/metadata-utils';
+import { DEFAULT_METADATA, getOpenGraphLocale } from './utils/metadata-utils';
 
 
 // 정적 경로 생성을 위한 `generateStaticParams`
@@ -37,13 +37,11 @@ export async function generateMetadata({
 
   // 언어에 따라 다른 메타데이터 생성
   const languageSpecificMetadata: Partial<Metadata> = {
-    alternates: {
-      ...DEFAULT_METADATA.alternates,
-      canonical: lang === 'ko' ? '/' : `/${lang}`,
-    },
+    // canonical 은 DEFAULT_METADATA 의 './'(현재 경로)를 그대로 쓴다 — 홈으로 고정하지 않는다.
+    alternates: DEFAULT_METADATA.alternates,
     openGraph: {
       ...DEFAULT_METADATA.openGraph,
-      locale: lang === 'ko' ? 'ko_KR' : 'en_US',
+      locale: getOpenGraphLocale(lang),
     },
     manifest: '/manifest.json',
     other: {
