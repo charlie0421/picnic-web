@@ -21,6 +21,8 @@ vi.mock('@/lib/supabase/server', () => ({
         orderCalls.push({ column });
         return builder;
       },
+      limit: () => builder,
+      setHeader: () => builder,
       range: (...args: unknown[]) => {
         rangeMock(...args);
         return Promise.resolve({ data: [], error: null, count: 0 });
@@ -74,7 +76,7 @@ describe('GET /api/votes — admin status 가드', () => {
     await GET(req('status=admin&area=all'));
 
     expect(sawAdminOrdering()).toBe(true);
-    expect(orderCalls.map((c) => c.column)).toEqual(['area', 'id']);
+    expect(orderCalls.map((c) => c.column)).toEqual(['area', 'id', 'vote_total']);
   });
 
   it('super-admin 전용 계정도 admin 목록을 받는다 — 강등 회귀 방지', async () => {
