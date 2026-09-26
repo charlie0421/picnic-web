@@ -38,35 +38,13 @@ export default async function RootLayout({
     }
   })();
 
-  // 현재 경로에서 언어 감지
-  const headersList = await headers();
   // middleware 가 경로에서 검증해 넣는 로케일 (클라이언트가 보낸 값은 middleware 가 지운다)
-  const localeTag = getLanguageTag(headersList.get('x-locale'));
-  const rawPathHeader = headersList.get('x-pathname');
-  const rawUrlHeader = headersList.get('x-url');
-  const pathname = (() => {
-    if (rawPathHeader) return rawPathHeader;
-    if (!rawUrlHeader) return '';
-    try {
-      const url = new URL(rawUrlHeader);
-      return url.pathname;
-    } catch {
-      return rawUrlHeader;
-    }
-  })();
-  
-  // 경로에서 언어 추출 (예: /ko, /en, /ja, /zh-tw 등)
-  const languageMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/);
-  const currentLang = localeTag ?? (languageMatch ? languageMatch[1] : 'ko');
+  const headersList = await headers();
+  const currentLang = getLanguageTag(headersList.get('x-locale')) ?? 'ko';
 
-  const voteRoutePattern = /^\/[a-z]{2}(?:-[a-z]{2})?\/vote(?:\/|$)/i;
-  // /download 는 앱스토어로 빠르게 빠지는 landing page 라 AdSense 노출 가치가
-  // 거의 없는 반면, Auto ads / vignette 가 slow mobile 의 hydration 완료 전에
-  // DOM 을 mutate 해 PICNIC-WEB-5C 단일 culprit 으로 누적됨.
-  const downloadRoutePattern = /^\/[a-z]{2}(?:-[a-z]{2})?\/download(?:\/|$)/i;
-  const isAdFreeRoute = downloadRoutePattern.test(pathname || '');
-  const shouldLoadAds = process.env.NODE_ENV === 'production' && !isAdFreeRoute;
-  const shouldDelayAds = voteRoutePattern.test(pathname || '');
+  // 경로 기반 광고 분기(투표 라우트 지연·/download 제외)는 x-pathname 이 없어 한 번도 켜진 적이 없다.
+  // 정책 결정(#5) 전까지 실제 동작(지연 없음·1.2s idle)을 그대로 명시한다.
+  const shouldLoadAds = process.env.NODE_ENV === 'production';
 
   return (
     <html lang={currentLang}>
@@ -83,11 +61,8 @@ export default async function RootLayout({
         {shouldLoadAds && (
           <ConsentAwareAdsense
             clientId="ca-pub-1539304887624918"
-            delayUntilIdle={shouldDelayAds}
-            // vote 라우트는 React hydration 종료를 충분히 보장하기 위해 5s 로 늘림.
-            // AdSense Auto ads / vignette 가 hydration 전에 DOM 을 mutate 하면
-            // PICNIC-WEB-5C (replay_hydration_error) 가 #google_vignette URL 로 발생.
-            idleTimeout={shouldDelayAds ? 5000 : 1200}
+            delayUntilIdle={false}
+            idleTimeout={1200}
           />
         )}
         <div className="bg-white">
