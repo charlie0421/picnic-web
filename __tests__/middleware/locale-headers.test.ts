@@ -66,6 +66,21 @@ describe('middleware — 로케일 요청 헤더', () => {
     expect(forwardedRequestHeaders(res).get('x-locale')).toBe(locale);
   });
 
+  it.each([
+    ['/%65n/vote', 'en'],
+    ['/%7A%68-tw/vote/295', 'zh-tw'],
+    ['/%6Bo/vote', 'ko'],
+  ])('percent-encoded 로케일 세그먼트 %s 도 Next 라우팅과 같게 x-locale=%s', async (path, locale) => {
+    const res = await middleware(request(path));
+    expect(forwardedRequestHeaders(res).get('x-locale')).toBe(locale);
+  });
+
+  it('잘못된 percent-encoding 세그먼트는 x-locale 없이 통과한다', async () => {
+    const res = await middleware(request('/%E0%A4%A/vote', { 'x-locale': 'ja' }));
+    expect(res.status).toBe(200);
+    expect(forwardedRequestHeaders(res).has('x-locale')).toBe(false);
+  });
+
   it('클라이언트가 보낸 x-locale 은 경로 값으로 덮어쓴다', async () => {
     const res = await middleware(request('/ja/vote', { 'x-locale': 'ko' }));
     expect(forwardedRequestHeaders(res).get('x-locale')).toBe('ja');
@@ -140,6 +155,45 @@ describe('middleware — 기존 동작 불변', () => {
     expect(forwardedRequestHeaders(res).get('x-locale')).toBe('ko');
   });
 
+  describe('확장자가 붙은 HTML 경로 (페이지로 라우팅됨)', () => {
+    const KAKAOTALK_UA = 'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 KAKAOTALK 10.0.0';
+
+    it.each(['/ko/vote/295.0', '/ko/vote/295.json'])(
+      '인앱 브라우저는 %s 도 /open-in-browser 로 redirect 한다',
+      async (path) => {
+        vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+        const res = await middleware(request(path, { 'user-agent': KAKAOTALK_UA }));
+        expect(res.status).toBe(307);
+        const location = new URL(res.headers.get('location')!);
+        expect(location.pathname).toBe('/open-in-browser');
+        expect(location.searchParams.get('returnTo')).toBe(path);
+      },
+    );
+
+    it.each([
+      '/images/logo.webp',
+      '/locales/ko.json',
+      '/favicon/favicon.ico',
+      '/concert2025/video/01.YOUNGPASSE.mp4',
+      '/firebase-messaging-sw.js',
+      '/_next/static/chunks/main.js',
+    ])('정적 자산 %s 은 인앱 redirect 하지 않는다', async (path) => {
+      vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+      const res = await middleware(request(path, { 'user-agent': KAKAOTALK_UA }));
+      expect(res.headers.get('location')).toBeNull();
+    });
+
+    it('인바운드 라우팅 헤더를 지우고 x-locale 을 주입한다', async () => {
+      vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+      const res = await middleware(
+        request('/ko/vote/295.json', { 'x-pathname': '/ko/vote/295', 'x-locale': 'ja' }),
+      );
+      const forwarded = forwardedRequestHeaders(res);
+      expect(forwarded.get('x-locale')).toBe('ko');
+      expect(forwarded.has('x-pathname')).toBe(false);
+    });
+  });
+
   describe('Supabase 설정 시', () => {
     beforeEach(() => {
       vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://example.supabase.co');
@@ -161,6 +215,22 @@ describe('middleware — 기존 동작 불변', () => {
       expect(signOutMock).toHaveBeenCalled();
       const location = new URL(res.headers.get('location')!);
       expect(location.pathname).toBe('/ja/login');
+      expect(location.searchParams.get('error')).toBe('withdrawn');
+    });
+
+    it('percent-encoded 로케일 경로의 탈퇴 redirect 도 그 언어로 보낸다', async () => {
+      getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      maybeSingleMock.mockResolvedValue({ data: { deleted_at: '2026-09-01T00:00:00Z' } });
+      const res = await middleware(request('/%6Aa/vote'));
+      expect(new URL(res.headers.get('location')!).pathname).toBe('/ja/login');
+    });
+
+    it('확장자가 붙은 HTML 경로도 탈퇴 계정을 차단한다', async () => {
+      getUserMock.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+      maybeSingleMock.mockResolvedValue({ data: { deleted_at: '2026-09-01T00:00:00Z' } });
+      const res = await middleware(request('/ko/vote/295.json'));
+      const location = new URL(res.headers.get('location')!);
+      expect(location.pathname).toBe('/ko/login');
       expect(location.searchParams.get('error')).toBe('withdrawn');
     });
 

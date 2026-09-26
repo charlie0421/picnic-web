@@ -5,13 +5,25 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 function extractLangFromPath(path: string | null | undefined): string | null {
   if (!path) return null;
-  const match = path.match(/^\/([a-z]{2}(-[a-z]{2})?)(?=\/|$)/i);
-  if (!match) return null;
-  const candidate = match[1].toLowerCase();
+  // Next 는 동적 세그먼트를 디코드해 라우팅한다(/%65n/vote → lang=en). 첫 세그먼트만 같은 방식으로 디코드한다.
+  const firstSegment = path.split('/')[1];
+  if (!firstSegment) return null;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(firstSegment);
+  } catch {
+    return null; // 잘못된 percent-encoding
+  }
+  const candidate = decoded.toLowerCase();
   return (SUPPORTED_LANGUAGES as readonly string[]).includes(candidate)
     ? candidate
     : null;
 }
+
+// 정적 자산: Next 내부 경로, public/ 의 자산 디렉터리, 루트의 정확한 파일 (config.matcher 제외 목록과 같은 기준).
+// 확장자로 판정하지 않는다 — /ko/vote/295.json 처럼 확장자가 붙은 동적 HTML 경로도 페이지로 라우팅된다.
+const STATIC_ASSET_PATH =
+  /^\/(?:_next\/|\.well-known\/|images\/|locales\/|favicon\/|concert2025\/(?:image|video)\/|(?:favicon\.ico|robots\.txt|ads\.txt|app-ads\.txt|sitemap(?:-[^/]+)?\.xml|manifest\.json|site\.webmanifest|apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js)$)/;
 
 function isLoginPath(pathname: string): boolean {
   // /login, /ko/login, /en/login 등
@@ -123,9 +135,7 @@ export async function middleware(req: NextRequest) {
 
     const isAlreadyOpenPage = /\/open-in-browser(\/|$)/.test(pathname);
     const isApi = pathname.startsWith('/api/');
-    // 정적 자산: Next 내부 정적 경로, 파비콘, 그리고 파일 확장자를 가진 퍼블릭 파일들(.txt, .xml, .json 등)
-    const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(pathname);
-    const isStatic = pathname.startsWith('/_next') || pathname === '/favicon.ico' || hasFileExtension;
+    const isStatic = STATIC_ASSET_PATH.test(pathname);
     // OAuth callback 은 인앱에서도 통과시켜야 callback handler 가 동작
     const isAuthCallback = pathname.startsWith('/auth/callback');
 
@@ -232,9 +242,11 @@ export async function middleware(req: NextRequest) {
 export const config = {
   // 정적 공개 파일들은 미들웨어 대상에서 제외 (퍼블릭 우선 서빙 보장)
   // - robots.txt, app-ads.txt, ads.txt, sitemap(xml), 매니페스트, 애플 도메인 검증, .well-known/* 등
-  // - 자산 확장자(/images, /favicon, /locales, 서비스 워커 등): 세션 갱신·프로필 조회가 필요 없다.
-  //   인앱 redirect·탈퇴 차단·x-locale 주입은 HTML 경로에서 그대로 동작한다.
+  // - public/ 자산 디렉터리(/images, /locales, /favicon, /concert2025/image·video)와 루트 서비스 워커·스크립트:
+  //   세션 갱신·프로필 조회가 필요 없다. 확장자로 제외하지 않는다 — [lang] 아래 동적 경로는
+  //   /ko/vote/295.json 처럼 확장자가 붙어도 페이지이므로 인앱 redirect·탈퇴 차단·x-locale 주입을 거쳐야 한다.
+  //   STATIC_ASSET_PATH 와 같은 기준을 유지한다.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*|.*\\.(?:png|jpe?g|webp|avif|gif|svg|ico|json|txt|xml|js|css|map|woff2?|ttf|otf|mp4|webm|webmanifest)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*|images/|locales/|favicon/|concert2025/(?:image|video)/|firebase-messaging-sw\\.js$|emergency-auth-fix\\.js$).*)",
   ],
 };
