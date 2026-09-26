@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logError } from '@/utils/log-error';
-import { getServerUser } from '@/lib/supabase/server';
+import { getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 
 // PortOne v2 브라우저 SDK confirmUrl 엔드포인트
 // 브라우저 SDK가 결제 직전 서버 컨펌을 위해 호출.
@@ -13,6 +13,11 @@ export async function POST(request: NextRequest) {
         { ok: false, reason: 'unauthorized' },
         { status: 401 }
       );
+    }
+
+    // 탈퇴 계정 차단 (middleware 대신 민감 API 에서 — 결정 #10)
+    if (await isWithdrawnUser(user.id)) {
+      return NextResponse.json({ error: 'A member who has unsubscribed.' }, { status: 403 });
     }
 
     const body = await request.json();
