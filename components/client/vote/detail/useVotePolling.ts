@@ -22,10 +22,15 @@ import {
 
 const POLL_REQUEST_TIMEOUT_MS = 10_000;
 const FINAL_POLL_GRACE_MS = 8_000;
+const FINAL_POLL_JITTER_MAX_MS = 5_000;
+const FINAL_REFRESH_MAX_RETRIES = 2;
+const FINAL_REFRESH_RETRY_BASE_MS = 1_000;
 
 type PollRequestOptions = {
-  bypassCache?: boolean;
+  useSharedCache?: boolean;
 };
+
+type PollRequestResult = 'success' | 'failed' | 'aborted';
 
 const parseStopAt = (stopAt: string | null | undefined) => {
   if (!stopAt) return null;
@@ -77,6 +82,9 @@ export function useVotePolling({
   const finalRefreshTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const finalRefreshKeyRef = React.useRef<string | null>(null);
   const finalRefreshDoneRef = React.useRef(false);
+  const finalRefreshSkippedRef = React.useRef(false);
+  const finalRefreshDueAtRef = React.useRef<number | null>(null);
+  const finalRefreshFailureCountRef = React.useRef(0);
   const notificationTimersRef = React.useRef<Set<NodeJS.Timeout>>(new Set());
 
   // Highlight timers cleanup
@@ -176,10 +184,10 @@ export function useVotePolling({
   }, [updateConnectionQuality]);
 
   const updateVoteDataPolling = React.useCallback(async ({
-    bypassCache = false,
-  }: PollRequestOptions = {}) => {
-    if (!vote?.id) return;
-    if (!isMountedRef.current) return;
+    useSharedCache = false,
+  }: PollRequestOptions = {}): Promise<PollRequestResult> => {
+    if (!vote?.id) return 'failed';
+    if (!isMountedRef.current) return 'aborted';
     // 직전 in-flight fetch 가 있으면 abort 한다 (race + double setState 방지).
     abortControllerRef.current?.abort();
     const controller = new AbortController();
@@ -199,29 +207,26 @@ export function useVotePolling({
       if (shouldLog) {
         console.log('[Polling] Fetching vote data...');
       }
-      const requestUrl = bypassCache
-        ? `/api/vote/${vote.id}/detail?final=${Date.now()}`
-        : `/api/vote/${vote.id}/detail`;
-      const response = await fetch(requestUrl, {
-        cache: bypassCache ? 'no-store' : 'no-cache',
-        ...(bypassCache
-          ? { headers: { 'Cache-Control': 'no-cache' } }
-          : {}),
+      const requestInit: RequestInit = {
         signal: controller.signal,
-      });
+      };
+      if (!useSharedCache) {
+        requestInit.cache = 'no-cache';
+      }
+      const response = await fetch(`/api/vote/${vote.id}/detail`, requestInit);
       const responseTime = performance.now() - startTime;
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) return 'aborted';
       if (response.status === 304) {
         // 변경 없음: 정상 경로로 처리
         if (shouldLog) {
           console.log('[Polling] Not modified (304)');
         }
         markPollingSuccess(responseTime);
-        return;
+        return 'success';
       }
       if (!response.ok) {
         const voteError = await response.json().catch(() => ({}));
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current) return 'aborted';
         console.error('[Polling] Vote fetch error:', voteError);
         markPollingFailure(responseTime);
         addNotification({
@@ -230,10 +235,10 @@ export function useVotePolling({
           message: '투표 데이터를 가져오는 중 오류가 발생했습니다.',
           duration: 4000,
         });
-        return;
+        return 'failed';
       }
       const { vote: voteData } = await response.json();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) return 'aborted';
       if (voteData) {
         if (shouldLog) {
           console.log('[Polling] Vote data received:', voteData);
@@ -254,7 +259,7 @@ export function useVotePolling({
           .order('created_at', { ascending: false })
           .abortSignal(controller.signal)
           .returns<VotePickRow[]>();
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current) return 'aborted';
         if (userVoteError) {
           console.error('[Polling] User vote fetch error:', userVoteError);
           updateConnectionQuality(false);
@@ -262,11 +267,12 @@ export function useVotePolling({
           setUserVote(buildUserVoteSummary(userVoteData || [], shouldLog));
         }
       }
+      return 'success';
     } catch (error) {
       const isAbortError = (error as { name?: string } | null)?.name === 'AbortError';
       // visibility 전환·언마운트·새 요청에 의한 취소는 정상 cleanup 흐름이다.
-      if (isAbortError && !didTimeout) return;
-      if (!isMountedRef.current) return;
+      if (isAbortError && !didTimeout) return 'aborted';
+      if (!isMountedRef.current) return 'aborted';
       const responseTime = performance.now() - startTime;
       if (didTimeout) {
         console.warn('[Polling] Request timed out after 10 seconds');
@@ -274,6 +280,7 @@ export function useVotePolling({
         console.error('[Polling] Unexpected error:', error);
       }
       markPollingFailure(responseTime);
+      return 'failed';
     } finally {
       clearTimeout(timeout);
       if (abortControllerRef.current === controller) {
@@ -296,6 +303,15 @@ export function useVotePolling({
     if (finalRefreshKeyRef.current !== finalRefreshKey) {
       finalRefreshKeyRef.current = finalRefreshKey;
       finalRefreshDoneRef.current = false;
+      finalRefreshFailureCountRef.current = 0;
+
+      const graceDeadline = stopAt === null
+        ? null
+        : stopAt + FINAL_POLL_GRACE_MS;
+      finalRefreshSkippedRef.current = graceDeadline !== null && Date.now() > graceDeadline;
+      finalRefreshDueAtRef.current = graceDeadline === null || finalRefreshSkippedRef.current
+        ? null
+        : graceDeadline + Math.floor(Math.random() * (FINAL_POLL_JITTER_MAX_MS + 1));
     }
 
     const clearPollingTimer = () => {
@@ -323,30 +339,55 @@ export function useVotePolling({
       if (
         cancelled ||
         document.hidden ||
-        finalRefreshDoneRef.current
+        finalRefreshDoneRef.current ||
+        finalRefreshSkippedRef.current ||
+        finalRefreshFailureCountRef.current > FINAL_REFRESH_MAX_RETRIES
       ) {
         return;
       }
 
-      finalRefreshDoneRef.current = true;
       clearPollingTimer();
       clearDeadlineTimer();
       clearFinalRefreshTimer();
-      await updateVoteDataPolling({ bypassCache: true });
+      const result = await updateVoteDataPolling({ useSharedCache: true });
+      if (cancelled) return;
+
+      if (result === 'success') {
+        finalRefreshDoneRef.current = true;
+        finalRefreshFailureCountRef.current = 0;
+        return;
+      }
+
+      if (result === 'aborted') {
+        if (!document.hidden) scheduleFinalRefresh(0);
+        return;
+      }
+
+      finalRefreshFailureCountRef.current += 1;
+      if (finalRefreshFailureCountRef.current <= FINAL_REFRESH_MAX_RETRIES) {
+        const retryDelayMs = FINAL_REFRESH_RETRY_BASE_MS
+          * (2 ** (finalRefreshFailureCountRef.current - 1));
+        scheduleFinalRefresh(retryDelayMs);
+      }
     }
 
-    function scheduleFinalRefresh() {
+    function scheduleFinalRefresh(delayOverrideMs?: number) {
       clearFinalRefreshTimer();
       if (
         cancelled ||
         stopAt === null ||
         finalRefreshDoneRef.current ||
+        finalRefreshSkippedRef.current ||
+        finalRefreshFailureCountRef.current > FINAL_REFRESH_MAX_RETRIES ||
         document.hidden
       ) {
         return;
       }
 
-      const delayMs = Math.max(0, stopAt + FINAL_POLL_GRACE_MS - Date.now());
+      const delayMs = delayOverrideMs ?? Math.max(
+        0,
+        (finalRefreshDueAtRef.current ?? stopAt + FINAL_POLL_GRACE_MS) - Date.now(),
+      );
       finalRefreshTimerRef.current = setTimeout(() => {
         finalRefreshTimerRef.current = null;
         void runFinalRefresh();

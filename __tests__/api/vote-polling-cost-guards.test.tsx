@@ -99,6 +99,7 @@ describe('useVotePolling cost guards', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('caps far-future deadline timers at the browser timeout ceiling', () => {
@@ -137,8 +138,9 @@ describe('useVotePolling cost guards', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('rerenders at stop_at, waits eight seconds, then performs one cache-bypassing final fetch', async () => {
+  it('rerenders at stop_at, adds jitter after the grace period, then uses the cacheable detail URL', async () => {
     vi.setSystemTime(new Date('2026-09-26T00:00:00.000Z'));
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     const { result } = renderPolling({
       vote: { ...baseVote, stop_at: '2026-09-26T00:00:01.500Z' },
     });
@@ -159,7 +161,7 @@ describe('useVotePolling cost guards', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(7999);
+      await vi.advanceTimersByTimeAsync(10_499);
     });
     expect(fetch).toHaveBeenCalledTimes(1);
 
@@ -167,12 +169,9 @@ describe('useVotePolling cost guards', () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(fetch).mock.calls[1]?.[0]).toMatch(
-      /^\/api\/vote\/295\/detail\?final=\d+$/,
-    );
-    expect(vi.mocked(fetch).mock.calls[1]?.[1]).toMatchObject({
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' },
+    expect(vi.mocked(fetch).mock.calls[1]?.[0]).toBe('/api/vote/295/detail');
+    expect(vi.mocked(fetch).mock.calls[1]?.[1]).toEqual({
+      signal: expect.any(AbortSignal),
     });
 
     await act(async () => {
@@ -181,7 +180,7 @@ describe('useVotePolling cost guards', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it('performs one immediate final refresh when mounted after the grace window', async () => {
+  it('skips the final refresh when mounted after the grace window', async () => {
     vi.setSystemTime(new Date('2026-09-26T00:00:10.000Z'));
     renderPolling({
       vote: { ...baseVote, stop_at: '2026-09-26T00:00:01.000Z' },
@@ -192,11 +191,138 @@ describe('useVotePolling cost guards', () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).not.toHaveBeenCalled();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('retries a failed final refresh with backoff and stops after success', async () => {
+    vi.setSystemTime(new Date('2026-09-26T00:00:00.000Z'));
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.mocked(fetch)
+      .mockImplementationOnce(errorResponse)
+      .mockImplementationOnce(okResponse);
+    renderPolling({
+      vote: { ...baseVote, stop_at: '2026-09-26T00:00:00.500Z' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8500);
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(999);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('caps failed final refreshes at two retries', async () => {
+    vi.setSystemTime(new Date('2026-09-26T00:00:00.000Z'));
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.mocked(fetch).mockImplementation(errorResponse);
+    renderPolling({
+      vote: { ...baseVote, stop_at: '2026-09-26T00:00:00.500Z' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8500);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1999);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries a timed-out final refresh after backoff', async () => {
+    vi.setSystemTime(new Date('2026-09-26T00:00:00.000Z'));
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.mocked(fetch)
+      .mockImplementationOnce(abortablePendingResponse)
+      .mockImplementationOnce(okResponse);
+    renderPolling({
+      vote: { ...baseVote, stop_at: '2026-09-26T00:00:00.500Z' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8500);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_999);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('reruns an aborted final refresh after the document becomes visible', async () => {
+    vi.setSystemTime(new Date('2026-09-26T00:00:00.000Z'));
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.mocked(fetch)
+      .mockImplementationOnce(abortablePendingResponse)
+      .mockImplementationOnce(okResponse);
+    renderPolling({
+      vote: { ...baseVote, stop_at: '2026-09-26T00:00:00.500Z' },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8500);
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const firstSignal = vi.mocked(fetch).mock.calls[0]?.[1]?.signal;
+
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      value: true,
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flushAsyncWork();
+    expect(firstSignal?.aborted).toBe(true);
+
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      value: false,
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it('aborts a hung iteration after ten seconds, counts the failure, and backs off', async () => {

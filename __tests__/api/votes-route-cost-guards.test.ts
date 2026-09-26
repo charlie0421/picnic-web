@@ -115,6 +115,9 @@ describe('GET /api/votes cost and numeric guards', () => {
       count: 3,
       options: { referencedTable: 'vote_item' },
     });
+    expect(queryMocks.selectCalls).toEqual(
+      expect.arrayContaining([expect.stringContaining('vote_item!vote_id')]),
+    );
     expect(queryMocks.headerCalls).toContainEqual(['Prefer', 'count=exact']);
   });
 
