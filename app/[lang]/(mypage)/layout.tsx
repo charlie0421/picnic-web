@@ -1,7 +1,4 @@
-import React, { ReactNode, Suspense } from 'react';
-import ClientLayout from '../ClientLayout';
-import { MypageHeader } from '@/components/mypage/MypageHeader';
-import { getServerUser } from '@/lib/supabase/server';
+import React, { ReactNode } from 'react';
 import MainLayoutClient from '../(main)/MainLayoutClient';
 
 interface MyPageLayoutProps {
@@ -11,18 +8,10 @@ interface MyPageLayoutProps {
   }>;
 }
 
-export default async function MyPageLayout(props : MyPageLayoutProps) {
-  const params = await props.params;
-
-  const { children } = props;
-
-  const { lang } = params;
-
-  const user = await getServerUser();
-
-  return (
-    <ClientLayout initialLanguage={lang}>
-      <MainLayoutClient>{children}</MainLayoutClient>
-    </ClientLayout>
-  );
+/**
+ * 마이페이지 섹션 셸. Provider 스택은 [lang] 레이아웃의 ClientLayout 이 이미 감싸므로
+ * 여기서 다시 감싸지 않는다(PERF-13). 인증 가드는 각 페이지·middleware 가 맡는다.
+ */
+export default async function MyPageLayout({ children }: MyPageLayoutProps) {
+  return <MainLayoutClient>{children}</MainLayoutClient>;
 }

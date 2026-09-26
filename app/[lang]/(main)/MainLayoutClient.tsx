@@ -1,14 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import useSWR from 'swr';
-import { Popup } from '@/types/interfaces';
 import Header from '@/components/layouts/Header';
 import Footer from '@/components/layouts/Footer';
 import { PicnicMenu } from '@/components/client/common/PicnicMenu';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 interface MainLayoutClientProps {
   children: React.ReactNode;
@@ -16,21 +13,6 @@ interface MainLayoutClientProps {
 
 const MainLayoutClient = ({ children }: MainLayoutClientProps) => {
   const pathname = usePathname();
-  const { data: popups, error: popupsError } = useSWR<Popup[]>('/api/popups', fetcher);
-  const [activePopup, setActivePopup] = useState<Popup | null>(null);
-
-  useEffect(() => {
-    if (popups && popups.length > 0) {
-      setActivePopup(popups[0]);
-    }
-  }, [popups]);
-
-  const handleClosePopup = () => {
-    setActivePopup(null);
-  };
-  
-  if (popupsError) console.error('Failed to load popups', popupsError);
-
   // Firebase Analytics: mypage 섹션 포함 전역 page_view 로깅
   useEffect(() => {
     (async () => {
