@@ -273,6 +273,31 @@ Wave A 중 새로 확인되어 Wave B 로 넘긴 항목:
 - `PopupBannerLoader` fetcher 가 `res.ok` 를 확인하지 않음(현재는 200 [] 계약으로 방어).
 - `common.loading` 키가 en 에만 존재.
 
+### 5.3 Wave B 1차 진행 (2026-09-26)
+
+결정: #4 브랜드 = 한국어 '피크닉' / 그 외 'Picnic', #8 rewards/faq/notice ISR 승인, #9 gen:types 분리 승인, #10 getClaims 전환·탈퇴 차단 이동 승인, #11 VoteLite 폐기 승인. 결제 sandbox 자격은 추후 제공.
+
+Orca 사용량 텔레메트리가 비어(`rateLimits` null) 오케스트레이션 게이트가 telemetry-blocked 였으므로, 사용자 지시에 따라 조정자 단독으로 구현하고 **모든 PR 은 교차 리뷰 전 머지 보류**.
+
+| PR | 내용 | 비고 |
+|---|---|---|
+| #86 | `/api/vote/results` 공개 조건, QNA 새 문의 첨부 정책 공유(`lib/qna/attachment-policy`), 미사용 `createQnaMessageAction` 제거, PopupBannerLoader 방어 | 보안 잔여 |
+| #87 | `schema:types:sync` 명시 명령, pre 훅의 타입 생성 제거, 실패 시 기존 타입 보존 | 결정 #9 |
+| #88 | PortOne·PayPal 계약 테스트 17건 + 알려진 결함 6건 `it.fails` | 코드 변경 없음 |
+| #89 | 투표 후보 카드·다이얼로그 키보드/스크린리더 접근성 | DES-003 |
+| #90 | 미사용 UI 30개 파일 삭제(4,819줄) | DES-010 ① |
+| #91 | 투표 상세 한국어 하드코딩 제거, 브랜드 통일, 12개 언어 hreflang, 구조화 데이터 도메인 교정 | #89 위 스택, DES-004/015 |
+| #92 | VoteLite·사문 헤더 분기 제거, 배너 로케일 lang prop | 결정 #11 |
+| #93 | LCP 우선 이미지 SSR 렌더(로컬 모바일 LCP 10.0s→7.0s, 1회 측정) | PERF-04 |
+| #94 | Provider 스택 단일 마운트, mypage 미사용 `getServerUser` 제거 | PERF-13 |
+| #95 | middleware `getClaims`(ES256 로컬 검증), 민감 API 5종 탈퇴 403 | 결정 #10, **고위험** |
+
+보류·후속:
+- **루트 `headers()` 제거(다중 루트 레이아웃 재구성)**: `<html lang>` 이 `x-locale` 에 의존. 서버 TTFB 는 이미 78–144ms 라 이득 대비 위험이 커 별도 설계로 분리. ISR(결정 #8)은 이 재구성 이후에야 효과가 있어 함께 이월.
+- 결제 수정(B-P1~P3)은 sandbox 자격 제공 후 #88 의 `it.fails` 를 `it` 으로 전환하며 진행.
+- `global-error.tsx` `support@picnic.com`, `static-pages.ts` `help/career/press.picnic.com` 실제 주소 확인 필요.
+- 머지 시 충돌 예상: #91↔#92(`[lang]/layout.tsx`, vote page) — 서로 다른 hunk.
+
 ## 6. 건드리면 안 되는 것 (전 웨이브 공통)
 
 1. **QNA·`/media` 라우트와 기능** — 삭제 대상 아님. U-07·U-41 정리 중 `app/[lang]/(mypage)/mypage/qna/*`, `QnaMediaModal`, `components/client/media/*`를 지우지 않는다. 성능 개선은 페이지네이션 등 비파괴 방식만.
