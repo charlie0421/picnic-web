@@ -35,6 +35,48 @@ const AVIF_BYTES = new Uint8Array([
   0x61, 0x76, 0x69, 0x66,
   0x6d, 0x69, 0x66, 0x31,
 ]);
+const MP4_BYTES = new Uint8Array([
+  0x00, 0x00, 0x00, 0x18,
+  0x66, 0x74, 0x79, 0x70,
+  0x69, 0x73, 0x6f, 0x6d,
+  0x00, 0x00, 0x00, 0x00,
+  0x6d, 0x70, 0x34, 0x32,
+  0x69, 0x73, 0x6f, 0x32,
+]);
+const QUICKTIME_BYTES = new Uint8Array([
+  0x00, 0x00, 0x00, 0x10,
+  0x66, 0x74, 0x79, 0x70,
+  0x71, 0x74, 0x20, 0x20,
+  0x00, 0x00, 0x00, 0x00,
+]);
+const HEIC_BYTES = new Uint8Array([
+  0x00, 0x00, 0x00, 0x1c,
+  0x66, 0x74, 0x79, 0x70,
+  0x68, 0x65, 0x69, 0x63,
+  0x00, 0x00, 0x00, 0x00,
+  0x6d, 0x69, 0x66, 0x31,
+  0x68, 0x65, 0x69, 0x78,
+  0x69, 0x73, 0x6f, 0x6d,
+]);
+const UNKNOWN_FTYP_BYTES = new Uint8Array([
+  0x00, 0x00, 0x00, 0x10,
+  0x66, 0x74, 0x79, 0x70,
+  0x7a, 0x7a, 0x7a, 0x7a,
+  0x00, 0x00, 0x00, 0x00,
+]);
+const FREE_BOX_BYTES = new Uint8Array([
+  0x00, 0x00, 0x00, 0x08,
+  0x66, 0x72, 0x65, 0x65,
+  0x3c, 0x68, 0x74, 0x6d,
+]);
+const AVIF_OUTSIDE_DECLARED_FTYP_BOX = new Uint8Array([
+  0x00, 0x00, 0x00, 0x0c,
+  0x66, 0x74, 0x79, 0x70,
+  0x6d, 0x69, 0x66, 0x31,
+  0x00, 0x00, 0x00, 0x00,
+  0x61, 0x76, 0x69, 0x66,
+  0x6d, 0x69, 0x66, 0x31,
+]);
 let threadRecord: { id: number; user_id: string } | null;
 
 type FileWithSize = File & { size: number };
@@ -374,5 +416,53 @@ describe('POST /api/qna/messages — request boundary', () => {
     const [filePath, , uploadOptions] = mocks.upload.mock.calls[0];
     expect(filePath).toMatch(/^user-1\/1\/.+\.avif$/);
     expect(uploadOptions).toMatchObject({ contentType: 'image/avif' });
+  });
+
+  it.each([
+    ['MP4', 'clip.mp4', 'video/mp4', MP4_BYTES, '.mp4'],
+    ['QuickTime', 'clip.mov', 'video/quicktime', QUICKTIME_BYTES, '.mov'],
+  ])(
+    'accepts an allowlisted %s ftyp brand',
+    async (_label, fileName, declaredType, bytes, extension) => {
+      const file = makeFile(fileName, declaredType, bytes);
+      const { request } = makeRequest(makeFormData({ files: [file] }));
+
+      const response = await POST(request);
+
+      expect(response.status).toBe(200);
+      const [filePath, , uploadOptions] = mocks.upload.mock.calls[0];
+      expect(filePath).toMatch(new RegExp(`\\${extension}$`));
+      expect(uploadOptions).toMatchObject({ contentType: declaredType });
+    },
+  );
+
+  it.each([
+    ['HEIC image brands', HEIC_BYTES],
+    ['an unknown ftyp brand', UNKNOWN_FTYP_BYTES],
+    ['a standalone free box', FREE_BOX_BYTES],
+  ])('does not classify %s as video', async (_label, bytes) => {
+    const file = makeFile('spoofed.mp4', 'video/mp4', bytes);
+    const { request } = makeRequest(makeFormData({ files: [file] }));
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(415);
+    expect(mocks.messageInsert).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+
+  it('does not scan AVIF brands beyond the declared ftyp box size', async () => {
+    const file = makeFile(
+      'spoofed.avif',
+      'image/avif',
+      AVIF_OUTSIDE_DECLARED_FTYP_BOX,
+    );
+    const { request } = makeRequest(makeFormData({ files: [file] }));
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(415);
+    expect(mocks.messageInsert).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
   });
 });

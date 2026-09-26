@@ -21,6 +21,33 @@ const ATTACHMENT_TYPES = {
 
 type AllowedAttachmentType = keyof typeof ATTACHMENT_TYPES;
 
+const AVIF_BRANDS = new Set(['avif', 'avis']);
+const HEIF_IMAGE_BRANDS = new Set([
+  'heic',
+  'heix',
+  'hevc',
+  'hevx',
+  'heim',
+  'heis',
+  'mif1',
+  'msf1',
+]);
+const MP4_BRANDS = new Set([
+  'isom',
+  'iso2',
+  'iso3',
+  'iso4',
+  'iso5',
+  'iso6',
+  'mp41',
+  'mp42',
+  'avc1',
+  'M4V ',
+  'M4VH',
+  'M4VP',
+]);
+const QUICKTIME_BRANDS = new Set(['qt  ']);
+
 function jsonError(error: string, status: number) {
   return NextResponse.json({ success: false, error }, { status });
 }
@@ -59,11 +86,9 @@ function ftypBrands(bytes: Uint8Array): string[] {
       (bytes[2] ?? 0) * 0x100 +
       (bytes[3] ?? 0)) >>>
     0;
-  const boxEnd = Math.min(
-    bytes.length,
-    declaredBoxSize >= 16 ? declaredBoxSize : 64,
-    64,
-  );
+  if (declaredBoxSize < 16) return [];
+
+  const boxEnd = Math.min(bytes.length, declaredBoxSize, 64);
   const brands = [asciiAt(bytes, 8, 4)];
   for (let offset = 16; offset + 4 <= boxEnd; offset += 4) {
     brands.push(asciiAt(bytes, offset, 4));
@@ -94,14 +119,17 @@ function detectAttachmentType(bytes: Uint8Array): AllowedAttachmentType | null {
   }
 
   const brands = ftypBrands(bytes);
-  if (brands.some((brand) => ['avif', 'avis'].includes(brand))) {
+  if (brands.some((brand) => AVIF_BRANDS.has(brand))) {
     return 'image/avif';
   }
-  if (brands.length > 0) {
-    return brands.includes('qt  ') ? 'video/quicktime' : 'video/mp4';
+  if (brands.some((brand) => HEIF_IMAGE_BRANDS.has(brand))) {
+    return null;
   }
-  if (['moov', 'mdat', 'wide', 'free', 'skip'].includes(asciiAt(bytes, 4, 4))) {
+  if (brands.some((brand) => QUICKTIME_BRANDS.has(brand))) {
     return 'video/quicktime';
+  }
+  if (brands.some((brand) => MP4_BRANDS.has(brand))) {
+    return 'video/mp4';
   }
   return null;
 }

@@ -178,11 +178,9 @@ function ftypBrands(bytes: Uint8Array): string[] {
       (bytes[2] ?? 0) * 0x100 +
       (bytes[3] ?? 0)) >>>
     0;
-  const boxEnd = Math.min(
-    bytes.length,
-    declaredBoxSize >= 16 ? declaredBoxSize : 64,
-    64,
-  );
+  if (declaredBoxSize < 16) return [];
+
+  const boxEnd = Math.min(bytes.length, declaredBoxSize, 64);
   const brands = [asciiAt(bytes, 8, 4)];
   for (let offset = 16; offset + 4 <= boxEnd; offset += 4) {
     brands.push(asciiAt(bytes, offset, 4));

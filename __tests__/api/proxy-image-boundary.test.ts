@@ -16,6 +16,14 @@ const VALID_AVIF_WITH_MIF1_MAJOR_BRAND = new Uint8Array([
   0x61, 0x76, 0x69, 0x66,
   0x6d, 0x69, 0x66, 0x31,
 ]);
+const AVIF_OUTSIDE_DECLARED_FTYP_BOX = new Uint8Array([
+  0x00, 0x00, 0x00, 0x0c,
+  0x66, 0x74, 0x79, 0x70,
+  0x6d, 0x69, 0x66, 0x31,
+  0x00, 0x00, 0x00, 0x00,
+  0x61, 0x76, 0x69, 0x66,
+  0x6d, 0x69, 0x66, 0x31,
+]);
 
 function requestFor(imageUrl: string) {
   return new NextRequest(
@@ -221,6 +229,20 @@ describe('GET /api/proxy-image — request boundary', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('image/avif');
+  });
+
+  it('does not scan AVIF brands beyond the declared ftyp box size', async () => {
+    fetchMock.mockResolvedValueOnce(
+      imageResponse(AVIF_OUTSIDE_DECLARED_FTYP_BOX, {
+        'content-type': 'image/avif',
+      }),
+    );
+
+    const response = await GET(
+      requestFor('https://lh3.googleusercontent.com/avatar.avif'),
+    );
+
+    expect(response.status).toBe(415);
   });
 
   it('rejects an upstream Content-Length over 10 MiB before buffering', async () => {
