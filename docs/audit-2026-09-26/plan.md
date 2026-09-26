@@ -253,6 +253,26 @@
 - #6 QNA 첨부 한도: 파일 5개·개별 10MB·합계 25MB·이미지+mp4/mov **승인**.
 - 그 외 결정(#2~#5, #7~#14)은 미결 — Wave B 착수 전 확인.
 
+### 5.2 Wave A 실행 결과 (2026-09-26)
+
+| PR | 브랜치 | 구현 → 교차 리뷰 | 링크 |
+|---|---|---|---|
+| A-1 의존성 보안 패치 | `fix/deps-security-patch` | Opus → Codex Sol APPROVE | #80 |
+| A-2 투표 폴링·API 비용 | `fix/vote-api-cost-guards` | Codex Sol → Opus, 재검증 2회 | #84 |
+| A-3 요청 신뢰 경계 | `fix/request-boundary-hardening` | Codex Sol → Opus, 재검증 2회 | #81 |
+| A-4 로케일·SEO·matcher | `fix/locale-seo-metadata` | Opus → Codex Sol, 재검증 2회 | #82 |
+| A-5 번들·설정 경량화 | `refactor/bundle-config-lightweight` | Codex Sol → Opus, 재검증 2회 | #83 |
+
+추가 결정: A-5 에서 splitChunks 제거로 처음 활성화되는 Sentry edge 는 트레이싱 옵션 없이 에러만 수집. PR 간 소유 파일 겹침 없음(머지 권장 순서 A-1 → A-5 → A-2 → A-3 → A-4).
+
+Wave A 중 새로 확인되어 Wave B 로 넘긴 항목:
+- **[긴급] `.sentryclirc` 에 Sentry auth 토큰이 커밋되어 있음** — 토큰 회전 후 파일을 추적 해제하고 CI/Vercel env 로 이전.
+- `/api/vote/results` 미공개 투표 노출(SEC-08 잔여), `VoteDetailPresenter` 투표 성공 시 캐시 우회 갱신.
+- `app/actions/qna.ts` `createQnaThreadAction` 무제한·원본 확장자 업로드, Vercel 4.5MB 본문 한도와 QNA 한도 정합.
+- `concert2025`(force-static) `html lang=ko` — 루트 레이아웃 재구성(B-R1/R3).
+- `PopupBannerLoader` fetcher 가 `res.ok` 를 확인하지 않음(현재는 200 [] 계약으로 방어).
+- `common.loading` 키가 en 에만 존재.
+
 ## 6. 건드리면 안 되는 것 (전 웨이브 공통)
 
 1. **QNA·`/media` 라우트와 기능** — 삭제 대상 아님. U-07·U-41 정리 중 `app/[lang]/(mypage)/mypage/qna/*`, `QnaMediaModal`, `components/client/media/*`를 지우지 않는다. 성능 개선은 페이지네이션 등 비파괴 방식만.
