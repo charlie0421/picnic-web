@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logError } from '@/utils/log-error';
 import { createClient } from '@supabase/supabase-js';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 
 const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production'
@@ -80,6 +80,11 @@ export async function POST(request: NextRequest) {
         { error: 'Unauthorized' },
         { status: 401 }
       );
+    }
+
+    // 탈퇴 계정 차단 (middleware 대신 민감 API 에서 — 결정 #10)
+    if (await isWithdrawnUser(user.id)) {
+      return NextResponse.json({ error: 'A member who has unsubscribed.' }, { status: 403 });
     }
 
     const body = await request.json();
