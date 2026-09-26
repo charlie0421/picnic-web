@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { S3Client } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
-import { getServerUser } from '@/lib/supabase/server';
+import { getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION,
@@ -47,6 +47,11 @@ export async function POST(req: NextRequest) {
     const user = await getServerUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 탈퇴 계정 차단 (middleware 대신 민감 API 에서 — 결정 #10)
+    if (await isWithdrawnUser(user.id)) {
+      return NextResponse.json({ error: 'A member who has unsubscribed.' }, { status: 403 });
     }
 
     const bucket = process.env.S3_BUCKET as string;

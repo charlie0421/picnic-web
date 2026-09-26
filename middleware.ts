@@ -26,10 +26,6 @@ function extractLangFromPath(path: string | null | undefined): string | null {
 const STATIC_ASSET_PATH =
   /^\/(?:_next\/|\.well-known\/|images\/|locales\/|favicon\/|concert2025\/(?:image|video)\/|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)\/sitemap\.xml$|(?:favicon\.ico|robots\.txt|ads\.txt|app-ads\.txt|sitemap(?:-[^/]+)?\.xml|manifest\.json|site\.webmanifest|apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js)$)/;
 
-function isLoginPath(pathname: string): boolean {
-  // /login, /ko/login, /en/login 등
-  return /^\/([a-z]{2}(-[a-z]{2})?\/)?login(\/|$)/i.test(pathname);
-}
 
 /**
  * 브라우저의 Accept-Language 헤더에서 선호 언어 추출
@@ -178,61 +174,12 @@ export async function middleware(req: NextRequest) {
     },
   });
 
-  // Touch the user to trigger refresh if needed (no-op if valid)
+  // 세션 갱신·검증은 getClaims 로 한다 — 만료된 access token 은 refresh 하고(쿠키 갱신),
+  // 비대칭 서명 키(JWKS)면 Auth 서버 왕복 없이 로컬에서 JWT 를 검증한다.
+  // 매 요청 getUser()(Auth 서버 호출)와 user_profiles 조회는 하지 않는다(결정 #10, PERF-06).
+  // 탈퇴 계정 차단은 로그인 콜백과 민감 API(투표·결제·업로드·스토리지·QNA)의 isWithdrawnUser 가 맡는다.
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // 탈퇴(soft delete) 계정 방어계층 — 로그인 페이지가 아닌 경로에서만 차단 및 리다이렉트
-    if (user?.id) {
-      const url = new URL(req.url);
-      const pathname = url.pathname;
-
-      if (!isLoginPath(pathname)) {
-        try {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('deleted_at')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (profile?.deleted_at) {
-            // 세션 즉시 종료
-            try {
-              await supabase.auth.signOut();
-            } catch (_) {}
-
-            const lang =
-              extractLangFromPath(pathname) ||
-              req.cookies.get('locale')?.value ||
-              DEFAULT_LANGUAGE;
-            const redirectLang = (SUPPORTED_LANGUAGES as readonly string[]).includes(lang)
-              ? lang
-              : DEFAULT_LANGUAGE;
-
-            const redirectUrl = new URL(`/${redirectLang}/login`, url.origin);
-            redirectUrl.searchParams.set('error', 'withdrawn');
-
-            const blockRes = NextResponse.redirect(redirectUrl);
-            // signOut 에서 cleared 된 쿠키들을 응답에 복사
-            for (const cookie of res.cookies.getAll()) {
-              blockRes.cookies.set({
-                name: cookie.name,
-                value: cookie.value,
-                path: cookie.path,
-                maxAge: cookie.maxAge,
-                domain: cookie.domain,
-                secure: cookie.secure,
-                sameSite: cookie.sameSite,
-                httpOnly: cookie.httpOnly,
-              });
-            }
-            return blockRes;
-          }
-        } catch (_) {
-          // 조회 실패 시 fail-open (기존 플로우 유지 — 콜백/프로필 API에서 2차 차단됨)
-        }
-      }
-    }
+    await supabase.auth.getClaims();
   } catch (_) {
     // Ignore auth errors in middleware
   }
