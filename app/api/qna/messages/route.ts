@@ -1,37 +1,267 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import {
+  createSupabaseServerClient,
+  isWithdrawnUser,
+} from '@/lib/supabase/server';
+
+const MAX_ATTACHMENT_COUNT = 5;
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const MAX_REQUEST_BYTES = 25 * 1024 * 1024;
+
+const ATTACHMENT_TYPES = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/avif': '.avif',
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+} as const;
+
+type AllowedAttachmentType = keyof typeof ATTACHMENT_TYPES;
+
+const AVIF_BRANDS = new Set(['avif', 'avis']);
+const HEIF_IMAGE_BRANDS = new Set([
+  'heic',
+  'heix',
+  'hevc',
+  'hevx',
+  'heim',
+  'heis',
+  'mif1',
+  'msf1',
+]);
+const MP4_BRANDS = new Set([
+  'isom',
+  'iso2',
+  'iso3',
+  'iso4',
+  'iso5',
+  'iso6',
+  'mp41',
+  'mp42',
+  'avc1',
+  'M4V ',
+  'M4VH',
+  'M4VP',
+]);
+const QUICKTIME_BRANDS = new Set(['qt  ']);
+
+function jsonError(error: string, status: number) {
+  return NextResponse.json({ success: false, error }, { status });
+}
+
+function isFileEntry(value: FormDataEntryValue): value is File {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as File).size === 'number' &&
+    typeof (value as File).slice === 'function'
+  );
+}
+
+function startsWithBytes(
+  bytes: Uint8Array,
+  expected: readonly number[],
+  offset = 0,
+): boolean {
+  return expected.every((byte, index) => bytes[offset + index] === byte);
+}
+
+function asciiAt(bytes: Uint8Array, offset: number, length: number): string {
+  let value = '';
+  for (let index = offset; index < offset + length; index += 1) {
+    value += String.fromCharCode(bytes[index] ?? 0);
+  }
+  return value;
+}
+
+function ftypBrands(bytes: Uint8Array): string[] {
+  if (asciiAt(bytes, 4, 4) !== 'ftyp') return [];
+
+  const declaredBoxSize =
+    ((bytes[0] ?? 0) * 0x1000000 +
+      (bytes[1] ?? 0) * 0x10000 +
+      (bytes[2] ?? 0) * 0x100 +
+      (bytes[3] ?? 0)) >>>
+    0;
+  if (declaredBoxSize < 16) return [];
+
+  const boxEnd = Math.min(bytes.length, declaredBoxSize, 64);
+  const brands = [asciiAt(bytes, 8, 4)];
+  for (let offset = 16; offset + 4 <= boxEnd; offset += 4) {
+    brands.push(asciiAt(bytes, offset, 4));
+  }
+  return brands;
+}
+
+function detectAttachmentType(bytes: Uint8Array): AllowedAttachmentType | null {
+  if (startsWithBytes(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (
+    startsWithBytes(bytes, [
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ])
+  ) {
+    return 'image/png';
+  }
+  if (
+    asciiAt(bytes, 0, 6) === 'GIF87a' ||
+    asciiAt(bytes, 0, 6) === 'GIF89a'
+  ) {
+    return 'image/gif';
+  }
+  if (
+    asciiAt(bytes, 0, 4) === 'RIFF' &&
+    asciiAt(bytes, 8, 4) === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+
+  const brands = ftypBrands(bytes);
+  if (brands.some((brand) => AVIF_BRANDS.has(brand))) {
+    return 'image/avif';
+  }
+  if (brands.some((brand) => HEIF_IMAGE_BRANDS.has(brand))) {
+    return null;
+  }
+  if (brands.some((brand) => QUICKTIME_BRANDS.has(brand))) {
+    return 'video/quicktime';
+  }
+  if (brands.some((brand) => MP4_BRANDS.has(brand))) {
+    return 'video/mp4';
+  }
+  return null;
+}
+
+async function detectFileType(
+  file: File,
+): Promise<AllowedAttachmentType | null> {
+  const bytes = new Uint8Array(await file.slice(0, 64).arrayBuffer());
+  return detectAttachmentType(bytes);
+}
+
+function normalizeDeclaredAttachmentType(contentType: string): string {
+  return contentType === 'image/jpg' ? 'image/jpeg' : contentType;
+}
+
+function isAllowedAttachmentType(
+  contentType: string,
+): contentType is AllowedAttachmentType {
+  return Object.hasOwn(ATTACHMENT_TYPES, contentType);
+}
 
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
-    const content = (formData.get('content') as string) || '';
-    const threadId = formData.get('thread_id') as string;
-    // Support multiple attachments sent as repeated "attachments" fields
-    const files = (formData.getAll('attachments') as File[]).filter(
-      (f) => f && typeof f === 'object' && 'size' in f
-    );
-
-    if (!threadId) {
-      return NextResponse.json({ success: false, error: 'Thread ID is required.' }, { status: 400 });
-    }
-
-    if (!content.trim() && (files.length === 0 || files.every((f) => f.size === 0))) {
-      return NextResponse.json({ success: false, error: 'Content or attachment is required.' }, { status: 400 });
-    }
-
     const supabase = await createSupabaseServerClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ success: false, error: 'User not authenticated.' }, { status: 401 });
+      return jsonError('User not authenticated.', 401);
+    }
+
+    if (await isWithdrawnUser(user.id)) {
+      return jsonError('A member who has unsubscribed.', 403);
+    }
+
+    const rawContentLength = req.headers.get('content-length');
+    if (rawContentLength) {
+      if (!/^\d+$/.test(rawContentLength)) {
+        return jsonError('Invalid Content-Length.', 400);
+      }
+      const contentLength = Number(rawContentLength);
+      if (!Number.isSafeInteger(contentLength)) {
+        return jsonError('Invalid Content-Length.', 400);
+      }
+      if (contentLength > MAX_REQUEST_BYTES) {
+        return jsonError('Request body is too large.', 413);
+      }
+    }
+
+    const formData = await req.formData();
+    const rawContent = formData.get('content');
+    const content = typeof rawContent === 'string' ? rawContent : '';
+    const rawThreadId = formData.get('thread_id');
+    // Support multiple attachments sent as repeated "attachments" fields
+    const files = formData
+      .getAll('attachments')
+      .filter(
+        (file): file is File => isFileEntry(file) && file.size > 0,
+      );
+
+    if (
+      typeof rawThreadId !== 'string' ||
+      !/^[1-9]\d*$/.test(rawThreadId)
+    ) {
+      return jsonError('Thread ID must be a positive integer.', 400);
+    }
+    const threadId = Number(rawThreadId);
+    if (!Number.isSafeInteger(threadId)) {
+      return jsonError('Thread ID must be a positive integer.', 400);
+    }
+
+    if (files.length > MAX_ATTACHMENT_COUNT) {
+      return jsonError('Too many attachments.', 400);
+    }
+
+    if (files.some((file) => file.size > MAX_ATTACHMENT_BYTES)) {
+      return jsonError('An attachment is too large.', 413);
+    }
+
+    const totalAttachmentBytes = files.reduce(
+      (total, file) => total + file.size,
+      0,
+    );
+    if (totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+      return jsonError('Attachments are too large.', 413);
+    }
+
+    const verifiedFiles: Array<{
+      file: File;
+      contentType: AllowedAttachmentType;
+    }> = [];
+    for (const file of files) {
+      const declaredContentType = normalizeDeclaredAttachmentType(
+        file.type.toLowerCase(),
+      );
+      if (!isAllowedAttachmentType(declaredContentType)) {
+        return jsonError('Unsupported attachment type.', 415);
+      }
+      const detectedContentType = await detectFileType(file);
+      if (!detectedContentType) {
+        return jsonError('Attachment content is not an allowed file type.', 415);
+      }
+      verifiedFiles.push({ file, contentType: detectedContentType });
+    }
+
+    if (
+      !content.trim() &&
+      (files.length === 0 || files.every((file) => file.size === 0))
+    ) {
+      return jsonError('Content or attachment is required.', 400);
+    }
+
+    const { data: thread, error: threadError } = await supabase
+      .from('qna_threads')
+      .select('id')
+      .eq('id', threadId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (threadError) {
+      console.error('Error checking Q&A thread ownership:', threadError);
+      return jsonError('Failed to verify thread ownership.', 500);
+    }
+    if (!thread) {
+      return jsonError('Thread not found or access denied.', 403);
     }
 
     const { data: messageData, error: messageError } = await supabase
       .from('qna_messages')
       .insert({
-        thread_id: parseInt(threadId, 10),
+        thread_id: threadId,
         user_id: user.id,
         content,
       })
@@ -43,27 +273,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Failed to create the message.' }, { status: 500 });
     }
 
-    if (files.length > 0) {
-      for (const file of files) {
+    if (verifiedFiles.length > 0) {
+      for (const { file, contentType } of verifiedFiles) {
         if (!file || file.size === 0) continue;
 
-        // Generate UUID filename with safe extension
-        const uuid = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
-        let ext = '';
+        // Generate UUID filename with an extension derived from verified magic.
+        const uuid =
+          globalThis.crypto?.randomUUID?.() ||
+          Math.random().toString(36).slice(2);
         const originalName = file.name || '';
-        const dotIndex = originalName.lastIndexOf('.');
-        if (dotIndex !== -1 && dotIndex < originalName.length - 1) {
-          ext = originalName.slice(dotIndex).toLowerCase();
-        } else if (file.type) {
-          const mime = file.type.toLowerCase();
-          if (mime === 'image/jpeg') ext = '.jpg';
-          else if (mime === 'image/png') ext = '.png';
-          else if (mime === 'image/gif') ext = '.gif';
-          else if (mime === 'video/mp4') ext = '.mp4';
-          else if (mime === 'video/quicktime') ext = '.mov';
-          else if (mime === 'image/webp') ext = '.webp';
-          else ext = '';
-        }
+        const ext = ATTACHMENT_TYPES[contentType];
 
         const safeFileName = `${uuid}${ext}`;
         const filePath = `${user.id}/${threadId}/${safeFileName}`;
@@ -71,7 +290,7 @@ export async function POST(req: Request) {
         const { error: uploadError } = await supabase.storage
           .from('qna_attachments')
           .upload(filePath, file, {
-            contentType: file.type || undefined,
+            contentType,
             upsert: false,
           });
 
@@ -86,7 +305,7 @@ export async function POST(req: Request) {
             message_id: messageData.id,
             file_name: originalName || safeFileName,
             file_path: filePath,
-            file_type: file.type,
+            file_type: contentType,
             file_size: file.size
           });
 
@@ -164,5 +383,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: 'Internal server error.' }, { status: 500 });
   }
 }
-
-

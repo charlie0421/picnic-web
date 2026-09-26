@@ -1,8 +1,23 @@
 import { NextResponse } from 'next/server';
 import { logError } from '@/utils/log-error';
 import { createServerClient } from '@supabase/ssr';
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/config/settings';
+
+function resolveCanonicalOrigin(requestUrl: URL): string {
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configuredSiteUrl) {
+    try {
+      const parsed = new URL(configuredSiteUrl);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        return parsed.origin;
+      }
+    } catch {
+      // Fall back to the current behavior when the optional env is malformed.
+    }
+  }
+  return requestUrl.origin;
+}
 
 function isValidInternalRedirect(path: string): boolean {
   if (!path || typeof path !== 'string') return false;
@@ -25,7 +40,10 @@ function extractLangFromPath(path: string | null | undefined): string | null {
 }
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const requestUrl = new URL(request.url);
+  const { searchParams } = requestUrl;
+  const canonicalOrigin = resolveCanonicalOrigin(requestUrl);
+  const canonicalUrl = new URL(canonicalOrigin);
   const code = searchParams.get('code');
   // 만약 소셜 로그인 제공자로부터 'next' 파라미터를 받는다면,
   // 로그인 후 해당 경로로 리디렉션할 수 있습니다.
@@ -34,15 +52,21 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
-    const reqHeaders = await headers();
-    const host = reqHeaders.get('host');
-    const proto = reqHeaders.get('x-forwarded-proto') || (origin.startsWith('https://') ? 'https' : 'http');
-    const isLocal = host?.includes('localhost') || host?.startsWith('127.') || host?.endsWith('.local');
-    const cookieDomain = !isLocal && (host === 'picnic.fan' || host?.endsWith('.picnic.fan')) ? '.picnic.fan' : undefined;
-    const secure = proto === 'https' && !isLocal;
+    const host = canonicalUrl.hostname;
+    const isLocal =
+      host.includes('localhost') ||
+      host.startsWith('127.') ||
+      host.endsWith('.local');
+    const cookieDomain =
+      !isLocal && (host === 'picnic.fan' || host.endsWith('.picnic.fan'))
+        ? '.picnic.fan'
+        : undefined;
+    const secure = canonicalUrl.protocol === 'https:' && !isLocal;
 
-    // 동일 origin으로 리디렉트
-    const redirectResponse = NextResponse.redirect(`${origin}${next}`);
+    // Always redirect to the configured canonical origin when available.
+    const redirectResponse = NextResponse.redirect(
+      new URL(next, canonicalOrigin),
+    );
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -101,7 +125,10 @@ export async function GET(request: Request) {
                 : null) ||
               DEFAULT_LANGUAGE;
 
-            const withdrawnRedirectUrl = new URL(`${origin}/${lang}/login`);
+            const withdrawnRedirectUrl = new URL(
+              `/${lang}/login`,
+              canonicalOrigin,
+            );
             withdrawnRedirectUrl.searchParams.set('error', 'withdrawn');
             const withdrawnResponse = NextResponse.redirect(withdrawnRedirectUrl);
 
@@ -138,7 +165,7 @@ export async function GET(request: Request) {
   }
 
   // 인증 실패 또는 오류 시 에러 페이지로 리디렉션합니다.
-  const errorRedirectUrl = new URL('/auth/auth-code-error', origin);
+  const errorRedirectUrl = new URL('/auth/auth-code-error', canonicalOrigin);
   errorRedirectUrl.searchParams.set('error', 'Authentication Failed');
   errorRedirectUrl.searchParams.set(
     'error_description',
@@ -146,4 +173,4 @@ export async function GET(request: Request) {
   );
 
   return NextResponse.redirect(errorRedirectUrl);
-} 
+}
