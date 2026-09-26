@@ -15,6 +15,20 @@ const CDN_HOST =
       })()
     : null;
 
+const DEFAULT_FILL_WIDTH = 700;
+const DEFAULT_FILL_HEIGHT = 356;
+const PRIORITY_DPR = 2;
+
+function getPrioritySrc(src: string, width?: number, height?: number, fill?: boolean): string {
+  const baseWidth = width ?? (fill ? DEFAULT_FILL_WIDTH : 300);
+  const baseHeight = height ?? (fill ? Math.round((baseWidth * DEFAULT_FILL_HEIGHT) / DEFAULT_FILL_WIDTH) : undefined);
+  return getCdnImageUrl(
+    src,
+    baseWidth * PRIORITY_DPR,
+    baseHeight !== undefined ? baseHeight * PRIORITY_DPR : undefined,
+  );
+}
+
 interface OptimizedImageProps {
   src: string;
   alt: string;
@@ -58,8 +72,13 @@ export function OptimizedImage({
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
   const [isInView, setIsInView] = useState(priority); // priority가 true면 즉시 로딩
-  const [currentSrc, setCurrentSrc] = useState<string>('');
-  const [showShimmer, setShowShimmer] = useState(true);
+  // priority(LCP 후보) 이미지는 SSR HTML 에 바로 <img src> 가 들어가야 한다(PERF-04).
+  // window 에 의존하지 않는 결정적 계산이라 서버·클라이언트 결과가 같다(hydration 일치).
+  // 해상도는 DPR 2 기준 — Next 최적화 경로(forceOptimized)는 sizes 로 srcset 을 따로 만든다.
+  const [currentSrc, setCurrentSrc] = useState<string>(() =>
+    priority && src ? getPrioritySrc(src, width, height, fill) : '',
+  );
+  const [showShimmer, setShowShimmer] = useState(!priority);
   const imgRef = useRef<HTMLDivElement>(null);
 
   const resolveWidthFromSizes = (): number | null => {
@@ -164,13 +183,15 @@ export function OptimizedImage({
     return Math.min(Math.max(dpr, 1), 3);
   };
 
-  // 이미지 소스 설정
+  // 이미지 소스 설정 (priority 는 렌더 시점에 정해졌으므로 하이드레이션 후 다시 바꾸지 않는다 — 이중 다운로드 방지)
   useEffect(() => {
+    if (priority) {
+      if (src) setCurrentSrc(getPrioritySrc(src, width, height, fill));
+      return;
+    }
     if (!isInView || !src) return;
 
     const responsiveWidth = resolveWidthFromSizes();
-    const DEFAULT_FILL_WIDTH = 700;
-    const DEFAULT_FILL_HEIGHT = 356;
     const inferredWidth = (() => {
       if (width) return width;
       if (responsiveWidth) return Math.round(responsiveWidth);
@@ -198,7 +219,7 @@ export function OptimizedImage({
     const optimizedSrc = getCdnImageUrl(src, targetWidth, targetHeight);
     setCurrentSrc(optimizedSrc);
     setShowShimmer(true);
-  }, [fill, height, isInView, src, width, sizes]);
+  }, [fill, height, isInView, src, width, sizes, priority]);
 
   const handleImageLoad = () => {
     setIsLoaded(true);
@@ -245,7 +266,7 @@ export function OptimizedImage({
 
   // Shimmer 플레이스홀더
   const renderPlaceholder = () => {
-    if (!showShimmer || isLoaded || isError) return null;
+    if (priority || !showShimmer || isLoaded || isError) return null;
     const placeholderClass = fill 
       ? 'absolute inset-0' 
       : 'w-full';
@@ -290,7 +311,11 @@ export function OptimizedImage({
           height={height}
           fill={fill}
           sizes={sizes}
-          className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500 ease-out`}
+          className={
+            priority
+              ? className
+              : `${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500 ease-out`
+          }
           priority={priority}
           quality={quality}
           loading={priority ? 'eager' : 'lazy'}
