@@ -7,7 +7,13 @@ import PopupBanner from '@/components/client/vote/dialogs/PopupBanner';
 import { getLocalizedString } from '@/utils/api/strings';
 import { getCdnImageUrl } from '@/utils/api/image';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// 비정상 응답(4xx/5xx·배열이 아닌 JSON)은 오류로 처리해 렌더가 깨지지 않게 한다
+const fetcher = async (url: string): Promise<Popup[]> => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to load popups: ${res.status}`);
+  const data: unknown = await res.json();
+  return Array.isArray(data) ? (data as Popup[]) : [];
+};
 
 interface PopupSlide {
   imageUrl: string;
@@ -23,7 +29,7 @@ export default function PopupBannerLoader() {
   const [currentSlide] = useState(0);
 
   useEffect(() => {
-    if (!popups || popups.length === 0) return;
+    if (!Array.isArray(popups) || popups.length === 0) return;
 
     const now = new Date();
     const filtered = popups.filter((popup) => {
