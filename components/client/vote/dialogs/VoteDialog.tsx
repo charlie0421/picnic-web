@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { useVoteDialog } from './useVoteDialog';
@@ -47,6 +47,44 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     t,
   } = useVoteDialog({ isOpen, voteId, voteItemId, onVoteSuccess, onClose });
 
+  const titleId = useId();
+  const amountLabelId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+
+  // 열릴 때 수량 입력으로 포커스를 옮기고, 닫힐 때 원래 요소로 돌려준다
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    amountInputRef.current?.focus();
+    return () => previouslyFocused?.focus?.();
+  }, [isOpen]);
+
+  // Esc 로 닫고, Tab 포커스를 대화상자 안에 가둔다
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onClose();
+      return;
+    }
+    if (e.key !== 'Tab' || !panelRef.current) return;
+    const focusables = Array.from(
+      panelRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -59,6 +97,11 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
         onClick={onClose}
       >
         <motion.div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          onKeyDown={handleKeyDown}
           className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -75,12 +118,14 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
         {/* 헤더 */}
           <div className="bg-gradient-to-r from-primary to-secondary p-6 text-white">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">{artistName}</h2>
+              <h2 id={titleId} className="text-xl font-bold">{artistName}</h2>
           <button
+            type="button"
             onClick={onClose}
+            aria-label={t('dialog_button_close')}
                 className="p-1 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -108,11 +153,13 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <h3 className="text-lg font-semibold text-gray-900">{t('vote_popup_vote_amount')}</h3>
+              <h3 id={amountLabelId} className="text-lg font-semibold text-gray-900">{t('vote_popup_vote_amount')}</h3>
 
               {/* 투표 수량 입력 */}
               <div className="relative">
             <input
+              ref={amountInputRef}
+              aria-labelledby={amountLabelId}
               type="number"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -131,18 +178,22 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
                 />
                 <div className="absolute inset-y-0 right-0 flex flex-col">
             <button
+                    type="button"
+                    aria-label={t('vote_popup_increase')}
                     onClick={() => handleAmountChange(voteAmount + 1)}
                     disabled={!userBalance || voteAmount >= maxAmount}
                     className="flex-1 px-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-tr-xl transition-colors"
                   >
-                    ▲
+                    <span aria-hidden="true">▲</span>
                   </button>
                   <button
+                    type="button"
+                    aria-label={t('vote_popup_decrease')}
                     onClick={() => handleAmountChange(voteAmount - 1)}
                     disabled={voteAmount <= 1}
                     className="flex-1 px-3 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-br-xl transition-colors"
                   >
-                    ▼
+                    <span aria-hidden="true">▼</span>
             </button>
           </div>
         </div>

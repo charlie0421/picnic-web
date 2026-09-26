@@ -98,7 +98,23 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
             const artistName = (item as any).artist?.name ? getLocalizedString((item as any).artist.name, currentLanguage) || '아티스트' : '아티스트';
             const imageSrc = (item as any).artist?.image || null;
             return (
-              <div key={item.id} className='transform transition-all duration-300 hover:scale-105 hover:-translate-y-2' style={{ animationDelay: `${index * 50}ms` }} onClick={() => { if (canVote) { handleCardClick(item); } }}>
+              <div
+                key={item.id}
+                role='button'
+                tabIndex={canVote ? 0 : -1}
+                aria-disabled={!canVote || undefined}
+                aria-label={artistName}
+                className='transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
+                style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => { if (canVote) { handleCardClick(item); } }}
+                onKeyDown={(e) => {
+                  if (!canVote) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleCardClick(item);
+                  }
+                }}
+              >
                 <Card hoverable={canVote} className={`
                     group relative overflow-hidden border-0 shadow-lg hover:shadow-2xl
                     transition-all duration-300 cursor-pointer
