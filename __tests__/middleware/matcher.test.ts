@@ -5,8 +5,13 @@ import { NextRequest } from 'next/server';
 vi.mock('@supabase/ssr', () => ({ createServerClient: vi.fn() }));
 
 import { config, middleware } from '@/middleware';
+import { SUPPORTED_LANGUAGES } from '@/config/settings';
 
 const matches = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+
+// app/[lang]/sitemap.ts 가 로케일마다 서빙하는 sitemap. matcher 는 정적 분석 대상이라 로케일을 나열하므로
+// 로케일이 추가되면 여기서 누락이 드러난다.
+const LOCALE_SITEMAPS = SUPPORTED_LANGUAGES.map((lang) => `/${lang}/sitemap.xml`);
 
 /**
  * 정적 자산은 middleware(Supabase 세션 갱신·프로필 조회)를 거칠 이유가 없다.
@@ -50,9 +55,15 @@ describe('middleware matcher', () => {
     '/ko/vote/295.0',
     '/en/vote/295.png',
     '/ja/vote/295.js',
-    '/en/sitemap.xml',
+    // 로케일 sitemap 제외는 /{locale}/sitemap.xml 정확히 그 경로만이다
+    '/ko/vote/sitemap.xml', // app/[lang]/(main)/vote/[id]
+    '/vote/sitemap.xml', // app/vote/[id] (기본 언어로 redirect 하는 페이지)
   ])('HTML 경로 %s 은 계속 실행한다', (url) => {
     expect(matches(url)).toBe(true);
+  });
+
+  it.each(LOCALE_SITEMAPS)('로케일 sitemap %s 은 제외한다', (url) => {
+    expect(matches(url)).toBe(false);
   });
 
   it.each([
@@ -94,7 +105,9 @@ describe('matcher 제외 ⇔ 인앱 redirect 정적 자산 판정', () => {
     '/ko/vote',
     '/ko/vote/295.json',
     '/ko/vote/295.0',
-    '/en/sitemap.xml',
+    ...LOCALE_SITEMAPS,
+    '/ko/vote/sitemap.xml',
+    '/vote/sitemap.xml',
     '/concert2025',
   ])('%s', async (path) => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');

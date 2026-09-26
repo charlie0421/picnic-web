@@ -20,10 +20,11 @@ function extractLangFromPath(path: string | null | undefined): string | null {
     : null;
 }
 
-// 정적 자산: Next 내부 경로, public/ 의 자산 디렉터리, 루트의 정확한 파일 (config.matcher 제외 목록과 같은 기준).
-// 확장자로 판정하지 않는다 — /ko/vote/295.json 처럼 확장자가 붙은 동적 HTML 경로도 페이지로 라우팅된다.
+// 정적 자산: Next 내부 경로, public/ 의 자산 디렉터리, 루트의 정확한 파일, 로케일 sitemap(app/[lang]/sitemap.ts)
+// (config.matcher 제외 목록과 같은 기준). 확장자로 판정하지 않는다 — /ko/vote/295.json 처럼 확장자가 붙은
+// 동적 HTML 경로도 페이지로 라우팅된다.
 const STATIC_ASSET_PATH =
-  /^\/(?:_next\/|\.well-known\/|images\/|locales\/|favicon\/|concert2025\/(?:image|video)\/|(?:favicon\.ico|robots\.txt|ads\.txt|app-ads\.txt|sitemap(?:-[^/]+)?\.xml|manifest\.json|site\.webmanifest|apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js)$)/;
+  /^\/(?:_next\/|\.well-known\/|images\/|locales\/|favicon\/|concert2025\/(?:image|video)\/|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)\/sitemap\.xml$|(?:favicon\.ico|robots\.txt|ads\.txt|app-ads\.txt|sitemap(?:-[^/]+)?\.xml|manifest\.json|site\.webmanifest|apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js)$)/;
 
 function isLoginPath(pathname: string): boolean {
   // /login, /ko/login, /en/login 등
@@ -246,7 +247,9 @@ export const config = {
   //   세션 갱신·프로필 조회가 필요 없다. 확장자로 제외하지 않는다 — [lang] 아래 동적 경로는
   //   /ko/vote/295.json 처럼 확장자가 붙어도 페이지이므로 인앱 redirect·탈퇴 차단·x-locale 주입을 거쳐야 한다.
   //   STATIC_ASSET_PATH 와 같은 기준을 유지한다.
+  // - 로케일 sitemap(/{locale}/sitemap.xml, app/[lang]/sitemap.ts): 크롤러용 XML 이라 세션·인앱 redirect 가 필요 없다.
+  //   matcher 는 정적 분석 대상이라 SUPPORTED_LANGUAGES 를 참조할 수 없어 로케일을 나열한다 (동기화는 테스트가 검증).
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*|images/|locales/|favicon/|concert2025/(?:image|video)/|firebase-messaging-sw\\.js$|emergency-auth-fix\\.js$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/sitemap\\.xml$|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*|images/|locales/|favicon/|concert2025/(?:image|video)/|firebase-messaging-sw\\.js$|emergency-auth-fix\\.js$).*)",
   ],
 };
