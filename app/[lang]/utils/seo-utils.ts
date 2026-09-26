@@ -1,3 +1,4 @@
+import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 /**
  * SEO 유틸리티 함수
  * 
@@ -99,19 +100,19 @@ export function createVoteSchema(
     eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
     location: {
       '@type': 'VirtualLocation',
-      url: url || 'https://picnic.com',
+      url: url || SITE_URL,
     },
     organizer: {
       '@type': 'Organization',
-      name: '피크닠',
-      url: 'https://picnic.com',
+      name: 'Picnic',
+      url: SITE_URL,
     },
     offers: {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'KRW',
       availability: 'https://schema.org/InStock',
-      url: url || 'https://picnic.com',
+      url: url || SITE_URL,
       validFrom: startDate,
     },
   };
@@ -145,7 +146,7 @@ export function createProductSchema(
     },
     brand: {
       '@type': 'Organization',
-      name: '피크닠',
+      name: 'Picnic',
     },
   };
 }
@@ -172,10 +173,10 @@ export function createMediaSchema(
     ...(url && { url }),
     publisher: {
       '@type': 'Organization',
-      name: '피크닠',
+      name: 'Picnic',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://picnic.com/images/logo.webp',
+        url: `${SITE_URL}/images/logo.webp`,
       },
     },
   };

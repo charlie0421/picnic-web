@@ -15,7 +15,7 @@ import {
 } from './vote-detail-types';
 import { useVotePolling } from './useVotePolling';
 import { DEFAULT_VOTE_POLLING_INTERVAL_MS } from './vote-polling-data';
-import { filterActiveVoteItems, sumVoteTotals } from '../common/vote-display-utils';
+import { filterActiveVoteItems, formatVotePeriodForLanguage, sumVoteTotals } from '../common/vote-display-utils';
 
 export function useVoteDetail({
   vote,
@@ -222,23 +222,8 @@ export function useVoteDetail({
     return { rankedVoteItems: ranked, filteredItems: filtered, totalVotes: total };
   }, [voteItems, debouncedSearchQuery, currentLanguage]);
 
-  const formatVotePeriod = () => {
-    if (!vote.start_at || !vote.stop_at) return '';
-    const startDate = new Date(vote.start_at);
-    const endDate = new Date(vote.stop_at);
-    // timeZone 을 명시하지 않으면 SSR(서버 TZ, 보통 UTC) vs CSR(사용자 로컬) 결과가
-    // 달라져 hydration mismatch 가 발생. K-pop 투표 마감 기준은 KST.
-    const formatDate = (date: Date) =>
-      date.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Asia/Seoul',
-      });
-    return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
-  };
+  const formatVotePeriod = () =>
+    formatVotePeriodForLanguage(vote.start_at, vote.stop_at, currentLanguage);
 
   return {
     // Store / auth

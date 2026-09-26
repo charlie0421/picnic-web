@@ -3,7 +3,9 @@ import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
 import { ClientNavigationSetter } from '@/components/client';
 import { PortalType } from '@/utils/enums';
 import { Metadata } from 'next';
-import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils';
+import { brandName, buildLanguageAlternates, createPageMetadata } from '@/app/[lang]/utils/metadata-utils';
+import { getTranslations } from '@/lib/i18n/server';
+import type { Language } from '@/config/settings';
 import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { RewardListFetcher } from '@/components/server/reward';
@@ -22,21 +24,19 @@ export async function generateMetadata({
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
   const { lang: langParam } = await params;
   const lang = String(langParam || 'ko');
+  const t = await getTranslations(lang as Language);
 
   // ISR 메타데이터 속성 추가
   const isrOptions = createISRMetadata(60);
 
   return {
     ...createPageMetadata(
-      '리워드 - 피크닠',
-      '피크닠에서 제공하는 다양한 리워드를 확인해보세요.',
+      t('nav_rewards'),
+      t('meta_rewards_description'),
       {
         alternates: {
           canonical: `${SITE_URL}/${lang}/rewards`,
-          languages: {
-            'ko-KR': `${SITE_URL}/ko/rewards`,
-            'en-US': `${SITE_URL}/en/rewards`,
-          },
+          languages: buildLanguageAlternates('/rewards'),
         },
       },
     ),
@@ -53,6 +53,7 @@ export default async function RewardsPage({
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
   const { lang: langParam } = await params;
   const lang = String(langParam || 'ko');
+  const t = await getTranslations(lang as Language);
 
   return (
     <>
@@ -62,8 +63,8 @@ export default async function RewardsPage({
           __html: JSON.stringify(
             createWebsiteSchema(
               `${SITE_URL}/rewards`,
-              '피크닠 리워드',
-              '피크닠에서 제공하는 다양한 리워드를 확인해보세요.',
+              `${brandName(lang)} ${t('nav_rewards')}`,
+              t('meta_rewards_description'),
             ),
           ),
         }}

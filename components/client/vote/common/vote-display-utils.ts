@@ -1,3 +1,4 @@
+import { intlLocale } from '@/lib/i18n/locale';
 export type VoteDisplayStatus = 'ongoing' | 'completed' | 'upcoming' | 'admin';
 
 interface VoteTotalLike {
@@ -81,4 +82,25 @@ export function runnerUpGap(
   if (gap <= 0) return null; // 1·2위 동률 포함
   if (totals.length >= 3 && totals[2] === second) return null; // 2위 동률 → 유일 2위 아님
   return gap;
+}
+
+/**
+ * 투표 기간을 사용자 언어로 표시한다. 마감 기준은 KST 라 시간대를 고정하고 "KST" 를 붙인다.
+ * timeZone 을 고정하지 않으면 SSR(서버 TZ) 과 CSR(사용자 TZ) 결과가 달라 hydration mismatch 가 난다.
+ */
+export function formatVotePeriodForLanguage(
+  startAt: string | null | undefined,
+  stopAt: string | null | undefined,
+  language: string,
+): string {
+  if (!startAt || !stopAt) return '';
+  const format = new Intl.DateTimeFormat(intlLocale(language), {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Seoul',
+  });
+  return `${format.format(new Date(startAt))} ~ ${format.format(new Date(stopAt))} KST`;
 }

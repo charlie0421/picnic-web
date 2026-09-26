@@ -15,6 +15,7 @@ import { VotePodium } from './VotePodium';
 import { VoteNotifications } from './VoteNotifications';
 import { useVoteDetail } from './useVoteDetail';
 import { formatCandidateVote } from '../common/vote-display-utils';
+import { useLanguageStore } from '@/stores/languageStore';
 
 export type { VoteDetailPresenterProps } from './vote-detail-types';
 
@@ -28,6 +29,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
     rankedVoteItems, filteredItems, totalVotes, isAdmin, formatVotePeriod,
     vote, rewards, className,
   } = useVoteDetail(props);
+  const { t } = useLanguageStore();
 
   const renderTimer = () => {
     if (voteStatus !== 'ongoing' || !timeLeft) return null;
@@ -37,7 +39,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
       return (
         <div className='flex items-center gap-2'>
           <span className='text-xl'>🚫</span>
-          <span className='text-sm md:text-base font-bold text-red-600'>마감</span>
+          <span className='text-sm md:text-base font-bold text-red-600'>{t('vote_status_closed')}</span>
         </div>
       );
     }
@@ -45,12 +47,12 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
       <div className='flex items-center gap-2'>
         <span className='text-xl'>⏱️</span>
         <div className='flex items-center gap-1 text-xs sm:text-sm font-mono font-bold'>
-          {days > 0 && (<><span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>{days}일</span><span className='text-gray-400'>:</span></>)}
-          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>{hours}시</span>
+          {days > 0 && (<><span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>{days}{t('time_unit_day')}</span><span className='text-gray-400'>:</span></>)}
+          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>{hours}{t('time_unit_hour')}</span>
           <span className='text-gray-400'>:</span>
-          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>{minutes}분</span>
+          <span className='bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs'>{minutes}{t('time_unit_minute')}</span>
           <span className='text-gray-400'>:</span>
-          <span className='bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse text-xs'>{seconds}초</span>
+          <span className='bg-red-100 text-red-800 px-1.5 py-0.5 rounded animate-pulse text-xs'>{seconds}{t('time_unit_second')}</span>
         </div>
       </div>
     );
@@ -67,14 +69,14 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
                 <h1 className='text-base md:text-lg lg:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex-1 min-w-0'>{getLocalizedString(vote.title, currentLanguage)}</h1>
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-1 text-xs rounded-full font-medium ${voteStatus === 'ongoing' ? 'bg-green-100 text-green-800' : voteStatus === 'upcoming' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {voteStatus === 'ongoing' ? '진행 중' : voteStatus === 'upcoming' ? '예정' : '종료'}
+                    {voteStatus === 'ongoing' ? t('label_vote_status_ongoing') : voteStatus === 'upcoming' ? t('label_vote_status_upcoming') : t('label_vote_status_ended')}
                   </span>
                 </div>
               </div>
               <div className='flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-600 mb-2'>
                 <span>📅 {formatVotePeriod()}</span>
                 <span className="hidden sm:inline">•</span>
-                <span>👥 총 {totalVotes.toLocaleString('en-US')} 표</span>
+                <span>👥 {t('label_total_votes')} {totalVotes.toLocaleString('en-US')}</span>
               </div>
               <div className="flex items-center justify-between">
                 {renderTimer()}
@@ -85,7 +87,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
       </div>
 
       <div className="px-4 mb-4">
-        <VoteSearch onSearch={handleSearch} placeholder={`${rankedVoteItems.length}명 중 검색...`} totalItems={rankedVoteItems.length} searchResults={filteredItems} disabled={!canVote} />
+        <VoteSearch onSearch={handleSearch} placeholder={t('text_hint_search')} totalItems={rankedVoteItems.length} searchResults={filteredItems} disabled={!canVote} />
       </div>
 
       {voteStatus !== 'upcoming' && rankedVoteItems.length > 0 && (
@@ -95,7 +97,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
       <div className='container mx-auto px-4 pb-8'>
         <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-3 md:gap-4'>
           {filteredItems.map((item, index) => {
-            const artistName = (item as any).artist?.name ? getLocalizedString((item as any).artist.name, currentLanguage) || '아티스트' : '아티스트';
+            const artistName = (item as any).artist?.name ? getLocalizedString((item as any).artist.name, currentLanguage) || t('artist_name_fallback') : t('artist_name_fallback');
             const imageSrc = (item as any).artist?.image || null;
             return (
               <div
@@ -171,7 +173,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
                         {item.rank && (
                           <div className='flex items-center justify-center gap-0.5'>
                             {item.rank <= 3 && (<span className='text-xs'>{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}</span>)}
-                            <span className='text-xs text-gray-500 font-medium'>{item.rank}위</span>
+                            <span className='text-xs text-gray-500 font-medium'>{t('text_vote_rank', { rank: String(item.rank) })}</span>
                           </div>
                         )}
                       </div>
@@ -188,7 +190,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
         </div>
         {filteredItems.length === 0 && (
           <div className='text-center py-8'>
-            <p className='text-gray-500'>검색 결과가 없습니다.</p>
+            <p className='text-gray-500'>{t('common_text_no_search_result')}</p>
           </div>
         )}
       </div>
@@ -201,11 +203,11 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
 
       {rewards.length > 0 && (
         <section className="px-4 pb-8">
-          <h2 className="text-xl font-semibold mb-4">🎁 투표 리워드</h2>
+          <h2 className="text-xl font-semibold mb-4">🎁 {t('label_vote_reward_list')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rewards.map((reward, index) => (
               <div key={reward.id || index} className="border rounded-lg p-4">
-                <p>리워드 #{index + 1}</p>
+                <p>#{index + 1}</p>
               </div>
             ))}
           </div>
