@@ -57,7 +57,7 @@ function flattenJson(obj: any, prefix = ''): string[] {
   return result;
 }
 
-function loadLocaleFiles(): LangFile[] {
+export function loadLocaleFiles(): LangFile[] {
   if (!fs.existsSync(localesDir)) {
     console.error(`Locales directory not found: ${localesDir}`);
     process.exit(1);
@@ -74,7 +74,7 @@ function loadLocaleFiles(): LangFile[] {
 // - t('...') / t("...") / t(`...`)
 // - tHtml('...') / tDynamic('...') 포함
 // - lodash.get(translations, 'a.b.c') 형태도 스캔
-// - 제한: 정적 문자열 리터럴만 대상 (동적 변수는 제외)
+// - 제한: 문자열 리터럴만 대상 (변수로 넘긴 키는 제외). `${…}` 템플릿은 DYNAMIC_KEY_DOMAINS 로 펼친다
 const T_CALL_REGEX = /\b(?:t|tHtml|tDynamic)\(\s*(?:"([^"\n\r]*)"|'([^'\n\r]*)'|`([^`\n\r]*)`)/g;
 const GET_TRANSLATIONS_REGEX = /\bget\(\s*translations\s*,\s*(?:"([^"\n\r]*)"|'([^'\n\r]*)'|`([^`\n\r]*)`)\s*\)/g;
 
@@ -99,9 +99,43 @@ function extractKeysFromConfigJson(filePath: string): string[] {
   }
 }
 
-function extractKeysFromFile(filePath: string): string[] {
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const keys: string[] = [];
+// `${…}` 가 들어간 템플릿 키는 런타임 값으로 완성되는 동적 키다(예: t(`label_vote_${category}`)).
+// 값의 도메인이 유한한 템플릿은 여기에 등록해 `${…}` 를 도메인 값으로 치환한 키로 펼쳐 정적 키처럼 대조한다.
+// 등록되지 않은 템플릿은 대조할 수 없어 누락이 숨으므로 i18n:check 를 실패시킨다 — 새 동적 키를 쓰면 도메인을 등록한다.
+export const DYNAMIC_KEY_DOMAINS: Readonly<Record<string, readonly string[]>> = {
+  // components/client/vote/list/vote-card-utils.ts getCategoryLabel — CATEGORY_COLORS·CATEGORY_LABEL_FALLBACK 의 값
+  'label_vote_${category}': ['birthday', 'debut', 'accumulated', 'special', 'event', 'weekly'],
+  // 같은 파일 getSubCategoryLabel — SUB_CATEGORY_COLORS·SUBCATEGORY_LABEL_FALLBACK 의 값
+  'goonghap_gender_${subCategory}': ['male', 'female', 'group', 'all'],
+};
+
+const TEMPLATE_PLACEHOLDER = /\$\{[^}]*\}/;
+
+export type ExtractedKeys = {
+  // 대조할 키: 정적 키 + 등록된 동적 템플릿을 펼친 키
+  keys: string[];
+  // DYNAMIC_KEY_DOMAINS 에 없는 동적 템플릿
+  unregisteredTemplates: string[];
+};
+
+function collectKey(key: string, extracted: ExtractedKeys): void {
+  if (key === '') return;
+  if (!key.includes('${')) {
+    extracted.keys.push(key);
+    return;
+  }
+  const domain = DYNAMIC_KEY_DOMAINS[key];
+  if (!domain) {
+    extracted.unregisteredTemplates.push(key);
+    return;
+  }
+  for (const value of domain) {
+    extracted.keys.push(key.replace(TEMPLATE_PLACEHOLDER, value));
+  }
+}
+
+export function extractKeysFromSource(content: string): ExtractedKeys {
+  const extracted: ExtractedKeys = { keys: [], unregisteredTemplates: [] };
 
   // t('key')류
   {
@@ -109,8 +143,7 @@ function extractKeysFromFile(filePath: string): string[] {
     let match = iter.next();
     while (!match.done) {
       const m = match.value as RegExpExecArray;
-      const key = (m[1] || m[2] || m[3] || '').trim();
-      if (key) keys.push(key);
+      collectKey((m[1] || m[2] || m[3] || '').trim(), extracted);
       match = iter.next();
     }
   }
@@ -121,13 +154,16 @@ function extractKeysFromFile(filePath: string): string[] {
     let match = iter.next();
     while (!match.done) {
       const m = match.value as RegExpExecArray;
-      const key = (m[1] || m[2] || m[3] || '').trim();
-      if (key) keys.push(key);
+      collectKey((m[1] || m[2] || m[3] || '').trim(), extracted);
       match = iter.next();
     }
   }
 
-  return keys;
+  return extracted;
+}
+
+function extractKeysFromFile(filePath: string): ExtractedKeys {
+  return extractKeysFromSource(fs.readFileSync(filePath, 'utf-8'));
 }
 
 function main() {
@@ -143,9 +179,15 @@ function main() {
   }
 
   const usedKeys = new Set<string>();
+  // 파일별 미등록 동적 템플릿 (DYNAMIC_KEY_DOMAINS 에 도메인을 등록해야 대조할 수 있음)
+  const unregisteredByFile: Record<string, string[]> = {};
   for (const f of tsFiles) {
     try {
-      extractKeysFromFile(f).forEach((k) => usedKeys.add(k));
+      const { keys, unregisteredTemplates } = extractKeysFromFile(f);
+      keys.forEach((k) => usedKeys.add(k));
+      if (unregisteredTemplates.length) {
+        unregisteredByFile[path.relative(projectRoot, f)] = unregisteredTemplates;
+      }
     } catch {
       // ignore file read/parse errors
     }
@@ -208,12 +250,17 @@ function main() {
   printSection('누락 키 (코드에는 있으나 해당 언어 파일에 없음)', missingByLang);
   printSection('미사용 키 (언어 파일에는 있으나 코드에서 미사용)', unusedByLang);
   printSection('언어 간 불일치 (다른 언어에는 있으나 해당 언어에는 없음)', mismatchByLang);
+  printSection('미등록 동적 키 (DYNAMIC_KEY_DOMAINS 에 도메인을 등록해야 대조 가능)', unregisteredByFile);
 
-  // 종료 코드: 누락 키가 존재하면 비정상 종료로 간주(옵션)
+  // 종료 코드: 누락 키나 대조할 수 없는 미등록 동적 키가 있으면 비정상 종료로 간주
   const hasMissing = Object.values(missingByLang).some((arr) => arr.length > 0);
-  process.exit(hasMissing ? 1 : 0);
+  const hasUnregistered = Object.keys(unregisteredByFile).length > 0;
+  process.exit(hasMissing || hasUnregistered ? 1 : 0);
 }
 
-main();
+// CLI 로 직접 실행할 때만 검사한다 (테스트에서 추출 함수를 import 할 때는 실행하지 않음)
+if (require.main === module) {
+  main();
+}
 
 

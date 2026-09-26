@@ -5,7 +5,92 @@
  */
 
 import { Metadata } from 'next';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, type Language } from '@/config/settings';
 import { SITE_URL } from '../constants/static-pages';
+
+/**
+ * 앱 언어 코드 → BCP 47 언어 태그 (`<html lang>`·hreflang 공용).
+ * 경로 세그먼트는 소문자(`zh-tw`)지만 표준 표기는 지역을 대문자로 쓴다(`zh-TW`).
+ * SUPPORTED_LANGUAGES 를 전수 커버해야 하며, 빠진 항목이 있으면 타입 에러가 난다.
+ */
+const LANGUAGE_TAG_BY_LANGUAGE: Record<Language, string> = {
+  en: 'en',
+  ko: 'ko',
+  'zh-cn': 'zh-CN',
+  'zh-tw': 'zh-TW',
+  ja: 'ja',
+  id: 'id',
+  es: 'es',
+  bn: 'bn',
+  tl: 'tl',
+  th: 'th',
+  vi: 'vi',
+  my: 'my',
+};
+
+export function isSupportedLanguage(value: string | null | undefined): value is Language {
+  return !!value && (SUPPORTED_LANGUAGES as readonly string[]).includes(value);
+}
+
+/** 지원 언어면 BCP 47 태그, 아니면 null */
+export function getLanguageTag(lang: string | null | undefined): string | null {
+  return isSupportedLanguage(lang) ? LANGUAGE_TAG_BY_LANGUAGE[lang] : null;
+}
+
+/** 앱 언어 코드 → og:locale (`language_TERRITORY`). */
+const OPEN_GRAPH_LOCALE_BY_LANGUAGE: Record<Language, string> = {
+  en: 'en_US',
+  ko: 'ko_KR',
+  'zh-cn': 'zh_CN',
+  'zh-tw': 'zh_TW',
+  ja: 'ja_JP',
+  id: 'id_ID',
+  es: 'es_ES',
+  bn: 'bn_BD',
+  tl: 'tl_PH',
+  th: 'th_TH',
+  vi: 'vi_VN',
+  my: 'my_MM',
+};
+
+export function getOpenGraphLocale(lang: string | null | undefined): string {
+  return OPEN_GRAPH_LOCALE_BY_LANGUAGE[isSupportedLanguage(lang) ? lang : DEFAULT_LANGUAGE];
+}
+
+type LanguageAlternates = NonNullable<NonNullable<Metadata['alternates']>['languages']>;
+
+/** 언어별 경로 생성기로 hreflang 맵(12개 언어 + x-default=기본 언어)을 만든다. */
+function languageAlternatesFrom(localizedPath: (lang: Language) => string): LanguageAlternates {
+  const languages: Record<string, string> = {};
+  for (const lang of SUPPORTED_LANGUAGES) {
+    languages[LANGUAGE_TAG_BY_LANGUAGE[lang]] = localizedPath(lang);
+  }
+  languages['x-default'] = localizedPath(DEFAULT_LANGUAGE);
+  return languages;
+}
+
+/**
+ * 로케일 접두사를 뺀 경로(예: `/vote/295`)로 hreflang 맵을 만든다.
+ * 상대 경로라 metadataBase 로 절대 URL 이 된다.
+ */
+export function buildLanguageAlternates(pathWithoutLocale: string): LanguageAlternates {
+  const path = pathWithoutLocale.replace(/^\/+|\/+$/g, '');
+  return languageAlternatesFrom((lang) => (path ? `/${lang}/${path}` : `/${lang}`));
+}
+
+/**
+ * DB 에 저장된 이미지 경로(`vote/…png`, `/reward/…jpg`)를 OG 크롤러가 받을 수 있는 CDN 절대 URL 로 바꾼다.
+ * 변환 파라미터(`?f=webp` 등)는 붙이지 않는다 — 원본(png/jpg)이 크롤러 호환성이 가장 좋다.
+ */
+export function resolveCdnImageUrl(path: string | null | undefined): string | null {
+  const trimmed = path?.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+  const cdnBase = process.env.NEXT_PUBLIC_CDN_URL?.replace(/\/+$/, '');
+  if (!cdnBase) return null;
+  return `${cdnBase}/${trimmed.replace(/^\/+/, '')}`;
+}
 
 /**
  * 기본 메타데이터 객체
@@ -30,14 +115,14 @@ export const DEFAULT_METADATA: Metadata = {
   },
   metadataBase: new URL(SITE_URL),
   alternates: {
-    canonical: '/',
-    languages: {
-      'ko-KR': '/',
-      'en-US': '/en',
-    },
+    // Next 가 './' 를 현재 요청 경로로 해석한다 — 페이지가 따로 정하지 않으면 자기 자신이 canonical.
+    // (홈 고정 canonical 은 하위 페이지 전부를 홈의 중복으로 선언했다)
+    // hreflang 은 경로를 아는 페이지가 buildLanguageAlternates 로 넣는다.
+    canonical: './',
   },
   openGraph: {
     type: 'website',
+    url: './',
     siteName: '피크닠',
     title: '피크닠',
     description: '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
@@ -67,19 +152,8 @@ export const DEFAULT_METADATA: Metadata = {
     apple: [
       { url: '/favicon/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
-    other: [
-      {
-        rel: 'mask-icon',
-        url: '/favicon/safari-pinned-tab.svg',
-        color: '#5bbad5',
-      },
-    ],
   },
-  manifest: '/site.webmanifest',
-  verification: {
-    google: 'google-site-verification=YOUR_VERIFICATION_CODE',
-    yandex: 'YOUR_YANDEX_VERIFICATION_CODE',
-  },
+  manifest: '/manifest.json',
   robots: {
     index: true,
     follow: true,
@@ -213,17 +287,12 @@ export function createDynamicPathMetadata(
   params: Record<string, string>,
   alternatePathGenerator: (locale: string) => string
 ): Partial<Metadata> {
-  const alternates: Record<string, string> = {};
-  const languages: Record<string, string> = {};
-  
-  // 한국어 및 영어 경로 생성
-  languages['ko-KR'] = alternatePathGenerator('ko');
-  languages['en-US'] = alternatePathGenerator('en');
-  
   return {
     alternates: {
-      canonical: alternatePathGenerator(params.lang || 'ko'),
-      languages,
+      canonical: alternatePathGenerator(
+        isSupportedLanguage(params.lang) ? params.lang : DEFAULT_LANGUAGE,
+      ),
+      languages: languageAlternatesFrom(alternatePathGenerator),
     },
   };
 }
