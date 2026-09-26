@@ -1,7 +1,9 @@
 export const revalidate = 60;
 import { Suspense } from 'react';
 import { Metadata } from 'next';
-import { createPageMetadata } from '@/app/[lang]/utils/metadata-utils';
+import { brandName, buildLanguageAlternates, createPageMetadata } from '@/app/[lang]/utils/metadata-utils';
+import { getTranslations } from '@/lib/i18n/server';
+import type { Language } from '@/config/settings';
 import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { BannerListFetcher, BannerSkeleton, VoteListSkeleton } from '@/components/server';
@@ -24,17 +26,15 @@ export async function generateMetadata({
   // Next.js 15.3.1에서는 params를 먼저 await 해야 함
   const { lang: langParam } = await params;
   const lang = String(langParam || 'ko');
+  const t = await getTranslations(lang as Language);
 
   return createPageMetadata(
-    '투표',
-    '피크닠에서 좋아하는 아티스트에게 투표하고 응원하세요.',
+    t('nav_vote'),
+    t('meta_vote_description'),
     {
       alternates: {
         canonical: `${SITE_URL}/${lang}/vote`,
-        languages: {
-          'ko-KR': `${SITE_URL}/ko/vote`,
-          'en-US': `${SITE_URL}/en/vote`,
-        },
+        languages: buildLanguageAlternates('/vote'),
       },
     },
   );
@@ -56,6 +56,7 @@ export default async function VoteListPage({
   const status = normalizeVoteStatus(resolvedSearchParams.status);
   const area = normalizeVoteArea(resolvedSearchParams.area);
   const lang = resolvedParams?.lang || 'ko';
+  const t = await getTranslations(lang as Language);
 
   const bannerPromise = (async () =>
     await (
@@ -100,8 +101,8 @@ export default async function VoteListPage({
           __html: JSON.stringify(
             createWebsiteSchema(
               `${SITE_URL}/vote`,
-              '피크닠 투표',
-              '피크닠에서 좋아하는 아티스트에게 투표하고 응원하세요.',
+              `${brandName(lang)} ${t('nav_vote')}`,
+              t('meta_vote_description'),
             ),
           ),
         }}

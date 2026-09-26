@@ -77,7 +77,7 @@ describe('VoteDetailPresenter share display', () => {
     render(<VoteDetailPresenter {...({} as any)} />);
     expect(screen.getAllByText('70.00%').length).toBeGreaterThan(0);
     expect(screen.getAllByText('30.00%').length).toBeGreaterThan(0);
-    expect(screen.getByText(/총 100 표/)).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === 'SPAN' && /^👥 .*\b100$/.test(el.textContent ?? ''))).toBeInTheDocument();
   });
 
   it('shows admin raw counts in parentheses', () => {

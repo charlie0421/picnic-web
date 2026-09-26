@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { VoteItem } from '@/types/interfaces';
+import { useLanguageStore } from '@/stores/languageStore';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import {
   NotificationState,
@@ -162,8 +163,8 @@ export function useVotePolling({
     if (!initialDataNotifiedRef.current || hadPollingErrorRef.current) {
       addNotification({
         type: 'success',
-        title: '실시간 연결 성공',
-        message: '투표 결과가 실시간으로 업데이트됩니다.',
+        title: useLanguageStore.getState().t('vote_realtime_connected_title'),
+        message: useLanguageStore.getState().t('vote_realtime_connected_message'),
         duration: 3000,
       });
       initialDataNotifiedRef.current = true;
@@ -231,8 +232,8 @@ export function useVotePolling({
         markPollingFailure(responseTime);
         addNotification({
           type: 'error',
-          title: '데이터 로딩 오류',
-          message: '투표 데이터를 가져오는 중 오류가 발생했습니다.',
+          title: useLanguageStore.getState().t('vote_data_load_error_title'),
+          message: useLanguageStore.getState().t('vote_data_load_error_message'),
           duration: 4000,
         });
         return 'failed';

@@ -16,7 +16,12 @@ vi.mock('@/components/server/vote/VoteListFetcher', () => ({
   VoteListFetcher: () => null,
 }));
 
+vi.mock('@/lib/i18n/server', () => ({
+  getTranslations: async () => (key: string) => key,
+}));
 vi.mock('@/app/[lang]/utils/metadata-utils', () => ({
+  brandName: () => 'Picnic',
+  buildLanguageAlternates: () => ({}),
   createPageMetadata: vi.fn(() => ({})),
 }));
 
