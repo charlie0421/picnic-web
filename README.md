@@ -45,6 +45,19 @@ BASE_URL="http://localhost:3000"
 
 `SUPABASE_SERVICE_ROLE_KEY`를 제외한 나머지 키들은 Supabase 프로젝트 대시보드의 API 설정에서 찾을 수 있습니다. `SUPABASE_SERVICE_ROLE_KEY`는 Project Settings > API 에서 찾을 수 있으며, 강력한 권한을 가지므로 신중하게 다루어야 합니다.
 
+## Supabase 타입 동기화
+
+DB 스키마는 [`picnic-supabase`](https://github.com/charlie0421/picnic-supabase) 레포가 소유합니다. 마이그레이션이 배포된 뒤 이 레포의 타입은 **명시적으로** 동기화합니다.
+
+```bash
+npm run schema:types:sync   # (별칭: npm run gen:types)
+git diff types/             # 변경 확인 후 커밋
+```
+
+- `supabase` CLI 로그인이 필요하며, 원격 PICNIC-PROD 스키마로 `types/supabase.ts` 와 생성 인터페이스를 갱신합니다.
+- 생성이 실패하거나 결과가 비정상이면 기존 파일을 그대로 둡니다.
+- `dev`/`build`/`start` 는 더 이상 타입 생성을 자동 실행하지 않습니다(네트워크 의존·추적 파일 덮어쓰기 방지).
+
 ## 테스트 실행하기
 
 ```bash
