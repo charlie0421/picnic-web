@@ -60,6 +60,8 @@ const VOTE = {
   title: { en: 'October Debut Vote', ko: '10월 데뷔 투표' },
   main_image: null,
   deleted_at: null,
+  // 공개된 투표 — VoteDetailFetcher 는 visible_at 이 없거나 미래면 관리자 확인 후 notFound 한다
+  visible_at: '2026-01-01T00:00:00Z',
 };
 
 const jsonResponse = (body: unknown) =>
