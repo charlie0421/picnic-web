@@ -18,8 +18,7 @@ if (SENTRY_DSN) {
       // Environment
       environment: process.env.NODE_ENV || 'development',
 
-      // Edge 에서는 요청 에러만 수집하고 성능 트레이싱은 비활성화한다.
-      tracesSampleRate: 0,
+      // Edge 에서는 트레이싱 옵션을 설정하지 않아 오류 이벤트만 수집한다.
 
       // Minimal integrations for edge runtime
       integrations: [

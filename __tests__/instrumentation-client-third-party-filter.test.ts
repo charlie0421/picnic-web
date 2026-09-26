@@ -148,25 +148,28 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
       expect(addIntegration).not.toHaveBeenCalled();
     });
 
-    it('샘플링이 하나라도 양수면 Replay를 지연 로드하고 마스킹 옵션으로 등록한다', async () => {
-      const replayIntegration = { name: 'Replay' };
-      replayIntegrationFactory.mockReturnValue(replayIntegration);
+    it.each([['0.1', '0'], ['0', '1.0']])(
+      '세션 또는 오류 샘플링이 양수면 Replay를 지연 로드하고 마스킹 옵션으로 등록한다 (session=%s, error=%s)',
+      async (sessionSampleRate, errorSampleRate) => {
+        const replayIntegration = { name: 'Replay' };
+        replayIntegrationFactory.mockReturnValue(replayIntegration);
 
-      await loadClient({
-        ...env,
-        NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: '0.1',
-        NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: '0',
-      });
+        await loadClient({
+          ...env,
+          NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: sessionSampleRate,
+          NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: errorSampleRate,
+        });
 
-      expect(lazyLoadIntegration).toHaveBeenCalledOnce();
-      expect(lazyLoadIntegration).toHaveBeenCalledWith('replayIntegration');
-      expect(replayIntegrationFactory).toHaveBeenCalledWith({
-        maskAllText: true,
-        maskAllInputs: true,
-        blockAllMedia: true,
-      });
-      expect(addIntegration).toHaveBeenCalledWith(replayIntegration);
-    });
+        expect(lazyLoadIntegration).toHaveBeenCalledOnce();
+        expect(lazyLoadIntegration).toHaveBeenCalledWith('replayIntegration');
+        expect(replayIntegrationFactory).toHaveBeenCalledWith({
+          maskAllText: true,
+          maskAllInputs: true,
+          blockAllMedia: true,
+        });
+        expect(addIntegration).toHaveBeenCalledWith(replayIntegration);
+      },
+    );
 
     it('Replay 지연 로드가 실패해도 클라이언트 초기화를 실패시키지 않는다', async () => {
       lazyLoadIntegration.mockRejectedValueOnce(new Error('replay CDN unavailable'));
