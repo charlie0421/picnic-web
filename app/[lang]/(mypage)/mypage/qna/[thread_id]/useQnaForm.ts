@@ -16,6 +16,7 @@ export function useQnaForm({ thread, messages, setMessages, addOptimisticMessage
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [fileObjectUrls, setFileObjectUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -144,14 +145,7 @@ export function useQnaForm({ thread, messages, setMessages, addOptimisticMessage
     startTransition(() => {
       addOptimisticMessage(optimisticMessage);
     });
-
-    formRef.current?.reset();
-    setAttachments([]);
-    setPreviewUrls([]);
-    setFileObjectUrls([]);
-    if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-    }
+    setSubmitError(null);
 
     let result: any = { success: false };
     try {
@@ -175,6 +169,13 @@ export function useQnaForm({ thread, messages, setMessages, addOptimisticMessage
 
     const isSuccess = !!(result && typeof result === 'object' && 'success' in result && result.success === true && result.data);
     if (isSuccess) {
+        formRef.current?.reset();
+        setAttachments([]);
+        setPreviewUrls([]);
+        setFileObjectUrls([]);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
         setMessages(prev => {
             const newMessages = prev.filter(m => m.id !== optimisticMessage.id);
             return [...newMessages, result.data as UiQnaMessage];
@@ -182,7 +183,11 @@ export function useQnaForm({ thread, messages, setMessages, addOptimisticMessage
     }
 
     if (!isSuccess) {
-        console.error(result?.error || 'Unknown error');
+        const errorMessage = typeof result?.error === 'string' && result.error
+          ? result.error
+          : 'Unknown error';
+        console.error(errorMessage);
+        setSubmitError(errorMessage);
         setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
     }
   }
@@ -205,6 +210,7 @@ export function useQnaForm({ thread, messages, setMessages, addOptimisticMessage
     attachments,
     previewUrls,
     isSubmitting,
+    submitError,
     fileInputRef,
     formRef,
     handleFileChange,

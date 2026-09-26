@@ -60,6 +60,7 @@ export default function QnaDetailClient({ thread: initialThread }: QnaDetailClie
     attachments,
     previewUrls,
     isSubmitting,
+    submitError,
     fileInputRef,
     formRef,
     handleFileChange,
@@ -242,6 +243,11 @@ export default function QnaDetailClient({ thread: initialThread }: QnaDetailClie
                   </button>
                 </div>
               )}
+              {submitError && (
+                <p role="alert" className="text-sm text-red-600">
+                  {submitError}
+                </p>
+              )}
               <div className="flex items-center gap-2">
                 <input type="hidden" name="thread_id" value={thread.id} />
                 <input
@@ -256,7 +262,7 @@ export default function QnaDetailClient({ thread: initialThread }: QnaDetailClie
                   onChange={handleFileChange}
                   className="hidden"
                   multiple
-                  accept="image/*,video/*"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/avif,video/mp4,video/quicktime"
                 />
                 <button
                   type="button"
