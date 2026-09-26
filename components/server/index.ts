@@ -8,8 +8,6 @@
 // 도메인별 서버 컴포넌트
 export * from './vote';
 export * from './banner';
-export * from './media';
-export * from './reward';
 // export * from './auth';    // 추후 추가 예정
 
 // 기타 서버 컴포넌트
@@ -24,10 +22,7 @@ export { default as AsyncBoundary } from './AsyncBoundary';
 export { default as NotFoundState } from './NotFoundState';
 
 // React Suspense 관련 컴포넌트
-export { default as ParallelDataFetching } from './ParallelDataFetching';
 export { default as NestedDataFetching } from './NestedDataFetching';
-export { default as ServerClientBoundary } from './ServerClientBoundary';
-export { default as VoteDataExample } from './VoteDataExample';
 
 // 스켈레톤 컴포넌트들
 export { default as BannerSkeleton } from './banner/BannerSkeleton';
@@ -38,4 +33,4 @@ export { default as MyPageSkeleton } from './mypage/MyPageSkeleton';
 export { default as NoticeSkeleton } from './mypage/NoticeSkeleton';
 export { default as FAQSkeleton } from './mypage/FAQSkeleton';
 export { default as VoteHistorySkeleton } from './mypage/VoteHistorySkeleton';
-export { default as RechargeHistorySkeleton } from './mypage/RechargeHistorySkeleton'; 
+export { default as RechargeHistorySkeleton } from './mypage/RechargeHistorySkeleton';

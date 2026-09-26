@@ -89,20 +89,9 @@ if (SENTRY_DSN) {
     // Sample rate for error replays
     replaysOnErrorSampleRate: REPLAY_ERROR_RATE,
     
-    // Configure integrations
+    // Configure integrations. Replay is loaded separately below only when
+    // sampling is enabled, so its recorder does not enter the initial bundle.
     integrations: [
-      // Session Replay integration for debugging
-      Sentry.replayIntegration({
-        // 화면의 모든 텍스트를 마스킹한다. false 로 두면 로그인·마이페이지·QnA
-        // 같은 화면에서 오류가 한 번만 나도 사용자 텍스트가 그대로 외부로
-        // 전송된다(SDK 기본값도 true 다).
-        maskAllText: true,
-        // 입력값은 항상 마스킹한다
-        maskAllInputs: true,
-        // 미디어 요소 차단
-        blockAllMedia: true,
-      }),
-      
       // Browser tracing for performance monitoring
       Sentry.browserTracingIntegration({
         // Automatic route change tracking for Next.js App Router
@@ -325,6 +314,30 @@ if (SENTRY_DSN) {
     maxBreadcrumbs: 30,
   });
 
+  if (REPLAY_SESSION_RATE > 0 || REPLAY_ERROR_RATE > 0) {
+    void (async () => {
+      const replayIntegration = await Sentry.lazyLoadIntegration('replayIntegration');
+      Sentry.addIntegration(
+        replayIntegration({
+          // 화면의 모든 텍스트를 마스킹한다. false 로 두면 로그인·마이페이지·QnA
+          // 같은 화면에서 오류가 한 번만 나도 사용자 텍스트가 그대로 외부로
+          // 전송된다(SDK 기본값도 true 다).
+          maskAllText: true,
+          // 입력값은 항상 마스킹한다
+          maskAllInputs: true,
+          // 미디어 요소 차단
+          blockAllMedia: true,
+        }),
+      );
+    })()
+      .catch((error) => {
+        if (SENTRY_DEBUG) {
+          // eslint-disable-next-line no-console
+          console.warn('Sentry Replay 통합 지연 로드 실패:', error);
+        }
+      });
+  }
+
   // 래퍼 프레임 위치 확보 (위 probeWrapperFrameLocation 참조). init 이 끝나
   // browserApiErrors 통합이 setTimeout 을 감싼 뒤라야 하므로 여기서 예약한다.
   if (APPLICATION_KEY) {
@@ -347,4 +360,4 @@ if (SENTRY_DSN) {
 }
 
 // Export the required router transition hook for navigation instrumentation
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart; 
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
