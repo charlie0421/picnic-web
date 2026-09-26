@@ -8,8 +8,6 @@
 // 도메인별 서버 컴포넌트
 export * from './vote';
 export * from './banner';
-export * from './media';
-export * from './reward';
 // export * from './auth';    // 추후 추가 예정
 
 // 기타 서버 컴포넌트

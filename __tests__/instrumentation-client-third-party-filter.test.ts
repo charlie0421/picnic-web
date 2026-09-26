@@ -14,6 +14,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ErrorEvent, Integration, StackFrame } from '@sentry/core';
 
 const init = vi.fn();
+const addIntegration = vi.fn();
+const replayIntegrationFactory = vi.fn(() => ({ name: 'Replay' }));
+const lazyLoadIntegration = vi.fn(async () => replayIntegrationFactory);
 /**
  * 래퍼 프레임 프로브가 쓰는 stackParser 스텁. 프로브는 setTimeout 콜백 안에서
  * `new Error().stack` 을 파싱하는데, 실제 브라우저에선 Sentry 가 타이머 콜백을
@@ -25,8 +28,9 @@ vi.mock('@sentry/nextjs', async () => {
   const core = await vi.importActual<typeof import('@sentry/core')>('@sentry/core');
   return {
     init: (...args: unknown[]) => init(...args),
+    addIntegration: (...args: unknown[]) => addIntegration(...args),
+    lazyLoadIntegration: (...args: unknown[]) => lazyLoadIntegration(...args),
     getClient: () => ({ getOptions: () => ({ stackParser }) }),
-    replayIntegration: () => ({ name: 'Replay' }),
     browserTracingIntegration: () => ({ name: 'BrowserTracing' }),
     thirdPartyErrorFilterIntegration: core.thirdPartyErrorFilterIntegration,
     captureRouterTransitionStart: vi.fn(),
@@ -123,6 +127,61 @@ function runPipeline(client: Awaited<ReturnType<typeof loadClient>>, event: Erro
 describe('instrumentation-client — 서드파티 스택 필터', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
+    addIntegration.mockReset();
+    replayIntegrationFactory.mockReset();
+    replayIntegrationFactory.mockReturnValue({ name: 'Replay' });
+    lazyLoadIntegration.mockReset();
+    lazyLoadIntegration.mockResolvedValue(replayIntegrationFactory);
+  });
+
+  describe('Session Replay 지연 로드', () => {
+    const env = { NEXT_PUBLIC_SENTRY_APPLICATION_KEY: undefined };
+
+    it('세션·오류 샘플링이 모두 0이면 Replay 코드를 로드하지 않는다', async () => {
+      await loadClient({
+        ...env,
+        NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: '0',
+        NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: '0',
+      });
+
+      expect(lazyLoadIntegration).not.toHaveBeenCalled();
+      expect(addIntegration).not.toHaveBeenCalled();
+    });
+
+    it('샘플링이 하나라도 양수면 Replay를 지연 로드하고 마스킹 옵션으로 등록한다', async () => {
+      const replayIntegration = { name: 'Replay' };
+      replayIntegrationFactory.mockReturnValue(replayIntegration);
+
+      await loadClient({
+        ...env,
+        NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: '0.1',
+        NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: '0',
+      });
+
+      expect(lazyLoadIntegration).toHaveBeenCalledOnce();
+      expect(lazyLoadIntegration).toHaveBeenCalledWith('replayIntegration');
+      expect(replayIntegrationFactory).toHaveBeenCalledWith({
+        maskAllText: true,
+        maskAllInputs: true,
+        blockAllMedia: true,
+      });
+      expect(addIntegration).toHaveBeenCalledWith(replayIntegration);
+    });
+
+    it('Replay 지연 로드가 실패해도 클라이언트 초기화를 실패시키지 않는다', async () => {
+      lazyLoadIntegration.mockRejectedValueOnce(new Error('replay CDN unavailable'));
+
+      await expect(
+        loadClient({
+          ...env,
+          NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: '0.1',
+          NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: '0',
+        }),
+      ).resolves.toBeDefined();
+
+      expect(init).toHaveBeenCalledOnce();
+      expect(addIntegration).not.toHaveBeenCalled();
+    });
   });
 
   describe('앱 키가 있는 빌드 (번들러 플러그인이 메타데이터를 주입한 경우)', () => {
