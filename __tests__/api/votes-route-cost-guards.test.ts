@@ -69,7 +69,6 @@ describe('GET /api/votes cost and numeric guards', () => {
     'limit=x',
     'page=0',
     'limit=0',
-    'limit=51',
     'page=1.5',
     'page=9007199254740992',
     'page=9007199254740991&limit=50',
@@ -79,6 +78,24 @@ describe('GET /api/votes cost and numeric guards', () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: 'Invalid pagination parameters' });
     expect(queryMocks.rangeCalls).toHaveLength(0);
+  });
+
+  it('clamps limits above 50 for backward compatibility', async () => {
+    const response = await GET(request('status=ongoing&area=all&page=1&limit=51'));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(queryMocks.rangeCalls).toEqual([[0, 49]]);
+    expect(body.limit).toBe(50);
+  });
+
+  it('treats an empty page parameter as page one', async () => {
+    const response = await GET(request('status=ongoing&area=all&page=&limit=12'));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(queryMocks.rangeCalls).toEqual([[0, 11]]);
+    expect(body.page).toBe(1);
   });
 
   it('skips user context for public statuses and keeps the indexed top-three query', async () => {

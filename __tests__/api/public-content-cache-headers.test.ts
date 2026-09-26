@@ -25,6 +25,7 @@ describe('public popup and banner cache headers', () => {
   it('caches successful popup responses without changing their JSON shape', async () => {
     const response = await getPopups();
 
+    expect(contentMocks.getPopups).toHaveBeenCalledWith({ throwOnError: true });
     expect(response.headers.get('cache-control')).toBe(CACHE_CONTROL);
     expect(await response.json()).toEqual([{ id: 1, title: 'popup' }]);
   });
@@ -32,7 +33,20 @@ describe('public popup and banner cache headers', () => {
   it('caches successful banner responses without changing their JSON shape', async () => {
     const response = await getBanners();
 
+    expect(contentMocks.getBanners).toHaveBeenCalledWith({ throwOnError: true });
     expect(response.headers.get('cache-control')).toBe(CACHE_CONTROL);
     expect(await response.json()).toEqual([{ id: 2, title: 'banner' }]);
+  });
+
+  it.each([
+    ['popup', contentMocks.getPopups, getPopups],
+    ['banner', contentMocks.getBanners, getBanners],
+  ] as const)('returns a non-cacheable 500 when the %s query fails', async (_name, query, route) => {
+    query.mockRejectedValueOnce(new Error('database unavailable'));
+
+    const response = await route();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get('cache-control')).toBe('no-store');
   });
 });

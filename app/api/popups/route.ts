@@ -6,7 +6,7 @@ const CACHE_CONTROL = 'public, s-maxage=60, stale-while-revalidate=300';
 
 export async function GET() {
   try {
-    const popups = await getPopups();
+    const popups = await getPopups({ throwOnError: true });
     return NextResponse.json(popups, {
       headers: { 'Cache-Control': CACHE_CONTROL },
     });
@@ -14,7 +14,10 @@ export async function GET() {
     console.error('[/api/popups] error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch popups' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: { 'Cache-Control': 'no-store' },
+      }
     );
   }
 }

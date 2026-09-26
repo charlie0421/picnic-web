@@ -45,12 +45,12 @@ export async function GET(req: NextRequest) {
     const areaParam: string = normalizeVoteArea(url.searchParams.get('area'));
     const rawPage = url.searchParams.get('page');
     const rawLimit = url.searchParams.get('limit');
-    const page = rawPage === null ? 1 : Number(rawPage);
-    const limit = rawLimit === null ? 12 : Number(rawLimit);
+    const page = rawPage === null || rawPage === '' ? 1 : Number(rawPage);
+    const requestedLimit = rawLimit === null || rawLimit === '' ? 12 : Number(rawLimit);
 
     if (
       !Number.isSafeInteger(page) || page < 1 ||
-      !Number.isSafeInteger(limit) || limit < 1 || limit > 50
+      !Number.isSafeInteger(requestedLimit) || requestedLimit < 1
     ) {
       return NextResponse.json(
         { error: 'Invalid pagination parameters' },
@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const limit = Math.min(requestedLimit, 50);
     const offset = (page - 1) * limit;
     if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(offset + limit - 1)) {
       return NextResponse.json(

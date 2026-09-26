@@ -14,6 +14,7 @@ import {
   HEADER_RECALC_DELAY_MS,
 } from './vote-detail-types';
 import { useVotePolling } from './useVotePolling';
+import { DEFAULT_VOTE_POLLING_INTERVAL_MS } from './vote-polling-data';
 import { filterActiveVoteItems, sumVoteTotals } from '../common/vote-display-utils';
 
 export function useVoteDetail({
@@ -22,7 +23,7 @@ export function useVoteDetail({
   rewards = [],
   className,
   enableRealtime = true,
-  pollingInterval = 1000,
+  pollingInterval = DEFAULT_VOTE_POLLING_INTERVAL_MS,
   maxRetries = 3,
   lang,
 }: VoteDetailPresenterProps) {
@@ -59,6 +60,7 @@ export function useVoteDetail({
     user,
     connectionQuality,
     recentlyUpdatedItemsRef,
+    hasReachedVoteDeadline,
   } = useVotePolling({
     vote,
     voteId: vote.id,
@@ -83,9 +85,16 @@ export function useVoteDetail({
   const [headerHeight, setHeaderHeight] = useState(0);
   const headerRef = useRef<HTMLDivElement>(null);
 
-  const voteStatus = getVoteStatus(vote);
+  const voteStatus = hasReachedVoteDeadline ? 'completed' : getVoteStatus(vote);
   const canVote = voteStatus === 'ongoing';
   const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
+
+  useEffect(() => {
+    if (canVote) return;
+    setShowVoteModal(false);
+    setVoteCandidate(null);
+    setVoteAmount(1);
+  }, [canVote]);
 
   useEffect(() => {
     const updateHeaderHeight = () => {
