@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase-server-client";
+import { getCurrentUserContext } from "@/lib/data-fetching/server/supabase-service";
+
+const VOTE_COLUMNS = `
+                id,
+                title,
+                start_at,
+                stop_at,
+                deleted_at,
+                visible_at
+            `;
 
 interface VoteResultItem {
     id: number;
@@ -50,19 +60,27 @@ export async function GET(request: NextRequest) {
 
         const supabase = await createClient();
 
-        // 투표 기본 정보 조회
-        const { data: voteData, error: voteError } = await supabase
+        // 투표 기본 정보 조회 — 목록·상세 API 와 같은 공개 조건(visible_at <= now)
+        let { data: voteData, error: voteError } = await supabase
             .from("vote")
-            .select(`
-                id,
-                title,
-                start_at,
-                stop_at,
-                deleted_at
-            `)
+            .select(VOTE_COLUMNS)
             .eq("id", voteIdNumber)
             .is("deleted_at", null)
+            .lte("visible_at", new Date().toISOString())
             .single();
+
+        // 미공개 투표(visible_at NULL·미래)는 관리자에게만 결과를 보여준다
+        if (voteError?.code === 'PGRST116') {
+            const userContext = await getCurrentUserContext();
+            if (userContext.isAdmin === true) {
+                ({ data: voteData, error: voteError } = await supabase
+                    .from("vote")
+                    .select(VOTE_COLUMNS)
+                    .eq("id", voteIdNumber)
+                    .is("deleted_at", null)
+                    .single());
+            }
+        }
 
         if (voteError) {
             console.error('투표 정보 조회 실패:', voteError);
