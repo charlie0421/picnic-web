@@ -26,6 +26,15 @@ const USER = { id: 'user-1' };
 const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
 ]);
+const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+const AVIF_BYTES = new Uint8Array([
+  0x00, 0x00, 0x00, 0x18,
+  0x66, 0x74, 0x79, 0x70,
+  0x6d, 0x69, 0x66, 0x31,
+  0x00, 0x00, 0x00, 0x00,
+  0x61, 0x76, 0x69, 0x66,
+  0x6d, 0x69, 0x66, 0x31,
+]);
 let threadRecord: { id: number; user_id: string } | null;
 
 type FileWithSize = File & { size: number };
@@ -268,6 +277,25 @@ describe('POST /api/qna/messages — request boundary', () => {
     const response = await POST(request);
 
     expect(response.status).toBe(415);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: 'Attachment content is not an allowed file type.',
+    });
+    expect(mocks.messageInsert).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+
+  it('rejects prototype property names as unsupported MIME types', async () => {
+    const file = makeFile('payload.png', 'constructor', PNG_BYTES);
+    const { request } = makeRequest(makeFormData({ files: [file] }));
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(415);
+    expect(await response.json()).toEqual({
+      success: false,
+      error: 'Unsupported attachment type.',
+    });
     expect(mocks.messageInsert).not.toHaveBeenCalled();
   });
 
@@ -292,7 +320,7 @@ describe('POST /api/qna/messages — request boundary', () => {
     expect(mocks.upload).not.toHaveBeenCalled();
   });
 
-  it('accepts a valid attachment and derives its stored extension from MIME', async () => {
+  it('accepts a valid attachment and derives its stored extension from magic', async () => {
     const file = makeFile('misleading.html', 'image/png');
     const { request } = makeRequest(makeFormData({ files: [file] }));
 
@@ -303,5 +331,48 @@ describe('POST /api/qna/messages — request boundary', () => {
     const [filePath] = mocks.upload.mock.calls[0];
     expect(filePath).toMatch(/^user-1\/1\/.+\.png$/);
     expect(filePath).not.toContain('.html');
+  });
+
+  it('uses PNG magic for extension and content type when JPEG is declared', async () => {
+    const file = makeFile('avatar.jpg', 'image/jpeg', PNG_BYTES);
+    const { request } = makeRequest(makeFormData({ files: [file] }));
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mocks.upload).toHaveBeenCalledTimes(1);
+    const [filePath, , uploadOptions] = mocks.upload.mock.calls[0];
+    expect(filePath).toMatch(/^user-1\/1\/.+\.png$/);
+    expect(uploadOptions).toMatchObject({ contentType: 'image/png' });
+    expect(mocks.attachmentInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        file_path: filePath,
+        file_type: 'image/png',
+      }),
+    );
+  });
+
+  it('normalizes image/jpg and stores JPEG from its magic', async () => {
+    const file = makeFile('avatar.jpg', 'image/jpg', JPEG_BYTES);
+    const { request } = makeRequest(makeFormData({ files: [file] }));
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    const [filePath, , uploadOptions] = mocks.upload.mock.calls[0];
+    expect(filePath).toMatch(/^user-1\/1\/.+\.jpg$/);
+    expect(uploadOptions).toMatchObject({ contentType: 'image/jpeg' });
+  });
+
+  it('accepts AVIF with a mif1 major brand and derives .avif', async () => {
+    const file = makeFile('avatar.avif', 'image/avif', AVIF_BYTES);
+    const { request } = makeRequest(makeFormData({ files: [file] }));
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    const [filePath, , uploadOptions] = mocks.upload.mock.calls[0];
+    expect(filePath).toMatch(/^user-1\/1\/.+\.avif$/);
+    expect(uploadOptions).toMatchObject({ contentType: 'image/avif' });
   });
 });

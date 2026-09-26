@@ -11,24 +11,30 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 const ALLOWED_DOMAINS_BASE = [
-  'googleusercontent.com',
-  'lh3.googleusercontent.com',
   'graph.facebook.com',
   'pbs.twimg.com',
   'cdn.discordapp.com',
   'avatars.githubusercontent.com',
 ];
+const ALLOWED_HOST_PATTERNS = [/^lh\d+\.googleusercontent\.com$/];
 
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_REDIRECT_DEPTH = 1;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = new Set([
+const ALLOWED_DECLARED_IMAGE_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/gif',
   'image/webp',
   'image/avif',
 ]);
+
+type AllowedImageType =
+  | 'image/jpeg'
+  | 'image/png'
+  | 'image/gif'
+  | 'image/webp'
+  | 'image/avif';
 
 class ImageProxyError extends Error {
   constructor(
@@ -55,7 +61,11 @@ function buildAllowedDomains(): string[] {
 }
 
 function isHostAllowed(hostname: string, allowedDomains: string[]): boolean {
-  return allowedDomains.includes(hostname.toLowerCase());
+  const normalizedHostname = hostname.toLowerCase();
+  return (
+    allowedDomains.includes(normalizedHostname) ||
+    ALLOWED_HOST_PATTERNS.some((pattern) => pattern.test(normalizedHostname))
+  );
 }
 
 function assertAllowedUpstreamUrl(
@@ -159,32 +169,54 @@ function asciiAt(bytes: Uint8Array, offset: number, length: number): string {
   return value;
 }
 
-function hasExpectedMagic(bytes: Uint8Array, contentType: string): boolean {
-  switch (contentType) {
-    case 'image/jpeg':
-      return startsWithBytes(bytes, [0xff, 0xd8, 0xff]);
-    case 'image/png':
-      return startsWithBytes(bytes, [
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-      ]);
-    case 'image/gif':
-      return (
-        asciiAt(bytes, 0, 6) === 'GIF87a' ||
-        asciiAt(bytes, 0, 6) === 'GIF89a'
-      );
-    case 'image/webp':
-      return (
-        asciiAt(bytes, 0, 4) === 'RIFF' &&
-        asciiAt(bytes, 8, 4) === 'WEBP'
-      );
-    case 'image/avif': {
-      if (asciiAt(bytes, 4, 4) !== 'ftyp') return false;
-      const majorBrand = asciiAt(bytes, 8, 4);
-      return majorBrand === 'avif' || majorBrand === 'avis';
-    }
-    default:
-      return false;
+function ftypBrands(bytes: Uint8Array): string[] {
+  if (asciiAt(bytes, 4, 4) !== 'ftyp') return [];
+
+  const declaredBoxSize =
+    ((bytes[0] ?? 0) * 0x1000000 +
+      (bytes[1] ?? 0) * 0x10000 +
+      (bytes[2] ?? 0) * 0x100 +
+      (bytes[3] ?? 0)) >>>
+    0;
+  const boxEnd = Math.min(
+    bytes.length,
+    declaredBoxSize >= 16 ? declaredBoxSize : 64,
+    64,
+  );
+  const brands = [asciiAt(bytes, 8, 4)];
+  for (let offset = 16; offset + 4 <= boxEnd; offset += 4) {
+    brands.push(asciiAt(bytes, offset, 4));
   }
+  return brands;
+}
+
+function detectImageType(bytes: Uint8Array): AllowedImageType | null {
+  if (startsWithBytes(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (
+    startsWithBytes(bytes, [
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ])
+  ) {
+    return 'image/png';
+  }
+  if (
+    asciiAt(bytes, 0, 6) === 'GIF87a' ||
+    asciiAt(bytes, 0, 6) === 'GIF89a'
+  ) {
+    return 'image/gif';
+  }
+  if (
+    asciiAt(bytes, 0, 4) === 'RIFF' &&
+    asciiAt(bytes, 8, 4) === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  if (
+    ftypBrands(bytes).some((brand) => ['avif', 'avis'].includes(brand))
+  ) {
+    return 'image/avif';
+  }
+  return null;
 }
 
 async function readBodyWithLimit(
@@ -288,12 +320,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const contentType = response.headers
+    const declaredContentType = response.headers
       .get('content-type')
       ?.split(';', 1)[0]
       .trim()
       .toLowerCase();
-    if (!contentType || !ALLOWED_IMAGE_TYPES.has(contentType)) {
+    const normalizedDeclaredContentType =
+      declaredContentType === 'image/jpg'
+        ? 'image/jpeg'
+        : declaredContentType;
+    if (
+      !normalizedDeclaredContentType ||
+      !ALLOWED_DECLARED_IMAGE_TYPES.has(normalizedDeclaredContentType)
+    ) {
       return NextResponse.json(
         { error: 'unsupported image type' },
         { status: 415, headers: cors },
@@ -301,7 +340,8 @@ export async function GET(request: NextRequest) {
     }
 
     const imageBuffer = await readBodyWithLimit(response);
-    if (!hasExpectedMagic(imageBuffer, contentType)) {
+    const detectedContentType = detectImageType(imageBuffer);
+    if (!detectedContentType) {
       return NextResponse.json(
         { error: 'invalid image content' },
         { status: 415, headers: cors },
@@ -312,7 +352,7 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         ...cors,
-        'Content-Type': contentType,
+        'Content-Type': detectedContentType,
         'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'public, max-age=3600, s-maxage=86400',
       },

@@ -7,6 +7,15 @@ const fetchMock = vi.fn<typeof fetch>();
 const VALID_PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
 ]);
+const VALID_JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+const VALID_AVIF_WITH_MIF1_MAJOR_BRAND = new Uint8Array([
+  0x00, 0x00, 0x00, 0x18,
+  0x66, 0x74, 0x79, 0x70,
+  0x6d, 0x69, 0x66, 0x31,
+  0x00, 0x00, 0x00, 0x00,
+  0x61, 0x76, 0x69, 0x66,
+  0x6d, 0x69, 0x66, 0x31,
+]);
 
 function requestFor(imageUrl: string) {
   return new NextRequest(
@@ -30,6 +39,7 @@ function imageResponse(
 describe('GET /api/proxy-image — request boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchMock.mockReset();
     vi.stubEnv(
       'NEXT_PUBLIC_SUPABASE_URL',
       'https://picnic-project.supabase.co',
@@ -85,6 +95,31 @@ describe('GET /api/proxy-image — request boundary', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it.each(['lh4', 'lh5', 'lh6'])(
+    'allows the narrow Google avatar CDN pattern for %s',
+    async (subdomain) => {
+      fetchMock.mockResolvedValueOnce(imageResponse());
+      const imageUrl = `https://${subdomain}.googleusercontent.com/avatar`;
+
+      const response = await GET(requestFor(imageUrl));
+
+      expect(response.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledWith(
+        imageUrl,
+        expect.objectContaining({ redirect: 'manual' }),
+      );
+    },
+  );
+
+  it('does not broaden the Google avatar pattern to nested attacker hosts', async () => {
+    const response = await GET(
+      requestFor('https://lh4.googleusercontent.com.evil.example/avatar'),
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('re-checks redirect protocol and host before the next fetch', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(null, {
@@ -101,7 +136,40 @@ describe('GET /api/proxy-image — request boundary', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects a declared raster image whose magic bytes do not match', async () => {
+  it('re-checks an HTTPS redirect host before the next fetch', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: 'https://attacker.supabase.co/storage/payload.png',
+        },
+      }),
+    );
+
+    const response = await GET(
+      requestFor('https://lh3.googleusercontent.com/avatar'),
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects SVG even when an allowed upstream declares it as an image', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response('<svg xmlns="http://www.w3.org/2000/svg"/>', {
+        status: 200,
+        headers: { 'content-type': 'image/svg+xml' },
+      }),
+    );
+
+    const response = await GET(
+      requestFor('https://lh3.googleusercontent.com/avatar.svg'),
+    );
+
+    expect(response.status).toBe(415);
+  });
+
+  it('rejects a declared raster image whose magic is not an allowed image', async () => {
     fetchMock.mockResolvedValueOnce(
       imageResponse(new TextEncoder().encode('<html>not an image</html>')),
     );
@@ -111,6 +179,48 @@ describe('GET /api/proxy-image — request boundary', () => {
     );
 
     expect(response.status).toBe(415);
+  });
+
+  it('uses PNG magic as authoritative when the upstream declares JPEG', async () => {
+    fetchMock.mockResolvedValueOnce(
+      imageResponse(VALID_PNG, { 'content-type': 'image/jpeg' }),
+    );
+
+    const response = await GET(
+      requestFor('https://lh3.googleusercontent.com/avatar.jpg'),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('image/png');
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(VALID_PNG);
+  });
+
+  it('normalizes image/jpg and derives image/jpeg from JPEG magic', async () => {
+    fetchMock.mockResolvedValueOnce(
+      imageResponse(VALID_JPEG, { 'content-type': 'image/jpg' }),
+    );
+
+    const response = await GET(
+      requestFor('https://lh3.googleusercontent.com/avatar.jpg'),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('image/jpeg');
+  });
+
+  it('recognizes an AVIF ftyp box with a mif1 major brand', async () => {
+    fetchMock.mockResolvedValueOnce(
+      imageResponse(VALID_AVIF_WITH_MIF1_MAJOR_BRAND, {
+        'content-type': 'image/avif',
+      }),
+    );
+
+    const response = await GET(
+      requestFor('https://lh3.googleusercontent.com/avatar.avif'),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('image/avif');
   });
 
   it('rejects an upstream Content-Length over 10 MiB before buffering', async () => {

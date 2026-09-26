@@ -14,6 +14,7 @@ const ATTACHMENT_TYPES = {
   'image/png': '.png',
   'image/gif': '.gif',
   'image/webp': '.webp',
+  'image/avif': '.avif',
   'video/mp4': '.mp4',
   'video/quicktime': '.mov',
 } as const;
@@ -49,42 +50,77 @@ function asciiAt(bytes: Uint8Array, offset: number, length: number): string {
   return value;
 }
 
-function matchesAttachmentMagic(
-  bytes: Uint8Array,
-  contentType: AllowedAttachmentType,
-): boolean {
-  switch (contentType) {
-    case 'image/jpeg':
-      return startsWithBytes(bytes, [0xff, 0xd8, 0xff]);
-    case 'image/png':
-      return startsWithBytes(bytes, [
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-      ]);
-    case 'image/gif':
-      return (
-        asciiAt(bytes, 0, 6) === 'GIF87a' ||
-        asciiAt(bytes, 0, 6) === 'GIF89a'
-      );
-    case 'image/webp':
-      return (
-        asciiAt(bytes, 0, 4) === 'RIFF' &&
-        asciiAt(bytes, 8, 4) === 'WEBP'
-      );
-    case 'video/mp4':
-      return asciiAt(bytes, 4, 4) === 'ftyp';
-    case 'video/quicktime': {
-      const atomType = asciiAt(bytes, 4, 4);
-      return ['ftyp', 'moov', 'mdat', 'wide', 'free', 'skip'].includes(atomType);
-    }
+function ftypBrands(bytes: Uint8Array): string[] {
+  if (asciiAt(bytes, 4, 4) !== 'ftyp') return [];
+
+  const declaredBoxSize =
+    ((bytes[0] ?? 0) * 0x1000000 +
+      (bytes[1] ?? 0) * 0x10000 +
+      (bytes[2] ?? 0) * 0x100 +
+      (bytes[3] ?? 0)) >>>
+    0;
+  const boxEnd = Math.min(
+    bytes.length,
+    declaredBoxSize >= 16 ? declaredBoxSize : 64,
+    64,
+  );
+  const brands = [asciiAt(bytes, 8, 4)];
+  for (let offset = 16; offset + 4 <= boxEnd; offset += 4) {
+    brands.push(asciiAt(bytes, offset, 4));
   }
+  return brands;
 }
 
-async function hasValidAttachmentMagic(
+function detectAttachmentType(bytes: Uint8Array): AllowedAttachmentType | null {
+  if (startsWithBytes(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (
+    startsWithBytes(bytes, [
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ])
+  ) {
+    return 'image/png';
+  }
+  if (
+    asciiAt(bytes, 0, 6) === 'GIF87a' ||
+    asciiAt(bytes, 0, 6) === 'GIF89a'
+  ) {
+    return 'image/gif';
+  }
+  if (
+    asciiAt(bytes, 0, 4) === 'RIFF' &&
+    asciiAt(bytes, 8, 4) === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+
+  const brands = ftypBrands(bytes);
+  if (brands.some((brand) => ['avif', 'avis'].includes(brand))) {
+    return 'image/avif';
+  }
+  if (brands.length > 0) {
+    return brands.includes('qt  ') ? 'video/quicktime' : 'video/mp4';
+  }
+  if (['moov', 'mdat', 'wide', 'free', 'skip'].includes(asciiAt(bytes, 4, 4))) {
+    return 'video/quicktime';
+  }
+  return null;
+}
+
+async function detectFileType(
   file: File,
-  contentType: AllowedAttachmentType,
-): Promise<boolean> {
-  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-  return matchesAttachmentMagic(bytes, contentType);
+): Promise<AllowedAttachmentType | null> {
+  const bytes = new Uint8Array(await file.slice(0, 64).arrayBuffer());
+  return detectAttachmentType(bytes);
+}
+
+function normalizeDeclaredAttachmentType(contentType: string): string {
+  return contentType === 'image/jpg' ? 'image/jpeg' : contentType;
+}
+
+function isAllowedAttachmentType(
+  contentType: string,
+): contentType is AllowedAttachmentType {
+  return Object.hasOwn(ATTACHMENT_TYPES, contentType);
 }
 
 export async function POST(req: Request) {
@@ -154,19 +190,22 @@ export async function POST(req: Request) {
       return jsonError('Attachments are too large.', 413);
     }
 
+    const verifiedFiles: Array<{
+      file: File;
+      contentType: AllowedAttachmentType;
+    }> = [];
     for (const file of files) {
-      const contentType = file.type.toLowerCase();
-      if (!(contentType in ATTACHMENT_TYPES)) {
+      const declaredContentType = normalizeDeclaredAttachmentType(
+        file.type.toLowerCase(),
+      );
+      if (!isAllowedAttachmentType(declaredContentType)) {
         return jsonError('Unsupported attachment type.', 415);
       }
-      if (
-        !(await hasValidAttachmentMagic(
-          file,
-          contentType as AllowedAttachmentType,
-        ))
-      ) {
-        return jsonError('Attachment content does not match its type.', 415);
+      const detectedContentType = await detectFileType(file);
+      if (!detectedContentType) {
+        return jsonError('Attachment content is not an allowed file type.', 415);
       }
+      verifiedFiles.push({ file, contentType: detectedContentType });
     }
 
     if (
@@ -206,16 +245,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Failed to create the message.' }, { status: 500 });
     }
 
-    if (files.length > 0) {
-      for (const file of files) {
+    if (verifiedFiles.length > 0) {
+      for (const { file, contentType } of verifiedFiles) {
         if (!file || file.size === 0) continue;
 
-        // Generate UUID filename with an extension derived from verified MIME.
+        // Generate UUID filename with an extension derived from verified magic.
         const uuid =
           globalThis.crypto?.randomUUID?.() ||
           Math.random().toString(36).slice(2);
         const originalName = file.name || '';
-        const contentType = file.type.toLowerCase() as AllowedAttachmentType;
         const ext = ATTACHMENT_TYPES[contentType];
 
         const safeFileName = `${uuid}${ext}`;
