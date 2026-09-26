@@ -134,6 +134,7 @@ export default async function VoteListPage({
               <BannerListFetcher
                 className='h-full min-h-[inherit]'
                 prefetchedBannersPromise={bannerPromise}
+                lang={lang}
               />
             </Suspense>
           </div>

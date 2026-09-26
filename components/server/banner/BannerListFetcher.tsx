@@ -1,4 +1,3 @@
-import { headers } from 'next/headers';
 import { BannerListPresenter } from '@/components/client/banner/BannerListPresenter';
 import { Banner as DBBanner } from '@/types/interfaces';
 import { getBanners } from '@/utils/api/queries';
@@ -8,6 +7,8 @@ import { SUPPORTED_LANGUAGES } from '@/config/settings';
 export interface BannerListFetcherProps {
   className?: string;
   prefetchedBannersPromise?: Promise<DBBanner[]>;
+  /** 라우트의 언어. 배너 링크 로케일 보정에 쓴다 (요청 헤더를 읽지 않아 페이지를 동적으로 만들지 않음). */
+  lang?: string;
 }
 
 /**
@@ -26,6 +27,7 @@ export interface BannerListFetcherProps {
 export async function BannerListFetcher({
   className,
   prefetchedBannersPromise,
+  lang,
 }: BannerListFetcherProps = {}) {
   try {
     const banners = await (prefetchedBannersPromise ??
@@ -55,17 +57,8 @@ export async function BannerListFetcher({
       return null; // 배너가 없으면 아무것도 렌더링하지 않음
     }
 
-    const headersList = await headers();
-    // middleware 가 경로에서 검증해 넣는 로케일 우선, 없으면 기존 판별
-    const localeHeader = headersList.get('x-locale');
-    const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
-    const langMatch = pathname.match(/^\/([a-z]{2}(?:-[a-z]{2})?)(?:\/|$)/i);
     const currentLang =
-      localeHeader && (SUPPORTED_LANGUAGES as readonly string[]).includes(localeHeader)
-        ? localeHeader
-        : langMatch
-          ? langMatch[1]
-          : 'ko';
+      lang && (SUPPORTED_LANGUAGES as readonly string[]).includes(lang) ? lang : 'ko';
 
     // 데이터 변환 - DBBanner를 클라이언트용 Banner로 변환
     const clientBanners = banners.map((banner) => ({
