@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Vote, VoteItem, Reward } from '@/types/interfaces';
 import VoteDetailClientOnly from '@/components/client/vote/detail/VoteDetailClientOnly';
 import { getVoteById, getVoteItems, getVoteRewards } from '@/utils/api/queries';
+import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import type { Language } from '@/config/settings';
 
 export interface VoteDetailFetcherProps {
@@ -20,13 +21,28 @@ export default async function VoteDetailFetcher({ voteId, lang, className }: Vot
     return notFound();
   }
 
+  let voteData: Awaited<ReturnType<typeof getVoteById>>;
   try {
-    const voteData = await getVoteById(numericVoteId);
+    voteData = await getVoteById(numericVoteId);
+  } catch (error) {
+    console.error(`[VoteDetailFetcher] voteId ${voteId}의 상세 정보를 가져오는 데 실패했습니다:`, error);
+    return notFound();
+  }
 
-    if (!voteData) {
+  if (!voteData) {
+    return notFound();
+  }
+
+  const visibleAt = voteData.visible_at ? Date.parse(voteData.visible_at) : Number.NaN;
+  const isPubliclyVisible = Number.isFinite(visibleAt) && visibleAt <= Date.now();
+  if (!isPubliclyVisible) {
+    const userContext = await getCurrentUserContext();
+    if (userContext.isAdmin !== true) {
       return notFound();
     }
+  }
 
+  try {
     const [items, rewards] = await Promise.all([
       getVoteItems(numericVoteId),
       getVoteRewards(numericVoteId),
@@ -44,14 +60,13 @@ export default async function VoteDetailFetcher({ voteId, lang, className }: Vot
         rewards={(rewards || []) as Reward[]}
         className={className}
         enableRealtime={false}
-        pollingInterval={1000}
+        pollingInterval={5000}
         maxRetries={3}
         lang={lang}
       />
     );
   } catch (error) {
     console.error(`[VoteDetailFetcher] voteId ${voteId}의 상세 정보를 가져오는 데 실패했습니다:`, error);
-    // 에러 발생 시에도 404 페이지를 보여주도록 처리합니다.
     return notFound();
   }
 }

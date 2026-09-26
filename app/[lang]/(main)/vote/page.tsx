@@ -81,15 +81,12 @@ export default async function VoteListPage({
       })
     ))();
 
-  const userContextPromise = getCurrentUserContext();
-  const safeStatusPromise: Promise<VoteStatus> = (async () => {
-    const userContext = await userContextPromise;
-    const isAdmin = (userContext as any)?.isAdmin === true;
-    if (status === VOTE_STATUS.ADMIN) {
+  const safeStatusPromise: Promise<VoteStatus> = status === VOTE_STATUS.ADMIN
+    ? getCurrentUserContext().then((userContext) => {
+      const isAdmin = (userContext as any)?.isAdmin === true;
       return isAdmin ? VOTE_STATUS.ADMIN : VOTE_STATUS.ONGOING;
-    }
-    return status;
-  })();
+    })
+    : Promise.resolve(status);
 
   const prefetchedVotesPromise = safeStatusPromise.then((safeStatus) =>
     getVotes(safeStatus, area, 1, 12),

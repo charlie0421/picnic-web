@@ -23,12 +23,25 @@ export interface UseVotePollingParams {
 // Default thresholds
 // ---------------------------------------------------------------------------
 
+export const DEFAULT_VOTE_POLLING_INTERVAL_MS = 5000;
+export const MAX_VOTE_POLLING_INTERVAL_MS = 60_000;
+export const MAX_BROWSER_TIMER_DELAY_MS = 2_147_483_647;
+
+export function getBrowserSafeTimerDelayMs(delayMs: number) {
+  return Math.min(Math.max(0, delayMs), MAX_BROWSER_TIMER_DELAY_MS);
+}
+
+export function getVotePollingDelayMs(baseIntervalMs: number, consecutiveErrors: number) {
+  const backoffMultiplier = 2 ** Math.min(Math.max(0, consecutiveErrors), 4);
+  return Math.min(baseIntervalMs * backoffMultiplier, MAX_VOTE_POLLING_INTERVAL_MS);
+}
+
 export const DEFAULT_THRESHOLDS: ThresholdConfig = {
   maxErrorCount: 3,
   maxConsecutiveErrors: 2,
   minConnectionQuality: 70,
   realtimeRetryDelay: 30000,
-  pollingInterval: 1000,
+  pollingInterval: DEFAULT_VOTE_POLLING_INTERVAL_MS,
   qualityCheckInterval: 15000,
 };
 

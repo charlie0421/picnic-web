@@ -68,8 +68,19 @@ export const _getRewards = async (limit?: number): Promise<Reward[]> => {
   return withTimeout(supabaseFetch, FALLBACK_REWARDS, 'getRewards', GET_REWARDS_TIMEOUT_MS);
 };
 
+type ContentQueryOptions = {
+  throwOnError?: boolean;
+};
+
+type BannerQueryOptions = ContentQueryOptions & {
+  columns?: string;
+};
+
 // 배너 데이터 가져오기
-export const _getBanners = async ({ columns }: { columns?: string } = {}): Promise<Banner[]> => {
+export const _getBanners = async ({
+  columns,
+  throwOnError = false,
+}: BannerQueryOptions = {}): Promise<Banner[]> => {
   try {
     const supabase = createPublicSupabaseClient();
 
@@ -95,6 +106,7 @@ export const _getBanners = async ({ columns }: { columns?: string } = {}): Promi
   } catch (error) {
     console.error('[getBanners] 오류 발생:', error);
     logRequestError(error, 'getBanners');
+    if (throwOnError) throw error;
     return [];
   }
 };
@@ -190,7 +202,9 @@ export const _getMedias = async (): Promise<Media[]> => {
 };
 
 // 팝업 데이터 가져오기 (서버 시간 기준으로 활성 팝업만)
-export const _getPopups = async (): Promise<Popup[]> => {
+export const _getPopups = async ({
+  throwOnError = false,
+}: ContentQueryOptions = {}): Promise<Popup[]> => {
   try {
     const supabase = createPublicSupabaseClient();
     const { data: popupData, error: popupError } = await supabase
@@ -224,6 +238,20 @@ export const _getPopups = async (): Promise<Popup[]> => {
     }));
   } catch (error) {
     logRequestError(error, 'getPopups');
+    if (throwOnError) throw error;
     return [];
   }
 };
+
+// Public routes must distinguish a real empty result from a query failure so
+// failures can return a non-cacheable fallback. Keep their retry budget below
+// the default wrapper used by other callers to avoid amplifying DB outages.
+export const getBannersForRoute = withRetry(
+  () => _getBanners({ throwOnError: true }),
+  { maxRetries: 1 },
+);
+
+export const getPopupsForRoute = withRetry(
+  () => _getPopups({ throwOnError: true }),
+  { maxRetries: 1 },
+);

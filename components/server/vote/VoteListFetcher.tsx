@@ -38,13 +38,12 @@ export async function VoteListFetcher({
   let safeStatus: VoteStatus;
   if (safeStatusOverride) {
     safeStatus = await safeStatusOverride;
-  } else {
+  } else if (status === VOTE_STATUS.ADMIN) {
     const userContext = await getCurrentUserContext();
     const isAdmin = (userContext as any)?.isAdmin === true;
-    safeStatus =
-      status === VOTE_STATUS.ADMIN
-        ? (isAdmin ? VOTE_STATUS.ADMIN : VOTE_STATUS.ONGOING)
-        : status;
+    safeStatus = isAdmin ? VOTE_STATUS.ADMIN : VOTE_STATUS.ONGOING;
+  } else {
+    safeStatus = status;
   }
 
   // 초기에는 1페이지만 로드 (CSR 더보기/무한스크롤이 이어받음)
@@ -81,4 +80,3 @@ function VoteShowcaseFallback({ locale }: { locale?: string }) {
     </div>
   );
 }
- 

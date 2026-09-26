@@ -186,6 +186,21 @@ describe('queries-content', () => {
       errorSpy.mockRestore();
     });
 
+    it('rethrows a banner query error when the caller requires error visibility', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const queryError = { message: 'error' };
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ is: mockIs });
+      mockIs.mockReturnValue({ eq: mockEq });
+      mockEq.mockReturnValue({ order: mockOrder });
+      mockOrder.mockReturnValue({ lte: mockLte });
+      mockLte.mockReturnValue({ or: mockOr });
+      mockOr.mockResolvedValue({ data: null, error: queryError });
+
+      await expect(_getBanners({ throwOnError: true })).rejects.toBe(queryError);
+      errorSpy.mockRestore();
+    });
+
     it('accepts custom columns parameter', async () => {
       mockFrom.mockReturnValue({ select: mockSelect });
       mockSelect.mockReturnValue({ is: mockIs });
@@ -406,6 +421,20 @@ describe('queries-content', () => {
 
       const result = await _getPopups();
       expect(result).toEqual([]);
+      errorSpy.mockRestore();
+    });
+
+    it('rethrows a popup query error when the caller requires error visibility', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const queryError = { message: 'error' };
+      mockFrom.mockReturnValue({ select: mockSelect });
+      mockSelect.mockReturnValue({ is: mockIs });
+      mockIs.mockReturnValue({ lte: mockLte });
+      mockLte.mockReturnValue({ or: mockOr });
+      mockOr.mockReturnValue({ order: mockOrder });
+      mockOrder.mockResolvedValue({ data: null, error: queryError });
+
+      await expect(_getPopups({ throwOnError: true })).rejects.toBe(queryError);
       errorSpy.mockRestore();
     });
   });
