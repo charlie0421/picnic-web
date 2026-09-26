@@ -11,8 +11,6 @@ export * from './molecules';
 // export * from './vote'; 
 
 // Global components
-export { default as ErrorBoundary } from './ErrorBoundary';
-export { GlobalErrorDisplay, ErrorToast, ErrorBar } from './GlobalErrorDisplay';
 export { GlobalNotifications } from './GlobalNotifications';
 
 // Common reusable components

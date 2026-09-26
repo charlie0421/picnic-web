@@ -1,5 +1,4 @@
 // 기존 컴포넌트들
-export { VoteList } from './VoteList';
 export { VoteListPresenter } from './VoteListPresenter';
 export { VoteItems } from './VoteItems';
 export { UpcomingVoteItems } from './UpcomingVoteItems';
@@ -10,11 +9,7 @@ export { CompletedVoteItems } from './CompletedVoteItems';
 export { default as VoteFilterSection } from './VoteFilterSection';
 export { default as VoteStatusFilter } from './VoteStatusFilter';
 export { default as VoteAreaFilter } from './VoteAreaFilter';
-export { default as VoteEmptyState } from './VoteEmptyState';
 export { default as VoteFilterSectionDeferred } from './VoteFilterSectionDeferred';
-export { VoteResults } from './VoteResults';
-export { VoteItem } from './VoteItem';
-export { VoteSubmit } from './VoteSubmit';
 export * from './VoteFilterSection';
 export * from './VoteListPresenter';
 export { VoteListCSR } from './VoteListCSR';
