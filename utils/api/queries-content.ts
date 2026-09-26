@@ -242,3 +242,16 @@ export const _getPopups = async ({
     return [];
   }
 };
+
+// Public routes must distinguish a real empty result from a query failure so
+// failures can return a non-cacheable fallback. Keep their retry budget below
+// the default wrapper used by other callers to avoid amplifying DB outages.
+export const getBannersForRoute = withRetry(
+  () => _getBanners({ throwOnError: true }),
+  { maxRetries: 1 },
+);
+
+export const getPopupsForRoute = withRetry(
+  () => _getPopups({ throwOnError: true }),
+  { maxRetries: 1 },
+);
