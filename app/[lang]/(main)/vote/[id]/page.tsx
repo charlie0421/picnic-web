@@ -40,6 +40,12 @@ export async function generateMetadata(props: VoteDetailPageProps): Promise<Meta
     return {};
   }
 
+  // 미공개 투표(visible_at 없음·미래)는 본문이 notFound 이므로 제목·이미지를 메타데이터로 흘리지 않는다
+  const visibleAt = vote.visible_at ? Date.parse(vote.visible_at) : Number.NaN;
+  if (!Number.isFinite(visibleAt) || visibleAt > Date.now()) {
+    return {};
+  }
+
   const safeLang = toSafeLang(lang);
   const title = getLocalizedString(vote.title, safeLang);
   const path = `/vote/${voteId}`;

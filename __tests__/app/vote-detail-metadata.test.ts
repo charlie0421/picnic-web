@@ -26,6 +26,7 @@ const vote = (overrides: Record<string, unknown> = {}) => ({
   id: 295,
   title: { en: 'October Debut Vote', ko: '10월 데뷔 투표' },
   main_image: null,
+  visible_at: '2026-01-01T00:00:00Z',
   ...overrides,
 });
 
@@ -44,6 +45,17 @@ describe('vote/[id] generateMetadata', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it.each([
+    ['visible_at 이 없는', null],
+    ['visible_at 이 미래인', '2999-01-01T00:00:00Z'],
+    ['visible_at 이 해석 불가인', 'not-a-date'],
+  ])('%s 미공개 투표는 제목·이미지 메타데이터를 내지 않는다', async (_label, visibleAt) => {
+    getVoteByIdMock.mockResolvedValue(vote({ visible_at: visibleAt, main_image: 'vote/295.png' }));
+    const metadata = await metadataFor('en');
+
+    expect(metadata).toEqual({});
   });
 
   it('현재 언어의 투표 제목과 자기 자신 canonical·12개 언어 hreflang 을 낸다', async () => {
