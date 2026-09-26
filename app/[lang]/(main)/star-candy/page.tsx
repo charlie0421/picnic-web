@@ -7,7 +7,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   const language = getLanguageFromParams({ lang });
 
   return {
-    title: language === 'ko' ? '별사탕 충전 | 피크닉' : 'Star Candy Recharge | Picnic',
+    title: language === 'ko' ? '별사탕 충전' : 'Star Candy Recharge',
     description: language === 'ko'
       ? '피크닉 별사탕을 충전하고 더 많은 투표에 참여하세요!'
       : 'Recharge your Picnic Star Candy and participate in more votes!',

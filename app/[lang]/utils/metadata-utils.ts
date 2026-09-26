@@ -92,22 +92,50 @@ export function resolveCdnImageUrl(path: string | null | undefined): string | nu
   return `${cdnBase}/${trimmed.replace(/^\/+/, '')}`;
 }
 
+/** 공식 브랜드 표기(결정 #4): 한국어 '피크닉', 그 외 언어 'Picnic'. */
+export function brandName(lang: string): string {
+  return lang === 'ko' ? '피크닉' : 'Picnic';
+}
+
+const SITE_DESCRIPTION = {
+  ko: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+  en: 'Picnic - Voting and media platform for K-Pop artists',
+} as const;
+
+export function siteDescription(lang: string): string {
+  return lang === 'ko' ? SITE_DESCRIPTION.ko : SITE_DESCRIPTION.en;
+}
+
+/** 언어별 브랜드 메타데이터 — 레이아웃 기본값에 덮어쓴다. 페이지 title 에는 브랜드를 넣지 않는다(템플릿이 붙인다). */
+export function brandMetadata(lang: string): Partial<Metadata> {
+  const brand = brandName(lang);
+  const description = siteDescription(lang);
+  return {
+    title: { default: brand, template: `%s | ${brand}` },
+    description,
+    applicationName: brand,
+    authors: [{ name: brand }],
+    creator: brand,
+    publisher: brand,
+  };
+}
+
 /**
  * 기본 메타데이터 객체
  */
 export const DEFAULT_METADATA: Metadata = {
   title: {
-    default: '피크닠',
-    template: '%s | 피크닠',
+    default: '피크닉',
+    template: '%s | 피크닉',
   },
-  description: '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+  description: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
   generator: 'Next.js',
-  applicationName: '피크닠',
+  applicationName: '피크닉',
   referrer: 'origin-when-cross-origin',
-  keywords: ['피크닠', 'K-Pop', '투표', '아이돌', '팬덤', '리워드', '미디어'],
-  authors: [{ name: '피크닠 팀' }],
-  creator: '피크닠',
-  publisher: '피크닠',
+  keywords: ['피크닉', 'K-Pop', '투표', '아이돌', '팬덤', '리워드', '미디어'],
+  authors: [{ name: '피크닉 팀' }],
+  creator: '피크닉',
+  publisher: '피크닉',
   formatDetection: {
     email: false,
     address: false,
@@ -123,22 +151,22 @@ export const DEFAULT_METADATA: Metadata = {
   openGraph: {
     type: 'website',
     url: './',
-    siteName: '피크닠',
-    title: '피크닠',
-    description: '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+    siteName: '피크닉',
+    title: '피크닉',
+    description: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
     images: [
       {
         url: `${SITE_URL}/images/og-image.jpg`,
         width: 1200,
         height: 630,
-        alt: '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+        alt: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '피크닠',
-    description: '피크닠 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
+    title: '피크닉',
+    description: '피크닉 - K-Pop 아티스트를 위한 투표 및 미디어 플랫폼',
     images: [`${SITE_URL}/images/twitter-image.jpg`],
     creator: '@picnic',
     site: '@picnic',

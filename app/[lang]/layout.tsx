@@ -4,7 +4,13 @@ import { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import ClientLayout from './ClientLayout';
 import VoteLiteClientLayout from './VoteLiteClientLayout';
-import { DEFAULT_METADATA, getOpenGraphLocale } from './utils/metadata-utils';
+import {
+  DEFAULT_METADATA,
+  brandMetadata,
+  brandName,
+  getOpenGraphLocale,
+  siteDescription,
+} from './utils/metadata-utils';
 
 
 // 정적 경로 생성을 위한 `generateStaticParams`
@@ -39,9 +45,18 @@ export async function generateMetadata({
   const languageSpecificMetadata: Partial<Metadata> = {
     // canonical 은 DEFAULT_METADATA 의 './'(현재 경로)를 그대로 쓴다 — 홈으로 고정하지 않는다.
     alternates: DEFAULT_METADATA.alternates,
+    ...brandMetadata(lang),
     openGraph: {
       ...DEFAULT_METADATA.openGraph,
+      siteName: brandName(lang),
+      title: brandName(lang),
+      description: siteDescription(lang),
       locale: getOpenGraphLocale(lang),
+    },
+    twitter: {
+      ...DEFAULT_METADATA.twitter,
+      title: brandName(lang),
+      description: siteDescription(lang),
     },
     manifest: '/manifest.json',
     other: {
