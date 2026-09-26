@@ -99,8 +99,13 @@ function extractKeysFromConfigJson(filePath: string): string[] {
   }
 }
 
-function extractKeysFromFile(filePath: string): string[] {
-  const content = fs.readFileSync(filePath, 'utf-8');
+// `${…}` 가 들어간 템플릿 키는 런타임 값으로 완성되는 동적 키다(예: t(`label_vote_${category}`)).
+// 정적 대조 대상이 아니므로 제외한다 — 그대로 두면 번역이 다 있어도 누락 키로 보고된다.
+function isStaticKey(key: string): boolean {
+  return key !== '' && !key.includes('${');
+}
+
+export function extractKeysFromSource(content: string): string[] {
   const keys: string[] = [];
 
   // t('key')류
@@ -110,7 +115,7 @@ function extractKeysFromFile(filePath: string): string[] {
     while (!match.done) {
       const m = match.value as RegExpExecArray;
       const key = (m[1] || m[2] || m[3] || '').trim();
-      if (key) keys.push(key);
+      if (isStaticKey(key)) keys.push(key);
       match = iter.next();
     }
   }
@@ -122,12 +127,16 @@ function extractKeysFromFile(filePath: string): string[] {
     while (!match.done) {
       const m = match.value as RegExpExecArray;
       const key = (m[1] || m[2] || m[3] || '').trim();
-      if (key) keys.push(key);
+      if (isStaticKey(key)) keys.push(key);
       match = iter.next();
     }
   }
 
   return keys;
+}
+
+function extractKeysFromFile(filePath: string): string[] {
+  return extractKeysFromSource(fs.readFileSync(filePath, 'utf-8'));
 }
 
 function main() {
@@ -214,6 +223,9 @@ function main() {
   process.exit(hasMissing ? 1 : 0);
 }
 
-main();
+// CLI 로 직접 실행할 때만 검사한다 (테스트에서 추출 함수를 import 할 때는 실행하지 않음)
+if (require.main === module) {
+  main();
+}
 
 

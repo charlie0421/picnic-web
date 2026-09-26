@@ -1,4 +1,4 @@
-import React, { Suspense, cache } from 'react';
+import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import VoteDetailFetcher from '@/components/server/vote/VoteDetailFetcher';
 import VoteDetailSkeleton from '@/components/server/VoteDetailSkeleton';
@@ -26,10 +26,6 @@ const toSafeLang = (lang: string): Language =>
     ? (lang as Language)
     : settings.languages.default;
 
-// VoteDetailFetcher 와 같은 getVoteById 요청이라 Next 의 fetch 메모이제이션으로 한 요청에서 한 번만 나간다.
-// cache 는 같은 렌더 안에서 이 조회가 여러 번 불려도 한 번만 실행되게 한다.
-const getVoteForMetadata = cache((voteId: number) => getVoteById(voteId));
-
 export async function generateMetadata(props: VoteDetailPageProps): Promise<Metadata> {
   const { id, lang } = await props.params;
   // VoteDetailFetcher 와 같은 규칙으로 id 를 해석한다 (숫자가 아니면 페이지가 404)
@@ -38,7 +34,8 @@ export async function generateMetadata(props: VoteDetailPageProps): Promise<Meta
     return {};
   }
 
-  const vote = await getVoteForMetadata(voteId);
+  // VoteDetailFetcher 와 같은 cached getter(getVoteById) — 한 요청에서 조회는 한 번만 나간다.
+  const vote = await getVoteById(voteId);
   if (!vote) {
     return {};
   }

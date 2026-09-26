@@ -2,12 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const getVoteByIdMock = vi.fn();
 
-// React 의 cache 는 서버 컴포넌트 런타임 전용이다. 테스트에서는 항등 함수로 둔다.
-vi.mock('react', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react')>();
-  return { ...actual, cache: (fn: unknown) => fn };
-});
-
 vi.mock('@/utils/api/queries', () => ({
   getVoteById: (...args: unknown[]) => getVoteByIdMock(...args),
 }));
@@ -101,10 +95,10 @@ describe('vote/[id] generateMetadata', () => {
     );
   });
 
-  it('VoteDetailFetcher 와 같은 조회(getVoteById, 숫자 id)를 한 번만 쓴다', async () => {
+  it('본문과 같은 캐시 키(숫자 id)로 공유 getter(getVoteById)를 부른다', async () => {
+    // 한 요청에서 실제로 한 번만 조회되는지는 vote-detail-single-query.test.ts 가 검증한다
     getVoteByIdMock.mockResolvedValue(vote());
     await metadataFor('en', '295');
-    expect(getVoteByIdMock).toHaveBeenCalledTimes(1);
     expect(getVoteByIdMock).toHaveBeenCalledWith(295);
   });
 
