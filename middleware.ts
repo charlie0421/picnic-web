@@ -93,9 +93,9 @@ function getPreferredLanguage(request: NextRequest): string {
 }
 
 // 경로 기반 요청 헤더는 middleware 만 만든다 — 클라이언트가 보낸 값은 버린다.
-// - x-locale: 경로의 지원 로케일. app/layout.tsx 의 <html lang>, 배너 링크 언어가 읽는다.
-// - x-pathname / x-url: 레이아웃의 VoteLite·광고 분기 입력. 분기 활성화는 별도 결정이라
-//   아직 주입하지 않고, 위조 헤더로 켜지지 않도록 지우기만 한다.
+// - x-locale: 경로의 지원 로케일. app/layout.tsx 의 <html lang> 이 읽는다.
+// - x-pathname / x-url: 더 이상 읽는 곳이 없다(VoteLite·경로 광고 분기 제거). 예전 코드나
+//   서드파티가 신뢰하지 않도록 인바운드 값을 계속 지운다.
 const ROUTING_REQUEST_HEADERS = ['x-locale', 'x-pathname', 'x-url'] as const;
 
 function buildForwardedRequestHeaders(req: NextRequest): Headers {

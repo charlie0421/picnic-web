@@ -1,9 +1,7 @@
 import { ReactNode } from 'react';
 import './globals.css';
 import { Metadata, Viewport } from 'next';
-import { headers } from 'next/headers';
 import ClientLayout from './ClientLayout';
-import VoteLiteClientLayout from './VoteLiteClientLayout';
 import { DEFAULT_METADATA, getOpenGraphLocale } from './utils/metadata-utils';
 
 
@@ -70,23 +68,6 @@ export default async function LanguageLayout({
   params: Promise<{ lang: string }>;
 }) {
   const params = await paramsPromise;
-  // 특정 경로에서는 무거운 클라이언트 레이아웃을 우회 (인앱 호환성 개선)
-  const headersList = await headers();
-  const pathname = headersList.get('x-pathname') || headersList.get('x-url') || '';
-  const isOpenInBrowser = pathname.includes('/open-in-browser');
-  const isVotePath = /^\/[a-z]{2}(?:-[a-z]{2})?\/vote(?:\/|$)/.test(pathname);
-
-  if (isOpenInBrowser) {
-    return <>{children}</>;
-  }
-
-  if (isVotePath) {
-    return (
-      <VoteLiteClientLayout initialLanguage={params.lang}>
-        {children}
-      </VoteLiteClientLayout>
-    );
-  }
 
   return (
     <ClientLayout initialLanguage={params.lang}>
