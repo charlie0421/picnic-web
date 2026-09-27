@@ -14,4 +14,3 @@ export { VoteButton } from './common/VoteButton';
 export { PicnicMenu as Menu } from '../common/PicnicMenu'; 
 export { VoteItems } from './list/VoteItems';
 export { default as VoteCard } from './list/VoteCard';
-export { VoteStatus } from './VoteStatus';

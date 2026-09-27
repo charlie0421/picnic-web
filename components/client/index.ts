@@ -30,6 +30,5 @@ export { default as NavigationLink } from './NavigationLink';
 export { ClientNavigationSetter } from './ClientNavigationSetter';
 
 // Common 컴포넌트
-export { LoadingSpinner } from './common/LoadingSpinner';
 export { RetryButton } from './RetryButton';
 export { VoteClientComponent } from './VoteClientComponent';
