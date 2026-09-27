@@ -50,6 +50,11 @@ export async function GET(request: NextRequest) {
 
       if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = row not found
         console.warn('⚠️ [Auth Verify API] 프로필 조회 오류:', profileError);
+        // 탈퇴 여부를 확인할 수 없으면 유효 세션으로 답하지 않는다(fail-closed)
+        return NextResponse.json(
+          { valid: false, error: 'Account check failed', message: '계정 상태를 확인할 수 없습니다.' },
+          { status: 503 }
+        );
       }
 
       // 삭제된 사용자 체크
@@ -65,8 +70,11 @@ export async function GET(request: NextRequest) {
         );
       }
     } catch (profileError) {
-      console.warn('⚠️ [Auth Verify API] 프로필 체크 중 오류 (진행 계속):', profileError);
-      // 프로필 체크 실패는 인증 실패로 처리하지 않음
+      console.warn('⚠️ [Auth Verify API] 프로필 체크 중 오류:', profileError);
+      return NextResponse.json(
+        { valid: false, error: 'Account check failed', message: '계정 상태를 확인할 수 없습니다.' },
+        { status: 503 }
+      );
     }
 
     const provider = userData.user.app_metadata?.provider;

@@ -103,7 +103,7 @@ export async function GET(request: Request) {
             .eq('id', userId)
             .maybeSingle();
 
-          if (!profileError && profile?.deleted_at) {
+          if (profileError || profile?.deleted_at) {
             console.warn('🗑️ [Auth Callback] 탈퇴 계정 로그인 차단:', { userId });
 
             // 세션 즉시 종료 (쿠키 삭제까지 포함)
@@ -129,7 +129,7 @@ export async function GET(request: Request) {
               `/${lang}/login`,
               canonicalOrigin,
             );
-            withdrawnRedirectUrl.searchParams.set('error', 'withdrawn');
+            withdrawnRedirectUrl.searchParams.set('error', profileError ? 'auth_check_failed' : 'withdrawn');
             const withdrawnResponse = NextResponse.redirect(withdrawnRedirectUrl);
 
             // exchange 단계에서 set 된 쿠키를 모두 무효화

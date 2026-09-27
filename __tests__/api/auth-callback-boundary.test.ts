@@ -149,4 +149,21 @@ describe('GET /api/auth/callback — canonical redirect boundary', () => {
       'http://localhost:3203/ko/vote',
     );
   });
+
+  it.each([
+    ['탈퇴 계정', { data: { deleted_at: '2026-01-01T00:00:00Z' }, error: null }, 'withdrawn'],
+    ['탈퇴 여부 조회 실패', { data: null, error: { message: 'timeout' } }, 'auth_check_failed'],
+  ])('%s는 세션을 폐기하고 로그인으로 보낸다(fail-closed)', async (_label, profileResult, errorParam) => {
+    mocks.exchangeCodeForSession.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
+    mocks.from.mockReturnValue({
+      select: () => ({ eq: () => ({ maybeSingle: async () => profileResult }) }),
+    });
+
+    const response = await GET(callbackRequest('https://www.picnic.fan', { code: 'c', next: '/ja/vote' }));
+    const location = new URL(response.headers.get('location')!);
+
+    expect(mocks.signOut).toHaveBeenCalled();
+    expect(location.pathname).toBe('/ja/login');
+    expect(location.searchParams.get('error')).toBe(errorParam);
+  });
 });
