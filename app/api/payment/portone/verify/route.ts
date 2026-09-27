@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 탈퇴 회원 체크
-    const isWithdrawn = await isWithdrawnUser(user.id);
+    const isWithdrawn = await isWithdrawnUser(user.id, { failClosed: true });
     if (isWithdrawn) {
       return NextResponse.json(
         { error: 'User is deleted or deactivated' },

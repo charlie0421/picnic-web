@@ -22,6 +22,11 @@ vi.mock('@/lib/supabase/server', () => {
   return {
     isWithdrawnUser: mocks.isWithdrawnUser,
     getServerUser: async () => user,
+    createSupabaseServerClient: async () => ({ from: () => builder, rpc: vi.fn() }),
+    createServerSupabaseClientWithCookies: async () => ({
+      auth: { getUser: async () => ({ data: { user }, error: null }) },
+      from: () => builder,
+    }),
     createServerSupabaseClient: async () => ({
       auth: { getUser: async () => ({ data: { user }, error: null }) },
       from: () => builder,
@@ -69,5 +74,18 @@ describe('민감 API — 탈퇴 사용자 차단', () => {
     expect(mocks.fetch).not.toHaveBeenCalled();
     expect(mocks.createPresignedPost).not.toHaveBeenCalled();
     expect(mocks.storageSign).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['wallet', '@/app/api/user/wallet/route', '/api/user/wallet'],
+    ['wallet history', '@/app/api/user/wallet/history/route', '/api/user/wallet/history'],
+    ['wallet expiring-bonus', '@/app/api/user/wallet/expiring-bonus/route', '/api/user/wallet/expiring-bonus'],
+    ['user profile', '@/app/api/user/profile/route', '/api/user/profile'],
+  ] as const)('%s(GET): 탈퇴 사용자는 403 (middleware 가 /api 를 제외하므로 API 에서 차단)', async (_name, modulePath, path) => {
+    const { GET } = await import(/* @vite-ignore */ modulePath);
+    const res = await GET(new NextRequest(`https://www.picnic.fan${path}`));
+
+    expect(res.status).toBe(403);
+    expect(mocks.isWithdrawnUser).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001', { failClosed: true });
   });
 });

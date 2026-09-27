@@ -6,6 +6,7 @@ import { NextRequest } from 'next/server';
  */
 const mocks = vi.hoisted(() => ({
   deletedAt: null as string | null,
+  profileError: null as { message: string } | null,
   signOut: vi.fn(async () => ({ error: null })),
   invoke: vi.fn(() => Promise.resolve({})),
 }));
@@ -23,7 +24,7 @@ vi.mock('@supabase/ssr', () => ({
       signOut: mocks.signOut,
     },
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { deleted_at: mocks.deletedAt }, error: null }) }) }),
+      select: () => ({ eq: () => ({ maybeSingle: async () => mocks.profileError ? { data: null, error: mocks.profileError } : { data: { deleted_at: mocks.deletedAt }, error: null } }) }),
     }),
     functions: { invoke: mocks.invoke },
   }),
@@ -42,6 +43,7 @@ describe('POST /api/auth/exchange-code — 탈퇴 계정', () => {
   beforeEach(() => {
     mocks.signOut.mockClear();
     mocks.invoke.mockClear();
+    mocks.profileError = null;
   });
 
   it('탈퇴 계정은 세션을 폐기하고 403', async () => {
@@ -58,5 +60,13 @@ describe('POST /api/auth/exchange-code — 탈퇴 계정', () => {
     const res = await POST(req());
     expect(res.status).toBe(200);
     expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it('탈퇴 여부 조회가 실패하면 세션을 폐기하고 503(차단 쪽으로 처리)', async () => {
+    mocks.deletedAt = null;
+    mocks.profileError = { message: 'timeout' };
+    const res = await POST(req());
+    expect(res.status).toBe(503);
+    expect(mocks.signOut).toHaveBeenCalled();
   });
 });

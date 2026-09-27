@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const user = await getServerUser();
     if (!user) throw new SupabaseAuthError('Authentication required.');
 
-    const isWithdrawn = await isWithdrawnUser(user.id);
+    const isWithdrawn = await isWithdrawnUser(user.id, { failClosed: true });
     if (isWithdrawn) {
       return NextResponse.json({ error: 'A member who has unsubscribed.' }, { status: 403 });
     }
