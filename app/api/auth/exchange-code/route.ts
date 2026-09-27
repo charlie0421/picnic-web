@@ -59,6 +59,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 탈퇴 계정은 세션을 즉시 폐기한다(로그인 재진입 차단). 조회 오류는 차단 쪽으로 처리한다.
+    const sessionUserId = data.user?.id ?? data.session.user?.id;
+    if (sessionUserId) {
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('deleted_at')
+        .eq('id', sessionUserId)
+        .maybeSingle();
+      if (profileError || profile?.deleted_at) {
+        if (profileError) logError('[API] exchange-code 탈퇴 여부 조회 실패:', profileError);
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          // 세션 폐기 실패는 응답 코드로 대신 알린다
+        }
+        return NextResponse.json(
+          { error: profileError ? 'withdrawal-check-failed' : 'withdrawn', success: false },
+          { status: profileError ? 503 : 403 },
+        );
+      }
+    }
+
     // 로그인 직후: IP/국가 추적 함수 호출(비차단, 실패 무시)
     try {
       supabase

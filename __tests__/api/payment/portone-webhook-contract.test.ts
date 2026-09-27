@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   payment: null as Record<string, unknown> | null,
   verifyError: null as Error | null,
   profile: { deleted_at: null } as { deleted_at: string | null },
+  profileError: null as { message: string; code?: string } | null,
   rpcResult: { receipt_id: 101 } as unknown,
   rpcError: null as { message: string } | null,
   products: [] as Array<Record<string, unknown>>,
@@ -40,7 +41,9 @@ vi.mock('@/app/api/payment/portone/webhook/webhook-helpers', async (importOrigin
           in: () => b,
           single: async () =>
             table === 'user_profiles'
-              ? { data: mocks.profile, error: null }
+              ? mocks.profileError
+                ? { data: null, error: mocks.profileError }
+                : { data: mocks.profile, error: null }
               : { data: mocks.products[0] ?? null, error: null },
           maybeSingle: async () => ({ data: mocks.products[0] ?? null, error: null }),
         });
@@ -77,6 +80,7 @@ describe('PortOne webhook — 현재 계약', () => {
     mocks.payment = paidPayment();
     mocks.verifyError = null;
     mocks.profile = { deleted_at: null };
+    mocks.profileError = null;
     mocks.rpcResult = { receipt_id: 101 };
     mocks.rpcError = null;
     mocks.products = [];
@@ -138,6 +142,22 @@ describe('PortOne webhook — 현재 계약', () => {
 
     expect(res.status).toBe(403);
     expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it('탈퇴 여부 조회가 실패하면 500(재시도 유도), 적립 0', async () => {
+    mocks.profileError = { message: 'timeout' };
+    const res = await POST(webhook({ paymentId: 'pay_1', status: 'PAID' }));
+
+    expect(res.status).toBe(500);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it('프로필 행이 아직 없으면(PGRST116) 탈퇴가 아니므로 적립을 진행한다', async () => {
+    mocks.profileError = { code: 'PGRST116', message: 'no rows' };
+    const res = await POST(webhook({ paymentId: 'pay_1', status: 'PAID' }));
+
+    expect(res.status).toBe(200);
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
   });
 
   it('RPC 가 NULL(이미 처리됨)이면 200 멱등 응답', async () => {

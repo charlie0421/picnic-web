@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getServerUser } from '@/lib/supabase/server';
+import { getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 import {
   extractSupabaseStorageReference,
   type AvatarTransformOptions,
@@ -80,6 +80,11 @@ export async function POST(request: NextRequest) {
       { error: '인증이 필요합니다.' },
       { status: 401 },
     );
+  }
+
+  // 탈퇴 계정 차단 — 민감 작업이라 조회 오류 시에도 차단(fail-closed)
+  if (await isWithdrawnUser(user.id, { failClosed: true })) {
+    return NextResponse.json({ error: 'A member who has unsubscribed.' }, { status: 403 });
   }
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {

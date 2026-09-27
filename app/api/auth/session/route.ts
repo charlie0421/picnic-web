@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { logError } from '@/utils/log-error';
-import { getServerUser } from '@/lib/supabase/server';
+import { getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
@@ -8,6 +8,11 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ user: null });
+    }
+
+    // 탈퇴 계정(또는 확인 불가)은 세션 정보를 내주지 않는다 — middleware 가 /api 를 제외하므로 여기서 막는다
+    if (await isWithdrawnUser(user.id, { failClosed: true })) {
+      return NextResponse.json({ user: null, error: 'A member who has unsubscribed.' }, { status: 403 });
     }
 
     return NextResponse.json({

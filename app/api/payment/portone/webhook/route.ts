@@ -192,8 +192,11 @@ export async function POST(request: NextRequest) {
       .eq('id', userId)
       .single();
 
-    if (userProfileError) {
+    // 프로필 행 없음(PGRST116)은 탈퇴가 아니므로 진행한다. 그 외 조회 오류만 차단한다.
+    if (userProfileError && userProfileError.code !== 'PGRST116') {
       logError('[Webhook] Failed to check user profile:', userProfileError);
+      // 탈퇴 여부를 확인할 수 없으면 적립하지 않는다 — 500 이면 PortOne 이 재시도한다(fail-closed)
+      return NextResponse.json({ error: 'Failed to verify user status' }, { status: 500 });
     }
 
     if (userProfile?.deleted_at) {

@@ -44,7 +44,7 @@ export async function createQnaThreadAction(_: { error: string | null }, formDat
   }
 
   // 탈퇴 회원 체크
-  const isWithdrawn = await isWithdrawnUser(user.id);
+  const isWithdrawn = await isWithdrawnUser(user.id, { failClosed: true });
   if (isWithdrawn) {
     return { error: 'A member who has unsubscribed.' };
   }
@@ -168,7 +168,7 @@ export async function createQnaMessageAction(formData: FormData) {
     }
 
     // 탈퇴 회원 체크
-    const isWithdrawn = await isWithdrawnUser(user.id);
+    const isWithdrawn = await isWithdrawnUser(user.id, { failClosed: true });
     if (isWithdrawn) {
         return { error: 'A member who has unsubscribed.' };
     }

@@ -6,6 +6,7 @@ const singleMock = vi.fn();
 const rpcMock = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
+  isWithdrawnUser: async () => false,
   createSupabaseServerClient: vi.fn(async () => ({
     from: () => ({ select: () => ({ eq: () => ({ single: singleMock }) }) }),
     rpc: rpcMock,

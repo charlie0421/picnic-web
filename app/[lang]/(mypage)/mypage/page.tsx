@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 import { getServerUser } from '@/lib/supabase/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { UserProfiles } from '@/types/interfaces';
@@ -34,6 +35,11 @@ export default async function MyPage({ params }: { params: Promise<{ lang: strin
     } catch (error) {
       console.warn('사용자 프로필 로드 실패:', error);
     }
+  }
+
+  // 탈퇴 계정은 프로필을 렌더하지 않고 로그인으로 보낸다(middleware 가드가 실패해도 서버에서 한 번 더 막는다)
+  if (userProfile?.deleted_at) {
+    redirect(`/${lang}/login?error=withdrawn`);
   }
 
   // 서버사이드에서 번역 로드

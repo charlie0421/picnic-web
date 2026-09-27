@@ -162,7 +162,7 @@ export async function POST(req: Request) {
       return jsonError('User not authenticated.', 401);
     }
 
-    if (await isWithdrawnUser(user.id)) {
+    if (await isWithdrawnUser(user.id, { failClosed: true })) {
       return jsonError('A member who has unsubscribed.', 403);
     }
 

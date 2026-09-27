@@ -178,12 +178,15 @@ export async function middleware(req: NextRequest) {
     },
   });
 
-  // Touch the user to trigger refresh if needed (no-op if valid)
+  // 세션 갱신·검증은 getClaims 로 한다 — 만료 access token 은 refresh 하고(쿠키 갱신),
+  // 비대칭 서명 키(ES256 JWKS)면 Auth 서버 왕복 없이 로컬에서 JWT 를 검증한다(HS 토큰은 SDK 가 getUser 로 폴백).
+  // 매 요청 getUser() 호출을 없애되, 탈퇴 계정 방어 계층은 로그인 요청에 한해 유지한다(비로그인은 네트워크 0).
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const userId = typeof claimsData?.claims?.sub === 'string' ? claimsData.claims.sub : null;
 
     // 탈퇴(soft delete) 계정 방어계층 — 로그인 페이지가 아닌 경로에서만 차단 및 리다이렉트
-    if (user?.id) {
+    if (userId) {
       const url = new URL(req.url);
       const pathname = url.pathname;
 
@@ -192,7 +195,7 @@ export async function middleware(req: NextRequest) {
           const { data: profile } = await supabase
             .from('user_profiles')
             .select('deleted_at')
-            .eq('id', user.id)
+            .eq('id', userId)
             .maybeSingle();
 
           if (profile?.deleted_at) {

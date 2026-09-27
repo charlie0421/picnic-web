@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logError } from '@/utils/log-error';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 
 const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production'
   ? 'https://api-m.paypal.com'
@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
         { error: 'Unauthorized' },
         { status: 401 }
       );
+    }
+
+    // 탈퇴 계정 차단 — 민감 작업이라 조회 오류 시에도 차단(fail-closed)
+    if (await isWithdrawnUser(user.id, { failClosed: true })) {
+      return NextResponse.json({ error: 'A member who has unsubscribed.' }, { status: 403 });
     }
 
     const body: CreateOrderRequest = await request.json();

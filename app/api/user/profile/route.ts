@@ -1,4 +1,4 @@
-import { createServerSupabaseClientWithCookies } from '@/lib/supabase/server';
+import { createServerSupabaseClientWithCookies, isWithdrawnUser } from '@/lib/supabase/server';
 import {
   extractAvatarFromProvider,
   extractSupabaseStorageReference,
@@ -96,6 +96,14 @@ export async function GET(request: NextRequest) {
           message: '인증이 필요합니다.'
         }, 
         { status: 401 }
+      );
+    }
+
+    // 탈퇴 계정 차단 — middleware matcher 가 /api 를 제외하므로 API 에서 직접 막는다(조회 오류 시에도 차단)
+    if (await isWithdrawnUser(userData.user.id, { failClosed: true })) {
+      return NextResponse.json(
+        { success: false, error: 'A member who has unsubscribed.' },
+        { status: 403 }
       );
     }
 
