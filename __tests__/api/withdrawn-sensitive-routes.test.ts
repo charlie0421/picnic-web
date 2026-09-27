@@ -65,7 +65,7 @@ describe('민감 API — 탈퇴 사용자 차단', () => {
     const res = await POST(json(path, body));
 
     expect(res.status).toBe(403);
-    expect(mocks.isWithdrawnUser).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001');
+    expect(mocks.isWithdrawnUser).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001', { failClosed: true });
     expect(mocks.fetch).not.toHaveBeenCalled();
     expect(mocks.createPresignedPost).not.toHaveBeenCalled();
     expect(mocks.storageSign).not.toHaveBeenCalled();

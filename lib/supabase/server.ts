@@ -143,7 +143,14 @@ export class WithdrawnUserError extends Error {
  * @param userId 확인할 사용자 ID
  * @returns 탈퇴 회원이면 true, 아니면 false
  */
-export async function isWithdrawnUser(userId: string): Promise<boolean> {
+/**
+ * 탈퇴(soft delete) 여부. 기본은 조회 오류 시 false(fail-open) — 페이지 렌더 등 일반 경로를 깨지 않기 위해.
+ * 결제·업로드·서명 URL 같은 민감 작업은 `failClosed: true` 로 조회 오류 시에도 차단한다.
+ */
+export async function isWithdrawnUser(
+  userId: string,
+  options: { failClosed?: boolean } = {},
+): Promise<boolean> {
   const supabase = await createSupabaseServerClient();
   const { data: profile, error } = await supabase
     .from('user_profiles')
@@ -153,7 +160,7 @@ export async function isWithdrawnUser(userId: string): Promise<boolean> {
 
   if (error) {
     console.warn(`[Auth] Failed to check user withdrawal status: ${error.message}`);
-    return false;
+    return options.failClosed === true;
   }
 
   return profile?.deleted_at != null;

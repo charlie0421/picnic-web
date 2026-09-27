@@ -210,20 +210,49 @@ describe('middleware — 기존 동작 불변', () => {
     });
 
     /**
-     * B-R2(결정 #10): 세션 갱신·검증은 getClaims(로컬 JWT 검증)로 하고,
-     * 매 요청 Auth 서버 getUser() 와 user_profiles 조회를 하지 않는다.
-     * 탈퇴 계정 차단은 로그인 콜백·민감 API(투표·결제·업로드·QNA)가 맡는다.
+     * B-R2: 세션 갱신·검증은 getClaims(ES256 JWKS 로컬 검증)로 해 매 요청 Auth 서버 getUser() 왕복을 없앤다.
+     * 탈퇴 계정 차단(방어 계층)은 로그인 요청에 한해 유지한다 — 비로그인 요청은 네트워크 호출 0.
      */
-    it('로그인 요청은 getClaims 로 세션을 갱신하고 getUser·프로필 조회를 하지 않는다', async () => {
-      getClaimsMock.mockResolvedValue({ data: { claims: { sub: 'user-1' } }, error: null });
-      const res = await middleware(request('/ja/vote'));
-
+    it('비로그인 요청은 getUser·프로필 조회를 하지 않는다', async () => {
+      getClaimsMock.mockResolvedValue({ data: null, error: null });
+      await middleware(request('/ko/vote'));
       expect(getClaimsMock).toHaveBeenCalledTimes(1);
       expect(getUserMock).not.toHaveBeenCalled();
       expect(maybeSingleMock).not.toHaveBeenCalled();
-      expect(signOutMock).not.toHaveBeenCalled();
+    });
+
+    it('로그인 요청도 getUser 는 호출하지 않고 claims.sub 로 탈퇴 여부만 확인한다', async () => {
+      getClaimsMock.mockResolvedValue({ data: { claims: { sub: 'user-1' } }, error: null });
+      maybeSingleMock.mockResolvedValue({ data: { deleted_at: null } });
+      const res = await middleware(request('/ja/vote'));
+      expect(getUserMock).not.toHaveBeenCalled();
+      expect(maybeSingleMock).toHaveBeenCalledTimes(1);
       expect(res.headers.get('location')).toBeNull();
       expect(forwardedRequestHeaders(res).get('x-locale')).toBe('ja');
+    });
+
+    it('탈퇴 계정은 해당 언어 로그인 페이지로 redirect 한다', async () => {
+      getClaimsMock.mockResolvedValue({ data: { claims: { sub: 'user-1' } }, error: null });
+      maybeSingleMock.mockResolvedValue({ data: { deleted_at: '2026-09-01T00:00:00Z' } });
+      const res = await middleware(request('/ja/vote'));
+      expect(signOutMock).toHaveBeenCalled();
+      const location = new URL(res.headers.get('location')!);
+      expect(location.pathname).toBe('/ja/login');
+      expect(location.searchParams.get('error')).toBe('withdrawn');
+    });
+
+    it('확장자가 붙은 HTML 경로도 탈퇴 계정을 차단한다', async () => {
+      getClaimsMock.mockResolvedValue({ data: { claims: { sub: 'user-1' } }, error: null });
+      maybeSingleMock.mockResolvedValue({ data: { deleted_at: '2026-09-01T00:00:00Z' } });
+      const res = await middleware(request('/ko/vote/295.json'));
+      expect(new URL(res.headers.get('location')!).pathname).toBe('/ko/login');
+    });
+
+    it('로그인 페이지는 탈퇴 검사를 건너뛴다', async () => {
+      getClaimsMock.mockResolvedValue({ data: { claims: { sub: 'user-1' } }, error: null });
+      const res = await middleware(request('/ja/login'));
+      expect(maybeSingleMock).not.toHaveBeenCalled();
+      expect(res.headers.get('location')).toBeNull();
     });
 
     it('getClaims 가 실패해도 요청을 막지 않는다', async () => {

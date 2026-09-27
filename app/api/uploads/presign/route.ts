@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 탈퇴 계정 차단 (middleware 대신 민감 API 에서 — 결정 #10)
-    if (await isWithdrawnUser(user.id)) {
+    // 탈퇴 계정 차단 — 민감 작업이라 조회 오류 시에도 차단(fail-closed)
+    if (await isWithdrawnUser(user.id, { failClosed: true })) {
       return NextResponse.json({ error: 'A member who has unsubscribed.' }, { status: 403 });
     }
 

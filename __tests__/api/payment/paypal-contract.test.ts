@@ -26,6 +26,7 @@ vi.mock('@/utils/log-error', () => ({ logError: vi.fn() }));
 vi.mock('@/utils/star-candy-bonus', () => ({ getStarCandyBonusExpiryISO: () => '2027-01-01T00:00:00Z' }));
 
 vi.mock('@/lib/supabase/server', () => ({
+  isWithdrawnUser: async () => false,
   createServerSupabaseClient: async () => ({
     auth: { getUser: async () => ({ data: { user: mocks.user }, error: null }) },
     from: (table: string) => {
