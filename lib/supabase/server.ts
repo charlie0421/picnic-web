@@ -159,6 +159,8 @@ export async function isWithdrawnUser(
     .single();
 
   if (error) {
+    // 프로필 행이 아직 없는 신규 가입자(PGRST116)는 탈퇴가 아니다 — 조회 실패와 구분한다
+    if ((error as { code?: string }).code === 'PGRST116') return false;
     console.warn(`[Auth] Failed to check user withdrawal status: ${error.message}`);
     return options.failClosed === true;
   }

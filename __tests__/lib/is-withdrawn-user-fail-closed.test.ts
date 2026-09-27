@@ -40,4 +40,9 @@ describe('isWithdrawnUser', () => {
     expect(await isWithdrawnUser('u1')).toBe(false);
     expect(await isWithdrawnUser('u1', { failClosed: true })).toBe(true);
   });
+
+  it('프로필 행이 아직 없는 신규 가입자(PGRST116)는 failClosed 여도 탈퇴가 아니다', async () => {
+    state.result = { data: null, error: { code: 'PGRST116', message: 'no rows' } };
+    expect(await isWithdrawnUser('u1', { failClosed: true })).toBe(false);
+  });
 });

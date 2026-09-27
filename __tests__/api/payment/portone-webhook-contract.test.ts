@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   payment: null as Record<string, unknown> | null,
   verifyError: null as Error | null,
   profile: { deleted_at: null } as { deleted_at: string | null },
-  profileError: null as { message: string } | null,
+  profileError: null as { message: string; code?: string } | null,
   rpcResult: { receipt_id: 101 } as unknown,
   rpcError: null as { message: string } | null,
   products: [] as Array<Record<string, unknown>>,
@@ -150,6 +150,14 @@ describe('PortOne webhook — 현재 계약', () => {
 
     expect(res.status).toBe(500);
     expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it('프로필 행이 아직 없으면(PGRST116) 탈퇴가 아니므로 적립을 진행한다', async () => {
+    mocks.profileError = { code: 'PGRST116', message: 'no rows' };
+    const res = await POST(webhook({ paymentId: 'pay_1', status: 'PAID' }));
+
+    expect(res.status).toBe(200);
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
   });
 
   it('RPC 가 NULL(이미 처리됨)이면 200 멱등 응답', async () => {
