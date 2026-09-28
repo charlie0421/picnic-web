@@ -1,5 +1,4 @@
 import React, { ReactNode } from 'react';
-import ClientLayout from '../ClientLayout';
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -8,12 +7,10 @@ interface AuthLayoutProps {
   }>;
 }
 
-export default async function AuthLayout({ children, params }: AuthLayoutProps) {
-  const { lang } = await params;
-
-  return (
-    <ClientLayout initialLanguage={lang}>
-      {children}
-    </ClientLayout>
-  );
-} 
+/**
+ * 인증(로그인 등) 섹션. Provider 스택은 [lang] 레이아웃의 ClientLayout 이 이미 감싸므로
+ * 여기서 다시 감싸지 않는다(PERF-13 — 이중 마운트 시 Auth 구독·Analytics 가 중복된다).
+ */
+export default function AuthLayout({ children }: AuthLayoutProps) {
+  return <>{children}</>;
+}

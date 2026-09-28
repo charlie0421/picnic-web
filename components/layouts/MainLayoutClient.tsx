@@ -5,16 +5,6 @@ import dynamic from 'next/dynamic';
 import Header from '@/components/layouts/Header';
 import Footer from '@/components/layouts/Footer';
 import ExclusiveOpenBadge from '@/components/layouts/ExclusiveOpenBadge';
-import { NavigationProvider } from '@/contexts/NavigationContext';
-import { GlobalLoadingProvider } from '@/contexts/GlobalLoadingContext';
-import { LanguageSyncProvider } from '@/components/providers/LanguageSyncProvider';
-import { AuthProvider } from '@/lib/supabase/auth-provider';
-import { NotificationProvider } from '@/contexts/NotificationContext';
-import { DialogProvider } from '@/components/ui/Dialog';
-import { AuthRedirectHandler } from '@/components/auth/AuthRedirectHandler';
-import GlobalLoadingOverlay from '@/components/ui/GlobalLoadingOverlay';
-import { GlobalNotifications } from '@/components/common/GlobalNotifications';
-import { Analytics } from '@vercel/analytics/react';
 import { useMenu } from '@/hooks/useMenu';
 import NavigationLink from '@/components/client/NavigationLink';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -26,7 +16,6 @@ const ENABLE_FIREBASE_MESSAGING =
   IS_PRODUCTION && process.env.NEXT_PUBLIC_ENABLE_FIREBASE_MESSAGING !== 'false';
 const ENABLE_FIREBASE_ANALYTICS =
   IS_PRODUCTION && process.env.NEXT_PUBLIC_ENABLE_FIREBASE_ANALYTICS !== 'false';
-const ENABLE_VERCEL_ANALYTICS = IS_PRODUCTION;
 
 const FirebaseMessagingInitializerComponent: ComponentType | null =
   ENABLE_FIREBASE_MESSAGING
@@ -86,45 +75,34 @@ interface MainLayoutClientProps {
   initialLanguage: string;
 }
 
-export default function MainLayoutClient({ children, initialLanguage }: MainLayoutClientProps) {
+/**
+ * (main) 섹션 셸 — 헤더·서브메뉴·푸터만 그린다.
+ * Provider·전역 오버레이·알림·Analytics 는 [lang] 레이아웃의 ClientLayout 이 한 번만 마운트한다(PERF-13).
+ * `initialLanguage` 는 LanguageSyncProvider 가 상위에서 처리하므로 여기서는 쓰지 않는다.
+ */
+export default function MainLayoutClient({ children }: MainLayoutClientProps) {
   const pathname = usePathname();
   const hideBetaNotice = pathname?.includes('/concert2025');
 
   return (
-    <NavigationProvider>
-      <GlobalLoadingProvider>
-        <LanguageSyncProvider initialLanguage={initialLanguage}>
-          <AuthProvider>
-            <NotificationProvider>
-              <DialogProvider>
-                <AuthRedirectHandler>
-                  <Header />
-                  {!hideBetaNotice && <ExclusiveOpenBadge />}
-                  <SubMenu />
-                  <main className='flex-1 container mx-auto'>
-                    {children}
-                  </main>
-                  <Footer />
-                  <GlobalNotifications />
-                  <GlobalLoadingOverlay />
-                  {ENABLE_FIREBASE_MESSAGING && FirebaseMessagingInitializerComponent && (
-                    <Suspense fallback={null}>
-                      <FirebaseMessagingInitializerComponent />
-                    </Suspense>
-                  )}
-                  {ENABLE_FIREBASE_ANALYTICS && FirebaseAnalyticsTrackerComponent && (
-                    <Suspense fallback={null}>
-                      <FirebaseAnalyticsTrackerComponent pathname={pathname || '/'} />
-                    </Suspense>
-                  )}
-                  {ENABLE_VERCEL_ANALYTICS && <Analytics />}
-                </AuthRedirectHandler>
-              </DialogProvider>
-            </NotificationProvider>
-          </AuthProvider>
-        </LanguageSyncProvider>
-      </GlobalLoadingProvider>
-    </NavigationProvider>
+    <>
+      <Header />
+      {!hideBetaNotice && <ExclusiveOpenBadge />}
+      <SubMenu />
+      <main className='flex-1 container mx-auto'>
+        {children}
+      </main>
+      <Footer />
+      {ENABLE_FIREBASE_MESSAGING && FirebaseMessagingInitializerComponent && (
+        <Suspense fallback={null}>
+          <FirebaseMessagingInitializerComponent />
+        </Suspense>
+      )}
+      {ENABLE_FIREBASE_ANALYTICS && FirebaseAnalyticsTrackerComponent && (
+        <Suspense fallback={null}>
+          <FirebaseAnalyticsTrackerComponent pathname={pathname || '/'} />
+        </Suspense>
+      )}
+    </>
   );
 }
-
