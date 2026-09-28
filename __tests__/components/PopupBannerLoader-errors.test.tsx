@@ -57,4 +57,13 @@ describe('PopupBannerLoader — 비정상 응답 방어', () => {
     expect(queryByTestId('crashed')).toBeNull();
     expect(queryByTestId('popup-banner')?.textContent ?? '0').toBe('0');
   });
+
+  it('배열 안의 잘못된 원소([null])도 렌더를 깨지 않는다', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify([null, 1, 'x']), { status: 200 }));
+    const { queryByTestId } = renderLoader();
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(queryByTestId('crashed')).toBeNull();
+  });
 });

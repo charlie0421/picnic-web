@@ -6,7 +6,8 @@
 export const MAX_ATTACHMENT_COUNT = 5;
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
-export const MAX_REQUEST_BYTES = 25 * 1024 * 1024;
+// 첨부 합계(25MiB) + multipart 오버헤드 여유 1MiB — 허용 범위의 파일이 본문 제한(413)에 먼저 걸리지 않게 한다
+export const MAX_REQUEST_BYTES = 26 * 1024 * 1024;
 
 export const ATTACHMENT_TYPES = {
   'image/jpeg': '.jpg',

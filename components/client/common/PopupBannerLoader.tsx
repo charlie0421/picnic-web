@@ -12,7 +12,12 @@ const fetcher = async (url: string): Promise<Popup[]> => {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load popups: ${res.status}`);
   const data: unknown = await res.json();
-  return Array.isArray(data) ? (data as Popup[]) : [];
+  if (!Array.isArray(data)) return [];
+  // 잘못된 원소(null·원시값·id 없음)는 버린다
+  return data.filter(
+    (item): item is Popup =>
+      typeof item === 'object' && item !== null && typeof (item as Popup).id === 'number',
+  );
 };
 
 interface PopupSlide {

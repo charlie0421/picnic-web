@@ -92,7 +92,7 @@ const nextConfig = {
     serverActions: {
       enabled: true,
       // 첨부파일 업로드를 위한 서버 액션 본문 크기 제한 상향 (기본 1MB)
-      bodySizeLimit: '25mb'
+      bodySizeLimit: '26mb'
     },
     // CSS 최적화 비활성화 (빌드 속도 개선 - critters가 느림)
     optimizeCss: false,
