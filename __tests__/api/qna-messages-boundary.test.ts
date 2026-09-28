@@ -237,10 +237,10 @@ describe('POST /api/qna/messages — request boundary', () => {
     expect(formDataMock).not.toHaveBeenCalled();
   });
 
-  it('rejects Content-Length over the 25 MiB request limit before parsing', async () => {
+  it('rejects Content-Length over the 26 MiB request limit (25 MiB files + multipart margin) before parsing', async () => {
     const { request, formDataMock } = makeRequest(
       makeFormData(),
-      25 * 1024 * 1024 + 1,
+      26 * 1024 * 1024 + 1,
     );
 
     const response = await POST(request);

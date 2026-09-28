@@ -58,12 +58,14 @@ describe('투표 결과 API — 후보 득표순 NULLS LAST', () => {
   it('vote_item 조회를 vote_total DESC NULLS LAST 로 정렬한다', async () => {
     const voteRow = {
       id: 1, title: { ko: 't' }, start_at: '2020-01-01T00:00:00Z', stop_at: '2020-01-02T00:00:00Z', deleted_at: null,
+      visible_at: '2020-01-01T00:00:00Z',
     };
     const makeBuilder = (table: string) => {
       const b: any = {
         select: vi.fn(() => b),
         eq: vi.fn(() => b),
         is: vi.fn(() => b),
+        lte: vi.fn(() => b),
         single: vi.fn(async () => ({ data: voteRow, error: null })),
         order: vi.fn((column: string, opts?: Omit<OrderCall, 'column'>) => {
           orderCalls.push({ column, ...(opts ?? {}) });
@@ -72,6 +74,10 @@ describe('투표 결과 API — 후보 득표순 NULLS LAST', () => {
       };
       return b;
     };
+    // 공개 투표 경로는 인증 조회를 하지 않는다 (미공개일 때만 관리자 확인)
+    vi.doMock('@/lib/data-fetching/server/supabase-service', () => ({
+      getCurrentUserContext: vi.fn(async () => ({ isAuthenticated: false, isAdmin: false })),
+    }));
     vi.doMock('@/utils/supabase-server-client', () => ({
       createClient: vi.fn(async () => ({ from: vi.fn((table: string) => makeBuilder(table)) })),
     }));
