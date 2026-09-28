@@ -50,6 +50,7 @@ vi.mock('@/lib/supabase/server', () => ({ getServerUser }));
 import ClientLayout from '@/app/[lang]/ClientLayout';
 import MainLayout from '@/app/[lang]/(main)/layout';
 import MyPageLayout from '@/app/[lang]/(mypage)/layout';
+import AuthLayout from '@/app/[lang]/(auth)/layout';
 
 const PROVIDERS = ['Navigation', 'GlobalLoading', 'LanguageSync', 'Auth', 'Notification', 'Dialog', 'AuthRedirect'];
 
@@ -64,9 +65,9 @@ describe('Provider 스택 단일화', () => {
     render(<ClientLayout initialLanguage="ko">{main}</ClientLayout>);
 
     for (const name of PROVIDERS) expect(mounts[name], name).toBe(1);
-    expect(mounts.Analytics ?? 0).toBeLessThanOrEqual(1);
-    expect(mounts.GlobalLoadingOverlay ?? 0).toBeLessThanOrEqual(1);
-    expect(mounts.GlobalNotifications ?? 0).toBeLessThanOrEqual(1);
+    expect(mounts.Analytics, 'Analytics').toBe(1);
+    expect(mounts.GlobalLoadingOverlay, 'GlobalLoadingOverlay').toBe(1);
+    expect(mounts.GlobalNotifications, 'GlobalNotifications').toBe(1);
   });
 
   it('(mypage) 페이지: ClientLayout 을 다시 감싸지 않고, 쓰지 않는 서버 사용자 조회를 하지 않는다', async () => {
@@ -75,5 +76,13 @@ describe('Provider 스택 단일화', () => {
 
     for (const name of PROVIDERS) expect(mounts[name], name).toBe(1);
     expect(getServerUser).not.toHaveBeenCalled();
+  });
+
+  it('(auth) 페이지: 로그인 등 인증 레이아웃도 ClientLayout 을 다시 감싸지 않는다', async () => {
+    const auth = await AuthLayout({ children: <div />, params: Promise.resolve({ lang: 'ko' }) });
+    render(<ClientLayout initialLanguage="ko">{auth}</ClientLayout>);
+
+    for (const name of PROVIDERS) expect(mounts[name], name).toBe(1);
+    expect(mounts.Analytics, 'Analytics').toBe(1);
   });
 });
