@@ -164,6 +164,8 @@ export const VoteCard = React.memo(
                     className='object-cover'
                     priority={isHero}
                     fetchPriority={isHero ? 'high' : 'low'}
+                    // 이미지 언어는 하이드레이션 후에도 바뀌지 않는 라우트 locale 로 고정한다(src 전환·이중 다운로드 방지)
+                    language={locale}
                     placeholder='shimmer'
                     quality={85}
                     intersectionThreshold={0.2}

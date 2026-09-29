@@ -130,7 +130,7 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
     return (
       <div className='relative w-full aspect-video overflow-hidden rounded-lg bg-gray-100'>
         {/* 로딩 상태 표시 */}
-        {!isLoaded && !hasError && (
+        {!isLoaded && !hasError && !isPriority && (
           <div className='absolute inset-0 flex items-center justify-center bg-gray-200 animate-pulse'>
             <div className='w-12 h-12 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin'></div>
           </div>
@@ -143,7 +143,7 @@ const MediaListPresenter: React.FC<MediaListProps> = ({ media, className }) => {
           className={`
             object-cover transition-all duration-500 
             hover:scale-105 hover:brightness-110
-            ${isLoaded ? 'opacity-100' : 'opacity-0'}
+            ${isLoaded || isPriority ? 'opacity-100' : 'opacity-0'}
             ${hasError ? 'grayscale' : ''}
           `}
           sizes='(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw'

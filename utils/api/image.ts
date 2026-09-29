@@ -11,6 +11,8 @@ export const getCdnImageUrl = (
   path: string | null | undefined,
   width?: number,
   height?: number,
+  /** 다국어 JSON 경로의 언어를 명시한다. 주면 서버·클라이언트가 같은 경로를 고른다(hydration 일치). */
+  language?: string,
 ): string => {
   if (!path) return "";
 
@@ -19,7 +21,9 @@ export const getCdnImageUrl = (
 
   try {
     // 클라이언트 사이드에서만 store 접근
-    if (typeof window !== "undefined") {
+    if (language) {
+      currentLang = language;
+    } else if (typeof window !== "undefined") {
       currentLang = useLanguageStore.getState().currentLanguage;
     }
   } catch (e) {
