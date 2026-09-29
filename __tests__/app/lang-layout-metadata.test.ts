@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/app/[lang]/ClientLayout', () => ({ default: () => null }));
-vi.mock('@/app/[lang]/VoteLiteClientLayout', () => ({ default: () => null }));
 
 import { generateMetadata } from '@/app/[lang]/layout';
 
