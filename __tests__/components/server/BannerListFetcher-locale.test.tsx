@@ -81,4 +81,9 @@ describe('BannerListFetcher — 링크 언어', () => {
     await renderLinks('en', ['/vote/210']);
     expect(requestHeaders).not.toHaveBeenCalled();
   });
+
+  it('대소문자가 섞인 경로 파라미터(zh-TW)도 소문자 로케일로 정규화한다', async () => {
+    const links = await renderLinks('zh-TW', ['/vote/210']);
+    expect(links).toEqual(['/zh-tw/vote/210']);
+  });
 });

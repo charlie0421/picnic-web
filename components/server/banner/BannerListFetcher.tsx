@@ -57,8 +57,12 @@ export async function BannerListFetcher({
       return null; // 배너가 없으면 아무것도 렌더링하지 않음
     }
 
+    // 라우트 파라미터는 대소문자가 섞일 수 있다(/zh-TW) — middleware 의 x-locale 처럼 소문자로 정규화
+    const normalizedLang = lang?.toLowerCase();
     const currentLang =
-      lang && (SUPPORTED_LANGUAGES as readonly string[]).includes(lang) ? lang : 'ko';
+      normalizedLang && (SUPPORTED_LANGUAGES as readonly string[]).includes(normalizedLang)
+        ? normalizedLang
+        : 'ko';
 
     // 데이터 변환 - DBBanner를 클라이언트용 Banner로 변환
     const clientBanners = banners.map((banner) => ({
