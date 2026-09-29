@@ -25,13 +25,14 @@ function isLocalizedJsonSrc(src: string): boolean {
   return trimmed.startsWith('{') && trimmed.includes('":');
 }
 
-function getPrioritySrc(src: string, width?: number, height?: number, fill?: boolean): string {
+function getPrioritySrc(src: string, width?: number, height?: number, fill?: boolean, language?: string): string {
   const baseWidth = width ?? (fill ? DEFAULT_FILL_WIDTH : 300);
   const baseHeight = height ?? (fill ? Math.round((baseWidth * DEFAULT_FILL_HEIGHT) / DEFAULT_FILL_WIDTH) : undefined);
   return getCdnImageUrl(
     src,
     baseWidth * PRIORITY_DPR,
     baseHeight !== undefined ? baseHeight * PRIORITY_DPR : undefined,
+    language,
   );
 }
 
@@ -54,6 +55,8 @@ interface OptimizedImageProps {
   unoptimized?: boolean;
   fetchPriority?: 'high' | 'low' | 'auto';
   forceOptimized?: boolean;
+  /** 다국어 JSON src 의 언어. priority 이미지에 주면 JSON src 도 SSR 에서 결정적으로 렌더한다 */
+  language?: string;
 }
 
 export function OptimizedImage({
@@ -74,6 +77,7 @@ export function OptimizedImage({
   unoptimized = false,
   fetchPriority = 'auto',
   forceOptimized = false,
+  language,
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isError, setIsError] = useState(false);
@@ -82,9 +86,9 @@ export function OptimizedImage({
   // window 에 의존하지 않는 결정적 계산이라 서버·클라이언트 결과가 같다(hydration 일치).
   // 해상도는 DPR 2 기준 — Next 최적화 경로(forceOptimized)는 sizes 로 srcset 을 따로 만든다.
   // 다국어 JSON src 는 언어별 URL 이 달라 서버 선계산을 하지 않고 기존 클라이언트 경로를 탄다.
-  const ssrSrc = priority && !!src && !isLocalizedJsonSrc(src);
+  const ssrSrc = priority && !!src && (!isLocalizedJsonSrc(src) || !!language);
   const [currentSrc, setCurrentSrc] = useState<string>(() =>
-    ssrSrc ? getPrioritySrc(src, width, height, fill) : '',
+    ssrSrc ? getPrioritySrc(src, width, height, fill, language) : '',
   );
   const [showShimmer, setShowShimmer] = useState(!ssrSrc);
   const imgRef = useRef<HTMLDivElement>(null);
@@ -194,7 +198,7 @@ export function OptimizedImage({
   // 이미지 소스 설정 (priority 는 렌더 시점에 정해졌으므로 하이드레이션 후 다시 바꾸지 않는다 — 이중 다운로드 방지)
   useEffect(() => {
     if (ssrSrc) {
-      setCurrentSrc(getPrioritySrc(src, width, height, fill));
+      setCurrentSrc(getPrioritySrc(src, width, height, fill, language));
       return;
     }
     if (!isInView || !src) return;
@@ -224,10 +228,10 @@ export function OptimizedImage({
         ? Math.round(scaledWidth * baseRatio)
         : undefined;
 
-    const optimizedSrc = getCdnImageUrl(src, targetWidth, targetHeight);
+    const optimizedSrc = getCdnImageUrl(src, targetWidth, targetHeight, language);
     setCurrentSrc(optimizedSrc);
     setShowShimmer(true);
-  }, [fill, height, isInView, src, width, sizes, ssrSrc]);
+  }, [fill, height, isInView, src, width, sizes, ssrSrc, language]);
 
   const handleImageLoad = () => {
     setIsLoaded(true);

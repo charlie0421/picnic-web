@@ -47,4 +47,12 @@ describe('OptimizedImage SSR', () => {
     );
     expect(html).not.toContain('<img');
   });
+
+  it('다국어 JSON src 도 language 를 명시하면 그 언어 경로로 SSR 렌더한다', () => {
+    const html = renderToString(
+      <OptimizedImage src={JSON.stringify({ en: 'en.jpg', ko: 'ko.jpg' })} alt="x" fill priority language="ko" />,
+    );
+    expect(html).toMatch(/<img[^>]+src="[^"]*ko\.jpg[^"]*"/);
+    expect(html).not.toMatch(/<img[^>]+opacity-0/);
+  });
 });

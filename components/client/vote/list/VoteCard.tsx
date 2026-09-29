@@ -164,6 +164,7 @@ export const VoteCard = React.memo(
                     className='object-cover'
                     priority={isHero}
                     fetchPriority={isHero ? 'high' : 'low'}
+                    language={displayLanguage}
                     placeholder='shimmer'
                     quality={85}
                     intersectionThreshold={0.2}
