@@ -19,6 +19,12 @@ const DEFAULT_FILL_WIDTH = 700;
 const DEFAULT_FILL_HEIGHT = 356;
 const PRIORITY_DPR = 2;
 
+/** 다국어 JSON 경로({"en":...}) 는 언어에 따라 URL 이 달라 서버에서 결정적으로 계산할 수 없다 */
+function isLocalizedJsonSrc(src: string): boolean {
+  const trimmed = src.trim();
+  return trimmed.startsWith('{') && trimmed.includes('":');
+}
+
 function getPrioritySrc(src: string, width?: number, height?: number, fill?: boolean): string {
   const baseWidth = width ?? (fill ? DEFAULT_FILL_WIDTH : 300);
   const baseHeight = height ?? (fill ? Math.round((baseWidth * DEFAULT_FILL_HEIGHT) / DEFAULT_FILL_WIDTH) : undefined);
@@ -75,10 +81,12 @@ export function OptimizedImage({
   // priority(LCP 후보) 이미지는 SSR HTML 에 바로 <img src> 가 들어가야 한다(PERF-04).
   // window 에 의존하지 않는 결정적 계산이라 서버·클라이언트 결과가 같다(hydration 일치).
   // 해상도는 DPR 2 기준 — Next 최적화 경로(forceOptimized)는 sizes 로 srcset 을 따로 만든다.
+  // 다국어 JSON src 는 언어별 URL 이 달라 서버 선계산을 하지 않고 기존 클라이언트 경로를 탄다.
+  const ssrSrc = priority && !!src && !isLocalizedJsonSrc(src);
   const [currentSrc, setCurrentSrc] = useState<string>(() =>
-    priority && src ? getPrioritySrc(src, width, height, fill) : '',
+    ssrSrc ? getPrioritySrc(src, width, height, fill) : '',
   );
-  const [showShimmer, setShowShimmer] = useState(!priority);
+  const [showShimmer, setShowShimmer] = useState(!ssrSrc);
   const imgRef = useRef<HTMLDivElement>(null);
 
   const resolveWidthFromSizes = (): number | null => {
@@ -185,8 +193,8 @@ export function OptimizedImage({
 
   // 이미지 소스 설정 (priority 는 렌더 시점에 정해졌으므로 하이드레이션 후 다시 바꾸지 않는다 — 이중 다운로드 방지)
   useEffect(() => {
-    if (priority) {
-      if (src) setCurrentSrc(getPrioritySrc(src, width, height, fill));
+    if (ssrSrc) {
+      setCurrentSrc(getPrioritySrc(src, width, height, fill));
       return;
     }
     if (!isInView || !src) return;
@@ -219,7 +227,7 @@ export function OptimizedImage({
     const optimizedSrc = getCdnImageUrl(src, targetWidth, targetHeight);
     setCurrentSrc(optimizedSrc);
     setShowShimmer(true);
-  }, [fill, height, isInView, src, width, sizes, priority]);
+  }, [fill, height, isInView, src, width, sizes, ssrSrc]);
 
   const handleImageLoad = () => {
     setIsLoaded(true);
@@ -266,7 +274,7 @@ export function OptimizedImage({
 
   // Shimmer 플레이스홀더
   const renderPlaceholder = () => {
-    if (priority || !showShimmer || isLoaded || isError) return null;
+    if (ssrSrc || !showShimmer || isLoaded || isError) return null;
     const placeholderClass = fill 
       ? 'absolute inset-0' 
       : 'w-full';
@@ -312,7 +320,7 @@ export function OptimizedImage({
           fill={fill}
           sizes={sizes}
           className={
-            priority
+            ssrSrc
               ? className
               : `${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500 ease-out`
           }

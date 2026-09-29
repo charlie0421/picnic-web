@@ -40,4 +40,11 @@ describe('OptimizedImage SSR', () => {
     const html = renderToString(<OptimizedImage src="artist/a.png" alt="a" width={100} height={100} />);
     expect(html).not.toContain('<img');
   });
+
+  it('다국어 JSON src 는 서버가 언어를 모르므로 SSR 선계산하지 않는다(서버·클라이언트 URL 불일치 방지)', () => {
+    const html = renderToString(
+      <OptimizedImage src={JSON.stringify({ en: 'en.jpg', ko: 'ko.jpg' })} alt="x" fill priority />,
+    );
+    expect(html).not.toContain('<img');
+  });
 });
