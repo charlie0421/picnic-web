@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
  * title 템플릿은 언어별로 만들고, 페이지 title 에는 브랜드를 중복해 넣지 않는다.
  */
 vi.mock('@/app/[lang]/ClientLayout', () => ({ default: () => null }));
-vi.mock('@/app/[lang]/VoteLiteClientLayout', () => ({ default: () => null }));
 vi.mock('@/components/server', () => ({ BannerListFetcher: () => null, BannerSkeleton: () => null, VoteListSkeleton: () => null }));
 vi.mock('@/components/server/vote/VoteListFetcher', () => ({ VoteListFetcher: () => null }));
 vi.mock('@/utils/api/queries', () => ({ getBanners: vi.fn() }));
