@@ -314,3 +314,14 @@ describe('VoteCard', () => {
     expect(link).toHaveAttribute('href', expect.stringContaining('/vote/1'));
   });
 });
+
+describe('VoteCard hero 이미지 언어', () => {
+  it('이미지 언어는 store 언어가 아니라 라우트 locale 이다(하이드레이션 후 src 전환 방지)', async () => {
+    const source = (await import('node:fs')).readFileSync(
+      (await import('node:path')).join(process.cwd(), 'components/client/vote/list/VoteCard.tsx'),
+      'utf8',
+    );
+    expect(source).toMatch(/language=\{locale\}/);
+    expect(source).not.toMatch(/language=\{displayLanguage\}/);
+  });
+});
