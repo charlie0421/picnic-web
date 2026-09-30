@@ -89,7 +89,10 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient<Datab
  * 전역 fetch 는 호출 시점에 읽는다 — Next 가 바꿔 끼운 fetch 를 거쳐야 캐시·잠금이 적용된다.
  */
 export const fetchWithStableCacheKey: typeof fetch = (input, init) => {
-  const headers = new Headers(init?.headers);
+  // 표준 fetch 처럼 init.headers 가 있으면 그것을, 없으면 Request 가 가진 헤더를 쓴다.
+  // 빈 Headers 를 넘기면 Request 의 헤더(인증 포함)를 통째로 덮어쓴다.
+  const source = init?.headers ?? (input instanceof Request ? input.headers : undefined);
+  const headers = new Headers(source);
   headers.delete('x-retry-count');
   return fetch(input, { ...init, headers });
 };

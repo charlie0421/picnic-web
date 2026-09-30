@@ -59,8 +59,11 @@ describe('공개 Supabase 클라이언트 — 재시도와 Next 빌드 fetch 캐
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    process.env.SUPABASE_URL = originalEnv.url;
-    process.env.SUPABASE_ANON_KEY = originalEnv.key;
+    // 원래 없던 변수는 지운다 — process.env 에 undefined 를 대입하면 문자열 "undefined" 가 남는다.
+    if (originalEnv.url === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalEnv.url;
+    if (originalEnv.key === undefined) delete process.env.SUPABASE_ANON_KEY;
+    else process.env.SUPABASE_ANON_KEY = originalEnv.key;
   });
 
   /**
@@ -138,6 +141,26 @@ describe('공개 Supabase 클라이언트 — 재시도와 Next 빌드 fetch 캐
       });
 
       expect(calls[0].headers).toEqual({ apikey: 'anon-key' });
+    });
+
+    it('init 없이 Request 만 넘겨도 그 요청의 헤더를 지킨다 (인증 헤더가 사라지면 안 된다)', async () => {
+      stubFetch(() => json([]));
+      const request = new Request('https://example.supabase.co/rest/v1/faqs', {
+        headers: { Authorization: 'Bearer anon-key', apikey: 'anon-key', 'X-Retry-Count': '1' },
+      });
+
+      await fetchWithStableCacheKey(request);
+
+      expect(calls[0].headers).toEqual({ authorization: 'Bearer anon-key', apikey: 'anon-key' });
+    });
+
+    it('Request 와 init.headers 를 함께 넘기면 표준 fetch 처럼 init.headers 가 쓰인다', async () => {
+      stubFetch(() => json([]));
+      const request = new Request('https://example.supabase.co/rest/v1/faqs', { headers: { apikey: 'from-request' } });
+
+      await fetchWithStableCacheKey(request, { headers: { apikey: 'from-init', 'x-retry-count': '3' } });
+
+      expect(calls[0].headers).toEqual({ apikey: 'from-init' });
     });
 
     it('호출 시점의 전역 fetch 를 쓴다 — Next 가 나중에 바꿔 끼우는 fetch 를 거쳐야 캐시된다', async () => {
