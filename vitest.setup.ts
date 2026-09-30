@@ -1,6 +1,12 @@
 import '@testing-library/jest-dom/vitest'
 
 // Mock Next.js modules
+// next/font 로더는 Next 컴파일러가 바꿔 주는 호출이라 vitest 에서는 함수가 아니다.
+// 문서 뼈대(app/shell.ts)를 import 하는 레이아웃 테스트가 모두 이 대역을 쓴다.
+vi.mock('next/font/google', () => ({
+  Inter: () => ({ className: 'font-inter', style: { fontFamily: 'Inter' } }),
+}));
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),

@@ -7,6 +7,10 @@ import { getVotes } from '@/lib/data-fetching/server/vote-service';
 import { getRewards } from '@/utils/api/queries';
 import { getNotices } from '@/lib/data-fetching/server/notice-service';
 
+// 요청마다 렌더한다(기존 동작). 조회가 모두 쿠키 없는 클라이언트라 이 선언이 없으면 정적으로 굳는다.
+// 캐시하지 않는 이유: 아래 조회는 실패해도 부분 결과를 돌려주므로, 캐시하면 URL 이 빠진 sitemap 이 굳는다.
+export const dynamic = 'force-dynamic';
+
 interface Vote {
     id: number;
     title: any;

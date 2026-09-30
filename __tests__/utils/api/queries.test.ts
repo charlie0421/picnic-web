@@ -58,7 +58,7 @@ vi.mock('@/config/settings', () => ({
   },
 }));
 
-import { withTimeout, logRequestError, SUPABASE_TIMEOUT_MS, DEFAULT_REWARD_LIMIT, FALLBACK_VOTES, FALLBACK_REWARDS } from '@/utils/api/queries-helpers';
+import { withTimeout, rejectOnTimeout, logRequestError, SUPABASE_TIMEOUT_MS, DEFAULT_REWARD_LIMIT, FALLBACK_VOTES, FALLBACK_REWARDS } from '@/utils/api/queries-helpers';
 import { getLocalizedString, getLocalizedJson, hasValidLocalizedString } from '@/utils/api/strings';
 import { getLanguageFromParams } from '@/utils/api/language';
 import { transformBannerLink, transformAppLinkToWebLink } from '@/utils/api/link-transformer';
@@ -112,6 +112,23 @@ describe('queries-helpers', () => {
     it('uses default timeout when not specified', async () => {
       const result = await withTimeout(Promise.resolve('quick'), 'fallback', 'test');
       expect(result).toBe('quick');
+    });
+  });
+
+  describe('rejectOnTimeout', () => {
+    it('resolves with the promise result before the deadline', async () => {
+      await expect(rejectOnTimeout(Promise.resolve('data'), 'test', 5000)).resolves.toBe('data');
+    });
+
+    it('rejects when the deadline passes — a fallback here would be cached by ISR', async () => {
+      const slowPromise = new Promise<string>((resolve) => {
+        setTimeout(() => resolve('slow'), 5000);
+      });
+      await expect(rejectOnTimeout(slowPromise, 'getRewards', 10)).rejects.toThrow(/getRewards exceeded 10ms/);
+    });
+
+    it('propagates the original rejection', async () => {
+      await expect(rejectOnTimeout(Promise.reject(new Error('boom')), 'test', 5000)).rejects.toThrow('boom');
     });
   });
 

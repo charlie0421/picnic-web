@@ -2,6 +2,9 @@ import { Metadata } from 'next';
 import StarCandyProductsFetcherServer from '@/components/server/star-candy/StarCandyProductsFetcher';
 import { getLanguageFromParams } from '@/utils/api/language';
 
+// 동적 유지: 상품·가격 조회가 쿠키 클라이언트의 try/catch 에 기대 동적이었다. 우연에 맡기지 않는다.
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang } = await params;
   const language = getLanguageFromParams({ lang });

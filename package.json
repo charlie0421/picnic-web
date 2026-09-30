@@ -20,7 +20,7 @@
     "lint": "next lint",
     "schema:types:sync": "sh scripts/sync-schema-types.sh",
     "gen:types": "npm run -s schema:types:sync",
-    "postbuild": "next-sitemap",
+    "postbuild": "node scripts/verify-rendering-modes.js && next-sitemap",
     "gen:thumbs": "tsx scripts/generate-video-thumbnails.ts",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",

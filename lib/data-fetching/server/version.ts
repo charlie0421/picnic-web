@@ -17,29 +17,30 @@ export interface VersionInfo {
 
 /**
  * 최신 버전 정보 조회
+ *
+ * /[lang]/download 는 ISR(1시간)이다. 조회 장애를 null 로 바꿔 반환하면 다운로드 링크 없는 화면이
+ * 한 시간 동안 캐시된다 — 장애는 예외로 전파하고(Next 가 마지막 정상 페이지를 유지),
+ * 등록된 버전이 실제로 없을 때(PGRST116)만 null 을 돌려준다.
  */
 export const getLatestVersion = cache(async (): Promise<VersionInfo | null> => {
-  try {
-    // 공개 데이터용 클라이언트 사용 (쿠키 없음)
-    const supabase = createPublicSupabaseClient();
+  // 공개 데이터용 클라이언트 사용 (쿠키 없음)
+  const supabase = createPublicSupabaseClient();
 
+  const { data, error } = await supabase
+    .from(TABLES.VERSION)
+    .select("ios, android, apk")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single<VersionInfo>();
 
-    const { data, error } = await supabase
-      .from(TABLES.VERSION)
-      .select("ios, android, apk")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single<VersionInfo>();
-
-    if (error) {
-      console.warn("버전 정보 조회 실패:", error);
+  if (error) {
+    if (error.code === 'PGRST116') {
       return null;
     }
-
-    return data;
-  } catch (error) {
-    console.warn("버전 정보 조회 중 오류:", error);
-    return null;
+    console.warn("버전 정보 조회 실패:", error);
+    throw new Error(`getLatestVersion failed: ${error.message}`);
   }
+
+  return data;
 });

@@ -1,5 +1,4 @@
 import React from 'react';
-import { createISRMetadata } from '@/app/[lang]/utils/rendering-utils';
 import { ClientNavigationSetter } from '@/components/client';
 import { PortalType } from '@/utils/enums';
 import { Metadata } from 'next';
@@ -10,9 +9,7 @@ import { createWebsiteSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import { RewardListFetcher } from '@/components/server/reward';
 
-export const dynamic = 'force-dynamic';
-
-// ISR을 위한 메타데이터 구성 (60초마다 재검증)
+// ISR: 60초마다 재생성한다. 조회(getRewards)는 쿠키 없는 공개 클라이언트다.
 export const revalidate = 60;
 
 // 페이지 메타데이터 정의
@@ -26,23 +23,17 @@ export async function generateMetadata({
   const lang = String(langParam || 'ko');
   const t = await getTranslations(lang as Language);
 
-  // ISR 메타데이터 속성 추가
-  const isrOptions = createISRMetadata(60);
-
-  return {
-    ...createPageMetadata(
-      t('nav_rewards'),
-      t('meta_rewards_description'),
-      {
-        alternates: {
-          canonical: `${SITE_URL}/${lang}/rewards`,
-          languages: buildLanguageAlternates('/rewards'),
-        },
+  return createPageMetadata(
+    t('nav_rewards'),
+    t('meta_rewards_description'),
+    {
+      alternates: {
+        canonical: `${SITE_URL}/${lang}/rewards`,
+        languages: buildLanguageAlternates('/rewards'),
       },
-      lang,
-    ),
-    ...isrOptions,
-  };
+    },
+    lang,
+  );
 }
 
 // 서버 컴포넌트로 변환

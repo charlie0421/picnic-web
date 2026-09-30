@@ -15,6 +15,10 @@ import {
   resolveCdnImageUrl,
 } from '@/app/[lang]/utils/metadata-utils';
 
+// 동적 유지: 종료 시각·visible_at 판정이 요청 시각에 달려 있다. 조회가 공개 클라이언트라
+// 이 선언이 없으면 첫 렌더가 영원히 캐시된다. ISR 전환은 별도 설계(스펙 §7).
+export const dynamic = 'force-dynamic';
+
 interface VoteDetailPageProps {
   params: Promise<{
     id: string;

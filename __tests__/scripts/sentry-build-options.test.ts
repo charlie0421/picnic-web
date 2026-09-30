@@ -132,11 +132,12 @@ describe('두 번째 릴리스를 만들던 postbuild 경로 제거', () => {
     expect(existsSync(join(root, 'scripts/sentry-release.js'))).toBe(false);
   });
 
-  it('postbuild 는 sitemap 만 돌리고 sentry:release 스크립트는 없다', () => {
+  it('postbuild 는 sentry-cli 를 돌리지 않고 sentry:release 스크립트는 없다', () => {
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
     };
-    expect(pkg.scripts.postbuild).toBe('next-sitemap');
+    expect(pkg.scripts.postbuild).not.toMatch(/sentry/i);
+    expect(pkg.scripts.postbuild).toMatch(/(^|&&\s*)next-sitemap$/);
     expect(pkg.scripts['sentry:release']).toBeUndefined();
   });
 });
