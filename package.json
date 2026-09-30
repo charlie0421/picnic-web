@@ -15,6 +15,7 @@
     "dev:help": "./scripts/dev-server-manager.sh --help",
     "dev:legacy": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; P=${PORT:-3100}; lsof -ti:$P | xargs kill -9 2>/dev/null || true && next dev --port $P'",
     "next-dev": "sh -c 'set -a; [ -f .env.local ] && . ./.env.local; set +a; next dev --turbopack --port ${PORT:-3100}'",
+    "prebuild": "node scripts/clear-build-fetch-cache.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
