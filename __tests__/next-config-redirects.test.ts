@@ -56,4 +56,15 @@ describe('next.config.js 빌드 안정성', () => {
     const config = require(path.join(process.cwd(), 'next.config.js')) as NextConfig;
     expect(config.experimental?.staticGenerationRetryCount).toBeGreaterThanOrEqual(2);
   });
+
+  // 조회가 페이지 생성 제한보다 오래 기다리면 Next 가 먼저 워커를 끊어 조회의 재시도·오류 보고가 돌지 않는다.
+  it('빌드 중 조회 예산은 런타임 예산보다 길고 페이지 생성 제한보다 짧다', async () => {
+    const require = createRequire(import.meta.url);
+    const config = require(path.join(process.cwd(), 'next.config.js')) as NextConfig;
+    const { BUILD_QUERY_TIMEOUT_MS, GET_REWARDS_TIMEOUT_MS } = await import('@/utils/api/queries-helpers');
+
+    expect(config.staticPageGenerationTimeout).toBe(120);
+    expect(BUILD_QUERY_TIMEOUT_MS).toBeGreaterThan(GET_REWARDS_TIMEOUT_MS);
+    expect(BUILD_QUERY_TIMEOUT_MS).toBeLessThan((config.staticPageGenerationTimeout as number) * 1000);
+  });
 });

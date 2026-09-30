@@ -7,7 +7,7 @@ import {
   DEFAULT_REWARD_LIMIT,
   REWARD_SELECT_COLUMNS,
   withTimeout,
-  rejectOnTimeout,
+  withDeadline,
   logRequestError,
 } from "./queries-helpers";
 
@@ -20,6 +20,7 @@ type ContentQueryOptions = {
 // 샘플을 렌더하면 그 화면이 캐시에 저장돼 정상 목록을 덮는다.
 //   - 조회 실패·타임아웃 → 예외로 전파 (Next 가 마지막 정상 페이지를 유지)
 //   - 결과가 실제로 비어 있음 → [] (호출자가 빈 상태를 렌더)
+//   - 시간 예산을 넘기면 진행 중인 요청을 끊고 더 재시도하지 않는다 (withDeadline)
 // 이 함수는 안에 재시도(3회)와 시간 예산(7초)을 이미 갖고 있다. throwOnError 로 부를 때는
 // queries.ts 의 getRewards(withRetry 로 한 번 더 감쌈)를 쓰지 말 것 — 예외가 바깥 재시도를 돌려
 // 장애 시 최악 약 30초·쿼리 12회가 된다.
@@ -27,17 +28,28 @@ export const _getRewards = async (
   limit?: number,
   { throwOnError = false }: ContentQueryOptions = {},
 ): Promise<Reward[]> => {
+  // throwOnError 경로의 시간 예산(withDeadline)이 넘겨주는 신호. 예산을 넘기면 조회를 끊는다.
+  let deadlineSignal: AbortSignal | undefined;
+
   const fetchRewards = withRetry(
     async (limitParam?: number): Promise<Reward[]> => {
       const supabase = createPublicSupabaseClient();
       const effectiveLimit = limitParam ?? DEFAULT_REWARD_LIMIT;
 
+      // count 를 요청하지 않는다. 쓰는 곳이 없고, 요청하면 limit 에 잘린 결과에 PostgREST 가 206 을 돌려준다.
+      // Next 는 상태 200 인 응답만 빌드의 fetch 캐시에 넣으므로 206 이면 언어별 페이지가 같은 요청을 따로 보낸다.
       let query = supabase
         .from("reward")
-        .select(REWARD_SELECT_COLUMNS, { count: 'estimated' })
+        .select(REWARD_SELECT_COLUMNS)
         .is("deleted_at", null)
         .order("order", { ascending: true });
 
+      // postgrest-js 의 자체 재시도는 끄지 않는다. 네트워크 오류(1·2·4초 뒤)뿐 아니라 503·520 응답의 Retry-After 를
+      // 따르는 재시도를 맡고 있다. 재시도 요청이 빌드 fetch 캐시 키를 바꾸지 않게 하는 일은 공개 클라이언트의
+      // fetch(lib/supabase/server.ts 의 fetchWithStableCacheKey)가 한다.
+      if (deadlineSignal) {
+        query = query.abortSignal(deadlineSignal);
+      }
       query = query.limit(effectiveLimit);
 
       const { data: rewardData, error: rewardError } = await query;
@@ -65,6 +77,8 @@ export const _getRewards = async (
       maxRetries: 2,
       initialDelay: 300,
       maxDelay: 1500,
+      // 시간 예산을 넘겨 끊은 요청은 다시 보내지 않는다.
+      shouldRetry: () => !deadlineSignal?.aborted,
       onRetry: (error, attempt) => {
         console.warn(`[getRewards] Retry attempt ${attempt} due to error:`, error?.message ?? error);
       },
@@ -73,7 +87,14 @@ export const _getRewards = async (
 
   if (throwOnError) {
     try {
-      return await rejectOnTimeout(fetchRewards(limit), 'getRewards', GET_REWARDS_TIMEOUT_MS);
+      return await withDeadline(
+        (signal) => {
+          deadlineSignal = signal;
+          return fetchRewards(limit);
+        },
+        'getRewards',
+        GET_REWARDS_TIMEOUT_MS,
+      );
     } catch (error) {
       logRequestError(error, 'getRewards');
       throw error;

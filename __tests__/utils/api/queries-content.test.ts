@@ -41,7 +41,9 @@ vi.mock('@/utils/api/queries-helpers', () => ({
   withTimeout: vi.fn(async (promise: Promise<any>, _fallback: any, _label: string, _timeout?: number) => {
     return promise;
   }),
-  rejectOnTimeout: vi.fn(async (promise: Promise<any>, _label: string, _timeout?: number) => promise),
+  withDeadline: vi.fn(async (run: (signal: AbortSignal) => Promise<any>, _label: string, _timeout?: number) =>
+    run(new AbortController().signal),
+  ),
   logRequestError: vi.fn(),
 }));
 
@@ -50,9 +52,12 @@ import { _getRewards, _getBanners, _getRewardById, _getMedias, _getPopups } from
 function setupChain(data: any, error: any = null) {
   // Reset all mocks
   mockFrom.mockReturnValue({ select: mockSelect });
-  mockSelect.mockReturnValue({ is: mockIs, count: 'estimated' });
+  mockSelect.mockReturnValue({ is: mockIs });
   mockIs.mockReturnValue({ order: mockOrder, eq: mockEq, lte: mockLte });
-  mockOrder.mockReturnValue({ limit: mockLimit, lte: mockLte });
+  const tail: Record<string, unknown> = { limit: mockLimit };
+  tail.abortSignal = () => tail;
+  tail.retry = () => tail;
+  mockOrder.mockReturnValue({ ...tail, lte: mockLte });
   mockLimit.mockResolvedValue({ data, error });
   mockEq.mockReturnValue({ is: mockIs, lte: mockLte, order: mockOrder });
   mockLte.mockReturnValue({ or: mockOr, order: mockOrder });
