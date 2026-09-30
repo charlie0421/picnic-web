@@ -298,6 +298,29 @@ Orca 사용량 텔레메트리가 비어(`rateLimits` null) 오케스트레이�
 - `global-error.tsx` `support@picnic.com`, `static-pages.ts` `help/career/press.picnic.com` 실제 주소 확인 필요.
 - 머지 시 충돌 예상: #91↔#92(`[lang]/layout.tsx`, vote page) — 서로 다른 hunk.
 
+### 5.4 Wave B 1차 머지 결과 (2026-09-27 ~ 09-30)
+
+Orca 사용량 텔레메트리가 복구된 뒤 교차 리뷰(Codex gpt-6-sol, read-only, Fast OFF)를 거쳐 전부 머지·프로덕션 배포 완료.
+
+| PR | 리뷰 | 라운드 | 비고 |
+|---|---|---|---|
+| #96 #88 #87 #90 | 리뷰 생략(저위험, 사용자 승인) | – | 문서·테스트·스크립트·미사용 삭제 |
+| #95 | Sol/high | 4 | **설계 조정**: getClaims 유지 + 로그인 요청 탈퇴 차단 복원(결정 #10 의 "이동" 대신 "유지+보강"), 민감 API fail-closed, exchange-code·session·verify·webhook·callback 탈퇴 가드, 신규 가입자(프로필 행 없음) 오판 수정 |
+| #86 | Sol/high | 1 | 본문 제한 26MiB(multipart 여유), 팝업 잘못된 원소 필터 |
+| #94 | Sol/medium | 1 | (auth) 레이아웃 재래핑 제거 |
+| #92 | Sol/high | 1 | 배너 lang 대소문자 정규화 |
+| #93 | Sol/high | 3 | JSON src 언어 명시 prop, 미디어 우선 썸네일 표시. **미결 이견**: 언어 미지정 JSON priority 이미지는 SSR 선계산 안 함(main 과 동일) — 사용자 결정으로 현재대로 머지 |
+| #89 | Sol/high | 2 | body 로 빠진 포커스 복귀, 겹친 다이얼로그 포커스 비간섭, 카드 이름 내용 기반 |
+| #91 | Sol/medium | 1 | 언어별 og:site_name, privacy/terms 브랜드 중복 제거 |
+| #97 | 리뷰 생략(저위험 메타데이터, 리뷰어 launch 실패) | – | openGraph 직접 정의 페이지 5종 og:site_name 언어별, 리워드 상세 언어 반영 |
+
+후속(리뷰어 제안·잔여):
+- 프로필 행이 끝내 생성되지 않는 결제 건(WALLET_USER_NOT_FOUND 재시도) 운영 감시
+- 결제 수정(B-P1~P3)은 sandbox 자격 후 — #88 의 `it.fails` 를 `it` 으로 전환하며 진행
+- 루트 `headers()` 제거·ISR(결정 #8)은 별도 설계
+- `.sentryclirc` 토큰 교체(미완), `support@picnic.com`·`*.picnic.com` 링크 실제 주소 확인
+- 운영 확인 권장: 로그인/로그아웃/토큰 만료 후 재방문, Vercel 로그의 middleware 지연·Auth 요청 수, 모바일 Lighthouse LCP 재측정
+
 ## 6. 건드리면 안 되는 것 (전 웨이브 공통)
 
 1. **QNA·`/media` 라우트와 기능** — 삭제 대상 아님. U-07·U-41 정리 중 `app/[lang]/(mypage)/mypage/qna/*`, `QnaMediaModal`, `components/client/media/*`를 지우지 않는다. 성능 개선은 페이지네이션 등 비파괴 방식만.
