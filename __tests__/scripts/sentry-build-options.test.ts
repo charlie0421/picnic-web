@@ -47,18 +47,23 @@ describe('sentryBuildOptions', () => {
       name: `picnic-web@${BUILD}`,
       create: true,
       finalize: true,
-      setCommits: { repo: 'charlie0421/picnic-web', commit: 'abc123', ignoreMissing: true },
+      setCommits: { repo: 'charlie0421/picnic-web', commit: 'abc123', ignoreMissing: true, ignoreEmpty: true },
     });
-    expect(o.disableClientWebpackPlugin).toBe(false);
-    expect(o.disableServerWebpackPlugin).toBe(false);
+    expect(o.authToken).toBe('t');
+    expect(o.sourcemaps.disable).toBe(false);
   });
 
   it('토큰이 있어도 로컬 빌드(VERCEL 아님·명시 옵트인 없음)는 플러그인을 끈다 — 로컬 빌드가 운영 릴리스를 만들지 않게', () => {
+    // 설치된 @sentry/nextjs 9 에는 disable*WebpackPlugin 옵션이 없다. 플러그인 인스턴스는 항상 등록되므로
+    // 네트워크를 막는 실제 수단은 authToken 미전달(릴리스 생성·업로드 안 함) + sourcemaps.disable 이다.
     const o = sentryBuildOptions({ buildVersion: BUILD, env: { SENTRY_AUTH_TOKEN: 't' } });
     expect(o.enabled).toBe(false);
-    expect(o.disableClientWebpackPlugin).toBe(true);
-    expect(o.disableServerWebpackPlugin).toBe(true);
+    expect(o.authToken).toBeUndefined();
+    expect(o.sourcemaps.disable).toBe(true);
     expect(o.release.create).toBe(false);
+    expect(o.release.finalize).toBe(false);
+    expect(o).not.toHaveProperty('disableClientWebpackPlugin');
+    expect(o).not.toHaveProperty('disableServerWebpackPlugin');
   });
 
   it('로컬에서 SENTRY_UPLOAD_SOURCEMAPS=1 로 옵트인하면 로컬 git 커밋을 자동 연결한다', () => {
@@ -67,7 +72,7 @@ describe('sentryBuildOptions', () => {
       env: { SENTRY_AUTH_TOKEN: 't', SENTRY_UPLOAD_SOURCEMAPS: '1' },
     });
     expect(o.enabled).toBe(true);
-    expect(o.release.setCommits).toEqual({ auto: true, ignoreMissing: true });
+    expect(o.release.setCommits).toEqual({ auto: true, ignoreMissing: true, ignoreEmpty: true });
   });
 
   it('토큰이 없으면 어디서든 꺼진다', () => {
@@ -81,6 +86,28 @@ describe('sentryBuildOptions', () => {
     expect(o.widenClientFileUpload).toBe(true);
     expect(o.org).toBe('icon-casting');
     expect(o.project).toBe('picnic-web');
+  });
+});
+
+describe('런타임 SDK 세 곳이 같은 릴리스 이름을 본다', () => {
+  const root = process.cwd();
+  const nextConfig = readFileSync(join(root, 'next.config.js'), 'utf8');
+
+  it('next.config 가 SENTRY_RELEASE 와 NEXT_PUBLIC_SENTRY_RELEASE 를 같은 값으로 인라인한다', () => {
+    expect(nextConfig).toMatch(/SENTRY_RELEASE:\s*sentryBuild\.release\.name/);
+    expect(nextConfig).toMatch(/NEXT_PUBLIC_SENTRY_RELEASE:\s*sentryBuild\.release\.name/);
+  });
+
+  it('서버·엣지 설정은 인라인된 SENTRY_RELEASE 를, 클라이언트는 NEXT_PUBLIC_SENTRY_RELEASE 를 읽는다', () => {
+    expect(readFileSync(join(root, 'sentry.server.config.js'), 'utf8')).toMatch(/release:\s*process\.env\.SENTRY_RELEASE/);
+    expect(readFileSync(join(root, 'sentry.edge.config.js'), 'utf8')).toMatch(/release:\s*process\.env\.SENTRY_RELEASE/);
+    expect(readFileSync(join(root, 'instrumentation-client.ts'), 'utf8')).toMatch(/release:\s*process\.env\.NEXT_PUBLIC_SENTRY_RELEASE/);
+  });
+
+  it('릴리스 이름은 빌드 버전에서 한 번만 정한다 — 환경변수 오버라이드는 클라이언트만 바꾸지 않는다', () => {
+    const env = { NEXT_PUBLIC_SENTRY_RELEASE: 'picnic-web@manual', SENTRY_AUTH_TOKEN: 't', VERCEL: '1' };
+    const o = sentryBuildOptions({ buildVersion: BUILD, env });
+    expect(o.release.name).toBe('picnic-web@manual');
   });
 });
 

@@ -113,8 +113,10 @@ describe('Sentry 설정 계약', () => {
       );
       // 활성화 조건과 플러그인 on/off 는 같은 모듈 결과(enabled)에서 나온다
       expect(nextConfig).toMatch(/const sentryPluginEnabled = sentryBuild\.enabled/);
-      expect(nextConfig).toMatch(/disableClientWebpackPlugin:\s*sentryBuild\.disableClientWebpackPlugin/);
-      expect(read('scripts/sentry-build-options.js')).toMatch(/disableClientWebpackPlugin:\s*!enabled/);
+      // 설치된 SDK 에 disable*WebpackPlugin 옵션은 없다 — 비활성은 토큰 미전달 + sourcemaps.disable 로 구현된다
+      expect(nextConfig).not.toMatch(/disable(Client|Server)WebpackPlugin/);
+      expect(read('scripts/sentry-build-options.js')).toMatch(/authToken:\s*enabled\s*\?/);
+      expect(read('scripts/sentry-build-options.js')).toMatch(/disable:\s*!enabled/);
     });
 
     it('클라이언트가 읽는 앱 키 메타데이터 접두어가 SDK 소스와 일치한다', () => {

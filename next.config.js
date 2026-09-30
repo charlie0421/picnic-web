@@ -43,6 +43,8 @@ const nextConfig = {
     NEXT_PUBLIC_BUILD_VERSION: buildVersion,
     NEXT_PUBLIC_BUILD_TIME: buildTime,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    // 서버·엣지(SENTRY_RELEASE)와 클라이언트(NEXT_PUBLIC_*)가 같은 릴리스 이름을 인라인으로 받는다
+    SENTRY_RELEASE: sentryBuild.release.name,
     NEXT_PUBLIC_SENTRY_RELEASE: sentryBuild.release.name,
     // 비활성 분기는 undefined 가 아니라 빈 문자열: Next 는 config.env 의
     // null/undefined 항목을 건너뛰어(lib/static-env.js getNextConfigEnv) 셸이나
@@ -222,8 +224,8 @@ const sentryWebpackPluginOptions = {
   // 릴리스 생성·finalize·커밋 연결까지 플러그인이 맡는다 (postbuild sentry-cli 없음)
   release: sentryBuild.release,
   widenClientFileUpload: sentryBuild.widenClientFileUpload,
-  disableServerWebpackPlugin: sentryBuild.disableServerWebpackPlugin,
-  disableClientWebpackPlugin: sentryBuild.disableClientWebpackPlugin,
+  // 비활성 빌드: 소스맵 생성·업로드 생략 (authToken 도 없어 릴리스 생성 안 함)
+  sourcemaps: sentryBuild.sourcemaps,
   // 각 청크에 `_sentryBundlerPluginAppKey:<key>` 메타데이터를 심는다.
   // withSentryConfig 최상위 옵션엔 없고 플러그인 옵션으로만 전달된다.
   unstable_sentryWebpackPluginOptions: {
