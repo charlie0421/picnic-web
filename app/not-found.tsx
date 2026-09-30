@@ -12,7 +12,7 @@ import GlobalNotFoundDecorations from './GlobalNotFoundDecorations';
  * URL에서 직접 언어를 감지하고 언어 선택기를 제공합니다.
  */
 
-export default function GlobalNotFound() {
+function GlobalNotFoundContent() {
   const router = useRouter();
   const [currentPath, setCurrentPath] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('ko');
@@ -50,6 +50,11 @@ export default function GlobalNotFound() {
       }
     }
   }, []);
+
+  // 서버 HTML 은 lang="ko" 로 나간다(루트 not-found 는 경로 파라미터를 받지 못한다). 감지 후 맞춘다.
+  useEffect(() => {
+    document.documentElement.lang = currentLanguage === 'zh' ? 'zh-cn' : currentLanguage;
+  }, [currentLanguage]);
 
   console.log('🔍 [GlobalNotFound] 404 페이지 로드됨:', {
     currentLanguage,
@@ -288,5 +293,19 @@ export default function GlobalNotFound() {
         </div>
       </div>
     </GlobalNotFoundDecorations>
+  );
+}
+
+/**
+ * 루트 레이아웃이 pass-through 라 이 파일이 문서 뼈대까지 렌더한다.
+ * 본문은 인라인 스타일만 써서 전역 CSS 가 필요 없다.
+ */
+export default function GlobalNotFound() {
+  return (
+    <html lang="ko">
+      <body>
+        <GlobalNotFoundContent />
+      </body>
+    </html>
   );
 }

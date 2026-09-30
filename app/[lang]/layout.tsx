@@ -2,10 +2,14 @@ import { ReactNode } from 'react';
 import './globals.css';
 import { Metadata, Viewport } from 'next';
 import ClientLayout from './ClientLayout';
+import ConsentAwareAdsense from '@/components/client/ads/ConsentAwareAdsense';
+import CookieConsentBanner from '@/components/client/ads/CookieConsentBanner';
+import { ADSENSE_CLIENT_ID, ADSENSE_META, VIEWPORT, inter } from '@/app/shell';
 import {
   DEFAULT_METADATA,
   brandMetadata,
   brandName,
+  getLanguageTag,
   getOpenGraphLocale,
   siteDescription,
 } from './utils/metadata-utils';
@@ -22,12 +26,7 @@ export async function generateStaticParams() {
 }
 
 // Next.js 15에서 요구하는 viewport 내보내기
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
-};
+export const viewport: Viewport = VIEWPORT;
 
 
 // 동적 메타데이터 생성
@@ -58,6 +57,7 @@ export async function generateMetadata({
     },
     manifest: '/manifest.json',
     other: {
+      ...ADSENSE_META,
       'msapplication-TileColor': '#4F46E5',
       'theme-color': '#ffffff',
       '1password-ignore': 'true',
@@ -75,18 +75,60 @@ export async function generateMetadata({
 
 // 정적 metadata 내보내기 제거 (중복된 metadata 내보내기)
 
+const cdnOrigin = (() => {
+  const rawCdnUrl = process.env.NEXT_PUBLIC_CDN_URL;
+  if (!rawCdnUrl) return null;
+  try {
+    return new URL(rawCdnUrl).origin;
+  } catch {
+    return null;
+  }
+})();
+
+/**
+ * 로케일 페이지의 문서 뼈대. <html lang> 을 경로 파라미터로 정한다 — 요청 시점 API(headers/cookies)를
+ * 부르지 않으므로 하위 페이지가 정적/ISR 로 렌더될 수 있다. 여기서 headers() 를 부르면 전부 동적이 된다.
+ */
 export default async function LanguageLayout({
   children,
-  params: paramsPromise
+  params: paramsPromise,
 }: {
   children: ReactNode;
   params: Promise<{ lang: string }>;
 }) {
-  const params = await paramsPromise;
+  const { lang } = await paramsPromise;
+  // 라우트 파라미터는 대소문자가 섞일 수 있다(/zh-TW). 지원하지 않는 값은 ko 로 폴백한다.
+  const htmlLang = getLanguageTag(lang.toLowerCase()) ?? 'ko';
+
+  // 경로 기반 광고 분기(투표 라우트 지연·/download 제외)는 한 번도 켜진 적이 없다.
+  // 정책 결정(#5) 전까지 실제 동작(지연 없음·1.2s idle)을 그대로 명시한다.
+  const shouldLoadAds = process.env.NODE_ENV === 'production';
 
   return (
-    <ClientLayout initialLanguage={params.lang}>
-      {children}
-    </ClientLayout>
+    <html lang={htmlLang}>
+      <head>
+        {cdnOrigin && (
+          <>
+            <link rel="preconnect" href={cdnOrigin} crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href={cdnOrigin} />
+          </>
+        )}
+      </head>
+      <body className={inter.className}>
+        {/* Google AdSense (Auto ads) - 프로덕션에서만 */}
+        {shouldLoadAds && (
+          <ConsentAwareAdsense
+            clientId={ADSENSE_CLIENT_ID}
+            delayUntilIdle={false}
+            idleTimeout={1200}
+          />
+        )}
+        <div className="bg-white">
+          <ClientLayout initialLanguage={lang}>{children}</ClientLayout>
+        </div>
+        {/* Cookie Consent Banner - 프로덕션에서만 */}
+        {shouldLoadAds && <CookieConsentBanner />}
+      </body>
+    </html>
   );
 }

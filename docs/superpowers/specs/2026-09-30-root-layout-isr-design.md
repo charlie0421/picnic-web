@@ -23,8 +23,8 @@
 
 | 기준 | 확인 방법 |
 |---|---|
-| `next build` 라우트 표에서 `/[lang]/rewards`, `/[lang]/faq`, `/[lang]/notice`, `/[lang]/download` 가 ISR(●, revalidate 표시) | 로컬 `npx next build` 출력 |
-| 동적으로 남아야 하는 페이지(§4.3 목록)가 모두 ƒ 로 표시 | 같은 출력 |
+| `/[lang]/rewards`, `/[lang]/faq`, `/[lang]/notice`, `/[lang]/download` 가 ISR 로 프리렌더 | `npx next build` 후 `.next/prerender-manifest.json` 의 `routes`(revalidate 값 포함) |
+| 동적으로 남아야 하는 페이지(§4.3 목록)가 매니페스트에 없다 | 같은 파일. 빌드 표의 `●` 는 레이아웃 `generateStaticParams` 때문에 동적 페이지에도 붙으므로 기준으로 쓰지 않는다 |
 | 렌더링 모드 계약 테스트 통과 | `npx vitest run __tests__/app/rendering-mode-contract.test.ts` |
 | `<html lang>` 이 12개 언어에서 #92 와 동일하게 나온다 (`zh-cn → zh-CN` 등) | 레이아웃 단위 테스트 + `next start` 후 curl |
 | `next start` 에서 ISR 페이지 응답에 `Cache-Control: s-maxage=<revalidate>, stale-while-revalidate` | curl -I |
@@ -115,7 +115,8 @@ app/
 | `/[lang]/privacy`, `/[lang]/terms` | `force-dynamic` 명시 | 동적 (현상 유지) |
 | `/[lang]/vote` | `revalidate = 60` 제거(죽은 설정) | 동적 (searchParams) |
 | `/[lang]/media`, `/[lang]/mypage/**`, `/[lang]/open-in-browser`, auth | 변경 없음 | 동적 |
-| `app/sitemap.ts`, `app/[lang]/sitemap.ts` | `revalidate = 3600` 명시 | ISR 3600s (notice 공개 전환으로 정적화되는 것을 막고, 투표 목록 갱신 보장) |
+| `app/sitemap.ts` | `revalidate = 3600` 명시 | ISR 3600s (notice 공개 전환으로 정적화되는 것을 막고, 투표 목록 갱신 보장) |
+| `app/[lang]/sitemap.ts` | `revalidate = 3600` 명시 | 동적(빌드 확인: 동적 세그먼트라 요청마다 렌더). export 는 향후 프리빌드 시 굳지 않게 하는 방어선 |
 
 공개 클라이언트 전환 규칙: `createPublicSupabaseServerClient()` 를 쓴다(`SUPABASE_URL`/`SUPABASE_ANON_KEY`, 쿠키 없음). 조회 대상 테이블은 RLS 가 꺼져 있거나 anon 읽기 정책이 있음을 확인했다(§2). 이 세 서비스는 개인화 데이터를 다루지 않는다.
 
