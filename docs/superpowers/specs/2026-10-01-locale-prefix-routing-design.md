@@ -2,7 +2,7 @@
 
 - 날짜: 2026-10-01
 - 근거: `docs/superpowers/specs/2026-09-30-root-layout-isr-design.md` §7 의 첫 후속 과제(미지원 언어 세그먼트와 접두어 없는 경로), 감사 계획 `docs/audit-2026-09-26/plan.md` §5.4 의 후속 항목
-- 상태: 초안 4. 네 관점의 내부 검토(초안 1)와 Codex gpt-6-sol/high 교차 리뷰 두 차례(초안 2, 3)를 반영했다. 사용자 검토 전이고 구현을 시작하지 않았다
+- 상태: 초안 5. 네 관점의 내부 검토(초안 1)와 Codex gpt-6-sol/high 교차 리뷰 세 차례(초안 2, 3, 4)를 반영했다. 사용자 검토 전이고 구현을 시작하지 않았다
 - 브랜치: `fix/locale-prefix-routing` (워크트리 `picnic-web-locale-prefix`)
 - 기준: 코드 `a1eedad6`(2026-10-01 Production), Next 15.5.26
 
@@ -267,11 +267,11 @@ export async function middleware(req: NextRequest) {
 AUTH_CALLBACK_PATH  (규칙 2 와 통과 목록이 같이 쓴다)
 ^/auth/callback(?:/[^/]+)?/?$
 
-STATIC_ASSET_PATH   (기존. 아이콘 파일을 더하고 sitemap 조건을 숫자 두 자리로 좁힌다. `.well-known/` 은 뺀다)
+STATIC_ASSET_PATH   (기존. 아이콘 파일을 더하고 sitemap 조건을 0–99 로 좁힌다. `.well-known/` 은 뺀다)
 ^/(?:_next/|images/|locales/|favicon/|concert2025/(?:image|video)/
    |(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/sitemap\.xml$
    |(?:favicon\.ico|apple-touch-icon(?:-precomposed)?\.png|robots\.txt|ads\.txt|app-ads\.txt
-      |sitemap(?:-\d{1,2})?\.xml|manifest\.json|site\.webmanifest
+      |sitemap(?:-(?:0|[1-9]\d?))?\.xml|manifest\.json|site\.webmanifest
       |apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js)$)
 
 NON_LOCALIZED_PATH  (새로 추가. 언어 세그먼트 밖의 실제 라우트)
@@ -294,14 +294,14 @@ NON_LOCALIZED_PATH  (새로 추가. 언어 세그먼트 밖의 실제 라우트)
 | `api` | `api/` |
 | `favicon.ico` | `favicon\.ico$` |
 | `robots\.txt`, `app-ads\.txt`, `ads\.txt`, `sitemap\.xml`, `manifest\.json`, `site\.webmanifest`, `apple-developer-domain-association\.txt` | 각각 끝에 `$` |
-| `sitemap-.*\.xml` | `sitemap-\d{1,2}\.xml$` |
+| `sitemap-.*\.xml` | `sitemap-(?:0|[1-9]\d?)\.xml$` |
 | 없음 | `apple-touch-icon(?:-precomposed)?\.png$` 추가 |
 | `\.well-known/.*` | 삭제. `public/.well-known/` 이 없다. 파일이 생기면 §5.3 의 동기화 테스트가 matcher 에 넣으라고 알려 준다 |
 
 `_next/static`, `_next/image`, 언어별 sitemap, `images/`, `locales/`, `favicon/`, `concert2025/(image|video)/`, 서비스 워커 두 개는 그대로다. 디렉터리 안의 자산마다 middleware 를 부르지 않기 위해서다.
 
-- 이렇게 하면 `/api`, `/apiary`, `/favicon.ico/vote`, `/sitemap-1.xml/x`, `/sitemap-foo.xml`, `/manifest.jsonx`, `/.well-known/x` 가 middleware 에 와서 7번 규칙을 탄다.
-- `sitemap-\d{1,2}\.xml` 은 next-sitemap 이 주소가 5000개를 넘을 때 만드는 다음 파일을 미리 허용한다. 지금 있는 파일은 `sitemap-0.xml` 하나다. 파일이 없는 번호(`/sitemap-1.xml`)는 middleware 를 거치지 않고 `[lang]` 의 루트 페이지에 닿아 가드의 404 를 받는다(페이지 코드가 실행되고 다음 배포까지 캐시된다). 두 자리로 막아 이런 주소가 99개를 넘지 않게 한다. 정확히 `sitemap-0\.xml` 만 제외하면 이 구멍은 없어지지만, 빌드가 `sitemap-1.xml` 을 만들기 시작하는 순간 그 파일이 `/en/sitemap-1.xml` 로 리다이렉트돼 sitemap 색인이 깨진다. 생성되는 파일은 git 에 없어 §5.3 의 동기화 테스트도 알 수 없다. 99개의 정적 404 캐시 항목이 그 위험보다 싸다고 보고 §9 의 2번에 넣는다.
+- 이렇게 하면 `/api`, `/apiary`, `/favicon.ico/vote`, `/sitemap-1.xml/x`, `/sitemap-foo.xml`, `/sitemap-00.xml`, `/sitemap-123.xml`, `/manifest.jsonx`, `/.well-known/x` 가 middleware 에 와서 7번 규칙을 탄다.
+- `sitemap-(?:0|[1-9]\d?)\.xml` 은 next-sitemap 이 주소가 5000개를 넘을 때 만드는 다음 파일을 미리 허용한다(0–99. 앞자리 0 은 받지 않아 `sitemap-00.xml` 은 middleware 로 간다). 지금 있는 파일은 `sitemap-0.xml` 하나다. 파일이 없는 번호(`/sitemap-1.xml`)는 middleware 를 거치지 않고 `[lang]` 의 루트 페이지에 닿아 가드의 404 를 받는다(페이지 코드가 실행되고 다음 배포까지 캐시된다). 0–99 로 막아 이런 주소가 99개를 넘지 않게 한다(100개 중 실제 파일 하나를 뺀 수). 정확히 `sitemap-0\.xml` 만 제외하면 이 구멍은 없어지지만, 빌드가 `sitemap-1.xml` 을 만들기 시작하는 순간 그 파일이 `/en/sitemap-1.xml` 로 리다이렉트돼 sitemap 색인이 깨진다. 생성되는 파일은 git 에 없어 §5.3 의 동기화 테스트도 알 수 없다. 99개의 정적 404 캐시 항목이 그 위험보다 싸다고 보고 §9 의 2번에 넣는다.
 - 조립한 matcher 를 Next 15.5.26 의 matcher 컴파일러(`unstable_doesMiddlewareMatch`)로 확인했다. git 이 추적하는 `public/` 파일 98개와 `app/api` 의 route 32개가 모두 제외되고, 위의 없는 이름들은 middleware 가 실행된다.
 
 **동기화 테스트**
@@ -414,7 +414,7 @@ QR 의 다운로드 링크 (apex)
 | `normalizeLanguageTag` | `KO`→`ko`, `zh_TW`→`zh-tw`, `ZH-Hant-TW`→`zh-tw`, `zh-Hans-TW`→`zh-cn`, `zh`→`zh-cn`, `zh-HK`→`zh-tw`, `zh-SG`→`zh-cn`, `en-US`→`en`, `es-419`→`es`, `jp`→`ja`, `fil-PH`→`tl`, `pt-BR`→`null`, 빈 문자열→`null` |
 | `classifyFirstSegment` | `en`·`zh-tw`→canonical. `KO`·`zh`·`en-US`·`fil`·`fil-PH`·`%6Bo`·`%7A%68-tw`→variant. `xx`·`fr`·`pt-BR`·`login`·`api`·`ads`·`faq`·`wp-admin`·`.env`·`favicon.ico`·`my-page`·`id-card`·`my_page`·빈 문자열→other. `%E0%A4%A`→undecodable |
 | `resolvePreferredLanguage` | 호스트가 같은 Referer 가 쿠키보다 앞. 호스트가 다른 Referer, 정규 언어가 아닌 Referer(`/KO/vote`), 해석할 수 없는 Referer 는 무시. 쿠키가 Accept-Language 보다 앞. 잘못된 쿠키는 무시. q 정렬. q=0, `*`, 숫자가 아닌 q 의 태그는 버림(`th;q=abc,vi;q=0.3` 은 `vi`). 신호가 없으면 `en` |
-| `isPassThroughPath` | §4.4 의 통과 경로는 참. `/auth`, `/auth/foo`, `/auth/callback/a/b`, `/ads`, `/open-in-browser/x`, `/api`, `/sitemap-foo.xml`, `/sitemap-123.xml`, `/.well-known/x`, `/__nextjs_foo`(production)는 거짓 |
+| `isPassThroughPath` | §4.4 의 통과 경로는 참. `/auth`, `/auth/foo`, `/auth/callback/a/b`, `/ads`, `/open-in-browser/x`, `/api`, `/sitemap-foo.xml`, `/sitemap-00.xml`, `/sitemap-123.xml`, `/.well-known/x`, `/__nextjs_foo`(production)는 거짓 |
 | `decideLocaleRoute` | §4.1 의 규칙 일곱 줄 각각. `/`, `/ko/authx`, `/ko/auth/callbackx`, `/ko/auth/callback/a/b` 는 통과 |
 | 연쇄 | 표본 주소 전부에 대해, 결정이 리다이렉트면 목적지를 다시 넣는다. next.config 의 리다이렉트도 흉내 낸다. 세 번 안에 통과로 끝나고 같은 주소가 다시 나오지 않는다. `/auth/callback/google/x`, `/ko/auth/callback/a/b`, `/KO/auth/callback/apple/a/b` 를 표본에 넣는다 |
 | 목적지 | `//evil.com/x`, `/\evil.com`, `/%2F%2Fevil.com/x` 의 목적지 경로가 `/{정규 언어}/` 로 시작한다 |
@@ -454,7 +454,7 @@ QR 의 다운로드 링크 (apex)
 - `app/(bare)/**/page.tsx` 의 경로는 통과 목록에 있거나 리다이렉트 스텁 네 개(`/vote`, `/vote/x`, `/mypage`, `/concert2025`) 중 하나다. `[provider]` 는 `google` 로 바꿔 넣는다.
 - `app/` 바로 아래의 route handler 와 메타데이터 라우트(`open-in-browser/route.ts`, `sitemap.ts`)의 경로가 통과한다.
 - next.config `rewrites()` 의 source 가 통과한다. `/supabase-proxy/x` 는 통과 목록으로, `/ko/supabase-proxy/x` 는 정규 언어로 통과한다. 언어가 붙은 rewrite 의 source 는 `:lang(` 뒤에 정규 언어 12개를 모두 담고 그 밖의 값을 담지 않는다.
-- 이름이 비슷한 없는 경로(`/api`, `/apiary`, `/favicon.ico/vote`, `/sitemap-1.xml/x`, `/sitemap-foo.xml`, `/manifest.jsonx`, `/favicon.icox`, `/images`, `/locales`)는 middleware 가 실행된다.
+- 이름이 비슷한 없는 경로(`/api`, `/apiary`, `/favicon.ico/vote`, `/sitemap-1.xml/x`, `/sitemap-foo.xml`, `/sitemap-00.xml`, `/sitemap-123.xml`, `/manifest.jsonx`, `/favicon.icox`, `/images`, `/locales`)는 middleware 가 실행된다.
 - `app/[lang]` 아래 페이지의 URL 첫 세그먼트(라우트 그룹 괄호를 벗긴 것: `login`, `vote`, `rewards`, `faq` …)를 `classifyFirstSegment` 에 넣으면 모두 `other` 다(`faq` 처럼 모양에 맞아도 정규화가 `null` 이면 된다).
 - `AUTH_CALLBACK_PATH` 에 맞는 경로는 모두 `isPassThroughPath` 가 참이다(규칙 2 의 목적지가 통과로 끝나는 조건).
 - matcher 가 제외하는 디렉터리(`api/`, `images/`, `locales/`, `favicon/`, `concert2025/`)마다 `app/<디렉터리>/[...slug]/route.ts` 가 있다. 반대로 `app/` 바로 아래의 catch-all handler 디렉터리는 모두 matcher 의 제외 목록에 있다.
