@@ -4,6 +4,7 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getPolicy } from '@/lib/data-fetching/server/policy-service';
+import { brandName } from '@/app/[lang]/utils/metadata-utils';
 
 interface PrivacyPageProps {
   params: Promise<{
@@ -157,14 +158,14 @@ export async function generateMetadata({ params }: PrivacyPageProps) {
   const { lang } = await params;
   
   return {
-    title: lang === 'ko' ? '개인정보처리방침 | Picnic' : 'Privacy Policy | Picnic',
+    title: lang === 'ko' ? '개인정보처리방침' : 'Privacy Policy',
     description: lang === 'ko' 
-      ? 'Picnic의 개인정보처리방침을 확인하세요.' 
+      ? '피크닉의 개인정보처리방침을 확인하세요.' 
       : 'Check out Picnic\'s Privacy Policy.',
     openGraph: {
-      title: lang === 'ko' ? '개인정보처리방침 | Picnic' : 'Privacy Policy | Picnic',
+      title: `${lang === 'ko' ? '개인정보처리방침' : 'Privacy Policy'} | ${brandName(lang)}`,
       description: lang === 'ko' 
-        ? 'Picnic의 개인정보처리방침을 확인하세요.' 
+        ? '피크닉의 개인정보처리방침을 확인하세요.' 
         : 'Check out Picnic\'s Privacy Policy.',
     },
   };

@@ -66,5 +66,6 @@ describe('VoteDetailPresenter — 영어 화면에 한국어 없음', () => {
     expect(labels.join(' ')).not.toMatch(HANGUL);
     expect(text).toContain('Ongoing');
     expect(text).toContain('No search results found.');
+    expect(text).toContain('Rewards #1');
   });
 });

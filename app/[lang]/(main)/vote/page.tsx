@@ -37,6 +37,7 @@ export async function generateMetadata({
         languages: buildLanguageAlternates('/vote'),
       },
     },
+    lang,
   );
 }
 

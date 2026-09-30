@@ -39,6 +39,7 @@ export async function generateMetadata({
           languages: buildLanguageAlternates('/rewards'),
         },
       },
+      lang,
     ),
     ...isrOptions,
   };

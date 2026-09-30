@@ -206,7 +206,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rewards.map((reward, index) => (
               <div key={reward.id || index} className="border rounded-lg p-4">
-                <p>#{index + 1}</p>
+                <p>{t('reward')} #{index + 1}</p>
               </div>
             ))}
           </div>

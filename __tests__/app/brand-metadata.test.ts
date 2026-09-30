@@ -11,6 +11,7 @@ vi.mock('@/utils/api/queries', () => ({ getBanners: vi.fn() }));
 vi.mock('@/lib/data-fetching/server/supabase-service', () => ({ getCurrentUserContext: vi.fn() }));
 vi.mock('@/lib/data-fetching/server/vote-service', () => ({ getVotes: vi.fn() }));
 vi.mock('@/components/server/star-candy/StarCandyProductsFetcher', () => ({ default: () => null }));
+vi.mock('@/lib/data-fetching/server/policy-service', () => ({ getPolicy: vi.fn() }));
 // lib/i18n/server 는 React.cache 를 쓰는데 테스트의 React 18 에는 없다 — 실제 locale JSON 으로 대체
 vi.mock('@/lib/i18n/server', async () => {
   const { readFileSync } = await import('node:fs');
@@ -27,6 +28,8 @@ import { brandName } from '@/app/[lang]/utils/metadata-utils';
 import { generateMetadata as layoutMetadata } from '@/app/[lang]/layout';
 import { generateMetadata as voteMetadata } from '@/app/[lang]/(main)/vote/page';
 import { generateMetadata as starCandyMetadata } from '@/app/[lang]/(main)/star-candy/page';
+import { generateMetadata as privacyMetadata } from '@/app/[lang]/(main)/privacy/page';
+import { generateMetadata as termsMetadata } from '@/app/[lang]/(main)/terms/page';
 
 const params = (lang: string) => ({ params: Promise.resolve({ lang }) });
 const HANGUL = /[ㄱ-힝]/;
@@ -70,5 +73,22 @@ describe('페이지 title 은 브랜드를 중복하지 않고 언어를 따른�
   it.each(['ko', 'en'])('%s 별사탕 페이지 title 에 브랜드 접미사가 없다', async (lang) => {
     const md = await starCandyMetadata(params(lang));
     expect(String(md.title)).not.toMatch(/\|/);
+  });
+
+  it('영어 투표 목록의 og:site_name 은 Picnic (레이아웃 브랜드를 한국어 기본값으로 덮지 않는다)', async () => {
+    const md = await voteMetadata(params('en'));
+    expect((md.openGraph as { siteName?: string }).siteName).toBe('Picnic');
+  });
+
+  it.each([
+    ['privacy', privacyMetadata],
+    ['terms', termsMetadata],
+  ] as const)('%s title 에 브랜드 접미사가 없고(템플릿이 붙인다) OG title 은 언어별 브랜드', async (_n, fn) => {
+    const ko = await fn(params('ko') as any);
+    const en = await fn(params('en') as any);
+    expect(String(ko.title)).not.toMatch(/\|/);
+    expect(String(en.title)).not.toMatch(/\|/);
+    expect(String((ko.openGraph as any).title)).toMatch(/\| 피크닉$/);
+    expect(String((en.openGraph as any).title)).toMatch(/\| Picnic$/);
   });
 });

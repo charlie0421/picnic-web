@@ -207,14 +207,19 @@ export const DEFAULT_METADATA: Metadata = {
 export function createPageMetadata(
   title: string,
   description: string,
-  metadata?: Partial<Metadata>
+  metadata?: Partial<Metadata>,
+  /** 주면 og:site_name·applicationName 을 언어별 브랜드로 — 레이아웃의 언어별 값을 한국어 기본값으로 덮지 않는다 */
+  lang?: string,
 ): Metadata {
+  const brand = lang ? brandName(lang) : undefined;
   return {
     ...DEFAULT_METADATA,
+    ...(lang ? brandMetadata(lang) : {}),
     title,
     description,
     openGraph: {
       ...DEFAULT_METADATA.openGraph,
+      ...(brand ? { siteName: brand } : {}),
       title,
       description,
     },

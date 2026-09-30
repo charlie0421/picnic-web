@@ -4,6 +4,7 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getPolicy } from '@/lib/data-fetching/server/policy-service';
+import { brandName } from '@/app/[lang]/utils/metadata-utils';
 
 interface TermsPageProps {
   params: Promise<{
@@ -157,14 +158,14 @@ export async function generateMetadata({ params }: TermsPageProps) {
   const { lang } = await params;
   
   return {
-    title: lang === 'ko' ? '이용약관 | Picnic' : 'Terms of Service | Picnic',
+    title: lang === 'ko' ? '이용약관' : 'Terms of Service',
     description: lang === 'ko' 
-      ? 'Picnic의 이용약관을 확인하세요.' 
+      ? '피크닉의 이용약관을 확인하세요.' 
       : 'Check out Picnic\'s Terms of Service.',
     openGraph: {
-      title: lang === 'ko' ? '이용약관 | Picnic' : 'Terms of Service | Picnic',
+      title: `${lang === 'ko' ? '이용약관' : 'Terms of Service'} | ${brandName(lang)}`,
       description: lang === 'ko' 
-        ? 'Picnic의 이용약관을 확인하세요.' 
+        ? '피크닉의 이용약관을 확인하세요.' 
         : 'Check out Picnic\'s Terms of Service.',
     },
   };
