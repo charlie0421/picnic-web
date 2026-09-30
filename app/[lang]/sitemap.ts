@@ -7,6 +7,9 @@ import { getVotes } from '@/lib/data-fetching/server/vote-service';
 import { getRewards } from '@/utils/api/queries';
 import { getNotices } from '@/lib/data-fetching/server/notice-service';
 
+// getNotices 가 쿠키 없는 클라이언트가 되면 이 라우트는 정적으로 굳는다 — 1시간마다 재생성한다.
+export const revalidate = 3600;
+
 interface Vote {
     id: number;
     title: any;

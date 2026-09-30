@@ -12,8 +12,13 @@ import { createProductSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import RewardDetailClient from '@/components/client/reward/RewardDetailClient';
 
-// 동적 렌더링 강제 - DYNAMIC_SERVER_USAGE 에러 방지
-export const dynamic = 'force-dynamic';
+// ISR: 요청 시 생성하고 5분마다 재생성한다. 없는 id 의 404 도 5분 뒤 다시 확인한다.
+export const revalidate = 300;
+
+// 빌드에서는 만들지 않는다 — 빈 목록이어야 [id] 가 요청 시 정적 생성(ISR) 대상이 된다.
+export async function generateStaticParams() {
+  return [];
+}
 
 // 메타데이터 동적 생성
 export async function generateMetadata({

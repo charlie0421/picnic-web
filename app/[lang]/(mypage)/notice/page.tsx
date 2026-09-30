@@ -5,7 +5,8 @@ import { getLocalizedString } from '@/utils/api/strings';
 import { format } from 'date-fns';
 import { getCurrentLocale, type SupportedLanguage } from '@/utils/date';
 
-export const dynamic = 'force-dynamic';
+// ISR: 5분마다 재생성한다. 조회(getNotices)는 쿠키 없는 공개 클라이언트다.
+export const revalidate = 300;
 
 interface NoticePageProps {
   params: Promise<{

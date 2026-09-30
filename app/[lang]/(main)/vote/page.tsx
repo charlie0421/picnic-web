@@ -1,4 +1,3 @@
-export const revalidate = 60;
 import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { brandName, buildLanguageAlternates, createPageMetadata } from '@/app/[lang]/utils/metadata-utils';

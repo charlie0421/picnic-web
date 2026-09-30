@@ -6,6 +6,9 @@ import remarkGfm from 'remark-gfm';
 import { getPolicy } from '@/lib/data-fetching/server/policy-service';
 import { brandName } from '@/app/[lang]/utils/metadata-utils';
 
+// 동적 유지: getPolicy 가 쿠키 클라이언트를 쓴다. ISR 전환은 범위 밖(스펙 §7).
+export const dynamic = 'force-dynamic';
+
 interface TermsPageProps {
   params: Promise<{
     lang: string;
