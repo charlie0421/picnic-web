@@ -163,6 +163,7 @@ export async function generateMetadata({ params }: PrivacyPageProps) {
       ? '피크닉의 개인정보처리방침을 확인하세요.' 
       : 'Check out Picnic\'s Privacy Policy.',
     openGraph: {
+      siteName: brandName(lang),
       title: `${lang === 'ko' ? '개인정보처리방침' : 'Privacy Policy'} | ${brandName(lang)}`,
       description: lang === 'ko' 
         ? '피크닉의 개인정보처리방침을 확인하세요.' 

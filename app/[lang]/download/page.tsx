@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import DownloadClient from '@/app/[lang]/download/DownloadClient';
+import { brandName } from '@/app/[lang]/utils/metadata-utils';
 import { SUPPORTED_LANGUAGES, type Language } from '@/config/settings';
 import { getLatestVersion } from '@/lib/data-fetching/server/supabase-service';
 import { getTranslations } from '@/lib/i18n/server';
@@ -17,6 +18,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: t('download.title'),
     description: t('download.description'),
     openGraph: {
+      siteName: brandName(lang),
       title: t('download.title'),
       description: t('download.description'),
       type: 'website',
