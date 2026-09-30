@@ -47,10 +47,17 @@ describe('sentryBuildOptions', () => {
       name: `picnic-web@${BUILD}`,
       create: true,
       finalize: true,
-      setCommits: { repo: 'charlie0421/picnic-web', commit: 'abc123', ignoreMissing: true, ignoreEmpty: true },
+      setCommits: {
+        repo: 'charlie0421/picnic-web',
+        commit: 'abc123',
+        ignoreMissing: true,
+        ignoreEmpty: true,
+        shouldNotThrowOnFailure: true, // 커밋 연결 실패가 finalize 를 막지 않게 (코어 런타임이 확인)
+      },
     });
     expect(o.authToken).toBe('t');
     expect(o.sourcemaps.disable).toBe(false);
+    expect(o.pluginDisabled).toBe(false);
   });
 
   it('토큰이 있어도 로컬 빌드(VERCEL 아님·명시 옵트인 없음)는 플러그인을 끈다 — 로컬 빌드가 운영 릴리스를 만들지 않게', () => {
@@ -62,6 +69,8 @@ describe('sentryBuildOptions', () => {
     expect(o.sourcemaps.disable).toBe(true);
     expect(o.release.create).toBe(false);
     expect(o.release.finalize).toBe(false);
+    // 코어의 플러그인 수준 disable — setCommits 등 어떤 네트워크 호출도 하지 않는다
+    expect(o.pluginDisabled).toBe(true);
     expect(o).not.toHaveProperty('disableClientWebpackPlugin');
     expect(o).not.toHaveProperty('disableServerWebpackPlugin');
   });
@@ -72,7 +81,7 @@ describe('sentryBuildOptions', () => {
       env: { SENTRY_AUTH_TOKEN: 't', SENTRY_UPLOAD_SOURCEMAPS: '1' },
     });
     expect(o.enabled).toBe(true);
-    expect(o.release.setCommits).toEqual({ auto: true, ignoreMissing: true, ignoreEmpty: true });
+    expect(o.release.setCommits).toEqual({ auto: true, ignoreMissing: true, ignoreEmpty: true, shouldNotThrowOnFailure: true });
   });
 
   it('토큰이 없으면 어디서든 꺼진다', () => {
@@ -92,6 +101,10 @@ describe('sentryBuildOptions', () => {
 describe('런타임 SDK 세 곳이 같은 릴리스 이름을 본다', () => {
   const root = process.cwd();
   const nextConfig = readFileSync(join(root, 'next.config.js'), 'utf8');
+
+  it('next.config 는 플러그인 수준 disable 을 unstable_sentryWebpackPluginOptions 로 넘긴다', () => {
+    expect(nextConfig).toMatch(/unstable_sentryWebpackPluginOptions:\s*\{[^}]*disable:\s*sentryBuild\.pluginDisabled/);
+  });
 
   it('next.config 가 SENTRY_RELEASE 와 NEXT_PUBLIC_SENTRY_RELEASE 를 같은 값으로 인라인한다', () => {
     expect(nextConfig).toMatch(/SENTRY_RELEASE:\s*sentryBuild\.release\.name/);

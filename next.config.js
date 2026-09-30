@@ -230,6 +230,8 @@ const sentryWebpackPluginOptions = {
   // withSentryConfig 최상위 옵션엔 없고 플러그인 옵션으로만 전달된다.
   unstable_sentryWebpackPluginOptions: {
     applicationKey: sentryBuild.applicationKey,
+    // 코어의 플러그인 수준 disable — 비활성 빌드는 릴리스·커밋 연결·업로드 어떤 요청도 보내지 않는다
+    disable: sentryBuild.pluginDisabled,
   },
 };
 
