@@ -160,6 +160,12 @@ const nextConfig = {
         destination: '/:lang/vote',
         permanent: false
       },
+      // 언어 접두어 없는 진입 — 예전 app/{vote,mypage,concert2025} 스텁 페이지를 대체한다.
+      // 기본 언어(config/settings DEFAULT_LANGUAGE = 'en')와의 일치는 테스트가 검증한다.
+      { source: '/vote',        destination: '/en/vote',        permanent: false },
+      { source: '/vote/:id',    destination: '/en/vote/:id',    permanent: false },
+      { source: '/mypage',      destination: '/en/mypage',      permanent: false },
+      { source: '/concert2025', destination: '/en/concert2025', permanent: false },
       // download.html을 download로 리디렉션 (middleware가 언어 처리)
       {
         source: '/download.html',
