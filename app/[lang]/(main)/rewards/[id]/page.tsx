@@ -3,9 +3,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getRewardById } from '@/lib/data-fetching/server/reward-service';
 import {
+  brandName,
   createPageMetadata,
   createImageMetadata,
 } from '@/app/[lang]/utils/metadata-utils';
+import { getLocalizedString } from '@/utils/api/strings';
 import { createProductSchema } from '@/app/[lang]/utils/seo-utils';
 import { SITE_URL } from '@/app/[lang]/constants/static-pages';
 import RewardDetailClient from '@/components/client/reward/RewardDetailClient';
@@ -19,7 +21,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string; lang: string }>;
 }): Promise<Metadata> {
-  const { id: rewardId } = await params;
+  const { id: rewardId, lang } = await params;
 
   try {
     const reward = await getRewardById(rewardId);
@@ -32,28 +34,24 @@ export async function generateMetadata({
     }
 
     // reward.title, reward.description이 Json 타입이므로 문자열로 변환
-    const title =
-      typeof reward.title === 'string'
-        ? reward.title
-        : reward.title && typeof reward.title === 'object'
-        ? (reward.title as any)?.ko || (reward.title as any)?.en || '리워드'
-        : '리워드';
+    const title = getLocalizedString(reward.title as any, lang as any) || brandName(lang);
 
     const imageUrl = reward.thumbnail || '';
-    const url = `${SITE_URL}/rewards/${rewardId}`;
+    const url = `${SITE_URL}/${lang}/rewards/${rewardId}`;
 
     const metadata: Metadata = {
-      ...createPageMetadata(`${title}`, '리워드 상세 페이지'),
+      ...createPageMetadata(`${title}`, `${title} - ${brandName(lang)}`, undefined, lang),
       ...createImageMetadata(imageUrl, title, 1200, 630),
       openGraph: {
-        title: `${title} | Picnic 리워드`,
+        siteName: brandName(lang),
+        title: `${title} | ${brandName(lang)}`,
         url,
         images: [{ url: imageUrl, alt: title }],
         type: 'website',
       },
       twitter: {
         card: 'summary_large_image',
-        title: `${title} | Picnic 리워드`,
+        title: `${title} | ${brandName(lang)}`,
         images: [{ url: imageUrl, alt: title }],
       },
       alternates: {

@@ -91,4 +91,12 @@ describe('페이지 title 은 브랜드를 중복하지 않고 언어를 따른�
     expect(String((ko.openGraph as any).title)).toMatch(/\| 피크닉$/);
     expect(String((en.openGraph as any).title)).toMatch(/\| Picnic$/);
   });
+
+  it.each([
+    ['privacy', privacyMetadata],
+    ['terms', termsMetadata],
+  ] as const)('%s 는 og:site_name 을 언어별 브랜드로 낸다', async (_n, fn) => {
+    expect(((await fn(params('en') as any)).openGraph as any).siteName).toBe('Picnic');
+    expect(((await fn(params('ko') as any)).openGraph as any).siteName).toBe('피크닉');
+  });
 });

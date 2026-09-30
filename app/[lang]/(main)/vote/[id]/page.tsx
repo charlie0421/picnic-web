@@ -9,6 +9,7 @@ import { getVoteById } from '@/utils/api/queries';
 import { getLocalizedString } from '@/utils/api/strings';
 import {
   DEFAULT_METADATA,
+  brandName,
   buildLanguageAlternates,
   getOpenGraphLocale,
   resolveCdnImageUrl,
@@ -60,6 +61,7 @@ export async function generateMetadata(props: VoteDetailPageProps): Promise<Meta
     },
     openGraph: {
       ...DEFAULT_METADATA.openGraph,
+      siteName: brandName(safeLang),
       ...(title ? { title } : {}),
       url: canonical,
       locale: getOpenGraphLocale(safeLang),

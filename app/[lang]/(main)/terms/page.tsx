@@ -163,6 +163,7 @@ export async function generateMetadata({ params }: TermsPageProps) {
       ? '피크닉의 이용약관을 확인하세요.' 
       : 'Check out Picnic\'s Terms of Service.',
     openGraph: {
+      siteName: brandName(lang),
       title: `${lang === 'ko' ? '이용약관' : 'Terms of Service'} | ${brandName(lang)}`,
       description: lang === 'ko' 
         ? '피크닉의 이용약관을 확인하세요.' 

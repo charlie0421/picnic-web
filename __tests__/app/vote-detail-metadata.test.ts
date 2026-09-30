@@ -139,4 +139,10 @@ describe('vote/[id] generateMetadata', () => {
     const metadata = await metadataFor('en', '999999');
     expect(metadata).toEqual({});
   });
+
+  it('og:site_name 은 언어별 브랜드다(영어 Picnic, 한국어 피크닉)', async () => {
+    getVoteByIdMock.mockResolvedValue(vote());
+    expect(((await metadataFor('en')).openGraph as { siteName?: string }).siteName).toBe('Picnic');
+    expect(((await metadataFor('ko')).openGraph as { siteName?: string }).siteName).toBe('피크닉');
+  });
 });
