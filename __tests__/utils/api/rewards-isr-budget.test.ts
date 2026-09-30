@@ -131,6 +131,30 @@ describe('리워드 ISR 조회 — 장애 시 시도 횟수와 시간 예산', (
     expect(signals).toHaveLength(0);
   });
 
+  // 2026-09-30 Production 빌드 실패: 빌드 머신에서 본 Supabase 응답이 8.6초 걸렸고 7초 예산이 세 번 연속 넘었다.
+  it('next build 중에는 8.6초 걸리는 응답을 기다려 프리렌더를 끝낸다', async () => {
+    const originalPhase = process.env.NEXT_PHASE;
+    process.env.NEXT_PHASE = 'phase-production-build';
+    try {
+      const rows = [{ id: 1, title: { ko: '리워드' }, deleted_at: null, created_at: 'c', updated_at: 'u' }];
+      limit.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve({ data: rows, error: null }), 8600)),
+      );
+
+      const state = track(_getRewards(8, { throwOnError: true }));
+      await vi.advanceTimersByTimeAsync(7000);
+      expect(state.value).toBe('pending');
+
+      await vi.advanceTimersByTimeAsync(1600);
+      expect(state.value).toBe('resolved');
+      expect(state.result).toHaveLength(1);
+      expect(signals[0].aborted).toBe(false);
+    } finally {
+      if (originalPhase === undefined) delete process.env.NEXT_PHASE;
+      else process.env.NEXT_PHASE = originalPhase;
+    }
+  });
+
   it('페이지가 쓰는 경로(RewardListFetcher)는 응답 없는 DB 에서 7초 안에 끝난다 — 바깥 재시도로 30초가 되지 않는다', async () => {
     limit.mockReturnValue(new Promise(() => {}));
 

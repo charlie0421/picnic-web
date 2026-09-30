@@ -58,7 +58,7 @@ vi.mock('@/config/settings', () => ({
   },
 }));
 
-import { withTimeout, withDeadline, logRequestError, SUPABASE_TIMEOUT_MS, DEFAULT_REWARD_LIMIT, FALLBACK_VOTES, FALLBACK_REWARDS } from '@/utils/api/queries-helpers';
+import { withTimeout, withDeadline, logRequestError, BUILD_QUERY_TIMEOUT_MS, SUPABASE_TIMEOUT_MS, DEFAULT_REWARD_LIMIT, FALLBACK_VOTES, FALLBACK_REWARDS } from '@/utils/api/queries-helpers';
 import { getLocalizedString, getLocalizedJson, hasValidLocalizedString } from '@/utils/api/strings';
 import { getLanguageFromParams } from '@/utils/api/language';
 import { transformBannerLink, transformAppLinkToWebLink } from '@/utils/api/link-transformer';
@@ -148,6 +148,77 @@ describe('queries-helpers', () => {
 
     it('propagates the original rejection', async () => {
       await expect(withDeadline(() => Promise.reject(new Error('boom')), 'test', 5000)).rejects.toThrow('boom');
+    });
+
+    // 빌드의 프리렌더가 실패하면 배포 전체가 실패한다. 빌드는 사용자 요청이 아니라서 기다리는 비용이 작다.
+    describe('시간 예산은 빌드와 런타임에서 다르다', () => {
+      const originalPhase = process.env.NEXT_PHASE;
+      const never = () => new Promise<string>(() => {});
+      const settle = (promise: Promise<unknown>) => {
+        const state: { value: 'pending' | 'rejected'; error?: Error } = { value: 'pending' };
+        promise.catch((error: Error) => {
+          state.value = 'rejected';
+          state.error = error;
+        });
+        return state;
+      };
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+        if (originalPhase === undefined) delete process.env.NEXT_PHASE;
+        else process.env.NEXT_PHASE = originalPhase;
+      });
+
+      it('next build 중에는 런타임 예산(7초)이 지나도 기다리고, 빌드 예산에서 끊는다', async () => {
+        process.env.NEXT_PHASE = 'phase-production-build';
+        let captured: AbortSignal | undefined;
+        const state = settle(
+          withDeadline((signal) => {
+            captured = signal;
+            return never();
+          }, 'getRewards', 7000),
+        );
+
+        await vi.advanceTimersByTimeAsync(7000);
+        expect(state.value).toBe('pending');
+        expect(captured?.aborted).toBe(false);
+
+        await vi.advanceTimersByTimeAsync(BUILD_QUERY_TIMEOUT_MS - 7000);
+        expect(state.value).toBe('rejected');
+        expect(state.error?.message).toMatch(new RegExp(`getRewards exceeded ${BUILD_QUERY_TIMEOUT_MS}ms`));
+        expect(captured?.aborted).toBe(true);
+      });
+
+      it('빌드 예산은 Next 의 페이지 생성 제한(60초)보다 짧다', () => {
+        expect(BUILD_QUERY_TIMEOUT_MS).toBeGreaterThan(7000);
+        expect(BUILD_QUERY_TIMEOUT_MS).toBeLessThan(60_000);
+      });
+
+      it('이미 빌드 예산보다 긴 예산은 줄이지 않는다', async () => {
+        process.env.NEXT_PHASE = 'phase-production-build';
+        const longer = BUILD_QUERY_TIMEOUT_MS + 5000;
+        const state = settle(withDeadline(never, 'slow', longer));
+
+        await vi.advanceTimersByTimeAsync(BUILD_QUERY_TIMEOUT_MS);
+        expect(state.value).toBe('pending');
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(state.value).toBe('rejected');
+      });
+
+      it('런타임(ISR 재생성)에서는 넘겨받은 예산 그대로 끝낸다 — 빨리 실패해야 마지막 정상 페이지가 유지된다', async () => {
+        process.env.NEXT_PHASE = 'phase-production-server';
+        const state = settle(withDeadline(never, 'getRewards', 7000));
+
+        await vi.advanceTimersByTimeAsync(6999);
+        expect(state.value).toBe('pending');
+        await vi.advanceTimersByTimeAsync(1);
+        expect(state.value).toBe('rejected');
+        expect(state.error?.message).toMatch(/getRewards exceeded 7000ms/);
+      });
     });
   });
 

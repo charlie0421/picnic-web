@@ -2,6 +2,14 @@ import { Vote, Reward } from "@/types/interfaces";
 
 export const SUPABASE_TIMEOUT_MS = 4000;
 export const GET_REWARDS_TIMEOUT_MS = 7000;
+/**
+ * `next build` 의 프리렌더가 조회 하나를 기다리는 최소 시간.
+ * 런타임 예산(4~7초)은 ISR 재생성이 빨리 실패해 마지막 정상 페이지를 유지하게 하려는 값이다. 빌드에는 맞지 않는다:
+ * 프리렌더가 실패하면 배포 전체가 실패하고, 빌드 머신(미국)에서 본 Supabase 응답은 가끔 수 초씩 걸린다
+ * (2026-09-30: 8.6초·3.2초·5.7초가 이어져 7초 예산이 세 번 연속 넘었다).
+ * Next 의 페이지 생성 제한(staticPageGenerationTimeout, 60초)보다는 짧아야 한다.
+ */
+export const BUILD_QUERY_TIMEOUT_MS = 30000;
 export const DEFAULT_REWARD_LIMIT = 24;
 export const REWARD_SELECT_COLUMNS = `
   id,
@@ -62,12 +70,16 @@ export async function withTimeout<T>(
  * - 요청을 끊는다. 포기한 요청이 살아 있으면 Next 의 fetch 잠금(같은 요청을 직렬화한다)을 계속 쥐고 있어
  *   프리렌더 재시도가 그 뒤에서 기다리다 다시 시간 예산을 넘긴다. run 은 받은 signal 을 조회에 연결해야 한다
  *   (postgrest-js 의 `.abortSignal(signal)`).
+ * - `next build` 중에는 예산을 BUILD_QUERY_TIMEOUT_MS 이상으로 늘린다.
  */
 export async function withDeadline<T>(
   run: (signal: AbortSignal) => Promise<T>,
   label: string,
-  timeoutMs: number = SUPABASE_TIMEOUT_MS
+  runtimeTimeoutMs: number = SUPABASE_TIMEOUT_MS
 ): Promise<T> {
+  // Next 는 빌드(정적 생성 워커 포함)에서 NEXT_PHASE 를 이 값으로 둔다.
+  const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+  const timeoutMs = isBuild ? Math.max(runtimeTimeoutMs, BUILD_QUERY_TIMEOUT_MS) : runtimeTimeoutMs;
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
