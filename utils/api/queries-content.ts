@@ -32,9 +32,11 @@ export const _getRewards = async (
       const supabase = createPublicSupabaseClient();
       const effectiveLimit = limitParam ?? DEFAULT_REWARD_LIMIT;
 
+      // count 를 요청하지 않는다. 쓰는 곳이 없고, 요청하면 limit 에 잘린 결과에 PostgREST 가 206 을 돌려준다.
+      // Next 는 상태 200 인 응답만 빌드의 fetch 캐시에 넣으므로 206 이면 언어별 페이지가 같은 요청을 따로 보낸다.
       let query = supabase
         .from("reward")
-        .select(REWARD_SELECT_COLUMNS, { count: 'estimated' })
+        .select(REWARD_SELECT_COLUMNS)
         .is("deleted_at", null)
         .order("order", { ascending: true });
 
