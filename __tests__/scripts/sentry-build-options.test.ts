@@ -47,9 +47,10 @@ describe('sentryBuildOptions', () => {
       name: `picnic-web@${BUILD}`,
       create: true,
       finalize: true,
+      // Vercel 에서도 로컬 git 자동 감지(auto)를 쓴다 — 명시 {repo, commit} 은 Sentry 에 저장소 레코드가 없어 연결되지 않았고,
+      // auto 는 앞선 빌드들에서 실제로 커밋을 붙였다(Vercel 클론에도 git 이 있다)
       setCommits: {
-        repo: 'charlie0421/picnic-web',
-        commit: 'abc123',
+        auto: true,
         ignoreMissing: true,
         ignoreEmpty: true,
         shouldNotThrowOnFailure: true, // 커밋 연결 실패가 finalize 를 막지 않게 (코어 런타임이 확인)
@@ -75,7 +76,7 @@ describe('sentryBuildOptions', () => {
     expect(o).not.toHaveProperty('disableServerWebpackPlugin');
   });
 
-  it('로컬에서 SENTRY_UPLOAD_SOURCEMAPS=1 로 옵트인하면 로컬 git 커밋을 자동 연결한다', () => {
+  it('로컬 옵트인(SENTRY_UPLOAD_SOURCEMAPS=1)도 같은 auto 커밋 연결을 쓴다', () => {
     const o = sentryBuildOptions({
       buildVersion: BUILD,
       env: { SENTRY_AUTH_TOKEN: 't', SENTRY_UPLOAD_SOURCEMAPS: '1' },
