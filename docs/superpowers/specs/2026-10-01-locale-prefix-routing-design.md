@@ -2,7 +2,7 @@
 
 - 날짜: 2026-10-01
 - 근거: `docs/superpowers/specs/2026-09-30-root-layout-isr-design.md` §7 의 첫 후속 과제(미지원 언어 세그먼트와 접두어 없는 경로), 감사 계획 `docs/audit-2026-09-26/plan.md` §5.4 의 후속 항목
-- 상태: 초안 5. 네 관점의 내부 검토(초안 1)와 Codex gpt-6-sol/high 교차 리뷰 세 차례(초안 2, 3, 4)를 반영했다. 사용자 검토 전이고 구현을 시작하지 않았다
+- 상태: 초안 5. 네 관점의 내부 검토(초안 1)와 Codex gpt-6-sol/high 교차 리뷰 세 차례(초안 2, 3, 4)를 반영했고, 4회차 교차 리뷰가 이 초안을 APPROVE 했다(2026-10-01, 새 지적 없음). 사용자 검토 전이고 구현을 시작하지 않았다
 - 브랜치: `fix/locale-prefix-routing` (워크트리 `picnic-web-locale-prefix`)
 - 기준: 코드 `a1eedad6`(2026-10-01 Production), Next 15.5.26
 
