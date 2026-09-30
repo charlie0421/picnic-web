@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createPublicSupabaseServerClient } from '@/lib/supabase/server';
 import { cache } from 'react';
 
 const SUPABASE_TIMEOUT_MS = 4000;
@@ -38,7 +38,8 @@ async function withTimeout<T>(promise: Promise<T>, fallback: T, label: string): 
 export const getNotices = cache(async () => {
   const fetchPromise = (async () => {
     try {
-      const supabase = await createSupabaseServerClient();
+      // notice 페이지와 sitemap 은 ISR 이다 — 쿠키 없는 공개 클라이언트로 조회한다 (notices: RLS 없음).
+      const supabase = createPublicSupabaseServerClient();
       const { data, error } = await supabase
         .from('notices')
         .select('id, title, content, created_at, is_pinned')
@@ -67,7 +68,9 @@ export const getNoticeById = async (id: number) => {
     return { data: null, error: new Error('Invalid ID') };
   }
 
-  const supabase = await createSupabaseServerClient();
+  // notice 페이지와 sitemap 은 ISR 이다 — 쿠키 없는 공개 클라이언트로 조회한다 (notices: RLS 없음).
+
+  const supabase = createPublicSupabaseServerClient();
   const { data, error } = await supabase
     .from('notices')
     .select('*')

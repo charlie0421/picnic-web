@@ -1,6 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createPublicSupabaseServerClient, createServerSupabaseClient } from '@/lib/supabase/server';
 
 // 약관 및 정책 가져오기 (캐시 적용)
 export const getPolicy = cache(
@@ -41,7 +41,8 @@ export const getPolicy = cache(
 
 export const getFaqs = cache(async (lang: string = 'ko') => {
     try {
-      const supabase = await createServerSupabaseClient();
+      // faq 페이지는 ISR 이다 — 쿠키 없는 공개 클라이언트로 조회한다 (faqs: RLS 없음, faq_categories: public SELECT 정책).
+      const supabase = createPublicSupabaseServerClient();
       const { data, error } = await supabase
         .from('faqs')
         .select('id, question, answer, answer_delta, category, created_at')
@@ -81,7 +82,8 @@ export interface FaqCategory {
 
 export const getFaqCategories = cache(async (lang: string = 'ko') => {
   try {
-    const supabase = await createServerSupabaseClient();
+    // faq 페이지는 ISR 이다 — 쿠키 없는 공개 클라이언트로 조회한다 (faqs: RLS 없음, faq_categories: public SELECT 정책).
+    const supabase = createPublicSupabaseServerClient();
     const { data, error } = await supabase
       .from('faq_categories')
       .select('code, label, order_number, active')
