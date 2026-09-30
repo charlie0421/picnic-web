@@ -74,7 +74,8 @@ export function VoteSearch({
     <div className={`relative ${className}`}>
       <div className='relative'>
         <input
-          type='text'
+          type='search'
+          aria-label={t('text_hint_search') || placeholder}
           value={searchQuery}
           onChange={handleSearch}
           placeholder={placeholder}
