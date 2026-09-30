@@ -54,7 +54,10 @@ function setupChain(data: any, error: any = null) {
   mockFrom.mockReturnValue({ select: mockSelect });
   mockSelect.mockReturnValue({ is: mockIs });
   mockIs.mockReturnValue({ order: mockOrder, eq: mockEq, lte: mockLte });
-  mockOrder.mockReturnValue({ limit: mockLimit, lte: mockLte, abortSignal: () => ({ limit: mockLimit }) });
+  const tail: Record<string, unknown> = { limit: mockLimit };
+  tail.abortSignal = () => tail;
+  tail.retry = () => tail;
+  mockOrder.mockReturnValue({ ...tail, lte: mockLte });
   mockLimit.mockResolvedValue({ data, error });
   mockEq.mockReturnValue({ is: mockIs, lte: mockLte, order: mockOrder });
   mockLte.mockReturnValue({ or: mockOr, order: mockOrder });

@@ -44,6 +44,12 @@ export const _getRewards = async (
         .is("deleted_at", null)
         .order("order", { ascending: true });
 
+      if (throwOnError) {
+        // postgrest-js 의 자체 재시도를 끈다. 재시도 요청에는 X-Retry-Count 헤더가 붙는데, Next 의 fetch 캐시 키에는
+        // 요청 헤더가 들어가므로 재시도로 성공한 응답이 다른 언어 페이지의 첫 시도와 다른 키에 저장된다.
+        // 재시도는 아래 withRetry 가 같은 요청으로 한다.
+        query = query.retry(false);
+      }
       if (deadlineSignal) {
         query = query.abortSignal(deadlineSignal);
       }
@@ -72,8 +78,10 @@ export const _getRewards = async (
     },
     {
       maxRetries: 2,
-      initialDelay: 300,
-      maxDelay: 1500,
+      // ISR 경로는 postgrest-js 의 자체 재시도(1초, 2초 뒤)를 끄는 대신 같은 간격으로 여기서 재시도한다.
+      // 폴백 경로는 기존 간격(0.3초, 0.6초) 그대로다.
+      initialDelay: throwOnError ? 1000 : 300,
+      maxDelay: throwOnError ? 4000 : 1500,
       // 시간 예산을 넘겨 끊은 요청은 다시 보내지 않는다.
       shouldRetry: () => !deadlineSignal?.aborted,
       onRetry: (error, attempt) => {

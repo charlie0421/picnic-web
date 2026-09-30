@@ -269,7 +269,7 @@ postbuild 의 next-sitemap 은 프리렌더된 경로를 전부 `public/sitemap-
 
 ### 콘텐츠 반영 지연과 긴급 삭제
 
-- 반영 지연: rewards 최대 60초, faq·notice 최대 5분, download(앱 버전·링크) 최대 1시간. 배포 직후는 §4.6 의 추가 지연이 있다.
+- 반영 지연: rewards 최대 60초, faq·notice 최대 5분, download(앱 버전·링크) 최대 1시간. 배포 직후에도 같다(빌드마다 현재 데이터로 프리렌더한다, §4.6).
 - 잘못 올린 공지를 내려도 상세 페이지가 최대 5분(+요청 한 번) 동안 남는다. 저장소에 공지·FAQ·리워드용 온디맨드 무효화는 없다.
 - 즉시 지워야 할 때: Vercel 의 캐시 퍼지(`vercel cache purge`, 또는 대시보드의 CDN Cache·Data Cache 퍼지). Production 에서 이 절차를 실제로 실행해 보지는 않았다.
 - 후속: 비밀키로 보호한 재검증 API(`revalidatePath`)를 두고 관리자 도구가 호출하게 한다(§7).
@@ -357,10 +357,11 @@ faq·notice·version 조회는 같은 빌드에서 요청 자체가 없었다. �
 | 변경 | 효과 |
 |---|---|
 | 리워드 목록에서 `count` 요청 제거 | 응답이 200 이 되어 언어별 페이지가 응답 하나를 나눠 쓴다 |
-| `rejectOnTimeout` → `withDeadline` | 예산을 넘기면 `AbortSignal` 로 조회를 끊는다. 끊은 요청은 다시 보내지 않는다 |
+| `rejectOnTimeout` → `withDeadline` | 예산을 넘기면 `AbortSignal` 로 조회를 끊는다. 끊은 요청은 다시 보내지 않는다(백오프 뒤에도 다시 확인) |
+| 리워드 ISR 조회에서 postgrest-js 자체 재시도를 끔 | postgrest-js 는 재시도 요청에 `X-Retry-Count` 헤더를 붙이고, Next 의 fetch 캐시 키에는 요청 헤더가 들어간다. 재시도로 성공한 응답이 다른 언어 페이지의 첫 시도와 다른 키에 저장돼 공유되지 않았다. 재시도는 `withRetry` 가 같은 요청으로, 같은 간격(1초·2초 뒤)으로 한다 |
 | `next build` 중 조회 예산 30초 | 느리지만 끝나는 응답을 기다린다. 런타임은 4~7초 그대로 |
 | `prebuild` 가 fetch 캐시를 비움 | 빌드마다 현재 데이터로 프리렌더한다 |
 
 재현: Supabase 앞에 지연 프록시를 두고 `next build` 를 돌렸다(연결 실패 2회 뒤 모든 목록 응답 8.6초, 워커 1개). 수정 전 코드는 `/en/rewards after 3 attempts` 로 실패했고(Production 과 같은 오류), 수정 후에는 프리렌더 실패 없이 통과했다. 같은 워크트리에서 빌드를 두 번 돌리면 두 번째 빌드의 Supabase 조회가 0건에서 5건이 된다.
 
-남은 것: faq·version·상세 조회에는 시간 예산이 없다. 응답이 아예 오지 않으면 Next 의 페이지 생성 제한(60초)이나 함수 제한 시간까지 기다린다.
+남은 것: faq·version·상세 조회에는 시간 예산이 없다. 응답이 아예 오지 않으면 Next 의 페이지 생성 제한(`staticPageGenerationTimeout`, 120초)이나 함수 제한 시간까지 기다린다.

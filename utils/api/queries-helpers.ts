@@ -7,7 +7,7 @@ export const GET_REWARDS_TIMEOUT_MS = 7000;
  * 런타임 예산(4~7초)은 ISR 재생성이 빨리 실패해 마지막 정상 페이지를 유지하게 하려는 값이다. 빌드에는 맞지 않는다:
  * 프리렌더가 실패하면 배포 전체가 실패하고, 빌드 머신(미국)에서 본 Supabase 응답은 가끔 수 초씩 걸린다
  * (2026-09-30: 8.6초·3.2초·5.7초가 이어져 7초 예산이 세 번 연속 넘었다).
- * Next 의 페이지 생성 제한(staticPageGenerationTimeout, 60초)보다는 짧아야 한다.
+ * Next 의 페이지 생성 제한(next.config.js 의 staticPageGenerationTimeout, 120초)보다는 짧아야 한다.
  */
 export const BUILD_QUERY_TIMEOUT_MS = 30000;
 export const DEFAULT_REWARD_LIMIT = 24;

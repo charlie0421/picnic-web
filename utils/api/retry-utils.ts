@@ -63,6 +63,11 @@ export function withRetry<T extends (...args: any[]) => Promise<any>>(
           // 지수 백오프 지연
           await new Promise(resolve => setTimeout(resolve, delay));
           delay = Math.min(delay * retryOptions.factor, retryOptions.maxDelay);
+
+          // 기다리는 동안 중단 조건이 생겼을 수 있다(예: 시간 예산 초과). 다음 시도 전에 다시 확인한다.
+          if (retryOptions.shouldRetry && !retryOptions.shouldRetry(error)) {
+            throw error;
+          }
         }
       }
     }

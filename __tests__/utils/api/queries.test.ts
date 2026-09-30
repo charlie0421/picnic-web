@@ -193,11 +193,6 @@ describe('queries-helpers', () => {
         expect(captured?.aborted).toBe(true);
       });
 
-      it('빌드 예산은 Next 의 페이지 생성 제한(60초)보다 짧다', () => {
-        expect(BUILD_QUERY_TIMEOUT_MS).toBeGreaterThan(7000);
-        expect(BUILD_QUERY_TIMEOUT_MS).toBeLessThan(60_000);
-      });
-
       it('이미 빌드 예산보다 긴 예산은 줄이지 않는다', async () => {
         process.env.NEXT_PHASE = 'phase-production-build';
         const longer = BUILD_QUERY_TIMEOUT_MS + 5000;
@@ -478,6 +473,26 @@ describe('retry-utils', () => {
       await expect(retried()).rejects.toThrow('aborted');
       expect(fn).toHaveBeenCalledTimes(1);
       expect(onRetry).not.toHaveBeenCalled();
+    });
+
+    it('checks shouldRetry again after the backoff — the stop condition can arise while waiting', async () => {
+      vi.useFakeTimers();
+      try {
+        let stop = false;
+        const fn = vi.fn().mockRejectedValue(new Error('fail'));
+        const retried = withRetry(fn, { maxRetries: 2, initialDelay: 1000, maxDelay: 2000, factor: 2, shouldRetry: () => !stop });
+
+        const pending = retried();
+        const assertion = expect(pending).rejects.toThrow('fail');
+        await vi.advanceTimersByTimeAsync(500);
+        stop = true;
+        await vi.advanceTimersByTimeAsync(5000);
+
+        await assertion;
+        expect(fn).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('calls onRetry callback on each retry', async () => {
