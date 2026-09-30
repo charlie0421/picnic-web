@@ -7,7 +7,6 @@ const mockPush = vi.fn();
 const mockReplace = vi.fn();
 const mockRefresh = vi.fn();
 const mockUsePathname = vi.fn();
-const mockUseSearchParams = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -19,7 +18,11 @@ vi.mock('next/navigation', () => ({
     prefetch: vi.fn(),
   }),
   usePathname: () => mockUsePathname(),
-  useSearchParams: () => mockUseSearchParams(),
+  // useLocaleRouter 는 레이아웃(Header·Footer)에서 쓰인다. useSearchParams() 를 부르면
+  // 정적 프리렌더가 Suspense 경계를 요구해 빌드가 깨진다.
+  useSearchParams: () => {
+    throw new Error('useLocaleRouter must not call useSearchParams()');
+  },
 }));
 
 const mockSetLanguage = vi.fn();
@@ -62,7 +65,6 @@ describe('useLocaleRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUsePathname.mockReturnValue('/ko/votes');
-    mockUseSearchParams.mockReturnValue(new URLSearchParams());
   });
 
   describe('currentLocale', () => {
@@ -270,6 +272,27 @@ describe('useLocaleRouter', () => {
     it('should be en', () => {
       const { result } = renderHook(() => useLocaleRouter());
       expect(result.current.defaultLocale).toBe('en');
+    });
+  });
+
+  describe('changeLocale — 쿼리 보존', () => {
+    const changeTo = async (locale: 'en' | 'ja') => {
+      const { result } = renderHook(() => useLocaleRouter());
+      await act(async () => {
+        await (result.current.changeLocale(locale) as unknown as Promise<void>);
+      });
+    };
+
+    it('현재 URL 의 쿼리를 그대로 붙인다', async () => {
+      window.history.pushState({}, '', '/ko/votes?status=ongoing&area=kpop');
+      await changeTo('en');
+      expect(mockPush).toHaveBeenCalledWith('/en/votes?status=ongoing&area=kpop');
+    });
+
+    it('쿼리가 없으면 물음표를 붙이지 않는다', async () => {
+      window.history.pushState({}, '', '/ko/votes');
+      await changeTo('ja');
+      expect(mockPush).toHaveBeenCalledWith('/ja/votes');
     });
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLanguageStore } from '../stores/languageStore';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, type Language } from '../config/settings';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
@@ -28,7 +28,6 @@ interface LocaleRouterReturn {
 export function useLocaleRouter(): LocaleRouterReturn {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { currentLanguage, setLanguage, translations, loadTranslations: storeLoadTranslations, t: storeT } = useLanguageStore();
 
   // 로케일 유효성 검사
@@ -141,7 +140,9 @@ export function useLocaleRouter(): LocaleRouterReturn {
     if (preservePath) {
       const currentPath = removeLocaleFromPath(pathname);
       const newPath = getLocalizedPath(currentPath, locale);
-      const query = searchParams?.toString();
+      // 쿼리는 전환 시점에 읽는다. useSearchParams() 는 정적 프리렌더에서 Suspense 경계를 요구하는데
+      // 이 훅은 레이아웃(Header·Footer)에서 쓰여 경계를 둘 수 없다.
+      const query = typeof window !== 'undefined' ? window.location.search.replace(/^\?/, '') : '';
       router.push(query ? `${newPath}?${query}` : newPath);
     } else {
       const newPath = getLocalizedPath('/', locale);

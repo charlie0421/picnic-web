@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { Suspense, useRef, useState } from 'react';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -26,7 +26,7 @@ function SubmitButton() {
   );
 }
 
-export default function NewQnaPage() {
+function NewQnaForm() {
   const [state, formAction] = useActionState(createQnaThreadAction, { error: null as string | null });
   const { tDynamic } = useTranslations();
   const t = (key: string) => tDynamic(key) || key;
@@ -268,5 +268,14 @@ export default function NewQnaPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function NewQnaPage() {
+  // NewQnaForm 이 useSearchParams() 를 쓴다. 이 페이지는 정적으로 프리렌더되므로 Suspense 경계가 필요하다.
+  return (
+    <Suspense fallback={null}>
+      <NewQnaForm />
+    </Suspense>
   );
 }
