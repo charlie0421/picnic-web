@@ -2,7 +2,7 @@
 
 - 날짜: 2026-09-30
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-11(PERF-01, STR-012, PERF-22), 결정 #8(rewards/faq/notice ISR 승인), B-R3
-- 상태: 설계 승인 대기 (구현 전)
+- 상태: 구현 완료 (브랜치 `refactor/root-layout-isr`), 교차 리뷰·머지 대기
 
 ## 1. 목표와 성공 기준
 

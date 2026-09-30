@@ -317,7 +317,8 @@ Orca 사용량 텔레메트리가 복구된 뒤 교차 리뷰(Codex gpt-6-sol, r
 후속(리뷰어 제안·잔여):
 - 프로필 행이 끝내 생성되지 않는 결제 건(WALLET_USER_NOT_FOUND 재시도) 운영 감시
 - 결제 수정(B-P1~P3)은 sandbox 자격 후 — #88 의 `it.fails` 를 `it` 으로 전환하며 진행
-- 루트 `headers()` 제거·ISR(결정 #8)은 별도 설계
+- ~~루트 `headers()` 제거·ISR(결정 #8)~~ **구현(2026-09-30, 교차 리뷰·머지 대기)**: 루트 레이아웃 pass-through, `[lang]` 레이아웃이 `<html lang>` 소유, `[lang]` 밖 페이지는 `app/(bare)/`(URL 불변, 광고 없음). rewards 60s, rewards/[id]·faq·notice·notice/[id] 300s, download·루트 sitemap 3600s ISR. `/vote/[id]`·`/star-candy`·`/privacy`·`/terms` 는 `force-dynamic` 명시. 모든 페이지의 렌더링 모드는 `__tests__/app/rendering-mode-contract.test.ts` 가 고정. 로컬 검증: `.next/prerender-manifest.json` 의 프리렌더 37개 경로가 의도한 집합과 일치, `next start` 에서 ISR 페이지 `s-maxage` / 동적 페이지 `private, no-store` / 12개 언어 `<html lang>` / 리다이렉트 307 / 404 확인. 빌드 표의 `●` 는 레이아웃 `generateStaticParams` 때문에 동적 페이지에도 붙으므로 기준이 아니다. 설계 `docs/superpowers/specs/2026-09-30-root-layout-isr-design.md`, 계획 `docs/superpowers/plans/2026-09-30-root-layout-isr.md`. 머지 후 확인: Production `x-vercel-cache: HIT`, 로그인/로그아웃, Sentry
+- 후속(위 설계 §7): `/vote/[id]` ISR · 미지원 언어 세그먼트 404 와 접두어 없는 경로(`/login` → `/login/vote` 는 기존 동작) 리다이렉트 · middleware `x-locale` 주입 제거 · `/privacy`·`/terms` ISR · 추적 중인 `public/sitemap.xml` 이 로컬에서 `app/sitemap.ts` 를 가리는 문제(U-31)
 - ~~`.sentryclirc` 토큰 교체~~ **완료(2026-09-30, #99)**: 새 조직 토큰 발급 → Vercel 3환경 `SENTRY_AUTH_TOKEN` 교체 → `.sentryclirc` 추적 해제·`.sentryclirc.example`·빌드 로그 토큰 출력 제거 → 배포에서 소스맵 업로드·릴리스 확정 확인 → 옛 토큰 Sentry 에서 폐기. 히스토리의 토큰은 폐기로 무효(공개 레포, force push 안 함)
 - ~~Sentry 릴리스 이원화~~ **완료(2026-09-30)**: 플러그인이 `picnic-web@<BUILD_VERSION>` 하나만 생성·소스맵 업로드·커밋 연결·finalize. postbuild 의 `sentry-cli`(`picnic-web@0.1.0-<date>-`, 소스맵 중복 업로드, 아무 에러도 오지 않던 릴리스) 제거. 플러그인은 Vercel 빌드에서만 켜져 로컬 `next build` 가 운영 릴리스를 만들지 않음(`SENTRY_UPLOAD_SOURCEMAPS=1` 로 옵트인)
 - `support@picnic.com`·`*.picnic.com` 링크 실제 주소 확인
