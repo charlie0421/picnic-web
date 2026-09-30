@@ -59,7 +59,7 @@ A 의 알려진 단점: `[lang]` 안팎을 오갈 때 전체 새로고침이 일
 ```
 app/
   layout.tsx                 # pass-through: children 만 반환. headers() 없음. metadata 없음
-  not-found.tsx              # 자체 <html lang><body> 렌더 (루트가 pass-through 이므로 필수)
+  not-found.tsx              # 자체 <html lang><body> 렌더 (루트가 pass-through 이므로 필수). 인라인 스타일만 쓰므로 CSS import 없음
   global-error.tsx           # 변경 없음 (이미 자체 <html> 렌더)
   sitemap.ts                 # revalidate 명시 (§4.3)
   open-in-browser/route.ts   # 변경 없음 (route handler 는 레이아웃 불필요)
@@ -76,12 +76,12 @@ app/
 ```
 
 삭제:
-- `app/page.tsx`, `app/vote/page.tsx`, `app/mypage/page.tsx`, `app/concert2025/page.tsx` → `next.config.js` `redirects()` 로 대체(§4.2).
+- `app/page.tsx`, `app/vote/page.tsx`, `app/vote/[id]/page.tsx`, `app/mypage/page.tsx`, `app/concert2025/page.tsx` → `next.config.js` `redirects()` 로 대체(§4.2).
 - `app/404.tsx` — App Router 에서 라우트가 아닌 죽은 파일.
 
 루트 레이아웃이 pass-through 가 되면 Next 는 `<html>`/`<body>` 를 만들어 주지 않으므로, 모든 렌더 경로가 `[lang]/layout.tsx`, `(bare)/layout.tsx`, `not-found.tsx`, `global-error.tsx` 중 하나로 `<html>` 을 공급한다. 이 네 파일이 `<html>` 을 소유하는 전체 목록이다.
 
-`<html lang>` 값: `getLanguageTag(params.lang) ?? 'ko'` (기존 루트 레이아웃과 같은 매핑, `zh-cn → zh-CN`). `(bare)` 와 `not-found` 는 `ko` 고정이다. `not-found.tsx` 는 이미 클라이언트에서 경로 언어를 감지하므로 감지 결과를 `<html lang>` 에 반영한다.
+`<html lang>` 값: `getLanguageTag(params.lang) ?? 'ko'` (기존 루트 레이아웃과 같은 매핑, `zh-cn → zh-CN`). `(bare)` 와 `not-found` 의 서버 HTML 은 `ko` 고정이다. `not-found.tsx` 는 이미 클라이언트에서 경로 언어를 감지하므로 감지 후 `document.documentElement.lang` 을 갱신한다. `(bare)` 레이아웃에는 AdSense·쿠키 배너를 두지 않는다(인증 콜백·광고 플레이어는 콘텐츠 페이지가 아니다).
 
 ### 4.2 리다이렉트 스텁 대체
 
@@ -90,10 +90,11 @@ app/
 | source | destination |
 |---|---|
 | `/vote` | `/${DEFAULT_LANGUAGE}/vote` |
+| `/vote/:id` | `/${DEFAULT_LANGUAGE}/vote/:id` |
 | `/mypage` | `/${DEFAULT_LANGUAGE}/mypage` |
 | `/concert2025` | `/${DEFAULT_LANGUAGE}/concert2025` |
 
-`DEFAULT_LANGUAGE` 는 `config/settings` 의 값(`en`)을 import 해서 쓴다. 기존 `/ → /en/vote` 와 같은 언어다. 리다이렉트는 middleware 보다 먼저 적용되므로 함수 호출 없이 엣지에서 끝난다.
+`next.config.js` 는 CJS 라 TS 설정을 import 할 수 없으므로 기존 `/ → /en/vote` 처럼 `/en/...` 을 직접 쓰고, 테스트가 `DEFAULT_LANGUAGE`(`en`)와의 일치를 검증한다. 리다이렉트는 middleware 보다 먼저 적용되므로 함수 호출 없이 엣지에서 끝난다.
 
 ### 4.3 페이지별 렌더링 모드 (명시 원칙)
 
@@ -102,10 +103,10 @@ app/
 | 라우트 | 변경 | 결과 |
 |---|---|---|
 | `/[lang]/rewards` | `force-dynamic` 제거, `revalidate = 60` 유지, `createISRMetadata` 제거(메타데이터에 `revalidate` 를 넣는 것은 효과가 없음) | ISR 60s |
-| `/[lang]/rewards/[id]` | `force-dynamic` → `revalidate = 300` | ISR 300s, 온디맨드 생성 |
+| `/[lang]/rewards/[id]` | `force-dynamic` → `revalidate = 300` + `generateStaticParams() → []` | ISR 300s, 온디맨드 생성 |
 | `/[lang]/faq` | `force-dynamic` → `revalidate = 300`; `getFaqs`/`getFaqCategories` 를 공개 클라이언트로 전환 | ISR 300s |
 | `/[lang]/notice` | `force-dynamic` → `revalidate = 300`; `getNotices` 를 공개 클라이언트로 전환 | ISR 300s |
-| `/[lang]/notice/[id]` | `revalidate = 300` 추가; `getNoticeById` 를 공개 클라이언트로 전환 | ISR 300s, 온디맨드 생성 |
+| `/[lang]/notice/[id]` | `revalidate = 300` + `generateStaticParams() → []` 추가; `getNoticeById` 를 공개 클라이언트로 전환 | ISR 300s, 온디맨드 생성 |
 | `/[lang]/download` | 변경 없음 (`revalidate = 3600` 이 이제 효력) | ISR 3600s |
 | `/[lang]/concert2025` | 변경 없음 | 정적(force-static, 86400) |
 | `/[lang]` (redirect) | 변경 없음 | 정적 리다이렉트 |
@@ -123,8 +124,8 @@ app/
 ### 4.4 `useSearchParams` 제거
 
 - `hooks/useLocaleRouter.ts`: `useSearchParams()` 훅 호출을 없애고, 로케일 전환 함수 안에서 `window.location.search` 를 그 시점에 읽어 쿼리를 보존한다(유일한 사용처 `:144`). 훅의 반환 타입과 다른 동작은 바뀌지 않는다.
-- `/[lang]/login`: 페이지가 `useSearchParams` 를 직접 쓰므로 페이지 파일을 서버 컴포넌트로 바꾸고 기존 내용을 `LoginClient` 로 옮겨 `<Suspense fallback={<LoadingIndicator />}>`(기존 컴포넌트) 로 감싼다. `returnTo` 읽기 동작은 그대로다.
-- `/[lang]/mypage/qna/new`: 같은 방식으로 Suspense 경계를 둔다.
+- `/[lang]/login`: `useSearchParams` 를 쓰는 `LoginContentInner` 는 이미 Suspense 안에 있다. Suspense 밖의 `LanguageSelector` 가 `useLocaleRouter` 를 쓰는 것이 유일한 문제였고 위 훅 수정으로 해결된다. 파일 변경 없음.
+- `/[lang]/mypage/qna/new`: 페이지 컴포넌트가 `useSearchParams` 를 직접 쓰므로 본문을 `NewQnaForm` 으로 내리고 default export 가 `<Suspense fallback={null}>` 으로 감싼다.
 - 나머지 `useSearchParams` 직접 사용은 이미 동적인 페이지 안에 있거나 Suspense 안에 있어 손대지 않는다. 최종 확인은 `next build` 가 한다.
 
 ### 4.5 middleware
@@ -181,6 +182,8 @@ app/
 | 회귀 등급: 높음(레이아웃 재구성) | 고위험 아님(인증·결제·권한·마이그레이션 아님)이나 Frontier 반대 공급자 리뷰를 받는다 |
 
 ## 7. 범위 밖·후속
+
+- 지원하지 않는 언어 세그먼트(`/xx/rewards`, 접두어 없는 `/login`·`/download`)는 지금처럼 `[lang]` 이 받아 200 으로 렌더한다(`<html lang>` 은 `ko` 폴백). 동작을 바꾸지 않되, ISR 전환 뒤에는 임의 문자열마다 캐시 항목이 생길 수 있으므로 "미지원 언어 404 + 접두어 없는 경로 리다이렉트" 를 후속 과제로 둔다.
 
 - `/vote/[id]` ISR (종료·노출 시각, 404 캐시, 폴링과의 관계 별도 설계).
 - middleware `x-locale` 주입 제거와 관련 테스트 정리.
