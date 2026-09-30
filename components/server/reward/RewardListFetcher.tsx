@@ -1,7 +1,7 @@
 import { Reward as DBReward } from "@/types/interfaces";
 import { getLocalizedString } from "@/utils/api/strings";
 import { RewardListPresenter } from "@/components/client/reward/RewardPresenter";
-import { getRewards } from "@/utils/api/queries";
+import { _getRewards } from "@/utils/api/queries-content";
 
 // DB Reward 타입을 Client Reward 타입으로 변환
 function transformRewardData(dbRewards: DBReward[]): DBReward[] {
@@ -39,7 +39,8 @@ export async function RewardListFetcher({
 }: RewardListFetcherProps = {}) {
   // 이 컴포넌트를 쓰는 /[lang]/rewards 는 ISR 이다. 조회 실패를 폴백으로 렌더하면 그 화면이 캐시되므로
   // 예외로 전파한다 — 재생성이 실패하면 Next 가 마지막 정상 페이지를 계속 제공한다.
-  const dbRewards = await getRewards(DEFAULT_LIMIT, { throwOnError: true });
+  // queries.ts 의 getRewards 가 아니라 _getRewards 를 직접 부른다: 재시도를 한 겹(3회·7초 예산)만 두기 위해서다.
+  const dbRewards = await _getRewards(DEFAULT_LIMIT, { throwOnError: true });
   const clientRewards = transformRewardData(dbRewards);
 
   if (!clientRewards || clientRewards.length === 0) {

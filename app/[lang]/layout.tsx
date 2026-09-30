@@ -4,7 +4,7 @@ import { Metadata, Viewport } from 'next';
 import ClientLayout from './ClientLayout';
 import ConsentAwareAdsense from '@/components/client/ads/ConsentAwareAdsense';
 import CookieConsentBanner from '@/components/client/ads/CookieConsentBanner';
-import { ADSENSE_CLIENT_ID, ADSENSE_META, VIEWPORT, inter } from '@/app/shell';
+import { ADSENSE_CLIENT_ID, VIEWPORT, inter } from '@/app/shell';
 import {
   DEFAULT_METADATA,
   brandMetadata,
@@ -56,8 +56,8 @@ export async function generateMetadata({
       description: siteDescription(lang),
     },
     manifest: '/manifest.json',
+    // AdSense 계정 확인 메타는 루트 레이아웃 metadata 가 싣는다 (Next 가 other 를 병합한다).
     other: {
-      ...ADSENSE_META,
       'msapplication-TileColor': '#4F46E5',
       'theme-color': '#ffffff',
       '1password-ignore': 'true',

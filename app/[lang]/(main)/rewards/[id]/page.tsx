@@ -20,7 +20,9 @@ export async function generateStaticParams() {
   return [];
 }
 
-// 메타데이터 동적 생성
+// 조회 장애(getRewardById 의 예외)는 여기서도 페이지에서도 잡지 않는다.
+// 이 라우트는 ISR 이라, 오류를 "오류 메타데이터" 나 404 로 바꿔 정상 렌더로 끝내면 그 결과가 5분간
+// 캐시돼 정상 리워드를 덮는다. 예외로 끝나면 Next 가 마지막 정상 페이지를 계속 제공한다.
 export async function generateMetadata({
   params,
 }: {
@@ -28,53 +30,42 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id: rewardId, lang } = await params;
 
-  try {
-    const reward = await getRewardById(rewardId);
+  const reward = await getRewardById(rewardId);
 
-    if (!reward) {
-      return createPageMetadata(
-        '리워드를 찾을 수 없습니다',
-        '요청하신 리워드가 존재하지 않습니다.',
-      );
-    }
-
-    // reward.title, reward.description이 Json 타입이므로 문자열로 변환
-    const title = getLocalizedString(reward.title as any, lang as any) || brandName(lang);
-
-    const imageUrl = reward.thumbnail || '';
-    const url = `${SITE_URL}/${lang}/rewards/${rewardId}`;
-
-    const metadata: Metadata = {
-      ...createPageMetadata(`${title}`, `${title} - ${brandName(lang)}`, undefined, lang),
-      ...createImageMetadata(imageUrl, title, 1200, 630),
-      openGraph: {
-        siteName: brandName(lang),
-        title: `${title} | ${brandName(lang)}`,
-        url,
-        images: [{ url: imageUrl, alt: title }],
-        type: 'website',
-      },
-      twitter: {
-        card: 'summary_large_image',
-        title: `${title} | ${brandName(lang)}`,
-        images: [{ url: imageUrl, alt: title }],
-      },
-      alternates: {
-        canonical: url,
-      },
-    };
-
-    // 스키마 데이터는 별도로 처리 (Metadata 타입에 없음)
-    return metadata;
-  } catch (error) {
+  if (!reward) {
     return createPageMetadata(
-      '리워드 정보 로딩 중 오류',
-      '리워드 정보를 불러오는 중 오류가 발생했습니다.',
+      '리워드를 찾을 수 없습니다',
+      '요청하신 리워드가 존재하지 않습니다.',
     );
   }
+
+  // reward.title, reward.description이 Json 타입이므로 문자열로 변환
+  const title = getLocalizedString(reward.title as any, lang as any) || brandName(lang);
+
+  const imageUrl = reward.thumbnail || '';
+  const url = `${SITE_URL}/${lang}/rewards/${rewardId}`;
+
+  return {
+    ...createPageMetadata(`${title}`, `${title} - ${brandName(lang)}`, undefined, lang),
+    ...createImageMetadata(imageUrl, title, 1200, 630),
+    openGraph: {
+      siteName: brandName(lang),
+      title: `${title} | ${brandName(lang)}`,
+      url,
+      images: [{ url: imageUrl, alt: title }],
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${title} | ${brandName(lang)}`,
+      images: [{ url: imageUrl, alt: title }],
+    },
+    alternates: {
+      canonical: url,
+    },
+  };
 }
 
-// PageProps 타입 생략, 직접 함수 파라미터에 타입을 인라인으로 정의
 export default async function RewardDetailPage({
   params,
 }: {
@@ -82,42 +73,19 @@ export default async function RewardDetailPage({
 }) {
   const { id: rewardId } = await params;
 
-  try {
-    console.log(`[RewardDetailPage] 리워드 ID ${rewardId} 요청 시작`);
-    
-    const reward = await getRewardById(rewardId);
-    
-    console.log(`[RewardDetailPage] 리워드 ID ${rewardId} 조회 결과:`, reward ? '성공' : '없음');
+  // 예전에는 try/catch 가 프로덕션에서 모든 오류를 notFound() 로 바꿨다. 동적 렌더일 때는 그 요청만 404 였지만,
+  // ISR 에서는 장애로 생긴 404 가 캐시에 저장된다. 실제로 없는 리워드(null)만 404 로 끝낸다.
+  const reward = await getRewardById(rewardId);
 
-    if (!reward) {
-      console.log(`[RewardDetailPage] 리워드 ID ${rewardId} 찾을 수 없음 - 404로 리디렉션`);
-      notFound(); // 404 페이지로 리디렉션
-    }
-
-    return (
-      <main className='flex flex-col min-h-screen bg-gray-50'>
-        <Suspense fallback={<div className="p-8 text-center">로딩 중...</div>}>
-          <RewardDetailClient reward={reward} />
-        </Suspense>
-      </main>
-    );
-  } catch (error) {
-    // 상세한 에러 로깅
-    console.error(`[RewardDetailPage] 리워드 ID ${rewardId} 처리 중 에러:`, {
-      error,
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString(),
-      rewardId,
-    });
-
-    // 프로덕션에서는 사용자에게 친화적인 에러 페이지 표시
-    if (process.env.NODE_ENV === 'production') {
-      // 404로 처리하여 500 에러 방지
-      notFound();
-    } else {
-      // 개발 환경에서는 에러를 그대로 throw하여 디버깅 가능
-      throw error;
-    }
+  if (!reward) {
+    notFound();
   }
+
+  return (
+    <main className='flex flex-col min-h-screen bg-gray-50'>
+      <Suspense fallback={<div className="p-8 text-center">로딩 중...</div>}>
+        <RewardDetailClient reward={reward} />
+      </Suspense>
+    </main>
+  );
 }

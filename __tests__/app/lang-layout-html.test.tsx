@@ -102,8 +102,10 @@ describe('[lang] 레이아웃 — 광고', () => {
     expect(banner).toBeUndefined();
   });
 
-  it('AdSense 계정 메타 태그는 [lang] 메타데이터가 싣는다', async () => {
+  // AdSense 계정 확인 메타는 루트 레이아웃 metadata 가 싣고 Next 가 other 를 병합한다(main 과 같은 구조).
+  // [lang] 이 other 를 통째로 다시 선언해 루트 값을 가리지 않는지만 확인한다.
+  it('[lang] 메타데이터의 other 는 루트가 싣는 AdSense 메타를 다른 값으로 덮지 않는다', async () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ lang: 'ko' }) });
-    expect(metadata.other).toMatchObject({ 'google-adsense-account': 'ca-pub-1539304887624918' });
+    expect(metadata.other?.['google-adsense-account']).toBeUndefined();
   });
 });

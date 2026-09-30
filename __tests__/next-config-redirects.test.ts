@@ -2,7 +2,7 @@ import { createRequire } from 'module';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 import fs from 'fs';
-import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from '@/config/settings';
+import { SUPPORTED_LANGUAGES } from '@/config/settings';
 
 type Redirect = {
   source: string;
@@ -12,6 +12,7 @@ type Redirect = {
 
 type NextConfig = {
   redirects: () => Promise<Redirect[]>;
+  experimental?: { staticGenerationRetryCount?: number };
 };
 
 describe('next.config.js 진입 리다이렉트 계약', () => {
@@ -30,31 +31,29 @@ describe('next.config.js 진입 리다이렉트 계약', () => {
     expect(match?.[1].split('|')).toEqual([...SUPPORTED_LANGUAGES]);
   });
 
-  // 예전에는 app/vote/page.tsx 같은 스텁 페이지가 redirect() 했다. 루트 레이아웃이 pass-through 가 되면
-  // [lang] 밖 페이지는 <html> 을 받지 못하므로, 함수 호출 없는 설정 리다이렉트로 옮겼다.
-  it.each([
-    ['/vote', '/vote'],
-    ['/vote/:id', '/vote/:id'],
-    ['/mypage', '/mypage'],
-    ['/concert2025', '/concert2025'],
-  ])('언어 접두어 없는 %s 는 기본 언어로 보낸다', async (source, rest) => {
-    const require = createRequire(import.meta.url);
-    const config = require(path.join(process.cwd(), 'next.config.js')) as NextConfig;
-    const redirects = await config.redirects();
-    const matches = redirects.filter((redirect) => redirect.source === source);
-
-    expect(matches).toEqual([
-      { source, destination: `/${DEFAULT_LANGUAGE}${rest}`, permanent: false },
-    ]);
-  });
-
+  // [lang] 밖의 페이지는 app/(bare)/ 아래에 둔다 — 루트 레이아웃이 pass-through 라 app/ 바로 아래의 페이지는
+  // <html> 을 주는 레이아웃이 없다. 접두어 없는 리다이렉트 스텁도 (bare) 에 있다
+  // (__tests__/app/unprefixed-redirect-stubs.test.tsx).
   it.each([
     'app/page.tsx',
     'app/vote/page.tsx',
     'app/vote/[id]/page.tsx',
     'app/mypage/page.tsx',
     'app/concert2025/page.tsx',
-  ])('%s 스텁은 남아 있지 않다 (<html> 없는 페이지가 된다)', (file) => {
+  ])('%s 는 app/ 바로 아래에 두지 않는다 (<html> 없는 페이지가 된다)', (file) => {
     expect(fs.existsSync(path.join(process.cwd(), file))).toBe(false);
+  });
+});
+
+/**
+ * rewards·faq·notice·download 는 빌드에서 프리렌더되고, 그 조회는 실패를 폴백으로 바꾸지 않고 예외로 전파한다
+ * (폴백이 ISR 캐시에 저장되는 것을 막기 위해서다). 그래서 빌드 중 Supabase 조회가 한 번만 일시 실패해도
+ * 프리렌더가 실패하고 Production 배포가 실패한다. Next 의 프리렌더 재시도를 켜서 일시 오류를 흡수한다.
+ */
+describe('next.config.js 빌드 안정성', () => {
+  it('프리렌더가 실패하면 다시 시도한다', () => {
+    const require = createRequire(import.meta.url);
+    const config = require(path.join(process.cwd(), 'next.config.js')) as NextConfig;
+    expect(config.experimental?.staticGenerationRetryCount).toBeGreaterThanOrEqual(2);
   });
 });

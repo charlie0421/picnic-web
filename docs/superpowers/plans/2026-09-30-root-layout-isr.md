@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-30-root-layout-isr-design.md`
 
+> **구현 뒤 주석 (2026-09-30).** 이 계획은 승인 시점의 것이다. 교차 리뷰와 다각도 검토를 거치며 아래 항목이 달라졌고, 현재 상태의 정본은 스펙이다(스펙 §8 에 표로 정리).
+> - Task 2·Review Focus 2: "조회 실패 시 폴백 반환"은 **예외 전파**로 뒤집혔다. 폴백이 ISR 캐시에 저장되기 때문이다.
+> - Task 3: sitemap 은 `revalidate = 3600` 이 아니라 `force-dynamic` 이다. 렌더링 모드 표는 테스트 파일에서 `scripts/rendering-modes.js` 로 옮겨졌고 빌드 결과 검사가 추가됐다.
+> - Task 4: 접두어 없는 리다이렉트는 `next.config.js` 가 아니라 `app/(bare)/` 의 페이지가 한다.
+> - Task 5: 루트 레이아웃이 metadata 를 내보내고, `(bare)` 레이아웃은 전역 CSS 를 불러오지 않는다.
+
 ## Global Constraints
 
 - 작업 위치: 워크트리 `~/Repositories/picnic-web-root-layout-isr`, 브랜치 `refactor/root-layout-isr`. 메인 폴더에서 작업하지 않는다.

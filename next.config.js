@@ -85,6 +85,10 @@ const nextConfig = {
   
   // 실험적 기능 활성화
   experimental: {
+    // 프리렌더 재시도(기본 1회 = 재시도 없음). ISR 페이지(rewards·faq·notice·download)의 조회는 실패를 폴백으로
+    // 바꾸지 않고 예외로 전파하므로, 빌드 중 Supabase 조회가 일시 실패하면 그 페이지의 프리렌더가 실패한다.
+    // 지수 백오프(0.5~2초)로 최대 3번까지 다시 시도해 일시 오류로 배포가 실패하지 않게 한다.
+    staticGenerationRetryCount: 3,
     // 서버 컴포넌트에서 React 18 스트리밍 활성화
     serverActions: {
       enabled: true,
@@ -160,12 +164,9 @@ const nextConfig = {
         destination: '/:lang/vote',
         permanent: false
       },
-      // 언어 접두어 없는 진입 — 예전 app/{vote,mypage,concert2025} 스텁 페이지를 대체한다.
-      // 기본 언어(config/settings DEFAULT_LANGUAGE = 'en')와의 일치는 테스트가 검증한다.
-      { source: '/vote',        destination: '/en/vote',        permanent: false },
-      { source: '/vote/:id',    destination: '/en/vote/:id',    permanent: false },
-      { source: '/mypage',      destination: '/en/mypage',      permanent: false },
-      { source: '/concert2025', destination: '/en/concert2025', permanent: false },
+      // 언어 접두어 없는 /vote, /vote/:id, /mypage, /concert2025 는 여기서 리다이렉트하지 않는다.
+      // 설정 리다이렉트는 middleware 보다 먼저 실행돼, 인앱 브라우저 안내와 탈퇴 계정 리다이렉트의 언어가
+      // en 으로 고정된다. 그 경로들은 app/(bare)/ 의 페이지가 리다이렉트한다(middleware 가 먼저 본다).
       // download.html을 download로 리디렉션 (middleware가 언어 처리)
       {
         source: '/download.html',
