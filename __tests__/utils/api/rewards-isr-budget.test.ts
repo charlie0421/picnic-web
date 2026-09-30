@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // queries-helpers(타임아웃)와 retry-utils(재시도)는 실제 구현을 쓴다 — 둘의 합성이 검증 대상이다.
 const limit = vi.fn();
 const select = vi.fn();
+// 조회에 연결된 AbortSignal 을 기록한다 (postgrest-js 의 .abortSignal()).
+const signals: AbortSignal[] = [];
 vi.mock('@/lib/supabase/server', () => ({
   createPublicSupabaseClient: () => {
     const builder: Record<string, unknown> = {
@@ -12,6 +14,10 @@ vi.mock('@/lib/supabase/server', () => ({
       },
       is: () => builder,
       order: () => builder,
+      abortSignal: (signal: AbortSignal) => {
+        signals.push(signal);
+        return builder;
+      },
       limit: (...args: unknown[]) => limit(...args),
     };
     return { from: () => builder };
@@ -48,6 +54,7 @@ describe('리워드 ISR 조회 — 장애 시 시도 횟수와 시간 예산', (
   beforeEach(() => {
     vi.useFakeTimers();
     limit.mockReset();
+    signals.length = 0;
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -80,6 +87,48 @@ describe('리워드 ISR 조회 — 장애 시 시도 횟수와 시간 예산', (
     await vi.advanceTimersByTimeAsync(1);
     expect(state.value).toBe('rejected');
     expect(String((state.error as Error).message)).toMatch(/getRewards exceeded 7000ms/);
+  });
+
+  it('7초에 진행 중인 요청을 끊는다 — 포기한 요청이 Next 의 fetch 잠금을 쥐고 있으면 재시도가 그 뒤에서 기다린다', async () => {
+    limit.mockReturnValue(new Promise(() => {}));
+
+    const state = track(_getRewards(8, { throwOnError: true }));
+    await vi.advanceTimersByTimeAsync(6999);
+    expect(signals).toHaveLength(1);
+    expect(signals[0].aborted).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(state.value).toBe('rejected');
+    expect(signals[0].aborted).toBe(true);
+  });
+
+  it('요청을 끊은 뒤에는 다시 조회하지 않는다', async () => {
+    // postgrest-js 는 끊긴 요청을 예외가 아니라 error 로 돌려준다.
+    limit.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          const signal = signals[signals.length - 1];
+          signal.addEventListener('abort', () =>
+            resolve({ data: null, error: { message: 'AbortError: This operation was aborted' } }),
+          );
+        }),
+    );
+
+    const state = track(_getRewards(8, { throwOnError: true }));
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(state.value).toBe('rejected');
+    expect(String((state.error as Error).message)).toMatch(/getRewards exceeded 7000ms/);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(limit).toHaveBeenCalledTimes(1);
+  });
+
+  it('폴백을 쓰는 경로는 요청을 끊지 않는다 (동작 유지)', async () => {
+    limit.mockResolvedValue({ data: [], error: null });
+
+    await _getRewards(8);
+
+    expect(signals).toHaveLength(0);
   });
 
   it('페이지가 쓰는 경로(RewardListFetcher)는 응답 없는 DB 에서 7초 안에 끝난다 — 바깥 재시도로 30초가 되지 않는다', async () => {

@@ -56,23 +56,30 @@ export async function withTimeout<T>(
 }
 
 /**
- * 시간 안에 끝나지 않으면 예외로 끝낸다. ISR 페이지의 조회에 쓴다 — withTimeout 처럼 폴백으로
- * 대체하면 그 폴백이 캐시에 저장돼 정상 페이지를 덮는다. 예외면 Next 가 마지막 정상 페이지를 유지한다.
+ * 시간 예산 안에 끝나지 않으면 진행 중인 요청을 끊고 예외로 끝낸다. ISR 페이지의 조회에 쓴다.
+ * - 폴백으로 대체하지 않는다(withTimeout 과 다른 점). 폴백은 캐시에 저장돼 정상 페이지를 덮는다.
+ *   예외면 Next 가 마지막 정상 페이지를 유지한다.
+ * - 요청을 끊는다. 포기한 요청이 살아 있으면 Next 의 fetch 잠금(같은 요청을 직렬화한다)을 계속 쥐고 있어
+ *   프리렌더 재시도가 그 뒤에서 기다리다 다시 시간 예산을 넘긴다. run 은 받은 signal 을 조회에 연결해야 한다
+ *   (postgrest-js 의 `.abortSignal(signal)`).
  */
-export async function rejectOnTimeout<T>(
-  promise: Promise<T>,
+export async function withDeadline<T>(
+  run: (signal: AbortSignal) => Promise<T>,
   label: string,
   timeoutMs: number = SUPABASE_TIMEOUT_MS
 ): Promise<T> {
+  const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race<T>([
-      promise,
+      run(controller.signal),
       new Promise<T>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error(`[supabase-timeout] ${label} exceeded ${timeoutMs}ms`)),
-          timeoutMs,
-        );
+        timer = setTimeout(() => {
+          const error = new Error(`[supabase-timeout] ${label} exceeded ${timeoutMs}ms`);
+          // 먼저 이 예외로 끝내고 요청을 끊는다 — 끊긴 요청이 내는 오류가 아니라 시간 초과가 원인으로 남는다.
+          reject(error);
+          controller.abort(error);
+        }, timeoutMs);
       }),
     ]);
   } finally {

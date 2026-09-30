@@ -27,6 +27,7 @@ function createClient() {
           return builder;
         },
         order: () => builder,
+        abortSignal: () => builder,
         single: () => Promise.resolve(result),
         then: (resolve: (value: Result) => unknown) => Promise.resolve(result).then(resolve),
       };
@@ -124,15 +125,20 @@ describe('ISR 경로의 서비스는 공개 클라이언트만 쓴다', () => {
     await expect(getNotices()).resolves.toEqual([]);
   });
 
-  it('getNotices 는 4초 안에 응답이 없으면 예외로 끝난다', async () => {
+  it('getNotices 는 4초 안에 응답이 없으면 요청을 끊고 예외로 끝난다', async () => {
     vi.useFakeTimers();
     try {
+      let captured: AbortSignal | undefined;
       publicClientFactory.mockImplementation(() => ({
         from: () => {
           const builder: Record<string, unknown> = {
             select: () => builder,
             eq: () => builder,
             order: () => builder,
+            abortSignal: (signal: AbortSignal) => {
+              captured = signal;
+              return builder;
+            },
             then: () => new Promise(() => {}),
           };
           return builder;
@@ -140,8 +146,11 @@ describe('ISR 경로의 서비스는 공개 클라이언트만 쓴다', () => {
       }));
       const pending = getNotices();
       const assertion = expect(pending).rejects.toThrow(/getNotices.*4000ms/);
-      await vi.advanceTimersByTimeAsync(4000);
+      await vi.advanceTimersByTimeAsync(3999);
+      expect(captured?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
       await assertion;
+      expect(captured?.aborted).toBe(true);
     } finally {
       vi.useRealTimers();
     }

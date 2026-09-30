@@ -9,6 +9,7 @@ interface RetryOptions {
   maxDelay: number;         // 최대 지연 시간(ms)
   factor: number;           // 지수 백오프 계수
   onRetry?: (error: any, attempt: number) => void;  // 재시도 시 콜백
+  shouldRetry?: (error: any) => boolean;  // false 면 남은 횟수와 관계없이 바로 끝낸다 (예: 끊은 요청)
 }
 
 // 기본 재시도 옵션
@@ -48,6 +49,10 @@ export function withRetry<T extends (...args: any[]) => Promise<any>>(
         return await fn(...args);
       } catch (error) {
         lastError = error;
+
+        if (retryOptions.shouldRetry && !retryOptions.shouldRetry(error)) {
+          throw error;
+        }
 
         if (attempt < retryOptions.maxRetries) {
           // 재시도 콜백 호출
