@@ -2,7 +2,7 @@
 
 - 날짜: 2026-10-01
 - 근거: `docs/superpowers/specs/2026-09-30-root-layout-isr-design.md` §7 의 첫 후속 과제(미지원 언어 세그먼트와 접두어 없는 경로), 감사 계획 `docs/audit-2026-09-26/plan.md` §5.4 의 후속 항목
-- 상태: 초안 3. 네 관점의 내부 검토(초안 1)와 Codex gpt-6-sol/high 교차 리뷰(초안 2)를 반영했다. 사용자 검토 전이고 구현을 시작하지 않았다
+- 상태: 초안 4. 네 관점의 내부 검토(초안 1)와 Codex gpt-6-sol/high 교차 리뷰 두 차례(초안 2, 3)를 반영했다. 사용자 검토 전이고 구현을 시작하지 않았다
 - 브랜치: `fix/locale-prefix-routing` (워크트리 `picnic-web-locale-prefix`)
 - 기준: 코드 `a1eedad6`(2026-10-01 Production), Next 15.5.26
 
@@ -17,7 +17,7 @@
 
 ### 1.1 목표
 
-1. 첫 세그먼트가 정규 언어가 아닌 주소가 `[lang]` 페이지로 200 렌더되지 않게 한다. 지금은 아무 문자열이나 언어로 받아 200 이나 `/<세그먼트>/vote` 307 을 돌려주고, ISR 전환(PR #103) 뒤에는 그런 주소마다 캐시 항목이 생긴다. middleware 를 거치는 주소는 `[lang]` 에 닿지 않게 하고, matcher 가 제외하는 디렉터리와 `api/` 아래의 없는 경로는 catch-all route handler 가 `[lang]` 대신 404 로 받는다(§4.6). 남는 것은 내부 접두어 `/_next/`, `/_vercel/` 아래의 조작 주소뿐이다. 이는 레이아웃 가드가 404 로 막지만 페이지 코드 실행과 404 캐시 항목이 남는다(§4.5, §9 의 2번 확인).
+1. 첫 세그먼트가 정규 언어가 아닌 주소가 `[lang]` 페이지로 200 렌더되지 않게 한다. 지금은 아무 문자열이나 언어로 받아 200 이나 `/<세그먼트>/vote` 307 을 돌려주고, ISR 전환(PR #103) 뒤에는 그런 주소마다 캐시 항목이 생긴다. middleware 를 거치는 주소는 `[lang]` 에 닿지 않게 하고, matcher 가 제외하는 디렉터리와 `api/` 아래의 없는 경로는 catch-all route handler 가 `[lang]` 대신 404 로 받는다(§4.6). 남는 것은 내부 접두어 `/_next/`, `/_vercel/` 아래의 조작 주소와, 없는 번호의 `/sitemap-N.xml`(N 은 두 자리까지, 최대 99개)이다. 이는 레이아웃 가드가 404 로 막지만 페이지 코드 실행과 404 캐시 항목이 남는다(§4.5, §9 의 2번 확인).
 2. 언어 접두어 없는 앱 경로(`/login?error=…`, `/download`, `/rewards/1`, `/mypage/qna`)가 같은 경로의 언어판에 도착하게 한다. 쿼리를 보존한다.
 3. 표기 변형을 정규 주소로 보낸다.
 4. 밖에 고정된 주소를 살린다. 앱과 QR 의 `/download.html`, Play 스토어에 등록된 `/privacy_en.html`, 브라우저가 스스로 요청하는 `/favicon.ico`·`/apple-touch-icon*.png` 가 대상이다.
@@ -79,6 +79,8 @@
 | `/ko/auth/callback/google` | 404 | 307 `/auth/callback/google` |
 | `/auth/callback/google/x` | 404 | 307 `/en/auth/callback/google/x`, 목적지 404 |
 | `/xx/supabase-proxy/auth/v1/health` | Supabase 로 프록시(401) | 307 `/en/xx/supabase-proxy/…`, 목적지 404. 사용처가 없는 주소다 |
+| `/images/supabase-proxy/auth/v1/health`, `/_next/supabase-proxy/auth/v1/health` | Supabase 로 프록시(401) | 404(catch-all handler), 404(가드). rewrite 의 `:lang` 을 정규 언어로 좁힌 결과(§4.6) |
+| `/ko/supabase-proxy/auth/v1/health`, `/supabase-proxy/auth/v1/health` | Supabase 로 프록시(401) | 같음 |
 | `/%E0%A4%A/vote`(잘못된 percent-encoding) | 400. Vercel 이 앱에 넘기지 않는다 | 같음 |
 | 인앱 UA 로 `/vote/123`(`Accept-Language: ko`) | 307 `/open-in-browser?returnTo=%2Fvote%2F123` | 307 `/ko/vote/123`. 그 주소는 307 `/open-in-browser?returnTo=%2Fko%2Fvote%2F123` |
 | `/auth/callback`, `/auth/loading`, `/ads/shortform/player`, `/open-in-browser`, `/sitemap.xml`, `/ko/sitemap.xml`, `/robots.txt`, `/api/banners`, `/ko/vote`, `/ko/rewards` | 각자의 응답 | 같음 |
@@ -299,7 +301,7 @@ NON_LOCALIZED_PATH  (새로 추가. 언어 세그먼트 밖의 실제 라우트)
 `_next/static`, `_next/image`, 언어별 sitemap, `images/`, `locales/`, `favicon/`, `concert2025/(image|video)/`, 서비스 워커 두 개는 그대로다. 디렉터리 안의 자산마다 middleware 를 부르지 않기 위해서다.
 
 - 이렇게 하면 `/api`, `/apiary`, `/favicon.ico/vote`, `/sitemap-1.xml/x`, `/sitemap-foo.xml`, `/manifest.jsonx`, `/.well-known/x` 가 middleware 에 와서 7번 규칙을 탄다.
-- `sitemap-\d{1,2}\.xml` 은 next-sitemap 이 주소가 5000개를 넘을 때 만드는 다음 파일을 미리 허용한다. 지금 있는 파일은 `sitemap-0.xml` 하나다. 파일이 없는 번호(`/sitemap-1.xml`)는 middleware 를 거치지 않고 가드의 404 를 받는다. 두 자리로 막아 이런 주소가 100개를 넘지 않게 한다.
+- `sitemap-\d{1,2}\.xml` 은 next-sitemap 이 주소가 5000개를 넘을 때 만드는 다음 파일을 미리 허용한다. 지금 있는 파일은 `sitemap-0.xml` 하나다. 파일이 없는 번호(`/sitemap-1.xml`)는 middleware 를 거치지 않고 `[lang]` 의 루트 페이지에 닿아 가드의 404 를 받는다(페이지 코드가 실행되고 다음 배포까지 캐시된다). 두 자리로 막아 이런 주소가 99개를 넘지 않게 한다. 정확히 `sitemap-0\.xml` 만 제외하면 이 구멍은 없어지지만, 빌드가 `sitemap-1.xml` 을 만들기 시작하는 순간 그 파일이 `/en/sitemap-1.xml` 로 리다이렉트돼 sitemap 색인이 깨진다. 생성되는 파일은 git 에 없어 §5.3 의 동기화 테스트도 알 수 없다. 99개의 정적 404 캐시 항목이 그 위험보다 싸다고 보고 §9 의 2번에 넣는다.
 - 조립한 matcher 를 Next 15.5.26 의 matcher 컴파일러(`unstable_doesMiddlewareMatch`)로 확인했다. git 이 추적하는 `public/` 파일 98개와 `app/api` 의 route 32개가 모두 제외되고, 위의 없는 이름들은 middleware 가 실행된다.
 
 **동기화 테스트**
@@ -326,15 +328,15 @@ middleware 를 거치지 않는 페이지 요청의 마지막 방어선이다. `
 - 응답은 404 이고 `<meta name="robots" content="noindex">` 가 붙는다. 본문은 Next 의 오류 셸이고 404 화면은 브라우저에서 그려진다.
 - `app/[lang]/page.tsx` 의 `redirect` 보다 먼저 적용된다(`/favicon.icox` 가 307 이 아니라 404).
 - 빌드와 `verify-rendering-modes` 는 그대로 통과한다(프리렌더 39, 온디맨드 10).
-- ISR 라우트에서는 이 404 가 그 라우트의 `revalidate` 동안 캐시된다(`/images/rewards` 는 첫 요청 MISS, 다음 요청 HIT). 정적 라우트인 `[lang]/page.tsx` 에 닿는 주소(`/sitemap-1.xml`)는 다음 배포까지 캐시된다. 동적 라우트(`/api/vote`)에서는 캐시되지 않는다.
-- 가드가 404 를 만들어도 그 요청의 페이지 코드는 실행된다. 서버 로그에 `Could not load translations for images` 가 그대로 남고, 페이지의 조회도 돈다.
+- ISR 라우트에서는 이 404 가 그 라우트의 `revalidate` 동안 캐시된다(catch-all 이 없던 프로브에서 `/images/rewards` 가 첫 요청 MISS, 다음 요청 HIT. 이 설계에서는 `/_next/rewards` 가 같은 동작이다). 정적 라우트인 `[lang]/page.tsx` 에 닿는 주소(`/sitemap-1.xml`)는 다음 배포까지 캐시된다. 동적 라우트(`/_next/vote`)에서는 캐시되지 않는다.
+- 가드가 404 를 만들어도 그 요청의 페이지 코드는 실행된다. 서버 로그에 `Could not load translations for _next` 가 그대로 남고, 페이지의 조회도 돈다.
 
 한계
 
 1. 가드는 응답을 200 에서 404 로 바꿀 뿐이고 비용을 없애지 못한다. 가드에 닿는 주소(`/_next/rewards`, `/_vercel/notice/7`, `/sitemap-1.xml`)는 페이지 코드를 실행하고, ISR 라우트라면 주소마다 캐시 항목(404)을 남긴다. `rewards/[id]`·`notice/[id]` 는 id 만큼 늘어난다.
 2. 가드는 페이지에만 적용된다. `app/[lang]/sitemap.ts` 는 레이아웃을 거치지 않는 메타데이터 라우트라서 `/_next/sitemap.xml`, `/_vercel/sitemap.xml` 은 지금처럼 전체 sitemap 을 200 으로 준다. 정규 주소(`/ko/sitemap.xml`)와 내용도 비용도 같다. `/images/sitemap.xml`, `/api/sitemap.xml` 은 catch-all handler 가 먼저 받아 404 다(§4.6).
 
-이 한계를 받아들이는 이유. 가드에 닿는 주소는 `_next/`·`_vercel/` 접두어 뒤에 라우트 이름을 붙여 조작한 요청뿐이다. 같은 효과를 내는 기존 주소가 이미 있다. 정규 언어 아래 잘못된 id(`/ko/rewards/<아무 값>`)는 200 으로 캐시되고, `/ko/sitemap.xml` 은 누구나 요청할 수 있다. 완전히 닫으려면 `_next/` 통과를 알려진 하위 경로로 좁혀야 하는데, 프레임워크 내부 경로를 빠짐없이 알 수 없어 하나라도 놓치면 피해가 크다. 잘못된 id 문제와 함께 후속으로 둔다(§7). 머지 뒤 이 접두어로 들어오는 요청 수를 본다(§6.4).
+이 한계를 받아들이는 이유. 가드에 닿는 주소는 `_next/`·`_vercel/` 접두어 뒤에 라우트 이름을 붙여 조작한 요청과, 없는 번호의 `/sitemap-N.xml`(최대 99개, §4.4)뿐이다. 같은 효과를 내는 기존 주소가 이미 있다. 정규 언어 아래 잘못된 id(`/ko/rewards/<아무 값>`)는 200 으로 캐시되고, `/ko/sitemap.xml` 은 누구나 요청할 수 있다. 완전히 닫으려면 `_next/` 통과를 알려진 하위 경로로 좁혀야 하는데, 프레임워크 내부 경로를 빠짐없이 알 수 없어 하나라도 놓치면 피해가 크다. 잘못된 id 문제와 함께 후속으로 둔다(§7). 머지 뒤 이 접두어로 들어오는 요청 수를 본다(§6.4).
 
 ### 4.6 설정과 정적 파일
 
@@ -347,11 +349,12 @@ middleware 를 거치지 않는 페이지 요청의 마지막 방어선이다. `
   - `apple-touch-icon.png`
   - `apple-touch-icon-precomposed.png`
 - catch-all route handler 다섯 개를 더한다. `app/api/[...slug]/route.ts`, `app/images/[...slug]/route.ts`, `app/locales/[...slug]/route.ts`, `app/favicon/[...slug]/route.ts`, `app/concert2025/[...slug]/route.ts`. 각각 `GET` 이 404 와 짧은 텍스트 본문을 돌려준다. matcher 가 제외하는 디렉터리와 `api/` 아래에서 실제 파일(`public/`)이나 실제 route(`app/api/**`)가 없는 요청만 받는다. Next 는 `public/` 파일과 정적 route 를 동적 route 보다 먼저 맞추므로 기존 응답은 바뀌지 않는다(프로브로 확인, §8). 페이지가 아니라 프리렌더 표(`verify-rendering-modes`)는 그대로다. `next.config` 의 `/images/:path*` 헤더가 이 404 에도 붙어 CDN 이 하루 저장한다(§6.5).
-- `vercel.json`, `rewrites()`, `headers()` 는 바꾸지 않는다.
+- `next.config.js` `rewrites()` 의 `/:lang/supabase-proxy/:path*` 를 `/:lang(en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/supabase-proxy/:path*` 로 좁힌다(같은 문법을 `/:lang` 리다이렉트가 이미 쓴다). 지금은 `:lang` 이 아무 세그먼트나 받아서 `/images/supabase-proxy/auth/v1/health` 가 catch-all handler 에 닿기 전에 Supabase 로 프록시된다. Next 는 `afterFiles` rewrite 를 동적 라우트보다 먼저 검사하기 때문이다. 좁히면 이 주소는 handler 의 404 를 받고, `/_next/supabase-proxy/…` 는 가드의 404 를 받는다. 정규 언어의 프록시 주소(`/ko/supabase-proxy/…`)와 `/supabase-proxy/:path*` 는 그대로다.
+- `vercel.json`, `headers()` 는 바꾸지 않는다.
 
 ### 4.7 바꾸지 않는 것
 
-- next.config 의 `/` → `/en/vote`, `/:lang(12개)` → `/:lang/vote`, 옛 서비스 경로 리다이렉트.
+- next.config 의 `/` → `/en/vote`, `/:lang(12개)` → `/:lang/vote`, 옛 서비스 경로 리다이렉트, `/supabase-proxy/:path*` rewrite(언어 없는 것).
 - `(bare)` 의 리다이렉트 스텁 네 개와 `scripts/rendering-modes.js` 의 스텁 항목. 정상 흐름에서는 닿지 않게 되지만 첫 배포에서는 남겨 둔다. 주석만 고친다.
 - `app/[lang]/page.tsx`, `generateStaticParams`(en·ko·my), 각 페이지의 `revalidate`.
 - `app/[lang]/sitemap.ts`, `app/open-in-browser/route.ts`(308 과 언어 결정).
@@ -450,7 +453,7 @@ QR 의 다운로드 링크 (apex)
 - `app/api/**/route.ts` 의 모든 경로가 matcher 에서 제외된다. 동적 세그먼트(`[id]`)는 `x` 로 바꿔 넣는다.
 - `app/(bare)/**/page.tsx` 의 경로는 통과 목록에 있거나 리다이렉트 스텁 네 개(`/vote`, `/vote/x`, `/mypage`, `/concert2025`) 중 하나다. `[provider]` 는 `google` 로 바꿔 넣는다.
 - `app/` 바로 아래의 route handler 와 메타데이터 라우트(`open-in-browser/route.ts`, `sitemap.ts`)의 경로가 통과한다.
-- next.config `rewrites()` 의 source 가 통과한다. `/supabase-proxy/x` 는 통과 목록으로, `/ko/supabase-proxy/x` 는 정규 언어로 통과한다.
+- next.config `rewrites()` 의 source 가 통과한다. `/supabase-proxy/x` 는 통과 목록으로, `/ko/supabase-proxy/x` 는 정규 언어로 통과한다. 언어가 붙은 rewrite 의 source 는 `:lang(` 뒤에 정규 언어 12개를 모두 담고 그 밖의 값을 담지 않는다.
 - 이름이 비슷한 없는 경로(`/api`, `/apiary`, `/favicon.ico/vote`, `/sitemap-1.xml/x`, `/sitemap-foo.xml`, `/manifest.jsonx`, `/favicon.icox`, `/images`, `/locales`)는 middleware 가 실행된다.
 - `app/[lang]` 아래 페이지의 URL 첫 세그먼트(라우트 그룹 괄호를 벗긴 것: `login`, `vote`, `rewards`, `faq` …)를 `classifyFirstSegment` 에 넣으면 모두 `other` 다(`faq` 처럼 모양에 맞아도 정규화가 `null` 이면 된다).
 - `AUTH_CALLBACK_PATH` 에 맞는 경로는 모두 `isPassThroughPath` 가 참이다(규칙 2 의 목적지가 통과로 끝나는 조건).
@@ -460,7 +463,7 @@ QR 의 다운로드 링크 (apex)
 
 - `__tests__/app/lang-layout-html.test.tsx`: `ZH-TW`, `xx`, `login`, `"><script>` 의 단언을 `notFound` 호출로 바꾼다. 12개 언어의 `<html lang>` 은 그대로다.
 - `__tests__/middleware/matcher.test.ts`: 좁힌 패턴의 제외·실행 사례를 더한다. 인앱 동치 테스트의 `/concert2025`, `/vote/sitemap.xml` 은 이제 언어 규칙 때문에 307 이 되므로 `/en/concert2025`, `/en/vote/sitemap.xml` 로 바꿔 인앱 판정을 계속 확인한다.
-- `__tests__/next-config-redirects.test.ts`: 개인정보 두 항목이 있고 `permanent: true` 가 하나도 없다.
+- `__tests__/next-config-redirects.test.ts`: 개인정보 두 항목이 있고 `permanent: true` 가 하나도 없다. `rewrites()` 의 언어 붙은 supabase-proxy 항목이 정규 언어로 제한된다.
 - `__tests__/app/unprefixed-redirect-stubs.test.tsx`: 동작 단언은 그대로 두고 설명만 고친다.
 - catch-all handler 다섯 개: `GET` 이 404 를 돌려준다.
 - referrer 정책: `DEFAULT_METADATA.referrer` 가 같은 출처에 전체 주소를 보내는 값(`origin-when-cross-origin`, `strict-origin-when-cross-origin`, `no-referrer-when-downgrade`, `same-origin`, `unsafe-url` 중 하나)인지 단언한다.
@@ -477,6 +480,8 @@ QR 의 다운로드 링크 (apex)
 | `/images/rewards/1`, `/images/sitemap.xml`, `/api/rewards`, `/api/vote/123`, `/locales/faq`, `/favicon/notice/1`, `/concert2025/image/x.png` | 404 텍스트(handler). `x-nextjs-cache` 없음. 서버 로그에 그 경로의 `Could not load translations` 없음 |
 | `/images/logo.png`, `/locales/en.json`, `/favicon/favicon-16x16.png`, `/api/banners` | 기준선과 같음(파일과 route 가 handler 보다 먼저 응답) |
 | `/.well-known/rewards` | 307 `/en/.well-known/rewards`, 목적지 404 |
+| `/images/supabase-proxy/auth/v1/health`, `/_next/supabase-proxy/auth/v1/health` | 404 텍스트(handler), 404(가드). Supabase 로 가지 않는다(프록시 로그에 요청 없음) |
+| `/ko/supabase-proxy/auth/v1/health`, `/supabase-proxy/auth/v1/health` | 기준선과 같음(프록시 401) |
 | `/%E0%A4%A/vote`(원시 HTTP 요청) | 기준선과 같음 |
 | `/login` 에 `Cookie: locale=ja`, `Accept-Language: ko-KR`, `Referer: http://<같은 호스트>/th/vote` 를 하나씩 | `/ja/login`, `/ko/login`, `/th/login` |
 | `/auth/callback`, `/auth/loading`, `/ads/shortform/player`, `/open-in-browser`, `/sitemap.xml`, `/ko/sitemap.xml`, `/robots.txt`, `/api/banners`, `/images/logo.webp` | 기준선과 같음 |
@@ -504,6 +509,7 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 - 기존 점검 가운데 의도대로 바뀌는 줄: 인앱 UA 의 `/vote/123` 이 `/open-in-browser?returnTo=%2Fvote%2F123` 에서 `/ko/vote/123` 으로 바뀐다. `/vote`, `/vote/295`, `/mypage`, `/concert2025` 의 Location 은 그대로지만 응답하는 곳이 스텁 페이지에서 middleware 로 바뀐다.
 - 신호 확인 세 줄: `/login` 에 `Cookie: locale=ja`, `Accept-Language: ko-KR`, `Referer: https://www.picnic.fan/th/vote` 를 하나씩 붙여 `/ja/login`, `/ko/login`, `/th/login` 을 본다.
 - 307 의 `cache-control` 이 `private, no-store` 인지 본다. Vercel 의 middleware 307 기본값은 `public, max-age=0, must-revalidate` 다.
+- rewrite: `/ko/supabase-proxy/auth/v1/health` 는 머지 전과 같은 응답, `/images/supabase-proxy/auth/v1/health` 는 404 텍스트, `/sitemap-1.xml` 은 404.
 - catch-all: `/images/logo.png` 가 이미지 200, `/locales/en.json` 이 JSON 200, `/api/banners` 가 200, `/images/rewards/1` 과 `/api/rewards` 가 404 텍스트. Vercel 에서도 `public/` 파일과 기존 route 가 handler 보다 먼저 응답하는지 확인한다.
 - 통과 목록: `/auth/callback`, `/auth/loading`, `/ads/shortform/player`, `/open-in-browser`, `/supabase-proxy/auth/v1/health`, `/sitemap.xml`, `/sitemap-0.xml`, `/ko/sitemap.xml`, `/robots.txt`, `/manifest.json`, `/firebase-messaging-sw.js`, `/_vercel/insights/script.js`, `/api/banners`.
 - 연쇄: `/auth/callback/google/x` 와 `https://picnic.fan/download.html` 을 끝까지 따라가 이동 횟수를 센다(한 번, 세 번).
@@ -530,7 +536,7 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 |---|---|---|---|
 | error 로그의 `/download/vote` | 런타임 로그, Production, level error, `requestPath` 로 묶음, 24시간 | 67건 | 0 |
 | error 로그의 `/favicon.ico/vote`, `/login/vote`, `/apple-touch-icon.png/vote` | 같음 | 17, 9, 4건 | 0 |
-| 가드에 닿는 요청 | 같은 조회에서 첫 세그먼트가 `_next`·`_vercel` 이고 뒤에 라우트 이름이 붙은 경로 | 조사용 요청뿐 | 늘지 않음 |
+| 가드에 닿는 요청 | 같은 조회에서 첫 세그먼트가 `_next`·`_vercel` 이고 뒤에 라우트 이름이 붙은 경로, 그리고 `sitemap-N.xml`(N ≠ 0) | 조사용 요청뿐 | 늘지 않음 |
 | catch-all handler 의 404 | 런타임 로그, `statusCode` 404, 첫 세그먼트가 `api`·`images`·`locales`·`favicon`·`concert2025` | 없음(지금은 200 으로 렌더된다) | 조사용 요청 규모 |
 | 과거 버그 주소의 404 | 런타임 로그, `statusCode` 404, `requestPath` 로 묶음에서 `/{언어}/download/vote`, `/{언어}/login/vote` | 없음(지금은 200) | 하루 20건을 넘게 남으면 복구 규칙을 넣는다(§7) |
 | `/favicon.ico` | curl | 307 | 200 |
@@ -546,6 +552,7 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 | Referer 가 없는 환경(프라이버시 도구, 일부 인앱 웹뷰) | 쿠키, 브라우저 언어 순서로 떨어진다. 승인된 기본값과 같은 결과다 |
 | 레이아웃 가드의 404 가 캐시 항목이 되고 페이지 코드가 실행된다 | §4.5. `_next/`·`_vercel/` 아래의 조작된 요청에서만 생긴다. §6.4 의 지표로 본다 |
 | catch-all handler 가 실제 파일이나 route 보다 먼저 응답한다 | Next 는 `public/` 파일과 정적 route 를 동적 route 보다 먼저 맞춘다(`next start` 프로브, §8). Vercel 도 같은지 머지 직후 확인한다(§6.2). 아니면 다섯 파일을 지우고 재배포한다 |
+| rewrite 의 `:lang` 제한이 실제 사용처를 끊는다 | 형제 저장소와 이 저장소에 `/{언어}/supabase-proxy` 사용처가 없다(§8). 정규 언어 12개는 그대로 통한다. 머지 직후 §6.2 로 확인 |
 | `/images/` 아래 handler 의 404 가 CDN 에 하루 저장된다(`next.config` 의 `/images/:path*` 헤더) | 없는 주소라 해가 없다. 같은 주소에 파일을 추가하는 배포는 CDN 캐시를 새로 시작한다 |
 | 과거 버그가 만든 `/download/vote`, `/login/vote` 가 404 가 된다 | 자기 자신을 canonical 로 가진 중복 페이지라 404 가 맞다. 새로 만들어지지 않는다. §6.4 의 기준을 넘으면 복구 규칙을 넣는다 |
 | matcher 의 새 패턴이 Vercel 에서 다르게 동작 | `$` 를 쓰는 기존 항목이 Production 에서 동작 중이다. 머지 직후 `/api` 307, `/sitemap-0.xml` 200, `/favicon.ico` 200 을 확인 |
@@ -592,6 +599,7 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 | `public/` 에 확장자 없는 파일이 없고 루트에 `favicon.ico` 가 없다. `public/.well-known/` 은 없다 | `ls`, `find` |
 | `app/[lang]/robots.ts` 는 라우트가 아니다. Next 는 `robots`·`manifest` 메타데이터 파일을 `app/` 루트에서만 인식한다(`is-metadata-route.js` 의 `^[\\/]robots` 앵커. `sitemap` 은 앵커가 없어 중첩을 허용). Production 의 `/ko/robots.txt`, `/images/robots.txt`, `/xx/robots.txt` 는 404 이고 `/robots.txt` 는 `public/robots.txt` 다 | Next 15.5.26 소스, 2026-10-01 Production GET |
 | 형제 저장소(앱, 어드민, supabase)에 `/supabase-proxy`, `/ads/shortform/player`, `/auth/loading`, `/open-in-browser` 사용처가 없다. 앱은 `/download.html` 을 www 와 apex 로 연다 | 2026-09-30, 2026-10-01 grep |
+| `/:lang/supabase-proxy/:path*` rewrite 의 `:lang` 은 아무 세그먼트나 받는다. Production 의 `/xx/supabase-proxy/auth/v1/health` 가 Supabase 의 401 을 받는다(§2). next.config 의 rewrite 는 `afterFiles` 라 `public/`·정적 라우트 뒤, 동적 라우트(catch-all handler) 앞에서 검사된다 | 2026-10-01 Production GET, Next 문서의 라우팅 순서. 구현 때 §5.5 로 확인 |
 
 남은 가정과 틀렸을 때의 대응
 
@@ -621,6 +629,6 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 확인이 필요한 것
 
 1. **선호 언어의 첫 신호로 Referer 를 더한다.** 승인된 순서 앞에 "같은 사이트의 직전 페이지 언어"를 뒀다(§4.2). 없으면 사이트 안의 접두어 없는 이동이 보던 언어와 다른 언어로 갈 수 있다. 빼기로 하면 §4.2 의 1번과 관련 테스트(§5.1, §5.2, §5.4 의 referrer 정책), §4.8 의 예, §6.2 의 신호 확인 한 줄을 지우고, 쿠키 PR 을 이 PR 보다 먼저 머지한다.
-2. **`/_next/`, `/_vercel/` 아래의 남는 구멍을 받아들인다**(§4.5). 다른 구멍은 catch-all handler 로 닫았다(§4.6). 이 두 접두어 뒤에 라우트 이름을 붙인 주소(`/_next/rewards`)는 404 가 되지만 캐시 항목과 페이지 코드 실행이 남고, `/_next/sitemap.xml` 은 200 그대로다. 완전히 닫으려면 `_next/` 통과를 알려진 하위 경로로 좁혀야 한다(§4.5 의 이유로 이번에는 하지 않는다).
+2. **`/_next/`, `/_vercel/` 아래의 남는 구멍과 없는 번호의 `/sitemap-N.xml`(최대 99개)을 받아들인다**(§4.4, §4.5). 다른 구멍은 catch-all handler 로 닫았다(§4.6). 두 접두어 뒤에 라우트 이름을 붙인 주소(`/_next/rewards`)는 404 가 되지만 ISR 캐시 항목과 페이지 코드 실행이 남고, `/_next/sitemap.xml` 은 200 그대로다. `/sitemap-1.xml` 은 정적 404 캐시 항목 하나와 번역 파일 오류 로그 한 줄을 남긴다. `_next/` 를 완전히 닫으려면 통과를 알려진 하위 경로로 좁혀야 하고(§4.5 의 이유로 이번에는 하지 않는다), `sitemap-N` 을 닫으려면 matcher 를 `sitemap-0.xml` 로 고정해야 한다(§4.4 의 이유로 하지 않는다).
 3. **인앱 브라우저에서 접두어 없는 주소의 이동이 한 번 늘어난다**(§4.8).
 4. 외부에 등록된 주소 가운데 이 문서에 없는 것이 있으면 알려 달라. App Store 의 개인정보 주소, OAuth 콘솔의 콜백 주소가 해당한다.
