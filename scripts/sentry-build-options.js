@@ -21,16 +21,13 @@ function resolveSentryRelease({ buildVersion, env }) {
   return buildVersion ? `${RELEASE_PREFIX}${buildVersion}` : undefined;
 }
 
-// 커밋 연결 실패(빈 커밋·저장소 미연결·API 오류)가 finalize 를 막지 않게 한다.
+// 커밋 연결 실패(빈 커밋·얕은 클론·API 오류)가 finalize 를 막지 않게 한다.
 // shouldNotThrowOnFailure 는 nextjs 타입에는 없지만 코어 런타임이 확인한다(코어 기본 setCommits 도 같은 값).
 const COMMIT_FAILURE_TOLERANCE = { ignoreMissing: true, ignoreEmpty: true, shouldNotThrowOnFailure: true };
 
-function setCommitsFor(env) {
-  const { VERCEL_GIT_REPO_OWNER: owner, VERCEL_GIT_REPO_SLUG: slug, VERCEL_GIT_COMMIT_SHA: sha } = env;
-  if (owner && slug && sha) {
-    // Vercel 은 얕은 클론이라 로컬 git 자동 감지 대신 제공된 커밋을 명시한다
-    return { repo: `${owner}/${slug}`, commit: sha, ...COMMIT_FAILURE_TOLERANCE };
-  }
+function setCommitsFor() {
+  // Vercel 빌드에서도 git 자동 감지를 쓴다. 명시 { repo, commit } 은 Sentry 에 저장소 레코드가 없어
+  // 연결되지 않았고(2026-09-30 배포 lastCommit null), auto 는 Vercel 클론의 git 으로 실제 커밋을 붙인다.
   return { auto: true, ...COMMIT_FAILURE_TOLERANCE };
 }
 
@@ -51,7 +48,7 @@ function sentryBuildOptions({ buildVersion, env }) {
       name: release,
       create: enabled,
       finalize: enabled,
-      setCommits: setCommitsFor(env),
+      setCommits: setCommitsFor(),
     },
     // 기본값은 pages/app 청크만 업로드 — vendor 청크(Supabase 등)의 minified 프레임을
     // 풀려면 모든 client chunk 가 필요하다.
