@@ -56,9 +56,11 @@ export default async function NoticePage({ params }: NoticePageProps) {
                   <h2 className="text-lg font-semibold mb-2">
                     {getLocalizedString(notice.title, lang)}
                   </h2>
-                  <p className="text-sm text-gray-500">
-                    {format(new Date(notice.created_at), 'yyyy.MM.dd', { locale })}
-                  </p>
+                  {notice.created_at && (
+                    <p className="text-sm text-gray-500">
+                      {format(new Date(notice.created_at), 'yyyy.MM.dd', { locale })}
+                    </p>
+                  )}
                 </div>
               </div>
             </Link>

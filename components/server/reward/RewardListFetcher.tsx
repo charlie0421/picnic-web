@@ -37,7 +37,9 @@ export async function RewardListFetcher({
   className, 
   showViewAllLink = false 
 }: RewardListFetcherProps = {}) {
-  const dbRewards = await getRewards(DEFAULT_LIMIT);
+  // 이 컴포넌트를 쓰는 /[lang]/rewards 는 ISR 이다. 조회 실패를 폴백으로 렌더하면 그 화면이 캐시되므로
+  // 예외로 전파한다 — 재생성이 실패하면 Next 가 마지막 정상 페이지를 계속 제공한다.
+  const dbRewards = await getRewards(DEFAULT_LIMIT, { throwOnError: true });
   const clientRewards = transformRewardData(dbRewards);
 
   if (!clientRewards || clientRewards.length === 0) {

@@ -138,11 +138,14 @@ export function useLocaleRouter(): LocaleRouterReturn {
 
     // 경로 변경
     if (preservePath) {
-      const currentPath = removeLocaleFromPath(pathname);
+      // 경로와 쿼리를 이동 직전에 같은 곳(window.location)에서 함께 읽는다. 위의 await 사이에 사용자가 다른
+      // 페이지로 이동했을 수 있어, 렌더 시점의 pathname 에 새 쿼리를 붙이면 서로 다른 페이지의 값이 섞인다.
+      // useSearchParams() 는 쓰지 않는다 — 정적 프리렌더에서 Suspense 경계를 요구하는데 이 훅은
+      // 레이아웃(Header·Footer)에서 쓰여 경계를 둘 수 없다.
+      const location = typeof window !== 'undefined' ? window.location : null;
+      const currentPath = removeLocaleFromPath(location?.pathname ?? pathname);
       const newPath = getLocalizedPath(currentPath, locale);
-      // 쿼리는 전환 시점에 읽는다. useSearchParams() 는 정적 프리렌더에서 Suspense 경계를 요구하는데
-      // 이 훅은 레이아웃(Header·Footer)에서 쓰여 경계를 둘 수 없다.
-      const query = typeof window !== 'undefined' ? window.location.search.replace(/^\?/, '') : '';
+      const query = location?.search.replace(/^\?/, '') ?? '';
       router.push(query ? `${newPath}?${query}` : newPath);
     } else {
       const newPath = getLocalizedPath('/', locale);

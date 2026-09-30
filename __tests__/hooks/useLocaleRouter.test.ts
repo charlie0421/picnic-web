@@ -289,6 +289,16 @@ describe('useLocaleRouter', () => {
       expect(mockPush).toHaveBeenCalledWith('/en/votes?status=ongoing&area=kpop');
     });
 
+    it('전환을 기다리는 사이 다른 페이지로 이동했으면 그 페이지의 경로와 쿼리를 함께 쓴다', async () => {
+      window.history.pushState({}, '', '/ko/votes?status=ongoing');
+      // 번역 로딩을 기다리는 동안 사용자가 다른 페이지로 이동한다.
+      mockStoreLoadTranslations.mockImplementationOnce(async () => {
+        window.history.pushState({}, '', '/ko/rewards?tab=new');
+      });
+      await changeTo('en');
+      expect(mockPush).toHaveBeenCalledWith('/en/rewards?tab=new');
+    });
+
     it('쿼리가 없으면 물음표를 붙이지 않는다', async () => {
       window.history.pushState({}, '', '/ko/votes');
       await changeTo('ja');

@@ -41,6 +41,7 @@ vi.mock('@/utils/api/queries-helpers', () => ({
   withTimeout: vi.fn(async (promise: Promise<any>, _fallback: any, _label: string, _timeout?: number) => {
     return promise;
   }),
+  rejectOnTimeout: vi.fn(async (promise: Promise<any>, _label: string, _timeout?: number) => promise),
   logRequestError: vi.fn(),
 }));
 
@@ -116,6 +117,18 @@ describe('queries-content', () => {
       // The inner function will throw, then the outer catches and returns fallback
       const result = await _getRewards();
       expect(result).toEqual([{ id: -1, title: 'fallback' }]);
+    });
+
+    // ISR 페이지(rewards)는 폴백 샘플이 캐시에 저장되면 안 된다 — 호출자가 예외를 요구할 수 있어야 한다.
+    it('rethrows a reward query error when the caller requires error visibility', async () => {
+      const queryError = { message: 'DB error' };
+      setupChain(null, queryError);
+      await expect(_getRewards(8, { throwOnError: true })).rejects.toBe(queryError);
+    });
+
+    it('still returns fallback for an empty result when the caller requires error visibility', async () => {
+      setupChain([]);
+      await expect(_getRewards(8, { throwOnError: true })).resolves.toEqual([{ id: -1, title: 'fallback' }]);
     });
 
     it('accepts optional limit parameter', async () => {

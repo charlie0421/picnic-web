@@ -96,8 +96,10 @@ describe('app/[lang] 렌더링 모드 계약', () => {
     }
   });
 
-  it.each(['app/sitemap.ts', 'app/[lang]/sitemap.ts'])('%s 는 1시간마다 재생성된다', (file) => {
+  // sitemap 은 투표·리워드·공지 조회가 실패해도 부분 결과를 돌려준다. 캐시하면 URL 이 빠진 sitemap 이
+  // 한 시간 동안 굳으므로, 요청마다 렌더하는 기존 동작을 명시적으로 유지한다.
+  it.each(['app/sitemap.ts', 'app/[lang]/sitemap.ts'])('%s 는 요청마다 렌더한다', (file) => {
     const source = fs.readFileSync(path.join(process.cwd(), file), 'utf8');
-    expect(readConfig(source).revalidate).toBe(3600);
+    expect(readConfig(source)).toMatchObject({ dynamic: 'force-dynamic', revalidate: null });
   });
 });

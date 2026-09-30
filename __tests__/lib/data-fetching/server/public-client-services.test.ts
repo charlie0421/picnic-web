@@ -41,7 +41,10 @@ import { getNotices, getNoticeById } from '@/lib/data-fetching/server/notice-ser
 
 /**
  * faq·notice 페이지는 ISR 이다. 조회가 쿠키 클라이언트(cookies()/headers())를 쓰면
- * 페이지가 다시 동적으로 돌아가거나, 빌드 프리렌더에서 폴백 데이터가 캐시된다.
+ * 페이지가 다시 동적으로 돌아간다.
+ *
+ * 조회 실패를 빈 목록·가짜 공지로 바꿔 반환하면 그 결과가 ISR 캐시에 저장돼 정상 페이지를 덮는다.
+ * 실패는 예외로 전파한다 — Next 는 재생성이 실패하면 마지막 정상 페이지를 계속 제공한다.
  */
 describe('ISR 경로의 서비스는 공개 클라이언트만 쓴다', () => {
   beforeEach(() => {
@@ -62,9 +65,19 @@ describe('ISR 경로의 서비스는 공개 클라이언트만 쓴다', () => {
     expect(cookieClientFactory).not.toHaveBeenCalled();
   });
 
-  it('getFaqs 는 조회 오류에 빈 목록을 돌려준다 (프리렌더가 실패하지 않는다)', async () => {
+  it('getFaqs 는 조회 오류를 예외로 전파한다 (빈 목록이 캐시되면 안 된다)', async () => {
     results.set('faqs', { data: null, error: { message: 'boom' } });
+    await expect(getFaqs('ko')).rejects.toThrow(/boom/);
+  });
+
+  it('getFaqs 는 실제로 비어 있는 결과를 빈 목록으로 돌려준다', async () => {
+    results.set('faqs', { data: [], error: null });
     await expect(getFaqs('ko')).resolves.toEqual([]);
+  });
+
+  it('getFaqCategories 는 조회 오류를 예외로 전파한다', async () => {
+    results.set('faq_categories', { data: null, error: { message: 'boom' } });
+    await expect(getFaqCategories('ko')).rejects.toThrow(/boom/);
   });
 
   it('getFaqCategories 는 공개 클라이언트로 조회한다', async () => {
@@ -85,11 +98,37 @@ describe('ISR 경로의 서비스는 공개 클라이언트만 쓴다', () => {
     expect(cookieClientFactory).not.toHaveBeenCalled();
   });
 
-  it('getNotices 는 조회 오류에 폴백 공지를 돌려준다', async () => {
+  it('getNotices 는 조회 오류를 예외로 전파한다 (가짜 공지가 캐시되면 안 된다)', async () => {
     results.set('notices', { data: null, error: { message: 'boom' } });
-    const notices = await getNotices();
-    expect(notices).toHaveLength(1);
-    expect(notices[0].id).toBe(0);
+    await expect(getNotices()).rejects.toThrow(/boom/);
+  });
+
+  it('getNotices 는 공지가 없으면 빈 목록을 돌려준다 (오류와 구분한다)', async () => {
+    results.set('notices', { data: [], error: null });
+    await expect(getNotices()).resolves.toEqual([]);
+  });
+
+  it('getNotices 는 4초 안에 응답이 없으면 예외로 끝난다', async () => {
+    vi.useFakeTimers();
+    try {
+      publicClientFactory.mockImplementation(() => ({
+        from: () => {
+          const builder: Record<string, unknown> = {
+            select: () => builder,
+            eq: () => builder,
+            order: () => builder,
+            then: () => new Promise(() => {}),
+          };
+          return builder;
+        },
+      }));
+      const pending = getNotices();
+      const assertion = expect(pending).rejects.toThrow(/getNotices.*4000ms/);
+      await vi.advanceTimersByTimeAsync(4000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('getNoticeById 는 없는 id 에 예외 없이 data: null 을 돌려준다', async () => {
@@ -98,6 +137,11 @@ describe('ISR 경로의 서비스는 공개 클라이언트만 쓴다', () => {
     expect(data).toBeNull();
     expect(error?.message).toBe('Notice not found');
     expect(cookieClientFactory).not.toHaveBeenCalled();
+  });
+
+  it('getNoticeById 는 조회 장애를 예외로 전파한다 (오류 문구가 200 으로 캐시되면 안 된다)', async () => {
+    results.set('notices', { data: null, error: { message: 'connection reset', code: '08006' } });
+    await expect(getNoticeById(4)).rejects.toThrow(/connection reset/);
   });
 
   it('getNoticeById 는 숫자가 아닌 id 를 조회 없이 거부한다', async () => {

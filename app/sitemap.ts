@@ -1,8 +1,9 @@
 import { MetadataRoute } from "next";
 import { buildSitemapEntries } from "./[lang]/sitemap";
 
-// getNotices 가 쿠키 없는 클라이언트가 되면 이 라우트는 정적으로 굳는다 — 1시간마다 재생성한다.
-export const revalidate = 3600;
+// 요청마다 렌더한다(기존 동작). 조회가 모두 쿠키 없는 클라이언트라 이 선언이 없으면 정적으로 굳는다.
+// 캐시하지 않는 이유: 아래 조회는 실패해도 부분 결과를 돌려주므로, 캐시하면 URL 이 빠진 sitemap 이 굳는다.
+export const dynamic = 'force-dynamic';
 
 /**
  * 루트 sitemap

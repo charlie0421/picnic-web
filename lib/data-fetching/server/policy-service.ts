@@ -39,38 +39,35 @@ export const getPolicy = cache(
   }
 );
 
+// faq 페이지는 ISR 이다.
+// - 쿠키 없는 공개 클라이언트로 조회한다 (faqs: RLS 없음, faq_categories: public SELECT 정책).
+// - 조회 실패는 예외로 전파한다. 빈 목록으로 바꿔 반환하면 그 화면이 캐시에 저장돼 정상 페이지를 덮는다.
+//   예외면 Next 가 마지막 정상 페이지를 계속 제공하고 다음 요청에서 다시 시도한다.
 export const getFaqs = cache(async (lang: string = 'ko') => {
-    try {
-      // faq 페이지는 ISR 이다 — 쿠키 없는 공개 클라이언트로 조회한다 (faqs: RLS 없음, faq_categories: public SELECT 정책).
-      const supabase = createPublicSupabaseServerClient();
-      const { data, error } = await supabase
-        .from('faqs')
-        .select('id, question, answer, answer_delta, category, created_at')
-        .eq('status', 'PUBLISHED')
-        .order('order_number', { ascending: true });
+  const supabase = createPublicSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('faqs')
+    .select('id, question, answer, answer_delta, category, created_at')
+    .eq('status', 'PUBLISHED')
+    .order('order_number', { ascending: true });
 
-      if (error) {
-        throw error;
-      }
+  if (error) {
+    console.error('getFaqs error:', error);
+    throw new Error(`getFaqs failed: ${error.message}`);
+  }
 
-      const localizedData = (data || []).map(item => {
-        const question = item.question as any;
-        const answer = item.answer as any;
-        const answerDelta = item.answer_delta as any;
-        return {
-          ...item,
-          question: question?.[lang] || question?.['ko'] || '',
-          answer: answer?.[lang] || answer?.['ko'] || '',
-          // answer_delta가 있으면 해당 언어의 Delta 반환
-          answerDelta: answerDelta?.[lang] || answerDelta?.['ko'] || null,
-        }
-      });
-
-      return localizedData;
-    } catch (error) {
-      console.error('getFaqs error:', error);
-      return [];
-    }
+  return (data || []).map(item => {
+    const question = item.question as any;
+    const answer = item.answer as any;
+    const answerDelta = item.answer_delta as any;
+    return {
+      ...item,
+      question: question?.[lang] || question?.['ko'] || '',
+      answer: answer?.[lang] || answer?.['ko'] || '',
+      // answer_delta가 있으면 해당 언어의 Delta 반환
+      answerDelta: answerDelta?.[lang] || answerDelta?.['ko'] || null,
+    };
+  });
 });
 
 export interface FaqCategory {
@@ -81,30 +78,25 @@ export interface FaqCategory {
 }
 
 export const getFaqCategories = cache(async (lang: string = 'ko') => {
-  try {
-    // faq 페이지는 ISR 이다 — 쿠키 없는 공개 클라이언트로 조회한다 (faqs: RLS 없음, faq_categories: public SELECT 정책).
-    const supabase = createPublicSupabaseServerClient();
-    const { data, error } = await supabase
-      .from('faq_categories')
-      .select('code, label, order_number, active')
-      .eq('active', true)
-      .order('order_number', { ascending: true });
+  const supabase = createPublicSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('faq_categories')
+    .select('code, label, order_number, active')
+    .eq('active', true)
+    .order('order_number', { ascending: true });
 
-    if (error) throw error;
-
-    const localized: FaqCategory[] = (data || []).map((row: any) => {
-      const label = row.label || {};
-      return {
-        code: row.code,
-        label: label?.[lang] || label?.['ko'] || row.code,
-        order_number: row.order_number ?? 0,
-        active: !!row.active,
-      };
-    });
-
-    return localized;
-  } catch (error) {
+  if (error) {
     console.error('getFaqCategories error:', error);
-    return [] as FaqCategory[];
+    throw new Error(`getFaqCategories failed: ${error.message}`);
   }
+
+  return (data || []).map((row: any): FaqCategory => {
+    const label = row.label || {};
+    return {
+      code: row.code,
+      label: label?.[lang] || label?.['ko'] || row.code,
+      order_number: row.order_number ?? 0,
+      active: !!row.active,
+    };
+  });
 });

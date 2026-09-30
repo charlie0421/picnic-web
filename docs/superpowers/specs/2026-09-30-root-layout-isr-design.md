@@ -115,12 +115,13 @@ app/
 | `/[lang]/privacy`, `/[lang]/terms` | `force-dynamic` 명시 | 동적 (현상 유지) |
 | `/[lang]/vote` | `revalidate = 60` 제거(죽은 설정) | 동적 (searchParams) |
 | `/[lang]/media`, `/[lang]/mypage/**`, `/[lang]/open-in-browser`, auth | 변경 없음 | 동적 |
-| `app/sitemap.ts` | `revalidate = 3600` 명시 | ISR 3600s (notice 공개 전환으로 정적화되는 것을 막고, 투표 목록 갱신 보장) |
-| `app/[lang]/sitemap.ts` | `revalidate = 3600` 명시 | 동적(빌드 확인: 동적 세그먼트라 요청마다 렌더). export 는 향후 프리빌드 시 굳지 않게 하는 방어선 |
+| `app/sitemap.ts`, `app/[lang]/sitemap.ts` | `force-dynamic` 명시 | 동적 (현상 유지). notice 공개 전환으로 정적화되는 것을 막는다. 캐시하지 않는 이유: sitemap 은 조회가 실패해도 부분 결과를 돌려주므로, 캐시하면 URL 이 빠진 sitemap 이 굳는다 (교차 리뷰 반영) |
 
 공개 클라이언트 전환 규칙: `createPublicSupabaseServerClient()` 를 쓴다(`SUPABASE_URL`/`SUPABASE_ANON_KEY`, 쿠키 없음). 조회 대상 테이블은 RLS 가 꺼져 있거나 anon 읽기 정책이 있음을 확인했다(§2). 이 세 서비스는 개인화 데이터를 다루지 않는다.
 
-`notFound()` 와 온디맨드 ISR: `rewards/[id]`, `notice/[id]` 에서 없는 id 는 404 가 캐시되지만 `revalidate` 주기(300s) 후 재생성되므로 일시적 DB 오류가 영구 404 로 남지 않는다.
+없는 id 와 조회 장애의 구분: `rewards/[id]`, `notice/[id]` 에서 실제로 없는 id(PGRST116)만 "없음" 으로 렌더·캐시하고(300s 뒤 재확인), 조회 장애는 예외로 전파해 캐시하지 않는다.
+
+**ISR 조회 실패 원칙 (교차 리뷰 반영)**: ISR 페이지가 쓰는 조회(`getRewards` `throwOnError`, `getFaqs`, `getFaqCategories`, `getNotices`, `getNoticeById`, `getLatestVersion`)는 실패·타임아웃을 폴백(빈 목록, 가짜 공지, 샘플 리워드, 버전 없음)으로 바꾸지 않고 예외로 전파한다. 동적 렌더 때는 폴백이 그 요청에만 보였지만, ISR 에서는 폴백 화면이 캐시에 저장돼 정상 페이지를 60초~1시간 덮는다. 예외면 Next 가 마지막 정상 페이지를 계속 제공하고 다음 요청에서 다시 시도한다. 결과가 실제로 비어 있는 경우는 오류가 아니며 빈 상태를 그대로 렌더한다.
 
 ### 4.4 `useSearchParams` 제거
 
@@ -143,11 +144,11 @@ app/
   → MISS/stale: [lang]/layout (params.lang) → rewards/page → getRewards(공개 클라이언트) → HTML 생성·캐시
 ```
 
-빌드 시: `generateStaticParams`(en/ko/my) 로 rewards/faq/notice/download 가 3개 언어로 프리렌더된다. 이때 Supabase 조회가 빌드 환경에서 일어난다. 실패하면 각 서비스의 기존 폴백(빈 목록, `FALLBACK_NOTICES`)이 캐시되고 `revalidate` 주기 후 복구된다. 나머지 언어는 첫 요청 때 온디맨드 생성된다.
+빌드 시: `generateStaticParams`(en/ko/my) 로 rewards/faq/notice/download 가 3개 언어로 프리렌더된다. 이때 Supabase 조회가 빌드 환경에서 일어난다. 조회가 실패하면 **빌드가 실패한다**(의도된 동작: 깨진 내용을 배포하지 않고, Vercel 은 이전 배포를 유지한다). 나머지 언어는 첫 요청 때 온디맨드 생성되며, 그때 조회가 실패하면 500 을 응답하고 캐시하지 않는다.
 
 ### 4.7 오류 처리
 
-- 빌드 시 Supabase 접근 실패: 위 폴백 + ISR 재생성. 빌드는 실패하지 않는다(서비스가 예외를 삼킨다).
+- 빌드 시 Supabase 접근 실패: 빌드 실패(위 원칙). 재생성 중 실패: 마지막 정상 페이지 유지. 온디맨드 첫 생성 중 실패: 500, 캐시 안 함. `next start` 에 도달 불가능한 `SUPABASE_URL` 을 주어 세 경우를 확인했다.
 - 렌더 오류: `[lang]/error.tsx`, `global-error.tsx` 는 변경 없음. `global-error` 는 자체 `<html>` 을 렌더하므로 pass-through 루트와 호환된다.
 - 알 수 없는 로케일 세그먼트(`/xx/foo`): `app/not-found.tsx` 가 자체 `<html>` 로 렌더한다. 이 경로는 현재도 루트 not-found 가 처리하며 뼈대만 바뀐다.
 
@@ -176,7 +177,7 @@ app/
 |---|---|
 | 정적 프리렌더에서 Suspense 밖 `useSearchParams` 로 빌드 실패 | §4.4 + `next build` 를 PR 게이트로. 남은 사용처는 빌드 오류 메시지가 파일을 지목한다 |
 | 어떤 페이지가 몰래 영구 정적화 | §4.3 명시 원칙 + 계약 테스트가 목록에 없는 페이지를 거부 |
-| 빌드 시 Supabase 조회 실패로 폴백이 캐시 | ISR 주기 후 자동 복구. 배포 직후 스모크로 확인 |
+| 조회 실패 시의 폴백 화면이 ISR 캐시에 저장 | 조회 실패를 예외로 전파(§4.3 원칙). 빌드 중 실패는 빌드 실패로 드러난다 |
 | `(bare)` 이동으로 auth 콜백 경로 깨짐 | URL 은 그룹 폴더의 영향을 받지 않는다. 이동 후 라우트 표와 curl 로 확인 |
 | `[lang]` 밖 페이지에 globals.css 미적용 | `(bare)/layout.tsx` 와 `not-found.tsx` 가 직접 import |
 | Preview 배포가 없어 머지 전 실환경 확인 불가 | 로컬 `next start` 검증을 전부 수행하고, 머지 직후 Production 스모크 |

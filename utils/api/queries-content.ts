@@ -7,11 +7,21 @@ import {
   DEFAULT_REWARD_LIMIT,
   REWARD_SELECT_COLUMNS,
   withTimeout,
+  rejectOnTimeout,
   logRequestError,
 } from "./queries-helpers";
 
+type ContentQueryOptions = {
+  throwOnError?: boolean;
+};
+
 // 리워드 데이터 가져오기
-export const _getRewards = async (limit?: number): Promise<Reward[]> => {
+// throwOnError: 조회 실패·타임아웃을 폴백 샘플로 바꾸지 않고 예외로 전파한다. ISR 페이지는 이 옵션을 써야 한다 —
+// 폴백을 렌더하면 그 화면이 캐시에 저장돼 정상 목록을 덮는다. (결과가 실제로 비어 있을 때의 폴백은 그대로다.)
+export const _getRewards = async (
+  limit?: number,
+  { throwOnError = false }: ContentQueryOptions = {},
+): Promise<Reward[]> => {
   const fetchRewards = withRetry(
     async (limitParam?: number): Promise<Reward[]> => {
       const supabase = createPublicSupabaseClient();
@@ -56,6 +66,15 @@ export const _getRewards = async (limit?: number): Promise<Reward[]> => {
     }
   );
 
+  if (throwOnError) {
+    try {
+      return await rejectOnTimeout(fetchRewards(limit), 'getRewards', GET_REWARDS_TIMEOUT_MS);
+    } catch (error) {
+      logRequestError(error, 'getRewards');
+      throw error;
+    }
+  }
+
   const supabaseFetch = (async () => {
     try {
       return await fetchRewards(limit);
@@ -66,10 +85,6 @@ export const _getRewards = async (limit?: number): Promise<Reward[]> => {
   })();
 
   return withTimeout(supabaseFetch, FALLBACK_REWARDS, 'getRewards', GET_REWARDS_TIMEOUT_MS);
-};
-
-type ContentQueryOptions = {
-  throwOnError?: boolean;
 };
 
 type BannerQueryOptions = ContentQueryOptions & {
