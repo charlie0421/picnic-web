@@ -20,7 +20,17 @@
  *                  (주석을 지운 코드에서 찾는다). 호출이 사라지면 다시 판단해야 한다.
  * - static-shell:  서버 데이터가 없는 클라이언트 셸. 굳어도 되는 페이지만.
  * - redirect:      redirect() 만 하는 페이지. dynamicParam 은 [id] 가 빌드에 없어 요청마다 렌더되는 경우.
+ *
+ * prebuilt: 'all' 은 페이지가 자체 generateStaticParams 로 모든 언어를 사전 생성한다는 뜻이다(download).
+ * 그 밖의 [lang] 정적/ISR 페이지는 [lang] 레이아웃의 generateStaticParams 언어(PREBUILT_LANGUAGES)만 사전 생성한다.
  */
+
+// app/[lang]/layout.tsx 의 generateStaticParams 가 돌려주는 언어. 일치 여부는
+// __tests__/app/lang-layout-html.test.tsx 가 검증한다(이 파일은 CJS 라 TS 설정을 import 할 수 없다).
+const PREBUILT_LANGUAGES = ['en', 'ko', 'my'];
+
+// config/settings.ts 의 SUPPORTED_LANGUAGES. 일치 여부는 __tests__/scripts/verify-rendering-modes.test.ts 가 검증한다.
+const ALL_LANGUAGES = ['en', 'ko', 'zh-cn', 'zh-tw', 'ja', 'id', 'es', 'bn', 'tl', 'th', 'vi', 'my'];
 
 const SERVER_USER = /await getServerUser\(\)/;
 const PROPS_SEARCH_PARAMS = /await props\.searchParams/;
@@ -50,7 +60,7 @@ const MODES = {
   '[lang]/(mypage)/mypage/qna/[thread_id]/page.tsx': { kind: 'force-dynamic' },
   '[lang]/(mypage)/mypage/recharge-history/page.tsx': { kind: 'request-api', marker: PROPS_SEARCH_PARAMS },
   '[lang]/(mypage)/mypage/vote-history/page.tsx': { kind: 'request-api', marker: PROPS_SEARCH_PARAMS },
-  '[lang]/download/page.tsx': { kind: 'isr', revalidate: 3600 },
+  '[lang]/download/page.tsx': { kind: 'isr', revalidate: 3600, prebuilt: 'all' },
   '[lang]/open-in-browser/page.tsx': { kind: 'request-api', marker: /await headers\(\)/ },
 
   // ── app/(bare): 언어 세그먼트 밖 ─────────────────────────────────────────────
@@ -122,6 +132,8 @@ function readSegmentConfig(source) {
 module.exports = {
   MODES,
   EXTRA_PRERENDERED,
+  PREBUILT_LANGUAGES,
+  ALL_LANGUAGES,
   PAGE_FILE,
   DYNAMIC_SEGMENT,
   routeOfFile,

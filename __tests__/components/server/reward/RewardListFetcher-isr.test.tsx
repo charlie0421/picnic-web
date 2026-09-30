@@ -41,11 +41,16 @@ describe('RewardListFetcher — ISR 에서의 조회 실패', () => {
     await expect(RewardListFetcher()).rejects.toThrow('DB down');
   });
 
-  it('리워드가 실제로 없으면 가짜 리워드 카드가 아니라 "곧 공개" 안내를 렌더한다', async () => {
+  // 빈 상태 화면(RewardFallbackShowcase: "곧 공개될 리워드 라인업" 안내와 예시 3종)은 2025-11 부터 있던 UI 다.
+  // 조회 계층이 빈 결과에 샘플 리워드(id -1)를 돌려주던 탓에 도달할 수 없었다. 여기서 막는 것은
+  // "DB 리워드인 척하는 가짜 항목"(목록 카드로 렌더되고 상세 링크가 없는 리워드로 가는 것)이다.
+  it('리워드가 실제로 없으면 리워드 목록이 아니라 준비된 빈 상태 화면을 렌더한다', async () => {
     getRewardsDirect.mockResolvedValue([]);
     const html = renderToStaticMarkup(await RewardListFetcher());
     expect(html).toContain('곧 공개될 리워드 라인업');
     expect(html).not.toContain('data-testid="presenter"');
+    expect(html).not.toMatch(/샘플 리워드|Sample Reward/);
+    expect(html).not.toMatch(/href="[^"]*\/rewards\//);
   });
 
   it('리워드가 있으면 목록을 렌더한다', async () => {

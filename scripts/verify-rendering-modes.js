@@ -15,7 +15,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const { MODES, EXTRA_PRERENDERED, DYNAMIC_SEGMENT, routeOfFile } = require('./rendering-modes');
+const {
+  MODES,
+  EXTRA_PRERENDERED,
+  PREBUILT_LANGUAGES,
+  ALL_LANGUAGES,
+  DYNAMIC_SEGMENT,
+  routeOfFile,
+} = require('./rendering-modes');
 
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -136,10 +143,19 @@ function verifyPrerenderManifest(manifest, modes = MODES, extra = EXTRA_PRERENDE
         );
         continue;
       }
-      if (!entry.mode.onDemand && !prerenderedFiles.has(entry.file)) {
-        problems.push(
-          `${entry.mode.kind} 로 선언한 ${entry.route} (app/${entry.file}) 에 프리렌더된 경로가 하나도 없다.`,
-        );
+      if (!entry.mode.onDemand) {
+        // "하나라도 있으면 통과" 로는 부족하다 — 사전 생성하기로 한 언어마다 경로가 있어야 한다.
+        // (예: /ko/rewards 는 남고 /en/rewards 만 빠진 빌드.) 선언보다 많은 언어가 생성되는 것은 문제가 아니다.
+        const languages = entry.mode.prebuilt === 'all' ? ALL_LANGUAGES : PREBUILT_LANGUAGES;
+        for (const lang of languages) {
+          const pathname = entry.route.replace('[lang]', lang);
+          if (!Object.prototype.hasOwnProperty.call(routes, pathname)) {
+            problems.push(
+              `${entry.mode.kind} 로 선언한 ${entry.route} (app/${entry.file}) 의 ${pathname} 가 프리렌더되지 않았다. ` +
+                '사전 생성 언어가 줄었거나 이 언어의 프리렌더가 빠졌다.',
+            );
+          }
+        }
       }
     } else if (!prerenderedFiles.has(entry.file)) {
       problems.push(

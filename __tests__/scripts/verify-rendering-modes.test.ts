@@ -8,6 +8,7 @@ type Mode = {
   revalidate?: number;
   onDemand?: boolean;
   dynamicParam?: boolean;
+  prebuilt?: 'all';
   marker?: RegExp;
 };
 type Manifest = {
@@ -17,11 +18,19 @@ type Manifest = {
 
 const require = createRequire(import.meta.url);
 const root = process.cwd();
-const { MODES, EXTRA_PRERENDERED, routeOfFile, readSegmentConfig, stripComments } = require(
-  path.join(root, 'scripts/rendering-modes.js'),
-) as {
+const {
+  MODES,
+  EXTRA_PRERENDERED,
+  PREBUILT_LANGUAGES,
+  ALL_LANGUAGES,
+  routeOfFile,
+  readSegmentConfig,
+  stripComments,
+} = require(path.join(root, 'scripts/rendering-modes.js')) as {
   MODES: Record<string, Mode>;
   EXTRA_PRERENDERED: Record<string, number | false>;
+  PREBUILT_LANGUAGES: string[];
+  ALL_LANGUAGES: string[];
   routeOfFile: (file: string) => string;
   readSegmentConfig: (source: string) => { dynamic: string | null; revalidate: number | null; hasStaticParams: boolean };
   stripComments: (source: string) => string;
@@ -30,7 +39,7 @@ const { verifyPrerenderManifest } = require(path.join(root, 'scripts/verify-rend
   verifyPrerenderManifest: (manifest: Manifest, modes?: Record<string, Mode>, extra?: Record<string, number | false>) => string[];
 };
 
-const PREBUILT_LANGS = ['en', 'ko', 'my'];
+const langsOf = (mode: Mode) => (mode.prebuilt === 'all' ? ALL_LANGUAGES : PREBUILT_LANGUAGES);
 const isStatic = (mode: Mode) =>
   ['isr', 'force-static', 'static-shell'].includes(mode.kind) || (mode.kind === 'redirect' && !mode.dynamicParam);
 const revalidateOf = (mode: Mode) => (mode.kind === 'isr' || mode.kind === 'force-static' ? mode.revalidate! : false);
@@ -47,7 +56,7 @@ const goodManifest = (): Manifest => {
     if (route.includes('[')) {
       manifest.dynamicRoutes[route] = { fallback: null };
       if (mode.onDemand) continue;
-      for (const lang of PREBUILT_LANGS) {
+      for (const lang of langsOf(mode)) {
         manifest.routes[route.replace('[lang]', lang)] = { initialRevalidateSeconds: revalidateOf(mode) };
       }
     } else {
@@ -168,11 +177,34 @@ describe('verifyPrerenderManifest', () => {
 
   it('ISR 로 선언한 페이지가 프리렌더되지 않으면 알린다 (조용히 동적으로 바뀐 경우)', () => {
     const manifest = goodManifest();
-    for (const lang of PREBUILT_LANGS) delete manifest.routes[`/${lang}/rewards`];
+    for (const lang of PREBUILT_LANGUAGES) delete manifest.routes[`/${lang}/rewards`];
     delete manifest.dynamicRoutes['/[lang]/rewards'];
     const problems = verifyPrerenderManifest(manifest);
     expect(problems.length).toBeGreaterThan(0);
     expect(problems.join('\n')).toMatch(/\/\[lang\]\/rewards/);
+  });
+
+  // "프리렌더 경로가 하나라도 있으면 통과" 로는 en·ko·my 사전 생성 보증이 깨져도 모른다.
+  it('사전 생성 언어 중 하나만 빠져도 알린다 (/ko/rewards 는 남고 /en/rewards 만 빠진 빌드)', () => {
+    const manifest = goodManifest();
+    delete manifest.routes['/en/rewards'];
+    const problems = verifyPrerenderManifest(manifest);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/\/en\/rewards/);
+  });
+
+  it('12개 언어를 사전 생성하는 페이지는 언어마다 확인한다 (/ja/download 만 빠진 빌드)', () => {
+    const manifest = goodManifest();
+    delete manifest.routes['/ja/download'];
+    const problems = verifyPrerenderManifest(manifest);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/\/ja\/download/);
+  });
+
+  it('선언보다 많은 언어가 사전 생성되는 것은 문제가 아니다', () => {
+    const manifest = goodManifest();
+    manifest.routes['/ja/rewards'] = { initialRevalidateSeconds: 60 };
+    expect(verifyPrerenderManifest(manifest)).toEqual([]);
   });
 
   it('온디맨드 ISR 상세가 정적 생성 대상에서 빠지면 알린다', () => {
@@ -202,6 +234,18 @@ describe('verifyPrerenderManifest', () => {
   it.skipIf(!fs.existsSync(manifestPath))('현재 .next 의 빌드 결과가 선언과 일치한다', () => {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as Manifest;
     expect(verifyPrerenderManifest(manifest)).toEqual([]);
+  });
+});
+
+describe('사전 생성 언어 목록', () => {
+  it('ALL_LANGUAGES 는 SUPPORTED_LANGUAGES 와 같다', async () => {
+    const { SUPPORTED_LANGUAGES } = await import('@/config/settings');
+    expect([...ALL_LANGUAGES].sort()).toEqual([...SUPPORTED_LANGUAGES].sort());
+  });
+
+  it('PREBUILT_LANGUAGES 는 모두 지원 언어다', () => {
+    expect(PREBUILT_LANGUAGES.every((lang) => ALL_LANGUAGES.includes(lang))).toBe(true);
+    expect(PREBUILT_LANGUAGES.length).toBeGreaterThan(0);
   });
 });
 

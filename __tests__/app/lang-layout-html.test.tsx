@@ -16,7 +16,9 @@ vi.mock('@/app/[lang]/ClientLayout', () => ({ default: () => null }));
 vi.mock('@/components/client/ads/ConsentAwareAdsense', () => ({ default: () => null }));
 vi.mock('@/components/client/ads/CookieConsentBanner', () => ({ default: () => null }));
 
-import LanguageLayout, { generateMetadata } from '@/app/[lang]/layout';
+import { createRequire } from 'module';
+import path from 'path';
+import LanguageLayout, { generateMetadata, generateStaticParams } from '@/app/[lang]/layout';
 import ClientLayout from '@/app/[lang]/ClientLayout';
 import ConsentAwareAdsense from '@/components/client/ads/ConsentAwareAdsense';
 import CookieConsentBanner from '@/components/client/ads/CookieConsentBanner';
@@ -107,5 +109,17 @@ describe('[lang] 레이아웃 — 광고', () => {
   it('[lang] 메타데이터의 other 는 루트가 싣는 AdSense 메타를 다른 값으로 덮지 않는다', async () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ lang: 'ko' }) });
     expect(metadata.other?.['google-adsense-account']).toBeUndefined();
+  });
+});
+
+// 빌드 결과 검사(scripts/verify-rendering-modes.js)는 이 목록의 언어마다 프리렌더 경로가 있는지 확인한다.
+describe('[lang] 레이아웃 — 사전 생성 언어', () => {
+  it('generateStaticParams 의 언어가 scripts/rendering-modes.js 의 PREBUILT_LANGUAGES 와 같다', async () => {
+    const require = createRequire(import.meta.url);
+    const { PREBUILT_LANGUAGES } = require(path.join(process.cwd(), 'scripts/rendering-modes.js')) as {
+      PREBUILT_LANGUAGES: string[];
+    };
+    const params = await generateStaticParams();
+    expect(params.map((param) => param.lang).sort()).toEqual([...PREBUILT_LANGUAGES].sort());
   });
 });

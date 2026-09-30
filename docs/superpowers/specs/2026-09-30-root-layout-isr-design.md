@@ -146,7 +146,7 @@ app/
 **ISR 조회 실패 원칙.** ISR 페이지의 서버 렌더는 조회 실패를 "정상처럼 보이는 화면"으로 끝내지 않는다.
 
 - 조회 실패·타임아웃 → 예외로 전파한다. Next 는 재생성이 실패하면 마지막 정상 페이지를 계속 제공하고 다음 요청에서 다시 시도한다.
-- 결과가 실제로 비어 있음 → 빈 상태를 렌더한다(오류가 아니다). 리워드가 하나도 없으면 가짜 "샘플 리워드" 카드가 아니라 "곧 공개" 안내를 렌더한다.
+- 결과가 실제로 비어 있음 → 빈 상태를 렌더한다(오류가 아니다). 리워드가 하나도 없으면 조회 계층의 "샘플 리워드"(id -1 — 목록 카드로 렌더되는 가짜 DB 항목)를 렌더하지 않고, 기존에 준비돼 있던 빈 상태 화면 `RewardFallbackShowcase`("곧 공개될 리워드 라인업" 안내와 리워드 유형 예시 3종)를 렌더한다. 이 화면은 2025-11 부터 있던 UI 이고, 조회 계층이 빈 결과에 샘플을 돌려주던 탓에 도달할 수 없었다. 화면 내용을 바꾸는 것은 이 작업의 범위가 아니다.
 - 실제로 없는 id → "없음"을 렌더·캐시한다(300s 뒤 재확인). `rewards/[id]` 는 `PGRST116`·정수가 아닌 id·범위를 벗어난 id 를 "없음"으로, 그 밖의 오류를 장애로 구분한다.
 - 대상: `getFaqs`, `getFaqCategories`, `getNotices`(4초 예산), `getNoticeById`, `getLatestVersion`, `_getRewards({ throwOnError: true })`(3회 시도·7초 예산), `reward-service.getRewardById`. 페이지와 `generateMetadata` 는 이 예외를 잡지 않는다.
 - `rewards/[id]` 는 예전에 페이지의 `catch` 가 프로덕션에서 모든 오류를 `notFound()` 로 바꿨다. ISR 에서는 장애로 생긴 404 가 5분간 캐시되므로 `catch` 를 없앴다.
@@ -206,6 +206,7 @@ app/
    - `[lang]`·`(bare)` 의 레이아웃은 세그먼트 설정도 `next/headers` import 도 갖지 않는다.
 2. **빌드 결과 검사** `scripts/verify-rendering-modes.js` (`npm run build` 의 postbuild, `next-sitemap` 앞):
    - 프리렌더된 모든 경로가 선언된 정적/ISR 페이지에 속하고 `revalidate` 가 선언과 같다.
+   - `[lang]` 의 정적/ISR 페이지는 사전 생성하기로 한 언어마다(en·ko·my, download 는 12개 언어) 프리렌더 경로가 있어야 한다. 한 언어만 빠져도 실패한다.
    - 동적으로 선언한 페이지가 프리렌더되거나 온디맨드 정적 생성 대상이 되면 실패한다(요청 시점 API 가 사라져 조용히 굳는 경우).
    - 정적/ISR 로 선언한 페이지가 프리렌더되지 않으면 실패한다(요청 시점 API 가 끼어들어 조용히 동적이 된 경우).
    - 실패하면 빌드(=배포)가 실패한다. 의도한 변경이면 선언을 고친다. 긴급 우회는 `SKIP_RENDERING_MODE_CHECK=1`.
@@ -226,7 +227,7 @@ postbuild 의 next-sitemap 은 프리렌더된 경로를 전부 `public/sitemap-
 | `__tests__/app/unprefixed-redirect-stubs.test.tsx` | 접두어 없는 네 경로를 페이지가 기본 언어로 보내고, `next.config.js` 는 그 경로를 리다이렉트하지 않는다 |
 | `__tests__/next-config-redirects.test.ts` | 언어 루트 정규식, `app/` 바로 아래에 페이지가 없음, 프리렌더 재시도 설정 |
 | `__tests__/app/rendering-mode-contract.test.ts` | §4.8 의 소스 계약 |
-| `__tests__/scripts/verify-rendering-modes.test.ts` | 세그먼트 설정 파서, 빌드 결과 검사기(드리프트 시나리오 8종), postbuild 연결. 로컬에 `.next` 가 있으면 실제 매니페스트도 검사 |
+| `__tests__/scripts/verify-rendering-modes.test.ts` | 세그먼트 설정 파서, 빌드 결과 검사기(드리프트 시나리오: 동적 페이지의 프리렌더·온디맨드화, 미선언 경로, 주기 불일치, ISR 의 동적화, 언어 하나 누락 등), 언어 목록 동기화, postbuild 연결. 로컬에 `.next` 가 있으면 실제 매니페스트도 검사 |
 | `__tests__/next-sitemap-config.test.ts` | next-sitemap 의 실제 매처로, 비콘텐츠 경로가 빠지고 콘텐츠 경로가 남는지 |
 | `__tests__/hooks/useLocaleRouter.test.ts` | `useSearchParams` 미사용, 쿼리 보존, 전환 중 이동 시 경로·쿼리를 함께 읽음 |
 | `__tests__/app/qna-new-suspense.test.tsx` | 문의 작성 페이지의 Suspense 경계 |
@@ -300,4 +301,4 @@ ISR 재생성 실패는 이제 예외로 전파되므로 Supabase 장애 중에�
 | 빌드 | — | 프리렌더 재시도 3회 | 빌드가 Supabase 에 의존하게 됐다 (다각도 검토) |
 | 상세 페이지 ISR | `revalidate` 만 | + `generateStaticParams() → []` | 온디맨드 ISR 의 조건 (구현 중 확인) |
 
-의도적으로 바꾼 동작: `(bare)` 페이지에서 AdSense·쿠키 배너 제거, 리워드가 0건일 때의 화면(샘플 카드 → "곧 공개" 안내), 잘못된 리워드 id 의 제목("로딩 중 오류" → "찾을 수 없습니다"), 언어 전환 시 `<html lang>` 갱신.
+의도적으로 바꾼 동작: `(bare)` 페이지에서 AdSense·쿠키 배너 제거, 리워드가 0건일 때의 화면(샘플 리워드 카드 1개 → 기존 빈 상태 화면 `RewardFallbackShowcase`), 잘못된 리워드 id 의 제목("로딩 중 오류" → "찾을 수 없습니다"), 언어 전환 시 `<html lang>` 갱신.

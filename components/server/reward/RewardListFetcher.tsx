@@ -43,6 +43,8 @@ export async function RewardListFetcher({
   const dbRewards = await _getRewards(DEFAULT_LIMIT, { throwOnError: true });
   const clientRewards = transformRewardData(dbRewards);
 
+  // 리워드가 실제로 없을 때의 빈 상태 화면. 조회 계층이 빈 결과에 샘플 리워드(id -1)를 돌려주던 동안에는
+  // 도달할 수 없던 분기다. 목록 카드로 렌더되는 가짜 항목이 아니라 준비된 안내 화면을 보여 준다.
   if (!clientRewards || clientRewards.length === 0) {
     return (
       <div className={className}>
