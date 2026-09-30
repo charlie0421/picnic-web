@@ -17,7 +17,7 @@ const date = new Date().toISOString().split("T")[0];
 const release = `${pkg.name}@${pkg.version}-${date}-${sha}`;
 
 console.log(`📦 Sentry Release: ${release}`);
-console.log("SENTRY_AUTH_TOKEN:", process.env.SENTRY_AUTH_TOKEN);
+console.log("SENTRY_AUTH_TOKEN:", process.env.SENTRY_AUTH_TOKEN ? "(set)" : "(missing)");
 console.log("SENTRY_ORG:", process.env.SENTRY_ORG);
 console.log("SENTRY_PROJECT:", process.env.SENTRY_PROJECT);
 
