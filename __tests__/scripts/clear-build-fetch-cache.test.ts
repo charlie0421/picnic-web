@@ -9,9 +9,10 @@ const root = process.cwd();
 const scriptPath = path.join(root, 'scripts/clear-build-fetch-cache.js');
 
 /**
- * 빌드의 프리렌더는 Supabase 조회 결과를 `.next/cache/fetch-cache` 에 남긴다. Vercel 은 `.next/cache` 를
- * 다음 빌드에 복원하므로, 비우지 않으면 새 배포의 공지·FAQ·다운로드 페이지가 예전 빌드가 받아 둔 데이터로
- * 만들어진다 (같은 워크트리에서 빌드를 두 번 돌리면 두 번째 빌드는 Supabase 에 조회를 0건 보낸다).
+ * `.next` 가 남아 있는 환경(로컬, 자체 CI)에서 빌드의 프리렌더는 Supabase 조회 결과를
+ * `.next/cache/fetch-cache` 에 남기고, 다음 빌드는 남은 응답을 그대로 쓴다. 비우지 않으면 공지·FAQ·다운로드
+ * 페이지가 예전 데이터로 만들어진다 (같은 워크트리에서 빌드를 두 번 돌리면 두 번째 빌드는 Supabase 에
+ * 조회를 0건 보낸다). Vercel 빌드는 이 디렉터리를 만들지 않는다.
  */
 describe('scripts/clear-build-fetch-cache.js', () => {
   let projectDir: string;
