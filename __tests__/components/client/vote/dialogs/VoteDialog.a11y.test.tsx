@@ -78,4 +78,25 @@ describe('VoteDialog — 접근성', () => {
     fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
     expect(last).toHaveFocus();
   });
+
+  it('포커스가 대화상자 밖(body 등)으로 빠진 상태에서 Tab 을 누르면 대화상자 안으로 되돌린다', () => {
+    renderDialog();
+    const dialog = screen.getByRole('dialog');
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(dialog.contains(document.activeElement)).toBe(false);
+
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it('닫힌 뒤에는 문서 Tab 을 가로채지 않는다', () => {
+    const { unmount } = renderDialog();
+    unmount();
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
 });

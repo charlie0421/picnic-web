@@ -103,7 +103,6 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
                 role='button'
                 tabIndex={canVote ? 0 : -1}
                 aria-disabled={!canVote || undefined}
-                aria-label={artistName}
                 className='transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
                 style={{ animationDelay: `${index * 50}ms` }}
                 onClick={() => { if (canVote) { handleCardClick(item); } }}

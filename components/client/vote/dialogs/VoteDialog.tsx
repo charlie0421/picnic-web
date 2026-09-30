@@ -60,6 +60,22 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     return () => previouslyFocused?.focus?.();
   }, [isOpen]);
 
+  // 포커스가 대화상자 밖(예: 제출 중 버튼이 비활성화돼 body 로 빠진 경우)에서 Tab 을 누르면 안으로 되돌린다
+  useEffect(() => {
+    if (!isOpen) return;
+    const onDocumentKeyDown = (e: KeyboardEvent) => {
+      const panel = panelRef.current;
+      if (e.key !== 'Tab' || !panel || panel.contains(document.activeElement)) return;
+      const first = panel.querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      );
+      e.preventDefault();
+      (first ?? panel).focus();
+    };
+    document.addEventListener('keydown', onDocumentKeyDown);
+    return () => document.removeEventListener('keydown', onDocumentKeyDown);
+  }, [isOpen]);
+
   // Esc 로 닫고, Tab 포커스를 대화상자 안에 가둔다
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') {
@@ -100,6 +116,7 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
           ref={panelRef}
           role="dialog"
           aria-modal="true"
+          tabIndex={-1}
           aria-labelledby={titleId}
           onKeyDown={handleKeyDown}
           className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"

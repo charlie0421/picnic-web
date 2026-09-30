@@ -65,4 +65,11 @@ describe('VoteDetailPresenter — 후보 카드 키보드 접근성', () => {
     fireEvent.click(card);
     expect(handleCardClick).not.toHaveBeenCalled();
   });
+
+  it('후보 카드의 접근 가능한 이름에 순위·득표 정보가 포함된다(카드 간 비교 가능)', () => {
+    render(<VoteDetailPresenter {...({} as any)} />);
+    const card = screen.getByRole('button', { name: /아이유/ });
+    expect(card).not.toHaveAttribute('aria-label');
+    expect(card.textContent).toMatch(/70/);
+  });
 });
