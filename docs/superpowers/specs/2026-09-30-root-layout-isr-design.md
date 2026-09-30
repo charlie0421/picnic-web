@@ -2,7 +2,7 @@
 
 - 날짜: 2026-09-30
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-11(PERF-01, STR-012, PERF-22), 결정 #8(rewards/faq/notice ISR 승인), B-R3
-- 상태: 구현 완료 (브랜치 `refactor/root-layout-isr`, PR #103), 교차 리뷰 진행 중·머지 대기
+- 상태: 머지·Production 배포 완료 (PR #103 → `c099c95e`, 2026-09-30). 교차 리뷰 4회차 APPROVE. Production 검증 결과는 §9
 
 이 문서는 구현된 상태를 기준으로 쓴다. 승인된 초안에서 달라진 점은 §8 에 모았다.
 
@@ -286,6 +286,8 @@ ISR 재생성 실패는 이제 예외로 전파되므로 Supabase 장애 중에�
 - middleware `x-locale` 주입 제거와 관련 테스트 정리.
 - `/privacy`, `/terms` 의 ISR 전환.
 - `rendering-utils.ts` 의 미사용 헬퍼 정리.
+- 잘못된 id 의 soft 404: `/rewards/:id`·`/notice/:id` 는 없는 id 에 200 을 돌려준다(기존 동작). ISR 전환 뒤에는 id 마다 300초 캐시 항목이 된다. 실제 404 상태 코드와 공지 상세의 `noindex` 는 별도 과제다.
+- `/{lang}/rewards/null` 요청의 출처 확인(§9).
 - 이 작업에서 발견한 기존 버그(이 브랜치와 무관): `VoteCard` 포디움 클릭이 접두어 없는 `/vote/:id` 로 하드 이동, 마이페이지 알림 타일의 `/notifications` 404, 약관·개인정보 페이지의 `/contact` 링크, sitemap 의 샘플 리워드 id(-1), 추적 중인 `public/sitemap.xml` 과 `app/sitemap.ts` 의 이중 소유(U-31).
 
 ## 8. 승인된 초안에서 달라진 점
@@ -302,3 +304,32 @@ ISR 재생성 실패는 이제 예외로 전파되므로 Supabase 장애 중에�
 | 상세 페이지 ISR | `revalidate` 만 | + `generateStaticParams() → []` | 온디맨드 ISR 의 조건 (구현 중 확인) |
 
 의도적으로 바꾼 동작: `(bare)` 페이지에서 AdSense·쿠키 배너 제거, 리워드가 0건일 때의 화면(샘플 리워드 카드 1개 → 기존 빈 상태 화면 `RewardFallbackShowcase`), 잘못된 리워드 id 의 제목("로딩 중 오류" → "찾을 수 없습니다"), 언어 전환 시 `<html lang>` 갱신.
+
+## 9. Production 검증 (2026-09-30)
+
+머지 커밋 `c099c95e` 의 트리는 검토한 `2c515433` 과 같다(tree `8949950d`). 배포 `dpl_A14uJSP9QmzEjN8xLQCamQuKR1pr` 는 21:40 KST 에 READY 가 됐다. 롤백 대상은 직전 배포 `dpl_6u7zsvZYbG5Z3X7xCT58yNTvrHHU`(`ead2157f`)다.
+
+| 항목 | 결과 |
+|---|---|
+| 빌드 | postbuild 가 `[rendering-modes] 통과: 프리렌더 39개 경로와 온디맨드 10개 경로가 선언과 일치한다.` 를 출력했고 next-sitemap 이 실행됐다 |
+| ISR(프리렌더) | `/ko/rewards`·`/en/faq`·`/ko/notice`·`/ko/download`·`/ko/login` 이 `x-vercel-cache: HIT`. `/ko/rewards` 는 60초 뒤 STALE 이 됐다가 재생성 후 HIT(age 초기화) |
+| ISR(온디맨드) | `/ja/rewards` MISS → HIT, `/ko/rewards/1`·`/ko/notice/1` HIT. 캐시 기록이 반영되기까지 1~2초가 걸려 두 번째 요청은 MISS 일 수 있다 |
+| 동적 | `/ko/vote`·`/ko/vote/310`·`/ko/star-candy`·`/ko/mypage`·`/ko/privacy`·`/ko/terms`·`/ko/media`·`/en/open-in-browser` 는 MISS, `private, no-store` |
+| RSC | `RSC: 1` 요청은 `text/x-component`, `x-matched-path: /ko/rewards.rsc` 로 HTML 과 분리된다 |
+| 쿼리·쿠키 | `?utm_source=…` 는 같은 항목 HIT. `Cookie: locale=ja` 요청도 HIT 이고 응답에 `Set-Cookie` 가 없다 |
+| 404 | 지원 언어 아래 없는 경로는 정적 404(`x-matched-path: /404`, HIT). 이전에는 요청마다 렌더했다 |
+| `(bare)` | `/auth/loading`·`/ads/shortform/player` 200 HIT, stylesheet 1개. code 없는 `/auth/callback` 은 기존처럼 `/login?error=auth_code_missing` 으로 307 |
+| 머지 전후 비교 | 같은 44개 경로(76요청)의 상태 코드·Location·`<html lang>`·제목·robots·canonical·hreflang 을 비교했다. 차이는 세 가지다: 404 의 매칭 경로(`/_not-found` → `/404`), `/en/rewards` 의 매칭 경로(프리렌더), `/en/concert2025` 의 `<html lang>` 이 `ko` 에서 `en` 으로 교정 |
+| 브라우저(익명) | rewards·rewards/1·faq·notice·download·login·mypage·404 전체 로드와 클라이언트 내비게이션(notice/4 → rewards → vote)에서 콘솔 오류 0건. 언어 전환 `/ko/vote?status=ongoing` → `/en/vote?status=ongoing` |
+| 런타임 | 배포 후 5xx 0건. error 로그는 기존 원인뿐이다(미지원 언어 세그먼트의 번역 로드 실패, sitemap 핸들러). Sentry 신규 이슈 0건(배포 직후) |
+| sitemap | `/sitemap.xml` 3240, `/ko/sitemap.xml` 3240(동적). `sitemap-0.xml` 은 24개 URL 이고 제외 대상은 0건 |
+
+확인하지 못한 것: 로그인 상태의 화면 동작(실제 계정 필요), Vercel 캐시 퍼지 절차, Supabase 장애 시의 Production 동작(로컬 장애 주입으로만 확인).
+
+배포 뒤 관찰:
+
+- 예상대로 미지원 세그먼트가 ISR 항목이 된다. `/xx/rewards`·`/xx/faq` 는 MISS → HIT 이고, `/login`·`/wp-admin` 의 307(`/<seg>/vote`)도 HIT 다. §7 의 첫 후속 과제가 이것을 막는다.
+- 잘못된 id(`/ko/rewards/99999999`, `/ko/rewards/abc`, `/ko/notice/99999999`)는 기존처럼 200(soft 404)이다. 리워드는 `noindex` 가 붙고 공지는 붙지 않는다.
+- 이전 배포의 error 로그에 `/{lang}/rewards/null` 요청이 12개 언어에 고르게 있었다. sitemap 과 투표 목록의 서버 렌더 HTML 에는 그런 링크가 없어 출처를 찾지 못했다. 지금은 id 검증 덕분에 DB 조회 없이 soft 404 가 된다.
+- AdSense 전면 광고(vignette)가 링크 클릭을 가로채 자동화 브라우저의 클릭 내비게이션이 막힌다. 스모크의 클라이언트 내비게이션은 `window.next.router.push` 로 했다.
+- 기기 언어가 한국어인 브라우저에서 언어 선택기로 영어를 고르면 URL 과 메뉴는 영어가 되지만 `locale` 쿠키와 언어 스토어(`language-storage`)는 `ko` 로 되돌아간다. `LanguageSyncProvider` 가 저장값 `en`(기본값)을 미설정으로 취급해 기기 언어로 덮어쓰기 때문이다. 그래서 스토어 언어를 쓰는 베타 안내 문구가 `/en` 페이지에서 한국어로 나온다. 관련 코드는 이 변경에서 손대지 않았다(`changeLocale` 은 경로·쿼리 계산만 바뀜). 접두어 없는 경로의 언어를 쿠키로 정할 때 고려해야 한다.
