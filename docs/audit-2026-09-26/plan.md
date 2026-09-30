@@ -319,7 +319,7 @@ Orca 사용량 텔레메트리가 복구된 뒤 교차 리뷰(Codex gpt-6-sol, r
 - 결제 수정(B-P1~P3)은 sandbox 자격 후 — #88 의 `it.fails` 를 `it` 으로 전환하며 진행
 - 루트 `headers()` 제거·ISR(결정 #8)은 별도 설계
 - ~~`.sentryclirc` 토큰 교체~~ **완료(2026-09-30, #99)**: 새 조직 토큰 발급 → Vercel 3환경 `SENTRY_AUTH_TOKEN` 교체 → `.sentryclirc` 추적 해제·`.sentryclirc.example`·빌드 로그 토큰 출력 제거 → 배포에서 소스맵 업로드·릴리스 확정 확인 → 옛 토큰 Sentry 에서 폐기. 히스토리의 토큰은 폐기로 무효(공개 레포, force push 안 함)
-- 후속: Sentry 릴리스 이름이 `sentry-release.js`(`picnic-web@YYYYMMDD.HHMM.NNN`)와 플러그인(`picnic-web@0.1.0-…`) 두 가지로 생성됨 — 하나로 통일 필요
+- ~~Sentry 릴리스 이원화~~ **완료(2026-09-30)**: 플러그인이 `picnic-web@<BUILD_VERSION>` 하나만 생성·소스맵 업로드·커밋 연결·finalize. postbuild 의 `sentry-cli`(`picnic-web@0.1.0-<date>-`, 소스맵 중복 업로드, 아무 에러도 오지 않던 릴리스) 제거. 플러그인은 Vercel 빌드에서만 켜져 로컬 `next build` 가 운영 릴리스를 만들지 않음(`SENTRY_UPLOAD_SOURCEMAPS=1` 로 옵트인)
 - `support@picnic.com`·`*.picnic.com` 링크 실제 주소 확인
 - 운영 확인 권장: 로그인/로그아웃/토큰 만료 후 재방문, Vercel 로그의 middleware 지연·Auth 요청 수, 모바일 Lighthouse LCP 재측정
 

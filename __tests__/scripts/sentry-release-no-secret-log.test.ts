@@ -4,9 +4,11 @@ import { join } from 'node:path';
 
 /** 빌드 로그에 토큰이 찍히거나, 토큰 파일이 추적되는 일이 다시 생기지 않게 고정한다. */
 describe('Sentry 토큰 노출 방지', () => {
-  it('sentry-release.js 는 SENTRY_AUTH_TOKEN 값을 로그에 찍지 않는다', () => {
-    const src = readFileSync(join(process.cwd(), 'scripts/sentry-release.js'), 'utf8');
-    expect(src).not.toMatch(/console\.log\([^)]*process\.env\.SENTRY_AUTH_TOKEN\s*\)/);
+  it('빌드 설정 어디서도 SENTRY_AUTH_TOKEN 값을 로그에 찍지 않는다', () => {
+    for (const file of ['next.config.js', 'scripts/sentry-build-options.js', 'scripts/generate-build-version.js']) {
+      const src = readFileSync(join(process.cwd(), file), 'utf8');
+      expect(src, file).not.toMatch(/console\.\w+\([^)]*SENTRY_AUTH_TOKEN/);
+    }
   });
 
   it('.sentryclirc 는 gitignore 되고 예제 파일에는 토큰이 없다', () => {

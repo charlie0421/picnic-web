@@ -76,7 +76,12 @@ describe('Sentry 설정 계약', () => {
       // withSentryConfig 최상위엔 applicationKey 옵션이 없다. 플러그인 옵션으로만
       // 들어가며, 그래야 청크에 `_sentryBundlerPluginAppKey:<key>` 가 심긴다.
       expect(nextConfig).toMatch(
-        /unstable_sentryWebpackPluginOptions:\s*\{[^}]*applicationKey:\s*SENTRY_APPLICATION_KEY/,
+        /unstable_sentryWebpackPluginOptions:\s*\{[^}]*applicationKey:\s*sentryBuild\.applicationKey/,
+      );
+      // 키 값 자체는 빌드 옵션 모듈이 하나로 정한다
+      expect(read('scripts/sentry-build-options.js')).toMatch(/SENTRY_APPLICATION_KEY = 'picnic-web'/);
+      expect(read('scripts/sentry-build-options.js')).toMatch(
+        /applicationKey:\s*SENTRY_APPLICATION_KEY/,
       );
     });
 
@@ -104,9 +109,12 @@ describe('Sentry 설정 계약', () => {
       // 셸·Vercel 에 잔존하는 raw NEXT_PUBLIC_SENTRY_APPLICATION_KEY 가 그대로
       // 인라인된다. 빈 문자열은 raw 값을 덮는다.
       expect(nextConfig).toMatch(
-        /NEXT_PUBLIC_SENTRY_APPLICATION_KEY:\s*sentryPluginEnabled\s*\?\s*SENTRY_APPLICATION_KEY\s*:\s*''/,
+        /NEXT_PUBLIC_SENTRY_APPLICATION_KEY:\s*sentryPluginEnabled\s*\?\s*sentryBuild\.applicationKey\s*:\s*''/,
       );
-      expect(nextConfig).toMatch(/disableClientWebpackPlugin:\s*!sentryPluginEnabled/);
+      // 활성화 조건과 플러그인 on/off 는 같은 모듈 결과(enabled)에서 나온다
+      expect(nextConfig).toMatch(/const sentryPluginEnabled = sentryBuild\.enabled/);
+      expect(nextConfig).toMatch(/disableClientWebpackPlugin:\s*sentryBuild\.disableClientWebpackPlugin/);
+      expect(read('scripts/sentry-build-options.js')).toMatch(/disableClientWebpackPlugin:\s*!enabled/);
     });
 
     it('클라이언트가 읽는 앱 키 메타데이터 접두어가 SDK 소스와 일치한다', () => {
