@@ -79,6 +79,21 @@ export async function createSupabaseServerClient(): Promise<SupabaseClient<Datab
   )
 }
 
+/**
+ * 공개 클라이언트의 fetch. postgrest-js 가 재시도 요청에 붙이는 X-Retry-Count 헤더만 빼고 그대로 보낸다.
+ *
+ * Next 는 fetch 캐시 키에 요청 헤더를 넣는다. 헤더를 그대로 두면 재시도로 성공한 응답이 첫 시도와 다른 키에
+ * 저장돼, 빌드에서 같은 조회를 하는 언어별 페이지가 응답을 나눠 쓰지 못하고 다시 조회한다.
+ * 재시도 자체(네트워크 오류 1·2·4초 뒤, 503·520 의 Retry-After)는 postgrest-js 에 그대로 맡긴다.
+ *
+ * 전역 fetch 는 호출 시점에 읽는다 — Next 가 바꿔 끼운 fetch 를 거쳐야 캐시·잠금이 적용된다.
+ */
+export const fetchWithStableCacheKey: typeof fetch = (input, init) => {
+  const headers = new Headers(init?.headers);
+  headers.delete('x-retry-count');
+  return fetch(input, { ...init, headers });
+};
+
 export function createPublicSupabaseServerClient(): SupabaseClient<Database> {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
@@ -93,6 +108,7 @@ export function createPublicSupabaseServerClient(): SupabaseClient<Database> {
   return createClient(
     supabaseUrl,
     supabaseAnonKey,
+    { global: { fetch: fetchWithStableCacheKey } },
   );
 }
 

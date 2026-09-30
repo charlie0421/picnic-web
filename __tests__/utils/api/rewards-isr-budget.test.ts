@@ -77,39 +77,28 @@ describe('리워드 ISR 조회 — 장애 시 시도 횟수와 시간 예산', (
     limit.mockResolvedValue({ data: null, error: queryError });
 
     const state = track(_getRewards(8, { throwOnError: true }));
-    // postgrest-js 의 자체 재시도와 같은 간격이다: 1초 뒤, 그 2초 뒤.
-    await vi.advanceTimersByTimeAsync(999);
-    expect(limit).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(limit).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(1999);
-    expect(limit).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(300 + 600);
 
     expect(state.value).toBe('rejected');
     expect(state.error).toBe(queryError);
     expect(limit).toHaveBeenCalledTimes(3);
   });
 
-  // postgrest-js 는 네트워크 실패를 스스로 재시도하면서 X-Retry-Count 헤더를 붙인다. Next 의 fetch 캐시 키에는
-  // 요청 헤더가 들어가므로, 재시도로 성공한 응답은 다른 언어 페이지의 첫 시도와 키가 달라 공유되지 않는다.
-  it('postgrest-js 의 자체 재시도를 끄고 같은 요청으로 다시 시도한다 (빌드 fetch 캐시 키 유지)', async () => {
-    limit
-      .mockResolvedValueOnce({ data: null, error: { message: 'fetch failed' } })
-      .mockResolvedValueOnce({ data: [], error: null });
+  // postgrest-js 의 자체 재시도는 네트워크 오류뿐 아니라 503·520 응답의 Retry-After 를 따르는 재시도도 맡는다.
+  // 끄면 PostgREST 가 스키마 캐시를 다시 읽는 몇 초 동안의 조회가 실패로 끝난다
+  // (실제 라이브러리로 본 동작은 __tests__/lib/supabase/public-client-retry.test.ts).
+  it('postgrest-js 의 자체 재시도를 끄지 않는다', async () => {
+    limit.mockResolvedValue({ data: [], error: null });
 
-    const state = track(_getRewards(8, { throwOnError: true }));
-    await vi.advanceTimersByTimeAsync(1000);
+    await _getRewards(8, { throwOnError: true });
 
-    expect(state.value).toBe('resolved');
-    expect(limit).toHaveBeenCalledTimes(2);
-    expect(retry.mock.calls).toEqual([[false], [false]]);
+    expect(retry).not.toHaveBeenCalled();
   });
 
   it('첫 실패 뒤 백오프 중에 시간 예산이 끝나면 다시 조회하지 않는다', async () => {
-    // 조회마다 2.5초 뒤 실패: 0→2.5초 실패, 1초 쉬고 3.5→6초 실패, 2초 쉬는 중(→8초)에 7초 예산이 끝난다.
+    // 조회마다 3.2초 뒤 실패: 0→3.2초 실패, 0.3초 쉬고 3.5→6.7초 실패, 0.6초 쉬는 중(→7.3초)에 7초 예산이 끝난다.
     limit.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ data: null, error: { message: 'fetch failed' } }), 2500)),
+      () => new Promise((resolve) => setTimeout(() => resolve({ data: null, error: { message: 'fetch failed' } }), 3200)),
     );
 
     const state = track(_getRewards(8, { throwOnError: true }));
