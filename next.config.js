@@ -19,16 +19,11 @@ if (!buildVersion && process.env.NODE_ENV === 'production') {
 // 빌드 시간 생성 (중복 정의 방지를 위해 변수로 분리)
 const buildTime = new Date().toISOString();
 
-// Sentry 번들러 플러그인은 SENTRY_AUTH_TOKEN 이 있을 때만 실행된다 (Vercel 빌드
-// 에선 활성, 로컬 빌드에선 자동 비활성). 소스맵 업로드와 아래 앱 키 주입이
-// 모두 이 플러그인에 실린다.
-const sentryPluginEnabled = !!process.env.SENTRY_AUTH_TOKEN;
-// thirdPartyErrorFilterIntegration 용 앱 키. 플러그인이 우리 청크마다
-// 메타데이터로 심고, 클라이언트(instrumentation-client.ts)는 이 키가 없는
-// 프레임을 외부 코드로 분류한다. 플러그인이 꺼진 빌드에서는 키를 노출하지
-// 않아 클라이언트가 통합을 등록하지 않게 한다 — 메타데이터 없는 번들에서
-// 통합을 켜면 모든 이벤트가 외부 코드로 보인다.
-const SENTRY_APPLICATION_KEY = 'picnic-web';
+// Sentry 릴리스·소스맵 업로드는 scripts/sentry-build-options.js 가 정한다 — Vercel 빌드에서만
+// 켜지고, 릴리스는 한 빌드에 하나(picnic-web@<BUILD_VERSION>)다.
+const { sentryBuildOptions } = require('./scripts/sentry-build-options');
+const sentryBuild = sentryBuildOptions({ buildVersion, env: process.env });
+const sentryPluginEnabled = sentryBuild.enabled;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -48,12 +43,14 @@ const nextConfig = {
     NEXT_PUBLIC_BUILD_VERSION: buildVersion,
     NEXT_PUBLIC_BUILD_TIME: buildTime,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
-    NEXT_PUBLIC_SENTRY_RELEASE: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
+    // 서버·엣지(SENTRY_RELEASE)와 클라이언트(NEXT_PUBLIC_*)가 같은 릴리스 이름을 인라인으로 받는다
+    SENTRY_RELEASE: sentryBuild.release.name,
+    NEXT_PUBLIC_SENTRY_RELEASE: sentryBuild.release.name,
     // 비활성 분기는 undefined 가 아니라 빈 문자열: Next 는 config.env 의
     // null/undefined 항목을 건너뛰어(lib/static-env.js getNextConfigEnv) 셸이나
     // Vercel 에 잔존하는 raw NEXT_PUBLIC_SENTRY_APPLICATION_KEY 가 그대로
     // 인라인된다. 빈 문자열은 raw 값을 덮는다.
-    NEXT_PUBLIC_SENTRY_APPLICATION_KEY: sentryPluginEnabled ? SENTRY_APPLICATION_KEY : '',
+    NEXT_PUBLIC_SENTRY_APPLICATION_KEY: sentryPluginEnabled ? sentryBuild.applicationKey : '',
   },
   
   // 페이지 및 레이아웃 최적화 설정
@@ -219,27 +216,22 @@ const nextConfig = {
 };
 
 const sentryWebpackPluginOptions = {
-  silent: true, // 로그 비활성화
-  hideSourceMaps: true, // 업로드 후 .map 파일 public 노출 방지
-  // Sentry 조직 및 프로젝트 정보 명시적 설정
-  org: process.env.SENTRY_ORG || 'icon-casting',
-  project: process.env.SENTRY_PROJECT || 'picnic-web',
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  // 릴리즈 정보
-  release: process.env.NEXT_PUBLIC_SENTRY_RELEASE || (buildVersion ? `picnic-web@${buildVersion}` : undefined),
-  // 기본값은 `static/chunks/pages/` + `static/chunks/app/` 만 업로드 — Supabase
-  // 등 공유 vendor 청크가 제외돼 'Yd' 같은 SDK 내부 minified 클래스가 안 풀린다.
-  // PICNIC-WEB-5S/5V 처럼 root cause 가 vendor chunk 인 케이스를 decode 하려면
-  // 모든 client chunk 가 필요.
-  widenClientFileUpload: true,
-  // SENTRY_AUTH_TOKEN 있을 때만 소스맵 업로드 (Vercel 빌드에선 활성, 로컬 빌드
-  // 에선 자동 비활성).
-  disableServerWebpackPlugin: !sentryPluginEnabled,
-  disableClientWebpackPlugin: !sentryPluginEnabled,
+  silent: sentryBuild.silent,
+  hideSourceMaps: sentryBuild.hideSourceMaps,
+  org: sentryBuild.org,
+  project: sentryBuild.project,
+  authToken: sentryBuild.authToken,
+  // 릴리스 생성·finalize·커밋 연결까지 플러그인이 맡는다 (postbuild sentry-cli 없음)
+  release: sentryBuild.release,
+  widenClientFileUpload: sentryBuild.widenClientFileUpload,
+  // 비활성 빌드: 소스맵 생성·업로드 생략 (authToken 도 없어 릴리스 생성 안 함)
+  sourcemaps: sentryBuild.sourcemaps,
   // 각 청크에 `_sentryBundlerPluginAppKey:<key>` 메타데이터를 심는다.
   // withSentryConfig 최상위 옵션엔 없고 플러그인 옵션으로만 전달된다.
   unstable_sentryWebpackPluginOptions: {
-    applicationKey: SENTRY_APPLICATION_KEY,
+    applicationKey: sentryBuild.applicationKey,
+    // 코어의 플러그인 수준 disable — 비활성 빌드는 릴리스·커밋 연결·업로드 어떤 요청도 보내지 않는다
+    disable: sentryBuild.pluginDisabled,
   },
 };
 
