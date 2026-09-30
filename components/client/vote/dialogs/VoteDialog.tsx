@@ -66,6 +66,9 @@ const VoteDialog: React.FC<VoteDialogProps> = ({
     const onDocumentKeyDown = (e: KeyboardEvent) => {
       const panel = panelRef.current;
       if (e.key !== 'Tab' || !panel || panel.contains(document.activeElement)) return;
+      // 포커스가 body 로 빠진 경우에만 개입한다 — 위에 겹쳐 열린 다른 다이얼로그(탈퇴 안내 등)의 포커스는 건드리지 않는다
+      const active = document.activeElement;
+      if (active && active !== document.body && active !== document.documentElement) return;
       const first = panel.querySelector<HTMLElement>(
         'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
       );

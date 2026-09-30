@@ -99,4 +99,18 @@ describe('VoteDialog — 접근성', () => {
     expect(document.activeElement).toBe(outside);
     outside.remove();
   });
+
+  it('다른 다이얼로그(예: 탈퇴 안내)가 위에 열려 포커스를 가진 경우에는 Tab 을 가로채지 않는다', () => {
+    renderDialog();
+    const other = document.createElement('div');
+    other.setAttribute('role', 'dialog');
+    const confirm = document.createElement('button');
+    other.appendChild(confirm);
+    document.body.appendChild(other);
+    confirm.focus();
+
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(confirm);
+    other.remove();
+  });
 });
