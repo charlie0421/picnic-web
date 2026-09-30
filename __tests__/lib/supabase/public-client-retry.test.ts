@@ -111,6 +111,34 @@ describe('공개 Supabase 클라이언트 — 재시도와 Next 빌드 fetch 캐
     expect(calls).toHaveLength(2);
   });
 
+  /**
+   * 시간 예산을 넘기면 withDeadline 이 조회를 끊는다. postgrest-js 는 거부 사유가 AbortError 일 때만 "끊긴 요청" 으로
+   * 보고 멈춘다. 다른 오류로 끊으면 네트워크 오류로 보고, 이미 끊긴 신호로 세 번 더 시도한다.
+   */
+  it('시간 예산을 넘겨 끊은 요청을 postgrest-js 가 다시 시도하지 않는다', async () => {
+    // 실제 fetch 처럼 신호가 끊기면 그 사유로 거부한다.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push({ url: String(input), headers: {} });
+        return new Promise<Response>((_, reject) => {
+          const signal = init?.signal;
+          if (!signal) return;
+          if (signal.aborted) return reject(signal.reason);
+          signal.addEventListener('abort', () => reject(signal.reason));
+        });
+      }),
+    );
+
+    const state = track(_getRewards(8, { throwOnError: true }));
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(state.value).toBe('rejected');
+    expect(String((state.error as Error).message)).toMatch(/getRewards exceeded 7000ms/);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(calls).toHaveLength(1);
+  });
+
   describe('fetchWithStableCacheKey', () => {
     it('X-Retry-Count 만 빼고 나머지 요청은 그대로 넘긴다', async () => {
       stubFetch(() => json([]));

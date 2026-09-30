@@ -364,4 +364,6 @@ faq·notice·version 조회는 같은 빌드에서 요청 자체가 없었다. �
 
 재현: Supabase 앞에 지연 프록시를 두고 `next build` 를 돌렸다(연결 실패 2회 뒤 모든 목록 응답 8.6초, 워커 1개). 수정 전 코드는 `/en/rewards after 3 attempts` 로 실패했고(Production 과 같은 오류), 수정 후에는 프리렌더 실패 없이 통과했다. 같은 워크트리에서 빌드를 두 번 돌리면 두 번째 빌드의 Supabase 조회가 0건에서 5건이 된다.
 
+런타임에서 끊기는지는 `next start` 로 확인했다. `SUPABASE_URL` 을 지연 프록시(목록 응답 20초)로 돌리면 캐시 없는 `/ja/rewards` 는 7.08초에 500 이 되고, stale 이 된 `/ko/rewards` 는 옛 페이지를 돌려주면서 뒤에서 재생성을 시도한다. 두 경우 모두 프록시가 받은 요청이 7초에 끊겼다. 런타임의 조회는 Next 가 캐시하지 않으므로(빌드 밖에서는 auto no cache) 신호가 그대로 전달된다. Next 는 stale 한 fetch 캐시 항목을 다시 받을 때만 신호를 빼는데, 이는 빌드에서 같은 빌드가 만든 항목이 페이지의 `revalidate` 보다 오래됐을 때만 해당한다.
+
 남은 것: faq·version·상세 조회에는 시간 예산이 없다. 응답이 아예 오지 않으면 Next 의 페이지 생성 제한(`staticPageGenerationTimeout`, 120초)이나 함수 제한 시간까지 기다린다.

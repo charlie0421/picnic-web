@@ -70,6 +70,9 @@ export async function withTimeout<T>(
  * - 요청을 끊는다. 포기한 요청이 살아 있으면 Next 의 fetch 잠금(같은 요청을 직렬화한다)을 계속 쥐고 있어
  *   프리렌더 재시도가 그 뒤에서 기다리다 다시 시간 예산을 넘긴다. run 은 받은 signal 을 조회에 연결해야 한다
  *   (postgrest-js 의 `.abortSignal(signal)`).
+ *   한계: Next 는 stale 한 fetch 캐시 항목을 다시 받을 때 signal 을 빼고 요청한다(patch-fetch 의
+ *   doOriginalFetch(true)). 런타임의 조회는 캐시되지 않아 해당하지 않고(next start 에서 7초에 끊기는 것을 확인),
+ *   빌드에서 같은 빌드가 만든 항목이 페이지의 revalidate 보다 오래됐을 때만 해당한다.
  * - `next build` 중에는 예산을 BUILD_QUERY_TIMEOUT_MS 이상으로 늘린다.
  */
 export async function withDeadline<T>(
@@ -90,7 +93,9 @@ export async function withDeadline<T>(
           const error = new Error(`[supabase-timeout] ${label} exceeded ${timeoutMs}ms`);
           // 먼저 이 예외로 끝내고 요청을 끊는다 — 끊긴 요청이 내는 오류가 아니라 시간 초과가 원인으로 남는다.
           reject(error);
-          controller.abort(error);
+          // 사유를 넘기지 않는다. 기본 사유(AbortError)여야 postgrest-js 가 끊긴 요청으로 보고 멈춘다.
+          // 다른 오류를 사유로 주면 네트워크 오류로 보고 이미 끊긴 신호로 세 번 더 시도한다.
+          controller.abort();
         }, timeoutMs);
       }),
     ]);
