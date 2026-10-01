@@ -125,8 +125,9 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
           : null;
         const savedLanguage = cookieMatch ? cookieMatch[1] : null;
         
-        // 저장된 언어가 없거나 기본값인 경우에만 디바이스 언어 감지
-        if (!savedLanguage || savedLanguage === settings.languages.default) {
+        // 저장된 언어가 없는 첫 방문에만 디바이스 언어를 감지한다. 저장값이 기본 언어(en)일 때도 감지하면
+        // 영어를 고른 사용자의 쿠키가 방문마다 기기 언어로 되돌아간다.
+        if (!savedLanguage) {
           const deviceLanguage = navigator.language || (navigator as any).userLanguage;
           const deviceLangCode = deviceLanguage.split('-')[0].toLowerCase();
           
