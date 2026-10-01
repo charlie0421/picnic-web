@@ -16,9 +16,6 @@ function isValidInternalRedirect(path: string): boolean {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    console.log('[Callback] Full URL:', url.toString());
-    console.log('[Callback] Search params:', Object.fromEntries(url.searchParams.entries()));
-
     const rawReturnTo = url.searchParams.get('returnTo') || '/ko/star-candy';
     const returnTo = isValidInternalRedirect(rawReturnTo) ? rawReturnTo : '/ko/star-candy';
     
@@ -34,16 +31,11 @@ export async function GET(request: NextRequest) {
     const tossToken = url.searchParams.get('token') || url.searchParams.get('toss_token');
     const pgToken = url.searchParams.get('pg_token');
     
-    console.log('[Callback] Extracted paymentId:', paymentId);
-    console.log('[Callback] Extracted tossToken:', tossToken);
-    console.log('[Callback] Extracted pgToken:', pgToken);
-    
     // 결제 ID가 있으면 쿼리 파라미터로 전달
     const redirectUrl = new URL(returnTo, request.url);
     if (paymentId) {
       redirectUrl.searchParams.set('paymentId', paymentId);
       redirectUrl.searchParams.set('status', 'success');
-      console.log('[Callback] Redirecting to:', redirectUrl.toString());
     } else if (tossToken) {
       // 토스페이먼트 토큰이 있는 경우 (토스페이먼트를 통한 결제)
       // sessionStorage에서 paymentId를 찾을 수 있도록 토큰을 전달
@@ -52,7 +44,6 @@ export async function GET(request: NextRequest) {
         redirectUrl.searchParams.set('pg_token', pgToken);
       }
       redirectUrl.searchParams.set('status', 'processing');
-      console.log('[Callback] Redirecting with Toss token:', redirectUrl.toString());
     } else {
       console.warn('[Callback] No paymentId or token found in callback URL');
     }
