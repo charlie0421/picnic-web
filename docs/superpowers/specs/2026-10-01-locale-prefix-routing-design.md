@@ -562,7 +562,7 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 
 ## 7. 범위 밖·후속
 
-- **쿠키 버그**: `components/providers/LanguageSyncProvider.tsx` 가 저장된 언어가 기본값 `en` 이면 저장값이 없는 것으로 취급해 기기 언어로 쿠키를 덮어쓴다. 조건을 "저장값이 없을 때"로 줄이는 작은 PR.
+- **쿠키 버그**: `components/providers/LanguageSyncProvider.tsx` 가 저장된 언어가 기본값 `en` 이면 저장값이 없는 것으로 취급해 기기 언어로 쿠키를 덮어쓴다. 조건을 "저장값이 없을 때"로 줄이는 작은 PR. (**완료 — PR #109, §10.1**)
 - **홈 `/` 의 선호 언어 전환**: 이 변경의 지표를 본 뒤 한 줄짜리 PR.
 - **잘못된 id 와 남는 구멍**: `/ko/rewards/<없는 id>` 의 soft 404, `_next/`·`_vercel/` 아래의 가드 404, `/_next/sitemap.xml` 을 함께 다룬다. sitemap 은 route handler 로 바꿔 언어를 검사할 수 있다. `_vercel/` 은 `app/%5Fvercel/[...slug]` 폴더(App Router 의 `%5F` 규칙)로 catch-all 을 둘 수 있는지 그때 본다.
 - 접두어 없는 주소를 만드는 호출부(`VoteCard`, `VoteListPresenter`, `RetryButton`)를 언어 경로로 고치기.
@@ -646,3 +646,23 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 - 클라이언트 내비게이션(Production, Playwright): `/ko/vote` 에서 `router.push('/rewards')` → `/ko/rewards`, `router.push('/vote/295')` → `/ko/vote/295`, `/th/faq` 에서 `router.push('/notice')` → `/th/notice`(`<html lang="th">`). §8 의 남은 가정이 확인됐다.
 - 배포 뒤 약 30분의 런타임 로그(새 배포 id): 5xx 0건. 404 는 전부 위 점검 요청이다. Sentry 는 최근 24시간 신규 이슈 0건.
 - 남은 것: 24시간 뒤 지표(§6.4), 로그인 상태 흐름(OAuth 로그인, 탈퇴 계정 차단)은 자동화로 확인하지 못했다.
+
+### 10.1 쿠키 버그 수정 (PR #109, 2026-10-01)
+
+§7 의 쿠키 버그를 고쳤다. PR #109 squash 머지 `b0ed5e31`, 배포 `dpl_FxgJo4uedqdm4Pzm6JVitctGqrca`.
+
+- 원인: `components/providers/LanguageSyncProvider.tsx` 의 기기 언어 감지 조건이 `!savedLanguage || savedLanguage === 'en'` 이어서, 영어를 고른 사용자의 `locale=en` 쿠키를 방문마다 기기 언어로 덮어썼다(로그인 사용자는 `user_profiles.language` 도 함께). 조건을 `!savedLanguage` 로 줄였다.
+- `locale` 쿠키를 쓰는 곳은 이 감지와 언어 선택(`hooks/useLocaleRouter.ts` 의 `changeLocale`) 둘뿐이다. 읽는 곳은 middleware, `app/api/auth/callback/route.ts`, `utils/auth-redirect-validators.ts` 다.
+- 테스트: `__tests__/components/providers/LanguageSyncProvider.test.tsx`. `locale=en` + 기기 언어 `ko-KR` 사례가 수정 전 실패하고 수정 후 통과한다. 한 줄 조건 변경이라 교차 리뷰는 생략했다.
+- Production 확인(Playwright, `navigator.language` 를 `ko-KR` 로 고정하고 `/en/vote` 를 연다):
+
+  | 저장된 쿠키 | 머지 전 | 머지 후 |
+  |---|---|---|
+  | `locale=en` | `ko` 로 바뀐다 | `en` 유지(12초 관찰) |
+  | `locale=ja` | `ja` 유지 | `ja` 유지 |
+  | 없음(첫 방문) | `ko` 를 쓴다 | `ko` 를 쓴다 |
+
+- 사용자 여정(머지 후): `/ko/vote` 첫 방문(쿠키 `ko`) → 언어 선택에서 English → `/en/vote`, 쿠키 `en` → `/en/vote` 재방문 8초 뒤에도 `en` → 접두어 없는 `/login` 이 `/en/login` 으로 간다.
+- 배포 뒤 약 15분의 런타임 로그(새 배포 id): 4xx·5xx 0건. Sentry 는 최근 24시간 신규 이슈 0건.
+- 이미 기기 언어로 덮어쓰인 쿠키는 그대로다. 사용자가 다시 영어를 고르면 그때부터 유지된다.
+- 확인하지 못한 것: 로그인 사용자의 `user_profiles.language` 가 더는 덮어쓰이지 않는지는 자동화로 보지 못했다. 쿠키 쓰기와 같은 조건문 안의 코드라 함께 건너뛴다.
