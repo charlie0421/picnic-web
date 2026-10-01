@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from '@sentry/nextjs';
+import { resolveTracesSampleRate } from './lib/sentry/collection';
 
 const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -17,8 +18,12 @@ if (SENTRY_DSN) {
     // Environment
     environment: process.env.NODE_ENV || 'development',
     
-    // Sample rate for performance monitoring
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    // Sample rate for performance monitoring.
+    // SENTRY_TRACES_SAMPLE_RATE 는 envelope 테스트가 표본을 강제할 때만 쓴다(0~1 밖의 값은 무시한다).
+    tracesSampleRate: resolveTracesSampleRate(
+      process.env.SENTRY_TRACES_SAMPLE_RATE,
+      process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    ),
     
     // Integrations for server-side
     integrations: [
