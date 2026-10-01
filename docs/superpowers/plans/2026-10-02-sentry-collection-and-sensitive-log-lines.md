@@ -4,13 +4,31 @@
 
 **Goal:** 서버·edge 의 Sentry SDK 가 스스로 붙이던 쿠키·헤더·IP·쿼리와 console breadcrumb 을 이벤트에서 없애고(PR 1), OAuth code 와 결제 토큰을 Vercel 로그에 찍는 줄과 웹훅 본문 에코를 지운다(PR 1b).
 
-**Architecture:** 수집을 끈다(`requestDataIntegration` 의 `include`, `Console` 제외). 남는 URL·쿼리와 토큰 모양 값은 순수 함수 모듈 `lib/sentry/scrub.ts` 하나가 `beforeSend`·`beforeSendTransaction`·`beforeSendSpan` 세 곳에서 처리한다. 검증의 중심은 실제 Next 서버(`next start`)가 실제로 내보낸 envelope 을 로컬 수집기로 받아 canary 를 찾는 스크립트(`npm run test:envelope`)다. 테스트용 라우트는 `ENVELOPE_TEST=1` 로 만든 별도 빌드에만 들어간다.
+**Architecture:** 수집을 끈다(`requestDataIntegration` 의 `include`, `Console` 제외). 남는 URL·쿼리와 토큰 모양 값은 순수 함수 모듈 `lib/sentry/scrub.ts` 하나가 `beforeSend`·`beforeSendTransaction`·`beforeSendSpan` 세 곳에서 처리한다. 검증의 중심은 실제 Next 서버(`next start`)가 실제로 내보낸 envelope 을 로컬 수집기로 받아 canary 를 찾는 스크립트(`npm run test:envelope`)다. 테스트용 라우트의 원본은 `scripts/envelope-test/routes/` 에 있고, 실행기가 테스트 빌드를 만드는 동안만 `app/api/envelope-test/` 로 복사한다.
 
 **Tech Stack:** Next 15.5.26 (App Router, webpack), `@sentry/nextjs` 9.47.1, vitest 4 (jsdom), Node 24, CommonJS 스크립트(`scripts/`).
 
 **Spec:** `docs/superpowers/specs/2026-10-02-log-redaction-and-delivery-design.md` (§4.1, §4.4, §4.5, §4.7, §5.1, §6.1 의 PR 1 · 1b). 결정 1·3·6·8 은 2026-10-02 에 권장대로 확정됐다(§9).
 
 **실행 방식:** Native. 조정자가 이 세션에서 직접 구현하고, PR 마다 Codex(`gpt-6-sol`/high, 읽기 전용)가 고위험 교차 리뷰를 한다. 작업들이 같은 모듈의 함수 이름과 이벤트 모양을 공유해 나눠 맡기기 어렵고, Claude 주간 사용률이 90% 를 넘어 하위 에이전트를 띄우지 않는다. 머지는 사용자 승인 뒤에 한다.
+
+## 실행 결과 (2026-10-02)
+
+이 계획은 실행됐다. PR 1 은 `fix/sentry-collection-scope`, PR 1b 는 `fix/remove-sensitive-log-lines`(#118)다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
+
+| 무엇 | 계획 | 실제 | 이유 |
+|---|---|---|---|
+| 테스트용 라우트를 가르는 방법 (Task 1·4) | `pageExtensions` 에 `envtest.ts` 를 더하고 `app/api/envelope-test/**/route.envtest.ts` 로 둔다 | 원본을 `scripts/envelope-test/routes/**/route.ts` 에 두고 실행기가 빌드 동안만 `app/api/envelope-test/` 로 복사했다가 지운다. `nextConfigOverrides` 는 `distDir` 만 바꾼다 | Next 15.5 가 확장자가 두 겹인 edge 라우트에 client reference manifest 를 만들지 않아 빌드가 실패했다 |
+| console canary (Task 4) | `console.log` | `console.warn` | 운영 빌드는 `compiler.removeConsole` 로 `console.log` 를 지운다 |
+| 처리되지 않은 예외의 `request_path` (Task 2·4) | 있어야 하고 쿼리가 없어야 한다 | 있으면 쿼리가 없어야 한다 | 라우트 핸들러의 오류는 SDK 의 라우트 래퍼가 잡아 `contexts.nextjs` 가 없다 |
+| 웹훅 transaction (Task 4) | 3건 이상 | 기대하지 않는다. 대신 예외를 던진 요청, edge 라우트, middleware 의 transaction 을 기대한다 | SDK 가 401 응답의 transaction 을 버린다 |
+| `collection.test.ts` 의 환경 (Task 3) | `// @vitest-environment node` | 기본(jsdom) | 공용 setup 파일이 `window` 를 쓴다 |
+| 가리는 순회의 범위 (Task 5) | 이벤트 전체 | `sdkProcessingMetadata` 를 건너뛴다 | SDK 내부 자료의 `Authorization` 헤더를 토큰으로 보고 태그를 붙였다. green 실행의 "기대하지 않은 tripwire" 검사가 잡았다 |
+| `postbuild` 를 고정하던 기존 테스트 (Task 1) | 언급 없음 | `__tests__/scripts/verify-rendering-modes.test.ts` 의 단언을 "렌더링 모드 검사가 먼저, `next-sitemap` 이 마지막"으로 고쳤다 | 전체 테스트를 돌리지 않고 넘어가 Task 4 에서야 발견했다 |
+
+envelope 테스트의 결과: 수정 전 실패 70건(건수 아홉 종류는 모두 맞음) → 수정 뒤 0건. 테스트 수는 3,027건 → 3,154건(PR 1), 3,034건(PR 1b). `it.fails` 6건은 그대로다.
+
+**PR 1b 의 전제가 틀렸던 것.** 계획과 설계서는 콜백의 `console.log` 줄이 "Vercel 로그로 나간다"고 썼다. 운영 빌드는 `console.log` 를 지우므로 운영에서는 나가지 않는다(설계서 §2.2). PR 1b 의 로그 줄 삭제는 운영의 출력을 바꾸지 않는다. 운영에서 실제로 나가던 것은 웹훅의 `receivedBody` 다.
 
 ## Global Constraints
 
@@ -44,13 +62,13 @@ PR 1 (`fix/sentry-collection-scope`, 워크트리 `../picnic-web-sentry-collecti
 
 | 파일 | 역할 |
 |---|---|
-| `scripts/envelope-test/build-switch.js` (신규) | `ENVELOPE_TEST=1` 일 때의 `pageExtensions`·`distDir`, Vercel 빌드 차단, 라우트 목록에서 테스트 라우트 찾기 |
+| `scripts/envelope-test/build-switch.js` (신규) | `ENVELOPE_TEST=1` 일 때의 `distDir`, Vercel 빌드 차단, 테스트 라우트의 원본·복사 위치, 라우트 목록에서 테스트 라우트 찾기 |
 | `scripts/verify-no-test-routes.js` (신규) | postbuild: 운영 산출물에 테스트 라우트가 없는지 검사 |
 | `scripts/envelope-test/analyze.js` (신규) | envelope 파싱, canary 검색, 건수·허용 노출 판정 (순수 함수) |
 | `scripts/envelope-test/scenario.js` (신규) | canary 값, 보낼 요청, 기대 건수 |
 | `scripts/envelope-test/run.js` (신규) | 빌드, 수집기·`next start` 기동, 요청, 판정, 결과 파일 |
-| `app/api/envelope-test/_lib/envtest.ts` (신규) | 테스트 라우트의 공통 코드 |
-| `app/api/envelope-test/{handled,throw,edge-throw}/route.envtest.ts` (신규) | 테스트 빌드에만 들어가는 라우트 |
+| `scripts/envelope-test/routes/_lib/envtest.ts` (신규) | 테스트 라우트의 공통 코드 |
+| `scripts/envelope-test/routes/{handled,throw,edge-throw}/route.ts` (신규) | 테스트 라우트의 원본. 실행기가 테스트 빌드 동안만 `app/api/envelope-test/` 로 복사한다 |
 | `lib/sentry/collection.ts` (신규) | 수집 옵션: `REQUEST_DATA_INCLUDE`, `withoutConsole`, `resolveTracesSampleRate` |
 | `lib/sentry/scrub.ts` (신규) | `scrubEvent`, `scrubSpan`, `stripUrlQueries`, `redactTokenShapes` |
 | `sentry.server.config.js`, `sentry.edge.config.js` (수정) | 수집 축소와 훅 연결 |
@@ -76,7 +94,7 @@ PR 1b (`fix/remove-sensitive-log-lines`, 워크트리 `../picnic-web-sensitive-l
 - **가리기가 실패하면 이벤트를 버린다.** span 은 버릴 수 없으므로(`beforeSendSpan` 이 `null` 을 받지 않는다) 설명과 속성을 비운다.
 - **표본 강제.** `SENTRY_TRACES_SAMPLE_RATE` 는 SDK 가 edge 에서 스스로 읽는 이름과 같다(`@sentry/vercel-edge` 의 `init`). envelope 테스트에서는 edge 도 표본이 켜지므로 edge 설정에도 `beforeSendTransaction`·`beforeSendSpan` 을 건다.
 - **edge 테스트 라우트.** middleware 는 테스트 코드를 넣을 수 없으므로, edge 런타임의 테스트 라우트(`export const runtime = 'edge'`)로 edge SDK 의 이벤트를 받는다.
-- **canary 묶음 C.** 테스트 라우트가 `console.log` 로 찍는 값이다. 표준 출력에는 있어야 하고(캡처가 살아 있다는 증거) envelope 에는 없어야 한다(console breadcrumb 이 사라졌다는 증거).
+- **canary 묶음 C.** 테스트 라우트가 `console.warn` 으로 찍는 값이다(운영 빌드는 `console.log` 를 지운다). 서버 출력에는 있어야 하고(캡처가 살아 있다는 증거) envelope 에는 없어야 한다(console breadcrumb 이 사라졌다는 증거).
 - **수집기와 가짜 외부 서버의 호스트를 다르게 쓴다.** SDK 는 DSN 의 호스트 문자열이 들어간 주소로 가는 요청에 span 을 만들지 않는다(`isSentryRequestUrl`). DSN 은 `127.0.0.1`, 가짜 외부 서버는 `localhost` 로 부른다.
 - **빌드가 고치는 파일을 되돌린다.** `distDir` 이 다르면 Next 가 `next-env.d.ts` 와 `tsconfig.json` 을 고친다. 실행기가 빌드 전 내용을 저장했다가 되돌린다.
 
@@ -108,7 +126,7 @@ Expected: 모두 통과. 테스트 수를 적어 둔다(뒤의 비교 기준).
 - Test: `__tests__/scripts/envelope-test-build-switch.test.ts`
 
 **Interfaces:**
-- Produces: `nextConfigOverrides(env): { pageExtensions?: string[]; distDir?: string }`, `findTestRoutes(appPathRoutes): string[]`, 상수 `TEST_DIST_DIR = '.next-envtest'`, `TEST_ROUTE_PREFIX = '/api/envelope-test'`
+- Produces: `nextConfigOverrides(env): { distDir?: string }`, `findTestRoutes(appPathRoutes): string[]`, 상수 `TEST_DIST_DIR = '.next-envtest'`, `TEST_ROUTE_PREFIX = '/api/envelope-test'`, `TEST_ROUTE_SOURCE = 'scripts/envelope-test/routes'`, `TEST_ROUTE_TARGET = 'app/api/envelope-test'`
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
@@ -147,11 +165,9 @@ describe('envelope 테스트 전용 빌드 스위치', () => {
     expect(nextConfigOverrides({ ENVELOPE_TEST: value })).toEqual({});
   });
 
-  it('ENVELOPE_TEST=1 이면 테스트용 확장자와 별도 산출물 디렉터리를 쓴다', () => {
-    expect(nextConfigOverrides({ ENVELOPE_TEST: '1' })).toEqual({
-      pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'envtest.ts'],
-      distDir: '.next-envtest',
-    });
+  it('ENVELOPE_TEST=1 이면 산출물을 별도 디렉터리에 둔다', () => {
+    // pageExtensions 는 건드리지 않는다. 확장자가 두 겹인 edge 라우트는 Next 가 빌드하지 못한다.
+    expect(nextConfigOverrides({ ENVELOPE_TEST: '1' })).toEqual({ distDir: '.next-envtest' });
   });
 
   it('Vercel 빌드에서 ENVELOPE_TEST=1 이면 빌드를 실패시킨다', () => {
@@ -167,7 +183,7 @@ describe('envelope 테스트 전용 빌드 스위치', () => {
 
     vi.stubEnv('ENVELOPE_TEST', '1');
     const testBuild = loadNextConfig();
-    expect(testBuild.pageExtensions).toEqual(['tsx', 'ts', 'jsx', 'js', 'envtest.ts']);
+    expect(testBuild.pageExtensions).toBeUndefined();
     expect(testBuild.distDir).toBe('.next-envtest');
   });
 });
@@ -217,15 +233,22 @@ Expected: FAIL — `Cannot find module '…/scripts/envelope-test/build-switch.j
 /**
  * envelope 테스트 전용 빌드의 스위치.
  *
- * 테스트용 라우트(app/api/envelope-test/ 아래의 route.envtest.ts)는 ENVELOPE_TEST=1 로 만든 빌드에만 들어간다.
- * 런타임 환경변수로는 이미 빌드된 라우트를 뺄 수 없으므로 빌드에서 가른다
+ * 테스트용 라우트의 원본은 scripts/envelope-test/routes/ 에 있고 저장소의 app/ 에는 없다. 실행기(run.js)가
+ * 테스트 빌드를 만들 때만 app/api/envelope-test/ 로 복사했다가 지운다. 보통 빌드는 git 의 app/ 만 보므로
+ * 테스트용 라우트가 들어갈 길이 없다. 런타임 환경변수로는 이미 빌드된 라우트를 뺄 수 없으므로 빌드에서 가른다
  * (docs/superpowers/specs/2026-10-02-log-redaction-and-delivery-design.md §4.7).
+ *
+ * 확장자로 가르는 방식(pageExtensions 에 envtest.ts 를 더하고 route.envtest.ts 로 두는 것)은 쓰지 않는다.
+ * Next 15.5 는 확장자가 두 겹인 edge 라우트에 client reference manifest 를 만들지 않아 빌드가 실패한다
+ * (flight-manifest-plugin 은 이름이 정확히 /route 로 끝나는 entry 에만 manifest 를 만든다).
  */
 
-const DEFAULT_PAGE_EXTENSIONS = ['tsx', 'ts', 'jsx', 'js'];
-const TEST_PAGE_EXTENSION = 'envtest.ts';
 const TEST_DIST_DIR = '.next-envtest';
 const TEST_ROUTE_PREFIX = '/api/envelope-test';
+/** 테스트용 라우트의 원본. 라우트가 아닌 자리에 둔다. */
+const TEST_ROUTE_SOURCE = 'scripts/envelope-test/routes';
+/** 테스트 빌드 때 원본을 복사해 넣는 자리. 저장소에는 없어야 한다. */
+const TEST_ROUTE_TARGET = 'app/api/envelope-test';
 
 /** next.config.js 에 펼쳐 넣을 설정. 테스트 빌드가 아니면 빈 객체다. */
 function nextConfigOverrides(env) {
@@ -233,10 +256,8 @@ function nextConfigOverrides(env) {
   if (env.VERCEL) {
     throw new Error('ENVELOPE_TEST=1 은 로컬 envelope 테스트 전용이다. Vercel 빌드에서는 쓸 수 없다.');
   }
-  return {
-    pageExtensions: [...DEFAULT_PAGE_EXTENSIONS, TEST_PAGE_EXTENSION],
-    distDir: TEST_DIST_DIR,
-  };
+  // 보통 빌드의 산출물(.next)과 섞이지 않게 따로 둔다.
+  return { distDir: TEST_DIST_DIR };
 }
 
 /** app-path-routes-manifest.json 에서 테스트용 라우트를 찾는다. 비어 있어야 운영 산출물이다. */
@@ -247,10 +268,10 @@ function findTestRoutes(appPathRoutes) {
 }
 
 module.exports = {
-  DEFAULT_PAGE_EXTENSIONS,
-  TEST_PAGE_EXTENSION,
   TEST_DIST_DIR,
   TEST_ROUTE_PREFIX,
+  TEST_ROUTE_SOURCE,
+  TEST_ROUTE_TARGET,
   nextConfigOverrides,
   findTestRoutes,
 };
@@ -266,6 +287,8 @@ module.exports = {
  * 실패하면 빌드(=배포)가 실패한다.
  *
  * 테스트용 라우트는 일부러 오류를 던지고 요청 헤더의 값을 메시지에 넣는다. 운영에 있으면 안 된다.
+ * 원본은 scripts/envelope-test/routes/ 에 있고, 실행기가 테스트 빌드 때만 app/api/envelope-test/ 로 복사했다가
+ * 지운다. 실행기가 중간에 죽어 복사본이 남은 채로 빌드하면 여기서 걸린다.
  */
 
 const fs = require('fs');
@@ -307,7 +330,7 @@ const { nextConfigOverrides } = require('./scripts/envelope-test/build-switch');
 `next.config.js` — `const nextConfig = {` 바로 아래, `reactStrictMode: true,` 위에 추가:
 
 ```js
-  // envelope 테스트 전용 빌드(ENVELOPE_TEST=1)에서만 테스트용 라우트의 확장자와 별도 산출물 디렉터리를 쓴다.
+  // envelope 테스트 전용 빌드(ENVELOPE_TEST=1)에서만 산출물을 별도 디렉터리(.next-envtest)에 둔다.
   // 보통 빌드에서는 빈 객체다. Vercel 빌드에서 켜면 throw 한다.
   ...nextConfigOverrides(process.env),
 ```
@@ -327,7 +350,7 @@ const { nextConfigOverrides } = require('./scripts/envelope-test/build-switch');
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run __tests__/scripts/envelope-test-build-switch.test.ts __tests__/next-config-redirects.test.ts`
-Expected: PASS (새 테스트 9건, 기존 리다이렉트 테스트 전부)
+Expected: PASS (새 테스트 11건, 기존 리다이렉트 테스트 전부). **전체 테스트(`npm test`)도 돌린다** — `postbuild` 문자열을 고정하던 기존 테스트(`__tests__/scripts/verify-rendering-modes.test.ts`)가 있어 함께 고쳐야 했다.
 
 - [ ] **Step 5: 커밋**
 
@@ -379,7 +402,7 @@ const canaries = {
 const expected = {
   errors: [
     { label: 'logError', handled: true, valueIncludes: 'envtest handled', count: 1 },
-    { label: '미처리(node)', handled: false, runtime: 'node', valueIncludes: 'envtest unhandled', count: 1, requestPath: true, tripwire: true },
+    { label: '미처리(node)', handled: false, runtime: 'node', valueIncludes: 'envtest unhandled', count: 1, tripwire: true },
   ],
   transactions: [{ label: '밖으로 부르는 요청', name: 'GET /api/envelope-test/handled', min: 1, childOp: 'http.client' }],
 };
@@ -395,7 +418,6 @@ const unhandledEvent = () => ({
   exception: {
     values: [{ type: 'Error', value: 'envtest unhandled cnryB-marker url=https://envtest.invalid/callback', mechanism: { handled: false } }],
   },
-  contexts: { nextjs: { request_path: '/api/envelope-test/throw' } },
   tags: { 'redaction.tripwire': '1' },
 });
 
@@ -523,10 +545,14 @@ describe('evaluate', () => {
     );
   });
 
-  it('처리되지 않은 예외의 request_path 에 쿼리가 남으면 실패한다', () => {
-    const envelopes = clean();
-    envelopes[1].items[0].payload.contexts = { nextjs: { request_path: '/api/envelope-test/throw?code=x' } };
-    expect(run(envelopes).failures).toContain('미처리(node): contexts.nextjs.request_path 에 쿼리가 남아 있다');
+  it('request_path 는 있으면 쿼리가 없어야 한다 (라우트 핸들러의 오류에는 이 값이 없다)', () => {
+    const withoutQuery = clean();
+    withoutQuery[1].items[0].payload.contexts = { nextjs: { request_path: '/api/envelope-test/throw' } };
+    expect(run(withoutQuery).failures).toEqual([]);
+
+    const withQuery = clean();
+    withQuery[0].items[0].payload.contexts = { nextjs: { request_path: '/ko/vote?next=/mypage' } };
+    expect(run(withQuery).failures).toContain('contexts.nextjs.request_path 에 쿼리가 남아 있다');
   });
 
   it('기대한 이벤트에 tripwire 태그가 없으면 실패한다', () => {
@@ -735,14 +761,6 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
       failures.push(`수신 건수 — ${rule.label}: 기대 ${rule.count}건, 실제 ${matched.length}건`);
     }
     for (const event of matched) {
-      if (rule.requestPath) {
-        const requestPath = event.contexts && event.contexts.nextjs && event.contexts.nextjs.request_path;
-        if (typeof requestPath !== 'string' || requestPath === '') {
-          failures.push(`${rule.label}: contexts.nextjs.request_path 가 없다`);
-        } else if (/[?#]/.test(requestPath)) {
-          failures.push(`${rule.label}: contexts.nextjs.request_path 에 쿼리가 남아 있다`);
-        }
-      }
       if (rule.tripwire) {
         tripwireAllowed.add(event);
         if (!event.tags || event.tags[TRIPWIRE_KEY] !== '1') {
@@ -762,6 +780,15 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
       if (withChild < rule.min) {
         failures.push(`수신 건수 — ${rule.label}: 자식 span(${rule.childOp})이 있는 transaction 이 ${withChild}건이다`);
       }
+    }
+  }
+
+  // onRequestError 까지 올라간 오류에는 contexts.nextjs.request_path 가 붙는다(Next 가 req.url 을 그대로 넘긴다).
+  // 라우트 핸들러의 오류는 SDK 의 래퍼가 먼저 잡아 이 값이 없다. 있으면 쿼리가 없어야 한다.
+  for (const event of errors) {
+    const requestPath = event.contexts && event.contexts.nextjs && event.contexts.nextjs.request_path;
+    if (typeof requestPath === 'string' && /[?#]/.test(requestPath)) {
+      failures.push('contexts.nextjs.request_path 에 쿼리가 남아 있다');
     }
   }
 
@@ -810,7 +837,7 @@ module.exports = { parseEnvelope, evaluate, countsSatisfied, TRIPWIRE_KEY };
 - [ ] **Step 4: 통과를 확인한다**
 
 Run: `npx vitest run __tests__/scripts/envelope-test-analyze.test.ts`
-Expected: PASS (17건)
+Expected: PASS (18건)
 
 - [ ] **Step 5: 커밋**
 
@@ -838,7 +865,6 @@ envelope 테스트가 transaction 을 확실히 받으려면 표본을 강제해
 
 <!-- file: __tests__/lib/sentry/collection.test.ts -->
 ```ts
-// @vitest-environment node
 import { createRequire } from 'module';
 import { describe, expect, it } from 'vitest';
 import { REQUEST_DATA_INCLUDE, resolveTracesSampleRate, withoutConsole } from '@/lib/sentry/collection';
@@ -1077,7 +1103,7 @@ git commit -m "feat(sentry): 수집 옵션 모듈을 만들고 서버 표본율�
 ### Task 4: 테스트 라우트, 시나리오, 실행기 — 수정 전의 누출을 먼저 본다
 
 **Files:**
-- Create: `app/api/envelope-test/_lib/envtest.ts`, `app/api/envelope-test/handled/route.envtest.ts`, `app/api/envelope-test/throw/route.envtest.ts`, `app/api/envelope-test/edge-throw/route.envtest.ts`, `scripts/envelope-test/scenario.js`, `scripts/envelope-test/run.js`
+- Create: `scripts/envelope-test/routes/_lib/envtest.ts`, `scripts/envelope-test/routes/handled/route.ts`, `scripts/envelope-test/routes/throw/route.ts`, `scripts/envelope-test/routes/edge-throw/route.ts`, `scripts/envelope-test/scenario.js`, `scripts/envelope-test/run.js`
 - Modify: `package.json` (`test:envelope`)
 - Test: `__tests__/scripts/envelope-test-routes.test.ts`
 
@@ -1096,7 +1122,8 @@ import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const root = process.cwd();
-const routesDir = path.join(root, 'app/api/envelope-test');
+const sourceDir = path.join(root, 'scripts/envelope-test/routes');
+const targetDir = path.join(root, 'app/api/envelope-test');
 
 const walk = (dir: string): string[] =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -1105,17 +1132,30 @@ const walk = (dir: string): string[] =>
   });
 
 describe('envelope 테스트용 라우트', () => {
-  const files = walk(routesDir);
-  const routeFiles = files.filter((file) => path.basename(file).startsWith('route.'));
+  // readdir 의 순서는 파일시스템마다 다르다(CI 의 ext4 는 정렬해 주지 않는다).
+  const files = walk(sourceDir).sort();
+  const routeFiles = files.filter((file) => path.basename(file) === 'route.ts');
 
-  it('보통 빌드가 라우트로 읽는 이름의 파일이 없다', () => {
-    // 보통 빌드의 pageExtensions 는 tsx·ts·jsx·js 다. route.envtest.ts 만 있어야 한다.
+  it('원본은 라우트가 아닌 자리에 있고, 저장소의 app/ 에는 테스트용 라우트가 없다', () => {
     expect(routeFiles).toEqual([
-      'app/api/envelope-test/edge-throw/route.envtest.ts',
-      'app/api/envelope-test/handled/route.envtest.ts',
-      'app/api/envelope-test/throw/route.envtest.ts',
+      'scripts/envelope-test/routes/edge-throw/route.ts',
+      'scripts/envelope-test/routes/handled/route.ts',
+      'scripts/envelope-test/routes/throw/route.ts',
     ]);
-    expect(files.filter((file) => /(^|\/)(page|layout|route)\.(tsx|ts|jsx|js)$/.test(file))).toEqual([]);
+    // 실행기가 테스트 빌드 동안만 복사해 둔다. 여기에 남아 있으면 보통 빌드에 들어간다.
+    expect(fs.existsSync(targetDir), 'app/api/envelope-test 가 남아 있다. 지운다').toBe(false);
+  });
+
+  it('실행기가 원본을 복사하고, 빌드가 끝나면 지운다', () => {
+    const { TEST_ROUTE_SOURCE, TEST_ROUTE_TARGET } = require(path.join(root, 'scripts/envelope-test/build-switch.js')) as {
+      TEST_ROUTE_SOURCE: string;
+      TEST_ROUTE_TARGET: string;
+    };
+    expect(path.join(root, TEST_ROUTE_SOURCE)).toBe(sourceDir);
+    expect(path.join(root, TEST_ROUTE_TARGET)).toBe(targetDir);
+
+    const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
+    expect(runner).toMatch(/installTestRoutes\(\);\s+routesInstalled = true;\s+try \{\s+await build\(\);\s+\} finally \{\s+removeTestRoutes\(\);/);
   });
 
   it('모든 라우트가 ENVELOPE_TEST 를 런타임에서도 확인한다', () => {
@@ -1123,7 +1163,7 @@ describe('envelope 테스트용 라우트', () => {
       const source = fs.readFileSync(path.join(root, file), 'utf8');
       expect(source, file).toContain('envelopeTestDisabled()');
     }
-    const helper = fs.readFileSync(path.join(routesDir, '_lib/envtest.ts'), 'utf8');
+    const helper = fs.readFileSync(path.join(sourceDir, '_lib/envtest.ts'), 'utf8');
     expect(helper).toContain("process.env.ENVELOPE_TEST === '1'");
   });
 
@@ -1179,25 +1219,29 @@ describe('envelope 테스트 시나리오', () => {
 - [ ] **Step 2: 실패를 확인한다**
 
 Run: `npx vitest run __tests__/scripts/envelope-test-routes.test.ts`
-Expected: FAIL — `ENOENT … app/api/envelope-test`
+Expected: FAIL — `ENOENT … scripts/envelope-test/routes`
 
 - [ ] **Step 3: 테스트 라우트와 시나리오를 쓴다**
 
-<!-- file: app/api/envelope-test/_lib/envtest.ts -->
+<!-- file: scripts/envelope-test/routes/_lib/envtest.ts -->
 ```ts
 /**
- * envelope 테스트용 라우트의 공통 코드. route.envtest.ts 는 ENVELOPE_TEST=1 로 만든 빌드에만 들어간다
- * (scripts/envelope-test/build-switch.js). 여기에는 비밀처럼 보이는 값을 두지 않는다 — 실행기가 요청 헤더로 넘긴다.
+ * envelope 테스트용 라우트의 공통 코드. 이 디렉터리는 라우트가 아니다 — 실행기(scripts/envelope-test/run.js)가
+ * 테스트 빌드를 만들 때만 app/api/envelope-test/ 로 복사했다가 지운다(scripts/envelope-test/build-switch.js).
+ * 여기에는 비밀처럼 보이는 값을 두지 않는다 — 실행기가 요청 헤더로 넘긴다.
  */
 
-/** 빌드에서 이미 갈리지만, 잘못 들어간 경우에 대비한 두 번째 문이다. */
+/** 보통 빌드에는 들어가지 않지만, 잘못 들어간 경우에 대비한 두 번째 문이다. */
 export function envelopeTestDisabled(): Response | null {
   return process.env.ENVELOPE_TEST === '1' ? null : new Response(null, { status: 404 });
 }
 
-/** 서버 표준 출력에만 남아야 하는 줄. console breadcrumb 으로 Sentry 에 실리면 안 된다. */
+/**
+ * 서버 출력에만 남아야 하는 줄. console breadcrumb 으로 Sentry 에 실리면 안 된다.
+ * console.warn 으로 찍는다 — 운영 빌드는 compiler.removeConsole 로 console.log 를 지운다(error·warn 만 남는다).
+ */
 export function logConsoleCanary(headers: Headers): void {
-  console.log(`envtest console ${headers.get('x-envtest-console') ?? 'none'}`);
+  console.warn(`envtest console ${headers.get('x-envtest-console') ?? 'none'}`);
 }
 
 /** 처리되지 않은 예외의 메시지. URL 쿼리, JWT 모양, Bearer 토큰, 이메일을 섞는다. */
@@ -1213,7 +1257,7 @@ export function unhandledMessage(headers: Headers): string {
 }
 ```
 
-<!-- file: app/api/envelope-test/handled/route.envtest.ts -->
+<!-- file: scripts/envelope-test/routes/handled/route.ts -->
 ```ts
 import { logError } from '@/utils/log-error';
 import { envelopeTestDisabled, logConsoleCanary } from '../_lib/envtest';
@@ -1236,7 +1280,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 ```
 
-<!-- file: app/api/envelope-test/throw/route.envtest.ts -->
+<!-- file: scripts/envelope-test/routes/throw/route.ts -->
 ```ts
 import { envelopeTestDisabled, logConsoleCanary, unhandledMessage } from '../_lib/envtest';
 
@@ -1252,7 +1296,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 ```
 
-<!-- file: app/api/envelope-test/edge-throw/route.envtest.ts -->
+<!-- file: scripts/envelope-test/routes/edge-throw/route.ts -->
 ```ts
 import { envelopeTestDisabled, logConsoleCanary, unhandledMessage } from '../_lib/envtest';
 
@@ -1278,7 +1322,7 @@ export async function GET(request: Request): Promise<Response> {
  *
  * canary 는 세 묶음이다 (설계 §5.1).
  *   absent     — envelope 과 서버 표준 출력 어디에도 없어야 한다.
- *   stdoutOnly — 테스트 라우트가 console.log 로 찍는다. 표준 출력에만 있어야 한다.
+ *   stdoutOnly — 테스트 라우트가 console.warn 으로 찍는다. 서버 출력에만 있어야 한다.
  *   unhandled  — 감싸지 않은 예외. marker 만 exception.values[].value 와 Next 의 미처리 오류 줄에 남는다.
  */
 
@@ -1315,29 +1359,19 @@ const EXPECTED = {
   errors: [
     { label: '웹훅 서명 실패(logError)', handled: true, transaction: 'POST /api/payment/portone/webhook', count: REPEAT },
     { label: '테스트 라우트의 logError', handled: true, valueIncludes: 'envtest handled', count: REPEAT },
-    {
-      label: '처리되지 않은 예외(node)',
-      handled: false,
-      runtime: 'node',
-      valueIncludes: UNHANDLED_LINE_MARKER,
-      count: REPEAT,
-      requestPath: true,
-      tripwire: true,
-    },
-    {
-      label: '처리되지 않은 예외(edge)',
-      handled: false,
-      runtime: 'edge',
-      valueIncludes: UNHANDLED_LINE_MARKER,
-      count: REPEAT,
-      requestPath: true,
-      tripwire: true,
-    },
+    // 라우트 핸들러의 오류는 SDK 의 라우트 래퍼가 먼저 잡는다(mechanism.handled=false). onRequestError 의
+    // captureRequestError 는 같은 오류를 다시 보내지 않으므로 이 이벤트에는 contexts.nextjs 가 없다.
+    { label: '처리되지 않은 예외(node)', handled: false, runtime: 'node', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
+    { label: '처리되지 않은 예외(edge)', handled: false, runtime: 'edge', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
   ],
+  // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
   transactions: [
     { label: '페이지 transaction', name: 'GET /[lang]/vote', min: REPEAT },
-    { label: '웹훅 transaction', name: 'POST /api/payment/portone/webhook', min: REPEAT },
     { label: '밖으로 부르는 요청의 transaction', name: 'GET /api/envelope-test/handled', min: REPEAT, childOp: 'http.client' },
+    { label: '처리되지 않은 예외의 transaction(node)', name: 'GET /api/envelope-test/throw', min: REPEAT },
+    // edge 는 SDK 가 SENTRY_TRACES_SAMPLE_RATE 를 스스로 읽어 표본이 켜진다. 운영에서는 꺼져 있다.
+    { label: 'edge 라우트의 transaction', name: 'GET /api/envelope-test/edge-throw', min: REPEAT },
+    { label: 'middleware 의 transaction(edge)', name: 'middleware GET /ko/vote', min: REPEAT },
   ],
 };
 
@@ -1395,7 +1429,7 @@ module.exports = { REPEAT, UNHANDLED_LINE_MARKER, CANARIES, EXPECTED, buildReque
 - [ ] **Step 4: 단위 테스트 통과를 확인한다**
 
 Run: `npx vitest run __tests__/scripts/envelope-test-routes.test.ts && npx tsc --noEmit && npm run lint`
-Expected: PASS. `route.envtest.ts` 도 타입 검사와 lint 를 탄다.
+Expected: PASS. 라우트 원본도 타입 검사를 탄다(`tsc` 는 `**/*.ts` 를 본다). lint 는 테스트 빌드가 `app/` 에 복사된 것을 본다.
 
 - [ ] **Step 5: 실행기를 쓴다**
 
@@ -1423,12 +1457,14 @@ const http = require('http');
 const path = require('path');
 const zlib = require('zlib');
 const { parseEnvelope, evaluate, countsSatisfied } = require('./analyze');
-const { TEST_DIST_DIR } = require('./build-switch');
+const { TEST_DIST_DIR, TEST_ROUTE_SOURCE, TEST_ROUTE_TARGET } = require('./build-switch');
 const { CANARIES, EXPECTED, UNHANDLED_LINE_MARKER, buildRequests } = require('./scenario');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const OUT_DIR = path.join(ROOT, TEST_DIST_DIR, 'envelope-test');
 const NEXT_BIN = path.join(ROOT, 'node_modules', '.bin', 'next');
+const ROUTE_SOURCE = path.join(ROOT, TEST_ROUTE_SOURCE);
+const ROUTE_TARGET = path.join(ROOT, TEST_ROUTE_TARGET);
 // distDir 이 다르면 Next 가 빌드 중에 이 두 파일을 고친다. 빌드가 끝나면 되돌린다.
 const FILES_NEXT_REWRITES = ['next-env.d.ts', 'tsconfig.json'];
 
@@ -1493,6 +1529,18 @@ function restoreFiles(snapshot) {
   }
 }
 
+/** 테스트용 라우트를 app/ 에 복사한다. 빌드가 끝나면 지운다 — 저장소의 app/ 에는 없어야 한다. */
+function installTestRoutes() {
+  if (fs.existsSync(ROUTE_TARGET)) {
+    throw new Error(`${TEST_ROUTE_TARGET} 가 이미 있다. 이전 실행이 남긴 것이면 지우고 다시 실행한다.`);
+  }
+  fs.cpSync(ROUTE_SOURCE, ROUTE_TARGET, { recursive: true });
+}
+
+function removeTestRoutes() {
+  fs.rmSync(ROUTE_TARGET, { recursive: true, force: true });
+}
+
 function build() {
   return new Promise((resolve, reject) => {
     const child = spawn(NEXT_BIN, ['build'], {
@@ -1530,12 +1578,31 @@ async function main() {
   const sink = createSink(envelopes);
   const upstream = createUpstream();
   let next;
+  let routesInstalled = false;
+
+  const cleanup = () => {
+    if (next && next.exitCode === null) next.kill('SIGTERM');
+    if (routesInstalled) removeTestRoutes();
+    routesInstalled = false;
+    restoreFiles(snapshot);
+  };
+  // Ctrl+C 로 끊어도 복사한 라우트와 Next 가 고친 파일이 남지 않게 한다.
+  for (const signal of ['SIGINT', 'SIGTERM']) {
+    process.once(signal, () => {
+      cleanup();
+      process.exit(130);
+    });
+  }
 
   try {
     if (!skipBuild) {
+      installTestRoutes();
+      routesInstalled = true;
       try {
         await build();
       } finally {
+        removeTestRoutes();
+        routesInstalled = false;
         restoreFiles(snapshot);
       }
     }
@@ -1614,10 +1681,9 @@ async function main() {
     console.log('\n[envelope] 통과: 건수가 맞고 canary 가 허용된 곳에만 있다.');
     return 0;
   } finally {
-    if (next && next.exitCode === null) next.kill('SIGTERM');
+    cleanup();
     sink.close();
     upstream.close();
-    restoreFiles(snapshot);
   }
 }
 
@@ -1633,18 +1699,20 @@ main().then(
 - [ ] **Step 6: 커밋**
 
 ```bash
-git add app/api/envelope-test scripts/envelope-test/scenario.js scripts/envelope-test/run.js package.json __tests__/scripts/envelope-test-routes.test.ts
+git add scripts/envelope-test package.json __tests__/scripts/envelope-test-routes.test.ts
 git commit -m "test(sentry): 실제 Next 서버의 envelope 을 받아 canary 를 찾는 테스트를 넣는다"
 ```
 
 - [ ] **Step 7: 수정 전 상태에서 실패하는 것을 본다 (red)**
 
 Run: `npm run test:envelope 2>&1 | tee /tmp/envelope-red.log; git status --short`
-Expected:
-- 종료 코드 1. 요청 15건(page 200, webhook 401, handled 200, throw 500, edge-throw 500).
-- 건수는 맞는다(오류 이벤트 네 종류 각 3건, transaction 세 종류 각 3건 이상). 건수가 틀리면 누출 목록을 믿을 수 없으므로 먼저 원인을 찾는다. 기대값이 실제 SDK 동작과 다르면(예: edge 이벤트의 runtime 표시) `scenario.js`·`analyze.js` 와 그 단위 테스트를 고치고 이 문서의 해당 블록도 고친다.
-- 실패 목록에 다음이 있다: `request.headers.*`·`request.cookies.*` 의 묶음 A, `request.url`·`request.query_string`·`contexts.trace.data.http.target` 의 쿼리, 자식 span 의 `url.full`·`url.query`, `breadcrumbs[]` 의 console canary, 처리되지 않은 예외의 `request_path` 쿼리와 tripwire 태그 없음, 예외 메시지의 `urlQuery`·`jwt`·`bearer`·`email`.
-- `git status --short` 에 `next-env.d.ts`·`tsconfig.json` 이 나오지 않는다(되돌려졌다).
+Expected(실제 결과):
+- 종료 코드 1. 요청 15건(page 200, webhook 401, handled 200, throw 500, edge-throw 500). 받은 envelope 61건.
+- 건수 아홉 종류가 모두 맞는다(오류 이벤트 네 종류 각 3건, transaction 다섯 종류 각 3건 이상). 건수가 틀리면 누출 목록을 믿을 수 없으므로 먼저 원인을 찾는다.
+- 실패 70건: `request.headers.*`·`request.cookies.*` 의 묶음 A, `request.url`·`request.query_string`·`contexts.trace.data.http.target`·`next.span_name`·transaction 이름의 쿼리, 자식 span 의 `url.full`·`url.query`·`http.query`, `breadcrumbs[].data.http.query`, `breadcrumbs[]` 의 console canary 와 Next 가 찍은 미처리 오류(메시지, stack), tripwire 태그 없음, 예외 메시지의 `urlQuery`·`jwt`·`bearer`·`email`.
+- `git status --short` 가 비어 있다(`next-env.d.ts`·`tsconfig.json` 이 되돌려졌고 `app/api/envelope-test` 가 지워졌다).
+
+첫 실행은 빌드에서 실패했고(두 겹 확장자의 edge 라우트), 두 번째 실행에서 기대값 셋(console canary, `request_path`, 웹훅 transaction)이 실제 SDK 동작과 달라 고쳤다. 위는 세 번째 실행의 결과다.
 
 실패 목록 전체를 PR 본문에 "수정 전" 으로 붙인다.
 
@@ -1856,6 +1924,29 @@ describe('scrubEvent', () => {
     expect((event as { tags?: Record<string, string> }).tags).toEqual({ [TRIPWIRE_KEY]: '1' });
   });
 
+  it('SDK 내부 자료(sdkProcessingMetadata)는 건드리지 않고, 거기 있는 토큰으로 태그를 붙이지 않는다', () => {
+    // beforeSend 시점의 이벤트에는 요청 헤더 원문이 든 내부 자료가 붙어 있다. 전송 전에 SDK 가 지우고,
+    // 같은 요청의 다른 이벤트와 객체를 공유한다. 고치면 다른 이벤트의 판정이 달라진다.
+    const normalizedRequest = {
+      url: 'http://127.0.0.1:3274/api/x?code=SECRET',
+      headers: { authorization: `Bearer ${OPAQUE}`, cookie: `sb=${JWT}` },
+    };
+    const event = {
+      request: { url: 'http://127.0.0.1:3274/api/x?code=SECRET', method: 'GET' },
+      sdkProcessingMetadata: { normalizedRequest },
+    };
+
+    scrubEvent(event);
+
+    expect(event.request).toEqual({ url: 'http://127.0.0.1:3274/api/x', method: 'GET' });
+    expect(event).not.toHaveProperty('tags');
+    expect(event.sdkProcessingMetadata.normalizedRequest).toBe(normalizedRequest);
+    expect(normalizedRequest).toEqual({
+      url: 'http://127.0.0.1:3274/api/x?code=SECRET',
+      headers: { authorization: `Bearer ${OPAQUE}`, cookie: `sb=${JWT}` },
+    });
+  });
+
   it('span 에 남은 tripwire 표식을 이벤트 태그로 올린다', () => {
     const fromChild = { spans: [{ data: { [TRIPWIRE_KEY]: '1' } }] };
     const fromRoot = { contexts: { trace: { data: { [TRIPWIRE_KEY]: '1' } } } };
@@ -1910,6 +2001,9 @@ describe('scrubEvent', () => {
     ['숫자 없는 긴 Bearer 토큰', `bearer ${'a'.repeat(200_000)}`],
     ['골뱅이의 반복', 'a@'.repeat(100_000)],
     ['공백', ' '.repeat(200_000)],
+    ['Bearer 뒤의 긴 공백', `Bearer ${' '.repeat(200_000)}`],
+    ['짧은 토큰 여러 개와 물음표 하나', `${'a '.repeat(100_000)}/p?q=1`],
+    ['마침표로 끊긴 eyJ 의 반복', 'eyJ.'.repeat(50_000)],
   ])('길이를 믿을 수 없는 입력을 선형 시간에 처리한다: %s', (_name, input) => {
     const started = performance.now();
     stripUrlQueries(input);
@@ -1994,6 +2088,12 @@ const MIN_TOKEN_TEXT_LENGTH = 20;
 
 /** 값 전체가 쿼리인 속성. 어디에 있든 키째로 지운다. */
 const QUERY_ONLY_KEYS = new Set(['url.query', 'http.query', 'url.fragment', 'http.fragment']);
+
+/**
+ * SDK 가 이벤트에 붙여 두는 내부 자료. 전송 전에 SDK 가 지운다(createEventEnvelope).
+ * 요청 헤더 원문이 들어 있고 같은 요청의 다른 이벤트와 객체를 공유하므로 읽지도 고치지도 않는다.
+ */
+const SDK_INTERNAL_KEY = 'sdkProcessingMetadata';
 
 /** `?`·`#` 바로 뒤가 `키=` 모양인가. 최대 66자만 본다. */
 const QUERY_PAIR = /^[?#][\w.%[\]-]{1,64}=/;
@@ -2167,6 +2267,8 @@ export function scrubEvent<T extends object>(event: T): T | null {
     scrubMessages(bag);
 
     const walk: Walk = { tripwire: false, seen: new WeakSet() };
+    const internal = bag[SDK_INTERNAL_KEY];
+    if (internal !== null && typeof internal === 'object') walk.seen.add(internal);
     scrubNode(bag, walk);
     if (walk.tripwire || hasMarkedSpan(bag)) {
       bag.tags = { ...(isBag(bag.tags) ? bag.tags : {}), [TRIPWIRE_KEY]: '1' };
@@ -2419,7 +2521,7 @@ git commit -m "fix(sentry): 서버·edge 이벤트에 쿠키·헤더·쿼리와 
 - [ ] **Step 6: envelope 테스트가 통과하는 것을 본다 (green)**
 
 Run: `npm run test:envelope 2>&1 | tee /tmp/envelope-green.log; git status --short`
-Expected: 종료 코드 0, `[envelope] 통과`. 건수는 Task 4 의 red 와 같다. `git status --short` 가 비어 있다.
+Expected: 종료 코드 0, `[envelope] 통과`. 건수는 Task 4 의 red 와 같다. `git status --short` 가 비어 있다. (실제: 첫 green 실행은 "예상하지 않은 tripwire" 2건으로 실패했다. 순회가 `sdkProcessingMetadata` 를 건드린 것이 원인이었고, 단위 테스트로 재현해 고친 뒤 통과했다.)
 
 실패하면 `.next-envtest/envelope-test/report.json` 의 경로를 보고 `lib/sentry/scrub.ts` 와 그 단위 테스트에 사례를 먼저 더한 뒤 고친다. 테스트의 기대를 느슨하게 하지 않는다.
 
