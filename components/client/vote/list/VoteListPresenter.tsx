@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Vote } from '@/types/interfaces';
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
@@ -19,7 +19,6 @@ const RELOAD_COOLDOWN_MS = 15000;
 
 export interface VoteListPresenterProps {
   votes: Vote[];
-  onVoteClick?: (voteId: string | number) => void;
   className?: string;
   hasMore?: boolean;
   isLoading?: boolean;
@@ -30,7 +29,6 @@ export interface VoteListPresenterProps {
 
 export function VoteListPresenter({
   votes,
-  onVoteClick,
   className,
   hasMore = false,
   isLoading = false,
@@ -155,15 +153,6 @@ export function VoteListPresenter({
   });
   }, [votes, selectedStatus]);
 
-  const handleVoteClick = useCallback((voteId: string | number) => {
-    if (onVoteClick) {
-      onVoteClick(voteId);
-    } else {
-      // 기본 라우팅 동작
-      router.push(`/vote/${voteId}`);
-    }
-  }, [onVoteClick, router]);
-  
   if (isInitialLoading && votes.length === 0) {
     return (
       <div className={className}>
@@ -190,7 +179,6 @@ export function VoteListPresenter({
                 key={vote.id}
                 vote={vote}
                 isHero={index === 0}
-                onClick={() => handleVoteClick(vote.id)}
                 locale={locale}
               />
             ))}

@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import NavigationLink from '@/components/client/NavigationLink';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 import { getLocalizedString } from '@/utils/api/strings';
 import { formatVotePeriodWithTimeZone, formatRelativeTime, formatSimpleDateWithTimeZone } from '@/utils/date';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
@@ -28,8 +29,9 @@ import type { VoteStatus, VoteTimeInfo, VoteCardProps } from './vote-card-utils'
 export type { VoteCardProps };
 
 export const VoteCard = React.memo(
-  ({ vote, onClick, isHero = false, locale }: VoteCardProps) => {
+  ({ vote, isHero = false, locale }: VoteCardProps) => {
     const { t, currentLanguage, isHydrated } = useLanguageStore();
+    const { getLocalizedPath } = useLocaleRouter();
     const displayLanguage = (isHydrated ? currentLanguage : locale || currentLanguage) as string;
     const queryTimeRef = useRef<Date>(new Date()); // 카드 조회 시각
     const [timeInfo, setTimeInfo] = useState<VoteTimeInfo>(() => {
@@ -260,7 +262,7 @@ export const VoteCard = React.memo(
                   onNavigateToDetail={() => {
                     // VoteRankCard 클릭 시 투표 상세로 이동
                     // NavigationLink의 href와 같은 경로로 프로그래매틱 네비게이션
-                    window.location.href = `/vote/${vote.id}`;
+                    window.location.href = getLocalizedPath(`/vote/${vote.id}`);
                   }}
                 />
               </div>

@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
 import { pathToFileURL } from 'url';
@@ -54,5 +55,17 @@ describe('next-sitemap 설정 — 프리렌더된 비콘텐츠 경로 제외', (
   it('콘텐츠 페이지는 그대로 남긴다', async () => {
     const kept = await applyExclude([...nonContent, ...content], loadConfig().exclude);
     expect(kept).toEqual(content);
+  });
+});
+
+/**
+ * robots.txt 는 postbuild 의 next-sitemap 이 public/robots.txt 로 만든다. App Router 의 robots 메타데이터 파일은
+ * app/ 바로 아래에서만 라우트가 된다. [lang] 아래에 두면 서빙되지 않는 죽은 설정이 되고(/ko/robots.txt 는 404),
+ * app/robots.ts 를 두면 public/robots.txt 와 같은 주소를 두고 충돌한다.
+ */
+describe('robots.txt 소유', () => {
+  it('app/ 아래에 robots 메타데이터 파일을 두지 않는다', () => {
+    const files = fs.readdirSync(path.join(process.cwd(), 'app'), { recursive: true }) as string[];
+    expect(files.filter((file) => /(^|[\\/])robots\.(?:ts|tsx|js|txt)$/.test(file))).toEqual([]);
   });
 });

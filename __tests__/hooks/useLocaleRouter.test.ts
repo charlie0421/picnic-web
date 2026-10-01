@@ -130,6 +130,14 @@ describe('useLocaleRouter', () => {
       expect(extracted.locale).toBe('en');
       expect(extracted.path).toBe('/page/something');
     });
+
+    // 언어 판정은 경로로만 한다. /ko?next=x 의 첫 세그먼트를 'ko?next=x' 로 읽으면 언어를 놓친다.
+    it('언어 루트에 쿼리가 붙어도 언어를 알아보고 쿼리를 남긴다', () => {
+      const { result } = renderHook(() => useLocaleRouter());
+      const extracted = result.current.extractLocaleFromPath('/ko?next=x');
+      expect(extracted.locale).toBe('ko');
+      expect(extracted.path).toBe('/?next=x');
+    });
   });
 
   describe('removeLocaleFromPath', () => {
@@ -164,6 +172,19 @@ describe('useLocaleRouter', () => {
     it('should strip existing locale before adding new one', () => {
       const { result } = renderHook(() => useLocaleRouter());
       expect(result.current.getLocalizedPath('/ko/votes', 'ja')).toBe('/ja/votes');
+    });
+
+    it.each([
+      ['/en?next=x', '/ko?next=x'],
+      ['/en#top', '/ko#top'],
+      ['/?next=x', '/ko?next=x'],
+      ['/en/login?error=x', '/ko/login?error=x'],
+      ['/login?error=x', '/ko/login?error=x'],
+      ['/votes?tab=a#top', '/ko/votes?tab=a#top'],
+    ])('쿼리·해시가 붙은 %s 는 경로만 언어화해 %s 가 된다', (path, expected) => {
+      mockUsePathname.mockReturnValue('/ko/page');
+      const { result } = renderHook(() => useLocaleRouter());
+      expect(result.current.getLocalizedPath(path)).toBe(expected);
     });
   });
 
