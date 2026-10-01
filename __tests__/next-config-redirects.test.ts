@@ -166,6 +166,13 @@ describe('next.config.js 과거 버그 주소 복구 (/<경로>/vote)', () => {
     expect(await follow('/KO/download/vote', true)).toEqual(['/KO/download/vote', '/ko/download/vote', '/ko/download']);
   });
 
+  // 설정 리다이렉트의 대소문자 차이는 기존 규칙에도 있다(/DOWNLOAD.HTML). Production 응답은 지금과 같은 404 다.
+  it('대문자 변형 /DOWNLOAD/vote 는 next start 에서만 복구되고 Vercel 에서는 복구되지 않는다', async () => {
+    expect(await resolveConfigRedirect('/DOWNLOAD/vote')).toBe('/download');
+    expect(await resolveConfigRedirect('/DOWNLOAD/vote', true)).toBeNull();
+    expect(await follow('/DOWNLOAD/vote', true)).toEqual(['/DOWNLOAD/vote', '/en/DOWNLOAD/vote']);
+  });
+
   it('언어가 붙은 복구 규칙은 정규 언어 12개만 받는다', async () => {
     const localized = (await loadRedirects()).filter(({ source }) =>
       /^\/:lang\([^)]+\)\/(?:download|login)\/vote$/.test(source),
