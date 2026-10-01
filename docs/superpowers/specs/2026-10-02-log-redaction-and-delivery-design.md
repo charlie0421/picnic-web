@@ -1,8 +1,8 @@
-# 로그 민감정보 가리기와 오류 전달 보장 — 설계 (초안)
+# 로그 민감정보 가리기와 오류 전달 보장 — 설계
 
 - 날짜: 2026-10-02
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-22(STR-008), B-P4. 이슈 #73(Sentry 페이로드에 중앙 redaction 이 없다), #74(logError 가 Sentry 전달을 보장하지 않는다). 핸드오프 `docs/handoff-2026-10-02.html` §7 의 4순위
-- 상태: **초안 5. 사용자 검토 전.** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 리뷰어가 남긴 미확인 항목은 두 가지다: §9 의 결정 여덟 개(특히 결정 8), 그리고 구현할 때 실행으로 확인할 것(경계 함수의 응답 계약, 실제 flush 횟수와 제한 초과, 두 canary 묶음의 결과, 운영 빌드에 테스트 라우트가 없는지). §9 의 결정 여덟 개가 정해져야 구현 계획을 쓸 수 있다. 구현은 시작하지 않았다
+- 상태: **초안 5 + 사용자 결정(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6: Production 은 이미 Replay 를 받지 않는다). 결정 4(브라우저 단계)는 PR 5 전에 정한다. 구현할 때 실행으로 확인할 것은 그대로 남아 있다(경계 함수의 응답 계약, 실제 flush 횟수와 제한 초과, 두 canary 묶음의 결과, 운영 빌드에 테스트 라우트가 없는지). PR 1·1b 의 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다
 - 기준: 코드 `9174da8d`(2026-10-02 Production), `@sentry/nextjs` 9.47.1, Next 15.5.26
 
 용어
@@ -17,7 +17,7 @@
 
 ### 1.1 목표
 
-이 설계가 닫는 것은 **서버와 edge 에서 나가는 sink** 다. 브라우저에서 나가는 것(브라우저 이벤트의 URL, breadcrumb, Replay)은 방법이 달라 §4.6 의 별도 단계로 두고, 그때까지의 임시 조치를 §9 의 결정 7 로 올린다.
+이 설계가 닫는 것은 **서버와 edge 에서 나가는 sink** 다. 브라우저에서 나가는 것(브라우저 이벤트의 URL, breadcrumb, Replay)은 방법이 달라 §4.6 의 별도 단계로 둔다. Production 은 지금 Replay 를 받지 않으므로 그때까지의 임시 조치는 필요 없다(§4.6, §9 의 결정 7).
 
 1. 결제·인증 요청을 서버가 처리하는 동안 high 값이 서버·edge 의 어떤 sink 로도 나가지 않게 한다. 이를 위해 결제·인증 라우트는 오류를 경계 안에서 잡아 원본이 밖으로 전파되지 않게 한다(§4.7). 그 밖의 경로에서 난 처리되지 않은 예외는 이 목표의 예외이고 §9 의 결정 8 로 올린다.
 2. medium 값은 장애 분석에 필요한 것(사용자 UUID, 결제 ID, 주문 ID)만 이름과 형식이 정해진 필드로 남기고, 나머지(이메일, 이름, 전화번호, IP)는 남기지 않는다(§9 의 결정 2).
@@ -212,10 +212,12 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 
 ### 4.6 브라우저 (별도 단계)
 
-브라우저에서는 "수집을 끈다"가 통하지 않는다. 주소 자체가 이벤트의 `request.url`, navigation breadcrumb, pageload transaction, Replay 에 들어간다. OAuth 콜백 페이지(`/auth/callback/{provider}?code=…`)가 대표적이다. 지금 클라이언트 설정은 오류가 난 세션의 Replay 표본율이 1.0 이다(`instrumentation-client.ts` 87~90, 317~321). `maskAllText` 로 화면의 글자는 가려지지만 URL 정책은 검증된 적이 없다(#73 의 5번).
+브라우저에서는 "수집을 끈다"가 통하지 않는다. 주소 자체가 이벤트의 `request.url`, navigation breadcrumb, pageload transaction 에 들어간다. OAuth 콜백 페이지(`/auth/callback/{provider}?code=…`)가 대표적이다.
+
+Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 오류 세션 표본율 1.0 이지만(`instrumentation-client.ts` 11: `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE` 가 없을 때) Production 에는 이 환경변수가 들어 있고, 2026-10-02 에 배포된 클라이언트 번들을 내려받아 확인한 값은 `tracesSampleRate` 0.1, `replaysSessionSampleRate` 0, `replaysOnErrorSampleRate` 0 이다. 두 표본율이 모두 0 이면 Replay integration 자체가 등록되지 않는다(`instrumentation-client.ts` 의 지연 등록 조건). 초안 1~5 는 코드 기본값만 보고 "지금 1.0 이다"라고 썼다. 틀린 서술이었다. 환경변수를 지우거나 값을 올리면 Replay 가 다시 켜지므로, 그 전에 아래의 브라우저 단계가 끝나 있어야 한다. `maskAllText` 로 화면의 글자는 가려지지만 URL 정책은 검증된 적이 없다(#73 의 5번).
 
 - 방법은 서버와 같은 URL·쿼리 함수를 클라이언트의 `beforeSend`·`beforeSendTransaction`·`beforeSendSpan`·`beforeBreadcrumb` 와 Replay 의 `beforeAddRecordingEvent` 에 거는 것이다. 이것은 #73 이 경고한 "모든 이벤트 종류를 덮어야 한다"에 해당하므로, **브라우저 envelope 테스트가 먼저 있어야 한다**(Playwright 로 실제 페이지를 열고 DSN 을 로컬 수집기로 돌려 Replay 를 포함한 envelope 을 받는다).
-- 이 단계 전까지 Replay 를 어떻게 둘지는 §9 의 결정 7 이다.
+- 이 단계 전까지 Replay 는 지금처럼 꺼 둔다. Production 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE`·`NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE` 를 0 보다 크게 바꾸지 않는다(§9 의 결정 7).
 - 클라이언트의 서드파티 필터와 그 밖의 설정은 건드리지 않는다.
 
 ### 4.7 처리되지 않은 예외
@@ -281,7 +283,6 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 | PR | 내용 | 이 PR 로 닫히는 sink | 아직 남는 것 |
 |---|---|---|---|
 | 1 | envelope 테스트 스크립트, 서버·edge 설정의 수집 축소와 URL·쿼리 규칙(§4.1), 처리되지 않은 예외의 메시지 규칙(§4.7) | SDK 가 스스로 붙이던 쿠키·헤더·IP·쿼리(오류 이벤트, transaction, span), 서버의 console breadcrumb, 예외 메시지 속의 URL 쿼리와 모양이 알려진 비밀 | 호출부가 넘기는 값, URL 을 찍는 `console.log`, 웹훅 응답 본문, 예외 메시지 속의 그 밖의 값, 브라우저 |
-| 0 | (결정 7 이 "내린다"일 때) Vercel Production 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE=0` 을 넣고 다시 배포한다. 코드 변경이 아니다(`instrumentation-client.ts` 11 이 이 값을 읽는다). PR 5 에서 검증한 뒤 지운다 | 브라우저 Replay(임시 중단) | 나머지 전부 |
 | 1b | 바로 지울 수 있는 줄: URL·쿼리·토큰을 찍는 `console.log`(`auth/v1/callback`, `payment/portone/callback`, `payment/toss/result`), 웹훅 응답의 `receivedBody`(§4.4) | OAuth code 와 결제 토큰의 Vercel 로그 출력, 웹훅 본문 에코 | 호출부가 넘기는 값(PayPal 응답 통째 등), 브라우저 |
 | 2 | 가린 기록을 만드는 계약 함수(§4.2), 경계 함수(§4.7), 전달(§4.3)과 전달 테스트 | (호출부를 옮길 준비) | 위와 같음 |
 | 3 | 인증 경로의 호출부를 계약 함수로 옮기고 route handler 를 경계 함수로 감싼다. lint 규칙을 켠다 | 인증 경로의 호출부 값과 미처리 오류(Sentry, Vercel 로그, 응답 본문) | 결제 경로의 호출부 값, 브라우저 |
@@ -337,7 +338,7 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | 처리되지 않은 예외는 `captureRequestError` 가 요청 헤더 전체와 원본 오류를 SDK 에 넘긴다 | `@sentry/nextjs` 9.47.1 `common/captureRequestError.js` |
 | SDK 가 `url.query`·`url.fragment`·`url.full` 속성을 만든다 | `@sentry/core` 9.47.1 `utils/url.js` 144~159 |
 | `flush(timeout)` 은 제한을 넘기면 `false` 를 주고, `vercelWaitUntil` 은 요청 컨텍스트가 있을 때만 등록한다 | `@sentry/core` 9.47.1 `client.js`, `utils/vercelWaitUntil.js` |
-| Replay 오류 표본율은 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE`(기본 1.0)로 정한다 | `instrumentation-client.ts` 11 |
+| Replay 오류 표본율은 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE`(없으면 1.0)로 정한다. Production 의 실제 값은 세션 0, 오류 0 이다 | `instrumentation-client.ts` 10~11. 2026-10-02 Production 클라이언트 번들(`tracesSampleRate` 0.1, `replaysSessionSampleRate` 0, `replaysOnErrorSampleRate` 0) |
 | Next 는 처리되지 않은 오류를 원본 그대로 서버 표준 출력에 찍고, `onRequestError` 에 `req.url`(쿼리 포함)을 `path` 로 넘긴다 | Next 15.5.26 `server/route-modules/route-module.js` 의 `onRequestError`, `server/base-server.js` 의 `instrumentationOnRequestError` |
 
 남은 가정
@@ -351,20 +352,22 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | Vercel 의 route handler 가 모두 SDK 래퍼로 감싸인다 | 빌드 결과에서 래퍼 적용 여부 확인 |
 | 외부 응답(PayPal, Google, Kakao)의 오류 본문에 개인정보가 들어올 수 있다 | sandbox 응답 수집 |
 
-## 9. 결정 사항 — 사용자 확인 필요
+## 9. 결정 사항
 
-| # | 질문 | 권장 | 언제까지 |
-|---|---|---|---|
-| 1 | 접근법은 C(수집과 호출을 좁히고 envelope 테스트로 지킨다)로 가도 되는가 | C | PR 1 전 |
-| 2 | 사용자 UUID·결제 ID·주문 ID 는 로그에 남기는가. 이메일·이름·전화번호·IP 는 남기지 않는가 | UUID 와 ID 는 남기고 나머지는 남기지 않는다 | PR 2 전 |
-| 3 | `logSafeError` 가 원본 오류의 `message`·`stack` 을 싣는가. 처리되지 않은 예외의 메시지는 어떻게 하나 | 싣지 않는다. 사건 코드, 알려진 오류 이름, 호출 지점의 stack 만 남긴다(§4.2). 처리되지 않은 예외는 메시지를 남기되 값 모양 규칙을 적용한다(§4.7) | PR 1 전(§4.7), PR 2 전(§4.2) |
-| 4 | 브라우저 단계(PR 5)를 이 설계에 이어서 바로 할 것인가 | 한다. PR 1~4 와 따로 리뷰한다 | PR 5 전 |
-| 5 | Sentry 의 Data Scrubber 설정을 확인하고, 이미 들어간 서버 이벤트(쿠키가 실렸을 수 있다)를 지울 것인가 | 설정을 확인하고 켠다. 과거 이벤트는 보존 기간과 건수를 본 뒤 정한다 | 지금 |
-| 6 | §4.5 의 값 모양 가드를 넣는가 | 넣는다. 정제가 아니라 경보로 | PR 1 전 |
-| 7 | 브라우저 단계가 끝날 때까지 Replay 를 어떻게 둘 것인가(지금 오류 세션 표본율 1.0) | Production 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE=0` 으로 내려 두고(§6.1 의 0단계) PR 5 에서 검증한 뒤 되돌린다 | 지금 |
-| 8 | 결제·인증 라우트 밖에서 난 처리되지 않은 예외는 원본 메시지를 Vercel 로그와 Sentry 에 남기는 것을 받아들이는가(Sentry 쪽은 값 모양 규칙만 적용). 받아들이지 않으면 모든 route handler 와 페이지에 경계가 필요하다 | 받아들인다. 결제·인증 라우트만 경계로 막는다(§4.7) | PR 1 전 |
+2026-10-02 에 사용자가 정했다. 마지막 열이 결과다.
 
-결정과 별개로 알릴 것: §2.1 은 지금 Production 에서 일어나고 있는 일이다. PR 1 은 결정 1·3·6·8 이, PR 1b 는 결정 1 이 정해지면 시작할 수 있다.
+| # | 질문 | 권장 | 언제까지 | 결정 |
+|---|---|---|---|---|
+| 1 | 접근법은 C(수집과 호출을 좁히고 envelope 테스트로 지킨다)로 가도 되는가 | C | PR 1 전 | **C 로 확정** |
+| 2 | 사용자 UUID·결제 ID·주문 ID 는 로그에 남기는가. 이메일·이름·전화번호·IP 는 남기지 않는가 | UUID 와 ID 는 남기고 나머지는 남기지 않는다 | PR 2 전 | **권장대로 확정** |
+| 3 | `logSafeError` 가 원본 오류의 `message`·`stack` 을 싣는가. 처리되지 않은 예외의 메시지는 어떻게 하나 | 싣지 않는다. 사건 코드, 알려진 오류 이름, 호출 지점의 stack 만 남긴다(§4.2). 처리되지 않은 예외는 메시지를 남기되 값 모양 규칙을 적용한다(§4.7) | PR 1 전(§4.7), PR 2 전(§4.2) | **권장대로 확정** |
+| 4 | 브라우저 단계(PR 5)를 이 설계에 이어서 바로 할 것인가 | 한다. PR 1~4 와 따로 리뷰한다 | PR 5 전 | 미정(PR 5 전에 정한다) |
+| 5 | Sentry 의 Data Scrubber 설정을 확인하고, 이미 들어간 서버 이벤트(쿠키가 실렸을 수 있다)를 지울 것인가 | 설정을 확인하고 켠다. 과거 이벤트는 보존 기간과 건수를 본 뒤 정한다 | 지금 | **사용자가 직접 확인한다.** 결과는 아직 받지 못했다 |
+| 6 | §4.5 의 값 모양 가드를 넣는가 | 넣는다. 정제가 아니라 경보로 | PR 1 전 | **넣는다** |
+| 7 | 브라우저 단계가 끝날 때까지 Replay 를 어떻게 둘 것인가 | 꺼 둔다 | 지금 | **"내린다"로 정했고, 확인해 보니 이미 내려가 있다.** 질문의 전제("지금 오류 세션 표본율 1.0")가 틀렸다. Production 번들의 값은 세션 0, 오류 0 이다(§4.6). 환경변수를 바꾸지 않았고 재배포도 하지 않았다. 남는 규칙은 "브라우저 단계가 끝나기 전에 이 값을 올리지 않는다"다 |
+| 8 | 결제·인증 라우트 밖에서 난 처리되지 않은 예외는 원본 메시지를 Vercel 로그와 Sentry 에 남기는 것을 받아들이는가(Sentry 쪽은 값 모양 규칙만 적용). 받아들이지 않으면 모든 route handler 와 페이지에 경계가 필요하다 | 받아들인다. 결제·인증 라우트만 경계로 막는다(§4.7) | PR 1 전 | **받아들인다** |
+
+결정과 별개로 알릴 것: §2.1 은 지금 Production 에서 일어나고 있는 일이다. PR 1 과 PR 1b 는 위 결정으로 시작할 수 있게 됐다.
 
 ## 10. 초안 1 에서 달라진 것
 
@@ -410,4 +413,14 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 |---|---|---|
 | major | §4.3 은 SDK 래퍼와 경계 함수가 각각 flush 를 부르게 했는데 §5.2 는 "요청당 한 번"을 단언한다 | flush 를 부르는 곳이 둘이라는 것과 이유를 §4.3 에 적고, §5.2 의 기대 횟수를 고쳤다(경계 함수 0 또는 1번, SDK 래퍼 1번) |
 | major | 감싸지 않은 테스트 요청의 원본이 표준 출력에 남는 것을 허용해 놓고 표준 출력 전체에서 canary 를 찾으면 실패하게 했다 | §5.1 의 canary 를 두 묶음으로 나누고 무누출 검사와 허용 노출 검사를 분리했다 |
+
+### 10.4 초안 5 뒤에 달라진 것 (사용자 결정, 2026-10-02)
+
+리뷰가 아니라 사용자 결정과 사실 확인으로 바뀐 부분이다.
+
+| 항목 | 바뀐 것 |
+|---|---|
+| §9 | 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5 는 사용자가 직접 확인한다. 결정 4 는 PR 5 전에 정한다 |
+| 결정 7 과 §4.6 | "지금 Replay 오류 표본율이 1.0 이다"는 코드 기본값만 본 서술이었다. Production 에는 환경변수가 들어 있고 배포된 번들의 값은 세션 0, 오류 0 이다. 조치가 필요 없어 §6.1 의 0단계를 지웠다. 환경변수는 바꾸지 않았다 |
+| §6.1 | 0단계가 빠져 순서는 1 → 1b → 2 → 3 → 4 → 5 다 |
 
