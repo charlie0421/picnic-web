@@ -54,3 +54,25 @@ describe.each(SUPPORTED_LANGUAGES)('public/locales/%s.json', (lang) => {
     expect(title).not.toBe(description);
   });
 });
+
+// 중첩 객체를 점으로 이은 키로 편다(common.loading).
+const flattenKeys = (value: unknown, prefix = ''): string[] =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? Object.entries(value).flatMap(([key, child]) => flattenKeys(child, prefix ? `${prefix}.${key}` : key))
+    : [prefix];
+
+/**
+ * 한 언어 파일에만 있는 키는 다른 언어에서 빈 문자열이나 키 이름으로 렌더링된다.
+ * 키를 추가할 때는 12개 언어 파일에 모두 넣는다(`npm run i18n:check` 의 "언어 간 불일치"와 같은 기준).
+ */
+describe('언어 파일 간 키 일치', () => {
+  const reference = new Set(flattenKeys(loadLocale('en')));
+
+  it.each(SUPPORTED_LANGUAGES.filter((lang) => lang !== 'en'))('%s 의 키 집합이 en 과 같다', (lang) => {
+    const keys = new Set(flattenKeys(loadLocale(lang)));
+    expect({
+      missing: [...reference].filter((key) => !keys.has(key)),
+      extra: [...keys].filter((key) => !reference.has(key)),
+    }).toEqual({ missing: [], extra: [] });
+  });
+});
