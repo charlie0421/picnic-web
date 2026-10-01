@@ -11,9 +11,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    console.log("🔐 OAuth 콜백 수신:", request.url);
-    console.log("🔐 쿼리 파라미터:", Object.fromEntries(searchParams.entries()));
-
     // URL의 모든 쿼리 파라미터를 가져와서 그대로 전달
     const params = new URLSearchParams();
     searchParams.forEach((value, key) => {
@@ -39,8 +36,6 @@ export async function GET(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || "https://www.picnic.fan";
 
     const redirectUrl = `${baseUrl}/auth/callback/${provider}?${params.toString()}`;
-    console.log("🔐 OAuth 콜백 프록시 리다이렉트:", redirectUrl);
-
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
     logError("🚨 OAuth 콜백 프록시 오류:", error);
