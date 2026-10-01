@@ -155,3 +155,20 @@ describe('resolveCdnImageUrl — OG 이미지 절대 URL', () => {
     expect(resolveCdnImageUrl('vote/a.png')).toBeNull();
   });
 });
+
+/**
+ * 사이트 안의 접두어 없는 이동(/vote/:id 등)은 Referer 의 언어로 도착한다(lib/i18n/locale-routing.ts).
+ * 같은 출처 요청에 전체 주소를 보내는 정책이어야 한다. origin·strict-origin·no-referrer 로 바꾸면
+ * 그 신호가 조용히 사라져 보던 언어와 다른 언어로 간다.
+ */
+describe('referrer 정책', () => {
+  it('같은 출처 요청에 전체 주소를 보내는 값이다', () => {
+    expect([
+      'origin-when-cross-origin',
+      'strict-origin-when-cross-origin',
+      'no-referrer-when-downgrade',
+      'same-origin',
+      'unsafe-url',
+    ]).toContain(DEFAULT_METADATA.referrer);
+  });
+});

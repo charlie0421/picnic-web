@@ -64,6 +64,7 @@ const MODES = {
   '[lang]/open-in-browser/page.tsx': { kind: 'request-api', marker: /await headers\(\)/ },
 
   // ── app/(bare): 언어 세그먼트 밖 ─────────────────────────────────────────────
+  // redirect 스텁 넷은 정상 흐름에서 닿지 않는다(middleware 가 먼저 선호 언어로 보낸다). 첫 배포에서는 남겨 둔다.
   '(bare)/auth/loading/page.tsx': { kind: 'static-shell' },
   '(bare)/auth/callback/page.tsx': { kind: 'force-dynamic' },
   '(bare)/auth/callback/[provider]/page.tsx': { kind: 'force-dynamic' },

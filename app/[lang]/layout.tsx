@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { notFound } from 'next/navigation';
 import './globals.css';
 import { Metadata, Viewport } from 'next';
 import ClientLayout from './ClientLayout';
@@ -11,6 +12,7 @@ import {
   brandName,
   getLanguageTag,
   getOpenGraphLocale,
+  isSupportedLanguage,
   siteDescription,
 } from './utils/metadata-utils';
 
@@ -97,8 +99,10 @@ export default async function LanguageLayout({
   params: Promise<{ lang: string }>;
 }) {
   const { lang } = await paramsPromise;
-  // 라우트 파라미터는 대소문자가 섞일 수 있다(/zh-TW). 지원하지 않는 값은 ko 로 폴백한다.
-  const htmlLang = getLanguageTag(lang.toLowerCase()) ?? 'ko';
+  // middleware 를 거치지 않는 요청의 마지막 방어선(matcher 가 건너뛰는 /_next/…, 없는 /sitemap-N.xml).
+  // 정규 언어가 아닌 세그먼트는 [lang] 페이지로 렌더하지 않는다. 표기 변형은 middleware 가 정규 주소로 보낸다.
+  if (!isSupportedLanguage(lang)) notFound();
+  const htmlLang = getLanguageTag(lang) ?? lang;
 
   // 경로 기반 광고 분기(투표 라우트 지연·/download 제외)는 한 번도 켜진 적이 없다.
   // 정책 결정(#5) 전까지 실제 동작(지연 없음·1.2s idle)을 그대로 명시한다.

@@ -67,15 +67,6 @@ describe('middleware — 로케일 요청 헤더', () => {
     expect(forwardedRequestHeaders(res).get('x-locale')).toBe(locale);
   });
 
-  it.each([
-    ['/%65n/vote', 'en'],
-    ['/%7A%68-tw/vote/295', 'zh-tw'],
-    ['/%6Bo/vote', 'ko'],
-  ])('percent-encoded 로케일 세그먼트 %s 도 Next 라우팅과 같게 x-locale=%s', async (path, locale) => {
-    const res = await middleware(request(path));
-    expect(forwardedRequestHeaders(res).get('x-locale')).toBe(locale);
-  });
-
   it('잘못된 percent-encoding 세그먼트는 x-locale 없이 통과한다', async () => {
     const res = await middleware(request('/%E0%A4%A/vote', { 'x-locale': 'ja' }));
     expect(res.status).toBe(200);
@@ -87,14 +78,16 @@ describe('middleware — 로케일 요청 헤더', () => {
     expect(forwardedRequestHeaders(res).get('x-locale')).toBe('ja');
   });
 
-  it('로케일이 없는 경로는 인바운드 x-locale 을 지우고 새로 만들지 않는다', async () => {
+  it('로케일이 없는 경로는 선호 언어 주소로 307 한다 (인바운드 x-locale 은 쓰지 않는다)', async () => {
     const res = await middleware(request('/vote', { 'x-locale': 'ja' }));
-    expect(forwardedRequestHeaders(res).has('x-locale')).toBe(false);
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/en/vote');
   });
 
-  it('지원하지 않는 로케일 접두사는 x-locale 을 만들지 않는다', async () => {
+  it('지원하지 않는 로케일 접두사는 선호 언어를 붙여 307 한다', async () => {
     const res = await middleware(request('/xx/vote', { 'x-locale': 'en' }));
-    expect(forwardedRequestHeaders(res).has('x-locale')).toBe(false);
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/en/xx/vote');
   });
 
   it('인바운드 x-pathname·x-url 은 전달하지 않는다 (VoteLite·광고 분기 위조 차단)', async () => {

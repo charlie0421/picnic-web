@@ -58,6 +58,19 @@ describe('middleware matcher', () => {
     // 로케일 sitemap 제외는 /{locale}/sitemap.xml 정확히 그 경로만이다
     '/ko/vote/sitemap.xml', // app/[lang]/(main)/vote/[id]
     '/vote/sitemap.xml', // app/vote/[id] (기본 언어로 redirect 하는 페이지)
+    // 이름의 앞부분만 같은 없는 경로는 middleware 가 실행된다
+    '/api',
+    '/apiary',
+    '/favicon.ico/vote',
+    '/favicon.icox',
+    '/sitemap-1.xml/x',
+    '/sitemap-foo.xml',
+    '/sitemap-00.xml',
+    '/sitemap-123.xml',
+    '/manifest.jsonx',
+    '/images',
+    '/locales',
+    '/.well-known/assetlinks.json',
   ])('HTML 경로 %s 은 계속 실행한다', (url) => {
     expect(matches(url)).toBe(true);
   });
@@ -75,7 +88,14 @@ describe('middleware matcher', () => {
     '/sitemap-0.xml',
     '/manifest.json',
     '/site.webmanifest',
-    '/.well-known/assetlinks.json',
+    '/api/vote/123',
+    '/favicon.ico',
+    '/apple-touch-icon.png',
+    '/apple-touch-icon-precomposed.png',
+    '/sitemap-42.xml',
+    '/ads.txt',
+    '/app-ads.txt',
+    '/apple-developer-domain-association.txt',
   ])('기존 제외 경로 %s 은 그대로 제외한다', (url) => {
     expect(matches(url)).toBe(false);
   });
@@ -101,14 +121,15 @@ describe('matcher 제외 ⇔ 인앱 redirect 정적 자산 판정', () => {
     '/robots.txt',
     '/sitemap-0.xml',
     '/manifest.json',
-    '/.well-known/assetlinks.json',
+    '/apple-touch-icon.png',
     '/ko/vote',
     '/ko/vote/295.json',
     '/ko/vote/295.0',
     ...LOCALE_SITEMAPS,
     '/ko/vote/sitemap.xml',
-    '/vote/sitemap.xml',
-    '/concert2025',
+    // 접두어 없는 주소는 언어 규칙으로 먼저 307 이 되므로, 인앱 판정은 정규 언어 주소로 확인한다
+    '/en/vote/sitemap.xml',
+    '/en/concert2025',
   ])('%s', async (path) => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
     const res = await middleware(

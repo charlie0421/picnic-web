@@ -12,6 +12,7 @@ type Redirect = {
 
 type NextConfig = {
   redirects: () => Promise<Redirect[]>;
+  rewrites: () => Promise<Array<{ source: string; destination: string }>>;
   experimental?: { staticGenerationRetryCount?: number };
 };
 
@@ -42,6 +43,36 @@ describe('next.config.js 진입 리다이렉트 계약', () => {
     'app/concert2025/page.tsx',
   ])('%s 는 app/ 바로 아래에 두지 않는다 (<html> 없는 페이지가 된다)', (file) => {
     expect(fs.existsSync(path.join(process.cwd(), file))).toBe(false);
+  });
+
+  it.each([
+    ['/privacy_en.html', '/en/privacy'],
+    ['/privacy_ko.html', '/ko/privacy'],
+  ])('옛 개인정보 주소 %s 를 %s 로 보낸다', async (source, destination) => {
+    const require = createRequire(import.meta.url);
+    const config = require(path.join(process.cwd(), 'next.config.js')) as NextConfig;
+    const redirects = await config.redirects();
+    expect(redirects).toContainEqual({ source, destination, permanent: false });
+  });
+
+  it('영구 리다이렉트가 하나도 없다 (Instant Rollback 으로 완전히 되돌릴 수 있어야 한다)', async () => {
+    const require = createRequire(import.meta.url);
+    const config = require(path.join(process.cwd(), 'next.config.js')) as NextConfig;
+    const redirects = await config.redirects();
+    expect(redirects.filter((redirect) => redirect.permanent !== false)).toEqual([]);
+  });
+
+  it('언어가 붙은 supabase-proxy rewrite 는 정규 언어 12개만 받는다', async () => {
+    const require = createRequire(import.meta.url);
+    const config = require(path.join(process.cwd(), 'next.config.js')) as NextConfig;
+    const rewrites = await config.rewrites();
+    const localized = rewrites.filter(({ source }) => source.startsWith('/:lang') && source.includes('supabase-proxy'));
+
+    expect(localized).toHaveLength(1);
+    const match = localized[0].source.match(/^\/:lang\(([^)]+)\)\/supabase-proxy\/:path\*$/);
+    expect(match).not.toBeNull();
+    expect(match?.[1].split('|')).toEqual([...SUPPORTED_LANGUAGES]);
+    expect(rewrites.map(({ source }) => source)).toContain('/supabase-proxy/:path*');
   });
 });
 
