@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     if (!paymentId) {
       logError('[Webhook] Missing paymentId in webhook payload');
       return NextResponse.json(
-        { error: 'Missing paymentId', receivedBody: body },
+        { error: 'Missing paymentId' },
         { status: 400 }
       );
     }

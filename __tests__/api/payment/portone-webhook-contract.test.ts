@@ -101,6 +101,15 @@ describe('PortOne webhook — 현재 계약', () => {
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
+  it('paymentId 가 없으면 400 이고, 받은 본문을 응답으로 되돌려주지 않는다', async () => {
+    const res = await POST(webhook({ status: 'PAID', customer: { email: 'buyer@example.com' }, memo: 'cnry-webhook-body' }));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Missing paymentId' });
+    expect(mocks.verifyPortOnePayment).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
   it('PAID 는 본문이 아니라 SDK 조회 결과의 금액으로 1회 적립한다', async () => {
     const res = await POST(webhook({ paymentId: 'pay_1', status: 'PAID', totalAmount: 1 }));
 
