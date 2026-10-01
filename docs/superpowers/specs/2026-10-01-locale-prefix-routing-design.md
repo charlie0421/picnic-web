@@ -565,15 +565,16 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 - **쿠키 버그**: `components/providers/LanguageSyncProvider.tsx` 가 저장된 언어가 기본값 `en` 이면 저장값이 없는 것으로 취급해 기기 언어로 쿠키를 덮어쓴다. 조건을 "저장값이 없을 때"로 줄이는 작은 PR. (**완료 — PR #109, §10.1**)
 - **홈 `/` 의 선호 언어 전환**: 이 변경의 지표를 본 뒤 한 줄짜리 PR.
 - **잘못된 id 와 남는 구멍**: `/ko/rewards/<없는 id>` 의 soft 404, `_next/`·`_vercel/` 아래의 가드 404, `/_next/sitemap.xml` 을 함께 다룬다. sitemap 은 route handler 로 바꿔 언어를 검사할 수 있다. `_vercel/` 은 `app/%5Fvercel/[...slug]` 폴더(App Router 의 `%5F` 규칙)로 catch-all 을 둘 수 있는지 그때 본다.
-- 접두어 없는 주소를 만드는 호출부(`VoteCard`, `VoteListPresenter`, `RetryButton`)를 언어 경로로 고치기.
+- 접두어 없는 주소를 만드는 호출부(`VoteCard`, `VoteListPresenter`, `RetryButton`)를 언어 경로로 고치기. (**완료 — PR #113, §10.2**. `VoteListPresenter` 의 호출부는 실행되지 않는 코드라 지웠다)
 - 인앱 브라우저에서 접두어 없는 주소의 이동 횟수 줄이기.
 - `(bare)` 리다이렉트 스텁과 `rendering-modes` 표의 스텁 항목 삭제.
-- 과거 버그 주소 `/<경로>/vote` 의 복구 규칙(§6.4 의 기준).
-- `/open-in-browser` 의 308 을 307 로, 언어 결정을 공용 함수로.
+- 과거 버그 주소 `/<경로>/vote` 의 복구 규칙(§6.4 의 기준). (**완료 — PR #112, §10.2**)
+- `/open-in-browser` 의 308 을 307 로, 언어 결정을 공용 함수로. (**완료 — PR #113, §10.2**)
 - 클라이언트 언어 판별 통합, `normalizeRedirectPath` 의 이중 접두어.
 - 약관·개인정보의 `/contact` 링크(목적지 결정 필요), PayPal `return_url`, `/auth/auth-code-error`.
 - 표기 변형 정규화의 308 승격(안정화 뒤).
-- `/supabase-proxy` rewrite 와 `/emergency-auth-fix.js` 의 정리(사용처 0건). `app/[lang]/robots.ts` 삭제(라우트로 인식되지 않는 죽은 파일, §8).
+- `/supabase-proxy` rewrite 와 `/emergency-auth-fix.js` 의 정리(사용처 0건). `app/[lang]/robots.ts` 삭제(라우트로 인식되지 않는 죽은 파일, §8). (**`robots.ts` 삭제는 완료 — PR #113**. 나머지는 남아 있다)
+- middleware 의 `x-locale` 주입 제거(§1.2). (**완료 — PR #114, §10.2**)
 
 ## 8. 확인한 사실과 남은 가정
 
@@ -666,3 +667,56 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 - 배포 뒤 약 15분의 런타임 로그(새 배포 id): 4xx·5xx 0건. Sentry 는 최근 24시간 신규 이슈 0건.
 - 이미 기기 언어로 덮어쓰인 쿠키는 그대로다. 사용자가 다시 영어를 고르면 그때부터 유지된다.
 - 확인하지 못한 것: 로그인 사용자의 `user_profiles.language` 가 더는 덮어쓰이지 않는지는 자동화로 보지 못했다. 쿠키 쓰기와 같은 조건문 안의 코드라 함께 건너뛴다.
+
+### 10.2 후속 정리 (PR #112~#114, 2026-10-02)
+
+§7 의 후속 항목 가운데 다섯 가지를 끝냈다. 같은 날 CI(PR #115)도 들어갔다.
+
+**PR #107 뒤의 초기 지표 (머지 뒤 약 2시간, 2026-10-01 14:35~16:30 UTC)**
+
+24시간 지표(§6.4)를 기다리지 않고 복구 규칙을 넣은 근거다.
+
+| 지표 | 머지 전(로그 보존 구간) | 머지 뒤 2시간 |
+|---|---|---|
+| error 로그의 `/download/vote`, `/favicon.ico/vote`, `/apple-touch-icon.png/vote`, `/apple-touch-icon-precomposed.png/vote` | 61, 13, 8, 8건 | 0건 |
+| 5xx | – | 0건 |
+| `/download/vote` 요청(307 뒤 `/{언어}/download/vote` 404) | – | 86분 동안 22건. 그중 19건은 스페인어 기기 한 방문자가 2분 동안 다시 시도한 것이다 |
+
+- 머지 전 배포(`dpl_6aj5rG7UVBXNCbeHWr8CXbSnr6QT`, 약 20시간)에서는 `/download` 86건, `/download/vote` 60건이었다. 머지 뒤에는 `/download` 가 다운로드 페이지에 바로 도착하므로, 남은 `/download/vote` 요청은 저장된 주소로 직접 들어오는 것이다. 웹·앱·관리자·DB 저장소의 코드에는 이 주소를 만드는 곳이 없다. Referer 와 User-Agent 는 런타임 로그에 없어 출처를 확정하지 못했다.
+- Sentry 에 같은 구간의 `/id/download/vote` 페이지 로드가 있다(Samsung Internet, Android, 인도네시아).
+- CDN 이 캐시한 정적 404 는 런타임 로그에 첫 요청만 남는다. 유입은 404 수가 아니라 그 앞의 307 수로 세어야 한다.
+
+**PR #112 — 복구 규칙** (`8bd99403`, 배포 `dpl_5qF22jDwRQaqkQLKtQSvxiogyAZG`)
+
+- 목적지는 사용자 결정으로 "원래 페이지"다: `/download/vote` → `/download`, `/login/vote` → `/login`, `/{정규 언어}/download/vote` → `/{언어}/download`, `/{정규 언어}/login/vote` → `/{언어}/login`. `next.config.js` 의 `redirects()` 에 307 네 줄이고 middleware 는 바꾸지 않았다.
+- Production 확인: 머지 전에 찍은 30개 요청 가운데 의도한 9줄만 바뀌었다. `/download/vote` 는 두 번 이동해 `/en/download` 200, 쿠키 `locale=ja` 면 `/ja/download`, `Accept-Language: es-MX` 면 `/es/download`, `/ko/download/vote` 는 한 번 이동해 `/ko/download` 200. 쿼리는 보존된다.
+- **Vercel 은 설정 리다이렉트를 대소문자를 가려 맞춘다**(`/DOWNLOAD.HTML` 은 `/download` 로 가지 않는다). 로컬 `next start` 는 가리지 않는다. `/KO/download/vote` 는 Production 에서 `/ko/download/vote` → `/ko/download`, 로컬에서 `/KO/download` → `/ko/download` 순서다. `/DOWNLOAD/vote` 는 Production 에서 복구되지 않는다(404). 두 경우 모두 `__tests__/next-config-redirects.test.ts` 에 있다.
+- 교차 리뷰(Codex gpt-6-sol/medium): APPROVE. minor 1건(로컬에서만 대문자 변형이 복구된다)은 테스트로 고정했다.
+
+**PR #113 — 호출부, `/open-in-browser`, 죽은 파일, 번역 키** (`e749a9ea`, 배포 `dpl_92B34q6zZMo9XY4dSsE95s44FkuG`)
+
+- `VoteCard` 의 순위 영역 클릭이 `/vote/{id}` 로 전체 페이지 이동을 하던 것을 언어 경로로 바꿨다. Production 의 문서 요청이 `GET /vote/304` → `GET /ko/vote/304` 두 번에서 `GET /ko/vote/304` 한 번이 됐다(Playwright). `RetryButton` 은 `/{보던 언어}/login` 으로 간다.
+- `VoteListPresenter` 의 `handleVoteClick`·`onVoteClick` 과 `VoteCard` 의 `onClick` prop 은 실행되지 않는 코드라 지웠다(`VoteCard` 가 `onClick` 을 부르지 않는다).
+- `/open-in-browser` 는 307 과 `Cache-Control: private, no-store` 로 응답한다. 언어는 `classifyFirstSegment`·`resolvePreferredLanguage` 로 정한다. 달라진 응답: 쿠키 `locale=ja` + `Accept-Language: ko-KR` 가 `ko` 에서 `ja` 로, `zh-Hant-HK` 가 `en` 에서 `zh-tw` 로, `returnTo=/zh/vote` 가 `en` 에서 `zh-cn` 으로, `returnTo=/ko?x=1` 이 `ja`(Accept-Language) 에서 `ko` 로. 배포 뒤 이 경로의 308 은 0건이다.
+- `useLocaleRouter` 의 `extractLocaleFromPath`·`getLocalizedPath` 가 경로와 쿼리·해시를 나눠 경로만 언어화한다(리뷰 지적: `/en?next=x` 가 `/ko/en?next=x` 가 됐다). `/ko/vote`, `/zh-cn/rewards`, `/en/faq` 의 내부 링크 집합(10·5·4개)은 머지 전후가 같다.
+- `app/[lang]/robots.ts` 와 `app/[lang]/utils/rendering-utils.ts` 를 지웠다. 빌드의 라우트 목록(74개)은 지우기 전후가 같다.
+- `common.loading` 을 11개 언어에 추가했다. 언어 파일의 키 집합이 `en` 과 같은지 보는 테스트가 생겨, 한 언어에만 키를 추가하면 테스트가 실패한다.
+- 교차 리뷰(Codex gpt-6-sol/medium): 1차 REQUEST_CHANGES(위 훅 지적), 수정 뒤 APPROVE.
+
+**PR #114 — `x-locale` 주입 제거** (`8323eb37`, 배포 `dpl_DMZuC2BV5yvgwjA7crGd74nh3jdt`)
+
+- middleware 가 `x-locale` 요청 헤더를 만들지 않는다. 인바운드 `x-locale`·`x-pathname`·`x-url` 을 지우는 것은 그대로다.
+- Production 확인: 머지 전후 31개 요청의 상태 코드, `Location`, `<html lang>`, `<title>` 이 모두 같다. 앞의 두 PR 의 55개 요청도 그대로다.
+- 교차 리뷰(Codex gpt-6-sol/high, 고위험): APPROVE, 지적 없음.
+
+**배포 뒤** (네 번의 배포, 2026-10-01 18:06~18:27 UTC): 5xx 0건. 4xx 13건은 전부 위 점검 요청이다. error 로그는 `/sitemap.xml` 2건(기존 문제, 아래). Sentry 신규 이슈 0건.
+
+**남은 것**
+
+- 24시간 지표(§6.4)는 아직 재지 않았다. PR #112 가 들어가 "과거 버그 주소의 404" 지표는 의미가 없어졌다. 나머지(가드에 닿는 요청, catch-all handler 의 404)는 2026-10-02 23:30 KST 이후 아무 때나 잴 수 있다. 그 뒤의 24시간 창은 전부 머지 뒤 구간이다.
+- 로그인 상태 흐름은 여전히 확인하지 못했다.
+- 측정하면서 본 것(이 설계의 범위 밖):
+  - 인앱 브라우저 안내(`/open-in-browser`)로 넘어간 26건 가운데 14건이 `/ko/download` 였다. 다운로드 페이지를 인앱 안내에서 뺄지는 결정이 필요하다.
+  - `/.well-known/assetlinks.json`·`apple-app-site-association` 요청이 들어오는데 이 저장소에는 그 파일이 처음부터 없다(307 뒤 404).
+  - `/sitemap.xml` 이 캐시 MISS 마다 `ENOENT: scandir '/var/task/app/[lang]'` 오류를 낸다(머지 전 보존 구간에 42건). 감사 계획의 B-R8 범위다.
+

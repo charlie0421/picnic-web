@@ -321,11 +321,35 @@ Orca 사용량 텔레메트리가 복구된 뒤 교차 리뷰(Codex gpt-6-sol, r
 - 결제 수정(B-P1~P3)은 sandbox 자격 후 — #88 의 `it.fails` 를 `it` 으로 전환하며 진행
 - ~~루트 `headers()` 제거·ISR(결정 #8)~~ **완료(2026-09-30, PR #103 → `c099c95e`, 교차 리뷰 4회차 APPROVE, Production 배포 `dpl_A14uJSP9QmzEjN8xLQCamQuKR1pr`)**: 루트 레이아웃 pass-through(metadata 는 유지), `[lang]` 레이아웃이 `<html lang>` 소유, `[lang]` 밖 페이지는 `app/(bare)/`(URL 불변, 전역 CSS·광고 없음 — Production 과 같은 화면). rewards 60s, rewards/[id]·faq·notice·notice/[id] 300s, download 3600s ISR. `/vote/[id]`·`/star-candy`·`/privacy`·`/terms`·두 sitemap 은 `force-dynamic` 명시. ISR 페이지의 조회 실패는 폴백·404 로 바꾸지 않고 예외로 전파(재생성 실패 시 마지막 정상 페이지 유지). 렌더링 모드는 `scripts/rendering-modes.js` 선언 + 소스 계약 테스트 + postbuild 의 빌드 결과 검사(`scripts/verify-rendering-modes.js`, 어긋나면 배포 실패)로 고정. 로컬 검증: 프리렌더 39개·온디맨드 10개 경로가 선언과 일치, ISR `s-maxage`·동적 `no-store`, 12개 언어 `<html lang>`, 접두어 없는 경로와 인앱 UA 리다이렉트 체인이 Production 과 동일, Supabase 도달 불가 상태에서 캐시된 페이지(리워드 상세 포함) STALE 유지·캐시 없는 경로 500 no-store. 설계 `docs/superpowers/specs/2026-09-30-root-layout-isr-design.md`(운영 런북 §6), 계획 `docs/superpowers/plans/2026-09-30-root-layout-isr.md`. Production 검증(2026-09-30, 설계 §9): 빌드 로그의 렌더링 모드 검사 통과, ISR 페이지 `x-vercel-cache` HIT·STALE 후 재생성, 빌드에 없는 언어의 온디맨드 생성, 동적 페이지 `no-store`, RSC 응답 분리, 머지 전후 44개 경로(76요청) 비교에서 의도한 차이만 확인, 익명 브라우저 스모크 오류 0건, 5xx 0건, Sentry 신규 이슈 0건(배포 직후). **남은 확인: 로그인 상태 스모크(실제 계정)**
 - 운영 영향(위 설계 §4.6·§6): 공지·FAQ·리워드·앱 버전 수정이 최대 60초/5분/1시간 뒤 반영(배포 직후에도 같을 것으로 본다 — `a1eedad6` 빌드는 다섯 조회를 모두 새로 보냈다. 앞선 두 빌드에서 일부 조회가 없었던 이유는 미해명, 설계 §9.2). 긴급 삭제는 Vercel 캐시 퍼지. 빌드가 Supabase 조회에 의존(프리렌더 재시도 3회)
-- 후속(위 설계 §7): 미지원 언어 세그먼트·접두어 없는 경로(`/login` → `/login/vote` 는 기존 동작)를 middleware 에서 처리(**완료 — PR #107(`3bdcb6d8`, 2026-10-01). 설계 `docs/superpowers/specs/2026-10-01-locale-prefix-routing-design.md` §10 에 검증 기록**) · 영어 선택이 기기 언어로 되돌아가는 `locale` 쿠키 버그(**완료 — PR #109(`b0ed5e31`, 2026-10-01), 같은 설계 §10.1**) · `/vote/[id]` ISR · 공지·FAQ·리워드용 재검증 API · middleware `x-locale` 주입 제거 · `/privacy`·`/terms` ISR · 브랜드 500 페이지 · 기존 버그(VoteCard 접두어 없는 하드 이동, 마이페이지 `/notifications` 404, `/contact` 링크, sitemap 이중 소유 U-31)
+- 후속(위 설계 §7): 미지원 언어 세그먼트·접두어 없는 경로(`/login` → `/login/vote` 는 기존 동작)를 middleware 에서 처리(**완료 — PR #107(`3bdcb6d8`, 2026-10-01). 설계 `docs/superpowers/specs/2026-10-01-locale-prefix-routing-design.md` §10 에 검증 기록**) · 영어 선택이 기기 언어로 되돌아가는 `locale` 쿠키 버그(**완료 — PR #109(`b0ed5e31`, 2026-10-01), 같은 설계 §10.1**) · `/vote/[id]` ISR · 공지·FAQ·리워드용 재검증 API · middleware `x-locale` 주입 제거(**완료 — PR #114, §5.5**) · `/privacy`·`/terms` ISR · 브랜드 500 페이지 · 기존 버그(VoteCard 접두어 없는 하드 이동(**완료 — PR #113, §5.5**), 마이페이지 `/notifications` 404, `/contact` 링크, sitemap 이중 소유 U-31)
 - ~~`.sentryclirc` 토큰 교체~~ **완료(2026-09-30, #99)**: 새 조직 토큰 발급 → Vercel 3환경 `SENTRY_AUTH_TOKEN` 교체 → `.sentryclirc` 추적 해제·`.sentryclirc.example`·빌드 로그 토큰 출력 제거 → 배포에서 소스맵 업로드·릴리스 확정 확인 → 옛 토큰 Sentry 에서 폐기. 히스토리의 토큰은 폐기로 무효(공개 레포, force push 안 함)
 - ~~Sentry 릴리스 이원화~~ **완료(2026-09-30)**: 플러그인이 `picnic-web@<BUILD_VERSION>` 하나만 생성·소스맵 업로드·커밋 연결·finalize. postbuild 의 `sentry-cli`(`picnic-web@0.1.0-<date>-`, 소스맵 중복 업로드, 아무 에러도 오지 않던 릴리스) 제거. 플러그인은 Vercel 빌드에서만 켜져 로컬 `next build` 가 운영 릴리스를 만들지 않음(`SENTRY_UPLOAD_SOURCEMAPS=1` 로 옵트인)
 - `support@picnic.com`·`*.picnic.com` 링크 실제 주소 확인
 - 운영 확인 권장: 로그인/로그아웃/토큰 만료 후 재방문, Vercel 로그의 middleware 지연·Auth 요청 수, 모바일 Lighthouse LCP 재측정
+
+### 5.5 언어 라우팅 후속·CI·로그 설계 (2026-10-02)
+
+핸드오프 `docs/handoff-2026-10-02.html` §7 의 5·6·4순위를 진행했다. 구현은 조정자(Claude)가 하고 교차 리뷰는 Codex(read-only, Fast OFF)가 했다. 머지는 사용자 승인 뒤 #112 → #115 → #113 → #114 순서로 했고, 머지마다 Production 을 확인했다.
+
+결정 기록(2026-10-02)
+
+- `/download/vote`·`/login/vote` 의 복구 목적지는 **원래 페이지**(`/download`, `/login`)다. 투표 목록으로 보내는 안은 채택하지 않았다.
+- **CI 를 도입한다**(A-6). Wave A 에서 제외했던 항목이다.
+- 머지는 PR 마다 승인한다.
+
+| PR | 내용 | 리뷰 | 라운드 | 비고 |
+|---|---|---|---|---|
+| #112 | 과거 버그 주소 복구(`next.config.js` 307 네 줄) | Sol/medium | 2 | minor 1건: 로컬 `next start` 만 대문자 변형을 복구한다 → 테스트로 고정. `8bd99403` |
+| #115 | CI(`.github/workflows/ci.yml`): PR 과 `main` push 에서 `npm ci` → `tsc --noEmit` → `npm run lint` → `npm test` | Sol/medium | 2 | major 1건: UTC 러너에서 `star-candy-bonus` 테스트 8건 실패. CI 첫 실행도 같은 이유로 실패했다. 테스트를 시간대와 무관하게 고쳤다. `29f728d8` |
+| #113 | 접두어 없는 호출부, `/open-in-browser` 307·공용 언어 함수, 죽은 파일 2개 삭제, `common.loading` 과 언어 파일 키 일치 테스트 | Sol/medium | 2 | minor 1건: `getLocalizedPath('/en?next=x')` 가 `/ko/en?next=x` → `useLocaleRouter` 가 경로와 쿼리·해시를 나누게 고쳤다. `e749a9ea` |
+| #114 | middleware 의 `x-locale` 주입 제거 | Sol/high | 1 | 고위험. 지적 없음. Production 31개 요청이 머지 전과 같다. `8323eb37` |
+
+- 검증 기록은 `docs/superpowers/specs/2026-10-01-locale-prefix-routing-design.md` §10.2 에 있다.
+- **A-6 의 범위 차이.** 들어간 것은 워크플로 하나다. §4 의 A-6 이 적은 `tsconfig.test.json`(테스트 타입 검사), `npm ls --depth=0`, coverage include 확장은 넣지 않았다. 빌드도 넣지 않았다(프리렌더가 Supabase 조회에 의존한다). 시크릿 없이 돈다.
+- **CI 는 UTC 에서 돈다.** 워크플로에 `TZ=Asia/Seoul` 을 넣지 않은 것은 의도다(Vercel 과 같은 시간대여야 시간대 버그를 잡는다). 날짜를 다루는 테스트는 `TZ=UTC npx vitest run <파일>` 로도 돌린다.
+- 필수 검사 지정(branch protection)은 하지 않았다. 저장소 설정이며 사용자 결정이다.
+- **언어 파일 키 일치 테스트**(`__tests__/lib/i18n/locale-files.test.ts`)가 생겼다. 한 언어에만 키를 추가하면 CI 가 실패한다.
+- **B-P4 설계 초안**: PR #116(draft). `docs/superpowers/specs/2026-10-02-log-redaction-and-delivery-design.md`. 교차 리뷰 5회차 APPROVE(Sol/high). 결정 여덟 개가 대기 중이고 구현은 시작하지 않았다. 설계를 쓰면서 잰 것: 서버 오류 이벤트와 transaction 에 요청 쿠키(Supabase 세션), `Authorization`, 프록시 IP, 쿼리스트링이 원문으로 실린다(`requestDataIntegration` 의 기본값). Sentry 가 수신 뒤 무엇을 저장하는지는 확인하지 못했다.
 
 ## 6. 건드리면 안 되는 것 (전 웨이브 공통)
 
