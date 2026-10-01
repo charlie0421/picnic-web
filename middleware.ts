@@ -9,20 +9,15 @@ function isLoginPath(pathname: string): boolean {
   return /^\/([a-z]{2}(-[a-z]{2})?\/)?login(\/|$)/i.test(pathname);
 }
 
-// 경로 기반 요청 헤더는 middleware 만 만든다 — 클라이언트가 보낸 값은 버린다.
-// - x-locale: 경로의 정규 언어. 레이아웃은 더 이상 읽지 않는다(<html lang> 은 [lang] 파라미터로 정한다).
-//   서버 컴포넌트가 다시 읽으면 그 페이지는 동적 렌더링이 된다 — 제거는 후속 정리.
-// - x-pathname / x-url: 더 이상 읽는 곳이 없다(VoteLite·경로 광고 분기 제거). 예전 코드나
-//   서드파티가 신뢰하지 않도록 인바운드 값을 계속 지운다.
+// 예전에 middleware 가 만들던 경로 기반 요청 헤더. 지금은 읽는 곳이 없고 만들지도 않는다
+// (<html lang> 은 [lang] 파라미터로 정한다. 서버 컴포넌트가 요청 헤더를 읽으면 그 페이지는 동적 렌더링이 된다).
+// 예전 코드나 서드파티가 클라이언트가 보낸 값을 신뢰하지 않도록 인바운드 값은 계속 지운다.
 const ROUTING_REQUEST_HEADERS = ['x-locale', 'x-pathname', 'x-url'] as const;
 
-function buildForwardedRequestHeaders(req: NextRequest, lang: string | null): Headers {
+function buildForwardedRequestHeaders(req: NextRequest): Headers {
   const headers = new Headers(req.headers);
   for (const name of ROUTING_REQUEST_HEADERS) {
     headers.delete(name);
-  }
-  if (lang) {
-    headers.set('x-locale', lang);
   }
   return headers;
 }
@@ -48,7 +43,7 @@ export async function middleware(req: NextRequest) {
 
   // Create a response that we can modify cookies on
   const res = NextResponse.next({
-    request: { headers: buildForwardedRequestHeaders(req, decision.lang) },
+    request: { headers: buildForwardedRequestHeaders(req) },
   });
 
   // 인앱 브라우저 (KakaoTalk, Twitter/X, Facebook, Instagram, Line, NAVER) hard redirect.

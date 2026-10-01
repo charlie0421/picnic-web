@@ -15,7 +15,7 @@ const LOCALE_SITEMAPS = SUPPORTED_LANGUAGES.map((lang) => `/${lang}/sitemap.xml`
 
 /**
  * 정적 자산은 middleware(Supabase 세션 갱신·프로필 조회)를 거칠 이유가 없다.
- * 반면 HTML 경로는 인앱 redirect·탈퇴 차단·x-locale 주입이 계속 돌아야 한다.
+ * 반면 HTML 경로는 언어 접두어 판정·인앱 redirect·탈퇴 차단이 계속 돌아야 한다.
  * 자산 판정은 확장자가 아니라 public/ 의 실제 자산 경로로 한다 — `/ko/vote/295.json` 처럼
  * 확장자가 붙은 동적 HTML 경로도 페이지로 라우팅되기 때문이다.
  * 판정은 Next 가 실제로 쓰는 matcher 컴파일러로 한다.

@@ -57,7 +57,7 @@ export async function BannerListFetcher({
       return null; // 배너가 없으면 아무것도 렌더링하지 않음
     }
 
-    // 라우트 파라미터는 대소문자가 섞일 수 있다(/zh-TW) — middleware 의 x-locale 처럼 소문자로 정규화
+    // middleware 가 표기 변형(/zh-TW)을 정규 언어로 보내지만, 여기서도 소문자로 맞춰 본다
     const normalizedLang = lang?.toLowerCase();
     const currentLang =
       normalizedLang && (SUPPORTED_LANGUAGES as readonly string[]).includes(normalizedLang)
