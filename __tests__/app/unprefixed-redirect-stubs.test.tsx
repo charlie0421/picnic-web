@@ -37,6 +37,9 @@ const targetOf = async (run: () => unknown) => {
  * 사용자가 middleware 의 "외부 브라우저로 열기" 안내에 도달하기 전에 이미 /en/vote/123 이 되어,
  * 안내 페이지 언어가 Accept-Language 가 아니라 en 으로 고정된다(탈퇴 계정 리다이렉트의 언어도 같다).
  * 페이지로 두면 middleware 가 접두어 없는 경로를 먼저 본다.
+ *
+ * 이 스텁들은 middleware 를 거치지 않은 요청의 안전망이다. 정상 요청은 middleware 가 먼저
+ * /{선호 언어}/… 로 보낸다(__tests__/middleware/locale-routing.test.ts). 여기서는 스텁 자체의 동작만 고정한다.
  */
 describe('언어 접두어 없는 진입 경로', () => {
   beforeEach(() => {

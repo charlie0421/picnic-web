@@ -287,7 +287,8 @@ describe('decideLocaleRoute', () => {
 
 describe('리다이렉트 연쇄', () => {
   // next.config.js redirects() 가운데 이 규칙과 만나는 것만 흉내 낸다
-  const LANGUAGE_ROOT = /^\/(en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)$/;
+  // Next 의 설정 리다이렉트는 대소문자를 가리지 않고 middleware 보다 먼저 실행된다(/KO → /KO/vote).
+  const LANGUAGE_ROOT = /^\/(en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)$/i;
   const nextConfigRedirect = (pathname: string): string | null => {
     if (pathname === '/') return '/en/vote';
     const root = pathname.match(LANGUAGE_ROOT);
@@ -326,8 +327,8 @@ describe('리다이렉트 연쇄', () => {
     expect(follow(start).length - 1).toBeLessThanOrEqual(3);
   });
 
-  it('/KO 는 두 번(/ko → /ko/vote), /auth/callback/google/x 는 한 번이다', () => {
-    expect(follow('/KO')).toEqual(['/KO', '/ko', '/ko/vote']);
+  it('/KO 는 두 번(/KO/vote → /ko/vote), /auth/callback/google/x 는 한 번이다', () => {
+    expect(follow('/KO')).toEqual(['/KO', '/KO/vote', '/ko/vote']);
     expect(follow('/auth/callback/google/x')).toEqual(['/auth/callback/google/x', '/en/auth/callback/google/x']);
   });
 });
