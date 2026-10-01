@@ -1,0 +1,44 @@
+# PR 과 main 에 대해 타입 검사·lint·테스트를 돌린다.
+#
+# 이 레포는 Preview 배포가 없고 main 머지가 곧 Production 배포다. 머지 전에 볼 수 있는 자동 검증은 이것뿐이다.
+# 빌드(npm run build)는 넣지 않는다. 프리렌더가 Supabase 조회에 의존해 네트워크와 운영 환경변수가 필요하다.
+# 빌드와 렌더링 모드 검사는 Vercel 의 Production 빌드에서 돈다.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# 같은 브랜치에 새 커밋이 올라오면 앞선 실행을 끊는다. main 은 끊지 않는다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  verify:
+    name: 타입 검사 · lint · 테스트
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci --no-audit --no-fund
+
+      - name: 타입 검사
+        run: npx tsc --noEmit
+
+      - name: lint
+        run: npm run lint
+
+      - name: 테스트
+        run: npm test
