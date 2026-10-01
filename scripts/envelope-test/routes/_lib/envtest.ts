@@ -9,9 +9,12 @@ export function envelopeTestDisabled(): Response | null {
   return process.env.ENVELOPE_TEST === '1' ? null : new Response(null, { status: 404 });
 }
 
-/** 서버 표준 출력에만 남아야 하는 줄. console breadcrumb 으로 Sentry 에 실리면 안 된다. */
+/**
+ * 서버 출력에만 남아야 하는 줄. console breadcrumb 으로 Sentry 에 실리면 안 된다.
+ * console.warn 으로 찍는다 — 운영 빌드는 compiler.removeConsole 로 console.log 를 지운다(error·warn 만 남는다).
+ */
 export function logConsoleCanary(headers: Headers): void {
-  console.log(`envtest console ${headers.get('x-envtest-console') ?? 'none'}`);
+  console.warn(`envtest console ${headers.get('x-envtest-console') ?? 'none'}`);
 }
 
 /** 처리되지 않은 예외의 메시지. URL 쿼리, JWT 모양, Bearer 토큰, 이메일을 섞는다. */

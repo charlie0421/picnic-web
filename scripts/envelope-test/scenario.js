@@ -5,7 +5,7 @@
  *
  * canary 는 세 묶음이다 (설계 §5.1).
  *   absent     — envelope 과 서버 표준 출력 어디에도 없어야 한다.
- *   stdoutOnly — 테스트 라우트가 console.log 로 찍는다. 표준 출력에만 있어야 한다.
+ *   stdoutOnly — 테스트 라우트가 console.warn 으로 찍는다. 서버 출력에만 있어야 한다.
  *   unhandled  — 감싸지 않은 예외. marker 만 exception.values[].value 와 Next 의 미처리 오류 줄에 남는다.
  */
 
@@ -42,29 +42,19 @@ const EXPECTED = {
   errors: [
     { label: '웹훅 서명 실패(logError)', handled: true, transaction: 'POST /api/payment/portone/webhook', count: REPEAT },
     { label: '테스트 라우트의 logError', handled: true, valueIncludes: 'envtest handled', count: REPEAT },
-    {
-      label: '처리되지 않은 예외(node)',
-      handled: false,
-      runtime: 'node',
-      valueIncludes: UNHANDLED_LINE_MARKER,
-      count: REPEAT,
-      requestPath: true,
-      tripwire: true,
-    },
-    {
-      label: '처리되지 않은 예외(edge)',
-      handled: false,
-      runtime: 'edge',
-      valueIncludes: UNHANDLED_LINE_MARKER,
-      count: REPEAT,
-      requestPath: true,
-      tripwire: true,
-    },
+    // 라우트 핸들러의 오류는 SDK 의 라우트 래퍼가 먼저 잡는다(mechanism.handled=false). onRequestError 의
+    // captureRequestError 는 같은 오류를 다시 보내지 않으므로 이 이벤트에는 contexts.nextjs 가 없다.
+    { label: '처리되지 않은 예외(node)', handled: false, runtime: 'node', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
+    { label: '처리되지 않은 예외(edge)', handled: false, runtime: 'edge', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
   ],
+  // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
   transactions: [
     { label: '페이지 transaction', name: 'GET /[lang]/vote', min: REPEAT },
-    { label: '웹훅 transaction', name: 'POST /api/payment/portone/webhook', min: REPEAT },
     { label: '밖으로 부르는 요청의 transaction', name: 'GET /api/envelope-test/handled', min: REPEAT, childOp: 'http.client' },
+    { label: '처리되지 않은 예외의 transaction(node)', name: 'GET /api/envelope-test/throw', min: REPEAT },
+    // edge 는 SDK 가 SENTRY_TRACES_SAMPLE_RATE 를 스스로 읽어 표본이 켜진다. 운영에서는 꺼져 있다.
+    { label: 'edge 라우트의 transaction', name: 'GET /api/envelope-test/edge-throw', min: REPEAT },
+    { label: 'middleware 의 transaction(edge)', name: 'middleware GET /ko/vote', min: REPEAT },
   ],
 };
 

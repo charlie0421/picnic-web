@@ -159,14 +159,6 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
       failures.push(`수신 건수 — ${rule.label}: 기대 ${rule.count}건, 실제 ${matched.length}건`);
     }
     for (const event of matched) {
-      if (rule.requestPath) {
-        const requestPath = event.contexts && event.contexts.nextjs && event.contexts.nextjs.request_path;
-        if (typeof requestPath !== 'string' || requestPath === '') {
-          failures.push(`${rule.label}: contexts.nextjs.request_path 가 없다`);
-        } else if (/[?#]/.test(requestPath)) {
-          failures.push(`${rule.label}: contexts.nextjs.request_path 에 쿼리가 남아 있다`);
-        }
-      }
       if (rule.tripwire) {
         tripwireAllowed.add(event);
         if (!event.tags || event.tags[TRIPWIRE_KEY] !== '1') {
@@ -186,6 +178,15 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
       if (withChild < rule.min) {
         failures.push(`수신 건수 — ${rule.label}: 자식 span(${rule.childOp})이 있는 transaction 이 ${withChild}건이다`);
       }
+    }
+  }
+
+  // onRequestError 까지 올라간 오류에는 contexts.nextjs.request_path 가 붙는다(Next 가 req.url 을 그대로 넘긴다).
+  // 라우트 핸들러의 오류는 SDK 의 래퍼가 먼저 잡아 이 값이 없다. 있으면 쿼리가 없어야 한다.
+  for (const event of errors) {
+    const requestPath = event.contexts && event.contexts.nextjs && event.contexts.nextjs.request_path;
+    if (typeof requestPath === 'string' && /[?#]/.test(requestPath)) {
+      failures.push('contexts.nextjs.request_path 에 쿼리가 남아 있다');
     }
   }
 

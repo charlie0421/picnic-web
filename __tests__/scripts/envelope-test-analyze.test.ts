@@ -23,7 +23,7 @@ const canaries = {
 const expected = {
   errors: [
     { label: 'logError', handled: true, valueIncludes: 'envtest handled', count: 1 },
-    { label: '미처리(node)', handled: false, runtime: 'node', valueIncludes: 'envtest unhandled', count: 1, requestPath: true, tripwire: true },
+    { label: '미처리(node)', handled: false, runtime: 'node', valueIncludes: 'envtest unhandled', count: 1, tripwire: true },
   ],
   transactions: [{ label: '밖으로 부르는 요청', name: 'GET /api/envelope-test/handled', min: 1, childOp: 'http.client' }],
 };
@@ -39,7 +39,6 @@ const unhandledEvent = () => ({
   exception: {
     values: [{ type: 'Error', value: 'envtest unhandled cnryB-marker url=https://envtest.invalid/callback', mechanism: { handled: false } }],
   },
-  contexts: { nextjs: { request_path: '/api/envelope-test/throw' } },
   tags: { 'redaction.tripwire': '1' },
 });
 
@@ -167,10 +166,14 @@ describe('evaluate', () => {
     );
   });
 
-  it('처리되지 않은 예외의 request_path 에 쿼리가 남으면 실패한다', () => {
-    const envelopes = clean();
-    envelopes[1].items[0].payload.contexts = { nextjs: { request_path: '/api/envelope-test/throw?code=x' } };
-    expect(run(envelopes).failures).toContain('미처리(node): contexts.nextjs.request_path 에 쿼리가 남아 있다');
+  it('request_path 는 있으면 쿼리가 없어야 한다 (라우트 핸들러의 오류에는 이 값이 없다)', () => {
+    const withoutQuery = clean();
+    withoutQuery[1].items[0].payload.contexts = { nextjs: { request_path: '/api/envelope-test/throw' } };
+    expect(run(withoutQuery).failures).toEqual([]);
+
+    const withQuery = clean();
+    withQuery[0].items[0].payload.contexts = { nextjs: { request_path: '/ko/vote?next=/mypage' } };
+    expect(run(withQuery).failures).toContain('contexts.nextjs.request_path 에 쿼리가 남아 있다');
   });
 
   it('기대한 이벤트에 tripwire 태그가 없으면 실패한다', () => {
