@@ -115,3 +115,48 @@ export function resolvePreferredLanguage(signals: LanguageSignals): Language {
     (DEFAULT_LANGUAGE as Language)
   );
 }
+
+// 규칙 2(정규 언어 + 콜백 → 언어를 뗀다)와 통과 목록이 같이 쓴다. 둘이 어긋나면 연쇄가 끝나지 않는다.
+export const AUTH_CALLBACK_PATH = /^\/auth\/callback(?:\/[^/]+)?\/?$/;
+
+// 정적 자산: Next 내부 경로, public/ 의 자산 디렉터리, 루트의 정확한 파일, 로케일 sitemap.
+// middleware 의 config.matcher 제외 목록과 같은 기준이다(matcher 는 정적 분석 대상이라 이 상수를 못 쓴다 —
+// 동기화는 __tests__/middleware/pass-through-sync.test.ts 가 확인한다). 확장자로 판정하지 않는다.
+export const STATIC_ASSET_PATH =
+  /^\/(?:_next\/|images\/|locales\/|favicon\/|concert2025\/(?:image|video)\/|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)\/sitemap\.xml$|(?:favicon\.ico|apple-touch-icon(?:-precomposed)?\.png|robots\.txt|ads\.txt|app-ads\.txt|sitemap(?:-(?:0|[1-9]\d?))?\.xml|manifest\.json|site\.webmanifest|apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js)$)/;
+
+// 언어 세그먼트 밖의 실제 라우트. (bare) 페이지는 첫 세그먼트가 아니라 라우트 단위로 적는다 —
+// auth 를 통째로 통과시키면 /auth/rewards 가 [lang]=auth 로 샌다.
+export const NON_LOCALIZED_PATH =
+  /^\/(?:api\/|_vercel\/|supabase-proxy(?:\/|$)|open-in-browser\/?$|auth\/callback(?:\/[^/]+)?\/?$|auth\/loading\/?$|ads\/shortform\/player\/?$)/;
+
+/** middleware 가 불렸지만 언어 규칙을 적용하지 않을 경로. */
+export function isPassThroughPath(pathname: string): boolean {
+  if (STATIC_ASSET_PATH.test(pathname) || NON_LOCALIZED_PATH.test(pathname)) return true;
+  // 개발 서버의 내부 경로. Production 에는 없다.
+  return process.env.NODE_ENV !== 'production' && pathname.startsWith('/__nextjs');
+}
+
+export type LocaleRouteDecision =
+  | { type: 'pass'; lang: Language | null }
+  | { type: 'redirect'; pathname: string };
+
+/**
+ * 첫 세그먼트를 한 번 판정한다(설계 §4.1 의 규칙 1~7, 위에서부터 처음 맞는 줄).
+ * redirect 의 pathname 은 항상 /{정규 언어}/… 또는 콜백 라우트다. 쿼리는 호출자가 보존한다.
+ */
+export function decideLocaleRoute(pathname: string, signals: LanguageSignals): LocaleRouteDecision {
+  if (pathname === '/') return { type: 'pass', lang: null };
+
+  const first = pathname.split('/')[1] ?? '';
+  const rest = pathname.slice(first.length + 1); // '' 또는 '/…'
+  const segment = classifyFirstSegment(first);
+
+  if (segment.kind === 'canonical') {
+    if (AUTH_CALLBACK_PATH.test(rest)) return { type: 'redirect', pathname: rest };
+    return { type: 'pass', lang: segment.lang };
+  }
+  if (segment.kind === 'undecodable' || isPassThroughPath(pathname)) return { type: 'pass', lang: null };
+  if (segment.kind === 'variant') return { type: 'redirect', pathname: `/${segment.lang}${rest}` };
+  return { type: 'redirect', pathname: `/${resolvePreferredLanguage(signals)}${pathname}` };
+}

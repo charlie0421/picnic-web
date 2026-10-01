@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  AUTH_CALLBACK_PATH,
   classifyFirstSegment,
+  decideLocaleRoute,
+  isPassThroughPath,
   normalizeLanguageTag,
   resolvePreferredLanguage,
   type LanguageSignals,
@@ -132,5 +135,199 @@ describe('resolvePreferredLanguage', () => {
 
   it('깨진 쿠키 값은 무시한다', () => {
     expect(resolvePreferredLanguage(signals({ cookieLocale: '%E0%A4%A', acceptLanguage: 'ko' }))).toBe('ko');
+  });
+});
+
+describe('isPassThroughPath', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    '/auth/callback',
+    '/auth/callback/',
+    '/auth/callback/google',
+    '/auth/loading',
+    '/ads/shortform/player',
+    '/open-in-browser',
+    '/supabase-proxy',
+    '/supabase-proxy/rest/v1',
+    '/api/banners',
+    '/_next/data/x.json',
+    '/_next/static/chunks/main.js',
+    '/_vercel/insights/script.js',
+    '/images/logo.webp',
+    '/locales/ko.json',
+    '/favicon/favicon.ico',
+    '/concert2025/image/logo.png',
+    '/favicon.ico',
+    '/apple-touch-icon.png',
+    '/apple-touch-icon-precomposed.png',
+    '/robots.txt',
+    '/sitemap.xml',
+    '/sitemap-0.xml',
+    '/sitemap-42.xml',
+    '/manifest.json',
+    '/firebase-messaging-sw.js',
+  ])('%s 는 통과', (pathname) => {
+    expect(isPassThroughPath(pathname)).toBe(true);
+  });
+
+  it.each([
+    '/auth',
+    '/auth/foo',
+    '/auth/callback/a/b',
+    '/ads',
+    '/open-in-browser/x',
+    '/api',
+    '/sitemap-foo.xml',
+    '/sitemap-00.xml',
+    '/sitemap-123.xml',
+    '/.well-known/x',
+    '/favicon.ico/vote',
+    '/concert2025',
+    '/login',
+  ])('%s 는 통과가 아니다', (pathname) => {
+    expect(isPassThroughPath(pathname)).toBe(false);
+  });
+
+  it('/__nextjs 내부 경로는 개발 서버에서만 통과한다', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    expect(isPassThroughPath('/__nextjs_foo')).toBe(true);
+    vi.stubEnv('NODE_ENV', 'production');
+    expect(isPassThroughPath('/__nextjs_foo')).toBe(false);
+  });
+
+  it('콜백 모양에 맞는 경로는 모두 통과 목록에 있다 (규칙 2 의 목적지가 통과로 끝나는 조건)', () => {
+    for (const pathname of ['/auth/callback', '/auth/callback/', '/auth/callback/apple', '/auth/callback/apple/']) {
+      expect(AUTH_CALLBACK_PATH.test(pathname)).toBe(true);
+      expect(isPassThroughPath(pathname)).toBe(true);
+    }
+  });
+});
+
+describe('decideLocaleRoute', () => {
+  const none = signals();
+
+  it('규칙 1: / 는 통과', () => {
+    expect(decideLocaleRoute('/', none)).toEqual({ type: 'pass', lang: null });
+  });
+
+  it.each([
+    ['/ko/auth/callback/google', '/auth/callback/google'],
+    ['/ko/auth/callback', '/auth/callback'],
+    ['/zh-tw/auth/callback/apple/', '/auth/callback/apple/'],
+  ])('규칙 2: %s 는 언어를 뗀 %s 로', (pathname, expected) => {
+    expect(decideLocaleRoute(pathname, none)).toEqual({ type: 'redirect', pathname: expected });
+  });
+
+  it.each([
+    ['/ko/vote', 'ko'],
+    ['/zh-tw/vote/295', 'zh-tw'],
+    ['/ko', 'ko'],
+    ['/ko/', 'ko'],
+    ['/ko/authx', 'ko'],
+    ['/ko/auth/callbackx', 'ko'],
+    ['/ko/auth/callback/a/b', 'ko'],
+    ['/ko//x', 'ko'],
+  ])('규칙 3: %s 는 통과(lang=%s)', (pathname, lang) => {
+    expect(decideLocaleRoute(pathname, none)).toEqual({ type: 'pass', lang });
+  });
+
+  it('규칙 4: 디코드할 수 없는 첫 세그먼트는 통과', () => {
+    expect(decideLocaleRoute('/%E0%A4%A/vote', none)).toEqual({ type: 'pass', lang: null });
+  });
+
+  it.each(['/auth/callback/google', '/open-in-browser', '/supabase-proxy/rest/v1', '/_vercel/insights/script.js'])(
+    '규칙 5: %s 는 통과',
+    (pathname) => {
+      expect(decideLocaleRoute(pathname, none)).toEqual({ type: 'pass', lang: null });
+    },
+  );
+
+  it.each([
+    ['/KO/vote', '/ko/vote'],
+    ['/zh/vote', '/zh-cn/vote'],
+    ['/zh_TW/rewards', '/zh-tw/rewards'],
+    ['/en-US/faq', '/en/faq'],
+    ['/jp/vote', '/ja/vote'],
+    ['/%6Bo/vote', '/ko/vote'],
+    ['/fil-PH/vote', '/tl/vote'],
+    ['/KO', '/ko'],
+    ['/KO/auth/callback/apple/a/b', '/ko/auth/callback/apple/a/b'],
+  ])('규칙 6: 표기 변형 %s → %s', (pathname, expected) => {
+    expect(decideLocaleRoute(pathname, signals({ cookieLocale: 'ja' }))).toEqual({
+      type: 'redirect',
+      pathname: expected,
+    });
+  });
+
+  it.each([
+    '/login', '/download', '/rewards/1', '/vote/295', '/vote', '/mypage', '/concert2025',
+    '/xx/rewards', '/fr/vote', '/wp-admin', '/.env', '/auth', '/auth/foo', '/ads', '/open-in-browser/x',
+    '/api', '/my-page', '/sitemap-foo.xml', '/.well-known/x', '/auth/callback/google/x', '/favicon.ico/vote',
+  ])('규칙 7: %s 는 선호 언어를 붙인다', (pathname) => {
+    expect(decideLocaleRoute(pathname, none)).toEqual({ type: 'redirect', pathname: `/en${pathname}` });
+    expect(decideLocaleRoute(pathname, signals({ cookieLocale: 'ja' }))).toEqual({
+      type: 'redirect',
+      pathname: `/ja${pathname}`,
+    });
+  });
+
+  // Review Focus 4: 출처를 속이려는 경로도 목적지는 /{정규 언어}/ 아래다
+  it.each(['//evil.com/x', '/\\evil.com', '/%2F%2Fevil.com/x', '/%5Cevil.com'])(
+    '목적지 %s 는 /en/ 으로 시작한다',
+    (pathname) => {
+      const decision = decideLocaleRoute(pathname, none);
+      expect(decision.type).toBe('redirect');
+      expect((decision as { pathname: string }).pathname.startsWith('/en/')).toBe(true);
+    },
+  );
+});
+
+describe('리다이렉트 연쇄', () => {
+  // next.config.js redirects() 가운데 이 규칙과 만나는 것만 흉내 낸다
+  const LANGUAGE_ROOT = /^\/(en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)$/;
+  const nextConfigRedirect = (pathname: string): string | null => {
+    if (pathname === '/') return '/en/vote';
+    const root = pathname.match(LANGUAGE_ROOT);
+    if (root) return `/${root[1]}/vote`;
+    if (pathname === '/download.html') return '/download';
+    if (pathname === '/privacy_en.html') return '/en/privacy';
+    if (pathname === '/privacy_ko.html') return '/ko/privacy';
+    if (pathname === '/community') return '/vote';
+    return null;
+  };
+
+  const follow = (start: string): string[] => {
+    const seen = [start];
+    let current = start;
+    for (let hop = 0; hop < 6; hop += 1) {
+      const fromConfig = nextConfigRedirect(current);
+      const decision = fromConfig === null ? decideLocaleRoute(current, signals()) : null;
+      const next = fromConfig ?? (decision?.type === 'redirect' ? decision.pathname : null);
+      if (next === null) return seen;
+      if (seen.includes(next)) throw new Error(`loop: ${[...seen, next].join(' → ')}`);
+      seen.push(next);
+      current = next;
+    }
+    throw new Error(`too long: ${seen.join(' → ')}`);
+  };
+
+  it.each([
+    '/', '/ko', '/KO', '/login', '/download', '/download.html', '/privacy_en.html', '/privacy_ko.html',
+    '/community', '/vote', '/vote/295', '/mypage', '/concert2025', '/rewards/1', '/xx/rewards', '/fr/vote',
+    '/KO/vote', '/zh/vote', '/zh_TW/rewards', '/%6Bo/vote', '/wp-admin', '/.env', '/api', '/auth', '/auth/foo',
+    '/auth/callback', '/auth/callback/google', '/auth/callback/google/x', '/ko/auth/callback',
+    '/ko/auth/callback/google', '/ko/auth/callback/a/b', '/KO/auth/callback/apple', '/KO/auth/callback/apple/a/b',
+    '/open-in-browser', '/open-in-browser/x', '/supabase-proxy/x', '/ko/supabase-proxy/x', '/favicon.ico/vote',
+    '/sitemap-1.xml/x', '/.well-known/x', '//evil.com/x', '/my-page',
+  ])('%s 는 세 번 안에 끝나고 되돌아오지 않는다', (start) => {
+    expect(follow(start).length - 1).toBeLessThanOrEqual(3);
+  });
+
+  it('/KO 는 두 번(/ko → /ko/vote), /auth/callback/google/x 는 한 번이다', () => {
+    expect(follow('/KO')).toEqual(['/KO', '/ko', '/ko/vote']);
+    expect(follow('/auth/callback/google/x')).toEqual(['/auth/callback/google/x', '/en/auth/callback/google/x']);
   });
 });
