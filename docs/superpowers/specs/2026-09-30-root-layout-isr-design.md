@@ -174,8 +174,8 @@ app/
 ```
 
 - **빌드 시 프리렌더.** `[lang]` 레이아웃의 `generateStaticParams`(en/ko/my)로 rewards·faq·notice 가 3개 언어, download 가 12개 언어로 프리렌더된다. 조회가 실패하면 그 페이지의 프리렌더가 실패하고 **빌드(=배포)가 실패한다**. 깨진 내용을 배포하지 않기 위한 의도된 동작이고 Vercel 은 이전 배포를 유지한다. 일시 오류로 배포가 실패하지 않도록 `experimental.staticGenerationRetryCount: 3` 을 켰다(최대 3번 시도). supabase-js 도 네트워크 실패를 자체 재시도한다(1·2·4초 백오프). 빌드 중에는 조회 하나를 30초까지 기다리고(`withDeadline` 의 `BUILD_QUERY_TIMEOUT_MS`), 예산을 넘기면 요청을 끊는다(§9.1).
-- **빌드 안에서의 응답 공유.** 빌드 중의 조회는 Next 의 fetch 캐시(`.next/cache/fetch-cache`)에 저장돼 같은 조회를 하는 언어별 페이지가 응답 하나를 나눠 쓴다. 상태 200 인 응답만 저장된다. 리워드 목록은 `count` 를 요청해 206 을 받던 탓에 공유되지 않았고, 지금은 `count` 를 요청하지 않는다(§9.1).
-- **배포 직후의 데이터 신선도.** fetch 캐시는 `.next/cache` 와 함께 다음 빌드에 복원된다. 복원된 항목은 파일 수정 시각으로 나이를 재기 때문에 새것처럼 보여 다시 조회되지 않았다. 그래서 새 배포의 faq·notice·download 가 예전 빌드가 받아 둔 데이터로 프리렌더되고 `revalidate` 가 지나 재생성될 때까지 옛 내용이 나갔다. 지금은 `prebuild`(`scripts/clear-build-fetch-cache.js`)가 빌드 전에 fetch 캐시를 비워 **빌드마다 현재 데이터로 프리렌더한다**. 배포 직후의 지연은 운영 중과 같다(아래).
+- **빌드 안에서의 응답 공유.** 빌드 중의 조회는 Next 의 fetch 캐시에 저장돼 같은 조회를 하는 언어별 페이지가 응답 하나를 나눠 쓴다. 상태 200 인 응답만 저장된다. 리워드 목록은 `count` 를 요청해 206 을 받던 탓에 공유되지 않았고, 지금은 `count` 를 요청하지 않는다(§9.1). Next 의 기본 캐시 핸들러는 Vercel 빌드에서 이 캐시를 디스크에 쓰지도 읽지도 않고 프리렌더 워커의 메모리에 둔다. 이 경우 같은 워커가 맡은 페이지끼리만 공유하고, 같은 조회를 하는 페이지가 두 워커에 나뉘면 워커마다 한 번씩 조회한다. 플랫폼이 빌드에 다른 핸들러를 끼워 넣는지는 확인하지 못했다(§9.2).
+- **배포 직후의 데이터 신선도.** Vercel 의 빌드 캐시에는 `.next/cache/fetch-cache` 가 없다. `a1eedad6` 빌드는 다섯 조회를 모두 새로 보냈고 그 데이터로 프리렌더했다(§9.2). 그래서 배포 직후의 지연도 운영 중과 같을 것으로 본다(아래). 다만 앞선 두 빌드에서 일부 조회가 로그에 없었던 이유를 설명하지 못해 확정하지는 않는다(§9.2). `.next` 가 남는 로컬 빌드는 다르다. 조회 결과가 `.next/cache/fetch-cache` 에 파일로 남고 다음 빌드가 그 응답으로 페이지를 만든다. `prebuild`(`scripts/clear-build-fetch-cache.js`)가 빌드 전에 이 디렉터리를 비워 로컬 빌드도 매번 조회하게 한다. 이 문서의 초판은 Vercel 도 이 디렉터리를 복원해 옛 데이터로 프리렌더한다고 적었는데, 배포 후 확인에서 그런 디렉터리가 없는 것으로 드러났다(§9.2).
 - **운영 중의 반영 지연.** 관리자가 공지·FAQ·리워드·앱 버전을 바꾸면 최대 `revalidate` + 요청 한 번 뒤에 보인다(만료 뒤 첫 요청자는 옛 화면을 받고 그다음 요청부터 새 화면). 동적 렌더였던 이전에는 즉시 반영됐다.
 
 ### 4.7 오류 처리
@@ -269,7 +269,7 @@ postbuild 의 next-sitemap 은 프리렌더된 경로를 전부 `public/sitemap-
 
 ### 콘텐츠 반영 지연과 긴급 삭제
 
-- 반영 지연: rewards 최대 60초, faq·notice 최대 5분, download(앱 버전·링크) 최대 1시간. 배포 직후에도 같다(빌드마다 현재 데이터로 프리렌더한다, §4.6).
+- 반영 지연: rewards 최대 60초, faq·notice 최대 5분, download(앱 버전·링크) 최대 1시간. 배포 직후에도 같을 것으로 본다(§4.6. 확인 방법은 §9.2).
 - 잘못 올린 공지를 내려도 상세 페이지가 최대 5분(+요청 한 번) 동안 남는다. 저장소에 공지·FAQ·리워드용 온디맨드 무효화는 없다.
 - 즉시 지워야 할 때: Vercel 의 캐시 퍼지(`vercel cache purge`, 또는 대시보드의 CDN Cache·Data Cache 퍼지). Production 에서 이 절차를 실제로 실행해 보지는 않았다.
 - 후속: 비밀키로 보호한 재검증 API(`revalidatePath`)를 두고 관리자 도구가 호출하게 한다(§7).
@@ -277,6 +277,8 @@ postbuild 의 next-sitemap 은 프리렌더된 경로를 전부 `public/sitemap-
 ### Sentry
 
 ISR 재생성 실패는 이제 예외로 전파되므로 Supabase 장애 중에는 해당 페이지 요청마다 재생성 시도와 오류 이벤트가 생길 수 있다(예전에는 폴백이 오류를 삼켰다). 대상은 rewards·faq·notice·download 와 그 상세 페이지다. 트래픽이 큰 투표 페이지는 해당하지 않는다. 사용자 영향은 없고 이벤트 쿼터의 문제다. 머지 뒤 Supabase 장애가 있으면 이벤트 수를 확인한다.
+
+로컬 `next start` 의 오류도 `.env.local` 의 DSN 으로 운영 Sentry 에 `environment: production` 으로 들어간다. 장애 주입 실험은 `SENTRY_DSN= NEXT_PUBLIC_SENTRY_DSN=` 로 DSN 을 비우고 빌드·실행한다(§9.2).
 
 ## 7. 범위 밖·후속
 
@@ -322,7 +324,7 @@ ISR 재생성 실패는 이제 예외로 전파되므로 Supabase 장애 중에�
 | `(bare)` | `/auth/loading`·`/ads/shortform/player` 200 HIT, stylesheet 1개. code 없는 `/auth/callback` 은 기존처럼 `/login?error=auth_code_missing` 으로 307 |
 | 머지 전후 비교 | 같은 44개 경로(76요청)의 상태 코드·Location·`<html lang>`·제목·robots·canonical·hreflang 을 비교했다. 차이는 세 가지다: 404 의 매칭 경로(`/_not-found` → `/404`), `/en/rewards` 의 매칭 경로(프리렌더), `/en/concert2025` 의 `<html lang>` 이 `ko` 에서 `en` 으로 교정 |
 | 브라우저(익명) | rewards·rewards/1·faq·notice·download·login·mypage·404 전체 로드와 클라이언트 내비게이션(notice/4 → rewards → vote)에서 콘솔 오류 0건. 언어 전환 `/ko/vote?status=ongoing` → `/en/vote?status=ongoing` |
-| 런타임 | 배포 후 5xx 0건. error 로그는 기존 원인뿐이다(미지원 언어 세그먼트의 번역 로드 실패, sitemap 핸들러). Sentry 신규 이슈 0건(배포 직후) |
+| 런타임 | 배포 후 5xx 0건. error 로그는 기존 원인뿐이다(미지원 언어 세그먼트의 번역 로드 실패, sitemap 핸들러). Production 에서 생긴 Sentry 신규 이슈 0건(같은 날 로컬 실험이 만든 이슈는 §9.2) |
 | sitemap | `/sitemap.xml` 3240, `/ko/sitemap.xml` 3240(동적). `sitemap-0.xml` 은 24개 URL 이고 제외 대상은 0건 |
 
 확인하지 못한 것: 로그인 상태의 화면 동작(실제 계정 필요), Vercel 캐시 퍼지 절차, Supabase 장애 시의 Production 동작(로컬 장애 주입으로만 확인).
@@ -350,7 +352,7 @@ Failed to build /[lang]/(main)/rewards/page: /my/rewards after 3 attempts.
 2. **시간 초과된 요청을 끊지 않았다.** 포기한 요청이 잠금을 쥔 채 남아 재시도가 그 뒤에서 기다렸다.
 3. **빌드 머신에서 본 Supabase 응답이 약 22초 동안 느렸다.** Supabase edge 로그에서 목록 요청 넷이 앞 요청이 끝난 직후 차례로 시작했고 8.6초·3.2초·5.7초·0.19초가 걸렸다. 같은 시각 다른 요청의 대부분은 0.2초대였다. 7초 예산 세 번으로는 넘기지 못했다. 느려진 이유는 특정하지 못했다.
 
-faq·notice·version 조회는 같은 빌드에서 요청 자체가 없었다. 복원된 fetch 캐시를 그대로 썼기 때문이고, 이것이 §4.6 의 신선도 문제다.
+faq·notice·version 조회는 같은 빌드에서 요청 자체가 없었다. 당시에는 복원된 fetch 캐시를 그대로 쓴 것으로 판단했다. 배포 후 확인에서 Vercel 빌드에는 그런 캐시 디렉터리가 없다는 것이 드러났고, 요청이 없었던 이유는 확인하지 못했다(§9.2).
 
 수정(PR #105):
 
@@ -360,10 +362,41 @@ faq·notice·version 조회는 같은 빌드에서 요청 자체가 없었다. �
 | `rejectOnTimeout` → `withDeadline` | 예산을 넘기면 `AbortSignal` 로 조회를 끊는다. 끊은 요청은 다시 보내지 않는다(백오프 뒤에도 다시 확인) |
 | 공개 클라이언트의 fetch 가 `X-Retry-Count` 헤더를 뺌 | postgrest-js 는 재시도 요청에 이 헤더를 붙이고, Next 의 fetch 캐시 키에는 요청 헤더가 들어간다. 그대로 두면 재시도로 성공한 응답이 다른 언어 페이지의 첫 시도와 다른 키에 저장돼 공유되지 않는다. 재시도 자체는 끄지 않는다. 네트워크 오류(1·2·4초 뒤)와 503·520 의 `Retry-After` 를 따르는 재시도를 postgrest-js 가 맡고 있다 |
 | `next build` 중 조회 예산 30초 | 느리지만 끝나는 응답을 기다린다. 런타임은 4~7초 그대로 |
-| `prebuild` 가 fetch 캐시를 비움 | 빌드마다 현재 데이터로 프리렌더한다 |
+| `prebuild` 가 fetch 캐시를 비움 | `.next` 가 남는 로컬 빌드가 매번 Supabase 를 조회한다. Vercel 빌드에는 비울 것이 없다(§9.2) |
 
-재현: Supabase 앞에 지연 프록시를 두고 `next build` 를 돌렸다(연결 실패 2회 뒤 모든 목록 응답 8.6초, 워커 1개). 수정 전 코드는 `/en/rewards after 3 attempts` 로 실패했고(Production 과 같은 오류), 수정 후에는 프리렌더 실패 없이 통과했다. 같은 워크트리에서 빌드를 두 번 돌리면 두 번째 빌드의 Supabase 조회가 0건에서 5건이 된다.
+재현: Supabase 앞에 지연 프록시를 두고 `next build` 를 돌렸다(연결 실패 2회 뒤 모든 목록 응답 8.6초, 워커 1개). 수정 전 코드는 `/en/rewards after 3 attempts` 로 실패했고(Production 과 같은 오류), 수정 후에는 프리렌더 실패 없이 통과했다. 같은 워크트리에서 로컬 빌드를 두 번 돌리면 두 번째 빌드의 Supabase 조회가 0건에서 5건이 된다.
 
 런타임에서 끊기는지는 `next start` 로 확인했다. `SUPABASE_URL` 을 지연 프록시(목록 응답 20초)로 돌리면 캐시 없는 `/ja/rewards` 는 7.08초에 500 이 되고, stale 이 된 `/ko/rewards` 는 옛 페이지를 돌려주면서 뒤에서 재생성을 시도한다. 두 경우 모두 프록시가 받은 요청이 7초에 끊겼다. 런타임의 조회는 Next 가 캐시하지 않으므로(빌드 밖에서는 auto no cache) 신호가 그대로 전달된다. Next 는 stale 한 fetch 캐시 항목을 다시 받을 때만 신호를 빼는데, 이는 빌드에서 같은 빌드가 만든 항목이 페이지의 `revalidate` 보다 오래됐을 때만 해당한다.
 
 남은 것: faq·version·상세 조회에는 시간 예산이 없다. 응답이 아예 오지 않으면 Next 의 페이지 생성 제한(`staticPageGenerationTimeout`, 120초)이나 함수 제한 시간까지 기다린다.
+
+### 9.2 PR #105 배포 검증과 fetch 캐시 설명의 정정 (2026-10-01)
+
+머지 커밋은 `a1eedad6` 이다. 배포 `dpl_6aj5rG7UVBXNCbeHWr8CXbSnr6QT` 는 00:09 KST 에 READY 가 됐다. 롤백 대상은 직전 배포 `dpl_A14uJSP9QmzEjN8xLQCamQuKR1pr`(`c099c95e`)다.
+
+| 항목 | 결과 |
+|---|---|
+| 빌드 | 통과. postbuild 가 `[rendering-modes] 통과: 프리렌더 39개 경로와 온디맨드 10개 경로가 선언과 일치한다.` 를 출력했다 |
+| 빌드의 Supabase 조회 | 빌드 머신이 `version`·`reward`·`faq_categories`·`faqs`·`notices` 를 한 번씩 보냈고 전부 200 이다(Supabase edge 로그). 리워드 목록은 응답 하나를 세 언어 페이지가 나눠 썼다. `c099c95e` 빌드는 206 세 건, 실패한 `b3d9d8ee` 빌드는 206 네 건이었다 |
+| prebuild | `[build-fetch-cache] 비울 fetch 캐시가 없다.` 복원된 빌드 캐시에 `.next/cache/fetch-cache` 가 없다 |
+| 머지 전후 비교 | §9 의 점검(ISR HIT, 동적 MISS, 온디맨드 상세, `<html lang>`, 리다이렉트, sitemap 수)을 머지 직전과 배포 뒤에 돌렸다. 차이는 `/ko/rewards`·`/ko/notice` 가 STALE 에서 HIT 로 바뀐 것뿐이다(새 프리렌더) |
+| 런타임 | 배포 후 30분 동안 5xx 0건. error·warn 로그는 기존 원인뿐이다(sitemap 핸들러, 미지원 언어 세그먼트 `/download/vote`) |
+| Sentry | Production 에서 생긴 신규 이슈 0건 |
+
+**fetch 캐시 설명의 정정.** 이 문서의 초판(§4.6, §9.1)과 PR #105 의 설명은 "Vercel 이 `.next/cache` 와 함께 fetch 캐시를 복원해, 새 배포의 faq·notice·download 가 예전 빌드의 데이터로 프리렌더된다"고 했다. 복원을 원인으로 든 이 설명은 틀렸다. 옛 데이터로 프리렌더되는 일이 있는지는 확정하지 못했다(아래 "설명하지 못한 것").
+
+- 위 빌드 로그대로 Vercel 의 빌드 캐시에는 `.next/cache/fetch-cache` 가 없다.
+- Next 15.5.26 은 `NOW_BUILDER` 가 설정된 빌드(Vercel)에서 프리렌더 워커의 캐시를 `flushToDisk: !hasNextSupport` 로 만든다(`next/dist/export/worker.js`). 이때 기본 핸들러는 조회 결과를 디스크에 쓰지도 읽지도 않는다(`next/dist/server/lib/incremental-cache/file-system-cache.js`). 캐시는 워커 프로세스의 메모리에 남는다. Next 는 전역 `FetchCache` 핸들러(`Symbol.for('@next/cache-handlers')`)가 있으면 기본 핸들러 대신 그것을 쓰는데(`incremental-cache/index.js`), Vercel 빌드에 그런 핸들러가 들어오는지는 확인하지 못했다.
+- 로컬에서 `NOW_BUILDER=1 next build` 를 두 번 돌리면 두 번 모두 디렉터리가 생기지 않고 두 번 모두 Supabase 를 조회한다(빌드당 6건. `version` 이 2건인 것은 다운로드 페이지 12개가 두 워커에 걸쳤기 때문으로 보인다).
+
+틀린 판단은 `NOW_BUILDER` 없는 로컬 빌드의 동작(두 번째 빌드의 조회 0건)을 Vercel 에 그대로 적용한 데서 나왔다. `prebuild` 는 Vercel 에서 아무 일도 하지 않는다. 로컬 빌드를 위해 남긴다. 지우지 않으면 두 번째 로컬 빌드가 조회 없이 끝나 조회 경로의 문제를 빌드로 확인할 수 없다.
+
+**설명하지 못한 것.** 실패한 `b3d9d8ee` 빌드의 머신은 Supabase 에 리워드 목록 요청 넷만 보냈다. faq·notice·version 요청이 없었고, `/en/rewards` 는 오류가 없었다(오류는 `/ko/rewards`·`/my/rewards` 뿐이다. 요청 넷이 어느 페이지의 것인지는 로그로 가를 수 없다). `c099c95e` 빌드에서도 `faq_categories` 요청이 로그에 없다(같은 페이지의 `faqs` 요청은 있다).
+
+- **후보 1: 그 페이지들이 렌더되기 전에 빌드가 끝났다.** 워커 하나는 맡은 페이지를 8개씩 묶어 차례로 처리한다. 멈춘 리워드 페이지 뒤의 페이지는 재시도가 끝나기를 기다리고, `/my/rewards` 가 세 번 실패하자 빌드가 바로 종료돼(`prerenderEarlyExit` 기본값) 렌더되지 않았다. 페이지가 놓이는 워커와 순서는 빌드마다 달라진다. 같은 코드를 워커 3개로 두 번 빌드하니 리워드·FAQ·공지·다운로드의 배치가 서로 달랐다(Vercel 빌드의 워커 수는 확인하지 못했다. 4코어 표시대로라면 3개다). 다만 실패한 빌드는 13:01:05 에 108개 중 81개를 끝낸 상태였다. 이 설명이 맞으려면 조회가 필요한 페이지 18개가 전부 한 워커에서 리워드 묶음 바로 뒤에 놓여 있었어야 한다. 이 설명은 실패한 빌드에만 해당한다. `c099c95e` 는 성공한 빌드라 FAQ 페이지가 모두 렌더됐으므로 `faq_categories` 누락을 설명하지 못한다.
+- **후보 2: 빌드 사이에 유지되는 조회 캐시가 있다.** Next 는 전역 `FetchCache` 핸들러가 있으면 그것을 쓴다. Vercel 문서는 Runtime Cache 를 "build execution" 에서도 쓴다고 하고, Data Cache 는 배포 사이에 유지되지만 빌드 시점에는 갱신되지 않는다고 설명한다. 다만 `c099c95e` 이전의 코드는 `faq_categories` 를 쿠키 클라이언트로 조회했고 페이지가 동적이어서, 그 항목이 어디서 생겼는지 설명되지 않는다.
+- **후보 3: 로그에서 빠졌다.** IP 조건 없이 다시 조회해도 그 시각에 해당 요청이 없고, 24시간 동안 `faqs` 와 `faq_categories` 요청 수는 이 한 건을 빼고 짝이 맞는다. 유실 가능성을 반증하지는 못한다.
+
+새 배포가 옛 데이터로 프리렌더됐을 가능성을 배제하지 못했다. 1시간 안에 Production 배포가 두 번 있으면 두 번째 빌드가 `version` 을 다시 조회하는지로 가를 수 있다(다운로드 페이지의 `revalidate` 가 3600초다).
+
+**Sentry 잡음.** 2026-09-30 의 로컬 장애 주입 실험(`next start` 와 지연·차단 프록시)이 운영 Sentry 에 이슈 7개(PICNIC-WEB-76~7C, 이벤트 55건)를 만들었다. 로컬 실행도 `.env.local` 의 DSN 으로 `environment: production` 이벤트를 보내기 때문이다. 전부 `os.name: macOS` 이고 Production 이벤트는 없다. 2026-10-01 에 사유를 적고 resolved 처리했다. §9 표의 "신규 이슈 0건"은 Production 이벤트 기준이다.
