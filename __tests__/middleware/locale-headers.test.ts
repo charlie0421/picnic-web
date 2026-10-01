@@ -40,8 +40,9 @@ const forwardedRequestHeaders = (res: Response): Map<string, string> => {
 };
 
 /**
- * 레이아웃은 `x-locale` 로 `<html lang>` 을, `x-pathname`/`x-url` 로 VoteLite·광고 분기를 정한다.
- * 이 헤더들은 middleware 만 만들 수 있어야 한다 — 클라이언트가 보낸 값은 신뢰하지 않는다.
+ * `x-locale`·`x-pathname`·`x-url` 은 예전 레이아웃이 읽던 경로 기반 요청 헤더다. 지금은 읽는 곳이 없고
+ * middleware 도 만들지 않는다(서버 컴포넌트가 읽으면 그 페이지가 동적 렌더링이 되어 ISR 이 깨진다).
+ * 클라이언트가 보낸 값이 서버 코드에 닿지 않도록 인바운드 값은 계속 지운다.
  */
 describe('middleware — 로케일 요청 헤더', () => {
   beforeEach(() => {
@@ -55,17 +56,15 @@ describe('middleware — 로케일 요청 헤더', () => {
     vi.unstubAllEnvs();
   });
 
-  it.each([
-    ['/en/vote', 'en'],
-    ['/ja/vote', 'ja'],
-    ['/ko/vote/295', 'ko'],
-    ['/zh-tw/vote/295', 'zh-tw'],
-    ['/zh-cn', 'zh-cn'],
-    ['/my/mypage', 'my'],
-  ])('%s → x-locale=%s 를 주입한다', async (path, locale) => {
-    const res = await middleware(request(path));
-    expect(forwardedRequestHeaders(res).get('x-locale')).toBe(locale);
-  });
+  it.each(['/en/vote', '/ja/vote', '/ko/vote/295', '/zh-tw/vote/295', '/zh-cn', '/my/mypage'])(
+    '%s → x-locale 을 만들지 않는다',
+    async (path) => {
+      const forwarded = forwardedRequestHeaders(await middleware(request(path)));
+      expect(forwarded.has('x-locale')).toBe(false);
+      // 전달 목록이 실제로 적용되고 있다(목록이 비면 인바운드 헤더가 그대로 통과한다)
+      expect(forwarded.get('user-agent')).toBe(BROWSER_UA);
+    },
+  );
 
   it('잘못된 percent-encoding 세그먼트는 x-locale 없이 통과한다', async () => {
     const res = await middleware(request('/%E0%A4%A/vote', { 'x-locale': 'ja' }));
@@ -73,9 +72,10 @@ describe('middleware — 로케일 요청 헤더', () => {
     expect(forwardedRequestHeaders(res).has('x-locale')).toBe(false);
   });
 
-  it('클라이언트가 보낸 x-locale 은 경로 값으로 덮어쓴다', async () => {
-    const res = await middleware(request('/ja/vote', { 'x-locale': 'ko' }));
-    expect(forwardedRequestHeaders(res).get('x-locale')).toBe('ja');
+  it('클라이언트가 보낸 x-locale 은 전달하지 않는다', async () => {
+    const forwarded = forwardedRequestHeaders(await middleware(request('/ja/vote', { 'x-locale': 'ko' })));
+    expect(forwarded.has('x-locale')).toBe(false);
+    expect(forwarded.get('user-agent')).toBe(BROWSER_UA);
   });
 
   it('로케일이 없는 경로는 선호 언어 주소로 307 한다 (인바운드 x-locale 은 쓰지 않는다)', async () => {
@@ -146,7 +146,7 @@ describe('middleware — 기존 동작 불변', () => {
       request('/ko/vote/295', { 'user-agent': 'facebookexternalhit/1.1 (FBAN)' }),
     );
     expect(res.headers.get('location')).toBeNull();
-    expect(forwardedRequestHeaders(res).get('x-locale')).toBe('ko');
+    expect(forwardedRequestHeaders(res).get('user-agent')).toBe('facebookexternalhit/1.1 (FBAN)');
   });
 
   describe('확장자가 붙은 HTML 경로 (페이지로 라우팅됨)', () => {
@@ -177,14 +177,15 @@ describe('middleware — 기존 동작 불변', () => {
       expect(res.headers.get('location')).toBeNull();
     });
 
-    it('인바운드 라우팅 헤더를 지우고 x-locale 을 주입한다', async () => {
+    it('인바운드 라우팅 헤더를 지운다', async () => {
       vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
       const res = await middleware(
         request('/ko/vote/295.json', { 'x-pathname': '/ko/vote/295', 'x-locale': 'ja' }),
       );
       const forwarded = forwardedRequestHeaders(res);
-      expect(forwarded.get('x-locale')).toBe('ko');
+      expect(forwarded.has('x-locale')).toBe(false);
       expect(forwarded.has('x-pathname')).toBe(false);
+      expect(forwarded.get('user-agent')).toBe(BROWSER_UA);
     });
   });
 
@@ -194,12 +195,13 @@ describe('middleware — 기존 동작 불변', () => {
       vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon-key');
     });
 
-    it('비로그인 요청도 x-locale 을 주입한다', async () => {
+    it('비로그인 요청도 인바운드 라우팅 헤더를 지운다', async () => {
       getClaimsMock.mockResolvedValue({ data: null, error: null });
-      const res = await middleware(request('/en/vote', { 'x-pathname': '/ko/vote' }));
+      const res = await middleware(request('/en/vote', { 'x-pathname': '/ko/vote', 'x-locale': 'ko' }));
       const forwarded = forwardedRequestHeaders(res);
-      expect(forwarded.get('x-locale')).toBe('en');
+      expect(forwarded.has('x-locale')).toBe(false);
       expect(forwarded.has('x-pathname')).toBe(false);
+      expect(forwarded.get('user-agent')).toBe(BROWSER_UA);
     });
 
     /**
@@ -221,7 +223,7 @@ describe('middleware — 기존 동작 불변', () => {
       expect(getUserMock).not.toHaveBeenCalled();
       expect(maybeSingleMock).toHaveBeenCalledTimes(1);
       expect(res.headers.get('location')).toBeNull();
-      expect(forwardedRequestHeaders(res).get('x-locale')).toBe('ja');
+      expect(forwardedRequestHeaders(res).has('x-locale')).toBe(false);
     });
 
     it('탈퇴 계정은 해당 언어 로그인 페이지로 redirect 한다', async () => {
@@ -252,7 +254,7 @@ describe('middleware — 기존 동작 불변', () => {
       getClaimsMock.mockRejectedValue(new Error('jwks unavailable'));
       const res = await middleware(request('/ko/vote'));
       expect(res.headers.get('location')).toBeNull();
-      expect(forwardedRequestHeaders(res).get('x-locale')).toBe('ko');
+      expect(forwardedRequestHeaders(res).has('x-locale')).toBe(false);
     });
   });
 });
