@@ -3,6 +3,8 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from '@sentry/nextjs';
+import { withoutConsole } from './lib/sentry/collection';
+import { scrubEvent, scrubSpan } from './lib/sentry/scrub';
 
 const SENTRY_DSN = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
 
@@ -20,10 +22,9 @@ if (SENTRY_DSN) {
 
       // Edge 에서는 트레이싱 옵션을 설정하지 않아 오류 이벤트만 수집한다.
 
-      // Minimal integrations for edge runtime
-      integrations: [
-        // Only essential integrations for edge runtime
-      ],
+      // 기본 integration 에서 Console 만 뺀다. edge 의 기본 목록에는 RequestData 가 없다
+      // (sendDefaultPii 를 켜지 않는 한). __tests__/lib/sentry/collection.test.ts 가 고정한다.
+      integrations: (defaults) => withoutConsole(defaults),
 
       // Edge runtime specific options
       beforeSend(event) {
@@ -38,8 +39,14 @@ if (SENTRY_DSN) {
           }
         }
 
-        return event;
+        // URL 쿼리와 토큰 모양 값을 지운다(lib/sentry/scrub.ts). 서버와 같은 함수다.
+        return scrubEvent(event);
       },
+
+      // 트레이싱을 켜지 않으므로 평소에는 불리지 않는다. SDK 가 SENTRY_TRACES_SAMPLE_RATE 를 스스로 읽어
+      // 표본이 켜지는 경우(envelope 테스트)에 대비한다.
+      beforeSendTransaction: scrubEvent,
+      beforeSendSpan: scrubSpan,
 
       // Release information
       release: process.env.SENTRY_RELEASE,
