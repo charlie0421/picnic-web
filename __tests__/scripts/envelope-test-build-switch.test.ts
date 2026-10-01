@@ -31,11 +31,9 @@ describe('envelope 테스트 전용 빌드 스위치', () => {
     expect(nextConfigOverrides({ ENVELOPE_TEST: value })).toEqual({});
   });
 
-  it('ENVELOPE_TEST=1 이면 테스트용 확장자와 별도 산출물 디렉터리를 쓴다', () => {
-    expect(nextConfigOverrides({ ENVELOPE_TEST: '1' })).toEqual({
-      pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'envtest.ts'],
-      distDir: '.next-envtest',
-    });
+  it('ENVELOPE_TEST=1 이면 산출물을 별도 디렉터리에 둔다', () => {
+    // pageExtensions 는 건드리지 않는다. 확장자가 두 겹인 edge 라우트는 Next 가 빌드하지 못한다.
+    expect(nextConfigOverrides({ ENVELOPE_TEST: '1' })).toEqual({ distDir: '.next-envtest' });
   });
 
   it('Vercel 빌드에서 ENVELOPE_TEST=1 이면 빌드를 실패시킨다', () => {
@@ -51,7 +49,7 @@ describe('envelope 테스트 전용 빌드 스위치', () => {
 
     vi.stubEnv('ENVELOPE_TEST', '1');
     const testBuild = loadNextConfig();
-    expect(testBuild.pageExtensions).toEqual(['tsx', 'ts', 'jsx', 'js', 'envtest.ts']);
+    expect(testBuild.pageExtensions).toBeUndefined();
     expect(testBuild.distDir).toBe('.next-envtest');
   });
 });

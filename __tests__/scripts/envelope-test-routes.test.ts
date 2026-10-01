@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const root = process.cwd();
-const routesDir = path.join(root, 'app/api/envelope-test');
+const sourceDir = path.join(root, 'scripts/envelope-test/routes');
+const targetDir = path.join(root, 'app/api/envelope-test');
 
 const walk = (dir: string): string[] =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -15,17 +16,29 @@ const walk = (dir: string): string[] =>
 
 describe('envelope 테스트용 라우트', () => {
   // readdir 의 순서는 파일시스템마다 다르다(CI 의 ext4 는 정렬해 주지 않는다).
-  const files = walk(routesDir).sort();
-  const routeFiles = files.filter((file) => path.basename(file).startsWith('route.'));
+  const files = walk(sourceDir).sort();
+  const routeFiles = files.filter((file) => path.basename(file) === 'route.ts');
 
-  it('보통 빌드가 라우트로 읽는 이름의 파일이 없다', () => {
-    // 보통 빌드의 pageExtensions 는 tsx·ts·jsx·js 다. route.envtest.ts 만 있어야 한다.
+  it('원본은 라우트가 아닌 자리에 있고, 저장소의 app/ 에는 테스트용 라우트가 없다', () => {
     expect(routeFiles).toEqual([
-      'app/api/envelope-test/edge-throw/route.envtest.ts',
-      'app/api/envelope-test/handled/route.envtest.ts',
-      'app/api/envelope-test/throw/route.envtest.ts',
+      'scripts/envelope-test/routes/edge-throw/route.ts',
+      'scripts/envelope-test/routes/handled/route.ts',
+      'scripts/envelope-test/routes/throw/route.ts',
     ]);
-    expect(files.filter((file) => /(^|\/)(page|layout|route)\.(tsx|ts|jsx|js)$/.test(file))).toEqual([]);
+    // 실행기가 테스트 빌드 동안만 복사해 둔다. 여기에 남아 있으면 보통 빌드에 들어간다.
+    expect(fs.existsSync(targetDir), 'app/api/envelope-test 가 남아 있다. 지운다').toBe(false);
+  });
+
+  it('실행기가 원본을 복사하고, 빌드가 끝나면 지운다', () => {
+    const { TEST_ROUTE_SOURCE, TEST_ROUTE_TARGET } = require(path.join(root, 'scripts/envelope-test/build-switch.js')) as {
+      TEST_ROUTE_SOURCE: string;
+      TEST_ROUTE_TARGET: string;
+    };
+    expect(path.join(root, TEST_ROUTE_SOURCE)).toBe(sourceDir);
+    expect(path.join(root, TEST_ROUTE_TARGET)).toBe(targetDir);
+
+    const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
+    expect(runner).toMatch(/installTestRoutes\(\);\s+routesInstalled = true;\s+try \{\s+await build\(\);\s+\} finally \{\s+removeTestRoutes\(\);/);
   });
 
   it('모든 라우트가 ENVELOPE_TEST 를 런타임에서도 확인한다', () => {
@@ -33,7 +46,7 @@ describe('envelope 테스트용 라우트', () => {
       const source = fs.readFileSync(path.join(root, file), 'utf8');
       expect(source, file).toContain('envelopeTestDisabled()');
     }
-    const helper = fs.readFileSync(path.join(routesDir, '_lib/envtest.ts'), 'utf8');
+    const helper = fs.readFileSync(path.join(sourceDir, '_lib/envtest.ts'), 'utf8');
     expect(helper).toContain("process.env.ENVELOPE_TEST === '1'");
   });
 

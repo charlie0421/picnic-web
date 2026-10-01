@@ -256,6 +256,7 @@ describe('postbuild 연결', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
     };
-    expect(pkg.scripts.postbuild).toBe('node scripts/verify-rendering-modes.js && next-sitemap');
+    // 그 뒤에 테스트용 라우트 검사가 돈다(__tests__/scripts/envelope-test-build-switch.test.ts).
+    expect(pkg.scripts.postbuild).toMatch(/^node scripts\/verify-rendering-modes\.js && .*next-sitemap$/);
   });
 });

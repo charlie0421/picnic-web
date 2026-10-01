@@ -28,7 +28,7 @@ const sentryPluginEnabled = sentryBuild.enabled;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // envelope 테스트 전용 빌드(ENVELOPE_TEST=1)에서만 테스트용 라우트의 확장자와 별도 산출물 디렉터리를 쓴다.
+  // envelope 테스트 전용 빌드(ENVELOPE_TEST=1)에서만 산출물을 별도 디렉터리(.next-envtest)에 둔다.
   // 보통 빌드에서는 빈 객체다. Vercel 빌드에서 켜면 throw 한다.
   ...nextConfigOverrides(process.env),
 

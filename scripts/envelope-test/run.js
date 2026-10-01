@@ -20,12 +20,14 @@ const http = require('http');
 const path = require('path');
 const zlib = require('zlib');
 const { parseEnvelope, evaluate, countsSatisfied } = require('./analyze');
-const { TEST_DIST_DIR } = require('./build-switch');
+const { TEST_DIST_DIR, TEST_ROUTE_SOURCE, TEST_ROUTE_TARGET } = require('./build-switch');
 const { CANARIES, EXPECTED, UNHANDLED_LINE_MARKER, buildRequests } = require('./scenario');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const OUT_DIR = path.join(ROOT, TEST_DIST_DIR, 'envelope-test');
 const NEXT_BIN = path.join(ROOT, 'node_modules', '.bin', 'next');
+const ROUTE_SOURCE = path.join(ROOT, TEST_ROUTE_SOURCE);
+const ROUTE_TARGET = path.join(ROOT, TEST_ROUTE_TARGET);
 // distDir 이 다르면 Next 가 빌드 중에 이 두 파일을 고친다. 빌드가 끝나면 되돌린다.
 const FILES_NEXT_REWRITES = ['next-env.d.ts', 'tsconfig.json'];
 
@@ -90,6 +92,18 @@ function restoreFiles(snapshot) {
   }
 }
 
+/** 테스트용 라우트를 app/ 에 복사한다. 빌드가 끝나면 지운다 — 저장소의 app/ 에는 없어야 한다. */
+function installTestRoutes() {
+  if (fs.existsSync(ROUTE_TARGET)) {
+    throw new Error(`${TEST_ROUTE_TARGET} 가 이미 있다. 이전 실행이 남긴 것이면 지우고 다시 실행한다.`);
+  }
+  fs.cpSync(ROUTE_SOURCE, ROUTE_TARGET, { recursive: true });
+}
+
+function removeTestRoutes() {
+  fs.rmSync(ROUTE_TARGET, { recursive: true, force: true });
+}
+
 function build() {
   return new Promise((resolve, reject) => {
     const child = spawn(NEXT_BIN, ['build'], {
@@ -127,12 +141,31 @@ async function main() {
   const sink = createSink(envelopes);
   const upstream = createUpstream();
   let next;
+  let routesInstalled = false;
+
+  const cleanup = () => {
+    if (next && next.exitCode === null) next.kill('SIGTERM');
+    if (routesInstalled) removeTestRoutes();
+    routesInstalled = false;
+    restoreFiles(snapshot);
+  };
+  // Ctrl+C 로 끊어도 복사한 라우트와 Next 가 고친 파일이 남지 않게 한다.
+  for (const signal of ['SIGINT', 'SIGTERM']) {
+    process.once(signal, () => {
+      cleanup();
+      process.exit(130);
+    });
+  }
 
   try {
     if (!skipBuild) {
+      installTestRoutes();
+      routesInstalled = true;
       try {
         await build();
       } finally {
+        removeTestRoutes();
+        routesInstalled = false;
         restoreFiles(snapshot);
       }
     }
@@ -211,10 +244,9 @@ async function main() {
     console.log('\n[envelope] 통과: 건수가 맞고 canary 가 허용된 곳에만 있다.');
     return 0;
   } finally {
-    if (next && next.exitCode === null) next.kill('SIGTERM');
+    cleanup();
     sink.close();
     upstream.close();
-    restoreFiles(snapshot);
   }
 }
 
