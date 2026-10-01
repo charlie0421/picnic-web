@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>picnic-web 핸드오프 — 2026-10-02</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #5c6370; --line: #e3e6eb; --bg: #ffffff;
+    --code-bg: #f6f8fa; --accent: #6b46e5; --warn-bg: #fff8e6; --warn-line: #e6b800;
+    --bad-bg: #fdf0f0; --bad-line: #d64545; --good-bg: #f0f8f2; --good-line: #3a9a5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 24px 96px; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+      "Noto Sans KR", Segoe UI, sans-serif;
+    line-height: 1.75; font-size: 16px;
+  }
+  main { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 30px; line-height: 1.3; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 22px; margin: 56px 0 16px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--line); letter-spacing: -0.01em;
+  }
+  h3 { font-size: 17px; margin: 32px 0 10px; }
+  p, li { color: var(--ink); }
+  .sub { color: var(--muted); margin: 0 0 32px; font-size: 15px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    border: 1px solid var(--line); white-space: nowrap;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; white-space: pre; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14.5px; }
+  th, td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td code { white-space: normal; }
+  .box { border-radius: 8px; padding: 14px 18px; margin: 18px 0; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--warn-line); }
+  .bad  { background: var(--bad-bg);  border-left: 4px solid var(--bad-line); }
+  .good { background: var(--good-bg); border-left: 4px solid var(--good-line); }
+  .box p:first-child { margin-top: 0; }
+  .box p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .nowrap { white-space: nowrap; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
+  .footnote { color: var(--muted); font-size: 14px; }
+  nav.toc { font-size: 14.5px; color: var(--muted); margin: 0 0 8px; }
+  nav.toc a { color: var(--accent); text-decoration: none; margin-right: 10px; white-space: nowrap; }
+</style></head>
+<body>
+<main>
+
+<h1>picnic-web 핸드오프</h1>
+<p class="sub">2026-10-02 · 코드 기준 <code>main</code> = <code>2c30cff9</code> · 열린 PR 없음 · 열린 이슈 5건(변동 없음)</p>
+
+<div class="box good">
+<p><strong>한 줄 요약.</strong> 2026-09-26 에 웹 전체를 감사했고(구조·성능·디자인·테스트/보안, 통합 이슈 52건), 그 계획에 따라 <strong>PR 27개를 만들어 전부 머지하고 Production 에 배포했다</strong>(#80~#98, #103~#110). 배포 뒤 확인은 비로그인 상태로만 했다(§9). 보안 패치, 요청 경계 강화, 투표 폴링 비용 절감, 로케일·SEO 교정, 번들 경량화, Provider 단일화, middleware 의 로컬 JWT 검증, 공개 페이지 ISR 전환, 빌드 안정화, 언어 접두어 라우팅, 언어 쿠키 버그 수정이 들어갔다. 같은 기간 다른 세션이 Sentry 토큰 교체와 릴리스 정리(#99~#102)를 했다.</p>
+</div>
+
+<div class="box bad">
+<p><strong>가장 중요한 것 하나.</strong> <strong>결제 코드는 한 줄도 고치지 않았다.</strong> 감사가 찾은 결함 6건(PortOne 4, PayPal 2)은 <code>it.fails</code> 테스트로 표시만 되어 있다. 2026-10-02 에 확인한 바로는 웹 결제가 실결제로 열려 있지 않다. PayPal 은 Production 에 환경변수가 하나도 없고, PortOne 은 테스트 모드로 빌드돼 있다. 그래서 이 결함들은 지금의 사고가 아니라 <strong>결제를 열기 전에 반드시 고쳐야 하는 차단 항목</strong>이다. 환경변수만 넣어 결제를 열면 사고가 난다. 자세한 것은 <a href="#payment">§6</a>.</p>
+</div>
+
+<div class="box warn">
+<p><strong>시한이 있는 일 하나.</strong> 언어 접두어 라우팅(#107)의 24시간 뒤 지표를 <strong>2026-10-02 23:30 KST 무렵</strong>에 재야 한다. Vercel 런타임 로그 보존이 약 하루라 늦으면 잴 수 없다. 방법은 <a href="#pending">§9</a>.</p>
+</div>
+
+<nav class="toc">
+<a href="#state">1 지금 상태</a><a href="#done">2 한 일</a><a href="#behavior">3 지금의 동작</a><a href="#mistakes">4 틀렸던 것</a><a href="#rules">5 지켜야 할 것</a><a href="#payment">6 결제</a><a href="#next">7 다음 작업</a><a href="#decisions">8 결정 대기</a><a href="#pending">9 미확인</a><a href="#rollback">10 롤백</a><a href="#issues">11 열린 이슈</a><a href="#traps">12 함정</a><a href="#commands">13 검증 커맨드</a><a href="#map">14 문서 지도</a>
+</nav>
+
+<h2 id="state">1. 지금 상태</h2>
+
+<table>
+  <tr><th>항목</th><th>값</th></tr>
+  <tr><td><code>main</code></td><td><code>2c30cff9</code>(#110, 문서). 동작이 마지막으로 바뀐 커밋은 <code>b0ed5e31</code>(#109). 이 문서를 추가하는 커밋이 그 위에 올라간다</td></tr>
+  <tr><td>Production</td><td><code>www.picnic.fan</code> 이 <code>2c30cff9</code> 배포를 서빙한다. 배포는 2026-10-01 15:14 UTC 에 끝났다</td></tr>
+  <tr><td>열린 PR / 이슈</td><td>0건 / 5건(#73~#77, 지난 핸드오프와 같다)</td></tr>
+  <tr><td>로컬 검증</td><td><code>2c30cff9</code> 를 깨끗하게 설치해(Next 15.5.26) 2026-10-02 에 한 번 돌린 결과: 타입 오류 0, lint 경고 0, 테스트 189개 파일에서 2,966건 통과 · 6건 expected fail · 1건 skipped. expected fail 은 결제 결함 표식(§6)이고, skipped 는 빌드 결과(<code>.next</code>)가 있을 때만 도는 렌더링 모드 대조 테스트다. 이어받으면 §13 의 명령으로 직접 다시 확인한다</td></tr>
+  <tr><td>CI</td><td><strong>없다.</strong> <code>.github/workflows</code> 가 없다. 검증은 로컬 명령과 머지 뒤 Production 확인이 전부다</td></tr>
+  <tr><td>Preview 배포</td><td><strong>없다.</strong> <code>vercel.json</code> 이 <code>main</code> 만 배포한다. <strong>머지가 곧 Production 배포</strong>다</td></tr>
+  <tr><td>워크트리</td><td>남기지 않는다. <code>git worktree list</code> 에 메인 폴더 하나만 보여야 한다. 이 문서를 올리는 데 쓴 <code>picnic-web-handoff-1002</code> 는 머지 뒤에 지운다</td></tr>
+  <tr><td>원격 브랜치</td><td><code>main</code> 외에 <code>fix/sentry-third-party-filter</code> 하나. #78 을 squash 머지하고 남은 브랜치이며 다른 세션 것이라 그대로 뒀다</td></tr>
+  <tr><td>메인 폴더 주의</td><td><code>node_modules</code> 가 오래됐다(Next 15.5.23, lockfile 은 15.5.26). 여기서 검증 명령을 돌리려면 먼저 <code>npm ci</code>. 추적되지 않는 <code>.playwright-mcp/</code> 는 브라우저 자동화 로그라 커밋하지 않는다</td></tr>
+</table>
+
+<h2 id="done">2. 이번에 한 일</h2>
+
+<p>감사 계획은 일을 두 묶음으로 나눴다. <strong>Wave A</strong> 는 로컬에서 검증할 수 있고 결제·DB 를 건드리지 않는 것, <strong>Wave B</strong> 는 사용자 결정이나 큰 리팩터가 필요한 것이다. 통합 이슈 번호(U-01~U-52)와 묶음 이름(B-P1, B-R3 등)은 <code>docs/audit-2026-09-26/plan.md</code> 의 표기다.</p>
+
+<h3>감사와 Wave A (2026-09-26)</h3>
+<table>
+  <tr><th>PR</th><th>무엇이 달라졌나</th><th>알아둘 것</th></tr>
+  <tr><td class="nowrap">#80</td><td>Next 15.5.26·sharp 0.35.4 보안 패치(critical AVIF RCE 해소), 쓰지 않는 <code>jsonwebtoken</code> 제거</td><td>빌드 타임 postcss high 1건은 Next 16 에서야 풀린다</td></tr>
+  <tr><td class="nowrap">#81</td><td>이미지 프록시(<code>/api/proxy-image</code>)를 허용 호스트·https·raster 이미지·10MiB 로 제한. QNA 메시지 API 는 본문 파싱 전에 인증하고 첨부 한도를 적용. OAuth 콜백의 리다이렉트 기준 주소를 <code>NEXT_PUBLIC_SITE_URL</code> 로 고정</td><td>Vercel 함수의 본문 한도가 4.5MB 라 QNA 한도(개별 10MB, 합계 25MB)는 운영에서 사실상 닿지 않는다</td></tr>
+  <tr><td class="nowrap">#82</td><td>11개 언어 페이지의 <code>&lt;html lang&gt;</code> 이 <code>ko</code> 로 고정되던 문제 수정, canonical·hreflang 12개 언어, 투표 상세 메타데이터, middleware 가 정적 자산을 건너뜀</td><td></td></tr>
+  <tr><td class="nowrap">#83</td><td>Sentry Replay 지연 로드, 커스텀 splitChunks 제거(공유 First Load JS 227kB → 190kB), <code>/</code> 와 <code>/{언어}</code> 진입을 설정 리다이렉트로</td><td>이때 edge 런타임의 Sentry 가 처음 켜졌다</td></tr>
+  <tr><td class="nowrap">#84</td><td>투표 상세 폴링을 1초에서 5초로, 탭이 숨겨지거나 투표가 마감되면 정지. 투표·팝업·배너 API 에 캐시 헤더, 미공개 투표는 비관리자에게 404</td><td>내 투표가 화면에 반영되기까지 최대 약 12초 걸릴 수 있다</td></tr>
+  <tr><td class="nowrap">#85</td><td>감사 보고서 4종과 실행 계획(<code>docs/audit-2026-09-26/</code>)</td><td>문서만</td></tr>
+</table>
+
+<h3>Wave B (2026-09-27 ~ 09-30)</h3>
+<table>
+  <tr><th>PR</th><th>무엇이 달라졌나</th><th>알아둘 것</th></tr>
+  <tr><td class="nowrap">#86</td><td><code>/api/vote/results</code> 가 미공개 투표 결과를 내주던 문제 수정, QNA 새 문의에도 첨부 정책 적용(<code>lib/qna/attachment-policy.ts</code>), 팝업 로더 방어</td><td></td></tr>
+  <tr><td class="nowrap">#87</td><td>dev·build·start 때마다 원격 스키마로 타입 파일을 덮어쓰던 것을 없애고 <code>npm run schema:types:sync</code> 명령으로 분리</td><td>스키마 소유는 picnic-supabase</td></tr>
+  <tr><td class="nowrap">#88</td><td>PortOne·PayPal 계약 테스트 17건과 알려진 결함 6건의 <code>it.fails</code> 표식</td><td>코드 변경 없음. §6</td></tr>
+  <tr><td class="nowrap">#89</td><td>투표 후보 카드와 투표 다이얼로그를 키보드·스크린리더로 조작할 수 있게 함</td><td></td></tr>
+  <tr><td class="nowrap">#90</td><td>사용처가 없는 UI 컴포넌트 30개 삭제(4,819줄)</td><td>QNA·<code>/media</code> 는 남겼다</td></tr>
+  <tr><td class="nowrap">#91</td><td>투표 상세의 한국어 하드코딩 제거, 브랜드 표기 통일(한국어 ‘피크닉’, 그 외 ‘Picnic’)</td><td></td></tr>
+  <tr><td class="nowrap">#92</td><td>한 번도 켜진 적 없는 VoteLite 레이아웃과 죽은 헤더 분기 제거</td><td>보이는 변화 없음</td></tr>
+  <tr><td class="nowrap">#93</td><td>LCP 이미지가 서버 HTML 에 들어가게 함</td><td>로컬 모바일 LCP 10.0s → 7.0s 는 1회 측정이다. Production 재측정은 하지 않았다</td></tr>
+  <tr><td class="nowrap">#94</td><td>Provider 7종이 두세 번 마운트되던 것을 <code>app/[lang]/ClientLayout.tsx</code> 한 곳으로</td><td></td></tr>
+  <tr><td class="nowrap">#95</td><td>middleware 가 요청마다 Auth 서버를 왕복하던 것을 로컬 JWT 검증(<code>getClaims</code>)으로 바꿈. 탈퇴 계정 차단은 유지하고 민감 API 에도 넣음(§3)</td><td><strong>고위험.</strong> 교차 리뷰 4회에서 설계가 바뀌었다(§4)</td></tr>
+  <tr><td class="nowrap">#97</td><td>openGraph 를 직접 정의하는 페이지의 <code>og:site_name</code> 을 언어별 브랜드로</td><td></td></tr>
+  <tr><td class="nowrap">#96 #98</td><td>결정과 머지 결과 기록</td><td>문서만</td></tr>
+</table>
+
+<h3>ISR 전환과 빌드 안정화 (2026-09-30 ~ 10-01)</h3>
+<table>
+  <tr><th>PR</th><th>무엇이 달라졌나</th><th>알아둘 것</th></tr>
+  <tr><td class="nowrap">#103</td><td>루트 레이아웃의 <code>headers()</code> 를 없애 리워드·FAQ·공지·다운로드 페이지가 ISR 로 CDN 캐시를 탄다. <code>[lang]</code> 밖 페이지는 <code>app/(bare)/</code> 로 옮겼다(URL 불변). 페이지별 렌더링 모드 선언과 빌드 결과 검사를 도입</td><td>교차 리뷰 4회. 설계 <code>docs/superpowers/specs/2026-09-30-root-layout-isr-design.md</code></td></tr>
+  <tr><td class="nowrap">#105</td><td>#103 뒤 Production 빌드가 리워드 조회 시간 초과로 실패하던 문제 수정(쓰지 않던 count 제거, 시간 초과 시 요청 끊기, 빌드 중 조회 예산 30초)</td><td>교차 리뷰 5회. 빌드 머신에서 Supabase 응답이 약 22초 느렸던 이유는 찾지 못했다</td></tr>
+  <tr><td class="nowrap">#104 #106</td><td>검증 기록, #105 의 원인 설명 정정(§4)</td><td>문서만. #104 의 Production 빌드가 실패한 것이 #105 의 계기였다</td></tr>
+</table>
+
+<h3>언어 접두어 라우팅과 쿠키 (2026-10-01)</h3>
+<table>
+  <tr><th>PR</th><th>무엇이 달라졌나</th><th>알아둘 것</th></tr>
+  <tr><td class="nowrap">#107</td><td>첫 세그먼트가 정규 언어가 아닌 주소(<code>/login</code>, <code>/xx/rewards</code>, <code>/wp-admin</code>)가 페이지로 렌더되고 캐시되던 문제 수정. middleware 가 307 로 정규 주소나 선호 언어 주소에 보낸다(§3)</td><td><strong>고위험.</strong> Codex 교차 리뷰 지적 없이 APPROVE. 설계 <code>docs/superpowers/specs/2026-10-01-locale-prefix-routing-design.md</code></td></tr>
+  <tr><td class="nowrap">#109</td><td>영어를 고른 사용자의 <code>locale</code> 쿠키가 방문마다 기기 언어로 덮어쓰이던 버그 수정(조건 한 줄)</td><td>이미 덮어쓰인 쿠키는 그대로다. 다시 영어를 고르면 그때부터 유지된다</td></tr>
+  <tr><td class="nowrap">#108 #110</td><td>머지와 Production 검증 기록(같은 설계서 §10, §10.1)</td><td>문서만</td></tr>
+</table>
+
+<h3>이 세션 밖에서 머지된 것 (지난 핸드오프 이후)</h3>
+<p>아래 PR 은 이 세션이 만들지 않았다. #99~#102 는 사용자가 다른 세션에서 처리했다고 알려 줬고, 이 세션은 PR 과 문서로만 확인했다.</p>
+<table>
+  <tr><th>PR</th><th>내용</th></tr>
+  <tr><td class="nowrap">#78 (09-02)</td><td>브라우저 확장·광고 스크립트가 낸 에러를 Sentry 앱 키 기반 필터로 차단. 지난 핸드오프 §8 의 1순위가 이것으로 끝났다</td></tr>
+  <tr><td class="nowrap">#79 (09-24)</td><td>투표 후보 정렬에 NULLS LAST 를 넣어 부분 인덱스를 타게 함(운영 EXPLAIN 기준 첫 페이지 조회 55ms → 3.7ms)</td></tr>
+  <tr><td class="nowrap">#99~#102 (09-30)</td><td>공개 레포에 커밋돼 있던 Sentry 토큰을 교체하고 <code>.sentryclirc</code> 추적 해제. Sentry 릴리스를 <code>picnic-web@&lt;빌드버전&gt;</code> 하나로 통일하고 소스맵 업로드는 Vercel 빌드에서만 하게 함</td></tr>
+</table>
+
+<h2 id="behavior">3. 지금의 동작 — 전제로 삼을 것</h2>
+
+<h3>요청이 처리되는 순서</h3>
+<ol>
+  <li><strong><code>vercel.json</code></strong>: <code>picnic.fan</code> 을 <code>https://www.picnic.fan</code> 으로 보낸다(이것만 영구 리다이렉트다).</li>
+  <li><strong><code>next.config.js</code> 의 <code>redirects()</code></strong>: <code>/</code> → <code>/en/vote</code>, <code>/{정규 언어}</code> → <code>/{언어}/vote</code>, 종료된 서비스 주소(goong-hap·community·pic·novel 등) → 투표·마이페이지, <code>/download.html</code>, <code>/privacy_en.html</code>·<code>/privacy_ko.html</code>. <strong>전부 307</strong>이고 middleware 보다 먼저 실행된다.</li>
+  <li><strong><code>middleware.ts</code></strong>: ① 언어 접두어 판정(아래 표) → ② 인앱 브라우저면 <code>/open-in-browser</code> 안내로 → ③ Supabase <code>getClaims</code> 로 세션 갱신·검증 → ④ 로그인 사용자의 탈퇴 여부 확인.</li>
+  <li><strong>라우트</strong>: <code>app/[lang]/…</code>(언어 페이지), <code>app/(bare)/…</code>(언어 밖: 인증 콜백·로딩, 광고 플레이어, 리다이렉트 스텁), <code>app/api/…</code>, 그리고 없는 경로를 404 로 받는 catch-all 다섯 개.</li>
+</ol>
+
+<h3>언어 접두어 판정 (<code>lib/i18n/locale-routing.ts</code> 의 <code>decideLocaleRoute</code>)</h3>
+<p>첫 세그먼트를 보고 위에서부터 처음 맞는 줄을 적용한다. 정규 언어는 12개다(<code>en ko zh-cn zh-tw ja id es bn tl th vi my</code>).</p>
+<table>
+  <tr><th>#</th><th>조건</th><th>예</th><th>결과</th></tr>
+  <tr><td>1</td><td>경로가 <code>/</code></td><td><code>/</code></td><td>통과(설정 리다이렉트가 <code>/en/vote</code> 로 보낸다)</td></tr>
+  <tr><td>2</td><td>정규 언어 + 인증 콜백 모양</td><td><code>/ko/auth/callback/google</code></td><td>307 → <code>/auth/callback/google</code></td></tr>
+  <tr><td>3</td><td>정규 언어</td><td><code>/ko/vote</code></td><td>통과</td></tr>
+  <tr><td>4</td><td>디코드할 수 없는 첫 세그먼트</td><td><code>/%E0%A4%A/vote</code></td><td>통과(Production 은 Vercel 이 먼저 400)</td></tr>
+  <tr><td>5</td><td>통과 목록</td><td><code>/api/…</code>, <code>/auth/callback</code>, <code>/auth/loading</code>, <code>/open-in-browser</code>, 정적 자산</td><td>통과</td></tr>
+  <tr><td>6</td><td>언어의 표기 변형</td><td><code>/KO/vote</code>, <code>/zh/vote</code>, <code>/en-US/faq</code></td><td>307 → <code>/ko/vote</code>, <code>/zh-cn/vote</code>, <code>/en/faq</code></td></tr>
+  <tr><td>7</td><td>그 밖의 모든 것</td><td><code>/login?error=x</code>, <code>/xx/rewards</code></td><td>307 → <code>/{선호 언어}/login?error=x</code>, <code>/en/xx/rewards</code>(그 뒤 정적 404)</td></tr>
+</table>
+<ul>
+  <li><strong>선호 언어</strong>는 같은 호스트 Referer 의 언어 → <code>locale</code> 쿠키 → <code>Accept-Language</code> → <code>en</code> 순서로 정한다. 홈 <code>/</code> 는 아직 <code>/en/vote</code> 고정이다.</li>
+  <li>middleware 의 307 응답은 <code>Cache-Control: private, no-store</code> 이고 쿠키를 쓰지 않으며 <code>getClaims</code> 를 부르지 않는다. 세션 갱신은 목적지 요청에서 일어난다.</li>
+  <li><code>locale</code> 쿠키를 쓰는 곳은 둘뿐이다: 언어 선택(<code>hooks/useLocaleRouter.ts</code> 의 <code>changeLocale</code>)과 저장값이 없는 첫 방문의 기기 언어 감지(<code>components/providers/LanguageSyncProvider.tsx</code>).</li>
+  <li>middleware 가 건너뛰는 디렉터리(<code>/api/</code>, <code>/images/</code>, <code>/locales/</code>, <code>/favicon/</code>, <code>/concert2025/image|video/</code>) 아래의 없는 경로는 catch-all route handler 가 404 텍스트를 준다. <code>/_next/…</code> 처럼 그래도 새는 주소는 <code>app/[lang]/layout.tsx</code> 의 <code>notFound()</code> 가드가 받는다.</li>
+</ul>
+
+<h3>렌더링 모드</h3>
+<table>
+  <tr><th>경로</th><th>모드</th></tr>
+  <tr><td><code>/{언어}/rewards</code></td><td>ISR 60초</td></tr>
+  <tr><td><code>/{언어}/rewards/{id}</code>, <code>/{언어}/faq</code>, <code>/{언어}/notice</code>, <code>/{언어}/notice/{id}</code></td><td>ISR 300초</td></tr>
+  <tr><td><code>/{언어}/download</code></td><td>ISR 3600초</td></tr>
+  <tr><td><code>/{언어}/concert2025</code></td><td>정적(<code>force-static</code>)</td></tr>
+  <tr><td><code>/{언어}/vote/{id}</code>, <code>/star-candy</code>, <code>/privacy</code>, <code>/terms</code>, <code>/media</code>, 두 sitemap</td><td>요청마다 렌더(<code>force-dynamic</code>)</td></tr>
+</table>
+<ul>
+  <li>정본은 <code>scripts/rendering-modes.js</code> 다. 소스 계약 테스트와 postbuild 의 빌드 결과 검사(<code>scripts/verify-rendering-modes.js</code>)가 선언과 어긋나면 <strong>빌드, 곧 배포를 실패시킨다.</strong> 마지막 로컬 빌드는 프리렌더 39개 경로, 온디맨드 10개 경로였다.</li>
+  <li>빌드는 <code>en</code>·<code>ko</code>·<code>my</code> 만 미리 만든다. 나머지 언어는 첫 요청 때 만든다.</li>
+  <li><strong>운영 영향:</strong> 리워드·FAQ·공지·앱 버전 수정이 최대 60초 / 5분 / 1시간 뒤에 보인다. 즉시 지워야 하면 Vercel 캐시 퍼지를 쓴다(§10). 온디맨드 재검증 API 는 없다.</li>
+  <li><strong>빌드가 Supabase 조회에 의존한다.</strong> 조회가 실패하면 프리렌더가 실패해 배포가 실패하고 이전 배포가 유지된다(재시도 3회, 빌드 중 조회 예산 30초).</li>
+  <li>ISR 페이지의 조회 실패는 폴백이나 404 로 바꾸지 않고 예외로 전파한다. 실패 화면이 캐시에 저장되는 것을 막기 위해서다.</li>
+</ul>
+
+<h3>인증과 탈퇴 계정</h3>
+<ul>
+  <li>middleware 는 <code>supabase.auth.getClaims()</code> 로 세션을 갱신·검증한다. ES256(JWKS) 토큰은 Auth 서버 왕복 없이 로컬에서 검증하고, 그 밖의 토큰은 SDK 가 <code>getUser()</code> 로 폴백한다. 비로그인 요청은 네트워크 호출이 없다.</li>
+  <li>로그인 사용자가 로그인 페이지가 아닌 경로를 요청하면 <code>user_profiles.deleted_at</code> 을 조회한다. 탈퇴 계정이면 로그아웃시키고 <code>/{언어}/login?error=withdrawn</code> 으로 보낸다. 조회가 실패하면 통과시킨다.</li>
+  <li>결제·스토리지·업로드·지갑·투표 제출·QNA·프로필·세션 API 는 <code>isWithdrawnUser</code>(<code>lib/supabase/server.ts</code>)로 탈퇴 계정을 따로 막는다. 이쪽은 조회 실패 시 막는 쪽(fail-closed)이다.</li>
+</ul>
+
+<h3>그 밖</h3>
+<ul>
+  <li><strong>투표 폴링:</strong> 5초 간격, 탭이 숨겨지면 정지, 마감 뒤 마지막으로 한 번 조회하고 정지. <code>/api/vote/[id]/detail</code> 의 ETag/304 계약은 그대로다.</li>
+  <li><strong>QNA 첨부:</strong> 파일 5개, 개별 10MB, 합계 25MB, 이미지와 mp4·mov.</li>
+  <li><strong>Sentry:</strong> 릴리스는 Vercel 빌드에서만 만들어진다. 다만 <strong>로컬 <code>next build</code>·<code>next start</code> 의 오류는 운영 Sentry 로 들어간다</strong>(§12).</li>
+  <li><strong>의존성:</strong> Next 15.5.26, Node 24.x(<code>.nvmrc</code> 24.18.0), npm. <code>legacy-peer-deps</code> 는 쓰지 않는다.</li>
+</ul>
+
+<h2 id="mistakes">4. 값을 치르고 배운 것 — 틀렸던 것 4건</h2>
+
+<table>
+  <tr><th>#</th><th>무슨 일이 있었나</th><th>왜 틀렸나</th><th>결과</th></tr>
+  <tr>
+    <td>1</td>
+    <td>“Sentry 토큰을 교체해야 한다”며 교체 절차를 안내했다</td>
+    <td>레포와 PR 을 보지 않고 답했다. 다른 세션이 이미 끝낸 일이었다(#99, #100)</td>
+    <td>사용자가 지적한 뒤 확인하고 철회</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>#105 에서 “Vercel 이 fetch 캐시를 복원해 옛 데이터로 프리렌더한다”고 설명했다</td>
+    <td>Production 빌드 로그에는 비울 캐시가 없었다. Vercel 빌드에서 기본 핸들러는 디스크를 쓰지 않는다. 관찰하지 않은 것을 원인으로 단정했다</td>
+    <td>#106 에서 정정. 앞선 두 빌드에서 일부 조회가 로그에 없던 이유는 <strong>아직 설명하지 못했다</strong></td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>#95 의 첫 설계는 탈퇴 계정 차단을 middleware 에서 빼고 민감 API 로만 옮겼다</td>
+    <td>방어 계층 하나를 없애는 변경이었고, 조회 실패 시 통과시키는 API 가 있었다</td>
+    <td>교차 리뷰 4회에서 뒤집혔다. middleware 차단을 유지하고 민감 API 를 fail-closed 로 보강</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>#109 의 로컬 검증을 메인 폴더 <code>node_modules</code> 를 링크해서 돌렸다</td>
+    <td>그쪽은 Next 15.5.23 이었다(lockfile 은 15.5.26). PR 본문의 “검증 통과”가 다른 버전에서 나온 값이었다</td>
+    <td>머지 뒤 깨끗한 설치로 다시 돌렸다. 결과는 같았다</td>
+  </tr>
+</table>
+
+<div class="box bad">
+<p><strong>공통 원인.</strong> 1·2번은 지난 핸드오프 §4 와 같은 실패다. <strong>확인하지 않은 것을 아는 것으로 말했다.</strong> 3번은 고위험 변경에서 내 설계가 틀릴 수 있다는 것, 4번은 검증의 지름길이 검증을 무효로 만든다는 것이다.</p>
+<p><strong>효과가 있었던 습관.</strong> ① 고위험 변경(middleware·인증)은 다른 공급자의 교차 리뷰를 통과할 때까지 머지하지 않았다. 3번은 그 리뷰가 잡았다. ② 머지 전에 Production 기준선을 찍고 배포 뒤 같은 요청으로 비교했다. ③ “남은 작업”을 답하기 전에 PR 목록과 문서를 다시 읽었다.</p>
+</div>
+
+<h2 id="rules">5. 지켜야 할 것</h2>
+
+<h3>건드리면 안 되는 것</h3>
+<p>감사 계획 <code>docs/audit-2026-09-26/plan.md</code> §6 에 23개 항목이 있다. 작업 전에 읽는다. 그 가운데 자주 걸리는 것과 이 세션에서 새로 생긴 것만 적는다.</p>
+<ul>
+  <li><strong>DB 스키마·RLS·RPC 는 picnic-supabase 레포 소유다.</strong> 이 레포에 마이그레이션을 추가하거나 <code>supabase db push</code> 를 실행하지 않는다.</li>
+  <li><strong>QNA 와 <code>/media</code> 는 삭제 대상이 아니다.</strong> 삭제 범위의 기준은 <code>next.config.js</code> 의 <code>redirects()</code> 목록이다.</li>
+  <li><strong>새 페이지를 추가하거나 렌더링 모드를 바꾸면 <code>scripts/rendering-modes.js</code> 를 같이 고친다.</strong> 안 고치면 테스트와 배포가 실패한다.</li>
+  <li><strong>서버 컴포넌트에서 <code>headers()</code>·<code>cookies()</code> 나 <code>x-locale</code> 헤더를 읽지 않는다.</strong> 읽는 순간 그 페이지가 동적 렌더링이 되어 ISR 이 깨진다. <code>&lt;html lang&gt;</code> 은 <code>[lang]</code> 파라미터로 정한다.</li>
+  <li><strong><code>public/</code> 에 파일·디렉터리를 추가하거나, <code>app/(bare)/</code> 에 페이지를 추가하거나, rewrite 를 추가하면</strong> middleware 의 <code>matcher</code> 와 <code>lib/i18n/locale-routing.ts</code> 의 통과 목록을 같이 고친다. 빠뜨리면 그 경로가 <code>/{언어}/…</code> 로 가서 404 가 된다. <code>__tests__/middleware/pass-through-sync.test.ts</code> 가 실패로 알려 준다.</li>
+  <li><strong>새 리다이렉트는 307 로 둔다.</strong> 영구 리다이렉트(308)는 브라우저에 남아 Instant Rollback 으로 되돌릴 수 없다. <code>__tests__/next-config-redirects.test.ts</code> 가 막는다.</li>
+  <li><strong>ISR 페이지의 조회 실패를 폴백으로 바꾸지 않는다.</strong> 실패 화면이 캐시된다.</li>
+  <li><strong>사이트의 referrer 정책을 <code>origin</code>·<code>no-referrer</code> 로 바꾸지 않는다.</strong> 사이트 안의 접두어 없는 이동이 보던 언어로 도착하는 것이 Referer 신호 덕분이다.</li>
+  <li><strong>결제 테스트의 <code>it.fails</code> 6개를 지우지 않는다.</strong> 결함을 고치는 PR 에서 <code>it</code> 으로 바꾼다.</li>
+  <li>plan.md §6 의 13번이 가리키는 스텁 페이지는 #103 에서 <code>app/(bare)/</code> 아래로 옮겨졌다(<code>app/page.tsx</code> 는 없다).</li>
+</ul>
+
+<h3>이 세션에서 굳어진 일하는 방식</h3>
+<ul>
+  <li>사소하지 않은 변경은 형제 워크트리에서 하고 PR 로 올려 squash 머지한다. <strong>머지는 사용자가 승인한 뒤에 한다</strong>(문서만 바꾼 기록 PR 은 조정자가 머지하고 보고했다).</li>
+  <li><strong>고위험 변경(middleware, 인증, 결제, 권한)</strong>은 구현과 다른 공급자가 교차 리뷰한다. 이 세션은 Claude 가 구현하고 Codex(gpt-6-sol, high, 읽기 전용)가 리뷰했다. 저위험 PR 은 사용자 선택으로 리뷰 없이 머지했다.</li>
+  <li>머지 전에 Production 기준선을 찍고, 배포가 끝나면 같은 요청을 다시 보내 비교한다. 결과는 문서 PR 로 설계서와 감사 계획에 기록한다.</li>
+  <li>테스트를 먼저 쓰고 실패를 본 뒤 구현한다.</li>
+</ul>
+
+<h2 id="payment">6. 결제 — 고치지 않은 결함 6건</h2>
+
+<p>#88 이 현재 동작을 테스트로 고정하고 결함을 <code>it.fails</code> 로 표시했다. 테스트 실행 결과의 “6 expected fail” 이 이것이다. 줄 번호는 <code>2c30cff9</code> 기준이다.</p>
+
+<h3>지금 Production 의 결제 상태 (2026-10-02 확인)</h3>
+<table>
+  <tr><th>확인한 것</th><th>결과</th></tr>
+  <tr><td>구매 화면 <code>/ko/star-candy</code></td><td>200. 결제 수단 선택기에 PortOne 과 PayPal 이 둘 다 들어 있다(위치로 기본값을 고른다)</td></tr>
+  <tr><td>Production 환경변수 <strong>이름</strong>(<code>vercel env ls production</code>, 값은 보지 않았다)</td><td><code>PORTONE_*</code>·<code>NEXT_PUBLIC_PORTONE_*</code> 는 6개가 있다. <strong><code>PAYPAL_*</code> 는 하나도 없다</strong>(<code>PAYPAL_ENV</code> 가 Preview 환경에만 있다)</td></tr>
+  <tr><td>Production 의 공개 스크립트</td><td>PortOne 설정은 <code>environment: "test"</code> 로 빌드돼 있다. <code>NEXT_PUBLIC_PAYPAL_CLIENT_ID</code>·<code>NEXT_PUBLIC_PAYPAL_ENV</code> 는 빌드 때 값이 없어 참조가 그대로 남아 있다</td></tr>
+</table>
+<ul>
+  <li><strong>PayPal:</strong> 서버 자격이 없으므로 주문 생성 단계에서 실패한다(코드를 읽고 내린 판단이고, 호출해 보지는 않았다). 웹 PayPal 결제는 열려 있지 않다.</li>
+  <li><strong>PortOne:</strong> 클라이언트가 테스트 모드로 빌드돼 있다. 이슈 #77 의 “아직 Production 에 적용되지 않았다”(2026-08-25)와 맞는다.</li>
+  <li>확인하지 못한 것: 환경변수의 실제 값, PortOne 콘솔의 채널 상태. 결제를 여는 일정은 사용자에게 묻는다.</li>
+  <li>다시 확인하려면: <code>vercel env ls production | grep -iE 'paypal|portone'</code> 로 이름을 보고(값은 나오지 않는다), 구매 화면이 불러오는 스크립트에서 <code>environment:"test"</code> 와 <code>env.NEXT_PUBLIC_PAYPAL_ENV</code> 문자열을 찾는다.</li>
+</ul>
+<div class="box warn">
+<p><strong>PayPal 을 열 때의 주의.</strong> 서버는 <code>PAYPAL_ENV</code> 가 <code>production</code> 이 아니면 sandbox API 를 쓰고, 캡처가 성공하면 적립 RPC 를 부른다. Production 에 sandbox 자격만 넣으면 가짜 결제로 별사탕이 적립될 수 있다. 적립 RPC 가 sandbox 결제를 걸러 내는지는 확인하지 못했다(picnic-supabase 소유).</p>
+</div>
+
+<h3>결함 6건</h3>
+
+<table>
+  <tr><th>표식</th><th>결함</th><th>코드 위치</th><th>영향</th></tr>
+  <tr>
+    <td class="nowrap">PortOne 1</td>
+    <td>서명 검증보다 먼저, 상태가 <code>READY</code> 면 200 을 돌려준다</td>
+    <td><code>app/api/payment/portone/webhook/route.ts</code> 56~64</td>
+    <td>서명 없는 요청이 200 을 받는다. 직접 적립으로 이어지지는 않는다</td>
+  </tr>
+  <tr>
+    <td class="nowrap">PortOne 2</td>
+    <td>공식 v2 형식 <code>{type, data:{paymentId}}</code> 를 읽지 못한다(top-level 필드만 읽는다)</td>
+    <td>같은 파일 57, 95~99</td>
+    <td>공식 형식의 결제 완료 웹훅으로는 적립이 일어나지 않는다</td>
+  </tr>
+  <tr>
+    <td class="nowrap">PortOne 3</td>
+    <td>지급량(<code>starCandy</code>, <code>bonusAmount</code>)을 클라이언트가 넣은 <code>customData</code> 에서 받아 상품 테이블과 대조하지 않고 적립 RPC 에 넘긴다</td>
+    <td>같은 파일 144~159, 247~260</td>
+    <td><strong>감사 등급 P0.</strong> 임의 과적립이 가능하다. 다만 1·2·4번 때문에 정상 웹훅이 지금은 통과하지 못하므로, 웹훅을 고치는 순간 열리는 구멍이다</td>
+  </tr>
+  <tr>
+    <td class="nowrap">PortOne 4</td>
+    <td>서명 검증 방식이 PortOne V2(Standard Webhooks)와 다르다. 헤더 이름, 서명 형식, 키, 서명 대상이 모두 다르다</td>
+    <td><code>app/api/payment/portone/webhook/webhook-helpers.ts</code> 57~85</td>
+    <td>정상 웹훅이 항상 401 이 된다. 카드 청구는 되고 적립은 0건이 된다. <strong>이슈 #77</strong></td>
+  </tr>
+  <tr>
+    <td class="nowrap">PayPal 1</td>
+    <td>PayPal 캡처를 먼저 호출한 뒤에야 주문 소유자를 검사한다</td>
+    <td><code>app/api/payment/paypal/capture-order/route.ts</code> 103~110(캡처), 162~169(검사)</td>
+    <td>피해자의 미캡처 주문 ID 를 아는 로그인 사용자가 그 결제를 확정시킬 수 있다. 주문 ID 를 알아낼 경로가 있는지는 확인되지 않았다</td>
+  </tr>
+  <tr>
+    <td class="nowrap">PayPal 2</td>
+    <td>금액·통화 대조도 캡처 뒤에 한다</td>
+    <td>같은 파일 193~208</td>
+    <td>금액이 틀린 결제가 확정되고 적립만 거부된다. 환불 경로는 코드에 없다</td>
+  </tr>
+</table>
+
+<h3>묶음별 내용과 필요한 것</h3>
+<table>
+  <tr><th>묶음</th><th>내용</th><th>시작에 필요한 것</th></tr>
+  <tr><td class="nowrap">B-P2</td><td>PortOne: 원문(raw body)으로 공식 <code>Webhook.verify</code> 전환, v2 형식 사용, READY 조기 성공 분기 제거(PortOne 1·2·4). 이슈 #77 을 닫는 PR</td><td>결정 #2, PortOne 콘솔의 웹훅 시크릿·버전 확인, sandbox 자격</td></tr>
+  <tr><td class="nowrap">B-P1</td><td>PortOne: 웹훅에서 상품을 조회해 지급량을 DB 값으로 강제(PortOne 3). 웹 레포만으로 가능한 완화이고, 완전한 해결(서버에 결제 의도 저장)은 picnic-supabase 와 함께 해야 한다</td><td>B-P2 와 같은 자격. <strong>B-P2 와 같이 나가거나 먼저 나가야 한다.</strong> B-P2 만 나가면 과적립 구멍이 열린다</td></tr>
+  <tr><td class="nowrap">B-P3</td><td>PayPal: 캡처 전에 주문을 조회해 소유자·금액을 검증(PayPal 1·2). PortOne verify 의 소유권 확인도 함께</td><td>PayPal sandbox 자격(결정 #3)</td></tr>
+  <tr><td class="nowrap">B-P4</td><td>결제·OAuth 로그의 민감정보 가리기와 로그 유실 방지. 이슈 #73·#74 와 겹친다</td><td>없음(설계 필요)</td></tr>
+</table>
+
+<ul>
+  <li>필요한 환경변수 <strong>이름</strong>: <code>PORTONE_WEBHOOK_SECRET</code>, <code>PORTONE_API_SECRET</code>, <code>NEXT_PUBLIC_PORTONE_STORE_ID</code>, <code>NEXT_PUBLIC_PORTONE_CHANNEL_KEY</code>, <code>PAYPAL_CLIENT_ID</code>, <code>PAYPAL_CLIENT_SECRET</code>, <code>PAYPAL_ENV</code>(production 이 아니면 sandbox API 를 쓴다). 적립까지 확인하려면 운영이 아닌 Supabase 의 service-role 키가 필요하다. 값은 이 문서에 적지 않는다.</li>
+  <li>각각 별도 PR 로 내고, sandbox 에서 검증하고, 다른 공급자의 교차 리뷰를 받는다(고위험).</li>
+  <li><strong>웹훅을 “동작시키려고” 검증을 느슨하게 만들지 않는다</strong>(plan.md §6 의 20번).</li>
+  <li>확인하지 못한 것: Toss 결제 경로(<code>app/api/payment/toss/</code>)의 상태, 적립 RPC 의 DB 쪽 검증(picnic-supabase 소유), PayPal 주문 ID 가 제3자에게 드러나는 경로가 있는지.</li>
+</ul>
+
+<h2 id="next">7. 다음 작업 — 우선순위</h2>
+
+<table>
+  <tr><th>순위</th><th>작업</th><th>시작 조건</th><th>위험</th></tr>
+  <tr>
+    <td>1</td>
+    <td>언어 라우팅의 24시간 지표 측정(§9)</td>
+    <td>없음. <strong>10-02 23:30 KST 무렵</strong></td>
+    <td>조회만</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>로그인 상태 스모크(§9). #95·#103·#107 이 모두 비로그인으로만 검증됐다</td>
+    <td>실제 계정. 없으면 사용자에게 확인을 요청한다</td>
+    <td>확인만</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><strong>결제를 열기 전에</strong> PortOne 은 B-P2 와 B-P1, PayPal 은 B-P3 를 끝낸다(§6). PortOne 은 환경변수가 이미 들어가 있고 테스트 모드다. PayPal 은 환경변수부터 없다</td>
+    <td>오픈 일정, 결정 #2·#3, sandbox 자격</td>
+    <td>고위험(결제)</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>결제·OAuth 로그의 민감정보 가리기(B-P4, 이슈 #73·#74)</td>
+    <td>설계</td>
+    <td>일반</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><strong>입력 없이 시작할 수 있는 작은 것들</strong>: 접두어 없는 주소를 만드는 호출부 수정(<code>VoteCard</code>, <code>VoteListPresenter</code>, <code>RetryButton</code>) · <code>common.loading</code> 번역 키가 <code>en</code> 에만 있는 것 · <code>/open-in-browser</code> 의 308 을 307 로 · 죽은 파일 <code>app/[lang]/robots.ts</code> 삭제 · <code>rendering-utils.ts</code> 의 미사용 헬퍼 · middleware 의 <code>x-locale</code> 주입 제거</td>
+    <td>없음</td>
+    <td>일반</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>CI 도입(계획의 A-6): <code>npm ci</code> → 타입 검사 → lint → 테스트. 지금은 CI 가 전혀 없다</td>
+    <td>Wave A 에서 사용자가 제외했다. 다시 물어야 한다</td>
+    <td>일반</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>설계가 먼저 필요한 것: <code>/vote/[id]</code> ISR(투표 데이터 신선도와 폴링의 관계) · 공지·FAQ·리워드용 재검증 API(비밀키, 관리자 도구 연동) · <code>/privacy</code>·<code>/terms</code> ISR · 온디맨드 생성 실패 시의 브랜드 500 페이지 · 없는 id 의 soft 404(<code>/ko/rewards/&lt;없는 id&gt;</code> 가 200) · 홈 <code>/</code> 의 선호 언어 전환(지표 확인 뒤, 결정 #14)</td>
+    <td>설계서와 사용자 승인</td>
+    <td><code>/vote/[id]</code> ISR 은 고위험</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td>감사의 남은 묶음: 이미지 파이프라인(B-R4 잔여) · 번들 2차(B-R5) · 투표 조회 계약 통합(B-R6) · Supabase 서버 factory 통합(B-R7) · sitemap 소유자 단일화(B-R8) · 광고 정책(B-D1) · 득표율 분모·배너 링크(B-D3 잔여) · CSS·CLS·랜드마크(B-D4) · 디자인 토큰(B-D5) · 인증·업로드 계약 테스트와 strict 상향·ESLint flat config(B-T) · dead code 잔여와 폴더 규칙(B-C) · 메이저 업그레이드(B-U) · picnic-supabase 이관 항목(B-S)</td>
+    <td>항목마다 다르다(§8 의 결정, plan.md §3 의 선행 조건)</td>
+    <td>항목마다 다르다</td>
+  </tr>
+</table>
+
+<p>감사 묶음의 진행 상황을 한 줄로 줄이면 이렇다. <strong>끝남:</strong> A-1~A-5, B-R1(#94), B-R2(#95), B-R3(#103·#105), B-D2(#89), B-T2(#87). <strong>일부:</strong> B-R4(#93), B-D1(#92), B-D3(#91), B-T1(#88), B-C1(#90). <strong>시작 안 함:</strong> A-6, B-P 전체, B-R5~R8, B-D4·D5, B-T3·T4, B-C2, B-U, B-S.</p>
+
+<h2 id="decisions">8. 사용자 결정 대기</h2>
+
+<table>
+  <tr><th>#</th><th>질문</th><th>권장</th><th>막고 있는 것</th></tr>
+  <tr><td>2</td><td>PortOne 웹훅을 공식 v2 표준으로 전환해도 되는가</td><td>전환</td><td>B-P2</td></tr>
+  <tr><td>3</td><td>PayPal sandbox 자격을 줄 수 있는가</td><td>제공</td><td>B-P3</td></tr>
+  <tr><td>5</td><td>광고 정책: 로그인·인증·투표 상세에서 앵커 광고를 빼고 투표 화면 광고 5초 지연을 되살릴 것인가(수익 영향)</td><td>코드 예외 + AdSense 콘솔 제외 설정</td><td>B-D1</td></tr>
+  <tr><td>7</td><td>메이저 업그레이드 순서(Sentry 11 → Supabase CLI 2 → Tailwind 4 → React 19 → Next 16)와 착수 시기</td><td>순차 착수, 전부 개별 PR</td><td>B-U</td></tr>
+  <tr><td>12</td><td>목록의 득표율 분모를 상세와 같은 “전체 후보 합”으로 통일할 것인가(목록 수치가 낮아져 보인다. 예: 34.26% → 28.83%)</td><td>통일</td><td>B-D3 잔여</td></tr>
+  <tr><td>13</td><td>진입 리다이렉트를 307 로 둘 것인가 308 로 올릴 것인가</td><td>307 유지, 안정화 뒤 검토</td><td>없음</td></tr>
+  <tr><td>14</td><td>홈 <code>/</code> 도 선호 언어로 보낼 것인가(지금은 <code>/en/vote</code> 고정)</td><td>지표 확인 뒤 전환</td><td>홈 전환 PR</td></tr>
+  <tr><td>–</td><td>웹 결제(PortOne, PayPal)를 언제 열 것인가. PortOne sandbox 자격을 줄 수 있는가</td><td>–</td><td>결제 수정의 우선순위와 B-P1·B-P2</td></tr>
+  <tr><td>–</td><td><code>support@picnic.com</code>(<code>app/global-error.tsx</code>)과 <code>help</code>·<code>career</code>·<code>press.picnic.com</code>(<code>app/[lang]/constants/static-pages.ts</code>)의 실제 주소. 약관·개인정보 페이지의 <code>/contact</code> 링크 목적지</td><td>–</td><td>링크 정리</td></tr>
+  <tr><td>–</td><td>디자인 토큰의 primary 색(보라 기본값과 파랑 스케일이 섞여 있다)</td><td>–</td><td>B-D5</td></tr>
+  <tr><td>–</td><td>CI 를 도입할 것인가(A-6)</td><td>도입</td><td>B-U 의 선행 조건</td></tr>
+  <tr><td>–</td><td>원격 브랜치 <code>fix/sentry-third-party-filter</code> 를 지워도 되는가</td><td>삭제</td><td>없음</td></tr>
+</table>
+
+<p>이미 결정된 것: #1 폴링 5초, #4 브랜드 표기, #6 QNA 한도, #8 ISR, #9 타입 생성 분리, #10 <code>getClaims</code>(리뷰에서 “유지+보강”으로 조정. §4 의 3번이 이 일이다), #11 VoteLite 폐기. 기록은 plan.md §5.1, §5.3, §5.4.</p>
+
+<h2 id="pending">9. 확인하지 못한 것</h2>
+
+<table>
+  <tr><th>항목</th><th>어떻게 확인하나</th><th>언제</th></tr>
+  <tr>
+    <td><strong>언어 라우팅 24시간 지표</strong></td>
+    <td>Vercel 런타임 로그(Production, level error, <code>requestPath</code> 로 묶음, 24시간)에서 <code>/download/vote</code>(머지 전 67건), <code>/favicon.ico/vote</code>(17), <code>/login/vote</code>(9), <code>/apple-touch-icon.png/vote</code>(4)가 0 이 됐는지 본다. <code>statusCode</code> 404 묶음에서 <code>/{언어}/download/vote</code>·<code>/{언어}/login/vote</code> 가 하루 20건을 넘으면 복구 규칙을 넣는다. 기준은 설계서 §6.4</td>
+    <td><strong>10-02 23:30 KST 무렵.</strong> 로그 보존이 약 하루다</td>
+  </tr>
+  <tr>
+    <td><strong>로그인 상태 흐름</strong></td>
+    <td>실제 계정으로 Production 에서: OAuth 로그인과 콜백 뒤 이동, 로그아웃, 토큰 만료 뒤 재방문, 탈퇴 계정 차단, 로그인 상태의 언어 전환, ISR 페이지 위의 로그인 표시</td>
+    <td>가능한 한 빨리. 자동화로는 할 수 없다. 계정이 없으면 사용자에게 확인을 요청한다</td>
+  </tr>
+  <tr>
+    <td>로그인 사용자의 <code>user_profiles.language</code></td>
+    <td>#109 뒤로 더는 기기 언어로 덮어쓰이지 않는지. 쿠키 쓰기와 같은 조건문 안의 코드라 함께 건너뛴다는 것까지만 확인했다</td>
+    <td>위와 함께</td>
+  </tr>
+  <tr>
+    <td>성능 수치</td>
+    <td>모바일 Lighthouse LCP 재측정(#93 뒤), Vercel 로그의 middleware 지연과 Auth 요청 수(#95 뒤), 투표 detail API 의 CDN HIT 비율과 폴링 호출량(#84 뒤). 명령은 plan.md §7.3</td>
+    <td>정해지지 않음</td>
+  </tr>
+  <tr>
+    <td>Vercel 캐시 퍼지와 Instant Rollback</td>
+    <td>Production 에서 실제로 실행해 본 적이 없다. Instant Rollback 뒤 다음 배포가 Production 도메인에 자동으로 붙는지도 확정하지 못했다</td>
+    <td>필요할 때</td>
+  </tr>
+  <tr>
+    <td>새 배포가 옛 데이터로 프리렌더되는가</td>
+    <td>1시간 안에 Production 배포가 두 번 있으면 두 번째 빌드가 앱 버전을 다시 조회하는지 Supabase edge 로그로 본다. 설계서(ISR) §9.2</td>
+    <td>배포가 연속될 때</td>
+  </tr>
+  <tr>
+    <td>결제 건 감시</td>
+    <td>프로필 행이 끝내 생기지 않는 결제(<code>WALLET_USER_NOT_FOUND</code> 재시도)가 있는지 운영 로그에서 본다</td>
+    <td>정해지지 않음</td>
+  </tr>
+  <tr>
+    <td><code>/{언어}/rewards/null</code> 요청의 출처</td>
+    <td>이전 배포의 error 로그에 12개 언어로 고르게 있었다. sitemap 과 투표 목록 HTML 에는 그런 링크가 없다</td>
+    <td>정해지지 않음</td>
+  </tr>
+</table>
+
+<p>설계가 알고도 받아들인 한계는 언어 라우팅 설계서 §6.5 와 §9 에 있다. 대표적인 것: <code>/_next/</code>·<code>/_vercel/</code> 아래의 조작된 주소는 404 지만 페이지 코드가 실행된다, 없는 번호의 <code>/sitemap-N.xml</code> 이 정적 404 항목으로 남는다, 인앱 브라우저에서 접두어 없는 주소의 이동이 한 번 늘었다.</p>
+
+<h2 id="rollback">10. 롤백과 긴급 조치</h2>
+
+<table>
+  <tr><th>상황</th><th>조치</th></tr>
+  <tr>
+    <td>배포 뒤 문제가 보인다</td>
+    <td><strong>Vercel Instant Rollback</strong>(대시보드 또는 <code>vercel rollback &lt;이전 배포 URL&gt;</code>). 빌드 없이 이전 배포로 돌아간다. 이 세션의 리다이렉트는 전부 307 이라 브라우저에 남는 것이 없다. 롤백 뒤에는 다음 배포가 Production 도메인에 붙는지 대시보드에서 확인하고, 안 붙으면 <code>vercel promote &lt;배포 URL&gt;</code></td>
+  </tr>
+  <tr>
+    <td><code>git revert</code> 로 되돌리려 한다</td>
+    <td>새 빌드가 필요하고 빌드는 Supabase 조회에 의존한다. Supabase 장애 중에는 revert 빌드도 실패할 수 있으니 그때는 Instant Rollback 을 쓴다</td>
+  </tr>
+  <tr>
+    <td>언어 라우팅(#107)을 즉시 되돌려야 하는 신호</td>
+    <td>통과 목록의 경로(<code>/auth/callback</code>, <code>/auth/loading</code>, <code>/api/banners</code>, <code>/robots.txt</code> 등)가 307·404 가 된다 · <code>public/</code> 의 실제 파일이 404 텍스트를 돌려준다 · 같은 경로의 307 이 반복된다 · <code>/api/auth/exchange-code</code>·<code>/api/auth/callback</code> 의 오류 비율이 는다. 설계서 §6.3</td>
+  </tr>
+  <tr>
+    <td>ISR(#103)을 되돌려야 하는 신호</td>
+    <td><code>/{언어}/(rewards|faq|notice|download)</code> 의 5xx 증가, 로그인 실패 신고, 페이지가 옛 내용에 굳어 있음</td>
+  </tr>
+  <tr>
+    <td>잘못 올린 공지·리워드를 즉시 내려야 한다</td>
+    <td>Vercel 캐시 퍼지(<code>vercel cache purge</code> 또는 대시보드의 CDN Cache·Data Cache 퍼지). 그대로 두면 최대 5분(리워드 목록은 60초) 남는다</td>
+  </tr>
+  <tr>
+    <td>렌더링 모드 검사가 배포를 막는다</td>
+    <td>의도한 변경이면 <code>scripts/rendering-modes.js</code> 의 선언을 고친다. 긴급 우회는 환경변수 <code>SKIP_RENDERING_MODE_CHECK=1</code></td>
+  </tr>
+  <tr>
+    <td>폴링 5초가 문제다</td>
+    <td>투표 상세 fetcher 의 <code>pollingInterval</code> 값을 1000 으로 되돌린다</td>
+  </tr>
+</table>
+
+<h2 id="issues">11. 열린 이슈 5건 (변동 없음)</h2>
+
+<table>
+  <tr><th>#</th><th>제목</th><th>이번 세션과의 관계</th></tr>
+  <tr><td>73</td><td>Sentry 페이로드에 중앙 redaction 이 없다</td><td>B-P4 와 겹친다. 실패한 접근이 이슈에 기록돼 있다</td></tr>
+  <tr><td>74</td><td><code>logError</code> 가 Sentry 전달을 보장하지 않는다</td><td>B-P4 와 겹친다</td></tr>
+  <tr><td>75</td><td>로그 레벨 반대편 미적용</td><td>손대지 않았다</td></tr>
+  <tr><td>76</td><td>로그 레벨 정책 설계</td><td>손대지 않았다. 재시도 전에 이슈 본문을 읽는다</td></tr>
+  <tr><td>77</td><td>PortOne 웹훅 서명 검증 스킴 불일치</td><td><strong>PortOne 오픈 전 차단 항목.</strong> §6 의 PortOne 4 가 이 이슈의 테스트 표식이고 B-P2 가 닫는다</td></tr>
+</table>
+
+<p>지난 핸드오프 §8 의 다음 작업 가운데 1순위(서드파티 필터)는 #78 로 끝났다. 3순위(Sentry Spend Allocation)는 <strong>할 수 없다</strong>. Team 플랜에는 그 기능이 없다.</p>
+
+<h2 id="traps">12. 함정</h2>
+
+<div class="box warn">
+<p><strong>머지가 곧 Production 배포이고, 문서만 바꾼 머지도 빌드를 돌린다.</strong> 빌드가 Supabase 조회에 의존하므로 문서 PR 의 빌드도 실패할 수 있다(#104 가 그랬다). 실패하면 이전 배포가 유지된다. Preview 배포는 없으므로 “Preview 에서 확인” 절차는 성립하지 않는다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>로컬 <code>next build</code>·<code>next start</code> 의 오류가 운영 Sentry 에 들어간다.</strong> <code>.env.local</code> 의 DSN 으로 <code>environment: production</code> 이벤트가 간다. 로컬 빌드와 실행에는 <code>SENTRY_DSN= NEXT_PUBLIC_SENTRY_DSN=</code> 를 붙인다. <code>NEXT_PUBLIC_*</code> 는 빌드 때 인라인되므로 빌드에도 붙여야 한다. Sentry 신규 이슈가 Production 것인지는 <code>os.name</code> 으로 구분한다(로컬은 macOS).</p>
+</div>
+
+<div class="box warn">
+<p><strong>워크트리에서 메인 폴더의 <code>node_modules</code> 를 빌리지 않는다.</strong> 메인 폴더 것은 lockfile 보다 오래됐다. 워크트리를 만들면 <code>.env*</code> 를 복사하고 <code>npm ci</code> 를 한 뒤 검증한다.</p>
+</div>
+
+<div class="box warn">
+<p><strong><code>npm run build</code> 는 추적 중인 파일을 바꾼다.</strong> postbuild 의 next-sitemap 이 <code>public/sitemap.xml</code>, <code>public/sitemap-0.xml</code>, <code>public/robots.txt</code> 를 다시 쓴다. 커밋 전에 <code>git status</code> 로 보고 되돌린다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>Production 의 ISR 은 세 번째 요청부터 HIT 다.</strong> 캐시 기록이 1~2초 늦다. “두 번째가 HIT 가 아니면 실패”로 판정하지 않는다. Vercel 은 ISR 응답의 <code>cache-control</code> 을 바꿔 보내므로 판정은 <code>x-vercel-cache</code> 와 <code>x-matched-path</code> 로 한다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>Vercel 과 로컬 <code>next start</code> 가 다르게 동작하는 곳이 있다.</strong> <code>/KO</code> 는 Vercel 에서 <code>/ko</code> 로 가고 로컬에서는 <code>/KO/vote</code> 로 간다(도착지는 같다). 잘못된 percent-encoding 은 Vercel 이 400 으로 끊는다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>브라우저 자동화의 함정.</strong> 링크를 클릭하면 AdSense 전면 광고가 가로챈다. 클라이언트 내비게이션은 <code>window.next.router.push(...)</code> 로 확인한다. <code>/auth/loading</code> 을 code 없이 열면 <code>alert()</code> 가 떠서 자동화가 멈춘다. 기기 언어에 따라 달라지는 동작은 <code>navigator.language</code> 를 고정하고 쿠키를 심어서 본다. 로그인 상태(<code>sb-</code> 쿠키)에서는 돌리지 않는다. 감지 코드가 프로필에 쓴다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>이미지 스모크.</strong> <code>/_next/image</code> 를 <code>curl -I</code> 로 치면 콜드 캐시에서 400 이 나온다. 회귀가 아니다. GET 으로 확인한다. CDN 이미지는 <code>https://cdn.picnic.fan/picnic/…</code> 형태여야 200 이다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>Vercel 로그 조회.</strong> 전문 검색은 자주 타임아웃한다. 배포 id 로 좁히고 <code>statusCode</code>·<code>requestPath</code>·<code>level</code> 로 묶어 본다. 보존은 약 하루다. 이전 배포 URL 은 SSO 로 막혀 있어 익명 브라우저로 이전 버전과 비교할 수 없다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>환경변수 함정은 지난 핸드오프 §10 이 그대로 유효하다.</strong> <code>NEXT_PUBLIC_*</code> 는 빌드 때 인라인되므로 값을 바꾸면 재배포해야 한다. Vercel CLI 로는 이미 있는 변수의 값을 못 바꾼다(REST API 의 PATCH 를 쓴다). 같은 이름의 변수가 대상 환경별로 여러 항목일 수 있다. 이 세션에서 다시 확인하지는 않았다. 덧붙여 <code>zsh</code> 에서 <code>grep --include=*.ts</code> 처럼 따옴표 없는 glob 은 실패한다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>감사 PR 본문의 “교차 리뷰 미실시, 머지 보류” 문구는 낡았다.</strong> #86~#95 본문은 사용량 게이트가 막혀 있던 시점에 쓴 것이다. 실제로는 그 뒤 리뷰를 거쳐 머지했다. 리뷰 라운드와 설계 조정은 plan.md §5.4 표에 있다.</p>
+</div>
+
+<h2 id="commands">13. 검증 커맨드</h2>
+
+<pre><code># 워크트리에서. 메인 폴더의 node_modules 는 오래됐다.
+npm ci
+node -p "require('next/package.json').version"     # lockfile 과 같아야 한다(15.5.26)
+
+npx tsc --noEmit                                   # 오류 0
+npm run lint                                       # 경고·오류 0
+npx vitest run                                     # 2,966 통과 · 6 expected fail · 1 skipped
+
+# 라우팅·렌더링 모드를 건드렸으면 이것부터
+npx vitest run __tests__/middleware __tests__/lib/i18n __tests__/next-config-redirects.test.ts \
+  __tests__/app/rendering-mode-contract.test.ts
+
+# 로컬 Production 빌드와 실행. DSN 을 비운다(운영 Sentry 오염 방지).
+SENTRY_DSN= NEXT_PUBLIC_SENTRY_DSN= npm run build  # postbuild: 렌더링 모드 검사 + sitemap 생성
+git checkout -- public/sitemap.xml public/sitemap-0.xml public/robots.txt   # 빌드가 바꾼 파일 되돌리기
+SENTRY_DSN= NEXT_PUBLIC_SENTRY_DSN= npx next start -p 3271
+
+# 응답 확인(상태 코드와 리다이렉트 목적지)
+check() { printf '%-40s ' "$1"; curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "${@:2}" "http://127.0.0.1:3271$1"; }
+check '/login?error=x'                   # 307 …/en/login?error=x
+check /KO/vote                           # 307 …/ko/vote
+check /xx/rewards                        # 307 …/en/xx/rewards
+check /images/rewards/1                  # 404
+check /ko/rewards                        # 200
+check /login -H 'Cookie: locale=ja'      # 307 …/ja/login
+
+# Production: 머지 전에 같은 경로 목록으로 기준선을 찍고, 배포 뒤 다시 찍어 diff 한다.
+curl -s -o /dev/null -D - https://www.picnic.fan/ko/rewards | grep -iE '^(HTTP|x-vercel-cache|x-matched-path|location)'
+
+# 배포 상태
+gh api "repos/charlie0421/picnic-web/commits/$(git rev-parse origin/main)/status" --jq '.state'
+
+# 번역 키 점검
+npm run i18n:check</code></pre>
+
+<h2 id="map">14. 문서와 설정 지도</h2>
+
+<table>
+  <tr><th>위치</th><th>무엇이 있나</th></tr>
+  <tr><td><code>docs/audit-2026-09-26/plan.md</code></td><td>통합 이슈 52건(§2), 묶음 설계(§3), 사용자 결정 14건(§5), 결정·결과 기록(§5.1~§5.4), <strong>건드리면 안 되는 것 23개(§6)</strong>. 남은 작업의 정본</td></tr>
+  <tr><td><code>docs/audit-2026-09-26/{structure,performance,design,tests-security}.md</code></td><td>감사 보고서 원문. 결제 결함의 근거는 <code>tests-security.md</code> 의 SEC-01~03</td></tr>
+  <tr><td><code>docs/superpowers/specs/2026-09-30-root-layout-isr-design.md</code></td><td>ISR 전환 설계. 운영 런북(§6), 후속(§7), Production 검증과 빌드 실패 분석(§9)</td></tr>
+  <tr><td><code>docs/superpowers/specs/2026-10-01-locale-prefix-routing-design.md</code></td><td>언어 접두어 라우팅 설계. 규칙(§4.1), 롤백 신호(§6.3), 지표(§6.4), 후속(§7), 구현·배포 기록(§10, §10.1)</td></tr>
+  <tr><td><code>docs/superpowers/plans/</code></td><td>위 두 설계의 구현 계획(테스트와 코드가 단계별로 들어 있다)</td></tr>
+  <tr><td><code>middleware.ts</code> · <code>lib/i18n/locale-routing.ts</code></td><td>요청 처리의 입구와 언어 판정 규칙. matcher 와 통과 목록은 손으로 맞춘다</td></tr>
+  <tr><td><code>scripts/rendering-modes.js</code> · <code>scripts/verify-rendering-modes.js</code></td><td>페이지별 렌더링 모드 선언과 빌드 결과 검사</td></tr>
+  <tr><td><code>next.config.js</code></td><td><code>redirects()</code>(추가만 허용), <code>rewrites()</code>(supabase-proxy), Sentry 플러그인 옵션</td></tr>
+  <tr><td><code>__tests__/api/payment/</code></td><td>결제 계약 테스트와 <code>it.fails</code> 표식 6개</td></tr>
+  <tr><td><code>AGENTS.md</code></td><td>레포 공통 지침. 맨 위의 “DB 스키마는 picnic-supabase 소유” 가 핵심이다</td></tr>
+  <tr><td>Vercel</td><td>프로젝트·팀 ID 는 로컬 <code>.vercel/project.json</code>. Production 브랜치는 <code>main</code></td></tr>
+  <tr><td>Sentry</td><td>조직 <code>icon-casting</code>, 프로젝트 <code>picnic-web</code>, Team 플랜. 프로젝트 ID 와 REST 조회 예시는 지난 핸드오프 §11·§12</td></tr>
+  <tr><td>Supabase</td><td>프로젝트 ref 는 <code>AGENTS.md</code> 에 있다. 빌드 중 조회는 edge 로그로 확인한다</td></tr>
+</table>
+
+<p>지난 핸드오프의 Sentry 내용(쿼터, <code>resolved in release</code> 의 의미, 환경변수 함정)은 이 세션에서 다시 검증하지 않았다. 바뀐 것으로 아는 것은 릴리스를 만드는 방식뿐이다(#101·#102: 빌드마다 <code>picnic-web@&lt;빌드버전&gt;</code> 하나, Vercel 빌드에서만).</p>
+
+<hr>
+<p class="footnote">작성: 2026-10-02 · 코드 기준 <code>main</code> <code>2c30cff9</code> · 이전 핸드오프: <code>docs/handoff-2026-09-02.html</code></p>
+
+</main>
+</body>
+</html>
