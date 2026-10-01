@@ -632,3 +632,17 @@ Preview 배포가 없다. 머지 직전에 Production 기준선을 찍고, 배�
 2. **`/_next/`, `/_vercel/` 아래의 남는 구멍과 없는 번호의 `/sitemap-N.xml`(최대 99개)을 받아들인다**(§4.4, §4.5). 다른 구멍은 catch-all handler 로 닫았다(§4.6). 두 접두어 뒤에 라우트 이름을 붙인 주소(`/_next/rewards`)는 404 가 되지만 ISR 캐시 항목과 페이지 코드 실행이 남고, `/_next/sitemap.xml` 은 200 그대로다. `/sitemap-1.xml` 은 정적 404 캐시 항목 하나와 번역 파일 오류 로그 한 줄을 남긴다. `_next/` 를 완전히 닫으려면 통과를 알려진 하위 경로로 좁혀야 하고(§4.5 의 이유로 이번에는 하지 않는다), `sitemap-N` 을 닫으려면 matcher 를 `sitemap-0.xml` 로 고정해야 한다(§4.4 의 이유로 하지 않는다).
 3. **인앱 브라우저에서 접두어 없는 주소의 이동이 한 번 늘어난다**(§4.8).
 4. 외부에 등록된 주소 가운데 이 문서에 없는 것이 있으면 알려 달라. App Store 의 개인정보 주소, OAuth 콘솔의 콜백 주소가 해당한다.
+
+## 10. 구현·배포 기록 (2026-10-01)
+
+- PR #107 squash 머지 `3bdcb6d8`, 배포 `dpl_5v8V3gjhcZz63jpXHKEw8bwUTSKW`. 구현 교차 리뷰(Codex gpt-6-sol/high, 읽기 전용)는 지적 없이 APPROVE.
+- 머지 전 기준선과 같은 요청 72줄을 배포 뒤 다시 보냈다. 37줄은 같고 35줄이 §2 의 "변경 후" 대로 바뀌었다.
+  - `/login?error=x` → 307 `/en/login?error=x`, `/KO/vote`·`/%6Bo/vote` → `/ko/vote`, `/zh/vote` → `/zh-cn/vote`, `/xx/rewards` → 307 뒤 정적 404(`x-matched-path: /404`, HIT)
+  - `/images/rewards/1`·`/api/rewards`·`/locales/faq` → 404 텍스트, `/_next/rewards`·`/sitemap-1.xml` → 404, `/images/supabase-proxy/auth/v1/health` → 404(머지 전에는 Supabase 로 프록시돼 401)
+  - `/favicon.ico`·`/apple-touch-icon.png` → 200, `/privacy_en.html`·`/privacy_ko.html` → `/en/privacy`·`/ko/privacy`, `/ko/auth/callback/google` → `/auth/callback/google`
+  - 신호: 쿠키 `locale=ja` → `/ja/login`, `Accept-Language: ko-KR` → `/ko/login`, Referer `/th/vote` → `/th/login`. 307 의 `cache-control` 은 `private, no-store`
+  - 통과 목록 13개와 `public/` 파일·기존 API 는 머지 전과 같다. 연쇄: `picnic.fan/download.html` 3회, `/auth/callback/google/x` 1회
+- Vercel 과 로컬의 차이: `/KO` 는 Vercel 에서 `/ko` 로 간다(middleware 가 먼저). 로컬 `next start` 는 설정 리다이렉트가 먼저 맞아 `/KO/vote` 다. 도착지는 같다.
+- 클라이언트 내비게이션(Production, Playwright): `/ko/vote` 에서 `router.push('/rewards')` → `/ko/rewards`, `router.push('/vote/295')` → `/ko/vote/295`, `/th/faq` 에서 `router.push('/notice')` → `/th/notice`(`<html lang="th">`). §8 의 남은 가정이 확인됐다.
+- 배포 뒤 약 30분의 런타임 로그(새 배포 id): 5xx 0건. 404 는 전부 위 점검 요청이다. Sentry 는 최근 24시간 신규 이슈 0건.
+- 남은 것: 24시간 뒤 지표(§6.4), 로그인 상태 흐름(OAuth 로그인, 탈퇴 계정 차단)은 자동화로 확인하지 못했다.
