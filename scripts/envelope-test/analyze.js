@@ -1,0 +1,231 @@
+'use strict';
+
+/**
+ * envelope 테스트의 판정 로직. 순수 함수만 둔다 — 단위 테스트(__tests__/scripts/envelope-test-analyze.test.ts)가
+ * CI 에서 돈다. 실행기(run.js)는 실제 Next 서버가 보낸 envelope 과 서버 표준 출력을 모아 evaluate() 에 넘긴다.
+ *
+ * 판정 순서 (설계 §5.1):
+ *   1. 수신 건수 — 아무것도 받지 못한 실행이 통과하는 일을 막는다.
+ *   2. 무누출 — 묶음 A 는 envelope 과 표준 출력 어디에도 없다. 묶음 C 는 표준 출력에만 있다.
+ *   3. 허용 노출 — 묶음 B 의 marker 는 exception.values[].value 와 Next 의 미처리 오류 줄에만 있다.
+ *   4. tripwire 표식은 기대한 이벤트에만 있다. 다른 곳에 있으면 토큰 모양 값이 새다가 가려진 것이다.
+ */
+
+const TRIPWIRE_KEY = 'redaction.tripwire';
+const UNHANDLED_VALUE_PATH = /^exception\.values\[\d+\]\.value$/;
+
+/** Sentry envelope 한 건(압축을 푼 본문)을 헤더와 항목으로 나눈다. */
+function parseEnvelope(body) {
+  const buffer = Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8');
+  let offset = 0;
+
+  const readLine = () => {
+    let end = buffer.indexOf(0x0a, offset);
+    if (end === -1) end = buffer.length;
+    const line = buffer.subarray(offset, end).toString('utf8');
+    offset = end + 1;
+    return line;
+  };
+  // JSON 이 아니면 원문을 남긴다. canary 검색이 닿아야 한다.
+  const parseJson = (text) => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { __unparsed: text };
+    }
+  };
+
+  const header = parseJson(readLine());
+  const items = [];
+  while (offset < buffer.length) {
+    const headerLine = readLine();
+    if (headerLine === '') continue;
+    const itemHeader = parseJson(headerLine);
+    let payloadText;
+    if (typeof itemHeader.length === 'number') {
+      payloadText = buffer.subarray(offset, offset + itemHeader.length).toString('utf8');
+      offset += itemHeader.length + 1;
+    } else {
+      payloadText = readLine();
+    }
+    items.push({ type: itemHeader.type, header: itemHeader, payload: parseJson(payloadText) });
+  }
+  return { header, items };
+}
+
+/** 값 안의 모든 문자열을 경로와 함께 모은다. 객체의 키도 문자열로 본다(쿠키 이름처럼 값이 키로 실릴 수 있다). */
+function collectStrings(value, path, out) {
+  if (typeof value === 'string') {
+    out.push({ path, value });
+  } else if (Array.isArray(value)) {
+    value.forEach((item, index) => collectStrings(item, `${path}[${index}]`, out));
+  } else if (value && typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      const childPath = path ? `${path}.${key}` : key;
+      out.push({ path: `${childPath}(key)`, value: key });
+      collectStrings(child, childPath, out);
+    }
+  }
+  return out;
+}
+
+function flatten(envelopes) {
+  const records = [];
+  for (const envelope of envelopes) {
+    for (const hit of collectStrings(envelope.header, 'envelope_header', [])) {
+      records.push({ type: 'envelope', payload: null, ...hit });
+    }
+    for (const item of envelope.items) {
+      for (const hit of collectStrings(item.header, 'item_header', [])) {
+        records.push({ type: item.type, payload: item.payload, ...hit });
+      }
+      for (const hit of collectStrings(item.payload, '', [])) {
+        records.push({ type: item.type, payload: item.payload, ...hit });
+      }
+    }
+  }
+  return records;
+}
+
+/** 같은 위치의 적중을 묶어 "종류 경로 ×건수" 로 줄인다. 배열 색인은 지운다. */
+function summarize(hits) {
+  const grouped = new Map();
+  for (const hit of hits) {
+    const key = `${hit.type} ${hit.path.replace(/\[\d+\]/g, '[]')}`;
+    grouped.set(key, (grouped.get(key) || 0) + 1);
+  }
+  return [...grouped.entries()].map(([key, count]) => `${key} ×${count}`);
+}
+
+const payloadsOf = (envelopes, type) =>
+  envelopes.flatMap((envelope) => envelope.items).filter((item) => item.type === type).map((item) => item.payload);
+
+const exceptionValues = (event) =>
+  event && event.exception && Array.isArray(event.exception.values) ? event.exception.values : [];
+
+const isHandled = (event) => exceptionValues(event).every((value) => !value.mechanism || value.mechanism.handled !== false);
+
+// edge 설정은 initialScope 로 runtime=edge 태그를 붙인다(sentry.edge.config.js).
+const runtimeOf = (event) => (event.tags && event.tags.runtime === 'edge' ? 'edge' : 'node');
+
+const hasFrameVars = (event) =>
+  exceptionValues(event).some((value) =>
+    ((value.stacktrace && value.stacktrace.frames) || []).some((frame) => frame && frame.vars !== undefined),
+  );
+
+function matchesError(event, rule) {
+  if (exceptionValues(event).length === 0) return false;
+  if (isHandled(event) !== rule.handled) return false;
+  if (rule.runtime && runtimeOf(event) !== rule.runtime) return false;
+  if (rule.transaction && event.transaction !== rule.transaction) return false;
+  if (
+    rule.valueIncludes &&
+    !exceptionValues(event).some((value) => typeof value.value === 'string' && value.value.includes(rule.valueIncludes))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+const transactionsNamed = (envelopes, name) =>
+  payloadsOf(envelopes, 'transaction').filter((transaction) => transaction.transaction === name);
+
+const withChildOp = (transactions, op) =>
+  transactions.filter((transaction) => (transaction.spans || []).some((span) => span && span.op === op));
+
+/** 기대한 건수가 다 왔는가. 실행기가 기다림을 끝낼 때 쓴다. */
+function countsSatisfied(envelopes, expected) {
+  const errors = payloadsOf(envelopes, 'event');
+  return (
+    expected.errors.every((rule) => errors.filter((event) => matchesError(event, rule)).length >= rule.count) &&
+    expected.transactions.every((rule) => {
+      const matched = transactionsNamed(envelopes, rule.name);
+      return (rule.childOp ? withChildOp(matched, rule.childOp) : matched).length >= rule.min;
+    })
+  );
+}
+
+function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }) {
+  const failures = [];
+  const counts = [];
+  const errors = payloadsOf(envelopes, 'event');
+  const tripwireAllowed = new Set();
+
+  // 1. 수신 건수
+  for (const rule of expected.errors) {
+    const matched = errors.filter((event) => matchesError(event, rule));
+    counts.push({ label: rule.label, expected: `${rule.count}`, actual: matched.length });
+    if (matched.length !== rule.count) {
+      failures.push(`수신 건수 — ${rule.label}: 기대 ${rule.count}건, 실제 ${matched.length}건`);
+    }
+    for (const event of matched) {
+      if (rule.requestPath) {
+        const requestPath = event.contexts && event.contexts.nextjs && event.contexts.nextjs.request_path;
+        if (typeof requestPath !== 'string' || requestPath === '') {
+          failures.push(`${rule.label}: contexts.nextjs.request_path 가 없다`);
+        } else if (/[?#]/.test(requestPath)) {
+          failures.push(`${rule.label}: contexts.nextjs.request_path 에 쿼리가 남아 있다`);
+        }
+      }
+      if (rule.tripwire) {
+        tripwireAllowed.add(event);
+        if (!event.tags || event.tags[TRIPWIRE_KEY] !== '1') {
+          failures.push(`${rule.label}: ${TRIPWIRE_KEY} 태그가 없다`);
+        }
+      }
+      if (hasFrameVars(event)) failures.push(`${rule.label}: stack frame 에 vars 가 실렸다`);
+    }
+  }
+  for (const rule of expected.transactions) {
+    const matched = transactionsNamed(envelopes, rule.name);
+    counts.push({ label: rule.label, expected: `${rule.min} 이상`, actual: matched.length });
+    if (matched.length < rule.min) {
+      failures.push(`수신 건수 — ${rule.label}: 기대 ${rule.min}건 이상, 실제 ${matched.length}건`);
+    } else if (rule.childOp) {
+      const withChild = withChildOp(matched, rule.childOp).length;
+      if (withChild < rule.min) {
+        failures.push(`수신 건수 — ${rule.label}: 자식 span(${rule.childOp})이 있는 transaction 이 ${withChild}건이다`);
+      }
+    }
+  }
+
+  const records = flatten(envelopes);
+  const stdoutLines = stdout.split('\n');
+  const reportLeak = (name, hits) => {
+    for (const where of summarize(hits)) failures.push(`누출(envelope) — ${name}: ${where}`);
+  };
+
+  // 2. 무누출
+  for (const [name, value] of Object.entries(canaries.absent)) {
+    reportLeak(name, records.filter((record) => record.value.includes(value)));
+    if (stdout.includes(value)) failures.push(`누출(표준 출력) — ${name}`);
+  }
+  for (const [name, value] of Object.entries(canaries.stdoutOnly)) {
+    reportLeak(name, records.filter((record) => record.value.includes(value)));
+    if (!stdout.includes(value)) failures.push(`표준 출력 캡처 확인 실패 — ${name} 이 표준 출력에 없다`);
+  }
+
+  // 3. 허용 노출
+  for (const [name, value] of Object.entries(canaries.unhandled)) {
+    const hits = records.filter((record) => record.value.includes(value));
+    const allowed = name === 'marker' ? hits.filter((hit) => UNHANDLED_VALUE_PATH.test(hit.path)) : [];
+    reportLeak(name, hits.filter((hit) => !allowed.includes(hit)));
+    if (name === 'marker' && allowed.length === 0) {
+      failures.push('허용 노출 확인 실패 — marker 가 exception.values[].value 에 없다');
+    }
+    const stray = stdoutLines.filter((line) => line.includes(value) && !line.includes(unhandledLineMarker));
+    if (stray.length > 0) {
+      failures.push(`누출(표준 출력) — ${name}: Next 의 미처리 오류 줄이 아닌 곳에 ${stray.length}줄`);
+    }
+  }
+
+  // 4. tripwire 표식
+  const strayTripwire = records.filter(
+    (record) => record.value.includes(TRIPWIRE_KEY) && !tripwireAllowed.has(record.payload),
+  );
+  for (const where of summarize(strayTripwire)) failures.push(`예상하지 않은 tripwire — ${TRIPWIRE_KEY}: ${where}`);
+
+  return { failures: [...new Set(failures)], counts };
+}
+
+module.exports = { parseEnvelope, evaluate, countsSatisfied, TRIPWIRE_KEY };
