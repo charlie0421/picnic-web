@@ -35,17 +35,24 @@ export function useLocaleRouter(): LocaleRouterReturn {
     return SUPPORTED_LANGUAGES.includes(locale as Language);
   };
 
+  // 경로와 쿼리·해시를 나눈다. 언어 판정은 경로로만 한다('/ko?next=x' 의 첫 세그먼트는 'ko' 다).
+  const splitPathSuffix = (value: string): [string, string] => {
+    const index = value.search(/[?#]/);
+    return index === -1 ? [value, ''] : [value.slice(0, index), value.slice(index)];
+  };
+
   // 현재 경로에서 로케일 추출
   const extractLocaleFromPath = (path: string): { locale: Language; path: string } => {
-    const segments = path.split('/').filter(Boolean);
+    const [pathOnly, suffix] = splitPathSuffix(path);
+    const segments = pathOnly.split('/').filter(Boolean);
     let firstSegment = segments[0];
     // 레거시 호환: '/zh' → 'zh-cn'
     if (firstSegment === 'zh') firstSegment = 'zh-cn';
-    
+
     if (firstSegment && isValidLocale(firstSegment)) {
       return {
         locale: firstSegment as Language,
-        path: '/' + segments.slice(1).join('/')
+        path: '/' + segments.slice(1).join('/') + suffix
       };
     }
     
@@ -67,11 +74,11 @@ export function useLocaleRouter(): LocaleRouterReturn {
   // 로케일화된 경로 생성
   const getLocalizedPath = (path: string, locale?: Language): string => {
     const targetLocale = locale || currentLocale;
-    const cleanPath = removeLocaleFromPath(path);
-    
+    const [cleanPath, suffix] = splitPathSuffix(removeLocaleFromPath(path));
+
     // 🔧 모든 언어에 대해 일관된 prefix 적용 (영어 포함)
     // DEFAULT_LANGUAGE 특별 처리 제거: app/[lang] 구조에서는 모든 언어가 prefix 필요
-    return `/${targetLocale}${cleanPath === '/' ? '' : cleanPath}`;
+    return `/${targetLocale}${cleanPath === '/' ? '' : cleanPath}${suffix}`;
   };
 
   // 네비게이션 함수들

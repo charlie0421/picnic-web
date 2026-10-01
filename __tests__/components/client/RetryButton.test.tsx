@@ -67,4 +67,10 @@ describe('RetryButton', () => {
     fireEvent.click(screen.getByRole('button'))
     expect(mockPush).toHaveBeenCalledWith('/ko/custom-path')
   })
+
+  it('redirectPath 가 쿼리가 붙은 언어 루트여도 언어를 겹쳐 붙이지 않는다', () => {
+    render(<RetryButton redirectPath="/en?next=x" />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(mockPush).toHaveBeenCalledWith('/ko?next=x')
+  })
 })
