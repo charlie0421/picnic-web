@@ -2,7 +2,7 @@
 
 - 날짜: 2026-10-02
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-22(STR-008), B-P4. 이슈 #73(Sentry 페이로드에 중앙 redaction 이 없다), #74(logError 가 Sentry 전달을 보장하지 않는다). 핸드오프 `docs/handoff-2026-10-02.html` §7 의 4순위
-- 상태: **초안 2. 사용자 검토 전.** 초안 1 을 교차 리뷰(Codex gpt-6-sol/high)가 REQUEST_CHANGES 로 돌려보내 고쳤다(§10). §9 의 결정 일곱 개가 정해져야 구현 계획을 쓸 수 있다. 구현은 시작하지 않았다
+- 상태: **초안 3. 사용자 검토 전.** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1 과 2 를 REQUEST_CHANGES 로 돌려보내 두 번 고쳤다(§10). 초안 3 의 재검증 결과는 PR #116 에 적는다. §9 의 결정 일곱 개가 정해져야 구현 계획을 쓸 수 있다. 구현은 시작하지 않았다
 - 기준: 코드 `9174da8d`(2026-10-02 Production), `@sentry/nextjs` 9.47.1, Next 15.5.26
 
 용어
@@ -40,10 +40,11 @@
 |---|---|
 | 요청의 쿠키, `Authorization`, 웹훅 서명 헤더, 프록시 IP 헤더, 쿼리스트링이 오류 이벤트, transaction, 자식 span 어디에도 없다 | 실제 Next 서버에 요청을 보내는 envelope 테스트(§5.1). 표본을 강제하고, 종류별 수신 건수를 단언한 뒤 envelope 전체에서 canary 를 찾는다 |
 | 서버가 밖으로 부르는 요청(Supabase, PayPal, PortOne)의 URL 쿼리가 span 에 없다 | 같은 테스트. 자식 span 이 실제로 수신됐는지 건수로 확인한다 |
-| 결제·인증 라우트의 로그가 남기는 값이 §4.2 의 계약을 통과한 것뿐이다(고정된 사건 코드, 형식을 검증한 ID, 숫자) | 계약 함수의 단위 테스트, lint 규칙, 위 envelope 테스트와 서버 표준 출력 검사 |
+| 결제·인증 라우트의 로그가 남기는 값이 §4.2 의 계약을 통과한 것뿐이다(닫힌 목록의 사건 코드·오류 코드·오류 이름, 형식을 검증한 ID, 숫자) | 계약 함수의 단위 테스트(canary 를 코드·이름·stack 에 넣는 사례 포함), lint 규칙, 위 envelope 테스트와 서버 표준 출력 검사 |
+| 처리되지 않은 예외(`onRequestError`)의 이벤트에 요청 헤더와 URL 쿼리, 값 모양이 알려진 비밀(JWT, `Bearer`)이 없다 | envelope 테스트에 예외를 던지는 요청을 넣는다(§4.7, §5.1) |
 | 결제·인증 라우트가 `console.*` 를 직접 부르지 않는다 | lint 규칙(경로 한정 `no-console`) |
 | 오류가 나면 가린 로그 한 줄이 응답 전에 서버 표준 출력(Vercel 로그)에 남는다 | 통합 테스트(§5.2) |
-| Vercel 요청 컨텍스트 안에서 transport 가 flush 제한(2초) 안에 끝나면 이벤트가 Sentry 에 도착한다. 제한을 넘기면 그 사실이 로그에 남는다 | 지연 transport 테스트(§5.2): 정상, 제한 초과, 요청 컨텍스트 없음 |
+| Vercel 요청 컨텍스트 안에서 flush 제한(2초) 안에 transport 가 전송을 끝낸다. 제한을 넘기면 그 사실이 로그에 남는다. Sentry 가 받아 저장했는지는 이 기준이 아니다 | 지연 transport 테스트(§5.2): 정상, 제한 초과, 요청 컨텍스트 없음 |
 | flush 가 응답을 늦추지 않는다 | 같은 테스트에서 응답 시각과 transport 완료 시각을 비교한다 |
 | 가린 뒤에도 장애 분석이 된다 | 대표 오류 다섯 가지의 이벤트에 사건 코드·결제 ID·사용자 UUID 가 남는지 fixture 로 확인한다 |
 
@@ -149,7 +150,7 @@
 
 ### 4.2 호출부: 계약을 통과한 값만 남긴다
 
-초안 1 은 "허용 필드만 받는 타입"으로 충분하다고 봤다. 리뷰가 지적한 대로 타입만으로는 부족하다. `message`·`errorCode`·`step` 은 임의의 문자열이 될 수 있고, `error` 는 무엇이든 될 수 있으며, 지금 로거는 오류의 `message` 와 `stack` 을 콘솔과 Sentry 에 그대로 복사한다(`utils/logger.ts` 83~92, `utils/logger-targets.ts` 20~27·64~92). 그래서 **타입이 아니라 런타임 계약**으로 정한다.
+초안 1 은 "허용 필드만 받는 타입"으로 충분하다고 봤고, 초안 2 는 형식 검증을 더했다. 리뷰가 두 번 지적한 대로 둘 다 부족하다. 형식 검사는 값이 비밀인지 가리지 못한다(`CANARY_BEARER_91c2` 는 코드 형식을 통과한다). `stack` 의 `at …` 줄에도 URL 이 들어올 수 있다(#73 이 지적한 stack frame 우회). 그래서 **문자열은 닫힌 목록에서 고르고, 목록에 없으면 버린다.**
 
 ```ts
 // 사건 코드는 한 파일에 모은 닫힌 목록이다. 문자열을 조립하지 않는다.
@@ -165,7 +166,7 @@ type SafeLogFields = {
   orderId?: string;     // 같은 형식
   productId?: string;   // 같은 형식
   httpStatus?: number;  // 100~599 정수만
-  errorCode?: string;   // [A-Za-z0-9_.:-]{1,64} 만. 외부 응답의 코드 필드
+  errorCode?: string;   // 알려진 코드 표에 있는 값만. 없으면 'unknown'
   amount?: number;      // 유한한 수만
   currency?: string;    // [A-Z]{3} 만
 };
@@ -173,24 +174,29 @@ type SafeLogFields = {
 export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLogFields): void;
 ```
 
-- 함수는 넘겨받은 값을 그대로 쓰지 않고 **가린 기록을 새로 만든다.** 형식에 맞지 않는 필드는 버리고 버린 필드의 이름만 `droppedFields` 에 남긴다. 값은 남기지 않는다.
-- `error` 에서 쓰는 것은 두 가지뿐이다: 식별자 형식을 통과한 `name`, 그리고 `stack` 에서 `at …` 으로 시작하는 프레임 줄. 첫 줄(`Error: <message>`)과 `message`, `cause`, 그 밖의 속성은 쓰지 않는다. 외부 오류의 메시지에는 값이 섞인다(#76: `PostgrestError.details` 의 `Key (email)=(…)`).
+- 함수는 넘겨받은 값을 그대로 쓰지 않고 **가린 기록을 새로 만든다.**
+- `errorCode` 는 공급자별 알려진 코드 표(OAuth 의 `invalid_grant` 등, PayPal·PortOne 의 오류 코드, Postgres SQLSTATE 와 PostgREST 코드)에 있는 값만 남긴다. 표에 없으면 `'unknown'` 으로 바꾼다. 표는 전수 조사와 sandbox 응답으로 만든다.
+- `error` 에서 쓰는 것은 오류 이름 하나다. 알려진 이름 표(`Error`, `TypeError`, `AbortError`, `PostgrestError`, `AuthApiError` 등)에 있으면 그 이름을, 없으면 `'Error'` 를 쓴다. **원본 오류의 `message`, `stack`, `cause`, 그 밖의 속성은 쓰지 않는다.**
+- stack 은 `logSafeError` 가 호출 지점에서 만든 Error 의 것을 쓴다. 우리 프로세스가 만든 프레임이라 요청이나 외부 응답의 값이 들어갈 길이 없다. 원본 오류가 어디서 났는지는 잃지만, 외부 호출의 실패는 사건 코드와 호출 지점으로 구분된다.
+- ID 필드(`userId`, `paymentId` 등)는 형식과 길이만 검증한다. 호출부가 토큰을 ID 자리에 잘못 넘기는 실수는 형식 검사로 막지 못한다. 이것은 전수 조사 표의 리뷰와, 실제 경로에 canary 토큰을 넣는 envelope 테스트(§5.1)가 막는다. 남는 위험으로 §6.4 에 적는다.
+- 형식에 맞지 않는 필드는 버리고 버린 필드의 이름만 `droppedFields` 에 남긴다.
 - **Console 과 Sentry 두 target 모두 이 가린 기록만 받는다.** 한쪽만 가리면 다른 쪽이 우회로가 된다(#73 의 실패한 접근 1).
 - 결제·인증 경로(`app/api/payment/**`, `app/api/auth/**`, `lib/supabase/social/**`, `lib/payment/**`)에서는 `logError` 와 `console.*` 를 lint 로 금지한다.
-- 구현 계획의 첫 단계는 이 경로의 로그 호출 전수 조사 표다: 파일, 줄, 지금 넘기는 값, 붙일 사건 코드, 남길 필드. #73 의 요구 1(실제 키 전수 조사)과 #76 의 요구 1(실행으로 확인한 표)에 해당한다. 외부 응답에 무엇이 들어오는지는 sandbox 응답으로 확인하고, sandbox 가 없으면 "통째로 버리고 상태 코드만 남긴다"를 기본으로 한다.
+- 구현 계획의 첫 단계는 이 경로의 로그 호출과 `throw` 문의 전수 조사 표다: 파일, 줄, 지금 넘기는 값, 붙일 사건 코드, 남길 필드. #73 의 요구 1(실제 키 전수 조사)과 #76 의 요구 1(실행으로 확인한 표)에 해당한다. 외부 응답에 무엇이 들어오는지는 sandbox 응답으로 확인하고, sandbox 가 없으면 "통째로 버리고 상태 코드만 남긴다"를 기본으로 한다.
 - §2.2 의 `console.log` 가운데 URL·쿼리·토큰을 찍는 줄은 지운다. 남길 정보가 없다. 이 삭제는 계약을 기다리지 않고 먼저 할 수 있다(§6.1 의 PR 1b).
-- §9 의 결정 3(외부 오류의 `message`·`stack`)은 호출부를 옮기기 전에 정해져야 한다.
+- §9 의 결정 3 은 호출부를 옮기기 전에 정해져야 한다.
 
 ### 4.3 전달: 무엇을 보장하고 무엇을 보장하지 못하나
 
-초안 1 은 "정적 import 로 바꾸면 전달이 보장된다"고 썼다. 틀린 표현이다. 정적 import 는 이벤트가 큐에 들어가는 시점을 앞당길 뿐이다. SDK 의 flush 는 2초가 지나면 `false` 를 돌려주고 래퍼는 그 결과를 버린다(`responseEnd.js` 9~16, `client.js` 의 `flush`). `vercelWaitUntil` 은 Vercel 요청 컨텍스트가 없으면 아무것도 등록하지 않는다(`vercelWaitUntil.js`). 그래서 보장을 둘로 나눈다.
+초안 1 은 "정적 import 로 바꾸면 전달이 보장된다"고 썼다. 틀린 표현이다. 정적 import 는 이벤트가 큐에 들어가는 시점을 앞당길 뿐이다. SDK 의 flush 는 2초가 지나면 `false` 를 돌려주고 래퍼는 그 결과를 버린다(`responseEnd.js` 9~16, `client.js` 의 `flush`). `flush` 가 `true` 여도 그 뜻은 "SDK 의 처리가 끝났고 transport 가 전송을 끝냈다"이지 Sentry 가 받아 저장했다는 확인이 아니다. `vercelWaitUntil` 은 Vercel 요청 컨텍스트가 없으면 아무것도 등록하지 않는다(`vercelWaitUntil.js`). 그래서 보장을 셋으로 나눈다.
 
-1. **항상 보장하는 것: 가린 로그 한 줄.** `logSafeError` 는 Console target 에 동기로 쓴다. 응답이 나가기 전에 서버 표준 출력에 남으므로 Vercel 런타임 로그에서 찾을 수 있다(보존 약 하루). Sentry 전달이 실패해도 오류가 흔적 없이 사라지지는 않는다.
-2. **최선 노력: Sentry 도착.** Vercel 요청 컨텍스트 안에서 transport 가 flush 제한(2초) 안에 끝나면 도착한다.
+1. **항상 보장하는 것: 가린 로그 한 줄.** `logSafeError` 는 Console target 에 동기로 쓴다. 응답이 나가기 전에 서버 표준 출력에 남으므로 Vercel 런타임 로그에서 찾을 수 있다(보존 약 하루). Sentry 전송이 실패해도 오류가 흔적 없이 사라지지는 않는다.
+2. **최선 노력: transport 의 전송 완료.** Vercel 요청 컨텍스트 안에서 flush 제한(2초) 안에 끝나는 경우다.
    - `SentryLogTarget` 이 `@sentry/nextjs` 를 정적으로 import 하고 `captureException` 을 `write` 의 동기 구간에서 부른다. `await import` 를 없앤다. `captureException` 뒤의 event processor 는 비동기이므로 "큐에 들어갔다"와 "전송됐다"는 다르다.
-   - SDK 의 route handler 래퍼가 끝에서 flush 를 `waitUntil` 에 건다(§2.3). 여기에 기대되, 우리 쪽에서도 `after(async () => { const ok = await Sentry.flush(2000); if (!ok) console.warn('[sentry] flush timeout'); })` 를 건다. 제한을 넘긴 사실이 Vercel 로그에 남는다. `after` 는 Next 15.5 의 안정 API 이고 route handler, server action, middleware 에서 쓸 수 있다.
+   - flush 는 요청당 한 번이면 된다. route handler 는 SDK 의 래퍼가 끝에서 flush 를 `waitUntil` 에 건다(§2.3). 우리가 로그마다 flush 를 또 걸지 않는다. 같은 전역 큐를 중복해서 기다리게 되고, 동시에 처리 중인 다른 요청의 이벤트 때문에 무관한 경고가 난다.
+   - 래퍼가 감싸지 않는 실행 경로(server action 등, 빌드 결과로 확인한다)에서만 요청당 한 번 `after(() => Sentry.flush(2000))` 를 건다. 결과가 `false` 면 `[sentry] flush timeout` 을 남긴다. 이 경고는 "전역 큐가 제한 안에 비워지지 않았다"는 뜻이고 특정 이벤트의 실패를 가리키지 않는다. `after` 는 Next 15.5 의 안정 API 다.
    - `log-error.ts` 는 브라우저 번들에도 들어간다. `after` 는 서버 전용 파일에서만 부른다(런타임 분기가 아니라 파일 분리).
-3. **보장하지 못하는 것.** flush 제한 안에 Sentry 가 응답하지 않는 경우, Vercel 요청 컨텍스트 밖(빌드 중 프리렌더, 로컬 스크립트)에서 난 오류의 전송 완료. 이 경우의 기록은 1번의 로그 한 줄이다.
+3. **보장하지 못하는 것.** flush 제한 안에 전송이 끝나지 않는 경우, Vercel 요청 컨텍스트 밖(빌드 중 프리렌더, 로컬 스크립트)에서 난 오류의 전송, 그리고 Sentry 쪽의 수신·저장. 이 경우의 기록은 1번의 로그 한 줄이다.
 
 `waitUntil` 에 로거의 Promise 만 거는 방식(#74 에서 철회)은 쓰지 않는다. `logError` 의 동기 시그니처는 그대로 둔다.
 
@@ -210,6 +216,17 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 - 이 단계 전까지 Replay 를 어떻게 둘지는 §9 의 결정 7 이다.
 - 클라이언트의 서드파티 필터와 그 밖의 설정은 건드리지 않는다.
 
+### 4.7 처리되지 않은 예외 (`onRequestError`)
+
+`instrumentation.ts` 34 는 Next 의 `onRequestError` 를 `Sentry.captureRequestError` 에 그대로 넘긴다. SDK 는 요청 헤더 전체를 `normalizedRequest` 에 넣고 **원본 오류를 그대로** `captureException` 에 넘긴다(`@sentry/nextjs/build/cjs/common/captureRequestError.js` 9~33). 이 경로는 `logSafeError` 를 거치지 않는다.
+
+- 헤더·쿠키·쿼리는 §4.1 의 수집 축소와 URL·쿼리 규칙이 닫는다(같은 integration 과 훅을 지난다).
+- 남는 것은 **오류 메시지 안에 섞인 값**이다. 처리되지 않은 예외는 버그이고 메시지가 있어야 고칠 수 있으므로 통째로 버리지 않는다. 대신 다음을 한다.
+  1. `beforeSend` 에서 `exception.values[].value` 에 값 모양 규칙을 적용한다: URL 의 `?`·`#` 뒤 제거, JWT 모양과 `Bearer` 토큰 치환, 이메일 치환. 이것은 §4.5 의 가드를 이 경로에서는 경보가 아니라 치환으로 쓰는 것이다. 모양이 알려진 값만 잡는다는 한계가 있다.
+  2. 결제·인증 경로에서는 `throw new Error(…)` 에 변수를 끼워 넣지 않는다. 전수 조사 표(§4.2)에 `throw` 문을 넣고 lint 로 템플릿 리터럴을 막는다.
+  3. `stacktrace.frames` 의 `filename`·`abs_path` 는 URL 규칙을 지난다. `vars` 는 서버 SDK 가 기본으로 붙이지 않는다는 것을 envelope 테스트로 고정한다.
+- envelope 테스트에 "메시지에 canary 가 든 예외를 던지는 요청"을 넣어 이 경로를 실제로 지난다(§5.1). 테스트용 라우트는 운영 빌드에 넣지 않는다. 테스트 스크립트가 띄우는 서버에서만 환경변수로 켠다.
+
 ## 5. 테스트
 
 ### 5.1 envelope 테스트 (누출)
@@ -218,8 +235,8 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 
 - 방법: Production 빌드를 `next start` 로 띄우고 `SENTRY_DSN` 을 로컬 수집기로 돌린다(§2.1 의 방법을 스크립트로 만든다: `npm run test:envelope`).
 - 표본을 강제한다. `sentry.server.config.js` 가 `SENTRY_TRACES_SAMPLE_RATE` 가 있으면 그 값을 쓰게 하고(없으면 지금처럼 0.1), 테스트는 1 로 준다.
-- 보내는 요청: 페이지 `GET /ko/vote?code=<canary>`(서버가 Supabase 를 불러 자식 span 이 생긴다), PortOne 웹훅(서명 실패), PayPal capture(인증 실패 경로), OAuth 콜백 프록시. 헤더·쿠키·쿼리·본문에 canary 를 넣는다.
-- **수신 건수를 먼저 단언한다**: 오류 이벤트 N건, transaction N건, 자식 span 1건 이상(`http.client` 포함). 아무것도 받지 못한 테스트가 통과하는 일을 막는다.
+- 보내는 요청: 페이지 `GET /ko/vote?code=<canary>`(서버가 Supabase 를 불러 자식 span 이 생긴다), PortOne 웹훅(서명 실패), PayPal capture(인증 실패 경로), OAuth 콜백 프록시, 그리고 메시지에 canary 가 든 예외를 던지는 테스트용 요청(§4.7, `onRequestError` 경로). 헤더·쿠키·쿼리·본문에 canary 를 넣는다.
+- **수신 건수를 먼저 단언한다**: `logSafeError` 의 오류 이벤트 N건, 처리되지 않은 예외의 이벤트 N건(`mechanism.handled` 가 `false`), transaction N건, 자식 span 1건 이상(`http.client` 포함). 아무것도 받지 못한 테스트가 통과하는 일을 막는다.
 - 그다음 envelope 전체(event, transaction, span, breadcrumb, attachment)와 서버 표준 출력에서 canary 를 찾는다. 하나라도 있으면 실패다.
 - 오늘 실측한 표(§2.1)가 이 테스트의 첫 실패 목록이다. 수정 전에 실패하는 것을 먼저 본다.
 - 빌드가 Supabase 조회에 의존하므로 이 테스트는 CI 에 넣지 못한다. PR 1~4 의 머지 전 필수 확인으로 두고 결과를 PR 본문에 적는다. Sentry SDK 를 올릴 때도 돌린다.
@@ -228,14 +245,14 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 ### 5.2 전달 테스트
 
 - 실제 SDK 에 전송 시간을 조절할 수 있는 transport 를 붙이고, SDK 의 route handler 래퍼를 포함해 호출한다.
-- 사례 1(정상): 전송 300ms. 핸들러가 `logSafeError` 를 부르고 바로 응답한다. `waitUntil` 에 걸린 Promise 가 끝났을 때 전송이 완료돼 있다. 모듈 캐시가 빈 첫 호출에서도 그렇다. 응답 시각이 전송 완료보다 앞선다.
+- 사례 1(정상): 전송 300ms. 핸들러가 `logSafeError` 를 부르고 바로 응답한다. `waitUntil` 에 걸린 Promise 가 끝났을 때 transport 의 전송이 끝나 있다. 모듈 캐시가 빈 첫 호출에서도 그렇다. 응답 시각이 전송 완료보다 앞선다. `flush` 가 요청당 한 번만 불리는지도 센다.
 - 사례 2(제한 초과): 전송이 flush 제한보다 길다. `flush` 가 `false` 를 돌려주고, `[sentry] flush timeout` 줄과 가린 로그 한 줄이 표준 출력에 있다. 응답은 늦어지지 않는다.
 - 사례 3(요청 컨텍스트 없음): `@vercel/request-context` 가 없는 환경. `vercelWaitUntil` 이 아무것도 걸지 않는다는 것과, 그때도 가린 로그 한 줄이 남는다는 것을 확인한다.
 - 수정 전 코드(`await import`)에서 사례 1 이 실패하는지 먼저 본다. 실패하지 않으면 §2.3 의 "틈" 가설이 틀린 것이므로 §4.3 의 2번을 다시 쓴다.
 
 ### 5.3 그 밖
 
-- 계약 함수의 단위 테스트: 형식에 맞지 않는 필드는 버려지고 이름만 `droppedFields` 에 남는다. 오류의 `message` 와 첫 줄은 기록에 없다. Console 과 Sentry 두 target 이 받은 기록이 같다. 입력·출력 표로 고정한다.
+- 계약 함수의 단위 테스트: 형식에 맞지 않는 필드는 버려지고 이름만 `droppedFields` 에 남는다. canary 를 `errorCode`, 오류의 `name`·`message`·`stack`(`at https://…?code=<canary>` 줄 포함), `cause` 에 넣어도 기록에 나오지 않는다. Console 과 Sentry 두 target 이 받은 기록이 같다. 입력·출력 표로 고정한다.
 - lint 규칙 테스트: 결제·인증 경로의 `console.*` 와 `logError` 호출이 오류가 된다.
 - 결제 계약 테스트 17건과 `it.fails` 6건은 그대로 통과해야 한다.
 - fixture 테스트: 대표 오류 다섯 가지의 이벤트에 결제 ID·사용자 UUID·오류 코드가 남는다.
@@ -246,7 +263,8 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 
 | PR | 내용 | 이 PR 로 닫히는 sink | 아직 남는 것 |
 |---|---|---|---|
-| 1 | envelope 테스트 스크립트, 서버·edge 설정의 수집 축소와 URL·쿼리 규칙(§4.1) | SDK 가 스스로 붙이던 쿠키·헤더·IP·쿼리(오류 이벤트, transaction, span), 서버의 console breadcrumb | 호출부가 넘기는 값, URL 을 찍는 `console.log`, 웹훅 응답 본문, 브라우저 |
+| 1 | envelope 테스트 스크립트, 서버·edge 설정의 수집 축소와 URL·쿼리 규칙(§4.1), 처리되지 않은 예외의 메시지 규칙(§4.7) | SDK 가 스스로 붙이던 쿠키·헤더·IP·쿼리(오류 이벤트, transaction, span), 서버의 console breadcrumb, 예외 메시지 속의 URL 쿼리와 모양이 알려진 비밀 | 호출부가 넘기는 값, URL 을 찍는 `console.log`, 웹훅 응답 본문, 예외 메시지 속의 그 밖의 값, 브라우저 |
+| 0 | (결정 7 이 "내린다"일 때) Vercel Production 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE=0` 을 넣고 다시 배포한다. 코드 변경이 아니다(`instrumentation-client.ts` 11 이 이 값을 읽는다). PR 5 에서 검증한 뒤 지운다 | 브라우저 Replay(임시 중단) | 나머지 전부 |
 | 1b | 바로 지울 수 있는 줄: URL·쿼리·토큰을 찍는 `console.log`(`auth/v1/callback`, `payment/portone/callback`, `payment/toss/result`), 웹훅 응답의 `receivedBody`(§4.4) | OAuth code 와 결제 토큰의 Vercel 로그 출력, 웹훅 본문 에코 | 호출부가 넘기는 값(PayPal 응답 통째 등), 브라우저 |
 | 2 | 가린 기록을 만드는 계약 함수(§4.2)와 전달(§4.3), 전달 테스트 | (호출부를 옮길 준비) | 위와 같음 |
 | 3 | 인증 경로의 호출부를 계약 함수로 옮기고 lint 규칙을 켠다 | 인증 경로의 호출부 값(Sentry, Vercel 로그) | 결제 경로의 호출부 값, 브라우저 |
@@ -254,7 +272,7 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 | 5 | 브라우저(§4.6): 브라우저 envelope 테스트, 클라이언트 훅과 Replay | 브라우저 이벤트·breadcrumb·Replay 의 URL 쿼리 | QNA·프로필 API 등 2단계 |
 
 - 모든 PR 은 고위험(개인정보·인증·결제)으로 분류해 다른 공급자의 교차 리뷰를 받는다.
-- PR 1 은 §9 의 결정 1·6 이, PR 1b 는 결정 1 이 정해지면 시작할 수 있다. 세션 쿠키와 OAuth code 가 나가는 것을 막는 변경이라 가장 급하다.
+- PR 1 은 §9 의 결정 1·3·6 이, PR 1b 는 결정 1 이 정해지면 시작할 수 있다. 세션 쿠키와 OAuth code 가 나가는 것을 막는 변경이라 가장 급하다.
 - PR 4 는 결제 결함 수정(B-P1~B-P3)과 같은 파일을 건드리므로 순서를 맞춘다.
 - 로그 레벨 정책(#75·#76)은 PR 3·4 와 같은 호출부를 다시 고친다. PR 3·4 뒤에 하거나 같은 PR 에서 사건 코드별로 정한다. 지금 Sentry 로 가는 것은 ERROR·FATAL 뿐이다(`utils/logger-targets.ts` 59). 레벨 정책이 Sentry 로 가는 범위를 넓히는 쪽으로 바뀐다면 가리기가 먼저 끝나 있어야 한다.
 
@@ -275,6 +293,8 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | Console breadcrumb 을 빼서 오류 직전의 맥락이 준다 | 서버의 console 출력은 Vercel 로그에 있다. 요청 ID 로 잇는다 |
 | `logSafeError` 의 필드가 부족해 호출부가 우회한다 | 필드 추가는 이 파일을 고치는 PR 로만 한다. lint 가 우회를 막는다 |
 | URL 모양 속성을 하나 놓친다 | envelope 테스트가 canary 로 잡는다. 새 SDK 버전에서 속성이 늘어도 같은 테스트가 잡는다 |
+| 호출부가 토큰을 ID 필드에 잘못 넘긴다(형식 검사를 통과한다) | 전수 조사 표의 리뷰, 실제 경로에 canary 토큰을 넣는 envelope 테스트 |
+| 예외 메시지에 모양이 알려지지 않은 값이 섞인다 | 결제·인증 경로의 `throw` 문 lint, 전수 조사. 완전히 막지는 못한다 |
 | `SENTRY_TRACES_SAMPLE_RATE` 가 운영 환경변수로 잘못 들어가 표본이 바뀐다 | 0 과 1 사이의 수만 받고, 운영 환경변수 목록에 없음을 배포 확인 항목에 넣는다 |
 | 정적 import 로 서버 번들이 달라진다 | `@sentry/nextjs` 는 `instrumentation.ts` 가 이미 서버에 올린다. 브라우저 번들에 `logger-targets.ts` 가 들어가는지 빌드로 확인한다 |
 
@@ -297,6 +317,10 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | edge 는 `sendDefaultPii` 가 꺼져 있으면 요청 데이터를 붙이지 않는다 | `@sentry/vercel-edge` 의 기본 integration 목록 |
 | §2.2 의 호출부 아홉 곳 | 2026-10-02 파일을 열어 확인 |
 | Production 에 서버 transaction 이 들어온다 | 2026-10-02 Sentry 조회(`span.op:http.server`) |
+| 처리되지 않은 예외는 `captureRequestError` 가 요청 헤더 전체와 원본 오류를 SDK 에 넘긴다 | `@sentry/nextjs` 9.47.1 `common/captureRequestError.js` |
+| SDK 가 `url.query`·`url.fragment`·`url.full` 속성을 만든다 | `@sentry/core` 9.47.1 `utils/url.js` 144~159 |
+| `flush(timeout)` 은 제한을 넘기면 `false` 를 주고, `vercelWaitUntil` 은 요청 컨텍스트가 있을 때만 등록한다 | `@sentry/core` 9.47.1 `client.js`, `utils/vercelWaitUntil.js` |
+| Replay 오류 표본율은 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE`(기본 1.0)로 정한다 | `instrumentation-client.ts` 11 |
 
 남은 가정
 
@@ -315,13 +339,13 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 |---|---|---|---|
 | 1 | 접근법은 C(수집과 호출을 좁히고 envelope 테스트로 지킨다)로 가도 되는가 | C | PR 1 전 |
 | 2 | 사용자 UUID·결제 ID·주문 ID 는 로그에 남기는가. 이메일·이름·전화번호·IP 는 남기지 않는가 | UUID 와 ID 는 남기고 나머지는 남기지 않는다 | PR 2 전 |
-| 3 | 외부 오류의 `message` 를 싣는가 | 싣지 않는다. 사건 코드, 오류의 `name`, 우리 코드의 프레임만 남긴다(§4.2) | PR 2 전. 호출부를 옮기기 전에 반드시 |
+| 3 | `logSafeError` 가 원본 오류의 `message`·`stack` 을 싣는가. 처리되지 않은 예외의 메시지는 어떻게 하나 | 싣지 않는다. 사건 코드, 알려진 오류 이름, 호출 지점의 stack 만 남긴다(§4.2). 처리되지 않은 예외는 메시지를 남기되 값 모양 규칙을 적용한다(§4.7) | PR 1 전(§4.7), PR 2 전(§4.2) |
 | 4 | 브라우저 단계(PR 5)를 이 설계에 이어서 바로 할 것인가 | 한다. PR 1~4 와 따로 리뷰한다 | PR 5 전 |
 | 5 | Sentry 의 Data Scrubber 설정을 확인하고, 이미 들어간 서버 이벤트(쿠키가 실렸을 수 있다)를 지울 것인가 | 설정을 확인하고 켠다. 과거 이벤트는 보존 기간과 건수를 본 뒤 정한다 | 지금 |
 | 6 | §4.5 의 값 모양 가드를 넣는가 | 넣는다. 정제가 아니라 경보로 | PR 1 전 |
-| 7 | 브라우저 단계가 끝날 때까지 Replay 를 어떻게 둘 것인가(지금 오류 세션 표본율 1.0) | Production 의 `replaysOnErrorSampleRate` 를 0 으로 내려 두고 PR 5 에서 검증한 뒤 다시 켠다 | 지금 |
+| 7 | 브라우저 단계가 끝날 때까지 Replay 를 어떻게 둘 것인가(지금 오류 세션 표본율 1.0) | Production 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE=0` 으로 내려 두고(§6.1 의 0단계) PR 5 에서 검증한 뒤 되돌린다 | 지금 |
 
-결정과 별개로 알릴 것: §2.1 은 지금 Production 에서 일어나고 있는 일이다. PR 1 은 결정 1·6 이, PR 1b 는 결정 1 이 정해지면 시작할 수 있다.
+결정과 별개로 알릴 것: §2.1 은 지금 Production 에서 일어나고 있는 일이다. PR 1 은 결정 1·3·6 이, PR 1b 는 결정 1 이 정해지면 시작할 수 있다.
 
 ## 10. 초안 1 에서 달라진 것
 
@@ -336,3 +360,15 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | major | Replay 와 브라우저 URL 을 미뤄 둔 채 "어떤 sink 로도"를 성공 기준으로 썼다 | 목표를 서버·edge 로 한정하고 §4.6 과 브라우저 성공 기준, 결정 7(Replay 임시 조치)을 넣었다 |
 | major | PR 1 의 범위가 결정 4 와 어긋나고, PR 1 뒤에도 남는 sink 가 적혀 있지 않다 | §6.1 표에 PR 별로 닫히는 sink 와 남는 것을 적었다. 바로 지울 수 있는 줄을 PR 1b 로 뺐다 |
 | minor | 로그 레벨 순서의 근거가 반대다. 지금은 ERROR·FATAL 만 Sentry 로 간다 | §6.1 의 근거를 고쳤다 |
+
+### 10.1 초안 2 에서 달라진 것
+
+초안 2 의 재검증도 REQUEST_CHANGES 였다. 초안 1 의 지적 가운데 넷은 해소, 둘은 부분 해소, 하나는 미해소로 판정됐고 새 지적이 나왔다.
+
+| 심각도 | 지적 | 처리 |
+|---|---|---|
+| blocker | 형식 검사는 비밀값을 가리지 못한다(`CANARY_BEARER_91c2` 가 `errorCode` 형식을 통과한다). `stack` 의 `at …` 줄에 URL 이 남는다 | §4.2: `errorCode` 와 오류 이름을 알려진 표에서 고르고 없으면 버린다. 원본 `stack` 을 쓰지 않고 호출 지점의 stack 을 쓴다. canary 를 이 입력들에 넣는 테스트를 §5.3 에 넣었다. ID 필드의 남는 위험을 §6.4 에 적었다 |
+| blocker(신규) | `onRequestError` 경로가 안전 로거를 거치지 않는다. 원본 오류 메시지에 섞인 값을 URL 규칙이 처리하지 못한다 | §4.7 을 새로 썼다(메시지에 값 모양 규칙, `throw` 문 lint, envelope 테스트에 예외 요청). 한계를 §6.4 에 적었다 |
+| major | `flush()` 의 성공은 transport 완료이지 Sentry 수신이 아니다. 로그마다 거는 flush 가 SDK 래퍼의 flush 와 겹쳐 무관한 경고를 낸다 | §4.3 과 §1.3 의 표현을 "transport 의 전송 완료"로 고쳤다. flush 는 요청당 한 번, 래퍼가 없는 경로에서만 건다. 경고의 뜻을 적었다 |
+| (부분 해소) | Replay 임시 조치가 결정에만 있고 실행 단계가 없다 | §6.1 표에 0단계(환경변수 변경과 재배포)를 넣었다 |
+
