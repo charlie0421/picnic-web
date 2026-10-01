@@ -182,6 +182,20 @@ const nextConfig = {
       // Play 스토어에 등록된 옛 개인정보처리방침 주소
       { source: '/privacy_en.html', destination: '/en/privacy', permanent: false },
       { source: '/privacy_ko.html', destination: '/ko/privacy', permanent: false },
+      // PR #107 전의 리다이렉트 버그가 만든 주소(/download → /download/vote, /login?error=x → /login/vote).
+      // 저장된 주소로 들어오는 요청을 원래 페이지로 되돌린다. 접두어 없는 쪽의 언어는 middleware 가 붙인다.
+      { source: '/download/vote', destination: '/download', permanent: false },
+      { source: '/login/vote', destination: '/login', permanent: false },
+      {
+        source: '/:lang(en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/download/vote',
+        destination: '/:lang/download',
+        permanent: false
+      },
+      {
+        source: '/:lang(en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/login/vote',
+        destination: '/:lang/login',
+        permanent: false
+      },
       // VOTE 단독 서비스화 — 비-VOTE 서비스 진입 URL 은 VOTE 홈으로 (롤백: 이 블록 삭제)
       { source: '/goong-hap/:path*',        destination: '/vote',        permanent: false },
       { source: '/:lang/goong-hap/:path*',  destination: '/:lang/vote',  permanent: false },
