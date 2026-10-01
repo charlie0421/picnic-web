@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
+import { useLocaleRouter } from '@/hooks/useLocaleRouter';
 
 interface RetryButtonProps {
   redirectPath?: string;
@@ -14,11 +14,11 @@ interface RetryButtonProps {
  * 클라이언트 이벤트 핸들링이 필요하기 때문에 클라이언트 컴포넌트로 구현
  */
 export function RetryButton({ redirectPath = '/login' }: RetryButtonProps) {
-  const router = useRouter();
+  const { push } = useLocaleRouter();
   const { t } = useLanguageStore();
 
   const handleClick = () => {
-    router.push(redirectPath);
+    push(redirectPath);
   };
 
   return (

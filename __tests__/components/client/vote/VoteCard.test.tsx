@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import {
   VOTE_STATUS,
   computeVoteStatus,
@@ -72,7 +72,9 @@ vi.mock('@/utils/date', () => ({
 }));
 
 vi.mock('@/components/client/vote/list/VoteItems', () => ({
-  VoteItems: () => <div data-testid="vote-items" />,
+  VoteItems: (props: any) => (
+    <div data-testid="vote-items" onClick={() => props.onNavigateToDetail?.()} />
+  ),
 }));
 
 // ============================
@@ -312,6 +314,29 @@ describe('VoteCard', () => {
     render(<VoteCard vote={mockVote as any} />);
     const link = screen.getAllByRole('link')[0];
     expect(link).toHaveAttribute('href', expect.stringContaining('/vote/1'));
+  });
+
+  // 순위 카드를 누르면 전체 페이지 이동을 한다. 접두어 없는 /vote/1 로 가면 middleware 의 307 을 한 번 더 거친다.
+  it('순위 영역을 누르면 보던 언어의 투표 상세로 이동한다', async () => {
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { ...originalLocation, href: 'http://localhost/en/vote' } as any,
+    });
+
+    try {
+      const { VoteCard } = await import('@/components/client/vote/list/VoteCard');
+      render(<VoteCard vote={mockVote as any} />);
+      fireEvent.click(screen.getByTestId('vote-items'));
+      expect(window.location.href).toBe('/en/vote/1');
+    } finally {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        writable: true,
+        value: originalLocation,
+      });
+    }
   });
 });
 

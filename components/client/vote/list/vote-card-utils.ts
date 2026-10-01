@@ -166,7 +166,6 @@ export const getSubCategoryLabel = (
 
 export interface VoteCardProps {
   vote: import('@/types/interfaces').Vote;
-  onClick?: () => void;
   isHero?: boolean;
   locale?: string;
 }
