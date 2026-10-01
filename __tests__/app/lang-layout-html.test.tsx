@@ -11,6 +11,16 @@ vi.mock('next/headers', () => ({
   },
 }));
 
+class NotFoundSignal extends Error {
+  constructor() {
+    super('NEXT_NOT_FOUND');
+  }
+}
+vi.mock('next/navigation', () => ({
+  notFound: () => {
+    throw new NotFoundSignal();
+  },
+}));
 vi.mock('next/font/google', () => ({ Inter: () => ({ className: 'font-inter' }) }));
 vi.mock('@/app/[lang]/ClientLayout', () => ({ default: () => null }));
 vi.mock('@/components/client/ads/ConsentAwareAdsense', () => ({ default: () => null }));
@@ -50,13 +60,14 @@ describe('[lang] 레이아웃 — <html lang>', () => {
     expect(html.props.lang).toBe(expected);
   });
 
-  it('대소문자가 섞인 세그먼트는 정규화한다', async () => {
-    expect((await render('ZH-TW')).props.lang).toBe('zh-TW');
-  });
-
-  it.each(['xx', 'login', '"><script>'])('지원하지 않는 세그먼트 %s 는 ko 로 폴백한다', async (lang) => {
-    expect((await render(lang)).props.lang).toBe('ko');
-  });
+  // middleware 를 거치지 않는 요청(/_next/rewards, /sitemap-1.xml)의 마지막 방어선.
+  // 표기 변형(ZH-TW)도 middleware 가 정규 주소로 보내므로 여기서는 404 다.
+  it.each(['ZH-TW', 'xx', 'login', '_next', 'sitemap-1.xml', '"><script>'])(
+    '정규 언어가 아닌 세그먼트 %s 는 notFound 다',
+    async (lang) => {
+      await expect(render(lang)).rejects.toBeInstanceOf(NotFoundSignal);
+    },
+  );
 
   it('body 안에서 ClientLayout 이 경로 언어를 받아 페이지를 감싼다', async () => {
     const body = bodyOf(await render('ja'));
