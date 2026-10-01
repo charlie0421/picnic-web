@@ -179,6 +179,9 @@ const nextConfig = {
         destination: '/:lang/download',
         permanent: false
       },
+      // Play 스토어에 등록된 옛 개인정보처리방침 주소
+      { source: '/privacy_en.html', destination: '/en/privacy', permanent: false },
+      { source: '/privacy_ko.html', destination: '/ko/privacy', permanent: false },
       // VOTE 단독 서비스화 — 비-VOTE 서비스 진입 URL 은 VOTE 홈으로 (롤백: 이 블록 삭제)
       { source: '/goong-hap/:path*',        destination: '/vote',        permanent: false },
       { source: '/:lang/goong-hap/:path*',  destination: '/:lang/vote',  permanent: false },
@@ -215,7 +218,9 @@ const nextConfig = {
         destination: 'https://xtijtefcycoeqludlngc.supabase.co/:path*'
       },
       {
-        source: '/:lang/supabase-proxy/:path*',
+        // :lang 을 정규 언어로 제한한다. 제한이 없으면 /images/supabase-proxy/… 같은 주소가
+        // catch-all handler 에 닿기 전에 Supabase 로 프록시된다(afterFiles rewrite 가 동적 라우트보다 먼저다).
+        source: '/:lang(en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/supabase-proxy/:path*',
         destination: 'https://xtijtefcycoeqludlngc.supabase.co/:path*'
       }
     ];
