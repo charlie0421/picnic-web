@@ -1,0 +1,113 @@
+'use strict';
+
+/**
+ * envelope 테스트가 보내는 요청과 기대값. 값은 전부 가짜다.
+ *
+ * canary 는 세 묶음이다 (설계 §5.1).
+ *   absent     — envelope 과 서버 표준 출력 어디에도 없어야 한다.
+ *   stdoutOnly — 테스트 라우트가 console.log 로 찍는다. 표준 출력에만 있어야 한다.
+ *   unhandled  — 감싸지 않은 예외. marker 만 exception.values[].value 와 Next 의 미처리 오류 줄에 남는다.
+ */
+
+const REPEAT = 3;
+const UNHANDLED_LINE_MARKER = 'envtest unhandled';
+
+const CANARIES = {
+  absent: {
+    cookie: 'cnryA-cookie-7f3a9b1c2d',
+    authorization: 'cnryA1authz8d2e4f6a0b9c7d5e3f',
+    signature: 'cnryA-signature-5e6f7a8b9c',
+    forwardedFor: '203.0.113.77',
+    pageQuery: 'cnryA-pagequery-c3d4e5f6a7',
+    webhookQuery: 'cnryA-webhookquery-b8c9d0e1f2',
+    webhookPaymentId: 'cnryA-paymentid-1a2b3c4d5e',
+    webhookEmail: 'cnrya-webhook@envtest.invalid',
+    handledQuery: 'cnryA-handledquery-6f7a8b9c0d',
+    upstreamToken: 'cnryA-upstreamtoken-9e8d7c6b5a',
+  },
+  stdoutOnly: {
+    console: 'cnryC-console-0f1e2d3c4b',
+  },
+  unhandled: {
+    marker: 'cnryB-marker-4b5a69788796',
+    requestQuery: 'cnryB-requestquery-a5b4c3d2e1',
+    urlQuery: 'cnryB-urlquery-f0e1d2c3b4',
+    jwt: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjbnJ5Qi1qd3QifQ.Y25yeUItand0LXNpZ25hdHVyZQ',
+    bearer: 'cnryB7bearer3c5e7a9b1d3f5a7c',
+    email: 'cnryb-message@envtest.invalid',
+  },
+};
+
+const EXPECTED = {
+  errors: [
+    { label: '웹훅 서명 실패(logError)', handled: true, transaction: 'POST /api/payment/portone/webhook', count: REPEAT },
+    { label: '테스트 라우트의 logError', handled: true, valueIncludes: 'envtest handled', count: REPEAT },
+    {
+      label: '처리되지 않은 예외(node)',
+      handled: false,
+      runtime: 'node',
+      valueIncludes: UNHANDLED_LINE_MARKER,
+      count: REPEAT,
+      requestPath: true,
+      tripwire: true,
+    },
+    {
+      label: '처리되지 않은 예외(edge)',
+      handled: false,
+      runtime: 'edge',
+      valueIncludes: UNHANDLED_LINE_MARKER,
+      count: REPEAT,
+      requestPath: true,
+      tripwire: true,
+    },
+  ],
+  transactions: [
+    { label: '페이지 transaction', name: 'GET /[lang]/vote', min: REPEAT },
+    { label: '웹훅 transaction', name: 'POST /api/payment/portone/webhook', min: REPEAT },
+    { label: '밖으로 부르는 요청의 transaction', name: 'GET /api/envelope-test/handled', min: REPEAT, childOp: 'http.client' },
+  ],
+};
+
+function buildRequests(base) {
+  const A = CANARIES.absent;
+  const B = CANARIES.unhandled;
+  const common = {
+    // 이 프로젝트의 Supabase 쿠키 이름이 아니다. middleware 가 세션으로 읽지 않는다.
+    cookie: `sb-envtest-auth-token=${A.cookie}; locale=ko`,
+    authorization: `Bearer ${A.authorization}`,
+    'x-forwarded-for': A.forwardedFor,
+    'x-envtest-console': CANARIES.stdoutOnly.console,
+  };
+  const unhandled = {
+    ...common,
+    'x-envtest-marker': B.marker,
+    'x-envtest-url-query': B.urlQuery,
+    'x-envtest-jwt': B.jwt,
+    'x-envtest-bearer': B.bearer,
+    'x-envtest-email': B.email,
+  };
+
+  const round = [
+    { label: 'page', url: `${base}/ko/vote?code=${A.pageQuery}`, init: { headers: common } },
+    {
+      label: 'webhook',
+      url: `${base}/api/payment/portone/webhook?token=${A.webhookQuery}`,
+      init: {
+        method: 'POST',
+        headers: { ...common, 'content-type': 'application/json', 'x-portone-signature': A.signature },
+        body: JSON.stringify({ paymentId: A.webhookPaymentId, status: 'PAID', customer: { email: A.webhookEmail } }),
+      },
+    },
+    {
+      label: 'handled',
+      url: `${base}/api/envelope-test/handled?code=${A.handledQuery}`,
+      init: { headers: { ...common, 'x-envtest-upstream-token': A.upstreamToken } },
+    },
+    { label: 'throw', url: `${base}/api/envelope-test/throw?code=${B.requestQuery}`, init: { headers: unhandled } },
+    { label: 'edge-throw', url: `${base}/api/envelope-test/edge-throw?code=${B.requestQuery}`, init: { headers: unhandled } },
+  ];
+
+  return Array.from({ length: REPEAT }, () => round).flat();
+}
+
+module.exports = { REPEAT, UNHANDLED_LINE_MARKER, CANARIES, EXPECTED, buildRequests };
