@@ -2,118 +2,54 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-
-function extractLangFromPath(path: string | null | undefined): string | null {
-  if (!path) return null;
-  // Next 는 동적 세그먼트를 디코드해 라우팅한다(/%65n/vote → lang=en). 첫 세그먼트만 같은 방식으로 디코드한다.
-  const firstSegment = path.split('/')[1];
-  if (!firstSegment) return null;
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(firstSegment);
-  } catch {
-    return null; // 잘못된 percent-encoding
-  }
-  const candidate = decoded.toLowerCase();
-  return (SUPPORTED_LANGUAGES as readonly string[]).includes(candidate)
-    ? candidate
-    : null;
-}
-
-// 정적 자산: Next 내부 경로, public/ 의 자산 디렉터리, 루트의 정확한 파일, 로케일 sitemap(app/[lang]/sitemap.ts)
-// (config.matcher 제외 목록과 같은 기준). 확장자로 판정하지 않는다 — /ko/vote/295.json 처럼 확장자가 붙은
-// 동적 HTML 경로도 페이지로 라우팅된다.
-const STATIC_ASSET_PATH =
-  /^\/(?:_next\/|\.well-known\/|images\/|locales\/|favicon\/|concert2025\/(?:image|video)\/|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)\/sitemap\.xml$|(?:favicon\.ico|robots\.txt|ads\.txt|app-ads\.txt|sitemap(?:-[^/]+)?\.xml|manifest\.json|site\.webmanifest|apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js)$)/;
+import { STATIC_ASSET_PATH, decideLocaleRoute } from './lib/i18n/locale-routing';
 
 function isLoginPath(pathname: string): boolean {
   // /login, /ko/login, /en/login 등
   return /^\/([a-z]{2}(-[a-z]{2})?\/)?login(\/|$)/i.test(pathname);
 }
 
-/**
- * 브라우저의 Accept-Language 헤더에서 선호 언어 추출
- */
-function getPreferredLanguageFromHeader(acceptLanguage: string | null): string {
-  if (!acceptLanguage) return DEFAULT_LANGUAGE;
-
-  // Accept-Language 예: "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
-  const candidates = acceptLanguage
-    .split(',')
-    .map((entry) => {
-      const [rawCode, qValue] = entry.trim().split(';q=');
-      const quality = qValue ? parseFloat(qValue) : 1.0;
-      // 코드 정규화: 소문자, '_' → '-', 공백 제거
-      const code = rawCode.trim().replace('_', '-').toLowerCase();
-      return { code, quality };
-    })
-    .sort((a, b) => b.quality - a.quality);
-
-  for (const { code } of candidates) {
-    // 1) 완전 일치 (예: 'zh-tw')
-    if (SUPPORTED_LANGUAGES.includes(code as any)) {
-      return code;
-    }
-    // 2) 지역 분리 후 특수 매핑: zh-tw 지원
-    const [primary, region] = code.split('-');
-    if (region) {
-      const normalized = `${primary}-${region}` as typeof SUPPORTED_LANGUAGES[number];
-      if (SUPPORTED_LANGUAGES.includes(normalized as any)) {
-        return normalized;
-      }
-    }
-    // 3) 기본 언어만 매칭 (예: es-ES → es)
-    if (SUPPORTED_LANGUAGES.includes(primary as any)) {
-      return primary;
-    }
-  }
-
-  return DEFAULT_LANGUAGE;
-}
-
-/**
- * 요청에서 선호 언어 결정 (우선순위: 쿠키 > Accept-Language > 기본값)
- */
-function getPreferredLanguage(request: NextRequest): string {
-  // 1. 쿠키에서 언어 확인 (useLocaleRouter와 일치하는 'locale' 쿠키 사용)
-  const cookieLocale = request.cookies.get("locale")?.value;
-  if (cookieLocale && SUPPORTED_LANGUAGES.includes(cookieLocale as any)) {
-    return cookieLocale;
-  }
-
-  // 2. 기존 NEXT_LOCALE 쿠키도 확인 (하위 호환성)
-  const legacyCookieLocale = request.cookies.get("NEXT_LOCALE")?.value;
-  if (legacyCookieLocale && SUPPORTED_LANGUAGES.includes(legacyCookieLocale as any)) {
-    return legacyCookieLocale;
-  }
-
-  // 3. Accept-Language 헤더에서 언어 추출
-  const acceptLanguage = request.headers.get("accept-language");
-  return getPreferredLanguageFromHeader(acceptLanguage);
-}
-
 // 경로 기반 요청 헤더는 middleware 만 만든다 — 클라이언트가 보낸 값은 버린다.
-// - x-locale: 경로의 지원 로케일. 레이아웃은 더 이상 읽지 않는다(<html lang> 은 [lang] 파라미터로 정한다).
+// - x-locale: 경로의 정규 언어. 레이아웃은 더 이상 읽지 않는다(<html lang> 은 [lang] 파라미터로 정한다).
 //   서버 컴포넌트가 다시 읽으면 그 페이지는 동적 렌더링이 된다 — 제거는 후속 정리.
 // - x-pathname / x-url: 더 이상 읽는 곳이 없다(VoteLite·경로 광고 분기 제거). 예전 코드나
 //   서드파티가 신뢰하지 않도록 인바운드 값을 계속 지운다.
 const ROUTING_REQUEST_HEADERS = ['x-locale', 'x-pathname', 'x-url'] as const;
 
-function buildForwardedRequestHeaders(req: NextRequest): Headers {
+function buildForwardedRequestHeaders(req: NextRequest, lang: string | null): Headers {
   const headers = new Headers(req.headers);
   for (const name of ROUTING_REQUEST_HEADERS) {
     headers.delete(name);
   }
-  const locale = extractLangFromPath(req.nextUrl.pathname);
-  if (locale) {
-    headers.set('x-locale', locale);
+  if (lang) {
+    headers.set('x-locale', lang);
   }
   return headers;
 }
 
 export async function middleware(req: NextRequest) {
+  // 언어 접두어 판정을 맨 앞에 둔다(인앱 안내·Supabase·getClaims 보다 먼저).
+  // 리다이렉트는 Supabase 가 쿠키를 쓰기 전에 나가므로 옮길 쿠키가 없고, 세션 갱신과 탈퇴 차단은
+  // 목적지 요청에서 middleware 가 다시 돌 때 적용된다. 규칙은 lib/i18n/locale-routing.ts 에 있다.
+  const decision = decideLocaleRoute(req.nextUrl.pathname, {
+    referer: req.headers.get('referer'),
+    host: req.headers.get('host'),
+    cookieLocale: req.cookies.get('locale')?.value ?? null,
+    acceptLanguage: req.headers.get('accept-language'),
+  });
+  if (decision.type === 'redirect') {
+    const url = req.nextUrl.clone();
+    url.pathname = decision.pathname; // 쿼리는 그대로 남는다
+    // 307: 메서드와 본문을 유지한다. 영구 리다이렉트를 쓰지 않아 롤백이 깨끗하다.
+    const redirect = NextResponse.redirect(url, 307);
+    redirect.headers.set('Cache-Control', 'private, no-store');
+    return redirect;
+  }
+
   // Create a response that we can modify cookies on
-  const res = NextResponse.next({ request: { headers: buildForwardedRequestHeaders(req) } });
+  const res = NextResponse.next({
+    request: { headers: buildForwardedRequestHeaders(req, decision.lang) },
+  });
 
   // 인앱 브라우저 (KakaoTalk, Twitter/X, Facebook, Instagram, Line, NAVER) hard redirect.
   // 인앱은 DOM mutation, OAuth third-party cookie 차단, 결제 redirect 제약 등으로
@@ -206,7 +142,7 @@ export async function middleware(req: NextRequest) {
             } catch (_) {}
 
             const lang =
-              extractLangFromPath(pathname) ||
+              decision.lang ||
               req.cookies.get('locale')?.value ||
               DEFAULT_LANGUAGE;
             const redirectLang = (SUPPORTED_LANGUAGES as readonly string[]).includes(lang)
@@ -245,15 +181,16 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // 정적 공개 파일들은 미들웨어 대상에서 제외 (퍼블릭 우선 서빙 보장)
-  // - robots.txt, app-ads.txt, ads.txt, sitemap(xml), 매니페스트, 애플 도메인 검증, .well-known/* 등
-  // - public/ 자산 디렉터리(/images, /locales, /favicon, /concert2025/image·video)와 루트 서비스 워커·스크립트:
-  //   세션 갱신·프로필 조회가 필요 없다. 확장자로 제외하지 않는다 — [lang] 아래 동적 경로는
-  //   /ko/vote/295.json 처럼 확장자가 붙어도 페이지이므로 인앱 redirect·탈퇴 차단·x-locale 주입을 거쳐야 한다.
-  //   STATIC_ASSET_PATH 와 같은 기준을 유지한다.
-  // - 로케일 sitemap(/{locale}/sitemap.xml, app/[lang]/sitemap.ts): 크롤러용 XML 이라 세션·인앱 redirect 가 필요 없다.
-  //   matcher 는 정적 분석 대상이라 SUPPORTED_LANGUAGES 를 참조할 수 없어 로케일을 나열한다 (동기화는 테스트가 검증).
+  // 정적 공개 파일은 middleware 대상에서 제외한다(퍼블릭 우선 서빙).
+  // - 루트의 파일은 정확한 이름으로 적는다(끝의 `$`). 이름의 앞부분만 보면 /api, /favicon.ico/vote,
+  //   /sitemap-foo.xml 같은 없는 경로가 middleware 를 건너뛰어 [lang] 으로 샌다.
+  // - sitemap-N.xml 은 next-sitemap 이 만드는 0–99 만 제외한다.
+  // - public/ 자산 디렉터리(/images, /locales, /favicon, /concert2025/image·video)와 /api/ 는 통째로 제외한다.
+  //   그 아래의 없는 경로는 app/<디렉터리>/[...slug]/route.ts 가 404 로 받는다.
+  // - 확장자로 제외하지 않는다 — /ko/vote/295.json 처럼 확장자가 붙은 [lang] 경로도 페이지다.
+  // - matcher 는 정적 분석 대상이라 상수를 참조할 수 없다. lib/i18n/locale-routing.ts 의 STATIC_ASSET_PATH 와
+  //   같은 기준을 유지한다(동기화는 __tests__/middleware/pass-through-sync.test.ts).
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots\\.txt|app-ads\\.txt|ads\\.txt|sitemap\\.xml|sitemap-.*\\.xml|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/sitemap\\.xml$|manifest\\.json|site\\.webmanifest|apple-developer-domain-association\\.txt|\\.well-known/.*|images/|locales/|favicon/|concert2025/(?:image|video)/|firebase-messaging-sw\\.js$|emergency-auth-fix\\.js$).*)",
+    "/((?!api/|_next/static|_next/image|favicon\\.ico$|apple-touch-icon(?:-precomposed)?\\.png$|robots\\.txt$|app-ads\\.txt$|ads\\.txt$|sitemap\\.xml$|sitemap-(?:0|[1-9]\\d?)\\.xml$|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/sitemap\\.xml$|manifest\\.json$|site\\.webmanifest$|apple-developer-domain-association\\.txt$|images/|locales/|favicon/|concert2025/(?:image|video)/|firebase-messaging-sw\\.js$|emergency-auth-fix\\.js$).*)",
   ],
 };
