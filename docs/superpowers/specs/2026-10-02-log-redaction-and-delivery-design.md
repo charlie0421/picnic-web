@@ -2,7 +2,7 @@
 
 - 날짜: 2026-10-02
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-22(STR-008), B-P4. 이슈 #73(Sentry 페이로드에 중앙 redaction 이 없다), #74(logError 가 Sentry 전달을 보장하지 않는다). 핸드오프 `docs/handoff-2026-10-02.html` §7 의 4순위
-- 상태: **초안 4. 사용자 검토 전.** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~3 을 REQUEST_CHANGES 로 돌려보내 세 번 고쳤다(§10). 초안 4 의 재검증 결과는 PR #116 에 적는다. §9 의 결정 여덟 개가 정해져야 구현 계획을 쓸 수 있다. 구현은 시작하지 않았다
+- 상태: **초안 5. 사용자 검토 전.** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤다(§10). 초안 5 의 재검증 결과는 PR #116 에 적는다. §9 의 결정 여덟 개가 정해져야 구현 계획을 쓸 수 있다. 구현은 시작하지 않았다
 - 기준: 코드 `9174da8d`(2026-10-02 Production), `@sentry/nextjs` 9.47.1, Next 15.5.26
 
 용어
@@ -195,7 +195,7 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 2. **최선 노력: transport 의 전송 완료.** Vercel 요청 컨텍스트 안에서 flush 제한(2초) 안에 끝나는 경우다.
    - `SentryLogTarget` 이 `@sentry/nextjs` 를 정적으로 import 하고 `captureException` 을 `write` 의 동기 구간에서 부른다. `await import` 를 없앤다. `captureException` 뒤의 event processor 는 비동기이므로 "큐에 들어갔다"와 "전송됐다"는 다르다.
    - flush 는 요청당 한 번이면 된다. route handler 는 SDK 의 래퍼가 끝에서 flush 를 `waitUntil` 에 건다(§2.3). 우리가 로그마다 flush 를 또 걸지 않는다. 같은 전역 큐를 중복해서 기다리게 되고, 동시에 처리 중인 다른 요청의 이벤트 때문에 무관한 경고가 난다.
-   - SDK 의 래퍼는 flush 결과를 버리므로 제한 초과를 알 수 없다. 제한 초과를 관측해야 하는 곳은 결제·인증 라우트다. 그 라우트는 §4.7 의 경계 함수가 감싸고, 경계 함수가 **오류를 기록한 요청에 한해 요청당 한 번** `after(async () => { if (!(await Sentry.flush(2000))) console.warn('[sentry] flush timeout'); })` 를 건다. SDK 래퍼의 flush 와 같은 큐를 함께 기다리지만 요청당 한 번이다. 이 경고는 "전역 큐가 제한 안에 비워지지 않았다"는 뜻이고 특정 이벤트의 실패를 가리키지 않는다. `after` 는 Next 15.5 의 안정 API 다.
+   - SDK 의 래퍼는 flush 결과를 버리므로 제한 초과를 알 수 없다. 제한 초과를 관측해야 하는 곳은 결제·인증 라우트다. 그 라우트는 §4.7 의 경계 함수가 감싸고, 경계 함수가 **오류를 기록한 요청에 한해 요청당 한 번** `after(async () => { if (!(await Sentry.flush(2000))) console.warn('[sentry] flush timeout'); })` 를 건다. flush 를 부르는 곳은 둘이다: SDK 래퍼(요청마다 한 번, 결과를 버린다)와 경계 함수(오류를 기록한 요청에서만 한 번, 결과를 본다). SDK 래퍼의 flush 는 끌 수 없으므로 소유자를 하나로 줄이지 않는다. 같은 큐를 함께 기다릴 뿐 서로를 늦추지 않는다. 이 경고는 "전역 큐가 제한 안에 비워지지 않았다"는 뜻이고 특정 이벤트의 실패를 가리키지 않는다. `after` 는 Next 15.5 의 안정 API 다.
    - 경계 함수가 감싸지 않는 라우트에서는 제한 초과를 관측하지 않는다. 성공 기준(§1.3)의 "제한을 넘기면 로그에 남는다"는 결제·인증 라우트에 한한다.
    - `log-error.ts` 는 브라우저 번들에도 들어간다. `after` 는 서버 전용 파일에서만 부른다(런타임 분기가 아니라 파일 분리).
 3. **보장하지 못하는 것.** flush 제한 안에 전송이 끝나지 않는 경우, Vercel 요청 컨텍스트 밖(빌드 중 프리렌더, 로컬 스크립트)에서 난 오류의 전송, 그리고 Sentry 쪽의 수신·저장. 이 경우의 기록은 1번의 로그 한 줄이다.
@@ -252,8 +252,9 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 - 표본을 강제한다. `sentry.server.config.js` 가 `SENTRY_TRACES_SAMPLE_RATE` 가 있으면 그 값을 쓰게 하고(없으면 지금처럼 0.1), 테스트는 1 로 준다.
 - 보내는 요청: 페이지 `GET /ko/vote?code=<canary>`(서버가 Supabase 를 불러 자식 span 이 생긴다), PortOne 웹훅(서명 실패), PayPal capture(인증 실패 경로), OAuth 콜백 프록시, 그리고 메시지에 canary 가 든 오류를 던지는 테스트용 요청 둘(§4.7: 경계 함수로 감싼 것과 감싸지 않은 것, 쿼리에도 canary 를 넣는다). 헤더·쿠키·쿼리·본문에 canary 를 넣는다. 이 테스트는 `ENVELOPE_TEST=1` 로 만든 별도 빌드에서 돈다.
 - **수신 건수를 먼저 단언한다**: `logSafeError` 의 오류 이벤트 N건, 처리되지 않은 예외의 이벤트 N건(`mechanism.handled` 가 `false`, `contexts.nextjs.request_path` 가 있고 쿼리가 없다), transaction N건, 자식 span 1건 이상(`http.client` 포함). 아무것도 받지 못한 테스트가 통과하는 일을 막는다.
-- 경계 함수로 감싼 테스트 요청에서는 원본 메시지의 canary 가 표준 출력과 envelope 어디에도 없어야 한다. 감싸지 않은 요청에서는 값 모양 규칙이 잡는 canary(URL 쿼리, JWT 모양)가 envelope 에 없어야 하고, 표준 출력에 원본이 남는 것은 결정 8 의 예외로 기록한다.
-- 그다음 envelope 전체(event, transaction, span, breadcrumb, attachment)와 서버 표준 출력에서 canary 를 찾는다. 하나라도 있으면 실패다.
+- canary 는 두 묶음으로 나눈다. **묶음 A**: 일반 요청과 경계 함수로 감싼 요청에 넣는 값. **묶음 B**: 감싸지 않은 테스트 요청에만 넣는 값(메시지용, URL 쿼리용, JWT 모양).
+- 무누출 검사: 묶음 A 는 envelope 전체(event, transaction, span, breadcrumb, attachment)와 서버 표준 출력 어디에도 없어야 한다. 하나라도 있으면 실패다.
+- 허용 노출 검사(결정 8 의 예외를 정확히 고정한다): 묶음 B 의 URL 쿼리용·JWT 모양 값은 envelope 에 없어야 한다. 메시지용 값은 envelope 의 `exception.values[].value` 와 표준 출력의 Next 미처리 오류 줄에만 있고 그 밖의 위치에는 없어야 한다. 결정 8 이 "받아들이지 않는다"로 정해지면 이 검사를 무누출 검사로 바꾼다.
 - 오늘 실측한 표(§2.1)가 이 테스트의 첫 실패 목록이다. 수정 전에 실패하는 것을 먼저 본다.
 - 빌드가 Supabase 조회에 의존하므로 이 테스트는 CI 에 넣지 못한다. PR 1~4 의 머지 전 필수 확인으로 두고 결과를 PR 본문에 적는다. Sentry SDK 를 올릴 때도 돌린다.
 - 보조로, 옵션 객체를 검사하는 단위 테스트를 CI 에 둔다(`requestDataIntegration` 의 `include`, `Console` 제외, 훅 세 개가 같은 함수를 쓰는지, URL·쿼리 함수의 입력·출력 표). 이것만으로는 누출이 없다고 말할 수 없다.
@@ -261,7 +262,7 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 ### 5.2 전달 테스트
 
 - 실제 SDK 에 전송 시간을 조절할 수 있는 transport 를 붙이고, SDK 의 route handler 래퍼를 포함해 호출한다.
-- 사례 1(정상): 전송 300ms. 핸들러가 `logSafeError` 를 부르고 바로 응답한다. `waitUntil` 에 걸린 Promise 가 끝났을 때 transport 의 전송이 끝나 있다. 모듈 캐시가 빈 첫 호출에서도 그렇다. 응답 시각이 전송 완료보다 앞선다. `flush` 가 요청당 한 번만 불리는지도 센다.
+- 사례 1(정상): 전송 300ms. 핸들러가 `logSafeError` 를 부르고 바로 응답한다. `waitUntil` 에 걸린 Promise 가 끝났을 때 transport 의 전송이 끝나 있다. 모듈 캐시가 빈 첫 호출에서도 그렇다. 응답 시각이 전송 완료보다 앞선다. flush 호출 횟수도 센다: 경계 함수의 flush 는 오류를 기록한 요청에서 정확히 한 번, 기록하지 않은 요청에서 0번이다. SDK 래퍼의 flush 는 요청마다 한 번이므로 합계는 1 또는 2 다. `logSafeError` 를 여러 번 불러도 늘지 않는다.
 - 사례 2(제한 초과): 경계 함수로 감싼 라우트에서 전송이 flush 제한보다 길다. `flush` 가 `false` 를 돌려주고, `[sentry] flush timeout` 줄과 가린 로그 한 줄이 표준 출력에 있다. 응답은 늦어지지 않는다. 감싸지 않은 라우트에서는 이 줄이 없다는 것도 확인해 한계를 고정한다.
 - 사례 3(요청 컨텍스트 없음): `@vercel/request-context` 가 없는 환경. `vercelWaitUntil` 이 아무것도 걸지 않는다는 것과, 그때도 가린 로그 한 줄이 남는다는 것을 확인한다.
 - 수정 전 코드(`await import`)에서 사례 1 이 실패하는지 먼저 본다. 실패하지 않으면 §2.3 의 "틈" 가설이 틀린 것이므로 §4.3 의 2번을 다시 쓴다.
@@ -400,4 +401,13 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | blocker | 값 모양 치환은 불투명한 code·서명·API 키를 못 막는다. Next 가 원본 오류를 Production 로그에 찍으므로 `beforeSend` 로는 가릴 수 없다. 목표와 충돌한다 | §4.7: 결제·인증 라우트는 경계 함수로 오류를 잡아 원본이 전파되지 않게 한다. 그 밖의 경로는 목표의 예외로 두고 결정 8 로 올렸다 |
 | major | route handler 에서 추가 flush 를 하지 않으면 제한 초과 로그를 만들 수 없다 | §4.3: 경계 함수가 오류를 기록한 요청에 한해 요청당 한 번 flush 를 걸어 결과를 본다. 성공 기준을 결제·인증 라우트로 한정했다 |
 | major | 테스트용 라우트를 런타임 환경변수로 뺄 수 없다 | §4.7: 별도 테스트 빌드(`pageExtensions`)에만 넣고 운영 산출물에 없다는 검사를 둔다 |
+
+### 10.3 초안 4 에서 달라진 것
+
+초안 4 의 재검증은 blocker 둘을 해소(하나는 결정 8 을 조건으로)로 판정하고 major 둘을 남겼다. 둘 다 테스트 기준의 모순이다.
+
+| 심각도 | 지적 | 처리 |
+|---|---|---|
+| major | §4.3 은 SDK 래퍼와 경계 함수가 각각 flush 를 부르게 했는데 §5.2 는 "요청당 한 번"을 단언한다 | flush 를 부르는 곳이 둘이라는 것과 이유를 §4.3 에 적고, §5.2 의 기대 횟수를 고쳤다(경계 함수 0 또는 1번, SDK 래퍼 1번) |
+| major | 감싸지 않은 테스트 요청의 원본이 표준 출력에 남는 것을 허용해 놓고 표준 출력 전체에서 canary 를 찾으면 실패하게 했다 | §5.1 의 canary 를 두 묶음으로 나누고 무누출 검사와 허용 노출 검사를 분리했다 |
 
