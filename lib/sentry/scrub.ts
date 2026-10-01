@@ -25,6 +25,12 @@ const MIN_TOKEN_TEXT_LENGTH = 20;
 /** 값 전체가 쿼리인 속성. 어디에 있든 키째로 지운다. */
 const QUERY_ONLY_KEYS = new Set(['url.query', 'http.query', 'url.fragment', 'http.fragment']);
 
+/**
+ * SDK 가 이벤트에 붙여 두는 내부 자료. 전송 전에 SDK 가 지운다(createEventEnvelope).
+ * 요청 헤더 원문이 들어 있고 같은 요청의 다른 이벤트와 객체를 공유하므로 읽지도 고치지도 않는다.
+ */
+const SDK_INTERNAL_KEY = 'sdkProcessingMetadata';
+
 /** `?`·`#` 바로 뒤가 `키=` 모양인가. 최대 66자만 본다. */
 const QUERY_PAIR = /^[?#][\w.%[\]-]{1,64}=/;
 const QUERY_PAIR_WINDOW = 66;
@@ -197,6 +203,8 @@ export function scrubEvent<T extends object>(event: T): T | null {
     scrubMessages(bag);
 
     const walk: Walk = { tripwire: false, seen: new WeakSet() };
+    const internal = bag[SDK_INTERNAL_KEY];
+    if (internal !== null && typeof internal === 'object') walk.seen.add(internal);
     scrubNode(bag, walk);
     if (walk.tripwire || hasMarkedSpan(bag)) {
       bag.tags = { ...(isBag(bag.tags) ? bag.tags : {}), [TRIPWIRE_KEY]: '1' };

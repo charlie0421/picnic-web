@@ -188,6 +188,29 @@ describe('scrubEvent', () => {
     expect((event as { tags?: Record<string, string> }).tags).toEqual({ [TRIPWIRE_KEY]: '1' });
   });
 
+  it('SDK 내부 자료(sdkProcessingMetadata)는 건드리지 않고, 거기 있는 토큰으로 태그를 붙이지 않는다', () => {
+    // beforeSend 시점의 이벤트에는 요청 헤더 원문이 든 내부 자료가 붙어 있다. 전송 전에 SDK 가 지우고,
+    // 같은 요청의 다른 이벤트와 객체를 공유한다. 고치면 다른 이벤트의 판정이 달라진다.
+    const normalizedRequest = {
+      url: 'http://127.0.0.1:3274/api/x?code=SECRET',
+      headers: { authorization: `Bearer ${OPAQUE}`, cookie: `sb=${JWT}` },
+    };
+    const event = {
+      request: { url: 'http://127.0.0.1:3274/api/x?code=SECRET', method: 'GET' },
+      sdkProcessingMetadata: { normalizedRequest },
+    };
+
+    scrubEvent(event);
+
+    expect(event.request).toEqual({ url: 'http://127.0.0.1:3274/api/x', method: 'GET' });
+    expect(event).not.toHaveProperty('tags');
+    expect(event.sdkProcessingMetadata.normalizedRequest).toBe(normalizedRequest);
+    expect(normalizedRequest).toEqual({
+      url: 'http://127.0.0.1:3274/api/x?code=SECRET',
+      headers: { authorization: `Bearer ${OPAQUE}`, cookie: `sb=${JWT}` },
+    });
+  });
+
   it('span 에 남은 tripwire 표식을 이벤트 태그로 올린다', () => {
     const fromChild = { spans: [{ data: { [TRIPWIRE_KEY]: '1' } }] };
     const fromRoot = { contexts: { trace: { data: { [TRIPWIRE_KEY]: '1' } } } };
