@@ -203,6 +203,18 @@ describe('evaluate', () => {
     );
   });
 
+  it('들어온 추적을 이어받은 envelope 이 몇 건 왔는지 trace_id 로 센다', () => {
+    const withTrace = { ...expected, traceHeaders: [{ label: '이어받은 추적', traceId: 'feed', min: 1 }] };
+    const envelopes = clean();
+    expect(evaluate({ envelopes, stdout: stdoutOk, canaries, expected: withTrace, unhandledLineMarker: 'envtest unhandled' }).failures).toContain(
+      '수신 건수 — 이어받은 추적: envelope 헤더의 trace.trace_id 가 feed 인 것이 기대 1건 이상, 실제 0건',
+    );
+    expect(countsSatisfied(envelopes, withTrace)).toBe(false);
+    envelopes[0].header.trace = { trace_id: 'feed', transaction: 'GET /x' };
+    expect(evaluate({ envelopes, stdout: stdoutOk, canaries, expected: withTrace, unhandledLineMarker: 'envtest unhandled' }).failures).toEqual([]);
+    expect(countsSatisfied(envelopes, withTrace)).toBe(true);
+  });
+
   it('edge 이벤트는 runtime 태그로 가른다', () => {
     const edge = unhandledEvent();
     edge.tags = { 'redaction.tripwire': '1', runtime: 'edge' } as never;

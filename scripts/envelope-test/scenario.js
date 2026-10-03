@@ -10,6 +10,7 @@
  */
 
 const REPEAT = 3;
+const TRACE_ID = '0123456789abcdef0123456789abcdef';
 const UNHANDLED_LINE_MARKER = 'envtest unhandled';
 
 const CANARIES = {
@@ -24,6 +25,7 @@ const CANARIES = {
     webhookEmail: 'cnrya-webhook@envtest.invalid',
     handledQuery: 'cnryA-handledquery-6f7a8b9c0d',
     upstreamToken: 'cnryA-upstreamtoken-9e8d7c6b5a',
+    baggageQuery: 'cnryA-baggagequery-3c2b1a0f9e',
   },
   stdoutOnly: {
     console: 'cnryC-console-0f1e2d3c4b',
@@ -48,6 +50,10 @@ const EXPECTED = {
     { label: '처리되지 않은 예외(edge)', handled: false, runtime: 'edge', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
   ],
   // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
+  // 다른 서비스가 시작한 추적(sentry-trace, baggage)을 이어받은 요청. baggage 의 transaction 이름(쿼리 포함)은
+  // DSC 로 envelope 헤더에 실릴 수 있다. 9.47.1 은 span 안의 이벤트에서 DSC 를 자기 루트 span 으로 다시 만들지만,
+  // 활성 span 이 없으면 scope 의 DSC(들어온 baggage)를 쓴다. 이어받았는지는 trace_id 로 확인하고, canary 는 헤더까지 찾는다.
+  traceHeaders: [{ label: '이어받은 추적의 envelope 헤더', traceId: TRACE_ID, min: REPEAT }],
   transactions: [
     { label: '페이지 transaction', name: 'GET /[lang]/vote', min: REPEAT },
     { label: '밖으로 부르는 요청의 transaction', name: 'GET /api/envelope-test/handled', min: REPEAT, childOp: 'http.client' },
@@ -91,7 +97,21 @@ function buildRequests(base) {
     {
       label: 'handled',
       url: `${base}/api/envelope-test/handled?code=${A.handledQuery}`,
-      init: { headers: { ...common, 'x-envtest-upstream-token': A.upstreamToken } },
+      init: {
+        headers: {
+          ...common,
+          'x-envtest-upstream-token': A.upstreamToken,
+          // 다른 서비스가 시작한 추적을 이어받는 요청. baggage 의 transaction 이름에 쿼리가 들어 있다.
+          'sentry-trace': `${TRACE_ID}-0123456789abcdef-1`,
+          baggage: [
+            `sentry-trace_id=${TRACE_ID}`,
+            'sentry-public_key=envtestkey',
+            'sentry-sample_rate=1',
+            'sentry-sampled=true',
+            `sentry-transaction=${encodeURIComponent(`/api/pay?code=${A.baggageQuery}`)}`,
+          ].join(','),
+        },
+      },
     },
     { label: 'throw', url: `${base}/api/envelope-test/throw?code=${B.requestQuery}`, init: { headers: unhandled } },
     { label: 'edge-throw', url: `${base}/api/envelope-test/edge-throw?code=${B.requestQuery}`, init: { headers: unhandled } },

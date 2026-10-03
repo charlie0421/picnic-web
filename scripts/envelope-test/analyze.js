@@ -134,9 +134,14 @@ const withChildOp = (transactions, op) =>
   transactions.filter((transaction) => (transaction.spans || []).some((span) => span && span.op === op));
 
 /** 기대한 건수가 다 왔는가. 실행기가 기다림을 끝낼 때 쓴다. */
+/** envelope 헤더의 trace(DSC)가 이 trace_id 인 envelope 의 수. 들어온 추적 헤더를 실제로 처리했다는 증거다. */
+const traceHeadersWithId = (envelopes, traceId) =>
+  envelopes.filter((envelope) => envelope.header && envelope.header.trace && envelope.header.trace.trace_id === traceId).length;
+
 function countsSatisfied(envelopes, expected) {
   const errors = payloadsOf(envelopes, 'event');
   return (
+    (expected.traceHeaders || []).every((rule) => traceHeadersWithId(envelopes, rule.traceId) >= rule.min) &&
     expected.errors.every((rule) => errors.filter((event) => matchesError(event, rule)).length >= rule.count) &&
     expected.transactions.every((rule) => {
       const matched = transactionsNamed(envelopes, rule.name);
@@ -187,6 +192,17 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
     const requestPath = event.contexts && event.contexts.nextjs && event.contexts.nextjs.request_path;
     if (typeof requestPath === 'string' && /[?#]/.test(requestPath)) {
       failures.push('contexts.nextjs.request_path 에 쿼리가 남아 있다');
+    }
+  }
+
+  // 들어온 추적 헤더(sentry-trace, baggage)를 서버가 실제로 처리했는가. 처리하지 않았다면 그 경로의 canary 검사는 공허하다.
+  for (const rule of expected.traceHeaders || []) {
+    const actual = traceHeadersWithId(envelopes, rule.traceId);
+    counts.push({ label: rule.label, expected: `${rule.min} 이상`, actual });
+    if (actual < rule.min) {
+      failures.push(
+        `수신 건수 — ${rule.label}: envelope 헤더의 trace.trace_id 가 ${rule.traceId} 인 것이 기대 ${rule.min}건 이상, 실제 ${actual}건`,
+      );
     }
   }
 

@@ -52,6 +52,11 @@ describe('redactTokenShapes', () => {
     [`/reset/${JWT}/confirm`, '/reset/[redacted-jwt]/confirm'],
     [`Authorization: Bearer ${JWT}`, 'Authorization: Bearer [redacted-jwt]'],
     [`Authorization: Bearer ${OPAQUE}`, 'Authorization: Bearer [redacted]'],
+    // payload 가 {} 이면 둘째 덩어리는 'e30' 이다. 서명이 없는 토큰(alg none)은 셋째 덩어리가 비어 있다.
+    ['token eyJhbGciOiJIUzI1NiJ9.e30.c2lnbmF0dXJlLXZhbHVlLTEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI end', 'token [redacted-jwt] end'],
+    ['token eyJhbGciOiJub25lIn0.e30. end', 'token [redacted-jwt] end'],
+    // 숫자가 없는 불투명 토큰도 토큰이다.
+    ['Authorization: Bearer abcdefghijklmnop', 'Authorization: Bearer [redacted]'],
     [`authorization: bearer ${OPAQUE}==`, 'authorization: Bearer [redacted]'],
   ])('%j → %j', (input, expected) => {
     expect(redactTokenShapes(input)).toBe(expected);
@@ -209,6 +214,35 @@ describe('scrubEvent', () => {
       url: 'http://127.0.0.1:3274/api/x?code=SECRET',
       headers: { authorization: `Bearer ${OPAQUE}`, cookie: `sb=${JWT}` },
     });
+  });
+
+  it('envelope 헤더로 나가는 DSC 에서 쿼리를 떼되, 추적이 공유하는 원본은 고치지 않는다', () => {
+    // 들어온 요청의 baggage(sentry-transaction)는 그대로 DSC 가 되고 envelope 헤더의 trace 로 나간다.
+    const dynamicSamplingContext = { trace_id: 'abc', public_key: 'k', transaction: '/api/pay?code=SECRET' };
+    const event = { sdkProcessingMetadata: { dynamicSamplingContext, normalizedRequest: { headers: {} } } };
+
+    scrubEvent(event);
+
+    expect(event.sdkProcessingMetadata.dynamicSamplingContext).toEqual({ trace_id: 'abc', public_key: 'k', transaction: '/api/pay' });
+    expect(dynamicSamplingContext.transaction).toBe('/api/pay?code=SECRET');
+    expect(event).not.toHaveProperty('tags');
+  });
+
+  it('DSC 에 토큰 모양 값이 있으면 가리고 태그를 붙인다', () => {
+    const event = { sdkProcessingMetadata: { dynamicSamplingContext: { transaction: `GET /reset/${JWT}` } } };
+    scrubEvent(event);
+    expect(event.sdkProcessingMetadata.dynamicSamplingContext.transaction).toBe('GET /reset/[redacted-jwt]');
+    expect((event as { tags?: unknown }).tags).toEqual({ [TRIPWIRE_KEY]: '1' });
+  });
+
+  it('URL 을 담는 필드는 / 가 없는 상대 주소여도 ? 와 # 뒤를 버린다', () => {
+    const event = {
+      contexts: { nextjs: { request_path: 'callback?SECRET' } },
+      spans: [{ data: { url: 'callback#SECRET', 'url.full': 'cb?x', 'http.target': 'cb#y', 'http.url': 'cb?z' } }],
+    };
+    scrubEvent(event);
+    expect(event.contexts.nextjs.request_path).toBe('callback');
+    expect(event.spans[0].data).toEqual({ url: 'callback', 'url.full': 'cb', 'http.target': 'cb', 'http.url': 'cb' });
   });
 
   it('span 에 남은 tripwire 표식을 이벤트 태그로 올린다', () => {

@@ -19,11 +19,14 @@ const REDACTED_EMAIL = '[redacted-email]';
 
 /** Sentry 가 메시지에 두는 상한과 같다. 그보다 긴 부분은 어차피 버려진다. */
 const MAX_FREE_TEXT_LENGTH = 8192;
-const MIN_JWT_SEGMENT = 10;
+/** JWT 세 덩어리의 최소 길이: 머리(`eyJ` 로 시작하는 JSON), payload(`{}` 이면 `e30`), 서명(alg none 이면 비어 있다). */
+const MIN_JWT_SEGMENTS = [10, 2, 0];
 const MIN_TOKEN_TEXT_LENGTH = 20;
 
 /** 값 전체가 쿼리인 속성. 어디에 있든 키째로 지운다. */
 const QUERY_ONLY_KEYS = new Set(['url.query', 'http.query', 'url.fragment', 'http.fragment']);
+/** 값이 URL 하나인 속성. `/` 가 없는 상대 주소여도 `?`·`#` 뒤를 버린다. */
+const URL_KEYS = new Set(['url', 'url.full', 'http.url', 'http.target', 'request_path']);
 
 /**
  * SDK 가 이벤트에 붙여 두는 내부 자료. 전송 전에 SDK 가 지운다(createEventEnvelope).
@@ -34,8 +37,8 @@ const SDK_INTERNAL_KEY = 'sdkProcessingMetadata';
 /** `?`·`#` 바로 뒤가 `키=` 모양인가. 최대 66자만 본다. */
 const QUERY_PAIR = /^[?#][\w.%[\]-]{1,64}=/;
 const QUERY_PAIR_WINDOW = 66;
-/** `Bearer` 뒤의 토큰. 숫자가 하나 이상 있고 16자 이상이어야 한다("Bearer token is missing" 을 건드리지 않는다). */
-const BEARER_TOKEN = /\bbearer\s+(?=[\w.~+/-]*\d)[\w.~+/-]{16,}=*/gi;
+/** `Bearer` 뒤의 16자 이상 토큰. 짧은 낱말("Bearer token is missing")은 건드리지 않는다. */
+const BEARER_TOKEN = /\bbearer\s+[\w.~+/-]{16,}=*/gi;
 const EMAIL = /[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){1,8}/g;
 
 type Bag = Record<string, unknown>;
@@ -89,7 +92,7 @@ function redactJwtShapes(text: string): string {
     for (;;) {
       const segmentStart = cursor;
       while (cursor < text.length && isBase64Url(text.charCodeAt(cursor))) cursor++;
-      if (cursor - segmentStart < MIN_JWT_SEGMENT) break;
+      if (cursor - segmentStart < MIN_JWT_SEGMENTS[segments]) break;
       segments++;
       if (segments === 3 || text.charCodeAt(cursor) !== 46) break;
       cursor++;
@@ -116,6 +119,12 @@ export function redactTokenShapes(text: string): string {
 function scrubFreeText(text: string): string {
   const capped = text.length > MAX_FREE_TEXT_LENGTH ? `${text.slice(0, MAX_FREE_TEXT_LENGTH)}…` : text;
   return capped.indexOf('@') === -1 ? capped : capped.replace(EMAIL, REDACTED_EMAIL);
+}
+
+/** URL 하나를 담은 값에서 첫 `?`·`#` 뒤를 버린다. */
+function cutUrlQuery(value: string): string {
+  const cut = value.search(/[?#]/);
+  return cut === -1 ? value : value.slice(0, cut);
 }
 
 function scrubString(value: string, walk: Walk): string {
@@ -151,7 +160,7 @@ function scrubNode(node: unknown, walk: Walk): void {
     }
     const value = node[key];
     if (typeof value === 'string') {
-      const next = scrubString(value, walk);
+      const next = scrubString(URL_KEYS.has(key) ? cutUrlQuery(value) : value, walk);
       if (next !== value) node[key] = next;
     } else {
       scrubNode(value, walk);
@@ -182,6 +191,20 @@ function scrubMessages(event: Bag): void {
   }
 }
 
+/**
+ * envelope 헤더의 trace 로 나가는 DSC 를 가린 사본으로 바꾼다. SDK 는 beforeSend 뒤에
+ * event.sdkProcessingMetadata.dynamicSamplingContext 를 헤더에 쓴다(createEventEnvelopeHeaders).
+ * 들어온 요청의 baggage(sentry-transaction)가 그대로 DSC 가 되므로 쿼리가 실릴 수 있다.
+ * 원본은 같은 추적의 다른 이벤트·전파와 공유하므로 고치지 않는다.
+ */
+function scrubSamplingContext(event: Bag, walk: Walk): void {
+  const metadata = event[SDK_INTERNAL_KEY];
+  if (!isBag(metadata) || !isBag(metadata.dynamicSamplingContext)) return;
+  const copy: Bag = { ...metadata.dynamicSamplingContext };
+  scrubNode(copy, walk);
+  event[SDK_INTERNAL_KEY] = { ...metadata, dynamicSamplingContext: copy };
+}
+
 /** beforeSendSpan 이 span 에 남긴 표식이 있는가. */
 function hasMarkedSpan(event: Bag): boolean {
   const marked = (data: unknown): boolean => isBag(data) && data[TRIPWIRE_KEY] === '1';
@@ -203,6 +226,8 @@ export function scrubEvent<T extends object>(event: T): T | null {
     scrubMessages(bag);
 
     const walk: Walk = { tripwire: false, seen: new WeakSet() };
+    scrubSamplingContext(bag, walk);
+    // 사본으로 바꾼 뒤의 내부 자료를 순회에서 뺀다. 나머지(요청 헤더 원문 등)는 전송 전에 SDK 가 지운다.
     const internal = bag[SDK_INTERNAL_KEY];
     if (internal !== null && typeof internal === 'object') walk.seen.add(internal);
     scrubNode(bag, walk);

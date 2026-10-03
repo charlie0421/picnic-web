@@ -62,7 +62,7 @@ describe('envelope 테스트 시나리오', () => {
     path.join(root, 'scripts/envelope-test/scenario.js'),
   ) as {
     CANARIES: Record<'absent' | 'stdoutOnly' | 'unhandled', Record<string, string>>;
-    EXPECTED: { errors: Array<{ count: number }>; transactions: Array<{ min: number }> };
+    EXPECTED: { errors: Array<{ count: number }>; transactions: Array<{ min: number }>; traceHeaders: Array<{ min: number }> };
     REPEAT: number;
     buildRequests: (base: string) => Array<{ label: string; url: string; init: { headers: Record<string, string>; body?: string } }>;
   };
@@ -90,6 +90,7 @@ describe('envelope 테스트 시나리오', () => {
     }
     for (const rule of EXPECTED.errors) expect(rule.count).toBe(REPEAT);
     for (const rule of EXPECTED.transactions) expect(rule.min).toBe(REPEAT);
+    for (const rule of EXPECTED.traceHeaders) expect(rule.min).toBe(REPEAT);
   });
 
   it('package.json 에 실행 스크립트가 있다', () => {
