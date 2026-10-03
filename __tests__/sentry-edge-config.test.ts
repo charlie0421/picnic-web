@@ -43,6 +43,34 @@ describe('Sentry edge 초기화', () => {
     expect(options.beforeSend?.(event)).toBe(event);
   });
 
+  it('Console integration 을 빼고, 오류 이벤트·transaction·span 에 가리기 규칙을 건다', async () => {
+    await import('@/sentry.edge.config.js');
+
+    const options = sentry.init.mock.calls[0]?.[0] as {
+      integrations: (defaults: Array<{ name: string }>) => Array<{ name: string }>;
+      beforeSend: (event: Record<string, unknown>) => unknown;
+      beforeSendTransaction: (event: Record<string, unknown>) => unknown;
+      beforeSendSpan: (span: Record<string, unknown>) => unknown;
+    };
+
+    expect(options.integrations([{ name: 'Dedupe' }, { name: 'Console' }, { name: 'WinterCGFetch' }])).toEqual([
+      { name: 'Dedupe' },
+      { name: 'WinterCGFetch' },
+    ]);
+
+    const event = { contexts: { nextjs: { request_path: '/api/x?code=SECRET' } } };
+    expect(options.beforeSend(event)).toBe(event);
+    expect(event.contexts.nextjs.request_path).toBe('/api/x');
+
+    const transaction = { type: 'transaction', transaction: 'middleware GET /ko/vote?code=SECRET' };
+    options.beforeSendTransaction(transaction);
+    expect(transaction.transaction).toBe('middleware GET /ko/vote');
+
+    const span = { description: 'GET https://x.supabase.co/auth/v1/user?token=SECRET' };
+    options.beforeSendSpan(span);
+    expect(span.description).toBe('GET https://x.supabase.co/auth/v1/user');
+  });
+
   it('Sentry.init 이 throw 해도 edge instrumentation 등록은 요청 경로를 실패시키지 않는다', async () => {
     const failure = new Error('Sentry edge init failed');
     sentry.init.mockImplementationOnce(() => {
