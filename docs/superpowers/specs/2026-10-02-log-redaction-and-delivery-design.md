@@ -2,7 +2,7 @@
 
 - 날짜: 2026-10-02
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-22(STR-008), B-P4. 이슈 #73(Sentry 페이로드에 중앙 redaction 이 없다), #74(logError 가 Sentry 전달을 보장하지 않는다). 핸드오프 `docs/handoff-2026-10-02.html` §7 의 4순위
-- 상태: **초안 5 + 사용자 결정 + PR 1·1b 구현(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6). 결정 4(브라우저 단계)는 PR 5 전에 정한다. PR 1(수집 축소)과 PR 1b(민감 로그 줄 삭제)를 구현하면서 실측으로 드러난 것을 §2·§4·§5.1·§8 에 반영했고 달라진 점을 §10.5 에 모았다. **특히 §2.2: 운영 빌드는 `console.log` 를 지우므로, 초안이 "Vercel 로그로 나간다"고 쓴 `console.log` 줄들은 운영에서 나가지 않는다.** 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다
+- 상태: **초안 5 + 사용자 결정 + PR 1·1b 구현(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6). 결정 4(브라우저 단계)는 PR 5 전에 정한다. PR 1(수집 축소)과 PR 1b(민감 로그 줄 삭제)를 구현하면서 실측으로 드러난 것을 §2·§4·§5.1·§8 에 반영했고 달라진 점을 §10.5 에 모았다. PR 1(#119)과 PR 1b(#118)는 교차 리뷰를 통과했다(§10.6, 2026-10-05). **특히 §2.2: 운영 빌드는 `console.log` 를 지우므로, 초안이 "Vercel 로그로 나간다"고 쓴 `console.log` 줄들은 운영에서 나가지 않는다.** 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다
 - 기준: 코드 `9174da8d`(2026-10-02 Production), `@sentry/nextjs` 9.47.1, Next 15.5.26
 
 용어
@@ -318,7 +318,7 @@ Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 �
 | PR | 내용 | 이 PR 로 닫히는 sink | 아직 남는 것 |
 |---|---|---|---|
 | 1 | envelope 테스트 스크립트, 서버·edge 설정의 수집 축소와 URL·쿼리 규칙(§4.1), 처리되지 않은 예외의 메시지 규칙(§4.7) | SDK 가 스스로 붙이던 쿠키·헤더·IP·쿼리(오류 이벤트, transaction, span), 서버의 console breadcrumb, 예외 메시지 속의 URL 쿼리와 모양이 알려진 비밀 | 호출부가 넘기는 값, URL 을 찍는 `console.log`, 웹훅 응답 본문, 예외 메시지 속의 그 밖의 값, 브라우저 |
-| 1b | 바로 지울 수 있는 줄: URL·쿼리·토큰을 찍는 `console.log`(`auth/v1/callback`, `payment/portone/callback`, `payment/toss/result`), 웹훅 응답의 `receivedBody`(§4.4) | 웹훅 본문 에코(운영). `console.log` 줄은 운영 빌드가 이미 지우고 있어 운영의 출력은 바뀌지 않는다 — 개발·비운영 빌드에서 찍히던 것과 `removeConsole` 설정에 기대던 잠복 누출을 없앤다(§2.2) | 호출부가 넘기는 값(PayPal 응답 통째 등), 브라우저 |
+| 1b | 바로 지울 수 있는 줄: URL·쿼리·토큰을 찍는 `console.log`(`auth/v1/callback`, `payment/portone/callback`, `payment/toss/result`), 웹훅 응답의 `receivedBody`(§4.4), OAuth 콜백 프록시 catch 가 넘기던 오류 객체(교차 리뷰에서 더함, §10.6) | 웹훅 본문 에코(운영), OAuth 프록시 예외 로그의 주소(사이트 주소 설정이 잘못됐을 때). `console.log` 줄은 운영 빌드가 이미 지우고 있어 운영의 출력은 바뀌지 않는다 — 개발·비운영 빌드에서 찍히던 것과 `removeConsole` 설정에 기대던 잠복 누출을 없앤다(§2.2) | 호출부가 넘기는 값(PayPal 응답 통째 등), 브라우저 |
 | 2 | 가린 기록을 만드는 계약 함수(§4.2), 경계 함수(§4.7), 전달(§4.3)과 전달 테스트 | (호출부를 옮길 준비) | 위와 같음 |
 | 3 | 인증 경로의 호출부를 계약 함수로 옮기고 route handler 를 경계 함수로 감싼다. lint 규칙을 켠다 | 인증 경로의 호출부 값과 미처리 오류(Sentry, Vercel 로그, 응답 본문) | 결제 경로의 호출부 값, 브라우저 |
 | 4 | 결제 경로의 호출부와 경계 함수 | 결제 경로의 호출부 값과 미처리 오류 | 브라우저, 그 밖의 경로의 미처리 예외 메시지(결정 8) |
@@ -493,4 +493,6 @@ Codex `gpt-6-sol`/high 의 읽기 전용 리뷰다. 설계에 영향을 주는 �
 | PR 1 (#119) | JWT 의 payload 가 `{}` 면 둘째 덩어리가 `e30`(3자)이다. 숫자 없는 Bearer 토큰도 있다 | §4.5 의 모양 규칙: JWT 세 덩어리 최소 길이 10·2·0, Bearer 는 16자 이상이면 토큰 |
 | PR 1 (#119) | `callback?SECRET` 처럼 `/` 가 없는 값 | URL 이나 요청 이름 하나를 담는 키(`url`, `url.full`, `http.url`, `http.target`, `request_path`, `transaction`)는 `/` 없이도 첫 `?`·`#` 뒤를 버린다 |
 | PR 1b (#118) | 리다이렉트가 실패하면 그 오류 메시지에 주소 전체(OAuth code 포함)가 들어가고, `logError` 가 `console.error` 로 찍는다(운영 빌드도 남긴다) | §4.2 의 근거가 하나 늘었다: 원본 오류의 `message` 에도 요청 값이 들어온다. PR 1b 는 그 한 곳만 오류 이름으로 바꿨고, 나머지 호출부는 PR 3·4 의 계약 함수가 맡는다 |
+
+판정: PR 1(#119)은 1차 REQUEST_CHANGES(blocker 1, major 2, minor 1) → 재검증 REQUEST_CHANGES(DSC·상대 URL 부분 해소) → 두 번째 확인 **APPROVE**(`228c1e01`). PR 1b(#118)는 1차 REQUEST_CHANGES(major 1) → 재검증 **APPROVE**(`0f356c62`).
 

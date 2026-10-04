@@ -14,7 +14,7 @@
 
 ## 실행 결과 (2026-10-02)
 
-이 계획은 실행됐다. PR 1 은 `fix/sentry-collection-scope`, PR 1b 는 `fix/remove-sensitive-log-lines`(#118)다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
+이 계획은 실행됐다. PR 1 은 `fix/sentry-collection-scope`(#119), PR 1b 는 `fix/remove-sensitive-log-lines`(#118)다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
 
 | 무엇 | 계획 | 실제 | 이유 |
 |---|---|---|---|
@@ -27,6 +27,15 @@
 | `postbuild` 를 고정하던 기존 테스트 (Task 1) | 언급 없음 | `__tests__/scripts/verify-rendering-modes.test.ts` 의 단언을 "렌더링 모드 검사가 먼저, `next-sitemap` 이 마지막"으로 고쳤다 | 전체 테스트를 돌리지 않고 넘어가 Task 4 에서야 발견했다 |
 
 envelope 테스트의 결과: 수정 전 실패 70건(건수 아홉 종류는 모두 맞음) → 수정 뒤 0건. 테스트 수는 3,027건 → 3,154건(PR 1), 3,034건(PR 1b). `it.fails` 6건은 그대로다.
+
+**교차 리뷰 (2026-10-05).** Codex `gpt-6-sol`/high, 읽기 전용. 지적마다 수정 전에 실패하는 테스트를 먼저 썼다.
+
+| PR | 회차와 판정 | 고친 것 |
+|---|---|---|
+| PR 1 (#119) | 1차 REQUEST_CHANGES → 재검증 REQUEST_CHANGES → 두 번째 확인 **APPROVE** | DSC(envelope 헤더 `trace`)를 가린 사본으로 바꾼다. JWT 세 덩어리 최소 길이 10·2·0, Bearer 는 16자 이상. URL·요청 이름을 담는 키는 `/` 없이도 `?`·`#` 뒤를 버린다(`transaction` 포함). envelope 시나리오에 추적을 이어받는 요청을 더했다 |
+| PR 1b (#118) | 1차 REQUEST_CHANGES → 재검증 **APPROVE** | OAuth 콜백 프록시의 catch 가 오류 객체(메시지에 `code` 가 든 주소) 대신 오류 이름만 `logError` 에 넘긴다. `logError` 를 mock 하지 않는 테스트를 더했다 |
+
+리뷰 반영 뒤 테스트 수: PR 1 은 3,163건(envelope 테스트 통과, 이어받은 추적 6건), PR 1b 는 3,035건. 자세한 지적은 각 PR 본문과 설계서 §10.6 에 있다.
 
 **PR 1b 의 전제가 틀렸던 것.** 계획과 설계서는 콜백의 `console.log` 줄이 "Vercel 로그로 나간다"고 썼다. 운영 빌드는 `console.log` 를 지우므로 운영에서는 나가지 않는다(설계서 §2.2). PR 1b 의 로그 줄 삭제는 운영의 출력을 바꾸지 않는다. 운영에서 실제로 나가던 것은 웹훅의 `receivedBody` 다.
 
@@ -2834,7 +2843,7 @@ gh pr create --title "fix(logging): 콜백의 URL·토큰 로그와 웹훅의 �
 ## 머지 순서 (사용자 승인 뒤)
 
 1. #116 (설계서와 이 계획. 문서만)
-2. PR 1b — 작고 독립적이다. 머지 뒤 Vercel 로그에서 `[Callback] Full URL`·`🔐 OAuth 콜백 수신` 줄이 더 나오지 않는지 본다.
+2. PR 1b — 작고 독립적이다. 지우는 `console.log` 줄은 운영 빌드가 이미 지우고 있어 Vercel 로그로는 차이를 볼 수 없다(실행 결과 참고). 머지 뒤에는 5xx 와 Sentry 신규 이슈가 없는지, 콜백 라우트의 응답(상태 코드, `Location`)이 머지 전과 같은지 본다.
 3. PR 1 — 머지 뒤 Sentry 에서 새 릴리스의 서버 오류 이벤트와 transaction 을 열어 `request` 에 `url`·`method` 만 있는지, breadcrumb 에 `console` 범주가 없는지, `redaction.tripwire` 태그가 붙은 이벤트가 있는지 본다(§6.2).
 
 ## Self-Review
