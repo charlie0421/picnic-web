@@ -25,8 +25,11 @@ const MIN_TOKEN_TEXT_LENGTH = 20;
 
 /** 값 전체가 쿼리인 속성. 어디에 있든 키째로 지운다. */
 const QUERY_ONLY_KEYS = new Set(['url.query', 'http.query', 'url.fragment', 'http.fragment']);
-/** 값이 URL 하나인 속성. `/` 가 없는 상대 주소여도 `?`·`#` 뒤를 버린다. */
-const URL_KEYS = new Set(['url', 'url.full', 'http.url', 'http.target', 'request_path']);
+/**
+ * 값이 URL 이나 요청 이름 하나인 속성. `/` 가 없는 상대 주소여도 `?`·`#` 뒤를 버린다.
+ * transaction 은 이벤트와 DSC(envelope 헤더) 양쪽에 있고, DSC 의 것은 요청을 보낸 쪽의 baggage 가 정한다.
+ */
+const URL_KEYS = new Set(['url', 'url.full', 'http.url', 'http.target', 'request_path', 'transaction']);
 
 /**
  * SDK 가 이벤트에 붙여 두는 내부 자료. 전송 전에 SDK 가 지운다(createEventEnvelope).

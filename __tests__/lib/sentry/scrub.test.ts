@@ -228,6 +228,16 @@ describe('scrubEvent', () => {
     expect(event).not.toHaveProperty('tags');
   });
 
+  it('DSC 와 이벤트의 transaction 은 / 가 없는 이름이어도 ? 와 # 뒤를 버린다', () => {
+    // baggage 의 sentry-transaction 은 요청을 보낸 쪽이 정한다. URL 모양이 아니어도 쿼리처럼 쓰인 부분을 버린다.
+    for (const name of ['callback?SECRET', 'callback#SECRET']) {
+      const event = { transaction: name, sdkProcessingMetadata: { dynamicSamplingContext: { transaction: name } } };
+      scrubEvent(event);
+      expect(event.transaction).toBe('callback');
+      expect(event.sdkProcessingMetadata.dynamicSamplingContext.transaction).toBe('callback');
+    }
+  });
+
   it('DSC 에 토큰 모양 값이 있으면 가리고 태그를 붙인다', () => {
     const event = { sdkProcessingMetadata: { dynamicSamplingContext: { transaction: `GET /reset/${JWT}` } } };
     scrubEvent(event);
