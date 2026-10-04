@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
     const redirectUrl = `${baseUrl}/auth/callback/${provider}?${params.toString()}`;
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
-    logError("🚨 OAuth 콜백 프록시 오류:", error);
+    // 오류 메시지에 리다이렉트 주소(쿼리의 OAuth code 포함)가 들어갈 수 있다. 오류 이름만 남긴다.
+    logError("🚨 OAuth 콜백 프록시 오류:", { errorName: error instanceof Error ? error.name : typeof error });
 
     // 환경 변수에서 안전한 base URL 사용 (Host 헤더 주입 방지)
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || "https://www.picnic.fan";
