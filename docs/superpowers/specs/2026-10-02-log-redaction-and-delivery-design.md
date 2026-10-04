@@ -483,3 +483,14 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 
 구현 중에 envelope 테스트가 잡은 결함 하나: 가리는 순회가 이벤트에 붙어 있는 SDK 내부 자료(`sdkProcessingMetadata.normalizedRequest`)까지 들어가 `Authorization` 헤더를 토큰으로 보고 태그를 붙였다. 그 객체는 같은 요청의 이벤트들이 공유하므로 먼저 처리된 이벤트만 태그가 붙었다. "기대하지 않은 tripwire" 검사가 이벤트 5건·transaction 13건으로 잡았고, 내부 자료를 건너뛰게 고쳤다(§4.1).
 
+### 10.6 PR 1·1b 의 교차 리뷰에서 드러난 것 (2026-10-05)
+
+Codex `gpt-6-sol`/high 의 읽기 전용 리뷰다. 설계에 영향을 주는 것만 적는다.
+
+| 대상 | 지적 | 설계에 반영한 것 |
+|---|---|---|
+| PR 1 (#119) | envelope 헤더의 `trace`(DSC)는 `beforeSend` 뒤에 `sdkProcessingMetadata.dynamicSamplingContext` 에서 나간다. 들어온 baggage 의 `sentry-transaction` 이 DSC 가 되면 쿼리가 실릴 수 있다 | §4.1 의 대상에 DSC 를 더한다. 추적이 공유하는 원본은 두고 이벤트에 가린 사본을 둔다. 9.47.1 의 Next 서버는 span 안의 이벤트에서 DSC 를 자기 루트 span 으로 다시 만들어 envelope 테스트로는 재현되지 않았다. 활성 span 이 없을 때 scope 의 DSC 를 쓰는 경로의 방어다 |
+| PR 1 (#119) | JWT 의 payload 가 `{}` 면 둘째 덩어리가 `e30`(3자)이다. 숫자 없는 Bearer 토큰도 있다 | §4.5 의 모양 규칙: JWT 세 덩어리 최소 길이 10·2·0, Bearer 는 16자 이상이면 토큰 |
+| PR 1 (#119) | `callback?SECRET` 처럼 `/` 가 없는 값 | URL 이나 요청 이름 하나를 담는 키(`url`, `url.full`, `http.url`, `http.target`, `request_path`, `transaction`)는 `/` 없이도 첫 `?`·`#` 뒤를 버린다 |
+| PR 1b (#118) | 리다이렉트가 실패하면 그 오류 메시지에 주소 전체(OAuth code 포함)가 들어가고, `logError` 가 `console.error` 로 찍는다(운영 빌드도 남긴다) | §4.2 의 근거가 하나 늘었다: 원본 오류의 `message` 에도 요청 값이 들어온다. PR 1b 는 그 한 곳만 오류 이름으로 바꿨고, 나머지 호출부는 PR 3·4 의 계약 함수가 맡는다 |
+
