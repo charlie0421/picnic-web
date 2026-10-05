@@ -1,5 +1,6 @@
 // sentry 설정 래퍼 추가
 const { withSentryConfig } = require('@sentry/nextjs');
+const { nextConfigOverrides } = require('./scripts/envelope-test/build-switch');
 
 // 환경 변수로 Sentry 경고 억제
 process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';
@@ -27,6 +28,10 @@ const sentryPluginEnabled = sentryBuild.enabled;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // envelope 테스트 전용 빌드(ENVELOPE_TEST=1)에서만 산출물을 별도 디렉터리(.next-envtest)에 둔다.
+  // 보통 빌드에서는 빈 객체다. Vercel 빌드에서 켜면 throw 한다.
+  ...nextConfigOverrides(process.env),
+
   reactStrictMode: true,
 
 

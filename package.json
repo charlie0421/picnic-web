@@ -21,7 +21,7 @@
     "lint": "next lint",
     "schema:types:sync": "sh scripts/sync-schema-types.sh",
     "gen:types": "npm run -s schema:types:sync",
-    "postbuild": "node scripts/verify-rendering-modes.js && next-sitemap",
+    "postbuild": "node scripts/verify-rendering-modes.js && node scripts/verify-no-test-routes.js && next-sitemap",
     "gen:thumbs": "tsx scripts/generate-video-thumbnails.ts",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
@@ -37,7 +37,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:envelope": "node scripts/envelope-test/run.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.645.0",
