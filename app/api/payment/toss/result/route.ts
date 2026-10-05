@@ -22,18 +22,7 @@ function isValidInternalRedirect(path: string): boolean {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    console.log('[Toss Result] Full URL:', url.toString());
-    console.log('[Toss Result] Search params:', Object.fromEntries(url.searchParams.entries()));
-
     const token = url.searchParams.get('token');
-    const pgToken = url.searchParams.get('pg_token');
-    const paymentMethodType = url.searchParams.get('payment_method_type');
-
-    console.log('[Toss Result] Extracted params:', {
-      token,
-      pgToken,
-      paymentMethodType,
-    });
 
     // 토스페이먼트에서 받은 token을 사용하여 PortOne 결제 ID를 찾아야 합니다.
     // 하지만 현재 구조상 token만으로는 paymentId를 직접 찾을 수 없으므로,
@@ -48,7 +37,6 @@ export async function GET(request: NextRequest) {
     if (token) {
       redirectUrl.searchParams.set('toss_token', token);
       redirectUrl.searchParams.set('status', 'processing');
-      console.log('[Toss Result] Redirecting to:', redirectUrl.toString());
     } else {
       console.warn('[Toss Result] No token found in callback URL');
     }
