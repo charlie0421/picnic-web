@@ -2,7 +2,7 @@
 
 - 날짜: 2026-10-02
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-22(STR-008), B-P4. 이슈 #73(Sentry 페이로드에 중앙 redaction 이 없다), #74(logError 가 Sentry 전달을 보장하지 않는다). 핸드오프 `docs/handoff-2026-10-02.html` §7 의 4순위
-- 상태: **초안 5 + 사용자 결정 + PR 1·1b 구현(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6). 결정 4(브라우저 단계)는 PR 5 전에 정한다. PR 1(수집 축소)과 PR 1b(민감 로그 줄 삭제)를 구현하면서 실측으로 드러난 것을 §2·§4·§5.1·§8 에 반영했고 달라진 점을 §10.5 에 모았다. PR 1(#119)과 PR 1b(#118)는 교차 리뷰를 통과했다(§10.6, 2026-10-05). **특히 §2.2: 운영 빌드는 `console.log` 를 지우므로, 초안이 "Vercel 로그로 나간다"고 쓴 `console.log` 줄들은 운영에서 나가지 않는다.** 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다
+- 상태: **초안 5 + 사용자 결정 + PR 1·1b 구현(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6). 결정 4(브라우저 단계)는 PR 5 전에 정한다. PR 1(수집 축소)과 PR 1b(민감 로그 줄 삭제)를 구현하면서 실측으로 드러난 것을 §2·§4·§5.1·§8 에 반영했고 달라진 점을 §10.5 에 모았다. PR 1(#119)과 PR 1b(#118)는 교차 리뷰를 통과했고(§10.6), 2026-10-05 에 머지해 Production 에 배포했다(§6.2). **특히 §2.2: 운영 빌드는 `console.log` 를 지우므로, 초안이 "Vercel 로그로 나간다"고 쓴 `console.log` 줄들은 운영에서 나가지 않는다.** 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다
 - 기준: 코드 `9174da8d`(2026-10-02 Production), `@sentry/nextjs` 9.47.1, Next 15.5.26
 
 용어
@@ -333,6 +333,7 @@ Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 �
 
 - Preview 배포가 없다. 머지 전 검증은 로컬 `next start` + 로컬 수집기다(§5.1 의 스크립트). 머지 뒤에는 Sentry 에서 새 릴리스의 서버 이벤트와 transaction 을 열어 `request` 에 헤더·쿠키·쿼리가 없는지 본다.
 - 이미 Sentry 에 들어가 있는 과거 이벤트는 이 변경으로 지워지지 않는다. 보존 기간과 삭제 여부는 §9 의 결정 5 다.
+- **PR 1·1b 의 결과 (2026-10-05).** #118(`9ee8cfc3`)과 #119(`c78c692e`)를 차례로 배포했다. 콜백 세 라우트의 응답 12건(상태 코드, `Location`)은 머지 전과 같고, 5xx 와 Sentry 신규 이슈는 없다. 새 릴리스의 span 에서 Supabase 호출의 `url.full`·`http.url` 이 쿼리 없이 들어오고 `http.query`·`url.query` 가 사라진 것을 이전 릴리스와 나란히 확인했다. 이벤트의 `request` 블록(헤더·쿠키)은 새 릴리스에 오류 이벤트가 아직 없어 Production 에서는 보지 못했다 — 근거는 로컬 envelope 테스트다. 자세한 것은 계획의 "머지와 Production 확인".
 
 ### 6.3 롤백
 

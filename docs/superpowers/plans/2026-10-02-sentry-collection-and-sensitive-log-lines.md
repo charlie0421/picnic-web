@@ -39,6 +39,26 @@ envelope 테스트의 결과: 수정 전 실패 70건(건수 아홉 종류는 �
 
 **PR 1b 의 전제가 틀렸던 것.** 계획과 설계서는 콜백의 `console.log` 줄이 "Vercel 로그로 나간다"고 썼다. 운영 빌드는 `console.log` 를 지우므로 운영에서는 나가지 않는다(설계서 §2.2). PR 1b 의 로그 줄 삭제는 운영의 출력을 바꾸지 않는다. 운영에서 실제로 나가던 것은 웹훅의 `receivedBody` 다.
 
+**머지와 Production 확인 (2026-10-05).** 사용자 승인 뒤 #116 → #118 → #119 순서로 squash 머지했다. Preview 배포가 없어 머지가 곧 Production 배포다. 하나를 배포하고 확인한 뒤 다음으로 넘어갔다.
+
+| PR | 머지 커밋 | Production 에서 확인한 것 |
+|---|---|---|
+| #116 (문서) | `b98d1f7c` | 배포 성공. 콜백 응답이 머지 전과 같다 |
+| #118 (PR 1b) | `9ee8cfc3` | 배포 성공. 콜백 세 라우트를 표식 값으로 부른 12건(GET·POST, `returnTo` 유무와 외부 주소, 값이 없는 경우)의 상태 코드와 `Location` 이 머지 전 기준선과 모두 같다. 2시간 동안 5xx 0건, Sentry 신규 이슈 0건 |
+| #119 (PR 1) | `c78c692e` | 배포 성공, main CI 통과. `/api/envelope-test/*` 세 경로는 404(테스트 라우트가 운영 산출물에 없다). 콜백 응답 동일. 새 릴리스 `picnic-web@20261005.1652.001` 의 transaction 에서 아래 전후 차이를 봤다. 배포 뒤 5xx 0건, Sentry 신규 이슈 0건 |
+
+#119 의 전후 차이는 `GET /api/popups` 의 span 으로 봤다(Sentry span 검색).
+
+| span 의 값 | 이전 릴리스 `picnic-web@20261002.0331.001` | 새 릴리스 |
+|---|---|---|
+| Supabase 호출(`http.client`)의 `url.full`·`http.url` | `…/rest/v1/popup?select=*&deleted_at=is.null&…` (쿼리 전체) | `…/rest/v1/popup` |
+| 같은 span 의 `http.query`·`url.query` | 있다 | 없다 |
+| 요청(`http.server`)의 `http.target` | `/api/popups` (쿼리 없는 요청) | `/api/popups` — `?cnry_q=…` 를 붙여 보낸 요청 4건 모두 쿼리가 없다 |
+
+확인하지 못한 것: 이벤트의 `request` 블록(헤더·쿠키)은 span 검색에 나오지 않는다. 새 릴리스에는 아직 오류 이벤트가 없어 Sentry MCP 로 이벤트 원문을 열 수 없었고, Sentry 화면은 로그인이 필요해 보지 못했다. 헤더·쿠키·IP 가 실리지 않는다는 근거는 로컬 envelope 테스트(누출 0건)다. 새 릴리스의 서버 오류 이벤트가 생기면 `request` 에 `url`·`method` 만 있는지, breadcrumb 에 `console` 범주가 없는지, `redaction.tripwire` 태그가 붙었는지 본다.
+
+확인 중에 본 이번 변경과 무관한 것: `/sitemap.xml` 이 `ENOENT: scandir '/var/task/app/[lang]'` 을 `error` 로 찍는다(응답은 200). 이전 배포에서도 3일간 44건 나던 기존 문제다.
+
 ## Global Constraints
 
 - 머지는 곧 Production 배포다(Preview 없음). **머지는 사용자 승인 뒤에만 한다.**
