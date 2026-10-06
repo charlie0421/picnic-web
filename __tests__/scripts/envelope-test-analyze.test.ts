@@ -315,3 +315,62 @@ describe('evaluate — 가린 기록의 모양과 서버 출력 (설계 §4.2, �
     expect(run(clean()).failures).toEqual([]);
   });
 });
+
+describe('evaluate — 경계가 돌려준 응답 (설계 §4.7)', () => {
+  const SAFE_500 = { status: 500, json: { error: 'Internal server error' } };
+  const safeResponse = () => ({ label: 'boundary-throw', status: 500, body: '{"error":"Internal server error"}', expect: SAFE_500 });
+  const runResponses = (responses: Array<Record<string, unknown>>) =>
+    evaluate({ envelopes: clean(), stdout: stdoutOk, canaries, expected, unhandledLineMarker: 'envtest unhandled', responses });
+
+  it('응답 코드와 본문이 정해진 값이면 실패가 없고, 요청 종류마다 건수를 센다', () => {
+    const result = runResponses([safeResponse(), safeResponse(), { ...safeResponse(), label: 'boundary-hostile' }]);
+
+    expect(result.failures).toEqual([]);
+    expect(result.counts.slice(-2)).toEqual([
+      { label: '응답(boundary-throw)', expected: '2', actual: 2 },
+      { label: '응답(boundary-hostile)', expected: '1', actual: 1 },
+    ]);
+  });
+
+  it('키 순서와 공백은 판정과 무관하다', () => {
+    const expectation = { status: 200, json: { ok: true, order: 1 } };
+    const response = { label: 'boundary-handled', status: 200, body: '{ "order": 1, "ok": true }', expect: expectation };
+    expect(runResponses([response]).failures).toEqual([]);
+  });
+
+  it('응답 코드가 다르면 실패한다', () => {
+    const result = runResponses([{ ...safeResponse(), status: 200 }]);
+
+    expect(result.failures).toEqual(['응답 — boundary-throw: 응답 코드 기대 500, 실제 200']);
+    expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-throw)', expected: '1', actual: 0 }]);
+  });
+
+  // 경계가 뚫리면 Next 가 응답한다. 코드는 같은 500 이고 본문만 다르다.
+  it.each([
+    ['Next 의 기본 500 본문', 'Internal Server Error'],
+    ['빈 본문', ''],
+    ['다른 JSON', '{"error":"Internal server error","detail":"x"}'],
+  ])('본문이 정해진 JSON 이 아니면(%s) 실패한다', (_label, body) => {
+    const result = runResponses([{ ...safeResponse(), body }]);
+
+    expect(result.failures).toEqual(['응답 — boundary-throw: 본문이 정해진 JSON 이 아니다']);
+    expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-throw)', expected: '1', actual: 0 }]);
+  });
+
+  it('본문에 canary 가 있으면 실패하고, 본문은 보고에 싣지 않는다', () => {
+    const result = runResponses([{ ...safeResponse(), body: '{"error":"envtest cnryA-cookie cnryB-marker"}' }]);
+
+    expect(result.failures).toEqual([
+      '응답 — boundary-throw: 본문이 정해진 JSON 이 아니다',
+      '누출(응답 본문) — cookie: boundary-throw',
+      '누출(응답 본문) — marker: boundary-throw',
+    ]);
+  });
+
+  it('기대를 적지 않은 응답은 보지 않는다 — 페이지의 HTML 은 요청 주소를 담는다', () => {
+    const result = runResponses([{ label: 'page', status: 200, body: '<html>/ko/vote?code=cnryA-cookie</html>' }]);
+
+    expect(result.failures).toEqual([]);
+    expect(result.counts.map((count) => count.label)).not.toContain('응답(page)');
+  });
+});

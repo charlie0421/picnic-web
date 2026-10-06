@@ -23,6 +23,7 @@ describe('envelope 테스트용 라우트', () => {
     expect(routeFiles).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
       'scripts/envelope-test/routes/boundary-hostile/route.ts',
+      'scripts/envelope-test/routes/boundary-self-throw/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-control/route.ts',
       'scripts/envelope-test/routes/delivery-plain/route.ts',
@@ -67,6 +68,7 @@ describe('envelope 테스트용 라우트', () => {
     expect(wrapped).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
       'scripts/envelope-test/routes/boundary-hostile/route.ts',
+      'scripts/envelope-test/routes/boundary-self-throw/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-safe/route.ts',
     ]);
@@ -90,7 +92,12 @@ describe('envelope 테스트 시나리오', () => {
     };
     KEPT: { userId: string; orderId: string };
     REPEAT: number;
-    buildRequests: (base: string) => Array<{ label: string; url: string; init: { headers: Record<string, string>; body?: string } }>;
+    buildRequests: (base: string) => Array<{
+      label: string;
+      url: string;
+      init: { headers: Record<string, string>; body?: string };
+      expect?: { status: number; json: unknown };
+    }>;
   };
 
   it('canary 값이 서로 겹치지 않는다', () => {
@@ -110,7 +117,7 @@ describe('envelope 테스트 시나리오', () => {
   it('종류마다 REPEAT 번 보내고, 기대 건수가 그와 같다', () => {
     const requests = buildRequests('http://127.0.0.1:3000');
     const labels = [...new Set(requests.map((request) => request.label))];
-    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile']);
+    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile', 'boundary-self-throw']);
     for (const label of labels) {
       expect(requests.filter((request) => request.label === label)).toHaveLength(REPEAT);
     }
@@ -138,6 +145,25 @@ describe('envelope 테스트 시나리오', () => {
       const code = rule.includes.replace('ERROR: ', '');
       expect(sources, code).toContain(`'${code}'`);
     }
+  });
+
+  it('경계로 감싼 라우트의 요청은 응답 기대를 싣고, 실행기가 응답을 판정에 넘긴다', () => {
+    const expectations = Object.fromEntries(
+      buildRequests('http://127.0.0.1:3000')
+        .filter((request) => request.label.startsWith('boundary-'))
+        .map((request) => [request.label, request.expect]),
+    );
+    const safe500 = { status: 500, json: { error: 'Internal server error' } };
+    expect(expectations).toEqual({
+      'boundary-throw': safe500,
+      'boundary-handled': { status: 200, json: { ok: true } },
+      'boundary-hostile': safe500,
+      'boundary-self-throw': safe500,
+    });
+
+    const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
+    expect(runner).toContain('responses.push({ label: request.label, status: response.status, body, expect: request.expect });');
+    expect(runner).toMatch(/evaluate\(\{[^}]*\bresponses,\s*\}\)/);
   });
 
   it('전달 시나리오의 요청이 실제 테스트 라우트를 가리킨다', () => {

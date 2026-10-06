@@ -18,6 +18,9 @@ const UNHANDLED_LINE_MARKER = 'envtest unhandled';
 const BOUNDARY_CODE = 'envtest.boundary.unhandled';
 const HANDLED_CODE = 'envtest.boundary.handled';
 const HOSTILE_CODE = 'envtest.boundary.hostile';
+const SELF_THROW_CODE = 'envtest.boundary.self_throw';
+/** 경계가 오류를 잡았을 때의 응답(utils/with-safe-errors.ts). 본문에 오류의 어떤 것도 없다. */
+const SAFE_500 = { status: 500, json: { error: 'Internal server error' } };
 
 /** 계약을 통과해 남아야 하는 값. canary 가 아니다 — 이벤트의 contexts.log 와 서버 출력에 있어야 한다. */
 const KEPT = {
@@ -53,6 +56,8 @@ const CANARIES = {
     boundaryBearer: 'cnryA7boundarybearer5d7f9b1c3e',
     // 던진 오류의 cause 를 읽으면 나오는 예외에 든 값. 경계가 cause 를 읽다가 그 예외를 놓치면 밖으로 나간다.
     boundaryGetter: 'cnryA-boundarygetter-8c7d6e5f4a',
+    // cause 를 읽으면 자기 자신을 던지는 오류의 메시지에 든 값. 경계가 그 오류를 Next 의 신호로 잘못 보면 밖으로 나간다.
+    boundarySelf: 'cnryA-boundaryself-5a4b3c2d1e',
   },
   stdoutOnly: {
     console: 'cnryC-console-0f1e2d3c4b',
@@ -109,6 +114,17 @@ const EXPECTED = {
       fingerprint: ['{{ default }}', HOSTILE_CODE],
       logContext: {},
     },
+    // cause 를 읽으면 자기 자신을 던지는 오류. Next 의 신호가 아니므로 경계가 잡아 같은 모양으로 남긴다.
+    {
+      label: '자기 자신을 던지는 오류를 경계가 잡는다',
+      handled: true,
+      transaction: 'GET /api/envelope-test/boundary-self-throw',
+      valueIncludes: SELF_THROW_CODE,
+      count: REPEAT,
+      type: 'Error',
+      fingerprint: ['{{ default }}', SELF_THROW_CODE],
+      logContext: {},
+    },
   ],
   // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
   // 다른 서비스가 시작한 추적(sentry-trace, baggage)을 이어받은 요청. baggage 의 transaction 이름(쿼리 포함)은
@@ -126,12 +142,14 @@ const EXPECTED = {
     { label: '경계 함수가 잡은 예외의 transaction', name: 'GET /api/envelope-test/boundary-throw', min: REPEAT },
     { label: '가린 기록을 남긴 요청의 transaction', name: 'GET /api/envelope-test/boundary-handled', min: REPEAT },
     { label: '읽기를 방해하는 오류의 transaction', name: 'GET /api/envelope-test/boundary-hostile', min: REPEAT },
+    { label: '자기 자신을 던지는 오류의 transaction', name: 'GET /api/envelope-test/boundary-self-throw', min: REPEAT },
   ],
   // 가린 로그 한 줄이 서버 출력에 남았는가(설계 §4.3 의 1). Console target 의 첫 줄은 `[시각] ERROR: <사건 코드> {` 다.
   stdout: [
     { label: '가린 로그 줄(경계가 잡은 예외)', includes: `ERROR: ${BOUNDARY_CODE}`, count: REPEAT },
     { label: '가린 로그 줄(가린 기록)', includes: `ERROR: ${HANDLED_CODE}`, count: REPEAT },
     { label: '가린 로그 줄(읽기를 방해하는 오류)', includes: `ERROR: ${HOSTILE_CODE}`, count: REPEAT },
+    { label: '가린 로그 줄(자기 자신을 던지는 오류)', includes: `ERROR: ${SELF_THROW_CODE}`, count: REPEAT },
   ],
 };
 
@@ -166,6 +184,7 @@ function buildRequests(base) {
     'x-envtest-boundary-payment-id': A.boundaryPaymentId,
     'x-envtest-boundary-error-code': A.boundaryErrorCode,
     'x-envtest-boundary-getter': A.boundaryGetter,
+    'x-envtest-boundary-self': A.boundarySelf,
     'x-envtest-user-id': KEPT.userId,
     'x-envtest-order-id': KEPT.orderId,
   };
@@ -202,9 +221,11 @@ function buildRequests(base) {
     },
     { label: 'throw', url: `${base}/api/envelope-test/throw?code=${B.requestQuery}`, init: { headers: unhandled } },
     { label: 'edge-throw', url: `${base}/api/envelope-test/edge-throw?code=${B.requestQuery}`, init: { headers: unhandled } },
-    { label: 'boundary-throw', url: `${base}/api/envelope-test/boundary-throw?code=${A.boundaryQuery}`, init: { headers: boundary } },
-    { label: 'boundary-handled', url: `${base}/api/envelope-test/boundary-handled?code=${A.boundaryQuery}`, init: { headers: boundary } },
-    { label: 'boundary-hostile', url: `${base}/api/envelope-test/boundary-hostile?code=${A.boundaryQuery}`, init: { headers: boundary } },
+    // 경계로 감싼 라우트는 응답도 본다(expect). 경계가 뚫려 Next 가 응답해도 코드는 같은 500 이다.
+    { label: 'boundary-throw', url: `${base}/api/envelope-test/boundary-throw?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: SAFE_500 },
+    { label: 'boundary-handled', url: `${base}/api/envelope-test/boundary-handled?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: { status: 200, json: { ok: true } } },
+    { label: 'boundary-hostile', url: `${base}/api/envelope-test/boundary-hostile?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: SAFE_500 },
+    { label: 'boundary-self-throw', url: `${base}/api/envelope-test/boundary-self-throw?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: SAFE_500 },
   ];
 
   return Array.from({ length: REPEAT }, () => round).flat();

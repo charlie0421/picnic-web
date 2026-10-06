@@ -148,10 +148,12 @@ async function runLeak(track) {
     await waitUntilReady(next, output);
 
     const statuses = [];
+    const responses = [];
     for (const request of buildRequests(`http://127.0.0.1:${port}`)) {
       const response = await fetch(request.url, { redirect: 'manual', ...request.init });
-      await response.arrayBuffer();
+      const body = Buffer.from(await response.arrayBuffer()).toString('utf8');
       statuses.push(`${request.label} ${response.status}`);
+      responses.push({ label: request.label, status: response.status, body, expect: request.expect });
     }
 
     // SDK 는 응답 뒤에 내보낸다. 기대한 건수가 다 올 때까지 기다리고, 늦게 오는 것을 조금 더 받는다.
@@ -165,11 +167,14 @@ async function runLeak(track) {
       canaries: CANARIES,
       expected: EXPECTED,
       unhandledLineMarker: UNHANDLED_LINE_MARKER,
+      responses,
     });
 
     fs.mkdirSync(OUT_DIR, { recursive: true });
     fs.writeFileSync(path.join(OUT_DIR, 'envelopes.jsonl'), envelopes.map((envelope) => JSON.stringify(envelope)).join('\n'));
     fs.writeFileSync(path.join(OUT_DIR, 'stdout.log'), stdout);
+    // 기대를 적은 요청의 응답만 남긴다. 페이지의 HTML 은 크고 판정에 쓰지 않는다.
+    fs.writeFileSync(path.join(OUT_DIR, 'responses.json'), JSON.stringify(responses.filter((response) => response.expect), null, 2));
     fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify({ statuses, ...result }, null, 2));
 
     const itemCount = envelopes.reduce((sum, envelope) => sum + envelope.items.length, 0);

@@ -14,8 +14,17 @@ vi.mock('@sentry/nextjs', () => ({ flush: mocks.flush, getClient: mocks.getClien
 // 공용 setup 은 next/navigation 을 대역으로 바꾼다. 경계 함수는 실제 unstable_rethrow 와 실제 Next 오류로 시험한다.
 vi.unmock('next/navigation');
 
-import { DynamicServerError } from 'next/dist/client/components/hooks-server-context';
-import { notFound, redirect } from 'next/navigation';
+import { createRequire } from 'module';
+
+import { DynamicServerError, isDynamicServerError } from 'next/dist/client/components/hooks-server-context';
+import { isHTTPAccessFallbackError } from 'next/dist/client/components/http-access-fallback/http-access-fallback';
+import { isRedirectError } from 'next/dist/client/components/redirect-error';
+import { unstable_rethrow as nextRethrow } from 'next/dist/client/components/unstable-rethrow.server';
+import { isDynamicPostpone } from 'next/dist/server/app-render/dynamic-rendering';
+import { isHangingPromiseRejectionError } from 'next/dist/server/dynamic-rendering-utils';
+import { isPostpone } from 'next/dist/server/lib/router-utils/is-postpone';
+import { BailoutToCSRError, isBailoutToCSRError } from 'next/dist/shared/lib/lazy-dynamic/bailout-to-csr';
+import { forbidden, notFound, permanentRedirect, redirect, unauthorized, unstable_rethrow } from 'next/navigation';
 
 import { logSafeError } from '@/utils/log-safe-error';
 import { FLUSH_FAILED_LINE, FLUSH_TIMEOUT_LINE, FLUSH_TIMEOUT_MS, withSafeErrors } from '@/utils/with-safe-errors';
@@ -38,6 +47,49 @@ function caught(run: () => unknown): unknown {
   }
   throw new Error('던지지 않았다');
 }
+
+/** unstable_rethrow(Next 15.5.26)가 그대로 올려보내는 신호의 판정 함수 전부. isNextRouterError 는 앞의 둘을 묶은 것이다. */
+const NEXT_SIGNAL_FAMILIES: Array<(value: unknown) => boolean> = [
+  isRedirectError,
+  isHTTPAccessFallbackError,
+  isBailoutToCSRError,
+  isDynamicServerError,
+  isDynamicPostpone,
+  isPostpone,
+  isHangingPromiseRejectionError,
+];
+
+/** forbidden()·unauthorized() 는 experimental.authInterrupts 가 켜진 빌드에서만 신호를 던진다. */
+function caughtWithAuthInterrupts(run: () => unknown): unknown {
+  vi.stubEnv('__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS', 'true');
+  try {
+    return caught(run);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+}
+
+const nodeRequire = createRequire(import.meta.url);
+
+/** React 가 던지는 postpone. 이 저장소의 react(18)에는 없어서 Next 가 싣고 다니는 React 의 것을 쓴다. */
+function reactPostpone(reason: string): unknown {
+  const react = nodeRequire('next/dist/compiled/react-experimental') as { unstable_postpone: (reason: string) => never };
+  return caught(() => react.unstable_postpone(reason));
+}
+
+/** prerender 가 끝난 뒤의 요청 API 가 내는 거부. Next 는 이 함수의 타입을 내보내지 않는다. */
+function hangingPromiseRejection(): Promise<unknown> {
+  const { makeHangingPromise } = nodeRequire('next/dist/server/dynamic-rendering-utils') as {
+    makeHangingPromise: (signal: AbortSignal, route: string, expression: string) => Promise<never>;
+  };
+  return makeHangingPromise(AbortSignal.abort(), '/api/payment/x', '`cookies()`').catch((error: unknown) => error);
+}
+
+// Next 의 createPostponeReason 이 만드는 문장이다. 그 함수는 내보내지 않으므로 isDynamicPostpone 으로 확인하고 쓴다.
+const DYNAMIC_POSTPONE_REASON =
+  'Route /api/payment/x needs to bail out of prerendering at this point because it used cookies(). ' +
+  'React throws this special object to indicate where. It should not be caught by your own try/catch. ' +
+  'Learn more: https://nextjs.org/docs/messages/ppr-caught-error';
 
 describe('withSafeErrors', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
@@ -145,8 +197,11 @@ describe('withSafeErrors', () => {
   // 던진 값은 무엇이든 될 수 있다. 경계가 그 값을 들여다보다가 던지면 예외가 Next 와 Sentry 로 새어 나간다.
   describe('던진 값이 읽기를 방해할 때', () => {
     const expectSafe500 = async (handler: () => Promise<Response>) => {
-      const response = await withSafeErrors('envtest.boundary.unhandled', handler)();
+      // 밖으로 나온 값을 테스트 실행기에 넘기지 않는다. 읽으면 던지는 값이라 실패 보고가 깨진다.
+      const response = await withSafeErrors('envtest.boundary.unhandled', handler)().catch(() => null);
 
+      expect(response, '던진 값이 경계 밖으로 나갔다').not.toBeNull();
+      if (response === null) return;
       expect(response.status).toBe(500);
       expect(await response.json()).toEqual({ error: 'Internal server error' });
       expect(consoleError).toHaveBeenCalledTimes(1);
@@ -210,6 +265,73 @@ describe('withSafeErrors', () => {
       });
     });
 
+    // unstable_rethrow 는 신호를 받으면 그 값을 그대로 던진다. 읽기를 방해하는 값도 자기 자신을 던질 수 있다 —
+    // "받은 값이 다시 나왔다"는 것만으로는 신호인지 알 수 없다.
+    it.each(['cause', 'digest', 'message', '$$typeof'])('%s 를 읽으면 자기 자신을 던지는 오류를 신호로 보지 않는다', async (key) => {
+      const error = new Error('cnry-self-getter https://pay.example/cb?code=cnry');
+      Object.defineProperty(error, key, {
+        get() {
+          throw error;
+        },
+      });
+
+      await expectSafe500(async () => {
+        throw error;
+      });
+    });
+
+    it('digest 를 읽으면 자기 자신을 던지는 객체(Error 가 아니다)도 500 이다', async () => {
+      const hostile = {
+        secret: 'cnry-self-object',
+        get digest(): string {
+          throw hostile;
+        },
+      };
+
+      await expectSafe500(async () => {
+        throw hostile;
+      });
+    });
+
+    it('읽으면 자기 자신을 던지는 Proxy 를 던져도 500 이다', async () => {
+      const trap = (): never => {
+        throw hostile;
+      };
+      const hostile: Error = new Proxy(new Error('cnry-self-proxy'), { get: trap, has: trap, getPrototypeOf: trap, ownKeys: trap });
+
+      await expectSafe500(async () => {
+        throw hostile;
+      });
+    });
+
+    it('cause 사슬 안에서 자기 자신을 던지는 값도 올려보내지 않는다', async () => {
+      const inner = new Error('cnry-self-inner');
+      Object.defineProperty(inner, 'digest', {
+        get() {
+          throw inner;
+        },
+      });
+      const wrapped = new Error('cnry-self-wrapped', { cause: inner });
+
+      await expectSafe500(async () => {
+        throw wrapped;
+      });
+    });
+
+    it('cause 사슬 안의 getter 가 바깥 오류를 던져도 올려보내지 않는다', async () => {
+      const inner = new Error('cnry-self-inner');
+      const outer = new Error('cnry-self-outer https://pay.example/cb?code=cnry', { cause: inner });
+      Object.defineProperty(inner, 'cause', {
+        get() {
+          throw outer;
+        },
+      });
+
+      await expectSafe500(async () => {
+        throw outer;
+      });
+    });
+
     it('cause 사슬 안의 redirect() 는 Next 가 하듯 그것을 올려보낸다', async () => {
       const signal = caught(() => redirect('/login'));
       const wrapped = new Error('wrapped', { cause: new Error('middle', { cause: signal }) });
@@ -242,6 +364,33 @@ describe('withSafeErrors', () => {
       expect(mocks.after).not.toHaveBeenCalled();
     });
 
+    // unstable_rethrow 가 올려보내는 신호의 계열 전부. 값은 Next·React 가 실제로 던지는 것이고, 어느 계열인지는 Next 의 판정 함수로 확인한다.
+    it.each<[string, (value: unknown) => boolean, () => unknown]>([
+      ['redirect()', isRedirectError, () => caught(() => redirect('/login'))],
+      ['permanentRedirect()', isRedirectError, () => caught(() => permanentRedirect('/login'))],
+      ['notFound()', isHTTPAccessFallbackError, () => caught(() => notFound())],
+      ['forbidden()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => forbidden())],
+      ['unauthorized()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => unauthorized())],
+      ['클라이언트 렌더링으로 넘기는 신호', isBailoutToCSRError, () => new BailoutToCSRError('cnry bailout')],
+      ['동적 렌더링 신호', isDynamicServerError, () => new DynamicServerError('cnry dynamic')],
+      ['동적 postpone', isDynamicPostpone, () => new Error(DYNAMIC_POSTPONE_REASON)],
+      ['React postpone', isPostpone, () => reactPostpone('cnry postpone')],
+      ['prerender 뒤의 거부', isHangingPromiseRejectionError, () => hangingPromiseRejection()],
+    ])('Next 가 %s 로 판정하는 값은 그대로 올려보낸다', async (_label, isFamily, make) => {
+      const signal = await make();
+      // 이 값은 Next 의 판정에서 정확히 이 계열 하나다. 다른 계열의 속성에 기대어 통과하지 않는다.
+      expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(signal))).toEqual([isFamily]);
+
+      await expect(
+        withSafeErrors('envtest.boundary.unhandled', async () => {
+          throw signal;
+        })(),
+      ).rejects.toBe(signal);
+
+      expect(consoleError).not.toHaveBeenCalled();
+      expect(mocks.after).not.toHaveBeenCalled();
+    });
+
     it('기록을 남긴 뒤 redirect() 해도 flush 는 건다', async () => {
       const signal = caught(() => redirect('/login'));
 
@@ -253,6 +402,42 @@ describe('withSafeErrors', () => {
       ).rejects.toBe(signal);
 
       expect(mocks.after).toHaveBeenCalledTimes(1);
+    });
+
+    // 경계는 던진 값을 unstable_rethrow 에 바로 넘기지 않고, 판정이 읽는 속성만 옮겨 담아 넘긴다.
+    // Next 가 다른 속성을 읽기 시작하면 여기서 먼저 알린다.
+    it('unstable_rethrow 의 판정은 digest·message·$$typeof 만 읽는다', () => {
+      expect(unstable_rethrow).toBe(nextRethrow);
+
+      const read = new Set<string | symbol>();
+      const recorder = new Proxy(
+        { digest: 'x', message: 'x' },
+        {
+          get(target, key, receiver) {
+            read.add(key);
+            return Reflect.get(target, key, receiver);
+          },
+          has(target, key) {
+            read.add(key);
+            return Reflect.has(target, key);
+          },
+        },
+      );
+
+      expect(() => nextRethrow(recorder)).not.toThrow();
+      expect([...read].map(String).sort()).toEqual(['$$typeof', 'digest', 'message']);
+    });
+
+    it('unstable_rethrow 는 객체가 아닌 값을 신호로 보지 않는다', () => {
+      const dressed = Object.assign(() => undefined, {
+        digest: 'DYNAMIC_SERVER_USAGE',
+        message: DYNAMIC_POSTPONE_REASON,
+        $$typeof: Symbol.for('react.postpone'),
+      });
+
+      for (const value of [dressed, 'NEXT_REDIRECT;replace;/login;307;', 404, Symbol.for('react.postpone'), null, undefined]) {
+        expect(() => nextRethrow(value)).not.toThrow();
+      }
     });
   });
 

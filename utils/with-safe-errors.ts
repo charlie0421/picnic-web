@@ -74,18 +74,37 @@ function causeChain(error: unknown): unknown[] {
 }
 
 /**
+ * unstable_rethrow 의 판정이 읽는 속성(Next 15.5.26). 판정은 객체에서 이 셋만 읽고, 그 밖에는 cause 를 따라갈 뿐이다.
+ * Next 가 다른 속성을 읽기 시작하면 단위 테스트(with-safe-errors.test.ts)가 알린다.
+ */
+const CONTROL_FLOW_KEYS = ['digest', 'message', '$$typeof'] as const;
+
+/**
  * Next 가 이 값 자체를 제어 흐름 신호(redirect, notFound, 동적 렌더링 신호)로 보는가.
  *
- * unstable_rethrow 는 신호를 받으면 그 값을 그대로 다시 던진다. 다른 것이 나오면 이 값은 신호가 아니다 —
- * unstable_rethrow 가 cause 를 따라가다가 getter 의 예외를 만났거나, 돌고 도는 cause 로 stack 이 넘친 것이다.
- * 그런 예외를 그대로 올려보내면 경계가 뚫린다.
+ * 던진 값을 unstable_rethrow 에 바로 넘기지 않는다. unstable_rethrow 는 신호를 받으면 그 값을 그대로 다시 던지는데,
+ * 읽기를 방해하는 값도 getter 나 Proxy 에서 자기 자신을 던질 수 있어 "넘긴 값이 다시 나왔다"로는 둘을 가리지 못한다.
+ * 그래서 판정이 읽는 속성만 한 번씩 읽어 새 객체에 옮겨 담고, 그 객체를 넘긴다. 새 객체에는 getter 도 cause 도 없으니
+ * 그것이 다시 나오는 길은 판정을 통과하는 것뿐이다. 읽다가 던지는 값은 신호가 아니다.
  */
 function isNextControlFlow(value: unknown): boolean {
+  // 판정은 모두 객체만 신호로 본다.
+  if (typeof value !== 'object' || value === null) return false;
+
+  const probe: Record<string, unknown> = {};
   try {
-    unstable_rethrow(value);
+    for (const key of CONTROL_FLOW_KEYS) {
+      if (key in value) probe[key] = (value as Record<string, unknown>)[key];
+    }
+  } catch {
+    return false;
+  }
+
+  try {
+    unstable_rethrow(probe);
     return false;
   } catch (thrown) {
-    return thrown === value;
+    return thrown === probe;
   }
 }
 

@@ -15,6 +15,7 @@ export const LOG_EVENT_CODES = [
   'envtest.boundary.unhandled',
   'envtest.boundary.handled',
   'envtest.boundary.hostile',
+  'envtest.boundary.self_throw',
   'envtest.delivery.unhandled',
   'envtest.delivery.handled',
 ] as const;
