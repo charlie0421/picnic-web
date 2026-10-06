@@ -2,7 +2,7 @@
 
 - 날짜: 2026-10-02
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-22(STR-008), B-P4. 이슈 #73(Sentry 페이로드에 중앙 redaction 이 없다), #74(logError 가 Sentry 전달을 보장하지 않는다). 핸드오프 `docs/handoff-2026-10-02.html` §7 의 4순위
-- 상태: **초안 5 + 사용자 결정 + PR 1·1b 구현(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6). 결정 4(브라우저 단계)는 PR 5 전에 정한다. PR 1(수집 축소)과 PR 1b(민감 로그 줄 삭제)를 구현하면서 실측으로 드러난 것을 §2·§4·§5.1·§8 에 반영했고 달라진 점을 §10.5 에 모았다. PR 1(#119)과 PR 1b(#118)는 교차 리뷰를 통과했고(§10.6), 2026-10-05 에 머지해 Production 에 배포했다(§6.2). **특히 §2.2: 운영 빌드는 `console.log` 를 지우므로, 초안이 "Vercel 로그로 나간다"고 쓴 `console.log` 줄들은 운영에서 나가지 않는다.** 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다. PR 2(계약 함수·경계 함수·전달)의 구현 계획은 `docs/superpowers/plans/2026-10-06-log-safe-error-contract-and-boundary.md` 다. PR 2 를 준비하고 구현하며 잰 결과로 §2.3·§4.2·§4.3·§4.7·§5.1·§5.2·§6.4·§8 을 고쳤다(§10.7). **실측한 route handler 경로에는 `await import` 로 인한 전달의 틈이 없었다.** PR 2 의 교차 리뷰 1차 지적과 수정은 §10.8 에 기록했다. 원 리뷰어의 재검증은 대기 중이다.
+- 상태: **초안 5 + 사용자 결정 + PR 1·1b 구현(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6). 결정 4(브라우저 단계)는 PR 5 전에 정한다. PR 1(수집 축소)과 PR 1b(민감 로그 줄 삭제)를 구현하면서 실측으로 드러난 것을 §2·§4·§5.1·§8 에 반영했고 달라진 점을 §10.5 에 모았다. PR 1(#119)과 PR 1b(#118)는 교차 리뷰를 통과했고(§10.6), 2026-10-05 에 머지해 Production 에 배포했다(§6.2). **특히 §2.2: 운영 빌드는 `console.log` 를 지우므로, 초안이 "Vercel 로그로 나간다"고 쓴 `console.log` 줄들은 운영에서 나가지 않는다.** 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다. PR 2(계약 함수·경계 함수·전달)의 구현 계획은 `docs/superpowers/plans/2026-10-06-log-safe-error-contract-and-boundary.md` 다. PR 2 를 준비하고 구현하며 잰 결과로 §2.3·§4.2·§4.3·§4.7·§5.1·§5.2·§6.4·§8 을 고쳤다(§10.7). **실측한 route handler 경로에는 `await import` 로 인한 전달의 틈이 없었다.** PR 2 의 교차 리뷰 1차 지적과 수정은 §10.8 에 기록했다. 원 리뷰어의 재검증도 REQUEST_CHANGES 이며 경계의 blocker 1건이 남았다(§10.8).
 - 기준: 코드 `9174da8d`(2026-10-02 Production), `@sentry/nextjs` 9.47.1, Next 15.5.26
 
 용어
@@ -272,6 +272,7 @@ Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 �
 - 인증 경로의 클라이언트 쪽 코드와 서버 컴포넌트는 route handler 가 아니라 이 방법이 닿지 않는다. 전수 조사에서 따로 표시한다.
 - 구현에서 정한 것(PR 2):
   - `redirect()`·`notFound()` 와 Next 의 동적 렌더링 신호는 오류가 아니다. 경계가 `cause` 사슬을 직접 따라가고(최대 10개의 연결), 읽다가 던지거나 이미 본 값으로 돌아오면 멈춘다. 각 값에 `unstable_rethrow` 를 호출해 **그 값 자체가 그대로 다시 던져질 때만** 신호로 보고 올려보낸다. 탐색 중 getter·Proxy 가 던진 예외나 순환으로 넘친 stack 은 밖으로 내보내지 않는다. 신호 처리를 빠뜨리면 리다이렉트가 500 이 된다.
+  - **재검증에서 남은 결함:** 위의 동일성만으로는 Next 신호를 증명하지 못한다. `cause` getter 가 원본 오류 자신을 던져도 같은 값이 돌아와 경계를 우회한다. 현재 구현은 이 입력에서 고정 500·가린 로그 요구사항을 충족하지 못한다. 신호 자체의 안전한 판별과 `cause` 탐색을 분리하는 수정이 필요하다(§10.8).
   - 고정 응답은 500, 본문 `{ "error": "Internal server error" }` 다.
   - 경계가 겹치면 바깥 경계가 flush 를 한 번 건다.
   - `after` 를 쓸 수 없으면(요청 범위 밖 — 테스트가 핸들러를 직접 부를 때) flush 없이 응답만 돌려준다.
@@ -561,7 +562,7 @@ Codex `gpt-6-sol`/high 의 읽기 전용 리뷰다. 설계에 영향을 주는 �
 
 ### 10.8 PR 2 의 교차 리뷰에서 드러난 것 (2026-10-06)
 
-Codex `gpt-6-sol`/high 의 읽기 전용 리뷰다. 1차 판정은 **REQUEST_CHANGES**(blocker 1, major 2, minor 1). 수정 커밋은 `8025927b` 이고 원 리뷰어의 재검증은 아직 대기 중이다.
+Codex `gpt-6-sol`/high 의 읽기 전용 리뷰다. 1차 판정은 **REQUEST_CHANGES**(blocker 1, major 2, minor 1). 수정 커밋은 `8025927b` 이다. 문서 반영 `db57eed3` 을 원 리뷰어가 재검증한 결과도 **REQUEST_CHANGES** 다. 아래 세 건은 해소됐고, 경계의 blocker 는 부분 해소다.
 
 | 심각도 | 지적 | 설계에 반영한 것 |
 |---|---|---|
@@ -571,3 +572,10 @@ Codex `gpt-6-sol`/high 의 읽기 전용 리뷰다. 1차 판정은 **REQUEST_CHA
 | minor | Symbol·비열거 키가 `droppedFields` 에 반영되지 않는다 | §4.2: `Reflect.ownKeys` 로 정해지지 않은 키를 센다 |
 
 재검증에 전달할 범위와 한계: 전달을 실측한 것은 route handler 번들이다. 별도 청크의 첫 동적 import 는 측정하지 않았다. 핸들러가 스트리밍 응답을 반환한 뒤의 오류도 경계가 잡지 못한다(§4.3). Production 의 `after()` 완료와 사건 코드별 이슈 묶음은 PR 3 배포 뒤 확인한다.
+
+
+**원 리뷰어 재검증 결과.** `utils/with-safe-errors.ts:83` 의 `isNextControlFlow` 에 blocker 가 남았다. `cause` getter 가 원본 `Error` 자신을 던지면 `unstable_rethrow` 도 그 원본을 던지고, `thrown === value` 가 참이 되어 Next 신호로 오인한다. 취소된 Proxy·함수명 stack·Symbol 키는 해소 판정이다.
+
+조정자도 현재 경계 소스를 메모리에서 CommonJS 로 변환해 설치된 Next 의 `unstable_rethrow` 와 함께 재현했다. Sentry·`after`·로그 target 은 네트워크나 출력을 만들지 않는 대역으로 교체했다. 결과는 `{"responseStatus":null,"safeLogCalls":0,"escapedOriginal":true}` 다. 실제 Next 서버에서 이 새 반례를 재현하는 검사와 수정은 아직 하지 않았다. 기존 누출 24건·전달 11단계와 전체 3,387건은 이 입력을 포함하지 않아 통과한다.
+
+다음 수정의 요구사항: `cause` 재귀 중 던져진 값의 동일성으로 신호를 판별하지 않는다. 현재 값 자체가 실제 Next 신호인지 안전하게 판별하고 `cause` 탐색은 별도로 수행한다. 자기 자신을 던지는 getter 회귀 테스트와 실제 서버 누출 검증을 추가한 뒤 기존 Next 제어 흐름 보존을 다시 확인해야 한다. **APPROVE 가 아니므로 머지 승인 단계로 넘어가지 않았다.**

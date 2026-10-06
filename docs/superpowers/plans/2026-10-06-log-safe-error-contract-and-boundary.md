@@ -27,7 +27,7 @@
 
 ### 교차 리뷰 1차와 수정 (2026-10-06)
 
-Codex `gpt-6-sol`/high 의 읽기 전용 리뷰는 REQUEST_CHANGES(blocker 1, major 2, minor 1)였다. 실패하는 테스트로 각 지적을 확인한 뒤 `8025927b` 에서 수정했다. 원 리뷰어의 재검증은 대기 중이다.
+Codex `gpt-6-sol`/high 의 읽기 전용 리뷰는 REQUEST_CHANGES(blocker 1, major 2, minor 1)였다. 실패하는 테스트로 각 지적을 확인한 뒤 `8025927b` 에서 수정했다. 원 리뷰어의 재검증은 REQUEST_CHANGES 이며 경계의 blocker 1건이 남았다(아래).
 
 | 지적 | 수정 | 회귀 테스트 |
 |---|---|---|
@@ -41,6 +41,32 @@ Codex `gpt-6-sol`/high 의 읽기 전용 리뷰는 REQUEST_CHANGES(blocker 1, ma
 **이어서 확인한 결과:** 코드 `8025927b` 에서 `npx tsc --noEmit`, `npm run lint` 통과. KST·UTC 각각 테스트 204파일, 3,387건 통과·6건 expected fail·1건 skipped. `npm run test:envelope -- --skip-build` 로 핸드오프의 기존 `.next-envtest` 빌드를 재사용해 누출 24건과 전달 11단계 통과를 재확인했다. 이번 후속 작업은 문서만 수정하며 빌드는 다시 만들지 않았다.
 
 리뷰어가 미확인으로 남긴 항목: (1) 경계의 getter 반례는 실제 서버에서 재현·검증했다. 나머지 세 지적은 계약 함수 단위 테스트로 검증한다. (2) 전달 실측은 route handler 의 `Promise.resolve().then(require)` 경로다. 별도 청크의 첫 동적 import 는 측정하지 않았고, 로더의 동기 `require` 는 코드로만 확인했다. (3) 스트리밍 응답 반환 뒤의 오류는 경계가 잡지 못한다. 현재 결제·인증 라우트는 스트리밍하지 않는다.
+
+### 원 리뷰어 재검증 — REQUEST_CHANGES (2026-10-06)
+
+대상 `db57eed3`(코드 `8025927b`), Codex `gpt-6-sol/high`, 읽기 전용·승인 `never`·Fast OFF. 최신 동일 계정 사용량·capability 와 build-launch 검증을 통과한 뒤 원 리뷰어 터미널에 요청했다. 원격 CI 도 `db57eed3` 에서 통과했다.
+
+- **부분 해소 / blocker:** `utils/with-safe-errors.ts:83` 의 `isNextControlFlow`. `cause` getter 가 원본 오류 자신을 던지면 `thrown === value` 가 참이 된다. 실제 Next 신호가 아닌데 원본을 전파하여 고정 500 과 가린 로그가 모두 빠진다.
+- **해소:** 취소된 `fields` Proxy, 동적 함수명 stack 누출, Symbol·비열거 키 표시.
+
+최소 판별식 반례(설치된 Next 의 서버 구현, 외부 호출 없음):
+
+```js
+const { unstable_rethrow } = require('next/navigation');
+const error = new Error('synthetic-self-rethrow-canary');
+Object.defineProperty(error, 'cause', { get() { throw error; } });
+try {
+  unstable_rethrow(error);
+} catch (thrown) {
+  console.log({ rethrowsOriginal: thrown === error }); // true — Next 신호가 아니다.
+}
+```
+
+조정자는 현재 `utils/with-safe-errors.ts` 를 TypeScript `transpileModule` 로 메모리에서 변환해 `withSafeErrors` 전체도 확인했다. Next 의 `unstable_rethrow` 는 실제 모듈을 쓰고, Sentry·`after`·로그 target 은 무동작/호출수 대역을 썼다. 위 오류를 던지는 handler 의 결과: `{"responseStatus":null,"safeLogCalls":0,"escapedOriginal":true}`. 현재 코드에서 결함이 재현되며, 새 반례의 실제 Next 서버 검증과 수정은 남아 있다. 기존 3,387건과 envelope 누출 24건·전달 11단계의 통과를 이 반례의 해결 근거로 삼지 않는다.
+
+후속 수정: 현재 값 자체가 Next 제어 흐름 신호인지 안전하게 판별하고 `cause` 탐색을 분리한다. 자기 자신을 던지는 getter 의 실패 테스트부터 추가하고, 실제 서버 누출 검증 및 기존 redirect/notFound/동적 렌더링 신호 회귀 검증을 거친다. 머지 승인 요청은 보류한다.
+
+추적: Run `run_176dd32d29c0`, Task `task_839d8b57ef0c`, Dispatch `ctx_a6a790bde55d`. 리뷰어의 `worker_done` 은 읽기 전용 샌드박스의 `runtime_access_denied (EPERM)` 으로 차단됐다. 최종 판정과 턴 종료를 transcript 로 확인한 뒤 조정자가 `worker-abandon` 으로 정산했고 수락됐다(프로세스 동작 없음, 원 터미널 유지). 이는 리뷰 APPROVE 나 구현 완료를 뜻하지 않는다. 정리 대기 터미널은 0건이며 quota 실패·providerHold 는 없다.
 
 ## 계획을 쓰기 전에 확인한 것 (2026-10-06)
 
