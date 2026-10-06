@@ -21,6 +21,8 @@ describe('envelope 테스트용 라우트', () => {
 
   it('원본은 라우트가 아닌 자리에 있고, 저장소의 app/ 에는 테스트용 라우트가 없다', () => {
     expect(routeFiles).toEqual([
+      'scripts/envelope-test/routes/boundary-handled/route.ts',
+      'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/edge-throw/route.ts',
       'scripts/envelope-test/routes/handled/route.ts',
       'scripts/envelope-test/routes/throw/route.ts',
@@ -55,14 +57,32 @@ describe('envelope 테스트용 라우트', () => {
       expect(fs.readFileSync(path.join(root, file), 'utf8'), file).not.toMatch(/cnry|eyJ/);
     }
   });
+
+  it('경계를 시험하는 라우트만 withSafeErrors 로 내보낸다', () => {
+    const wrapped = routeFiles.filter((file) => /export const GET = withSafeErrors\('envtest\.[a-z_.]+',/.test(fs.readFileSync(path.join(root, file), 'utf8')));
+    expect(wrapped).toEqual([
+      'scripts/envelope-test/routes/boundary-handled/route.ts',
+      'scripts/envelope-test/routes/boundary-throw/route.ts',
+    ]);
+    // 나머지는 감싸지 않은 채로 둔다. 감싸지 않은 라우트의 동작(미처리 오류, flush 한계)을 고정하는 것이 목적이다.
+    for (const file of routeFiles.filter((route) => !wrapped.includes(route))) {
+      expect(fs.readFileSync(path.join(root, file), 'utf8'), file).not.toContain('with-safe-errors');
+    }
+  });
 });
 
 describe('envelope 테스트 시나리오', () => {
-  const { CANARIES, EXPECTED, REPEAT, buildRequests } = require(
+  const { CANARIES, EXPECTED, KEPT, REPEAT, buildRequests } = require(
     path.join(root, 'scripts/envelope-test/scenario.js'),
   ) as {
     CANARIES: Record<'absent' | 'stdoutOnly' | 'unhandled', Record<string, string>>;
-    EXPECTED: { errors: Array<{ count: number }>; transactions: Array<{ min: number }>; traceHeaders: Array<{ min: number }> };
+    EXPECTED: {
+      errors: Array<{ count: number }>;
+      transactions: Array<{ min: number }>;
+      traceHeaders: Array<{ min: number }>;
+      stdout: Array<{ count: number; includes: string }>;
+    };
+    KEPT: { userId: string; orderId: string };
     REPEAT: number;
     buildRequests: (base: string) => Array<{ label: string; url: string; init: { headers: Record<string, string>; body?: string } }>;
   };
@@ -84,13 +104,34 @@ describe('envelope 테스트 시나리오', () => {
   it('종류마다 REPEAT 번 보내고, 기대 건수가 그와 같다', () => {
     const requests = buildRequests('http://127.0.0.1:3000');
     const labels = [...new Set(requests.map((request) => request.label))];
-    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw']);
+    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled']);
     for (const label of labels) {
       expect(requests.filter((request) => request.label === label)).toHaveLength(REPEAT);
     }
     for (const rule of EXPECTED.errors) expect(rule.count).toBe(REPEAT);
     for (const rule of EXPECTED.transactions) expect(rule.min).toBe(REPEAT);
     for (const rule of EXPECTED.traceHeaders) expect(rule.min).toBe(REPEAT);
+    for (const rule of EXPECTED.stdout) expect(rule.count).toBe(REPEAT);
+  });
+
+  it('남아야 하는 값은 계약의 형식을 통과하고 canary 와 겹치지 않는다', () => {
+    expect(KEPT.userId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(KEPT.orderId).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+    const sent = JSON.stringify(buildRequests('http://127.0.0.1:3000'));
+    for (const value of Object.values(KEPT)) {
+      expect(sent, value).toContain(value);
+      expect(value).not.toMatch(/cnry/i);
+    }
+  });
+
+  it('가린 로그 줄의 기대가 테스트 라우트가 쓰는 사건 코드를 가리킨다', () => {
+    const sources = walk(sourceDir)
+      .map((file) => fs.readFileSync(path.join(root, file), 'utf8'))
+      .join('\n');
+    for (const rule of EXPECTED.stdout) {
+      const code = rule.includes.replace('ERROR: ', '');
+      expect(sources, code).toContain(`'${code}'`);
+    }
   });
 
   it('package.json 에 실행 스크립트가 있다', () => {
