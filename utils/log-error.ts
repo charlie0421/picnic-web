@@ -8,11 +8,12 @@
  * 프로덕션에서는 SentryLogTarget 이 함께 등록돼 Sentry 로도 전송된다.
  *
  * 알려진 한계:
- * - 전송을 기다리지 않는다. serverless 에서 응답 후 인스턴스가 정리되면
- *   이벤트가 유실될 수 있다. Sentry.flush 를 요청 수명주기에 연결하는
- *   작업이 필요하다.
- * - Sentry 로 나가는 페이로드에 중앙 redaction 이 없다. 호출부가 넘기는
- *   값과 SDK 가 자동 수집하는 헤더·쿠키·쿼리스트링이 그대로 전송된다.
+ * - 전송을 직접 기다리지 않는다. route handler 안에서 핸들러가 끝나기 전에 부른 것은
+ *   SDK 의 래퍼가 끝에서 건 flush(2초 제한)가 기다린다(2026-10-06 실측, 설계 §4.3).
+ *   핸들러가 끝난 뒤에 부른 것과 Vercel 요청 컨텍스트 밖에서 부른 것은 기다리는 것이 없다.
+ * - 호출부가 넘긴 값(메시지, 오류의 name·message·stack·cause, context)을 그대로 콘솔과
+ *   Sentry 로 보낸다. SDK 가 스스로 붙이던 헤더·쿠키·쿼리는 #119 가 껐다.
+ *   값을 가려 남겨야 하는 경로(결제·인증)에는 logSafeError(log-safe-error.ts)를 쓴다.
  */
 import { logger } from './logger';
 

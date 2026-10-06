@@ -12,6 +12,19 @@
 
 **실행 방식:** Native. 조정자가 이 세션에서 직접 구현하고, PR 을 올린 뒤 Codex(`gpt-6-sol`/high, 읽기 전용)가 고위험 교차 리뷰를 한다. 작업들이 같은 함수 이름과 기록 모양을 공유해 나눠 맡기기 어렵다. 머지는 사용자 승인 뒤에 한다.
 
+## 실행 결과 (2026-10-06)
+
+이 계획은 실행됐다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
+
+| 무엇 | 계획 | 실제 | 이유 |
+|---|---|---|---|
+| 전달 시나리오의 수집기 (Task 8) | 모든 envelope 에 300ms·2600ms 뒤에 답한다 | **오류 이벤트에만** 늦게 답하고 나머지에는 바로 답한다 | "틈을 만들어 실패를 본다"(Step 7)에서 다섯 단계 가운데 넷만 실패했다(하나는 전송 완료와 0ms 로 겹쳤다). SDK 는 flush 할 때 표본에서 빠진 transaction 의 집계(`client_report`)도 보내는데, 수집기가 그것까지 늦추면 flush 가 그 응답을 기다려 틈이 있어도 몇 ms 차이로만 갈린다. 고친 뒤에는 차이가 약 300ms 이고 같은 지연에서 7건이 실패한다 |
+| "실패를 확인한다" (Task 1·3·4) | 모듈이 없다는 오류를 본다 | 그 뒤에 값을 그대로 넘기는 골격으로도 돌려 동작의 부재로 실패하는 것을 봤다: 닫힌 목록 39/60건, 계약 함수 37/52건(지금의 `logError` 처럼 넘기는 골격), 경계 함수 9/25건(설계 문구 그대로의 골격) | 모듈이 없어서 나는 오류는 테스트가 무엇을 잡는지 보여 주지 않는다 |
+| `Logger.safeError` 의 주석 (Task 2) | "한 이슈로 합쳐진다" | "한 이슈로 묶일 수 있다" | Sentry 의 문서에 따른 예상이고 Sentry 에서 잰 것이 아니다. envelope 테스트로 확인한 것은 경계가 잡은 예외의 프레임이 공용 청크의 것뿐이라는 데까지다 |
+| `utils/log-error.ts` 의 주석 (Task 9) | "결제·인증 경로는 logSafeError 를 쓴다" | "값을 가려 남겨야 하는 경로(결제·인증)에는 logSafeError 를 쓴다" | 호출부는 아직 옮기지 않았다(PR 3·4) |
+
+결과: 테스트는 3,170건 → 3,370건(파일 198 → 204), `it.fails` 6건은 그대로다. `npm run test:envelope` 는 누출 시나리오 21건과 전달 시나리오 11건이 통과한다. 경계 없이 `logError` 에 값을 넘긴 모습에서는 누출 시나리오가 20건으로 실패했고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 7건, CI 의 전달 테스트가 2건으로 실패한다.
+
 ## 계획을 쓰기 전에 확인한 것 (2026-10-06)
 
 설계 §5.2 는 "수정 전 코드에서 사례 1 이 실패하는지 먼저 본다. 실패하지 않으면 '틈' 가설이 틀린 것이므로 §4.3 의 2번을 다시 쓴다"고 정했다. 그래서 구현보다 먼저 쟀다.
@@ -24,14 +37,14 @@
 | CI 에서 잴 수 있는가 | 된다. 실제 SDK(`NodeClient`)에 손으로 푸는 transport 를 붙이고 SDK 의 `wrapRouteHandlerWithSentry` 로 감싸 60회 중 60회 통과. `captureException` 앞에 5ms 타이머를 넣으면 전부 실패한다(틈을 실제로 잡는다) |
 | 그 밖에 알게 된 것 | `after()` 는 요청 범위 밖에서 던진다. DSN 이 없으면 `Sentry.init` 을 부르지 않고(`sentry.server.config.js`), 그때 `Sentry.flush()` 는 `false` 다. 결제·인증 경로에 edge 라우트는 없다. 공용 `vitest.setup.ts` 가 `window` 를 써서 node 환경 테스트를 못 돌린다. `next/navigation` 의 `unstable_rethrow` 는 `window` 유무로 서버용·브라우저용이 갈린다(동적 렌더링 신호는 서버용만 올려보낸다) |
 
-**이 계획의 코드 블록은 버릴 시제품으로 먼저 돌려 본 것이다.** 타입 검사와 lint 를 통과했고, 전체 테스트는 3,170건 → 3,370건(KST·UTC), `npm run test:envelope` 는 누출 시나리오 21건과 전달 시나리오 11건이 모두 통과했다. 반대로도 봤다: 경계를 빼고 지금처럼 `logError` 에 값을 넘기면 누출 시나리오가 20건으로 실패하고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 5건으로 실패한다(Task 7·8 에 출력을 적었다). 시제품은 커밋하지 않고 지웠다. 실행할 때는 작업마다 테스트를 먼저 쓰고 실패를 본 뒤 구현한다.
+**이 계획의 코드 블록은 버릴 시제품으로 먼저 돌려 본 것이다.** 타입 검사와 lint 를 통과했고, 전체 테스트는 3,170건 → 3,370건(KST·UTC), `npm run test:envelope` 는 누출 시나리오 21건과 전달 시나리오 11건이 모두 통과했다. 반대로도 봤다: 경계를 빼고 지금처럼 `logError` 에 값을 넘기면 누출 시나리오가 20건으로 실패하고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 5건으로 실패한다(Task 7·8 에 출력을 적었다. 실행에서는 수집기를 고쳐 7건이 됐다 — 위의 실행 결과). 시제품은 커밋하지 않고 지웠다. 실행할 때는 작업마다 테스트를 먼저 쓰고 실패를 본 뒤 구현한다.
 
 ## 설계와 달라지는 것 — 확인이 필요하다
 
 | # | 무엇 | 설계 | 이 계획 | 이유 |
 |---|---|---|---|---|
 | 1 | `SentryLogTarget` 의 import | 정적 import 로 바꾸고 `captureException` 을 동기 구간에서 부른다(§4.3 의 2) | **바꾸지 않는다.** §4.3 의 2 를 측정값으로 다시 쓴다 | 틈이 없다(위). 바꾸면 `utils/logger-targets.ts` 가 들어가는 브라우저 번들까지 건드린다 |
-| 2 | Sentry 이슈 묶음 | 언급 없음 | 가린 기록의 이벤트에 `fingerprint: ['{{ default }}', 사건 코드]` 를 싣는다 | 경계 함수가 잡은 예외는 호출 지점(stack)이 모두 같다. 기본 묶음만 쓰면 서로 다른 라우트의 오류가 한 이슈로 합쳐진다 |
+| 2 | Sentry 이슈 묶음 | 언급 없음 | 가린 기록의 이벤트에 `fingerprint: ['{{ default }}', 사건 코드]` 를 싣는다 | 경계 함수가 잡은 예외는 호출 지점(stack)이 모두 같다. Sentry 는 stack 이 있으면 stack 으로 이슈를 묶으므로, 그대로 두면 서로 다른 라우트의 오류가 한 이슈로 묶일 수 있다(Sentry 에서 재지는 않았다) |
 | 3 | 전달 테스트의 자리(§5.2) | 실제 SDK 에 지연 transport 를 붙여 호출한다 | 두 곳에 둔다. **실제 서버**: `npm run test:envelope` 에 전달 시나리오를 더한다(사례 1·2·3, 실제 `after`, 빌드가 끼워 넣은 SDK 래퍼). **CI**: 실제 SDK 와 손으로 푸는 transport 로 사례 1 과 "핸들러 뒤의 기록은 기다리지 않는다"를 고정한다 | `after()` 는 Next 의 요청 범위 안에서만 돈다. vitest 에서는 대역을 쓸 수밖에 없다 |
 | 4 | 경계 함수의 세부(§4.7) | 모든 오류를 잡아 500 | `redirect()`·`notFound()`·동적 렌더링 신호는 `unstable_rethrow` 로 그대로 올려보낸다. 본문은 `{ "error": "Internal server error" }`. SDK 가 초기화되지 않았으면 flush 하지 않는다. 경계가 겹치면 바깥이 한 번만 건다. `after` 등록이 실패해도 응답은 돌려준다 | 처음 둘은 빠뜨리면 실제 결함이 된다(리다이렉트가 500 이 된다, DSN 없는 환경마다 제한 초과 줄이 찍힌다) |
 | 5 | 닫힌 목록의 초기값(§4.2) | 전수 조사와 sandbox 응답으로 만든다 | 조사가 필요 없는 것만 넣는다. 오류 이름: ECMAScript, fetch 의 `AbortError`·`TimeoutError`, 설치된 `@supabase/auth-js`·`postgrest-js` 의 이름, 이 저장소가 정의한 오류. 오류 코드: RFC 6749 의 OAuth 코드, 이 저장소의 코드가 이미 비교하는 SQLSTATE·PostgREST 코드. 사건 코드: 계약 함수의 대체 코드 하나와 테스트 라우트용 넷 | 전수 조사는 호출부를 옮기는 PR 3·4 의 첫 단계다. PayPal·PortOne·Kakao 의 코드는 그때 더한다 |
@@ -617,8 +630,8 @@ Expected: FAIL 2건. `loggerInstance.safeError is not a function`, 그리고 Sen
 +  /**
 +   * 가린 기록 전용. utils/log-safe-error.ts 만 부른다 — 사건 코드, 호출 지점에서 만든 Error, 계약을 통과한 필드.
 +   *
-+   * 사건 코드를 Sentry 의 fingerprint 에 더한다. 경계 함수(withSafeErrors)가 잡은 예외는 호출 지점이 모두 같아,
-+   * 기본 묶음(stack)만 쓰면 서로 다른 라우트의 오류가 한 이슈로 합쳐진다.
++   * 사건 코드를 Sentry 의 fingerprint 에 더한다. 경계 함수(withSafeErrors)가 잡은 예외는 호출 지점이 모두 같다.
++   * Sentry 는 stack 이 있으면 stack 으로 이슈를 묶으므로, 그대로 두면 서로 다른 라우트의 오류가 한 이슈로 묶일 수 있다.
 +   */
 +  async safeError(code: string, error: Error, context: Record<string, unknown>): Promise<void> {
 +    await this.writeLog(LogLevel.ERROR, code, context, error, undefined, undefined, ['{{ default }}', code]);
@@ -2585,7 +2598,7 @@ git commit -m "test(envelope): 경계 함수로 감싼 요청을 누출 시나�
 **Interfaces:**
 - Produces (`harness.js`): `sleep`, `listen`, `freePort`, `decode`, `startNext(nextBin, root, env, output)`, `waitFor(check, timeoutMs, what?)`, `waitUntilReady(next, output)`
 - Produces (`delivery.js`): `STEPS`, `NORMAL_DELAY_MS = 300`, `SLOW_DELAY_MS = 2600`, `RESPONSE_BUDGET_MS = 1000`, `FLUSH_TIMEOUT_LINE`, `evaluateDelivery(observations): { failures: string[] }`, `runDelivery({ root, nextBin, onServer }): Promise<{ observations, stdout }>`
-- 측정 방법: 테스트 라우트가 요청 헤더 `x-envtest-probe: install` 을 받으면 `globalThis[Symbol.for('@vercel/request-context')]` 에 기록만 하는 `waitUntil` 을 단다. SDK 의 래퍼가 건 flush 의 등록 시각과 끝난 시각이 남는다. 수집기는 답하는 시간을 300ms(정상)·2600ms(제한 초과)로 바꾼다.
+- 측정 방법: 테스트 라우트가 요청 헤더 `x-envtest-probe: install` 을 받으면 `globalThis[Symbol.for('@vercel/request-context')]` 에 기록만 하는 `waitUntil` 을 단다. SDK 의 래퍼가 건 flush 의 등록 시각과 끝난 시각이 남는다. 수집기는 **오류 이벤트에** 답하는 시간을 300ms(정상)·2600ms(제한 초과)로 바꾸고, 그 밖의 envelope(`client_report` 등)에는 바로 답한다.
 
 - [ ] **Step 1: 판정의 실패하는 테스트를 쓴다**
 
@@ -2887,12 +2900,16 @@ module.exports = { sleep, listen, freePort, decode, startNext, waitFor, waitUnti
 /**
  * 전달 시나리오 (설계 §4.3, §5.2). 실제 Next 서버(next start)에서 잰다.
  *
- * 로컬 수집기가 envelope 에 답하는 시간을 조절해 세 가지를 본다.
+ * 로컬 수집기가 오류 이벤트에 답하는 시간을 조절해 세 가지를 본다.
  *   normal     — 수집기가 300ms 뒤에 답한다. 핸들러가 기록을 남기고 바로 응답해도, SDK 의 route handler 래퍼가
  *                waitUntil 에 건 flush 는 전송이 끝난 뒤에 끝난다. 응답은 전송을 기다리지 않는다.
  *   no-context — Vercel 요청 컨텍스트가 없다. waitUntil 에 아무것도 걸리지 않는다. 가린 로그 한 줄은 남는다.
  *   slow       — 수집기가 flush 제한(2초)보다 늦게 답한다. 경계 함수로 감싼 라우트는 오류를 기록한 요청마다
  *                `[sentry] flush timeout` 을 정확히 한 줄 남긴다. 감싸지 않은 라우트와 기록이 없는 요청은 남기지 않는다.
+ *
+ * 늦추는 것은 오류 이벤트뿐이다. SDK 는 flush 할 때 표본에서 빠진 transaction 의 집계(client_report)도 보낸다.
+ * 그것까지 늦추면 flush 가 그 응답을 기다린다 — 이벤트가 flush 보다 늦게 큐에 들어가도 둘의 끝이 몇 ms 차이로만
+ * 갈려서 틈을 놓칠 수 있다(captureException 앞에 5ms 지연을 넣은 실행에서 다섯 가운데 하나가 0ms 로 겹쳤다).
  *
  * 판정(evaluateDelivery)은 순수 함수다 — 단위 테스트(__tests__/scripts/envelope-test-delivery.test.ts)가 CI 에서 돈다.
  * 실행(runDelivery)은 run.js 가 부른다.
@@ -3003,7 +3020,10 @@ function evaluateDelivery(observations) {
   return { failures };
 }
 
-/** 답하는 시간을 조절할 수 있는 로컬 수집기. state.delayMs 를 바꾸면 그 뒤에 도착한 envelope 부터 적용된다. */
+/**
+ * 답하는 시간을 조절할 수 있는 로컬 수집기. 오류 이벤트가 든 envelope 에는 state.delayMs 뒤에 답하고,
+ * 그 밖의 것(client_report 등)에는 바로 답한다. state.delayMs 를 바꾸면 그 뒤에 도착한 envelope 부터 적용된다.
+ */
 function createDelaySink(state) {
   return http.createServer((req, res) => {
     const arrival = { arrivedAt: Date.now(), respondedAt: null, kinds: null };
@@ -3018,11 +3038,13 @@ function createDelaySink(state) {
       } catch {
         arrival.kinds = ['undecodable'];
       }
-      setTimeout(() => {
+      const respond = () => {
         arrival.respondedAt = Date.now();
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end('{}');
-      }, delayMs);
+      };
+      if (arrival.kinds.includes('event')) setTimeout(respond, delayMs);
+      else respond();
     });
   });
 }
@@ -3594,41 +3616,53 @@ Expected: PASS, 타입 오류 없음.
 Task 5 의 Step 3 과 같은 한 줄을 `utils/logger-targets.ts` 에 넣고 빌드한다.
 
 Run: `npm run test:envelope -- --only=delivery`
-Expected: 종료 코드 1, 실패 5건. 시제품에서 본 출력이다.
+Expected: 종료 코드 1, 실패 7건. 실행에서 본 출력이다.
 
 ```
-[envelope] 실패 5건
+[envelope]   서버의 첫 요청: logError 뒤 바로 응답: 200, 응답 328ms, 이벤트 1건, flush 22ms, 전송 완료 대비 -311ms, 로그 1줄, 제한 초과 0줄
+[envelope]   logSafeError 뒤 바로 응답(경계 없음): 200, 응답 6ms, 이벤트 1건, flush 2ms, 전송 완료 대비 -306ms, 로그 1줄, 제한 초과 0줄
+[envelope]   경계가 잡은 예외: 500, 응답 7ms, 이벤트 1건, flush 2ms, 전송 완료 대비 -306ms, 로그 1줄, 제한 초과 0줄
+[envelope]   경계 안의 기록 한 번: 200, 응답 10ms, 이벤트 1건, flush 8ms, 전송 완료 대비 -301ms, 로그 1줄, 제한 초과 0줄
+[envelope]   경계 안의 기록 세 번: 200, 응답 6ms, 이벤트 3건, flush 2ms, 전송 완료 대비 -307ms, 로그 3줄, 제한 초과 0줄
+
+[envelope] 실패 7건
   - 서버의 첫 요청: logError 뒤 바로 응답: flush 가 전송 완료보다 먼저 끝났다 — 이벤트가 flush 보다 늦게 큐에 들어갔다
   - logSafeError 뒤 바로 응답(경계 없음): flush 가 전송 완료보다 먼저 끝났다 — 이벤트가 flush 보다 늦게 큐에 들어갔다
   - 경계가 잡은 예외: flush 가 전송 완료보다 먼저 끝났다 — 이벤트가 flush 보다 늦게 큐에 들어갔다
   - 경계 안의 기록 한 번: flush 가 전송 완료보다 먼저 끝났다 — 이벤트가 flush 보다 늦게 큐에 들어갔다
   - 경계 안의 기록 세 번: flush 가 전송 완료보다 먼저 끝났다 — 이벤트가 flush 보다 늦게 큐에 들어갔다
+  - 제한 초과: 경계가 잡은 예외: '[sentry] flush timeout' 기대 1줄, 실제 0줄
+  - 제한 초과: 경계 안의 기록 세 번: '[sentry] flush timeout' 기대 1줄, 실제 0줄
 ```
+
+flush 는 빈 큐를 보고 2~22ms 에 끝났고, 이벤트는 그 뒤 약 300ms 에 전송을 마쳤다. 경계 함수의 flush 도 이벤트가 큐에 들어가기 전에 돌아 제한 초과 줄을 남기지 못했다.
+
+수집기가 모든 envelope 에 늦게 답하던 처음 구현에서는 이 단계가 4건만 실패했다(다섯 번째는 0ms 로 겹쳤다). 그래서 수집기를 고쳤다(위의 실행 결과).
 
 Run: `git checkout -- utils/logger-targets.ts`
 
 - [ ] **Step 8: 두 시나리오의 통과를 본다**
 
 Run: `npm run test:envelope`
-Expected: 종료 코드 0. 누출 시나리오는 Task 7 의 Step 6 과 같고, 전달 시나리오는 아래 모양이다(시제품의 출력. ms 값은 실행마다 조금 다르다).
+Expected: 종료 코드 0. 누출 시나리오는 Task 7 의 Step 6 과 같고(첫 줄만 `[envelope] 누출 시나리오 — 요청 21건: …` 으로 바뀐다), 전달 시나리오는 아래 모양이다(실행에서 본 출력. ms 값은 실행마다 조금 다르다).
 
 ```
 [envelope] 전달 시나리오 — 요청 11건
-[envelope]   서버의 첫 요청: logError 뒤 바로 응답: 200, 응답 352ms, 이벤트 1건, flush 317ms, 전송 완료 대비 1ms, 로그 1줄, 제한 초과 0줄
-[envelope]   logSafeError 뒤 바로 응답(경계 없음): 200, 응답 8ms, 이벤트 1건, flush 309ms, 전송 완료 대비 4ms, 로그 1줄, 제한 초과 0줄
-[envelope]   경계가 잡은 예외: 500, 응답 8ms, 이벤트 1건, flush 310ms, 전송 완료 대비 4ms, 로그 1줄, 제한 초과 0줄
-[envelope]   경계 안의 기록 한 번: 200, 응답 12ms, 이벤트 1건, flush 308ms, 전송 완료 대비 1ms, 로그 1줄, 제한 초과 0줄
-[envelope]   경계 안의 기록 세 번: 200, 응답 8ms, 이벤트 3건, flush 305ms, 전송 완료 대비 0ms, 로그 3줄, 제한 초과 0줄
-[envelope]   경계 안, 기록 없음: 200, 응답 6ms, 이벤트 0건, flush 305ms, 로그 0줄, 제한 초과 0줄
-[envelope]   요청 컨텍스트 없음: 200, 응답 13ms, 이벤트 1건, waitUntil 0건, 로그 1줄, 제한 초과 0줄
-[envelope]   제한 초과: 경계가 잡은 예외: 500, 응답 15ms, 이벤트 1건, flush 2013ms, 전송 완료 대비 -600ms, 로그 1줄, 제한 초과 1줄
-[envelope]   제한 초과: 경계 안의 기록 세 번: 200, 응답 11ms, 이벤트 3건, flush 2005ms, 전송 완료 대비 -601ms, 로그 3줄, 제한 초과 1줄
-[envelope]   제한 초과: 경계 안, 기록 없음: 200, 응답 6ms, 이벤트 0건, flush 2004ms, 로그 0줄, 제한 초과 0줄
-[envelope]   제한 초과: 경계 없는 라우트: 200, 응답 11ms, 이벤트 1건, flush 2005ms, 전송 완료 대비 -602ms, 로그 1줄, 제한 초과 0줄
+[envelope]   서버의 첫 요청: logError 뒤 바로 응답: 200, 응답 356ms, 이벤트 1건, flush 326ms, 전송 완료 대비 1ms, 로그 1줄, 제한 초과 0줄
+[envelope]   logSafeError 뒤 바로 응답(경계 없음): 200, 응답 6ms, 이벤트 1건, flush 304ms, 전송 완료 대비 2ms, 로그 1줄, 제한 초과 0줄
+[envelope]   경계가 잡은 예외: 500, 응답 11ms, 이벤트 1건, flush 305ms, 전송 완료 대비 1ms, 로그 1줄, 제한 초과 0줄
+[envelope]   경계 안의 기록 한 번: 200, 응답 19ms, 이벤트 1건, flush 310ms, 전송 완료 대비 0ms, 로그 1줄, 제한 초과 0줄
+[envelope]   경계 안의 기록 세 번: 200, 응답 20ms, 이벤트 3건, flush 311ms, 전송 완료 대비 1ms, 로그 3줄, 제한 초과 0줄
+[envelope]   경계 안, 기록 없음: 200, 응답 4ms, 이벤트 0건, flush 1ms, 로그 0줄, 제한 초과 0줄
+[envelope]   요청 컨텍스트 없음: 200, 응답 5ms, 이벤트 1건, waitUntil 0건, 로그 1줄, 제한 초과 0줄
+[envelope]   제한 초과: 경계가 잡은 예외: 500, 응답 9ms, 이벤트 1건, flush 2003ms, 전송 완료 대비 -601ms, 로그 1줄, 제한 초과 1줄
+[envelope]   제한 초과: 경계 안의 기록 세 번: 200, 응답 17ms, 이벤트 3건, flush 2005ms, 전송 완료 대비 -601ms, 로그 3줄, 제한 초과 1줄
+[envelope]   제한 초과: 경계 안, 기록 없음: 200, 응답 7ms, 이벤트 0건, flush 2ms, 로그 0줄, 제한 초과 0줄
+[envelope]   제한 초과: 경계 없는 라우트: 200, 응답 5ms, 이벤트 1건, flush 2004ms, 전송 완료 대비 -600ms, 로그 1줄, 제한 초과 0줄
 [envelope] 전달 시나리오 통과: flush 가 전송을 기다리고, 제한 초과가 경계에서만 한 줄씩 남는다.
 ```
 
-설계 §5.2 의 사례와 맞춰 읽는다. 사례 1(정상): flush 가 전송 완료 뒤 0~4ms 에 끝나고, 응답은 전송을 기다리지 않는다. 서버의 첫 요청도 같다. 사례 2(제한 초과): flush 가 약 2.0초에 끝나고(전송 완료보다 약 0.6초 앞), `[sentry] flush timeout` 은 경계가 오류를 기록한 요청에만 한 줄씩 — 세 번 남겨도 한 줄, 기록이 없으면 0줄, 감싸지 않은 라우트는 0줄. 사례 3(요청 컨텍스트 없음): `waitUntil` 에 걸린 것이 없고 로그 한 줄은 남는다.
+설계 §5.2 의 사례와 맞춰 읽는다. 사례 1(정상): flush 가 전송 완료 뒤 0~2ms 에 끝나고, 응답은 전송을 기다리지 않는다. 서버의 첫 요청도 같다. 기록이 없는 요청의 flush 는 1ms 에 끝난다 — 기다릴 것이 없다. 사례 2(제한 초과): flush 가 약 2.0초에 끝나고(전송 완료보다 약 0.6초 앞), `[sentry] flush timeout` 은 경계가 오류를 기록한 요청에만 한 줄씩 — 세 번 남겨도 한 줄, 기록이 없으면 0줄, 감싸지 않은 라우트는 0줄. 사례 3(요청 컨텍스트 없음): `waitUntil` 에 걸린 것이 없고 로그 한 줄은 남는다.
 
 - [ ] **Step 9: 커밋한다**
 
@@ -3654,17 +3688,17 @@ git commit -m "test(envelope): 전달 시나리오를 실제 서버에서 잰다
 | 상태 줄(5행) 끝 | "PR 2(계약 함수·경계 함수·전달)의 구현 계획은 `docs/superpowers/plans/2026-10-06-log-safe-error-contract-and-boundary.md` 다. PR 2 를 준비하며 잰 결과로 §2.3·§4.2·§4.3·§4.7·§5.2·§8 을 고쳤다(§10.7). **`await import` 로 인한 전달의 틈은 없었다.**" 를 더한다 |
 | §2.3 의 셋째 불릿 | "초안은 여기서 틈을 하나 가정했다: `logError` 가 동기로 돌아오고 `captureException` 은 `await import` 뒤에 불리므로 그 순서가 SDK 의 flush 호출보다 늦을 수 있다는 것이다. **2026-10-06 에 재 보니 틈은 없다**(§4.3 의 2, §5.2). 서버 번들에서 동적 import 는 마이크로태스크만으로 풀리고, flush 는 처리 중인 이벤트를 1ms 타이머로 처음 확인한다. 타이머는 마이크로태스크가 다 돈 뒤에 온다." 로 바꾼다 |
 | §4.2 끝 | "구현에서 정한 것" 불릿을 더한다: 목록에 없는 사건 코드는 `log.invalid_event_code` 로 남긴다 / `droppedFields` 에는 정해진 필드 이름과 `code`·`fields`·`other` 만 들어간다 / `undefined`·`null` 은 버린 것으로 세지 않는다 / Sentry 이벤트의 fingerprint 에 사건 코드를 더한다(경계가 잡은 예외는 stack 이 모두 같다) / 표의 초기값과 그 기준(이 계획의 "설계와 달라지는 것" 5번) / `logSafeError` 는 기존 `Logger` 를 거쳐 두 target 에 같은 `LogEntry` 를 넘긴다 |
-| §4.3 의 2번 첫 불릿(정적 import) | "**`SentryLogTarget` 은 바꾸지 않는다.** 초안은 `await import` 를 정적 import 로 바꿔 이벤트가 큐에 들어가는 시점을 앞당기려 했다. 재 보니 그럴 필요가 없다(§5.2). 핸들러가 기록을 남기고 바로 응답해도 SDK 가 핸들러 끝에서 건 flush 는 그 이벤트의 전송까지 기다린다. 순서가 구조로 정해져 있기 때문이다: (1) 서버 번들에서 `import('@sentry/nextjs')` 는 `Promise.resolve().then(require)` 이거나 청크를 동기 `require` 로 올린 뒤의 `then` 이어서 마이크로태스크만으로 풀린다. (2) `client.flush` 는 처리 중인 이벤트 수를 1ms 타이머로 처음 확인하고, `captureException` 은 호출 즉시 그 수를 올린다. 이 순서는 CI 테스트(`__tests__/utils/log-safe-error-delivery.test.ts`)와 실제 서버의 전달 시나리오가 고정한다 — `captureException` 앞에 5ms 타이머를 넣으면 둘 다 실패한다." 로 바꾼다 |
+| §4.3 의 2번 첫 불릿(정적 import) | "**`SentryLogTarget` 은 바꾸지 않는다.** 초안은 `await import` 를 정적 import 로 바꿔 이벤트가 큐에 들어가는 시점을 앞당기려 했다. 재 보니 그럴 필요가 없다(§5.2). 핸들러가 기록을 남기고 바로 응답해도 SDK 가 핸들러 끝에서 건 flush 는 그 이벤트의 전송까지 기다린다. 순서가 구조로 정해져 있기 때문이다: (1) 서버 번들에서 `import('@sentry/nextjs')` 는 `Promise.resolve().then(require)` 이거나 청크를 동기 `require` 로 올린 뒤의 `then` 이어서 마이크로태스크만으로 풀린다. (2) `client.flush` 는 처리 중인 이벤트 수를 1ms 타이머로 처음 확인하고, `captureException` 은 호출 즉시 그 수를 올린다. 이 순서는 CI 테스트(`__tests__/utils/log-safe-error-delivery.test.ts`)와 실제 서버의 전달 시나리오가 고정한다 — `captureException` 앞에 5ms 타이머를 넣으면 둘 다 실패한다." 로 바꾼다(실제 글은 타이머와 마이크로태스크의 순서, event processor 에 관한 문장을 더했다) |
 | §4.3 의 2번, `after` 불릿 뒤 | 불릿 둘을 더한다: "`Sentry.flush(2000)` 의 2초는 처리 대기와 전송 대기에 각각 적용된다. 실측에서는 제한 초과 때 약 2.0초에 끝났다. 오류를 기록한 요청은 응답 뒤에 인스턴스를 그만큼 더 붙잡는다." / "SDK 가 초기화되지 않았으면(DSN 없음) flush 하지 않는다. 그때 `Sentry.flush` 는 `false` 를 주는데 제한 초과가 아니다." |
 | §4.3 의 2번 마지막 불릿(`log-error.ts` 는 브라우저 번들에도…) | "`log-safe-error.ts` 도 브라우저 번들에 들어간다(`lib/supabase/social/**`). `after` 와 `AsyncLocalStorage` 는 서버 전용 파일 `utils/with-safe-errors.ts` 에만 둔다. 경계가 '이 요청에서 기록이 있었는가'를 알도록 `logSafeError` 는 등록된 함수 하나를 부른다 — 브라우저에는 등록하는 코드가 없다(런타임 분기가 아니라 파일 분리)." 로 바꾼다 |
 | §4.3 의 3번 | 끝에 "핸들러가 끝난 뒤에 남긴 기록(기다리지 않은 Promise 가 나중에 실패하는 경우)도 여기에 든다. 그 요청의 flush 는 이미 끝났다." 를 더한다 |
 | §4.7 "결제·인증 라우트" 끝 | "구현에서 정한 것" 불릿: `redirect()`·`notFound()`·동적 렌더링 신호는 `unstable_rethrow` 로 올려보낸다 / 고정 응답은 500, 본문 `{ "error": "Internal server error" }` / 경계가 겹치면 바깥 경계가 flush 를 한 번 건다 / `after` 를 쓸 수 없으면(요청 범위 밖) flush 없이 응답만 돌려준다 |
-| §5.1 | "PR 2 가 더한 것" 문단: 경계로 감싼 요청 둘(`boundary-throw`, `boundary-handled`), 가린 기록의 모양 판정(type, fingerprint, `contexts.log`)과 서버 출력의 줄 수. 경계 없이 `logError` 에 값을 넘긴 모습에서는 실패 20건(Task 7 의 목록 요약), 경계와 계약 함수로 바꾼 뒤 0건 |
+| §5.1 | "PR 2 가 더한 것" 불릿: 경계로 감싼 요청 둘(`boundary-throw`, `boundary-handled`), 가린 기록의 모양 판정(type, fingerprint, `contexts.log`)과 서버 출력의 줄 수. 경계 없이 `logError` 에 값을 넘긴 모습에서는 실패 20건(Task 7 의 목록 요약), 경계와 계약 함수로 바꾼 뒤 0건 |
 | §5.2 전체 | 아래 Step 2 의 글로 바꾼다 |
 | §6.4 | "정적 import 로 서버 번들이 달라진다" 줄을 지운다. 두 줄을 더한다: "`unstable_rethrow` 는 이름대로 안정 API 가 아니다 \| 실제 Next 오류(redirect, notFound, DynamicServerError)로 도는 단위 테스트가 Next 를 올릴 때 달라진 동작을 드러낸다" / "경계가 잡은 예외는 원본 메시지와 stack 을 잃는다 \| 결정 3 에서 받아들였다. 부족하면 라우트 안의 단계마다 사건 코드를 나눠 `logSafeError` 를 부른다" |
 | §8 확인한 사실 | 줄을 더한다: 틈이 없다는 것과 근거(실제 서버 측정, 빌드 산출물의 두 가지 모양, `client.js` 의 줄 번호) / `after` 콜백의 flush 가 로컬 `next start` 에서 응답 뒤에 끝까지 돈다(제한 초과 줄 실측) / `after()` 는 요청 범위 밖에서 던진다 / DSN 이 없으면 `Sentry.flush()` 는 `false` 다 / 오류의 이름은 예외의 type 과 span 의 `error.type` 으로, cause 는 이어진 예외로 나간다(Task 7 의 실패 목록) |
-| §8 남은 가정 | "`await import` 때문에…" 줄을 지운다. "`after()` 안의 flush 가 Vercel 에서…" 의 확인 방법을 "PR 3 배포 뒤(경계로 감싼 라우트가 처음 생긴다)…" 로 고친다 |
-| §10 끝 | "### 10.7 PR 2 를 준비하고 구현하면서 달라진 것 (2026-10-06)" 을 더한다. 이 계획의 "설계와 달라지는 것" 표를 옮긴다 |
+| §8 남은 가정 | "`await import` 때문에…" 줄을 지운다. "`after()` 안의 flush 가 Vercel 에서…" 의 확인 방법을 "PR 3 배포 뒤(경계로 감싼 라우트가 처음 생긴다)…" 로 고친다. "가린 기록의 이벤트가 Sentry 에서 사건 코드별 이슈로 갈린다" 줄을 더한다 |
+| §10 끝 | "### 10.7 PR 2 를 준비하고 구현하면서 달라진 것 (2026-10-06)" 을 더한다. 이 계획의 "설계와 달라지는 것" 표를 옮기고, 전달 시나리오의 수집기를 고친 일을 적는다 |
 
 - [ ] **Step 2: §5.2 를 다시 쓴다**
 
@@ -3673,23 +3707,23 @@ git commit -m "test(envelope): 전달 시나리오를 실제 서버에서 잰다
 
 전달은 두 곳에서 잰다.
 
-**실제 서버** — `npm run test:envelope` 의 전달 시나리오(`scripts/envelope-test/delivery.js`). Production 빌드를 `next start` 로 띄우고 로컬 수집기가 답하는 시간을 조절한다. 로컬에는 Vercel 요청 컨텍스트가 없으므로, 테스트 라우트가 같은 자리(`Symbol.for('@vercel/request-context')`)에 기록만 하는 `waitUntil` 을 달아 SDK 의 래퍼가 건 flush 의 등록 시각과 끝난 시각을 남긴다. `after()` 는 Next 의 것을 그대로 쓴다.
+**실제 서버** — `npm run test:envelope` 의 전달 시나리오(`scripts/envelope-test/delivery.js`). Production 빌드를 `next start` 로 띄우고, 로컬 수집기가 오류 이벤트에 답하는 시간을 조절한다(그 밖의 envelope 에는 바로 답한다 — §10.7). 로컬에는 Vercel 요청 컨텍스트가 없으므로 테스트 라우트가 같은 자리(`Symbol.for('@vercel/request-context')`)에 기록만 하는 `waitUntil` 을 달아, SDK 의 래퍼가 건 flush 의 등록 시각과 끝난 시각을 남긴다. `after()` 는 Next 의 것을 그대로 쓴다.
 
 - 사례 1(정상): 수집기가 300ms 뒤에 답한다. 핸들러가 `logError`·`logSafeError` 를 부르고 바로 응답한다. `waitUntil` 에 걸린 flush 는 전송이 끝난 뒤에 끝난다. 서버가 뜬 뒤의 첫 요청에서도 그렇다. 응답은 전송 완료보다 앞선다. SDK 래퍼의 flush 는 요청마다 한 번이다.
 - 사례 2(제한 초과): 수집기가 2600ms 뒤에 답한다. 경계 함수로 감싼 라우트는 오류를 기록한 요청마다 `[sentry] flush timeout` 을 정확히 한 줄 남긴다 — 세 번 기록해도 한 줄, 기록이 없으면 0줄. 감싸지 않은 라우트는 0줄이다(한계를 고정한다). 응답은 1초 안에 온다.
 - 사례 3(요청 컨텍스트 없음): 가짜 컨텍스트를 뗀 요청. `waitUntil` 에 걸린 것이 없고 가린 로그 한 줄은 남는다.
-- 판정(`evaluateDelivery`)은 순수 함수이고 단위 테스트가 CI 에서 돈다.
+- 판정(`evaluateDelivery`)은 순수 함수이고 단위 테스트가 CI 에서 돈다. 시나리오 자체는 누출 테스트와 같은 이유로 CI 에 넣지 못한다(§5.1).
 
-**CI** — `__tests__/utils/log-safe-error-delivery.test.ts`. 실제 SDK(`NodeClient`)에 손으로 푸는 transport 를 붙이고 SDK 의 `wrapRouteHandlerWithSentry` 로 감싼다. 사례 1 을 `logSafeError` 와 `logError` 로, 그리고 "핸들러가 끝난 뒤에 남긴 기록은 기다리지 않는다"를 고정한다. `after` 는 대역이다(Next 의 요청 범위 밖에서는 돌지 않는다).
+**CI** — `__tests__/utils/log-safe-error-delivery.test.ts`. 실제 SDK(`NodeClient`)에 손으로 푸는 transport 를 붙이고 SDK 의 `wrapRouteHandlerWithSentry` 로 감싼다. 사례 1 을 `logSafeError` 와 `logError` 로, 그리고 "핸들러가 끝난 뒤에 남긴 기록은 기다리지 않는다"를 고정한다. `after` 는 대역이다(Next 의 요청 범위 밖에서는 돌지 않는다). 측정하기 전에 래퍼를 한 번 돌려 둔다 — 처음 도는 코드는 느려서 그 사이에 늦은 기록이 flush 를 따라잡아, 틈이 있어도 가려진다.
 
-"가린 로그 한 줄이 응답 전에 남는다"는 단위 테스트가 본다: `logSafeError` 가 돌아왔을 때 `console.error` 가 이미 불려 있고(`await` 없이 단언), 경계 함수는 응답을 만들기 전에 그 줄을 찍는다.
+"가린 로그 한 줄이 응답 전에 남는다"는 단위 테스트가 본다. `logSafeError` 가 돌아왔을 때 `console.error` 가 이미 불려 있고(`await` 없이 단언), 경계 함수는 응답을 만들기 전에 그 줄을 찍는다. envelope 테스트는 그 줄이 요청마다 한 줄씩 서버 출력에 있는지 센다.
 
-**결과 (2026-10-06).** 초안은 "수정 전 코드(`await import`)에서 사례 1 이 실패하는지 먼저 본다"고 했다. 실패하지 않았다 — 틈 가설이 틀렸다(§4.3 의 2). 반대로 `captureException` 앞에 5ms 타이머를 넣으면 실제 서버의 사례 1 이 5건 모두, CI 테스트가 2건 모두 실패한다. 테스트가 틈을 잡는다는 뜻이다.
+**결과 (2026-10-06).** 초안은 "수정 전 코드(`await import`)에서 사례 1 이 실패하는지 먼저 본다. 실패하지 않으면 '틈' 가설이 틀린 것"이라고 했다. 실패하지 않았다(§4.3 의 2). 반대로 `captureException` 앞에 5ms 타이머를 넣으면 실제 서버의 시나리오가 7건(사례 1 의 다섯 단계 전부와 사례 2 의 제한 초과 줄 둘), CI 테스트가 2건 실패한다. 테스트가 틈을 잡는다는 뜻이다.
 
 | 사례 | 실측 |
 |---|---|
-| 1 정상 | flush 가 전송 완료 뒤 0~4ms 에 끝난다. 응답 5~15ms(서버의 첫 요청은 약 350ms — 라우트를 처음 올린다) |
-| 2 제한 초과 | flush 가 약 2.0초에 끝난다(전송 완료보다 약 0.6초 앞). 제한 초과 줄은 경계가 오류를 기록한 요청에 한 줄씩 |
+| 1 정상 | flush 가 전송 완료 뒤 0~2ms 에 끝난다. 응답 4~20ms(서버의 첫 요청은 약 350ms — 라우트를 처음 올린다). 기록이 없는 요청의 flush 는 1ms |
+| 2 제한 초과 | flush 가 약 2.0초에 끝난다(전송 완료보다 약 0.6초 앞). 제한 초과 줄은 경계가 오류를 기록한 요청에 한 줄씩. 응답 5~17ms |
 | 3 컨텍스트 없음 | `waitUntil` 등록 0건, 로그 한 줄 |
 ```
 
@@ -3702,7 +3736,7 @@ git commit -m "test(envelope): 전달 시나리오를 실제 서버에서 잰다
  *   핸들러가 끝난 뒤에 부른 것과 Vercel 요청 컨텍스트 밖에서 부른 것은 기다리는 것이 없다.
  * - 호출부가 넘긴 값(메시지, 오류의 name·message·stack·cause, context)을 그대로 콘솔과
  *   Sentry 로 보낸다. SDK 가 스스로 붙이던 헤더·쿠키·쿼리는 #119 가 껐다.
- *   결제·인증 경로는 계약을 통과한 값만 남기는 logSafeError(log-safe-error.ts)를 쓴다.
+ *   값을 가려 남겨야 하는 경로(결제·인증)에는 logSafeError(log-safe-error.ts)를 쓴다.
 ```
 
 - [ ] **Step 4: 이 계획에 `실행 결과` 절을 더한다**
