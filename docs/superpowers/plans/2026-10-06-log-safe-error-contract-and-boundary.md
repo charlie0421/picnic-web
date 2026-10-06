@@ -23,7 +23,24 @@
 | `Logger.safeError` 의 주석 (Task 2) | "한 이슈로 합쳐진다" | "한 이슈로 묶일 수 있다" | Sentry 의 문서에 따른 예상이고 Sentry 에서 잰 것이 아니다. envelope 테스트로 확인한 것은 경계가 잡은 예외의 프레임이 공용 청크의 것뿐이라는 데까지다 |
 | `utils/log-error.ts` 의 주석 (Task 9) | "결제·인증 경로는 logSafeError 를 쓴다" | "값을 가려 남겨야 하는 경로(결제·인증)에는 logSafeError 를 쓴다" | 호출부는 아직 옮기지 않았다(PR 3·4) |
 
-결과: 테스트는 3,170건 → 3,370건(파일 198 → 204), `it.fails` 6건은 그대로다. `npm run test:envelope` 는 누출 시나리오 21건과 전달 시나리오 11건이 통과한다. 경계 없이 `logError` 에 값을 넘긴 모습에서는 누출 시나리오가 20건으로 실패했고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 7건, CI 의 전달 테스트가 2건으로 실패한다.
+결과: 테스트는 3,170건 → 3,387건(파일 198 → 204), `it.fails` 6건과 skipped 1건은 그대로다. `npm run test:envelope` 는 누출 시나리오 24건과 전달 시나리오 11건이 통과한다. 경계 없이 `logError` 에 값을 넘긴 모습에서는 누출 시나리오가 20건으로 실패했고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 7건, CI 의 전달 테스트가 2건으로 실패한다.
+
+### 교차 리뷰 1차와 수정 (2026-10-06)
+
+Codex `gpt-6-sol`/high 의 읽기 전용 리뷰는 REQUEST_CHANGES(blocker 1, major 2, minor 1)였다. 실패하는 테스트로 각 지적을 확인한 뒤 `8025927b` 에서 수정했다. 원 리뷰어의 재검증은 대기 중이다.
+
+| 지적 | 수정 | 회귀 테스트 |
+|---|---|---|
+| blocker: `cause` getter·순환·Proxy 가 경계를 뚫는다 | 경계가 사슬을 직접 따라가며 예외·순환·깊이를 제한하고, Next 가 각 값 자체를 다시 던질 때만 신호로 전파한다 | `with-safe-errors.test.ts` 의 "던진 값이 읽기를 방해할 때" 6건. 실제 서버 `boundary-hostile` 수정 전 실패 4건 → 수정 뒤 0건 |
+| major: 취소된 `fields` Proxy 에서 로그가 사라진다 | `Array.isArray` 도 try 안에서 검사하고 기록 생성 실패에는 상수 대체 기록을 남긴다 | `log-safe-error.test.ts` 의 취소된 Proxy 3건, "기록을 만들다가 던져도…" 1건 |
+| major: 동적 함수 이름이 stack 에 노출된다 | 구조화된 CallSite 의 스크립트 이름·줄·칸만 사용한다. API 가 없으면 프레임을 생략한다 | 동적 함수 이름 반례 4건, 위치만 싣는 stack 1건 |
+| minor: Symbol·비열거 키가 누락된다 | `Reflect.ownKeys` 로 센다 | Symbol·비열거 키 1건 |
+
+새 라우트 `scripts/envelope-test/routes/boundary-hostile/route.ts` 와 사건 코드 `envtest.boundary.hostile` 을 더했다. `scenario.js` 와 라우트 목록 테스트도 갱신했다. 아래 최종 파일 블록과 diff 는 이 수정을 포함한다. 수정 전 실패를 보여 주는 시제품·출력 블록은 당시 기록을 유지한다.
+
+**이어서 확인한 결과:** 코드 `8025927b` 에서 `npx tsc --noEmit`, `npm run lint` 통과. KST·UTC 각각 테스트 204파일, 3,387건 통과·6건 expected fail·1건 skipped. `npm run test:envelope -- --skip-build` 로 핸드오프의 기존 `.next-envtest` 빌드를 재사용해 누출 24건과 전달 11단계 통과를 재확인했다. 이번 후속 작업은 문서만 수정하며 빌드는 다시 만들지 않았다.
+
+리뷰어가 미확인으로 남긴 항목: (1) 경계의 getter 반례는 실제 서버에서 재현·검증했다. 나머지 세 지적은 계약 함수 단위 테스트로 검증한다. (2) 전달 실측은 route handler 의 `Promise.resolve().then(require)` 경로다. 별도 청크의 첫 동적 import 는 측정하지 않았고, 로더의 동기 `require` 는 코드로만 확인했다. (3) 스트리밍 응답 반환 뒤의 오류는 경계가 잡지 못한다. 현재 결제·인증 라우트는 스트리밍하지 않는다.
 
 ## 계획을 쓰기 전에 확인한 것 (2026-10-06)
 
@@ -32,7 +49,7 @@
 | 무엇 | 결과 |
 |---|---|
 | 지금 코드(`await import`)에서 핸들러가 `logError` 뒤 바로 응답할 때, SDK 가 핸들러 끝에 건 flush 가 그 이벤트의 전송을 기다리는가 | **기다린다.** 실제 `next start`, 수집기 지연 300ms, 6회(서버의 첫 요청 포함) 전부. 이벤트는 flush 등록 뒤 1~22ms 에 수집기에 닿았고, flush 는 수집기가 답한 뒤 0~6ms 에 끝났다 |
-| 왜 틈이 없는가 | 순서가 구조로 정해져 있다. (1) 서버 번들에서 `import('@sentry/nextjs')` 는 `Promise.resolve().then(require)`(route handler 가 쓰는 청크) 이거나 청크를 동기 `require` 로 올린 뒤의 `then` 이다(`.next-envtest/server/webpack-runtime.js` 의 `c.f.require`). 둘 다 마이크로태스크만으로 풀린다. (2) `client.flush` 는 처리 중인 이벤트 수를 1ms `setInterval` 로 처음 확인한다(`@sentry/core` `client.js` 541~559). `captureException` 은 호출 즉시 그 수를 올린다(같은 파일 138~159, 775~787). 타이머는 마이크로태스크가 다 돈 뒤에 오므로 `captureException` 이 항상 먼저다 |
+| 왜 틈이 없는가 | 순서가 구조로 정해져 있다. (1) 실측한 route handler 번들의 `import('@sentry/nextjs')` 는 `Promise.resolve().then(require)` 이다. 다른 레이어의 별도 청크 로더가 동기 `require` 라는 것은 코드로만 확인했다(`.next-envtest/server/webpack-runtime.js` 의 `c.f.require`). 그 청크의 첫 import 는 측정하지 않았다. (2) `client.flush` 는 처리 중인 이벤트 수를 1ms `setInterval` 로 처음 확인한다(`@sentry/core` `client.js` 541~559). `captureException` 은 호출 즉시 그 수를 올린다(같은 파일 138~159, 775~787). 타이머는 마이크로태스크가 다 돈 뒤에 오므로 `captureException` 이 항상 먼저다 |
 | 경계 함수가 걸 flush | `after(async () => Sentry.flush(2000))`: 수집기 300ms → `true`(약 300ms 뒤), 수집기 2600ms → `false`(약 2.0초 뒤)와 `[sentry] flush timeout`. 응답은 두 경우 모두 약 5ms. `after` 콜백은 응답 뒤 2~16ms 에 시작했다 |
 | CI 에서 잴 수 있는가 | 된다. 실제 SDK(`NodeClient`)에 손으로 푸는 transport 를 붙이고 SDK 의 `wrapRouteHandlerWithSentry` 로 감싸 60회 중 60회 통과. `captureException` 앞에 5ms 타이머를 넣으면 전부 실패한다(틈을 실제로 잡는다) |
 | 그 밖에 알게 된 것 | `after()` 는 요청 범위 밖에서 던진다. DSN 이 없으면 `Sentry.init` 을 부르지 않고(`sentry.server.config.js`), 그때 `Sentry.flush()` 는 `false` 다. 결제·인증 경로에 edge 라우트는 없다. 공용 `vitest.setup.ts` 가 `window` 를 써서 node 환경 테스트를 못 돌린다. `next/navigation` 의 `unstable_rethrow` 는 `window` 유무로 서버용·브라우저용이 갈린다(동적 렌더링 신호는 서버용만 올려보낸다) |
@@ -47,7 +64,7 @@
 | 2 | Sentry 이슈 묶음 | 언급 없음 | 가린 기록의 이벤트에 `fingerprint: ['{{ default }}', 사건 코드]` 를 싣는다 | 경계 함수가 잡은 예외는 호출 지점(stack)이 모두 같다. Sentry 는 stack 이 있으면 stack 으로 이슈를 묶으므로, 그대로 두면 서로 다른 라우트의 오류가 한 이슈로 묶일 수 있다(Sentry 에서 재지는 않았다) |
 | 3 | 전달 테스트의 자리(§5.2) | 실제 SDK 에 지연 transport 를 붙여 호출한다 | 두 곳에 둔다. **실제 서버**: `npm run test:envelope` 에 전달 시나리오를 더한다(사례 1·2·3, 실제 `after`, 빌드가 끼워 넣은 SDK 래퍼). **CI**: 실제 SDK 와 손으로 푸는 transport 로 사례 1 과 "핸들러 뒤의 기록은 기다리지 않는다"를 고정한다 | `after()` 는 Next 의 요청 범위 안에서만 돈다. vitest 에서는 대역을 쓸 수밖에 없다 |
 | 4 | 경계 함수의 세부(§4.7) | 모든 오류를 잡아 500 | `redirect()`·`notFound()`·동적 렌더링 신호는 `unstable_rethrow` 로 그대로 올려보낸다. 본문은 `{ "error": "Internal server error" }`. SDK 가 초기화되지 않았으면 flush 하지 않는다. 경계가 겹치면 바깥이 한 번만 건다. `after` 등록이 실패해도 응답은 돌려준다 | 처음 둘은 빠뜨리면 실제 결함이 된다(리다이렉트가 500 이 된다, DSN 없는 환경마다 제한 초과 줄이 찍힌다) |
-| 5 | 닫힌 목록의 초기값(§4.2) | 전수 조사와 sandbox 응답으로 만든다 | 조사가 필요 없는 것만 넣는다. 오류 이름: ECMAScript, fetch 의 `AbortError`·`TimeoutError`, 설치된 `@supabase/auth-js`·`postgrest-js` 의 이름, 이 저장소가 정의한 오류. 오류 코드: RFC 6749 의 OAuth 코드, 이 저장소의 코드가 이미 비교하는 SQLSTATE·PostgREST 코드. 사건 코드: 계약 함수의 대체 코드 하나와 테스트 라우트용 넷 | 전수 조사는 호출부를 옮기는 PR 3·4 의 첫 단계다. PayPal·PortOne·Kakao 의 코드는 그때 더한다 |
+| 5 | 닫힌 목록의 초기값(§4.2) | 전수 조사와 sandbox 응답으로 만든다 | 조사가 필요 없는 것만 넣는다. 오류 이름: ECMAScript, fetch 의 `AbortError`·`TimeoutError`, 설치된 `@supabase/auth-js`·`postgrest-js` 의 이름, 이 저장소가 정의한 오류. 오류 코드: RFC 6749 의 OAuth 코드, 이 저장소의 코드가 이미 비교하는 SQLSTATE·PostgREST 코드. 사건 코드: 계약 함수의 대체 코드 하나와 테스트 라우트용 다섯 | 전수 조사는 호출부를 옮기는 PR 3·4 의 첫 단계다. PayPal·PortOne·Kakao 의 코드는 그때 더한다 |
 | 6 | `droppedFields` | 버린 필드의 이름 | 정해진 필드 이름과 `code`·`fields`·`other` 만 | 호출부가 넘긴 키 이름도 밖에서 온 문자열일 수 있다(외부 응답을 펼쳐 넘기는 경우) |
 | 7 | 테스트 환경 | 언급 없음 | `vitest.setup.ts` 의 `window` 사용부를 `typeof window !== 'undefined'` 로 감싼다. 서버 전용 코드의 테스트는 `// @vitest-environment node` 로 돈다 | 경계 함수는 서버용 `unstable_rethrow` 로 시험해야 한다. jsdom 테스트의 동작은 그대로다(전체 3,170건 통과 확인) |
 
@@ -94,7 +111,7 @@
 | `__tests__/utils/log-safe-error-delivery.test.ts` | 새로 (Task 5) | 실제 SDK 로 도는 전달 테스트(CI) |
 | `scripts/envelope-test/analyze.js` | 수정 (Task 6) | 가린 기록의 모양(type, fingerprint, `contexts.log`)과 서버 출력의 줄 수 판정 |
 | `scripts/envelope-test/scenario.js` · `routes/_lib/envtest.ts` | 수정 (Task 7) | 경계 요청 둘과 canary, 기대값 |
-| `scripts/envelope-test/routes/boundary-throw/route.ts` · `boundary-handled/route.ts` | 새로 (Task 7) | 경계로 감싼 테스트 라우트 |
+| `scripts/envelope-test/routes/boundary-throw/route.ts` · `boundary-handled/route.ts` · `boundary-hostile/route.ts` | 새로 (Task 7·교차 리뷰 수정) | 경계로 감싼 테스트 라우트 |
 | `scripts/envelope-test/harness.js` | 새로 (Task 8) | 두 시나리오가 같이 쓰는 것(포트, 압축 풀기, `next start`, 기다리기) |
 | `scripts/envelope-test/delivery.js` | 새로 (Task 8) | 전달 시나리오: 단계, 판정(`evaluateDelivery`), 실행(`runDelivery`) |
 | `scripts/envelope-test/routes/_lib/delivery-probe.ts` · `delivery-plain/route.ts` · `delivery-safe/route.ts` · `delivery-control/route.ts` | 새로 (Task 8) | 전달 시나리오의 테스트 라우트와 탐침 |
@@ -107,7 +124,7 @@
 
 1. **기록을 내보내는 길은 기존 `Logger` 다.** `logSafeError` 는 가린 기록으로 `Error`(이름·사건 코드·호출 지점 stack)와 context(통과한 필드, `droppedFields`)를 만들어 `logger.safeError(code, error, context)` 에 넘긴다. `Logger.writeLog` 가 `LogEntry` 하나를 만들어 두 target 에 넘기므로 "Console 과 Sentry 가 같은 기록을 받는다"가 구조로 지켜진다. target 을 따로 부르는 새 경로를 만들지 않는다.
 2. **Console 줄은 동기다.** `logger.safeError()` 는 `async` 지만 첫 `await` 앞에서 `targets.map(target => target.write(entry))` 가 돌고, `ConsoleLogTarget.write` 에는 `await` 가 없다. `logSafeError` 가 돌아왔을 때 줄은 이미 찍혀 있다. 테스트가 `await` 없이 단언한다.
-3. **stack 의 첫 줄.** `new Error(code)` 를 만들고 `name` 을 정한 뒤 `Error.captureStackTrace(error, logSafeError)` 를 부른다. V8 은 그 시점의 `name`·`message` 로 첫 줄을 만들고 `logSafeError` 자신과 그 위의 프레임을 뺀다. `captureStackTrace` 가 없는 브라우저에서는 `new Error` 의 stack 을 그대로 쓴다(우리 번들의 프레임뿐이다).
+3. **stack 은 위치만 싣는다.** 첫 줄은 표에서 고른 오류 이름과 사건 코드다. `Error.prepareStackTrace` 를 동기 구간에서 잠깐 바꿔 구조화된 CallSite 를 받고 스크립트 이름·줄·칸만으로 프레임을 만든 뒤 원래 훅을 복원한다. 함수 이름은 값에서 올 수 있어 싣지 않는다. 스크립트 주소의 쿼리·fragment 는 버리고, 이 API 가 없는 엔진에서는 프레임을 생략한다.
 4. **목록에 없는 사건 코드.** 타입은 `as any` 를 막지 못한다. 런타임에 목록에 없으면 `log.invalid_event_code` 로 바꾸고 `droppedFields` 에 `code` 를 적는다. 로그를 통째로 버리지 않는다 — 오류가 났다는 사실은 남아야 한다.
 5. **필드의 세부.** 값이 `undefined`·`null` 이면 버린 것으로 세지 않는다. `errorCode` 는 표에 없으면 `'unknown'` 으로 바꾸고 버린 것으로 세지 않는다(설계의 "없으면 `'unknown'`"). 정해지지 않은 키는 값도 이름도 싣지 않고 `other` 하나로만 남긴다. `fields` 가 객체가 아니거나 읽다가 던지면 읽다 만 값까지 버리고 `fields` 를 적는다.
 6. **"요청당 한 번"을 아는 방법.** 경계가 요청마다 `AsyncLocalStorage` 에 `{ recorded: false }` 를 두고, `logSafeError` 가 부르는 등록 함수(경계 파일이 모듈을 불러올 때 등록한다)가 지금 요청의 표시를 켠다. 핸들러가 끝난 뒤 표시가 켜져 있으면 `after` 를 한 번 건다. `logSafeError` 를 핸들러의 인자로 넘겨받게 하면 깊은 곳의 헬퍼(`lib/payment/**`)가 남긴 기록을 세지 못한다.
@@ -365,6 +382,7 @@ export const LOG_EVENT_CODES = [
   // envelope·전달 테스트용 라우트(scripts/envelope-test/routes/)가 쓴다. 운영 코드는 쓰지 않는다.
   'envtest.boundary.unhandled',
   'envtest.boundary.handled',
+  'envtest.boundary.hostile',
   'envtest.delivery.unhandled',
   'envtest.delivery.handled',
 ] as const;
@@ -843,6 +861,30 @@ describe('buildSafeRecord', () => {
     expect(buildSafeRecord('envtest.boundary.handled', undefined, fields)).toMatchObject({ fields: {}, droppedFields: ['fields'] });
   });
 
+  it('취소된 Proxy 가 fields 여도 던지지 않는다', () => {
+    const { proxy, revoke } = Proxy.revocable({ userId: USER_ID }, {});
+    revoke();
+
+    expect(buildSafeRecord('envtest.boundary.handled', undefined, proxy)).toEqual({
+      code: 'envtest.boundary.handled',
+      errorName: 'Error',
+      fields: {},
+      droppedFields: ['fields'],
+    });
+  });
+
+  it('Symbol 키와 열거되지 않는 키도 정해지지 않은 키로 센다', () => {
+    const withSymbol = { userId: USER_ID, [Symbol('cnry-symbol')]: 'cnry-value' };
+    const withHidden = Object.defineProperty({ userId: USER_ID }, 'cnryHidden', { value: 'cnry-value', enumerable: false });
+
+    for (const fields of [withSymbol, withHidden]) {
+      const record = buildSafeRecord('envtest.boundary.handled', undefined, fields);
+      expect(record.fields).toEqual({ userId: USER_ID });
+      expect(record.droppedFields).toEqual(['other']);
+      expect(strings(record).join('\n')).not.toMatch(/cnry/i);
+    }
+  });
+
   it('목록에 없는 사건 코드는 대체 코드로 바꾸고 code 를 버린 필드에 적는다', () => {
     const record = buildSafeRecord(`payment.${CANARY.key}.failed`, undefined, { httpStatus: 'x' });
     expect(record.code).toBe('log.invalid_event_code');
@@ -877,6 +919,7 @@ describe('logSafeError', () => {
   });
 
   afterEach(() => {
+    vi.doUnmock('@/utils/log-known-errors');
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
@@ -949,6 +992,104 @@ describe('logSafeError', () => {
     expect(lines[0]).toBe('Error: envtest.boundary.unhandled');
     expect(lines[1]).toContain('log-safe-error.test.ts');
     expect(error.stack).not.toContain('at logSafeError');
+  });
+
+  it('stack 에는 위치만 싣는다. 함수 이름은 싣지 않는다', async () => {
+    logSafeError('envtest.boundary.unhandled', new Error('x'));
+
+    const { error } = await sentryCall();
+    const frames = (error.stack ?? '').split('\n').slice(1);
+    expect(frames.length).toBeGreaterThan(0);
+    for (const frame of frames) expect(frame).toMatch(/^ {4}at \S.*:\d+:\d+$/);
+  });
+
+  // 함수 이름은 코드가 아니라 값에서 올 수 있다: { [action]() { … } } 의 action 이 요청 값이면 V8 은 그것을 프레임에 적는다.
+  it.each([
+    [
+      '값으로 이름 붙인 메서드',
+      (log: () => void) => {
+        const name = 'cnryComputedMethod';
+        const holder: Record<string, () => void> = {
+          [name]() {
+            log();
+          },
+        };
+        holder[name]();
+      },
+    ],
+    [
+      '값을 키로 삼아 부른 함수',
+      (log: () => void) => {
+        const holder: Record<string, () => void> = {};
+        holder['cnryAliasKey'] = function plain() {
+          log();
+        };
+        holder['cnryAliasKey']();
+      },
+    ],
+    [
+      '이름에 줄바꿈과 위치 모양을 넣은 함수',
+      (log: () => void) => {
+        const name = 'cnryForged\n    at /cnry/forged/location.js:1:2\n    cnryTail';
+        const holder: Record<string, () => void> = {
+          [name]() {
+            log();
+          },
+        };
+        holder[name]();
+      },
+    ],
+    [
+      '값으로 이름 붙인 클래스의 메서드',
+      (log: () => void) => {
+        const name = 'CnryDynamicClass';
+        const Dynamic = { [name]: class { run() { log(); } } }[name];
+        new Dynamic().run();
+      },
+    ],
+  ])('호출부의 함수 이름이 값에서 온 것이어도 새지 않는다: %s', async (_label, call) => {
+    call(() => logSafeError('envtest.boundary.handled', new Error('x')));
+
+    const sentry = await sentryCall();
+    expect(strings([consoleError.mock.calls, sentry.error, sentry.options]).join('\n')).not.toMatch(/cnry/i);
+    // 위치는 남는다.
+    expect(sentry.error.stack).toMatch(/log-safe-error\.test\.ts:\d+:\d+/);
+  });
+
+  it.each([
+    ['fields', (proxy: object) => [new Error('x'), proxy] as const],
+    ['error', (proxy: object) => [proxy, { userId: USER_ID }] as const],
+  ])('취소된 Proxy 가 %s 여도 로그 한 줄은 남는다', async (_label, args) => {
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+    const [error, fields] = args(proxy);
+
+    expect(() => logSafeError('envtest.boundary.handled', error, fields as Record<string, unknown>)).not.toThrow();
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toContain('ERROR: envtest.boundary.handled');
+    await sentryCall();
+  });
+
+  // 계약 함수 안에서 예상하지 못한 예외가 나도 "가린 로그 한 줄"은 지켜야 한다(설계 §4.3 의 1).
+  it('기록을 만들다가 던져도 상수만 든 기록으로 로그 한 줄을 남긴다', async () => {
+    vi.resetModules();
+    vi.doMock('@/utils/log-known-errors', () => ({
+      knownErrorName: () => {
+        throw new Error('cnry-internal-failure');
+      },
+      knownErrorCode: () => 'unknown',
+    }));
+    const fresh = await import('@/utils/log-safe-error');
+
+    expect(() => fresh.logSafeError('envtest.boundary.handled', new Error('x'), { userId: USER_ID })).not.toThrow();
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toContain('ERROR: envtest.boundary.handled');
+    const logData = consoleError.mock.calls[0][1] as Record<string, any>;
+    expect(logData.context).toEqual({ droppedFields: ['fields'] });
+    expect(logData.error.name).toBe('Error');
+    expect(strings(consoleError.mock.calls).join('\n')).not.toMatch(/cnry/i);
   });
 
   it('사건 코드로 Sentry 이슈를 가른다', async () => {
@@ -1026,7 +1167,8 @@ Expected: FAIL. `Failed to resolve import "@/utils/log-safe-error"`.
  *
  *   - 사건 코드: 닫힌 목록(log-event-codes.ts)에서만 고른다.
  *   - 오류: 이름 하나만 쓴다. 알려진 이름 표에 없으면 'Error' 다. 원본의 message·stack·cause 는 쓰지 않는다.
- *   - stack: 이 함수를 부른 자리에서 새로 만든다. 요청이나 외부 응답의 값이 들어갈 길이 없다.
+ *   - stack: 이 함수를 부른 자리에서 새로 만든다. 위치(스크립트 이름·줄·칸)만 싣고 함수 이름은 싣지 않는다 —
+ *     함수 이름은 값에서 올 수 있다.
  *   - 필드: 이름이 정해진 여덟 개뿐이다. 형식에 맞지 않으면 버리고 그 이름만 droppedFields 에 남긴다.
  *
  * 형식 검사는 값이 비밀인지 가리지 못한다. 형식이 맞는 토큰을 ID 자리에 넘기면 그대로 남는다(설계 §6.4).
@@ -1094,9 +1236,10 @@ const FIELD_NAME_SET: ReadonlySet<string> = new Set(FIELD_NAMES);
 
 function readFields(fields: unknown): { fields: SafeLogFields; dropped: DroppedField[] } {
   if (fields === undefined || fields === null) return { fields: {}, dropped: [] };
-  if (typeof fields !== 'object' || Array.isArray(fields)) return { fields: {}, dropped: ['fields'] };
 
   try {
+    // 여기부터는 무엇이든 던질 수 있다. 취소된 Proxy 는 Array.isArray 에서도 던진다.
+    if (typeof fields !== 'object' || Array.isArray(fields)) return { fields: {}, dropped: ['fields'] };
     const source = fields as Record<string, unknown>;
     const safe: Record<string, unknown> = {};
     const dropped: DroppedField[] = [];
@@ -1108,8 +1251,8 @@ function readFields(fields: unknown): { fields: SafeLogFields; dropped: DroppedF
       if (checked === undefined) dropped.push(name);
       else safe[name] = checked;
     }
-    // 정해지지 않은 키는 값도 이름도 싣지 않는다. 있었다는 사실만 남긴다.
-    if (Object.keys(source).some((key) => !FIELD_NAME_SET.has(key))) dropped.push('other');
+    // 정해지지 않은 키는 값도 이름도 싣지 않는다. 있었다는 사실만 남긴다. Symbol 키와 열거되지 않는 키도 센다.
+    if (Reflect.ownKeys(source).some((key) => typeof key !== 'string' || !FIELD_NAME_SET.has(key))) dropped.push('other');
     return { fields: safe as SafeLogFields, dropped };
   } catch {
     // getter 나 Proxy 가 던졌다. 읽다 만 값은 버린다.
@@ -1132,6 +1275,59 @@ export function buildSafeRecord(code: unknown, error: unknown, fields?: unknown)
   };
 }
 
+/**
+ * 호출 지점의 위치만으로 stack 의 프레임을 만든다.
+ *
+ * 엔진이 만들어 주는 stack 문자열은 쓰지 않는다. 그 문자열에는 함수 이름이 들어가는데, 함수 이름은 코드가 아니라
+ * 값에서 올 수 있다: `{ [action]() { … } }` 의 action 이 요청 값이면 V8 은 그것을 프레임에 적는다. 이름에 줄바꿈을
+ * 넣으면 위치처럼 생긴 줄도 만들 수 있어, 문자열을 걸러서는 막지 못한다. 그래서 구조화된 호출 지점(CallSite)에서
+ * 스크립트 이름·줄·칸만 꺼낸다. 스크립트 이름은 번들의 것이다.
+ *
+ * 이 API(V8)가 없는 엔진에서는 프레임을 싣지 않는다. Error.prepareStackTrace 는 잠깐 바꿨다가 되돌린다 —
+ * 그 사이에 다른 코드가 끼어들 틈이 없다(동기 구간이다).
+ */
+function locationFrames(below: (...args: never[]) => unknown): string[] {
+  if (typeof Error.captureStackTrace !== 'function') return [];
+
+  const previous = Error.prepareStackTrace;
+  try {
+    Error.prepareStackTrace = (_error, sites) => sites;
+    const holder: { stack?: unknown } = {};
+    Error.captureStackTrace(holder, below);
+    const sites = holder.stack;
+    if (!Array.isArray(sites)) return [];
+
+    const frames: string[] = [];
+    for (const site of sites as NodeJS.CallSite[]) {
+      const file = site.getScriptNameOrSourceURL() ?? site.getFileName();
+      const line = site.getLineNumber();
+      if (typeof file !== 'string' || file === '' || /[\r\n]/.test(file) || typeof line !== 'number') continue;
+      const column = site.getColumnNumber();
+      // 브라우저의 스크립트 주소에는 쿼리가 붙을 수 있다.
+      frames.push(`    at ${file.replace(/[?#].*$/, '')}:${line}:${typeof column === 'number' ? column : 0}`);
+    }
+    return frames;
+  } catch {
+    return [];
+  } finally {
+    Error.prepareStackTrace = previous;
+  }
+}
+
+/** 기록을 만들다가 던져도 가린 로그 한 줄은 남긴다(설계 §4.3 의 1). 여기의 대체 기록은 상수뿐이다. */
+function recordFor(code: unknown, error: unknown, fields: unknown): SafeLogRecord {
+  try {
+    return buildSafeRecord(code, error, fields);
+  } catch {
+    return {
+      code: isLogEventCode(code) ? code : FALLBACK_EVENT_CODE,
+      errorName: 'Error',
+      fields: {},
+      droppedFields: ['fields'],
+    };
+  }
+}
+
 type Listener = () => void;
 let onRecorded: Listener | undefined;
 
@@ -1151,12 +1347,12 @@ export function setSafeErrorListener(listener: Listener | undefined): void {
  */
 export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLogFields): void {
   try {
-    const record = buildSafeRecord(code, error, fields);
+    const record = recordFor(code, error, fields);
 
-    // 이름을 먼저 정하고 stack 을 잡는다. V8 은 stack 의 첫 줄을 잡는 시점의 name·message 로 만든다.
+    // stack 은 우리가 만든다: 첫 줄은 표에서 고른 이름과 사건 코드, 나머지는 호출 지점의 위치뿐이다.
     const callSite = new Error(record.code);
     callSite.name = record.errorName;
-    if (typeof Error.captureStackTrace === 'function') Error.captureStackTrace(callSite, logSafeError);
+    callSite.stack = [`${record.errorName}: ${record.code}`, ...locationFrames(logSafeError)].join('\n');
 
     const context: Record<string, unknown> = { ...record.fields };
     if (record.droppedFields.length > 0) context.droppedFields = record.droppedFields;
@@ -1345,6 +1541,88 @@ describe('withSafeErrors', () => {
       expect(response.status).toBe(500);
       expect(await response.json()).toEqual({ error: 'Internal server error' });
       expect(JSON.stringify(consoleError.mock.calls)).not.toMatch(/cnry/i);
+    });
+  });
+
+  // 던진 값은 무엇이든 될 수 있다. 경계가 그 값을 들여다보다가 던지면 예외가 Next 와 Sentry 로 새어 나간다.
+  describe('던진 값이 읽기를 방해할 때', () => {
+    const expectSafe500 = async (handler: () => Promise<Response>) => {
+      const response = await withSafeErrors('envtest.boundary.unhandled', handler)();
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({ error: 'Internal server error' });
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError.mock.calls[0][0]).toContain('ERROR: envtest.boundary.unhandled');
+      expect(JSON.stringify(consoleError.mock.calls)).not.toMatch(/cnry/i);
+      expect(mocks.after).toHaveBeenCalledTimes(1);
+    };
+
+    it('cause 를 읽으면 던지는 오류를 경계 밖으로 내보내지 않는다', async () => {
+      const error = new Error('x');
+      Object.defineProperty(error, 'cause', {
+        get() {
+          throw new Error('cnry-cause-getter https://pay.example/cb?code=cnry');
+        },
+      });
+
+      await expectSafe500(async () => {
+        throw error;
+      });
+    });
+
+    it('cause 가 돌고 도는 오류도 기록하고 500 을 준다', async () => {
+      const first = new Error('cnry-first');
+      const second = new Error('cnry-second', { cause: first });
+      Object.assign(first, { cause: second });
+
+      await expectSafe500(async () => {
+        throw first;
+      });
+    });
+
+    it('cause 가 끝없이 이어지는 오류도 멈춘다', async () => {
+      const endless = (): Error => {
+        const error = new Error('cnry-endless');
+        Object.defineProperty(error, 'cause', { get: endless });
+        return error;
+      };
+
+      await expectSafe500(async () => {
+        throw endless();
+      });
+    });
+
+    it('읽으면 던지는 Proxy 를 던져도 500 이다', async () => {
+      const trap = () => {
+        throw new Error('cnry-proxy-trap');
+      };
+      const hostile = new Proxy(new Error('x'), { get: trap, has: trap, getPrototypeOf: trap, ownKeys: trap });
+
+      await expectSafe500(async () => {
+        throw hostile;
+      });
+    });
+
+    it('취소된 Proxy 를 던져도 500 이다', async () => {
+      const { proxy, revoke } = Proxy.revocable(new Error('x'), {});
+      revoke();
+
+      await expectSafe500(async () => {
+        throw proxy;
+      });
+    });
+
+    it('cause 사슬 안의 redirect() 는 Next 가 하듯 그것을 올려보낸다', async () => {
+      const signal = caught(() => redirect('/login'));
+      const wrapped = new Error('wrapped', { cause: new Error('middle', { cause: signal }) });
+
+      await expect(
+        withSafeErrors('envtest.boundary.unhandled', async () => {
+          throw wrapped;
+        })(),
+      ).rejects.toBe(signal);
+
+      expect(consoleError).not.toHaveBeenCalled();
     });
   });
 
@@ -1676,6 +1954,47 @@ async function flushAndReport(): Promise<void> {
   }
 }
 
+/** cause 사슬을 따라가는 깊이의 상한. 읽을 때마다 새 cause 를 내놓는 값에서도 멈춘다. */
+const MAX_CAUSE_DEPTH = 10;
+
+/**
+ * 던진 값과 그 cause 사슬. 읽다가 던지거나, 이미 본 값으로 돌아오거나, 상한에 닿으면 거기서 멈춘다.
+ * 던진 값은 무엇이든 될 수 있다 — cause 가 던지는 getter 일 수도, Proxy 일 수도 있다.
+ */
+function causeChain(error: unknown): unknown[] {
+  const chain: unknown[] = [error];
+  let current: unknown = error;
+  while (chain.length <= MAX_CAUSE_DEPTH) {
+    let next: unknown;
+    try {
+      if (!(current instanceof Error) || !('cause' in current)) break;
+      next = current.cause;
+    } catch {
+      break;
+    }
+    if (chain.includes(next)) break;
+    chain.push(next);
+    current = next;
+  }
+  return chain;
+}
+
+/**
+ * Next 가 이 값 자체를 제어 흐름 신호(redirect, notFound, 동적 렌더링 신호)로 보는가.
+ *
+ * unstable_rethrow 는 신호를 받으면 그 값을 그대로 다시 던진다. 다른 것이 나오면 이 값은 신호가 아니다 —
+ * unstable_rethrow 가 cause 를 따라가다가 getter 의 예외를 만났거나, 돌고 도는 cause 로 stack 이 넘친 것이다.
+ * 그런 예외를 그대로 올려보내면 경계가 뚫린다.
+ */
+function isNextControlFlow(value: unknown): boolean {
+  try {
+    unstable_rethrow(value);
+    return false;
+  } catch (thrown) {
+    return thrown === value;
+  }
+}
+
 function scheduleFlush(): void {
   try {
     after(flushAndReport);
@@ -1695,7 +2014,10 @@ export function withSafeErrors<Args extends unknown[]>(
         return await handler(...args);
       } catch (error) {
         // redirect()·notFound() 와 Next 의 동적 렌더링 신호는 오류가 아니다. 그대로 올려보낸다.
-        unstable_rethrow(error);
+        // Next 가 하듯 cause 사슬 안의 신호도 찾는다. 찾는 동안 난 예외는 올려보내지 않는다.
+        for (const candidate of causeChain(error)) {
+          if (isNextControlFlow(candidate)) throw candidate;
+        }
         logSafeError(code, error);
         // 본문에 오류 메시지를 넣지 않는다.
         return Response.json({ error: 'Internal server error' }, { status: 500 });
@@ -2210,7 +2532,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 ```diff
 --- a/scripts/envelope-test/scenario.js
 +++ b/scripts/envelope-test/scenario.js
-@@ -7,11 +7,22 @@
+@@ -7,11 +7,23 @@
   *   absent     — envelope 과 서버 표준 출력 어디에도 없어야 한다.
   *   stdoutOnly — 테스트 라우트가 console.warn 으로 찍는다. 서버 출력에만 있어야 한다.
   *   unhandled  — 감싸지 않은 예외. marker 만 exception.values[].value 와 Next 의 미처리 오류 줄에 남는다.
@@ -2224,6 +2546,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +// 테스트 라우트가 쓰는 사건 코드(utils/log-event-codes.ts).
 +const BOUNDARY_CODE = 'envtest.boundary.unhandled';
 +const HANDLED_CODE = 'envtest.boundary.handled';
++const HOSTILE_CODE = 'envtest.boundary.hostile';
 +
 +/** 계약을 통과해 남아야 하는 값. canary 가 아니다 — 이벤트의 contexts.log 와 서버 출력에 있어야 한다. */
 +const KEPT = {
@@ -2233,7 +2556,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
  
  const CANARIES = {
    absent: {
-@@ -26,6 +37,19 @@ const CANARIES = {
+@@ -26,6 +38,21 @@ const CANARIES = {
      handledQuery: 'cnryA-handledquery-6f7a8b9c0d',
      upstreamToken: 'cnryA-upstreamtoken-9e8d7c6b5a',
      baggageQuery: 'cnryA-baggagequery-3c2b1a0f9e',
@@ -2250,10 +2573,12 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +    boundaryErrorCode: 'cnryA_boundaryerrorcode_4d5e6f7a8b',
 +    boundaryJwt: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjbnJ5QS1ib3VuZGFyeSJ9.Y25yeUEtYm91bmRhcnktc2lnbmF0dXJl',
 +    boundaryBearer: 'cnryA7boundarybearer5d7f9b1c3e',
++    // 던진 오류의 cause 를 읽으면 나오는 예외에 든 값. 경계가 cause 를 읽다가 그 예외를 놓치면 밖으로 나간다.
++    boundaryGetter: 'cnryA-boundarygetter-8c7d6e5f4a',
    },
    stdoutOnly: {
      console: 'cnryC-console-0f1e2d3c4b',
-@@ -48,6 +72,29 @@ const EXPECTED = {
+@@ -48,6 +75,40 @@ const EXPECTED = {
      // captureRequestError 는 같은 오류를 다시 보내지 않으므로 이 이벤트에는 contexts.nextjs 가 없다.
      { label: '처리되지 않은 예외(node)', handled: false, runtime: 'node', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
      { label: '처리되지 않은 예외(edge)', handled: false, runtime: 'edge', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
@@ -2280,25 +2605,38 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +      fingerprint: ['{{ default }}', HANDLED_CODE],
 +      logContext: { userId: KEPT.userId, orderId: KEPT.orderId, httpStatus: 502, errorCode: 'unknown', droppedFields: ['paymentId'] },
 +    },
++    // 던진 값을 들여다보는 것을 방해하는 오류(cause 를 읽으면 던진다)도 경계가 잡아 같은 모양으로 남긴다.
++    {
++      label: '읽기를 방해하는 오류를 경계가 잡는다',
++      handled: true,
++      transaction: 'GET /api/envelope-test/boundary-hostile',
++      valueIncludes: HOSTILE_CODE,
++      count: REPEAT,
++      type: 'Error',
++      fingerprint: ['{{ default }}', HOSTILE_CODE],
++      logContext: {},
++    },
    ],
    // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
    // 다른 서비스가 시작한 추적(sentry-trace, baggage)을 이어받은 요청. baggage 의 transaction 이름(쿼리 포함)은
-@@ -61,6 +108,14 @@ const EXPECTED = {
+@@ -61,6 +122,16 @@ const EXPECTED = {
      // edge 는 SDK 가 SENTRY_TRACES_SAMPLE_RATE 를 스스로 읽어 표본이 켜진다. 운영에서는 꺼져 있다.
      { label: 'edge 라우트의 transaction', name: 'GET /api/envelope-test/edge-throw', min: REPEAT },
      { label: 'middleware 의 transaction(edge)', name: 'middleware GET /ko/vote', min: REPEAT },
 +    // 경계가 500 을 돌려준 요청. SDK 는 500 응답의 transaction 을 버리지 않는다.
 +    { label: '경계 함수가 잡은 예외의 transaction', name: 'GET /api/envelope-test/boundary-throw', min: REPEAT },
 +    { label: '가린 기록을 남긴 요청의 transaction', name: 'GET /api/envelope-test/boundary-handled', min: REPEAT },
++    { label: '읽기를 방해하는 오류의 transaction', name: 'GET /api/envelope-test/boundary-hostile', min: REPEAT },
 +  ],
 +  // 가린 로그 한 줄이 서버 출력에 남았는가(설계 §4.3 의 1). Console target 의 첫 줄은 `[시각] ERROR: <사건 코드> {` 다.
 +  stdout: [
 +    { label: '가린 로그 줄(경계가 잡은 예외)', includes: `ERROR: ${BOUNDARY_CODE}`, count: REPEAT },
 +    { label: '가린 로그 줄(가린 기록)', includes: `ERROR: ${HANDLED_CODE}`, count: REPEAT },
++    { label: '가린 로그 줄(읽기를 방해하는 오류)', includes: `ERROR: ${HOSTILE_CODE}`, count: REPEAT },
    ],
  };
  
-@@ -83,6 +138,21 @@ function buildRequests(base) {
+@@ -83,6 +154,22 @@ function buildRequests(base) {
      'x-envtest-email': B.email,
    };
  
@@ -2313,6 +2651,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +    'x-envtest-boundary-cause': A.boundaryCause,
 +    'x-envtest-boundary-payment-id': A.boundaryPaymentId,
 +    'x-envtest-boundary-error-code': A.boundaryErrorCode,
++    'x-envtest-boundary-getter': A.boundaryGetter,
 +    'x-envtest-user-id': KEPT.userId,
 +    'x-envtest-order-id': KEPT.orderId,
 +  };
@@ -2320,12 +2659,13 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
    const round = [
      { label: 'page', url: `${base}/ko/vote?code=${A.pageQuery}`, init: { headers: common } },
      {
-@@ -115,9 +185,11 @@ function buildRequests(base) {
+@@ -115,9 +202,12 @@ function buildRequests(base) {
      },
      { label: 'throw', url: `${base}/api/envelope-test/throw?code=${B.requestQuery}`, init: { headers: unhandled } },
      { label: 'edge-throw', url: `${base}/api/envelope-test/edge-throw?code=${B.requestQuery}`, init: { headers: unhandled } },
 +    { label: 'boundary-throw', url: `${base}/api/envelope-test/boundary-throw?code=${A.boundaryQuery}`, init: { headers: boundary } },
 +    { label: 'boundary-handled', url: `${base}/api/envelope-test/boundary-handled?code=${A.boundaryQuery}`, init: { headers: boundary } },
++    { label: 'boundary-hostile', url: `${base}/api/envelope-test/boundary-hostile?code=${A.boundaryQuery}`, init: { headers: boundary } },
    ];
  
    return Array.from({ length: REPEAT }, () => round).flat();
@@ -2469,91 +2809,200 @@ export const GET = withSafeErrors('envtest.boundary.unhandled', async (request: 
 });
 ```
 
+교차 리뷰에서 추가한 읽기를 방해하는 오류의 라우트:
+
+`scripts/envelope-test/routes/boundary-hostile/route.ts`:
+
+```ts
+import { withSafeErrors } from '@/utils/with-safe-errors';
+import { envelopeTestDisabled, logConsoleCanary } from '../_lib/envtest';
+
+export const dynamic = 'force-dynamic';
+
+// 경계가 던진 값을 들여다보는 것을 방해하는 오류. cause 를 읽으면 요청 값이 든 예외를 던진다.
+// 그 예외가 경계 밖으로 나가면 Next 의 미처리 오류 로그와 SDK 의 래퍼에 닿는다.
+export const GET = withSafeErrors('envtest.boundary.hostile', async (request: Request): Promise<Response> => {
+  const disabled = envelopeTestDisabled();
+  if (disabled) return disabled;
+
+  logConsoleCanary(request.headers);
+  const secret = request.headers.get('x-envtest-boundary-getter') ?? 'none';
+  const error = new Error('envtest boundary hostile');
+  Object.defineProperty(error, 'cause', {
+    get() {
+      throw new Error(`envtest cause getter ${secret}`);
+    },
+  });
+  throw error;
+});
+```
+
 - [ ] **Step 5: 라우트 목록 테스트를 고친다**
 
-```diff
---- a/__tests__/scripts/envelope-test-routes.test.ts
-+++ b/__tests__/scripts/envelope-test-routes.test.ts
-@@ -21,6 +21,8 @@ describe('envelope 테스트용 라우트', () => {
- 
-   it('원본은 라우트가 아닌 자리에 있고, 저장소의 app/ 에는 테스트용 라우트가 없다', () => {
-     expect(routeFiles).toEqual([
-+      'scripts/envelope-test/routes/boundary-handled/route.ts',
-+      'scripts/envelope-test/routes/boundary-throw/route.ts',
-       'scripts/envelope-test/routes/edge-throw/route.ts',
-       'scripts/envelope-test/routes/handled/route.ts',
-       'scripts/envelope-test/routes/throw/route.ts',
-@@ -55,14 +57,32 @@ describe('envelope 테스트용 라우트', () => {
-       expect(fs.readFileSync(path.join(root, file), 'utf8'), file).not.toMatch(/cnry|eyJ/);
-     }
-   });
-+
-+  it('경계를 시험하는 라우트만 withSafeErrors 로 내보낸다', () => {
-+    const wrapped = routeFiles.filter((file) => /export const GET = withSafeErrors\('envtest\.[a-z_.]+',/.test(fs.readFileSync(path.join(root, file), 'utf8')));
-+    expect(wrapped).toEqual([
-+      'scripts/envelope-test/routes/boundary-handled/route.ts',
-+      'scripts/envelope-test/routes/boundary-throw/route.ts',
-+    ]);
-+    // 나머지는 감싸지 않은 채로 둔다. 감싸지 않은 라우트의 동작(미처리 오류, flush 한계)을 고정하는 것이 목적이다.
-+    for (const file of routeFiles.filter((route) => !wrapped.includes(route))) {
-+      expect(fs.readFileSync(path.join(root, file), 'utf8'), file).not.toContain('with-safe-errors');
-+    }
-+  });
- });
- 
- describe('envelope 테스트 시나리오', () => {
--  const { CANARIES, EXPECTED, REPEAT, buildRequests } = require(
-+  const { CANARIES, EXPECTED, KEPT, REPEAT, buildRequests } = require(
-     path.join(root, 'scripts/envelope-test/scenario.js'),
-   ) as {
-     CANARIES: Record<'absent' | 'stdoutOnly' | 'unhandled', Record<string, string>>;
--    EXPECTED: { errors: Array<{ count: number }>; transactions: Array<{ min: number }>; traceHeaders: Array<{ min: number }> };
-+    EXPECTED: {
-+      errors: Array<{ count: number }>;
-+      transactions: Array<{ min: number }>;
-+      traceHeaders: Array<{ min: number }>;
-+      stdout: Array<{ count: number; includes: string }>;
-+    };
-+    KEPT: { userId: string; orderId: string };
-     REPEAT: number;
-     buildRequests: (base: string) => Array<{ label: string; url: string; init: { headers: Record<string, string>; body?: string } }>;
-   };
-@@ -84,13 +104,34 @@ describe('envelope 테스트 시나리오', () => {
-   it('종류마다 REPEAT 번 보내고, 기대 건수가 그와 같다', () => {
-     const requests = buildRequests('http://127.0.0.1:3000');
-     const labels = [...new Set(requests.map((request) => request.label))];
--    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw']);
-+    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled']);
-     for (const label of labels) {
-       expect(requests.filter((request) => request.label === label)).toHaveLength(REPEAT);
-     }
-     for (const rule of EXPECTED.errors) expect(rule.count).toBe(REPEAT);
-     for (const rule of EXPECTED.transactions) expect(rule.min).toBe(REPEAT);
-     for (const rule of EXPECTED.traceHeaders) expect(rule.min).toBe(REPEAT);
-+    for (const rule of EXPECTED.stdout) expect(rule.count).toBe(REPEAT);
-+  });
-+
-+  it('남아야 하는 값은 계약의 형식을 통과하고 canary 와 겹치지 않는다', () => {
-+    expect(KEPT.userId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
-+    expect(KEPT.orderId).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
-+    const sent = JSON.stringify(buildRequests('http://127.0.0.1:3000'));
-+    for (const value of Object.values(KEPT)) {
-+      expect(sent, value).toContain(value);
-+      expect(value).not.toMatch(/cnry/i);
-+    }
-+  });
-+
-+  it('가린 로그 줄의 기대가 테스트 라우트가 쓰는 사건 코드를 가리킨다', () => {
-+    const sources = walk(sourceDir)
-+      .map((file) => fs.readFileSync(path.join(root, file), 'utf8'))
-+      .join('\n');
-+    for (const rule of EXPECTED.stdout) {
-+      const code = rule.includes.replace('ERROR: ', '');
-+      expect(sources, code).toContain(`'${code}'`);
-+    }
-   });
- 
-   it('package.json 에 실행 스크립트가 있다', () => {
+`__tests__/scripts/envelope-test-routes.test.ts` (교차 리뷰 수정까지 반영한 최종 파일):
+
+```ts
+import { createRequire } from 'module';
+import fs from 'fs';
+import path from 'path';
+import { describe, expect, it } from 'vitest';
+
+const require = createRequire(import.meta.url);
+const root = process.cwd();
+const sourceDir = path.join(root, 'scripts/envelope-test/routes');
+const targetDir = path.join(root, 'app/api/envelope-test');
+
+const walk = (dir: string): string[] =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    return entry.isDirectory() ? walk(full) : [path.relative(root, full)];
+  });
+
+describe('envelope 테스트용 라우트', () => {
+  // readdir 의 순서는 파일시스템마다 다르다(CI 의 ext4 는 정렬해 주지 않는다).
+  const files = walk(sourceDir).sort();
+  const routeFiles = files.filter((file) => path.basename(file) === 'route.ts');
+
+  it('원본은 라우트가 아닌 자리에 있고, 저장소의 app/ 에는 테스트용 라우트가 없다', () => {
+    expect(routeFiles).toEqual([
+      'scripts/envelope-test/routes/boundary-handled/route.ts',
+      'scripts/envelope-test/routes/boundary-hostile/route.ts',
+      'scripts/envelope-test/routes/boundary-throw/route.ts',
+      'scripts/envelope-test/routes/delivery-control/route.ts',
+      'scripts/envelope-test/routes/delivery-plain/route.ts',
+      'scripts/envelope-test/routes/delivery-safe/route.ts',
+      'scripts/envelope-test/routes/edge-throw/route.ts',
+      'scripts/envelope-test/routes/handled/route.ts',
+      'scripts/envelope-test/routes/throw/route.ts',
+    ]);
+    // 실행기가 테스트 빌드 동안만 복사해 둔다. 여기에 남아 있으면 보통 빌드에 들어간다.
+    expect(fs.existsSync(targetDir), 'app/api/envelope-test 가 남아 있다. 지운다').toBe(false);
+  });
+
+  it('실행기가 원본을 복사하고, 빌드가 끝나면 지운다', () => {
+    const { TEST_ROUTE_SOURCE, TEST_ROUTE_TARGET } = require(path.join(root, 'scripts/envelope-test/build-switch.js')) as {
+      TEST_ROUTE_SOURCE: string;
+      TEST_ROUTE_TARGET: string;
+    };
+    expect(path.join(root, TEST_ROUTE_SOURCE)).toBe(sourceDir);
+    expect(path.join(root, TEST_ROUTE_TARGET)).toBe(targetDir);
+
+    const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
+    expect(runner).toMatch(/installTestRoutes\(\);\s+routesInstalled = true;\s+try \{\s+await build\(\);\s+\} finally \{\s+removeTestRoutes\(\);/);
+  });
+
+  it('모든 라우트가 ENVELOPE_TEST 를 런타임에서도 확인한다', () => {
+    for (const file of routeFiles) {
+      const source = fs.readFileSync(path.join(root, file), 'utf8');
+      expect(source, file).toContain('envelopeTestDisabled()');
+    }
+    const helper = fs.readFileSync(path.join(sourceDir, '_lib/envtest.ts'), 'utf8');
+    expect(helper).toContain("process.env.ENVELOPE_TEST === '1'");
+  });
+
+  it('비밀처럼 보이는 값을 코드에 두지 않는다 — 실행기가 요청 헤더로 넘긴다', () => {
+    for (const file of files) {
+      expect(fs.readFileSync(path.join(root, file), 'utf8'), file).not.toMatch(/cnry|eyJ/);
+    }
+  });
+
+  it('경계를 시험하는 라우트만 withSafeErrors 로 내보낸다', () => {
+    const wrapped = routeFiles.filter((file) => /export const GET = withSafeErrors\('envtest\.[a-z_.]+',/.test(fs.readFileSync(path.join(root, file), 'utf8')));
+    expect(wrapped).toEqual([
+      'scripts/envelope-test/routes/boundary-handled/route.ts',
+      'scripts/envelope-test/routes/boundary-hostile/route.ts',
+      'scripts/envelope-test/routes/boundary-throw/route.ts',
+      'scripts/envelope-test/routes/delivery-safe/route.ts',
+    ]);
+    // 나머지는 감싸지 않은 채로 둔다. 감싸지 않은 라우트의 동작(미처리 오류, flush 한계)을 고정하는 것이 목적이다.
+    for (const file of routeFiles.filter((route) => !wrapped.includes(route))) {
+      expect(fs.readFileSync(path.join(root, file), 'utf8'), file).not.toContain('with-safe-errors');
+    }
+  });
+});
+
+describe('envelope 테스트 시나리오', () => {
+  const { CANARIES, EXPECTED, KEPT, REPEAT, buildRequests } = require(
+    path.join(root, 'scripts/envelope-test/scenario.js'),
+  ) as {
+    CANARIES: Record<'absent' | 'stdoutOnly' | 'unhandled', Record<string, string>>;
+    EXPECTED: {
+      errors: Array<{ count: number }>;
+      transactions: Array<{ min: number }>;
+      traceHeaders: Array<{ min: number }>;
+      stdout: Array<{ count: number; includes: string }>;
+    };
+    KEPT: { userId: string; orderId: string };
+    REPEAT: number;
+    buildRequests: (base: string) => Array<{ label: string; url: string; init: { headers: Record<string, string>; body?: string } }>;
+  };
+
+  it('canary 값이 서로 겹치지 않는다', () => {
+    const values = Object.values(CANARIES).flatMap((group) => Object.values(group));
+    for (const value of values) {
+      expect(values.filter((other) => other.includes(value)), value).toHaveLength(1);
+    }
+  });
+
+  it('모든 canary 가 요청 어딘가에 실린다', () => {
+    const sent = JSON.stringify(buildRequests('http://127.0.0.1:3000'));
+    for (const value of Object.values(CANARIES).flatMap((group) => Object.values(group))) {
+      expect(sent, value).toContain(value);
+    }
+  });
+
+  it('종류마다 REPEAT 번 보내고, 기대 건수가 그와 같다', () => {
+    const requests = buildRequests('http://127.0.0.1:3000');
+    const labels = [...new Set(requests.map((request) => request.label))];
+    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile']);
+    for (const label of labels) {
+      expect(requests.filter((request) => request.label === label)).toHaveLength(REPEAT);
+    }
+    for (const rule of EXPECTED.errors) expect(rule.count).toBe(REPEAT);
+    for (const rule of EXPECTED.transactions) expect(rule.min).toBe(REPEAT);
+    for (const rule of EXPECTED.traceHeaders) expect(rule.min).toBe(REPEAT);
+    for (const rule of EXPECTED.stdout) expect(rule.count).toBe(REPEAT);
+  });
+
+  it('남아야 하는 값은 계약의 형식을 통과하고 canary 와 겹치지 않는다', () => {
+    expect(KEPT.userId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(KEPT.orderId).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+    const sent = JSON.stringify(buildRequests('http://127.0.0.1:3000'));
+    for (const value of Object.values(KEPT)) {
+      expect(sent, value).toContain(value);
+      expect(value).not.toMatch(/cnry/i);
+    }
+  });
+
+  it('가린 로그 줄의 기대가 테스트 라우트가 쓰는 사건 코드를 가리킨다', () => {
+    const sources = walk(sourceDir)
+      .map((file) => fs.readFileSync(path.join(root, file), 'utf8'))
+      .join('\n');
+    for (const rule of EXPECTED.stdout) {
+      const code = rule.includes.replace('ERROR: ', '');
+      expect(sources, code).toContain(`'${code}'`);
+    }
+  });
+
+  it('전달 시나리오의 요청이 실제 테스트 라우트를 가리킨다', () => {
+    const { STEPS } = require(path.join(root, 'scripts/envelope-test/delivery.js')) as { STEPS: Array<{ path: string }> };
+    for (const step of STEPS) {
+      const route = step.path.split('?')[0].replace('/api/envelope-test/', '');
+      expect(fs.existsSync(path.join(sourceDir, route, 'route.ts')), step.path).toBe(true);
+    }
+  });
+
+  it('실행기가 두 시나리오를 모두 돌린다', () => {
+    const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
+    expect(runner).toContain("if (only !== 'delivery') codes.push(await runLeak(track));");
+    expect(runner).toContain("if (only !== 'leak') codes.push(await runDeliveryScenario(track));");
+  });
+
+  it('package.json 에 실행 스크립트가 있다', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
+    expect(pkg.scripts['test:envelope']).toBe('node scripts/envelope-test/run.js');
+  });
+});
 ```
 
 Run: `npx vitest run __tests__/scripts/envelope-test-routes.test.ts && npx tsc --noEmit`
@@ -2565,14 +3014,28 @@ Run: `npm run test:envelope`
 Expected: 종료 코드 0. 건수 줄에 아래가 있고 실패가 없다.
 
 ```
-[envelope] 요청 21건: page 200, webhook 401, handled 200, throw 500, edge-throw 500, boundary-throw 500, boundary-handled 200
+[envelope] 누출 시나리오 — 요청 24건: page 200, webhook 401, handled 200, throw 500, edge-throw 500, boundary-throw 500, boundary-handled 200, boundary-hostile 500
+[envelope] 받은 envelope 89건(항목 89건)
+[envelope]   웹훅 서명 실패(logError): 3건 (기대 3)
+[envelope]   테스트 라우트의 logError: 3건 (기대 3)
+[envelope]   처리되지 않은 예외(node): 3건 (기대 3)
+[envelope]   처리되지 않은 예외(edge): 3건 (기대 3)
 [envelope]   경계 함수가 잡은 예외: 3건 (기대 3)
 [envelope]   경계 안에서 남긴 가린 기록: 3건 (기대 3)
+[envelope]   읽기를 방해하는 오류를 경계가 잡는다: 3건 (기대 3)
+[envelope]   페이지 transaction: 3건 (기대 3 이상)
+[envelope]   밖으로 부르는 요청의 transaction: 3건 (기대 3 이상)
+[envelope]   처리되지 않은 예외의 transaction(node): 3건 (기대 3 이상)
+[envelope]   edge 라우트의 transaction: 6건 (기대 3 이상)
+[envelope]   middleware 의 transaction(edge): 3건 (기대 3 이상)
 [envelope]   경계 함수가 잡은 예외의 transaction: 3건 (기대 3 이상)
 [envelope]   가린 기록을 남긴 요청의 transaction: 3건 (기대 3 이상)
+[envelope]   읽기를 방해하는 오류의 transaction: 3건 (기대 3 이상)
+[envelope]   이어받은 추적의 envelope 헤더: 6건 (기대 3 이상)
 [envelope]   가린 로그 줄(경계가 잡은 예외): 3건 (기대 3)
 [envelope]   가린 로그 줄(가린 기록): 3건 (기대 3)
-[envelope] 통과: 건수가 맞고 canary 가 허용된 곳에만 있다.
+[envelope]   가린 로그 줄(읽기를 방해하는 오류): 3건 (기대 3)
+[envelope] 누출 시나리오 통과: 건수가 맞고 canary 가 허용된 곳에만 있다.
 ```
 
 - [ ] **Step 7: 커밋한다**
@@ -3564,49 +4027,7 @@ main().then(
 
 - [ ] **Step 6: 라우트 목록 테스트를 고친다**
 
-```diff
---- a/__tests__/scripts/envelope-test-routes.test.ts
-+++ b/__tests__/scripts/envelope-test-routes.test.ts
-@@ -23,6 +23,9 @@ describe('envelope 테스트용 라우트', () => {
-     expect(routeFiles).toEqual([
-       'scripts/envelope-test/routes/boundary-handled/route.ts',
-       'scripts/envelope-test/routes/boundary-throw/route.ts',
-+      'scripts/envelope-test/routes/delivery-control/route.ts',
-+      'scripts/envelope-test/routes/delivery-plain/route.ts',
-+      'scripts/envelope-test/routes/delivery-safe/route.ts',
-       'scripts/envelope-test/routes/edge-throw/route.ts',
-       'scripts/envelope-test/routes/handled/route.ts',
-       'scripts/envelope-test/routes/throw/route.ts',
-@@ -63,6 +66,7 @@ describe('envelope 테스트용 라우트', () => {
-     expect(wrapped).toEqual([
-       'scripts/envelope-test/routes/boundary-handled/route.ts',
-       'scripts/envelope-test/routes/boundary-throw/route.ts',
-+      'scripts/envelope-test/routes/delivery-safe/route.ts',
-     ]);
-     // 나머지는 감싸지 않은 채로 둔다. 감싸지 않은 라우트의 동작(미처리 오류, flush 한계)을 고정하는 것이 목적이다.
-     for (const file of routeFiles.filter((route) => !wrapped.includes(route))) {
-@@ -134,6 +138,20 @@ describe('envelope 테스트 시나리오', () => {
-     }
-   });
- 
-+  it('전달 시나리오의 요청이 실제 테스트 라우트를 가리킨다', () => {
-+    const { STEPS } = require(path.join(root, 'scripts/envelope-test/delivery.js')) as { STEPS: Array<{ path: string }> };
-+    for (const step of STEPS) {
-+      const route = step.path.split('?')[0].replace('/api/envelope-test/', '');
-+      expect(fs.existsSync(path.join(sourceDir, route, 'route.ts')), step.path).toBe(true);
-+    }
-+  });
-+
-+  it('실행기가 두 시나리오를 모두 돌린다', () => {
-+    const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
-+    expect(runner).toContain("if (only !== 'delivery') codes.push(await runLeak(track));");
-+    expect(runner).toContain("if (only !== 'leak') codes.push(await runDeliveryScenario(track));");
-+  });
-+
-   it('package.json 에 실행 스크립트가 있다', () => {
-     const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
-     expect(pkg.scripts['test:envelope']).toBe('node scripts/envelope-test/run.js');
-```
+최종 라우트 목록 테스트는 Task 7 의 Step 5 에 있다. 전달 라우트 셋과 `boundary-hostile` 을 포함한 실제 파일로 동기화했다.
 
 Run: `npx vitest run __tests__/scripts && npx tsc --noEmit && node --check scripts/envelope-test/run.js`
 Expected: PASS, 타입 오류 없음.
@@ -3644,7 +4065,7 @@ Run: `git checkout -- utils/logger-targets.ts`
 - [ ] **Step 8: 두 시나리오의 통과를 본다**
 
 Run: `npm run test:envelope`
-Expected: 종료 코드 0. 누출 시나리오는 Task 7 의 Step 6 과 같고(첫 줄만 `[envelope] 누출 시나리오 — 요청 21건: …` 으로 바뀐다), 전달 시나리오는 아래 모양이다(실행에서 본 출력. ms 값은 실행마다 조금 다르다).
+Expected: 종료 코드 0. 누출 시나리오는 Task 7 의 Step 6 과 같다(교차 리뷰 수정 뒤 24건), 전달 시나리오는 아래 모양이다(실행에서 본 출력. ms 값은 실행마다 조금 다르다).
 
 ```
 [envelope] 전달 시나리오 — 요청 11건
@@ -3759,7 +4180,7 @@ git commit -m "docs(logging): 전달 실측과 PR 2 의 구현을 설계서에 �
 - [ ] **Step 1: CI 가 도는 것을 로컬에서 돌린다**
 
 Run: `npx tsc --noEmit && npm run lint && npm test && TZ=UTC npm test`
-Expected: 타입 검사·lint 통과. 두 번 모두 `Test Files 204 passed (204)`, `Tests 3370 passed | 6 expected fail | 1 skipped (3377)`.
+Expected: 타입 검사·lint 통과. 두 번 모두 `Test Files 204 passed (204)`, `Tests 3387 passed | 6 expected fail | 1 skipped (3394)`.
 
 - [ ] **Step 2: 마지막 커밋에서 envelope 테스트를 다시 돌린다**
 
