@@ -1,8 +1,9 @@
 # 로그 민감정보 가리기와 오류 전달 보장 — 설계
 
 - 날짜: 2026-10-02
+- **PR 2 최신 상태(2026-10-06): 안전한 신호 정규화 구현·검증 완료, 독립 코드 리뷰 APPROVE.** 이전 상태 변화 `digest` 누출 반례를 새 단위·실서버 테스트로 재현하고 수정 후 통과했다. 상세는 §10.11·§10.12. 머지·운영 배포 전이다.
 - 근거: 감사 계획 `docs/audit-2026-09-26/plan.md` U-22(STR-008), B-P4. 이슈 #73(Sentry 페이로드에 중앙 redaction 이 없다), #74(logError 가 Sentry 전달을 보장하지 않는다). 핸드오프 `docs/handoff-2026-10-02.html` §7 의 4순위
-- 상태: **초안 5 + 사용자 결정 + PR 1·1b 구현(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6). 결정 4(브라우저 단계)는 PR 5 전에 정한다. PR 1(수집 축소)과 PR 1b(민감 로그 줄 삭제)를 구현하면서 실측으로 드러난 것을 §2·§4·§5.1·§8 에 반영했고 달라진 점을 §10.5 에 모았다. PR 1(#119)과 PR 1b(#118)는 교차 리뷰를 통과했고(§10.6), 2026-10-05 에 머지해 Production 에 배포했다(§6.2). **특히 §2.2: 운영 빌드는 `console.log` 를 지우므로, 초안이 "Vercel 로그로 나간다"고 쓴 `console.log` 줄들은 운영에서 나가지 않는다.** 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다
+- 상태: **초안 5 + 사용자 결정 + PR 1·1b 구현(2026-10-02).** 교차 리뷰(Codex gpt-6-sol/high)가 초안 1~4 를 REQUEST_CHANGES 로 돌려보내 네 번 고쳤고(§10), 초안 5 를 APPROVE 했다(5회차). 사용자가 §9 의 결정 1·2·3·6·8 을 권장대로 확정했다. 결정 5(Sentry Data Scrubber)는 사용자가 직접 확인한다. 결정 7 은 조치가 필요 없다는 것이 확인됐다(§4.6). 결정 4(브라우저 단계)는 PR 5 전에 정한다. PR 1(수집 축소)과 PR 1b(민감 로그 줄 삭제)를 구현하면서 실측으로 드러난 것을 §2·§4·§5.1·§8 에 반영했고 달라진 점을 §10.5 에 모았다. PR 1(#119)과 PR 1b(#118)는 교차 리뷰를 통과했고(§10.6), 2026-10-05 에 머지해 Production 에 배포했다(§6.2). **특히 §2.2: 운영 빌드는 `console.log` 를 지우므로, 초안이 "Vercel 로그로 나간다"고 쓴 `console.log` 줄들은 운영에서 나가지 않는다.** 구현 계획은 `docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md` 다. PR 2(계약 함수·경계 함수·전달)의 구현 계획은 `docs/superpowers/plans/2026-10-06-log-safe-error-contract-and-boundary.md` 다. PR 2 를 준비하고 구현하며 잰 결과로 §2.3·§4.2·§4.3·§4.7·§5.1·§5.2·§6.4·§8 을 고쳤다(§10.7). **실측한 route handler 경로에는 `await import` 로 인한 전달의 틈이 없었다.** PR 2 의 교차 리뷰 1차 지적과 수정은 §10.8 에 기록했다. 원 리뷰어 재검증에서 남은 자기 재투척 blocker 의 후속 수정과 검증은 §10.9, 단락 평가 회귀와 후속 검증은 §10.10 에 기록한다.
 - 기준: 코드 `9174da8d`(2026-10-02 Production), `@sentry/nextjs` 9.47.1, Next 15.5.26
 
 용어
@@ -118,7 +119,7 @@ PR 1 의 envelope 테스트(2026-10-02, 표본 1, 요청 15건)에서 더 확인
 
 - `logError` 는 `logger.error(...)` 의 Promise 를 기다리지 않는다(`utils/log-error.ts` 72). `SentryLogTarget.write` 는 `captureException` 앞에서 `await import('@sentry/nextjs')` 를 한다(`utils/logger-targets.ts` 75).
 - SDK 는 route handler 를 감싸 끝에서 `vercelWaitUntil(flushSafelyWithTimeout())` 를 부른다(`@sentry/nextjs/build/cjs/common/wrapRouteHandlerWithSentry.js` 79, flush 제한 2초). 즉 **핸들러가 끝나기 전에 큐에 들어간 이벤트는 SDK 가 이미 내보낸다.**
-- 남는 틈은 "핸들러가 끝난 뒤에 큐에 들어가는 이벤트"다. `logError` 가 동기로 돌아오고 `captureException` 은 `await import` 뒤에 불리므로, 그 순서가 SDK 의 flush 호출보다 늦을 수 있다. 실측에서 61건이 모두 도착한 것은 프로세스가 계속 살아 있는 로컬 서버라서다. serverless 의 동결 조건에서는 확인하지 못했다.
+- 초안은 여기서 틈을 하나 가정했다. `logError` 가 동기로 돌아오고 `captureException` 은 `await import` 뒤에 불리므로, 그 순서가 SDK 의 flush 호출보다 늦을 수 있다는 것이다. **2026-10-06 에 재 보니 그런 틈은 없다**(§4.3 의 2, §5.2). 서버 번들에서 동적 import 는 마이크로태스크만으로 풀리고, flush 는 처리 중인 이벤트를 1ms 타이머로 처음 확인한다. 타이머는 마이크로태스크가 다 돈 뒤에 온다. 남는 것은 말 그대로 핸들러가 끝난 **뒤에** 남긴 기록이다(§4.3 의 3).
 
 ### 2.4 조사에서 나온 범위 밖의 것
 
@@ -198,7 +199,7 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 - 함수는 넘겨받은 값을 그대로 쓰지 않고 **가린 기록을 새로 만든다.**
 - `errorCode` 는 공급자별 알려진 코드 표(OAuth 의 `invalid_grant` 등, PayPal·PortOne 의 오류 코드, Postgres SQLSTATE 와 PostgREST 코드)에 있는 값만 남긴다. 표에 없으면 `'unknown'` 으로 바꾼다. 표는 전수 조사와 sandbox 응답으로 만든다.
 - `error` 에서 쓰는 것은 오류 이름 하나다. 알려진 이름 표(`Error`, `TypeError`, `AbortError`, `PostgrestError`, `AuthApiError` 등)에 있으면 그 이름을, 없으면 `'Error'` 를 쓴다. **원본 오류의 `message`, `stack`, `cause`, 그 밖의 속성은 쓰지 않는다.**
-- stack 은 `logSafeError` 가 호출 지점에서 만든 Error 의 것을 쓴다. 우리 프로세스가 만든 프레임이라 요청이나 외부 응답의 값이 들어갈 길이 없다. 원본 오류가 어디서 났는지는 잃지만, 외부 호출의 실패는 사건 코드와 호출 지점으로 구분된다.
+- stack 은 호출 지점의 **위치(스크립트 이름·줄·칸)만** 싣는다. 함수 이름은 요청이나 외부 응답의 값에서 올 수 있으므로 엔진이 만든 stack 문자열을 쓰지 않는다. V8 의 구조화된 호출 지점(CallSite)에서 위치를 꺼내고, 스크립트 주소의 쿼리·fragment 를 버린다. 이 API 가 없는 엔진에서는 프레임을 싣지 않는다. 원본 오류가 어디서 났는지는 잃지만, 외부 호출의 실패는 사건 코드와 호출 지점으로 구분된다.
 - ID 필드(`userId`, `paymentId` 등)는 형식과 길이만 검증한다. 호출부가 토큰을 ID 자리에 잘못 넘기는 실수는 형식 검사로 막지 못한다. 이것은 전수 조사 표의 리뷰와, 실제 경로에 canary 토큰을 넣는 envelope 테스트(§5.1)가 막는다. 남는 위험으로 §6.4 에 적는다.
 - 형식에 맞지 않는 필드는 버리고 버린 필드의 이름만 `droppedFields` 에 남긴다.
 - **Console 과 Sentry 두 target 모두 이 가린 기록만 받는다.** 한쪽만 가리면 다른 쪽이 우회로가 된다(#73 의 실패한 접근 1).
@@ -206,6 +207,16 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 - 구현 계획의 첫 단계는 이 경로의 로그 호출과 `throw` 문의 전수 조사 표다: 파일, 줄, 지금 넘기는 값, 붙일 사건 코드, 남길 필드. #73 의 요구 1(실제 키 전수 조사)과 #76 의 요구 1(실행으로 확인한 표)에 해당한다. 외부 응답에 무엇이 들어오는지는 sandbox 응답으로 확인하고, sandbox 가 없으면 "통째로 버리고 상태 코드만 남긴다"를 기본으로 한다.
 - §2.2 의 `console.log` 가운데 URL·쿼리·토큰을 찍는 줄은 지운다. 남길 정보가 없다. 이 삭제는 계약을 기다리지 않고 먼저 할 수 있다(§6.1 의 PR 1b). 운영 빌드는 이 호출을 이미 지우고 있으므로 운영의 출력은 바뀌지 않는다(§2.2). 전수 조사 표에는 호출의 종류(`console.log` / `console.warn`·`error` / `logError`)를 적어 운영에서 실제로 나가는 것을 가른다.
 - §9 의 결정 3 은 호출부를 옮기기 전에 정해져야 한다.
+- 구현에서 정한 것(PR 2, 2026-10-06):
+  - 사건 코드가 런타임에 목록에 없으면(타입은 `as any` 를 막지 못한다) `log.invalid_event_code` 로 바꿔 남긴다. 로그를 통째로 버리지 않는다.
+  - `droppedFields` 에 들어가는 이름은 정해진 필드 이름과 `code`·`fields`·`other` 뿐이다. 호출부가 넘긴 키 이름도 밖에서 온 문자열일 수 있다(외부 응답을 펼쳐 넘기는 경우). 정해지지 않은 키는 값도 이름도 싣지 않고 `other` 하나로만 남긴다.
+  - 값이 `undefined`·`null` 인 필드는 버린 것으로 세지 않는다. `fields` 가 객체가 아니거나 읽다가 던지면 읽다 만 값까지 버리고 `fields` 를 적는다.
+  - 취소된 Proxy 는 `Array.isArray` 에서도 던지므로 객체 검사부터 예외를 잡는다. 기록을 만들다가 던져도 상수만 든 대체 기록(`errorName: 'Error'`, 빈 필드, `droppedFields: ['fields']`)으로 로그 한 줄을 남긴다.
+  - 정해지지 않은 키는 `Reflect.ownKeys` 로 센다. Symbol 키와 열거되지 않는 키도 `other` 로 표시하고 이름과 값은 읽어 싣지 않는다.
+  - 가린 기록은 기존 `Logger` 를 거쳐 나간다(`Logger.safeError`). `LogEntry` 하나가 두 target 에 넘어가므로 "두 target 이 같은 기록을 받는다"가 구조로 지켜진다.
+  - Sentry 이벤트의 `fingerprint` 에 사건 코드를 더한다(`['{{ default }}', 사건 코드]`). 경계 함수가 잡은 예외는 stack 이 경계 함수가 든 공용 청크의 프레임뿐이라 라우트가 달라도 같다(envelope 테스트의 이벤트에서 확인). Sentry 는 stack 이 있으면 stack 으로 이슈를 묶으므로, 그대로 두면 서로 다른 라우트의 오류가 한 이슈로 묶일 수 있다. 실제로 묶이는지는 Sentry 에서 재지 않았다.
+  - 표의 초기값은 조사가 필요 없는 것만 넣었다. 오류 이름: ECMAScript, fetch 의 `AbortError`·`TimeoutError`, 설치된 `@supabase/auth-js`·`postgrest-js` 가 쓰는 이름, 이 저장소가 정의한 오류. 오류 코드: RFC 6749 의 OAuth 코드, 이 저장소의 코드가 이미 비교하는 SQLSTATE·PostgREST 코드. 사건 코드: 계약 함수의 대체 코드 하나와 테스트 라우트용 다섯. PayPal·PortOne·Kakao 의 코드와 운영의 사건 코드는 PR 3·4 의 전수 조사에서 더한다.
+  - `Logger.safeError` 는 공개 메서드다. PR 3 의 lint 는 결제·인증 경로에서 `@/utils/logger` 의 직접 import 도 막아야 한다.
 
 ### 4.3 전달: 무엇을 보장하고 무엇을 보장하지 못하나
 
@@ -213,12 +224,14 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 
 1. **항상 보장하는 것: 가린 로그 한 줄.** `logSafeError` 는 Console target 에 동기로 쓴다. 응답이 나가기 전에 서버 표준 출력에 남으므로 Vercel 런타임 로그에서 찾을 수 있다(보존 약 하루). Sentry 전송이 실패해도 오류가 흔적 없이 사라지지는 않는다.
 2. **최선 노력: transport 의 전송 완료.** Vercel 요청 컨텍스트 안에서 flush 제한(2초) 안에 끝나는 경우다.
-   - `SentryLogTarget` 이 `@sentry/nextjs` 를 정적으로 import 하고 `captureException` 을 `write` 의 동기 구간에서 부른다. `await import` 를 없앤다. `captureException` 뒤의 event processor 는 비동기이므로 "큐에 들어갔다"와 "전송됐다"는 다르다.
+   - **`SentryLogTarget` 은 바꾸지 않는다.** 초안은 `await import` 를 정적 import 로 바꿔 이벤트가 큐에 들어가는 시점을 앞당기려 했다. 재 보니 그럴 필요가 없다(§5.2). 핸들러가 기록을 남기고 바로 응답해도 SDK 가 핸들러 끝에서 건 flush 는 그 이벤트의 전송까지 기다린다. 순서가 구조로 정해져 있기 때문이다. (1) **실측한 route handler 번들**에서 `import('@sentry/nextjs')` 는 `Promise.resolve().then(require)` 로 풀린다(SDK 래퍼가 같은 모듈을 정적으로 import 한다). 다른 레이어의 별도 청크 로더가 동기 `require` 라는 것은 빌드 코드로 확인했지만, 그 청크의 첫 동적 import 는 실측하지 않았다. (2) `client.flush` 는 처리 중인 이벤트 수를 1ms 타이머로 처음 확인하고, `captureException` 은 호출 즉시 그 수를 올린다. 타이머는 마이크로태스크가 다 돈 뒤에 온다. 이 순서를 CI 테스트와 실제 서버의 전달 시나리오가 고정한다 — `captureException` 앞에 5ms 타이머를 넣으면 둘 다 실패한다. `captureException` 뒤의 event processor 는 비동기이므로 "큐에 들어갔다"와 "전송됐다"는 여전히 다르다.
    - flush 는 요청당 한 번이면 된다. route handler 는 SDK 의 래퍼가 끝에서 flush 를 `waitUntil` 에 건다(§2.3). 우리가 로그마다 flush 를 또 걸지 않는다. 같은 전역 큐를 중복해서 기다리게 되고, 동시에 처리 중인 다른 요청의 이벤트 때문에 무관한 경고가 난다.
    - SDK 의 래퍼는 flush 결과를 버리므로 제한 초과를 알 수 없다. 제한 초과를 관측해야 하는 곳은 결제·인증 라우트다. 그 라우트는 §4.7 의 경계 함수가 감싸고, 경계 함수가 **오류를 기록한 요청에 한해 요청당 한 번** `after(async () => { if (!(await Sentry.flush(2000))) console.warn('[sentry] flush timeout'); })` 를 건다. flush 를 부르는 곳은 둘이다: SDK 래퍼(요청마다 한 번, 결과를 버린다)와 경계 함수(오류를 기록한 요청에서만 한 번, 결과를 본다). SDK 래퍼의 flush 는 끌 수 없으므로 소유자를 하나로 줄이지 않는다. 같은 큐를 함께 기다릴 뿐 서로를 늦추지 않는다. 이 경고는 "전역 큐가 제한 안에 비워지지 않았다"는 뜻이고 특정 이벤트의 실패를 가리키지 않는다. `after` 는 Next 15.5 의 안정 API 다.
    - 경계 함수가 감싸지 않는 라우트에서는 제한 초과를 관측하지 않는다. 성공 기준(§1.3)의 "제한을 넘기면 로그에 남는다"는 결제·인증 라우트에 한한다.
-   - `log-error.ts` 는 브라우저 번들에도 들어간다. `after` 는 서버 전용 파일에서만 부른다(런타임 분기가 아니라 파일 분리).
-3. **보장하지 못하는 것.** flush 제한 안에 전송이 끝나지 않는 경우, Vercel 요청 컨텍스트 밖(빌드 중 프리렌더, 로컬 스크립트)에서 난 오류의 전송, 그리고 Sentry 쪽의 수신·저장. 이 경우의 기록은 1번의 로그 한 줄이다.
+   - `Sentry.flush(2000)` 의 2초는 처리 대기와 전송 대기에 각각 적용된다(`client.flush`). 실측에서는 제한 초과 때 약 2.0초에 끝났다. 오류를 기록한 요청은 응답 뒤에 인스턴스를 그만큼 더 붙잡는다.
+   - SDK 가 초기화되지 않았으면(DSN 없음) 경계 함수는 flush 하지 않는다. 그때 `Sentry.flush` 는 `false` 를 주는데 제한 초과가 아니다. flush 가 던지면 고정된 한 줄(`[sentry] flush failed`)만 남기고 `after` 콜백 밖으로 내보내지 않는다 — 내보내면 Next 가 그 오류 객체를 통째로 찍는다.
+   - `log-safe-error.ts` 도 `log-error.ts` 처럼 브라우저 번들에 들어간다(`lib/supabase/social/**`). `after` 와 `AsyncLocalStorage` 는 서버 전용 파일 `utils/with-safe-errors.ts` 에만 둔다(런타임 분기가 아니라 파일 분리). 경계 함수가 '이 요청에서 기록이 있었는가'를 알도록 `logSafeError` 는 등록된 함수 하나를 부르고, 경계 함수는 요청마다 `AsyncLocalStorage` 에 둔 표시를 켠다 — 동시에 처리 중인 다른 요청의 기록을 세지 않는다. 브라우저에는 등록하는 코드가 없다.
+3. **보장하지 못하는 것.** flush 제한 안에 전송이 끝나지 않는 경우, Vercel 요청 컨텍스트 밖(빌드 중 프리렌더, 로컬 스크립트)에서 난 오류의 전송, 그리고 Sentry 쪽의 수신·저장. 이 경우의 기록은 1번의 로그 한 줄이다. 핸들러가 끝난 **뒤에** 남긴 기록(기다리지 않은 Promise 가 나중에 실패하는 경우)도 여기에 든다. 그 요청의 flush 는 이미 끝났다(CI 테스트가 고정한다). 스트리밍 응답을 반환한 뒤 스트림에서 난 오류도 경계의 `try/catch` 가 잡지 못한다. 현재 결제·인증 라우트는 스트리밍하지 않는다.
 
 `waitUntil` 에 로거의 Promise 만 거는 방식(#74 에서 철회)은 쓰지 않는다. `logError` 의 동기 시그니처는 그대로 둔다.
 
@@ -258,6 +271,11 @@ Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 �
 - 응답 본문에는 오류 메시지를 넣지 않는다. 지금 일부 라우트는 `details: error.message` 를 응답에 넣는다(`app/api/payment/portone/webhook/route.ts` 의 500 응답). 전수 조사 표에 응답 본문도 넣는다.
 - 결제 웹훅은 상태 코드에 의미가 있다(PortOne 은 5xx 에서 다시 보낸다). 경계 함수가 돌려주는 코드는 지금 그 라우트의 미처리 오류와 같은 500 으로 두고, 계약 테스트(#88)가 이를 고정한다.
 - 인증 경로의 클라이언트 쪽 코드와 서버 컴포넌트는 route handler 가 아니라 이 방법이 닿지 않는다. 전수 조사에서 따로 표시한다.
+- 구현에서 정한 것(PR 2):
+  - `redirect()`·`notFound()` 와 Next 의 동적 렌더링 신호는 필요한 값만 검증해 **새 신호로 정규화**한다(2026-10-06 사용자 승인). 원본 객체 동일성은 보장하지 않으며 message·stack·cause·임의 메타데이터와 getter·Proxy 를 전달하지 않는다. Next 가 요구하는 순서와 시점에만 원본을 읽고, 읽기 예외는 내부 표식으로 바꿔 신호와 구분한다. redirect 의 URL·종류·허용된 상태 코드와 접근 fallback 상태를 검증·재구성하고 나머지 신호는 고정 식별값만 싣는다. 안전하게 만들 수 없는 신호는 가린 로그와 고정 500 으로 처리한다. 현재 값이 신호가 아닐 때만 `cause` 를 읽는다. 사슬은 최대 10개 연결까지 따라가며 읽기 예외·순환에서 멈춘다. 실제 Next·React 신호와 리다이렉트 응답·요청 쿠키의 보존을 테스트한다(§10.11·§10.12).
+  - 고정 응답은 500, 본문 `{ "error": "Internal server error" }` 다.
+  - 경계가 겹치면 바깥 경계가 flush 를 한 번 건다.
+  - `after` 를 쓸 수 없으면(요청 범위 밖 — 테스트가 핸들러를 직접 부를 때) flush 없이 응답만 돌려준다.
 
 그 밖의 경로: **남기되 좁힌다** (§9 의 결정 8)
 
@@ -295,14 +313,33 @@ Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 �
 - 로컬 실행의 차이: DSN 은 `127.0.0.1`, 가짜 외부 서버는 `localhost` 로 부른다(SDK 는 DSN 의 호스트 문자열이 든 주소로 가는 요청에 span 을 만들지 않는다). edge 는 SDK 가 `SENTRY_TRACES_SAMPLE_RATE` 를 스스로 읽어 표본이 켜지므로 운영에는 없는 edge transaction 이 온다. edge SDK 가 수집기로 보내는 요청이 node 쪽 transaction 으로 잡힌다(운영에서는 `ignoreOutgoingRequests` 가 `sentry.io` 를 거른다). 셋 다 검사 대상에 넣었다.
 - 빌드가 Supabase 조회에 의존하므로 이 테스트는 CI 에 넣지 못한다. PR 1~4 의 머지 전 필수 확인으로 두고 결과를 PR 본문에 적는다. Sentry SDK 를 올릴 때도 돌린다.
 - 판정 로직(`scripts/envelope-test/analyze.js`)과 가리는 함수, 옵션 객체는 단위 테스트로 CI 에 둔다(`requestDataIntegration` 의 `include` 를 실제 SDK 에 넣었을 때의 결과, 실제 SDK 의 기본 목록에서 `Console` 이 빠지는지, 훅 세 개가 같은 함수를 쓰는지, URL·쿼리 함수의 입력·출력 표). 이것만으로는 누출이 없다고 말할 수 없다.
+- **PR 2 가 더한 것 (2026-10-06).** 경계 함수로 감싼 요청 둘: 이름·메시지·stack·cause 에 canary 가 든 오류를 던지는 것(`boundary-throw`)과, 같은 오류와 필드를 `logSafeError` 로 남기는 것(`boundary-handled`). 판정에는 가린 기록의 모양(예외의 type, fingerprint, `contexts.log` 의 키와 값 전부)과 서버 출력의 가린 로그 줄 수를 더했다. 경계 없이, 지금의 호출부처럼 `logError` 에 오류 객체와 값을 넘긴 모습으로 먼저 돌렸다 — **실패 20건**: 오류의 이름이 예외의 `type` 과 span 의 `error.type` 으로, `cause` 가 이어진 예외의 값으로, 필드 값이 `contexts.log` 로 나갔고, 서버 출력에는 메시지·URL 쿼리·stack 의 주소·JWT·Bearer 가 그대로 찍혔다(Next 의 미처리 오류 줄과 `logError` 의 콘솔 줄). JWT·Bearer 는 Sentry 쪽에서 가려졌지만 tripwire 태그가 붙었다. 경계 함수와 계약 함수로 바꾼 뒤 **실패 0건**이다.
+
+- **PR 2 교차 리뷰 뒤 추가한 것 (2026-10-06).** `cause` getter 가 canary 메시지를 가진 예외를 던지는 `boundary-hostile` 요청을 3번 더해 당시 총 **24건**이었다. 수정 전에는 getter 의 메시지가 Sentry 이벤트와 Next 미처리 오류 줄에 실려 **실패 4건**, 경계 수정 뒤 **0건**이었다. 가린 이벤트와 콘솔 줄이 각각 3건인지도 단언한다. 취소된 Proxy, 동적 함수 이름, Symbol 키의 반례는 단위 테스트로 검증한다.
+- **PR 2 후속 회귀 검증.** 자기 재투척 오류 `boundary-self-throw` 와 읽기 실패 속성을 가진 정상 신호 `boundary-redirect` 를 각 3번 더해 총 **30건**이다. 앞의 오류는 가린 이벤트·로그·고정 JSON 500, 뒤의 신호는 오류 이벤트 없이 307·정확한 Location·빈 본문이어야 한다. 응답 본문과 Location 에도 canary 가 없어야 한다(§10.9·§10.10).
 
 ### 5.2 전달 테스트
 
-- 실제 SDK 에 전송 시간을 조절할 수 있는 transport 를 붙이고, SDK 의 route handler 래퍼를 포함해 호출한다.
-- 사례 1(정상): 전송 300ms. 핸들러가 `logSafeError` 를 부르고 바로 응답한다. `waitUntil` 에 걸린 Promise 가 끝났을 때 transport 의 전송이 끝나 있다. 모듈 캐시가 빈 첫 호출에서도 그렇다. 응답 시각이 전송 완료보다 앞선다. flush 호출 횟수도 센다: 경계 함수의 flush 는 오류를 기록한 요청에서 정확히 한 번, 기록하지 않은 요청에서 0번이다. SDK 래퍼의 flush 는 요청마다 한 번이므로 합계는 1 또는 2 다. `logSafeError` 를 여러 번 불러도 늘지 않는다.
-- 사례 2(제한 초과): 경계 함수로 감싼 라우트에서 전송이 flush 제한보다 길다. `flush` 가 `false` 를 돌려주고, `[sentry] flush timeout` 줄과 가린 로그 한 줄이 표준 출력에 있다. 응답은 늦어지지 않는다. 감싸지 않은 라우트에서는 이 줄이 없다는 것도 확인해 한계를 고정한다.
-- 사례 3(요청 컨텍스트 없음): `@vercel/request-context` 가 없는 환경. `vercelWaitUntil` 이 아무것도 걸지 않는다는 것과, 그때도 가린 로그 한 줄이 남는다는 것을 확인한다.
-- 수정 전 코드(`await import`)에서 사례 1 이 실패하는지 먼저 본다. 실패하지 않으면 §2.3 의 "틈" 가설이 틀린 것이므로 §4.3 의 2번을 다시 쓴다.
+전달은 두 곳에서 잰다.
+
+**실제 서버** — `npm run test:envelope` 의 전달 시나리오(`scripts/envelope-test/delivery.js`). Production 빌드를 `next start` 로 띄우고, 로컬 수집기가 오류 이벤트에 답하는 시간을 조절한다(그 밖의 envelope 에는 바로 답한다 — §10.7). 로컬에는 Vercel 요청 컨텍스트가 없으므로 테스트 라우트가 같은 자리(`Symbol.for('@vercel/request-context')`)에 기록만 하는 `waitUntil` 을 달아, SDK 의 래퍼가 건 flush 의 등록 시각과 끝난 시각을 남긴다. `after()` 는 Next 의 것을 그대로 쓴다.
+
+- 사례 1(정상): 수집기가 300ms 뒤에 답한다. 핸들러가 `logError`·`logSafeError` 를 부르고 바로 응답한다. `waitUntil` 에 걸린 flush 는 전송이 끝난 뒤에 끝난다. 서버가 뜬 뒤의 첫 요청에서도 그렇다. 응답은 전송 완료보다 앞선다. SDK 래퍼의 flush 는 요청마다 한 번이다.
+- 사례 2(제한 초과): 수집기가 2600ms 뒤에 답한다. 경계 함수로 감싼 라우트는 오류를 기록한 요청마다 `[sentry] flush timeout` 을 정확히 한 줄 남긴다 — 세 번 기록해도 한 줄, 기록이 없으면 0줄. 감싸지 않은 라우트는 0줄이다(한계를 고정한다). 응답은 1초 안에 온다.
+- 사례 3(요청 컨텍스트 없음): 가짜 컨텍스트를 뗀 요청. `waitUntil` 에 걸린 것이 없고 가린 로그 한 줄은 남는다.
+- 판정(`evaluateDelivery`)은 순수 함수이고 단위 테스트가 CI 에서 돈다. 시나리오 자체는 누출 테스트와 같은 이유로 CI 에 넣지 못한다(§5.1).
+
+**CI** — `__tests__/utils/log-safe-error-delivery.test.ts`. 실제 SDK(`NodeClient`)에 손으로 푸는 transport 를 붙이고 SDK 의 `wrapRouteHandlerWithSentry` 로 감싼다. 사례 1 을 `logSafeError` 와 `logError` 로, 그리고 "핸들러가 끝난 뒤에 남긴 기록은 기다리지 않는다"를 고정한다. `after` 는 대역이다(Next 의 요청 범위 밖에서는 돌지 않는다). 측정하기 전에 래퍼를 한 번 돌려 둔다 — 처음 도는 코드는 느려서 그 사이에 늦은 기록이 flush 를 따라잡아, 틈이 있어도 가려진다.
+
+"가린 로그 한 줄이 응답 전에 남는다"는 단위 테스트가 본다. `logSafeError` 가 돌아왔을 때 `console.error` 가 이미 불려 있고(`await` 없이 단언), 경계 함수는 응답을 만들기 전에 그 줄을 찍는다. envelope 테스트는 그 줄이 요청마다 한 줄씩 서버 출력에 있는지 센다.
+
+**결과 (2026-10-06).** 초안은 "수정 전 코드(`await import`)에서 사례 1 이 실패하는지 먼저 본다. 실패하지 않으면 '틈' 가설이 틀린 것"이라고 했다. 실패하지 않았다(§4.3 의 2). 반대로 `captureException` 앞에 5ms 타이머를 넣으면 실제 서버의 시나리오가 7건(사례 1 의 다섯 단계 전부와 사례 2 의 제한 초과 줄 둘), CI 테스트가 2건 실패한다. 테스트가 틈을 잡는다는 뜻이다.
+
+| 사례 | 실측 |
+|---|---|
+| 1 정상 | flush 가 전송 완료 뒤 0~2ms 에 끝난다. 응답 4~20ms(서버의 첫 요청은 약 350ms — 라우트를 처음 올린다). 기록이 없는 요청의 flush 는 1ms |
+| 2 제한 초과 | flush 가 약 2.0초에 끝난다(전송 완료보다 약 0.6초 앞). 제한 초과 줄은 경계가 오류를 기록한 요청에 한 줄씩. 응답 5~17ms |
+| 3 컨텍스트 없음 | `waitUntil` 등록 0건, 로그 한 줄 |
 
 ### 5.3 그 밖
 
@@ -350,7 +387,8 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | 호출부가 토큰을 ID 필드에 잘못 넘긴다(형식 검사를 통과한다) | 전수 조사 표의 리뷰, 실제 경로에 canary 토큰을 넣는 envelope 테스트 |
 | 예외 메시지에 모양이 알려지지 않은 값이 섞인다 | 결제·인증 경로의 `throw` 문 lint, 전수 조사. 완전히 막지는 못한다 |
 | `SENTRY_TRACES_SAMPLE_RATE` 가 운영 환경변수로 잘못 들어가 표본이 바뀐다 | 0 과 1 사이의 수만 받고, 운영 환경변수 목록에 없음을 배포 확인 항목에 넣는다 |
-| 정적 import 로 서버 번들이 달라진다 | `@sentry/nextjs` 는 `instrumentation.ts` 가 이미 서버에 올린다. 브라우저 번들에 `logger-targets.ts` 가 들어가는지 빌드로 확인한다 |
+| `unstable_rethrow` 는 이름대로 안정 API 가 아니다 | 실제 Next 오류(`redirect()`, `notFound()`, `DynamicServerError`)로 도는 단위 테스트가 Next 를 올릴 때 달라진 동작을 드러낸다 |
+| 경계 함수가 잡은 예외는 원본 메시지와 stack 을 잃는다. 원인을 사건 코드(라우트)와 오류 이름만으로 좁혀야 한다 | 결정 3 에서 받아들였다. 부족하면 라우트 안의 단계마다 사건 코드를 나눠 `logSafeError` 를 부른다 |
 
 ## 7. 범위 밖·후속
 
@@ -383,14 +421,22 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | PR 1 의 변경 뒤 서버·edge 의 오류 이벤트, transaction, span, breadcrumb 에 요청의 쿠키·헤더·IP·쿼리가 없다 | 같은 테스트: 수정 전 실패 70건 → 수정 뒤 0건, 건수 동일 |
 | 보통 빌드에는 테스트용 라우트가 없다 | `npm run build` 의 postbuild 검사(`[test-routes] 통과`) |
 | Next 15.5 는 확장자가 두 겹인 edge 라우트를 빌드하지 못한다 | `route.envtest.ts` + `pageExtensions` 로 만든 빌드가 `route_client-reference-manifest.js` 없음으로 실패 |
+| 핸들러가 기록을 남기고 바로 응답해도 SDK 가 핸들러 끝에 건 flush 가 그 이벤트의 전송을 기다린다. `await import` 로 인한 틈은 없다 | 2026-10-06 전달 시나리오(실제 `next start`, 서버의 첫 요청 포함): flush 가 전송 완료 뒤 0~2ms 에 끝난다. 실측 범위는 route handler 의 `Promise.resolve().then(require)` 경로다. 별도 청크의 첫 import 는 실측하지 않았고, 그 로더가 동기 `require` 인 것은 코드로만 확인했다. `@sentry/core` 9.47.1 `client.js`: `captureException` 이 `_numProcessing` 을 즉시 올리고(138~159, 775~787) `flush` 는 그 수를 1ms 타이머로 처음 본다(541~559) |
+| 경계 함수의 `after` 콜백 안의 flush 가 로컬 `next start` 에서 응답 뒤에 끝까지 돈다 | 같은 시나리오: 수집기가 2600ms 뒤에 답할 때 `[sentry] flush timeout` 이 경계가 오류를 기록한 요청마다 한 줄 |
+| `after()` 는 요청 범위 밖에서 던진다. DSN 이 없으면 `Sentry.init` 을 부르지 않고 그때 `Sentry.flush()` 는 `false` 다 | Next 15.5.26 `server/after/after.js`, `sentry.server.config.js`, `@sentry/core` 9.47.1 `exports.js` 의 `flush` |
+| 오류를 그대로 넘기면 이름이 예외의 `type` 과 span 의 `error.type` 으로, `cause` 가 이어진 예외로 나간다 | 2026-10-06 envelope 테스트의 수정 전 실패 20건(§5.1) |
+| 경계 함수가 잡은 예외의 이벤트는 프레임이 경계 함수가 든 공용 청크의 것뿐이다 | 같은 테스트의 이벤트(최상위 프레임이 라우트의 청크가 아니다) |
+| 함수 이름은 요청 값에서 올 수 있고 줄바꿈으로 위치처럼 생긴 stack 줄도 만들 수 있다 | PR #121 교차 리뷰와 `log-safe-error.test.ts` 의 computed 메서드·동적 클래스·줄바꿈 반례. 위치만으로 만든 stack 에서는 노출되지 않는다 |
+| `cause` getter 가 던지거나 순환하는 오류를 `unstable_rethrow` 에 바로 넘기면 경계가 뚫릴 수 있다 | `with-safe-errors.test.ts` 의 악성 입력 6건, 실제 서버 `boundary-hostile` 수정 전 실패 4건 → 수정 뒤 0건 |
+| 취소된 Proxy 는 `Array.isArray` 에서 던지고, Symbol·비열거 키는 `Object.keys` 에 잡히지 않는다 | `log-safe-error.test.ts` 의 취소된 Proxy 3건, 대체 기록 1건, Symbol·비열거 키 1건 |
 
 남은 가정
 
 | 가정 | 확인 방법 |
 |---|---|
-| `await import` 때문에 이벤트가 flush 보다 늦게 큐에 들어갈 수 있다 | §5.2 의 사례 1 을 수정 전 코드로 돌린다 |
 | 브라우저 이벤트와 Replay 에 OAuth 쿼리가 실제로 실린다 | 브라우저 envelope 테스트(§4.6). 아직 재지 않았다 |
-| `after()` 안의 flush 가 Vercel 에서 응답 뒤에 실제로 끝까지 돈다 | PR 2 배포 뒤 Vercel 로그에서 `[sentry] flush timeout` 유무와 Sentry 도착을 대조한다 |
+| `after()` 안의 flush 가 Vercel 에서 응답 뒤에 실제로 끝까지 돈다 | PR 3 배포 뒤(경계로 감싼 운영 라우트가 처음 생긴다) Vercel 로그에서 `[sentry] flush timeout` 유무와 Sentry 도착을 대조한다. 로컬 `next start` 에서는 끝까지 돈다(위 표) |
+| 가린 기록의 이벤트가 Sentry 에서 사건 코드별 이슈로 갈린다(fingerprint) | PR 3 배포 뒤 Sentry 의 이슈 목록 |
 | Sentry 프로젝트의 Data Scrubber 가 켜져 있다 | Sentry 설정 화면(Security & Privacy) |
 | Vercel 의 route handler 가 모두 SDK 래퍼로 감싸인다 | 빌드 결과에서 래퍼 적용 여부 확인 |
 | 외부 응답(PayPal, Google, Kakao)의 오류 본문에 개인정보가 들어올 수 있다 | sandbox 응답 수집 |
@@ -497,3 +543,71 @@ Codex `gpt-6-sol`/high 의 읽기 전용 리뷰다. 설계에 영향을 주는 �
 
 판정: PR 1(#119)은 1차 REQUEST_CHANGES(blocker 1, major 2, minor 1) → 재검증 REQUEST_CHANGES(DSC·상대 URL 부분 해소) → 두 번째 확인 **APPROVE**(`228c1e01`). PR 1b(#118)는 1차 REQUEST_CHANGES(major 1) → 재검증 **APPROVE**(`0f356c62`).
 
+### 10.7 PR 2 를 준비하고 구현하면서 달라진 것 (2026-10-06)
+
+리뷰가 아니라 측정과 구현으로 바뀐 부분이다. 구현 계획은 `docs/superpowers/plans/2026-10-06-log-safe-error-contract-and-boundary.md` 다.
+
+| 항목 | 초안 | 실제 |
+|---|---|---|
+| §2.3·§4.3 의 "틈" | `await import` 때문에 이벤트가 flush 보다 늦게 큐에 들어갈 수 있다 | **없다.** §5.2 가 정한 대로 수정 전 코드로 먼저 쟀고 사례 1 이 실패하지 않았다. 순서가 구조로 정해져 있다(§4.3 의 2) |
+| §4.3 의 2 `SentryLogTarget` | 정적 import 로 바꾼다 | 바꾸지 않는다 |
+| §4.2 Sentry 이슈 묶음 | 언급 없음 | fingerprint 에 사건 코드를 더한다 |
+| §4.2 `droppedFields` | 버린 필드의 이름 | 정해진 필드 이름과 `code`·`fields`·`other` 만 |
+| §4.2 표의 초기값 | 전수 조사와 sandbox 응답 | 조사가 필요 없는 것만. 나머지는 PR 3·4 |
+| §4.7 경계 함수 | 모든 오류를 잡는다 | Next 의 제어 흐름(`redirect()`·`notFound()`·동적 렌더링 신호)은 올려보낸다. SDK 가 초기화되지 않았으면 flush 하지 않는다 |
+| §5.2 전달 테스트 | 실제 SDK 에 지연 transport | 실제 서버의 전달 시나리오와 CI 의 실제 SDK 테스트 둘 |
+| 테스트 환경 | 언급 없음 | 서버 전용 코드는 `// @vitest-environment node` 로 시험한다. 공용 setup 의 `window` 사용부를 가드로 감쌌다 |
+
+구현 중에 "실패를 먼저 본다"가 잡은 것 하나: 전달 시나리오의 수집기가 모든 envelope 에 늦게 답하면, `captureException` 앞에 5ms 지연을 넣은 실행에서 다섯 단계 가운데 넷만 실패했다(하나는 0ms 로 겹쳤다). SDK 가 flush 할 때 보내는 `client_report` 의 응답을 flush 가 기다려, 틈이 있어도 이벤트의 전송 완료와 몇 ms 차이로만 갈렸기 때문이다. 수집기가 오류 이벤트에만 늦게 답하게 하자 차이가 약 300ms 로 벌어졌고 같은 지연에서 일곱 건이 실패한다.
+
+
+### 10.8 PR 2 의 교차 리뷰에서 드러난 것 (2026-10-06)
+
+Codex `gpt-6-sol`/high 의 읽기 전용 리뷰다. 1차 판정은 **REQUEST_CHANGES**(blocker 1, major 2, minor 1). 수정 커밋은 `8025927b` 이다. 문서 반영 `db57eed3` 을 원 리뷰어가 재검증한 결과도 **REQUEST_CHANGES** 다. 아래 세 건은 해소됐고, 경계의 blocker 는 부분 해소다.
+
+| 심각도 | 지적 | 설계에 반영한 것 |
+|---|---|---|
+| blocker | `unstable_rethrow` 가 `cause` 를 읽다가 난 예외를 그대로 올려보내거나 순환으로 안전한 기록을 막는다 | §4.7: 경계가 사슬을 직접 탐색하고 각 값 자체가 다시 던져질 때만 Next 신호로 취급한다. 실제 서버의 `boundary-hostile` 반례가 수정 전 실패 4건 → 수정 뒤 0건 |
+| major | 취소된 `fields` Proxy 가 `Array.isArray` 에서 던져 기록이 사라진다 | §4.2: 객체 검사부터 예외를 잡고 기록 생성 실패에는 상수만 든 대체 기록을 남긴다 |
+| major | 호출 지점의 stack 에 동적으로 붙은 함수 이름이 실린다 | §4.2: CallSite 에서 위치만 꺼내고 함수 이름은 제외한다. API 가 없으면 프레임을 싣지 않는다 |
+| minor | Symbol·비열거 키가 `droppedFields` 에 반영되지 않는다 | §4.2: `Reflect.ownKeys` 로 정해지지 않은 키를 센다 |
+
+재검증에 전달할 범위와 한계: 전달을 실측한 것은 route handler 번들이다. 별도 청크의 첫 동적 import 는 측정하지 않았다. 핸들러가 스트리밍 응답을 반환한 뒤의 오류도 경계가 잡지 못한다(§4.3). Production 의 `after()` 완료와 사건 코드별 이슈 묶음은 PR 3 배포 뒤 확인한다.
+
+
+**원 리뷰어 재검증 결과.** `utils/with-safe-errors.ts:83` 의 `isNextControlFlow` 에 blocker 가 남았다. `cause` getter 가 원본 `Error` 자신을 던지면 `unstable_rethrow` 도 그 원본을 던지고, `thrown === value` 가 참이 되어 Next 신호로 오인한다. 취소된 Proxy·함수명 stack·Symbol 키는 해소 판정이다.
+
+조정자도 현재 경계 소스를 메모리에서 CommonJS 로 변환해 설치된 Next 의 `unstable_rethrow` 와 함께 재현했다. Sentry·`after`·로그 target 은 네트워크나 출력을 만들지 않는 대역으로 교체했다. 결과는 `{"responseStatus":null,"safeLogCalls":0,"escapedOriginal":true}` 다. 이 재검증 시점에는 새 반례의 실제 Next 서버 재현과 수정을 아직 하지 않았다(후속 결과는 §10.9). 기존 누출 24건·전달 11단계와 전체 3,387건은 이 입력을 포함하지 않아 통과한다.
+
+다음 수정의 요구사항: `cause` 재귀 중 던져진 값의 동일성으로 신호를 판별하지 않는다. 현재 값 자체가 실제 Next 신호인지 안전하게 판별하고 `cause` 탐색은 별도로 수행한다. 자기 자신을 던지는 getter 회귀 테스트와 실제 서버 누출 검증을 추가한 뒤 기존 Next 제어 흐름 보존을 다시 확인해야 한다. **APPROVE 가 아니므로 머지 승인 단계로 넘어가지 않았다.**
+
+
+### 10.9 자기 자신을 던지는 입력의 경계 수정 (2026-10-06)
+
+첫 수정(`5470d15b`)은 원본 대신 판정용 속성 세 개만 담은 새 객체를 실제 Next 판별 함수에 전달했다. 원본의 getter·Proxy 가 자기 자신을 던져도 신호로 오인하지 않는다. `cause` 탐색과 신호 판별을 분리하며, 기존 로그·flush 계약은 유지한다. 뒤이은 단락 평가 수정은 §10.10 에 기록한다.
+
+추가 반례 8건은 수정 전 모두 경계 밖으로 나갔고, 수정 뒤 경계 테스트 51건 전부 통과했다. 실제 Next 빌드에서 자기 재투척 요청은 수정 전 일반 텍스트 500을 반환하고 원본 canary 를 출력한 뒤 프로세스가 종료 코드 7로 끝났다. 가린 이벤트는 0건이었다. 새 `boundary-self-throw` 라우트를 더하고 기존 getter 오류 라우트도 유지했다. 실서버 판정에는 경계 응답의 상태·고정 JSON·canary 부재를 추가했다.
+
+타입 검사·lint 와 KST·UTC 전체 테스트(각 204파일, 3,417건 통과·6 expected fail·1 skipped)가 통과했다. 수정 후 새 빌드의 실서버 누출 요청 27건과 전달 요청 11건도 통과했다. 자기 재투척 오류의 가린 이벤트·로그가 각각 3건이며 경계 네 종류의 고정 응답도 각 3/3 일치했다. 원 리뷰어는 `5470d15b` 에서 자기 재투척 blocker 를 해소로 판정했지만, 정상 redirect 신호의 불필요한 속성을 읽어 500 으로 바꾸는 major 회귀를 지적했다. 최종 판정은 REQUEST_CHANGES 이며, Next 판정의 단락 평가를 보존하는 후속 수정이 필요하다. 상세 재현과 실행 기록은 PR 2 계획서의 후속 수정 절을 따른다.
+
+### 10.10 Next 제어 흐름의 단락 평가 보존 (2026-10-06)
+
+속성 세 개를 먼저 모으는 방식은 Next 가 이미 신호로 판정한 뒤의 속성까지 읽었다. message getter 가 던지는 실제 redirect 신호는 Next 에서는 전파되지만 경계에서는 500 이 됐다. 원 리뷰어가 major 로 지적했고 조정자도 재현했다.
+
+§4.7 을 Next 의 판정 순서대로 필요한 속성만 대신 읽는 Proxy 로 바꿨다. 원본에서 난 읽기 예외는 내부 표식으로 바꿔 신호와 구분하고, 같은 속성을 반복해서 읽지 않는다. 현재 값이 신호가 아닐 때만 cause 를 탐색한다. 원본 오류를 판별 함수에 직접 넘기지 않는 누출 방어와 사슬의 깊이·순환 제한은 유지한다.
+
+단위 테스트는 수정 전 29건 실패/68건 통과 → 수정 뒤 97건 전부 통과했다. 판정기·라우트 61건, 타입 검사·lint, KST·UTC 전체 테스트(각 204파일, 3,476건 통과·6 expected fail·1 skipped)도 통과했다. 새 테스트 라우트의 실제 서버 RED 는 리다이렉트 3건 모두 500, 불필요한 오류 이벤트 3건 등 5종의 실패를 확인했다. 새 빌드 GREEN 은 누출 요청 30건·전달 요청 11건 모두 통과했다. redirect 3건은 307·정확한 Location·빈 본문이며 오류 이벤트는 0건이었다. 기존 경계 응답과 canary 비노출도 유지했다. 원 리뷰어는 이 단락 평가 회귀를 해소로 판정했지만 §10.11 의 새 blocker 를 확인했다. 상세 실행 기록은 PR 2 계획서를 따른다.
+
+### 10.11 원본 재투척과 상태가 바뀌는 getter 의 충돌 (2026-10-06)
+
+`67ae0212` 의 재검토는 REQUEST_CHANGES(blocker 1건)다. `digest` getter 가 처음에만 유효한 redirect 문자열을 반환하면 경계는 신호로 보고 원본을 내보내지만, 뒤에서 다시 읽는 Sentry·Next 는 일반 오류로 볼 수 있다. 캐시를 제거해도 두 번까지만 유효한 값을 주는 반례가 남는다. 원 리뷰어와 조정자가 근거를 한 차례 교환해 캐시 제거만으로 충분하지 않음을 확인했다.
+
+조정자는 실제 Next 검증 빌드의 테스트 fixture getter 만 바꿔 1회 요청했고, HTTP 500·빈 본문과 함께 서버 출력 및 Sentry envelope 에 canary 가 있는 것을 확인했다. 가린 이벤트는 0건이었다. 경계 구현·추적 소스는 유지했고 fixture 는 원복했다. 이는 실서버 누출 재현이며 새 수정의 검증 결과가 아니다. 자세한 방법과 메모리 비교 결과는 PR 2 계획서에 기록했다.
+
+`67ae0212` 의 원본 재투척 구현은 §4.7 의 비노출 목표를 충족하지 못했다. 임의 getter·Proxy 까지 원본 동일성을 보장하면서 이후 재판정의 안정성을 보장할 수는 없다. 후속 권고는 제어 신호의 필요한 값만 검증해 새 신호/응답을 만들고 원본 객체를 전달하지 않는 방식이다. 정상 Next 동작·redirect 응답·쿠키·동적 신호를 검증해야 하며, 원본 message·stack·cause·임의 메타데이터의 복사는 허용하지 않는다. 사용자는 2026-10-06 "진행"으로 안전한 신호 정규화 계약을 승인했다. 구현·검증 및 독립 리뷰를 진행한다. 단위 3,476건과 envelope 30건·전달 11건의 녹색 결과를 이 새 blocker 의 해결로 해석하지 않는다.
+
+### 10.12 안전한 새 신호 계약의 구현·검증 (2026-10-06)
+
+§10.11 의 권고를 사용자가 승인해 §4.7 의 계약을 바꿨다. 원본 오류를 내보내지 않으면서 Next 가 필요한 제어 흐름 정보를 보존한다. 수정 전 단위 테스트는 경계 86건 실패/41건 통과, 판정기·라우트 72건 통과였다. 새 실제 서버 fixture 는 상태가 바뀌는 digest 를 1회·2회씩 읽는 사례를 각 3회 요청했다. 6건 모두 500 이고 Location·Set-Cookie 가 없었으며 서버 출력과 Sentry envelope 에 canary 가 남아 총 9종 실패했다. 전달 시나리오 11건은 통과했다. 실제 React postpone 과 Next 동적 메시지의 두 표식을 보존하는 테스트 4건도 수정 전에 실패했다. 구현은 원본을 경계 안에서만 판정하고 필요한 값으로 새 Error 를 만든다. 메시지·stack 은 정해 둔 값만, redirect 및 접근 fallback digest 는 필요한 값만 재구성한다. 동적 postpone 의 두 표식은 원본 속성을 더 읽지 않고 상수로 넣는다. 안전하게 만들 수 없으면 가린 로그·고정 500 으로 처리한다.
+
+수정 후 관련 테스트 203/203, 타입 검사·lint, KST·UTC 각각 전체 204파일·3,521건 통과(6 expected fail·1 skipped)다. 새 빌드 실서버는 누출 요청 36건·전달 11건 모두 통과했다. 상태 변화 redirect 6건 모두 307·정확한 Location·빈 본문·요청 저장소의 Set-Cookie 를 보존하고 오류 이벤트 0건, stdout·envelope·응답의 canary 누출도 없다. 다른 신호 계열과 invalid Location 은 단위 테스트 검증 범위다. 코드 `df3129b5` 의 GitHub CI 도 통과했고 원 리뷰어 Codex `gpt-6-sol/high` 의 독립 코드 리뷰는 **APPROVE, 차단 지적 없음**이다. 리뷰어는 테스트를 재실행하지 않았고 코드·검증 결과를 읽었다. Orca 완료 통신은 샌드박스 EPERM 으로 차단되어 worker_done 수락을 주장하지 않는다. 최종 판정·턴 종료를 확인한 뒤 worker-abandon 정산을 수락받았으며 상세는 계획서에 기록했다. 운영 Vercel·Sentry 저장 결과는 미확인이고 머지·배포 전이다.

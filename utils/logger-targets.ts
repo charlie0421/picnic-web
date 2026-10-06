@@ -82,6 +82,7 @@ export class SentryLogTarget implements LogTarget {
           ...(entry.version ? { version: entry.version } : {}),
         },
         user: entry.user,
+        ...(entry.fingerprint ? { fingerprint: entry.fingerprint } : {}),
         contexts: {
           log: {
             timestamp: entry.timestamp,

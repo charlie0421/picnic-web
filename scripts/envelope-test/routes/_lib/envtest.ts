@@ -28,3 +28,23 @@ export function unhandledMessage(headers: Headers): string {
     `email=${value('email')}`,
   ].join(' ');
 }
+
+/**
+ * 경계 함수와 계약 함수를 시험하는 오류. 이름·메시지·stack·cause 에 요청 헤더의 값을 섞는다.
+ * 이 가운데 어느 것도 Sentry 와 서버 출력에 나오면 안 된다(설계 §4.2).
+ */
+export function hostileError(headers: Headers): Error {
+  const value = (name: string) => headers.get(`x-envtest-boundary-${name}`) ?? 'none';
+  const error = new Error(
+    [
+      `envtest boundary ${value('message')}`,
+      `url=https://envtest.invalid/callback?code=${value('query')}`,
+      `jwt=${value('jwt')}`,
+      `auth=Bearer ${value('bearer')}`,
+    ].join(' '),
+    { cause: new Error(`envtest cause ${value('cause')}`) },
+  );
+  error.name = `Envtest${value('name')}`;
+  error.stack = `${error.name}: envtest boundary\n    at https://envtest.invalid/app.js?code=${value('stack')}:1:1`;
+  return error;
+}

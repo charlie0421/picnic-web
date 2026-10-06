@@ -222,3 +222,275 @@ describe('evaluate', () => {
     expect(result.failures).toContain('수신 건수 — 미처리(node): 기대 1건, 실제 0건');
   });
 });
+
+describe('evaluate — 가린 기록의 모양과 서버 출력 (설계 §4.2, §4.3)', () => {
+  const USER_ID = '4d3c2b1a-0f9e-4d8c-9b7a-6f5e4d3c2b1a';
+  const safeExpected = {
+    errors: [
+      {
+        label: '가린 기록',
+        handled: true,
+        valueIncludes: 'envtest.boundary.handled',
+        count: 1,
+        type: 'Error',
+        fingerprint: ['{{ default }}', 'envtest.boundary.handled'],
+        logContext: { userId: USER_ID, httpStatus: 502, errorCode: 'unknown', droppedFields: ['paymentId'] },
+      },
+    ],
+    transactions: [],
+    stdout: [{ label: '가린 로그 줄', includes: 'ERROR: envtest.boundary.handled', count: 1 }],
+  };
+  const safeStdout = [
+    'envtest console cnryC-console',
+    '[2026-10-06T00:00:00.000Z] ERROR: envtest.boundary.handled {',
+    "  message: 'envtest.boundary.handled',",
+    "    stack: 'Error: envtest.boundary.handled\\n' +",
+    '}',
+  ].join('\n');
+  const safeEvent = () => ({
+    exception: { values: [{ type: 'Error', value: 'envtest.boundary.handled', mechanism: { type: 'generic', handled: true } }] },
+    fingerprint: ['{{ default }}', 'envtest.boundary.handled'],
+    // 키 순서는 판정과 무관하다.
+    contexts: { log: { droppedFields: ['paymentId'], errorCode: 'unknown', httpStatus: 502, timestamp: '2026-10-06T00:00:00.000Z', userId: USER_ID } },
+  });
+  const runSafe = (event: Record<string, unknown>, stdout = safeStdout) =>
+    evaluate({
+      envelopes: [envelopeOf('event', event)],
+      stdout,
+      canaries: { absent: canaries.absent, stdoutOnly: canaries.stdoutOnly, unhandled: {} },
+      expected: safeExpected,
+      unhandledLineMarker: 'envtest unhandled',
+    });
+
+  it('모양이 맞고 로그 줄이 기대한 수만큼 있으면 실패가 없다', () => {
+    const result = runSafe(safeEvent());
+    expect(result.failures).toEqual([]);
+    expect(result.counts).toEqual([
+      { label: '가린 기록', expected: '1', actual: 1 },
+      { label: '가린 로그 줄', expected: '1', actual: 1 },
+    ]);
+  });
+
+  it('예외 type 이 기대와 다르면 실패한다 — 표에 없는 오류 이름이 그대로 나간 것이다', () => {
+    const event = safeEvent();
+    event.exception.values[0].type = 'EnvtestSecretName';
+    expect(runSafe(event).failures).toEqual(['가린 기록: 예외 type 이 Error 가 아니다']);
+  });
+
+  it('fingerprint 가 없거나 다르면 실패한다', () => {
+    const missing = safeEvent() as Record<string, unknown>;
+    delete missing.fingerprint;
+    const different = { ...safeEvent(), fingerprint: ['envtest.boundary.handled'] };
+    expect(runSafe(missing).failures).toEqual(['가린 기록: fingerprint 가 기대와 다르다']);
+    expect(runSafe(different).failures).toEqual(['가린 기록: fingerprint 가 기대와 다르다']);
+  });
+
+  it('contexts.log 에 계약 밖의 키가 있으면 실패하고, 값은 보고에 싣지 않는다', () => {
+    const event = safeEvent();
+    Object.assign(event.contexts.log, { email: 'someone@example.com' });
+    expect(runSafe(event).failures).toEqual([
+      '가린 기록: contexts.log 가 기대와 다르다(키: droppedFields, email, errorCode, httpStatus, userId)',
+    ]);
+  });
+
+  it('contexts.log 의 값이 다르거나 빠지면 실패한다', () => {
+    const changed = safeEvent();
+    changed.contexts.log.droppedFields = [];
+    const missing = safeEvent() as { contexts?: unknown };
+    delete missing.contexts;
+    expect(runSafe(changed).failures).toEqual([
+      '가린 기록: contexts.log 가 기대와 다르다(키: droppedFields, errorCode, httpStatus, userId)',
+    ]);
+    expect(runSafe(missing as Record<string, unknown>).failures).toEqual(['가린 기록: contexts.log 가 기대와 다르다(키: 없음)']);
+  });
+
+  it('가린 로그 줄이 없거나 더 많으면 실패한다', () => {
+    const none = runSafe(safeEvent(), 'envtest console cnryC-console');
+    const twice = runSafe(safeEvent(), `${safeStdout}\n${safeStdout}`);
+    expect(none.failures).toEqual(['서버 출력 — 가린 로그 줄: 기대 1줄, 실제 0줄']);
+    expect(twice.failures).toEqual(['서버 출력 — 가린 로그 줄: 기대 1줄, 실제 2줄']);
+  });
+
+  it('모양을 적지 않은 규칙은 예전처럼 건수만 본다', () => {
+    expect(run(clean()).failures).toEqual([]);
+  });
+});
+
+describe('evaluate — 경계가 돌려준 응답 (설계 §4.7)', () => {
+  const SAFE_500 = { status: 500, json: { error: 'Internal server error' } };
+  const safeResponse = () => ({ label: 'boundary-throw', status: 500, body: '{"error":"Internal server error"}', expect: SAFE_500 });
+  const runResponses = (responses: Array<Record<string, unknown>>) =>
+    evaluate({ envelopes: clean(), stdout: stdoutOk, canaries, expected, unhandledLineMarker: 'envtest unhandled', responses });
+
+  it('응답 코드와 본문이 정해진 값이면 실패가 없고, 요청 종류마다 건수를 센다', () => {
+    const result = runResponses([safeResponse(), safeResponse(), { ...safeResponse(), label: 'boundary-hostile' }]);
+
+    expect(result.failures).toEqual([]);
+    expect(result.counts.slice(-2)).toEqual([
+      { label: '응답(boundary-throw)', expected: '2', actual: 2 },
+      { label: '응답(boundary-hostile)', expected: '1', actual: 1 },
+    ]);
+  });
+
+  it('키 순서와 공백은 판정과 무관하다', () => {
+    const expectation = { status: 200, json: { ok: true, order: 1 } };
+    const response = { label: 'boundary-handled', status: 200, body: '{ "order": 1, "ok": true }', expect: expectation };
+    expect(runResponses([response]).failures).toEqual([]);
+  });
+
+  it('응답 코드가 다르면 실패한다', () => {
+    const result = runResponses([{ ...safeResponse(), status: 200 }]);
+
+    expect(result.failures).toEqual(['응답 — boundary-throw: 응답 코드 기대 500, 실제 200']);
+    expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-throw)', expected: '1', actual: 0 }]);
+  });
+
+  // 경계가 뚫리면 Next 가 응답한다. 코드는 같은 500 이고 본문만 다르다.
+  it.each([
+    ['Next 의 기본 500 본문', 'Internal Server Error'],
+    ['빈 본문', ''],
+    ['다른 JSON', '{"error":"Internal server error","detail":"x"}'],
+  ])('본문이 정해진 JSON 이 아니면(%s) 실패한다', (_label, body) => {
+    const result = runResponses([{ ...safeResponse(), body }]);
+
+    expect(result.failures).toEqual(['응답 — boundary-throw: 본문이 정해진 JSON 이 아니다']);
+    expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-throw)', expected: '1', actual: 0 }]);
+  });
+
+  it('본문에 canary 가 있으면 실패하고, 본문은 보고에 싣지 않는다', () => {
+    const result = runResponses([{ ...safeResponse(), body: '{"error":"envtest cnryA-cookie cnryB-marker"}' }]);
+
+    expect(result.failures).toEqual([
+      '응답 — boundary-throw: 본문이 정해진 JSON 이 아니다',
+      '누출(응답 본문) — cookie: boundary-throw',
+      '누출(응답 본문) — marker: boundary-throw',
+    ]);
+  });
+
+  describe('경계가 올려보낸 redirect() 신호', () => {
+    const REDIRECT = { status: 307, location: '/api/envelope-test/redirected', body: '' };
+    const redirected = () => ({
+      label: 'boundary-redirect',
+      url: 'http://127.0.0.1:3000/api/envelope-test/boundary-redirect?code=x',
+      status: 307,
+      location: '/api/envelope-test/redirected',
+      body: '',
+      expect: REDIRECT,
+    });
+
+    it('응답 코드·Location·빈 본문이 맞으면 실패가 없다', () => {
+      const result = runResponses([redirected(), redirected()]);
+
+      expect(result.failures).toEqual([]);
+      expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-redirect)', expected: '2', actual: 2 }]);
+    });
+
+    it('Location 이 절대 주소여도 같은 곳을 가리키면 맞다', () => {
+      const absolute = { ...redirected(), location: 'http://127.0.0.1:3000/api/envelope-test/redirected' };
+      expect(runResponses([absolute]).failures).toEqual([]);
+    });
+
+    // 경계가 신호를 오류로 다루면 307 대신 고정된 500 이 나온다.
+    it('경계가 신호를 오류로 다뤄 500 을 돌려주면 실패한다', () => {
+      const result = runResponses([{ ...redirected(), status: 500, location: null, body: '{"error":"Internal server error"}' }]);
+
+      expect(result.failures).toEqual([
+        '응답 — boundary-redirect: 응답 코드 기대 307, 실제 500',
+        '응답 — boundary-redirect: 본문이 정해진 값이 아니다',
+        '응답 — boundary-redirect: Location 이 기대와 다르다',
+      ]);
+      expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-redirect)', expected: '1', actual: 0 }]);
+    });
+
+    it('응답 코드가 다른 redirect(308)면 실패한다', () => {
+      expect(runResponses([{ ...redirected(), status: 308 }]).failures).toEqual(['응답 — boundary-redirect: 응답 코드 기대 307, 실제 308']);
+    });
+
+    it.each([
+      ['다른 경로', '/api/envelope-test/elsewhere'],
+      ['쿼리가 붙은 주소', '/api/envelope-test/redirected?next=/x'],
+      ['다른 호스트', 'https://envtest.invalid/api/envelope-test/redirected'],
+      ['빈 값', ''],
+      ['없음', null],
+    ])('Location 이 기대와 다르면(%s) 실패한다', (_label, location) => {
+      expect(runResponses([{ ...redirected(), location }]).failures).toEqual(['응답 — boundary-redirect: Location 이 기대와 다르다']);
+    });
+
+    it('본문이 비어 있지 않으면 실패한다', () => {
+      expect(runResponses([{ ...redirected(), body: 'Redirecting...' }]).failures).toEqual(['응답 — boundary-redirect: 본문이 정해진 값이 아니다']);
+    });
+
+    it('Location 에 canary 가 있으면 실패하고, 받은 값은 보고에 싣지 않는다', () => {
+      const result = runResponses([{ ...redirected(), location: '/api/envelope-test/redirected?code=cnryA-cookie' }]);
+
+      expect(result.failures).toEqual(['응답 — boundary-redirect: Location 이 기대와 다르다', '누출(응답 헤더) — cookie: boundary-redirect']);
+    });
+
+    describe('핸들러가 redirect 앞에서 쓴 쿠키', () => {
+      const withCookie = (setCookies: unknown) => ({
+        ...redirected(),
+        label: 'boundary-stateful-1',
+        setCookies,
+        expect: { ...REDIRECT, cookie: { name: 'envtest-boundary', value: 'kept' } },
+      });
+
+      it.each([
+        ['속성이 붙은 쿠키', ['envtest-boundary=kept; Path=/']],
+        ['속성이 없는 쿠키', ['envtest-boundary=kept']],
+        ['다른 쿠키와 함께', ['other=1; Path=/', 'envtest-boundary=kept; Path=/; HttpOnly']],
+      ])('Set-Cookie 에 그 이름과 값이 있으면(%s) 맞다', (_label, setCookies) => {
+        const result = runResponses([withCookie(setCookies)]);
+
+        expect(result.failures).toEqual([]);
+        expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-stateful-1)', expected: '1', actual: 1 }]);
+      });
+
+      it.each([
+        ['Set-Cookie 가 없다', []],
+        ['기록이 없다', undefined],
+        ['값이 다르다', ['envtest-boundary=dropped; Path=/']],
+        ['값의 앞부분만 같다', ['envtest-boundary=kept2; Path=/']],
+        ['이름의 뒷부분만 같다', ['x-envtest-boundary=kept; Path=/']],
+        ['다른 쿠키뿐이다', ['other=1; Path=/']],
+      ])('쿠키가 응답에 없으면(%s) 실패한다', (_label, setCookies) => {
+        const result = runResponses([withCookie(setCookies)]);
+
+        expect(result.failures).toEqual(['응답 — boundary-stateful-1: Set-Cookie 에 envtest-boundary 이 기대한 값으로 없다']);
+        expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-stateful-1)', expected: '1', actual: 0 }]);
+      });
+
+      it('Set-Cookie 에 canary 가 있으면 실패하고, 받은 값은 보고에 싣지 않는다', () => {
+        const result = runResponses([withCookie(['envtest-boundary=kept; Path=/', 'session=cnryA-cookie; Path=/'])]);
+
+        expect(result.failures).toEqual(['누출(응답 헤더) — cookie: boundary-stateful-1']);
+      });
+    });
+
+    it('그 요청의 오류 이벤트는 처리했든 아니든 하나도 없어야 한다', () => {
+      const transaction = 'GET /api/envelope-test/boundary-redirect';
+      const withRule = { ...expected, errorFree: [{ label: '올려보낸 redirect 신호', transaction }] };
+      const judge = (envelopes: Envelope[]) =>
+        evaluate({ envelopes, stdout: stdoutOk, canaries, expected: withRule, unhandledLineMarker: 'envtest unhandled' });
+
+      const none = judge(clean());
+      expect(none.failures).toEqual([]);
+      expect(none.counts).toContainEqual({ label: '올려보낸 redirect 신호', expected: '0', actual: 0 });
+
+      // 경계가 신호를 오류로 잡으면 가린 기록의 이벤트가 이 요청의 transaction 이름으로 온다.
+      const safeEvent = {
+        transaction,
+        exception: { values: [{ type: 'Error', value: 'envtest.boundary.unhandled', mechanism: { type: 'generic', handled: true } }] },
+      };
+      const recorded = judge([...clean(), envelopeOf('event', safeEvent), envelopeOf('event', { ...safeEvent })]);
+      expect(recorded.failures).toEqual(['수신 건수 — 올려보낸 redirect 신호: 오류 이벤트 기대 0건, 실제 2건']);
+      expect(recorded.counts).toContainEqual({ label: '올려보낸 redirect 신호', expected: '0', actual: 2 });
+    });
+  });
+
+  it('기대를 적지 않은 응답은 보지 않는다 — 페이지의 HTML 은 요청 주소를 담는다', () => {
+    const result = runResponses([{ label: 'page', status: 200, body: '<html>/ko/vote?code=cnryA-cookie</html>' }]);
+
+    expect(result.failures).toEqual([]);
+    expect(result.counts.map((count) => count.label)).not.toContain('응답(page)');
+  });
+});

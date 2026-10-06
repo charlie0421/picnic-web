@@ -33,39 +33,42 @@ vi.mock('next/headers', () => ({
   headers: () => new Map(),
 }))
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-})
+// 아래는 DOM 환경(jsdom)에서만 필요하다. `// @vitest-environment node` 로 도는 서버 코드 테스트에는 window 가 없다.
+if (typeof window !== 'undefined') {
+  // Mock window.matchMedia
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  })
 
-// Mock IntersectionObserver
-class MockIntersectionObserver {
-  observe = vi.fn()
-  unobserve = vi.fn()
-  disconnect = vi.fn()
-}
-Object.defineProperty(window, 'IntersectionObserver', {
-  writable: true,
-  value: MockIntersectionObserver,
-})
+  // Mock IntersectionObserver
+  class MockIntersectionObserver {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  }
+  Object.defineProperty(window, 'IntersectionObserver', {
+    writable: true,
+    value: MockIntersectionObserver,
+  })
 
-// Mock ResizeObserver
-class MockResizeObserver {
-  observe = vi.fn()
-  unobserve = vi.fn()
-  disconnect = vi.fn()
+  // Mock ResizeObserver
+  class MockResizeObserver {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  }
+  Object.defineProperty(window, 'ResizeObserver', {
+    writable: true,
+    value: MockResizeObserver,
+  })
 }
-Object.defineProperty(window, 'ResizeObserver', {
-  writable: true,
-  value: MockResizeObserver,
-})

@@ -9,6 +9,9 @@
  *   2. 무누출 — 묶음 A 는 envelope 과 표준 출력 어디에도 없다. 묶음 C 는 표준 출력에만 있다.
  *   3. 허용 노출 — 묶음 B 의 marker 는 exception.values[].value 와 Next 의 미처리 오류 줄에만 있다.
  *   4. tripwire 표식은 기대한 이벤트에만 있다. 다른 곳에 있으면 토큰 모양 값이 새다가 가려진 것이다.
+ *   5. 가린 기록(logSafeError)의 이벤트는 정해진 모양이고, 가린 로그 줄이 서버 출력에 기대한 수만큼 있다(설계 §4.2, §4.3).
+ *   6. 경계(withSafeErrors)를 거친 응답은 정해진 코드와 본문(redirect 는 Location)이고, 거기에 canary 가 없다(설계 §4.7).
+ *      경계가 올려보낸 신호의 요청에는 오류 이벤트가 없다.
  */
 
 const TRIPWIRE_KEY = 'redaction.tripwire';
@@ -113,6 +116,85 @@ const hasFrameVars = (event) =>
     ((value.stacktrace && value.stacktrace.frames) || []).some((frame) => frame && frame.vars !== undefined),
   );
 
+/** 키 순서와 무관하게 비교하려고 객체의 키를 정렬한다. */
+const canonical = (value) => {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  }
+  return value;
+};
+
+const sameJson = (left, right) => JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
+
+/**
+ * 가린 기록의 이벤트가 정해진 모양인가 (설계 §4.2). rule 에 적은 항목만 본다.
+ *   type        — 예외의 type(오류 이름). 표에 없는 이름은 'Error' 여야 한다.
+ *   fingerprint — 사건 코드로 이슈를 가른다.
+ *   logContext  — contexts.log 에서 timestamp 를 뺀 나머지 전부. 계약을 통과한 필드만 있어야 한다.
+ */
+function shapeProblems(event, rule) {
+  const problems = [];
+  if (rule.type !== undefined && exceptionValues(event).some((value) => value.type !== rule.type)) {
+    problems.push(`예외 type 이 ${rule.type} 가 아니다`);
+  }
+  if (rule.fingerprint !== undefined && !sameJson(event.fingerprint, rule.fingerprint)) {
+    problems.push('fingerprint 가 기대와 다르다');
+  }
+  if (rule.logContext !== undefined) {
+    const actual = { ...((event.contexts && event.contexts.log) || {}) };
+    delete actual.timestamp;
+    if (!sameJson(actual, rule.logContext)) {
+      problems.push(`contexts.log 가 기대와 다르다(키: ${Object.keys(actual).sort().join(', ') || '없음'})`);
+    }
+  }
+  return problems;
+}
+
+/** Location 헤더는 상대 주소일 수도 절대 주소일 수도 있다. 요청 주소를 기준으로 풀어서 비교한다. */
+function sameLocation(response, expected) {
+  if (typeof response.location !== 'string') return false;
+  try {
+    return new URL(response.location, response.url).href === new URL(expected, response.url).href;
+  } catch {
+    return false;
+  }
+}
+
+/** Set-Cookie 헤더 가운데 이 이름과 값을 쓰는 것이 있는가. 속성(Path 등)은 보지 않는다. */
+function setsCookie(response, cookie) {
+  const pair = `${cookie.name}=${cookie.value}`;
+  return (response.setCookies || []).some((line) => line === pair || line.startsWith(`${pair};`));
+}
+
+/**
+ * 응답이 요청에 적은 기대와 같은가. 경계가 뚫려 Next 가 응답해도 코드는 같은 500 이라 본문까지 본다.
+ *   status   — 응답 코드.
+ *   json     — 본문을 JSON 으로 읽은 값 전부.
+ *   body     — 본문 그대로. redirect 처럼 본문이 없어야 하는 응답에 쓴다.
+ *   location — Location 헤더가 가리키는 주소.
+ *   cookie   — 응답이 써야 하는 쿠키({ name, value }). 핸들러가 redirect 앞에서 쓴 쿠키가 응답까지 가는지 본다.
+ */
+function responseProblems(response) {
+  const problems = [];
+  const { status, json, body, location, cookie } = response.expect;
+  if (response.status !== status) problems.push(`응답 코드 기대 ${status}, 실제 ${response.status}`);
+  if (body !== undefined && response.body !== body) problems.push('본문이 정해진 값이 아니다');
+  if (location !== undefined && !sameLocation(response, location)) problems.push('Location 이 기대와 다르다');
+  if (cookie !== undefined && !setsCookie(response, cookie)) problems.push(`Set-Cookie 에 ${cookie.name} 이 기대한 값으로 없다`);
+  if (json !== undefined) {
+    let actual;
+    let parsed = true;
+    try {
+      actual = JSON.parse(response.body);
+    } catch {
+      parsed = false;
+    }
+    if (!parsed || !sameJson(actual, json)) problems.push('본문이 정해진 JSON 이 아니다');
+  }
+  return problems;
+}
+
 function matchesError(event, rule) {
   if (exceptionValues(event).length === 0) return false;
   if (isHandled(event) !== rule.handled) return false;
@@ -150,7 +232,7 @@ function countsSatisfied(envelopes, expected) {
   );
 }
 
-function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }) {
+function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker, responses }) {
   const failures = [];
   const counts = [];
   const errors = payloadsOf(envelopes, 'event');
@@ -171,7 +253,14 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
         }
       }
       if (hasFrameVars(event)) failures.push(`${rule.label}: stack frame 에 vars 가 실렸다`);
+      for (const problem of shapeProblems(event, rule)) failures.push(`${rule.label}: ${problem}`);
     }
+  }
+  // 오류 이벤트가 없어야 하는 요청. 처리했든 아니든 그 요청의 이벤트는 하나도 오면 안 된다.
+  for (const rule of expected.errorFree || []) {
+    const actual = errors.filter((event) => event.transaction === rule.transaction).length;
+    counts.push({ label: rule.label, expected: '0', actual });
+    if (actual !== 0) failures.push(`수신 건수 — ${rule.label}: 오류 이벤트 기대 0건, 실제 ${actual}건`);
   }
   for (const rule of expected.transactions) {
     const matched = transactionsNamed(envelopes, rule.name);
@@ -208,6 +297,13 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
 
   const records = flatten(envelopes);
   const stdoutLines = stdout.split('\n');
+
+  // 서버 출력에 있어야 하는 줄. 가린 로그 한 줄이 실제로 남았는지 센다.
+  for (const rule of expected.stdout || []) {
+    const actual = stdoutLines.filter((line) => line.includes(rule.includes)).length;
+    counts.push({ label: rule.label, expected: `${rule.count}`, actual });
+    if (actual !== rule.count) failures.push(`서버 출력 — ${rule.label}: 기대 ${rule.count}줄, 실제 ${actual}줄`);
+  }
   const reportLeak = (name, hits) => {
     for (const where of summarize(hits)) failures.push(`누출(envelope) — ${name}: ${where}`);
   };
@@ -241,6 +337,25 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
     (record) => record.value.includes(TRIPWIRE_KEY) && !tripwireAllowed.has(record.payload),
   );
   for (const where of summarize(strayTripwire)) failures.push(`예상하지 않은 tripwire — ${TRIPWIRE_KEY}: ${where}`);
+
+  // 6. 응답 — 기대를 적은 요청은 응답 코드·본문·Location·쿠키가 정해진 값이고, 거기에 canary 가 없다. 받은 값은 보고에 싣지 않는다.
+  const checked = (responses || []).filter((response) => response.expect);
+  const allCanaries = Object.values(canaries).flatMap((group) => Object.entries(group));
+  for (const label of [...new Set(checked.map((response) => response.label))]) {
+    const group = checked.filter((response) => response.label === label);
+    let matched = 0;
+    for (const response of group) {
+      const problems = responseProblems(response);
+      if (problems.length === 0) matched += 1;
+      for (const problem of problems) failures.push(`응답 — ${label}: ${problem}`);
+      for (const [name, value] of allCanaries) {
+        if (response.body.includes(value)) failures.push(`누출(응답 본문) — ${name}: ${label}`);
+        const headers = [response.location, ...(response.setCookies || [])].filter((header) => typeof header === 'string');
+        if (headers.some((header) => header.includes(value))) failures.push(`누출(응답 헤더) — ${name}: ${label}`);
+      }
+    }
+    counts.push({ label: `응답(${label})`, expected: `${group.length}`, actual: matched });
+  }
 
   return { failures: [...new Set(failures)], counts };
 }
