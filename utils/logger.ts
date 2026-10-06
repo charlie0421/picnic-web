@@ -68,7 +68,8 @@ export class Logger {
       userAgent?: string;
       ip?: string;
       headers?: Record<string, string>;
-    }
+    },
+    fingerprint?: string[]
   ): Promise<void> {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
@@ -101,6 +102,10 @@ export class Logger {
     // 요청 정보 추가
     if (request) {
       entry.request = request;
+    }
+
+    if (fingerprint) {
+      entry.fingerprint = fingerprint;
     }
 
     // 모든 타겟에 로그 작성
@@ -149,6 +154,16 @@ export class Logger {
     }
   ): Promise<void> {
     await this.writeLog(LogLevel.ERROR, message, context, error, user, request);
+  }
+
+  /**
+   * 가린 기록 전용. utils/log-safe-error.ts 만 부른다 — 사건 코드, 호출 지점에서 만든 Error, 계약을 통과한 필드.
+   *
+   * 사건 코드를 Sentry 의 fingerprint 에 더한다. 경계 함수(withSafeErrors)가 잡은 예외는 호출 지점이 모두 같다.
+   * Sentry 는 stack 이 있으면 stack 으로 이슈를 묶으므로, 그대로 두면 서로 다른 라우트의 오류가 한 이슈로 묶일 수 있다.
+   */
+  async safeError(code: string, error: Error, context: Record<string, unknown>): Promise<void> {
+    await this.writeLog(LogLevel.ERROR, code, context, error, undefined, undefined, ['{{ default }}', code]);
   }
 
   /**

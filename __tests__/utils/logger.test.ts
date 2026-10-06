@@ -183,6 +183,33 @@ describe('Logger', () => {
     });
   });
 
+  describe('safeError', () => {
+    it('writes an ERROR entry whose message and fingerprint carry the event code', async () => {
+      const error = new TypeError('payment.x.failed');
+      await loggerInstance.safeError('payment.x.failed', error, { httpStatus: 502 });
+
+      expect(mockTarget.write).toHaveBeenCalledTimes(1);
+      const entry = (mockTarget.write as ReturnType<typeof vi.fn>).mock.calls[0][0] as LogEntry;
+      expect(entry).toMatchObject({
+        level: LogLevel.ERROR,
+        message: 'payment.x.failed',
+        context: { httpStatus: 502 },
+        error: { name: 'TypeError', message: 'payment.x.failed', stack: error.stack },
+        fingerprint: ['{{ default }}', 'payment.x.failed'],
+      });
+      // 가린 기록에는 사용자와 요청 정보가 없다.
+      expect(entry.user).toBeUndefined();
+      expect(entry.request).toBeUndefined();
+    });
+
+    it('does not add a fingerprint to entries written by the other methods', async () => {
+      await loggerInstance.error('boom', new Error('boom'));
+
+      const entry = (mockTarget.write as ReturnType<typeof vi.fn>).mock.calls[0][0] as LogEntry;
+      expect(entry.fingerprint).toBeUndefined();
+    });
+  });
+
   describe('fatal', () => {
     it('writes fatal log entry', async () => {
       await loggerInstance.fatal('fatal error');

@@ -74,6 +74,15 @@ describe('SentryLogTarget', () => {
     expect((options as any).user).toMatchObject({ id: 'u1' });
   });
 
+  it('forwards the fingerprint when the entry has one, and adds no key otherwise', async () => {
+    const target = new SentryLogTarget();
+    await target.write(entry(LogLevel.ERROR, { fingerprint: ['{{ default }}', 'payment.x.failed'] }));
+    await target.write(entry(LogLevel.ERROR));
+
+    expect((captureException.mock.calls[0][1] as any).fingerprint).toEqual(['{{ default }}', 'payment.x.failed']);
+    expect(captureException.mock.calls[1][1]).not.toHaveProperty('fingerprint');
+  });
+
   it('never throws when Sentry itself fails', async () => {
     captureException.mockImplementationOnce(() => { throw new Error('sentry down'); });
 

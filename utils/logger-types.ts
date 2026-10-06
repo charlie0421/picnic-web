@@ -45,6 +45,8 @@ export interface LogEntry {
   environment: string;
   service: string;
   version?: string;
+  /** Sentry 이슈를 가르는 기준. 가린 기록(Logger.safeError)만 쓴다. Console target 은 찍지 않는다. */
+  fingerprint?: string[];
 }
 
 /**
