@@ -161,19 +161,27 @@ function sameLocation(response, expected) {
   }
 }
 
+/** Set-Cookie 헤더 가운데 이 이름과 값을 쓰는 것이 있는가. 속성(Path 등)은 보지 않는다. */
+function setsCookie(response, cookie) {
+  const pair = `${cookie.name}=${cookie.value}`;
+  return (response.setCookies || []).some((line) => line === pair || line.startsWith(`${pair};`));
+}
+
 /**
  * 응답이 요청에 적은 기대와 같은가. 경계가 뚫려 Next 가 응답해도 코드는 같은 500 이라 본문까지 본다.
  *   status   — 응답 코드.
  *   json     — 본문을 JSON 으로 읽은 값 전부.
  *   body     — 본문 그대로. redirect 처럼 본문이 없어야 하는 응답에 쓴다.
  *   location — Location 헤더가 가리키는 주소.
+ *   cookie   — 응답이 써야 하는 쿠키({ name, value }). 핸들러가 redirect 앞에서 쓴 쿠키가 응답까지 가는지 본다.
  */
 function responseProblems(response) {
   const problems = [];
-  const { status, json, body, location } = response.expect;
+  const { status, json, body, location, cookie } = response.expect;
   if (response.status !== status) problems.push(`응답 코드 기대 ${status}, 실제 ${response.status}`);
   if (body !== undefined && response.body !== body) problems.push('본문이 정해진 값이 아니다');
   if (location !== undefined && !sameLocation(response, location)) problems.push('Location 이 기대와 다르다');
+  if (cookie !== undefined && !setsCookie(response, cookie)) problems.push(`Set-Cookie 에 ${cookie.name} 이 기대한 값으로 없다`);
   if (json !== undefined) {
     let actual;
     let parsed = true;
@@ -330,7 +338,7 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker, 
   );
   for (const where of summarize(strayTripwire)) failures.push(`예상하지 않은 tripwire — ${TRIPWIRE_KEY}: ${where}`);
 
-  // 6. 응답 — 기대를 적은 요청은 응답 코드·본문·Location 이 정해진 값이고, 거기에 canary 가 없다. 받은 값은 보고에 싣지 않는다.
+  // 6. 응답 — 기대를 적은 요청은 응답 코드·본문·Location·쿠키가 정해진 값이고, 거기에 canary 가 없다. 받은 값은 보고에 싣지 않는다.
   const checked = (responses || []).filter((response) => response.expect);
   const allCanaries = Object.values(canaries).flatMap((group) => Object.entries(group));
   for (const label of [...new Set(checked.map((response) => response.label))]) {
@@ -342,9 +350,8 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker, 
       for (const problem of problems) failures.push(`응답 — ${label}: ${problem}`);
       for (const [name, value] of allCanaries) {
         if (response.body.includes(value)) failures.push(`누출(응답 본문) — ${name}: ${label}`);
-        if (typeof response.location === 'string' && response.location.includes(value)) {
-          failures.push(`누출(응답 헤더) — ${name}: ${label}`);
-        }
+        const headers = [response.location, ...(response.setCookies || [])].filter((header) => typeof header === 'string');
+        if (headers.some((header) => header.includes(value))) failures.push(`누출(응답 헤더) — ${name}: ${label}`);
       }
     }
     counts.push({ label: `응답(${label})`, expected: `${group.length}`, actual: matched });

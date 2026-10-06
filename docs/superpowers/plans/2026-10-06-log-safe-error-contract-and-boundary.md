@@ -14,7 +14,7 @@
 
 ## 실행 결과 (2026-10-06)
 
-구현과 아래 검증을 실행했다. 다만 최신 교차 리뷰는 **REQUEST_CHANGES(blocker 1건)** 이며, 상태가 바뀌는 판정 속성의 누출 반례가 남았다. 기존 녹색 테스트는 이 반례를 포함하지 않는다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
+**안전한 새 신호 정규화 구현과 수정 후 검증을 완료했으며 독립 재검토를 기다린다.** 이전 교차 리뷰의 상태 변화 blocker 는 원본 재투척을 없애는 방식으로 수정했다. 새 반례의 단위·실서버 RED/GREEN 결과는 아래에 있다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
 
 | 무엇 | 계획 | 실제 | 이유 |
 |---|---|---|---|
@@ -23,7 +23,7 @@
 | `Logger.safeError` 의 주석 (Task 2) | "한 이슈로 합쳐진다" | "한 이슈로 묶일 수 있다" | Sentry 의 문서에 따른 예상이고 Sentry 에서 잰 것이 아니다. envelope 테스트로 확인한 것은 경계가 잡은 예외의 프레임이 공용 청크의 것뿐이라는 데까지다 |
 | `utils/log-error.ts` 의 주석 (Task 9) | "결제·인증 경로는 logSafeError 를 쓴다" | "값을 가려 남겨야 하는 경로(결제·인증)에는 logSafeError 를 쓴다" | 호출부는 아직 옮기지 않았다(PR 3·4) |
 
-결과: 테스트는 3,170건 → 3,476건(파일 198 → 204), `it.fails` 6건과 skipped 1건은 그대로다. `npm run test:envelope` 는 누출 시나리오 30건과 전달 시나리오 11건이 통과한다. 경계 없이 `logError` 에 값을 넘긴 모습에서는 누출 시나리오가 20건으로 실패했고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 7건, CI 의 전달 테스트가 2건으로 실패한다.
+결과: 테스트는 3,170건 → 3,521건(파일 198 → 204), `it.fails` 6건과 skipped 1건은 그대로다. `npm run test:envelope` 는 누출 시나리오 36건과 전달 시나리오 11건이 통과한다. 경계 없이 `logError` 에 값을 넘긴 모습에서는 누출 시나리오가 20건으로 실패했고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 7건, CI 의 전달 테스트가 2건으로 실패한다.
 
 ### 교차 리뷰 1차와 수정 (2026-10-06)
 
@@ -96,7 +96,7 @@ try {
 - 타입 검사·lint 통과. KST·UTC 각각 전체 테스트 **204파일, 3,476건 통과 · 6 expected fail · 1 skipped**.
 - `boundary-redirect` 실제 라우트와 상태·Location·빈 본문·오류 이벤트 부재·헤더 canary 판정을 추가했다. 잘못된 응답 코드·이동 주소·본문·오류 이벤트를 탐지하는 회귀 테스트도 둔다. 새 빌드 실서버 GREEN 은 종료 코드 0: 누출 요청 **30건**, 전달 요청 **11건** 통과. redirect 3건 모두 **307·정확한 Location·빈 본문**, 오류 이벤트 0건이었다. 기존 경계 네 종류의 고정 응답도 각 3/3 이고 canary 누출은 없다. 원 리뷰어는 단락 평가 회귀를 해소로 판정했지만, 아래의 상태 변화 blocker 를 새로 확인했다.
 
-### 최신 재검토 — 상태가 바뀌는 판정 속성의 blocker (2026-10-06)
+### 원본 재투척 재검토 — 상태가 바뀌는 판정 속성의 blocker (2026-10-06)
 
 코드 `67ae0212` 를 push 했고 해당 GitHub CI 는 통과했다. 원 리뷰어 Codex `gpt-6-sol`/high 는 이전 단락 평가 major 와 자기 재투척 방어의 유지를 확인했다. 그러나 **REQUEST_CHANGES(blocker 1건)** 다: 일반 오류의 `digest` getter 가 첫 읽기에만 유효한 redirect 문자열을 반환하면, 경계의 캐시가 이를 신호로 판정해 원본을 던지고 Sentry 는 뒤의 다른 값으로 일반 오류로 판정한다. `utils/with-safe-errors.ts` 의 값 캐시와 원본 재투척이 연결되는 문제다.
 
@@ -129,9 +129,24 @@ console.log({ nextSignal, sdkWouldCapture }); // { nextSignal: true, sdkWouldCap
 
 원 리뷰어와 캐시 제거의 충분성을 한 차례 교환했다. 리뷰어도 **캐시 제거만으로 부족**하다고 확인했다. 유한 횟수 재검사는 그다음 읽기에서 값이 바뀌는 경우를 막지 못한다. 생성 시점부터 신뢰할 수 있는 신호만 원본으로 전달하거나, 필요한 값만 검증해 새 신호/응답을 만드는 계약이 필요하다. 후자는 원본 객체 동일성 보장을 바꾼다. 현재의 중복 읽기를 생략하는 테스트 기록기도 이 반례를 잡지 못했다.
 
-승인된 `main` 설계(`39ddc313`, §4.7)의 원칙은 원본 오류 비노출이다. 원본 객체 동일성은 PR 2 구현 중 추가한 조건이고 운영 호출부는 아직 이관하지 않았다. **권고하는 후속 방향은 정상 Next 동작을 보존하되 원본 객체를 내보내지 않는 안전한 신호 정규화**다. redirect 의 URL·종류·상태와 쿠키 응답, HTTP fallback, 동적 렌더링·postpone·hanging 신호에 필요한 정보만 확인·검증하고, 원본 message·stack·cause·임의 메타데이터는 전달하지 않는다. 판단할 수 없는 입력은 기존 가린 로그와 고정 500 으로 처리한다. 새 계약은 아직 승인·구현·검증하지 않았으며 짧은 설계 확인 뒤 진행한다.
+승인된 `main` 설계(`39ddc313`, §4.7)의 원칙은 원본 오류 비노출이다. 원본 객체 동일성은 PR 2 구현 중 추가한 조건이고 운영 호출부는 아직 이관하지 않았다. **권고하는 후속 방향은 정상 Next 동작을 보존하되 원본 객체를 내보내지 않는 안전한 신호 정규화**다. redirect 의 URL·종류·상태와 쿠키 응답, HTTP fallback, 동적 렌더링·postpone·hanging 신호에 필요한 정보만 확인·검증하고, 원본 message·stack·cause·임의 메타데이터는 전달하지 않는다. 판단할 수 없는 입력은 기존 가린 로그와 고정 500 으로 처리한다. 사용자가 2026-10-06 "진행"으로 이 방향을 승인했다. 원본 동일성 보장을 버리고 정상 동작·비노출을 보존하는 새 계약으로 구현·검증한다. 구현 Task `task_ddd9204caf38` / Dispatch `ctx_0f2b685c7117` 이며, 검증과 독립 리뷰는 아직 진행 전이다.
 
 추적: 원 리뷰 Task `task_27f8cb0378bf` / Dispatch `ctx_f8241db38f12`; 기술 반례 교환 Task `task_114de1ff6ac2` / Dispatch `ctx_c36b7c5c144c`, Run `run_176dd32d29c0`. 두 읽기 전용 리뷰의 `worker_done` 은 Orca 연결의 `runtime_access_denied (EPERM)` 으로 차단됐다. 최종 판정·턴 종료를 확인한 뒤 `worker-abandon` 정산을 수락받았다. 원본 구현 Task 의 정상 `worker_done` 과 리뷰의 정산을 구분한다. 권한 확대·quota 재시도·providerHold 는 없다. 기술 반례 교환 리뷰어는 메모리 실행과 소스만 검토했고, 위 실서버 추가 재현은 조정자가 수행했다. PR 은 미머지이며 운영 배포도 하지 않았다.
+
+### 안전한 신호 정규화 — 구현과 검증 (2026-10-06)
+
+사용자가 필요한 값만 검증한 새 Next 제어 신호를 만드는 방향을 승인했다. 원본 객체 동일성은 보장하지 않는다. 원본 message·stack·cause·getter·Proxy·임의 메타데이터는 경계 밖으로 전달하지 않는다. 정상 Next 신호는 필요한 원시값만으로 다시 만들며, 안전하게 만들 수 없으면 가린 로그와 고정 JSON 500 으로 끝낸다. 구현은 기존 Claude Opus 5.5/high, 독립 리뷰는 기존 Codex gpt-6-sol/high 가 맡는다.
+
+- 단위 RED: 구현 파일 `utils/with-safe-errors.ts` 를 `e971e032` 그대로 두고 회귀 테스트를 실행했다. 경계 127건 중 **86건 실패 / 41건 통과**, 판정기·라우트 **72/72 통과**, 합계 199건이다. 실패는 원본 객체 재투척 및 유효하지 않은 Location 이 경계를 벗어나는 반례다. 신호 10종·상태 변화 N1/N2·Proxy·민감 메타데이터·중첩 사슬·상태 코드 정규화·잘못된 주소를 포함한다.
+- 새 빌드 실서버 RED: `boundary-stateful?reads=1|2` 를 추가했다. Next 의 `cookies().set()` 뒤 실제 `redirect()` 신호의 digest 가 첫 1회 또는 2회만 유효하도록 만들고 원본에 canary 를 넣었다. 누출 요청 36건 중 새 6건이 모두 **500·빈 본문**, 기대한 Location·Set-Cookie 가 없었다. 오류 이벤트 6건, envelope 예외 값 12곳과 서버 출력에 canary 가 있어 **9종 실패**했다. 기존 경계 응답과 전달 11건은 통과했다. 이 기록은 수정 전 실패이며 해결 근거가 아니다.
+
+- 추가 RED: 실제 React postpone 에 Next 동적 메시지를 붙인 두 표식과 읽을 수 없는 `$$typeof` 등을 4건 더 시험했다. 4/4 가 원본 재투척으로 실패했고 나머지 127건은 이 실행에서 선택하지 않았다.
+- 구현: 원본을 대신 읽는 probe 는 경계 안에서만 쓴다. 판정 중 읽은 값으로 새 Error 를 만들고, message·stack 은 정해진 문장과 한 줄로 제한한다. redirect URL 은 헤더에 쓸 수 있는지 검사하며 digest 의 종류·상태 코드를 정규 형태로 다시 적는다. 접근 fallback 의 뒤에 붙은 값도 버린다. 동적 postpone 은 고정 메시지와 React postpone Symbol 두 표식을 새로 넣는다. 만든 값이 실제 `unstable_rethrow` 를 통과할 때만 올려보내고, 그렇지 않으면 가린 로그·고정 500 이다. 원본 객체와 임의 속성은 전달하지 않는다.
+- 단위 GREEN: **203/203**(경계 131, 판정기·라우트 72). 기존 자기 재투척·순환·깊이 제한·단락 평가와 새 정규화 반례를 함께 통과했다. 타입 검사와 lint 도 종료 코드 0이다.
+- 전체 GREEN: KST·UTC 각각 **204파일, 3,521건 통과 · 6 expected fail · 1 skipped**(총 3,528), 종료 코드 0.
+- 새 빌드 실서버 GREEN: `npm run test:envelope` 종료 코드 0. 누출 요청 **36건**, 전달 요청 **11건** 모두 통과했다. 상태 변화 N1/N2 각 3건이 **307·정확한 Location·빈 본문·Set-Cookie** 를 유지하고, 그 transaction 의 오류 이벤트는 0건이다. stdout·envelope·응답 본문 및 헤더에 원본 canary 가 없다. 기존 경계 응답도 모두 유지했다.
+
+실서버에서 확인한 신호는 redirect 와 상태 변화 redirect 다. 그 밖의 Next·React 신호, 원본 부가 속성 제거, invalid Location 의 고정 500 은 단위 테스트로 검증했다. 실제 Vercel 의 after 완료 및 호출부 이관은 기존 후속 범위다. 독립 재검토는 아직 대기 중이며 머지·배포하지 않았다. Run `run_176dd32d29c0`, 구현 Task `task_ddd9204caf38` / Dispatch `ctx_0f2b685c7117` 의 `worker_done`(`msg_500af6a040ca`, succeeded)은 수락됐다. 작업자는 테스트를 실행하지 않았으며 위 수치는 조정자가 직접 실행해 확인했다.
 
 ## 계획을 쓰기 전에 확인한 것 (2026-10-06)
 
@@ -154,7 +169,7 @@ console.log({ nextSignal, sdkWouldCapture }); // { nextSignal: true, sdkWouldCap
 | 1 | `SentryLogTarget` 의 import | 정적 import 로 바꾸고 `captureException` 을 동기 구간에서 부른다(§4.3 의 2) | **바꾸지 않는다.** §4.3 의 2 를 측정값으로 다시 쓴다 | 틈이 없다(위). 바꾸면 `utils/logger-targets.ts` 가 들어가는 브라우저 번들까지 건드린다 |
 | 2 | Sentry 이슈 묶음 | 언급 없음 | 가린 기록의 이벤트에 `fingerprint: ['{{ default }}', 사건 코드]` 를 싣는다 | 경계 함수가 잡은 예외는 호출 지점(stack)이 모두 같다. Sentry 는 stack 이 있으면 stack 으로 이슈를 묶으므로, 그대로 두면 서로 다른 라우트의 오류가 한 이슈로 묶일 수 있다(Sentry 에서 재지는 않았다) |
 | 3 | 전달 테스트의 자리(§5.2) | 실제 SDK 에 지연 transport 를 붙여 호출한다 | 두 곳에 둔다. **실제 서버**: `npm run test:envelope` 에 전달 시나리오를 더한다(사례 1·2·3, 실제 `after`, 빌드가 끼워 넣은 SDK 래퍼). **CI**: 실제 SDK 와 손으로 푸는 transport 로 사례 1 과 "핸들러 뒤의 기록은 기다리지 않는다"를 고정한다 | `after()` 는 Next 의 요청 범위 안에서만 돈다. vitest 에서는 대역을 쓸 수밖에 없다 |
-| 4 | 경계 함수의 세부(§4.7) | 모든 오류를 잡아 500 | `redirect()`·`notFound()`·동적 렌더링 신호는 `unstable_rethrow` 로 그대로 올려보낸다. 본문은 `{ "error": "Internal server error" }`. SDK 가 초기화되지 않았으면 flush 하지 않는다. 경계가 겹치면 바깥이 한 번만 건다. `after` 등록이 실패해도 응답은 돌려준다 | 처음 둘은 빠뜨리면 실제 결함이 된다(리다이렉트가 500 이 된다, DSN 없는 환경마다 제한 초과 줄이 찍힌다) |
+| 4 | 경계 함수의 세부(§4.7) | 모든 오류를 잡아 500 | `redirect()`·`notFound()`·동적 렌더링 신호는 필요한 값만 검증해 새 신호로 올려보낸다(2026-10-06 승인). 본문은 `{ "error": "Internal server error" }`. SDK 가 초기화되지 않았으면 flush 하지 않는다. 경계가 겹치면 바깥이 한 번만 건다. `after` 등록이 실패해도 응답은 돌려준다 | 처음 둘은 빠뜨리면 실제 결함이 된다(리다이렉트가 500 이 된다, DSN 없는 환경마다 제한 초과 줄이 찍힌다) |
 | 5 | 닫힌 목록의 초기값(§4.2) | 전수 조사와 sandbox 응답으로 만든다 | 조사가 필요 없는 것만 넣는다. 오류 이름: ECMAScript, fetch 의 `AbortError`·`TimeoutError`, 설치된 `@supabase/auth-js`·`postgrest-js` 의 이름, 이 저장소가 정의한 오류. 오류 코드: RFC 6749 의 OAuth 코드, 이 저장소의 코드가 이미 비교하는 SQLSTATE·PostgREST 코드. 사건 코드: 계약 함수의 대체 코드 하나와 테스트 라우트용 다섯 | 전수 조사는 호출부를 옮기는 PR 3·4 의 첫 단계다. PayPal·PortOne·Kakao 의 코드는 그때 더한다 |
 | 6 | `droppedFields` | 버린 필드의 이름 | 정해진 필드 이름과 `code`·`fields`·`other` 만 | 호출부가 넘긴 키 이름도 밖에서 온 문자열일 수 있다(외부 응답을 펼쳐 넘기는 경우) |
 | 7 | 테스트 환경 | 언급 없음 | `vitest.setup.ts` 의 `window` 사용부를 `typeof window !== 'undefined'` 로 감싼다. 서버 전용 코드의 테스트는 `// @vitest-environment node` 로 돈다 | 경계 함수는 서버용 `unstable_rethrow` 로 시험해야 한다. jsdom 테스트의 동작은 그대로다(전체 3,170건 통과 확인) |
@@ -1509,16 +1524,26 @@ vi.mock('@sentry/nextjs', () => ({ flush: mocks.flush, getClient: mocks.getClien
 vi.unmock('next/navigation');
 
 import { createRequire } from 'module';
+import { inspect } from 'node:util';
 
 import { DynamicServerError, isDynamicServerError } from 'next/dist/client/components/hooks-server-context';
-import { isHTTPAccessFallbackError } from 'next/dist/client/components/http-access-fallback/http-access-fallback';
-import { isRedirectError } from 'next/dist/client/components/redirect-error';
+import {
+  getAccessFallbackHTTPStatus,
+  isHTTPAccessFallbackError,
+} from 'next/dist/client/components/http-access-fallback/http-access-fallback';
+import {
+  getRedirectError,
+  getRedirectStatusCodeFromError,
+  getRedirectTypeFromError,
+  getURLFromRedirectError,
+} from 'next/dist/client/components/redirect';
+import { isRedirectError, type RedirectError } from 'next/dist/client/components/redirect-error';
 import { unstable_rethrow as nextRethrow } from 'next/dist/client/components/unstable-rethrow.server';
 import { isDynamicPostpone } from 'next/dist/server/app-render/dynamic-rendering';
 import { isHangingPromiseRejectionError } from 'next/dist/server/dynamic-rendering-utils';
 import { isPostpone } from 'next/dist/server/lib/router-utils/is-postpone';
 import { BailoutToCSRError, isBailoutToCSRError } from 'next/dist/shared/lib/lazy-dynamic/bailout-to-csr';
-import { forbidden, notFound, permanentRedirect, redirect, unauthorized, unstable_rethrow } from 'next/navigation';
+import { forbidden, notFound, permanentRedirect, redirect, RedirectType, unauthorized, unstable_rethrow } from 'next/navigation';
 
 import { logSafeError } from '@/utils/log-safe-error';
 import { FLUSH_FAILED_LINE, FLUSH_TIMEOUT_LINE, FLUSH_TIMEOUT_MS, withSafeErrors } from '@/utils/with-safe-errors';
@@ -1599,6 +1624,15 @@ const NEXT_SIGNALS: Array<[string, (value: unknown) => boolean, () => unknown]> 
   ['prerender 뒤의 거부', isHangingPromiseRejectionError, () => hangingPromiseRejection()],
 ];
 
+/**
+ * 경계가 올려보낸 신호를 Next 가 어느 계열로 보아야 하는가. 던진 값과 같은 계열이다.
+ * 메시지로 판정되는 동적 postpone 만 다르다. Next 는 그것을 언제나 React 의 postpone 으로 던지므로(두 표식을 다 가진다),
+ * 새 신호에도 두 표식을 다 싣는다 — 던진 값의 $$typeof 는 Next 가 읽지 않으므로 경계도 읽지 않고, 정해 둔 값을 쓴다.
+ */
+function propagatedFamilies(isFamily: (value: unknown) => boolean): Array<(value: unknown) => boolean> {
+  return isFamily === isDynamicPostpone ? [isDynamicPostpone, isPostpone] : [isFamily];
+}
+
 /** 신호가 판정된 뒤에야 읽힐 수 있는 속성. Next 가 판정을 끝낸 뒤라면 읽지 않는다. */
 const LATE_KEYS = ['message', '$$typeof', 'cause'];
 
@@ -1642,6 +1676,91 @@ function recording(target: object): { proxy: object; reads: string[] } {
   return { proxy, reads };
 }
 
+type Outcome = { thrown: unknown } | { response: Response };
+
+/** 경계 밖으로 나온 것. 값을 Promise 의 결과로 그대로 넘기지 않는다 — then 을 읽는다. */
+function throughBoundary(value: unknown): Promise<Outcome> {
+  return withSafeErrors('envtest.boundary.unhandled', async () => {
+    throw value;
+  })().then(
+    (response) => ({ response }),
+    (thrown: unknown) => ({ thrown }),
+  );
+}
+
+type OwnedSignal = Error & { digest?: string; $$typeof?: symbol };
+
+/** 경계가 만든 신호가 가질 수 있는 속성. 모두 문자열이나 Symbol 이다. */
+const OWNED_KEYS = ['$$typeof', 'digest', 'message', 'stack'];
+
+/**
+ * 경계가 올려보낸 것은 경계가 새로 만든 신호다. 던진 값도, 그 값의 어느 부분도 아니다.
+ * originals 는 던진 값과 그 안에 든 값(cause)이다. 확인한 뒤 올려보낸 신호를 돌려준다.
+ */
+function freshSignal(outcome: Outcome, originals: unknown[]): OwnedSignal {
+  expect('thrown' in outcome, '신호를 올려보내지 않았다').toBe(true);
+  const thrown = (outcome as { thrown: unknown }).thrown;
+  // 가장 먼저 본다. 던진 값이 그대로 나왔다면 아래의 읽기가 그 값의 getter 를 건드린다.
+  expect(originals.includes(thrown), '던진 값을 그대로 올려보냈다').toBe(false);
+
+  expect(Object.prototype.toString.call(thrown)).toBe('[object Error]');
+  const signal = thrown as OwnedSignal;
+  expect(Object.getPrototypeOf(signal)).toBe(Error.prototype);
+  expect(signal.name).toBe('Error');
+  // 가진 것은 값 속성 몇 개뿐이다. getter 도, cause 도, 던진 값이 달고 온 다른 속성도 없다.
+  expect(Reflect.ownKeys(signal).map(String).filter((key) => !OWNED_KEYS.includes(key))).toEqual([]);
+  for (const key of ['$$typeof', 'digest', 'message']) {
+    const descriptor = Object.getOwnPropertyDescriptor(signal, key);
+    if (descriptor) expect(['string', 'symbol'], key).toContain(typeof descriptor.value);
+  }
+  // stack 은 첫 줄뿐이다. 엔진이 만든 stack 에는 호출한 함수의 이름이 들어가는데, 이름은 값에서 올 수 있다.
+  expect(signal.stack).toBe(`Error: ${signal.message}`);
+  expect(inspect(signal, { showHidden: true, depth: 10 })).not.toMatch(/cnry/i);
+  // Next 는 이 값을 몇 번을 읽어도 신호로 본다.
+  expect(caught(() => nextRethrow(signal)) === signal).toBe(true);
+  expect(caught(() => nextRethrow(signal)) === signal).toBe(true);
+  return signal;
+}
+
+/** Next 가 redirect 신호에서 꺼내 쓰는 값. */
+function redirectOf(signal: unknown): { url: string; type: string; status: number } {
+  const error = signal as RedirectError;
+  return {
+    url: getURLFromRedirectError(error),
+    type: getRedirectTypeFromError(error),
+    status: getRedirectStatusCodeFromError(error),
+  };
+}
+
+/** 신호에 요청 값처럼 보이는 것을 잔뜩 단다. 판정에 쓰이는 속성은 Next 가 여전히 같은 계열로 보게 둔다. */
+function decorate(signal: unknown): void {
+  const target = signal as Error & Record<string | symbol, unknown>;
+  target.message = `${target.message} cnry-message user@cnry.invalid`;
+  target.name = 'CnrySecretName';
+  target.stack = 'CnrySecretName: cnry-stack\n    at cnryHandler (https://pay.example/app.js?code=cnry:1:1)';
+  target.cause = new Error('cnry-cause');
+  target.user = { email: 'user@cnry.invalid' };
+  // 예전 Next 는 redirect 신호에 쿠키를 실어 보냈다. 지금은 요청 저장소에서 꺼낸다.
+  target.mutableCookies = { session: 'cnry-cookie' };
+  target[Symbol('cnry-symbol')] = 'cnry-symbol-value';
+  Object.defineProperty(target, 'token', { value: 'cnry-token', enumerable: false });
+}
+
+/** digest 가 처음 validReads 번만 redirect() 의 것이고 그 뒤로는 평범한 문자열인 값. 읽은 횟수를 센다. */
+function statefulRedirect(validReads: number): { signal: Error; reads: () => number } {
+  const signal = caught(() => redirect('/login')) as Error & { digest: string };
+  const real = signal.digest;
+  let reads = 0;
+  Object.defineProperty(signal, 'digest', {
+    get() {
+      reads += 1;
+      return reads <= validReads ? real : 'cnry-ordinary-digest';
+    },
+  });
+  decorate(signal);
+  return { signal, reads: () => reads };
+}
+
 describe('withSafeErrors', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
   let consoleWarn: ReturnType<typeof vi.spyOn>;
@@ -1662,6 +1781,27 @@ describe('withSafeErrors', () => {
   const runScheduledFlush = async () => {
     expect(mocks.after).toHaveBeenCalledTimes(1);
     await (mocks.after.mock.calls[0][0] as () => Promise<void>)();
+  };
+
+  /** 던진 값이 밖으로 나가지 않고, 가린 로그 한 줄과 고정된 500 으로 끝난다. */
+  const expectSafe500 = async (handler: () => Promise<Response>) => {
+    // 밖으로 나온 값을 테스트 실행기에 넘기지 않는다. 읽으면 던지는 값이라 실패 보고가 깨진다.
+    const response = await withSafeErrors('envtest.boundary.unhandled', handler)().catch(() => null);
+
+    expect(response, '던진 값이 경계 밖으로 나갔다').not.toBeNull();
+    if (response === null) return;
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: 'Internal server error' });
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toContain('ERROR: envtest.boundary.unhandled');
+    expect(JSON.stringify(consoleError.mock.calls)).not.toMatch(/cnry/i);
+    expect(mocks.after).toHaveBeenCalledTimes(1);
+  };
+
+  /** 신호를 올려보낸 요청은 기록도 flush 도 남기지 않는다. */
+  const expectQuiet = () => {
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(mocks.after).not.toHaveBeenCalled();
   };
 
   describe('오류가 없을 때', () => {
@@ -1747,20 +1887,6 @@ describe('withSafeErrors', () => {
 
   // 던진 값은 무엇이든 될 수 있다. 경계가 그 값을 들여다보다가 던지면 예외가 Next 와 Sentry 로 새어 나간다.
   describe('던진 값이 읽기를 방해할 때', () => {
-    const expectSafe500 = async (handler: () => Promise<Response>) => {
-      // 밖으로 나온 값을 테스트 실행기에 넘기지 않는다. 읽으면 던지는 값이라 실패 보고가 깨진다.
-      const response = await withSafeErrors('envtest.boundary.unhandled', handler)().catch(() => null);
-
-      expect(response, '던진 값이 경계 밖으로 나갔다').not.toBeNull();
-      if (response === null) return;
-      expect(response.status).toBe(500);
-      expect(await response.json()).toEqual({ error: 'Internal server error' });
-      expect(consoleError).toHaveBeenCalledTimes(1);
-      expect(consoleError.mock.calls[0][0]).toContain('ERROR: envtest.boundary.unhandled');
-      expect(JSON.stringify(consoleError.mock.calls)).not.toMatch(/cnry/i);
-      expect(mocks.after).toHaveBeenCalledTimes(1);
-    };
-
     it('cause 를 읽으면 던지는 오류를 경계 밖으로 내보내지 않는다', async () => {
       const error = new Error('x');
       Object.defineProperty(error, 'cause', {
@@ -1883,63 +2009,84 @@ describe('withSafeErrors', () => {
       });
     });
 
-    it('cause 사슬 안의 redirect() 는 Next 가 하듯 그것을 올려보낸다', async () => {
+    it('cause 사슬 안의 redirect() 는 Next 가 하듯 신호로 올려보낸다', async () => {
       const signal = caught(() => redirect('/login'));
-      const wrapped = new Error('wrapped', { cause: new Error('middle', { cause: signal }) });
+      const middle = new Error('middle', { cause: signal });
+      const wrapped = new Error('wrapped', { cause: middle });
+      // Next 는 사슬 안의 신호를 찾아 던진다.
+      expect(caught(() => nextRethrow(wrapped)) === signal).toBe(true);
 
-      await expect(
-        withSafeErrors('envtest.boundary.unhandled', async () => {
-          throw wrapped;
-        })(),
-      ).rejects.toBe(signal);
+      const propagated = freshSignal(await throughBoundary(wrapped), [wrapped, middle, signal]);
 
-      expect(consoleError).not.toHaveBeenCalled();
+      expect(redirectOf(propagated)).toEqual({ url: '/login', type: 'replace', status: 307 });
+      expectQuiet();
     });
   });
 
   describe('Next 의 제어 흐름', () => {
-    it.each([
-      ['redirect()', () => caught(() => redirect('/login'))],
-      ['notFound()', () => caught(() => notFound())],
-      ['동적 렌더링 신호', () => new DynamicServerError('cnry dynamic')],
-    ])('%s 는 오류로 다루지 않고 그대로 올려보낸다', async (_label, make) => {
-      const signal = make();
-
-      await expect(
-        withSafeErrors('envtest.boundary.unhandled', async () => {
-          throw signal;
-        })(),
-      ).rejects.toBe(signal);
-
-      expect(consoleError).not.toHaveBeenCalled();
-      expect(mocks.after).not.toHaveBeenCalled();
-    });
-
-    it.each(NEXT_SIGNALS)('Next 가 %s 로 판정하는 값은 그대로 올려보낸다', async (_label, isFamily, make) => {
+    // 올려보내는 것은 던진 값이 아니라 같은 계열의 새 신호다(아래 '올려보내는 신호는 경계가 새로 만든 값이다').
+    it.each(NEXT_SIGNALS)('Next 가 %s 로 판정하는 값은 같은 계열의 신호로 올려보낸다', async (_label, isFamily, make) => {
       const signal = await make();
       // 이 값은 Next 의 판정에서 정확히 이 계열 하나다. 다른 계열의 속성에 기대어 통과하지 않는다.
       expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(signal))).toEqual([isFamily]);
 
-      await expect(
-        withSafeErrors('envtest.boundary.unhandled', async () => {
-          throw signal;
-        })(),
-      ).rejects.toBe(signal);
+      const propagated = freshSignal(await throughBoundary(signal), [signal]);
 
-      expect(consoleError).not.toHaveBeenCalled();
-      expect(mocks.after).not.toHaveBeenCalled();
+      expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(propagated))).toEqual(propagatedFamilies(isFamily));
+      expectQuiet();
+    });
+
+    it.each<[string, () => unknown, { url: string; type: string; status: number }]>([
+      ['redirect()', () => caught(() => redirect('/login')), { url: '/login', type: 'replace', status: 307 }],
+      [
+        'redirect(push)',
+        () => caught(() => redirect('/orders/1?tab=a;b&next=%2Fmypage', RedirectType.push)),
+        { url: '/orders/1?tab=a;b&next=%2Fmypage', type: 'push', status: 307 },
+      ],
+      [
+        'permanentRedirect()',
+        () => caught(() => permanentRedirect('https://pay.example/moved')),
+        { url: 'https://pay.example/moved', type: 'replace', status: 308 },
+      ],
+      // 서버 액션 안의 redirect 가 쓰는 응답 코드다.
+      ['303 redirect', () => getRedirectError('/done', RedirectType.push, 303), { url: '/done', type: 'push', status: 303 }],
+    ])('%s 의 주소·방식·응답 코드를 그대로 싣는다', async (_label, make, expected) => {
+      const signal = make();
+      expect(redirectOf(signal)).toEqual(expected);
+
+      const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+      expect(isRedirectError(propagated)).toBe(true);
+      expect(redirectOf(propagated)).toEqual(expected);
+      expectQuiet();
+    });
+
+    it.each<[string, () => unknown, number]>([
+      ['notFound()', () => caught(() => notFound()), 404],
+      ['forbidden()', () => caughtWithAuthInterrupts(() => forbidden()), 403],
+      ['unauthorized()', () => caughtWithAuthInterrupts(() => unauthorized()), 401],
+    ])('%s 의 응답 코드를 그대로 싣는다', async (_label, make, status) => {
+      const signal = make();
+
+      const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+      expect(isHTTPAccessFallbackError(propagated)).toBe(true);
+      expect(getAccessFallbackHTTPStatus(propagated as Parameters<typeof getAccessFallbackHTTPStatus>[0])).toBe(status);
+      expectQuiet();
     });
 
     it('기록을 남긴 뒤 redirect() 해도 flush 는 건다', async () => {
       const signal = caught(() => redirect('/login'));
 
-      await expect(
-        withSafeErrors('envtest.boundary.unhandled', async () => {
-          logSafeError('envtest.boundary.handled', new Error('x'));
-          throw signal;
-        })(),
-      ).rejects.toBe(signal);
+      const outcome: Outcome = await withSafeErrors('envtest.boundary.unhandled', async () => {
+        logSafeError('envtest.boundary.handled', new Error('x'));
+        throw signal;
+      })().then(
+        (response) => ({ response }),
+        (thrown: unknown) => ({ thrown }),
+      );
 
+      expect(isRedirectError(freshSignal(outcome, [signal]))).toBe(true);
       expect(mocks.after).toHaveBeenCalledTimes(1);
     });
 
@@ -1983,31 +2130,22 @@ describe('withSafeErrors', () => {
   // unstable_rethrow 는 판정을 차례로 해 보고, 맞는 것이 나오면 그 값을 던진다. 그 뒤의 속성은 읽지 않는다.
   // 경계가 그보다 더 읽으면, 읽지 않아도 될 속성이 던지는 신호를 Next 는 올려보내는데 경계는 500 으로 바꾼다.
   describe('Next 의 단락 평가', () => {
-    /** 경계 밖으로 나온 것. 값을 Promise 의 결과로 그대로 넘기지 않는다 — then 을 읽는다. */
-    const throughBoundary = (value: unknown): Promise<{ thrown: unknown } | { response: Response }> =>
-      withSafeErrors('envtest.boundary.unhandled', async () => {
-        throw value;
-      })().then(
-        (response) => ({ response }),
-        (thrown: unknown) => ({ thrown }),
-      );
-
-    const expectPropagated = (outcome: { thrown: unknown } | { response: Response }, signal: unknown) => {
-      expect('thrown' in outcome && outcome.thrown === signal, '신호를 그대로 올려보내지 않았다').toBe(true);
-      expect(consoleError).not.toHaveBeenCalled();
-      expect(mocks.after).not.toHaveBeenCalled();
+    /** redirect('/login') 을 같은 값의 새 신호로 올려보냈다. */
+    const expectRedirected = (outcome: Outcome, originals: unknown[]) => {
+      expect(redirectOf(freshSignal(outcome, originals))).toEqual({ url: '/login', type: 'replace', status: 307 });
+      expectQuiet();
     };
 
-    it.each(LATE_KEYS)('redirect() 신호의 %s 가 읽으면 던져도 그 신호를 올려보낸다', async (key) => {
+    it.each(LATE_KEYS)('redirect() 신호의 %s 가 읽으면 던져도 redirect 로 올려보낸다', async (key) => {
       const signal = caught(() => redirect('/login'));
       makeUnreadable(signal, key);
       // Next 는 digest 만 보고 이 신호를 올려보낸다.
       expect(caught(() => nextRethrow(signal)) === signal).toBe(true);
 
-      expectPropagated(await throughBoundary(signal), signal);
+      expectRedirected(await throughBoundary(signal), [signal]);
     });
 
-    it('redirect() 신호의 message 가 읽으면 자기 자신을 던져도 그 신호를 올려보낸다', async () => {
+    it('redirect() 신호의 message 가 읽으면 자기 자신을 던져도 redirect 로 올려보낸다', async () => {
       const signal = caught(() => redirect('/login'));
       Object.defineProperty(signal as object, 'message', {
         get() {
@@ -2015,23 +2153,28 @@ describe('withSafeErrors', () => {
         },
       });
 
-      expectPropagated(await throughBoundary(signal), signal);
+      expectRedirected(await throughBoundary(signal), [signal]);
     });
 
     it('cause 사슬 안의 신호도 판정에 쓰지 않는 속성은 읽지 않는다', async () => {
       const signal = caught(() => redirect('/login'));
       makeUnreadable(signal, 'message');
       makeUnreadable(signal, 'cause');
-      const wrapped = new Error('wrapped', { cause: new Error('middle', { cause: signal }) });
+      const middle = new Error('middle', { cause: signal });
+      const wrapped = new Error('wrapped', { cause: middle });
       expect(caught(() => nextRethrow(wrapped)) === signal).toBe(true);
 
-      expectPropagated(await throughBoundary(wrapped), signal);
+      expectRedirected(await throughBoundary(wrapped), [wrapped, middle, signal]);
     });
 
     // 계열마다 Next 가 판정에 쓰는 속성이 다르다. 기대를 손으로 적지 않고 Next 에 같은 값을 넘겨 본 결과와 맞춘다.
-    it.each(NEXT_SIGNALS.flatMap(([label, , make]) => LATE_KEYS.map((key): [string, string, () => unknown] => [label, key, make])))(
+    it.each(
+      NEXT_SIGNALS.flatMap(([label, isFamily, make]) =>
+        LATE_KEYS.map((key): [string, string, (value: unknown) => boolean, () => unknown] => [label, key, isFamily, make]),
+      ),
+    )(
       '%s 신호의 %s 가 읽으면 던질 때 Next 와 같은 판정을 한다',
-      async (_label, key, make) => {
+      async (_label, key, isFamily, make) => {
         const signal = await make();
         makeUnreadable(signal, key);
         // Next 가 이 속성을 읽기 전에 판정을 끝내면 신호가 그대로 나오고, 읽으면 getter 의 오류가 나온다.
@@ -2040,7 +2183,9 @@ describe('withSafeErrors', () => {
         const outcome = await throughBoundary(signal);
 
         if (nextPropagates) {
-          expectPropagated(outcome, signal);
+          const propagated = freshSignal(outcome, [signal]);
+          expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(propagated))).toEqual(propagatedFamilies(isFamily));
+          expectQuiet();
         } else {
           expect('response' in outcome && outcome.response.status, '신호가 아닌 값을 올려보냈다').toBe(500);
           expect(consoleError).toHaveBeenCalledTimes(1);
@@ -2050,7 +2195,8 @@ describe('withSafeErrors', () => {
       },
     );
 
-    it.each(NEXT_SIGNALS)('%s 신호에서 Next 가 읽는 것만, 같은 순서로 읽는다', async (_label, _isFamily, make) => {
+    // 새 신호를 만들 때도 던진 값을 더 읽지 않는다. 판정하면서 읽어 둔 값만 쓴다.
+    it.each(NEXT_SIGNALS)('%s 신호에서 Next 가 읽는 것만, 같은 순서로 읽는다', async (_label, isFamily, make) => {
       const direct = recording((await make()) as object);
       const directThrown = caught(() => nextRethrow(direct.proxy));
       const directReads = [...direct.reads];
@@ -2062,23 +2208,226 @@ describe('withSafeErrors', () => {
       const outcome = await throughBoundary(viaBoundary.proxy);
       const boundaryReads = [...viaBoundary.reads];
 
-      expect('thrown' in outcome && outcome.thrown === viaBoundary.proxy, '신호를 그대로 올려보내지 않았다').toBe(true);
+      const propagated = freshSignal(outcome, [viaBoundary.proxy]);
+      expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(propagated))).toEqual(propagatedFamilies(isFamily));
       expect(boundaryReads).toEqual(directReads);
+      // 올려보낸 신호를 뒤에서 읽어도 던진 값은 다시 읽히지 않는다.
+      expect(viaBoundary.reads).toEqual(directReads);
+    });
+  });
+
+  // 경계는 던진 값을 읽어 신호인지 정한다. 그 값을 그대로 올려보내면 Next 와 SDK 가 그것을 다시 읽는다.
+  // 읽을 때마다 달라지는 값은 경계에서는 redirect 였다가 그 뒤로는 평범한 오류가 되어, 메시지·stack·cause 가 그대로 찍힌다.
+  // 그래서 판정하면서 읽은 값으로 새 신호를 만들어 올려보낸다. 던진 값과 같은 객체가 아니다.
+  describe('올려보내는 신호는 경계가 새로 만든 값이다', () => {
+    it.each([1, 2])('digest 가 처음 %d번만 redirect 인 값도 변하지 않는 redirect 로 올려보낸다', async (validReads) => {
+      const { signal, reads } = statefulRedirect(validReads);
+
+      const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+      expect(redirectOf(propagated)).toEqual({ url: '/login', type: 'replace', status: 307 });
+      expectQuiet();
+      // 뒤에서 Next 와 SDK 가 몇 번을 읽어도 같은 redirect 다. 던진 값은 다시 읽히지 않는다.
+      const readsInBoundary = reads();
+      for (let round = 0; round < 3; round += 1) {
+        expect(isRedirectError(propagated)).toBe(true);
+        expect(redirectOf(propagated)).toEqual({ url: '/login', type: 'replace', status: 307 });
+      }
+      expect(reads()).toBe(readsInBoundary);
+      // 던진 값은 이제 redirect 가 아니다. 올려보낸 신호는 그 변화를 따라가지 않는다.
+      expect(isRedirectError(signal)).toBe(false);
+      expect(isRedirectError(propagated)).toBe(true);
     });
 
-    it('같은 속성은 한 번만 읽는다', async () => {
-      const signal = caught(() => redirect('/login')) as { digest: string };
-      const digest = signal.digest;
-      let reads = 0;
-      Object.defineProperty(signal, 'digest', {
-        get() {
-          reads += 1;
-          return digest;
+    it.each<[string, () => unknown]>([
+      [
+        '던지는',
+        () => {
+          throw new Error('cnry-proxy-later-read https://pay.example/cb?code=cnry');
         },
+      ],
+      ['다른 값을 주는', () => 'cnry-ordinary-digest'],
+    ])('판정에 쓴 읽기 뒤로는 %s Proxy 도 다시 읽지 않는다', async (_label, afterwards) => {
+      const real = (caught(() => redirect('/login')) as { digest: string }).digest;
+      const trace: string[] = [];
+      // 처음 한 번의 'digest' in 과 .digest 만 redirect 처럼 답하고, 그 밖의 모든 읽기는 afterwards 가 답한다.
+      const scripted = (entry: string, first?: unknown): unknown => {
+        trace.push(entry);
+        return first !== undefined && trace.filter((seen) => seen === entry).length === 1 ? first : afterwards();
+      };
+      const hostile = new Proxy(new Error('cnry-proxy'), {
+        has: (_target, key) => scripted(`has ${String(key)}`, key === 'digest' ? true : undefined) as boolean,
+        get: (_target, key) => scripted(`get ${String(key)}`, key === 'digest' ? real : undefined),
+        getPrototypeOf: () => scripted('getPrototypeOf') as object,
+        ownKeys: () => scripted('ownKeys') as Array<string | symbol>,
+        getOwnPropertyDescriptor: (_target, key) => scripted(`getOwnPropertyDescriptor ${String(key)}`) as PropertyDescriptor,
       });
 
-      expectPropagated(await throughBoundary(signal), signal);
-      expect(reads).toBe(1);
+      const outcome = await throughBoundary(hostile);
+      const readsInBoundary = [...trace];
+      const propagated = freshSignal(outcome, [hostile]);
+
+      expect(redirectOf(propagated)).toEqual({ url: '/login', type: 'replace', status: 307 });
+      expectQuiet();
+      expect(readsInBoundary).toEqual(['has digest', 'get digest']);
+      expect(trace).toEqual(readsInBoundary);
+    });
+
+    it.each(NEXT_SIGNALS)('%s 신호가 달고 온 메시지·이름·stack·cause·다른 속성은 싣지 않는다', async (_label, isFamily, make) => {
+      const signal = await make();
+      decorate(signal);
+      // 꾸민 뒤에도 Next 는 같은 계열의 신호로 본다.
+      expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(signal))).toEqual([isFamily]);
+      expect(inspect(signal, { showHidden: true, depth: 10 })).toMatch(/cnry/i);
+
+      // freshSignal 이 올려보낸 신호의 속성·stack·출력 어디에도 꾸민 값이 없는지 본다.
+      const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+      expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(propagated))).toEqual(propagatedFamilies(isFamily));
+      expectQuiet();
+    });
+
+    it('동적 postpone 의 메시지는 던진 값의 문장이 아니라 정해 둔 문장이다', async () => {
+      const signal = new Error(`${DYNAMIC_POSTPONE_REASON} order=cnry-order user@cnry.invalid`);
+      expect(isDynamicPostpone(signal)).toBe(true);
+
+      const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+      expect(isDynamicPostpone(propagated)).toBe(true);
+      expect(propagated.message).not.toContain('/api/payment/x');
+      expect(propagated.message).not.toContain('cookies()');
+    });
+
+    // Next 는 동적 postpone 을 React.unstable_postpone 으로 던진다. 그 값에는 표식이 둘이다: Next 가 보는 문장(message)과
+    // React 가 보는 $$typeof. unstable_rethrow 는 문장에서 판정을 끝내고 $$typeof 는 읽지 않는다.
+    describe('동적 postpone 의 두 표식', () => {
+      /** React 가 postpone 을 알아보는 값. 손으로 적지 않고 React 가 실제로 던진 것에서 꺼낸다. */
+      const reactMarker = () => (reactPostpone('x') as { $$typeof: symbol }).$$typeof;
+
+      it('Next 가 실제로 던지는 모양(문장과 $$typeof)은 두 표식을 다 가진 신호로 올려보낸다', async () => {
+        const signal = reactPostpone(`${DYNAMIC_POSTPONE_REASON} order=cnry-order`);
+        expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(signal))).toEqual([isDynamicPostpone, isPostpone]);
+
+        const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+        expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(propagated))).toEqual([isDynamicPostpone, isPostpone]);
+        expect(propagated.$$typeof).toBe(reactMarker());
+        expect(propagated.message).not.toContain('/api/payment/x');
+        expectQuiet();
+      });
+
+      it('$$typeof 는 던진 값에서 읽지 않는다 — 읽으면 던지는 값이어도 두 표식을 다 싣는다', async () => {
+        const signal = reactPostpone(DYNAMIC_POSTPONE_REASON);
+        makeUnreadable(signal, '$$typeof');
+        // Next 는 문장만 보고 이 신호를 올려보낸다.
+        expect(caught(() => nextRethrow(signal)) === signal).toBe(true);
+
+        const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+        expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(propagated))).toEqual([isDynamicPostpone, isPostpone]);
+        expect(propagated.$$typeof).toBe(reactMarker());
+        expectQuiet();
+      });
+
+      it('$$typeof 자리에 다른 값이 있어도 그 값을 싣지 않는다', async () => {
+        const signal = Object.assign(new Error(DYNAMIC_POSTPONE_REASON), { $$typeof: Symbol('cnry-not-postpone') });
+        expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(signal))).toEqual([isDynamicPostpone]);
+
+        const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+        expect(propagated.$$typeof).toBe(reactMarker());
+        expectQuiet();
+      });
+
+      it('문장이 다른 React postpone 은 React 의 표식만 싣는다', async () => {
+        const signal = reactPostpone('cnry postpone');
+
+        const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+        expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(propagated))).toEqual([isPostpone]);
+        expect(propagated.$$typeof).toBe(reactMarker());
+        expectQuiet();
+      });
+    });
+
+    // Next 는 digest 를 느슨하게 읽는다. 뒤에 붙은 것은 보지 않고, 응답 코드는 수로 바꿔 본다.
+    // 그 문자열을 그대로 옮기면 신호에 무엇이든 실어 보낼 수 있다. 필요한 값만 꺼내 정해진 모양으로 다시 적는다.
+    it.each<[string, () => unknown, string, string]>([
+      [
+        'redirect 뒤에 붙은 것',
+        () => caught(() => redirect('/login')),
+        'NEXT_REDIRECT;replace;/login;307;cnry-trailing user@cnry.invalid',
+        'NEXT_REDIRECT;replace;/login;307;',
+      ],
+      ['redirect 의 응답 코드 표기', () => caught(() => redirect('/login')), 'NEXT_REDIRECT;replace;/login;3.07e2;', 'NEXT_REDIRECT;replace;/login;307;'],
+      [
+        'notFound 뒤에 붙은 것',
+        () => caught(() => notFound()),
+        'NEXT_HTTP_ERROR_FALLBACK;404;cnry-trailing user@cnry.invalid',
+        'NEXT_HTTP_ERROR_FALLBACK;404',
+      ],
+      ['notFound 의 응답 코드 표기', () => caught(() => notFound()), 'NEXT_HTTP_ERROR_FALLBACK; 4.04e2 ', 'NEXT_HTTP_ERROR_FALLBACK;404'],
+    ])('digest 는 그대로 옮기지 않고 다시 적는다(%s)', async (_label, make, loose, canonical) => {
+      const signal = make() as { digest: string };
+      // Next 가 실제로 만드는 digest 가 다시 적은 모양과 같다.
+      expect(signal.digest).toBe(canonical);
+      signal.digest = loose;
+      // Next 는 느슨한 digest 도 신호로 본다.
+      expect(caught(() => nextRethrow(signal)) === signal).toBe(true);
+
+      const propagated = freshSignal(await throughBoundary(signal), [signal]);
+
+      expect(propagated.digest).toBe(canonical);
+      expectQuiet();
+    });
+
+    it('사슬 안의 신호를 올려보낼 때 감싼 오류도, 안의 값도 나가지 않는다', async () => {
+      const { signal } = statefulRedirect(1);
+      const middle = new Error('cnry-middle', { cause: signal });
+      const wrapped = new Error('cnry-wrapped https://pay.example/cb?code=cnry', { cause: middle });
+
+      const propagated = freshSignal(await throughBoundary(wrapped), [wrapped, middle, signal]);
+
+      expect(redirectOf(propagated)).toEqual({ url: '/login', type: 'replace', status: 307 });
+      expectQuiet();
+    });
+
+    it('신호는 cause 사슬의 10단계까지 찾는다', async () => {
+      const signal = caught(() => redirect('/login'));
+      const wrap = (depth: number) => {
+        const chain: unknown[] = [signal];
+        for (let level = 0; level < depth; level += 1) chain.push(new Error(`cnry-wrapper-${level}`, { cause: chain[chain.length - 1] }));
+        return chain;
+      };
+
+      const within = wrap(10);
+      expect(redirectOf(freshSignal(await throughBoundary(within[10]), within))).toEqual({ url: '/login', type: 'replace', status: 307 });
+      expectQuiet();
+
+      const beyond = wrap(11);
+      await expectSafe500(async () => {
+        throw beyond[11];
+      });
+    });
+
+    // Next 는 redirect 의 주소를 Location 헤더에 그대로 싣는다. 실을 수 없는 값이면 그 값이 든 오류가 Next 안에서 난다.
+    const NUL = String.fromCharCode(0);
+    const SOH = String.fromCharCode(1);
+    it.each<[string, string, boolean]>([
+      ['줄바꿈', '/login\r\nSet-Cookie: session=cnry', true],
+      ['Latin-1 밖의 문자', '/로그인?next=cnry', true],
+      ['NUL', `/login${NUL}cnry`, true],
+      ['그 밖의 제어 문자', `/login${SOH}cnry`, false],
+      ['빈 주소', '', false],
+      ['공백뿐인 주소', '   ', false],
+    ])('Location 에 실을 수 없는 주소(%s)의 redirect 는 올려보내지 않고 500 으로 끝낸다', async (_label, url, headersReject) => {
+      const signal = caught(() => redirect(url));
+      expect(isRedirectError(signal)).toBe(true);
+      if (headersReject) expect(() => new Headers({ Location: url })).toThrow();
+
+      await expectSafe500(async () => {
+        throw signal;
+      });
     });
   });
 
@@ -2336,6 +2685,10 @@ Expected: 새 테스트 파일 하나만 실패하고 나머지는 그대로다(
  * 핸들러가 던진 오류를 여기서 잡아 logSafeError 로 남기고 고정된 500 을 돌려준다. 원본 오류는 Next 로
  * 전파되지 않으므로 Next 의 미처리 오류 로그(원본 메시지를 서버 출력에 찍는다)와 onRequestError 에 닿지 않는다.
  *
+ * redirect()·notFound() 같은 Next 의 제어 흐름 신호는 오류가 아니므로 올려보낸다. 다만 던진 값을 그대로 올려보내지 않고,
+ * 판정에 쓴 값으로 같은 뜻의 신호를 새로 만들어 올려보낸다. 던진 값과 같은 객체가 아니다 — 그 값의 메시지·stack·cause 와
+ * 다른 속성은 경계 밖으로 나가지 않는다. redirect 앞에서 cookies() 로 쓴 쿠키는 Next 가 요청 저장소에서 꺼내 싣는다.
+ *
  * 오류를 기록한 요청에는 요청당 한 번, 응답 뒤에 Sentry.flush 를 걸어 결과를 본다. SDK 의 route handler 래퍼도
  * 요청마다 flush 를 걸지만 결과를 버리므로 제한 초과를 알 수 없다. 이 경고는 "전역 큐가 제한 안에 비워지지
  * 않았다"는 뜻이고 특정 이벤트의 실패를 가리키지 않는다.
@@ -2384,8 +2737,11 @@ const MAX_CAUSE_DEPTH = 10;
 /** 던진 값을 읽다가 예외가 났다는 표식. 그 예외 대신 이것을 던진다 — 원래 예외는 어디로도 내보내지 않는다. */
 const UNREADABLE = Symbol('unreadable');
 
+/** 판정하면서 던진 값에서 읽은 속성 값. 읽은 순서대로 들어 있다. */
+type ReadValues = ReadonlyMap<string | symbol, unknown>;
+
 /**
- * Next 가 이 값 자체를 제어 흐름 신호(redirect, notFound, 동적 렌더링 신호)로 보는가.
+ * Next 가 이 값 자체를 제어 흐름 신호(redirect, notFound, 동적 렌더링 신호)로 보는가. 신호면 판정하면서 읽은 값을 돌려준다.
  *
  * 던진 값을 unstable_rethrow 에 바로 넘기지 않는다. unstable_rethrow 는 신호를 받으면 그 값을 그대로 다시 던지는데,
  * 읽기를 방해하는 값도 getter 나 Proxy 에서 자기 자신을 던질 수 있어 "넘긴 값이 다시 나왔다"로는 둘을 가리지 못한다.
@@ -2395,9 +2751,9 @@ const UNREADABLE = Symbol('unreadable');
  * redirect() 신호라면 digest 만 읽는다. 미리 다 읽어 두면 판정에 쓰지 않는 속성이 던지는 신호를 놓친다.
  * 같은 속성은 한 번만 읽어 기억한다. 읽다가 던지는 값은 신호가 아니다.
  */
-function isNextControlFlow(value: unknown): boolean {
+function readAsControlFlow(value: unknown): ReadValues | null {
   // 판정은 모두 객체만 신호로 본다.
-  if (typeof value !== 'object' || value === null) return false;
+  if (typeof value !== 'object' || value === null) return null;
 
   const source: object = value;
   const present = new Map<string | symbol, boolean>();
@@ -2426,22 +2782,137 @@ function isNextControlFlow(value: unknown): boolean {
 
   try {
     unstable_rethrow(probe);
-    return false;
+    return null;
   } catch (thrown) {
-    return thrown === probe;
+    return thrown === probe ? values : null;
   }
 }
 
 /**
- * 던진 값과 그 cause 사슬에서 Next 의 제어 흐름 신호를 찾는다. Next 가 하듯 값을 먼저 판정하고, 신호가 아닐 때만 cause 를 읽는다.
+ * unstable_rethrow 가 이 값을 신호로 보는가. 경계가 만든 값에만 쓴다 —
+ * getter 가 없는 값이라, 넘긴 값이 다시 나오는 길은 판정을 통과하는 것뿐이다.
+ */
+function nextRethrows(owned: object): boolean {
+  try {
+    unstable_rethrow(owned);
+    return false;
+  } catch (thrown) {
+    return thrown === owned;
+  }
+}
+
+/**
+ * 경계가 올려보내는 신호를 만든다. 가진 것은 여기서 정한 문장과 판정에 쓰이는 표식뿐이다.
+ * stack 도 정해 둔 한 줄로 바꾼다 — 엔진이 만든 stack 에는 호출한 함수의 이름이 들어가고, 이름은 값에서 올 수 있다(log-safe-error.ts).
+ * redirect 가 아닌 신호는 SDK 가 예외로 보낼 수 있다(forbidden, unauthorized 등). 그 이벤트에 실리는 것이 이 문장과 stack 이다.
+ */
+function ownedSignal(message: string, marks: { digest: string } | { $$typeof: symbol }): Error {
+  const signal = new Error(message);
+  signal.stack = `Error: ${message}`;
+  return Object.assign(signal, marks);
+}
+
+/**
+ * Next 가 Location 헤더에 그대로 싣는 주소다. 실을 수 없는 값이면 Next 안에서 그 값이 든 오류가 난다.
+ * 그런 주소의 redirect 는 올려보내지 않는다.
+ */
+function isLocationSafe(url: string): boolean {
+  // Node 의 http 가 헤더 값으로 받는 문자만 받는다. 줄바꿈·NUL 같은 제어 문자와 Latin-1 밖의 문자는 받지 않는다.
+  if (url.trim() === '' || !/^[\t\x20-\x7e\x80-\xff]+$/.test(url)) return false;
+  try {
+    // Next 가 응답을 만들 때 하는 일이다.
+    void new Headers({ Location: url });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Next 는 digest 를 느슨하게 읽는다: redirect 는 `NEXT_REDIRECT;방식;주소;응답 코드;` 뒤에 무엇이 붙어도 받고,
+ * 응답 코드는 수로 바꿔 본다. 접근 fallback(notFound 등)도 `NEXT_HTTP_ERROR_FALLBACK;응답 코드` 뒤를 보지 않는다.
+ * 그 문자열을 그대로 옮기면 무엇이든 실어 보낼 수 있으므로, Next 가 꺼내 쓰는 값만 꺼내 Next 가 만드는 모양으로 다시 적는다.
+ * 방식과 응답 코드가 Next 가 받는 값인지는 다시 적은 신호를 unstable_rethrow 에 넘겨 확인한다(normalizedSignal).
+ */
+function redirectSignal(digest: string): Error | null {
+  const parts = digest.split(';');
+  if (parts[0] !== 'NEXT_REDIRECT' || parts.length < 4) return null;
+  const url = parts.slice(2, -2).join(';');
+  if (!isLocationSafe(url)) return null;
+  return ownedSignal('NEXT_REDIRECT', { digest: `NEXT_REDIRECT;${parts[1]};${url};${Number(parts[parts.length - 2])};` });
+}
+
+function accessFallbackSignal(digest: string): Error | null {
+  const parts = digest.split(';');
+  if (parts[0] !== 'NEXT_HTTP_ERROR_FALLBACK') return null;
+  const canonical = `NEXT_HTTP_ERROR_FALLBACK;${Number(parts[1])}`;
+  return ownedSignal(canonical, { digest: canonical });
+}
+
+/** digest 가 통째로 정해진 값인 신호(동적 렌더링 신호 등). Next 가 그 값 하나만으로 신호로 볼 때만 만든다. */
+function constantDigestSignal(digest: string): Error | null {
+  return digest.includes(';') || !nextRethrows({ digest }) ? null : ownedSignal(digest, { digest });
+}
+
+/** React 가 postpone 을 알아보는 값. */
+const REACT_POSTPONE = Symbol.for('react.postpone');
+
+/** Next 가 동적 postpone 으로 보는 문장. 던진 값의 문장(경로와 호출한 API 가 들어 있다)은 쓰지 않는다. */
+const DYNAMIC_POSTPONE_MESSAGE =
+  'Route needs to bail out of prerendering at this point because it used a dynamic API. ' +
+  'Learn more: https://nextjs.org/docs/messages/ppr-caught-error';
+
+/**
+ * 판정하면서 읽은 값으로 새 신호를 만든다. 던진 값은 다시 읽지 않는다.
+ *
+ * 어느 판정에서 끝났는지는 읽은 흔적으로 안다. unstable_rethrow 는 digest 로 정해지는 신호(redirect, 접근 fallback,
+ * 정해진 digest)를 먼저 보고, 그다음에 message(동적 postpone)와 $$typeof(React 의 postpone)를 본다.
+ * message 를 읽지 않았다면 digest 에서 끝난 것이다. 읽었다면 값 하나만 실은 객체를 unstable_rethrow 에 넘겨 어느 것인지 묻는다.
+ */
+function candidateSignal(read: ReadValues): Error | null {
+  const digest = read.get('digest');
+  const fromDigest = (make: (digest: string) => Error | null) => (typeof digest === 'string' ? make(digest) : null);
+
+  if (!read.has('message')) {
+    return fromDigest((value) => redirectSignal(value) ?? accessFallbackSignal(value) ?? constantDigestSignal(value));
+  }
+
+  const message = read.get('message');
+  if (typeof message === 'string' && nextRethrows({ message })) {
+    // Next 는 동적 postpone 을 React 의 postpone 으로 던진다. 던진 값의 $$typeof 는 판정이 읽지 않으므로 정해 둔 값을 싣는다.
+    return ownedSignal(DYNAMIC_POSTPONE_MESSAGE, { $$typeof: REACT_POSTPONE });
+  }
+  const mark = read.get('$$typeof');
+  if (typeof mark === 'symbol' && nextRethrows({ $$typeof: mark })) return ownedSignal('React postpone', { $$typeof: mark });
+  // prerender 가 끝난 뒤의 거부처럼, digest 로 정해지지만 판정 순서가 뒤인 신호.
+  return fromDigest(constantDigestSignal);
+}
+
+/**
+ * 올려보낼 신호. 던진 값도, 그 값의 일부도 아니다 — 경계가 만든 값이라 뒤에서 누가 몇 번을 읽어도 같다.
+ * 던진 값을 그대로 올려보내면 Next 와 SDK 가 그것을 다시 읽는다. 읽을 때마다 달라지는 값은 경계에서는 redirect 였다가
+ * 그 뒤로는 평범한 오류가 되어, 메시지·stack·cause 가 그대로 찍힌다.
+ *
+ * 만든 신호를 unstable_rethrow 가 신호로 보지 않으면(null) 올려보내지 않는다. Location 에 실을 수 없는 주소의 redirect 도 그렇다.
+ */
+function normalizedSignal(read: ReadValues): Error | null {
+  const candidate = candidateSignal(read);
+  return candidate !== null && nextRethrows(candidate) ? candidate : null;
+}
+
+/**
+ * 던진 값과 그 cause 사슬에서 Next 의 제어 흐름 신호를 찾아, 올려보낼 새 신호를 돌려준다.
+ * Next 가 하듯 값을 먼저 판정하고, 신호가 아닐 때만 cause 를 읽는다.
  * 읽다가 던지거나, 이미 본 값으로 돌아오거나, 상한에 닿으면 거기서 멈춘다.
  * 던진 값은 무엇이든 될 수 있다 — cause 가 던지는 getter 일 수도, Proxy 일 수도 있다.
  */
-function findControlFlow(error: unknown): { signal: unknown } | null {
+function findControlFlow(error: unknown): Error | null {
   const seen: unknown[] = [];
   let current: unknown = error;
   while (seen.length <= MAX_CAUSE_DEPTH) {
-    if (isNextControlFlow(current)) return { signal: current };
+    const read = readAsControlFlow(current);
+    // Next 라면 이 값을 올려보낸다. 안전한 신호로 옮길 수 없으면 오류로 다룬다 — 사슬을 더 보지 않는다.
+    if (read) return normalizedSignal(read);
     seen.push(current);
     let next: unknown;
     try {
@@ -2474,10 +2945,10 @@ export function withSafeErrors<Args extends unknown[]>(
       try {
         return await handler(...args);
       } catch (error) {
-        // redirect()·notFound() 와 Next 의 동적 렌더링 신호는 오류가 아니다. 그대로 올려보낸다.
+        // redirect()·notFound() 와 Next 의 동적 렌더링 신호는 오류가 아니다. 같은 뜻의 새 신호를 올려보낸다 — 던진 값은 나가지 않는다.
         // Next 가 하듯 cause 사슬 안의 신호도 찾는다. 찾는 동안 난 예외는 올려보내지 않는다.
-        const found = findControlFlow(error);
-        if (found) throw found.signal;
+        const signal = findControlFlow(error);
+        if (signal) throw signal;
         logSafeError(code, error);
         // 본문에 오류 메시지를 넣지 않는다.
         return Response.json({ error: 'Internal server error' }, { status: 500 });
@@ -2748,7 +3219,7 @@ git commit -m "test(logging): 핸들러 끝의 flush 가 방금 남긴 기록을
 ```diff
 --- a/__tests__/scripts/envelope-test-analyze.test.ts
 +++ b/__tests__/scripts/envelope-test-analyze.test.ts
-@@ -222,3 +222,235 @@ describe('evaluate', () => {
+@@ -222,3 +222,275 @@ describe('evaluate', () => {
      expect(result.failures).toContain('수신 건수 — 미처리(node): 기대 1건, 실제 0건');
    });
  });
@@ -2956,6 +3427,46 @@ git commit -m "test(logging): 핸들러 끝의 flush 가 방금 남긴 기록을
 +      expect(result.failures).toEqual(['응답 — boundary-redirect: Location 이 기대와 다르다', '누출(응답 헤더) — cookie: boundary-redirect']);
 +    });
 +
++    describe('핸들러가 redirect 앞에서 쓴 쿠키', () => {
++      const withCookie = (setCookies: unknown) => ({
++        ...redirected(),
++        label: 'boundary-stateful-1',
++        setCookies,
++        expect: { ...REDIRECT, cookie: { name: 'envtest-boundary', value: 'kept' } },
++      });
++
++      it.each([
++        ['속성이 붙은 쿠키', ['envtest-boundary=kept; Path=/']],
++        ['속성이 없는 쿠키', ['envtest-boundary=kept']],
++        ['다른 쿠키와 함께', ['other=1; Path=/', 'envtest-boundary=kept; Path=/; HttpOnly']],
++      ])('Set-Cookie 에 그 이름과 값이 있으면(%s) 맞다', (_label, setCookies) => {
++        const result = runResponses([withCookie(setCookies)]);
++
++        expect(result.failures).toEqual([]);
++        expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-stateful-1)', expected: '1', actual: 1 }]);
++      });
++
++      it.each([
++        ['Set-Cookie 가 없다', []],
++        ['기록이 없다', undefined],
++        ['값이 다르다', ['envtest-boundary=dropped; Path=/']],
++        ['값의 앞부분만 같다', ['envtest-boundary=kept2; Path=/']],
++        ['이름의 뒷부분만 같다', ['x-envtest-boundary=kept; Path=/']],
++        ['다른 쿠키뿐이다', ['other=1; Path=/']],
++      ])('쿠키가 응답에 없으면(%s) 실패한다', (_label, setCookies) => {
++        const result = runResponses([withCookie(setCookies)]);
++
++        expect(result.failures).toEqual(['응답 — boundary-stateful-1: Set-Cookie 에 envtest-boundary 이 기대한 값으로 없다']);
++        expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-stateful-1)', expected: '1', actual: 0 }]);
++      });
++
++      it('Set-Cookie 에 canary 가 있으면 실패하고, 받은 값은 보고에 싣지 않는다', () => {
++        const result = runResponses([withCookie(['envtest-boundary=kept; Path=/', 'session=cnryA-cookie; Path=/'])]);
++
++        expect(result.failures).toEqual(['누출(응답 헤더) — cookie: boundary-stateful-1']);
++      });
++    });
++
 +    it('그 요청의 오류 이벤트는 처리했든 아니든 하나도 없어야 한다', () => {
 +      const transaction = 'GET /api/envelope-test/boundary-redirect';
 +      const withRule = { ...expected, errorFree: [{ label: '올려보낸 redirect 신호', transaction }] };
@@ -3006,7 +3517,7 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
   */
 
  const TRIPWIRE_KEY = 'redaction.tripwire';
-@@ -113,6 +116,77 @@ const hasFrameVars = (event) =>
+@@ -113,6 +116,85 @@ const hasFrameVars = (event) =>
      ((value.stacktrace && value.stacktrace.frames) || []).some((frame) => frame && frame.vars !== undefined),
    );
 
@@ -3055,19 +3566,27 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
 +  }
 +}
 +
++/** Set-Cookie 헤더 가운데 이 이름과 값을 쓰는 것이 있는가. 속성(Path 등)은 보지 않는다. */
++function setsCookie(response, cookie) {
++  const pair = `${cookie.name}=${cookie.value}`;
++  return (response.setCookies || []).some((line) => line === pair || line.startsWith(`${pair};`));
++}
++
 +/**
 + * 응답이 요청에 적은 기대와 같은가. 경계가 뚫려 Next 가 응답해도 코드는 같은 500 이라 본문까지 본다.
 + *   status   — 응답 코드.
 + *   json     — 본문을 JSON 으로 읽은 값 전부.
 + *   body     — 본문 그대로. redirect 처럼 본문이 없어야 하는 응답에 쓴다.
 + *   location — Location 헤더가 가리키는 주소.
++ *   cookie   — 응답이 써야 하는 쿠키({ name, value }). 핸들러가 redirect 앞에서 쓴 쿠키가 응답까지 가는지 본다.
 + */
 +function responseProblems(response) {
 +  const problems = [];
-+  const { status, json, body, location } = response.expect;
++  const { status, json, body, location, cookie } = response.expect;
 +  if (response.status !== status) problems.push(`응답 코드 기대 ${status}, 실제 ${response.status}`);
 +  if (body !== undefined && response.body !== body) problems.push('본문이 정해진 값이 아니다');
 +  if (location !== undefined && !sameLocation(response, location)) problems.push('Location 이 기대와 다르다');
++  if (cookie !== undefined && !setsCookie(response, cookie)) problems.push(`Set-Cookie 에 ${cookie.name} 이 기대한 값으로 없다`);
 +  if (json !== undefined) {
 +    let actual;
 +    let parsed = true;
@@ -3084,7 +3603,7 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
  function matchesError(event, rule) {
    if (exceptionValues(event).length === 0) return false;
    if (isHandled(event) !== rule.handled) return false;
-@@ -150,7 +224,7 @@ function countsSatisfied(envelopes, expected) {
+@@ -150,7 +232,7 @@ function countsSatisfied(envelopes, expected) {
    );
  }
 
@@ -3093,7 +3612,7 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
    const failures = [];
    const counts = [];
    const errors = payloadsOf(envelopes, 'event');
-@@ -171,8 +245,15 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
+@@ -171,8 +253,15 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
          }
        }
        if (hasFrameVars(event)) failures.push(`${rule.label}: stack frame 에 vars 가 실렸다`);
@@ -3109,7 +3628,7 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
    for (const rule of expected.transactions) {
      const matched = transactionsNamed(envelopes, rule.name);
      counts.push({ label: rule.label, expected: `${rule.min} 이상`, actual: matched.length });
-@@ -208,6 +289,13 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
+@@ -208,6 +297,13 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
 
    const records = flatten(envelopes);
    const stdoutLines = stdout.split('\n');
@@ -3123,11 +3642,11 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
    const reportLeak = (name, hits) => {
      for (const where of summarize(hits)) failures.push(`누출(envelope) — ${name}: ${where}`);
    };
-@@ -242,6 +330,26 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
+@@ -242,6 +338,25 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
    );
    for (const where of summarize(strayTripwire)) failures.push(`예상하지 않은 tripwire — ${TRIPWIRE_KEY}: ${where}`);
 
-+  // 6. 응답 — 기대를 적은 요청은 응답 코드·본문·Location 이 정해진 값이고, 거기에 canary 가 없다. 받은 값은 보고에 싣지 않는다.
++  // 6. 응답 — 기대를 적은 요청은 응답 코드·본문·Location·쿠키가 정해진 값이고, 거기에 canary 가 없다. 받은 값은 보고에 싣지 않는다.
 +  const checked = (responses || []).filter((response) => response.expect);
 +  const allCanaries = Object.values(canaries).flatMap((group) => Object.entries(group));
 +  for (const label of [...new Set(checked.map((response) => response.label))]) {
@@ -3139,9 +3658,8 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
 +      for (const problem of problems) failures.push(`응답 — ${label}: ${problem}`);
 +      for (const [name, value] of allCanaries) {
 +        if (response.body.includes(value)) failures.push(`누출(응답 본문) — ${name}: ${label}`);
-+        if (typeof response.location === 'string' && response.location.includes(value)) {
-+          failures.push(`누출(응답 헤더) — ${name}: ${label}`);
-+        }
++        const headers = [response.location, ...(response.setCookies || [])].filter((header) => typeof header === 'string');
++        if (headers.some((header) => header.includes(value))) failures.push(`누출(응답 헤더) — ${name}: ${label}`);
 +      }
 +    }
 +    counts.push({ label: `응답(${label})`, expected: `${group.length}`, actual: matched });
@@ -3212,7 +3730,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 ```diff
 --- a/scripts/envelope-test/scenario.js
 +++ b/scripts/envelope-test/scenario.js
-@@ -7,11 +7,28 @@
+@@ -7,11 +7,30 @@
   *   absent     — envelope 과 서버 표준 출력 어디에도 없어야 한다.
   *   stdoutOnly — 테스트 라우트가 console.warn 으로 찍는다. 서버 출력에만 있어야 한다.
   *   unhandled  — 감싸지 않은 예외. marker 만 exception.values[].value 와 Next 의 미처리 오류 줄에 남는다.
@@ -3232,6 +3750,8 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +const SAFE_500 = { status: 500, json: { error: 'Internal server error' } };
 +/** boundary-redirect 라우트가 redirect() 에 넘기는 주소. 요청은 따라가지 않는다(redirect: 'manual'). */
 +const REDIRECT_TARGET = '/api/envelope-test/redirected';
++/** boundary-stateful 라우트가 redirect 앞에서 next/headers 의 cookies() 로 쓰는 쿠키. 비밀이 아니다. */
++const STATEFUL_COOKIE = { name: 'envtest-boundary', value: 'kept' };
 +
 +/** 계약을 통과해 남아야 하는 값. canary 가 아니다 — 이벤트의 contexts.log 와 서버 출력에 있어야 한다. */
 +const KEPT = {
@@ -3241,7 +3761,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 
  const CANARIES = {
    absent: {
-@@ -26,6 +43,25 @@ const CANARIES = {
+@@ -26,6 +45,27 @@ const CANARIES = {
      handledQuery: 'cnryA-handledquery-6f7a8b9c0d',
      upstreamToken: 'cnryA-upstreamtoken-9e8d7c6b5a',
      baggageQuery: 'cnryA-baggagequery-3c2b1a0f9e',
@@ -3264,10 +3784,12 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +    boundarySelf: 'cnryA-boundaryself-5a4b3c2d1e',
 +    // redirect() 신호의 message 를 읽으면 나오는 예외에 든 값. Next 는 그 message 를 읽지 않는다 — 누가 읽으면 드러난다.
 +    boundaryRedirect: 'cnryA-boundaryredirect-0e9f8a7b6c',
++    // 읽을 때마다 달라지는 redirect() 신호의 메시지·stack·cause·다른 속성에 든 값. 그 값이 경계 밖으로 나가면 드러난다.
++    boundaryStateful: 'cnryA-boundarystateful-4c5d6e7f8a',
    },
    stdoutOnly: {
      console: 'cnryC-console-0f1e2d3c4b',
-@@ -48,7 +84,55 @@ const EXPECTED = {
+@@ -48,6 +88,58 @@ const EXPECTED = {
      // captureRequestError 는 같은 오류를 다시 보내지 않으므로 이 이벤트에는 contexts.nextjs 가 없다.
      { label: '처리되지 않은 예외(node)', handled: false, runtime: 'node', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
      { label: '처리되지 않은 예외(edge)', handled: false, runtime: 'edge', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
@@ -3316,14 +3838,17 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +      fingerprint: ['{{ default }}', SELF_THROW_CODE],
 +      logContext: {},
 +    },
-   ],
++  ],
 +  // 오류 이벤트가 하나도 없어야 하는 요청. 경계가 redirect() 신호를 오류로 잡아 기록하면 여기서 드러난다.
 +  // 이 라우트의 사건 코드는 BOUNDARY_CODE 다 — 가린 로그 줄이 생기면 아래 stdout 의 건수도 어긋난다.
-+  errorFree: [{ label: '올려보낸 redirect 신호', transaction: 'GET /api/envelope-test/boundary-redirect' }],
++  errorFree: [
++    { label: '올려보낸 redirect 신호', transaction: 'GET /api/envelope-test/boundary-redirect' },
++    // 읽을 때마다 달라지는 신호. 던진 값이 그대로 나가면 SDK 가 그것을 처리되지 않은 예외로 보낸다.
++    { label: '읽을 때마다 달라지는 redirect 신호', transaction: 'GET /api/envelope-test/boundary-stateful' },
+   ],
    // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
    // 다른 서비스가 시작한 추적(sentry-trace, baggage)을 이어받은 요청. baggage 의 transaction 이름(쿼리 포함)은
-   // DSC 로 envelope 헤더에 실릴 수 있다. 9.47.1 은 span 안의 이벤트에서 DSC 를 자기 루트 span 으로 다시 만들지만,
-@@ -61,6 +145,18 @@ const EXPECTED = {
+@@ -61,6 +153,18 @@ const EXPECTED = {
      // edge 는 SDK 가 SENTRY_TRACES_SAMPLE_RATE 를 스스로 읽어 표본이 켜진다. 운영에서는 꺼져 있다.
      { label: 'edge 라우트의 transaction', name: 'GET /api/envelope-test/edge-throw', min: REPEAT },
      { label: 'middleware 의 transaction(edge)', name: 'middleware GET /ko/vote', min: REPEAT },
@@ -3342,7 +3867,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
    ],
  };
 
-@@ -83,6 +179,24 @@ function buildRequests(base) {
+@@ -83,6 +187,25 @@ function buildRequests(base) {
      'x-envtest-email': B.email,
    };
 
@@ -3360,6 +3885,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +    'x-envtest-boundary-getter': A.boundaryGetter,
 +    'x-envtest-boundary-self': A.boundarySelf,
 +    'x-envtest-boundary-redirect': A.boundaryRedirect,
++    'x-envtest-boundary-stateful': A.boundaryStateful,
 +    'x-envtest-user-id': KEPT.userId,
 +    'x-envtest-order-id': KEPT.orderId,
 +  };
@@ -3367,7 +3893,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
    const round = [
      { label: 'page', url: `${base}/ko/vote?code=${A.pageQuery}`, init: { headers: common } },
      {
-@@ -115,9 +229,21 @@ function buildRequests(base) {
+@@ -115,9 +238,29 @@ function buildRequests(base) {
      },
      { label: 'throw', url: `${base}/api/envelope-test/throw?code=${B.requestQuery}`, init: { headers: unhandled } },
      { label: 'edge-throw', url: `${base}/api/envelope-test/edge-throw?code=${B.requestQuery}`, init: { headers: unhandled } },
@@ -3383,6 +3909,14 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +      init: { headers: boundary },
 +      expect: { status: 307, location: REDIRECT_TARGET, body: '' },
 +    },
++    // digest 가 처음 1번(또는 2번)만 redirect 인 신호. 경계가 새로 만든 신호가 올라가므로 응답은 변함없이 307 이다.
++    // 라우트가 redirect 앞에서 쓴 쿠키도 응답에 실린다.
++    ...[1, 2].map((reads) => ({
++      label: `boundary-stateful-${reads}`,
++      url: `${base}/api/envelope-test/boundary-stateful?reads=${reads}&code=${A.boundaryQuery}`,
++      init: { headers: boundary },
++      expect: { status: 307, location: REDIRECT_TARGET, body: '', cookie: STATEFUL_COOKIE },
++    })),
    ];
 
    return Array.from({ length: REPEAT }, () => round).flat();
@@ -3613,6 +4147,51 @@ export const GET = withSafeErrors('envtest.boundary.unhandled', async (request: 
 });
 ```
 
+`scripts/envelope-test/routes/boundary-stateful/route.ts` (상태 변화 신호·리다이렉트 쿠키의 실제 서버 회귀 검증):
+
+```typescript
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+
+import { withSafeErrors } from '@/utils/with-safe-errors';
+import { envelopeTestDisabled, logConsoleCanary } from '../_lib/envtest';
+
+export const dynamic = 'force-dynamic';
+
+// 읽을 때마다 달라지는 redirect() 신호. digest 는 처음 몇 번(?reads=1|2)만 redirect 의 것이고 그 뒤로는 평범한 문자열이다.
+// 경계가 이 값을 그대로 올려보내면, 경계에서는 redirect 였던 것이 SDK 의 래퍼와 Next 가 다시 읽을 때는 평범한 오류가 된다.
+// 그러면 메시지·stack·cause 에 든 요청 값이 예외 이벤트와 Next 의 미처리 오류 로그에 찍힌다.
+export const GET = withSafeErrors('envtest.boundary.unhandled', async (request: Request): Promise<Response> => {
+  const disabled = envelopeTestDisabled();
+  if (disabled) return disabled;
+
+  logConsoleCanary(request.headers);
+  const secret = request.headers.get('x-envtest-boundary-stateful') ?? 'none';
+  const validReads = new URL(request.url).searchParams.get('reads') === '2' ? 2 : 1;
+  // redirect 앞에서 쓴 쿠키는 Next 가 요청 저장소에서 꺼내 응답에 싣는다. 신호 객체에 실려 가지 않는다.
+  (await cookies()).set('envtest-boundary', 'kept', { path: '/' });
+
+  try {
+    redirect('/api/envelope-test/redirected');
+  } catch (signal) {
+    const hostile = signal as Error & { digest: string; user?: unknown };
+    const real = hostile.digest;
+    let reads = 0;
+    Object.defineProperty(hostile, 'digest', {
+      get() {
+        reads += 1;
+        return reads <= validReads ? real : `envtest ordinary digest ${secret}`;
+      },
+    });
+    hostile.message = `envtest stateful message ${secret}`;
+    hostile.stack = `Error: envtest stateful\n    at https://envtest.invalid/app.js?code=${secret}:1:1`;
+    hostile.cause = new Error(`envtest stateful cause ${secret}`);
+    hostile.user = { email: `${secret}@envtest.invalid` };
+    throw hostile;
+  }
+});
+```
+
 `__tests__/scripts/envelope-test-routes.test.ts` (교차 리뷰 수정까지 반영한 최종 파일):
 
 ```ts
@@ -3643,6 +4222,7 @@ describe('envelope 테스트용 라우트', () => {
       'scripts/envelope-test/routes/boundary-hostile/route.ts',
       'scripts/envelope-test/routes/boundary-redirect/route.ts',
       'scripts/envelope-test/routes/boundary-self-throw/route.ts',
+      'scripts/envelope-test/routes/boundary-stateful/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-control/route.ts',
       'scripts/envelope-test/routes/delivery-plain/route.ts',
@@ -3689,6 +4269,7 @@ describe('envelope 테스트용 라우트', () => {
       'scripts/envelope-test/routes/boundary-hostile/route.ts',
       'scripts/envelope-test/routes/boundary-redirect/route.ts',
       'scripts/envelope-test/routes/boundary-self-throw/route.ts',
+      'scripts/envelope-test/routes/boundary-stateful/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-safe/route.ts',
     ]);
@@ -3717,7 +4298,7 @@ describe('envelope 테스트 시나리오', () => {
       label: string;
       url: string;
       init: { headers: Record<string, string>; body?: string };
-      expect?: { status: number; json?: unknown; location?: string; body?: string };
+      expect?: { status: number; json?: unknown; location?: string; body?: string; cookie?: { name: string; value: string } };
     }>;
   };
 
@@ -3738,7 +4319,7 @@ describe('envelope 테스트 시나리오', () => {
   it('종류마다 REPEAT 번 보내고, 기대 건수가 그와 같다', () => {
     const requests = buildRequests('http://127.0.0.1:3000');
     const labels = [...new Set(requests.map((request) => request.label))];
-    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile', 'boundary-self-throw', 'boundary-redirect']);
+    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile', 'boundary-self-throw', 'boundary-redirect', 'boundary-stateful-1', 'boundary-stateful-2']);
     for (const label of labels) {
       expect(requests.filter((request) => request.label === label)).toHaveLength(REPEAT);
     }
@@ -3775,19 +4356,27 @@ describe('envelope 테스트 시나리오', () => {
         .map((request) => [request.label, request.expect]),
     );
     const safe500 = { status: 500, json: { error: 'Internal server error' } };
+    const statefulRedirect = {
+      status: 307,
+      location: '/api/envelope-test/redirected',
+      body: '',
+      cookie: { name: 'envtest-boundary', value: 'kept' },
+    };
     expect(expectations).toEqual({
       'boundary-throw': safe500,
       'boundary-handled': { status: 200, json: { ok: true } },
       'boundary-hostile': safe500,
       'boundary-self-throw': safe500,
       'boundary-redirect': { status: 307, location: '/api/envelope-test/redirected', body: '' },
+      'boundary-stateful-1': statefulRedirect,
+      'boundary-stateful-2': statefulRedirect,
     });
 
     const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
     // redirect 를 따라가면 307 과 Location 을 볼 수 없다.
     expect(runner).toContain("fetch(request.url, { redirect: 'manual', ...request.init })");
     expect(runner).toMatch(
-      /responses\.push\(\{\s*label: request\.label,\s*url: request\.url,\s*status: response\.status,\s*location: response\.headers\.get\('location'\),\s*body,\s*expect: request\.expect,\s*\}\);/,
+      /responses\.push\(\{\s*label: request\.label,\s*url: request\.url,\s*status: response\.status,\s*location: response\.headers\.get\('location'\),\s*setCookies: response\.headers\.getSetCookie\(\),\s*body,\s*expect: request\.expect,\s*\}\);/,
     );
     expect(runner).toMatch(/evaluate\(\{[^}]*\bresponses,\s*\}\)/);
   });
@@ -3800,8 +4389,32 @@ describe('envelope 테스트 시나리오', () => {
     expect(route).toMatch(/Object\.defineProperty\(signal as object, 'message', \{\s*get\(\) \{\s*throw new Error\(/);
 
     const transaction = 'GET /api/envelope-test/boundary-redirect';
-    expect(EXPECTED.errorFree).toEqual([{ label: '올려보낸 redirect 신호', transaction }]);
+    expect(EXPECTED.errorFree).toContainEqual({ label: '올려보낸 redirect 신호', transaction });
     // SDK 는 3xx 응답의 transaction 을 버린다.
+    expect(EXPECTED.transactions.map((rule) => rule.name)).not.toContain(transaction);
+  });
+
+  it('읽을 때마다 달라지는 신호의 라우트는 실제 redirect() 와 cookies() 를 쓰고, 두 요청 모두 오류 이벤트를 기대하지 않는다', () => {
+    const route = fs.readFileSync(path.join(sourceDir, 'boundary-stateful/route.ts'), 'utf8');
+    expect(route).toContain("import { cookies } from 'next/headers';");
+    expect(route).toContain("import { redirect } from 'next/navigation';");
+    // 쿠키는 redirect 앞에서 쓴다. 신호 객체에 싣지 않는다.
+    expect(route).toMatch(/\(await cookies\(\)\)\.set\('envtest-boundary', 'kept', \{ path: '\/' \}\);\s+try \{\s+redirect\('\/api\/envelope-test\/redirected'\);/);
+    expect(route).not.toContain('mutableCookies');
+    // digest 는 처음 몇 번만 redirect 의 것이다.
+    expect(route).toMatch(/Object\.defineProperty\(hostile, 'digest', \{\s*get\(\) \{\s*reads \+= 1;\s*return reads <= validReads \? real : /);
+
+    const urls = buildRequests('http://127.0.0.1:3000')
+      .filter((request) => request.label.startsWith('boundary-stateful-'))
+      .map((request) => new URL(request.url));
+    expect([...new Set(urls.map((url) => `${url.pathname} reads=${url.searchParams.get('reads')}`))]).toEqual([
+      '/api/envelope-test/boundary-stateful reads=1',
+      '/api/envelope-test/boundary-stateful reads=2',
+    ]);
+
+    const transaction = 'GET /api/envelope-test/boundary-stateful';
+    expect(EXPECTED.errorFree).toContainEqual({ label: '읽을 때마다 달라지는 redirect 신호', transaction });
+    expect(EXPECTED.errorFree).toHaveLength(2);
     expect(EXPECTED.transactions.map((rule) => rule.name)).not.toContain(transaction);
   });
 
@@ -4720,12 +5333,13 @@ async function runLeak(track) {
       const response = await fetch(request.url, { redirect: 'manual', ...request.init });
       const body = Buffer.from(await response.arrayBuffer()).toString('utf8');
       statuses.push(`${request.label} ${response.status}`);
-      // redirect 는 따라가지 않는다(redirect: 'manual'). 응답 코드와 Location 을 그대로 본다.
+      // redirect 는 따라가지 않는다(redirect: 'manual'). 응답 코드와 Location, Set-Cookie 를 그대로 본다.
       responses.push({
         label: request.label,
         url: request.url,
         status: response.status,
         location: response.headers.get('location'),
+        setCookies: response.headers.getSetCookie(),
         body,
         expect: request.expect,
       });

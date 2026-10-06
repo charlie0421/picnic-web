@@ -23,6 +23,8 @@ const SELF_THROW_CODE = 'envtest.boundary.self_throw';
 const SAFE_500 = { status: 500, json: { error: 'Internal server error' } };
 /** boundary-redirect 라우트가 redirect() 에 넘기는 주소. 요청은 따라가지 않는다(redirect: 'manual'). */
 const REDIRECT_TARGET = '/api/envelope-test/redirected';
+/** boundary-stateful 라우트가 redirect 앞에서 next/headers 의 cookies() 로 쓰는 쿠키. 비밀이 아니다. */
+const STATEFUL_COOKIE = { name: 'envtest-boundary', value: 'kept' };
 
 /** 계약을 통과해 남아야 하는 값. canary 가 아니다 — 이벤트의 contexts.log 와 서버 출력에 있어야 한다. */
 const KEPT = {
@@ -62,6 +64,8 @@ const CANARIES = {
     boundarySelf: 'cnryA-boundaryself-5a4b3c2d1e',
     // redirect() 신호의 message 를 읽으면 나오는 예외에 든 값. Next 는 그 message 를 읽지 않는다 — 누가 읽으면 드러난다.
     boundaryRedirect: 'cnryA-boundaryredirect-0e9f8a7b6c',
+    // 읽을 때마다 달라지는 redirect() 신호의 메시지·stack·cause·다른 속성에 든 값. 그 값이 경계 밖으로 나가면 드러난다.
+    boundaryStateful: 'cnryA-boundarystateful-4c5d6e7f8a',
   },
   stdoutOnly: {
     console: 'cnryC-console-0f1e2d3c4b',
@@ -132,7 +136,11 @@ const EXPECTED = {
   ],
   // 오류 이벤트가 하나도 없어야 하는 요청. 경계가 redirect() 신호를 오류로 잡아 기록하면 여기서 드러난다.
   // 이 라우트의 사건 코드는 BOUNDARY_CODE 다 — 가린 로그 줄이 생기면 아래 stdout 의 건수도 어긋난다.
-  errorFree: [{ label: '올려보낸 redirect 신호', transaction: 'GET /api/envelope-test/boundary-redirect' }],
+  errorFree: [
+    { label: '올려보낸 redirect 신호', transaction: 'GET /api/envelope-test/boundary-redirect' },
+    // 읽을 때마다 달라지는 신호. 던진 값이 그대로 나가면 SDK 가 그것을 처리되지 않은 예외로 보낸다.
+    { label: '읽을 때마다 달라지는 redirect 신호', transaction: 'GET /api/envelope-test/boundary-stateful' },
+  ],
   // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
   // 다른 서비스가 시작한 추적(sentry-trace, baggage)을 이어받은 요청. baggage 의 transaction 이름(쿼리 포함)은
   // DSC 로 envelope 헤더에 실릴 수 있다. 9.47.1 은 span 안의 이벤트에서 DSC 를 자기 루트 span 으로 다시 만들지만,
@@ -193,6 +201,7 @@ function buildRequests(base) {
     'x-envtest-boundary-getter': A.boundaryGetter,
     'x-envtest-boundary-self': A.boundarySelf,
     'x-envtest-boundary-redirect': A.boundaryRedirect,
+    'x-envtest-boundary-stateful': A.boundaryStateful,
     'x-envtest-user-id': KEPT.userId,
     'x-envtest-order-id': KEPT.orderId,
   };
@@ -241,6 +250,14 @@ function buildRequests(base) {
       init: { headers: boundary },
       expect: { status: 307, location: REDIRECT_TARGET, body: '' },
     },
+    // digest 가 처음 1번(또는 2번)만 redirect 인 신호. 경계가 새로 만든 신호가 올라가므로 응답은 변함없이 307 이다.
+    // 라우트가 redirect 앞에서 쓴 쿠키도 응답에 실린다.
+    ...[1, 2].map((reads) => ({
+      label: `boundary-stateful-${reads}`,
+      url: `${base}/api/envelope-test/boundary-stateful?reads=${reads}&code=${A.boundaryQuery}`,
+      init: { headers: boundary },
+      expect: { status: 307, location: REDIRECT_TARGET, body: '', cookie: STATEFUL_COOKIE },
+    })),
   ];
 
   return Array.from({ length: REPEAT }, () => round).flat();

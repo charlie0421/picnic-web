@@ -426,6 +426,46 @@ describe('evaluate — 경계가 돌려준 응답 (설계 §4.7)', () => {
       expect(result.failures).toEqual(['응답 — boundary-redirect: Location 이 기대와 다르다', '누출(응답 헤더) — cookie: boundary-redirect']);
     });
 
+    describe('핸들러가 redirect 앞에서 쓴 쿠키', () => {
+      const withCookie = (setCookies: unknown) => ({
+        ...redirected(),
+        label: 'boundary-stateful-1',
+        setCookies,
+        expect: { ...REDIRECT, cookie: { name: 'envtest-boundary', value: 'kept' } },
+      });
+
+      it.each([
+        ['속성이 붙은 쿠키', ['envtest-boundary=kept; Path=/']],
+        ['속성이 없는 쿠키', ['envtest-boundary=kept']],
+        ['다른 쿠키와 함께', ['other=1; Path=/', 'envtest-boundary=kept; Path=/; HttpOnly']],
+      ])('Set-Cookie 에 그 이름과 값이 있으면(%s) 맞다', (_label, setCookies) => {
+        const result = runResponses([withCookie(setCookies)]);
+
+        expect(result.failures).toEqual([]);
+        expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-stateful-1)', expected: '1', actual: 1 }]);
+      });
+
+      it.each([
+        ['Set-Cookie 가 없다', []],
+        ['기록이 없다', undefined],
+        ['값이 다르다', ['envtest-boundary=dropped; Path=/']],
+        ['값의 앞부분만 같다', ['envtest-boundary=kept2; Path=/']],
+        ['이름의 뒷부분만 같다', ['x-envtest-boundary=kept; Path=/']],
+        ['다른 쿠키뿐이다', ['other=1; Path=/']],
+      ])('쿠키가 응답에 없으면(%s) 실패한다', (_label, setCookies) => {
+        const result = runResponses([withCookie(setCookies)]);
+
+        expect(result.failures).toEqual(['응답 — boundary-stateful-1: Set-Cookie 에 envtest-boundary 이 기대한 값으로 없다']);
+        expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-stateful-1)', expected: '1', actual: 0 }]);
+      });
+
+      it('Set-Cookie 에 canary 가 있으면 실패하고, 받은 값은 보고에 싣지 않는다', () => {
+        const result = runResponses([withCookie(['envtest-boundary=kept; Path=/', 'session=cnryA-cookie; Path=/'])]);
+
+        expect(result.failures).toEqual(['누출(응답 헤더) — cookie: boundary-stateful-1']);
+      });
+    });
+
     it('그 요청의 오류 이벤트는 처리했든 아니든 하나도 없어야 한다', () => {
       const transaction = 'GET /api/envelope-test/boundary-redirect';
       const withRule = { ...expected, errorFree: [{ label: '올려보낸 redirect 신호', transaction }] };

@@ -153,12 +153,13 @@ async function runLeak(track) {
       const response = await fetch(request.url, { redirect: 'manual', ...request.init });
       const body = Buffer.from(await response.arrayBuffer()).toString('utf8');
       statuses.push(`${request.label} ${response.status}`);
-      // redirect 는 따라가지 않는다(redirect: 'manual'). 응답 코드와 Location 을 그대로 본다.
+      // redirect 는 따라가지 않는다(redirect: 'manual'). 응답 코드와 Location, Set-Cookie 를 그대로 본다.
       responses.push({
         label: request.label,
         url: request.url,
         status: response.status,
         location: response.headers.get('location'),
+        setCookies: response.headers.getSetCookie(),
         body,
         expect: request.expect,
       });
