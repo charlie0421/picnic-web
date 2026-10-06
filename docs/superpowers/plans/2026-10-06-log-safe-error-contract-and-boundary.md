@@ -14,7 +14,7 @@
 
 ## 실행 결과 (2026-10-06)
 
-**안전한 새 신호 정규화 구현과 수정 후 검증을 완료했으며 독립 재검토를 기다린다.** 이전 교차 리뷰의 상태 변화 blocker 는 원본 재투척을 없애는 방식으로 수정했다. 새 반례의 단위·실서버 RED/GREEN 결과는 아래에 있다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
+**안전한 새 신호 정규화 구현·검증을 완료했고 원 리뷰어의 독립 코드 리뷰는 APPROVE 다.** 이전 교차 리뷰의 상태 변화 blocker 는 원본 재투척을 없애는 방식으로 수정했다. 새 반례의 단위·실서버 RED/GREEN 결과는 아래에 있다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
 
 | 무엇 | 계획 | 실제 | 이유 |
 |---|---|---|---|
@@ -146,7 +146,15 @@ console.log({ nextSignal, sdkWouldCapture }); // { nextSignal: true, sdkWouldCap
 - 전체 GREEN: KST·UTC 각각 **204파일, 3,521건 통과 · 6 expected fail · 1 skipped**(총 3,528), 종료 코드 0.
 - 새 빌드 실서버 GREEN: `npm run test:envelope` 종료 코드 0. 누출 요청 **36건**, 전달 요청 **11건** 모두 통과했다. 상태 변화 N1/N2 각 3건이 **307·정확한 Location·빈 본문·Set-Cookie** 를 유지하고, 그 transaction 의 오류 이벤트는 0건이다. stdout·envelope·응답 본문 및 헤더에 원본 canary 가 없다. 기존 경계 응답도 모두 유지했다.
 
-실서버에서 확인한 신호는 redirect 와 상태 변화 redirect 다. 그 밖의 Next·React 신호, 원본 부가 속성 제거, invalid Location 의 고정 500 은 단위 테스트로 검증했다. 실제 Vercel 의 after 완료 및 호출부 이관은 기존 후속 범위다. 독립 재검토는 아직 대기 중이며 머지·배포하지 않았다. Run `run_176dd32d29c0`, 구현 Task `task_ddd9204caf38` / Dispatch `ctx_0f2b685c7117` 의 `worker_done`(`msg_500af6a040ca`, succeeded)은 수락됐다. 작업자는 테스트를 실행하지 않았으며 위 수치는 조정자가 직접 실행해 확인했다.
+실서버에서 확인한 신호는 redirect 와 상태 변화 redirect 다. 그 밖의 Next·React 신호, 원본 부가 속성 제거, invalid Location 의 고정 500 은 단위 테스트로 검증했다. 실제 Vercel 의 after 완료 및 호출부 이관은 기존 후속 범위다. 코드 `df3129b5` 를 push 했고 GitHub CI 도 통과했다. 독립 코드 리뷰는 아래 기록과 같이 APPROVE 이며 머지·배포하지 않았다. Run `run_176dd32d29c0`, 구현 Task `task_ddd9204caf38` / Dispatch `ctx_0f2b685c7117` 의 `worker_done`(`msg_500af6a040ca`, succeeded)은 수락됐다. 작업자는 테스트를 실행하지 않았으며 위 수치는 조정자가 직접 실행해 확인했다.
+
+### 안전한 신호 정규화의 독립 재검토 — APPROVE (2026-10-06)
+
+원 리뷰어 Codex `gpt-6-sol/high` 가 `df3129b5` 의 요구사항·diff·관련 파일·조정자 테스트 결과를 읽기 전용으로 검토했다. 판정은 **APPROVE, 차단 지적 없음**이다. 이전 상태 변화 digest blocker 는 해소로 판정했고 원본 객체가 새 신호에서 다시 참조되는 경로를 찾지 못했다. 리뷰어는 테스트를 다시 실행하거나 파일을 변경하지 않았다. 실제 서버에서 확인한 것은 redirect·상태 변화 redirect·쿠키이며 나머지 Next·React 신호와 invalid Location 은 단위 검증 범위다. 운영 Vercel·실제 Sentry 저장 결과는 이 PR 에서 확인하지 않았다.
+
+추적: Run `run_176dd32d29c0`, 리뷰 Task `task_95e74f83221c` / Dispatch `ctx_06b0e501a51d`. 최신 계정·사용량·capability·build-launch 검증과 기존 실제 CLI 의 모델·effort·권한을 확인했다. 리뷰어의 Orca `check` 와 `worker_done` 전송은 읽기 전용 샌드박스의 `runtime_access_denied (EPERM)` 으로 차단됐다. **worker_done 수락을 주장하지 않는다.** 최종 APPROVE 응답과 턴 종료를 transcript·터미널에서 확인한 뒤 `worker-abandon` 정산이 수락됐고, `worker-release` 는 신원 미확인 기존 터미널을 유지했다. 코드 리뷰 판정과 lifecycle 통신 실패를 구분한다. 권한 확대·대리 worker_done·quota 재시도·providerHold 는 없고 정리 대기 터미널은 0건이다.
+
+사용자에게 머지 승인을 요청하는 단계다. 핸드오프 §2 의 "승인 전에는 머지하지 않는다"를 유지한다. PR 은 아직 열려 있으며 Preview 없이 머지가 Production 배포로 이어진다.
 
 ## 계획을 쓰기 전에 확인한 것 (2026-10-06)
 
