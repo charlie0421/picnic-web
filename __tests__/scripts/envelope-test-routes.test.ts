@@ -22,6 +22,7 @@ describe('envelope 테스트용 라우트', () => {
   it('원본은 라우트가 아닌 자리에 있고, 저장소의 app/ 에는 테스트용 라우트가 없다', () => {
     expect(routeFiles).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
+      'scripts/envelope-test/routes/boundary-hostile/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-control/route.ts',
       'scripts/envelope-test/routes/delivery-plain/route.ts',
@@ -65,6 +66,7 @@ describe('envelope 테스트용 라우트', () => {
     const wrapped = routeFiles.filter((file) => /export const GET = withSafeErrors\('envtest\.[a-z_.]+',/.test(fs.readFileSync(path.join(root, file), 'utf8')));
     expect(wrapped).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
+      'scripts/envelope-test/routes/boundary-hostile/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-safe/route.ts',
     ]);
@@ -108,7 +110,7 @@ describe('envelope 테스트 시나리오', () => {
   it('종류마다 REPEAT 번 보내고, 기대 건수가 그와 같다', () => {
     const requests = buildRequests('http://127.0.0.1:3000');
     const labels = [...new Set(requests.map((request) => request.label))];
-    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled']);
+    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile']);
     for (const label of labels) {
       expect(requests.filter((request) => request.label === label)).toHaveLength(REPEAT);
     }

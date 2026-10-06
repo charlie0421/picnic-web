@@ -48,6 +48,47 @@ async function flushAndReport(): Promise<void> {
   }
 }
 
+/** cause 사슬을 따라가는 깊이의 상한. 읽을 때마다 새 cause 를 내놓는 값에서도 멈춘다. */
+const MAX_CAUSE_DEPTH = 10;
+
+/**
+ * 던진 값과 그 cause 사슬. 읽다가 던지거나, 이미 본 값으로 돌아오거나, 상한에 닿으면 거기서 멈춘다.
+ * 던진 값은 무엇이든 될 수 있다 — cause 가 던지는 getter 일 수도, Proxy 일 수도 있다.
+ */
+function causeChain(error: unknown): unknown[] {
+  const chain: unknown[] = [error];
+  let current: unknown = error;
+  while (chain.length <= MAX_CAUSE_DEPTH) {
+    let next: unknown;
+    try {
+      if (!(current instanceof Error) || !('cause' in current)) break;
+      next = current.cause;
+    } catch {
+      break;
+    }
+    if (chain.includes(next)) break;
+    chain.push(next);
+    current = next;
+  }
+  return chain;
+}
+
+/**
+ * Next 가 이 값 자체를 제어 흐름 신호(redirect, notFound, 동적 렌더링 신호)로 보는가.
+ *
+ * unstable_rethrow 는 신호를 받으면 그 값을 그대로 다시 던진다. 다른 것이 나오면 이 값은 신호가 아니다 —
+ * unstable_rethrow 가 cause 를 따라가다가 getter 의 예외를 만났거나, 돌고 도는 cause 로 stack 이 넘친 것이다.
+ * 그런 예외를 그대로 올려보내면 경계가 뚫린다.
+ */
+function isNextControlFlow(value: unknown): boolean {
+  try {
+    unstable_rethrow(value);
+    return false;
+  } catch (thrown) {
+    return thrown === value;
+  }
+}
+
 function scheduleFlush(): void {
   try {
     after(flushAndReport);
@@ -67,7 +108,10 @@ export function withSafeErrors<Args extends unknown[]>(
         return await handler(...args);
       } catch (error) {
         // redirect()·notFound() 와 Next 의 동적 렌더링 신호는 오류가 아니다. 그대로 올려보낸다.
-        unstable_rethrow(error);
+        // Next 가 하듯 cause 사슬 안의 신호도 찾는다. 찾는 동안 난 예외는 올려보내지 않는다.
+        for (const candidate of causeChain(error)) {
+          if (isNextControlFlow(candidate)) throw candidate;
+        }
         logSafeError(code, error);
         // 본문에 오류 메시지를 넣지 않는다.
         return Response.json({ error: 'Internal server error' }, { status: 500 });

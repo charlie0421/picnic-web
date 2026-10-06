@@ -17,6 +17,7 @@ const UNHANDLED_LINE_MARKER = 'envtest unhandled';
 // 테스트 라우트가 쓰는 사건 코드(utils/log-event-codes.ts).
 const BOUNDARY_CODE = 'envtest.boundary.unhandled';
 const HANDLED_CODE = 'envtest.boundary.handled';
+const HOSTILE_CODE = 'envtest.boundary.hostile';
 
 /** 계약을 통과해 남아야 하는 값. canary 가 아니다 — 이벤트의 contexts.log 와 서버 출력에 있어야 한다. */
 const KEPT = {
@@ -50,6 +51,8 @@ const CANARIES = {
     boundaryErrorCode: 'cnryA_boundaryerrorcode_4d5e6f7a8b',
     boundaryJwt: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJjbnJ5QS1ib3VuZGFyeSJ9.Y25yeUEtYm91bmRhcnktc2lnbmF0dXJl',
     boundaryBearer: 'cnryA7boundarybearer5d7f9b1c3e',
+    // 던진 오류의 cause 를 읽으면 나오는 예외에 든 값. 경계가 cause 를 읽다가 그 예외를 놓치면 밖으로 나간다.
+    boundaryGetter: 'cnryA-boundarygetter-8c7d6e5f4a',
   },
   stdoutOnly: {
     console: 'cnryC-console-0f1e2d3c4b',
@@ -95,6 +98,17 @@ const EXPECTED = {
       fingerprint: ['{{ default }}', HANDLED_CODE],
       logContext: { userId: KEPT.userId, orderId: KEPT.orderId, httpStatus: 502, errorCode: 'unknown', droppedFields: ['paymentId'] },
     },
+    // 던진 값을 들여다보는 것을 방해하는 오류(cause 를 읽으면 던진다)도 경계가 잡아 같은 모양으로 남긴다.
+    {
+      label: '읽기를 방해하는 오류를 경계가 잡는다',
+      handled: true,
+      transaction: 'GET /api/envelope-test/boundary-hostile',
+      valueIncludes: HOSTILE_CODE,
+      count: REPEAT,
+      type: 'Error',
+      fingerprint: ['{{ default }}', HOSTILE_CODE],
+      logContext: {},
+    },
   ],
   // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
   // 다른 서비스가 시작한 추적(sentry-trace, baggage)을 이어받은 요청. baggage 의 transaction 이름(쿼리 포함)은
@@ -111,11 +125,13 @@ const EXPECTED = {
     // 경계가 500 을 돌려준 요청. SDK 는 500 응답의 transaction 을 버리지 않는다.
     { label: '경계 함수가 잡은 예외의 transaction', name: 'GET /api/envelope-test/boundary-throw', min: REPEAT },
     { label: '가린 기록을 남긴 요청의 transaction', name: 'GET /api/envelope-test/boundary-handled', min: REPEAT },
+    { label: '읽기를 방해하는 오류의 transaction', name: 'GET /api/envelope-test/boundary-hostile', min: REPEAT },
   ],
   // 가린 로그 한 줄이 서버 출력에 남았는가(설계 §4.3 의 1). Console target 의 첫 줄은 `[시각] ERROR: <사건 코드> {` 다.
   stdout: [
     { label: '가린 로그 줄(경계가 잡은 예외)', includes: `ERROR: ${BOUNDARY_CODE}`, count: REPEAT },
     { label: '가린 로그 줄(가린 기록)', includes: `ERROR: ${HANDLED_CODE}`, count: REPEAT },
+    { label: '가린 로그 줄(읽기를 방해하는 오류)', includes: `ERROR: ${HOSTILE_CODE}`, count: REPEAT },
   ],
 };
 
@@ -149,6 +165,7 @@ function buildRequests(base) {
     'x-envtest-boundary-cause': A.boundaryCause,
     'x-envtest-boundary-payment-id': A.boundaryPaymentId,
     'x-envtest-boundary-error-code': A.boundaryErrorCode,
+    'x-envtest-boundary-getter': A.boundaryGetter,
     'x-envtest-user-id': KEPT.userId,
     'x-envtest-order-id': KEPT.orderId,
   };
@@ -187,6 +204,7 @@ function buildRequests(base) {
     { label: 'edge-throw', url: `${base}/api/envelope-test/edge-throw?code=${B.requestQuery}`, init: { headers: unhandled } },
     { label: 'boundary-throw', url: `${base}/api/envelope-test/boundary-throw?code=${A.boundaryQuery}`, init: { headers: boundary } },
     { label: 'boundary-handled', url: `${base}/api/envelope-test/boundary-handled?code=${A.boundaryQuery}`, init: { headers: boundary } },
+    { label: 'boundary-hostile', url: `${base}/api/envelope-test/boundary-hostile?code=${A.boundaryQuery}`, init: { headers: boundary } },
   ];
 
   return Array.from({ length: REPEAT }, () => round).flat();

@@ -142,6 +142,88 @@ describe('withSafeErrors', () => {
     });
   });
 
+  // 던진 값은 무엇이든 될 수 있다. 경계가 그 값을 들여다보다가 던지면 예외가 Next 와 Sentry 로 새어 나간다.
+  describe('던진 값이 읽기를 방해할 때', () => {
+    const expectSafe500 = async (handler: () => Promise<Response>) => {
+      const response = await withSafeErrors('envtest.boundary.unhandled', handler)();
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({ error: 'Internal server error' });
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError.mock.calls[0][0]).toContain('ERROR: envtest.boundary.unhandled');
+      expect(JSON.stringify(consoleError.mock.calls)).not.toMatch(/cnry/i);
+      expect(mocks.after).toHaveBeenCalledTimes(1);
+    };
+
+    it('cause 를 읽으면 던지는 오류를 경계 밖으로 내보내지 않는다', async () => {
+      const error = new Error('x');
+      Object.defineProperty(error, 'cause', {
+        get() {
+          throw new Error('cnry-cause-getter https://pay.example/cb?code=cnry');
+        },
+      });
+
+      await expectSafe500(async () => {
+        throw error;
+      });
+    });
+
+    it('cause 가 돌고 도는 오류도 기록하고 500 을 준다', async () => {
+      const first = new Error('cnry-first');
+      const second = new Error('cnry-second', { cause: first });
+      Object.assign(first, { cause: second });
+
+      await expectSafe500(async () => {
+        throw first;
+      });
+    });
+
+    it('cause 가 끝없이 이어지는 오류도 멈춘다', async () => {
+      const endless = (): Error => {
+        const error = new Error('cnry-endless');
+        Object.defineProperty(error, 'cause', { get: endless });
+        return error;
+      };
+
+      await expectSafe500(async () => {
+        throw endless();
+      });
+    });
+
+    it('읽으면 던지는 Proxy 를 던져도 500 이다', async () => {
+      const trap = () => {
+        throw new Error('cnry-proxy-trap');
+      };
+      const hostile = new Proxy(new Error('x'), { get: trap, has: trap, getPrototypeOf: trap, ownKeys: trap });
+
+      await expectSafe500(async () => {
+        throw hostile;
+      });
+    });
+
+    it('취소된 Proxy 를 던져도 500 이다', async () => {
+      const { proxy, revoke } = Proxy.revocable(new Error('x'), {});
+      revoke();
+
+      await expectSafe500(async () => {
+        throw proxy;
+      });
+    });
+
+    it('cause 사슬 안의 redirect() 는 Next 가 하듯 그것을 올려보낸다', async () => {
+      const signal = caught(() => redirect('/login'));
+      const wrapped = new Error('wrapped', { cause: new Error('middle', { cause: signal }) });
+
+      await expect(
+        withSafeErrors('envtest.boundary.unhandled', async () => {
+          throw wrapped;
+        })(),
+      ).rejects.toBe(signal);
+
+      expect(consoleError).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Next 의 제어 흐름', () => {
     it.each([
       ['redirect()', () => caught(() => redirect('/login'))],

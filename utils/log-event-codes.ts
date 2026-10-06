@@ -14,6 +14,7 @@ export const LOG_EVENT_CODES = [
   // envelope·전달 테스트용 라우트(scripts/envelope-test/routes/)가 쓴다. 운영 코드는 쓰지 않는다.
   'envtest.boundary.unhandled',
   'envtest.boundary.handled',
+  'envtest.boundary.hostile',
   'envtest.delivery.unhandled',
   'envtest.delivery.handled',
 ] as const;

@@ -151,6 +151,30 @@ describe('buildSafeRecord', () => {
     expect(buildSafeRecord('envtest.boundary.handled', undefined, fields)).toMatchObject({ fields: {}, droppedFields: ['fields'] });
   });
 
+  it('취소된 Proxy 가 fields 여도 던지지 않는다', () => {
+    const { proxy, revoke } = Proxy.revocable({ userId: USER_ID }, {});
+    revoke();
+
+    expect(buildSafeRecord('envtest.boundary.handled', undefined, proxy)).toEqual({
+      code: 'envtest.boundary.handled',
+      errorName: 'Error',
+      fields: {},
+      droppedFields: ['fields'],
+    });
+  });
+
+  it('Symbol 키와 열거되지 않는 키도 정해지지 않은 키로 센다', () => {
+    const withSymbol = { userId: USER_ID, [Symbol('cnry-symbol')]: 'cnry-value' };
+    const withHidden = Object.defineProperty({ userId: USER_ID }, 'cnryHidden', { value: 'cnry-value', enumerable: false });
+
+    for (const fields of [withSymbol, withHidden]) {
+      const record = buildSafeRecord('envtest.boundary.handled', undefined, fields);
+      expect(record.fields).toEqual({ userId: USER_ID });
+      expect(record.droppedFields).toEqual(['other']);
+      expect(strings(record).join('\n')).not.toMatch(/cnry/i);
+    }
+  });
+
   it('목록에 없는 사건 코드는 대체 코드로 바꾸고 code 를 버린 필드에 적는다', () => {
     const record = buildSafeRecord(`payment.${CANARY.key}.failed`, undefined, { httpStatus: 'x' });
     expect(record.code).toBe('log.invalid_event_code');
@@ -185,6 +209,7 @@ describe('logSafeError', () => {
   });
 
   afterEach(() => {
+    vi.doUnmock('@/utils/log-known-errors');
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
@@ -257,6 +282,104 @@ describe('logSafeError', () => {
     expect(lines[0]).toBe('Error: envtest.boundary.unhandled');
     expect(lines[1]).toContain('log-safe-error.test.ts');
     expect(error.stack).not.toContain('at logSafeError');
+  });
+
+  it('stack 에는 위치만 싣는다. 함수 이름은 싣지 않는다', async () => {
+    logSafeError('envtest.boundary.unhandled', new Error('x'));
+
+    const { error } = await sentryCall();
+    const frames = (error.stack ?? '').split('\n').slice(1);
+    expect(frames.length).toBeGreaterThan(0);
+    for (const frame of frames) expect(frame).toMatch(/^ {4}at \S.*:\d+:\d+$/);
+  });
+
+  // 함수 이름은 코드가 아니라 값에서 올 수 있다: { [action]() { … } } 의 action 이 요청 값이면 V8 은 그것을 프레임에 적는다.
+  it.each([
+    [
+      '값으로 이름 붙인 메서드',
+      (log: () => void) => {
+        const name = 'cnryComputedMethod';
+        const holder: Record<string, () => void> = {
+          [name]() {
+            log();
+          },
+        };
+        holder[name]();
+      },
+    ],
+    [
+      '값을 키로 삼아 부른 함수',
+      (log: () => void) => {
+        const holder: Record<string, () => void> = {};
+        holder['cnryAliasKey'] = function plain() {
+          log();
+        };
+        holder['cnryAliasKey']();
+      },
+    ],
+    [
+      '이름에 줄바꿈과 위치 모양을 넣은 함수',
+      (log: () => void) => {
+        const name = 'cnryForged\n    at /cnry/forged/location.js:1:2\n    cnryTail';
+        const holder: Record<string, () => void> = {
+          [name]() {
+            log();
+          },
+        };
+        holder[name]();
+      },
+    ],
+    [
+      '값으로 이름 붙인 클래스의 메서드',
+      (log: () => void) => {
+        const name = 'CnryDynamicClass';
+        const Dynamic = { [name]: class { run() { log(); } } }[name];
+        new Dynamic().run();
+      },
+    ],
+  ])('호출부의 함수 이름이 값에서 온 것이어도 새지 않는다: %s', async (_label, call) => {
+    call(() => logSafeError('envtest.boundary.handled', new Error('x')));
+
+    const sentry = await sentryCall();
+    expect(strings([consoleError.mock.calls, sentry.error, sentry.options]).join('\n')).not.toMatch(/cnry/i);
+    // 위치는 남는다.
+    expect(sentry.error.stack).toMatch(/log-safe-error\.test\.ts:\d+:\d+/);
+  });
+
+  it.each([
+    ['fields', (proxy: object) => [new Error('x'), proxy] as const],
+    ['error', (proxy: object) => [proxy, { userId: USER_ID }] as const],
+  ])('취소된 Proxy 가 %s 여도 로그 한 줄은 남는다', async (_label, args) => {
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+    const [error, fields] = args(proxy);
+
+    expect(() => logSafeError('envtest.boundary.handled', error, fields as Record<string, unknown>)).not.toThrow();
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toContain('ERROR: envtest.boundary.handled');
+    await sentryCall();
+  });
+
+  // 계약 함수 안에서 예상하지 못한 예외가 나도 "가린 로그 한 줄"은 지켜야 한다(설계 §4.3 의 1).
+  it('기록을 만들다가 던져도 상수만 든 기록으로 로그 한 줄을 남긴다', async () => {
+    vi.resetModules();
+    vi.doMock('@/utils/log-known-errors', () => ({
+      knownErrorName: () => {
+        throw new Error('cnry-internal-failure');
+      },
+      knownErrorCode: () => 'unknown',
+    }));
+    const fresh = await import('@/utils/log-safe-error');
+
+    expect(() => fresh.logSafeError('envtest.boundary.handled', new Error('x'), { userId: USER_ID })).not.toThrow();
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0][0]).toContain('ERROR: envtest.boundary.handled');
+    const logData = consoleError.mock.calls[0][1] as Record<string, any>;
+    expect(logData.context).toEqual({ droppedFields: ['fields'] });
+    expect(logData.error.name).toBe('Error');
+    expect(strings(consoleError.mock.calls).join('\n')).not.toMatch(/cnry/i);
   });
 
   it('사건 코드로 Sentry 이슈를 가른다', async () => {
