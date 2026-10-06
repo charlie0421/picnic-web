@@ -23,6 +23,9 @@ describe('envelope 테스트용 라우트', () => {
     expect(routeFiles).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
+      'scripts/envelope-test/routes/delivery-control/route.ts',
+      'scripts/envelope-test/routes/delivery-plain/route.ts',
+      'scripts/envelope-test/routes/delivery-safe/route.ts',
       'scripts/envelope-test/routes/edge-throw/route.ts',
       'scripts/envelope-test/routes/handled/route.ts',
       'scripts/envelope-test/routes/throw/route.ts',
@@ -63,6 +66,7 @@ describe('envelope 테스트용 라우트', () => {
     expect(wrapped).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
+      'scripts/envelope-test/routes/delivery-safe/route.ts',
     ]);
     // 나머지는 감싸지 않은 채로 둔다. 감싸지 않은 라우트의 동작(미처리 오류, flush 한계)을 고정하는 것이 목적이다.
     for (const file of routeFiles.filter((route) => !wrapped.includes(route))) {
@@ -132,6 +136,20 @@ describe('envelope 테스트 시나리오', () => {
       const code = rule.includes.replace('ERROR: ', '');
       expect(sources, code).toContain(`'${code}'`);
     }
+  });
+
+  it('전달 시나리오의 요청이 실제 테스트 라우트를 가리킨다', () => {
+    const { STEPS } = require(path.join(root, 'scripts/envelope-test/delivery.js')) as { STEPS: Array<{ path: string }> };
+    for (const step of STEPS) {
+      const route = step.path.split('?')[0].replace('/api/envelope-test/', '');
+      expect(fs.existsSync(path.join(sourceDir, route, 'route.ts')), step.path).toBe(true);
+    }
+  });
+
+  it('실행기가 두 시나리오를 모두 돌린다', () => {
+    const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
+    expect(runner).toContain("if (only !== 'delivery') codes.push(await runLeak(track));");
+    expect(runner).toContain("if (only !== 'leak') codes.push(await runDeliveryScenario(track));");
   });
 
   it('package.json 에 실행 스크립트가 있다', () => {
