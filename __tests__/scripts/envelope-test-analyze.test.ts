@@ -222,3 +222,96 @@ describe('evaluate', () => {
     expect(result.failures).toContain('수신 건수 — 미처리(node): 기대 1건, 실제 0건');
   });
 });
+
+describe('evaluate — 가린 기록의 모양과 서버 출력 (설계 §4.2, §4.3)', () => {
+  const USER_ID = '4d3c2b1a-0f9e-4d8c-9b7a-6f5e4d3c2b1a';
+  const safeExpected = {
+    errors: [
+      {
+        label: '가린 기록',
+        handled: true,
+        valueIncludes: 'envtest.boundary.handled',
+        count: 1,
+        type: 'Error',
+        fingerprint: ['{{ default }}', 'envtest.boundary.handled'],
+        logContext: { userId: USER_ID, httpStatus: 502, errorCode: 'unknown', droppedFields: ['paymentId'] },
+      },
+    ],
+    transactions: [],
+    stdout: [{ label: '가린 로그 줄', includes: 'ERROR: envtest.boundary.handled', count: 1 }],
+  };
+  const safeStdout = [
+    'envtest console cnryC-console',
+    '[2026-10-06T00:00:00.000Z] ERROR: envtest.boundary.handled {',
+    "  message: 'envtest.boundary.handled',",
+    "    stack: 'Error: envtest.boundary.handled\\n' +",
+    '}',
+  ].join('\n');
+  const safeEvent = () => ({
+    exception: { values: [{ type: 'Error', value: 'envtest.boundary.handled', mechanism: { type: 'generic', handled: true } }] },
+    fingerprint: ['{{ default }}', 'envtest.boundary.handled'],
+    // 키 순서는 판정과 무관하다.
+    contexts: { log: { droppedFields: ['paymentId'], errorCode: 'unknown', httpStatus: 502, timestamp: '2026-10-06T00:00:00.000Z', userId: USER_ID } },
+  });
+  const runSafe = (event: Record<string, unknown>, stdout = safeStdout) =>
+    evaluate({
+      envelopes: [envelopeOf('event', event)],
+      stdout,
+      canaries: { absent: canaries.absent, stdoutOnly: canaries.stdoutOnly, unhandled: {} },
+      expected: safeExpected,
+      unhandledLineMarker: 'envtest unhandled',
+    });
+
+  it('모양이 맞고 로그 줄이 기대한 수만큼 있으면 실패가 없다', () => {
+    const result = runSafe(safeEvent());
+    expect(result.failures).toEqual([]);
+    expect(result.counts).toEqual([
+      { label: '가린 기록', expected: '1', actual: 1 },
+      { label: '가린 로그 줄', expected: '1', actual: 1 },
+    ]);
+  });
+
+  it('예외 type 이 기대와 다르면 실패한다 — 표에 없는 오류 이름이 그대로 나간 것이다', () => {
+    const event = safeEvent();
+    event.exception.values[0].type = 'EnvtestSecretName';
+    expect(runSafe(event).failures).toEqual(['가린 기록: 예외 type 이 Error 가 아니다']);
+  });
+
+  it('fingerprint 가 없거나 다르면 실패한다', () => {
+    const missing = safeEvent() as Record<string, unknown>;
+    delete missing.fingerprint;
+    const different = { ...safeEvent(), fingerprint: ['envtest.boundary.handled'] };
+    expect(runSafe(missing).failures).toEqual(['가린 기록: fingerprint 가 기대와 다르다']);
+    expect(runSafe(different).failures).toEqual(['가린 기록: fingerprint 가 기대와 다르다']);
+  });
+
+  it('contexts.log 에 계약 밖의 키가 있으면 실패하고, 값은 보고에 싣지 않는다', () => {
+    const event = safeEvent();
+    Object.assign(event.contexts.log, { email: 'someone@example.com' });
+    expect(runSafe(event).failures).toEqual([
+      '가린 기록: contexts.log 가 기대와 다르다(키: droppedFields, email, errorCode, httpStatus, userId)',
+    ]);
+  });
+
+  it('contexts.log 의 값이 다르거나 빠지면 실패한다', () => {
+    const changed = safeEvent();
+    changed.contexts.log.droppedFields = [];
+    const missing = safeEvent() as { contexts?: unknown };
+    delete missing.contexts;
+    expect(runSafe(changed).failures).toEqual([
+      '가린 기록: contexts.log 가 기대와 다르다(키: droppedFields, errorCode, httpStatus, userId)',
+    ]);
+    expect(runSafe(missing as Record<string, unknown>).failures).toEqual(['가린 기록: contexts.log 가 기대와 다르다(키: 없음)']);
+  });
+
+  it('가린 로그 줄이 없거나 더 많으면 실패한다', () => {
+    const none = runSafe(safeEvent(), 'envtest console cnryC-console');
+    const twice = runSafe(safeEvent(), `${safeStdout}\n${safeStdout}`);
+    expect(none.failures).toEqual(['서버 출력 — 가린 로그 줄: 기대 1줄, 실제 0줄']);
+    expect(twice.failures).toEqual(['서버 출력 — 가린 로그 줄: 기대 1줄, 실제 2줄']);
+  });
+
+  it('모양을 적지 않은 규칙은 예전처럼 건수만 본다', () => {
+    expect(run(clean()).failures).toEqual([]);
+  });
+});

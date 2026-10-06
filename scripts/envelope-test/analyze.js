@@ -9,6 +9,7 @@
  *   2. 무누출 — 묶음 A 는 envelope 과 표준 출력 어디에도 없다. 묶음 C 는 표준 출력에만 있다.
  *   3. 허용 노출 — 묶음 B 의 marker 는 exception.values[].value 와 Next 의 미처리 오류 줄에만 있다.
  *   4. tripwire 표식은 기대한 이벤트에만 있다. 다른 곳에 있으면 토큰 모양 값이 새다가 가려진 것이다.
+ *   5. 가린 기록(logSafeError)의 이벤트는 정해진 모양이고, 가린 로그 줄이 서버 출력에 기대한 수만큼 있다(설계 §4.2, §4.3).
  */
 
 const TRIPWIRE_KEY = 'redaction.tripwire';
@@ -113,6 +114,41 @@ const hasFrameVars = (event) =>
     ((value.stacktrace && value.stacktrace.frames) || []).some((frame) => frame && frame.vars !== undefined),
   );
 
+/** 키 순서와 무관하게 비교하려고 객체의 키를 정렬한다. */
+const canonical = (value) => {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  }
+  return value;
+};
+
+const sameJson = (left, right) => JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
+
+/**
+ * 가린 기록의 이벤트가 정해진 모양인가 (설계 §4.2). rule 에 적은 항목만 본다.
+ *   type        — 예외의 type(오류 이름). 표에 없는 이름은 'Error' 여야 한다.
+ *   fingerprint — 사건 코드로 이슈를 가른다.
+ *   logContext  — contexts.log 에서 timestamp 를 뺀 나머지 전부. 계약을 통과한 필드만 있어야 한다.
+ */
+function shapeProblems(event, rule) {
+  const problems = [];
+  if (rule.type !== undefined && exceptionValues(event).some((value) => value.type !== rule.type)) {
+    problems.push(`예외 type 이 ${rule.type} 가 아니다`);
+  }
+  if (rule.fingerprint !== undefined && !sameJson(event.fingerprint, rule.fingerprint)) {
+    problems.push('fingerprint 가 기대와 다르다');
+  }
+  if (rule.logContext !== undefined) {
+    const actual = { ...((event.contexts && event.contexts.log) || {}) };
+    delete actual.timestamp;
+    if (!sameJson(actual, rule.logContext)) {
+      problems.push(`contexts.log 가 기대와 다르다(키: ${Object.keys(actual).sort().join(', ') || '없음'})`);
+    }
+  }
+  return problems;
+}
+
 function matchesError(event, rule) {
   if (exceptionValues(event).length === 0) return false;
   if (isHandled(event) !== rule.handled) return false;
@@ -171,6 +207,7 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
         }
       }
       if (hasFrameVars(event)) failures.push(`${rule.label}: stack frame 에 vars 가 실렸다`);
+      for (const problem of shapeProblems(event, rule)) failures.push(`${rule.label}: ${problem}`);
     }
   }
   for (const rule of expected.transactions) {
@@ -208,6 +245,13 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
 
   const records = flatten(envelopes);
   const stdoutLines = stdout.split('\n');
+
+  // 서버 출력에 있어야 하는 줄. 가린 로그 한 줄이 실제로 남았는지 센다.
+  for (const rule of expected.stdout || []) {
+    const actual = stdoutLines.filter((line) => line.includes(rule.includes)).length;
+    counts.push({ label: rule.label, expected: `${rule.count}`, actual });
+    if (actual !== rule.count) failures.push(`서버 출력 — ${rule.label}: 기대 ${rule.count}줄, 실제 ${actual}줄`);
+  }
   const reportLeak = (name, hits) => {
     for (const where of summarize(hits)) failures.push(`누출(envelope) — ${name}: ${where}`);
   };
