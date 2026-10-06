@@ -367,6 +367,86 @@ describe('evaluate — 경계가 돌려준 응답 (설계 §4.7)', () => {
     ]);
   });
 
+  describe('경계가 올려보낸 redirect() 신호', () => {
+    const REDIRECT = { status: 307, location: '/api/envelope-test/redirected', body: '' };
+    const redirected = () => ({
+      label: 'boundary-redirect',
+      url: 'http://127.0.0.1:3000/api/envelope-test/boundary-redirect?code=x',
+      status: 307,
+      location: '/api/envelope-test/redirected',
+      body: '',
+      expect: REDIRECT,
+    });
+
+    it('응답 코드·Location·빈 본문이 맞으면 실패가 없다', () => {
+      const result = runResponses([redirected(), redirected()]);
+
+      expect(result.failures).toEqual([]);
+      expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-redirect)', expected: '2', actual: 2 }]);
+    });
+
+    it('Location 이 절대 주소여도 같은 곳을 가리키면 맞다', () => {
+      const absolute = { ...redirected(), location: 'http://127.0.0.1:3000/api/envelope-test/redirected' };
+      expect(runResponses([absolute]).failures).toEqual([]);
+    });
+
+    // 경계가 신호를 오류로 다루면 307 대신 고정된 500 이 나온다.
+    it('경계가 신호를 오류로 다뤄 500 을 돌려주면 실패한다', () => {
+      const result = runResponses([{ ...redirected(), status: 500, location: null, body: '{"error":"Internal server error"}' }]);
+
+      expect(result.failures).toEqual([
+        '응답 — boundary-redirect: 응답 코드 기대 307, 실제 500',
+        '응답 — boundary-redirect: 본문이 정해진 값이 아니다',
+        '응답 — boundary-redirect: Location 이 기대와 다르다',
+      ]);
+      expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-redirect)', expected: '1', actual: 0 }]);
+    });
+
+    it('응답 코드가 다른 redirect(308)면 실패한다', () => {
+      expect(runResponses([{ ...redirected(), status: 308 }]).failures).toEqual(['응답 — boundary-redirect: 응답 코드 기대 307, 실제 308']);
+    });
+
+    it.each([
+      ['다른 경로', '/api/envelope-test/elsewhere'],
+      ['쿼리가 붙은 주소', '/api/envelope-test/redirected?next=/x'],
+      ['다른 호스트', 'https://envtest.invalid/api/envelope-test/redirected'],
+      ['빈 값', ''],
+      ['없음', null],
+    ])('Location 이 기대와 다르면(%s) 실패한다', (_label, location) => {
+      expect(runResponses([{ ...redirected(), location }]).failures).toEqual(['응답 — boundary-redirect: Location 이 기대와 다르다']);
+    });
+
+    it('본문이 비어 있지 않으면 실패한다', () => {
+      expect(runResponses([{ ...redirected(), body: 'Redirecting...' }]).failures).toEqual(['응답 — boundary-redirect: 본문이 정해진 값이 아니다']);
+    });
+
+    it('Location 에 canary 가 있으면 실패하고, 받은 값은 보고에 싣지 않는다', () => {
+      const result = runResponses([{ ...redirected(), location: '/api/envelope-test/redirected?code=cnryA-cookie' }]);
+
+      expect(result.failures).toEqual(['응답 — boundary-redirect: Location 이 기대와 다르다', '누출(응답 헤더) — cookie: boundary-redirect']);
+    });
+
+    it('그 요청의 오류 이벤트는 처리했든 아니든 하나도 없어야 한다', () => {
+      const transaction = 'GET /api/envelope-test/boundary-redirect';
+      const withRule = { ...expected, errorFree: [{ label: '올려보낸 redirect 신호', transaction }] };
+      const judge = (envelopes: Envelope[]) =>
+        evaluate({ envelopes, stdout: stdoutOk, canaries, expected: withRule, unhandledLineMarker: 'envtest unhandled' });
+
+      const none = judge(clean());
+      expect(none.failures).toEqual([]);
+      expect(none.counts).toContainEqual({ label: '올려보낸 redirect 신호', expected: '0', actual: 0 });
+
+      // 경계가 신호를 오류로 잡으면 가린 기록의 이벤트가 이 요청의 transaction 이름으로 온다.
+      const safeEvent = {
+        transaction,
+        exception: { values: [{ type: 'Error', value: 'envtest.boundary.unhandled', mechanism: { type: 'generic', handled: true } }] },
+      };
+      const recorded = judge([...clean(), envelopeOf('event', safeEvent), envelopeOf('event', { ...safeEvent })]);
+      expect(recorded.failures).toEqual(['수신 건수 — 올려보낸 redirect 신호: 오류 이벤트 기대 0건, 실제 2건']);
+      expect(recorded.counts).toContainEqual({ label: '올려보낸 redirect 신호', expected: '0', actual: 2 });
+    });
+  });
+
   it('기대를 적지 않은 응답은 보지 않는다 — 페이지의 HTML 은 요청 주소를 담는다', () => {
     const result = runResponses([{ label: 'page', status: 200, body: '<html>/ko/vote?code=cnryA-cookie</html>' }]);
 

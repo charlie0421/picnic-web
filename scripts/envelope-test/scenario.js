@@ -21,6 +21,8 @@ const HOSTILE_CODE = 'envtest.boundary.hostile';
 const SELF_THROW_CODE = 'envtest.boundary.self_throw';
 /** 경계가 오류를 잡았을 때의 응답(utils/with-safe-errors.ts). 본문에 오류의 어떤 것도 없다. */
 const SAFE_500 = { status: 500, json: { error: 'Internal server error' } };
+/** boundary-redirect 라우트가 redirect() 에 넘기는 주소. 요청은 따라가지 않는다(redirect: 'manual'). */
+const REDIRECT_TARGET = '/api/envelope-test/redirected';
 
 /** 계약을 통과해 남아야 하는 값. canary 가 아니다 — 이벤트의 contexts.log 와 서버 출력에 있어야 한다. */
 const KEPT = {
@@ -58,6 +60,8 @@ const CANARIES = {
     boundaryGetter: 'cnryA-boundarygetter-8c7d6e5f4a',
     // cause 를 읽으면 자기 자신을 던지는 오류의 메시지에 든 값. 경계가 그 오류를 Next 의 신호로 잘못 보면 밖으로 나간다.
     boundarySelf: 'cnryA-boundaryself-5a4b3c2d1e',
+    // redirect() 신호의 message 를 읽으면 나오는 예외에 든 값. Next 는 그 message 를 읽지 않는다 — 누가 읽으면 드러난다.
+    boundaryRedirect: 'cnryA-boundaryredirect-0e9f8a7b6c',
   },
   stdoutOnly: {
     console: 'cnryC-console-0f1e2d3c4b',
@@ -126,6 +130,9 @@ const EXPECTED = {
       logContext: {},
     },
   ],
+  // 오류 이벤트가 하나도 없어야 하는 요청. 경계가 redirect() 신호를 오류로 잡아 기록하면 여기서 드러난다.
+  // 이 라우트의 사건 코드는 BOUNDARY_CODE 다 — 가린 로그 줄이 생기면 아래 stdout 의 건수도 어긋난다.
+  errorFree: [{ label: '올려보낸 redirect 신호', transaction: 'GET /api/envelope-test/boundary-redirect' }],
   // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
   // 다른 서비스가 시작한 추적(sentry-trace, baggage)을 이어받은 요청. baggage 의 transaction 이름(쿼리 포함)은
   // DSC 로 envelope 헤더에 실릴 수 있다. 9.47.1 은 span 안의 이벤트에서 DSC 를 자기 루트 span 으로 다시 만들지만,
@@ -185,6 +192,7 @@ function buildRequests(base) {
     'x-envtest-boundary-error-code': A.boundaryErrorCode,
     'x-envtest-boundary-getter': A.boundaryGetter,
     'x-envtest-boundary-self': A.boundarySelf,
+    'x-envtest-boundary-redirect': A.boundaryRedirect,
     'x-envtest-user-id': KEPT.userId,
     'x-envtest-order-id': KEPT.orderId,
   };
@@ -226,6 +234,13 @@ function buildRequests(base) {
     { label: 'boundary-handled', url: `${base}/api/envelope-test/boundary-handled?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: { status: 200, json: { ok: true } } },
     { label: 'boundary-hostile', url: `${base}/api/envelope-test/boundary-hostile?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: SAFE_500 },
     { label: 'boundary-self-throw', url: `${base}/api/envelope-test/boundary-self-throw?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: SAFE_500 },
+    // 경계가 올려보낸 redirect() 신호는 Next 가 307 로 바꾼다. 본문은 없다.
+    {
+      label: 'boundary-redirect',
+      url: `${base}/api/envelope-test/boundary-redirect?code=${A.boundaryQuery}`,
+      init: { headers: boundary },
+      expect: { status: 307, location: REDIRECT_TARGET, body: '' },
+    },
   ];
 
   return Array.from({ length: REPEAT }, () => round).flat();

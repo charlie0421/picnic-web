@@ -91,6 +91,63 @@ const DYNAMIC_POSTPONE_REASON =
   'React throws this special object to indicate where. It should not be caught by your own try/catch. ' +
   'Learn more: https://nextjs.org/docs/messages/ppr-caught-error';
 
+/** unstable_rethrow 가 올려보내는 신호의 계열 전부. 값은 Next·React 가 실제로 던지는 것이고, 어느 계열인지는 Next 의 판정 함수로 확인한다. */
+const NEXT_SIGNALS: Array<[string, (value: unknown) => boolean, () => unknown]> = [
+  ['redirect()', isRedirectError, () => caught(() => redirect('/login'))],
+  ['permanentRedirect()', isRedirectError, () => caught(() => permanentRedirect('/login'))],
+  ['notFound()', isHTTPAccessFallbackError, () => caught(() => notFound())],
+  ['forbidden()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => forbidden())],
+  ['unauthorized()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => unauthorized())],
+  ['클라이언트 렌더링으로 넘기는 신호', isBailoutToCSRError, () => new BailoutToCSRError('cnry bailout')],
+  ['동적 렌더링 신호', isDynamicServerError, () => new DynamicServerError('cnry dynamic')],
+  ['동적 postpone', isDynamicPostpone, () => new Error(DYNAMIC_POSTPONE_REASON)],
+  ['React postpone', isPostpone, () => reactPostpone('cnry postpone')],
+  ['prerender 뒤의 거부', isHangingPromiseRejectionError, () => hangingPromiseRejection()],
+];
+
+/** 신호가 판정된 뒤에야 읽힐 수 있는 속성. Next 가 판정을 끝낸 뒤라면 읽지 않는다. */
+const LATE_KEYS = ['message', '$$typeof', 'cause'];
+
+/** 읽으면 다른 오류를 던지는 getter 를 단다. */
+function makeUnreadable(value: unknown, key: string): void {
+  Object.defineProperty(value as object, key, {
+    get() {
+      throw new Error(`cnry-late-getter ${key} https://pay.example/cb?code=cnry`);
+    },
+  });
+}
+
+/** 값을 감싸 무엇을 읽는지 적는다. 같은 읽기는 처음 한 번만, 읽은 순서대로 남긴다. */
+function recording(target: object): { proxy: object; reads: string[] } {
+  const reads: string[] = [];
+  const note = (entry: string) => {
+    if (!reads.includes(entry)) reads.push(entry);
+  };
+  const proxy = new Proxy(target, {
+    get(inner, key) {
+      note(`get ${String(key)}`);
+      return Reflect.get(inner, key);
+    },
+    has(inner, key) {
+      note(`has ${String(key)}`);
+      return Reflect.has(inner, key);
+    },
+    getPrototypeOf(inner) {
+      note('getPrototypeOf');
+      return Reflect.getPrototypeOf(inner);
+    },
+    ownKeys(inner) {
+      note('ownKeys');
+      return Reflect.ownKeys(inner);
+    },
+    getOwnPropertyDescriptor(inner, key) {
+      note(`getOwnPropertyDescriptor ${String(key)}`);
+      return Reflect.getOwnPropertyDescriptor(inner, key);
+    },
+  });
+  return { proxy, reads };
+}
+
 describe('withSafeErrors', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
   let consoleWarn: ReturnType<typeof vi.spyOn>;
@@ -364,19 +421,7 @@ describe('withSafeErrors', () => {
       expect(mocks.after).not.toHaveBeenCalled();
     });
 
-    // unstable_rethrow 가 올려보내는 신호의 계열 전부. 값은 Next·React 가 실제로 던지는 것이고, 어느 계열인지는 Next 의 판정 함수로 확인한다.
-    it.each<[string, (value: unknown) => boolean, () => unknown]>([
-      ['redirect()', isRedirectError, () => caught(() => redirect('/login'))],
-      ['permanentRedirect()', isRedirectError, () => caught(() => permanentRedirect('/login'))],
-      ['notFound()', isHTTPAccessFallbackError, () => caught(() => notFound())],
-      ['forbidden()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => forbidden())],
-      ['unauthorized()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => unauthorized())],
-      ['클라이언트 렌더링으로 넘기는 신호', isBailoutToCSRError, () => new BailoutToCSRError('cnry bailout')],
-      ['동적 렌더링 신호', isDynamicServerError, () => new DynamicServerError('cnry dynamic')],
-      ['동적 postpone', isDynamicPostpone, () => new Error(DYNAMIC_POSTPONE_REASON)],
-      ['React postpone', isPostpone, () => reactPostpone('cnry postpone')],
-      ['prerender 뒤의 거부', isHangingPromiseRejectionError, () => hangingPromiseRejection()],
-    ])('Next 가 %s 로 판정하는 값은 그대로 올려보낸다', async (_label, isFamily, make) => {
+    it.each(NEXT_SIGNALS)('Next 가 %s 로 판정하는 값은 그대로 올려보낸다', async (_label, isFamily, make) => {
       const signal = await make();
       // 이 값은 Next 의 판정에서 정확히 이 계열 하나다. 다른 계열의 속성에 기대어 통과하지 않는다.
       expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(signal))).toEqual([isFamily]);
@@ -404,8 +449,8 @@ describe('withSafeErrors', () => {
       expect(mocks.after).toHaveBeenCalledTimes(1);
     });
 
-    // 경계는 던진 값을 unstable_rethrow 에 바로 넘기지 않고, 판정이 읽는 속성만 옮겨 담아 넘긴다.
-    // Next 가 다른 속성을 읽기 시작하면 여기서 먼저 알린다.
+    // 경계는 던진 값을 unstable_rethrow 에 바로 넘기지 않고, 속성의 유무와 값을 대신 읽어 주는 객체를 넘긴다.
+    // Next 가 다른 속성이나 다른 방식의 읽기를 쓰기 시작하면 여기와 아래 '단락 평가' 테스트가 먼저 알린다.
     it('unstable_rethrow 의 판정은 digest·message·$$typeof 만 읽는다', () => {
       expect(unstable_rethrow).toBe(nextRethrow);
 
@@ -438,6 +483,108 @@ describe('withSafeErrors', () => {
       for (const value of [dressed, 'NEXT_REDIRECT;replace;/login;307;', 404, Symbol.for('react.postpone'), null, undefined]) {
         expect(() => nextRethrow(value)).not.toThrow();
       }
+    });
+  });
+
+  // unstable_rethrow 는 판정을 차례로 해 보고, 맞는 것이 나오면 그 값을 던진다. 그 뒤의 속성은 읽지 않는다.
+  // 경계가 그보다 더 읽으면, 읽지 않아도 될 속성이 던지는 신호를 Next 는 올려보내는데 경계는 500 으로 바꾼다.
+  describe('Next 의 단락 평가', () => {
+    /** 경계 밖으로 나온 것. 값을 Promise 의 결과로 그대로 넘기지 않는다 — then 을 읽는다. */
+    const throughBoundary = (value: unknown): Promise<{ thrown: unknown } | { response: Response }> =>
+      withSafeErrors('envtest.boundary.unhandled', async () => {
+        throw value;
+      })().then(
+        (response) => ({ response }),
+        (thrown: unknown) => ({ thrown }),
+      );
+
+    const expectPropagated = (outcome: { thrown: unknown } | { response: Response }, signal: unknown) => {
+      expect('thrown' in outcome && outcome.thrown === signal, '신호를 그대로 올려보내지 않았다').toBe(true);
+      expect(consoleError).not.toHaveBeenCalled();
+      expect(mocks.after).not.toHaveBeenCalled();
+    };
+
+    it.each(LATE_KEYS)('redirect() 신호의 %s 가 읽으면 던져도 그 신호를 올려보낸다', async (key) => {
+      const signal = caught(() => redirect('/login'));
+      makeUnreadable(signal, key);
+      // Next 는 digest 만 보고 이 신호를 올려보낸다.
+      expect(caught(() => nextRethrow(signal)) === signal).toBe(true);
+
+      expectPropagated(await throughBoundary(signal), signal);
+    });
+
+    it('redirect() 신호의 message 가 읽으면 자기 자신을 던져도 그 신호를 올려보낸다', async () => {
+      const signal = caught(() => redirect('/login'));
+      Object.defineProperty(signal as object, 'message', {
+        get() {
+          throw signal;
+        },
+      });
+
+      expectPropagated(await throughBoundary(signal), signal);
+    });
+
+    it('cause 사슬 안의 신호도 판정에 쓰지 않는 속성은 읽지 않는다', async () => {
+      const signal = caught(() => redirect('/login'));
+      makeUnreadable(signal, 'message');
+      makeUnreadable(signal, 'cause');
+      const wrapped = new Error('wrapped', { cause: new Error('middle', { cause: signal }) });
+      expect(caught(() => nextRethrow(wrapped)) === signal).toBe(true);
+
+      expectPropagated(await throughBoundary(wrapped), signal);
+    });
+
+    // 계열마다 Next 가 판정에 쓰는 속성이 다르다. 기대를 손으로 적지 않고 Next 에 같은 값을 넘겨 본 결과와 맞춘다.
+    it.each(NEXT_SIGNALS.flatMap(([label, , make]) => LATE_KEYS.map((key): [string, string, () => unknown] => [label, key, make])))(
+      '%s 신호의 %s 가 읽으면 던질 때 Next 와 같은 판정을 한다',
+      async (_label, key, make) => {
+        const signal = await make();
+        makeUnreadable(signal, key);
+        // Next 가 이 속성을 읽기 전에 판정을 끝내면 신호가 그대로 나오고, 읽으면 getter 의 오류가 나온다.
+        const nextPropagates = caught(() => nextRethrow(signal)) === signal;
+
+        const outcome = await throughBoundary(signal);
+
+        if (nextPropagates) {
+          expectPropagated(outcome, signal);
+        } else {
+          expect('response' in outcome && outcome.response.status, '신호가 아닌 값을 올려보냈다').toBe(500);
+          expect(consoleError).toHaveBeenCalledTimes(1);
+          expect(JSON.stringify(consoleError.mock.calls)).not.toMatch(/cnry/i);
+          expect(mocks.after).toHaveBeenCalledTimes(1);
+        }
+      },
+    );
+
+    it.each(NEXT_SIGNALS)('%s 신호에서 Next 가 읽는 것만, 같은 순서로 읽는다', async (_label, _isFamily, make) => {
+      const direct = recording((await make()) as object);
+      const directThrown = caught(() => nextRethrow(direct.proxy));
+      const directReads = [...direct.reads];
+      expect(directThrown === direct.proxy).toBe(true);
+      // 판정은 속성의 유무와 값만 본다. 경계가 대신 읽어 주는 것도 이 둘뿐이다.
+      expect(directReads.filter((entry) => !/^(has|get) /.test(entry))).toEqual([]);
+
+      const viaBoundary = recording((await make()) as object);
+      const outcome = await throughBoundary(viaBoundary.proxy);
+      const boundaryReads = [...viaBoundary.reads];
+
+      expect('thrown' in outcome && outcome.thrown === viaBoundary.proxy, '신호를 그대로 올려보내지 않았다').toBe(true);
+      expect(boundaryReads).toEqual(directReads);
+    });
+
+    it('같은 속성은 한 번만 읽는다', async () => {
+      const signal = caught(() => redirect('/login')) as { digest: string };
+      const digest = signal.digest;
+      let reads = 0;
+      Object.defineProperty(signal, 'digest', {
+        get() {
+          reads += 1;
+          return digest;
+        },
+      });
+
+      expectPropagated(await throughBoundary(signal), signal);
+      expect(reads).toBe(1);
     });
   });
 

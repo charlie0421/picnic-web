@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-02-log-redaction-and-delivery-design.md` (§4.2, §4.3, §4.7, §5.1, §5.2, §5.3, §6.1 의 PR 2). 결정 2·3 은 2026-10-02 에 권장대로 확정됐다(§9).
 
-**실행 방식:** Native. 조정자가 이 세션에서 직접 구현하고, PR 을 올린 뒤 Codex(`gpt-6-sol`/high, 읽기 전용)가 고위험 교차 리뷰를 한다. 작업들이 같은 함수 이름과 기록 모양을 공유해 나눠 맡기기 어렵다. 머지는 사용자 승인 뒤에 한다.
+**실행 방식:** 초기 구현은 조정자가 직접 했고, 후속 리뷰 수정은 Orca 로 추적하는 Claude Opus 5.5/high 가 맡았다. Codex(`gpt-6-sol`/high, 읽기 전용)가 고위험 교차 리뷰를 한다. 테스트·문서·통합은 조정자가 맡으며 구현과 리뷰는 순차 진행한다. 머지는 사용자 승인 뒤에 한다.
 
 ## 실행 결과 (2026-10-06)
 
@@ -23,7 +23,7 @@
 | `Logger.safeError` 의 주석 (Task 2) | "한 이슈로 합쳐진다" | "한 이슈로 묶일 수 있다" | Sentry 의 문서에 따른 예상이고 Sentry 에서 잰 것이 아니다. envelope 테스트로 확인한 것은 경계가 잡은 예외의 프레임이 공용 청크의 것뿐이라는 데까지다 |
 | `utils/log-error.ts` 의 주석 (Task 9) | "결제·인증 경로는 logSafeError 를 쓴다" | "값을 가려 남겨야 하는 경로(결제·인증)에는 logSafeError 를 쓴다" | 호출부는 아직 옮기지 않았다(PR 3·4) |
 
-결과: 테스트는 3,170건 → 3,417건(파일 198 → 204), `it.fails` 6건과 skipped 1건은 그대로다. `npm run test:envelope` 는 누출 시나리오 27건과 전달 시나리오 11건이 통과한다. 경계 없이 `logError` 에 값을 넘긴 모습에서는 누출 시나리오가 20건으로 실패했고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 7건, CI 의 전달 테스트가 2건으로 실패한다.
+결과: 테스트는 3,170건 → 3,476건(파일 198 → 204), `it.fails` 6건과 skipped 1건은 그대로다. `npm run test:envelope` 는 누출 시나리오 30건과 전달 시나리오 11건이 통과한다. 경계 없이 `logError` 에 값을 넘긴 모습에서는 누출 시나리오가 20건으로 실패했고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 7건, CI 의 전달 테스트가 2건으로 실패한다.
 
 ### 교차 리뷰 1차와 수정 (2026-10-06)
 
@@ -70,7 +70,7 @@ try {
 
 ### 자기 재투척 blocker 후속 수정 (2026-10-06)
 
-`unstable_rethrow` 에 원본 값을 넘기지 않는다. Next 15.5.26 의 판정이 읽는 `digest`·`message`·`$$typeof` 를 예외를 잡는 범위 안에서 한 번씩 읽어 평범한 새 객체에 담는다. getter·`cause` 가 없는 그 객체로 실제 Next 판별을 수행하고, 신호로 확인됐을 때 원래 값을 전파한다. 원본 속성을 읽다가 던지면 일반 오류로 처리한다. `cause` 사슬의 깊이·순환 제한, 가린 로그와 요청당 flush 는 유지한다.
+첫 수정(`5470d15b`)은 `unstable_rethrow` 에 원본 값을 넘기지 않는다. Next 15.5.26 의 판정이 읽는 `digest`·`message`·`$$typeof` 를 예외를 잡는 범위 안에서 한 번씩 읽어 평범한 새 객체에 담았다. getter·`cause` 가 없는 그 객체로 실제 Next 판별을 수행하고, 신호로 확인됐을 때 원래 값을 전파한다. 원본 속성을 읽다가 던지면 일반 오류로 처리한다. `cause` 사슬의 깊이·순환 제한, 가린 로그와 요청당 flush 는 유지한다. 속성의 읽는 시점과 순서는 아래 후속 수정에서 보완한다.
 
 - 단위 RED: 자기 자신을 던지는 getter 4종, 일반 객체·Proxy, 중첩 cause 두 경우가 모두 경계를 빠져나갔다. 최종 경계 테스트 51건 중 **8건 실패 / 43건 통과**였다.
 - 실서버 RED: 수정 전 코드를 새로 빌드했다. 전체 시나리오는 첫 `boundary-self-throw` 다음 요청의 `ECONNRESET` 으로 중단됐다. 같은 빌드에 해당 요청만 한 번 보내 원인을 분리했다. 결과는 **HTTP 500, 본문 `Internal Server Error`, 원본 canary 가 서버 출력에 노출, 가린 이벤트 0건, Next 프로세스 종료 코드 7**이었다. 단순 빌드·연결 실패로 취급하지 않는다.
@@ -78,7 +78,23 @@ try {
 - 실서버 `boundary-self-throw` 와 사건 코드 `envtest.boundary.self_throw` 를 추가하고 기존 `boundary-hostile` 은 유지한다. 실행기는 경계 요청 네 종류의 응답 상태·고정 JSON·본문의 canary 부재도 판정한다. 잘못된 500 본문을 이전 판정기는 놓치고 새 판정기는 실패시키는 것을 별도로 확인했다.
 - `npx tsc --noEmit`, `npm run lint` 통과. KST·UTC 각각 **204파일, 3,417건 통과 · 6 expected fail · 1 skipped**. 관련 판정·라우트·사건 코드 테스트 67건 통과.
 
-수정 후 새 전체 빌드의 `npm run test:envelope` 는 종료 코드 0으로 통과했다. 누출 요청 **27건**, 전달 요청 **11건**이며, 자기 재투척 오류의 가린 이벤트·로그·transaction 은 각각 3건이다. 경계 네 종류의 고정 응답도 각 3/3 일치했고 canary 누출과 서버 종료는 없었다. 원 리뷰어의 재검토는 대기 중이다. 구현 Task `task_d35be66071d4`, Dispatch `ctx_1d32fe60652a` (Run `run_176dd32d29c0`). 구현은 Claude Opus 5.5/high, 조정자가 테스트를 실행한다. 운영 호출부는 바꾸지 않으며 머지는 사용자 승인 뒤에 한다.
+수정 후 새 전체 빌드의 `npm run test:envelope` 는 종료 코드 0으로 통과했다. 누출 요청 **27건**, 전달 요청 **11건**이며, 자기 재투척 오류의 가린 이벤트·로그·transaction 은 각각 3건이다. 경계 네 종류의 고정 응답도 각 3/3 일치했고 canary 누출과 서버 종료는 없었다. 구현 Task `task_d35be66071d4`, Dispatch `ctx_1d32fe60652a` (Run `run_176dd32d29c0`)의 `worker_done` 은 수락됐다. 구현은 Claude Opus 5.5/high, 테스트 실행은 조정자가 맡았다. 커밋 `5470d15b` 를 push 했으며 해당 커밋의 GitHub CI 도 통과했다.
+
+### 단락 평가 회귀의 재검토 (2026-10-06)
+
+원 리뷰어 Codex `gpt-6-sol`/high 는 `5470d15b` 에서 자기 재투척 누출 blocker 를 **해소**로 판정했다. 최종 판정은 **REQUEST_CHANGES(major 1건)** 다. 유효한 `redirect()` 신호의 `message` getter 가 던질 때, Next 는 `digest` 만 읽고 신호를 전파하지만 경계의 probe 는 세 속성을 미리 읽다가 고정 500 으로 바꾼다. 판정 순서와 단락 평가를 보존하는 수정이 필요하다.
+
+리뷰 Task `task_5375ac536d41`, Dispatch `ctx_14487c13de2c`. 리뷰어의 `worker_done` 은 읽기 전용 샌드박스의 `runtime_access_denied (EPERM)` 으로 차단됐다. 최종 판정과 턴 종료를 transcript 에서 확인한 뒤 `worker-abandon` 으로 정산했다. 프로세스를 종료하거나 권한을 넓히지 않았고 quota 실패·providerHold 는 없다. 이 판정은 머지 승인이 아니다. 후속 수정은 같은 Run 의 Task `task_76b13dfcc4fe`, Dispatch `ctx_765f11679370` 에서 수행했고 `worker_done` 이 수락됐다. 원 리뷰어의 최종 재검증은 별도 단계다.
+
+### 단락 평가 회귀의 수정·검증 (2026-10-06)
+
+`isNextControlFlow` 는 속성을 미리 모으지 않는다. 빈 객체의 Proxy 를 실제 `unstable_rethrow` 에 넘기고, `has`·`get` 이 요청될 때만 원본을 읽는다. 같은 읽기는 결과를 기억하고, 읽기 예외는 내부 Symbol 로 바꿔 신호와 구분한다. 원본 자체를 Next 판별 함수에 넘기지 않는다. `findControlFlow` 는 현재 값을 먼저 판정해 신호이면 즉시 반환하고, 신호가 아닐 때만 `cause` 를 읽는다. 최대 10개 연결·순환·예외 방어, 가린 로그·고정 JSON 500·요청당 flush 는 유지한다.
+
+- 단위 RED: **97건 중 29건 실패 / 68건 통과**. 실패는 새 단락 평가 반례뿐이다. 실제 Next 에 같은 신호를 넘긴 판정과 속성 접근 순서를 비교하며, 마지막 hanging-promise 판정 전에 message·$$typeof 를 읽는 순서도 포함한다. 판정기·라우트 테스트 61건은 통과했다.
+- 새 빌드 실서버 RED: 요청 30건 중 redirect 3건이 모두 500 이었다. 실패는 5종(오류 이벤트 3건 대 기대 0건, 가린 로그 6줄 대 기대 3줄, 307 대신 500, 잘못된 본문, 누락된 Location)이었다. canary 누출은 없었고 기존 경계 응답과 전달 11건은 통과했다.
+- 단위 GREEN: 경계 **97/97**, 판정기·라우트 **61/61**, 합계 **158/158**. 기존 자기 재투척 8건과 Next 신호 10종도 유지한다.
+- 타입 검사·lint 통과. KST·UTC 각각 전체 테스트 **204파일, 3,476건 통과 · 6 expected fail · 1 skipped**.
+- `boundary-redirect` 실제 라우트와 상태·Location·빈 본문·오류 이벤트 부재·헤더 canary 판정을 추가했다. 잘못된 응답 코드·이동 주소·본문·오류 이벤트를 탐지하는 회귀 테스트도 둔다. 새 빌드 실서버 GREEN 은 종료 코드 0: 누출 요청 **30건**, 전달 요청 **11건** 통과. redirect 3건 모두 **307·정확한 Location·빈 본문**, 오류 이벤트 0건이었다. 기존 경계 네 종류의 고정 응답도 각 3/3 이고 canary 누출은 없다. 원 리뷰어 재검증은 대기 중이다.
 
 ## 계획을 쓰기 전에 확인한 것 (2026-10-06)
 
@@ -149,7 +165,7 @@ try {
 | `__tests__/utils/log-safe-error-delivery.test.ts` | 새로 (Task 5) | 실제 SDK 로 도는 전달 테스트(CI) |
 | `scripts/envelope-test/analyze.js` | 수정 (Task 6) | 가린 기록의 모양(type, fingerprint, `contexts.log`)과 서버 출력의 줄 수 판정 |
 | `scripts/envelope-test/scenario.js` · `routes/_lib/envtest.ts` | 수정 (Task 7) | 경계 요청 둘과 canary, 기대값 |
-| `scripts/envelope-test/routes/boundary-throw/route.ts` · `boundary-handled/route.ts` · `boundary-hostile/route.ts` | 새로 (Task 7·교차 리뷰 수정) | 경계로 감싼 테스트 라우트 |
+| `scripts/envelope-test/routes/boundary-throw/route.ts` · `boundary-handled/route.ts` · `boundary-hostile/route.ts` · `boundary-self-throw/route.ts` · `boundary-redirect/route.ts` | 새로 (Task 7·교차 리뷰 수정) | 경계로 감싼 테스트 라우트 |
 | `scripts/envelope-test/harness.js` | 새로 (Task 8) | 두 시나리오가 같이 쓰는 것(포트, 압축 풀기, `next start`, 기다리기) |
 | `scripts/envelope-test/delivery.js` | 새로 (Task 8) | 전달 시나리오: 단계, 판정(`evaluateDelivery`), 실행(`runDelivery`) |
 | `scripts/envelope-test/routes/_lib/delivery-probe.ts` · `delivery-plain/route.ts` · `delivery-safe/route.ts` · `delivery-control/route.ts` | 새로 (Task 8) | 전달 시나리오의 테스트 라우트와 탐침 |
@@ -1532,6 +1548,63 @@ const DYNAMIC_POSTPONE_REASON =
   'React throws this special object to indicate where. It should not be caught by your own try/catch. ' +
   'Learn more: https://nextjs.org/docs/messages/ppr-caught-error';
 
+/** unstable_rethrow 가 올려보내는 신호의 계열 전부. 값은 Next·React 가 실제로 던지는 것이고, 어느 계열인지는 Next 의 판정 함수로 확인한다. */
+const NEXT_SIGNALS: Array<[string, (value: unknown) => boolean, () => unknown]> = [
+  ['redirect()', isRedirectError, () => caught(() => redirect('/login'))],
+  ['permanentRedirect()', isRedirectError, () => caught(() => permanentRedirect('/login'))],
+  ['notFound()', isHTTPAccessFallbackError, () => caught(() => notFound())],
+  ['forbidden()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => forbidden())],
+  ['unauthorized()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => unauthorized())],
+  ['클라이언트 렌더링으로 넘기는 신호', isBailoutToCSRError, () => new BailoutToCSRError('cnry bailout')],
+  ['동적 렌더링 신호', isDynamicServerError, () => new DynamicServerError('cnry dynamic')],
+  ['동적 postpone', isDynamicPostpone, () => new Error(DYNAMIC_POSTPONE_REASON)],
+  ['React postpone', isPostpone, () => reactPostpone('cnry postpone')],
+  ['prerender 뒤의 거부', isHangingPromiseRejectionError, () => hangingPromiseRejection()],
+];
+
+/** 신호가 판정된 뒤에야 읽힐 수 있는 속성. Next 가 판정을 끝낸 뒤라면 읽지 않는다. */
+const LATE_KEYS = ['message', '$$typeof', 'cause'];
+
+/** 읽으면 다른 오류를 던지는 getter 를 단다. */
+function makeUnreadable(value: unknown, key: string): void {
+  Object.defineProperty(value as object, key, {
+    get() {
+      throw new Error(`cnry-late-getter ${key} https://pay.example/cb?code=cnry`);
+    },
+  });
+}
+
+/** 값을 감싸 무엇을 읽는지 적는다. 같은 읽기는 처음 한 번만, 읽은 순서대로 남긴다. */
+function recording(target: object): { proxy: object; reads: string[] } {
+  const reads: string[] = [];
+  const note = (entry: string) => {
+    if (!reads.includes(entry)) reads.push(entry);
+  };
+  const proxy = new Proxy(target, {
+    get(inner, key) {
+      note(`get ${String(key)}`);
+      return Reflect.get(inner, key);
+    },
+    has(inner, key) {
+      note(`has ${String(key)}`);
+      return Reflect.has(inner, key);
+    },
+    getPrototypeOf(inner) {
+      note('getPrototypeOf');
+      return Reflect.getPrototypeOf(inner);
+    },
+    ownKeys(inner) {
+      note('ownKeys');
+      return Reflect.ownKeys(inner);
+    },
+    getOwnPropertyDescriptor(inner, key) {
+      note(`getOwnPropertyDescriptor ${String(key)}`);
+      return Reflect.getOwnPropertyDescriptor(inner, key);
+    },
+  });
+  return { proxy, reads };
+}
+
 describe('withSafeErrors', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
   let consoleWarn: ReturnType<typeof vi.spyOn>;
@@ -1805,19 +1878,7 @@ describe('withSafeErrors', () => {
       expect(mocks.after).not.toHaveBeenCalled();
     });
 
-    // unstable_rethrow 가 올려보내는 신호의 계열 전부. 값은 Next·React 가 실제로 던지는 것이고, 어느 계열인지는 Next 의 판정 함수로 확인한다.
-    it.each<[string, (value: unknown) => boolean, () => unknown]>([
-      ['redirect()', isRedirectError, () => caught(() => redirect('/login'))],
-      ['permanentRedirect()', isRedirectError, () => caught(() => permanentRedirect('/login'))],
-      ['notFound()', isHTTPAccessFallbackError, () => caught(() => notFound())],
-      ['forbidden()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => forbidden())],
-      ['unauthorized()', isHTTPAccessFallbackError, () => caughtWithAuthInterrupts(() => unauthorized())],
-      ['클라이언트 렌더링으로 넘기는 신호', isBailoutToCSRError, () => new BailoutToCSRError('cnry bailout')],
-      ['동적 렌더링 신호', isDynamicServerError, () => new DynamicServerError('cnry dynamic')],
-      ['동적 postpone', isDynamicPostpone, () => new Error(DYNAMIC_POSTPONE_REASON)],
-      ['React postpone', isPostpone, () => reactPostpone('cnry postpone')],
-      ['prerender 뒤의 거부', isHangingPromiseRejectionError, () => hangingPromiseRejection()],
-    ])('Next 가 %s 로 판정하는 값은 그대로 올려보낸다', async (_label, isFamily, make) => {
+    it.each(NEXT_SIGNALS)('Next 가 %s 로 판정하는 값은 그대로 올려보낸다', async (_label, isFamily, make) => {
       const signal = await make();
       // 이 값은 Next 의 판정에서 정확히 이 계열 하나다. 다른 계열의 속성에 기대어 통과하지 않는다.
       expect(NEXT_SIGNAL_FAMILIES.filter((matches) => matches(signal))).toEqual([isFamily]);
@@ -1845,8 +1906,8 @@ describe('withSafeErrors', () => {
       expect(mocks.after).toHaveBeenCalledTimes(1);
     });
 
-    // 경계는 던진 값을 unstable_rethrow 에 바로 넘기지 않고, 판정이 읽는 속성만 옮겨 담아 넘긴다.
-    // Next 가 다른 속성을 읽기 시작하면 여기서 먼저 알린다.
+    // 경계는 던진 값을 unstable_rethrow 에 바로 넘기지 않고, 속성의 유무와 값을 대신 읽어 주는 객체를 넘긴다.
+    // Next 가 다른 속성이나 다른 방식의 읽기를 쓰기 시작하면 여기와 아래 '단락 평가' 테스트가 먼저 알린다.
     it('unstable_rethrow 의 판정은 digest·message·$$typeof 만 읽는다', () => {
       expect(unstable_rethrow).toBe(nextRethrow);
 
@@ -1879,6 +1940,108 @@ describe('withSafeErrors', () => {
       for (const value of [dressed, 'NEXT_REDIRECT;replace;/login;307;', 404, Symbol.for('react.postpone'), null, undefined]) {
         expect(() => nextRethrow(value)).not.toThrow();
       }
+    });
+  });
+
+  // unstable_rethrow 는 판정을 차례로 해 보고, 맞는 것이 나오면 그 값을 던진다. 그 뒤의 속성은 읽지 않는다.
+  // 경계가 그보다 더 읽으면, 읽지 않아도 될 속성이 던지는 신호를 Next 는 올려보내는데 경계는 500 으로 바꾼다.
+  describe('Next 의 단락 평가', () => {
+    /** 경계 밖으로 나온 것. 값을 Promise 의 결과로 그대로 넘기지 않는다 — then 을 읽는다. */
+    const throughBoundary = (value: unknown): Promise<{ thrown: unknown } | { response: Response }> =>
+      withSafeErrors('envtest.boundary.unhandled', async () => {
+        throw value;
+      })().then(
+        (response) => ({ response }),
+        (thrown: unknown) => ({ thrown }),
+      );
+
+    const expectPropagated = (outcome: { thrown: unknown } | { response: Response }, signal: unknown) => {
+      expect('thrown' in outcome && outcome.thrown === signal, '신호를 그대로 올려보내지 않았다').toBe(true);
+      expect(consoleError).not.toHaveBeenCalled();
+      expect(mocks.after).not.toHaveBeenCalled();
+    };
+
+    it.each(LATE_KEYS)('redirect() 신호의 %s 가 읽으면 던져도 그 신호를 올려보낸다', async (key) => {
+      const signal = caught(() => redirect('/login'));
+      makeUnreadable(signal, key);
+      // Next 는 digest 만 보고 이 신호를 올려보낸다.
+      expect(caught(() => nextRethrow(signal)) === signal).toBe(true);
+
+      expectPropagated(await throughBoundary(signal), signal);
+    });
+
+    it('redirect() 신호의 message 가 읽으면 자기 자신을 던져도 그 신호를 올려보낸다', async () => {
+      const signal = caught(() => redirect('/login'));
+      Object.defineProperty(signal as object, 'message', {
+        get() {
+          throw signal;
+        },
+      });
+
+      expectPropagated(await throughBoundary(signal), signal);
+    });
+
+    it('cause 사슬 안의 신호도 판정에 쓰지 않는 속성은 읽지 않는다', async () => {
+      const signal = caught(() => redirect('/login'));
+      makeUnreadable(signal, 'message');
+      makeUnreadable(signal, 'cause');
+      const wrapped = new Error('wrapped', { cause: new Error('middle', { cause: signal }) });
+      expect(caught(() => nextRethrow(wrapped)) === signal).toBe(true);
+
+      expectPropagated(await throughBoundary(wrapped), signal);
+    });
+
+    // 계열마다 Next 가 판정에 쓰는 속성이 다르다. 기대를 손으로 적지 않고 Next 에 같은 값을 넘겨 본 결과와 맞춘다.
+    it.each(NEXT_SIGNALS.flatMap(([label, , make]) => LATE_KEYS.map((key): [string, string, () => unknown] => [label, key, make])))(
+      '%s 신호의 %s 가 읽으면 던질 때 Next 와 같은 판정을 한다',
+      async (_label, key, make) => {
+        const signal = await make();
+        makeUnreadable(signal, key);
+        // Next 가 이 속성을 읽기 전에 판정을 끝내면 신호가 그대로 나오고, 읽으면 getter 의 오류가 나온다.
+        const nextPropagates = caught(() => nextRethrow(signal)) === signal;
+
+        const outcome = await throughBoundary(signal);
+
+        if (nextPropagates) {
+          expectPropagated(outcome, signal);
+        } else {
+          expect('response' in outcome && outcome.response.status, '신호가 아닌 값을 올려보냈다').toBe(500);
+          expect(consoleError).toHaveBeenCalledTimes(1);
+          expect(JSON.stringify(consoleError.mock.calls)).not.toMatch(/cnry/i);
+          expect(mocks.after).toHaveBeenCalledTimes(1);
+        }
+      },
+    );
+
+    it.each(NEXT_SIGNALS)('%s 신호에서 Next 가 읽는 것만, 같은 순서로 읽는다', async (_label, _isFamily, make) => {
+      const direct = recording((await make()) as object);
+      const directThrown = caught(() => nextRethrow(direct.proxy));
+      const directReads = [...direct.reads];
+      expect(directThrown === direct.proxy).toBe(true);
+      // 판정은 속성의 유무와 값만 본다. 경계가 대신 읽어 주는 것도 이 둘뿐이다.
+      expect(directReads.filter((entry) => !/^(has|get) /.test(entry))).toEqual([]);
+
+      const viaBoundary = recording((await make()) as object);
+      const outcome = await throughBoundary(viaBoundary.proxy);
+      const boundaryReads = [...viaBoundary.reads];
+
+      expect('thrown' in outcome && outcome.thrown === viaBoundary.proxy, '신호를 그대로 올려보내지 않았다').toBe(true);
+      expect(boundaryReads).toEqual(directReads);
+    });
+
+    it('같은 속성은 한 번만 읽는다', async () => {
+      const signal = caught(() => redirect('/login')) as { digest: string };
+      const digest = signal.digest;
+      let reads = 0;
+      Object.defineProperty(signal, 'digest', {
+        get() {
+          reads += 1;
+          return digest;
+        },
+      });
+
+      expectPropagated(await throughBoundary(signal), signal);
+      expect(reads).toBe(1);
     });
   });
 
@@ -2181,54 +2344,48 @@ async function flushAndReport(): Promise<void> {
 /** cause 사슬을 따라가는 깊이의 상한. 읽을 때마다 새 cause 를 내놓는 값에서도 멈춘다. */
 const MAX_CAUSE_DEPTH = 10;
 
-/**
- * 던진 값과 그 cause 사슬. 읽다가 던지거나, 이미 본 값으로 돌아오거나, 상한에 닿으면 거기서 멈춘다.
- * 던진 값은 무엇이든 될 수 있다 — cause 가 던지는 getter 일 수도, Proxy 일 수도 있다.
- */
-function causeChain(error: unknown): unknown[] {
-  const chain: unknown[] = [error];
-  let current: unknown = error;
-  while (chain.length <= MAX_CAUSE_DEPTH) {
-    let next: unknown;
-    try {
-      if (!(current instanceof Error) || !('cause' in current)) break;
-      next = current.cause;
-    } catch {
-      break;
-    }
-    if (chain.includes(next)) break;
-    chain.push(next);
-    current = next;
-  }
-  return chain;
-}
-
-/**
- * unstable_rethrow 의 판정이 읽는 속성(Next 15.5.26). 판정은 객체에서 이 셋만 읽고, 그 밖에는 cause 를 따라갈 뿐이다.
- * Next 가 다른 속성을 읽기 시작하면 단위 테스트(with-safe-errors.test.ts)가 알린다.
- */
-const CONTROL_FLOW_KEYS = ['digest', 'message', '$$typeof'] as const;
+/** 던진 값을 읽다가 예외가 났다는 표식. 그 예외 대신 이것을 던진다 — 원래 예외는 어디로도 내보내지 않는다. */
+const UNREADABLE = Symbol('unreadable');
 
 /**
  * Next 가 이 값 자체를 제어 흐름 신호(redirect, notFound, 동적 렌더링 신호)로 보는가.
  *
  * 던진 값을 unstable_rethrow 에 바로 넘기지 않는다. unstable_rethrow 는 신호를 받으면 그 값을 그대로 다시 던지는데,
  * 읽기를 방해하는 값도 getter 나 Proxy 에서 자기 자신을 던질 수 있어 "넘긴 값이 다시 나왔다"로는 둘을 가리지 못한다.
- * 그래서 판정이 읽는 속성만 한 번씩 읽어 새 객체에 옮겨 담고, 그 객체를 넘긴다. 새 객체에는 getter 도 cause 도 없으니
- * 그것이 다시 나오는 길은 판정을 통과하는 것뿐이다. 읽다가 던지는 값은 신호가 아니다.
+ * 그래서 속성의 유무와 값만 대신 읽어 주는 객체를 넘긴다. 그 객체가 다시 나오는 길은 판정을 통과하는 것뿐이다.
+ *
+ * 무엇을 어떤 순서로 읽을지는 unstable_rethrow 가 정한다. 판정은 차례로 해 보다가 맞는 것이 나오면 거기서 끝나므로,
+ * redirect() 신호라면 digest 만 읽는다. 미리 다 읽어 두면 판정에 쓰지 않는 속성이 던지는 신호를 놓친다.
+ * 같은 속성은 한 번만 읽어 기억한다. 읽다가 던지는 값은 신호가 아니다.
  */
 function isNextControlFlow(value: unknown): boolean {
   // 판정은 모두 객체만 신호로 본다.
   if (typeof value !== 'object' || value === null) return false;
 
-  const probe: Record<string, unknown> = {};
-  try {
-    for (const key of CONTROL_FLOW_KEYS) {
-      if (key in value) probe[key] = (value as Record<string, unknown>)[key];
+  const source: object = value;
+  const present = new Map<string | symbol, boolean>();
+  const values = new Map<string | symbol, unknown>();
+  const reading = <Result>(read: () => Result): Result => {
+    try {
+      return read();
+    } catch {
+      throw UNREADABLE;
     }
-  } catch {
-    return false;
-  }
+  };
+  // 대상이 빈 객체라 Error 가 아니다 — unstable_rethrow 가 cause 를 따라가지 않는다. 사슬은 경계가 따라간다.
+  const probe = new Proxy(
+    {},
+    {
+      has(_target, key) {
+        if (!present.has(key)) present.set(key, reading(() => Reflect.has(source, key)));
+        return present.get(key) === true;
+      },
+      get(_target, key) {
+        if (!values.has(key)) values.set(key, reading(() => Reflect.get(source, key)));
+        return values.get(key);
+      },
+    },
+  );
 
   try {
     unstable_rethrow(probe);
@@ -2236,6 +2393,30 @@ function isNextControlFlow(value: unknown): boolean {
   } catch (thrown) {
     return thrown === probe;
   }
+}
+
+/**
+ * 던진 값과 그 cause 사슬에서 Next 의 제어 흐름 신호를 찾는다. Next 가 하듯 값을 먼저 판정하고, 신호가 아닐 때만 cause 를 읽는다.
+ * 읽다가 던지거나, 이미 본 값으로 돌아오거나, 상한에 닿으면 거기서 멈춘다.
+ * 던진 값은 무엇이든 될 수 있다 — cause 가 던지는 getter 일 수도, Proxy 일 수도 있다.
+ */
+function findControlFlow(error: unknown): { signal: unknown } | null {
+  const seen: unknown[] = [];
+  let current: unknown = error;
+  while (seen.length <= MAX_CAUSE_DEPTH) {
+    if (isNextControlFlow(current)) return { signal: current };
+    seen.push(current);
+    let next: unknown;
+    try {
+      if (!(current instanceof Error) || !('cause' in current)) break;
+      next = current.cause;
+    } catch {
+      break;
+    }
+    if (seen.includes(next)) break;
+    current = next;
+  }
+  return null;
 }
 
 function scheduleFlush(): void {
@@ -2258,9 +2439,8 @@ export function withSafeErrors<Args extends unknown[]>(
       } catch (error) {
         // redirect()·notFound() 와 Next 의 동적 렌더링 신호는 오류가 아니다. 그대로 올려보낸다.
         // Next 가 하듯 cause 사슬 안의 신호도 찾는다. 찾는 동안 난 예외는 올려보내지 않는다.
-        for (const candidate of causeChain(error)) {
-          if (isNextControlFlow(candidate)) throw candidate;
-        }
+        const found = findControlFlow(error);
+        if (found) throw found.signal;
         logSafeError(code, error);
         // 본문에 오류 메시지를 넣지 않는다.
         return Response.json({ error: 'Internal server error' }, { status: 500 });
@@ -2531,7 +2711,7 @@ git commit -m "test(logging): 핸들러 끝의 flush 가 방금 남긴 기록을
 ```diff
 --- a/__tests__/scripts/envelope-test-analyze.test.ts
 +++ b/__tests__/scripts/envelope-test-analyze.test.ts
-@@ -222,3 +222,155 @@ describe('evaluate', () => {
+@@ -222,3 +222,235 @@ describe('evaluate', () => {
      expect(result.failures).toContain('수신 건수 — 미처리(node): 기대 1건, 실제 0건');
    });
  });
@@ -2680,6 +2860,86 @@ git commit -m "test(logging): 핸들러 끝의 flush 가 방금 남긴 기록을
 +    ]);
 +  });
 +
++  describe('경계가 올려보낸 redirect() 신호', () => {
++    const REDIRECT = { status: 307, location: '/api/envelope-test/redirected', body: '' };
++    const redirected = () => ({
++      label: 'boundary-redirect',
++      url: 'http://127.0.0.1:3000/api/envelope-test/boundary-redirect?code=x',
++      status: 307,
++      location: '/api/envelope-test/redirected',
++      body: '',
++      expect: REDIRECT,
++    });
++
++    it('응답 코드·Location·빈 본문이 맞으면 실패가 없다', () => {
++      const result = runResponses([redirected(), redirected()]);
++
++      expect(result.failures).toEqual([]);
++      expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-redirect)', expected: '2', actual: 2 }]);
++    });
++
++    it('Location 이 절대 주소여도 같은 곳을 가리키면 맞다', () => {
++      const absolute = { ...redirected(), location: 'http://127.0.0.1:3000/api/envelope-test/redirected' };
++      expect(runResponses([absolute]).failures).toEqual([]);
++    });
++
++    // 경계가 신호를 오류로 다루면 307 대신 고정된 500 이 나온다.
++    it('경계가 신호를 오류로 다뤄 500 을 돌려주면 실패한다', () => {
++      const result = runResponses([{ ...redirected(), status: 500, location: null, body: '{"error":"Internal server error"}' }]);
++
++      expect(result.failures).toEqual([
++        '응답 — boundary-redirect: 응답 코드 기대 307, 실제 500',
++        '응답 — boundary-redirect: 본문이 정해진 값이 아니다',
++        '응답 — boundary-redirect: Location 이 기대와 다르다',
++      ]);
++      expect(result.counts.slice(-1)).toEqual([{ label: '응답(boundary-redirect)', expected: '1', actual: 0 }]);
++    });
++
++    it('응답 코드가 다른 redirect(308)면 실패한다', () => {
++      expect(runResponses([{ ...redirected(), status: 308 }]).failures).toEqual(['응답 — boundary-redirect: 응답 코드 기대 307, 실제 308']);
++    });
++
++    it.each([
++      ['다른 경로', '/api/envelope-test/elsewhere'],
++      ['쿼리가 붙은 주소', '/api/envelope-test/redirected?next=/x'],
++      ['다른 호스트', 'https://envtest.invalid/api/envelope-test/redirected'],
++      ['빈 값', ''],
++      ['없음', null],
++    ])('Location 이 기대와 다르면(%s) 실패한다', (_label, location) => {
++      expect(runResponses([{ ...redirected(), location }]).failures).toEqual(['응답 — boundary-redirect: Location 이 기대와 다르다']);
++    });
++
++    it('본문이 비어 있지 않으면 실패한다', () => {
++      expect(runResponses([{ ...redirected(), body: 'Redirecting...' }]).failures).toEqual(['응답 — boundary-redirect: 본문이 정해진 값이 아니다']);
++    });
++
++    it('Location 에 canary 가 있으면 실패하고, 받은 값은 보고에 싣지 않는다', () => {
++      const result = runResponses([{ ...redirected(), location: '/api/envelope-test/redirected?code=cnryA-cookie' }]);
++
++      expect(result.failures).toEqual(['응답 — boundary-redirect: Location 이 기대와 다르다', '누출(응답 헤더) — cookie: boundary-redirect']);
++    });
++
++    it('그 요청의 오류 이벤트는 처리했든 아니든 하나도 없어야 한다', () => {
++      const transaction = 'GET /api/envelope-test/boundary-redirect';
++      const withRule = { ...expected, errorFree: [{ label: '올려보낸 redirect 신호', transaction }] };
++      const judge = (envelopes: Envelope[]) =>
++        evaluate({ envelopes, stdout: stdoutOk, canaries, expected: withRule, unhandledLineMarker: 'envtest unhandled' });
++
++      const none = judge(clean());
++      expect(none.failures).toEqual([]);
++      expect(none.counts).toContainEqual({ label: '올려보낸 redirect 신호', expected: '0', actual: 0 });
++
++      // 경계가 신호를 오류로 잡으면 가린 기록의 이벤트가 이 요청의 transaction 이름으로 온다.
++      const safeEvent = {
++        transaction,
++        exception: { values: [{ type: 'Error', value: 'envtest.boundary.unhandled', mechanism: { type: 'generic', handled: true } }] },
++      };
++      const recorded = judge([...clean(), envelopeOf('event', safeEvent), envelopeOf('event', { ...safeEvent })]);
++      expect(recorded.failures).toEqual(['수신 건수 — 올려보낸 redirect 신호: 오류 이벤트 기대 0건, 실제 2건']);
++      expect(recorded.counts).toContainEqual({ label: '올려보낸 redirect 신호', expected: '0', actual: 2 });
++    });
++  });
++
 +  it('기대를 적지 않은 응답은 보지 않는다 — 페이지의 HTML 은 요청 주소를 담는다', () => {
 +    const result = runResponses([{ label: 'page', status: 200, body: '<html>/ko/vote?code=cnryA-cookie</html>' }]);
 +
@@ -2699,16 +2959,17 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
 ```diff
 --- a/scripts/envelope-test/analyze.js
 +++ b/scripts/envelope-test/analyze.js
-@@ -9,6 +9,8 @@
+@@ -9,6 +9,9 @@
   *   2. 무누출 — 묶음 A 는 envelope 과 표준 출력 어디에도 없다. 묶음 C 는 표준 출력에만 있다.
   *   3. 허용 노출 — 묶음 B 의 marker 는 exception.values[].value 와 Next 의 미처리 오류 줄에만 있다.
   *   4. tripwire 표식은 기대한 이벤트에만 있다. 다른 곳에 있으면 토큰 모양 값이 새다가 가려진 것이다.
 + *   5. 가린 기록(logSafeError)의 이벤트는 정해진 모양이고, 가린 로그 줄이 서버 출력에 기대한 수만큼 있다(설계 §4.2, §4.3).
-+ *   6. 경계(withSafeErrors)가 돌려준 응답은 정해진 코드와 본문이고, 본문에 canary 가 없다(설계 §4.7).
++ *   6. 경계(withSafeErrors)를 거친 응답은 정해진 코드와 본문(redirect 는 Location)이고, 거기에 canary 가 없다(설계 §4.7).
++ *      경계가 올려보낸 신호의 요청에는 오류 이벤트가 없다.
   */
 
  const TRIPWIRE_KEY = 'redaction.tripwire';
-@@ -113,6 +115,63 @@ const hasFrameVars = (event) =>
+@@ -113,6 +116,77 @@ const hasFrameVars = (event) =>
      ((value.stacktrace && value.stacktrace.frames) || []).some((frame) => frame && frame.vars !== undefined),
    );
 
@@ -2747,15 +3008,29 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
 +  return problems;
 +}
 +
++/** Location 헤더는 상대 주소일 수도 절대 주소일 수도 있다. 요청 주소를 기준으로 풀어서 비교한다. */
++function sameLocation(response, expected) {
++  if (typeof response.location !== 'string') return false;
++  try {
++    return new URL(response.location, response.url).href === new URL(expected, response.url).href;
++  } catch {
++    return false;
++  }
++}
++
 +/**
 + * 응답이 요청에 적은 기대와 같은가. 경계가 뚫려 Next 가 응답해도 코드는 같은 500 이라 본문까지 본다.
-+ *   status — 응답 코드.
-+ *   json   — 본문을 JSON 으로 읽은 값 전부.
++ *   status   — 응답 코드.
++ *   json     — 본문을 JSON 으로 읽은 값 전부.
++ *   body     — 본문 그대로. redirect 처럼 본문이 없어야 하는 응답에 쓴다.
++ *   location — Location 헤더가 가리키는 주소.
 + */
 +function responseProblems(response) {
 +  const problems = [];
-+  const { status, json } = response.expect;
++  const { status, json, body, location } = response.expect;
 +  if (response.status !== status) problems.push(`응답 코드 기대 ${status}, 실제 ${response.status}`);
++  if (body !== undefined && response.body !== body) problems.push('본문이 정해진 값이 아니다');
++  if (location !== undefined && !sameLocation(response, location)) problems.push('Location 이 기대와 다르다');
 +  if (json !== undefined) {
 +    let actual;
 +    let parsed = true;
@@ -2772,7 +3047,7 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
  function matchesError(event, rule) {
    if (exceptionValues(event).length === 0) return false;
    if (isHandled(event) !== rule.handled) return false;
-@@ -150,7 +209,7 @@ function countsSatisfied(envelopes, expected) {
+@@ -150,7 +224,7 @@ function countsSatisfied(envelopes, expected) {
    );
  }
 
@@ -2781,15 +3056,23 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
    const failures = [];
    const counts = [];
    const errors = payloadsOf(envelopes, 'event');
-@@ -171,6 +230,7 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
+@@ -171,8 +245,15 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
          }
        }
        if (hasFrameVars(event)) failures.push(`${rule.label}: stack frame 에 vars 가 실렸다`);
 +      for (const problem of shapeProblems(event, rule)) failures.push(`${rule.label}: ${problem}`);
      }
    }
++  // 오류 이벤트가 없어야 하는 요청. 처리했든 아니든 그 요청의 이벤트는 하나도 오면 안 된다.
++  for (const rule of expected.errorFree || []) {
++    const actual = errors.filter((event) => event.transaction === rule.transaction).length;
++    counts.push({ label: rule.label, expected: '0', actual });
++    if (actual !== 0) failures.push(`수신 건수 — ${rule.label}: 오류 이벤트 기대 0건, 실제 ${actual}건`);
++  }
    for (const rule of expected.transactions) {
-@@ -208,6 +268,13 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
+     const matched = transactionsNamed(envelopes, rule.name);
+     counts.push({ label: rule.label, expected: `${rule.min} 이상`, actual: matched.length });
+@@ -208,6 +289,13 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
 
    const records = flatten(envelopes);
    const stdoutLines = stdout.split('\n');
@@ -2803,11 +3086,11 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
    const reportLeak = (name, hits) => {
      for (const where of summarize(hits)) failures.push(`누출(envelope) — ${name}: ${where}`);
    };
-@@ -242,6 +309,23 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
+@@ -242,6 +330,26 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker }
    );
    for (const where of summarize(strayTripwire)) failures.push(`예상하지 않은 tripwire — ${TRIPWIRE_KEY}: ${where}`);
 
-+  // 6. 응답 — 기대를 적은 요청은 응답 코드와 본문이 정해진 값이고, 본문에 canary 가 없다. 본문은 보고에 싣지 않는다.
++  // 6. 응답 — 기대를 적은 요청은 응답 코드·본문·Location 이 정해진 값이고, 거기에 canary 가 없다. 받은 값은 보고에 싣지 않는다.
 +  const checked = (responses || []).filter((response) => response.expect);
 +  const allCanaries = Object.values(canaries).flatMap((group) => Object.entries(group));
 +  for (const label of [...new Set(checked.map((response) => response.label))]) {
@@ -2819,6 +3102,9 @@ Expected: FAIL 6건(새 `describe` 의 일곱 가운데 마지막 `모양을 적
 +      for (const problem of problems) failures.push(`응답 — ${label}: ${problem}`);
 +      for (const [name, value] of allCanaries) {
 +        if (response.body.includes(value)) failures.push(`누출(응답 본문) — ${name}: ${label}`);
++        if (typeof response.location === 'string' && response.location.includes(value)) {
++          failures.push(`누출(응답 헤더) — ${name}: ${label}`);
++        }
 +      }
 +    }
 +    counts.push({ label: `응답(${label})`, expected: `${group.length}`, actual: matched });
@@ -2889,7 +3175,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 ```diff
 --- a/scripts/envelope-test/scenario.js
 +++ b/scripts/envelope-test/scenario.js
-@@ -7,11 +7,26 @@
+@@ -7,11 +7,28 @@
   *   absent     — envelope 과 서버 표준 출력 어디에도 없어야 한다.
   *   stdoutOnly — 테스트 라우트가 console.warn 으로 찍는다. 서버 출력에만 있어야 한다.
   *   unhandled  — 감싸지 않은 예외. marker 만 exception.values[].value 와 Next 의 미처리 오류 줄에 남는다.
@@ -2907,6 +3193,8 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +const SELF_THROW_CODE = 'envtest.boundary.self_throw';
 +/** 경계가 오류를 잡았을 때의 응답(utils/with-safe-errors.ts). 본문에 오류의 어떤 것도 없다. */
 +const SAFE_500 = { status: 500, json: { error: 'Internal server error' } };
++/** boundary-redirect 라우트가 redirect() 에 넘기는 주소. 요청은 따라가지 않는다(redirect: 'manual'). */
++const REDIRECT_TARGET = '/api/envelope-test/redirected';
 +
 +/** 계약을 통과해 남아야 하는 값. canary 가 아니다 — 이벤트의 contexts.log 와 서버 출력에 있어야 한다. */
 +const KEPT = {
@@ -2916,7 +3204,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 
  const CANARIES = {
    absent: {
-@@ -26,6 +41,23 @@ const CANARIES = {
+@@ -26,6 +43,25 @@ const CANARIES = {
      handledQuery: 'cnryA-handledquery-6f7a8b9c0d',
      upstreamToken: 'cnryA-upstreamtoken-9e8d7c6b5a',
      baggageQuery: 'cnryA-baggagequery-3c2b1a0f9e',
@@ -2937,10 +3225,12 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +    boundaryGetter: 'cnryA-boundarygetter-8c7d6e5f4a',
 +    // cause 를 읽으면 자기 자신을 던지는 오류의 메시지에 든 값. 경계가 그 오류를 Next 의 신호로 잘못 보면 밖으로 나간다.
 +    boundarySelf: 'cnryA-boundaryself-5a4b3c2d1e',
++    // redirect() 신호의 message 를 읽으면 나오는 예외에 든 값. Next 는 그 message 를 읽지 않는다 — 누가 읽으면 드러난다.
++    boundaryRedirect: 'cnryA-boundaryredirect-0e9f8a7b6c',
    },
    stdoutOnly: {
      console: 'cnryC-console-0f1e2d3c4b',
-@@ -48,6 +80,51 @@ const EXPECTED = {
+@@ -48,7 +84,55 @@ const EXPECTED = {
      // captureRequestError 는 같은 오류를 다시 보내지 않으므로 이 이벤트에는 contexts.nextjs 가 없다.
      { label: '처리되지 않은 예외(node)', handled: false, runtime: 'node', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
      { label: '처리되지 않은 예외(edge)', handled: false, runtime: 'edge', valueIncludes: UNHANDLED_LINE_MARKER, count: REPEAT, tripwire: true },
@@ -2990,9 +3280,13 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +      logContext: {},
 +    },
    ],
++  // 오류 이벤트가 하나도 없어야 하는 요청. 경계가 redirect() 신호를 오류로 잡아 기록하면 여기서 드러난다.
++  // 이 라우트의 사건 코드는 BOUNDARY_CODE 다 — 가린 로그 줄이 생기면 아래 stdout 의 건수도 어긋난다.
++  errorFree: [{ label: '올려보낸 redirect 신호', transaction: 'GET /api/envelope-test/boundary-redirect' }],
    // 웹훅 요청(401)의 transaction 은 기대하지 않는다. SDK 가 401·404·3xx 응답의 transaction 을 버린다.
    // 다른 서비스가 시작한 추적(sentry-trace, baggage)을 이어받은 요청. baggage 의 transaction 이름(쿼리 포함)은
-@@ -61,6 +138,18 @@ const EXPECTED = {
+   // DSC 로 envelope 헤더에 실릴 수 있다. 9.47.1 은 span 안의 이벤트에서 DSC 를 자기 루트 span 으로 다시 만들지만,
+@@ -61,6 +145,18 @@ const EXPECTED = {
      // edge 는 SDK 가 SENTRY_TRACES_SAMPLE_RATE 를 스스로 읽어 표본이 켜진다. 운영에서는 꺼져 있다.
      { label: 'edge 라우트의 transaction', name: 'GET /api/envelope-test/edge-throw', min: REPEAT },
      { label: 'middleware 의 transaction(edge)', name: 'middleware GET /ko/vote', min: REPEAT },
@@ -3011,7 +3305,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
    ],
  };
 
-@@ -83,6 +172,23 @@ function buildRequests(base) {
+@@ -83,6 +179,24 @@ function buildRequests(base) {
      'x-envtest-email': B.email,
    };
 
@@ -3028,6 +3322,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +    'x-envtest-boundary-error-code': A.boundaryErrorCode,
 +    'x-envtest-boundary-getter': A.boundaryGetter,
 +    'x-envtest-boundary-self': A.boundarySelf,
++    'x-envtest-boundary-redirect': A.boundaryRedirect,
 +    'x-envtest-user-id': KEPT.userId,
 +    'x-envtest-order-id': KEPT.orderId,
 +  };
@@ -3035,7 +3330,7 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
    const round = [
      { label: 'page', url: `${base}/ko/vote?code=${A.pageQuery}`, init: { headers: common } },
      {
-@@ -115,9 +221,14 @@ function buildRequests(base) {
+@@ -115,9 +229,21 @@ function buildRequests(base) {
      },
      { label: 'throw', url: `${base}/api/envelope-test/throw?code=${B.requestQuery}`, init: { headers: unhandled } },
      { label: 'edge-throw', url: `${base}/api/envelope-test/edge-throw?code=${B.requestQuery}`, init: { headers: unhandled } },
@@ -3044,6 +3339,13 @@ git commit -m "test(envelope): 가린 기록의 모양과 서버 출력의 로�
 +    { label: 'boundary-handled', url: `${base}/api/envelope-test/boundary-handled?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: { status: 200, json: { ok: true } } },
 +    { label: 'boundary-hostile', url: `${base}/api/envelope-test/boundary-hostile?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: SAFE_500 },
 +    { label: 'boundary-self-throw', url: `${base}/api/envelope-test/boundary-self-throw?code=${A.boundaryQuery}`, init: { headers: boundary }, expect: SAFE_500 },
++    // 경계가 올려보낸 redirect() 신호는 Next 가 307 로 바꾼다. 본문은 없다.
++    {
++      label: 'boundary-redirect',
++      url: `${base}/api/envelope-test/boundary-redirect?code=${A.boundaryQuery}`,
++      init: { headers: boundary },
++      expect: { status: 307, location: REDIRECT_TARGET, body: '' },
++    },
    ];
 
    return Array.from({ length: REPEAT }, () => round).flat();
@@ -3243,6 +3545,37 @@ export const GET = withSafeErrors('envtest.boundary.self_throw', async (request:
 });
 ```
 
+`scripts/envelope-test/routes/boundary-redirect/route.ts` (Next 단락 평가의 실제 서버 회귀 검증):
+
+```typescript
+import { redirect } from 'next/navigation';
+
+import { withSafeErrors } from '@/utils/with-safe-errors';
+import { envelopeTestDisabled, logConsoleCanary } from '../_lib/envtest';
+
+export const dynamic = 'force-dynamic';
+
+// redirect() 가 던지는 신호. Next 는 digest 만 보고 이 신호를 응답(307)으로 바꾼다 — message 는 읽지 않는다.
+// 경계가 판정에 쓰지 않는 message 까지 읽으면 getter 의 예외를 만나 신호를 오류로 다루고 500 을 돌려준다.
+export const GET = withSafeErrors('envtest.boundary.unhandled', async (request: Request): Promise<Response> => {
+  const disabled = envelopeTestDisabled();
+  if (disabled) return disabled;
+
+  logConsoleCanary(request.headers);
+  const secret = request.headers.get('x-envtest-boundary-redirect') ?? 'none';
+  try {
+    redirect('/api/envelope-test/redirected');
+  } catch (signal) {
+    Object.defineProperty(signal as object, 'message', {
+      get() {
+        throw new Error(`envtest redirect message ${secret}`);
+      },
+    });
+    throw signal;
+  }
+});
+```
+
 `__tests__/scripts/envelope-test-routes.test.ts` (교차 리뷰 수정까지 반영한 최종 파일):
 
 ```ts
@@ -3271,6 +3604,7 @@ describe('envelope 테스트용 라우트', () => {
     expect(routeFiles).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
       'scripts/envelope-test/routes/boundary-hostile/route.ts',
+      'scripts/envelope-test/routes/boundary-redirect/route.ts',
       'scripts/envelope-test/routes/boundary-self-throw/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-control/route.ts',
@@ -3316,6 +3650,7 @@ describe('envelope 테스트용 라우트', () => {
     expect(wrapped).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
       'scripts/envelope-test/routes/boundary-hostile/route.ts',
+      'scripts/envelope-test/routes/boundary-redirect/route.ts',
       'scripts/envelope-test/routes/boundary-self-throw/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-safe/route.ts',
@@ -3334,7 +3669,8 @@ describe('envelope 테스트 시나리오', () => {
     CANARIES: Record<'absent' | 'stdoutOnly' | 'unhandled', Record<string, string>>;
     EXPECTED: {
       errors: Array<{ count: number }>;
-      transactions: Array<{ min: number }>;
+      errorFree: Array<{ label: string; transaction: string }>;
+      transactions: Array<{ min: number; name: string }>;
       traceHeaders: Array<{ min: number }>;
       stdout: Array<{ count: number; includes: string }>;
     };
@@ -3344,7 +3680,7 @@ describe('envelope 테스트 시나리오', () => {
       label: string;
       url: string;
       init: { headers: Record<string, string>; body?: string };
-      expect?: { status: number; json: unknown };
+      expect?: { status: number; json?: unknown; location?: string; body?: string };
     }>;
   };
 
@@ -3365,7 +3701,7 @@ describe('envelope 테스트 시나리오', () => {
   it('종류마다 REPEAT 번 보내고, 기대 건수가 그와 같다', () => {
     const requests = buildRequests('http://127.0.0.1:3000');
     const labels = [...new Set(requests.map((request) => request.label))];
-    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile', 'boundary-self-throw']);
+    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile', 'boundary-self-throw', 'boundary-redirect']);
     for (const label of labels) {
       expect(requests.filter((request) => request.label === label)).toHaveLength(REPEAT);
     }
@@ -3407,11 +3743,29 @@ describe('envelope 테스트 시나리오', () => {
       'boundary-handled': { status: 200, json: { ok: true } },
       'boundary-hostile': safe500,
       'boundary-self-throw': safe500,
+      'boundary-redirect': { status: 307, location: '/api/envelope-test/redirected', body: '' },
     });
 
     const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
-    expect(runner).toContain('responses.push({ label: request.label, status: response.status, body, expect: request.expect });');
+    // redirect 를 따라가면 307 과 Location 을 볼 수 없다.
+    expect(runner).toContain("fetch(request.url, { redirect: 'manual', ...request.init })");
+    expect(runner).toMatch(
+      /responses\.push\(\{\s*label: request\.label,\s*url: request\.url,\s*status: response\.status,\s*location: response\.headers\.get\('location'\),\s*body,\s*expect: request\.expect,\s*\}\);/,
+    );
     expect(runner).toMatch(/evaluate\(\{[^}]*\bresponses,\s*\}\)/);
+  });
+
+  it('redirect 를 올려보내는 라우트는 실제 redirect() 를 쓰고, 그 요청에는 오류 이벤트도 transaction 도 기대하지 않는다', () => {
+    const route = fs.readFileSync(path.join(sourceDir, 'boundary-redirect/route.ts'), 'utf8');
+    expect(route).toContain("import { redirect } from 'next/navigation';");
+    expect(route).toContain("redirect('/api/envelope-test/redirected');");
+    // 판정에 쓰지 않는 message 를 읽으면 던진다.
+    expect(route).toMatch(/Object\.defineProperty\(signal as object, 'message', \{\s*get\(\) \{\s*throw new Error\(/);
+
+    const transaction = 'GET /api/envelope-test/boundary-redirect';
+    expect(EXPECTED.errorFree).toEqual([{ label: '올려보낸 redirect 신호', transaction }]);
+    // SDK 는 3xx 응답의 transaction 을 버린다.
+    expect(EXPECTED.transactions.map((rule) => rule.name)).not.toContain(transaction);
   });
 
   it('전달 시나리오의 요청이 실제 테스트 라우트를 가리킨다', () => {
@@ -4329,7 +4683,15 @@ async function runLeak(track) {
       const response = await fetch(request.url, { redirect: 'manual', ...request.init });
       const body = Buffer.from(await response.arrayBuffer()).toString('utf8');
       statuses.push(`${request.label} ${response.status}`);
-      responses.push({ label: request.label, status: response.status, body, expect: request.expect });
+      // redirect 는 따라가지 않는다(redirect: 'manual'). 응답 코드와 Location 을 그대로 본다.
+      responses.push({
+        label: request.label,
+        url: request.url,
+        status: response.status,
+        location: response.headers.get('location'),
+        body,
+        expect: request.expect,
+      });
     }
 
     // SDK 는 응답 뒤에 내보낸다. 기대한 건수가 다 올 때까지 기다리고, 늦게 오는 것을 조금 더 받는다.
@@ -4500,7 +4862,7 @@ Run: `git checkout -- utils/logger-targets.ts`
 - [ ] **Step 8: 두 시나리오의 통과를 본다**
 
 Run: `npm run test:envelope`
-Expected: 종료 코드 0. 누출 시나리오는 Task 7 의 Step 6 과 같다(자기 재투척 수정 뒤 27건), 전달 시나리오는 아래 모양이다(실행에서 본 출력. ms 값은 실행마다 조금 다르다).
+Expected: 종료 코드 0. 누출 시나리오는 Task 7 의 Step 6 과 같다(단락 평가 수정 뒤 30건), 전달 시나리오는 아래 모양이다(실행에서 본 출력. ms 값은 실행마다 조금 다르다).
 
 ```
 [envelope] 전달 시나리오 — 요청 11건

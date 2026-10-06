@@ -23,6 +23,7 @@ describe('envelope 테스트용 라우트', () => {
     expect(routeFiles).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
       'scripts/envelope-test/routes/boundary-hostile/route.ts',
+      'scripts/envelope-test/routes/boundary-redirect/route.ts',
       'scripts/envelope-test/routes/boundary-self-throw/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-control/route.ts',
@@ -68,6 +69,7 @@ describe('envelope 테스트용 라우트', () => {
     expect(wrapped).toEqual([
       'scripts/envelope-test/routes/boundary-handled/route.ts',
       'scripts/envelope-test/routes/boundary-hostile/route.ts',
+      'scripts/envelope-test/routes/boundary-redirect/route.ts',
       'scripts/envelope-test/routes/boundary-self-throw/route.ts',
       'scripts/envelope-test/routes/boundary-throw/route.ts',
       'scripts/envelope-test/routes/delivery-safe/route.ts',
@@ -86,7 +88,8 @@ describe('envelope 테스트 시나리오', () => {
     CANARIES: Record<'absent' | 'stdoutOnly' | 'unhandled', Record<string, string>>;
     EXPECTED: {
       errors: Array<{ count: number }>;
-      transactions: Array<{ min: number }>;
+      errorFree: Array<{ label: string; transaction: string }>;
+      transactions: Array<{ min: number; name: string }>;
       traceHeaders: Array<{ min: number }>;
       stdout: Array<{ count: number; includes: string }>;
     };
@@ -96,7 +99,7 @@ describe('envelope 테스트 시나리오', () => {
       label: string;
       url: string;
       init: { headers: Record<string, string>; body?: string };
-      expect?: { status: number; json: unknown };
+      expect?: { status: number; json?: unknown; location?: string; body?: string };
     }>;
   };
 
@@ -117,7 +120,7 @@ describe('envelope 테스트 시나리오', () => {
   it('종류마다 REPEAT 번 보내고, 기대 건수가 그와 같다', () => {
     const requests = buildRequests('http://127.0.0.1:3000');
     const labels = [...new Set(requests.map((request) => request.label))];
-    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile', 'boundary-self-throw']);
+    expect(labels).toEqual(['page', 'webhook', 'handled', 'throw', 'edge-throw', 'boundary-throw', 'boundary-handled', 'boundary-hostile', 'boundary-self-throw', 'boundary-redirect']);
     for (const label of labels) {
       expect(requests.filter((request) => request.label === label)).toHaveLength(REPEAT);
     }
@@ -159,11 +162,29 @@ describe('envelope 테스트 시나리오', () => {
       'boundary-handled': { status: 200, json: { ok: true } },
       'boundary-hostile': safe500,
       'boundary-self-throw': safe500,
+      'boundary-redirect': { status: 307, location: '/api/envelope-test/redirected', body: '' },
     });
 
     const runner = fs.readFileSync(path.join(root, 'scripts/envelope-test/run.js'), 'utf8');
-    expect(runner).toContain('responses.push({ label: request.label, status: response.status, body, expect: request.expect });');
+    // redirect 를 따라가면 307 과 Location 을 볼 수 없다.
+    expect(runner).toContain("fetch(request.url, { redirect: 'manual', ...request.init })");
+    expect(runner).toMatch(
+      /responses\.push\(\{\s*label: request\.label,\s*url: request\.url,\s*status: response\.status,\s*location: response\.headers\.get\('location'\),\s*body,\s*expect: request\.expect,\s*\}\);/,
+    );
     expect(runner).toMatch(/evaluate\(\{[^}]*\bresponses,\s*\}\)/);
+  });
+
+  it('redirect 를 올려보내는 라우트는 실제 redirect() 를 쓰고, 그 요청에는 오류 이벤트도 transaction 도 기대하지 않는다', () => {
+    const route = fs.readFileSync(path.join(sourceDir, 'boundary-redirect/route.ts'), 'utf8');
+    expect(route).toContain("import { redirect } from 'next/navigation';");
+    expect(route).toContain("redirect('/api/envelope-test/redirected');");
+    // 판정에 쓰지 않는 message 를 읽으면 던진다.
+    expect(route).toMatch(/Object\.defineProperty\(signal as object, 'message', \{\s*get\(\) \{\s*throw new Error\(/);
+
+    const transaction = 'GET /api/envelope-test/boundary-redirect';
+    expect(EXPECTED.errorFree).toEqual([{ label: '올려보낸 redirect 신호', transaction }]);
+    // SDK 는 3xx 응답의 transaction 을 버린다.
+    expect(EXPECTED.transactions.map((rule) => rule.name)).not.toContain(transaction);
   });
 
   it('전달 시나리오의 요청이 실제 테스트 라우트를 가리킨다', () => {

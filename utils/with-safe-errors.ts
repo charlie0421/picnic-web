@@ -51,54 +51,48 @@ async function flushAndReport(): Promise<void> {
 /** cause 사슬을 따라가는 깊이의 상한. 읽을 때마다 새 cause 를 내놓는 값에서도 멈춘다. */
 const MAX_CAUSE_DEPTH = 10;
 
-/**
- * 던진 값과 그 cause 사슬. 읽다가 던지거나, 이미 본 값으로 돌아오거나, 상한에 닿으면 거기서 멈춘다.
- * 던진 값은 무엇이든 될 수 있다 — cause 가 던지는 getter 일 수도, Proxy 일 수도 있다.
- */
-function causeChain(error: unknown): unknown[] {
-  const chain: unknown[] = [error];
-  let current: unknown = error;
-  while (chain.length <= MAX_CAUSE_DEPTH) {
-    let next: unknown;
-    try {
-      if (!(current instanceof Error) || !('cause' in current)) break;
-      next = current.cause;
-    } catch {
-      break;
-    }
-    if (chain.includes(next)) break;
-    chain.push(next);
-    current = next;
-  }
-  return chain;
-}
-
-/**
- * unstable_rethrow 의 판정이 읽는 속성(Next 15.5.26). 판정은 객체에서 이 셋만 읽고, 그 밖에는 cause 를 따라갈 뿐이다.
- * Next 가 다른 속성을 읽기 시작하면 단위 테스트(with-safe-errors.test.ts)가 알린다.
- */
-const CONTROL_FLOW_KEYS = ['digest', 'message', '$$typeof'] as const;
+/** 던진 값을 읽다가 예외가 났다는 표식. 그 예외 대신 이것을 던진다 — 원래 예외는 어디로도 내보내지 않는다. */
+const UNREADABLE = Symbol('unreadable');
 
 /**
  * Next 가 이 값 자체를 제어 흐름 신호(redirect, notFound, 동적 렌더링 신호)로 보는가.
  *
  * 던진 값을 unstable_rethrow 에 바로 넘기지 않는다. unstable_rethrow 는 신호를 받으면 그 값을 그대로 다시 던지는데,
  * 읽기를 방해하는 값도 getter 나 Proxy 에서 자기 자신을 던질 수 있어 "넘긴 값이 다시 나왔다"로는 둘을 가리지 못한다.
- * 그래서 판정이 읽는 속성만 한 번씩 읽어 새 객체에 옮겨 담고, 그 객체를 넘긴다. 새 객체에는 getter 도 cause 도 없으니
- * 그것이 다시 나오는 길은 판정을 통과하는 것뿐이다. 읽다가 던지는 값은 신호가 아니다.
+ * 그래서 속성의 유무와 값만 대신 읽어 주는 객체를 넘긴다. 그 객체가 다시 나오는 길은 판정을 통과하는 것뿐이다.
+ *
+ * 무엇을 어떤 순서로 읽을지는 unstable_rethrow 가 정한다. 판정은 차례로 해 보다가 맞는 것이 나오면 거기서 끝나므로,
+ * redirect() 신호라면 digest 만 읽는다. 미리 다 읽어 두면 판정에 쓰지 않는 속성이 던지는 신호를 놓친다.
+ * 같은 속성은 한 번만 읽어 기억한다. 읽다가 던지는 값은 신호가 아니다.
  */
 function isNextControlFlow(value: unknown): boolean {
   // 판정은 모두 객체만 신호로 본다.
   if (typeof value !== 'object' || value === null) return false;
 
-  const probe: Record<string, unknown> = {};
-  try {
-    for (const key of CONTROL_FLOW_KEYS) {
-      if (key in value) probe[key] = (value as Record<string, unknown>)[key];
+  const source: object = value;
+  const present = new Map<string | symbol, boolean>();
+  const values = new Map<string | symbol, unknown>();
+  const reading = <Result>(read: () => Result): Result => {
+    try {
+      return read();
+    } catch {
+      throw UNREADABLE;
     }
-  } catch {
-    return false;
-  }
+  };
+  // 대상이 빈 객체라 Error 가 아니다 — unstable_rethrow 가 cause 를 따라가지 않는다. 사슬은 경계가 따라간다.
+  const probe = new Proxy(
+    {},
+    {
+      has(_target, key) {
+        if (!present.has(key)) present.set(key, reading(() => Reflect.has(source, key)));
+        return present.get(key) === true;
+      },
+      get(_target, key) {
+        if (!values.has(key)) values.set(key, reading(() => Reflect.get(source, key)));
+        return values.get(key);
+      },
+    },
+  );
 
   try {
     unstable_rethrow(probe);
@@ -106,6 +100,30 @@ function isNextControlFlow(value: unknown): boolean {
   } catch (thrown) {
     return thrown === probe;
   }
+}
+
+/**
+ * 던진 값과 그 cause 사슬에서 Next 의 제어 흐름 신호를 찾는다. Next 가 하듯 값을 먼저 판정하고, 신호가 아닐 때만 cause 를 읽는다.
+ * 읽다가 던지거나, 이미 본 값으로 돌아오거나, 상한에 닿으면 거기서 멈춘다.
+ * 던진 값은 무엇이든 될 수 있다 — cause 가 던지는 getter 일 수도, Proxy 일 수도 있다.
+ */
+function findControlFlow(error: unknown): { signal: unknown } | null {
+  const seen: unknown[] = [];
+  let current: unknown = error;
+  while (seen.length <= MAX_CAUSE_DEPTH) {
+    if (isNextControlFlow(current)) return { signal: current };
+    seen.push(current);
+    let next: unknown;
+    try {
+      if (!(current instanceof Error) || !('cause' in current)) break;
+      next = current.cause;
+    } catch {
+      break;
+    }
+    if (seen.includes(next)) break;
+    current = next;
+  }
+  return null;
 }
 
 function scheduleFlush(): void {
@@ -128,9 +146,8 @@ export function withSafeErrors<Args extends unknown[]>(
       } catch (error) {
         // redirect()·notFound() 와 Next 의 동적 렌더링 신호는 오류가 아니다. 그대로 올려보낸다.
         // Next 가 하듯 cause 사슬 안의 신호도 찾는다. 찾는 동안 난 예외는 올려보내지 않는다.
-        for (const candidate of causeChain(error)) {
-          if (isNextControlFlow(candidate)) throw candidate;
-        }
+        const found = findControlFlow(error);
+        if (found) throw found.signal;
         logSafeError(code, error);
         // 본문에 오류 메시지를 넣지 않는다.
         return Response.json({ error: 'Internal server error' }, { status: 500 });

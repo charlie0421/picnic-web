@@ -10,7 +10,8 @@
  *   3. 허용 노출 — 묶음 B 의 marker 는 exception.values[].value 와 Next 의 미처리 오류 줄에만 있다.
  *   4. tripwire 표식은 기대한 이벤트에만 있다. 다른 곳에 있으면 토큰 모양 값이 새다가 가려진 것이다.
  *   5. 가린 기록(logSafeError)의 이벤트는 정해진 모양이고, 가린 로그 줄이 서버 출력에 기대한 수만큼 있다(설계 §4.2, §4.3).
- *   6. 경계(withSafeErrors)가 돌려준 응답은 정해진 코드와 본문이고, 본문에 canary 가 없다(설계 §4.7).
+ *   6. 경계(withSafeErrors)를 거친 응답은 정해진 코드와 본문(redirect 는 Location)이고, 거기에 canary 가 없다(설계 §4.7).
+ *      경계가 올려보낸 신호의 요청에는 오류 이벤트가 없다.
  */
 
 const TRIPWIRE_KEY = 'redaction.tripwire';
@@ -150,15 +151,29 @@ function shapeProblems(event, rule) {
   return problems;
 }
 
+/** Location 헤더는 상대 주소일 수도 절대 주소일 수도 있다. 요청 주소를 기준으로 풀어서 비교한다. */
+function sameLocation(response, expected) {
+  if (typeof response.location !== 'string') return false;
+  try {
+    return new URL(response.location, response.url).href === new URL(expected, response.url).href;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 응답이 요청에 적은 기대와 같은가. 경계가 뚫려 Next 가 응답해도 코드는 같은 500 이라 본문까지 본다.
- *   status — 응답 코드.
- *   json   — 본문을 JSON 으로 읽은 값 전부.
+ *   status   — 응답 코드.
+ *   json     — 본문을 JSON 으로 읽은 값 전부.
+ *   body     — 본문 그대로. redirect 처럼 본문이 없어야 하는 응답에 쓴다.
+ *   location — Location 헤더가 가리키는 주소.
  */
 function responseProblems(response) {
   const problems = [];
-  const { status, json } = response.expect;
+  const { status, json, body, location } = response.expect;
   if (response.status !== status) problems.push(`응답 코드 기대 ${status}, 실제 ${response.status}`);
+  if (body !== undefined && response.body !== body) problems.push('본문이 정해진 값이 아니다');
+  if (location !== undefined && !sameLocation(response, location)) problems.push('Location 이 기대와 다르다');
   if (json !== undefined) {
     let actual;
     let parsed = true;
@@ -232,6 +247,12 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker, 
       if (hasFrameVars(event)) failures.push(`${rule.label}: stack frame 에 vars 가 실렸다`);
       for (const problem of shapeProblems(event, rule)) failures.push(`${rule.label}: ${problem}`);
     }
+  }
+  // 오류 이벤트가 없어야 하는 요청. 처리했든 아니든 그 요청의 이벤트는 하나도 오면 안 된다.
+  for (const rule of expected.errorFree || []) {
+    const actual = errors.filter((event) => event.transaction === rule.transaction).length;
+    counts.push({ label: rule.label, expected: '0', actual });
+    if (actual !== 0) failures.push(`수신 건수 — ${rule.label}: 오류 이벤트 기대 0건, 실제 ${actual}건`);
   }
   for (const rule of expected.transactions) {
     const matched = transactionsNamed(envelopes, rule.name);
@@ -309,7 +330,7 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker, 
   );
   for (const where of summarize(strayTripwire)) failures.push(`예상하지 않은 tripwire — ${TRIPWIRE_KEY}: ${where}`);
 
-  // 6. 응답 — 기대를 적은 요청은 응답 코드와 본문이 정해진 값이고, 본문에 canary 가 없다. 본문은 보고에 싣지 않는다.
+  // 6. 응답 — 기대를 적은 요청은 응답 코드·본문·Location 이 정해진 값이고, 거기에 canary 가 없다. 받은 값은 보고에 싣지 않는다.
   const checked = (responses || []).filter((response) => response.expect);
   const allCanaries = Object.values(canaries).flatMap((group) => Object.entries(group));
   for (const label of [...new Set(checked.map((response) => response.label))]) {
@@ -321,6 +342,9 @@ function evaluate({ envelopes, stdout, canaries, expected, unhandledLineMarker, 
       for (const problem of problems) failures.push(`응답 — ${label}: ${problem}`);
       for (const [name, value] of allCanaries) {
         if (response.body.includes(value)) failures.push(`누출(응답 본문) — ${name}: ${label}`);
+        if (typeof response.location === 'string' && response.location.includes(value)) {
+          failures.push(`누출(응답 헤더) — ${name}: ${label}`);
+        }
       }
     }
     counts.push({ label: `응답(${label})`, expected: `${group.length}`, actual: matched });

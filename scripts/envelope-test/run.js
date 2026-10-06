@@ -153,7 +153,15 @@ async function runLeak(track) {
       const response = await fetch(request.url, { redirect: 'manual', ...request.init });
       const body = Buffer.from(await response.arrayBuffer()).toString('utf8');
       statuses.push(`${request.label} ${response.status}`);
-      responses.push({ label: request.label, status: response.status, body, expect: request.expect });
+      // redirect 는 따라가지 않는다(redirect: 'manual'). 응답 코드와 Location 을 그대로 본다.
+      responses.push({
+        label: request.label,
+        url: request.url,
+        status: response.status,
+        location: response.headers.get('location'),
+        body,
+        expect: request.expect,
+      });
     }
 
     // SDK 는 응답 뒤에 내보낸다. 기대한 건수가 다 올 때까지 기다리고, 늦게 오는 것을 조금 더 받는다.
