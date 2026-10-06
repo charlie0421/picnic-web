@@ -14,7 +14,7 @@
 
 ## 실행 결과 (2026-10-06)
 
-**안전한 새 신호 정규화 구현·검증을 완료했고 원 리뷰어의 독립 코드 리뷰는 APPROVE 다.** 이전 교차 리뷰의 상태 변화 blocker 는 원본 재투척을 없애는 방식으로 수정했다. 새 반례의 단위·실서버 RED/GREEN 결과는 아래에 있다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
+**PR #121 은 사용자 승인 뒤 main 에 머지했고 Production 에 배포했다.** 원 리뷰어의 독립 코드 리뷰는 APPROVE 다. 이전 교차 리뷰의 상태 변화 blocker 는 원본 재투척을 없애는 방식으로 수정했다. 새 반례의 단위·실서버 RED/GREEN 결과는 아래에 있다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
 
 | 무엇 | 계획 | 실제 | 이유 |
 |---|---|---|---|
@@ -24,6 +24,18 @@
 | `utils/log-error.ts` 의 주석 (Task 9) | "결제·인증 경로는 logSafeError 를 쓴다" | "값을 가려 남겨야 하는 경로(결제·인증)에는 logSafeError 를 쓴다" | 호출부는 아직 옮기지 않았다(PR 3·4) |
 
 결과: 테스트는 3,170건 → 3,521건(파일 198 → 204), `it.fails` 6건과 skipped 1건은 그대로다. `npm run test:envelope` 는 누출 시나리오 36건과 전달 시나리오 11건이 통과한다. 경계 없이 `logError` 에 값을 넘긴 모습에서는 누출 시나리오가 20건으로 실패했고, `captureException` 앞에 5ms 지연을 넣으면 전달 시나리오가 7건, CI 의 전달 테스트가 2건으로 실패한다.
+
+### 머지와 Production 확인 (2026-10-06~07 KST)
+
+- 사용자 승인 뒤 [PR #121](https://github.com/charlie0421/picnic-web/pull/121)을 2026-10-06 23:43:50 KST 에 squash merge 했다. 검증한 PR HEAD 는 `e26e10ed882f3cb0b69dde7d1ea6b8a42944e6bd`, main 커밋은 `9f1b61307b6dd2c98d3b7c34a88d63ac6853d9ad` 다.
+- 해당 main 커밋의 [GitHub CI](https://github.com/charlie0421/picnic-web/actions/runs/37481419977)가 성공했다(타입 검사·lint·테스트). 로컬 main 도 이 커밋으로 fast-forward 했다.
+- Production 배포 `dpl_DeCeFUZ9fpWiFpdHwFBusWQFR6Jn`([배포 주소](https://picnic-ah3qkevu9-charlie0421s-projects.vercel.app))가 READY 이고, `www.picnic.fan` 이 이 배포를 가리키는 것을 23:46:28 KST 에 확인했다. 배포 메타데이터의 `githubCommitSha` 는 위 main 커밋과 같다.
+- 운영 `GET /ko/vote` 는 200 이다. `/api/envelope-test/` 아래 `boundary-handled`, `boundary-hostile`, `boundary-redirect`, `boundary-self-throw`, `boundary-stateful`, `boundary-throw`, `delivery-control`, `delivery-plain`, `delivery-safe`, `edge-throw`, `handled`, `throw` **12개 경로가 모두 404** 다. 리다이렉트를 따라가지 않은 첫 응답으로 확인했고 Location 헤더도 없다. 오류 fixture 를 운영에서 실행하거나 테스트 이벤트를 전송하지 않았다.
+- **30분 관찰 완료: Vercel 5xx 0건, Sentry 신규 이슈 0건.** 구간은 2026-10-06 23:46:28~2026-10-07 00:16:28 KST(`2026-10-06T14:46:28Z`~`2026-10-06T15:16:28Z`)다. 31회 누적 조회가 모두 성공했고 각 조회도 0건이었다. 마지막 조회는 종료 시각까지의 1,800초 전체를 포함하며, Vercel 결과 제한(1,000건)에 걸리지 않았다.
+
+관찰 방법: Vercel CLI 에 배포 ID·`--environment production --no-branch --status-code 5xx`·위 UTC 구간을 명시했다. Sentry CLI 는 기본 프로젝트가 다른 앱이므로 `--org icon-casting --project picnic-web` 을 명시하고 `firstSeen:>=시작 firstSeen:<=끝`으로 모든 상태·환경의 신규 이슈를 조회한다. 약 1분마다 누적 구간을 조회하며 실패를 0건으로 취급하지 않는다. Sentry 의 기존 이슈와 새 배포의 일반 Vercel 요청 로그가 조회되는 것도 별도로 확인했다. 배포 직전 30분의 이전 배포 5xx 는 0건이었다.
+
+운영 호출부는 이 PR 에서 이관하지 않았다. 운영의 5xx·신규 이슈 관찰은 배포 회귀 확인이며, 새 경계 함수의 운영 `after()` 완료나 Sentry 저장 내용을 검증한 것으로 확대 해석하지 않는다. 인증·결제 호출부 이관은 PR 3·4 에 남는다. 아래 교차 리뷰 절은 당시 판정과 검증을 순서대로 보존한 기록이다.
 
 ### 교차 리뷰 1차와 수정 (2026-10-06)
 
