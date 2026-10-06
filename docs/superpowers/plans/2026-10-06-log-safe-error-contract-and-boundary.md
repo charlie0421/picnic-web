@@ -14,7 +14,7 @@
 
 ## 실행 결과 (2026-10-06)
 
-이 계획은 실행됐다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
+구현과 아래 검증을 실행했다. 다만 최신 교차 리뷰는 **REQUEST_CHANGES(blocker 1건)** 이며, 상태가 바뀌는 판정 속성의 누출 반례가 남았다. 기존 녹색 테스트는 이 반례를 포함하지 않는다. 브랜치는 `feat/log-redaction-contract` 다. 아래 본문의 파일 블록은 실행이 끝난 뒤의 실제 파일과 같게 맞췄다. 실행하면서 계획과 달라진 것:
 
 | 무엇 | 계획 | 실제 | 이유 |
 |---|---|---|---|
@@ -94,7 +94,44 @@ try {
 - 새 빌드 실서버 RED: 요청 30건 중 redirect 3건이 모두 500 이었다. 실패는 5종(오류 이벤트 3건 대 기대 0건, 가린 로그 6줄 대 기대 3줄, 307 대신 500, 잘못된 본문, 누락된 Location)이었다. canary 누출은 없었고 기존 경계 응답과 전달 11건은 통과했다.
 - 단위 GREEN: 경계 **97/97**, 판정기·라우트 **61/61**, 합계 **158/158**. 기존 자기 재투척 8건과 Next 신호 10종도 유지한다.
 - 타입 검사·lint 통과. KST·UTC 각각 전체 테스트 **204파일, 3,476건 통과 · 6 expected fail · 1 skipped**.
-- `boundary-redirect` 실제 라우트와 상태·Location·빈 본문·오류 이벤트 부재·헤더 canary 판정을 추가했다. 잘못된 응답 코드·이동 주소·본문·오류 이벤트를 탐지하는 회귀 테스트도 둔다. 새 빌드 실서버 GREEN 은 종료 코드 0: 누출 요청 **30건**, 전달 요청 **11건** 통과. redirect 3건 모두 **307·정확한 Location·빈 본문**, 오류 이벤트 0건이었다. 기존 경계 네 종류의 고정 응답도 각 3/3 이고 canary 누출은 없다. 원 리뷰어 재검증은 대기 중이다.
+- `boundary-redirect` 실제 라우트와 상태·Location·빈 본문·오류 이벤트 부재·헤더 canary 판정을 추가했다. 잘못된 응답 코드·이동 주소·본문·오류 이벤트를 탐지하는 회귀 테스트도 둔다. 새 빌드 실서버 GREEN 은 종료 코드 0: 누출 요청 **30건**, 전달 요청 **11건** 통과. redirect 3건 모두 **307·정확한 Location·빈 본문**, 오류 이벤트 0건이었다. 기존 경계 네 종류의 고정 응답도 각 3/3 이고 canary 누출은 없다. 원 리뷰어는 단락 평가 회귀를 해소로 판정했지만, 아래의 상태 변화 blocker 를 새로 확인했다.
+
+### 최신 재검토 — 상태가 바뀌는 판정 속성의 blocker (2026-10-06)
+
+코드 `67ae0212` 를 push 했고 해당 GitHub CI 는 통과했다. 원 리뷰어 Codex `gpt-6-sol`/high 는 이전 단락 평가 major 와 자기 재투척 방어의 유지를 확인했다. 그러나 **REQUEST_CHANGES(blocker 1건)** 다: 일반 오류의 `digest` getter 가 첫 읽기에만 유효한 redirect 문자열을 반환하면, 경계의 캐시가 이를 신호로 판정해 원본을 던지고 Sentry 는 뒤의 다른 값으로 일반 오류로 판정한다. `utils/with-safe-errors.ts` 의 값 캐시와 원본 재투척이 연결되는 문제다.
+
+조정자 재현 결과:
+
+| 판정 방법 | 유효한 값을 주는 읽기 수 | 결과 | 가린 로그 | 후속 Sentry 판정 |
+|---|---:|---|---:|---|
+| 현재 경계 | 첫 1번 | 원본 탈출 | 0 | 일반 오류, 포착 대상 |
+| 캐시를 제거한 메모리 시제품 | 첫 1번 | 고정 500 | 1 | 원본이 밖으로 나오지 않음 |
+| 현재 경계 | 첫 2번 | 원본 탈출 | 0 | 일반 오류, 포착 대상 |
+| 캐시를 제거한 메모리 시제품 | 첫 2번 | 원본 탈출 | 0 | 일반 오류, 포착 대상 |
+
+이 비교는 경계 TypeScript 를 메모리에서 변환해 실행했고, 설치된 Next·Sentry 판별 함수를 사용했다. 캐시 제거 시제품은 파일로 적용하거나 커밋하지 않았다. 다음 짧은 예시도 재판정 차이를 보여 준다(Next 15.5.26·Sentry 9.47.1, 저장소 루트의 Node):
+
+```javascript
+const { unstable_rethrow } = require('next/navigation');
+const sdk = require('./node_modules/@sentry/nextjs/build/cjs/common/nextNavigationErrorUtils.js');
+let reads = 0;
+const error = new Error('synthetic-stateful-secret');
+Object.defineProperty(error, 'digest', {
+  get: () => ++reads <= 2 ? 'NEXT_REDIRECT;replace;/login;307;' : 'ordinary',
+});
+let nextSignal = false;
+try { unstable_rethrow(error); } catch (thrown) { nextSignal = thrown === error; }
+const sdkWouldCapture = !sdk.isRedirectNavigationError(error) && !sdk.isNotFoundNavigationError(error);
+console.log({ nextSignal, sdkWouldCapture }); // { nextSignal: true, sdkWouldCapture: true }
+```
+
+**실제 서버에서도 조정자가 누출을 확인했다.** `67ae0212` 로 새로 만든 검증 빌드를 사용하고, 컴파일된 `boundary-self-throw` 테스트 fixture 의 getter 만 첫 1회 valid digest/이후 ordinary 로 바꿨다. 경계 구현과 추적 소스는 바꾸지 않았다. 로컬 Next 서버·로컬 Sentry 수집기에 1회 요청한 결과는 **HTTP 500, 빈 본문, 서버 출력과 envelope 양쪽에 원본 canary, 가린 이벤트 0건**이었다. 서버는 살아 있었다. 컴파일 fixture 는 `finally` 에서 원래 바이트로 복구하고 해시를 확인했다. 이 결과는 현 구현의 실서버 누출 재현이며, 새 소스 회귀 테스트나 수정 후 통과를 주장하는 근거가 아니다.
+
+원 리뷰어와 캐시 제거의 충분성을 한 차례 교환했다. 리뷰어도 **캐시 제거만으로 부족**하다고 확인했다. 유한 횟수 재검사는 그다음 읽기에서 값이 바뀌는 경우를 막지 못한다. 생성 시점부터 신뢰할 수 있는 신호만 원본으로 전달하거나, 필요한 값만 검증해 새 신호/응답을 만드는 계약이 필요하다. 후자는 원본 객체 동일성 보장을 바꾼다. 현재의 중복 읽기를 생략하는 테스트 기록기도 이 반례를 잡지 못했다.
+
+승인된 `main` 설계(`39ddc313`, §4.7)의 원칙은 원본 오류 비노출이다. 원본 객체 동일성은 PR 2 구현 중 추가한 조건이고 운영 호출부는 아직 이관하지 않았다. **권고하는 후속 방향은 정상 Next 동작을 보존하되 원본 객체를 내보내지 않는 안전한 신호 정규화**다. redirect 의 URL·종류·상태와 쿠키 응답, HTTP fallback, 동적 렌더링·postpone·hanging 신호에 필요한 정보만 확인·검증하고, 원본 message·stack·cause·임의 메타데이터는 전달하지 않는다. 판단할 수 없는 입력은 기존 가린 로그와 고정 500 으로 처리한다. 새 계약은 아직 승인·구현·검증하지 않았으며 짧은 설계 확인 뒤 진행한다.
+
+추적: 원 리뷰 Task `task_27f8cb0378bf` / Dispatch `ctx_f8241db38f12`; 기술 반례 교환 Task `task_114de1ff6ac2` / Dispatch `ctx_c36b7c5c144c`, Run `run_176dd32d29c0`. 두 읽기 전용 리뷰의 `worker_done` 은 Orca 연결의 `runtime_access_denied (EPERM)` 으로 차단됐다. 최종 판정·턴 종료를 확인한 뒤 `worker-abandon` 정산을 수락받았다. 원본 구현 Task 의 정상 `worker_done` 과 리뷰의 정산을 구분한다. 권한 확대·quota 재시도·providerHold 는 없다. 기술 반례 교환 리뷰어는 메모리 실행과 소스만 검토했고, 위 실서버 추가 재현은 조정자가 수행했다. PR 은 미머지이며 운영 배포도 하지 않았다.
 
 ## 계획을 쓰기 전에 확인한 것 (2026-10-06)
 
