@@ -4,6 +4,7 @@
 
 import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
+import '@/app/[lang]/globals.css';
 
 // This page is copied into app only during the local envelope build.
 export default function BrowserPrivacyFixture() {
@@ -45,5 +46,9 @@ export default function BrowserPrivacyFixture() {
     <a id="fixture-link" href="/callback?code=privacy-dom-query#privacy-dom-fragment">링크</a>
     <div id="fixture-style" style={{ backgroundImage: 'url("/asset?token=privacy-css-query")', color: 'rgb(1, 2, 3)' }}>마스킹 대상</div>
     <input defaultValue="privacy-input-value" />
+    <div data-escaped-query={String.raw`/callback\?code=privacy-escaped-query`}
+      data-escaped-fragment={String.raw`/callback\#privacy-escaped-fragment`}
+      data-hex-query={String.raw`/callback\3f code=privacy-hex-query`}
+      data-hex-fragment={String.raw`/callback\23 privacy-hex-fragment`}>정규식 자료</div>
   </body></html>;
 }

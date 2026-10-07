@@ -63,6 +63,16 @@ function evaluateBrowserEnvelopes(envelopes) {
   collect(records);
   assert.ok(objects.some((node) => typeof node.attributes?._cssText === 'string' && node.attributes._cssText.length > 0), 'inlined stylesheet remains nonempty');
   assert.ok(objects.some((node) => typeof node.textContent === 'string' && node.textContent.includes('.hover\\:bg-privacy') && node.textContent.includes('.w-1\\/2')), 'Tailwind selector escapes survive');
+  const appStyles = objects.filter((node) => typeof node.attributes?._cssText === 'string'
+    && node.attributes._cssText.includes('.hover\\:bg-primary-600:hover') && node.attributes._cssText.includes('.w-1\\/2'));
+  assert.ok(appStyles.length > 0, 'built app Tailwind stylesheet is recorded with real escaped selectors');
+  assert.ok(appStyles.some((node) => node.attributes._cssText.includes('.animate-bounce-up')), 'app global CSS survives alongside Tailwind');
+  const escaped = objects.find((node) => Object.hasOwn(node.attributes || {}, 'data-escaped-query'))?.attributes;
+  assert.ok(escaped, 'opaque escaped DOM attributes are recorded');
+  assert.equal(escaped['data-escaped-query'], '');
+  assert.equal(escaped['data-escaped-fragment'], '');
+  assert.equal(escaped['data-hex-query'], '');
+  assert.equal(escaped['data-hex-fragment'], '');
   assert.ok(records.some((event) => event.type === 3 && event.data.source === 8), 'CSS rule insertion captured');
   assert.ok(records.some((event) => event.type === 3 && event.data.source === 13), 'CSS declaration captured');
   assert.ok(records.some((event) => event.type === 5 && event.data.tag === 'performanceSpan'), 'Replay performance custom events captured');
@@ -71,7 +81,8 @@ function evaluateBrowserEnvelopes(envelopes) {
   const leaks = [...new Set(all.match(/privacy-[a-z-]+-(?:query|fragment|value)/g) || [])];
   assert.deepEqual(leaks, [], `URL/input canaries leaked: ${leaks.join(', ')}`);
   assert.ok(!all.includes('redaction.tripwire'), 'ordinary URL data must not need the token tripwire');
-  return { errors: errors.length, transactions: transactions.length, replayEvents: replays.length, recordings: recordings.length, leaks: 0 };
+  return { errors: errors.length, transactions: transactions.length, replayEvents: replays.length, recordings: recordings.length,
+    appStylesheets: appStyles.length, appStyleBytes: Buffer.byteLength(appStyles[0].attributes._cssText), leaks: 0 };
 }
 
 module.exports = { parseBrowserEnvelope, evaluateBrowserEnvelopes };

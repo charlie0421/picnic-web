@@ -12,7 +12,7 @@ const cutUrl = (value: string) => value.split(/[?#]/, 1)[0];
 type Walk = { count: number; tripwire: boolean; deadline: number };
 
 /** Preserve escaped selectors; consume URL/string tokens without regex backtracking. */
-function scrubCss(value: string): string {
+function scrubCss(value: string, opaque = false): string {
   const output: string[] = [], remainder: string[] = [];
   const nameChar = (char: string) => !!char && (/[a-zA-Z0-9_-]/.test(char) || char.charCodeAt(0) >= 128);
   const tokenEnd = (start: number, endChar: string) => {
@@ -49,7 +49,8 @@ function scrubCss(value: string): string {
       }
       if (name.toLowerCase() !== 'url' || value[cursor] !== '(') {
         const raw = value.slice(start, cursor);
-        output.push(raw); remainder.push(escaped ? 'identifier' : raw);
+        output.push(raw);
+        remainder.push(escaped ? (opaque && /[?#]/.test(name) ? name : 'identifier') : raw);
         continue;
       }
       cursor++;
@@ -87,7 +88,7 @@ function scrubNode(value: unknown, state: Walk, key = '', css = false, depth = 0
     if (key === 'srcdoc' || ((key === 'srcset' || key === 'imagesrcset') && /[?#]/.test(value))) clean = '';
     else if (css || ['style', '_cssText', 'rule', 'replace', 'replaceSync'].includes(key)) clean = scrubCss(value);
     else if (URL_KEYS.has(key)) clean = cutUrl(value);
-    else if (/url\(|@import|\\/i.test(value)) clean = scrubCss(value);
+    else if (/url\(|@import|\\/i.test(value)) clean = scrubCss(value, true);
     else clean = stripUrlQueries(value);
     const redacted = redactTokenShapes(clean);
     if (redacted !== clean) state.tripwire = true;

@@ -254,9 +254,10 @@ export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLo
 
 브라우저에서는 "수집을 끈다"가 통하지 않는다. 주소 자체가 이벤트의 `request.url`, navigation breadcrumb, pageload transaction 에 들어간다. OAuth 콜백 페이지(`/auth/callback/{provider}?code=…`)가 대표적이다.
 
-Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 오류 세션 표본율 1.0 이지만(`instrumentation-client.ts` 11: `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE` 가 없을 때) Production 에는 이 환경변수가 들어 있고, 2026-10-02 에 배포된 클라이언트 번들을 내려받아 확인한 값은 `tracesSampleRate` 0.1, `replaysSessionSampleRate` 0, `replaysOnErrorSampleRate` 0 이다. 두 표본율이 모두 0 이면 Replay integration 자체가 등록되지 않는다(`instrumentation-client.ts` 의 지연 등록 조건). 초안 1~5 는 코드 기본값만 보고 "지금 1.0 이다"라고 썼다. 틀린 서술이었다. 환경변수를 지우거나 값을 올리면 Replay 가 다시 켜지므로, 그 전에 아래의 브라우저 단계가 끝나 있어야 한다. `maskAllText` 로 화면의 글자는 가려지지만 URL 정책은 검증된 적이 없다(#73 의 5번).
+Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 오류 세션 표본율 1.0 이지만(`instrumentation-client.ts` 11: `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE` 가 없을 때) Production 에는 이 환경변수가 들어 있고, 2026-10-02 에 배포된 클라이언트 번들을 내려받아 확인한 값은 `tracesSampleRate` 0.1, `replaysSessionSampleRate` 0, `replaysOnErrorSampleRate` 0 이다. 두 표본율이 모두 0 이면 Replay integration 자체가 등록되지 않는다(`instrumentation-client.ts` 의 지연 등록 조건). 초안 1~5 는 코드 기본값만 보고 "지금 1.0 이다"라고 썼다. 틀린 서술이었다. 환경변수를 지우거나 값을 올리면 Replay 가 다시 켜지므로, 그 전에 아래의 브라우저 단계가 끝나 있어야 한다. `maskAllText`는 화면의 글자를 가린다. URL 정책은 PR 5의 로컬 브라우저 envelope 검사로 검증했다. 운영 Replay 수신 검증은 아직 하지 않았다.
 
-- 방법은 서버와 같은 URL·쿼리 함수를 클라이언트의 `beforeSend`·`beforeSendTransaction`·`beforeSendSpan`·`beforeBreadcrumb` 와 Replay 의 `beforeAddRecordingEvent` 에 거는 것이다. 이것은 #73 이 경고한 "모든 이벤트 종류를 덮어야 한다"에 해당하므로, **브라우저 envelope 테스트가 먼저 있어야 한다**(Playwright 로 실제 페이지를 열고 DSN 을 로컬 수집기로 돌려 Replay 를 포함한 envelope 을 받는다).
+- PR 5는 클라이언트의 `beforeSend`·`beforeSendTransaction`·`beforeSendSpan`·`beforeBreadcrumb`에 공통 URL 가림을 연결했다. SDK 9.47.1의 `beforeAddRecordingEvent`는 custom event에만 적용되며 DOM 기록을 덮지 않는다. Replay는 일반 이벤트 훅을 우회하여 transport를 직접 호출하므로 `lib/sentry/browser-transport.ts`의 전송 경계에서 metadata와 녹화 전체를 정제한다. 압축 기록은 uncompressed segment header와 zlib 본문을 분리하고, 가린 사본을 다시 압축한다. 형식·압축·크기·시간 제한 검사에 실패하면 해당 Replay envelope를 버린다. 로컬 `next start`와 Chromium에서 실제 SDK recorder의 오류·성능·압축 Replay를 수신했다. 수정 전 canary 12종 누출을 재현했고 수정 뒤 0건이었다.
+- PR 5 후속은 일반 문자열의 backslash·hex escape가 URL 가림을 우회하던 N1과 실제 앱 Tailwind stylesheet의 검증 공백 N3를 보완한다. 명시된 CSS 경로는 CSS 토큰 처리를 유지한다. 일반 문자열은 조기 반환 없이 전체를 검사하며, CSS fallback에서는 escape를 푼 식별자의 query/fragment 표시를 안전한 선택자로 숨기지 않는다. 테스트 fixture가 실제 `app/[lang]/globals.css`를 빌드·로드하여 수신 stylesheet의 실제 선택자와 앱 규칙을 확인한다. 후속 커밋은 아직 운영에 반영하지 않았다. 결과와 남는 한계는 [후속 검증 보고서](../../reports/2026-10-07-replay-followups.html)에 기록한다.
 - 이 단계 전까지 Replay 는 지금처럼 꺼 둔다. Production 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE`·`NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE` 를 0 보다 크게 바꾸지 않는다(§9 의 결정 7).
 - 클라이언트의 서드파티 필터와 그 밖의 설정은 건드리지 않는다.
 
@@ -373,6 +374,8 @@ Replay 는 **지금 Production 에서 꺼져 있다.** 코드의 기본값은 �
 - **PR 1·1b 의 결과 (2026-10-05).** #118(`9ee8cfc3`)과 #119(`c78c692e`)를 차례로 배포했다. 콜백 세 라우트의 응답 12건(상태 코드, `Location`)은 머지 전과 같고, 5xx 와 Sentry 신규 이슈는 없다. 새 릴리스의 span 에서 Supabase 호출의 `url.full`·`http.url` 이 쿼리 없이 들어오고 `http.query`·`url.query` 가 사라진 것을 이전 릴리스와 나란히 확인했다. 이벤트의 `request` 블록(헤더·쿠키)은 새 릴리스에 오류 이벤트가 아직 없어 Production 에서는 보지 못했다 — 근거는 로컬 envelope 테스트다. 자세한 것은 계획의 "머지와 Production 확인".
 - **PR 2 의 결과 (2026-10-06~07 KST).** 사용자 승인 뒤 [#121](https://github.com/charlie0421/picnic-web/pull/121)을 main `9f1b6130` 으로 머지했다. main CI 성공, Production `dpl_DeCeFUZ9fpWiFpdHwFBusWQFR6Jn` READY 및 `www.picnic.fan` 연결, `/ko/vote` 200, 테스트 전용 경로 12개 404 를 확인했다. 2026-10-06 23:46:28~2026-10-07 00:16:28 KST 의 30분 관찰에서 Vercel 5xx 와 Sentry 신규 이슈는 모두 0건이었다(31회 조회 모두 성공). 호출부는 아직 이관하지 않았으므로 새 경계 함수의 운영 전달 보장을 확인한 것은 아니다. 상세 구간·조회 조건·결과는 PR 2 계획서의 "머지와 Production 확인"을 따른다.
 
+- **PR 3~5의 결과 (2026-10-07 KST).** 인증 [#123](https://github.com/charlie0421/picnic-web/pull/123)(`c7a317e8`), 결제 [#124](https://github.com/charlie0421/picnic-web/pull/124)(`edac2583`), 브라우저 [#125](https://github.com/charlie0421/picnic-web/pull/125)(`6ac8af9a`)를 사용자 승인 뒤 머지했다. PR 4와 PR 5의 Production 배포와 main CI를 확인했다. PR 5는 운영 HTTP 11건이 예상대로 응답했고 실제 브라우저 화면에 새 예외가 없었다. 공개 배포 번들에서 Replay session·error 표본율 모두 0을 확인했다. 해당 배포의 18:45:16~18:50:16 KST 5분 구간에서 Vercel 5xx·Sentry 신규 이슈는 각각 0건이었다. 기존 이슈의 반복 이벤트 0건을 뜻하지 않으며 운영에서 정제된 오류·Replay의 수신이나 fingerprint를 직접 확인한 것은 아니다. 머지 전 로컬 envelope 검증과 운영 관찰을 구분한다. 각 PR 본문에 운영 기록과 한계가 있다.
+
 ### 6.3 롤백
 
 Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남는 것이 없다.
@@ -420,6 +423,7 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | SDK 는 401·404·3xx 응답의 transaction 을 버린다 | 같은 테스트: 표본 1 에서 웹훅(401) transaction 0건 |
 | transaction 에도 breadcrumb 이 실리고, transaction 이름에 쿼리가 실리는 경우가 있다 | 같은 테스트의 수정 전 실패 목록(§5.1) |
 | PR 1 의 변경 뒤 서버·edge 의 오류 이벤트, transaction, span, breadcrumb 에 요청의 쿠키·헤더·IP·쿼리가 없다 | 같은 테스트: 수정 전 실패 70건 → 수정 뒤 0건, 건수 동일 |
+| 브라우저 이벤트·Replay의 OAuth 형식 query가 로컬 SDK 기록에 남는다 | PR 5의 실제 Chromium RED에서 canary 12종 누출을 확인했고 GREEN에서 0건이었다. 실제 OAuth 로그인은 실행하지 않았다 |
 | 보통 빌드에는 테스트용 라우트가 없다 | `npm run build` 의 postbuild 검사(`[test-routes] 통과`) |
 | Next 15.5 는 확장자가 두 겹인 edge 라우트를 빌드하지 못한다 | `route.envtest.ts` + `pageExtensions` 로 만든 빌드가 `route_client-reference-manifest.js` 없음으로 실패 |
 | 핸들러가 기록을 남기고 바로 응답해도 SDK 가 핸들러 끝에 건 flush 가 그 이벤트의 전송을 기다린다. `await import` 로 인한 틈은 없다 | 2026-10-06 전달 시나리오(실제 `next start`, 서버의 첫 요청 포함): flush 가 전송 완료 뒤 0~2ms 에 끝난다. 실측 범위는 route handler 의 `Promise.resolve().then(require)` 경로다. 별도 청크의 첫 import 는 실측하지 않았고, 그 로더가 동기 `require` 인 것은 코드로만 확인했다. `@sentry/core` 9.47.1 `client.js`: `captureException` 이 `_numProcessing` 을 즉시 올리고(138~159, 775~787) `flush` 는 그 수를 1ms 타이머로 처음 본다(541~559) |
@@ -435,7 +439,6 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 
 | 가정 | 확인 방법 |
 |---|---|
-| 브라우저 이벤트와 Replay 에 OAuth 쿼리가 실제로 실린다 | 브라우저 envelope 테스트(§4.6). 아직 재지 않았다 |
 | `after()` 안의 flush 가 Vercel 에서 응답 뒤에 실제로 끝까지 돈다 | PR 3 배포 뒤(경계로 감싼 운영 라우트가 처음 생긴다) Vercel 로그에서 `[sentry] flush timeout` 유무와 Sentry 도착을 대조한다. 로컬 `next start` 에서는 끝까지 돈다(위 표) |
 | 가린 기록의 이벤트가 Sentry 에서 사건 코드별 이슈로 갈린다(fingerprint) | PR 3 배포 뒤 Sentry 의 이슈 목록 |
 | Sentry 프로젝트의 Data Scrubber 가 켜져 있다 | Sentry 설정 화면(Security & Privacy) |
@@ -451,7 +454,7 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | 1 | 접근법은 C(수집과 호출을 좁히고 envelope 테스트로 지킨다)로 가도 되는가 | C | PR 1 전 | **C 로 확정** |
 | 2 | 사용자 UUID·결제 ID·주문 ID 는 로그에 남기는가. 이메일·이름·전화번호·IP 는 남기지 않는가 | UUID 와 ID 는 남기고 나머지는 남기지 않는다 | PR 2 전 | **권장대로 확정** |
 | 3 | `logSafeError` 가 원본 오류의 `message`·`stack` 을 싣는가. 처리되지 않은 예외의 메시지는 어떻게 하나 | 싣지 않는다. 사건 코드, 알려진 오류 이름, 호출 지점의 stack 만 남긴다(§4.2). 처리되지 않은 예외는 메시지를 남기되 값 모양 규칙을 적용한다(§4.7) | PR 1 전(§4.7), PR 2 전(§4.2) | **권장대로 확정** |
-| 4 | 브라우저 단계(PR 5)를 이 설계에 이어서 바로 할 것인가 | 한다. PR 1~4 와 따로 리뷰한다 | PR 5 전 | 미정(PR 5 전에 정한다) |
+| 4 | 브라우저 단계(PR 5)를 이 설계에 이어서 바로 할 것인가 | 한다. PR 1~4 와 따로 리뷰한다 | PR 5 전 | **2026-10-07 진행 승인. PR #125 머지·배포 완료** |
 | 5 | Sentry 의 Data Scrubber 설정을 확인하고, 이미 들어간 서버 이벤트(쿠키가 실렸을 수 있다)를 지울 것인가 | 설정을 확인하고 켠다. 과거 이벤트는 보존 기간과 건수를 본 뒤 정한다 | 지금 | **사용자가 직접 확인한다.** 결과는 아직 받지 못했다 |
 | 6 | §4.5 의 값 모양 가드를 넣는가 | 넣는다. 정제가 아니라 경보로 | PR 1 전 | **넣는다** |
 | 7 | 브라우저 단계가 끝날 때까지 Replay 를 어떻게 둘 것인가 | 꺼 둔다 | 지금 | **"내린다"로 정했고, 확인해 보니 이미 내려가 있다.** 질문의 전제("지금 오류 세션 표본율 1.0")가 틀렸다. Production 번들의 값은 세션 0, 오류 0 이다(§4.6). 환경변수를 바꾸지 않았고 재배포도 하지 않았다. 남는 규칙은 "브라우저 단계가 끝나기 전에 이 값을 올리지 않는다"다 |
