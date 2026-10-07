@@ -2,14 +2,14 @@
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Replay F4·N2·N4 구현 및 검증</title><style>body{max-width:980px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182333}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;margin:18px 0}th,td{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}th:first-child,td:first-child{min-width:38px}code{background:#eef2f7;padding:2px 5px;overflow-wrap:anywhere}.status{padding:16px;background:#fff4d6;border-left:5px solid #d69719}li{margin:6px 0}</style></head><body>
 <h1>Replay F4·N2·N4 구현 및 검증</h1><p>2026-10-08 · 브랜치 <code>fix/replay-fidelity-and-limits</code> · 기준 main <code>5a30718ddd09e94bff162677eb5c63931030e0cc</code></p>
 <p class="status">구현과 로컬 검증을 완료했다. 독립 리뷰는 <code>capability-blocked</code> 상태다. 리뷰 통과와 머지 준비 완료를 주장하지 않는다. Draft PR로 전달하며 main 머지·운영 배포는 수행하지 않는다.</p>
-<h2>변경 동작</h2><table><thead><tr><th>항목</th><th>변경</th><th>보존 조건</th></tr></thead><tbody>
+<p>Draft PR: <a href="https://github.com/charlie0421/picnic-web/pull/128">#128</a>. CI 결과는 PR의 최신 head 기준으로 확인한다.</p><h2>변경 동작</h2><table><thead><tr><th>항목</th><th>변경</th><th>보존 조건</th></tr></thead><tbody>
 <tr><td>F4</td><td>이스케이프된 슬래시가 있는 경로의 fragment 누락을 차단한다. 루트 경로와 상대 경로를 압축·비압축 recording에서 검증했다.</td><td>CSS 클래스·ID 선택자의 이스케이프를 구분한다. 기존 <code>.w-1\/2</code> 선택자와 hex 색상 보존 테스트가 통과했다.</td></tr>
 <tr><td>N2</td><td>CSS <code>url(#id)</code>와 확인된 SVG <code>use</code> 노드의 <code>href</code>·<code>xlink:href</code>를 보존한다. 외부 URL의 query·fragment는 계속 제거한다.</td><td>참조는 <code>#[a-zA-Z_][a-zA-Z0-9_-]{0,63}</code> 형식만 허용한다. SVG 노드 ID는 각 recording에서 확인한다. envelope 메타데이터는 SVG 대상의 근거로 쓰지 않는다.</td></tr>
 <tr><td>N4</td><td>큰 breadcrumb 전체를 버리는 대신 복사된 데이터와 기본 정보를 보존한다. 초과 부분은 <code>[Truncated]</code>로 표시한다. 객체에는 <code>_truncated</code> 표시를 남긴다.</td><td>값 10,000개와 깊이 40 제한을 유지한다. 기본 category·type·level·timestamp·message를 먼저 복사한다. 복사 결과에 기존 scrubber를 적용한다. 원본 객체와 getter를 변경하거나 호출하지 않는다.</td></tr>
 </tbody></table>
 <h2>검증 결과</h2><table><thead><tr><th>검증</th><th>결과</th></tr></thead><tbody>
 <tr><td>실패 재현 → 수정</td><td>F4 루트·상대 경로, N2 내부 참조, N4 큰 배열·깊은 객체·희소 배열, SVG 메타데이터 오인 테스트가 수정 전에 실패했다. 관련 테스트 최종 54개가 통과했다.</td></tr>
-<tr><td><code>npm test</code></td><td>213개 파일 통과. 3,735개 통과, 기존 예상 실패 6개, 건너뜀 1개. 최종 실행 시작 2026-10-08 04:12:15 UTC / 13:12:15 KST, 실행 시간 20.13초.</td></tr>
+<tr><td><code>npm test</code></td><td>213개 파일 통과. 3,735개 통과, 기존 예상 실패 6개, 건너뜀 1개. 최종 실행 시작 2026-10-07 19:12:15 UTC / 2026-10-08 04:12:15 KST, 실행 시간 20.13초.</td></tr>
 <tr><td><code>npx tsc --noEmit</code></td><td>통과. 타입 오류 출력 없음.</td></tr>
 <tr><td><code>npm run lint</code></td><td>통과. ESLint warning·error 없음. Next.js의 lint 명령 폐기 예정 안내와 workspace root 안내는 남아 있다.</td></tr>
 <tr><td><code>npm run test:envelope:browser</code></td><td>Production 모드 로컬 빌드와 Chromium 통과. 실제 잠금 버전 SDK 사용. 오류 1개, 트랜잭션 1개, Replay event 1개, 압축 recording 1개가 로컬 수신기에 도착했다. 앱 CSS 100,546바이트와 CSS declaration 내부 참조를 보존했다. 개인정보 테스트 문자열 유출 0건. 페이지 오류·외부 요청 차단·파싱 오류 0건.</td></tr>
