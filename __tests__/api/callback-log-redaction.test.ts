@@ -69,11 +69,11 @@ describe('콜백 라우트는 URL·쿼리·토큰을 로그에 찍지 않는다'
     expect(output()).toBe('');
   });
 
-  it('PortOne 콜백: 값이 없을 때의 고정 문구 경고는 남는다', async () => {
+  it('PortOne 콜백: 값이 없어도 정상 리다이렉트하며 오류를 기록하지 않는다', async () => {
     const res = await portoneCallback(request('/api/payment/portone/callback?returnTo=/ko/star-candy&x=1'));
 
     expect(res.headers.get('location')).toBe('https://www.picnic.fan/ko/star-candy');
-    expect(output()).toBe('[Callback] No paymentId or token found in callback URL');
+    expect(output()).toBe('');
   });
 
   it('토스 결과: 토큰을 넘기되 찍지 않는다', async () => {
@@ -87,8 +87,8 @@ describe('콜백 라우트는 URL·쿼리·토큰을 로그에 찍지 않는다'
     expect(output()).toBe('');
   });
 
-  it('토스 결과: 토큰이 없을 때의 고정 문구 경고는 남는다', async () => {
+  it('토스 결과: 토큰 없는 정상 복귀에 오류를 기록하지 않는다', async () => {
     await tossResult(request('/api/payment/toss/result?payment_method_type=CARD'));
-    expect(output()).toBe('[Toss Result] No token found in callback URL');
+    expect(output()).toBe('');
   });
 });

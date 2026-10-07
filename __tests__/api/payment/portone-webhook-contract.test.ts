@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 /**
@@ -17,14 +17,13 @@ const mocks = vi.hoisted(() => ({
   profile: { deleted_at: null } as { deleted_at: string | null },
   profileError: null as { message: string; code?: string } | null,
   rpcResult: { receipt_id: 101 } as unknown,
-  rpcError: null as { message: string } | null,
+  rpcError: null as { message: string; code?: string } | null,
   products: [] as Array<Record<string, unknown>>,
   verifyPortOnePayment: vi.fn(),
   verifyWebhookSignature: vi.fn(),
   rpc: vi.fn(),
 }));
 
-vi.mock('@/utils/log-error', () => ({ logError: vi.fn() }));
 
 vi.mock('@/app/api/payment/portone/webhook/webhook-helpers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/app/api/payment/portone/webhook/webhook-helpers')>();
@@ -182,6 +181,33 @@ describe('PortOne webhook — 현재 계약', () => {
     const res = await POST(webhook({ paymentId: 'pay_1', status: 'PAID' }));
 
     expect(res.status).toBe(500);
+  });
+
+  describe('actual route diagnostic context', () => {
+    const PRIVATE = 'Q7pPriv private-buyer@example.invalid';
+    beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}));
+    afterEach(() => vi.restoreAllMocks());
+    function checkRecord(code: string, context: Record<string, unknown>) {
+      const records = vi.mocked(console.error).mock.calls.flat() as Array<{ message?: string; context?: unknown }>;
+      expect(records.find((record) => record?.message === code)?.context).toMatchObject(context);
+      expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain('Q7pPriv');
+    }
+    it('RPC failure retains payment, user, product and database code without exception details', async () => {
+      mocks.rpcError = { code: '23505', message: PRIVATE };
+      const response = await POST(webhook({ paymentId: 'pay_1', status: 'PAID' }));
+      expect(response.status).toBe(500);
+      expect(await response.text()).not.toContain('Q7pPriv');
+      expect(mocks.rpc).toHaveBeenCalledTimes(1);
+      checkRecord('payment.portone.webhook.capture.failed', { paymentId: 'pay_1', userId: USER, productId: 'STAR_100', errorCode: '23505' });
+    });
+    it('provider verification failure retains payment ID without exception details', async () => {
+      mocks.verifyError = new Error(PRIVATE);
+      const response = await POST(webhook({ paymentId: 'pay_1', status: 'PAID' }));
+      expect(response.status).toBe(502);
+      expect(await response.text()).not.toContain('Q7pPriv');
+      expect(mocks.rpc).not.toHaveBeenCalled();
+      checkRecord('payment.portone.webhook.verification.failed', { paymentId: 'pay_1' });
+    });
   });
 });
 

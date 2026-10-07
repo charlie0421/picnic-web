@@ -23,8 +23,8 @@ describe('auth logging guardrails reject unsafe logging before deployment', () =
     expect(result.messages.some(({ ruleId, severity }) => ruleId === rule && severity === 2)).toBe(true);
   });
 
-  it('keeps payment logging outside this auth-only guard', async () => {
-    const [result] = await lint.lintText('console.error("failure");', { filePath: 'app/api/payment/route.ts' });
+  it('keeps unrelated API logging outside the sensitive-route guard', async () => {
+    const [result] = await lint.lintText('console.error("failure");', { filePath: 'app/api/health/route.ts' });
     expect(result.messages.some(({ ruleId }) => ruleId === 'no-console')).toBe(false);
   });
 

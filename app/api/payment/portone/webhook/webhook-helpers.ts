@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createHmac } from 'crypto';
 import { PaymentClient } from '@portone/server-sdk';
 
@@ -56,12 +56,12 @@ export function createServiceRoleSupabaseClient() {
 // Verify webhook signature
 export function verifyWebhookSignature(payload: any, signature: string): boolean {
   if (!PORTONE_WEBHOOK_SECRET) {
-    logError('[Webhook] PORTONE_WEBHOOK_SECRET is not configured - rejecting webhook');
+    logSafeError('payment.portone.webhook.secret.missing', undefined);
     return false; // Never bypass signature verification
   }
 
   if (!signature) {
-    logError('[Webhook] No signature provided in webhook request');
+    logSafeError('payment.portone.webhook.signature.missing', undefined);
     return false;
   }
 
@@ -87,9 +87,7 @@ export function verifyWebhookSignature(payload: any, signature: string): boolean
 // Verify payment with Port One v2 API using paymentId (서버 SDK 사용)
 export async function verifyPortOnePayment(paymentId: string): Promise<any> {
   if (!paymentClient) {
-    logError('[Webhook] Payment client not initialized:', {
-      hasApiSecret: !!PORTONE_API_SECRET,
-    });
+    logSafeError('payment.portone.webhook.client.missing', undefined);
     throw new Error('PORTONE_API_SECRET must be set in environment variables');
   }
 
@@ -98,7 +96,7 @@ export async function verifyPortOnePayment(paymentId: string): Promise<any> {
     const payment = await paymentClient.getPayment({ paymentId });
     return payment;
   } catch (error) {
-    logError('[Webhook] Payment verification failed:', error instanceof Error ? error.message : String(error));
+    logSafeError('payment.portone.webhook.provider.failed', error, { paymentId });
     throw error;
   }
 }
@@ -166,7 +164,7 @@ export function parseCustomData(paymentData: any): Record<string, any> {
       }
     } catch (parseError) {
       // 파싱 실패 시 빈 객체로 처리
-      console.warn('[Webhook] Failed to parse customData, using empty object:', parseError);
+      logSafeError('payment.portone.webhook.custom_data.parse_failed', parseError);
       return {};
     }
   } else {
@@ -198,7 +196,7 @@ export async function processStarCandyBonus(
     });
 
   if (bonusError) {
-    logError('Failed to record bonus:', bonusError);
+    logSafeError('payment.portone.webhook.bonus.insert_failed', bonusError, { userId, errorCode: bonusError.code });
   } else {
     // Atomic increment of bonus balance
     const { error: bonusUpdateError } = await supabase
@@ -208,7 +206,7 @@ export async function processStarCandyBonus(
       });
 
     if (bonusUpdateError) {
-      logError('Failed to update bonus balance:', bonusUpdateError);
+      logSafeError('payment.portone.webhook.bonus.update_failed', bonusUpdateError, { userId, errorCode: bonusUpdateError.code });
     }
   }
 }
@@ -232,7 +230,7 @@ export async function updateStarCandyBalance(
     });
 
   if (profileError) {
-    logError('Failed to update star_candy balance:', profileError);
+    logSafeError('payment.portone.webhook.balance.failed', profileError, { userId, errorCode: profileError.code });
     // 영수증은 이미 생성되었으므로 에러를 반환하지 않음
   }
 
@@ -247,6 +245,6 @@ export async function updateStarCandyBalance(
     });
 
   if (historyError) {
-    logError('Failed to record star candy history:', historyError);
+    logSafeError('payment.portone.webhook.history.failed', historyError, { userId, errorCode: historyError.code });
   }
 }

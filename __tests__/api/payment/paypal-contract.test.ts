@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 /**
@@ -22,7 +22,6 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
 }));
 
-vi.mock('@/utils/log-error', () => ({ logError: vi.fn() }));
 vi.mock('@/utils/star-candy-bonus', () => ({ getStarCandyBonusExpiryISO: () => '2027-01-01T00:00:00Z' }));
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -161,6 +160,41 @@ describe('PayPal capture-order — 현재 계약', () => {
 
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('Payment already processed');
+  });
+});
+
+describe('PayPal route diagnostic context and provider privacy', () => {
+  const USER = '00000000-0000-0000-0000-000000000001';
+  const PRIVATE = 'Q7pPriv private-payer@example.invalid opaque-provider-secret';
+  beforeEach(() => {
+    mocks.user = { id: USER };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+  function checkRecord(code: string, context: Record<string, unknown>) {
+    const records = vi.mocked(console.error).mock.calls.flat() as Array<{ message?: string; context?: unknown }>;
+    expect(records.find((record) => record?.message === code)?.context).toMatchObject(context);
+    expect(JSON.stringify([...vi.mocked(console.error).mock.calls, ...vi.mocked(console.warn).mock.calls])).not.toContain('Q7pPriv');
+  }
+  it.each(['create', 'capture'] as const)('%s provider failure retains approved IDs/status and hides the provider body', async (operation) => {
+    const providerBody = { message: PRIVATE, payer: { email_address: PRIVATE }, purchase_units: [{ custom_id: PRIVATE }] };
+    mocks.fetch.mockImplementation(async (url: string) => url.includes('/v1/oauth2/token') ? json({ access_token: 'fixture-token' }) : json(providerBody, 422));
+    const response = operation === 'create'
+      ? await createOrder(req('/api/payment/paypal/create-order', { productId: 'STAR_100' }))
+      : await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain('Q7pPriv');
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    checkRecord(`payment.paypal.${operation}.provider.failed`, { userId: USER, httpStatus: 422, ...(operation === 'create' ? { productId: 'STAR_100' } : { orderId: 'ORDER-1' }) });
+  });
+  it('capture amount mismatch preserves the expected amount and currency without provider metadata', async () => {
+    mocks.capture = completedCapture({ productId: 'STAR_100', userId: USER, secret: PRIVATE }, { value: '0.01', currency_code: 'USD' });
+    const response = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
+    expect(response.status).toBe(400);
+    expect(await response.text()).not.toContain('Q7pPriv');
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    checkRecord('payment.paypal.capture.amount.failed', { userId: USER, orderId: 'ORDER-1', amount: 9.99, currency: 'USD' });
   });
 });
 

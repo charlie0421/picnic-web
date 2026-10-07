@@ -61,10 +61,9 @@ class PayPalService {
       }
 
       this.isInitialized = true;
-      console.log('PayPal SDK initialized successfully');
+
       return true;
     } catch (error) {
-      console.error('Failed to initialize PayPal SDK:', error);
       return false;
     }
   }
@@ -91,14 +90,13 @@ class PayPalService {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create order');
       }
 
       return data.orderID;
     } catch (error) {
-      console.error('Error creating PayPal order:', error);
       throw error;
     }
   }
@@ -117,14 +115,13 @@ class PayPalService {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to capture order');
       }
 
       return data;
     } catch (error) {
-      console.error('Error capturing PayPal order:', error);
       throw error;
     }
   }

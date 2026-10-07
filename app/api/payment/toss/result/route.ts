@@ -1,5 +1,6 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 
 function isValidInternalRedirect(path: string): boolean {
   if (!path || typeof path !== 'string') return false;
@@ -19,7 +20,7 @@ function isValidInternalRedirect(path: string): boolean {
  * 결제 완료 후 토스페이먼트 도메인으로 리다이렉트하는 경우가 있습니다.
  * 이 경우 token과 pg_token을 받아서 PortOne 결제 ID를 찾아야 합니다.
  */
-export async function GET(request: NextRequest) {
+export const GET = withSafeErrors('payment.toss.result.get.unhandled', async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const token = url.searchParams.get('token');
@@ -32,19 +33,17 @@ export async function GET(request: NextRequest) {
     const rawReturnTo = url.searchParams.get('returnTo') || '/ko/star-candy';
     const returnTo = isValidInternalRedirect(rawReturnTo) ? rawReturnTo : '/ko/star-candy';
     const redirectUrl = new URL(returnTo, request.url);
-    
+
     // token이 있으면 쿼리 파라미터로 전달 (나중에 paymentId로 변환 가능)
     if (token) {
       redirectUrl.searchParams.set('toss_token', token);
       redirectUrl.searchParams.set('status', 'processing');
-    } else {
-      console.warn('[Toss Result] No token found in callback URL');
     }
-    
+
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
-    logError('[Toss Result] Toss callback error:', error);
+    logSafeError('payment.toss.result.failed', error);
     return NextResponse.redirect(new URL('/ko/star-candy', request.url));
   }
-}
+});
 

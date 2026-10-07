@@ -1,5 +1,7 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
+import { AuthSessionMissingError } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 import {
   verifyPortOnePayment,
@@ -7,7 +9,7 @@ import {
   buildReceiptResponse,
 } from './verify-helpers';
 
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('payment.portone.verify.post.unhandled', async function POST(request: NextRequest) {
   try {
     // 토큰 갱신 없이 인증 확인 (폴링 시 불필요한 토큰 갱신 방지)
     const tokenCheck = isTokenValidWithoutRefresh(request);
@@ -20,9 +22,11 @@ export async function POST(request: NextRequest) {
       // 토큰이 유효하면 getUser()는 갱신을 시도하지 않음
       const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !verifiedUser) {
-        logError('[Verify] Auth failed:', authError?.message);
+        if (authError && !(authError instanceof AuthSessionMissingError)) {
+          logSafeError('payment.portone.verify.auth.failed', authError);
+        }
         return NextResponse.json(
-          { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
+          { error: 'Unauthorized', message: 'Authentication required' },
           { status: 401 }
         );
       }
@@ -31,9 +35,11 @@ export async function POST(request: NextRequest) {
       // 토큰이 만료되었거나 없으면 Supabase로 재확인 (이 경우에만 갱신 시도)
       const { data: { user: verifiedUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !verifiedUser) {
-        logError('[Verify] Auth failed:', authError?.message);
+        if (authError && !(authError instanceof AuthSessionMissingError)) {
+          logSafeError('payment.portone.verify.auth.failed', authError);
+        }
         return NextResponse.json(
-          { error: 'Unauthorized', message: authError?.message || 'Authentication required' },
+          { error: 'Unauthorized', message: 'Authentication required' },
           { status: 401 }
         );
       }
@@ -103,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     if (normalizedStatus !== 'PAID') {
       return NextResponse.json(
-        { error: `Payment not completed. Status: ${paymentData.status}` },
+        { error: 'Payment not completed' },
         { status: 400 }
       );
     }
@@ -133,10 +139,10 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    logError('Payment verification error:', error);
+    logSafeError('payment.portone.verify.failed', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
-}
+});

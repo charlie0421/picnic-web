@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>PR 4 결제 로깅 구현 계획</title><style>body{font-family:system-ui;max-width:960px;margin:40px auto;padding:0 24px;line-height:1.65}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd;padding:9px;text-align:left}code,pre{background:#f2f4f7}pre{padding:16px;white-space:pre-wrap}</style></head><body>
+<h1>PR 4 결제 로깅 구현 계획</h1><p>2026-10-07. 사용자가 범위·별도 워크트리·구현·독립 리뷰를 승인했다. 기준 main은 c7a317e8이다. 처음 안내한 API 8개는 조사 전 수치였다. 실제 대상은 route 파일 7개, HTTP 핸들러 7개다.</p>
+<p><strong>목표:</strong> 결제 실패의 원본 메시지·공급자 응답·고객 정보가 로그와 오류 응답으로 나가지 않도록 기존 안전 로그 계약을 적용한다.</p>
+<p><strong>구조:</strong> logSafeError와 withSafeErrors를 재사용한다. 각 실패에 닫힌 사건 코드를 부여하고 허용된 결제 ID·사용자 UUID·오류 코드만 명시적으로 전달한다. 브라우저에서 import하는 lib/payment에는 서버 전용 경계를 넣지 않는다.</p>
+<p><strong>기술:</strong> 현재 lockfile의 Next 15.5·TypeScript·Vitest·Sentry·Supabase·PortOne·PayPal. 의존성 및 DB 스키마 변경 없음. 구현자는 executing-plans와 TDD 절차를 따른다.</p>
+<p><strong>설계:</strong> <a href="../specs/2026-10-02-log-redaction-and-delivery-design.md">로그 가림·전달 설계</a> §4.2·4.4·4.7·5·6.2 PR 4.</p>
+<h2>범위와 계약</h2><ul>
+<li>app/api/payment/paypal/{create-order,capture-order}/route.ts, portone/{callback,confirm,verify,webhook}/route.ts, toss/result/route.ts.</li>
+<li>portone/{verify/verify-helpers,webhook/webhook-helpers}.ts, lib/payment/{paypal,portone}.ts, utils/log-event-codes.ts, .eslintrc.json.</li>
+<li>결제 상태 코드, 리다이렉트, 인증·탈퇴 차단, 금액 계산, RPC 인자·횟수, 중복 처리, 서명 검증 순서를 보존한다. 기존 B-P1~B-P3 결함을 이 PR에서 수정하지 않는다. 예상 실패 6건은 그대로 유지한다.</li>
+<li>오류 응답의 details·고객 이메일·키 목록·원본 오류·비허용 공급자 상태 문자열은 고정 문구로 바꾼다. 정상 결제 데이터 응답은 보존한다.</li>
+<li>실제 결제·운영 DB 쓰기·자격 증명 접근·DDL을 수행하지 않는다. 로컬 fixture와 fake 설정으로 검증한다.</li></ul>
+<h2>구현 순서</h2><ol>
+<li><strong>실패 재현:</strong> __tests__/api/payment/payment-error-safety.test.ts에 웹훅 초기화 예외 500, customData 누락 400의 고객 이메일, malformed JSON 500, verify 인증 실패 401·예외 500·알 수 없는 상태 400 canary 검사를 추가한다. 실제 logger를 유지하고 외부 서비스만 대체한다. 새 테스트가 원문 누출로 실패하는지 확인한다.</li>
+<li><strong>API·헬퍼 이관:</strong> 위 파일의 console/logError를 고정 사건 코드의 logSafeError로 바꾸고 7개 route에 withSafeErrors를 적용한다. 오류 context에는 허용 필드만 넣는다. 예외 객체의 message/stack/cause를 읽거나 문자열화하지 않는다. 성공 DEBUG 로그는 제거한다. 테스트를 GREEN으로 만들고 기존 결제 계약을 실행한다.</li>
+<li><strong>lint:</strong> 결제 경로와 lib/payment를 기존 안전 로그 override에 추가한다. __tests__/scripts/payment-logging-lint.test.ts로 console·정적/동적 legacy logger·직접 Sentry import 차단, safe logger 허용, 무관한 경로 대조군을 검사한다.</li>
+<li><strong>실제 서버:</strong> scripts/envelope-test/payment.js를 추가한다. 실제 Production Next와 로컬 Supabase·Sentry 수집기로 웹훅 잘못된 JSON·서명 거부, 익명 결제 API 거부, 콜백 리다이렉트를 확인한다. 짧은 opaque canary·이메일·토큰이 응답 본문·서버 출력·envelope에 없는지 확인한다. 정상 리다이렉트의 의도된 토큰 전달은 로그 누출과 구분한다. 운영 결제 공급자에 요청하지 않도록 fixture와 호출 감시를 사용한다.</li>
+<li><strong>최종 검증·독립 리뷰:</strong> KST·UTC 전체 테스트, 타입·lint·Production 빌드 및 envelope runner를 실행한다. 최신 계정·usage·capability·build-launch가 허용할 때 반대 공급자의 읽기 전용 리뷰를 받는다. 지적은 코드/테스트로 검증하고 원 리뷰어가 1회 재검증한다. 문서·코드를 커밋하고 PR·CI까지 준비한다. 머지는 별도 사용자 지시 후 진행한다.</li></ol>
+<h2>리뷰에서 우선 확인할 조건</h2><ol>
+<li>웹훅 500/502 실패가 200으로 바뀌어 공급자 재시도가 멈추지 않는가: 기존 계약 테스트의 RPC 0·오류 상태 검사.</li>
+<li>오류 객체 getter·Proxy와 malformed JSON이 catch 내부에서 다시 던져 원문이 노출되지 않는가: hostile thrown value와 짧은 canary 검사.</li>
+<li>정상 익명·취소·대기 상태를 새 ERROR로 승격하지 않는가: 기존 경고·정보 로그의 의미를 조사하고 정상 요청 이벤트 수 검사.</li>
+<li>결제 ID 필드에 token/customData를 잘못 넣지 않는가: 호출부 값 출처와 실제 envelope의 opaque canary 검사.</li>
+<li>브라우저 SDK 반환·결제 redirect와 금액/소유권/RPC 계약이 유지되는가: 기존 SDK·콜백·결제 계약 및 번들 빌드 검사.</li></ol>
+<h2>구현 판단</h2><p>정상 복귀 콜백의 토큰 없음과 SDK 생성자의 환경 설정 경고는 제거한다. logSafeError로 옮겨 정상 요청을 ERROR로 승격하지 않는다. 기존 콜백 테스트 2건은 고정 경고를 요구했으므로 정상 리다이렉트와 오류 기록 없음으로 갱신했다. 잘못된 저장 영수증·customData 파싱 실패는 실제 데이터 오류로 기록한다. 독립 리뷰에서 브라우저 SDK 오류를 Sentry로 새로 승격하는 문제를 확인했다. SDK의 오류 로그 6곳과 해당 사건 코드는 제거하며 반환·예외 전달은 유지한다. 브라우저 SDK의 사용자 표시용 반환 메시지와 내부 토큰 검사 결과는 이번 서버 응답/로그 이관 범위 밖이다.</p><h2>검증 명령</h2><pre>TZ=Asia/Seoul npx vitest run
+TZ=UTC npx vitest run
+npx tsc --noEmit
+npm run lint
+node scripts/envelope-test/payment.js
+git diff --check</pre>
+<h2>진행 기록</h2><p id="checkpoint">워크트리 생성·의존성 설치 완료. 기준 전체 테스트 3,602건 통과. 새 누출 테스트 7건 RED 후 GREEN, lint 보호 테스트 6건 RED 후 GREEN. 초기 Route의 주간 사용량 1%/2% 충돌은 공식 재조회로 해소됐다. 계정 ID는 일치했다. 조정자가 구현하고 독립 리뷰어는 별도 제한된 읽기 전용 CLI로 실행한다.</p>
+<p>최종: KST·UTC 각 211개 파일 3,681건 통과, 기존 예상 실패 6건·건너뜀 1건 유지. 타입·lint·실제 Production 빌드·결제 HTTP/envelope 검증 통과. 최초 독립 리뷰 M1을 수정했고 동일 Opus 5.5/high 리뷰어의 1회 재검증은 APPROVE다. 자세한 지적·검증·한계는 <a href="../../reports/2026-10-07-payment-safe-logging.html">검증 보고서</a>에 기록했다.</p></body></html>

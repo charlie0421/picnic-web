@@ -1,5 +1,6 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 
 function isValidInternalRedirect(path: string): boolean {
   if (!path || typeof path !== 'string') return false;
@@ -13,24 +14,24 @@ function isValidInternalRedirect(path: string): boolean {
 
 // PortOne 결제 완료 후 리다이렉트 콜백
 // 사용자가 결제 창에서 돌아오면 구매 페이지로 안내합니다.
-export async function GET(request: NextRequest) {
+export const GET = withSafeErrors('payment.portone.callback.get.unhandled', async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const rawReturnTo = url.searchParams.get('returnTo') || '/ko/star-candy';
     const returnTo = isValidInternalRedirect(rawReturnTo) ? rawReturnTo : '/ko/star-candy';
-    
+
     // 포트원 v2 브라우저 SDK는 redirectUrl에 paymentId를 쿼리 파라미터로 전달할 수 있습니다
     // 또는 URL 해시에 포함될 수 있습니다
     // 토스페이먼트를 통한 결제의 경우 token 파라미터가 올 수 있습니다
-    const paymentId = url.searchParams.get('paymentId') || 
+    const paymentId = url.searchParams.get('paymentId') ||
                       url.searchParams.get('imp_uid') ||
                       url.searchParams.get('merchant_uid') ||
                       url.searchParams.get('payment_id');
-    
+
     // 토스페이먼트 토큰 처리 (토스페이먼트를 통한 결제인 경우)
     const tossToken = url.searchParams.get('token') || url.searchParams.get('toss_token');
     const pgToken = url.searchParams.get('pg_token');
-    
+
     // 결제 ID가 있으면 쿼리 파라미터로 전달
     const redirectUrl = new URL(returnTo, request.url);
     if (paymentId) {
@@ -44,15 +45,12 @@ export async function GET(request: NextRequest) {
         redirectUrl.searchParams.set('pg_token', pgToken);
       }
       redirectUrl.searchParams.set('status', 'processing');
-    } else {
-      console.warn('[Callback] No paymentId or token found in callback URL');
     }
-    
+
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
-    logError('[Callback] PortOne callback error:', error);
+    logSafeError('payment.portone.callback.failed', error);
     return NextResponse.redirect(new URL('/ko/star-candy', request.url));
   }
-}
-
+});
 
