@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>B-P4 PR 3 인증 로깅 작업 체크포인트</title>
+  <style>
+    body{font-family:system-ui,sans-serif;line-height:1.65;max-width:960px;margin:40px auto;padding:0 24px;color:#202938}
+    h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #d7dce3;padding:10px;text-align:left}
+    code,pre{font-family:monospace;background:#f1f4f8}pre{padding:16px;white-space:pre-wrap;overflow-wrap:anywhere}.status{padding:16px;background:#fff4db;border-left:4px solid #c78300}
+  </style>
+</head>
+<body>
+  <h1>B-P4 PR 3 인증 로깅 작업 체크포인트</h1>
+  <p>2026-10-07 KST. 구현 완료 보고가 아닌, 실행 장애 및 회귀 테스트 재현 기록이다.</p>
+  <p class="status">진행 상태: 구현 작업자 실행 차단. 제품 코드 변경·독립 리뷰·PR 생성·머지·배포는 하지 않았다. 추가 사용자 승인이 부족한 상태가 아니다.</p>
+  <h2>승인된 작업</h2>
+  <p>인증 API 10개 파일의 HTTP 핸들러 16개와 서버에서 실행되는 공통 인증 헬퍼를 기존 <code>logSafeError</code> 계약으로 이관한다. <code>withSafeErrors</code> 경계, 인증 범위 lint 보호, 고정 오류 응답, 로그인·쿠키·리다이렉트 회귀 및 누출 검증을 적용한다. 결제·브라우저 작업은 후속 PR 범위다.</p>
+  <p>워크트리: <code>/Users/charlie.hyun/Repositories/picnic-web-auth-safe-logging</code><br>브랜치: <code>feat/auth-safe-logging</code><br>기준 커밋: <code>ef75a1e06046867fa207b6487237a0e10b4b5929</code></p>
+  <h2>완료한 확인</h2>
+  <table>
+    <thead><tr><th>확인</th><th>실제 결과</th></tr></thead>
+    <tbody>
+      <tr><td>의존성 설치</td><td>npm ci 성공. lockfile 및 의존성 설정 변경 없음.</td></tr>
+      <tr><td>변경 전 전체 테스트</td><td>204개 파일 통과. 3,521개 통과, 예상 실패 6개, 건너뜀 1개.</td></tr>
+      <tr><td>신규 오류 응답 회귀 테스트</td><td>5개 중 3개 실패·2개 통과. 현재 제품 코드에서 누출을 재현하는 RED 단계이며, 통과 상태로 보고하지 않는다.</td></tr>
+      <tr><td>사용량·실행 권한 gate</td><td>최신 Route dispatchAllowed=true, implementer build-launch allowed=true. Codex 5시간 창은 실측이 아닌 assumed_available이다.</td></tr>
+      <tr><td>Orca 정산 현황</td><td>Run run_3fd3d00210fe. 작업자 목록과 대상 워크트리 터미널 목록은 모두 비어 있음. 수락된 Dispatch나 worker_done 없음.</td></tr>
+    </tbody>
+  </table>
+  <h2>재현된 실패</h2>
+  <p><code>__tests__/api/auth-error-response-safety.test.ts</code>는 외부 인증 서비스 및 Next 요청 저장소만 대체하고 실제 route 응답을 검사한다. 실제 운영 계정·서비스를 호출하지 않는다.</p>
+  <ol>
+    <li>회원가입 거부: 400 상태는 유지하지만 공급자 오류의 가짜 이메일·비밀번호 canary가 응답에 포함된다.</li>
+    <li>회원가입 클라이언트 생성 예외: 500 응답에 원본 오류 메시지가 포함된다.</li>
+    <li>로그아웃 공급자 예외: 500 응답에 원본 오류 메시지가 포함된다.</li>
+  </ol>
+  <p>정상 회원가입 응답과 로그아웃 성공·쿠키 삭제·캐시 무효화는 통과했다. 이 테스트만으로 Console/Sentry envelope의 안전성을 검증한 것은 아니다.</p>
+  <pre>SENTRY_DSN='' NEXT_PUBLIC_SENTRY_DSN='' TZ=Asia/Seoul npx vitest run __tests__/api/auth-error-response-safety.test.ts
+결과: 3 failed | 2 passed (5)</pre>
+  <h2>실행 장애와 재개 조건</h2>
+  <p>검증된 정확한 argv로 Orca 터미널 생성 3회를 시도했으며, 최초 및 최종 시도는 <code>Timed out waiting for terminal handle after creation</code>, 중간 시도는 <code>The Orca runtime closed the connection before responding</code>를 반환했다. 실제 작업자 모델 호출이 성공한 것으로 간주하지 않았다.</p>
+  <p>중간에 Orca 실행 중 아님을 확인하고 공식 <code>orca open</code>으로 복구했다. 런타임은 1.4.220에서 1.4.222로 바뀌었고 최신 가이드를 다시 읽었다. 복구 후에도 생성 시간 초과가 반복됐다. 실행 재시도 2회를 사용했으므로 동일 세션에서 추가 생성이나 새 Run을 통한 우회는 하지 않는다. 구독 소진으로 분류하거나 공급자를 임의 변경하지 않는다.</p>
+  <p>Orca 터미널 생성 장애를 해결하고, 기존 Run·시도 기록·계정 바인딩·providerHold·재시도 예산을 확인해야 한다. 재개 직전 사용량·capability·build-launch를 새로 확인한다. 인증·개인정보 변경은 다른 공급자의 독립 리뷰를 유지해야 하므로 이를 생략해 PR을 완료 처리하지 않는다.</p>
+  <h2>남은 검증과 전달</h2>
+  <ul>
+    <li>승인된 인증 범위 구현 후 위 RED 테스트를 GREEN으로 전환.</li>
+    <li>전체 KST·UTC 테스트, 타입 검사, lint, 실제 서버 Console·Sentry envelope 누출 검증.</li>
+    <li>구현 반대 공급자 Claude Opus 5.5/high의 제한된 읽기 전용 독립 리뷰 및 지적 재검증.</li>
+    <li>문서 갱신·커밋·PR 생성·CI 확인. PR 머지는 별도 사용자 승인 후 실행.</li>
+  </ul>
+</body>
+</html>
