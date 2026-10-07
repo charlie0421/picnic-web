@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>PR 5 — 브라우저 로그 개인정보 검증</title><style>body{max-width:980px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui;color:#192335}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #cad3de;padding:10px;text-align:left;vertical-align:top}th{background:#edf2f8}code,pre{background:#edf2f8;padding:3px 6px}pre{padding:16px;white-space:pre-wrap;overflow-wrap:anywhere}.note{border-left:4px solid #4f6fb4;padding:12px 18px;background:#f2f5fa}</style></head><body>
+<h1>PR 5 — 브라우저 로그 개인정보 검증</h1>
+<p>기준: 2026-10-07. 구현 커밋 <code>56517ca9</code>, 기준 브랜치 <code>edac2583</code>. 독립 리뷰 진행 중이며 아직 머지·배포하지 않았다.</p>
+<h2>변경</h2><p>브라우저 오류·breadcrumb·transaction·span에 공통 URL 가림을 연결했다. 기존 서드파티 오류 필터·표본율·Replay 지연 로드는 유지했다. 운영 Replay 환경변수는 변경하지 않았다.</p>
+<p>Sentry 9.47.1의 Replay DOM 기록은 <code>beforeAddRecordingEvent</code>를 거치지 않는다. Replay는 transport를 직접 호출한다. 전송 경계에서 Replay metadata와 녹화 데이터를 함께 정제한다. 압축 기록은 segment header와 zlib 본문을 분리하고, 정제 후 다시 압축한다. 원본 envelope를 수정하지 않으며 UTF-8 바이트 길이를 다시 계산한다.</p>
+<h2>검증 결과</h2><table><thead><tr><th>검사</th><th>결과</th></tr></thead><tbody>
+<tr><td>기준 전체 테스트</td><td>211개 파일, 3,681개 통과. 기존 예상 실패 6개·건너뜀 1개.</td></tr>
+<tr><td>변경 후 전체 테스트</td><td>KST와 UTC 각각 213개 파일, 3,700개 통과. 예상 실패 6개·건너뜀 1개 유지.</td></tr>
+<tr><td>타입·lint</td><td><code>npx tsc --noEmit</code>, <code>npm run lint</code> 통과.</td></tr>
+<tr><td>실제 브라우저 RED</td><td>수정 전 Next production 빌드와 Chromium에서 오류·성능 이벤트·압축 Replay를 수신했다. query/fragment 검사값 12종이 남아 실패했다.</td></tr>
+<tr><td>실제 브라우저 GREEN</td><td>오류 1건, 지정 transaction 1건, Replay event 1건, 압축 recording 1건 수신. navigation breadcrumb·child span·rrweb Meta/DOM snapshot/mutation을 확인했다. 검사값 누출 0건, 예상하지 않은 tripwire 0건.</td></tr>
+<tr><td>경계 테스트</td><td>압축/비압축, 한국어 바이트 길이, 상대 fragment, 손상 payload, 압축 API 부재, 8MiB 초과, 깊은 중첩, 잘못된 CSS URL, 전송 응답과 flush timeout을 검증했다.</td></tr>
+</tbody></table>
+<p>전체 테스트를 브라우저 빌드와 동시에 실행했을 때, 임시 라우트가 없어야 한다는 검사 1개가 실패했다. 두 검사를 순차 실행하도록 조정했고, runner가 만든 빈 부모 폴더도 정리했다. 그 후 전체 테스트는 통과했다. 기존 결제 결함 B-P1~B-P3의 예상 실패 6개는 이번 변경의 해결 성과로 계산하지 않는다.</p>
+<h2>재현 방법</h2><pre>npm ci
+npx playwright install chromium
+npm run test:envelope:browser
+npm test</pre><p>브라우저 검사는 로컬 Supabase fixture와 Sentry 수집기를 사용한다. Replay CDN 요청은 lockfile과 같은 SDK recorder bundle로 응답한다. 외부 브라우저 요청은 차단하고, 실제 수신 envelope를 압축 해제하여 검사한다. 테스트 페이지는 빌드 중에만 <code>app/api/envelope-test/browser</code>에 복사한다. 브라우저 검사와 전체 단위 테스트는 동시에 실행하지 않는다.</p>
+<h2>제한과 후속 확인</h2><ul><li>녹화 입력과 압축 해제 결과는 각각 최대 8MiB다. 처리 시간은 2초, 객체 깊이는 80, 순회 노드는 200,000으로 제한한다. 정제 또는 압축에 실패하면 해당 Replay envelope를 버린다.</li><li>지원하지 않는 CSS escape와 모호한 CSS는 해당 스타일을 비운다. query/fragment를 포함한 srcset과 srcdoc도 비운다. 일부 Replay 표시 정보가 줄어들 수 있다.</li><li>운영 Replay 활성화, 운영 Sentry Data Scrubber 확인, 실제 운영 오류 수신·fingerprint 검증은 이번 로컬 브라우저 검사의 성과로 주장하지 않는다.</li><li>브라우저 envelope 검사는 로컬에서 수행한다. GitHub CI는 타입·lint·단위 테스트를 실행한다. SDK 또는 수집 설정 변경 시 브라우저 검사를 다시 실행해야 한다.</li></ul>
+<h2>독립 리뷰</h2><p id="review-status">Orca Run <code>run_0edcbb1774e8</code>, Task <code>task_95ac1780754d</code>, Dispatch <code>ctx_8acb566a3224</code>. Claude Opus 5.5/high가 읽기 전용으로 검토 중이다. 정책 로딩 확인은 수락된 heartbeat <code>msg_031fd1a5b814</code>에 기록됐다. 판정과 수정 재검증은 아직 남아 있다.</p>
+<p class="note">이 문서는 현재 검증 기록이다. PR·CI·독립 리뷰의 최종 결과와 머지 승인은 별도로 확인한다.</p>
+<p><a href="../superpowers/plans/2026-10-07-browser-log-redaction.html">구현 계획</a></p>
+</body></html>
