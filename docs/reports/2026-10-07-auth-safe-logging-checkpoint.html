@@ -95,8 +95,9 @@ SENTRY_DSN='' NEXT_PUBLIC_SENTRY_DSN='' node scripts/envelope-test/auth.js</pre>
   <p>Orca 터미널은 기존 메인 작업 공간에 만들고 CLI 실행 경로를 승인된 sibling 워크트리로 지정했다. 실제 작업 경로와 모델을 확인했다. 메인 저장소 코드에는 쓰지 않았다.</p>
   <p>Sol/high 구현 작업자는 route 변경과 테스트를 작성했다. workspace-write 샌드박스가 Orca IPC를 거부해 완료 정산을 보내지 못했다. 작업자의 종료·편집 중단을 확인한 후 Dispatch <code>ctx_b2069a2e1c80</code>를 abandon했다. 조정자는 해당 변경을 인계받아 공통 헬퍼·사건 코드·lint를 통합하고 검증했다. 작업자의 성공이나 <code>worker_done</code>을 대리 발행하지 않았다.</p>
   <p>독립 리뷰 Dispatch는 <code>ctx_1376ef945340</code>이다. 리뷰어에게 요구사항·diff·관련 파일·검증 결과만 제공했다. 쉘 테스트·편집·외부 쓰기·네이티브 위임을 허용하지 않았다.</p>
+  <p>구현·리뷰 문서는 <code>b7fcb08e</code>에 커밋했다. <a href="https://github.com/charlie0421/picnic-web/pull/123">PR #123</a>을 생성했다. 머지·배포는 별도 승인 대상이다.</p>
   <h2>남은 확인</h2>
-  <ul><li>PR 생성·CI 확인 및 별도 머지 승인.</li><li>머지 뒤 실제 Production의 오류 전달과 fingerprint 확인.</li><li>PR 4 결제 로깅, PR 5 브라우저 정책, 사용자 Sentry Data Scrubber 확인.</li></ul>
+  <ul><li>PR #123 CI 확인 및 별도 머지 승인.</li><li>머지 뒤 실제 Production의 오류 전달과 fingerprint 확인.</li><li>PR 4 결제 로깅, PR 5 브라우저 정책, 사용자 Sentry Data Scrubber 확인.</li></ul>
   <details><summary>최초 실행 장애와 RED 테스트 기록 — 현재 상태가 아닌 이력</summary>
   <h1>B-P4 PR 3 인증 로깅 작업 체크포인트</h1>
   <p>2026-10-07 KST. 구현 완료 보고가 아닌, 실행 장애 및 회귀 테스트 재현 기록이다.</p>
