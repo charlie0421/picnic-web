@@ -35,6 +35,34 @@ function decoded(value: Envelope) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Replay privacy transport', () => {
+  it.each([
+    [String.raw`/callback\?code=secret-opaque`, ''],
+    [String.raw`/callback\#secret-opaque`, ''],
+    [String.raw`/callback\3f code=secret-opaque`, ''],
+    [String.raw`/callback\23 secret-opaque`, ''],
+    [String.raw`/a?x=1 /callback\3f code=secret-opaque`, ''],
+    [String.raw`/callback\?state=x\26 code=secret-opaque`, ''],
+  ])('redacts escaped URL delimiters in an opaque recording string: %s', async (value, expected) => {
+    for (const compressed of [false, true]) {
+      const input = [{ type: 5, timestamp: 1, data: { tag: 'note', payload: { message: value } } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      expect(decoded(output!)[0].data.payload.message).toBe(expected);
+    }
+  });
+  it('preserves CSS text mutation syntax while removing a root-relative URL query', async () => {
+    const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value: '.w-1\\/2{background:url(/img?code=secret-css);color:#fff}' }] } }];
+    const output = await scrubReplayEnvelope(envelope(false, input as never));
+    expect(decoded(output!)[0].data.texts[0].value).toBe('.w-1\\/2{background:url("/img");color:#fff}');
+  });
+  it('preserves escaped CSS text selectors and hex colors without a URL token', async () => {
+    const value = '.w-1\\/2{width:50%;color:#fff}';
+    for (const compressed of [false, true]) {
+      const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value }] } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(decoded(output!)[0].data.texts[0].value).toBe(value);
+    }
+  });
   it.each([false, true])('redacts recording and metadata, preserves DOM/CSS/UTF-8, compressed=%s', async (compressed) => {
     const input = envelope(compressed);
     const before = structuredClone(input);

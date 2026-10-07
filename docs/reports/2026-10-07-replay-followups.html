@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>Replay 후속 검증 · 2026-10-07</title><style>body{font-family:system-ui,sans-serif;max-width:1000px;margin:40px auto;padding:0 24px;line-height:1.7;color:#17212b}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #ccd5de;padding:10px;text-align:left;vertical-align:top}code{background:#eef2f6;padding:2px 5px}aside{background:#fff4da;padding:16px}h1,h2{line-height:1.3}</style></head><body>
+<h1>Replay N1·N3 후속 검증</h1><p>2026-10-07. 기준 main <code>6ac8af9a</code>, 승인된 브랜치 <code>fix/replay-followups</code>. 구현과 로컬 검증을 마쳤다. 독립 재검증은 APPROVE다. 후속 변경은 아직 운영에 반영하지 않았다. PR과 CI의 최종 결과는 PR 본문을 따른다.</p>
+<h2>승인 범위와 변경</h2><table><tr><th>항목</th><th>결과</th></tr>
+<tr><td>N1 · escape된 URL</td><td>일반 문자열에 backslash 또는 hex escape가 있으면 URL query·fragment가 가림을 우회했다. CSS fallback에서 escape를 푼 query·fragment 표시를 검증한다. 조기 반환을 하지 않고 전체 문자열을 검사한다. 명시된 CSS 경로는 기존 토큰 처리를 유지한다. 6개 URL 사례를 비압축·압축 Replay로 검증했고 일반 text mutation의 CSS 선택자 보존도 검사했다.</td></tr>
+<tr><td>N3 · 실제 앱 CSS</td><td>기존 fixture의 stylesheet 검사는 next/font CSS만 있어도 통과했다. fixture에 실제 <code>app/[lang]/globals.css</code>를 가져왔다. 실제 Tailwind 빌드에서 hover·분수 너비 선택자와 앱의 <code>animate-bounce-up</code> 규칙을 받은 녹화에 확인한다. fixture의 escape된 data-* 값도 정제됐는지 검사한다.</td></tr>
+<tr><td>B-P4 문서</td><td>PR #123·#124·#125의 머지 상태와 PR #124·#125의 운영 확인을 반영했다. PR #125의 5분 관찰을 PR #121의 30분 관찰과 구분한다. 구현 완료를 운영 검증 전체 완료나 이슈 종료로 간주하지 않는다.</td></tr></table>
+<h2>검증 증거</h2><table><tr><th>검사</th><th>결과</th></tr>
+<tr><td>기준 전체 테스트</td><td>213개 파일, 3,715개 통과, 기존 expected fail 6개, skipped 1개.</td></tr>
+<tr><td>N1 RED → GREEN</td><td>신규 URL 4개 사례가 수정 전 실패했다. 독립 리뷰의 혼합 문자열 반례 2개와 URL token이 없는 CSS 보존 사례를 추가하고 기존 raw escape 사례 2개의 기대값을 빈 문자열로 바꾸자 5개 실패가 재현됐다. 수정 후 browser transport 테스트 36개 통과.</td></tr>
+<tr><td>N3 RED → GREEN</td><td>실제 Tailwind stylesheet를 요구하자 기존 fixture가 실패했다. 앱 CSS를 가져온 Production 빌드와 실제 Chromium에서 통과했다.</td></tr>
+<tr><td>전체 테스트 KST·UTC</td><td>각각 213개 파일, 3,723개 통과, expected fail 6개, skipped 1개.</td></tr>
+<tr><td>타입·lint</td><td><code>npx tsc --noEmit</code>, <code>npm run lint</code> 통과.</td></tr>
+<tr><td>실제 브라우저 envelope</td><td>오류 1개·transaction 1개·Replay event 1개·압축 recording 1개. 실제 앱 stylesheet 1개, 100,546 UTF-8 bytes. 민감정보 canary 누출 0건. metadata·DOM·CSS mutation·custom event·tripwire 검사를 유지했다.</td></tr>
+<tr><td>독립 리뷰·PR·CI</td><td id="review-status">Claude Opus 5.5/high의 최초 리뷰는 REQUEST_CHANGES였다. 반례를 재현·수정한 뒤 같은 리뷰어의 독립 재검증은 APPROVE이며 수락된 완료 메시지는 <code>msg_98149496a32f</code>다. PR·CI 결과는 PR 본문을 따른다.</td></tr></table>
+<h2>운영 상태와 남는 한계</h2><p><a href="https://github.com/charlie0421/picnic-web/pull/125">PR #125</a>는 사용자 승인 뒤 머지·배포했다. 18:45:16~18:50:16 KST의 5분 운영 관찰에서 해당 배포의 Vercel 5xx·Sentry 신규 이슈는 각각 0건이었다. 기존 이슈의 반복 이벤트가 0건이라는 뜻은 아니다. Production Replay session·error 표본율은 모두 0이다.</p>
+<ul><li>독립 리뷰의 F4: 일반 문자열에서 hex escape된 slash와 값이 없는 raw fragment가 함께 있으면 가림이 우회될 수 있다. 예: <code>\2f callback#secret-opaque</code>. 기존 구현부터 남아 있던 비차단 한계이며 이번에 닫지 않았다. Replay 활성화 전에 정책과 표현 보존을 추가 검증한다.</li><li>N2: SVG presentation의 <code>url(#id)</code> fragment 제거로 녹화 표현이 달라질 수 있다.</li><li>N4: 한도를 넘는 breadcrumb는 잘라 보존하지 않고 전체를 버린다.</li><li>Replay 크기·깊이·노드·대기열 제한과 동기 JSON 처리의 메모리·시간 한계는 기존 정책을 유지한다.</li><li>로컬 SDK envelope를 확인했다. Sentry의 실제 Replay 수신·복원, 운영 저장 이벤트, <code>after()</code> flush 도착과 fingerprint, 실제 계정의 로그인·결제는 확인하지 않았다.</li><li>Sentry Data Scrubber와 과거 이벤트 처리는 사용자 결정 대기다. B-P1~B-P3의 기존 결제 expected fail 6개와 로그 레벨 이슈 #75·#76은 별도 작업이다.</li></ul>
+<aside>표본율·maskAllText·Production 환경변수·공통 URL 함수·transport 제한은 변경하지 않았다. #73·#74 및 Jira 상태는 변경하지 않는다. 새 PR의 머지는 핸드오프의 PR별 승인 규칙에 따른다.</aside></body></html>
