@@ -84,7 +84,49 @@ describe('Replay privacy transport', () => {
     Object.assign(input[1].data.node!.attributes, { style: 'background:url(/a\\3f token=secret-css)', srcdoc: '<a href="/?secret=private">' });
     const output = await scrubReplayEnvelope(envelope(false, input));
     const attrs = decoded(output!)[1].data.node.attributes;
-    expect(attrs.style).toBe(''); expect(attrs.srcdoc).toBe('');
+    expect(attrs.style).toBe('background:url("")'); expect(attrs.srcdoc).toBe('');
+  });
+  it('preserves escaped Tailwind selectors and safe declarations while scrubbing CSS URLs', async () => {
+    const input = records();
+    Object.assign(input[1].data.node!.attributes, {
+      _cssText: '.hover\\:bg-blue:hover{background:url("/a?token=secret-css");color:#fff}.w-1\\/2{width:50%}',
+    });
+    const output = await scrubReplayEnvelope(envelope(false, input));
+    expect(decoded(output!)[1].data.node.attributes._cssText).toBe('.hover\\:bg-blue:hover{background:url("/a");color:#fff}.w-1\\/2{width:50%}');
+  });
+  it.each([
+    { type: 3, timestamp: 1, data: { source: 0, adds: [{ node: { type: 3, id: 10, isStyle: true, textContent: '.x{background:url(img?secret-opaque)}' } }] } },
+    { type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value: '.x{background:url(img?secret-opaque)}' }] } },
+    { type: 3, timestamp: 1, data: { source: 8, adds: [{ rule: '.x{background:url(img?secret-opaque)}', index: 0 }] } },
+    { type: 3, timestamp: 1, data: { source: 8, replace: '.x{background:url(img?secret-opaque)}' } },
+    { type: 3, timestamp: 1, data: { source: 8, replaceSync: '.x{background:url(img?secret-opaque)}' } },
+    { type: 3, timestamp: 1, data: { source: 13, set: { property: 'background', value: 'url(img?secret-opaque)', priority: '' } } },
+    { type: 3, timestamp: 1, data: { source: 15, styles: [{ styleId: 1, rules: [{ rule: '.x{background:url(img?secret-opaque)}', index: 0 }] }] } },
+  ])('scrubs dynamic CSS recording without cutting the rule: %j', async (record) => {
+    const output = await scrubReplayEnvelope(envelope(false, [record] as never));
+    expect(output).not.toBeNull();
+    const text = JSON.stringify(decoded(output!));
+    expect(text).not.toContain('secret-');
+    expect(text).toContain('url(\\"img\\")');
+    expect(decoded(output!)[0].type).toBe(3);
+  });
+  it('redacts opaque relative URLs in DOM URL attributes', async () => {
+    const input = records();
+    Object.assign(input[1].data.node!.attributes, { formaction: 'pay?secret-opaque', cite: '#secret-cite', background: 'bg?secret-bg', imagesrcset: 'img?secret-img 1x' });
+    const output = await scrubReplayEnvelope(envelope(false, input));
+    expect(JSON.stringify(decoded(output!))).not.toContain('secret-');
+  });
+  it('preserves URL detection after a Unicode CSS selector', async () => {
+    const input = records();
+    input[1].data.node!.attributes.style = '.İ{background:url(img?secret-css)}';
+    const output = await scrubReplayEnvelope(envelope(false, input));
+    expect(decoded(output!)[1].data.node.attributes.style).toBe('.İ{background:url("img")}');
+  });
+  it('recognizes an escaped url function without changing escaped numeric selectors', async () => {
+    const input = records();
+    input[1].data.node!.attributes.style = '.\\32 xl\\:bg{background:u\\72l(img#secret-css)}';
+    const output = await scrubReplayEnvelope(envelope(false, input));
+    expect(decoded(output!)[1].data.node.attributes.style).toBe('.\\32 xl\\:bg{background:url("img")}');
   });
   it('bounds malformed CSS URL scanning without quadratic backtracking', async () => {
     const input = records();

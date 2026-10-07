@@ -11,6 +11,10 @@ export default function BrowserPrivacyFixture() {
     Object.assign(window, {
       runPrivacyFixture: async () => {
         const url = `${location.origin}/callback?code=privacy-error-query#privacy-error-fragment`;
+        const consoleValue = { url: '/callback?code=privacy-console-query' };
+        // eslint-disable-next-line no-console -- Verify the real SDK console instrumentation preserves caller data.
+        console.warn('browser-privacy-console', consoleValue);
+        if (consoleValue.url !== '/callback?code=privacy-console-query') throw new Error('Console instrumentation mutated caller data');
         Sentry.addBreadcrumb({ category: 'navigation', data: { from: url, to: 'callback?code=privacy-relative-query' } });
         Sentry.captureException(new Error(`browser-privacy-error ${url}`));
         await Sentry.startSpan({ name: `browser-privacy-transaction ${url}`, op: 'privacy-test', forceTransaction: true }, async () => {
@@ -19,6 +23,14 @@ export default function BrowserPrivacyFixture() {
           });
         });
         document.getElementById('fixture-link')?.setAttribute('href', '/changed?token=privacy-mutation-query#private');
+        const style = document.getElementById('fixture-sheet') as HTMLStyleElement;
+        style.sheet!.insertRule('.dynamic{background:url(img?privacy-rule-query)}', 0);
+        (style.sheet!.cssRules[0] as CSSStyleRule).style.setProperty('background', 'url(img?privacy-declaration-query)');
+        const addedStyle = document.createElement('style');
+        addedStyle.textContent = '.added{background:url(img?privacy-added-query)}';
+        document.head.appendChild(addedStyle);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        addedStyle.firstChild!.textContent = '.changed{background:url(img?privacy-text-query)}';
         history.pushState({}, '', '/api/envelope-test/browser?code=privacy-navigation-query#privacy-navigation-fragment');
         await new Promise((resolve) => setTimeout(resolve, 6000));
         await Sentry.getReplay()?.flush();
@@ -29,6 +41,7 @@ export default function BrowserPrivacyFixture() {
   }, []);
   return <html lang="ko"><body>
     <h1>브라우저 개인정보 테스트</h1>
+    <style id="fixture-sheet">{'.hover\\:bg-privacy:hover{background:url("/asset?token=privacy-sheet-query");color:#fff}.w-1\\/2{width:50%}'}</style>
     <a id="fixture-link" href="/callback?code=privacy-dom-query#privacy-dom-fragment">링크</a>
     <div id="fixture-style" style={{ backgroundImage: 'url("/asset?token=privacy-css-query")', color: 'rgb(1, 2, 3)' }}>마스킹 대상</div>
     <input defaultValue="privacy-input-value" />

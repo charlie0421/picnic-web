@@ -54,6 +54,19 @@ function evaluateBrowserEnvelopes(envelopes) {
   assert.ok(records.some((event) => event.type === 4), 'rrweb Meta delivered');
   assert.ok(records.some((event) => event.type === 2), 'rrweb DOM snapshot delivered');
   assert.ok(records.some((event) => event.type === 3), 'rrweb mutation delivered');
+  const objects = [];
+  const collect = (value) => {
+    if (!value || typeof value !== 'object') return;
+    objects.push(value);
+    for (const child of Object.values(value)) collect(child);
+  };
+  collect(records);
+  assert.ok(objects.some((node) => typeof node.attributes?._cssText === 'string' && node.attributes._cssText.length > 0), 'inlined stylesheet remains nonempty');
+  assert.ok(objects.some((node) => typeof node.textContent === 'string' && node.textContent.includes('.hover\\:bg-privacy') && node.textContent.includes('.w-1\\/2')), 'Tailwind selector escapes survive');
+  assert.ok(records.some((event) => event.type === 3 && event.data.source === 8), 'CSS rule insertion captured');
+  assert.ok(records.some((event) => event.type === 3 && event.data.source === 13), 'CSS declaration captured');
+  assert.ok(records.some((event) => event.type === 5 && event.data.tag === 'performanceSpan'), 'Replay performance custom events captured');
+  assert.ok(records.some((event) => event.type === 5 && event.data.tag === 'breadcrumb'), 'Replay breadcrumb custom events captured');
   const all = JSON.stringify(envelopes);
   const leaks = [...new Set(all.match(/privacy-[a-z-]+-(?:query|fragment|value)/g) || [])];
   assert.deepEqual(leaks, [], `URL/input canaries leaked: ${leaks.join(', ')}`);
