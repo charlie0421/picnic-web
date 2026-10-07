@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"><title>PR 5 — 브라우저 로그 개인정보 검증</title><style>body{max-width:980px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui;color:#192335}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #cad3de;padding:10px;text-align:left;vertical-align:top}th{background:#edf2f8}code,pre{background:#edf2f8;padding:3px 6px}pre{padding:16px;white-space:pre-wrap;overflow-wrap:anywhere}.note{border-left:4px solid #4f6fb4;padding:12px 18px;background:#f2f5fa}</style></head><body>
 <h1>PR 5 — 브라우저 로그 개인정보 검증</h1>
-<p>기준: 2026-10-07. 리뷰 수정 커밋 <code>c4730082</code>, 기준 브랜치 <code>edac2583</code>. 독립 리뷰 진행 중이며 아직 머지·배포하지 않았다.</p>
+<p>기준: 2026-10-07. 리뷰 수정 커밋 <code>c4730082</code>, 기준 브랜치 <code>edac2583</code>. 독립 재검증은 APPROVE다. <a href="https://github.com/charlie0421/picnic-web/pull/125">PR #125</a>는 아직 머지·배포하지 않았다.</p>
 <h2>변경</h2><p>브라우저 오류·breadcrumb·transaction·span에 공통 URL 가림을 연결했다. 기존 서드파티 오류 필터·표본율·Replay 지연 로드는 유지했다. 운영 Replay 환경변수는 변경하지 않았다.</p>
 <p>Sentry 9.47.1의 Replay DOM 기록은 <code>beforeAddRecordingEvent</code>를 거치지 않는다. Replay는 transport를 직접 호출한다. 전송 경계에서 Replay metadata와 녹화 데이터를 함께 정제한다. 압축 기록은 segment header와 zlib 본문을 분리하고, 정제 후 다시 압축한다. 원본 envelope를 수정하지 않으며 UTF-8 바이트 길이를 다시 계산한다.</p>
 <h2>검증 결과</h2><table><thead><tr><th>검사</th><th>결과</th></tr></thead><tbody>
@@ -18,15 +18,24 @@ npx playwright install chromium
 npm run test:envelope:browser
 npm test</pre><p>브라우저 검사는 로컬 Supabase fixture와 Sentry 수집기를 사용한다. Replay CDN 요청은 lockfile과 같은 SDK recorder bundle로 응답한다. 외부 브라우저 요청은 차단하고, 실제 수신 envelope를 압축 해제하여 검사한다. 테스트 페이지는 빌드 중에만 <code>app/api/envelope-test/browser</code>에 복사한다. 브라우저 검사와 전체 단위 테스트는 동시에 실행하지 않는다.</p>
 <h2>제한과 후속 확인</h2><ul><li>녹화 입력과 압축 해제 결과는 각각 최대 8MiB다. 압축 스트림과 객체 순회는 2초 deadline을 적용한다. 동기 JSON 처리 구간을 선점하지는 않는다. 객체 깊이는 80, 순회 노드는 200,000으로 제한한다. 정제 또는 압축에 실패하면 해당 Replay envelope를 버린다.</li><li>Tailwind 선택자 escape는 보존한다. URL·문자열 토큰 안의 지원하지 않는 escape는 해당 토큰을 비운다. 구조를 판별하지 못한 CSS는 스타일을 비운다. query/fragment를 포함한 srcset·imagesrcset과 srcdoc도 비운다. 일부 Replay 표시 정보가 줄어들 수 있다.</li><li>운영 Replay 활성화, 운영 Sentry Data Scrubber 확인, 실제 운영 오류 수신·fingerprint 검증은 이번 로컬 브라우저 검사의 성과로 주장하지 않는다.</li><li>브라우저 envelope 검사는 로컬에서 수행한다. GitHub CI는 타입·lint·단위 테스트를 실행한다. SDK 또는 수집 설정 변경 시 브라우저 검사를 다시 실행해야 한다.</li></ul>
-<h2>독립 리뷰</h2><p id="review-status">Orca Run <code>run_0edcbb1774e8</code>, Task <code>task_95ac1780754d</code>, Dispatch <code>ctx_8acb566a3224</code>. Claude Opus 5.5/high의 최초 판정은 REQUEST_CHANGES였다. 수락된 완료 메시지는 <code>msg_0c7c73b1bbc0</code>다. 정책 로딩 확인은 수락된 heartbeat <code>msg_031fd1a5b814</code>에 기록됐다. 수정을 완료했고 같은 리뷰어의 재검증을 준비한다. 최초 리뷰에서는 워크트리 밖의 diff·로그를 읽지 못했다. 재검증 입력은 워크트리 안의 임시 폴더에 제공한다.</p>
+<h2>독립 리뷰</h2><p id="review-status">Orca Run <code>run_0edcbb1774e8</code>, Task <code>task_95ac1780754d</code>, Dispatch <code>ctx_8acb566a3224</code>. Claude Opus 5.5/high의 최초 판정은 REQUEST_CHANGES였다. 수락된 완료 메시지는 <code>msg_0c7c73b1bbc0</code>다. 정책 로딩 확인은 수락된 heartbeat <code>msg_031fd1a5b814</code>에 기록됐다.</p>
+<p>같은 리뷰어가 수정 커밋 <code>c4730082</code>를 재검증했다. Task <code>task_81cd366af411</code>, Dispatch <code>ctx_a65141274b73</code>, 수락된 완료 메시지 <code>msg_a68b8347d491</code>의 판정은 <strong>APPROVE</strong>다. B1·B2·M4·L5·L7·L9는 해소됐고 차단 지적은 없다. 최초 리뷰에서는 워크트리 밖의 diff·로그를 읽지 못했다. 재검증에서는 워크트리 안에 제공한 diff·테스트 로그·실제 수신 envelope와 소스를 확인했다. 리뷰어는 테스트를 직접 실행하지 않았다. 작업자를 정산한 뒤 해당 터미널을 닫았다.</p>
+<p><a href="https://github.com/charlie0421/picnic-web/actions/runs/37594484936/job/112703651685">f2184c49의 GitHub CI</a>는 타입·lint·단위 테스트를 통과했다. Preview 조회는 8회 정상 완료됐으며 URL은 생성되지 않았다. 최종 문서 커밋의 CI는 PR에서 별도로 확인한다.</p>
 <h2>리뷰 지적 처리</h2><table><tr><th>지적</th><th>처리</th></tr>
-<tr><td>B1 · Tailwind CSS 소실</td><td>선택자 escape를 보존하고 URL 토큰을 따로 처리했다. 실제 브라우저에서 nonempty _cssText와 Tailwind 선택자 보존을 확인했다.</td></tr>
+<tr><td>B1 · Tailwind CSS 소실</td><td>선택자 escape를 보존하고 URL 토큰을 따로 처리했다. 실제 브라우저에서 nonempty _cssText와 fixture에 넣은 Tailwind 형식 선택자 보존을 확인했다. 앱 전체 Tailwind stylesheet의 보존 검증은 N3에 남긴다.</td></tr>
 <tr><td>B2 · 호출자 데이터 변경</td><td>breadcrumb의 plain object·배열을 제한된 깊이로 복사한다. 원본 콘솔 인수·fetch 자료를 변경하지 않는다. 순환 참조와 getter도 테스트했다.</td></tr>
 <tr><td>M4 · 동적 CSS</td><td>isStyle, rule/replace/replaceSync, 스타일 선언과 CSS 문자열을 정제한다. 7종 record의 단위 테스트와 실제 CSS rule/declaration 기록을 검증했다.</td></tr>
 <tr><td>L5 · 상대 URL 속성</td><td>formaction·cite·background·longdesc·manifest·usemap·object data와 imagesrcset을 보완했다. 그 밖의 비표준 속성은 기존 문자열 휴리스틱을 적용하며, slash와 key=value가 없는 불명확한 값의 분류는 후속이다.</td></tr>
 <tr><td>L7·L9 · tripwire·Unicode</td><td>breadcrumb의 tripwire를 오류/transaction 태그로 올린다. Unicode 길이가 달라져도 CSS URL 위치가 어긋나지 않도록 토큰 기준으로 처리한다.</td></tr>
 <tr><td>M3 · 큰 DOM / L6 · SVG fragment / L8 · 메모리</td><td>비차단 후속으로 남긴다. 큰 기록은 기존 제한에서 버리고, fragment는 정책대로 제거한다. SVG 참조가 줄어들 수 있다. Replay 활성화 전에 실제 화면의 크기·깊이·메모리를 측정해야 한다.</td></tr></table>
 <p>리뷰 지적을 재현한 테스트 13개가 수정 후 통과했다. 실제 브라우저 검사에서 콘솔 객체 보존, 동적 CSS, Replay custom breadcrumb·performanceSpan 수신도 확인했다.</p>
-<p class="note">이 문서는 현재 검증 기록이다. PR·CI·독립 리뷰의 최종 결과와 머지 승인은 별도로 확인한다.</p>
+<h2>재검증에서 남긴 낮은 심각도 후속</h2><p>리뷰어는 다음 4건을 비차단으로 분류했다. 이번 코드에는 추가 변경하지 않는다. 운영 Replay를 활성화하기 전 M3·L8의 실제 화면 측정과 함께 확인한다.</p>
+<table><tr><th>항목</th><th>조건과 후속 조치</th></tr>
+<tr><td>N1 · 불명확한 문자열</td><td><code>lib/sentry/replay-scrub.ts:90</code>. URL·CSS 전용 키가 아닌 문자열에 역슬래시로 escape한 물음표·해시 또는 CSS hex escape가 있으면 CSS fallback이 query를 남길 수 있다. 예: 정규식 원문 <code>/callback\?code=secret</code>. 브라우저가 생성한 일반 URL에는 없는 형태다. 리뷰어의 정적 분석이며 재현 실행은 하지 않았다. 후속: fallback에서 기존 URL 가림 결과를 우선하는 조건과 회귀 테스트를 추가한다.</td></tr>
+<tr><td>N2 · SVG 표시 정보</td><td><code>fill</code>, <code>clip-path</code>, <code>mask</code>, <code>filter</code>의 <code>url(#id)</code>도 fragment 제거로 비워진다. L6과 같은 정책이며 Replay의 일부 SVG 표시가 줄어들 수 있다.</td></tr>
+<tr><td>N3 · 실제 Tailwind stylesheet</td><td>브라우저의 nonempty stylesheet 검사는 next/font CSS로도 통과한다. 선택자 escape는 두 규칙으로 만든 fixture에서 확인했으며, 빌드된 앱 전체 Tailwind CSS는 검증하지 않았다. 후속: 실제 stylesheet를 정제하여 알려진 선택자 보존을 검사한다.</td></tr>
+<tr><td>N4 · 큰 breadcrumb</td><td><code>lib/sentry/browser-scrub.ts:9</code>. 복사 한도를 넘는 콘솔·fetch breadcrumb는 전체를 버린다. 기존 SDK의 축약과 달라 진단 정보가 줄 수 있다. 후속: 크기 제한 내 축약을 검토한다.</td></tr></table>
+<p>로컬 recorder는 잠긴 SDK 버전으로 빌드했다. 실제 CDN bundle의 동작 일치, Relay의 재압축 결과 수락, 독립 span envelope의 trace header는 이번 검증에 포함하지 않았다. 환경변수가 없는 비운영 환경은 기존 Replay 기본 표본율(session 0.02, error 1.0)을 계속 적용한다.</p>
+<p class="note">독립 리뷰는 완료됐다. 핸드오프의 PR별 승인 규칙에 따라 머지는 별도로 승인받는다. main 머지는 Production 자동 배포를 실행한다.</p>
 <p><a href="../superpowers/plans/2026-10-07-browser-log-redaction.html">구현 계획</a></p>
 </body></html>
