@@ -3,6 +3,9 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from '@sentry/nextjs';
+import { scrubSpan } from '@/lib/sentry/scrub';
+import { scrubBrowserBreadcrumb, scrubBrowserEvent } from '@/lib/sentry/browser-scrub';
+import { createBrowserTransport } from '@/lib/sentry/browser-transport';
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
 const SENTRY_DEBUG = process.env.NEXT_PUBLIC_SENTRY_DEBUG === 'true';
@@ -73,6 +76,7 @@ const isSentryWrapperFrame = (frame: StackFrame): boolean =>
 if (SENTRY_DSN) {
   Sentry.init({
     dsn: SENTRY_DSN,
+    transport: createBrowserTransport,
     
     // Debug mode - only in development
     debug: SENTRY_DEBUG,
@@ -274,8 +278,10 @@ if (SENTRY_DSN) {
           return null;
         }
       }
-      return event;
+      return scrubBrowserEvent(event);
     },
+    beforeSendTransaction: scrubBrowserEvent,
+    beforeSendSpan: scrubSpan,
     // Breadcrumb filtering (drop noisy console/info logs)
     beforeBreadcrumb(breadcrumb) {
       if (breadcrumb.category === 'console' && (breadcrumb.level === 'log' || breadcrumb.level === 'debug')) {
@@ -285,7 +291,7 @@ if (SENTRY_DSN) {
         // Drop extremely frequent UI click breadcrumbs to reduce noise
         return null;
       }
-      return breadcrumb;
+      return scrubBrowserBreadcrumb(breadcrumb);
     },
     
     // Release information
