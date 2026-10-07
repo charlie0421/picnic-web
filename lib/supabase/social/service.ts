@@ -6,7 +6,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { Database } from "@/types/supabase";
 import {
   AuthResult,
@@ -21,8 +21,6 @@ import { wrapSignInError } from "./auth-helpers";
 import { handleGoogleProfile, handleAppleProfile } from "./profile-handlers";
 import { handleCallbackImpl } from "./callback-handler";
 
-// 디버그 모드 설정
-const DEBUG = process.env.NODE_ENV !== "production";
 
 /**
  * 소셜 로그인 서비스 클래스
@@ -61,14 +59,11 @@ export class SocialAuthService implements SocialAuthServiceInterface {
    */
   constructor(private supabase: SupabaseClient<Database>) {
     // 로깅 함수 초기화
-    this.log = (message: string, data?: any) => {
-      if (DEBUG) {
-        console.log(`🔑 SocialAuth: ${message}`, data || "");
-      }
-    };
+    // 인증 옵션·콜백 값은 디버그 출력에도 남기지 않는다. 기존 helper 시그니처는 유지한다.
+    this.log = () => {};
 
     this.logError = (message: string, data?: any) => {
-      logError(`❌ SocialAuth Error: ${message}`, data || "");
+      logSafeError('auth.social.service.failed', data || "");
     };
 
     // 콜백 URL 초기화 (모든 환경에서 동일)

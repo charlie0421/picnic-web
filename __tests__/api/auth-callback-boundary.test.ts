@@ -18,9 +18,6 @@ vi.mock('@supabase/ssr', () => ({
   createServerClient: mocks.createServerClient,
 }));
 
-vi.mock('@/utils/log-error', () => ({
-  logError: vi.fn(),
-}));
 
 import { GET } from '@/app/api/auth/callback/route';
 

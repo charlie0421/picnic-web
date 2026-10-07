@@ -3,5 +3,55 @@
   "rules": {
     "react-hooks/exhaustive-deps": "off",
     "@next/next/no-img-element": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "app/api/auth/**/*.{ts,tsx,js,jsx}",
+        "lib/supabase/server.{ts,tsx,js,jsx}",
+        "lib/supabase/social/**/*.{ts,tsx,js,jsx}"
+      ],
+      "rules": {
+        "no-console": "error",
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@/utils/log-error",
+                "message": "Use logSafeError with a closed event code."
+              },
+              {
+                "name": "@/utils/logger",
+                "message": "Use logSafeError with a closed event code."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "**/log-error",
+                  "**/logger",
+                  "**/auth-logger",
+                  "**/logger-utils",
+                  "@sentry/*"
+                ],
+                "message": "Auth helpers must log through logSafeError only."
+              }
+            ]
+          }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "ImportExpression[source.value=/^(.*\\/)?(log-error|logger|auth-logger|logger-utils)$|^@sentry\\//]",
+            "message": "Auth logging must use logSafeError."
+          },
+          {
+            "selector": "CallExpression[callee.name=\"require\"][arguments.0.value=/^(.*\\/)?(log-error|logger|auth-logger|logger-utils)$|^@sentry\\//]",
+            "message": "Auth logging must use logSafeError."
+          }
+        ]
+      }
+    }
+  ]
 }

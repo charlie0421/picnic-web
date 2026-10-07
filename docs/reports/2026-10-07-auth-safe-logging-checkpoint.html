@@ -10,6 +10,94 @@
   </style>
 </head>
 <body>
+  <h1>B-P4 PR 3 인증 로깅 구현·리뷰 기록</h1>
+  <p>2026-10-07 KST. 사용자가 구현과 독립 리뷰 재개를 요청했다. 기존 <code>feat/auth-safe-logging</code> 워크트리에서 작업했다.</p>
+  <p class="status" id="latest-status">구현·기술 검증 완료. Claude Opus 5.5/high 독립 리뷰 재검증 APPROVE. 차단 지적 0건. PR 머지와 배포는 하지 않았다.</p>
+  <h2>변경</h2>
+  <p>인증 API 10개 파일의 HTTP 핸들러 16개를 <code>withSafeErrors</code>로 감쌌다. 인증 경로와 공통 헬퍼는 <code>logSafeError</code>에 닫힌 사건 코드를 전달한다. 공급자 오류·프로필·인증 옵션을 출력하던 직접 로그를 제거했다. 공유 소셜 헬퍼에는 서버 전용 경계를 import하지 않았다.</p>
+  <p>회원가입·로그아웃·Google 오류 응답은 고정 문구를 반환한다. 정상 사용자·세션 응답, 쿠키 삭제, 리다이렉트, CORS·CSRF, 탈퇴 계정 확인은 유지한다. 인증 범위 lint는 직접 console 사용과 기존 로그 함수·로거 import를 차단한다. 상대 import, require·동적 import, logger-utils·직접 Sentry import도 검사한다.</p>
+  <h2>검증 결과</h2>
+  <table><thead><tr><th>검증</th><th>결과</th></tr></thead><tbody>
+    <tr><td>수정 전 오류 응답 테스트</td><td>회원가입 2건·로그아웃 1건 누출로 실패. 정상 동작 2건 통과.</td></tr>
+    <tr><td>KST 전체 테스트</td><td>207개 파일, 3,602개 통과·예상 실패 6개·건너뜀 1개.</td></tr>
+    <tr><td>UTC 전체 테스트</td><td>207개 파일, 3,602개 통과·예상 실패 6개·건너뜀 1개.</td></tr>
+    <tr><td>타입·lint</td><td><code>npx tsc --noEmit</code>, <code>npm run lint</code> 통과.</td></tr>
+    <tr><td>실제 Next Production 빌드·인증 요청</td><td>로컬 Supabase fixture와 Sentry 수집기를 사용했다. 운영 인증 요청·자격 증명 없이 요청 9건을 확인했다. 오류 이벤트 6건 수집. 응답·서버 출력·envelope에서 canary 누출 0건.</td></tr>
+    <tr><td>독립 리뷰</td><td id="review-verdict">Opus 5.5/high, restricted·dontAsk, 읽기 전용. 최초 REQUEST_CHANGES 후 원 리뷰어 재검증 APPROVE. B1·M1~M7 해소, 비차단 잔여 3건.</td></tr>
+  </tbody></table>
+  <p>실제 서버 시나리오는 회원가입 거부 400, 회원가입·Apple·Google·exchange-code·Kakao의 잘못된 JSON 500, 로그아웃 성공 200, 익명 session 200, 익명 verify 401이다. 익명 요청은 오류 이벤트를 추가하지 않았다. 로그아웃 쿠키 삭제·no-store·Clear-Site-Data도 검사했다. 수집된 오류 이벤트에 인증 사건 코드 fingerprint가 있는지 확인했다.</p>
+  <pre>SENTRY_DSN='' NEXT_PUBLIC_SENTRY_DSN='' TZ=Asia/Seoul npx vitest run
+SENTRY_DSN='' NEXT_PUBLIC_SENTRY_DSN='' TZ=UTC npx vitest run
+npx tsc --noEmit
+npm run lint
+SENTRY_DSN='' NEXT_PUBLIC_SENTRY_DSN='' node scripts/envelope-test/auth.js</pre>
+  <h2>독립 리뷰 수정</h2>
+  <p>최초 리뷰는 REQUEST_CHANGES였다. 차단 지적 B1은 정상적인 세션 없음이 ERROR 이벤트로 기록되는 문제였다. 수정 전 회귀 테스트 2건 실패·1건 통과를 확인했다. AuthSessionMissingError를 기록에서 제외한 뒤 3건이 통과했다. 실제 인증 장애는 기록하며 사용자 조회와 탈퇴 확인의 사건 코드를 분리했다. 탈퇴 확인은 실제 오류와 안전한 errorCode를 전달한다.</p>
+  <p>비차단 지적 M1~M7도 반영했다. lint 우회와 범위 검증을 추가했다. 짧은 canary를 잘못된 JSON의 첫 부분에 넣었다. 공급자 응답 본문은 기록하지 않고 HTTP 상태만 전달한다. 사용하지 않는 본문은 취소한다. 로그아웃 catch에서 발생하는 Proxy 예외를 외부 경계 테스트로 검사한다. 기존 로그 함수 mock과 Apple 함수의 무조건 오류 기록을 제거했다.</p>
+  <p>원 리뷰어 재검증 Dispatch는 <code>ctx_00ef54b06ee2</code>이다. 원 구현 사고 과정 없이 요구사항·diff·수정 사항·검증 결과를 제공했다.</p>
+  <details><summary>원 리뷰어 재검증 원문과 비차단 잔여 사항</summary><pre>REVIEW 재검증 판정: APPROVE. ctx_1376ef945340 의 B1 과 M1~M7 을 갱신된 diff, 현재 소스, 미추적 3파일(auth-anonymous-logging.test.ts, auth-logging-lint.test.ts, scripts/envelope-test/auth.js)로 읽기 전용 재검증했다. 8건 모두 해소됐고 수정이 만든 차단 회귀는 찾지 못했다. 남은 것은 비차단 잔여 3건과 baseline 동일 후속 2건이다. 이 body 는 리뷰 수행 보고이며 구현 완료 보고가 아니다.
+
+[B1 해소] lib/supabase/server.ts:139-150,183-188, app/api/auth/verify/route.ts:22-25
+- AuthSessionMissingError 는 기록하지 않는다. 그 외 오류는 error 를 그대로 넘긴다.
+- 코드가 auth.server.get_user.failed 와 auth.server.withdrawal_check.failed 로 나뉘었다(utils/log-event-codes.ts:59-60). auth.server.failed 참조는 남아 있지 않다.
+- isWithdrawnUser 는 error 와 { errorCode: error.code } 를 넘긴다. 계약이 표에 없는 코드를 unknown 으로 바꾼다.
+- fail-closed 반환값(options.failClosed === true)과 PGRST116 분기는 그대로다.
+- instanceof 의 클래스 동일성: node_modules 에 auth-js·supabase-js·ssr 사본은 각 1개다. supabase-js 의 index.mjs 와 index.cjs 는 둘 다 auth-js 를 외부 모듈로 참조한다(dist/index.mjs:6,10, dist/index.cjs:6). 코디네이터의 실제 Production 빌드 결과(익명 session 200, verify 401, 이벤트 정확히 6건)가 번들 안에서도 성립함을 뒷받침한다.
+
+[M1·M2 해소] .eslintrc.json:9-56, __tests__/scripts/auth-logging-lint.test.ts:8-37
+- 대상이 ts,tsx,js,jsx 로 넓어졌다. logger-utils 와 @sentry/* 가 정적 import 에서 막힌다. no-restricted-syntax 가 require 와 dynamic import 를 막는다.
+- 테스트는 차단 12건, 결제 경로 대조군 1건, 허용 1건이다. 내가 지적한 사례가 모두 들어 있다.
+- 범위 안 소스에 console, log-error, auth-logger, utils/logger, @sentry 문자열은 0건이다(Grep 확인).
+
+[M3 해소] scripts/envelope-test/auth.js:16,102-104,112-123
+- 7자 canary Q7xPriv 가 malformed 본문 맨 앞에 온다. V8 JSON 오류 발췌에 들어가는 길이다. 응답·envelope·서버 출력에서 모두 검사한다.
+- 익명 session·verify 요청 뒤 이벤트 정확히 6건과 decode 실패 0건을 요구한다.
+
+[M4 해소] app/api/auth/google/route.ts:164-165,186-187, app/api/auth/kakao/route.ts:82-83,111-112,192-193
+- httpStatus 만 남긴다. 본문은 읽지 않고 cancel 한다. cancel 의 거부는 삼킨다. 응답 상태 코드와 본문은 이전과 같다.
+
+[M5 해소] __tests__/api/auth-error-response-safety.test.ts
+- logout 사례가 추가됐다. getPrototypeOf trap 이 안쪽 catch 의 instanceof 에서 던지고 바깥 경계가 500 고정 응답으로 막는다. 응답과 console.error 호출 모두에서 원문 부재를 확인한다. register 사례는 이름이 실제 동작에 맞게 바뀌었다.
+
+[M6 해소] auth-callback-boundary, exchange-code-withdrawn, auth-session-withdrawn 테스트에서 log-error mock 3건이 삭제됐다.
+
+[M7 해소] lib/supabase/social/apple.ts:238-254 무조건 기록이 삭제됐다. 브라우저 분기의 기록만 남았다. 호출부는 여전히 없다.
+
+[잔여 R1 | minor | 비차단] lib/supabase/server.ts:140-142, app/api/auth/verify/route.ts:23-25
+- 조건: 만료·무효 세션 쿠키를 가진 요청은 AuthApiError(4xx)를 받는다. baseline 은 warn 이었고 지금은 ERROR 다. 지난 리뷰에서 코디네이터 판단으로 넘긴 항목이다. 차단으로 올리지 않는다.
+- 완화: errorName 이 보존되므로 Sentry 에서 AuthApiError 를 가를 수 있다.
+- 권고: 배포 뒤 auth.server.get_user.failed 와 auth.verify.user.failed 의 건수를 확인한다. 많으면 로그 레벨 정책(#75·#76)에서 4xx AuthApiError 를 제외한다.
+
+[잔여 R2 | minor | 비차단] 같은 위치의 instanceof
+- 조건: auth-js 사본이 둘이 되거나 @supabase/ssr 만 외부화되면 instanceof 가 false 가 된다. 그러면 B1 이 조용히 되살아난다. 단위 테스트는 같은 모듈 그래프를 쓰므로 이를 잡지 못한다. 잡는 것은 auth.js 러너의 정확히 6건 검사뿐이다.
+- 최소 수정: supabase-js 가 내보내는 isAuthSessionMissingError(error) 로 바꾼다. 이름 기반 판정이다. 또는 러너를 머지 전 필수 검증으로 유지한다.
+
+[잔여 R3 | minor | 비차단] .eslintrc.json:46,50
+- 남는 우회: 템플릿 리터럴 dynamic import, 확장자나 /index 를 붙인 경로, createRequire. lint 는 보조 장치이고 계약 함수가 실제 경계다. 수정을 요구하지 않는다.
+
+[후속 | baseline 동일 | 이 PR 이 만든 문제가 아니다]
+- P1 lib/supabase/social/service.ts:235-239 서버 싱글턴의 요청 client 재사용. diff 에 해당 변경이 없다.
+- P2 app/api/auth/callback/route.ts:154-157 탈퇴 조회 예외의 fail-open 과 exchange-code 의 쿠키 설정 순서. diff 는 로그 호출만 바꿨다.
+
+[증거의 출처]
+- 나는 테스트·빌드를 실행하지 않았다. KST·UTC 각 207파일 3602 통과·6 expected fail·1 skip, tsc, lint, Production 빌드와 HTTP 9건·이벤트 6건·canary 누출 0건은 코디네이터 보고(msg_21e987a14f05 포함)에 의존한다.
+- esquery 1.7.0 이 선택자 정규식의 이스케이프된 슬래시를 받는지는 파서 전체를 읽어 확인하지 않았다. LegacyESLint 테스트 통과 보고에 의존한다.
+
+[실행 조건 확인]
+- 모델: 시스템 입력상 Opus 5.5(claude-opus-5-5). effort 값은 내 입력에서 보이지 않는다. 코디네이터의 프로세스 확인에 의존한다.
+- 도구: Bash·Read·Glob·Grep 만 있다. Edit·Write·Agent·Task·MCP 는 없다. Bash 는 orca check 2회, heartbeat 1회, 이 send 에만 썼다. 이번 Dispatch 에서는 워크트리 안 파일만 읽었다. restricted 거부는 지난 Dispatch 에서 실제로 관측했다.
+- 정책: 시스템 입력에 user-scoped 지침 policyRevision 2 가 그대로 있다. 적용한 제약: 한국어·간결, 읽기 전용 리뷰어, 고위험(인증) 교차 공급자 리뷰, 원 리뷰어 1회 재검증, 지적마다 심각도·위치·실패 조건·최소 수정, Jira 검토중 자동 전환 금지, 문서 커밋은 코디네이터 몫, worker_done 은 작업자가 직접 1회 발행.
+- 파일 수정, 커밋, 위임, 비밀정보 접근은 하지 않았다.</pre></details>
+  <h2>별도 후속 위험</h2>
+  <p>리뷰어는 기존 소셜 서비스 singleton이 첫 요청의 Supabase 클라이언트를 재사용하는 구조와 기존 callback 탈퇴 조회 예외·exchange-code 쿠키 설정 후 실패 처리 순서를 지적했다. 이번 diff에서 새로 만든 동작은 아니다. 별도 인증 설계와 검증이 필요하며 이 PR에서 수정하지 않았다. 실제 공급자 성공 로그인·콜백 쿠키는 회귀 단위 테스트 범위다. 운영 오류 전달과 Sentry request 저장 내용은 아직 실측하지 않았다.</p>
+  <h2>실행·정산</h2>
+  <p>기존 Run <code>run_3fd3d00210fe</code>과 실패 기록을 보존했다. 사용량·계정 바인딩·지원 모델·실행 권한을 새로 검사했다. Fast는 OFF이며 구현과 리뷰를 순차 진행했다. 구독 소진 실패나 providerHold는 확인되지 않았다. Codex 5시간 잔여량은 실측이 아닌 공식 주간 전용 응답에 따른 가정이다.</p>
+  <p>Orca 터미널은 기존 메인 작업 공간에 만들고 CLI 실행 경로를 승인된 sibling 워크트리로 지정했다. 실제 작업 경로와 모델을 확인했다. 메인 저장소 코드에는 쓰지 않았다.</p>
+  <p>Sol/high 구현 작업자는 route 변경과 테스트를 작성했다. workspace-write 샌드박스가 Orca IPC를 거부해 완료 정산을 보내지 못했다. 작업자의 종료·편집 중단을 확인한 후 Dispatch <code>ctx_b2069a2e1c80</code>를 abandon했다. 조정자는 해당 변경을 인계받아 공통 헬퍼·사건 코드·lint를 통합하고 검증했다. 작업자의 성공이나 <code>worker_done</code>을 대리 발행하지 않았다.</p>
+  <p>독립 리뷰 Dispatch는 <code>ctx_1376ef945340</code>이다. 리뷰어에게 요구사항·diff·관련 파일·검증 결과만 제공했다. 쉘 테스트·편집·외부 쓰기·네이티브 위임을 허용하지 않았다.</p>
+  <h2>남은 확인</h2>
+  <ul><li>PR 생성·CI 확인 및 별도 머지 승인.</li><li>머지 뒤 실제 Production의 오류 전달과 fingerprint 확인.</li><li>PR 4 결제 로깅, PR 5 브라우저 정책, 사용자 Sentry Data Scrubber 확인.</li></ul>
+  <details><summary>최초 실행 장애와 RED 테스트 기록 — 현재 상태가 아닌 이력</summary>
   <h1>B-P4 PR 3 인증 로깅 작업 체크포인트</h1>
   <p>2026-10-07 KST. 구현 완료 보고가 아닌, 실행 장애 및 회귀 테스트 재현 기록이다.</p>
   <p class="status">진행 상태: 구현 작업자 실행 차단. 제품 코드 변경·독립 리뷰·PR 생성·머지·배포는 하지 않았다. 추가 사용자 승인이 부족한 상태가 아니다.</p>
@@ -48,5 +136,6 @@
     <li>구현 반대 공급자 Claude Opus 5.5/high의 제한된 읽기 전용 독립 리뷰 및 지적 재검증.</li>
     <li>문서 갱신·커밋·PR 생성·CI 확인. PR 머지는 별도 사용자 승인 후 실행.</li>
   </ul>
+  </details>
 </body>
 </html>

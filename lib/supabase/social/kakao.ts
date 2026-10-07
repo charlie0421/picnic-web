@@ -1,11 +1,11 @@
 /**
  * Kakao 소셜 로그인 구현
- * 
+ *
  * 이 파일은 Kakao OAuth를 통한 인증 구현을 담당합니다.
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { Database } from '@/types/supabase';
 import {
   SocialAuthOptions,
@@ -25,7 +25,7 @@ export function getKakaoConfig(): OAuthProviderConfig {
     clientSecretEnvKey: 'KAKAO_CLIENT_SECRET',
     defaultScopes: [
       'account_email',
-      'profile_image', 
+      'profile_image',
       'profile_nickname'
     ],
     additionalConfig: {
@@ -45,7 +45,7 @@ export function getKakaoConfig(): OAuthProviderConfig {
 
 /**
  * Kakao 로그인 구현
- * 
+ *
  * @param supabase Supabase 클라이언트
  * @param options 인증 옵션
  * @returns 인증 결과
@@ -58,7 +58,7 @@ export async function signInWithKakaoImpl(
     // 설정값 준비
     const config = getKakaoConfig();
     const scopes = options?.scopes || config.defaultScopes;
-    
+
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치)
     let chosenForReturn: string | undefined;
     if (typeof window !== 'undefined') {
@@ -68,57 +68,45 @@ export async function signInWithKakaoImpl(
       chosenForReturn = suppliedReturn || queryReturnTo || window.location.pathname;
       try { localStorage.setItem('auth_return_url', chosenForReturn); } catch {}
     }
-    
+
     // Kakao 특화 파라미터
     const kakaoParams: Record<string, string> = {
       prompt: (config.additionalConfig as any)?.prompt || 'login consent',
       ...options?.additionalParams
     };
-    
+
     // service_terms가 존재하는 경우에만 추가
     if (options?.additionalParams?.service_terms) {
       kakaoParams.service_terms = options.additionalParams.service_terms;
     }
-    
+
     // 중복 제거된 고유 scope 생성 및 디버깅
     const uniqueScopes = Array.from(new Set(scopes));
     const finalScopeString = uniqueScopes.join(' ');
-    
+
     // 현재 도메인 기반 콜백 URL 생성 (모든 환경 동일)
-    const redirectUrl = typeof window !== 'undefined' 
+    const redirectUrl = typeof window !== 'undefined'
       ? `${window.location.origin}/auth/callback/kakao`
       : options?.redirectUrl;
-    
+
     // 디버깅: OAuth 설정 확인
-    console.log('🔍 Kakao OAuth Debug:', {
-      redirectUrl,
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      originalScopes: scopes,
-      uniqueScopes: uniqueScopes,
-      finalScopeString: finalScopeString
-    });
-    
+
+
     const clientId = config.clientId;
     if (!clientId) {
       throw new Error('Kakao Client ID가 설정되지 않았습니다.');
     }
-    
+
     let targetRedirectUrl = redirectUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.picnic.fan'}/auth/callback/kakao`;
     if (chosenForReturn) {
       const hasQuery = targetRedirectUrl.includes('?');
       const sep = hasQuery ? '&' : '?';
       targetRedirectUrl = `${targetRedirectUrl}${sep}returnTo=${encodeURIComponent(chosenForReturn)}`;
     }
-    
-    console.log('🚀 Kakao OAuth 시도:', {
-      targetRedirectUrl,
-      origin: typeof window !== 'undefined' ? window.location.origin : 'unknown'
-    });
-    
-    console.log('🚀 Kakao OAuth 시도 (Supabase 표준):', {
-      redirectUri: targetRedirectUrl,
-      scopes: finalScopeString
-    });
+
+
+
+
 
     // 🎯 Supabase 표준 OAuth 사용 (PKCE 자동 처리)
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -128,9 +116,9 @@ export async function signInWithKakaoImpl(
         scopes: finalScopeString
       }
     });
-    
+
     if (error) {
-      logError('❌ Supabase Kakao OAuth 오류:', error);
+      logSafeError('auth.social.kakao.failed', error);
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
         `Supabase Kakao OAuth 실패: ${error.message}`,
@@ -138,15 +126,15 @@ export async function signInWithKakaoImpl(
         error
       );
     }
-    
-    console.log('✅ Kakao OAuth 리디렉션 성공:', data);
-    
+
+
+
     return {
       success: true,
       provider: 'kakao',
       message: 'Kakao 로그인 리디렉션 중...'
     };
-    
+
   } catch (error) {
     // anti-abuse rate-limited (precheck 차단) 는 caller (UI) 가 dialog 표시.
     if (error instanceof AntiAbuseError) {
@@ -168,7 +156,7 @@ export async function signInWithKakaoImpl(
 
 /**
  * Kakao 프로필 정보 정규화
- * 
+ *
  * @param profile Kakao API에서 반환된 프로필 정보
  * @returns 표준화된 사용자 프로필 정보
  */
@@ -176,7 +164,7 @@ export function normalizeKakaoProfile(profile: any): Record<string, any> {
   // Kakao 프로필 정보는 주로 properties와 kakao_account 객체에 포함되어 있음
   const kakaoAccount = profile.kakao_account || {};
   const properties = profile.properties || {};
-  
+
   return {
     id: profile.id?.toString() || '',
     name: properties.nickname || '',
@@ -198,7 +186,7 @@ export function normalizeKakaoProfile(profile: any): Record<string, any> {
 /**
  * 액세스 토큰으로 Kakao 사용자 정보 가져오기
  * (서버 측에서 사용하는 함수)
- * 
+ *
  * @param accessToken Kakao 액세스 토큰
  * @returns Kakao 사용자 프로필 정보
  */
@@ -211,15 +199,15 @@ export async function getKakaoUserInfo(accessToken: string): Promise<Record<stri
         'Content-Type': 'application/json'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Kakao API 요청 실패: ${response.status} ${response.statusText}`);
     }
-    
+
     const userData = await response.json();
     return userData;
   } catch (error) {
-    logError('Kakao 사용자 정보 가져오기 실패:', error);
+    logSafeError('auth.social.kakao.failed', error);
     throw new SocialAuthError(
       SocialAuthErrorCode.PROFILE_FETCH_FAILED,
       '카카오 사용자 정보를 가져오는데 실패했습니다.',
@@ -232,7 +220,7 @@ export async function getKakaoUserInfo(accessToken: string): Promise<Record<stri
 /**
  * Kakao 액세스 토큰 갱신
  * (서버 측에서 사용하는 함수)
- * 
+ *
  * @param refreshToken Kakao 리프레시 토큰
  * @returns 새로운 토큰 정보
  */
@@ -240,11 +228,11 @@ export async function refreshKakaoToken(refreshToken: string): Promise<Record<st
   try {
     const config = getKakaoConfig();
     const clientId = config.clientId;
-    
+
     if (!clientId) {
       throw new Error('Kakao Client ID가 설정되지 않았습니다.');
     }
-    
+
     const response = await fetch('https://kauth.kakao.com/oauth/token', {
       method: 'POST',
       headers: {
@@ -256,20 +244,20 @@ export async function refreshKakaoToken(refreshToken: string): Promise<Record<st
         refresh_token: refreshToken
       })
     });
-    
+
     if (!response.ok) {
       throw new Error(`토큰 갱신 실패: ${response.status} ${response.statusText}`);
     }
-    
+
     const tokenData = await response.json();
     return tokenData;
   } catch (error) {
-    logError('Kakao 토큰 갱신 실패:', error);
+    logSafeError('auth.social.kakao.failed', error);
     throw new SocialAuthError(
-      SocialAuthErrorCode.TOKEN_REFRESH_FAILED, 
+      SocialAuthErrorCode.TOKEN_REFRESH_FAILED,
       '카카오 토큰 갱신에 실패했습니다.',
       'kakao',
       error
     );
   }
-} 
+}

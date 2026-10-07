@@ -1,8 +1,9 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 
-export async function GET() {
+export const GET = withSafeErrors('auth.session.get.unhandled', async function GET() {
   try {
     const user = await getServerUser();
 
@@ -24,10 +25,10 @@ export async function GET() {
       },
     });
   } catch (error) {
-    logError('[/api/auth/session] error:', error);
+    logSafeError('auth.session.failed', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred.' },
       { status: 500 }
     );
   }
-} 
+});

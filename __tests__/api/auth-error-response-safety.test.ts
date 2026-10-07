@@ -86,6 +86,35 @@ describe('auth failures do not expose provider exception details in HTTP respons
     expect(JSON.stringify(body)).not.toContain(PRIVATE_DETAIL);
   });
 
+  it('register records a provider failure without printing private details', async () => {
+    const output: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((...values) => output.push(values.map((value) => typeof value === 'string' ? value : JSON.stringify(value)).join(' ')));
+    auth.signUp.mockResolvedValue({ data: { user: null, session: null }, error: new Error(PRIVATE_DETAIL) });
+    await register(registration());
+    expect(output.join('\n')).not.toContain(PRIVATE_DETAIL);
+    expect(output.join('\n')).toContain('auth.register.signup.failed');
+  });
+
+  it('register contains an unreadable thrown value in its catch handler', async () => {
+    const hostile = new Proxy({}, {
+      getPrototypeOf: () => { throw new Error(PRIVATE_DETAIL); },
+      get: () => { throw new Error(PRIVATE_DETAIL); },
+    });
+    auth.createClient.mockRejectedValue(hostile);
+    const response = await register(registration());
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(await response.json())).not.toContain(PRIVATE_DETAIL);
+  });
+
+  it('logout boundary contains a failure thrown by its catch handler', async () => {
+    const hostile = new Proxy({}, { getPrototypeOf: () => { throw new Error(PRIVATE_DETAIL); } });
+    auth.signOut.mockRejectedValue(hostile);
+    const response = await logout(logoutRequest());
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(await response.json())).not.toContain(PRIVATE_DETAIL);
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(PRIVATE_DETAIL);
+  });
+
   it('register still returns the successful auth result', async () => {
     const result = { user: { id: 'test-user' }, session: { access_token: 'authorized-session-token' } };
     auth.signUp.mockResolvedValue({ data: result, error: null });

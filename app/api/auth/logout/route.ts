@@ -1,12 +1,13 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 /**
  * Server-side Logout API Endpoint
- * 
+ *
  * This endpoint handles server-side session invalidation and cleanup
  * when users log out from the Picnic application.
  */
 
 import { NextResponse, NextRequest } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { SupabaseAuthError } from '@/lib/supabase/error';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
@@ -93,7 +94,7 @@ function isSameSiteRequest(request: NextRequest): boolean {
   return false;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('auth.logout.post.unhandled', async function POST(request: NextRequest) {
   try {
     // SECURITY: CSRF / cross-site origin guard. Without this, a third-party site
     // could submit a form / fetch to /api/auth/logout and forcibly log the user out.
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       // 로컬 로그아웃 실패는 거의 발생하지 않지만, 발생해도 쿠키 정리는 계속 진행
-      console.warn('[/api/auth/logout] Supabase local signOut warning:', error);
+      logSafeError('auth.logout.signout.failed', error);
     }
 
     // 추가적으로 흔히 남는 인증 관련 쿠키들을 정리 (보강)
@@ -206,21 +207,21 @@ export async function POST(request: NextRequest) {
     } catch {}
     return response;
   } catch (error) {
-    logError('[/api/auth/logout] error:', error);
+    logSafeError('auth.logout.failed', error);
     const status = error instanceof SupabaseAuthError ? error.status : 500;
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Logout failed' },
+      { error: 'Logout failed' },
       { status }
     );
   }
-}
+});
 
 /**
  * GET /api/auth/logout
- * 
+ *
  * Returns logout status and debugging information
  */
-export async function GET(request: NextRequest) {
+export const GET = withSafeErrors('auth.logout.get.unhandled', async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const debug = url.searchParams.get('debug') === 'true';
@@ -241,13 +242,13 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logError('로그아웃 상태 조회 중 오류:', error);
+    logSafeError('auth.logout.status.failed', error);
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다.' },
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * OPTIONS /api/auth/logout
@@ -263,7 +264,7 @@ export async function GET(request: NextRequest) {
  * Including `Vary: Origin` is required so caches don't serve a response keyed
  * for one origin to another origin.
  */
-export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
+export const OPTIONS = withSafeErrors('auth.logout.options.unhandled', async function OPTIONS(request: NextRequest): Promise<NextResponse> {
   const headers: Record<string, string> = {
     'Allow': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -283,4 +284,4 @@ export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
     status: 204,
     headers,
   });
-}
+});

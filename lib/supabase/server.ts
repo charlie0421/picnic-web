@@ -1,9 +1,10 @@
+import { logSafeError } from '@/utils/log-safe-error';
 import type { Database } from '@/types/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies, headers } from 'next/headers'
 import { SupabaseAuthError } from './error'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, AuthSessionMissingError } from '@supabase/supabase-js'
 
 function resolveCookieDomain(hostname: string | null | undefined) {
   if (!hostname) return undefined;
@@ -136,13 +137,15 @@ export async function getServerUser() {
     } = await supabase.auth.getUser();
 
     if (error) {
-      console.warn(`[Auth] Supabase getUser error: ${error.message}`);
+      if (!(error instanceof AuthSessionMissingError)) {
+        logSafeError('auth.server.get_user.failed', error);
+      }
       return null;
     }
 
     return user;
   } catch (error) {
-    console.error('[Auth] Unexpected error in getServerUser:', error);
+    logSafeError('auth.server.get_user.failed', error);
     return null;
   }
 }
@@ -180,7 +183,7 @@ export async function isWithdrawnUser(
   if (error) {
     // 프로필 행이 아직 없는 신규 가입자(PGRST116)는 탈퇴가 아니다 — 조회 실패와 구분한다
     if ((error as { code?: string }).code === 'PGRST116') return false;
-    console.warn(`[Auth] Failed to check user withdrawal status: ${error.message}`);
+    logSafeError('auth.server.withdrawal_check.failed', error, { errorCode: error.code });
     return options.failClosed === true;
   }
 
@@ -216,4 +219,4 @@ export async function withAuthAndWithdrawalCheck<T>(
   }
 
   return callback(user.id);
-} 
+}

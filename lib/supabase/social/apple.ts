@@ -5,7 +5,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { Database } from "@/types/supabase";
 import {
   AuthResult,
@@ -97,7 +97,7 @@ export async function signInWithAppleImpl(
       try { localStorage.setItem("auth_return_url", chosenForReturn); } catch {}
     }
 
-    console.log("✅ 표준 Supabase Apple OAuth 시작");
+
 
     // 현재 브라우저 origin 우선 사용 (개발/프로덕션 모두)
     const baseUrl = typeof window !== "undefined"
@@ -115,15 +115,10 @@ export async function signInWithAppleImpl(
       },
     });
 
-    console.log("🍎 Apple OAuth 설정:", {
-      redirectTo: redirectTo,
-      currentOrigin: window.location.origin,
-      nodeEnv: process.env.NODE_ENV,
-      siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
-    });
+
 
     if (error) {
-      logError("❌ Supabase Apple OAuth 오류:", error);
+      logSafeError('auth.social.apple.failed', error);
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
         error.message,
@@ -132,7 +127,7 @@ export async function signInWithAppleImpl(
       );
     }
 
-    console.log("✅ Supabase Apple OAuth 성공, 리다이렉션 중...");
+
 
     return {
       success: true,
@@ -196,7 +191,7 @@ export function parseAppleIdentityToken(idToken: string): Record<string, any> {
     const decodedPayload = Buffer.from(payload, "base64").toString("utf8");
     return JSON.parse(decodedPayload);
   } catch (error) {
-    logError("Apple ID 토큰 파싱 오류:", error);
+    logSafeError('auth.social.apple.failed', error);
     return {};
   }
 }
@@ -243,14 +238,8 @@ export function normalizeAppleProfile(
 export async function generateAppleClientSecret(): Promise<string | null> {
   // 참고: 이 함수는 서버 측에서만 사용해야 합니다.
   // 클라이언트에서 사용 시 API를 통해 서버에 요청해야 합니다.
-  console.warn(
-    "generateAppleClientSecret 함수는 서버 측에서만 사용해야 합니다.",
-  );
-
   if (typeof window !== "undefined") {
-    logError(
-      "보안상의 이유로 클라이언트에서 Apple 클라이언트 시크릿을 생성할 수 없습니다.",
-    );
+    logSafeError('auth.social.apple.failed', undefined);
     return null;
   }
 
@@ -259,7 +248,7 @@ export async function generateAppleClientSecret(): Promise<string | null> {
     // Next.js API 라우트 또는 서버 액션에서 사용하는 것이 적합합니다.
     return null;
   } catch (error) {
-    logError("Apple 클라이언트 시크릿 생성 오류:", error);
+    logSafeError('auth.social.apple.failed', error);
     return null;
   }
 }

@@ -5,7 +5,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { Database } from "@/types/supabase";
 import {
   AuthResult,
@@ -15,7 +15,7 @@ import {
   SocialAuthOptions,
 } from "./types";
 import { securityUtils } from "@/utils/auth-redirect";
-import { logAuth, AuthLog } from "@/utils/auth-logger";
+
 import { AntiAbuseError } from "@/lib/anti-abuse/handler";
 
 /**
@@ -51,11 +51,11 @@ export async function signInWithGoogleImpl(
   options?: SocialAuthOptions,
 ): Promise<AuthResult> {
   try {
-    console.log("🔍 signInWithGoogleImpl 함수 시작");
+
 
     // 설정값 준비
     const config = getGoogleConfig();
-    console.log("🔍 Google 설정 로드 완료:", config);
+
 
     // 리다이렉트 URL 결정 (현재 브라우저 origin 우선 사용)
     let redirectUrl = options?.redirectUrl;
@@ -78,14 +78,7 @@ export async function signInWithGoogleImpl(
 
     const scopes = options?.scopes || config.defaultScopes;
 
-    console.log("🔍 Google OAuth 시작:", {
-      redirectUrl,
-      nodeEnv: process.env.NODE_ENV,
-      siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
-      currentOrigin: typeof window !== "undefined"
-        ? window.location.origin
-        : "server",
-    });
+
 
     // 로컬 스토리지에 리다이렉트 URL 저장 (콜백 후 되돌아올 위치) 및 redirectTo에 쿼리로 포함
     let chosenForReturn: string | undefined;
@@ -98,12 +91,8 @@ export async function signInWithGoogleImpl(
         || sessionStorage.getItem('redirectUrl')
         || undefined;
 
-      console.log("🔍 로컬 스토리지 정보:", {
-        queryReturnTo,
-        storedAuthReturn,
-        storedRedirect,
-      });
-      
+
+
       const candidates = [
         options?.additionalParams?.return_url,
         queryReturnTo,
@@ -121,7 +110,7 @@ export async function signInWithGoogleImpl(
       }
       chosenForReturn = chosen;
       localStorage.setItem("auth_return_url", chosenForReturn);
-      logAuth(AuthLog.SaveReturnUrl, { chosen: chosenForReturn });
+
     }
 
     // Google 특화 추가 파라미터
@@ -135,9 +124,9 @@ export async function signInWithGoogleImpl(
       ...options?.additionalParams,
     };
 
-    console.log("🔍 Google OAuth 파라미터:", googleParams);
-    logAuth(AuthLog.OAuthParams, googleParams);
-    logAuth(AuthLog.OAuthStart);
+
+
+
 
     // Google은 등록된 redirect_uri와의 완전 일치가 요구되므로
     // redirect_uri(redirectTo)에는 쿼리를 추가하지 않는다. 복귀 주소는 쿠키/스토리지로 복구한다.
@@ -153,11 +142,11 @@ export async function signInWithGoogleImpl(
       },
     });
 
-    console.log("🔍 Supabase signInWithOAuth 호출 완료, error:", error);
-    logAuth(AuthLog.OAuthRedirect, { error: error?.message || null });
+
+
 
     if (error) {
-      logError("❌ Google OAuth 오류:", error);
+      logSafeError('auth.social.google.failed', error);
       throw new SocialAuthError(
         SocialAuthErrorCode.AUTH_PROCESS_FAILED,
         `Google 로그인 프로세스 실패: ${error.message}`,
@@ -166,7 +155,7 @@ export async function signInWithGoogleImpl(
       );
     }
 
-    console.log("✅ Google OAuth 리다이렉션 시작");
+
 
     // OAuth 리디렉션으로 인해 이 함수는 여기까지만 실행되고 리디렉션됨
     // 리디렉션 후 콜백 처리는 callback 핸들러에서 수행
@@ -176,7 +165,7 @@ export async function signInWithGoogleImpl(
       message: "Google 로그인 리디렉션 중...",
     };
   } catch (error) {
-    logError("🔍 signInWithGoogleImpl 오류:", error);
+    logSafeError('auth.social.google.failed', error);
 
     // anti-abuse rate-limited (precheck 차단) 는 caller (UI) 가 dialog 표시.
     // SocialAuthError 로 감싸지 말고 그대로 throw.
@@ -255,7 +244,7 @@ export function parseGoogleIdToken(idToken: string): Record<string, any> {
     const decoded = Buffer.from(payload, "base64").toString("utf8");
     return JSON.parse(decoded);
   } catch (error) {
-    logError("Google ID 토큰 파싱 오류:", error);
+    logSafeError('auth.social.google.failed', error);
     return {};
   }
 }
