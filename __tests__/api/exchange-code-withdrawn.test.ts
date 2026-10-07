@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   invoke: vi.fn(() => Promise.resolve({})),
 }));
 
-vi.mock('@/utils/log-error', () => ({ logError: vi.fn() }));
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined, set: () => {} }) }));
 vi.mock('@/lib/supabase/social/service', () => ({ getSocialAuthService: () => ({ handleCallback: async () => ({ success: true }) }) }));
 vi.mock('@supabase/ssr', () => ({

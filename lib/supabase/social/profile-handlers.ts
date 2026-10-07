@@ -1,5 +1,5 @@
 import { SupabaseClient, User } from "@supabase/supabase-js";
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { Database } from "@/types/supabase";
 
 /**
@@ -60,7 +60,7 @@ async function insertProfileIfMissing(
     .maybeSingle();
 
   if (checkError) {
-    logError(`${logPrefix} 기존 프로필 확인 오류:`, checkError);
+    logSafeError('auth.social.profile_handlers.failed', checkError);
     return;
   }
 
@@ -78,7 +78,7 @@ async function insertProfileIfMissing(
   });
 
   if (insertError) {
-    logError(`${logPrefix} 프로필 생성 실패:`, insertError);
+    logSafeError('auth.social.profile_handlers.failed', insertError);
   }
 }
 
@@ -103,7 +103,7 @@ export async function handleGoogleProfile(
     });
   } catch (error) {
     // 프로필 처리 실패해도 로그인 자체는 성공으로 처리한다.
-    logError("Google 프로필 처리 오류:", error);
+    logSafeError('auth.social.profile_handlers.failed', error);
   }
 }
 
@@ -129,7 +129,7 @@ export async function handleAppleProfile(
           [parsed.name?.firstName, parsed.name?.lastName].filter(Boolean).join(" ") ||
           undefined;
       } catch (error) {
-        logError("🍎 [Apple] 사용자 데이터 파싱 오류:", error);
+        logSafeError('auth.social.profile_handlers.failed', error);
       }
     }
 
@@ -139,6 +139,6 @@ export async function handleAppleProfile(
       avatarUrl: null,
     });
   } catch (error) {
-    logError("🍎 [Apple] 프로필 처리 오류:", error);
+    logSafeError('auth.social.profile_handlers.failed', error);
   }
 }

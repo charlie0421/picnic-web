@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** /api/auth/session 은 탈퇴(또는 확인 불가) 계정에 사용자 정보를 주지 않는다. */
 const mocks = vi.hoisted(() => ({ withdrawn: false, isWithdrawnUser: vi.fn() }));
-vi.mock('@/utils/log-error', () => ({ logError: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({
   getServerUser: async () => ({ id: 'user-1', email: 'a@b.c' }),
   isWithdrawnUser: mocks.isWithdrawnUser,

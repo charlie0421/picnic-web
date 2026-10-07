@@ -1,3 +1,4 @@
+import { logSafeError } from '@/utils/log-safe-error';
 import { SupabaseClient, User } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
@@ -56,7 +57,7 @@ export async function handleCallbackImpl(
   params: Record<string, string> | undefined,
   helpers: CallbackHelpers,
 ): Promise<AuthResult> {
-  helpers.log(`${provider} 콜백 처리`, params);
+
 
   try {
     // SECURITY: The previous implementation also accepted access_token / refresh_token
@@ -71,13 +72,13 @@ export async function handleCallbackImpl(
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const code = params?.code || searchParams?.get('code');
     if (code) {
-      helpers.log(`${provider} OAuth Code 발견, exchangeCodeForSession 시도`);
+
 
       try {
         const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
         if (!exchangeError && exchangeData?.session) {
-          helpers.log(`${provider} Code Exchange 성공! 즉시 완료`);
+
 
           cleanCallbackUrl(["code", "state"]);
           await runProfileHandlers(supabase, provider, exchangeData.session.user, params, helpers);
@@ -90,15 +91,15 @@ export async function handleCallbackImpl(
             `${provider} 로그인 성공 (Code Exchange)`,
           );
         } else {
-          helpers.log(`${provider} Code Exchange 실패:`, exchangeError?.message);
+
         }
       } catch (codeExchangeError) {
-        helpers.log(`${provider} Code Exchange 오류:`, (codeExchangeError as Error)?.message);
+
       }
     }
 
     // 폴백: 기존 사용자 확인 (getUser()로 빠른 처리)
-    helpers.log(`${provider} Code Exchange 실패/불가 - 기존 사용자 확인으로 폴백`);
+
 
     // 먼저 빠른 사용자 체크 (getUser()는 getSession()보다 빠름)
     let userData: { user: User | null } | null = null;
@@ -118,20 +119,16 @@ export async function handleCallbackImpl(
       userData = result.data;
       userError = result.error;
 
-      helpers.log(`${provider} 사용자 확인 결과`, {
-        hasData: !!userData,
-        hasUser: !!userData?.user,
-        hasError: !!userError
-      });
+
 
     } catch (timeoutError) {
-      helpers.log(`${provider} getUser 타임아웃 (300ms) - Supabase 자동 처리로 전환`);
+
       userError = timeoutError;
     }
 
     if (userError || !userData?.user) {
       // Supabase의 자동 콜백 처리 시도 (더 짧은 대기)
-      helpers.log(`${provider} Supabase 자동 콜백 처리 시도`);
+
 
       // 짧은 대기 후 다시 사용자 확인 (300ms로 단축)
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -155,7 +152,7 @@ export async function handleCallbackImpl(
         retryError = retryResult.error;
 
       } catch (retryTimeoutError) {
-        helpers.log(`${provider} 재시도 getUser도 타임아웃 - 페이지 새로고침 안내`);
+
         retryError = retryTimeoutError;
       }
 
@@ -170,7 +167,7 @@ export async function handleCallbackImpl(
 
       // 재시도로 사용자를 얻었다면 프로필 처리 진행 (세션은 쿠키에 저장되어 있음)
       if (retryData.user) {
-        helpers.log(`${provider} 재시도로 사용자 확인 성공`);
+
 
         // SECURITY: We deliberately pass only `User` (no fabricated `Session`).
         // The previous code synthesized a session with `access_token: 'token-from-cookie'`
@@ -190,7 +187,7 @@ export async function handleCallbackImpl(
 
     if (!userData?.user) {
       // 최후의 수단: 페이지 새로고침 후 사용자 확인 요청
-      helpers.log(`${provider} 사용자가 없음 - 페이지 새로고침 필요`);
+
 
       throw new SocialAuthError(
         SocialAuthErrorCode.CALLBACK_FAILED,
@@ -199,7 +196,7 @@ export async function handleCallbackImpl(
       );
     }
 
-    helpers.log(`${provider} 기존 사용자 확인 성공`);
+
 
     // SECURITY: Pass only `User` (no fabricated `Session`). See note above re: cookie path.
     await runProfileHandlers(supabase, provider, userData.user, params, helpers);
@@ -212,7 +209,7 @@ export async function handleCallbackImpl(
       `${provider} 로그인 성공`,
     );
   } catch (error) {
-    helpers.logError(`${provider} 콜백 처리 오류`, error);
+    logSafeError('auth.social.callback_handler.failed', error);
 
     if (error instanceof SocialAuthError) {
       return {

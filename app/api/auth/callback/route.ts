@@ -1,5 +1,6 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '@/config/settings';
@@ -39,7 +40,7 @@ function extractLangFromPath(path: string | null | undefined): string | null {
     : null;
 }
 
-export async function GET(request: Request) {
+export const GET = withSafeErrors('auth.callback.get.unhandled', async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const { searchParams } = requestUrl;
   const canonicalOrigin = resolveCanonicalOrigin(requestUrl);
@@ -104,13 +105,13 @@ export async function GET(request: Request) {
             .maybeSingle();
 
           if (profileError || profile?.deleted_at) {
-            console.warn('🗑️ [Auth Callback] 탈퇴 계정 로그인 차단:', { userId });
+            if (profileError) logSafeError('auth.callback.withdrawal.failed', profileError);
 
             // 세션 즉시 종료 (쿠키 삭제까지 포함)
             try {
               await supabase.auth.signOut();
             } catch (signOutError) {
-              console.warn('⚠️ [Auth Callback] signOut 중 오류:', signOutError);
+              logSafeError('auth.callback.signout.failed', signOutError);
             }
 
             // 로그인 페이지는 /[lang]/login 구조이므로 lang prefix 필요
@@ -151,10 +152,7 @@ export async function GET(request: Request) {
             return withdrawnResponse;
           }
         } catch (withdrawalCheckError) {
-          logError(
-            '❌ [Auth Callback] 탈퇴 여부 확인 중 오류:',
-            withdrawalCheckError,
-          );
+          logSafeError('auth.callback.withdrawal.failed', withdrawalCheckError);
           // 안전 측면에서 확인 실패 시에는 로그인 진행 (기존 동작 유지)
         }
       }
@@ -173,4 +171,4 @@ export async function GET(request: Request) {
   );
 
   return NextResponse.redirect(errorRedirectUrl);
-}
+});

@@ -1,5 +1,6 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAppleIdentityToken, normalizeAppleProfile } from '@/lib/supabase/social/apple';
 
@@ -9,7 +10,7 @@ interface AppleAuthRequest {
   state?: string;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('auth.apple.post.unhandled', async function POST(request: NextRequest) {
   try {
     const body: AppleAuthRequest = await request.json();
     const { id_token, user, state } = body;
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     try {
       tokenPayload = await verifyAppleIdentityToken(id_token);
     } catch (verifyError) {
-      logError('[Apple API] ID 토큰 서명 검증 실패:', verifyError);
+      logSafeError('auth.apple.token_verify.failed', verifyError);
       return NextResponse.json(
         { error: 'Apple ID 토큰 검증 실패' },
         { status: 401 }
@@ -43,7 +44,6 @@ export async function POST(request: NextRequest) {
     // Apple 프로필 정보 정규화
     const userProfile = normalizeAppleProfile(tokenPayload, user);
 
-    console.log('🍎 [Apple API] 프로필 정규화 완료:', userProfile);
 
     return NextResponse.json({
       success: true,
@@ -58,10 +58,10 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    logError('🍎 [Apple API] 에러:', error);
+    logSafeError('auth.apple.failed', error);
     return NextResponse.json(
       { error: '서버 내부 오류가 발생했습니다' },
       { status: 500 }
     );
   }
-}
+});

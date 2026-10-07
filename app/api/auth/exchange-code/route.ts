@@ -1,12 +1,13 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getSocialAuthService } from '@/lib/supabase/social/service';
 
 // 모든 OAuth 제공자 동일 처리: 간단하고 일관된 Supabase 표준 OAuth
 
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('auth.exchange_code.post.unhandled', async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { code, provider, user, id_token, state } = body;
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     // 서버사이드 Supabase 클라이언트 생성
     const cookieStore = await cookies();
-    
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       // SECURITY: never echo Supabase auth error details to clients —
       // they leak project metadata and internal state useful to attackers.
-      logError('❌ [API] OAuth 코드 교환 실패:', error);
+      logSafeError('auth.exchange_code.exchange.failed', error);
       return NextResponse.json(
         { error: 'OAuth 코드 교환 실패', success: false },
         { status: 400 }
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         .eq('id', sessionUserId)
         .maybeSingle();
       if (profileError || profile?.deleted_at) {
-        if (profileError) logError('[API] exchange-code 탈퇴 여부 조회 실패:', profileError);
+        if (profileError) logSafeError('auth.exchange_code.withdrawal.failed', profileError);
         try {
           await supabase.auth.signOut();
         } catch {
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
       try {
         // SocialAuthService를 통한 프로필 처리
         const socialAuthService = getSocialAuthService(supabase);
-        
+
         // Apple 특화 파라미터 준비
         const callbackParams: Record<string, string> = {};
         if (provider === 'apple') {
@@ -104,18 +105,18 @@ export async function POST(request: NextRequest) {
           if (id_token) callbackParams.id_token = id_token;
           if (state) callbackParams.state = state;
         }
-        
+
         // 콜백 처리 (프로필 생성/업데이트)
         const callbackResult = await socialAuthService.handleCallback(
           provider as any,
           callbackParams
         );
-        
+
         if (!callbackResult.success) {
-          logError(`[API] ${provider} 프로필 처리 실패:`, callbackResult.error?.message);
+          logSafeError('auth.exchange_code.profile.failed', callbackResult.error);
         }
       } catch (profileError) {
-        logError(`[API] ${provider} 프로필 처리 중 오류:`, profileError);
+        logSafeError('auth.exchange_code.profile.failed', profileError);
         // 프로필 처리 실패해도 로그인 자체는 성공으로 처리
       }
     }
@@ -134,10 +135,10 @@ export async function POST(request: NextRequest) {
     // SECURITY: stack traces and raw error messages must not reach API
     // responses, even in development — client-side telemetry can capture
     // them and forward to third parties.
-    logError('[API] exchange-code 서버 오류:', error);
+    logSafeError('auth.exchange_code.failed', error);
     return NextResponse.json(
       { error: '서버 오류가 발생했습니다.', success: false },
       { status: 500 }
     );
   }
-}
+});

@@ -1,5 +1,6 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from "next/server";
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic"; // POST 요청이므로 항상 동적으
  * Supabase의 signInWithOAuth를 사용하여 Google OAuth URL을 생성하고
  * 클라이언트를 해당 URL로 리다이렉트합니다.
  */
-export async function GET(request: NextRequest) {
+export const GET = withSafeErrors('auth.google.get.unhandled', async function GET(request: NextRequest) {
   try {
     // 서버 측 Supabase 클라이언트 생성
     const supabase = createClient<Database>(
@@ -48,9 +49,9 @@ export async function GET(request: NextRequest) {
     });
 
     if (error) {
-      logError('Google OAuth 시작 실패:', error);
+      logSafeError('auth.google.start.failed', error);
       return NextResponse.json(
-        { error: `Google OAuth 시작 실패: ${error.message}` },
+        { error: 'Google OAuth 시작 실패' },
         { status: 400 }
       );
     }
@@ -65,13 +66,13 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } catch (error) {
-    logError('Google OAuth GET API 에러:', error);
+    logSafeError('auth.google.get.failed', error);
     return NextResponse.json(
       { error: '서버 내부 오류가 발생했습니다' },
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * Google OAuth 토큰 교환 API (POST)
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
  * 액세스 토큰과 사용자 정보를 가져오는 역할을 합니다.
  * 주로 Supabase 콜백 처리 이후 추가 작업이 필요한 경우 사용됩니다.
  */
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('auth.google.post.unhandled', async function POST(request: NextRequest) {
   try {
     const requestBody = await request.json();
     const { code, idToken } = requestBody;
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
           profile: userProfile,
         });
       } catch (error) {
-        logError('[Google API] ID 토큰 서명 검증 실패:', error);
+        logSafeError('auth.google.token_verify.failed', error);
         return NextResponse.json(
           { error: "ID 토큰 검증 실패" },
           { status: 401 }
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
     // 코드가 제공된 경우, Google API로 토큰 교환
     // 이 로직은 주로 Supabase가 처리하지 못하는 특수한 경우에만 필요합니다.
     // 일반적인 OAuth 흐름에서는 Supabase의 콜백 처리를 사용하는 것이 권장됩니다.
-    
+
     // 클라이언트 ID와 시크릿이 환경 변수에 설정되어 있어야 함
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -160,10 +161,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json();
-      logError('토큰 교환 실패:', errorData);
+      void tokenResponse.body?.cancel().catch(() => {});
+      logSafeError('auth.google.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
       return NextResponse.json(
-        { error: `토큰 교환 실패: ${errorData.error}` },
+        { error: '토큰 교환 실패' },
         { status: 400 }
       );
     }
@@ -182,8 +183,8 @@ export async function POST(request: NextRequest) {
     );
 
     if (!userInfoResponse.ok) {
-      const errorData = await userInfoResponse.json();
-      logError('사용자 정보 가져오기 실패:', errorData);
+      void userInfoResponse.body?.cancel().catch(() => {});
+      logSafeError('auth.google.userinfo.failed', new Error('Provider user info failed'), { httpStatus: userInfoResponse.status });
       return NextResponse.json(
         { error: "사용자 정보 가져오기 실패" },
         { status: 400 }
@@ -200,10 +201,10 @@ export async function POST(request: NextRequest) {
       profile: userProfile,
     });
   } catch (error) {
-    logError('Google OAuth POST API 에러:', error);
+    logSafeError('auth.google.post.failed', error);
     return NextResponse.json(
       { error: '서버 내부 오류가 발생했습니다' },
       { status: 500 }
     );
   }
-}
+});
