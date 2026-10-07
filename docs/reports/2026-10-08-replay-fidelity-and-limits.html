@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Replay F4·N2·N4 구현 및 검증</title><style>body{max-width:980px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182333}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;margin:18px 0}th,td{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}th:first-child,td:first-child{min-width:38px}code{background:#eef2f7;padding:2px 5px;overflow-wrap:anywhere}.status{padding:16px;background:#fff4d6;border-left:5px solid #d69719}li{margin:6px 0}</style></head><body>
+<h1>Replay F4·N2·N4 구현 및 검증</h1><p>2026-10-08 · 브랜치 <code>fix/replay-fidelity-and-limits</code> · 기준 main <code>5a30718ddd09e94bff162677eb5c63931030e0cc</code></p>
+<p class="status">구현과 로컬 검증을 완료했다. 독립 리뷰는 <code>capability-blocked</code> 상태다. 리뷰 통과와 머지 준비 완료를 주장하지 않는다. Draft PR로 전달하며 main 머지·운영 배포는 수행하지 않는다.</p>
+<h2>변경 동작</h2><table><thead><tr><th>항목</th><th>변경</th><th>보존 조건</th></tr></thead><tbody>
+<tr><td>F4</td><td>이스케이프된 슬래시가 있는 경로의 fragment 누락을 차단한다. 루트 경로와 상대 경로를 압축·비압축 recording에서 검증했다.</td><td>CSS 클래스·ID 선택자의 이스케이프를 구분한다. 기존 <code>.w-1\/2</code> 선택자와 hex 색상 보존 테스트가 통과했다.</td></tr>
+<tr><td>N2</td><td>CSS <code>url(#id)</code>와 확인된 SVG <code>use</code> 노드의 <code>href</code>·<code>xlink:href</code>를 보존한다. 외부 URL의 query·fragment는 계속 제거한다.</td><td>참조는 <code>#[a-zA-Z_][a-zA-Z0-9_-]{0,63}</code> 형식만 허용한다. SVG 노드 ID는 각 recording에서 확인한다. envelope 메타데이터는 SVG 대상의 근거로 쓰지 않는다.</td></tr>
+<tr><td>N4</td><td>큰 breadcrumb 전체를 버리는 대신 복사된 데이터와 기본 정보를 보존한다. 초과 부분은 <code>[Truncated]</code>로 표시한다. 객체에는 <code>_truncated</code> 표시를 남긴다.</td><td>값 10,000개와 깊이 40 제한을 유지한다. 기본 category·type·level·timestamp·message를 먼저 복사한다. 복사 결과에 기존 scrubber를 적용한다. 원본 객체와 getter를 변경하거나 호출하지 않는다.</td></tr>
+</tbody></table>
+<h2>검증 결과</h2><table><thead><tr><th>검증</th><th>결과</th></tr></thead><tbody>
+<tr><td>실패 재현 → 수정</td><td>F4 루트·상대 경로, N2 내부 참조, N4 큰 배열·깊은 객체·희소 배열, SVG 메타데이터 오인 테스트가 수정 전에 실패했다. 관련 테스트 최종 54개가 통과했다.</td></tr>
+<tr><td><code>npm test</code></td><td>213개 파일 통과. 3,735개 통과, 기존 예상 실패 6개, 건너뜀 1개. 최종 실행 시작 2026-10-08 04:12:15 UTC / 13:12:15 KST, 실행 시간 20.13초.</td></tr>
+<tr><td><code>npx tsc --noEmit</code></td><td>통과. 타입 오류 출력 없음.</td></tr>
+<tr><td><code>npm run lint</code></td><td>통과. ESLint warning·error 없음. Next.js의 lint 명령 폐기 예정 안내와 workspace root 안내는 남아 있다.</td></tr>
+<tr><td><code>npm run test:envelope:browser</code></td><td>Production 모드 로컬 빌드와 Chromium 통과. 실제 잠금 버전 SDK 사용. 오류 1개, 트랜잭션 1개, Replay event 1개, 압축 recording 1개가 로컬 수신기에 도착했다. 앱 CSS 100,546바이트와 CSS declaration 내부 참조를 보존했다. 개인정보 테스트 문자열 유출 0건. 페이지 오류·외부 요청 차단·파싱 오류 0건.</td></tr>
+<tr><td>원본 보존·제한</td><td>원본 비변경, cycle, getter 미호출, 값 제한 경계, 객체 폭, 희소 배열, 깊이 초과 후 안전한 형제 값 보존 테스트 통과.</td></tr>
+<tr><td>작업 파일</td><td><code>git diff --check</code> 통과. 브라우저 fixture의 임시 app 라우트와 tsconfig·next-env 변경은 실행기에서 정리했다.</td></tr>
+</tbody></table>
+<h2>검증 중 발견한 사항</h2><ul>
+<li>첫 브라우저 검증의 SVG paint 참조 검사가 실패했다. <code>blockAllMedia</code>가 SVG 내용 자체를 기록하지 않기 때문이다. 이 설정을 유지했다. SVG 참조 보존은 단위 테스트로 검증하고, 브라우저에서는 기록되는 CSS declaration의 내부 참조를 검증했다. SVG 내용 차단도 확인했다.</li>
+<li>전체 테스트를 브라우저 fixture 설치 중에 병렬 실행해 <code>__tests__/scripts/envelope-test-routes.test.ts</code>의 “저장소의 app/ 에는 테스트용 라우트가 없다” 검사 1개가 실패했다. fixture 정리 후 순서대로 실행한 최종 전체 테스트는 통과했다.</li>
+<li>ESLint CLI 직접 호출은 저장소가 legacy 설정을 사용해 flat config 탐색에서 실패했다. 저장소의 공식 <code>npm run lint</code> 명령은 통과했다.</li>
+</ul>
+<h2>유지되는 제한</h2><ul>
+<li>SVG <code>href</code> 보존 대상은 확인된 <code>use</code> 노드다. 대상 정보가 없는 mutation과 다른 navigation 링크의 fragment는 제거한다. recording 간 노드 정보는 공유하지 않는다.</li>
+<li>내부 참조는 형식으로 제한한다. 실제 문서에 해당 ID가 존재하는지는 확인하지 않는다. 긴 ID, 점·공백·이스케이프가 있는 참조는 제거한다.</li>
+<li>SDK가 CSS 참조를 절대 URL로 변환한 경우 그 URL의 fragment는 제거한다. 절대 URL이 동일 문서를 가리키는지 추정하지 않는다.</li>
+<li>breadcrumb 제한은 값 개수·깊이와 복사 배열 크기에 대한 제한이다. 새 byte 제한을 추가하지 않았다. 불투명 객체는 기존 동작과 같이 SDK normalization에 맡긴다. 읽기·복사·정제 자체가 실패하면 breadcrumb를 버린다.</li>
+<li>Replay의 8 MiB·2초·200,000개 값·깊이 80 제한, maskAllText·maskAllInputs·blockAllMedia 설정은 유지한다.</li>
+<li>검증은 합성 데이터와 로컬 수신기로 수행했다. 운영 Sentry 저장·after flush·fingerprint 도착 증거는 이번 작업으로 확보하지 않았다.</li>
+</ul>
+<h2>독립 리뷰 대기</h2><p>Orca Run <code>run_430662d02492</code>의 최신 권한 검증에서 Claude read-only reviewer가 일반 Bash 명령을 실행할 수 있었다. 정확한 제한 권한을 보장하지 못하므로 review capability 차단을 유지한다. Codex IPC와 Gemini의 기존 차단도 유지한다. 별도 argv·직접 CLI·네이티브 하위 에이전트로 우회하지 않았다. 새 작업자를 생성하지 않았다.</p><p>차단이 해제되면 이번 diff·요구사항·관련 파일·검증 결과를 구현과 다른 공급자의 독립 리뷰어에게 전달해야 한다. 개인정보 정제 변경이므로 고위험 리뷰 조건을 유지한다. 이 보고서는 독립 리뷰 승인 증거가 아니다.</p>
+<h2>기존 예상 실패 6개</h2><ul>
+<li>PortOne: 서명 없는 READY 이벤트는 401이어야 한다.</li><li>PortOne: 공식 v2 봉투의 paymentId로 조회해야 한다.</li><li>PortOne: customData 지급량이 DB 상품과 다르면 적립하지 않아야 한다.</li><li>PortOne: verifyWebhookSignature는 표준 webhook 헤더를 받아야 한다.</li><li>PayPal: 다른 사용자의 주문은 capture 전에 403이어야 한다.</li><li>PayPal: 금액이 DB 상품과 다르면 capture 전에 거부해야 한다.</li>
+</ul><p>이 결제 결함은 이번 변경 범위에 포함하지 않았다.</p>
+</body></html>

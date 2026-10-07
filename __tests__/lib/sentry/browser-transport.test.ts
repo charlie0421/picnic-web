@@ -36,6 +36,9 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('Replay privacy transport', () => {
   it.each([
+    [String.raw`callback\/path#secret-opaque`, ''],
+    [String.raw`\2f callback#secret-opaque`, ''],
+    [String.raw`\/callback#secret-opaque`, ''],
     [String.raw`/callback\?code=secret-opaque`, ''],
     [String.raw`/callback\#secret-opaque`, ''],
     [String.raw`/callback\3f code=secret-opaque`, ''],
@@ -49,6 +52,36 @@ describe('Replay privacy transport', () => {
       expect(output).not.toBeNull();
       expect(decoded(output!)[0].data.payload.message).toBe(expected);
     }
+  });
+  it.each([false, true])('preserves bounded same-document SVG references, compressed=%s', async (compressed) => {
+    const input = [
+      { type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: 'use', isSVG: true,
+        attributes: { href: '#shape', 'xlink:href': '#shape', style: 'fill:url(#gradient);filter:url("#shadow");color:#fff' }, childNodes: [] } } },
+      { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 20, attributes: { href: '#shape-2' } }, { id: 21, attributes: { href: '#private-navigation' } }] } },
+    ];
+    const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+    const clean = decoded(output!);
+    expect(clean[0].data.node.attributes).toEqual({ href: '#shape', 'xlink:href': '#shape', style: 'fill:url("#gradient");filter:url("#shadow");color:#fff' });
+    expect(clean[1].data.attributes[0].attributes.href).toBe('#shape-2');
+    expect(clean[1].data.attributes[1].attributes.href).toBe('');
+  });
+  it('does not use envelope metadata as evidence for an SVG mutation target', async () => {
+    const input = envelope(false, [{ type: 3, timestamp: 1, data: { source: 0, attributes: [{ id: 20, attributes: { href: '#private-navigation' } }] } }] as never);
+    Object.assign(input[0], { fixture: { id: 20, tagName: 'use', isSVG: true } });
+    const output = await scrubReplayEnvelope(input);
+    expect(decoded(output!)[0].data.attributes[0].attributes.href).toBe('');
+  });
+  it('preserves SVG presentation attribute references without retaining opaque fragments', async () => {
+    const input = [{ type: 2, timestamp: 1, data: { node: { id: 30, type: 2, tagName: 'rect', isSVG: true,
+      attributes: { fill: 'url(#gradient)', stroke: 'url("#stroke")', filter: 'url(#shadow)', 'clip-path': 'url(#clip)', mask: 'url(#mask)', 'data-note': 'url(#private)' } } } }];
+    const output = await scrubReplayEnvelope(envelope(false, input as never));
+    expect(decoded(output!)[0].data.node.attributes).toEqual({ fill: 'url("#gradient")', stroke: 'url("#stroke")', filter: 'url("#shadow")', 'clip-path': 'url("#clip")', mask: 'url("#mask")', 'data-note': 'url("")' });
+  });
+  it('scrubs external and malformed SVG references while keeping a CSS local reference', async () => {
+    const input = [{ type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: 'use', isSVG: true,
+      attributes: { href: '/sprite.svg?code=secret#shape', 'xlink:href': '#Bearer secret', style: 'fill:url(#gradient);filter:url(/asset?code=secret#shadow);mask:url(#a.b.c)' } } } }];
+    const output = await scrubReplayEnvelope(envelope(false, input as never));
+    expect(decoded(output!)[0].data.node.attributes).toEqual({ href: '/sprite.svg', 'xlink:href': '', style: 'fill:url("#gradient");filter:url("/asset");mask:url("")' });
   });
   it('preserves CSS text mutation syntax while removing a root-relative URL query', async () => {
     const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value: '.w-1\\/2{background:url(/img?code=secret-css);color:#fff}' }] } }];

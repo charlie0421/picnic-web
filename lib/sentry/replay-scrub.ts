@@ -9,7 +9,8 @@ const QUERY_KEYS = new Set(['url.query', 'http.query', 'url.fragment', 'http.fra
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true });
 const cutUrl = (value: string) => value.split(/[?#]/, 1)[0];
-type Walk = { count: number; tripwire: boolean; deadline: number };
+const localReference = (value: string) => /^#[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(value);
+type Walk = { count: number; tripwire: boolean; deadline: number; svgUseIds: Set<number> };
 
 /** Preserve escaped selectors; consume URL/string tokens without regex backtracking. */
 function scrubCss(value: string, opaque = false): string {
@@ -50,7 +51,7 @@ function scrubCss(value: string, opaque = false): string {
       if (name.toLowerCase() !== 'url' || value[cursor] !== '(') {
         const raw = value.slice(start, cursor);
         output.push(raw);
-        remainder.push(escaped ? (opaque && /[?#]/.test(name) ? name : 'identifier') : raw);
+        remainder.push(escaped ? (opaque && ((name.includes('/') && value[start - 1] !== '.' && value[start - 1] !== '#') || /[?#]/.test(name)) ? name : 'identifier') : raw);
         continue;
       }
       cursor++;
@@ -64,7 +65,7 @@ function scrubCss(value: string, opaque = false): string {
       if (value[cursor] !== ')') return '';
       const url = value.slice(contentStart, token.end).trim();
       const unsafe = token.escaped || (!quote && /[('"\s]/.test(url));
-      output.push(`url(${JSON.stringify(unsafe ? '' : cutUrl(url))})`); remainder.push('url()');
+      output.push(`url(${JSON.stringify(unsafe ? '' : (!opaque && localReference(url) ? url : cutUrl(url)))})`); remainder.push('url()');
       cursor++;
     } else if (value[cursor] === '"' || value[cursor] === "'") {
       const quote = value[cursor++], start = cursor;
@@ -81,26 +82,28 @@ function scrubCss(value: string, opaque = false): string {
   return output.join('');
 }
 
-function scrubNode(value: unknown, state: Walk, key = '', css = false, depth = 0): unknown {
+function scrubNode(value: unknown, state: Walk, key = '', css = false, depth = 0, svgUse = false): unknown {
   if (++state.count > 200000 || depth > 80 || Date.now() > state.deadline) throw new Error('replay limits');
   if (typeof value === 'string') {
     let clean: string;
     if (key === 'srcdoc' || ((key === 'srcset' || key === 'imagesrcset') && /[?#]/.test(value))) clean = '';
-    else if (css || ['style', '_cssText', 'rule', 'replace', 'replaceSync'].includes(key)) clean = scrubCss(value);
-    else if (URL_KEYS.has(key)) clean = cutUrl(value);
+    else if (css || ['style', '_cssText', 'rule', 'replace', 'replaceSync', 'fill', 'stroke', 'filter', 'clip-path', 'mask'].includes(key)) clean = scrubCss(value);
+    else if (URL_KEYS.has(key)) clean = svgUse && (key === 'href' || key === 'xlink:href') && localReference(value) ? value : cutUrl(value);
     else if (/url\(|@import|\\/i.test(value)) clean = scrubCss(value, true);
     else clean = stripUrlQueries(value);
     const redacted = redactTokenShapes(clean);
     if (redacted !== clean) state.tripwire = true;
     return redacted;
   }
-  if (Array.isArray(value)) return value.map((child) => scrubNode(child, state, key, css, depth + 1));
+  if (Array.isArray(value)) return value.map((child) => scrubNode(child, state, key, css, depth + 1, svgUse));
   if (value && typeof value === 'object') {
     const bag = value as Record<string, unknown>;
+    if (bag.isSVG === true && bag.tagName === 'use' && Number.isSafeInteger(bag.id)) state.svgUseIds.add(bag.id as number);
+    const use = (bag.isSVG === true && bag.tagName === 'use') || (Number.isSafeInteger(bag.id) && state.svgUseIds.has(bag.id as number));
     const out: Record<string, unknown> = Object.create(null);
     const style = css || bag.tagName === 'style' || bag.isStyle === true || key === 'style' || (typeof bag.property === 'string' && 'value' in bag);
     for (const name of Object.keys(bag)) {
-      if (!QUERY_KEYS.has(name)) out[name] = scrubNode(bag[name], state, name, style, depth + 1);
+      if (!QUERY_KEYS.has(name)) out[name] = scrubNode(bag[name], state, name, style, depth + 1, name === 'attributes' ? use : svgUse);
     }
     return out;
   }
@@ -153,6 +156,8 @@ async function scrubRecording(payload: unknown, state: Walk): Promise<string | U
     !record || !Number.isInteger(record.type) || record.type < 0 || record.type > 6 || !Number.isFinite(record.timestamp))) {
     throw new Error('replay records');
   }
+  // A recording must establish its own node identities; metadata cannot authorize href fragments.
+  state.svgUseIds.clear();
   const cleaned = encoder.encode(JSON.stringify(scrubNode(records, state)));
   if (cleaned.length > MAX_BYTES) throw new Error('replay size');
   // The SDK's segment header is uncompressed. Only the JSON event array is deflated.
@@ -167,7 +172,7 @@ async function scrubRecording(payload: unknown, state: Walk): Promise<string | U
 /** Replay bypasses beforeSend and beforeEnvelope in SDK 9.47.1. Never return its raw payload on failure. */
 export async function scrubReplayEnvelope(envelope: Envelope): Promise<Envelope | null> {
   try {
-    const state: Walk = { count: 0, tripwire: false, deadline: Date.now() + MAX_WORK_MS };
+    const state: Walk = { count: 0, tripwire: false, deadline: Date.now() + MAX_WORK_MS, svgUseIds: new Set() };
     const header = scrubNode(JSON.parse(JSON.stringify(envelope[0])), state);
     const items: EnvelopeItem[] = [];
     for (const [itemHeader, payload] of envelope[1]) {
