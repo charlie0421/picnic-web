@@ -3,6 +3,8 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from '@sentry/nextjs';
+import { scrubEvent, scrubSpan } from '@/lib/sentry/scrub';
+import { createBrowserTransport } from '@/lib/sentry/browser-transport';
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
 const SENTRY_DEBUG = process.env.NEXT_PUBLIC_SENTRY_DEBUG === 'true';
@@ -73,6 +75,7 @@ const isSentryWrapperFrame = (frame: StackFrame): boolean =>
 if (SENTRY_DSN) {
   Sentry.init({
     dsn: SENTRY_DSN,
+    transport: createBrowserTransport,
     
     // Debug mode - only in development
     debug: SENTRY_DEBUG,
@@ -274,8 +277,10 @@ if (SENTRY_DSN) {
           return null;
         }
       }
-      return event;
+      return scrubEvent(event);
     },
+    beforeSendTransaction: scrubEvent,
+    beforeSendSpan: scrubSpan,
     // Breadcrumb filtering (drop noisy console/info logs)
     beforeBreadcrumb(breadcrumb) {
       if (breadcrumb.category === 'console' && (breadcrumb.level === 'log' || breadcrumb.level === 'debug')) {
@@ -285,7 +290,14 @@ if (SENTRY_DSN) {
         // Drop extremely frequent UI click breadcrumbs to reduce noise
         return null;
       }
-      return breadcrumb;
+      if (breadcrumb.category === 'navigation' && breadcrumb.data) {
+        breadcrumb = { ...breadcrumb, data: { ...breadcrumb.data } };
+        for (const key of ['from', 'to']) {
+          const value = breadcrumb.data![key];
+          if (typeof value === 'string') breadcrumb.data![key] = value.split(/[?#]/, 1)[0];
+        }
+      }
+      return scrubEvent(breadcrumb);
     },
     
     // Release information
