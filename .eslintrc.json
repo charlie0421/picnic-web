@@ -9,7 +9,9 @@
       "files": [
         "app/api/auth/**/*.{ts,tsx,js,jsx}",
         "lib/supabase/server.{ts,tsx,js,jsx}",
-        "lib/supabase/social/**/*.{ts,tsx,js,jsx}"
+        "lib/supabase/social/**/*.{ts,tsx,js,jsx}",
+        "app/api/payment/**/*.{ts,tsx,js,jsx}",
+        "lib/payment/**/*.{ts,tsx,js,jsx}"
       ],
       "rules": {
         "no-console": "error",
@@ -35,7 +37,7 @@
                   "**/logger-utils",
                   "@sentry/*"
                 ],
-                "message": "Auth helpers must log through logSafeError only."
+                "message": "Auth and payment helpers must log through logSafeError only."
               }
             ]
           }
@@ -44,11 +46,11 @@
           "error",
           {
             "selector": "ImportExpression[source.value=/^(.*\\/)?(log-error|logger|auth-logger|logger-utils)$|^@sentry\\//]",
-            "message": "Auth logging must use logSafeError."
+            "message": "Auth and payment logging must use logSafeError."
           },
           {
             "selector": "CallExpression[callee.name=\"require\"][arguments.0.value=/^(.*\\/)?(log-error|logger|auth-logger|logger-utils)$|^@sentry\\//]",
-            "message": "Auth logging must use logSafeError."
+            "message": "Auth and payment logging must use logSafeError."
           }
         ]
       }

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { PaymentClient } from '@portone/server-sdk';
 
 // Port One API configuration (v2 API)
@@ -42,9 +42,7 @@ export interface PortOneV2PaymentResponse {
 // Verify payment with Port One v2 API using paymentId (서버 SDK 사용)
 export async function verifyPortOnePayment(paymentId: string): Promise<PortOneV2PaymentResponse> {
   if (!paymentClient) {
-    logError('[Verify] Payment client not initialized:', {
-      hasApiSecret: !!PORTONE_API_SECRET,
-    });
+    logSafeError('payment.portone.verify.client.missing', undefined);
     throw new Error('PORTONE_API_SECRET must be set in environment variables');
   }
 
@@ -55,7 +53,7 @@ export async function verifyPortOnePayment(paymentId: string): Promise<PortOneV2
 
     return payment as unknown as PortOneV2PaymentResponse;
   } catch (error) {
-    logError('[Verify] Payment verification failed:', error instanceof Error ? error.message : String(error));
+    logSafeError('payment.portone.verify.provider.failed', error, { paymentId });
     throw error;
   }
 }
@@ -199,11 +197,11 @@ export async function buildReceiptResponse(
             : customDataString;
           customData = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
         } catch (e) {
-          console.warn('[Verify] Failed to parse customData from receipt:', e);
+          logSafeError('payment.portone.verify.custom_data.parse_failed', e, { userId });
         }
       }
     } catch (e) {
-      console.warn('[Verify] Failed to parse receipt_data:', e);
+      logSafeError('payment.portone.verify.receipt.parse_failed', e, { userId });
     }
   }
 

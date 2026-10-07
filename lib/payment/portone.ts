@@ -47,14 +47,7 @@ class PortOneService {
   constructor() {
     const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID || '';
     const channelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY || '';
-    
-    if (!storeId || !channelKey) {
-      console.warn(
-        'PortOne 환경 변수가 설정되지 않았습니다. ' +
-        'NEXT_PUBLIC_PORTONE_STORE_ID와 NEXT_PUBLIC_PORTONE_CHANNEL_KEY를 확인해주세요.'
-      );
-    }
-    
+
     this.config = {
       storeId,
       channelKey,
@@ -71,12 +64,11 @@ class PortOneService {
     try {
       // Load Port One v2 SDK script
       await this.loadScript();
-      
+
       this.isInitialized = true;
-      console.log('Port One v2 SDK initialized successfully');
+
       return true;
     } catch (error) {
-      console.error('Failed to initialize Port One v2 SDK:', error);
       return false;
     }
   }
@@ -110,7 +102,7 @@ class PortOneService {
         checkPortOne();
       };
       script.onerror = () => reject(new Error('Failed to load Port One v2 SDK'));
-      
+
       document.head.appendChild(script);
     });
   }
@@ -168,29 +160,14 @@ class PortOneService {
         confirmUrl: `${window.location.origin}/api/payment/portone/confirm`,
       };
 
-      // Debug logging
-      console.log('[PortOne] Payment request:', {
-        storeId: paymentRequest.storeId,
-        channelKey: paymentRequest.channelKey ? '***' : undefined,
-        paymentId: paymentRequest.paymentId,
-        orderName: paymentRequest.orderName,
-        totalAmount: paymentRequest.totalAmount,
-      });
-
       // Verify PortOne is available before calling
       if (!window.PortOne || typeof window.PortOne.requestPayment !== 'function') {
         throw new Error('Port One SDK is not available. Please ensure the SDK is properly loaded.');
       }
 
       // Request payment using v2 API
-      console.log('[PortOne] Calling requestPayment with redirectUrl:', paymentRequest.redirectUrl);
+
       const response = await window.PortOne.requestPayment(paymentRequest);
-      console.log('[PortOne] requestPayment response:', {
-        code: response.code,
-        paymentId: response.paymentId,
-        transactionId: response.transactionId,
-        message: response.message,
-      });
 
       if (response.code === null && response.paymentId) {
         // Payment completed successfully
@@ -210,7 +187,6 @@ class PortOneService {
         };
       }
     } catch (error) {
-      console.error('Port One v2 payment request error:', error);
       return {
         success: false,
         error: {
@@ -248,7 +224,6 @@ class PortOneService {
       const result = await response.json();
       return result.verified === true;
     } catch (error) {
-      console.error('Payment verification error:', error);
       return false;
     }
   }

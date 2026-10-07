@@ -1,5 +1,6 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
 import {
   createServiceRoleSupabaseClient,
@@ -48,7 +49,7 @@ import {
  *   - 500 / 502        → transient failure; PortOne WILL retry, which is
  *                        what we want now that the RPC is transactional
  */
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('payment.portone.webhook.post.unhandled', async function POST(request: NextRequest) {
   try {
     // 웹훅 payload 파싱
     const body = await request.json();
@@ -70,9 +71,9 @@ export async function POST(request: NextRequest) {
     try {
       supabase = createServiceRoleSupabaseClient();
     } catch (error) {
-      logError('[Webhook] Failed to create Supabase client:', error);
+      logSafeError('payment.portone.webhook.database.failed', error);
       return NextResponse.json(
-        { error: 'Failed to initialize database', details: error instanceof Error ? error.message : 'Unknown error' },
+        { error: 'Failed to initialize database' },
         { status: 500 }
       );
     }
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
                       '';
 
     if (!verifyWebhookSignature(body, signature)) {
-      logError('[Webhook] Webhook signature verification failed');
+      logSafeError('payment.portone.webhook.signature.failed', undefined);
       return NextResponse.json(
         { error: 'Invalid or missing signature' },
         { status: 401 }
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     // paymentId는 반드시 필요
     if (!paymentId) {
-      logError('[Webhook] Missing paymentId in webhook payload');
+      logSafeError('payment.portone.webhook.payment_id.missing', undefined);
       return NextResponse.json(
         { error: 'Missing paymentId' },
         { status: 400 }
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
     try {
       paymentData = await verifyPortOnePayment(paymentId);
     } catch (error) {
-      logError('[Webhook] Payment verification error:', error instanceof Error ? error.message : String(error));
+      logSafeError('payment.portone.webhook.verification.failed', error, { paymentId });
 
       // Never fall back to unverified webhook data for payment processing.
       // Reject the webhook and let PortOne retry later.
@@ -146,9 +147,9 @@ export async function POST(request: NextRequest) {
     try {
       customData = parseCustomData(paymentData);
     } catch (e) {
-      logError('[Webhook] Failed to parse custom data:', e);
+      logSafeError('payment.portone.webhook.custom_data.failed', e, { paymentId });
       return NextResponse.json(
-        { error: 'Invalid payment data', details: e instanceof Error ? e.message : 'Parse error' },
+        { error: 'Invalid payment data' },
         { status: 400 }
       );
     }
@@ -167,19 +168,12 @@ export async function POST(request: NextRequest) {
 
     // customData에서 필수 정보 확인
     if (!userId || !productId) {
-      logError('[Webhook] Missing userId or productId in custom data:', { paymentId });
+      logSafeError('payment.portone.webhook.metadata.missing', undefined, { paymentId });
 
       return NextResponse.json(
         {
           error: 'Missing required data - customData must include userId and productId',
-          details: {
-            paymentId,
-            message: 'PortOne v2 payment verification should return customData. Please ensure customData is properly set in payment request.',
-            webhookBodyKeys: Object.keys(body),
-            customDataKeys: Object.keys(customData),
-            paymentDataKeys: Object.keys(paymentData),
-            customerEmail: paymentData.customer?.email,
-          }
+
         },
         { status: 400 }
       );
@@ -194,13 +188,12 @@ export async function POST(request: NextRequest) {
 
     // 프로필 행 없음(PGRST116)은 탈퇴가 아니므로 진행한다. 그 외 조회 오류만 차단한다.
     if (userProfileError && userProfileError.code !== 'PGRST116') {
-      logError('[Webhook] Failed to check user profile:', userProfileError);
+      logSafeError('payment.portone.webhook.profile.failed', userProfileError, { paymentId, userId, errorCode: userProfileError.code });
       // 탈퇴 여부를 확인할 수 없으면 적립하지 않는다 — 500 이면 PortOne 이 재시도한다(fail-closed)
       return NextResponse.json({ error: 'Failed to verify user status' }, { status: 500 });
     }
 
     if (userProfile?.deleted_at) {
-      console.warn(`[Webhook] User ${userId} is a withdrawn user, rejecting payment`);
       return NextResponse.json(
         { error: 'User is deleted or deactivated' },
         { status: 403 }
@@ -264,7 +257,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (rpcError) {
-      logError('[Webhook] process_portone_capture failed:', rpcError);
+      logSafeError('payment.portone.webhook.capture.failed', rpcError, { paymentId: actualPaymentId, userId, productId, errorCode: rpcError.code });
       // 500 so PortOne retries — the RPC either rolled back cleanly (nothing
       // to reconcile) or failed before any write, so retry is safe.
       return NextResponse.json(
@@ -283,7 +276,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, receipt_id: rpcResult.receipt_id });
 
   } catch (error) {
-    logError('[Webhook] Processing error:', error instanceof Error ? error.message : String(error));
+    logSafeError('payment.portone.webhook.failed', error);
 
     // 500을 반환하여 PortOne이 재시도하도록 한다. 이제 모든 DB write 는
     // 단일 트랜잭션이므로 재시도해도 중복 적립이 발생하지 않는다 (receipts
@@ -291,13 +284,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-        // 개발 환경에서만 상세 정보 제공
-        ...(process.env.NODE_ENV !== 'production' && {
-          details: error instanceof Error ? error.stack : String(error)
-        })
+        error: 'Internal server error'
       },
       { status: 500 }
     );
   }
-}
+});

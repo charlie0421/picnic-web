@@ -1,10 +1,11 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
 
 // PortOne v2 브라우저 SDK confirmUrl 엔드포인트
 // 브라우저 SDK가 결제 직전 서버 컨펌을 위해 호출.
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('payment.portone.confirm.post.unhandled', async function POST(request: NextRequest) {
   try {
     // Verify user is authenticated
     const user = await getServerUser();
@@ -59,10 +60,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    logError('[PortOne Confirm] Error:', e);
+    logSafeError('payment.portone.confirm.failed', e);
     return NextResponse.json(
       { ok: false, reason: 'confirm_failed' },
       { status: 400 }
     );
   }
-}
+});

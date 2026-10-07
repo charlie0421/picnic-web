@@ -1,5 +1,6 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 
 const PAYPAL_API_URL = process.env.PAYPAL_ENV === 'production'
@@ -35,7 +36,7 @@ async function getPayPalAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('payment.paypal.create_order.post.unhandled', async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
 
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (productError) {
-      logError('Product lookup failed:', productError);
+      logSafeError('payment.paypal.create.product.failed', productError, { userId: user.id, productId, errorCode: productError.code });
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -99,11 +100,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
     if (customIdPayload.length > 127) {
-      logError('PayPal custom_id payload exceeds 127-byte limit', {
-        length: customIdPayload.length,
-        productId: product.id,
-        userId: user.id,
-      });
+      logSafeError('payment.paypal.create.metadata.failed', undefined, { userId: user.id, productId: product.id });
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -147,7 +144,7 @@ export async function POST(request: NextRequest) {
     const order = await response.json();
 
     if (!response.ok) {
-      logError('PayPal order creation failed:', order);
+      logSafeError('payment.paypal.create.provider.failed', undefined, { userId: user.id, productId: product.id, httpStatus: response.status });
       return NextResponse.json(
         { error: 'Failed to create PayPal order' },
         { status: 500 }
@@ -157,10 +154,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ orderID: order.id });
 
   } catch (error) {
-    logError('Create order error:', error);
+    logSafeError('payment.paypal.create.failed', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     );
   }
-}
+});

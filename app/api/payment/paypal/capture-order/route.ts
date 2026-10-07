@@ -1,5 +1,6 @@
+import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logError } from '@/utils/log-error';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
@@ -69,7 +70,7 @@ function extractSafeCaptureFields(captureData: any) {
   };
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withSafeErrors('payment.paypal.capture_order.post.unhandled', async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
 
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
     const captureData = await response.json();
 
     if (!response.ok) {
-      logError('PayPal capture failed:', captureData);
+      logSafeError('payment.paypal.capture.provider.failed', undefined, { userId: user.id, orderId: orderID, httpStatus: response.status });
       return NextResponse.json(
         { error: 'Failed to capture PayPal order' },
         { status: 500 }
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
     // 400 cleanly rather than throw a TypeError on the next line.
     const purchaseUnit = captureData.purchase_units?.[0];
     if (!purchaseUnit) {
-      logError('PayPal capture missing purchase_units:', { orderID });
+      logSafeError('payment.paypal.capture.purchase_units.missing', undefined, { userId: user.id, orderId: orderID });
       return NextResponse.json(
         { error: 'Invalid PayPal response' },
         { status: 400 }
@@ -143,7 +144,7 @@ export async function POST(request: NextRequest) {
     try {
       customData = JSON.parse(purchaseUnit.custom_id || '{}');
     } catch {
-      logError('Invalid custom_id payload:', purchaseUnit.custom_id);
+      logSafeError('payment.paypal.capture.metadata.failed', undefined, { userId: user.id, orderId: orderID });
       return NextResponse.json(
         { error: 'Invalid payment metadata' },
         { status: 400 }
@@ -161,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     // Prevent payment hijacking: the captured order's userId must match the authenticated user
     if (userId !== user.id) {
-      logError('User mismatch on capture', { orderID, customUserId: userId, authUserId: user.id });
+      logSafeError('payment.paypal.capture.owner.failed', undefined, { userId: user.id, orderId: orderID });
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (productError) {
-      logError('Product lookup failed on capture:', productError);
+      logSafeError('payment.paypal.capture.product.failed', productError, { userId: user.id, orderId: orderID, productId, errorCode: productError.code });
       return NextResponse.json(
         { error: 'Invalid request data' },
         { status: 400 }
@@ -196,11 +197,7 @@ export async function POST(request: NextRequest) {
       purchaseUnit.amount?.value !== expectedValue ||
       purchaseUnit.amount?.currency_code !== 'USD'
     ) {
-      logError('Amount mismatch on capture', {
-        orderID,
-        expected: expectedValue,
-        actual: purchaseUnit.amount,
-      });
+      logSafeError('payment.paypal.capture.amount.failed', undefined, { userId: user.id, orderId: orderID, amount: product.web_price_usd, currency: "USD" });
       return NextResponse.json(
         { error: 'Payment amount mismatch' },
         { status: 400 }
@@ -228,7 +225,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingReceiptError) {
-      logError('Receipt lookup failed:', existingReceiptError);
+      logSafeError('payment.paypal.capture.receipt.failed', existingReceiptError, { userId: user.id, orderId: orderID, errorCode: existingReceiptError.code });
       return NextResponse.json(
         { error: 'Failed to record payment' },
         { status: 500 }
@@ -294,7 +291,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (rpcError) {
-      logError('process_paypal_capture failed:', rpcError);
+      logSafeError('payment.paypal.capture.rpc.failed', rpcError, { userId: user.id, orderId: orderID, productId, errorCode: rpcError.code });
       return NextResponse.json(
         { error: 'Failed to record payment' },
         { status: 500 }
@@ -318,10 +315,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    logError('Capture order error:', error);
+    logSafeError('payment.paypal.capture.failed', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     );
   }
-}
+});
