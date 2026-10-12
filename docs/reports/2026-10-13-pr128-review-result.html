@@ -92,5 +92,10 @@ PROBE &quot;P4&quot; 5000000 356 9996
 
 승인 조건: F-1 수정과 테스트. F-2 수정과 테스트, 또는 사용자의 명시적 제한 수용. F-3~F-5 는 권고다. 수정 후 한 번 재검증한다.</pre>
 <h2>후속 수정 범위</h2><ol><li>F-1: SVG presentation 속성의 CSS 처리를 확인된 SVG 노드 attributes와 같은 recording의 확인된 SVG mutation으로 한정한다. 같은 이름의 일반 데이터는 opaque 정제를 유지한다.</li><li>F-2: opaque 경로의 이스케이프된 슬래시 뒤 fragment를 차단한다. 기존 CSS 선택자와 선언의 hex 색상을 보존한다. 스캔은 입력 길이에 선형이어야 한다.</li><li>F-3: 배열 전체 키를 열거하지 않고 제한된 인덱스만 검사한다. getter 미호출·cycle·희소 배열·원본 비변경·기본 정보 보존을 유지한다.</li><li>F-4·F-5: 명시적인 비-SVG 또는 비-use 노드는 과거 ID 근거를 무효화한다. recording의 참조 상태는 다른 envelope item으로 전달하지 않는다.</li><li>각 결함의 실패 회귀 테스트를 먼저 확인하고 수정한다. 관련 테스트·전체 테스트·타입 검사·공식 lint·로컬 브라우저 envelope 검증 뒤 같은 Claude 프로필로 한 번 재검증한다.</li></ol>
-<p>공용 실행 도구 업데이트 통지에 따라 새 Dispatch는 일시 중지했다. 정책 변경 후 새 Codex 역할은 gpt-6.1-sol을 사용한다. 다음 실행에는 활성화 완료 통지와 최신 계정·사용량·capability·Route·launch 검사가 필요하다. 과거 관측값과 Route는 실행 근거로 재사용하지 않는다. 원격 push·Draft 해제·머지·운영 배포는 수행하지 않았다.</p>
+<h2>수정 작업의 현재 차단 원인</h2>
+<p>공용 실행 도구 <code>dc2fa3d5c1fedaef7d2da46b7e158180df670092</code>의 활성화 완료 통지를 받은 뒤 최신 계정·사용량·capability·Route·launch를 검사했다. 실제 구현 공급자 Codex를 Route에 유지했고, 새 작업자는 <code>gpt-6.1-sol/high</code>, Fast OFF, <code>workspace-write</code>, 승인 정책 <code>never</code>로 실행됐다. 실제 프로세스의 argv도 확인했다.</p>
+<p class="status">코드 수정은 시작하지 못했다. 수정 작업자의 샌드박스가 Orca IPC 연결을 <code>runtime_access_denied (EPERM)</code>으로 차단했다. 진행 메시지와 자체 failed worker_done 전송도 실패했다. 로그인 오류나 모델 미지원으로 확인된 실패가 아니다. 오류 분류기의 결과는 <code>unknown</code>이고, 조정자는 관측된 통신 권한 제한을 근거로 <code>capability-blocked</code>로 진단했다.</p>
+<p>수정 Task <code>task_9c1346a98aac</code>, Dispatch <code>ctx_58558c3c391d</code>. 조정자는 작업자의 최종 종료 답변과 파일 비변경을 확인한 뒤 <code>worker-abandon</code>으로 실패 정산했다. worker_done을 대리 발행하지 않았다. 소유 터미널은 닫혔고 Dispatch 상태는 failed, 프로세스 관측 상태는 exited, 회수할 작업자는 0명이다. 자동 재시도는 하지 않았다. 기존 재시도 기록과 <code>providerHold=null</code>을 보존했다.</p>
+<p>현재 설치된 실행 도구에는 Claude용 Dispatch 고정 lifecycle MCP가 있지만 Codex 실행 argv에는 해당 통신 경로가 없다. 다음 해결 후보는 Codex에도 현재 Dispatch의 check·send·ask만 허용하는 lifecycle MCP를 연결하는 것이다. 이 변경은 별도 설계·권한 검증·독립 리뷰가 필요하며 아직 구현하지 않았다. <code>workspace-write</code>와 <code>never</code>는 유지한다.</p>
+<p>제품 코드 변경과 수정 후 테스트·브라우저 검증·리뷰어 재검증은 아직 수행하지 않았다. 다음 실행에는 새 계정·사용량·capability·Route·launch 검사가 필요하다. 과거 관측값과 Route는 실행 근거로 재사용하지 않는다. 원격 push·Draft 해제·머지·운영 배포는 수행하지 않았다.</p>
 </body></html>
