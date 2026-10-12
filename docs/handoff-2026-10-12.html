@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PR #128 및 읽기 전용 Orca 권한 검증 핸드오프</title><style>body{max-width:1000px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182333}h1,h2{line-height:1.3}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}code,pre{font:14px/1.6 ui-monospace,monospace;overflow-wrap:anywhere}code{background:#eef2f6;padding:2px 4px}pre{background:#eef2f6;padding:16px;white-space:pre-wrap}.status{background:#fff4d9;padding:16px}li{margin:6px 0}</style></head><body>
+<h1>PR #128 및 읽기 전용 Orca 권한 검증 핸드오프</h1><p>작성일: 2026-10-12 KST. 독자: 다음 세션의 조정자. 목적: 구현과 검증 기록을 보존하고, 권한 검증과 독립 리뷰를 안전하게 재개한다.</p>
+<p class="status">PR #128 구현과 기존 CI는 통과했다. 실제 권한 경계 검증과 독립 리뷰는 미완료다. PR은 OPEN·Draft이며 머지하지 않았다. 원 권한 검증 Task의 재시도 한도 2회에 도달했다. 한도 추가 예외를 질문했지만 사용자는 승인 대신 핸드오프 문서 작성을 요청했다. 문서 작성은 추가 재시도·설치·머지 승인으로 해석하지 않는다.</p>
+<h2>현재 확인한 상태</h2><table><thead><tr><th>대상</th><th>2026-10-12 조회 결과</th></tr></thead><tbody>
+<tr><td>PR</td><td><a href="https://github.com/charlie0421/picnic-web/pull/128">picnic-web #128</a> — fix(sentry): preserve replay references and truncate breadcrumbs. OPEN·Draft.</td></tr>
+<tr><td>PR 원격 head</td><td><code>1aa136366ed5bd7abbe7de20623684eaec0e111e</code>. 이 문서를 로컬 커밋하면 로컬 head는 달라진다. 문서는 아직 푸시하지 않는다.</td></tr>
+<tr><td>CI</td><td>위 원격 head의 타입 검사·lint·테스트 SUCCESS. <a href="https://github.com/charlie0421/picnic-web/actions/runs/37673435765">CI 실행</a>. 이번 핸드오프 작성 중 테스트를 다시 실행한 것은 아니다.</td></tr>
+<tr><td>picnic-web 작업 경로</td><td><code>/Users/charlie.hyun/Repositories/picnic-web-replay-fidelity-and-limits</code>, 브랜치 <code>fix/replay-fidelity-and-limits</code>. 문서 작성 직전 작업 트리는 깨끗했다.</td></tr>
+<tr><td>정책 저장소</td><td><code>/Users/charlie.hyun/Repositories/ai-agent-config</code>, main <code>6df9876</code>. 권한 격리 수정 <code>2328faa</code>는 main의 조상이 아니다.</td></tr>
+<tr><td>권한 격리 브랜치</td><td><code>fix/readonly-orca-tools</code>와 커밋은 남아 있다. 기존 <code>/Users/charlie.hyun/Repositories/ai-agent-config-readonly-orca-tools</code> 워크트리는 현재 없다. git worktree list에는 canonical main만 있다.</td></tr>
+<tr><td>설치 상태</td><td>canonical main과 <code>/Users/charlie.hyun/.agents/skills/usage-aware-orchestration/scripts/</code>에 <code>prepare-readonly-orca-context.py</code>가 없다. 후보 구현을 설치된 것으로 간주하지 않는다.</td></tr></tbody></table>
+<h2>PR #128의 변경</h2><ul>
+<li>F4: 이스케이프된 슬래시가 있는 URL 경로의 fragment가 Replay recording에 남는 문제를 차단한다.</li>
+<li>N2: CSS <code>url(#id)</code>와 recording에서 확인한 SVG use의 href·xlink:href를 보존한다. 외부 URL의 query·fragment 제거는 유지한다.</li>
+<li>N4: 큰 breadcrumb의 기본 정보와 복사된 데이터를 남기고 초과 부분을 <code>[Truncated]</code>로 표시한다. 값 10,000개·깊이 40 제한을 유지한다. 새 byte 제한은 추가하지 않았다.</li>
+<li><code>maskAllText</code>·<code>maskAllInputs</code>·<code>blockAllMedia</code>와 기존 Replay 제한은 유지한다. 내부 SVG 참조는 제한된 ID 형식으로만 보존하며 실제 ID 존재 여부는 확인하지 않는다.</li></ul>
+<p>관련 파일: <code>lib/sentry/browser-scrub.ts</code>, <code>lib/sentry/replay-scrub.ts</code>, 개인정보·transport 테스트, envelope browser fixture·분석기. 상세 근거는 <a href="reports/2026-10-08-replay-fidelity-and-limits.html">기존 구현·검증 보고서</a>에 있다.</p>
+<h2>기존 검증 기록</h2><p>picnic-web: 213개 파일, 테스트 3,735개 통과·기존 결제 예상 실패 6개·건너뜀 1개. 타입 검사와 공식 lint 명령 통과. Production 모드 로컬 SDK/Chromium envelope 검증에서 오류·트랜잭션·Replay event·압축 recording이 도착했다. CSS 100,546바이트 보존, 개인정보 테스트 문자열 유출 0건. 운영 Sentry 저장·after flush·fingerprint 도착 증거는 확보하지 않았다. 예상 실패 6개는 기존 보고서에 항목별로 기록돼 있다.</p>
+<p>ai-agent-config: 마지막 후보 수정 후 전체 오프라인 Python 테스트 268개와 셸 검사 통과. 실제 모델·Orca 호출은 없었다. 이 기록은 실제 권한 검증이나 독립 리뷰 승인 증거가 아니다.</p>
+<h2>권한 격리 구현과 실패 원인</h2><table><thead><tr><th>변경</th><th>결과와 커밋</th></tr></thead><tbody>
+<tr><td>기본 후보 구현</td><td>Git 외부 private context, 단일 실제 Dispatch 바인딩, 고정 argv, stdio MCP check/send/ask. Read·Glob·Grep 외 일반 셸·쓰기·위임을 제거한다. <code>7589806</code>·<code>383c2f3</code>·<code>14d3b80</code>·<code>58173e5</code>.</td></tr>
+<tr><td>첫 실제 실행</td><td>Claude 표준 MCP <code>_meta.progressToken</code>을 서버가 거부했다. 메타데이터를 실행 권한과 분리해 처리하도록 <code>b488982</code>에서 수정했다. 작업자 자체 완료 보고는 없었고 실패 정산·정리를 수행했다.</td></tr>
+<tr><td>첫 승인 재시도</td><td>문자 그대로의 메시지 전송과 작업자 자체 failed worker_done은 수락됐다. check와 ask는 실패했다. check의 --run이 조정자 받은편지함을 선택했고, ask는 질문을 생성한 뒤 timedOut=true·종료 코드 1을 반환해 ID가 버려졌다. <code>c230854</code>에서 작업자 check의 --run 제거·Run/Dispatch 응답 비교·엄격한 pending 질문 ID 보존을 수정했다.</td></tr>
+<tr><td>마지막 예약 재시도</td><td>조정자가 이전 runtimeId로 컨텍스트를 준비했다. 터미널 생성 응답에서 현재 ID 불일치를 확인했다. Task 전달·새 Dispatch 생성 전 차단했다. 생성한 정확한 터미널과 미사용 컨텍스트를 정리했다. 예약 횟수는 복원하지 않았다.</td></tr>
+<tr><td>런타임 사전 검사</td><td><code>2328faa</code>: prepare가 고정 Orca status --json에서 현재 ID를 자동 조회한다. 선택적 --runtime-id는 예상값 비교다. launch에서 다시 조회하고 불일치·조회 실패·비정상 상태·시간 초과를 차단한다. 제한은 5초·출력 1 MiB다. 조회와 터미널 생성은 원자적이지 않으므로 bind·lifecycle 검사도 유지한다.</td></tr></tbody></table>
+<p>후보 문서는 브랜치에 남아 있다. 워크트리 복구 전에는 <code>git -C /Users/charlie.hyun/Repositories/ai-agent-config show fix/readonly-orca-tools:docs/reports/2026-10-08-readonly-orca-tools.html</code>로 보고서를 읽을 수 있다. 같은 브랜치의 <code>docs/superpowers/specs/2026-10-08-readonly-orca-tools-design.html</code>과 <code>docs/superpowers/plans/2026-10-08-readonly-orca-tools-plan.html</code>도 읽는다.</p>
+<h2>Run·Task·재시도 기록</h2><ul>
+<li>Run: <code>run_430662d02492</code>. 권한 검증 원 Task: <code>task_2f220a191e0d</code>.</li>
+<li>첫 Dispatch: <code>ctx_fdacab6dece5</code>. 승인 재시도 Dispatch: <code>ctx_3a0dfd3abeec</code>.</li>
+<li>수락된 자체 실패 보고: <code>msg_041e3cfbc5e0</code>. 질문 ID: <code>msg_1bc87a73080e</code>. 이들은 과거 정산 기록이며 새 실행 권한이 아니다.</li>
+<li>private 기록: <code>/private/tmp/picnic-replay-private/readonly-tools-retry-history.json</code>. 작성 시 파일 존재를 확인했다. totalRetries=2, 나머지 원인별 카운터=0, providerHold=null. finalRetryDispatch=null. tmp 자료가 다음 세션에도 남는다고 가정하지 않는다. 기록이 없으면 실행을 중단한다.</li>
+<li>과거 현재 runtimeId로 기록된 <code>e572533e-4095-482e-be88-ae17211fec5a</code>를 재사용하지 않는다. 새 실행 준비 전에 실제 CLI에서 현재 값을 조회한다.</li>
+<li>다른 계정·사용량·capability 증거와 터미널 핸들은 오래된 상태다. 과거 수치나 fixture를 실행 근거로 사용하지 않는다. 기존 Codex IPC·Gemini 차단도 해제된 것으로 추정하지 않는다.</li></ul>
+<h2>다음 세션의 절차</h2><ol>
+<li>사용자·프로젝트 지침, Git 정책, 관련 Superpowers·Orca·usage-aware-orchestration 스킬과 실제 바이너리의 최신 가이드를 읽는다.</li>
+<li>PR 원격 head와 CI, 로컬 변경, 정책 main·후보 브랜치·설치 상태를 다시 조회한다. 현재 없는 권한 작업 워크트리를 복구할 때는 워크트리 정책과 필요한 승인을 따른다. main에서 후보 브랜치로 checkout하지 않는다.</li>
+<li>원 Task의 private retry/providerHold 기록과 정산 상태를 확인한다. 추가 1회 예외는 아직 승인되지 않았다. 새 Task/Run이나 횟수 초기화로 한도를 우회하지 않는다.</li>
+<li>명시적 예외 승인과 모든 실행 조건이 충족된 경우에만 후보 권한 검증을 준비한다. 최신 사용량·계정·모델 지원·구독 포함·실행 경계·현재 런타임을 검증한다. blocked 또는 allowed=false·argv=[]이면 멈춘다. 과거 Route나 수동 argv로 대체하지 않는다.</li>
+<li>실제 도구 목록·정책 전체 Read·모델/effort·본인 check/ask/resume/worker_done 수락을 확인한다. 미확인 effort나 일반 셸 존재를 통과로 바꾸지 않는다. 종료용 EndConversation이 과거 실제 목록에 있었음을 구분해 기록한다.</li>
+<li>권한 후보 자체에 대한 구현 반대 공급자의 고위험 독립 리뷰를 수행한다. 실제 구현자는 이 세션의 Codex였으므로 라우팅의 기본 reviewer 필드만 보고 같은 공급자를 고르지 않는다. 공급자 배분과 실제 구현 소유권의 차이를 정식 라우팅 절차로 해결한다.</li>
+<li>검증·독립 리뷰 통과 후 main 통합·운영 설치·푸시의 각각 별도 승인을 받고 설치 절차를 수행한다. 새 세션의 정책·실제 권한 검증을 완료한 뒤 PR #128 독립 리뷰를 재개한다.</li>
+<li>PR 리뷰어에게 요구사항·diff·관련 파일·테스트 결과만 전달한다. 구현자의 자기평가나 사고 과정은 전달하지 않는다. 개인정보 변경이므로 Frontier 이상과 반대 공급자 리뷰를 유지한다.</li>
+<li>지적을 코드·테스트로 확인하고 원 리뷰어가 재검증한다. 리뷰와 최신 CI를 확인한 뒤 해당 PR의 머지 승인을 받는다. UI/API 변경과 Preview가 있는 경우 전역 Preview 확인 규칙을 따른다. Jira 상태를 임의로 변경하지 않는다.</li></ol>
+<h2>승인 경계</h2><p>이 문서 작성과 로컬 커밋만 이번 요청에 포함된다. 추가 재시도 예외, 워크트리 복구에 필요한 승인, main 통합, 운영 설치, 원격 푸시, PR #128 머지는 아직 이번 요청에서 승인되지 않았다. 이전 세션의 승인은 당시 범위와 결과 기록으로만 판단한다. PR #124·#126의 과거 머지 승인을 #128에 적용하지 않는다.</p>
+</body></html>
