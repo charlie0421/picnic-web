@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PR #128 독립 리뷰 결과</title><style>body{max-width:1000px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182333}code,pre{font:14px/1.6 ui-monospace,monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef2f6;padding:16px}.status{padding:16px;background:#fff4d9}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd4df;padding:10px;text-align:left}</style></head><body>
+<h1>PR #128 독립 리뷰 결과</h1><p>2026-10-13 KST. 원격 head <code>1aa136366ed5bd7abbe7de20623684eaec0e111e</code>. <a href="https://github.com/charlie0421/picnic-web/pull/128">PR #128</a>.</p>
+<p class="status">판정: REQUEST_CHANGES. Medium 2건은 승인 전 수정이 필요하다. Low 3건은 권고다. 리뷰 전달은 완료됐지만 코드 승인·수정 완료·머지를 뜻하지 않는다.</p>
+<h2>독립성과 실행 증거</h2><p>실제 구현 공급자는 Codex이고 리뷰어는 Claude Opus 5.5/high다. 사용자 승인에 따라 이번 리뷰는 codex-heavy로 실행했다. 실제 프로세스의 model·effort·restricted·dontAsk·도구 argv와 정책 해시를 확인했다. 리뷰어는 전역 정책 195행, 프로젝트 AGENTS.md 427행, STE 54행을 모두 읽었다고 보고했고, 호출 가능한 도구는 Read·Glob·Grep와 Dispatch에 고정된 check·send·ask 3개였다. 지연 로드 도구 전체의 부재는 증명하지 않았다.</p>
+<p>Run <code>run_430662d02492</code>, Task <code>task_cf8991dea738</code>, Dispatch <code>ctx_2f927a83959f</code>. 상세 지적 <code>msg_db15cd449446</code>, 수락된 worker_done <code>msg_52360fe121aa</code>. outcome=succeeded는 리뷰 전달 성공을 뜻하며 판정은 REQUEST_CHANGES다. 작업자 파일 변경은 없다. 정산 뒤 소유 터미널·읽기 전용 context·STE context·정책 snapshot을 정리했다.</p>
+<h2>조정자 재현</h2><p>임시 probe 12개를 실행했다. 최초 console.log가 수집되지 않아 출력 함수만 process.stdout.write로 변경해 다시 실행했다. 두 실행은 exit 0이었다. 아래 출력은 기대값을 단언하는 회귀 테스트가 아니라 입력·출력을 관측한 재현 결과다. 임시 테스트는 삭제했다. 전체 기존 테스트는 3,735개 통과, 예상 실패 6개, 건너뜀 1개였고 타입 검사와 공식 lint도 통과했다.</p><pre>실행 완료. 원본 테스트는 exit 0, 12개 통과였으나 console.log 출력이 수집되지 않아 log 함수만 process.stdout.write로 바꿔 같은 테스트를 재실행했다. 입력·정제 로직은 변경하지 않았다. 두 번째 실행도 exit 0. 임시 파일은 삭제했다.
+
+PROBE &quot;P1&quot; &quot;example.com\\/callback#secret-opaque&quot; &quot;example.com\\/callback#secret-opaque&quot;
+PROBE &quot;P1&quot; &quot;..\\/callback#secret-opaque&quot; &quot;..\\/callback#secret-opaque&quot;
+PROBE &quot;P1&quot; &quot;.\\/callback#secret-opaque&quot; &quot;.\\/callback#secret-opaque&quot;
+PROBE &quot;P1&quot; &quot;callback\\/path#secret-opaque&quot; &quot;&quot;
+PROBE &quot;P2&quot; &quot;filter&quot; &quot;/callback\\?code=secret-opaque&quot;
+PROBE &quot;P2&quot; &quot;mask&quot; &quot;/callback\\?code=secret-opaque&quot;
+PROBE &quot;P2&quot; &quot;fill&quot; &quot;/callback\\?code=secret-opaque&quot;
+PROBE &quot;P2&quot; &quot;stroke&quot; &quot;/callback\\?code=secret-opaque&quot;
+PROBE &quot;P2&quot; &quot;clip-path&quot; &quot;/callback\\?code=secret-opaque&quot;
+PROBE &quot;P2&quot; &quot;note&quot; &quot;&quot;
+PROBE &quot;P3&quot; &quot;#private-navigation&quot;
+PROBE &quot;P4&quot; 100000 11 9996
+PROBE &quot;P4&quot; 5000000 356 9996
+ Test Files  1 passed (1)
+      Tests  12 passed (12)</pre>
+<h2>리뷰어 원문</h2><pre>판정: REQUEST_CHANGES. 대상: base 5a30718d → head 1aa13636 의 실행 코드·테스트 diff.
+
+읽은 파일: lib/sentry/replay-scrub.ts, browser-scrub.ts, scrub.ts, browser-transport.ts 전체. instrumentation-client.ts 전체. __tests__/lib/sentry/browser-transport.test.ts, __tests__/instrumentation-client-privacy.test.ts 전체. scripts/envelope-test/browser-analyze.js, browser-fixture/page.tsx 전체. 리뷰 자료 HTML 전체. 구현 진행·핸드오프·자기평가 문서는 읽지 않았다.
+
+실행 근거: 아래 P1~P4 는 조정자가 임시 probe 테스트로 실행한 결과다(msg_7f103936d8df 답변). 조정자가 log 함수를 process.stdout.write 로 바꿨다. 나는 어떤 테스트도 직접 실행하지 않았다.
+
+━━ 지적 ━━
+
+[F-1] Medium · 신규 회귀 · 개인정보 — lib/sentry/replay-scrub.ts:90
+- 조건: 키 이름이 fill, stroke, filter, clip-path, mask 이면 위치와 무관하게 CSS 모드(비-opaque scrubCss)를 적용한다. 노드 attributes 인지, SVG 노드인지 확인하지 않는다. type 5 custom event payload 같은 일반 데이터에도 적용된다.
+- 실패 입력: { type: 5, data: { tag: &#x27;breadcrumb&#x27;, payload: { data: { filter: String.raw`/callback\?code=secret-opaque` } } } }
+- 결과(P2 실행): filter·mask·fill·stroke·clip-path 는 원문 `/callback\?code=secret-opaque` 가 그대로 남는다. 대조군 키 note 는 &#x27;&#x27; 이다.
+- 회귀 근거: PR 이전에는 이 5개 키가 `/url\(|@import|\\/` 분기로 가서 opaque 모드가 &#x27;&#x27; 를 반환했다. CSS 모드는 이스케이프된 `?`·`#` 를 선택자 식별자로 취급한다(replay-scrub.ts:54 의 비-opaque 분기). F4 가 막으려는 입력 유형이 이 5개 키에서 다시 통과한다.
+- 참고: 운영 설정 blockAllMedia 는 svg 를 차단한다(@sentry-internal/replay index.js:9676-9677, analyzer:78 단언). 그래서 SVG presentation 속성 경로는 현재 운영 녹화에서 보존 효과가 없고 노출 면만 늘린다.
+- 최소 수정: 5개 키의 CSS 모드를 노드 attributes 봉투 안으로 한정한다. 가능하면 isSVG===true 노드 또는 같은 recording 에서 확인된 SVG 노드 id 로 더 좁힌다. 그 밖의 위치는 기존 opaque 경로를 유지한다. 위 입력의 테스트를 추가한다.
+
+[F-2] Medium · F4 잔여 누출(PR 이전에도 누출, 신규 회귀 아님) · 개인정보 — lib/sentry/replay-scrub.ts:54
+- 조건: 이스케이프된 슬래시를 가진 식별자 바로 앞 문자가 `.` 또는 `#` 이면 remainder 에 &#x27;identifier&#x27; 를 넣는다. 다른 슬래시가 없으면 stripUrlQueries 가 fragment 를 자르지 않는다.
+- 실패 입력(P1 실행, opaque 문자열 data.payload.message):
+  · `example.com\/callback#secret-opaque` → 원문 유지
+  · `..\/callback#secret-opaque` → 원문 유지
+  · `.\/callback#secret-opaque` → 원문 유지
+  · 대조군 `callback\/path#secret-opaque` → &#x27;&#x27;
+- 범위: `?` 는 remainder 검사(replay-scrub.ts:81)가 막는다. `#키=` 형태도 QUERY_PAIR 가 막는다. 남는 것은 `키=` 형태가 아닌 fragment 다.
+- 판단: 요구사항 F4 는 &quot;이스케이프된 슬래시 경로의 query·fragment 유출 차단&quot;이다. 이 입력은 리뷰 자료의 제한 목록에 없다.
+- 최소 수정: `.`·`#` 예외를 적용한 식별자 뒤에서 선택자 구분 문자(공백, `{`, `,`, `&gt;`, `+`, `~`, `)`)보다 먼저 `#` 를 만나면 &#x27;&#x27; 를 반환한다. `.w-1\/2{width:50%;color:#fff}` 는 `#` 가 `{` 뒤에 있으므로 보존된다. 위 3개 입력을 it.each 표에 추가한다.
+- 대안: 사용자가 이 입력을 허용 제한으로 결정하면 제한 목록에 명시한다. 그 결정 없이는 승인하지 않는다.
+
+[F-3] Low · 신규 · 경계/성능(개인정보 아님) — lib/sentry/browser-scrub.ts:18
+- 조건: 배열 길이 가드(`value.length &gt; 10000` 이면 중단)를 삭제했다. 이제 Object.keys 가 배열 전체를 열거한 뒤에야 9,999 에서 자른다.
+- 측정(P4 실행, Node): dense 배열 100,000개 → 11ms, 5,000,000개 → 356ms. 두 경우 모두 결과 길이는 9,996 이다. 이 작업은 console 호출 경로에서 동기로 실행된다. 사용자 기기 수치는 측정하지 않았다.
+- 판단: 복사 값 10,000개 제한은 유지된다. 작업량 제한은 배열에서 유지되지 않는다. 일반 객체의 Object.keys 는 PR 이전에도 무제한이었다.
+- 최소 수정: 배열은 `i &lt; Math.min(value.length, 9999)` 인덱스 루프와 getOwnPropertyDescriptor(hole 은 건너뜀)로 복사한다. value.length 가 9,999 를 넘으면 표식을 붙인다. 기존 sparse 테스트 기대값과 맞는다.
+
+[F-4] Low · 신규 · 방어 보강 — lib/sentry/replay-scrub.ts:101-102
+- 조건: svgUseIds 에 들어간 id 는 같은 recording 안에서 제거되지 않는다. 같은 id 가 다른 tagName 으로 다시 나오면 href 의 `#fragment` 를 보존한다.
+- 실패 입력(P3 실행): type 2 `{id:20, tagName:&#x27;use&#x27;, isSVG:true}` 뒤에 type 2 `{id:20, tagName:&#x27;a&#x27;, attributes:{href:&#x27;#private-navigation&#x27;}}` → `#private-navigation` 유지.
+- 도달 가능성: 번들된 rrweb 는 `_id` 를 재설정하지 않는다(index.js:335-338). SDK 정상 출력에서 id 재사용 경로는 찾지 못했다. 그래서 Low 다.
+- 최소 수정: tagName 이 문자열인 노드는 자기 속성(isSVG·tagName)으로만 판정한다. use 가 아니면 `state.svgUseIds.delete(id)` 를 호출한다.
+
+[F-5] Low · 신규 · 격리 — lib/sentry/replay-scrub.ts:160, 178-185
+- 조건: clear() 는 recording 시작에서만 실행된다. replay_recording 뒤에 오는 replay_event 는 recording 의 svgUseIds 를 물려받는다.
+- 불확실: SDK 의 item 순서는 직접 확인하지 않았다. 테스트 envelope 은 replay_event 가 먼저다. 실행 확인도 하지 않았다.
+- 최소 수정: scrubRecording 의 scrubNode 호출 뒤에도 clear() 한다.
+
+━━ 테스트 공백 ━━
+- F-1, F-2, F-4 의 실패 입력을 다루는 테스트가 없다.
+- 브라우저 fixture 는 SVG use·rect 를 기록하지 못한다(blockAllMedia). SVG href 와 presentation 속성 경로의 근거는 단위 테스트뿐이다.
+- N4: 잘림 구간의 getter·cycle, 원본에 `_truncated` 키가 있는 객체, 잘린 data 를 가진 navigation breadcrumb 테스트가 없다. analyzer:79 는 큰 breadcrumb 의 metadata 도착만 확인한다. `[Truncated]` 표식과 길이는 확인하지 않는다.
+- 리뷰 자료에 따르면 브라우저 통합 검증은 이번에 재실행되지 않았다.
+
+━━ 요구사항 충족을 확인한 항목(판독 기준) ━━
+- N4 개인정보: 잘린 부분의 원본 값은 결과에 들어가지 않는다. getter 는 descriptor 로만 판별해 호출하지 않는다. 결과는 새 객체에 defineProperty 로 쓰므로 호출자 객체를 바꾸지 않는다. cycle 은 seen 으로 유지된다. 예산 산술(9,995 통과, 9,996 에서 표식)과 깊이 40 이 테스트 기대와 맞는다. metadata 5개 키를 먼저 복사한다.
+- N2: 문법 정규식은 양끝 고정이다. opaque 모드는 내부 참조를 보존하지 않는다(`data-note` → `url(&quot;&quot;)`). 외부 URL 은 cutUrl 로 자른다. 이스케이프된 url 토큰은 &#x27;&#x27; 다. envelope header 의 근거는 recording 전에 지워진다. use 가 아닌 id 의 mutation href 는 &#x27;&#x27; 다.
+- F4: 테스트 표의 3개 입력은 remainder 에 실제 `/` 가 들어가 &#x27;&#x27; 가 된다(4번째 P1 입력으로 실행 확인).
+- 유지: 8 MiB·2초·200,000개·깊이 80 상수와 검사(replay-scrub.ts:5-6, 86)는 그대로다. maskAllText·maskAllInputs·blockAllMedia(instrumentation-client.ts:331-335)와 browser-transport.ts 는 diff 에 없다.
+
+━━ 기존 동작·문서화된 제한(지적에서 제외) ━━
+- 불투명 객체를 참조 그대로 반환(browser-scrub.ts:15). 문서화된 제한이다.
+- copy.data 가 불투명 객체인 navigation breadcrumb 는 browser-scrub.ts:45 에서 호출자 객체를 수정할 수 있다. PR 이전부터 있던 동작이고 diff 밖이다.
+- style·_cssText·rule 등 기존 CSS 키도 이스케이프 구분자를 식별자로 본다. 기존 동작이다. F-1 은 이 동작을 일반 이름의 5개 키로 넓힌 점만 지적한다.
+- recording 간 SVG 참조, 대상 정보 없는 mutation, SDK 의 절대 URL 변환. 문서화된 제한이다.
+- 내부 참조 문법 자체(영숫자·`_`·`-` 최대 64자 fragment 보존)는 요구사항이 정한 허용 범위다.
+
+━━ 검증 한계 ━━
+- npm test·tsc·lint·CI 결과는 리뷰 자료의 기재를 인용했다. 다시 실행하지 않았다.
+- P1~P4 외의 판단은 코드 판독이다.
+- effort 값과 권한 모드는 세션 안에서 확인하지 못했다.
+
+승인 조건: F-1 수정과 테스트. F-2 수정과 테스트, 또는 사용자의 명시적 제한 수용. F-3~F-5 는 권고다. 수정 후 한 번 재검증한다.</pre>
+<h2>후속 수정 범위</h2><ol><li>F-1: SVG presentation 속성의 CSS 처리를 확인된 SVG 노드 attributes와 같은 recording의 확인된 SVG mutation으로 한정한다. 같은 이름의 일반 데이터는 opaque 정제를 유지한다.</li><li>F-2: opaque 경로의 이스케이프된 슬래시 뒤 fragment를 차단한다. 기존 CSS 선택자와 선언의 hex 색상을 보존한다. 스캔은 입력 길이에 선형이어야 한다.</li><li>F-3: 배열 전체 키를 열거하지 않고 제한된 인덱스만 검사한다. getter 미호출·cycle·희소 배열·원본 비변경·기본 정보 보존을 유지한다.</li><li>F-4·F-5: 명시적인 비-SVG 또는 비-use 노드는 과거 ID 근거를 무효화한다. recording의 참조 상태는 다른 envelope item으로 전달하지 않는다.</li><li>각 결함의 실패 회귀 테스트를 먼저 확인하고 수정한다. 관련 테스트·전체 테스트·타입 검사·공식 lint·로컬 브라우저 envelope 검증 뒤 같은 Claude 프로필로 한 번 재검증한다.</li></ol>
+<p>공용 실행 도구 업데이트 통지에 따라 새 Dispatch는 일시 중지했다. 정책 변경 후 새 Codex 역할은 gpt-6.1-sol을 사용한다. 다음 실행에는 활성화 완료 통지와 최신 계정·사용량·capability·Route·launch 검사가 필요하다. 과거 관측값과 Route는 실행 근거로 재사용하지 않는다. 원격 push·Draft 해제·머지·운영 배포는 수행하지 않았다.</p>
+</body></html>
