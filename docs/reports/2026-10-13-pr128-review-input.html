@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PR #128 독립 리뷰 자료</title><style>body{max-width:1080px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182333}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}code,pre{font:14px/1.6 ui-monospace,monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef2f6;padding:16px}.status{background:#fff4d9;padding:16px}</style></head><body>
+<h1>PR #128 독립 리뷰 자료</h1><p>2026-10-13 KST. 독자: 개인정보 처리 변경을 검토하는 독립 리뷰어. 목적: 요구사항, 정확한 코드 diff와 검증 결과를 제공한다.</p>
+<p class="status">리뷰 준비 완료. 독립 리뷰는 아직 시작하지 않았다. 실제 구현자는 Codex다. 다른 공급자의 Frontier 이상 리뷰가 필요하다. 리뷰 승인이나 머지 준비 완료를 뜻하지 않는다.</p>
+<h2>대상과 요구사항</h2><p><a href="https://github.com/charlie0421/picnic-web/pull/128">PR #128</a>은 OPEN·Draft다. 기준 커밋은 <code>5a30718ddd09e94bff162677eb5c63931030e0cc</code>, 원격 head는 <code>1aa136366ed5bd7abbe7de20623684eaec0e111e</code>다. 로컬 <code>bb4acca269c6202a7f9cb43e41a3674843ea25c2</code>의 실행 코드·테스트·설정은 원격 head와 같다.</p>
+<ul><li>F4: 이스케이프된 슬래시 경로의 query·fragment 유출을 차단한다. CSS 선택자와 색상은 보존한다.</li><li>N2: CSS 내부 참조와 확인된 SVG use 노드의 href·xlink:href를 보존한다. 허용 문법은 <code>#[a-zA-Z_][a-zA-Z0-9_-]{0,63}</code>이다. 외부 URL의 query·fragment는 제거한다. envelope 메타데이터는 SVG 노드 근거가 될 수 없다.</li><li>N4: 큰 breadcrumb에서 기본 정보와 정제된 복사 데이터를 보존한다. 초과 부분은 <code>[Truncated]</code>로 표시한다. 원본 변경·getter 호출 없이 값 10,000개·깊이 40 제한을 유지한다.</li><li>Replay의 8 MiB·2초·200,000개 값·깊이 80 제한과 maskAllText·maskAllInputs·blockAllMedia를 유지한다. 새 byte 제한, 녹화 활성화, 운영 설정 변경은 범위 밖이다.</li></ul>
+<h2>이번 실행의 검증</h2><table><thead><tr><th>검증</th><th>결과</th></tr></thead><tbody><tr><td>npm test</td><td>exit 0. 213개 파일, 3,735개 통과, 기존 예상 실패 6개, 건너뜀 1개.</td></tr><tr><td>tsc --noEmit</td><td>exit 0. 오류 출력 없음.</td></tr><tr><td>npm run lint</td><td>exit 0. ESLint warning·error 없음. Next lint 폐기 예정·workspace root 안내는 남아 있다.</td></tr><tr><td>GitHub CI</td><td>조회 시 위 원격 head의 타입 검사·lint·테스트 SUCCESS. <a href="https://github.com/charlie0421/picnic-web/actions/runs/37673435765">기존 CI 실행</a>.</td></tr></tbody></table><pre> Test Files  213 passed (213)
+      Tests  3735 passed | 6 expected fail | 1 skipped (3742)
+   Start at  00:53:20
+   Duration  35.41s (transform 12.73s, setup 19.33s, import 50.68s, tests 33.87s, environment 215.54s)</pre>
+<p>ESLint CLI 직접 호출은 legacy 설정 탐색 실패로 exit 2였다. 이후 저장소 공식 명령인 npm run lint를 실행해 통과했다. 브라우저 통합 검증은 이번에 재실행하지 않았다. 이전 기록에는 로컬 Production 모드 SDK·Chromium 검사에서 앱 CSS 100,546바이트 보존과 합성 개인정보 문자열 유출 0건이 있다. 이 기록은 운영 Sentry 저장·after flush·fingerprint 도착 증거를 제공하지 않는다.</p>
+<h2>리뷰 범위와 완료 조건</h2><p>리뷰어는 아래 diff, 관련 원본 파일과 테스트를 읽는다. 정확성·회귀·개인정보 노출·경계 조건·테스트 공백을 확인한다. 지적에는 심각도, 파일·위치, 실패 조건, 최소 수정 방향을 제시한다. 알려진 제한과 새 회귀를 구분한다. 셸 테스트는 조정자에게 요청한다. 코드·설정·Jira 상태·원격 저장소를 변경하지 않는다. 최종 결과는 APPROVE 또는 REQUEST_CHANGES와 검증 한계를 포함한다.</p>
+<p>제한: 내부 ID의 실제 존재 여부는 확인하지 않는다. 대상 정보 없는 mutation과 recording 간 SVG 참조는 보존을 보장하지 않는다. SDK가 절대 URL로 변환한 내부 참조는 fragment가 제거될 수 있다. 불투명 breadcrumb 객체는 기존 SDK normalization에 맡긴다. 결제 관련 예상 실패 6개는 이 diff의 범위 밖이다.</p>
+<h2>리뷰 대상 diff</h2><pre>diff --git a/__tests__/instrumentation-client-privacy.test.ts b/__tests__/instrumentation-client-privacy.test.ts
+index 395ef3ff..791f1ea1 100644
+--- a/__tests__/instrumentation-client-privacy.test.ts
++++ b/__tests__/instrumentation-client-privacy.test.ts
+@@ -48,12 +48,58 @@ describe(&#x27;browser Sentry URL privacy&#x27;, () =&gt; {
+     expect(clean.data.arguments[0].url).toBe(&#x27;/a&#x27;);
+     expect(clean.data.arguments[0].self).toBe(clean.data.arguments[0]);
+   });
+-  it(&#x27;drops an excessive breadcrumb while leaving the caller object unchanged&#x27;, async () =&gt; {
++  it(&#x27;truncates excessive breadcrumb data while preserving metadata and caller data&#x27;, async () =&gt; {
+     const config = await options();
+-    const input = { category: &#x27;console&#x27;, data: { arguments: Array(100000).fill(&#x27;/a?code=private&#x27;) } };
+-    expect(config.beforeBreadcrumb(input)).toBeNull();
++    const input = { data: { arguments: Array(100000).fill(&#x27;/a?code=private&#x27;) }, category: &#x27;console&#x27;, level: &#x27;warning&#x27;, message: &#x27;safe&#x27;, timestamp: 123 };
++    const clean = config.beforeBreadcrumb(input);
++    expect(clean).toMatchObject({ category: &#x27;console&#x27;, level: &#x27;warning&#x27;, message: &#x27;safe&#x27;, timestamp: 123 });
++    expect(clean.data.arguments.length).toBeLessThan(10000);
++    expect(clean.data.arguments.at(-1)).toBe(&#x27;[Truncated]&#x27;);
++    expect(clean.data.arguments[0]).toBe(&#x27;/a&#x27;);
++    expect(JSON.stringify(clean)).not.toContain(&#x27;private&#x27;);
+     expect(input.data.arguments[0]).toBe(&#x27;/a?code=private&#x27;);
+   });
++  it(&#x27;keeps data at the value budget and truncates only the next value&#x27;, async () =&gt; {
++    const config = await options();
++    const fits = config.beforeBreadcrumb({ category: &#x27;console&#x27;, message: &#x27;safe&#x27;, data: { arguments: Array(9995).fill(&#x27;safe&#x27;) } });
++    expect(fits.data.arguments).toHaveLength(9995);
++    expect(fits.data.arguments.at(-1)).toBe(&#x27;safe&#x27;);
++    const exceeds = config.beforeBreadcrumb({ category: &#x27;console&#x27;, message: &#x27;safe&#x27;, data: { arguments: Array(9996).fill(&#x27;/a?code=private&#x27;) } });
++    expect(exceeds.data.arguments).toHaveLength(9996);
++    expect(exceeds.data.arguments.at(-1)).toBe(&#x27;[Truncated]&#x27;);
++    expect(exceeds.data.arguments[9994]).toBe(&#x27;/a&#x27;);
++  });
++  it(&#x27;marks an excessive object without forwarding its uncopied values&#x27;, async () =&gt; {
++    const config = await options();
++    const data = Object.fromEntries(Array.from({ length: 12000 }, (_, i) =&gt; [`field${i}`, &#x27;/a?code=private&#x27;]));
++    const clean = config.beforeBreadcrumb({ data, category: &#x27;console&#x27; });
++    expect(clean.category).toBe(&#x27;console&#x27;);
++    expect(clean.data._truncated).toBe(&#x27;[Truncated]&#x27;);
++    expect(Object.keys(clean.data).length).toBeLessThan(10000);
++    expect(JSON.stringify(clean)).not.toContain(&#x27;private&#x27;);
++    expect(data.field11999).toBe(&#x27;/a?code=private&#x27;);
++  });
++  it(&#x27;bounds sparse array indexes instead of creating an enormous copied array&#x27;, async () =&gt; {
++    const config = await options();
++    const sparse = new Array(100000);
++    sparse[99999] = &#x27;/a?code=private&#x27;;
++    const clean = config.beforeBreadcrumb({ category: &#x27;console&#x27;, data: { arguments: sparse } });
++    expect(clean).not.toBeNull();
++    expect(clean.data.arguments.length).toBeLessThanOrEqual(10000);
++    expect(clean.data.arguments.at(-1)).toBe(&#x27;[Truncated]&#x27;);
++    expect(sparse.length).toBe(100000);
++  });
++  it(&#x27;truncates only an excessive nested branch and keeps a safe sibling&#x27;, async () =&gt; {
++    const config = await options();
++    let deep: unknown = { url: &#x27;/a?code=private&#x27; };
++    for (let i = 0; i &lt; 45; i++) deep = { child: deep };
++    const input = { category: &#x27;console&#x27;, data: { deep, safe: { url: &#x27;/b?code=private&#x27; } } };
++    const clean = config.beforeBreadcrumb(input);
++    expect(clean.data.safe.url).toBe(&#x27;/b&#x27;);
++    expect(JSON.stringify(clean.data.deep)).toContain(&#x27;[Truncated]&#x27;);
++    expect(JSON.stringify(clean)).not.toContain(&#x27;private&#x27;);
++    expect(input.data.safe.url).toBe(&#x27;/b?code=private&#x27;);
++  });
+   it(&#x27;redacts errors after applying existing filters&#x27;, async () =&gt; {
+     const config = await options();
+     const event = { exception: { values: [{ type: &#x27;Error&#x27;, value: &#x27;failure /callback?code=secret-error&#x27; }] }, request: { url: &#x27;https://picnic.test/?token=secret-request&#x27;, headers: { cookie: &#x27;secret-cookie&#x27; } } };
+diff --git a/__tests__/lib/sentry/browser-transport.test.ts b/__tests__/lib/sentry/browser-transport.test.ts
+index 9db77e38..95da540c 100644
+--- a/__tests__/lib/sentry/browser-transport.test.ts
++++ b/__tests__/lib/sentry/browser-transport.test.ts
+@@ -36,6 +36,9 @@ afterEach(() =&gt; vi.unstubAllGlobals());
+ 
+ describe(&#x27;Replay privacy transport&#x27;, () =&gt; {
+   it.each([
++    [String.raw`callback\/path#secret-opaque`, &#x27;&#x27;],
++    [String.raw`\2f callback#secret-opaque`, &#x27;&#x27;],
++    [String.raw`\/callback#secret-opaque`, &#x27;&#x27;],
+     [String.raw`/callback\?code=secret-opaque`, &#x27;&#x27;],
+     [String.raw`/callback\#secret-opaque`, &#x27;&#x27;],
+     [String.raw`/callback\3f code=secret-opaque`, &#x27;&#x27;],
+@@ -50,6 +53,36 @@ describe(&#x27;Replay privacy transport&#x27;, () =&gt; {
+       expect(decoded(output!)[0].data.payload.message).toBe(expected);
+     }
+   });
++  it.each([false, true])(&#x27;preserves bounded same-document SVG references, compressed=%s&#x27;, async (compressed) =&gt; {
++    const input = [
++      { type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: &#x27;use&#x27;, isSVG: true,
++        attributes: { href: &#x27;#shape&#x27;, &#x27;xlink:href&#x27;: &#x27;#shape&#x27;, style: &#x27;fill:url(#gradient);filter:url(&quot;#shadow&quot;);color:#fff&#x27; }, childNodes: [] } } },
++      { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 20, attributes: { href: &#x27;#shape-2&#x27; } }, { id: 21, attributes: { href: &#x27;#private-navigation&#x27; } }] } },
++    ];
++    const output = await scrubReplayEnvelope(envelope(compressed, input as never));
++    const clean = decoded(output!);
++    expect(clean[0].data.node.attributes).toEqual({ href: &#x27;#shape&#x27;, &#x27;xlink:href&#x27;: &#x27;#shape&#x27;, style: &#x27;fill:url(&quot;#gradient&quot;);filter:url(&quot;#shadow&quot;);color:#fff&#x27; });
++    expect(clean[1].data.attributes[0].attributes.href).toBe(&#x27;#shape-2&#x27;);
++    expect(clean[1].data.attributes[1].attributes.href).toBe(&#x27;&#x27;);
++  });
++  it(&#x27;does not use envelope metadata as evidence for an SVG mutation target&#x27;, async () =&gt; {
++    const input = envelope(false, [{ type: 3, timestamp: 1, data: { source: 0, attributes: [{ id: 20, attributes: { href: &#x27;#private-navigation&#x27; } }] } }] as never);
++    Object.assign(input[0], { fixture: { id: 20, tagName: &#x27;use&#x27;, isSVG: true } });
++    const output = await scrubReplayEnvelope(input);
++    expect(decoded(output!)[0].data.attributes[0].attributes.href).toBe(&#x27;&#x27;);
++  });
++  it(&#x27;preserves SVG presentation attribute references without retaining opaque fragments&#x27;, async () =&gt; {
++    const input = [{ type: 2, timestamp: 1, data: { node: { id: 30, type: 2, tagName: &#x27;rect&#x27;, isSVG: true,
++      attributes: { fill: &#x27;url(#gradient)&#x27;, stroke: &#x27;url(&quot;#stroke&quot;)&#x27;, filter: &#x27;url(#shadow)&#x27;, &#x27;clip-path&#x27;: &#x27;url(#clip)&#x27;, mask: &#x27;url(#mask)&#x27;, &#x27;data-note&#x27;: &#x27;url(#private)&#x27; } } } }];
++    const output = await scrubReplayEnvelope(envelope(false, input as never));
++    expect(decoded(output!)[0].data.node.attributes).toEqual({ fill: &#x27;url(&quot;#gradient&quot;)&#x27;, stroke: &#x27;url(&quot;#stroke&quot;)&#x27;, filter: &#x27;url(&quot;#shadow&quot;)&#x27;, &#x27;clip-path&#x27;: &#x27;url(&quot;#clip&quot;)&#x27;, mask: &#x27;url(&quot;#mask&quot;)&#x27;, &#x27;data-note&#x27;: &#x27;url(&quot;&quot;)&#x27; });
++  });
++  it(&#x27;scrubs external and malformed SVG references while keeping a CSS local reference&#x27;, async () =&gt; {
++    const input = [{ type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: &#x27;use&#x27;, isSVG: true,
++      attributes: { href: &#x27;/sprite.svg?code=secret#shape&#x27;, &#x27;xlink:href&#x27;: &#x27;#Bearer secret&#x27;, style: &#x27;fill:url(#gradient);filter:url(/asset?code=secret#shadow);mask:url(#a.b.c)&#x27; } } } }];
++    const output = await scrubReplayEnvelope(envelope(false, input as never));
++    expect(decoded(output!)[0].data.node.attributes).toEqual({ href: &#x27;/sprite.svg&#x27;, &#x27;xlink:href&#x27;: &#x27;&#x27;, style: &#x27;fill:url(&quot;#gradient&quot;);filter:url(&quot;/asset&quot;);mask:url(&quot;&quot;)&#x27; });
++  });
+   it(&#x27;preserves CSS text mutation syntax while removing a root-relative URL query&#x27;, async () =&gt; {
+     const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value: &#x27;.w-1\\/2{background:url(/img?code=secret-css);color:#fff}&#x27; }] } }];
+     const output = await scrubReplayEnvelope(envelope(false, input as never));
+diff --git a/lib/sentry/browser-scrub.ts b/lib/sentry/browser-scrub.ts
+index dafc23e6..364629d7 100644
+--- a/lib/sentry/browser-scrub.ts
++++ b/lib/sentry/browser-scrub.ts
+@@ -6,19 +6,28 @@ function copyBreadcrumb(input: Breadcrumb): Breadcrumb {
+   const seen = new WeakMap&lt;object, object&gt;();
+   let count = 0;
+   function copy(value: unknown, depth: number): unknown {
+-    if (++count &gt; 10000 || depth &gt; 40) throw new Error(&#x27;breadcrumb limits&#x27;);
++    if (count &gt;= 10000 || depth &gt; 40) return &#x27;[Truncated]&#x27;;
++    count++;
+     if (!value || typeof value !== &#x27;object&#x27;) return value;
+     if (seen.has(value)) return seen.get(value);
+     const proto = Object.getPrototypeOf(value);
+     // scrubEvent also leaves opaque objects intact; SDK normalization handles them later.
+     if (!Array.isArray(value) &amp;&amp; proto !== Object.prototype &amp;&amp; proto !== null) return value;
+-    if (Array.isArray(value) &amp;&amp; value.length &gt; 10000) throw new Error(&#x27;breadcrumb limits&#x27;);
+     const result = Array.isArray(value) ? [] : Object.create(null);
+     seen.set(value, result);
+-    for (const key of Object.keys(value)) {
++    const keys = Object.keys(value);
++    // Reserve the ordinary breadcrumb fields before large application data.
++    const metadata = [&#x27;category&#x27;, &#x27;type&#x27;, &#x27;level&#x27;, &#x27;timestamp&#x27;, &#x27;message&#x27;];
++    const ordered = depth === 0 ? [...metadata.filter((key) =&gt; keys.includes(key)), ...keys.filter((key) =&gt; !metadata.includes(key))] : keys;
++    for (const key of ordered) {
++      if (count &gt;= 10000 || (Array.isArray(result) &amp;&amp; /^(0|[1-9][0-9]*)$/.test(key) &amp;&amp; Number(key) &gt;= 9999)) {
++        if (Array.isArray(result)) Object.defineProperty(result, String(result.length), { value: &#x27;[Truncated]&#x27;, enumerable: true, configurable: true, writable: true });
++        else Object.defineProperty(result, &#x27;_truncated&#x27;, { value: &#x27;[Truncated]&#x27;, enumerable: true, configurable: true, writable: true });
++        break;
++      }
+       const descriptor = Object.getOwnPropertyDescriptor(value, key);
+       Object.defineProperty(result, key, {
+-        value: descriptor &amp;&amp; &#x27;value&#x27; in descriptor ? copy(descriptor.value, depth + 1) : &#x27;[Getter]&#x27;,
++        value: copy(descriptor &amp;&amp; &#x27;value&#x27; in descriptor ? descriptor.value : &#x27;[Getter]&#x27;, depth + 1),
+         enumerable: true, configurable: true, writable: true,
+       });
+     }
+diff --git a/lib/sentry/replay-scrub.ts b/lib/sentry/replay-scrub.ts
+index 9ad373cf..a96e3d87 100644
+--- a/lib/sentry/replay-scrub.ts
++++ b/lib/sentry/replay-scrub.ts
+@@ -9,7 +9,8 @@ const QUERY_KEYS = new Set([&#x27;url.query&#x27;, &#x27;http.query&#x27;, &#x27;url.fragment&#x27;, &#x27;http.fra
+ const encoder = new TextEncoder();
+ const decoder = new TextDecoder(&#x27;utf-8&#x27;, { fatal: true });
+ const cutUrl = (value: string) =&gt; value.split(/[?#]/, 1)[0];
+-type Walk = { count: number; tripwire: boolean; deadline: number };
++const localReference = (value: string) =&gt; /^#[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(value);
++type Walk = { count: number; tripwire: boolean; deadline: number; svgUseIds: Set&lt;number&gt; };
+ 
+ /** Preserve escaped selectors; consume URL/string tokens without regex backtracking. */
+ function scrubCss(value: string, opaque = false): string {
+@@ -50,7 +51,7 @@ function scrubCss(value: string, opaque = false): string {
+       if (name.toLowerCase() !== &#x27;url&#x27; || value[cursor] !== &#x27;(&#x27;) {
+         const raw = value.slice(start, cursor);
+         output.push(raw);
+-        remainder.push(escaped ? (opaque &amp;&amp; /[?#]/.test(name) ? name : &#x27;identifier&#x27;) : raw);
++        remainder.push(escaped ? (opaque &amp;&amp; ((name.includes(&#x27;/&#x27;) &amp;&amp; value[start - 1] !== &#x27;.&#x27; &amp;&amp; value[start - 1] !== &#x27;#&#x27;) || /[?#]/.test(name)) ? name : &#x27;identifier&#x27;) : raw);
+         continue;
+       }
+       cursor++;
+@@ -64,7 +65,7 @@ function scrubCss(value: string, opaque = false): string {
+       if (value[cursor] !== &#x27;)&#x27;) return &#x27;&#x27;;
+       const url = value.slice(contentStart, token.end).trim();
+       const unsafe = token.escaped || (!quote &amp;&amp; /[(&#x27;&quot;\s]/.test(url));
+-      output.push(`url(${JSON.stringify(unsafe ? &#x27;&#x27; : cutUrl(url))})`); remainder.push(&#x27;url()&#x27;);
++      output.push(`url(${JSON.stringify(unsafe ? &#x27;&#x27; : (!opaque &amp;&amp; localReference(url) ? url : cutUrl(url)))})`); remainder.push(&#x27;url()&#x27;);
+       cursor++;
+     } else if (value[cursor] === &#x27;&quot;&#x27; || value[cursor] === &quot;&#x27;&quot;) {
+       const quote = value[cursor++], start = cursor;
+@@ -81,26 +82,28 @@ function scrubCss(value: string, opaque = false): string {
+   return output.join(&#x27;&#x27;);
+ }
+ 
+-function scrubNode(value: unknown, state: Walk, key = &#x27;&#x27;, css = false, depth = 0): unknown {
++function scrubNode(value: unknown, state: Walk, key = &#x27;&#x27;, css = false, depth = 0, svgUse = false): unknown {
+   if (++state.count &gt; 200000 || depth &gt; 80 || Date.now() &gt; state.deadline) throw new Error(&#x27;replay limits&#x27;);
+   if (typeof value === &#x27;string&#x27;) {
+     let clean: string;
+     if (key === &#x27;srcdoc&#x27; || ((key === &#x27;srcset&#x27; || key === &#x27;imagesrcset&#x27;) &amp;&amp; /[?#]/.test(value))) clean = &#x27;&#x27;;
+-    else if (css || [&#x27;style&#x27;, &#x27;_cssText&#x27;, &#x27;rule&#x27;, &#x27;replace&#x27;, &#x27;replaceSync&#x27;].includes(key)) clean = scrubCss(value);
+-    else if (URL_KEYS.has(key)) clean = cutUrl(value);
++    else if (css || [&#x27;style&#x27;, &#x27;_cssText&#x27;, &#x27;rule&#x27;, &#x27;replace&#x27;, &#x27;replaceSync&#x27;, &#x27;fill&#x27;, &#x27;stroke&#x27;, &#x27;filter&#x27;, &#x27;clip-path&#x27;, &#x27;mask&#x27;].includes(key)) clean = scrubCss(value);
++    else if (URL_KEYS.has(key)) clean = svgUse &amp;&amp; (key === &#x27;href&#x27; || key === &#x27;xlink:href&#x27;) &amp;&amp; localReference(value) ? value : cutUrl(value);
+     else if (/url\(|@import|\\/i.test(value)) clean = scrubCss(value, true);
+     else clean = stripUrlQueries(value);
+     const redacted = redactTokenShapes(clean);
+     if (redacted !== clean) state.tripwire = true;
+     return redacted;
+   }
+-  if (Array.isArray(value)) return value.map((child) =&gt; scrubNode(child, state, key, css, depth + 1));
++  if (Array.isArray(value)) return value.map((child) =&gt; scrubNode(child, state, key, css, depth + 1, svgUse));
+   if (value &amp;&amp; typeof value === &#x27;object&#x27;) {
+     const bag = value as Record&lt;string, unknown&gt;;
++    if (bag.isSVG === true &amp;&amp; bag.tagName === &#x27;use&#x27; &amp;&amp; Number.isSafeInteger(bag.id)) state.svgUseIds.add(bag.id as number);
++    const use = (bag.isSVG === true &amp;&amp; bag.tagName === &#x27;use&#x27;) || (Number.isSafeInteger(bag.id) &amp;&amp; state.svgUseIds.has(bag.id as number));
+     const out: Record&lt;string, unknown&gt; = Object.create(null);
+     const style = css || bag.tagName === &#x27;style&#x27; || bag.isStyle === true || key === &#x27;style&#x27; || (typeof bag.property === &#x27;string&#x27; &amp;&amp; &#x27;value&#x27; in bag);
+     for (const name of Object.keys(bag)) {
+-      if (!QUERY_KEYS.has(name)) out[name] = scrubNode(bag[name], state, name, style, depth + 1);
++      if (!QUERY_KEYS.has(name)) out[name] = scrubNode(bag[name], state, name, style, depth + 1, name === &#x27;attributes&#x27; ? use : svgUse);
+     }
+     return out;
+   }
+@@ -153,6 +156,8 @@ async function scrubRecording(payload: unknown, state: Walk): Promise&lt;string | U
+     !record || !Number.isInteger(record.type) || record.type &lt; 0 || record.type &gt; 6 || !Number.isFinite(record.timestamp))) {
+     throw new Error(&#x27;replay records&#x27;);
+   }
++  // A recording must establish its own node identities; metadata cannot authorize href fragments.
++  state.svgUseIds.clear();
+   const cleaned = encoder.encode(JSON.stringify(scrubNode(records, state)));
+   if (cleaned.length &gt; MAX_BYTES) throw new Error(&#x27;replay size&#x27;);
+   // The SDK&#x27;s segment header is uncompressed. Only the JSON event array is deflated.
+@@ -167,7 +172,7 @@ async function scrubRecording(payload: unknown, state: Walk): Promise&lt;string | U
+ /** Replay bypasses beforeSend and beforeEnvelope in SDK 9.47.1. Never return its raw payload on failure. */
+ export async function scrubReplayEnvelope(envelope: Envelope): Promise&lt;Envelope | null&gt; {
+   try {
+-    const state: Walk = { count: 0, tripwire: false, deadline: Date.now() + MAX_WORK_MS };
++    const state: Walk = { count: 0, tripwire: false, deadline: Date.now() + MAX_WORK_MS, svgUseIds: new Set() };
+     const header = scrubNode(JSON.parse(JSON.stringify(envelope[0])), state);
+     const items: EnvelopeItem[] = [];
+     for (const [itemHeader, payload] of envelope[1]) {
+diff --git a/scripts/envelope-test/browser-analyze.js b/scripts/envelope-test/browser-analyze.js
+index a3343270..45a6f55d 100644
+--- a/scripts/envelope-test/browser-analyze.js
++++ b/scripts/envelope-test/browser-analyze.js
+@@ -73,6 +73,10 @@ function evaluateBrowserEnvelopes(envelopes) {
+   assert.equal(escaped[&#x27;data-escaped-fragment&#x27;], &#x27;&#x27;);
+   assert.equal(escaped[&#x27;data-hex-query&#x27;], &#x27;&#x27;);
+   assert.equal(escaped[&#x27;data-hex-fragment&#x27;], &#x27;&#x27;);
++  assert.equal(escaped[&#x27;data-escaped-root&#x27;], &#x27;&#x27;);
++  assert.ok(records.some((event) =&gt; event.type === 3 &amp;&amp; event.data.source === 13 &amp;&amp; event.data.set?.property === &#x27;filter&#x27; &amp;&amp; event.data.set.value === &#x27;url(&quot;#fixture-shadow&quot;)&#x27;), &#x27;CSS declaration local reference survives&#x27;);
++  assert.ok(!objects.some((node) =&gt; node.tagName === &#x27;rect&#x27; || node.tagName === &#x27;use&#x27;), &#x27;SVG contents remain blocked by blockAllMedia&#x27;);
++  assert.ok(errors.some((item) =&gt; item.payload.breadcrumbs?.some((crumb) =&gt; crumb.category === &#x27;fixture.large&#x27; &amp;&amp; crumb.message === &#x27;large-safe&#x27;)), &#x27;large breadcrumb metadata delivered&#x27;);
+   assert.ok(records.some((event) =&gt; event.type === 3 &amp;&amp; event.data.source === 8), &#x27;CSS rule insertion captured&#x27;);
+   assert.ok(records.some((event) =&gt; event.type === 3 &amp;&amp; event.data.source === 13), &#x27;CSS declaration captured&#x27;);
+   assert.ok(records.some((event) =&gt; event.type === 5 &amp;&amp; event.data.tag === &#x27;performanceSpan&#x27;), &#x27;Replay performance custom events captured&#x27;);
+diff --git a/scripts/envelope-test/browser-fixture/page.tsx b/scripts/envelope-test/browser-fixture/page.tsx
+index fe097975..a26b7d49 100644
+--- a/scripts/envelope-test/browser-fixture/page.tsx
++++ b/scripts/envelope-test/browser-fixture/page.tsx
+@@ -17,6 +17,7 @@ export default function BrowserPrivacyFixture() {
+         console.warn(&#x27;browser-privacy-console&#x27;, consoleValue);
+         if (consoleValue.url !== &#x27;/callback?code=privacy-console-query&#x27;) throw new Error(&#x27;Console instrumentation mutated caller data&#x27;);
+         Sentry.addBreadcrumb({ category: &#x27;navigation&#x27;, data: { from: url, to: &#x27;callback?code=privacy-relative-query&#x27; } });
++        Sentry.addBreadcrumb({ category: &#x27;fixture.large&#x27;, data: { arguments: Array(12000).fill(&#x27;/a?code=privacy-large-query&#x27;) }, message: &#x27;large-safe&#x27;, level: &#x27;warning&#x27; });
+         Sentry.captureException(new Error(`browser-privacy-error ${url}`));
+         await Sentry.startSpan({ name: `browser-privacy-transaction ${url}`, op: &#x27;privacy-test&#x27;, forceTransaction: true }, async () =&gt; {
+           await Sentry.startSpan({ name: `GET ${url}`, op: &#x27;http.client&#x27;, attributes: { &#x27;http.url&#x27;: url } }, async () =&gt; {
+@@ -27,6 +28,7 @@ export default function BrowserPrivacyFixture() {
+         const style = document.getElementById(&#x27;fixture-sheet&#x27;) as HTMLStyleElement;
+         style.sheet!.insertRule(&#x27;.dynamic{background:url(img?privacy-rule-query)}&#x27;, 0);
+         (style.sheet!.cssRules[0] as CSSStyleRule).style.setProperty(&#x27;background&#x27;, &#x27;url(img?privacy-declaration-query)&#x27;);
++        (style.sheet!.cssRules[0] as CSSStyleRule).style.setProperty(&#x27;filter&#x27;, &#x27;url(#fixture-shadow)&#x27;);
+         const addedStyle = document.createElement(&#x27;style&#x27;);
+         addedStyle.textContent = &#x27;.added{background:url(img?privacy-added-query)}&#x27;;
+         document.head.appendChild(addedStyle);
+@@ -45,10 +47,16 @@ export default function BrowserPrivacyFixture() {
+     &lt;style id=&quot;fixture-sheet&quot;&gt;{&#x27;.hover\\:bg-privacy:hover{background:url(&quot;/asset?token=privacy-sheet-query&quot;);color:#fff}.w-1\\/2{width:50%}&#x27;}&lt;/style&gt;
+     &lt;a id=&quot;fixture-link&quot; href=&quot;/callback?code=privacy-dom-query#privacy-dom-fragment&quot;&gt;링크&lt;/a&gt;
+     &lt;div id=&quot;fixture-style&quot; style={{ backgroundImage: &#x27;url(&quot;/asset?token=privacy-css-query&quot;)&#x27;, color: &#x27;rgb(1, 2, 3)&#x27; }}&gt;마스킹 대상&lt;/div&gt;
++    &lt;svg id=&quot;fixture-svg&quot; width=&quot;100&quot; height=&quot;100&quot;&gt;
++      &lt;defs&gt;&lt;linearGradient id=&quot;fixture-gradient&quot;&gt;&lt;stop stopColor=&quot;red&quot; /&gt;&lt;/linearGradient&gt;&lt;path id=&quot;fixture-shape&quot; d=&quot;M0 0h10v10z&quot; /&gt;&lt;/defs&gt;
++      &lt;rect id=&quot;fixture-rect&quot; width=&quot;100&quot; height=&quot;100&quot; fill=&quot;url(#fixture-gradient)&quot; /&gt;
++      &lt;use id=&quot;fixture-use&quot; href=&quot;#fixture-shape&quot; /&gt;
++    &lt;/svg&gt;
+     &lt;input defaultValue=&quot;privacy-input-value&quot; /&gt;
+     &lt;div data-escaped-query={String.raw`/callback\?code=privacy-escaped-query`}
+       data-escaped-fragment={String.raw`/callback\#privacy-escaped-fragment`}
+       data-hex-query={String.raw`/callback\3f code=privacy-hex-query`}
+-      data-hex-fragment={String.raw`/callback\23 privacy-hex-fragment`}&gt;정규식 자료&lt;/div&gt;
++      data-hex-fragment={String.raw`/callback\23 privacy-hex-fragment`}
++      data-escaped-root={String.raw`\2f callback#privacy-root-fragment`}&gt;정규식 자료&lt;/div&gt;
+   &lt;/body&gt;&lt;/html&gt;;
+ }
+</pre>
+</body></html>
