@@ -1,0 +1,616 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PR #128 수정 재검토</title><style>body{max-width:1100px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182333}pre,code{font:14px/1.6 ui-monospace,monospace}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef2f6;padding:16px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd4df;padding:10px;text-align:left}.status{padding:16px;background:#fff4d9}</style></head><body><h1>PR #128 수정 재검토</h1><p>2026-10-13 KST. 실제 구현 공급자: Codex. 대상: 최초 독립 리뷰 F-1~F-5에 대한 로컬 수정 네 파일. 기준 커밋 <code>02c5f119</code>. 원격 PR head <code>1aa136366ed5bd7abbe7de20623684eaec0e111e</code> 이후 로컬 수정이며, 원격 CI 결과를 이 수정의 검증으로 사용하지 않는다.</p><p class="status" id="verdict">당시 재검토 판정: REQUEST_CHANGES. 아래는 R-1·R-4 후속 수정 전의 검토 이력이다. <a href="2026-10-13-pr128-final-review.html">현재 수정·검증·판정</a>을 별도 자료에 기록한다.</p><h2>요구사항과 범위</h2><ul><li>F4: 이스케이프된 슬래시 경로의 query·fragment 유출을 차단한다. CSS 선택자와 색상은 보존한다.</li><li>N2: CSS 내부 참조와 확인된 SVG use 노드의 href·xlink:href를 보존한다. 허용 문법은 <code>#[a-zA-Z_][a-zA-Z0-9_-]{0,63}</code>이다. 외부 URL의 query·fragment는 제거한다. envelope 메타데이터는 SVG 노드 근거가 될 수 없다.</li><li>N4: 큰 breadcrumb에서 기본 정보와 정제된 복사 데이터를 보존한다. 초과 부분은 <code>[Truncated]</code>로 표시한다. 원본 변경·getter 호출 없이 값 10,000개·깊이 40 제한을 유지한다.</li><li>Replay의 8 MiB·2초·200,000개 값·깊이 80 제한과 maskAllText·maskAllInputs·blockAllMedia를 유지한다. 새 byte 제한, 녹화 활성화, 운영 설정 변경은 범위 밖이다.</li></ul><p>F-1~F-5 수정 여부와 수정으로 생긴 회귀를 검토한다. 기존 일반 객체의 전체 키 열거, 불투명 객체의 SDK normalization 의존은 기존 제한이다. 내부 참조 대상의 실제 존재 여부는 검사하지 않는다. 대상 정보 없는 mutation, recording 간 SVG 참조, SDK가 절대 URL로 바꾼 내부 참조의 보존을 보장하지 않는다. 새로운 byte 제한과 운영 설정 변경은 범위 밖이다.</p><h2>수정 후 검증</h2><table><tr><th>검증</th><th>결과</th></tr><tr><td>수정 전 회귀 테스트</td><td>13개 실패, 57개 통과. 수정 후 동일 두 파일 70개 통과.</td></tr><tr><td>관련 테스트</td><td>8개 파일, 204개 통과. exit 0.</td></tr><tr><td>npm test</td><td>213개 파일, 3,752개 통과 / 기존 예상 실패 6개 / 건너뜀 1개. exit 0.</td></tr><tr><td>npx tsc --noEmit</td><td>exit 0.</td></tr><tr><td>npm run lint</td><td>exit 0. ESLint warning/error 없음.</td></tr><tr><td>npm run test:envelope:browser</td><td>조정자가 정산된 구현 작업자 종료 후 실행. exit 0. 로컬 Next production build·잠금 버전 SDK·Chromium. errors 1, transactions 1, replayEvents 1, recordings 1, appStylesheets 1, appStyleBytes 100546, leaks 0.</td></tr><tr><td>git diff --check</td><td>exit 0.</td></tr></table><p>기존 예상 실패 6개는 PayPal 소유권·금액 및 PortOne 인증·결제 조회 관련이다. 건너뜀 1개는 rendering modes 선언 상태 검사다. 브라우저 fixture/analyzer는 이번 수정에서 변경하지 않았다. 현재 blockAllMedia 설정은 실제 SVG 내용을 차단하므로 SVG 속성 보존의 긍정 근거는 단위 테스트다. 브라우저 검사는 로컬 전송을 확인하며, 운영 Sentry 저장·after flush·fingerprint 도착을 입증하지 않는다. 기존 npm proxy·Vite 설정·Next lint 폐기 예정·workspace lockfile 안내는 남아 있다.</p><h2>최초 리뷰 원문</h2><p>아래는 수정 전 판정이다. 새로운 판정은 상단 상태와 후속 결과에 기록한다. 최초 리뷰어가 인용한 테스트 결과도 수정 전 기록이다.</p><pre>판정: REQUEST_CHANGES. 대상: base 5a30718d → head 1aa13636 의 실행 코드·테스트 diff.
+
+읽은 파일: lib/sentry/replay-scrub.ts, browser-scrub.ts, scrub.ts, browser-transport.ts 전체. instrumentation-client.ts 전체. __tests__/lib/sentry/browser-transport.test.ts, __tests__/instrumentation-client-privacy.test.ts 전체. scripts/envelope-test/browser-analyze.js, browser-fixture/page.tsx 전체. 리뷰 자료 HTML 전체. 구현 진행·핸드오프·자기평가 문서는 읽지 않았다.
+
+실행 근거: 아래 P1~P4 는 조정자가 임시 probe 테스트로 실행한 결과다(msg_7f103936d8df 답변). 조정자가 log 함수를 process.stdout.write 로 바꿨다. 나는 어떤 테스트도 직접 실행하지 않았다.
+
+━━ 지적 ━━
+
+[F-1] Medium · 신규 회귀 · 개인정보 — lib/sentry/replay-scrub.ts:90
+- 조건: 키 이름이 fill, stroke, filter, clip-path, mask 이면 위치와 무관하게 CSS 모드(비-opaque scrubCss)를 적용한다. 노드 attributes 인지, SVG 노드인지 확인하지 않는다. type 5 custom event payload 같은 일반 데이터에도 적용된다.
+- 실패 입력: { type: 5, data: { tag: &#x27;breadcrumb&#x27;, payload: { data: { filter: String.raw`/callback\?code=secret-opaque` } } } }
+- 결과(P2 실행): filter·mask·fill·stroke·clip-path 는 원문 `/callback\?code=secret-opaque` 가 그대로 남는다. 대조군 키 note 는 &#x27;&#x27; 이다.
+- 회귀 근거: PR 이전에는 이 5개 키가 `/url\(|@import|\\/` 분기로 가서 opaque 모드가 &#x27;&#x27; 를 반환했다. CSS 모드는 이스케이프된 `?`·`#` 를 선택자 식별자로 취급한다(replay-scrub.ts:54 의 비-opaque 분기). F4 가 막으려는 입력 유형이 이 5개 키에서 다시 통과한다.
+- 참고: 운영 설정 blockAllMedia 는 svg 를 차단한다(@sentry-internal/replay index.js:9676-9677, analyzer:78 단언). 그래서 SVG presentation 속성 경로는 현재 운영 녹화에서 보존 효과가 없고 노출 면만 늘린다.
+- 최소 수정: 5개 키의 CSS 모드를 노드 attributes 봉투 안으로 한정한다. 가능하면 isSVG===true 노드 또는 같은 recording 에서 확인된 SVG 노드 id 로 더 좁힌다. 그 밖의 위치는 기존 opaque 경로를 유지한다. 위 입력의 테스트를 추가한다.
+
+[F-2] Medium · F4 잔여 누출(PR 이전에도 누출, 신규 회귀 아님) · 개인정보 — lib/sentry/replay-scrub.ts:54
+- 조건: 이스케이프된 슬래시를 가진 식별자 바로 앞 문자가 `.` 또는 `#` 이면 remainder 에 &#x27;identifier&#x27; 를 넣는다. 다른 슬래시가 없으면 stripUrlQueries 가 fragment 를 자르지 않는다.
+- 실패 입력(P1 실행, opaque 문자열 data.payload.message):
+  · `example.com\/callback#secret-opaque` → 원문 유지
+  · `..\/callback#secret-opaque` → 원문 유지
+  · `.\/callback#secret-opaque` → 원문 유지
+  · 대조군 `callback\/path#secret-opaque` → &#x27;&#x27;
+- 범위: `?` 는 remainder 검사(replay-scrub.ts:81)가 막는다. `#키=` 형태도 QUERY_PAIR 가 막는다. 남는 것은 `키=` 형태가 아닌 fragment 다.
+- 판단: 요구사항 F4 는 &quot;이스케이프된 슬래시 경로의 query·fragment 유출 차단&quot;이다. 이 입력은 리뷰 자료의 제한 목록에 없다.
+- 최소 수정: `.`·`#` 예외를 적용한 식별자 뒤에서 선택자 구분 문자(공백, `{`, `,`, `&gt;`, `+`, `~`, `)`)보다 먼저 `#` 를 만나면 &#x27;&#x27; 를 반환한다. `.w-1\/2{width:50%;color:#fff}` 는 `#` 가 `{` 뒤에 있으므로 보존된다. 위 3개 입력을 it.each 표에 추가한다.
+- 대안: 사용자가 이 입력을 허용 제한으로 결정하면 제한 목록에 명시한다. 그 결정 없이는 승인하지 않는다.
+
+[F-3] Low · 신규 · 경계/성능(개인정보 아님) — lib/sentry/browser-scrub.ts:18
+- 조건: 배열 길이 가드(`value.length &gt; 10000` 이면 중단)를 삭제했다. 이제 Object.keys 가 배열 전체를 열거한 뒤에야 9,999 에서 자른다.
+- 측정(P4 실행, Node): dense 배열 100,000개 → 11ms, 5,000,000개 → 356ms. 두 경우 모두 결과 길이는 9,996 이다. 이 작업은 console 호출 경로에서 동기로 실행된다. 사용자 기기 수치는 측정하지 않았다.
+- 판단: 복사 값 10,000개 제한은 유지된다. 작업량 제한은 배열에서 유지되지 않는다. 일반 객체의 Object.keys 는 PR 이전에도 무제한이었다.
+- 최소 수정: 배열은 `i &lt; Math.min(value.length, 9999)` 인덱스 루프와 getOwnPropertyDescriptor(hole 은 건너뜀)로 복사한다. value.length 가 9,999 를 넘으면 표식을 붙인다. 기존 sparse 테스트 기대값과 맞는다.
+
+[F-4] Low · 신규 · 방어 보강 — lib/sentry/replay-scrub.ts:101-102
+- 조건: svgUseIds 에 들어간 id 는 같은 recording 안에서 제거되지 않는다. 같은 id 가 다른 tagName 으로 다시 나오면 href 의 `#fragment` 를 보존한다.
+- 실패 입력(P3 실행): type 2 `{id:20, tagName:&#x27;use&#x27;, isSVG:true}` 뒤에 type 2 `{id:20, tagName:&#x27;a&#x27;, attributes:{href:&#x27;#private-navigation&#x27;}}` → `#private-navigation` 유지.
+- 도달 가능성: 번들된 rrweb 는 `_id` 를 재설정하지 않는다(index.js:335-338). SDK 정상 출력에서 id 재사용 경로는 찾지 못했다. 그래서 Low 다.
+- 최소 수정: tagName 이 문자열인 노드는 자기 속성(isSVG·tagName)으로만 판정한다. use 가 아니면 `state.svgUseIds.delete(id)` 를 호출한다.
+
+[F-5] Low · 신규 · 격리 — lib/sentry/replay-scrub.ts:160, 178-185
+- 조건: clear() 는 recording 시작에서만 실행된다. replay_recording 뒤에 오는 replay_event 는 recording 의 svgUseIds 를 물려받는다.
+- 불확실: SDK 의 item 순서는 직접 확인하지 않았다. 테스트 envelope 은 replay_event 가 먼저다. 실행 확인도 하지 않았다.
+- 최소 수정: scrubRecording 의 scrubNode 호출 뒤에도 clear() 한다.
+
+━━ 테스트 공백 ━━
+- F-1, F-2, F-4 의 실패 입력을 다루는 테스트가 없다.
+- 브라우저 fixture 는 SVG use·rect 를 기록하지 못한다(blockAllMedia). SVG href 와 presentation 속성 경로의 근거는 단위 테스트뿐이다.
+- N4: 잘림 구간의 getter·cycle, 원본에 `_truncated` 키가 있는 객체, 잘린 data 를 가진 navigation breadcrumb 테스트가 없다. analyzer:79 는 큰 breadcrumb 의 metadata 도착만 확인한다. `[Truncated]` 표식과 길이는 확인하지 않는다.
+- 리뷰 자료에 따르면 브라우저 통합 검증은 이번에 재실행되지 않았다.
+
+━━ 요구사항 충족을 확인한 항목(판독 기준) ━━
+- N4 개인정보: 잘린 부분의 원본 값은 결과에 들어가지 않는다. getter 는 descriptor 로만 판별해 호출하지 않는다. 결과는 새 객체에 defineProperty 로 쓰므로 호출자 객체를 바꾸지 않는다. cycle 은 seen 으로 유지된다. 예산 산술(9,995 통과, 9,996 에서 표식)과 깊이 40 이 테스트 기대와 맞는다. metadata 5개 키를 먼저 복사한다.
+- N2: 문법 정규식은 양끝 고정이다. opaque 모드는 내부 참조를 보존하지 않는다(`data-note` → `url(&quot;&quot;)`). 외부 URL 은 cutUrl 로 자른다. 이스케이프된 url 토큰은 &#x27;&#x27; 다. envelope header 의 근거는 recording 전에 지워진다. use 가 아닌 id 의 mutation href 는 &#x27;&#x27; 다.
+- F4: 테스트 표의 3개 입력은 remainder 에 실제 `/` 가 들어가 &#x27;&#x27; 가 된다(4번째 P1 입력으로 실행 확인).
+- 유지: 8 MiB·2초·200,000개·깊이 80 상수와 검사(replay-scrub.ts:5-6, 86)는 그대로다. maskAllText·maskAllInputs·blockAllMedia(instrumentation-client.ts:331-335)와 browser-transport.ts 는 diff 에 없다.
+
+━━ 기존 동작·문서화된 제한(지적에서 제외) ━━
+- 불투명 객체를 참조 그대로 반환(browser-scrub.ts:15). 문서화된 제한이다.
+- copy.data 가 불투명 객체인 navigation breadcrumb 는 browser-scrub.ts:45 에서 호출자 객체를 수정할 수 있다. PR 이전부터 있던 동작이고 diff 밖이다.
+- style·_cssText·rule 등 기존 CSS 키도 이스케이프 구분자를 식별자로 본다. 기존 동작이다. F-1 은 이 동작을 일반 이름의 5개 키로 넓힌 점만 지적한다.
+- recording 간 SVG 참조, 대상 정보 없는 mutation, SDK 의 절대 URL 변환. 문서화된 제한이다.
+- 내부 참조 문법 자체(영숫자·`_`·`-` 최대 64자 fragment 보존)는 요구사항이 정한 허용 범위다.
+
+━━ 검증 한계 ━━
+- npm test·tsc·lint·CI 결과는 리뷰 자료의 기재를 인용했다. 다시 실행하지 않았다.
+- P1~P4 외의 판단은 코드 판독이다.
+- effort 값과 권한 모드는 세션 안에서 확인하지 못했다.
+
+승인 조건: F-1 수정과 테스트. F-2 수정과 테스트, 또는 사용자의 명시적 제한 수용. F-3~F-5 는 권고다. 수정 후 한 번 재검증한다.</pre><h2>검토 대상 파일 SHA-256</h2><pre>{
+  &quot;lib/sentry/replay-scrub.ts&quot;: &quot;cd7b881edde08277c255fd111ddce1a19f7cec1202ea06588bb1cc216a65a416&quot;,
+  &quot;lib/sentry/browser-scrub.ts&quot;: &quot;2f308a35fe74ab5272094da3e07c7d1c24ca8c9b3166605cfa5a13671851eb47&quot;,
+  &quot;__tests__/lib/sentry/browser-transport.test.ts&quot;: &quot;bf35c70a79a029a364b60f75cb168d72ba7cb325df22ec6c3ce976f4fd70248c&quot;,
+  &quot;__tests__/instrumentation-client-privacy.test.ts&quot;: &quot;4238870af92d3ceea8fdfb85a9df3962e4ca30f68bf58438e25f55648800ced8&quot;
+}</pre><h2>이번 수정 diff</h2><pre>diff --git a/__tests__/instrumentation-client-privacy.test.ts b/__tests__/instrumentation-client-privacy.test.ts
+index 791f1ea1..3b5f9263 100644
+--- a/__tests__/instrumentation-client-privacy.test.ts
++++ b/__tests__/instrumentation-client-privacy.test.ts
+@@ -69,6 +69,45 @@ describe(&#x27;browser Sentry URL privacy&#x27;, () =&gt; {
+     expect(exceeds.data.arguments.at(-1)).toBe(&#x27;[Truncated]&#x27;);
+     expect(exceeds.data.arguments[9994]).toBe(&#x27;/a&#x27;);
+   });
++  it(&#x27;inspects only the bounded prefix of a dense argument array&#x27;, async () =&gt; {
++    const config = await options();
++    const source = Array(50000).fill(&#x27;/a?code=private&#x27;);
++    let descriptors = 0;
++    const args = new Proxy(source, {
++      getOwnPropertyDescriptor(target, key) {
++        if (typeof key === &#x27;string&#x27; &amp;&amp; /^(0|[1-9][0-9]*)$/.test(key)) descriptors++;
++        return Reflect.getOwnPropertyDescriptor(target, key);
++      },
++    });
++    const clean = config.beforeBreadcrumb({ data: { arguments: args }, category: &#x27;console&#x27;, message: &#x27;safe&#x27; });
++    expect(descriptors).toBeLessThanOrEqual(9999);
++    expect(clean).toMatchObject({ category: &#x27;console&#x27;, message: &#x27;safe&#x27; });
++    expect(clean.data.arguments).toHaveLength(9996);
++    expect(clean.data.arguments[9994]).toBe(&#x27;/a&#x27;);
++    expect(clean.data.arguments[9995]).toBe(&#x27;[Truncated]&#x27;);
++    expect(source).toHaveLength(50000);
++    expect(source[0]).toBe(&#x27;/a?code=private&#x27;);
++  });
++  it(&#x27;copies sparse prefix indexes and skips getters and cycles beyond truncation&#x27;, async () =&gt; {
++    const config = await options();
++    const args = new Array(100000);
++    const value: Record&lt;string, unknown&gt; = { url: &#x27;/a?code=private&#x27; };
++    value.self = value;
++    args[2] = value;
++    const getter = vi.fn(() =&gt; &#x27;/a?code=private&#x27;);
++    Object.defineProperty(args, &#x27;3&#x27;, { enumerable: true, get: getter });
++    Object.defineProperty(args, &#x27;99999&#x27;, { enumerable: true, get: getter });
++    const clean = config.beforeBreadcrumb({ category: &#x27;console&#x27;, data: { arguments: args } });
++    expect(clean.data.arguments).toHaveLength(5);
++    expect(0 in clean.data.arguments).toBe(false);
++    expect(clean.data.arguments[2].url).toBe(&#x27;/a&#x27;);
++    expect(clean.data.arguments[2].self).toBe(clean.data.arguments[2]);
++    expect(clean.data.arguments[3]).toBe(&#x27;[Getter]&#x27;);
++    expect(clean.data.arguments[4]).toBe(&#x27;[Truncated]&#x27;);
++    expect(getter).not.toHaveBeenCalled();
++    expect(args[2]).toBe(value);
++    expect(value.url).toBe(&#x27;/a?code=private&#x27;);
++  });
+   it(&#x27;marks an excessive object without forwarding its uncopied values&#x27;, async () =&gt; {
+     const config = await options();
+     const data = Object.fromEntries(Array.from({ length: 12000 }, (_, i) =&gt; [`field${i}`, &#x27;/a?code=private&#x27;]));
+diff --git a/__tests__/lib/sentry/browser-transport.test.ts b/__tests__/lib/sentry/browser-transport.test.ts
+index 95da540c..166e78c1 100644
+--- a/__tests__/lib/sentry/browser-transport.test.ts
++++ b/__tests__/lib/sentry/browser-transport.test.ts
+@@ -36,6 +36,10 @@ afterEach(() =&gt; vi.unstubAllGlobals());
+&#32;
+ describe(&#x27;Replay privacy transport&#x27;, () =&gt; {
+   it.each([
++    [String.raw`example.com\/callback#secret-opaque`, &#x27;&#x27;],
++    [String.raw`..\/callback#secret-opaque`, &#x27;&#x27;],
++    [String.raw`.\/callback#secret-opaque`, &#x27;&#x27;],
++    [String.raw`#route\/callback#secret-opaque`, &#x27;&#x27;],
+     [String.raw`callback\/path#secret-opaque`, &#x27;&#x27;],
+     [String.raw`\2f callback#secret-opaque`, &#x27;&#x27;],
+     [String.raw`\/callback#secret-opaque`, &#x27;&#x27;],
+@@ -53,6 +57,92 @@ describe(&#x27;Replay privacy transport&#x27;, () =&gt; {
+       expect(decoded(output!)[0].data.payload.message).toBe(expected);
+     }
+   });
++  it.each([false, true])(&#x27;keeps presentation names opaque outside SVG attributes, compressed=%s&#x27;, async (compressed) =&gt; {
++    const attrs = { fill: String.raw`/callback\?code=secret-opaque`, stroke: String.raw`/callback\?code=secret-opaque`,
++      filter: String.raw`/callback\?code=secret-opaque`, &#x27;clip-path&#x27;: String.raw`/callback\?code=secret-opaque`, mask: String.raw`/callback\?code=secret-opaque` };
++    const input = [
++      { type: 5, timestamp: 1, data: { tag: &#x27;breadcrumb&#x27;, payload: { data: attrs } } },
++      { type: 2, timestamp: 2, data: { node: { id: 30, type: 2, tagName: &#x27;div&#x27;, attributes: attrs } } },
++      { type: 3, timestamp: 3, data: { source: 0, attributes: [{ id: 31, attributes: attrs }] } },
++    ];
++    const source = envelope(compressed, input as never);
++    Object.assign(source[0], attrs);
++    Object.assign(source[1][0][1] as object, attrs);
++    const before = structuredClone(source);
++    const output = await scrubReplayEnvelope(source);
++    expect(output).not.toBeNull();
++    const empty = { fill: &#x27;&#x27;, stroke: &#x27;&#x27;, filter: &#x27;&#x27;, &#x27;clip-path&#x27;: &#x27;&#x27;, mask: &#x27;&#x27; };
++    const clean = decoded(output!);
++    expect(clean[0].data.payload.data).toEqual(empty);
++    expect(clean[1].data.node.attributes).toEqual(empty);
++    expect(clean[2].data.attributes[0].attributes).toEqual(empty);
++    expect(output![0]).toMatchObject(empty);
++    expect(output![1][0][1]).toMatchObject(empty);
++    expect(source).toEqual(before);
++  });
++  it.each([false, true])(&#x27;preserves presentation references for same-recording SVG mutation targets, compressed=%s&#x27;, async (compressed) =&gt; {
++    const input = [
++      { type: 2, timestamp: 1, data: { node: { id: 30, type: 2, tagName: &#x27;rect&#x27;, isSVG: true, attributes: { fill: &#x27;url(#gradient)&#x27; } } } },
++      { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 30, attributes: { fill: &#x27;url(#next)&#x27;, stroke: &#x27;url(#stroke)&#x27;, filter: &#x27;url(#shadow)&#x27;, &#x27;clip-path&#x27;: &#x27;url(#clip)&#x27;, mask: &#x27;url(#mask)&#x27; } }] } },
++    ];
++    const output = await scrubReplayEnvelope(envelope(compressed, input as never));
++    expect(decoded(output!)[1].data.attributes[0].attributes).toEqual({ fill: &#x27;url(&quot;#next&quot;)&#x27;, stroke: &#x27;url(&quot;#stroke&quot;)&#x27;, filter: &#x27;url(&quot;#shadow&quot;)&#x27;, &#x27;clip-path&#x27;: &#x27;url(&quot;#clip&quot;)&#x27;, mask: &#x27;url(&quot;#mask&quot;)&#x27; });
++  });
++  it(&#x27;recognizes SVG child nodes and added nodes without authorizing custom data with their IDs&#x27;, async () =&gt; {
++    const input = [
++      { type: 2, timestamp: 1, data: { node: { id: 1, type: 0, childNodes: [{ id: 20, type: 2, tagName: &#x27;rect&#x27;, isSVG: true, attributes: { fill: &#x27;url(#gradient)&#x27; } }] } } },
++      { type: 3, timestamp: 2, data: { source: 0, adds: [{ parentId: 1, nextId: null, node: { id: 21, type: 2, tagName: &#x27;use&#x27;, isSVG: true, attributes: { href: &#x27;#shape&#x27; } } }] } },
++      { type: 5, timestamp: 3, data: { tag: &#x27;note&#x27;, payload: { id: 21, attributes: { href: &#x27;#private-href&#x27;, fill: &#x27;url(#private-fill)&#x27; } } } },
++      { type: 3, timestamp: 4, data: { source: 0, attributes: [{ id: 20, attributes: { fill: &#x27;url(#next)&#x27; } }, { id: 21, attributes: { href: &#x27;#next-shape&#x27; } }] } },
++    ];
++    const output = await scrubReplayEnvelope(envelope(false, input as never));
++    const clean = decoded(output!);
++    expect(clean[0].data.node.childNodes[0].attributes.fill).toBe(&#x27;url(&quot;#gradient&quot;)&#x27;);
++    expect(clean[1].data.adds[0].node.attributes.href).toBe(&#x27;#shape&#x27;);
++    expect(clean[2].data.payload.attributes).toEqual({ href: &#x27;&#x27;, fill: &#x27;url(&quot;&quot;)&#x27; });
++    expect(clean[3].data.attributes[0].attributes.fill).toBe(&#x27;url(&quot;#next&quot;)&#x27;);
++    expect(clean[3].data.attributes[1].attributes.href).toBe(&#x27;#next-shape&#x27;);
++  });
++  it(&#x27;does not let custom payloads or metadata establish SVG node identities&#x27;, async () =&gt; {
++    const fake = { id: 20, type: 2, tagName: &#x27;use&#x27;, isSVG: true, attributes: { href: &#x27;#private-href&#x27;, fill: &#x27;url(#private-fill)&#x27; } };
++    const input = [
++      { type: 5, timestamp: 1, data: { tag: &#x27;note&#x27;, payload: { node: fake } } },
++      { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 20, attributes: { href: &#x27;#private-mutation&#x27;, fill: &#x27;url(#private-fill)&#x27; } }] } },
++    ];
++    const source = envelope(false, input as never);
++    Object.assign(source[0], { node: fake });
++    Object.assign(source[1][0][1] as object, { node: fake });
++    const output = await scrubReplayEnvelope(source);
++    const attrs = { href: &#x27;&#x27;, fill: &#x27;url(&quot;&quot;)&#x27; };
++    expect(output![0]).toMatchObject({ node: { attributes: attrs } });
++    expect(output![1][0][1]).toMatchObject({ node: { attributes: attrs } });
++    expect(decoded(output!)[0].data.payload.node.attributes).toEqual(attrs);
++    expect(decoded(output!)[1].data.attributes[0].attributes).toEqual(attrs);
++  });
++  it.each([{ tagName: &#x27;a&#x27; }, { tagName: &#x27;use&#x27;, isSVG: false }, { tagName: &#x27;rect&#x27;, isSVG: true }])(&#x27;revokes prior SVG use identity on an explicit replacement: %j&#x27;, async (replacement) =&gt; {
++    const input = [
++      { type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: &#x27;use&#x27;, isSVG: true, attributes: { href: &#x27;#shape&#x27; } } } },
++      { type: 2, timestamp: 2, data: { node: { id: 20, type: 2, ...replacement, attributes: { href: &#x27;#private-navigation&#x27; } } } },
++      { type: 3, timestamp: 3, data: { source: 0, attributes: [{ id: 20, attributes: { href: &#x27;#private-mutation&#x27; } }] } },
++      { type: 2, timestamp: 4, data: { node: { id: 20, type: 2, tagName: &#x27;use&#x27;, isSVG: true, attributes: { href: &#x27;#new-shape&#x27; } } } },
++      { type: 3, timestamp: 5, data: { source: 0, attributes: [{ id: 20, attributes: { href: &#x27;#new-mutation&#x27; } }] } },
++    ];
++    const output = await scrubReplayEnvelope(envelope(false, input as never));
++    const clean = decoded(output!);
++    expect(clean[1].data.node.attributes.href).toBe(&#x27;&#x27;);
++    expect(clean[2].data.attributes[0].attributes.href).toBe(&#x27;&#x27;);
++    expect(clean[4].data.attributes[0].attributes.href).toBe(&#x27;#new-mutation&#x27;);
++  });
++  it.each([false, true])(&#x27;isolates SVG identities from later replay events and recordings, compressed=%s&#x27;, async (compressed) =&gt; {
++    const source = envelope(compressed, [{ type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: &#x27;use&#x27;, isSVG: true, attributes: { href: &#x27;#shape&#x27;, fill: &#x27;url(#gradient)&#x27; } } } }] as never);
++    source[1].push([{ type: &#x27;replay_event&#x27; }, { type: &#x27;replay_event&#x27;, extra: { id: 20, attributes: { href: &#x27;#private-navigation&#x27;, fill: &#x27;url(#private-fill)&#x27; } } }] as Envelope[1][number]);
++    source[1].push(envelope(compressed, [{ type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 20, attributes: { href: &#x27;#private-next-recording&#x27;, fill: &#x27;url(#private-next-fill)&#x27; } }] } }] as never)[1][1]);
++    const output = await scrubReplayEnvelope(source);
++    expect(decoded(output!)[0].data.node.attributes.href).toBe(&#x27;#shape&#x27;);
++    expect(output![1][2][1]).toMatchObject({ extra: { attributes: { href: &#x27;&#x27;, fill: &#x27;url(&quot;&quot;)&#x27; } } });
++    const next = decoded([output![0], [output![1][3]]] as Envelope);
++    expect(next[0].data.attributes[0].attributes).toEqual({ href: &#x27;&#x27;, fill: &#x27;url(&quot;&quot;)&#x27; });
++  });
+   it.each([false, true])(&#x27;preserves bounded same-document SVG references, compressed=%s&#x27;, async (compressed) =&gt; {
+     const input = [
+       { type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: &#x27;use&#x27;, isSVG: true,
+diff --git a/lib/sentry/browser-scrub.ts b/lib/sentry/browser-scrub.ts
+index 364629d7..848ce0c7 100644
+--- a/lib/sentry/browser-scrub.ts
++++ b/lib/sentry/browser-scrub.ts
+@@ -15,14 +15,30 @@ function copyBreadcrumb(input: Breadcrumb): Breadcrumb {
+     if (!Array.isArray(value) &amp;&amp; proto !== Object.prototype &amp;&amp; proto !== null) return value;
+     const result = Array.isArray(value) ? [] : Object.create(null);
+     seen.set(value, result);
++    if (Array.isArray(value)) {
++      const length = Object.getOwnPropertyDescriptor(value, &#x27;length&#x27;)!.value as number;
++      for (let index = 0; index &lt; Math.min(length, 9999); index++) {
++        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
++        if (!descriptor?.enumerable) continue;
++        if (count &gt;= 10000) {
++          Object.defineProperty(result, String(result.length), { value: &#x27;[Truncated]&#x27;, enumerable: true, configurable: true, writable: true });
++          return result;
++        }
++        Object.defineProperty(result, String(index), {
++          value: copy(&#x27;value&#x27; in descriptor ? descriptor.value : &#x27;[Getter]&#x27;, depth + 1),
++          enumerable: true, configurable: true, writable: true,
++        });
++      }
++      if (length &gt; 9999) Object.defineProperty(result, String(result.length), { value: &#x27;[Truncated]&#x27;, enumerable: true, configurable: true, writable: true });
++      return result;
++    }
+     const keys = Object.keys(value);
+     // Reserve the ordinary breadcrumb fields before large application data.
+     const metadata = [&#x27;category&#x27;, &#x27;type&#x27;, &#x27;level&#x27;, &#x27;timestamp&#x27;, &#x27;message&#x27;];
+     const ordered = depth === 0 ? [...metadata.filter((key) =&gt; keys.includes(key)), ...keys.filter((key) =&gt; !metadata.includes(key))] : keys;
+     for (const key of ordered) {
+-      if (count &gt;= 10000 || (Array.isArray(result) &amp;&amp; /^(0|[1-9][0-9]*)$/.test(key) &amp;&amp; Number(key) &gt;= 9999)) {
+-        if (Array.isArray(result)) Object.defineProperty(result, String(result.length), { value: &#x27;[Truncated]&#x27;, enumerable: true, configurable: true, writable: true });
+-        else Object.defineProperty(result, &#x27;_truncated&#x27;, { value: &#x27;[Truncated]&#x27;, enumerable: true, configurable: true, writable: true });
++      if (count &gt;= 10000) {
++        Object.defineProperty(result, &#x27;_truncated&#x27;, { value: &#x27;[Truncated]&#x27;, enumerable: true, configurable: true, writable: true });
+         break;
+       }
+       const descriptor = Object.getOwnPropertyDescriptor(value, key);
+diff --git a/lib/sentry/replay-scrub.ts b/lib/sentry/replay-scrub.ts
+index a96e3d87..b820c0ec 100644
+--- a/lib/sentry/replay-scrub.ts
++++ b/lib/sentry/replay-scrub.ts
+@@ -10,7 +10,8 @@ const encoder = new TextEncoder();
+ const decoder = new TextDecoder(&#x27;utf-8&#x27;, { fatal: true });
+ const cutUrl = (value: string) =&gt; value.split(/[?#]/, 1)[0];
+ const localReference = (value: string) =&gt; /^#[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(value);
+-type Walk = { count: number; tripwire: boolean; deadline: number; svgUseIds: Set&lt;number&gt; };
++type Walk = { count: number; tripwire: boolean; deadline: number; svgIds: Set&lt;number&gt;; svgUseIds: Set&lt;number&gt; };
++type NodeContext = &#x27;&#x27; | &#x27;record&#x27; | &#x27;snapshot&#x27; | &#x27;incremental&#x27; | &#x27;adds&#x27; | &#x27;node&#x27; | &#x27;mutation&#x27; | &#x27;svgAttributes&#x27; | &#x27;useAttributes&#x27;;
+&#32;
+ /** Preserve escaped selectors; consume URL/string tokens without regex backtracking. */
+ function scrubCss(value: string, opaque = false): string {
+@@ -24,6 +25,7 @@ function scrubCss(value: string, opaque = false): string {
+     }
+     return { end, escaped };
+   };
++  let escapedSelectorSlash = false;
+   for (let cursor = 0; cursor &lt; value.length;) {
+     if (value.startsWith(&#x27;/*&#x27;, cursor)) {
+       const end = value.indexOf(&#x27;*/&#x27;, cursor + 2);
+@@ -51,6 +53,7 @@ function scrubCss(value: string, opaque = false): string {
+       if (name.toLowerCase() !== &#x27;url&#x27; || value[cursor] !== &#x27;(&#x27;) {
+         const raw = value.slice(start, cursor);
+         output.push(raw);
++        if (opaque &amp;&amp; escaped &amp;&amp; name.includes(&#x27;/&#x27;) &amp;&amp; (value[start - 1] === &#x27;.&#x27; || value[start - 1] === &#x27;#&#x27;)) escapedSelectorSlash = true;
+         remainder.push(escaped ? (opaque &amp;&amp; ((name.includes(&#x27;/&#x27;) &amp;&amp; value[start - 1] !== &#x27;.&#x27; &amp;&amp; value[start - 1] !== &#x27;#&#x27;) || /[?#]/.test(name)) ? name : &#x27;identifier&#x27;) : raw);
+         continue;
+       }
+@@ -74,6 +77,9 @@ function scrubCss(value: string, opaque = false): string {
+       output.push(quote + (token.escaped ? &#x27;&#x27; : cutUrl(value.slice(start, token.end))) + quote);
+       remainder.push(quote + quote); cursor = token.end + 1;
+     } else {
++      // Track the selector span once; a fragment before its boundary is an opaque path.
++      if (opaque &amp;&amp; escapedSelectorSlash &amp;&amp; value[cursor] === &#x27;#&#x27;) return &#x27;&#x27;;
++      if (/[\s{,&gt;+~)]/.test(value[cursor])) escapedSelectorSlash = false;
+       output.push(value[cursor]); remainder.push(value[cursor]); cursor++;
+     }
+   }
+@@ -82,28 +88,44 @@ function scrubCss(value: string, opaque = false): string {
+   return output.join(&#x27;&#x27;);
+ }
+&#32;
+-function scrubNode(value: unknown, state: Walk, key = &#x27;&#x27;, css = false, depth = 0, svgUse = false): unknown {
++function scrubNode(value: unknown, state: Walk, key = &#x27;&#x27;, css = false, depth = 0, context: NodeContext = &#x27;&#x27;): unknown {
+   if (++state.count &gt; 200000 || depth &gt; 80 || Date.now() &gt; state.deadline) throw new Error(&#x27;replay limits&#x27;);
+   if (typeof value === &#x27;string&#x27;) {
+     let clean: string;
+     if (key === &#x27;srcdoc&#x27; || ((key === &#x27;srcset&#x27; || key === &#x27;imagesrcset&#x27;) &amp;&amp; /[?#]/.test(value))) clean = &#x27;&#x27;;
+-    else if (css || [&#x27;style&#x27;, &#x27;_cssText&#x27;, &#x27;rule&#x27;, &#x27;replace&#x27;, &#x27;replaceSync&#x27;, &#x27;fill&#x27;, &#x27;stroke&#x27;, &#x27;filter&#x27;, &#x27;clip-path&#x27;, &#x27;mask&#x27;].includes(key)) clean = scrubCss(value);
+-    else if (URL_KEYS.has(key)) clean = svgUse &amp;&amp; (key === &#x27;href&#x27; || key === &#x27;xlink:href&#x27;) &amp;&amp; localReference(value) ? value : cutUrl(value);
++    else if (css || [&#x27;style&#x27;, &#x27;_cssText&#x27;, &#x27;rule&#x27;, &#x27;replace&#x27;, &#x27;replaceSync&#x27;].includes(key) ||
++      ((context === &#x27;svgAttributes&#x27; || context === &#x27;useAttributes&#x27;) &amp;&amp; [&#x27;fill&#x27;, &#x27;stroke&#x27;, &#x27;filter&#x27;, &#x27;clip-path&#x27;, &#x27;mask&#x27;].includes(key))) clean = scrubCss(value);
++    else if (URL_KEYS.has(key)) clean = context === &#x27;useAttributes&#x27; &amp;&amp; (key === &#x27;href&#x27; || key === &#x27;xlink:href&#x27;) &amp;&amp; localReference(value) ? value : cutUrl(value);
+     else if (/url\(|@import|\\/i.test(value)) clean = scrubCss(value, true);
+     else clean = stripUrlQueries(value);
+     const redacted = redactTokenShapes(clean);
+     if (redacted !== clean) state.tripwire = true;
+     return redacted;
+   }
+-  if (Array.isArray(value)) return value.map((child) =&gt; scrubNode(child, state, key, css, depth + 1, svgUse));
++  if (Array.isArray(value)) return value.map((child) =&gt; scrubNode(child, state, key, css, depth + 1, context));
+   if (value &amp;&amp; typeof value === &#x27;object&#x27;) {
+     const bag = value as Record&lt;string, unknown&gt;;
+-    if (bag.isSVG === true &amp;&amp; bag.tagName === &#x27;use&#x27; &amp;&amp; Number.isSafeInteger(bag.id)) state.svgUseIds.add(bag.id as number);
+-    const use = (bag.isSVG === true &amp;&amp; bag.tagName === &#x27;use&#x27;) || (Number.isSafeInteger(bag.id) &amp;&amp; state.svgUseIds.has(bag.id as number));
++    const svg = context === &#x27;node&#x27; &amp;&amp; bag.type === 2 &amp;&amp; bag.isSVG === true &amp;&amp; typeof bag.tagName === &#x27;string&#x27;;
++    const use = svg &amp;&amp; bag.tagName === &#x27;use&#x27;;
++    const id = Number.isSafeInteger(bag.id) ? bag.id as number : undefined;
++    if (context === &#x27;node&#x27; &amp;&amp; id !== undefined) {
++      if (svg) state.svgIds.add(id); else state.svgIds.delete(id);
++      if (use) state.svgUseIds.add(id); else state.svgUseIds.delete(id);
++    }
+     const out: Record&lt;string, unknown&gt; = Object.create(null);
+     const style = css || bag.tagName === &#x27;style&#x27; || bag.isStyle === true || key === &#x27;style&#x27; || (typeof bag.property === &#x27;string&#x27; &amp;&amp; &#x27;value&#x27; in bag);
+     for (const name of Object.keys(bag)) {
+-      if (!QUERY_KEYS.has(name)) out[name] = scrubNode(bag[name], state, name, style, depth + 1, name === &#x27;attributes&#x27; ? use : svgUse);
++      let childContext: NodeContext = &#x27;&#x27;;
++      if (context === &#x27;record&#x27; &amp;&amp; name === &#x27;data&#x27;) childContext = bag.type === 2 ? &#x27;snapshot&#x27; : bag.type === 3 ? &#x27;incremental&#x27; : &#x27;&#x27;;
++      else if ((context === &#x27;snapshot&#x27; || context === &#x27;adds&#x27;) &amp;&amp; name === &#x27;node&#x27;) childContext = &#x27;node&#x27;;
++      else if (context === &#x27;incremental&#x27; &amp;&amp; bag.source === 0) childContext = name === &#x27;adds&#x27; ? &#x27;adds&#x27; : name === &#x27;attributes&#x27; ? &#x27;mutation&#x27; : &#x27;&#x27;;
++      else if (context === &#x27;node&#x27; &amp;&amp; name === &#x27;childNodes&#x27;) childContext = &#x27;node&#x27;;
++      else if (name === &#x27;attributes&#x27; &amp;&amp; (context === &#x27;node&#x27; || context === &#x27;mutation&#x27;)) {
++        const knownSvg = context === &#x27;mutation&#x27; &amp;&amp; id !== undefined &amp;&amp; state.svgIds.has(id);
++        const knownUse = context === &#x27;mutation&#x27; &amp;&amp; id !== undefined &amp;&amp; state.svgUseIds.has(id);
++        childContext = use || knownUse ? &#x27;useAttributes&#x27; : svg || knownSvg ? &#x27;svgAttributes&#x27; : &#x27;&#x27;;
++      } else if ((context === &#x27;svgAttributes&#x27; || context === &#x27;useAttributes&#x27;) &amp;&amp; typeof bag[name] === &#x27;string&#x27;) childContext = context;
++      if (!QUERY_KEYS.has(name)) out[name] = scrubNode(bag[name], state, name, style, depth + 1, childContext);
+     }
+     return out;
+   }
+@@ -158,7 +180,10 @@ async function scrubRecording(payload: unknown, state: Walk): Promise&lt;string | U
+   }
+   // A recording must establish its own node identities; metadata cannot authorize href fragments.
+   state.svgUseIds.clear();
+-  const cleaned = encoder.encode(JSON.stringify(scrubNode(records, state)));
++  state.svgIds.clear();
++  const cleaned = encoder.encode(JSON.stringify(scrubNode(records, state, &#x27;&#x27;, false, 0, &#x27;record&#x27;)));
++  state.svgUseIds.clear();
++  state.svgIds.clear();
+   if (cleaned.length &gt; MAX_BYTES) throw new Error(&#x27;replay size&#x27;);
+   // The SDK&#x27;s segment header is uncompressed. Only the JSON event array is deflated.
+   const prefix = encoder.encode(`${JSON.stringify({ segment_id: header.segment_id })}\n`);
+@@ -172,7 +197,7 @@ async function scrubRecording(payload: unknown, state: Walk): Promise&lt;string | U
+ /** Replay bypasses beforeSend and beforeEnvelope in SDK 9.47.1. Never return its raw payload on failure. */
+ export async function scrubReplayEnvelope(envelope: Envelope): Promise&lt;Envelope | null&gt; {
+   try {
+-    const state: Walk = { count: 0, tripwire: false, deadline: Date.now() + MAX_WORK_MS, svgUseIds: new Set() };
++    const state: Walk = { count: 0, tripwire: false, deadline: Date.now() + MAX_WORK_MS, svgIds: new Set(), svgUseIds: new Set() };
+     const header = scrubNode(JSON.parse(JSON.stringify(envelope[0])), state);
+     const items: EnvelopeItem[] = [];
+     for (const [itemHeader, payload] of envelope[1]) {
+</pre><h2>독립 재검토 결과</h2><p>Claude Opus 5.5/high. Task <code>task_65658da085f1</code>, Dispatch <code>ctx_3daa53fb66ad</code>. 상세 지적 <code>msg_91057d9d7fae</code>, 수락된 worker_done <code>msg_11b239ccdcb7</code>. 읽기 전용 작업자는 정산·터미널 종료·context 정리를 완료했다.</p><pre>판정: REQUEST_CHANGES. 대상: 기준 02c5f119 이후 로컬 수정 4개 파일(보고서의 고정 SHA-256).
+
+읽은 자료: docs/reports/2026-10-13-pr128-recheck.html 전체. lib/sentry/replay-scrub.ts, browser-scrub.ts, scrub.ts, browser-transport.ts 전체. __tests__/lib/sentry/browser-transport.test.ts, __tests__/instrumentation-client-privacy.test.ts 전체. instrumentation-client.ts 의 통합 지점(7-8, 79, 283-294, 323-337행). 구현 진행·핸드오프·자기평가·다른 보고서는 읽지 않았다.
+
+실행 근거: P1~P3 는 조정자가 실행한 값 관측 probe 다(msg_c0b03128adb1, Node v24.18.1, 고정 SHA 일치 작업 트리). 나는 어떤 테스트도 직접 실행하지 않았다. 그 밖의 판단은 코드 판독이다.
+
+━━ F-1~F-5 재검증 ━━
+
+[F-1] 해결.
+- 근거: replay-scrub.ts:96-97 은 fill·stroke·filter·clip-path·mask 의 CSS 모드를 context 가 svgAttributes 또는 useAttributes 일 때만 적용한다. 이 context 는 record → data(type 2 또는 type 3) → node / adds[].node / childNodes / source 0 의 attributes[] 경로에서만 생긴다(119-127행). type 5·type 6·source≠0 의 data 는 context &#x27;&#x27; 다. envelope header(201행)와 replay_event(208행)는 기본 context &#x27;&#x27; 로 처리한다.
+- 테스트: browser-transport.test.ts:60-82 가 custom payload, 비-SVG 노드, 미확인 mutation id, header, replay_event 와 호출자 불변을 확인한다. 91-121행이 custom payload·metadata 의 SVG 모양 객체를 확인한다.
+- 수용 범위(신규 지적 아님): 실제 SVG 노드의 5개 속성은 비-opaque CSS 모드다. 그래서 실제 SVG 노드 속성의 `/callback\?code=…` 은 남는다. 이것은 style·_cssText 등 기존 CSS 키와 같은 동작이고, 최초 리뷰의 최소 수정 범위와 같다.
+
+[F-2] 부분 해결. 잔여는 아래 R-1 이다.
+- 근거: replay-scrub.ts:56, 81-82. 최초 3개 입력과 `#route\/callback#secret-opaque` 는 &#x27;&#x27; 가 된다(테스트 39-42행, P1-h 실행 결과 &#x27;&#x27;).
+
+[F-3] 해결.
+- 근거: browser-scrub.ts:18-34. 배열마다 인덱스 0 ~ min(length, 9999)-1 만 getOwnPropertyDescriptor 로 조회한다. getter 를 호출하지 않는다(&#x27;[Getter]&#x27; 표식). hole 은 건너뛴다. 결과는 새 배열에 defineProperty 로 쓴다. cycle 은 seen 으로 유지한다. 값 10,000개 예산(23행)과 깊이 40(9행)은 유지된다.
+- 산술 확인(판독): dense 50,000개 입력에서 인덱스 0~9994 를 복사하고 9995 에 표식을 둔다. descriptor 조회는 9,996회다. 테스트 72-90행의 기대와 맞는다.
+- 부수 효과(판독): 배열의 비-인덱스 열거 속성은 이제 복사하지 않는다. 유출 방향이 아니다.
+
+[F-4] 해결.
+- 근거: replay-scrub.ts:108-114. node context 의 객체는 자기 속성(type===2, isSVG===true, tagName 문자열)으로만 판정한다. SVG 가 아니면 svgIds 에서, use 가 아니면 svgUseIds 에서 id 를 지운다. 저장된 id 는 mutation context 에서만 쓴다(124-125행).
+- 테스트: 122-135행(a, isSVG:false use, SVG rect 로 교체한 3개 경우와 재등록).
+
+[F-5] 해결.
+- 근거: replay-scrub.ts:182-186 이 scrubNode 전후에 두 Set 을 비운다. 또한 replay_event 는 context &#x27;&#x27; 로 처리하므로(208행) attributes context 에 도달하지 못한다.
+- 테스트: 136-145행. 참고: 185-186행의 사후 clear 가 없어도 이 테스트는 통과한다(판독). 관측 가능한 동작 차이가 없으므로 지적이 아니다.
+
+━━ 신규·잔여 지적 ━━
+
+[R-1] Medium · F-2 잔여(F-2 수정의 경계) · 개인정보 — lib/sentry/replay-scrub.ts:82 (관련 56, 81행)
+- 조건: opaque 모드에서 `.` 또는 `#` 바로 뒤의 이스케이프된 슬래시 식별자는 remainder 에 &#x27;identifier&#x27; 로 들어간다(57행). 82행은 `,` `&gt;` `+` `~` `)` 를 만나면 escapedSelectorSlash 를 끈다. 이 문자들 뒤의 `#` 는 81행 검사를 통과한다. `~` `,` `+` `(` `)` 는 URL 경로에 그대로 쓸 수 있는 문자다.
+- 실패 입력(P1 실행, type 5 data.payload.message). 5개 모두 원문이 그대로 남았다:
+  · `example.com\/~john#secret-opaque`
+  · `..\/a,b#secret-opaque`
+  · `.\/list(1)#secret-opaque`
+  · `example.com\/a+b#secret-opaque`
+  · `example.com\/a&gt;b#secret-opaque`
+  · 대조군 `callback\/~john#secret-opaque`, `https:\/\/example.com\/~john#secret-opaque`, `example.com\/callback#secret-opaque` → &#x27;&#x27;
+- 범위: `?` 는 87행이 막는다. `#키=` 형태는 QUERY_PAIR 가 막는다. scheme 이 있는 URL 은 실제 `/` 가 remainder 에 들어가 막힌다. 남는 것은 scheme 없는 `&lt;x&gt;.&lt;y&gt;\/…` 또는 `.\/`·`..\/` 경로에서 구분 문자 뒤에 오는 `키=` 형태가 아닌 fragment 다. 최초 F-2 와 같은 유형이고 도달 범위는 더 좁다.
+- 판단: 요구사항 F4 는 &quot;이스케이프된 슬래시 경로의 query·fragment 유출 차단&quot;이다. 이 입력은 보고서의 제한 목록에 없다. 구현은 최초 리뷰가 제안한 구분 문자 집합을 그대로 썼다. 즉 원인은 그 제안의 경계다. 그래도 요구사항은 충족되지 않는다.
+- 최소 수정: 82행의 재설정 집합을 공백과 `{` 로 줄인다(`/[\s{]/`). 공백은 stripUrlQueries 의 토큰 경계와 같다. `{` 는 URL 경로에 그대로 올 수 없는 문자이고 규칙 블록의 시작이다. 위 5개 입력을 it.each 표(39행)에 추가한다. 기존 기대값 `.w-1\/2{width:50%;color:#fff}` 와 `.w-1\/2{background:url(/img?…);color:#fff}` 는 `{` 가 `#` 보다 먼저 오므로 유지된다(판독, 미실행).
+- 수정의 비용: opaque 경로(예: source 0 texts[].value)에서 `.w-1\/2,#main{…}`, `.w-1\/2&gt;#main{…}`, `:not(.w-1\/2)#x{…}` 는 &#x27;&#x27; 가 된다. 개인정보 방향은 안전하고 충실도만 줄어든다.
+- 대안: 사용자가 이 입력을 허용 제한으로 결정하면 제한 목록에 명시한다. 그 결정 없이는 승인하지 않는다. 선택자와 경로는 `.a\/b,x#y` 에서 문법만으로 구분할 수 없다. 그래서 이 항목은 결정이 필요하다.
+
+[R-2] Low · 수정으로 생긴 충실도 손실(개인정보 아님) — lib/sentry/replay-scrub.ts:81
+- 조건: opaque 경로에서 이스케이프된 슬래시 클래스 뒤에 구분 문자 없이 `#` 가 오면 문자열 전체가 &#x27;&#x27; 가 된다.
+- 입력(P2 실행, type 3 source 0 texts[0].value): `.w-1\/2#main{color:#fff}` → &#x27;&#x27;. `.w-1\/2:not(#x){color:#fff}` → &#x27;&#x27;. 대조군 `.w-1\/2,#main{color:#fff}` 와 `.w-1\/2 #main{color:#fff}` 는 원문 유지.
+- 판단: 수정 전에는 이 선택자가 보존됐다(판독). 요구사항의 &quot;CSS 선택자 보존&quot;이 이 복합 선택자 형태에서 줄었다. 실패 방향은 닫힘(fail-closed)이다. 차단 사유가 아니다.
+- 최소 수정: 이 형태를 제한 목록에 명시하고 테스트로 고정한다. R-1 을 수정하면 범위가 조금 넓어지므로 함께 기록한다.
+
+[R-3] Low(정보) · 경계/성능(개인정보 아님) — lib/sentry/browser-scrub.ts:20-22
+- 조건: hole 조회는 count 를 쓰지 않는다. 배열 하나의 조회는 9,999회로 묶이지만, 여러 sparse 배열의 합계는 묶이지 않는다.
+- 측정(P3 실행): 길이 100,000 의 빈 배열 300개 → 89ms, 결과 각 원소는 [&#x27;[Truncated]&#x27;]. 이론상 상한은 약 9,998개 배열 × 9,999회다. 선형으로 외삽하면 약 3초다(추정, 미측정).
+- 판단: 최초 F-3 가 지적한 &quot;배열 길이에 비례하는 작업&quot;은 제거됐다. 이 입력은 현실성이 낮다. 권고다.
+- 최소 수정(선택): 인덱스 조회 횟수에 전체 예산(예: 합계 10,000회)을 두고, 초과하면 표식을 붙이고 끝낸다.
+
+━━ 테스트 공백 ━━
+- R-1 의 5개 입력을 다루는 테스트가 없다.
+- R-2 의 &#x27;&#x27; 결과와 `.w-1\/2,#main`·`.w-1\/2 #main` 보존을 고정하는 테스트가 없다.
+- type 5 payload 안에 record 모양 전체(`{ type: 2, data: { node: … } }` 또는 `{ type: 3, data: { source: 0, attributes: […] } }`)를 넣은 입력의 테스트가 없다. 판독으로는 context &#x27;&#x27; 가 유지되어 안전하다. 107-121행은 `payload.node` 형태만 확인한다.
+- 최초 리뷰의 N4 공백(원본에 `_truncated` 키가 있는 객체, 잘린 data 를 가진 navigation breadcrumb)은 그대로다. F-1~F-5 범위 밖이다.
+- 브라우저 fixture 는 blockAllMedia 때문에 SVG 경로를 실행하지 않는다. SVG 보존의 근거는 단위 테스트뿐이다(보고서 기재와 같다).
+
+━━ 기존 수용 제한(지적에서 제외) ━━
+- 불투명 객체의 참조 반환과 SDK normalization 의존(browser-scrub.ts:15). 일반 객체의 전체 키 열거(35행).
+- recording 간 SVG 참조, 대상 정보 없는 mutation, SDK 의 절대 URL 변환, 내부 참조 대상의 존재 미검사.
+- style·_cssText·rule 등 기존 CSS 키가 이스케이프 구분자를 식별자로 보는 동작.
+- 공백으로 나뉜 토큰의 `x#fragment`(슬래시 없음)는 stripUrlQueries 의 기존 규칙으로 남는다.
+
+━━ 유지 확인(판독) ━━
+- 8 MiB·2초·200,000개·깊이 80(replay-scrub.ts:5-6, 92)과 maskAllText·maskAllInputs·blockAllMedia(instrumentation-client.ts:331-335)는 그대로다. browser-transport.ts 는 diff 에 없다.
+- 비-opaque CSS 모드는 이번 수정의 영향을 받지 않는다(56, 81행은 opaque 조건이다).
+- Walk 상태는 scrubReplayEnvelope 호출마다 새로 만든다(200행). envelope 간 공유는 없다.
+
+━━ 불확실성 ━━
+- npm test·tsc·lint·test:envelope:browser 결과는 보고서 기재를 인용했다. 다시 실행하지 않았다.
+- SHA-256 일치는 조정자의 확인에 의존한다. 나는 해시를 계산할 수 없다.
+- rrweb 출력 구조(adds[].node, attributes[].id, id 비재사용)는 이 세션에서 node_modules 를 다시 읽어 확인하지 않았다. 일반적인 rrweb 구조를 전제로 판독했다.
+- R-1 최소 수정 뒤의 기존 테스트 통과 여부는 판독이며 실행하지 않았다.
+- R-3 의 약 3초는 외삽이다.
+
+승인 조건: R-1 수정과 테스트, 또는 사용자의 명시적 제한 수용과 제한 목록 기재. R-2·R-3 는 권고다.</pre><h2>추가 probe</h2><pre>(!) Your Vite config uses features that are unsupported by `configLoader: &#x27;native&#x27;`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `&quot;type&quot;: &quot;module&quot;` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/charlie.hyun/Repositories/picnic-web-replay-fidelity-and-limits
+
+NODE v24.18.1
+P1 [&quot;example.com\\/~john#secret-opaque&quot;,&quot;example.com\\/~john#secret-opaque&quot;]
+P1 [&quot;..\\/a,b#secret-opaque&quot;,&quot;..\\/a,b#secret-opaque&quot;]
+P1 [&quot;.\\/list(1)#secret-opaque&quot;,&quot;.\\/list(1)#secret-opaque&quot;]
+P1 [&quot;example.com\\/a+b#secret-opaque&quot;,&quot;example.com\\/a+b#secret-opaque&quot;]
+P1 [&quot;example.com\\/a&gt;b#secret-opaque&quot;,&quot;example.com\\/a&gt;b#secret-opaque&quot;]
+P1 [&quot;callback\\/~john#secret-opaque&quot;,&quot;&quot;]
+P1 [&quot;https:\\/\\/example.com\\/~john#secret-opaque&quot;,&quot;&quot;]
+P1 [&quot;example.com\\/callback#secret-opaque&quot;,&quot;&quot;]
+P2 [&quot;.w-1\\/2#main{color:#fff}&quot;,&quot;&quot;]
+P2 [&quot;.w-1\\/2:not(#x){color:#fff}&quot;,&quot;&quot;]
+P2 [&quot;.w-1\\/2,#main{color:#fff}&quot;,&quot;.w-1\\/2,#main{color:#fff}&quot;]
+P2 [&quot;.w-1\\/2 #main{color:#fff}&quot;,&quot;.w-1\\/2 #main{color:#fff}&quot;]
+P3 {&quot;inputLength&quot;:300,&quot;innerLength&quot;:100000,&quot;ms&quot;:89.185542,&quot;length&quot;:300,&quot;first&quot;:[&quot;[Truncated]&quot;]}
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  13:13:43
+   Duration  442ms (transform 43ms, setup 71ms, import 30ms, tests 199ms, environment 0ms)
+
+</pre><p>13:16 KST 후속 결정: R-1은 개인정보 차단 조건을 좁혀 수정한다. R-2의 불확실한 복합 선택자 유실은 테스트와 제한 목록에 명시한다. R-3는 최초 F-3의 해결과 별개인 추가 최적화 권고이며 이번 수정에 포함하지 않는다. 당시에는 수정 후 독립 검증이 대기 중이었다. 최신 상태는 최종 자료를 따른다.</p><h2 id="r4-history">R-1 수정 후 독립 리뷰 이력</h2><p>Task <code>task_60258a63d28b</code>, Dispatch <code>ctx_ebbc061bbc83</code>. 상세 결과 <code>msg_896439479688</code>, 수락된 완료 보고 <code>msg_3237c5969e72</code>. 이 검토는 R-1 해결과 새 회귀 없음, 기존 F4 잔여 R-4 및 R-5의 처리 결정 필요를 확인했다. 아래는 R-4 수정 전 원문이다. 최신 결과는 <a href="2026-10-13-pr128-final-review.html">최종 수정·검토</a>에서 확인한다.</p><pre>task_60258a63d28b / ctx_ebbc061bbc83 최종 상세 결과.
+
+판정: REQUEST_CHANGES.
+- 사유: R-4(Medium, 개인정보). 요구사항 F4 가 이스케이프된 슬래시 경로의 fragment 차단을 요구하지만, 조정자 probe 에서 8개 입력의 fragment 가 원문 그대로 남았다.
+- 이번 후속 수정(82행 `/[\s{]/`)이 만든 새 회귀는 찾지 못했다. R-1 의 다섯 입력은 해결됐다.
+
+━━ 1. 원인 ━━
+opaque 모드는 fragment 를 두 장치로 막는다.
+- 장치 M1: remainder 를 stripUrlQueries 로 검사한다(87행). 디코딩된 글자를 본다. 그러나 `.`/`#` 뒤 이스케이프 슬래시 식별자는 57행에서 &#x27;identifier&#x27; 로 바뀌어 슬래시가 가려진다. Tailwind `.w-1\/2{…color:#fff}` 를 보존하려는 동작이다.
+- 장치 M2: 가려진 슬래시를 플래그로 기억하고(56행) `#` 를 만나면 비운다(81행). 그러나 81행은 else 분기에 있어서 원문 `#` 만 본다.
+- 결함: `\#`, `\23 `, `\000023` 는 name 분기(34-52행)에서 소비된다. 슬래시는 M1 에서 가려지고, 디코딩된 `#` 는 M2 를 지나지 않는다. 두 장치 모두 놓친다.
+
+━━ 2. 수정 기준(하나) ━━
+&quot;opaque 모드에서 `.` 또는 `#` 바로 뒤의 이스케이프 슬래시 식별자는 구간을 연다. 구간은 원문 공백 또는 원문 `{` 에서만 닫힌다. 구간이 열려 있는 동안 CSS 디코딩 결과가 `#` 인 글자가 나오면, 표기(원문·`\#`·hex)와 분기에 관계없이 &#x27;&#x27; 를 반환한다.&quot;
+- 최소 구현: lib/sentry/replay-scrub.ts:56 바로 앞에 `if (opaque &amp;&amp; escapedSelectorSlash &amp;&amp; name.includes(&#x27;#&#x27;)) return &#x27;&#x27;;` 를 둔다. 81·82행은 그대로 둔다. name 은 디코딩된 값이므로 `\#`·`\23 `·`\000023` 를 한 조건으로 다룬다.
+- 56행 앞에 두는 이유: 구간을 여는 식별자 자신은 M1 이 실제 이름으로 검사한다(57행의 `/[?#]/` 조건). 56행 뒤에 두면 `.bg-\[\#fff\]\/50{color:red}`(J)가 &#x27;&#x27; 로 바뀐다.
+- `?` 는 추가 수정이 필요 없다. 원문·이스케이프·hex 모두 87행 `rest.includes(&#x27;?&#x27;)` 가 구간과 무관하게 비운다(K1·K2·K3 관측).
+- 구두점은 문자별 예외가 필요 없다. 공백과 `{` 외의 어떤 문자도 구간을 닫지 않는다. 따옴표·url()·주석 분기도 구간을 닫지 않는다.
+
+━━ 3. 관측 결과(조정자 probe 2회, 고정 SHA 코드, 출력 관측) ━━
+구분자 × 표기, 가려진 슬래시 뒤:
+- `?` 원문 K1 → &#x27;&#x27;. `\?` K2 → &#x27;&#x27;. `\3f ` K3 → &#x27;&#x27;.
+- `#` 원문: R-1 다섯 입력 → &#x27;&#x27;(테스트 39-52행, 보고서 증거). hex 슬래시 + 원문 `#` K4 → &#x27;&#x27;.
+- `\#` 가 슬래시와 같은 식별자 안: F `example.com\/callback\#secret-opaque` → &#x27;&#x27;.
+- `\#`·hex `#` 가 다른 식별자: 유출(아래 R-4).
+- 슬래시가 가려지지 않는 형태: G `callback\/index.html\#secret-opaque` → &#x27;&#x27;.
+
+━━ 4. 지적 ━━
+
+[R-4] Medium · 개인정보 · F4/R-1 잔여 — lib/sentry/replay-scrub.ts:81 (관련 34-52, 56-57, 87행)
+- 분류: 요구사항 미충족. 이번 후속 수정의 회귀가 아니다. 57행은 02c5f119 대비 diff 에서 변경되지 않은 문맥이다(판독).
+- 조건: 구간이 열린 뒤 이름이 아닌 문자(`.` `~` `,` `(` `)` `&#x27;…&#x27;` 등)가 하나 이상 있고, 그 뒤 식별자에 이스케이프된 `#` 가 있다. fragment 가 `키=` 형태가 아니다.
+- 실패 입력(type 5 data.payload.message, 관측: 출력 = 원문):
+  · A `example.com\/index.html\#secret-opaque`
+  · B `example.com\/~john\#secret-opaque`
+  · C `..\/a,b\#secret-opaque`
+  · D `.\/list(1)\23 secret-opaque`
+  · E `#route\/a.b\#secret-opaque`
+  · K5 `example.com\2f index.html\23 secret-opaque`
+  · K6 `example.com\/index.html\000023secret-opaque`
+  · K7 `example.com\/a&#x27;b&#x27;\#secret-opaque`
+- 심각도 근거: R-1 과 같은 유형이고 같은 기준을 적용했다. 기존 표(101-104행)가 `\#`·`\23 ` 를 위협 형태로 이미 다룬다. 보고서의 제한 목록에 이 입력이 없다. 도달 범위는 R-1 보다 좁다(슬래시와 `#` 가 모두 이스케이프되고 사이에 구두점이 있어야 한다).
+- 최소 수정: 2절의 한 줄. 위 8개 입력을 39행 표에 추가한다.
+- 수정의 비용(닫힘 방향): L1 `.w-1\/2.bg-\[\#fff\]{color:#fff}` 가 &#x27;&#x27; 가 된다(현재 관측: 원문 유지). 제한 목록과 53행 표에 추가한다.
+- 수정 뒤에도 유지되어야 하는 대조군(현재 관측: 원문 유지): I `.w-1\/2 .bg-\[\#fff\]{color:#fff}`, J `.bg-\[\#fff\]\/50{color:red}`, L3 `.bg-\[\#fff\]{color:#fff}`, L4 `.w-1\/2{width:50%}#main{color:#fff}`. 67행 표에 추가한다.
+- 수정 뒤 결과는 판독 예상이다. 실행하지 않았다. 수정 후 재검증이 필요하다.
+
+[R-5] Low · 개인정보 방향의 기존 보존 조건 · 결정 필요 — lib/sentry/replay-scrub.ts:82
+- 분류: 새 회귀가 아니다. `{` 는 후속 수정 전 집합 `[\s{,&gt;+~)]` 에도 있었다. 02c5f119 에는 플래그 자체가 없었으므로 그때도 남았다(판독). 직전 리뷰의 최소 수정안이 `{` 를 명시했다.
+- 관측: H `example.com\/users\/{id}#secret-opaque` → 원문 유지. K8 `example.com\/users\/{id}\#secret-opaque` → 원문 유지. K9 `example.com\/{id}\/callback#secret-opaque` → &#x27;&#x27;(뒤의 슬래시가 M1 에 보인다).
+- `{` 경계가 필요한 이유: L4 `.w-1\/2{width:50%}#main{color:#fff}` 와 `.\/a{b}#secret` 는 문법으로 구분할 수 없다. `{` 를 경계에서 빼면 요구사항의 일반 Tailwind 규칙 보존(69행, 232-242행 테스트)이 깨진다.
+- 요구사항상 상태: F4 문구를 엄격히 적용하면 H·K8 은 충족하지 않는다. 보고서는 규칙(&quot;공백이나 `{` 보다 먼저&quot;)을 적었지만 충실도 제한으로만 서술했다. fragment 가 남는다는 개인정보 방향의 결과는 제한 목록에 없다.
+- 결정 선택지: (a) 허용 제한으로 명시한다. 제한 목록에 &quot;이스케이프된 슬래시 뒤에 원문 `{` 가 먼저 나오고 그 뒤에 슬래시가 없으면 `키=` 형태가 아닌 fragment 가 남는다&quot;를 추가하고 H·K8 을 원문 유지로, K9 를 &#x27;&#x27; 로 고정한다. (b) 경계를 좁힌다. 이 경우 L4 형태의 보존을 포기해야 한다.
+- 권고: (a). 근거: WHATWG URL 직렬화는 경로의 `{` `}` 를 percent-encode 하므로 브라우저가 만든 URL 은 이 형태가 아니다. `#키=` 형태는 QUERY_PAIR 가 계속 자른다. 토큰 모양은 redactTokenShapes 가 계속 가린다.
+- 이 항목만으로는 차단하지 않는다. 다만 브리프가 &quot;알 수 없는 URL fragment 유지를 허가하지 않는다&quot;고 했으므로 (a) 또는 (b) 의 결정을 이번 변경에 기록해야 한다. 중간 상태 메시지의 &quot;차단 사유로 보지 않는다&quot;를 이 문장으로 바꾼다.
+
+━━ 5. 범위 밖 인접 관찰(차단 사유 아님, 별도 결정) ━━
+[N-1] Low · 같은 원인 계열, F4 문구 밖(슬래시 없음) — lib/sentry/replay-scrub.ts:57
+- 관측: K10 `callback#code\=secret-opaque` → 원문 유지. 57행이 `=` 를 담은 이스케이프 식별자를 &#x27;identifier&#x27; 로 바꿔서 scrub.ts:41 QUERY_PAIR 가 `키=` 를 보지 못한다. 이스케이프 없는 `callback#code=secret-opaque` 는 stripUrlQueries 가 자른다(판독, 미실행).
+- 02c5f119 에도 있던 동작이다(판독). 방향: opaque 모드에서 57행의 `/[?#]/` 를 `/[?#=]/` 로 넓힌다. 충실도 영향(예: `.data-\[state\=open\]…`)은 검증하지 않았다. 이번 변경에 넣을지는 조정자가 결정한다.
+[N-2] 정보 — K11 `callback\/path\20 x#secret-opaque` → 원문 유지. 디코딩된 공백이 M1 의 토큰을 나눈다. 디코딩된 문장 `callback/path x#secret-opaque` 에 대한 stripUrlQueries 의 기존 규칙과 같은 결과다. 지적으로 보지 않는다.
+
+━━ 6. 수용된 제한과 새 회귀의 구분 ━━
+- 새 회귀(이번 후속 수정이 만든 것): 없음.
+- 수용된 제한, 테스트와 일치: R-2 의 일곱 형태(53-66행)는 판독상 모두 81행에서 &#x27;&#x27; 다. 보존 세 형태(67-76행)와 CSS 모드 여섯 개(77-91행)는 판독상 유지된다. 보고서 서술과 일치한다.
+- 기존 동작, 제한 목록에 개별 명시 없음: L2 `.bg-\[\#fff\]\/50{color:#fff}` → &#x27;&#x27;(관측). 57행과 87행의 기존 동작이며 &quot;CSS 의 모든 형태를 보존한다고 보장하지 않는다&quot;의 범위다. 명시 여부는 선택이다.
+- R-3: 범위 밖 선택 사항으로 확인했다. 검토하지 않았다.
+
+━━ 7. 불확실성과 미실행 범위 ━━
+- 내가 실행한 테스트는 없다. 관측값은 모두 조정자 probe 의 출력이다. 221개 통과 등은 보고서의 증거다.
+- A–E·K·L 은 compressed=false 로만 관측했다. 압축 경로는 같은 scrubNode 를 지나므로 같은 결과로 판독한다(미실행).
+- 2절 수정 뒤의 결과는 전부 판독 예상이다. 해결로 간주하지 않는다.
+- SHA-256 은 내가 검증하지 못했다. 조정자의 확인에 의존한다.
+- browser-scrub.ts 와 SVG 문맥(F-1·F-3·F-5)은 파일이 diff 와 같은지만 판독했다. 직전 리뷰의 수용과 테스트 증거에 의존했다.
+- `\#` 가 있는 이스케이프 경로의 현실 빈도는 측정하지 않았다.</pre><h2>R-4 관측 probe 두 차례</h2><pre>(!) Your Vite config uses features that are unsupported by `configLoader: &#x27;native&#x27;`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `&quot;type&quot;: &quot;module&quot;` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/charlie.hyun/Repositories/picnic-web-replay-fidelity-and-limits
+
+[&quot;A&quot;,&quot;example.com\\/index.html\\#secret-opaque&quot;,&quot;example.com\\/index.html\\#secret-opaque&quot;]
+[&quot;B&quot;,&quot;example.com\\/~john\\#secret-opaque&quot;,&quot;example.com\\/~john\\#secret-opaque&quot;]
+[&quot;C&quot;,&quot;..\\/a,b\\#secret-opaque&quot;,&quot;..\\/a,b\\#secret-opaque&quot;]
+[&quot;D&quot;,&quot;.\\/list(1)\\23 secret-opaque&quot;,&quot;.\\/list(1)\\23 secret-opaque&quot;]
+[&quot;E&quot;,&quot;#route\\/a.b\\#secret-opaque&quot;,&quot;#route\\/a.b\\#secret-opaque&quot;]
+[&quot;F&quot;,&quot;example.com\\/callback\\#secret-opaque&quot;,&quot;&quot;]
+[&quot;G&quot;,&quot;callback\\/index.html\\#secret-opaque&quot;,&quot;&quot;]
+[&quot;H&quot;,&quot;example.com\\/users\\/{id}#secret-opaque&quot;,&quot;example.com\\/users\\/{id}#secret-opaque&quot;]
+[&quot;I&quot;,&quot;.w-1\\/2 .bg-\\[\\#fff\\]{color:#fff}&quot;,&quot;.w-1\\/2 .bg-\\[\\#fff\\]{color:#fff}&quot;]
+[&quot;J&quot;,&quot;.bg-\\[\\#fff\\]\\/50{color:red}&quot;,&quot;.bg-\\[\\#fff\\]\\/50{color:red}&quot;]
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  13:33:20
+   Duration  251ms (transform 39ms, setup 77ms, import 27ms, tests 3ms, environment 0ms)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: &#x27;native&#x27;`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `&quot;type&quot;: &quot;module&quot;` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 /Users/charlie.hyun/Repositories/picnic-web-replay-fidelity-and-limits
+
+[&quot;K1&quot;,&quot;example.com\\/index.html?secret-opaque&quot;,&quot;&quot;]
+[&quot;K2&quot;,&quot;example.com\\/index.html\\?secret-opaque&quot;,&quot;&quot;]
+[&quot;K3&quot;,&quot;example.com\\/index.html\\3f secret-opaque&quot;,&quot;&quot;]
+[&quot;K4&quot;,&quot;example.com\\2f index.html#secret-opaque&quot;,&quot;&quot;]
+[&quot;K5&quot;,&quot;example.com\\2f index.html\\23 secret-opaque&quot;,&quot;example.com\\2f index.html\\23 secret-opaque&quot;]
+[&quot;K6&quot;,&quot;example.com\\/index.html\\000023secret-opaque&quot;,&quot;example.com\\/index.html\\000023secret-opaque&quot;]
+[&quot;K7&quot;,&quot;example.com\\/a&#x27;b&#x27;\\#secret-opaque&quot;,&quot;example.com\\/a&#x27;b&#x27;\\#secret-opaque&quot;]
+[&quot;K8&quot;,&quot;example.com\\/users\\/{id}\\#secret-opaque&quot;,&quot;example.com\\/users\\/{id}\\#secret-opaque&quot;]
+[&quot;K9&quot;,&quot;example.com\\/{id}\\/callback#secret-opaque&quot;,&quot;&quot;]
+[&quot;K10&quot;,&quot;callback#code\\=secret-opaque&quot;,&quot;callback#code\\=secret-opaque&quot;]
+[&quot;K11&quot;,&quot;callback\\/path\\20 x#secret-opaque&quot;,&quot;callback\\/path\\20 x#secret-opaque&quot;]
+[&quot;L1&quot;,&quot;.w-1\\/2.bg-\\[\\#fff\\]{color:#fff}&quot;,&quot;.w-1\\/2.bg-\\[\\#fff\\]{color:#fff}&quot;]
+[&quot;L2&quot;,&quot;.bg-\\[\\#fff\\]\\/50{color:#fff}&quot;,&quot;&quot;]
+[&quot;L3&quot;,&quot;.bg-\\[\\#fff\\]{color:#fff}&quot;,&quot;.bg-\\[\\#fff\\]{color:#fff}&quot;]
+[&quot;L4&quot;,&quot;.w-1\\/2{width:50%}#main{color:#fff}&quot;,&quot;.w-1\\/2{width:50%}#main{color:#fff}&quot;]
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  13:37:31
+   Duration  247ms (transform 35ms, setup 72ms, import 22ms, tests 3ms, environment 0ms)
+
+</pre></body></html>

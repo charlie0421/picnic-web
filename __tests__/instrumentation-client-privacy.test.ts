@@ -69,6 +69,45 @@ describe('browser Sentry URL privacy', () => {
     expect(exceeds.data.arguments.at(-1)).toBe('[Truncated]');
     expect(exceeds.data.arguments[9994]).toBe('/a');
   });
+  it('inspects only the bounded prefix of a dense argument array', async () => {
+    const config = await options();
+    const source = Array(50000).fill('/a?code=private');
+    let descriptors = 0;
+    const args = new Proxy(source, {
+      getOwnPropertyDescriptor(target, key) {
+        if (typeof key === 'string' && /^(0|[1-9][0-9]*)$/.test(key)) descriptors++;
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+    });
+    const clean = config.beforeBreadcrumb({ data: { arguments: args }, category: 'console', message: 'safe' });
+    expect(descriptors).toBeLessThanOrEqual(9999);
+    expect(clean).toMatchObject({ category: 'console', message: 'safe' });
+    expect(clean.data.arguments).toHaveLength(9996);
+    expect(clean.data.arguments[9994]).toBe('/a');
+    expect(clean.data.arguments[9995]).toBe('[Truncated]');
+    expect(source).toHaveLength(50000);
+    expect(source[0]).toBe('/a?code=private');
+  });
+  it('copies sparse prefix indexes and skips getters and cycles beyond truncation', async () => {
+    const config = await options();
+    const args = new Array(100000);
+    const value: Record<string, unknown> = { url: '/a?code=private' };
+    value.self = value;
+    args[2] = value;
+    const getter = vi.fn(() => '/a?code=private');
+    Object.defineProperty(args, '3', { enumerable: true, get: getter });
+    Object.defineProperty(args, '99999', { enumerable: true, get: getter });
+    const clean = config.beforeBreadcrumb({ category: 'console', data: { arguments: args } });
+    expect(clean.data.arguments).toHaveLength(5);
+    expect(0 in clean.data.arguments).toBe(false);
+    expect(clean.data.arguments[2].url).toBe('/a');
+    expect(clean.data.arguments[2].self).toBe(clean.data.arguments[2]);
+    expect(clean.data.arguments[3]).toBe('[Getter]');
+    expect(clean.data.arguments[4]).toBe('[Truncated]');
+    expect(getter).not.toHaveBeenCalled();
+    expect(args[2]).toBe(value);
+    expect(value.url).toBe('/a?code=private');
+  });
   it('marks an excessive object without forwarding its uncopied values', async () => {
     const config = await options();
     const data = Object.fromEntries(Array.from({ length: 12000 }, (_, i) => [`field${i}`, '/a?code=private']));

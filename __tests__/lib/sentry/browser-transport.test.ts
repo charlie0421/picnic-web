@@ -35,7 +35,106 @@ function decoded(value: Envelope) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Replay privacy transport', () => {
+  describe.each([false, true])('opaque escaped slash boundaries, compressed=%s', (compressed) => {
+    it.each([
+      String.raw`example.com\/~john#secret-opaque`,
+      String.raw`..\/a,b#secret-opaque`,
+      String.raw`.\/list(1)#secret-opaque`,
+      String.raw`example.com\/a+b#secret-opaque`,
+      String.raw`example.com\/a>b#secret-opaque`,
+      String.raw`example.com\/index.html\#secret-opaque`, // A
+      String.raw`example.com\/~john\#secret-opaque`, // B
+      String.raw`..\/a,b\#secret-opaque`, // C
+      String.raw`.\/list(1)\23 secret-opaque`, // D
+      String.raw`#route\/a.b\#secret-opaque`, // E
+      String.raw`example.com\2f index.html\23 secret-opaque`, // K5
+      String.raw`example.com\/index.html\000023secret-opaque`, // K6
+      String.raw`example.com\/a'b'\#secret-opaque`, // K7
+    ])('removes a fragment after URL-compatible punctuation: %s', async (value) => {
+      const input = [{ type: 5, timestamp: 1, data: { tag: 'note', payload: { message: value } } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      const clean = decoded(output!);
+      expect(JSON.stringify(clean)).not.toContain('secret-opaque');
+      expect(clean[0].data.payload.message).toBe('');
+    });
+    // Hex terminator spaces belong to the escape, not the segment boundary.
+    const openedPaths = ['example.com', '..', '.', '#route'].flatMap((prefix) =>
+      [String.raw`\/`, String.raw`\2f `].flatMap((slash) =>
+        ['.html', '~john', ',b', '(1)', "'b'", '+b'].flatMap((punctuation) =>
+          ['#', String.raw`\#`, String.raw`\23 `, String.raw`\000023`,
+            '?', String.raw`\?`, String.raw`\3f `, String.raw`\00003f`].map((delimiter) =>
+            `${prefix}${slash}a${punctuation}${delimiter}secret-opaque`))));
+    it.each(openedPaths)('removes literal or decoded delimiters in an opened opaque segment: %s', async (value) => {
+      const input = [{ type: 5, timestamp: 1, data: { tag: 'note', payload: { message: value } } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      const clean = decoded(output!);
+      expect(JSON.stringify(clean)).not.toContain('secret-opaque');
+      expect(clean[0].data.payload.message).toBe('');
+    });
+    it.each([
+      String.raw`.w-1\/2#main{color:#fff}`,
+      String.raw`.w-1\/2:not(#x){color:#fff}`,
+      String.raw`.w-1\/2,#main{color:#fff}`,
+      String.raw`.w-1\/2>#main{color:#fff}`,
+      String.raw`.w-1\/2+#main{color:#fff}`,
+      String.raw`.w-1\/2~#main{color:#fff}`,
+      String.raw`:not(.w-1\/2)#x{color:#fff}`,
+      String.raw`.w-1\/2.bg-\[\#fff\]{color:#fff}`, // L1: fail-closed cost
+      String.raw`.w-1\/2{width:50%;color:#fff}`,
+      String.raw`.w-1\/2{width:50%}#main{color:#fff}`, // L4: brace no longer closes the segment
+    ])('fails closed for a compound selector indistinguishable from an opaque path: %s', async (value) => {
+      const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value }] } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      expect(decoded(output!)[0].data.texts[0].value).toBe('');
+    });
+    it.each([
+      String.raw`.w-1\/2 #main{color:#fff}`,
+      String.raw`.w-1\/2{width:50%}`, // No fragment or color
+      String.raw`.w-1\/2 {width:50%;color:#fff}`, // Whitespace still closes the segment
+      String.raw`.hover\:bg-blue:hover{color:#fff}`,
+      String.raw`.w-1\/2 .bg-\[\#fff\]{color:#fff}`, // I: whitespace boundary
+      String.raw`.bg-\[\#fff\]\/50{color:red}`, // J: color before opening slash
+      String.raw`.bg-\[\#fff\]{color:#fff}`, // L3: no slash
+    ])('preserves opaque CSS without a fragment in the opened segment: %s', async (value) => {
+      const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value }] } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      expect(decoded(output!)[0].data.texts[0].value).toBe(value);
+    });
+    const bracePaths = [String.raw`example.com\/users\/{id}`, String.raw`.\/a{b}`].flatMap((path) =>
+      ['#', String.raw`\#`, String.raw`\23 `, String.raw`\000023`].map((fragment) => `${path}${fragment}secret-opaque`));
+    it.each([...bracePaths, String.raw`example.com\/{id}\/callback#secret-opaque`])('removes a fragment after raw braces in an opened opaque segment: %s', async (value) => {
+      const input = [{ type: 5, timestamp: 1, data: { tag: 'note', payload: { message: value } } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      const clean = decoded(output!);
+      expect(JSON.stringify(clean)).not.toContain('secret-opaque');
+      expect(clean[0].data.payload.message).toBe('');
+    });
+    it('preserves compound selectors and hex colors in known CSS modes', async () => {
+      const value = String.raw`.w-1\/2#main,.w-1\/2:not(#x),.w-1\/2>#main,.w-1\/2+#main,.w-1\/2~#main,:not(.w-1\/2)#x{color:#fff;background:#123abc}.w-1\/2.bg-\[\#fff\]{color:#fff}.bg-\[\#fff\]\/50{color:red}.w-1\/2{width:50%;color:#fff}.w-1\/2{width:50%}#main{color:#fff}`;
+      const attributes = { style: value, _cssText: value };
+      const input = [
+        { type: 2, timestamp: 1, data: { node: { id: 1, type: 2, tagName: 'div', attributes } } },
+        { type: 3, timestamp: 2, data: { source: 8, adds: [{ rule: value, index: 0 }], replace: value, replaceSync: value } },
+        { type: 3, timestamp: 3, data: { source: 0, adds: [{ node: { id: 10, type: 3, isStyle: true, textContent: value } }] } },
+      ];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      const clean = decoded(output!);
+      expect(clean[0].data.node.attributes).toEqual(attributes);
+      expect(clean[1].data).toEqual({ source: 8, adds: [{ rule: value, index: 0 }], replace: value, replaceSync: value });
+      expect(clean[2].data.adds[0].node.textContent).toBe(value);
+    });
+  });
   it.each([
+    [String.raw`example.com\/callback#secret-opaque`, ''],
+    [String.raw`..\/callback#secret-opaque`, ''],
+    [String.raw`.\/callback#secret-opaque`, ''],
+    [String.raw`#route\/callback#secret-opaque`, ''],
     [String.raw`callback\/path#secret-opaque`, ''],
     [String.raw`\2f callback#secret-opaque`, ''],
     [String.raw`\/callback#secret-opaque`, ''],
@@ -52,6 +151,92 @@ describe('Replay privacy transport', () => {
       expect(output).not.toBeNull();
       expect(decoded(output!)[0].data.payload.message).toBe(expected);
     }
+  });
+  it.each([false, true])('keeps presentation names opaque outside SVG attributes, compressed=%s', async (compressed) => {
+    const attrs = { fill: String.raw`/callback\?code=secret-opaque`, stroke: String.raw`/callback\?code=secret-opaque`,
+      filter: String.raw`/callback\?code=secret-opaque`, 'clip-path': String.raw`/callback\?code=secret-opaque`, mask: String.raw`/callback\?code=secret-opaque` };
+    const input = [
+      { type: 5, timestamp: 1, data: { tag: 'breadcrumb', payload: { data: attrs } } },
+      { type: 2, timestamp: 2, data: { node: { id: 30, type: 2, tagName: 'div', attributes: attrs } } },
+      { type: 3, timestamp: 3, data: { source: 0, attributes: [{ id: 31, attributes: attrs }] } },
+    ];
+    const source = envelope(compressed, input as never);
+    Object.assign(source[0], attrs);
+    Object.assign(source[1][0][1] as object, attrs);
+    const before = structuredClone(source);
+    const output = await scrubReplayEnvelope(source);
+    expect(output).not.toBeNull();
+    const empty = { fill: '', stroke: '', filter: '', 'clip-path': '', mask: '' };
+    const clean = decoded(output!);
+    expect(clean[0].data.payload.data).toEqual(empty);
+    expect(clean[1].data.node.attributes).toEqual(empty);
+    expect(clean[2].data.attributes[0].attributes).toEqual(empty);
+    expect(output![0]).toMatchObject(empty);
+    expect(output![1][0][1]).toMatchObject(empty);
+    expect(source).toEqual(before);
+  });
+  it.each([false, true])('preserves presentation references for same-recording SVG mutation targets, compressed=%s', async (compressed) => {
+    const input = [
+      { type: 2, timestamp: 1, data: { node: { id: 30, type: 2, tagName: 'rect', isSVG: true, attributes: { fill: 'url(#gradient)' } } } },
+      { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 30, attributes: { fill: 'url(#next)', stroke: 'url(#stroke)', filter: 'url(#shadow)', 'clip-path': 'url(#clip)', mask: 'url(#mask)' } }] } },
+    ];
+    const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+    expect(decoded(output!)[1].data.attributes[0].attributes).toEqual({ fill: 'url("#next")', stroke: 'url("#stroke")', filter: 'url("#shadow")', 'clip-path': 'url("#clip")', mask: 'url("#mask")' });
+  });
+  it('recognizes SVG child nodes and added nodes without authorizing custom data with their IDs', async () => {
+    const input = [
+      { type: 2, timestamp: 1, data: { node: { id: 1, type: 0, childNodes: [{ id: 20, type: 2, tagName: 'rect', isSVG: true, attributes: { fill: 'url(#gradient)' } }] } } },
+      { type: 3, timestamp: 2, data: { source: 0, adds: [{ parentId: 1, nextId: null, node: { id: 21, type: 2, tagName: 'use', isSVG: true, attributes: { href: '#shape' } } }] } },
+      { type: 5, timestamp: 3, data: { tag: 'note', payload: { id: 21, attributes: { href: '#private-href', fill: 'url(#private-fill)' } } } },
+      { type: 3, timestamp: 4, data: { source: 0, attributes: [{ id: 20, attributes: { fill: 'url(#next)' } }, { id: 21, attributes: { href: '#next-shape' } }] } },
+    ];
+    const output = await scrubReplayEnvelope(envelope(false, input as never));
+    const clean = decoded(output!);
+    expect(clean[0].data.node.childNodes[0].attributes.fill).toBe('url("#gradient")');
+    expect(clean[1].data.adds[0].node.attributes.href).toBe('#shape');
+    expect(clean[2].data.payload.attributes).toEqual({ href: '', fill: 'url("")' });
+    expect(clean[3].data.attributes[0].attributes.fill).toBe('url("#next")');
+    expect(clean[3].data.attributes[1].attributes.href).toBe('#next-shape');
+  });
+  it('does not let custom payloads or metadata establish SVG node identities', async () => {
+    const fake = { id: 20, type: 2, tagName: 'use', isSVG: true, attributes: { href: '#private-href', fill: 'url(#private-fill)' } };
+    const input = [
+      { type: 5, timestamp: 1, data: { tag: 'note', payload: { node: fake } } },
+      { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 20, attributes: { href: '#private-mutation', fill: 'url(#private-fill)' } }] } },
+    ];
+    const source = envelope(false, input as never);
+    Object.assign(source[0], { node: fake });
+    Object.assign(source[1][0][1] as object, { node: fake });
+    const output = await scrubReplayEnvelope(source);
+    const attrs = { href: '', fill: 'url("")' };
+    expect(output![0]).toMatchObject({ node: { attributes: attrs } });
+    expect(output![1][0][1]).toMatchObject({ node: { attributes: attrs } });
+    expect(decoded(output!)[0].data.payload.node.attributes).toEqual(attrs);
+    expect(decoded(output!)[1].data.attributes[0].attributes).toEqual(attrs);
+  });
+  it.each([{ tagName: 'a' }, { tagName: 'use', isSVG: false }, { tagName: 'rect', isSVG: true }])('revokes prior SVG use identity on an explicit replacement: %j', async (replacement) => {
+    const input = [
+      { type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: 'use', isSVG: true, attributes: { href: '#shape' } } } },
+      { type: 2, timestamp: 2, data: { node: { id: 20, type: 2, ...replacement, attributes: { href: '#private-navigation' } } } },
+      { type: 3, timestamp: 3, data: { source: 0, attributes: [{ id: 20, attributes: { href: '#private-mutation' } }] } },
+      { type: 2, timestamp: 4, data: { node: { id: 20, type: 2, tagName: 'use', isSVG: true, attributes: { href: '#new-shape' } } } },
+      { type: 3, timestamp: 5, data: { source: 0, attributes: [{ id: 20, attributes: { href: '#new-mutation' } }] } },
+    ];
+    const output = await scrubReplayEnvelope(envelope(false, input as never));
+    const clean = decoded(output!);
+    expect(clean[1].data.node.attributes.href).toBe('');
+    expect(clean[2].data.attributes[0].attributes.href).toBe('');
+    expect(clean[4].data.attributes[0].attributes.href).toBe('#new-mutation');
+  });
+  it.each([false, true])('isolates SVG identities from later replay events and recordings, compressed=%s', async (compressed) => {
+    const source = envelope(compressed, [{ type: 2, timestamp: 1, data: { node: { id: 20, type: 2, tagName: 'use', isSVG: true, attributes: { href: '#shape', fill: 'url(#gradient)' } } } }] as never);
+    source[1].push([{ type: 'replay_event' }, { type: 'replay_event', extra: { id: 20, attributes: { href: '#private-navigation', fill: 'url(#private-fill)' } } }] as Envelope[1][number]);
+    source[1].push(envelope(compressed, [{ type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 20, attributes: { href: '#private-next-recording', fill: 'url(#private-next-fill)' } }] } }] as never)[1][1]);
+    const output = await scrubReplayEnvelope(source);
+    expect(decoded(output!)[0].data.node.attributes.href).toBe('#shape');
+    expect(output![1][2][1]).toMatchObject({ extra: { attributes: { href: '', fill: 'url("")' } } });
+    const next = decoded([output![0], [output![1][3]]] as Envelope);
+    expect(next[0].data.attributes[0].attributes).toEqual({ href: '', fill: 'url("")' });
   });
   it.each([false, true])('preserves bounded same-document SVG references, compressed=%s', async (compressed) => {
     const input = [
@@ -83,17 +268,17 @@ describe('Replay privacy transport', () => {
     const output = await scrubReplayEnvelope(envelope(false, input as never));
     expect(decoded(output!)[0].data.node.attributes).toEqual({ href: '/sprite.svg', 'xlink:href': '', style: 'fill:url("#gradient");filter:url("/asset");mask:url("")' });
   });
-  it('preserves CSS text mutation syntax while removing a root-relative URL query', async () => {
+  it('fails closed for opaque CSS text with an escaped slash and a later color', async () => {
     const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value: '.w-1\\/2{background:url(/img?code=secret-css);color:#fff}' }] } }];
     const output = await scrubReplayEnvelope(envelope(false, input as never));
-    expect(decoded(output!)[0].data.texts[0].value).toBe('.w-1\\/2{background:url("/img");color:#fff}');
+    expect(decoded(output!)[0].data.texts[0].value).toBe('');
   });
-  it('preserves escaped CSS text selectors and hex colors without a URL token', async () => {
+  it('fails closed for opaque CSS text with an escaped slash and a later hex color', async () => {
     const value = '.w-1\\/2{width:50%;color:#fff}';
     for (const compressed of [false, true]) {
       const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value }] } }];
       const output = await scrubReplayEnvelope(envelope(compressed, input as never));
-      expect(decoded(output!)[0].data.texts[0].value).toBe(value);
+      expect(decoded(output!)[0].data.texts[0].value).toBe('');
     }
   });
   it.each([false, true])('redacts recording and metadata, preserves DOM/CSS/UTF-8, compressed=%s', async (compressed) => {
