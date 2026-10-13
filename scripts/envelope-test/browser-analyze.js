@@ -73,6 +73,10 @@ function evaluateBrowserEnvelopes(envelopes) {
   assert.equal(escaped['data-escaped-fragment'], '');
   assert.equal(escaped['data-hex-query'], '');
   assert.equal(escaped['data-hex-fragment'], '');
+  assert.equal(escaped['data-escaped-root'], '');
+  assert.ok(records.some((event) => event.type === 3 && event.data.source === 13 && event.data.set?.property === 'filter' && event.data.set.value === 'url("#fixture-shadow")'), 'CSS declaration local reference survives');
+  assert.ok(!objects.some((node) => node.tagName === 'rect' || node.tagName === 'use'), 'SVG contents remain blocked by blockAllMedia');
+  assert.ok(errors.some((item) => item.payload.breadcrumbs?.some((crumb) => crumb.category === 'fixture.large' && crumb.message === 'large-safe')), 'large breadcrumb metadata delivered');
   assert.ok(records.some((event) => event.type === 3 && event.data.source === 8), 'CSS rule insertion captured');
   assert.ok(records.some((event) => event.type === 3 && event.data.source === 13), 'CSS declaration captured');
   assert.ok(records.some((event) => event.type === 5 && event.data.tag === 'performanceSpan'), 'Replay performance custom events captured');

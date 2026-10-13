@@ -6,19 +6,44 @@ function copyBreadcrumb(input: Breadcrumb): Breadcrumb {
   const seen = new WeakMap<object, object>();
   let count = 0;
   function copy(value: unknown, depth: number): unknown {
-    if (++count > 10000 || depth > 40) throw new Error('breadcrumb limits');
+    if (count >= 10000 || depth > 40) return '[Truncated]';
+    count++;
     if (!value || typeof value !== 'object') return value;
     if (seen.has(value)) return seen.get(value);
     const proto = Object.getPrototypeOf(value);
     // scrubEvent also leaves opaque objects intact; SDK normalization handles them later.
     if (!Array.isArray(value) && proto !== Object.prototype && proto !== null) return value;
-    if (Array.isArray(value) && value.length > 10000) throw new Error('breadcrumb limits');
     const result = Array.isArray(value) ? [] : Object.create(null);
     seen.set(value, result);
-    for (const key of Object.keys(value)) {
+    if (Array.isArray(value)) {
+      const length = Object.getOwnPropertyDescriptor(value, 'length')!.value as number;
+      for (let index = 0; index < Math.min(length, 9999); index++) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (!descriptor?.enumerable) continue;
+        if (count >= 10000) {
+          Object.defineProperty(result, String(result.length), { value: '[Truncated]', enumerable: true, configurable: true, writable: true });
+          return result;
+        }
+        Object.defineProperty(result, String(index), {
+          value: copy('value' in descriptor ? descriptor.value : '[Getter]', depth + 1),
+          enumerable: true, configurable: true, writable: true,
+        });
+      }
+      if (length > 9999) Object.defineProperty(result, String(result.length), { value: '[Truncated]', enumerable: true, configurable: true, writable: true });
+      return result;
+    }
+    const keys = Object.keys(value);
+    // Reserve the ordinary breadcrumb fields before large application data.
+    const metadata = ['category', 'type', 'level', 'timestamp', 'message'];
+    const ordered = depth === 0 ? [...metadata.filter((key) => keys.includes(key)), ...keys.filter((key) => !metadata.includes(key))] : keys;
+    for (const key of ordered) {
+      if (count >= 10000) {
+        Object.defineProperty(result, '_truncated', { value: '[Truncated]', enumerable: true, configurable: true, writable: true });
+        break;
+      }
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       Object.defineProperty(result, key, {
-        value: descriptor && 'value' in descriptor ? copy(descriptor.value, depth + 1) : '[Getter]',
+        value: copy(descriptor && 'value' in descriptor ? descriptor.value : '[Getter]', depth + 1),
         enumerable: true, configurable: true, writable: true,
       });
     }

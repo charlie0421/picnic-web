@@ -48,11 +48,96 @@ describe('browser Sentry URL privacy', () => {
     expect(clean.data.arguments[0].url).toBe('/a');
     expect(clean.data.arguments[0].self).toBe(clean.data.arguments[0]);
   });
-  it('drops an excessive breadcrumb while leaving the caller object unchanged', async () => {
+  it('truncates excessive breadcrumb data while preserving metadata and caller data', async () => {
     const config = await options();
-    const input = { category: 'console', data: { arguments: Array(100000).fill('/a?code=private') } };
-    expect(config.beforeBreadcrumb(input)).toBeNull();
+    const input = { data: { arguments: Array(100000).fill('/a?code=private') }, category: 'console', level: 'warning', message: 'safe', timestamp: 123 };
+    const clean = config.beforeBreadcrumb(input);
+    expect(clean).toMatchObject({ category: 'console', level: 'warning', message: 'safe', timestamp: 123 });
+    expect(clean.data.arguments.length).toBeLessThan(10000);
+    expect(clean.data.arguments.at(-1)).toBe('[Truncated]');
+    expect(clean.data.arguments[0]).toBe('/a');
+    expect(JSON.stringify(clean)).not.toContain('private');
     expect(input.data.arguments[0]).toBe('/a?code=private');
+  });
+  it('keeps data at the value budget and truncates only the next value', async () => {
+    const config = await options();
+    const fits = config.beforeBreadcrumb({ category: 'console', message: 'safe', data: { arguments: Array(9995).fill('safe') } });
+    expect(fits.data.arguments).toHaveLength(9995);
+    expect(fits.data.arguments.at(-1)).toBe('safe');
+    const exceeds = config.beforeBreadcrumb({ category: 'console', message: 'safe', data: { arguments: Array(9996).fill('/a?code=private') } });
+    expect(exceeds.data.arguments).toHaveLength(9996);
+    expect(exceeds.data.arguments.at(-1)).toBe('[Truncated]');
+    expect(exceeds.data.arguments[9994]).toBe('/a');
+  });
+  it('inspects only the bounded prefix of a dense argument array', async () => {
+    const config = await options();
+    const source = Array(50000).fill('/a?code=private');
+    let descriptors = 0;
+    const args = new Proxy(source, {
+      getOwnPropertyDescriptor(target, key) {
+        if (typeof key === 'string' && /^(0|[1-9][0-9]*)$/.test(key)) descriptors++;
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+    });
+    const clean = config.beforeBreadcrumb({ data: { arguments: args }, category: 'console', message: 'safe' });
+    expect(descriptors).toBeLessThanOrEqual(9999);
+    expect(clean).toMatchObject({ category: 'console', message: 'safe' });
+    expect(clean.data.arguments).toHaveLength(9996);
+    expect(clean.data.arguments[9994]).toBe('/a');
+    expect(clean.data.arguments[9995]).toBe('[Truncated]');
+    expect(source).toHaveLength(50000);
+    expect(source[0]).toBe('/a?code=private');
+  });
+  it('copies sparse prefix indexes and skips getters and cycles beyond truncation', async () => {
+    const config = await options();
+    const args = new Array(100000);
+    const value: Record<string, unknown> = { url: '/a?code=private' };
+    value.self = value;
+    args[2] = value;
+    const getter = vi.fn(() => '/a?code=private');
+    Object.defineProperty(args, '3', { enumerable: true, get: getter });
+    Object.defineProperty(args, '99999', { enumerable: true, get: getter });
+    const clean = config.beforeBreadcrumb({ category: 'console', data: { arguments: args } });
+    expect(clean.data.arguments).toHaveLength(5);
+    expect(0 in clean.data.arguments).toBe(false);
+    expect(clean.data.arguments[2].url).toBe('/a');
+    expect(clean.data.arguments[2].self).toBe(clean.data.arguments[2]);
+    expect(clean.data.arguments[3]).toBe('[Getter]');
+    expect(clean.data.arguments[4]).toBe('[Truncated]');
+    expect(getter).not.toHaveBeenCalled();
+    expect(args[2]).toBe(value);
+    expect(value.url).toBe('/a?code=private');
+  });
+  it('marks an excessive object without forwarding its uncopied values', async () => {
+    const config = await options();
+    const data = Object.fromEntries(Array.from({ length: 12000 }, (_, i) => [`field${i}`, '/a?code=private']));
+    const clean = config.beforeBreadcrumb({ data, category: 'console' });
+    expect(clean.category).toBe('console');
+    expect(clean.data._truncated).toBe('[Truncated]');
+    expect(Object.keys(clean.data).length).toBeLessThan(10000);
+    expect(JSON.stringify(clean)).not.toContain('private');
+    expect(data.field11999).toBe('/a?code=private');
+  });
+  it('bounds sparse array indexes instead of creating an enormous copied array', async () => {
+    const config = await options();
+    const sparse = new Array(100000);
+    sparse[99999] = '/a?code=private';
+    const clean = config.beforeBreadcrumb({ category: 'console', data: { arguments: sparse } });
+    expect(clean).not.toBeNull();
+    expect(clean.data.arguments.length).toBeLessThanOrEqual(10000);
+    expect(clean.data.arguments.at(-1)).toBe('[Truncated]');
+    expect(sparse.length).toBe(100000);
+  });
+  it('truncates only an excessive nested branch and keeps a safe sibling', async () => {
+    const config = await options();
+    let deep: unknown = { url: '/a?code=private' };
+    for (let i = 0; i < 45; i++) deep = { child: deep };
+    const input = { category: 'console', data: { deep, safe: { url: '/b?code=private' } } };
+    const clean = config.beforeBreadcrumb(input);
+    expect(clean.data.safe.url).toBe('/b');
+    expect(JSON.stringify(clean.data.deep)).toContain('[Truncated]');
+    expect(JSON.stringify(clean)).not.toContain('private');
+    expect(input.data.safe.url).toBe('/b?code=private');
   });
   it('redacts errors after applying existing filters', async () => {
     const config = await options();
