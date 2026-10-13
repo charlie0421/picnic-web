@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>Replay fragment 경계 수정</title>
+<style>body{font:16px/1.65 system-ui,sans-serif;max-width:960px;margin:48px auto;padding:0 24px;color:#192332}h1,h2{line-height:1.3}pre,code{background:#f1f4f8;border-radius:4px}pre{padding:16px;overflow:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd3dc;padding:10px;text-align:left}</style></head>
+<body>
+<h1>Replay fragment 경계 수정</h1>
+<p>기준 커밋: <code>2336bf671a5f48286d8c502f604c6fc047880894</code>. 사용자 요청: 기존 검증에서 남은 두 예외를 재현하고, 누출이 확인된 경우에만 최소 수정한다.</p>
+<h2>재현 결과</h2>
+<table><thead><tr><th>합성 입력</th><th>기준 코드 결과</th></tr></thead><tbody>
+<tr><td><code>callback#code\=secret-opaque</code></td><td>민감값 잔존. 이스케이프된 등호가 CSS 식별자 검사에서 숨겨진다.</td></tr>
+<tr><td><code>example.com\/users\/{ id }#secret-opaque</code></td><td>민감값 잔존. 중괄호 안 공백이 경로 추적을 종료한다.</td></tr>
+</tbody></table>
+<h2>계획과 제한</h2>
+<ol><li><code>__tests__/lib/sentry/browser-transport.test.ts</code>에 압축·비압축 회귀 테스트를 추가하고 수정 전 실패를 확인한다.</li>
+<li><code>lib/sentry/replay-scrub.ts</code>의 비-CSS 문자열 검사에서 이스케이프된 등호를 복원하고, 열린 경로 템플릿 중괄호 안의 공백을 보존한다.</li>
+<li>관련 테스트, 전체 테스트, 타입 검사, lint, 실제 브라우저 envelope 검증을 수행한다.</li>
+<li>구현과 다른 공급자의 독립 리뷰 후 코드·테스트·이 보고서를 함께 커밋한다.</li></ol>
+<p>공개 함수와 의존성을 변경하지 않는다. 실제 CSS 문맥의 색상·선택자 보존, SVG 참조, 처리 한도, 입력 불변성을 유지한다. 운영 Replay 수집 설정은 변경하지 않는다. 이번 범위는 위 이스케이프 문자열 두 계열이며, 모든 임의의 공백 포함 문자열을 URL로 간주하지 않는다.</p>
+<p>비-CSS 문맥에서 <code>.w-1\/2{width: 50%;color:#fff}</code>처럼 경로 템플릿과 구분하기 어려운 문자열은 제거될 수 있다. 실제 CSS 문맥과 중괄호 앞 공백이 있는 기존 CSS 보존 사례는 유지해야 한다.</p>
+<h2>검증 결과</h2>
+<p id="verification">수정·테스트·독립 리뷰 완료. 최종 판정 APPROVE. 운영 설정과 배포는 변경하지 않았다.</p>
+<table><thead><tr><th>검사</th><th>결과</th></tr></thead><tbody>
+<tr><td>기준 Replay 테스트</td><td>907개 통과</td></tr>
+<tr><td>추가 회귀 검사</td><td>1차 수정 전 22개 실패, 리뷰 보완 전 14개 실패, 중괄호 선행 변형 보완 전 6개 실패, 전체 문자열 문맥 보완 전 12개 실패. 각 보완 후 통과.</td></tr>
+<tr><td>최종 Replay 테스트</td><td>973개 통과. 압축·비압축, DOM 속성·변경 기록, 입력 불변성, 실제 CSS 문맥 보존 검사 포함.</td></tr>
+<tr><td>최종 전체 테스트</td><td>213개 파일, 4,666개 통과·예상 실패 6개·건너뜀 1개. 종료 코드 0.</td></tr>
+<tr><td>타입·lint·diff 검사</td><td>각 종료 코드 0. 기존 Next/Vite 설정 관련 안내는 남아 있다.</td></tr>
+<tr><td>최종 실제 브라우저 envelope</td><td>오류·성능·Replay 이벤트·녹화 각 1개. 앱 CSS 100,546바이트. 검증용 민감값 검출 0개.</td></tr>
+</tbody></table>
+<p>기존 예상 실패 6개: PayPal 주문 소유권·금액 사전 검사, PortOne 서명 없는 READY·v2 paymentId·customData 지급량·표준 서명 헤더 검사. 건너뜀 1개는 렌더링 모드 검사이다. 이번 변경은 이 결제 관련 결함을 수정하지 않는다.</p>
+<h2>독립 리뷰</h2>
+<p>Orca orchestration으로 <code>claude-opus-5-5 / high</code> 읽기 전용 리뷰를 수행했다. 실제 실행 인자, 정책 전문 읽기, 자체 수신함 확인을 검증했다. 첫 리뷰의 이스케이프 중괄호 누락, 중괄호 선행 변형, 기존 제거 규칙의 회귀를 재현하고 보완했다. CSS 손실 사례와 입력 불변성 테스트도 추가했다. 재검토에서 발견된 배열형 키와 복원된 공백의 회귀는 기존 검사 문자열과 등호를 복원한 전체 문자열을 모두 검사하도록 보완했다. 최종 재검토 판정은 APPROVE이며 차단 사유는 없다. 기존 Low 잔여 항목 1개는 아래에 기록했다. 수락된 완료 메시지: <code>msg_1d9940c2f215</code>.</p>
+<h2>보존과 제거의 경계</h2>
+<p>실제 CSS 문맥의 스타일은 보존한다. 문맥을 알 수 없는 문자열의 <code>.w-1\/2{width: 50%;color: #fff}</code>와 <code>@media x{.w-1\/2 .b{color:#fff}}</code>는 경로와 구분하기 어려워 제거한다. 앱 CSS 보존 검증은 이 구분을 확인하며, 모든 화면의 완전한 시각적 일치를 뜻하지 않는다.</p>
+<h2>이번 범위 밖에서 확인한 합성 패턴</h2>
+<p>아래 입력은 최종 코드에서도 <code>secret-opaque</code>가 남았다. 실제 사용자 정보가 유출됐다는 증거는 아니며, 모든 임의 문자열을 제거한다는 보증도 할 수 없다.</p>
+<table><thead><tr><th>문맥</th><th>입력</th></tr></thead><tbody>
+<tr><td>일반 message, 이스케이프 없는 템플릿</td><td><code>example.com/users/{ id }#secret-opaque</code></td></tr>
+<tr><td>CSS style 사용자 정의 속성</td><td><code>--cb: callback#code\=secret-opaque</code></td></tr>
+<tr><td>href 값 안의 CSS 형식 이스케이프</td><td><code>example.com\2f users\2f { id }\23 secret-opaque</code></td></tr>
+<tr><td>일반 message, JS 형식 이스케이프</td><td><code>callback#code\u003dsecret-opaque</code></td></tr>
+<tr><td>일반 message, 대괄호 템플릿</td><td><code>example.com\/users\/[ id ]#secret-opaque</code></td></tr>
+<tr><td>일반 message, 여러 조각으로 이스케이프된 키</td><td><code>callback#\61.\61.\61.\61.\61.\61.\61\=secret-opaque</code></td></tr>
+</tbody></table>
+<p>여러 조각으로 이스케이프된 키는 기준 커밋과 최종 코드 모두에서 잔존을 확인했다. 리뷰의 Low 잔여 항목이며 이번 변경의 회귀는 아니다. 이들까지 처리하려면 일반 문자열·실제 CSS·URL 속성의 제거 정책을 별도로 결정해야 한다. 운영 Replay 자동 수집은 이번 작업에서 활성화하지 않는다. 후속 작업은 수집할 데이터의 범위와 제거 정책을 먼저 정하는 것이 적절하다.</p>
+</body></html>

@@ -35,6 +35,75 @@ function decoded(value: Envelope) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Replay privacy transport', () => {
+  describe.each([false, true])('opaque fragment follow-up, compressed=%s', (compressed) => {
+    it.each([
+      String.raw`callback#code\=secret-opaque`,
+      String.raw`callback#code\3d secret-opaque`,
+      String.raw`callback#\63 ode\00003dsecret-opaque`,
+      String.raw`callback\#code\=secret-opaque`,
+      String.raw`callback#\20\=x=secret-opaque`,
+      String.raw`callback#ids[]\=secret-opaque`,
+      String.raw`callback#user[token]\3d secret-opaque`,
+      String.raw`callback#ids.\=secret-opaque`,
+      String.raw`callback#ids%\=secret-opaque`,
+      String.raw`/cb\=a\20 b#secret-opaque`,
+      `callback#${'a'.repeat(53)}.${'k'.repeat(11)}${String.raw`\=v=secret-opaque`}`,
+    ])('removes escaped assignments without weakening existing fragment checks: %s', async (value) => {
+      const input = [{ type: 5, timestamp: 1, data: { tag: 'note', payload: { message: value } } }];
+      const source = envelope(compressed, input as never);
+      const before = structuredClone(source);
+      const output = await scrubReplayEnvelope(source);
+      expect(output).not.toBeNull();
+      expect(decoded(output!)[0].data.payload.message).toBe('');
+      expect(source).toEqual(before);
+    });
+    it.each([
+      String.raw`example.com\/users\/{ id }#secret-opaque`,
+      String.raw`callback\/{ id }#secret-opaque`,
+      String.raw`\/users\/{ id }#secret-opaque`,
+      String.raw`example.com\/users\/{ id }\#secret-opaque`,
+      String.raw`example.com\2f users\2f { id }\23 secret-opaque`,
+      String.raw`example.com\/users\/{ { id } }#secret-opaque`,
+      'example.com\\/users\\/{\tid\n}#secret-opaque',
+      String.raw`example.com\/users\/{ id #secret-opaque`,
+      String.raw`example.com\/users\/\{ id }#secret-opaque`,
+      String.raw`callback\/\{ id }#secret-opaque`,
+      String.raw`example.com\2f users\2f \7b  id }\23 secret-opaque`,
+      String.raw`example.com\/users\/\{ id #secret-opaque`,
+      String.raw`example.com\/users\/\{ id \}#secret-opaque`,
+      String.raw`example.com\/users\/\7b id \7d \23 secret-opaque`,
+      String.raw`example.com\/users\/{ \{ id \} }#secret-opaque`,
+      String.raw`callback{ a\/b }#secret-opaque`,
+      String.raw`callback\7b  a\/b }#secret-opaque`,
+    ])('removes a fragment after whitespace inside a path template: %s', async (value) => {
+      const attributes = { 'data-callback': value };
+      const input = [
+        { type: 2, timestamp: 1, data: { node: { id: 1, type: 2, tagName: 'div', attributes } } },
+        { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 1, attributes }] } },
+      ];
+      const source = envelope(compressed, input as never);
+      const before = structuredClone(source);
+      const output = await scrubReplayEnvelope(source);
+      expect(output).not.toBeNull();
+      const clean = decoded(output!);
+      expect(clean[0].data.node.attributes['data-callback']).toBe('');
+      expect(clean[1].data.attributes[0].attributes['data-callback']).toBe('');
+      expect(source).toEqual(before);
+    });
+    it('preserves known CSS with internal whitespace and escaped attribute selectors', async () => {
+      const value = String.raw`.w-1\/2{width: 50%;color:#fff}[data-kind=code\=value]{color:#123abc}@media x{.w-1\/2 .b{color:#fff}}`;
+      const input = [{ type: 3, timestamp: 1, data: { source: 8, replace: value } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      expect(decoded(output!)[0].data.replace).toBe(value);
+    });
+    it.each([String.raw`count\=1`, String.raw`.data[data-kind=code\=value]{color:#fff}`])('preserves escaped assignments without a URL fragment: %s', async (value) => {
+      const input = [{ type: 5, timestamp: 1, data: { tag: 'note', payload: { message: value } } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      expect(decoded(output!)[0].data.payload.message).toBe(value);
+    });
+  });
   describe.each([false, true])('opaque escaped slash boundaries, compressed=%s', (compressed) => {
     it.each([
       String.raw`example.com\/~john#secret-opaque`,
@@ -83,6 +152,8 @@ describe('Replay privacy transport', () => {
       String.raw`:not(.w-1\/2)#x{color:#fff}`,
       String.raw`.w-1\/2.bg-\[\#fff\]{color:#fff}`, // L1: fail-closed cost
       String.raw`.w-1\/2{width:50%;color:#fff}`,
+      String.raw`.w-1\/2{width: 50%;color: #fff}`,
+      String.raw`@media x{.w-1\/2 .b{color:#fff}}`,
       String.raw`.w-1\/2{width:50%}#main{color:#fff}`, // L4: brace no longer closes the segment
     ])('fails closed for a compound selector indistinguishable from an opaque path: %s', async (value) => {
       const input = [{ type: 3, timestamp: 1, data: { source: 0, texts: [{ id: 10, value }] } }];
