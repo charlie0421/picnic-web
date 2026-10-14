@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Replay 수집 현황과 허용 기준 초안</title>
+  <style>
+    *{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;color:#172033;background:#f7f9fc;line-height:1.75;margin:0;padding:28px 18px}main{max-width:1100px;margin:auto;background:white;padding:32px;border:1px solid #dbe3ee;border-radius:12px}h1{font-size:1.9rem;line-height:1.35}h2{margin-top:36px;font-size:1.35rem}h3{font-size:1.1rem}p,li,td{overflow-wrap:anywhere}code{font-family:ui-monospace,monospace;background:#eef2f7;padding:1px 4px;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.94rem}th,td{padding:12px;border:1px solid #dbe3ee;text-align:left;vertical-align:top}th{background:#edf3fa}.note{border-left:4px solid #3068aa;background:#eef5ff;padding:14px 18px}.status{color:#52627a;font-size:.94rem}a{color:#165aa5}ul,ol{padding-left:24px}@media(max-width:600px){body{padding:10px}main{padding:18px}h1{font-size:1.5rem}th,td{padding:7px;font-size:.86rem}}
+  </style>
+</head>
+<body><main>
+<h1>Replay 수집 현황과 허용 기준 초안</h1>
+<p class="status">2026-10-14 · 기준 커밋 <code>ec2275f6</code> · 조사 및 제안 단계 · 수집 코드·운영 설정 변경 없음</p>
+<p class="note"><strong>추천: 공개 투표 화면의 구조와 동작부터 제한적으로 검증한다.</strong> 검토한 정적 CSS와 필요한 숫자·상태 값만 남기고, 자유 문자열·미확인 속성·개인 영역은 제외한다. 이 문서는 구현 승인이나 운영 Replay 활성화 근거가 아니다. 자동 수집은 계속 비활성 상태로 둔다.</p>
+
+<h2>1. 이번에 확인한 범위</h2>
+<p><code>app</code>, <code>components</code>, <code>styles</code>, <code>hooks</code>, <code>utils</code>의 TS·TSX·JS·JSX·CSS 파일 407개를 조사했다. TypeScript AST로 소문자 HTML/SVG 태그에 직접 작성된 JSX 속성을 집계했다. 속성 이름 84종에는 React 전용 <code>key</code>·이벤트 prop도 포함된다. 이 수치는 브라우저 DOM 속성 수나 수집 허용 목록이 아니다.</p>
+<ul>
+  <li>직접 작성된 <code>style</code> 사용은 127곳이다. 객체 리터럴에서 속성 이름 56종을 찾았다. 변수·조건식을 참조한 6곳은 별도로 본문을 읽었다.</li>
+  <li><code>&lt;style&gt;</code>는 9곳이며, HTML/SVG 태그의 prop spread는 6곳이다. 라이브러리 내부·spread·서버 HTML이 만드는 속성은 직접 JSX 집계만으로 확정할 수 없다.</li>
+  <li>운영 호스트 <code>https://www.picnic.fan</code>의 초기 공개 화면 5개를 새 Chromium 컨텍스트의 1280×900, 390×900 크기에서 확인했다. 로그인·결제·투표 제출은 실행하지 않았다. 속성·CSS 속성의 이름과 개수만 저장했다. 사용자 텍스트·입력값·속성 원문은 수집하지 않았다.</li>
+</ul>
+<table><thead><tr><th>공개 화면</th><th>PC / 모바일 DOM 요소 수</th><th>확인한 특징</th></tr></thead><tbody>
+  <tr><td><code>/ko/vote</code></td><td>752 / 755</td><td>배너 인덱스, 동적 크기, 색상, 위치, CSS 변수</td></tr>
+  <tr><td><code>/ko/star-candy</code></td><td>367 / 365</td><td>레이아웃·opacity·transform. 구매 과정은 미확인</td></tr>
+  <tr><td><code>/ko/login</code></td><td>200 / 200</td><td>로그인 전 공개 화면만 확인</td></tr>
+  <tr><td><code>/ko/faq</code></td><td>341 / 343</td><td>닫힌 목록의 초기 상태. 답변을 펼친 상태는 미확인</td></tr>
+  <tr><td><code>/ko/notice</code></td><td>229 / 231</td><td>공지 목록. 공지 상세의 서버 HTML은 코드로만 확인</td></tr>
+</tbody></table>
+<p>관측 시각은 18:49:30–18:49:50 KST이다. 열 번의 관측 모두 HTTP 200, SDK <code>9.47.1</code>, release <code>picnic-web@20261014.1728.001</code>, session/error Replay 비율 <code>0/0</code>, Replay integration 미로딩이었다. 합집합은 DOM 속성 58종, inline CSS 속성 15종, CSS 변수 70종이다. CSS 변수에는 Tailwind의 <code>--tw-*</code> 65종이 포함된다. 모든 관측에서 stylesheet 2개를 읽었고, CSSOM 접근 실패는 없었다.</p>
+<p><strong>한계:</strong> 실제 Replay 녹화를 켜서 검사한 결과가 아니다. 이번 조사에서는 관측 release와 기준 Git 커밋의 직접 대응을 검증하지 않았다. 런타임 수치를 해당 커밋의 빌드 검증 결과로 간주하지 않는다. 로그인 후 화면, 투표 상세·모달·결제·개인 문의, FAQ 펼치기, 사용자별 데이터, 다른 언어와 브라우저, 광고 동의 후 주입 DOM은 이 런타임 조사에 포함되지 않았다. 첫 로드 후 약 1.8초의 관측이므로 늦게 생성되는 요소도 빠질 수 있다. <code>querySelectorAll</code> 집계는 shadow root·iframe 내부를 포함하지 않고, <code>document.styleSheets</code> 집계는 <code>adoptedStyleSheets</code>를 포함하지 않는다.</p>
+
+<h2>2. 코드에서 확인한 수집 경계</h2>
+<table><thead><tr><th>영역</th><th>현재 근거</th><th>수집 기준에 미치는 영향</th></tr></thead><tbody>
+  <tr><td>텍스트·입력·미디어</td><td><code>instrumentation-client.ts:327</code>의 <code>maskAllText</code>, <code>maskAllInputs</code>, <code>blockAllMedia</code>가 모두 true</td><td>유지한다. 텍스트 마스킹을 임의 HTML 속성·CSS의 전면 제거로 해석하면 안 된다.</td></tr>
+  <tr><td>Tailwind·전역 CSS</td><td><code>tailwind.config.js</code>, <code>styles/globals.css</code>, <code>app/[lang]/globals.css</code></td><td>모든 변수를 제거하면 색상·그림자·transform 등이 달라진다. 실제 배포 산출물을 기준으로 검토해야 한다.</td></tr>
+  <tr><td>배너</td><td><code>components/client/banner/useBannerCarousel.ts:270</code>, <code>BannerCarouselClient.tsx:158</code></td><td><code>--banner-current-index</code>는 숫자 상태다. <code>--banner-slides-per-view</code>는 반응형 레이아웃에 필요하다.</td></tr>
+  <tr><td>팝업·동적 크기</td><td><code>components/layouts/LanguageSelector.tsx:115</code>, <code>:130</code>, <code>components/ui/OptimizedImage.tsx:285</code></td><td>좌표·회전·크기·aspect-ratio를 제한된 숫자·단위·정해진 값으로 표현할 수 있다. 원문 style 전체 허용은 필요하지 않다.</td></tr>
+  <tr><td>직접 작성한 data 속성</td><td><code>components/client/ads/AdBanner.tsx:104</code>의 광고 속성 4종, <code>components/client/vote/BannerList.tsx:22</code>의 정적 <code>data-testid</code></td><td>직접 JSX에는 5종이 있다. 런타임에는 Next·styled-jsx·SDK가 만든 다른 이름도 나타났다. <code>data-*</code> 전체를 허용하지 않는다.</td></tr>
+  <tr><td>서버 HTML</td><td><code>app/[lang]/(mypage)/faq/FaqClient.tsx:89</code>, <code>notice/[id]/NoticeDetailClient.tsx:50</code></td><td>문자열의 내용에 따라 임의 속성·style이 생길 수 있다. 초기에 해당 콘텐츠 영역을 차단 대상으로 둔다. 이 조사로 XSS 취약성 여부를 판정한 것은 아니다.</td></tr>
+  <tr><td>최종 전송 필터</td><td><code>lib/sentry/browser-transport.ts</code>, <code>lib/sentry/replay-scrub.ts</code></td><td>압축 해제·수정·재압축, 최대 8 MiB·2초·순회 한도가 있다. 현재는 URL·토큰 패턴 검사이며 필드별 허용 목록은 아니다.</td></tr>
+  <tr><td>Replay 자체 클릭 기록</td><td>SDK의 <code>handleDomListener</code>·<code>getDomTarget</code>·<code>getBaseDomBreadcrumb</code></td><td>앱의 <code>beforeBreadcrumb</code>에서 <code>ui.click</code>을 지워도 Replay 자체 경로는 남는다. message는 실제 DOM의 id·class·aria-label·title·alt·name 등을 읽으며, 별도의 node 속성과 slow/multi-click URL도 기록한다.</td></tr>
+  <tr><td>기본 성능·주소 기록</td><td>SDK의 <code>createResourceEntry</code>·<code>createNavigationEntry</code>·fetch/XHR·history instrumentation</td><td>본문 세부 수집 허용 목록과 별개로 resource/navigation의 name, 요청 주소, 이전·다음 주소가 기록된다. 최종 전송 전 별도 허용 기준이 필요하다.</td></tr>
+</tbody></table>
+<p>직접 작성한 코드와 관측한 공개 화면에서는 <code>sentry-block</code>·<code>data-sentry-block</code>·<code>sentry-mask</code>·<code>data-sentry-mask</code> 추가 지정이 없었다. 전역 마스킹은 별도로 적용된다. 현재 알려진 우회와 과삭제 한계는 <a href="2026-10-14-replay-remaining-patterns.html">이전 검증 보고서</a>에 남아 있다.</p>
+<p>참조를 따라 추가로 읽은 <code>lib/content/quill-delta-renderer.tsx:25</code>·<code>:154</code>은 서버 데이터의 링크·이미지 주소를 DOM으로 만든다. 이 파일은 위 407개 자동 집계에 포함되지 않는다. 오류 화면의 hover 핸들러는 색상·transform을 직접 바꾸고, <code>components/ui/Dialog/Dialog.tsx:149</code>는 body의 overflow를 바꾼다. 라이브러리 애니메이션과 이러한 CSSOM 변경도 후속 녹화 검사에 포함해야 한다.</p>
+<p>위 SDK 경로는 최종 전송 필터에 들어오기 전의 기록 동작이다. 기존 필터가 URL query·fragment와 알려진 토큰 패턴을 제거하므로, 이 조사만으로 해당 값이 현재 서버에 그대로 저장된다고 단정하지 않는다. 다만 일반 이름·라벨·경로·임의 속성을 모두 제거한다는 보장은 없다.</p>
+
+<h2>3. 가능한 방향과 추천</h2>
+<table><thead><tr><th>방향</th><th>장점</th><th>한계</th></tr></thead><tbody>
+  <tr><td><strong>추천: 공개 화면 일부 + 명시적 허용 기준</strong></td><td>먼저 검증할 범위가 작다. 정적 스타일과 필요한 상태 변화를 보존할 수 있다.</td><td>개인 화면·구매·실제 투표 제출 문제는 재생할 수 없다. 허용 목록과 버전별 검증이 필요하다.</td></tr>
+  <tr><td>전체 화면을 대상으로 허용 기준 구현</td><td>디버깅 범위가 넓다.</td><td>인증 전환·결제·문의·서버 HTML·외부 SDK를 모두 다뤄야 한다. 현재 증거로 활성화할 수 없다.</td></tr>
+  <tr><td>Replay를 계속 끄고 오류·성능 이벤트 활용</td><td>Replay 전용 개인정보·유지보수 부담을 늘리지 않는다.</td><td>사용자가 본 화면의 변화는 재생할 수 없다. 기존 이벤트 수집도 별도의 개인정보 기준을 따른다.</td></tr>
+</tbody></table>
+<p>추천안의 첫 검증 대상은 <strong>인증 초기화가 끝나 비로그인이 확인되고, 광고 미동의·광고 SDK 미로딩 상태인 투표 목록 화면</strong>이다. 인증·동의 상태가 미확인이면 Replay integration 로드와 녹화 시작을 허용하지 않는다. 로그인·개인 프로필 또는 광고 DOM이 반영되기 전에 수집을 막고 버퍼를 폐기할 수 있어야 한다. 같은 URL에서 상태가 바뀌는 경우에도 적용한다. 광고 동의 여부를 Replay 수집 동의로 간주하지 않는다.</p>
+<p>근거: <code>Header.tsx:20</code>·<code>:138</code>과 <code>MobileNavigationMenu.tsx:65</code>·<code>:216</code>은 비동기 인증 결과에 따라 아바타·잔액·사용자 메뉴를 표시한다. <code>components/client/ads/ConsentAwareAdsense.tsx:45</code>·<code>:104</code>는 동의 상태에 따라 광고 스크립트를 삽입한다. 지원 언어·쿼리·상세·모달을 자동으로 포함하지 않는다. 현재 운영에서 시작하지 않고, 합성 데이터로 만든 격리 환경에서 기준을 구현·검증한 뒤 범위를 정한다.</p>
+
+<h2>4. 수집 허용 기준 초안</h2>
+<p>아래는 구현 전 요구사항이다. 관측한 속성 이름을 그대로 허용 목록으로 옮기지 않는다. 허용하지 않은 값은 비우거나 제외하며, DOM 관계를 유지할 수 없는 형식은 전송을 차단한다. 한 구간만 버리고 다음 변경 이벤트를 무조건 전송하지 않는다. 복구 기준은 아래 적용 계층 항목에서 정한다. 실제 페이지 DOM은 수정하지 않는다.</p>
+<table><thead><tr><th>데이터</th><th>허용 후보</th><th>제외·변환 기준</th></tr></thead><tbody>
+  <tr><td>녹화 구조</td><td>검증된 rrweb 이벤트 형식, 숫자 노드 ID와 부모 관계, 화면 크기·스크롤·포인터·시각</td><td>알 수 없는 이벤트·키·플러그인 데이터를 기본 허용하지 않는다. 노드 ID는 HTML의 <code>id</code> 속성과 구별한다. 삭제로 참조 무결성이 깨지면 전송을 차단하고 녹화 상태를 초기화한다.</td></tr>
+  <tr><td>텍스트·입력</td><td>기존 마스킹 결과만</td><td>실제 텍스트·입력·자유 형식 aria/title/alt 문자열을 허용하지 않는다. <code>unmask</code> 예외를 추가하지 않는다. 마스킹된 길이·공백·입력 여부와 동작 기록도 남는다는 한계를 명시한다.</td></tr>
+  <tr><td>class·HTML id·참조</td><td>검토한 빌드에 포함된 정적 class와 필요한 상태 class. 필요한 ID 관계는 녹화 안에서 일관된 대체 ID</td><td>문자열 모양이나 <code>jsx-</code> 같은 접두어만으로 허용하지 않는다. 서버 데이터에서 만든 class·id, <code>aria-controls</code>·<code>for</code> 등의 원문 참조는 제외하거나 함께 치환한다. 치환 시 CSS 선택자 관계도 검증한다.</td></tr>
+  <tr><td>상태 속성</td><td><code>hidden</code>, <code>disabled</code>, <code>aria-expanded</code> 등 필요한 boolean·고정 enum</td><td>이름과 값 모두 검사한다. 이름이 허용되어도 임의 문자열은 제외한다. <code>value</code>와 개인 선택을 드러내는 상태는 초기 범위에 포함하지 않는다.</td></tr>
+  <tr><td>data 속성</td><td>화면 복원에 필요함이 입증된 개별 이름과 고정 값만</td><td><code>data-*</code> 전체 금지. <code>data-testid</code>도 관측됐다는 이유로 남기지 않는다. 광고·SDK 버전·사용자 식별 속성은 초기 범위에서 제외한다. headless UI 등의 상태는 실제 사용 시 별도 enum으로 검증한다.</td></tr>
+  <tr><td>주소</td><td>탐색 이벤트의 검증된 고정 경로명, 필요한 경우 매개변수를 제거한 라우트 템플릿</td><td>query·fragment 제거만으로 충분하지 않다. 경로·userinfo·검색어·리다이렉트 값도 제외한다. 클릭 재생에 불필요한 <code>href</code>·form action은 비운다. 알 수 없는 주소는 전부 제외한다.</td></tr>
+  <tr><td>미디어·외부 리소스</td><td>차단 placeholder의 크기. 검토한 빌드의 정적 글꼴 등 꼭 필요한 자산만 별도 후보</td><td>이미지·SVG·영상 차단을 유지하고, 모든 iframe을 초기 범위에서 차단한다. placeholder에 남는 class에도 class 허용 기준을 적용한다. CSS 배경 이미지는 별도 경로이므로 <code>url()</code>·<code>@import</code>·data/blob URL도 검사한다. 도메인 일치만으로 사용자 업로드·서명 주소를 허용하지 않는다. 광고 미동의·SDK 미로딩 조건을 유지하지 못하면 녹화를 중단한다.</td></tr>
+  <tr><td>Replay DOM breadcrumb</td><td>필요한 경우 검증된 이벤트 종류·시각·숫자 nodeId만</td><td><code>ui.click</code>·키 입력 관련 breadcrumb·<code>ui.slowClickDetected</code>·<code>ui.multiClick</code>의 message와 <code>data.node</code>의 원문 text/attributes를 초기에는 제거한다. <code>data.url</code>·route는 제거하거나 검증된 고정 라우트로 바꾼다. 필요성이 없는 종류는 이벤트 전체를 제외한다.</td></tr>
+  <tr><td>네트워크·console·사용자 메타데이터</td><td>필요성이 입증된 요청 메서드·상태 코드·시간·라우트 템플릿만</td><td>기본 수집되는 <code>performanceSpan</code>의 resource/navigation/fetch/XHR name·url·previous를 포함해 원문 주소를 제거하거나 고정 라우트로 바꾼다. 요청·응답 본문, 헤더 값, console 자유 문자열, 사용자 ID·이메일·tags/extra 임의 문자열은 초기에는 제외한다. <code>replay_event</code>와 다른 custom event에도 같은 기준을 적용한다.</td></tr>
+</tbody></table>
+
+<h3>CSS는 정적 산출물과 동적 값을 구분한다</h3>
+<ul>
+  <li><strong>정적 CSS:</strong> 검토한 release의 CSS·styled-jsx를 기준으로 허용한다. 파일 URL뿐 아니라 전송되는 내용의 일치도 검증해야 한다. rrweb이 인라인화·정규화한 표현과 CSSOM 변경 이벤트를 포함한다. 빌드 원문 해시와 녹화 문자열 해시가 같을 것이라고 가정하지 않는다.</li>
+  <li><strong>동적 CSS:</strong> 필요한 속성별로 숫자 범위·단위·고정 enum·제한된 함수 문법을 정의한다. 예: 배너 인덱스는 검증된 슬라이드 범위의 정수, opacity는 0–1, 위치·크기는 제한된 단위의 유한 수, 색상은 정해진 팔레트. 수치 범위와 변환 정밀도는 구현 설계에서 화면 요구에 맞춰 확정한다.</li>
+  <li><strong>CSS 변수:</strong> <code>--banner-current-index</code>, <code>--banner-slides-per-view</code>, 전역 RGB 변수 3개를 우선 검토한다. <code>--tw-*</code>는 65개를 관측했지만 접두어 전체를 허용하지 않는다. 정적 빌드 값과 필요한 동적 변경을 따로 검증한다.</li>
+  <li><strong>자유 문자열 경로:</strong> <code>content</code>, <code>attr()</code>, 임의 <code>var()</code> 참조·fallback, URL·이스케이프 문자열·미확인 custom property는 제외한다. 정적 산출물의 필요한 빈 content·고정 변수 참조는 검토된 내용에 한해 다룬다. <code>CSS.supports()</code> 통과는 개인정보 검증이 아니다.</li>
+  <li><strong>모든 CSS 입력:</strong> inline style, style 텍스트, 링크의 <code>_cssText</code>, 규칙 추가·교체·선언 변경, adopted stylesheet, 글꼴 이벤트를 함께 확인한다. 기존 알려진 예외 6개와 잔여 반례도 이 기준으로 다시 검사한다.</li>
+</ul>
+<p>숫자·enum만으로도 모든 정보 유출을 수학적으로 막을 수 있는 것은 아니다. 검증된 앱의 화면 구조와 필요한 시각 상태로 범위를 제한하는 정책이며, 임의 스크립트가 모든 DOM 상태에 정보를 인코딩하는 적대적 환경까지 안전하다는 주장은 하지 않는다.</p>
+
+<h3>적용 계층과 실패 처리는 후속 설계에서 확정한다</h3>
+<p>DOM·CSS 허용 기준의 구현 위치는 아직 확정하지 않았다. 후보는 기존 최종 전송 필터의 확장과 녹화기 수준의 변경이다. 전자는 압축·크기·2초 처리 한도와 여러 구간의 노드 상태를 처리해야 한다. 후자는 현재 SDK의 공개 설정만으로 모든 필드를 다룰 수 없으므로 지원 범위·업그레이드 비용을 검증해야 한다. custom event 필터는 별도로 적용할 수 있으나 DOM 필터를 대체하지 않는다.</p>
+<p><strong>실패 시 요구사항:</strong> 필터 적용 후에도 허용 기준이 성립하지 않거나 예외·한도 초과·인증/광고 상태 변화가 발생하면 먼저 전송을 차단하고, 녹화를 중단하며, 대기 중인 원본 버퍼·전송 큐를 폐기한다. <code>stop()</code>이 flush를 유발할 수 있으므로 메서드 호출만으로 폐기됐다고 간주하지 않는다. session 모드는 기본적으로 주기적 full snapshot을 생성하지 않으므로, 손상된 구간 뒤의 변경 이벤트를 계속 보내면 안 된다. 재개는 검증된 새 full snapshot과 초기화된 ID 상태에서만 허용한다. 전송 차단·큐 정리·재개의 정확한 SDK 제어 방식과 제한된 시간 안의 처리는 구현 설계에서 증명해야 한다.</p>
+
+<h2>5. SDK 9.47.1에서 주의할 점</h2>
+<ul>
+  <li><code>beforeAddRecordingEvent</code>는 이 버전에서 <code>isCustomEvent(event)</code>일 때만 호출된다. DOM 스냅샷·DOM 변경 전체를 걸러 주는 훅으로 설계하면 안 된다. <code>node_modules/@sentry-internal/replay/build/npm/esm/index.js</code>의 <code>maybeApplyCallback</code>을 확인했다.</li>
+  <li>Replay 자체 DOM breadcrumb·performanceSpan은 custom event 경로다. 위 훅에서 축소·제외할 수 있는 대상으로 검증한다. 앱의 <code>beforeBreadcrumb</code>와 DOM 속성 마스킹만으로 이 경로가 모두 제거된다고 가정하지 않는다.</li>
+  <li>기본 <code>maskAttributes</code>는 <code>title</code>, <code>placeholder</code>, <code>aria-label</code>이다. 이 버전의 구현은 <code>maskAllText</code>에도 의존한다. 최신 문서의 동작을 이전 SDK에 그대로 적용하지 않는다.</li>
+  <li>녹화기의 <code>maskAttributeFn</code>은 src·href·srcset·style 등 먼저 정규화되는 속성에 일반 필터로 적용되지 않는다. 이 훅만으로 DOM·CSS 허용 기준을 구현할 수 없다. 기본 <code>slimDOMOptions: 'all'</code>이 script·preload·소셜 meta 등을 제외해도, 남는 head의 meta content·link href·hreflang 등에는 별도 기준이 필요하다.</li>
+  <li>SDK는 stylesheet 인라인화와 글꼴 수집을 내부 기본값으로 사용한다. 공개 설정에 없는 옵션을 추가하면 작동한다고 가정하지 않는다. 최종 전송 단계의 필터와 실제 SDK 녹화로 확인한다.</li>
+  <li>기본 iframe 차단은 <code>iframe[srcdoc]:not([src])</code> 등 일부에 한정된다. 차단되지 않은 cross-origin iframe은 <code>rr_src</code>에 주소가 남을 수 있다. 초기의 모든 iframe 차단 요구사항은 별도로 구현·검증한다.</li>
+  <li><code>networkDetailAllowUrls</code> 기본값은 빈 배열이고, <code>networkCaptureBodies</code> 기본값은 true다. 빈 허용 목록 때문에 현재 본문 세부 수집이 활성화됐다고 볼 수는 없다. 후속 구현에서는 본문 수집 금지 의도를 명시하고, URL·타이밍 같은 별도 메타데이터도 검사한다.</li>
+</ul>
+<p>공식 참고: <a href="https://docs.sentry.io/platforms/javascript/session-replay/privacy/">Replay 개인정보 설정</a>, <a href="https://docs.sentry.io/platforms/javascript/session-replay/configuration/">Replay 설정</a>. 위 구현 분석은 lockfile로 설치한 <code>@sentry-internal/replay@9.47.1</code> 소스를 대리 근거로 사용했다. 앱은 <code>Sentry.lazyLoadIntegration</code>으로 <code>https://browser.sentry-cdn.com/9.47.1/replay.min.js</code>를 로드하는 경로이며, 현재 loader는 integrity 속성을 설정하지 않는다. 이번 조사에서는 Replay를 로드하지 않았으므로 실제 CDN 번들과 npm 소스의 대응·CSP·로드 실패 동작을 검증하지 않았다. 활성화 전에 실제 로드 산출물을 대조하고, 번들 포함 또는 무결성 고정 필요성을 결정해야 한다.</p>
+
+<h2>6. 구현과 활성화 전에 필요한 검증</h2>
+<ol>
+  <li><strong>좁은 구현 범위를 확정한다.</strong> 비로그인 투표 목록에서 필요한 DOM 속성·CSS 값·rrweb 이벤트의 정확한 허용 목록과 실패 시 전송 차단·복구 기준을 정한다. 이 문서는 그 전 단계의 초안이다.</li>
+  <li><strong>합성 데이터로 수집 경계를 검사한다.</strong> 토큰 형태가 아닌 평범한 이메일·이름·임의 문자열도 속성, style, CSS 변수, URL 경로, text, metadata, 클릭 설명, resource·navigation·fetch/XHR 주소에 넣는다. snapshot·mutation·CSSOM·압축·비압축을 포함한 모든 segment와 <code>replay_event</code>·breadcrumb·performanceSpan에서 테스트 민감값 0건, 허용 목록 밖 필드·동적 CSS 값 0건, 미확인 정적 CSS 0건을 통과 기준으로 둔다. 필터 예외·한도 초과에서는 원문 전송 0건과 후속 손상 이벤트 차단을 확인한다. 검사 대상·입력·출력·누락 이벤트 수를 증거로 남긴다.</li>
+  <li><strong>화면 재생을 비교한다.</strong> PC·모바일의 배너 이동, 메뉴·필터 열기, 반응형 레이아웃, 로딩·오류 상태를 원본과 비교한다. 사전에 정한 시나리오 모두에서 구조·위치·상태 변화가 유지되고, 의도한 마스킹·미디어 차단 외의 승인되지 않은 손실이 없어야 한다. 스크린샷·노드 상태 비교를 증거로 남기고, 위치·색상 등 수치 오차 허용치는 구현 전 설계에서 확정한다.</li>
+  <li><strong>같은 화면의 상태 변화와 화면 전환을 검사한다.</strong> 로그인 상태 직접 진입, 비동기 인증 확정, 다른 탭 로그인·로그아웃, 토큰 갱신, OAuth 복귀, 광고 동의·철회를 포함한다. 허용 페이지에서 로그인·개인·결제 화면으로 이동할 때도 비허용 DOM이 녹화되기 전에 막아야 한다. SPA 이동, 뒤로 가기, BFCache, 지연 integration 로딩, error buffer·수동 start·resume까지 확인한다. 모든 비허용 상태의 기록·전송 0건과 버퍼·대기 큐 폐기를 통과 기준으로 둔다. 사후 route effect에서 stop만 호출하는 것으로 충분하다고 보지 않는다.</li>
+  <li><strong>최종 전송과 저장 결과를 확인한다.</strong> 로컬 envelope와 Sentry 검증 환경의 모든 저장 구간을 대조해 위 민감값·비허용 필드 0건 조건을 다시 만족해야 한다. 필요한 DOM·CSS의 누락 여부와 구간 연결을 확인하고, 같은 시나리오가 Sentry 대시보드에서도 재생돼야 한다. release·Git SHA·실제 로드 SDK 산출물·검증 Replay ID를 연결해 기록한다. SDK·수집 정책·정적 CSS 빌드가 바뀌면 해당 계약 검증을 다시 수행한다. 이전 검증의 로컬 재생 성공은 대시보드 UI 확인을 대체하지 않는다.</li>
+  <li><strong>활성화 여부를 별도로 결정한다.</strong> 독립 개인정보 리뷰와 검증이 끝난 뒤 대상·기간·샘플링·중단 조건·보관 정책을 확정한다. 현재 수집률 0을 변경하는 작업은 이 조사에 포함되지 않는다.</li>
+</ol>
+
+<h2>7. 이번 산출물과 다음 작업</h2>
+<p>이번 작업은 소스 및 공개 화면 조사와 기준 초안 작성이다. 기존 제품 테스트 통과 수를 이번 문서의 새 검증 결과로 재사용하지 않는다. 제품 코드·의존성 manifest·운영 환경변수·Sentry 설정은 변경하지 않았다.</p>
+<p id="review-status">독립 검토: Claude Opus 5.5/high가 원본 조사 데이터·제품 코드·SDK 소스와 대조했다. 인증 상태 경계, 별도 클릭·성능 이벤트, 실패 시 처리, CDN 근거의 한계, 관측 방법, 통과 기준, 광고·iframe 관련 지적을 반영했고 1회 재검토에서 초안 품질 승인을 받았다. 비차단 문구 수정과 결과 기록까지 반영했다. 이 승인은 구현·운영 활성화 승인이 아니다.</p>
+<p>문서 확인: 조사 수치를 원본 JSON과 대조했고, HTML을 1280px·390px에서 렌더링해 가로 넘침이 없음을 확인했다. 내부 보고서 링크도 확인했다. 문서만 변경했으므로 제품 전체 테스트는 다시 실행하지 않았다.</p>
+<p><strong>다음 작업:</strong> 위 추천안의 범위를 검토한 뒤, 비로그인 투표 목록에 필요한 허용 목록과 경계 테스트를 구현 가능한 설계로 확정한다. 그 전에 광범위한 정규식 추가나 운영 Replay 활성화를 진행하지 않는다.</p>
+</main></body></html>
