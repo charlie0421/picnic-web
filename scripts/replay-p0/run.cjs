@@ -54,6 +54,7 @@ async function runProbe({ propagation, cached, scenario = 'capture', mode = 'nor
     const origin = `http://127.0.0.1:${port}`;
     browser = await chromium.launch({ headless: true, ignoreDefaultArgs: ['--disable-back-forward-cache'] });
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, locale: 'en-US' });
+    await page.exposeBinding('p0TrustedClick', async () => { await page.click('.toggle'); });
     if (scenario !== 'capture') await installProbe(page, mode, fakeClock);
     await page.route('**/*', route => {
       const url = new URL(route.request().url());
@@ -68,7 +69,7 @@ async function runProbe({ propagation, cached, scenario = 'capture', mode = 'nor
       ? page.evaluate(options => window.replayP0.captureContract(options), { propagation, cached })
       : scenario === 'normal' ? exerciseNormal(page, compression)
         : scenario === 'cleanup' ? exerciseCleanup(page, mode, fakeClock)
-          : mode === 'bfcache' ? exerciseNavigation(page, origin) : exerciseRace(page, mode, compression);
+          : ['bfcache', 'inp-hide', 'inp-navigation'].includes(mode) ? exerciseNavigation(page, origin, mode) : exerciseRace(page, mode, compression);
     const result = await Promise.race([work(), new Promise((_, reject) => {
       deadline = setTimeout(() => reject(new Error(`case-timeout:${scenario}:${mode}`)), fakeClock ? 20000 : 70000);
     })]);
@@ -81,6 +82,11 @@ async function runProbe({ propagation, cached, scenario = 'capture', mode = 'nor
       for (const child of Object.values(value)) visit(child);
     }
     visit(records);
+    if (mode === 'inp-hide' || mode === 'inp-navigation') {
+      const spans = envelopes.flatMap(e => e.items.filter(i => i.header.type === 'span'));
+      assert.ok(spans.length > 0, 'actual INP standalone span delivered');
+      assert.ok(!/"(?:replay_id|replayId|Replays)"/.test(JSON.stringify(envelopes)), 'INP Replay correlation removed');
+    }
     const viewEvidence = scenario === 'normal' ? await compareReplay(browser, origin, envelopes, result.views) : undefined;
     return { ...result, viewEvidence, requests, envelopes, records, external,
       tags: [...new Set(nodes.map(n => n.tagName))],
@@ -216,7 +222,7 @@ async function runAll(group = 'all') {
     if (normal) { try { report.isolationEvidence = isolation(normal.bundleInputs); report.isolation = 'pass'; } catch (e) { report.isolation = 'fail'; report.isolationReason = e.message; } }
   }
   if (group === 'all' || group === 'races') {
-    const modes = ['close-import', 'close-start', 'close-snapshot', 'close-compression', 'close-transform', 'close-transport', 'close-fetch', 'hidden', 'pagehide', 'bfcache'];
+    const modes = ['close-import', 'close-start', 'close-snapshot', 'close-compression', 'close-transform', 'close-transport', 'close-fetch', 'hidden', 'pagehide', 'bfcache', 'inp-hide', 'inp-navigation'];
     for (const mode of modes) {
       const result = await run(mode, { scenario: 'race', mode });
       if (mode === 'bfcache' && result?.bfcacheVerification === 'unverified') report.unverified.push('Actual BFCache restoration: ' + JSON.stringify(result.notRestored));

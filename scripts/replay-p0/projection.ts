@@ -127,6 +127,8 @@ function staticCss(value: unknown): string {
   requireValue(value === manifest.rawCss || value === manifest.normalizedCss); return manifest.rawCss;
 }
 function nodeBudget(state: ProjectionState) {
+  // The approved budget counts retained node records AND tombstone ID records.
+  // A removed ID retains its typed node for reinsertion checks and occupies both stores.
   requireValue(state.nodes.size + state.tombstones.size <= 20000, 'budget');
 }
 function live(state: ProjectionState, value: unknown): NodeState {
@@ -237,8 +239,14 @@ function projectRecords(records: unknown[], state: ProjectionState, segment: num
           return { x: coordinate(p.x), y: coordinate(p.y), id: p.id, timeOffset: p.timeOffset };
         }) };
       } else if (source === 2) {
-        fields(d, ['source', 'type', 'id', 'x', 'y']); live(state, d.id);
-        data = { source, type: integer(d.type, 0, 9), id: d.id, x: coordinate(d.x), y: coordinate(d.y) };
+        fields(d, ['source', 'type', 'id'], ['x', 'y', 'pointerType']); live(state, d.id);
+        const interaction = integer(d.type, 0, 9);
+        data = { source, type: interaction, id: d.id };
+        if (interaction === 5 || interaction === 6) {
+          // Actual FocusEvent/blur wire has no client coordinates.
+          requireValue(d.x === undefined && d.y === undefined);
+        } else { data.x = coordinate(d.x); data.y = coordinate(d.y); }
+        if (d.pointerType !== undefined) data.pointerType = integer(d.pointerType, 0, 2);
       } else if (source === 3) {
         fields(d, ['source', 'id', 'x', 'y']); live(state, d.id);
         data = { source, id: d.id, x: coordinate(d.x), y: coordinate(d.y) };

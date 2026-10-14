@@ -152,8 +152,31 @@ async function exerciseCleanup(page, mode, fakeClock) {
 }
 module.exports = { installProbe, exerciseNormal, exerciseRace, exerciseCleanup };
 
-async function exerciseNavigation(page, origin) {
-  await ready(page, 'bfcache', true);
+async function exerciseNavigation(page, origin, mode = 'bfcache') {
+  await ready(page, mode, true);
+  let interactions = [];
+  if (mode === 'inp-hide' || mode === 'inp-navigation') {
+    await page.evaluate(() => {
+      window.p0Interactions = [];
+      new PerformanceObserver(list => { for (const e of list.getEntries()) {
+        if (e.interactionId > 0) window.p0Interactions.push({ name: e.name, interactionId: e.interactionId, duration: e.duration });
+      } }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
+      document.querySelector('.toggle').addEventListener('click', () => {
+        const end = performance.now() + 120; while (performance.now() < end) { /* Synthetic measurable interaction. */ }
+      });
+    });
+    await page.click('.toggle');
+    await page.waitForFunction(() => window.p0Interactions.some(e => e.name === 'click'), undefined, { timeout: 5000 });
+    await page.evaluate(() => new Promise(resolve => requestIdleCallback(() => requestIdleCallback(() => resolve(null)))));
+    interactions = await page.evaluate(() => window.p0Interactions);
+    // Exercise window-capture INP reporting before the document's close handler.
+    // A separate real navigation case still runs without visibility injection.
+    if (mode === 'inp-hide') await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      delete document.visibilityState;
+    });
+  }
   const cdp = await page.context().newCDPSession(page);
   const notRestored = [];
   await cdp.send('Page.enable');
@@ -173,7 +196,7 @@ async function exerciseNavigation(page, origin) {
     assert.equal(restoredStatus.sdkStarts, 1); assert.equal(restoredStatus.observers, 0);
   }
   await cdp.detach();
-  return { sdkVersion: '9.47.1', lifecycle, restored, restoredStatus, notRestored,
+  return { sdkVersion: '9.47.1', lifecycle, restored, restoredStatus, notRestored, interactions, visibilityInjection: mode === 'inp-hide',
     bfcacheVerification: restored ? 'pass' : 'unverified', hiddenBarrier: 'pass' };
 }
 module.exports.exerciseNavigation = exerciseNavigation;

@@ -9,7 +9,7 @@ import type { Cleanup, Eligibility, Reason } from './contract';
 
 export type TrialMode = 'normal' | 'close-import' | 'close-start' | 'close-snapshot' | 'close-transform'
   | 'close-fetch' | 'worker-timeout' | 'fetch-timeout' | 'finite-processor' | 'hung-processor' | 'hung-sdk-worker'
-  | 'close-compression' | 'close-transport' | 'pagehide' | 'hidden' | 'bfcache' | 'expired' | 'css-canary';
+  | 'close-compression' | 'close-transport' | 'pagehide' | 'hidden' | 'bfcache' | 'inp-hide' | 'inp-navigation' | 'expired' | 'css-canary';
 const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
 export function createTrial(mode: TrialMode = 'normal', compression = true) {
@@ -29,7 +29,7 @@ export function createTrial(mode: TrialMode = 'normal', compression = true) {
   let closedAt: number | null = null;
   const lifecycle: { event: string; phase: string; cleanup: Cleanup; hidden: boolean; persisted?: boolean }[] = [];
   const noteLifecycle = (event: string, persisted?: boolean) => {
-    if (mode !== 'bfcache') return;
+    if (!['bfcache', 'inp-hide', 'inp-navigation'].includes(mode)) return;
     lifecycle.push({ event, phase: controller.snapshot().phase, cleanup, hidden: document.hidden, persisted });
     sessionStorage.setItem('p0-lifecycle', JSON.stringify(lifecycle));
   };
@@ -125,7 +125,8 @@ export function createTrial(mode: TrialMode = 'normal', compression = true) {
         card.querySelector('span')!.firstChild!.textContent = 'Changed synthetic label';
         card.style.cssText = 'width:120px;height:100px;opacity:0.5;--banner-current-index:1';
         card.setAttribute('data-canary', 'canary-p0@example.test');
-        button.setAttribute('aria-expanded', 'true'); button.click();
+        button.setAttribute('aria-expanded', 'true');
+        await (window as unknown as { p0TrustedClick(): Promise<void> }).p0TrustedClick();
         await frame();
       } else {
         card.style.setProperty('width', '140px', 'important'); card.style.removeProperty('opacity'); await frame();
@@ -159,6 +160,6 @@ export function readView() {
     return { selector, x: r.x, y: r.y, width: r.width, height: r.height, opacity: Number(getComputedStyle(element).opacity) };
   });
   const button = document.querySelector<HTMLButtonElement>('.toggle')!;
-  return { rectangles, expanded: button.getAttribute('aria-expanded'), disabled: button.disabled,
+  return { rectangles, expanded: button.getAttribute('aria-expanded'), disabled: button.disabled, focused: document.activeElement === button,
     index: getComputedStyle(document.querySelector('.card')!).getPropertyValue('--banner-current-index').trim() };
 }

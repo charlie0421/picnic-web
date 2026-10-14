@@ -36,7 +36,7 @@ export async function captureContract({ propagation, cached }: ProbeOptions) {
     label.firstChild!.textContent = 'Changed synthetic label';
     card.style.cssText = 'width:120px;height:100px;opacity:0.5;--banner-current-index:1';
     button.setAttribute('aria-expanded', 'true');
-    button.click();
+    await (window as unknown as { p0TrustedClick(): Promise<void> }).p0TrustedClick();
     await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     await replay.flush();
     card.style.setProperty('width', '140px', 'important');

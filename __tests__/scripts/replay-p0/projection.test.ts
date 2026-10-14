@@ -253,7 +253,8 @@ it('bounds the final serialized output at exactly 8 MiB and +1', async () => {
     else expect(result.reason).toBe('budget');
     text.value += 'a';
   }
-});
+// Four near-8-MiB projections validate size, not runtime. Worker deadlines have separate tests.
+}, 15000);
 it.each([['rr_width', '16384px', true], ['rr_width', '16385px', false], ['rr_height', '1.5px', false],
   ['rr_scrollTop', '65536', true], ['rr_scrollTop', '65537', false], ['rr_scrollLeft', -65536, true],
   ['_cssText', fixture.rawCss, true], ['_cssText', 'canary{background:url(https://canary.invalid)}', false]])('validates special %s=%s', async (key, value, accepted) => {
@@ -279,4 +280,34 @@ it.each(['unknown-field', 'bad-click-type', 'missing-target', 'static-css-canary
     }
   });
   const state = emptyProjectionState(); expect((await projectEnvelope(e, state)).ok).toBe(false); expect(state.nodes.size).toBe(0);
+});
+it.each([[0, true], [1, true], [2, true], [3, false], [0.5, false]])('validates trusted pointerType=%s', async (pointerType, accepted) => {
+  const e = changeRecords(r => r.push({ type: 3, timestamp: r[0].timestamp,
+    data: { source: 2, type: 2, id: 13, x: 5, y: 6, pointerType } }));
+  expect((await projectEnvelope(e, emptyProjectionState())).ok).toBe(accepted);
+});
+it.each([5, 6])('accepts actual focus/blur type %s without inventing coordinates', async type => {
+  const e = changeRecords(r => r.push({ type: 3, timestamp: r[0].timestamp, data: { source: 2, type, id: 13 } }));
+  const result = await projectEnvelope(e, emptyProjectionState()); expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error(result.reason);
+  const decoded = parseBrowserEnvelope(Buffer.from(result.value.bytes));
+  expect(decoded.items.find((i: any) => i.header.type === 'replay_recording').payload.records.at(-1).data).toEqual({ source: 2, type, id: 13 });
+});
+it.each([[19997, true], [19998, false]])('counts node records plus three tombstone records at the 20000 boundary: %s', async (count, accepted) => {
+  const e = changeRecords(r => {
+    const root = r.find(x => x.type === 2).data.node;
+    for (let i = 15; i < count; i++) root.childNodes[1].childNodes[1].childNodes.push({ type: 2, id: 100 + i, tagName: 'div', attributes: {}, childNodes: [] });
+    r.push({ type: 3, timestamp: r[0].timestamp, data: { source: 0, texts: [], attributes: [], adds: [], removes: [{ id: 10, parentId: 9 }] } });
+  });
+  const result = await projectEnvelope(e, emptyProjectionState()); expect(result.ok).toBe(accepted);
+  if (result.ok) { expect(result.value.next.nodes.size).toBe(count); expect(result.value.next.tombstones.size).toBe(3); }
+  else expect(result.reason).toBe('budget');
+});
+it('strips non-allowlisted class canary while preserving the fixed card token', async () => {
+  const e = changeRecords(r => r.push({ type: 3, timestamp: r[0].timestamp, data: { source: 0,
+    texts: [], removes: [], adds: [], attributes: [{ id: 10, attributes: { class: 'card canary-account-42' } }] } }));
+  const result = await projectEnvelope(e, emptyProjectionState()); expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error(result.reason);
+  expect(result.value.next.nodes.get(10)?.attrs.class).toBe('card');
+  expect(new TextDecoder().decode(result.value.bytes)).not.toContain('canary');
 });

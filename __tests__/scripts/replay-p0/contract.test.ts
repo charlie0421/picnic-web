@@ -17,3 +17,13 @@ describe('P0 eligibility', () => {
     expect(isEligible({ ...eligible, ...override })).toBe(false);
   });
 });
+
+it('pins both reviewed CSS forms and the actual static fixture', async () => {
+  const { readFileSync } = await import('node:fs'); const { createHash } = await import('node:crypto');
+  const { default: manifest } = await import('../../../scripts/replay-p0/fixtures/sdk-contract.json');
+  const hash = (text: string) => createHash('sha256').update(text).digest('hex');
+  expect(hash(manifest.rawCss)).toBe(manifest.rawCssSha256);
+  expect(hash(manifest.normalizedCss)).toBe(manifest.normalizedCssSha256);
+  const fixture = readFileSync(new URL('../../../scripts/replay-p0/fixture.html', import.meta.url), 'utf8');
+  expect(fixture.match(/<style>([\s\S]*?)<\/style>/)?.[1]).toBe(manifest.rawCss);
+});

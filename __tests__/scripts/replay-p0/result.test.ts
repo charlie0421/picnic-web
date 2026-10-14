@@ -13,3 +13,7 @@ it('requires every named limitation, not an empty or incomplete list', () => {
   expect(exitCode({ ...valid, expectedLimitations: [{ case: 'hung-processor', observed: true }] })).toBe(1);
   expect(exitCode({ ...valid, expectedLimitations: valid.expectedLimitations.map(x => ({ ...x, observed: false })) })).toBe(1);
 });
+it('also rejects an unobserved additional limitation', () => {
+  expect(exitCode({ ...valid, expectedLimitations: [...valid.expectedLimitations,
+    { case: 'additional-limit', observed: false }] })).toBe(1);
+});

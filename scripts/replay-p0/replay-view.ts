@@ -39,7 +39,12 @@ export function createReplayView(target: Document) {
           for (const a of d.adds!) get(a.parentId).insertBefore(make(a.node), a.nextId === null ? null : get(a.nextId));
           for (const t of d.texts!) get(t.id).textContent = t.value;
           for (const a of d.attributes!) attrs(get(a.id) as Element, a.attributes);
-        } else if (d.source === 2 && d.type === 2) { get(d.id!); clicks.push(d.id!); }
+        } else if (d.source === 2) {
+          const node = get(d.id!) as HTMLElement;
+          if (d.type === 2) clicks.push(d.id!);
+          if (d.type === 5) node.focus();
+          if (d.type === 6) node.blur();
+        }
         else if (d.source === 3) {
           const node = get(d.id!);
           if (node === target) target.defaultView!.scrollTo(d.x!, d.y!);

@@ -43,7 +43,7 @@ function auditReceived(envelopes) {
           d.adds.forEach(x => { keys(x, ['parentId', 'nextId', 'node']); node(x.node); });
         } else if (d.source === 1 || d.source === 6) {
           keys(d, ['source', 'positions']); d.positions.forEach(p => keys(p, ['id', 'x', 'y', 'timeOffset']));
-        } else keys(d, d.source === 2 ? ['source', 'type', 'id', 'x', 'y'] : d.source === 3 ? ['source', 'id', 'x', 'y'] : ['source', 'width', 'height']);
+        } else keys(d, d.source === 2 ? ['source', 'type', 'id', 'x', 'y', 'pointerType'] : d.source === 3 ? ['source', 'id', 'x', 'y'] : ['source', 'width', 'height']);
       }
     }
   }
@@ -66,7 +66,7 @@ async function compareReplay(browser, origin, envelopes, expected) {
         return { selector, x: r.x, y: r.y, width: r.width, height: r.height, opacity: Number(doc.defaultView.getComputedStyle(el).opacity) };
       });
       const button = doc.querySelector('.toggle');
-      return { rectangles, expanded: button.getAttribute('aria-expanded'), disabled: button.disabled,
+      return { rectangles, expanded: button.getAttribute('aria-expanded'), disabled: button.disabled, focused: doc.activeElement === button,
         index: doc.defaultView.getComputedStyle(doc.querySelector('.card')).getPropertyValue('--banner-current-index').trim(),
         ...window.p0View.inspect() };
     }, item.payload.records));
@@ -75,7 +75,7 @@ async function compareReplay(browser, origin, envelopes, expected) {
   assert.equal(actual.length, 3);
   actual.forEach((view, index) => {
     assert.equal(view.nodeCount, 15);
-    for (const field of ['expanded', 'disabled', 'index']) assert.equal(view[field], expected[index][field]);
+    for (const field of ['expanded', 'disabled', 'index', 'focused']) assert.equal(view[field], expected[index][field]);
     view.rectangles.forEach((r, i) => {
       for (const field of ['x', 'y', 'width', 'height']) maxRectError = Math.max(maxRectError, Math.abs(r[field] - expected[index].rectangles[i][field]));
       maxOpacityError = Math.max(maxOpacityError, Math.abs(r.opacity - expected[index].rectangles[i].opacity));
@@ -86,6 +86,7 @@ async function compareReplay(browser, origin, envelopes, expected) {
     assert.equal(view.rectangles[2].opacity, [1, 0.5, 1][index]);
     assert.equal(view.expanded, ['false', 'true', 'true'][index]);
     assert.equal(view.disabled, index === 2); assert.equal(view.index, ['', '1', ''][index]);
+    assert.equal(view.focused, index === 1);
   });
   assert.deepEqual(actual[2].clicks, [13]);
   await page.close();

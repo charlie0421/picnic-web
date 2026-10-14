@@ -14,6 +14,9 @@ export function stripReplayCorrelation(envelope: Envelope): Envelope {
   const items = envelope[1].map(([itemHeader, raw]) => {
     if (!object(raw)) return [itemHeader, raw];
     const payload = withoutLinks(raw);
+    if (itemHeader.type === 'span' && object(raw.data)) payload.data = withoutLinks(raw.data);
+    if (Array.isArray(raw.spans)) payload.spans = raw.spans.map(span => object(span) && object(span.data)
+      ? { ...span, data: withoutLinks(span.data) } : span);
     if (object(raw.tags)) payload.tags = withoutLinks(raw.tags);
     if (object(raw.contexts)) {
       const contexts = { ...raw.contexts };
