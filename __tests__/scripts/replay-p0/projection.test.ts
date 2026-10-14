@@ -182,3 +182,101 @@ describe('P0 projection', () => {
     expect((await projectEnvelope(e, emptyProjectionState())).ok).toBe(accepted);
   });
 });
+
+it.each([[256, true], [257, false]])('bounds one class token at %i', async (length, accepted) => {
+  const e = changeRecords(r => r.push({ type: 3, timestamp: r[0].timestamp, data: { source: 0,
+    texts: [], removes: [], adds: [], attributes: [{ id: 10, attributes: { class: 'a'.repeat(length) } }] } }));
+  expect((await projectEnvelope(e, emptyProjectionState())).ok).toBe(accepted);
+});
+it.each([[80, true], [81, false]])('bounds JSON depth at %i', async (depth, accepted) => {
+  const e = input(); const meta = e[1].find(i => i[0].type === 'replay_event')![1] as any;
+  let value: any = 'leaf'; for (let i = 1; i < depth; i++) value = { child: value };
+  meta.extra = value;
+  expect((await projectEnvelope(e, emptyProjectionState())).ok).toBe(accepted);
+});
+it.each([[200000, true], [200001, false]])('bounds JSON values at %i', async (count, accepted) => {
+  const e = input(); const meta = e[1].find(i => i[0].type === 'replay_event')![1] as any;
+  const size = (v: any): number => 1 + (v && typeof v === 'object' ? Object.values(v).reduce<number>((n, x) => n + size(x), 0) : 0);
+  meta.extra = [];
+  meta.extra = Array(count - size(meta)).fill(0);
+  expect((await projectEnvelope(e, emptyProjectionState())).ok).toBe(accepted);
+});
+it.each([[300000, true], [300001, false]])('bounds event lifetime at %i ms', async (elapsed, accepted) => {
+  const e = changeRecords(r => r.push({ type: 0, timestamp: (captured[0].items.find(i => i.header.type === 'replay_event')!.payload as any).replay_start_timestamp * 1000 + elapsed, data: {} }));
+  expect((await projectEnvelope(e, emptyProjectionState())).ok).toBe(accepted);
+});
+it.each([false, true])('bounds raw and decompressed recording at exactly 8 MiB and +1, compressed=%s', async compressed => {
+  const limit = 8 * 1024 * 1024;
+  for (const extra of [0, 1]) {
+    const e = changeRecords(r => r.push({ type: 5, timestamp: 0, data: { padding: '' } }));
+    const item = e[1].find(i => i[0].type === 'replay_recording')!;
+    const raw = new TextDecoder().decode(item[1] as Uint8Array); const split = raw.indexOf('\n');
+    const records = JSON.parse(raw.slice(split + 1));
+    const target = limit + extra - (compressed ? 0 : split + 1);
+    records.at(-1).data.padding = 'x'.repeat(target - Buffer.byteLength(JSON.stringify(records)));
+    const body = Buffer.from(JSON.stringify(records)); expect(body.byteLength).toBe(target);
+    item[1] = new Uint8Array(Buffer.concat([Buffer.from(raw.slice(0, split + 1)), compressed ? deflateSync(body) : body]));
+    const result = await projectEnvelope(e, emptyProjectionState());
+    expect(result.ok).toBe(extra === 0);
+    if (extra) expect(result).toEqual({ ok: false, reason: 'budget' });
+  }
+});
+it('bounds the final serialized output at exactly 8 MiB and +1', async () => {
+  const build = (padding: number) => changeRecords(r => {
+    for (let i = r.length - 1; i >= 0; i--) if (r[i].type === 5) r.splice(i, 1);
+    for (let i = 0; i < 1980; i++) r.push({ type: 3, timestamp: r[0].timestamp, data: { source: 0,
+      texts: [{ id: 12, value: 'a'.repeat(4096) }], attributes: [], removes: [], adds: [] } });
+    while (padding > 0) { const size = Math.min(padding, 4096); padding -= size;
+      // Many bounded text mutations fill the output without increasing the node count.
+      r.push({ type: 3, timestamp: r[0].timestamp, data: { source: 0,
+        texts: [{ id: 12, value: 'a'.repeat(size) }], attributes: [], removes: [], adds: [] } });
+    }
+  });
+  // Start below the limit; fill the last existing text with exact output bytes.
+  const base = build(0); const first = await projectEnvelope(base, emptyProjectionState());
+  expect(first.ok).toBe(true); if (!first.ok) throw new Error(first.reason);
+  const remaining = 8 * 1024 * 1024 - first.value.bytes.length;
+  expect(remaining).toBeGreaterThan(0);
+  // Added events have deterministic JSON punctuation. Determine the last text size by one probe.
+  const almost = build(remaining - Math.ceil(remaining / 4096) * 180);
+  const probe = await projectEnvelope(almost, emptyProjectionState());
+  expect(probe.ok).toBe(true); if (!probe.ok) throw new Error(probe.reason);
+  const item = almost[1].find(i => i[0].type === 'replay_recording')!;
+  const raw = new TextDecoder().decode(item[1] as Uint8Array); const split = raw.indexOf('\n'); const records = JSON.parse(raw.slice(split + 1));
+  const deficit = 8 * 1024 * 1024 - probe.value.bytes.length;
+  const text = records.at(-1).data.texts[0]; text.value += 'a'.repeat(deficit);
+  expect(text.value.length).toBeLessThanOrEqual(4096);
+  for (const extra of [0, 1]) {
+    item[1] = new TextEncoder().encode(raw.slice(0, split + 1) + JSON.stringify(records));
+    const result = await projectEnvelope(almost, emptyProjectionState()); expect(result.ok).toBe(extra === 0);
+    if (result.ok) expect(result.value.bytes.length).toBe(8 * 1024 * 1024);
+    else expect(result.reason).toBe('budget');
+    text.value += 'a';
+  }
+});
+it.each([['rr_width', '16384px', true], ['rr_width', '16385px', false], ['rr_height', '1.5px', false],
+  ['rr_scrollTop', '65536', true], ['rr_scrollTop', '65537', false], ['rr_scrollLeft', -65536, true],
+  ['_cssText', fixture.rawCss, true], ['_cssText', 'canary{background:url(https://canary.invalid)}', false]])('validates special %s=%s', async (key, value, accepted) => {
+  const e = changeRecords(r => r.push({ type: 3, timestamp: r[0].timestamp, data: { source: 0,
+    texts: [], removes: [], adds: [], attributes: [{ id: 10, attributes: { [key as string]: value } }] } }));
+  expect((await projectEnvelope(e, emptyProjectionState())).ok).toBe(accepted);
+});
+it('rejects a second full snapshot even with the next valid segment ID', async () => {
+  const first = await projectEnvelope(input(), emptyProjectionState()); if (!first.ok) throw new Error(first.reason);
+  const e = input(1); const raw = captured[0].items.find(i => i.header.type === 'replay_recording')!.payload as any;
+  e[1].find(i => i[0].type === 'replay_recording')![1] = '{"segment_id":1}\n' + JSON.stringify(raw.records);
+  expect((await projectEnvelope(e, first.value.next)).ok).toBe(false);
+});
+it.each(['unknown-field', 'bad-click-type', 'missing-target', 'static-css-canary', 'shadow-root'])('rejects %s without partial state commit', async kind => {
+  const e = changeRecords(r => {
+    if (kind === 'unknown-field') r.find(x => x.type === 4).data.extra = 'canary';
+    else if (kind === 'bad-click-type' || kind === 'missing-target') r.push({ type: 3, timestamp: r[0].timestamp,
+      data: { source: 2, type: kind === 'bad-click-type' ? 10 : 2, id: kind === 'missing-target' ? 999999 : 13, x: 0, y: 0 } });
+    else {
+      const walk = (n: any) => { if (n.isStyle && kind === 'static-css-canary') n.textContent += '/*canary*/';
+        if (n.id === 10 && kind === 'shadow-root') n.isShadow = true; n.childNodes?.forEach(walk); };
+      walk(r.find(x => x.type === 2).data.node);
+    }
+  });
+  const state = emptyProjectionState(); expect((await projectEnvelope(e, state)).ok).toBe(false); expect(state.nodes.size).toBe(0);
+});

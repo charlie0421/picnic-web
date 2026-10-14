@@ -17,6 +17,12 @@ export type Reason = 'ineligible' | 'hidden' | 'expired' | 'schema' | 'budget' |
 export type Gate = { phase: Phase; generation: number };
 export type SdkHandle = { start(): void; stop(): Promise<void>; flush(): Promise<void> };
 export type Cleanup = 'pending' | 'resolved' | 'rejected';
+export type TrialReport = {
+  normal: 'pass' | 'fail' | 'not-run'; barrier: 'pass' | 'fail' | 'not-run';
+  finiteCleanup: 'pass' | 'fail' | 'not-run'; limits: 'pass' | 'fail' | 'not-run'; isolation: 'pass' | 'fail' | 'not-run';
+  expectedLimitations: { case: 'hung-processor' | 'hung-sdk-worker' | 'direct-restart'; observed: boolean }[];
+  unverified: string[];
+};
 export type NodeState = {
   parent: number | null; children: number[]; kind: number; tag?: string;
   text?: string; isStyle?: boolean; attrs: Record<string, string>; style: Record<string, string>;

@@ -42,8 +42,13 @@ it('closes the gate before cancellation or public stop, and absorbs repeat calls
   expect(sdk.start).toHaveBeenCalledTimes(1); expect(sdk.flush).not.toHaveBeenCalled();
 });
 it('handles close during the first snapshot synchronously', async () => {
-  const { controller, sdk } = setup(); sdk.start.mockImplementation(() => controller.close('ineligible'));
+  const { controller, sdk, deps } = setup(); let recorderInstalled = false;
+  sdk.start.mockImplementation(() => { controller.close('ineligible');
+    expect(controller.snapshot().phase).toBe('CLOSED'); recorderInstalled = true; });
+  sdk.stop.mockImplementation(async () => { expect(recorderInstalled).toBe(true); });
   await controller.prepare(); expect(controller.snapshot().phase).toBe('CLOSED'); expect(sdk.stop).toHaveBeenCalledTimes(1);
+  await Promise.resolve();
+  expect(deps.onCleanup).toHaveBeenLastCalledWith('resolved');
 });
 it('closes at five minutes and keeps unresolved SDK cleanup separate', async () => {
   const { controller, sdk, deps } = setup(); sdk.stop.mockImplementation(() => new Promise(() => undefined));

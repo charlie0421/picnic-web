@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/browser';
 import { continueTrace } from '@sentry/core';
+import { createTrial } from './trial';
+import { createReplayView } from './replay-view';
 
 type ProbeOptions = { propagation: boolean; cached: boolean };
 
@@ -64,4 +66,4 @@ export async function captureContract({ propagation, cached }: ProbeOptions) {
   return { sdkVersion: Sentry.SDK_VERSION, replayId, guardCalls, flushed };
 }
 
-Object.assign(window, { replayP0: { captureContract } });
+Object.assign(window, { replayP0: { captureContract, createTrial, createReplayView } });

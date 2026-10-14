@@ -7,11 +7,14 @@ export function createController(deps: ControllerDeps) {
   let gate: Gate = { phase: 'WAITING', generation: 0 };
   let sdk: SdkHandle | undefined;
   let stopped = false;
+  let starting = false;
   let startedAt: number | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const cleanup = (status: Cleanup) => { try { deps.onCleanup(status); } catch { /* No raw diagnostic forwarding. */ } };
   function stop() {
-    if (!sdk || stopped) return;
+    // record() installs its stop handle only when start() returns. The gate and owned work
+    // close synchronously; public SDK cleanup waits for that same-stack installation.
+    if (!sdk || stopped || starting) return;
     stopped = true; cleanup('pending');
     try { void sdk.stop().then(() => cleanup('resolved'), () => cleanup('rejected')); }
     catch { cleanup('rejected'); }
@@ -34,7 +37,9 @@ export function createController(deps: ControllerDeps) {
     if (!eligible()) { close('ineligible'); return; }
     startedAt = deps.now(); gate.phase = 'RECORDING';
     timer = setTimeout(() => close('expired'), 300000);
+    starting = true;
     try { sdk.start(); } catch { close('sdk'); }
+    finally { starting = false; if (snapshot().phase === 'CLOSED') stop(); }
   }
   async function prepare() {
     if (gate.phase !== 'WAITING') return;
