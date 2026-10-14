@@ -418,7 +418,7 @@ Vercel Instant Rollback. 설정과 로그 줄만 바꾸므로 데이터에 남�
 | 처리되지 않은 예외는 `captureRequestError` 가 요청 헤더 전체와 원본 오류를 SDK 에 넘긴다 | `@sentry/nextjs` 9.47.1 `common/captureRequestError.js` |
 | SDK 가 `url.query`·`url.fragment`·`url.full` 속성을 만든다 | `@sentry/core` 9.47.1 `utils/url.js` 144~159 |
 | `flush(timeout)` 은 제한을 넘기면 `false` 를 주고, `vercelWaitUntil` 은 요청 컨텍스트가 있을 때만 등록한다 | `@sentry/core` 9.47.1 `client.js`, `utils/vercelWaitUntil.js` |
-| Replay 오류 표본율은 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE`(없으면 1.0)로 정한다. Production 의 실제 값은 세션 0, 오류 0 이다 | `instrumentation-client.ts` 10~11. 2026-10-02 Production 클라이언트 번들(`tracesSampleRate` 0.1, `replaysSessionSampleRate` 0, `replaysOnErrorSampleRate` 0) |
+| Replay 오류 표본율은 환경변수 `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE`로 정한다. 값이 없거나 빈 문자열이면 0이다. 2026-10-14 후속 수정에서 기본값을 1.0에서 0으로 변경했다. Production 의 2026-10-02 실측값은 세션 0, 오류 0 이다 | `instrumentation-client.ts`의 `REPLAY_ERROR_RATE`. 2026-10-02 Production 클라이언트 번들(`tracesSampleRate` 0.1, `replaysSessionSampleRate` 0, `replaysOnErrorSampleRate` 0) |
 | Next 는 처리되지 않은 오류를 원본 그대로 서버 표준 출력에 찍고, `onRequestError` 에 `req.url`(쿼리 포함)을 `path` 로 넘긴다 | Next 15.5.26 `server/route-modules/route-module.js` 의 `onRequestError`, `server/base-server.js` 의 `instrumentationOnRequestError`. envelope 테스트의 서버 출력에서 원본 메시지를 확인했다 |
 | 운영 빌드는 `console.log`·`info`·`debug` 호출을 지운다. 운영의 서버 로그로 나가는 것은 `console.error`·`console.warn` 과 `logError` 다 | `next.config.js` 의 `compiler.removeConsole`, 로컬 운영 빌드의 산출물, Production 런타임 로그 24시간의 수준 분포(`warn` 205, `error` 171, `info` 0) — §2.2 |
 | 라우트 핸들러의 오류는 SDK 의 라우트 래퍼가 잡는다. 그 이벤트에는 `contexts.nextjs` 가 없다 | 2026-10-02 envelope 테스트(처리되지 않은 예외 6건) |

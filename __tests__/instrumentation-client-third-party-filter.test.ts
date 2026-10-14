@@ -137,6 +137,26 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
   describe('Session Replay 지연 로드', () => {
     const env = { NEXT_PUBLIC_SENTRY_APPLICATION_KEY: undefined };
 
+    it.each([
+      [undefined, undefined],
+      ['', ''],
+      ['0', undefined],
+      ['0', ''],
+    ])('운영 샘플링 설정이 없거나 비어 있으면 Replay를 로드하지 않는다 (session=%s, error=%s)', async (session, error) => {
+      await loadClient({
+        ...env,
+        NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: session,
+        NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: error,
+      });
+
+      expect(init.mock.calls[0][0]).toMatchObject({
+        replaysSessionSampleRate: 0,
+        replaysOnErrorSampleRate: 0,
+      });
+      expect(lazyLoadIntegration).not.toHaveBeenCalled();
+      expect(addIntegration).not.toHaveBeenCalled();
+    });
+
     it('세션·오류 샘플링이 모두 0이면 Replay 코드를 로드하지 않는다', async () => {
       await loadClient({
         ...env,
@@ -148,9 +168,14 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
       expect(addIntegration).not.toHaveBeenCalled();
     });
 
-    it.each([['0.1', '0'], ['0', '1.0']])(
+    it.each([
+      ['0.1', '0', 0.1, 0],
+      ['0.1', undefined, 0.1, 0],
+      ['0', '1.0', 0, 1],
+      ['0', '0.25', 0, 0.25],
+    ])(
       '세션 또는 오류 샘플링이 양수면 Replay를 지연 로드하고 마스킹 옵션으로 등록한다 (session=%s, error=%s)',
-      async (sessionSampleRate, errorSampleRate) => {
+      async (sessionSampleRate, errorSampleRate, expectedSessionRate, expectedErrorRate) => {
         const replayIntegration = { name: 'Replay' };
         replayIntegrationFactory.mockReturnValue(replayIntegration);
 
@@ -160,6 +185,10 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
           NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: errorSampleRate,
         });
 
+        expect(init.mock.calls[0][0]).toMatchObject({
+          replaysSessionSampleRate: expectedSessionRate,
+          replaysOnErrorSampleRate: expectedErrorRate,
+        });
         expect(lazyLoadIntegration).toHaveBeenCalledOnce();
         expect(lazyLoadIntegration).toHaveBeenCalledWith('replayIntegration');
         expect(replayIntegrationFactory).toHaveBeenCalledWith({
