@@ -3,6 +3,7 @@
 <p>2026-10-15 KST · 기준 커밋 <code>85a46f26d52ebc9cb2e238e25fd2e2700e643940</code> · Sentry SDK 9.47.1 · Chromium 153.0.8010.12 · Playwright 1.63.0 · macOS</p>
 <p class="ok"><strong>실제 BFCache 복귀와 10초 백그라운드 전환 시험을 통과했다.</strong> 두 경로에서 P0는 닫힌 상태를 유지했다. 복귀 후 정상 제어 API를 호출해도 녹화 재시작과 새 Replay 요청이 없었고 DOM 감시자는 정리됐다.</p>
 <p class="note"><strong>제품 적용은 아직 준비되지 않았다.</strong> 합성 데이터로 실행한 실제 <code>/ko/vote</code> 화면에 P0를 그대로 연결하면 첫 flush에서 <code>schema</code>로 종료된다. Replay 수신 0건은 차단 동작의 관측값이며 정상 재생 성공이 아니다. 제품 코드·허용 목록·운영 설정은 변경하지 않았다.</p>
+<p>후속 결과: <a href="2026-10-15-replay-production-inventory.html">production 빌드의 실제 녹화 형식 조사</a>에서 합성 투표 카드·배너를 채워 DOM·CSS·placeholder 차이를 확인했다.</p>
 <h2>1. 판정과 실측값</h2><table><thead><tr><th>시험</th><th>결과</th><th>관측</th></tr></thead><tbody>
 <tr><td>실제 BFCache 복귀</td><td>PASS</td><td>pagehide.persisted=true, 실제 복귀 후 restored=true. CLOSED, SDK start 총 1회, Replay fetch 0회, cleanup=resolved, observer 0개. 캐시 미사용 사유 없음. 같은 조건으로 재확인했다.</td></tr>
 <tr><td>실제 탭 전환과 복귀</td><td>PASS · 10초</td><td>실제 visibility가 visible→hidden→visible로 바뀌었다. 숨김 이벤트를 관측할 때 이미 CLOSED였다. 복귀 후 prepare/flush 호출에도 start 총 1회·Replay fetch 0회. cleanup=resolved, observer 0개.</td></tr>

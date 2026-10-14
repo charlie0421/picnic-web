@@ -1,0 +1,2975 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Replay production 빌드 녹화 형식 조사</title><style>body{font-family:system-ui,-apple-system,sans-serif;color:#172331;background:#f6f8fb;margin:0;line-height:1.7}main{max-width:1000px;margin:28px auto;padding:28px;background:#fff;border:1px solid #dce3ed;border-radius:12px}h1{font-size:1.8rem}h2{margin-top:2rem;font-size:1.25rem}p,li,td{overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:.92rem}th,td{padding:10px;border:1px solid #dce3ed;text-align:left;vertical-align:top}th{background:#edf3fa}code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}pre{font-size:.8rem;padding:16px;background:#edf3fa;white-space:pre-wrap;overflow-wrap:anywhere}.note{padding:16px;border-left:4px solid #bc7b13;background:#fff8e9}.ok{padding:16px;border-left:4px solid #2b775a;background:#effaf4}summary{cursor:pointer;font-weight:600}details{margin:1rem 0}@media(max-width:600px){main{margin:8px;padding:16px}th,td{padding:6px}h1{font-size:1.5rem}}summary{overflow-wrap:anywhere}@media(max-width:600px){table{display:block;overflow-x:auto}th,td{min-width:6em}}</style></head><body><main>
+<h1>Replay production 빌드 녹화 형식 조사</h1>
+<p>2026-10-15 KST · 기준 커밋 <code>35ec69a4300d195bcf441077c56eee50ee6c879f</code> · Next 15.5.26 · Sentry 9.47.1 · Playwright 1.63.0 · Chromium 153.0.8010.12 · Node 24.18.1</p>
+<p class="ok"><strong>production 모드의 실제 /ko/vote 화면에서 PC·모바일 녹화 원본을 확보했다.</strong> 합성 투표 12개·후보 36개·보상 6개·배너 5개를 사용했다. 브라우저 클릭과 스크롤로 배너 이동, 지연 이미지 로딩, 이미지 실패 표시를 관측했다.</p>
+<p class="note"><strong>제품용 허용 규칙을 구현하기 전의 형식 조사다.</strong> 현재 P0 변환기는 두 화면 모두 첫 head meta에서 schema로 거부한다. 제품 코드·P0 규칙·운영 설정은 변경하지 않았다. 이번 로컬 raw SDK 수집은 P0 전송 관문을 통과한 결과나 운영 Replay 재생 성공을 뜻하지 않는다.</p>
+<h2>1. 검증 결과</h2>
+<table><thead><tr><th>화면</th><th>HTTP</th><th>투표 / 배너</th><th>실제 DOM 요소 초기 → 최종</th><th>rrweb 레코드</th><th>Replay wire 합계(bytes)</th></tr></thead><tbody><tr><td>1280×900</td><td>200</td><td>12 / 5</td><td>1121 → 1113</td><td>38</td><td>288,830</td></tr><tr><td>390×900</td><td>200</td><td>12 / 5</td><td>1108 → 1107</td><td>67</td><td>297,059</td></tr></tbody></table>
+<ul><li>각 화면에서 envelope 4개를 수신했다. 첫 envelope는 <code>session</code>, 나머지 3개는 <code>replay_event + replay_recording</code>이며 segment_id는 0, 1, 2다.</li><li>각 화면의 페이지 오류 0개, 브라우저 외부 요청 차단 기록 0개. 서버의 fetch/http/https 외부 요청 차단 기록도 없었다. 이 로컬 시험의 관측 범위다.</li><li>Next production 빌드가 exit 0으로 완료됐고, 로컬 <code>next start</code>로 실행했다. 테스트 라우트가 빌드 manifest에 없는 것을 확인했다. 빌드 ID는 <code>WaMOsqHZc2V7cxWT91IY0</code>다.</li><li>원본 제품 화면에는 정상 이미지·이미지 없음·실패 표시가 있었다. 스크롤 후 이미지 실패 표시 5개를 두 화면에서 확인했다.</li><li>PC 배너 인덱스는 클릭으로 0→2→0, 모바일은 0→1→2→3→4였다. 화면 너비별 이동 폭과 순환을 관측한 값이다.</li></ul>
+<h2>2. 현재 P0에서 실제로 막히는 지점</h2>
+<p>수집한 첫 Replay envelope를 기존 <code>projectEnvelope</code>에 오프라인으로 넣어 <code>{ok:false, reason:'schema'}</code>를 확인했다. 별도 진단 번들에는 실패한 검사와 현재 노드 정보만 기록하도록 메모리상의 소스를 계측했다. 원본 파일은 변경하지 않았다. 두 화면의 첫 실패는 node id 5, tag <code>meta</code>의 tag 허용 검사다(<code>scripts/replay-p0/projection.ts:155</code>). 제품 계약은 head 노드 순서나 고정 node id에 의존하지 않는다. 이 결과는 이번 production 캡처의 최초 실패를 뜻하며, 이전 dev 캡처의 최초 실패까지 소급해 확정하지 않는다.</p>
+<table><thead><tr><th>차이</th><th>wire 근거</th><th>제품 계약에 필요한 결정</th></tr></thead><tbody>
+<tr><td>DOM 구조</td><td>직렬화된 요소 tag 20종. P0 밖 13종: meta, link, header, a, img, svg, main, section, h3, p, footer, title, next-route-announcer. 개발 전용 nextjs-portal 없음. link는 stylesheet(_cssText)와 icon placeholder(rr_width/rr_height)가 구분된다.</td><td>레이아웃 태그, head 메타데이터, 링크, media, framework 노드를 각각 명시적으로 처리한다. 실제로 보였다는 이유만으로 모든 속성을 허용하지 않는다.</td></tr>
+<tr><td>Shadow와 SVG</td><td>Next announcer에 isShadowHost·isShadow 각 1개. SVG placeholder에 isSVG 10개.</td><td>알려진 추가 필드의 타입과 구조를 고정한다. announcer의 제거 또는 제한 보존과 이후 참조 처리, SVG의 빈 placeholder 표현을 함께 결정한다.</td></tr>
+<tr><td>이미지 치수</td><td>PC img/svg placeholder 기록 64개 중 소수 치수 11개, 모바일 65개 중 4개. 예: 298.5px, 199.359375px, 173.921875px. snapshot과 후속 추가 기록의 합계이며 고유 요소 수가 아니다.</td><td>유한값·상한·소수 정밀도를 검증하고 출력은 제한된 정밀도로 정규화한다. 현재 정수 px 정규식은 실제 placeholder를 거부한다.</td></tr>
+<tr><td>배너 상태</td><td>모바일 --banner-current-index=3,4를 실제 클릭으로 관측했다. aspect-ratio=700 / 356도 기록됐다.</td><td>배너 수 상한과 인덱스 관계를 정의한다. 이번 5개 fixture를 제품 전체의 최대 개수로 삼지 않는다.</td></tr>
+<tr><td>class와 inline style</td><td>두 화면에서 class token 282종. user-select, transform, top/left, background-color, min-height, aspect-ratio와 announcer의 숨김 스타일이 있다.</td><td>빌드에서 검증한 class와 상수/수치 문법을 분리한다. 이 282개는 관측한 후보 집합이며 전체 제품 허용 목록이 아니다.</td></tr>
+<tr><td>type 5 custom event</td><td>DOM img/svg는 class·치수만 남고 자식은 없었다. 그러나 performanceSpan의 resource.img/resource.link에 전체 이미지 URL이 남았다. ui.click breadcrumb message에는 DOM 속성과 달리 마스킹되지 않은 <code>다음 배너</code> aria-label이 있었다.</td><td>현재 P0처럼 type 5 기본 삭제를 유지하는 방향을 제안한다(projection.ts:218). 향후 필요한 tag/op를 보존하려면 별도 필드 계약과 민감 문자열 반례 시험을 먼저 정한다.</td></tr>
+<tr><td>상태 속성</td><td>aria-pressed, aria-hidden, aria-expanded, disabled, hidden, role 등이 있다.</td><td>재생에 필요한 고정 enum/boolean만 보존할지 결정한다. href·content·aria-label 같은 자유 문자열은 별도의 삭제·재작성 규칙이 필요하다.</td></tr>
+</tbody></table>
+<h2>3. 빌드 CSS → CSSOM → 녹화 CSS</h2>
+<table><thead><tr><th>빌드 자산</th><th>원본 bytes</th><th>CSSOM bytes</th><th>wire bytes</th></tr></thead><tbody><tr><td><code>.next-envtest/static/css/36f08833d15de553.css</code></td><td>351</td><td>340</td><td>340</td></tr><tr><td><code>.next-envtest/static/css/253f05d11a58abd2.css</code></td><td>91,890</td><td>100,515</td><td>100,546</td></tr></tbody></table>
+<p>실제 빌드 CSS를 새 <code>CSSStyleSheet</code>로 파싱한 뒤 cssRules.cssText를 이어 붙인 값이 제품 페이지에서 수집한 CSSOM과 정확히 같았다. Tailwind/전역 CSS는 SDK의 <code>fixBrowserCompatibilityIssuesInCSS</code>가 <code>-webkit-background-clip: text; </code>를 추가해 31 bytes 늘어났다. 이 변환을 적용한 값과 wire의 <code>_cssText</code>가 완전히 일치했다. 설치된 SDK의 <code>@sentry-internal/replay/build/npm/cjs/index.js:78–108</code>에서도 같은 변환을 확인했다.</p>
+<p>styled-jsx style text는 727·70·542 bytes이며 같은 페이지 CSSOM과 hash가 일치했다. 제품 CSS를 승인할 때는 빌드 원본·브라우저 정규화·SDK 호환성 변환 사이의 관계를 함께 검증해야 한다. 임의 수신 CSS의 hash를 그 자리에서 허용 목록에 넣는 방식은 이 검증을 대체하지 못한다.</p>
+<p class="note">글꼴은 외부 다운로드를 피하기 위해 next/font 응답을 <code>src: local(Arial)</code>로 대체했다. 이 빌드의 CSS에서 url()/@import가 0개인 사실은 실제 배포 글꼴 URL의 부재나 안전성을 증명하지 않는다. 원래 font 파일 URL의 출처·재작성 규칙은 미검증이다.</p>
+<h2>4. 수집 경계와 미검증 범위</h2>
+<p>첫 fixture의 종료일은 2099년이었다. 이 실행에서는 SDK 주입 전에 /ko/vote RSC 재조회가 있었다. VoteListPresenter.tsx:77–91은 남은 시간을 상한 없이 setTimeout에 전달하므로 32비트 타이머 범위를 넘는 문제가 가능하다. fixture 종료일을 실행 시점 + 1일부터 시간별로 설정하고 hero 카드에 정상 이미지를 넣어 다시 수집했다. 본문의 수치는 이 최종 캡처다. 같은 production 빌드와 동일 upstream 포트를 재사용했다. 최종 두 화면에서 /ko/vote?_rsc 요청 0개와 vote-last-reload-ts=null을 확인했다. footer의 privacy/terms prefetch는 별도로 허용했다. 실제 장기 투표에 대한 타이머 상한 문제는 별도 제품 수정 후보이며 이번에 수정하지 않았다.</p>
+<p>최종 raw 기록의 type 5에서 <code>/_next/image</code> 문자열은 PC 5회·모바일 9회였다. performanceSpan은 각각 8개·12개, breadcrumb와 options는 각각 1개다. 이 수치는 SDK가 캡처한 요청 시점과 수동 flush에 따른 관측이다. 기본 maskAllText/blockAllMedia만으로 custom event의 URL·selector 문자열까지 제거되지 않는 것을 확인했다.</p>
+<p>제품 컴포넌트·라우트는 그대로 두고, 테스트 전용 <code>ENVELOPE_TEST=1</code>과 <code>.next-envtest</code>로 빌드했다. 환경은 합성 loopback Supabase 주소·가짜 키·빈 Sentry DSN/token으로 구성했다. VERCEL과 업로드 옵트인 없이 Sentry 업로드가 비활성인 경로를 사용했다. 앱이 안정된 뒤 잠긴 npm SDK를 브라우저 경계에 주입하고 raw envelope를 loopback 요청 가로채기로 수집했다. useCompression=false, minReplayDuration=0, stickySession=false, flush 지연 60초·수동 flush, tracing 비활성으로 실행했다. 따라서 3개 segment 경계는 제품의 기본 분할 정책을 검증한 값이 아니다. 기본 SDK의 text/input 마스킹과 media 차단만 적용했으며, 제품의 개인정보 제거 처리나 P0 관문은 연결하지 않았다.</p>
+<p>각 새 브라우저 컨텍스트에서 앱 실행 전 <code>picnic-cookie-consent=denied</code>를 저장했다. 시작·종료 시점에 AdSense script 0개, 실행 중 외부 광고 요청 0개를 확인했다. denied 때문에 첫 방문 동의 dialog는 표시되지 않았다. 이 저장값은 광고 동의이며 현재 제품 Replay의 실행 관문이 아니다. 실제 제품 auth store와 P0 eligibility의 연결은 이번 조사 대상이 아니다. 합성 익명 화면과 denied 저장값만으로 제품 인증/동의 상태 전환이 검증됐다고 판단하지 않는다.</p>
+<ul><li>mock backend는 이번 목록용 fixture를 제공하는 단순 처리기다. 전체 PostgREST, 실제 RLS, 인증, 운영 API와 동일함을 보장하지 않는다.</li><li>보상 6개는 같은 제목·thumbnail을 쓴 한 종류다. 보상 이미지 없음/오류·여러 보상·빈 제목, 배너 link, artist/group 없음·깨진 artist 이미지·후보 2명, popup을 실행하지 않았다. CDN 값이 비어 있어 CDN preconnect와 원격 이미지 경로도 빠졌다.</li><li>이미지는 로컬 public 자산을 사용했다. 실제 CDN 경로·서명 URL·원격 이미지 최적화는 검증하지 않았다.</li><li>SDK 주입 전의 SSR streaming·초기 hydration·초기 loading 전이는 녹화하지 않았다. 스크롤 후 지연 로딩과 실패 표시는 관측했다.</li><li>ongoing 목록을 검증했다. upcoming/completed, 더 보기, 필터/지역/언어 변경, 모바일 메뉴 열기·닫기, API 오류·재시도는 이번 캡처 밖이다.</li><li>레코드에는 type 2/3/4/5가 있었고, incremental source는 0/1/2/3이었다. CSSOM 변경 source 8/13, 다른 viewport와 브라우저, 모든 제품 상태를 일반화하지 않는다.</li><li>raw 기록의 URL·meta·breadcrumb·performance 데이터는 합성 조사 자료다. 특히 resource 성능 이벤트의 이미지 URL과 클릭 breadcrumb의 selector·aria-label 원문이 남는 경로를 포함한다. 제품의 beforeBreadcrumb가 Replay 내부 breadcrumb에도 적용되는지는 이번에 검증하지 않았다. 이 자료 자체가 제품 전송 허용 자료는 아니다.</li></ul>
+<h2>5. 다음 구현 전에 정할 최소 계약</h2>
+<ol><li>제품 CSS manifest와 그 정규화·SDK 변환 버전을 정한다. 원래 글꼴 URL은 별도 증거를 추가한다.</li><li>레이아웃 tag·head·announcer·빈 media placeholder의 구조와 삭제 후 참조 처리 규칙을 정한다.</li><li>class, 상태 enum, 숫자형 style, 소수 placeholder 치수의 제한을 정한다. 배너 최대 개수와 인덱스 상한을 함께 검증한다.</li><li>type 5 custom event의 기본 삭제를 유지하고, 필요한 예외가 있으면 tag/op·필드별 계약을 별도로 정한다.</li><li>새 규칙을 제품 화면의 로컬 재생으로 검증하고, 민감 문자열·허용 밖 CSS·범위 초과 값은 닫히는지 확인한다.</li><li>그 뒤 실제 제품 auth/ads/route 상태를 관문에 연결하는 별도 단계를 진행한다.</li></ol>
+<p>이번에는 제품 decoder를 확장하거나 운영 Replay를 켜지 않았다. 위 결정은 다음 설계·구현 범위이며 현재 승인 완료된 제품 허용 목록이 아니다.</p>
+<h2>6. 독립 검토와 정리</h2><p id="review-state">Orca의 독립 읽기 전용 Claude Opus 5.5/high 검토자가 소스·fixture·최종 측정값을 대조했다. 종료일 fixture, custom event 경로, 미실행 분기와 인용을 보완한 뒤 같은 검토자가 한 번 재확인하여 심각한 사실 오류와 범위 초과 주장이 없다고 보고했다(<code>msg_7e518c2631cc</code>, <code>ctx_8c74c55dfd90</code>). 이 결과는 조사 자료의 사실 검토이며 제품 코드·계약·운영 적용 승인이 아니다. 조정자는 HTML의 1280/390px 표시, 내장 자료 9개의 SHA-256 일치, Next 자동 설정 복구와 소유 서버 종료를 별도로 확인했다.</p>
+<h2>7. 재현 자료</h2>
+<p>원본 임시 실행 자료: <code>/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production</code>. 원본 envelope는 wire-*.bin, 해석본은 envelopes-*.json, 측정값은 capture-*.json·inventory.json·verification.json이다. 이 문서에는 재현 스크립트와 핵심 증거를 포함했다. 루트 워크트리에서 server.cjs의 production 빌드 완료를 확인한 뒤 capture.cjs → inventory.cjs → verify.cjs 순서로 실행한다. 포트 53931은 사용 가능해야 한다. 종료 시 자신이 띄운 서버만 종료하고, Next가 변경한 두 파일은 저장한 원본과 변경 후 스냅샷을 대조해 복구한다. 운영 환경에 실행하지 않는다.</p>
+<details><summary>server.cjs · SHA-256 af6823c45212735a12b3e78d3320a9d652019ac3d24fa54ae36a6d97e06b5229</summary><pre><code>&#x27;use strict&#x27;;
+const fs=require(&#x27;node:fs&#x27;),path=require(&#x27;node:path&#x27;),http=require(&#x27;node:http&#x27;),{spawn}=require(&#x27;node:child_process&#x27;);
+const root=process.cwd(),out=__dirname;const reuse=process.argv.includes(&#x27;--reuse-build&#x27;)?JSON.parse(fs.readFileSync(out+&#x27;/server.json&#x27;)):null;const snapshots=[&#x27;next-env.d.ts&#x27;,&#x27;tsconfig.json&#x27;].map(name=&gt;({name,bytes:fs.readFileSync(name).toString(&#x27;base64&#x27;)}));fs.writeFileSync(out+&#x27;/source-snapshots.json&#x27;,JSON.stringify(snapshots));
+const tr=s=&gt;({ko:s,en:s});
+const banners=Array.from({length:5},(_,i)=&gt;({id:i+1,title:tr(&#x27;Synthetic banner &#x27;+(i+1)),image:i===2?null:tr(i===3?&#x27;/images/replay-synthetic-missing.png&#x27;:&#x27;/images/logo.png&#x27;),link:null,duration:3600,start_at:&#x27;2020-01-01T00:00:00Z&#x27;,end_at:&#x27;2099-01-01T00:00:00Z&#x27;,deleted_at:null,order:i,location:&#x27;vote_home&#x27;}));
+const votes=Array.from({length:12},(_,i)=&gt;({id:910000+i,title:tr(&#x27;Synthetic vote &#x27;+(i+1)),main_image:i%3===1?null:i%3===0?&#x27;/images/logo.png&#x27;:&#x27;/images/replay-synthetic-missing.png&#x27;,start_at:&#x27;2020-01-01T00:00:00Z&#x27;,stop_at:new Date(Date.now()+86400000+i*3600000).toISOString(),visible_at:&#x27;2020-01-01T00:00:00Z&#x27;,deleted_at:null,updated_at:&#x27;2026-10-14T00:00:00Z&#x27;,vote_category:&#x27;birthday&#x27;,vote_sub_category:&#x27;idol&#x27;,is_partnership:false,areas:[&#x27;kpop&#x27;],vote_item:Array.from({length:3},(_,j)=&gt;({id:920000+i*3+j,vote_total:300-j*100,updated_at:&#x27;2026-10-14T00:00:00Z&#x27;,artist:{id:930000+j,name:tr(&#x27;Synthetic artist &#x27;+j),image:j===1?null:&#x27;/images/logo.png&#x27;,artist_group:{id:940000,name:tr(&#x27;Synthetic group&#x27;)}}})),vote_reward:i%2?[{reward_id:950000,reward:{id:950000,title:tr(&#x27;Synthetic reward&#x27;),thumbnail:&#x27;/images/logo.png&#x27;}}]:[]}));
+fs.writeFileSync(out+&#x27;/fixtures.json&#x27;,JSON.stringify({banners,votes},null,2));
+function filter(rows,q){return rows.filter(row=&gt;[...q].every(([k,v])=&gt;{if(!Object.hasOwn(row,k))return true;const [op,...rest]=v.split(&#x27;.&#x27;);let x=rest.join(&#x27;.&#x27;);if(op===&#x27;eq&#x27;)return String(row[k])===x;if(op===&#x27;is&#x27;)return x===&#x27;null&#x27;?row[k]===null:true;if(op===&#x27;lte&#x27;)return row[k]&lt;=x;if(op===&#x27;gt&#x27;)return row[k]&gt;x;if(op===&#x27;cs&#x27;)return x.slice(1,-1).split(&#x27;,&#x27;).every(a=&gt;row[k].includes(a));return true;})).slice(Number(q.get(&#x27;offset&#x27;)||0),Number(q.get(&#x27;offset&#x27;)||0)+Number(q.get(&#x27;limit&#x27;)||999));}
+const upstream=http.createServer((req,res)=&gt;{req.resume();res.setHeader(&#x27;access-control-allow-origin&#x27;,&#x27;*&#x27;);res.setHeader(&#x27;access-control-allow-headers&#x27;,&#x27;*&#x27;);res.setHeader(&#x27;content-type&#x27;,&#x27;application/json&#x27;);const u=new URL(req.url,&#x27;http://localhost&#x27;);let body=[];if(u.pathname===&#x27;/rest/v1/banner&#x27;)body=filter(banners,u.searchParams);if(u.pathname===&#x27;/rest/v1/vote&#x27;)body=filter(votes,u.searchParams);fs.appendFileSync(out+&#x27;/backend.jsonl&#x27;,JSON.stringify({method:req.method,path:u.pathname,query:u.search,rows:body.length})+&#x27;\n&#x27;);res.end(JSON.stringify(body));});
+let next,stopping=false;
+const port=53931;
+upstream.listen(reuse?reuse.upstreamPort:0,&#x27;127.0.0.1&#x27;,async()=&gt;{const upstreamPort=upstream.address().port;const env={PATH:process.env.PATH,HOME:process.env.HOME,TMPDIR:process.env.TMPDIR,NODE_ENV:&#x27;production&#x27;,NEXT_TELEMETRY_DISABLED:&#x27;1&#x27;,ENVELOPE_TEST:&#x27;1&#x27;,BUILD_VERSION:&#x27;replay-production-inventory&#x27;,NEXT_PUBLIC_SUPABASE_URL:`http://127.0.0.1:${upstreamPort}`,NEXT_PUBLIC_SUPABASE_ANON_KEY:&#x27;synthetic-anon-key&#x27;,SUPABASE_URL:`http://127.0.0.1:${upstreamPort}`,SUPABASE_ANON_KEY:&#x27;synthetic-anon-key&#x27;,SUPABASE_SERVICE_ROLE_KEY:&#x27;&#x27;,SENTRY_DSN:&#x27;&#x27;,SENTRY_AUTH_TOKEN:&#x27;&#x27;,NEXT_PUBLIC_SENTRY_DSN:&#x27;&#x27;,NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE:&#x27;0&#x27;,NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE:&#x27;0&#x27;,NEXT_PUBLIC_CDN_URL:&#x27;&#x27;,NEXT_PUBLIC_SITE_URL:`http://127.0.0.1:${port}`,NEXT_FONT_GOOGLE_MOCKED_RESPONSES:out+&#x27;/font-mock.cjs&#x27;,NODE_OPTIONS:`--require=${out}/loopback.cjs`};
+function run(args,log){return spawn(root+&#x27;/node_modules/.bin/next&#x27;,args,{cwd:root,env,stdio:[&#x27;ignore&#x27;,fs.openSync(out+&#x27;/&#x27;+log,&#x27;w&#x27;),fs.openSync(out+&#x27;/&#x27;+log,&#x27;a&#x27;)]});}
+try{if(!reuse){next=run([&#x27;build&#x27;],&#x27;build.log&#x27;);fs.writeFileSync(out+&#x27;/server.json&#x27;,JSON.stringify({pid:process.pid,nextPid:next.pid,port,upstreamPort,phase:&#x27;building&#x27;}));const code=await new Promise(r=&gt;next.once(&#x27;exit&#x27;,r));if(code!==0)throw Error(&#x27;build failed &#x27;+code);}else if(fs.readFileSync(root+&#x27;/.next-envtest/BUILD_ID&#x27;,&#x27;utf8&#x27;)!==&#x27;WaMOsqHZc2V7cxWT91IY0&#x27;)throw Error(&#x27;wrong owned build&#x27;);fs.writeFileSync(out+&#x27;/generated-snapshots.json&#x27;,JSON.stringify(snapshots.map(x=&gt;({name:x.name,bytes:fs.readFileSync(x.name).toString(&#x27;base64&#x27;)}))));next=run([&#x27;start&#x27;,&#x27;--hostname&#x27;,&#x27;127.0.0.1&#x27;,&#x27;--port&#x27;,String(port)],&#x27;next.log&#x27;);fs.writeFileSync(out+&#x27;/server.json&#x27;,JSON.stringify({pid:process.pid,nextPid:next.pid,port,upstreamPort,phase:&#x27;serving&#x27;}));console.log(&#x27;Production build passed; local port &#x27;+port);next.once(&#x27;exit&#x27;,()=&gt;upstream.close());}catch(e){console.error(e);upstream.close();process.exitCode=1;}});
+process.on(&#x27;SIGTERM&#x27;,()=&gt;{if(stopping)return;stopping=true;next?.kill(&#x27;SIGTERM&#x27;);upstream.close();});
+</code></pre></details>
+<details><summary>font-mock.cjs · SHA-256 9b1040073720b6d23d04e18d4832b11d762b6d65bf86964f98d9e6b71eff3891</summary><pre><code>module.exports=new Proxy({},{get:()=&gt;&quot;@font-face {font-family: Inter; src: local(Arial); font-weight: 100 900; font-style: normal;}&quot;});
+</code></pre></details>
+<details><summary>loopback.cjs · SHA-256 fd08f13dda6280a91cc5585697703db96c577e7e4be4e4c0ad73b7239d6e27f9</summary><pre><code>const fs=require(&#x27;node:fs&#x27;);
+function check(input){let host;if(typeof input===&#x27;string&#x27;||input instanceof URL)host=new URL(String(input)).hostname;else host=input.hostname||input.host||new URL(input.url).hostname;host=host.replace(/:\d+$/,&#x27;&#x27;);if(![&#x27;127.0.0.1&#x27;,&#x27;localhost&#x27;,&#x27;[::1]&#x27;,&#x27;::1&#x27;].includes(host)){fs.appendFileSync(__dirname+&#x27;/blocked-server.jsonl&#x27;,JSON.stringify({host})+&#x27;\n&#x27;);throw Error(&#x27;synthetic-probe-external-network-blocked:&#x27;+host);}}
+const original=globalThis.fetch;globalThis.fetch=(input,...args)=&gt;{check(input);return original(input,...args);};
+for(const protocol of [&#x27;node:http&#x27;,&#x27;node:https&#x27;]){const mod=require(protocol);for(const method of [&#x27;request&#x27;,&#x27;get&#x27;]){const original=mod[method];mod[method]=function(input,...args){check(input);return original.call(this,input,...args);};}}
+</code></pre></details>
+<details><summary>capture.cjs · SHA-256 45537be2ae656565bc959e9d95bcc95f57b11b97e0d7fcdfd0187bbda6fe8d8f</summary><pre><code>&#x27;use strict&#x27;;
+const {createRequire}=require(&#x27;node:module&#x27;),fs=require(&#x27;node:fs&#x27;),assert=require(&#x27;node:assert/strict&#x27;);const rr=createRequire(process.cwd()+&#x27;/package.json&#x27;);const {chromium}=rr(&#x27;playwright&#x27;),{build}=rr(&#x27;esbuild&#x27;);const {parseBrowserEnvelope}=require(process.cwd()+&#x27;/scripts/envelope-test/browser-analyze&#x27;);
+(async()=&gt;{const output=__dirname,port=53931;const bundle=await build({stdin:{contents:`import * as S from &#x27;@sentry/browser&#x27;; const r=S.replayIntegration({maskAllText:true,maskAllInputs:true,blockAllMedia:true,stickySession:false,useCompression:false,minReplayDuration:0,flushMinDelay:60000,flushMaxDelay:60000});const c=S.init({dsn:&#x27;http://synthetic@&#x27;+location.host+&#x27;/1&#x27;,environment:&#x27;synthetic-production-inventory&#x27;,release:&#x27;local-inventory&#x27;,replaysSessionSampleRate:0,replaysOnErrorSampleRate:0,tracesSampleRate:0,tracePropagationTargets:[],integrations:[r]});r.start();window.inventoryReplay={flush:()=&gt;r.flush(),stop:async()=&gt;{await r.stop();await c.close(3000);},version:S.SDK_VERSION};`,resolveDir:process.cwd()},bundle:true,write:false,format:&#x27;iife&#x27;,platform:&#x27;browser&#x27;,define:{&#x27;process.env.NODE_ENV&#x27;:&#x27;&quot;production&quot;&#x27;}});
+const browser=await chromium.launch({headless:true,channel:&#x27;chromium&#x27;});const all=[];
+try{for(const width of [1280,390]){const context=await browser.newContext({viewport:{width,height:900}});await context.addInitScript(()=&gt;localStorage.setItem(&#x27;picnic-cookie-consent&#x27;,&#x27;denied&#x27;));const p=await context.newPage(),envelopes=[],blocked=[],errors=[],requests=[],actions=[];
+p.on(&#x27;pageerror&#x27;,e=&gt;errors.push(String(e)));p.on(&#x27;response&#x27;,r=&gt;{if(new URL(r.url()).hostname===&#x27;127.0.0.1&#x27;)requests.push({url:r.url(),status:r.status()});});
+await p.route(&#x27;**/*&#x27;,async r=&gt;{const u=new URL(r.request().url());if(u.pathname===&#x27;/api/1/envelope/&#x27;){const raw=r.request().postDataBuffer();fs.writeFileSync(`${output}/wire-${width}-${envelopes.length}.bin`,raw);envelopes.push(parseBrowserEnvelope(raw));return r.fulfill({status:200,contentType:&#x27;application/json&#x27;,body:&#x27;{}&#x27;});}if([&#x27;127.0.0.1&#x27;,&#x27;localhost&#x27;].includes(u.hostname))return r.continue();blocked.push(u.origin);return r.abort();});
+const response=await p.goto(`http://127.0.0.1:${port}/ko/vote`,{waitUntil:&#x27;domcontentloaded&#x27;,timeout:90000});await p.waitForSelector(&#x27;h3&#x27;,{timeout:20000});await p.waitForTimeout(2000);
+const dom=async()=&gt;p.evaluate(()=&gt;({title:document.title,nodes:document.querySelectorAll(&#x27;*&#x27;).length,tags:[...new Set([...document.querySelectorAll(&#x27;*&#x27;)].map(n=&gt;n.tagName.toLowerCase()))].sort(),shadows:[...document.querySelectorAll(&#x27;*&#x27;)].filter(n=&gt;n.shadowRoot).map(n=&gt;({tag:n.tagName,children:n.shadowRoot.querySelectorAll(&#x27;*&#x27;).length})),voteTitles:[...document.querySelectorAll(&#x27;h3&#x27;)].filter(n=&gt;n.textContent.startsWith(&#x27;Synthetic vote&#x27;)).length,banners:document.querySelectorAll(&#x27;.banner-slide&#x27;).length,bannerStyle:document.querySelector(&#x27;.banner-track&#x27;)?.getAttribute(&#x27;style&#x27;),consent:localStorage.getItem(&#x27;picnic-cookie-consent&#x27;),reloadTs:sessionStorage.getItem(&#x27;vote-last-reload-ts&#x27;),adScripts:[...document.scripts].filter(s=&gt;s.id===&#x27;adsense-script&#x27;||/googlesyndication/.test(s.src)).length,imageErrors:[...document.querySelectorAll(&#x27;span&#x27;)].filter(n=&gt;n.textContent===&#x27;이미지 로딩 실패&#x27;).length,images:[...document.images].map(n=&gt;({src:n.getAttribute(&#x27;src&#x27;),complete:n.complete,naturalWidth:n.naturalWidth,width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height})),styleAttributes:[...document.querySelectorAll(&#x27;[style]&#x27;)].map(n=&gt;({tag:n.tagName,value:n.getAttribute(&#x27;style&#x27;)})),stylesheets:[...document.styleSheets].map(s=&gt;{let rules,error;try{rules=[...s.cssRules].map(r=&gt;r.cssText);}catch(e){error=String(e);}return {href:s.href,owner:s.ownerNode?.tagName,rules,error};})}));
+const before=await dom();assert.equal(response.status(),200);assert.equal(before.voteTitles,12);assert.equal(before.banners,5);assert.equal(before.consent,&#x27;denied&#x27;);assert.equal(before.adScripts,0);assert.equal(before.tags.includes(&#x27;nextjs-portal&#x27;),false);
+await p.addScriptTag({content:Buffer.from(bundle.outputFiles[0].contents).toString()});await p.waitForTimeout(1000);await p.evaluate(()=&gt;inventoryReplay.flush());
+for(let i=0;i&lt;(width===390?4:2);i++){const prev=await p.locator(&#x27;.banner-track&#x27;).getAttribute(&#x27;style&#x27;);await p.getByRole(&#x27;button&#x27;,{name:&#x27;다음 배너&#x27;,exact:true}).click();await p.waitForTimeout(650);actions.push({kind:&#x27;banner-next&#x27;,before:prev,after:await p.locator(&#x27;.banner-track&#x27;).getAttribute(&#x27;style&#x27;)});}
+await p.evaluate(()=&gt;inventoryReplay.flush());
+// Scroll through every card to exercise real lazy image/intersection transitions.
+for(let y=0;y&lt;await p.evaluate(()=&gt;document.documentElement.scrollHeight);y+=700){await p.evaluate(y=&gt;window.scrollTo(0,y),y);await p.waitForTimeout(120);}
+await p.waitForTimeout(1000);const after=await dom();await p.evaluate(()=&gt;inventoryReplay.flush());await p.evaluate(()=&gt;inventoryReplay.stop());await p.screenshot({path:`${output}/production-${width}.png`,fullPage:true});
+assert.equal(after.adScripts,0);assert.equal(after.reloadTs,null);assert.equal(after.imageErrors,5);assert.deepEqual(actions.map(a=&gt;a.after),width===390?[&#x27;--banner-current-index: 1;&#x27;,&#x27;--banner-current-index: 2;&#x27;,&#x27;--banner-current-index: 3;&#x27;,&#x27;--banner-current-index: 4;&#x27;]:[&#x27;--banner-current-index: 2;&#x27;,&#x27;--banner-current-index: 0;&#x27;]);fs.writeFileSync(`${output}/diagnostic-rsc-${width}.json`,JSON.stringify({requests,after},null,2));assert.equal(requests.filter(r=&gt;new URL(r.url).pathname===&#x27;/ko/vote&#x27;&amp;&amp;new URL(r.url).searchParams.has(&#x27;_rsc&#x27;)).length,0);assert.equal(errors.length,0);assert(envelopes.some(e=&gt;e.items.some(i=&gt;i.header.type===&#x27;replay_recording&#x27;)));
+const result={width,status:response.status(),before,after,actions,errors,blocked,requests,envelopeCount:envelopes.length};fs.writeFileSync(`${output}/capture-${width}.json`,JSON.stringify(result,null,2));fs.writeFileSync(`${output}/envelopes-${width}.json`,JSON.stringify(envelopes,null,2));all.push({width,status:result.status,voteTitles:before.voteTitles,banners:before.banners,initialNodes:before.nodes,finalNodes:after.nodes,imageErrors:after.imageErrors,envelopes:envelopes.length,errors,blocked,actions});console.log(JSON.stringify(all.at(-1)));await context.close();}
+fs.writeFileSync(output+&#x27;/capture-summary.json&#x27;,JSON.stringify(all,null,2));}finally{await browser.close();}})().catch(e=&gt;{console.error(e);process.exitCode=1;});
+</code></pre></details>
+<details><summary>inventory.cjs · SHA-256 149c6b2dee4cb9e5cecb7a00339941425ee83df02c57390a7f6d2f971da17f80</summary><pre><code>&#x27;use strict&#x27;;
+const fs=require(&#x27;node:fs&#x27;),crypto=require(&#x27;node:crypto&#x27;),path=require(&#x27;node:path&#x27;),assert=require(&#x27;node:assert/strict&#x27;);const {build}=require(&#x27;esbuild&#x27;);const postcss=require(&#x27;postcss&#x27;);const out=__dirname,root=process.cwd(),manifest=require(root+&#x27;/scripts/replay-p0/fixtures/sdk-contract.json&#x27;);
+const sha=s=&gt;crypto.createHash(&#x27;sha256&#x27;).update(s).digest(&#x27;hex&#x27;);const inc=(m,k)=&gt;m[k]=(m[k]||0)+1;const sort=o=&gt;Object.fromEntries(Object.entries(o).sort());
+(async()=&gt;{for(const debug of [false,true])await build({entryPoints:[root+&#x27;/scripts/replay-p0/projection.ts&#x27;],bundle:true,platform:&#x27;node&#x27;,format:&#x27;cjs&#x27;,packages:&#x27;external&#x27;,outfile:out+(debug?&#x27;/projection-diagnostic.cjs&#x27;:&#x27;/projection.cjs&#x27;),plugins:debug?[{name:&#x27;diagnostic-only&#x27;,setup(b){b.onLoad({filter:/projection\.ts$/},async a=&gt;({loader:&#x27;ts&#x27;,contents:fs.readFileSync(a.path,&#x27;utf8&#x27;).replace(&#x27;if (!value) throw new Rejected(reason);&#x27;,&#x27;if (!value) { globalThis.__probeFailure={reason, node:globalThis.__probeNode, stack:new Error().stack}; throw new Rejected(reason); }&#x27;).replace(&#x27;const n = bag(raw); const key = id(n.id);&#x27;,&#x27;const n = bag(raw); globalThis.__probeNode={id:n.id,tag:n.tagName,type:n.type,keys:Object.keys(n)}; const key = id(n.id);&#x27;)}));}}]:[]});
+const {projectEnvelope}=require(out+&#x27;/projection.cjs&#x27;),diagnostic=require(out+&#x27;/projection-diagnostic.cjs&#x27;);const result=[];
+for(const width of [1280,390]){const envelopes=JSON.parse(fs.readFileSync(`${out}/envelopes-${width}.json`)),capture=JSON.parse(fs.readFileSync(`${out}/capture-${width}.json`));const records=envelopes.flatMap(e=&gt;e.items.filter(i=&gt;i.header.type===&#x27;replay_recording&#x27;).flatMap(i=&gt;i.payload.records));const nodes=[],tags={},attrs={},extra={},eventTypes={},sources={},customTags={},classes=new Set(),inline={},css=[],media=[];let maxNodeId=0;
+function walk(n,parent){if(!n||typeof n!==&#x27;object&#x27;)return;if(n.type===2&amp;&amp;typeof n.tagName===&#x27;string&#x27;&amp;&amp;Array.isArray(n.childNodes)){nodes.push(n);inc(tags,n.tagName);maxNodeId=Math.max(maxNodeId,n.id||0);for(const k of Object.keys(n)){if(![&#x27;type&#x27;,&#x27;tagName&#x27;,&#x27;id&#x27;,&#x27;attributes&#x27;,&#x27;childNodes&#x27;].includes(k))inc(extra,k);}for(const [k,v] of Object.entries(n.attributes||{})){inc(attrs,k);if(k===&#x27;class&#x27;&amp;&amp;typeof v===&#x27;string&#x27;)v.split(/\s+/).filter(Boolean).forEach(s=&gt;classes.add(s));if(k===&#x27;style&#x27;&amp;&amp;typeof v===&#x27;string&#x27;)try{postcss.parse(v).walkDecls(d=&gt;(inline[d.prop]??=new Set()).add(d.value));}catch{}if(k===&#x27;_cssText&#x27;)css.push({source:&#x27;_cssText&#x27;,nodeId:n.id,tag:n.tagName,text:v});}if(n.attributes?.rr_width||n.attributes?.rr_height)media.push({id:n.id,tag:n.tagName,attrs:n.attributes,extra:Object.keys(n).filter(k=&gt;![&#x27;type&#x27;,&#x27;tagName&#x27;,&#x27;id&#x27;,&#x27;attributes&#x27;,&#x27;childNodes&#x27;].includes(k))});}if(n.type===3&amp;&amp;parent?.tagName===&#x27;style&#x27;)css.push({source:&#x27;style-text&#x27;,nodeId:n.id,tag:&#x27;style&#x27;,text:n.textContent});for(const [k,v] of Object.entries(n))if(v&amp;&amp;typeof v===&#x27;object&#x27;){if(Array.isArray(v))v.forEach(x=&gt;walk(x,k===&#x27;childNodes&#x27;?n:parent));else walk(v,parent);}}
+for(const e of records){inc(eventTypes,e.type);if(e.type===3)inc(sources,e.data.source);if(e.type===5)inc(customTags,e.data.tag);walk(e);if(e.type===3&amp;&amp;e.data.source===0)for(const a of e.data.attributes||[])if(a.attributes.style){const s=a.attributes.style;if(typeof s===&#x27;string&#x27;)try{postcss.parse(s).walkDecls(d=&gt;(inline[d.prop]??=new Set()).add(d.value));}catch{}else for(const [k,v]of Object.entries(s))(inline[k]??=new Set()).add(JSON.stringify(v));}}
+const cssSummary=css.map(({text,...r})=&gt;({...r,bytes:Buffer.byteLength(text),sha256:sha(text),urls:(text.match(/url\(/g)||[]).length,imports:(text.match(/@import/g)||[]).length,fontFaces:(text.match(/@font-face/g)||[]).length}));const stylesheets=capture.after.stylesheets.map(s=&gt;{const text=(s.rules||[]).join(&#x27;&#x27;);return {href:s.href,owner:s.owner,bytes:Buffer.byteLength(text),sha256:sha(text),urls:(text.match(/url\(/g)||[]).length,error:s.error};});
+const first=envelopes.find(e=&gt;e.items.some(i=&gt;i.header.type===&#x27;replay_recording&#x27;));const input=[first.header,first.items.map(i=&gt;[i.header,i.header.type===&#x27;replay_recording&#x27;?Buffer.from(JSON.stringify(i.payload.segment)+&#x27;\n&#x27;+JSON.stringify(i.payload.records)):i.payload])];const state=()=&gt;({replayId:null,nextSegment:0,sessionStartMs:null,nodes:new Map(),tombstones:new Set()});const projected=await projectEnvelope(input,state());await diagnostic.projectEnvelope(input,state());assert(!projected.ok);
+const row={width,records:records.length,segments:envelopes.flatMap(e=&gt;e.items.filter(i=&gt;i.header.type===&#x27;replay_event&#x27;).map(i=&gt;i.payload.segment_id)),eventTypes:sort(eventTypes),sources:sort(sources),customTags:sort(customTags),tags:sort(tags),unsupportedTags:Object.keys(tags).filter(t=&gt;!manifest.tags.includes(t)),attrs:sort(attrs),extraFields:sort(extra),classes:[...classes].sort(),classCount:classes.size,inlineStyles:Object.fromEntries(Object.entries(inline).map(([k,s])=&gt;[k,[...s].sort()])),css:cssSummary,stylesheets,media,maxNodeId,projection:projected,diagnostic:globalThis.__probeFailure,wireBytes:fs.readdirSync(out).filter(n=&gt;n.startsWith(`wire-${width}-`)).map(n=&gt;({name:n,bytes:fs.statSync(out+&#x27;/&#x27;+n).size,sha256:sha(fs.readFileSync(out+&#x27;/&#x27;+n))}))};result.push(row);
+}
+fs.writeFileSync(out+&#x27;/inventory.json&#x27;,JSON.stringify(result,null,2));console.log(JSON.stringify(result.map(({classes,media,attrs,...r})=&gt;({...r,mediaCount:media.length,mediaSample:media.slice(0,3)})),null,2));})();
+</code></pre></details>
+<details><summary>verify.cjs · SHA-256 9a3521a2ef167bc087d0e86cac2ed0658096f2c59f4f2a6cb8bd452dcc470753</summary><pre><code>const fs=require(&#x27;fs&#x27;),assert=require(&#x27;node:assert/strict&#x27;),crypto=require(&#x27;node:crypto&#x27;),{chromium}=require(&#x27;playwright&#x27;);const p=__dirname,sha=x=&gt;crypto.createHash(&#x27;sha256&#x27;).update(x).digest(&#x27;hex&#x27;);
+(async()=&gt;{const browser=await chromium.launch({headless:true,channel:&#x27;chromium&#x27;});const pg=await browser.newPage();const results=[];try{for(const width of [1280,390]){const c=JSON.parse(fs.readFileSync(`${p}/capture-${width}.json`)),inv=JSON.parse(fs.readFileSync(p+&#x27;/inventory.json&#x27;)).find(x=&gt;x.width===width),env=JSON.parse(fs.readFileSync(`${p}/envelopes-${width}.json`));assert.equal(c.status,200);assert.equal(c.before.voteTitles,12);assert.equal(c.before.banners,5);assert.deepEqual(c.errors,[]);assert.deepEqual(c.blocked,[]);assert.equal(c.after.adScripts,0);assert.equal(c.after.consent,&#x27;denied&#x27;);assert.equal(c.after.reloadTs,null);assert.equal(c.after.imageErrors,5);assert.equal(c.requests.filter(r=&gt;new URL(r.url).pathname===&#x27;/ko/vote&#x27;&amp;&amp;new URL(r.url).searchParams.has(&#x27;_rsc&#x27;)).length,0);assert.deepEqual(inv.segments,[0,1,2]);assert([&#x27;meta&#x27;,&#x27;link&#x27;].includes(inv.diagnostic.node.tag));assert.equal(inv.projection.reason,&#x27;schema&#x27;);assert.equal(inv.extraFields.textContent,undefined);
+const styles=[];for(const s of c.after.stylesheets.filter(x=&gt;x.href)){const asset=&#x27;.next-envtest&#x27;+new URL(s.href).pathname.replace(&#x27;/_next&#x27;,&#x27;&#x27;);const bytes=fs.readFileSync(asset);const normalized=await pg.evaluate(text=&gt;{const s=new CSSStyleSheet();s.replaceSync(text);return [...s.cssRules].map(x=&gt;x.cssText).join(&#x27;&#x27;);},bytes.toString());assert.equal(normalized,s.rules.join(&#x27;&#x27;));let wire;function walk(n){if(!n||typeof n!==&#x27;object&#x27;)return;if(n.attributes?._cssText&amp;&amp;n.id===inv.css[styles.length].nodeId)wire=n.attributes._cssText;Object.values(n).forEach(walk);}walk(env);const compat=normalized.includes(&#x27; background-clip: text;&#x27;)&amp;&amp;!normalized.includes(&#x27; -webkit-background-clip: text;&#x27;)?normalized.replace(/ background-clip: text;/g,&#x27; -webkit-background-clip: text; background-clip: text;&#x27;):normalized;assert.equal(compat,wire);styles.push({asset,assetBytes:bytes.length,assetSha256:sha(bytes),cssomBytes:Buffer.byteLength(normalized),cssomSha256:sha(normalized),wireBytes:Buffer.byteLength(wire),wireSha256:sha(wire),verified:true,prefixAdded:compat!==normalized});}
+const records=env.flatMap(e=&gt;e.items.filter(i=&gt;i.header.type===&#x27;replay_recording&#x27;).flatMap(i=&gt;i.payload.records));const patterns=[&#x27;/images/&#x27;,&#x27;/_next/image&#x27;,&#x27;logo.png&#x27;,&#x27;replay-synthetic-missing&#x27;,&#x27;127.0.0.1:&#x27;];const count=(text,token)=&gt;text.split(token).length-1;const wireUrlOccurrences=Object.fromEntries(patterns.map(token=&gt;[token,{allEnvelope:count(JSON.stringify(env),token),records:count(JSON.stringify(records),token),type5:count(JSON.stringify(records.filter(r=&gt;r.type===5)),token)}]));const type5Ops={};for(const e of records.filter(r=&gt;r.type===5)){const op=e.data?.payload?.op||&#x27;(no op)&#x27;;const k=e.data.tag+&#x27;/&#x27;+op;type5Ops[k]=(type5Ops[k]||0)+1;}
+function checkMedia(n){if(!n||typeof n!==&#x27;object&#x27;)return;if(n.type===2&amp;&amp;[&#x27;img&#x27;,&#x27;svg&#x27;].includes(n.tagName)&amp;&amp;Array.isArray(n.childNodes)){assert.equal(n.childNodes.length,0);assert(Object.keys(n.attributes).every(k=&gt;[&#x27;class&#x27;,&#x27;rr_width&#x27;,&#x27;rr_height&#x27;].includes(k)));}Object.values(n).forEach(checkMedia);}checkMedia(records);
+const media=inv.media.filter(x=&gt;[&#x27;img&#x27;,&#x27;svg&#x27;].includes(x.tag));assert(media.length&gt;0);assert(media.every(x=&gt;!(&#x27;src&#x27; in x.attrs)&amp;&amp;!(&#x27;srcset&#x27; in x.attrs)));const fractional=media.filter(x=&gt;[x.attrs.rr_width,x.attrs.rr_height].some(v=&gt;/\.\d+px$/.test(v)));assert(fractional.length&gt;0);results.push({width,pass:true,wireUrlOccurrences,type5Ops,mediaOnlyClassAndDimensions:true,noVoteRefreshRscRequests:true,reloadTimestamp:null,styles,placeholderCount:media.length,fractionalPlaceholderCount:fractional.length,fractionalSamples:fractional.slice(0,3),envelopeTypes:env.map(x=&gt;x.items.map(i=&gt;i.header.type)),tagCount:Object.keys(inv.tags).length,wireReplayBytes:inv.wireBytes.slice(1).reduce((sum,x)=&gt;sum+x.bytes,0)});}
+const paths=JSON.parse(fs.readFileSync(&#x27;.next-envtest/server/app-paths-manifest.json&#x27;));assert(!Object.keys(paths).some(x=&gt;x.includes(&#x27;/api/envelope-test&#x27;)));fs.writeFileSync(p+&#x27;/verification.json&#x27;,JSON.stringify({pass:true,syntheticProductionBuildId:fs.readFileSync(&#x27;.next-envtest/BUILD_ID&#x27;,&#x27;utf8&#x27;),testRoutesAbsent:true,externalServerBlocks:fs.existsSync(p+&#x27;/blocked-server.jsonl&#x27;)?fs.readFileSync(p+&#x27;/blocked-server.jsonl&#x27;,&#x27;utf8&#x27;):null,results},null,2));console.log(JSON.stringify(results));}finally{await browser.close();}})().catch(e=&gt;{console.error(e);process.exitCode=1;});
+</code></pre></details>
+<details><summary>capture-summary.json · SHA-256 fb5dd93d46280fb9210faa8a46ac81b597189f46a0173e969fbebd71be3ffeb8</summary><pre><code>[
+  {
+    &quot;width&quot;: 1280,
+    &quot;status&quot;: 200,
+    &quot;voteTitles&quot;: 12,
+    &quot;banners&quot;: 5,
+    &quot;initialNodes&quot;: 1121,
+    &quot;finalNodes&quot;: 1113,
+    &quot;imageErrors&quot;: 5,
+    &quot;envelopes&quot;: 4,
+    &quot;errors&quot;: [],
+    &quot;blocked&quot;: [],
+    &quot;actions&quot;: [
+      {
+        &quot;kind&quot;: &quot;banner-next&quot;,
+        &quot;before&quot;: &quot;--banner-current-index: 0;&quot;,
+        &quot;after&quot;: &quot;--banner-current-index: 2;&quot;
+      },
+      {
+        &quot;kind&quot;: &quot;banner-next&quot;,
+        &quot;before&quot;: &quot;--banner-current-index: 2;&quot;,
+        &quot;after&quot;: &quot;--banner-current-index: 0;&quot;
+      }
+    ]
+  },
+  {
+    &quot;width&quot;: 390,
+    &quot;status&quot;: 200,
+    &quot;voteTitles&quot;: 12,
+    &quot;banners&quot;: 5,
+    &quot;initialNodes&quot;: 1108,
+    &quot;finalNodes&quot;: 1107,
+    &quot;imageErrors&quot;: 5,
+    &quot;envelopes&quot;: 4,
+    &quot;errors&quot;: [],
+    &quot;blocked&quot;: [],
+    &quot;actions&quot;: [
+      {
+        &quot;kind&quot;: &quot;banner-next&quot;,
+        &quot;before&quot;: &quot;--banner-current-index: 0;&quot;,
+        &quot;after&quot;: &quot;--banner-current-index: 1;&quot;
+      },
+      {
+        &quot;kind&quot;: &quot;banner-next&quot;,
+        &quot;before&quot;: &quot;--banner-current-index: 1;&quot;,
+        &quot;after&quot;: &quot;--banner-current-index: 2;&quot;
+      },
+      {
+        &quot;kind&quot;: &quot;banner-next&quot;,
+        &quot;before&quot;: &quot;--banner-current-index: 2;&quot;,
+        &quot;after&quot;: &quot;--banner-current-index: 3;&quot;
+      },
+      {
+        &quot;kind&quot;: &quot;banner-next&quot;,
+        &quot;before&quot;: &quot;--banner-current-index: 3;&quot;,
+        &quot;after&quot;: &quot;--banner-current-index: 4;&quot;
+      }
+    ]
+  }
+]</code></pre></details>
+<details><summary>verification.json · SHA-256 60c550baf16798132a33b918e704fcee723d360fda902ccef6573fba0a50c8fc</summary><pre><code>{
+  &quot;pass&quot;: true,
+  &quot;syntheticProductionBuildId&quot;: &quot;WaMOsqHZc2V7cxWT91IY0&quot;,
+  &quot;testRoutesAbsent&quot;: true,
+  &quot;externalServerBlocks&quot;: null,
+  &quot;results&quot;: [
+    {
+      &quot;width&quot;: 1280,
+      &quot;pass&quot;: true,
+      &quot;wireUrlOccurrences&quot;: {
+        &quot;/images/&quot;: {
+          &quot;allEnvelope&quot;: 0,
+          &quot;records&quot;: 0,
+          &quot;type5&quot;: 0
+        },
+        &quot;/_next/image&quot;: {
+          &quot;allEnvelope&quot;: 5,
+          &quot;records&quot;: 5,
+          &quot;type5&quot;: 5
+        },
+        &quot;logo.png&quot;: {
+          &quot;allEnvelope&quot;: 1,
+          &quot;records&quot;: 1,
+          &quot;type5&quot;: 1
+        },
+        &quot;replay-synthetic-missing&quot;: {
+          &quot;allEnvelope&quot;: 4,
+          &quot;records&quot;: 4,
+          &quot;type5&quot;: 4
+        },
+        &quot;127.0.0.1:&quot;: {
+          &quot;allEnvelope&quot;: 52,
+          &quot;records&quot;: 48,
+          &quot;type5&quot;: 5
+        }
+      },
+      &quot;type5Ops&quot;: {
+        &quot;options/(no op)&quot;: 1,
+        &quot;performanceSpan/memory&quot;: 3,
+        &quot;breadcrumb/(no op)&quot;: 1,
+        &quot;performanceSpan/resource.img&quot;: 4,
+        &quot;performanceSpan/resource.link&quot;: 1
+      },
+      &quot;mediaOnlyClassAndDimensions&quot;: true,
+      &quot;noVoteRefreshRscRequests&quot;: true,
+      &quot;reloadTimestamp&quot;: null,
+      &quot;styles&quot;: [
+        {
+          &quot;asset&quot;: &quot;.next-envtest/static/css/36f08833d15de553.css&quot;,
+          &quot;assetBytes&quot;: 351,
+          &quot;assetSha256&quot;: &quot;816016baa4f144ab6ebf545ae85deba67d998c4b88d8c19d435621618bab1553&quot;,
+          &quot;cssomBytes&quot;: 340,
+          &quot;cssomSha256&quot;: &quot;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&quot;,
+          &quot;wireBytes&quot;: 340,
+          &quot;wireSha256&quot;: &quot;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&quot;,
+          &quot;verified&quot;: true,
+          &quot;prefixAdded&quot;: false
+        },
+        {
+          &quot;asset&quot;: &quot;.next-envtest/static/css/253f05d11a58abd2.css&quot;,
+          &quot;assetBytes&quot;: 91890,
+          &quot;assetSha256&quot;: &quot;144da3bc057b2042d21dfdc3dc5f33fcbe01fa2e620dc405404d594fbb56239c&quot;,
+          &quot;cssomBytes&quot;: 100515,
+          &quot;cssomSha256&quot;: &quot;00ba70c51022508bb0c00152ba8a298a581a2f906aee7657c2ccfe272a8122f9&quot;,
+          &quot;wireBytes&quot;: 100546,
+          &quot;wireSha256&quot;: &quot;a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d&quot;,
+          &quot;verified&quot;: true,
+          &quot;prefixAdded&quot;: true
+        }
+      ],
+      &quot;placeholderCount&quot;: 64,
+      &quot;fractionalPlaceholderCount&quot;: 11,
+      &quot;fractionalSamples&quot;: [
+        {
+          &quot;id&quot;: 159,
+          &quot;tag&quot;: &quot;img&quot;,
+          &quot;attrs&quot;: {
+            &quot;class&quot;: &quot;object-cover&quot;,
+            &quot;rr_width&quot;: &quot;398px&quot;,
+            &quot;rr_height&quot;: &quot;298.5px&quot;
+          },
+          &quot;extra&quot;: []
+        },
+        {
+          &quot;id&quot;: 1298,
+          &quot;tag&quot;: &quot;img&quot;,
+          &quot;attrs&quot;: {
+            &quot;class&quot;: &quot;object-cover&quot;,
+            &quot;rr_width&quot;: &quot;392px&quot;,
+            &quot;rr_height&quot;: &quot;199.359375px&quot;
+          },
+          &quot;extra&quot;: []
+        },
+        {
+          &quot;id&quot;: 1305,
+          &quot;tag&quot;: &quot;img&quot;,
+          &quot;attrs&quot;: {
+            &quot;class&quot;: &quot;object-cover&quot;,
+            &quot;rr_width&quot;: &quot;392px&quot;,
+            &quot;rr_height&quot;: &quot;199.359375px&quot;
+          },
+          &quot;extra&quot;: []
+        }
+      ],
+      &quot;envelopeTypes&quot;: [
+        [
+          &quot;session&quot;
+        ],
+        [
+          &quot;replay_event&quot;,
+          &quot;replay_recording&quot;
+        ],
+        [
+          &quot;replay_event&quot;,
+          &quot;replay_recording&quot;
+        ],
+        [
+          &quot;replay_event&quot;,
+          &quot;replay_recording&quot;
+        ]
+      ],
+      &quot;tagCount&quot;: 20,
+      &quot;wireReplayBytes&quot;: 288830
+    },
+    {
+      &quot;width&quot;: 390,
+      &quot;pass&quot;: true,
+      &quot;wireUrlOccurrences&quot;: {
+        &quot;/images/&quot;: {
+          &quot;allEnvelope&quot;: 0,
+          &quot;records&quot;: 0,
+          &quot;type5&quot;: 0
+        },
+        &quot;/_next/image&quot;: {
+          &quot;allEnvelope&quot;: 9,
+          &quot;records&quot;: 9,
+          &quot;type5&quot;: 9
+        },
+        &quot;logo.png&quot;: {
+          &quot;allEnvelope&quot;: 3,
+          &quot;records&quot;: 3,
+          &quot;type5&quot;: 3
+        },
+        &quot;replay-synthetic-missing&quot;: {
+          &quot;allEnvelope&quot;: 5,
+          &quot;records&quot;: 5,
+          &quot;type5&quot;: 5
+        },
+        &quot;127.0.0.1:&quot;: {
+          &quot;allEnvelope&quot;: 56,
+          &quot;records&quot;: 52,
+          &quot;type5&quot;: 9
+        }
+      },
+      &quot;type5Ops&quot;: {
+        &quot;options/(no op)&quot;: 1,
+        &quot;performanceSpan/memory&quot;: 3,
+        &quot;breadcrumb/(no op)&quot;: 1,
+        &quot;performanceSpan/resource.img&quot;: 8,
+        &quot;performanceSpan/resource.link&quot;: 1
+      },
+      &quot;mediaOnlyClassAndDimensions&quot;: true,
+      &quot;noVoteRefreshRscRequests&quot;: true,
+      &quot;reloadTimestamp&quot;: null,
+      &quot;styles&quot;: [
+        {
+          &quot;asset&quot;: &quot;.next-envtest/static/css/36f08833d15de553.css&quot;,
+          &quot;assetBytes&quot;: 351,
+          &quot;assetSha256&quot;: &quot;816016baa4f144ab6ebf545ae85deba67d998c4b88d8c19d435621618bab1553&quot;,
+          &quot;cssomBytes&quot;: 340,
+          &quot;cssomSha256&quot;: &quot;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&quot;,
+          &quot;wireBytes&quot;: 340,
+          &quot;wireSha256&quot;: &quot;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&quot;,
+          &quot;verified&quot;: true,
+          &quot;prefixAdded&quot;: false
+        },
+        {
+          &quot;asset&quot;: &quot;.next-envtest/static/css/253f05d11a58abd2.css&quot;,
+          &quot;assetBytes&quot;: 91890,
+          &quot;assetSha256&quot;: &quot;144da3bc057b2042d21dfdc3dc5f33fcbe01fa2e620dc405404d594fbb56239c&quot;,
+          &quot;cssomBytes&quot;: 100515,
+          &quot;cssomSha256&quot;: &quot;00ba70c51022508bb0c00152ba8a298a581a2f906aee7657c2ccfe272a8122f9&quot;,
+          &quot;wireBytes&quot;: 100546,
+          &quot;wireSha256&quot;: &quot;a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d&quot;,
+          &quot;verified&quot;: true,
+          &quot;prefixAdded&quot;: true
+        }
+      ],
+      &quot;placeholderCount&quot;: 65,
+      &quot;fractionalPlaceholderCount&quot;: 4,
+      &quot;fractionalSamples&quot;: [
+        {
+          &quot;id&quot;: 1297,
+          &quot;tag&quot;: &quot;img&quot;,
+          &quot;attrs&quot;: {
+            &quot;class&quot;: &quot;object-cover&quot;,
+            &quot;rr_width&quot;: &quot;342px&quot;,
+            &quot;rr_height&quot;: &quot;173.921875px&quot;
+          },
+          &quot;extra&quot;: []
+        },
+        {
+          &quot;id&quot;: 1370,
+          &quot;tag&quot;: &quot;img&quot;,
+          &quot;attrs&quot;: {
+            &quot;class&quot;: &quot;object-cover&quot;,
+            &quot;rr_width&quot;: &quot;342px&quot;,
+            &quot;rr_height&quot;: &quot;173.921875px&quot;
+          },
+          &quot;extra&quot;: []
+        },
+        {
+          &quot;id&quot;: 1380,
+          &quot;tag&quot;: &quot;img&quot;,
+          &quot;attrs&quot;: {
+            &quot;class&quot;: &quot;object-cover&quot;,
+            &quot;rr_width&quot;: &quot;342px&quot;,
+            &quot;rr_height&quot;: &quot;173.921875px&quot;
+          },
+          &quot;extra&quot;: []
+        }
+      ],
+      &quot;envelopeTypes&quot;: [
+        [
+          &quot;session&quot;
+        ],
+        [
+          &quot;replay_event&quot;,
+          &quot;replay_recording&quot;
+        ],
+        [
+          &quot;replay_event&quot;,
+          &quot;replay_recording&quot;
+        ],
+        [
+          &quot;replay_event&quot;,
+          &quot;replay_recording&quot;
+        ]
+      ],
+      &quot;tagCount&quot;: 20,
+      &quot;wireReplayBytes&quot;: 297059
+    }
+  ]
+}</code></pre></details>
+<details><summary>inventory.json · SHA-256 06a74449f7779efc4c71aae06917a41130d430f3068c317d3e0d2ee8137e5e47</summary><pre><code>[
+  {
+    &quot;width&quot;: 1280,
+    &quot;records&quot;: 38,
+    &quot;segments&quot;: [
+      0,
+      1,
+      2
+    ],
+    &quot;eventTypes&quot;: {
+      &quot;2&quot;: 1,
+      &quot;3&quot;: 26,
+      &quot;4&quot;: 1,
+      &quot;5&quot;: 10
+    },
+    &quot;sources&quot;: {
+      &quot;0&quot;: 18,
+      &quot;1&quot;: 2,
+      &quot;2&quot;: 1,
+      &quot;3&quot;: 5
+    },
+    &quot;customTags&quot;: {
+      &quot;breadcrumb&quot;: 1,
+      &quot;options&quot;: 1,
+      &quot;performanceSpan&quot;: 8
+    },
+    &quot;tags&quot;: {
+      &quot;a&quot;: 27,
+      &quot;body&quot;: 1,
+      &quot;button&quot;: 24,
+      &quot;div&quot;: 719,
+      &quot;footer&quot;: 1,
+      &quot;h3&quot;: 16,
+      &quot;head&quot;: 1,
+      &quot;header&quot;: 1,
+      &quot;html&quot;: 1,
+      &quot;img&quot;: 54,
+      &quot;link&quot;: 21,
+      &quot;main&quot;: 2,
+      &quot;meta&quot;: 11,
+      &quot;next-route-announcer&quot;: 1,
+      &quot;p&quot;: 7,
+      &quot;section&quot;: 2,
+      &quot;span&quot;: 175,
+      &quot;style&quot;: 3,
+      &quot;svg&quot;: 10,
+      &quot;title&quot;: 1
+    },
+    &quot;unsupportedTags&quot;: [
+      &quot;meta&quot;,
+      &quot;link&quot;,
+      &quot;header&quot;,
+      &quot;a&quot;,
+      &quot;img&quot;,
+      &quot;svg&quot;,
+      &quot;main&quot;,
+      &quot;section&quot;,
+      &quot;h3&quot;,
+      &quot;p&quot;,
+      &quot;footer&quot;,
+      &quot;title&quot;,
+      &quot;next-route-announcer&quot;
+    ],
+    &quot;attrs&quot;: {
+      &quot;_cssText&quot;: 2,
+      &quot;aria-expanded&quot;: 1,
+      &quot;aria-haspopup&quot;: 1,
+      &quot;aria-hidden&quot;: 1,
+      &quot;aria-label&quot;: 13,
+      &quot;aria-live&quot;: 1,
+      &quot;aria-pressed&quot;: 7,
+      &quot;charset&quot;: 1,
+      &quot;class&quot;: 951,
+      &quot;content&quot;: 10,
+      &quot;crossorigin&quot;: 2,
+      &quot;data-precedence&quot;: 2,
+      &quot;data-styled-jsx&quot;: 3,
+      &quot;disabled&quot;: 1,
+      &quot;hidden&quot;: 1,
+      &quot;href&quot;: 44,
+      &quot;hreflang&quot;: 13,
+      &quot;id&quot;: 1,
+      &quot;lang&quot;: 1,
+      &quot;name&quot;: 10,
+      &quot;rel&quot;: 17,
+      &quot;role&quot;: 4,
+      &quot;rr_height&quot;: 68,
+      &quot;rr_width&quot;: 68,
+      &quot;style&quot;: 205,
+      &quot;type&quot;: 26
+    },
+    &quot;extraFields&quot;: {
+      &quot;isSVG&quot;: 10,
+      &quot;isShadow&quot;: 1,
+      &quot;isShadowHost&quot;: 1
+    },
+    &quot;classes&quot;: [
+      &quot;!block&quot;,
+      &quot;-translate-y-1/2&quot;,
+      &quot;[&amp;::-webkit-scrollbar]:hidden&quot;,
+      &quot;[-ms-overflow-style:none]&quot;,
+      &quot;[scrollbar-width:none]&quot;,
+      &quot;__className_98b3fa&quot;,
+      &quot;absolute&quot;,
+      &quot;animate-pulse&quot;,
+      &quot;aspect-[4/3]&quot;,
+      &quot;banner-aspect-ratio&quot;,
+      &quot;banner-carousel&quot;,
+      &quot;banner-slide&quot;,
+      &quot;banner-track&quot;,
+      &quot;bg-black/30&quot;,
+      &quot;bg-blue-100&quot;,
+      &quot;bg-gradient-to-b&quot;,
+      &quot;bg-gradient-to-br&quot;,
+      &quot;bg-gradient-to-t&quot;,
+      &quot;bg-gray-100&quot;,
+      &quot;bg-gray-200&quot;,
+      &quot;bg-gray-50&quot;,
+      &quot;bg-orange-500&quot;,
+      &quot;bg-pink-100&quot;,
+      &quot;bg-primary&quot;,
+      &quot;bg-primary-100&quot;,
+      &quot;bg-primary-50/80&quot;,
+      &quot;bg-primary/30&quot;,
+      &quot;bg-red-100&quot;,
+      &quot;bg-secondary-200/70&quot;,
+      &quot;bg-white&quot;,
+      &quot;bg-white/50&quot;,
+      &quot;block&quot;,
+      &quot;border&quot;,
+      &quot;border-b&quot;,
+      &quot;border-gray-100&quot;,
+      &quot;border-gray-200&quot;,
+      &quot;border-gray-300&quot;,
+      &quot;border-none&quot;,
+      &quot;border-pink-200&quot;,
+      &quot;border-primary&quot;,
+      &quot;border-primary-100/70&quot;,
+      &quot;border-primary-200&quot;,
+      &quot;border-secondary-200/50&quot;,
+      &quot;border-t&quot;,
+      &quot;border-white&quot;,
+      &quot;border-yellow-400&quot;,
+      &quot;bottom-0&quot;,
+      &quot;container&quot;,
+      &quot;cursor-default&quot;,
+      &quot;cursor-pointer&quot;,
+      &quot;disabled:cursor-not-allowed&quot;,
+      &quot;disabled:opacity-50&quot;,
+      &quot;duration-200&quot;,
+      &quot;duration-300&quot;,
+      &quot;duration-500&quot;,
+      &quot;ease-in-out&quot;,
+      &quot;ease-out&quot;,
+      &quot;fixed&quot;,
+      &quot;flex&quot;,
+      &quot;flex-1&quot;,
+      &quot;flex-col&quot;,
+      &quot;flex-shrink-0&quot;,
+      &quot;flex-wrap&quot;,
+      &quot;focus-visible:outline&quot;,
+      &quot;focus-visible:outline-2&quot;,
+      &quot;focus-visible:outline-offset-2&quot;,
+      &quot;focus-visible:outline-primary-500&quot;,
+      &quot;focus-visible:ring-2&quot;,
+      &quot;focus-visible:ring-offset-2&quot;,
+      &quot;focus-visible:ring-offset-black&quot;,
+      &quot;focus-visible:ring-primary-200&quot;,
+      &quot;focus-visible:ring-sub-200&quot;,
+      &quot;focus-visible:ring-white/70&quot;,
+      &quot;focus-within:border-secondary-200&quot;,
+      &quot;focus:outline-none&quot;,
+      &quot;font-bold&quot;,
+      &quot;font-extrabold&quot;,
+      &quot;font-medium&quot;,
+      &quot;font-mono&quot;,
+      &quot;font-semibold&quot;,
+      &quot;from-black/30&quot;,
+      &quot;from-black/70&quot;,
+      &quot;from-primary-50&quot;,
+      &quot;gap-0.5&quot;,
+      &quot;gap-1&quot;,
+      &quot;gap-2&quot;,
+      &quot;gap-2.5&quot;,
+      &quot;gap-3&quot;,
+      &quot;gap-4&quot;,
+      &quot;gap-6&quot;,
+      &quot;gap-8&quot;,
+      &quot;grid&quot;,
+      &quot;grid-cols-1&quot;,
+      &quot;group&quot;,
+      &quot;group-hover:bg-primary/50&quot;,
+      &quot;h-12&quot;,
+      &quot;h-2&quot;,
+      &quot;h-2.5&quot;,
+      &quot;h-4&quot;,
+      &quot;h-5&quot;,
+      &quot;h-8&quot;,
+      &quot;h-[2px]&quot;,
+      &quot;h-full&quot;,
+      &quot;hidden&quot;,
+      &quot;hover:-translate-y-1&quot;,
+      &quot;hover:bg-black/50&quot;,
+      &quot;hover:bg-gray-100&quot;,
+      &quot;hover:bg-gray-50&quot;,
+      &quot;hover:bg-primary/10&quot;,
+      &quot;hover:bg-primary/90&quot;,
+      &quot;hover:bg-white/80&quot;,
+      &quot;hover:border-secondary-200&quot;,
+      &quot;hover:scale-[1.01]&quot;,
+      &quot;hover:shadow-lg&quot;,
+      &quot;hover:shadow-xl&quot;,
+      &quot;hover:text-gray-800&quot;,
+      &quot;hover:text-primary-700&quot;,
+      &quot;hover:text-sub&quot;,
+      &quot;image-container&quot;,
+      &quot;inline-block&quot;,
+      &quot;inline-flex&quot;,
+      &quot;inset-0&quot;,
+      &quot;invisible&quot;,
+      &quot;items-center&quot;,
+      &quot;items-end&quot;,
+      &quot;jsx-3947864466&quot;,
+      &quot;jsx-6743f00ffe657bbd&quot;,
+      &quot;jsx-85d98f9caa448b4d&quot;,
+      &quot;justify-between&quot;,
+      &quot;justify-center&quot;,
+      &quot;justify-end&quot;,
+      &quot;leading-snug&quot;,
+      &quot;leading-tight&quot;,
+      &quot;left-0&quot;,
+      &quot;left-2&quot;,
+      &quot;lg:grid-cols-3&quot;,
+      &quot;lg:left-4&quot;,
+      &quot;lg:px-3&quot;,
+      &quot;lg:right-4&quot;,
+      &quot;lucide&quot;,
+      &quot;lucide-menu&quot;,
+      &quot;max-h-80&quot;,
+      &quot;mb-1&quot;,
+      &quot;mb-2&quot;,
+      &quot;mb-3&quot;,
+      &quot;mb-4&quot;,
+      &quot;md:flex&quot;,
+      &quot;md:grid-cols-2&quot;,
+      &quot;md:hidden&quot;,
+      &quot;md:p-4&quot;,
+      &quot;md:px-3&quot;,
+      &quot;min-h-[1.75rem]&quot;,
+      &quot;min-h-[180px]&quot;,
+      &quot;min-h-[32px]&quot;,
+      &quot;min-h-[56px]&quot;,
+      &quot;min-h-[9.5rem]&quot;,
+      &quot;min-h-[inherit]&quot;,
+      &quot;min-w-0&quot;,
+      &quot;min-w-[20px]&quot;,
+      &quot;ml-auto&quot;,
+      &quot;mt-2&quot;,
+      &quot;mt-4&quot;,
+      &quot;mt-8&quot;,
+      &quot;mx-auto&quot;,
+      &quot;object-cover&quot;,
+      &quot;opacity-0&quot;,
+      &quot;opacity-100&quot;,
+      &quot;order-1&quot;,
+      &quot;order-2&quot;,
+      &quot;overflow-hidden&quot;,
+      &quot;overflow-x-auto&quot;,
+      &quot;overflow-y-auto&quot;,
+      &quot;p-1&quot;,
+      &quot;p-2&quot;,
+      &quot;p-4&quot;,
+      &quot;pb-2&quot;,
+      &quot;pt-1&quot;,
+      &quot;px-1&quot;,
+      &quot;px-1.5&quot;,
+      &quot;px-10&quot;,
+      &quot;px-2&quot;,
+      &quot;px-3&quot;,
+      &quot;px-3.5&quot;,
+      &quot;px-4&quot;,
+      &quot;px-6&quot;,
+      &quot;py-0.5&quot;,
+      &quot;py-1.5&quot;,
+      &quot;py-2&quot;,
+      &quot;py-3&quot;,
+      &quot;py-4&quot;,
+      &quot;py-6&quot;,
+      &quot;relative&quot;,
+      &quot;right-0&quot;,
+      &quot;right-2&quot;,
+      &quot;ring-1&quot;,
+      &quot;ring-point-200/40&quot;,
+      &quot;ring-primary-300&quot;,
+      &quot;rotate-180&quot;,
+      &quot;rounded&quot;,
+      &quot;rounded-3xl&quot;,
+      &quot;rounded-full&quot;,
+      &quot;rounded-lg&quot;,
+      &quot;rounded-md&quot;,
+      &quot;rounded-xl&quot;,
+      &quot;scale-110&quot;,
+      &quot;scrollbar-hide&quot;,
+      &quot;shadow&quot;,
+      &quot;shadow-[0_8px_25px_-8px_rgba(250,204,21,0.7)]&quot;,
+      &quot;shadow-lg&quot;,
+      &quot;shadow-sm&quot;,
+      &quot;shrink-0&quot;,
+      &quot;sm:block&quot;,
+      &quot;sm:gap-2&quot;,
+      &quot;sm:gap-3&quot;,
+      &quot;sm:gap-4&quot;,
+      &quot;sm:h-10&quot;,
+      &quot;sm:h-5&quot;,
+      &quot;sm:hidden&quot;,
+      &quot;sm:justify-between&quot;,
+      &quot;sm:p-2&quot;,
+      &quot;sm:p-3&quot;,
+      &quot;sm:px-2&quot;,
+      &quot;sm:px-3&quot;,
+      &quot;sm:px-4&quot;,
+      &quot;sm:text-lg&quot;,
+      &quot;sm:text-sm&quot;,
+      &quot;sm:text-xs&quot;,
+      &quot;sm:w-10&quot;,
+      &quot;sm:w-5&quot;,
+      &quot;sm:w-[170px]&quot;,
+      &quot;space-x-2&quot;,
+      &quot;space-y-2&quot;,
+      &quot;text-[10px]&quot;,
+      &quot;text-[11px]&quot;,
+      &quot;text-amber-600&quot;,
+      &quot;text-base&quot;,
+      &quot;text-blue-600&quot;,
+      &quot;text-blue-800&quot;,
+      &quot;text-center&quot;,
+      &quot;text-gray-400&quot;,
+      &quot;text-gray-500&quot;,
+      &quot;text-gray-600&quot;,
+      &quot;text-gray-700&quot;,
+      &quot;text-gray-900&quot;,
+      &quot;text-left&quot;,
+      &quot;text-lg&quot;,
+      &quot;text-orange-700&quot;,
+      &quot;text-pink-800&quot;,
+      &quot;text-primary-700&quot;,
+      &quot;text-primary-800&quot;,
+      &quot;text-red-800&quot;,
+      &quot;text-sm&quot;,
+      &quot;text-white&quot;,
+      &quot;text-xs&quot;,
+      &quot;text-yellow-600&quot;,
+      &quot;to-primary-100/60&quot;,
+      &quot;to-transparent&quot;,
+      &quot;to-white&quot;,
+      &quot;top-1/2&quot;,
+      &quot;tracking-wider&quot;,
+      &quot;transform&quot;,
+      &quot;transition-all&quot;,
+      &quot;transition-colors&quot;,
+      &quot;transition-opacity&quot;,
+      &quot;transition-shadow&quot;,
+      &quot;transition-transform&quot;,
+      &quot;truncate&quot;,
+      &quot;underline&quot;,
+      &quot;uppercase&quot;,
+      &quot;via-white&quot;,
+      &quot;vote-banner-section&quot;,
+      &quot;w-10&quot;,
+      &quot;w-12&quot;,
+      &quot;w-2&quot;,
+      &quot;w-2.5&quot;,
+      &quot;w-4&quot;,
+      &quot;w-5&quot;,
+      &quot;w-8&quot;,
+      &quot;w-full&quot;,
+      &quot;whitespace-nowrap&quot;,
+      &quot;will-change-transform&quot;,
+      &quot;z-50&quot;
+    ],
+    &quot;classCount&quot;: 282,
+    &quot;inlineStyles&quot;: {
+      &quot;user-select&quot;: [
+        &quot;none&quot;
+      ],
+      &quot;transform&quot;: [
+        &quot;none&quot;
+      ],
+      &quot;top&quot;: [
+        &quot;52px&quot;
+      ],
+      &quot;left&quot;: [
+        &quot;1042px&quot;
+      ],
+      &quot;background-color&quot;: [
+        &quot;rgb(131, 251, 200)&quot;
+      ],
+      &quot;width&quot;: [
+        &quot;100px&quot;,
+        &quot;112px&quot;,
+        &quot;140px&quot;,
+        &quot;1px&quot;,
+        &quot;72px&quot;,
+        &quot;84px&quot;
+      ],
+      &quot;height&quot;: [
+        &quot;112px&quot;,
+        &quot;1px&quot;,
+        &quot;48px&quot;,
+        &quot;72px&quot;,
+        &quot;84px&quot;
+      ],
+      &quot;min-height&quot;: [
+        &quot;16px&quot;
+      ],
+      &quot;--banner-current-index&quot;: [
+        &quot;0&quot;,
+        &quot;2&quot;
+      ],
+      &quot;aspect-ratio&quot;: [
+        &quot;700 / 356&quot;
+      ],
+      &quot;position&quot;: [
+        &quot;absolute&quot;
+      ],
+      &quot;border&quot;: [
+        &quot;0px&quot;
+      ],
+      &quot;margin&quot;: [
+        &quot;-1px&quot;
+      ],
+      &quot;padding&quot;: [
+        &quot;0px&quot;
+      ],
+      &quot;clip&quot;: [
+        &quot;rect(0px, 0px, 0px, 0px)&quot;
+      ],
+      &quot;overflow&quot;: [
+        &quot;hidden&quot;
+      ],
+      &quot;white-space&quot;: [
+        &quot;nowrap&quot;
+      ],
+      &quot;overflow-wrap&quot;: [
+        &quot;normal&quot;
+      ]
+    },
+    &quot;css&quot;: [
+      {
+        &quot;source&quot;: &quot;_cssText&quot;,
+        &quot;nodeId&quot;: 7,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;bytes&quot;: 340,
+        &quot;sha256&quot;: &quot;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 2
+      },
+      {
+        &quot;source&quot;: &quot;_cssText&quot;,
+        &quot;nodeId&quot;: 8,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;bytes&quot;: 100546,
+        &quot;sha256&quot;: &quot;a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 0
+      },
+      {
+        &quot;source&quot;: &quot;style-text&quot;,
+        &quot;nodeId&quot;: 14,
+        &quot;tag&quot;: &quot;style&quot;,
+        &quot;bytes&quot;: 727,
+        &quot;sha256&quot;: &quot;90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 0
+      },
+      {
+        &quot;source&quot;: &quot;style-text&quot;,
+        &quot;nodeId&quot;: 16,
+        &quot;tag&quot;: &quot;style&quot;,
+        &quot;bytes&quot;: 70,
+        &quot;sha256&quot;: &quot;40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 0
+      },
+      {
+        &quot;source&quot;: &quot;style-text&quot;,
+        &quot;nodeId&quot;: 18,
+        &quot;tag&quot;: &quot;style&quot;,
+        &quot;bytes&quot;: 542,
+        &quot;sha256&quot;: &quot;3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 0
+      }
+    ],
+    &quot;stylesheets&quot;: [
+      {
+        &quot;href&quot;: &quot;http://127.0.0.1:53931/_next/static/css/36f08833d15de553.css&quot;,
+        &quot;owner&quot;: &quot;LINK&quot;,
+        &quot;bytes&quot;: 340,
+        &quot;sha256&quot;: &quot;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&quot;,
+        &quot;urls&quot;: 0
+      },
+      {
+        &quot;href&quot;: &quot;http://127.0.0.1:53931/_next/static/css/253f05d11a58abd2.css&quot;,
+        &quot;owner&quot;: &quot;LINK&quot;,
+        &quot;bytes&quot;: 100515,
+        &quot;sha256&quot;: &quot;00ba70c51022508bb0c00152ba8a298a581a2f906aee7657c2ccfe272a8122f9&quot;,
+        &quot;urls&quot;: 0
+      },
+      {
+        &quot;href&quot;: null,
+        &quot;owner&quot;: &quot;STYLE&quot;,
+        &quot;bytes&quot;: 727,
+        &quot;sha256&quot;: &quot;90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd&quot;,
+        &quot;urls&quot;: 0
+      },
+      {
+        &quot;href&quot;: null,
+        &quot;owner&quot;: &quot;STYLE&quot;,
+        &quot;bytes&quot;: 70,
+        &quot;sha256&quot;: &quot;40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8&quot;,
+        &quot;urls&quot;: 0
+      },
+      {
+        &quot;href&quot;: null,
+        &quot;owner&quot;: &quot;STYLE&quot;,
+        &quot;bytes&quot;: 542,
+        &quot;sha256&quot;: &quot;3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a&quot;,
+        &quot;urls&quot;: 0
+      }
+    ],
+    &quot;media&quot;: [
+      {
+        &quot;id&quot;: 9,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;attrs&quot;: {
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 10,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;attrs&quot;: {
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 11,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;attrs&quot;: {
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 12,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;attrs&quot;: {
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 27,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 sm:w-10 sm:h-10 rounded-lg&quot;,
+          &quot;rr_width&quot;: &quot;40px&quot;,
+          &quot;rr_height&quot;: &quot;40px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 104,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;lucide lucide-menu w-5 h-5 text-gray-600&quot;,
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 108,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;lucide lucide-menu w-4 h-4 sm:w-5 sm:h-5 text-gray-700&quot;,
+          &quot;rr_width&quot;: &quot;20px&quot;,
+          &quot;rr_height&quot;: &quot;20px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 150,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;h-4 w-4 text-gray-500 transition-transform duration-200 rotate-180&quot;,
+          &quot;rr_width&quot;: &quot;16px&quot;,
+          &quot;rr_height&quot;: &quot;16px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 159,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;398px&quot;,
+          &quot;rr_height&quot;: &quot;298.5px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 215,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 285,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-100 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 300,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 315,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-100 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 345,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 403,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 494,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 590,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 681,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 782,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 868,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 969,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1060,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1156,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1247,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1298,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;392px&quot;,
+          &quot;rr_height&quot;: &quot;199.359375px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1305,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;392px&quot;,
+          &quot;rr_height&quot;: &quot;199.359375px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1319,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;jsx-3947864466 h-5 w-5&quot;,
+          &quot;rr_width&quot;: &quot;20px&quot;,
+          &quot;rr_height&quot;: &quot;20px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1321,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;jsx-3947864466 h-5 w-5&quot;,
+          &quot;rr_width&quot;: &quot;20px&quot;,
+          &quot;rr_height&quot;: &quot;20px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1380,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;392px&quot;,
+          &quot;rr_height&quot;: &quot;199.359375px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1382,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;392px&quot;,
+          &quot;rr_height&quot;: &quot;199.359375px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1387,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1388,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1389,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1390,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1391,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1392,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1393,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;398px&quot;,
+          &quot;rr_height&quot;: &quot;298.5px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1394,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1395,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1396,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;398px&quot;,
+          &quot;rr_height&quot;: &quot;298.5px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1401,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1402,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1403,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1404,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1405,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1406,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1407,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1408,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;398px&quot;,
+          &quot;rr_height&quot;: &quot;298.5px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1409,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1410,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1411,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;398px&quot;,
+          &quot;rr_height&quot;: &quot;298.5px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1416,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1417,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1418,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1419,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1420,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1421,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1422,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;398px&quot;,
+          &quot;rr_height&quot;: &quot;298.5px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1423,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1424,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1425,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;398px&quot;,
+          &quot;rr_height&quot;: &quot;298.5px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1430,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1431,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1432,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1433,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1434,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1435,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1436,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      }
+    ],
+    &quot;maxNodeId&quot;: 1436,
+    &quot;projection&quot;: {
+      &quot;ok&quot;: false,
+      &quot;reason&quot;: &quot;schema&quot;
+    },
+    &quot;diagnostic&quot;: {
+      &quot;reason&quot;: &quot;schema&quot;,
+      &quot;node&quot;: {
+        &quot;id&quot;: 5,
+        &quot;tag&quot;: &quot;meta&quot;,
+        &quot;type&quot;: 2,
+        &quot;keys&quot;: [
+          &quot;type&quot;,
+          &quot;tagName&quot;,
+          &quot;attributes&quot;,
+          &quot;childNodes&quot;,
+          &quot;id&quot;
+        ]
+      },
+      &quot;stack&quot;: &quot;Error\n    at requireValue (/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1144:80)\n    at projectNode (/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1324:5)\n    at /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1337:23\n    at Array.map (&lt;anonymous&gt;)\n    at projectNode (/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1336:36)\n    at /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1337:23\n    at Array.map (&lt;anonymous&gt;)\n    at projectNode (/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1336:36)\n    at /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1337:23\n    at Array.map (&lt;anonymous&gt;)&quot;
+    },
+    &quot;wireBytes&quot;: [
+      {
+        &quot;name&quot;: &quot;wire-1280-0.bin&quot;,
+        &quot;bytes&quot;: 501,
+        &quot;sha256&quot;: &quot;0b4362b364af9a237a757acf8a011f7cb23b693125f6928c5ef6e3c071caebc1&quot;
+      },
+      {
+        &quot;name&quot;: &quot;wire-1280-1.bin&quot;,
+        &quot;bytes&quot;: 266832,
+        &quot;sha256&quot;: &quot;e86e3547eb3345a93736551f78d63a7a3958c2e8b5faed33546e7dc6f281a1fc&quot;
+      },
+      {
+        &quot;name&quot;: &quot;wire-1280-2.bin&quot;,
+        &quot;bytes&quot;: 6721,
+        &quot;sha256&quot;: &quot;0a0ec074cd398a12e767e85be67f6eb924dc6c4f7d4829824e5790d773e1b1a8&quot;
+      },
+      {
+        &quot;name&quot;: &quot;wire-1280-3.bin&quot;,
+        &quot;bytes&quot;: 15277,
+        &quot;sha256&quot;: &quot;a012c137c705a7b9d375c3110a3527060999fdba29eff893ab5c90418922f9b8&quot;
+      }
+    ]
+  },
+  {
+    &quot;width&quot;: 390,
+    &quot;records&quot;: 67,
+    &quot;segments&quot;: [
+      0,
+      1,
+      2
+    ],
+    &quot;eventTypes&quot;: {
+      &quot;2&quot;: 1,
+      &quot;3&quot;: 51,
+      &quot;4&quot;: 1,
+      &quot;5&quot;: 14
+    },
+    &quot;sources&quot;: {
+      &quot;0&quot;: 36,
+      &quot;1&quot;: 4,
+      &quot;2&quot;: 1,
+      &quot;3&quot;: 10
+    },
+    &quot;customTags&quot;: {
+      &quot;breadcrumb&quot;: 1,
+      &quot;options&quot;: 1,
+      &quot;performanceSpan&quot;: 12
+    },
+    &quot;tags&quot;: {
+      &quot;a&quot;: 27,
+      &quot;body&quot;: 1,
+      &quot;button&quot;: 27,
+      &quot;div&quot;: 727,
+      &quot;footer&quot;: 1,
+      &quot;h3&quot;: 16,
+      &quot;head&quot;: 1,
+      &quot;header&quot;: 1,
+      &quot;html&quot;: 1,
+      &quot;img&quot;: 55,
+      &quot;link&quot;: 21,
+      &quot;main&quot;: 2,
+      &quot;meta&quot;: 11,
+      &quot;next-route-announcer&quot;: 1,
+      &quot;p&quot;: 7,
+      &quot;section&quot;: 2,
+      &quot;span&quot;: 175,
+      &quot;style&quot;: 3,
+      &quot;svg&quot;: 10,
+      &quot;title&quot;: 1
+    },
+    &quot;unsupportedTags&quot;: [
+      &quot;meta&quot;,
+      &quot;link&quot;,
+      &quot;header&quot;,
+      &quot;a&quot;,
+      &quot;img&quot;,
+      &quot;svg&quot;,
+      &quot;main&quot;,
+      &quot;section&quot;,
+      &quot;h3&quot;,
+      &quot;p&quot;,
+      &quot;footer&quot;,
+      &quot;title&quot;,
+      &quot;next-route-announcer&quot;
+    ],
+    &quot;attrs&quot;: {
+      &quot;_cssText&quot;: 2,
+      &quot;aria-expanded&quot;: 1,
+      &quot;aria-haspopup&quot;: 1,
+      &quot;aria-hidden&quot;: 1,
+      &quot;aria-label&quot;: 16,
+      &quot;aria-live&quot;: 1,
+      &quot;aria-pressed&quot;: 10,
+      &quot;charset&quot;: 1,
+      &quot;class&quot;: 963,
+      &quot;content&quot;: 10,
+      &quot;crossorigin&quot;: 2,
+      &quot;data-precedence&quot;: 2,
+      &quot;data-styled-jsx&quot;: 3,
+      &quot;disabled&quot;: 1,
+      &quot;hidden&quot;: 1,
+      &quot;href&quot;: 44,
+      &quot;hreflang&quot;: 13,
+      &quot;id&quot;: 1,
+      &quot;lang&quot;: 1,
+      &quot;name&quot;: 10,
+      &quot;rel&quot;: 17,
+      &quot;role&quot;: 4,
+      &quot;rr_height&quot;: 69,
+      &quot;rr_width&quot;: 69,
+      &quot;style&quot;: 209,
+      &quot;type&quot;: 29
+    },
+    &quot;extraFields&quot;: {
+      &quot;isSVG&quot;: 10,
+      &quot;isShadow&quot;: 1,
+      &quot;isShadowHost&quot;: 1
+    },
+    &quot;classes&quot;: [
+      &quot;!block&quot;,
+      &quot;-translate-y-1/2&quot;,
+      &quot;[&amp;::-webkit-scrollbar]:hidden&quot;,
+      &quot;[-ms-overflow-style:none]&quot;,
+      &quot;[scrollbar-width:none]&quot;,
+      &quot;__className_98b3fa&quot;,
+      &quot;absolute&quot;,
+      &quot;animate-pulse&quot;,
+      &quot;aspect-[4/3]&quot;,
+      &quot;banner-aspect-ratio&quot;,
+      &quot;banner-carousel&quot;,
+      &quot;banner-slide&quot;,
+      &quot;banner-track&quot;,
+      &quot;bg-black/30&quot;,
+      &quot;bg-blue-100&quot;,
+      &quot;bg-gradient-to-b&quot;,
+      &quot;bg-gradient-to-br&quot;,
+      &quot;bg-gradient-to-t&quot;,
+      &quot;bg-gray-100&quot;,
+      &quot;bg-gray-200&quot;,
+      &quot;bg-gray-50&quot;,
+      &quot;bg-orange-500&quot;,
+      &quot;bg-pink-100&quot;,
+      &quot;bg-primary&quot;,
+      &quot;bg-primary-100&quot;,
+      &quot;bg-primary-50/80&quot;,
+      &quot;bg-primary/30&quot;,
+      &quot;bg-red-100&quot;,
+      &quot;bg-secondary-200/70&quot;,
+      &quot;bg-white&quot;,
+      &quot;bg-white/50&quot;,
+      &quot;block&quot;,
+      &quot;border&quot;,
+      &quot;border-b&quot;,
+      &quot;border-gray-100&quot;,
+      &quot;border-gray-200&quot;,
+      &quot;border-gray-300&quot;,
+      &quot;border-none&quot;,
+      &quot;border-pink-200&quot;,
+      &quot;border-primary&quot;,
+      &quot;border-primary-100/70&quot;,
+      &quot;border-primary-200&quot;,
+      &quot;border-secondary-200/50&quot;,
+      &quot;border-t&quot;,
+      &quot;border-white&quot;,
+      &quot;border-yellow-400&quot;,
+      &quot;bottom-0&quot;,
+      &quot;container&quot;,
+      &quot;cursor-default&quot;,
+      &quot;cursor-pointer&quot;,
+      &quot;disabled:cursor-not-allowed&quot;,
+      &quot;disabled:opacity-50&quot;,
+      &quot;duration-200&quot;,
+      &quot;duration-300&quot;,
+      &quot;duration-500&quot;,
+      &quot;ease-in-out&quot;,
+      &quot;ease-out&quot;,
+      &quot;fixed&quot;,
+      &quot;flex&quot;,
+      &quot;flex-1&quot;,
+      &quot;flex-col&quot;,
+      &quot;flex-shrink-0&quot;,
+      &quot;flex-wrap&quot;,
+      &quot;focus-visible:outline&quot;,
+      &quot;focus-visible:outline-2&quot;,
+      &quot;focus-visible:outline-offset-2&quot;,
+      &quot;focus-visible:outline-primary-500&quot;,
+      &quot;focus-visible:ring-2&quot;,
+      &quot;focus-visible:ring-offset-2&quot;,
+      &quot;focus-visible:ring-offset-black&quot;,
+      &quot;focus-visible:ring-primary-200&quot;,
+      &quot;focus-visible:ring-sub-200&quot;,
+      &quot;focus-visible:ring-white/70&quot;,
+      &quot;focus-within:border-secondary-200&quot;,
+      &quot;focus:outline-none&quot;,
+      &quot;font-bold&quot;,
+      &quot;font-extrabold&quot;,
+      &quot;font-medium&quot;,
+      &quot;font-mono&quot;,
+      &quot;font-semibold&quot;,
+      &quot;from-black/30&quot;,
+      &quot;from-black/70&quot;,
+      &quot;from-primary-50&quot;,
+      &quot;gap-0.5&quot;,
+      &quot;gap-1&quot;,
+      &quot;gap-2&quot;,
+      &quot;gap-2.5&quot;,
+      &quot;gap-3&quot;,
+      &quot;gap-4&quot;,
+      &quot;gap-6&quot;,
+      &quot;gap-8&quot;,
+      &quot;grid&quot;,
+      &quot;grid-cols-1&quot;,
+      &quot;group&quot;,
+      &quot;group-hover:bg-primary/50&quot;,
+      &quot;h-12&quot;,
+      &quot;h-2&quot;,
+      &quot;h-2.5&quot;,
+      &quot;h-4&quot;,
+      &quot;h-5&quot;,
+      &quot;h-8&quot;,
+      &quot;h-[2px]&quot;,
+      &quot;h-full&quot;,
+      &quot;hidden&quot;,
+      &quot;hover:-translate-y-1&quot;,
+      &quot;hover:bg-black/50&quot;,
+      &quot;hover:bg-gray-100&quot;,
+      &quot;hover:bg-gray-50&quot;,
+      &quot;hover:bg-primary/10&quot;,
+      &quot;hover:bg-primary/90&quot;,
+      &quot;hover:bg-white/80&quot;,
+      &quot;hover:border-secondary-200&quot;,
+      &quot;hover:scale-[1.01]&quot;,
+      &quot;hover:shadow-lg&quot;,
+      &quot;hover:shadow-xl&quot;,
+      &quot;hover:text-gray-800&quot;,
+      &quot;hover:text-primary-700&quot;,
+      &quot;hover:text-sub&quot;,
+      &quot;image-container&quot;,
+      &quot;inline-block&quot;,
+      &quot;inline-flex&quot;,
+      &quot;inset-0&quot;,
+      &quot;invisible&quot;,
+      &quot;items-center&quot;,
+      &quot;items-end&quot;,
+      &quot;jsx-3947864466&quot;,
+      &quot;jsx-6743f00ffe657bbd&quot;,
+      &quot;jsx-85d98f9caa448b4d&quot;,
+      &quot;justify-between&quot;,
+      &quot;justify-center&quot;,
+      &quot;justify-end&quot;,
+      &quot;leading-snug&quot;,
+      &quot;leading-tight&quot;,
+      &quot;left-0&quot;,
+      &quot;left-2&quot;,
+      &quot;lg:grid-cols-3&quot;,
+      &quot;lg:left-4&quot;,
+      &quot;lg:px-3&quot;,
+      &quot;lg:right-4&quot;,
+      &quot;lucide&quot;,
+      &quot;lucide-menu&quot;,
+      &quot;max-h-80&quot;,
+      &quot;mb-1&quot;,
+      &quot;mb-2&quot;,
+      &quot;mb-3&quot;,
+      &quot;mb-4&quot;,
+      &quot;md:flex&quot;,
+      &quot;md:grid-cols-2&quot;,
+      &quot;md:hidden&quot;,
+      &quot;md:p-4&quot;,
+      &quot;md:px-3&quot;,
+      &quot;min-h-[1.75rem]&quot;,
+      &quot;min-h-[180px]&quot;,
+      &quot;min-h-[32px]&quot;,
+      &quot;min-h-[56px]&quot;,
+      &quot;min-h-[9.5rem]&quot;,
+      &quot;min-h-[inherit]&quot;,
+      &quot;min-w-0&quot;,
+      &quot;min-w-[20px]&quot;,
+      &quot;ml-auto&quot;,
+      &quot;mt-2&quot;,
+      &quot;mt-4&quot;,
+      &quot;mt-8&quot;,
+      &quot;mx-auto&quot;,
+      &quot;object-cover&quot;,
+      &quot;opacity-0&quot;,
+      &quot;opacity-100&quot;,
+      &quot;order-1&quot;,
+      &quot;order-2&quot;,
+      &quot;overflow-hidden&quot;,
+      &quot;overflow-x-auto&quot;,
+      &quot;overflow-y-auto&quot;,
+      &quot;p-1&quot;,
+      &quot;p-2&quot;,
+      &quot;p-4&quot;,
+      &quot;pb-2&quot;,
+      &quot;pt-1&quot;,
+      &quot;px-1&quot;,
+      &quot;px-1.5&quot;,
+      &quot;px-10&quot;,
+      &quot;px-2&quot;,
+      &quot;px-3&quot;,
+      &quot;px-3.5&quot;,
+      &quot;px-4&quot;,
+      &quot;px-6&quot;,
+      &quot;py-0.5&quot;,
+      &quot;py-1.5&quot;,
+      &quot;py-2&quot;,
+      &quot;py-3&quot;,
+      &quot;py-4&quot;,
+      &quot;py-6&quot;,
+      &quot;relative&quot;,
+      &quot;right-0&quot;,
+      &quot;right-2&quot;,
+      &quot;ring-1&quot;,
+      &quot;ring-point-200/40&quot;,
+      &quot;ring-primary-300&quot;,
+      &quot;rotate-180&quot;,
+      &quot;rounded&quot;,
+      &quot;rounded-3xl&quot;,
+      &quot;rounded-full&quot;,
+      &quot;rounded-lg&quot;,
+      &quot;rounded-md&quot;,
+      &quot;rounded-xl&quot;,
+      &quot;scale-110&quot;,
+      &quot;scrollbar-hide&quot;,
+      &quot;shadow&quot;,
+      &quot;shadow-[0_8px_25px_-8px_rgba(250,204,21,0.7)]&quot;,
+      &quot;shadow-lg&quot;,
+      &quot;shadow-sm&quot;,
+      &quot;shrink-0&quot;,
+      &quot;sm:block&quot;,
+      &quot;sm:gap-2&quot;,
+      &quot;sm:gap-3&quot;,
+      &quot;sm:gap-4&quot;,
+      &quot;sm:h-10&quot;,
+      &quot;sm:h-5&quot;,
+      &quot;sm:hidden&quot;,
+      &quot;sm:justify-between&quot;,
+      &quot;sm:p-2&quot;,
+      &quot;sm:p-3&quot;,
+      &quot;sm:px-2&quot;,
+      &quot;sm:px-3&quot;,
+      &quot;sm:px-4&quot;,
+      &quot;sm:text-lg&quot;,
+      &quot;sm:text-sm&quot;,
+      &quot;sm:text-xs&quot;,
+      &quot;sm:w-10&quot;,
+      &quot;sm:w-5&quot;,
+      &quot;sm:w-[170px]&quot;,
+      &quot;space-x-2&quot;,
+      &quot;space-y-2&quot;,
+      &quot;text-[10px]&quot;,
+      &quot;text-[11px]&quot;,
+      &quot;text-amber-600&quot;,
+      &quot;text-base&quot;,
+      &quot;text-blue-600&quot;,
+      &quot;text-blue-800&quot;,
+      &quot;text-center&quot;,
+      &quot;text-gray-400&quot;,
+      &quot;text-gray-500&quot;,
+      &quot;text-gray-600&quot;,
+      &quot;text-gray-700&quot;,
+      &quot;text-gray-900&quot;,
+      &quot;text-left&quot;,
+      &quot;text-lg&quot;,
+      &quot;text-orange-700&quot;,
+      &quot;text-pink-800&quot;,
+      &quot;text-primary-700&quot;,
+      &quot;text-primary-800&quot;,
+      &quot;text-red-800&quot;,
+      &quot;text-sm&quot;,
+      &quot;text-white&quot;,
+      &quot;text-xs&quot;,
+      &quot;text-yellow-600&quot;,
+      &quot;to-primary-100/60&quot;,
+      &quot;to-transparent&quot;,
+      &quot;to-white&quot;,
+      &quot;top-1/2&quot;,
+      &quot;tracking-wider&quot;,
+      &quot;transform&quot;,
+      &quot;transition-all&quot;,
+      &quot;transition-colors&quot;,
+      &quot;transition-opacity&quot;,
+      &quot;transition-shadow&quot;,
+      &quot;transition-transform&quot;,
+      &quot;truncate&quot;,
+      &quot;underline&quot;,
+      &quot;uppercase&quot;,
+      &quot;via-white&quot;,
+      &quot;vote-banner-section&quot;,
+      &quot;w-10&quot;,
+      &quot;w-12&quot;,
+      &quot;w-2&quot;,
+      &quot;w-2.5&quot;,
+      &quot;w-4&quot;,
+      &quot;w-5&quot;,
+      &quot;w-8&quot;,
+      &quot;w-full&quot;,
+      &quot;whitespace-nowrap&quot;,
+      &quot;will-change-transform&quot;,
+      &quot;z-50&quot;
+    ],
+    &quot;classCount&quot;: 282,
+    &quot;inlineStyles&quot;: {
+      &quot;user-select&quot;: [
+        &quot;none&quot;
+      ],
+      &quot;transform&quot;: [
+        &quot;none&quot;
+      ],
+      &quot;top&quot;: [
+        &quot;44px&quot;
+      ],
+      &quot;left&quot;: [
+        &quot;302px&quot;
+      ],
+      &quot;background-color&quot;: [
+        &quot;rgb(131, 251, 200)&quot;
+      ],
+      &quot;width&quot;: [
+        &quot;100px&quot;,
+        &quot;112px&quot;,
+        &quot;140px&quot;,
+        &quot;1px&quot;,
+        &quot;72px&quot;,
+        &quot;84px&quot;
+      ],
+      &quot;height&quot;: [
+        &quot;112px&quot;,
+        &quot;1px&quot;,
+        &quot;48px&quot;,
+        &quot;72px&quot;,
+        &quot;84px&quot;
+      ],
+      &quot;min-height&quot;: [
+        &quot;16px&quot;
+      ],
+      &quot;--banner-current-index&quot;: [
+        &quot;0&quot;,
+        &quot;1&quot;,
+        &quot;2&quot;,
+        &quot;3&quot;,
+        &quot;4&quot;
+      ],
+      &quot;aspect-ratio&quot;: [
+        &quot;700 / 356&quot;
+      ],
+      &quot;position&quot;: [
+        &quot;absolute&quot;
+      ],
+      &quot;border&quot;: [
+        &quot;0px&quot;
+      ],
+      &quot;margin&quot;: [
+        &quot;-1px&quot;
+      ],
+      &quot;padding&quot;: [
+        &quot;0px&quot;
+      ],
+      &quot;clip&quot;: [
+        &quot;rect(0px, 0px, 0px, 0px)&quot;
+      ],
+      &quot;overflow&quot;: [
+        &quot;hidden&quot;
+      ],
+      &quot;white-space&quot;: [
+        &quot;nowrap&quot;
+      ],
+      &quot;overflow-wrap&quot;: [
+        &quot;normal&quot;
+      ]
+    },
+    &quot;css&quot;: [
+      {
+        &quot;source&quot;: &quot;_cssText&quot;,
+        &quot;nodeId&quot;: 7,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;bytes&quot;: 340,
+        &quot;sha256&quot;: &quot;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 2
+      },
+      {
+        &quot;source&quot;: &quot;_cssText&quot;,
+        &quot;nodeId&quot;: 8,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;bytes&quot;: 100546,
+        &quot;sha256&quot;: &quot;a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 0
+      },
+      {
+        &quot;source&quot;: &quot;style-text&quot;,
+        &quot;nodeId&quot;: 14,
+        &quot;tag&quot;: &quot;style&quot;,
+        &quot;bytes&quot;: 727,
+        &quot;sha256&quot;: &quot;90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 0
+      },
+      {
+        &quot;source&quot;: &quot;style-text&quot;,
+        &quot;nodeId&quot;: 16,
+        &quot;tag&quot;: &quot;style&quot;,
+        &quot;bytes&quot;: 70,
+        &quot;sha256&quot;: &quot;40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 0
+      },
+      {
+        &quot;source&quot;: &quot;style-text&quot;,
+        &quot;nodeId&quot;: 18,
+        &quot;tag&quot;: &quot;style&quot;,
+        &quot;bytes&quot;: 542,
+        &quot;sha256&quot;: &quot;3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a&quot;,
+        &quot;urls&quot;: 0,
+        &quot;imports&quot;: 0,
+        &quot;fontFaces&quot;: 0
+      }
+    ],
+    &quot;stylesheets&quot;: [
+      {
+        &quot;href&quot;: &quot;http://127.0.0.1:53931/_next/static/css/36f08833d15de553.css&quot;,
+        &quot;owner&quot;: &quot;LINK&quot;,
+        &quot;bytes&quot;: 340,
+        &quot;sha256&quot;: &quot;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&quot;,
+        &quot;urls&quot;: 0
+      },
+      {
+        &quot;href&quot;: &quot;http://127.0.0.1:53931/_next/static/css/253f05d11a58abd2.css&quot;,
+        &quot;owner&quot;: &quot;LINK&quot;,
+        &quot;bytes&quot;: 100515,
+        &quot;sha256&quot;: &quot;00ba70c51022508bb0c00152ba8a298a581a2f906aee7657c2ccfe272a8122f9&quot;,
+        &quot;urls&quot;: 0
+      },
+      {
+        &quot;href&quot;: null,
+        &quot;owner&quot;: &quot;STYLE&quot;,
+        &quot;bytes&quot;: 727,
+        &quot;sha256&quot;: &quot;90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd&quot;,
+        &quot;urls&quot;: 0
+      },
+      {
+        &quot;href&quot;: null,
+        &quot;owner&quot;: &quot;STYLE&quot;,
+        &quot;bytes&quot;: 70,
+        &quot;sha256&quot;: &quot;40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8&quot;,
+        &quot;urls&quot;: 0
+      },
+      {
+        &quot;href&quot;: null,
+        &quot;owner&quot;: &quot;STYLE&quot;,
+        &quot;bytes&quot;: 542,
+        &quot;sha256&quot;: &quot;3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a&quot;,
+        &quot;urls&quot;: 0
+      }
+    ],
+    &quot;media&quot;: [
+      {
+        &quot;id&quot;: 9,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;attrs&quot;: {
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 10,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;attrs&quot;: {
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 11,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;attrs&quot;: {
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 12,
+        &quot;tag&quot;: &quot;link&quot;,
+        &quot;attrs&quot;: {
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 27,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 sm:w-10 sm:h-10 rounded-lg&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 104,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;lucide lucide-menu w-5 h-5 text-gray-600&quot;,
+          &quot;rr_width&quot;: &quot;20px&quot;,
+          &quot;rr_height&quot;: &quot;20px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 108,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;lucide lucide-menu w-4 h-4 sm:w-5 sm:h-5 text-gray-700&quot;,
+          &quot;rr_width&quot;: &quot;0px&quot;,
+          &quot;rr_height&quot;: &quot;0px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 150,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;h-4 w-4 text-gray-500 transition-transform duration-200 rotate-180&quot;,
+          &quot;rr_width&quot;: &quot;16px&quot;,
+          &quot;rr_height&quot;: &quot;16px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 159,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;356px&quot;,
+          &quot;rr_height&quot;: &quot;267px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 215,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 301,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 402,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 493,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 589,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 680,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 781,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 867,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 968,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1059,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1155,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1246,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover&quot;,
+          &quot;rr_width&quot;: &quot;110px&quot;,
+          &quot;rr_height&quot;: &quot;110px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1297,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;342px&quot;,
+          &quot;rr_height&quot;: &quot;173.921875px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1310,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;jsx-3947864466 h-5 w-5&quot;,
+          &quot;rr_width&quot;: &quot;20px&quot;,
+          &quot;rr_height&quot;: &quot;20px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1312,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;jsx-3947864466 h-5 w-5&quot;,
+          &quot;rr_width&quot;: &quot;20px&quot;,
+          &quot;rr_height&quot;: &quot;20px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1370,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;342px&quot;,
+          &quot;rr_height&quot;: &quot;173.921875px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1380,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;342px&quot;,
+          &quot;rr_height&quot;: &quot;173.921875px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1385,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1391,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover&quot;,
+          &quot;rr_width&quot;: &quot;342px&quot;,
+          &quot;rr_height&quot;: &quot;173.921875px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1392,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1393,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1394,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1395,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1396,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1397,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;356px&quot;,
+          &quot;rr_height&quot;: &quot;267px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1398,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1399,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1400,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;356px&quot;,
+          &quot;rr_height&quot;: &quot;267px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1405,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1406,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1407,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1408,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1409,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1410,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1411,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;356px&quot;,
+          &quot;rr_height&quot;: &quot;267px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1416,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1417,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1418,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1419,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1420,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;356px&quot;,
+          &quot;rr_height&quot;: &quot;267px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1421,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1422,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1423,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1424,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1425,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1426,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;356px&quot;,
+          &quot;rr_height&quot;: &quot;267px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1427,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1428,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1433,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1434,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;356px&quot;,
+          &quot;rr_height&quot;: &quot;267px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1435,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1436,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1437,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1438,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1439,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1440,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;356px&quot;,
+          &quot;rr_height&quot;: &quot;267px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1445,
+        &quot;tag&quot;: &quot;svg&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-8 h-8 mx-auto mb-2&quot;,
+          &quot;rr_width&quot;: &quot;32px&quot;,
+          &quot;rr_height&quot;: &quot;32px&quot;
+        },
+        &quot;extra&quot;: [
+          &quot;isSVG&quot;
+        ]
+      },
+      {
+        &quot;id&quot;: 1446,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;82px&quot;,
+          &quot;rr_height&quot;: &quot;82px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1447,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;70px&quot;,
+          &quot;rr_height&quot;: &quot;70px&quot;
+        },
+        &quot;extra&quot;: []
+      },
+      {
+        &quot;id&quot;: 1448,
+        &quot;tag&quot;: &quot;img&quot;,
+        &quot;attrs&quot;: {
+          &quot;class&quot;: &quot;w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out&quot;,
+          &quot;rr_width&quot;: &quot;48px&quot;,
+          &quot;rr_height&quot;: &quot;48px&quot;
+        },
+        &quot;extra&quot;: []
+      }
+    ],
+    &quot;maxNodeId&quot;: 1448,
+    &quot;projection&quot;: {
+      &quot;ok&quot;: false,
+      &quot;reason&quot;: &quot;schema&quot;
+    },
+    &quot;diagnostic&quot;: {
+      &quot;reason&quot;: &quot;schema&quot;,
+      &quot;node&quot;: {
+        &quot;id&quot;: 5,
+        &quot;tag&quot;: &quot;meta&quot;,
+        &quot;type&quot;: 2,
+        &quot;keys&quot;: [
+          &quot;type&quot;,
+          &quot;tagName&quot;,
+          &quot;attributes&quot;,
+          &quot;childNodes&quot;,
+          &quot;id&quot;
+        ]
+      },
+      &quot;stack&quot;: &quot;Error\n    at requireValue (/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1144:80)\n    at projectNode (/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1324:5)\n    at /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1337:23\n    at Array.map (&lt;anonymous&gt;)\n    at projectNode (/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1336:36)\n    at /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1337:23\n    at Array.map (&lt;anonymous&gt;)\n    at projectNode (/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1336:36)\n    at /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/projection-diagnostic.cjs:1337:23\n    at Array.map (&lt;anonymous&gt;)&quot;
+    },
+    &quot;wireBytes&quot;: [
+      {
+        &quot;name&quot;: &quot;wire-390-0.bin&quot;,
+        &quot;bytes&quot;: 501,
+        &quot;sha256&quot;: &quot;84375162b22f46036b839ca60cc51e16b8c96b3a3624d3da29f5736fa8eee6a8&quot;
+      },
+      {
+        &quot;name&quot;: &quot;wire-390-1.bin&quot;,
+        &quot;bytes&quot;: 266455,
+        &quot;sha256&quot;: &quot;9075ad20b1151114112c1b79ad1e5ce1803ed7e4e49410ac1fc200d28c8e9b72&quot;
+      },
+      {
+        &quot;name&quot;: &quot;wire-390-2.bin&quot;,
+        &quot;bytes&quot;: 10646,
+        &quot;sha256&quot;: &quot;009e85dbce58b072101b6e76a91a7308a516b74577c11ba61fc28737700019fe&quot;
+      },
+      {
+        &quot;name&quot;: &quot;wire-390-3.bin&quot;,
+        &quot;bytes&quot;: 19958,
+        &quot;sha256&quot;: &quot;930c3d8c563d6c2d572385e4001d30fbbe0340ff5769edb8da7544e4dfb82e3c&quot;
+      }
+    ]
+  }
+]</code></pre></details>
+<p>앞선 검증: <a href="2026-10-15-replay-browser-and-product-validation.html">BFCache·백그라운드·개발 화면 검증</a></p></main></body></html>
