@@ -16,6 +16,12 @@ type NodeContext = '' | 'record' | 'snapshot' | 'incremental' | 'adds' | 'node' 
 /** Preserve escaped selectors; consume URL/string tokens without regex backtracking. */
 function scrubCss(value: string, opaque = false): string {
   const output: string[] = [], remainder: string[] = [];
+  let assignmentRemainder: string[] | undefined;
+  const appendRemainder = (token: string, decoded = token) => {
+    if (token !== decoded && !assignmentRemainder) assignmentRemainder = remainder.slice();
+    remainder.push(token);
+    assignmentRemainder?.push(decoded);
+  };
   const nameChar = (char: string) => !!char && (/[a-zA-Z0-9_-]/.test(char) || char.charCodeAt(0) >= 128);
   const tokenEnd = (start: number, endChar: string) => {
     let end = start, escaped = false;
@@ -25,7 +31,7 @@ function scrubCss(value: string, opaque = false): string {
     }
     return { end, escaped };
   };
-  let escapedSelectorSlash = false;
+  let escapedSlash = false, templateDepth = 0;
   for (let cursor = 0; cursor < value.length;) {
     if (value.startsWith('/*', cursor)) {
       const end = value.indexOf('*/', cursor + 2);
@@ -53,9 +59,16 @@ function scrubCss(value: string, opaque = false): string {
       if (name.toLowerCase() !== 'url' || value[cursor] !== '(') {
         const raw = value.slice(start, cursor);
         output.push(raw);
-        if (opaque && escapedSelectorSlash && name.includes('#')) return '';
-        if (opaque && escaped && name.includes('/') && (value[start - 1] === '.' || value[start - 1] === '#')) escapedSelectorSlash = true;
-        remainder.push(escaped ? (opaque && ((name.includes('/') && value[start - 1] !== '.' && value[start - 1] !== '#') || /[?#]/.test(name)) ? name : 'identifier') : raw);
+        if (opaque && escapedSlash && name.includes('#')) return '';
+        if (opaque && escaped && name.includes('/')) escapedSlash = true;
+        if (opaque && escaped) {
+          for (const char of name) {
+            if (char === '{') templateDepth++;
+            else if (char === '}' && templateDepth > 0) templateDepth--;
+          }
+        }
+        const token = escaped ? (opaque && ((name.includes('/') && value[start - 1] !== '.' && value[start - 1] !== '#') || /[?#]/.test(name)) ? name : 'identifier') : raw;
+        appendRemainder(token, opaque && escaped && name.includes('=') ? name : token);
         continue;
       }
       cursor++;
@@ -69,23 +82,31 @@ function scrubCss(value: string, opaque = false): string {
       if (value[cursor] !== ')') return '';
       const url = value.slice(contentStart, token.end).trim();
       const unsafe = token.escaped || (!quote && /[('"\s]/.test(url));
-      output.push(`url(${JSON.stringify(unsafe ? '' : (!opaque && localReference(url) ? url : cutUrl(url)))})`); remainder.push('url()');
+      output.push(`url(${JSON.stringify(unsafe ? '' : (!opaque && localReference(url) ? url : cutUrl(url)))})`); appendRemainder('url()');
       cursor++;
     } else if (value[cursor] === '"' || value[cursor] === "'") {
       const quote = value[cursor++], start = cursor;
       const token = tokenEnd(cursor, quote);
       if (token.end >= value.length) return '';
       output.push(quote + (token.escaped ? '' : cutUrl(value.slice(start, token.end))) + quote);
-      remainder.push(quote + quote); cursor = token.end + 1;
+      appendRemainder(quote + quote); cursor = token.end + 1;
     } else {
-      // Track the selector span once; a fragment before its boundary is an opaque path.
-      if (opaque && escapedSelectorSlash && value[cursor] === '#') return '';
-      if (/\s/.test(value[cursor])) escapedSelectorSlash = false;
-      output.push(value[cursor]); remainder.push(value[cursor]); cursor++;
+      // Spaces inside an opaque path template do not establish a new selector.
+      if (opaque) {
+        if (escapedSlash && value[cursor] === '#') return '';
+        if (value[cursor] === '{') templateDepth++;
+        else if (value[cursor] === '}' && templateDepth > 0) templateDepth--;
+      }
+      if (/\s/.test(value[cursor]) && templateDepth === 0) escapedSlash = false;
+      output.push(value[cursor]); appendRemainder(value[cursor]); cursor++;
     }
   }
-  const rest = remainder.join('');
-  if (stripUrlQueries(rest) !== rest || rest.includes('?')) return '';
+  // Inspect both whole forms: decoding an assignment must not weaken an existing URL match.
+  for (const parts of [remainder, assignmentRemainder]) {
+    if (!parts) continue;
+    const rest = parts.join('');
+    if (stripUrlQueries(rest) !== rest || rest.includes('?')) return '';
+  }
   return output.join('');
 }
 
