@@ -35,6 +35,115 @@ function decoded(value: Envelope) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Replay privacy transport', () => {
+  describe.each([false, true])('remaining escaped and template patterns, compressed=%s', (compressed) => {
+    const cases = [
+      ['data-callback', 'example.com/users/{ id }#secret-opaque'],
+      ['style', String.raw`--cb: callback#code\=secret-opaque`],
+      ['href', String.raw`example.com\2f users\2f { id }\23 secret-opaque`],
+      ['data-callback', String.raw`callback#code\u003dsecret-opaque`],
+      ['data-callback', String.raw`example.com\/users\/[ id ]#secret-opaque`],
+      ['data-callback', String.raw`callback#\61.\61.\61.\61.\61.\61.\61\=secret-opaque`],
+    ];
+    it.each(cases)('removes %s pattern %s from snapshot and mutation without changing the input', async (key, value) => {
+      const attributes = { [key]: value };
+      const input = [
+        { type: 2, timestamp: 1, data: { node: { id: 1, type: 2, tagName: 'a', attributes } } },
+        { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 1, attributes }] } },
+      ];
+      const source = envelope(compressed, input as never), before = structuredClone(source);
+      const output = await scrubReplayEnvelope(source);
+      expect(output).not.toBeNull();
+      const clean = decoded(output!);
+      expect(JSON.stringify(clean)).not.toContain('secret-opaque');
+      expect(clean[0].data.node.attributes[key]).toBe('');
+      expect(clean[1].data.attributes[0].attributes[key]).toBe('');
+      expect(source).toEqual(before);
+    });
+    it.each([
+      'example.com/users/[ id ]#secret-opaque',
+      'example.com/users/( id )#secret-opaque',
+      'example.com/users/{ [ id ] }#secret-opaque',
+      String.raw`example.com\/users\/( id )#secret-opaque`,
+      String.raw`callback#code\x3dsecret-opaque`,
+      String.raw`callback#code\u{3d}secret-opaque`,
+      String.raw`callback\u0023code\u003dsecret-opaque`,
+      String.raw`callback#\61.\61.\61.\61.\61.\61.\61=secret-opaque`,
+    ])('removes related opaque variants from metadata and recording: %s', async (value) => {
+      const source = envelope(compressed, [{ type: 5, timestamp: 1, data: { tag: 'note', payload: { message: value } } }] as never);
+      Object.assign(source[0], { message: value });
+      Object.assign(source[1][0][1] as object, { message: value });
+      const output = await scrubReplayEnvelope(source);
+      expect(output).not.toBeNull();
+      expect(decoded(output!)[0].data.payload.message).toBe('');
+      expect(output![0]).toMatchObject({ message: '' });
+      expect(output![1][0][1]).toMatchObject({ message: '' });
+    });
+    it.each(['2f', '02f', '00002F'].flatMap((slash) => ['23 ', '000023', '3f ', '00003F'].map((delimiter) =>
+      `example.com\\${slash} users\\${slash} { id }\\${delimiter}secret-opaque`)))('removes CSS escapes normalized by the browser URL parser: %s', async (raw) => {
+      const href = new URL(raw, 'https://picnic.test/base/').href;
+      const input = [{ type: 2, timestamp: 1, data: { node: { id: 1, type: 2, tagName: 'a', attributes: { href } } } }];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      expect(decoded(output!)[0].data.node.attributes.href).toBe('');
+    });
+    it.each(['https://picnic.test/23%20items', 'https://picnic.test/2f%20safe-path', '/users/123', '/users/{ id }'])('preserves normal URL paths: %s', async (href) => {
+      const source = envelope(compressed, [{ type: 4, timestamp: 1, data: { href } }] as never);
+      expect(decoded((await scrubReplayEnvelope(source))!)[0].data.href).toBe(href);
+    });
+    it.each([
+      String.raw`.aria-checked\:bg-\[\#fff\][aria-checked="true"]{color:#fff}`,
+      String.raw`.data-\[state\=open\]\:bg-\[\#fff\][data-state="open"]{color:#fff}`,
+      String.raw`.after\:content-\[\'\?\'\]::after{content:"?"}`,
+      String.raw`#main.foo\=bar{color:#fff}`,
+    ])('preserves escaped selectors while inspecting only CSS declaration values: %s', async (rule) => {
+      const source = envelope(compressed, [{ type: 3, timestamp: 1, data: { source: 8, replace: rule } }] as never);
+      const output = await scrubReplayEnvelope(source);
+      // Existing quoted-string redaction still cuts the literal question-mark content.
+      expect(decoded(output!)[0].data.replace).toBe(rule.replace('content:"?"', 'content:""'));
+    });
+    it.each(['', '\t', '\n', '\r', '\f'].flatMap((terminator) => ['2f', '00002f'].map((slash) =>
+      `example.com\\${slash}${terminator}users\\${slash}${terminator}{ id }\\23${terminator}secret-opaque`)))('removes normalized alternate CSS escape terminators: %s', async (raw) => {
+      const href = new URL(raw, 'https://picnic.test/base/').href;
+      const source = envelope(compressed, [{ type: 4, timestamp: 1, data: { href } }] as never);
+      expect(decoded((await scrubReplayEnvelope(source))!)[0].data.href).toBe('');
+    });
+    it.each(['/2fa/23%20items', '/2fusers/23abc', '/000002fusers/23secret'])('preserves URL segments that do not encode CSS slash and fragment: %s', async (href) => {
+      const source = envelope(compressed, [{ type: 4, timestamp: 1, data: { href } }] as never);
+      expect(decoded((await scrubReplayEnvelope(source))!)[0].data.href).toBe(href);
+    });
+    it.each([
+      String.raw`--cb: callback#code\=secret-opaque{}`,
+      String.raw`--cb: callback#code\=secret-opaque {`,
+      String.raw`:root{--cb: callback#code\=secret-opaque{}}`,
+      String.raw`color:#fff;--cb: callback#code\=secret-opaque{}`,
+    ])('inspects a custom-property assignment before opening a nested block: %s', async (value) => {
+      const attributes = { style: value };
+      const input = [
+        { type: 2, timestamp: 1, data: { node: { id: 1, type: 2, tagName: 'a', attributes } } },
+        { type: 3, timestamp: 2, data: { source: 0, attributes: [{ id: 1, attributes }] } },
+        { type: 3, timestamp: 3, data: { source: 8, replace: value } },
+      ];
+      const output = await scrubReplayEnvelope(envelope(compressed, input as never));
+      expect(output).not.toBeNull();
+      const clean = decoded(output!);
+      expect(clean[0].data.node.attributes.style).toBe('');
+      expect(clean[1].data.attributes[0].attributes.style).toBe('');
+      expect(clean[2].data.replace).toBe('');
+    });
+    it('preserves normal custom properties, selectors, URLs, and SVG references', async () => {
+      const style = String.raw`--brand:#123abc;--size:calc(100% / 2);--asset:url(#gradient);color:var(--brand)`;
+      const rule = String.raw`.w-1\/2#main,[data-kind=code\=value],.bg-\[\#fff\]{color:#fff;--gap:1rem}`;
+      const source = envelope(compressed, [
+        { type: 2, timestamp: 1, data: { node: { id: 1, type: 2, tagName: 'a', attributes: { style, href: '/users/{ id }', 'data-callback': 'example.com/users/[ id ]' } } } },
+        { type: 3, timestamp: 2, data: { source: 8, replace: rule } },
+      ] as never);
+      const output = await scrubReplayEnvelope(source);
+      expect(output).not.toBeNull();
+      const clean = decoded(output!);
+      expect(clean[0].data.node.attributes).toEqual({ style: style.replace('url(#gradient)', 'url("#gradient")'), href: '/users/{ id }', 'data-callback': 'example.com/users/[ id ]' });
+      expect(clean[1].data.replace).toBe(rule);
+    });
+  });
   describe.each([false, true])('opaque fragment follow-up, compressed=%s', (compressed) => {
     it.each([
       String.raw`callback#code\=secret-opaque`,
