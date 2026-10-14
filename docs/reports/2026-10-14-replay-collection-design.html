@@ -146,7 +146,7 @@
 <li><code>scripts/envelope-test/browser-fixture/page.tsx:7</code> 및 <code>node_modules/next/dist/client/components/app-router-announcer.js:13</code>·<code>:27</code>: 기존 App Router fixture의 전역 CSS·announcer·shadow root. P0에서 이 구조를 재사용하지 않는 근거</li>
 <li><code>components/client/banner/useBannerCarousel.ts:119</code>·<code>:270</code>: maxIndex와 동적 CSS 인덱스. 정적 배너 CSS는 <code>BannerCarouselClient.tsx:158</code></li>
 </ul>
-<p>이번 작업은 로컬 고정 SDK·제품 코드와 이전 조사 결과에 근거한 설계다. 새 운영 관측·Sentry 저장 시험·제품 코드 수정은 하지 않았다. 실제 구현 파일·명령별 작업 계획은 이 설계를 검토한 뒤 작성한다. 특히 즉시 원본 폐기 대신 SDK의 일시 보관을 수용하는 제안은 아직 사용자 승인되지 않았다.</p>
-<p id="review-status">독립 설계 검토: Claude Opus 5.5/high의 첫 검토 및 1회 재검토를 받았다. 첫 지적 사항의 반영은 재검토에서 확인됐다. 재검토의 최종 판정은 <strong>REQUEST_CHANGES</strong>이며, 추가 지적 두 건(P0의 Next.js fixture 충돌, custom property 문구 모순)은 조정자가 원본과 대조하여 수정했다. P0를 독립 정적 HTML로 한정했고 허용 목록 밖 변수만 금지하도록 고쳤다. 이 마지막 수정본은 원 검토자의 재승인을 받지 않았다. 독립 최종 승인이나 제품 구현·운영 활성화 완료로 표시하지 않는다.</p>
+<p>이번 작업은 로컬 고정 SDK·제품 코드와 이전 조사 결과에 근거한 설계다. 새 운영 관측·Sentry 저장 시험·제품 코드 수정은 하지 않았다. 2026-10-14 사용자는 설계를 바탕으로 합성 시험의 구현 계획 작성 진행을 승인했다. SDK의 일시 보관을 운영에서 수용하는 결정은 별도 승인 대상이다. <a href="2026-10-14-replay-p0-implementation-plan.html">P0 구현 계획</a>에 작업 순서와 검증 기준을 정리했다.</p>
+<p id="review-status">독립 설계 검토: Claude Opus 5.5/high의 첫 검토 및 1회 재검토를 받았다. 첫 지적 사항의 반영은 재검토에서 확인됐다. 재검토의 최종 판정은 <strong>REQUEST_CHANGES</strong>이며, 추가 지적 두 건(P0의 Next.js fixture 충돌, custom property 문구 모순)은 조정자가 원본과 대조하여 수정했다. P0를 독립 정적 HTML로 한정했고 허용 목록 밖 변수만 금지하도록 고쳤다. 이 마지막 수정본은 원 검토자의 재승인을 받지 않았다. 2026-10-14 후속 검토는 Codex 사용량 원본 증거의 충돌로 review-blocked여서 작업자를 시작하지 않았다. 독립 최종 승인이나 제품 구현·운영 활성화 완료로 표시하지 않는다.</p>
 <p id="validation-status">인용한 고정 SDK·제품 소스와 기존 fixture 본문을 대조했다. HTML은 PC 1280px·모바일 390px에서 가로 넘침 없이 렌더링했고 내부 링크를 확인했다. 문서 변경이므로 제품 전체 테스트를 실행하지 않았다.</p>
 </main></body></html>

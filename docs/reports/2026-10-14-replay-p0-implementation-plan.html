@@ -1,0 +1,281 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Replay P0 구현 계획</title><style>
+:root{color-scheme:light}body{margin:0;background:#f3f5f8;color:#192330;font:16px/1.7 system-ui,-apple-system,sans-serif}main{max-width:1050px;margin:auto;padding:36px 24px 80px}h1{font-size:2rem;line-height:1.3}h2{margin-top:2.2rem;border-bottom:2px solid #cbd5e1;padding-bottom:8px}h3{margin-top:1.6rem}a{color:#1656a0;overflow-wrap:anywhere}code{font-size:.88em;overflow-wrap:anywhere}pre{padding:16px;background:#162334;color:#f1f5f9;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:8px;line-height:1.5}table{width:100%;border-collapse:collapse;background:white;table-layout:fixed}th,td{border:1px solid #cbd5e1;text-align:left;vertical-align:top;padding:10px;overflow-wrap:anywhere}.note{border-left:4px solid #d18a15;padding:12px 16px;background:#fff5dd}.ok{border-left:4px solid #276d53;padding:12px 16px;background:#eaf6f0}li{margin:.45rem 0}.meta{color:#526174}input{pointer-events:none}@media(max-width:600px){main{padding:22px 14px}table{font-size:13px}th,td{padding:7px}h1{font-size:1.65rem}}
+</style></head><body><main>
+<h1>Replay P0 구현 계획</h1><p class="meta">2026-10-14 · 구현 전 계획 · 기준 코드 ec2275f6 · 설계 dc3a0ebb · 제품 변경 없음</p>
+<p><strong>Goal:</strong> 합성 화면에서 Replay의 정상 3구간 전송과 폐쇄 후 네트워크 차단을 검증하고, SDK 정리의 한계를 분리해 기록한다.</p>
+<p><strong>Architecture:</strong> Next.js와 분리한 정적 HTML에서 고정 SDK를 로드한다. 제어 모듈, 엄격한 P0 변환 Worker, 전용 전송기를 연결하고 로컬 수신 bytes를 별도 검사한다. 정상 이벤트는 위임 transport로 보내되 Replay 연결 정보를 제거한다.</p>
+<p><strong>Tech Stack:</strong> Node 24.x, TypeScript, lockfile의 Sentry 9.47.1, esbuild 0.28.2, Playwright 1.63.0, Vitest 4.1.11, 설치된 PostCSS. 새 의존성이나 lockfile 변경을 계획하지 않는다.</p>
+<p><strong>Spec:</strong> <a href="2026-10-14-replay-collection-design.html">Replay 제한 수집 설계</a> §7의 P0와 그 절이 참조하는 §3–6. <a href="2026-10-14-replay-collection-policy.html">수집 정책 초안</a>도 함께 읽는다.</p>
+<p><strong>Agent execution:</strong> 이 세션에서 <code>superpowers:executing-plans</code>로 순차 구현하고, 마지막에 다른 공급자의 Frontier 리뷰를 받는 방식을 권장한다. 각 단계는 체크박스로 추적한다. 네이티브 하위 에이전트를 만들지 않는다. Orca 작업자가 필요하면 새 usage-aware Route와 계정·권한 검사를 통과해야 한다.</p>
+<p class="note"><strong>상태:</strong> 사용자는 설계를 바탕으로 계획 작성 진행을 승인했다. SDK 일시 보관을 관측하는 합성 시험의 계획이며, 운영에서 그 보관을 수용한다는 승인이 아니다. 이번 독립 검토 실행은 사용량 증거 충돌로 <code>review-blocked</code>였다. 작업자는 시작되지 않았다. 설계 마지막 두 수정과 이 계획의 독립 승인은 남아 있다.</p>
+<h2>Global Constraints</h2><ul>
+<li>제품의 Replay 기본값 <strong>0/0</strong>을 유지한다. <code>app/</code>, <code>public/</code>, <code>instrumentation-client.ts</code>, 운영 설정을 변경하지 않는다. 실제 로그인·광고·API·Sentry 저장을 사용하지 않는다.</li>
+<li>P0 HTML tag는 html/head/body/style/div/span/button, class는 fixture/track/card/toggle만 허용한다. Next head/announcer/shadow root·전역 CSS·CDN·window.Sentry를 사용하지 않는다. script는 SDK 출력에서 생략되어야 한다. HTML charset은 HTTP 응답에 지정한다.</li>
+<li>정적 CSS는 <code>.fixture{display:block}.track{display:flex}.card{width:100px;height:100px}.toggle{display:block}</code> 한 개다. raw와 실제 SDK 정규화 표현의 해시를 검토 후 고정한다. 실행 중 처음 본 값을 신뢰하지 않는다.</li>
+<li>동적 CSS는 width/height 0…1000px 정수, opacity 0…1의 0.01 단위, --banner-current-index 0…2 정수다. 문자열·diff tuple·빈 priority/important·false 삭제·null 전체 삭제를 지원한다. 허용 목록 밖 속성/값이면 종료한다.</li>
+<li>압축 전·후 입력/출력 각각 8 MiB, JSON depth 80, 순회 값 200,000개, 이벤트 10,000개/segment, 노드·차단 ID·tombstone 합계 20,000개다. class 256자/token·64개/node, text 4096자/node다.</li>
+<li>Worker 2초, fetch 5초, 녹화 5분. 한 envelope만 처리하며 원본 대기 큐·자체 전송 재시도는 없다. 종료한 document는 정상 제어 경로에서 다시 시작하지 않는다.</li>
+<li>viewport 1…4096, 포인터/scroll −65536…65536 정수, 세션 상대 시간 0…300000ms다. SDK wire의 ms/seconds/relative offset 차이는 실제 샘플로 고정한다. envelope/event의 timestamp는 seconds, rrweb timestamp는 ms이며 mousemove positions의 timeOffset은 event timestamp에 더한 ms로 검사한다. 실제 SDK 관측이 다르면 변환을 진행하지 않는다.</li>
+<li>필수 양성 시험은 실제 SDK가 생성한 동일 Replay의 연속 segment <strong>0→1→2</strong>다. 전부 거부하는 구현은 실패다. SDK 버전·bundle hash·Git SHA를 결과에 남긴다.</li>
+<li>공개 stop의 flush·processor 재시도는 즉시 메모리 제거를 보장하지 않는다. 유한 실패의 60초 정리 목표와 무한 대기의 예상 실패를 구분한다. 이미 전송한 bytes 취소·물리 메모리 소거를 주장하지 않는다.</li>
+<li>보고서에는 고정 reason/count/수치만 둔다. 원문 payload·URL·selector·에러 메시지를 진단으로 다시 전송하지 않는다. 합성 raw fixture만 저장할 수 있으며 실제 사용자 자료는 입력하지 않는다.</li>
+</ul>
+<h2>Review Focus</h2><ol>
+<li>정상 HTML에 SDK/브라우저가 추가한 script/head 노드 때문에 전부 거부되는 경우 → Task 1·5의 실제 녹화 양성 경로로 발견한다.</li>
+<li>import/Worker/fetch 완료가 close 뒤에 도착하는 경우 → Task 3·4의 세대 검사와 네트워크 시작 0회로 고정한다.</li>
+<li>실패한 segment가 node/sequence 상태를 먼저 바꾸는 경우 → Task 2·4의 trial state 및 성공 후 commit으로 고정한다.</li>
+<li>SDK listener 순서·기존 span DSC 때문에 일반 event/baggage에 Replay ID가 남는 경우 → Task 4·5에서 녹화 중과 종료 후 실제 outgoing bytes/headers를 검사한다.</li>
+<li>타임아웃·예상 실패를 모두 성공으로 집계하는 경우 → Task 5·6에서 네 가지 판정 필드를 분리하고 정상 전송의 실패는 exit 1로 고정한다.</li>
+</ol>
+<h2>파일 구조와 의존성</h2>
+<p>아래 파일은 새로 만든다. 기존 <code>scripts/envelope-test/harness.js</code>의 <code>listen</code>과 <code>browser-analyze.js</code>의 <code>parseBrowserEnvelope</code>만 로컬 수신 분석에 재사용한다. 기존 browser runner·Next fixture·광범위 평가 함수는 가져오지 않는다.</p>
+<table><thead><tr><th>파일</th><th>책임 · 소유 Task</th></tr></thead><tbody>
+<tr><td>scripts/replay-p0/fixture.html<br>scripts/replay-p0/fixtures/sdk-contract.json<br>scripts/replay-p0/contract.ts</td><td>최소 문서, 검토된 wire/CSS 샘플·해시, 타입·한도 · 1</td></tr>
+<tr><td>scripts/replay-p0/projection.ts<br>scripts/replay-p0/worker-entry.ts<br>scripts/replay-p0/worker-client.ts</td><td>형식 검사·투영·trial 상태, 전용 Worker와 취소 · 2</td></tr>
+<tr><td>scripts/replay-p0/controller.ts</td><td>허용 상태·세대·일회 시작·동기 종료 · 3</td></tr>
+<tr><td>scripts/replay-p0/transport.ts<br>scripts/replay-p0/correlation.ts</td><td>전용 fetch·성공 시 commit, 일반 event/DSC 연결 제거 · 4</td></tr>
+<tr><td>scripts/replay-p0/browser-entry.ts<br>scripts/replay-p0/replay-view.ts<br>scripts/replay-p0/run.cjs</td><td>실제 SDK 연결, 수신 이벤트의 독립 P0 DOM 재생, 로컬 서버·시나리오 · 1에서 capture 모드, 5에서 시험 완성</td></tr>
+<tr><td>__tests__/scripts/replay-p0/contract.test.ts<br>projection.test.ts · worker.test.ts<br>controller.test.ts · transport.test.ts<br>correlation.test.ts · result.test.ts</td><td>첫 경로와 같은 폴더에 둔다. Node 환경을 명시한다. Task 1–5별 실패/성공 시험</td></tr>
+<tr><td>docs/reports/2026-10-14-replay-p0-implementation-result.html</td><td>구현 시 생성할 최종 결과와 제한사항 · 6. 아직 존재하지 않는다.</td></tr>
+</tbody></table>
+<p><strong>순서:</strong> 1 → 2 → 3 → 4 → 5 → 6. 상태와 타입을 공유하므로 구현을 병렬로 나누지 않는다. 검토용 raw capture는 테스트 과정에서만 임시 보관하고 승인된 합성 fixture만 명시적으로 커밋한다.</p>
+<h2>공통 인터페이스</h2><p>Task 1의 <code>contract.ts</code>가 다음 타입을 정의한다. 알 수 없는 JSON은 <code>unknown</code>으로 받고, 검증 전에 구조 타입으로 단언하지 않는다. 테스트 블록의 setup 변수는 각 이름의 시나리오에서 얻은 관측값이다. 검토 샘플은 sdk-contract.json에 이름별로 두고, 타이머·fetch·Worker spy는 해당 test 파일에서 준비한다. assertion을 주석이나 성공 고정값으로 대체하지 않는다.</p>
+
+<pre><code>import type { Envelope, Transport } from &#x27;@sentry/core&#x27;;
+type Phase = &#x27;WAITING&#x27; | &#x27;LOADING&#x27; | &#x27;ARMED&#x27; | &#x27;RECORDING&#x27; | &#x27;CLOSED&#x27;;
+type Eligibility = { initialized: boolean; auth: &#x27;unknown&#x27; | &#x27;anonymous&#x27; | &#x27;authenticated&#x27;;
+  ads: &#x27;unknown&#x27; | &#x27;denied&#x27; | &#x27;granted&#x27;; adsEverLoaded: boolean; exactPublicRoute: boolean };
+type Reason = &#x27;ineligible&#x27; | &#x27;hidden&#x27; | &#x27;expired&#x27; | &#x27;schema&#x27; | &#x27;budget&#x27; | &#x27;sequence&#x27;
+  | &#x27;overlap&#x27; | &#x27;worker-timeout&#x27; | &#x27;fetch-timeout&#x27; | &#x27;http&#x27; | &#x27;abort&#x27; | &#x27;sdk&#x27;;
+type Gate = { phase: Phase; generation: number };
+type SdkHandle = { start(): void; stop(): Promise&lt;void&gt;; flush(): Promise&lt;void&gt; };
+type Cleanup = &#x27;pending&#x27; | &#x27;resolved&#x27; | &#x27;rejected&#x27;;
+type NodeState = { parent: number | null; children: number[]; kind: number;
+  tag?: string; text?: string; attrs: Record&lt;string, string&gt;; style: Record&lt;string, string&gt; };
+type ProjectionState = { replayId: string | null; nextSegment: number;
+  sessionStartMs: number | null; nodes: Map&lt;number, NodeState&gt;; tombstones: Set&lt;number&gt; };
+type Projected = { bytes: Uint8Array; next: ProjectionState; segment: number };
+type ProjectResult = { ok: true; value: Projected } | { ok: false; reason: Reason };
+type Transform = (input: Envelope, state: ProjectionState, signal: AbortSignal) =&gt; Promise&lt;ProjectResult&gt;;
+type TrialReport = { normal: &#x27;pass&#x27; | &#x27;fail&#x27;; barrier: &#x27;pass&#x27; | &#x27;fail&#x27;;
+  finiteCleanup: &#x27;pass&#x27; | &#x27;fail&#x27;; expectedLimitations: { case: string; observed: boolean }[];
+  sdkVersion: string; bundleSha256: string; gitSha: string; failures: string[] };</code></pre>
+<p>State에는 정제한 값만 보관한다. Worker 입력은 복제한 상태이며 성공한 응답 전에는 원본 상태를 바꾸지 않는다. 복수 document·shadow root·미지원 node type을 받아들이기 위해 타입을 넓히지 않는다.</p>
+<h2 id="task-1">Task 1. 고정 SDK와 정적 fixture의 계약</h2><p><strong>Files:</strong> contract.ts, fixture.html, fixtures/sdk-contract.json, browser-entry.ts, run.cjs; contract.test.ts (위 파일 구조의 경로).</p><p><strong>Interfaces:</strong></p>
+<pre><code>export function emptyProjectionState(): ProjectionState;
+export function isEligible(value: Eligibility): boolean;
+// run.cjs: node scripts/replay-p0/run.cjs --case capture
+// HTTP loopback server + same-origin receiver; esbuild browser entry and worker bundles.
+// browser-entry.ts: export async function captureContract(): Promise&lt;void&gt;;
+// capture mode initializes local SDK only; raw output is synthetic and never a product result.</code></pre>
+<ol><li><label><input type="checkbox" disabled> 실패 테스트를 작성한다.</label></li></ol>
+<pre><code>it(&#x27;eligibility requires every positive signal&#x27;, () =&gt; {
+  expect(isEligible({initialized:true, auth:&#x27;anonymous&#x27;, ads:&#x27;denied&#x27;,
+    adsEverLoaded:false, exactPublicRoute:true})).toBe(true);
+  for (const denied of forbiddenEligibilityCases) expect(isEligible(denied)).toBe(false);
+});
+it(&#x27;fixture and reviewed SDK shapes stay pinned&#x27;, () =&gt; {
+  expect(contract.sdkVersion).toBe(&#x27;9.47.1&#x27;);
+  expect(contract.tags).toEqual([&#x27;html&#x27;,&#x27;head&#x27;,&#x27;body&#x27;,&#x27;style&#x27;,&#x27;div&#x27;,&#x27;span&#x27;,&#x27;button&#x27;]);
+  expect(contract.classes).toEqual([&#x27;fixture&#x27;,&#x27;track&#x27;,&#x27;card&#x27;,&#x27;toggle&#x27;]);
+  expect(hash(rawCss)).toBe(contract.rawCssSha256);
+  expect(hash(recordedCss)).toBe(contract.normalizedCssSha256);
+  expect(recordedTags).not.toContain(&#x27;script&#x27;);
+  // hashes 검증은 동등성 예시. hash/샘플 수집은 test 내부의 node:crypto helper.
+});</code></pre>
+<ol start="2"><li><label><input type="checkbox" disabled> 다음 명령으로 실패를 확인한다.</label> 최초에는 미구현 export 또는 명시한 assertion에서 실패해야 한다. 환경/브라우저 설치 오류는 RED 증거가 아니다.</li></ol>
+<pre><code>npx vitest run __tests__/scripts/replay-p0/contract.test.ts
+node scripts/replay-p0/run.cjs --case capture</code></pre>
+<ol start="3"><li><label><input type="checkbox" disabled> 다음 범위만 구현한다.</label> ES module SDK 번들을 로컬에서 로드한다. 초기 HTML에는 선언한 tag와 정적 style만 둔다. Playwright viewport는 1280×720, 기본 언어/폰트를 고정한다. capture는 검토용 wire 샘플과 기존/새 span의 DSC 헤더 probe만 만든다. replay_id를 포함한 합성 incoming baggage로 기존 DSC 경로를 재현한다. hook 우회는 알려진 소스 경로이며 실제 probe 결과를 기록한다. 이 사전 probe가 실패한 상태로 전체 기능 구현을 진행하지 않는다. SDK 버전·초기 노드 구조·도큐먼트/doctype·마스킹 text·CSS 정규화·스타일 diff·source별 field와 시각 단위를 소스 및 실제 녹화와 대조하여 <code>sdk-contract.json</code>에 고정한다. body에 실행 script를 넣어야 한다면 실제 wire에서 생략되는지 먼저 확인한다. 불일치하면 시험 fixture를 거부하고 설계 변경을 검토한다. 입력 envelope의 schema·원문을 자동 승인하는 기능은 만들지 않는다.</li><li><label><input type="checkbox" disabled> 같은 명령으로 모든 해당 assertion의 PASS를 확인한다.</label> 실패하면 원인을 수정하고 해당 범위만 다시 실행한다.</li><li><label><input type="checkbox" disabled> Task에 열거한 파일만 명시적으로 stage하고 커밋한다.</label></li></ol>
+<pre><code>git add -- scripts/replay-p0/contract.ts scripts/replay-p0/fixture.html scripts/replay-p0/fixtures/sdk-contract.json scripts/replay-p0/browser-entry.ts scripts/replay-p0/run.cjs __tests__/scripts/replay-p0/contract.test.ts
+git commit -m &quot;test(sentry): pin isolated replay fixture contract&quot;</code></pre>
+<h2 id="task-2">Task 2. 엄격한 P0 변환과 중단 가능한 Worker</h2><p><strong>Files:</strong> projection.ts, worker-entry.ts, worker-client.ts; projection.test.ts, worker.test.ts.</p><p><strong>Interfaces:</strong></p>
+<pre><code>export async function projectEnvelope(input: Envelope, state: ProjectionState): Promise&lt;ProjectResult&gt;;
+export const transformInWorker: Transform;
+// Worker: {id, input, state} -&gt; {id, result}; one worker per job; terminate on finish/abort/2s.
+// Envelope serialization returns final wire bytes; state never commits in this module.</code></pre>
+<ol><li><label><input type="checkbox" disabled> 실패 테스트를 작성한다.</label></li></ol>
+<pre><code>it(&#x27;projects real segment 0 then 1 then 2 without mutating prior state&#x27;, async () =&gt; {
+  const s = emptyProjectionState(); const a = await projectEnvelope(real0, s);
+  expect(a.ok).toBe(true); expect(s.nextSegment).toBe(0);
+  if (!a.ok) throw new Error(&#x27;expected positive segment&#x27;);
+  const b = await projectEnvelope(real1, a.value.next);
+  if (!b.ok) throw new Error(&#x27;expected positive segment&#x27;);
+  const c = await projectEnvelope(real2, b.value.next);
+  expect(c.ok &amp;&amp; c.value.next.nextSegment).toBe(3);
+});
+it.each([&#x27;duplicate&#x27;,&#x27;gap&#x27;,&#x27;wrong-id&#x27;,&#x27;missing-full&#x27;,&#x27;second-full&#x27;,&#x27;bad-next-id&#x27;,&#x27;cycle&#x27;])
+  (&#x27;rejects %s and keeps prior state&#x27;, async kind =&gt; { const before = structuredClone(state);
+    const result = await projectEnvelope(invalidCases[kind], state);
+    expect(result.ok).toBe(false); expect(state).toEqual(before); });
+it(&#x27;accepts style string, tuple/important, false deletion and null reset&#x27;, () =&gt; {
+  expect(styleCases.map(x =&gt; x.result.ok)).toEqual(styleCases.map(x =&gt; x.expected));
+  // 허용: width=1000px / opacity=.50 / index=2. 거부: 1001px / .501 / 3 / --unknown / url()/var().
+  expect(afterFalse.style.width).toBeUndefined();
+  expect(afterNull.style).toEqual({}); expect(afterNull.attrs.style).toBeUndefined();
+  expect(afterImportant.style.width).toBe(&#x27;100px !important&#x27;);
+});
+it(&#x27;caps all budgets at the boundary&#x27;, () =&gt; {
+  for (const boundary of allBudgetCases) {
+    expect(boundary.atLimit.ok).toBe(true); expect(boundary.overLimit.ok).toBe(false);
+  }
+  expect(depth81.ok).toBe(false); expect(compressionBomb.ok).toBe(false);
+});
+it(&#x27;terminates a blocked worker at 2000ms and discards its late result&#x27;, () =&gt; {
+  vi.advanceTimersByTime(1999); expect(settled).toBe(false);
+  vi.advanceTimersByTime(1); expect(terminate).toHaveBeenCalledTimes(1);
+  expect(result).toEqual({ok:false, reason:&#x27;worker-timeout&#x27;});
+  expect(lateResultAccepted).toBe(false);
+});</code></pre>
+<ol start="2"><li><label><input type="checkbox" disabled> 다음 명령으로 실패를 확인한다.</label> 최초에는 미구현 export 또는 명시한 assertion에서 실패해야 한다. 환경/브라우저 설치 오류는 RED 증거가 아니다.</li></ol>
+<pre><code>npx vitest run __tests__/scripts/replay-p0/projection.test.ts __tests__/scripts/replay-p0/worker.test.ts</code></pre>
+<ol start="3"><li><label><input type="checkbox" disabled> 다음 범위만 구현한다.</label> §4의 정확히 두 item·ID 일치·segment 연속성·첫 full snapshot을 검사한다. 순서대로 node graph를 적용해 parent/nextId·이동·삭제·재삽입을 검증하고, sanitized state만 반환한다. 제거 대상 이벤트·속성은 제거하며 미지원 wire 구조는 종료한다. style은 PostCSS로 선언을 읽되 P0 속성·값만 정규화한다. AST를 새로 직렬화하고 중복/미확인 구조는 거부한다. class/text·rr_ 특수 속성은 설계의 한도로 검사한다. 압축 해제/재압축과 JSON 순회는 Worker에서 수행한다. 압축과 비압축을 모두 처리하고 스트림 누적 bytes를 제한한다. 각 resource 한도의 경계와 초과, type/source 전부, unknown field, HTML 속성 제거, metadata 재생성을 표 기반 테스트로 고정한다. Worker 취소는 Promise 경합만으로 대신하지 않는다.</li><li><label><input type="checkbox" disabled> 같은 명령으로 모든 해당 assertion의 PASS를 확인한다.</label> 실패하면 원인을 수정하고 해당 범위만 다시 실행한다.</li><li><label><input type="checkbox" disabled> Task에 열거한 파일만 명시적으로 stage하고 커밋한다.</label></li></ol>
+<pre><code>git add -- scripts/replay-p0/projection.ts scripts/replay-p0/worker-entry.ts scripts/replay-p0/worker-client.ts __tests__/scripts/replay-p0/projection.test.ts __tests__/scripts/replay-p0/worker.test.ts
+git commit -m &quot;test(sentry): add bounded replay projection&quot;</code></pre>
+<h2 id="task-3">Task 3. 일회 시작과 영구 종료 제어</h2><p><strong>Files:</strong> controller.ts; controller.test.ts.</p><p><strong>Interfaces:</strong></p>
+<pre><code>type ControllerDeps = { load(): Promise&lt;SdkHandle&gt;; readEligibility(): Eligibility;
+  readReadyState(): DocumentReadyState; cancelOwnedWork(): void;
+  onCleanup(status: Cleanup): void; now(): number };
+export function createController(deps: ControllerDeps): {
+  prepare(): Promise&lt;void&gt;; eligibilityChanged(): void; domReady(): void;
+  close(reason: Reason): void; snapshot(): Gate; flush(): Promise&lt;void&gt;;
+};
+// close never awaits SDK stop; CLOSED + generation increment happen before callbacks.</code></pre>
+<ol><li><label><input type="checkbox" disabled> 실패 테스트를 작성한다.</label></li></ol>
+<pre><code>it(&#x27;stays silent for unknown or forbidden eligibility&#x27;, async () =&gt; {
+  expect(load).not.toHaveBeenCalled(); expect(start).not.toHaveBeenCalled(); expect(network).not.toHaveBeenCalled();
+});
+it(&#x27;invalidates late imports and waits for DOMContentLoaded&#x27;, async () =&gt; {
+  expect(beforeDomReady.phase).toBe(&#x27;LOADING&#x27;);
+  expect(afterLateImport.phase).toBe(&#x27;CLOSED&#x27;); expect(start).not.toHaveBeenCalled();
+});
+it(&#x27;closes before cancellation and public stop&#x27;, () =&gt; {
+  expect(order).toEqual([&#x27;closed&#x27;,&#x27;cancel&#x27;,&#x27;stop&#x27;]); expect(stop).toHaveBeenCalledTimes(1);
+  expect(afterSecondClose).toEqual(afterFirstClose); expect(cleanupStatus).toBe(&#x27;rejected&#x27;);
+});
+it(&#x27;never restarts through normal control after close&#x27;, async () =&gt; {
+  expect(startCallsAfterClose).toBe(0); expect(networkStartsAfterClose).toBe(0);
+});
+it(&#x27;expires once at 300000ms and remains closed after page return&#x27;, () =&gt; {
+  expect(at299999.phase).toBe(&#x27;RECORDING&#x27;); expect(at300000.phase).toBe(&#x27;CLOSED&#x27;);
+  expect(afterReturn.phase).toBe(&#x27;CLOSED&#x27;);
+});</code></pre>
+<ol start="2"><li><label><input type="checkbox" disabled> 다음 명령으로 실패를 확인한다.</label> 최초에는 미구현 export 또는 명시한 assertion에서 실패해야 한다. 환경/브라우저 설치 오류는 RED 증거가 아니다.</li></ol>
+<pre><code>npx vitest run __tests__/scripts/replay-p0/controller.test.ts</code></pre>
+<ol start="3"><li><label><input type="checkbox" disabled> 다음 범위만 구현한다.</label> 허용 조건을 모두 확인하고 generation을 캡처한다. import 후와 start 직전에 다시 확인한다. readyState loading이면 DOMContentLoaded를 기다린다. public start 직전에 RECORDING으로 바꾸고 시작 예외·첫 snapshot 중 close도 흡수한다. 종료는 CLOSED와 generation 변경 → 소유 작업 취소 → public stop 호출 순서다. stop 결과는 별도 cleanup 상태로 관측한다. 생산 SDK를 호출하는 코드는 이 모듈 경계에 두고 P0의 고의 직접 호출 반례만 별도 시나리오에서 허용한다.</li><li><label><input type="checkbox" disabled> 같은 명령으로 모든 해당 assertion의 PASS를 확인한다.</label> 실패하면 원인을 수정하고 해당 범위만 다시 실행한다.</li><li><label><input type="checkbox" disabled> Task에 열거한 파일만 명시적으로 stage하고 커밋한다.</label></li></ol>
+<pre><code>git add -- scripts/replay-p0/controller.ts __tests__/scripts/replay-p0/controller.test.ts
+git commit -m &quot;test(sentry): gate replay lifecycle by generation&quot;</code></pre>
+<h2 id="task-4">Task 4. 전송 차단과 일반 이벤트의 연결 제거</h2><p><strong>Files:</strong> transport.ts, correlation.ts; transport.test.ts, correlation.test.ts.</p><p><strong>Interfaces:</strong></p>
+<pre><code>type TransportDeps = { snapshot(): Gate; close(reason: Reason): void;
+  transform: Transform; normal: Transport; endpoint: string; fetch: typeof fetch };
+export function createP0Transport(deps: TransportDeps): Transport &amp; { cancel(): void };
+export function stripReplayCorrelation(envelope: Envelope): Envelope;
+export function installDscGuard(client: import(&#x27;@sentry/core&#x27;).Client): () =&gt; void;
+// Install guard AFTER Replay adds global listeners; keep it until test document disposal.
+// endpoint is runner-owned loopback URL, never derived from envelope metadata.</code></pre>
+<ol><li><label><input type="checkbox" disabled> 실패 테스트를 작성한다.</label></li></ol>
+<pre><code>it(&#x27;commits only successful 2xx segments and never retries a failure&#x27;, async () =&gt; {
+  expect(successfulSendCount).toBe(3); expect(committedNextSegment).toBe(3);
+  for (const failure of failureCases) {
+    expect(failure.statusCode).toBe(403); expect(failure.phase).toBe(&#x27;CLOSED&#x27;);
+    expect(failure.stateCommitted).toBe(false); expect(failure.laterFetchStarts).toBe(0);
+  }
+});
+it(&#x27;drops overlap and closes before awaiting SDK stop&#x27;, async () =&gt; {
+  expect(secondSend.phase).toBe(&#x27;CLOSED&#x27;); expect(workerSignal.aborted).toBe(true);
+  expect(queuedRawCount).toBe(0); expect(reentrantSendSettled).toBe(true);
+});
+it(&#x27;blocks a late result and aborts an in-flight request&#x27;, async () =&gt; {
+  expect(fetchStartsAfterLateWorker).toBe(0); expect(inFlightSignal.aborted).toBe(true);
+  // 이미 시작한 요청의 수신 receipt를 0으로 요구하지 않는다.
+});
+it(&#x27;preserves normal payload except Replay correlation&#x27;, () =&gt; {
+  expect(replayCorrelationPaths).toEqual([]);
+  expect(unrelatedErrorAndTraceFields).toEqual(baselineFields);
+  expect(normalDelegate).toHaveBeenCalledTimes(1);
+});
+it(&#x27;scrubs new and pre-existing span DSC during and after recording&#x27;, () =&gt; {
+  expect(outgoingHeaders.baggage).not.toContain(&#x27;sentry-replay_id&#x27;);
+  expect(normalTraceFields).toEqual(baselineTraceFields);
+});</code></pre>
+<ol start="2"><li><label><input type="checkbox" disabled> 다음 명령으로 실패를 확인한다.</label> 최초에는 미구현 export 또는 명시한 assertion에서 실패해야 한다. 환경/브라우저 설치 오류는 RED 증거가 아니다.</li></ol>
+<pre><code>npx vitest run __tests__/scripts/replay-p0/transport.test.ts __tests__/scripts/replay-p0/correlation.test.ts</code></pre>
+<ol start="3"><li><label><input type="checkbox" disabled> 다음 범위만 구현한다.</label> 혼합 envelope는 통째로 거부한다. Replay는 일반 queue를 거치지 않고 Worker 결과의 bytes를 한 번 fetch한다. keepalive=false, credentials=omit, referrerPolicy=no-referrer, redirect=error, AbortController를 고정한다. 시작 직전과 응답 뒤 generation을 확인한다. 2xx이며 rate-limit 지시가 없는 응답만 성공으로 처리하고 그때 state를 commit한다. 실패는 먼저 close하고 local 403 결과를 반환한다. 현재 send 안에서 stop 완료를 기다리지 않는다. 일반 envelope는 관련 key를 제거한 뒤 주입한 normal transport로 위임한다. DSC는 고정 SDK의 공개 client hook과 등록 순서로 처리하고, 기존 span의 cached DSC 우회 경로도 실제 요청으로 확인한다. 공개 API로 보장할 수 없으면 반례를 보고하고 작업을 중단한다. 전역 fetch 패치·SDK private API·일반 tracing 전체 비활성화로 시험을 통과시키지 않는다.</li><li><label><input type="checkbox" disabled> 같은 명령으로 모든 해당 assertion의 PASS를 확인한다.</label> 실패하면 원인을 수정하고 해당 범위만 다시 실행한다.</li><li><label><input type="checkbox" disabled> Task에 열거한 파일만 명시적으로 stage하고 커밋한다.</label></li></ol>
+<pre><code>git add -- scripts/replay-p0/transport.ts scripts/replay-p0/correlation.ts __tests__/scripts/replay-p0/transport.test.ts __tests__/scripts/replay-p0/correlation.test.ts
+git commit -m &quot;test(sentry): isolate replay sends and correlation&quot;</code></pre>
+<h2 id="task-5">Task 5. 실제 SDK 브라우저 시험과 독립 수신 검사</h2><p><strong>Files:</strong> 기존 Task 1의 browser-entry.ts/run.cjs 확장, replay-view.ts 생성; result.test.ts.</p><p><strong>Interfaces:</strong></p>
+<pre><code>type ReplayView = { apply(records: readonly unknown[]): void; dispose(): void };
+export function createReplayView(target: Document): ReplayView;
+// Reconstruct only P0 from RECEIVED decoded records; does not import projection.ts.
+// run.cjs --case normal|races|cleanup|limits|all
+// run.cjs exports exitCode(report: TrialReport): 0 | 1 for result.test.ts.
+// --case all writes a structured TrialReport; exits 1 on any required failure.
+// browser-entry exposes a test-only controller on loopback fixture, never window.Sentry.</code></pre>
+<ol><li><label><input type="checkbox" disabled> 실패 테스트를 작성한다.</label></li></ol>
+<pre><code>// Playwright runner assertions, actual SDK not a handcrafted positive envelope:
+expect(receivedSegments).toEqual([0, 1, 2]);
+expect(receivedReplayIds.size).toBe(1);
+expect(allDecodedBytesContainCanary).toBe(false);
+expect(nonAllowlistedFields).toHaveLength(0);
+expect(replayedNodeCount).toBe(expectedNodeCount);
+expect(maxRectErrorCssPx).toBeLessThanOrEqual(1);
+expect(maxOpacityError).toBeLessThanOrEqual(0.01);
+expect(buttonExpanded).toBe(expectedExpanded);
+expect(indexValue).toBe(expectedIndex);
+expect(networkStartsAfterClosedGeneration).toBe(0);
+expect(ordinaryEventReplayLinks).toHaveLength(0);
+// result.test.ts:
+expect(exitCode({...validReport, normal:&#x27;fail&#x27;})).toBe(1);
+expect(exitCode({...validReport, expectedLimitations:[{case:&#x27;hung-processor&#x27;,observed:false}]})).toBe(1);</code></pre>
+<ol start="2"><li><label><input type="checkbox" disabled> 다음 명령으로 실패를 확인한다.</label> 최초에는 미구현 export 또는 명시한 assertion에서 실패해야 한다. 환경/브라우저 설치 오류는 RED 증거가 아니다.</li></ol>
+<pre><code>npx vitest run __tests__/scripts/replay-p0/result.test.ts
+node scripts/replay-p0/run.cjs --case all</code></pre>
+<ol start="3"><li><label><input type="checkbox" disabled> 다음 범위만 구현한다.</label> 동일 Replay를 기록하는 동안 공개 flush로 0·1·2를 구분한다. 처음은 트리, 다음은 text/attr/style 및 click, 마지막은 기존 노드 삭제·재삽입과 상태 변경이다. SDK 자동 flush도 수신기에서 계수하므로 예상 밖 구간을 숨기지 않는다. 각 flush 완료와 수신 확인 후 다음 동작을 실행한다. 수신 bytes를 기존 parser로 복원하고 별도 assertion으로 P0 필드·canary를 순회한다. replay-view는 수신 full snapshot과 mutation을 별도 비실행 문서에 적용하고, 위치·크기·상태·이벤트 대상 ID를 고정 oracle과 비교한다. 이것은 P0 DOM 재구성 검증이며 범용 rrweb player 또는 Sentry 대시보드 검증이 아니다. 외부 요청은 Playwright에서 차단하고 loopback 수신 경로도 목록으로 제한한다. 일반 error/transaction은 기존 scrub 함수와 주입된 기본 SDK transport를 사용하되 제품 beforeSend의 모든 분기까지 통합 검증했다고 주장하지 않는다.</li><li><label><input type="checkbox" disabled> 같은 명령으로 모든 해당 assertion의 PASS를 확인한다.</label> 실패하면 원인을 수정하고 해당 범위만 다시 실행한다.</li><li><label><input type="checkbox" disabled> Task에 열거한 파일만 명시적으로 stage하고 커밋한다.</label></li></ol>
+<pre><code>git add -- scripts/replay-p0/browser-entry.ts scripts/replay-p0/run.cjs scripts/replay-p0/replay-view.ts __tests__/scripts/replay-p0/result.test.ts
+git commit -m &quot;test(sentry): exercise actual replay lifecycle locally&quot;</code></pre>
+<p class="note"><strong>미리 확인한 제약:</strong> 고정 SDK의 <code>dynamicSamplingContext.js:98–110</code>은 frozen DSC와 trace-state DSC를 <code>createDsc</code> hook 전에 반환한다. hook 등록만으로 기존 DSC 제거가 증명되지는 않는다. Task 1의 capture에서 기존/새 span의 요청 헤더 probe도 먼저 수행하고 결과를 기록한다. Task 4는 이 반례의 해결 여부를 필수 판정한다. 공개 API로 처리할 수 없으면 기능을 더 붙이기 전에 실패와 최소 설계 변경안을 보고한다.</p><h3>Task 5의 필수 시나리오</h3><table><thead><tr><th>묶음</th><th>주입과 관측</th></tr></thead><tbody>
+<tr><td>normal</td><td>0→1→2 실제 SDK 양성. 문자열/diff tuple/important/false/null, 삭제·재삽입·이동·click. 마스킹 텍스트와 검토한 CSS만 수신. 정적 CSS 해시와 script 생략 확인. source별 형태는 Task 1의 검토 샘플과 대조한다.</td></tr>
+<tr><td>races</td><td>import 대기, start 직전, 첫 snapshot, 압축 대기, Worker 대기, transport 진입, fetch 진행에 close를 각각 주입한다. 타임스탬프·generation·fetch 시작과 수신 receipt를 구분한다. 페이지 hide/pagehide 뒤 복귀·BFCache 복귀는 닫힘을 유지한다. 실제 BFCache가 환경상 지원되지 않으면 미검증으로 보고하며 모의 event만으로 통과 처리하지 않는다.</td></tr>
+<tr><td>cleanup</td><td>정상 stop 완료와 매번 즉시 실패하는 공개 processor의 5/10/30초 SDK 재시도 및 60초 판정 기한을 관측한다. processor는 transport 진입 전 SDK event processor 경계에 주입한다. finite 재시도는 fake-clock과 한 번의 실제 경과 시험으로 확인한다. 무한 processor Promise·SDK Worker 무응답은 예상 한계로 별도 기록한다. P0 변환 Worker의 2초 timeout과 SDK 내부 Worker 무한 대기를 혼동하지 않는다. SDK Worker 대기는 시험 페이지의 Worker 생성 경계에서 응답을 보류하고, 실제 production/private 메서드를 고치지 않는다.</td></tr>
+<tr><td>공개 API 반례</td><td>close 후 정상 controller 호출은 새 녹화/요청 0회. 별도 케이스에서 getReplay().start()/flush() 직접 호출로 SDK 녹화 재시작을 관측할 수 있으나 전송은 0회여야 한다. 메모리 재시작은 허용된 제품 동작이 아니라 설계 한계다. public status/stop 완료·소유한 참조 정리만 측정하며 heap 소거를 단정하지 않는다.</td></tr>
+<tr><td>limits</td><td>각 정수 한도/+1, 압축 폭탄, Worker CPU 정지와 무응답, fetch 무응답, 5분 만료를 단위 시험과 브라우저에서 확인한다. 큰 데이터는 합성 생성기로 만든다. 실제 background timer 지연은 별도 측정하며 2초 즉시 종료 보장으로 보고하지 않는다.</td></tr>
+<tr><td>canary와 일반 event</td><td>snapshot/mutation/CSS/metadata/custom event에 합성 이름·이메일·경로 canary를 넣는다. 압축/비압축 둘 다 검사한다. 제거 또는 전체 종료라는 계약을 각각 assertion으로 둔다. 녹화 중/종료 후 error·transaction·DSC·envelope trace·기존/새 span 요청 baggage를 캡처한다. 로컬 진단과 일반 이벤트로 원문이 우회하지 않아야 한다.</td></tr>
+</tbody></table>
+<p><strong>시간 판정:</strong> 테스트 runner 자체에는 케이스별 유한 상한을 두고, 시간 초과는 실패 또는 명시된 예상 한계로만 분류한다. 정해진 대기 후 출력이 없다는 사실을 성공으로 처리하지 않는다. 무한 대기 케이스는 관측 증거를 남긴 뒤 시험 document/process를 종료한다.</p>
+
+<h2 id="task-6">Task 6. 최종 검증·독립 리뷰·결과 문서</h2><p><strong>Files:</strong> docs/reports/2026-10-14-replay-p0-implementation-result.html. 앞 단계 파일은 리뷰에서 확인한 결함만 수정.</p><p><strong>Interfaces:</strong></p>
+<pre><code>// No new runtime interface.
+// Consumes TrialReport, captured local receiver assertions, unit results,
+// esbuild metafile, exact SDK/bundle/Git identity and independent review verdict.</code></pre>
+<ol><li><label><input type="checkbox" disabled> 실패 테스트를 작성한다.</label></li></ol>
+<pre><code>// Required evidence assertions (runner/result.test.ts):
+expect(report.normal).toBe(&#x27;pass&#x27;);
+expect(report.barrier).toBe(&#x27;pass&#x27;);
+expect(report.finiteCleanup).toBe(&#x27;pass&#x27;);
+expect(report.expectedLimitations.every(x =&gt; x.observed)).toBe(true);
+expect(productEntryImportsP0).toBe(false);
+expect(publicDirectoryContainsP0).toBe(false);
+// These are distinct fields; expectedLimitations cannot override a failed requirement.</code></pre>
+<ol start="2"><li><label><input type="checkbox" disabled> 다음 명령으로 실패를 확인한다.</label> 최초에는 미구현 export 또는 명시한 assertion에서 실패해야 한다. 환경/브라우저 설치 오류는 RED 증거가 아니다.</li></ol>
+<pre><code>npx vitest run __tests__/scripts/replay-p0
+node scripts/replay-p0/run.cjs --case all
+npx tsc --noEmit --incremental false
+npx eslint scripts/replay-p0 --ext .ts,.cjs
+git diff --check</code></pre>
+<ol start="3"><li><label><input type="checkbox" disabled> 다음 범위만 구현한다.</label> 필수 검증의 증거를 모은다. Task 5 직후 코드 변경이 없으면 동일 브라우저 전체 시험을 반복하지 않고 방금 얻은 증거를 사용한다. esbuild metafile과 파일/import 검사를 통해 제품 엔트리·public에서 P0 참조가 없는지 확인한다. 실행 환경상 type/lint 기존 실패가 있으면 변경 원인과 분리하고 통과라고 표시하지 않는다. fresh usage·capability·권한 검사 후 다른 공급자의 Frontier 읽기 전용 리뷰를 한 번 받는다. 중대한 지적은 코드/테스트로 처리하고 원 리뷰어가 한 번 재검증한다. review-blocked면 결과를 미승인으로 남긴다. HTML 결과는 네 가지 판정·측정값·미검증 항목·다음 제품 연결 조건을 담고 PC/모바일에서 검증한다.</li><li><label><input type="checkbox" disabled> 같은 명령으로 모든 해당 assertion의 PASS를 확인한다.</label> 실패하면 원인을 수정하고 해당 범위만 다시 실행한다.</li><li><label><input type="checkbox" disabled> Task에 열거한 파일만 명시적으로 stage하고 커밋한다.</label></li></ol>
+<pre><code>git status --short --untracked-files=all
+git check-ignore -v docs/reports/2026-10-14-replay-p0-implementation-result.html
+git add -f -- docs/reports/2026-10-14-replay-p0-implementation-result.html
+git commit -m &quot;docs(sentry): record isolated replay trial results&quot;</code></pre>
+<h2>자체 검토와 완료 경계</h2>
+<table><thead><tr><th>설계 요구</th><th>계획의 담당 범위</th></tr></thead><tbody>
+<tr><td>§3 lifecycle/SDK 한계</td><td>Task 3 제어, Task 4 전송 반환, Task 5 retry·무한 대기·직접 API 반례</td></tr>
+<tr><td>§4 envelope/rrweb 순서</td><td>Task 1 검토 wire fixture, Task 2 엄격한 투영, Task 4 성공 후 commit, Task 5 실측 3구간</td></tr>
+<tr><td>§5 DOM/CSS</td><td>P0 부분만 Task 1·2·5. 제품 전체 manifest·Next 노드·실제 화면 품질은 후속 범위</td></tr>
+<tr><td>§6 예산</td><td>Task 2 Worker와 크기 경계, Task 3 5분, Task 4 5초, Task 5 실제 브라우저 한계</td></tr>
+<tr><td>§7 격리/증거</td><td>Task 1 정적 페이지, Task 5 수신기/4개 판정, Task 6 통합 증거·독립 리뷰</td></tr>
+</tbody></table>
+<p>함수·상태 타입의 연결과 5개 Review Focus의 담당 시험을 대조했다. 테스트 예시의 runner 변수는 해당 케이스에서 관측한 값이며 실제 SDK 동작을 mock한 값으로 채우지 않는다. 구현자가 명세에 없는 지원을 추가해야 통과할 수 있다면 시험을 멈추고 불일치를 보고한다.</p>
+<p class="note"><strong>이번 문서 검증:</strong> 구현 계획의 자체 대조와 HTML 구조/링크/PC·모바일 렌더링만 수행한다. 위 명령은 앞으로 실행할 검증이며, 실행 코드·제품 테스트가 이미 통과했다는 뜻이 아니다. 독립 검토가 사용량 증거 충돌로 시작되지 않아 최종 승인은 남아 있다.</p>
+<p><strong>다음 단계:</strong> 이 문서와 순차 구현 방식을 사용자가 확인한 뒤 Task 1을 시작한다. 독립 설계·계획 검토도 가용한 fresh 증거로 완료해야 한다. 제품 연결, 운영 활성화, 외부 Sentry 저장, 대시보드 실제 재생은 이 계획 완료 후 별도로 결정한다.</p>
+</main></body></html>
