@@ -10,3 +10,25 @@ export function isEligible(value: Eligibility): boolean {
   return value.initialized === true && value.auth === 'anonymous' && value.ads === 'denied'
     && value.adsEverLoaded === false && value.exactPublicRoute === true;
 }
+
+export type Phase = 'WAITING' | 'LOADING' | 'ARMED' | 'RECORDING' | 'CLOSED';
+export type Reason = 'ineligible' | 'hidden' | 'expired' | 'schema' | 'budget' | 'sequence'
+  | 'overlap' | 'worker-timeout' | 'fetch-timeout' | 'http' | 'abort' | 'sdk';
+export type Gate = { phase: Phase; generation: number };
+export type SdkHandle = { start(): void; stop(): Promise<void>; flush(): Promise<void> };
+export type Cleanup = 'pending' | 'resolved' | 'rejected';
+export type NodeState = {
+  parent: number | null; children: number[]; kind: number; tag?: string;
+  text?: string; isStyle?: boolean; attrs: Record<string, string>; style: Record<string, string>;
+};
+export type ProjectionState = {
+  replayId: string | null; nextSegment: number; sessionStartMs: number | null;
+  nodes: Map<number, NodeState>; tombstones: Set<number>;
+};
+export type Projected = { bytes: Uint8Array; next: ProjectionState; segment: number };
+export type ProjectResult = { ok: true; value: Projected } | { ok: false; reason: Reason };
+export type Transform = (input: import('@sentry/core').Envelope, state: ProjectionState, signal: AbortSignal) => Promise<ProjectResult>;
+
+export function emptyProjectionState(): ProjectionState {
+  return { replayId: null, nextSegment: 0, sessionStartMs: null, nodes: new Map(), tombstones: new Set() };
+}
