@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>picnic-web 핸드오프 — 2026-10-06</title>
+<style>
+  :root {
+    --ink: #1a1a1a; --muted: #5c6370; --line: #e3e6eb; --bg: #ffffff;
+    --code-bg: #f6f8fa; --accent: #6b46e5; --warn-bg: #fff8e6; --warn-line: #e6b800;
+    --bad-bg: #fdf0f0; --bad-line: #d64545; --good-bg: #f0f8f2; --good-line: #3a9a5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 24px 96px; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+      "Noto Sans KR", Segoe UI, sans-serif;
+    line-height: 1.75; font-size: 16px;
+  }
+  main { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 30px; line-height: 1.3; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 22px; margin: 56px 0 16px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--line); letter-spacing: -0.01em;
+  }
+  h3 { font-size: 17px; margin: 32px 0 10px; }
+  p, li { color: var(--ink); }
+  .sub { color: var(--muted); margin: 0 0 32px; font-size: 15px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 0.88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    border: 1px solid var(--line); white-space: nowrap;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+  }
+  pre code { background: none; border: none; padding: 0; white-space: pre; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14.5px; }
+  th, td { border: 1px solid var(--line); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td code { white-space: normal; }
+  .box { border-radius: 8px; padding: 14px 18px; margin: 18px 0; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--warn-line); }
+  .bad  { background: var(--bad-bg);  border-left: 4px solid var(--bad-line); }
+  .good { background: var(--good-bg); border-left: 4px solid var(--good-line); }
+  .box p:first-child { margin-top: 0; }
+  .box p:last-child { margin-bottom: 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  .nowrap { white-space: nowrap; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
+  .footnote { color: var(--muted); font-size: 14px; }
+  nav.toc { font-size: 14.5px; color: var(--muted); margin: 0 0 8px; }
+  nav.toc a { color: var(--accent); text-decoration: none; margin-right: 10px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>picnic-web 핸드오프 — 2026-10-06</h1>
+<p class="sub">2026-10-06 · 코드 기준 <code>main</code> = <code>39ddc313</code> · 열린 PR 1건(#121, 교차 리뷰 1차 지적을 고친 상태) · 열린 이슈 5건(변동 없음)</p>
+
+<div class="box good">
+<p><strong>한 줄 요약.</strong> <a href="handoff-2026-10-02.html">10-02 핸드오프</a> 뒤로 두 가지를 했다. 언어 라우팅 후속 정리와 CI 도입(#112~#115)을 머지했고, 로그 민감정보 가리기와 오류 전달 보장(B-P4, 이슈 #73·#74)의 설계(#116)와 PR 1(#119)·PR 1b(#118)를 머지해 Production 에 배포했다. 지금은 B-P4 의 PR 2(#121)가 열려 있다.</p>
+</div>
+
+<div class="box warn">
+<p><strong>이어받으면 바로 할 일.</strong> PR #121 의 교차 리뷰 1차가 REQUEST_CHANGES(blocker 1, major 2, minor 1)였다. 네 건을 고쳐 실제 서버 검증까지 통과했고 로컬에 커밋했다(<code>8025927b</code>). <strong>이 커밋은 아직 push 하지 않았다.</strong> 남은 것은 문서 반영 → push → 원 리뷰어의 재검증 1회 → 사용자 머지 승인이다. 순서와 명령은 <a href="#next121">§2</a>.</p>
+</div>
+
+<div class="box bad">
+<p><strong>변하지 않은 가장 중요한 것.</strong> 결제 코드는 여전히 고치지 않았다. 감사가 찾은 결함 6건(PortOne 4, PayPal 2)은 <code>it.fails</code> 표식으로만 남아 있다. 환경변수만 넣어 웹 결제를 열면 사고가 난다. 10-02 핸드오프 §6 이 그대로 유효하다.</p>
+</div>
+
+<nav class="toc">
+<a href="#state">1 지금 상태</a><a href="#next121">2 바로 할 일</a><a href="#review">3 리뷰 지적</a><a href="#done">4 한 일</a><a href="#behavior">5 달라진 동작</a><a href="#roadmap">6 B-P4 남은 단계</a><a href="#decisions">7 결정 대기</a><a href="#pending">8 미확인</a><a href="#mistakes">9 틀렸던 것</a><a href="#traps">10 함정</a><a href="#commands">11 명령</a><a href="#map">12 문서 지도</a><a href="#resources">13 세션 밖 자원</a>
+</nav>
+
+<h2 id="state">1. 지금 상태</h2>
+
+<table>
+  <tr><th style="width:22%">항목</th><th>값</th></tr>
+  <tr><td><code>main</code></td><td><code>39ddc313</code>(#120, 문서). 동작이 마지막으로 바뀐 커밋은 <code>c78c692e</code>(#119)</td></tr>
+  <tr><td>Production</td><td><code>www.picnic.fan</code>. 2026-10-05 에 #116 → #118 → #119 → #120 을 차례로 배포했고, 배포마다 콜백 라우트의 응답이 머지 전 기준선과 같고 5xx 와 Sentry 신규 이슈가 없는 것을 확인했다</td></tr>
+  <tr><td>열린 PR</td><td><a href="https://github.com/charlie0421/picnic-web/pull/121">#121</a> <code>feat/log-redaction-contract</code>. 원격의 head 는 <code>fd969bd2</code>(CI 통과). 로컬에는 리뷰 수정 커밋 <code>8025927b</code> 가 하나 더 있다(push 안 함)</td></tr>
+  <tr><td>열린 이슈</td><td>5건, 10-02 와 같다: #73(Sentry redaction), #74(전달 보장), #75·#76(로그 레벨 정책), #77(PortOne 웹훅 서명)</td></tr>
+  <tr><td>CI</td><td><strong>생겼다</strong>(#115). PR 과 <code>main</code> push 에서 <code>npm ci</code> → <code>tsc --noEmit</code> → <code>npm run lint</code> → <code>npm test</code>. UTC 러너. 빌드는 돌리지 않는다. 필수 검사 지정(branch protection)은 하지 않았다</td></tr>
+  <tr><td>Preview 배포</td><td>없다. 머지가 곧 Production 배포다</td></tr>
+  <tr><td>워크트리</td><td>메인 폴더(<code>main</code>) · <code>/Users/charlie.hyun/Repositories/picnic-web-log-redaction-contract</code>(#121) · <code>/Users/charlie.hyun/Repositories/picnic-web-handoff-1006</code>(이 문서, 브랜치 <code>docs/handoff-2026-10-06</code>)</td></tr>
+  <tr><td>원격 브랜치</td><td><code>main</code>, <code>feat/log-redaction-contract</code>, <code>fix/sentry-third-party-filter</code>(다른 세션이 남긴 것, 그대로 뒀다)</td></tr>
+  <tr><td>로컬 검증</td><td>#121 워크트리의 <code>8025927b</code>: 타입 오류 0, lint 경고 0, 테스트 204개 파일 3,387건 통과 · 6건 expected fail · 1건 skipped(KST 와 <code>TZ=UTC</code> 모두). <code>npm run test:envelope</code> 는 누출 시나리오 24건과 전달 시나리오 11단계 통과. <code>main</code> 의 기준선은 198개 파일 3,170건이다</td></tr>
+  <tr><td>메인 폴더 주의</td><td>추적되지 않는 <code>.playwright-mcp/</code> 는 브라우저 자동화 로그라 커밋하지 않는다. <code>node_modules</code> 가 lockfile 보다 오래됐을 수 있으니 검증은 워크트리에서 <code>npm ci</code> 뒤에 한다</td></tr>
+</table>
+
+<h2 id="next121">2. 바로 이어서 할 일 — PR #121</h2>
+
+<p>작업 디렉터리는 <code>/Users/charlie.hyun/Repositories/picnic-web-log-redaction-contract</code> 다. 계획서는 그 안의 <code>docs/superpowers/plans/2026-10-06-log-safe-error-contract-and-boundary.md</code>, 설계서는 <code>docs/superpowers/specs/2026-10-02-log-redaction-and-delivery-design.md</code> 다.</p>
+
+<table>
+  <tr><th style="width:4%">#</th><th style="width:30%">할 일</th><th>자세히</th></tr>
+  <tr>
+    <td>1</td>
+    <td>리뷰 지적 4건 수정 <strong>(끝남)</strong></td>
+    <td>실패하는 테스트를 먼저 쓰고 고쳤다. 로컬 커밋 <code>8025927b</code>. 내용은 <a href="#review">§3</a></td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>문서를 리뷰 결과에 맞춘다</td>
+    <td>
+      <ul>
+        <li><strong>설계서 §4.2</strong>: "stack 은 우리 프로세스가 만든 프레임이라 요청이나 외부 응답의 값이 들어갈 길이 없다"는 문장이 틀렸다. 함수 이름은 값에서 올 수 있다. stack 에는 위치(스크립트 이름·줄·칸)만 싣는다고 고친다. "구현에서 정한 것"에 대체 기록(기록을 만들다가 던져도 한 줄은 남긴다)과 <code>Reflect.ownKeys</code> 를 더한다</li>
+        <li><strong>설계서 §4.7</strong>: 경계 함수가 <code>cause</code> 사슬을 직접 따라가고, Next 가 그 값 자체를 신호로 볼 때만 올려보낸다</li>
+        <li><strong>설계서 §5.1</strong>: 누출 시나리오의 요청이 24건이 됐다(<code>boundary-hostile</code> 추가. 수정 전 실패 4건 → 0건)</li>
+        <li><strong>설계서 §8·§10</strong>: 확인한 사실을 더하고 "10.8 PR 2 의 교차 리뷰에서 드러난 것" 절을 쓴다(§10.6 과 같은 모양)</li>
+        <li><strong>계획서</strong>: "실행 결과"에 교차 리뷰 문단을 더하고, 파일 블록을 실제 파일과 맞춘다. 바뀐 파일은 <code>utils/log-safe-error.ts</code>, <code>utils/with-safe-errors.ts</code>, <code>utils/log-event-codes.ts</code>, 두 테스트 파일, <code>scripts/envelope-test/scenario.js</code>, <code>__tests__/scripts/envelope-test-routes.test.ts</code>, 새 라우트 <code>scripts/envelope-test/routes/boundary-hostile/route.ts</code> 다. 테스트 수는 3,370 → 3,387</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>커밋, push, PR 본문 갱신</td>
+    <td><code>docs(logging): …</code> 로 커밋한 뒤 <code>git push</code>. 본문에는 리뷰 1차와 수정, 새 숫자(3,387건, 누출 24건)를 적는다. <code>gh pr edit</code> 이 Projects(classic) 오류로 실패하면 <code>gh api --method PATCH repos/charlie0421/picnic-web/pulls/121 -F body=@파일</code></td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>원 리뷰어의 재검증 1회</td>
+    <td>절차는 <a href="#resources">§13</a>. 사용량 게이트를 다시 통과시킨 뒤(관측은 5분만 유효하다) 같은 Run 에 새 Task 를 만들어 보낸다. 지시서에는 요구사항, 지적별 수정과 테스트 이름, 실제 서버 결과, 리뷰어가 "미확인"으로 남긴 세 가지에 대한 답(<a href="#review">§3</a>)만 넣는다. 구현자의 판단 과정은 넣지 않는다</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>사용자에게 머지 승인 요청</td>
+    <td>APPROVE 가 나오면 판정, 테스트 수, envelope 출력, 남는 한계를 보고한다. <strong>승인 전에는 머지하지 않는다.</strong> 이견이 남으면 증거를 한 차례씩 주고받은 뒤 사용자에게 선택지를 낸다</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>머지 뒤</td>
+    <td>이 PR 은 운영 호출부를 바꾸지 않으므로 운영의 동작은 그대로여야 한다. 볼 것: 배포 성공, <code>main</code> CI, <code>/api/envelope-test/*</code> 가 404, 30분 동안의 5xx 와 Sentry 신규 이슈. 계획서에 머지 기록을 쓰고 워크트리와 브랜치를 정리한다. 감사 계획 <code>docs/audit-2026-09-26/plan.md</code> §5.5 의 B-P4 줄이 #116 초안 시점 그대로이니 함께 고친다</td>
+  </tr>
+</table>
+
+<h2 id="review">3. PR #121 교차 리뷰 1차 — 지적 4건과 처리</h2>
+
+<p>리뷰어는 Codex <code>gpt-6-sol</code> / high / 읽기 전용이다(2026-10-06). 판정은 <strong>REQUEST_CHANGES</strong>. 네 건 모두 타당했고 반박한 것은 없다.</p>
+
+<table>
+  <tr><th style="width:9%">심각도</th><th style="width:31%">지적</th><th style="width:36%">고친 것</th><th>테스트</th></tr>
+  <tr>
+    <td>blocker</td>
+    <td><code>utils/with-safe-errors.ts</code> — 던진 오류의 <code>cause</code> 가 던지는 getter 면, <code>unstable_rethrow</code> 가 그것을 읽다가 난 예외가 경계 밖으로 나가 Next 의 로그와 Sentry 에 닿는다. 돌고 도는 <code>cause</code> 도 안전한 기록을 막는다</td>
+    <td><code>cause</code> 사슬을 직접 따라간다. 읽다가 던지거나, 이미 본 값으로 돌아오거나, 열 단계를 넘으면 멈춘다. 사슬의 값마다 <code>unstable_rethrow</code> 를 불러 <strong>그 값 자체가 그대로 다시 던져질 때만</strong> 신호로 보고 올려보낸다. 그 밖의 예외(getter 의 예외, 넘친 stack)는 삼키고 가린 기록을 남긴다</td>
+    <td><code>with-safe-errors.test.ts</code> 의 "던진 값이 읽기를 방해할 때" 6건. <strong>실제 서버에서도 재현했다</strong>: 수정 전 envelope 테스트 실패 4건(getter 의 메시지가 Sentry 이벤트와 Next 의 미처리 오류 줄에 실렸다) → 수정 뒤 0건</td>
+  </tr>
+  <tr>
+    <td>major</td>
+    <td><code>utils/log-safe-error.ts</code> — <code>fields</code> 가 취소된 Proxy 면 <code>Array.isArray</code> 가 <code>try</code> 밖에서 던진다. <code>logSafeError</code> 가 그것을 삼켜 로그가 한 줄도 남지 않는다</td>
+    <td>검사를 <code>try</code> 안으로 옮겼다. 더해서, 기록을 만들다가 무엇이 던져도 상수만 든 기록(<code>droppedFields: ['fields']</code>)으로 한 줄을 남긴다</td>
+    <td><code>log-safe-error.test.ts</code> 의 취소된 Proxy 3건, "기록을 만들다가 던져도…" 1건</td>
+  </tr>
+  <tr>
+    <td>major</td>
+    <td><code>utils/log-safe-error.ts</code> — 요청 값으로 이름 붙인 computed 메서드에서 부르면 V8 의 stack 프레임에 그 값이 들어가 콘솔과 Sentry 로 나간다</td>
+    <td>엔진이 만든 stack 문자열을 쓰지 않는다. <code>Error.prepareStackTrace</code> 를 잠깐 바꿔 구조화된 호출 지점(CallSite)을 받고, 스크립트 이름·줄·칸만으로 stack 을 만든다. 이 API 가 없는 엔진에서는 프레임을 싣지 않는다. 문자열을 거르는 방법은 쓰지 않았다 — 함수 이름에 줄바꿈을 넣으면 위치처럼 생긴 줄을 만들 수 있다</td>
+    <td>"호출부의 함수 이름이 값에서 온 것이어도 새지 않는다" 4건(computed 메서드, 값을 키로 삼은 호출, 줄바꿈으로 위치를 흉내 낸 이름, 동적 클래스 이름), "stack 에는 위치만 싣는다" 1건</td>
+  </tr>
+  <tr>
+    <td>minor</td>
+    <td><code>utils/log-safe-error.ts</code> — 정해지지 않은 Symbol 키는 <code>Object.keys</code> 에 잡히지 않아 <code>droppedFields: ['other']</code> 가 남지 않는다</td>
+    <td><code>Reflect.ownKeys</code> 로 센다. 열거되지 않는 키도 잡힌다. Symbol 키의 값은 원래도 읽지 않았다</td>
+    <td>"Symbol 키와 열거되지 않는 키도 정해지지 않은 키로 센다" 1건</td>
+  </tr>
+</table>
+
+<h3>리뷰어가 "미확인"으로 남긴 것과 답</h3>
+
+<table>
+  <tr><th style="width:38%">미확인</th><th>답</th></tr>
+  <tr><td>위 반례를 실제 Next 서버와 Sentry 래퍼에서 재현하는 테스트</td><td>blocker 는 재현했다. 누출 시나리오에 <code>boundary-hostile</code> 요청을 더했다(수정 전 실패 4건 → 0건). 나머지 세 건은 계약 함수 안의 일이라 단위 테스트로 본다</td></tr>
+  <tr><td>별도 청크의 첫 동적 import</td><td>잰 것은 route handler 의 경로다. 그 번들에서 <code>import('@sentry/nextjs')</code> 는 <code>Promise.resolve().then(require)</code> 로 컴파일된다(SDK 의 래퍼가 같은 모듈을 정적으로 import 하기 때문이다). 다른 레이어의 번들에는 청크를 올리는 모양(<code>c.e(id).then(…)</code>)이 있는데, Node 런타임의 청크 로더가 동기 <code>require</code> 라는 것을 코드로만 확인했고 재지는 않았다. 재검증 지시서와 설계서에 "측정한 범위는 route handler"라고 적는다</td></tr>
+  <tr><td>스트리밍 응답의 반환 뒤 오류</td><td>경계가 잡지 못한다. 핸들러가 돌아온 뒤의 일이다. 결제·인증 라우트는 스트리밍하지 않는다. 설계서 §4.3 의 3번("보장하지 못하는 것")에 한 줄 더한다</td></tr>
+</table>
+
+<h2 id="done">4. 이번에 한 일 (10-02 이후)</h2>
+
+<h3>언어 라우팅 후속과 CI (2026-10-02, #112~#115·#117)</h3>
+<table>
+  <tr><th style="width:9%">PR</th><th>내용</th></tr>
+  <tr><td>#112</td><td>과거 리다이렉트 버그가 만든 <code>/download/vote</code>·<code>/login/vote</code> 를 원래 페이지로 되돌린다(<code>next.config.js</code> 의 307 네 줄)</td></tr>
+  <tr><td>#115</td><td>CI 도입. 첫 실행에서 UTC 러너의 날짜 테스트 8건이 실패해 테스트를 시간대와 무관하게 고쳤다</td></tr>
+  <tr><td>#113</td><td>접두어 없는 주소를 만들던 호출부, <code>/open-in-browser</code> 의 307 과 공용 언어 함수, 죽은 파일 2개 삭제, <code>common.loading</code> 번역 키와 언어 파일 키 일치 테스트</td></tr>
+  <tr><td>#114</td><td>middleware 가 읽는 곳이 없는 <code>x-locale</code> 요청 헤더를 만들지 않는다</td></tr>
+  <tr><td>#117</td><td>위 네 건의 머지와 Production 검증 기록(문서)</td></tr>
+</table>
+<p>검증 기록은 <code>docs/superpowers/specs/2026-10-01-locale-prefix-routing-design.md</code> §10.2, 결정과 표는 <code>docs/audit-2026-09-26/plan.md</code> §5.5 에 있다. 10-02 핸드오프 §7 의 5·6순위가 이것으로 끝났다.</p>
+
+<h3>B-P4 설계와 PR 1·1b (2026-10-02 ~ 10-05, #116·#118·#119·#120)</h3>
+<ul>
+  <li><strong>설계(#116)</strong>: 접근법은 "지우지 말고 수집과 호출을 좁힌다, envelope 테스트로 지킨다"다. 교차 리뷰가 초안을 네 번 돌려보낸 뒤 5회차에 승인했다. 사용자가 결정 1·2·3·6·8 을 확정했다.</li>
+  <li><strong>PR 1(#119)</strong>: 서버·edge 의 Sentry 이벤트가 쿠키·헤더·IP·쿼리와 console breadcrumb 을 싣지 않는다. 그 전에는 로그인 사용자의 요청에서 오류가 나거나 transaction 표본에 잡히면 세션 쿠키가 Sentry 로 나갔다. <code>npm run test:envelope</code>(실제 <code>next start</code> + 로컬 수집기)가 생겼다. 수정 전 실패 70건 → 0건.</li>
+  <li><strong>PR 1b(#118)</strong>: 콜백의 URL·토큰 로그 줄을 지우고, PortOne 웹훅이 받은 본문을 400 응답으로 되돌려주던 것을 없앴다.</li>
+  <li><strong>Production 확인(#120 에 기록)</strong>: 새 릴리스의 span 에서 Supabase 호출 주소의 쿼리가 사라진 것을 이전 릴리스와 나란히 봤다. 이벤트의 <code>request</code> 블록(헤더·쿠키)은 새 릴리스에 오류 이벤트가 없어 Production 에서는 보지 못했다(<a href="#pending">§8</a>).</li>
+</ul>
+
+<h3>B-P4 PR 2 (2026-10-06, #121 — 열려 있다)</h3>
+<ul>
+  <li><strong>무엇을 더하나</strong>: 계약 함수 <code>logSafeError(code, error, fields)</code> 와 경계 함수 <code>withSafeErrors(code, handler)</code>, 닫힌 목록(사건 코드, 오류 이름, 오류 코드), 그리고 테스트. <strong>운영의 호출부는 옮기지 않는다</strong>(PR 3·4). 머지해도 운영 동작은 그대로다.</li>
+  <li><strong>재서 알게 된 것</strong>: 설계가 걱정한 "<code>await import</code> 때문에 이벤트가 flush 보다 늦게 큐에 들어가는 틈"은 없다. 핸들러가 기록을 남기고 바로 응답해도 SDK 가 핸들러 끝에 건 flush 가 그 이벤트의 전송을 기다린다. 그래서 <code>SentryLogTarget</code> 을 정적 import 로 바꾸지 않았다.</li>
+  <li><strong>설계에 없던 것</strong>: Sentry 이벤트에 사건 코드를 fingerprint 로 싣는다. 경계가 잡은 예외는 프레임이 공용 청크의 것뿐이라 라우트가 달라도 같다(envelope 의 이벤트에서 확인). Sentry 에서 실제로 한 이슈로 묶이는지는 재지 않았다.</li>
+  <li><strong>경계 없이 돌리면</strong>: 지금의 호출부처럼 <code>logError</code> 에 오류 객체와 값을 넘긴 테스트 라우트에서 envelope 테스트가 20건 실패한다. 오류의 이름이 예외의 type 과 span 의 <code>error.type</code> 으로, <code>cause</code> 가 이어진 예외로, 필드 값이 <code>contexts.log</code> 로 나가고, 서버 출력에는 메시지·stack 의 주소·JWT·Bearer 가 찍힌다. <strong>이것이 지금 운영 호출부의 모습이다</strong> — PR 3·4 가 옮겨야 닫힌다.</li>
+</ul>
+
+<h3>저장소 밖: 사용량 수집기 (ai-agent-config)</h3>
+<p>교차 리뷰 작업자를 띄우기 전에 거치는 사용량 게이트가 2026-10-02 부터 Claude CLI 의 화면 출력 변화로 멈췄다. 수집기를 고쳐 2026-10-06 에 그 저장소의 <code>main</code> 에 통합했다. 이제 게이트는 Orca 앱의 수동 새로고침 없이 약 9초에 통과한다. picnic-web 에는 변경이 없다.</p>
+
+<h2 id="behavior">5. 10-02 핸드오프와 달라진 동작</h2>
+
+<p>10-02 핸드오프의 §3(지금의 동작)·§5(지켜야 할 것)·§6(결제)·§10(롤백)은 아래를 빼면 그대로 유효하다.</p>
+
+<table>
+  <tr><th style="width:30%">무엇</th><th>10-02</th><th>지금</th></tr>
+  <tr><td><code>/download/vote</code>, <code>/login/vote</code></td><td>한 번 이동한 뒤 404</td><td>원래 페이지로 307(#112). Vercel 은 설정 리다이렉트를 대소문자를 가려 맞춘다</td></tr>
+  <tr><td><code>/open-in-browser</code></td><td>308, 자체 언어 판정</td><td>307 과 <code>Cache-Control: private, no-store</code>, 공용 언어 함수(#113)</td></tr>
+  <tr><td>middleware 의 <code>x-locale</code> 헤더</td><td>주입한다</td><td>주입하지 않는다. 인바운드의 <code>x-locale</code>·<code>x-pathname</code>·<code>x-url</code> 을 지우는 것은 그대로다(#114)</td></tr>
+  <tr><td>CI</td><td>없다</td><td>있다(#115). 한 언어에만 번역 키를 추가하면 실패한다</td></tr>
+  <tr><td>서버·edge 의 Sentry 이벤트</td><td>쿠키·헤더·IP·쿼리가 원문으로 실린다</td><td>이벤트의 <code>request</code> 는 <code>url</code>(쿼리 없음)과 <code>method</code> 뿐이다. console breadcrumb 이 없다. 모든 문자열에서 URL 의 <code>?</code>·<code>#</code> 뒤를 버린다. JWT·Bearer 모양이 남아 있으면 가리고 <code>redaction.tripwire=1</code> 태그를 붙인다(#119)</td></tr>
+  <tr><td>PortOne 웹훅의 400 응답</td><td>받은 본문을 <code>receivedBody</code> 로 되돌려준다</td><td><code>{ error: 'Missing paymentId' }</code> 만 준다(#118)</td></tr>
+  <tr><td>콜백 라우트의 로그</td><td>URL·쿼리·토큰을 <code>console.log</code> 로 찍는 줄이 있다</td><td>지웠다(#118). 운영 빌드는 원래 <code>console.log</code> 를 지우므로 운영의 출력은 바뀌지 않았다</td></tr>
+</table>
+
+<h2 id="roadmap">6. B-P4 의 남은 단계</h2>
+
+<table>
+  <tr><th style="width:8%">PR</th><th style="width:40%">내용</th><th>시작 조건과 주의</th></tr>
+  <tr><td>2 (#121)</td><td>계약 함수, 경계 함수, 전달 테스트</td><td><a href="#next121">§2</a> 의 순서대로 마무리한다</td></tr>
+  <tr><td>3</td><td>인증 경로(<code>app/api/auth/**</code>, <code>lib/supabase/social/**</code>)의 호출부를 <code>logSafeError</code> 로 옮기고 route handler 를 <code>withSafeErrors</code> 로 감싼다. lint 규칙을 켠다</td><td>#121 머지. <strong>계획의 첫 단계는 전수 조사 표</strong>다(파일, 줄, 지금 넘기는 값, 붙일 사건 코드, 남길 필드, 응답 본문). 사건 코드와 공급자 오류 코드를 목록에 더한다. lint 는 <code>logError</code>·<code>console.*</code> 와 함께 <code>@/utils/logger</code> 의 직접 import 도 막는다(<code>Logger.safeError</code> 가 공개 메서드다). <code>lib/supabase/social/**</code> 는 브라우저에서도 돈다 — 그쪽 엔진에서는 stack 에 프레임이 없을 수 있다. 리다이렉트를 돌려주는 콜백 라우트는 경계의 고정 500 이 맞는지 따로 정한다</td></tr>
+  <tr><td>4</td><td>결제 경로(<code>app/api/payment/**</code>, <code>lib/payment/**</code>)의 호출부와 경계</td><td>PR 3 뒤. 결제 결함 수정(B-P1~B-P3)과 같은 파일을 건드리므로 순서를 맞춘다. 결제 계약 테스트 17건과 <code>it.fails</code> 6건이 동작 불변을 지킨다. PayPal·PortOne 의 오류 코드는 sandbox 응답으로 확인한다(sandbox 가 없으면 "통째로 버리고 상태 코드만 남긴다")</td></tr>
+  <tr><td>5</td><td>브라우저: 브라우저 envelope 테스트, 클라이언트 훅, Replay</td><td>결정 4(이어서 할지)가 먼저다. 그때까지 Replay 표본율 환경변수를 0 보다 크게 바꾸지 않는다</td></tr>
+</table>
+
+<p>PR 3 를 배포하면 처음으로 볼 수 있는 것: 경계 함수의 <code>after()</code> 안의 flush 가 Vercel 에서 응답 뒤에 끝까지 도는지(Vercel 로그의 <code>[sentry] flush timeout</code> 과 Sentry 도착을 대조), fingerprint 로 사건 코드마다 이슈가 갈리는지.</p>
+
+<h2 id="decisions">7. 사용자 결정 대기</h2>
+
+<table>
+  <tr><th style="width:42%">질문</th><th style="width:26%">권장</th><th>막고 있는 것</th></tr>
+  <tr><td>PR #121 을 머지해도 되는가</td><td>재검증 APPROVE 뒤 머지</td><td>PR 3</td></tr>
+  <tr><td>B-P4 결정 5: Sentry 의 Data Scrubber 설정 확인과, 이미 들어간 서버 이벤트(쿠키가 실렸을 수 있다)의 삭제 여부. <strong>사용자가 직접 확인하기로 했고 결과를 아직 받지 못했다</strong></td><td>설정을 확인하고 켠다. 과거 이벤트는 보존 기간과 건수를 본 뒤 정한다</td><td>없음(두 번째 방어선)</td></tr>
+  <tr><td>B-P4 결정 4: 브라우저 단계(PR 5)를 이어서 할 것인가</td><td>한다. PR 1~4 와 따로 리뷰한다</td><td>PR 5</td></tr>
+  <tr><td>CI 를 필수 검사로 지정할 것인가(branch protection)</td><td>지정</td><td>없음. 저장소 설정이다</td></tr>
+  <tr><td>인앱 브라우저 안내(<code>/open-in-browser</code>)에서 다운로드 페이지를 뺄 것인가(넘어간 26건 가운데 14건이 <code>/ko/download</code> 였다)</td><td>–</td><td>없음</td></tr>
+  <tr><td>10-02 핸드오프 §8 의 나머지: #2 PortOne 웹훅 v2 전환, #3 PayPal sandbox 자격, #5 광고 정책, #7 메이저 업그레이드 순서, #12 득표율 분모, #13 진입 리다이렉트 307/308, #14 홈의 선호 언어, 웹 결제 오픈 시점, 문의·채용 주소, 디자인 토큰 색, 원격 브랜치 <code>fix/sentry-third-party-filter</code> 삭제</td><td>그 문서와 같다</td><td>그 문서와 같다</td></tr>
+</table>
+<p>10-02 뒤에 정해진 것: CI 도입, <code>/download/vote</code>·<code>/login/vote</code> 의 목적지는 원래 페이지, 머지는 PR 마다 승인, B-P4 결정 1·2·3·6·8(설계서 §9), 결정 7 은 조치가 필요 없음(Production 의 Replay 표본율이 이미 0 이다).</p>
+
+<h2 id="pending">8. 확인하지 못한 것</h2>
+
+<table>
+  <tr><th style="width:30%">항목</th><th>어떻게 확인하나</th></tr>
+  <tr><td>Production 의 Sentry 이벤트에 헤더·쿠키가 없는가</td><td>#119 뒤의 릴리스에 서버 오류 이벤트가 생기면 연다. <code>request</code> 에 <code>url</code>·<code>method</code> 만 있는지, breadcrumb 에 <code>console</code> 범주가 없는지 본다. 지금까지의 근거는 로컬 envelope 테스트와 span 검색이다. Sentry 화면은 로그인이 필요해 자동화로 열지 못했다</td></tr>
+  <tr><td>Sentry 가 받은 뒤 무엇을 저장하는가</td><td>결정 5(Data Scrubber). 사용자 확인</td></tr>
+  <tr><td>로그인 상태 흐름</td><td>10-02 와 같다. 실제 계정으로 OAuth 로그인과 콜백 뒤 이동, 로그아웃, 탈퇴 계정 차단, 로그인 상태의 언어 전환. 자동화로는 할 수 없다. <strong>PR 3 가 인증 라우트를 감싸기 전에 한 번은 봐야 한다</strong></td></tr>
+  <tr><td>언어 라우팅의 24시간 지표</td><td>재지 않았다. #112 가 들어가 "과거 버그 주소의 404" 지표는 의미가 없어졌고, 나머지(가드에 닿는 요청, catch-all 의 404)는 아무 때나 잴 수 있다. 방법은 라우팅 설계서 §6.4</td></tr>
+  <tr><td>PR 3 배포 뒤에야 볼 수 있는 것</td><td><code>after()</code> 의 flush 가 Vercel 에서 끝까지 도는가, fingerprint 로 이슈가 갈리는가(<a href="#roadmap">§6</a>)</td></tr>
+  <tr><td><code>/sitemap.xml</code> 의 <code>ENOENT: scandir '/var/task/app/[lang]'</code></td><td>응답은 200 이고 캐시 MISS 마다 error 로그가 남는다. 이번 작업들과 무관한 기존 문제다(감사 계획의 B-R8). 고칠지는 사용자가 정한다</td></tr>
+  <tr><td>10-02 핸드오프 §9 의 나머지</td><td>성능 수치, 캐시 퍼지와 Instant Rollback, 새 배포의 프리렌더 데이터, 결제 건 감시, <code>/{언어}/rewards/null</code> 의 출처 — 변동 없다</td></tr>
+</table>
+
+<h2 id="mistakes">9. 값을 치르고 배운 것 — 틀렸던 것 6건</h2>
+
+<table>
+  <tr><th style="width:30%">틀렸던 것</th><th style="width:32%">실제</th><th>왜 놓쳤고 무엇이 잡았나</th></tr>
+  <tr><td>"콜백의 <code>console.log</code> 줄이 Vercel 로그로 나간다"</td><td>운영 빌드는 <code>compiler.removeConsole</code> 로 <code>console.log</code>·<code>info</code>·<code>debug</code> 를 지운다. 운영에서 나가는 것은 <code>console.error</code>·<code>warn</code> 과 <code>logError</code> 다</td><td>소스의 줄만 보고 빌드 산출물을 보지 않았다. envelope 테스트의 라우트가 찍은 <code>console.log</code> 가 서버 출력에 나오지 않아 알았다</td></tr>
+  <tr><td>"Replay 오류 표본율이 1.0 이다"</td><td>Production 번들의 값은 세션 0, 오류 0 이다</td><td>코드의 기본값만 봤다. 배포된 번들을 내려받아 확인했다</td></tr>
+  <tr><td>"<code>await import</code> 때문에 이벤트가 flush 보다 늦게 큐에 들어갈 수 있다"</td><td>틈이 없다. 동적 import 는 마이크로태스크만으로 풀리고 flush 는 1ms 타이머로 처음 확인한다</td><td>설계가 "고치기 전에 먼저 재라, 실패하지 않으면 가설이 틀린 것"이라고 적어 둔 덕에 고치기 전에 알았다</td></tr>
+  <tr><td>전달 시나리오가 통과했으니 틈을 잡는 테스트다</td><td>일부러 5ms 지연을 넣으니 다섯 단계 가운데 넷만 실패했다. 수집기가 <code>client_report</code> 까지 늦게 답해, 틈이 몇 ms 차이로만 드러났다</td><td>통과하는 것만 봤으면 몰랐다. "틈을 만들어 실패를 본다" 단계가 잡았다. 수집기가 오류 이벤트에만 늦게 답하게 고쳐 차이를 약 300ms 로 벌렸다</td></tr>
+  <tr><td>"호출 지점에서 만든 stack 에는 요청의 값이 들어갈 길이 없다"</td><td>함수 이름은 값에서 올 수 있다(<code>{ [action]() { … } }</code>)</td><td>설계서에 적은 문장을 그대로 믿었다. 교차 리뷰가 잡았다</td></tr>
+  <tr><td>경계 함수는 무엇이 던져져도 안전하다</td><td>던진 값을 <code>unstable_rethrow</code> 가 들여다보다가 난 예외가 그대로 밖으로 나갔다</td><td>"넘겨받은 값은 무엇이든 될 수 있다"를 계약 함수에는 적용하고 경계 함수의 첫 줄에는 적용하지 않았다. 교차 리뷰가 잡았고 실제 서버에서 재현됐다</td></tr>
+</table>
+
+<h2 id="traps">10. 함정</h2>
+
+<ul>
+  <li><strong>로컬 실행이 운영 Sentry 로 보고된다.</strong> <code>.env.local</code> 에 운영 DSN 이 있다. 오류를 일부러 내는 실험과 로컬 빌드는 <code>SENTRY_DSN= NEXT_PUBLIC_SENTRY_DSN=</code> 로 한다. envelope 테스트는 DSN 을 로컬 수집기로 돌리므로 그대로 써도 된다.</li>
+  <li><strong>envelope 테스트는 CI 에서 돌지 않는다.</strong> 빌드가 Supabase 조회에 의존한다. Sentry SDK 를 올리거나 <code>sentry.*.config.js</code>, <code>utils/logger*.ts</code>, <code>utils/log-safe-error.ts</code>, <code>utils/with-safe-errors.ts</code> 를 고치면 로컬에서 돌리고 결과를 PR 에 적는다. 한 번에 4~5분이다.</li>
+  <li><strong>envelope 실행기가 중간에 죽으면</strong> <code>app/api/envelope-test/</code> 가 남을 수 있다. 남아 있으면 지운다(운영 빌드의 postbuild 검사와 단위 테스트가 잡는다). 빌드 중에 <code>next-env.d.ts</code>·<code>tsconfig.json</code> 이 잠깐 바뀌었다가 되돌아온다.</li>
+  <li><strong>통과만 본 테스트를 믿지 않는다.</strong> 지금 성립하는 성질을 고정하는 테스트는 처음부터 통과한다. 코드를 일부러 망가뜨려 실패하는지 본다(<a href="#mistakes">§9</a> 의 4번).</li>
+  <li><strong>서버 전용 코드의 테스트는 <code>// @vitest-environment node</code></strong> 로 돈다(#121 이 공용 setup 의 <code>window</code> 사용부를 가드로 감쌌다). jsdom 에서는 <code>next/navigation</code> 이 브라우저용 <code>unstable_rethrow</code> 를 골라 동적 렌더링 신호를 올려보내지 않는다.</li>
+  <li><strong>vitest 에서 시간을 재는 테스트는 한 번 돌려 둔 뒤에 잰다.</strong> 처음 도는 코드는 느려서 그 사이에 늦은 기록이 flush 를 따라잡는다 — 틈이 있어도 가려진다.</li>
+  <li><strong>CI 는 UTC 에서 돈다.</strong> 날짜를 다루는 테스트는 PR 전에 <code>TZ=UTC</code> 로도 돌린다.</li>
+  <li><strong>리뷰 요청의 mode.</strong> 이미 구현한 것을 리뷰만 받을 때는 사용량 게이트의 첫 인자를 <code>claude-heavy</code> 로 준다. <code>auto</code> 는 주간 사용률에 따라 <code>codex-heavy</code> 를 골라 리뷰어가 Claude 로 잡히고 launch 가 거부된다.</li>
+  <li><strong>읽기 전용 Codex 리뷰어는 <code>worker_done</code> 을 보내지 못한다</strong>(샌드박스가 막는다). 마지막 턴이 판정으로 끝난 것을 transcript 로 확인한 뒤 <code>worker-abandon</code> 으로 정산한다. 터미널을 닫아 끝내지 않는다.</li>
+  <li><strong>Codex 가 처음 뜰 때</strong> 보안 설정 안내 카드가 나올 수 있다. 번호를 고르지 않고 Esc 로 닫는다. 그 상태에서 지시를 보내면 삼켜질 수 있으니 <code>/status</code> 로 모델·effort·권한을 먼저 확인한다.</li>
+</ul>
+
+<h2 id="commands">11. 검증 명령</h2>
+
+<pre><code># #121 워크트리에서
+cd /Users/charlie.hyun/Repositories/picnic-web-log-redaction-contract
+
+npx tsc --noEmit &amp;&amp; npm run lint &amp;&amp; npm test      # CI 가 도는 것. 3,387건 통과 · 6 expected fail · 1 skipped
+TZ=UTC npm test                                    # CI 와 같은 시간대
+
+npm run test:envelope                              # 테스트 빌드를 만들고 누출·전달 시나리오를 돌린다(4~5분)
+npm run test:envelope -- --skip-build              # 이미 만든 .next-envtest 를 다시 쓴다
+npm run test:envelope -- --only=leak               # 하나만(leak | delivery)
+
+git log --oneline origin/feat/log-redaction-contract..HEAD   # push 하지 않은 커밋(지금은 8025927b 하나)</code></pre>
+
+<p>틈을 만들어 테스트가 잡는지 볼 때는 <code>utils/logger-targets.ts</code> 의 <code>const Sentry = await import('@sentry/nextjs');</code> 앞에 <code>await new Promise((resolve) =&gt; setTimeout(resolve, 5));</code> 를 넣는다. <code>npx vitest run __tests__/utils/log-safe-error-delivery.test.ts</code> 가 2건, <code>npm run test:envelope -- --only=delivery</code> 가 7건 실패해야 한다. 끝나면 <code>git checkout -- utils/logger-targets.ts</code>.</p>
+
+<h2 id="map">12. 문서와 설정 지도</h2>
+
+<table>
+  <tr><th style="width:46%">파일</th><th>내용</th></tr>
+  <tr><td><code>docs/superpowers/specs/2026-10-02-log-redaction-and-delivery-design.md</code></td><td>B-P4 설계. §9 결정, §6.1 PR 구성, §8 확인한 사실과 남은 가정, §10 달라진 것의 기록. #121 브랜치의 판이 최신이다</td></tr>
+  <tr><td><code>docs/superpowers/plans/2026-10-02-sentry-collection-and-sensitive-log-lines.md</code></td><td>PR 1·1b 의 계획, 실행 결과, 교차 리뷰, 머지와 Production 확인</td></tr>
+  <tr><td><code>docs/superpowers/plans/2026-10-06-log-safe-error-contract-and-boundary.md</code></td><td>PR 2 의 계획과 실행 결과(#121 브랜치에만 있다). 리뷰 1차의 수정은 아직 반영하지 않았다</td></tr>
+  <tr><td><code>docs/superpowers/specs/2026-10-01-locale-prefix-routing-design.md</code> §10.2</td><td>#112~#114 의 검증 기록</td></tr>
+  <tr><td><code>docs/audit-2026-09-26/plan.md</code> §5.5</td><td>10-02 의 결정과 PR 표. B-P4 줄은 #116 초안 시점 그대로다</td></tr>
+  <tr><td><code>docs/handoff-2026-10-02.html</code></td><td>이전 핸드오프. 결제 결함(§6), 롤백(§10), 지금의 동작(§3)</td></tr>
+  <tr><td><code>utils/log-safe-error.ts</code>, <code>utils/with-safe-errors.ts</code>, <code>utils/log-event-codes.ts</code>, <code>utils/log-known-errors.ts</code></td><td>#121 이 더하는 것. 머리말 주석에 계약이 적혀 있다</td></tr>
+  <tr><td><code>scripts/envelope-test/</code></td><td><code>run.js</code>(실행기), <code>scenario.js</code>·<code>analyze.js</code>(누출), <code>delivery.js</code>(전달), <code>harness.js</code>, <code>routes/</code>(테스트 라우트의 원본. 빌드 때만 <code>app/api/envelope-test/</code> 로 복사한다)</td></tr>
+  <tr><td><code>lib/sentry/scrub.ts</code>, <code>lib/sentry/collection.ts</code>, <code>sentry.server.config.js</code>, <code>sentry.edge.config.js</code></td><td>PR 1 의 수집 축소와 URL·쿼리 규칙, tripwire</td></tr>
+  <tr><td><code>.github/workflows/ci.yml</code></td><td>CI</td></tr>
+</table>
+
+<h2 id="resources">13. 세션 밖에 남아 있는 것</h2>
+
+<table>
+  <tr><th style="width:26%">무엇</th><th>상태와 다음 행동</th></tr>
+  <tr><td>Orca Run <code>run_176dd32d29c0</code></td><td>PR #121 리뷰용. Task <code>task_f81dd2dbe8e9</code> 의 Dispatch <code>ctx_3d2276d59345</code> 는 판정을 읽은 뒤 <code>worker-abandon</code> 으로 정산했다(<code>failed / abandoned</code>, Task 는 <code>blocked</code> — 읽기 전용 리뷰의 정상적인 끝이다). 재검증은 이 Run 에 <strong>새 Task</strong> 를 만들어 보낸다. 공급자 보류(providerHold) 기록은 없다</td></tr>
+  <tr><td>리뷰어 터미널 <code>term_91cbe42a-4284-4039-9730-dfd6db5a8f9d</code></td><td>Codex <code>gpt-6-sol</code> / high / Read Only, 작업 디렉터리는 #121 워크트리. 1차 리뷰의 맥락을 가진 채 쉬고 있다. 살아 있으면 재검증을 같은 터미널에 보낸다(원 리뷰어가 재검증한다). 없어졌으면 게이트를 통과한 launch 로 새로 띄운다. 리뷰가 끝나면 사용자가 닫는다</td></tr>
+  <tr><td>리뷰 절차</td><td>Orca 의 현재 가이드를 읽는다(<code>orca skills get orchestration</code>) → 사용량 게이트(<code>route-fresh.sh claude-heavy high auto auto</code>, 결과는 사용량 증거 디렉터리에 0600 으로) → Codex capability 스냅샷 → <code>build-launch.sh reviewer</code>(<code>allowed=true</code> 와 argv 확인) → 터미널에서 <code>/status</code> 로 모델·effort·권한 확인 → <code>task-create</code> → <code>dispatch --inject</code> → 판정 → <code>worker-abandon</code>. <code>dispatchAllowed=false</code> 면 작업자를 만들지 않는다. 세부는 에이전트 메모리의 "사용량 게이트 절차"와 "Orca 읽기 전용 리뷰 Dispatch 정산"에 있다</td></tr>
+  <tr><td>사용량(2026-10-06 10:38 KST)</td><td>Claude 세션 19%, 주간 79%(리셋 10-09 15:00 KST). Codex 주간 43%(리셋 10-10 06:42 KST), 5시간 창은 조회되지 않아 "잔여 있음으로 가정"으로 돈다. 다시 잴 것</td></tr>
+  <tr><td><code>.next-envtest/</code></td><td>#121 워크트리의 테스트 빌드(git 이 추적하지 않는다). <code>8025927b</code> 로 만든 것이다. 코드를 고치면 <code>--skip-build</code> 없이 다시 만든다</td></tr>
+  <tr><td>세션 스크래치</td><td>리뷰 지시서와 판정 원문, 게이트 보조 스크립트가 세션의 임시 디렉터리(<code>/private/tmp/claude-501/…/scratchpad/</code>)에 있다. 재부팅하면 사라진다. 판정의 내용은 <a href="#review">§3</a> 에 옮겼고, 지시서는 요구사항(설계서 §4.2·§4.3·§4.7·§5.2)과 계획서의 Global Constraints·Review Focus 로 다시 쓸 수 있다</td></tr>
+</table>
+
+<hr>
+<p class="footnote">이 문서는 2026-10-06 의 상태를 적은 것이다. 이어받으면 <a href="#commands">§11</a> 의 명령으로 직접 다시 확인한다. 이 문서의 커밋은 로컬 브랜치 <code>docs/handoff-2026-10-06</code>(워크트리 <code>picnic-web-handoff-1006</code>)에 있고, push 와 PR 은 하지 않았다. 10-02 핸드오프는 PR #111 로 머지했다. 머지한 뒤에는 워크트리를 지운다.</p>
+
+</main>
+</body>
+</html>
