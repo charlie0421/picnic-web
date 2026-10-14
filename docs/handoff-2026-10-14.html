@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2026-10-14 세션 핸드오프</title><style>body{max-width:1000px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182333}h1,h2{line-height:1.3}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}code{font:14px/1.6 ui-monospace,monospace;background:#eef2f6;padding:2px 4px;overflow-wrap:anywhere}.status{background:#fff4d9;padding:16px}li{margin:6px 0}</style></head><body>
+<h1>2026-10-14 세션 핸드오프</h1>
+<p>작성일: 2026-10-14 KST. 독자: 다음 세션의 조정자. 목적: 이 세션에서 끝낸 일과 남은 일을 기록한다.</p>
+
+<h2>현재 상태</h2>
+<p class="status">이 세션이 시작한 작업은 모두 끝났다. 열린 PR 은 없다. 이 세션이 만든 워크트리는 이 문서의 워크트리만 남아 있다. #73·#74 는 운영 이벤트를 기다리는 중이다.</p>
+<table><thead><tr><th>대상</th><th>상태</th></tr></thead><tbody>
+<tr><td><code>main</code></td><td><code>848ad4ad</code> (#133). CI 통과.</td></tr>
+<tr><td>열린 PR</td><td>없음(이 문서의 PR 제외).</td></tr>
+<tr><td>워크트리</td><td><code>picnic-web-replay-collection-policy</code> 는 다른 세션의 것이다. 손대지 않는다.</td></tr>
+</tbody></table>
+
+<h2>이 세션에서 한 일</h2>
+<h3>2026-10-02 ~ 10-06 (핸드오프 2026-10-02 의 범위)</h3>
+<ul>
+<li>#112: <code>/download/vote</code>·<code>/login/vote</code> 와 언어 접두어 변형을 원래 페이지로 307 리다이렉트한다.</li>
+<li>#113: §7-5 정리 묶음. 언어 경로 이동, <code>open-in-browser</code> 307, <code>useLocaleRouter</code> 의 쿼리·해시 분리, 죽은 코드 삭제, <code>common.loading</code> 키와 언어 키 일치 테스트.</li>
+<li>#114: middleware 가 <code>x-locale</code> 을 더 넣지 않는다.</li>
+<li>#115: CI(<code>.github/workflows/ci.yml</code>) 도입. CI 는 UTC 에서 돈다.</li>
+<li>#116·#117: B-P4 로그 민감정보 설계(<code>docs/superpowers/specs/2026-10-02-log-redaction-and-delivery-design.md</code>)와 기록.</li>
+<li>B-P4 구현(#118~#130, #132)은 다른 세션이 머지했다.</li>
+</ul>
+<h3>2026-10-14</h3>
+<ul>
+<li>워크트리 정리: <code>picnic-web-auth-safe-logging</code> 과 그 브랜치를 지웠다. 10-06 핸드오프를 PR #131 로 머지하고 <code>picnic-web-handoff-1006</code> 워크트리와 브랜치를 지웠다.</li>
+<li>#73·#74 확인: 닫지 않았다. 이유는 아래 "기다리는 일"에 있다. 두 이슈에 상태 댓글을 달았다.</li>
+<li>B-P4 결정 5: 사용자가 Sentry 에서 "Prevent Storing of IP Addresses" 를 켰다. 설계 문서 §8·§9 에 기록했다(#133).</li>
+<li>Sentry 7F 조사: 원인을 확정하지 못했다. 이슈를 "escalating 까지 ignore" 로 archive 하고 조사 결과를 댓글로 남겼다.</li>
+</ul>
+
+<h2>기다리는 일</h2>
+<table><thead><tr><th>항목</th><th>닫는 조건</th><th>확인 방법</th></tr></thead><tbody>
+<tr><td><a href="https://github.com/charlie0421/picnic-web/issues/73">#73</a> Sentry 페이로드 redaction</td><td>운영 서버 이벤트 한 건에 쿠키·인증 헤더·쿼리·IP 가 없다.</td><td rowspan="3">사건 코드(<code>auth.*</code>, <code>payment.*</code>)가 붙은 서버 이벤트를 Sentry 에서 찾는다. 2026-10-14 기준 10-07 이후 0건이다. 매일 09:00 Sentry 점검 루틴이 찾는다.</td></tr>
+<tr><td><a href="https://github.com/charlie0421/picnic-web/issues/74">#74</a> 전송 보장</td><td>같은 이벤트가 Sentry 에 도착했다. Vercel 로그에 <code>[sentry] flush timeout</code> 이 없다.</td></tr>
+<tr><td>IP 저장 방지</td><td>설정 뒤 새 이벤트의 <code>user.ip_address</code> 가 비어 있다.</td></tr>
+</tbody></table>
+<p>확인하려고 운영에서 일부러 오류를 내지 않는다.</p>
+
+<h2>정하지 않은 일</h2>
+<ul>
+<li>B-P4 결정 5 의 나머지: Data Scrubber 의 다른 설정, 쿠키가 실렸을 수 있는 과거 서버 이벤트의 삭제 여부.</li>
+<li>Sentry 7E(<code>util is not defined</code>): 외부에서 주입된 스크립트가 원인으로 보인다. 처리 방법을 정하지 않았다.</li>
+<li>Sentry 7F(<code>Rendered more hooks than during the previous render.</code>): 1회, <code>/ko/vote/312</code>, 스택은 Next 내부 <code>Router</code>(<code>app-router.tsx:207</code>)뿐이다. 다시 나면 페이지·브라우저가 겹치는지 보고 Next 패치 업그레이드를 검토한다.</li>
+<li><a href="https://github.com/charlie0421/picnic-web/issues/75">#75</a> 로그 레벨 정책 반대편 미적용, <a href="https://github.com/charlie0421/picnic-web/issues/76">#76</a> 로그 레벨 정책 설계, <a href="https://github.com/charlie0421/picnic-web/issues/77">#77</a> PortOne 웹훅 서명 검증 스킴 불일치.</li>
+<li>로그인 상태 스모크 테스트(자동화할 수 없어 사용자에게 요청한다), B-P1~P3.</li>
+</ul>
+
+<h2>참고</h2>
+<ul>
+<li><code>gh pr edit</code> 는 GraphQL 오류로 실패한다. <code>gh api --method PATCH repos/charlie0421/picnic-web/pulls/N -F body=@file</code> 을 쓴다.</li>
+<li>현재 Sentry MCP 도구로는 이벤트의 breadcrumb 을 볼 수 없다.</li>
+<li>메인 폴더의 <code>node_modules</code> 는 lockfile 보다 오래됐다(Next 15.5.23 대 15.5.26). 검증은 워크트리에서 <code>npm ci</code> 뒤에 한다.</li>
+</ul>
+
+<h2>승인 경계</h2>
+<p>머지는 PR 마다 사용자 승인을 받는다. Preview 배포가 없으므로 <code>main</code> 머지는 곧 Production 배포다. Jira 상태는 바꾸지 않는다.</p>
+</body></html>
