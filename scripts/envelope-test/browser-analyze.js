@@ -74,6 +74,18 @@ function evaluateBrowserEnvelopes(envelopes) {
   assert.equal(escaped['data-hex-query'], '');
   assert.equal(escaped['data-hex-fragment'], '');
   assert.equal(escaped['data-escaped-root'], '');
+  for (const [index, key] of ['data-callback', 'style', 'href', 'data-callback', 'data-callback', 'data-callback', 'href', 'href', 'href', 'style'].entries()) {
+    const node = objects.find((value) => value.attributes?.id === `fixture-pattern-${index}`);
+    assert.ok(node, `pattern ${index} DOM addition recorded`);
+    assert.equal(node.attributes[key], '', `pattern ${index} addition sanitized`);
+    assert.ok(records.some((event) => event.type === 3 && event.data.source === 0 && event.data.attributes?.some(
+      (change) => change.id === node.id && change.attributes[key] === '')), `pattern ${index} mutation sanitized`);
+  }
+
+  const safeSelectors = objects.filter((node) => typeof node.textContent === 'string').map((node) => node.textContent).join('\n');
+  for (const selector of [String.raw`.aria-checked\:bg-\[\#fff\]`, String.raw`.data-\[state\=open\]\:bg-\[\#fff\]`, String.raw`.after\:content-\[\'\?\'\]`, String.raw`#main.foo\=bar`]) {
+    assert.ok(safeSelectors.includes(selector), `safe CSS selector preserved: ${selector}`);
+  }
   assert.ok(records.some((event) => event.type === 3 && event.data.source === 13 && event.data.set?.property === 'filter' && event.data.set.value === 'url("#fixture-shadow")'), 'CSS declaration local reference survives');
   assert.ok(!objects.some((node) => node.tagName === 'rect' || node.tagName === 'use'), 'SVG contents remain blocked by blockAllMedia');
   assert.ok(errors.some((item) => item.payload.breadcrumbs?.some((crumb) => crumb.category === 'fixture.large' && crumb.message === 'large-safe')), 'large breadcrumb metadata delivered');

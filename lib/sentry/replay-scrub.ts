@@ -10,6 +10,45 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true });
 const cutUrl = (value: string) => value.split(/[?#]/, 1)[0];
 const localReference = (value: string) => /^#[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(value);
+// Inspection views only: never send a decoded value or recursively decode it.
+const codePoint = (hex: string) => {
+  const point = parseInt(hex, 16);
+  return String.fromCodePoint(point > 0 && point <= 0x10ffff ? point : 0xfffd);
+};
+const decodeJsEscapes = (value: string) => value.replace(/\\(?:u\{([\da-f]{1,6})\}|u([\da-f]{4})|x([\da-f]{2}))/gi,
+  (_match, braced: string, unicode: string, hex: string) => codePoint(braced || unicode || hex));
+const decodeCssEscapes = (value: string) => value.replace(/\\(?:([\da-f]{1,6})\s?|([^\r\n\f]))/gi,
+  (_match, hex: string, char: string) => hex ? codePoint(hex) : char);
+function scrubUrl(value: string): string {
+  if (value.includes('\\') && [decodeCssEscapes(value), decodeJsEscapes(value)].some((view) => /[?#]/.test(view))) return '';
+  // rrweb resolves href against the document URL: backslashes become slashes and spaces become %20.
+  // Recognize a normalized escaped slash followed by an escaped query/fragment, without decoding the URL.
+  const escapedPath = /\/(?:00002f|0{0,3}2f(?![\da-f]))/i.exec(value);
+  if (escapedPath && /\/(?:0000(?:23|3f)|0{0,3}(?:23|3f)(?![\da-f]))/i.test(value.slice(escapedPath.index + escapedPath[0].length))) return '';
+  return cutUrl(value);
+}
+
+/** Whitespace inside an opaque path template cannot end the address. */
+function hasTemplateFragment(value: string): boolean {
+  if (!value.includes('/') || !/[?#]/.test(value)) return false;
+  let depth = 0, path = false, template = false;
+  for (const char of value) {
+    if ('{[('.includes(char)) { depth++; if (path) template = true; }
+    else if ('}])'.includes(char) && depth > 0) depth--;
+    else if (char === '/') { path = true; if (depth > 0) template = true; }
+    else if ((char === '#' || char === '?') && path && template) return true;
+    else if (/\s/.test(char) && depth === 0) { path = false; template = false; }
+  }
+  return false;
+}
+
+function scrubOpaque(value: string): string {
+  if (hasTemplateFragment(value)) return '';
+  const jsView = decodeJsEscapes(value);
+  if (jsView !== value && (hasTemplateFragment(jsView) || scrubCss(jsView, true) !== jsView)) return '';
+  return /url\(|@import|\\/i.test(value) ? scrubCss(value, true) : stripUrlQueries(value);
+}
+
 type Walk = { count: number; tripwire: boolean; deadline: number; svgIds: Set<number>; svgUseIds: Set<number> };
 type NodeContext = '' | 'record' | 'snapshot' | 'incremental' | 'adds' | 'node' | 'mutation' | 'svgAttributes' | 'useAttributes';
 
@@ -17,10 +56,16 @@ type NodeContext = '' | 'record' | 'snapshot' | 'incremental' | 'adds' | 'node' 
 function scrubCss(value: string, opaque = false): string {
   const output: string[] = [], remainder: string[] = [];
   let assignmentRemainder: string[] | undefined;
+  let declarationRemainder: string[] = [];
+  const unsafeRemainder = (parts: string[]) => {
+    const rest = parts.join('');
+    return stripUrlQueries(rest) !== rest || rest.includes('?');
+  };
   const appendRemainder = (token: string, decoded = token) => {
-    if (token !== decoded && !assignmentRemainder) assignmentRemainder = remainder.slice();
+    if (opaque && token !== decoded && !assignmentRemainder) assignmentRemainder = remainder.slice();
     remainder.push(token);
     assignmentRemainder?.push(decoded);
+    if (!opaque && !['{', '}', ';'].includes(token)) declarationRemainder.push(decoded);
   };
   const nameChar = (char: string) => !!char && (/[a-zA-Z0-9_-]/.test(char) || char.charCodeAt(0) >= 128);
   const tokenEnd = (start: number, endChar: string) => {
@@ -63,12 +108,13 @@ function scrubCss(value: string, opaque = false): string {
         if (opaque && escaped && name.includes('/')) escapedSlash = true;
         if (opaque && escaped) {
           for (const char of name) {
-            if (char === '{') templateDepth++;
-            else if (char === '}' && templateDepth > 0) templateDepth--;
+            if ('{[('.includes(char)) templateDepth++;
+            else if ('}])'.includes(char) && templateDepth > 0) templateDepth--;
           }
         }
         const token = escaped ? (opaque && ((name.includes('/') && value[start - 1] !== '.' && value[start - 1] !== '#') || /[?#]/.test(name)) ? name : 'identifier') : raw;
-        appendRemainder(token, opaque && escaped && name.includes('=') ? name : token);
+        // Decode complete keys across name tokens, but keep CSS selector slashes masked.
+        appendRemainder(token, escaped && (opaque || !name.includes('/')) ? name : token);
         continue;
       }
       cursor++;
@@ -91,21 +137,31 @@ function scrubCss(value: string, opaque = false): string {
       output.push(quote + (token.escaped ? '' : cutUrl(value.slice(start, token.end))) + quote);
       appendRemainder(quote + quote); cursor = token.end + 1;
     } else {
+      if (!opaque) {
+        // A block opener ends a selector/prelude. Only retain decoded names in declaration regions.
+        if (value[cursor] === '{') {
+          // A custom-property value may itself contain blocks; inspect its prefix before resetting.
+          if (declarationRemainder.join('').trimStart().startsWith('--') && unsafeRemainder(declarationRemainder)) return '';
+          declarationRemainder = [];
+        }
+        else if (value[cursor] === ';' || value[cursor] === '}') {
+          if (unsafeRemainder(declarationRemainder)) return '';
+          declarationRemainder = [];
+        }
+      }
       // Spaces inside an opaque path template do not establish a new selector.
       if (opaque) {
         if (escapedSlash && value[cursor] === '#') return '';
-        if (value[cursor] === '{') templateDepth++;
-        else if (value[cursor] === '}' && templateDepth > 0) templateDepth--;
+        if ('{[('.includes(value[cursor])) templateDepth++;
+        else if ('}])'.includes(value[cursor]) && templateDepth > 0) templateDepth--;
       }
       if (/\s/.test(value[cursor]) && templateDepth === 0) escapedSlash = false;
       output.push(value[cursor]); appendRemainder(value[cursor]); cursor++;
     }
   }
   // Inspect both whole forms: decoding an assignment must not weaken an existing URL match.
-  for (const parts of [remainder, assignmentRemainder]) {
-    if (!parts) continue;
-    const rest = parts.join('');
-    if (stripUrlQueries(rest) !== rest || rest.includes('?')) return '';
+  for (const parts of [remainder, assignmentRemainder, opaque ? undefined : declarationRemainder]) {
+    if (parts && unsafeRemainder(parts)) return '';
   }
   return output.join('');
 }
@@ -117,9 +173,8 @@ function scrubNode(value: unknown, state: Walk, key = '', css = false, depth = 0
     if (key === 'srcdoc' || ((key === 'srcset' || key === 'imagesrcset') && /[?#]/.test(value))) clean = '';
     else if (css || ['style', '_cssText', 'rule', 'replace', 'replaceSync'].includes(key) ||
       ((context === 'svgAttributes' || context === 'useAttributes') && ['fill', 'stroke', 'filter', 'clip-path', 'mask'].includes(key))) clean = scrubCss(value);
-    else if (URL_KEYS.has(key)) clean = context === 'useAttributes' && (key === 'href' || key === 'xlink:href') && localReference(value) ? value : cutUrl(value);
-    else if (/url\(|@import|\\/i.test(value)) clean = scrubCss(value, true);
-    else clean = stripUrlQueries(value);
+    else if (URL_KEYS.has(key)) clean = context === 'useAttributes' && (key === 'href' || key === 'xlink:href') && localReference(value) ? value : scrubUrl(value);
+    else clean = scrubOpaque(value);
     const redacted = redactTokenShapes(clean);
     if (redacted !== clean) state.tripwire = true;
     return redacted;

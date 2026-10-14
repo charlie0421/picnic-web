@@ -24,6 +24,28 @@ export default function BrowserPrivacyFixture() {
             await fetch('/api/envelope-test/browser/data?token=privacy-fetch-query');
           });
         });
+        const patterns = [
+          ['data-callback', 'example.com/users/{ id }#privacy-template-fragment'],
+          ['style', String.raw`--cb: callback#code\=privacy-custom-fragment`],
+          ['href', String.raw`example.com\2f users\2f { id }\23 privacy-url-fragment`],
+          ['data-callback', String.raw`callback#code\u003dprivacy-unicode-fragment`],
+          ['data-callback', String.raw`example.com\/users\/[ id ]#privacy-bracket-fragment`],
+          ['data-callback', String.raw`callback#\61.\61.\61.\61.\61.\61.\61\=privacy-key-fragment`],
+          ['href', 'example.com\\2f\tusers\\2f\t{ id }\\23\tprivacy-tab-fragment'],
+          ['href', 'example.com\\2f\fusers\\2f\f{ id }\\23\fprivacy-formfeed-fragment'],
+          ['href', String.raw`example.com\00002fusers\00002f{ id }\000023privacy-sixhex-fragment`],
+          ['style', String.raw`--cb: callback#code\=privacy-block-fragment{}`],
+        ];
+        patterns.forEach(([key, value], index) => {
+          const node = document.createElement('a');
+          node.id = `fixture-pattern-${index}`;
+          node.setAttribute(key, value);
+          document.body.appendChild(node);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        patterns.forEach(([key, value], index) => {
+          document.getElementById(`fixture-pattern-${index}`)!.setAttribute(key, value.replace('privacy-', 'privacy-mutated-'));
+        });
         document.getElementById('fixture-link')?.setAttribute('href', '/changed?token=privacy-mutation-query#private');
         const style = document.getElementById('fixture-sheet') as HTMLStyleElement;
         style.sheet!.insertRule('.dynamic{background:url(img?privacy-rule-query)}', 0);
@@ -45,6 +67,7 @@ export default function BrowserPrivacyFixture() {
   return <html lang="ko"><body>
     <h1>브라우저 개인정보 테스트</h1>
     <style id="fixture-sheet">{'.hover\\:bg-privacy:hover{background:url("/asset?token=privacy-sheet-query");color:#fff}.w-1\\/2{width:50%}'}</style>
+    <style id="fixture-safe-selectors">{String.raw`.aria-checked\:bg-\[\#fff\][aria-checked="true"]{color:#fff}.data-\[state\=open\]\:bg-\[\#fff\][data-state="open"]{color:#fff}.after\:content-\[\'\?\'\]::after{content:"?"}#main.foo\=bar{color:#fff}`}</style>
     <a id="fixture-link" href="/callback?code=privacy-dom-query#privacy-dom-fragment">링크</a>
     <div id="fixture-style" style={{ backgroundImage: 'url("/asset?token=privacy-css-query")', color: 'rgb(1, 2, 3)' }}>마스킹 대상</div>
     <svg id="fixture-svg" width="100" height="100">
