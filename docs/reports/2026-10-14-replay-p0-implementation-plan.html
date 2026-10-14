@@ -7,7 +7,7 @@
 <p><strong>Tech Stack:</strong> Node 24.x, TypeScript, lockfile의 Sentry 9.47.1, esbuild 0.28.2, Playwright 1.63.0, Vitest 4.1.11, 설치된 PostCSS. 새 의존성이나 lockfile 변경을 계획하지 않는다.</p>
 <p><strong>Spec:</strong> <a href="2026-10-14-replay-collection-design.html">Replay 제한 수집 설계</a> §7의 P0와 그 절이 참조하는 §3–6. <a href="2026-10-14-replay-collection-policy.html">수집 정책 초안</a>도 함께 읽는다.</p>
 <p><strong>Agent execution:</strong> 이 세션에서 <code>superpowers:executing-plans</code>로 순차 구현하고, 마지막에 다른 공급자의 Frontier 리뷰를 받는 방식을 권장한다. 각 단계는 체크박스로 추적한다. 네이티브 하위 에이전트를 만들지 않는다. Orca 작업자가 필요하면 새 usage-aware Route와 계정·권한 검사를 통과해야 한다.</p>
-<p class="note"><strong>상태:</strong> 사용자는 설계를 바탕으로 계획 작성 진행을 승인했다. 2026-10-14 사용자가 이 계획의 순차 구현도 승인했다. SDK 일시 보관을 관측하는 합성 시험의 계획이며, 운영에서 그 보관을 수용한다는 승인이 아니다. 이번 독립 검토 실행은 사용량 증거 충돌로 <code>review-blocked</code>였다. 작업자는 시작되지 않았다. 설계 마지막 두 수정과 이 계획의 독립 승인은 남아 있다.</p>
+<p class="note"><strong>상태:</strong> 사용자는 설계를 바탕으로 계획 작성 진행을 승인했다. 2026-10-14 사용자가 이 계획의 순차 구현도 승인했다. SDK 일시 보관을 관측하는 합성 시험의 계획이며, 운영에서 그 보관을 수용한다는 승인이 아니다. 초기 독립 검토는 사용량 증거 충돌로 시작되지 않았다. 이후 새 관측으로 검토를 실행했고, 구현과 1회 수정 재검토까지 완료했다. 최종 판정은 <strong>APPROVE</strong>다. <a href="2026-10-14-replay-p0-implementation-result.html">실행 결과와 남은 한계</a>를 참조한다.</p>
 <h2>Global Constraints</h2><ul>
 <li>제품의 Replay 기본값 <strong>0/0</strong>을 유지한다. <code>app/</code>, <code>public/</code>, <code>instrumentation-client.ts</code>, 운영 설정을 변경하지 않는다. 실제 로그인·광고·API·Sentry 저장을 사용하지 않는다.</li>
 <li>P0 HTML tag는 html/head/body/style/div/span/button, class는 fixture/track/card/toggle만 허용한다. Next head/announcer/shadow root·전역 CSS·CDN·window.Sentry를 사용하지 않는다. script는 SDK 출력에서 생략되어야 한다. HTML charset은 HTTP 응답에 지정한다.</li>
@@ -276,6 +276,6 @@ git commit -m &quot;docs(sentry): record isolated replay trial results&quot;</co
 <tr><td>§7 격리/증거</td><td>Task 1 정적 페이지, Task 5 수신기/4개 판정, Task 6 통합 증거·독립 리뷰</td></tr>
 </tbody></table>
 <p>함수·상태 타입의 연결과 5개 Review Focus의 담당 시험을 대조했다. 테스트 예시의 runner 변수는 해당 케이스에서 관측한 값이며 실제 SDK 동작을 mock한 값으로 채우지 않는다. 구현자가 명세에 없는 지원을 추가해야 통과할 수 있다면 시험을 멈추고 불일치를 보고한다.</p>
-<p class="note"><strong>이번 문서 검증:</strong> 구현 계획의 자체 대조와 HTML 구조/링크/PC·모바일 렌더링만 수행한다. 위 명령은 앞으로 실행할 검증이며, 실행 코드·제품 테스트가 이미 통과했다는 뜻이 아니다. 독립 검토가 사용량 증거 충돌로 시작되지 않아 최종 승인은 남아 있다.</p>
-<p><strong>다음 단계:</strong> 이 문서와 순차 구현 방식을 사용자가 확인한 뒤 Task 1을 시작한다. 독립 설계·계획 검토도 가용한 fresh 증거로 완료해야 한다. 제품 연결, 운영 활성화, 외부 Sentry 저장, 대시보드 실제 재생은 이 계획 완료 후 별도로 결정한다.</p>
+<p class="note"><strong>실행 상태:</strong> Task 1~6의 로컬 P0 구현·검증·독립 리뷰를 완료했다. P0 단위 시험 139개와 전체 시험 4,915개가 통과했다. 실제 BFCache 복귀와 background timer throttling은 환경상 미검증으로 남았으며, SDK 내부 무한 대기·직접 start 한계도 결과에 구분해 기록했다.</p>
+<p><strong>다음 범위:</strong> 제품 연결, 운영 활성화, 외부 Sentry 저장, 대시보드 실제 재생은 이번 로컬 계획에 포함하지 않았다. 제품용 DOM/CSS 계약과 실제 화면 시나리오, 남은 브라우저 수명주기 검증을 바탕으로 별도로 결정한다.</p>
 </main></body></html>
