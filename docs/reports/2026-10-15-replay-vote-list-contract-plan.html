@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay 투표 목록 계약 구현 계획</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172331;font:16px/1.7 system-ui,-apple-system,sans-serif}main{max-width:1040px;margin:28px auto;padding:32px;background:white;border:1px solid #dce3ed;border-radius:12px}h1{font-size:1.8rem;line-height:1.35}h2{margin-top:2.2rem;font-size:1.3rem;border-top:1px solid #dce3ed;padding-top:1.2rem}h3{font-size:1.08rem;margin-top:1.6rem}p,li,td,th,code{overflow-wrap:anywhere}a{color:#215b9a}code,pre{font-family:ui-monospace,monospace;font-size:.86em}code{background:#edf3fa;padding:1px 3px}pre{padding:14px;background:#edf3fa;overflow-x:auto;white-space:pre}pre code{background:none;padding:0}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.93rem}th,td{border:1px solid #dce3ed;padding:8px;text-align:left;vertical-align:top}th{background:#edf3fa}li{margin:4px 0}blockquote{margin:0;padding:12px 16px;border-left:4px solid #bc7b13;background:#fff8e9}@media(max-width:600px){main{margin:8px;padding:16px}h1{font-size:1.5rem}}</style>
+</head>
+<body><main>
+<h1>Replay 투표 목록 계약 구현 계획</h1>
+<blockquote><strong>실행 작업자에게:</strong> 이 계획은 작업 단위로 실행한다. 각 단계의 체크 상자(☐)로 진행 상태를 기록한다. 실행 방식(Subagent-driven 또는 Native)은 사용자가 고른다. 작업자 실행 전에 사용자 전역 지침의 사용량 게이트·교차 공급자 리뷰 규칙을 적용한다.</blockquote>
+<p><strong>목표:</strong> 비로그인 <code>/ko/vote</code> ongoing 목록의 production 캡처를 개인정보·자유 문자열 없이 재생 가능한 형태로 변환하는 제품용 계약과 검증 도구를 만든다.</p>
+<p><strong>구조:</strong> <code>scripts/replay-p0/projection.ts</code>의 검증 로직을 계약을 해석하는 <code>engine/</code>으로 분리한다. P0 fixture 규칙과 투표 목록 규칙은 각각 <code>contracts/</code>의 계약 객체가 된다. CSS manifest는 빌드 산출물에서 생성하고 사람이 검토해 커밋한다.</p>
+<p><strong>기술:</strong> TypeScript, Vitest(<code>// @vitest-environment node</code>), postcss 8, postcss-selector-parser 6.1.4(tailwindcss 의존성으로 설치됨), esbuild 0.28.2, Playwright 1.63.0 Chromium, <code>@sentry-internal/replay</code> 9.47.1.</p>
+<p><strong>Spec:</strong> <a href="2026-10-15-replay-vote-list-contract-design.html">docs/reports/2026-10-15-replay-vote-list-contract-design.html</a></p>
+<p><strong>작업 위치:</strong> <code>/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy</code> (브랜치 <code>docs/replay-collection-policy</code>). 의존성은 설치돼 있다. lockfile이 바뀌었을 때만 <code>npm ci</code>를 실행한다.</p>
+<h2>Global Constraints</h2>
+<ul><li>제품 app/components/lib에서 새 코드를 import하지 않는다. 모든 코드는 <code>scripts/replay-p0/</code> 아래에 둔다.</li><li><code>controller.ts</code>·<code>transport.ts</code>·<code>correlation.ts</code>·<code>worker-client.ts</code>·<code>worker-entry.ts</code>의 동작을 바꾸지 않는다.</li><li>예산: 입력·해제·출력 각 8 MiB, 깊이 80, 순회 값 200,000, 이벤트 10,000, 노드+tombstone 20,000.</li><li>type 5 custom event는 전부 삭제한다.</li><li>실패는 <code>{ok:false, reason}</code>이며 원문·거부값을 로그·출력에 남기지 않는다.</li><li>범위 밖 값은 clamp하지 않고 종료한다.</li><li>소수 px 문법 <code>^(0|[1-9]\d{0,4})(\.\d{1,6})?px$</code>, 값 0…16384, 출력은 소수 셋째 자리.</li><li><code>--banner-current-index</code>는 정수 0…max(bannerCount−1, 0), bannerCount는 0…100.</li><li>모든 커밋 메시지는 Conventional Commits이고 끝에 <code>Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;</code>를 붙인다.</li><li><code>.gitignore</code>의 <code>reports/</code> 때문에 새 보고서는 <code>git add -f -- &lt;정확한 경로&gt;</code>로 추가한다.</li><li>운영 Sentry DSN·제품 <code>.env</code>를 쓰지 않는다. 브라우저 시험은 loopback만 쓴다.</li></ul>
+<h2>Review Focus</h2>
+<ol><li><strong>escape·유사 문자 class token</strong> (예: <code>banner-track​</code>, <code>Banner-Track</code>): manifest와 정확히 같지 않으므로 출력에서 제거돼야 한다. → 작업 3에 시험 추가.</li><li><strong>일반 노드의 style을 announcer 전용 속성으로 바꾸는 mutation</strong> (예: <code>{clip: &#x27;rect(0 0 0 0)&#x27;}</code>): 종료돼야 한다. → 작업 3에 시험 추가.</li><li>**segment 1에서 기존 img placeholder에 <code>src</code> 속성을 추가하는 mutation**: 종료돼야 한다. → 작업 4 변조 목록에 추가.</li><li><strong>title text·style text를 바꾸는 text mutation</strong>: title은 빈 값, style은 manifest 밖이면 종료. → 작업 3에 시험 추가.</li><li><strong>announcer host를 지운 뒤 다시 넣는 경우와 두 번째 host를 넣는 경우</strong>: 재삽입은 허용하고 두 번째 live host는 종료한다. → 작업 3에 시험 추가.</li></ol>
+<h2>파일 구조</h2>
+<div class="table-wrap"><table><thead><tr><th>경로</th><th>책임</th></tr></thead><tbody><tr><td><code>scripts/replay-p0/engine/values.ts</code></td><td><code>Rejected</code>, <code>requireValue</code>, 구조·수치 검사, <code>maskText</code>, <code>decimalPx</code>, 트리 예산</td></tr><tr><td><code>scripts/replay-p0/engine/style.ts</code></td><td>inline style 파서 <code>parseStyle</code>, <code>styleString</code></td></tr><tr><td><code>scripts/replay-p0/engine/types.ts</code></td><td><code>Contract</code> 인터페이스</td></tr><tr><td><code>scripts/replay-p0/engine/nodes.ts</code></td><td>노드 투영, tombstone, 속성 위임</td></tr><tr><td><code>scripts/replay-p0/engine/records.ts</code></td><td>rrweb record·mutation 투영</td></tr><tr><td><code>scripts/replay-p0/engine/envelope.ts</code></td><td><code>projectWithContract</code> (envelope·codec·metadata)</td></tr><tr><td><code>scripts/replay-p0/contracts/p0-fixture.ts</code></td><td>기존 P0 규칙</td></tr><tr><td><code>scripts/replay-p0/contracts/vote-list.ts</code></td><td>투표 목록 계약</td></tr><tr><td><code>scripts/replay-p0/contracts/vote-list.css-manifest.json</code></td><td>생성·검토된 manifest</td></tr><tr><td><code>scripts/replay-p0/tools/build-css-manifest.cjs</code></td><td>manifest 생성기</td></tr><tr><td><code>scripts/replay-p0/fixtures/vote-list/wire-{1280,390}-{1,2,3}.bin</code></td><td>production 캡처의 Replay envelope 원본(합성 데이터)</td></tr><tr><td><code>scripts/replay-p0/projection.ts</code></td><td>기존 import 경로를 유지하는 얇은 래퍼</td></tr><tr><td><code>scripts/replay-p0/replay-view.ts</code></td><td>독립 DOM 복원기 (투표 목록 tag·CSS·SVG·shadow 지원 추가)</td></tr><tr><td><code>scripts/replay-p0/vote-list-restore.cjs</code></td><td>복원 비교 실행기</td></tr><tr><td><code>__tests__/scripts/replay-p0/vote-list/*.test.ts</code></td><td>새 시험</td></tr></tbody></table></div>
+<h2>작업 1: 엔진 분리 (동작 변화 없음)</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>scripts/replay-p0/engine/values.ts</code>, <code>engine/style.ts</code>, <code>engine/types.ts</code>, <code>engine/nodes.ts</code>, <code>engine/records.ts</code>, <code>engine/envelope.ts</code>, <code>scripts/replay-p0/contracts/p0-fixture.ts</code></li><li>Modify: <code>scripts/replay-p0/contract.ts</code> (<code>NodeState</code>에 선택 필드 3개 추가), <code>scripts/replay-p0/projection.ts</code> (전체를 래퍼로 교체)</li><li>Test: <code>__tests__/scripts/replay-p0/vote-list/engine-boundary.test.ts</code> (신규), 기존 <code>__tests__/scripts/replay-p0/*.test.ts</code> 전체</li></ul>
+<p><strong>Interfaces:</strong></p>
+<ul><li>Produces: <code>projectWithContract(input: Envelope, state: ProjectionState, contract: Contract): Promise&lt;ProjectResult&gt;</code>; <code>Contract</code> 인터페이스(아래); <code>p0FixtureContract: Contract</code>; <code>engine/values.ts</code>의 export 전체; <code>parseStyle(value, previous, diff, check)</code>, <code>styleString(style)</code>.</li><li>기존 <code>projectEnvelope(input, state)</code>의 시그니처와 결과는 그대로 유지한다.</li></ul>
+<ul><li>&#9744; <strong>단계 1: 기준선을 기록한다.</strong></li></ul>
+<p>Run: <code>cd /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy &amp;&amp; npx vitest run __tests__/scripts/replay-p0 2&gt;&amp;1 | tail -5</code> Expected: P0 단위 시험 139개 PASS. 다른 수치가 나오면 작업을 멈추고 보고한다.</p>
+<ul><li>&#9744; <strong>단계 2: 경계 시험을 작성한다.</strong> 엔진 파일에 계약 고유 이름이 없어야 한다.</li></ul>
+<pre><code>// __tests__/scripts/replay-p0/vote-list/engine-boundary.test.ts
+// @vitest-environment node
+import { describe, expect, it } from &#x27;vitest&#x27;;
+import { readdirSync, readFileSync } from &#x27;node:fs&#x27;;
+import { join } from &#x27;node:path&#x27;;
+
+const dir = join(__dirname, &#x27;../../../../scripts/replay-p0/engine&#x27;);
+describe(&#x27;engine boundary&#x27;, () =&gt; {
+  it(&#x27;has no contract-specific names&#x27;, () =&gt; {
+    const files = readdirSync(dir).filter(f =&gt; f.endsWith(&#x27;.ts&#x27;));
+    expect(files.sort()).toEqual([&#x27;envelope.ts&#x27;, &#x27;nodes.ts&#x27;, &#x27;records.ts&#x27;, &#x27;style.ts&#x27;, &#x27;types.ts&#x27;, &#x27;values.ts&#x27;]);
+    for (const f of files) {
+      const src = readFileSync(join(dir, f), &#x27;utf8&#x27;);
+      for (const word of [&#x27;banner&#x27;, &#x27;fixture&#x27;, &#x27;sdk-contract&#x27;, &quot;&#x27;div&#x27;&quot;, &quot;&#x27;button&#x27;&quot;, &#x27;vote-list&#x27;, &#x27;replay-p0-local&#x27;]) {
+        expect(src.includes(word), `${f} contains ${word}`).toBe(false);
+      }
+    }
+  });
+});</code></pre>
+<ul><li>&#9744; <strong>단계 3: 시험이 실패하는지 확인한다.</strong></li></ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/engine-boundary.test.ts</code> Expected: FAIL (<code>ENOENT</code> — engine 디렉터리 없음)</p>
+<ul><li>&#9744; **단계 4: <code>contract.ts</code>의 <code>NodeState</code>를 확장한다.** 기존 필드는 그대로 둔다.</li></ul>
+<pre><code>export type NodeState = {
+  parent: number | null; children: number[]; kind: number; tag?: string;
+  text?: string; isStyle?: boolean; attrs: Record&lt;string, string&gt;; style: Record&lt;string, string&gt;;
+  /** Contract-owned marks. The engine copies them with the state and never reads them. */
+  shadow?: &#x27;host&#x27; | &#x27;root&#x27;; svg?: true; mark?: string;
+};</code></pre>
+<ul><li>&#9744; **단계 5: <code>engine/values.ts</code>를 만든다.** <code>projection.ts</code>의 6–45행 함수를 옮기고 export한다. <code>text</code>는 <code>maskText</code>로 이름을 바꾸고 <code>decimalPx</code>를 추가한다. <code>codec</code>는 <code>envelope.ts</code>로 옮긴다.</li></ul>
+<pre><code>// scripts/replay-p0/engine/values.ts
+import type { Reason } from &#x27;../contract&#x27;;
+
+export const MAX_BYTES = 8 * 1024 * 1024;
+export const encoder = new TextEncoder();
+export const decoder = new TextDecoder(&#x27;utf-8&#x27;, { fatal: true });
+export type Bag = Record&lt;string, unknown&gt;;
+export class Rejected extends Error { constructor(readonly reason: Reason) { super(reason); } }
+export function requireValue(value: unknown, reason: Reason = &#x27;schema&#x27;): asserts value {
+  if (!value) throw new Rejected(reason);
+}
+export function bag(value: unknown): Bag {
+  requireValue(value !== null &amp;&amp; typeof value === &#x27;object&#x27; &amp;&amp; !Array.isArray(value));
+  return value as Bag;
+}
+export function fields(value: unknown, required: readonly string[], optional: readonly string[] = []): Bag {
+  const result = bag(value);
+  requireValue(required.every(k =&gt; Object.hasOwn(result, k))
+    &amp;&amp; Object.keys(result).every(k =&gt; required.includes(k) || optional.includes(k)));
+  return result;
+}
+export function integer(value: unknown, min: number, max: number): number {
+  requireValue(typeof value === &#x27;number&#x27; &amp;&amp; Number.isInteger(value) &amp;&amp; value &gt;= min &amp;&amp; value &lt;= max);
+  return value;
+}
+export function id(value: unknown): number { return integer(value, 1, 2 ** 31 - 1); }
+export function coordinate(value: unknown): number {
+  requireValue(typeof value === &#x27;number&#x27; &amp;&amp; Number.isFinite(value) &amp;&amp; value &gt;= -65536 &amp;&amp; value &lt;= 65536);
+  return Math.round(value);
+}
+export function maskText(value: unknown): string {
+  requireValue(typeof value === &#x27;string&#x27;); requireValue(value.length &lt;= 4096, &#x27;budget&#x27;);
+  return value.replace(/\S/g, &#x27;*&#x27;);
+}
+/** Finite px value 0…max with at most six decimals; output keeps three decimals without trailing zeros. */
+export function decimalPx(value: unknown, max = 16384): string {
+  requireValue(typeof value === &#x27;string&#x27; &amp;&amp; /^(0|[1-9]\d{0,4})(\.\d{1,6})?px$/.test(value));
+  const n = Number(value.slice(0, -2)); requireValue(n &lt;= max);
+  return `${Number(n.toFixed(3))}px`;
+}
+export function checkTreeBudget(value: unknown) {
+  let count = 0;
+  const walk = (v: unknown, depth: number) =&gt; {
+    requireValue(++count &lt;= 200000 &amp;&amp; depth &lt;= 80, &#x27;budget&#x27;);
+    if (typeof v === &#x27;string&#x27;) requireValue(encoder.encode(v).byteLength &lt;= MAX_BYTES, &#x27;budget&#x27;);
+    if (v &amp;&amp; typeof v === &#x27;object&#x27;) for (const child of Object.values(v)) walk(child, depth + 1);
+  };
+  walk(value, 0);
+}</code></pre>
+<ul><li>&#9744; **단계 6: <code>engine/style.ts</code>를 만든다.** P0 <code>style()</code>의 파싱 부분이며 값 판단은 <code>check</code>에 위임한다.</li></ul>
+<pre><code>// scripts/replay-p0/engine/style.ts
+import postcss from &#x27;postcss&#x27;;
+import { bag, requireValue } from &#x27;./values&#x27;;
+
+export type StyleCheck = (property: string, value: string, priority: &#x27;&#x27; | &#x27;important&#x27;) =&gt; string;
+export function parseStyle(value: unknown, previous: Record&lt;string, string&gt;, diff: boolean, check: StyleCheck): Record&lt;string, string&gt; {
+  requireValue(diff || typeof value === &#x27;string&#x27;);
+  if (value === null) return {};
+  if (typeof value === &#x27;string&#x27;) {
+    requireValue(!value.includes(&#x27;\\&#x27;)); const next: Record&lt;string, string&gt; = {};
+    for (const node of postcss.parse(value).nodes) {
+      requireValue(node.type === &#x27;decl&#x27;);
+      requireValue(!Object.hasOwn(next, node.prop));
+      next[node.prop] = check(node.prop, node.value, node.important ? &#x27;important&#x27; : &#x27;&#x27;);
+    }
+    return next;
+  }
+  requireValue(diff); const next = { ...previous };
+  for (const [property, change] of Object.entries(bag(value))) {
+    if (change === false) { requireValue(Object.hasOwn(next, property)); delete next[property]; }
+    else if (Array.isArray(change)) {
+      requireValue(change.length === 2 &amp;&amp; typeof change[0] === &#x27;string&#x27; &amp;&amp; (change[1] === &#x27;&#x27; || change[1] === &#x27;important&#x27;));
+      next[property] = check(property, change[0], change[1]);
+    } else { requireValue(typeof change === &#x27;string&#x27;); next[property] = check(property, change, &#x27;&#x27;); }
+  }
+  return next;
+}
+export function styleString(value: Record&lt;string, string&gt;): string {
+  return Object.entries(value).map(([k, v]) =&gt; `${k}: ${v};`).join(&#x27; &#x27;);
+}</code></pre>
+<ul><li>&#9744; **단계 7: <code>engine/types.ts</code>를 만든다.**</li></ul>
+<pre><code>// scripts/replay-p0/engine/types.ts
+import type { NodeState, ProjectionState } from &#x27;../contract&#x27;;
+import type { Bag } from &#x27;./values&#x27;;
+
+export type AttributeInput = { tag: string; key: string; raw: unknown; node: NodeState; diff: boolean };
+/** A contract decides every value the engine emits. Every method throws Rejected to close the replay. */
+export interface Contract {
+  readonly name: string;
+  readonly sdkVersion: string;
+  readonly metadata: { release: string; environment: string };
+  readonly tags: ReadonlySet&lt;string&gt;;
+  /** Element keys allowed besides id, type, tagName, attributes and childNodes. */
+  readonly elementExtraKeys: readonly string[];
+  /** Validates extra keys and raw structure before attributes; returns extra keys to emit. */
+  elementExtras(raw: Bag, entry: NodeState, parent: NodeState | undefined, state: ProjectionState): Bag;
+  /** Returns the value to emit; undefined omits the key; null deletes it (diff only). */
+  attribute(input: AttributeInput): string | null | undefined;
+  /** Text node content outside &lt;style&gt;. */
+  text(raw: unknown, parent: NodeState | undefined): string;
+  /** Text node content inside &lt;style&gt;. */
+  styleText(raw: unknown): string;
+  /** Runs after an element and its snapshot children are projected and after each attribute change. */
+  checkElement(entry: NodeState, state: ProjectionState): void;
+  /** Whether a mutation may add a child under this element. */
+  childAllowed(parent: NodeState): boolean;
+}</code></pre>
+<ul><li>&#9744; **단계 8: <code>engine/nodes.ts</code>를 만든다.** <code>projection.ts</code> 95–176행 중 <code>attributes</code>·<code>nodeBudget</code>·<code>live</code>·<code>projectNode</code>·<code>removeNode</code>를 옮기고(<code>cssValue</code>·<code>style</code>·<code>styleString</code>·<code>staticCss</code>는 작업 1의 style.ts와 p0-fixture.ts로 간다) 아래처럼 계약에 위임한다.</li></ul>
+<pre><code>// scripts/replay-p0/engine/nodes.ts
+import type { NodeState, ProjectionState } from &#x27;../contract&#x27;;
+import type { Contract } from &#x27;./types&#x27;;
+import { bag, fields, id, integer, Rejected, requireValue, type Bag } from &#x27;./values&#x27;;
+
+export function nodeBudget(state: ProjectionState) {
+  // The approved budget counts retained node records AND tombstone ID records.
+  // A removed ID retains its typed node for reinsertion checks and occupies both stores.
+  requireValue(state.nodes.size + state.tombstones.size &lt;= 20000, &#x27;budget&#x27;);
+}
+export function live(state: ProjectionState, value: unknown): NodeState {
+  const key = id(value); const node = state.nodes.get(key);
+  requireValue(node &amp;&amp; !state.tombstones.has(key), &#x27;sequence&#x27;); return node;
+}
+export function attributes(value: unknown, node: NodeState, diff: boolean, contract: Contract): Record&lt;string, string | null&gt; {
+  const output: Record&lt;string, string | null&gt; = {};
+  for (const [key, raw] of Object.entries(bag(value))) {
+    const clean = contract.attribute({ tag: node.tag!, key, raw, node, diff });
+    if (clean === undefined) continue;
+    requireValue(clean !== null || diff);
+    output[key] = clean;
+    if (clean === null) delete node.attrs[key]; else node.attrs[key] = clean;
+  }
+  return output;
+}
+export function projectNode(raw: unknown, parent: number | null, state: ProjectionState, contract: Contract): Bag {
+  const n = bag(raw); const key = id(n.id); const kind = integer(n.type, 0, 5);
+  const old = state.nodes.get(key);
+  requireValue(!old || state.tombstones.has(key), &#x27;sequence&#x27;);
+  requireValue(!old || (old.kind === kind &amp;&amp; old.tag === n.tagName), &#x27;sequence&#x27;);
+  const parentEntry = parent === null ? undefined : state.nodes.get(parent);
+  const entry: NodeState = { parent, children: [], kind, attrs: {}, style: {} };
+  state.nodes.set(key, entry); state.tombstones.delete(key); nodeBudget(state);
+  let output: Bag;
+  if (kind === 0) {
+    fields(n, [&#x27;id&#x27;, &#x27;type&#x27;, &#x27;childNodes&#x27;]); requireValue(parent === null &amp;&amp; !old);
+    output = { type: 0, childNodes: [], id: key };
+  } else if (kind === 1) {
+    fields(n, [&#x27;id&#x27;, &#x27;type&#x27;, &#x27;name&#x27;, &#x27;publicId&#x27;, &#x27;systemId&#x27;]);
+    requireValue(n.name === &#x27;html&#x27; &amp;&amp; n.publicId === &#x27;&#x27; &amp;&amp; n.systemId === &#x27;&#x27;);
+    return { type: 1, name: &#x27;html&#x27;, publicId: &#x27;&#x27;, systemId: &#x27;&#x27;, id: key };
+  } else if (kind === 2) {
+    fields(n, [&#x27;id&#x27;, &#x27;type&#x27;, &#x27;tagName&#x27;, &#x27;attributes&#x27;, &#x27;childNodes&#x27;], contract.elementExtraKeys);
+    requireValue(typeof n.tagName === &#x27;string&#x27; &amp;&amp; contract.tags.has(n.tagName));
+    entry.tag = n.tagName;
+    const extras = contract.elementExtras(n, entry, parentEntry, state);
+    output = { type: 2, tagName: n.tagName, attributes: attributes(n.attributes, entry, false, contract), childNodes: [], ...extras, id: key };
+  } else if (kind === 3 || kind === 5) {
+    fields(n, [&#x27;id&#x27;, &#x27;type&#x27;, &#x27;textContent&#x27;], kind === 3 ? [&#x27;isStyle&#x27;] : []);
+    const isStyle = parentEntry?.tag === &#x27;style&#x27;;
+    requireValue(n.isStyle === undefined || (n.isStyle === true &amp;&amp; isStyle));
+    entry.isStyle = isStyle;
+    entry.text = kind === 5 ? &#x27;&#x27; : isStyle ? contract.styleText(n.textContent) : contract.text(n.textContent, parentEntry);
+    return { type: kind, textContent: entry.text, ...(isStyle ? { isStyle: true } : {}), id: key };
+  } else throw new Rejected(&#x27;schema&#x27;);
+  requireValue(Array.isArray(n.childNodes));
+  output.childNodes = n.childNodes.map(child =&gt; {
+    const projected = projectNode(child, key, state, contract); entry.children.push(projected.id as number); return projected;
+  });
+  if (kind === 2) contract.checkElement(entry, state);
+  return output;
+}
+export function removeNode(state: ProjectionState, key: number) {
+  const node = live(state, key);
+  state.tombstones.add(key);
+  for (const child of node.children) removeNode(state, child);
+  nodeBudget(state);
+}</code></pre>
+<p>주의: P0의 <code>extras</code>는 항상 <code>{}</code>이므로 출력 key 순서는 기존과 같다.</p>
+<ul><li>&#9744; **단계 9: <code>engine/records.ts</code>를 만든다.** <code>projection.ts</code> 177–260행(<code>timestamp</code>, <code>mutation</code>, <code>projectRecords</code>)을 옮기고 다음 다섯 곳만 바꾼다.<ul><li>함수 시그니처에 <code>contract: Contract</code>를 추가한다: <code>mutation(data, state, contract)</code>, <code>projectRecords(records, state, segment, contract)</code>.</li><li>adds: <code>const node = projectNode(x.node, parentKey, state);</code> 바로 앞에 <code>requireValue(contract.childAllowed(parent));</code>를 넣고 호출을 <code>projectNode(x.node, parentKey, state, contract)</code>로 바꾼다.</li><li>texts: <code>node.text = node.kind === 5 ? &#x27;&#x27; : node.isStyle ? contract.styleText(x.value) : contract.text(x.value, node.parent === null ? undefined : state.nodes.get(node.parent));</code></li><li>attributes: <code>const out = attributes(x.attributes, node, true, contract); contract.checkElement(node, state); return { id: x.id, attributes: out };</code></li><li>FullSnapshot: <code>projectNode(d.node, null, state, contract)</code>.</li></ul></li></ul>
+<pre><code>// scripts/replay-p0/engine/records.ts (head of file)
+import type { ProjectionState } from &#x27;../contract&#x27;;
+import { attributes, live, projectNode, removeNode } from &#x27;./nodes&#x27;;
+import type { Contract } from &#x27;./types&#x27;;
+import { bag, coordinate, fields, id, integer, Rejected, requireValue, type Bag } from &#x27;./values&#x27;;</code></pre>
+<ul><li>&#9744; **단계 10: <code>engine/envelope.ts</code>를 만든다.** <code>projection.ts</code>의 <code>codec</code>(46–59행)과 <code>projectEnvelope</code>(262–314행)를 옮긴다. 함수 이름을 <code>projectWithContract(input, state, contract)</code>로 바꾸고 다음만 바꾼다.<ul><li><code>bag(event.sdk).version === manifest.sdkVersion</code> → <code>=== contract.sdkVersion</code></li><li><code>projectRecords(records, next, segment)</code> → <code>projectRecords(records, next, segment, contract)</code></li><li><code>const sdk = { name: &#x27;sentry.javascript.browser&#x27;, version: &#x27;9.47.1&#x27; }</code> → <code>version: contract.sdkVersion</code></li><li><code>release: &#x27;replay-p0-fixture&#x27;, environment: &#x27;replay-p0-local&#x27;</code> → <code>release: contract.metadata.release, environment: contract.metadata.environment</code></li><li>주석 <code>/** Only the synthetic P0 schema ... */</code> → <code>/** Builds a new envelope from validated values only. Never forwards input fields. */</code></li></ul></li></ul>
+<ul><li>&#9744; **단계 11: <code>contracts/p0-fixture.ts</code>를 만든다.** P0의 <code>cssValue</code>·<code>attributes</code>·<code>staticCss</code>를 계약으로 옮긴다.</li></ul>
+<pre><code>// scripts/replay-p0/contracts/p0-fixture.ts
+import manifest from &#x27;../fixtures/sdk-contract.json&#x27;;
+import { parseStyle, styleString } from &#x27;../engine/style&#x27;;
+import type { Contract } from &#x27;../engine/types&#x27;;
+import { integer, maskText, requireValue } from &#x27;../engine/values&#x27;;
+
+function cssValue(property: string, value: string, priority: &#x27;&#x27; | &#x27;important&#x27;): string {
+  let valid = false;
+  if (property === &#x27;width&#x27; || property === &#x27;height&#x27;) valid = /^(0|[1-9]\d{0,3})px$/.test(value) &amp;&amp; parseInt(value, 10) &lt;= 1000;
+  if (property === &#x27;opacity&#x27;) valid = /^(?:0(?:\.\d{1,2})?|1(?:\.0{1,2})?|\.\d{1,2})$/.test(value);
+  if (property === &#x27;--banner-current-index&#x27;) valid = /^[012]$/.test(value);
+  requireValue(valid);
+  return value + (priority ? &#x27; !important&#x27; : &#x27;&#x27;);
+}
+function staticCss(value: unknown): string {
+  requireValue(value === manifest.rawCss || value === manifest.normalizedCss); return manifest.rawCss;
+}
+/** Only the synthetic P0 schema. Never use as a general Replay transport. */
+export const p0FixtureContract: Contract = {
+  name: &#x27;p0-fixture&#x27;,
+  sdkVersion: manifest.sdkVersion,
+  metadata: { release: &#x27;replay-p0-fixture&#x27;, environment: &#x27;replay-p0-local&#x27; },
+  tags: new Set(manifest.tags),
+  elementExtraKeys: [],
+  elementExtras: () =&gt; ({}),
+  attribute({ key, raw, node, diff }) {
+    if (key === &#x27;style&#x27;) {
+      node.style = parseStyle(raw, node.style, diff, cssValue);
+      return raw === null ? null : styleString(node.style);
+    }
+    if (key === &#x27;class&#x27;) {
+      if (raw === null &amp;&amp; diff) return null;
+      requireValue(typeof raw === &#x27;string&#x27;); const tokens = raw.split(/\s+/).filter(Boolean);
+      requireValue(tokens.length &lt;= 64 &amp;&amp; tokens.every(t =&gt; t.length &lt;= 256), &#x27;budget&#x27;);
+      return tokens.filter(t =&gt; manifest.classes.includes(t)).join(&#x27; &#x27;);
+    }
+    if (key === &#x27;disabled&#x27; || key === &#x27;aria-expanded&#x27;) {
+      if (raw === null &amp;&amp; diff) return null;
+      if (key === &#x27;disabled&#x27;) { requireValue(raw === &#x27;&#x27; || raw === &#x27;disabled&#x27;); return &#x27;&#x27;; }
+      requireValue(raw === &#x27;true&#x27; || raw === &#x27;false&#x27;); return raw;
+    }
+    if (key === &#x27;rr_width&#x27; || key === &#x27;rr_height&#x27;) {
+      requireValue(typeof raw === &#x27;string&#x27; &amp;&amp; /^(0|[1-9]\d*)px$/.test(raw) &amp;&amp; parseInt(raw, 10) &lt;= 16384); return raw;
+    }
+    if (key === &#x27;rr_scrollLeft&#x27; || key === &#x27;rr_scrollTop&#x27;) {
+      const n = typeof raw === &#x27;string&#x27; &amp;&amp; /^-?\d+$/.test(raw) ? Number(raw) : raw;
+      return String(integer(n, -65536, 65536));
+    }
+    if (key === &#x27;_cssText&#x27;) return staticCss(raw);
+    return undefined;
+  },
+  text: raw =&gt; maskText(raw),
+  styleText: staticCss,
+  checkElement: () =&gt; undefined,
+  childAllowed: () =&gt; true,
+};</code></pre>
+<ul><li>&#9744; **단계 12: <code>projection.ts</code>를 래퍼로 교체한다.** 기존 import 경로(<code>worker-entry.ts</code>, 시험)를 유지한다.</li></ul>
+<pre><code>// scripts/replay-p0/projection.ts
+import type { Envelope } from &#x27;@sentry/core&#x27;;
+import type { ProjectResult, ProjectionState } from &#x27;./contract&#x27;;
+import { p0FixtureContract } from &#x27;./contracts/p0-fixture&#x27;;
+import { projectWithContract } from &#x27;./engine/envelope&#x27;;
+
+/** Only the synthetic P0 schema. Never use as a general Replay transport. */
+export function projectEnvelope(input: Envelope, state: ProjectionState): Promise&lt;ProjectResult&gt; {
+  return projectWithContract(input, state, p0FixtureContract);
+}</code></pre>
+<ul><li>&#9744; <strong>단계 13: 단위 시험과 경계 시험을 실행한다.</strong></li></ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0</code> Expected: 기존 139개 + 경계 시험 1개 PASS. 실패하면 옮긴 코드와 원본 <code>git show HEAD:scripts/replay-p0/projection.ts</code>를 대조한다.</p>
+<ul><li>&#9744; <strong>단계 14: 브라우저 22개 케이스를 실행한다.</strong></li></ul>
+<p>Run: <code>node scripts/replay-p0/run.cjs --case all --output /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/replay-p0-rerun.json</code> Expected: exit 0, 결과 JSON의 <code>normal</code>·<code>barrier</code>·<code>finiteCleanup</code>·<code>limits</code>·<code>isolation</code>이 2026-10-14 결과와 같다. 비교 기준은 <code>docs/reports/2026-10-14-replay-p0-implementation-result.html</code>이다.</p>
+<ul><li>&#9744; <strong>단계 15: 타입·lint를 확인하고 커밋한다.</strong></li></ul>
+<pre><code>npx tsc --noEmit --incremental false
+ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 --ext .ts,.cjs
+git add scripts/replay-p0/engine scripts/replay-p0/contracts/p0-fixture.ts scripts/replay-p0/contract.ts scripts/replay-p0/projection.ts __tests__/scripts/replay-p0/vote-list/engine-boundary.test.ts
+git commit -m &quot;refactor(sentry): split replay projection into engine and contract&quot;</code></pre>
+<h2>작업 2: 캡처 fixture와 CSS manifest 생성기</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>scripts/replay-p0/fixtures/vote-list/wire-1280-{1,2,3}.bin</code>, <code>wire-390-{1,2,3}.bin</code> (복사), <code>scripts/replay-p0/fixtures/vote-list/README.txt</code>, <code>scripts/replay-p0/tools/build-css-manifest.cjs</code>, <code>scripts/replay-p0/contracts/vote-list.css-manifest.json</code> (생성 결과)</li><li>Test: <code>__tests__/scripts/replay-p0/vote-list/manifest.test.ts</code></li></ul>
+<p><strong>Interfaces:</strong></p>
+<ul><li>Produces: <code>vote-list.css-manifest.json</code> 형식 (작업 3의 <code>VoteListManifest</code>와 같다):</li></ul>
+<pre><code>type VoteListManifest = {
+  version: 1; buildId: string; sdkVersion: string; release: string; environment: string;
+  viewport: string; announcerStyle: string;
+  linkCss: { asset: string; sourceSha256: string; wireSha256: string; wire: string }[];
+  styleText: { sha256: string; text: string }[];
+  classes: string[]; statusColors: string[];
+};</code></pre>
+<ul><li>&#9744; <strong>단계 1: 캡처 원본을 복사한다.</strong> <code>wire-*-0.bin</code>은 session envelope이므로 복사하지 않는다.</li></ul>
+<pre><code>cd /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy
+SRC=.superpowers/sdd/2026-10-15-replay-production
+mkdir -p scripts/replay-p0/fixtures/vote-list
+for w in 1280 390; do for s in 1 2 3; do cp &quot;$SRC/wire-$w-$s.bin&quot; scripts/replay-p0/fixtures/vote-list/; done; done
+shasum -a 256 scripts/replay-p0/fixtures/vote-list/*.bin</code></pre>
+<p>Expected: 해시가 <code>$SRC/inventory.json</code>의 <code>wireBytes[].sha256</code>과 같다. 다르면 멈춘다.</p>
+<ul><li>&#9744; <strong>단계 2: README를 쓴다.</strong></li></ul>
+<pre><code>Synthetic production capture of /ko/vote (2026-10-15, build WaMOsqHZc2V7cxWT91IY0,
+Sentry 9.47.1, useCompression=false). Loopback backend, synthetic data only.
+Source: docs/reports/2026-10-15-replay-production-inventory.html §7.
+wire-&lt;width&gt;-&lt;n&gt;.bin = raw SDK envelope n (1..3 = replay segments 0..2).
+Raw files contain unmasked custom events (URLs, aria-label). Never send them anywhere.</code></pre>
+<ul><li>&#9744; <strong>단계 3: manifest 시험을 작성한다.</strong></li></ul>
+<pre><code>// __tests__/scripts/replay-p0/vote-list/manifest.test.ts
+// @vitest-environment node
+import { describe, expect, it } from &#x27;vitest&#x27;;
+import { createHash } from &#x27;node:crypto&#x27;;
+import { readFileSync } from &#x27;node:fs&#x27;;
+import manifest from &#x27;../../../../scripts/replay-p0/contracts/vote-list.css-manifest.json&#x27;;
+
+const sha = (s: string) =&gt; createHash(&#x27;sha256&#x27;).update(s).digest(&#x27;hex&#x27;);
+describe(&#x27;vote-list CSS manifest&#x27;, () =&gt; {
+  it(&#x27;is bound to the inventoried build and SDK&#x27;, () =&gt; {
+    expect(manifest.version).toBe(1);
+    expect(manifest.buildId).toBe(&#x27;WaMOsqHZc2V7cxWT91IY0&#x27;);
+    expect(manifest.sdkVersion).toBe(&#x27;9.47.1&#x27;);
+  });
+  it(&#x27;stores wire CSS whose hashes match the inventory&#x27;, () =&gt; {
+    expect(manifest.linkCss.map(c =&gt; c.wireSha256).sort()).toEqual([
+      &#x27;7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f&#x27;,
+      &#x27;a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d&#x27;,
+    ]);
+    for (const c of manifest.linkCss) expect(sha(c.wire)).toBe(c.wireSha256);
+    expect(manifest.styleText.map(s =&gt; s.sha256).sort()).toEqual([
+      &#x27;3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a&#x27;,
+      &#x27;40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8&#x27;,
+      &#x27;90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd&#x27;,
+    ]);
+    for (const s of manifest.styleText) expect(sha(s.text)).toBe(s.sha256);
+  });
+  it(&#x27;contains no resource references&#x27;, () =&gt; {
+    for (const css of [...manifest.linkCss.map(c =&gt; c.wire), ...manifest.styleText.map(s =&gt; s.text)]) {
+      expect(css).not.toMatch(/url\(|@import/i);
+    }
+  });
+  it(&#x27;derives class tokens from CSS selectors only&#x27;, () =&gt; {
+    expect(manifest.classes).toEqual([...manifest.classes].sort());
+    for (const t of [&#x27;banner-track&#x27;, &#x27;banner-slide&#x27;, &#x27;__className_98b3fa&#x27;, &#x27;jsx-85d98f9caa448b4d&#x27;, &#x27;grid-cols-1&#x27;]) expect(manifest.classes).toContain(t);
+    for (const t of [&#x27;lucide&#x27;, &#x27;lucide-menu&#x27;]) expect(manifest.classes).not.toContain(t);
+  });
+  it(&#x27;takes status colors from VoteStatusFilter.tsx&#x27;, () =&gt; {
+    expect(manifest.statusColors).toEqual([&#x27;rgb(131, 251, 200)&#x27;, &#x27;rgb(166, 168, 175)&#x27;, &#x27;rgb(255, 176, 32)&#x27;, &#x27;rgb(255, 66, 66)&#x27;]);
+    const src = readFileSync(&#x27;components/client/vote/list/VoteStatusFilter.tsx&#x27;, &#x27;utf8&#x27;);
+    for (const hex of [&#x27;#83FBC8&#x27;, &#x27;#A6A8AF&#x27;, &#x27;#FFB020&#x27;, &#x27;#FF4242&#x27;]) expect(src).toContain(hex);
+  });
+  it(&#x27;normalizes the Next announcer style from Next source&#x27;, () =&gt; {
+    expect(manifest.announcerStyle).toBe(&#x27;position: absolute; border: 0px; height: 1px; margin: -1px; padding: 0px; width: 1px; clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; overflow-wrap: normal;&#x27;);
+    expect(manifest.viewport).toBe(&#x27;width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes&#x27;);
+  });
+});</code></pre>
+<p><code>jsx-85d98f9caa448b4d</code>와 <code>__className_98b3fa</code>는 production 조사 원본의 styled-jsx·next/font token이다. 생성 결과에 없으면 시험을 고치지 말고 생성기의 selector 추출을 확인한다.</p>
+<ul><li>&#9744; <strong>단계 4: 시험이 실패하는지 확인한다.</strong></li></ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/manifest.test.ts</code> Expected: FAIL (manifest 파일 없음)</p>
+<ul><li>&#9744; <strong>단계 5: 생성기를 작성한다.</strong></li></ul>
+<pre><code>// scripts/replay-p0/tools/build-css-manifest.cjs
+&#x27;use strict&#x27;;
+// Builds the vote-list CSS manifest from the envtest build and a live local page.
+// Usage: node build-css-manifest.cjs --url http://127.0.0.1:&lt;port&gt;/ko/vote --wire-dir &lt;dir&gt; --out &lt;json&gt;
+// The wire capture is used only to verify the computed values. Nothing is derived from it.
+const assert = require(&#x27;node:assert/strict&#x27;);
+const fs = require(&#x27;node:fs&#x27;);
+const path = require(&#x27;node:path&#x27;);
+const { createHash } = require(&#x27;node:crypto&#x27;);
+const postcss = require(&#x27;postcss&#x27;);
+const selectorParser = require(&#x27;postcss-selector-parser&#x27;);
+const { chromium } = require(&#x27;playwright&#x27;);
+const { parseBrowserEnvelope } = require(&#x27;../../envelope-test/browser-analyze&#x27;);
+
+const root = path.resolve(__dirname, &#x27;../../..&#x27;);
+const arg = name =&gt; { const i = process.argv.indexOf(name); assert(i &gt; 0, `missing ${name}`); return process.argv[i + 1]; };
+const sha = s =&gt; createHash(&#x27;sha256&#x27;).update(s).digest(&#x27;hex&#x27;);
+// Same function as @sentry-internal/replay 9.47.1 build/npm/cjs/index.js fixBrowserCompatibilityIssuesInCSS.
+function sdkFix(cssText) {
+  if (cssText.includes(&#x27; background-clip: text;&#x27;) &amp;&amp; !cssText.includes(&#x27; -webkit-background-clip: text;&#x27;)) {
+    cssText = cssText.replace(/\sbackground-clip:\s*text;/g, &#x27; -webkit-background-clip: text; background-clip: text;&#x27;);
+  }
+  return cssText;
+}
+function assertSdkFixUnchanged() {
+  const src = fs.readFileSync(path.join(root, &#x27;node_modules/@sentry-internal/replay/build/npm/cjs/index.js&#x27;), &#x27;utf8&#x27;);
+  const version = JSON.parse(fs.readFileSync(path.join(root, &#x27;node_modules/@sentry-internal/replay/package.json&#x27;), &#x27;utf8&#x27;)).version;
+  assert.equal(version, &#x27;9.47.1&#x27;);
+  assert(src.includes(&#x27;&quot; -webkit-background-clip: text; background-clip: text;&quot;&#x27;), &#x27;SDK CSS fix changed&#x27;);
+}
+function classTokens(css) {
+  const out = new Set();
+  postcss.parse(css).walkRules(rule =&gt; {
+    selectorParser(s =&gt; s.walkClasses(c =&gt; { out.add(c.value); })).processSync(rule.selector);
+  });
+  return out;
+}
+function statusColors() {
+  const src = fs.readFileSync(path.join(root, &#x27;components/client/vote/list/VoteStatusFilter.tsx&#x27;), &#x27;utf8&#x27;);
+  const block = src.slice(src.indexOf(&#x27;const STATUS_DOT_COLOR&#x27;), src.indexOf(&#x27;};&#x27;, src.indexOf(&#x27;const STATUS_DOT_COLOR&#x27;)));
+  return [...block.matchAll(/&#x27;#([0-9A-F]{6})&#x27;/g)].map(m =&gt; {
+    const n = parseInt(m[1], 16); return `rgb(${n &gt;&gt; 16}, ${(n &gt;&gt; 8) &amp; 255}, ${n &amp; 255})`;
+  });
+}
+function nextAnnouncerSource() {
+  const src = fs.readFileSync(path.join(root, &#x27;node_modules/next/dist/client/components/app-router-announcer.js&#x27;), &#x27;utf8&#x27;);
+  const m = /announcer\.style\.cssText = &#x27;([^&#x27;]+)&#x27;/.exec(src); assert(m, &#x27;announcer style not found&#x27;);
+  return m[1];
+}
+function wireValues(dir) {
+  const links = new Set(), styles = new Set();
+  for (const f of fs.readdirSync(dir).filter(f =&gt; /^wire-\d+-[123]\.bin$/.test(f))) {
+    for (const item of parseBrowserEnvelope(fs.readFileSync(path.join(dir, f))).items) {
+      if (item.header.type !== &#x27;replay_recording&#x27;) continue;
+      JSON.stringify(item.payload.records, (k, v) =&gt; {
+        if (k === &#x27;_cssText&#x27;) links.add(v);
+        if (v &amp;&amp; v.isStyle === true) styles.add(v.textContent);
+        return v;
+      });
+    }
+  }
+  return { links, styles };
+}
+(async () =&gt; {
+  assertSdkFixUnchanged();
+  const url = arg(&#x27;--url&#x27;); const out = arg(&#x27;--out&#x27;); const wire = wireValues(arg(&#x27;--wire-dir&#x27;));
+  const buildId = fs.readFileSync(path.join(root, &#x27;.next-envtest/BUILD_ID&#x27;), &#x27;utf8&#x27;).trim();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const response = await page.goto(url, { waitUntil: &#x27;networkidle&#x27; }); assert.equal(response.status(), 200);
+    const live = await page.evaluate(announcer =&gt; {
+      const probe = document.createElement(&#x27;div&#x27;); probe.style.cssText = announcer;
+      return {
+        viewport: document.querySelector(&#x27;meta[name=viewport]&#x27;).getAttribute(&#x27;content&#x27;),
+        announcerStyle: probe.getAttribute(&#x27;style&#x27;),
+        sheets: [...document.styleSheets].filter(s =&gt; s.ownerNode.tagName === &#x27;LINK&#x27;).map(s =&gt; ({
+          href: new URL(s.href).pathname, cssom: [...s.cssRules].map(r =&gt; r.cssText).join(&#x27;&#x27;) })),
+        styled: [...document.querySelectorAll(&#x27;style[data-styled-jsx]&#x27;)].map(s =&gt; s.textContent),
+      };
+    }, nextAnnouncerSource());
+    const linkCss = live.sheets.map(s =&gt; {
+      const file = path.join(root, &#x27;.next-envtest&#x27;, s.href.replace(/^\/_next\//, &#x27;&#x27;));
+      const wireText = sdkFix(s.cssom);
+      assert(wire.links.has(wireText), `wire mismatch for ${s.href}`);
+      return { asset: s.href, sourceSha256: sha(fs.readFileSync(file)), wireSha256: sha(wireText), wire: wireText };
+    });
+    for (const text of live.styled) assert(wire.styles.has(text), &#x27;styled-jsx text missing from wire&#x27;);
+    assert.equal(linkCss.length, wire.links.size); assert.equal(live.styled.length, wire.styles.size);
+    const all = [...linkCss.map(c =&gt; c.wire), ...live.styled];
+    for (const css of all) assert(!/url\(|@import/i.test(css), &#x27;resource reference in CSS&#x27;);
+    const classes = new Set(); for (const css of all) for (const t of classTokens(css)) classes.add(t);
+    const manifest = {
+      version: 1, buildId, sdkVersion: &#x27;9.47.1&#x27;, release: &#x27;replay-vote-list-local&#x27;, environment: &#x27;replay-vote-list-local&#x27;,
+      viewport: live.viewport, announcerStyle: live.announcerStyle,
+      linkCss: linkCss.sort((a, b) =&gt; a.asset.localeCompare(b.asset)),
+      styleText: live.styled.map(text =&gt; ({ sha256: sha(text), text })).sort((a, b) =&gt; a.sha256.localeCompare(b.sha256)),
+      classes: [...classes].sort(), statusColors: statusColors(),
+    };
+    fs.writeFileSync(out, JSON.stringify(manifest, null, 2) + &#x27;\n&#x27;);
+    console.log(JSON.stringify({ buildId, links: linkCss.length, styles: live.styled.length, classes: classes.size }));
+  } finally { await browser.close(); }
+})().catch(error =&gt; { console.error(error.message); process.exit(1); });</code></pre>
+<ul><li>&#9744; <strong>단계 6: 로컬 envtest 서버를 실행한다.</strong> production 조사 harness를 새 디렉터리에 복사해 쓴다. 원래 증거 디렉터리는 바꾸지 않는다. harness는 <code>__dirname</code>의 <code>server.json</code>·<code>source-snapshots.json</code>을 읽고 쓰므로 디렉터리 전체를 복사한다.</li></ul>
+<pre><code>cd /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy
+OUT=.superpowers/sdd/2026-10-16-vote-list-contract
+cp -R .superpowers/sdd/2026-10-15-replay-production &quot;$OUT&quot;
+cat .next-envtest/BUILD_ID; echo
+lsof -nP -iTCP:53931 -iTCP:59862 -sTCP:LISTEN || echo &quot;ports free&quot;</code></pre>
+<p>판정:</p>
+<ul><li>BUILD_ID가 <code>WaMOsqHZc2V7cxWT91IY0</code>이고 두 포트가 비어 있으면 기존 빌드를 재사용한다: <code>node $OUT/server.cjs --reuse-build &amp;</code>. 이 빌드는 upstream 포트 59862를 빌드 시점에 포함하므로 포트가 비어 있어야 한다.<ul><li>그 밖의 경우에는 다시 빌드한다: <code>node $OUT/server.cjs &amp;</code>. Next는 빌드마다 새 BUILD_ID를 만든다. 이때 fixture와 빌드가 맞지 않으므로 작업 6 단계 1–2의 재수집을 먼저 실행한다. 그다음 새 <code>wire-*-{1,2,3}.bin</code>으로 단계 1의 fixture를 교체하고, 단계 3의 기대 빌드 ID·해시를 새 값으로 바꾼다. 바꾼 이유를 결과 보고서에 기록한다.</li><li>포트를 다른 프로세스가 쓰고 있으면 그 프로세스를 종료하지 말고 멈춰서 보고한다.</li></ul></li></ul>
+<pre><code>until grep -q &#x27;&quot;phase&quot;:&quot;serving&quot;&#x27; &quot;$OUT/server.json&quot; 2&gt;/dev/null; do sleep 5; done
+cat &quot;$OUT/server.json&quot;</code></pre>
+<p>Expected: <code>&quot;phase&quot;:&quot;serving&quot;</code>, 포트 53931.</p>
+<ul><li>&#9744; <strong>단계 7: 생성기를 실행한다.</strong></li></ul>
+<p>Run: <code>node scripts/replay-p0/tools/build-css-manifest.cjs --url http://127.0.0.1:53931/ko/vote --wire-dir scripts/replay-p0/fixtures/vote-list --out scripts/replay-p0/contracts/vote-list.css-manifest.json</code> Expected: <code>{&quot;buildId&quot;:&quot;WaMOsqHZc2V7cxWT91IY0&quot;,&quot;links&quot;:2,&quot;styles&quot;:3,&quot;classes&quot;:&lt;N&gt;}</code>, exit 0.</p>
+<ul><li>&#9744; <strong>단계 8: 자신이 띄운 서버만 종료하고 Next 자동 변경을 복구한다.</strong></li></ul>
+<pre><code>kill &quot;$(python3 -c &quot;import json;print(json.load(open(&#x27;$OUT/server.json&#x27;))[&#x27;pid&#x27;])&quot;)&quot;
+git diff --stat -- tsconfig.json next-env.d.ts</code></pre>
+<p>Expected: 두 파일에 diff가 없다. diff가 있으면 <code>$OUT/source-snapshots.json</code>(서버 시작 시점의 base64 원본)과 비교해 Next가 바꾼 부분만 되돌린다. <code>server.json</code>의 <code>nextPid</code> 프로세스가 남아 있으면 그것도 종료한다.</p>
+<ul><li>&#9744; <strong>단계 9: manifest를 검토한다.</strong> 사람이 읽고 확인할 항목: <code>classes</code>에 사용자 데이터처럼 보이는 token이 없다, <code>viewport</code>·<code>announcerStyle</code>이 시험 기대값과 같다, <code>linkCss</code>가 2개, <code>styleText</code>가 3개다.</li></ul>
+<ul><li>&#9744; <strong>단계 10: 시험을 실행하고 커밋한다.</strong></li></ul>
+<pre><code>npx vitest run __tests__/scripts/replay-p0/vote-list/manifest.test.ts
+git add scripts/replay-p0/fixtures/vote-list scripts/replay-p0/tools/build-css-manifest.cjs scripts/replay-p0/contracts/vote-list.css-manifest.json __tests__/scripts/replay-p0/vote-list/manifest.test.ts
+git commit -m &quot;test(sentry): add vote list capture fixtures and CSS manifest&quot;</code></pre>
+<h2>작업 3: 투표 목록 계약</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>scripts/replay-p0/contracts/vote-list.ts</code>, <code>__tests__/scripts/replay-p0/vote-list/helpers.ts</code>, <code>__tests__/scripts/replay-p0/vote-list/contract.test.ts</code></li></ul>
+<p><strong>Interfaces:</strong></p>
+<ul><li>Consumes: <code>Contract</code>, <code>parseStyle</code>, <code>styleString</code>, <code>decimalPx</code>, <code>maskText</code>, <code>integer</code>, <code>requireValue</code>, <code>bag</code>, <code>Rejected</code> (작업 1), <code>projectWithContract</code> (작업 1)</li><li>Produces: <code>createVoteListContract(o: { manifest: VoteListManifest; buildId: string; bannerCount: number }): Contract</code>, <code>type VoteListManifest</code></li></ul>
+<ul><li>&#9744; <strong>단계 1: 시험 helper를 작성한다.</strong></li></ul>
+<pre><code>// __tests__/scripts/replay-p0/vote-list/helpers.ts
+import type { Envelope } from &#x27;@sentry/core&#x27;;
+import { deflateSync } from &#x27;node:zlib&#x27;;
+import { parseBrowserEnvelope } from &#x27;../../../../scripts/envelope-test/browser-analyze&#x27;;
+import type { VoteListManifest } from &#x27;../../../../scripts/replay-p0/contracts/vote-list&#x27;;
+
+export const ID = &#x27;a&#x27;.repeat(32);
+export const START = 1_760_000_000;
+export const T = START * 1000;
+export type RawNode = Record&lt;string, unknown&gt;;
+let nextId = 100;
+export function el(tagName: string, attributes: Record&lt;string, unknown&gt; = {}, childNodes: RawNode[] = [], extra: RawNode = {}): RawNode {
+  return { type: 2, tagName, attributes, childNodes, id: nextId++, ...extra };
+}
+export function txt(textContent: string): RawNode { return { type: 3, textContent, id: nextId++ }; }
+export const MANIFEST: VoteListManifest = {
+  version: 1, buildId: &#x27;test-build&#x27;, sdkVersion: &#x27;9.47.1&#x27;, release: &#x27;r&#x27;, environment: &#x27;e&#x27;,
+  viewport: &#x27;width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes&#x27;,
+  announcerStyle: &#x27;position: absolute; border: 0px; height: 1px; margin: -1px; padding: 0px; width: 1px; clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; overflow-wrap: normal;&#x27;,
+  linkCss: [{ asset: &#x27;/a.css&#x27;, sourceSha256: &#x27;0&#x27;, wireSha256: &#x27;0&#x27;, wire: &#x27;.a { color: red; }&#x27; }],
+  styleText: [{ sha256: &#x27;0&#x27;, text: &#x27;.jsx-1.b { display: block; }&#x27; }],
+  classes: [&#x27;a&#x27;, &#x27;b&#x27;, &#x27;banner-track&#x27;, &#x27;jsx-1&#x27;], statusColors: [&#x27;rgb(131, 251, 200)&#x27;],
+};
+export function page(head: RawNode[], body: RawNode[]): unknown[] {
+  return [
+    { type: 4, timestamp: T, data: { href: &#x27;http://127.0.0.1/ko/vote&#x27;, width: 1280, height: 900 } },
+    { type: 2, timestamp: T + 1, data: { initialOffset: { left: 0, top: 0 }, node: { type: 0, id: 1, childNodes: [
+      { type: 1, id: 2, name: &#x27;html&#x27;, publicId: &#x27;&#x27;, systemId: &#x27;&#x27; },
+      { type: 2, id: 3, tagName: &#x27;html&#x27;, attributes: { lang: &#x27;ko&#x27; }, childNodes: [
+        { type: 2, id: 4, tagName: &#x27;head&#x27;, attributes: {}, childNodes: head },
+        { type: 2, id: 5, tagName: &#x27;body&#x27;, attributes: {}, childNodes: body }] }] } } },
+  ];
+}
+export function mutation(change: Partial&lt;Record&lt;&#x27;adds&#x27; | &#x27;removes&#x27; | &#x27;texts&#x27; | &#x27;attributes&#x27;, unknown[]&gt;&gt;, at = 10): unknown {
+  return { type: 3, timestamp: T + at, data: { source: 0, adds: [], removes: [], texts: [], attributes: [], ...change } };
+}
+export function envelope(records: unknown[], segment = 0, compressed = false): Envelope {
+  const body = Buffer.from(JSON.stringify(records));
+  const payload = new Uint8Array(Buffer.concat([Buffer.from(JSON.stringify({ segment_id: segment }) + &#x27;\n&#x27;), compressed ? deflateSync(body) : body]));
+  const event = { type: &#x27;replay_event&#x27;, replay_type: &#x27;session&#x27;, replay_id: ID, event_id: ID, segment_id: segment,
+    timestamp: START + 1, replay_start_timestamp: START, sdk: { name: &#x27;sentry.javascript.browser&#x27;, version: &#x27;9.47.1&#x27; } };
+  return [{ event_id: ID }, [[{ type: &#x27;replay_event&#x27; }, event], [{ type: &#x27;replay_recording&#x27; }, payload]]] as unknown as Envelope;
+}
+export function outputRecords(bytes: Uint8Array): any[] {
+  const item = parseBrowserEnvelope(Buffer.from(bytes)).items.find((i: any) =&gt; i.header.type === &#x27;replay_recording&#x27;);
+  return item.payload.records;
+}
+export function outputText(bytes: Uint8Array): string {
+  return JSON.stringify(outputRecords(bytes)) + new TextDecoder().decode(bytes);
+}
+export function findNode(records: any[], id: number): any {
+  let found: any;
+  JSON.stringify(records, (k, v) =&gt; { if (v &amp;&amp; typeof v === &#x27;object&#x27; &amp;&amp; v.id === id &amp;&amp; &#x27;type&#x27; in v) found = v; return v; });
+  return found;
+}</code></pre>
+<ul><li>&#9744; <strong>단계 2: 계약 시험을 작성한다.</strong> 규칙마다 통과 예와 거부·제거 예를 둔다.</li></ul>
+<pre><code>// __tests__/scripts/replay-p0/vote-list/contract.test.ts
+// @vitest-environment node
+import { describe, expect, it } from &#x27;vitest&#x27;;
+import { emptyProjectionState } from &#x27;../../../../scripts/replay-p0/contract&#x27;;
+import { createVoteListContract } from &#x27;../../../../scripts/replay-p0/contracts/vote-list&#x27;;
+import { projectWithContract } from &#x27;../../../../scripts/replay-p0/engine/envelope&#x27;;
+import { el, envelope, findNode, MANIFEST, mutation, outputRecords, outputText, page, T, txt, type RawNode } from &#x27;./helpers&#x27;;
+
+const contract = (bannerCount = 5) =&gt; createVoteListContract({ manifest: MANIFEST, buildId: &#x27;test-build&#x27;, bannerCount });
+const run = (records: unknown[], compressed = false, c = contract()) =&gt; projectWithContract(envelope(records, 0, compressed), emptyProjectionState(), c);
+const body = (...nodes: RawNode[]) =&gt; page([], nodes);
+async function ok(records: unknown[], compressed = false) {
+  const result = await run(records, compressed); if (!result.ok) throw new Error(result.reason); return result.value.bytes;
+}
+async function reason(records: unknown[]) { const r = await run(records); return r.ok ? &#x27;ok&#x27; : r.reason; }
+const MARK = &#x27;PIIMARK-7f3a&#x27;;
+
+describe(&#x27;vote-list contract: construction&#x27;, () =&gt; {
+  it(&#x27;rejects a different build ID&#x27;, () =&gt; {
+    expect(() =&gt; createVoteListContract({ manifest: MANIFEST, buildId: &#x27;other&#x27;, bannerCount: 5 })).toThrow();
+  });
+  it(&#x27;rejects bannerCount outside 0…100&#x27;, () =&gt; {
+    expect(() =&gt; contract(101)).toThrow(); expect(() =&gt; contract(-1)).toThrow();
+  });
+});
+
+describe(&#x27;vote-list contract: head&#x27;, () =&gt; {
+  it(&#x27;keeps charset and the viewport constant and empties other metadata&#x27;, async () =&gt; {
+    const charset = el(&#x27;meta&#x27;, { charset: &#x27;utf-8&#x27; }); const viewport = el(&#x27;meta&#x27;, { name: &#x27;viewport&#x27;, content: MANIFEST.viewport });
+    const other = el(&#x27;meta&#x27;, { name: &#x27;description&#x27;, content: MARK }); const title = el(&#x27;title&#x27;, {}, [txt(MARK)]);
+    const alt = el(&#x27;link&#x27;, { rel: &#x27;alternate&#x27;, href: `https://x/${MARK}`, hreflang: &#x27;en&#x27; });
+    const bytes = await ok(page([charset, viewport, other, title, alt], []));
+    const recs = outputRecords(bytes);
+    expect(findNode(recs, charset.id as number).attributes).toEqual({ charset: &#x27;utf-8&#x27; });
+    expect(findNode(recs, viewport.id as number).attributes).toEqual({ name: &#x27;viewport&#x27;, content: MANIFEST.viewport });
+    expect(findNode(recs, other.id as number).attributes).toEqual({});
+    expect(findNode(recs, alt.id as number).attributes).toEqual({});
+    expect(findNode(recs, title.id as number).childNodes[0].textContent).toBe(&#x27;&#x27;);
+    expect(outputText(bytes)).not.toContain(MARK);
+  });
+  it(&#x27;rejects a non-constant charset or viewport&#x27;, async () =&gt; {
+    expect(await reason(page([el(&#x27;meta&#x27;, { charset: &#x27;latin1&#x27; })], []))).toBe(&#x27;schema&#x27;);
+    expect(await reason(page([el(&#x27;meta&#x27;, { name: &#x27;viewport&#x27;, content: &#x27;width=1&#x27; })], []))).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;keeps manifest link CSS only&#x27;, async () =&gt; {
+    const link = el(&#x27;link&#x27;, { rel: null, href: null, crossorigin: null, &#x27;data-precedence&#x27;: &#x27;next&#x27;, _cssText: &#x27;.a { color: red; }&#x27; });
+    expect(findNode(outputRecords(await ok(page([link], []))), link.id as number).attributes).toEqual({ _cssText: &#x27;.a { color: red; }&#x27; });
+    expect(await reason(page([el(&#x27;link&#x27;, { _cssText: &#x27;.a { color: blue; }&#x27; })], []))).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;rejects a stylesheet link without inlined CSS&#x27;, async () =&gt; {
+    expect(await reason(page([el(&#x27;link&#x27;, { rel: &#x27;stylesheet&#x27;, href: &#x27;/x.css&#x27; })], []))).toBe(&#x27;schema&#x27;);
+    expect(await reason(page([el(&#x27;link&#x27;, { &#x27;data-precedence&#x27;: &#x27;next&#x27;, href: &#x27;/x.css&#x27; })], []))).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;accepts 0px link placeholders and rejects other placeholder shapes&#x27;, async () =&gt; {
+    await ok(page([el(&#x27;link&#x27;, { rr_width: &#x27;0px&#x27;, rr_height: &#x27;0px&#x27; })], []));
+    expect(await reason(page([el(&#x27;link&#x27;, { rr_width: &#x27;1px&#x27;, rr_height: &#x27;0px&#x27; })], []))).toBe(&#x27;schema&#x27;);
+    expect(await reason(page([el(&#x27;link&#x27;, { rr_width: &#x27;0px&#x27;, rr_height: &#x27;0px&#x27;, href: &#x27;/i.png&#x27; })], []))).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;keeps manifest style text and type only&#x27;, async () =&gt; {
+    const style = el(&#x27;style&#x27;, { type: &#x27;text/css&#x27;, &#x27;data-styled-jsx&#x27;: &#x27;&#x27; }, [{ type: 3, textContent: &#x27;.jsx-1.b { display: block; }&#x27;, isStyle: true, id: 9001 }]);
+    const recs = outputRecords(await ok(page([style], [])));
+    expect(findNode(recs, style.id as number).attributes).toEqual({ type: &#x27;text/css&#x27; });
+    const bad = el(&#x27;style&#x27;, { type: &#x27;text/css&#x27; }, [{ type: 3, textContent: &#x27;.x{}&#x27;, isStyle: true, id: 9002 }]);
+    expect(await reason(page([bad], []))).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;rejects a style text mutation outside the manifest&#x27;, async () =&gt; {
+    const style = el(&#x27;style&#x27;, { type: &#x27;text/css&#x27; }, [{ type: 3, textContent: &#x27;.jsx-1.b { display: block; }&#x27;, isStyle: true, id: 9003 }]);
+    expect(await reason([...page([style], []), mutation({ texts: [{ id: 9003, value: &#x27;.evil{}&#x27; }] })])).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;empties title text mutations&#x27;, async () =&gt; {
+    const title = el(&#x27;title&#x27;, {}, [{ type: 3, textContent: &#x27;x&#x27;, id: 9004 }]);
+    const bytes = await ok([...page([title], []), mutation({ texts: [{ id: 9004, value: MARK }] })]);
+    expect(outputText(bytes)).not.toContain(MARK);
+  });
+});
+
+describe(&#x27;vote-list contract: body attributes and text&#x27;, () =&gt; {
+  it.each([false, true])(&#x27;drops free strings, compression=%s&#x27;, async compressed =&gt; {
+    const a = el(&#x27;a&#x27;, { href: `https://x/${MARK}`, class: &#x27;a&#x27;, style: &#x27;user-select: none;&#x27;, &#x27;aria-label&#x27;: MARK, id: MARK }, [txt(`${MARK} name`)]);
+    const bytes = await ok(body(a), compressed);
+    expect(outputText(bytes)).not.toContain(MARK);
+    expect(findNode(outputRecords(bytes), a.id as number).attributes).toEqual({ class: &#x27;a&#x27;, style: &#x27;user-select: none;&#x27; });
+  });
+  it(&#x27;masks text with asterisks&#x27;, async () =&gt; {
+    const t = txt(&#x27;투표 1&#x27;);
+    expect(findNode(outputRecords(await ok(body(el(&#x27;p&#x27;, {}, [t])))), t.id as number).textContent).toBe(&#x27;** *&#x27;);
+  });
+  it(&#x27;normalizes boolean and enumerated states&#x27;, async () =&gt; {
+    const b = el(&#x27;button&#x27;, { type: &#x27;button&#x27;, disabled: &#x27;&#x27;, &#x27;aria-pressed&#x27;: &#x27;true&#x27;, &#x27;aria-expanded&#x27;: &#x27;false&#x27;, role: &#x27;group&#x27; });
+    expect(findNode(outputRecords(await ok(body(b))), b.id as number).attributes)
+      .toEqual({ type: &#x27;button&#x27;, disabled: &#x27;&#x27;, &#x27;aria-pressed&#x27;: &#x27;true&#x27;, &#x27;aria-expanded&#x27;: &#x27;false&#x27;, role: &#x27;group&#x27; });
+    expect(await reason(body(el(&#x27;button&#x27;, { &#x27;aria-pressed&#x27;: &#x27;mixed&#x27; })))).toBe(&#x27;schema&#x27;);
+    expect(await reason(body(el(&#x27;div&#x27;, { role: &#x27;dialog&#x27; })))).toBe(&#x27;schema&#x27;);
+    expect(await reason(body(el(&#x27;button&#x27;, { type: &#x27;submit&#x27; })))).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;keeps only exact manifest class tokens&#x27;, async () =&gt; {
+    const d = el(&#x27;div&#x27;, { class: &#x27;a\n  b banner-track​ Banner-Track jsx-1 unknown&#x27; });
+    expect(findNode(outputRecords(await ok(body(d))), d.id as number).attributes.class).toBe(&#x27;a b jsx-1&#x27;);
+  });
+  it(&#x27;rejects unknown tags and extra node fields&#x27;, async () =&gt; {
+    expect(await reason(body(el(&#x27;iframe&#x27;)))).toBe(&#x27;schema&#x27;);
+    expect(await reason(body(el(&#x27;div&#x27;, {}, [], { rootId: 1 })))).toBe(&#x27;schema&#x27;);
+    expect(await reason(body(el(&#x27;div&#x27;, {}, [], { isSVG: true })))).toBe(&#x27;schema&#x27;);
+  });
+});
+
+describe(&#x27;vote-list contract: inline style&#x27;, () =&gt; {
+  const styled = (style: string) =&gt; body(el(&#x27;div&#x27;, { style }));
+  it.each([
+    [&#x27;width: 298.5px;&#x27;, &#x27;width: 298.5px;&#x27;],
+    [&#x27;height: 199.359375px;&#x27;, &#x27;height: 199.359px;&#x27;],
+    [&#x27;top: 52px; left: 1042px;&#x27;, &#x27;top: 52px; left: 1042px;&#x27;],
+    [&#x27;background-color: rgb(131, 251, 200);&#x27;, &#x27;background-color: rgb(131, 251, 200);&#x27;],
+    [&#x27;aspect-ratio: 700 / 356;&#x27;, &#x27;aspect-ratio: 700 / 356;&#x27;],
+    [&#x27;--banner-current-index: 4;&#x27;, &#x27;--banner-current-index: 4;&#x27;],
+    [&#x27;transform: rotate(180deg); opacity: 0.5;&#x27;, &#x27;transform: rotate(180deg); opacity: 0.5;&#x27;],
+    [&#x27;width: 0;&#x27;, &#x27;width: 0;&#x27;],
+  ])(&#x27;accepts %s&#x27;, async (input, expected) =&gt; {
+    const recs = outputRecords(await ok(styled(input)));
+    expect(JSON.stringify(recs)).toContain(JSON.stringify(expected).slice(1, -1));
+  });
+  it.each([
+    &#x27;width: 16385px;&#x27;, &#x27;width: -1px;&#x27;, &#x27;width: 1e3px;&#x27;, &#x27;width: 10em;&#x27;, &#x27;width: 1.1234567px;&#x27;,
+    &#x27;background-color: rgb(1, 2, 3);&#x27;, &#x27;aspect-ratio: 16 / 9;&#x27;, &#x27;--banner-current-index: 5;&#x27;, &#x27;--banner-current-index: 1.0;&#x27;,
+    &#x27;transform: translate3d(0,0,0);&#x27;, &#x27;clip: rect(0px, 0px, 0px, 0px);&#x27;, &#x27;color: red;&#x27;, &#x27;width: 1px; width: 2px;&#x27;,
+    &#x27;background: url(x);&#x27;, &#x27;width: 1\\70 x;&#x27;,
+  ])(&#x27;rejects %s&#x27;, async input =&gt; { expect(await reason(styled(input))).toBe(&#x27;schema&#x27;); });
+  it(&#x27;uses bannerCount for the index bound&#x27;, async () =&gt; {
+    const r = await projectWithContract(envelope(styled(&#x27;--banner-current-index: 0;&#x27;)), emptyProjectionState(), contract(0));
+    expect(r.ok).toBe(true);
+    const r2 = await projectWithContract(envelope(styled(&#x27;--banner-current-index: 1;&#x27;)), emptyProjectionState(), contract(1));
+    expect(r2.ok).toBe(false);
+  });
+  it(&#x27;rejects announcer-only properties in a style diff of a normal node&#x27;, async () =&gt; {
+    const d = el(&#x27;div&#x27;, { style: &#x27;width: 1px;&#x27; });
+    expect(await reason([...body(d), mutation({ attributes: [{ id: d.id, attributes: { style: { clip: &#x27;rect(0 0 0 0)&#x27; } } }] })])).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;applies typed style diffs&#x27;, async () =&gt; {
+    const d = el(&#x27;div&#x27;, { style: &#x27;--banner-current-index: 0;&#x27; });
+    const recs = outputRecords(await ok([...body(d), mutation({ attributes: [{ id: d.id, attributes: { style: { &#x27;--banner-current-index&#x27;: &#x27;2&#x27; } } }] })]));
+    expect(recs.at(-1).data.attributes[0].attributes.style).toBe(&#x27;--banner-current-index: 2;&#x27;);
+  });
+});
+
+describe(&#x27;vote-list contract: media placeholders&#x27;, () =&gt; {
+  it(&#x27;keeps img and svg placeholders with normalized size&#x27;, async () =&gt; {
+    const img = el(&#x27;img&#x27;, { class: &#x27;a&#x27;, rr_width: &#x27;398px&#x27;, rr_height: &#x27;298.5px&#x27; });
+    const svg = el(&#x27;svg&#x27;, { class: &#x27;b&#x27;, rr_width: &#x27;16px&#x27;, rr_height: &#x27;199.359375px&#x27; }, [], { isSVG: true });
+    const recs = outputRecords(await ok(body(img, svg)));
+    expect(findNode(recs, img.id as number).attributes).toEqual({ class: &#x27;a&#x27;, rr_width: &#x27;398px&#x27;, rr_height: &#x27;298.5px&#x27; });
+    expect(findNode(recs, svg.id as number)).toMatchObject({ isSVG: true, attributes: { rr_height: &#x27;199.359px&#x27; } });
+  });
+  it.each([
+    [&#x27;src&#x27;, el(&#x27;img&#x27;, { rr_width: &#x27;1px&#x27;, rr_height: &#x27;1px&#x27;, src: &#x27;/a.png&#x27; })],
+    [&#x27;rr_src&#x27;, el(&#x27;img&#x27;, { rr_width: &#x27;1px&#x27;, rr_height: &#x27;1px&#x27;, rr_src: &#x27;/a.png&#x27; })],
+    [&#x27;alt&#x27;, el(&#x27;img&#x27;, { rr_width: &#x27;1px&#x27;, rr_height: &#x27;1px&#x27;, alt: &#x27;x&#x27; })],
+    [&#x27;missing size&#x27;, el(&#x27;img&#x27;, { class: &#x27;a&#x27; })],
+    [&#x27;child&#x27;, el(&#x27;svg&#x27;, { rr_width: &#x27;1px&#x27;, rr_height: &#x27;1px&#x27; }, [el(&#x27;path&#x27;)], { isSVG: true })],
+    [&#x27;svg without isSVG&#x27;, el(&#x27;svg&#x27;, { rr_width: &#x27;1px&#x27;, rr_height: &#x27;1px&#x27; })],
+  ])(&#x27;rejects %s&#x27;, async (_name, node) =&gt; { expect(await reason(body(node))).toBe(&#x27;schema&#x27;); });
+  it(&#x27;rejects adding a child or src to a placeholder later&#x27;, async () =&gt; {
+    const img = el(&#x27;img&#x27;, { rr_width: &#x27;1px&#x27;, rr_height: &#x27;1px&#x27; });
+    expect(await reason([...body(img), mutation({ adds: [{ parentId: img.id, nextId: null, node: txt(&#x27;x&#x27;) }] })])).toBe(&#x27;schema&#x27;);
+    expect(await reason([...body(img), mutation({ attributes: [{ id: img.id, attributes: { src: &#x27;/a.png&#x27; } }] })])).toBe(&#x27;schema&#x27;);
+  });
+});
+
+describe(&#x27;vote-list contract: announcer shadow&#x27;, () =&gt; {
+  const announcer = (style = MANIFEST.announcerStyle) =&gt; el(&#x27;next-route-announcer&#x27;, { style: &#x27;position: absolute;&#x27; },
+    [el(&#x27;div&#x27;, { &#x27;aria-live&#x27;: &#x27;assertive&#x27;, id: &#x27;__next-route-announcer__&#x27;, role: &#x27;alert&#x27;, style }, [], { isShadow: true })], { isShadowHost: true });
+  it(&#x27;keeps the announcer host and shadow root&#x27;, async () =&gt; {
+    const host = announcer(); const root = (host.childNodes as RawNode[])[0];
+    const recs = outputRecords(await ok(body(host)));
+    expect(findNode(recs, host.id as number)).toMatchObject({ isShadowHost: true, attributes: { style: &#x27;position: absolute;&#x27; } });
+    expect(findNode(recs, root.id as number)).toMatchObject({ isShadow: true, attributes: { role: &#x27;alert&#x27;, style: MANIFEST.announcerStyle } });
+    expect(JSON.stringify(recs)).not.toContain(&#x27;__next-route-announcer__&#x27;);
+  });
+  it(&#x27;rejects a changed announcer style and misplaced shadow marks&#x27;, async () =&gt; {
+    expect(await reason(body(announcer(&#x27;position: absolute;&#x27;)))).toBe(&#x27;schema&#x27;);
+    expect(await reason(body(el(&#x27;div&#x27;, {}, [], { isShadowHost: true })))).toBe(&#x27;schema&#x27;);
+    expect(await reason(body(el(&#x27;div&#x27;, {}, [el(&#x27;div&#x27;, {}, [], { isShadow: true })])))).toBe(&#x27;schema&#x27;);
+    expect(await reason(body(el(&#x27;next-route-announcer&#x27;, {}, [])))).toBe(&#x27;schema&#x27;);
+  });
+  it(&#x27;rejects a second live host but allows reinsertion after removal&#x27;, async () =&gt; {
+    const host = announcer();
+    expect(await reason([...body(host), mutation({ adds: [{ parentId: 5, nextId: null, node: announcer() }] })])).toBe(&#x27;schema&#x27;);
+    const again = { ...structuredClone(host) };
+    const records = [...body(host), mutation({ removes: [{ parentId: 5, id: host.id }] }, 10), mutation({ adds: [{ parentId: 5, nextId: null, node: again }] }, 20)];
+    expect(await reason(records)).toBe(&#x27;ok&#x27;);
+  });
+});
+
+describe(&#x27;vote-list contract: rrweb events&#x27;, () =&gt; {
+  it(&#x27;drops custom events and keeps the fixed meta URL&#x27;, async () =&gt; {
+    const bytes = await ok([...body(), { type: 5, timestamp: T + 5, data: { tag: &#x27;breadcrumb&#x27;, payload: { message: MARK } } }]);
+    const recs = outputRecords(bytes);
+    expect(recs.some(r =&gt; r.type === 5)).toBe(false);
+    expect(recs[0].data.href).toBe(&#x27;https://replay.invalid/ko/vote&#x27;);
+    expect(outputText(bytes)).not.toContain(MARK);
+  });
+  it.each([8, 13, 15, 16])(&#x27;closes on incremental source %i&#x27;, async source =&gt; {
+    expect(await reason([...body(), { type: 3, timestamp: T + 5, data: { source } }])).toBe(&#x27;schema&#x27;);
+  });
+});</code></pre>
+<ul><li>&#9744; <strong>단계 3: 시험이 실패하는지 확인한다.</strong></li></ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/contract.test.ts</code> Expected: FAIL (<code>contracts/vote-list</code> 모듈 없음)</p>
+<ul><li>&#9744; <strong>단계 4: 계약을 구현한다.</strong></li></ul>
+<pre><code>// scripts/replay-p0/contracts/vote-list.ts
+import type { NodeState, ProjectionState } from &#x27;../contract&#x27;;
+import { parseStyle, styleString, type StyleCheck } from &#x27;../engine/style&#x27;;
+import type { Contract } from &#x27;../engine/types&#x27;;
+import { bag, decimalPx, integer, maskText, Rejected, requireValue, type Bag } from &#x27;../engine/values&#x27;;
+
+export type VoteListManifest = {
+  version: 1; buildId: string; sdkVersion: string; release: string; environment: string;
+  viewport: string; announcerStyle: string;
+  linkCss: { asset: string; sourceSha256: string; wireSha256: string; wire: string }[];
+  styleText: { sha256: string; text: string }[];
+  classes: string[]; statusColors: string[];
+};
+export type VoteListOptions = { manifest: VoteListManifest; buildId: string; bannerCount: number };
+
+const TAGS = [&#x27;html&#x27;, &#x27;head&#x27;, &#x27;body&#x27;, &#x27;meta&#x27;, &#x27;title&#x27;, &#x27;link&#x27;, &#x27;style&#x27;, &#x27;div&#x27;, &#x27;span&#x27;, &#x27;a&#x27;, &#x27;button&#x27;, &#x27;img&#x27;, &#x27;svg&#x27;,
+  &#x27;header&#x27;, &#x27;main&#x27;, &#x27;section&#x27;, &#x27;footer&#x27;, &#x27;h3&#x27;, &#x27;p&#x27;, &#x27;next-route-announcer&#x27;];
+const ROLES = new Set([&#x27;button&#x27;, &#x27;navigation&#x27;, &#x27;list&#x27;, &#x27;listitem&#x27;, &#x27;alert&#x27;, &#x27;group&#x27;, &#x27;status&#x27;, &#x27;region&#x27;]);
+const PX = new Set([&#x27;width&#x27;, &#x27;height&#x27;, &#x27;min-height&#x27;, &#x27;top&#x27;, &#x27;left&#x27;]);
+const POSITIONS = new Set([&#x27;static&#x27;, &#x27;relative&#x27;, &#x27;absolute&#x27;, &#x27;fixed&#x27;, &#x27;sticky&#x27;]);
+const MEDIA = new Set([&#x27;img&#x27;, &#x27;svg&#x27;]);
+const HEAD_STATIC = new Set([&#x27;meta&#x27;, &#x27;link&#x27;, &#x27;style&#x27;, &#x27;title&#x27;]);
+const sameKeys = (a: Bag, keys: string[]) =&gt; Object.keys(a).length === keys.length &amp;&amp; keys.every(k =&gt; Object.hasOwn(a, k));
+
+export function createVoteListContract(o: VoteListOptions): Contract {
+  requireValue(o.buildId === o.manifest.buildId);
+  const bannerCount = integer(o.bannerCount, 0, 100);
+  const m = o.manifest;
+  const classes = new Set(m.classes);
+  const linkCss = new Set(m.linkCss.map(c =&gt; c.wire));
+  const styleTexts = new Set(m.styleText.map(s =&gt; s.text));
+  const colors = new Set(m.statusColors);
+  const check: StyleCheck = (property, value, priority) =&gt; {
+    let out: string;
+    if (PX.has(property)) out = value === &#x27;0&#x27; ? &#x27;0&#x27; : decimalPx(value);
+    else if (property === &#x27;opacity&#x27;) { requireValue(/^(?:0(?:\.\d{1,2})?|1(?:\.0{1,2})?|\.\d{1,2})$/.test(value)); out = value; }
+    else if (property === &#x27;user-select&#x27;) { requireValue([&#x27;none&#x27;, &#x27;text&#x27;, &#x27;auto&#x27;].includes(value)); out = value; }
+    else if (property === &#x27;transform&#x27;) { requireValue(value === &#x27;none&#x27; || value === &#x27;rotate(180deg)&#x27;); out = value; }
+    else if (property === &#x27;position&#x27;) { requireValue(POSITIONS.has(value)); out = value; }
+    else if (property === &#x27;background-color&#x27;) { requireValue(colors.has(value)); out = value; }
+    else if (property === &#x27;aspect-ratio&#x27;) { requireValue(value === &#x27;700 / 356&#x27;); out = value; }
+    else if (property === &#x27;--banner-current-index&#x27;) {
+      requireValue(/^(0|[1-9]\d{0,2})$/.test(value) &amp;&amp; Number(value) &lt;= Math.max(bannerCount - 1, 0)); out = value;
+    } else throw new Rejected(&#x27;schema&#x27;);
+    return out + (priority ? &#x27; !important&#x27; : &#x27;&#x27;);
+  };
+  const liveHost = (state: ProjectionState, self: NodeState) =&gt;
+    [...state.nodes].some(([key, n]) =&gt; n !== self &amp;&amp; n.shadow === &#x27;host&#x27; &amp;&amp; !state.tombstones.has(key));
+  return {
+    name: &#x27;vote-list&#x27;,
+    sdkVersion: m.sdkVersion,
+    metadata: { release: m.release, environment: m.environment },
+    tags: new Set(TAGS),
+    elementExtraKeys: [&#x27;isSVG&#x27;, &#x27;isShadowHost&#x27;, &#x27;isShadow&#x27;],
+    elementExtras(raw, entry, parent, state) {
+      const tag = entry.tag!; const a = bag(raw.attributes); const out: Bag = {};
+      if (tag === &#x27;svg&#x27;) { requireValue(raw.isSVG === true); entry.svg = true; out.isSVG = true; }
+      else requireValue(raw.isSVG === undefined);
+      if (tag === &#x27;next-route-announcer&#x27;) {
+        requireValue(raw.isShadowHost === true &amp;&amp; !liveHost(state, entry)); entry.shadow = &#x27;host&#x27;; out.isShadowHost = true;
+      } else requireValue(raw.isShadowHost === undefined);
+      if (raw.isShadow !== undefined) {
+        requireValue(raw.isShadow === true &amp;&amp; tag === &#x27;div&#x27; &amp;&amp; parent?.shadow === &#x27;host&#x27; &amp;&amp; parent.children.length === 0);
+        entry.shadow = &#x27;root&#x27;; out.isShadow = true;
+      } else requireValue(parent?.shadow !== &#x27;host&#x27;);
+      if (tag === &#x27;meta&#x27;) {
+        if (Object.hasOwn(a, &#x27;charset&#x27;)) { requireValue(sameKeys(a, [&#x27;charset&#x27;]) &amp;&amp; a.charset === &#x27;utf-8&#x27;); entry.mark = &#x27;charset&#x27;; }
+        else if (a.name === &#x27;viewport&#x27;) { requireValue(sameKeys(a, [&#x27;name&#x27;, &#x27;content&#x27;]) &amp;&amp; a.content === m.viewport); entry.mark = &#x27;viewport&#x27;; }
+        else entry.mark = &#x27;other&#x27;;
+      }
+      if (tag === &#x27;link&#x27;) {
+        if (Object.hasOwn(a, &#x27;_cssText&#x27;)) entry.mark = &#x27;css&#x27;;
+        else if (Object.hasOwn(a, &#x27;rr_width&#x27;) || Object.hasOwn(a, &#x27;rr_height&#x27;)) {
+          requireValue(sameKeys(a, [&#x27;rr_width&#x27;, &#x27;rr_height&#x27;])); entry.mark = &#x27;placeholder&#x27;;
+        } else { requireValue(a.rel !== &#x27;stylesheet&#x27; &amp;&amp; !Object.hasOwn(a, &#x27;data-precedence&#x27;)); entry.mark = &#x27;other&#x27;; }
+      }
+      return out;
+    },
+    attribute({ tag, key, raw, node, diff }) {
+      if (HEAD_STATIC.has(tag) || node.shadow) requireValue(!diff);
+      if (MEDIA.has(tag)) requireValue(key === &#x27;class&#x27; || key === &#x27;rr_width&#x27; || key === &#x27;rr_height&#x27;);
+      if (tag === &#x27;meta&#x27;) {
+        if (node.mark === &#x27;charset&#x27; &amp;&amp; key === &#x27;charset&#x27;) return &#x27;utf-8&#x27;;
+        if (node.mark === &#x27;viewport&#x27; &amp;&amp; key === &#x27;name&#x27;) return &#x27;viewport&#x27;;
+        if (node.mark === &#x27;viewport&#x27; &amp;&amp; key === &#x27;content&#x27;) return m.viewport;
+        return undefined;
+      }
+      if (tag === &#x27;link&#x27;) {
+        if (node.mark === &#x27;css&#x27; &amp;&amp; key === &#x27;_cssText&#x27;) { requireValue(linkCss.has(raw as string)); return raw as string; }
+        if (node.mark === &#x27;placeholder&#x27;) { requireValue(raw === &#x27;0px&#x27;); return raw; }
+        return undefined;
+      }
+      if (tag === &#x27;style&#x27;) { if (key === &#x27;type&#x27;) { requireValue(raw === &#x27;text/css&#x27;); return raw; } return undefined; }
+      if (tag === &#x27;title&#x27;) return undefined;
+      if (tag === &#x27;html&#x27;) { if (key === &#x27;lang&#x27;) { requireValue(raw === &#x27;ko&#x27;); return raw; } return undefined; }
+      if (node.shadow === &#x27;root&#x27;) {
+        if (key === &#x27;style&#x27;) { requireValue(raw === m.announcerStyle); return raw; }
+        if (key === &#x27;role&#x27;) { requireValue(raw === &#x27;alert&#x27;); return raw; }
+        return undefined;
+      }
+      const remove = raw === null &amp;&amp; diff;
+      if (key === &#x27;rr_width&#x27; || key === &#x27;rr_height&#x27;) { requireValue(MEDIA.has(tag) &amp;&amp; !remove); return decimalPx(raw); }
+      if (key === &#x27;style&#x27;) {
+        node.style = parseStyle(raw, node.style, diff, check);
+        return raw === null ? null : styleString(node.style);
+      }
+      if (remove) return [&#x27;class&#x27;, &#x27;hidden&#x27;, &#x27;disabled&#x27;, &#x27;aria-hidden&#x27;, &#x27;aria-expanded&#x27;, &#x27;aria-pressed&#x27;, &#x27;role&#x27;].includes(key) ? null : undefined;
+      if (key === &#x27;class&#x27;) {
+        requireValue(typeof raw === &#x27;string&#x27;); const tokens = raw.split(/\s+/).filter(Boolean);
+        requireValue(tokens.length &lt;= 64 &amp;&amp; tokens.every(t =&gt; t.length &lt;= 256), &#x27;budget&#x27;);
+        return tokens.filter(t =&gt; classes.has(t)).join(&#x27; &#x27;);
+      }
+      if (key === &#x27;hidden&#x27; || key === &#x27;disabled&#x27;) { requireValue(raw === &#x27;&#x27; || raw === key); return &#x27;&#x27;; }
+      if (key === &#x27;aria-hidden&#x27; || key === &#x27;aria-expanded&#x27; || key === &#x27;aria-pressed&#x27;) { requireValue(raw === &#x27;true&#x27; || raw === &#x27;false&#x27;); return raw; }
+      if (key === &#x27;role&#x27;) { requireValue(typeof raw === &#x27;string&#x27; &amp;&amp; ROLES.has(raw)); return raw; }
+      if (key === &#x27;type&#x27; &amp;&amp; tag === &#x27;button&#x27;) { requireValue(raw === &#x27;button&#x27;); return raw; }
+      return undefined;
+    },
+    text(raw, parent) {
+      if (parent?.tag === &#x27;title&#x27;) { requireValue(typeof raw === &#x27;string&#x27;); return &#x27;&#x27;; }
+      return maskText(raw);
+    },
+    styleText(raw) { requireValue(typeof raw === &#x27;string&#x27; &amp;&amp; styleTexts.has(raw)); return raw; },
+    checkElement(entry, state) {
+      if (MEDIA.has(entry.tag!)) requireValue(entry.children.length === 0 &amp;&amp; &#x27;rr_width&#x27; in entry.attrs &amp;&amp; &#x27;rr_height&#x27; in entry.attrs);
+      if (entry.shadow === &#x27;host&#x27;) {
+        requireValue(entry.children.length === 1 &amp;&amp; state.nodes.get(entry.children[0])?.shadow === &#x27;root&#x27;);
+      }
+      if (entry.tag === &#x27;link&#x27; &amp;&amp; entry.mark === &#x27;css&#x27;) requireValue(&#x27;_cssText&#x27; in entry.attrs);
+    },
+    childAllowed(parent) {
+      if (parent.tag === &#x27;title&#x27;) return true;
+      return !MEDIA.has(parent.tag!) &amp;&amp; parent.shadow !== &#x27;host&#x27; &amp;&amp; !HEAD_STATIC.has(parent.tag!);
+    },
+  };
+}</code></pre>
+<p><code>childAllowed</code>는 title에만 head 노드 중 자식 추가를 허용한다. 추가된 text는 <code>text()</code>가 빈 값으로 바꾼다.</p>
+<ul><li>&#9744; <strong>단계 5: 시험을 실행한다.</strong></li></ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/contract.test.ts</code> Expected: 전부 PASS. 실패한 시험은 계약 코드를 고친다. 시험 기대값을 바꿔야 한다고 판단하면 spec과 대조하고 바꾼 이유를 커밋 메시지에 쓴다.</p>
+<ul><li>&#9744; <strong>단계 6: 회귀를 확인하고 커밋한다.</strong></li></ul>
+<pre><code>npx vitest run __tests__/scripts/replay-p0
+npx tsc --noEmit --incremental false
+git add scripts/replay-p0/contracts/vote-list.ts __tests__/scripts/replay-p0/vote-list/helpers.ts __tests__/scripts/replay-p0/vote-list/contract.test.ts
+git commit -m &quot;feat(sentry): add the vote list replay projection contract&quot;</code></pre>
+<h2>작업 4: 실제 캡처 투입과 변조 반례</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>__tests__/scripts/replay-p0/vote-list/capture.test.ts</code></li></ul>
+<p><strong>Interfaces:</strong></p>
+<ul><li>Consumes: <code>createVoteListContract</code>, <code>projectWithContract</code>, 작업 2의 fixture·manifest, <code>outputText</code>·<code>outputRecords</code> (helpers)</li></ul>
+<ul><li>&#9744; <strong>단계 1: 시험을 작성한다.</strong></li></ul>
+<pre><code>// __tests__/scripts/replay-p0/vote-list/capture.test.ts
+// @vitest-environment node
+import { describe, expect, it } from &#x27;vitest&#x27;;
+import type { Envelope } from &#x27;@sentry/core&#x27;;
+import { readFileSync } from &#x27;node:fs&#x27;;
+import { join } from &#x27;node:path&#x27;;
+import { deflateSync } from &#x27;node:zlib&#x27;;
+import { parseBrowserEnvelope } from &#x27;../../../../scripts/envelope-test/browser-analyze&#x27;;
+import { emptyProjectionState, type ProjectionState } from &#x27;../../../../scripts/replay-p0/contract&#x27;;
+import { createVoteListContract, type VoteListManifest } from &#x27;../../../../scripts/replay-p0/contracts/vote-list&#x27;;
+import manifestJson from &#x27;../../../../scripts/replay-p0/contracts/vote-list.css-manifest.json&#x27;;
+import { projectWithContract } from &#x27;../../../../scripts/replay-p0/engine/envelope&#x27;;
+import { outputText } from &#x27;./helpers&#x27;;
+
+const manifest = manifestJson as VoteListManifest;
+const dir = join(__dirname, &#x27;../../../../scripts/replay-p0/fixtures/vote-list&#x27;);
+const contract = () =&gt; createVoteListContract({ manifest, buildId: manifest.buildId, bannerCount: 5 });
+type Records = any[];
+function load(width: number, segment: number, compressed: boolean, edit?: (r: Records) =&gt; void): Envelope {
+  const e = parseBrowserEnvelope(readFileSync(join(dir, `wire-${width}-${segment + 1}.bin`)));
+  return [e.header, e.items.map((i: any) =&gt; {
+    if (i.header.type !== &#x27;replay_recording&#x27;) return [i.header, i.payload];
+    const records = structuredClone(i.payload.records); edit?.(records);
+    const data = Buffer.from(JSON.stringify(records));
+    return [{ type: &#x27;replay_recording&#x27; }, new Uint8Array(Buffer.concat([
+      Buffer.from(JSON.stringify(i.payload.segment) + &#x27;\n&#x27;), compressed ? deflateSync(data) : data]))];
+  })] as Envelope;
+}
+async function runAll(width: number, compressed: boolean, edit?: { segment: number; fn: (r: Records) =&gt; void }) {
+  let state: ProjectionState = emptyProjectionState(); const outputs: Uint8Array[] = []; const c = contract();
+  for (let s = 0; s &lt; 3; s++) {
+    const r = await projectWithContract(load(width, s, compressed, edit?.segment === s ? edit.fn : undefined), state, c);
+    if (!r.ok) return { reason: r.reason, segment: s, outputs };
+    state = r.value.next; outputs.push(r.value.bytes);
+  }
+  return { reason: &#x27;ok&#x27;, segment: 3, outputs };
+}
+const FORBIDDEN = [&#x27;127.0.0.1&#x27;, &#x27;/_next/image&#x27;, &#x27;http&#x27;, &#x27;aria-label&#x27;, &#x27;다음 배너&#x27;, &#x27;Synthetic&#x27;, &#x27;__next-route-announcer__&#x27;, &#x27;googlesyndication&#x27;];
+function walkNodes(records: Records, fn: (n: any) =&gt; void) {
+  JSON.stringify(records, (k, v) =&gt; { if (v &amp;&amp; typeof v === &#x27;object&#x27; &amp;&amp; v.type === 2 &amp;&amp; &#x27;tagName&#x27; in v) fn(v); return v; });
+}
+
+describe(&#x27;vote-list capture&#x27;, () =&gt; {
+  it.each([[1280, false], [1280, true], [390, false], [390, true]])(&#x27;projects segments 0→1→2 for %i px, compressed=%s&#x27;, async (width, compressed) =&gt; {
+    const result = await runAll(width, compressed);
+    expect(result).toMatchObject({ reason: &#x27;ok&#x27;, segment: 3 });
+    for (const bytes of result.outputs) {
+      // The only URL the contract emits is the fixed display URL; remove it before searching for others.
+      const text = outputText(bytes).replaceAll(&#x27;https://replay.invalid/ko/vote&#x27;, &#x27;&#x27;);
+      for (const word of FORBIDDEN) expect(text.includes(word), word).toBe(false);
+    }
+  });
+  it(&#x27;keeps banner indexes observed in the capture&#x27;, async () =&gt; {
+    for (const [width, expected] of [[1280, [&#x27;2&#x27;, &#x27;0&#x27;]], [390, [&#x27;1&#x27;, &#x27;2&#x27;, &#x27;3&#x27;, &#x27;4&#x27;]]] as const) {
+      const { outputs } = await runAll(width, false);
+      const text = outputs.map(b =&gt; outputText(b)).join(&#x27;&#x27;);
+      const seen = [...text.matchAll(/--banner-current-index: (\d)/g)].map(m =&gt; m[1]);
+      for (const v of expected) expect(seen).toContain(v);
+    }
+  });
+});
+
+const firstImg = (r: Records) =&gt; { let img: any; walkNodes(r, n =&gt; { if (!img &amp;&amp; n.tagName === &#x27;img&#x27;) img = n; }); return img; };
+const firstSvg = (r: Records) =&gt; { let svg: any; walkNodes(r, n =&gt; { if (!svg &amp;&amp; n.tagName === &#x27;svg&#x27;) svg = n; }); return svg; };
+const firstDiv = (r: Records) =&gt; { let div: any; walkNodes(r, n =&gt; { if (!div &amp;&amp; n.tagName === &#x27;div&#x27; &amp;&amp; !n.isShadow) div = n; }); return div; };
+const snapshotOf = (r: Records) =&gt; r.find(x =&gt; x.type === 2);
+const incrementalAt = (r: Records) =&gt; r.find(x =&gt; x.type === 3)?.timestamp ?? r.at(-1).timestamp;
+const TAMPER: [string, number, (r: Records) =&gt; void, string][] = [
+  [&#x27;img src in snapshot&#x27;, 0, r =&gt; { firstImg(snapshotOf(r)).attributes.src = &#x27;/x.png&#x27;; }, &#x27;schema&#x27;],
+  [&#x27;svg child&#x27;, 0, r =&gt; { firstSvg(snapshotOf(r)).childNodes.push({ type: 2, tagName: &#x27;path&#x27;, attributes: {}, childNodes: [], id: 999999 }); }, &#x27;schema&#x27;],
+  [&#x27;banner index out of range&#x27;, 1, r =&gt; {
+    const m = r.find(x =&gt; x.type === 3 &amp;&amp; x.data.source === 0 &amp;&amp; x.data.attributes.some((a: any) =&gt; String(a.attributes.style).includes(&#x27;banner&#x27;)));
+    m.data.attributes.find((a: any) =&gt; String(a.attributes.style).includes(&#x27;banner&#x27;)).attributes.style = &#x27;--banner-current-index: 9;&#x27;;
+  }, &#x27;schema&#x27;],
+  [&#x27;CSS changed by one byte&#x27;, 0, r =&gt; {
+    let done = false;
+    JSON.stringify(snapshotOf(r), (k, v) =&gt; { if (!done &amp;&amp; v &amp;&amp; v.attributes &amp;&amp; typeof v.attributes._cssText === &#x27;string&#x27;) { v.attributes._cssText += &#x27; &#x27;; done = true; } return v; });
+  }, &#x27;schema&#x27;],
+  [&#x27;second shadow host&#x27;, 0, r =&gt; {
+    const body = snapshotOf(r).data.node.childNodes[1].childNodes[1];
+    body.childNodes.push({ type: 2, tagName: &#x27;next-route-announcer&#x27;, attributes: {}, isShadowHost: true, childNodes: [
+      { type: 2, tagName: &#x27;div&#x27;, attributes: {}, isShadow: true, childNodes: [], id: 999998 }], id: 999997 });
+  }, &#x27;schema&#x27;],
+  [&#x27;unapproved style property&#x27;, 0, r =&gt; { firstDiv(snapshotOf(r)).attributes.style = &#x27;color: red;&#x27;; }, &#x27;schema&#x27;],
+  [&#x27;source 8 inserted&#x27;, 1, r =&gt; { r.push({ type: 3, timestamp: incrementalAt(r), data: { source: 8, id: 7, adds: [], removes: [] } }); }, &#x27;schema&#x27;],
+  [&#x27;img src added by mutation&#x27;, 2, r =&gt; {
+    const add = r.find(x =&gt; x.type === 3 &amp;&amp; x.data.source === 0 &amp;&amp; x.data.adds.some((a: any) =&gt; a.node.tagName === &#x27;img&#x27;));
+    const img = add.data.adds.find((a: any) =&gt; a.node.tagName === &#x27;img&#x27;).node;
+    add.data.attributes.push({ id: img.id, attributes: { src: &#x27;/x.png&#x27; } });
+  }, &#x27;schema&#x27;],
+];
+
+describe(&#x27;vote-list capture counterexamples&#x27;, () =&gt; {
+  it.each(TAMPER)(&#x27;%s → closes&#x27;, async (_name, segment, fn, expected) =&gt; {
+    for (const width of [1280, 390]) {
+      const result = await runAll(width, false, { segment, fn });
+      expect(result.reason).toBe(expected); expect(result.segment).toBe(segment);
+    }
+  });
+  it(&#x27;segment gap → sequence&#x27;, async () =&gt; {
+    const c = contract(); let state = emptyProjectionState();
+    const first = await projectWithContract(load(1280, 0, false), state, c); if (!first.ok) throw new Error(first.reason);
+    state = first.value.next;
+    const skipped = await projectWithContract(load(1280, 2, false), state, c);
+    expect(skipped).toEqual({ ok: false, reason: &#x27;sequence&#x27; });
+  });
+});</code></pre>
+<p>capture 순서는 segment 0 = 초기 snapshot, 1 = 배너 클릭, 2 = 스크롤·지연 이미지다. <code>banner index out of range</code>(segment 1)·<code>img src added by mutation</code>(segment 2)의 대상 mutation이 해당 segment에 없으면, <code>find</code>가 <code>undefined</code>를 돌려 시험이 TypeError로 실패한다. 이때는 같은 내용의 mutation이 있는 segment 번호를 원본 records에서 찾아 시험의 segment 값을 고친다. 계약 코드는 바꾸지 않는다.</p>
+<ul><li>&#9744; <strong>단계 2: 시험을 실행한다.</strong></li></ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/capture.test.ts</code> Expected: 전부 PASS. 정상 캡처가 실패하면 <code>reason</code>과 segment를 기록한다. 그다음 원본 records에서 처음 거부된 노드를 찾는다. 계약 규칙과 spec이 그 노드를 다루지 않으면 <strong>멈추고 사용자에게 spec 변경을 요청한다.</strong> 관측했다는 이유로 허용 범위를 넓히지 않는다.</p>
+<ul><li>&#9744; <strong>단계 3: 커밋한다.</strong></li></ul>
+<pre><code>git add __tests__/scripts/replay-p0/vote-list/capture.test.ts
+git commit -m &quot;test(sentry): verify the vote list contract against production captures&quot;</code></pre>
+<h2>작업 5: 복원기 확장과 투영 손실 비교</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Modify: <code>scripts/replay-p0/replay-view.ts</code></li><li>Create: <code>scripts/replay-p0/vote-list-restore.cjs</code></li><li>Test: 기존 <code>run.cjs</code>의 P0 복원 경로(작업 1 단계 14와 같은 명령)</li></ul>
+<p><strong>Interfaces:</strong></p>
+<ul><li>Produces: <code>createReplayView(target: Document, options?: { tags?: readonly string[] })</code>. 기본값은 P0 tag 7개이며 P0 동작은 바뀌지 않는다. <code>layout(selectors)</code>를 반환 객체에 추가한다.</li></ul>
+<ul><li>&#9744; **단계 1: <code>replay-view.ts</code>를 확장한다.** 바뀌는 부분만 보인다.</li></ul>
+<pre><code>type RecordedNode = { id: number; type: number; tagName?: string; textContent?: string;
+  attributes?: Record&lt;string, string | null&gt;; childNodes?: RecordedNode[];
+  isSVG?: boolean; isShadowHost?: boolean; isShadow?: boolean };
+const P0_TAGS = [&#x27;html&#x27;, &#x27;head&#x27;, &#x27;style&#x27;, &#x27;body&#x27;, &#x27;div&#x27;, &#x27;span&#x27;, &#x27;button&#x27;];
+const SVG_NS = &#x27;http://www.w3.org/2000/svg&#x27;;
+export type LayoutBox = { selector: string; index: number; x: number; y: number; width: number; height: number; opacity: number };
+export function createReplayView(target: Document, options: { tags?: readonly string[] } = {}) {
+  const tags = options.tags ?? P0_TAGS;
+  // ... nodes, clicks, attrs unchanged ...
+  function element(raw: RecordedNode): Element {
+    if (!tags.includes(raw.tagName!)) throw new Error(&#x27;view-tag&#x27;);
+    const values = { ...(raw.attributes || {}) };
+    if (raw.tagName === &#x27;link&#x27; &amp;&amp; typeof values._cssText === &#x27;string&#x27;) {
+      // rrweb replays inlined stylesheets as &lt;style&gt;; do the same without the source link.
+      const style = target.createElement(&#x27;style&#x27;); style.textContent = values._cssText; return style;
+    }
+    const node = raw.isSVG ? target.createElementNS(SVG_NS, raw.tagName!) : target.createElement(raw.tagName!);
+    const width = values.rr_width, height = values.rr_height;
+    delete values.rr_width; delete values.rr_height;
+    attrs(node, values);
+    if (typeof width === &#x27;string&#x27; &amp;&amp; typeof height === &#x27;string&#x27;) {
+      (node as HTMLElement).style.width = width; (node as HTMLElement).style.height = height;
+    }
+    return node;
+  }
+  function make(raw: RecordedNode): Node {
+    let node: Node;
+    if (raw.type === 0) { target.replaceChildren(); node = target; }
+    else if (raw.type === 1) node = target.implementation.createDocumentType(&#x27;html&#x27;, &#x27;&#x27;, &#x27;&#x27;);
+    else if (raw.type === 2) node = element(raw);
+    else if (raw.type === 3) node = target.createTextNode(raw.textContent!);
+    else if (raw.type === 5) node = target.createComment(raw.textContent!);
+    else throw new Error(&#x27;view-node&#x27;);
+    nodes.set(raw.id, node);
+    for (const child of raw.childNodes || []) {
+      const made = make(child);
+      if (child.isShadow) ((node as Element).shadowRoot ?? (node as Element).attachShadow({ mode: &#x27;open&#x27; })).appendChild(made);
+      else node.appendChild(made);
+    }
+    return node;
+  }</code></pre>
+<p><code>apply</code>의 adds 처리에서도 <code>a.node.isShadow</code>이면 부모의 shadowRoot에 넣는다. <code>remove</code>는 <code>node.parentNode</code>가 ShadowRoot여도 동작하므로 바꾸지 않는다. 반환 객체에 다음을 추가한다.</p>
+<pre><code>    layout(selectors: readonly string[]): LayoutBox[] {
+      const view = target.defaultView!; const boxes: LayoutBox[] = [];
+      for (const selector of selectors) {
+        target.querySelectorAll(selector).forEach((el, index) =&gt; {
+          const r = el.getBoundingClientRect();
+          boxes.push({ selector, index, x: r.x + view.scrollX, y: r.y + view.scrollY, width: r.width, height: r.height,
+            opacity: Number(view.getComputedStyle(el).opacity) });
+        });
+      }
+      return boxes;
+    },</code></pre>
+<ul><li>&#9744; <strong>단계 2: P0 회귀를 확인한다.</strong></li></ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0 &amp;&amp; node scripts/replay-p0/run.cjs --case all --output /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/replay-p0-rerun.json</code> Expected: 작업 1 단계 13·14와 같은 결과.</p>
+<ul><li>&#9744; <strong>단계 3: 비교 실행기를 작성한다.</strong> 같은 fixture의 raw records와 투영 records를 같은 복원기로 각각 재생하고 상자를 비교한다. raw text도 SDK가 이미 <code>*</code>로 마스킹했으므로 차이는 투영 손실만 남는다.</li></ul>
+<pre><code>// scripts/replay-p0/vote-list-restore.cjs
+&#x27;use strict&#x27;;
+// Usage: node vote-list-restore.cjs [--original &lt;layout.json&gt; --wire-dir &lt;dir&gt;] --output &lt;json&gt;
+// Without --original: compares raw-record restore with projected restore (projection loss only).
+// With --original: compares projected restore with layout measured on the live page (task 6).
+const assert = require(&#x27;node:assert/strict&#x27;);
+const fs = require(&#x27;node:fs&#x27;);
+const path = require(&#x27;node:path&#x27;);
+const { build } = require(&#x27;esbuild&#x27;);
+const { chromium } = require(&#x27;playwright&#x27;);
+const { parseBrowserEnvelope } = require(&#x27;../envelope-test/browser-analyze&#x27;);
+
+const SELECTORS = [&#x27;header&#x27;, &#x27;main&#x27;, &#x27;footer&#x27;, &#x27;.vote-banner-section&#x27;, &#x27;.banner-carousel&#x27;, &#x27;.banner-track&#x27;, &#x27;.banner-slide&#x27;,
+  &#x27;.grid &gt; *&#x27;, &#x27;h3&#x27;, &#x27;img&#x27;, &#x27;svg&#x27;, &#x27;button&#x27;];
+const TAGS = [&#x27;html&#x27;, &#x27;head&#x27;, &#x27;body&#x27;, &#x27;meta&#x27;, &#x27;title&#x27;, &#x27;link&#x27;, &#x27;style&#x27;, &#x27;div&#x27;, &#x27;span&#x27;, &#x27;a&#x27;, &#x27;button&#x27;, &#x27;img&#x27;, &#x27;svg&#x27;,
+  &#x27;header&#x27;, &#x27;main&#x27;, &#x27;section&#x27;, &#x27;footer&#x27;, &#x27;h3&#x27;, &#x27;p&#x27;, &#x27;next-route-announcer&#x27;];
+const opt = name =&gt; { const i = process.argv.indexOf(name); return i &gt; 0 ? process.argv[i + 1] : undefined; };
+const output = opt(&#x27;--output&#x27;); assert(output, &#x27;missing --output&#x27;);
+const wireDir = opt(&#x27;--wire-dir&#x27;) ?? path.join(__dirname, &#x27;fixtures/vote-list&#x27;);
+const original = opt(&#x27;--original&#x27;) ? JSON.parse(fs.readFileSync(opt(&#x27;--original&#x27;), &#x27;utf8&#x27;)) : null;
+
+function rawSegments(width) {
+  return [1, 2, 3].map(n =&gt; parseBrowserEnvelope(fs.readFileSync(path.join(wireDir, `wire-${width}-${n}.bin`))));
+}
+async function projected(width, page) {
+  const envelopes = rawSegments(width).map(e =&gt; ({ header: e.header, items: e.items.map(i =&gt; ({ header: i.header, payload: i.payload })) }));
+  return page.evaluate(async ({ envelopes, bannerCount }) =&gt; window.voteList.projectAll(envelopes, bannerCount), { envelopes, bannerCount: 5 });
+}
+function compare(a, b) {
+  const failures = [];
+  const key = x =&gt; `${x.selector}#${x.index}`;
+  const bm = new Map(b.map(x =&gt; [key(x), x]));
+  for (const selector of SELECTORS) {
+    const ca = a.filter(x =&gt; x.selector === selector).length, cb = b.filter(x =&gt; x.selector === selector).length;
+    if (ca !== cb) failures.push({ selector, kind: &#x27;count&#x27;, a: ca, b: cb });
+  }
+  for (const x of a) {
+    const y = bm.get(key(x)); if (!y) continue;
+    for (const f of [&#x27;x&#x27;, &#x27;y&#x27;, &#x27;width&#x27;, &#x27;height&#x27;]) if (Math.abs(x[f] - y[f]) &gt; 1) failures.push({ box: key(x), field: f, a: x[f], b: y[f] });
+    if (Math.abs(x.opacity - y.opacity) &gt; 0.01) failures.push({ box: key(x), field: &#x27;opacity&#x27;, a: x.opacity, b: y.opacity });
+  }
+  return failures;
+}
+(async () =&gt; {
+  const bundle = await build({ entryPoints: [path.join(__dirname, &#x27;vote-list-restore-entry.ts&#x27;)], bundle: true,
+    platform: &#x27;browser&#x27;, format: &#x27;iife&#x27;, write: false, define: { &#x27;process.env.NODE_ENV&#x27;: &#x27;&quot;test&quot;&#x27; } });
+  const browser = await chromium.launch(); const results = [];
+  try {
+    for (const width of [1280, 390]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      await page.setContent(`&lt;iframe style=&quot;border:0;width:${width}px;height:900px&quot;&gt;&lt;/iframe&gt;`);
+      await page.addScriptTag({ content: bundle.outputFiles[0].text });
+      const out = await projected(width, page);
+      assert.equal(out.reason, &#x27;ok&#x27;, `projection failed: ${out.reason}`);
+      const restore = async records =&gt; page.evaluate(({ records, selectors, tags }) =&gt; window.voteList.restore(records, selectors, tags),
+        { records, selectors: SELECTORS, tags: TAGS });
+      const projectedBoxes = await restore(out.records);
+      const reference = original ? original[String(width)].masked
+        : await restore(rawSegments(width).flatMap(e =&gt; e.items.filter(i =&gt; i.header.type === &#x27;replay_recording&#x27;).flatMap(i =&gt; i.payload.records)));
+      const banner = s =&gt; (s.match(/--banner-current-index: (\d+)/) || [])[1];
+      results.push({ width, failures: compare(reference, projectedBoxes), boxes: projectedBoxes.length,
+        bannerIndex: { projected: banner(out.trackStyle), reference: original ? banner(original[String(width)].trackStyle) : banner(out.rawTrackStyle) } });
+      await page.close();
+    }
+  } finally { await browser.close(); }
+  fs.writeFileSync(output, JSON.stringify(results, null, 2));
+  const failed = results.filter(r =&gt; r.failures.length || r.bannerIndex.projected !== r.bannerIndex.reference);
+  console.log(JSON.stringify(results.map(r =&gt; ({ width: r.width, failures: r.failures.length, boxes: r.boxes, bannerIndex: r.bannerIndex }))));
+  process.exit(failed.length ? 1 : 0);
+})().catch(error =&gt; { console.error(error.message); process.exit(1); });</code></pre>
+<ul><li>&#9744; <strong>단계 4: 브라우저 entry를 작성한다.</strong></li></ul>
+<pre><code>// scripts/replay-p0/vote-list-restore-entry.ts
+import { emptyProjectionState, type ProjectionState } from &#x27;./contract&#x27;;
+import { createVoteListContract, type VoteListManifest } from &#x27;./contracts/vote-list&#x27;;
+import manifest from &#x27;./contracts/vote-list.css-manifest.json&#x27;;
+import { projectWithContract } from &#x27;./engine/envelope&#x27;;
+import { createReplayView } from &#x27;./replay-view&#x27;;
+
+type Wire = { header: any; items: { header: any; payload: any }[] };
+const encoder = new TextEncoder();
+function toEnvelope(e: Wire) {
+  return [e.header, e.items.map(i =&gt; i.header.type !== &#x27;replay_recording&#x27; ? [i.header, i.payload]
+    : [{ type: &#x27;replay_recording&#x27; }, encoder.encode(JSON.stringify(i.payload.segment) + &#x27;\n&#x27; + JSON.stringify(i.payload.records))])];
+}
+async function decode(bytes: Uint8Array): Promise&lt;unknown[]&gt; {
+  const text = new TextDecoder().decode(bytes); const lines = text.split(&#x27;\n&#x27;);
+  // Envelope: header, item header, payload, item header, recording header, recording body (uncompressed input stays uncompressed).
+  return JSON.parse(lines.at(-1)!);
+}
+const trackStyle = (records: unknown[]) =&gt; [...JSON.stringify(records).matchAll(/--banner-current-index: \d+;/g)].at(-1)?.[0] ?? &#x27;&#x27;;
+Object.assign(window, { voteList: {
+  async projectAll(envelopes: Wire[], bannerCount: number) {
+    const m = manifest as VoteListManifest; const contract = createVoteListContract({ manifest: m, buildId: m.buildId, bannerCount });
+    let state: ProjectionState = emptyProjectionState(); const records: unknown[] = []; const raw: unknown[] = [];
+    for (const e of envelopes) {
+      raw.push(...e.items.filter(i =&gt; i.header.type === &#x27;replay_recording&#x27;).flatMap(i =&gt; i.payload.records));
+      const r = await projectWithContract(toEnvelope(e) as any, state, contract);
+      if (!r.ok) return { reason: r.reason };
+      state = r.value.next; records.push(...await decode(r.value.bytes));
+    }
+    return { reason: &#x27;ok&#x27;, records, trackStyle: trackStyle(records), rawTrackStyle: trackStyle(raw) };
+  },
+  restore(records: unknown[], selectors: string[], tags: string[]) {
+    const doc = document.querySelector(&#x27;iframe&#x27;)!.contentDocument!;
+    const view = createReplayView(doc, { tags }); view.apply(records);
+    doc.defaultView!.scrollTo(0, 0);
+    const boxes = view.layout(selectors); view.dispose(); return boxes;
+  },
+} });</code></pre>
+<p><code>decode</code>는 비압축 입력에서만 마지막 줄이 recording body다. 이 실행기는 비압축 fixture만 쓰므로 압축 출력을 다루지 않는다.</p>
+<ul><li>&#9744; <strong>단계 5: 실행한다.</strong></li></ul>
+<p>Run: <code>node scripts/replay-p0/vote-list-restore.cjs --output /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/vote-list-restore-loss.json</code> Expected: <code>[{&quot;width&quot;:1280,&quot;failures&quot;:0,...,&quot;bannerIndex&quot;:{&quot;projected&quot;:&quot;0&quot;,&quot;reference&quot;:&quot;0&quot;}},{&quot;width&quot;:390,&quot;failures&quot;:0,...,&quot;bannerIndex&quot;:{&quot;projected&quot;:&quot;4&quot;,&quot;reference&quot;:&quot;4&quot;}}]</code>, exit 0.</p>
+<p>실패 항목이 있으면 <code>failures</code>의 selector·field를 결과 보고서 초안에 기록한다. 원인이 의도한 제거(class token 제거, media)인지 확인한다. 의도한 차이가 아니면 계약을 고치지 말고 멈춰서 보고한다.</p>
+<ul><li>&#9744; <strong>단계 6: 커밋한다.</strong></li></ul>
+<pre><code>npx tsc --noEmit --incremental false
+ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 --ext .ts,.cjs
+git add scripts/replay-p0/replay-view.ts scripts/replay-p0/vote-list-restore.cjs scripts/replay-p0/vote-list-restore-entry.ts
+git commit -m &quot;test(sentry): compare raw and projected vote list restores&quot;</code></pre>
+<h2>작업 6: 원본 화면과의 복원 비교</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create (임시 증거, 커밋하지 않음): <code>.superpowers/sdd/2026-10-16-vote-list-contract/</code> 아래 <code>capture.cjs</code> 사본·출력</li><li>Modify: 없음 (제품 코드 변경 금지)</li></ul>
+<p><strong>Interfaces:</strong></p>
+<ul><li>Consumes: <code>vote-list-restore.cjs --original &lt;layout.json&gt; --wire-dir &lt;dir&gt;</code> (작업 5)</li></ul>
+<ul><li>&#9744; <strong>단계 1: 캡처 harness에 측정 코드를 넣는다.</strong> 작업 2 단계 6에서 복사한 <code>$OUT=.superpowers/sdd/2026-10-16-vote-list-contract</code>의 <code>capture.cjs</code>만 고친다.</li></ul>
+<p><code>$OUT/capture.cjs</code>에서 <code>await p.screenshot({path:\</code>${output}/production-${width}.png\<code>,fullPage:true});</code> 바로 뒤에 다음 코드를 넣는다. 이 위치는 마지막 <code>flush()</code>와 <code>stop()</code> 뒤다. 따라서 아래의 text 변경은 녹화되지 않는다. 첫 측정은 원문 그대로, 두 번째 측정은 SDK와 같은 규칙(<code>\S</code>→<code>*</code>)으로 text를 바꾼 뒤 수행한다.</p>
+<pre><code>const SELECTORS=[&#x27;header&#x27;,&#x27;main&#x27;,&#x27;footer&#x27;,&#x27;.vote-banner-section&#x27;,&#x27;.banner-carousel&#x27;,&#x27;.banner-track&#x27;,&#x27;.banner-slide&#x27;,&#x27;.grid &gt; *&#x27;,&#x27;h3&#x27;,&#x27;img&#x27;,&#x27;svg&#x27;,&#x27;button&#x27;];
+const measure=()=&gt;p.evaluate(sel=&gt;sel.flatMap(s=&gt;[...document.querySelectorAll(s)].map((el,index)=&gt;{const r=el.getBoundingClientRect();return {selector:s,index,x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,opacity:Number(getComputedStyle(el).opacity)};})),SELECTORS);
+await p.evaluate(()=&gt;scrollTo(0,0));
+const raw=await measure();
+await p.evaluate(()=&gt;{const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);for(let n;(n=w.nextNode());)if(n.parentElement&amp;&amp;![&#x27;STYLE&#x27;,&#x27;SCRIPT&#x27;].includes(n.parentElement.tagName))n.textContent=n.textContent.replace(/\S/g,&#x27;*&#x27;);});
+const masked=await measure();
+layouts[width]={raw,masked,trackStyle:await p.locator(&#x27;.banner-track&#x27;).getAttribute(&#x27;style&#x27;)};</code></pre>
+<p>파일 상단에 <code>const layouts={};</code>를 선언한다. 모든 화면이 끝난 뒤 <code>fs.writeFileSync(\</code>${output}/layout.json\<code>,JSON.stringify(layouts,null,2));</code>를 실행한다. <code>output</code>이 <code>$OUT</code>을 가리키는지 확인한다. 다른 경로를 가리키면 <code>$OUT</code>으로 바꾼다.</p>
+<ul><li>&#9744; <strong>단계 2: 서버를 띄우고 캡처한다.</strong> 작업 2 단계 6과 같은 서버 실행 절차를 따른다.</li></ul>
+<p>Run: <code>node $OUT/capture.cjs</code> (작업 2 단계 6의 절차로 서버가 serving 상태가 된 뒤, 저장소 루트에서) Expected: 기존 assert가 모두 통과하고 <code>$OUT/layout.json</code>, <code>$OUT/wire-*.bin</code>이 생성된다. 서버 종료와 <code>tsconfig.json</code>·<code>next-env.d.ts</code> 확인은 작업 2 단계 8과 같다.</p>
+<ul><li>&#9744; <strong>단계 3: 새 wire가 현재 manifest와 맞는지 확인한다.</strong></li></ul>
+<p>Run: <code>node scripts/replay-p0/vote-list-restore.cjs --original $OUT/layout.json --wire-dir $OUT --output $OUT/restore-vs-original.json</code> Expected: exit 0. 빌드 ID가 바뀌어 CSS가 다르면 projection이 <code>schema</code>로 실패한다. 이때 작업 2의 생성기를 <code>--wire-dir $OUT</code>로 다시 실행해 manifest를 갱신·검토하고 작업 3–5 시험을 다시 실행한다.</p>
+<ul><li>&#9744; <strong>단계 4: 결과를 분류한다.</strong> <code>restore-vs-original.json</code>의 failures를 다음으로 나눈다.<ul><li>마스킹 영향: <code>raw</code>와 <code>masked</code> 측정의 차이로 설명되는 항목 (masked 기준으로 비교하므로 남지 않아야 한다)</li><li>media 영향: img·svg와 그 조상의 크기 차이. 원본은 실제 이미지, 복원은 placeholder다.</li><li>글꼴 영향: 두 쪽 모두 <code>local(Arial)</code>이므로 남지 않아야 한다.</li><li>그 밖의 차이: 계약 결함 후보. 멈추고 보고한다.</li></ul></li></ul>
+<p>배너 인덱스(PC 0, 모바일 4)와 카드·배너 개수는 반드시 같아야 한다.</p>
+<h2>작업 7: 전체 회귀·결과 보고서·리뷰</h2>
+<p><strong>Files:</strong></p>
+<ul><li>Create: <code>docs/reports/2026-10-16-replay-vote-list-contract-result.html</code></li></ul>
+<ul><li>&#9744; <strong>단계 1: 전체 검증을 실행한다.</strong></li></ul>
+<pre><code>cd /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy
+npx vitest run __tests__/scripts/replay-p0
+TZ=UTC npx vitest run __tests__/scripts/replay-p0
+node scripts/replay-p0/run.cjs --case all --output /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/replay-p0-rerun.json
+npx tsc --noEmit --incremental false
+ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 --ext .ts,.cjs
+npm test
+git diff --check
+git status --short --untracked-files=all</code></pre>
+<p>Expected: 모두 통과. <code>npm test</code>는 2026-10-14 기준(220개 파일·4,915개 PASS, expected fail 6개, skipped 1개)에 새 시험 수가 더해진 값이다. 기존 수치가 줄면 원인을 찾는다.</p>
+<ul><li>&#9744; <strong>단계 2: 결과 보고서를 쓴다.</strong> 작성 전에 <code>/Users/charlie.hyun/.agents/skills/asd-ste100/SKILL.md</code>를 읽는다. 포함할 내용: 각 작업의 커밋, 시험 수치와 명령, 작업 5·6의 비교 결과와 예외 분류, manifest의 class 수·빌드 ID, spec과 다르게 구현한 점, 남는 위험(spec §7), 미검증 범위. 제품 연결·운영 활성화가 아니라는 문장을 첫 화면에 둔다.</li></ul>
+<ul><li>&#9744; <strong>단계 3: 교차 공급자 리뷰를 받는다.</strong> 리뷰어에게는 spec, 이 계획, <code>git diff ec2275f6..HEAD -- scripts/replay-p0 __tests__/scripts/replay-p0</code>, 시험 결과만 준다. 구현자의 판단 과정은 주지 않는다. 지적마다 심각도·위치·실패 조건·최소 수정 방향을 요구한다. 수정 후 같은 리뷰어가 한 번 재검증한다.</li></ul>
+<ul><li>&#9744; <strong>단계 4: 보고서를 커밋한다.</strong></li></ul>
+<pre><code>git add -f -- docs/reports/2026-10-16-replay-vote-list-contract-result.html
+git commit -m &quot;docs(sentry): record vote list replay contract results&quot;</code></pre>
+<p>push·PR·merge는 이 계획에 포함하지 않는다. 사용자 승인 후 별도로 진행한다.</p>
+<h2>자체 점검 기록</h2>
+<ul><li>spec §1–§2 → 작업 1·2, §3 → 작업 3, §4 → 작업 2·3, §5 → 작업 3(rrweb events)·작업 4, §6.1 → 작업 1, §6.2 → 작업 3, §6.3·§6.4 → 작업 4, §6.5 → 작업 5·6, §6.6 → 작업 7.</li><li>spec §2 &quot;빌드 결합&quot;: <code>createVoteListContract</code>의 buildId 검사(작업 3)와 CSS 문자열 일치(작업 3·4)로 구현한다.</li><li>Review Focus 5개 → 작업 3의 class·style diff·title/style text·announcer 시험, 작업 4의 <code>img src added by mutation</code>.</li></ul>
+</main></body></html>

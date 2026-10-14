@@ -45,11 +45,12 @@
 <tr><td><code>title</code></td><td>노드를 유지한다. text 자식은 빈 문자열로 출력한다.</td></tr>
 <tr><td><code>link</code> + <code>_cssText</code></td><td><code>_cssText</code>만 출력한다. 값은 manifest 해시와 일치해야 한다(§4.2). rel·href·crossorigin·data-precedence는 출력하지 않는다.</td></tr>
 <tr><td><code>link</code> placeholder</td><td>키가 정확히 <code>rr_width</code>·<code>rr_height</code>이고 값이 <code>0px</code>일 때 그대로 출력한다. 다른 키·값이면 종료한다.</td></tr>
+<tr><td>그 밖의 <code>link</code> (alternate·canonical·manifest 등)</td><td>속성 없는 <code>&lt;link&gt;</code>. <code>rel="stylesheet"</code> 또는 <code>data-precedence</code>가 있는데 <code>_cssText</code>가 없으면 CSS 인라인 실패로 보고 종료한다. 이 행은 계획 작성 중 production 캡처의 metadata link 15개를 확인하고 추가했다.</td></tr>
 <tr><td><code>style</code></td><td><code>type="text/css"</code> 상수와 manifest에서 검증한 text만 출력한다. <code>data-styled-jsx</code>는 출력하지 않는다.</td></tr>
 </tbody></table></div>
 <h3>3.3 body 속성과 text</h3>
 <ul>
-<li><strong>출력하는 속성:</strong> <code>class</code>(§4.1), <code>style</code>(§4.3), html의 <code>lang="ko"</code>, button의 <code>type="button"</code>, boolean <code>hidden</code>·<code>disabled</code>(빈 값으로 정규화), <code>aria-hidden</code>·<code>aria-expanded</code>·<code>aria-pressed</code>(<code>true</code>/<code>false</code>), <code>role</code>(button·navigation·list·listitem·alert). 열거값 밖의 값은 종료한다.</li>
+<li><strong>출력하는 속성:</strong> <code>class</code>(§4.1), <code>style</code>(§4.3), html의 <code>lang="ko"</code>, button의 <code>type="button"</code>, boolean <code>hidden</code>·<code>disabled</code>(빈 값으로 정규화), <code>aria-hidden</code>·<code>aria-expanded</code>·<code>aria-pressed</code>(<code>true</code>/<code>false</code>), <code>role</code>(button·navigation·list·listitem·alert·group·status·region; 뒤의 세 값은 production 캡처에서 관측해 계획 작성 중 추가). 열거값 밖의 값은 종료한다.</li>
 <li><strong>출력하지 않는 속성:</strong> href, id, name, content, aria-label, aria-live, aria-haspopup, hreflang, crossorigin와 위 목록에 없는 모든 속성.</li>
 <li><strong>text:</strong> 공백이 아닌 문자를 모두 <code>*</code>로 바꾼다. 원본이 이미 마스킹됐다고 가정하지 않는다. comment는 빈 값으로 출력한다.</li>
 </ul>
