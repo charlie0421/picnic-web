@@ -18,7 +18,7 @@ async function decode(bytes: Uint8Array): Promise<unknown[]> {
 const trackStyle = (records: unknown[]) => Array.from(JSON.stringify(records).matchAll(/--banner-current-index: \d+;/g)).at(-1)?.[0] ?? '';
 Object.assign(window, { voteList: {
   async projectAll(envelopes: Wire[], bannerCount: number) {
-    const m = manifest as VoteListManifest; const contract = createVoteListContract({ manifest: m, buildId: m.buildId, bannerCount });
+    const m = manifest as VoteListManifest; const contract = createVoteListContract({ manifest: m, origin: m.generatedFrom.origin, bannerCount });
     let state: ProjectionState = emptyProjectionState(); const records: unknown[] = []; const raw: unknown[] = [];
     for (const e of envelopes) {
       raw.push(...e.items.filter(i => i.header.type === 'replay_recording').flatMap(i => i.payload.records));

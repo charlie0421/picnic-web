@@ -13,12 +13,23 @@ export function el(tagName: string, attributes: Record<string, unknown> = {}, ch
   return { type: 2, tagName, attributes, childNodes, id: nextId++, ...extra };
 }
 export function txt(textContent: string): RawNode { return { type: 3, textContent, id: nextId++ }; }
+export const ORIGIN = 'http://127.0.0.1:53931';
+/** One CSS entry with a single Chromium input. The output defaults to the input. */
+const css = (text: string, output = text) => ({ accept: [{ engine: 'chromium', sha256: '0', text }], output: { sha256: '0', text: output } });
+export const FONT_FACE = '@font-face { font-family: Inter; src: url("/_next/static/media/0123456789abcdef-s.woff2") format("woff2"); }';
+export const FONT_KEEP = '@font-face { font-family: "Inter Fallback"; src: local("Arial"); }.__className_1 { font-family: Inter, "Inter Fallback"; }';
+/** Font CSS as rrweb records it: the font URL carries the stylesheet origin. */
+export const fontWire = (origin = ORIGIN) => (FONT_FACE + FONT_KEEP).replace('url("/', `url("${origin}/`);
 export const MANIFEST: VoteListManifest = {
-  version: 1, buildId: 'test-build', sdkVersion: '9.47.1', release: 'r', environment: 'e',
+  version: 2, generatedFrom: { buildId: 'test-build', origin: ORIGIN, commit: '0' },
+  sdkVersion: '9.47.1', release: 'r', environment: 'e',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes',
   announcerStyle: 'position: absolute; border: 0px; height: 1px; margin: -1px; padding: 0px; width: 1px; clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; overflow-wrap: normal;',
-  linkCss: [{ asset: '/a.css', sourceSha256: '0', wireSha256: '0', wire: '.a { color: red; }' }],
-  styleText: [{ sha256: '0', text: '.jsx-1.b { display: block; }' }],
+  linkCss: [
+    { asset: '/a.css', sourceSha256: '0', ...css('.a { color: red; }') },
+    { asset: '/font.css', sourceSha256: '0', ...css(FONT_FACE + FONT_KEEP, FONT_KEEP) },
+  ],
+  styleText: [css('.jsx-1.b { display: block; }')],
   classes: ['a', 'b', 'banner-track', 'jsx-1'], statusColors: ['rgb(131, 251, 200)'],
 };
 export function page(head: RawNode[], body: RawNode[]): unknown[] {

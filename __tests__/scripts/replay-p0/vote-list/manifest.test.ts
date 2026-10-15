@@ -6,28 +6,28 @@ import manifest from '../../../../scripts/replay-p0/contracts/vote-list.css-mani
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 describe('vote-list CSS manifest', () => {
-  it('is bound to the inventoried build and SDK', () => {
-    expect(manifest.version).toBe(1);
-    expect(manifest.buildId).toBe('WaMOsqHZc2V7cxWT91IY0');
+  it('is a v2 manifest for the SDK', () => {
+    expect(manifest.version).toBe(2);
     expect(manifest.sdkVersion).toBe('9.47.1');
+    expect(manifest.generatedFrom.origin).toBe('http://127.0.0.1:53931');
   });
-  it('stores wire CSS whose hashes match the inventory', () => {
-    expect(manifest.linkCss.map(c => c.wireSha256).sort()).toEqual([
+  it('stores accept and output texts whose hashes match', () => {
+    for (const c of [...manifest.linkCss, ...manifest.styleText]) {
+      for (const a of c.accept) { expect(a.engine).toBe('chromium'); expect(sha(a.text)).toBe(a.sha256); }
+      expect(sha(c.output.text)).toBe(c.output.sha256);
+    }
+    expect(manifest.linkCss.map(c => c.accept[0].sha256).sort()).toEqual([
       '7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f',
       'a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d',
     ]);
-    for (const c of manifest.linkCss) expect(sha(c.wire)).toBe(c.wireSha256);
-    expect(manifest.styleText.map(s => s.sha256).sort()).toEqual([
+    expect(manifest.styleText.map(s => s.output.sha256).sort()).toEqual([
       '3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a',
       '40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8',
       '90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd',
     ]);
-    for (const s of manifest.styleText) expect(sha(s.text)).toBe(s.sha256);
   });
-  it('contains no resource references', () => {
-    for (const css of [...manifest.linkCss.map(c => c.wire), ...manifest.styleText.map(s => s.text)]) {
-      expect(css).not.toMatch(/url\(|@import/i);
-    }
+  it('emits no resource references', () => {
+    for (const c of [...manifest.linkCss, ...manifest.styleText]) expect(c.output.text).not.toMatch(/url\(|@import/i);
   });
   it('derives class tokens from CSS selectors only', () => {
     expect(manifest.classes).toEqual([...manifest.classes].sort());

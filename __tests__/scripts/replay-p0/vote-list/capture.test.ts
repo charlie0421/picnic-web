@@ -13,7 +13,7 @@ import { outputText } from './helpers';
 
 const manifest = manifestJson as VoteListManifest;
 const dir = join(__dirname, '../../../../scripts/replay-p0/fixtures/vote-list');
-const contract = () => createVoteListContract({ manifest, buildId: manifest.buildId, bannerCount: 5 });
+const contract = () => createVoteListContract({ manifest, origin: manifest.generatedFrom.origin, bannerCount: 5 });
 type Records = any[];
 function load(width: number, segment: number, compressed: boolean, edit?: (r: Records) => void): Envelope {
   const e = parseBrowserEnvelope(readFileSync(join(dir, `wire-${width}-${segment + 1}.bin`)));
