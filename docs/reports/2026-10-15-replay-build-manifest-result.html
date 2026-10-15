@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay 배포 빌드 manifest 결과</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172331;font:16px/1.7 system-ui,-apple-system,sans-serif}
+main{max-width:1040px;margin:28px auto;padding:32px;background:white;border:1px solid #dce3ed;border-radius:12px}
+h1{font-size:1.8rem;line-height:1.35}h2{margin-top:2.2rem;font-size:1.3rem;border-top:1px solid #dce3ed;padding-top:1.2rem}h3{font-size:1.08rem;margin-top:1.6rem}
+p,li,td,th,code{overflow-wrap:anywhere}code,pre{font-family:ui-monospace,monospace;font-size:.86em}
+code{background:#edf3fa;padding:1px 3px}pre{padding:14px;background:#edf3fa;overflow-x:auto;white-space:pre}
+.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.93rem}th,td{border:1px solid #dce3ed;padding:8px;text-align:left;vertical-align:top}
+th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;border-left:4px solid #bc7b13;background:#fff8e9}
+.pass{color:#16733a;font-weight:600}.warn{color:#9a5b00;font-weight:600}
+@media(max-width:600px){main{margin:8px;padding:16px}h1{font-size:1.5rem}}
+</style>
+</head>
+<body><main>
+<h1>Replay 배포 빌드용 CSS manifest 결과</h1>
+<p class="note"><strong>이 결과는 시험 harness 안의 검증이다.</strong> 제품 코드에 연결하지 않았고 운영 Sentry Replay를 활성화하지 않았다. production 사이트에서는 공개 자산만 읽었고 녹화하지 않았다. 브랜치 <code>feat/replay-build-manifest</code>는 push하지 않았다.</p>
+
+<p><strong>요약:</strong> 실제 글꼴을 쓰는 production 설정 빌드에서 생성기가 통과했다. 이것이 완료 기준이다. 이 빌드의 CSS 자산 2개는 production(<code>https://www.picnic.fan/ko/vote</code>)과 바이트 단위로 같고, production 대조 도구가 통과했다. 계약은 manifest의 출력 텍스트만 내보내며 글꼴 URL을 출력하지 않는다. raw 복원과 투영 복원의 차이는 0이다. WebKit·Firefox 녹화는 정확 비교에서 맞지 않아 segment 0에서 종료한다(측정만 함). 교차 공급자 리뷰는 사용량 게이트가 막혀 아직 받지 않았다(§10).</p>
+<ul>
+<li>Spec: <code>docs/reports/2026-10-15-replay-build-manifest-design.html</code></li>
+<li>계획: <code>docs/reports/2026-10-15-replay-build-manifest-plan.html</code></li>
+</ul>
+
+<h2>1. 작업별 커밋</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>작업</th><th>커밋</th><th>내용</th></tr></thead>
+<tbody>
+<tr><td>설계·계획</td><td><code>42fab2cb</code>, <code>57221f89</code></td><td>spec과 구현 계획.</td></tr>
+<tr><td>1</td><td><code>1b00a06f</code></td><td>계약 v2: origin 정규화, manifest 출력, BUILD_ID 검사 제거. 기존 manifest를 v2 형식으로 기계 변환.</td></tr>
+<tr><td>2</td><td><code>4afdaec9</code></td><td>생성기 v2: 글꼴 규칙(<code>splitFontRules</code>), 정규화, 검토 요약, <code>--build-dir</code>·<code>--previous</code>.</td></tr>
+<tr><td>3</td><td><code>e1270000</code></td><td>빌드·서빙 도구, 외부 요청 차단기, 합성 upstream, font mock.</td></tr>
+<tr><td>4</td><td><code>245a5bc8</code></td><td>캡처 도구: 엔진 선택, 원본 측정(원문·마스킹·대조군), pointer 제거.</td></tr>
+<tr><td>5</td><td><code>c794bfcf</code></td><td>복원 도구: 네트워크 차단, 대조군 비교, 차이 분류, 글꼴 영향.</td></tr>
+<tr><td>6</td><td><code>32d94ffe</code></td><td>production 동등성 확인 도구.</td></tr>
+<tr><td>7</td><td><code>12231ca9</code></td><td>엔진 CSS 비교 도구(측정 전용).</td></tr>
+<tr><td>8</td><td><code>dcf257d4</code></td><td>실제 글꼴 빌드로 manifest와 fixture 재생성, 글꼴 변조 반례, fixture README 갱신.</td></tr>
+</tbody></table></div>
+
+<h2>2. 시험 결과</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>명령</th><th>결과</th></tr></thead>
+<tbody>
+<tr><td><code>npx vitest run __tests__/scripts/replay-p0</code></td><td class="pass">17개 파일, 278/278 PASS (<code>TZ=UTC</code>도 같음)</td></tr>
+<tr><td><code>npm test</code></td><td class="pass">230개 파일, 5,054 PASS, expected fail 6, skipped 1</td></tr>
+<tr><td><code>node scripts/replay-p0/run.cjs --case all</code></td><td class="pass">22/22 PASS. normal·barrier·finiteCleanup·limits·isolation 모두 PASS</td></tr>
+<tr><td><code>npx tsc --noEmit --incremental false</code></td><td class="pass">PASS</td></tr>
+<tr><td><code>ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs</code></td><td class="pass">PASS</td></tr>
+<tr><td><code>git diff --check main...HEAD</code></td><td class="pass">PASS</td></tr>
+</tbody></table></div>
+<p>2026-10-15 기준은 226개 파일, 5,004 PASS였다. 새 시험 파일 4개와 시험 50개가 더해졌고, 기존 수치는 줄지 않았다. replay-p0 시험은 228개에서 278개가 됐다.</p>
+<p>새 변조 반례 3개(글꼴 CSS의 origin 변경, url을 쓰는 <code>@font-face</code> 추가, 글꼴 CSS 1byte 변경)가 모두 <code>schema</code>로 종료한다. 변이 시험도 했다. 계약의 정규화를 “모든 origin 허용”으로 바꾸면 origin 변경 반례만 실패한다. 따라서 이 시험은 그 결함을 잡는다.</p>
+
+<h2>3. 실제 글꼴 빌드와 manifest</h2>
+<h3>3.1 빌드</h3>
+<ul>
+<li>로컬 빌드 <code>ulGwme5ItIoLQx4aLUchX</code>, commit <code>12231ca9</code>, <code>vote-list-server.cjs</code>(실제 글꼴, 합성 loopback 데이터, 빈 Sentry DSN)로 만들었다.</li>
+<li>외부 요청 차단기가 막은 요청은 0건이다. 빌드 단계에서만 <code>fonts.googleapis.com</code>·<code>fonts.gstatic.com</code>을 허용했다.</li>
+<li>Next가 바꾼 <code>tsconfig.json</code>·<code>next-env.d.ts</code>는 도구가 빌드 직후 되돌렸다. 작업이 끝난 뒤 <code>git status</code>는 깨끗했다.</li>
+</ul>
+<h3>3.2 생성기 결과 (완료 기준)</h3>
+<p>생성기는 exit 0으로 v2 manifest를 만들었다. 검토 요약은 예상과 같았다.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>asset</th><th>상태</th><th><code>sourceSha256</code></th><th><code>accept</code> / <code>output</code> sha256</th><th>뺀 <code>@font-face</code></th></tr></thead>
+<tbody>
+<tr><td><code>/_next/static/css/253f05d11a58abd2.css</code> (Tailwind)</td><td>same</td><td><code>144da3bc…</code></td><td><code>a8df5e2c…</code> / <code>a8df5e2c…</code></td><td>0</td></tr>
+<tr><td><code>/_next/static/css/a5b6ba8786c1e0e2.css</code> (글꼴)</td><td>added</td><td><code>5d218a3a…</code></td><td><code>b13bd149…</code> / <code>14d9b62f…</code></td><td>7</td></tr>
+<tr><td><code>/_next/static/css/36f08833d15de553.css</code> (font mock)</td><td>removed</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody></table></div>
+<ul>
+<li>styled-jsx text 3개는 v1과 같다. class token은 1,175개이고, <code>__className_98b3fa</code>가 <code>__className_62543b</code>로 바뀌었다.</li>
+<li>글꼴 시트의 출력은 <code>Inter Fallback</code> <code>@font-face</code>(<code>local("Arial")</code>, metric override)와 <code>.__className_62543b</code> 규칙뿐이다. 출력에 <code>url(</code>이 없다.</li>
+<li>모든 값은 계획 단계에서 production 공개 자산으로 미리 계산한 기대값과 같다.</li>
+</ul>
+<h3>3.3 사람 검토 (spec §6.3)</h3>
+<ul>
+<li>새 class token <code>__className_62543b</code>는 next/font가 만든 hex hash class다. 사용자 데이터가 아니다.</li>
+<li>뺀 글꼴 URL 7개는 Inter subset 7개(cyrillic-ext, cyrillic, greek-ext, greek, vietnamese, latin-ext, latin)다. 모두 <code>/_next/static/media/&lt;16 hex&gt;-s.woff2</code> 형식이다.</li>
+<li>판정: 승인. 근거는 증거 폴더의 <code>review.md</code>에 있다.</li>
+</ul>
+
+<h2>4. production 대조</h2>
+<p><code>check-production-css.cjs</code>가 <code>https://www.picnic.fan/ko/vote</code>에 대해 통과했다(<code>ok: true</code>, 2026-10-15 21:06 KST).</p>
+<ul>
+<li>production이 제공하는 link CSS 2개의 이름과 sha256이 manifest의 <code>sourceSha256</code>과 같다.</li>
+<li>production이 참조하는 JS chunk 36개에서 styled-jsx 원문 7개를 도출했고, manifest의 styled-jsx 3개가 모두 그 안에 있다.</li>
+<li>viewport가 같다.</li>
+<li>production BUILD_ID는 <code>dWn6qfDz7qrUbY4zRGawM</code>였다. 같은 날 #136 merge(11:25) 전에는 <code>nGXugIVZRSFy4ga95YQAZ</code>였다(merge 뒤 새 배포). 로컬 빌드는 <code>ulGwme5ItIoLQx4aLUchX</code>다. BUILD_ID가 셋 모두 다르지만 CSS는 같다. 따라서 BUILD_ID 대신 내용에 결합하면 배포마다 manifest를 다시 만들 필요가 없다는 것을 확인했다.</li>
+</ul>
+
+<h2>5. 복원 비교</h2>
+<h3>5.1 raw 복원과 투영 복원</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>폭</th><th>상자</th><th>1px 초과 차이</th><th>배너 인덱스 (투영/raw)</th><th>막은 요청</th></tr></thead>
+<tbody>
+<tr><td>1280</td><td>125</td><td class="pass">0</td><td>0 / 0</td><td>1</td></tr>
+<tr><td>390</td><td>128</td><td class="pass">0</td><td>4 / 4</td><td>1</td></tr>
+</tbody></table></div>
+<p>막은 요청 1건은 raw 기록의 글꼴 CSS가 가리키는 loopback 글꼴 파일이다. 복원 도구가 네트워크를 막지 않으면 서버 실행 여부에 따라 raw 복원의 글꼴이 바뀐다. 차단은 비교를 결정적으로 만든다.</p>
+<h3>5.2 투영 복원과 원본 대조군</h3>
+<p>대조군은 원본 화면에서 text를 마스킹하고, 출력이 뺀 <code>@font-face</code> 7개를 live CSSOM에서 지운 상태다. 측정 전에 pointer를 화면 밖으로 옮겼다.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>분류</th><th>1280</th><th>390</th><th>원인</th></tr></thead>
+<tbody>
+<tr><td>mediaOpacity</td><td>31</td><td>33</td><td>SDK가 차단 media의 class 변경을 녹화하지 않는다. 녹화된 img는 <code>opacity-0</code>으로 남는다(이전 결과와 같다).</td></tr>
+<tr><td>svgPlaceholder</td><td>5</td><td>5</td><td>내용 없는 svg placeholder의 위치 차이(2px 이하).</td></tr>
+<tr><td>other</td><td class="pass">0</td><td class="pass">0</td><td>—</td></tr>
+</tbody></table></div>
+<p>hover 차이는 0이다. 이전 결과에서는 pointer가 놓인 카드의 hover(4px)가 7건 있었다. 이번에는 캡처가 측정 전에 pointer를 화면 밖으로 옮겼다. 배너 인덱스와 모든 selector의 개수가 같다.</p>
+<h3>5.3 글꼴 영향 (기록만)</h3>
+<ul>
+<li>마스킹한 원본(실제 Inter)과 대조군(<code>Inter Fallback</code>)의 차이는 7개 상자다. 최대 차이는 36px(1280)과 30.8px(390)다.</li>
+<li>차이는 필터 줄의 button 7개(#13~#19)에만 있다. 칩의 폭이 줄고, 그 뒤 칩들이 x 방향으로 밀린다. y 차이는 없으므로 카드·그리드 배치에는 영향이 없다.</li>
+<li>작업 컴퓨터의 Chromium에는 로컬 Inter가 없다(<code>localInter: false</code>). 따라서 재생 화면은 <code>Inter Fallback</code>으로 그려졌다.</li>
+</ul>
+
+<h2>6. 엔진 측정 (WebKit·Firefox)</h2>
+<p>Playwright 1.63.0의 WebKit 26.6(webkit v2359)과 Firefox 155.0(firefox v1543)으로 같은 시나리오를 캡처했다. 두 엔진 모두 시나리오의 확인 항목을 통과했고 envelope 4개를 보냈다.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>항목</th><th>WebKit 26.6</th><th>Firefox 155.0</th></tr></thead>
+<tbody>
+<tr><td>글꼴 시트</td><td>불일치. 규칙 9개 모두 다름</td><td>불일치. 규칙 9개 모두 다름</td></tr>
+<tr><td>Tailwind 시트</td><td>불일치. 엔진에만 30개, Chromium에만 30개</td><td>불일치. 엔진에만 17개, Chromium에만 15개</td></tr>
+<tr><td>styled-jsx 3개</td><td>1개 불일치(규칙 2개), 2개 일치</td><td>1개 불일치(규칙 2개), 2개 일치</td></tr>
+<tr><td>계약 결과 (두 폭)</td><td class="warn"><code>schema</code>, segment 0</td><td class="warn"><code>schema</code>, segment 0</td></tr>
+</tbody></table></div>
+<p>차이의 원인(예시로 확인):</p>
+<ul>
+<li>여러 단어 글꼴 이름의 따옴표: Chromium은 <code>"Apple Color Emoji"</code>로, WebKit·Firefox는 따옴표 없이 직렬화한다.</li>
+<li>지원하지 않는 속성 제거: Chromium은 <code>text-size-adjust: 100%</code>를 유지하고, 두 엔진은 버린다.</li>
+<li><code>@font-face</code> 서술자 순서: Firefox는 <code>src</code>를 <code>font-family</code> 바로 뒤에 둔다.</li>
+<li><code>background</code> 축약형의 직렬화가 다르다(styled-jsx shimmer 규칙).</li>
+</ul>
+<p><strong>판정:</strong> 지금의 정확 비교는 Chromium 녹화만 받는다. WebKit·Firefox 사용자의 녹화는 첫 segment에서 종료한다(fail-closed). 이 엔진들을 지원하려면 manifest의 <code>accept</code>에 엔진별 변형을 넣어야 한다. 그 변형은 실제 브라우저 버전에서 측정해야 한다. Playwright WebKit이 실제 iOS Safari와 같은지는 확인하지 않았다. 형식은 이미 여러 변형을 받는다.</p>
+
+<h2>7. spec·계획과 다르게 구현한 점</h2>
+<ul>
+<li><strong>hover 제거:</strong> spec §5 단계 7은 hover를 허용 분류로 적었다. 구현은 캡처가 측정 전에 pointer를 화면 밖으로 옮겨 hover를 없애고, 분류에서 hover를 뺐다. 이전 증거에서 hover와 svg placeholder가 겹친 6px 차이를 규칙으로 분류할 수 없었기 때문이다(계획 단계 결정). spec보다 엄격하다.</li>
+<li><strong><code>compare-engine-css</code>는 <code>.ts</code>다.</strong> TS 계약을 그대로 실행하려고 tsx로 실행한다.</li>
+<li><strong>서버 도구를 네 파일로 나눴다:</strong> <code>net-guard.cjs</code>, <code>font-mock.cjs</code>, <code>vote-list-upstream.cjs</code>, <code>vote-list-server.cjs</code>.</li>
+<li><strong>production 대조의 styled-jsx 비교:</strong> production chunk에서 도출한 원문을 Chromium으로 CSSOM 텍스트로 바꾼 뒤 <code>accept</code>와 비교한다.</li>
+<li><strong>fixture README 갱신:</strong> 계획의 파일 목록에 없었지만, 옛 fixture를 설명하던 <code>fixtures/vote-list/README.txt</code>를 새 빌드·도구·절차로 갱신했다.</li>
+</ul>
+
+<h2>8. 남는 위험</h2>
+<ul>
+<li>빌드 사이에 Google Fonts 응답이 바뀌면 글꼴 CSS가 달라져 production 대조가 실패한다(fail-closed). 이번에는 로컬과 production이 같았다. <code>next/font/local</code>로 바꾸면 이 위험이 없어진다(제품 변경, 제안만).</li>
+<li>Chromium 버전이 바뀌어 CSSOM 직렬화가 달라지면 같은 빌드라도 종료한다. 이번 측정은 Playwright 1.63.0의 Chromium 한 버전이다.</li>
+<li>WebKit·Firefox 녹화는 종료한다(§6). 실제 사용자 중 이 엔진의 비율만큼 Replay가 남지 않는다.</li>
+<li>재생 화면은 fallback 글꼴로 그려진다. 측정한 영향은 필터 칩의 폭과 x 위치(최대 36px)다. 재생하는 컴퓨터에 Inter가 설치되어 있으면 그 글꼴이 쓰인다.</li>
+<li>기존 위험은 그대로다: 마스킹한 text의 길이·위치, class 조합, placeholder 치수가 화면 구조를 남긴다. 배너 상한이 P0 설계보다 느슨하다. SDK 내부 메모리·재시도의 한계가 있다.</li>
+<li>fixture <code>wire-*.bin</code>은 원본 SDK envelope다. 마스킹하지 않은 custom event와 loopback 글꼴 URL이 들어 있다(합성 데이터). 저장소 밖으로 보내지 않는다.</li>
+</ul>
+
+<h2>9. 검증하지 않은 범위</h2>
+<ul>
+<li>실제 iOS Safari, 실제 데스크톱 Safari·Firefox, Playwright 1.63.0 밖의 Chromium 버전.</li>
+<li>manifest를 제품 번들에 넣는 일, 런타임 <code>origin</code> 설정, CI·배포 관문 자동화(후보 C).</li>
+<li>운영 Sentry 저장과 대시보드 재생.</li>
+<li>upcoming·completed 목록, 더보기, filter, API 오류, popup, 로그인 사용자, 다른 route(후보 A).</li>
+<li>BFCache 실측 복귀와 실제 background timer 지연(P0 미검증 항목과 같다).</li>
+</ul>
+
+<h2>10. 교차 공급자 리뷰</h2>
+<p class="warn">아직 받지 않았다.</p>
+<p>spec과 계획은 고위험 변경으로 분류하고 Codex <code>gpt-6.1-sol</code>/high의 리뷰를 요구한다. 사용량 게이트가 15:19(두 번)와 21:04(KST)에 모두 <code>review-blocked</code>였다. Codex 사용량 관측이 출처마다 달랐다. Orca 캐시는 주간 0%(리셋 10-22)였고, 14:56 공식 CLI는 76%(리셋 10-20)였다. 지침에 따라 우회하지 않았고 리뷰어를 만들지 않았다. 게이트가 <code>ready</code>가 되면 계획 작업 11을 진행하고 이 절을 갱신한다.</p>
+
+<h2>11. 후속 결정이 필요한 것</h2>
+<ul>
+<li><strong>엔진 지원:</strong> WebKit·Firefox 녹화를 받을지 정한다. 받는다면 실제 브라우저 버전별 측정 절차가 필요하다.</li>
+<li><strong>빌드마다 절차의 자동화:</strong> 배포 뒤 <code>check-production-css.cjs</code> 실행을 CI 또는 배포 관문으로 옮기는 일은 후보 C 범위다.</li>
+<li><strong><code>next/font/local</code> 전환:</strong> Google Fonts 변동 위험을 없앤다. 제품 변경이므로 별도 승인이 필요하다.</li>
+</ul>
+
+<h2>12. 증거 위치</h2>
+<p>아래는 모두 <code>.superpowers/sdd/2026-10-15-replay-build-manifest/</code>에 있고 git이 추적하지 않는다.</p>
+<ul>
+<li>빌드·서버: <code>server/</code>(<code>server.json</code>, <code>build.log</code>, <code>next.log</code>, <code>backend.jsonl</code>)</li>
+<li>Chromium 캡처: <code>chromium/</code>(<code>wire-*.bin</code>, <code>layout.json</code>, <code>capture-summary.json</code>, 스크린샷)</li>
+<li>manifest 검토: <code>manifest-summary.json</code>, <code>review.md</code></li>
+<li>production 대조: <code>production-check.json</code></li>
+<li>복원 비교: <code>restore-loss.json</code>, <code>restore-vs-original.json</code></li>
+<li>엔진 측정: <code>webkit/</code>, <code>firefox/</code>, <code>engine-webkit.json</code>, <code>engine-firefox.json</code></li>
+<li>회귀: <code>npm-test.log</code>, <code>replay-p0-rerun.json</code>, <code>t10-*.log</code></li>
+<li>실행 기록과 판단: <code>progress.md</code></li>
+</ul>
+</main></body></html>
