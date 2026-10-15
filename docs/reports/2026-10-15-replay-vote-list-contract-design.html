@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay 투표 목록 계약 설계</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172331;font:16px/1.7 system-ui,-apple-system,sans-serif}main{max-width:1040px;margin:28px auto;padding:32px;background:white;border:1px solid #dce3ed;border-radius:12px}h1{font-size:1.8rem;line-height:1.35}h2{margin-top:2rem;font-size:1.25rem}h3{font-size:1.05rem}p,li,td,th,code{overflow-wrap:anywhere}a{color:#215b9a}code,pre{font-family:ui-monospace,monospace;font-size:.88em}code{background:#edf3fa;padding:1px 3px}pre{padding:16px;background:#edf3fa;white-space:pre-wrap}.status,.note{padding:16px;border-left:4px solid #2b775a;background:#effaf4}.note{border-color:#bc7b13;background:#fff8e9}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.93rem}th,td{border:1px solid #dce3ed;padding:10px;text-align:left;vertical-align:top}th{background:#edf3fa}li{margin:5px 0}.meta{color:#526174}@media(max-width:600px){main{margin:8px;padding:16px}h1{font-size:1.5rem}th,td{min-width:7em;padding:7px}}
+</style>
+</head>
+<body><main>
+<h1>Replay 투표 목록 계약 설계</h1>
+<p class="meta">작성: 2026-10-15 KST · 기준 HEAD <code>1f5420c5</code> · 선행 문서: <a href="2026-10-14-replay-collection-design.html">P0 설계</a>, <a href="2026-10-15-replay-production-inventory.html">production 형식 조사</a>, <a href="../handoff-2026-10-15.html">2026-10-15 핸드오프</a></p>
+<p class="status"><strong>목표:</strong> 비로그인 <code>/ko/vote</code> ongoing 목록의 PC(1280×900)·모바일(390×900) 화면을 로컬에서 재생할 수 있는 제품용 변환 계약을 정의한다. 개인정보·자유 문자열·검증하지 않은 CSS는 출력에 포함하지 않는다. 이 문서는 핸드오프 §6의 1–3단계(제품 계약, 로컬 구현·반례, 제품 화면 복원)만 다룬다.</p>
+<p class="note"><strong>이 문서는 제품 연결·운영 활성화의 승인이 아니다.</strong> 제품 app/components/lib에서 변환기를 호출하지 않는다. 실제 인증·광고·route 상태 연결, 외부 Sentry 저장, 운영 수집 결정은 별도 단계다.</p>
+
+<h2>1. 범위</h2>
+<div class="table-wrap"><table><tbody>
+<tr><th>포함</th><td>ongoing 목록의 PC·모바일 화면, 배너 클릭 이동(PC 0→2→0, 모바일 0→1→2→3→4), 스크롤 후 지연 이미지 로딩, 이미지 실패 표시. production 조사에서 관측한 상태만 다룬다.</td></tr>
+<tr><th>제외</th><td>upcoming/completed, 더 보기, 필터·언어·메뉴 열기/닫기, API 오류·재시도, popup, 보상·아티스트 변형, 실제 배포 글꼴 URL, 원격 CDN·서명 URL, SSR·hydration 전이, 제품 연결, 운영 활성화, <code>VoteListPresenter.tsx</code> 타이머 수정.</td></tr>
+<tr><th>유지</th><td><code>controller.ts</code>·<code>transport.ts</code>·<code>correlation.ts</code>·Worker 경계, 예산(입력·해제·출력 각 8 MiB, 깊이 80, 순회 값 200,000, 이벤트 10,000, 노드+tombstone 20,000), type 5 전부 삭제, 실패 시 같은 document에서 영구 CLOSED.</td></tr>
+</tbody></table></div>
+
+<h2>2. 구조</h2>
+<p>현재 <code>scripts/replay-p0/projection.ts</code>는 tag·class·CSS 규칙을 코드 분기와 <code>fixtures/sdk-contract.json</code>에 직접 둔다. 이 설계는 검증 엔진과 계약 데이터를 분리한다. 모든 코드는 <code>scripts/replay-p0/</code> 아래에 둔다.</p>
+<div class="table-wrap"><table><thead><tr><th>단위</th><th>역할</th><th>의존</th></tr></thead><tbody>
+<tr><td><code>engine/</code></td><td>envelope·segment 순서, 노드 트리·tombstone, 예산, mutation 적용, 출력 재생성. 계약 객체로만 판단한다. tag·class 이름을 엔진 코드에 넣지 않는다.</td><td><code>Contract</code> 타입</td></tr>
+<tr><td><code>contracts/p0-fixture.ts</code></td><td>현재 P0 규칙(tag 7개, class 4개, 고정 CSS, 정수 px, 배너 인덱스 0~2)을 동작 변화 없이 옮긴다.</td><td>engine 타입</td></tr>
+<tr><td><code>contracts/vote-list.ts</code></td><td><code>/ko/vote</code> ongoing 목록 계약(§3–§5).</td><td>CSS manifest</td></tr>
+<tr><td><code>contracts/vote-list.css-manifest.json</code></td><td>생성기가 만들고 사람이 검토해 커밋한다. 빌드 ID, 자산별 원본·CSSOM·wire sha256, styled-jsx sha256, class token 집합.</td><td>—</td></tr>
+<tr><td><code>tools/build-css-manifest.cjs</code></td><td><code>.next-envtest</code> 빌드 CSS를 Chromium으로 파싱하고 설치된 SDK의 CSS 호환성 변환을 적용해 해시·class token을 만든다. 녹화 데이터를 입력으로 쓰지 않는다.</td><td>Playwright, 설치된 SDK 소스</td></tr>
+</tbody></table></div>
+<p><strong>데이터 흐름:</strong> SDK envelope → <code>projectEnvelope(input, state, contract)</code> → 새 객체 또는 <code>{ok:false, reason}</code> → 기존 전송 관문. 시작할 때 계약 하나를 고른다. 녹화 중에는 계약을 바꾸지 않는다.</p>
+<p><strong>빌드 결합:</strong> 제품 계약은 manifest의 빌드 ID·CSS 해시가 수신 값과 일치할 때만 통과한다. 불일치는 <code>schema</code>로 종료한다. 빌드가 바뀌면 manifest를 다시 생성하고 검토한다. 이번 단계는 로컬 <code>.next-envtest</code> 빌드에만 묶는다.</p>
+
+<h2>3. DOM·head·shadow·SVG</h2>
+<p>원칙: 노드는 유지하고 속성을 비운다. 노드를 삭제하면 이후 mutation이 삭제한 ID를 참조할 수 있기 때문이다.</p>
+<h3>3.1 허용 tag</h3>
+<p><code>html, head, body, meta, title, link, style, div, span, a, button, img, svg, header, main, section, footer, h3, p, next-route-announcer</code>. 다른 tag는 <code>schema</code>로 종료한다.</p>
+<h3>3.2 head</h3>
+<div class="table-wrap"><table><thead><tr><th>노드</th><th>출력</th></tr></thead><tbody>
+<tr><td><code>meta charset</code></td><td><code>{charset:"utf-8"}</code>. 원본이 상수와 다르면 종료한다.</td></tr>
+<tr><td><code>meta name=viewport</code></td><td>manifest의 viewport 상수만 출력한다. 원본 content가 상수와 다르면 종료한다.</td></tr>
+<tr><td>그 밖의 meta</td><td>속성 없는 <code>&lt;meta&gt;</code>. name·content·property는 출력하지 않는다.</td></tr>
+<tr><td><code>title</code></td><td>노드를 유지한다. text 자식은 빈 문자열로 출력한다.</td></tr>
+<tr><td><code>link</code> + <code>_cssText</code></td><td><code>_cssText</code>만 출력한다. 값은 manifest 해시와 일치해야 한다(§4.2). rel·href·crossorigin·data-precedence는 출력하지 않는다.</td></tr>
+<tr><td><code>link</code> placeholder</td><td>키가 정확히 <code>rr_width</code>·<code>rr_height</code>이고 값이 <code>0px</code>일 때 그대로 출력한다. 다른 키·값이면 종료한다.</td></tr>
+<tr><td>그 밖의 <code>link</code> (alternate·canonical·manifest 등)</td><td>속성 없는 <code>&lt;link&gt;</code>. <code>rel="stylesheet"</code> 또는 <code>data-precedence</code>가 있는데 <code>_cssText</code>가 없으면 CSS 인라인 실패로 보고 종료한다. 이 행은 계획 작성 중 production 캡처의 metadata link 15개를 확인하고 추가했다.</td></tr>
+<tr><td><code>style</code></td><td><code>type="text/css"</code> 상수와 manifest에서 검증한 text만 출력한다. <code>data-styled-jsx</code>는 출력하지 않는다.</td></tr>
+</tbody></table></div>
+<h3>3.3 body 속성과 text</h3>
+<ul>
+<li><strong>출력하는 속성:</strong> <code>class</code>(§4.1), <code>style</code>(§4.3), html의 <code>lang="ko"</code>, button의 <code>type="button"</code>, boolean <code>hidden</code>·<code>disabled</code>(빈 값으로 정규화), <code>aria-hidden</code>·<code>aria-expanded</code>·<code>aria-pressed</code>(<code>true</code>/<code>false</code>), <code>role</code>(button·navigation·list·listitem·alert·group·status·region; 뒤의 세 값은 production 캡처에서 관측해 계획 작성 중 추가). 열거값 밖의 값은 종료한다.</li>
+<li><strong>출력하지 않는 속성:</strong> href, id, name, content, aria-label, aria-live, aria-haspopup, hreflang, crossorigin와 위 목록에 없는 모든 속성.</li>
+<li><strong>text:</strong> 공백이 아닌 문자를 모두 <code>*</code>로 바꾼다. 원본이 이미 마스킹됐다고 가정하지 않는다. comment는 빈 값으로 출력한다.</li>
+</ul>
+<h3>3.4 media placeholder (img·svg)</h3>
+<ul>
+<li>허용 키는 정확히 <code>class</code>·<code>rr_width</code>·<code>rr_height</code>다. svg 노드는 <code>isSVG:true</code>도 허용한다.</li>
+<li>자식 노드, <code>src</code>·<code>srcset</code>·<code>rr_src</code>, 그 밖의 키가 있으면 종료한다. 차단 실패를 뜻하기 때문이다.</li>
+<li>치수 문법: <code>^(0|[1-9]\d{0,4})(\.\d{1,6})?px$</code>, 값 0…16384. 출력은 소수 셋째 자리로 반올림하고 끝의 0을 지운다. 예: <code>199.359375px</code> → <code>199.359px</code>. 최대 오차 0.0005px.</li>
+</ul>
+<h3>3.5 shadow (Next route announcer)</h3>
+<ul>
+<li><code>isShadowHost:true</code>는 <code>next-route-announcer</code> 노드에만 허용한다. <code>isShadow:true</code>는 그 직속 자식 div 하나에만 허용한다.</li>
+<li>그 div의 style은 manifest의 announcer 상수 문자열과 정확히 같아야 한다. role은 alert다. text는 §3.3 규칙으로 마스킹한다.</li>
+<li>다른 위치의 shadow 표식이나 두 번째 shadow는 종료한다. route가 <code>/ko/vote</code>로 고정되므로 보존해도 시각 영향이 없고 삭제 후 참조 처리가 필요 없다.</li>
+</ul>
+<h3>3.6 mutation과 추가 필드</h3>
+<p>add 노드는 snapshot과 같은 규칙을 적용한다. attribute·text 변경도 같은 규칙으로 다시 검증한다. remove는 기존 tombstone 규칙을 유지한다. 노드에 위에 없는 필드(예: <code>rootId</code>)가 있으면 종료한다.</p>
+
+<h2>4. class·CSS·inline style</h2>
+<h3>4.1 class token</h3>
+<ul>
+<li>생성기는 검증된 빌드 CSS와 styled-jsx text의 class 선택자에서 token을 추출한다. selector parser로 escape를 해제한 정확한 문자열을 쓴다. Tailwind token, <code>jsx-&lt;hash&gt;</code>, next/font의 <code>__className_*</code>가 포함된다.</li>
+<li>manifest에 없는 token은 출력에서 제거한다. 예: CSS 규칙이 없는 <code>lucide</code>.</li>
+<li>production 조사의 class 282종은 생성 결과와 대조하는 시험 입력이다. 허용 근거가 아니다.</li>
+<li>예산: 노드당 64 token, token당 256자(P0와 같음). 줄바꿈과 연속 공백은 구분자로 처리한다.</li>
+</ul>
+<h3>4.2 정적 CSS</h3>
+<ul>
+<li>manifest는 rrweb이 내보내는 표현의 sha256을 저장한다. link는 CSSOM에 SDK 변환을 적용한 <code>_cssText</code>, style은 text 원문이다. 해시가 정확히 같을 때만 통과한다. 출력은 입력 문자열 그대로다.</li>
+<li>생성기 절차:
+<ol><li>빌드 원본을 Chromium의 <code>CSSStyleSheet</code>로 파싱해 CSSOM 문자열을 만든다.</li><li>설치된 SDK의 CSS 호환성 변환을 적용한다.</li><li>결과를 저장된 production 캡처의 wire 값과 비교한다.</li><li>하나라도 다르면 manifest를 만들지 않고 실패한다.</li></ol></li>
+<li><code>url(</code>, <code>@import</code>, <code>@font-face</code>의 <code>src: url</code>이 있으면 생성을 거부한다. 따라서 manifest는 font mock(<code>local(Arial)</code>) 빌드에서만 생성된다. 재생은 고정 fallback font를 쓰며 그 차이를 결과에 기록한다.</li>
+</ul>
+<h3>4.3 inline style 문법</h3>
+<p>snapshot 문자열과 mutation diff에 같은 규칙을 적용한다. 범위 밖 값은 clamp하지 않고 종료한다.</p>
+<div class="table-wrap"><table><thead><tr><th>속성</th><th>허용 값</th></tr></thead><tbody>
+<tr><td>width, height, min-height, top, left</td><td>§3.4의 소수 px 문법, 0…16384, 출력은 소수 셋째 자리. 단위 없는 <code>0</code>도 허용한다.</td></tr>
+<tr><td>opacity</td><td>0…1, 0.01 단위 (P0와 같음)</td></tr>
+<tr><td>user-select</td><td>none · text · auto</td></tr>
+<tr><td>transform</td><td>none · rotate(180deg)</td></tr>
+<tr><td>position</td><td>static · relative · absolute · fixed · sticky</td></tr>
+<tr><td>background-color</td><td><code>components/client/vote/list/VoteStatusFilter.tsx</code>의 상태색 상수 4개를 <code>rgb(r, g, b)</code>로 정규화한 값만. 관측값은 <code>rgb(131, 251, 200)</code>.</td></tr>
+<tr><td>aspect-ratio</td><td><code>700 / 356</code>만</td></tr>
+<tr><td>--banner-current-index</td><td>정수 0…max(bannerCount−1, 0)</td></tr>
+<tr><td>border, margin, padding, clip, overflow, white-space, overflow-wrap</td><td>announcer 상수 문자열 안에서만 허용한다. 다른 노드에서는 종료한다.</td></tr>
+</tbody></table></div>
+<p>priority는 빈 값 또는 <code>important</code>만 허용한다. escape, 표에 없는 함수, 중복 속성, 표에 없는 custom property는 종료한다.</p>
+<h3>4.4 P0 설계에서 바뀐 값</h3>
+<ul>
+<li><strong>배너 상한:</strong> <code>bannerCount</code>(0…100)는 시험 harness가 합성 fixture 값으로 계약에 넣는다. DOM에서 읽지 않는다. 상한은 P0 설계의 <code>totalSlides − slidesPerView</code> 대신 <code>bannerCount − 1</code>을 쓴다. slidesPerView가 viewport·CSS breakpoint에 따라 달라지기 때문이다. 관측 최대값(PC 2, 모바일 4)은 이 범위 안이다. 엄격한 관계식은 실제 데이터 연결 단계에서 다시 검토한다.</li>
+<li><strong>aspect-ratio:</strong> P0 설계 후보(1/1, 16/9, 4/3) 대신 배너 소스 상수 <code>700 / 356</code>을 쓴다.</li>
+<li><strong>소수 px:</strong> P0의 정수 px 검사 대신 §3.4 문법을 쓴다.</li>
+</ul>
+
+<h2>5. rrweb 이벤트 범위</h2>
+<div class="table-wrap"><table><thead><tr><th>종류</th><th>처리</th></tr></thead><tbody>
+<tr><td>0·1</td><td>빈 data와 검증된 timestamp만 출력한다.</td></tr>
+<tr><td>2 FullSnapshot</td><td>§3·§4 규칙으로 출력한다. segment 0에만 허용한다.</td></tr>
+<tr><td>3 Incremental</td><td>source 0·1·2·3·4·6을 처리한다(관측: 0·1·2·3). source 5·7·9·10·11·12·14는 제거한다. source 8·13·15, 16과 알 수 없는 source는 종료한다.</td></tr>
+<tr><td>4 Meta</td><td>width·height와 <code>https://replay.invalid/ko/vote</code>만 출력한다.</td></tr>
+<tr><td>5 Custom</td><td>전부 삭제한다. 원본에서 performanceSpan의 이미지 URL과 breadcrumb의 aria-label 원문을 확인했다.</td></tr>
+<tr><td>6과 알 수 없는 종류</td><td>종료한다.</td></tr>
+</tbody></table></div>
+
+<h2>6. 시험과 완료 기준</h2>
+<p>각 단계를 통과해야 다음 단계를 진행한다.</p>
+<ol>
+<li><strong>엔진 분리 회귀:</strong> <code>p0-fixture</code> 계약으로 기존 P0 단위 시험 139개와 브라우저 22개 케이스가 결과 변화 없이 통과한다. 제품 계약 코드는 이 단계 뒤에 작성한다.</li>
+<li><strong>계약 단위 시험(TDD):</strong> 규칙마다 통과 예와 거부·제거 예를 1개 이상 둔다. 합성 표식(<code>PIIMARK-…</code>)을 text, aria-label, href, meta content, title, id, style, class, type 5에 넣는다. 압축·비압축 출력 모두에서 표식이 0회여야 한다.</li>
+<li><strong>실제 캡처 투입:</strong> <code>wire-1280-*</code>·<code>wire-390-*</code>의 segment 0→1→2가 모두 <code>ok</code>다. 출력 bytes에서 <code>127.0.0.1</code>, <code>/_next/image</code>, <code>http</code>, aria-label 원문이 0회다.</li>
+<li><strong>변조 반례:</strong> 실제 캡처에 한 가지씩 변조를 넣고 기대 reason을 확인한다: img src 추가, svg 자식 추가, 배너 인덱스 초과, CSS 1byte 변경, 두 번째 shadow, 미허용 style 속성, source 8 삽입, segment 누락.</li>
+<li><strong>복원 비교:</strong> 투영 결과를 <code>replay-view.ts</code>의 독립 DOM 복원으로 재생한다(Chromium, 고정 fallback font). 같은 시각의 원본과 비교한다: 주요 요소(투표 카드, 배너 track, placeholder, 상태 필터)의 위치·크기 1 CSS px 이내, opacity 0.01 이내, 카드·배너 개수와 배너 인덱스 일치. 원본 레이아웃 측정이 부족하면 <code>capture.cjs</code>에 측정 코드만 추가해 다시 수집한다. 제품 코드는 바꾸지 않는다. 마스킹·media·글꼴 차이는 예외로 기록한다. 현재 <code>replay-view.ts</code>는 P0 tag 7개만 복원하고 <code>_cssText</code>·SVG namespace·shadow를 처리하지 않는다. 이 단계에서 §3.1 tag, link <code>_cssText</code>의 style 적용, <code>isSVG</code> 노드의 SVG namespace 생성, announcer shadow root를 지원하도록 확장한다. 확장한 복원기도 투영 상태나 SDK 내부를 쓰지 않는다.</li>
+<li><strong>전체 회귀:</strong> <code>npm test</code>, <code>npx tsc --noEmit --incremental false</code>, 범위 ESLint, <code>git diff --check</code>.</li>
+</ol>
+<p><strong>완료 기준:</strong> 위 6단계 통과와 교차 공급자 코드 리뷰 APPROVE. 개인정보 관련 변경이므로 고위험으로 분류하고 Frontier 리뷰를 받는다. 결과는 <code>docs/reports/</code>의 결과 보고서 HTML로 남긴다. 실패한 단계가 있으면 계약을 넓히지 않고 보고한다.</p>
+
+<h2>7. 남는 위험</h2>
+<ul>
+<li>마스킹한 text의 길이·위치, class 조합, placeholder 치수는 화면 구조 정보를 남긴다. 허용한 시각 구조의 한계로 기록한다.</li>
+<li><code>bannerCount − 1</code> 상한은 P0 설계보다 느슨하다.</li>
+<li>manifest는 font mock 빌드에 묶인다. 실제 배포 빌드에서 그대로 쓸 수 없다.</li>
+<li>SDK 내부 메모리·재시도의 한계는 P0 설계 §3과 같다. 이 설계는 그 한계를 바꾸지 않는다.</li>
+</ul>
+</main></body></html>

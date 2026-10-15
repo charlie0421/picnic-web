@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay 제한 수집 — 2026-10-15 핸드오프</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172331;font:16px/1.7 system-ui,-apple-system,sans-serif}main{max-width:1040px;margin:28px auto;padding:32px;background:white;border:1px solid #dce3ed;border-radius:12px}h1{font-size:1.8rem;line-height:1.35}h2{margin-top:2rem;font-size:1.25rem}h3{font-size:1.05rem}p,li,td,th,code,summary{overflow-wrap:anywhere}a{color:#215b9a}code,pre{font-family:ui-monospace,monospace;font-size:.88em}code{background:#edf3fa;padding:1px 3px}pre{padding:16px;background:#edf3fa;white-space:pre-wrap;overflow-wrap:anywhere}.status,.note{padding:16px;border-left:4px solid #2b775a;background:#effaf4}.note{border-color:#bc7b13;background:#fff8e9}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.93rem}th,td{border:1px solid #dce3ed;padding:10px;text-align:left;vertical-align:top}th{background:#edf3fa}li{margin:5px 0}.meta{color:#526174}@media(max-width:600px){main{margin:8px;padding:16px}h1{font-size:1.5rem}th,td{min-width:7em;padding:7px}}
+</style>
+</head>
+<body><main>
+<h1>Replay 제한 수집 핸드오프</h1>
+<p class="meta">작성: 2026-10-15 02:01 KST · 독자: 다음 세션의 조정자 · 범위: picnic-web의 격리된 Replay P0와 제품 녹화 형식 조사</p>
+<p class="status"><strong>P0 구현·로컬 검증과 production 형식 조사를 완료했다.</strong> 다음 작업은 제품용 DOM/CSS 허용 계약을 구체화하고, 그 계약으로 로컬 재생을 검증하는 단계다. 현재 P0를 제품에 바로 연결하면 <code>schema</code>로 종료된다.</p>
+<p class="note"><strong>제품 연결과 운영 활성화는 완료되지 않았다.</strong> 최근 작업은 합성 데이터·loopback 수신기를 사용했다. 새 Replay 수집 경로의 외부 Sentry 저장과 대시보드 재생은 확인하지 않았다. 기존 오류·성능 이벤트의 운영 점검과 이 상태를 혼동하지 않는다.</p>
+
+<h2>1. 다음 세션이 먼저 할 일</h2>
+<ol>
+<li>아래 작업 워크트리의 <code>git status</code>와 HEAD를 확인한다. 다른 세션의 변경이 있으면 먼저 소유권을 구분한다.</li>
+<li><a href="reports/2026-10-15-replay-production-inventory.html">최종 production 조사 보고서</a>의 §1–6과 <a href="reports/2026-10-14-replay-collection-design.html">승인된 P0 설계</a>의 제품 연결 조건을 읽는다.</li>
+<li>제품용 CSS manifest·DOM 필드 계약·미디어 치수·상태값의 최소 변경안을 정한다. 이 문서의 조사 수치를 자동으로 제품 허용 목록에 넣지 않는다.</li>
+<li>필요한 구현과 검증을 기존 승인 범위에서 진행한다. 제품 연결·인증/광고 상태 통합·운영 활성화는 별도 범위다. 대규모 구조 변경 전에는 사용자 지침대로 구체적인 계획을 확인한다.</li>
+</ol>
+
+<h2>2. Git과 작업 위치</h2>
+<div class="table-wrap"><table><tbody>
+<tr><th>작업 워크트리</th><td><code>/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy</code></td></tr>
+<tr><th>브랜치</th><td><code>docs/replay-collection-policy</code>. 이름은 docs지만 격리된 P0 코드·시험도 포함한다.</td></tr>
+<tr><th>문서 작성 직전 HEAD</th><td><code>dc42047e0a2b0f012a484d88e78791ad7aac8a85</code>. 작업 트리는 깨끗했다. 이 핸드오프를 커밋하면 HEAD는 추가로 바뀐다.</td></tr>
+<tr><th>공통 기준점</th><td><code>ec2275f6a69dda6c08cf6ca686bef4bb11dece7a</code> — PR #132의 Replay fragment 보완.</td></tr>
+<tr><th>현재 로컬 main</th><td><code>74ff43680290726ba15731dec4c2fc4dd56f1958</code>. 작성 시 main에만 3개, 작업 브랜치에만 12개 커밋이 있었다. 핸드오프 커밋은 이 수치에 포함하지 않았다.</td></tr>
+<tr><th>공유/통합 상태</th><td>현재 브랜치의 upstream 설정은 없다. 이번 작업에서는 push·PR 생성·merge를 수행하지 않았다. 원격 PR/브랜치 상태는 이번 문서 작성 중 조회하지 않았다.</td></tr>
+<tr><th>메인 폴더</th><td><code>/Users/charlie.hyun/Repositories/picnic-web</code>. main을 유지한다. 기존 <code>.playwright-mcp/page-*.yml</code> 파일을 정리하거나 커밋하지 않는다.</td></tr>
+</tbody></table></div>
+<p>main의 추가 3개 커밋은 다른 세션의 문서 작업이다: <code>beee8ad6</code>(#131), <code>848ad4ad</code>(#133), <code>74ff4368</code>(#134). 이 세션은 이를 병합하거나 다른 워크트리를 변경하지 않았다. 다음 통합 전 최신 main과 사용자 지침을 다시 확인한다.</p>
+<pre><code>cd /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy
+git status --short --untracked-files=all
+git log -5 --oneline
+git show main:docs/handoff-2026-10-14.html</code></pre>
+
+<h2>3. 완료한 작업과 근거</h2>
+<div class="table-wrap"><table><thead><tr><th>단계</th><th>결과</th><th>커밋/문서</th></tr></thead><tbody>
+<tr><td>수집 정책·격리 P0 설계/계획</td><td>허용 필드로 새 데이터를 만드는 변환기, 영구 종료 상태, 세대 검사, 별도 전송 관문을 설계했다.</td><td><code>074c3606</code>, <code>dc3a0ebb</code>, <code>7db3290c</code><br><a href="reports/2026-10-14-replay-collection-policy.html">정책</a> · <a href="reports/2026-10-14-replay-collection-design.html">설계</a> · <a href="reports/2026-10-14-replay-p0-implementation-plan.html">계획</a></td></tr>
+<tr><td>P0 구현과 독립 코드 리뷰</td><td>실제 SDK의 압축/비압축 segment 0→1→2 기록·독립 DOM 복원, 종료 후 새 전송 차단, 유한 오류 정리, 예산 검증을 통과했다. 최종 코드 리뷰 APPROVE.</td><td>최종 코드 <code>d50e3d1f</code>, 결과 <code>85a46f26</code><br><a href="reports/2026-10-14-replay-p0-implementation-result.html">구현 결과</a></td></tr>
+<tr><td>실제 브라우저 lifecycle</td><td>전체 Chromium의 실제 BFCache 복귀와 10초 background 전환에서 CLOSED 유지, 재시작/새 Replay fetch 없음, 감시자 정리를 확인했다.</td><td><code>35ec69a4</code><br><a href="reports/2026-10-15-replay-browser-and-product-validation.html">브라우저 후속 검증</a></td></tr>
+<tr><td>production 제품 형식 조사</td><td>실제 /ko/vote 컴포넌트에 합성 데이터를 넣고 PC·모바일의 raw 녹화 형식, CSS 변환, media placeholder를 확인했다. 독립 사실 검토 완료.</td><td><code>dc42047e</code><br><a href="reports/2026-10-15-replay-production-inventory.html">production 조사</a></td></tr>
+</tbody></table></div>
+<p>위 시험 결과는 각 보고서 작성 시점의 증거다. 핸드오프 작성 중 제품 테스트 전체를 다시 실행한 것은 아니다. 이번 문서에서는 원문·현재 파일·Git 상태와 링크·HTML 표시를 대조한다.</p>
+
+<h2>4. 현재 P0의 경계</h2>
+<ul>
+<li>코드는 <code>scripts/replay-p0/</code>, 단위 시험은 <code>__tests__/scripts/replay-p0/</code>에 있다. 제품 app/components/lib에서 P0를 호출하지 않는다.</li>
+<li><code>controller.ts</code>는 WAITING→LOADING→ARMED→RECORDING→CLOSED 상태와 세대를 관리한다. 같은 document의 CLOSED는 되돌리지 않는다.</li>
+<li><code>projection.ts</code>는 합성 fixture 전용이다. tag 7개·class 4개·고정 CSS, 좁은 inline style만 허용한다. 제품 범용 decoder가 아니다.</li>
+<li><code>transport.ts</code>와 Worker 경계는 전송 직전 상태/세대를 재검사한다. 예외·순서 위반·예산 초과는 종료한다.</li>
+<li><code>correlation.ts</code>는 일반 이벤트의 Replay 연결 식별자를 제거한다. P0의 <code>tracePropagationTargets=[]</code>는 유지한다. 기존 span의 frozen DSC 때문에 헤더 전파를 켜면 별도 검증이 필요하다.</li>
+<li>입력·해제·출력 각 8 MiB, 깊이 80, 순회 값 200,000, 이벤트 10,000, 보관 노드와 tombstone 합계 20,000 제한이다. Worker 2초·fetch 5초·녹화 5분 제한은 main event loop가 실행될 때 처리된다.</li>
+<li>SDK 내부 무한 processor/Worker 대기는 유한 정리를 보장하지 못한다. 공개 SDK start를 직접 호출하면 메모리 녹화를 재시작할 수 있지만 닫힌 전송 관문은 새 요청을 막는다. 원본 메모리의 물리적 삭제나 SDK 모든 자원의 해제를 보장하지 않는다.</li>
+</ul>
+<p>처음 제품 적용 후보는 정확한 <code>/ko/vote</code>, 빈 query/fragment, 인증 초기화 완료·익명 확인, 광고 미동의 확정·해당 document에서 광고 SDK 미실행 상태다. <code>canLoadAds=false</code>만으로 충족했다고 판단하지 않는다. 광고 동의와 Replay 수집 근거·동의는 별개다.</p>
+
+<h2>5. 최신 production 관측 — 다음 구현의 입력</h2>
+<p>Next 15.5.26 · Sentry 9.47.1 · Playwright 1.63.0 · Chromium 153.0.8010.12 · Node 24.18.1. 합성 투표 12개·후보 36개·보상 6개·배너 5개를 썼다. 두 화면 모두 HTTP 200, 페이지 오류 0개다. 화면별 envelope 4개 중 1개는 session이고 Replay는 3개 segment다.</p>
+<div class="table-wrap"><table><thead><tr><th>관측</th><th>필요한 처리</th></tr></thead><tbody>
+<tr><td>최종 두 캡처 모두 첫 <code>meta</code>(id 5)에서 P0의 schema 거부. 초기 캡처는 link에서 거부했다.</td><td>제품 계약은 head 순서나 고정 node id에 의존하지 않는다. head metadata·stylesheet·icon placeholder를 구분한다.</td></tr>
+<tr><td>tag 20종, P0 밖 13종. class token 282종. Next announcer에 isShadowHost/isShadow, SVG placeholder에 isSVG가 있다.</td><td>실제로 관측한 값과 제품 전체의 승인 목록을 구분한다. 삭제된 노드의 이후 참조와 shadow 구조도 처리한다.</td></tr>
+<tr><td>이미지 높이 <code>298.5px</code>, <code>199.359375px</code>, <code>173.921875px</code>.</td><td>유한값·상한·정밀도를 정한 소수 치수 문법이 필요하다. 현재 정수 px 검사로는 통과하지 않는다.</td></tr>
+<tr><td>PC 배너 0→2→0, 모바일 0→1→2→3→4.</td><td>P0의 index 0~2를 제품에 그대로 쓰지 않는다. 배너 개수 상한과 인덱스 관계를 함께 정한다.</td></tr>
+<tr><td>CSS 원본 91,890 bytes → CSSOM 100,515 → wire 100,546.</td><td>브라우저 정규화 뒤 SDK의 <code>-webkit-background-clip</code> 추가 31 bytes를 확인했다. 빌드 자산·정규화·SDK 변환을 묶어 검증한다.</td></tr>
+<tr><td>blockAllMedia로 img/svg는 class·치수만 남지만, type 5 성능 이벤트에 이미지 URL이 있고 클릭 breadcrumb에는 <code>aria-label="다음 배너"</code> 원문이 있다.</td><td>현재 P0의 type 5 기본 삭제를 유지하는 방향이다. 예외 보존은 tag/op·필드별 계약과 반례 시험을 먼저 정한다. 이 관측은 raw 로컬 SDK 수집이며 실제 운영 유출 판정이 아니다.</td></tr>
+</tbody></table></div>
+<p>다음 항목은 미검증이다: 원래 font URL, 원격 CDN/서명 URL, 초기 SSR/hydration 전이, upcoming/completed·더 보기·필터/언어/메뉴·API 오류, 일부 보상/아티스트 변형, popup, 실제 auth/ads/route 연결, 범용 player와 Sentry 대시보드 재생. font mock이 Arial을 썼으므로 CSS의 URL 0개를 실제 배포 글꼴의 안전성 증거로 쓰지 않는다.</p>
+<p class="note"><strong>별도 제품 수정 후보:</strong> <code>VoteListPresenter.tsx:77–91</code>은 긴 지연을 상한 없이 setTimeout에 전달한다. 2099년 종료일 fixture에서 동일 화면 RSC 재조회가 관측됐다. 종료일을 실행 시점 + 1일 이후로 바꾼 최종 캡처에서는 재조회 0개·reload timestamp null이었다. 실제 장기 투표의 타이머 상한 문제는 이번에 수정하지 않았다. footer의 privacy/terms prefetch를 잘못된 새로고침으로 세지 않는다.</p>
+
+<h2>6. 권장 후속 순서와 완료 기준</h2>
+<ol>
+<li><strong>제품 계약:</strong> CSS manifest, typed DOM/head/shadow, 고정 class·상태 enum·수치 style·소수 placeholder 규칙을 정한다. 자유 URL/문자열을 관측했다는 이유로 허용하지 않는다.</li>
+<li><strong>로컬 구현과 반례:</strong> 제품용 변환기를 구현하고 snapshot·mutation·CSS·metadata·custom event·압축/비압축의 민감 문자열과 잘못된 형식·순서·예산을 시험한다. 기존 P0 종료 관문을 약화하지 않는다.</li>
+<li><strong>제품 화면 복원:</strong> 합성 데이터·고정 시각/폰트로 실제 컴포넌트 시나리오를 넓힌다. 설계 기준은 주요 위치/크기 차이 1 CSS px 이내, opacity 0.01 이내, 상태·개수·배너 인덱스 일치다. 의도한 마스킹·미디어·폰트 차이만 예외로 기록한다.</li>
+<li><strong>실제 상태 연결:</strong> 인증·동의·navigation 변경이 React 반영 또는 외부 script 삽입 전에 관문을 닫는지 검증한다. 변경 후 effect/observer만으로 종료하는 구현은 설계 조건을 만족하지 않는다.</li>
+<li><strong>별도 외부 검증과 운영 결정:</strong> 최종 outgoing envelope와 저장 segment, 같은 Replay ID의 실제 대시보드 재생을 비교한다. 운영 수집 근거·기간·샘플링·보관·중단 책임을 별도로 정한다.</li>
+</ol>
+<p>사용자는 이번 메시지에서 핸드오프 문서 작성을 요청했다. 이 문서 자체는 새 구현·인증 변경·배포·외부 저장·push/merge의 승인이 아니다. 기존에 승인된 작업을 불필요하게 다시 확인하지 않되, 새 단계의 승인 범위를 이전 P0 승인과 혼동하지 않는다.</p>
+
+<h2>7. 재현 명령과 시험 이력</h2>
+<p>2026-10-14 결과: P0 단위 139개, 전체 220개 파일·4,915개 PASS, 기존 expected fail 6개·skipped 1개, 타입 검사·범위 ESLint PASS. 브라우저 22개 케이스에는 정상·차단·유한 정리와 예상 한계 관측이 함께 들어 있다. 모두 제품 기능 통과라는 뜻이 아니다.</p>
+<pre><code>cd /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy
+npx vitest run __tests__/scripts/replay-p0
+node scripts/replay-p0/run.cjs --case all --output /Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/replay-p0-rerun.json
+npx tsc --noEmit --incremental false
+ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 --ext .ts,.cjs
+npm test
+git diff --check</code></pre>
+<p>의존성이 이미 설치된 워크트리다. lockfile이나 설치 상태가 달라졌을 때만 다시 설치한다. 위 명령은 필요에 따른 재검증용이며 문서 작성 중 실행한 시험이 아니다.</p>
+<ul>
+<li><strong>BFCache:</strong> 보고서에 내장된 probe는 <code>channel:'chromium'</code>과 BFCache 비활성화 옵션 해제, <code>goBack({waitUntil:'commit'})</code>를 쓴다. 기본 headless-shell의 결과를 실제 BFCache 복귀 통과로 해석하지 않는다.</li>
+<li><strong>실제 background:</strong> 관리 launcher로 전체 Chromium을 실행하고 기본 컨텍스트에 <code>connectOverCDP(...,{noDefaults:true})</code>로 연결했다. background 제한 해제 플래그 3개를 제외했다. 실제 다른 탭을 전면에 올려 hidden과 약 1초 타이머 간격을 관측했다. 10초 결과를 장시간 숨김/OS 절전 보장으로 확대하지 않는다.</li>
+<li><strong>제품 형식 조사:</strong> 최종 보고서 §7에 server/capture/inventory/verify 스크립트와 핵심 JSON 9개가 SHA-256과 함께 내장돼 있다. <code>--reuse-build</code>는 당시 특정 build ID와 upstream 포트에 묶였으므로 새 환경에서 맹목적으로 쓰지 않는다.</li>
+<li><strong>빌드 격리:</strong> <code>ENVELOPE_TEST=1</code>의 <code>.next-envtest</code>, 합성 env, loopback backend, 빈 제품 Sentry DSN/token을 사용한다. 제품 .env를 복사하거나 실제 계정을 쓰지 않는다. Vercel에서는 이 시험 빌드를 실행하지 않는다.</li>
+<li><strong>정리:</strong> 새 실행 전 포트와 파일 스냅샷을 확인한다. 자신이 띄운 서버만 종료한다. Next가 바꾼 <code>tsconfig.json</code>·<code>next-env.d.ts</code>는 다른 변경이 없는지 대조한 뒤 소유 변경만 복구한다.</li>
+</ul>
+
+<h2>8. 자료 위치와 보존</h2>
+<div class="table-wrap"><table><thead><tr><th>자료</th><th>위치/상태</th></tr></thead><tbody>
+<tr><td>Git으로 보존한 결과</td><td><code>docs/reports/2026-10-14-replay-*.html</code>, <code>2026-10-15-replay-browser-and-product-validation.html</code>, <code>2026-10-15-replay-production-inventory.html</code>. 위 링크를 우선 읽는다.</td></tr>
+<tr><td>브라우저 후속 임시 증거</td><td><code>/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-followup/</code><br>BFCache, background, dev 화면 probe와 JSON.</td></tr>
+<tr><td>production 임시 증거</td><td><code>/Users/charlie.hyun/Repositories/picnic-web-replay-collection-policy/.superpowers/sdd/2026-10-15-replay-production/</code><br><code>verification.json</code>, <code>inventory.json</code>, <code>capture-*.json</code>, <code>wire-*.bin</code>. <code>initial-capture/</code>는 2099년 fixture의 초기 증거다. 최종 수치와 섞지 않는다.</td></tr>
+<tr><td>브랜치의 최종 자료</td><td>최종 전달 문서는 모두 Git으로 관리한다. 임시 디렉터리가 없으면 보고서에 내장된 스크립트/측정값을 사용한다.</td></tr>
+</tbody></table></div>
+<p><code>.gitignore:33</code>의 <code>reports/</code>가 새 reports 문서를 숨긴다. 관련 새 문서를 커밋할 때 정확한 경로만 <code>git add -f -- &lt;path&gt;</code>로 추가한다. ignore 규칙을 완화하거나 다른 작업의 파일을 함께 추가하지 않는다. 이 핸드오프는 <code>docs/</code> 바로 아래에 저장한다.</p>
+
+<h2>9. Orca 정산 상태 — 과거 실행을 다시 시작하지 않기</h2>
+<p>마지막 사실 검토는 Claude Opus 5.5/high, restricted 읽기 전용으로 진행했다. 최종 보고서에 심각한 사실 오류와 범위 초과 주장이 없다는 재검토 결과를 받았다. 제품 계약·운영 적용 승인은 아니다.</p>
+<ul>
+<li>Run: <code>run_430662d02492</code>.</li>
+<li>마지막 Task: <code>task_fe0191107ed9</code> / Dispatch: <code>ctx_8c74c55dfd90</code>.</li>
+<li>수락된 자체 완료: <code>msg_296d6995ef87</code>, <code>outcome=succeeded</code>.</li>
+<li>소유 검토 터미널은 닫았고 readonly/STE/policy 임시 context를 정리했다. 이 작업의 미완료 Dispatch는 없다. 마지막 조회에서 reclaimable worker는 0개였다. Run의 다른 과거 항목은 이 작업 소유로 취급하지 않는다.</li>
+<li>기록 경로: <code>/Users/Shared/ai-agent-config-backups-charlie/usage-evidence/envelopes/picnic-replay-production-20261015/state.json</code>. 마지막 저장값은 complete, providerHold=null, 이 Task의 retry 카운터 모두 0이다. 과거 다른 Task의 재시도 예산을 이 값으로 초기화하지 않는다.</li>
+</ul>
+<p>계정/사용량/capability 원문은 Git 외부에 있다. 이 문서에는 계정 식별자·인증값을 복사하지 않았다. 다음 작업자 실행 전 저장된 hold/history와 최신 지침을 읽고, 실제 CLI 가이드·새 사용량·계정 바인딩·capability·build-launch 검증을 수행한다. 과거 Route/launch/context/터미널 핸들을 재사용하지 않는다. <code>dispatchAllowed=false</code> 또는 <code>allowed=false</code>면 작업자를 만들지 않는다. 네이티브 하위 에이전트 금지와 공급자 간 독립 리뷰 규칙은 사용자 지침을 따른다.</p>
+
+<h2>10. 다른 세션의 운영 후속 작업</h2>
+<p>로컬 main의 <code>docs/handoff-2026-10-14.html</code>에는 별도 세션의 결과가 있다. 이 문서는 그 기록을 요약하며 현재 원격 상태를 다시 조회한 결과는 아니다.</p>
+<ul>
+<li>사용자가 Sentry의 Prevent Storing of IP Addresses를 켰다는 기록이 #133으로 반영됐다. 새 이벤트에서 IP가 비었는지 확인하는 작업은 별도로 남아 있다.</li>
+<li>#73/#74는 실제 운영 서버 이벤트의 redaction·도착 증거를 기다리는 상태로 기록돼 있다. 확인을 위해 운영 오류를 일부러 만들지 않는다.</li>
+<li>Sentry 7E/7F, Data Scrubber의 다른 설정·과거 이벤트 삭제, #75~#77, 로그인 smoke 등은 그 세션의 별도 후속 목록이다. 이번 Replay P0 완료로 닫지 않는다.</li>
+<li>Jira의 검토중/완료 상태를 임의로 바꾸지 않는다. push/merge/배포는 해당 변경의 승인 범위와 최신 Git 정책을 확인한다.</li>
+</ul>
+<p>문서 작성 요청에 따라 핸드오프만 생성했다. 실제 다른 에이전트나 터미널에 작업 소유권을 넘기지 않았다.</p>
+</main></body></html>

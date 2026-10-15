@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Replay 후속 검증: 실제 브라우저와 제품 화면</title><style>body{font-family:system-ui,-apple-system,sans-serif;color:#172331;background:#f6f8fb;margin:0;line-height:1.7}main{max-width:1000px;margin:28px auto;padding:28px;background:#fff;border:1px solid #dce3ed;border-radius:12px}h1{font-size:1.8rem}h2{margin-top:2rem;font-size:1.25rem}p,li,td{overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:.92rem}th,td{padding:10px;border:1px solid #dce3ed;text-align:left;vertical-align:top}th{background:#edf3fa}code{font-family:ui-monospace,monospace;overflow-wrap:anywhere}pre{font-size:.8rem;padding:16px;background:#edf3fa;white-space:pre-wrap;overflow-wrap:anywhere}.note{padding:16px;border-left:4px solid #bc7b13;background:#fff8e9}.ok{padding:16px;border-left:4px solid #2b775a;background:#effaf4}summary{cursor:pointer;font-weight:600}details{margin:1rem 0}@media(max-width:600px){main{margin:8px;padding:16px}th,td{padding:6px}h1{font-size:1.5rem}}</style></head><body><main>
+<h1>Replay 후속 검증: 실제 브라우저와 제품 화면</h1>
+<p>2026-10-15 KST · 기준 커밋 <code>85a46f26d52ebc9cb2e238e25fd2e2700e643940</code> · Sentry SDK 9.47.1 · Chromium 153.0.8010.12 · Playwright 1.63.0 · macOS</p>
+<p class="ok"><strong>실제 BFCache 복귀와 10초 백그라운드 전환 시험을 통과했다.</strong> 두 경로에서 P0는 닫힌 상태를 유지했다. 복귀 후 정상 제어 API를 호출해도 녹화 재시작과 새 Replay 요청이 없었고 DOM 감시자는 정리됐다.</p>
+<p class="note"><strong>제품 적용은 아직 준비되지 않았다.</strong> 합성 데이터로 실행한 실제 <code>/ko/vote</code> 화면에 P0를 그대로 연결하면 첫 flush에서 <code>schema</code>로 종료된다. Replay 수신 0건은 차단 동작의 관측값이며 정상 재생 성공이 아니다. 제품 코드·허용 목록·운영 설정은 변경하지 않았다.</p>
+<p>후속 결과: <a href="2026-10-15-replay-production-inventory.html">production 빌드의 실제 녹화 형식 조사</a>에서 합성 투표 카드·배너를 채워 DOM·CSS·placeholder 차이를 확인했다.</p>
+<h2>1. 판정과 실측값</h2><table><thead><tr><th>시험</th><th>결과</th><th>관측</th></tr></thead><tbody>
+<tr><td>실제 BFCache 복귀</td><td>PASS</td><td>pagehide.persisted=true, 실제 복귀 후 restored=true. CLOSED, SDK start 총 1회, Replay fetch 0회, cleanup=resolved, observer 0개. 캐시 미사용 사유 없음. 같은 조건으로 재확인했다.</td></tr>
+<tr><td>실제 탭 전환과 복귀</td><td>PASS · 10초</td><td>실제 visibility가 visible→hidden→visible로 바뀌었다. 숨김 이벤트를 관측할 때 이미 CLOSED였다. 복귀 후 prepare/flush 호출에도 start 총 1회·Replay fetch 0회. cleanup=resolved, observer 0개.</td></tr>
+<tr><td>실제 타이머 지연</td><td>관측</td><td>요청 간격 50ms. 전면 중앙값 51.1ms, 숨김 중앙값 1002.6ms. 숨김 상태 안에서 측정한 간격 9개, 범위 987.7–1095.6ms. fake clock이나 visibility 이벤트 주입을 사용하지 않았다.</td></tr>
+<tr><td>실제 제품 컴포넌트의 로컬 실행</td><td>PASS · dev 한정</td><td>/ko/vote HTTP 200, 페이지 오류 0개. 합성 배너 4개·빈 투표 목록. PC 1280×900 클릭에서 배너 index 0→1, 모바일 390×900 클릭에서 1→2.</td></tr>
+<tr><td>제품 DOM과 P0의 호환성</td><td>FAIL · 예상된 범위 차이</td><td>실제 SDK start 1회, 첫 flush 뒤 CLOSED(schema), cleanup=resolved. Replay fetch/수신 0건. 정상 제품 segment를 얻지 못했다.</td></tr>
+</tbody></table>
+<h2>2. 브라우저 검증 방법과 한계</h2>
+<p>이전 headless-shell에서는 <code>BrowsingInstanceNotSwapped</code>와 <code>BackForwardCacheDisabledForDelegate</code>를 관측했다. 같은 버전의 headless 전체 Chromium(<code>channel: 'chromium'</code>)과 BFCache 비활성화 옵션 해제로 실제 캐시 복귀가 성립했다. 복귀는 새 load 이벤트가 아니므로 <code>goBack({waitUntil:'commit'})</code> 뒤 persisted 복귀 상태를 확인했다. 기본 load 대기는 이미 복귀한 문서에서도 시간 초과를 일으켰다.</p>
+<p>일반 Playwright 페이지는 포커스 강제 설정과 백그라운드 제한 해제 옵션 때문에 탭을 바꿔도 hidden이 되지 않거나 타이머 지연을 숨길 수 있었다. 별도로 실행한 전체 Chromium의 기본 컨텍스트에 <code>connectOverCDP(..., {noDefaults:true})</code>로 연결했다. <code>--disable-background-timer-throttling</code>, <code>--disable-backgrounding-occluded-windows</code>, <code>--disable-renderer-backgrounding</code>은 실행 옵션에서 제외했다. 실제 다른 탭을 전면으로 올렸고, P0의 공개 제어 API와 실제 SDK를 사용했다. SDK의 Replay 전송 시도는 1회 있었지만 닫힌 관문이 거부했다. 그 결과 send_error client report가 일반 경로로 전달됐으며, Replay fetch 0회와 구분한다.</p>
+<p>직접 바이너리를 실행한 초기 비교에서는 타이머 지연을 관측했지만 로컬 fixture HTTP 탐색이 시간 초과됐다. 그 실패를 Replay 통과로 계산하지 않았다. 최종 시험은 Playwright의 브라우저 실행기를 사용하고, 기본 컨텍스트에 위 방식으로 다시 연결해 HTTP 탐색과 실제 숨김을 함께 확인했다. 직접 실행과 관리 실행의 HTTP 차이를 만든 개별 옵션은 확정하지 않았다.</p>
+<ul><li>이 결과는 위 Chromium/macOS 환경의 관측이다. Firefox·Safari·모바일 OS에서는 확인하지 않았다.</li><li>10초 숨김을 확인했다. 장시간 숨김, OS 절전·프로세스 강제 종료, intensive throttling 전체 조건은 확인하지 않았다.</li><li>Worker 2초·fetch 5초·녹화 5분의 타이머는 main event loop가 실행돼야 처리된다. 이번 관측은 벽시계 기준 즉시 종료 보장이 아니다.</li><li>SDK 내부 무한 processor/Worker 대기와 공개 SDK 직접 start의 한계는 <a href="2026-10-14-replay-p0-implementation-result.html">이전 P0 결과</a>대로 남는다.</li></ul>
+<h2>3. 실제 제품 화면에서 확인한 차이</h2>
+<p>기존 워크트리의 Next dev 서버를 사용했다. 제품 소스는 수정하지 않았다. Supabase 주소와 키는 합성 loopback 서버·가짜 키로 주입했고, 운영 계정·비밀정보·운영 데이터에 접근하지 않았다. 제품 Sentry DSN은 비웠다. 글꼴은 외부 다운로드 대신 로컬 Arial 응답으로 대체했다. 따라서 next/font의 실제 font URL 형식은 이번 실행에서 관측하지 않았다. 서버 fetch는 loopback만 허용했다. 브라우저의 외부 요청은 차단했으며 Vercel analytics script 요청 1건을 관측했다.</p>
+<p>최종 초기 화면에는 요소 307개, tag 22종, stylesheet 6개가 있었다. <code>next-route-announcer</code>의 shadow 자식 1개를 확인했다. 개발 전용 <code>nextjs-portal</code>은 별도로 구분했다. 이 수치는 최종 관측 시점의 값이다. 고정 제품 manifest의 개수로 취급하지 않는다.</p>
+<p>P0의 tag 7개·class 4개·좁은 inline style 계약과 실제 화면 구조가 다르다. 첫 flush의 <code>schema</code>는 이 비호환과 일치한다. 현재 reason code만으로 최초 실패 노드나 CSS 속성까지 특정하지는 못한다. SDK가 실제 wire에서 생략하는 script 등과 DOM에 보이는 tag를 혼동하지 않는다.</p>
+<table><thead><tr><th>필수 확인 묶음</th><th>근거와 영향</th><th>다음 최소 확인</th></tr></thead><tbody>
+<tr><td>head·stylesheet·shadow root</td><td>meta/title/link와 Next announcer는 P0 계약 밖이다. 제품 CSS는 P0의 고정 CSS 한 개와 다르다. app/[lang]/layout.tsx, app/shell.ts, Next app-router-announcer.js, projection.ts:118–155.</td><td>production 빌드의 실제 recorder 출력에서 tag·추가 필드·CSS 크기/hash/URL 개수를 기록한다. 글꼴 mock의 URL 제거 영향을 분리하고, 원래 빌드 자산과 대조한다. 고정 상수·placeholder·별도 schema 중 처리 방식을 결정한다.</td></tr>
+<tr><td>미디어와 위치·크기</td><td>SDK의 img/svg 차단 placeholder에는 isSVG와 rr_width/rr_height가 남을 수 있다. 소수 크기는 현재 정수 계약과 충돌할 수 있다. NavigationLink의 user-select, LanguageSelector의 top/left도 P0 밖이다.</td><td>합성 이미지 성공/실패와 여러 viewport에서 실제 직렬화 값을 확인한다. 범위와 양자화 규칙은 검토 후 정한다.</td></tr>
+<tr><td>배너·스타일 상태</td><td>실제 --banner-current-index와 styled-jsx를 사용한다. 지연 슬라이드의 aspect-ratio:700/356은 승인 설계 §5의 예시 목록에도 없다. 모바일 배너 4개는 코드상 index 3에 도달할 수 있지만 이번 클릭 시험은 index 2까지다.</td><td>배너 1/3/5개, 이미지 로드·지연, 390/1280px, production CSSOM을 캡처한다. 정확한 class token·CSS manifest와 필요한 값 범위를 정한다.</td></tr>
+<tr><td>종료 시점과 일반 요청 연결</td><td>필터가 query를 붙이면 정확한 빈 query 경로 조건을 벗어난다. 메뉴·언어 변경·로그인 모달·오류 화면은 DOM 반영 전 종료가 필요하다. 제품 tracing/loader는 P0 설정과 아직 연결되지 않았다.</td><td>router.push·changeLocale·navigateWithAuth 등의 호출 순서와 요청 header를 따로 검증한다. 사후 effect 종료만으로 충분하다고 판단하지 않는다.</td></tr>
+</tbody></table>
+<p><strong>제품 검증의 한계:</strong> 개발 서버와 합성 배너·빈 목록만 검사했다. 실제 production CSSOM, 카드 12개·countdown·이미지·더보기·popup·loading/error·인증/동의 전환의 전체 시나리오는 미검증이다. 실제 제품 인증 상태를 P0 eligibility에 연결한 시험도 아니다. P0는 합성 eligibility로 시작했다. 위치 1px·opacity 0.01의 재생 품질 판정이나 외부 Sentry 저장·대시보드 재생을 통과했다고 주장하지 않는다.</p>
+<h2>4. 다음 작업</h2>
+<ol><li>격리된 production build/start에서 합성 배너와 투표 카드로 실제 recorder 형태를 캡처한다. 원문을 자동으로 허용 목록에 추가하지 않는다.</li><li>관측된 head·CSS·shadow·placeholder·숫자 범위를 바탕으로 제품용 계약의 최소 변경안을 작성하고 검토한다.</li><li>계약을 구현한 뒤 정상 연속 segment와 원본 대비 재생 품질, 화면 전환 전 종료를 확인한다.</li></ol>
+<p>이번 작업은 검증과 조사다. 제품용 decoder 확장·운영 활성화 결정을 포함하지 않는다. Next dev가 자동 변경한 tsconfig.json과 next-env.d.ts는 정확한 변경분을 확인한 뒤 원래 내용으로 복구했고, 소유한 로컬 서버와 브라우저를 종료했다.</p>
+<h2>5. 검토와 증거</h2>
+<p id="review-status">Orca의 Claude Opus 5.5/high 읽기 전용 조사자가 실제 코드와 SDK를 조사했다. 조정자가 브라우저 시험을 실행했다. 수치·결론 대조에서 심각한 사실 오류는 없었다. 글꼴 mock의 한계, 관측 개수의 출처, headless 여부, SDK의 거부된 전송 시도 설명을 보완했다. 보완 사항의 최종 대조를 완료했고, 남은 심각한 사실 오류는 없었다. 연구·사실 검증의 완료이며 제품 설계·코드·허용 목록 승인과 구분한다. 제품 적용 승인은 아니다.</p>
+<p>검증 대상 제품·P0 코드는 기준 커밋과 같다. 전체 단위 테스트는 제품·P0 코드 변경이 없어 반복하지 않았다. 이번 새 증거는 실제 BFCache, 실제 탭 전환·타이머, 로컬 제품 호환성 시험이다. 이전 4,915개 통과를 이번 실행 수로 재사용하지 않는다.</p>
+<table><thead><tr><th>구조화 결과</th><th>SHA-256</th></tr></thead><tbody>
+<tr><td>bfcache.json</td><td><code>e98b4b3000740b86777b5870d7634da57ed5c07da716a3fad4a40286bd11fb4f</code></td></tr>
+<tr><td>bfcache-repeat.json</td><td><code>d63426487d3437e8d25ea72a14f7bf14c074fbf786f40add484ed2c910ee00d2</code></td></tr>
+<tr><td>background.json</td><td><code>a75f0a6d33bbbdf563fc1842d8431fb9e8f3b8cd8510cdba76c23568f6627b85</code></td></tr>
+<tr><td>product-replay-probe.json</td><td><code>b801e88824a3e48ffb5580327c3d72745956e47273376ecba8dd8b004f971695</code></td></tr>
+</tbody></table><p>구조화 원시 증거·합성 스크린샷은 워크트리의 <code>.superpowers/sdd/2026-10-15-replay-followup/</code>에 둔 일회성 실행 자료다. 최종 전달 문서는 이 HTML이며 아래 재현 스크립트 본문도 함께 Git으로 보존한다. 새 계정/사용량/Dispatch 증거는 Git 밖의 비공개 경로에 보관했다.</p>
+<h2>6. 재현 자료</h2><p>동일 lockfile의 의존성과 Playwright 전체 Chromium이 설치된 워크트리 루트에서 실행한다. 아래 파일은 임시 시험 디렉터리에 둔다. BFCache와 background probe는 기존 P0 실행기의 브라우저 경계만 바꾼다. 제품 probe는 로컬 서버가 실행 중일 때 사용한다. 고정 포트 53921이 사용 중이면 소유하지 않은 프로세스를 중단하지 말고 서버·probe의 포트를 함께 바꾼다. 제품 probe가 끝나면 자신이 띄운 서버만 종료하고 Next 자동 설정 변경분을 확인해 복구한다.</p>
+<details><summary>bfcache-probe.cjs</summary><pre><code>&#x27;use strict&#x27;;
+const {createRequire}=require(&#x27;node:module&#x27;);const rr=createRequire(process.cwd()+&#x27;/package.json&#x27;);
+const fs=require(&#x27;node:fs&#x27;),assert=require(&#x27;node:assert/strict&#x27;);const {chromium}=rr(&#x27;playwright&#x27;);
+const launch=chromium.launch.bind(chromium);
+chromium.launch=async opts=&gt;{const browser=await launch({...opts,channel:&#x27;chromium&#x27;});const newPage=browser.newPage.bind(browser);browser.newPage=async opts=&gt;{const page=await newPage(opts);const back=page.goBack.bind(page);page.goBack=opts=&gt;back({...opts,waitUntil:&#x27;commit&#x27;});return page;};return browser;};
+rr(&#x27;./scripts/replay-p0/run.cjs&#x27;).runProbe({scenario:&#x27;race&#x27;,mode:&#x27;bfcache&#x27;}).then(result=&gt;{assert.equal(result.bfcacheVerification,&#x27;pass&#x27;);assert.equal(result.restored,true);assert.equal(result.restoredStatus.phase,&#x27;CLOSED&#x27;);assert.equal(result.restoredStatus.networkStarts.length,0);assert.equal(result.restoredStatus.sdkStarts,1);assert.equal(result.restoredStatus.observers,0);assert.deepEqual(result.external,[]);fs.writeFileSync(__dirname+&#x27;/bfcache-repeat.json&#x27;,JSON.stringify(result,null,2));console.log(&#x27;PASS actual BFCache restore, closed barrier, no restart or Replay fetch, observers cleared&#x27;);}).catch(e=&gt;{console.error(e);process.exitCode=1;});
+</code></pre></details>
+<details><summary>background-probe.cjs</summary><pre><code>&#x27;use strict&#x27;;
+const { createRequire } = require(&#x27;node:module&#x27;);
+const requireRoot = createRequire(process.cwd() + &#x27;/package.json&#x27;);
+const {chromium}=requireRoot(&#x27;playwright&#x27;);
+const {spawn}=require(&#x27;node:child_process&#x27;);
+const fs=require(&#x27;node:fs&#x27;),os=require(&#x27;node:os&#x27;),path=require(&#x27;node:path&#x27;),assert=require(&#x27;node:assert/strict&#x27;);
+const wait=ms=&gt;new Promise(r=&gt;setTimeout(r,ms));
+let browser,owner;
+const originalLaunch=chromium.launch.bind(chromium);
+chromium.launch=async()=&gt;{
+ const {freePort}=requireRoot(&#x27;./scripts/envelope-test/harness&#x27;);const port=await freePort();
+ owner=await originalLaunch({channel:&#x27;chromium&#x27;,headless:false,ignoreDefaultArgs:[&#x27;--disable-background-timer-throttling&#x27;,&#x27;--disable-backgrounding-occluded-windows&#x27;,&#x27;--disable-renderer-backgrounding&#x27;],args:[&#x27;--remote-debugging-port=&#x27;+port]});
+ browser=await chromium.connectOverCDP(&#x27;http://127.0.0.1:&#x27;+port,{noDefaults:true});
+ const ctx=browser.contexts()[0];
+ browser.newPage=async options=&gt;{const page=await ctx.newPage();await page.setViewportSize(options.viewport);await page.bringToFront();return page;};
+ const disconnect=browser.close.bind(browser);
+ browser.close=async()=&gt;{await owner.close();await disconnect().catch(()=&gt;{});};
+ return browser;
+};
+const scenarios=requireRoot(&#x27;./scripts/replay-p0/scenarios.cjs&#x27;);
+scenarios.exerciseRace=async page=&gt;{
+ await page.bringToFront();
+ assert.equal(await page.evaluate(()=&gt;document.visibilityState),&#x27;visible&#x27;);
+ await page.evaluate(async()=&gt;{window.p0Trial=window.replayP0.createTrial(&#x27;bfcache&#x27;,true);await p0Trial.prepare();window.timerTicks=[];window.realVisibility=[];document.addEventListener(&#x27;visibilitychange&#x27;,()=&gt;realVisibility.push({at:performance.now(),hidden:document.hidden,...p0Trial.status()}));window.tickEnabled=true;function tick(){timerTicks.push({at:performance.now(),hidden:document.hidden});if(tickEnabled)setTimeout(tick,50);}tick();});
+ await page.waitForFunction(()=&gt;p0Boundary.workerInits&gt;0,undefined,{timeout:5000});
+ assert.equal(await page.evaluate(()=&gt;p0Trial.status().phase),&#x27;RECORDING&#x27;);
+ await wait(1000);
+ const cover=await page.context().newPage();await cover.goto(new URL(&#x27;/blank&#x27;,page.url()).href);await cover.bringToFront();
+ await page.waitForFunction(()=&gt;document.hidden,undefined,{polling:100,timeout:5000});
+ const hidden=await page.evaluate(()=&gt;({...p0Trial.status(),hidden:document.hidden}));
+ assert.equal(hidden.phase,&#x27;CLOSED&#x27;);
+ await wait(10000);
+ const whileHidden=await page.evaluate(()=&gt;({status:p0Trial.status(),ticks:timerTicks.slice(),visibility:realVisibility.slice()}));
+ await page.bringToFront();await page.waitForFunction(()=&gt;!document.hidden,undefined,{timeout:5000});
+ await page.evaluate(async()=&gt;{await p0Trial.prepare();await p0Trial.flush();window.tickEnabled=false;});
+ await page.waitForFunction(()=&gt;p0Trial.status().cleanup!==&#x27;pending&#x27;,undefined,{timeout:6000});
+ const after=await page.evaluate(()=&gt;({...p0Trial.status(),observers:p0Boundary.observerCount(),hidden:document.hidden,visibility:realVisibility.slice()}));
+ const gaps=whileHidden.ticks.slice(1).map((x,i)=&gt;({gap:x.at-whileHidden.ticks[i].at,hidden:x.hidden&amp;&amp;whileHidden.ticks[i].hidden,visible:!x.hidden&amp;&amp;!whileHidden.ticks[i].hidden}));
+ const values=key=&gt;gaps.filter(x=&gt;x[key]).map(x=&gt;x.gap).sort((a,b)=&gt;a-b);
+ const h=values(&#x27;hidden&#x27;),v=values(&#x27;visible&#x27;);
+ const median=a=&gt;a[Math.floor(a.length/2)];
+ assert.ok(h.length&gt;=3);assert.ok(median(h)&gt;=500);assert.ok(median(v)&lt;200);
+ assert.equal(after.phase,&#x27;CLOSED&#x27;);assert.equal(after.sdkStarts,1);assert.equal(after.networkStarts.length,0);assert.equal(after.observers,0);assert.equal(after.cleanup,&#x27;resolved&#x27;);
+ return {sdkVersion:&#x27;9.47.1&#x27;,browserVersion:browser.version(),realBackground:true,hidden,whileHidden,after,timing:{requestedMs:50,backgroundDurationMs:10000,visibleMedianMs:median(v),hiddenMedianMs:median(h),hiddenGaps:h},launch:{noDefaults:true,headless:false,throttlingDisableFlags:false},status:&#x27;pass&#x27;};
+};
+const http=require(&#x27;node:http&#x27;);const create=http.createServer.bind(http);http.createServer=handler=&gt;create((q,r)=&gt;{console.log(&#x27;SERVER&#x27;,q.url);r.setHeader(&#x27;Content-Security-Policy&#x27;,&quot;default-src &#x27;self&#x27;; script-src &#x27;self&#x27; &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27;; style-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;; worker-src &#x27;self&#x27; blob:; connect-src &#x27;self&#x27;; img-src &#x27;self&#x27; data:;&quot;);return handler(q,r);});
+const {runProbe}=requireRoot(&#x27;./scripts/replay-p0/run.cjs&#x27;);
+runProbe({scenario:&#x27;race&#x27;,mode:&#x27;hidden&#x27;}).then(r=&gt;{assert.deepEqual(r.external,[]);fs.writeFileSync(path.join(__dirname,&#x27;background.json&#x27;),JSON.stringify(r,null,2));console.log(JSON.stringify({status:r.status,timing:r.timing,after:r.after,external:r.external}));}).catch(async e=&gt;{console.error(e);await owner?.close();process.exitCode=1;});
+</code></pre></details>
+<details><summary>font-mock.cjs</summary><pre><code>module.exports = new Proxy({}, {get: () =&gt; &quot;@font-face {font-family: Inter; src: local(Arial); font-weight: 100 900; font-style: normal;}&quot;});
+</code></pre></details>
+<details><summary>loopback-only.cjs</summary><pre><code>const fetch=globalThis.fetch;
+globalThis.fetch=(input,...args)=&gt;{const url=new URL(typeof input===&#x27;string&#x27;||input instanceof URL?String(input):input.url);if(![&#x27;127.0.0.1&#x27;,&#x27;localhost&#x27;,&#x27;[::1]&#x27;].includes(url.hostname))throw Error(&#x27;test-only-external-fetch-blocked:&#x27;+url.hostname);return fetch(input,...args);};
+</code></pre></details>
+<details><summary>product-server.cjs</summary><pre><code>&#x27;use strict&#x27;;
+const http=require(&#x27;node:http&#x27;),fs=require(&#x27;node:fs&#x27;),path=require(&#x27;node:path&#x27;);const {spawn}=require(&#x27;node:child_process&#x27;);
+const out=__dirname, root=process.cwd();
+const server=http.createServer((req,res)=&gt;{req.resume();res.setHeader(&#x27;access-control-allow-origin&#x27;,&#x27;*&#x27;);res.setHeader(&#x27;content-type&#x27;,&#x27;application/json&#x27;);const url=new URL(req.url,&#x27;http://localhost&#x27;);let body=[];if(url.pathname===&#x27;/rest/v1/banner&#x27;)body=Array.from({length:4},(_,i)=&gt;({id:i+1,title:{ko:&#x27;합성 배너 &#x27;+(i+1),en:&#x27;Synthetic banner &#x27;+(i+1)},image:null,link:null,duration:3600,start_at:&#x27;2020-01-01T00:00:00Z&#x27;,end_at:&#x27;2099-01-01T00:00:00Z&#x27;,deleted_at:null,order:i,location:&#x27;vote&#x27;}));fs.appendFileSync(path.join(out,&#x27;product-backend.log&#x27;),req.method+&#x27; &#x27;+url.pathname+&#x27;\n&#x27;);res.end(JSON.stringify(body));});
+server.listen(0,&#x27;127.0.0.1&#x27;,()=&gt;{const upstream=server.address().port;const env={PATH:process.env.PATH,HOME:process.env.HOME,TMPDIR:process.env.TMPDIR,NODE_ENV:&#x27;development&#x27;,NEXT_TELEMETRY_DISABLED:&#x27;1&#x27;,ENVELOPE_TEST:&#x27;1&#x27;,BUILD_VERSION:&#x27;replay-local-probe&#x27;,NEXT_PUBLIC_SUPABASE_URL:`http://127.0.0.1:${upstream}`,NEXT_PUBLIC_SUPABASE_ANON_KEY:&#x27;synthetic-anon-key&#x27;,SUPABASE_URL:`http://127.0.0.1:${upstream}`,SUPABASE_ANON_KEY:&#x27;synthetic-anon-key&#x27;,SUPABASE_SERVICE_ROLE_KEY:&#x27;&#x27;,SENTRY_DSN:&#x27;&#x27;,SENTRY_AUTH_TOKEN:&#x27;&#x27;,NEXT_PUBLIC_SENTRY_DSN:&#x27;&#x27;,NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE:&#x27;0&#x27;,NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE:&#x27;0&#x27;,NEXT_PUBLIC_SITE_URL:&#x27;http://127.0.0.1:53921&#x27;,NEXT_FONT_GOOGLE_MOCKED_RESPONSES:path.join(out,&#x27;font-mock.cjs&#x27;),NODE_OPTIONS:`--require=${path.join(out,&#x27;loopback-only.cjs&#x27;)}`};
+ const log=fs.openSync(path.join(out,&#x27;product-next.log&#x27;),&#x27;w&#x27;);const child=spawn(path.join(root,&#x27;node_modules/.bin/next&#x27;),[&#x27;dev&#x27;,&#x27;--hostname&#x27;,&#x27;127.0.0.1&#x27;,&#x27;--port&#x27;,&#x27;53921&#x27;],{cwd:root,env,stdio:[&#x27;ignore&#x27;,log,log]});fs.writeFileSync(path.join(out,&#x27;product-server.json&#x27;),JSON.stringify({pid:process.pid,nextPid:child.pid,upstream,port:53921}));console.log(&#x27;local product probe server pid&#x27;,child.pid);process.on(&#x27;SIGTERM&#x27;,()=&gt;{child.kill(&#x27;SIGTERM&#x27;);server.close();});child.on(&#x27;exit&#x27;,code=&gt;{server.close();process.exitCode=code||0;});});
+</code></pre></details>
+<details><summary>product-probe.cjs</summary><pre><code>&#x27;use strict&#x27;;
+const {createRequire}=require(&#x27;node:module&#x27;);const rr=createRequire(process.cwd()+&#x27;/package.json&#x27;);
+const {chromium}=rr(&#x27;playwright&#x27;);const fs=require(&#x27;fs&#x27;);const {build}=rr(&#x27;esbuild&#x27;);const assert=require(&#x27;node:assert/strict&#x27;);
+(async()=&gt;{const b=await chromium.launch({headless:true,channel:&#x27;chromium&#x27;});try{const p=await b.newPage({viewport:{width:1280,height:900}});const blocked=[],errors=[],receipts=[];p.on(&#x27;pageerror&#x27;,e=&gt;errors.push(String(e)));await p.route(&#x27;**/*&#x27;,route=&gt;{const u=new URL(route.request().url());if(u.pathname===&#x27;/replay&#x27;||u.pathname===&#x27;/api/1/envelope/&#x27;){receipts.push(u.pathname);return route.fulfill({status:200,contentType:&#x27;application/json&#x27;,body:&#x27;{}&#x27;});}if([&#x27;127.0.0.1&#x27;,&#x27;localhost&#x27;].includes(u.hostname))return route.continue();blocked.push(u.origin);return route.abort();});const bundle=await build({entryPoints:[&#x27;scripts/replay-p0/browser-entry.ts&#x27;],bundle:true,platform:&#x27;browser&#x27;,format:&#x27;iife&#x27;,write:false,define:{&#x27;process.env.NODE_ENV&#x27;:&#x27;\&quot;test\&quot;&#x27;}});const worker=await build({entryPoints:[&#x27;scripts/replay-p0/worker-entry.ts&#x27;],bundle:true,platform:&#x27;browser&#x27;,format:&#x27;iife&#x27;,write:false,define:{&#x27;process.env.NODE_ENV&#x27;:&#x27;\&quot;test\&quot;&#x27;}});await p.route(&#x27;**/worker.js&#x27;,r=&gt;r.fulfill({contentType:&#x27;application/javascript&#x27;,body:Buffer.from(worker.outputFiles[0].contents)}));const response=await p.goto(&#x27;http://127.0.0.1:53921/ko/vote&#x27;,{waitUntil:&#x27;domcontentloaded&#x27;,timeout:90000});await p.waitForSelector(&#x27;main&#x27;,{timeout:15000});await p.waitForTimeout(2000);const report=await p.evaluate(()=&gt;({title:document.title,tagNames:[...new Set([...document.querySelectorAll(&#x27;*&#x27;)].map(e=&gt;e.tagName.toLowerCase()))],nodes:document.querySelectorAll(&#x27;*&#x27;).length,shadows:[...document.querySelectorAll(&#x27;*&#x27;)].filter(e=&gt;e.shadowRoot).map(e=&gt;({tag:e.tagName,children:e.shadowRoot.querySelectorAll(&#x27;*&#x27;).length})),bannerCount:document.querySelectorAll(&#x27;.banner-slide&#x27;).length,stylesheets:document.styleSheets.length,bannerStyle:document.querySelector(&#x27;.banner-track&#x27;)?.getAttribute(&#x27;style&#x27;)}));console.log(JSON.stringify({status:response.status(),...report,errors,blocked}));fs.writeFileSync(__dirname+&#x27;/product-initial.json&#x27;,JSON.stringify({status:response.status(),...report,errors,blocked},null,2));await p.screenshot({path:__dirname+&#x27;/product-initial.png&#x27;,fullPage:true});
+ const actions=[];
+ for(const width of [1280,390]){await p.setViewportSize({width,height:900});await p.waitForTimeout(700);const before=await p.locator(&#x27;.banner-track&#x27;).getAttribute(&#x27;style&#x27;);await p.getByRole(&#x27;button&#x27;,{name:&#x27;다음 배너&#x27;,exact:true}).click();await p.waitForTimeout(600);const after=await p.locator(&#x27;.banner-track&#x27;).getAttribute(&#x27;style&#x27;);actions.push({width,before,after,slides:await p.locator(&#x27;.banner-slide&#x27;).count()});assert.notEqual(before,after);await p.screenshot({path:__dirname+&#x27;/product-&#x27;+width+&#x27;.png&#x27;,fullPage:true});}
+ await p.addScriptTag({content:Buffer.from(bundle.outputFiles[0].contents).toString()});
+ const gate=await p.evaluate(async()=&gt;{window.p0Trial=window.replayP0.createTrial(&#x27;bfcache&#x27;,false);await p0Trial.prepare();const before=p0Trial.status();await p0Trial.flush();return {before,after:p0Trial.status()};});
+ await p.waitForFunction(()=&gt;p0Trial.status().cleanup!==&#x27;pending&#x27;,undefined,{timeout:8000});
+ const final=await p.evaluate(()=&gt;p0Trial.status());assert.equal(final.phase,&#x27;CLOSED&#x27;);assert.equal(final.closeReason,&#x27;schema&#x27;);assert.equal(final.networkStarts.length,0);assert.equal(receipts.filter(x=&gt;x===&#x27;/replay&#x27;).length,0);
+ fs.writeFileSync(__dirname+&#x27;/product-replay-probe.json&#x27;,JSON.stringify({initial:report,actions,gate,final,replayReceipts:receipts.filter(x=&gt;x===&#x27;/replay&#x27;).length,errors,blocked},null,2));console.log(JSON.stringify({actions,gate,final,replayReceipts:receipts.filter(x=&gt;x===&#x27;/replay&#x27;).length}));
+}finally{await b.close();}})().catch(e=&gt;{console.error(e);process.exitCode=1});
+</code></pre></details>
+<h2>참고</h2><p><a href="https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp-option-no-defaults">Playwright의 noDefaults 설정</a>은 기본 컨텍스트의 포커스 강제 설정을 적용하지 않는 옵션이다. <a href="https://developer.chrome.com/blog/timer-throttling-in-chrome-88/">Chrome의 timer throttling 설명</a>은 숨김 타이머를 묶어 실행하는 동작을 설명한다. 문서의 일반 설명과 이번 환경의 실측값은 구분했다.</p><p><a href="2026-10-14-replay-collection-design.html">기존 설계</a> · <a href="2026-10-14-replay-p0-implementation-result.html">P0 구현 결과</a></p></main></body></html>
