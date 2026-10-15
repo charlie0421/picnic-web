@@ -3,14 +3,19 @@ import { parseStyle, styleString, type StyleCheck } from '../engine/style';
 import type { Contract } from '../engine/types';
 import { bag, decimalPx, integer, maskText, Rejected, requireValue, type Bag } from '../engine/values';
 
+/** One accepted input serialization of a stylesheet. engine names the browser that produced it. */
+export type CssVariant = { engine: string; sha256: string; text: string };
+/** A stylesheet: the inputs the contract accepts and the only text it emits for them. */
+export type CssEntry = { accept: CssVariant[]; output: { sha256: string; text: string } };
 export type VoteListManifest = {
-  version: 1; buildId: string; sdkVersion: string; release: string; environment: string;
+  version: 2; generatedFrom: { buildId: string; origin: string; commit: string };
+  sdkVersion: string; release: string; environment: string;
   viewport: string; announcerStyle: string;
-  linkCss: { asset: string; sourceSha256: string; wireSha256: string; wire: string }[];
-  styleText: { sha256: string; text: string }[];
+  linkCss: (CssEntry & { asset: string; sourceSha256: string })[];
+  styleText: CssEntry[];
   classes: string[]; statusColors: string[];
 };
-export type VoteListOptions = { manifest: VoteListManifest; buildId: string; bannerCount: number };
+export type VoteListOptions = { manifest: VoteListManifest; origin: string; bannerCount: number };
 
 const TAGS = ['html', 'head', 'body', 'meta', 'title', 'link', 'style', 'div', 'span', 'a', 'button', 'img', 'svg',
   'header', 'main', 'section', 'footer', 'h3', 'p', 'next-route-announcer'];
@@ -20,14 +25,33 @@ const POSITIONS = new Set(['static', 'relative', 'absolute', 'fixed', 'sticky'])
 const MEDIA = new Set(['img', 'svg']);
 const HEAD_STATIC = new Set(['meta', 'link', 'style', 'title']);
 const sameKeys = (a: Bag, keys: string[]) => Object.keys(a).length === keys.length && keys.every(k => Object.hasOwn(a, k));
+const ORIGIN = /^https?:\/\/[a-z0-9.-]+(?::[0-9]{1,5})?$/;
+/** rrweb records `url(/x)` in a stylesheet as `url("<origin>/x")`. Undo that for one origin before comparing. */
+export function normalizeCssOrigin(text: string, origin: string): string {
+  return text.split(`url("${origin}/`).join('url("/');
+}
+/** Maps every accepted input text to its entry's output text. One input text in two entries is a manifest error. */
+function cssLookup(entries: readonly CssEntry[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const entry of entries) {
+    for (const variant of entry.accept) { requireValue(!map.has(variant.text)); map.set(variant.text, entry.output.text); }
+  }
+  return map;
+}
 
 export function createVoteListContract(o: VoteListOptions): Contract {
-  requireValue(o.buildId === o.manifest.buildId);
+  requireValue(o.manifest.version === 2);
+  requireValue(typeof o.origin === 'string' && ORIGIN.test(o.origin));
   const bannerCount = integer(o.bannerCount, 0, 100);
   const m = o.manifest;
   const classes = new Set(m.classes);
-  const linkCss = new Set(m.linkCss.map(c => c.wire));
-  const styleTexts = new Set(m.styleText.map(s => s.text));
+  const linkCss = cssLookup(m.linkCss);
+  const styleTexts = cssLookup(m.styleText);
+  /** The manifest output for a received stylesheet text. A text the manifest does not accept closes the replay. */
+  const css = (map: Map<string, string>, raw: unknown): string => {
+    requireValue(typeof raw === 'string');
+    const out = map.get(normalizeCssOrigin(raw, o.origin)); requireValue(out !== undefined); return out;
+  };
   const colors = new Set(m.statusColors);
   const check: StyleCheck = (property, value, priority) => {
     let out: string;
@@ -85,7 +109,7 @@ export function createVoteListContract(o: VoteListOptions): Contract {
         return undefined;
       }
       if (tag === 'link') {
-        if (node.mark === 'css' && key === '_cssText') { requireValue(linkCss.has(raw as string)); return raw as string; }
+        if (node.mark === 'css' && key === '_cssText') return css(linkCss, raw);
         if (node.mark === 'placeholder') { requireValue(raw === '0px'); return raw; }
         return undefined;
       }
@@ -119,7 +143,7 @@ export function createVoteListContract(o: VoteListOptions): Contract {
       if (parent?.tag === 'title') { requireValue(typeof raw === 'string'); return ''; }
       return maskText(raw);
     },
-    styleText(raw) { requireValue(typeof raw === 'string' && styleTexts.has(raw)); return raw; },
+    styleText(raw) { return css(styleTexts, raw); },
     checkElement(entry, state) {
       if (MEDIA.has(entry.tag!)) requireValue(entry.children.length === 0 && 'rr_width' in entry.attrs && 'rr_height' in entry.attrs);
       if (entry.shadow === 'root') requireValue(entry.attrs.style === m.announcerStyle && entry.attrs.role === 'alert');

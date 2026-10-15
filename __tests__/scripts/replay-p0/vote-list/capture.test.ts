@@ -13,7 +13,7 @@ import { outputText } from './helpers';
 
 const manifest = manifestJson as VoteListManifest;
 const dir = join(__dirname, '../../../../scripts/replay-p0/fixtures/vote-list');
-const contract = () => createVoteListContract({ manifest, buildId: manifest.buildId, bannerCount: 5 });
+const contract = () => createVoteListContract({ manifest, origin: manifest.generatedFrom.origin, bannerCount: 5 });
 type Records = any[];
 function load(width: number, segment: number, compressed: boolean, edit?: (r: Records) => void): Envelope {
   const e = parseBrowserEnvelope(readFileSync(join(dir, `wire-${width}-${segment + 1}.bin`)));
@@ -34,7 +34,8 @@ async function runAll(width: number, compressed: boolean, edit?: { segment: numb
   }
   return { reason: 'ok', segment: 3, outputs };
 }
-const FORBIDDEN = ['127.0.0.1', '/_next/image', 'http', 'aria-label', '다음 배너', 'Synthetic', '__next-route-announcer__', 'googlesyndication'];
+const FORBIDDEN = ['127.0.0.1', '/_next/image', 'http', 'aria-label', '다음 배너', 'Synthetic', '__next-route-announcer__', 'googlesyndication',
+  'url(', '/_next/static/media', '.woff2'];
 function walkNodes(records: Records, fn: (n: any) => void) {
   JSON.stringify(records, (k, v) => { if (v && typeof v === 'object' && v.type === 2 && 'tagName' in v) fn(v); return v; });
 }
@@ -63,6 +64,14 @@ const firstImg = (r: Records) => { let img: any; walkNodes(r, n => { if (!img &&
 const firstSvg = (r: Records) => { let svg: any; walkNodes(r, n => { if (!svg && n.tagName === 'svg') svg = n; }); return svg; };
 const firstDiv = (r: Records) => { let div: any; walkNodes(r, n => { if (!div && n.tagName === 'div' && !n.isShadow) div = n; }); return div; };
 const snapshotOf = (r: Records) => r.find(x => x.type === 2);
+const fontLink = (r: Records) => {
+  let link: any;
+  JSON.stringify(snapshotOf(r), (k, v) => {
+    if (!link && v && v.attributes && typeof v.attributes._cssText === 'string' && v.attributes._cssText.includes('@font-face')) link = v;
+    return v;
+  });
+  return link;
+};
 const incrementalAt = (r: Records) => r.find(x => x.type === 3)?.timestamp ?? r.at(-1).timestamp;
 const TAMPER: [string, number, (r: Records) => void, string][] = [
   ['img src in snapshot', 0, r => { firstImg(snapshotOf(r)).attributes.src = '/x.png'; }, 'schema'],
@@ -87,6 +96,13 @@ const TAMPER: [string, number, (r: Records) => void, string][] = [
     const img = add.data.adds.find((a: any) => a.node.tagName === 'img').node;
     add.data.attributes.push({ id: img.id, attributes: { src: '/x.png' } });
   }, 'schema'],
+  ['font CSS from another origin', 0, r => {
+    const l = fontLink(r); l.attributes._cssText = l.attributes._cssText.split('http://127.0.0.1:53931/').join('https://evil.example/');
+  }, 'schema'],
+  ['font face with a URL added', 0, r => {
+    fontLink(r).attributes._cssText += '@font-face { font-family: X; src: url("http://127.0.0.1:53931/_next/static/media/ffffffffffffffff-s.woff2") format("woff2"); }';
+  }, 'schema'],
+  ['font CSS changed by one byte', 0, r => { fontLink(r).attributes._cssText += ' '; }, 'schema'],
 ];
 
 describe('vote-list capture counterexamples', () => {

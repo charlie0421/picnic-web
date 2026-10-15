@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay 배포 빌드 manifest 계획</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172331;font:16px/1.7 system-ui,-apple-system,sans-serif}main{max-width:1040px;margin:28px auto;padding:32px;background:white;border:1px solid #dce3ed;border-radius:12px}h1{font-size:1.8rem;line-height:1.35}h2{margin-top:2.2rem;font-size:1.3rem;border-top:1px solid #dce3ed;padding-top:1.2rem}h3{font-size:1.08rem;margin-top:1.6rem}p,li,td,th,code{overflow-wrap:anywhere}a{color:#215b9a}code,pre{font-family:ui-monospace,monospace;font-size:.86em}code{background:#edf3fa;padding:1px 3px}pre{padding:14px;background:#edf3fa;overflow-x:auto;white-space:pre}pre code{background:none;padding:0}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.93rem}th,td{border:1px solid #dce3ed;padding:8px;text-align:left;vertical-align:top}th{background:#edf3fa}li{margin:4px 0}li.task-list-item{list-style:none}blockquote{margin:0;padding:12px 16px;border-left:4px solid #bc7b13;background:#fff8e9}@media(max-width:600px){main{margin:8px;padding:16px}h1{font-size:1.5rem}}</style>
+</head>
+<body><main>
+<h1>Replay 배포 빌드용 CSS manifest 구현 계획</h1>
+<blockquote>
+<p><strong>실행 작업자에게:</strong> 이 계획은 작업 단위로 실행한다. 필수 하위 스킬: <code>superpowers:subagent-driven-development</code>(권장) 또는 <code>superpowers:executing-plans</code>. 각 단계의 체크 상자(☐)로 진행 상태를 기록한다. 작업자를 만들기 전에 사용자 전역 지침의 사용량 게이트와 교차 공급자 리뷰 규칙을 적용한다.</p>
+</blockquote>
+<p><strong>목표:</strong> 실제 글꼴을 쓰는 production 설정 빌드에서 투표 목록 CSS manifest(v2)를 생성하고, 그 빌드가 production과 같은지 확인하는 절차와 도구를 만든다.</p>
+<p><strong>구조:</strong> 계약은 수신 CSS를 origin 정규화 뒤 manifest의 <code>accept</code> 텍스트와 정확히 비교하고, 항상 manifest의 <code>output</code> 텍스트를 출력한다. 생성기는 빌드 CSS를 CSSOM 규칙 단위로 검사해 build 글꼴 파일을 쓰는 <code>@font-face</code>만 <code>output</code>에서 뺀다. 빌드·캡처·production 대조·엔진 비교 도구를 <code>scripts/replay-p0/tools/</code>에 커밋한다.</p>
+<p><strong>기술:</strong> TypeScript(<code>tsconfig</code> target es5, <code>downlevelIteration</code> 없음 → Set·Map·iterator를 spread하지 않고 <code>Array.from</code>을 쓴다), Vitest(<code>// @vitest-environment node</code>), postcss 8, postcss-selector-parser, esbuild 0.28.2, tsx 4, Playwright 1.63.0, Next 15.5.26, <code>@sentry-internal/replay</code> 9.47.1, styled-jsx 5.1.6.</p>
+<p><strong>Spec:</strong> <a href="2026-10-15-replay-build-manifest-design.html">docs/reports/2026-10-15-replay-build-manifest-design.html</a> (커밋 <code>42fab2cb</code>)</p>
+<p><strong>작업 위치:</strong> <code>/Users/charlie.hyun/Repositories/picnic-web-replay-build-manifest</code> (브랜치 <code>feat/replay-build-manifest</code>). 의존성은 <code>npm ci</code>로 설치했다. 모든 명령은 이 디렉터리에서 실행한다.</p>
+<p><strong>증거 폴더:</strong> <code>E=.superpowers/sdd/2026-10-15-replay-build-manifest</code> (git 무시). 실행 기록, 서버 로그, 캡처, 비교 결과를 여기에 둔다.</p>
+<h2>Global Constraints</h2>
+<ul>
+<li>제품 <code>app/</code>·<code>components/</code>·<code>lib/</code>를 바꾸거나 새 코드에서 import하지 않는다. 모든 코드는 <code>scripts/replay-p0/</code> 아래에 둔다.</li>
+<li><code>scripts/replay-p0/engine/*.ts</code>, <code>contracts/p0-fixture.ts</code>, <code>controller.ts</code>·<code>transport.ts</code>·<code>correlation.ts</code>·<code>worker-*.ts</code>의 동작을 바꾸지 않는다.</li>
+<li>출력에는 URL이 없다. 예외는 Meta href <code>https://replay.invalid/ko/vote</code> 하나다. 출력 CSS는 manifest의 <code>output</code> 텍스트뿐이다.</li>
+<li>manifest는 <code>version: 2</code>다. 이 작업은 <code>accept</code>에 <code>engine: 'chromium'</code> 변형만 만든다.</li>
+<li><code>origin</code> 형식: <code>^https?://[a-z0-9.-]+(:[0-9]{1,5})?$</code>.</li>
+<li>허용 글꼴 URL 경로: <code>^/_next/static/media/[0-9a-f]{16}(-s)?(\.p)?\.woff2$</code>, 각 URL 뒤에 <code>format(&quot;woff2&quot;)</code>.</li>
+<li>포트: Next 53931, upstream 59862. 사용 중이면 멈춘다. 다른 프로세스를 종료하지 않는다. 끝나면 <code>server.json</code>의 <code>pid</code>만 종료한다.</li>
+<li>외부 요청: 빌드 단계는 loopback과 <code>fonts.googleapis.com</code>·<code>fonts.gstatic.com</code>만, 서빙 단계는 loopback만 허용한다.</li>
+<li>제품 <code>.env*</code>와 운영 Sentry DSN을 쓰지 않는다. 워크트리에 <code>.env*</code>를 복사하지 않는다.</li>
+<li>production 접근은 <code>https://www.picnic.fan</code>의 공개 자산 GET뿐이다. production 사이트에서 녹화하지 않는다.</li>
+<li>fixture에는 합성 데이터와 loopback URL만 있다. fixture를 저장소 밖으로 보내지 않는다.</li>
+<li>문서는 HTML로 <code>docs/reports/</code>에 둔다. <code>.gitignore</code>의 <code>reports/</code> 규칙 때문에 <code>git add -f</code>로 추가한다.</li>
+<li>커밋: Conventional Commits, 끝에 <code>Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;</code>.</li>
+<li>버전 고정: SDK 9.47.1, styled-jsx 5.1.6. 버전이 바뀌면 생성기가 멈춘다(지금과 같다).</li>
+</ul>
+<h2>Review Focus</h2>
+<ol>
+<li><strong>따옴표가 다른 글꼴 URL</strong> (<code>url('&lt;origin&gt;/…')</code>, <code>url(&lt;origin&gt;/…)</code>): 정규화 대상이 아니므로 <code>accept</code>와 맞지 않아 <code>schema</code>로 종료해야 한다. → 작업 1에 시험.</li>
+<li><strong>path나 끝 slash가 붙은 origin 옵션</strong> (<code>https://www.picnic.fan/</code>, <code>https://www.picnic.fan/ko</code>): 정규화가 조용히 실패하지 않도록 계약 생성에서 거부해야 한다. → 작업 1에 시험.</li>
+<li><strong>같은 글꼴 CSS를 가진 link 두 개</strong>: 두 노드 모두 같은 <code>output</code>을 출력해야 한다. → 작업 1에 시험.</li>
+<li><strong>한 <code>src</code>에 build 글꼴 파일 여러 개, 또는 허용 URL과 다른 source 혼합</strong>: 모두 허용 형식이면 규칙 전체를 빼고, 하나라도 다르면 생성 실패여야 한다. → 작업 2에 시험.</li>
+<li><strong>워크트리에 제품 <code>.env.local</code>이 있는 상태에서 서버 시작</strong>: 빌드를 시작하지 않아야 한다. → 작업 3에 시험.</li>
+</ol>
+<h2>파일 구조</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>경로</th>
+<th>책임</th>
+<th>변경</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scripts/replay-p0/contracts/vote-list.ts</code></td>
+<td>v2 manifest 타입, <code>normalizeCssOrigin</code>, 옵션 <code>{manifest, origin, bannerCount}</code>, CSS 식별과 manifest 출력</td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/contracts/vote-list.css-manifest.json</code></td>
+<td>작업 1: v1을 v2 형식으로 기계 변환. 작업 8: 실제 글꼴 빌드에서 재생성</td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/vote-list-restore-entry.ts</code></td>
+<td>계약에 <code>origin</code> 전달</td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/vote-list-restore.cjs</code></td>
+<td>네트워크 차단, 대조군 비교, 차이 분류, 글꼴 영향 기록. <code>compare</code>·<code>classifyFailures</code>·<code>fontEffect</code> export</td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/tools/build-css-manifest.cjs</code></td>
+<td>v2 생성기, <code>splitFontRules</code>, <code>normalizeCssOrigin</code>, <code>summarizeManifest</code>, <code>--build-dir</code>, <code>--previous</code></td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/tools/net-guard.cjs</code></td>
+<td>Next 프로세스에 preload하는 외부 요청 차단기. <code>hostAllowed</code>·<code>hostOf</code> export</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/tools/font-mock.cjs</code></td>
+<td><code>--font-mock</code>용 <code>NEXT_FONT_GOOGLE_MOCKED_RESPONSES</code> 모듈</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/tools/vote-list-upstream.cjs</code></td>
+<td>합성 banner·vote 데이터와 PostgREST 흉내 서버</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/tools/vote-list-server.cjs</code></td>
+<td>production 설정 빌드·서빙, <code>.env*</code>·포트 확인, 설정 파일 복원</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/tools/vote-list-capture.cjs</code></td>
+<td>엔진별 캡처, 원본 측정(원문·마스킹·대조군)</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/tools/check-production-css.cjs</code></td>
+<td>production 동등성 확인. <code>extractPageRefs</code>·<code>compareProduction</code> export</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/tools/compare-engine-css.ts</code></td>
+<td>WebKit·Firefox 측정(tsx로 실행). <code>cssRules</code>·<code>diffCssRules</code> export</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>scripts/replay-p0/fixtures/vote-list/wire-{1280,390}-{1,2,3}.bin</code></td>
+<td>실제 글꼴 빌드 캡처로 교체</td>
+<td>교체</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/helpers.ts</code></td>
+<td>v2 <code>MANIFEST</code>, 글꼴 상수, <code>ORIGIN</code></td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/contract.test.ts</code></td>
+<td>v2 생성 조건, origin, manifest 출력 시험</td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/capture.test.ts</code></td>
+<td><code>origin</code> 옵션, 금지 문자열, 글꼴 변조 반례</td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/manifest.test.ts</code></td>
+<td>v2 기대값</td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/css-manifest-generator.test.ts</code></td>
+<td>글꼴 규칙, 정규화 일치, 검토 요약</td>
+<td>수정</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/harness-tools.test.ts</code></td>
+<td>net-guard, <code>.env*</code> 확인, env 구성, upstream</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/restore-compare.test.ts</code></td>
+<td>차이 분류와 글꼴 영향</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/production-check.test.ts</code></td>
+<td>HTML 참조 추출과 동등성 비교</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>__tests__/scripts/replay-p0/vote-list/engine-compare.test.ts</code></td>
+<td>규칙 단위 차이</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>docs/reports/2026-10-15-replay-build-manifest-plan.html</code></td>
+<td>이 계획</td>
+<td>생성</td>
+</tr>
+<tr>
+<td><code>docs/reports/&lt;작성일&gt;-replay-build-manifest-result.html</code></td>
+<td>결과 보고서</td>
+<td>생성</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>미리 계산한 기대값 (2026-10-15 production 공개 자산과 Playwright 1.63.0 Chromium으로 계산):</strong> 로컬 실제 글꼴 빌드가 production과 같으면 작업 8의 manifest는 아래 값을 가진다. 다르면 작업 8 단계 7에서 멈추고 보고한다.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tailwind asset</td>
+<td><code>/_next/static/css/253f05d11a58abd2.css</code>, <code>sourceSha256</code> <code>144da3bc057b2042d21dfdc3dc5f33fcbe01fa2e620dc405404d594fbb56239c</code>, <code>accept</code>·<code>output</code> sha256 <code>a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d</code></td>
+</tr>
+<tr>
+<td>글꼴 asset</td>
+<td><code>/_next/static/css/a5b6ba8786c1e0e2.css</code>, <code>sourceSha256</code> <code>5d218a3a5e760187de9176137c0738276875a9d597bbf47360eb17c862afb1b8</code>, <code>accept</code> <code>b13bd1495a04b1a0fe88743b9a9f01bd0cc13bf7a4bb87645e4bad873fbef32b</code>, <code>output</code> <code>14d9b62f315ae2ac4a19c54ad5fd7aa00910a08204c2170e082e2e5e0748b49c</code></td>
+</tr>
+<tr>
+<td>글꼴 <code>output</code> 텍스트</td>
+<td><code>@font-face { font-family: &quot;Inter Fallback&quot;; src: local(&quot;Arial&quot;); ascent-override: 90.44%; descent-override: 22.52%; line-gap-override: 0%; size-adjust: 107.12%; }.__className_62543b { font-family: Inter, &quot;Inter Fallback&quot;; font-style: normal; }</code></td>
+</tr>
+<tr>
+<td>styled-jsx <code>output</code> sha256</td>
+<td><code>3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a</code>, <code>40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8</code>, <code>90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd</code> (v1과 같다)</td>
+</tr>
+</tbody>
+</table></div>
+<p>production chunk 36개에서 styled-jsx 원문 7개를 도출했고, 위 3개가 모두 그 안에 있음을 확인했다.</p>
+<hr />
+<h2>작업 1: 계약 v2 (manifest 출력, origin 정규화, BUILD_ID 결합 제거)</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>scripts/replay-p0/contracts/vote-list.ts</code></li>
+<li>Modify: <code>scripts/replay-p0/vote-list-restore-entry.ts:21</code></li>
+<li>Modify: <code>scripts/replay-p0/contracts/vote-list.css-manifest.json</code> (기계 변환)</li>
+<li>Modify: <code>__tests__/scripts/replay-p0/vote-list/helpers.ts</code>, <code>contract.test.ts</code>, <code>capture.test.ts:16</code>, <code>manifest.test.ts</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>
+<p>Produces: <code>type CssVariant = { engine: string; sha256: string; text: string }</code>; <code>type CssEntry = { accept: CssVariant[]; output: { sha256: string; text: string } }</code>; <code>type VoteListManifest</code>(v2, 아래); <code>type VoteListOptions = { manifest: VoteListManifest; origin: string; bannerCount: number }</code>; <code>normalizeCssOrigin(text: string, origin: string): string</code>; <code>createVoteListContract(o: VoteListOptions): Contract</code>.</p>
+</li>
+<li>
+<p>시험 helper: <code>ORIGIN = 'http://127.0.0.1:53931'</code>, <code>FONT_FACE</code>, <code>FONT_KEEP</code>, <code>fontWire(origin?)</code>, v2 <code>MANIFEST</code>.</p>
+</li>
+<li>
+<p>&#9744; <strong>단계 1: 기준선을 기록한다.</strong></p>
+</li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0 2&gt;&amp;1 | tail -4</code>
+Expected: 13개 파일, 228 PASS. 다른 수치면 멈추고 보고한다.</p>
+<ul>
+<li>&#9744; <strong>단계 2: 시험 helper를 v2로 바꾼다.</strong> <code>helpers.ts</code>의 <code>export const MANIFEST … };</code> 블록 전체를 아래로 바꾼다.</li>
+</ul>
+<pre><code class="language-ts">export const ORIGIN = 'http://127.0.0.1:53931';
+/** One CSS entry with a single Chromium input. The output defaults to the input. */
+const css = (text: string, output = text) =&gt; ({ accept: [{ engine: 'chromium', sha256: '0', text }], output: { sha256: '0', text: output } });
+export const FONT_FACE = '@font-face { font-family: Inter; src: url(&quot;/_next/static/media/0123456789abcdef-s.woff2&quot;) format(&quot;woff2&quot;); }';
+export const FONT_KEEP = '@font-face { font-family: &quot;Inter Fallback&quot;; src: local(&quot;Arial&quot;); }.__className_1 { font-family: Inter, &quot;Inter Fallback&quot;; }';
+/** Font CSS as rrweb records it: the font URL carries the stylesheet origin. */
+export const fontWire = (origin = ORIGIN) =&gt; (FONT_FACE + FONT_KEEP).replace('url(&quot;/', `url(&quot;${origin}/`);
+export const MANIFEST: VoteListManifest = {
+  version: 2, generatedFrom: { buildId: 'test-build', origin: ORIGIN, commit: '0' },
+  sdkVersion: '9.47.1', release: 'r', environment: 'e',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes',
+  announcerStyle: 'position: absolute; border: 0px; height: 1px; margin: -1px; padding: 0px; width: 1px; clip: rect(0px, 0px, 0px, 0px); overflow: hidden; white-space: nowrap; overflow-wrap: normal;',
+  linkCss: [
+    { asset: '/a.css', sourceSha256: '0', ...css('.a { color: red; }') },
+    { asset: '/font.css', sourceSha256: '0', ...css(FONT_FACE + FONT_KEEP, FONT_KEEP) },
+  ],
+  styleText: [css('.jsx-1.b { display: block; }')],
+  classes: ['a', 'b', 'banner-track', 'jsx-1'], statusColors: ['rgb(131, 251, 200)'],
+};
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 3: 계약 시험을 바꾸고 추가한다.</strong> <code>contract.test.ts</code>에서 import 두 줄과 <code>contract</code> 정의를 바꾼다.</li>
+</ul>
+<pre><code class="language-ts">import { createVoteListContract, type VoteListManifest } from '../../../../scripts/replay-p0/contracts/vote-list';
+import { el, envelope, findNode, FONT_KEEP, fontWire, MANIFEST, mutation, ORIGIN, outputRecords, outputText, page, T, txt, type RawNode } from './helpers';
+
+const contract = (bannerCount = 5) =&gt; createVoteListContract({ manifest: MANIFEST, origin: ORIGIN, bannerCount });
+</code></pre>
+<p><code>describe('vote-list contract: construction', …)</code> 블록 전체를 아래로 바꾼다.</p>
+<pre><code class="language-ts">describe('vote-list contract: construction', () =&gt; {
+  const make = (manifest: VoteListManifest, origin = ORIGIN) =&gt; () =&gt; createVoteListContract({ manifest, origin, bannerCount: 5 });
+  it('rejects a manifest that is not version 2', () =&gt; {
+    expect(make({ ...MANIFEST, version: 1 } as unknown as VoteListManifest)).toThrow();
+  });
+  it.each(['', 'https://www.picnic.fan/', 'https://www.picnic.fan/ko', 'HTTPS://WWW.PICNIC.FAN', 'ftp://x', 'http://x:123456', 'https://user@x'])(
+    'rejects origin %j', origin =&gt; { expect(make(MANIFEST, origin)).toThrow(); });
+  it.each(['https://www.picnic.fan', 'http://127.0.0.1:53931'])('accepts origin %s', origin =&gt; {
+    expect(make(MANIFEST, origin)).not.toThrow();
+  });
+  it('rejects one accept text in two entries of a list', () =&gt; {
+    expect(make({ ...MANIFEST, linkCss: [MANIFEST.linkCss[0], { ...MANIFEST.linkCss[0], asset: '/copy.css' }] })).toThrow();
+  });
+  it('rejects bannerCount outside 0…100', () =&gt; {
+    expect(() =&gt; contract(101)).toThrow(); expect(() =&gt; contract(-1)).toThrow();
+  });
+});
+</code></pre>
+<p><code>describe('vote-list contract: head', …)</code> 블록의 마지막 <code>it('empties title text mutations', …)</code> 뒤에 아래 시험을 추가한다.</p>
+<pre><code class="language-ts">  it('emits the manifest output for font CSS, without font URLs', async () =&gt; {
+    const link = el('link', { rel: null, href: null, 'data-precedence': 'next', _cssText: fontWire() });
+    const bytes = await ok(page([link], []));
+    expect(findNode(outputRecords(bytes), link.id as number).attributes).toEqual({ _cssText: FONT_KEEP });
+    for (const word of ['url(', '127.0.0.1', '.woff2']) expect(outputText(bytes)).not.toContain(word);
+  });
+  it('maps two links with the same font CSS to the same output', async () =&gt; {
+    const a = el('link', { _cssText: fontWire() }); const b = el('link', { _cssText: fontWire() });
+    const recs = outputRecords(await ok(page([a, b], [])));
+    expect(findNode(recs, a.id as number).attributes._cssText).toBe(FONT_KEEP);
+    expect(findNode(recs, b.id as number).attributes._cssText).toBe(FONT_KEEP);
+  });
+  it.each([
+    ['another origin', fontWire('https://evil.example')],
+    ['a single-quoted URL', fontWire().replace(/url\(&quot;([^&quot;]*)&quot;\)/, &quot;url('$1')&quot;)],
+    ['an unquoted URL', fontWire().replace(/url\(&quot;([^&quot;]*)&quot;\)/, 'url($1)')],
+    ['an extra font face', `${fontWire()}@font-face { font-family: X; src: url(&quot;${ORIGIN}/_next/static/media/ffffffffffffffff-s.woff2&quot;) format(&quot;woff2&quot;); }`],
+  ])('rejects font CSS with %s', async (_name, cssText) =&gt; {
+    expect(await reason(page([el('link', { _cssText: cssText })], []))).toBe('schema');
+  });
+  it('emits the manifest output for style text, not the received text', async () =&gt; {
+    const changed = { ...MANIFEST, styleText: [{ ...MANIFEST.styleText[0], output: { sha256: '0', text: '.jsx-1.b { display: none; }' } }] };
+    const c = createVoteListContract({ manifest: changed, origin: ORIGIN, bannerCount: 5 });
+    const style = el('style', { type: 'text/css' }, [{ type: 3, textContent: '.jsx-1.b { display: block; }', isStyle: true, id: 9005 }]);
+    const r = await run(page([style], []), false, c); if (!r.ok) throw new Error(r.reason);
+    expect(findNode(outputRecords(r.value.bytes), 9005).textContent).toBe('.jsx-1.b { display: none; }');
+  });
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 4: 시험이 실패하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/contract.test.ts 2&gt;&amp;1 | tail -15</code>
+Expected: FAIL. 새 시험과 생성 시험이 실패한다(현재 계약은 <code>buildId</code>를 요구하고 wire 문자열을 그대로 출력한다).</p>
+<ul>
+<li>&#9744; <strong>단계 5: 계약을 구현한다.</strong> <code>vote-list.ts</code>의 <code>export type VoteListManifest = {</code> 부터 <code>export type VoteListOptions = …;</code> 줄까지를 아래로 바꾼다.</li>
+</ul>
+<pre><code class="language-ts">/** One accepted input serialization of a stylesheet. engine names the browser that produced it. */
+export type CssVariant = { engine: string; sha256: string; text: string };
+/** A stylesheet: the inputs the contract accepts and the only text it emits for them. */
+export type CssEntry = { accept: CssVariant[]; output: { sha256: string; text: string } };
+export type VoteListManifest = {
+  version: 2; generatedFrom: { buildId: string; origin: string; commit: string };
+  sdkVersion: string; release: string; environment: string;
+  viewport: string; announcerStyle: string;
+  linkCss: (CssEntry &amp; { asset: string; sourceSha256: string })[];
+  styleText: CssEntry[];
+  classes: string[]; statusColors: string[];
+};
+export type VoteListOptions = { manifest: VoteListManifest; origin: string; bannerCount: number };
+</code></pre>
+<p><code>const sameKeys = …;</code> 줄 바로 뒤에 아래를 추가한다.</p>
+<pre><code class="language-ts">const ORIGIN = /^https?:\/\/[a-z0-9.-]+(?::[0-9]{1,5})?$/;
+/** rrweb records `url(/x)` in a stylesheet as `url(&quot;&lt;origin&gt;/x&quot;)`. Undo that for one origin before comparing. */
+export function normalizeCssOrigin(text: string, origin: string): string {
+  return text.split(`url(&quot;${origin}/`).join('url(&quot;/');
+}
+/** Maps every accepted input text to its entry's output text. One input text in two entries is a manifest error. */
+function cssLookup(entries: readonly CssEntry[]): Map&lt;string, string&gt; {
+  const map = new Map&lt;string, string&gt;();
+  for (const entry of entries) {
+    for (const variant of entry.accept) { requireValue(!map.has(variant.text)); map.set(variant.text, entry.output.text); }
+  }
+  return map;
+}
+</code></pre>
+<p><code>createVoteListContract</code> 첫 부분의 아래 여섯 줄을 바꾼다.</p>
+<pre><code class="language-ts">// old
+  requireValue(o.buildId === o.manifest.buildId);
+  const bannerCount = integer(o.bannerCount, 0, 100);
+  const m = o.manifest;
+  const classes = new Set(m.classes);
+  const linkCss = new Set(m.linkCss.map(c =&gt; c.wire));
+  const styleTexts = new Set(m.styleText.map(s =&gt; s.text));
+// new
+  requireValue(o.manifest.version === 2);
+  requireValue(typeof o.origin === 'string' &amp;&amp; ORIGIN.test(o.origin));
+  const bannerCount = integer(o.bannerCount, 0, 100);
+  const m = o.manifest;
+  const classes = new Set(m.classes);
+  const linkCss = cssLookup(m.linkCss);
+  const styleTexts = cssLookup(m.styleText);
+  /** The manifest output for a received stylesheet text. A text the manifest does not accept closes the replay. */
+  const css = (map: Map&lt;string, string&gt;, raw: unknown): string =&gt; {
+    requireValue(typeof raw === 'string');
+    const out = map.get(normalizeCssOrigin(raw, o.origin)); requireValue(out !== undefined); return out;
+  };
+</code></pre>
+<p>link <code>_cssText</code> 줄과 <code>styleText</code> 메서드를 바꾼다.</p>
+<pre><code class="language-ts">// old
+        if (node.mark === 'css' &amp;&amp; key === '_cssText') { requireValue(linkCss.has(raw as string)); return raw as string; }
+// new
+        if (node.mark === 'css' &amp;&amp; key === '_cssText') return css(linkCss, raw);
+</code></pre>
+<pre><code class="language-ts">// old
+    styleText(raw) { requireValue(typeof raw === 'string' &amp;&amp; styleTexts.has(raw)); return raw; },
+// new
+    styleText(raw) { return css(styleTexts, raw); },
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 6: 계약 시험이 통과하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/contract.test.ts 2&gt;&amp;1 | tail -5</code>
+Expected: PASS.</p>
+<ul>
+<li>&#9744; <strong>단계 7: 커밋된 manifest를 v2 형식으로 기계 변환한다.</strong> 내용(텍스트·해시)은 바꾸지 않는다. 작업 8에서 다시 생성한다.</li>
+</ul>
+<pre><code class="language-bash">node -e &quot;
+const fs=require('fs');const p='scripts/replay-p0/contracts/vote-list.css-manifest.json';
+const m=JSON.parse(fs.readFileSync(p,'utf8'));if(m.version!==1)throw new Error('expected v1');
+const one=(h,t)=&gt;({accept:[{engine:'chromium',sha256:h,text:t}],output:{sha256:h,text:t}});
+const v={version:2,generatedFrom:{buildId:m.buildId,origin:'http://127.0.0.1:53931',commit:'963e3cf9'},
+sdkVersion:m.sdkVersion,release:m.release,environment:m.environment,viewport:m.viewport,announcerStyle:m.announcerStyle,
+linkCss:m.linkCss.map(c=&gt;({asset:c.asset,sourceSha256:c.sourceSha256,...one(c.wireSha256,c.wire)})),
+styleText:m.styleText.map(s=&gt;one(s.sha256,s.text)),classes:m.classes,statusColors:m.statusColors};
+fs.writeFileSync(p,JSON.stringify(v,null,2)+'\n');&quot;
+</code></pre>
+<p><code>commit</code>의 <code>963e3cf9</code>는 v1 manifest가 들어간 main 커밋이다.</p>
+<ul>
+<li>&#9744; <strong>단계 8: 호출부를 v2 옵션으로 바꾼다.</strong></li>
+</ul>
+<p><code>capture.test.ts:16</code>:</p>
+<pre><code class="language-ts">const contract = () =&gt; createVoteListContract({ manifest, origin: manifest.generatedFrom.origin, bannerCount: 5 });
+</code></pre>
+<p><code>vote-list-restore-entry.ts:21</code>:</p>
+<pre><code class="language-ts">    const m = manifest as VoteListManifest; const contract = createVoteListContract({ manifest: m, origin: m.generatedFrom.origin, bannerCount });
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 9: manifest 시험을 v2 구조로 바꾼다(값은 v1과 같다).</strong> <code>manifest.test.ts</code>의 첫 세 <code>it</code>을 아래로 바꾸고, 나머지 세 <code>it</code>(class, 상태색, announcer)은 그대로 둔다.</li>
+</ul>
+<pre><code class="language-ts">  it('is a v2 manifest for the SDK', () =&gt; {
+    expect(manifest.version).toBe(2);
+    expect(manifest.sdkVersion).toBe('9.47.1');
+    expect(manifest.generatedFrom.origin).toBe('http://127.0.0.1:53931');
+  });
+  it('stores accept and output texts whose hashes match', () =&gt; {
+    for (const c of [...manifest.linkCss, ...manifest.styleText]) {
+      for (const a of c.accept) { expect(a.engine).toBe('chromium'); expect(sha(a.text)).toBe(a.sha256); }
+      expect(sha(c.output.text)).toBe(c.output.sha256);
+    }
+    expect(manifest.linkCss.map(c =&gt; c.accept[0].sha256).sort()).toEqual([
+      '7049b8a01ed4f0c8a91b3e8d230ce1df08344969ed453cb1cc084fca6524b22f',
+      'a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d',
+    ]);
+    expect(manifest.styleText.map(s =&gt; s.output.sha256).sort()).toEqual([
+      '3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a',
+      '40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8',
+      '90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd',
+    ]);
+  });
+  it('emits no resource references', () =&gt; {
+    for (const c of [...manifest.linkCss, ...manifest.styleText]) expect(c.output.text).not.toMatch(/url\(|@import/i);
+  });
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 10: 전체 replay-p0 시험, 타입, lint를 실행한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0 2&gt;&amp;1 | tail -4 &amp;&amp; npx tsc --noEmit --incremental false &amp;&amp; ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs</code>
+Expected: 모두 PASS. 시험 수는 228보다 많다(새 시험 추가).</p>
+<ul>
+<li>&#9744; <strong>단계 11: 커밋한다.</strong></li>
+</ul>
+<pre><code class="language-bash">git add scripts/replay-p0/contracts/vote-list.ts scripts/replay-p0/contracts/vote-list.css-manifest.json scripts/replay-p0/vote-list-restore-entry.ts __tests__/scripts/replay-p0/vote-list/helpers.ts __tests__/scripts/replay-p0/vote-list/contract.test.ts __tests__/scripts/replay-p0/vote-list/capture.test.ts __tests__/scripts/replay-p0/vote-list/manifest.test.ts
+git commit -m &quot;feat(replay): emit manifest CSS and normalize the recorded origin
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<hr />
+<h2>작업 2: 생성기 v2 (글꼴 규칙, origin 정규화, 검토 요약)</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>scripts/replay-p0/tools/build-css-manifest.cjs</code></li>
+<li>Modify: <code>__tests__/scripts/replay-p0/vote-list/css-manifest-generator.test.ts</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>
+<p>Consumes: <code>normalizeCssOrigin</code> (작업 1, 같은 동작을 CJS로 복제하고 시험으로 일치를 확인한다).</p>
+</li>
+<li>
+<p>Produces (module.exports): <code>checkCss(source, live, wireSet, label): string</code>, <code>buildStyleSources(chunks): Set&lt;string&gt;</code>, <code>traceStyledJsx(text, sources): boolean</code>, <code>normalizeCssOrigin(text, origin): string</code>, <code>splitFontRules(rules, label): { accept: string; output: string; removed: number }</code> (rules = <code>{ kind: 'import'|'font-face'|'other', cssText: string, src: string }[]</code>), <code>summarizeManifest(previous, next): { links: {asset, status}[]; styles: {added, removed}; classes: {added, removed} }</code>, <code>sdkFix(cssText): string</code>.</p>
+</li>
+<li>
+<p>CLI: <code>node scripts/replay-p0/tools/build-css-manifest.cjs --url &lt;url&gt; --wire-dir &lt;dir&gt; --out &lt;json&gt; [--build-dir .next-envtest] [--previous &lt;json&gt;]</code>.</p>
+</li>
+<li>
+<p>&#9744; <strong>단계 1: 생성기 시험을 작성한다.</strong> <code>css-manifest-generator.test.ts</code>의 import 줄을 바꾸고, <code>it('rejects resource references', …)</code>를 지우고, 파일 끝에 아래 세 <code>describe</code>를 추가한다.</p>
+</li>
+</ul>
+<pre><code class="language-ts">import { buildStyleSources, checkCss, normalizeCssOrigin as normalizeCjs, splitFontRules, summarizeManifest, traceStyledJsx } from '../../../../scripts/replay-p0/tools/build-css-manifest.cjs';
+import { normalizeCssOrigin } from '../../../../scripts/replay-p0/contracts/vote-list';
+</code></pre>
+<pre><code class="language-ts">const face = (src: string) =&gt; ({ kind: 'font-face', cssText: `@font-face { font-family: Inter; src: ${src}; }`, src });
+const URL_OK = 'url(&quot;/_next/static/media/0123456789abcdef-s.woff2&quot;) format(&quot;woff2&quot;)';
+describe('font rules', () =&gt; {
+  it('removes font faces that load build font files and keeps the rest', () =&gt; {
+    const rules = [face(URL_OK), face('local(&quot;Arial&quot;)'), { kind: 'other', cssText: '.__className_1 { font-family: Inter; }', src: '' }];
+    const r = splitFontRules(rules, 'x');
+    expect(r).toEqual({ accept: rules.map(x =&gt; x.cssText).join(''), output: rules[1].cssText + rules[2].cssText, removed: 1 });
+  });
+  it('removes one font face that lists several build font files', () =&gt; {
+    const src = 'url(&quot;/_next/static/media/0123456789abcdef-s.p.woff2&quot;) format(&quot;woff2&quot;), url(&quot;/_next/static/media/fedcba9876543210.woff2&quot;) format(&quot;woff2&quot;)';
+    expect(splitFontRules([face(src)], 'x').removed).toBe(1);
+  });
+  it.each([
+    ['another path', 'url(&quot;/images/0123456789abcdef-s.woff2&quot;) format(&quot;woff2&quot;)'],
+    ['an external host', 'url(&quot;https://fonts.gstatic.com/s/inter/v1/x.woff2&quot;) format(&quot;woff2&quot;)'],
+    ['a data URI', 'url(&quot;data:font/woff2;base64,AAAA&quot;) format(&quot;woff2&quot;)'],
+    ['another format', 'url(&quot;/_next/static/media/0123456789abcdef-s.woff&quot;) format(&quot;woff&quot;)'],
+    ['no format', 'url(&quot;/_next/static/media/0123456789abcdef-s.woff2&quot;)'],
+    ['a short hash', 'url(&quot;/_next/static/media/0123-s.woff2&quot;) format(&quot;woff2&quot;)'],
+    ['url and local together', `${URL_OK}, local(&quot;Arial&quot;)`],
+    ['an allowed and a disallowed URL', `${URL_OK}, url(&quot;/images/x.woff2&quot;) format(&quot;woff2&quot;)`],
+  ])('fails on a font face with %s', (_name, src) =&gt; {
+    expect(() =&gt; splitFontRules([face(src)], 'x')).toThrow();
+  });
+  it('fails on url( outside @font-face and on @import', () =&gt; {
+    expect(() =&gt; splitFontRules([{ kind: 'other', cssText: '.a { background: url(&quot;/x.png&quot;); }', src: '' }], 'x')).toThrow(/resource/);
+    expect(() =&gt; splitFontRules([{ kind: 'import', cssText: '@import url(&quot;/x.css&quot;);', src: '' }], 'x')).toThrow(/@import/);
+  });
+});
+
+describe('origin normalization', () =&gt; {
+  it('is the same function as the contract', () =&gt; {
+    for (const [text, origin] of [
+      ['@font-face { src: url(&quot;http://127.0.0.1:53931/_next/static/media/a.woff2&quot;) format(&quot;woff2&quot;); }', 'http://127.0.0.1:53931'],
+      ['a{b:url(&quot;https://www.picnic.fan/x&quot;)} c{d:url(&quot;https://www.picnic.fan/y&quot;)}', 'https://www.picnic.fan'],
+      ['url(&quot;https://evil.example/x&quot;)', 'https://www.picnic.fan'],
+      ['url(https://www.picnic.fan/x)', 'https://www.picnic.fan'],
+    ] as const) expect(normalizeCjs(text, origin)).toBe(normalizeCssOrigin(text, origin));
+  });
+  it('rewrites only double-quoted URLs that start with the origin and a slash', () =&gt; {
+    expect(normalizeCssOrigin('url(&quot;https://www.picnic.fan/x&quot;) url(&quot;https://www.picnic.fan.evil/x&quot;) url(https://www.picnic.fan/y)', 'https://www.picnic.fan'))
+      .toBe('url(&quot;/x&quot;) url(&quot;https://www.picnic.fan.evil/x&quot;) url(https://www.picnic.fan/y)');
+  });
+});
+
+describe('review summary', () =&gt; {
+  const v1 = { version: 1, classes: ['a', '__className_old'], styleText: [{ sha256: 'j1', text: '' }],
+    linkCss: [{ asset: '/a.css', sourceSha256: 's1', wireSha256: 'w1', wire: '' }, { asset: '/f.css', sourceSha256: 's2', wireSha256: 'w2', wire: '' }] };
+  const one = (h: string, o = h) =&gt; ({ accept: [{ engine: 'chromium', sha256: h, text: '' }], output: { sha256: o, text: '' } });
+  const v2 = { version: 2, classes: ['a', '__className_new'], styleText: [one('j1')],
+    linkCss: [{ asset: '/a.css', sourceSha256: 's1', ...one('w1') }, { asset: '/g.css', sourceSha256: 's3', ...one('w3', 'o3') }] };
+  it('reports asset, style and class changes from a v1 manifest', () =&gt; {
+    const s = summarizeManifest(v1, v2);
+    expect(s.links).toEqual([{ asset: '/a.css', status: 'same' }, { asset: '/f.css', status: 'removed' }, { asset: '/g.css', status: 'added' }]);
+    expect(s.styles).toEqual({ added: [], removed: [] });
+    expect(s.classes).toEqual({ added: ['__className_new'], removed: ['__className_old'] });
+  });
+  it('reports a changed asset between two v2 manifests', () =&gt; {
+    const changed = { ...v2, linkCss: [{ ...v2.linkCss[0], ...one('w1', 'o9') }, v2.linkCss[1]] };
+    expect(summarizeManifest(v2, changed).links[0]).toEqual({ asset: '/a.css', status: 'changed' });
+  });
+});
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 2: 시험이 실패하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/css-manifest-generator.test.ts 2&gt;&amp;1 | tail -10</code>
+Expected: FAIL (<code>splitFontRules</code>, <code>normalizeCssOrigin</code>, <code>summarizeManifest</code>가 없다).</p>
+<ul>
+<li>&#9744; <strong>단계 3: 생성기를 v2로 바꾼다.</strong> <code>build-css-manifest.cjs</code> 전체를 아래 내용으로 바꾼다. <code>sdkFix</code>, <code>assertSdkFixUnchanged</code>, <code>classTokens</code>, <code>statusColors</code>, <code>nextAnnouncerSource</code>, styled-jsx 추적(<code>LITERAL</code>~<code>traceStyledJsx</code>)은 지금 코드와 같다.</li>
+</ul>
+<pre><code class="language-js">'use strict';
+// Builds the vote-list CSS manifest (v2) from a production-setting build and a live local page.
+// Usage: node build-css-manifest.cjs --url http://127.0.0.1:&lt;port&gt;/ko/vote --wire-dir &lt;dir&gt; --out &lt;json&gt;
+//          [--build-dir .next-envtest] [--previous &lt;manifest json, v1 or v2&gt;]
+// CSS comes from the build: link assets are parsed from disk, styled-jsx text is traced to build JS.
+// The live page and the wire capture are used only to verify the computed values.
+// @font-face rules that load build font files are accepted on input and dropped from the output text.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
+const postcss = require('postcss');
+const selectorParser = require('postcss-selector-parser');
+const { chromium } = require('playwright');
+const { parseBrowserEnvelope } = require('../../envelope-test/browser-analyze');
+
+const root = path.resolve(__dirname, '../../..');
+const opt = name =&gt; { const i = process.argv.indexOf(name); return i &gt; 0 ? process.argv[i + 1] : undefined; };
+const arg = name =&gt; { const v = opt(name); assert(v, `missing ${name}`); return v; };
+const sha = s =&gt; createHash('sha256').update(s).digest('hex');
+const FONT_URL = /^\/_next\/static\/media\/[0-9a-f]{16}(?:-s)?(?:\.p)?\.woff2$/;
+// Same function as @sentry-internal/replay 9.47.1 build/npm/cjs/index.js fixBrowserCompatibilityIssuesInCSS.
+function sdkFix(cssText) {
+  if (cssText.includes(' background-clip: text;') &amp;&amp; !cssText.includes(' -webkit-background-clip: text;')) {
+    cssText = cssText.replace(/\sbackground-clip:\s*text;/g, ' -webkit-background-clip: text; background-clip: text;');
+  }
+  return cssText;
+}
+function assertSdkFixUnchanged() {
+  const src = fs.readFileSync(path.join(root, 'node_modules/@sentry-internal/replay/build/npm/cjs/index.js'), 'utf8');
+  const version = JSON.parse(fs.readFileSync(path.join(root, 'node_modules/@sentry-internal/replay/package.json'), 'utf8')).version;
+  assert.equal(version, '9.47.1');
+  assert(src.includes('&quot; -webkit-background-clip: text; background-clip: text;&quot;'), 'SDK CSS fix changed');
+}
+/** Same as normalizeCssOrigin in contracts/vote-list.ts. A test keeps the two equal. */
+function normalizeCssOrigin(text, origin) { return text.split(`url(&quot;${origin}/`).join('url(&quot;/'); }
+function classTokens(css) {
+  const out = new Set();
+  postcss.parse(css).walkRules(rule =&gt; {
+    selectorParser(s =&gt; s.walkClasses(c =&gt; { out.add(c.value); })).processSync(rule.selector);
+  });
+  return out;
+}
+function statusColors() {
+  const src = fs.readFileSync(path.join(root, 'components/client/vote/list/VoteStatusFilter.tsx'), 'utf8');
+  const block = src.slice(src.indexOf('const STATUS_DOT_COLOR'), src.indexOf('};', src.indexOf('const STATUS_DOT_COLOR')));
+  return [...block.matchAll(/'#([0-9A-F]{6})'/g)].map(m =&gt; {
+    const n = parseInt(m[1], 16); return `rgb(${n &gt;&gt; 16}, ${(n &gt;&gt; 8) &amp; 255}, ${n &amp; 255})`;
+  });
+}
+function nextAnnouncerSource() {
+  const src = fs.readFileSync(path.join(root, 'node_modules/next/dist/client/components/app-router-announcer.js'), 'utf8');
+  const m = /announcer\.style\.cssText = '([^']+)'/.exec(src); assert(m, 'announcer style not found');
+  return m[1];
+}
+/** Captured link and style texts with the capture origin normalized away. */
+function wireValues(dir, origin) {
+  const links = new Set(), styles = new Set();
+  for (const f of fs.readdirSync(dir).filter(f =&gt; /^wire-\d+-[123]\.bin$/.test(f))) {
+    for (const item of parseBrowserEnvelope(fs.readFileSync(path.join(dir, f))).items) {
+      if (item.header.type !== 'replay_recording') continue;
+      JSON.stringify(item.payload.records, (k, v) =&gt; {
+        if (k === '_cssText') links.add(normalizeCssOrigin(v, origin));
+        if (v &amp;&amp; v.isStyle === true) styles.add(normalizeCssOrigin(v.textContent, origin));
+        return v;
+      });
+    }
+  }
+  return { links, styles };
+}
+/** Build-derived CSSOM must equal the live sheet and a captured wire value. Returns the accepted text. */
+function checkCss(source, live, wireSet, label) {
+  if (source !== live) throw new Error(`${label}: live CSSOM differs from build`);
+  if (!wireSet.has(source)) throw new Error(`${label}: CSS missing from wire capture`);
+  return source;
+}
+/**
+ * Splits CSSOM rules (sheet order) into the accepted text (all rules) and the output text.
+ * An @font-face whose src lists only allowed build font files is dropped from the output.
+ * Fails on @import, any other font source mix, and url( anywhere else.
+ */
+function splitFontRules(rules, label) {
+  const kept = []; let removed = 0;
+  for (const r of rules) {
+    if (r.kind === 'import') throw new Error(`${label}: @import in CSS`);
+    if (r.kind === 'font-face') {
+      const parts = r.src.split(', ');
+      const urls = parts.map(p =&gt; /^url\(&quot;([^&quot;]*)&quot;\) format\(&quot;woff2&quot;\)$/.exec(p));
+      if (urls.every(Boolean)) {
+        for (const u of urls) if (!FONT_URL.test(u[1])) throw new Error(`${label}: font URL not allowed: ${u[1]}`);
+        removed++; continue;
+      }
+      if (!parts.every(p =&gt; /^local\(&quot;[^&quot;]*&quot;\)$/.test(p))) throw new Error(`${label}: font src not allowed: ${r.src}`);
+    }
+    if (/url\(/i.test(r.cssText)) throw new Error(`${label}: resource reference in CSS`);
+    kept.push(r.cssText);
+  }
+  return { accept: rules.map(r =&gt; r.cssText).join(''), output: kept.join(''), removed };
+}
+const LITERAL = String.raw`&quot;(?:[^&quot;\\]|\\.)*&quot;`;
+const ARG = `(?:\\d+|${LITERAL})`;
+// Compiled styled-jsx: {id:&quot;&lt;hex&gt;&quot;,dynamic:[&lt;literal args&gt;],children:&quot;&lt;css&gt;&quot;.concat(&lt;literal&gt;,&quot;&lt;css&gt;&quot;)...}
+const JSX_STYLE = new RegExp(`\\{id:&quot;([0-9a-f]+)&quot;,(?:dynamic:\\[(${ARG}(?:,${ARG})*)\\],)?children:(${LITERAL}(?:\\.concat\\(${ARG}(?:,${ARG})*\\))*)\\}`, 'g');
+const literal = token =&gt; (token.startsWith('&quot;') ? JSON.parse(token) : Number(token));
+/** Same as styled-jsx 5.1.6 dist/index stringHash. */
+function styledJsxHash(str) {
+  let h = 5381, i = str.length;
+  while (i) h = (h * 33) ^ str.charCodeAt(--i);
+  return h &gt;&gt;&gt; 0;
+}
+/** Exact styled-jsx text the build generates: static text as compiled, dynamic text with the computed jsx class. */
+function buildStyleSources(chunks) {
+  assert.equal(require(path.join(root, 'node_modules/styled-jsx/package.json')).version, '5.1.6', 'styled-jsx changed');
+  const out = new Set();
+  for (const text of chunks) {
+    for (const m of text.matchAll(JSX_STYLE)) {
+      // Literals are matched whole first, so digits and parentheses inside them are not separate tokens.
+      // A literal with a JS-only escape is skipped; styled-jsx text built from it then fails to trace (fail closed).
+      try {
+        const css = m[3].match(new RegExp(`${LITERAL}|\\d+`, 'g')).map(literal).join('');
+        const scope = m[2] === undefined ? `jsx-${m[1]}`
+          : `jsx-${styledJsxHash(`${m[1]}-${String(m[2].match(new RegExp(`${LITERAL}|\\d+`, 'g')).map(literal))}`)}`;
+        out.add(css.replace(/__jsx-style-dynamic-selector/g, scope));
+      } catch { continue; }
+    }
+  }
+  return out;
+}
+/** styled-jsx text must equal text the build generates. */
+function traceStyledJsx(text, sources) { return sources.has(text); }
+function chunkTexts(buildDir) {
+  const dir = path.join(buildDir, 'static/chunks'); const files = [];
+  const walk = d =&gt; { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const f = path.join(d, e.name); if (e.isDirectory()) walk(f); else if (f.endsWith('.js')) files.push(fs.readFileSync(f, 'utf8'));
+  } };
+  walk(dir); return files;
+}
+/** Review summary between two manifests. previous may be v1 (wire fields) or v2. */
+function summarizeManifest(previous, next) {
+  const view = m =&gt; (m.version === 1
+    ? { links: new Map(m.linkCss.map(c =&gt; [c.asset, `${c.sourceSha256}|${c.wireSha256}|${c.wireSha256}`])),
+        styles: new Set(m.styleText.map(s =&gt; s.sha256)) }
+    : { links: new Map(m.linkCss.map(c =&gt; [c.asset, `${c.sourceSha256}|${c.accept.map(a =&gt; a.sha256).join(',')}|${c.output.sha256}`])),
+        styles: new Set(m.styleText.map(s =&gt; s.accept.map(a =&gt; a.sha256).join(','))) });
+  const a = view(previous), b = view(next);
+  const diff = (p, n) =&gt; ({ added: [...n].filter(x =&gt; !p.has(x)).sort(), removed: [...p].filter(x =&gt; !n.has(x)).sort() });
+  const assets = [...new Set([...a.links.keys(), ...b.links.keys()])].sort();
+  return {
+    links: assets.map(asset =&gt; ({ asset, status: !a.links.has(asset) ? 'added' : !b.links.has(asset) ? 'removed'
+      : a.links.get(asset) === b.links.get(asset) ? 'same' : 'changed' })),
+    styles: diff(a.styles, b.styles),
+    classes: diff(new Set(previous.classes), new Set(next.classes)),
+  };
+}
+async function main() {
+  assertSdkFixUnchanged();
+  const url = arg('--url'); const out = arg('--out'); const origin = new URL(url).origin;
+  const buildDir = path.resolve(root, opt('--build-dir') ?? '.next-envtest');
+  // Read --previous before writing: it may be the same file as --out.
+  const previous = opt('--previous') ? JSON.parse(fs.readFileSync(opt('--previous'), 'utf8')) : null;
+  const wire = wireValues(arg('--wire-dir'), origin);
+  const buildId = fs.readFileSync(path.join(buildDir, 'BUILD_ID'), 'utf8').trim();
+  const commit = execFileSync('git', ['rev-parse', '--short=8', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const response = await page.goto(url, { waitUntil: 'networkidle' }); assert.equal(response.status(), 200);
+    const live = await page.evaluate(announcer =&gt; {
+      const probe = document.createElement('div'); probe.style.cssText = announcer;
+      return {
+        viewport: document.querySelector('meta[name=viewport]').getAttribute('content'),
+        announcerStyle: probe.getAttribute('style'),
+        sheets: [...document.styleSheets].filter(s =&gt; s.ownerNode.tagName === 'LINK').map(s =&gt; ({
+          href: new URL(s.href).pathname, cssom: [...s.cssRules].map(r =&gt; r.cssText).join('') })),
+        // rrweb records &lt;style&gt; text from the CSSOM, not from textContent.
+        styled: [...document.querySelectorAll('style[data-styled-jsx]')].map(s =&gt; ({
+          text: s.textContent, cssom: [...s.sheet.cssRules].map(r =&gt; r.cssText).join('') })),
+      };
+    }, nextAnnouncerSource());
+    // Parse trusted sources in a constructed sheet so page scripts cannot change the result.
+    const parseRules = text =&gt; page.evaluate(css =&gt; {
+      const sheet = new CSSStyleSheet(); sheet.replaceSync(css);
+      return [...sheet.cssRules].map(r =&gt; ({
+        kind: r instanceof CSSImportRule ? 'import' : r instanceof CSSFontFaceRule ? 'font-face' : 'other',
+        cssText: r.cssText, src: r instanceof CSSFontFaceRule ? r.style.getPropertyValue('src') : '' }));
+    }, text);
+    const entry = (accept, output) =&gt; ({
+      accept: [{ engine: 'chromium', sha256: sha(accept), text: accept }], output: { sha256: sha(output), text: output } });
+    const linkCss = []; const removedFontFaces = {};
+    for (const s of live.sheets) {
+      const bytes = fs.readFileSync(path.join(buildDir, s.href.replace(/^\/_next\//, ''))); const text = bytes.toString('utf8');
+      // A constructed sheet drops @import silently; check the source text first.
+      if (/@import/i.test(text)) throw new Error(`${s.href}: @import in CSS`);
+      const split = splitFontRules(await parseRules(text), s.href);
+      const accept = checkCss(sdkFix(split.accept), sdkFix(s.cssom), wire.links, s.href);
+      const output = sdkFix(split.output);
+      if (/url\(|@import/i.test(output)) throw new Error(`${s.href}: resource reference in output`);
+      linkCss.push({ asset: s.href, sourceSha256: sha(bytes), ...entry(accept, output) });
+      removedFontFaces[s.href] = split.removed;
+    }
+    const sources = buildStyleSources(chunkTexts(buildDir)); const styled = [];
+    for (const s of live.styled) {
+      assert(traceStyledJsx(s.text, sources), 'styled-jsx text not found in build output');
+      if (/@import/i.test(s.text)) throw new Error('styled-jsx: @import in CSS');
+      const split = splitFontRules(await parseRules(s.text), 'styled-jsx');
+      if (split.removed) throw new Error('styled-jsx: font face in styled-jsx');
+      const accept = checkCss(sdkFix(split.accept), sdkFix(s.cssom), wire.styles, 'styled-jsx');
+      styled.push(entry(accept, accept));
+    }
+    assert.equal(linkCss.length, wire.links.size); assert.equal(styled.length, wire.styles.size);
+    const classes = new Set();
+    for (const c of [...linkCss, ...styled]) for (const t of classTokens(c.output.text)) classes.add(t);
+    const manifest = {
+      version: 2, generatedFrom: { buildId, origin, commit }, sdkVersion: '9.47.1',
+      release: 'replay-vote-list-local', environment: 'replay-vote-list-local',
+      viewport: live.viewport, announcerStyle: live.announcerStyle,
+      linkCss: linkCss.sort((a, b) =&gt; a.asset.localeCompare(b.asset)),
+      styleText: styled.sort((a, b) =&gt; a.output.sha256.localeCompare(b.output.sha256)),
+      classes: [...classes].sort(), statusColors: statusColors(),
+    };
+    fs.writeFileSync(out, JSON.stringify(manifest, null, 2) + '\n');
+    console.log(JSON.stringify({ buildId, origin, commit, links: linkCss.length, styles: styled.length, classes: classes.size,
+      removedFontFaces, review: previous ? summarizeManifest(previous, manifest) : null }, null, 2));
+  } finally { await browser.close(); }
+}
+module.exports = { checkCss, buildStyleSources, traceStyledJsx, normalizeCssOrigin, splitFontRules, summarizeManifest, sdkFix };
+if (require.main === module) main().catch(error =&gt; { console.error(error.message); process.exit(1); });
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 4: 시험이 통과하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/css-manifest-generator.test.ts 2&gt;&amp;1 | tail -5</code>
+Expected: PASS. 기존 styled-jsx 시험과 <code>checkCss</code> 시험 3개도 PASS.</p>
+<ul>
+<li>&#9744; <strong>단계 5: lint를 실행하고 커밋한다.</strong></li>
+</ul>
+<p>Run: <code>ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs</code>
+Expected: PASS.</p>
+<pre><code class="language-bash">git add scripts/replay-p0/tools/build-css-manifest.cjs __tests__/scripts/replay-p0/vote-list/css-manifest-generator.test.ts
+git commit -m &quot;feat(replay): generate manifest v2 with font URL removal and origin normalization
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<p>생성기의 <code>main()</code>은 빌드가 필요하므로 작업 8에서 실제로 실행해 검증한다.</p>
+<hr />
+<h2>작업 3: 외부 요청 차단기, 합성 upstream, 빌드·서빙 도구</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>scripts/replay-p0/tools/net-guard.cjs</code>, <code>scripts/replay-p0/tools/font-mock.cjs</code>, <code>scripts/replay-p0/tools/vote-list-upstream.cjs</code>, <code>scripts/replay-p0/tools/vote-list-server.cjs</code></li>
+<li>Create: <code>__tests__/scripts/replay-p0/vote-list/harness-tools.test.ts</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>
+<p>Produces: <code>net-guard.cjs</code> → <code>hostAllowed(host: string, extra: string[]): boolean</code>, <code>hostOf(input): string</code>. 환경변수 <code>REPLAY_NET_GUARD=1</code>이면 preload 시 설치하고, <code>REPLAY_NET_ALLOW</code>(쉼표 구분 정확한 호스트)와 <code>REPLAY_NET_LOG</code>(막은 요청 기록 파일)를 읽는다.</p>
+</li>
+<li>
+<p>Produces: <code>vote-list-upstream.cjs</code> → <code>fixtures(now: number): { banners, votes }</code>, <code>filter(rows, searchParams)</code>, <code>startUpstream({ port, logFile, now }): Promise&lt;http.Server&gt;</code>.</p>
+</li>
+<li>
+<p>Produces: <code>vote-list-server.cjs</code> → <code>productEnvFiles(root): string[]</code>, <code>harnessEnv({ out, fontMock, build }): Record&lt;string,string&gt;</code>, <code>NEXT_PORT = 53931</code>, <code>UPSTREAM_PORT = 59862</code>. CLI: <code>node scripts/replay-p0/tools/vote-list-server.cjs --out &lt;dir&gt; [--font-mock] [--reuse-build]</code>, <code>&lt;out&gt;/server.json</code>에 <code>{ pid, nextPid, port, upstreamPort, buildId, fontMock, phase, restored }</code>.</p>
+</li>
+<li>
+<p>&#9744; <strong>단계 1: 시험을 작성한다.</strong></p>
+</li>
+</ul>
+<pre><code class="language-ts">// __tests__/scripts/replay-p0/vote-list/harness-tools.test.ts
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { hostAllowed, hostOf } from '../../../../scripts/replay-p0/tools/net-guard.cjs';
+import { fixtures, filter } from '../../../../scripts/replay-p0/tools/vote-list-upstream.cjs';
+import { harnessEnv, productEnvFiles } from '../../../../scripts/replay-p0/tools/vote-list-server.cjs';
+
+describe('network guard', () =&gt; {
+  it('allows loopback and exact extra hosts only', () =&gt; {
+    expect(hostAllowed('127.0.0.1', [])).toBe(true);
+    expect(hostAllowed('localhost:53931', [])).toBe(true);
+    expect(hostAllowed('[::1]', [])).toBe(true);
+    expect(hostAllowed('::1', [])).toBe(true);
+    expect(hostAllowed('fonts.gstatic.com', [])).toBe(false);
+    expect(hostAllowed('fonts.gstatic.com', ['fonts.gstatic.com'])).toBe(true);
+    expect(hostAllowed('evil.fonts.gstatic.com', ['fonts.gstatic.com'])).toBe(false);
+    expect(hostAllowed('fonts.gstatic.com.evil', ['fonts.gstatic.com'])).toBe(false);
+  });
+  it('reads the host from URLs, request options and request objects', () =&gt; {
+    expect(hostOf('https://fonts.googleapis.com/css2?family=Inter')).toBe('fonts.googleapis.com');
+    expect(hostOf(new URL('http://127.0.0.1:59862/rest/v1/vote'))).toBe('127.0.0.1');
+    expect(hostOf({ hostname: 'example.com', port: 443 })).toBe('example.com');
+    expect(hostOf({ url: 'https://x.test/a' })).toBe('x.test');
+    expect(hostOf({ port: 80 })).toBe('localhost');
+  });
+});
+
+describe('server setup', () =&gt; {
+  it('finds product env files that Next would load', () =&gt; {
+    const dir = mkdtempSync(join(tmpdir(), 'replay-env-'));
+    writeFileSync(join(dir, '.env.example'), 'X=1');
+    expect(productEnvFiles(dir)).toEqual([]);
+    writeFileSync(join(dir, '.env.local'), 'X=1');
+    expect(productEnvFiles(dir)).toEqual(['.env.local']);
+  });
+  it('allows the font hosts only while building with real fonts', () =&gt; {
+    const build = harnessEnv({ out: '/o', fontMock: false, build: true });
+    expect(build.REPLAY_NET_ALLOW).toBe('fonts.googleapis.com,fonts.gstatic.com');
+    expect(build.NEXT_FONT_GOOGLE_MOCKED_RESPONSES).toBeUndefined();
+    expect(build.NODE_OPTIONS).toContain('net-guard.cjs');
+    expect(build.REPLAY_NET_GUARD).toBe('1');
+    expect(harnessEnv({ out: '/o', fontMock: false, build: false }).REPLAY_NET_ALLOW).toBeUndefined();
+    const mock = harnessEnv({ out: '/o', fontMock: true, build: true });
+    expect(mock.REPLAY_NET_ALLOW).toBeUndefined();
+    expect(mock.NEXT_FONT_GOOGLE_MOCKED_RESPONSES).toContain('font-mock.cjs');
+  });
+  it('never copies product secrets from the parent environment', () =&gt; {
+    process.env.SENTRY_AUTH_TOKEN = 'parent-secret'; process.env.NEXT_PUBLIC_SENTRY_DSN = 'https://k@o.ingest.sentry.io/1';
+    try {
+      const env = harnessEnv({ out: '/o', fontMock: false, build: true });
+      expect(env.SENTRY_AUTH_TOKEN).toBe(''); expect(env.NEXT_PUBLIC_SENTRY_DSN).toBe('');
+      expect(JSON.stringify(env)).not.toContain('parent-secret');
+    } finally { delete process.env.SENTRY_AUTH_TOKEN; delete process.env.NEXT_PUBLIC_SENTRY_DSN; }
+  });
+});
+
+describe('synthetic upstream', () =&gt; {
+  const { banners, votes } = fixtures(Date.UTC(2026, 9, 15));
+  it('serves synthetic rows without absolute URLs', () =&gt; {
+    expect(banners).toHaveLength(5); expect(votes).toHaveLength(12);
+    expect(JSON.stringify({ banners, votes })).not.toMatch(/https?:\/\//);
+  });
+  it('applies the PostgREST operators the vote list sends', () =&gt; {
+    expect(filter(votes, new URLSearchParams('deleted_at=is.null&amp;offset=2&amp;limit=3')).map((v: any) =&gt; v.id)).toEqual([910002, 910003, 910004]);
+    expect(filter(votes, new URLSearchParams('areas=cs.{kpop}'))).toHaveLength(12);
+    expect(filter(banners, new URLSearchParams('location=eq.vote_home'))).toHaveLength(5);
+    expect(filter(banners, new URLSearchParams('location=eq.other'))).toHaveLength(0);
+  });
+});
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 2: 시험이 실패하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/harness-tools.test.ts 2&gt;&amp;1 | tail -8</code>
+Expected: FAIL (모듈 없음).</p>
+<ul>
+<li>&#9744; <strong>단계 3: 외부 요청 차단기를 만든다.</strong></li>
+</ul>
+<pre><code class="language-js">// scripts/replay-p0/tools/net-guard.cjs
+'use strict';
+// Preloaded with NODE_OPTIONS=--require into the Next build and start processes of the replay harness.
+// Installs only when REPLAY_NET_GUARD=1. Allows loopback and the exact hosts in REPLAY_NET_ALLOW (comma-separated);
+// every other request throws and is logged to REPLAY_NET_LOG.
+const fs = require('node:fs');
+
+const LOOPBACK = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+function hostAllowed(host, extra) {
+  const raw = String(host).toLowerCase();
+  if (LOOPBACK.has(raw)) return true; // checked before port removal: '::1' ends in ':1'
+  const name = raw.replace(/:\d+$/, '');
+  return LOOPBACK.has(name) || extra.includes(name);
+}
+/** Host of a fetch/http input. Request options without a host default to localhost, as in Node. */
+function hostOf(input) {
+  if (typeof input === 'string' || input instanceof URL) return new URL(String(input)).hostname;
+  if (input &amp;&amp; typeof input === 'object') {
+    if (typeof input.url === 'string') return new URL(input.url).hostname;
+    return input.hostname || input.host || 'localhost';
+  }
+  throw new Error('net-guard: unknown request input');
+}
+function install(env) {
+  const extra = (env.REPLAY_NET_ALLOW || '').split(',').map(s =&gt; s.trim().toLowerCase()).filter(Boolean);
+  const check = input =&gt; {
+    const host = hostOf(input);
+    if (hostAllowed(host, extra)) return;
+    if (env.REPLAY_NET_LOG) fs.appendFileSync(env.REPLAY_NET_LOG, JSON.stringify({ host, pid: process.pid }) + '\n');
+    throw new Error(`replay-harness-network-blocked:${host}`);
+  };
+  const originalFetch = globalThis.fetch;
+  if (originalFetch) globalThis.fetch = (input, ...rest) =&gt; { check(input); return originalFetch(input, ...rest); };
+  for (const name of ['node:http', 'node:https']) {
+    const mod = require(name);
+    for (const method of ['request', 'get']) {
+      const original = mod[method];
+      mod[method] = function guarded(input, ...rest) { check(input); return original.call(this, input, ...rest); };
+    }
+  }
+}
+module.exports = { hostAllowed, hostOf };
+if (process.env.REPLAY_NET_GUARD === '1') install(process.env);
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 4: font mock과 합성 upstream을 만든다.</strong> 데이터는 지금 harness(<code>server.cjs</code>)와 같다.</li>
+</ul>
+<pre><code class="language-js">// scripts/replay-p0/tools/font-mock.cjs
+'use strict';
+// NEXT_FONT_GOOGLE_MOCKED_RESPONSES module for `vote-list-server.cjs --font-mock`: every Google Fonts request gets this CSS.
+module.exports = new Proxy({}, { get: () =&gt; '@font-face {font-family: Inter; src: local(Arial); font-weight: 100 900; font-style: normal;}' });
+</code></pre>
+<pre><code class="language-js">// scripts/replay-p0/tools/vote-list-upstream.cjs
+'use strict';
+// Synthetic PostgREST upstream for the vote list harness. Every value is synthetic; no product data.
+const fs = require('node:fs');
+const http = require('node:http');
+
+const tr = s =&gt; ({ ko: s, en: s });
+/** 5 banners and 12 ongoing votes. Vote end times are relative to `now` (1 day + i hours). */
+function fixtures(now) {
+  const banners = Array.from({ length: 5 }, (_, i) =&gt; ({
+    id: i + 1, title: tr(`Synthetic banner ${i + 1}`),
+    image: i === 2 ? null : tr(i === 3 ? '/images/replay-synthetic-missing.png' : '/images/logo.png'),
+    link: null, duration: 3600, start_at: '2020-01-01T00:00:00Z', end_at: '2099-01-01T00:00:00Z',
+    deleted_at: null, order: i, location: 'vote_home' }));
+  const votes = Array.from({ length: 12 }, (_, i) =&gt; ({
+    id: 910000 + i, title: tr(`Synthetic vote ${i + 1}`),
+    main_image: i % 3 === 1 ? null : i % 3 === 0 ? '/images/logo.png' : '/images/replay-synthetic-missing.png',
+    start_at: '2020-01-01T00:00:00Z', stop_at: new Date(now + 86400000 + i * 3600000).toISOString(),
+    visible_at: '2020-01-01T00:00:00Z', deleted_at: null, updated_at: '2026-10-14T00:00:00Z',
+    vote_category: 'birthday', vote_sub_category: 'idol', is_partnership: false, areas: ['kpop'],
+    vote_item: Array.from({ length: 3 }, (_, j) =&gt; ({
+      id: 920000 + i * 3 + j, vote_total: 300 - j * 100, updated_at: '2026-10-14T00:00:00Z',
+      artist: { id: 930000 + j, name: tr(`Synthetic artist ${j}`), image: j === 1 ? null : '/images/logo.png',
+        artist_group: { id: 940000, name: tr('Synthetic group') } } })),
+    vote_reward: i % 2 ? [{ reward_id: 950000, reward: { id: 950000, title: tr('Synthetic reward'), thumbnail: '/images/logo.png' } }] : [] }));
+  return { banners, votes };
+}
+/** The PostgREST filters the vote list sends (eq, is, lte, gt, cs) plus offset/limit. Other operators match every row. */
+function filter(rows, q) {
+  const offset = Number(q.get('offset') || 0); const limit = Number(q.get('limit') || 999);
+  return rows.filter(row =&gt; [...q].every(([key, value]) =&gt; {
+    if (!Object.hasOwn(row, key)) return true;
+    const [op, ...rest] = value.split('.'); const x = rest.join('.');
+    if (op === 'eq') return String(row[key]) === x;
+    if (op === 'is') return x === 'null' ? row[key] === null : true;
+    if (op === 'lte') return row[key] &lt;= x;
+    if (op === 'gt') return row[key] &gt; x;
+    if (op === 'cs') return x.slice(1, -1).split(',').every(a =&gt; row[key].includes(a));
+    return true;
+  })).slice(offset, offset + limit);
+}
+function startUpstream({ port, logFile, now }) {
+  const data = fixtures(now);
+  const server = http.createServer((req, res) =&gt; {
+    req.resume();
+    res.setHeader('access-control-allow-origin', '*'); res.setHeader('access-control-allow-headers', '*');
+    res.setHeader('content-type', 'application/json');
+    const u = new URL(req.url, 'http://localhost'); let body = [];
+    if (u.pathname === '/rest/v1/banner') body = filter(data.banners, u.searchParams);
+    if (u.pathname === '/rest/v1/vote') body = filter(data.votes, u.searchParams);
+    if (logFile) fs.appendFileSync(logFile, JSON.stringify({ method: req.method, path: u.pathname, query: u.search, rows: body.length }) + '\n');
+    res.end(JSON.stringify(body));
+  });
+  return new Promise((resolve, reject) =&gt; { server.once('error', reject); server.listen(port, '127.0.0.1', () =&gt; resolve(server)); });
+}
+module.exports = { fixtures, filter, startUpstream };
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 5: 빌드·서빙 도구를 만든다.</strong></li>
+</ul>
+<pre><code class="language-js">// scripts/replay-p0/tools/vote-list-server.cjs
+'use strict';
+// Builds the product with production settings (real fonts by default) and serves it on loopback for the replay harness.
+// Usage, from the repository root:
+//   node scripts/replay-p0/tools/vote-list-server.cjs --out &lt;evidence dir&gt; [--font-mock] [--reuse-build]
+// Stop it with SIGTERM to the pid in &lt;out&gt;/server.json. It never stops other processes.
+const fs = require('node:fs');
+const net = require('node:net');
+const path = require('node:path');
+const { spawn } = require('node:child_process');
+const { startUpstream } = require('./vote-list-upstream.cjs');
+
+const NEXT_PORT = 53931;
+const UPSTREAM_PORT = 59862;
+const BUILD_DIR = '.next-envtest';
+const GUARDED_SOURCES = ['tsconfig.json', 'next-env.d.ts'];
+const PRODUCT_ENV_FILES = ['.env', '.env.local', '.env.production', '.env.production.local'];
+const FONT_HOSTS = 'fonts.googleapis.com,fonts.gstatic.com';
+
+/** Product env files that Next would load from the repository root. */
+function productEnvFiles(root) { return PRODUCT_ENV_FILES.filter(f =&gt; fs.existsSync(path.join(root, f))); }
+/** The complete child environment. Nothing is copied from the parent except PATH, HOME and TMPDIR. */
+function harnessEnv({ out, fontMock, build }) {
+  const env = {
+    PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR,
+    NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', ENVELOPE_TEST: '1', BUILD_VERSION: 'replay-build-manifest',
+    NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${UPSTREAM_PORT}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-anon-key',
+    SUPABASE_URL: `http://127.0.0.1:${UPSTREAM_PORT}`, SUPABASE_ANON_KEY: 'synthetic-anon-key', SUPABASE_SERVICE_ROLE_KEY: '',
+    SENTRY_DSN: '', SENTRY_AUTH_TOKEN: '', NEXT_PUBLIC_SENTRY_DSN: '',
+    NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: '0', NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: '0',
+    NEXT_PUBLIC_CDN_URL: '', NEXT_PUBLIC_SITE_URL: `http://127.0.0.1:${NEXT_PORT}`,
+    NODE_OPTIONS: `--require=${path.join(__dirname, 'net-guard.cjs')}`, REPLAY_NET_GUARD: '1',
+    REPLAY_NET_LOG: path.join(out, 'blocked-network.jsonl'),
+  };
+  if (build &amp;&amp; !fontMock) env.REPLAY_NET_ALLOW = FONT_HOSTS;
+  if (fontMock) env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES = path.join(__dirname, 'font-mock.cjs');
+  return env;
+}
+function portFree(port) {
+  return new Promise(resolve =&gt; {
+    const s = net.createServer(); s.once('error', () =&gt; resolve(false)); s.listen(port, '127.0.0.1', () =&gt; s.close(() =&gt; resolve(true)));
+  });
+}
+async function main() {
+  const root = process.cwd(); const args = process.argv.slice(2);
+  const outAt = args.indexOf('--out'); if (outAt &lt; 0 || !args[outAt + 1]) throw new Error('missing --out');
+  const out = path.resolve(args[outAt + 1]); const fontMock = args.includes('--font-mock'); const reuse = args.includes('--reuse-build');
+  if (!fs.existsSync(path.join(root, 'next.config.js'))) throw new Error('run from the repository root');
+  const envFiles = productEnvFiles(root);
+  if (envFiles.length) throw new Error(`product env files present (${envFiles.join(', ')}); remove them from this worktree first`);
+  for (const port of [NEXT_PORT, UPSTREAM_PORT]) {
+    if (!(await portFree(port))) throw new Error(`port ${port} is in use; stop here and do not stop its owner`);
+  }
+  fs.mkdirSync(out, { recursive: true });
+  const statePath = path.join(out, 'server.json');
+  const previous = reuse ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : null;
+  const before = Object.fromEntries(GUARDED_SOURCES.map(f =&gt; [f, fs.readFileSync(path.join(root, f))]));
+  const state = { pid: process.pid, nextPid: null, port: NEXT_PORT, upstreamPort: UPSTREAM_PORT, buildId: null, fontMock, phase: 'starting', restored: [] };
+  const save = () =&gt; fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
+  // Next can rewrite tsconfig.json and next-env.d.ts for the extra build directory. Put the committed bytes back.
+  const restore = () =&gt; {
+    for (const f of GUARDED_SOURCES) {
+      if (fs.readFileSync(path.join(root, f)).equals(before[f])) continue;
+      fs.writeFileSync(path.join(root, f), before[f]); if (!state.restored.includes(f)) state.restored.push(f);
+    }
+  };
+  const upstream = await startUpstream({ port: UPSTREAM_PORT, logFile: path.join(out, 'backend.jsonl'), now: Date.now() });
+  let next = null; let stopping = false;
+  const stop = () =&gt; { if (stopping) return; stopping = true; next?.kill('SIGTERM'); upstream.close(); restore(); save(); };
+  process.on('SIGTERM', stop); process.on('SIGINT', stop);
+  const run = (cmd, log, build) =&gt; {
+    const fd = fs.openSync(path.join(out, log), 'w');
+    return spawn(path.join(root, 'node_modules/.bin/next'), cmd, { cwd: root, env: harnessEnv({ out, fontMock, build }), stdio: ['ignore', fd, fd] });
+  };
+  try {
+    if (!reuse) {
+      state.phase = 'building'; save();
+      next = run(['build'], 'build.log', true); state.nextPid = next.pid; save();
+      const code = await new Promise(resolve =&gt; next.once('exit', resolve)); next = null;
+      restore(); save();
+      if (code !== 0) throw new Error(`next build exited with ${code}; see build.log`);
+    }
+    state.buildId = fs.readFileSync(path.join(root, BUILD_DIR, 'BUILD_ID'), 'utf8').trim();
+    if (reuse &amp;&amp; (previous.buildId !== state.buildId || previous.fontMock !== fontMock)) throw new Error('build does not match server.json');
+    next = run(['start', '--hostname', '127.0.0.1', '--port', String(NEXT_PORT)], 'next.log', false);
+    state.nextPid = next.pid; state.phase = 'serving'; save();
+    next.once('exit', code =&gt; { state.phase = `exited:${code}`; save(); stop(); });
+    console.log(`serving ${BUILD_DIR} ${state.buildId} on http://127.0.0.1:${NEXT_PORT}`);
+  } catch (error) { state.phase = 'failed'; stop(); throw error; }
+}
+module.exports = { productEnvFiles, harnessEnv, NEXT_PORT, UPSTREAM_PORT };
+if (require.main === module) main().catch(error =&gt; { console.error(error.message); process.exitCode = 1; });
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 6: 시험이 통과하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/harness-tools.test.ts 2&gt;&amp;1 | tail -5</code>
+Expected: PASS.</p>
+<ul>
+<li>&#9744; <strong>단계 7: lint를 실행하고 커밋한다.</strong></li>
+</ul>
+<p>Run: <code>ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs</code>
+Expected: PASS.</p>
+<pre><code class="language-bash">git add scripts/replay-p0/tools/net-guard.cjs scripts/replay-p0/tools/font-mock.cjs scripts/replay-p0/tools/vote-list-upstream.cjs scripts/replay-p0/tools/vote-list-server.cjs __tests__/scripts/replay-p0/vote-list/harness-tools.test.ts
+git commit -m &quot;feat(replay): add the vote list build server with a font-host network guard
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<hr />
+<h2>작업 4: 캡처 도구 (엔진 선택, 원본 측정과 대조군)</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>scripts/replay-p0/tools/vote-list-capture.cjs</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Consumes: 작업 3의 서버(<code>http://127.0.0.1:53931/ko/vote</code>).</li>
+<li>Produces: <code>&lt;out&gt;/wire-&lt;width&gt;-&lt;n&gt;.bin</code>(n=0은 session envelope, 1<del>3은 segment 0</del>2), <code>&lt;out&gt;/capture-&lt;width&gt;.json</code>, <code>&lt;out&gt;/page-&lt;width&gt;.png</code>, <code>&lt;out&gt;/layout.json</code> = <code>{ [width]: { raw, masked, control, trackStyle, fontFacesRemoved, localInter } }</code>, <code>&lt;out&gt;/capture-summary.json</code> = <code>{ browser, version, widths: [{ width, checks: [{ name, ok, detail }], envelopes, blocked, actions }] }</code>.</li>
+<li>종료 코드: chromium에서 확인 항목이 하나라도 실패하면 1. webkit·firefox는 측정용이므로 실패를 기록하고 0으로 끝난다.</li>
+</ul>
+<p>이 도구는 브라우저와 서버가 필요하므로 단위 시험 대신 작업 8·9의 실행으로 검증한다.</p>
+<ul>
+<li>&#9744; <strong>단계 1: 캡처 도구를 만든다.</strong> 시나리오(배너 클릭 수, 스크롤 700px 간격, flush 시점)와 SDK 옵션은 지금 harness(<code>capture.cjs</code>)와 같다.</li>
+</ul>
+<pre><code class="language-js">// scripts/replay-p0/tools/vote-list-capture.cjs
+'use strict';
+// Records /ko/vote with the Sentry Replay SDK and measures the original page, from the repository root,
+// while vote-list-server.cjs serves the build:
+//   node scripts/replay-p0/tools/vote-list-capture.cjs --out &lt;dir&gt; [--browser chromium|webkit|firefox] [--widths 1280,390]
+// Writes wire-&lt;width&gt;-&lt;n&gt;.bin (n=0 session, 1..3 replay segments 0..2), capture-&lt;width&gt;.json, page-&lt;width&gt;.png,
+// layout.json and capture-summary.json. Requests outside loopback are aborted.
+const fs = require('node:fs');
+const path = require('node:path');
+const { isDeepStrictEqual } = require('node:util');
+const playwright = require('playwright');
+const { build } = require('esbuild');
+const { parseBrowserEnvelope } = require('../../envelope-test/browser-analyze');
+
+const PORT = 53931;
+const SELECTORS = ['header', 'main', 'footer', 'main section', '.banner-carousel', '.banner-track', '.banner-slide',
+  '.grid &gt; *', 'h3', 'img', 'svg', 'button'];
+const BANNER_STEPS = {
+  1280: ['--banner-current-index: 2;', '--banner-current-index: 0;'],
+  390: ['--banner-current-index: 1;', '--banner-current-index: 2;', '--banner-current-index: 3;', '--banner-current-index: 4;'],
+};
+const SDK_SOURCE = `import * as S from '@sentry/browser';
+const r = S.replayIntegration({ maskAllText: true, maskAllInputs: true, blockAllMedia: true, stickySession: false,
+  useCompression: false, minReplayDuration: 0, flushMinDelay: 60000, flushMaxDelay: 60000 });
+const c = S.init({ dsn: 'http://synthetic@' + location.host + '/1', environment: 'replay-build-manifest', release: 'replay-build-manifest',
+  replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 0, tracesSampleRate: 0, tracePropagationTargets: [], integrations: [r] });
+r.start();
+window.harnessReplay = { flush: () =&gt; r.flush(), stop: async () =&gt; { await r.stop(); await c.close(3000); } };`;
+const opt = (name, fallback) =&gt; { const i = process.argv.indexOf(name); return i &gt; 0 ? process.argv[i + 1] : fallback; };
+
+// Page functions (serialized by Playwright).
+function pageState() {
+  return {
+    voteTitles: [...document.querySelectorAll('h3')].filter(n =&gt; n.textContent.startsWith('Synthetic vote')).length,
+    banners: document.querySelectorAll('.banner-slide').length,
+    consent: localStorage.getItem('picnic-cookie-consent'),
+    reloadTs: sessionStorage.getItem('vote-last-reload-ts'),
+    adScripts: [...document.scripts].filter(s =&gt; s.id === 'adsense-script' || /googlesyndication/.test(s.src)).length,
+    imageErrors: [...document.querySelectorAll('span')].filter(n =&gt; n.textContent === '이미지 로딩 실패').length,
+    portal: !!document.querySelector('nextjs-portal'),
+  };
+}
+function measure(selectors) {
+  return selectors.flatMap(s =&gt; [...document.querySelectorAll(s)].map((el, index) =&gt; {
+    const r = el.getBoundingClientRect();
+    return { selector: s, index, x: r.x + scrollX, y: r.y + scrollY, width: r.width, height: r.height,
+      opacity: Number(getComputedStyle(el).opacity) };
+  }));
+}
+/** Same masking as the SDK: every non-space character becomes *. */
+function maskText() {
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = w.nextNode());) {
+    if (n.parentElement &amp;&amp; !['STYLE', 'SCRIPT'].includes(n.parentElement.tagName)) n.textContent = n.textContent.replace(/\S/g, '*');
+  }
+}
+/** The control: delete the @font-face rules that load font files, as the manifest output does. */
+function removeFontFiles() {
+  let removed = 0;
+  for (const sheet of document.styleSheets) {
+    if (!(sheet.ownerNode instanceof HTMLLinkElement)) continue;
+    for (let i = sheet.cssRules.length - 1; i &gt;= 0; i--) {
+      const rule = sheet.cssRules[i];
+      if (rule instanceof CSSFontFaceRule &amp;&amp; /url\(/.test(rule.style.getPropertyValue('src'))) { sheet.deleteRule(i); removed++; }
+    }
+  }
+  return removed;
+}
+/** Finishes finite CSS animations and transitions, as the restore side does before it measures. */
+function settle() {
+  for (const a of document.getAnimations()) if (a.effect &amp;&amp; a.effect.getComputedTiming().endTime !== Infinity) a.finish();
+}
+/** True when the system has a font named Inter (the replay viewer would use it). */
+function hasLocalInter() {
+  const c = document.createElement('canvas').getContext('2d');
+  const width = font =&gt; { c.font = `40px ${font}`; return c.measureText('****ABCabc123').width; };
+  return width('Inter, serif') !== width('serif');
+}
+
+async function captureWidth(browser, width, out, bundle) {
+  const checks = []; const check = (name, ok, detail) =&gt; checks.push({ name, ok: !!ok, detail });
+  const context = await browser.newContext({ viewport: { width, height: 900 } });
+  await context.addInitScript(() =&gt; localStorage.setItem('picnic-cookie-consent', 'denied'));
+  const page = await context.newPage();
+  const envelopes = []; const blocked = []; const errors = []; const requests = []; const actions = [];
+  page.on('pageerror', e =&gt; errors.push(String(e)));
+  page.on('response', r =&gt; { if (new URL(r.url()).hostname === '127.0.0.1') requests.push({ url: r.url(), status: r.status() }); });
+  await page.route('**/*', async route =&gt; {
+    const u = new URL(route.request().url());
+    if (u.pathname === '/api/1/envelope/') {
+      const raw = route.request().postDataBuffer();
+      fs.writeFileSync(path.join(out, `wire-${width}-${envelopes.length}.bin`), raw); envelopes.push(parseBrowserEnvelope(raw));
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    }
+    if (['127.0.0.1', 'localhost'].includes(u.hostname)) return route.continue();
+    blocked.push(u.origin); return route.abort();
+  });
+  try {
+    const response = await page.goto(`http://127.0.0.1:${PORT}/ko/vote`, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await page.waitForSelector('h3', { timeout: 20000 }); await page.waitForTimeout(2000);
+    const before = await page.evaluate(pageState);
+    check('status 200', response.status() === 200, response.status());
+    check('12 synthetic votes', before.voteTitles === 12, before.voteTitles);
+    check('5 banners', before.banners === 5, before.banners);
+    check('ads consent denied', before.consent === 'denied', before.consent);
+    check('no ad script', before.adScripts === 0, before.adScripts);
+    check('no dev portal', !before.portal, before.portal);
+    await page.addScriptTag({ content: bundle }); await page.waitForTimeout(1000);
+    await page.evaluate(() =&gt; window.harnessReplay.flush());
+    for (let i = 0; i &lt; BANNER_STEPS[width].length; i++) {
+      const prev = await page.locator('.banner-track').getAttribute('style');
+      await page.getByRole('button', { name: '다음 배너', exact: true }).click(); await page.waitForTimeout(650);
+      actions.push({ kind: 'banner-next', before: prev, after: await page.locator('.banner-track').getAttribute('style') });
+    }
+    await page.evaluate(() =&gt; window.harnessReplay.flush());
+    // Scroll through every card to exercise lazy images and the image failure state.
+    for (let y = 0; y &lt; await page.evaluate(() =&gt; document.documentElement.scrollHeight); y += 700) {
+      await page.evaluate(top =&gt; window.scrollTo(0, top), y); await page.waitForTimeout(120);
+    }
+    await page.waitForTimeout(1000);
+    const after = await page.evaluate(pageState);
+    await page.evaluate(() =&gt; window.harnessReplay.flush()); await page.evaluate(() =&gt; window.harnessReplay.stop());
+    await page.screenshot({ path: path.join(out, `page-${width}.png`), fullPage: true });
+    await page.evaluate(() =&gt; scrollTo(0, 0));
+    // The pointer rests on a card after the scroll, which keeps hover:-translate-y-1 (4px) on it. The replay has no
+    // pointer state, so move the pointer off the page before measuring the original.
+    await page.mouse.move(-10, -10); await page.waitForTimeout(500); await page.evaluate(settle);
+    const raw = await page.evaluate(measure, SELECTORS);
+    await page.evaluate(maskText); await page.evaluate(settle);
+    const masked = await page.evaluate(measure, SELECTORS);
+    const fontFacesRemoved = await page.evaluate(removeFontFiles);
+    await page.evaluate(async () =&gt; { await document.fonts.ready; return true; }); await page.waitForTimeout(500); await page.evaluate(settle);
+    const control = await page.evaluate(measure, SELECTORS);
+    const localInter = await page.evaluate(hasLocalInter);
+    const layout = { raw, masked, control, trackStyle: await page.locator('.banner-track').getAttribute('style'), fontFacesRemoved, localInter };
+    check('banner steps', isDeepStrictEqual(actions.map(a =&gt; a.after), BANNER_STEPS[width]), actions.map(a =&gt; a.after));
+    check('5 image failures', after.imageErrors === 5, after.imageErrors);
+    check('no ad script after scroll', after.adScripts === 0, after.adScripts);
+    check('no reload', after.reloadTs === null, after.reloadTs);
+    check('no RSC refetch', !requests.some(r =&gt; new URL(r.url).pathname === '/ko/vote' &amp;&amp; new URL(r.url).searchParams.has('_rsc')));
+    check('no page errors', errors.length === 0, errors);
+    check('session + 3 segments', envelopes.length === 4, envelopes.length);
+    fs.writeFileSync(path.join(out, `capture-${width}.json`), JSON.stringify({ width, before, after, actions, errors, blocked, requests }, null, 2));
+    return { width, checks, envelopes: envelopes.length, blocked, actions, layout };
+  } catch (error) {
+    check('scenario completed', false, String(error));
+    return { width, checks, envelopes: envelopes.length, blocked, actions, layout: null };
+  } finally { await context.close(); }
+}
+async function main() {
+  if (!opt('--out')) throw new Error('missing --out');
+  const out = path.resolve(opt('--out'));
+  const browserName = opt('--browser', 'chromium'); if (!['chromium', 'webkit', 'firefox'].includes(browserName)) throw new Error('bad --browser');
+  const widths = opt('--widths', '1280,390').split(',').map(Number);
+  fs.mkdirSync(out, { recursive: true });
+  const bundle = (await build({ stdin: { contents: SDK_SOURCE, resolveDir: process.cwd() }, bundle: true, write: false,
+    format: 'iife', platform: 'browser', define: { 'process.env.NODE_ENV': '&quot;production&quot;' } })).outputFiles[0].text;
+  const browser = await playwright[browserName].launch(browserName === 'chromium' ? { headless: true, channel: 'chromium' } : { headless: true });
+  const summary = { browser: browserName, version: browser.version(), widths: [] }; const layouts = {};
+  try {
+    for (const width of widths) {
+      const r = await captureWidth(browser, width, out, bundle);
+      layouts[width] = r.layout; summary.widths.push({ width: r.width, checks: r.checks, envelopes: r.envelopes, blocked: r.blocked, actions: r.actions });
+      console.log(JSON.stringify({ width, failed: r.checks.filter(c =&gt; !c.ok).map(c =&gt; c.name), envelopes: r.envelopes }));
+    }
+  } finally { await browser.close(); }
+  fs.writeFileSync(path.join(out, 'layout.json'), JSON.stringify(layouts, null, 2));
+  fs.writeFileSync(path.join(out, 'capture-summary.json'), JSON.stringify(summary, null, 2));
+  const failed = summary.widths.some(w =&gt; w.checks.some(c =&gt; !c.ok));
+  if (failed &amp;&amp; browserName === 'chromium') process.exitCode = 1;
+}
+if (require.main === module) main().catch(error =&gt; { console.error(error); process.exitCode = 1; });
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 2: lint를 실행하고 커밋한다.</strong></li>
+</ul>
+<p>Run: <code>ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 --ext .ts,.cjs</code>
+Expected: PASS.</p>
+<pre><code class="language-bash">git add scripts/replay-p0/tools/vote-list-capture.cjs
+git commit -m &quot;feat(replay): add the vote list capture tool with a font control measurement
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<hr />
+<h2>작업 5: 복원 도구 (네트워크 차단, 대조군 비교, 차이 분류, 글꼴 영향)</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>scripts/replay-p0/vote-list-restore.cjs</code> (전체 교체)</li>
+<li>Create: <code>__tests__/scripts/replay-p0/vote-list/restore-compare.test.ts</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces (module.exports): <code>compare(a, b): Failure[]</code> (지금과 같다; <code>Failure</code>는 <code>{ selector, kind: 'count', a, b }</code> 또는 <code>{ box, field, a, b }</code>), <code>classifyFailures(failures): { mediaOpacity, svgPlaceholder, other }</code>, <code>fontEffect(masked, control): { boxes: number; maxDelta: number }</code>.</li>
+<li>CLI: <code>node scripts/replay-p0/vote-list-restore.cjs [--original &lt;layout.json&gt;] [--wire-dir &lt;dir&gt;] --output &lt;json&gt;</code>. <code>--original</code> 없음: raw·투영 차이가 0이어야 exit 0. <code>--original</code> 있음: <code>layout[width].control</code>과 비교하고 <code>other</code>가 0이어야 exit 0. 두 경우 모두 배너 인덱스가 같아야 한다.</li>
+</ul>
+<p>분류 규칙(compare(reference, projected)의 <code>a</code>=원본 대조군, <code>b</code>=투영 복원):</p>
+<ul>
+<li><code>mediaOpacity</code>: <code>img#…</code>의 <code>opacity</code>에서 <code>a=1</code>, <code>b=0</code>. SDK가 차단 media의 class 변경을 녹화하지 않는다.</li>
+<li><code>svgPlaceholder</code>: <code>svg#…</code>의 <code>x</code>·<code>y</code> 차이 2px 이하. 내용 없는 svg placeholder다.</li>
+<li><code>other</code>: 그 밖의 모든 차이와 개수 차이. 관문 실패다.</li>
+</ul>
+<p>hover는 분류로 허용하지 않는다. 작업 4의 캡처가 원본 측정 전에 pointer를 화면 밖으로 옮겨 hover를 없앤다. 2026-10-15에 이전 증거(<code>restore-vs-original.json</code>, 42·44건)로 규칙을 검증했을 때 hover(4px)와 svg placeholder(2px)가 겹친 <code>svg#6</code>의 6px 차이를 규칙으로 분류할 수 없었다. 그래서 원인을 측정 단계에서 없앤다. 남은 hover 차이는 <code>other</code>가 되어 관문이 실패한다.</p>
+<ul>
+<li>&#9744; <strong>단계 1: 시험을 작성한다.</strong></li>
+</ul>
+<pre><code class="language-ts">// __tests__/scripts/replay-p0/vote-list/restore-compare.test.ts
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import { classifyFailures, compare, fontEffect } from '../../../../scripts/replay-p0/vote-list-restore.cjs';
+
+const box = (selector: string, index: number, extra: Record&lt;string, number&gt; = {}) =&gt;
+  ({ selector, index, x: 0, y: 0, width: 10, height: 10, opacity: 1, ...extra });
+describe('restore comparison', () =&gt; {
+  it('reports box differences above 1px and count differences', () =&gt; {
+    const a = [box('h3', 0), box('img', 0)]; const b = [box('h3', 0, { y: 1.5 }), box('img', 0, { opacity: 0 })];
+    expect(compare(a, b)).toEqual([{ box: 'h3#0', field: 'y', a: 0, b: 1.5 }, { box: 'img#0', field: 'opacity', a: 1, b: 0 }]);
+    expect(compare([box('h3', 0)], [])).toContainEqual({ selector: 'h3', kind: 'count', a: 1, b: 0 });
+  });
+  it('classifies known differences and keeps the rest as other', () =&gt; {
+    const c = classifyFailures([
+      { box: 'img#2', field: 'opacity', a: 1, b: 0 },
+      { box: '.grid &gt; *#11', field: 'y', a: 2726.359375, b: 2730.359375 },
+      { box: 'svg#4', field: 'y', a: 100, b: 102 },
+      { box: 'svg#5', field: 'y', a: 100, b: 103 },
+      { box: 'img#3', field: 'opacity', a: 0, b: 1 },
+      { box: 'h3#0', field: 'width', a: 100, b: 104 },
+      { selector: 'h3', kind: 'count', a: 12, b: 11 },
+    ]);
+    // The 4px card shift is hover; the capture removes hover before measuring, so here it is 'other'.
+    expect([c.mediaOpacity.length, c.svgPlaceholder.length, c.other.length]).toEqual([1, 1, 5]);
+  });
+  it('measures the font effect between the masked original and the control', () =&gt; {
+    const masked = [box('h3', 0, { width: 100 }), box('p', 0)]; const control = [box('h3', 0, { width: 103 }), box('p', 0)];
+    expect(fontEffect(masked, control)).toEqual({ boxes: 1, maxDelta: 3 });
+    expect(fontEffect(masked, masked)).toEqual({ boxes: 0, maxDelta: 0 });
+  });
+});
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 2: 시험이 실패하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/restore-compare.test.ts 2&gt;&amp;1 | tail -8</code>
+Expected: FAIL. 지금 파일은 require할 때 <code>--output</code>이 없어 바로 종료한다.</p>
+<ul>
+<li>&#9744; <strong>단계 3: 복원 도구를 바꾼다.</strong> 파일 전체를 아래로 바꾼다. <code>SELECTORS</code>, <code>TAGS</code>, <code>compare</code>는 지금과 같다.</li>
+</ul>
+<pre><code class="language-js">'use strict';
+// Usage: node vote-list-restore.cjs [--original &lt;layout.json&gt;] [--wire-dir &lt;dir&gt;] --output &lt;json&gt;
+// Without --original: compares raw-record restore with projected restore (projection loss only). Gate: no difference.
+// With --original: compares projected restore with the original page's control measurement (font files removed),
+// classifies the differences, and records the font effect (masked original vs control). Gate: no 'other' difference.
+// Both gates also require the same banner index. The restore page has no network: every request is aborted.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { build } = require('esbuild');
+const { chromium } = require('playwright');
+const { parseBrowserEnvelope } = require('../envelope-test/browser-analyze');
+
+// .vote-banner-section has no CSS rule, so the contract drops it; 'main section' selects the same box.
+const SELECTORS = ['header', 'main', 'footer', 'main section', '.banner-carousel', '.banner-track', '.banner-slide',
+  '.grid &gt; *', 'h3', 'img', 'svg', 'button'];
+const TAGS = ['html', 'head', 'body', 'meta', 'title', 'link', 'style', 'div', 'span', 'a', 'button', 'img', 'svg',
+  'header', 'main', 'section', 'footer', 'h3', 'p', 'next-route-announcer'];
+
+function compare(a, b) {
+  const failures = [];
+  const key = x =&gt; `${x.selector}#${x.index}`;
+  const bm = new Map(b.map(x =&gt; [key(x), x]));
+  for (const selector of new Set([...a, ...b].map(x =&gt; x.selector))) {
+    const ca = a.filter(x =&gt; x.selector === selector).length, cb = b.filter(x =&gt; x.selector === selector).length;
+    if (ca !== cb) failures.push({ selector, kind: 'count', a: ca, b: cb });
+  }
+  for (const x of a) {
+    const y = bm.get(key(x)); if (!y) continue;
+    for (const f of ['x', 'y', 'width', 'height']) if (Math.abs(x[f] - y[f]) &gt; 1) failures.push({ box: key(x), field: f, a: x[f], b: y[f] });
+    if (Math.abs(x.opacity - y.opacity) &gt; 0.01) failures.push({ box: key(x), field: 'opacity', a: x.opacity, b: y.opacity });
+  }
+  return failures;
+}
+/**
+ * Known differences between the original control (a) and the projected restore (b). Everything else is 'other'.
+ * Hover is not a class: the capture moves the pointer off the page before it measures the original.
+ */
+function classifyFailures(failures) {
+  const out = { mediaOpacity: [], svgPlaceholder: [], other: [] };
+  for (const f of failures) {
+    if (f.kind === 'count') out.other.push(f);
+    // The SDK does not record class changes on blocked media, so loaded images stay at opacity-0 in the recording.
+    else if (/^img#/.test(f.box) &amp;&amp; f.field === 'opacity' &amp;&amp; f.a === 1 &amp;&amp; f.b === 0) out.mediaOpacity.push(f);
+    // An empty svg placeholder sits up to 2px off the icon it replaces.
+    else if (/^svg#/.test(f.box) &amp;&amp; (f.field === 'x' || f.field === 'y') &amp;&amp; Math.abs(f.a - f.b) &lt;= 2) out.svgPlaceholder.push(f);
+    else out.other.push(f);
+  }
+  return out;
+}
+/** How much the real font moves boxes compared with the fallback font. Recorded, not a gate. */
+function fontEffect(masked, control) {
+  const diffs = compare(masked, control).filter(f =&gt; f.kind !== 'count' &amp;&amp; f.field !== 'opacity');
+  return { boxes: new Set(diffs.map(d =&gt; d.box)).size, maxDelta: diffs.reduce((m, d) =&gt; Math.max(m, Math.abs(d.a - d.b)), 0) };
+}
+async function main() {
+  const opt = name =&gt; { const i = process.argv.indexOf(name); return i &gt; 0 ? process.argv[i + 1] : undefined; };
+  const output = opt('--output'); assert(output, 'missing --output');
+  const wireDir = opt('--wire-dir') ?? path.join(__dirname, 'fixtures/vote-list');
+  const original = opt('--original') ? JSON.parse(fs.readFileSync(opt('--original'), 'utf8')) : null;
+  const rawSegments = width =&gt; [1, 2, 3].map(n =&gt; parseBrowserEnvelope(fs.readFileSync(path.join(wireDir, `wire-${width}-${n}.bin`))));
+  const bundle = await build({ entryPoints: [path.join(__dirname, 'vote-list-restore-entry.ts')], bundle: true,
+    platform: 'browser', format: 'iife', write: false, define: { 'process.env.NODE_ENV': '&quot;test&quot;' } });
+  const browser = await chromium.launch(); const results = [];
+  const banner = s =&gt; (s.match(/--banner-current-index: (\d+)/) || [])[1];
+  try {
+    for (const width of [1280, 390]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      let aborted = 0;
+      await page.route('**/*', route =&gt; { aborted++; return route.abort(); });
+      await page.setContent(`&lt;iframe style=&quot;border:0;width:${width}px;height:900px&quot;&gt;&lt;/iframe&gt;`);
+      await page.addScriptTag({ content: bundle.outputFiles[0].text });
+      const envelopes = rawSegments(width).map(e =&gt; ({ header: e.header, items: e.items.map(i =&gt; ({ header: i.header, payload: i.payload })) }));
+      const out = await page.evaluate(async ({ envelopes, bannerCount }) =&gt; window.voteList.projectAll(envelopes, bannerCount), { envelopes, bannerCount: 5 });
+      assert.equal(out.reason, 'ok', `projection failed: ${out.reason}`);
+      const restore = records =&gt; page.evaluate(({ records, selectors, tags }) =&gt; window.voteList.restore(records, selectors, tags),
+        { records, selectors: SELECTORS, tags: TAGS });
+      const projectedBoxes = await restore(out.records);
+      if (original) {
+        const o = original[String(width)]; assert(o &amp;&amp; o.control, 'layout.json has no control measurement');
+        const failures = compare(o.control, projectedBoxes);
+        results.push({ width, mode: 'original', failures, classification: classifyFailures(failures), fontEffect: fontEffect(o.masked, o.control),
+          boxes: projectedBoxes.length, aborted, bannerIndex: { projected: banner(out.trackStyle), reference: banner(o.trackStyle) } });
+      } else {
+        const rawRecords = rawSegments(width).flatMap(e =&gt; e.items.filter(i =&gt; i.header.type === 'replay_recording').flatMap(i =&gt; i.payload.records));
+        results.push({ width, mode: 'raw', failures: compare(await restore(rawRecords), projectedBoxes), boxes: projectedBoxes.length, aborted,
+          bannerIndex: { projected: banner(out.trackStyle), reference: banner(out.rawTrackStyle) } });
+      }
+      await page.close();
+    }
+  } finally { await browser.close(); }
+  fs.writeFileSync(output, JSON.stringify(results, null, 2));
+  const counts = c =&gt; Object.fromEntries(Object.entries(c).map(([k, v]) =&gt; [k, v.length]));
+  console.log(JSON.stringify(results.map(r =&gt; ({ width: r.width, mode: r.mode, failures: r.failures.length, boxes: r.boxes, aborted: r.aborted,
+    bannerIndex: r.bannerIndex, ...(r.classification ? { classes: counts(r.classification), fontEffect: r.fontEffect } : {}) }))));
+  const failed = results.filter(r =&gt; r.bannerIndex.projected !== r.bannerIndex.reference
+    || (r.mode === 'raw' ? r.failures.length &gt; 0 : r.classification.other.length &gt; 0));
+  process.exitCode = failed.length ? 1 : 0;
+}
+module.exports = { compare, classifyFailures, fontEffect };
+if (require.main === module) main().catch(error =&gt; { console.error(error.message); process.exitCode = 1; });
+</code></pre>
+<p><code>compare</code>의 개수 비교는 이제 <code>SELECTORS</code> 상수 대신 두 목록에 나온 selector 전체를 본다. 도구 안에서는 같은 결과다(두 목록 모두 <code>SELECTORS</code>로 측정한다). 단위 시험에서 상수와 독립적으로 쓰기 위해서다.</p>
+<ul>
+<li>&#9744; <strong>단계 4: 시험이 통과하는지 확인하고, 기존 fixture로 raw·투영 비교가 그대로인지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/restore-compare.test.ts 2&gt;&amp;1 | tail -5 &amp;&amp; node scripts/replay-p0/vote-list-restore.cjs --output &quot;$E/restore-loss-before.json&quot;</code>
+Expected: 시험 PASS. 복원 비교는 두 폭 모두 <code>failures: 0</code>, 배너 인덱스 0/0과 4/4, exit 0. (<code>E</code>가 없으면 먼저 <code>export E=.superpowers/sdd/2026-10-15-replay-build-manifest</code>.)</p>
+<ul>
+<li>&#9744; <strong>단계 5: lint를 실행하고 커밋한다.</strong></li>
+</ul>
+<p>Run: <code>ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs</code>
+Expected: PASS.</p>
+<pre><code class="language-bash">git add scripts/replay-p0/vote-list-restore.cjs __tests__/scripts/replay-p0/vote-list/restore-compare.test.ts
+git commit -m &quot;feat(replay): block restore network and classify original-page differences
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<hr />
+<h2>작업 6: production 동등성 확인 도구</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>scripts/replay-p0/tools/check-production-css.cjs</code></li>
+<li>Create: <code>__tests__/scripts/replay-p0/vote-list/production-check.test.ts</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>
+<p>Consumes: <code>buildStyleSources</code>, <code>sdkFix</code> (작업 2).</p>
+</li>
+<li>
+<p>Produces: <code>extractPageRefs(html): { css: string[]; chunks: string[]; viewport: string|null; buildId: string|null }</code>, <code>compareProduction(manifest, refs, cssSha: Map&lt;string,string&gt;, styleTexts: Set&lt;string&gt;): { ok: boolean; reasons: string[] }</code>.</p>
+</li>
+<li>
+<p>CLI: <code>node scripts/replay-p0/tools/check-production-css.cjs --url &lt;page URL&gt; --manifest &lt;json&gt; --out &lt;json&gt;</code>. 페이지 origin 밖 요청은 거부한다. redirect를 따르지 않는다. 일치하지 않으면 exit 1.</p>
+</li>
+<li>
+<p>&#9744; <strong>단계 1: 시험을 작성한다.</strong></p>
+</li>
+</ul>
+<pre><code class="language-ts">// __tests__/scripts/replay-p0/vote-list/production-check.test.ts
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import { compareProduction, extractPageRefs } from '../../../../scripts/replay-p0/tools/check-production-css.cjs';
+
+const HTML = [
+  '&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;/&gt;',
+  '&lt;link rel=&quot;stylesheet&quot; href=&quot;/_next/static/css/253f05d11a58abd2.css&quot; data-precedence=&quot;next&quot;/&gt;',
+  '&lt;link rel=&quot;stylesheet&quot; href=&quot;/_next/static/css/a5b6ba8786c1e0e2.css&quot; data-precedence=&quot;next&quot;/&gt;',
+  '&lt;script src=&quot;/_next/static/chunks/26-38f2440c05da76a3.js&quot; async=&quot;&quot;&gt;&lt;/script&gt;',
+  '&lt;script src=&quot;/_next/static/chunks/app/%5Blang%5D/(main)/vote/page-d3e69ec772ec2941.js&quot; async=&quot;&quot;&gt;&lt;/script&gt;',
+  '&lt;script&gt;self.__next_f.push([1,&quot;0:{\\&quot;P\\&quot;:null,\\&quot;b\\&quot;:\\&quot;nGXugIVZRSFy4ga95YQAZ\\&quot;}&quot;])&lt;/script&gt;',
+].join('');
+const MANIFEST = {
+  viewport: 'width=device-width, initial-scale=1',
+  linkCss: [{ asset: '/_next/static/css/253f05d11a58abd2.css', sourceSha256: 't' }, { asset: '/_next/static/css/a5b6ba8786c1e0e2.css', sourceSha256: 'f' }],
+  styleText: [{ accept: [{ engine: 'chromium', sha256: 'x', text: '.a{}' }], output: { sha256: 'x', text: '.a{}' } }],
+};
+const sha = (entries: [string, string][]) =&gt; new Map(entries);
+
+describe('production page references', () =&gt; {
+  it('extracts CSS, chunks, viewport and build ID', () =&gt; {
+    expect(extractPageRefs(HTML)).toEqual({
+      css: ['/_next/static/css/253f05d11a58abd2.css', '/_next/static/css/a5b6ba8786c1e0e2.css'],
+      chunks: ['/_next/static/chunks/26-38f2440c05da76a3.js', '/_next/static/chunks/app/%5Blang%5D/(main)/vote/page-d3e69ec772ec2941.js'],
+      viewport: 'width=device-width, initial-scale=1', buildId: 'nGXugIVZRSFy4ga95YQAZ' });
+  });
+});
+
+describe('production comparison', () =&gt; {
+  const refs = extractPageRefs(HTML);
+  const good = sha([['/_next/static/css/253f05d11a58abd2.css', 't'], ['/_next/static/css/a5b6ba8786c1e0e2.css', 'f']]);
+  it('passes when CSS bytes, styled-jsx and viewport match', () =&gt; {
+    expect(compareProduction(MANIFEST, refs, good, new Set(['.a{}']))).toEqual({ ok: true, reasons: [] });
+  });
+  it('fails with a reason for each difference', () =&gt; {
+    const bad = sha([['/_next/static/css/253f05d11a58abd2.css', 't'], ['/_next/static/css/a5b6ba8786c1e0e2.css', 'other']]);
+    const r = compareProduction({ ...MANIFEST, viewport: 'width=1' }, { ...refs, css: [...refs.css, '/_next/static/css/ffffffffffffffff.css'] }, bad, new Set());
+    expect(r.ok).toBe(false);
+    expect(r.reasons).toEqual([
+      'served CSS not in manifest: /_next/static/css/ffffffffffffffff.css',
+      'CSS bytes differ: /_next/static/css/a5b6ba8786c1e0e2.css',
+      'styled-jsx not derivable from served chunks: x',
+      'viewport differs',
+    ]);
+  });
+  it('fails when manifest CSS is not served', () =&gt; {
+    const r = compareProduction(MANIFEST, { ...refs, css: ['/_next/static/css/253f05d11a58abd2.css'] }, good, new Set(['.a{}']));
+    expect(r.reasons).toEqual(['manifest CSS not served: /_next/static/css/a5b6ba8786c1e0e2.css']);
+  });
+});
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 2: 시험이 실패하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/production-check.test.ts 2&gt;&amp;1 | tail -8</code>
+Expected: FAIL (모듈 없음).</p>
+<ul>
+<li>&#9744; <strong>단계 3: 도구를 만든다.</strong></li>
+</ul>
+<pre><code class="language-js">// scripts/replay-p0/tools/check-production-css.cjs
+'use strict';
+// Checks that a deployed page serves the CSS a manifest was generated from. Read-only GETs to the page origin only;
+// Node fetch has no cookie jar, and redirects are refused.
+// Usage: node scripts/replay-p0/tools/check-production-css.cjs --url https://www.picnic.fan/ko/vote --manifest &lt;json&gt; --out &lt;json&gt;
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { createHash } = require('node:crypto');
+const { chromium } = require('playwright');
+const { buildStyleSources, sdkFix } = require('./build-css-manifest.cjs');
+
+const sha = bytes =&gt; createHash('sha256').update(bytes).digest('hex');
+const USER_AGENT = 'picnic-replay-manifest-check/1';
+
+/** CSS, script chunk, viewport and build ID references in the page HTML. */
+function extractPageRefs(html) {
+  const css = [...new Set(html.match(/\/_next\/static\/css\/[0-9a-f]{16}\.css/g) || [])].sort();
+  const chunks = [...new Set([...html.matchAll(/src=&quot;(\/_next\/static\/chunks\/[^&quot;]+\.js)&quot;/g)].map(m =&gt; m[1]))].sort();
+  const viewport = (/&lt;meta name=&quot;viewport&quot; content=&quot;([^&quot;]*)&quot;/.exec(html) || [])[1] ?? null;
+  const buildId = (/\\&quot;b\\&quot;:\\&quot;([A-Za-z0-9_-]{10,40})\\&quot;/.exec(html) || [])[1] ?? null;
+  return { css, chunks, viewport, buildId };
+}
+/** cssSha: served asset path → sha256 of its bytes. styleTexts: styled-jsx texts derived from served chunks (CSSOM + SDK fix). */
+function compareProduction(manifest, refs, cssSha, styleTexts) {
+  const reasons = [];
+  const expected = new Map(manifest.linkCss.map(c =&gt; [c.asset, c.sourceSha256]));
+  for (const asset of refs.css) if (!expected.has(asset)) reasons.push(`served CSS not in manifest: ${asset}`);
+  for (const [asset, want] of expected) {
+    if (!refs.css.includes(asset)) reasons.push(`manifest CSS not served: ${asset}`);
+    else if (cssSha.get(asset) !== want) reasons.push(`CSS bytes differ: ${asset}`);
+  }
+  for (const s of manifest.styleText) {
+    if (!s.accept.some(a =&gt; styleTexts.has(a.text))) reasons.push(`styled-jsx not derivable from served chunks: ${s.output.sha256}`);
+  }
+  if (refs.viewport !== manifest.viewport) reasons.push('viewport differs');
+  return { ok: reasons.length === 0, reasons };
+}
+async function main() {
+  const opt = name =&gt; { const i = process.argv.indexOf(name); assert(i &gt; 0 &amp;&amp; process.argv[i + 1], `missing ${name}`); return process.argv[i + 1]; };
+  const page = new URL(opt('--url')); const manifest = JSON.parse(fs.readFileSync(opt('--manifest'), 'utf8')); const out = opt('--out');
+  assert.equal(manifest.version, 2, 'manifest v2 required');
+  const get = async p =&gt; {
+    const u = new URL(p, page); assert.equal(u.origin, page.origin, `cross-origin request refused: ${u.href}`);
+    const r = await fetch(u, { headers: { 'user-agent': USER_AGENT }, redirect: 'error' });
+    assert.equal(r.status, 200, `${u.pathname} returned ${r.status}`);
+    return Buffer.from(await r.arrayBuffer());
+  };
+  const refs = extractPageRefs((await get(page.pathname)).toString('utf8'));
+  const cssSha = new Map(); for (const asset of refs.css) cssSha.set(asset, sha(await get(asset)));
+  const chunks = []; for (const chunk of refs.chunks) chunks.push((await get(chunk)).toString('utf8'));
+  const sources = [...buildStyleSources(chunks)];
+  const browser = await chromium.launch(); let styleTexts;
+  try {
+    const p = await browser.newPage();
+    const cssom = await p.evaluate(list =&gt; list.map(t =&gt; {
+      const sheet = new CSSStyleSheet(); sheet.replaceSync(t); return [...sheet.cssRules].map(r =&gt; r.cssText).join('');
+    }), sources);
+    styleTexts = new Set(cssom.map(sdkFix));
+  } finally { await browser.close(); }
+  const result = { checkedAt: new Date().toISOString(), url: page.href, buildId: refs.buildId, css: refs.css,
+    chunks: refs.chunks.length, styledSources: sources.length, ...compareProduction(manifest, refs, cssSha, styleTexts) };
+  fs.writeFileSync(out, JSON.stringify(result, null, 2) + '\n');
+  console.log(JSON.stringify(result, null, 2));
+  process.exitCode = result.ok ? 0 : 1;
+}
+module.exports = { extractPageRefs, compareProduction };
+if (require.main === module) main().catch(error =&gt; { console.error(error.message); process.exitCode = 1; });
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 4: 시험이 통과하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/production-check.test.ts 2&gt;&amp;1 | tail -5</code>
+Expected: PASS.</p>
+<ul>
+<li>&#9744; <strong>단계 5: lint를 실행하고 커밋한다.</strong></li>
+</ul>
+<p>Run: <code>ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs</code>
+Expected: PASS.</p>
+<pre><code class="language-bash">git add scripts/replay-p0/tools/check-production-css.cjs __tests__/scripts/replay-p0/vote-list/production-check.test.ts
+git commit -m &quot;feat(replay): add the production CSS equivalence check
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<hr />
+<h2>작업 7: 엔진 비교 도구 (측정 전용)</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>scripts/replay-p0/tools/compare-engine-css.ts</code></li>
+<li>Create: <code>__tests__/scripts/replay-p0/vote-list/engine-compare.test.ts</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Consumes: <code>createVoteListContract</code>, <code>normalizeCssOrigin</code>, <code>VoteListManifest</code> (작업 1), <code>projectWithContract</code>, <code>parseBrowserEnvelope</code>.</li>
+<li>Produces: <code>cssRules(text): string[]</code>, <code>diffCssRules(engine, chromium): { onlyEngine: number; onlyChromium: number; examples: { onlyEngine: string[]; onlyChromium: string[] } }</code>.</li>
+<li>CLI: <code>npx tsx scripts/replay-p0/tools/compare-engine-css.ts --wire-dir &lt;dir&gt; --engine &lt;name&gt; --out &lt;json&gt;</code>. 결과: 폭마다 link·style 시트의 일치 여부, 가장 가까운 manifest 시트와의 규칙 차이, 계약의 종료 reason과 segment. wire 파일이 없으면 <code>missing: true</code>를 기록한다.</li>
+</ul>
+<p>이 도구는 TS 계약을 그대로 실행해야 하므로 <code>.cjs</code> 대신 <code>.ts</code>로 만들고 tsx로 실행한다. <code>tsconfig</code>가 <code>scripts/**/*.ts</code>를 포함하므로 tsc가 타입을 검사한다. target es5이므로 Set·iterator를 spread하지 않는다.</p>
+<ul>
+<li>&#9744; <strong>단계 1: 시험을 작성한다.</strong></li>
+</ul>
+<pre><code class="language-ts">// __tests__/scripts/replay-p0/vote-list/engine-compare.test.ts
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import { cssRules, diffCssRules } from '../../../../scripts/replay-p0/tools/compare-engine-css';
+
+describe('engine CSS comparison', () =&gt; {
+  it('splits serialized CSS into top-level rules', () =&gt; {
+    expect(cssRules('.a { color: red; }@media (min-width: 1px) { .b { top: 0px; } }'))
+      .toEqual(['.a { color: red; }', '@media (min-width: 1px) { .b { top: 0px; } }']);
+  });
+  it('counts rules present in only one serialization', () =&gt; {
+    const d = diffCssRules('.a { color: red; }.x { -webkit-a: 1; }', '.a { color: red; }.y { b: 2; }');
+    expect(d).toEqual({ onlyEngine: 1, onlyChromium: 1, examples: { onlyEngine: ['.x { -webkit-a: 1; }'], onlyChromium: ['.y { b: 2; }'] } });
+    expect(diffCssRules('.a { color: red; }', '.a { color: red; }')).toMatchObject({ onlyEngine: 0, onlyChromium: 0 });
+  });
+});
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 2: 시험이 실패하는지 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/engine-compare.test.ts 2&gt;&amp;1 | tail -8</code>
+Expected: FAIL (모듈 없음).</p>
+<ul>
+<li>&#9744; <strong>단계 3: 도구를 만든다.</strong></li>
+</ul>
+<pre><code class="language-ts">// scripts/replay-p0/tools/compare-engine-css.ts
+// Measures whether another engine's recording matches the Chromium manifest. Measurement only; it changes nothing.
+// Usage: npx tsx scripts/replay-p0/tools/compare-engine-css.ts --wire-dir &lt;dir&gt; --engine webkit --out &lt;json&gt;
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import postcss from 'postcss';
+import { parseBrowserEnvelope } from '../../envelope-test/browser-analyze';
+import { emptyProjectionState, type ProjectionState } from '../contract';
+import { createVoteListContract, normalizeCssOrigin, type VoteListManifest } from '../contracts/vote-list';
+import manifestJson from '../contracts/vote-list.css-manifest.json';
+import { projectWithContract } from '../engine/envelope';
+
+/** Top-level rules of a serialized stylesheet, whitespace-normalized. */
+export function cssRules(text: string): string[] {
+  return postcss.parse(text).nodes.map(n =&gt; n.toString().replace(/\s+/g, ' ').trim());
+}
+export function diffCssRules(engine: string, chromium: string) {
+  const a = new Set(cssRules(engine)); const b = new Set(cssRules(chromium));
+  const onlyEngine = Array.from(a).filter(x =&gt; !b.has(x)); const onlyChromium = Array.from(b).filter(x =&gt; !a.has(x));
+  return { onlyEngine: onlyEngine.length, onlyChromium: onlyChromium.length,
+    examples: { onlyEngine: onlyEngine.slice(0, 5).map(s =&gt; s.slice(0, 200)), onlyChromium: onlyChromium.slice(0, 5).map(s =&gt; s.slice(0, 200)) } };
+}
+function sheetResult(text: string, chromium: string[]) {
+  if (chromium.indexOf(text) &gt;= 0) return { match: true };
+  try {
+    const closest = chromium.map(c =&gt; diffCssRules(text, c)).sort((x, y) =&gt; (x.onlyEngine + x.onlyChromium) - (y.onlyEngine + y.onlyChromium))[0];
+    return { match: false, closest };
+  } catch (error) { return { match: false, parseError: String(error) }; }
+}
+async function main(args: string[]) {
+  const get = (name: string) =&gt; { const i = args.indexOf(name); if (i &lt; 0 || !args[i + 1]) throw new Error(`missing ${name}`); return args[i + 1]; };
+  const dir = get('--wire-dir'); const engine = get('--engine'); const out = get('--out');
+  const manifest = manifestJson as VoteListManifest; const origin = manifest.generatedFrom.origin;
+  const chromiumText = (accept: { engine: string; text: string }[]) =&gt; accept.filter(a =&gt; a.engine === 'chromium').map(a =&gt; a.text);
+  const links = manifest.linkCss.reduce&lt;string[]&gt;((all, c) =&gt; all.concat(chromiumText(c.accept)), []);
+  const styles = manifest.styleText.reduce&lt;string[]&gt;((all, s) =&gt; all.concat(chromiumText(s.accept)), []);
+  const result: Record&lt;string, unknown&gt; = { engine, origin, widths: {} };
+  for (const width of [1280, 390]) {
+    const files = [1, 2, 3].map(n =&gt; join(dir, `wire-${width}-${n}.bin`));
+    if (!files.every(f =&gt; existsSync(f))) { (result.widths as any)[width] = { missing: true }; continue; }
+    const envelopes = files.map(f =&gt; parseBrowserEnvelope(readFileSync(f)));
+    const seenLinks: string[] = []; const seenStyles: string[] = [];
+    for (const e of envelopes) for (const item of e.items) {
+      if (item.header.type !== 'replay_recording') continue;
+      JSON.stringify(item.payload.records, (k, v) =&gt; {
+        if (k === '_cssText' &amp;&amp; seenLinks.indexOf(normalizeCssOrigin(v, origin)) &lt; 0) seenLinks.push(normalizeCssOrigin(v, origin));
+        if (v &amp;&amp; v.isStyle === true &amp;&amp; seenStyles.indexOf(normalizeCssOrigin(v.textContent, origin)) &lt; 0) seenStyles.push(normalizeCssOrigin(v.textContent, origin));
+        return v;
+      });
+    }
+    const contract = createVoteListContract({ manifest, origin, bannerCount: 5 });
+    let state: ProjectionState = emptyProjectionState(); let outcome: { reason: string; segment: number } = { reason: 'ok', segment: 3 };
+    for (let s = 0; s &lt; 3; s++) {
+      const e = envelopes[s];
+      const input = [e.header, e.items.map((i: any) =&gt; i.header.type !== 'replay_recording' ? [i.header, i.payload]
+        : [{ type: 'replay_recording' }, new TextEncoder().encode(JSON.stringify(i.payload.segment) + '\n' + JSON.stringify(i.payload.records))])];
+      const r = await projectWithContract(input as any, state, contract);
+      if (!r.ok) { outcome = { reason: r.reason, segment: s }; break; }
+      state = r.value.next;
+    }
+    (result.widths as any)[width] = { links: seenLinks.map(t =&gt; sheetResult(t, links)), styles: seenStyles.map(t =&gt; sheetResult(t, styles)), contract: outcome };
+  }
+  writeFileSync(out, JSON.stringify(result, null, 2) + '\n');
+  console.log(JSON.stringify(result, null, 2));
+}
+// tsx runs this file as CommonJS (package type), so import.meta is unavailable; check the entry path instead.
+if (process.argv[1] &amp;&amp; process.argv[1].endsWith('compare-engine-css.ts')) {
+  main(process.argv.slice(2)).catch(error =&gt; { console.error(error); process.exitCode = 1; });
+}
+</code></pre>
+<ul>
+<li>&#9744; <strong>단계 4: 시험, 타입, lint를 확인한다.</strong></li>
+</ul>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/engine-compare.test.ts 2&gt;&amp;1 | tail -5 &amp;&amp; npx tsc --noEmit --incremental false &amp;&amp; ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs</code>
+Expected: 모두 PASS. tsc가 Set spread(TS2802)를 보고하면 해당 줄을 <code>Array.from</code>으로 바꾼다.</p>
+<ul>
+<li>&#9744; <strong>단계 5: 커밋한다.</strong></li>
+</ul>
+<pre><code class="language-bash">git add scripts/replay-p0/tools/compare-engine-css.ts __tests__/scripts/replay-p0/vote-list/engine-compare.test.ts
+git commit -m &quot;feat(replay): add the engine CSS comparison for WebKit and Firefox measurement
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<hr />
+<h2>작업 8: 실제 글꼴 빌드, 캡처, manifest 재생성, production 대조, fixture 교체</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>scripts/replay-p0/contracts/vote-list.css-manifest.json</code> (생성기 출력)</li>
+<li>Replace: <code>scripts/replay-p0/fixtures/vote-list/wire-{1280,390}-{1,2,3}.bin</code></li>
+<li>Modify: <code>__tests__/scripts/replay-p0/vote-list/manifest.test.ts</code>, <code>capture.test.ts</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>
+<p>Consumes: 작업 2~6의 도구 전부.</p>
+</li>
+<li>
+<p>Produces: 실제 글꼴 빌드에 묶인 v2 manifest와 fixture. <code>$E/server/</code>, <code>$E/chromium/</code>, <code>$E/manifest-summary.json</code>, <code>$E/production-check.json</code>.</p>
+</li>
+<li>
+<p>&#9744; <strong>단계 1: 시작 조건을 확인한다.</strong></p>
+</li>
+</ul>
+<pre><code class="language-bash">export E=.superpowers/sdd/2026-10-15-replay-build-manifest
+git status --short --untracked-files=all
+ls -a | grep -E '^\.env' || true
+lsof -nP -iTCP:53931 -sTCP:LISTEN; lsof -nP -iTCP:59862 -sTCP:LISTEN
+</code></pre>
+<p>Expected: 작업 트리 깨끗함. <code>.env.example</code>·<code>.env.local.example</code> 말고 <code>.env*</code> 없음. 두 포트 모두 출력 없음. 포트가 사용 중이면 멈추고 보고한다(종료하지 않는다).</p>
+<ul>
+<li>&#9744; <strong>단계 2: 실제 글꼴 빌드를 만들고 서빙한다.</strong> 백그라운드로 실행하고 <code>serving</code> 줄이나 오류가 나올 때까지 기다린다(빌드는 수 분 걸린다).</li>
+</ul>
+<pre><code class="language-bash">mkdir -p &quot;$E/server&quot;
+node scripts/replay-p0/tools/vote-list-server.cjs --out &quot;$E/server&quot; &gt; &quot;$E/server/stdout.log&quot; 2&gt;&amp;1 &amp;
+# 대기 조건: grep -q '^serving' &quot;$E/server/stdout.log&quot; 또는 server.json phase가 failed
+</code></pre>
+<p>Expected: <code>serving .next-envtest &lt;BUILD_ID&gt; on http://127.0.0.1:53931</code>. 실패하면 <code>$E/server/build.log</code>와 <code>$E/server/blocked-network.jsonl</code>을 확인하고 멈춘다. Google Fonts 접근 실패는 “통과할 수 없는 이유” 후보로 기록한다.</p>
+<ul>
+<li>&#9744; <strong>단계 3: 빌드 결과를 확인한다.</strong></li>
+</ul>
+<pre><code class="language-bash">cat &quot;$E/server/server.json&quot;
+cat &quot;$E/server/blocked-network.jsonl&quot; 2&gt;/dev/null || echo &quot;no blocked requests&quot;
+git status --short
+ls .next-envtest/static/css/ &amp;&amp; shasum -a 256 .next-envtest/static/css/*.css
+</code></pre>
+<p>Expected: <code>phase: serving</code>, <code>fontMock: false</code>. 막힌 요청이 없거나 loopback 밖의 의도하지 않은 호스트만 있다(있으면 호스트를 기록한다). <code>git status</code>에 <code>tsconfig.json</code>·<code>next-env.d.ts</code> 변경 없음(<code>restored</code>에 기록됐을 수 있다). CSS 중 <code>253f05d11a58abd2.css</code>와 <code>a5b6ba8786c1e0e2.css</code>가 있고 sha256이 위 기대값과 같다. 이름이나 해시가 다르면 기록하고 단계 4~6을 계속하되 단계 7에서 판정한다.</p>
+<ul>
+<li>&#9744; <strong>단계 4: Chromium으로 캡처한다.</strong></li>
+</ul>
+<p>Run: <code>node scripts/replay-p0/tools/vote-list-capture.cjs --out &quot;$E/chromium&quot;</code>
+Expected: 두 폭 모두 <code>failed: []</code>, <code>envelopes: 4</code>, exit 0. <code>node -p &quot;const l=require('./$E/chromium/layout.json');[l[1280].fontFacesRemoved,l[390].fontFacesRemoved,l[1280].localInter]&quot;</code> → <code>[ 7, 7, false ]</code>.</p>
+<ul>
+<li>&#9744; <strong>단계 5: 최종 manifest 시험을 먼저 쓴다.</strong> <code>manifest.test.ts</code>의 첫 세 <code>it</code>을 아래로 바꾸고, class 시험의 <code>'__className_98b3fa'</code>를 <code>'__className_62543b'</code>로 바꾸고 <code>expect(manifest.classes).not.toContain('__className_98b3fa');</code>를 추가한다.</li>
+</ul>
+<pre><code class="language-ts">  const TAILWIND = '/_next/static/css/253f05d11a58abd2.css';
+  const FONT = '/_next/static/css/a5b6ba8786c1e0e2.css';
+  it('is a v2 manifest generated from a local real-font build', () =&gt; {
+    expect(manifest.version).toBe(2);
+    expect(manifest.sdkVersion).toBe('9.47.1');
+    expect(manifest.generatedFrom.origin).toBe('http://127.0.0.1:53931');
+    expect(manifest.generatedFrom.buildId).toMatch(/^[A-Za-z0-9_-]{21}$/);
+    expect(manifest.generatedFrom.commit).toMatch(/^[0-9a-f]{8}$/);
+  });
+  it('binds the CSS that production serves', () =&gt; {
+    const by = new Map(manifest.linkCss.map(c =&gt; [c.asset, c]));
+    expect(Array.from(by.keys()).sort()).toEqual([TAILWIND, FONT]);
+    expect(by.get(TAILWIND)!.sourceSha256).toBe('144da3bc057b2042d21dfdc3dc5f33fcbe01fa2e620dc405404d594fbb56239c');
+    expect(by.get(TAILWIND)!.accept[0].sha256).toBe('a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d');
+    expect(by.get(TAILWIND)!.output.sha256).toBe('a8df5e2c47eca853c641975b098c2b109880eee7e774c852e430b94695908c3d');
+    expect(by.get(FONT)!.sourceSha256).toBe('5d218a3a5e760187de9176137c0738276875a9d597bbf47360eb17c862afb1b8');
+    expect(by.get(FONT)!.accept[0].sha256).toBe('b13bd1495a04b1a0fe88743b9a9f01bd0cc13bf7a4bb87645e4bad873fbef32b');
+    expect(by.get(FONT)!.output.sha256).toBe('14d9b62f315ae2ac4a19c54ad5fd7aa00910a08204c2170e082e2e5e0748b49c');
+    for (const c of [...manifest.linkCss, ...manifest.styleText]) {
+      for (const a of c.accept) { expect(a.engine).toBe('chromium'); expect(sha(a.text)).toBe(a.sha256); }
+      expect(sha(c.output.text)).toBe(c.output.sha256);
+    }
+    expect(manifest.styleText.map(s =&gt; s.output.sha256).sort()).toEqual([
+      '3e3b68082316ca06cd9f0840be46d60a9d0ea3865b525c40003848fbab0b5b4a',
+      '40ff023b53d41b6d411d5f308724f2e36649a0eaba6353352d31b984d1048ad8',
+      '90da7db75e89a5e6566a2f6bf7278060b018157d549a8714e044e2d4b70160cd',
+    ]);
+  });
+  it('keeps font URLs only in the accepted font CSS', () =&gt; {
+    const font = manifest.linkCss.find(c =&gt; c.asset === FONT)!;
+    const urls = Array.from(font.accept[0].text.matchAll(/url\(&quot;([^&quot;]*)&quot;\)/g), m =&gt; m[1]);
+    expect(urls).toHaveLength(7);
+    for (const u of urls) expect(u).toMatch(/^\/_next\/static\/media\/[0-9a-f]{16}-s\.woff2$/);
+    for (const c of manifest.linkCss.filter(x =&gt; x.asset !== FONT)) expect(c.accept[0].text).not.toMatch(/url\(|@import/i);
+    for (const c of [...manifest.linkCss, ...manifest.styleText]) expect(c.output.text).not.toMatch(/url\(|@import/i);
+    expect(font.output.text).toContain('font-family: &quot;Inter Fallback&quot;');
+    expect(font.output.text).toContain('.__className_62543b');
+  });
+</code></pre>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0/vote-list/manifest.test.ts 2&gt;&amp;1 | tail -8</code>
+Expected: FAIL (아직 변환한 v1 내용이다).</p>
+<ul>
+<li>&#9744; <strong>단계 6: manifest를 생성한다.</strong></li>
+</ul>
+<pre><code class="language-bash">node scripts/replay-p0/tools/build-css-manifest.cjs --url http://127.0.0.1:53931/ko/vote --wire-dir &quot;$E/chromium&quot; \
+  --out scripts/replay-p0/contracts/vote-list.css-manifest.json \
+  --previous scripts/replay-p0/contracts/vote-list.css-manifest.json | tee &quot;$E/manifest-summary.json&quot;
+npx vitest run __tests__/scripts/replay-p0/vote-list/manifest.test.ts 2&gt;&amp;1 | tail -5
+</code></pre>
+<p>Expected: 생성기 exit 0. 요약: <code>links: 2</code>, <code>styles: 3</code>, <code>removedFontFaces</code>에서 글꼴 asset이 7, <code>review.links</code>는 <code>253f05d11a58abd2.css same</code>, <code>36f08833d15de553.css removed</code>, <code>a5b6ba8786c1e0e2.css added</code>, <code>review.styles</code> 추가·삭제 없음, <code>review.classes</code>는 <code>added: ['__className_62543b']</code>, <code>removed: ['__className_98b3fa']</code>. manifest 시험 PASS.</p>
+<p>요약을 사람 검토 기준(spec §6.3)으로 검토하고 결과를 <code>$E/review.md</code>에 적는다: 새 class token이 사용자 데이터처럼 보이지 않는지, 뺀 글꼴 URL 수 7이 Inter subset 7개로 설명되는지.</p>
+<ul>
+<li>&#9744; <strong>단계 7: production과 대조한다.</strong></li>
+</ul>
+<p>Run: <code>node scripts/replay-p0/tools/check-production-css.cjs --url https://www.picnic.fan/ko/vote --manifest scripts/replay-p0/contracts/vote-list.css-manifest.json --out &quot;$E/production-check.json&quot;</code>
+Expected: <code>ok: true</code>, <code>reasons: []</code>, <code>css</code> 2개, <code>styledSources</code> 7. production BUILD_ID를 기록한다.</p>
+<p><code>ok: false</code>이면 여기서 멈춘다. <code>reasons</code>와 단계 3의 파일 이름·해시를 결과 보고서 초안에 적고 사용자에게 보고한다. 이것이 spec 완료 기준의 “통과할 수 없는 이유”다. 계약이나 생성기 규칙을 넓히지 않는다.</p>
+<ul>
+<li>&#9744; <strong>단계 8: fixture를 교체하고 호스트를 확인한다.</strong></li>
+</ul>
+<pre><code class="language-bash">cp &quot;$E&quot;/chromium/wire-{1280,390}-{1,2,3}.bin scripts/replay-p0/fixtures/vote-list/
+node -e &quot;
+const fs=require('fs');const {parseBrowserEnvelope}=require('./scripts/envelope-test/browser-analyze');const hosts=new Set();
+for(const w of [1280,390])for(const n of [1,2,3]){const t=JSON.stringify(parseBrowserEnvelope(fs.readFileSync('scripts/replay-p0/fixtures/vote-list/wire-'+w+'-'+n+'.bin')));
+for(const m of t.matchAll(/https?:\/\/[^\/\&quot;\\\\\s)]+/g))hosts.add(m[0]);}
+console.log([...hosts].sort());&quot;
+</code></pre>
+<p>Expected: <code>http://127.0.0.1:53931</code>, <code>http://127.0.0.1:59862</code>, <code>http://synthetic@127.0.0.1:53931</code> 같은 loopback 형태만 나온다. 다른 호스트가 나오면 멈추고 어디에 있는지 확인한다.</p>
+<ul>
+<li>&#9744; <strong>단계 9: 캡처 시험에 금지 문자열과 글꼴 변조 반례를 추가한다.</strong> <code>capture.test.ts</code>의 <code>FORBIDDEN</code>에 <code>'url('</code>, <code>'/_next/static/media'</code>, <code>'.woff2'</code>를 추가한다. <code>snapshotOf</code> 정의 뒤에 아래 helper를 추가하고, <code>TAMPER</code> 배열 끝에 세 항목을 추가한다.</li>
+</ul>
+<pre><code class="language-ts">const fontLink = (r: Records) =&gt; {
+  let link: any;
+  JSON.stringify(snapshotOf(r), (k, v) =&gt; {
+    if (!link &amp;&amp; v &amp;&amp; v.attributes &amp;&amp; typeof v.attributes._cssText === 'string' &amp;&amp; v.attributes._cssText.includes('@font-face')) link = v;
+    return v;
+  });
+  return link;
+};
+</code></pre>
+<pre><code class="language-ts">  ['font CSS from another origin', 0, r =&gt; {
+    const l = fontLink(r); l.attributes._cssText = l.attributes._cssText.split('http://127.0.0.1:53931/').join('https://evil.example/');
+  }, 'schema'],
+  ['font face with a URL added', 0, r =&gt; {
+    fontLink(r).attributes._cssText += '@font-face { font-family: X; src: url(&quot;http://127.0.0.1:53931/_next/static/media/ffffffffffffffff-s.woff2&quot;) format(&quot;woff2&quot;); }';
+  }, 'schema'],
+  ['font CSS changed by one byte', 0, r =&gt; { fontLink(r).attributes._cssText += ' '; }, 'schema'],
+</code></pre>
+<p>Run: <code>npx vitest run __tests__/scripts/replay-p0 2&gt;&amp;1 | tail -4 &amp;&amp; TZ=UTC npx vitest run __tests__/scripts/replay-p0 2&gt;&amp;1 | tail -4</code>
+Expected: 둘 다 전체 PASS. 캡처 시험의 압축·비압축 4개와 변조 반례(기존 8 + 새 3)가 통과한다.</p>
+<ul>
+<li>&#9744; <strong>단계 10: 커밋한다.</strong></li>
+</ul>
+<pre><code class="language-bash">git add scripts/replay-p0/contracts/vote-list.css-manifest.json scripts/replay-p0/fixtures/vote-list/wire-1280-1.bin scripts/replay-p0/fixtures/vote-list/wire-1280-2.bin scripts/replay-p0/fixtures/vote-list/wire-1280-3.bin scripts/replay-p0/fixtures/vote-list/wire-390-1.bin scripts/replay-p0/fixtures/vote-list/wire-390-2.bin scripts/replay-p0/fixtures/vote-list/wire-390-3.bin __tests__/scripts/replay-p0/vote-list/manifest.test.ts __tests__/scripts/replay-p0/vote-list/capture.test.ts
+git commit -m &quot;feat(replay): regenerate the vote list manifest and fixtures from a real-font build
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<p>서버는 작업 9에서 계속 쓴다. 종료하지 않는다.</p>
+<hr />
+<h2>작업 9: 복원 비교와 엔진 측정</h2>
+<p><strong>Files:</strong> 없음(증거만). 결과는 작업 10의 보고서에 적는다.</p>
+<ul>
+<li>&#9744; <strong>단계 1: raw·투영 복원을 비교한다.</strong></li>
+</ul>
+<p>Run: <code>node scripts/replay-p0/vote-list-restore.cjs --output &quot;$E/restore-loss.json&quot;</code>
+Expected: 두 폭 모두 <code>failures: 0</code>, 배너 인덱스 0/0·4/4, exit 0. <code>aborted</code>(막은 요청 수)를 기록한다.</p>
+<ul>
+<li>&#9744; <strong>단계 2: 투영 복원을 원본 대조군과 비교한다.</strong></li>
+</ul>
+<p>Run: <code>node scripts/replay-p0/vote-list-restore.cjs --original &quot;$E/chromium/layout.json&quot; --output &quot;$E/restore-vs-original.json&quot;</code>
+Expected: exit 0. <code>classes.other: 0</code>. <code>mediaOpacity</code>·<code>svgPlaceholder</code> 수와 <code>fontEffect</code>(<code>boxes</code>, <code>maxDelta</code>)를 기록한다. <code>other</code>가 있으면 멈추고 각 항목의 원인을 조사한다(계약을 넓히지 않는다).</p>
+<ul>
+<li>&#9744; <strong>단계 3: WebKit·Firefox를 설치한다.</strong> 설치된 Playwright 1.63.0에 맞는 버전이 받아진다.</li>
+</ul>
+<p>Run: <code>npx playwright install webkit firefox</code>
+Expected: 두 브라우저 설치. 설치된 버전을 기록한다.</p>
+<ul>
+<li>&#9744; <strong>단계 4: 두 엔진으로 캡처한다.</strong> 측정용이므로 확인 항목이 실패해도 exit 0이다.</li>
+</ul>
+<pre><code class="language-bash">node scripts/replay-p0/tools/vote-list-capture.cjs --browser webkit --out &quot;$E/webkit&quot;
+node scripts/replay-p0/tools/vote-list-capture.cjs --browser firefox --out &quot;$E/firefox&quot;
+</code></pre>
+<p>Expected: 각 폭의 <code>failed</code> 목록과 <code>envelopes</code> 수를 기록한다. 시나리오가 끝나지 않은 폭은 그 사실을 기록한다.</p>
+<ul>
+<li>&#9744; <strong>단계 5: 엔진별 CSS를 manifest와 비교한다.</strong></li>
+</ul>
+<pre><code class="language-bash">npx tsx scripts/replay-p0/tools/compare-engine-css.ts --wire-dir &quot;$E/webkit&quot; --engine webkit --out &quot;$E/engine-webkit.json&quot;
+npx tsx scripts/replay-p0/tools/compare-engine-css.ts --wire-dir &quot;$E/firefox&quot; --engine firefox --out &quot;$E/engine-firefox.json&quot;
+</code></pre>
+<p>Expected: 폭마다 시트별 <code>match</code>, 일치하지 않는 시트의 <code>closest.onlyEngine</code>·<code>onlyChromium</code>과 예시, 계약의 <code>reason</code>·<code>segment</code>를 기록한다. 예상은 <code>match: false</code>와 <code>schema</code> 종료지만, 결과를 그대로 기록한다.</p>
+<ul>
+<li>&#9744; <strong>단계 6: 서버를 종료하고 정리 상태를 확인한다.</strong></li>
+</ul>
+<pre><code class="language-bash">kill &quot;$(node -p &quot;require('./$E/server/server.json').pid&quot;)&quot;
+# 대기 조건: 두 포트가 비고 server.json phase가 exited:* 이다
+lsof -nP -iTCP:53931 -sTCP:LISTEN; lsof -nP -iTCP:59862 -sTCP:LISTEN
+git status --short
+</code></pre>
+<p>Expected: 두 포트 비어 있음. <code>git status</code>에 <code>tsconfig.json</code>·<code>next-env.d.ts</code> 변경 없음.</p>
+<hr />
+<h2>작업 10: 전체 회귀와 결과 보고서</h2>
+<p><strong>Files:</strong></p>
+<ul>
+<li>
+<p>Create: <code>docs/reports/&lt;작성일&gt;-replay-build-manifest-result.html</code></p>
+</li>
+<li>
+<p>&#9744; <strong>단계 1: 전체 회귀를 실행한다.</strong> 출력은 증거 폴더에 저장한다.</p>
+</li>
+</ul>
+<pre><code class="language-bash">npx vitest run __tests__/scripts/replay-p0 2&gt;&amp;1 | tail -4
+TZ=UTC npx vitest run __tests__/scripts/replay-p0 2&gt;&amp;1 | tail -4
+npm test &gt; &quot;$E/npm-test.log&quot; 2&gt;&amp;1; tail -6 &quot;$E/npm-test.log&quot;
+node scripts/replay-p0/run.cjs --case all --output &quot;$E/replay-p0-rerun.json&quot;
+npx tsc --noEmit --incremental false
+ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs
+git diff --check main...HEAD
+</code></pre>
+<p>Expected: replay-p0 전체 PASS(<code>TZ=UTC</code> 포함). <code>npm test</code>: 2026-10-15 기준(226개 파일, 5,004 PASS, expected fail 6, skipped 1)에서 줄어든 수치 없음. <code>run.cjs</code> 22/22 PASS. tsc·eslint·diff-check PASS. 실패가 있으면 <code>superpowers:systematic-debugging</code>으로 원인을 찾고 고친 뒤 다시 실행한다.</p>
+<ul>
+<li>
+<p>&#9744; <strong>단계 2: 결과 보고서를 쓴다.</strong> STE 원칙을 적용한다. 쓰기 전에 <code>/Users/charlie.hyun/.agents/skills/asd-ste100/SKILL.md</code>를 읽는다. 기존 결과 보고서(<code>2026-10-16-replay-vote-list-contract-result.html</code>)와 같은 HTML 형식을 쓴다. 다음 절을 둔다.</p>
+<ol>
+<li>요약(완료 기준 판정: 생성기 통과 여부, production 동등성)</li>
+<li>작업별 커밋</li>
+<li>시험 결과(명령과 수치)</li>
+<li>manifest 검토 요약(<code>$E/manifest-summary.json</code>, <code>$E/review.md</code>)</li>
+<li>production 대조(<code>$E/production-check.json</code>, production BUILD_ID)</li>
+<li>복원 비교(raw·투영, 원본 대조군 분류, 글꼴 영향, <code>localInter</code>)</li>
+<li>엔진 측정(WebKit·Firefox 버전, 시트별 일치, 규칙 차이 예시, 계약 종료 reason)</li>
+<li>spec·계획과 다르게 구현한 점</li>
+<li>남는 위험(spec §7 + 측정으로 새로 알게 된 것)</li>
+<li>검증하지 않은 범위(실제 iOS Safari, 운영 Sentry 저장·재생, 다른 화면)</li>
+<li>증거 위치(<code>$E/…</code>, git 무시)</li>
+</ol>
+</li>
+<li>
+<p>&#9744; <strong>단계 3: 보고서를 커밋한다.</strong></p>
+</li>
+</ul>
+<pre><code class="language-bash">git add -f docs/reports/&lt;작성일&gt;-replay-build-manifest-result.html
+git commit -m &quot;docs(replay): add the build manifest result
+
+Co-Authored-By: Claude Opus 5.5 &lt;noreply@anthropic.com&gt;&quot;
+</code></pre>
+<hr />
+<h2>작업 11: 교차 공급자 리뷰 (Codex <code>gpt-6.1-sol</code>/high)</h2>
+<p>개인정보 경계를 바꾸는 고위험 변경이므로 반대 공급자 Frontier 리뷰를 받는다. 절차는 <code>~/.agents/skills/usage-aware-orchestration/SKILL.md</code>의 Dispatch gate와 Orca 실시간 가이드를 따른다.</p>
+<ul>
+<li>&#9744; <strong>단계 1: 사용량 게이트를 새로 실행한다.</strong> 구현자는 Claude이므로 <code>ROUTER_IMPLEMENTER_PROVIDER=claude</code>를 export하고 <code>route-fresh.sh claude-heavy high auto auto</code>를 실행한다. <code>status=ready</code>, Route v2, <code>dispatchAllowed=true</code>, <code>request.implementerProvider=claude</code>, reviewer <code>codex</code>/<code>gpt-6.1-sol</code>/high를 확인한다. 하나라도 다르면 리뷰어를 만들지 않고 차단 사유를 보고한다.</li>
+<li>&#9744; <strong>단계 2: capability를 새로 수집하고 <code>build-orca-launch.py reviewer</code>로 argv를 만든다.</strong> <code>allowed=true</code>와 비어 있지 않은 argv를 확인한다.</li>
+<li>&#9744; <strong>단계 3: 리뷰어 터미널을 띄우고 실제 모델·effort·권한(read-only)을 확인한다.</strong> 첫 화면에 “Set up security” 선택지가 있으면 Escape로 닫은 뒤 진행한다.</li>
+<li>&#9744; <strong>단계 4: 리뷰 brief를 보낸다.</strong> 요구사항(spec), 리뷰 범위(<code>8b6d5b3a..HEAD</code>), 관련 파일, 시험 결과만 준다. 구현자의 판단 과정은 주지 않는다. Review Focus 5개와 다음 질문을 포함한다: 출력에 wire 내용이 들어갈 경로가 남았는가, 정규화가 다른 origin의 URL을 받아들일 수 있는가, 생성기가 허용 밖 글꼴 URL을 통과시킬 수 있는가, 서버가 제품 비밀 정보나 외부 호스트에 닿을 수 있는가.</li>
+<li>&#9744; <strong>단계 5: 판정을 받고 정산한다.</strong> 지적마다 코드·시험으로 확인해 고치거나 근거로 반박한다. 고친 뒤 전체 회귀를 다시 실행하고 같은 리뷰어에게 한 번 재검증을 받는다.</li>
+<li>&#9744; <strong>단계 6: 리뷰 결과를 결과 보고서에 추가하고 커밋한다.</strong> 리뷰어 터미널을 닫고 Orca 정산 상태를 기록한다. 이후 PR을 만들 때 본문에 <code>$E/manifest-summary.json</code>의 검토 요약을 붙인다(spec §6.2 단계 6). PR 생성과 merge는 사용자 승인 뒤에 한다.</li>
+</ul>
+<hr />
+<h2>spec과 다르게 정한 점 (계획 단계)</h2>
+<ul>
+<li><strong><code>compare-engine-css</code>는 <code>.ts</code>다.</strong> TS 계약을 그대로 실행해야 하므로 tsx로 실행한다(spec 표의 이름은 <code>.cjs</code>).</li>
+<li><strong>서버 도구를 네 파일로 나눴다.</strong> <code>net-guard.cjs</code>(preload 차단기), <code>font-mock.cjs</code>, <code>vote-list-upstream.cjs</code>(합성 데이터), <code>vote-list-server.cjs</code>(조정). 각 파일의 책임을 하나로 하고 단위 시험을 쓰기 위해서다.</li>
+<li><strong>차이 분류 규칙을 코드로 정하고 hover를 허용 분류에서 뺐다.</strong> spec §5 단계 7의 “기존 분류(media·hover·svg placeholder)” 중 media와 svg placeholder만 <code>classifyFailures</code>의 규칙으로 고정했다. hover는 캡처가 원본 측정 전에 pointer를 화면 밖으로 옮겨 없앤다. 이전 증거에서 hover와 svg placeholder가 겹친 6px 차이를 규칙으로 분류할 수 없었기 때문이다. spec보다 엄격하다.</li>
+<li><strong><code>check-production-css</code>는 Chromium으로 styled-jsx를 파싱한다.</strong> manifest에 styled-jsx 원문 해시를 따로 저장하지 않고, production chunk에서 도출한 원문을 CSSOM으로 바꿔 <code>accept</code> 텍스트와 비교한다.</li>
+<li><strong><code>compare</code>의 개수 비교 범위:</strong> 상수 <code>SELECTORS</code> 대신 두 측정 목록에 나온 selector 전체를 본다. 도구 안의 결과는 같다.</li>
+</ul>
+<h2>자체 점검 기록</h2>
+<ul>
+<li><strong>spec 대응:</strong> §3.1 형식 → 작업 1·2. §3.2 옵션 → 작업 1. §3.3 정규화·식별 → 작업 1. §3.4 글꼴 규칙 → 작업 2. §3.5 내용 결합 → 작업 1(BUILD_ID 검사 제거). §4 도구 → 작업 2<del>7. §5 단계 1</del>9 → 작업 1·2(1·2), 작업 8(3·4·5·6), 작업 9(7·8), 작업 10(9). §6 절차 → 작업 8이 절차를 그대로 한 번 실행한다. §7 위험 → 작업 10 보고서. §8 → 작업 11.</li>
+<li><strong>placeholder 검사:</strong> 결과 보고서 파일명의 <code>&lt;작성일&gt;</code>은 실행 날짜로 정한다. 그 밖의 TBD·TODO 없음.</li>
+<li><strong>타입 일관성:</strong> <code>normalizeCssOrigin(text, origin)</code>, <code>CssEntry</code>, <code>generatedFrom.origin</code>, <code>splitFontRules(rules, label)</code>의 <code>{ accept, output, removed }</code>, <code>classifyFailures</code>의 네 분류 이름을 모든 작업에서 같게 썼다.</li>
+<li><strong>Review Focus:</strong> 1·2·3 → 작업 1 단계 3, 4 → 작업 2 단계 1, 5 → 작업 3 단계 1.</li>
+</ul>
+</main></body></html>

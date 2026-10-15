@@ -2,11 +2,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { emptyProjectionState } from '../../../../scripts/replay-p0/contract';
-import { createVoteListContract } from '../../../../scripts/replay-p0/contracts/vote-list';
+import { createVoteListContract, type VoteListManifest } from '../../../../scripts/replay-p0/contracts/vote-list';
 import { projectWithContract } from '../../../../scripts/replay-p0/engine/envelope';
-import { el, envelope, findNode, MANIFEST, mutation, outputRecords, outputText, page, T, txt, type RawNode } from './helpers';
+import { el, envelope, findNode, FONT_KEEP, fontWire, MANIFEST, mutation, ORIGIN, outputRecords, outputText, page, T, txt, type RawNode } from './helpers';
 
-const contract = (bannerCount = 5) => createVoteListContract({ manifest: MANIFEST, buildId: 'test-build', bannerCount });
+const contract = (bannerCount = 5) => createVoteListContract({ manifest: MANIFEST, origin: ORIGIN, bannerCount });
 const run = (records: unknown[], compressed = false, c = contract()) => projectWithContract(envelope(records, 0, compressed), emptyProjectionState(), c);
 const body = (...nodes: RawNode[]) => page([], nodes);
 async function ok(records: unknown[], compressed = false) {
@@ -16,8 +16,17 @@ async function reason(records: unknown[]) { const r = await run(records); return
 const MARK = 'PIIMARK-7f3a';
 
 describe('vote-list contract: construction', () => {
-  it('rejects a different build ID', () => {
-    expect(() => createVoteListContract({ manifest: MANIFEST, buildId: 'other', bannerCount: 5 })).toThrow();
+  const make = (manifest: VoteListManifest, origin = ORIGIN) => () => createVoteListContract({ manifest, origin, bannerCount: 5 });
+  it('rejects a manifest that is not version 2', () => {
+    expect(make({ ...MANIFEST, version: 1 } as unknown as VoteListManifest)).toThrow();
+  });
+  it.each(['', 'https://www.picnic.fan/', 'https://www.picnic.fan/ko', 'HTTPS://WWW.PICNIC.FAN', 'ftp://x', 'http://x:123456', 'https://user@x'])(
+    'rejects origin %j', origin => { expect(make(MANIFEST, origin)).toThrow(); });
+  it.each(['https://www.picnic.fan', 'http://127.0.0.1:53931'])('accepts origin %s', origin => {
+    expect(make(MANIFEST, origin)).not.toThrow();
+  });
+  it('rejects one accept text in two entries of a list', () => {
+    expect(make({ ...MANIFEST, linkCss: [MANIFEST.linkCss[0], { ...MANIFEST.linkCss[0], asset: '/copy.css' }] })).toThrow();
   });
   it('rejects bannerCount outside 0…100', () => {
     expect(() => contract(101)).toThrow(); expect(() => contract(-1)).toThrow();
@@ -71,6 +80,33 @@ describe('vote-list contract: head', () => {
     const title = el('title', {}, [{ type: 3, textContent: 'x', id: 9004 }]);
     const bytes = await ok([...page([title], []), mutation({ texts: [{ id: 9004, value: MARK }] })]);
     expect(outputText(bytes)).not.toContain(MARK);
+  });
+  it('emits the manifest output for font CSS, without font URLs', async () => {
+    const link = el('link', { rel: null, href: null, 'data-precedence': 'next', _cssText: fontWire() });
+    const bytes = await ok(page([link], []));
+    expect(findNode(outputRecords(bytes), link.id as number).attributes).toEqual({ _cssText: FONT_KEEP });
+    for (const word of ['url(', '127.0.0.1', '.woff2']) expect(outputText(bytes)).not.toContain(word);
+  });
+  it('maps two links with the same font CSS to the same output', async () => {
+    const a = el('link', { _cssText: fontWire() }); const b = el('link', { _cssText: fontWire() });
+    const recs = outputRecords(await ok(page([a, b], [])));
+    expect(findNode(recs, a.id as number).attributes._cssText).toBe(FONT_KEEP);
+    expect(findNode(recs, b.id as number).attributes._cssText).toBe(FONT_KEEP);
+  });
+  it.each([
+    ['another origin', fontWire('https://evil.example')],
+    ['a single-quoted URL', fontWire().replace(/url\("([^"]*)"\)/, "url('$1')")],
+    ['an unquoted URL', fontWire().replace(/url\("([^"]*)"\)/, 'url($1)')],
+    ['an extra font face', `${fontWire()}@font-face { font-family: X; src: url("${ORIGIN}/_next/static/media/ffffffffffffffff-s.woff2") format("woff2"); }`],
+  ])('rejects font CSS with %s', async (_name, cssText) => {
+    expect(await reason(page([el('link', { _cssText: cssText })], []))).toBe('schema');
+  });
+  it('emits the manifest output for style text, not the received text', async () => {
+    const changed = { ...MANIFEST, styleText: [{ ...MANIFEST.styleText[0], output: { sha256: '0', text: '.jsx-1.b { display: none; }' } }] };
+    const c = createVoteListContract({ manifest: changed, origin: ORIGIN, bannerCount: 5 });
+    const style = el('style', { type: 'text/css' }, [{ type: 3, textContent: '.jsx-1.b { display: block; }', isStyle: true, id: 9005 }]);
+    const r = await run(page([style], []), false, c); if (!r.ok) throw new Error(r.reason);
+    expect(findNode(outputRecords(r.value.bytes), 9005).textContent).toBe('.jsx-1.b { display: none; }');
   });
 });
 
