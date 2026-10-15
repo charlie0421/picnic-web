@@ -181,6 +181,14 @@ describe('vote-list contract: announcer shadow', () => {
     expect(await reason(body(el('div', {}, [el('div', {}, [], { isShadow: true })])))).toBe('schema');
     expect(await reason(body(el('next-route-announcer', {}, [])))).toBe('schema');
   });
+  it('rejects an announcer root without the constant style or role', async () => {
+    const root = (attributes: Record<string, unknown>) => el('next-route-announcer', { style: 'position: absolute;' },
+      [el('div', attributes, [], { isShadow: true })], { isShadowHost: true });
+    expect(await reason(body(root({})))).toBe('schema');
+    expect(await reason(body(root({ role: 'alert' })))).toBe('schema');
+    expect(await reason(body(root({ style: MANIFEST.announcerStyle })))).toBe('schema');
+    expect(await reason([...body(), mutation({ adds: [{ parentId: 5, nextId: null, node: root({ role: 'alert' }) }] })])).toBe('schema');
+  });
   it('rejects a second live host but allows reinsertion after removal', async () => {
     const host = announcer();
     expect(await reason([...body(host), mutation({ adds: [{ parentId: 5, nextId: null, node: announcer() }] })])).toBe('schema');

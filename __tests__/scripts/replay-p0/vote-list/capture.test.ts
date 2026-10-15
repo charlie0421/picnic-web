@@ -96,6 +96,20 @@ describe('vote-list capture counterexamples', () => {
       expect(result.reason).toBe(expected); expect(result.segment).toBe(segment);
     }
   });
+  it('src added in segment 1 to an existing snapshot img → closes', async () => {
+    for (const width of [1280, 390]) {
+      let id = 0;
+      load(width, 0, false, r => { id = firstImg(snapshotOf(r)).id; });
+      const valid = await runAll(width, false, { segment: 1, fn: r => {
+        r.push({ type: 3, timestamp: incrementalAt(r), data: { source: 0, adds: [], removes: [], texts: [], attributes: [{ id, attributes: { class: 'object-cover' } }] } });
+      } });
+      expect(valid.reason).toBe('ok');
+      const result = await runAll(width, false, { segment: 1, fn: r => {
+        r.push({ type: 3, timestamp: incrementalAt(r), data: { source: 0, adds: [], removes: [], texts: [], attributes: [{ id, attributes: { src: '/x.png' } }] } });
+      } });
+      expect(result).toMatchObject({ reason: 'schema', segment: 1 });
+    }
+  });
   it('segment gap → sequence', async () => {
     const c = contract(); let state = emptyProjectionState();
     const first = await projectWithContract(load(1280, 0, false), state, c); if (!first.ok) throw new Error(first.reason);

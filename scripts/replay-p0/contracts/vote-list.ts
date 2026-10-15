@@ -122,6 +122,7 @@ export function createVoteListContract(o: VoteListOptions): Contract {
     styleText(raw) { requireValue(typeof raw === 'string' && styleTexts.has(raw)); return raw; },
     checkElement(entry, state) {
       if (MEDIA.has(entry.tag!)) requireValue(entry.children.length === 0 && 'rr_width' in entry.attrs && 'rr_height' in entry.attrs);
+      if (entry.shadow === 'root') requireValue(entry.attrs.style === m.announcerStyle && entry.attrs.role === 'alert');
       if (entry.shadow === 'host') {
         requireValue(entry.children.length === 1 && state.nodes.get(entry.children[0])?.shadow === 'root');
       }
