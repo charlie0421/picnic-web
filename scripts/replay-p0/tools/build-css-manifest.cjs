@@ -1,7 +1,8 @@
 'use strict';
 // Builds the vote-list CSS manifest from the envtest build and a live local page.
 // Usage: node build-css-manifest.cjs --url http://127.0.0.1:<port>/ko/vote --wire-dir <dir> --out <json>
-// The wire capture is used only to verify the computed values. Nothing is derived from it.
+// CSS comes from the build: link assets are parsed from disk, styled-jsx text is traced to build JS.
+// The live page and the wire capture are used only to verify the computed values.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -60,7 +61,43 @@ function wireValues(dir) {
   }
   return { links, styles };
 }
-(async () => {
+/** Build-derived CSSOM must equal the live sheet and a captured wire value. Returns the wire text. */
+function checkCss(source, live, wireSet, label) {
+  if (/url\(|@import/i.test(source) || /url\(|@import/i.test(live)) throw new Error(`${label}: resource reference in CSS`);
+  if (source !== live) throw new Error(`${label}: live CSSOM differs from build`);
+  if (!wireSet.has(source)) throw new Error(`${label}: CSS missing from wire capture`);
+  return source;
+}
+const LITERAL = String.raw`"(?:[^"\\]|\\.)*"`;
+const CHAIN = new RegExp(`(${LITERAL})((?:\\.concat\\((?:\\d+|${LITERAL})(?:,(?:\\d+|${LITERAL}))*\\))*)`, 'g');
+/** Every string literal in the build JS, with .concat() chains of literal arguments evaluated. */
+function buildStyleSources(chunks) {
+  const out = new Set();
+  for (const text of chunks) {
+    for (const m of text.matchAll(CHAIN)) {
+      // Literals are matched whole first, so digits and parentheses inside them are not separate tokens.
+      // A literal with a JS-only escape is skipped; styled-jsx text built from it then fails to trace (fail closed).
+      try {
+        let value = JSON.parse(m[1]);
+        for (const arg of m[2].match(new RegExp(`${LITERAL}|\\d+`, 'g')) ?? []) value += arg.startsWith('"') ? JSON.parse(arg) : arg;
+        if (value.includes('{')) out.add(value);
+      } catch { continue; }
+    }
+  }
+  return out;
+}
+/** styled-jsx text must exist in the build JS; dynamic styles use the numeric jsx-<hash> class. */
+function traceStyledJsx(text, sources) {
+  return sources.has(text) || sources.has(text.replace(/\.jsx-\d+(?![\w-])/g, '.__jsx-style-dynamic-selector'));
+}
+function chunkTexts() {
+  const dir = path.join(root, '.next-envtest/static/chunks'); const files = [];
+  const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const f = path.join(d, e.name); if (e.isDirectory()) walk(f); else if (f.endsWith('.js')) files.push(fs.readFileSync(f, 'utf8'));
+  } };
+  walk(dir); return files;
+}
+async function main() {
   assertSdkFixUnchanged();
   const url = arg('--url'); const out = arg('--out'); const wire = wireValues(arg('--wire-dir'));
   const buildId = fs.readFileSync(path.join(root, '.next-envtest/BUILD_ID'), 'utf8').trim();
@@ -76,20 +113,28 @@ function wireValues(dir) {
         sheets: [...document.styleSheets].filter(s => s.ownerNode.tagName === 'LINK').map(s => ({
           href: new URL(s.href).pathname, cssom: [...s.cssRules].map(r => r.cssText).join('') })),
         // rrweb records <style> text from the CSSOM, not from textContent.
-        styled: [...document.querySelectorAll('style[data-styled-jsx]')].map(s => [...s.sheet.cssRules].map(r => r.cssText).join('')),
+        styled: [...document.querySelectorAll('style[data-styled-jsx]')].map(s => ({
+          text: s.textContent, cssom: [...s.sheet.cssRules].map(r => r.cssText).join('') })),
       };
     }, nextAnnouncerSource());
-    const linkCss = live.sheets.map(s => {
+    // Parse trusted sources in a constructed sheet so page scripts cannot change the result.
+    const parse = text => page.evaluate(css => { const sheet = new CSSStyleSheet(); sheet.replaceSync(css);
+      return [...sheet.cssRules].map(r => r.cssText).join(''); }, text);
+    const linkCss = [];
+    for (const s of live.sheets) {
       const file = path.join(root, '.next-envtest', s.href.replace(/^\/_next\//, ''));
-      const wireText = sdkFix(s.cssom);
-      assert(wire.links.has(wireText), `wire mismatch for ${s.href}`);
-      return { asset: s.href, sourceSha256: sha(fs.readFileSync(file)), wireSha256: sha(wireText), wire: wireText };
-    });
-    live.styled = live.styled.map(sdkFix);
-    for (const text of live.styled) assert(wire.styles.has(text), 'styled-jsx text missing from wire');
+      const bytes = fs.readFileSync(file);
+      const wireText = checkCss(sdkFix(await parse(bytes.toString('utf8'))), sdkFix(s.cssom), wire.links, s.href);
+      linkCss.push({ asset: s.href, sourceSha256: sha(bytes), wireSha256: sha(wireText), wire: wireText });
+    }
+    const sources = buildStyleSources(chunkTexts()); const styled = [];
+    for (const s of live.styled) {
+      assert(traceStyledJsx(s.text, sources), 'styled-jsx text not found in build output');
+      styled.push(checkCss(sdkFix(await parse(s.text)), sdkFix(s.cssom), wire.styles, 'styled-jsx'));
+    }
+    live.styled = styled;
     assert.equal(linkCss.length, wire.links.size); assert.equal(live.styled.length, wire.styles.size);
     const all = [...linkCss.map(c => c.wire), ...live.styled];
-    for (const css of all) assert(!/url\(|@import/i.test(css), 'resource reference in CSS');
     const classes = new Set(); for (const css of all) for (const t of classTokens(css)) classes.add(t);
     const manifest = {
       version: 1, buildId, sdkVersion: '9.47.1', release: 'replay-vote-list-local', environment: 'replay-vote-list-local',
@@ -101,4 +146,6 @@ function wireValues(dir) {
     fs.writeFileSync(out, JSON.stringify(manifest, null, 2) + '\n');
     console.log(JSON.stringify({ buildId, links: linkCss.length, styles: live.styled.length, classes: classes.size }));
   } finally { await browser.close(); }
-})().catch(error => { console.error(error.message); process.exit(1); });
+}
+module.exports = { checkCss, buildStyleSources, traceStyledJsx };
+if (require.main === module) main().catch(error => { console.error(error.message); process.exit(1); });
