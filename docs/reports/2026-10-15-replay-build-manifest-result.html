@@ -20,7 +20,7 @@ th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;bo
 <h1>Replay 배포 빌드용 CSS manifest 결과</h1>
 <p class="note"><strong>이 결과는 시험 harness 안의 검증이다.</strong> 제품 코드에 연결하지 않았고 운영 Sentry Replay를 활성화하지 않았다. production 사이트에서는 공개 자산만 읽었고 녹화하지 않았다. 브랜치 <code>feat/replay-build-manifest</code>는 push하지 않았다.</p>
 
-<p><strong>요약:</strong> 실제 글꼴을 쓰는 production 설정 빌드에서 생성기가 통과했다. 이것이 완료 기준이다. 이 빌드의 CSS 자산 2개는 production(<code>https://www.picnic.fan/ko/vote</code>)과 바이트 단위로 같고, production 대조 도구가 통과했다. 계약은 manifest의 출력 텍스트만 내보내며 글꼴 URL을 출력하지 않는다. raw 복원과 투영 복원의 차이는 0이다. WebKit·Firefox 녹화는 정확 비교에서 맞지 않아 segment 0에서 종료한다(측정만 함). 교차 공급자 리뷰(Codex)는 Important 3건을 지적했다. 모두 고쳤고, 재검증에서 남은 1건(HTML 정규식 추출)도 고쳤다. 이 마지막 수정은 아직 교차 재검증을 받지 않았다(§10). 서로 다른 두 로컬 빌드에서 만든 manifest의 내용이 같다(§3.4).</p>
+<p><strong>요약:</strong> 실제 글꼴을 쓰는 production 설정 빌드에서 생성기가 통과했다. 이것이 완료 기준이다. 이 빌드의 CSS 자산 2개는 production(<code>https://www.picnic.fan/ko/vote</code>)과 바이트 단위로 같고, production 대조 도구가 통과했다. 계약은 manifest의 출력 텍스트만 내보내며 글꼴 URL을 출력하지 않는다. raw 복원과 투영 복원의 차이는 0이다. WebKit·Firefox 녹화는 정확 비교에서 맞지 않아 segment 0에서 종료한다(측정만 함). 교차 공급자 리뷰(Codex)는 Important 3건을 지적했다. 모두 고쳤고, 재검증에서 남은 1건(HTML 정규식 추출)도 고쳤다. 사용자가 승인한 2차 재검증의 판정은 <strong>APPROVE</strong>다(§10). 서로 다른 두 로컬 빌드에서 만든 manifest의 내용이 같다(§3.4).</p>
 <ul>
 <li>Spec: <code>docs/reports/2026-10-15-replay-build-manifest-design.html</code></li>
 <li>계획: <code>docs/reports/2026-10-15-replay-build-manifest-plan.html</code></li>
@@ -198,7 +198,22 @@ th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;bo
 <tbody>
 <tr><td>Important</td><td>production 대조가 HTML을 정규식으로 훑는다. <code>&lt;link title="a&gt;b" rel="stylesheet" href="/extra.css"&gt;</code>(따옴표 안의 <code>&gt;</code>)와 <code>rel="style&amp;#115;heet"</code>(문자 참조)의 추가 stylesheet를 놓친다.</td><td>고침(<code>04ba7c5b</code>). jsdom으로 HTML을 파싱한다(script 실행 없음, 리소스 로딩 없음). 따옴표, 문자 참조, 주석, raw-text 요소, <code>&lt;base href&gt;</code>를 브라우저와 같게 처리한다. 두 입력과 대소문자가 다른 rel, 주석·script 텍스트 안의 마크업, <code>&lt;base href&gt;</code> 시험을 RED→GREEN으로 확인했다. 실제 production 대조도 계속 통과한다.</td></tr>
 </tbody></table></div>
-<p class="warn">이 마지막 수정(<code>04ba7c5b</code>)은 아직 교차 공급자 재검증을 받지 않았다. 정책은 원 리뷰어의 재검증을 한 번으로 정하고 있고, 그 한 번은 위에서 썼다. 두 번째 재검증은 사용자 승인이 필요하다.</p>
+<h3>10.5 2차 재검증 (사용자 승인 후)</h3>
+<p>정책은 원 리뷰어의 재검증을 한 번으로 정한다. 마지막 수정(<code>04ba7c5b</code>)을 검증하는 2차 재검증은 사용자가 승인했다.</p>
+<ul>
+<li>00:03 KST에 게이트가 <code>maintenance</code>(route 없음)였다. ai-agent-config <code>abf0038</code> 설치 중이었고, Run inbox의 통지에 따라 dispatch를 멈췄다. 설치는 00:18:54에 끝났다.</li>
+<li>00:20과 00:21에는 게이트가 ready였지만 capability 수집에서 Codex app-server의 <code>account/read</code>가 응답하지 않았다(capability-blocked). 우회하지 않았다. 5분 뒤 다시 시도해 00:29:22에 통과했다.</li>
+<li>새로 검증한 실행 인자가 기존 리뷰어와 같아서 같은 터미널을 재사용했다(Task <code>task_5d0faee8e833</code>, Dispatch <code>ctx_fe7f0339b2f7</code>).</li>
+</ul>
+<p>판정: <strong class="pass">APPROVE</strong>. 지적 3은 RESOLVED다. 리뷰어는 네트워크 없이 다음을 확인했다.</p>
+<ul>
+<li>두 반례가 거부된다.</li>
+<li>CDN 시나리오에서 다른 origin, 추가 시트, 누락 시트가 모두 보고된다.</li>
+<li>주석과 script 텍스트 안의 마크업은 무시된다.</li>
+<li>다른 origin의 <code>&lt;base href&gt;</code>가 적용된다.</li>
+<li>jsdom이 script를 실행하지 않고 리소스를 불러오지 않는다.</li>
+</ul>
+<p>새 결함은 없었다. 세 Dispatch는 모두 <code>worker_done</code>으로 정산됐고, 모든 delivery를 ack했다. 리뷰어 터미널은 정산 뒤 닫았다.</p>
 
 <h2>11. 후속 결정이 필요한 것</h2>
 <ul>
