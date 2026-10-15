@@ -14,9 +14,12 @@ export function createReplayView(target: Document, options: { tags?: readonly st
   const tags = options.tags ?? P0_TAGS;
   const nodes = new Map<number, Node>();
   const clicks: number[] = [];
+  const sized = new WeakSet<Element>();
   function attrs(node: Element, values: Record<string, string | null>) {
     for (const [name, value] of Object.entries(values)) {
-      if (value === null) node.removeAttribute(name); else node.setAttribute(name, value);
+      if (sized.has(node) && (name === 'rr_width' || name === 'rr_height')) {
+        (node as HTMLElement).style[name === 'rr_width' ? 'width' : 'height'] = value ?? '';
+      } else if (value === null) node.removeAttribute(name); else node.setAttribute(name, value);
     }
   }
   function element(raw: RecordedNode): Element {
@@ -31,7 +34,7 @@ export function createReplayView(target: Document, options: { tags?: readonly st
     const placeholder = PLACEHOLDERS.includes(raw.tagName!) && typeof width === 'string' && typeof height === 'string';
     if (placeholder) { delete values.rr_width; delete values.rr_height; }
     attrs(node, values);
-    if (placeholder) { (node as HTMLElement).style.width = width; (node as HTMLElement).style.height = height; }
+    if (placeholder) { sized.add(node); (node as HTMLElement).style.width = width; (node as HTMLElement).style.height = height; }
     return node;
   }
   function attach(parent: Node, child: Node, raw: RecordedNode, before: Node | null = null) {
