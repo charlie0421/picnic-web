@@ -26,6 +26,8 @@ export type TrialReport = {
 export type NodeState = {
   parent: number | null; children: number[]; kind: number; tag?: string;
   text?: string; isStyle?: boolean; attrs: Record<string, string>; style: Record<string, string>;
+  /** Contract-owned marks. The engine copies them with the state and never reads them. */
+  shadow?: 'host' | 'root'; svg?: true; mark?: string;
 };
 export type ProjectionState = {
   replayId: string | null; nextSegment: number; sessionStartMs: number | null;
