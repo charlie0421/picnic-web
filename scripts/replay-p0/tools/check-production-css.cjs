@@ -11,17 +11,34 @@ const { buildStyleSources, sdkFix } = require('./build-css-manifest.cjs');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const USER_AGENT = 'picnic-replay-manifest-check/1';
 
-/** CSS, script chunk, viewport and build ID references in the page HTML. */
-function extractPageRefs(html) {
-  const css = [...new Set(html.match(/\/_next\/static\/css\/[0-9a-f]{16}\.css/g) || [])].sort();
-  const chunks = [...new Set([...html.matchAll(/src="(\/_next\/static\/chunks\/[^"]+\.js)"/g)].map(m => m[1]))].sort();
+const attr = (tag, name) => {
+  const m = new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(tag);
+  return m ? (m[1] ?? m[2] ?? m[3]) : undefined;
+};
+/**
+ * Every stylesheet link and script src in the page HTML, resolved against the page URL. Same-origin references are kept as
+ * path + query; references to another origin are listed separately so the comparison can refuse them.
+ */
+function extractPageRefs(html, pageUrl) {
+  const page = new URL(pageUrl);
+  const split = urls => ({
+    same: [...new Set(urls.filter(u => u.origin === page.origin).map(u => u.pathname + u.search))].sort(),
+    foreign: [...new Set(urls.filter(u => u.origin !== page.origin).map(u => u.href))].sort(),
+  });
+  const sheets = split((html.match(/<link\b[^>]*>/gi) || [])
+    .filter(tag => /(^|\s)stylesheet(\s|$)/i.test(attr(tag, 'rel') || '')).map(tag => new URL(attr(tag, 'href') || '', page)));
+  const scripts = split((html.match(/<script\b[^>]*>/gi) || []).map(tag => attr(tag, 'src')).filter(Boolean).map(src => new URL(src, page)));
   const viewport = (/<meta name="viewport" content="([^"]*)"/.exec(html) || [])[1] ?? null;
   const buildId = (/\\"b\\":\\"([A-Za-z0-9_-]{10,40})\\"/.exec(html) || [])[1] ?? null;
-  return { css, chunks, viewport, buildId };
+  return { css: sheets.same, foreignCss: sheets.foreign, chunks: scripts.same, foreignScripts: scripts.foreign,
+    inlineStyles: (html.match(/<style\b/gi) || []).length, viewport, buildId };
 }
 /** cssSha: served asset path → sha256 of its bytes. styleTexts: styled-jsx texts derived from served chunks (CSSOM + SDK fix). */
 function compareProduction(manifest, refs, cssSha, styleTexts) {
   const reasons = [];
+  for (const url of refs.foreignCss) reasons.push(`cross-origin stylesheet: ${url}`);
+  for (const url of refs.foreignScripts) reasons.push(`cross-origin script: ${url}`);
+  if (refs.inlineStyles) reasons.push(`inline <style> in page HTML: ${refs.inlineStyles}`);
   const expected = new Map(manifest.linkCss.map(c => [c.asset, c.sourceSha256]));
   for (const asset of refs.css) if (!expected.has(asset)) reasons.push(`served CSS not in manifest: ${asset}`);
   for (const [asset, want] of expected) {
@@ -44,7 +61,7 @@ async function main() {
     assert.equal(r.status, 200, `${u.pathname} returned ${r.status}`);
     return Buffer.from(await r.arrayBuffer());
   };
-  const refs = extractPageRefs((await get(page.pathname)).toString('utf8'));
+  const refs = extractPageRefs((await get(page.pathname + page.search)).toString('utf8'), page.href);
   const cssSha = new Map(); for (const asset of refs.css) cssSha.set(asset, sha(await get(asset)));
   const chunks = []; for (const chunk of refs.chunks) chunks.push((await get(chunk)).toString('utf8'));
   const sources = [...buildStyleSources(chunks)];

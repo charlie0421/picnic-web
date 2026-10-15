@@ -17,18 +17,20 @@ const MANIFEST = {
   styleText: [{ accept: [{ engine: 'chromium', sha256: 'x', text: '.a{}' }], output: { sha256: 'x', text: '.a{}' } }],
 };
 const sha = (entries: [string, string][]) => new Map(entries);
+const PAGE = 'https://www.picnic.fan/ko/vote';
 
 describe('production page references', () => {
-  it('extracts CSS, chunks, viewport and build ID', () => {
-    expect(extractPageRefs(HTML)).toEqual({
-      css: ['/_next/static/css/253f05d11a58abd2.css', '/_next/static/css/a5b6ba8786c1e0e2.css'],
+  it('extracts stylesheets, scripts, inline styles, viewport and build ID', () => {
+    expect(extractPageRefs(HTML, PAGE)).toEqual({
+      css: ['/_next/static/css/253f05d11a58abd2.css', '/_next/static/css/a5b6ba8786c1e0e2.css'], foreignCss: [],
       chunks: ['/_next/static/chunks/26-38f2440c05da76a3.js', '/_next/static/chunks/app/%5Blang%5D/(main)/vote/page-d3e69ec772ec2941.js'],
+      foreignScripts: [], inlineStyles: 0,
       viewport: 'width=device-width, initial-scale=1', buildId: 'nGXugIVZRSFy4ga95YQAZ' });
   });
 });
 
 describe('production comparison', () => {
-  const refs = extractPageRefs(HTML);
+  const refs = extractPageRefs(HTML, PAGE);
   const good = sha([['/_next/static/css/253f05d11a58abd2.css', 't'], ['/_next/static/css/a5b6ba8786c1e0e2.css', 'f']]);
   it('passes when CSS bytes, styled-jsx and viewport match', () => {
     expect(compareProduction(MANIFEST, refs, good, new Set(['.a{}']))).toEqual({ ok: true, reasons: [] });
@@ -43,6 +45,26 @@ describe('production comparison', () => {
       'styled-jsx not derivable from served chunks: x',
       'viewport differs',
     ]);
+  });
+  it('fails when stylesheets come from another origin or an extra sheet is served', () => {
+    const html = HTML.replace(/href="\/_next\/static\/css\//g, 'href="https://cdn.example/_next/static/css/')
+      + '<link rel="stylesheet" href="/extra.css"/>';
+    const other = extractPageRefs(html, PAGE);
+    expect(other.css).toEqual(['/extra.css']);
+    const r = compareProduction(MANIFEST, other, good, new Set(['.a{}']));
+    expect(r.ok).toBe(false);
+    expect(r.reasons).toEqual([
+      'cross-origin stylesheet: https://cdn.example/_next/static/css/253f05d11a58abd2.css',
+      'cross-origin stylesheet: https://cdn.example/_next/static/css/a5b6ba8786c1e0e2.css',
+      'served CSS not in manifest: /extra.css',
+      'manifest CSS not served: /_next/static/css/253f05d11a58abd2.css',
+      'manifest CSS not served: /_next/static/css/a5b6ba8786c1e0e2.css',
+    ]);
+  });
+  it('fails on inline styles and cross-origin scripts in the page HTML', () => {
+    const other = extractPageRefs(`${HTML}<style>.x{}</style><script src="https://other.example/a.js"></script>`, PAGE);
+    expect(compareProduction(MANIFEST, other, good, new Set(['.a{}'])).reasons).toEqual([
+      'cross-origin script: https://other.example/a.js', 'inline <style> in page HTML: 1']);
   });
   it('fails when manifest CSS is not served', () => {
     const r = compareProduction(MANIFEST, { ...refs, css: ['/_next/static/css/253f05d11a58abd2.css'] }, good, new Set(['.a{}']));
