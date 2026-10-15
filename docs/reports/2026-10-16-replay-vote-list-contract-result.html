@@ -20,7 +20,7 @@ th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;bo
 <h1>Replay 투표 목록 계약 구현 결과</h1>
 <p class="note"><strong>이 결과는 시험 harness 안의 검증이다.</strong> 제품 코드에 연결하지 않았고 운영 Sentry Replay를 활성화하지 않았다. 브랜치 <code>docs/replay-collection-policy</code>는 push하지 않았다.</p>
 
-<p><strong>요약:</strong> 비로그인 <code>/ko/vote</code> ongoing 목록의 production 캡처를 계약에 넣었다. 1280px·390px, 압축·비압축 모두 segment 0→1→2를 통과했다. 출력에는 URL·aria-label·원문 text·announcer ID가 없다. raw 기록 복원과 투영 기록 복원의 상자 차이는 두 폭 모두 0이다. 교차 공급자 리뷰의 지적 4건을 고쳤다.</p>
+<p><strong>요약:</strong> 비로그인 <code>/ko/vote</code> ongoing 목록의 production 캡처를 계약에 넣었다. 1280px·390px, 압축·비압축 모두 segment 0→1→2를 통과했다. 출력에는 URL·aria-label·원문 text·announcer ID가 없다. raw 기록 복원과 투영 기록 복원의 상자 차이는 두 폭 모두 0이다. 교차 공급자 리뷰와 재검증의 지적 5건을 고쳤고 최종 판정은 APPROVE다.</p>
 <ul>
 <li>Spec: <code>docs/reports/2026-10-15-replay-vote-list-contract-design.html</code></li>
 <li>계획: <code>docs/reports/2026-10-15-replay-vote-list-contract-plan.html</code></li>
@@ -120,7 +120,8 @@ th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;bo
 <tbody>
 <tr><td>Important</td><td>styled-jsx 추적이 모든 숫자 <code>jsx-&lt;digits&gt;</code> class를 동적 placeholder로 되돌린다. 그래서 빌드가 만들지 않는 숫자(예: 전화번호)가 manifest에 들어갈 수 있다.</td><td>고침 (<code>b043e8bb</code>). styled-jsx 5.1.6과 같은 hash로 compiled style ID와 literal 동적 인자에서 class를 계산한다. 그 결과와 정확히 같은 text만 통과한다. 바뀐 hash, 너무 긴 hash, 섞인 hash는 거부한다. 실제 빌드 chunk에서 리뷰어의 반례를 거부하고 실제 text는 통과함을 확인했다. 생성기를 다시 실행했고 manifest는 같은 바이트다. 주입 음성 시험 2건도 다시 통과했다.</td></tr>
 </tbody></table></div>
-<p>재검증은 정책대로 한 번만 했다. <strong>마지막 수정(<code>b043e8bb</code>)은 교차 리뷰를 받지 않았다.</strong> 이 수정의 근거는 RED→GREEN 시험, 실제 chunk 반례 확인, 전체 시험 통과다.</p>
+<h3>두 번째 재검증 (사용자 승인 후)</h3>
+<p>판정: <strong class="pass">APPROVE</strong>. 리뷰어는 <code>b043e8bb</code>의 hash 계산을 설치된 styled-jsx와 대조했다. 지적은 RESOLVED였고 새 결함은 없었다.</p>
 
 <h2>7. 남는 위험 (spec §7)</h2>
 <ul>
