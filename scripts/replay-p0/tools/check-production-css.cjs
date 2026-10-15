@@ -5,33 +5,33 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { createHash } = require('node:crypto');
+const { JSDOM } = require('jsdom');
 const { chromium } = require('playwright');
 const { buildStyleSources, sdkFix } = require('./build-css-manifest.cjs');
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const USER_AGENT = 'picnic-replay-manifest-check/1';
 
-const attr = (tag, name) => {
-  const m = new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(tag);
-  return m ? (m[1] ?? m[2] ?? m[3]) : undefined;
-};
 /**
- * Every stylesheet link and script src in the page HTML, resolved against the page URL. Same-origin references are kept as
- * path + query; references to another origin are listed separately so the comparison can refuse them.
+ * Every stylesheet link and script src in the page HTML, resolved as a browser resolves them (quotes, character
+ * references, comments, raw-text elements and <base href>). The HTML is parsed only: no script runs and nothing loads.
+ * Same-origin references are kept as path + query; references to another origin are listed separately so the comparison
+ * can refuse them.
  */
 function extractPageRefs(html, pageUrl) {
   const page = new URL(pageUrl);
+  const { document } = new JSDOM(html, { url: page.href }).window;
   const split = urls => ({
     same: [...new Set(urls.filter(u => u.origin === page.origin).map(u => u.pathname + u.search))].sort(),
     foreign: [...new Set(urls.filter(u => u.origin !== page.origin).map(u => u.href))].sort(),
   });
-  const sheets = split((html.match(/<link\b[^>]*>/gi) || [])
-    .filter(tag => /(^|\s)stylesheet(\s|$)/i.test(attr(tag, 'rel') || '')).map(tag => new URL(attr(tag, 'href') || '', page)));
-  const scripts = split((html.match(/<script\b[^>]*>/gi) || []).map(tag => attr(tag, 'src')).filter(Boolean).map(src => new URL(src, page)));
-  const viewport = (/<meta name="viewport" content="([^"]*)"/.exec(html) || [])[1] ?? null;
+  const isStylesheet = link => (link.getAttribute('rel') || '').toLowerCase().split(/\s+/).includes('stylesheet');
+  const sheets = split([...document.querySelectorAll('link[href]')].filter(isStylesheet).map(link => new URL(link.href)));
+  const scripts = split([...document.querySelectorAll('script[src]')].map(script => new URL(script.src)));
+  const viewport = document.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? null;
   const buildId = (/\\"b\\":\\"([A-Za-z0-9_-]{10,40})\\"/.exec(html) || [])[1] ?? null;
   return { css: sheets.same, foreignCss: sheets.foreign, chunks: scripts.same, foreignScripts: scripts.foreign,
-    inlineStyles: (html.match(/<style\b/gi) || []).length, viewport, buildId };
+    inlineStyles: document.querySelectorAll('style').length, viewport, buildId };
 }
 /** cssSha: served asset path → sha256 of its bytes. styleTexts: styled-jsx texts derived from served chunks (CSSOM + SDK fix). */
 function compareProduction(manifest, refs, cssSha, styleTexts) {

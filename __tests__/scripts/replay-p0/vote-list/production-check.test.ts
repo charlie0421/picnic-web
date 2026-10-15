@@ -61,6 +61,24 @@ describe('production comparison', () => {
       'manifest CSS not served: /_next/static/css/a5b6ba8786c1e0e2.css',
     ]);
   });
+  it('reads stylesheet links the way a browser parses them', () => {
+    for (const tag of [
+      '<link title="a>b" rel="stylesheet" href="/extra.css">',
+      '<link rel="style&#115;heet" href="/extra.css">',
+      '<link rel="StyleSheet" href="/extra.css">',
+    ]) {
+      expect(compareProduction(MANIFEST, extractPageRefs(HTML + tag, PAGE), good, new Set(['.a{}'])).reasons, tag)
+        .toEqual(['served CSS not in manifest: /extra.css']);
+    }
+  });
+  it('ignores markup inside comments and script text, and resolves hrefs against <base href>', () => {
+    const quiet = `${HTML}<!-- <link rel="stylesheet" href="/commented.css"> -->`
+      + `<script>document.write('<link rel="stylesheet" href="/x.css"><style>.y{}</style>')</script>`;
+    expect(compareProduction(MANIFEST, extractPageRefs(quiet, PAGE), good, new Set(['.a{}']))).toEqual({ ok: true, reasons: [] });
+    const based = extractPageRefs('<base href="https://cdn.example/"><link rel="stylesheet" href="_next/static/css/253f05d11a58abd2.css">', PAGE);
+    expect(based.css).toEqual([]);
+    expect(based.foreignCss).toEqual(['https://cdn.example/_next/static/css/253f05d11a58abd2.css']);
+  });
   it('fails on inline styles and cross-origin scripts in the page HTML', () => {
     const other = extractPageRefs(`${HTML}<style>.x{}</style><script src="https://other.example/a.js"></script>`, PAGE);
     expect(compareProduction(MANIFEST, other, good, new Set(['.a{}'])).reasons).toEqual([
