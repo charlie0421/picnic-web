@@ -69,27 +69,36 @@ function checkCss(source, live, wireSet, label) {
   return source;
 }
 const LITERAL = String.raw`"(?:[^"\\]|\\.)*"`;
-const CHAIN = new RegExp(`(${LITERAL})((?:\\.concat\\((?:\\d+|${LITERAL})(?:,(?:\\d+|${LITERAL}))*\\))*)`, 'g');
-/** Every string literal in the build JS, with .concat() chains of literal arguments evaluated. */
+const ARG = `(?:\\d+|${LITERAL})`;
+// Compiled styled-jsx: {id:"<hex>",dynamic:[<literal args>],children:"<css>".concat(<literal>,"<css>")...}
+const JSX_STYLE = new RegExp(`\\{id:"([0-9a-f]+)",(?:dynamic:\\[(${ARG}(?:,${ARG})*)\\],)?children:(${LITERAL}(?:\\.concat\\(${ARG}(?:,${ARG})*\\))*)\\}`, 'g');
+const literal = token => (token.startsWith('"') ? JSON.parse(token) : Number(token));
+/** Same as styled-jsx 5.1.6 dist/index stringHash. */
+function styledJsxHash(str) {
+  let h = 5381, i = str.length;
+  while (i) h = (h * 33) ^ str.charCodeAt(--i);
+  return h >>> 0;
+}
+/** Exact styled-jsx text the build generates: static text as compiled, dynamic text with the computed jsx class. */
 function buildStyleSources(chunks) {
+  assert.equal(require(path.join(root, 'node_modules/styled-jsx/package.json')).version, '5.1.6', 'styled-jsx changed');
   const out = new Set();
   for (const text of chunks) {
-    for (const m of text.matchAll(CHAIN)) {
+    for (const m of text.matchAll(JSX_STYLE)) {
       // Literals are matched whole first, so digits and parentheses inside them are not separate tokens.
       // A literal with a JS-only escape is skipped; styled-jsx text built from it then fails to trace (fail closed).
       try {
-        let value = JSON.parse(m[1]);
-        for (const arg of m[2].match(new RegExp(`${LITERAL}|\\d+`, 'g')) ?? []) value += arg.startsWith('"') ? JSON.parse(arg) : arg;
-        if (value.includes('{')) out.add(value);
+        const css = m[3].match(new RegExp(`${LITERAL}|\\d+`, 'g')).map(literal).join('');
+        const scope = m[2] === undefined ? `jsx-${m[1]}`
+          : `jsx-${styledJsxHash(`${m[1]}-${String(m[2].match(new RegExp(`${LITERAL}|\\d+`, 'g')).map(literal))}`)}`;
+        out.add(css.replace(/__jsx-style-dynamic-selector/g, scope));
       } catch { continue; }
     }
   }
   return out;
 }
-/** styled-jsx text must exist in the build JS; dynamic styles use the numeric jsx-<hash> class. */
-function traceStyledJsx(text, sources) {
-  return sources.has(text) || sources.has(text.replace(/\.jsx-\d+(?![\w-])/g, '.__jsx-style-dynamic-selector'));
-}
+/** styled-jsx text must equal text the build generates. */
+function traceStyledJsx(text, sources) { return sources.has(text); }
 function chunkTexts() {
   const dir = path.join(root, '.next-envtest/static/chunks'); const files = [];
   const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {

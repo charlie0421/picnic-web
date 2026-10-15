@@ -18,15 +18,21 @@ describe('CSS manifest generator checks', () => {
     const css = '.a { background: url("x.png"); }';
     expect(() => checkCss(css, css, new Set([css]), 'x')).toThrow(/resource/);
   });
-  const chunk = 'x={children:".s.jsx-85d98f{top:0}"};y={dynamic:[1],children:".c.__jsx-style-dynamic-selector{--n:".concat(1,"}@media(min-width:768px){.c.__jsx-style-dynamic-selector{--n:2}}")};';
-  it('traces static and literal-dynamic styled-jsx text to build JS', () => {
+  // Shape of compiled styled-jsx in the Next build: {id, dynamic?, children}.
+  const chunk = 'x={id:"85d98f",children:".s.jsx-85d98f{top:0}"};y={id:"abc123",dynamic:[1],children:".c.__jsx-style-dynamic-selector{--n:".concat(1,"}@media(min-width:768px){.c.__jsx-style-dynamic-selector{--n:2}}")};';
+  const dynamic = (a: string, b = a) => `.c.${a}{--n:1}@media(min-width:768px){.c.${b}{--n:2}}`;
+  const HASH = 'jsx-300526313';
+  it('traces static text and dynamic text with the styled-jsx computed class', () => {
     const sources = buildStyleSources([chunk]);
     expect(traceStyledJsx('.s.jsx-85d98f{top:0}', sources)).toBe(true);
-    expect(traceStyledJsx('.c.jsx-3947{--n:1}@media(min-width:768px){.c.jsx-3947{--n:2}}', sources)).toBe(true);
+    expect(traceStyledJsx(dynamic(HASH), sources)).toBe(true);
   });
-  it('rejects styled-jsx text that the build does not contain', () => {
+  it('rejects styled-jsx text that the build does not generate', () => {
     const sources = buildStyleSources([chunk]);
     expect(traceStyledJsx('.s.jsx-85d98f{top:0}:root{--p:"PIIMARK"}', sources)).toBe(false);
-    expect(traceStyledJsx('.c.jsx-3947{--n:9}@media(min-width:768px){.c.jsx-3947{--n:2}}', sources)).toBe(false);
+    expect(traceStyledJsx(dynamic(HASH).replace('--n:1', '--n:9'), sources)).toBe(false);
+    expect(traceStyledJsx(dynamic('jsx-3947864466'), sources)).toBe(false);
+    expect(traceStyledJsx(dynamic('jsx-01012345678010123456780'), sources)).toBe(false);
+    expect(traceStyledJsx(dynamic('jsx-01012345678', HASH), sources)).toBe(false);
   });
 });
