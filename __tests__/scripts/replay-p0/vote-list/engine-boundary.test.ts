@@ -1,4 +1,3 @@
-// __tests__/scripts/replay-p0/vote-list/engine-boundary.test.ts
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
