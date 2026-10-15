@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay 배포 빌드 manifest — 2026-10-16 핸드오프</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172331;font:16px/1.7 system-ui,-apple-system,sans-serif}main{max-width:1040px;margin:28px auto;padding:32px;background:white;border:1px solid #dce3ed;border-radius:12px}h1{font-size:1.8rem;line-height:1.35}h2{margin-top:2rem;font-size:1.25rem}h3{font-size:1.05rem}p,li,td,th,code,summary{overflow-wrap:anywhere}a{color:#215b9a}code,pre{font-family:ui-monospace,monospace;font-size:.88em}code{background:#edf3fa;padding:1px 3px}pre{padding:16px;background:#edf3fa;white-space:pre-wrap;overflow-wrap:anywhere}.status,.note{padding:16px;border-left:4px solid #2b775a;background:#effaf4}.note{border-color:#bc7b13;background:#fff8e9}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.93rem}th,td{border:1px solid #dce3ed;padding:10px;text-align:left;vertical-align:top}th{background:#edf3fa}li{margin:5px 0}.meta{color:#526174}@media(max-width:600px){main{margin:8px;padding:16px}h1{font-size:1.5rem}th,td{min-width:7em;padding:7px}}
+</style>
+</head>
+<body><main>
+<h1>Replay 배포 빌드 manifest 핸드오프</h1>
+<p class="meta">2026-10-16 · 이전 핸드오프: <code>docs/handoff-2026-10-15-vote-list-contract.html</code> · 범위: 후보 B(배포 빌드용 CSS manifest)</p>
+
+<div class="status">
+<p><strong>상태:</strong> 후보 B를 끝냈다. 실제 글꼴을 쓰는 production 설정 빌드에서 생성기가 통과했다. 이것이 완료 기준이다. 그 빌드의 CSS 2개는 production과 바이트 단위로 같다. PR #137을 <code>main</code>에 squash merge했다(<code>79a1027f</code>). 작업 워크트리와 브랜치는 정리했다.</p>
+<p><strong>제품 연결과 운영 활성화는 하지 않았다.</strong> 모든 코드는 <code>scripts/replay-p0/</code> 아래에 있고 로컬 시험 harness에서만 실행된다. production에는 공개 자산 GET만 했고 녹화하지 않았다.</p>
+</div>
+
+<h2>1. 다음 세션이 먼저 할 일</h2>
+<ol>
+<li>메인 폴더에서 <code>git status</code>와 <code>git log -3</code>을 확인한다. <code>main</code>이 <code>79a1027f</code> 이후인지 본다.</li>
+<li>결과 보고서 <code>docs/reports/2026-10-15-replay-build-manifest-result.html</code>의 §6(엔진 측정), §8(남는 위험), §9(검증하지 않은 범위), §11(후속 결정)을 읽는다.</li>
+<li>§5의 후보 중 다음 작업을 사용자와 정한다. 어느 후보도 아직 승인되지 않았다.</li>
+<li>빌드나 캡처가 필요하면 §6.2의 명령과 주의점을 먼저 확인한다.</li>
+</ol>
+
+<h2>2. Git과 작업 위치</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>항목</th><th>상태</th></tr></thead>
+<tbody>
+<tr><td>메인 폴더</td><td><code>/Users/charlie.hyun/Repositories/picnic-web</code>, <code>main</code>. 기존 <code>.playwright-mcp/</code>는 이 작업과 관계없다. 정리하거나 커밋하지 않는다.</td></tr>
+<tr><td>merge</td><td>PR #137 squash merge, <code>79a1027f</code>. 브랜치 <code>feat/replay-build-manifest</code>의 커밋 15개가 한 커밋이 됐다: spec, 계획, 구현 8개, 결과 보고서, 리뷰 수정 2개, 보고서 갱신 2개.</td></tr>
+<tr><td>브랜치·워크트리</td><td>원격·로컬 브랜치를 삭제했다. 워크트리 <code>picnic-web-replay-build-manifest</code>를 제거했다.</td></tr>
+<tr><td>CI</td><td>PR의 “타입 검사 · lint · 테스트”가 통과했다. Vercel Preview는 생성되지 않았다(이 레포는 Preview가 없다).</td></tr>
+</tbody></table></div>
+
+<h2>3. 완료한 작업</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>구성</th><th>위치</th><th>내용</th></tr></thead>
+<tbody>
+<tr><td>계약 v2</td><td><code>scripts/replay-p0/contracts/vote-list.ts</code></td><td>수신 CSS에서 <code>url("&lt;origin&gt;/</code>를 <code>url("/</code>로 정규화한 뒤 manifest의 <code>accept</code>와 정확히 비교한다. 출력은 항상 manifest의 <code>output</code>이다. 옵션은 <code>{ manifest, origin, bannerCount }</code>다. BUILD_ID 검사는 없앴다.</td></tr>
+<tr><td>manifest v2</td><td><code>contracts/vote-list.css-manifest.json</code></td><td>로컬 빌드 <code>ulGwme5ItIoLQx4aLUchX</code>(commit <code>12231ca9</code>)에서 생성했다. link CSS는 2개(Tailwind <code>253f05d11a58abd2.css</code>, 글꼴 <code>a5b6ba8786c1e0e2.css</code>), styled-jsx는 3개, class는 1,175개다. 글꼴 시트의 출력은 url을 쓰는 <code>@font-face</code> 7개를 뺀다.</td></tr>
+<tr><td>생성기</td><td><code>tools/build-css-manifest.cjs</code></td><td>글꼴 규칙(<code>splitFontRules</code>), origin 정규화, <code>--build-dir</code>, <code>--previous</code>(검토 요약)를 지원한다.</td></tr>
+<tr><td>빌드·서빙</td><td><code>tools/vote-list-server.cjs</code>, <code>net-guard.cjs</code>, <code>vote-list-upstream.cjs</code>, <code>font-mock.cjs</code></td><td>production 설정으로 빌드하고 loopback에서 서빙한다. 외부 연결은 <code>net.Socket.prototype.connect</code>에서 막는다. 빌드 단계에서만 Google Fonts 2개 호스트를 허용한다.</td></tr>
+<tr><td>캡처</td><td><code>tools/vote-list-capture.cjs</code></td><td><code>--browser chromium|webkit|firefox</code>로 엔진을 고른다. 원본은 원문·마스킹·대조군으로 측정한다. 측정 전에 pointer를 화면 밖으로 옮긴다.</td></tr>
+<tr><td>복원 비교</td><td><code>vote-list-restore.cjs</code></td><td>네트워크를 막고 비교한다. <code>--original</code>은 대조군과 비교해 차이를 분류하고(<code>mediaOpacity</code>, <code>svgPlaceholder</code>, <code>other</code>) 글꼴 영향을 기록한다.</td></tr>
+<tr><td>production 대조</td><td><code>tools/check-production-css.cjs</code></td><td>페이지 HTML을 jsdom으로 파싱한다. 모든 stylesheet와 script를 origin과 함께 manifest와 비교한다. 공개 자산 GET만 한다.</td></tr>
+<tr><td>엔진 비교</td><td><code>tools/compare-engine-css.ts</code></td><td>측정 전용이고 tsx로 실행한다. 다른 엔진의 캡처를 manifest와 비교한다.</td></tr>
+<tr><td>fixture</td><td><code>fixtures/vote-list/wire-{1280,390}-{1,2,3}.bin</code>, <code>README.txt</code></td><td>실제 글꼴 빌드의 합성 캡처다. URL 호스트는 <code>127.0.0.1:53931</code>뿐이다. 실제 사용자 캡처로 바꾸지 않는다.</td></tr>
+</tbody></table></div>
+<h3>3.1 검증 결과 요약</h3>
+<ul>
+<li>production 대조가 <code>https://www.picnic.fan/ko/vote</code>(build <code>dWn6qfDz7qrUbY4zRGawM</code>)에 대해 통과했다.</li>
+<li>서로 다른 로컬 빌드 2개(<code>ulGwme…</code>, <code>cUOpEV…</code>)에서 만든 manifest의 내용이 같다. 다른 것은 <code>generatedFrom</code>뿐이다.</li>
+<li>raw 복원과 투영 복원의 차이는 0이다. 원본 대조군과 비교한 <code>other</code> 차이도 0이다. 글꼴 영향은 필터 칩의 폭과 x 위치뿐이다(최대 36px).</li>
+<li>WebKit 26.6과 Firefox 155.0 녹화는 segment 0에서 <code>schema</code>로 종료한다. 측정만 했다.</li>
+<li>시험: replay-p0 283/283(<code>TZ=UTC</code> 포함), <code>npm test</code> 230개 파일·5,059 PASS·expected fail 6·skipped 1, 브라우저 22/22, tsc·eslint 통과.</li>
+<li>교차 리뷰(Codex <code>gpt-6.1-sol</code>/high)는 세 번 진행했다.
+<ul>
+<li>1차: REQUEST_CHANGES(Important 3) → <code>3d4fdd2e</code>에서 고쳤다.</li>
+<li>재검증: 1건이 미해결이었다 → <code>04ba7c5b</code>에서 고쳤다.</li>
+<li>2차 재검증(사용자 승인): APPROVE.</li>
+</ul></li>
+</ul>
+<h3>3.2 관련 문서</h3>
+<ul>
+<li>설계: <code>docs/reports/2026-10-15-replay-build-manifest-design.html</code></li>
+<li>계획: <code>docs/reports/2026-10-15-replay-build-manifest-plan.html</code></li>
+<li>결과: <code>docs/reports/2026-10-15-replay-build-manifest-result.html</code></li>
+</ul>
+
+<h2>4. 현재 경계</h2>
+<ul>
+<li>제품 <code>app/</code>·<code>components/</code>·<code>lib/</code>는 새 코드를 import하지 않는다. 운영 Replay는 꺼져 있다.</li>
+<li>manifest는 BUILD_ID가 아니라 내용에 결합한다. CSS가 같은 배포는 같은 manifest를 쓴다. 다음 중 하나가 바뀌면 다시 만든다(spec §6.1): link CSS 자산, styled-jsx text, SDK·styled-jsx·Next 버전, viewport, 상태색.</li>
+<li><code>accept</code>에는 Chromium(Playwright 1.63.0) 변형만 있다. Safari·Firefox 사용자의 녹화는 종료한다.</li>
+<li>재생 화면은 <code>Inter Fallback</code>(Arial과 metric override)으로 그려진다. 재생하는 컴퓨터에 Inter가 있으면 그 글꼴이 쓰인다.</li>
+<li>계약은 범위 A(비로그인 <code>/ko/vote</code> ongoing 목록)만 다룬다.</li>
+</ul>
+
+<h2>5. 다음 작업 후보 (승인 전)</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>후보</th><th>내용</th><th>참고</th></tr></thead>
+<tbody>
+<tr><td>A. 계약 범위 확장</td><td>upcoming·completed, 더보기, filter, API 오류, popup을 관측하고 spec을 먼저 바꾼 뒤 계약에 추가한다.</td><td>이전 핸드오프의 후보 A와 같다. 이번 도구(서버·캡처·생성기)를 그대로 쓸 수 있다.</td></tr>
+<tr><td>D. 엔진 지원</td><td>WebKit·Firefox(실제 Safari 포함) 녹화를 받으려면 엔진별 <code>accept</code> 변형이 필요하다. 형식은 이미 여러 변형을 받는다.</td><td>Playwright WebKit이 실제 iOS Safari와 같은지 확인하지 않았다. 실제 브라우저 버전을 측정할 방법을 먼저 정한다.</td></tr>
+<tr><td>C. 제품 연결·운영 활성화</td><td>로그인·광고 상태 판정과 연결, 런타임 <code>origin</code> 설정, manifest의 제품 번들 포함, 배포 뒤 <code>check-production-css</code> 자동화, 실제 Sentry 저장과 재생 확인.</td><td>인증·개인정보 관련 고위험 변경이다. 별도 설계·승인과 반대 공급자 리뷰가 필요하다.</td></tr>
+<tr><td>기타 제안</td><td><code>next/font/local</code> 전환으로 Google Fonts 변동 위험을 없애는 일(제품 변경), <code>.gitignore</code>의 <code>reports/</code>를 <code>/reports/</code>로 고정하는 일.</td><td>둘 다 제안만 했고 승인받지 않았다.</td></tr>
+</tbody></table></div>
+<p>보류한 Minor 2건: WebKit·Firefox 캡처의 exit code가 확인 실패를 반영하지 않는다. <code>mediaOpacity</code> 분류는 형태로만 판단한다.</p>
+
+<h2>6. 재현 명령과 주의점</h2>
+<h3>6.1 빌드 없이 실행되는 검증</h3>
+<pre>cd /Users/charlie.hyun/Repositories/picnic-web
+npx vitest run __tests__/scripts/replay-p0
+TZ=UTC npx vitest run __tests__/scripts/replay-p0
+node scripts/replay-p0/vote-list-restore.cjs --output &lt;결과 json&gt;
+npx tsx scripts/replay-p0/tools/compare-engine-css.ts --wire-dir scripts/replay-p0/fixtures/vote-list --engine chromium --out &lt;결과 json&gt;
+node scripts/replay-p0/tools/check-production-css.cjs --url https://www.picnic.fan/ko/vote \
+  --manifest scripts/replay-p0/contracts/vote-list.css-manifest.json --out &lt;결과 json&gt;</pre>
+<p><code>check-production-css.cjs</code>는 production의 공개 자산만 GET한다. 나머지 명령은 네트워크를 쓰지 않는다.</p>
+
+<h3>6.2 빌드가 필요한 작업 (spec §6.2 절차)</h3>
+<pre>E=.superpowers/sdd/&lt;작업 폴더&gt;
+node scripts/replay-p0/tools/vote-list-server.cjs --out "$E/server" &gt; "$E/server-stdout.log" 2&gt;&amp;1 &amp;
+#   'serving' 줄이 나올 때까지 기다린다(빌드는 수 분 걸린다)
+node scripts/replay-p0/tools/vote-list-capture.cjs --out "$E/chromium"
+node scripts/replay-p0/tools/build-css-manifest.cjs --url http://127.0.0.1:53931/ko/vote --wire-dir "$E/chromium" \
+  --out scripts/replay-p0/contracts/vote-list.css-manifest.json --previous scripts/replay-p0/contracts/vote-list.css-manifest.json
+node scripts/replay-p0/vote-list-restore.cjs --original "$E/chromium/layout.json" --output "$E/restore-vs-original.json"
+kill "$(node -p "require('./$E/server/server.json').pid")"</pre>
+<div class="note">
+<ul>
+<li>워크트리에서 실행한다. 의존성은 <code>npm ci</code>로 설치한다. <code>.env*</code>를 복사하지 않는다. 저장소 루트에 <code>.env</code>, <code>.env.local</code>, <code>.env.production</code>, <code>.env.production.local</code> 중 하나라도 있으면 서버가 시작하지 않는다.</li>
+<li>포트 53931(Next)·59862(upstream)가 사용 중이면 서버가 멈춘다. 다른 프로세스를 종료하지 않는다. 끝나면 <code>server.json</code>의 <code>pid</code>만 종료한다.</li>
+<li>빌드는 Google Fonts에 접속한다. 그 밖의 외부 연결은 막히고 <code>server/blocked-network.jsonl</code>에 남는다.</li>
+<li>Next가 바꾼 <code>tsconfig.json</code>·<code>next-env.d.ts</code>는 도구가 되돌린다. 끝난 뒤 <code>git status</code>를 확인한다.</li>
+<li>새 fixture로 바꾸면 <code>manifest.test.ts</code>와 <code>capture.test.ts</code>의 기대값, <code>fixtures/vote-list/README.txt</code>를 함께 갱신한다. PR 본문에는 생성기의 검토 요약을 붙인다.</li>
+<li>WebKit·Firefox 캡처: <code>--browser webkit|firefox</code>. 브라우저는 <code>npx playwright install webkit firefox</code>로 이 컴퓨터에 설치되어 있다(webkit v2359, firefox v1543).</li>
+</ul>
+</div>
+
+<h3>6.3 이번 작업에서 확인한 함정</h3>
+<ul>
+<li><strong>rrweb은 CSS의 <code>url(/…)</code>을 stylesheet origin의 절대 URL로 녹화한다.</strong> 그래서 계약이 origin을 정규화한다.</li>
+<li><strong>CSSOM 직렬화는 엔진마다 다르다.</strong> 글꼴 이름의 따옴표, 지원하지 않는 속성 제거, <code>@font-face</code> 서술자 순서가 다르다.</li>
+<li><strong>원본 측정 전에 pointer를 화면 밖으로 옮긴다.</strong> 스크롤 뒤 pointer가 카드 위에 있으면 hover(4px)가 남는다.</li>
+<li><strong>복원 페이지는 네트워크를 막는다.</strong> raw 기록에는 loopback 글꼴 URL이 있다.</li>
+<li><strong>차단기는 소켓 연결 지점에서 검사한다.</strong> fetch·http 래퍼는 redirect, <code>undici</code>, 옵션의 호스트 덮어쓰기를 놓쳤다. NODE_OPTIONS preload는 worker thread와 자식 프로세스에도 적용된다.</li>
+<li><strong>HTML은 파서로 읽는다.</strong> 정규식은 따옴표 안의 <code>&gt;</code>와 문자 참조를 놓쳤다.</li>
+<li><strong><code>docs/reports/</code>는 <code>.gitignore</code>의 <code>reports/</code>에 걸린다.</strong> 새 보고서는 <code>git add -f</code>로 추가한다.</li>
+<li><strong>사용량 게이트:</strong> Codex 관측이 <code>conflict</code>이면 <code>review-blocked</code>가 반복된다. 2분 간격으로 다시 수집해 ready가 나온 5분 안에 진행한다. <code>route=null</code>과 <code>maintenance</code>는 ai-agent-config 설치 중이라는 뜻이므로 STOP한다. Codex app-server의 <code>account/read</code>가 시간 초과되면 5분 뒤 다시 시도한다.</li>
+<li><strong>Codex 리뷰어:</strong> <code>build-orca-launch.py</code>로 띄우면 리뷰어가 <code>worker_done</code>을 직접 보낸다. 판정 <code>status</code> 메시지와 <code>worker_done</code>이 따로 올 수 있으므로 delivery마다 처리하고 ack한다. 첫 화면의 “Set up security”는 Escape로 닫는다.</li>
+</ul>
+
+<h2>7. 자료 위치와 보존</h2>
+<p>아래 증거는 git이 추적하지 않는다. 워크트리를 지우기 전에 메인 폴더로 옮겼다. 약 13MB다.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>경로 (<code>/Users/charlie.hyun/Repositories/picnic-web/.superpowers/sdd/2026-10-15-replay-build-manifest/</code> 아래)</th><th>내용</th></tr></thead>
+<tbody>
+<tr><td><code>progress.md</code>, <code>plan.md</code>, <code>task-*-brief.md</code></td><td>실행 ledger(판단 기록 포함), 계획 원고, 작업 brief</td></tr>
+<tr><td><code>server/</code>, <code>server-fix/</code></td><td>빌드 2회의 로그와 <code>server.json</code></td></tr>
+<tr><td><code>chromium/</code>, <code>webkit/</code>, <code>firefox/</code></td><td>엔진별 캡처, <code>layout.json</code>, <code>capture-summary.json</code>, 스크린샷</td></tr>
+<tr><td><code>manifest-summary.json</code>, <code>review.md</code>, <code>manifest-rebuild*.json</code></td><td>검토 요약, 사람 검토, 재빌드 manifest 비교</td></tr>
+<tr><td><code>production-check*.json</code>, <code>restore-*.json</code>, <code>engine-*.json</code></td><td>production 대조, 복원 비교, 엔진 측정</td></tr>
+<tr><td><code>codex-review-{1,2,3}.md</code>, <code>review-*brief.md</code>, <code>review-*diff.patch</code></td><td>리뷰 판정 원문, 지시서, diff</td></tr>
+</tbody></table></div>
+<p>보관 기간은 정하지 않았다. 지울지는 사용자가 정한다.</p>
+
+<h2>8. Orca 정산 상태</h2>
+<ul>
+<li>Run <code>run_999bbbefee34</code>: 리뷰 Task 3개(<code>task_aeb23b7d2c29</code>, <code>task_e1fccad73b0f</code>, <code>task_5d0faee8e833</code>)의 Dispatch가 모두 <code>worker_done</code>으로 <code>completed</code>다. delivery는 모두 ack했다.</li>
+<li><code>worker-list</code>는 <code>retained</code> 3개다. 비감독 lane이라 Orca가 소유한 프로세스가 없다. 리뷰어 터미널은 정산 뒤 닫았다. 다시 시작할 실행은 없다.</li>
+<li>사용량 게이트는 매번 새로 실행했다(<code>route-fresh.sh claude-heavy high auto auto</code>, <code>ROUTER_IMPLEMENTER_PROVIDER=claude</code>). 과거 봉투와 Route는 재사용하지 않는다.</li>
+</ul>
+
+<h2>9. 다른 세션의 후속 작업</h2>
+<p>이전 핸드오프(<code>docs/handoff-2026-10-15.html</code> §10)의 운영 후속 목록은 이번 작업과 별개다. 이번 세션은 그 항목을 다시 조회하거나 닫지 않았다.</p>
+<p>Jira 상태는 바꾸지 않았다. 이 문서는 작업 소유권을 다른 에이전트에 넘기지 않는다.</p>
+</main></body></html>
