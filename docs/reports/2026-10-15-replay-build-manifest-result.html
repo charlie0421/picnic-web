@@ -20,7 +20,7 @@ th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;bo
 <h1>Replay 배포 빌드용 CSS manifest 결과</h1>
 <p class="note"><strong>이 결과는 시험 harness 안의 검증이다.</strong> 제품 코드에 연결하지 않았고 운영 Sentry Replay를 활성화하지 않았다. production 사이트에서는 공개 자산만 읽었고 녹화하지 않았다. 브랜치 <code>feat/replay-build-manifest</code>는 push하지 않았다.</p>
 
-<p><strong>요약:</strong> 실제 글꼴을 쓰는 production 설정 빌드에서 생성기가 통과했다. 이것이 완료 기준이다. 이 빌드의 CSS 자산 2개는 production(<code>https://www.picnic.fan/ko/vote</code>)과 바이트 단위로 같고, production 대조 도구가 통과했다. 계약은 manifest의 출력 텍스트만 내보내며 글꼴 URL을 출력하지 않는다. raw 복원과 투영 복원의 차이는 0이다. WebKit·Firefox 녹화는 정확 비교에서 맞지 않아 segment 0에서 종료한다(측정만 함). 교차 공급자 리뷰는 사용량 게이트가 막혀 아직 받지 않았다(§10).</p>
+<p><strong>요약:</strong> 실제 글꼴을 쓰는 production 설정 빌드에서 생성기가 통과했다. 이것이 완료 기준이다. 이 빌드의 CSS 자산 2개는 production(<code>https://www.picnic.fan/ko/vote</code>)과 바이트 단위로 같고, production 대조 도구가 통과했다. 계약은 manifest의 출력 텍스트만 내보내며 글꼴 URL을 출력하지 않는다. raw 복원과 투영 복원의 차이는 0이다. WebKit·Firefox 녹화는 정확 비교에서 맞지 않아 segment 0에서 종료한다(측정만 함). 교차 공급자 리뷰(Codex)는 Important 3건을 지적했다. 모두 고쳤고, 재검증에서 남은 1건(HTML 정규식 추출)도 고쳤다. 이 마지막 수정은 아직 교차 재검증을 받지 않았다(§10). 서로 다른 두 로컬 빌드에서 만든 manifest의 내용이 같다(§3.4).</p>
 <ul>
 <li>Spec: <code>docs/reports/2026-10-15-replay-build-manifest-design.html</code></li>
 <li>계획: <code>docs/reports/2026-10-15-replay-build-manifest-plan.html</code></li>
@@ -39,20 +39,23 @@ th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;bo
 <tr><td>6</td><td><code>32d94ffe</code></td><td>production 동등성 확인 도구.</td></tr>
 <tr><td>7</td><td><code>12231ca9</code></td><td>엔진 CSS 비교 도구(측정 전용).</td></tr>
 <tr><td>8</td><td><code>dcf257d4</code></td><td>실제 글꼴 빌드로 manifest와 fixture 재생성, 글꼴 변조 반례, fixture README 갱신.</td></tr>
+<tr><td>10</td><td><code>c31b5035</code></td><td>이 결과 보고서.</td></tr>
+<tr><td>리뷰 수정</td><td><code>3d4fdd2e</code></td><td>외부 요청 차단을 소켓 연결 지점으로 옮김. production 대조가 모든 stylesheet·script를 origin과 함께 비교.</td></tr>
+<tr><td>재검증 수정</td><td><code>04ba7c5b</code></td><td>production 대조가 HTML을 jsdom으로 파싱.</td></tr>
 </tbody></table></div>
 
 <h2>2. 시험 결과</h2>
 <div class="table-wrap"><table>
 <thead><tr><th>명령</th><th>결과</th></tr></thead>
 <tbody>
-<tr><td><code>npx vitest run __tests__/scripts/replay-p0</code></td><td class="pass">17개 파일, 278/278 PASS (<code>TZ=UTC</code>도 같음)</td></tr>
-<tr><td><code>npm test</code></td><td class="pass">230개 파일, 5,054 PASS, expected fail 6, skipped 1</td></tr>
+<tr><td><code>npx vitest run __tests__/scripts/replay-p0</code></td><td class="pass">17개 파일, 283/283 PASS (<code>TZ=UTC</code>도 같음)</td></tr>
+<tr><td><code>npm test</code></td><td class="pass">230개 파일, 5,059 PASS, expected fail 6, skipped 1</td></tr>
 <tr><td><code>node scripts/replay-p0/run.cjs --case all</code></td><td class="pass">22/22 PASS. normal·barrier·finiteCleanup·limits·isolation 모두 PASS</td></tr>
 <tr><td><code>npx tsc --noEmit --incremental false</code></td><td class="pass">PASS</td></tr>
 <tr><td><code>ESLINT_USE_FLAT_CONFIG=false npx eslint scripts/replay-p0 __tests__/scripts/replay-p0 --ext .ts,.cjs</code></td><td class="pass">PASS</td></tr>
 <tr><td><code>git diff --check main...HEAD</code></td><td class="pass">PASS</td></tr>
 </tbody></table></div>
-<p>2026-10-15 기준은 226개 파일, 5,004 PASS였다. 새 시험 파일 4개와 시험 50개가 더해졌고, 기존 수치는 줄지 않았다. replay-p0 시험은 228개에서 278개가 됐다.</p>
+<p>2026-10-15 기준은 226개 파일, 5,004 PASS였다. 새 시험 파일 4개와 시험 55개가 더해졌고, 기존 수치는 줄지 않았다. replay-p0 시험은 228개에서 283개가 됐다(리뷰·재검증 수정의 시험 5개 포함). 위 수치는 마지막 수정(<code>04ba7c5b</code>) 뒤의 실행 결과다. tsc·eslint·diff 검사도 그 뒤에 다시 통과했다.</p>
 <p>새 변조 반례 3개(글꼴 CSS의 origin 변경, url을 쓰는 <code>@font-face</code> 추가, 글꼴 CSS 1byte 변경)가 모두 <code>schema</code>로 종료한다. 변이 시험도 했다. 계약의 정규화를 “모든 origin 허용”으로 바꾸면 origin 변경 반례만 실패한다. 따라서 이 시험은 그 결함을 잡는다.</p>
 
 <h2>3. 실제 글꼴 빌드와 manifest</h2>
@@ -82,9 +85,11 @@ th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;bo
 <li>뺀 글꼴 URL 7개는 Inter subset 7개(cyrillic-ext, cyrillic, greek-ext, greek, vietnamese, latin-ext, latin)다. 모두 <code>/_next/static/media/&lt;16 hex&gt;-s.woff2</code> 형식이다.</li>
 <li>판정: 승인. 근거는 증거 폴더의 <code>review.md</code>에 있다.</li>
 </ul>
+<h3>3.4 빌드 결정성</h3>
+<p>리뷰 수정 뒤 새 차단기로 다시 빌드했다(<code>cUOpEV4enQ3mLVbk5hTdF</code>). 막힌 요청은 0건이고, <code>/ko/vote</code>는 200이었고, CSS 해시는 같았다. 이 빌드에서 생성기를 다시 실행한 manifest는 커밋한 manifest와 <code>generatedFrom</code>만 다르고 나머지 내용이 같았다. 따라서 같은 소스에서 만든 빌드는 BUILD_ID가 달라도 같은 manifest를 만든다.</p>
 
 <h2>4. production 대조</h2>
-<p><code>check-production-css.cjs</code>가 <code>https://www.picnic.fan/ko/vote</code>에 대해 통과했다(<code>ok: true</code>, 2026-10-15 21:06 KST).</p>
+<p><code>check-production-css.cjs</code>가 <code>https://www.picnic.fan/ko/vote</code>에 대해 통과했다(<code>ok: true</code>, 2026-10-15 21:06 KST). 리뷰 수정 뒤의 도구(모든 stylesheet·script를 origin과 함께 비교)로 다시 실행해도 통과했다. production HTML에는 다른 origin의 stylesheet·script와 inline <code>&lt;style&gt;</code>이 없다.</p>
 <ul>
 <li>production이 제공하는 link CSS 2개의 이름과 sha256이 manifest의 <code>sourceSha256</code>과 같다.</li>
 <li>production이 참조하는 JS chunk 36개에서 styled-jsx 원문 7개를 도출했고, manifest의 styled-jsx 3개가 모두 그 안에 있다.</li>
@@ -166,8 +171,34 @@ th{background:#edf3fa}li{margin:4px 0}.note{margin:0 0 1rem;padding:12px 16px;bo
 </ul>
 
 <h2>10. 교차 공급자 리뷰</h2>
-<p class="warn">아직 받지 않았다.</p>
-<p>spec과 계획은 고위험 변경으로 분류하고 Codex <code>gpt-6.1-sol</code>/high의 리뷰를 요구한다. 사용량 게이트가 15:19(두 번)와 21:04(KST)에 모두 <code>review-blocked</code>였다. Codex 사용량 관측이 출처마다 달랐다. Orca 캐시는 주간 0%(리셋 10-22)였고, 14:56 공식 CLI는 76%(리셋 10-20)였다. 지침에 따라 우회하지 않았고 리뷰어를 만들지 않았다. 게이트가 <code>ready</code>가 되면 계획 작업 11을 진행하고 이 절을 갱신한다.</p>
+<h3>10.1 사용량 게이트</h3>
+<p>게이트는 15:19(두 번)와 21:04(KST)에 <code>review-blocked</code>였다. Codex 사용량 관측이 출처마다 달랐기 때문이다(<code>conflict</code>). 21:15와 21:18에 <code>ready</code>가 되어 리뷰어를 띄웠다. 조건: Codex <code>gpt-6.1-sol</code>/high, 권한 <code>orca_direct</code>(read-only, never), Fast OFF, telemetryMode=assumed(Codex 5시간 창은 잔여 있음으로 가정), Claude 주간 83%, Codex 주간 0%. Orca Run <code>run_999bbbefee34</code>, Task <code>task_aeb23b7d2c29</code>, Dispatch <code>ctx_330d3b08ca8b</code>.</p>
+<h3>10.2 1차 리뷰 (Codex)</h3>
+<p>판정: <strong>REQUEST_CHANGES</strong>. Important 3건. manifest 출력 경로(snapshot·add·style text·link 변경)와 복원 분류에는 막을 문제가 없다고 판단했다.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>심각도</th><th>지적</th><th>처리</th></tr></thead>
+<tbody>
+<tr><td>Important</td><td>차단기가 fetch의 첫 URL만 검사한다. redirect 대상, <code>undici</code> 직접 호출, Next의 Edge fetch가 다른 호스트에 닿는다.</td><td>고침(<code>3d4fdd2e</code>). 검사 지점을 <code>net.Socket.prototype.connect</code>로 옮겼다. 모든 TCP·TLS 클라이언트가 이곳에서 소켓을 연다. DNS 조회 전에 막는다.</td></tr>
+<tr><td>Important</td><td><code>http.request(url, {hostname})</code>처럼 옵션이 덮어쓴 호스트를 검사하지 않는다.</td><td>고침(<code>3d4fdd2e</code>). 같은 수정으로 병합된 최종 목적지를 검사한다.</td></tr>
+<tr><td>Important</td><td>production 대조가 해시 이름의 경로 문자열만 찾는다. 다른 origin의 stylesheet나 추가 stylesheet가 있어도 통과한다.</td><td>고침(<code>3d4fdd2e</code>). 모든 <code>rel=stylesheet</code> link와 script src를 페이지 기준으로 해석하고, 다른 origin과 inline <code>&lt;style&gt;</code>을 거부하고, 집합 전체를 비교한다.</td></tr>
+</tbody></table></div>
+<p>각 수정은 실패하는 시험을 먼저 확인했다. 차단기 시험은 차단기를 preload한 자식 프로세스에서 http·https 옵션 덮어쓰기, fetch redirect, <code>undici.fetch</code>, <code>net.connect</code>, <code>tls.connect</code>를 시도한다. 수정 전에는 <code>httpOverride</code>가 DNS 조회(<code>ENOTFOUND</code>)까지 갔다. 수정 뒤에는 모두 <code>replay-harness-network-blocked</code>로 끝나고 loopback만 통과한다. NODE_OPTIONS preload는 worker thread와 자식 프로세스에도 적용됨을 확인했다.</p>
+<h3>10.3 보조 리뷰 (Claude, 같은 공급자)</h3>
+<p>Ultracode 방식으로 읽기 전용 검증자 2명(<code>claude-sonnet-5</code>/medium)을 순차로 실행했다. 같은 공급자이므로 교차 리뷰를 대체하지 않는다.</p>
+<ul>
+<li>계약 관점: 결함 없음. link·style 경로의 manifest 출력, 정규화의 <code>/</code> 고정, 생성 검사, BUILD_ID 제거, 시험의 accept≠output 사례를 확인했다.</li>
+<li>도구 관점: 차단기의 옵션 덮어쓰기(Codex 2번과 같음)를 Critical로 보고했다. 그 밖에 두 건이 있다. 첫째, WebKit·Firefox 캡처는 확인 항목이 실패해도 exit 0이다. 둘째, <code>mediaOpacity</code> 분류는 형태로만 판단한다.</li>
+<li>판정: 첫째 건은 Minor로 낮췄다. 계획(작업 4)이 측정용으로 의도한 동작이고, 실패 항목은 출력과 <code>capture-summary.json</code>에 남는다. 이 보고서의 “확인 항목 통과”는 그 파일로 확인했다. 둘째 건은 Minor다. 투영 손실은 주 관문인 raw·투영 비교가 잡는다. 두 건 모두 고치지 않고 남겼다.</li>
+</ul>
+<h3>10.4 재검증 (같은 리뷰어, 1회)</h3>
+<p>수정 뒤 21:37 KST에 게이트가 다시 <code>review-blocked</code>(Codex <code>conflict</code>)였다. 2분 간격으로 다시 확인해 21:39에 <code>ready</code>가 됐고, 같은 리뷰어 터미널에 재검증을 보냈다(Task <code>task_e1fccad73b0f</code>, Dispatch <code>ctx_bead7d0f69f9</code>).</p>
+<p>판정: <strong>REQUEST_CHANGES</strong>. 지적 1·2는 RESOLVED였다. 리뷰어가 격리된 평가로 socket 수준 차단을 확인했다. 지적 3은 NOT RESOLVED였다.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>심각도</th><th>지적</th><th>처리</th></tr></thead>
+<tbody>
+<tr><td>Important</td><td>production 대조가 HTML을 정규식으로 훑는다. <code>&lt;link title="a&gt;b" rel="stylesheet" href="/extra.css"&gt;</code>(따옴표 안의 <code>&gt;</code>)와 <code>rel="style&amp;#115;heet"</code>(문자 참조)의 추가 stylesheet를 놓친다.</td><td>고침(<code>04ba7c5b</code>). jsdom으로 HTML을 파싱한다(script 실행 없음, 리소스 로딩 없음). 따옴표, 문자 참조, 주석, raw-text 요소, <code>&lt;base href&gt;</code>를 브라우저와 같게 처리한다. 두 입력과 대소문자가 다른 rel, 주석·script 텍스트 안의 마크업, <code>&lt;base href&gt;</code> 시험을 RED→GREEN으로 확인했다. 실제 production 대조도 계속 통과한다.</td></tr>
+</tbody></table></div>
+<p class="warn">이 마지막 수정(<code>04ba7c5b</code>)은 아직 교차 공급자 재검증을 받지 않았다. 정책은 원 리뷰어의 재검증을 한 번으로 정하고 있고, 그 한 번은 위에서 썼다. 두 번째 재검증은 사용자 승인이 필요하다.</p>
 
 <h2>11. 후속 결정이 필요한 것</h2>
 <ul>
