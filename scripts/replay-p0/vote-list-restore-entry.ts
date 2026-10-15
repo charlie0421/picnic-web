@@ -31,6 +31,8 @@ Object.assign(window, { voteList: {
   restore(records: unknown[], selectors: string[], tags: string[]) {
     const doc = document.querySelector('iframe')!.contentDocument!;
     const view = createReplayView(doc, { tags }); view.apply(records);
+    // Scroll records flush layout mid-apply, so later class changes start CSS transitions. Measure end states.
+    for (const animation of doc.getAnimations()) if (animation.effect?.getComputedTiming().endTime !== Infinity) animation.finish();
     doc.defaultView!.scrollTo(0, 0);
     const boxes = view.layout(selectors); view.dispose(); return boxes;
   },
