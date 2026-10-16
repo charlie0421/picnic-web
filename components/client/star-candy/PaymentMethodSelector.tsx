@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { detectUserLocation, getPaymentMethodByLocation, clearLocationCache } from '@/utils/ip-detection';
 import { motion } from 'framer-motion';
+import { PORTONE_WEB_PAYMENT_ENABLED } from '@/lib/payment/availability';
 
 export type PaymentMethod = 'portone' | 'paypal';
 
@@ -52,7 +53,7 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
     onMethodChange(method);
   };
 
-  const paymentMethods = [
+  const allPaymentMethods = [
     {
       id: 'portone' as PaymentMethod,
       name: 'Port One',
@@ -65,9 +66,12 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
       name: 'PayPal',
       description: t('payment_method_paypal_desc'),
       icon: '🌍',
-      recommended: detectedCountry !== 'South Korea',
+      recommended: !PORTONE_WEB_PAYMENT_ENABLED || detectedCountry !== 'South Korea',
     },
   ];
+  const paymentMethods = allPaymentMethods.filter(
+    (method) => PORTONE_WEB_PAYMENT_ENABLED || method.id !== 'portone',
+  );
 
   if (isLoading) {
     return (
@@ -80,7 +84,7 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
 
         {/* Payment Method Buttons Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Array.from({ length: 2 }).map((_, index) => (
+          {Array.from({ length: paymentMethods.length }).map((_, index) => (
             <div
               key={index}
               className="p-4 rounded-lg border-2 border-gray-200 animate-pulse"
