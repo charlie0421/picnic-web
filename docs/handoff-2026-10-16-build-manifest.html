@@ -146,7 +146,7 @@ kill "$(node -p "require('./$E/server/server.json').pid")"</pre>
 <tr><td><code>production-check*.json</code>, <code>restore-*.json</code>, <code>engine-*.json</code></td><td>production 대조, 복원 비교, 엔진 측정</td></tr>
 <tr><td><code>codex-review-{1,2,3}.md</code>, <code>review-*brief.md</code>, <code>review-*diff.patch</code></td><td>리뷰 판정 원문, 지시서, diff</td></tr>
 </tbody></table></div>
-<p>보관 기간은 정하지 않았다. 지울지는 사용자가 정한다.</p>
+<p>사용자 결정(2026-10-16): Replay 작업 줄기가 끝날 때까지 보관한다. 끝나는 때는 후보 C가 완료되거나 중단이 결정된 때다. 결과 보고서가 이 경로를 증거로 인용하므로, 지우기 전에 사용자에게 묻는다.</p>
 
 <h2>8. Orca 정산 상태</h2>
 <ul>
@@ -157,5 +157,5 @@ kill "$(node -p "require('./$E/server/server.json').pid")"</pre>
 
 <h2>9. 다른 세션의 후속 작업</h2>
 <p>이전 핸드오프(<code>docs/handoff-2026-10-15.html</code> §10)의 운영 후속 목록은 이번 작업과 별개다. 이번 세션은 그 항목을 다시 조회하거나 닫지 않았다.</p>
-<p>Jira 상태는 바꾸지 않았다. 이 문서는 작업 소유권을 다른 에이전트에 넘기지 않는다.</p>
+<p>이 작업에 해당하는 Jira 이슈는 없다(2026-10-16 사용자 확인). 그래서 바꾼 Jira 상태도 없다. 이 문서는 작업 소유권을 다른 에이전트에 넘기지 않는다.</p>
 </main></body></html>
