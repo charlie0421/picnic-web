@@ -129,7 +129,7 @@ kill "$(node -p "require('./$E/server/server.json').pid")"</pre>
 <li><strong>복원 페이지는 네트워크를 막는다.</strong> raw 기록에는 loopback 글꼴 URL이 있다.</li>
 <li><strong>차단기는 소켓 연결 지점에서 검사한다.</strong> fetch·http 래퍼는 redirect, <code>undici</code>, 옵션의 호스트 덮어쓰기를 놓쳤다. NODE_OPTIONS preload는 worker thread와 자식 프로세스에도 적용된다.</li>
 <li><strong>HTML은 파서로 읽는다.</strong> 정규식은 따옴표 안의 <code>&gt;</code>와 문자 참조를 놓쳤다.</li>
-<li><strong><code>docs/reports/</code>는 <code>.gitignore</code>의 <code>reports/</code>에 걸린다.</strong> 새 보고서는 <code>git add -f</code>로 추가한다.</li>
+<li><strong><code>docs/reports/</code>는 <code>.gitignore</code>의 <code>reports/</code>에 걸렸다. 지금은 해결됐다.</strong> 커밋 <code>52153026</code>이 <code>.gitignore</code>에 <code>!docs/reports/</code>를 추가했다. 새 보고서는 <code>git add -f</code> 없이 추가한다.</li>
 <li><strong>사용량 게이트:</strong> Codex 관측이 <code>conflict</code>이면 <code>review-blocked</code>가 반복된다. 2분 간격으로 다시 수집해 ready가 나온 5분 안에 진행한다. <code>route=null</code>과 <code>maintenance</code>는 ai-agent-config 설치 중이라는 뜻이므로 STOP한다. Codex app-server의 <code>account/read</code>가 시간 초과되면 5분 뒤 다시 시도한다.</li>
 <li><strong>Codex 리뷰어:</strong> <code>build-orca-launch.py</code>로 띄우면 리뷰어가 <code>worker_done</code>을 직접 보낸다. 판정 <code>status</code> 메시지와 <code>worker_done</code>이 따로 올 수 있으므로 delivery마다 처리하고 ack한다. 첫 화면의 “Set up security”는 Escape로 닫는다.</li>
 </ul>
