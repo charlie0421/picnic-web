@@ -5,6 +5,7 @@ import { PaymentMethod } from './PaymentMethodSelector';
 import { getCurrencyByPaymentMethod } from '@/utils/ip-detection';
 import { portOneService } from '@/lib/payment/portone';
 import { payPalService } from '@/lib/payment/paypal';
+import { resolvePaymentMethod } from '@/lib/payment/availability';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import {
   PAYPAL_POPUP_WIDTH,
@@ -31,7 +32,6 @@ interface UsePaymentHandlersParams {
 
 export function usePaymentHandlers({
   user,
-  selectedPaymentMethod,
   processingProductId,
   setPendingPaymentId,
   setStoredPaymentId,
@@ -41,7 +41,9 @@ export function usePaymentHandlers({
   showLoginRequired,
   t,
   ensureActiveMembership,
+  selectedPaymentMethod: requestedPaymentMethod,
 }: UsePaymentHandlersParams) {
+  const selectedPaymentMethod = resolvePaymentMethod(requestedPaymentMethod);
   const [internalProcessingProductId, setProcessingProductId] = useState<string | null>(null);
 
   const effectiveProcessingProductId = processingProductId ?? internalProcessingProductId;

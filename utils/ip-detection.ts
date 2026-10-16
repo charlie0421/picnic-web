@@ -1,3 +1,5 @@
+import { resolvePaymentMethod } from '@/lib/payment/availability';
+
 interface LocationInfo {
   country: string;
   countryCode: string;
@@ -134,8 +136,8 @@ export function getPaymentMethodByLocation(location: LocationInfo | null): 'port
     return 'paypal';
   }
 
-  // Use Port One for Korean users
-  return location.isKorea ? 'portone' : 'paypal';
+  // Use Port One for Korean users (while PortOne web payment is enabled)
+  return resolvePaymentMethod(location.isKorea ? 'portone' : 'paypal');
 }
 
 /**
