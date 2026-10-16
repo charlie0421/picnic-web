@@ -1,40 +1,14 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { logSafeError } from '@/utils/log-safe-error';
-import { createHmac } from 'crypto';
-import { PaymentClient } from '@portone/server-sdk';
+import { PaymentClient, Webhook } from '@portone/server-sdk';
 
 // Port One API configuration (v2 API)
 export const PORTONE_API_SECRET = process.env.PORTONE_API_SECRET || '';
-export const PORTONE_WEBHOOK_SECRET = process.env.PORTONE_WEBHOOK_SECRET || '';
 
 // 포트원 서버 SDK 클라이언트 생성
 export const paymentClient = PORTONE_API_SECRET
   ? PaymentClient({ secret: PORTONE_API_SECRET })
   : null;
-
-// 포트원 v2 API 응답 형식
-export interface PortOneV2PaymentResponse {
-  id: string;
-  storeId: string;
-  channelKey: string;
-  paymentId: string; // merchant_uid
-  orderName: string;
-  totalAmount: number;
-  currency: string;
-  method: string;
-  status: 'READY' | 'PAID' | 'CANCELLED' | 'FAILED';
-  requestedAt: string;
-  approvedAt?: string;
-  failedAt?: string;
-  cancelledAt?: string;
-  failReason?: string;
-  cancelReason?: string;
-  metadata?: {
-    customData?: string;
-    [key: string]: any;
-  };
-  customData?: string; // 직접 필드로도 올 수 있음
-}
 
 // Supabase Service Role Client (웹훅은 사용자 인증 없이 처리)
 export function createServiceRoleSupabaseClient() {
@@ -53,35 +27,60 @@ export function createServiceRoleSupabaseClient() {
   });
 }
 
-// Verify webhook signature
-export function verifyWebhookSignature(payload: any, signature: string): boolean {
-  if (!PORTONE_WEBHOOK_SECRET) {
+export type PortOneWebhookVerification =
+  | { ok: true; webhook: unknown }
+  | { ok: false; reason: 'secret_missing' | 'invalid_signature' };
+
+/**
+ * PortOne V2 웹훅 서명 검증 (Standard Webhooks, #77).
+ *
+ * rawBody 는 받은 본문 그대로여야 한다. 파싱 후 다시 직렬화하면 키 순서·공백이 달라져 서명이 맞지 않는다.
+ * 시크릿 형식 오류(InvalidInputError)와 본문 JSON 오류는 던진다 — 호출부가 500 으로 재시도를 유도한다.
+ */
+export async function verifyPortOneWebhook(
+  rawBody: string,
+  headers: Headers,
+): Promise<PortOneWebhookVerification> {
+  const secret = process.env.PORTONE_WEBHOOK_SECRET;
+  if (!secret) {
     logSafeError('payment.portone.webhook.secret.missing', undefined);
-    return false; // Never bypass signature verification
+    return { ok: false, reason: 'secret_missing' };
   }
 
-  if (!signature) {
-    logSafeError('payment.portone.webhook.signature.missing', undefined);
-    return false;
-  }
-
-  const calculatedSignature = createHmac('sha256', PORTONE_WEBHOOK_SECRET)
-    .update(JSON.stringify(payload))
-    .digest('hex');
-
-  // Use timing-safe comparison to prevent timing attacks
-  if (calculatedSignature.length !== signature.length) {
-    return false;
-  }
-
-  const a = Buffer.from(calculatedSignature, 'hex');
-  const b = Buffer.from(signature, 'hex');
   try {
-    const { timingSafeEqual } = require('crypto');
-    return timingSafeEqual(a, b);
-  } catch {
-    return calculatedSignature === signature;
+    const webhook = await Webhook.verify(secret, rawBody, Object.fromEntries(headers));
+    return { ok: true, webhook };
+  } catch (error) {
+    if (error instanceof Webhook.WebhookVerificationError) {
+      return { ok: false, reason: 'invalid_signature' };
+    }
+    throw error;
   }
+}
+
+/**
+ * 서명을 통과한 웹훅 본문에서 적립을 시도할 결제 ID 를 고른다.
+ *
+ * - 2024-04-25 형식: { type: 'Transaction.Paid', data: { paymentId } } 만 처리한다.
+ * - 2024-01-01 형식: { payment_id, status: 'Paid' } 만 처리한다.
+ * 그 밖의 이벤트는 { paymentId: null, ignored: true } 이다. 본문의 상태는 고르는 데만 쓰고,
+ * 적립 여부는 항상 SDK 로 다시 조회한 결제 상태로 정한다.
+ */
+export function selectPaidPaymentId(webhook: unknown): { ignored: true } | { ignored: false; paymentId: string | null } {
+  if (typeof webhook !== 'object' || webhook === null) return { ignored: true };
+  const body = webhook as Record<string, unknown>;
+
+  if (typeof body.type === 'string') {
+    if (body.type !== 'Transaction.Paid') return { ignored: true };
+    const data = body.data as Record<string, unknown> | undefined;
+    return { ignored: false, paymentId: typeof data?.paymentId === 'string' && data.paymentId ? data.paymentId : null };
+  }
+
+  if (typeof body.status === 'string' && body.status.toUpperCase() === 'PAID') {
+    return { ignored: false, paymentId: typeof body.payment_id === 'string' && body.payment_id ? body.payment_id : null };
+  }
+
+  return { ignored: true };
 }
 
 // Verify payment with Port One v2 API using paymentId (서버 SDK 사용)
@@ -99,49 +98,6 @@ export async function verifyPortOnePayment(paymentId: string): Promise<any> {
     logSafeError('payment.portone.webhook.provider.failed', error, { paymentId });
     throw error;
   }
-}
-
-// 영수증 저장
-export async function createReceipt(
-  supabase: SupabaseClient,
-  params: {
-    userId: string;
-    productId: string;
-    actualPaymentId: string;
-    receiptHash: string;
-    paymentData: any;
-  }
-) {
-  const { userId, productId, actualPaymentId, receiptHash, paymentData } = params;
-
-  // 영수증 데이터 생성 (포트원 v2 API 응답 형식)
-  const receiptData = {
-    payment_id: actualPaymentId,
-    paymentId: actualPaymentId,
-    amount: paymentData.totalAmount,
-    currency: paymentData.currency,
-    payment_method: paymentData.method || 'port_one',
-    status: paymentData.status,
-    approvedAt: paymentData.approvedAt || null,
-    payment_details: paymentData,
-  };
-
-  const { data: receipt, error: receiptError } = await supabase
-    .from('receipts')
-    .insert({
-      user_id: userId,
-      product_id: productId,
-      receipt_data: JSON.stringify(receiptData),
-      receipt_hash: receiptHash,
-      status: 'completed',
-      platform: 'web',
-      environment: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox',
-      verification_data: paymentData,
-    })
-    .select()
-    .single();
-
-  return { receipt, receiptError };
 }
 
 // customData 파싱 (이중 stringify 대응)
@@ -169,82 +125,5 @@ export function parseCustomData(paymentData: any): Record<string, any> {
     }
   } else {
     return {};
-  }
-}
-
-// 보너스 별사탕 처리
-export async function processStarCandyBonus(
-  supabase: SupabaseClient,
-  params: {
-    userId: string;
-    bonusAmount: number;
-    transactionId: string;
-    expiredAt: string;
-  }
-) {
-  const { userId, bonusAmount, transactionId, expiredAt } = params;
-
-  const { error: bonusError } = await supabase
-    .from('star_candy_bonus_history')
-    .insert({
-      user_id: userId,
-      amount: bonusAmount,
-      remain_amount: bonusAmount,
-      type: 'PURCHASE',
-      transaction_id: transactionId,
-      expired_dt: expiredAt,
-    });
-
-  if (bonusError) {
-    logSafeError('payment.portone.webhook.bonus.insert_failed', bonusError, { userId, errorCode: bonusError.code });
-  } else {
-    // Atomic increment of bonus balance
-    const { error: bonusUpdateError } = await supabase
-      .rpc('increment_star_candy_bonus', {
-        p_user_id: userId,
-        p_amount: bonusAmount,
-      });
-
-    if (bonusUpdateError) {
-      logSafeError('payment.portone.webhook.bonus.update_failed', bonusUpdateError, { userId, errorCode: bonusUpdateError.code });
-    }
-  }
-}
-
-// 별사탕 잔액 업데이트 및 히스토리 기록
-export async function updateStarCandyBalance(
-  supabase: SupabaseClient,
-  params: {
-    userId: string;
-    starCandy: number;
-    transactionId: string;
-  }
-) {
-  const { userId, starCandy, transactionId } = params;
-
-  // Atomic increment of star_candy balance to prevent race conditions
-  const { error: profileError } = await supabase
-    .rpc('increment_star_candy', {
-      p_user_id: userId,
-      p_amount: starCandy,
-    });
-
-  if (profileError) {
-    logSafeError('payment.portone.webhook.balance.failed', profileError, { userId, errorCode: profileError.code });
-    // 영수증은 이미 생성되었으므로 에러를 반환하지 않음
-  }
-
-  // 별사탕 히스토리 기록
-  const { error: historyError } = await supabase
-    .from('star_candy_history')
-    .insert({
-      user_id: userId,
-      amount: starCandy,
-      type: 'PURCHASE',
-      transaction_id: transactionId,
-    });
-
-  if (historyError) {
-    logSafeError('payment.portone.webhook.history.failed', historyError, { userId, errorCode: historyError.code });
   }
 }
