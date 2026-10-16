@@ -324,6 +324,14 @@ describe('PortOne webhook — 유지되는 계약', () => {
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
+  it('SDK 조회 실패 응답은 받은 paymentId 를 되돌려주지 않는다', async () => {
+    mocks.verifyError = new Error('PortOne down');
+    const res = await POST(webhook(paidEvent('private-canary-order-id')));
+
+    expect(res.status).toBe(502);
+    expect(await res.text()).not.toContain('private-canary-order-id');
+  });
+
   it('customData 에 userId 가 없으면 400 무적립', async () => {
     mocks.payment = { ...paidPayment(), customData: JSON.stringify({ productId: 'STAR_100' }) };
     const res = await POST(webhook(paidEvent()));
@@ -392,7 +400,7 @@ describe('PortOne webhook — 유지되는 계약', () => {
       mocks.verifyError = new Error(PRIVATE);
       const response = await POST(webhook(paidEvent()));
       expect(response.status).toBe(502);
-      expect(await response.text()).not.toContain('Q7pPriv');
+      expect(await response.json()).toEqual({ error: 'Payment verification failed' });
       expect(mocks.rpc).not.toHaveBeenCalled();
       checkRecord('payment.portone.webhook.verification.failed', { paymentId: 'pay_1' });
     });

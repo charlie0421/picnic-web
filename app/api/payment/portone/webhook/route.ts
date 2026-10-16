@@ -118,7 +118,7 @@ export const POST = withSafeErrors('payment.portone.webhook.post.unhandled', asy
       // Never fall back to unverified webhook data for payment processing.
       // Reject the webhook and let PortOne retry later.
       return NextResponse.json(
-        { error: 'Payment verification failed', paymentId },
+        { error: 'Payment verification failed' },
         { status: 502 }
       );
     }
