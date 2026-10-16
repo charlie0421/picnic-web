@@ -86,7 +86,7 @@
 <tr><td>A. 계약 범위 확장</td><td>upcoming·completed, 더보기, filter, API 오류, popup을 관측하고 spec을 먼저 바꾼 뒤 계약에 추가한다.</td><td>이전 핸드오프의 후보 A와 같다. 이번 도구(서버·캡처·생성기)를 그대로 쓸 수 있다.</td></tr>
 <tr><td>D. 엔진 지원</td><td>WebKit·Firefox(실제 Safari 포함) 녹화를 받으려면 엔진별 <code>accept</code> 변형이 필요하다. 형식은 이미 여러 변형을 받는다.</td><td>Playwright WebKit이 실제 iOS Safari와 같은지 확인하지 않았다. 실제 브라우저 버전을 측정할 방법을 먼저 정한다.</td></tr>
 <tr><td>C. 제품 연결·운영 활성화</td><td>로그인·광고 상태 판정과 연결, 런타임 <code>origin</code> 설정, manifest의 제품 번들 포함, 배포 뒤 <code>check-production-css</code> 자동화, 실제 Sentry 저장과 재생 확인.</td><td>인증·개인정보 관련 고위험 변경이다. 별도 설계·승인과 반대 공급자 리뷰가 필요하다.</td></tr>
-<tr><td>기타 제안</td><td><code>next/font/local</code> 전환으로 Google Fonts 변동 위험을 없애는 일(제품 변경), <code>.gitignore</code>의 <code>reports/</code>를 <code>/reports/</code>로 고정하는 일.</td><td>둘 다 제안만 했고 승인받지 않았다.</td></tr>
+<tr><td>기타 제안</td><td><code>next/font/local</code> 전환으로 Google Fonts 변동 위험을 없애는 일(제품 변경).</td><td>제안만 했고 승인받지 않았다. 함께 제안했던 <code>.gitignore</code> 수정은 <code>/reports/</code> 고정 대신 <code>!docs/reports/</code> 추가로 해결했다(§6.3).</td></tr>
 </tbody></table></div>
 <p>보류한 Minor 2건: WebKit·Firefox 캡처의 exit code가 확인 실패를 반영하지 않는다. <code>mediaOpacity</code> 분류는 형태로만 판단한다.</p>
 
