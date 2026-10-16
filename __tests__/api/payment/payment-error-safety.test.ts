@@ -22,7 +22,8 @@ vi.mock('@/app/api/payment/portone/webhook/webhook-helpers', async (original) =>
     if (state.initError) throw state.initError;
     return { rpc: state.rpc };
   },
-  verifyWebhookSignature: () => true,
+  // 서명 검증은 portone-webhook-contract.test.ts 가 실제 서명으로 본다. 여기서는 원문을 그대로 파싱만 한다.
+  verifyPortOneWebhook: async (rawBody: string) => ({ ok: true, webhook: JSON.parse(rawBody) }),
   verifyPortOnePayment: async () => state.payment,
 }));
 vi.mock('@/app/api/payment/portone/verify/verify-helpers', async (original) => ({
@@ -36,7 +37,7 @@ const PRIVATE = 'Q7pPriv buyer-private@example.invalid token=private-payment-can
 const request = (route: string, body: string) => new NextRequest(`https://www.picnic.fan/api/payment/portone/${route}`, {
   method: 'POST', headers: { 'content-type': 'application/json' }, body,
 });
-const paidRequest = () => request('webhook', JSON.stringify({ status: 'PAID', paymentId: 'pay_1' }));
+const paidRequest = () => request('webhook', JSON.stringify({ type: 'Transaction.Paid', data: { paymentId: 'pay_1' } }));
 const verifyRequest = () => request('verify', JSON.stringify({ paymentId: 'pay_1' }));
 
 describe('payment failures hide provider and customer details', () => {
