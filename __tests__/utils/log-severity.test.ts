@@ -3,7 +3,6 @@ import { errors as joseErrors } from 'jose';
 import { AuthApiError, AuthPKCECodeVerifierMissingError, AuthRetryableFetchError, AuthWeakPasswordError } from '@supabase/auth-js';
 import {
   isClientAuthError,
-  isClientGoogleTokenError,
   isClientJoseError,
   isClientKakaoTokenError,
   isClientKakaoUnlinkError,
@@ -80,16 +79,6 @@ describe('isClientJoseError — 요청자가 보낸 토큰의 결함만 고른�
 });
 
 describe('공급자 응답 본문의 오류 코드로 고른다 — status 만으로는 고르지 않는다', () => {
-  it('Google 토큰 교환: 400 invalid_grant 만 클라이언트 오류다', () => {
-    expect(isClientGoogleTokenError(400, { error: 'invalid_grant' })).toBe(true);
-    expect(isClientGoogleTokenError(400, { error: 'unauthorized_client' })).toBe(false);
-    expect(isClientGoogleTokenError(400, { error: 'invalid_request' })).toBe(false);
-    expect(isClientGoogleTokenError(400, { error: 'unsupported_grant_type' })).toBe(false);
-    expect(isClientGoogleTokenError(400, {})).toBe(false);
-    expect(isClientGoogleTokenError(400, undefined)).toBe(false);
-    expect(isClientGoogleTokenError(401, { error: 'invalid_grant' })).toBe(false);
-  });
-
   it('Kakao 토큰 교환: 400 KOE320(만료·재사용 code)만 클라이언트 오류다', () => {
     expect(isClientKakaoTokenError(400, { error: 'invalid_grant', error_code: 'KOE320' })).toBe(true);
     expect(isClientKakaoTokenError(400, { error: 'invalid_grant', error_code: 'KOE303' })).toBe(false);
@@ -125,7 +114,6 @@ describe('공급자 응답 본문의 오류 코드로 고른다 — status 만�
 
   it('본문을 읽다가 던져도 클라이언트 오류가 아니다', () => {
     const hostile = new Proxy({}, { get: () => { throw new Error('private'); } });
-    expect(isClientGoogleTokenError(400, hostile)).toBe(false);
     expect(isClientKakaoTokenError(400, hostile)).toBe(false);
     expect(isClientKakaoUnlinkError(400, hostile)).toBe(false);
     expect(isClientPayPalCaptureError(422, hostile)).toBe(false);

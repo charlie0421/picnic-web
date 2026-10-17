@@ -150,14 +150,10 @@ describe('exchange-code', () => {
 });
 
 describe('google', () => {
-  it('Google 이 400 invalid_grant 로 code 를 거절하면 WARN', async () => {
-    mocks.fetch.mockResolvedValue(status(400, { error: 'invalid_grant', error_description: 'private-canary' }));
-    const response = await google(post('/api/auth/google', { code: 'used-code' }));
-    expect(response.status).toBe(400);
-    expect(levelOf('auth.google.token_exchange.failed')).toBe('warn');
-  });
-
   it.each([
+    // invalid_grant 는 만료·재사용 code 와 redirect_uri 불일치를 가르지 않는다. 모르는 것은 ERROR 다.
+    [400, { error: 'invalid_grant', error_description: 'Bad Request' }],
+    [400, { error: 'invalid_grant', error_description: 'redirect_uri mismatch' }],
     [400, { error: 'unauthorized_client' }],
     [400, { error: 'invalid_request' }],
     [400, {}],
@@ -273,7 +269,6 @@ describe('apple', () => {
 
 describe('공급자 응답 본문은 분류에만 쓰고 로그에 싣지 않는다', () => {
   it.each([
-    ['google', () => google(post('/api/auth/google', { code: 'c' }))],
     ['kakao', () => kakao(post('/api/auth/kakao', { code: 'c' }))],
     ['kakao unlink', () => kakaoUnlink(post('/api/auth/kakao', { accessToken: 't' }, 'DELETE'))],
   ])('%s', async (_label, call) => {

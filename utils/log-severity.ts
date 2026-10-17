@@ -92,13 +92,10 @@ function read(body: unknown, key: string): unknown {
   }
 }
 
-/**
- * Google 토큰 교환. 400 invalid_grant 는 만료·재사용 code 다. 같은 400 의 unauthorized_client·invalid_request·
- * unsupported_grant_type 은 클라이언트 설정이나 우리 요청의 문제라 넣지 않는다.
+/*
+ * Google 토큰 교환에는 판별 함수를 두지 않는다. invalid_grant 하나가 만료·재사용 code 와 redirect_uri 불일치를
+ * 함께 뜻하고, 둘을 가르는 기계용 코드가 없다. 그래서 그 실패는 모두 ERROR 다.
  */
-export function isClientGoogleTokenError(status: number, body: unknown): boolean {
-  return status === 400 && read(body, 'error') === 'invalid_grant';
-}
 
 /**
  * Kakao 토큰 교환. KOE320 은 만료되었거나 이미 쓴 인가 코드다. 같은 invalid_grant 의 KOE303(redirect_uri 불일치)은
