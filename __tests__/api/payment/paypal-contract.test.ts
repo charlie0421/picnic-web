@@ -206,25 +206,42 @@ describe('PayPal capture-order — 공급자 실패의 로그 레벨 (#75)', () 
     if (lines(console.warn).some((line) => line.endsWith(` WARN: ${code}`))) return 'warn';
     return 'none';
   };
-  const captureFails = (status: number) =>
+  const captureFails = (status: number, ...issues: string[]) =>
     mocks.fetch.mockImplementation(async (url: string) =>
-      url.includes('/v1/oauth2/token') ? json({ access_token: 'token' }) : json({ name: 'X' }, status));
+      url.includes('/v1/oauth2/token')
+        ? json({ access_token: 'token' })
+        : json({ name: 'X', details: issues.map((issue) => ({ issue, description: 'Q7pPriv' })) }, status));
   beforeEach(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it.each([400, 404, 422])('PayPal %s(잘못된·이미 처리된 orderID)는 500 응답을 유지하고 WARN', async (status) => {
-    captureFails(status);
+  it.each([
+    [404, 'INVALID_RESOURCE_ID'],
+    [422, 'ORDER_ALREADY_CAPTURED'],
+    [422, 'ORDER_NOT_APPROVED'],
+    [422, 'INSTRUMENT_DECLINED'],
+  ])('PayPal %s %s(주문 쪽 문제)는 500 응답을 유지하고 WARN', async (status, issue) => {
+    captureFails(status, issue);
     const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
     expect(res.status).toBe(500);
     expect(levelOf('payment.paypal.capture.provider.failed')).toBe('warn');
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
-  it.each([401, 403, 429, 500, 503])('PayPal %s(인증·한도·장애)는 ERROR', async (status) => {
-    captureFails(status);
+  it.each([
+    [422, ['AUTH_CAPTURE_NOT_ENABLED']],
+    [422, ['TRANSACTION_RECEIVING_LIMIT_EXCEEDED']],
+    [422, ['ORDER_ALREADY_CAPTURED', 'PAYEE_ACCOUNT_RESTRICTED']],
+    [422, []],
+    [401, ['ORDER_ALREADY_CAPTURED']],
+    [403, []],
+    [429, []],
+    [500, []],
+    [503, []],
+  ])('PayPal %s %j(판매자 설정·인증·한도·장애·모르는 issue)는 ERROR', async (status, issues) => {
+    captureFails(status, ...issues);
     const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
     expect(res.status).toBe(500);
     expect(levelOf('payment.paypal.capture.provider.failed')).toBe('error');

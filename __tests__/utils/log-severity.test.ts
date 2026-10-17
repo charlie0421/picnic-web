@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { errors as joseErrors } from 'jose';
 import { AuthApiError, AuthPKCECodeVerifierMissingError, AuthRetryableFetchError, AuthWeakPasswordError } from '@supabase/auth-js';
-import { isClientAuthError, isClientJoseError } from '@/utils/log-severity';
+import {
+  isClientAuthError,
+  isClientGoogleTokenError,
+  isClientJoseError,
+  isClientKakaoTokenError,
+  isClientKakaoUnlinkError,
+  isClientPayPalCaptureError,
+} from '@/utils/log-severity';
 
 describe('isClientAuthError — 운영자 조치가 필요 없는 Supabase auth 오류만 고른다', () => {
   it.each([
@@ -69,5 +76,59 @@ describe('isClientJoseError — 요청자가 보낸 토큰의 결함만 고른�
   it('읽다가 던지는 값은 클라이언트 오류가 아니다', () => {
     const hostile = new Proxy({}, { get: () => { throw new Error('private'); } });
     expect(isClientJoseError(hostile)).toBe(false);
+  });
+});
+
+describe('공급자 응답 본문의 오류 코드로 고른다 — status 만으로는 고르지 않는다', () => {
+  it('Google 토큰 교환: 400 invalid_grant 만 클라이언트 오류다', () => {
+    expect(isClientGoogleTokenError(400, { error: 'invalid_grant' })).toBe(true);
+    expect(isClientGoogleTokenError(400, { error: 'unauthorized_client' })).toBe(false);
+    expect(isClientGoogleTokenError(400, { error: 'invalid_request' })).toBe(false);
+    expect(isClientGoogleTokenError(400, { error: 'unsupported_grant_type' })).toBe(false);
+    expect(isClientGoogleTokenError(400, {})).toBe(false);
+    expect(isClientGoogleTokenError(400, undefined)).toBe(false);
+    expect(isClientGoogleTokenError(401, { error: 'invalid_grant' })).toBe(false);
+  });
+
+  it('Kakao 토큰 교환: 400 KOE320(만료·재사용 code)만 클라이언트 오류다', () => {
+    expect(isClientKakaoTokenError(400, { error: 'invalid_grant', error_code: 'KOE320' })).toBe(true);
+    expect(isClientKakaoTokenError(400, { error: 'invalid_grant', error_code: 'KOE303' })).toBe(false);
+    expect(isClientKakaoTokenError(400, { error: 'invalid_grant' })).toBe(false);
+    expect(isClientKakaoTokenError(401, { error_code: 'KOE320' })).toBe(false);
+  });
+
+  it('Kakao 연결 해제: 요청자의 토큰이 무효(-401)이거나 이미 연결이 끊긴 사용자(-101)만 클라이언트 오류다', () => {
+    expect(isClientKakaoUnlinkError(401, { code: -401, msg: 'this access token does not exist' })).toBe(true);
+    expect(isClientKakaoUnlinkError(400, { code: -101 })).toBe(true);
+    expect(isClientKakaoUnlinkError(400, { code: -1 })).toBe(false);
+    expect(isClientKakaoUnlinkError(400, { code: -7 })).toBe(false);
+    expect(isClientKakaoUnlinkError(400, { code: -10 })).toBe(false);
+    expect(isClientKakaoUnlinkError(400, { code: -603 })).toBe(false);
+    expect(isClientKakaoUnlinkError(400, { code: '-401' })).toBe(false);
+    expect(isClientKakaoUnlinkError(400, {})).toBe(false);
+    expect(isClientKakaoUnlinkError(500, { code: -401 })).toBe(false);
+  });
+
+  it('PayPal capture: 모든 issue 가 주문 쪽 문제일 때만 클라이언트 오류다', () => {
+    const body = (status: string, ...issues: string[]) => ({ name: status, details: issues.map((issue) => ({ issue })) });
+    expect(isClientPayPalCaptureError(422, body('UNPROCESSABLE_ENTITY', 'ORDER_ALREADY_CAPTURED'))).toBe(true);
+    expect(isClientPayPalCaptureError(404, body('RESOURCE_NOT_FOUND', 'INVALID_RESOURCE_ID'))).toBe(true);
+    expect(isClientPayPalCaptureError(422, body('UNPROCESSABLE_ENTITY', 'ORDER_NOT_APPROVED'))).toBe(true);
+    expect(isClientPayPalCaptureError(422, body('UNPROCESSABLE_ENTITY', 'INSTRUMENT_DECLINED'))).toBe(true);
+    expect(isClientPayPalCaptureError(422, body('UNPROCESSABLE_ENTITY', 'AUTH_CAPTURE_NOT_ENABLED'))).toBe(false);
+    expect(isClientPayPalCaptureError(422, body('UNPROCESSABLE_ENTITY', 'TRANSACTION_RECEIVING_LIMIT_EXCEEDED'))).toBe(false);
+    expect(isClientPayPalCaptureError(422, body('UNPROCESSABLE_ENTITY', 'ORDER_ALREADY_CAPTURED', 'PAYEE_ACCOUNT_RESTRICTED'))).toBe(false);
+    expect(isClientPayPalCaptureError(422, body('UNPROCESSABLE_ENTITY'))).toBe(false);
+    expect(isClientPayPalCaptureError(422, { name: 'X' })).toBe(false);
+    expect(isClientPayPalCaptureError(500, body('INTERNAL_SERVER_ERROR', 'ORDER_ALREADY_CAPTURED'))).toBe(false);
+  });
+
+  it('본문을 읽다가 던져도 클라이언트 오류가 아니다', () => {
+    const hostile = new Proxy({}, { get: () => { throw new Error('private'); } });
+    expect(isClientGoogleTokenError(400, hostile)).toBe(false);
+    expect(isClientKakaoTokenError(400, hostile)).toBe(false);
+    expect(isClientKakaoUnlinkError(400, hostile)).toBe(false);
+    expect(isClientPayPalCaptureError(422, hostile)).toBe(false);
+    expect(isClientPayPalCaptureError(422, { details: hostile })).toBe(false);
   });
 });

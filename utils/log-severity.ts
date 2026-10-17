@@ -76,3 +76,67 @@ export function isClientJoseError(error: unknown): boolean {
     return false;
   }
 }
+
+/*
+ * 공급자 HTTP 응답. status 하나로는 고르지 않는다 — 같은 400·422 안에 만료된 code 와 설정 오류·공급자 장애가
+ * 함께 있다. 본문의 기계용 오류 코드가 목록에 있을 때만 WARN 이다. 본문이 없거나 읽을 수 없거나 모르는 코드면
+ * ERROR 다. 본문은 분류에만 쓴다. 로그에 싣지 않는다.
+ */
+
+/** 객체에서 키 하나를 읽는다. 객체가 아니거나 읽다가 던지면 undefined. */
+function read(body: unknown, key: string): unknown {
+  try {
+    return typeof body === 'object' && body !== null ? (body as Record<string, unknown>)[key] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Google 토큰 교환. 400 invalid_grant 는 만료·재사용 code 다. 같은 400 의 unauthorized_client·invalid_request·
+ * unsupported_grant_type 은 클라이언트 설정이나 우리 요청의 문제라 넣지 않는다.
+ */
+export function isClientGoogleTokenError(status: number, body: unknown): boolean {
+  return status === 400 && read(body, 'error') === 'invalid_grant';
+}
+
+/**
+ * Kakao 토큰 교환. KOE320 은 만료되었거나 이미 쓴 인가 코드다. 같은 invalid_grant 의 KOE303(redirect_uri 불일치)은
+ * 설정 문제라 넣지 않는다.
+ */
+export function isClientKakaoTokenError(status: number, body: unknown): boolean {
+  return status === 400 && read(body, 'error_code') === 'KOE320';
+}
+
+/**
+ * Kakao 연결 해제. 토큰은 요청자가 보낸다. -401 은 무효·만료된 토큰, -101 은 이미 연결이 끊긴 사용자다.
+ * 같은 400 의 -1(내부 오류)·-7(점검)·-10(한도)·-603(시간 초과)은 공급자 문제라 넣지 않는다.
+ */
+const CLIENT_KAKAO_UNLINK_CODES: ReadonlySet<unknown> = new Set([-401, -101]);
+
+export function isClientKakaoUnlinkError(status: number, body: unknown): boolean {
+  return (status === 400 || status === 401) && CLIENT_KAKAO_UNLINK_CODES.has(read(body, 'code'));
+}
+
+/**
+ * PayPal capture 의 details[].issue 중 요청한 주문이 원인인 것: 없는 주문, 이미 capture 한 주문, 승인되지 않은 주문,
+ * 구매자 결제수단 거절. AUTH_CAPTURE_NOT_ENABLED·TRANSACTION_RECEIVING_LIMIT_EXCEEDED 같은 판매자 계정 문제는 넣지 않는다.
+ */
+const CLIENT_PAYPAL_CAPTURE_ISSUES: ReadonlySet<unknown> = new Set([
+  'INVALID_RESOURCE_ID',
+  'ORDER_ALREADY_CAPTURED',
+  'ORDER_NOT_APPROVED',
+  'INSTRUMENT_DECLINED',
+]);
+
+/** issue 가 하나 이상 있고 모두 목록에 있을 때만 true. 판매자 쪽 issue 가 하나라도 섞이면 ERROR 다. */
+export function isClientPayPalCaptureError(status: number, body: unknown): boolean {
+  if (status !== 400 && status !== 404 && status !== 422) return false;
+  try {
+    const details = read(body, 'details');
+    if (!Array.isArray(details) || details.length === 0) return false;
+    return details.every((detail) => CLIENT_PAYPAL_CAPTURE_ISSUES.has(read(detail, 'issue')));
+  } catch {
+    return false;
+  }
+}

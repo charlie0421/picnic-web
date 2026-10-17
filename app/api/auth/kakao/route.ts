@@ -1,6 +1,7 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
+import { isClientKakaoTokenError, isClientKakaoUnlinkError } from '@/utils/log-severity';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { normalizeKakaoProfile } from '@/lib/supabase/social/kakao';
@@ -85,9 +86,10 @@ export const POST = withSafeErrors('auth.kakao.post.unhandled', async function P
     });
 
     if (!tokenResponse.ok) {
-      void tokenResponse.body?.cancel().catch(() => {});
-      // 400 은 만료·재사용 code(KOE320 등)다. 401 은 클라이언트 설정이라 ERROR 로 둔다 (#75).
-      (tokenResponse.status === 400 ? logSafeWarn : logSafeError)('auth.kakao.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
+      // 본문은 WARN·ERROR 를 고르는 데만 쓴다. 로그에 싣지 않는다.
+      const errorBody = await tokenResponse.json().catch(() => undefined);
+      // KOE320(만료·재사용 code)만 WARN 이다. KOE303(redirect_uri 불일치)·401 은 설정 문제다 (#75).
+      (isClientKakaoTokenError(tokenResponse.status, errorBody) ? logSafeWarn : logSafeError)('auth.kakao.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
       return NextResponse.json(
         { error: '액세스 토큰 요청 실패' },
         { status: 502 }
@@ -202,9 +204,10 @@ export const DELETE = withSafeErrors('auth.kakao.delete.unhandled', async functi
     });
 
     if (!unlinkResponse.ok) {
-      void unlinkResponse.body?.cancel().catch(() => {});
-      // 토큰은 요청자가 보낸 것이다. 400·401 은 만료·잘못된 토큰이므로 WARN (#75).
-      (unlinkResponse.status === 400 || unlinkResponse.status === 401 ? logSafeWarn : logSafeError)('auth.kakao.unlink.failed', new Error('Provider unlink failed'), { httpStatus: unlinkResponse.status });
+      // 본문은 WARN·ERROR 를 고르는 데만 쓴다. 로그에 싣지 않는다.
+      const errorBody = await unlinkResponse.json().catch(() => undefined);
+      // 토큰은 요청자가 보낸다. 무효 토큰(-401)·이미 끊긴 연결(-101)만 WARN, 공급자 장애·한도는 ERROR (#75).
+      (isClientKakaoUnlinkError(unlinkResponse.status, errorBody) ? logSafeWarn : logSafeError)('auth.kakao.unlink.failed', new Error('Provider unlink failed'), { httpStatus: unlinkResponse.status });
       return NextResponse.json(
         { error: 'Kakao 연결 해제 요청 실패' },
         { status: 502 }

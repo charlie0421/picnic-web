@@ -1,7 +1,7 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
-import { isClientJoseError } from '@/utils/log-severity';
+import { isClientGoogleTokenError, isClientJoseError } from '@/utils/log-severity';
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
@@ -168,9 +168,10 @@ export const POST = withSafeErrors('auth.google.post.unhandled', async function 
     });
 
     if (!tokenResponse.ok) {
-      void tokenResponse.body?.cancel().catch(() => {});
-      // 400 은 만료·재사용 code(invalid_grant)다. 401 은 클라이언트 설정(invalid_client)이라 ERROR 로 둔다 (#75).
-      (tokenResponse.status === 400 ? logSafeWarn : logSafeError)('auth.google.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
+      // 본문은 WARN·ERROR 를 고르는 데만 쓴다. 로그에 싣지 않는다.
+      const errorBody = await tokenResponse.json().catch(() => undefined);
+      // 400 invalid_grant(만료·재사용 code)만 WARN 이다. 같은 400 의 unauthorized_client 등과 401 은 설정 문제다 (#75).
+      (isClientGoogleTokenError(tokenResponse.status, errorBody) ? logSafeWarn : logSafeError)('auth.google.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
       return NextResponse.json(
         { error: '토큰 교환 실패' },
         { status: 400 }

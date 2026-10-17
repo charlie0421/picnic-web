@@ -52,7 +52,7 @@ const post = (path: string, body: unknown, method = 'POST') =>
     body: typeof body === 'string' ? body : JSON.stringify(body),
   });
 
-const status = (code: number) => new Response('{}', { status: code });
+const status = (code: number, body: unknown = {}) => new Response(JSON.stringify(body), { status: code });
 
 /** 사건 코드가 어느 레벨로 찍혔는가. 둘 다 아니면 'none'. */
 function levelOf(code: string): 'warn' | 'error' | 'none' {
@@ -150,15 +150,21 @@ describe('exchange-code', () => {
 });
 
 describe('google', () => {
-  it('Google 이 400 으로 code 를 거절하면(invalid_grant) WARN', async () => {
-    mocks.fetch.mockResolvedValue(status(400));
+  it('Google 이 400 invalid_grant 로 code 를 거절하면 WARN', async () => {
+    mocks.fetch.mockResolvedValue(status(400, { error: 'invalid_grant', error_description: 'private-canary' }));
     const response = await google(post('/api/auth/google', { code: 'used-code' }));
     expect(response.status).toBe(400);
     expect(levelOf('auth.google.token_exchange.failed')).toBe('warn');
   });
 
-  it.each([401, 500, 503])('Google 토큰 교환 %s 는 ERROR — 클라이언트 설정이나 공급자 장애다', async (code) => {
-    mocks.fetch.mockResolvedValue(status(code));
+  it.each([
+    [400, { error: 'unauthorized_client' }],
+    [400, { error: 'invalid_request' }],
+    [400, {}],
+    [401, { error: 'invalid_client' }],
+    [500, { error: 'invalid_grant' }],
+  ])('Google 토큰 교환 %s %j 는 ERROR — 클라이언트 설정이나 공급자 장애다', async (code, body) => {
+    mocks.fetch.mockResolvedValue(status(code, body));
     const response = await google(post('/api/auth/google', { code: 'any' }));
     expect(response.status).toBe(400);
     expect(levelOf('auth.google.token_exchange.failed')).toBe('error');
@@ -189,29 +195,44 @@ describe('google', () => {
 });
 
 describe('kakao', () => {
-  it('Kakao 가 400 으로 code 를 거절하면 502 와 WARN', async () => {
-    mocks.fetch.mockResolvedValue(status(400));
+  it('Kakao 가 400 KOE320 으로 code 를 거절하면 502 와 WARN', async () => {
+    mocks.fetch.mockResolvedValue(status(400, { error: 'invalid_grant', error_code: 'KOE320' }));
     const response = await kakao(post('/api/auth/kakao', { code: 'used-code' }));
     expect(response.status).toBe(502);
     expect(levelOf('auth.kakao.token_exchange.failed')).toBe('warn');
   });
 
-  it.each([401, 500])('Kakao 토큰 교환 %s 는 ERROR', async (code) => {
-    mocks.fetch.mockResolvedValue(status(code));
+  it.each([
+    [400, { error: 'invalid_grant', error_code: 'KOE303' }],
+    [400, {}],
+    [401, { error: 'invalid_client', error_code: 'KOE010' }],
+    [500, {}],
+  ])('Kakao 토큰 교환 %s %j 는 ERROR', async (code, body) => {
+    mocks.fetch.mockResolvedValue(status(code, body));
     const response = await kakao(post('/api/auth/kakao', { code: 'any' }));
     expect(response.status).toBe(502);
     expect(levelOf('auth.kakao.token_exchange.failed')).toBe('error');
   });
 
-  it.each([400, 401])('연결 해제에서 요청자가 보낸 토큰을 Kakao 가 %s 로 거절하면 WARN', async (code) => {
-    mocks.fetch.mockResolvedValue(status(code));
+  it.each([
+    [401, { code: -401 }],
+    [400, { code: -101 }],
+  ])('연결 해제에서 Kakao 가 요청자의 토큰·연결 상태로 %s %j 를 주면 WARN', async (code, body) => {
+    mocks.fetch.mockResolvedValue(status(code, body));
     const response = await kakaoUnlink(post('/api/auth/kakao', { accessToken: 'stale' }, 'DELETE'));
     expect(response.status).toBe(502);
     expect(levelOf('auth.kakao.unlink.failed')).toBe('warn');
   });
 
-  it('연결 해제의 Kakao 5xx 는 ERROR', async () => {
-    mocks.fetch.mockResolvedValue(status(500));
+  it.each([
+    [400, { code: -1 }],
+    [400, { code: -7 }],
+    [400, { code: -10 }],
+    [400, { code: -603 }],
+    [400, {}],
+    [500, { code: -401 }],
+  ])('연결 해제의 Kakao %s %j 는 ERROR — 공급자 장애·한도·모르는 코드', async (code, body) => {
+    mocks.fetch.mockResolvedValue(status(code, body));
     const response = await kakaoUnlink(post('/api/auth/kakao', { accessToken: 'token' }, 'DELETE'));
     expect(response.status).toBe(502);
     expect(levelOf('auth.kakao.unlink.failed')).toBe('error');
@@ -247,5 +268,18 @@ describe('apple', () => {
     const response = await apple(post('/api/auth/apple', '{not json'));
     expect(response.status).toBe(400);
     expect(levelOf('auth.apple.failed')).toBe('none');
+  });
+});
+
+describe('공급자 응답 본문은 분류에만 쓰고 로그에 싣지 않는다', () => {
+  it.each([
+    ['google', () => google(post('/api/auth/google', { code: 'c' }))],
+    ['kakao', () => kakao(post('/api/auth/kakao', { code: 'c' }))],
+    ['kakao unlink', () => kakaoUnlink(post('/api/auth/kakao', { accessToken: 't' }, 'DELETE'))],
+  ])('%s', async (_label, call) => {
+    mocks.fetch.mockResolvedValue(status(400, { error: 'invalid_grant', error_code: 'KOE320', code: -401, error_description: 'private-canary', msg: 'private-canary' }));
+    await call();
+    const printed = JSON.stringify([...vi.mocked(console.error).mock.calls, ...vi.mocked(console.warn).mock.calls]);
+    expect(printed).not.toContain('private-canary');
   });
 });
