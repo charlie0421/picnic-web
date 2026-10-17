@@ -103,7 +103,6 @@ export const LOG_EVENT_CODES = [
   'payment.portone.webhook.amount.failed',
   'payment.portone.webhook.capture.failed',
   'payment.portone.webhook.client.missing',
-  'payment.portone.webhook.custom_data.failed',
   'payment.portone.webhook.custom_data.parse_failed',
   'payment.portone.webhook.database.failed',
   'payment.portone.webhook.failed',

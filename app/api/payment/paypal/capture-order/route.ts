@@ -1,6 +1,7 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logSafeError } from '@/utils/log-safe-error';
+import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
+import { isClientPayPalCaptureError } from '@/utils/log-severity';
 import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
@@ -113,7 +114,9 @@ export const POST = withSafeErrors('payment.paypal.capture_order.post.unhandled'
     const captureData = await response.json();
 
     if (!response.ok) {
-      logSafeError('payment.paypal.capture.provider.failed', undefined, { userId: user.id, orderId: orderID, httpStatus: response.status });
+      // 없는·이미 capture 한·승인 안 된 주문과 결제수단 거절은 로그인한 사용자가 얼마든지 일으킬 수 있다(#75).
+      // 같은 422 의 판매자 계정 문제(AUTH_CAPTURE_NOT_ENABLED 등)와 401·403·429·5xx 는 ERROR 로 둔다.
+      (isClientPayPalCaptureError(response.status, captureData) ? logSafeWarn : logSafeError)('payment.paypal.capture.provider.failed', undefined, { userId: user.id, orderId: orderID, httpStatus: response.status });
       return NextResponse.json(
         { error: 'Failed to capture PayPal order' },
         { status: 500 }

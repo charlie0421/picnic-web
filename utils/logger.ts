@@ -167,6 +167,13 @@ export class Logger {
   }
 
   /**
+   * 가린 기록의 WARN 판. utils/log-safe-error.ts 의 logSafeWarn 만 부른다. WARN 은 Sentry target 이 버린다.
+   */
+  async safeWarn(code: string, error: Error, context: Record<string, unknown>): Promise<void> {
+    await this.writeLog(LogLevel.WARN, code, context, error);
+  }
+
+  /**
    * 치명적 에러 로그
    */
   async fatal(

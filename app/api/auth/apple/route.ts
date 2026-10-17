@@ -1,6 +1,7 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logSafeError } from '@/utils/log-safe-error';
+import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
+import { isClientJoseError } from '@/utils/log-severity';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAppleIdentityToken, normalizeAppleProfile } from '@/lib/supabase/social/apple';
 
@@ -12,8 +13,13 @@ interface AppleAuthRequest {
 
 export const POST = withSafeErrors('auth.apple.post.unhandled', async function POST(request: NextRequest) {
   try {
-    const body: AppleAuthRequest = await request.json();
-    const { id_token, user, state } = body;
+    let body: AppleAuthRequest;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const { id_token, user, state } = body ?? ({} as AppleAuthRequest);
 
     if (!id_token) {
       return NextResponse.json(
@@ -27,7 +33,8 @@ export const POST = withSafeErrors('auth.apple.post.unhandled', async function P
     try {
       tokenPayload = await verifyAppleIdentityToken(id_token);
     } catch (verifyError) {
-      logSafeError('auth.apple.token_verify.failed', verifyError);
+      // 위조·만료 토큰은 WARN, JWKS 조회 실패·aud 설정 불일치는 ERROR (#75).
+      (isClientJoseError(verifyError) ? logSafeWarn : logSafeError)('auth.apple.token_verify.failed', verifyError);
       return NextResponse.json(
         { error: 'Apple ID 토큰 검증 실패' },
         { status: 401 }

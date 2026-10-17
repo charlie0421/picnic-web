@@ -1,6 +1,7 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logSafeError } from '@/utils/log-safe-error';
+import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
+import { isClientAuthError } from '@/utils/log-severity';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getSocialAuthService } from '@/lib/supabase/social/service';
@@ -9,8 +10,13 @@ import { getSocialAuthService } from '@/lib/supabase/social/service';
 
 export const POST = withSafeErrors('auth.exchange_code.post.unhandled', async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { code, provider, user, id_token, state } = body;
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body', success: false }, { status: 400 });
+    }
+    const { code, provider, user, id_token, state } = body ?? {};
 
     if (!code) {
       return NextResponse.json(
@@ -46,7 +52,8 @@ export const POST = withSafeErrors('auth.exchange_code.post.unhandled', async fu
     if (error) {
       // SECURITY: never echo Supabase auth error details to clients —
       // they leak project metadata and internal state useful to attackers.
-      logSafeError('auth.exchange_code.exchange.failed', error);
+      // 만료·재사용 code 와 PKCE verifier 누락은 PKCE 흐름에서 일상적이다 (#75).
+      (isClientAuthError(error) ? logSafeWarn : logSafeError)('auth.exchange_code.exchange.failed', error);
       return NextResponse.json(
         { error: 'OAuth 코드 교환 실패', success: false },
         { status: 400 }

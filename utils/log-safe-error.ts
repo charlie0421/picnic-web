@@ -178,6 +178,31 @@ export function setSafeErrorListener(listener: Listener | undefined): void {
   onRecorded = listener;
 }
 
+/** 가린 기록 한 건을 만들어 로거에 넘긴다. 던지지 않는다. below 는 stack 에서 뺄 공개 함수다. */
+function writeSafe(
+  code: LogEventCode,
+  error: unknown,
+  fields: SafeLogFields | undefined,
+  below: (...args: never[]) => unknown,
+  write: (code: string, callSite: Error, context: Record<string, unknown>) => Promise<void> | undefined,
+): void {
+  try {
+    const record = recordFor(code, error, fields);
+
+    // stack 은 우리가 만든다: 첫 줄은 표에서 고른 이름과 사건 코드, 나머지는 호출 지점의 위치뿐이다.
+    const callSite = new Error(record.code);
+    callSite.name = record.errorName;
+    callSite.stack = [`${record.errorName}: ${record.code}`, ...locationFrames(below)].join('\n');
+
+    const context: Record<string, unknown> = { ...record.fields };
+    if (record.droppedFields.length > 0) context.droppedFields = record.droppedFields;
+
+    void write(record.code, callSite, context)?.catch?.(() => undefined);
+  } catch {
+    // 로깅 실패가 요청을 깨뜨리면 안 된다.
+  }
+}
+
 /**
  * 계약을 통과한 값만 콘솔과 Sentry 로 남긴다. 반환값이 없는 동기 함수이고 던지지 않는다.
  *
@@ -185,25 +210,21 @@ export function setSafeErrorListener(listener: Listener | undefined): void {
  * Sentry 전송은 기다리지 않는다. 핸들러가 끝나기 전에 부르면 SDK 의 route handler 래퍼가 건 flush 가 기다린다.
  */
 export function logSafeError(code: LogEventCode, error: unknown, fields?: SafeLogFields): void {
-  try {
-    const record = recordFor(code, error, fields);
-
-    // stack 은 우리가 만든다: 첫 줄은 표에서 고른 이름과 사건 코드, 나머지는 호출 지점의 위치뿐이다.
-    const callSite = new Error(record.code);
-    callSite.name = record.errorName;
-    callSite.stack = [`${record.errorName}: ${record.code}`, ...locationFrames(logSafeError)].join('\n');
-
-    const context: Record<string, unknown> = { ...record.fields };
-    if (record.droppedFields.length > 0) context.droppedFields = record.droppedFields;
-
-    void logger.safeError(record.code, callSite, context)?.catch?.(() => undefined);
-  } catch {
-    // 로깅 실패가 요청을 깨뜨리면 안 된다.
-  }
+  writeSafe(code, error, fields, logSafeError, (c, callSite, context) => logger.safeError(c, callSite, context));
 
   try {
     onRecorded?.();
   } catch {
-    // 위와 같다.
+    // 로깅 실패가 요청을 깨뜨리면 안 된다.
   }
+}
+
+/**
+ * logSafeError 와 같은 계약으로 가려 WARN 으로 콘솔에만 남긴다. Sentry 로는 보내지 않는다(#75).
+ *
+ * 운영자가 조치할 필요가 없는 클라이언트 입력 문제에 쓴다: 중복 가입, 만료된 code, 위조된 토큰 등.
+ * 어느 쪽인지는 호출부가 log-severity.ts 의 판별 함수로 고른다. Sentry 로 보내지 않으므로 flush 를 걸지 않는다.
+ */
+export function logSafeWarn(code: LogEventCode, error: unknown, fields?: SafeLogFields): void {
+  writeSafe(code, error, fields, logSafeWarn, (c, callSite, context) => logger.safeWarn(c, callSite, context));
 }

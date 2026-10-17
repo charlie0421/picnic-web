@@ -1,6 +1,7 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logSafeError } from '@/utils/log-safe-error';
+import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
+import { isClientKakaoTokenError, isClientKakaoUnlinkError } from '@/utils/log-severity';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { normalizeKakaoProfile } from '@/lib/supabase/social/kakao';
@@ -19,7 +20,13 @@ export const POST = withSafeErrors('auth.kakao.post.unhandled', async function P
     // Supabase client) to query Kakao APIs on behalf of arbitrary tokens.
     // The /unlink path on DELETE still legitimately needs the client's token
     // and is unchanged.
-    const { code } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const { code } = body ?? {};
 
     if (!code) {
       return NextResponse.json(
@@ -79,8 +86,10 @@ export const POST = withSafeErrors('auth.kakao.post.unhandled', async function P
     });
 
     if (!tokenResponse.ok) {
-      void tokenResponse.body?.cancel().catch(() => {});
-      logSafeError('auth.kakao.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
+      // 본문은 WARN·ERROR 를 고르는 데만 쓴다. 로그에 싣지 않는다.
+      const errorBody = await tokenResponse.json().catch(() => undefined);
+      // KOE320(만료·재사용 code)만 WARN 이다. KOE303(redirect_uri 불일치)·401 은 설정 문제다 (#75).
+      (isClientKakaoTokenError(tokenResponse.status, errorBody) ? logSafeWarn : logSafeError)('auth.kakao.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
       return NextResponse.json(
         { error: '액세스 토큰 요청 실패' },
         { status: 502 }
@@ -170,7 +179,13 @@ export const POST = withSafeErrors('auth.kakao.post.unhandled', async function P
  */
 export const DELETE = withSafeErrors('auth.kakao.delete.unhandled', async function DELETE(request: NextRequest) {
   try {
-    const { accessToken } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const { accessToken } = body ?? {};
 
     if (!accessToken) {
       return NextResponse.json(
@@ -189,8 +204,10 @@ export const DELETE = withSafeErrors('auth.kakao.delete.unhandled', async functi
     });
 
     if (!unlinkResponse.ok) {
-      void unlinkResponse.body?.cancel().catch(() => {});
-      logSafeError('auth.kakao.unlink.failed', new Error('Provider unlink failed'), { httpStatus: unlinkResponse.status });
+      // 본문은 WARN·ERROR 를 고르는 데만 쓴다. 로그에 싣지 않는다.
+      const errorBody = await unlinkResponse.json().catch(() => undefined);
+      // 토큰은 요청자가 보낸다. 무효 토큰(-401)·이미 끊긴 연결(-101)만 WARN, 공급자 장애·한도는 ERROR (#75).
+      (isClientKakaoUnlinkError(unlinkResponse.status, errorBody) ? logSafeWarn : logSafeError)('auth.kakao.unlink.failed', new Error('Provider unlink failed'), { httpStatus: unlinkResponse.status });
       return NextResponse.json(
         { error: 'Kakao 연결 해제 요청 실패' },
         { status: 502 }

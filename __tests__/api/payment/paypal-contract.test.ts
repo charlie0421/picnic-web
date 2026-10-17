@@ -173,7 +173,8 @@ describe('PayPal route diagnostic context and provider privacy', () => {
   });
   afterEach(() => vi.restoreAllMocks());
   function checkRecord(code: string, context: Record<string, unknown>) {
-    const records = vi.mocked(console.error).mock.calls.flat() as Array<{ message?: string; context?: unknown }>;
+    // 4xx 는 WARN, 그 밖은 ERROR 로 찍힌다(#75). 레벨은 아래 describe 가 따로 고정한다.
+    const records = [...vi.mocked(console.error).mock.calls, ...vi.mocked(console.warn).mock.calls].flat() as Array<{ message?: string; context?: unknown }>;
     expect(records.find((record) => record?.message === code)?.context).toMatchObject(context);
     expect(JSON.stringify([...vi.mocked(console.error).mock.calls, ...vi.mocked(console.warn).mock.calls])).not.toContain('Q7pPriv');
   }
@@ -195,6 +196,55 @@ describe('PayPal route diagnostic context and provider privacy', () => {
     expect(await response.text()).not.toContain('Q7pPriv');
     expect(mocks.rpc).not.toHaveBeenCalled();
     checkRecord('payment.paypal.capture.amount.failed', { userId: USER, orderId: 'ORDER-1', amount: 9.99, currency: 'USD' });
+  });
+});
+
+describe('PayPal capture-order — 공급자 실패의 로그 레벨 (#75)', () => {
+  const levelOf = (code: string) => {
+    const lines = (spy: unknown) => (spy as { mock: { calls: unknown[][] } }).mock.calls.map((call) => String(call[0]));
+    if (lines(console.error).some((line) => line.endsWith(` ERROR: ${code}`))) return 'error';
+    if (lines(console.warn).some((line) => line.endsWith(` WARN: ${code}`))) return 'warn';
+    return 'none';
+  };
+  const captureFails = (status: number, ...issues: string[]) =>
+    mocks.fetch.mockImplementation(async (url: string) =>
+      url.includes('/v1/oauth2/token')
+        ? json({ access_token: 'token' })
+        : json({ name: 'X', details: issues.map((issue) => ({ issue, description: 'Q7pPriv' })) }, status));
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([
+    [404, 'INVALID_RESOURCE_ID'],
+    [422, 'ORDER_ALREADY_CAPTURED'],
+    [422, 'ORDER_NOT_APPROVED'],
+    [422, 'INSTRUMENT_DECLINED'],
+  ])('PayPal %s %s(주문 쪽 문제)는 500 응답을 유지하고 WARN', async (status, issue) => {
+    captureFails(status, issue);
+    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
+    expect(res.status).toBe(500);
+    expect(levelOf('payment.paypal.capture.provider.failed')).toBe('warn');
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [422, ['AUTH_CAPTURE_NOT_ENABLED']],
+    [422, ['TRANSACTION_RECEIVING_LIMIT_EXCEEDED']],
+    [422, ['ORDER_ALREADY_CAPTURED', 'PAYEE_ACCOUNT_RESTRICTED']],
+    [422, []],
+    [401, ['ORDER_ALREADY_CAPTURED']],
+    [403, []],
+    [429, []],
+    [500, []],
+    [503, []],
+  ])('PayPal %s %j(판매자 설정·인증·한도·장애·모르는 issue)는 ERROR', async (status, issues) => {
+    captureFails(status, ...issues);
+    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
+    expect(res.status).toBe(500);
+    expect(levelOf('payment.paypal.capture.provider.failed')).toBe('error');
   });
 });
 
