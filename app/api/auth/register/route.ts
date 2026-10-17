@@ -1,11 +1,19 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextResponse } from 'next/server';
-import { logSafeError } from '@/utils/log-safe-error';
+import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
+import { isClientAuthError } from '@/utils/log-severity';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export const POST = withSafeErrors('auth.register.post.unhandled', async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    let body: { email?: string; password?: string };
+    try {
+      body = await request.json();
+    } catch {
+      // 다른 입력 검증(400)처럼 남기지 않는다. 누구나 보낼 수 있는 본문이다(#75).
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const { email, password } = body ?? {};
 
     if (!email || !password) {
       return NextResponse.json(
@@ -27,7 +35,8 @@ export const POST = withSafeErrors('auth.register.post.unhandled', async functio
     });
 
     if (error) {
-      logSafeError('auth.register.signup.failed', error);
+      // 중복 가입·약한 비밀번호처럼 요청자가 원인이면 WARN, SMTP 한도·설정·장애는 ERROR (#75).
+      (isClientAuthError(error) ? logSafeWarn : logSafeError)('auth.register.signup.failed', error);
       return NextResponse.json({ error: 'Registration failed' }, { status: 400 });
     }
 

@@ -1,6 +1,6 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logSafeError } from '@/utils/log-safe-error';
+import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
 import { createClient } from '@supabase/supabase-js';
 import { createServerSupabaseClient, isWithdrawnUser } from '@/lib/supabase/server';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
@@ -70,6 +70,9 @@ function extractSafeCaptureFields(captureData: any) {
   };
 }
 
+/** PayPal capture 가 요청자의 orderID 때문에 거절한 응답 status. */
+const CLIENT_CAPTURE_STATUSES: ReadonlySet<number> = new Set([400, 404, 422]);
+
 export const POST = withSafeErrors('payment.paypal.capture_order.post.unhandled', async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -113,7 +116,9 @@ export const POST = withSafeErrors('payment.paypal.capture_order.post.unhandled'
     const captureData = await response.json();
 
     if (!response.ok) {
-      logSafeError('payment.paypal.capture.provider.failed', undefined, { userId: user.id, orderId: orderID, httpStatus: response.status });
+      // 400·404·422 는 잘못되거나 이미 처리된 orderID 다. 로그인한 사용자가 얼마든지 보낼 수 있다(#75).
+      // 401·403·429·5xx 는 우리 자격 증명이나 PayPal 장애라 ERROR 로 둔다.
+      (CLIENT_CAPTURE_STATUSES.has(response.status) ? logSafeWarn : logSafeError)('payment.paypal.capture.provider.failed', undefined, { userId: user.id, orderId: orderID, httpStatus: response.status });
       return NextResponse.json(
         { error: 'Failed to capture PayPal order' },
         { status: 500 }

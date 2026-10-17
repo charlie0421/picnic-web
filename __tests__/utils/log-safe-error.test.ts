@@ -437,3 +437,73 @@ describe('logSafeError', () => {
     expect(consoleError).toHaveBeenCalledTimes(4);
   });
 });
+
+describe('logSafeWarn', () => {
+  let consoleWarn: ReturnType<typeof vi.spyOn>;
+  let consoleError: ReturnType<typeof vi.spyOn>;
+  let logSafeWarn: typeof import('@/utils/log-safe-error').logSafeWarn;
+  let setSafeErrorListener: typeof import('@/utils/log-safe-error').setSafeErrorListener;
+
+  beforeEach(async () => {
+    captureException.mockReset();
+    consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    // 운영 로거(Console + Sentry)에서도 Sentry 로 가지 않는지 본다.
+    vi.resetModules();
+    vi.stubEnv('NODE_ENV', 'production');
+    ({ logSafeWarn, setSafeErrorListener } = await import('@/utils/log-safe-error'));
+  });
+
+  afterEach(() => {
+    setSafeErrorListener(undefined);
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it('WARN 줄을 함수가 돌아오기 전에 찍고 Sentry 에는 보내지 않는다', async () => {
+    logSafeWarn('envtest.boundary.handled', new Error('x'));
+
+    expect(consoleWarn).toHaveBeenCalledTimes(1);
+    expect(consoleWarn.mock.calls[0][0]).toMatch(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+Z\] WARN: envtest\.boundary\.handled$/);
+    expect(consoleError).not.toHaveBeenCalled();
+    // Sentry target 은 비동기로 import 한다. 기다려도 부르지 않아야 한다.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it('logSafeError 와 같은 계약으로 가린다 — 원본의 메시지·속성과 계약 밖의 값이 없다', () => {
+    logSafeWarn('envtest.boundary.handled', hostileError(), {
+      userId: CANARY.userId,
+      paymentId: CANARY.paymentId,
+      errorCode: CANARY.errorCode,
+      currency: CANARY.currency,
+      [CANARY.key]: 'cnry-value',
+    } as Record<string, unknown>);
+
+    expect(strings(consoleWarn.mock.calls).join('\n')).not.toMatch(/cnry/i);
+  });
+
+  it('이름과 계약을 통과한 필드를 남긴다', () => {
+    logSafeWarn('envtest.boundary.handled', new TypeError('cnry-message'), { httpStatus: 404, currency: 'krw' });
+
+    const logData = consoleWarn.mock.calls[0][1] as Record<string, any>;
+    expect(logData.message).toBe('envtest.boundary.handled');
+    expect(logData.context).toEqual({ httpStatus: 404, droppedFields: ['currency'] });
+    expect(logData.error.name).toBe('TypeError');
+    expect(logData.error.message).toBe('envtest.boundary.handled');
+  });
+
+  it('flush 를 걸 이유가 없으므로 등록된 함수를 부르지 않는다', () => {
+    const listener = vi.fn();
+    setSafeErrorListener(listener);
+    logSafeWarn('envtest.boundary.handled', new Error('x'));
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('기록을 만들다가 던져도 던지지 않는다', () => {
+    const hostile = new Proxy({}, { get: () => { throw new Error('cnry'); } });
+    expect(() => logSafeWarn('envtest.boundary.handled', hostile, hostile as never)).not.toThrow();
+    expect(consoleWarn).toHaveBeenCalledTimes(1);
+    expect(strings(consoleWarn.mock.calls).join('\n')).not.toMatch(/cnry/i);
+  });
+});

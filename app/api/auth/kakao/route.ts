@@ -1,6 +1,6 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { logSafeError } from '@/utils/log-safe-error';
+import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 import { normalizeKakaoProfile } from '@/lib/supabase/social/kakao';
@@ -19,7 +19,13 @@ export const POST = withSafeErrors('auth.kakao.post.unhandled', async function P
     // Supabase client) to query Kakao APIs on behalf of arbitrary tokens.
     // The /unlink path on DELETE still legitimately needs the client's token
     // and is unchanged.
-    const { code } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const { code } = body ?? {};
 
     if (!code) {
       return NextResponse.json(
@@ -80,7 +86,8 @@ export const POST = withSafeErrors('auth.kakao.post.unhandled', async function P
 
     if (!tokenResponse.ok) {
       void tokenResponse.body?.cancel().catch(() => {});
-      logSafeError('auth.kakao.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
+      // 400 은 만료·재사용 code(KOE320 등)다. 401 은 클라이언트 설정이라 ERROR 로 둔다 (#75).
+      (tokenResponse.status === 400 ? logSafeWarn : logSafeError)('auth.kakao.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
       return NextResponse.json(
         { error: '액세스 토큰 요청 실패' },
         { status: 502 }
@@ -170,7 +177,13 @@ export const POST = withSafeErrors('auth.kakao.post.unhandled', async function P
  */
 export const DELETE = withSafeErrors('auth.kakao.delete.unhandled', async function DELETE(request: NextRequest) {
   try {
-    const { accessToken } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const { accessToken } = body ?? {};
 
     if (!accessToken) {
       return NextResponse.json(
@@ -190,7 +203,8 @@ export const DELETE = withSafeErrors('auth.kakao.delete.unhandled', async functi
 
     if (!unlinkResponse.ok) {
       void unlinkResponse.body?.cancel().catch(() => {});
-      logSafeError('auth.kakao.unlink.failed', new Error('Provider unlink failed'), { httpStatus: unlinkResponse.status });
+      // 토큰은 요청자가 보낸 것이다. 400·401 은 만료·잘못된 토큰이므로 WARN (#75).
+      (unlinkResponse.status === 400 || unlinkResponse.status === 401 ? logSafeWarn : logSafeError)('auth.kakao.unlink.failed', new Error('Provider unlink failed'), { httpStatus: unlinkResponse.status });
       return NextResponse.json(
         { error: 'Kakao 연결 해제 요청 실패' },
         { status: 502 }

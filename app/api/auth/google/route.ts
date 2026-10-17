@@ -1,6 +1,7 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from "next/server";
-import { logSafeError } from '@/utils/log-safe-error';
+import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
+import { isClientJoseError } from '@/utils/log-severity';
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
 import {
@@ -83,8 +84,13 @@ export const GET = withSafeErrors('auth.google.get.unhandled', async function GE
  */
 export const POST = withSafeErrors('auth.google.post.unhandled', async function POST(request: NextRequest) {
   try {
-    const requestBody = await request.json();
-    const { code, idToken } = requestBody;
+    let requestBody;
+    try {
+      requestBody = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+    const { code, idToken } = requestBody ?? {};
 
     // 필수 파라미터 검증
     if (!code && !idToken) {
@@ -117,7 +123,8 @@ export const POST = withSafeErrors('auth.google.post.unhandled', async function 
           profile: userProfile,
         });
       } catch (error) {
-        logSafeError('auth.google.token_verify.failed', error);
+        // 위조·만료 토큰은 WARN, JWKS 조회 실패·aud 설정 불일치는 ERROR (#75).
+        (isClientJoseError(error) ? logSafeWarn : logSafeError)('auth.google.token_verify.failed', error);
         return NextResponse.json(
           { error: "ID 토큰 검증 실패" },
           { status: 401 }
@@ -162,7 +169,8 @@ export const POST = withSafeErrors('auth.google.post.unhandled', async function 
 
     if (!tokenResponse.ok) {
       void tokenResponse.body?.cancel().catch(() => {});
-      logSafeError('auth.google.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
+      // 400 은 만료·재사용 code(invalid_grant)다. 401 은 클라이언트 설정(invalid_client)이라 ERROR 로 둔다 (#75).
+      (tokenResponse.status === 400 ? logSafeWarn : logSafeError)('auth.google.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
       return NextResponse.json(
         { error: '토큰 교환 실패' },
         { status: 400 }

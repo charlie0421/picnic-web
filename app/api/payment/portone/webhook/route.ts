@@ -137,16 +137,8 @@ export const POST = withSafeErrors('payment.portone.webhook.post.unhandled', asy
     }
 
     // customData에서 사용자 및 상품 정보 추출
-    let customData;
-    try {
-      customData = parseCustomData(paymentData);
-    } catch (e) {
-      logSafeError('payment.portone.webhook.custom_data.failed', e, { paymentId });
-      return NextResponse.json(
-        { error: 'Invalid payment data' },
-        { status: 400 }
-      );
-    }
+    // parseCustomData 는 던지지 않는다. 파싱 실패는 안에서 남기고 {} 를 돌려주므로 아래 누락 분기로 간다(#75).
+    const customData = parseCustomData(paymentData);
 
     const userId = customData.userId || customData.user_id;
     const productId = customData.productId;
