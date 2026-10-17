@@ -12,7 +12,6 @@ import { AuthApiError, AuthPKCECodeVerifierMissingError, AuthRetryableFetchError
 const mocks = vi.hoisted(() => ({
   signUp: vi.fn(),
   exchangeCodeForSession: vi.fn(),
-  verifyGoogleIdToken: vi.fn(),
   verifyAppleIdentityToken: vi.fn(),
   fetch: vi.fn(),
 }));
@@ -25,10 +24,6 @@ vi.mock('@supabase/ssr', () => ({
 }));
 vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({}) }));
 vi.mock('@/lib/supabase/social/service', () => ({ getSocialAuthService: () => ({}) }));
-vi.mock('@/lib/supabase/social/google', async (original) => ({
-  ...await original<typeof import('@/lib/supabase/social/google')>(),
-  verifyGoogleIdToken: mocks.verifyGoogleIdToken,
-}));
 vi.mock('@/lib/supabase/social/apple', async (original) => ({
   ...await original<typeof import('@/lib/supabase/social/apple')>(),
   verifyAppleIdentityToken: mocks.verifyAppleIdentityToken,
@@ -41,7 +36,6 @@ vi.mock('next/server', async (original) => ({
 
 import { POST as register } from '@/app/api/auth/register/route';
 import { POST as exchangeCode } from '@/app/api/auth/exchange-code/route';
-import { POST as google } from '@/app/api/auth/google/route';
 import { POST as kakao, DELETE as kakaoUnlink } from '@/app/api/auth/kakao/route';
 import { POST as apple } from '@/app/api/auth/apple/route';
 
@@ -66,14 +60,11 @@ function levelOf(code: string): 'warn' | 'error' | 'none' {
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test-project.supabase.co');
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'test-anon-key');
-  vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'google-client');
-  vi.stubEnv('GOOGLE_CLIENT_SECRET', 'google-secret');
   vi.stubEnv('NEXT_PUBLIC_KAKAO_CLIENT_ID', 'kakao-client');
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   mocks.signUp.mockReset();
   mocks.exchangeCodeForSession.mockReset();
-  mocks.verifyGoogleIdToken.mockReset();
   mocks.verifyAppleIdentityToken.mockReset();
   mocks.fetch.mockReset();
   vi.stubGlobal('fetch', mocks.fetch);
@@ -150,43 +141,11 @@ describe('exchange-code', () => {
 });
 
 describe('google', () => {
-  it.each([
-    // invalid_grant 는 만료·재사용 code 와 redirect_uri 불일치를 가르지 않는다. 모르는 것은 ERROR 다.
-    [400, { error: 'invalid_grant', error_description: 'Bad Request' }],
-    [400, { error: 'invalid_grant', error_description: 'redirect_uri mismatch' }],
-    [400, { error: 'unauthorized_client' }],
-    [400, { error: 'invalid_request' }],
-    [400, {}],
-    [401, { error: 'invalid_client' }],
-    [500, { error: 'invalid_grant' }],
-  ])('Google 토큰 교환 %s %j 는 ERROR — 클라이언트 설정이나 공급자 장애다', async (code, body) => {
-    mocks.fetch.mockResolvedValue(status(code, body));
-    const response = await google(post('/api/auth/google', { code: 'any' }));
-    expect(response.status).toBe(400);
-    expect(levelOf('auth.google.token_exchange.failed')).toBe('error');
-  });
-
-  it('위조·만료된 ID 토큰은 401 과 WARN', async () => {
-    mocks.verifyGoogleIdToken.mockRejectedValue(new joseErrors.JWSSignatureVerificationFailed());
-    const response = await google(post('/api/auth/google', { idToken: 'forged' }));
-    expect(response.status).toBe(401);
-    expect(levelOf('auth.google.token_verify.failed')).toBe('warn');
-  });
-
-  it.each([
-    ['JWKS 시간 초과', new joseErrors.JWKSTimeout()],
-    ['aud 불일치', new joseErrors.JWTClaimValidationFailed('aud', {}, 'aud', 'check_failed')],
-  ])('%s 는 401 이지만 ERROR', async (_label, error) => {
-    mocks.verifyGoogleIdToken.mockRejectedValue(error);
-    const response = await google(post('/api/auth/google', { idToken: 'token' }));
-    expect(response.status).toBe(401);
-    expect(levelOf('auth.google.token_verify.failed')).toBe('error');
-  });
-
-  it('JSON 이 아닌 본문은 400 이고 오류로 남기지 않는다', async () => {
-    const response = await google(post('/api/auth/google', '{not json'));
-    expect(response.status).toBe(400);
-    expect(levelOf('auth.google.post.failed')).toBe('none');
+  // 쓰이지 않던 POST(code·ID 토큰 교환)는 제거했다. 누구나 임의의 code 로 Sentry ERROR 를 만들 수 있었다.
+  it('라우트는 OAuth 시작(GET)만 내보낸다 — POST 는 Next 가 405 로 거절한다', async () => {
+    const route = await import('@/app/api/auth/google/route');
+    expect(typeof route.GET).toBe('function');
+    expect('POST' in route).toBe(false);
   });
 });
 

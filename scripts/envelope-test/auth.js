@@ -99,9 +99,11 @@ async function main() {
       email: CANARIES[1], password: CANARIES[2],
     }), 400);
     assert.ok(upstreamCalls.some((url) => url.startsWith('/auth/v1/signup')), 'real Supabase client must reach the local signup fixture');
-    for (const route of ['register', 'apple', 'google', 'exchange-code', 'kakao']) {
-      await request(`${route} malformed JSON`, `/api/auth/${route}`, CANARIES.join(' '), 500);
+    // 잘못된 JSON 은 400 이고 오류로 남기지 않는다(#75). Google 은 GET 만 남아 POST 가 405 다.
+    for (const route of ['register', 'apple', 'exchange-code', 'kakao']) {
+      await request(`${route} malformed JSON`, `/api/auth/${route}`, CANARIES.join(' '), 400);
     }
+    await request('google POST removed', '/api/auth/google', CANARIES.join(' '), 405);
     const logout = await request('logout success', '/api/auth/logout', '{}', 200, {
       origin: base, 'sec-fetch-site': 'same-origin', accept: 'application/json',
     });
@@ -117,9 +119,10 @@ async function main() {
     }
     const events = () => envelopes.flatMap((envelope) => envelope.items)
       .filter((item) => item.header.type === 'event').map((item) => item.payload);
-    await waitFor(() => events().length >= 6, 30_000, 'auth error events delivered after responses');
+    // 남는 오류는 signup 거절(unexpected_failure) 하나다.
+    await waitFor(() => events().length >= 1, 30_000, 'auth error events delivered after responses');
     await sleep(1500);
-    assert.equal(events().length, 6, 'anonymous requests must not add error events');
+    assert.equal(events().length, 1, 'anonymous requests must not add error events');
     assert.deepEqual(decodeFailures, [], 'every envelope must decode');
     const captured = JSON.stringify(envelopes);
     const stdout = output.join('');
