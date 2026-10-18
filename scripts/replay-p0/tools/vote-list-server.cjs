@@ -19,7 +19,7 @@ const FONT_HOSTS = 'fonts.googleapis.com,fonts.gstatic.com';
 /** Product env files that Next would load from the repository root. */
 function productEnvFiles(root) { return PRODUCT_ENV_FILES.filter(f => fs.existsSync(path.join(root, f))); }
 /** The complete child environment. Nothing is copied from the parent except PATH, HOME and TMPDIR. */
-function harnessEnv({ out, fontMock, build }) {
+function harnessEnv({ out, fontMock, build, integration = false }) {
   const env = {
     PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR,
     NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', ENVELOPE_TEST: '1', BUILD_VERSION: 'replay-build-manifest',
@@ -31,6 +31,11 @@ function harnessEnv({ out, fontMock, build }) {
     NODE_OPTIONS: `--require=${path.join(__dirname, 'net-guard.cjs')}`, REPLAY_NET_GUARD: '1',
     REPLAY_NET_LOG: path.join(out, 'blocked-network.jsonl'),
   };
+  if (integration) {
+    env.NEXT_PUBLIC_REPLAY_LOCAL_TEST = '1';
+    env.NEXT_PUBLIC_SENTRY_DSN = `http://public@127.0.0.1:${UPSTREAM_PORT}/1`;
+    env.NEXT_PUBLIC_SENTRY_TRACE_SAMPLE_RATE = '1';
+  }
   if (build && !fontMock) env.REPLAY_NET_ALLOW = FONT_HOSTS;
   if (fontMock) env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES = path.join(__dirname, 'font-mock.cjs');
   return env;
@@ -43,7 +48,7 @@ function portFree(port) {
 async function main() {
   const root = process.cwd(); const args = process.argv.slice(2);
   const outAt = args.indexOf('--out'); if (outAt < 0 || !args[outAt + 1]) throw new Error('missing --out');
-  const out = path.resolve(args[outAt + 1]); const fontMock = args.includes('--font-mock'); const reuse = args.includes('--reuse-build');
+  const out = path.resolve(args[outAt + 1]); const fontMock = args.includes('--font-mock'); const reuse = args.includes('--reuse-build'); const integration = args.includes('--integration');
   if (!fs.existsSync(path.join(root, 'next.config.js'))) throw new Error('run from the repository root');
   const envFiles = productEnvFiles(root);
   if (envFiles.length) throw new Error(`product env files present (${envFiles.join(', ')}); remove them from this worktree first`);
@@ -54,7 +59,7 @@ async function main() {
   const statePath = path.join(out, 'server.json');
   const previous = reuse ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : null;
   const before = Object.fromEntries(GUARDED_SOURCES.map(f => [f, fs.readFileSync(path.join(root, f))]));
-  const state = { pid: process.pid, nextPid: null, port: NEXT_PORT, upstreamPort: UPSTREAM_PORT, buildId: null, fontMock, phase: 'starting', restored: [] };
+  const state = { pid: process.pid, nextPid: null, port: NEXT_PORT, upstreamPort: UPSTREAM_PORT, buildId: null, fontMock, integration, phase: 'starting', restored: [] };
   const save = () => fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
   // Next can rewrite tsconfig.json and next-env.d.ts for the extra build directory. Put the committed bytes back.
   const restore = () => {
@@ -63,13 +68,13 @@ async function main() {
       fs.writeFileSync(path.join(root, f), before[f]); if (!state.restored.includes(f)) state.restored.push(f);
     }
   };
-  const upstream = await startUpstream({ port: UPSTREAM_PORT, logFile: path.join(out, 'backend.jsonl'), now: Date.now() });
+  const upstream = await startUpstream({ port: UPSTREAM_PORT, logFile: path.join(out, 'backend.jsonl'), now: Date.now(), envelopeDir: integration ? path.join(out, 'receiver') : null });
   let next = null; let stopping = false;
   const stop = () => { if (stopping) return; stopping = true; next?.kill('SIGTERM'); upstream.close(); restore(); save(); };
   process.on('SIGTERM', stop); process.on('SIGINT', stop);
   const run = (cmd, log, build) => {
     const fd = fs.openSync(path.join(out, log), 'w');
-    return spawn(path.join(root, 'node_modules/.bin/next'), cmd, { cwd: root, env: harnessEnv({ out, fontMock, build }), stdio: ['ignore', fd, fd] });
+    return spawn(path.join(root, 'node_modules/.bin/next'), cmd, { cwd: root, env: harnessEnv({ out, fontMock, build, integration }), stdio: ['ignore', fd, fd] });
   };
   try {
     if (!reuse) {
@@ -80,7 +85,7 @@ async function main() {
       if (code !== 0) throw new Error(`next build exited with ${code}; see build.log`);
     }
     state.buildId = fs.readFileSync(path.join(root, BUILD_DIR, 'BUILD_ID'), 'utf8').trim();
-    if (reuse && (previous.buildId !== state.buildId || previous.fontMock !== fontMock)) throw new Error('build does not match server.json');
+    if (reuse && (previous.buildId !== state.buildId || previous.fontMock !== fontMock || !!previous.integration !== integration)) throw new Error('build does not match server.json');
     next = run(['start', '--hostname', '127.0.0.1', '--port', String(NEXT_PORT)], 'next.log', false);
     state.nextPid = next.pid; state.phase = 'serving'; save();
     next.once('exit', code => { state.phase = `exited:${code}`; save(); stop(); });

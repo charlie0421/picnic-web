@@ -1,5 +1,7 @@
 'use client';
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
+
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { Popup } from '@/types/interfaces';
@@ -12,7 +14,9 @@ const fetcher = async (url: string): Promise<Popup[]> => {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load popups: ${res.status}`);
   const data: unknown = await res.json();
-  if (!Array.isArray(data)) return [];
+  if (!Array.isArray(data)) { replaySignals.close(); return []; }
+  if (data.some(item => typeof item !== 'object' || item === null || typeof item.id !== 'number')) replaySignals.close();
+  if (data.length > 0) replaySignals.close();
   // 잘못된 원소(null·원시값·id 없음)는 버린다
   return data.filter(
     (item): item is Popup =>
@@ -34,7 +38,8 @@ export default function PopupBannerLoader() {
   const [currentSlide] = useState(0);
 
   useEffect(() => {
-    if (!Array.isArray(popups) || popups.length === 0) return;
+    if (!Array.isArray(popups) || error) return;
+    if (popups.length === 0) { replaySignals.setReady('popup'); return; }
 
     const now = new Date();
     const filtered = popups.filter((popup) => {
@@ -50,6 +55,8 @@ export default function PopupBannerLoader() {
       return true;
     });
 
+    if (filtered.length > 0) replaySignals.close();
+    else replaySignals.setReady('popup');
     setSlides(
       filtered.map((popup) => ({
         imageUrl: getCdnImageUrl(getLocalizedString(popup.image)),
@@ -58,7 +65,7 @@ export default function PopupBannerLoader() {
         popupKey: popup.id,
       })),
     );
-  }, [popups]);
+  }, [popups, error]);
 
   useEffect(() => {
     if (slides.length > 0) setIsOpen(true);

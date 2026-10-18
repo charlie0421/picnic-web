@@ -1,5 +1,7 @@
 'use client';
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
+
 import { useEffect, useState, useCallback, useRef } from 'react';
 
 interface ConsentAwareAdsenseProps {
@@ -45,12 +47,19 @@ export function ConsentAwareAdsense({
   const resolveConsent = useCallback(() => {
     try {
       const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
+      if (stored === 'denied') {
+        replaySignals.setAds('denied');
+        setCanLoadAds(false);
+        return;
+      }
       if (!stored) {
+        replaySignals.setAds('unknown');
         setCanLoadAds(false);
         return;
       }
 
       if (stored === 'granted' || stored === 'accepted') {
+        replaySignals.setAds('granted');
         setCanLoadAds(true);
         return;
       }
@@ -61,17 +70,21 @@ export function ConsentAwareAdsense({
         parsed?.ads === true ||
         parsed?.advertising === true
       ) {
+        replaySignals.setAds('granted');
         setCanLoadAds(true);
         return;
       }
 
+      replaySignals.setAds('unknown');
       setCanLoadAds(false);
     } catch {
+      replaySignals.setAds('unknown');
       setCanLoadAds(false);
     }
   }, []);
 
   useEffect(() => {
+    if (document.getElementById(ADSENSE_SCRIPT_ID)) replaySignals.markAdsLoaded();
     resolveConsent();
     window.addEventListener(CONSENT_UPDATED_EVENT, resolveConsent);
     return () => {
@@ -93,6 +106,7 @@ export function ConsentAwareAdsense({
       return;
     }
 
+    replaySignals.markAdsLoaded();
     // 이미 스크립트가 존재하는지 확인
     if (document.getElementById(ADSENSE_SCRIPT_ID)) {
       scriptLoaded.current = true;

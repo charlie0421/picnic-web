@@ -6,6 +6,7 @@
     "node": "24.x"
   },
   "scripts": {
+    "test:replay:integration": "node scripts/replay-p0/tools/vote-list-integration.cjs",
     "dev": "./scripts/dev-server-manager.sh --start",
     "dev:clean": "./scripts/dev-server-manager.sh --clear-cache --start",
     "dev:stop": "./scripts/dev-server-manager.sh",

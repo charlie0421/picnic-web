@@ -15,6 +15,23 @@ beforeEach(() => {
 async function options() { await import('@/instrumentation-client'); return init.mock.calls[0][0]; }
 
 describe('browser Sentry URL privacy', () => {
+  it('closes Replay before the Sentry router hook observes navigation', async () => {
+    const { replaySignals } = await import('@/lib/sentry/replay/signals');
+    const Sentry = await import('@sentry/nextjs');
+    const { onRouterTransitionStart } = await import('@/instrumentation-client');
+    vi.mocked(Sentry.captureRouterTransitionStart).mockImplementationOnce(() => { expect(replaySignals.snapshot().closed).toBe(true); });
+    expect(replaySignals.snapshot().closed).toBe(false);
+    onRouterTransitionStart('/ko/login', 'push');
+  });
+  it.each(['development', 'production'])('does not enable Replay from legacy sampling variables in %s', async (environment) => {
+    vi.stubEnv('NODE_ENV', environment);
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE', '1');
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE', '1');
+    const config = await options();
+    expect(config.replaysSessionSampleRate).toBe(0);
+    expect(config.replaysOnErrorSampleRate).toBe(0);
+    expect(config.integrations.some((integration: { name: string }) => integration.name === 'Replay')).toBe(false);
+  });
   it('does not mutate live console arguments or fetch breadcrumb data', async () => {
     const config = await options();
     const request = { url: '/callback?code=private', 'url.query': 'code=private', nested: { url: '/api?token=private' } };

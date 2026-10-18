@@ -28,15 +28,15 @@ describe('Sentry 설정 계약', () => {
     });
   });
 
-  describe('instrumentation-client.ts — Session Replay 개인정보', () => {
+  describe('로컬 Replay bridge — 개인정보', () => {
     it('DOM 텍스트를 마스킹한다', () => {
-      const src = read('instrumentation-client.ts');
+      const src = read('lib/sentry/replay/bridge.ts');
       expect(src).not.toMatch(/maskAllText:\s*false/);
       expect(src).toMatch(/maskAllText:\s*true/);
     });
 
     it('입력값을 마스킹한다', () => {
-      expect(read('instrumentation-client.ts')).not.toMatch(/maskAllInputs:\s*false/);
+      expect(read('lib/sentry/replay/bridge.ts')).not.toMatch(/maskAllInputs:\s*false/);
     });
   });
 

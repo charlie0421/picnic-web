@@ -1,5 +1,7 @@
 'use client';
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 
@@ -129,6 +131,7 @@ export function CookieConsentBanner() {
   }, []);
 
   const handleConsent = useCallback((granted: boolean) => {
+    replaySignals.close();
     const value = granted ? 'granted' : 'denied';
     localStorage.setItem(CONSENT_STORAGE_KEY, value);
     setStatus(value);

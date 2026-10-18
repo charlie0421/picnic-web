@@ -1,5 +1,6 @@
 'use client';
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { emitSupabaseAuthRateLimit } from './events';
@@ -151,6 +152,8 @@ export function ensureAutoRefreshListener() {
   }
 
   const { data } = browserSupabase.auth.onAuthStateChange((_event, session) => {
+    if (session) replaySignals.setAuth('authenticated');
+    else if (_event !== 'INITIAL_SESSION') replaySignals.close();
     updateAutoRefreshBehavior(session);
   });
 

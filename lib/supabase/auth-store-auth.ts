@@ -8,6 +8,8 @@
  * AuthStoreAccessor 를 통해 AuthStore 내부 상태에 접근합니다.
  */
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
+import { isAuthSessionMissingError } from '@supabase/supabase-js';
 import { createBrowserSupabaseClient } from './client';
 import { setLastLoginInfo, getProviderDisplayName } from '@/utils/storage';
 import { debugLog, type AuthStoreAccessor } from './auth-store-types';
@@ -19,6 +21,7 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
     debugLog('⏭️  [AuthStore] performInstantUserAuth 중복 호출 건너뜀');
     return;
   }
+  replaySignals.setAuth('unknown');
   store.setIsAuthEvaluating(true);
   try {
     debugLog('🚀 [AuthStore] performInstantUserAuth 시작 (네트워크 요청 없음)');
@@ -54,6 +57,7 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
 
         const fetchedUser = result?.data?.user;
         if (fetchedUser) {
+          replaySignals.setAuth('authenticated');
           debugLog('✅ [AuthStore] 네트워크 폴백으로 사용자 확인 성공 (httpOnly 쿠키)', {
             userId: fetchedUser.id?.substring(0, 8) + '...',
             email: fetchedUser.email,
@@ -107,6 +111,9 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
           }
           return;
         }
+        if (result?.data?.user === null && (result.error === null || isAuthSessionMissingError(result.error))) {
+          replaySignals.setAuth('anonymous');
+        }
       } catch (e) {
         console.warn('⚠️ [AuthStore] 네트워크 폴백 사용자 확인 실패:', (e as Error)?.message);
       }
@@ -125,6 +132,7 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
       return;
     }
 
+    replaySignals.setAuth('authenticated');
     // 사용자가 있으면 즉시 인증된 상태로 설정
     debugLog('✅ [AuthStore] JWT에서 사용자 확인 성공:', {
       userId: user.id?.substring(0, 8) + '...',
@@ -264,6 +272,7 @@ export async function performInstantUserAuthImpl(store: AuthStoreAccessor): Prom
 // ─── checkTokenStatusFromCookies ────────────────────────
 
 export async function checkTokenStatusFromCookiesImpl(store: AuthStoreAccessor): Promise<void> {
+  replaySignals.setAuth('unknown');
   try {
     debugLog('🔄 [AuthStore] 쿠키 기반 토큰 상태 체크');
 

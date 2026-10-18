@@ -1,5 +1,7 @@
 'use client';
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Vote } from '@/types/interfaces';
@@ -82,7 +84,8 @@ export function VoteListPresenter({
         const reloadedRecently = Date.now() - lastReloadTs < RELOAD_COOLDOWN_MS;
       if (!reloadedRecently) {
         reloadTimerRef.current = window.setTimeout(() => {
-            sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
+          replaySignals.close();
+          sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
           try {
             router.refresh();
           } catch {
@@ -99,7 +102,8 @@ export function VoteListPresenter({
           const lastReloadTs = Number(sessionStorage.getItem('vote-last-reload-ts') || '0');
           const reloadedRecently = Date.now() - lastReloadTs < RELOAD_COOLDOWN_MS;
           if (!reloadedRecently) {
-              sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
+            replaySignals.close();
+            sessionStorage.setItem('vote-last-reload-ts', String(Date.now()));
             try {
               router.refresh();
             } catch {

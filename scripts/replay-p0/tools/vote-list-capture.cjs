@@ -168,4 +168,5 @@ async function main() {
   const failed = summary.widths.some(w => w.checks.some(c => !c.ok));
   if (failed && browserName === 'chromium') process.exitCode = 1;
 }
+module.exports = { SELECTORS, measure, maskText, removeFontFiles, settle };
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });
