@@ -2,6 +2,7 @@
 // The config you add here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
 import * as Sentry from '@sentry/nextjs';
 import { scrubSpan } from '@/lib/sentry/scrub';
 import { scrubBrowserBreadcrumb, scrubBrowserEvent } from '@/lib/sentry/browser-scrub';
@@ -10,8 +11,9 @@ import { createBrowserTransport } from '@/lib/sentry/browser-transport';
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
 const SENTRY_DEBUG = process.env.NEXT_PUBLIC_SENTRY_DEBUG === 'true';
 const TRACES_RATE = parseFloat(process.env.NEXT_PUBLIC_SENTRY_TRACE_SAMPLE_RATE || (process.env.NODE_ENV === 'production' ? '0.02' : '0.1'));
-const REPLAY_SESSION_RATE = parseFloat(process.env.NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE || (process.env.NODE_ENV === 'production' ? '0.0' : '0.02'));
-const REPLAY_ERROR_RATE = parseFloat(process.env.NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE || '0');
+// Production collection is not approved. Legacy sampling variables must not bypass the product gate.
+const REPLAY_SESSION_RATE = 0;
+const REPLAY_ERROR_RATE = 0;
 // Sentry 번들러 플러그인이 우리 청크마다 심는 앱 키 (next.config.js 의
 // applicationKey). 플러그인이 실제로 실행되는 빌드에서만 노출된다. 키 없이
 // 필터 통합을 켜면 메타데이터가 없는 모든 프레임이 외부로 보여 이벤트 전부가
@@ -93,8 +95,7 @@ if (SENTRY_DSN) {
     // Sample rate for error replays
     replaysOnErrorSampleRate: REPLAY_ERROR_RATE,
     
-    // Configure integrations. Replay is loaded separately below only when
-    // sampling is enabled, so its recorder does not enter the initial bundle.
+    // Replay is available only through the isolated local product runtime.
     integrations: [
       // Browser tracing for performance monitoring
       Sentry.browserTracingIntegration({
@@ -320,30 +321,6 @@ if (SENTRY_DSN) {
     maxBreadcrumbs: 30,
   });
 
-  if (REPLAY_SESSION_RATE > 0 || REPLAY_ERROR_RATE > 0) {
-    void (async () => {
-      const replayIntegration = await Sentry.lazyLoadIntegration('replayIntegration');
-      Sentry.addIntegration(
-        replayIntegration({
-          // 화면의 모든 텍스트를 마스킹한다. false 로 두면 로그인·마이페이지·QnA
-          // 같은 화면에서 오류가 한 번만 나도 사용자 텍스트가 그대로 외부로
-          // 전송된다(SDK 기본값도 true 다).
-          maskAllText: true,
-          // 입력값은 항상 마스킹한다
-          maskAllInputs: true,
-          // 미디어 요소 차단
-          blockAllMedia: true,
-        }),
-      );
-    })()
-      .catch((error) => {
-        if (SENTRY_DEBUG) {
-          // eslint-disable-next-line no-console
-          console.warn('Sentry Replay 통합 지연 로드 실패:', error);
-        }
-      });
-  }
-
   // 래퍼 프레임 위치 확보 (위 probeWrapperFrameLocation 참조). init 이 끝나
   // browserApiErrors 통합이 setTimeout 을 감싼 뒤라야 하므로 여기서 예약한다.
   if (APPLICATION_KEY) {
@@ -366,4 +343,7 @@ if (SENTRY_DSN) {
 }
 
 // Export the required router transition hook for navigation instrumentation
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart = (...args: Parameters<typeof Sentry.captureRouterTransitionStart>) => {
+  replaySignals.close();
+  return Sentry.captureRouterTransitionStart(...args);
+};

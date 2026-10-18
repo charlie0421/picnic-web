@@ -1,5 +1,7 @@
 'use client';
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
+
 import React from 'react';
 import { BannerItem } from './BannerItem';
 import { Banner } from '@/types/interfaces';
@@ -33,6 +35,8 @@ export function BannerCarouselClient({
     handlePrev,
     goToPage,
   } = useBannerCarousel(totalSlides);
+
+  React.useEffect(() => { replaySignals.setReady('banner', totalSlides); }, [totalSlides]);
 
   if (!hasSlides) {
     return (
@@ -96,6 +100,7 @@ export function BannerCarouselClient({
         <>
           <button
             type='button'
+            data-replay-action='banner'
             className='absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 bg-black/30 text-white rounded-full p-2 hover:bg-black/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black transition-all duration-200'
             aria-label='이전 배너'
             onClick={handlePrev}
@@ -116,6 +121,7 @@ export function BannerCarouselClient({
 
           <button
             type='button'
+            data-replay-action='banner'
             className='absolute right-2 lg:right-4 top-1/2 -translate-y-1/2 bg-black/30 text-white rounded-full p-2 hover:bg-black/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black transition-all duration-200'
             aria-label='다음 배너'
             onClick={handleNext}
@@ -144,6 +150,7 @@ export function BannerCarouselClient({
               <button
                 key={page}
                 type='button'
+            data-replay-action='banner'
                 aria-label={`${page + 1}번째 배너 보기`}
                 aria-pressed={isActive}
                 className={`h-2.5 w-2.5 rounded-full transition-all duration-200 ${

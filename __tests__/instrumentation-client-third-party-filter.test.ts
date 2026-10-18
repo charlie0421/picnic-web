@@ -134,7 +134,7 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
     lazyLoadIntegration.mockResolvedValue(replayIntegrationFactory);
   });
 
-  describe('Session Replay 지연 로드', () => {
+  describe('Session Replay 운영 OFF', () => {
     const env = { NEXT_PUBLIC_SENTRY_APPLICATION_KEY: undefined };
 
     it.each([
@@ -169,38 +169,16 @@ describe('instrumentation-client — 서드파티 스택 필터', () => {
     });
 
     it.each([
-      ['0.1', '0', 0.1, 0],
-      ['0.1', undefined, 0.1, 0],
-      ['0', '1.0', 0, 1],
-      ['0', '0.25', 0, 0.25],
-    ])(
-      '세션 또는 오류 샘플링이 양수면 Replay를 지연 로드하고 마스킹 옵션으로 등록한다 (session=%s, error=%s)',
-      async (sessionSampleRate, errorSampleRate, expectedSessionRate, expectedErrorRate) => {
-        const replayIntegration = { name: 'Replay' };
-        replayIntegrationFactory.mockReturnValue(replayIntegration);
+      ['0.1', '0'], ['0.1', undefined], ['0', '1.0'], ['0', '0.25'],
+    ])('기존 샘플링 환경변수로 운영 Replay를 켤 수 없다 (session=%s, error=%s)', async (session, error) => {
+      await loadClient({ ...env, NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: session, NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: error });
+      expect(init.mock.calls[0][0]).toMatchObject({ replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 0 });
+      expect(lazyLoadIntegration).not.toHaveBeenCalled();
+      expect(replayIntegrationFactory).not.toHaveBeenCalled();
+      expect(addIntegration).not.toHaveBeenCalled();
+    });
 
-        await loadClient({
-          ...env,
-          NEXT_PUBLIC_SENTRY_SESSION_SAMPLE_RATE: sessionSampleRate,
-          NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE: errorSampleRate,
-        });
-
-        expect(init.mock.calls[0][0]).toMatchObject({
-          replaysSessionSampleRate: expectedSessionRate,
-          replaysOnErrorSampleRate: expectedErrorRate,
-        });
-        expect(lazyLoadIntegration).toHaveBeenCalledOnce();
-        expect(lazyLoadIntegration).toHaveBeenCalledWith('replayIntegration');
-        expect(replayIntegrationFactory).toHaveBeenCalledWith({
-          maskAllText: true,
-          maskAllInputs: true,
-          blockAllMedia: true,
-        });
-        expect(addIntegration).toHaveBeenCalledWith(replayIntegration);
-      },
-    );
-
-    it('Replay 지연 로드가 실패해도 클라이언트 초기화를 실패시키지 않는다', async () => {
+    it('Replay CDN 없이도 클라이언트를 초기화한다', async () => {
       lazyLoadIntegration.mockRejectedValueOnce(new Error('replay CDN unavailable'));
 
       await expect(

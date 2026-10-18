@@ -10,6 +10,7 @@
  * 프로필/로그아웃 로직은 auth-store-profile.ts 에 위임합니다.
  */
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
 import { createBrowserSupabaseClient } from './client';
 import { UserProfiles } from '@/types/interfaces';
 import { setLastLoginInfo, getProviderDisplayName } from '@/utils/storage';
@@ -231,6 +232,8 @@ export class AuthStore implements AuthStoreAccessor {
   }
 
   updateState(newState: AuthContextType) {
+    if (newState.isAuthenticated || newState.user || newState.session) replaySignals.setAuth('authenticated');
+    else if (!newState.isInitialized || newState.isLoading) replaySignals.setAuth('unknown');
     const prevState = this.state;
     this.state = newState;
 

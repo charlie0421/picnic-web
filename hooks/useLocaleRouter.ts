@@ -1,5 +1,7 @@
 'use client';
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
+
 import { usePathname, useRouter } from 'next/navigation';
 import { useLanguageStore } from '../stores/languageStore';
 import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, type Language } from '../config/settings';
@@ -84,15 +86,18 @@ export function useLocaleRouter(): LocaleRouterReturn {
   // 네비게이션 함수들
   const push = (href: string, locale?: Language) => {
     const localizedHref = getLocalizedPath(href, locale);
+    replaySignals.close();
     router.push(localizedHref);
   };
 
   const replace = (href: string, locale?: Language) => {
     const localizedHref = getLocalizedPath(href, locale);
+    replaySignals.close();
     router.replace(localizedHref);
   };
 
   const refresh = () => {
+    replaySignals.close();
     router.refresh();
   };
 
@@ -102,6 +107,7 @@ export function useLocaleRouter(): LocaleRouterReturn {
       return;
     }
 
+    replaySignals.close();
     // 언어 스토어 업데이트
     setLanguage(locale);
 

@@ -1,3 +1,7 @@
+if (process.env.NEXT_PUBLIC_REPLAY_LOCAL_TEST === '1' && (process.env.VERCEL || process.env.VERCEL_ENV)) {
+  throw new Error('Replay local harness must not be deployed to Vercel');
+}
+
 // sentry 설정 래퍼 추가
 const { withSentryConfig } = require('@sentry/nextjs');
 const { nextConfigOverrides } = require('./scripts/envelope-test/build-switch');
@@ -48,6 +52,8 @@ const nextConfig = {
     NEXT_PUBLIC_BUILD_VERSION: buildVersion,
     NEXT_PUBLIC_BUILD_TIME: buildTime,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    // Inline the empty default so normal builds remove the local bridge and Worker import.
+    NEXT_PUBLIC_REPLAY_LOCAL_TEST: process.env.NEXT_PUBLIC_REPLAY_LOCAL_TEST === '1' ? '1' : '',
     // 서버·엣지(SENTRY_RELEASE)와 클라이언트(NEXT_PUBLIC_*)가 같은 릴리스 이름을 인라인으로 받는다
     SENTRY_RELEASE: sentryBuild.release.name,
     NEXT_PUBLIC_SENTRY_RELEASE: sentryBuild.release.name,

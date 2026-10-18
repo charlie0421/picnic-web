@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>Replay 제품 연결 구현 계획</title>
+<style>body{max-width:1000px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui;color:#182030}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd3dd;padding:10px;text-align:left;vertical-align:top}code,pre{background:#f1f4f8}pre{padding:16px;white-space:pre-wrap}</style></head><body>
+<h1>Replay 제품 연결 구현 계획</h1>
+<p><strong>실행:</strong> 현재 세션이 <code>superpowers:executing-plans</code> 순서로 구현한다. 반대 공급자는 설계와 전체 변경을 검토한다. 네이티브 하위 에이전트는 사용하지 않는다.</p>
+<p><strong>목표:</strong> 운영 Replay OFF를 유지하면서 앱의 상태·수집 제어·정제 전송을 연결하고 합성 브라우저 시험으로 검증한다.</p>
+<p><strong>구조:</strong> 작은 상태 모듈은 동기 중단 신호를 전달한다. 기존 controller와 vote-list 계약은 별도 runtime·Worker에서 사용한다. Sentry의 일반 오류·추적 transport를 유지한다.</p>
+<p><strong>기술:</strong> Next.js 15.5.26, React 18, TypeScript, Sentry 9.47.1, Vitest, Playwright Chromium. 의존성 버전은 변경하지 않는다.</p>
+<p><strong>명세:</strong> <a href="2026-10-18-replay-integration-design.html">운영 수집 OFF 제품 연결 설계</a></p>
+<h2>공통 조건</h2>
+<ul><li>운영 수집은 OFF. 양수인 기존 샘플링 환경변수도 녹화를 시작시키지 않는다.</li><li>범위는 확인된 비로그인·광고 거절·광고 미실행 document의 <code>/ko/vote</code>다. query·fragment는 비어 있어야 한다.</li><li>중단은 화면·인증·광고 상태 변경 전이다. CLOSED는 document 수명 동안 영구적이다.</li><li>각 8 MiB, 깊이 80, 값 200,000, 이벤트 10,000, 노드+tombstone 20,000을 유지한다. Worker 2초·fetch 5초·녹화 5분 제한을 유지한다.</li><li>운영 데이터·비밀 키·결제·DDL·배포·Jira 상태는 변경하지 않는다. 앱 키 없이 합성 upstream만 사용한다.</li></ul>
+<h2>검토에서 집중할 반례</h2>
+<ol><li>인증 실패를 guest로 오인: T2에서 timeout·error·늦은 성공 결과를 검사한다.</li><li>준비와 종료의 경쟁: T1/T3에서 import·Worker·fetch 대기 중 종료와 재시작 거절을 검사한다.</li><li>SDK나 제3자 코드의 자동 시작: T1에서 샘플링 1과 수동 Replay envelope도 off transport를 통과하지 못하는지 검사한다.</li><li>React 외부의 화면 변화: T2/T3에서 자동 새로고침·팝업·뒤로 가기·storage 변경을 검사한다.</li><li>계약 불일치와 일반 오류 유실: T3에서 낯선 CSS의 전송 0회와 일반 envelope 전달을 함께 검사한다.</li></ol>
+<h2>T1. 운영 차단과 상태 경계</h2>
+<p>파일: <code>instrumentation-client.ts</code>, <code>lib/sentry/browser-transport.ts</code>, 새 <code>lib/sentry/replay/signals.ts</code>, <code>lib/sentry/replay/config.ts</code>, <code>lib/sentry/replay/transport-router.ts</code>. 시험: 기존 instrumentation privacy 시험과 새 <code>__tests__/lib/sentry/replay/</code> 시험.</p>
+<p>인터페이스: <code>createReplaySignals()</code>는 snapshot·subscribe·auth·ads·page readiness·close를 제공한다. <code>replaySignals</code>는 앱용 singleton이다. <code>localReplayConfig(location)</code>는 명시적 로컬 시험 설정과 loopback만 허용하며 그 밖에는 null이다. <code>createReplayTransportRouter(normal, replay)</code>는 일반 envelope와 Replay를 분리한다.</p>
+<ol><li>샘플링 1/1과 off 상태의 Replay 차단, 일반 오류 전달, 영구 종료·변경 전 알림 시험을 먼저 추가한다.</li><li>해당 시험을 실행하고 빠진 동작 때문에 실패하는지 확인한다.</li><li>최소 구현을 추가한다. 상태에는 사용자 객체·토큰·원문 URL을 저장하지 않는다.</li><li>관련 시험을 실행한다. 기대: 모든 시험 통과.</li></ol>
+<h2>T2. 실제 앱의 전환 연결</h2>
+<p>파일: <code>lib/supabase/auth-store-auth.ts</code>, <code>auth-store.ts</code>, <code>client-internals.ts</code>, 광고 동의 컴포넌트, <code>hooks/useLocaleRouter.ts</code>, <code>instrumentation-client.ts</code>, <code>VoteListCSR.tsx</code>, <code>VoteListPresenter.tsx</code>, <code>BannerCarouselClient.tsx</code>, <code>PopupBannerLoader.tsx</code>. 필요한 전환 호출만 수정한다.</p>
+<p>인터페이스: T1의 신호 모듈을 사용한다. 인증 평가 중·실패는 unknown, 검증된 비로그인만 anonymous로 보낸다. 광고를 삽입하기 전에 adsEverLoaded와 종료를 기록한다. 화면 준비 신호는 최초 시작에만 사용한다.</p>
+<ol><li>실제 인증 평가·광고 컴포넌트·탐색 함수를 구동하는 시험을 먼저 추가한다. 외부 인증 응답만 mock한다.</li><li>상태 변경 전에 종료하지 않는 기존 코드의 실패를 확인한다.</li><li>최소 동기 신호를 삽입한다. 기존 인증 UI·광고 허용 의미는 유지한다.</li><li>실제 동의 선택·탐색·팝업·자동 갱신의 호출 순서를 검증한다. 기대: 종료 후 UI 변경, 종료 이후 시작 0회.</li></ol>
+<h2>T3. 제어기·Worker·합성 제품 시험</h2>
+<p>파일: 새 <code>lib/sentry/replay/runtime.ts</code>, <code>worker.ts</code>, <code>worker-client.ts</code>, <code>lifecycle.ts</code>, <code>lib/sentry/browser-transport.ts</code>, <code>scripts/replay-p0/tools/</code>의 합성 서버·새 제품 연결 시험, <code>package.json</code>. 기존 P0 fixture와 vote-list manifest 계약을 유지한다.</p>
+<p>인터페이스: runtime은 T1 신호와 기존 controller를 연결한다. Worker는 <code>projectWithContract</code>와 <code>createVoteListContract</code>를 사용한다. 브라우저 transport는 로컬 설정이 유효할 때만 runtime을 불러온다. 종료 시 Worker와 진행 fetch를 취소한다.</p>
+<ol><li>준비 중 종료·부적격 조건·세그먼트 순서·Worker 실패·일반 오류 독립 전송 시험을 먼저 작성한다.</li><li>실패를 확인한 뒤 실제 공개 SDK·bundled Worker 연결을 구현한다.</li><li>합성 제품 빌드와 loopback 수신기로 1280×900·390×900 동작 및 폐쇄 이후 요청 0회를 검증한다.</li><li>최종 envelope에서 canary와 금지 필드가 없는지 검사한다. 잘못된 CSS·origin은 수집을 중단해야 한다.</li><li>전체 <code>npm test -- --reporter=dot</code>, <code>npx tsc --noEmit</code>, <code>npm run lint</code>, <code>git diff --check</code>를 실행한다. 모든 결과와 기존 예외를 기록한다.</li><li>별도 Claude 리뷰에 요구사항·diff·관련 파일·시험 결과를 전달한다. 지적을 검증하고 원 리뷰어가 한 번 재확인한다.</li><li>문서와 구현을 명시적으로 스테이징하고 Conventional Commit으로 저장한다. 운영 활성화·배포·PR 머지는 별도다.</li></ol>
+<h2>진행 기록</h2>
+<ul id="ledger"><li>기준 20개 파일 1,389개 관련 시험 통과. <code>npm ci</code> 설치. 운영 .env는 복사하지 않았다.</li><li>T1: 운영 샘플링과 수동 Replay 전송 차단. 기존 동작의 실패를 확인한 뒤 수정했다.</li><li>T2: 실제 인증·광고·라우팅·투표 목록·팝업 신호 연결. 인증 실패와 시간 초과를 unknown으로 유지한다.</li><li>T3: 실제 제품 SDK·bundled Worker·loopback 수신기 연결. Chromium 18개 시나리오, 두 viewport의 화면 복원, 일반 오류 전달 통과. 정상 빌드의 로컬 코드 제외와 API 404 확인.</li><li>서버에서 HttpOnly 쿠키를 포함한 자격을 추가 확인한다. 앱이 자동 저장하는 유한한 locale 설정만 예외로 허용한다.</li><li>전체 5,240개 통과, 기존 예상 실패 2개·skip 1개. 타입·lint·빌드 통과. 초기 리뷰 Medium 1개·Low 2개 해결. Claude Opus 5.5/high의 재검증 APPROVE. 운영 활성화는 승인 범위에 포함하지 않는다.</li></ul>
+</body></html>

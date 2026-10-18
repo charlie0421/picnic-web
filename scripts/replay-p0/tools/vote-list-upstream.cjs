@@ -2,6 +2,7 @@
 // Synthetic PostgREST upstream for the vote list harness. Every value is synthetic; no product data.
 const fs = require('node:fs');
 const http = require('node:http');
+const path = require('node:path');
 
 const tr = s => ({ ko: s, en: s });
 /** 5 banners and 12 ongoing votes. Vote end times are relative to `now` (1 day + i hours). */
@@ -38,9 +39,20 @@ function filter(rows, q) {
     return true;
   })).slice(offset, offset + limit);
 }
-function startUpstream({ port, logFile, now }) {
-  const data = fixtures(now);
+function startUpstream({ port, logFile, now, envelopeDir = null }) {
+  const data = fixtures(now); let sequence = 0;
+  if (envelopeDir) fs.mkdirSync(envelopeDir, { recursive: true });
   const server = http.createServer((req, res) => {
+    if (envelopeDir && req.method === 'POST' && ['/replay', '/api/1/envelope/'].includes(new URL(req.url, 'http://localhost').pathname)) {
+      const chunks = []; let size = 0;
+      req.on('data', chunk => { size += chunk.length; if (size > 8 * 1024 * 1024) req.destroy(); else chunks.push(chunk); });
+      req.on('end', () => {
+        const prefix = req.url === '/replay' ? 'replay' : 'ordinary';
+        fs.writeFileSync(path.join(envelopeDir, `${prefix}-${sequence++}.bin`), Buffer.concat(chunks));
+        res.setHeader('access-control-allow-origin', '*'); res.end('{}');
+      });
+      return;
+    }
     req.resume();
     res.setHeader('access-control-allow-origin', '*'); res.setHeader('access-control-allow-headers', '*');
     res.setHeader('content-type', 'application/json');

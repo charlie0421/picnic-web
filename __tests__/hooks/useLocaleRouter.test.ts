@@ -60,6 +60,7 @@ vi.mock('@/config/settings', () => ({
 // --- Import after mocks ---
 
 import { useLocaleRouter } from '@/hooks/useLocaleRouter';
+import { replaySignals } from '@/lib/sentry/replay/signals';
 
 describe('useLocaleRouter', () => {
   beforeEach(() => {
@@ -325,5 +326,24 @@ describe('useLocaleRouter', () => {
       await changeTo('ja');
       expect(mockPush).toHaveBeenCalledWith('/ja/votes');
     });
+  });
+});
+
+
+describe('Replay navigation barriers', () => {
+  it.each(['push', 'replace', 'refresh'] as const)('closes before router.%s', method => {
+    const close = vi.spyOn(replaySignals, 'close');
+    const routerCall = { push: mockPush, replace: mockReplace, refresh: mockRefresh }[method];
+    routerCall.mockImplementationOnce(() => expect(close).toHaveBeenCalled());
+    const { result } = renderHook(() => useLocaleRouter());
+    act(() => result.current[method]('/vote'));
+    close.mockRestore();
+  });
+  it('closes before changing the language store', async () => {
+    const close = vi.spyOn(replaySignals, 'close');
+    mockSetLanguage.mockImplementationOnce(() => expect(close).toHaveBeenCalled());
+    const { result } = renderHook(() => useLocaleRouter());
+    await act(async () => { await result.current.changeLocale('ja'); });
+    close.mockRestore();
   });
 });

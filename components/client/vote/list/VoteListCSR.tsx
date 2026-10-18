@@ -1,5 +1,7 @@
 'use client';
 
+import { replaySignals } from '@/lib/sentry/replay/signals';
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Vote } from '@/types/interfaces';
 import { VoteListPresenter } from './VoteListPresenter';
@@ -64,6 +66,7 @@ export function VoteListCSR({ initialVotes, initialLocale }: VoteListCSRProps) {
       return;
     }
 
+    replaySignals.close();
     setIsHydrating(true);
   }, [statusParam, areaParam]);
 
@@ -74,11 +77,17 @@ export function VoteListCSR({ initialVotes, initialLocale }: VoteListCSRProps) {
     setIsHydrating(false);
   }, [initialVotes]);
 
+  useEffect(() => {
+    replaySignals.setReady('vote');
+    return () => replaySignals.close();
+  }, []);
+
   const onLoadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) {
       return;
     }
 
+    replaySignals.close();
     const currentKey = latestKeyRef.current;
     const nextPage = page + 1;
 

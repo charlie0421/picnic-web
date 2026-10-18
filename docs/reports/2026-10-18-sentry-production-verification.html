@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sentry #73·#74 — 운영 수신 확인</title><style>*{box-sizing:border-box}body{max-width:1040px;margin:36px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182030}h1,h2{line-height:1.35}h2{margin-top:1.7em}p,li,td,th,code{overflow-wrap:anywhere}table{border-collapse:collapse;width:100%}td,th{padding:10px;border:1px solid #ccd3dd;text-align:left;vertical-align:top}th{background:#f1f4f8}code,pre{background:#f1f4f8}pre{padding:14px;white-space:pre-wrap}.note{padding:14px;border-left:4px solid #476bcc;background:#f1f5ff}.pending{border-color:#b17b1c;background:#fff8e9}a{color:#245fa0}@media(max-width:600px){body{margin:20px auto;padding:0 14px}td,th{padding:7px;font-size:14px}}</style></head><body>
+<h1>Sentry #73·#74 — 운영 수신 확인</h1>
+<p>2026-10-18 KST · 운영 코드 기준 main <code>9645c0e6</code> · 읽기 전용 조사</p>
+<p class="note">운영 Sentry에 저장된 서버 오류 2건을 확인했다. 최신 오류와 시각·경로·사건 코드가 일치하는 Vercel 401 응답 기록도 확인했다. 이전의 “확인할 서버 이벤트가 없음” 상태는 해소됐다.</p>
+<p class="note">사용자 로그인 뒤 상세 API와 JSON 보기로 두 이벤트를 검사했다. 두 건 모두 Cookie·인증 헤더·요청 쿼리·요청 본문·IP 원문이 없었다. #73·#74에 남아 있던 운영 표본 확인 조건을 충족했다. GitHub 이슈 상태는 OPEN을 유지했다.</p>
+<p class="note pending">별도 관찰: 두 이벤트의 <code>user.geo</code>에 국가·도시·지역 정보가 남아 있다. 조직 전체의 IP 저장 방지는 켜져 있지만 위치 필드는 비어 있지 않다. 위치 정보까지 제거할지는 별도로 결정해야 한다. 원본 요청에 어떤 민감정보가 있었는지는 알 수 없으므로, 이 표본만으로 모든 입력의 제거 성능을 입증하지 않는다.</p>
+<h2>작업의 뜻과 판정</h2><table><thead><tr><th>작업</th><th>쉽게 설명하면</th><th>이번 결과</th></tr></thead><tbody>
+<tr><td>#73 민감정보 제거</td><td>오류 보고에 쿠키·인증 헤더·요청 쿼리·IP가 저장되지 않았는지 확인한다.</td><td>두 표본 모두 해당 값 없음. 운영 표본 확인 완료. 위치 정보는 별도 정책 항목이다.</td></tr>
+<tr><td>#74 오류 전달</td><td>서버가 보낸 오류 보고가 실제 Sentry에 도착했는지 확인한다.</td><td>운영 서버 이벤트 2건의 저장과 수신 시각 확인. 운영 표본 확인 완료. 특정 요청의 after() 완료 시각·flush 성공은 직접 관측하지 못했다. 모든 요청의 전달 성공을 뜻하지 않는다.</td></tr>
+</tbody></table>
+<h2>Sentry 수신 증거</h2><p>대상은 <code>icon-casting/picnic-web</code>이다. 두 이벤트 모두 <code>environment=production</code>, <code>runtime.name=node</code>, <code>handled=yes</code>, <code>level=error</code>다. 사건 코드는 <code>payment.portone.webhook.signature.failed</code>, 경로는 <code>POST /api/payment/portone/webhook</code>이다.</p>
+<table><thead><tr><th>발생 시각</th><th>이벤트</th><th>배포 release</th></tr></thead><tbody>
+<tr><td>10월 17일 22:31:25.721 KST<br>13:31:25.721 UTC</td><td><a href="https://icon-casting.sentry.io/issues/7796482501/?eventId=bb5e2b92e5b744c884c452168254f022"><code>bb5e2b92e5b744c884c452168254f022</code></a></td><td><code>picnic-web@20261017.2224.001</code></td></tr>
+<tr><td>10월 17일 02:13:29.608 KST<br>10월 16일 17:13:29.608 UTC</td><td><a href="https://icon-casting.sentry.io/issues/7796482501/?eventId=473e9bdd432543c9a443ac98bdb1661b"><code>473e9bdd432543c9a443ac98bdb1661b</code></a></td><td><code>picnic-web@20261017.0211.001</code></td></tr>
+</tbody></table><p>상세 API의 <code>dateReceived</code>는 각각 <code>2026-10-17T13:31:25.806311Z</code>, <code>2026-10-16T17:13:29.736151Z</code>다. 두 이벤트의 SDK는 <code>sentry.javascript.nextjs 9.47.1</code>이며 API의 처리 오류 목록은 비어 있었다.</p>
+<p>두 이벤트는 <code>PICNIC-WEB-7H</code>(issue <code>7796482501</code>)에 묶였다. 최근 100개 이벤트 중 사건 코드가 제목에 있는 서버 이벤트 2건을 식별했다. 조회 범위 밖의 이벤트 수나 다른 종류의 오류 전달 여부는 판정하지 않았다. 이 표본은 10월 16~17일 release의 기록이며 현재 main 전체를 새로 검증한 결과가 아니다.</p>
+<h2>Vercel 대조</h2><table><tbody>
+<tr><th>조회 범위</th><td>2026-10-17 13:25:00~13:40:00 UTC, production, 브랜치 필터 없음, 해당 webhook 경로</td></tr>
+<tr><th>반환된 요청</th><td><code>8zck8-1792243885690-86bc198fec29</code> · <code>POST /api/payment/portone/webhook</code> · HTTP 401</td></tr>
+<tr><th>기록 시각·코드</th><td>2026-10-17 13:31:25.690 UTC · <code>payment.portone.webhook.signature.failed</code></td></tr>
+<tr><th>배포 ID</th><td><code>dpl_A7nUj9mDmBNviEFPJK6143TgHgPt</code></td></tr>
+<tr><th>한계</th><td>시각·경로·코드가 일치하는 요청을 찾았다. Sentry 상세 trace ID와 대조하지 않았으므로 같은 요청임을 확정하지 않는다. 두 기록의 31ms 차이를 전송 지연 시간으로 해석하지 않는다.</td></tr>
+</tbody></table>
+<p>최근 23시간의 <code>[sentry] flush</code> 로그 검색은 0건이었다. 검색어 없는 대조 조회는 일반 요청 5건을 반환했다. 현재 코드는 flush 성공 완료 로그를 남기지 않으므로, 경고가 없는 것을 성공 증거로 사용하지 않는다.</p>
+<h2>저장된 상세 필드 검사</h2><table><thead><tr><th>검사 대상</th><th>두 표본의 결과</th></tr></thead><tbody>
+<tr><td>request의 Cookie·Authorization·웹훅 서명 및 기타 인증 헤더</td><td>JSON에 <code>request</code> 자체가 없다. 상세 API에도 request entry가 없다. 헤더·쿠키 원문이 저장되지 않았다.</td></tr>
+<tr><td>요청 URL query·query_string·본문</td><td>없음. 최신 이벤트의 HTTP breadcrumb 2개도 URL query·fragment·내장 자격 증명이 없다. 이전 이벤트에는 breadcrumb가 없다.</td></tr>
+<tr><td>user.ip_address·프록시 IP 헤더·request 환경의 IP</td><td>없음. 상세 API의 <code>user.ip_address</code>는 null이며 JSON의 user에는 geo만 있다.</td></tr>
+<tr><td>contexts·extra·breadcrumbs·tags·추적 정보</td><td>extra 없음. 로그 context에는 timestamp만 있다. 13개 tag는 환경·release·runtime·서비스·고정 transaction 등이다. 전체 JSON에서 Cookie·인증 헤더·민감 키와 JWT·Bearer 토큰 모양을 찾지 못했다. <code>_dsc</code>에도 요청 쿼리나 Replay ID가 없었다.</td></tr>
+<tr><td>스택의 <code>?b59e</code></td><td>두 이벤트에서 복원된 <code>app:///…/picnic-web/?b59e</code> 프레임이 각각 2개다. 값 없는 파일 경로 접미사이며 <code>raw_stacktrace</code>에는 query가 없다. 요청 쿼리의 잔존으로 판정하지 않았다. 저장 JSON에 모든 <code>?</code>가 없다고 주장하지 않는다.</td></tr>
+<tr><td>fingerprint와 사건 코드별 이슈 분리</td><td>두 JSON 모두 <code>["{{ default }}", "payment.portone.webhook.signature.failed"]</code>다. 같은 코드가 같은 이슈에 묶인 것은 확인했다. 다른 코드의 이슈 분리는 이번 표본으로 검증할 수 없다.</td></tr>
+<tr><td>user.geo</td><td><code>country_code</code>·<code>city</code>·<code>subdivision</code>·<code>region</code> 필드가 존재한다. 위치 원문은 기록하지 않았다. 방문자와 서버 중 어느 위치인지는 확정하지 않았다.</td></tr>
+</tbody></table>
+<p>상세 API와 화면의 JSON 링크를 기존 브라우저 세션으로 읽었다. 원문은 검사 중 브라우저 메모리에서만 처리했다. 보고서와 Git에는 값의 존재 여부, 안전한 사건 코드, 확인에 필요한 이벤트 ID만 남겼다. 상세 API의 <code>fingerprints</code> 해시와 JSON의 사용자 지정 <code>fingerprint</code>는 구분했다. 조회 방법은 <a href="https://docs.sentry.io/api/events/retrieve-an-event-for-a-project/">Sentry 개별 이벤트 조회 문서</a>를 따른다.</p>
+<h2>IP 저장 설정과 위치 정보</h2><table><thead><tr><th>읽기 전용 설정 조회</th><th>조직 icon-casting</th><th>프로젝트 picnic-web</th></tr></thead><tbody>
+<tr><td><code>scrubIPAddresses</code></td><td>true</td><td>false</td></tr>
+<tr><td><code>dataScrubber</code> / <code>dataScrubberDefaults</code></td><td>false / false</td><td>true / true</td></tr>
+<tr><td><code>sensitiveFields</code></td><td>빈 목록</td><td>빈 목록</td></tr>
+<tr><td><code>relayPiiConfig</code></td><td>null</td><td>null</td></tr>
+</tbody></table>
+<p><a href="https://docs.sentry.io/api/organizations/update-an-organization/">Sentry 조직 설정 문서</a>에서 조직의 <code>scrubIPAddresses=true</code>는 모든 프로젝트의 새 이벤트에 IP 저장 방지를 적용한다. 따라서 프로젝트 값 false만 보고 IP 저장 방지가 꺼졌다고 판단하면 안 된다. 이번 조회로 기존 설계의 결정 5에 남아 있던 IP 저장 설정을 확인했다. 이벤트 발생 당시 설정 이력은 조회하지 않았다.</p>
+<p>Sentry는 이벤트와 연관된 IP에서 위치 정보를 만들 수 있다. <a href="https://www.sentry.help/en/articles/13964201-can-i-disable-ip-geolocation-for-gdpr-compliance">공식 위치 정보 제거 안내</a>는 Additional Sensitive Fields에 <code>city</code>, <code>subdivision</code>, <code>region</code>, <code>country_code</code>, <code>ip_address</code>를 추가하는 방법을 제시한다. 위치 제거를 선택하면 해당 필드 추가와 새 표본 검증이 후속 작업이다. 이번에는 운영 설정을 변경하지 않았다.</p>
+<h2>검증 범위와 남은 결정</h2><ul>
+<li>#73·#74의 최신 이슈 기록에 남은 조건인 “저장된 운영 서버 이벤트에서 요청 민감정보 부재와 도착 확인”을 충족했다. 이슈 종료나 상태 변경은 수행하지 않았다.</li>
+<li>표본 2건에서 저장되지 않은 것은 확인했지만 원본 입력과 비교한 제거 시험은 아니다. 기존 합성 canary·envelope 시험과 이번 운영 관측은 서로 다른 증거다.</li>
+<li>운영 위치 정보의 유지 여부, 서로 다른 사건 코드의 이슈 분리, 모든 요청의 전달률은 이번 확인으로 확정하지 않는다.</li>
+</ul>
+<h2>재현한 조회</h2><pre><code>sentry-cli info --no-defaults
+sentry-cli events list --org icon-casting --project picnic-web --max-rows 100 --pages 1
+sentry-cli events list --org icon-casting --project picnic-web --max-rows 2 --pages 1 --show-tags
+sentry-cli issues list --org icon-casting --project picnic-web --query 'lastSeen:&gt;2026-10-07T04:03:29Z' --max-rows 100 --pages 1
+vercel logs --project picnic-web --environment production --no-branch --since 2026-10-17T13:25:00Z --until 2026-10-17T13:40:00Z --query /api/payment/portone/webhook --limit 100 --json
+vercel logs --project picnic-web --environment production --no-branch --since 23h --query '[sentry] flush' --limit 100 --json
+# 로그인한 Sentry 브라우저에서 GET만 사용. ID별 상세 API와 JSON 링크 조회.
+GET /api/0/projects/icon-casting/picnic-web/events/{event_id}/
+GET /api/0/projects/icon-casting/picnic-web/events/{event_id}/json/
+GET /api/0/projects/icon-casting/picnic-web/
+GET /api/0/organizations/icon-casting/</code></pre>
+<p>CLI 인증은 기존 설정으로 확인했다. 자격 증명 파일이나 토큰 원문을 읽거나 출력하지 않았다. 운영 오류를 새로 주입하지 않았고 결제·로그인 요청·운영 설정·배포·GitHub/Jira 상태를 변경하지 않았다. PayPal·PortOne 기능 작업은 보류 상태를 유지한다. 이 보고서는 이미 발생한 PortOne 오류를 Sentry 검증 표본으로 읽은 결과다.</p>
+<h2>관련 기록</h2><ul><li><a href="2026-10-08-production-delivery-verification.html">10월 8일: 운영 표본 부재로 보류한 기록</a></li><li><a href="2026-10-18-replay-integration-result.html">Replay 제품 연결 결과와 작업 순서</a></li><li><a href="https://github.com/charlie0421/picnic-web/issues/73#issuecomment-6165794854">#73 완료 조건</a></li><li><a href="https://github.com/charlie0421/picnic-web/issues/74#issuecomment-6165795711">#74 완료 조건</a></li></ul>
+</body></html>

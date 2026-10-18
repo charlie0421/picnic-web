@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { deflateSync, inflateSync } from 'node:zlib';
 import type { Envelope, Transport } from '@sentry/core';
 import { scrubReplayEnvelope } from '@/lib/sentry/replay-scrub';
-import { withReplayScrubbing } from '@/lib/sentry/browser-transport';
+import { createBrowserTransport, withReplayScrubbing } from '@/lib/sentry/browser-transport';
+
+// This node test must use the browser SDK export selected by Next's client build.
+vi.mock('@sentry/nextjs', async () => await import('@sentry/browser'));
 
 const records = () => [
   { type: 4, timestamp: 1, data: { href: 'https://picnic.test/callback?code=secret-meta#secret-fragment', width: 1280, height: 720 } },
@@ -35,6 +38,13 @@ function decoded(value: Envelope) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Replay privacy transport', () => {
+  it('does not send a manually started Replay through the product off transport', async () => {
+    const fetch = vi.fn(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    const transport = createBrowserTransport({ url: 'https://collector.invalid/envelope', recordDroppedEvent: vi.fn() });
+    expect(await transport.send(envelope())).toEqual({ statusCode: 403 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
   describe.each([false, true])('remaining escaped and template patterns, compressed=%s', (compressed) => {
     const cases = [
       ['data-callback', 'example.com/users/{ id }#secret-opaque'],
