@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제·인증 로그 정리 — 2026-10-18 핸드오프</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172331;font:16px/1.7 system-ui,-apple-system,sans-serif}main{max-width:1040px;margin:28px auto;padding:32px;background:white;border:1px solid #dce3ed;border-radius:12px}h1{font-size:1.8rem;line-height:1.35}h2{margin-top:2rem;font-size:1.25rem}h3{font-size:1.05rem}p,li,td,th,code,summary{overflow-wrap:anywhere}a{color:#215b9a}code,pre{font-family:ui-monospace,monospace;font-size:.88em}code{background:#edf3fa;padding:1px 3px}pre{padding:16px;background:#edf3fa;white-space:pre-wrap;overflow-wrap:anywhere}.status,.note{padding:16px;border-left:4px solid #2b775a;background:#effaf4}.note{border-color:#bc7b13;background:#fff8e9}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.93rem}th,td{border:1px solid #dce3ed;padding:10px;text-align:left;vertical-align:top}th{background:#edf3fa}li{margin:5px 0}.meta{color:#526174}@media(max-width:600px){main{margin:8px;padding:16px}h1{font-size:1.5rem}th,td{min-width:7em;padding:7px}}
+</style>
+</head>
+<body><main>
+<h1>결제·인증 로그 정리 핸드오프</h1>
+<p class="meta">2026-10-18 · 이전 핸드오프: <code>docs/handoff-2026-10-16-build-manifest.html</code> · 범위: PR #139–#142(PortOne 차단·웹훅 검증, 로그 레벨 #75, Google POST 제거)</p>
+
+<div class="status">
+<p><strong>상태:</strong> 이번 세션에서 PR 4개를 <code>main</code>에 squash merge했다. 모두 Production 배포와 스모크 확인을 마쳤다. 지금 <code>main</code>은 <code>40cb5843</code>이다. 작업 워크트리와 브랜치는 모두 정리했다.</p>
+<p><strong>PortOne 웹 결제는 계속 꺼져 있다</strong>(<code>PORTONE_WEB_PAYMENT_ENABLED=false</code>). 사용자 결정(2026-10-17): PortOne은 나중에 다시 켠다. 다시 켜는 일은 별도 PR로 한다. #77은 그때까지 열어 둔다.</p>
+</div>
+
+<h2>1. 다음 세션이 먼저 할 일</h2>
+<ol>
+<li>메인 폴더에서 <code>git status</code>와 <code>git log -3</code>을 확인한다. <code>main</code>이 <code>40cb5843</code> 이후인지 본다.</li>
+<li>§5의 후보 중 다음 작업을 사용자와 정한다. 어느 후보도 아직 승인되지 않았다.</li>
+<li>Sentry 확인이 필요한 작업이면 먼저 사용자에게 Sentry 커넥터 재인증을 요청한다(§4).</li>
+</ol>
+
+<h2>2. Git과 작업 위치</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>항목</th><th>상태</th></tr></thead>
+<tbody>
+<tr><td>메인 폴더</td><td><code>/Users/charlie.hyun/Repositories/picnic-web</code>, <code>main</code> = <code>40cb5843</code>. 기존 <code>.playwright-mcp/</code>는 이번 작업과 관계없다. 정리하거나 커밋하지 않는다.</td></tr>
+<tr><td>워크트리·브랜치</td><td><code>fix/hide-portone-option</code>, <code>fix/portone-webhook-verification</code>, <code>fix/auth-log-severity</code>, <code>chore/remove-google-post</code>의 워크트리, 로컬 브랜치, 원격 브랜치를 모두 지웠다.</td></tr>
+<tr><td>CI·Preview</td><td>PR마다 “타입 검사 · lint · 테스트”가 통과했다. 이 레포는 Vercel Preview가 없다. 검증은 로컬과 머지 뒤 Production에서 했다.</td></tr>
+</tbody></table></div>
+
+<h2>3. 완료한 작업</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>PR</th><th>merge</th><th>내용</th><th>리뷰(Codex <code>gpt-6.1-sol</code>/high)</th></tr></thead>
+<tbody>
+<tr><td>#139</td><td><code>e3164722</code></td><td>PortOne 웹 결제를 막는다. 스위치 <code>PORTONE_WEB_PAYMENT_ENABLED</code>(<code>lib/payment/availability.ts</code>, 꺼짐)를 추가했다. 꺼져 있으면 한국 사용자도 PayPal을 쓰고, 서버 confirm이 PortOne 결제를 403 <code>portone_disabled</code>로 거절한다.</td><td>REQUEST_CHANGES(High 1: 옛 탭이 confirm을 통과) → 서버 거절로 고침 → APPROVE</td></tr>
+<tr><td>#140</td><td><code>3b256b74</code></td><td>PortOne 웹훅을 SDK <code>Webhook.verify</code>(Standard Webhooks)로 검증한다(#77, 감사 B-P2). 적립량은 브라우저의 <code>customData</code>가 아니라 <code>products</code>에서 정한다(B-P1). 금액·통화가 상품과 다르면 400이고 적립하지 않는다.</td><td>REQUEST_CHANGES(medium 1: 502 응답에 paymentId 반사) → 고침 → APPROVE</td></tr>
+<tr><td>#141</td><td><code>57ce352e</code></td><td>#75: 누구나 반복해서 일으킬 수 있는 인증·결제 4xx를 WARN(콘솔만)으로 남긴다. 운영자가 조치할 실패(설정, 공급자 5xx, 네트워크)는 ERROR(Sentry)로 둔다. 판정은 허용 목록으로 하고, 모르는 경우는 ERROR다. 인증 라우트 5개는 잘못된 JSON 본문에 로그 없이 400을 돌려준다(이전 500).</td><td>1차 high 2·medium 2 → 본문 오류 코드 허용 목록으로 고침 → 재검증 medium 1(Google <code>invalid_grant</code>는 구분 불가) → 항상 ERROR로 고침 → 통과</td></tr>
+<tr><td>#142</td><td><code>40cb5843</code></td><td>호출처가 없는 <code>POST /api/auth/google</code>을 지웠다. 이제 POST는 405다. GET(OAuth 시작)은 그대로다. POST 전용 헬퍼 3개와 이벤트 코드 5개를 지웠다. 진단 스크립트 <code>scripts/envelope-test/auth.js</code>의 낡은 기대값(500, 이벤트 6개)을 고쳤다.</td><td>APPROVE, 지적 없음. 진단 스크립트 문제는 리뷰어가 찾았다.</td></tr>
+</tbody></table></div>
+
+<h3>3.1 #141의 판정 기준</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>판정 함수(<code>utils/log-severity.ts</code>)</th><th>WARN이 되는 조건</th></tr></thead>
+<tbody>
+<tr><td><code>isClientAuthError</code></td><td>Supabase auth 오류의 status가 400–499이고 code가 목록에 있다: <code>user_already_exists</code>, <code>email_exists</code>, <code>weak_password</code>, <code>validation_failed</code>, <code>email_address_invalid</code>, <code>over_request_rate_limit</code>, <code>flow_state_not_found</code>, <code>flow_state_expired</code>, <code>bad_code_verifier</code>, <code>bad_oauth_state</code>, <code>pkce_code_verifier_not_found</code>.</td></tr>
+<tr><td><code>isClientJoseError</code></td><td>jose 오류 코드가 만료·형식·서명·alg·없는 kid다. claim 검증 실패는 aud·iss가 아닐 때만 WARN이다.</td></tr>
+<tr><td><code>isClientKakaoTokenError</code></td><td>400이고 <code>error_code</code>가 <code>KOE320</code>(만료·재사용 code)이다. <code>KOE303</code>(redirect 불일치)은 ERROR다.</td></tr>
+<tr><td><code>isClientKakaoUnlinkError</code></td><td>400 또는 401이고 <code>code</code>가 -401 또는 -101이다.</td></tr>
+<tr><td><code>isClientPayPalCaptureError</code></td><td>400·404·422이고 <code>details[].issue</code>가 모두 <code>INVALID_RESOURCE_ID</code>, <code>ORDER_ALREADY_CAPTURED</code>, <code>ORDER_NOT_APPROVED</code>, <code>INSTRUMENT_DECLINED</code> 중 하나다. 응답은 계속 500이다. 로그 레벨만 바뀌었다.</td></tr>
+</tbody></table></div>
+<p>ERROR로 남긴 것: SMTP 발송 한도, <code>signup_disabled</code>, 401 <code>invalid_client</code>, aud·iss 불일치, JWKS 조회 실패, 목록에 없는 코드. 공급자 응답 본문은 판정에만 쓰고 로그에 싣지 않는다. 판정 함수는 예외를 던지지 않고, 읽다가 실패하면 false(ERROR)를 돌려준다.</p>
+
+<h3>3.2 Production 스모크(2026-10-18, <code>40cb5843</code> 배포 뒤)</h3>
+<ul>
+<li><code>POST /api/auth/google</code> → 405. <code>GET /api/auth/google</code> → 307(Supabase Google 인증 화면).</li>
+<li>register, exchange-code, kakao, apple에 잘못된 JSON → 모두 400.</li>
+<li>서명 없는 PortOne 웹훅 → 401(#141 배포 뒤 확인). 이것은 <code>PORTONE_WEBHOOK_SECRET</code>이 설정되어 있다는 뜻이다.</li>
+<li><code>/ko/star-candy</code> → 200.</li>
+</ul>
+
+<h3>3.3 시험 결과</h3>
+<ul>
+<li>마지막 상태: <code>npx vitest run</code> 234개 파일, 5,163 통과, expected fail 2, skipped 1. <code>TZ=UTC</code>도 같다. tsc·lint 통과.</li>
+<li>expected fail 2개는 PayPal 감사 B-P3의 <code>it.fails</code>다. skipped 1개는 <code>.next</code> 빌드가 필요한 시험이다.</li>
+<li><code>node scripts/envelope-test/auth.js</code>(실제 Next 빌드) 통과: 오류 이벤트는 signup 거절 1건, canary 유출 0.</li>
+</ul>
+
+<h2>4. 남은 확인 (코드 밖)</h2>
+<div class="note">
+<ul>
+<li><strong>Sentry 커넥터 재인증</strong>: 사용자가 해야 한다. 재인증 전에는 #75의 WARN이 실제로 Sentry에 가지 않는지 Production에서 확인할 수 없다. #73·#74 작업도 Sentry 확인이 필요하다. 매일 09:00 점검 루틴도 재인증 전에는 Vercel만 본다.</li>
+<li><strong>PortOne 콘솔</strong>(#139): 서버 거절은 PortOne 채널이 결제 전에 confirm을 호출할 때만 효과가 있다. 결제 컨펌 프로세스가 켜져 있는지 확인한다. 꺼져 있으면 켜거나 채널을 비활성화한다.</li>
+<li><strong>PortOne 재활성화 전</strong>(#140): 콘솔에서 웹훅 버전과 시크릿을 확인한다. sandbox 결제로 끝까지 확인한다. 그 뒤에 #77을 닫는다. 실제 PortOne 결제로 확인한 시험은 아직 없다.</li>
+</ul>
+</div>
+
+<h2>5. 다음 작업 후보 (승인 전)</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>후보</th><th>내용</th><th>참고</th></tr></thead>
+<tbody>
+<tr><td>PayPal B-P3</td><td><code>it.fails</code> 2개가 가리키는 PayPal 결함을 고친다.</td><td>결제 변경이라 고위험이다. 반대 공급자 리뷰가 필요하다.</td></tr>
+<tr><td>Replay 후보 C</td><td>제품 연결·운영 활성화.</td><td><code>docs/handoff-2026-10-16-build-manifest.html</code> §5. 인증·개인정보 관련 고위험이다. 별도 설계·승인이 필요하다.</td></tr>
+<tr><td>#73, #74</td><td>Sentry 중앙 redaction(#73), serverless에서 logError 전달 보장(#74).</td><td>Sentry 커넥터 재인증이 먼저 필요하다.</td></tr>
+<tr><td>#77 PortOne 재활성화</td><td>스위치를 켜고 sandbox 결제로 확인한다.</td><td>사용자가 보류했다. 사용자가 다시 꺼낼 때 진행한다.</td></tr>
+<tr><td>10-14 핸드오프의 미결정 항목</td><td><code>docs/handoff-2026-10-14.html</code>에 남은 항목.</td><td>이번 세션은 그 항목을 다시 조회하거나 닫지 않았다.</td></tr>
+</tbody></table></div>
+
+<h2>6. 이번 작업에서 확인한 함정</h2>
+<ul>
+<li><strong>공급자 HTTP status만으로는 클라이언트 오류를 가를 수 없다.</strong> 같은 400·422 안에 만료된 code와 설정 오류·공급자 장애가 함께 있다. 본문의 기계용 오류 코드를 허용 목록으로 본다. Google <code>invalid_grant</code>는 만료 code와 redirect 불일치를 가르지 않아 ERROR로 둔다.</li>
+<li><strong>로그 레벨 시험은 Console target 줄로 본다.</strong> WARN은 <code>console.warn</code>에 <code>WARN: &lt;code&gt;</code>로, ERROR는 <code>console.error</code>에 <code>ERROR: &lt;code&gt;</code>로 끝난다. 기존 시험이 <code>console.error</code>만 읽으면 WARN으로 바뀐 경로를 놓친다.</li>
+<li><strong>라우트 시험의 mock 호출 횟수가 시험 사이에 샌다.</strong> <code>beforeEach</code>에서 <code>mockReset</code>한다.</li>
+<li><strong>진단 스크립트는 단위 시험에 포함되지 않는다.</strong> <code>scripts/envelope-test/auth.js</code>는 #141 뒤에도 500을 기대하고 있었다. 로그·응답 계약을 바꾸면 이 스크립트도 함께 확인한다. 실제 Next 빌드를 하므로 몇 분 걸린다.</li>
+<li><strong>Vercel 런타임 로그는 Pro 플랜에서 하루만 보존된다.</strong> MCP <code>get_runtime_logs</code>의 <code>since</code>는 23h 이하로 준다. 요청 단위 기록은 <code>vercel logs --environment production --no-branch --since 24h --query &lt;경로&gt; --json</code>으로 본다.</li>
+<li><strong>Codex 리뷰어 준비:</strong> Codex app-server의 capability 조회가 시간 초과(<code>2: timeout</code>)되면 한 번 다시 실행한다. Orca <code>terminal send</code>는 <code>--enter</code>로 제출한다. <code>\r</code>를 붙인 text는 입력만 되고 제출되지 않았다.</li>
+</ul>
+
+<h2>7. 자료 위치와 보존</h2>
+<p>리뷰 지시서·diff·판정은 git이 추적하지 않는다. 워크트리를 지우기 전에 메인 폴더로 옮겼다.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>경로 (<code>/Users/charlie.hyun/Repositories/picnic-web/.superpowers/sdd/</code> 아래)</th><th>PR</th></tr></thead>
+<tbody>
+<tr><td><code>2026-10-16-hide-portone/</code></td><td>#139</td></tr>
+<tr><td><code>2026-10-17-portone-webhook/</code></td><td>#140</td></tr>
+<tr><td><code>2026-10-17-auth-log-severity/</code></td><td>#141</td></tr>
+<tr><td><code>2026-10-18-remove-google-post/</code></td><td>#142</td></tr>
+</tbody></table></div>
+
+<h2>8. Orca 정산 상태</h2>
+<ul>
+<li>이번 PR의 리뷰 Run 4개는 모든 Task가 <code>completed</code>다: <code>run_6787b4176339</code>(#139), <code>run_dcae378b99d4</code>(#140), <code>run_77279fd4aae5</code>(#141), <code>run_332469a59200</code>(#142).</li>
+<li>리뷰어가 <code>worker_done</code>을 직접 보냈다. delivery는 모두 ack했다. 리뷰어 터미널은 정산 뒤 닫았다. 다시 시작할 실행은 없다.</li>
+<li>사용량 게이트는 매번 새로 실행했다(<code>route-fresh.sh claude-heavy high auto auto</code>, <code>ROUTER_IMPLEMENTER_PROVIDER=claude</code>). 과거 봉투와 Route는 재사용하지 않는다.</li>
+</ul>
+
+<h2>9. 이슈와 Jira</h2>
+<ul>
+<li>GitHub: #75는 #141로 닫혔다. #77은 열려 있다(PortOne 재활성화 뒤에 닫는다). #73·#74는 열려 있다.</li>
+<li>Jira 상태는 바꾸지 않았다. 이 문서는 작업 소유권을 다른 에이전트에 넘기지 않는다.</li>
+</ul>
+</main></body></html>
