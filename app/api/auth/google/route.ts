@@ -1,17 +1,12 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from "next/server";
-import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
-import { isClientJoseError } from '@/utils/log-severity';
+import { logSafeError } from '@/utils/log-safe-error';
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "@/types/supabase";
-import {
-  normalizeGoogleProfile,
-  verifyGoogleIdToken,
-} from "@/lib/supabase/social/google";
 
 // Next.js 15.3.1에서는 GET 핸들러도 기본적으로 캐싱되지 않도록 변경되었습니다.
 // 필요한 경우 dynamic = 'force-static' 또는 fetchCache = 'default-cache' 옵션을 사용할 수 있습니다.
-export const dynamic = "force-dynamic"; // POST 요청이므로 항상 동적으로 처리
+export const dynamic = "force-dynamic"; // 요청마다 OAuth URL 을 새로 만든다
 
 /**
  * Google OAuth 시작 API (GET)
@@ -68,149 +63,6 @@ export const GET = withSafeErrors('auth.google.get.unhandled', async function GE
     );
   } catch (error) {
     logSafeError('auth.google.get.failed', error);
-    return NextResponse.json(
-      { error: '서버 내부 오류가 발생했습니다' },
-      { status: 500 }
-    );
-  }
-});
-
-/**
- * Google OAuth 토큰 교환 API (POST)
- *
- * 이 API는 Google OAuth 콜백으로부터 받은 코드를 사용하여
- * 액세스 토큰과 사용자 정보를 가져오는 역할을 합니다.
- * 주로 Supabase 콜백 처리 이후 추가 작업이 필요한 경우 사용됩니다.
- */
-export const POST = withSafeErrors('auth.google.post.unhandled', async function POST(request: NextRequest) {
-  try {
-    let requestBody;
-    try {
-      requestBody = await request.json();
-    } catch {
-      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-    }
-    const { code, idToken } = requestBody ?? {};
-
-    // 필수 파라미터 검증
-    if (!code && !idToken) {
-      return NextResponse.json(
-        { error: "코드 또는 ID 토큰이 필요합니다." },
-        { status: 400 }
-      );
-    }
-
-    // 서버 측 Supabase 클라이언트 생성
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!, // 서비스 롤 키 사용 (주의: 서버 측에서만 사용)
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
-
-    // ID 토큰이 제공된 경우, JWKS로 암호학적 검증 후 파싱
-    if (idToken) {
-      try {
-        const payload = await verifyGoogleIdToken(idToken);
-        const userProfile = normalizeGoogleProfile(payload);
-
-        return NextResponse.json({
-          success: true,
-          profile: userProfile,
-        });
-      } catch (error) {
-        // 위조·만료 토큰은 WARN, JWKS 조회 실패·aud 설정 불일치는 ERROR (#75).
-        (isClientJoseError(error) ? logSafeWarn : logSafeError)('auth.google.token_verify.failed', error);
-        return NextResponse.json(
-          { error: "ID 토큰 검증 실패" },
-          { status: 401 }
-        );
-      }
-    }
-
-    // 코드가 제공된 경우, Google API로 토큰 교환
-    // 이 로직은 주로 Supabase가 처리하지 못하는 특수한 경우에만 필요합니다.
-    // 일반적인 OAuth 흐름에서는 Supabase의 콜백 처리를 사용하는 것이 권장됩니다.
-
-    // 클라이언트 ID와 시크릿이 환경 변수에 설정되어 있어야 함
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-    // Use BASE_URL env var instead of Host header to prevent host header injection
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.BASE_URL || "https://www.picnic.fan";
-    const redirectUri = `${baseUrl}/auth/callback/google`;
-
-    if (!clientId || !clientSecret) {
-      return NextResponse.json(
-        { error: "Google OAuth 클라이언트 ID 또는 시크릿이 설정되지 않았습니다." },
-        { status: 500 }
-      );
-    }
-
-    // Google OAuth 토큰 교환 요청
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      cache: "no-store", // Next.js 15.3.1에서 명시적으로 no-store 설정
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code",
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      void tokenResponse.body?.cancel().catch(() => {});
-      // ERROR 로 둔다. Google 의 invalid_grant 는 만료·재사용 code 와 redirect_uri 불일치(설정 문제)를
-      // 기계용 코드로 구분하지 않는다. 모르는 것은 ERROR 다 (#75).
-      logSafeError('auth.google.token_exchange.failed', new Error('Provider token exchange failed'), { httpStatus: tokenResponse.status });
-      return NextResponse.json(
-        { error: '토큰 교환 실패' },
-        { status: 400 }
-      );
-    }
-
-    const tokenData = await tokenResponse.json();
-
-    // 액세스 토큰을 사용하여 사용자 정보 가져오기
-    const userInfoResponse = await fetch(
-      "https://www.googleapis.com/oauth2/v3/userinfo",
-      {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-        cache: "no-store", // Next.js 15.3.1에서 명시적으로 no-store 설정
-      },
-    );
-
-    if (!userInfoResponse.ok) {
-      void userInfoResponse.body?.cancel().catch(() => {});
-      logSafeError('auth.google.userinfo.failed', new Error('Provider user info failed'), { httpStatus: userInfoResponse.status });
-      return NextResponse.json(
-        { error: "사용자 정보 가져오기 실패" },
-        { status: 400 }
-      );
-    }
-
-    const userData = await userInfoResponse.json();
-    const userProfile = normalizeGoogleProfile(userData);
-
-    // Do not expose raw OAuth tokens (especially refresh_token) to the client.
-    // Only return the user profile. Session should be managed via secure cookies.
-    return NextResponse.json({
-      success: true,
-      profile: userProfile,
-    });
-  } catch (error) {
-    logSafeError('auth.google.post.failed', error);
     return NextResponse.json(
       { error: '서버 내부 오류가 발생했습니다' },
       { status: 500 }
