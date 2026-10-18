@@ -3,8 +3,11 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2026-10-19 작업 상태와 남은 확인</title>
 <style>*{box-sizing:border-box}body{max-width:1040px;margin:36px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182030}h1,h2{line-height:1.35}h2{margin-top:32px}p,li,td,th,code{overflow-wrap:anywhere}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}th{background:#eef3f8}code{background:#eef3f8}a{color:#245fa0}.note{padding:16px;background:#edf5ff;border-left:4px solid #3667b1}.pending{background:#fff7e7;border-color:#b87c19}@media(max-width:600px){body{margin:22px auto;padding:0 14px}th,td{padding:7px;font-size:14px}}</style></head>
 <body><h1>2026-10-19 작업 상태와 남은 확인</h1>
-<p>기준: 2026-10-19 00:12 KST · 애플리케이션 코드 <code>main d478ae24</code> · 이전 <a href="handoff-2026-10-18.html">10월 18일 기록</a></p>
-<p class="note">Replay 제품 연결과 Sentry #73·#74 확인은 끝났다. 운영 Replay는 OFF다. 위치 정보 제거 설정도 저장했지만, 변경 후 새 이벤트에서 제거됐는지는 아직 확인하지 못했다. PayPal·PortOne 작업은 보류 중이다.</p>
+<p>기준: 2026-10-19 00:47 KST · 애플리케이션 코드 <code>main d478ae24</code> · 이전 <a href="handoff-2026-10-18.html">10월 18일 기록</a></p>
+<p class="note">Replay 제품 연결, 합성 데이터의 Sentry 저장·시점별 복원, Sentry #73·#74 확인은 끝났다. 운영 Replay는 OFF다. 합성 Replay에서 위치 필드 제거를 확인했지만 일반 오류의 새 표본 검증은 남아 있다. PayPal·PortOne 작업은 보류 중이다.</p>
+<h2>00:47 KST 추가 확인</h2>
+<p class="note">합성 Replay 2건을 실제 Sentry에 저장했다. 조각 6개의 내용 해시가 로컬 결과와 일치하며, PC·모바일 크기의 4.2초 지점에서 배너 이동과 650px 스크롤이 복원됐다. 사용자 정보·IP는 null, 위치 필드 4개는 제거 표시로 확인했다. <a href="reports/2026-10-19-replay-sentry-synthetic.html">검증 결과와 화면</a>을 참고한다.</p>
+<p class="note pending">자동 연속 재생은 브라우저 화면 갱신 문제로 미확인이다. 운영 origin·배포 manifest·실기기 검증과 운영 수집 정책도 남아 있다. 운영 Replay는 OFF다. 일반 오류 최신 10건에는 새 설정 이후 표본이 없었고, Vercel 최근 23시간의 WARN: 검색은 0건이었다. Sentry 계정에는 결제 정보 갱신 알림이 표시됐다.</p>
 <h2>완료한 일</h2>
 <table><thead><tr><th>작업</th><th>결과</th><th>근거</th></tr></thead><tbody>
 <tr><td>Replay 제품 연결</td><td>PR #143을 main에 반영했다. CI와 Production 배포가 통과했다. 운영 브라우저에서 Replay 수집률 0/0, Replay 요청 0회, 로컬 전용 API 404를 확인했다. 실제 Sentry 저장·재생 확인과 운영 수집 활성화는 포함하지 않는다.</td><td><a href="https://github.com/charlie0421/picnic-web/pull/143">PR #143</a>, <a href="reports/2026-10-18-replay-integration-result.html">로컬 검증 기록</a></td></tr>
@@ -22,7 +25,7 @@
 <tr><td>Sentry 위치·IP</td><td>기준 시각 이후 자연 유입된 이벤트에서 user.ip_address, user.geo의 위치 필드와 geo.* 태그의 원문 잔존 여부를 검사한다. 입력부터 값이 없었던 이벤트만으로 제거 성능을 주장하지 않는다.</td><td>표본 대기</td></tr>
 <tr><td>WARN 미전송</td><td>자연 발생한 Vercel WARN의 시각·사건 코드·배포를 확인하고 Sentry 기록과 대조한다. 비교 표본과 관측 범위를 기록한다.</td><td>표본 대기</td></tr>
 <tr><td>Replay 운영 정책</td><td>수집 목적·동의·표본 비율·보관 기간·중지 책임자·SDK 내부 데이터 잔존 수용 여부를 결정한다. 운영 전환 설계와 별도 검증이 필요하다.</td><td>미결정, 운영 OFF</td></tr>
-<tr><td>Replay 실제 서비스 검증</td><td>승인된 범위에서 운영 origin·배포 manifest·실제 Sentry 저장과 재생·실기기 모바일 동작을 확인한다. 현재 로컬 성공으로 대신하지 않는다.</td><td>정책·설계 결정 후</td></tr>
+<tr><td>Replay 실제 서비스 검증</td><td>합성 데이터의 Sentry 저장과 시점별 복원은 확인했다. 자동 연속 재생, 운영 origin·배포 manifest 조합, 실기기 모바일 동작을 추가 확인한다.</td><td>합성 검증 일부 완료, 운영 전환 전 추가 확인</td></tr>
 <tr><td>PayPal B-P3</td><td>보존한 수정의 최종 리뷰와 sandbox 시험을 마친다.</td><td>사용자 요청으로 보류</td></tr>
 <tr><td>PortOne #77</td><td>콘솔의 결제 컨펌·웹훅 버전·시크릿 설정을 확인하고 sandbox 결제를 검증한다. 이후 재활성화 여부를 결정한다.</td><td>사용자 요청으로 보류</td></tr>
 </tbody></table>
@@ -32,6 +35,6 @@
 <h2>이전부터 남은 결정</h2>
 <p><a href="handoff-2026-10-14.html">10월 14일 기록</a>의 과거 Sentry 이벤트 삭제 여부, 7E·7F 오류 재발 관찰, 로그인 상태 스모크 테스트는 별도 항목으로 남긴다. 이번 조회에서는 해당 오류의 재발 상태나 과거 이벤트 삭제 필요성을 다시 판정하지 않았다.</p>
 <h2>작업 위치와 정리</h2>
-<p>위치 설정 보고서와 이 후속 문서는 <code>chore/sentry-geo-privacy</code>에서 관리한다. 문서 변경을 main에 반영한 뒤 해당 워크트리를 정리한다. 애플리케이션 코드 변경은 없다. 메인 폴더의 기존 <code>.playwright-mcp/</code> 파일은 작업 대상이 아니다.</p>
+<p>위치 설정 문서는 main에 반영됐고 해당 워크트리는 정리됐다. 이번 합성 검증 기록은 <code>chore/replay-sentry-probe</code>에서 작성했다. 애플리케이션 코드 변경은 없다. 메인 폴더의 기존 <code>.playwright-mcp/</code> 파일은 작업 대상이 아니다.</p>
 <p>PayPal 보존 위치: <code>/Users/charlie.hyun/Repositories/picnic-web-paypal-pre-capture</code>. 수정된 라우트·계약 시험과 review.diff를 보존한다. 결제 작업을 재개하거나 파일을 정리하지 않았다. Jira 상태는 변경하지 않았다.</p>
 </body></html>
