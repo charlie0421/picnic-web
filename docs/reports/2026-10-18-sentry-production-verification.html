@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sentry #73·#74 — 운영 수신 확인</title><style>*{box-sizing:border-box}body{max-width:1040px;margin:36px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182030}h1,h2{line-height:1.35}h2{margin-top:1.7em}p,li,td,th,code{overflow-wrap:anywhere}table{border-collapse:collapse;width:100%}td,th{padding:10px;border:1px solid #ccd3dd;text-align:left;vertical-align:top}th{background:#f1f4f8}code,pre{background:#f1f4f8}pre{padding:14px;white-space:pre-wrap}.note{padding:14px;border-left:4px solid #476bcc;background:#f1f5ff}.pending{border-color:#b17b1c;background:#fff8e9}a{color:#245fa0}@media(max-width:600px){body{margin:20px auto;padding:0 14px}td,th{padding:7px;font-size:14px}}</style></head><body>
+<h1>Sentry #73·#74 — 운영 수신 확인</h1>
+<p>2026-10-18 KST · 운영 코드 기준 main <code>9645c0e6</code> · 읽기 전용 조사</p>
+<p class="note">운영 Sentry에 저장된 서버 오류 2건을 확인했다. 최신 오류와 시각·경로·사건 코드가 일치하는 Vercel 401 응답 기록도 확인했다. 이전의 “확인할 서버 이벤트가 없음” 상태는 해소됐다.</p>
+<p class="note pending">#73의 민감정보 제거는 아직 확인하지 못했다. 설치된 Sentry CLI는 이벤트 목록·태그 조회를 제공하지만 상세 request·contexts를 제공하지 않는다. Orca의 Sentry 상세 탭은 로그인 화면이며 사용자 로그인을 요청했다. #73·#74 이슈는 OPEN을 유지한다.</p>
+<h2>작업의 뜻과 판정</h2><table><thead><tr><th>작업</th><th>쉽게 설명하면</th><th>이번 결과</th></tr></thead><tbody>
+<tr><td>#73 민감정보 제거</td><td>오류 보고에 쿠키·인증 헤더·쿼리·IP가 저장되지 않았는지 확인한다.</td><td>검사할 운영 표본 확보. 상세 필드 검사는 로그인 대기.</td></tr>
+<tr><td>#74 오류 전달</td><td>서버가 보낸 오류 보고가 실제 Sentry에 도착했는지 확인한다.</td><td>운영 서버 이벤트 2건 도착 확인. 특정 요청의 after() 완료 시각·flush 성공은 직접 관측하지 못했다. 모든 요청의 전달 성공을 뜻하지 않는다.</td></tr>
+</tbody></table>
+<h2>Sentry 수신 증거</h2><p>대상은 <code>icon-casting/picnic-web</code>이다. 두 이벤트 모두 <code>environment=production</code>, <code>runtime.name=node</code>, <code>handled=yes</code>, <code>level=error</code>다. 사건 코드는 <code>payment.portone.webhook.signature.failed</code>, 경로는 <code>POST /api/payment/portone/webhook</code>이다.</p>
+<table><thead><tr><th>발생 시각</th><th>이벤트</th><th>배포 release</th></tr></thead><tbody>
+<tr><td>10월 17일 22:31:25.721 KST<br>13:31:25.721 UTC</td><td><a href="https://icon-casting.sentry.io/issues/7796482501/?eventId=bb5e2b92e5b744c884c452168254f022"><code>bb5e2b92e5b744c884c452168254f022</code></a></td><td><code>picnic-web@20261017.2224.001</code></td></tr>
+<tr><td>10월 17일 02:13:29.608 KST<br>10월 16일 17:13:29.608 UTC</td><td><a href="https://icon-casting.sentry.io/issues/7796482501/?eventId=473e9bdd432543c9a443ac98bdb1661b"><code>473e9bdd432543c9a443ac98bdb1661b</code></a></td><td><code>picnic-web@20261017.0211.001</code></td></tr>
+</tbody></table><p>두 이벤트는 <code>PICNIC-WEB-7H</code>(issue <code>7796482501</code>)에 묶였다. 최근 100개 이벤트 중 사건 코드가 제목에 있는 서버 이벤트 2건을 식별했다. 조회 범위 밖의 이벤트 수나 다른 종류의 오류 전달 여부는 판정하지 않았다.</p>
+<h2>Vercel 대조</h2><table><tbody>
+<tr><th>조회 범위</th><td>2026-10-17 13:25:00~13:40:00 UTC, production, 브랜치 필터 없음, 해당 webhook 경로</td></tr>
+<tr><th>반환된 요청</th><td><code>8zck8-1792243885690-86bc198fec29</code> · <code>POST /api/payment/portone/webhook</code> · HTTP 401</td></tr>
+<tr><th>기록 시각·코드</th><td>2026-10-17 13:31:25.690 UTC · <code>payment.portone.webhook.signature.failed</code></td></tr>
+<tr><th>배포 ID</th><td><code>dpl_A7nUj9mDmBNviEFPJK6143TgHgPt</code></td></tr>
+<tr><th>한계</th><td>시각·경로·코드가 일치하는 요청을 찾았다. Sentry 상세 trace ID와 대조하지 않았으므로 같은 요청임을 확정하지 않는다. 두 기록의 31ms 차이를 전송 지연 시간으로 해석하지 않는다.</td></tr>
+</tbody></table>
+<p>최근 23시간의 <code>[sentry] flush</code> 로그 검색은 0건이었다. 검색어 없는 대조 조회는 일반 요청 5건을 반환했다. 현재 코드는 flush 성공 완료 로그를 남기지 않으므로, 경고가 없는 것을 성공 증거로 사용하지 않는다.</p>
+<h2>남은 상세 검사</h2><table><thead><tr><th>검사 대상</th><th>현재 판정</th></tr></thead><tbody>
+<tr><td>request의 Cookie·Authorization 및 기타 인증 헤더</td><td>미검증</td></tr>
+<tr><td>URL query·query_string·요청 본문</td><td>미검증</td></tr>
+<tr><td>user.ip_address·프록시 IP 헤더·request 환경의 IP</td><td>미검증</td></tr>
+<tr><td>contexts·extra·breadcrumbs·tags의 민감한 값</td><td>미검증</td></tr>
+<tr><td>fingerprint와 사건 코드별 이슈 분리</td><td>미검증. 이번 표본은 같은 코드 2건이다.</td></tr>
+</tbody></table>
+<p>로그인 뒤 위 이벤트의 상세 필드를 읽고 존재·제거·가림 여부만 기록한다. 민감한 원문은 보고서나 Git에 저장하지 않는다. 상세 조회에 필요한 공식 API와 권한은 <a href="https://docs.sentry.io/api/events/retrieve-an-event-for-a-project/">Sentry 개별 이벤트 조회 문서</a>에 정의되어 있다.</p>
+<h2>재현한 조회</h2><pre><code>sentry-cli info --no-defaults
+sentry-cli events list --org icon-casting --project picnic-web --max-rows 100 --pages 1
+sentry-cli events list --org icon-casting --project picnic-web --max-rows 2 --pages 1 --show-tags
+sentry-cli issues list --org icon-casting --project picnic-web --query 'lastSeen:&gt;2026-10-07T04:03:29Z' --max-rows 100 --pages 1
+vercel logs --project picnic-web --environment production --no-branch --since 2026-10-17T13:25:00Z --until 2026-10-17T13:40:00Z --query /api/payment/portone/webhook --limit 100 --json
+vercel logs --project picnic-web --environment production --no-branch --since 23h --query '[sentry] flush' --limit 100 --json</code></pre>
+<p>CLI 인증은 기존 설정으로 확인했다. 자격 증명 파일이나 토큰 원문을 읽거나 출력하지 않았다. 운영 오류를 새로 주입하지 않았고 결제·로그인 요청·운영 설정·배포·GitHub/Jira 상태를 변경하지 않았다. PayPal·PortOne 기능 작업은 보류 상태를 유지한다. 이 보고서는 이미 발생한 PortOne 오류를 Sentry 검증 표본으로 읽은 결과다.</p>
+<h2>관련 기록</h2><ul><li><a href="2026-10-08-production-delivery-verification.html">10월 8일: 운영 표본 부재로 보류한 기록</a></li><li><a href="2026-10-18-replay-integration-result.html">Replay 제품 연결 결과와 작업 순서</a></li><li><a href="https://github.com/charlie0421/picnic-web/issues/73#issuecomment-6165794854">#73 완료 조건</a></li><li><a href="https://github.com/charlie0421/picnic-web/issues/74#issuecomment-6165795711">#74 완료 조건</a></li></ul>
+</body></html>

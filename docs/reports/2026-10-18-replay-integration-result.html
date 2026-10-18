@@ -4,8 +4,8 @@
 <h2>작업별 쉬운 설명</h2><table><thead><tr><th>작업</th><th>뜻</th><th>현재 상태</th></tr></thead><tbody>
 <tr><td>PayPal</td><td>결제 확정 전에 구매자와 금액이 맞는지 확인한다.</td><td>사용자 요청으로 보류. 기존 별도 워크트리 변경을 보존했다. sandbox·최종 리뷰 미완료.</td></tr>
 <tr><td>Replay</td><td>허용된 투표 목록 조작만 익명화해 기록하고, 로그인·다른 화면 조작을 시작하면 즉시 닫는다.</td><td>제품 연결과 로컬 검증 완료. 운영 수집은 OFF. 독립 리뷰·재검증 완료. Medium 1개·Low 2개 해결.</td></tr>
-<tr><td>Sentry #73</td><td>Sentry에 도착한 오류에서 민감한 값이 중앙 설정으로 가려지는지 확인한다.</td><td>운영 확인 대기. 연결 가능한 Sentry 도구가 필요하다.</td></tr>
-<tr><td>Sentry #74</td><td>서버 요청이 끝나기 전에 오류 보고가 실제 Sentry에 도착하는지 확인한다.</td><td>운영 수신 증거 확인 대기.</td></tr>
+<tr><td>Sentry #73</td><td>Sentry에 도착한 오류에서 민감한 값이 중앙 설정으로 가려지는지 확인한다.</td><td>운영 표본 확보. 민감정보 상세 검사는 Sentry 화면 로그인 대기.</td></tr>
+<tr><td>Sentry #74</td><td>서버 요청이 끝나기 전에 오류 보고가 실제 Sentry에 도착하는지 확인한다.</td><td>운영 서버 이벤트 2건 수신 확인. 상세 검증과 이슈 종료는 보류.</td></tr>
 <tr><td>PortOne</td><td>결제 기능을 다시 켜고 sandbox 구매로 확인한다.</td><td>기존 보류 유지.</td></tr></tbody></table>
 <h2>Replay에서 바뀐 동작</h2><ul>
 <li>기존 환경변수의 샘플링 값이 양수여도 운영 녹화가 켜지지 않는다. 수동 Replay envelope도 비활성 전송 관문에서 거절한다.</li>
@@ -26,7 +26,7 @@
 </tbody></table>
 <details><summary>브라우저 시나리오 18개</summary><table><thead><tr><th>시나리오</th><th>판정</th><th>정제 구간 수</th></tr></thead><tbody><tr><td>desktop</td><td>통과</td><td>3</td></tr><tr><td>mobile</td><td>통과</td><td>3</td></tr><tr><td>no-consent</td><td>통과</td><td>0</td></tr><tr><td>granted</td><td>통과</td><td>0</td></tr><tr><td>json-denial</td><td>통과</td><td>0</td></tr><tr><td>query</td><td>통과</td><td>0</td></tr><tr><td>fragment</td><td>통과</td><td>0</td></tr><tr><td>empty-query</td><td>통과</td><td>0</td></tr><tr><td>http-only-cookie</td><td>통과</td><td>0</td></tr><tr><td>auth-error</td><td>통과</td><td>0</td></tr><tr><td>close-more</td><td>통과</td><td>1</td></tr><tr><td>close-menu</td><td>통과</td><td>1</td></tr><tr><td>close-hash</td><td>통과</td><td>1</td></tr><tr><td>close-history</td><td>통과</td><td>1</td></tr><tr><td>close-consent-event</td><td>통과</td><td>1</td></tr><tr><td>close-storage</td><td>통과</td><td>1</td></tr><tr><td>close-pagehide</td><td>통과</td><td>1</td></tr><tr><td>close-sign-in</td><td>통과</td><td>1</td></tr></tbody></table><p>close-*는 첫 구간을 받은 뒤 해당 동작을 수행했다. 이후 새 Replay 요청은 0회였다. 이전 실패는 언어 쿠키의 과도한 차단 1건과 시험 도구의 복원 DOM 정리·메뉴 선택자·합성 JWT 인코딩 문제였으며 각각 수정 후 재검증했다.</p></details>
 <h2>독립 리뷰 수정 내역</h2><ul><li>추적 헤더: SDK가 Replay ID를 추가한 뒤 제거 훅이 실행되도록 등록 순서를 고쳤다. 실제 SDK로 재현한 회귀 시험과 브라우저 요청 헤더 검사를 추가했다.</li><li>시작 자격: 잘못된 JSON·추가 필드·시간 초과·확인 중 종료·생성자 예외에서 시작하지 않는 시험을 추가했다.</li><li>중단 알림: 한 구독자가 예외를 던져도 앞서 호출된 구독자가 즉시 중단 상태를 받도록 보강했다.</li></ul>
-<h2>Sentry 다음 순서</h2><p><a href="https://github.com/charlie0421/picnic-web/issues/73#issuecomment-6165794854">#73 최신 상태</a>와 <a href="https://github.com/charlie0421/picnic-web/issues/74#issuecomment-6165795711">#74 최신 상태</a>를 다시 확인했다. 두 작업의 코드 수정은 이미 끝났고 이슈는 OPEN이다. 운영 Sentry에 저장된 서버 이벤트 한 건에서 도착 여부와 쿠키·인증 헤더·쿼리·IP가 없는지를 확인해야 한다. 현재 세션에는 Sentry 조회 도구가 없고 플러그인 검색 결과도 없다. 커넥터 재인증을 요청했으며 운영 확인과 이슈 종료는 하지 않았다.</p>
+<h2>Sentry 다음 순서</h2><p><a href="https://github.com/charlie0421/picnic-web/issues/73#issuecomment-6165794854">#73 최신 상태</a>와 <a href="https://github.com/charlie0421/picnic-web/issues/74#issuecomment-6165795711">#74 최신 상태</a>를 다시 확인했다. 두 작업의 코드 수정은 이미 끝났고 이슈는 OPEN이다. 운영 Sentry에 저장된 서버 이벤트 한 건에서 도착 여부와 쿠키·인증 헤더·쿼리·IP가 없는지를 확인해야 한다. 후속 조사에서 기존 Sentry CLI 인증으로 운영 서버 이벤트 2건을 확인했다. 최신 건과 시각·경로·코드가 일치하는 Vercel 401 요청도 찾았다. 민감정보 상세 필드는 Sentry 화면 로그인 후 확인해야 한다. <a href="2026-10-18-sentry-production-verification.html">운영 수신 확인 보고서</a>에 증거와 한계를 기록했다. 이슈 상태는 OPEN이다.</p>
 <h2>로컬 재현</h2><p>운영 .env 파일이 없는 별도 워크트리에서 실행한다. 서버는 지정된 두 포트가 사용 중이면 멈추며 다른 프로세스를 종료하지 않는다.</p>
 <pre><code>npm ci --no-audit --no-fund
 node scripts/replay-p0/tools/vote-list-server.cjs --out /tmp/picnic-replay-check --integration
