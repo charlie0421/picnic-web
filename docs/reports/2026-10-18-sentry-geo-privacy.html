@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sentry 위치 정보 제거 설정</title>
+<style>body{max-width:960px;margin:40px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#172235}h1,h2{line-height:1.4}h2{margin-top:32px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}th{background:#eef3f8}code{background:#eef3f8;overflow-wrap:anywhere}a{color:#245fa0}.note{padding:16px;background:#edf5ff;border-left:4px solid #3667b1}li{margin:6px 0}@media(max-width:600px){body{margin:24px auto;padding:0 14px}th,td{padding:7px;font-size:14px}}</style></head>
+<body>
+<h1>Sentry 위치 정보 제거 설정</h1>
+<p>2026-10-18 · 대상 <code>icon-casting/picnic-web</code></p>
+<p class="note">오류 보고에 도시·지역·국가와 IP가 남지 않도록 추가 제거 필드 5개를 저장했다. 설정 저장은 확인했다. 반영 이후 새 이벤트에서 위치 값이 제거됐는지는 아직 확인하지 못했다.</p>
+<h2>변경 내용</h2>
+<p>사용자가 승인한 범위에 따라 Sentry 프로젝트의 <strong>Security &amp; Privacy → Additional Sensitive Fields</strong>에 다음 이름을 추가했다. 애플리케이션 코드 변경은 없다.</p>
+<table><thead><tr><th>필드</th><th>뜻</th></tr></thead><tbody>
+<tr><td><code>city</code></td><td>도시</td></tr>
+<tr><td><code>subdivision</code></td><td>행정구역</td></tr>
+<tr><td><code>region</code></td><td>지역</td></tr>
+<tr><td><code>country_code</code></td><td>국가 코드</td></tr>
+<tr><td><code>ip_address</code></td><td>IP 주소</td></tr>
+</tbody></table>
+<p><a href="https://www.sentry.help/en/articles/13964201-can-i-disable-ip-geolocation-for-gdpr-compliance">Sentry 공식 위치 정보 제거 안내</a>가 제시하는 5개 필드다. 안내상 반영에는 5~15분이 걸린다. 새로 들어오는 이벤트에 적용되며, 기존 이벤트의 위치 정보는 이번 설정으로 소급 제거되지 않는다.</p>
+<p><a href="https://docs.sentry.io/security-legal-pii/scrubbing/server-side-scrubbing/">Sentry 서버 측 제거 문서</a>에 따르면, 추가한 이름의 필드뿐 아니라 해당 문자열을 포함한 값도 제거 대상이다. 따라서 위치 정보 이외의 디버깅 값이 가려질 수 있다. 이번 추가 설정의 범위는 <code>picnic-web</code> 프로젝트다.</p>
+<h2>저장 결과 검증</h2>
+<p>2026-10-18 23:54:50 KST(<code>14:54:50.757 UTC</code>)에 로그인한 Sentry 브라우저에서 프로젝트·조직 설정 API를 다시 조회했다. 두 응답 모두 HTTP 200이었다. 변경 전과 비교한 아래 개인정보 설정 중 <code>project.sensitiveFields</code>만 바뀌었다.</p>
+<table><thead><tr><th>범위·설정</th><th>변경 전</th><th>변경 후</th></tr></thead><tbody>
+<tr><td>프로젝트 <code>sensitiveFields</code></td><td>빈 목록</td><td>위 5개 필드</td></tr>
+<tr><td>프로젝트 <code>dataScrubber / dataScrubberDefaults</code></td><td>true / true</td><td>true / true</td></tr>
+<tr><td>프로젝트 <code>scrubIPAddresses</code></td><td>false</td><td>false</td></tr>
+<tr><td>프로젝트 <code>safeFields / relayPiiConfig</code></td><td>[] / null</td><td>[] / null</td></tr>
+<tr><td>조직 <code>scrubIPAddresses</code></td><td>true</td><td>true</td></tr>
+<tr><td>조직 <code>dataScrubber / dataScrubberDefaults</code></td><td>false / false</td><td>false / false</td></tr>
+<tr><td>조직 <code>sensitiveFields / safeFields / relayPiiConfig</code></td><td>[] / [] / null</td><td>[] / [] / null</td></tr>
+</tbody></table>
+<p>조직의 IP 저장 방지는 계속 켜져 있다. <a href="https://docs.sentry.io/api/organizations/update-an-organization/">Sentry 조직 설정 문서</a>에 따르면 이 설정은 모든 프로젝트의 새 이벤트에 적용된다. 프로젝트 값 false만으로 IP 저장 방지가 꺼졌다고 판단하면 안 된다.</p>
+<h2>검증 범위와 후속 확인</h2>
+<ul><li>검증한 것은 설정 저장과 위 개인정보 설정의 전후 차이다. 모든 Sentry 설정을 비교한 것은 아니다.</li>
+<li>새 운영 오류를 주입하지 않았다. 23:57 KST 조회에서 최신 운영 이벤트의 수신 시각은 여전히 <code>2026-10-17T13:31:25.806311Z</code>였다. 설정 변경 뒤 들어온 표본은 없었다.</li>
+<li>후속 검증에는 재조회 시각에 15분을 더한 <code>2026-10-18T15:09:50.757Z</code>(10월 19일 00:09:50.757 KST) 이후 수신된 이벤트를 사용한다. <code>user.ip_address</code>, <code>user.geo</code>의 위치 필드와 <code>geo.*</code> 태그에서 값이 없거나 <code>[Filtered]</code>로 표시되는지 확인한다. 원문 값이 남으면 미통과다. 입력부터 해당 값이 없었던 이벤트는 제거 성능의 증거로 삼지 않는다.</li>
+<li>쿠키·인증 헤더·요청 쿼리·본문에 대한 기존 검증은 <a href="2026-10-18-sentry-production-verification.html">운영 수신 확인 보고서</a>에 있다. 이번 설정 검증이 모든 민감정보의 제거 성능을 입증하지는 않는다.</li>
+<li>독립 검토: Claude Opus 5.5 / high가 APPROVE로 판정했다. 차단 지적은 없었다. 낮음·사소함 4건 중 문구 3건을 보완했고, 조직 IP 설정의 적용 범위에 대한 확인 요청 1건은 공식 API 문서로 확인했다. 이 문구 보완에 대한 별도 재검토는 수행하지 않았다.</li>
+<li>페이지를 새로 연 뒤 23:59:05 KST에 화면과 프로젝트 API에서 5개 필드가 유지되는 것을 확인했다. 보고서는 브라우저 표시, HTML 기본 구조와 내부 링크를 검사했다.</li></ul>
+<h2>관련 작업 상태</h2>
+<p>Replay 연결은 PR #143으로 main에 반영됐다. 운영 Replay는 OFF다. Sentry #73·#74는 종료됐다. PayPal과 PortOne 기능 작업은 사용자 요청에 따라 보류 중이다.</p>
+</body></html>
