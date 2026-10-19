@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Replay 운영 준비 읽기 전용 점검</title><style>*{box-sizing:border-box}body{max-width:1080px;margin:36px auto;padding:0 24px;font:16px/1.7 system-ui,sans-serif;color:#182030}h1,h2{line-height:1.35}h2{margin-top:32px}p,li,td,th,code{overflow-wrap:anywhere}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}th{background:#eef3f8}th:first-child,td:first-child{width:110px;min-width:80px}code{background:#eef3f8}a{color:#245fa0}.note{padding:16px;background:#edf5ff;border-left:4px solid #3667b1}.pending{background:#fff7e7;border-color:#b87c19}@media(max-width:600px){body{margin:22px auto;padding:0 14px}th,td{padding:7px;font-size:14px}th:first-child,td:first-child{width:80px}}</style></head>
+<body><h1>Replay 운영 준비 읽기 전용 점검</h1>
+<p>점검일: 2026-10-19 16:45~16:53 KST · 애플리케이션 코드 <code>eeb9f802</code> · 문서 기준 <code>fa2575e6</code> · <a href="../handoff-2026-10-19.html">현재 핸드오프</a></p>
+<p class="note pending"><strong>점검 완료, 운영 활성화 조건은 미충족이다.</strong> 현재 요금제의 Replay 자동 보관은 90일이며, 현재 담당자 계정의 열람·삭제 권한을 확인했다. 삭제 요청 주소, 개인정보 고지와 저장 지역의 정합성, 계정 측 결제 후속 확인이 남아 있다. 새 구현의 실제 저장·재생·삭제와 OFF 배포 검증도 아직 수행하지 않았다. 운영 Replay는 OFF이고 PR #144는 병합·배포 전이다.</p>
+<h2>확인 결과</h2>
+<table><thead><tr><th>항목</th><th>이번 확인</th><th>남은 조건</th></tr></thead><tbody>
+<tr><td>자동 보관</td><td>로그인한 계정의 Team 요금제와 <code>planDetails.retentionDays=90</code>을 확인했다. 공식 표의 Team Session Replays도 90일이다.</td><td>운영 동의 안내에 확인한 90일을 사용한다. 합성 시험의 30일은 시험값이다. 수집 후 최대 7일 이내 수동 삭제 목표와 구분한다.</td></tr>
+<tr><td>열람 권한</td><td>프로젝트는 비공개이며, 조직·프로젝트 팀의 전체 회원 조회에서 현재 담당자 소유자 계정만 확인했다. 다음 페이지가 없음을 확인했다.</td><td>현재 인원 범위에서는 담당자 제한을 충족한다. Replay 개별 접근 제한은 켜져 있지 않으므로 멤버·팀 구성 변경 시 범위를 재확인한다.</td></tr>
+<tr><td>삭제 권한</td><td>현재 계정의 <code>project:admin</code>·<code>project:write</code> 권한을 확인했다. 공식 개별 Replay 삭제 API의 요구 권한과 일치한다.</td><td>삭제 요청은 실행하지 않았다. 새 구현의 합성 Replay를 삭제한 뒤 조회 불가 여부를 확인하는 실제 시험이 남아 있다.</td></tr>
+<tr><td>삭제 요청 주소</td><td><code>https://www.picnic.fan/support</code>와 <code>/contact</code>는 각각 영어 경로로 이동한 뒤 404였다. <code>/ko/faq</code>는 200이지만 요청 접수 경로로 확인하지 못했다.</td><td>담당자가 실제 접수 가능한 HTTPS 주소를 확정해야 한다. 코드의 <code>cs@picnic.fan</code>은 수신·처리 여부를 검증하지 않았다. 문의를 전송하지 않았다.</td></tr>
+<tr><td>고지와 저장 지역</td><td>운영 <code>/ko/privacy</code>는 200이다. 읽은 본문에는 Sentry·Replay·화면 진단 설명이 없었다. 제6조는 모든 개인정보의 저장 지역을 대한민국으로 설명하지만 Sentry 조직 설정의 저장 지역은 미국이다.</td><td>현재 고지와 실제 전송·저장 조건을 맞춰야 한다. 이 결과는 기술적 내용 대조이며 법률 적합성 판정이 아니다. 개인정보처리방침은 변경하지 않았다.</td></tr>
+<tr><td>사용량·과금</td><td>현재 요금제, 조직 전체 Replay 사용량, 추가 과금과 공유 예산 한도를 조회했다. 결제 정보 후속 확인이 필요한 상태다.</td><td>담당자가 계정 결제 상태를 정리한 뒤 다시 확인한다. 청구 금액·결제 수단·주소·계정 원문은 공개 Git 문서에 넣지 않았다. 상세 근거는 비공개 로컬 기록에 보관한다.</td></tr>
+<tr><td>중지 절차</td><td>운영 허용 API <code>/api/replay/eligibility?mode=diagnostic</code>의 익명 GET은 404였다. 구현은 서버 스위치가 <code>1</code>이 아니거나 고지·빌드 검증이 없으면 닫힌다.</td><td>현재 404는 새 기능의 OFF 배포 리허설을 대신하지 않는다. 실제 Vercel 배포 반영과 열린 문서의 추가 전송 중단은 별도 검증이 필요하다.</td></tr>
+</tbody></table>
+<h2>보관·삭제 해석의 범위</h2>
+<p>현재 계정 API의 개별 Replay 보관 필드는 null이다. 이 값을 0일로 해석하지 않았다. 실제 Team 구독과 기본 90일 값, <a href="https://docs.sentry.io/security-legal-pii/security/data-retention-periods/">Sentry의 데이터 유형별 보관 표</a>를 함께 대조해 현재 요금제로 새로 수집할 Replay의 90일 보관을 확인했다. 공식 문서는 수집 시점의 요금제가 보관 기간을 정하며 기존 데이터에는 원래 기간이 유지된다고 설명한다. 기존 녹화의 실제 만료나 백업 삭제 완료를 시험한 결과는 아니다.</p>
+<p><a href="https://docs.sentry.io/api/replays/delete-a-replay-instance/">개별 Replay 삭제 API</a>는 프로젝트와 진단 번호로 녹화를 지정한다. 현재 계정의 권한 확인과 실제 삭제 성공은 구분한다. 승인된 설계의 조사 종료 다음 영업일, 늦어도 수집 후 7일 이내 수동 삭제 목표를 유지한다. 즉시 백업 제거를 약속하지 않는다.</p>
+<h2>기존 OFF 절차의 확인 지점</h2>
+<ol><li>담당자가 운영 서버 스위치 <code>REPLAY_DIAGNOSTIC_ENABLED</code>를 OFF로 설정한 배포를 준비한다.</li><li>해당 Vercel 배포가 실제 운영 도메인에 반영됐는지 확인한다.</li><li>운영 허용 API가 404를 반환하고 새 문서에 진단 진입 버튼이 나타나지 않는지 확인한다.</li><li>이미 열린 합성 시험 문서가 다음 자격 검사에서 종료되고 추가 전송하지 않는지 확인한다.</li><li>이미 저장된 녹화의 삭제는 별도 절차로 처리한다.</li></ol>
+<p>위 목록은 승인된 설계와 현재 코드를 대조한 확인 지점이다. 이번 점검은 이 배포 절차를 실행하지 않았다. OFF 배포가 반영되기 전과 이미 허용 응답을 받은 진행 요청까지 변경 요청 순간에 차단한다고 보장하지 않는다.</p>
+<h2>다음 조치</h2>
+<ul><li>삭제 요청 HTTPS 주소와 수신·처리 가능한 담당 경로를 확정한다. 현재 주소 확인 질문은 답변 대기다.</li><li>개인정보처리방침과 진단 안내를 실제 저장 지역·전송 정보·90일 자동 보관·7일 이내 수동 삭제 목표에 맞춰 검토한다.</li><li>계정의 결제 후속 확인을 마친다. 추가 사용 예산은 조직 공용이며 이 기능의 일일 수집 상한이 아니다.</li><li>별도 승인 범위에서 새 구현의 Vercel 런타임 검증, 합성 녹화의 Sentry 저장·연속 재생·삭제, OFF 배포 리허설을 수행한다.</li><li>과거 Chrome 간헐 종료는 반복 30개에서 미재현이지만 원인 미확정이다. 활성화 전 해결 또는 담당자의 명시적 제한 수용 조건을 유지한다.</li></ul>
+<h2>근거와 보관 범위</h2>
+<p>로그인된 Sentry의 조직·프로젝트·팀·회원·구독 API를 GET으로 조회했다. 브라우저에서 조직 설정과 사용량 화면도 대조했다. 운영 공개 경로는 쿠키 없이 GET으로 읽었으며 페이지 스크립트를 실행하지 않았다. 설정 저장, 결제 변경, Replay 업로드·삭제, 배포, Jira 상태 변경은 수행하지 않았다. 새로 만든 점검용 브라우저 탭만 닫았다.</p>
+<p>세부 응답과 판정 요약은 <code>/Users/Shared/picnic-replay-operations-readonly-r6po41s9</code>에 보관한다. 디렉터리 권한은 0700이다. 계정·청구·회원 원문과 실제 진단 번호는 공개 저장소에 포함하지 않았다. 공개 문서에는 점검 결론과 후속 조치만 기록했다.</p>
+<ul><li><a href="https://icon-casting.sentry.io/settings/organization/">조직 설정</a> · <a href="https://icon-casting.sentry.io/settings/billing/overview/">구독·사용량</a> — 로그인 필요.</li><li><a href="https://docs.sentry.io/security-legal-pii/security/data-retention-periods/">공식 보관 기간 표</a> · <a href="https://docs.sentry.io/api/replays/delete-a-replay-instance/">공식 개별 Replay 삭제 API</a>.</li><li><a href="https://www.picnic.fan/ko/privacy">현재 운영 개인정보처리방침</a> · <a href="2026-10-19-replay-diagnostic-design.html">승인된 수동 진단 설계</a>.</li><li><a href="https://github.com/charlie0421/picnic-web/pull/144">PR #144</a> · 기존 문서 커밋 <code>fa2575e6</code>의 <a href="https://github.com/charlie0421/picnic-web/actions/runs/39216431567">CI 통과</a>. 이번 점검은 제품 코드를 바꾸지 않았다.</li></ul>
+</body></html>
