@@ -5,6 +5,7 @@ import { localReplayConfig } from './replay/config';
 import { installReplayLifecycle } from './replay/lifecycle';
 import { replaySignals } from './replay/signals';
 import { createReplayTransportRouter } from './replay/transport-router';
+import { getDiagnosticTransport, initializeDiagnosticDocument } from './replay/diagnostic-registry';
 
 /** Adds bounded Replay preprocessing to an SDK transport without replacing its network/rate-limit handling. */
 export function withReplayScrubbing(transport: Transport, recordDroppedEvent: BaseTransportOptions['recordDroppedEvent']): Transport {
@@ -57,5 +58,6 @@ export function createBrowserTransport(options: BaseTransportOptions): Transport
         .then(transport => { replay = transport; }).catch(() => replaySignals.close());
     }
   }
-  return createReplayTransportRouter(normal, () => replay);
+  if (process.env.NEXT_PUBLIC_REPLAY_LOCAL_TEST !== '1' && typeof window !== 'undefined') initializeDiagnosticDocument(normal, window);
+  return createReplayTransportRouter(normal, () => replay ?? getDiagnosticTransport());
 }
