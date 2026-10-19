@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { createReplaySignals } from '@/lib/sentry/replay/signals';
-import { installReplayLifecycle } from '@/lib/sentry/replay/lifecycle';
+import { installReplayLifecycle, installReplaySafetyLifecycle, installReplayInteractionLifecycle } from '@/lib/sentry/replay/lifecycle';
 
 let cleanup: () => void;
 beforeEach(() => { history.replaceState(null, '', '/ko/vote'); document.body.innerHTML = '<a href="/login">Login</a><section class="vote-banner-section"><div class="banner-carousel"><button data-replay-action="banner">Next</button></div></section><main>Scroll area</main>'; });
@@ -43,3 +43,14 @@ it('closes when a document is restored from bfcache', () => {
   window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
   expect(signals.snapshot().closed).toBe(true);
 });
+
+it('allows opening and cancelling consent before interaction monitoring starts',()=>{
+ const signals=createReplaySignals();const safe=installReplaySafetyLifecycle(signals,window);
+ document.querySelector('button')!.click();document.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true}));expect(signals.snapshot().closed).toBe(false);
+ const interactive=installReplayInteractionLifecycle(signals,window);const event=new KeyboardEvent('keydown',{key:'PageDown',bubbles:true,cancelable:true});document.dispatchEvent(event);
+ expect(signals.snapshot().closed).toBe(true);expect(event.defaultPrevented).toBe(false);cleanup=()=>{safe();interactive();};
+});
+it.each(['beforeinput','input','change','submit','contextmenu','dragstart','freeze','picnic-consent-updated'])('covers remaining legacy event %s without cancelling it',name=>{
+ const signals=createReplaySignals();cleanup=installReplayLifecycle(signals,window);const event=new Event(name,{bubbles:true,cancelable:true});window.dispatchEvent(event);expect(signals.snapshot().closed).toBe(true);expect(event.defaultPrevented).toBe(false);
+});
+it.each(['Enter',' '])('permits banner key %s',key=>{const signals=createReplaySignals();cleanup=installReplayLifecycle(signals,window);document.querySelector('button')!.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true}));expect(signals.snapshot().closed).toBe(false);});
