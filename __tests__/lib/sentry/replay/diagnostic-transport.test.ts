@@ -16,7 +16,7 @@ function setup() {
  const fetcher=vi.fn(async()=>new Response(null,{status:200}));
  const transform=vi.fn(async(_input,state):Promise<ProjectResult>=>({ok:true,value:{bytes:bytes(),segment:state.nextSegment,next:{...state,replayId:id,nextSegment:state.nextSegment+1}}}));
  const eligible=vi.fn(async()=>allowed);const locallyEligible=vi.fn(()=>true),delivery=vi.fn();
- const runtime=createDiagnosticTransport({config,normal,close,fetch:fetcher,transform,gate:()=>gate,visibleId:()=>visible,eligible,locallyEligible,onDelivery:delivery});
+ const runtime=createDiagnosticTransport({config,disclosure:allowed.disclosure,normal,close,fetch:fetcher,transform,gate:()=>gate,visibleId:()=>visible,eligible,locallyEligible,onDelivery:delivery});
  return {runtime,normal,close,fetcher,transform,eligible,locallyEligible,delivery,visible:(value:string|null)=>{visible=value;},stop:()=>{close();runtime.cancel();}};
 }
 beforeEach(()=>vi.useFakeTimers());afterEach(()=>vi.useRealTimers());
@@ -54,3 +54,15 @@ it('rechecks local eligibility synchronously after the server result',async()=>{
 it('still calls normal.flush when its own waiting consumes the deadline',async()=>{const t=setup();t.transform.mockImplementation(()=>new Promise(()=>{}));void t.runtime.transport.send(input);const pending=t.runtime.transport.flush(10);await vi.advanceTimersByTimeAsync(10);expect(await pending).toBe(false);expect(t.normal.flush).toHaveBeenCalledWith(0);t.stop();});
 it('reads only metadata before a binary recording',async()=>{const t=setup();const b=bytes();b[b.length-1]=255;t.transform.mockResolvedValue({ok:true,value:{bytes:b,next:{...emptyProjectionState(),replayId:id,nextSegment:1},segment:0}});expect(await t.runtime.transport.send(input)).toEqual({statusCode:200});});
 it('denies rate-limit responses even when status is 200',async()=>{const t=setup();t.fetcher.mockResolvedValue(new Response(null,{headers:{'retry-after':'1'}}));await t.runtime.transport.send(input);expect(t.delivery).toHaveBeenLastCalledWith('unknown');expect(t.close).toHaveBeenCalledWith('http');});
+
+it.each([
+  {retentionDays:90}, {deletionRequestUrl:'https://www.picnic.fan/changed'}, {storedTechnicalFields:['browser']},
+])('stops before POST when the agreed disclosure changes: %j', async patch => {
+  const t=setup();t.eligible.mockResolvedValue({...allowed,disclosure:{...allowed.disclosure,...patch}} as any);
+  await t.runtime.transport.send(input);
+  expect(t.fetcher).not.toHaveBeenCalled();expect(t.close).toHaveBeenCalledWith('ineligible');
+});
+it('does not add a header that requires a CORS preflight',async()=>{
+  const t=setup();await t.runtime.transport.send(input);
+  expect(new Headers(t.fetcher.mock.calls[0][1].headers).get('content-type')).toBeNull();
+});

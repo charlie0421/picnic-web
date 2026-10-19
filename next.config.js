@@ -7,7 +7,13 @@ require('./scripts/replay-diagnostic/test-build.cjs').validateDiagnosticTestBuil
 const { withSentryConfig } = require('@sentry/nextjs');
 const { nextConfigOverrides } = require('./scripts/envelope-test/build-switch');
 const { getDiagnosticBuildMetadata } = require('./scripts/replay-diagnostic/build-metadata.cjs');
-const diagnosticMetadata = getDiagnosticBuildMetadata({ env: process.env, root: __dirname });
+let diagnosticMetadata = { commit: '', manifestSha256: '', release: '', environment: '' };
+try {
+  diagnosticMetadata = getDiagnosticBuildMetadata({ env: process.env, root: __dirname });
+} catch {
+  // Missing deployment metadata disables diagnostics; the build wrapper enforces strict activation.
+  console.warn('Replay diagnostic disabled: build metadata unavailable');
+}
 
 // 환경 변수로 Sentry 경고 억제
 process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';

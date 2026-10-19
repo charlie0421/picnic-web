@@ -81,7 +81,7 @@ export function createDiagnosticBridge(deps: Deps): DiagnosticBridge {
       try {
         const allowance = await deps.eligible(pending.signal);
         if (pending.signal.aborted || !local() || !valid(allowance) || JSON.stringify(allowance.disclosure) !== JSON.stringify(disclosure)) { stop(); return; }
-        transport = createDiagnosticTransport({ config: deps.config, normal: deps.normal, transform: deps.transform, fetch: deps.fetch,
+        transport = createDiagnosticTransport({ config: deps.config, disclosure: allowance.disclosure, normal: deps.normal, transform: deps.transform, fetch: deps.fetch,
           gate: () => controller.snapshot(), close: () => stop(), locallyEligible: () => deps.session.snapshot().attempted && local(),
           visibleId: () => deps.session.snapshot().visibleId, eligible: deps.eligible,
           onDelivery: delivery => publish({ delivery }),

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { getDiagnosticBuildMetadata } from '@/scripts/replay-diagnostic/build-metadata.cjs';
 import { verifyBuild } from '@/scripts/replay-diagnostic/verify-build.cjs';
@@ -32,6 +33,7 @@ beforeEach(() => {
   buildDir = path.join(root, '.next');
   manifestPath = path.join(root, 'lib/sentry/replay/generated/diagnostic-manifest.json');
   put(path.join(buildDir, 'BUILD_ID'), 'final-build');
+  put(path.join(buildDir, 'app-build-manifest.json'), JSON.stringify({pages:{'/layout':['static/css/abc.css'],'/[lang]/(main)/vote/page':[]}}));
   put(path.join(buildDir, 'static/css/abc.css'), css);
   put(path.join(buildDir, 'static/chunks/vote.js'), `x={id:"abc123",children:${JSON.stringify(styled)}};`);
   put(path.join(root, 'node_modules/@sentry-internal/replay/package.json'), '{"version":"9.47.1"}');
@@ -108,4 +110,27 @@ describe('build wrapper', () => {
     expect(await runBuild({ root, env: { ...process.env, FIXTURE_BUILD_EXIT: '9' } })).toBe(9);
     expect(JSON.parse(readFileSync(proofPath(), 'utf8')).verified).toBe(false);
   });
+});
+
+it.each(['', 'invalid'])('loads Next config with diagnostic OFF when deployment commit is %j', value => {
+  const output = execFileSync(process.execPath, ['-e', `const c=require('./next.config.js');console.log(JSON.stringify(Object.fromEntries(Object.entries(c.env).filter(([k])=>k.startsWith('NEXT_PUBLIC_REPLAY_DIAGNOSTIC_')&&k!=='NEXT_PUBLIC_REPLAY_DIAGNOSTIC_TEST'))))`], {
+    cwd: process.cwd(), encoding: 'utf8', env: { PATH: process.env.PATH, VERCEL: '1', VERCEL_GIT_COMMIT_SHA: value, NODE_ENV: 'test' },
+  });
+  expect(Object.values(JSON.parse(output.trim().split('\n').at(-1)!))).toEqual(['', '', '', '']);
+});
+it.each([[{},0],[{REPLAY_DIAGNOSTIC_ENABLED:'1'},1],[{REPLAY_DIAGNOSTIC_REQUIRE_PROOF:'1'},1]] as const)
+  ('missing commit leaves OFF builds available and strict builds denied: %j', async (flags, code) => {
+    expect(await runBuild({ root, env: { PATH: process.env.PATH, VERCEL:'1', ...flags } })).toBe(code);
+    expect(JSON.parse(readFileSync(proofPath(),'utf8'))).toEqual({version:1,verified:false});
+  });
+
+it.each(['added','missing','missing-manifest'])('rejects a mismatched vote route CSS set: %s', async kind => {
+  const file=path.join(buildDir,'app-build-manifest.json');
+  if(kind==='missing-manifest') rmSync(file);
+  else put(file,JSON.stringify({pages:{'/layout':kind==='missing'?[]:['static/css/abc.css'],'/[lang]/(main)/vote/page':kind==='added'?['static/css/new.css']:[]}}));
+  await expect(verifyBuild(options())).rejects.toThrow();
+});
+it('does not treat another route CSS as vote CSS', async () => {
+  put(path.join(buildDir,'app-build-manifest.json'),JSON.stringify({pages:{'/layout':['static/css/abc.css'],'/[lang]/(main)/vote/page':[],'/[lang]/(main)/vote/[id]/page':['static/css/detail.css']}}));
+  expect((await verifyBuild(options())).verified).toBe(true);
 });

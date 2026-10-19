@@ -203,6 +203,6 @@ expect(normalError.replay_id).toBeUndefined();</code></pre></li>
 <section><h2>현재 검증 상태와 다음 단계</h2>
 <p id="review-status"><strong>독립 검토: APPROVE.</strong> Claude Opus 5.5 / high가 승인 설계와 기존 코드를 대조했다. 최초 High 2·Medium 6·Low 7을 수정했고, 같은 리뷰어가 15개 반영과 남은 차단 0개를 확인했다. 비차단 참고인 스타일 원문 해시 범위도 빌드 전체로 명시했다. HTML 구조·내부 링크·브라우저 표시와 Git 공백 검사를 통과했다. 제품 코드를 바꾸지 않아 런타임 시험은 실행하지 않았다.</p>
 <p class="muted">검토 정산: 2026-10-19 10:51 KST · Run <code>run_d4a6a56def02</code> · Task <code>task_2eb9d02d79d8</code> · Dispatch <code>ctx_804accd21780</code>의 worker_done 수락. 실제 응답 모델, 소유 작업자 프로세스의 high effort·읽기 전용 도구 설정, policyRevision 2와 STE 전체 읽기를 확인했다. 작업자 터미널과 임시 스킬 문맥은 정리했다.</p>
-<p>작업 1~6의 체크박스는 아직 실행하지 않았다. 계획 확인 후 순차 구현을 시작한다. 작업 간에는 해당 시험을 통과한 변경만 커밋하며, 독립 리뷰·Preview 조건·운영 준비 조건을 생략하지 않는다.</p>
+<p>위 체크박스는 승인 당시 계획을 보존한다. 사용자의 승인 후 작업 1~6을 순차 구현하고 관련 시험을 통과한 변경을 커밋했다. 현재 독립 코드 리뷰를 진행 중이며, 실제 결과와 남은 운영 조건은 <a href="2026-10-19-replay-diagnostic-implementation.html">구현 기록</a>에서 관리한다. Preview 확인 조건과 운영 활성화 조건은 유지한다.</p>
 <p><a href="../handoff-2026-10-19.html">최신 인계 문서</a> · <a href="2026-10-19-replay-diagnostic-design.html">승인된 설계</a></p>
 </section></main></body></html>

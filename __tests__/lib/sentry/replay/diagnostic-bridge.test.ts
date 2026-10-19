@@ -27,5 +27,14 @@ it('installs interaction guards before any await, registers a closed transport b
 it('closes an SDK envelope arriving before the UI confirms the ID',async()=>{const t=setup();await settle();t.sdk.start.mockImplementation(()=>{const transport=t.deps.install.mock.calls[0][0];void transport.send([{},[[{type:'replay_event'},{}],[{type:'replay_recording'},new Uint8Array()]]]);});t.bridge.start();await settle();expect(t.bridge.snapshot().phase).toBe('closed');expect(t.deps.transform).not.toHaveBeenCalled();expect(t.deps.fetch).not.toHaveBeenCalled();expect(t.sdk.stop).toHaveBeenCalledTimes(1);});
 it('stop during SDK loading prevents a late start and cannot be reversed',async()=>{const t=setup();await settle();let resolve!:(v:any)=>void;t.deps.loadSdk.mockImplementation(()=>new Promise(r=>{resolve=r;}));t.bridge.start();await settle();t.bridge.stop();resolve(t.sdk);await settle();expect(t.sdk.start).not.toHaveBeenCalled();expect(t.bridge.snapshot().phase).toBe('closed');t.bridge.start();expect(t.deps.loadSdk).toHaveBeenCalledTimes(1);});
 it('closes when disclosure changes after consent',async()=>{const t=setup();await settle();t.deps.eligible.mockResolvedValue({...allowance,disclosure:{...allowance.disclosure,retentionDays:90}});t.bridge.start();await settle();expect(t.deps.loadSdk).not.toHaveBeenCalled();expect(t.bridge.snapshot().phase).toBe('closed');});
-it('stops at 60 seconds and on auth/ad closure',async()=>{const t=setup();await settle();t.bridge.start();await settle();t.bridge.idDisplayed(id);await vi.advanceTimersByTimeAsync(60000);expect(t.bridge.snapshot().phase).toBe('closed');expect(t.sdk.stop).toHaveBeenCalledTimes(1);});
+it('stops at 60 seconds',async()=>{const t=setup();await settle();t.bridge.start();await settle();t.bridge.idDisplayed(id);await vi.advanceTimersByTimeAsync(60000);expect(t.bridge.snapshot().phase).toBe('closed');expect(t.sdk.stop).toHaveBeenCalledTimes(1);});
 it('OFF is checked once and does not produce a retry loop',async()=>{const t=setup(false);t.deps.eligible.mockResolvedValue(null);t.signals.setAuth('anonymous');t.signals.setAds('denied');t.signals.setReady('vote');t.signals.setReady('banner',0);t.signals.setReady('popup');await settle();expect(t.bridge.snapshot().phase).toBe('closed');t.signals.setReady('vote');expect(t.deps.eligible).toHaveBeenCalledTimes(1);});
+
+it.each(['auth','ads'] as const)('stops recording when %s changes and blocks a later envelope',async reason=>{
+ const t=setup();await settle();t.bridge.start();await settle();t.bridge.idDisplayed(id);
+ if(reason==='auth')t.signals.setAuth('authenticated');else t.signals.markAdsLoaded();
+ expect(t.bridge.snapshot().phase).toBe('closed');expect(t.sdk.stop).toHaveBeenCalledTimes(1);
+ const transport=t.deps.install.mock.calls[0][0];
+ await transport.send([{},[[{type:'replay_event'},{}],[{type:'replay_recording'},new Uint8Array()]]]);
+ expect(t.deps.transform).not.toHaveBeenCalled();expect(t.deps.fetch).not.toHaveBeenCalled();
+});

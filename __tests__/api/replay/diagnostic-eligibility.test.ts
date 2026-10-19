@@ -17,3 +17,8 @@ it.each([{}, {cookie:'locale=ko'}])('allows public preference cookies only',asyn
 });
 it.each([{cookie:'auth=secret'},{cookie:'locale=ko; locale=ko'},{cookie:'locale=ko; hidden=yes'},{authorization:'Bearer synthetic'}])('denies credentials',async headers=>expect((await GET(req('',headers))).status).toBe(403));
 it.each(['&other=1','&mode=diagnostic','&'])('denies other query combinations %s',async suffix=>expect((await GET(req(suffix))).status).toBe(404));
+
+it.each(['https://preview.vercel.app','https://picnic.fan','http://www.picnic.fan'])('denies non-production origin: %s',async origin=>{
+ expect((await GET(new NextRequest(origin+'/api/replay/eligibility?mode=diagnostic'))).status).toBe(404);
+ expect(readDiagnosticBuild).not.toHaveBeenCalled();
+});

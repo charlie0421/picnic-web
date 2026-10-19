@@ -13,6 +13,22 @@ async function verifyBuild({ buildDir, manifestPath, commit, release, environmen
   assert.equal(manifest.version, 2); assert.equal(manifest.sdkVersion, '9.47.1');
   assert(!('release' in manifest) && !('environment' in manifest), 'Template must not contain deployment metadata');
   assert(Array.isArray(manifest.linkCss) && manifest.linkCss.length > 0, 'No captured CSS');
+  const pages = JSON.parse(fs.readFileSync(path.join(buildDir, 'app-build-manifest.json'))).pages;
+  const vote = '/[lang]/(main)/vote';
+  assert(Array.isArray(pages?.[`${vote}/page`]), 'Missing vote build entry');
+  const entries = ['', '/[lang]', '/[lang]/(main)', vote].flatMap(route =>
+    ['layout', 'template', 'loading', 'error', 'not-found'].map(name => `${route}/${name}`));
+  entries.push(`${vote}/page`);
+  const routeCss = new Set();
+  for (const entry of entries) {
+    if (pages[entry] === undefined) continue;
+    assert(Array.isArray(pages[entry]), 'Invalid route build entry');
+    for (const asset of pages[entry]) {
+      assert.equal(typeof asset, 'string');
+      if (asset.endsWith('.css')) routeCss.add(`/_next/${asset}`);
+    }
+  }
+  assert.deepEqual([...routeCss].sort(), manifest.linkCss.map(css => css.asset).sort(), 'Vote route CSS set changed');
   const seen = new Set();
   for (const css of manifest.linkCss) {
     assert.match(css.asset, /^\/_next\/static\/css\/[a-zA-Z0-9_-]+\.css$/);

@@ -1,10 +1,10 @@
 import type { Envelope, Transport, TransportMakeRequestResponse } from '@sentry/core';
 import { emptyProjectionState, type Gate, type Reason, type Transform } from '@/scripts/replay-p0/contract';
 import { stripReplayCorrelation } from '@/scripts/replay-p0/correlation';
-import type { DiagnosticAllowance, DiagnosticConfig } from './diagnostic-config';
+import type { DiagnosticAllowance, DiagnosticConfig, DiagnosticDisclosure } from './diagnostic-config';
 
 export type DiagnosticTransportDeps = {
-  config: DiagnosticConfig; transform: Transform; normal: Transport;
+  config: DiagnosticConfig; disclosure: DiagnosticDisclosure; transform: Transform; normal: Transport;
   gate(): Gate; close(reason: Reason): void; locallyEligible(): boolean; visibleId(): string | null;
   eligible(signal: AbortSignal): Promise<DiagnosticAllowance | null>; fetch: typeof fetch;
   onDelivery(state: 'accepted' | 'unknown'): void;
@@ -31,6 +31,7 @@ function projectedId(bytes: Uint8Array, expected: string): boolean {
 export function createDiagnosticTransport(deps: DiagnosticTransportDeps): { transport: Transport; cancel(): void } {
   if (!/^https:\/\/o\d+\.ingest(?:\.(?:us|de))?\.sentry\.io\/api\/[1-9]\d*\/envelope\/\?sentry_key=[a-f0-9]{32}&sentry_version=7$/.test(deps.config.endpoint)) throw new Error('Invalid diagnostic endpoint');
   let state = emptyProjectionState(), attemptedBytes = 0;
+  const agreedDisclosure = JSON.stringify(deps.disclosure);
   let active: AbortController | undefined, pending: Promise<TransportMakeRequestResponse> | undefined;
   let posted = false, deliveryKnown = false;
   const delivery = (value: 'accepted' | 'unknown') => { if (!posted || deliveryKnown) return; deliveryKnown = true; deps.onDelivery(value); };
@@ -68,7 +69,8 @@ export function createDiagnosticTransport(deps: DiagnosticTransportDeps): { tran
         const allowance = await abortable(deps.eligible(abort.signal), abort.signal);
         clearTimeout(timer);
         if (!matches()) return denied;
-        if (!allowance || allowance.allowed !== true || allowance.manifestSha256 !== deps.config.manifestSha256) return fail('ineligible');
+        if (!allowance || allowance.allowed !== true || allowance.manifestSha256 !== deps.config.manifestSha256
+          || JSON.stringify(allowance.disclosure) !== agreedDisclosure) return fail('ineligible');
         const length = result.value.bytes.byteLength;
         if (!length || length > LIMIT - attemptedBytes) return fail('budget');
         // No await between the final gate, byte reservation and the network call. Attempts are never refunded.
@@ -77,7 +79,6 @@ export function createDiagnosticTransport(deps: DiagnosticTransportDeps): { tran
         const response = await abortable(deps.fetch(deps.config.endpoint, {
           method: 'POST', body: new Uint8Array(result.value.bytes), signal: abort.signal,
           credentials: 'omit', redirect: 'error', keepalive: false, referrerPolicy: 'no-referrer',
-          headers: { 'Content-Type': 'application/x-sentry-envelope' },
         }), abort.signal);
         if (!matches()) { delivery('unknown'); return denied; }
         if (response.status < 200 || response.status >= 300 || response.redirected

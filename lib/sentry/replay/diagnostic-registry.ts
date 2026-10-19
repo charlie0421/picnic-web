@@ -8,8 +8,10 @@ let normal: Transport | undefined, diagnostic: Transport | undefined;
 export function initializeDiagnosticDocument(transport: Transport, win: Window) {
   if (normal) return;
   normal = transport;
+  if (win.location.href !== (syntheticDiagnosticOrigin() ?? 'https://www.picnic.fan') + '/ko/vote') {
+    diagnosticSession.close(); replaySignals.close(); return;
+  }
   installReplaySafetyLifecycle(replaySignals, win);
-  if (win.location.href !== (syntheticDiagnosticOrigin() ?? 'https://www.picnic.fan') + '/ko/vote') { diagnosticSession.close(); replaySignals.close(); }
 }
 export function getDiagnosticNormalTransport() { return normal; }
 export function installDiagnosticTransport(transport: Transport): boolean {
