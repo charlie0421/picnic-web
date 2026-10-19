@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 const { serializeEnvelope } = require('@sentry/core');
 const { parseBrowserEnvelope } = require('../envelope-test/browser-analyze');
 const { build } = require('esbuild');
-const { verifyRestore } = require('../replay-p0/tools/vote-list-integration.cjs');
+const { verifyRestore, installPendingStream } = require('../replay-p0/tools/vote-list-integration.cjs');
 const ORIGIN = 'http://127.0.0.1:53931';
 const ENDPOINT = 'https://o1.ingest.us.sentry.io/api/1/envelope/';
 const opt = name => process.argv[process.argv.indexOf(name) + 1];
@@ -28,11 +28,12 @@ async function main() {
   const viewer = (await build({ entryPoints: [path.resolve('scripts/replay-p0/vote-list-restore-entry.ts')], bundle: true, platform: 'browser', format: 'iife', write: false })).outputFiles[0].text;
   const browser = await chromium.launch(chrome ? { channel: 'chrome', headless: false } : { headless: true });
   const results = [];
-  const scenarios = capture ? ['capture'] : ['positive','cancel','no-consent','unknown-auth','cookie','ads','spa','popup','more','tab','unknown-css','post-timeout','eligibility-timeout','remote-off','off'];
+  const scenarios = capture ? ['capture'] : ['positive','streaming-ready','cancel','no-consent','unknown-auth','cookie','ads','spa','popup','more','tab','unknown-css','post-timeout','eligibility-timeout','remote-off','off'];
   try {
     for (const name of scenarios.filter(n => !process.argv.includes('--only') || opt('--only').split(',').includes(n))) {
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
       await context.addInitScript(consent => { if (consent) localStorage.setItem('picnic-cookie-consent',consent); }, name === 'ads' ? 'granted' : 'denied');
+      if (name === 'streaming-ready') await installPendingStream(context);
       if (name === 'cookie') await context.addCookies([{name:'HttpOnlyCanary',value:'synthetic',url:ORIGIN,httpOnly:true}]);
       if (name === 'unknown-auth') await context.addInitScript(() => {
         let client; Object.defineProperty(window, 'supabase', { configurable: true, get: () => client, set(value) {
@@ -88,6 +89,13 @@ async function main() {
       try {
         await page.goto(ORIGIN + (name === 'spa' ? '/ko/faq' : '/ko/vote'), {waitUntil:'load',timeout:90000});
         const entry = page.getByRole('button',{name:'화면 문제 진단',exact:true});
+        if (name === 'streaming-ready') {
+          await page.waitForSelector('h3', {timeout:20000});
+          assert.equal(await page.locator('[id="S:replay-test"] template').count(),1,'pending stream remains after load');
+          assert.equal(await entry.count(),0,'pending stream cannot show consent entry');
+          assert.equal(replays.length,0,'pending stream sends no Replay');
+          await page.evaluate(()=>document.getElementById('S:replay-test').remove());
+        }
         if (name === 'spa') {
           await page.evaluate(() => { window.__diagnosticDocument = 'same-document'; });
           await page.locator('header a').first().click();
@@ -115,7 +123,7 @@ async function main() {
                 assert(numberVisible,'real ID visible before first POST');
                 if(chrome && name==='positive')await page.screenshot({path:path.join(out,'recording.png')});
                 if (name === 'post-timeout') { await page.getByText('전송이 중단되어 저장 여부를 확인할 수 없습니다.',{exact:true}).waitFor({timeout:10000}); }
-                else if (name === 'positive') {
+                else if (name === 'positive' || name === 'streaming-ready') {
                   await page.evaluate(()=>setTimeout(()=>{throw new Error('diagnostic-synthetic-error');},0));
                   await waitUntil(page,()=>ordinary.some(e=>e.items.some(i=>i.header.type==='event')),'ordinary error delivery');
                   await page.getByRole('button',{name:'다음 배너',exact:true}).click();await waitUntil(page,()=>replays.length>=2,'second projected segment');

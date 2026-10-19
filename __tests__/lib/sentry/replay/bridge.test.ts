@@ -11,7 +11,16 @@ beforeEach(() => {
   fixture.signals = createReplaySignals(); fixture.deps = null; fixture.runtime.mockReset().mockReturnValue({ transport: normal });
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"anonymous":true}')));
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { document.body.replaceChildren(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+it('does not report ready while React streaming placeholders remain after load', async () => {
+  vi.spyOn(document, 'readyState', 'get').mockReturnValue('complete');
+  document.body.innerHTML = '<div hidden id="S:4"><template data-dgst="BAILOUT_TO_CLIENT_SIDE_RENDERING"></template></div>';
+  await attachLocalReplay(config, normal);
+  expect(fixture.deps.page().ready).toBe(false);
+  const ready = vi.fn(); const remove = fixture.deps.onReady(ready);
+  document.body.replaceChildren(); await Promise.resolve();
+  expect(fixture.deps.page().ready).toBe(true); expect(ready).toHaveBeenCalledTimes(1); remove();
+});
 it.each(['not-json', '{"anonymous":"true"}', '{"anonymous":true,"extra":1}', '{"anonymous":false}', 'null'])('closes on an invalid eligibility response %s', async body => {
   vi.mocked(fetch).mockResolvedValue(new Response(body));
   expect(await attachLocalReplay(config, normal)).toBeUndefined();

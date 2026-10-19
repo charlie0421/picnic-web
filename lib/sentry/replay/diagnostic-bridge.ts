@@ -12,6 +12,7 @@ import { checkDiagnosticEligibility } from './diagnostic-eligibility';
 import { createDiagnosticTransport } from './diagnostic-transport';
 import { diagnosticWorkerTransform } from './worker-client';
 import { getDiagnosticNormalTransport, installDiagnosticTransport } from './diagnostic-registry';
+import { replayDocumentReady, observeReplayDocumentReady } from './document-ready';
 
 export type DiagnosticView = { phase: 'unavailable' | 'ready' | 'loading' | 'recording' | 'closed';
   id: string | null; delivery: 'none' | 'accepted' | 'unknown'; disclosure: DiagnosticDisclosure | null };
@@ -21,14 +22,14 @@ type DiagnosticSdk = SdkHandle & { getReplayId(): string | undefined };
 type Deps = { config: DiagnosticConfig; signals: ReplaySignals; session: DiagnosticSession; normal: Transport; win: Window;
   loadSdk(): Promise<DiagnosticSdk>; eligible(signal: AbortSignal): Promise<DiagnosticAllowance | null>;
   install(transport: Transport): boolean; interaction(): () => void; transform: Transform; fetch: typeof fetch;
-  pageSafe(): boolean; ready(): boolean; visible(): boolean; now(): number };
+  pageSafe(): boolean; ready(): boolean; onReady(callback: () => void): () => void; visible(): boolean; now(): number };
 export const UNAVAILABLE_DIAGNOSTIC_VIEW: DiagnosticView = { phase: 'unavailable', id: null, delivery: 'none', disclosure: null };
 
 export function createDiagnosticBridge(deps: Deps): DiagnosticBridge {
   let view = UNAVAILABLE_DIAGNOSTIC_VIEW, checked = false;
   const listeners = new Set<() => void>(), pending = new AbortController();
   let transport: ReturnType<typeof createDiagnosticTransport> | undefined;
-  let removeInteraction = () => {}, unsubscribe = () => {};
+  let removeInteraction = () => {}, unsubscribe = () => {}, removeReady = () => {};
   const publish = (patch: Partial<DiagnosticView>) => { view = { ...view, ...patch }; for (const fn of Array.from(listeners)) fn(); };
   const eligibility = () => ({ ...deps.signals.snapshot(), initialized: !deps.signals.snapshot().closed && !deps.session.snapshot().closed
     && deps.ready() && deps.signals.snapshot().voteReady && deps.signals.snapshot().bannersReady && deps.signals.snapshot().popupReady,
@@ -38,7 +39,7 @@ export function createDiagnosticBridge(deps: Deps): DiagnosticBridge {
     if (view.phase === 'closed') return;
     deps.session.close(); publish({ phase: 'closed' });
     pending.abort(); controller.close('ineligible'); transport?.cancel();
-    deps.signals.close(); removeInteraction(); unsubscribe(); deps.win.removeEventListener('load', update);
+    deps.signals.close(); removeInteraction(); unsubscribe(); removeReady();
   }
   const controller = createController({
     readEligibility: eligibility, readReadyState: () => deps.ready() ? 'complete' : 'loading', now: deps.now,
@@ -61,7 +62,7 @@ export function createDiagnosticBridge(deps: Deps): DiagnosticBridge {
   function update() {
     const state = deps.signals.snapshot();
     if (deps.session.snapshot().closed || state.closed || state.auth === 'authenticated' || state.ads === 'granted' || state.adsEverLoaded || !deps.visible()) { stop(); return; }
-    if (deps.ready() && !deps.pageSafe()) { stop(); return; }
+    if (deps.win.document.readyState === 'complete' && !deps.pageSafe()) { stop(); return; }
     if (view.phase === 'loading' || view.phase === 'recording') { controller.eligibilityChanged(); return; }
     if (checked || !local()) return;
     checked = true;
@@ -91,7 +92,7 @@ export function createDiagnosticBridge(deps: Deps): DiagnosticBridge {
       } catch { stop(); }
     })();
   }
-  deps.win.addEventListener('load', update);
+  removeReady = deps.onReady(update);
   unsubscribe = deps.signals.subscribe(update);
   if (view.phase === 'closed') unsubscribe();
   return { start, stop, snapshot: () => view, subscribe(fn) { listeners.add(fn); return () => { listeners.delete(fn); }; },
@@ -110,7 +111,8 @@ export function getDiagnosticBridge(): DiagnosticBridge {
     eligible: checkDiagnosticEligibility, install: installDiagnosticTransport,
     interaction: () => installReplayInteractionLifecycle(replaySignals, window),
     transform: diagnosticWorkerTransform(synthetic ?? config.origin, () => replaySignals.snapshot().bannerCount), fetch: window.fetch.bind(window),
-    pageSafe: () => synthetic ? location.href === synthetic + '/ko/vote' && localPageIsSafe() : diagnosticPageIsSafe(window), ready: () => document.readyState === 'complete',
+    pageSafe: () => synthetic ? location.href === synthetic + '/ko/vote' && localPageIsSafe() : diagnosticPageIsSafe(window), ready: () => replayDocumentReady(document),
+    onReady: callback => observeReplayDocumentReady(window, callback),
     visible: () => document.visibilityState === 'visible', now: () => performance.now(),
     loadSdk: async () => {
       const Sentry = await import('@sentry/nextjs');

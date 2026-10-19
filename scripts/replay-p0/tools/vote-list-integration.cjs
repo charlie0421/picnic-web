@@ -19,6 +19,7 @@ async function main() {
   try {
     const cases = [
       { name: 'desktop', width: 1280, positive: true }, { name: 'mobile', width: 390, positive: true },
+      { name: 'streaming-ready', width: 1280, positive: true, pendingStream: true },
       { name: 'no-consent', consent: null }, { name: 'granted', consent: 'granted' },
       { name: 'json-denial', consent: '{"ads":false}' }, { name: 'query', suffix: '?status=end' },
       { name: 'fragment', suffix: '#private' }, { name: 'empty-query', suffix: '?' },
@@ -29,6 +30,7 @@ async function main() {
       const context = await browser.newContext({ viewport: { width: scenario.width || 1280, height: 900 } });
       const consent = Object.hasOwn(scenario, 'consent') ? scenario.consent : 'denied';
       await context.addInitScript(value => { if (value !== null) localStorage.setItem('picnic-cookie-consent', value); }, consent);
+      if (scenario.pendingStream) await installPendingStream(context);
       if (scenario.cookie) await context.addCookies([{ name: 'HttpOnlyCanary', value: 'synthetic', url: ORIGIN, httpOnly: true }]);
       const page = await context.newPage(); const replay = [], ordinary = [], errors = [], blocked = [], requests = [], baggageLinks = [];
       page.on('pageerror', e => { if (!String(e).includes('replay-integration-synthetic-error')) errors.push(String(e)); });
@@ -50,6 +52,11 @@ async function main() {
       try {
         await page.goto(ORIGIN + '/ko/vote' + (scenario.suffix || ''), { waitUntil: 'load', timeout: 90000 });
         await page.waitForSelector('h3', { timeout: 20000 });
+        if (scenario.pendingStream) {
+          assert.equal(await page.locator('[id="S:replay-test"] template').count(), 1, 'pending stream remains after load');
+          assert.equal(replay.length, 0, 'pending stream sends no Replay');
+          await page.evaluate(() => document.getElementById('S:replay-test').remove());
+        }
         if (scenario.positive || scenario.action) {
           await expectReplay(page, replay, 1);
           if (scenario.positive) {
@@ -101,6 +108,15 @@ async function expectReplay(page, received, count) {
   while (received.length < count && Date.now() < deadline) await page.waitForTimeout(100);
   assert(received.length >= count, `expected ${count} projected segments, received ${received.length}`);
 }
+// Hold the same inert React placeholder seen in the failed CI snapshot through
+// document load. The product must wait; the projection contract still rejects it.
+async function installPendingStream(context) {
+  await context.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+    const pending = document.createElement('div'); pending.hidden = true; pending.id = 'S:replay-test';
+    const template = document.createElement('template'); template.dataset.dgst = 'BAILOUT_TO_CLIENT_SIDE_RENDERING';
+    pending.append(template); document.body.append(pending);
+  }, { once: true }));
+}
 async function closeAction(page, action) {
   if (action === 'more') return page.getByRole('button', { name: '더보기', exact: true }).click();
   if (action === 'menu') return page.locator('header a[href="/ko/mypage"]:visible').first().click();
@@ -143,5 +159,5 @@ async function verifyRestore(browser, original, envelopes, width, bundle, out, n
     assert.equal(differences.other.length, 0, 'no new layout loss'); assert.equal(restoredTrack, track, 'banner position restored');
   } finally { await page.close(); }
 }
-module.exports = { verifyRestore };
+module.exports = { verifyRestore, installPendingStream };
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });
