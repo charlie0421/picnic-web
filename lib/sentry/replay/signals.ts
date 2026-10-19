@@ -25,7 +25,6 @@ export function createReplaySignals() {
     const next = { ...state, ...patch, closed: state.closed || patch.closed === true };
     if (Object.keys(next).every(key => next[key as keyof ReplayState] === state[key as keyof ReplayState])) return;
     state = next;
-    if (next.closed) if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_REPLAY_DIAGNOSTIC_TEST === '1') { try { const debug = window as unknown as { __replayCloseProbe?: unknown[] }; const events = debug.__replayCloseProbe ??= []; if (events.length < 32) events.push({kind:'signals-close',state:{...next}}); } catch {} }
     notify();
   }
   return {

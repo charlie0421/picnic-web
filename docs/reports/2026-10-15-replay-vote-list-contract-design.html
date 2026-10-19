@@ -58,7 +58,7 @@
 <ul>
 <li>허용 키는 정확히 <code>class</code>·<code>rr_width</code>·<code>rr_height</code>다. svg 노드는 <code>isSVG:true</code>도 허용한다.</li>
 <li>자식 노드, <code>src</code>·<code>srcset</code>·<code>rr_src</code>, 그 밖의 키가 있으면 종료한다. 차단 실패를 뜻하기 때문이다.</li>
-<li>치수 문법: <code>^(0|[1-9]\d{0,4})(\.\d{1,6})?px$</code>, 값 0…16384. 출력은 소수 셋째 자리로 반올림하고 끝의 0을 지운다. 예: <code>199.359375px</code> → <code>199.359px</code>. 최대 오차 0.0005px.</li>
+<li>치수 문법(2026-10-19 보완): <code>^(0|[1-9]\d{0,4})(\.\d{1,20})?px$</code>, 값 0…16384. 출력은 소수 셋째 자리로 반올림하고 끝의 0을 지운다. 예: <code>199.359375px</code> → <code>199.359px</code>. 최대 오차 0.0005px.</li>
 </ul>
 <h3>3.5 shadow (Next route announcer)</h3>
 <ul>
@@ -87,7 +87,7 @@
 <h3>4.3 inline style 문법</h3>
 <p>snapshot 문자열과 mutation diff에 같은 규칙을 적용한다. 범위 밖 값은 clamp하지 않고 종료한다.</p>
 <div class="table-wrap"><table><thead><tr><th>속성</th><th>허용 값</th></tr></thead><tbody>
-<tr><td>width, height, min-height, top, left</td><td>§3.4의 소수 px 문법, 0…16384, 출력은 소수 셋째 자리. 단위 없는 <code>0</code>도 허용한다.</td></tr>
+<tr><td>width, height, min-height, top, left</td><td>소수 6자리 이하의 px 문법, 0…16384, 출력은 소수 셋째 자리. 단위 없는 <code>0</code>도 허용한다.</td></tr>
 <tr><td>opacity</td><td>0…1, 0.01 단위 (P0와 같음)</td></tr>
 <tr><td>user-select</td><td>none · text · auto</td></tr>
 <tr><td>transform</td><td>none · rotate(180deg)</td></tr>

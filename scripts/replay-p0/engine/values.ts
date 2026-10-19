@@ -31,11 +31,18 @@ export function maskText(value: unknown): string {
   requireValue(typeof value === 'string'); requireValue(value.length <= 4096, 'budget');
   return value.replace(/\S/g, '*');
 }
-/** Finite px value 0…max with at most six decimals; output keeps three decimals without trailing zeros. */
-export function decimalPx(value: unknown, max = 16384): string {
-  requireValue(typeof value === 'string' && /^(0|[1-9]\d{0,4})(\.\d{1,6})?px$/.test(value));
+function normalizedPx(value: unknown, grammar: RegExp, max: number): string {
+  requireValue(typeof value === 'string' && grammar.test(value));
   const n = Number(value.slice(0, -2)); requireValue(n <= max);
   return `${Number(n.toFixed(3))}px`;
+}
+/** Finite px value 0…max with at most six decimals; output keeps three decimals without trailing zeros. */
+export function decimalPx(value: unknown, max = 16384): string {
+  return normalizedPx(value, /^(0|[1-9]\d{0,4})(\.\d{1,6})?px$/, max);
+}
+/** rrweb's blocked media dimensions can contain subpixel layout precision. Keep only three output decimals. */
+export function mediaDimensionPx(value: unknown): string {
+  return normalizedPx(value, /^(0|[1-9]\d{0,4})(\.\d{1,20})?px$/, 16384);
 }
 export function checkTreeBudget(value: unknown) {
   let count = 0;

@@ -179,6 +179,23 @@ describe('vote-list contract: inline style', () => {
 });
 
 describe('vote-list contract: media placeholders', () => {
+  it('normalizes browser subpixel dimensions in snapshots and mutations', async () => {
+    // Captured from Chromium's blocked image during the first diagnostic segment.
+    const img = el('img', { rr_width: '110px', rr_height: '110.00006103515625px' });
+    const recs = outputRecords(await ok([...body(img), mutation({ attributes: [
+      { id: img.id, attributes: { rr_width: '109.99993896484375px' } },
+    ] })]));
+    expect(findNode(recs, img.id as number).attributes.rr_height).toBe('110px');
+    expect(recs.at(-1).data.attributes[0].attributes.rr_width).toBe('110px');
+  });
+  it.each(['-1px', '16384.0001px', '16385px', 'Infinitypx', 'NaNpx', '1e2px',
+    '1.123456789012345678901px', '1px;color:red', ' 1px', '01px'])(
+    'rejects invalid or out-of-range media dimensions %j', async value => {
+      expect(await reason(body(el('img', { rr_width: value, rr_height: '1px' })))).toBe('schema');
+    });
+  it('keeps the tighter inline style precision rule', async () => {
+    expect(await reason(body(el('div', { style: 'height: 110.00006103515625px;' })))).toBe('schema');
+  });
   it('keeps img and svg placeholders with normalized size', async () => {
     const img = el('img', { class: 'a', rr_width: '398px', rr_height: '298.5px' });
     const svg = el('svg', { class: 'b', rr_width: '16px', rr_height: '199.359375px' }, [], { isSVG: true });
