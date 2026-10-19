@@ -188,6 +188,17 @@ describe('vote-list contract: media placeholders', () => {
     expect(findNode(recs, img.id as number).attributes.rr_height).toBe('110px');
     expect(recs.at(-1).data.attributes[0].attributes.rr_width).toBe('110px');
   });
+  it('accepts twenty fractional digits for blocked img and svg dimensions', async () => {
+    const img = el('img', { rr_width: '1.12345678901234567890px', rr_height: '16384.00000000000000000000px' });
+    const svg = el('svg', { rr_width: '16px', rr_height: '109.99993896484375px' }, [], { isSVG: true });
+    const recs = outputRecords(await ok(body(img, svg)));
+    expect(findNode(recs, img.id as number).attributes).toMatchObject({ rr_width: '1.123px', rr_height: '16384px' });
+    expect(findNode(recs, svg.id as number).attributes.rr_height).toBe('110px');
+  });
+  it.each(['16384.000000000001px', '16384.00000000000000000001px'])(
+    'rejects a fractional excess above the maximum before floating-point rounding: %s', async value => {
+      expect(await reason(body(el('img', { rr_width: value, rr_height: '1px' })))).toBe('schema');
+    });
   it.each(['-1px', '16384.0001px', '16385px', 'Infinitypx', 'NaNpx', '1e2px',
     '1.123456789012345678901px', '1px;color:red', ' 1px', '01px'])(
     'rejects invalid or out-of-range media dimensions %j', async value => {

@@ -59,6 +59,7 @@
 <li>허용 키는 정확히 <code>class</code>·<code>rr_width</code>·<code>rr_height</code>다. svg 노드는 <code>isSVG:true</code>도 허용한다.</li>
 <li>자식 노드, <code>src</code>·<code>srcset</code>·<code>rr_src</code>, 그 밖의 키가 있으면 종료한다. 차단 실패를 뜻하기 때문이다.</li>
 <li>치수 문법(2026-10-19 보완): <code>^(0|[1-9]\d{0,4})(\.\d{1,20})?px$</code>, 값 0…16384. 출력은 소수 셋째 자리로 반올림하고 끝의 0을 지운다. 예: <code>199.359375px</code> → <code>199.359px</code>. 최대 오차 0.0005px.</li>
+<li>이 문법은 모든 브라우저 숫자 표현을 허용하지 않는다. 소수 21자리 이상 또는 지수 표기는 종료한다. 예를 들어 0.0001px 미만의 일부 브라우저 치수는 이 제한에 걸릴 수 있다. 16384에 0이 아닌 소수부가 붙은 입력은 부동소수 반올림 결과와 관계없이 종료한다.</li>
 </ul>
 <h3>3.5 shadow (Next route announcer)</h3>
 <ul>
@@ -102,7 +103,7 @@
 <ul>
 <li><strong>배너 상한:</strong> <code>bannerCount</code>(0…100)는 시험 harness가 합성 fixture 값으로 계약에 넣는다. DOM에서 읽지 않는다. 상한은 P0 설계의 <code>totalSlides − slidesPerView</code> 대신 <code>bannerCount − 1</code>을 쓴다. slidesPerView가 viewport·CSS breakpoint에 따라 달라지기 때문이다. 관측 최대값(PC 2, 모바일 4)은 이 범위 안이다. 엄격한 관계식은 실제 데이터 연결 단계에서 다시 검토한다.</li>
 <li><strong>aspect-ratio:</strong> P0 설계 후보(1/1, 16/9, 4/3) 대신 배너 소스 상수 <code>700 / 356</code>을 쓴다.</li>
-<li><strong>소수 px:</strong> P0의 정수 px 검사 대신 §3.4 문법을 쓴다.</li>
+<li><strong>소수 px:</strong> P0의 정수 px 검사 대신 inline style은 §4.3의 소수 6자리 문법, media 치수는 §3.4의 소수 20자리 문법을 쓴다.</li>
 </ul>
 
 <h2>5. rrweb 이벤트 범위</h2>

@@ -34,6 +34,9 @@ export function maskText(value: unknown): string {
 function normalizedPx(value: unknown, grammar: RegExp, max: number): string {
   requireValue(typeof value === 'string' && grammar.test(value));
   const n = Number(value.slice(0, -2)); requireValue(n <= max);
+  // A fractional excess at the integer limit can round down during Number conversion.
+  const [whole, fraction = ''] = value.slice(0, -2).split('.');
+  requireValue(Number(whole) !== max || !/[1-9]/.test(fraction));
   return `${Number(n.toFixed(3))}px`;
 }
 /** Finite px value 0…max with at most six decimals; output keeps three decimals without trailing zeros. */

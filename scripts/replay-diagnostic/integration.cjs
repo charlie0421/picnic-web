@@ -28,12 +28,13 @@ async function main() {
   const viewer = (await build({ entryPoints: [path.resolve('scripts/replay-p0/vote-list-restore-entry.ts')], bundle: true, platform: 'browser', format: 'iife', write: false })).outputFiles[0].text;
   const browser = await chromium.launch(chrome ? { channel: 'chrome', headless: false } : { headless: true });
   const results = [];
-  const scenarios = capture ? ['capture'] : ['positive','streaming-ready','cancel','no-consent','unknown-auth','cookie','ads','spa','popup','more','tab','unknown-css','post-timeout','eligibility-timeout','remote-off','off'];
+  const scenarios = capture ? ['capture'] : ['positive','first-visit-ko','streaming-ready','cancel','no-consent','unknown-auth','cookie','ads','spa','popup','more','tab','unknown-css','post-timeout','eligibility-timeout','remote-off','off'];
   try {
     for (const name of scenarios.filter(n => !process.argv.includes('--only') || opt('--only').split(',').includes(n))) {
-      const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...(name === 'first-visit-ko' ? { locale: 'ko-KR' } : {}) });
       // Exercise a settled Korean preference, without first-visit device-language switching.
-      await context.addCookies([{ name: 'locale', value: 'ko', url: ORIGIN }]);
+      if (name !== 'first-visit-ko') await context.addCookies([{ name: 'locale', value: 'ko', url: ORIGIN }]);
+      else assert(!(await context.cookies()).some(cookie => cookie.name === 'locale'), 'first visit has no saved language');
       await context.addInitScript(consent => { if (consent) localStorage.setItem('picnic-cookie-consent',consent); }, name === 'ads' ? 'granted' : 'denied');
       if (name === 'streaming-ready') await installPendingStream(context);
       if (name === 'cookie') await context.addCookies([{name:'HttpOnlyCanary',value:'synthetic',url:ORIGIN,httpOnly:true}]);
@@ -127,7 +128,7 @@ async function main() {
                 assert(numberVisible,'real ID visible before first POST');
                 if(chrome && name==='positive')await page.screenshot({path:path.join(out,'recording.png')});
                 if (name === 'post-timeout') { await page.getByText('전송이 중단되어 저장 여부를 확인할 수 없습니다.',{exact:true}).waitFor({timeout:10000}); }
-                else if (name === 'positive' || name === 'streaming-ready') {
+                else if (['positive','first-visit-ko','streaming-ready'].includes(name)) {
                   await page.evaluate(()=>setTimeout(()=>{throw new Error('diagnostic-synthetic-error');},0));
                   await waitUntil(page,()=>ordinary.some(e=>e.items.some(i=>i.header.type==='event')),'ordinary error delivery');
                   await page.getByRole('button',{name:'다음 배너',exact:true}).click();await waitUntil(page,()=>replays.length>=2,'second projected segment');
