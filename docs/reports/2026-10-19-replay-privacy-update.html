@@ -7,24 +7,43 @@
 <style>
 *{box-sizing:border-box}body{margin:32px auto;padding:0 24px;max-width:1100px;font:16px/1.75 system-ui,-apple-system,sans-serif;color:#182337;background:#f6f8fc}main{padding:30px;background:#fff;border:1px solid #d7deea;border-radius:12px}h1{font-size:28px;line-height:1.35}h2{margin-top:34px;font-size:22px}h3{font-size:18px;margin-top:24px}p,li,td,th{overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;margin:16px 0}th,td{padding:10px;border:1px solid #cdd6e3;text-align:left;vertical-align:top}th{background:#edf2f9}a{color:#2157a5}code{background:#edf2f9;padding:2px 4px;overflow-wrap:anywhere}.note{padding:16px;border-left:4px solid #3568b5;background:#edf4ff}.pending{border-color:#b9801b;background:#fff5df}.copy{padding:18px;border:1px solid #ccd7e6;border-radius:8px}.muted{color:#56657b;font-size:14px}nav{display:flex;gap:16px;flex-wrap:wrap}@media(max-width:650px){body{margin:12px auto;padding:0 12px}main{padding:18px}h1{font-size:24px}th,td{padding:7px;font-size:14px}}
 </style>
+<style>
+@media(max-width:650px){#publication-evidence table,#publication-evidence tbody,#publication-evidence tr,#publication-evidence td{display:block;width:100%}#publication-evidence thead{display:none}#publication-evidence tr{margin-bottom:16px}#publication-evidence td+td{border-top:0}#publication-evidence td:first-child{font-weight:700;background:#edf2f9}#publication-evidence td:nth-child(2)::before{content:"확인한 근거";display:block;font-weight:700}#publication-evidence td:nth-child(3)::before{content:"판정과 한계";display:block;font-weight:700}}
+</style>
 </head>
 <body><main>
 <h1>Sentry·Replay 개인정보 고지 수정안</h1>
 <p class="muted">작성: 2026-10-19 · 기준 코드 <code>bf1c55d7</code> · <a href="../handoff-2026-10-19.html">작업 상태</a> · <a href="2026-10-19-replay-operations-readiness.html">운영 준비 점검</a></p>
 <p class="note pending"><strong>게시 전 검토안이다.</strong> 공개 방침과 운영 DB는 변경하지 않았다. Replay 동의 화면의 업체·국가·전송 시점·거부 안내를 보완하고, 아래 한국어·영어 방침 수정안을 준비했다. 개인정보 고지 정리가 완료됐거나 운영 활성화 조건을 충족했다는 판정은 아니다. 운영 Replay는 OFF다.</p>
-<nav aria-label="문서 이동"><a href="#findings">확인 결과</a><a href="#ko-draft">한국어 수정안</a><a href="#en-draft">English draft</a><a href="#publication">게시 전 확인</a><a href="#validation">검증 상태</a></nav>
+<nav aria-label="문서 이동"><a href="#findings">확인 결과</a><a href="#publication-evidence">후속 점검</a><a href="#ko-draft">한국어 수정안</a><a href="#en-draft">English draft</a><a href="#publication">게시 전 확인</a><a href="#validation">검증 상태</a></nav>
 
 <section id="findings"><h2>1. 확인한 사실과 변경 범위</h2>
 <table><thead><tr><th>항목</th><th>확인 결과</th><th>이번 처리</th></tr></thead><tbody>
 <tr><td>정책 원문</td><td>한국어·영어 공개 방침 모두 제6조에서 모든 개인정보를 대한민국에 저장한다고 설명한다. Sentry·Replay 설명은 없다.</td><td>제6조 수정안과 제2·3·5·7조 추가 문구를 작성했다. 제9조의 기존 권리는 유지한다.</td></tr>
 <tr><td>데이터 출처</td><td><code>getPolicy('privacy', lang)</code>는 Supabase <code>policy</code>의 본문을 조회한다. 이 저장소에 한국어·영어 정책 원문 파일은 없다.</td><td>화면에 별도 본문을 겹쳐 표시하지 않는다. 실제 게시 시 대상 행과 원문을 먼저 대조한다. DB 쓰기·마이그레이션은 실행하지 않았다.</td></tr>
-<tr><td>적용 범위</td><td>현재 방침은 웹과 앱 등 회사 서비스 전반을 설명한다. 이번에 확인한 구현은 <code>picnic-web</code>이다.</td><td>추가 문구를 피크닠 웹의 기술 진단으로 한정한다. 앱 등 다른 소비자가 같은 정책 행을 쓰는지는 게시 전에 확인한다.</td></tr>
+<tr><td>적용 범위</td><td>현재 방침은 웹과 앱 등 회사 서비스 전반을 설명한다. 이번 진단 구현은 <code>picnic-web</code>이다. 앱 코드도 같은 <code>policy</code> 테이블의 한국어·영어 방침을 읽는다.</td><td>추가 문구를 피크닠 웹의 기술 진단으로 한정한다. 게시 검증 대상에 앱을 포함한다. 다른 소비자의 존재와 실제 배포 앱 버전은 별도로 대조한다.</td></tr>
 <tr><td>Sentry 저장 지역</td><td>10월 19일 계정 점검에서 US 지역을 확인했다. 공식 문서는 선택 지역에 오류·성능 정보·Replay와 해당 백업을 저장한다고 설명한다.</td><td>미국 전송·저장을 안내한다. 진단용 주소는 <code>o&lt;숫자&gt;.ingest.us.sentry.io</code>만 허용한다. 독일 또는 지역이 생략된 주소에서는 수동 진단을 허용하지 않는다.</td></tr>
 <tr><td>보관</td><td>확인한 Team 요금제의 오류·Replay 기본 보관은 90일이다. 같은 계정 응답의 유효 보관 설정은 원본 성능 스팬 30일, 성능 집계 지표 최대 396일이다.</td><td>Replay의 90일을 모든 진단 데이터의 보관 기간으로 확대하지 않는다. 기존 자료에는 수집 시점의 기간이 적용될 수 있으므로 새 자료 기준임을 구분한다.</td></tr>
 <tr><td>권리 행사</td><td>현재 제9조는 삭제·처리정지·동의 철회 등의 권리를 설명한다. 제13조는 황재근·CX팀·앱 내 1:1 문의를 안내한다. 2026-10-19 사용자가 이 기존 안내는 현재도 유효하다고 확인했다.</td><td>Replay 전용 삭제 요청 기능 보류를 일반 권리 포기로 표현하지 않는다. 검증되지 않은 이메일이나 404 주소를 새 접수 창구로 안내하지 않는다.</td></tr>
 <tr><td>버전·날짜</td><td>공개 화면 상단은 코드에서 버전 <code>1.0</code>과 조회 당일을 표시한다. 본문은 통합 V2.4·2024-06-04 시행이라고 적고 있다.</td><td>오늘을 새 방침 시행일로 임의 지정하지 않는다. 게시 전에 실제 정책 버전·시행일과 화면 표시를 함께 정리한다.</td></tr>
 </tbody></table>
 <p>일반 오류·성능·세션 진단은 Replay와 별도로 동작한다. 현재 코드는 오류·성능·세션 정보를 수집하고, 요청 본문·헤더·쿠키·URL 쿼리 등의 일부 필드를 제거한다. 이 정제만으로 모든 데이터가 익명이라고 단정하지 않는다. 기본 BrowserSession 통합과 합성 브라우저의 일반 session envelope 관측을 대조했다. 세션 정보의 보관 기간은 아직 확인하지 못했으며 게시 전 보완 조건이다. 직접 전송에서 Sentry가 받는 네트워크 IP와 최종 저장 필드도 구분한다.</p>
+</section>
+
+<section id="publication-evidence"><h2>1-1. 2026-10-19 후속 읽기 전용 점검</h2>
+<p>제품 코드와 아래 한국어·영어 조항 수정안은 바꾸지 않았다. 이번 점검은 게시 준비에 필요한 사실을 확인하고 남은 조건을 좁혔다.</p>
+<table><thead><tr><th>대상</th><th>확인한 근거</th><th>판정과 한계</th></tr></thead><tbody>
+<tr><td>정책 행과 원문</td><td>운영 <code>policy</code>의 privacy 행은 한국어 ID 1, 영어 ID 2다. 두 행의 <code>version</code>은 빈 문자열이고 <code>deleted_at</code>은 null이다. 생성·수정 시각은 모두 <code>2024-05-19 18:58:03.391454+00</code>이다. 조회 시 언어별 중복 행은 없었다. 원문과 메타데이터를 제한 권한 로컬 디렉터리에 백업했다.</td><td>본문의 통합 V2.4·2024-06-04 시행 안내와 DB 메타데이터는 구분해야 한다. 수정 시각만으로 본문 개정 시점을 추정하지 않는다. 게시 직전 원문 해시·행 수·메타데이터를 다시 비교한다.</td></tr>
+<tr><td>앱의 정책 사용</td><td><code>picnic-app</code>의 <code>AsyncPolicy._fetch()</code>도 <code>policy</code>를 조회해 각 유형·언어의 최신 생성 행을 선택한다. 운영 프로젝트 검증 코드의 프로젝트 ref도 웹과 같다.</td><td>앱을 정책 변경의 영향 대상에 포함한다. 로컬 소스 확인이며 설치된 배포 앱에서 직접 관측한 결과는 아니다. 해당 파일의 미커밋 변경은 없었다.</td></tr>
+<tr><td>비로그인 문의</td><td>웹 <code>createQnaThreadAction</code>은 인증 사용자가 없으면 저장 전에 거부한다. 메시지 API도 401을 반환하도록 구현돼 있다. 앱 <code>MyPage</code>는 사용자 프로필과 ID가 있을 때만 QnA 메뉴를 표시한다. 공개 GET에서 문의 페이지 두 경로는 200, <code>/contact</code>·<code>/support</code>는 404였다.</td><td>페이지 열람 200은 비로그인 접수 가능의 증거가 아니다. 확인한 기존 문의 기능은 로그인이 필요하므로 비로그인 웹 방문자의 권리 행사 경로는 확보됐다고 볼 수 없다. 실제 문의 제출은 하지 않았다. Replay 전용 접수 기능 보류 결정은 유지한다.</td></tr>
+<tr><td>DB·호스팅 지역</td><td>운영 Supabase 프로젝트의 기본 리전은 <code>ap-northeast-2</code>(서울)다. 운영 도메인이 가리키는 Vercel 배포의 <code>regions</code>는 <code>iad1</code>(미국), <code>icn1</code>(한국), <code>sin1</code>(싱가포르)다.</td><td>DB 기본 리전과 배포 리전 목록을 확인했다. 이 결과는 모든 개인정보·캐시·로그·백업의 저장 국가를 확정하거나 각 요청이 세 리전 모두에서 처리됐음을 입증하지 않는다. 진단 외 처리의 항목별 지역·기간 안내는 아직 미완료다.</td></tr>
+<tr><td>공개 Sentry 주소</td><td>운영 <code>/ko/vote</code>가 참조하는 같은 출처의 JavaScript 자산 36개를 조회했다. 발견한 Sentry 수신 호스트 1개는 명시적 <code>.ingest.us.sentry.io</code> 형식이었다. 지역 생략·다른 지역 호스트는 이 표본에서 발견되지 않았다.</td><td>현재 공개 빌드의 주소 형식 확인이다. 미배포 수동 진단의 서버 환경변수·최종 빌드·proof 검증을 대신하지 않는다. 환경변수 원문이나 비밀 키는 읽지 않았다.</td></tr>
+<tr><td>세션 보관·계약</td><td>23:36 KST에 Sentry 고객·조직 API를 GET으로 다시 조회했다. 두 응답은 200이었고 기존 보관 수치는 같았다. 확인한 응답에는 Release Health 세션의 별도 보관 기간이나 계정의 DPA 수락 증거가 없었다.</td><td>세션 보관 기간은 미확정이다. 응답에 증거가 없다는 사실은 계약 미체결을 뜻하지 않는다. 공급자 답변과 실제 적용 계약 확인이 필요하다.</td></tr>
+</tbody></table>
+<p class="muted">정책 원문 SHA-256: 한국어 <code>3d12c71204c7f78f72edfdc6b2e786075f24bee0ddaacd8e55193dd30468990a</code>, 영어 <code>2ade35fb16cd482b534c59e7bb6a8fd7fa2f1970230088a56f14907216ca6e68</code>. 앱 소스 기준: <code>078dda32a24b1a554368cda7fadc9a41d2aaaf0f</code>.</p>
+<h3>공급자 확인에 사용할 질문 초안 — 미전송</h3>
+<div class="copy" lang="en"><p>For our current Sentry SaaS Team plan in the US region, what retention periods apply to browser Release Health session data and its derived aggregates? Please distinguish retention of received session payloads, derived metrics, and backups, and clarify whether the period depends on the plan active when each item was collected. Please provide the applicable official documentation or account-specific confirmation.</p></div>
+<p>이 질문은 Replay 90일의 재확인을 요구하는 것이 아니다. 화면 녹화와 별도로 전송되는 세션 상태 자료의 기간을 확인하기 위한 것이다. 외부 메시지나 지원 요청은 보내지 않았다.</p>
 </section>
 
 <section id="ko-draft"><h2>2. 한국어 본문 수정안</h2>
@@ -92,19 +111,20 @@
 <section id="publication"><h2>4. 게시 전에 확정할 사항</h2>
 <p class="note pending">본문 수정안과 동의 화면 보완만으로 법률 적합성이나 국외 이전의 적법한 근거가 확정되는 것은 아니다. 현재 사용하는 수탁 계약과 국외 이전 근거, 실제 권리 행사 절차를 담당자가 확인해야 한다.</p>
 <ol>
-<li>제13조의 황재근·CX팀·앱 내 1:1 문의는 2026-10-19 사용자가 현재도 유효하다고 확인했다. 로그아웃한 웹 방문자도 이 경로로 권리를 행사할 수 있는지는 별도로 확인한다. Replay 전용 접수 기능을 새로 만들거나 검증되지 않은 주소를 대신 넣지 않는다.</li>
+<li>제13조의 황재근·CX팀·앱 내 1:1 문의는 2026-10-19 사용자가 현재도 유효하다고 확인했다. 다만 확인한 웹·앱 문의 기능은 로그인이 필요하다. 비로그인 웹 방문자의 기존 권리 행사 방법을 운영 담당자가 확인해야 한다. Replay 전용 접수 기능을 새로 만들거나 검증되지 않은 주소를 대신 넣지 않는다.</li>
 <li>일반 오류·성능·세션 진단과 선택형 Replay 각각의 처리·국외 이전 근거, 실제 적용 계약, 고지·동의 방식을 확인한다. 현재 진단 시작 버튼 하나가 법에서 요구하는 별도 동의를 충족한다고 단정하지 않는다. Sentry의 공개 DPA 문서를 읽었다는 사실을 해당 계정의 계약 체결 증거로 사용하지 않는다.</li>
-<li>세션 상태 정보(Release Health)의 실제 보관 기간을 확인한 뒤 한국어·영어 제6조 보관 표에 추가한다. 공식 API가 90일 조회 예시를 제공한다는 사실만으로 실제 보관 기간을 90일로 단정하지 않는다. 이 확인 전에는 초안을 게시하지 않는다.</li>
-<li>진단 외 개인정보(DB·호스팅 등)의 실제 저장 지역을 확인하고 제6조에 별도로 기재한다. 현재의 모든 데이터 국내 저장 문구를 대체하면서 다른 처리의 지역 안내를 빠뜨리지 않는다.</li>
-<li>운영 진단용 DSN이 명시적 <code>.ingest.us.sentry.io</code> 형식인지 비밀값을 노출하지 않는 읽기 전용 점검으로 확인한다. 지역이 생략된 기존 DSN은 진단을 허용하지 않는다. 공유 <code>NEXT_PUBLIC_SENTRY_DSN</code>을 변경하면 일반 SDK에도 적용되므로 별도 영향 확인 없이 바꾸지 않는다.</li>
+<li>세션 상태 정보(Release Health)의 실제 보관 기간을 공급자에게 확인한 뒤 한국어·영어 제6조 보관 표에 추가한다. 계정 API 재조회에서도 이 기간은 확인되지 않았다. 공식 API의 90일 조회 예시를 실제 보관 기간으로 단정하지 않는다. 이 확인 전에는 초안을 게시하지 않는다.</li>
+<li>확인한 Supabase 서울 기본 리전과 Vercel 미국·한국·싱가포르 배포 리전을 출발점으로 진단 외 개인정보의 처리·저장 지역, 캐시·로그·백업의 범위와 기간을 확인하고 제6조에 별도로 기재한다. 현재의 모든 데이터 국내 저장 문구를 대체하면서 다른 처리의 지역 안내를 빠뜨리지 않는다.</li>
+<li>현재 공개 자산의 Sentry 주소는 명시적 미국 형식으로 확인했다. 새 진단 빌드의 DSN·최종 전송 주소·proof는 배포 전에 별도로 대조한다. 지역이 생략된 주소는 진단을 허용하지 않는다. 공유 <code>NEXT_PUBLIC_SENTRY_DSN</code>을 변경하면 일반 SDK에도 적용되므로 별도 영향 확인 없이 바꾸지 않는다.</li>
 <li>새 방침의 버전·시행일·사전 안내 방법을 결정한다. 화면의 임시 버전과 조회 당일 표시를 실제 정책 정보에 맞추거나 제거하는 변경을 함께 검토한다.</li>
-<li>운영 DB에서 한국어·영어 대상 행의 ID·현재 본문·버전·수정 시각·삭제 여부와 사용처를 읽기 전용으로 대조한다. 원문 백업과 정확한 변경 전후 비교를 만든 뒤 게시 승인을 받는다. 원문이 바뀌었거나 중복 행이 있으면 덮어쓰지 않는다.</li>
+<li>운영 DB의 한국어·영어 대상 행과 원문 백업을 확보했고 앱의 공통 테이블 사용도 확인했다. 게시 직전 원문 해시·행 수·메타데이터를 다시 비교한다. 남은 조건을 반영한 전체 본문의 정확한 변경 전후 비교를 만든 뒤 게시 승인을 받는다. 원문이 바뀌었거나 중복 행이 있으면 덮어쓰지 않는다.</li>
 <li>게시 후 한국어·영어 공개 페이지, 영어 이외 언어에서 표시되는 한국어 fallback, 영향을 받는 소비자에서 본문·버전·시행일을 확인한다. 이 게시와 Replay 활성화는 별도다. 실제 새 Replay의 저장 필드·연속 재생·삭제·OFF 배포 확인 등 기존 운영 조건은 유지한다.</li>
 </ol>
 <p>서비스명 “피크닠”은 확인한 현재 한국어 정책 본문의 표기를 유지했다. 사이트 메타데이터의 “피크닉”과 다르므로 정책 게시 때 서비스명 표기를 함께 대조한다. 현재 방침의 다른 수탁 업체·다른 국가·앱 수집 항목·지역별 부칙 전체를 감사한 결과는 아니다. 이번 문안으로 서비스 전체 고지의 완전성을 주장하지 않는다. 삭제 요청 기능 보류가 기존 권리 조항과 모순되지 않도록 실제 처리 절차의 확인을 남겨 둔다.</p>
 </section>
 
 <section id="validation"><h2>5. 구현·검증 상태</h2>
+<p>후속 읽기 전용 점검은 사실·근거·남은 조건만 문서에 추가했다. 제품 코드와 한국어·영어 조항 수정안은 이전 커밋과 동일하다. 아래 시험·독립 리뷰 결과는 앞선 구현 검증 이력이며 이번 후속 조사에 대한 새 독립 리뷰를 뜻하지 않는다.</p>
 <p>동의 전에 수신 업체, 미국 전송·저장, 업체 연락처, 동의 후 HTTPS 전송, 취소해도 공개 목록을 이용할 수 있다는 점을 표시하도록 보완했다. 별도 삭제 요청 접수 기능은 추가하지 않았다. 미국이 명시되지 않은 진단용 DSN은 거부한다. 직접 전달한 endpoint도 transport에서 다시 검사한다. 일반 Sentry transport와 오류 수집 설정은 바꾸지 않았다.</p>
 <p>지역 검사와 안내의 회귀 시험을 먼저 실행해 예상 실패 3건을 확인했다. 구현 후 관련 시험 23개 파일·214개가 통과했다. 최초 구현의 전체 단위 시험 5,454개 통과·예상 실패 2개·건너뜀 1개, 타입·린트 검사, 합성 브라우저 19개 시나리오와 배포 파일 281개 검증이 통과했다. 리뷰에서 확인한 transport 지역 검사도 실패 시험 2개로 재현하고 수정했다. 수정 후 관련 3개 파일·56개, 전체 단위 시험 5,456개·예상 실패 2개·건너뜀 1개, 타입·린트 검사가 통과했다. 최종 빌드 <code>ddkaiLEuWM1n3aTlBl0MO</code>에서도 합성 브라우저 19개와 배포 파일 281개 검증이 통과했다. 1280×900 화면에서 동의 문구와 버튼 표시, 동의 전 Replay 전송 0건, 취소 동작을 확인했다. 이 문서는 PC·모바일 폭에서 표시를 확인했다. Claude Opus 5.5 / high 독립 리뷰와 같은 리뷰어의 재검증에서 APPROVE를 받았다. 최초 Medium 2·Low 5 중 5건은 수정했고 2건은 근거로 해소했다. 참고 의견의 언어 fallback도 반영했으며 미해결 항목은 0건이다. 리뷰어 본인의 완료 보고가 수락됐고 작업 터미널·임시 파일을 정리했다. 이 결과는 코드·문서 검토이며 법률 적합성, 운영 게시·배포·활성화 승인이 아니다. 원격 CI의 최종 커밋 결과는 <a href="https://github.com/charlie0421/picnic-web/pull/144/checks">PR #144 checks</a>에서 확인한다. DB 쓰기, 운영 설정 변경, 병합·배포·활성화, 실제 Replay 업로드·삭제는 수행하지 않았다.</p>
 </section>
@@ -116,6 +136,8 @@
 <li><a href="https://sentry.io/privacy/">Sentry 개인정보 안내</a> — 법인명과 공개 연락처 근거. Sentry에 제출한 Service Data의 처리 근거 자체는 이 일반 개인정보 안내와 구분한다. <a href="https://sentry.io/legal/dpa/">Sentry DPA</a>의 공개 조건은 해당 계정의 계약 수락 여부를 입증하지 않는다.</li>
 <li><a href="https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&amp;lsJoLnkSeq=1029334957">개인정보 보호법 제28조의8</a> — 확인한 현행 조문은 이전 항목, 국가·시기·방법, 수신자·연락처, 목적·기간, 거부 방법·효과 등을 구분한다. 이 목록을 고지 검토에 참고했으며 적용 근거에 대한 법률 판정은 하지 않았다.</li>
 <li><a href="https://docs.sentry.io/api/releases/retrieve-release-health-session-statistics/">Sentry 세션 상태 통계 API</a> — 조회 범위 설명을 읽었으나 보관 기간 확인 근거로 사용하지 않았다. 현재 세션 전송 항목은 설치된 SDK의 <code>browserSessionIntegration</code>·<code>sessionToJSON</code>과 합성 브라우저 관측을 대조했다.</li>
+<li><a href="https://supabase.com/docs/guides/platform/regions">Supabase 기본 데이터 리전</a> · <a href="https://vercel.com/docs/regions">Vercel 리전 표와 글로벌 네트워크</a> — 2026-10-19 운영 API의 리전 코드와 대조했다. 배포 리전을 모든 데이터의 저장 위치로 확대하지 않았다.</li>
+<li>후속 점검 근거: Supabase <code>get_project</code>와 <code>policy</code>의 SELECT 두 번, Vercel 운영 도메인 조회·배포 GET, Sentry 고객·조직 GET, 공개 페이지·자산 GET. 웹 <code>app/actions/qna.ts</code>와 <code>app/api/qna/messages/route.ts</code>, 앱 <code>picnic_lib/lib/presentation/pages/my_page/my_page.dart</code>·<code>picnic_lib/lib/presentation/providers/policy_provider.dart</code>·<code>picnic_lib/lib/core/config/supabase_environment_policy.dart</code>도 읽었다.</li>
 <li>코드 근거: <code>app/[lang]/(main)/privacy/page.tsx</code>, <code>lib/data-fetching/server/policy-service.ts</code>, <code>instrumentation-client.ts</code>, <code>sentry.server.config.js</code>, <code>sentry.edge.config.js</code>, <code>lib/sentry/scrub.ts</code>, <code>components/replay/ReplayDiagnostic.tsx</code>, <code>lib/sentry/replay/diagnostic-config.ts</code>.</li>
 </ul>
 <p class="muted">비공개 계정 응답과 새 수집 근거는 로컬 제한 권한 디렉터리에 보관했다. 청구·계정 원문, 비밀 키, 실제 녹화 식별자는 이 문서와 Git에 포함하지 않는다.</p>
