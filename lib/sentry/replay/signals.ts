@@ -2,13 +2,13 @@ export type ReplayAuth = 'unknown' | 'anonymous' | 'authenticated';
 export type ReplayAds = 'unknown' | 'denied' | 'granted';
 export type ReplayState = {
   auth: ReplayAuth; ads: ReplayAds; adsEverLoaded: boolean; closed: boolean;
-  voteReady: boolean; bannersReady: boolean; popupReady: boolean; bannerCount: number;
+  voteReady: boolean; bannersReady: boolean; popupReady: boolean; bannerCount: number; languageReady: boolean;
 };
 
 /** Only coarse safety facts. Call mutations before publishing the corresponding application change. */
 export function createReplaySignals() {
   let state: ReplayState = { auth: 'unknown', ads: 'unknown', adsEverLoaded: false, closed: false,
-    voteReady: false, bannersReady: false, popupReady: false, bannerCount: 0 };
+    voteReady: false, bannersReady: false, popupReady: false, bannerCount: 0, languageReady: false };
   const listeners = new Set<(next: ReplayState) => void>();
   const snapshot = () => ({ ...state });
   function notify() {
@@ -42,6 +42,9 @@ export function createReplaySignals() {
       publish({ ads, closed: ads === 'granted' || (state.ads === 'denied' && ads !== 'denied') });
     },
     markAdsLoaded() { publish({ adsEverLoaded: true, closed: true }); },
+    setLanguageReady(languageReady: boolean) {
+      publish({ languageReady, closed: state.languageReady && !languageReady });
+    },
     setReady(section: 'vote' | 'banner' | 'popup', bannerCount?: number) {
       if (section === 'banner') {
         if (!Number.isInteger(bannerCount) || bannerCount! < 0 || bannerCount! > 100) { publish({ closed: true }); return; }

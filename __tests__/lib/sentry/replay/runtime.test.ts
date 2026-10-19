@@ -13,7 +13,7 @@ function fixture() {
   let href = config.origin + '/ko/vote';
   const runtime = () => createProductReplayRuntime({ signals, config, normal, load, transform, fetch,
     page: () => ({ href, visible: true, ready: true }), onReady: () => () => {} });
-  const ready = () => { signals.setAuth('anonymous'); signals.setAds('denied'); signals.setReady('vote'); signals.setReady('banner', 5); signals.setReady('popup'); };
+  const ready = (languageReady=true) => { if(languageReady)signals.setLanguageReady(true); signals.setAuth('anonymous'); signals.setAds('denied'); signals.setReady('vote'); signals.setReady('banner', 5); signals.setReady('popup'); };
   return { signals, sdk, load, normal, fetch, transform, runtime, ready, navigate: () => { href += '?status=end'; } };
 }
 afterEach(() => vi.useRealTimers());
@@ -48,4 +48,11 @@ describe('product Replay runtime', () => {
     resolve({ ok: true, value: { bytes: new Uint8Array([1]), next: emptyProjectionState(), segment: 0 } });
     await sending; expect(f.fetch).not.toHaveBeenCalled(); expect(f.sdk.stop).toHaveBeenCalledTimes(1);
   });
+});
+
+it('waits for initial language loading and closes permanently on a later load', async () => {
+  const f=fixture(); f.ready(false); const r=f.runtime(); await Promise.resolve(); await Promise.resolve();
+  expect(f.sdk.start).not.toHaveBeenCalled(); f.signals.setLanguageReady(true); await Promise.resolve(); await Promise.resolve();
+  expect(f.sdk.start).toHaveBeenCalledTimes(1); f.signals.setLanguageReady(false); expect(f.sdk.stop).toHaveBeenCalledTimes(1);
+  f.signals.setLanguageReady(true); expect(f.sdk.start).toHaveBeenCalledTimes(1); r.close();
 });

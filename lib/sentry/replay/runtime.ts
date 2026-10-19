@@ -19,7 +19,7 @@ export function createProductReplayRuntime(deps: Dependencies) {
   let removeReady = () => {};
   function eligibility() {
     const state = signals.snapshot(); const page = deps.page();
-    return { ...state, initialized: !state.closed && page.ready && state.voteReady && state.bannersReady && state.popupReady,
+    return { ...state, initialized: !state.closed && page.ready && state.languageReady && state.voteReady && state.bannersReady && state.popupReady,
       exactPublicRoute: page.visible && page.href === deps.config.origin + '/ko/vote' };
   }
   const controller = createController({
@@ -35,7 +35,7 @@ export function createProductReplayRuntime(deps: Dependencies) {
     if (state.closed || state.auth === 'authenticated' || state.ads === 'granted' || state.adsEverLoaded
       || page.href !== deps.config.origin + '/ko/vote' || !page.visible) { controller.close('ineligible'); return; }
     if (controller.snapshot().phase !== 'WAITING') { controller.eligibilityChanged(); return; }
-    if (state.auth === 'anonymous' && state.ads === 'denied' && state.voteReady && state.bannersReady && state.popupReady && page.ready) {
+    if (state.auth === 'anonymous' && state.ads === 'denied' && state.languageReady && state.voteReady && state.bannersReady && state.popupReady && page.ready) {
       void controller.prepare();
     }
   }

@@ -8,8 +8,8 @@ const id='a'.repeat(32),digest='c'.repeat(64);
 const config=diagnosticConfig(`https://${id}@o123.ingest.us.sentry.io/456`,digest,'b'.repeat(40))!;
 const allowance={allowed:true as const,manifestSha256:digest,disclosure:{retentionDays:30,deletionRequestUrl:'https://www.picnic.fan/support',storedTechnicalFields:[]}};
 const settle=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
-function setup(ready=true,safe=true) {
- const signals=createReplaySignals();if(ready){signals.setAuth('anonymous');signals.setAds('denied');signals.setReady('vote');signals.setReady('banner',0);signals.setReady('popup');}
+function setup(ready=true,safe=true,languageReady=true) {
+ const signals=createReplaySignals();if(languageReady)signals.setLanguageReady(true);if(ready){signals.setAuth('anonymous');signals.setAds('denied');signals.setReady('vote');signals.setReady('banner',0);signals.setReady('popup');}
  const session=createDiagnosticSession(),sdk={start:vi.fn(),stop:vi.fn(async()=>{}),flush:vi.fn(async()=>{}),getReplayId:()=>id};
  const loadSdk=vi.fn(async()=>sdk),eligible=vi.fn(async()=>allowance),install=vi.fn(()=>true),interaction=vi.fn(()=>vi.fn()),transform=vi.fn();
  const deps={signals,session,config,normal:{send:vi.fn(),flush:vi.fn(async()=>true)},win:window,loadSdk,eligible,install,interaction,transform,
@@ -52,4 +52,15 @@ it.each(['auth','ads'] as const)('stops recording when %s changes and blocks a l
  const transport=t.deps.install.mock.calls[0][0];
  await transport.send([{},[[{type:'replay_event'},{}],[{type:'replay_recording'},new Uint8Array()]]]);
  expect(t.deps.transform).not.toHaveBeenCalled();expect(t.deps.fetch).not.toHaveBeenCalled();
+});
+
+it('waits for delayed device detection and translation before offering consent',async()=>{
+ const t=setup(true,true,false);await settle();t.bridge.start();
+ expect(t.bridge.snapshot().phase).toBe('unavailable');expect(t.deps.eligible).not.toHaveBeenCalled();expect(t.deps.loadSdk).not.toHaveBeenCalled();
+ t.signals.setLanguageReady(true);await settle();expect(t.bridge.snapshot().phase).toBe('ready');expect(t.deps.loadSdk).not.toHaveBeenCalled();t.bridge.stop();
+});
+it('closes on a later language loading phase and cannot restart when it settles',async()=>{
+ const t=setup();await settle();t.bridge.start();await settle();t.bridge.idDisplayed(id);
+ t.signals.setLanguageReady(false);expect(t.bridge.snapshot().phase).toBe('closed');expect(t.sdk.stop).toHaveBeenCalledTimes(1);
+ t.signals.setLanguageReady(true);await settle();t.bridge.start();expect(t.bridge.snapshot().phase).toBe('closed');expect(t.deps.loadSdk).toHaveBeenCalledTimes(1);
 });

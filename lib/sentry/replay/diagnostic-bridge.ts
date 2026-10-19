@@ -32,7 +32,7 @@ export function createDiagnosticBridge(deps: Deps): DiagnosticBridge {
   let removeInteraction = () => {}, unsubscribe = () => {}, removeReady = () => {};
   const publish = (patch: Partial<DiagnosticView>) => { view = { ...view, ...patch }; for (const fn of Array.from(listeners)) fn(); };
   const eligibility = () => ({ ...deps.signals.snapshot(), initialized: !deps.signals.snapshot().closed && !deps.session.snapshot().closed
-    && deps.ready() && deps.signals.snapshot().voteReady && deps.signals.snapshot().bannersReady && deps.signals.snapshot().popupReady,
+    && deps.ready() && deps.signals.snapshot().languageReady && deps.signals.snapshot().voteReady && deps.signals.snapshot().bannersReady && deps.signals.snapshot().popupReady,
     exactPublicRoute: deps.visible() && deps.pageSafe() });
   const local = () => isEligible(eligibility());
   function stop() {
