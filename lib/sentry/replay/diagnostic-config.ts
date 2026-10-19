@@ -9,7 +9,8 @@ export function exactKeys(value: unknown, keys: string[]): value is Record<strin
 }
 export function diagnosticConfig(publicDsn: string, manifestSha256: string, commit: string): DiagnosticConfig | null {
   // Match the original string: URL normalization would hide explicit ports, empty ?/# and whitespace.
-  const match = /^https:\/\/([a-f0-9]{32})@(o\d+\.ingest(?:\.(?:us|de))?\.sentry\.io)\/([1-9]\d*)$/.exec(publicDsn);
+  // The consent notice discloses US storage; other or implicit regions must stay unavailable.
+  const match = /^https:\/\/([a-f0-9]{32})@(o\d+\.ingest\.us\.sentry\.io)\/([1-9]\d*)$/.exec(publicDsn);
   if (!match || !/^[a-f0-9]{64}$/.test(manifestSha256) || !/^[a-f0-9]{40}$/.test(commit)) return null;
   return Object.freeze({ origin: 'https://www.picnic.fan',
     endpoint: `https://${match[2]}/api/${match[3]}/envelope/?sentry_key=${match[1]}&sentry_version=7`,

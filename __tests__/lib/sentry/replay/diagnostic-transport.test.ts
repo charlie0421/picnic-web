@@ -9,17 +9,21 @@ const config=diagnosticConfig(`https://${'a'.repeat(32)}@o123.ingest.us.sentry.i
 const input:Envelope=[{},[[{type:'replay_event'},{}],[{type:'replay_recording'},new Uint8Array()]]];
 const allowed={allowed:true as const,manifestSha256:digest,disclosure:{retentionDays:90,storedTechnicalFields:[]}};
 function bytes(length=512, replayId=id) {const b=new Uint8Array(length);b.set(new TextEncoder().encode(JSON.stringify({event_id:replayId})+'\n'+JSON.stringify({type:'replay_event'})+'\n'+JSON.stringify({replay_id:replayId,event_id:replayId})+'\n'));return b;}
-function setup() {
+function setup(selectedConfig=config) {
  let gate:Gate={phase:'RECORDING',generation:1}, visible:string|null=id;
  const normal={send:vi.fn(async()=>({statusCode:200})),flush:vi.fn(async()=>true)};
  const close=vi.fn(()=>{gate={phase:'CLOSED',generation:2};});
  const fetcher=vi.fn(async()=>new Response(null,{status:200}));
  const transform=vi.fn(async(_input,state):Promise<ProjectResult>=>({ok:true,value:{bytes:bytes(),segment:state.nextSegment,next:{...state,replayId:id,nextSegment:state.nextSegment+1}}}));
  const eligible=vi.fn(async()=>allowed);const locallyEligible=vi.fn(()=>true),delivery=vi.fn();
- const runtime=createDiagnosticTransport({config,disclosure:allowed.disclosure,normal,close,fetch:fetcher,transform,gate:()=>gate,visibleId:()=>visible,eligible,locallyEligible,onDelivery:delivery});
+ const runtime=createDiagnosticTransport({config:selectedConfig,disclosure:allowed.disclosure,normal,close,fetch:fetcher,transform,gate:()=>gate,visibleId:()=>visible,eligible,locallyEligible,onDelivery:delivery});
  return {runtime,normal,close,fetcher,transform,eligible,locallyEligible,delivery,visible:(value:string|null)=>{visible=value;},stop:()=>{close();runtime.cancel();}};
 }
 beforeEach(()=>vi.useFakeTimers());afterEach(()=>vi.useRealTimers());
+it.each([config.endpoint.replace('.ingest.us.', '.ingest.de.'), config.endpoint.replace('.ingest.us.', '.ingest.')])(
+ 'rejects a directly supplied endpoint outside the disclosed US region: %s', endpoint => {
+  expect(() => setup({...config,endpoint})).toThrow('Invalid diagnostic endpoint');
+ });
 it('sends serially with fixed options only after eligibility, and keeps normal delivery',async()=>{
  const t=setup();for(let n=0;n<3;n++)expect(await t.runtime.transport.send(input)).toEqual({statusCode:200});
  expect(t.eligible).toHaveBeenCalledTimes(3);expect(t.transform.mock.calls.map(c=>c[1].nextSegment)).toEqual([0,1,2]);

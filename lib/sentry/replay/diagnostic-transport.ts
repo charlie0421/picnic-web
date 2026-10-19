@@ -29,7 +29,7 @@ function projectedId(bytes: Uint8Array, expected: string): boolean {
   } catch { return false; }
 }
 export function createDiagnosticTransport(deps: DiagnosticTransportDeps): { transport: Transport; cancel(): void } {
-  if (!/^https:\/\/o\d+\.ingest(?:\.(?:us|de))?\.sentry\.io\/api\/[1-9]\d*\/envelope\/\?sentry_key=[a-f0-9]{32}&sentry_version=7$/.test(deps.config.endpoint)) throw new Error('Invalid diagnostic endpoint');
+  if (!/^https:\/\/o\d+\.ingest\.us\.sentry\.io\/api\/[1-9]\d*\/envelope\/\?sentry_key=[a-f0-9]{32}&sentry_version=7$/.test(deps.config.endpoint)) throw new Error('Invalid diagnostic endpoint');
   let state = emptyProjectionState(), attemptedBytes = 0;
   const agreedDisclosure = JSON.stringify(deps.disclosure);
   let active: AbortController | undefined, pending: Promise<TransportMakeRequestResponse> | undefined;

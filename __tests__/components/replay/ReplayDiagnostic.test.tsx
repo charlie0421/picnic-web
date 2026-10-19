@@ -21,7 +21,13 @@ it('discloses the confirmed retention and unavailable intake before consent', ()
  render(<ReplayDiagnostic/>);
  fireEvent.click(screen.getByRole('button',{name:'화면 문제 진단'}));
  expect(screen.getByText(/자동 보관 기간은 90일/)).toBeTruthy();
+ expect(screen.getByText(/Functional Software, Inc\. \(Sentry\)/)).toBeTruthy();
+ expect(screen.getByText(/미국으로 전송·저장/)).toBeTruthy();
+ expect(screen.getByText(/compliance@sentry\.io/)).toBeTruthy();
+ expect(screen.getByText(/진단을 시작한 뒤.*HTTPS/)).toBeTruthy();
+ expect(screen.getByText(/취소해도 투표 목록을 이용할 수 있습니다/)).toBeTruthy();
  expect(screen.getByText(/삭제 요청 접수는 현재 제공하지 않습니다/)).toBeTruthy();
+ expect(screen.getByText(/개인정보 관련 권리는 이 안내로 제한되지 않습니다/)).toBeTruthy();
  expect(screen.queryByText(/7일.*수동 삭제/)).toBeNull();
  expect(screen.queryByText(/삭제 요청:|https:\/\//)).toBeNull();
  expect(fixture.bridge.start).not.toHaveBeenCalled();

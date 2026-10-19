@@ -14,6 +14,10 @@ describe('fixed diagnostic destination', () => {
   it('requires the full commit and exact digest', () => {
     expect(diagnosticConfig(dsn, '', commit)).toBeNull(); expect(diagnosticConfig(dsn, digest, 'short')).toBeNull();
   });
+  it.each([dsn.replace('.ingest.us.', '.ingest.de.'), dsn.replace('.ingest.us.', '.ingest.')])(
+    'rejects a destination without the disclosed explicit US region: %s', value => {
+      expect(diagnosticConfig(value, digest, commit)).toBeNull();
+    });
 });
 const disclosure = { retentionDays: 90, storedTechnicalFields: ['browser','os','device'] };
 it.each([1, 30, 90])('accepts confirmed retention of %i days with no stored technical fields', retentionDays => {
