@@ -6,7 +6,7 @@ const fixture=vi.hoisted(()=>({bridge:null as any}));
 vi.mock('@/lib/sentry/replay/diagnostic-bridge',()=>({getDiagnosticBridge:()=>fixture.bridge,UNAVAILABLE_DIAGNOSTIC_VIEW:{phase:'unavailable',id:null,delivery:'none',disclosure:null}}));
 let view:any,listeners:Set<()=>void>;
 beforeEach(()=>{
- view={phase:'ready',id:null,delivery:'none',disclosure:{retentionDays:30,deletionRequestUrl:'https://www.picnic.fan/support',storedTechnicalFields:['browser']}};listeners=new Set();
+ view={phase:'ready',id:null,delivery:'none',disclosure:{retentionDays:90,storedTechnicalFields:['browser']}};listeners=new Set();
  fixture.bridge={snapshot:()=>view,subscribe:(fn:()=>void)=>{listeners.add(fn);return()=>listeners.delete(fn);},start:vi.fn(),stop:vi.fn(),idDisplayed:vi.fn()};
  vi.spyOn(Element.prototype,'getClientRects').mockReturnValue([{width:100,height:20}] as any);
 });
@@ -16,3 +16,13 @@ it('confirms the actual ID only after its DOM is visible and stops before copyin
 it('closes if the ID cannot be confirmed visible',()=>{vi.mocked(Element.prototype.getClientRects).mockReturnValue([] as any);view={...view,phase:'recording',id:'a'.repeat(32)};render(<ReplayDiagnostic/>);expect(fixture.bridge.idDisplayed).not.toHaveBeenCalled();expect(fixture.bridge.stop).toHaveBeenCalled();});
 it.each(['unavailable','closed'])('hides the entry on %s without an ID',phase=>{view={...view,phase};render(<ReplayDiagnostic/>);expect(screen.queryByRole('button',{name:'화면 문제 진단'})).toBeNull();});
 it('reports receipt without claiming storage or playback',()=>{view={...view,phase:'closed',id:'a'.repeat(32),delivery:'accepted'};render(<ReplayDiagnostic/>);expect(screen.getByText('전송 응답을 받았습니다. 저장·재생 여부는 확인이 필요합니다.')).toBeTruthy();});
+
+it('discloses the confirmed retention and unavailable intake before consent', () => {
+ render(<ReplayDiagnostic/>);
+ fireEvent.click(screen.getByRole('button',{name:'화면 문제 진단'}));
+ expect(screen.getByText(/자동 보관 기간은 90일/)).toBeTruthy();
+ expect(screen.getByText(/삭제 요청 접수는 현재 제공하지 않습니다/)).toBeTruthy();
+ expect(screen.queryByText(/7일.*수동 삭제/)).toBeNull();
+ expect(screen.queryByText(/삭제 요청:|https:\/\//)).toBeNull();
+ expect(fixture.bridge.start).not.toHaveBeenCalled();
+});

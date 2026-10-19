@@ -24,7 +24,7 @@ async function main() {
   const chrome = process.argv.includes('--chrome');
   const manifestPath = path.resolve('lib/sentry/replay/generated/diagnostic-manifest.json');
   const digest = createHash('sha256').update(fs.readFileSync(manifestPath)).digest('hex');
-  const disclosure = { retentionDays: 30, deletionRequestUrl: 'https://www.picnic.fan/support', storedTechnicalFields: ['browser','os','device'] };
+  const disclosure = { retentionDays: 90, storedTechnicalFields: ['browser','os','device'] };
   const viewer = (await build({ entryPoints: [path.resolve('scripts/replay-p0/vote-list-restore-entry.ts')], bundle: true, platform: 'browser', format: 'iife', write: false })).outputFiles[0].text;
   const browser = await chromium.launch(chrome ? { channel: 'chrome', headless: false } : { headless: true });
   const results = [];

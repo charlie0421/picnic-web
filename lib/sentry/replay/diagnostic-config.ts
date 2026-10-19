@@ -1,5 +1,5 @@
 import { DIAGNOSTIC_ENVIRONMENT } from './diagnostic-build-metadata';
-export type DiagnosticDisclosure = { retentionDays: number; deletionRequestUrl: string; storedTechnicalFields: Array<'browser' | 'os' | 'device'> };
+export type DiagnosticDisclosure = { retentionDays: number; storedTechnicalFields: Array<'browser' | 'os' | 'device'> };
 export type DiagnosticConfig = Readonly<{ origin: 'https://www.picnic.fan'; endpoint: string; release: string;
   environment: typeof DIAGNOSTIC_ENVIRONMENT; manifestSha256: string }>;
 export type DiagnosticAllowance = { allowed: true; manifestSha256: string; disclosure: DiagnosticDisclosure };
@@ -16,14 +16,10 @@ export function diagnosticConfig(publicDsn: string, manifestSha256: string, comm
     release: `picnic-web@${commit}`, environment: DIAGNOSTIC_ENVIRONMENT, manifestSha256 });
 }
 export function parseDiagnosticDisclosure(value: unknown): DiagnosticDisclosure | null {
-  if (!exactKeys(value, ['retentionDays', 'deletionRequestUrl', 'storedTechnicalFields'])) return null;
-  const { retentionDays, deletionRequestUrl, storedTechnicalFields } = value;
+  if (!exactKeys(value, ['retentionDays', 'storedTechnicalFields'])) return null;
+  const { retentionDays, storedTechnicalFields } = value;
   if (typeof retentionDays !== 'number' || !Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 90) return null;
-  if (typeof deletionRequestUrl !== 'string' || deletionRequestUrl.trim() !== deletionRequestUrl) return null;
-  try { const url = new URL(deletionRequestUrl);
-    if (url.protocol !== 'https:' || !url.hostname.includes('.') || url.username || url.password) return null;
-  } catch { return null; }
   if (!Array.isArray(storedTechnicalFields) || !storedTechnicalFields.every(field => ['browser', 'os', 'device'].includes(field))
     || new Set(storedTechnicalFields).size !== storedTechnicalFields.length) return null;
-  return { retentionDays, deletionRequestUrl, storedTechnicalFields: [...storedTechnicalFields] };
+  return { retentionDays, storedTechnicalFields: [...storedTechnicalFields] };
 }

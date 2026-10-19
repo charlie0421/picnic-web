@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { checkDiagnosticEligibility } from '@/lib/sentry/replay/diagnostic-eligibility';
 const digest = 'c'.repeat(64);
-const allowance = { allowed: true, manifestSha256: digest, disclosure: { retentionDays: 30, deletionRequestUrl: 'https://www.picnic.fan/support', storedTechnicalFields: ['browser'] } };
+const allowance = { allowed: true, manifestSha256: digest, disclosure: { retentionDays: 90, storedTechnicalFields: ['browser'] } };
 beforeEach(() => { vi.useFakeTimers(); vi.stubEnv('NEXT_PUBLIC_REPLAY_DIAGNOSTIC_MANIFEST_SHA256', digest); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 it('checks a strict response with same-origin credentials and no caching or redirects', async () => {
@@ -26,5 +26,11 @@ it('includes JSON parsing within the 1 second deadline and ignores late completi
 });
 it.each([302, 404, 500])('denies HTTP %i', async status => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null,{status})));
+  expect(await checkDiagnosticEligibility(new AbortController().signal)).toBeNull();
+});
+
+it('rejects an older server response that still requires intake', async () => {
+  const stale = {...allowance, disclosure:{...allowance.disclosure, deletionRequestUrl:'https://www.picnic.fan/support'}};
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(stale))));
   expect(await checkDiagnosticEligibility(new AbortController().signal)).toBeNull();
 });

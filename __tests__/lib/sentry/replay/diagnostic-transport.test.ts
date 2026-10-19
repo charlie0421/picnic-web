@@ -7,7 +7,7 @@ import { emptyProjectionState, type Gate, type ProjectResult } from '@/scripts/r
 const id='a'.repeat(32),digest='c'.repeat(64);
 const config=diagnosticConfig(`https://${'a'.repeat(32)}@o123.ingest.us.sentry.io/456`,digest,'b'.repeat(40))!;
 const input:Envelope=[{},[[{type:'replay_event'},{}],[{type:'replay_recording'},new Uint8Array()]]];
-const allowed={allowed:true as const,manifestSha256:digest,disclosure:{retentionDays:30,deletionRequestUrl:'https://www.picnic.fan/support',storedTechnicalFields:[]}};
+const allowed={allowed:true as const,manifestSha256:digest,disclosure:{retentionDays:90,storedTechnicalFields:[]}};
 function bytes(length=512, replayId=id) {const b=new Uint8Array(length);b.set(new TextEncoder().encode(JSON.stringify({event_id:replayId})+'\n'+JSON.stringify({type:'replay_event'})+'\n'+JSON.stringify({replay_id:replayId,event_id:replayId})+'\n'));return b;}
 function setup() {
  let gate:Gate={phase:'RECORDING',generation:1}, visible:string|null=id;
@@ -56,8 +56,10 @@ it('reads only metadata before a binary recording',async()=>{const t=setup();con
 it('denies rate-limit responses even when status is 200',async()=>{const t=setup();t.fetcher.mockResolvedValue(new Response(null,{headers:{'retry-after':'1'}}));await t.runtime.transport.send(input);expect(t.delivery).toHaveBeenLastCalledWith('unknown');expect(t.close).toHaveBeenCalledWith('http');});
 
 it.each([
-  {retentionDays:90}, {deletionRequestUrl:'https://www.picnic.fan/changed'}, {storedTechnicalFields:['browser']},
-])('stops before POST when the agreed disclosure changes: %j', async patch => {
+  ['retention changes', {retentionDays:30}],
+  ['retired intake key appears', {deletionRequestUrl:'https://www.picnic.fan/changed'}],
+  ['stored technical fields change', {storedTechnicalFields:['browser']}],
+] as const)('stops before POST when %s', async (_reason, patch) => {
   const t=setup();t.eligible.mockResolvedValue({...allowed,disclosure:{...allowed.disclosure,...patch}} as any);
   await t.runtime.transport.send(input);
   expect(t.fetcher).not.toHaveBeenCalled();expect(t.close).toHaveBeenCalledWith('ineligible');

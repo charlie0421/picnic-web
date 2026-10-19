@@ -42,7 +42,7 @@ function harnessEnv({ out, fontMock, build, integration = false, diagnostic = fa
     env.NEXT_PUBLIC_SENTRY_DSN = require('../../replay-diagnostic/test-build.cjs').SYNTHETIC_DSN;
     env.REPLAY_DIAGNOSTIC_ENABLED = candidate ? '0' : '1';
     env.REPLAY_DIAGNOSTIC_REQUIRE_PROOF = candidate ? '0' : '1';
-    env.REPLAY_DIAGNOSTIC_DISCLOSURE_JSON = JSON.stringify({ retentionDays: 30, deletionRequestUrl: 'https://www.picnic.fan/support', storedTechnicalFields: ['browser', 'os', 'device'] });
+    env.REPLAY_DIAGNOSTIC_DISCLOSURE_JSON = JSON.stringify({ retentionDays: 90, storedTechnicalFields: ['browser', 'os', 'device'] });
   }
   if (build && !fontMock) env.REPLAY_NET_ALLOW = FONT_HOSTS;
   if (fontMock) env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES = path.join(__dirname, 'font-mock.cjs');

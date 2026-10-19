@@ -15,7 +15,20 @@ describe('fixed diagnostic destination', () => {
     expect(diagnosticConfig(dsn, '', commit)).toBeNull(); expect(diagnosticConfig(dsn, digest, 'short')).toBeNull();
   });
 });
-const disclosure = { retentionDays: 90, deletionRequestUrl: 'https://www.picnic.fan/support', storedTechnicalFields: ['browser','os','device'] };
+const disclosure = { retentionDays: 90, storedTechnicalFields: ['browser','os','device'] };
+it.each([1, 30, 90])('accepts confirmed retention of %i days with no stored technical fields', retentionDays => {
+  const value = { retentionDays, storedTechnicalFields: [] };
+  expect(parseDiagnosticDisclosure(value)).toEqual(value);
+});
+it.each([
+  { retentionDays: 90 },
+  { storedTechnicalFields: [] },
+  { retentionDays: 90, deletionRequestUrl: 'https://x.y' },
+  { ...disclosure, retentionDays: '90' },
+  { ...disclosure, storedTechnicalFields: 'browser' },
+])('rejects incomplete or mistyped disclosure: %j', value => {
+  expect(parseDiagnosticDisclosure(value)).toBeNull();
+});
 it('requires confirmed finite disclosure, without unknown keys or duplicate fields', () => {
   expect(parseDiagnosticDisclosure(disclosure)).toEqual(disclosure);
   for (const bad of [null, {}, {...disclosure, retentionDays: 91}, {...disclosure, retentionDays: 1.5},
@@ -23,4 +36,8 @@ it('requires confirmed finite disclosure, without unknown keys or duplicate fiel
     {...disclosure, storedTechnicalFields: ['ip']}, {...disclosure, storedTechnicalFields: ['os','os']}, {...disclosure, extra: true}]) {
     expect(parseDiagnosticDisclosure(bad)).toBeNull();
   }
+});
+
+it('rejects the retired intake field instead of accepting a stale disclosure', () => {
+  expect(parseDiagnosticDisclosure({ ...disclosure, deletionRequestUrl: 'https://www.picnic.fan/support' })).toBeNull();
 });

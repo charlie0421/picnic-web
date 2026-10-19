@@ -5,7 +5,7 @@ import { GET } from '@/app/api/replay/eligibility/route';
 import { readDiagnosticBuild } from '@/lib/sentry/replay/diagnostic-build';
 vi.mock('@/lib/sentry/replay/diagnostic-build', () => ({readDiagnosticBuild:vi.fn()}));
 const digest='c'.repeat(64), url='https://www.picnic.fan/api/replay/eligibility?mode=diagnostic';
-const disclosure={retentionDays:30,deletionRequestUrl:'https://www.picnic.fan/support',storedTechnicalFields:['browser']};
+const disclosure={retentionDays:90,storedTechnicalFields:['browser']};
 const req=(suffix='',headers={})=>new NextRequest(url+suffix,{headers});
 beforeEach(()=> { vi.stubEnv('REPLAY_DIAGNOSTIC_ENABLED','1'); vi.stubEnv('REPLAY_DIAGNOSTIC_DISCLOSURE_JSON',JSON.stringify(disclosure)); vi.mocked(readDiagnosticBuild).mockResolvedValue({manifestSha256:digest} as any); });
 afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
@@ -20,5 +20,11 @@ it.each(['&other=1','&mode=diagnostic','&'])('denies other query combinations %s
 
 it.each(['https://preview.vercel.app','https://picnic.fan','http://www.picnic.fan'])('denies non-production origin: %s',async origin=>{
  expect((await GET(new NextRequest(origin+'/api/replay/eligibility?mode=diagnostic'))).status).toBe(404);
+ expect(readDiagnosticBuild).not.toHaveBeenCalled();
+});
+
+it('denies a stale server disclosure containing an intake URL', async () => {
+ vi.stubEnv('REPLAY_DIAGNOSTIC_DISCLOSURE_JSON', JSON.stringify({...disclosure, deletionRequestUrl:'https://www.picnic.fan/support'}));
+ expect((await GET(req())).status).toBe(404);
  expect(readDiagnosticBuild).not.toHaveBeenCalled();
 });

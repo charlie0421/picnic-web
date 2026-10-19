@@ -13,6 +13,7 @@
 <p><strong>작업 위치:</strong> <code>/Users/charlie.hyun/Repositories/picnic-web-replay-policy</code>, <code>docs/replay-policy</code>. 파일 경로는 이 워크트리 기준이다.</p>
 <p class="note"><strong>실행 방식:</strong> 조정자가 아래 작업을 순서대로 구현한다. 구현에는 <code>superpowers:executing-plans</code>를 적용한다. 마지막에 다른 공급자의 Frontier 리뷰어가 전체 변경을 검토한다. 네이티브 하위 에이전트는 사용하지 않는다. 실제 검토 작업자는 최신 사용량·계정·capability·Orca 실행 검증을 통과한 경우에만 시작한다.</p>
 </header>
+<p class="note"><strong>2026-10-19 정책 변경 반영:</strong> 사용자가 90일 자동 보관을 허용하고 삭제 요청 접수는 보류했다. 고지 계약에서 삭제 요청 URL을 제거하고 7일 수동 삭제 약속을 안내하지 않는다. 아래 보관·고지 항목은 이 결정을 반영했다. 이번 보완은 로컬 검증과 독립 재검증을 완료한 상태이며 운영 Replay는 OFF다.</p>
 <section><h2>공통 제약</h2><ul>
 <li>운영 주소는 정확히 <code>https://www.picnic.fan/ko/vote</code>다. 빈 <code>?</code>·<code>#</code>까지 거부한다. 직접 연 새 문서의 초기 목록과 PC Chrome만 허용한다. 모바일·Edge·Safari·Firefox·HeadlessChrome·식별 불명은 거부한다.</li>
 <li>클라이언트 비로그인, 서버의 빈 Cookie 또는 허용된 locale 쿠키 1개, Authorization 부재, 광고 <code>denied</code>, 광고 로드 이력 없음이 모두 필요하다. Supabase 인증 동작·DB·스키마는 변경하지 않는다.</li>
@@ -23,7 +24,7 @@
 <li>첫 POST 전에 실제 SDK의 32자리 소문자 16진수 Replay ID를 화면에 표시한다. 표시 전 envelope 도착, 잘못된 ID, 표시 ID와 envelope ID 불일치는 종료한다. 별도 ID 매핑·ID 영속 저장은 만들지 않는다.</li>
 <li>payload는 허용된 구조와 스타일로 새로 만든다. 모든 글자·입력을 가리고 미디어를 차단한다. 실제 URL·query·계정·원본 오류·콘솔·네트워크 내용은 보내지 않는다. 가상 주소는 <code>https://replay.invalid/ko/vote</code>다. 일반 오류의 Replay 연계 필드 제거를 유지한다.</li>
 <li>기본 서버 스위치는 OFF다. 최종 빌드와 manifest의 검증 표식이 없거나 다르면 UI도 OFF다. 운영 활성화·Sentry 설정 변경·개인정보처리방침 수정·실제 데이터 삭제는 이 구현 계획의 실행 승인에 포함하지 않는다.</li>
-<li>자동 보관 ≤90일 확인, 조사 종료 다음 영업일까지 또는 수집 후 7일 이내 수동 삭제, 담당자 Charlie, 실제 삭제 요청 경로·고지는 공개 활성화 조건이다. PayPal·PortOne 보류와 Jira 현재 상태를 유지한다.</li>
+<li>사용자가 확인된 90일 자동 보관을 허용했다. 담당자는 Charlie다. 동의 안내에는 실제 보관 기간과 삭제 요청 접수 미제공을 표시한다. 실제 고지·저장 결과 대조는 공개 활성화 조건이다. PayPal·PortOne 보류와 Jira 현재 상태를 유지한다.</li>
 </ul></section>
 <section><h2>검토에서 우선 볼 5가지</h2><table><thead><tr><th>실패 조건</th><th>기대 동작과 담당 시험</th></tr></thead><tbody>
 <tr><td>최종 빌드 뒤 재빌드, 검증 파일 누락·이전 빌드 파일 혼입</td><td>허용 API와 UI OFF. 작업 1의 build-proof 시험, 작업 6의 패키징 검사.</td></tr>
@@ -74,7 +75,7 @@ expect(await readDiagnosticBuild()).toBeNull(); // missing/invalid proof
 <p><strong>쉽게:</strong> 지원 화면·브라우저·비로그인·광고 거절 조건과 운영 허용 상태를 확인한다.</p>
 <p><strong>파일:</strong> 새 <code>diagnostic-config.ts</code>, <code>diagnostic-eligibility.ts</code>. 수정 <code>app/api/replay/eligibility/route.ts</code>. 시험 <code>__tests__/lib/sentry/replay/diagnostic-config.test.ts</code>, <code>diagnostic-eligibility.test.ts</code>, 기존 <code>__tests__/api/replay/eligibility.test.ts</code>.</p>
 <pre><code>type DiagnosticDisclosure = {
-  retentionDays: number; deletionRequestUrl: string;
+  retentionDays: number;
   storedTechnicalFields: Array&lt;'browser' | 'os' | 'device'&gt;;
 };
 type DiagnosticConfig = Readonly&lt;{
@@ -85,7 +86,7 @@ type DiagnosticAllowance = { allowed: true; manifestSha256: string; disclosure: 
 diagnosticConfig(publicDsn: string, manifestSha256: string, commit: string): DiagnosticConfig | null
 checkDiagnosticEligibility(signal: AbortSignal): Promise&lt;DiagnosticAllowance | null&gt;</code></pre>
 <ol>
-<li>☐ OFF/미확정 고지/유효 proof 없음/추가 쿠키/중복 locale/Authorization에 대해 허용 응답이 없도록 시험한다. 정상 빈 쿠키와 locale 1개는 허용한다. <code>REPLAY_DIAGNOSTIC_ENABLED</code>는 정확히 <code>1</code>일 때만 ON이다. 고지 설정은 서버 전용 <code>REPLAY_DIAGNOSTIC_DISCLOSURE_JSON</code>으로 읽고 retentionDays 정수 1~90, 담당자가 확정한 HTTPS 삭제 요청 URL, 허용된 기술 필드만 인정한다. 미설정 시 OFF다.<pre><code>expect(offResponse.status).toBe(404);
+<li>☐ OFF/미확정 고지/유효 proof 없음/추가 쿠키/중복 locale/Authorization에 대해 허용 응답이 없도록 시험한다. 정상 빈 쿠키와 locale 1개는 허용한다. <code>REPLAY_DIAGNOSTIC_ENABLED</code>는 정확히 <code>1</code>일 때만 ON이다. 고지 설정은 서버 전용 <code>REPLAY_DIAGNOSTIC_DISCLOSURE_JSON</code>으로 읽고 retentionDays 정수 1~90과 허용된 기술 필드만 인정한다. 두 필드가 모두 있어야 하며 이전 deletionRequestUrl 또는 다른 추가 필드를 포함하면 거부한다. 미설정 시 OFF다.<pre><code>expect(offResponse.status).toBe(404);
 expect(allowedResponse.headers.get('Cache-Control')).toContain('no-store');
 expect(await allowedResponse.json()).toEqual({ allowed: true, manifestSha256: digest, disclosure });
 expect(await checkDiagnosticEligibility(abortedSignal)).toBeNull();
@@ -181,7 +182,7 @@ expect(normalError.replay_id).toBeUndefined();</code></pre></li>
 <li>☐ 기존 Sentry client를 재초기화하지 않는 registry를 연결한다. browser transport는 로컬 전용 분기 외 운영 registry를 조회한다. 진단 UI는 한국어 투표 목록에만 mount한다. 문서 초기에는 가벼운 안전 감시만 설치한다. load/ready 이후 로컬 자격을 모두 충족한 문서에 한해 UI 표시용 서버 검사를 한 번 수행한다. 실패/404를 반복 요청하지 않는다. OFF 운영에서도 이 조건을 충족하는 문서당 서버 함수 1회 비용은 남는다. 명시 동의 시와 각 envelope의 서버 재검사는 별도로 유지한다. 자격·proof·실제 고지가 모두 확인되기 전에는 동의 버튼을 표시하지 않는다.</li>
 <li>☐ start 핸들러에서 interaction 감시→attempt/consent 획득→안내 제거→서버·화면 준비 재검사→SDK 동적 로드 순서를 구현한다. registry에 닫힌 상태의 transport를 먼저 연결한 뒤 recorder를 시작한다. 옵션은 기존 bridge의 <code>maskAllText/Inputs=true, blockAllMedia=true, stickySession=false, useCompression=false, minReplayDuration=0, flushMinDelay/flushMaxDelay=1500</code>를 유지한다. 샘플링 0/0에서도 수동 start만 허용한다.</li>
 <li>☐ SDK <code>getReplayId()</code> 결과를 검증해 상태에 반영한다. React <code>useLayoutEffect</code>에서 해당 번호 DOM이 표시됐는지 확인한 뒤 <code>idDisplayed(id)</code>를 호출한다. 보이지 않는 상태·예외·ID 불일치는 close한다. 이 전에 envelope가 도착하면 기다리지 않고 close한다. 실제 진단 UI는 manifest에 포함한 정적 class와 기존 허용 태그만 사용하고 inline style·새 styled-jsx를 사용하지 않는다. static 상태 문구·최대 시간·번호·중지 버튼만 녹화 화면에 남기고 동적 countdown을 만들지 않는다. 번호 복사는 stop을 먼저 호출한다.</li>
-<li>☐ 승인 설계의 안내 핵심 문구와 확인된 고지를 표시한다. <code>accepted</code>는 “전송 응답을 받았습니다. 저장·재생 여부는 확인이 필요합니다.”, <code>unknown</code>은 “전송이 중단되어 저장 여부를 확인할 수 없습니다.”로 표시한다. 번호 소실·번호 없는 삭제 요청의 한계도 안내한다. 삭제 요청 URL은 안내 중 새 탭을 여는 링크 대신 텍스트로 표시한다. 안내 보기/취소 시험에서 탭 이동이 발생하지 않음을 확인한다. 개인정보처리방침 페이지 내용은 이 작업에서 수정하지 않는다.</li>
+<li>☐ 승인 설계의 안내 핵심 문구와 확인된 고지를 표시한다. <code>accepted</code>는 “전송 응답을 받았습니다. 저장·재생 여부는 확인이 필요합니다.”, <code>unknown</code>은 “전송이 중단되어 저장 여부를 확인할 수 없습니다.”로 표시한다. 진단 번호 보관·페이지를 닫으면 번호가 사라지는 점을 안내한다. 삭제 요청 접수는 현재 제공하지 않는다고 표시한다. 7일 수동 삭제 약속과 삭제 요청 URL은 표시하지 않는다. 안내 보기/취소 시험에서 탭 이동이 발생하지 않음을 확인한다. 개인정보처리방침 페이지 내용은 이 작업에서 수정하지 않는다.</li>
 <li>☐ 위 시험과 기존 browser-transport·SDK correlation·instrumentation privacy 시험을 실행한다. stop flush·로드 중 중지·늦은 응답·ID 표시 실패·일반 오류 회귀가 모두 PASS여야 한다.</li>
 <li>☐ <code>feat(replay): add explicit diagnostic consent controls</code>로 관련 파일만 커밋한다.</li>
 </ol></section>
@@ -197,7 +198,7 @@ expect(normalError.replay_id).toBeUndefined();</code></pre></li>
 <li>☐ 다른 공급자의 Frontier 리뷰어에게 승인 설계·이 계획·실제 diff·관련 파일·시험 결과를 전달한다. 정확성·개인정보·경합·배포 표식·시험 공백을 검토한다. 구현자의 자기평가는 전달하지 않는다. 지적은 코드/시험으로 수정 또는 반박하고 같은 리뷰어가 한 번 재검증한다. 사용량이나 실행 권한이 차단되면 리뷰 통과로 처리하지 않는다.</li>
 <li>☐ 실제 결과·실행하지 못한 검사·운영 OFF·남은 활성화 조건을 HTML에 기록하고 관련 문서를 커밋한다. PR 생성 후 실제 Preview 유무를 조회한다. URL이 생성됐고 UI/API 변경을 main에 합칠 때는 사용자의 Preview 확인 답변을 기다린다. 현재 계획의 Preview 확인은 OFF 상태와 일반 오류·기존 화면 회귀를 대상으로 한다. Preview에서 진단 전체 흐름을 시험하려면 고정된 시험 origin·합성 데이터·별도 시험 구성을 준비해 설정 변경 승인을 먼저 받는다. 로컬 synthetic 플래그의 Vercel 배포 금지는 유지한다. 운영 origin 제한을 완화해 Preview 진단을 켜지 않는다. 조회 실패를 Preview 없음으로 처리하지 않는다.</li>
 </ol>
-<p class="pending"><strong>구현 완료와 운영 활성화는 다르다.</strong> 담당자는 실제 Sentry 자동 보관 ≤90일·열람 권한·개별 삭제 권한·삭제 요청 URL·실제 개인정보처리방침·직접 전송의 IP/geo/browser/os/device 저장 결과·사용량/과금·OFF 배포 절차를 확인해야 한다. 합성 Replay의 저장·연속 재생·삭제를 새 구현으로 확인하고, 이 결과를 토대로 별도 활성화 승인을 받는다. 기존 합성 시험 결과를 새 기능의 증거로 대신하지 않는다.</p>
+<p class="pending"><strong>구현 완료와 운영 활성화는 다르다.</strong> 담당자는 실제 Sentry 자동 보관 ≤90일·열람 권한·개별 삭제 권한·실제 개인정보처리방침·직접 전송의 IP/geo/browser/os/device 저장 결과·사용량/과금·OFF 배포 절차를 확인해야 한다. 합성 Replay의 저장·연속 재생·삭제를 새 구현으로 확인하고, 이 결과를 토대로 별도 활성화 승인을 받는다. 기존 합성 시험 결과를 새 기능의 증거로 대신하지 않는다.</p>
 <p>삭제 운영 기록은 승인 설계의 비공개 <code>/Users/charlie.hyun/Library/Application Support/picnic-web/replay-operations/deletions.jsonl</code>을 사용한다. 디렉터리 700·파일 600, ID·시각·결과만 기록하고 확인된 삭제 후 30일 뒤 활성 기록을 제거한다. 백업까지의 제거를 보장하지 않는다. 이번 구현에는 자동 삭제기·새 DB·실제 운영 기록 생성을 포함하지 않는다.</p>
 </section>
 <section><h2>현재 검증 상태와 다음 단계</h2>
