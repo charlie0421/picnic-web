@@ -36,7 +36,7 @@ export function createDiagnosticTransport(deps: DiagnosticTransportDeps): { tran
   let posted = false, deliveryKnown = false;
   const delivery = (value: 'accepted' | 'unknown') => { if (!posted || deliveryKnown) return; deliveryKnown = true; deps.onDelivery(value); };
   function cancel() { delivery('unknown'); active?.abort(); }
-  function fail(reason: Reason) { try { deps.close(reason); } finally { cancel(); } return denied; }
+  function fail(reason: Reason) { if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_REPLAY_DIAGNOSTIC_TEST === '1') { try { const debug = window as unknown as { __replayCloseProbe?: unknown[] }; const events = debug.__replayCloseProbe ??= []; if (events.length < 32) events.push({kind:'transport-fail',reason}); } catch {} } try { deps.close(reason); } finally { cancel(); } return denied; }
   function send(envelope: Envelope): PromiseLike<TransportMakeRequestResponse> {
     const items = envelope[1].filter(item => ['replay_event', 'replay_recording'].includes(item[0].type));
     if (!items.length) return deps.normal.send(stripReplayCorrelation(envelope));

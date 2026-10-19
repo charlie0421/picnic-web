@@ -8,6 +8,7 @@ const workerTransform = (createWorker: () => Worker, origin: string, bannerCount
   let worker: Worker | undefined;
   const finish = (result: ProjectResult) => {
     if (done) return;
+    if (!result.ok) if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_REPLAY_DIAGNOSTIC_TEST === '1') { try { const debug = window as unknown as { __replayCloseProbe?: unknown[] }; const events = debug.__replayCloseProbe ??= []; if (events.length < 32) events.push({kind:'worker-fail',reason:result.reason,failedInput:{input,state,origin,bannerCount:bannerCount()}}); } catch {} }
     done = true; clearTimeout(timer); signal.removeEventListener('abort', aborted);
     if (worker) { worker.onmessage = null; worker.onerror = null; worker.terminate(); }
     resolve(result);

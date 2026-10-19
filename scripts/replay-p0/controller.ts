@@ -24,6 +24,7 @@ export function createController(deps: ControllerDeps) {
   }
   function close(_reason: Reason) {
     if (gate.phase === 'CLOSED') return;
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_REPLAY_DIAGNOSTIC_TEST === '1') { try { const debug = window as unknown as { __replayCloseProbe?: unknown[] }; const events = debug.__replayCloseProbe ??= []; if (events.length < 32) events.push({kind:'controller-close',reason:_reason,gate:{...gate},eligibility:deps.readEligibility()}); } catch {} }
     gate = { phase: 'CLOSED', generation: gate.generation + 1 };
     clearTimeout(timer);
     try { deps.cancelOwnedWork(); } catch { /* Keep the gate closed even if cancellation throws. */ }

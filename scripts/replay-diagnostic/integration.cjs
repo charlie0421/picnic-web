@@ -9,6 +9,7 @@ const { serializeEnvelope } = require('@sentry/core');
 const { parseBrowserEnvelope } = require('../envelope-test/browser-analyze');
 const { build } = require('esbuild');
 const { verifyRestore, installPendingStream } = require('../replay-p0/tools/vote-list-integration.cjs');
+const { explainFailure } = require('./explain-failure.cjs');
 const ORIGIN = 'http://127.0.0.1:53931';
 const ENDPOINT = 'https://o1.ingest.us.sentry.io/api/1/envelope/';
 const opt = name => process.argv[process.argv.indexOf(name) + 1];
@@ -152,7 +153,8 @@ async function main() {
         assert.equal(errors.length,0,'no page errors');
         results.push({name,passed:true,replays:replays.length,raw:raw.length,eligibility,blocked});
       } catch(error) {
-        results.push({name,passed:false,error:String(error),replays:replays.length,eligibility,errors});
+        results.push({name,passed:false,error:String(error),replays:replays.length,eligibility,errors,
+          probe:await explainFailure(page).catch(error=>({unavailable:String(error)}))});
         await page.screenshot({path:path.join(out,name+'-failure.png')});
       } finally {await context.close();}
       console.log(JSON.stringify(results.at(-1)));
