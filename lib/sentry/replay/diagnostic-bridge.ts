@@ -5,7 +5,8 @@ import { diagnosticBuildMetadata } from './diagnostic-build-metadata';
 import { diagnosticConfig, type DiagnosticAllowance, type DiagnosticConfig, type DiagnosticDisclosure } from './diagnostic-config';
 import { diagnosticSession, type DiagnosticSession } from './diagnostic-session';
 import { replaySignals, type ReplaySignals } from './signals';
-import { diagnosticPageIsSafe } from './page-safety';
+import { diagnosticPageIsSafe, localPageIsSafe } from './page-safety';
+import { syntheticDiagnosticOrigin } from './diagnostic-test-config';
 import { installReplayInteractionLifecycle } from './lifecycle';
 import { checkDiagnosticEligibility } from './diagnostic-eligibility';
 import { createDiagnosticTransport } from './diagnostic-transport';
@@ -104,11 +105,12 @@ export function getDiagnosticBridge(): DiagnosticBridge {
   const config = diagnosticConfig(process.env.NEXT_PUBLIC_SENTRY_DSN ?? '', metadata.manifestSha256, metadata.commit);
   const normal = getDiagnosticNormalTransport();
   if (!config || !normal || typeof window === 'undefined') return { start() {}, stop() {}, idDisplayed() {}, snapshot: () => UNAVAILABLE_DIAGNOSTIC_VIEW, subscribe: () => () => {} };
+  const synthetic = syntheticDiagnosticOrigin();
   singleton = createDiagnosticBridge({ config, normal, signals: replaySignals, session: diagnosticSession, win: window,
     eligible: checkDiagnosticEligibility, install: installDiagnosticTransport,
     interaction: () => installReplayInteractionLifecycle(replaySignals, window),
-    transform: diagnosticWorkerTransform(config.origin, () => replaySignals.snapshot().bannerCount), fetch: window.fetch.bind(window),
-    pageSafe: () => diagnosticPageIsSafe(window), ready: () => document.readyState === 'complete',
+    transform: diagnosticWorkerTransform(synthetic ?? config.origin, () => replaySignals.snapshot().bannerCount), fetch: window.fetch.bind(window),
+    pageSafe: () => synthetic ? location.href === synthetic + '/ko/vote' && localPageIsSafe() : diagnosticPageIsSafe(window), ready: () => document.readyState === 'complete',
     visible: () => document.visibilityState === 'visible', now: () => performance.now(),
     loadSdk: async () => {
       const Sentry = await import('@sentry/nextjs');

@@ -120,11 +120,14 @@ async function closeAction(page, action) {
     else window.dispatchEvent(new Event(action));
   }, action);
 }
-async function verifyRestore(browser, original, envelopes, width, bundle, out, name) {
+async function verifyRestore(browser, original, envelopes, width, bundle, out, name, options = {}) {
+  // A closed diagnostic panel removes its Stop button after capture has already stopped.
+  // Compare product controls; recording ID/control masking is asserted separately by the diagnostic suite.
+  const selectors = options.excludeDiagnosticControls ? SELECTORS.map(s => s === 'button' ? 'button:not(.fixed.bottom-4.right-4 button)' : s) : SELECTORS;
   await original.evaluate(() => scrollTo(0, 0)); await original.mouse.move(-10, -10);
   await original.waitForTimeout(600); await original.evaluate(maskText); await original.evaluate(removeFontFiles);
   await original.evaluate(async () => { await document.fonts.ready; }); await original.evaluate(settle);
-  const control = await original.evaluate(measure, SELECTORS);
+  const control = await original.evaluate(measure, selectors);
   const track = await original.locator('.banner-track').getAttribute('style');
   const page = await browser.newPage({ viewport: { width, height: 900 } });
   await page.route('**/*', route => route.abort());
@@ -133,11 +136,12 @@ async function verifyRestore(browser, original, envelopes, width, bundle, out, n
     await page.addScriptTag({ content: bundle });
     const records = envelopes.flatMap(e => e.items.filter(i => i.header.type === 'replay_recording').flatMap(i => i.payload.records));
     const tags = ['html', 'head', 'body', 'meta', 'title', 'link', 'style', 'div', 'span', 'a', 'button', 'img', 'svg', 'header', 'main', 'section', 'footer', 'h3', 'p', 'next-route-announcer'];
-    const restored = await page.evaluate(({ records, selectors, tags }) => window.voteList.restore(records, selectors, tags), { records, selectors: SELECTORS, tags });
+    const restored = await page.evaluate(({ records, selectors, tags }) => window.voteList.restore(records, selectors, tags), { records, selectors, tags });
     const differences = classifyFailures(compare(control, restored));
     const restoredTrack = Array.from(JSON.stringify(records).matchAll(/--banner-current-index: \d+;/g)).at(-1)?.[0] || '';
     fs.writeFileSync(path.join(out, `${name}-restore.json`), JSON.stringify({ differences, track, restoredTrack, boxes: restored.length }, null, 2));
     assert.equal(differences.other.length, 0, 'no new layout loss'); assert.equal(restoredTrack, track, 'banner position restored');
   } finally { await page.close(); }
 }
+module.exports = { verifyRestore };
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });

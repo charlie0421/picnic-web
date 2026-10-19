@@ -3,6 +3,7 @@ if (process.env.NEXT_PUBLIC_REPLAY_LOCAL_TEST === '1' && (process.env.VERCEL || 
 }
 
 // sentry 설정 래퍼 추가
+require('./scripts/replay-diagnostic/test-build.cjs').validateDiagnosticTestBuild(process.env);
 const { withSentryConfig } = require('@sentry/nextjs');
 const { nextConfigOverrides } = require('./scripts/envelope-test/build-switch');
 const { getDiagnosticBuildMetadata } = require('./scripts/replay-diagnostic/build-metadata.cjs');
@@ -40,7 +41,7 @@ const nextConfig = {
 
   reactStrictMode: true,
   outputFileTracingIncludes: {
-    '/api/replay/eligibility': ['./lib/sentry/replay/generated/diagnostic-proof.json', './.next/BUILD_ID'],
+    '/api/replay/eligibility': ['./lib/sentry/replay/generated/diagnostic-proof.json', process.env.ENVELOPE_TEST === '1' ? './.next-envtest/BUILD_ID' : './.next/BUILD_ID'],
   },
 
 
@@ -51,6 +52,7 @@ const nextConfig = {
   
   // 환경변수 명시적 설정 (브라우저에서 사용 가능하도록)
   env: {
+    NEXT_PUBLIC_REPLAY_DIAGNOSTIC_TEST: process.env.NEXT_PUBLIC_REPLAY_DIAGNOSTIC_TEST === '1' ? '1' : '',
     NEXT_PUBLIC_REPLAY_DIAGNOSTIC_COMMIT: diagnosticMetadata.commit,
     NEXT_PUBLIC_REPLAY_DIAGNOSTIC_MANIFEST_SHA256: diagnosticMetadata.manifestSha256,
     NEXT_PUBLIC_REPLAY_DIAGNOSTIC_RELEASE: diagnosticMetadata.release,

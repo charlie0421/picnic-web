@@ -19,7 +19,7 @@ const FONT_HOSTS = 'fonts.googleapis.com,fonts.gstatic.com';
 /** Product env files that Next would load from the repository root. */
 function productEnvFiles(root) { return PRODUCT_ENV_FILES.filter(f => fs.existsSync(path.join(root, f))); }
 /** The complete child environment. Nothing is copied from the parent except PATH, HOME and TMPDIR. */
-function harnessEnv({ out, fontMock, build, integration = false }) {
+function harnessEnv({ out, fontMock, build, integration = false, diagnostic = false, candidate = false }) {
   const env = {
     PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR,
     NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', ENVELOPE_TEST: '1', BUILD_VERSION: 'replay-build-manifest',
@@ -36,6 +36,14 @@ function harnessEnv({ out, fontMock, build, integration = false }) {
     env.NEXT_PUBLIC_SENTRY_DSN = `http://public@127.0.0.1:${UPSTREAM_PORT}/1`;
     env.NEXT_PUBLIC_SENTRY_TRACE_SAMPLE_RATE = '1';
   }
+  if (diagnostic) {
+    if (integration) throw new Error('Choose one synthetic mode');
+    env.NEXT_PUBLIC_REPLAY_DIAGNOSTIC_TEST = '1';
+    env.NEXT_PUBLIC_SENTRY_DSN = require('../../replay-diagnostic/test-build.cjs').SYNTHETIC_DSN;
+    env.REPLAY_DIAGNOSTIC_ENABLED = candidate ? '0' : '1';
+    env.REPLAY_DIAGNOSTIC_REQUIRE_PROOF = candidate ? '0' : '1';
+    env.REPLAY_DIAGNOSTIC_DISCLOSURE_JSON = JSON.stringify({ retentionDays: 30, deletionRequestUrl: 'https://www.picnic.fan/support', storedTechnicalFields: ['browser', 'os', 'device'] });
+  }
   if (build && !fontMock) env.REPLAY_NET_ALLOW = FONT_HOSTS;
   if (fontMock) env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES = path.join(__dirname, 'font-mock.cjs');
   return env;
@@ -48,7 +56,7 @@ function portFree(port) {
 async function main() {
   const root = process.cwd(); const args = process.argv.slice(2);
   const outAt = args.indexOf('--out'); if (outAt < 0 || !args[outAt + 1]) throw new Error('missing --out');
-  const out = path.resolve(args[outAt + 1]); const fontMock = args.includes('--font-mock'); const reuse = args.includes('--reuse-build'); const integration = args.includes('--integration');
+  const out = path.resolve(args[outAt + 1]); const fontMock = args.includes('--font-mock'); const reuse = args.includes('--reuse-build'); const integration = args.includes('--integration'); const diagnostic = args.includes('--diagnostic'); const candidate = args.includes('--candidate');
   if (!fs.existsSync(path.join(root, 'next.config.js'))) throw new Error('run from the repository root');
   const envFiles = productEnvFiles(root);
   if (envFiles.length) throw new Error(`product env files present (${envFiles.join(', ')}); remove them from this worktree first`);
@@ -59,7 +67,7 @@ async function main() {
   const statePath = path.join(out, 'server.json');
   const previous = reuse ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : null;
   const before = Object.fromEntries(GUARDED_SOURCES.map(f => [f, fs.readFileSync(path.join(root, f))]));
-  const state = { pid: process.pid, nextPid: null, port: NEXT_PORT, upstreamPort: UPSTREAM_PORT, buildId: null, fontMock, integration, phase: 'starting', restored: [] };
+  const state = { pid: process.pid, nextPid: null, port: NEXT_PORT, upstreamPort: UPSTREAM_PORT, buildId: null, fontMock, integration, diagnostic, candidate, phase: 'starting', restored: [] };
   const save = () => fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
   // Next can rewrite tsconfig.json and next-env.d.ts for the extra build directory. Put the committed bytes back.
   const restore = () => {
@@ -74,7 +82,7 @@ async function main() {
   process.on('SIGTERM', stop); process.on('SIGINT', stop);
   const run = (cmd, log, build) => {
     const fd = fs.openSync(path.join(out, log), 'w');
-    return spawn(path.join(root, 'node_modules/.bin/next'), cmd, { cwd: root, env: harnessEnv({ out, fontMock, build, integration }), stdio: ['ignore', fd, fd] });
+    return spawn(process.execPath, build ? [path.join(root, 'scripts/replay-diagnostic/build.cjs')] : [path.join(root, 'node_modules/next/dist/bin/next'), ...cmd], { cwd: root, env: harnessEnv({ out, fontMock, build, integration, diagnostic, candidate }), stdio: ['ignore', fd, fd] });
   };
   try {
     if (!reuse) {
@@ -85,7 +93,7 @@ async function main() {
       if (code !== 0) throw new Error(`next build exited with ${code}; see build.log`);
     }
     state.buildId = fs.readFileSync(path.join(root, BUILD_DIR, 'BUILD_ID'), 'utf8').trim();
-    if (reuse && (previous.buildId !== state.buildId || previous.fontMock !== fontMock || !!previous.integration !== integration)) throw new Error('build does not match server.json');
+    if (reuse && (previous.buildId !== state.buildId || previous.fontMock !== fontMock || !!previous.integration !== integration || !!previous.diagnostic !== diagnostic || !!previous.candidate !== candidate)) throw new Error('build does not match server.json');
     next = run(['start', '--hostname', '127.0.0.1', '--port', String(NEXT_PORT)], 'next.log', false);
     state.nextPid = next.pid; state.phase = 'serving'; save();
     next.once('exit', code => { state.phase = `exited:${code}`; save(); stop(); });

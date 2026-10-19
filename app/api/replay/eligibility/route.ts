@@ -3,17 +3,20 @@ import { onlyPublicPreferenceCookies } from '@/lib/sentry/replay/public-cookies'
 import { localReplayConfig } from '@/lib/sentry/replay/config';
 import { readDiagnosticBuild } from '@/lib/sentry/replay/diagnostic-build';
 import { parseDiagnosticDisclosure } from '@/lib/sentry/replay/diagnostic-config';
+import { syntheticDiagnosticOrigin } from '@/lib/sentry/replay/diagnostic-test-config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'no-store' };
 const unavailable = () => new NextResponse(null, { status: 404, headers });
 
-/** Local synthetic harness only. The server also sees cookies hidden from document.cookie. */
+/** The server also checks cookies hidden from document.cookie. Diagnostic and local contracts stay separate. */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   if (url.searchParams.has('mode')) {
-    if (url.origin !== 'https://www.picnic.fan' || url.search !== '?mode=diagnostic' || process.env.REPLAY_DIAGNOSTIC_ENABLED !== '1') return unavailable();
+    const synthetic = syntheticDiagnosticOrigin();
+    const syntheticRequest = synthetic && request.nextUrl.protocol + '//' + request.headers.get('host') === synthetic;
+    if ((!syntheticRequest && url.origin !== 'https://www.picnic.fan') || url.search !== '?mode=diagnostic' || process.env.REPLAY_DIAGNOSTIC_ENABLED !== '1') return unavailable();
     let disclosure;
     try { disclosure = parseDiagnosticDisclosure(JSON.parse(process.env.REPLAY_DIAGNOSTIC_DISCLOSURE_JSON ?? '')); } catch { return unavailable(); }
     if (!disclosure) return unavailable();

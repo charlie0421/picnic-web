@@ -2,11 +2,13 @@ import 'server-only';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { diagnosticBuildMetadata, DIAGNOSTIC_ENVIRONMENT, type DiagnosticProof } from './diagnostic-build-metadata';
+import { syntheticDiagnosticOrigin } from './diagnostic-test-config';
 
 export async function readDiagnosticBuild({ root = process.cwd() }: { root?: string } = {}): Promise<DiagnosticProof | null> {
   try {
     const proof = JSON.parse(await readFile(path.join(root, 'lib/sentry/replay/generated/diagnostic-proof.json'), 'utf8'));
-    const buildId = (await readFile(path.join(root, '.next/BUILD_ID'), 'utf8')).trim();
+    const buildDir = syntheticDiagnosticOrigin() && process.env.ENVELOPE_TEST === '1' ? '.next-envtest' : '.next';
+    const buildId = (await readFile(path.join(root, buildDir, 'BUILD_ID'), 'utf8')).trim();
     const meta = diagnosticBuildMetadata();
     const fields = ['version', 'verified', 'buildId', 'commit', 'manifestSha256', 'sdkVersion', 'release', 'environment'];
     if (!proof || typeof proof !== 'object' || Object.keys(proof).length !== fields.length || !fields.every(k => Object.hasOwn(proof, k))) return null;

@@ -9,7 +9,7 @@
 <tr id="task-3"><td>3. 동의·시간·종료</td><td>구현·단위 검증 완료</td><td>BASE 683956ef. RED: 새 session·browser 함수와 60초·역행 assertion 실패. GREEN: 69개 시험. 초기 tsc는 전역 Window.adsbygoogle 선언에 의한 never 축소 오류로 실패했다. Reflect.has로 런타임 검사를 유지해 수정 후 tsc와 browser 시험 18개를 재통과했다. 기존 로컬 5분 경로 유지.</td></tr>
 <tr id="task-4"><td>4. 제한된 전송</td><td>구현·단위 검증 완료</td><td>BASE 47f31378. RED: 새 transport·worker와 binary prefix assertion 실패. GREEN: 209개 관련 시험, tsc 통과. 누적 한도·중지·별도 타임아웃·번호 표시·기존 projection을 확인했다.</td></tr>
 <tr id="task-5"><td>5. 수동 SDK·사용자 화면</td><td>구현·단위 검증 완료</td><td>BASE 78ceb562. RED: 새 bridge·UI 모듈 부재. GREEN: UI·bridge·일반 transport·correlation 1093개, instrumentation privacy·필터 43개, tsc 통과. 실제 브라우저 검증은 작업 6에서 수행한다.</td></tr>
-<tr id="task-6"><td>6. 통합 검증·독립 리뷰</td><td>대기</td><td></td></tr>
+<tr id="task-6"><td>6. 통합 검증·독립 리뷰</td><td>구현 검증 완료·리뷰 대기</td><td>BASE db779433. 합성 설정·패키징 RED/GREEN. 수동 진단의 브라우저 15개 시나리오와 PC Chrome 155.0.8059.84의 동의·취소·Tab·첫 segment·연속 재생·중지 확인. 기존 로컬 회귀 18개 통과. 독립 리뷰 대기.</td></tr>
 </tbody></table>
 <h2>작업 간 인터페이스 확인</h2><ul>
 <li>1→2·4: 파일 바이트 digest와 빌드 commit·release는 하나의 고정 메타데이터 출처를 사용한다. proof reader는 서버에만 둔다.</li>
@@ -18,9 +18,9 @@
 <li>4→5: registry 설치 후에도 표시된 ID가 없으면 send 진입에서 닫는다. normal transport의 flush는 유지한다.</li>
 <li>1·5→6: UI가 추가된 뒤 최종 템플릿을 다시 생성한다. 첫 단계의 fixture 검증으로 실제 UI 검증을 대신하지 않는다.</li>
 </ul>
-<h2>판단 기록</h2><ul id="rulings"><li>작업 1 템플릿은 기존 합성 캡처를 복사한 후보이며 sourceStyleSha256=[]로 아직 검증되지 않았다. 작업 5의 UI를 포함한 최종 후보 생성은 작업 6에서 수행한다. 이 상태로 활성화 빌드는 통과할 수 없다.</li>
+<h2>판단 기록</h2><ul id="rulings"><li>후보 캡처는 합성 브라우저에서 Worker 입력을 관찰해 파일로 저장한다. 운영 수집 경로를 우회하거나 외부로 보내지 않는다. 인증 미확정 시험은 해당 합성 문서의 getUser에 실패 응답을 주입한다. 팝업은 실제 /api/popups 응답, SPA는 /ko/faq에서 동일 문서 이동으로 시험했다.</li><li>중지 후 사라지는 진단 패널의 중지 버튼은 재생 화면과 의도적으로 다르다. 레이아웃 비교는 제품 버튼을 비교하며, 진단 패널·번호 텍스트 마스킹은 별도 projector·브라우저 assertion으로 확인한다.</li><li>합성 런타임은 두 loopback 포트만 연결한다. 기존 harness대로 빌드 중 Google Fonts의 두 공개 호스트만 허용해 운영 CSS와 같은 자산을 만들었다. 템플릿 갱신 후 기존 로컬 CSS manifest의 내용은 동일했다.</li><li>작업 1 템플릿은 기존 합성 캡처를 복사한 후보이며 sourceStyleSha256=[]로 아직 검증되지 않았다. 작업 5의 UI를 포함한 최종 후보 생성은 작업 6에서 수행한다. 이 상태로 활성화 빌드는 통과할 수 없다.</li>
 <li>Ruling: 스킬의 Markdown 전용 task-brief/task-start 도구 대신 HTML의 task-N section을 읽고 이 Git 추적 HTML에 진행을 기록한다. 승인 계획과 사용자의 HTML·문서 커밋 규칙을 지키기 위한 선택이다. 잘못 적용하면 작업 추적이 누락될 수 있으므로 매 작업의 BASE·RED/GREEN·커밋을 함께 기록한다.</li>
 </ul>
-<h2>검증 기록</h2><ul id="verification"><li>기준 전체 시험: 246개 파일, 5240 PASS·2 expected fail·1 skipped. 기존 경고는 유지됐다. 작업 1: 47개 관련 시험과 TypeScript 검사 통과.</li><li>Node v24.18.1. lockfile 기준 npm ci 성공. 의존성 폐기 예정 안내와 기존 allow-scripts 미승인 패키지 안내가 출력됐다. 별도 설치 스크립트 승인을 변경하지 않았다.</li></ul>
+<h2>검증 기록</h2><ul id="verification"><li>기존 로컬 전체 회귀 재실행: 18개 PASS. 최초 실행의 모바일 1건은 전송 없이 종료됐다. 원인은 확정하지 못했다. 개별 재실행, Worker 관찰 및 전체 재실행에서 통과했으며, 운영 수동 진단의 PC Chrome 시험과 별도로 기록한다.</li><li>작업 6: tsc, lint 통과. 전체 258개 파일, 5382 PASS·2 expected fail·1 skipped. 기존 React 오류 경계 시험과 Vite 설정 경고가 출력됐다.</li><li>실제 합성 최종 빌드 iGgD2rTlA1EvLY_iNSMBT: CSS 원본·전체 styled-jsx 해시 7개·SDK 9.47.1·파일 digest 대조 통과. route NFT의 281개 파일을 복사한 runtime reader가 현재 proof를 읽었고, BUILD_ID 변조와 proof 누락을 거부했다.</li><li>브라우저 시험: positive, cancel, no-consent, unknown-auth, cookie, ads, spa, popup, more, tab, unknown-css, post-timeout, eligibility-timeout, remote-off, off. 최초 실패한 시험 설정 4개를 실제 경로와 대조해 바로잡고 해당 시나리오를 재실행했다. Chrome은 설치된 데스크톱 앱을 headed Playwright로 조작했다. 사람이 수동 확인한 결과로 표시하지 않는다.</li><li>기준 전체 시험: 246개 파일, 5240 PASS·2 expected fail·1 skipped. 기존 경고는 유지됐다. 작업 1: 47개 관련 시험과 TypeScript 검사 통과.</li><li>Node v24.18.1. lockfile 기준 npm ci 성공. 의존성 폐기 예정 안내와 기존 allow-scripts 미승인 패키지 안내가 출력됐다. 별도 설치 스크립트 승인을 변경하지 않았다.</li></ul>
 <h2>남은 운영 조건</h2><p>실제 Vercel 런타임 proof 확인, 실제 PC Chrome, 새 구현의 Sentry 저장·연속 재생·삭제, 자동 보관 ≤90일, 권한·삭제 경로·고지·IP/위치 저장 결과·과금·OFF 배포 절차는 승인 설계의 준비 조건이다. 검증하지 않은 항목을 완료로 표시하지 않는다.</p>
 </body></html>
