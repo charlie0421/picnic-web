@@ -10,9 +10,9 @@
 </head>
 <body><main>
 <header>
-<div class="tag">설계안 · 사용자 승인 전 · 운영 Replay OFF</div>
+<div class="tag">설계 승인 완료 · 구현 계획 작성 · 운영 Replay OFF</div>
 <h1>공개 투표 목록의 오류를<br>사용자 동의 후 짧게 재현하기</h1>
-<p>목적은 <strong>공개 투표 목록의 화면 배치·배너·스크롤 오류 재현</strong>이다. 사용자는 이 목적을 선택했다. 아래 수집 조건과 구현 방식은 이번에 제안하는 설계이며, 아직 운영 적용을 승인받은 정책이 아니다.</p>
+<p>목적은 <strong>공개 투표 목록의 화면 배치·배너·스크롤 오류 재현</strong>이다. 사용자는 이 목적을 선택했다. 아래 수집 조건과 구현 방식은 사용자가 승인한 설계다. 실제 운영 수집 활성화는 별도 승인과 검증이 필요하다.</p>
 <p class="muted">작성: 2026-10-19 · 기준 코드: <code>34a58b8c</code> · 제품 기능 기준: <code>d478ae24</code> · SDK: <code>@sentry/nextjs 9.47.1</code></p>
 </header>
 <section class="notice">
@@ -115,8 +115,8 @@
 </section>
 <section class="pending">
 <h2>7. 승인 범위와 현재 상태</h2>
-<p><strong>이번 문서는 설계안이다.</strong> 제품 코드, 운영 환경변수, Sentry 설정은 변경하지 않았다. 이 설계에 동의하면 구체적인 구현 계획을 작성한다. 실제 사용자 수집은 구현·독립 리뷰·Preview 확인과 운영 조건 확인 후 별도로 활성화한다.</p>
-<p id="review-status"><strong>독립 검토: APPROVE.</strong> Claude Opus 5.5 / high가 현재 코드와 설계안을 대조했다. 최초 지적은 Medium 6개·Low 5개였고, 수정 후 같은 리뷰어가 11개 반영을 확인했다. 차단 사유는 0개다. 비차단 참고 3개인 번호 표시 전 envelope 종료, 로컬 백업 한계, 이 상태 갱신도 반영했다. 이는 설계 검토 결과이며 사용자 승인이나 운영 활성화 승인이 아니다.</p>
+<p><strong>이번 문서는 설계안이다.</strong> 제품 코드, 운영 환경변수, Sentry 설정은 변경하지 않았다. 사용자가 설계를 승인하여 <a href="2026-10-19-replay-diagnostic-plan.html">구체적인 구현 계획</a>을 작성했다. 실제 사용자 수집은 구현·독립 리뷰·Preview 확인과 운영 조건 확인 후 별도로 활성화한다.</p>
+<p id="review-status"><strong>독립 검토: APPROVE.</strong> Claude Opus 5.5 / high가 현재 코드와 설계안을 대조했다. 최초 지적은 Medium 6개·Low 5개였고, 수정 후 같은 리뷰어가 11개 반영을 확인했다. 차단 사유는 0개다. 비차단 참고 3개인 번호 표시 전 envelope 종료, 로컬 백업 한계, 이 상태 갱신도 반영했다. 이는 독립 설계 검토 결과다. 이후 사용자가 설계를 승인했으며, 운영 활성화 승인은 별도다.</p>
 <p class="muted">검토 정산: 2026-10-19 10:31 KST · Orca Run <code>run_9839812ba99c</code> · Task <code>task_48272f3cd975</code> · Dispatch <code>ctx_d62b32e5dc72</code>의 worker_done 수락. 모델은 실제 응답, high effort는 실행 화면에서 확인했다. 문서의 HTML 구조·내부 링크와 브라우저 표시를 검사했다. 제품 코드를 변경하지 않아 런타임 테스트는 실행하지 않았다.</p>
 </section>
 <section>
