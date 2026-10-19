@@ -5,6 +5,8 @@ if (process.env.NEXT_PUBLIC_REPLAY_LOCAL_TEST === '1' && (process.env.VERCEL || 
 // sentry 설정 래퍼 추가
 const { withSentryConfig } = require('@sentry/nextjs');
 const { nextConfigOverrides } = require('./scripts/envelope-test/build-switch');
+const { getDiagnosticBuildMetadata } = require('./scripts/replay-diagnostic/build-metadata.cjs');
+const diagnosticMetadata = getDiagnosticBuildMetadata({ env: process.env, root: __dirname });
 
 // 환경 변수로 Sentry 경고 억제
 process.env.SENTRY_SUPPRESS_INSTRUMENTATION_FILE_WARNING = '1';
@@ -37,6 +39,9 @@ const nextConfig = {
   ...nextConfigOverrides(process.env),
 
   reactStrictMode: true,
+  outputFileTracingIncludes: {
+    '/api/replay/eligibility': ['./lib/sentry/replay/generated/diagnostic-proof.json', './.next/BUILD_ID'],
+  },
 
 
   // Sentry 가 client-side 에러를 decode 할 수 있도록 browser sourcemap 생성.
@@ -46,6 +51,10 @@ const nextConfig = {
   
   // 환경변수 명시적 설정 (브라우저에서 사용 가능하도록)
   env: {
+    NEXT_PUBLIC_REPLAY_DIAGNOSTIC_COMMIT: diagnosticMetadata.commit,
+    NEXT_PUBLIC_REPLAY_DIAGNOSTIC_MANIFEST_SHA256: diagnosticMetadata.manifestSha256,
+    NEXT_PUBLIC_REPLAY_DIAGNOSTIC_RELEASE: diagnosticMetadata.release,
+    NEXT_PUBLIC_REPLAY_DIAGNOSTIC_ENVIRONMENT: diagnosticMetadata.environment,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,

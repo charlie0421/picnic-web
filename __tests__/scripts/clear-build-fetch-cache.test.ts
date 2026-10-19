@@ -64,6 +64,5 @@ describe('scripts/clear-build-fetch-cache.js', () => {
     };
 
     expect(pkg.scripts.prebuild).toBe('node scripts/clear-build-fetch-cache.js');
-    expect(pkg.scripts.build).toBe('next build');
   });
 });

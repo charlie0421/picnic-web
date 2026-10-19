@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Replay 수동 진단 구현 기록</title><style>body{max-width:1080px;margin:32px auto;padding:0 24px;font:16px/1.7 system-ui;color:#172033}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd4df;padding:10px;text-align:left;vertical-align:top}code{background:#eef3f8;overflow-wrap:anywhere}li{margin:8px 0}.note{padding:16px;background:#eef4ff}a{color:#3159b7}</style></head><body>
+<h1>Replay 수동 진단 구현 기록</h1>
+<p>계획: <a href="2026-10-19-replay-diagnostic-plan.html">2026-10-19-replay-diagnostic-plan.html</a> · <a href="2026-10-19-replay-diagnostic-design.html">승인된 설계</a> · 시작 커밋 <code>13f6c521</code>.</p>
+<p class="note">사용자가 구현 계획과 순차 실행을 승인했다. 작업 위치는 <code>/Users/charlie.hyun/Repositories/picnic-web-replay-policy</code>, 브랜치는 <code>docs/replay-policy</code>다. 운영 Replay는 OFF, PayPal·PortOne은 보류다. 실제 활성화·외부 설정 변경·main 병합은 이 기록의 완료 판정과 구분한다.</p>
+<h2>작업 상태</h2><table><thead><tr><th>작업</th><th>상태</th><th>근거</th></tr></thead><tbody>
+<tr id="task-1"><td>1. 빌드·manifest 검증</td><td>구현·단위 검증 완료</td><td>BASE 13f6c521. RED: 새 모듈 부재. GREEN: build proof·캐시 27개, CSS 생성기 20개, tsc 통과. 커밋은 이 기록과 함께 저장한다.</td></tr>
+<tr id="task-2"><td>2. 설정·서버 자격</td><td>대기</td><td></td></tr>
+<tr id="task-3"><td>3. 동의·시간·종료</td><td>대기</td><td></td></tr>
+<tr id="task-4"><td>4. 제한된 전송</td><td>대기</td><td></td></tr>
+<tr id="task-5"><td>5. 수동 SDK·사용자 화면</td><td>대기</td><td></td></tr>
+<tr id="task-6"><td>6. 통합 검증·독립 리뷰</td><td>대기</td><td></td></tr>
+</tbody></table>
+<h2>작업 간 인터페이스 확인</h2><ul>
+<li>1→2·4: 파일 바이트 digest와 빌드 commit·release는 하나의 고정 메타데이터 출처를 사용한다. proof reader는 서버에만 둔다.</li>
+<li>2→4·5: 서버 허용 결과는 allowed·digest·확정된 고지만 제공한다. endpoint는 API 응답에서 받지 않는다.</li>
+<li>3→4·5: 문서 singleton의 닫힘·시도 상태와 controller generation을 함께 확인한다. 비동기 완료가 닫힘을 되돌리지 않는다.</li>
+<li>4→5: registry 설치 후에도 표시된 ID가 없으면 send 진입에서 닫는다. normal transport의 flush는 유지한다.</li>
+<li>1·5→6: UI가 추가된 뒤 최종 템플릿을 다시 생성한다. 첫 단계의 fixture 검증으로 실제 UI 검증을 대신하지 않는다.</li>
+</ul>
+<h2>판단 기록</h2><ul id="rulings"><li>작업 1 템플릿은 기존 합성 캡처를 복사한 후보이며 sourceStyleSha256=[]로 아직 검증되지 않았다. 작업 5의 UI를 포함한 최종 후보 생성은 작업 6에서 수행한다. 이 상태로 활성화 빌드는 통과할 수 없다.</li>
+<li>Ruling: 스킬의 Markdown 전용 task-brief/task-start 도구 대신 HTML의 task-N section을 읽고 이 Git 추적 HTML에 진행을 기록한다. 승인 계획과 사용자의 HTML·문서 커밋 규칙을 지키기 위한 선택이다. 잘못 적용하면 작업 추적이 누락될 수 있으므로 매 작업의 BASE·RED/GREEN·커밋을 함께 기록한다.</li>
+</ul>
+<h2>검증 기록</h2><ul id="verification"><li>기준 전체 시험: 246개 파일, 5240 PASS·2 expected fail·1 skipped. 기존 경고는 유지됐다. 작업 1: 47개 관련 시험과 TypeScript 검사 통과.</li><li>Node v24.18.1. lockfile 기준 npm ci 성공. 의존성 폐기 예정 안내와 기존 allow-scripts 미승인 패키지 안내가 출력됐다. 별도 설치 스크립트 승인을 변경하지 않았다.</li></ul>
+<h2>남은 운영 조건</h2><p>실제 Vercel 런타임 proof 확인, 실제 PC Chrome, 새 구현의 Sentry 저장·연속 재생·삭제, 자동 보관 ≤90일, 권한·삭제 경로·고지·IP/위치 저장 결과·과금·OFF 배포 절차는 승인 설계의 준비 조건이다. 검증하지 않은 항목을 완료로 표시하지 않는다.</p>
+</body></html>
