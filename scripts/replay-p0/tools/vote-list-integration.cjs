@@ -28,6 +28,8 @@ async function main() {
     ];
     for (const scenario of cases.filter(s => !process.argv.includes('--only') || opt('--only').split(',').includes(s.name))) {
       const context = await browser.newContext({ viewport: { width: scenario.width || 1280, height: 900 } });
+      // Exercise a settled Korean preference, without first-visit device-language switching.
+      await context.addCookies([{ name: 'locale', value: 'ko', url: ORIGIN }]);
       const consent = Object.hasOwn(scenario, 'consent') ? scenario.consent : 'denied';
       await context.addInitScript(value => { if (value !== null) localStorage.setItem('picnic-cookie-consent', value); }, consent);
       if (scenario.pendingStream) await installPendingStream(context);

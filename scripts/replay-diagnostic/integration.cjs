@@ -32,6 +32,8 @@ async function main() {
   try {
     for (const name of scenarios.filter(n => !process.argv.includes('--only') || opt('--only').split(',').includes(n))) {
       const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      // Exercise a settled Korean preference, without first-visit device-language switching.
+      await context.addCookies([{ name: 'locale', value: 'ko', url: ORIGIN }]);
       await context.addInitScript(consent => { if (consent) localStorage.setItem('picnic-cookie-consent',consent); }, name === 'ads' ? 'granted' : 'denied');
       if (name === 'streaming-ready') await installPendingStream(context);
       if (name === 'cookie') await context.addCookies([{name:'HttpOnlyCanary',value:'synthetic',url:ORIGIN,httpOnly:true}]);
