@@ -15,7 +15,7 @@
 <h1>Sentry·Replay 개인정보 고지 수정안</h1>
 <p class="muted">작성: 2026-10-19 · 기준 코드 <code>bf1c55d7</code> · <a href="../handoff-2026-10-19.html">작업 상태</a> · <a href="2026-10-19-replay-operations-readiness.html">운영 준비 점검</a></p>
 <p class="note pending"><strong>게시 전 검토안이다.</strong> 공개 방침과 운영 DB는 변경하지 않았다. Replay 동의 화면의 업체·국가·전송 시점·거부 안내를 보완하고, 아래 한국어·영어 방침 수정안을 준비했다. 개인정보 고지 정리가 완료됐거나 운영 활성화 조건을 충족했다는 판정은 아니다. 운영 Replay는 OFF다.</p>
-<nav aria-label="문서 이동"><a href="#findings">확인 결과</a><a href="#publication-evidence">후속 점검</a><a href="#contract-evidence">계약·로그 보관</a><a href="#ko-draft">한국어 수정안</a><a href="#en-draft">English draft</a><a href="#publication">게시 전 확인</a><a href="#validation">검증 상태</a></nav>
+<nav aria-label="문서 이동"><a href="#findings">확인 결과</a><a href="#publication-evidence">후속 점검</a><a href="#contract-evidence">계약·로그 보관</a><a href="#storage-evidence">10월 20일 추가 점검</a><a href="#ko-draft">한국어 수정안</a><a href="#en-draft">English draft</a><a href="#publication">게시 전 확인</a><a href="#validation">검증 상태</a></nav>
 
 <section id="findings"><h2>1. 확인한 사실과 변경 범위</h2>
 <table><thead><tr><th>항목</th><th>확인 결과</th><th>이번 처리</th></tr></thead><tbody>
@@ -57,6 +57,7 @@
 <li>Sentry의 보안·사고 통지·권리 행사 지원 의무와 고객의 보안·통지 책임을 구분한다. 일부 지원·감사 비용은 고객에게 발생할 수 있다.</li>
 <li>미국 및 재수탁 업체의 처리 지역, 재수탁 업체 변경 통지·이의 절차를 포함한다. 실제 설정의 저장 지역과 계약상 허용 범위는 같은 개념이 아니다.</li>
 <li>삭제·반환과 계약 종료 후 처리는 계약 조건 및 법적 보존 예외를 따른다. 이 DPA는 Release Health 세션에 특정 보관 일수를 제시하지 않으며, 한국 이용자의 국외 이전 근거까지 확정하지 않는다.</li>
+<li>같은 사항에 관한 기존 데이터 처리 부속 계약을 대체한다. 기본 계약의 책임 제한은 유지하되 유럽 개인정보 보호법·표준계약조항에 따른 정보주체 권리에 대한 예외를 둔다. 별도 서명본이 있으면 이 대체 조건을 먼저 대조한다.</li>
 </ul>
 <p class="note pending">별도 서명본이 없다면 권한 있는 담당자의 계약 수락 판단이 필요하다. 아직 수락하지 않았다. 계약 확인이 끝나도 비로그인 권리 행사 절차와 세션 보관 기간 등 게시 조건은 별도로 남는다.</p>
 <h3>Vercel — 현재 Pro의 런타임 로그 보관 1일</h3>
@@ -64,6 +65,18 @@
 <p>이 계정 상태와 <a href="https://vercel.com/docs/logs/runtime#limits">공식 런타임 로그 보관 표</a>를 대조하면 현재 적용되는 문서상 기간은 <strong>1일</strong>이다. Observability Plus의 30일을 적용하지 않았다. 1일은 런타임 로그의 관측·보관 한도이며 모든 캐시·빌드 로그·백업의 삭제 시한을 뜻하지 않는다. 로그 전달 설정 0개도 애플리케이션이 직접 사용하는 Sentry 등 다른 전송 경로의 부재를 뜻하지 않는다.</p>
 <p><a href="https://vercel.com/legal/dpa">Vercel 공개 DPA</a>는 Pro·Enterprise 계약의 일부가 되며, 미국의 주 처리 시설과 Vercel·재수탁 업체의 다른 처리 지역을 설명한다. 이 일반 조건만으로 현재 서비스의 모든 개인정보·캐시·백업이 저장되는 국가나 기간을 확정하지 않는다. 진단 외 데이터의 항목별 고지 확인은 계속 필요하다.</p>
 <p class="muted">이번 조회에서 계약 수락, 요금제·결제·로그 전달 설정 변경, 지원 요청 전송은 하지 않았다. 계정 응답 원문은 제한 권한 로컬 디렉터리에 보관하고 이 문서에는 필요한 결론만 기록했다.</p>
+</section>
+
+<section id="storage-evidence"><h2>1-3. 2026-10-20 세션·DB 로그·백업 점검</h2>
+<p>운영 프로젝트와 소속 조직을 읽기 전용으로 조회했다. Supabase 기본 리전은 서울이고 소속 조직의 요금제는 Pro다. 아래 기간은 확인한 요금제와 공식 문서를 대조한 결과이며 실제 백업 복원이나 자료 만료를 시험한 결과는 아니다.</p>
+<ul>
+<li><strong>Supabase 로그:</strong> 현재 Pro의 공식 로그 보관 기준은 7일이다. <a href="https://supabase.com/pricing">요금제 표</a>와 <a href="https://supabase.com/docs/guides/observability/logs">로그 안내</a>를 대조했다. 애플리케이션 DB 행, Storage 파일, 별도 로그 전달 대상과 백업의 보관 기간까지 7일로 정한 것은 아니다.</li>
+<li><strong>Supabase 일일 DB 백업:</strong> Pro의 기본 기준은 7일이다. 다만 <a href="https://supabase.com/docs/guides/platform/backups">백업 문서</a>에 따르면 PITR을 켜면 일일 백업을 대체하므로 현재 요금제만으로 실제 백업 방식을 확정할 수 없다. 이번 점검 브라우저 프로필의 대시보드 백업 화면은 로그인 페이지로 이동했고, 연결된 조회 도구에는 백업 설정 조회 기능이 없었다. 실제 PITR 사용 여부·복구 가능 기간·백업 위치는 미확정이다. 인증 정보나 백업 본문은 읽지 않았다.</li>
+<li><strong>Storage 파일:</strong> 공식 문서는 DB 백업에 Storage 객체 자체가 포함되지 않고 메타데이터만 포함된다고 설명한다. DB 백업의 7일 기준을 파일의 보관·복구 범위로 확대하지 않는다.</li>
+<li><strong>Sentry Release Health 세션:</strong> <a href="https://www.sentry.help/en/articles/13964256-how-to-see-historical-session-data">2026-08-07 공식 안내</a>는 오류 할당량이 소진돼도 SDK가 전송하는 세션을 받으며, 이를 오류 이벤트·Replay 녹화와 구분한다고 설명한다. 이 문서도 세션의 보관 일수는 제시하지 않는다. 기존 미확정 판정을 유지하고 <a href="#publication-evidence">준비한 공급자 질문</a>으로 원본·집계·백업 기간을 각각 확인한다.</li>
+</ul>
+<p><a href="https://supabase.com/changelog/logs-usage-based-pricing">2026-09-25 Supabase 로그 과금 변경 공지</a>도 확인했다. 이 공지는 과금 적용 유예를 설명하며 위 보관 기간이나 모든 저장 위치를 확정하는 자료는 아니다. 이번 점검에서는 로그 내용 조회·백업 생성·복원·설정 변경·지원 요청 전송을 하지 않았다.</p>
+<p class="note pending">공개 문서와 현재 조회 권한으로 확인할 수 있는 범위를 기록했다. 다음 조치에는 Sentry DPA 수락 여부에 대한 담당자 판단, 세션 보관에 대한 공급자 답변, 비로그인 이용자의 기존 권리 행사 절차 확인이 필요하다. Supabase의 실제 백업 설정은 인증된 대시보드 또는 백업 조회 권한이 있는 경로에서 확인해야 한다.</p>
 </section>
 
 <section id="ko-draft"><h2>2. 한국어 본문 수정안</h2>
@@ -134,7 +147,7 @@
 <li>제13조의 황재근·CX팀·앱 내 1:1 문의는 2026-10-19 사용자가 현재도 유효하다고 확인했다. 다만 확인한 웹·앱 문의 기능은 로그인이 필요하다. 비로그인 웹 방문자의 기존 권리 행사 방법을 운영 담당자가 확인해야 한다. Replay 전용 접수 기능을 새로 만들거나 검증되지 않은 주소를 대신 넣지 않는다.</li>
 <li>일반 오류·성능·세션 진단과 선택형 Replay 각각의 처리·국외 이전 근거, 실제 적용 계약, 고지·동의 방식을 확인한다. 현재 진단 시작 버튼 하나가 법에서 요구하는 별도 동의를 충족한다고 단정하지 않는다. Sentry 조직의 DPA 5.1.0은 Review and Accept로 표시되고 수락 기록은 null이었다. 별도 서명본의 존재 여부를 먼저 확인한다. 공개 문서를 읽은 사실을 계약 체결 증거로 사용하지 않는다.</li>
 <li>세션 상태 정보(Release Health)의 실제 보관 기간을 공급자에게 확인한 뒤 한국어·영어 제6조 보관 표에 추가한다. 계정 API 재조회에서도 이 기간은 확인되지 않았다. 공식 API의 90일 조회 예시를 실제 보관 기간으로 단정하지 않는다. 이 확인 전에는 초안을 게시하지 않는다.</li>
-<li>확인한 Supabase 서울 기본 리전과 Vercel 미국·한국·싱가포르 배포 리전을 출발점으로 진단 외 개인정보의 처리·저장 지역, 캐시·로그·백업의 범위와 기간을 확인하고 제6조에 별도로 기재한다. Vercel Pro·Observability Plus 미사용 상태의 런타임 로그는 공식 표상 1일로 좁혔으며, 다른 데이터의 기간은 별도 확인한다. 현재의 모든 데이터 국내 저장 문구를 대체하면서 다른 처리의 지역 안내를 빠뜨리지 않는다.</li>
+<li>확인한 Supabase 서울 기본 리전과 Vercel 미국·한국·싱가포르 배포 리전을 출발점으로 진단 외 개인정보의 처리·저장 지역, 캐시·로그·백업의 범위와 기간을 확인하고 제6조에 별도로 기재한다. Vercel Pro·Observability Plus 미사용 상태의 런타임 로그는 공식 표상 1일, 확인한 Supabase Pro의 로그는 공식 기준 7일이다. Supabase 일일 DB 백업의 기본 기준은 7일이지만 실제 PITR 사용 여부·복구 기간·백업 위치는 미확정이다. 다른 데이터의 기간은 별도 확인한다. 현재의 모든 데이터 국내 저장 문구를 대체하면서 다른 처리의 지역 안내를 빠뜨리지 않는다.</li>
 <li>현재 공개 자산의 Sentry 주소는 명시적 미국 형식으로 확인했다. 새 진단 빌드의 DSN·최종 전송 주소·proof는 배포 전에 별도로 대조한다. 지역이 생략된 주소는 진단을 허용하지 않는다. 공유 <code>NEXT_PUBLIC_SENTRY_DSN</code>을 변경하면 일반 SDK에도 적용되므로 별도 영향 확인 없이 바꾸지 않는다.</li>
 <li>새 방침의 버전·시행일·사전 안내 방법을 결정한다. 화면의 임시 버전과 조회 당일 표시를 실제 정책 정보에 맞추거나 제거하는 변경을 함께 검토한다.</li>
 <li>운영 DB의 한국어·영어 대상 행과 원문 백업을 확보했고 앱의 공통 테이블 사용도 확인했다. 게시 직전 원문 해시·행 수·메타데이터를 다시 비교한다. 남은 조건을 반영한 전체 본문의 정확한 변경 전후 비교를 만든 뒤 게시 승인을 받는다. 원문이 바뀌었거나 중복 행이 있으면 덮어쓰지 않는다.</li>
