@@ -38,11 +38,12 @@
 <tr><td>비로그인 문의</td><td>웹 <code>createQnaThreadAction</code>은 인증 사용자가 없으면 저장 전에 거부한다. 메시지 API도 401을 반환하도록 구현돼 있다. 앱 <code>MyPage</code>는 사용자 프로필과 ID가 있을 때만 QnA 메뉴를 표시한다. 공개 GET에서 문의 페이지 두 경로는 200, <code>/contact</code>·<code>/support</code>는 404였다.</td><td>페이지 열람 200은 비로그인 접수 가능의 증거가 아니다. 확인한 기존 문의 기능은 로그인이 필요하므로 비로그인 웹 방문자의 권리 행사 경로는 확보됐다고 볼 수 없다. 실제 문의 제출은 하지 않았다. Replay 전용 접수 기능 보류 결정은 유지한다.</td></tr>
 <tr><td>DB·호스팅 지역</td><td>운영 Supabase 프로젝트의 기본 리전은 <code>ap-northeast-2</code>(서울)다. 운영 도메인이 가리키는 Vercel 배포의 <code>regions</code>는 <code>iad1</code>(미국), <code>icn1</code>(한국), <code>sin1</code>(싱가포르)다.</td><td>DB 기본 리전과 배포 리전 목록을 확인했다. 이 결과는 모든 개인정보·캐시·로그·백업의 저장 국가를 확정하거나 각 요청이 세 리전 모두에서 처리됐음을 입증하지 않는다. 진단 외 처리의 항목별 지역·기간 안내는 아직 미완료다.</td></tr>
 <tr><td>공개 Sentry 주소</td><td>운영 <code>/ko/vote</code>가 참조하는 같은 출처의 JavaScript 자산 36개를 조회했다. 발견한 Sentry 수신 호스트 1개는 명시적 <code>.ingest.us.sentry.io</code> 형식이었다. 지역 생략·다른 지역 호스트는 이 표본에서 발견되지 않았다.</td><td>현재 공개 빌드의 주소 형식 확인이다. 미배포 수동 진단의 서버 환경변수·최종 빌드·proof 검증을 대신하지 않는다. 환경변수 원문이나 비밀 키는 읽지 않았다.</td></tr>
-<tr><td>세션 보관·계약</td><td>23:36 KST에 Sentry 고객·조직 API를 GET으로 다시 조회했다. 두 응답은 200이었고 기존 보관 수치는 같았다. 확인한 응답에는 Release Health 세션의 별도 보관 기간이나 계정의 DPA 수락 증거가 없었다.</td><td>세션 보관 기간은 미확정이다. 응답에 증거가 없다는 사실은 계약 미체결을 뜻하지 않는다. 공급자 답변과 실제 적용 계약 확인이 필요하다.</td></tr>
+<tr><td>세션 보관·계약</td><td>23:36 KST에 Sentry 고객·조직 API를 GET으로 다시 조회했다. 두 응답은 200이었고 기존 보관 수치는 같았다. 확인한 응답에는 Release Health 세션의 별도 보관 기간이나 계정의 DPA 수락 증거가 없었다.</td><td>세션 보관 기간은 미확정이다. 응답에 증거가 없다는 사실은 계약 미체결을 뜻하지 않는다. 당시 공급자 확인을 검토했다. 이후 DPA 수락은 완료했고, 세션 보관 문의는 사용자 지시로 중단했다.</td></tr>
 </tbody></table>
 <p class="muted">정책 원문 SHA-256: 한국어 <code>3d12c71204c7f78f72edfdc6b2e786075f24bee0ddaacd8e55193dd30468990a</code>, 영어 <code>2ade35fb16cd482b534c59e7bb6a8fd7fa2f1970230088a56f14907216ca6e68</code>. 앱 소스 기준: <code>078dda32a24b1a554368cda7fadc9a41d2aaaf0f</code>.</p>
-<h3 id="supplier-inquiry">공급자 확인에 사용할 질문 초안 — 미전송</h3>
-<p>2026-10-20 <a href="https://www.sentry.help/en/">Sentry 공식 도움말</a> 하단의 <strong>Email Support</strong> 링크에서 <code>support@sentry.io</code>를 확인했다. 아래 문의의 전송 승인을 요청했다. 실제 이용자 기록이나 비밀 키는 첨부하지 않는다.</p>
+<h3 id="supplier-inquiry">공급자 문의 — 사용자 지시로 전송 중단</h3>
+<p class="note">2026-10-20 사용자가 Sentry에 문의하지 말라고 지시했다. 문의 전송 작업과 승인 대기를 종료한다. 외부 메시지나 지원 요청은 보내지 않았다. 아래 초안은 미전송 이력으로만 보존하며, 사용자의 새 지시 없이 문의를 재추진하지 않는다. 일반 세션 정보의 보관 기간은 미확인 상태로 남긴다.</p>
+<p>2026-10-20 <a href="https://www.sentry.help/en/">Sentry 공식 도움말</a> 하단의 <strong>Email Support</strong> 링크에서 <code>support@sentry.io</code>를 확인했다. 아래 문의의 전송 승인을 요청했으나 이후 사용자 지시로 중단했다. 실제 이용자 기록이나 비밀 키를 첨부하거나 전송하지 않았다.</p>
 <div class="copy" lang="en"><p><strong>To:</strong> support@sentry.io<br><strong>Subject:</strong> Release Health session data retention — Team plan, US region</p><p>For our Sentry organization <code>icon-casting</code>, project <code>picnic-web</code>, on the Team plan in the US region, please confirm the retention periods for browser Release Health session data. Please distinguish received session payloads, derived aggregates, and backups; clarify whether retention depends on the plan active when the data was collected; and provide official documentation or account-specific confirmation. This question concerns Release Health sessions, not Session Replay recordings.</p></div>
 <p>이 질문은 Replay 90일의 재확인을 요구하는 것이 아니다. 화면 녹화와 별도로 전송되는 세션 상태 자료의 기간을 확인하기 위한 것이다. 외부 메시지나 지원 요청은 보내지 않았다.</p>
 <p>기존 코드의 <code>RateLimitedDialog</code>는 회원가입 제한 안내에서 고객센터 링크의 기본값으로 <code>cs@picnic.fan</code>을 사용한다. 코드에 주소가 있다는 사실은 실제 수신·처리의 증거가 아니다. 비로그인 이용자의 개인정보 권리 행사 문의를 이 기존 주소에서 처리하는지 사용자에게 확인 요청했다. 답변 전에는 방침의 접수 주소로 추가하지 않는다. Replay 전용 삭제 요청 기능 보류는 유지한다.</p>
@@ -77,10 +78,10 @@
 <li><strong>Supabase 일일 DB 백업:</strong> CLI의 <code>backups list</code>를 운영 프로젝트 ref로 실행했다. <code>pitr_enabled=false</code>, <code>walg_enabled=true</code>이며 2026-10-13~19 KST에 생성된 물리 백업 7개가 모두 <code>COMPLETED</code>였다. 최신 백업 시각은 2026-10-19 03:18 KST다. <a href="https://supabase.com/docs/guides/platform/backups">공식 백업 문서</a>와 Pro 요금제를 대조해 현재 일일 백업 7일 기준을 확인했다. 실제 복원은 시험하지 않았고 백업 본문은 읽지 않았다.</li>
 <li><strong>백업 지역:</strong> 같은 백업 조회 응답의 <code>region</code>은 <code>ap-northeast-2</code>(서울)다. 이 필드를 모든 복제본·재수탁 처리의 국가 목록이나 만료 후 물리적 삭제 완료의 증거로 확대하지 않는다. 브라우저에서는 로그인이 필요했지만 CLI의 기존 인증으로 읽기 전용 조회를 완료했다. 인증 정보 원문은 읽지 않았다.</li>
 <li><strong>Storage 파일:</strong> 공식 문서는 DB 백업에 Storage 객체 자체가 포함되지 않고 메타데이터만 포함된다고 설명한다. DB 백업의 7일 기준을 파일의 보관·복구 범위로 확대하지 않는다.</li>
-<li><strong>Sentry Release Health 세션:</strong> <a href="https://www.sentry.help/en/articles/13964256-how-to-see-historical-session-data">2026-08-07 공식 안내</a>는 오류 할당량이 소진돼도 SDK가 전송하는 세션을 받으며, 이를 오류 이벤트·Replay 녹화와 구분한다고 설명한다. 이 문서도 세션의 보관 일수는 제시하지 않는다. 기존 미확정 판정을 유지하고 <a href="#publication-evidence">준비한 공급자 질문</a>으로 원본·집계·백업 기간을 각각 확인한다.</li>
+<li><strong>Sentry Release Health 세션:</strong> <a href="https://www.sentry.help/en/articles/13964256-how-to-see-historical-session-data">2026-08-07 공식 안내</a>는 오류 할당량이 소진돼도 SDK가 전송하는 세션을 받으며, 이를 오류 이벤트·Replay 녹화와 구분한다고 설명한다. 이 문서도 세션의 보관 일수는 제시하지 않는다. 원본·집계·백업 기간은 미확인 상태로 유지한다. <a href="#supplier-inquiry">사용자 지시</a>에 따라 공급자 문의는 진행하지 않는다.</li>
 </ul>
 <p><a href="https://supabase.com/changelog/logs-usage-based-pricing">2026-09-25 Supabase 로그 과금 변경 공지</a>도 확인했다. 이 공지는 과금 적용 유예를 설명하며 위 보관 기간이나 모든 저장 위치를 확정하는 자료는 아니다. 이번 점검에서는 로그 내용 조회·백업 생성·복원·설정 변경·지원 요청 전송을 하지 않았다.</p>
-<p class="note pending">공개 문서와 현재 조회 권한으로 확인할 수 있는 범위를 기록했다. Sentry DPA 수락은 위 기록과 같이 완료했다. 다음 조치에는 세션 보관에 대한 공급자 답변과 비로그인 이용자의 기존 권리 행사 절차 확인이 필요하다. Supabase의 실제 백업 방식은 CLI로 확인했으며, 전체 데이터의 처리 국가·기간에 대한 고지 대조는 계속 필요하다.</p>
+<p class="note pending">공개 문서와 현재 조회 권한으로 확인할 수 있는 범위를 기록했다. Sentry DPA 수락은 위 기록과 같이 완료했다. 세션 보관 기간은 미확인이며 사용자 지시로 공급자 문의는 중단했다. 비로그인 이용자의 기존 권리 행사 절차 확인은 별도로 남는다. Supabase의 실제 백업 방식은 CLI로 확인했으며, 전체 데이터의 처리 국가·기간에 대한 고지 대조는 계속 필요하다.</p>
 </section>
 
 <section id="ko-draft"><h2>2. 한국어 본문 수정안</h2>
@@ -150,7 +151,7 @@
 <ol>
 <li>제13조의 황재근·CX팀·앱 내 1:1 문의는 2026-10-19 사용자가 현재도 유효하다고 확인했다. 다만 확인한 웹·앱 문의 기능은 로그인이 필요하다. 비로그인 웹 방문자의 기존 권리 행사 방법을 운영 담당자가 확인해야 한다. Replay 전용 접수 기능을 새로 만들거나 검증되지 않은 주소를 대신 넣지 않는다.</li>
 <li>일반 오류·성능·세션 진단과 선택형 Replay 각각의 처리·국외 이전 근거, 실제 적용 계약, 고지·동의 방식을 확인한다. 현재 진단 시작 버튼 하나가 법에서 요구하는 별도 동의를 충족한다고 단정하지 않는다. Sentry 조직의 DPA 5.1.0은 2026-10-20 전자 수락을 완료했고 계정의 서버 기록과 화면으로 확인했다. 이 계약 수락만으로 각 처리·국외 이전의 근거와 고지 조건이 충족됐다고 판정하지 않는다.</li>
-<li>세션 상태 정보(Release Health)의 실제 보관 기간을 공급자에게 확인한 뒤 한국어·영어 제6조 보관 표에 추가한다. 계정 API 재조회에서도 이 기간은 확인되지 않았다. 공식 API의 90일 조회 예시를 실제 보관 기간으로 단정하지 않는다. 이 확인 전에는 초안을 게시하지 않는다.</li>
+<li>세션 상태 정보(Release Health)의 실제 보관 기간은 계정 API 재조회에서도 확인되지 않았다. 사용자 지시로 공급자 문의는 진행하지 않는다. 공식 API의 90일 조회 예시나 Replay의 90일을 이 자료의 보관 기간으로 대신 적지 않는다. 보관 기간 미확인 사항을 남겨 두며, 문의 중단을 방침 게시 승인으로 해석하지 않는다.</li>
 <li>확인한 Supabase 서울 기본 리전과 Vercel 미국·한국·싱가포르 배포 리전을 출발점으로 진단 외 개인정보의 처리·저장 지역, 캐시·로그·백업의 범위와 기간을 확인하고 제6조에 별도로 기재한다. Vercel Pro·Observability Plus 미사용 상태의 런타임 로그는 공식 표상 1일, 확인한 Supabase Pro의 로그는 공식 기준 7일이다. Supabase는 PITR 미사용·완료된 일일 물리 백업 7개·조회 응답의 서울 리전을 확인했고, 공식 일일 백업 7일 기준과 대조했다. 모든 복제본의 위치·물리적 삭제 완료까지 확인한 것은 아니다. 다른 데이터의 기간은 별도 확인한다. 현재의 모든 데이터 국내 저장 문구를 대체하면서 다른 처리의 지역 안내를 빠뜨리지 않는다.</li>
 <li>현재 공개 자산의 Sentry 주소는 명시적 미국 형식으로 확인했다. 새 진단 빌드의 DSN·최종 전송 주소·proof는 배포 전에 별도로 대조한다. 지역이 생략된 주소는 진단을 허용하지 않는다. 공유 <code>NEXT_PUBLIC_SENTRY_DSN</code>을 변경하면 일반 SDK에도 적용되므로 별도 영향 확인 없이 바꾸지 않는다.</li>
 <li>새 방침의 버전·시행일·사전 안내 방법을 결정한다. 화면의 임시 버전과 조회 당일 표시를 실제 정책 정보에 맞추거나 제거하는 변경을 함께 검토한다.</li>
