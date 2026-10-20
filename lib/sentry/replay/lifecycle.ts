@@ -1,7 +1,32 @@
 import type { ReplaySignals } from './signals';
 
 /** Install before loading the recorder. These listeners close; they never cancel the user's action. */
-export function installReplayLifecycle(signals: ReplaySignals, win: Window): () => void {
+export function installReplaySafetyLifecycle(signals: ReplaySignals, win: Window): () => void {
+  const removers: (() => void)[] = [];
+  const close = () => signals.close();
+  function listen(target: EventTarget, type: string, listener: EventListener) {
+    target.addEventListener(type, listener, true);
+    removers.push(() => target.removeEventListener(type, listener, true));
+  }
+  for (const event of ['popstate', 'hashchange', 'pagehide', 'storage', 'resize', 'freeze', 'picnic-consent-updated']) listen(win, event, close);
+  listen(win, 'pageshow', event => { if ((event as PageTransitionEvent).persisted) close(); });
+  listen(win.document, 'visibilitychange', () => { if (win.document.visibilityState !== 'visible') close(); });
+  for (const method of ['pushState', 'replaceState'] as const) {
+    const original = win.history[method];
+    const wrapped = function(this: History, ...args: Parameters<History['pushState']>) {
+      const url = args[2];
+      try { if (url != null && new URL(String(url), win.location.href).href !== win.location.href) close(); }
+      catch { close(); }
+      return original.apply(this, args);
+    };
+    win.history[method] = wrapped;
+    removers.push(() => { if (win.history[method] === wrapped) win.history[method] = original; });
+  }
+  return () => { for (const remove of removers) remove(); };
+}
+
+/** Installed synchronously inside the consent handler, before SDK loading. */
+export function installReplayInteractionLifecycle(signals: ReplaySignals, win: Window): () => void {
   const removers: (() => void)[] = [];
   const close = () => signals.close();
   function listen(target: EventTarget, type: string, listener: EventListener) {
@@ -18,19 +43,12 @@ export function installReplayLifecycle(signals: ReplaySignals, win: Window): () 
   listen(win, 'keydown', event => {
     if (!bannerAction(event) || !['Enter', ' '].includes((event as KeyboardEvent).key)) close();
   });
-  for (const event of ['beforeinput', 'input', 'change', 'submit', 'popstate', 'hashchange', 'pagehide', 'storage', 'resize', 'freeze', 'contextmenu', 'dragstart', 'picnic-consent-updated']) listen(win, event, close);
-  listen(win, 'pageshow', event => { if ((event as PageTransitionEvent).persisted) close(); });
-  listen(win.document, 'visibilitychange', () => { if (win.document.visibilityState !== 'visible') close(); });
-  for (const method of ['pushState', 'replaceState'] as const) {
-    const original = win.history[method];
-    const wrapped = function(this: History, ...args: Parameters<History['pushState']>) {
-      const url = args[2];
-      try { if (url != null && new URL(String(url), win.location.href).href !== win.location.href) close(); }
-      catch { close(); }
-      return original.apply(this, args);
-    };
-    win.history[method] = wrapped;
-    removers.push(() => { if (win.history[method] === wrapped) win.history[method] = original; });
-  }
+  for (const event of ['beforeinput', 'input', 'change', 'submit', 'contextmenu', 'dragstart']) listen(win, event, close);
   return () => { for (const remove of removers) remove(); };
+}
+
+export function installReplayLifecycle(signals: ReplaySignals, win: Window): () => void {
+  const safety = installReplaySafetyLifecycle(signals, win);
+  const interaction = installReplayInteractionLifecycle(signals, win);
+  return () => { interaction(); safety(); };
 }

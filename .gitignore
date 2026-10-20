@@ -53,3 +53,7 @@ supabase/.temp/
 
 # Sentry CLI 설정(토큰 포함) — 절대 커밋하지 않는다. 템플릿은 .sentryclirc.example
 .sentryclirc
+
+# Recreated and verified for each deployment; never reuse proof from Git.
+/lib/sentry/replay/generated/diagnostic-proof.json
+/lib/sentry/replay/generated/diagnostic-proof.json.*.tmp

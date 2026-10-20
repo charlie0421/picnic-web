@@ -1,24 +1,33 @@
 'use client';
 
-import { useEffect, useState, memo, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, memo, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLanguageStore } from '@/stores/languageStore';
 import { Language, settings } from '@/config/settings';
+import { useGlobalLoading } from '@/contexts/GlobalLoadingContext';
+import { replaySignals } from '@/lib/sentry/replay/signals';
 type IdleCallback = () => void;
 
 const runWhenIdle = (callback: IdleCallback) => {
+  let cancelled = false;
+  const run = () => { if (!cancelled) callback(); };
   if (typeof window === 'undefined') {
-    setTimeout(callback, 0);
-    return;
+    const timer = setTimeout(run, 0);
+    return () => { cancelled = true; clearTimeout(timer); };
   }
 
-  const ric = (window as typeof window & { requestIdleCallback?: (cb: IdleCallback) => void })
+  const ric = (window as typeof window & { requestIdleCallback?: (cb: IdleCallback) => number })
     .requestIdleCallback;
 
   if (typeof ric === 'function') {
-    ric(callback);
+    const handle = ric(run);
+    return () => {
+      cancelled = true;
+      if (typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(handle);
+    };
   } else {
-    setTimeout(callback, 600);
+    const timer = setTimeout(run, 600);
+    return () => { cancelled = true; clearTimeout(timer); };
   }
 };
 
@@ -99,7 +108,10 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
   } = useLanguageStore();
   
   const [mounted, setMounted] = useState(false);
+  const initialStoreLanguage = useRef(currentLanguage);
   const hasDetectedDeviceLanguage = useRef(false);
+  const [deviceLanguageSettled, setDeviceLanguageSettled] = useState(false);
+  const { isLoading: overlayLoading } = useGlobalLoading();
 
   // 현재 언어의 번역이 준비되었는지 확인
   const isTranslationReady = useMemo(() => {
@@ -115,9 +127,13 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
 
   // 처음 실행 시 디바이스 언어 감지 및 DB 업데이트
   useEffect(() => {
-    if (!mounted || hasDetectedDeviceLanguage.current) return;
+    if (!mounted || !isHydrated || hasDetectedDeviceLanguage.current) return;
     
     const detectAndUpdateDeviceLanguage = async () => {
+      // Claim the decision before awaiting profile sync. Older idle callbacks
+      // must not change the language after Replay has observed it as settled.
+      if (hasDetectedDeviceLanguage.current) return;
+      hasDetectedDeviceLanguage.current = true;
       try {
         // 쿠키나 로컬 스토리지에 저장된 언어가 있는지 확인
         const cookieMatch = typeof document !== 'undefined' 
@@ -145,9 +161,11 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
             }
           }
           
-          if (detectedLanguage && detectedLanguage !== currentLanguage) {
-            // 언어 스토어 업데이트
-            setCurrentLang(detectedLanguage);
+          if (detectedLanguage && (detectedLanguage !== currentLanguage
+            || detectedLanguage !== initialStoreLanguage.current)) {
+            // Preserve the initial decision's persistence when hydration already
+            // selected this language, including the original same-language no-op.
+            if (detectedLanguage !== currentLanguage) setCurrentLang(detectedLanguage);
             
             // 쿠키에 저장
             if (typeof document !== 'undefined') {
@@ -184,15 +202,15 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
           }
         }
         
-        hasDetectedDeviceLanguage.current = true;
       } catch (error) {
         console.warn('Failed to detect device language:', error);
-        hasDetectedDeviceLanguage.current = true;
+      } finally {
+        setDeviceLanguageSettled(true);
       }
     };
     
-    runWhenIdle(detectAndUpdateDeviceLanguage);
-  }, [mounted, currentLanguage, setCurrentLang]);
+    return runWhenIdle(detectAndUpdateDeviceLanguage);
+  }, [mounted, isHydrated, currentLanguage, setCurrentLang]);
 
   // 서버에서 전달된 initialLanguage로 초기화 (hydration mismatch 방지)
   useEffect(() => {
@@ -252,6 +270,15 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
     prevIsLoadingRef.current = isLoading;
   }, [isLoading]);
 
+  // Publish only after React commits the translated page and removes its overlay.
+  // A later loading phase, language change or unmount closes this document.
+  const replayLanguageReady = Boolean(mounted && isHydrated && deviceLanguageSettled
+    && isTranslationReady && !isLoading && !overlayLoading);
+  useLayoutEffect(() => {
+    replaySignals.setLanguageReady(replayLanguageReady);
+    return () => replaySignals.setLanguageReady(false);
+  }, [replayLanguageReady, currentLanguage]);
+
   // 준비되지 않은 경우 null 반환 → 각 페이지의 Suspense fallback이 표시됨
   return (
     <>
@@ -269,4 +296,4 @@ const LanguageSyncProviderComponent = memo(function LanguageSyncProviderInternal
 
 LanguageSyncProviderComponent.displayName = 'LanguageSyncProvider';
 
-export { LanguageSyncProviderComponent as LanguageSyncProvider }; 
+export { LanguageSyncProviderComponent as LanguageSyncProvider };

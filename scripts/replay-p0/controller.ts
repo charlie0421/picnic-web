@@ -1,6 +1,7 @@
 import { isEligible, type Cleanup, type Eligibility, type Gate, type Reason, type SdkHandle } from './contract';
 export type ControllerDeps = { load(): Promise<SdkHandle>; readEligibility(): Eligibility;
-  readReadyState(): DocumentReadyState; cancelOwnedWork(): void; onCleanup(status: Cleanup): void; now(): number };
+  readReadyState(): DocumentReadyState; cancelOwnedWork(): void; onCleanup(status: Cleanup): void; now(): number;
+  durationMs?: number; monotonic?: boolean };
 
 /** Normal application calls only. Public SDK access elsewhere remains a documented limitation. */
 export function createController(deps: ControllerDeps) {
@@ -9,6 +10,8 @@ export function createController(deps: ControllerDeps) {
   let stopped = false;
   let starting = false;
   let startedAt: number | null = null;
+  let lastNow: number | null = null;
+  const durationMs = deps.durationMs ?? 300000;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const cleanup = (status: Cleanup) => { try { deps.onCleanup(status); } catch { /* No raw diagnostic forwarding. */ } };
   function stop() {
@@ -29,14 +32,23 @@ export function createController(deps: ControllerDeps) {
   function eligible() {
     try { return isEligible(deps.readEligibility()); } catch { return false; }
   }
+  function clock(): number | null {
+    try {
+      const now = deps.now();
+      if (deps.monotonic && (!Number.isFinite(now) || now < 0 || (lastNow !== null && now < lastNow))) { close('expired'); return null; }
+      lastNow = now; return now;
+    } catch { close('expired'); return null; }
+  }
   function domReady() {
     if (gate.phase !== 'LOADING' || !sdk) return;
     if (!eligible()) { close('ineligible'); return; }
     if (deps.readReadyState() === 'loading') return;
     gate.phase = 'ARMED';
     if (!eligible()) { close('ineligible'); return; }
-    startedAt = deps.now(); gate.phase = 'RECORDING';
-    timer = setTimeout(() => close('expired'), 300000);
+    if (!Number.isFinite(durationMs) || durationMs <= 0) { close('expired'); return; }
+    startedAt = clock(); if (startedAt === null) return;
+    gate.phase = 'RECORDING';
+    timer = setTimeout(() => close('expired'), durationMs);
     starting = true;
     try { sdk.start(); } catch { close('sdk'); }
     finally { starting = false; if (snapshot().phase === 'CLOSED') stop(); }
@@ -53,7 +65,9 @@ export function createController(deps: ControllerDeps) {
     } catch { close('sdk'); }
   }
   function snapshot(): Gate {
-    if (gate.phase === 'RECORDING' && startedAt !== null && deps.now() - startedAt >= 300000) close('expired');
+    if (gate.phase === 'RECORDING' && startedAt !== null) {
+      const now = clock(); if (now !== null && now - startedAt >= durationMs) close('expired');
+    }
     return { ...gate };
   }
   async function flush() {

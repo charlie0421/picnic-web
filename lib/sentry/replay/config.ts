@@ -1,6 +1,6 @@
 export type LocalReplayConfig = { origin: string; endpoint: string };
 
-/** This release has no production collection switch. Only the isolated synthetic product harness can run. */
+/** Only the isolated synthetic product harness uses this configuration. */
 export function localReplayConfig(location: Pick<Location, 'origin'>): LocalReplayConfig | null {
   if (process.env.NEXT_PUBLIC_REPLAY_LOCAL_TEST !== '1'
     || process.env.NEXT_PUBLIC_SUPABASE_URL !== 'http://127.0.0.1:59862'

@@ -16,6 +16,7 @@ import {
 import { getBanners } from '@/utils/api/queries';
 import { getCurrentUserContext } from '@/lib/data-fetching/server/supabase-service';
 import { getVotes } from '@/lib/data-fetching/server/vote-service';
+import { ReplayDiagnostic } from '@/components/replay/ReplayDiagnostic';
 
 export async function generateMetadata({
   params,
@@ -141,6 +142,7 @@ export default async function VoteListPage({
           </div>
         </section>
       </main>
+      {lang === 'ko' && <ReplayDiagnostic />}
     </>
   );
 }

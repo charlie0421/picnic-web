@@ -56,3 +56,18 @@ it('closes at five minutes and keeps unresolved SDK cleanup separate', async () 
   await vi.advanceTimersByTimeAsync(1); expect(controller.snapshot().phase).toBe('CLOSED');
   expect(deps.onCleanup).toHaveBeenLastCalledWith('pending');
 });
+
+it('uses the operating 60 second deadline from actual recorder start', async () => {
+ let now=100;const {sdk,deps}=setup();const controller=createController({...deps,durationMs:60000,monotonic:true,now:()=>now});
+ await controller.prepare();now=60099;expect(controller.snapshot().phase).toBe('RECORDING');
+ now=60100;expect(controller.snapshot().phase).toBe('CLOSED');expect(sdk.stop).toHaveBeenCalledTimes(1);
+});
+it.each([-1,NaN,Infinity])('closes on invalid monotonic time %s',async bad=>{
+ let now=100;const {sdk,deps}=setup();const controller=createController({...deps,durationMs:60000,monotonic:true,now:()=>now});
+ await controller.prepare();now=200;expect(controller.snapshot().phase).toBe('RECORDING');now=bad;
+ expect(controller.snapshot().phase).toBe('CLOSED');expect(sdk.stop).toHaveBeenCalledTimes(1);await controller.prepare();expect(sdk.start).toHaveBeenCalledTimes(1);
+});
+it('does not call start when the initial monotonic clock is invalid',async()=>{
+ const {sdk,deps}=setup();const controller=createController({...deps,durationMs:60000,monotonic:true,now:()=>NaN});await controller.prepare();expect(sdk.start).not.toHaveBeenCalled();expect(controller.snapshot().phase).toBe('CLOSED');
+});
+it('preserves local Date.now behavior when the wall clock moves backwards',async()=>{const {controller}=setup();await controller.prepare();vi.setSystemTime(-1);expect(controller.snapshot().phase).toBe('RECORDING');});

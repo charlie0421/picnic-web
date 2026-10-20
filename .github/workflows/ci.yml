@@ -1,7 +1,7 @@
 # PR 과 main 에 대해 타입 검사·lint·테스트를 돌린다.
 #
 # 이 레포는 Preview 배포가 없고 main 머지가 곧 Production 배포다. 머지 전에 볼 수 있는 자동 검증은 이것뿐이다.
-# 빌드(npm run build)는 넣지 않는다. 프리렌더가 Supabase 조회에 의존해 네트워크와 운영 환경변수가 필요하다.
+# 일반 빌드는 운영 조회에 의존하므로 합성 데이터 전용 job에서만 빌드한다.
 # 빌드와 렌더링 모드 검사는 Vercel 의 Production 빌드에서 돈다.
 name: CI
 
@@ -42,3 +42,20 @@ jobs:
 
       - name: 테스트
         run: npm test
+
+  replay-diagnostic:
+    name: Replay 합성 빌드 · 브라우저 검증
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: 수동 진단과 패키징
+        run: npm run test:replay:diagnostic
+      - name: 기존 로컬 Replay 회귀
+        run: node scripts/replay-diagnostic/run.cjs --local

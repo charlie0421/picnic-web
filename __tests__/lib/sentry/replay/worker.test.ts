@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { emptyProjectionState } from '@/scripts/replay-p0/contract';
-import { voteListWorkerTransform } from '@/lib/sentry/replay/worker-client';
+import { voteListWorkerTransform, diagnosticWorkerTransform } from '@/lib/sentry/replay/worker-client';
 const transformInWorker = voteListWorkerTransform('http://127.0.0.1:53931', () => 5);
 
 class ControlledWorker {
@@ -36,4 +36,9 @@ it('ignores a response for a different job', async () => {
   worker.onmessage?.({ data: { id: worker.request!.id + 1, result: { ok: false, reason: 'schema' } } });
   await vi.advanceTimersByTimeAsync(2000);
   expect(await pending).toEqual({ ok: false, reason: 'worker-timeout' });
+});
+
+it('uses a separate diagnostic Worker and terminates it on abort',async()=>{
+ const abort=new AbortController();const pending=diagnosticWorkerTransform('https://www.picnic.fan',()=>5)([{},[]],emptyProjectionState(),abort.signal);
+ const worker=ControlledWorker.current;abort.abort();expect(await pending).toEqual({ok:false,reason:'abort'});expect(worker.terminate).toHaveBeenCalledTimes(1);
 });

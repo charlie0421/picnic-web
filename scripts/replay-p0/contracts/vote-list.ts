@@ -1,7 +1,7 @@
 import type { NodeState, ProjectionState } from '../contract';
 import { parseStyle, styleString, type StyleCheck } from '../engine/style';
 import type { Contract } from '../engine/types';
-import { bag, decimalPx, integer, maskText, Rejected, requireValue, type Bag } from '../engine/values';
+import { bag, decimalPx, integer, maskText, mediaDimensionPx, Rejected, requireValue, type Bag } from '../engine/values';
 
 /** One accepted input serialization of a stylesheet. engine names the browser that produced it. */
 export type CssVariant = { engine: string; sha256: string; text: string };
@@ -122,7 +122,7 @@ export function createVoteListContract(o: VoteListOptions): Contract {
         return undefined;
       }
       const remove = raw === null && diff;
-      if (key === 'rr_width' || key === 'rr_height') { requireValue(MEDIA.has(tag) && !remove); return decimalPx(raw); }
+      if (key === 'rr_width' || key === 'rr_height') { requireValue(MEDIA.has(tag) && !remove); return mediaDimensionPx(raw); }
       if (key === 'style') {
         node.style = parseStyle(raw, node.style, diff, check);
         return raw === null ? null : styleString(node.style);

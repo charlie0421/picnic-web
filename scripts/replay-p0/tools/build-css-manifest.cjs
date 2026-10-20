@@ -12,7 +12,6 @@ const { execFileSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const postcss = require('postcss');
 const selectorParser = require('postcss-selector-parser');
-const { chromium } = require('playwright');
 const { parseBrowserEnvelope } = require('../../envelope-test/browser-analyze');
 
 const root = path.resolve(__dirname, '../../..');
@@ -162,6 +161,7 @@ async function main() {
   const wire = wireValues(arg('--wire-dir'), origin);
   const buildId = fs.readFileSync(path.join(buildDir, 'BUILD_ID'), 'utf8').trim();
   const commit = execFileSync('git', ['rev-parse', '--short=8', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  const { chromium } = require('playwright');
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
@@ -219,10 +219,14 @@ async function main() {
       styleText: styled.sort((a, b) => a.output.sha256.localeCompare(b.output.sha256)),
       classes: [...classes].sort(), statusColors: statusColors(),
     };
+    if (process.argv.includes('--diagnostic')) {
+      delete manifest.release; delete manifest.environment;
+      manifest.sourceStyleSha256 = [...new Set([...sources].map(sha))].sort();
+    }
     fs.writeFileSync(out, JSON.stringify(manifest, null, 2) + '\n');
     console.log(JSON.stringify({ buildId, origin, commit, links: linkCss.length, styles: styled.length, classes: classes.size,
       removedFontFaces, review: previous ? summarizeManifest(previous, manifest) : null }, null, 2));
   } finally { await browser.close(); }
 }
-module.exports = { checkCss, buildStyleSources, traceStyledJsx, normalizeCssOrigin, splitFontRules, summarizeManifest, sdkFix };
+module.exports = { checkCss, buildStyleSources, chunkTexts, traceStyledJsx, normalizeCssOrigin, splitFontRules, summarizeManifest, sdkFix };
 if (require.main === module) main().catch(error => { console.error(error.message); process.exit(1); });

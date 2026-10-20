@@ -19,6 +19,7 @@ async function main() {
   try {
     const cases = [
       { name: 'desktop', width: 1280, positive: true }, { name: 'mobile', width: 390, positive: true },
+      { name: 'streaming-ready', width: 1280, positive: true, pendingStream: true },
       { name: 'no-consent', consent: null }, { name: 'granted', consent: 'granted' },
       { name: 'json-denial', consent: '{"ads":false}' }, { name: 'query', suffix: '?status=end' },
       { name: 'fragment', suffix: '#private' }, { name: 'empty-query', suffix: '?' },
@@ -27,8 +28,11 @@ async function main() {
     ];
     for (const scenario of cases.filter(s => !process.argv.includes('--only') || opt('--only').split(',').includes(s.name))) {
       const context = await browser.newContext({ viewport: { width: scenario.width || 1280, height: 900 } });
+      // Exercise a settled Korean preference, without first-visit device-language switching.
+      await context.addCookies([{ name: 'locale', value: 'ko', url: ORIGIN }]);
       const consent = Object.hasOwn(scenario, 'consent') ? scenario.consent : 'denied';
       await context.addInitScript(value => { if (value !== null) localStorage.setItem('picnic-cookie-consent', value); }, consent);
+      if (scenario.pendingStream) await installPendingStream(context);
       if (scenario.cookie) await context.addCookies([{ name: 'HttpOnlyCanary', value: 'synthetic', url: ORIGIN, httpOnly: true }]);
       const page = await context.newPage(); const replay = [], ordinary = [], errors = [], blocked = [], requests = [], baggageLinks = [];
       page.on('pageerror', e => { if (!String(e).includes('replay-integration-synthetic-error')) errors.push(String(e)); });
@@ -50,6 +54,11 @@ async function main() {
       try {
         await page.goto(ORIGIN + '/ko/vote' + (scenario.suffix || ''), { waitUntil: 'load', timeout: 90000 });
         await page.waitForSelector('h3', { timeout: 20000 });
+        if (scenario.pendingStream) {
+          assert.equal(await page.locator('[id="S:replay-test"] template').count(), 1, 'pending stream remains after load');
+          assert.equal(replay.length, 0, 'pending stream sends no Replay');
+          await page.evaluate(() => document.getElementById('S:replay-test').remove());
+        }
         if (scenario.positive || scenario.action) {
           await expectReplay(page, replay, 1);
           if (scenario.positive) {
@@ -101,6 +110,15 @@ async function expectReplay(page, received, count) {
   while (received.length < count && Date.now() < deadline) await page.waitForTimeout(100);
   assert(received.length >= count, `expected ${count} projected segments, received ${received.length}`);
 }
+// Hold the same inert React placeholder seen in the failed CI snapshot through
+// document load. The product must wait; the projection contract still rejects it.
+async function installPendingStream(context) {
+  await context.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+    const pending = document.createElement('div'); pending.hidden = true; pending.id = 'S:replay-test';
+    const template = document.createElement('template'); template.dataset.dgst = 'BAILOUT_TO_CLIENT_SIDE_RENDERING';
+    pending.append(template); document.body.append(pending);
+  }, { once: true }));
+}
 async function closeAction(page, action) {
   if (action === 'more') return page.getByRole('button', { name: '더보기', exact: true }).click();
   if (action === 'menu') return page.locator('header a[href="/ko/mypage"]:visible').first().click();
@@ -120,11 +138,14 @@ async function closeAction(page, action) {
     else window.dispatchEvent(new Event(action));
   }, action);
 }
-async function verifyRestore(browser, original, envelopes, width, bundle, out, name) {
+async function verifyRestore(browser, original, envelopes, width, bundle, out, name, options = {}) {
+  // A closed diagnostic panel removes its Stop button after capture has already stopped.
+  // Compare product controls; recording ID/control masking is asserted separately by the diagnostic suite.
+  const selectors = options.excludeDiagnosticControls ? SELECTORS.map(s => s === 'button' ? 'button:not(.fixed.bottom-4.right-4 button)' : s) : SELECTORS;
   await original.evaluate(() => scrollTo(0, 0)); await original.mouse.move(-10, -10);
   await original.waitForTimeout(600); await original.evaluate(maskText); await original.evaluate(removeFontFiles);
   await original.evaluate(async () => { await document.fonts.ready; }); await original.evaluate(settle);
-  const control = await original.evaluate(measure, SELECTORS);
+  const control = await original.evaluate(measure, selectors);
   const track = await original.locator('.banner-track').getAttribute('style');
   const page = await browser.newPage({ viewport: { width, height: 900 } });
   await page.route('**/*', route => route.abort());
@@ -133,11 +154,12 @@ async function verifyRestore(browser, original, envelopes, width, bundle, out, n
     await page.addScriptTag({ content: bundle });
     const records = envelopes.flatMap(e => e.items.filter(i => i.header.type === 'replay_recording').flatMap(i => i.payload.records));
     const tags = ['html', 'head', 'body', 'meta', 'title', 'link', 'style', 'div', 'span', 'a', 'button', 'img', 'svg', 'header', 'main', 'section', 'footer', 'h3', 'p', 'next-route-announcer'];
-    const restored = await page.evaluate(({ records, selectors, tags }) => window.voteList.restore(records, selectors, tags), { records, selectors: SELECTORS, tags });
+    const restored = await page.evaluate(({ records, selectors, tags }) => window.voteList.restore(records, selectors, tags), { records, selectors, tags });
     const differences = classifyFailures(compare(control, restored));
     const restoredTrack = Array.from(JSON.stringify(records).matchAll(/--banner-current-index: \d+;/g)).at(-1)?.[0] || '';
     fs.writeFileSync(path.join(out, `${name}-restore.json`), JSON.stringify({ differences, track, restoredTrack, boxes: restored.length }, null, 2));
     assert.equal(differences.other.length, 0, 'no new layout loss'); assert.equal(restoredTrack, track, 'banner position restored');
   } finally { await page.close(); }
 }
+module.exports = { verifyRestore, installPendingStream };
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });

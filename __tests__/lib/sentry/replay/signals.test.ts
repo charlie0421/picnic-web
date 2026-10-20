@@ -73,3 +73,16 @@ it('synchronously tells earlier listeners about a later listener failure', () =>
   expect(signals.snapshot().closed).toBe(true);
   expect(observed.at(-1)).toBe(true);
 });
+
+it('keeps an initially pending language decision open', () => {
+  const signals=createReplaySignals(); signals.setLanguageReady(false); signals.setLanguageReady(false);
+  expect(signals.snapshot()).toMatchObject({languageReady:false,closed:false});
+});
+it('closes when a ready language becomes pending', () => {
+  const signals=createReplaySignals(); signals.setLanguageReady(true); signals.setLanguageReady(false);
+  expect(signals.snapshot()).toMatchObject({languageReady:false,closed:true});
+});
+it('does not reopen a closed document when language readiness returns', () => {
+  const signals=createReplaySignals(); signals.setLanguageReady(true); signals.setLanguageReady(false); signals.setLanguageReady(true);
+  expect(signals.snapshot()).toMatchObject({languageReady:true,closed:true});
+});

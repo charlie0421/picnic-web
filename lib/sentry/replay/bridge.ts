@@ -4,6 +4,7 @@ import { localPageIsSafe } from './page-safety';
 import { replaySignals } from './signals';
 import { createProductReplayRuntime } from './runtime';
 import { voteListWorkerTransform } from './worker-client';
+import { replayDocumentReady, observeReplayDocumentReady } from './document-ready';
 
 /** Loaded only by the explicitly enabled, loopback-only synthetic product build. */
 export async function attachLocalReplay(config: LocalReplayConfig, normal: Transport): Promise<Transport | undefined> {
@@ -22,8 +23,8 @@ export async function attachLocalReplay(config: LocalReplayConfig, normal: Trans
     const runtime = createProductReplayRuntime({
       config, signals: replaySignals, normal,
       fetch: window.fetch.bind(window), transform: voteListWorkerTransform(config.origin, () => replaySignals.snapshot().bannerCount),
-      page: () => ({ href: location.href, ready: document.readyState === 'complete', visible: document.visibilityState === 'visible' && localPageIsSafe() }),
-      onReady(callback) { window.addEventListener('load', callback); return () => window.removeEventListener('load', callback); },
+      page: () => ({ href: location.href, ready: replayDocumentReady(document), visible: document.visibilityState === 'visible' && localPageIsSafe() }),
+      onReady: callback => observeReplayDocumentReady(window, callback),
       load: async () => {
         const Sentry = await import('@sentry/nextjs');
         let replay: ReturnType<typeof Sentry.replayIntegration> | undefined;
