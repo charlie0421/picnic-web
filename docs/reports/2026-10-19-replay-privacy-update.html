@@ -41,9 +41,11 @@
 <tr><td>세션 보관·계약</td><td>23:36 KST에 Sentry 고객·조직 API를 GET으로 다시 조회했다. 두 응답은 200이었고 기존 보관 수치는 같았다. 확인한 응답에는 Release Health 세션의 별도 보관 기간이나 계정의 DPA 수락 증거가 없었다.</td><td>세션 보관 기간은 미확정이다. 응답에 증거가 없다는 사실은 계약 미체결을 뜻하지 않는다. 공급자 답변과 실제 적용 계약 확인이 필요하다.</td></tr>
 </tbody></table>
 <p class="muted">정책 원문 SHA-256: 한국어 <code>3d12c71204c7f78f72edfdc6b2e786075f24bee0ddaacd8e55193dd30468990a</code>, 영어 <code>2ade35fb16cd482b534c59e7bb6a8fd7fa2f1970230088a56f14907216ca6e68</code>. 앱 소스 기준: <code>078dda32a24b1a554368cda7fadc9a41d2aaaf0f</code>.</p>
-<h3>공급자 확인에 사용할 질문 초안 — 미전송</h3>
-<div class="copy" lang="en"><p>For our current Sentry SaaS Team plan in the US region, what retention periods apply to browser Release Health session data and its derived aggregates? Please distinguish retention of received session payloads, derived metrics, and backups, and clarify whether the period depends on the plan active when each item was collected. Please provide the applicable official documentation or account-specific confirmation.</p></div>
+<h3 id="supplier-inquiry">공급자 확인에 사용할 질문 초안 — 미전송</h3>
+<p>2026-10-20 <a href="https://www.sentry.help/en/">Sentry 공식 도움말</a> 하단의 <strong>Email Support</strong> 링크에서 <code>support@sentry.io</code>를 확인했다. 아래 문의의 전송 승인을 요청했다. 실제 이용자 기록이나 비밀 키는 첨부하지 않는다.</p>
+<div class="copy" lang="en"><p><strong>To:</strong> support@sentry.io<br><strong>Subject:</strong> Release Health session data retention — Team plan, US region</p><p>For our Sentry organization <code>icon-casting</code>, project <code>picnic-web</code>, on the Team plan in the US region, please confirm the retention periods for browser Release Health session data. Please distinguish received session payloads, derived aggregates, and backups; clarify whether retention depends on the plan active when the data was collected; and provide official documentation or account-specific confirmation. This question concerns Release Health sessions, not Session Replay recordings.</p></div>
 <p>이 질문은 Replay 90일의 재확인을 요구하는 것이 아니다. 화면 녹화와 별도로 전송되는 세션 상태 자료의 기간을 확인하기 위한 것이다. 외부 메시지나 지원 요청은 보내지 않았다.</p>
+<p>기존 코드의 <code>RateLimitedDialog</code>는 회원가입 제한 안내에서 고객센터 링크의 기본값으로 <code>cs@picnic.fan</code>을 사용한다. 코드에 주소가 있다는 사실은 실제 수신·처리의 증거가 아니다. 비로그인 이용자의 개인정보 권리 행사 문의를 이 기존 주소에서 처리하는지 사용자에게 확인 요청했다. 답변 전에는 방침의 접수 주소로 추가하지 않는다. Replay 전용 삭제 요청 기능 보류는 유지한다.</p>
 </section>
 
 <section id="contract-evidence"><h2>1-2. 계약·로그 보관 점검과 DPA 수락</h2>
