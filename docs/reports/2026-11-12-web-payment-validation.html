@@ -23,6 +23,7 @@
 <ul><li>Low 1: 만료된 PROCESSING 리스의 과거 claim 시각을 재시도 예정으로 내보내지 않도록 nextRetryAt을 null로 바꿨다.</li>
 <li>Low 2: 기존 안전 로그 계약을 유지하면서 CONFIG·RECEIPT·OUTCOME·RESULT를 고정 사건 코드로 구분했다. 원본 오류·키·고객 정보는 기록하지 않는다.</li>
 <li>Low 3: T7에 CANCELLED_BY_REFUND를 환불 없음으로 해석하지 않는 규칙과 GRANTED/금액 0을 운영 확인 대상으로 표시하는 규칙을 추가했다.</li></ul>
+<p>보완 커밋은 fbd3ac8f다. 현재 원 리뷰어의 제한 도구는 이미 정산된 Dispatch에 고정돼 있다. 재검증 준비에서 build-launch가 readonly-context-unavailable로 거부해 후속 작업자를 실행하지 않았다. 관리 스킬의 “A bound receipt cannot launch another session; prepare a fresh context for each new Dispatch.” 조건이 적용됐다. 원 리뷰어 재검증은 완료로 기록하지 않는다. T2의 새 독립 리뷰는 별도 새 context로 준비한다.</p>
 <h2 id="production-preflight">프로덕션은 읽기 전용 확인, 변경 시험은 격리 로컬</h2>
 <p>사용자는 운영에 영향이 없으면 프로덕션을 우선하고, 위험하면 로컬에서 진행하도록 지시했다. 주문·견적·워커 변경과 지급·환불·경쟁 시험은 운영 영향을 배제할 수 없으므로 승인된 로컬 워크트리에서 수행한다. 프로덕션에는 READ ONLY 트랜잭션으로 카탈로그만 조회했다(statement_timeout 3초, lock_timeout 500ms). 고객 행·비밀 값·결제 함수 실행·DDL·배포는 포함하지 않았다.</p>
 <table><thead><tr><th>2026-11-12 관측</th><th>결과와 한계</th></tr></thead><tbody>

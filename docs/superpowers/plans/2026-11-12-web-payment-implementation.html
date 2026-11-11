@@ -22,7 +22,8 @@ body{font:16px/1.7 system-ui,sans-serif;color:#203049;background:#f4f7fb;margin:
 <p>완료 조건: 타인 및 관리자 타인 조회 거부, provider/환경 교차 거부, 영수증→inbox 경로만 사용, SQL 조회 실패와 미발견 구분, SUCCEEDED 결과 누락 보존, bigint 정밀도·PII 비노출, 기존 판매 중지와 무관한 읽기.</p>
 <pre>npm test -- __tests__/api/payment/purchase-status.test.ts __tests__/lib/payment/purchase-status.test.ts
 npx tsc --noEmit</pre></section>
-<section><h3>T2. 독립 DB 시험 실행기</h3>
+<section><h3>T2. 독립 DB 시험 실행기 — 선행 시험 통과, 독립 리뷰 준비</h3>
+<p>DB 브랜치 <code>feat/web-payment-contract</code>의 <code>6599e3e</code>에 구현했다. 실행기 안전 검사 12개, chain 실패 전파 검사 4개가 통과했다. PG15.8/17.6에서 각각 합성 상태·권한 검사 18개와 실제 SQL 거부 4개가 통과했다. 기존 wallet safety는 223개 통과·전용 DB가 필요한 5개 건너뜀이다. 전체 migration·cross-env kit·PostgREST 통합은 아직 미검증이다. T3/T4는 구현 전이다.</p>
 <p>DB의 <code>scripts/wallet/web-payment-fixture.test.py</code>, <code>web-payment-fixture-runner.test.py</code>, <code>fixtures/web-payment-prerequisites.sql</code>을 준비한다. PostgreSQL 15.8·17.6 합성 fixture는 포트 공개 없이 network none 컨테이너로 시험한다. Docker 로컬 endpoint·불변 컨테이너 ID·실제 DB 버전을 검증하고 자신이 만든 컨테이너만 정리한다.</p>
 <p><code>scripts/security/bonus-history-rls-chain.sh</code>의 seed·원장·SQL 실패와 필수 테스트 누락을 nonzero로 처리한다. 공유 54322와 원격 Docker는 거부한다. 기존 cross-env kit와 Supabase PG17 전체 체인은 별도 근거로 유지한다.</p>
 <pre>python3 scripts/wallet/web-payment-fixture-runner.test.py
