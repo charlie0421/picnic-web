@@ -75,7 +75,7 @@
 <p>공용 라우터는 Claude 세션을 <code>not_applicable</code>로 처리하지만 Codex의 주간 전용 응답은 아직 <code>assumed_available</code>로 분류한다. 따라서 앞선 “Codex 5시간 잔여 있음 가정” 설명을 현행 Pro의 실제 제한으로 받아들이면 안 된다. 계정·요금제 근거에 따라 제한 부재와 조회 누락을 구분하도록 수집기·정규화·실행 및 재시도 검증을 맞추는 후속 정책 수정이 필요하다. 이번 조사에서는 공용 실행 코드나 저장된 Route를 수동 수정하지 않았다.</p>
 <h2>9. 두 결제수단 준비 설계</h2>
 <p>사용자는 가상화폐를 다음 단계로 미루고, PayPal과 PortOne을 함께 준비해 준비된 수단부터 순차 개방하기로 선택했다. 첫 환불 접수 방식은 문의 접수 → 운영자 확인 → 결제사 콘솔 처리이며 결과와 지갑 회수 상태를 웹에 동기화한다.</p>
-<p>후속 Astra 계약 조사와 Fable 독립 리뷰를 반영한 <a href="../superpowers/specs/2026-11-11-web-payment-readiness-design.html">웹결제 준비 설계</a>에 서버 주문·견적·상태·복구·환불·국가별 화면과 개방 조건을 정리했다. Fable 1차 지적 High 2·Medium 4·Low 2는 재검토에서 7건 해소·1건 반박 수용으로 정리됐고 기술설계는 통과했다. 재검토의 추가 권고 Medium 2·Low 3은 조정자가 소스와 대조해 문장에 반영했으며 세 번째 모델 리뷰는 하지 않았다. 사용자 설계·회수 정책 승인은 대기 중이다. 이 후속 준비에서 제품 코드·운영 설정을 변경하거나 메일을 발송하지 않았다.</p>
+<p>후속 Astra 계약 조사와 Fable 독립 리뷰를 반영한 <a href="../superpowers/specs/2026-11-11-web-payment-readiness-design.html">웹결제 준비 설계</a>에 서버 주문·견적·상태·복구·환불·국가별 화면과 개방 조건을 정리했다. Fable 1차 지적 High 2·Medium 4·Low 2는 재검토에서 7건 해소·1건 반박 수용으로 정리됐고 기술설계는 통과했다. 재검토의 추가 권고 Medium 2·Low 3은 조정자가 소스와 대조해 문장에 반영했으며 세 번째 모델 리뷰는 하지 않았다. 2026-11-12 사용자는 문서 확인 후 다음 단계 진행을 지시했고, 웹 환불 회수는 앱의 정책을 따르기로 선택했다. 기본 별사탕·상품 보너스 비례 회수(내림), 프로모션 보너스 전액 회수, 부족분 채무·이후 구매 상계를 구현 준비에 반영한다. 실제 설정·배포·운영 개방은 별도다. 이 후속 준비에서 제품 코드·운영 설정을 변경하거나 메일을 발송하지 않았다.</p>
 <h2 id="jira-review">10. Jira 관련 작업 대조 · 2026-11-12</h2>
 <p>Aside의 로그인 세션으로 <code>picnic-team.atlassian.net</code>의 PICNIC 프로젝트를 읽었다. 결제·환불 키워드 검색 45건, WEB 에픽의 하위 항목 54건, 공급자 이름 검색 7건, 국가·통화 교차 검색 1건의 목록을 대조했다. 각 검색은 마지막 페이지까지 확인했으며 결과는 서로 중복된다. 관련 이슈 20건의 설명과 필요한 댓글을 읽고, PICNIC-15의 상태 이력 73건에서 상태 변경을 확인했다. PICNIC-56은 제목·상태·완료일만 확인했고 계정·비밀번호 본문은 열지 않았다. 첨부파일과 전체 프로젝트의 모든 댓글을 조사한 것은 아니다. Jira 상태·담당자·댓글을 변경하지 않았다.</p>
 <h3>신청·개발 완료와 운영 개방은 다른 근거다</h3>
@@ -87,7 +87,7 @@
 <h3>기존 환불 문구와 현재 회수 정책의 대조</h3>
 <p><a href="https://picnic-team.atlassian.net/browse/PICNIC-14">PICNIC-14</a>는 2025-07-08 완료다. 7월 4일 한국어·7월 6일 영어 댓글은 구매 후 7일 이내 미사용 별사탕의 취소, 사용·투표·보너스 사용 이력이 있을 때의 제한, 오류 문의를 고객센터에서 받는 내용을 담는다. 7월 7일 댓글은 약관 제12조 2절과 앱 반영을 보고한다. 이는 당시 작성·반영 기록이며 현재 약관 전문이나 법적 적용 가능성을 새로 검증한 결과는 아니다.</p>
 <p>하위 작업 <a href="https://picnic-team.atlassian.net/browse/PICNIC-60">PICNIC-60</a>은 구매 화면의 “구매한 별사탕은 환불이 불가능합니다”를 “환불은 이용약관을 참고바랍니다.”로 바꿨다고 기록한다. 별도 Google Form은 Q&amp;A 도입에 따라 만들지 않기로 했다. 이번 문의 → 운영자 확인 → 콘솔 환불 흐름에서는 실제 이용 가능한 Q&amp;A·고객센터 경로와 한국어·영어 안내를 먼저 대조한다.</p>
-<p><strong>환불을 허용하는 조건과 승인된 환불의 지갑 회수 방식은 구분한다.</strong> 기존 문구가 현재 제안의 부분환불·프로모션 전액 회수·부족분 채무·기존 채무 상계를 승인한 것은 아니다. 반대로 기존 사용 제한 문구만으로 결제사가 이미 확정한 환불 통지를 버려서도 안 된다. 정책 선택 전에 실제 게시 문구·시행 버전·공급자 조건을 대조한다. 현행 약관 화면의 고정 버전과 조회일 표시는 실제 시행일의 근거가 아니다.</p>
+<p><strong>환불을 허용하는 조건과 승인된 환불의 지갑 회수 방식은 구분한다.</strong> 기존 문구가 현재 제안의 부분환불·프로모션 전액 회수·부족분 채무·기존 채무 상계를 승인한 것은 아니다. 반대로 기존 사용 제한 문구만으로 결제사가 이미 확정한 환불 통지를 버려서도 안 된다. 선택한 앱 회수 정책을 웹에 적용하기 전에 실제 게시 문구·시행 버전·공급자 조건을 대조한다. 현행 약관 화면의 고정 버전과 조회일 표시는 실제 시행일의 근거가 아니다.</p>
 <h3>회원 화면과 복구 시험에 연결할 기존 작업</h3>
 <div class="scroll"><table><thead><tr><th>이슈 · 조회 상태</th><th>확인한 내용</th><th>재개 때 대조할 항목</th></tr></thead><tbody>
 <tr><td><a href="https://picnic-team.atlassian.net/browse/PICNIC-10">PICNIC-10 상품 등록</a> · 완료</td><td>2025-07-03 댓글에서 보너스 0을 “no bonus”로 안내하고 영어 페이지 로딩 문제 해결을 확인했다.</td><td>상품 보너스 없음 표시와 언어 전환 후 상품·통화·국가 선택 유지. 이 표현을 번역 없이 모든 언어에 강제하지 않는다.</td></tr>
@@ -105,4 +105,14 @@
 <tr><td><a href="https://picnic-team.atlassian.net/browse/PICNIC-2685">PICNIC-2685 예상된 결제 취소 경보</a> · 완료</td><td>청구·지급 없는 Google 취소를 개별 CRITICAL 재알림에서 제외하고 실제 소유자 오류 경보는 유지한 기록이다.</td><td>웹의 취소·미확인·청구 후 미적립을 구분하는 운영 시험에 참고한다. Google 오류 허용 목록을 PayPal·PortOne에 그대로 복사하지 않는다.</td></tr>
 </tbody></table></div>
 <p>WEB 상위 항목 <a href="https://picnic-team.atlassian.net/browse/PICNIC-9">PICNIC-9</a>는 진행 중이다. 검색 범위에서 PayPal 전용 독립 이슈나 현재 판매 적격성을 입증하는 기록을 찾지 못했지만, 전체 사이트에 없다고 단정하지 않는다. 이번 보완은 과거 결정과 남은 확인을 연결한 문서 변경이다. 새로운 구현·정책 승인, 실거래 시험, 운영 상태 재검증, 독립 기술설계 재검토는 수행하지 않았다.</p>
+<h2 id="implementation-preflight">11. 구현 전 환경 점검 · 2026-11-12</h2>
+<p>사용자의 다음 단계 진행 지시에 따라 Supabase 프로젝트 목록, staging 함수 배포 메타데이터와 DB 카탈로그를 읽기 전용으로 확인했다. 로컬 저장소·도구·컨테이너도 확인했다. 고객 행·비밀 값은 읽지 않았고 DB·설정·컨테이너를 변경하지 않았다.</p>
+<div class="scroll"><table><thead><tr><th>대상</th><th>관측</th><th>구현 준비에 미치는 영향</th></tr></thead><tbody>
+<tr><td>기존 staging</td><td><code>picnic-staging / jkjhvogcnjrzuhpynzqo</code>는 ACTIVE_HEALTHY, PostgreSQL 17.6이다. 운영 PICNIC-PROD는 PostgreSQL 15.8이다.</td><td>새 유료 환경이 필요하다고 단정하지 않는다. PostgreSQL 15·17 양쪽의 계약 시험과 기존 staging의 격리 상태를 확인한다.</td></tr>
+<tr><td>staging migration</td><td>최신 기록은 <code>20261007050638</code>이다. 확인한 목록에서 <code>20261022024905</code>(영수증 RLS), <code>20261023073744</code>(환경 교차 접수 방어), <code>20261028120000</code>(환불 평가), <code>20261029130915</code>(STAR 로트), <code>20261102161000</code>(기본 권한)는 없다.</td><td>현재 staging을 최신 운영 지갑 계약의 시험 증거로 사용하지 않는다. migration 기록만으로 실제 스키마 전체가 같거나 다르다고 단정하지 않는다.</td></tr>
+<tr><td>기존 계약과 worker</td><td><code>process_paypal_capture</code>, <code>process_portone_capture</code>, 두 구매 상태/결과 조회 함수, <code>refund_verified_purchase</code>와 <code>public.wallet_provider_event_inbox</code>가 있다. wallet-operation-worker는 v23, wallet-provider-event는 v15이며 배포 갱신 기록은 2026년 7월이다.</td><td>공통 엔진을 재사용하되 함수 존재·버전 번호만으로 로컬 최신 소스와의 일치를 인정하지 않는다.</td></tr>
+<tr><td>자동 작업과 자격증명 격리</td><td>staging에 활성 cron 8개가 있다. HTTP 작업 일부는 Vault 값을 참조한다. 명령에 운영·staging 프로젝트 ref가 직접 쓰이지 않았으며 실제 목적지와 비밀 값은 확인하지 않았다.</td><td>운영 호출 가능성이 없다고 추정하지 않는다. 결제 시험 전에 목적지·자격증명·worker·cron의 격리를 검증한다.</td></tr>
+<tr><td>기존 로컬 환경</td><td><code>picnic-local</code> PostgreSQL 17 컨테이너가 이미 실행 중이다. web에는 package-lock.json이 있고 node_modules는 없다. Supabase CLI는 2.90.0이다.</td><td>공유 중일 수 있는 로컬 스택을 reset하지 않는다. 기존 격리 시험 스크립트를 확인하고 별도 시험 대상을 준비한다. 도구를 자동 업그레이드하지 않는다.</td></tr>
+</tbody></table></div>
+<p>조회 기준: 웹 <code>4c9e3356</code>, picnic-supabase <code>0fbc96dd</code>. 기존 문서와 Jira 이력을 바탕으로 Astra/high에 DB·웹 계약의 구현 순서와 첫 로컬 시험 단위 분석을 요청했다. 실행 요청은 전달됐으나 최초 Task 시작 관측은 미확인이므로 이 문서에서 분석 완료로 표시하지 않는다. 외부 결제·운영 설정 변경·배포는 실행하지 않았다.</p>
 </main></body></html>
