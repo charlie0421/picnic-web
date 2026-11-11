@@ -61,6 +61,28 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('owned purchase status GET', () => {
+  it.each([[500, 503], [undefined, 503], [401, 401], [403, 401]])('maps auth error %s to %s without DB access', async (status, expected) => {
+    mocks.authError = { status, message: 'PRIVATE_SECRET' };
+    const response = await request();
+    expect(response.status).toBe(expected);
+    expect(response.headers.get('cache-control')).toContain('no-store');
+    expect(seenPaths()).toEqual([]);
+  });
+
+  it('reports a missing service key at the config stage after checking the owned receipt', async () => {
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '');
+    expect((await request()).status).toBe(503);
+    expect(seenPaths()).toEqual(['/rest/v1/receipts']);
+    expect(mocks.logs.mock.calls[0][0]).toBe('payment.receipt_status.config.failed');
+  });
+
+  it('rejects multiple outcome rows and logs only the safe stage', async () => {
+    outcome = [{ status: 'PENDING' }, { status: 'SUCCEEDED' }];
+    expect((await request()).status).toBe(503);
+    expect(mocks.logs.mock.calls[0][0]).toBe('payment.receipt_status.outcome.failed');
+    expect(seenPaths()).not.toContain('/rest/v1/rpc/get_purchase_result_for_inbox');
+  });
+
   it('requires verified authentication and keeps errors out of shared caches', async () => {
     mocks.user = '';
     const response = await request();
@@ -109,8 +131,9 @@ describe('owned purchase status GET', () => {
     expect(response.headers.get('vary')).toContain('Cookie');
     expect(await response.json()).toMatchObject({ receiptId: '7', settlementState: 'QUEUED', refundState: 'UNKNOWN' });
     expect(seenPaths()).toEqual(['/rest/v1/receipts', '/rest/v1/rpc/get_purchase_inbox_outcome']);
-    const [receiptUrl] = mocks.fetch.mock.calls[0];
+    const [receiptUrl, receiptInit] = mocks.fetch.mock.calls[0];
     expect(new URL(receiptUrl).searchParams.get('select')).toContain('id::text');
+    expect(new Headers(receiptInit.headers).get('authorization')).toBe('Bearer fixture-user-key');
     const [rpcUrl, rpcInit] = mocks.fetch.mock.calls[1];
     expect(rpcInit.method).toBe('GET');
     expect(new URL(rpcUrl).searchParams.get('p_inbox_id')).toBe(INBOX);
@@ -141,6 +164,11 @@ describe('owned purchase status GET', () => {
     expect(response.status).toBe(503);
     expect(response.headers.get('cache-control')).toContain('no-store');
     expect(await response.json()).toEqual({ error: 'PURCHASE_STATUS_UNAVAILABLE' });
+    const stageCodes: Record<string, string> = { receipts: 'payment.receipt_status.receipt.failed',
+      get_purchase_inbox_outcome: 'payment.receipt_status.outcome.failed',
+      get_purchase_result_for_inbox: 'payment.receipt_status.result.failed' };
+    expect(mocks.logs.mock.calls[0][0]).toBe(stageCodes[path]);
+    expect(JSON.stringify(mocks.logs.mock.calls)).not.toMatch(/PRIVATE_SECRET|payer@/);
   });
 
   it('returns a safe inconsistency when successful inbox has no purchase result', async () => {

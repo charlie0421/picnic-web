@@ -2,12 +2,12 @@
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>웹결제 T1 검증 기록</title><style>body{font:16px/1.75 system-ui,sans-serif;color:#203049;background:#f5f7fb;margin:0}main{max-width:960px;margin:auto;padding:32px 24px}h1,h2{line-height:1.35}table{border-collapse:collapse;background:white;width:100%}td,th{border:1px solid #d4deec;padding:12px;text-align:left;vertical-align:top}th{background:#e9eff8}code{overflow-wrap:anywhere;background:#e9eff8;padding:2px 4px}.status{background:#fff2d1;padding:18px;border-radius:12px}a{color:#2458a7}</style></head><body><main>
 <h1>본인 영수증 상태 조회 API · T1</h1>
-<p class="status">2026-11-12 · 로컬 구현과 자동 검증 완료, 반대 공급자 독립 리뷰 대기. 전체 웹결제 준비와 운영 개방은 완료하지 않았다.</p>
+<p class="status">2026-11-12 · 로컬 구현·자동 검증과 1차 독립 리뷰 완료. 차단 결함 없음, Low 3건을 보완했으며 원 리뷰어의 재검증은 대기 중이다. 전체 웹결제 준비와 운영 개방은 완료하지 않았다.</p>
 <p><a href="../superpowers/plans/2026-11-12-web-payment-implementation.html#task-1">T1 구현 계획</a>에 따라 GET <code>/api/payment/receipts/[receiptId]/status</code>를 추가했다. 로그인 사용자의 영수증만 읽고 서버가 연결된 inbox의 상태를 조회한다. 관리자로 로그인해도 다른 회원의 영수증을 이 API에서 읽을 수 없다.</p>
 <table><thead><tr><th>검증</th><th>결과</th></tr></thead><tbody>
 <tr><td>최초 RED</td><td>API·상태 매핑 46개 테스트가 미구현 stub에서 실제로 실패했다. 401/404·상태·조회 범위가 기대값과 달랐다.</td></tr>
 <tr><td>구현 뒤 GREEN</td><td>신규 46개 통과. 실제 Supabase JS 클라이언트를 사용하고 HTTP 경계만 합성 응답으로 대체했다. 소유자·provider·환경 필터, 읽기 전용 RPC GET, 큰 ID 정밀도, legacy·누락 결과와 비공개 상태 응답을 확인했다.</td></tr>
-<tr><td>마지막 대상 검증</td><td><code>npm test -- __tests__/api/payment/purchase-status.test.ts __tests__/lib/payment/purchase-status.test.ts __tests__/utils/log-event-codes.test.ts</code> — 3개 파일, 160개 통과.</td></tr>
+<tr><td>리뷰 보완 검증</td><td>추가 반례에서 6개 실패·48개 통과를 확인한 뒤 수정했다. API·매퍼·사건 코드·안전 로그 4개 파일 239개 통과, 타입 검사 exit 0. 만료 리스의 재시도 시각, 조회 단계별 안전 로그, 인증 오류 분기, 결과 다중 행, service key 누락과 사용자 키 조회를 확인했다.</td></tr>
 <tr><td>전체 시험</td><td><code>npm test</code> — 264개 파일, 5,512개 통과, 기존 예상 실패 2개, 건너뜀 1개. 예상 실패는 PayPal capture 전 소유권·금액 검증 결함이며 이번 조회 API에서 수정하지 않았다. 건너뜀은 .next manifest가 없을 때 실행하지 않는 기존 rendering-mode 검사다.</td></tr>
 <tr><td>타입</td><td><code>npx tsc --noEmit</code> 통과. 최초에는 bigint ID의 생성 타입(number)과 낮은 TS target의 iterator 제약 2건이 실패했다. 숫자 변환 대신 검증된 문자열 필터, Array.from으로 수정하고 다시 통과했다.</td></tr>
 <tr><td>기존 출력</td><td>Vite의 CommonJS 설정·동적 import 경고와 Provider 없이 hook을 호출하는 기존 부정 테스트의 오류 로그가 있다. 테스트 실패로 집계된 항목은 없다.</td></tr>
@@ -18,7 +18,20 @@
 <li>현재 결제/환불 상태는 UNKNOWN, 미제공 상계/순증가와 상태 갱신 시각은 null이다. 기본 지급량과 확인된 프로모션 총지급량만 정수 문자열로 제공한다.</li>
 <li>응답에 고객 ID, 공급자 원문, inbox/operation ID, 전체 지갑, 원본 오류 코드가 포함되지 않는다. 모든 응답에 private/no-store를 지정한다.</li>
 <li>신규 결제·capture·적립·환불·재접수·관리자 retry를 실행하지 않는다. 신규 판매 가능 여부와 독립적인 조회 경로다.</li></ul>
+<h2>독립 리뷰와 보완</h2>
+<p>Claude Opus 5.5/high 리뷰가 <code>task_21ec2c4f8b08 / ctx_13acd77ba8e4</code>로 succeeded 정산됐다. 503baa3e..78808fd1의 소스·diff·로그·DB migration 사본을 읽었다. 작업자는 테스트나 운영 조회를 직접 실행하지 않았다. 모델·effort는 조정자가 실제 CLI 머리말에서 확인했다.</p>
+<ul><li>Low 1: 만료된 PROCESSING 리스의 과거 claim 시각을 재시도 예정으로 내보내지 않도록 nextRetryAt을 null로 바꿨다.</li>
+<li>Low 2: 기존 안전 로그 계약을 유지하면서 CONFIG·RECEIPT·OUTCOME·RESULT를 고정 사건 코드로 구분했다. 원본 오류·키·고객 정보는 기록하지 않는다.</li>
+<li>Low 3: T7에 CANCELLED_BY_REFUND를 환불 없음으로 해석하지 않는 규칙과 GRANTED/금액 0을 운영 확인 대상으로 표시하는 규칙을 추가했다.</li></ul>
+<h2 id="production-preflight">프로덕션은 읽기 전용 확인, 변경 시험은 격리 로컬</h2>
+<p>사용자는 운영에 영향이 없으면 프로덕션을 우선하고, 위험하면 로컬에서 진행하도록 지시했다. 주문·견적·워커 변경과 지급·환불·경쟁 시험은 운영 영향을 배제할 수 없으므로 승인된 로컬 워크트리에서 수행한다. 프로덕션에는 READ ONLY 트랜잭션으로 카탈로그만 조회했다(statement_timeout 3초, lock_timeout 500ms). 고객 행·비밀 값·결제 함수 실행·DDL·배포는 포함하지 않았다.</p>
+<table><thead><tr><th>2026-11-12 관측</th><th>결과와 한계</th></tr></thead><tbody>
+<tr><td>DB</td><td>PostgreSQL 15.8. 새 public.web_payment_* 객체는 없다. 영수증 RLS가 켜져 있고 본인/관리자 SELECT와 wallet_command_owner 쓰기 정책이 있다.</td></tr>
+<tr><td>조회 RPC</td><td>get_purchase_inbox_outcome와 get_purchase_result_for_inbox는 STABLE·SECURITY DEFINER, owner=wallet_command_owner. service_role EXECUTE=true, anon/authenticated=false다. 함수 body hash는 별도 비공개 증거에 보존했다. 실제 PostgREST 요청과 전체 배포 동일성 검증은 아직 하지 않았다.</td></tr>
+<tr><td>원장</td><td>확인한 8개 migration(20260721103500, 20260730120000, 20260730150000, 20261022024905, 20261023073744, 20261028120000, 20261029130915, 20261102161000)이 기록돼 있다. 전체 migration과 함수 정의가 모두 일치한다는 증거는 아니다.</td></tr>
+<tr><td>실행 중인 작업</td><td>wallet 예약 작업 10개 활성. operation-worker·backlog 평가·대사 등이 1분 주기로 실행된다. Edge operation-worker v38, provider-event v36, reconciliation v30을 확인했다. 버전 번호는 로컬 소스와의 동일성을 증명하지 않는다.</td></tr>
+</tbody></table>
 <h2>아직 확인하지 않은 것</h2>
-<p>실제 DB·공급자·운영 결제 E2E는 실행하지 않았다. 배포 전 영수증 RLS와 쓰기 금지, 서버 소유 inbox binding, 두 service-only 조회 RPC의 배포 일치를 확인해야 한다. 기존 staging은 RLS 등 최신 migration 기록이 없어 바로 사용할 수 없다. PortOne LIVE는 현재 DB의 저장 구분이며 실제 운영 채널임을 증명하지 않는다. 과거 platform=web 영수증 복원·환불 상세·총지급/상계/순증가와 주문 견적 계약은 후속 단계다.</p>
-<p>읽기 전용 결과는 웹훅·대사 복구를 대신하지 않는다. 영수증이 없거나 UNKNOWN이라고 해서 청구되지 않았다는 뜻은 아니다. 반대 공급자 리뷰 결과와 후속 수정은 이 문서에 추가한다.</p>
+<p>실제 PostgREST·공급자·운영 결제 E2E는 실행하지 않았다. id::text 응답 키, NULL composite, STABLE RPC GET과 실제 권한을 격리 환경에서 시험해야 한다. 기존 staging은 최신 migration·cron 목적지의 확인이 필요하다. PortOne LIVE는 현재 DB의 저장 구분이며 실제 운영 채널임을 증명하지 않는다.</p>
+<p>과거 platform=web은 현재 API에서 404가 된다. T7은 이를 미결제로 표시하지 않는다. T6의 비스냅샷 종결 SUCCEEDED, T4의 totals/orderId 확장과 실제 배분 조회는 후속 계약이다. 영수증이 없거나 UNKNOWN이라고 해서 미청구를 뜻하지 않는다. 읽기 전용 결과는 웹훅·대사를 대신하지 않는다.</p>
 </main></body></html>

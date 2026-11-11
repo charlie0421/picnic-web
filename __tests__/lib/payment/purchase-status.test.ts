@@ -19,6 +19,21 @@ const result = {
 };
 
 describe('purchase status evidence mapping', () => {
+  it('does not publish the old claim time as a retry schedule for an expired processing lease', () => {
+    const dto = mapPurchaseStatus(receipt, { ...outcome, status: 'PROCESSING', lease_active: false }, null);
+    expect(dto.settlementState).toBe('RETRY_WAIT');
+    expect(dto.nextRetryAt).toBeNull();
+  });
+
+  it('preserves a zero granted promotion without claiming a net credit or no refund', () => {
+    const dto = mapPurchaseStatus(receipt, { ...outcome, status: 'SUCCEEDED' },
+      { ...result, promotion: { ...result.promotion, promo_bonus_amount: '0' } });
+    expect(dto.promotionState).toBe('GRANTED');
+    expect(dto.promotionGross).toBe('0');
+    expect(dto.refundState).toBe('UNKNOWN');
+    expect(dto.totals).toBeNull();
+  });
+
   it.each([
     ['PENDING', 0, false, false, 'QUEUED'],
     ['PENDING', 2, true, false, 'RETRY_WAIT'],

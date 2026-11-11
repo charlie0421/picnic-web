@@ -119,6 +119,7 @@ export function mapPurchaseStatus(receipt: PurchaseReceipt, outcome: unknown, re
     default: return dto;
   }
   dto.safeReasonCode = dto.settlementState === 'RETRY_WAIT' ? 'RETRY_SCHEDULED' : null;
-  dto.nextRetryAt = dto.settlementState === 'PROCESSING' ? null : safeTimestamp(outcome.next_retry_at);
+  // PROCESSING retains the old claim time even after its lease expires.
+  dto.nextRetryAt = outcome.status === 'PENDING' ? safeTimestamp(outcome.next_retry_at) : null;
   return dto;
 }

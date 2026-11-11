@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient, isWithdrawnUser } from '@/lib/supabase/server';
 import { parsePurchaseLookup } from '@/lib/payment/purchase-status';
-import { readOwnedPurchaseStatus } from '@/lib/payment/purchase-status-repository';
+import { PurchaseStatusUnavailable, readOwnedPurchaseStatus } from '@/lib/payment/purchase-status-repository';
 import { logSafeError } from '@/utils/log-safe-error';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ rec
     const dto = await readOwnedPurchaseStatus({ ...lookup, actorUserId: user.id }, client);
     return dto ? respond(dto) : respond({ error: 'PURCHASE_NOT_FOUND' }, 404);
   } catch (error) {
-    logSafeError('payment.receipt_status.failed', error);
+    logSafeError(error instanceof PurchaseStatusUnavailable ? error.eventCode : 'payment.receipt_status.failed', error);
     return respond({ error: 'PURCHASE_STATUS_UNAVAILABLE' }, 503);
   }
 }
