@@ -7,6 +7,7 @@ body{font:16px/1.7 system-ui,sans-serif;color:#203049;background:#f4f7fb;margin:
 <h1>기존 결제 상태 조회부터 주문·견적·복구를 완성한다</h1>
 <p class="notice">사용자는 문서 확인 후 다음 단계 진행을 지시했다. 가상화폐는 후속으로 두고 PayPal과 PortOne을 함께 준비한다. 준비된 수단부터 순차 개방한다. 환불은 문의 → 운영자 확인 → 결제사 콘솔 방식이며, 회수는 앱 정책을 따른다. 실제 설정 저장·공급자 결제·운영 DB 적용·배포·개방은 이 로컬 작업에 포함하지 않는다.</p>
 <p>기준 명세는 <a href="../specs/2026-11-11-web-payment-readiness-design.html">준비 설계</a>다. <a href="../../reports/2026-11-11-web-payment-restart.html#jira-review">Jira 대조</a>와 <a href="../../reports/2026-11-11-web-payment-restart.html#implementation-preflight">환경 점검</a>을 함께 사용한다. Astra/high 읽기 전용 계획은 <code>task_9134acc6c061 / ctx_da87c775d51d</code>로 succeeded 정산됐다. 계획의 새 테이블·RPC는 제안이며 운영에 존재한다는 뜻이 아니다.</p>
+<p class="notice"><strong>추가 승인 · 2026-11-12:</strong> 사용자가 T2–T4의 전용 워크트리 생성과 로컬 DB 준비를 승인했다. Orca로 <code>/Users/charlie.hyun/orca/workspaces/picnic-supabase/web-payment-contract</code>를 생성했다. 브랜치는 <code>feat/web-payment-contract</code>, 시작 HEAD는 <code>0fbc96dd</code>다. 운영 자격증명 복사나 공유 로컬 스택 reset 없이 독립 합성 fixture부터 준비한다.</p>
 <h2>공통 제약</h2><ul>
 <li>서버 주문·불변 견적·워커 검증과 지급은 직원 시험을 포함한 첫 운영 청구의 선행 조건이다.</li>
 <li>신규 청구 중지와 이미 청구된 주문의 조회·이벤트 접수·지급·환불 복구를 분리한다. 국가·상품·가격·환경은 서버가 검증한다.</li>
