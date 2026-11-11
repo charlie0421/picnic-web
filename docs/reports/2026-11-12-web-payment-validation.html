@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>웹결제 T1 검증 기록</title><style>body{font:16px/1.75 system-ui,sans-serif;color:#203049;background:#f5f7fb;margin:0}main{max-width:960px;margin:auto;padding:32px 24px}h1,h2{line-height:1.35}table{border-collapse:collapse;background:white;width:100%}td,th{border:1px solid #d4deec;padding:12px;text-align:left;vertical-align:top}th{background:#e9eff8}code{overflow-wrap:anywhere;background:#e9eff8;padding:2px 4px}.status{background:#fff2d1;padding:18px;border-radius:12px}a{color:#2458a7}</style></head><body><main>
+<h1>본인 영수증 상태 조회 API · T1</h1>
+<p class="status">2026-11-12 · 로컬 구현과 자동 검증 완료, 반대 공급자 독립 리뷰 대기. 전체 웹결제 준비와 운영 개방은 완료하지 않았다.</p>
+<p><a href="../superpowers/plans/2026-11-12-web-payment-implementation.html#task-1">T1 구현 계획</a>에 따라 GET <code>/api/payment/receipts/[receiptId]/status</code>를 추가했다. 로그인 사용자의 영수증만 읽고 서버가 연결된 inbox의 상태를 조회한다. 관리자로 로그인해도 다른 회원의 영수증을 이 API에서 읽을 수 없다.</p>
+<table><thead><tr><th>검증</th><th>결과</th></tr></thead><tbody>
+<tr><td>최초 RED</td><td>API·상태 매핑 46개 테스트가 미구현 stub에서 실제로 실패했다. 401/404·상태·조회 범위가 기대값과 달랐다.</td></tr>
+<tr><td>구현 뒤 GREEN</td><td>신규 46개 통과. 실제 Supabase JS 클라이언트를 사용하고 HTTP 경계만 합성 응답으로 대체했다. 소유자·provider·환경 필터, 읽기 전용 RPC GET, 큰 ID 정밀도, legacy·누락 결과와 비공개 상태 응답을 확인했다.</td></tr>
+<tr><td>마지막 대상 검증</td><td><code>npm test -- __tests__/api/payment/purchase-status.test.ts __tests__/lib/payment/purchase-status.test.ts __tests__/utils/log-event-codes.test.ts</code> — 3개 파일, 160개 통과.</td></tr>
+<tr><td>전체 시험</td><td><code>npm test</code> — 264개 파일, 5,512개 통과, 기존 예상 실패 2개, 건너뜀 1개. 예상 실패는 PayPal capture 전 소유권·금액 검증 결함이며 이번 조회 API에서 수정하지 않았다. 건너뜀은 .next manifest가 없을 때 실행하지 않는 기존 rendering-mode 검사다.</td></tr>
+<tr><td>타입</td><td><code>npx tsc --noEmit</code> 통과. 최초에는 bigint ID의 생성 타입(number)과 낮은 TS target의 iterator 제약 2건이 실패했다. 숫자 변환 대신 검증된 문자열 필터, Array.from으로 수정하고 다시 통과했다.</td></tr>
+<tr><td>기존 출력</td><td>Vite의 CommonJS 설정·동적 import 경고와 Provider 없이 hook을 호출하는 기존 부정 테스트의 오류 로그가 있다. 테스트 실패로 집계된 항목은 없다.</td></tr>
+</tbody></table>
+<h2>확인된 경계</h2><ul>
+<li>요청은 영수증 ID·provider·환경만 받는다. 클라이언트 inbox ID와 중복 query 인자는 거부한다. 미인증·탈퇴 계정·다른 소유자·다른 환경은 privileged RPC 전에 차단한다.</li>
+<li>SUCCEEDED만으로 완료라고 표시하지 않는다. 유효한 wallet.v1 구매 결과가 있어야 적립 완료다. 대기·처리 중·재시도·DEAD·조회 오류·legacy를 구분한다.</li>
+<li>현재 결제/환불 상태는 UNKNOWN, 미제공 상계/순증가와 상태 갱신 시각은 null이다. 기본 지급량과 확인된 프로모션 총지급량만 정수 문자열로 제공한다.</li>
+<li>응답에 고객 ID, 공급자 원문, inbox/operation ID, 전체 지갑, 원본 오류 코드가 포함되지 않는다. 모든 응답에 private/no-store를 지정한다.</li>
+<li>신규 결제·capture·적립·환불·재접수·관리자 retry를 실행하지 않는다. 신규 판매 가능 여부와 독립적인 조회 경로다.</li></ul>
+<h2>아직 확인하지 않은 것</h2>
+<p>실제 DB·공급자·운영 결제 E2E는 실행하지 않았다. 배포 전 영수증 RLS와 쓰기 금지, 서버 소유 inbox binding, 두 service-only 조회 RPC의 배포 일치를 확인해야 한다. 기존 staging은 RLS 등 최신 migration 기록이 없어 바로 사용할 수 없다. PortOne LIVE는 현재 DB의 저장 구분이며 실제 운영 채널임을 증명하지 않는다. 과거 platform=web 영수증 복원·환불 상세·총지급/상계/순증가와 주문 견적 계약은 후속 단계다.</p>
+<p>읽기 전용 결과는 웹훅·대사 복구를 대신하지 않는다. 영수증이 없거나 UNKNOWN이라고 해서 청구되지 않았다는 뜻은 아니다. 반대 공급자 리뷰 결과와 후속 수정은 이 문서에 추가한다.</p>
+</main></body></html>

@@ -114,5 +114,5 @@
 <tr><td>자동 작업과 자격증명 격리</td><td>staging에 활성 cron 8개가 있다. HTTP 작업 일부는 Vault 값을 참조한다. 명령에 운영·staging 프로젝트 ref가 직접 쓰이지 않았으며 실제 목적지와 비밀 값은 확인하지 않았다.</td><td>운영 호출 가능성이 없다고 추정하지 않는다. 결제 시험 전에 목적지·자격증명·worker·cron의 격리를 검증한다.</td></tr>
 <tr><td>기존 로컬 환경</td><td><code>picnic-local</code> PostgreSQL 17 컨테이너가 이미 실행 중이다. web에는 package-lock.json이 있고 node_modules는 없다. Supabase CLI는 2.90.0이다.</td><td>공유 중일 수 있는 로컬 스택을 reset하지 않는다. 기존 격리 시험 스크립트를 확인하고 별도 시험 대상을 준비한다. 도구를 자동 업그레이드하지 않는다.</td></tr>
 </tbody></table></div>
-<p>조회 기준: 웹 <code>4c9e3356</code>, picnic-supabase <code>0fbc96dd</code>. 기존 문서와 Jira 이력을 바탕으로 Astra/high에 DB·웹 계약의 구현 순서와 첫 로컬 시험 단위 분석을 요청했다. 실행 요청은 전달됐으나 최초 Task 시작 관측은 미확인이므로 이 문서에서 분석 완료로 표시하지 않는다. 외부 결제·운영 설정 변경·배포는 실행하지 않았다.</p>
+<p>조회 기준: 웹 <code>4c9e3356</code>, picnic-supabase <code>0fbc96dd</code>. 기존 문서와 Jira 이력을 바탕으로 Astra/high에 DB·웹 계약의 구현 순서와 첫 로컬 시험 단위 분석을 요청했다. 해당 Astra 작업은 succeeded로 정산됐다. 후속 <a href="../superpowers/plans/2026-11-12-web-payment-implementation.html">8단계 구현 계획</a>을 작성하고 T1 본인 영수증 상태 조회의 로컬 구현·검증을 진행했다. <a href="2026-11-12-web-payment-validation.html">새 검증 기록</a>과 독립 리뷰 대기 상태를 구분한다. 외부 결제·운영 설정 변경·배포는 실행하지 않았다.</p>
 </main></body></html>

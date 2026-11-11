@@ -84,6 +84,7 @@ export const LOG_EVENT_CODES = [
   'payment.paypal.create.product.failed',
   'payment.paypal.create.provider.failed',
   'payment.paypal.create_order.post.unhandled',
+  'payment.receipt_status.failed',
   'payment.portone.callback.failed',
   'payment.portone.callback.get.unhandled',
   'payment.portone.confirm.failed',
