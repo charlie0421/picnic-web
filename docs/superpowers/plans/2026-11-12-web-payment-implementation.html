@@ -22,10 +22,12 @@ body{font:16px/1.7 system-ui,sans-serif;color:#203049;background:#f4f7fb;margin:
 <p>완료 조건: 타인 및 관리자 타인 조회 거부, provider/환경 교차 거부, 영수증→inbox 경로만 사용, SQL 조회 실패와 미발견 구분, SUCCEEDED 결과 누락 보존, bigint 정밀도·PII 비노출, 기존 판매 중지와 무관한 읽기.</p>
 <pre>npm test -- __tests__/api/payment/purchase-status.test.ts __tests__/lib/payment/purchase-status.test.ts
 npx tsc --noEmit</pre></section>
-<section><h3>T2. 독립 DB 시험 실행기 — 선행 시험 통과, 독립 리뷰 준비</h3>
-<p>DB 브랜치 <code>feat/web-payment-contract</code>의 <code>6599e3e</code>에 구현했다. 실행기 안전 검사 12개, chain 실패 전파 검사 4개가 통과했다. PG15.8/17.6에서 각각 합성 상태·권한 검사 18개와 실제 SQL 거부 4개가 통과했다. 기존 wallet safety는 223개 통과·전용 DB가 필요한 5개 건너뜀이다. 전체 migration·cross-env kit·PostgREST 통합은 아직 미검증이다. T3/T4는 구현 전이다.</p>
-<p>DB의 <code>scripts/wallet/web-payment-fixture.test.py</code>, <code>web-payment-fixture-runner.test.py</code>, <code>fixtures/web-payment-prerequisites.sql</code>을 준비한다. PostgreSQL 15.8·17.6 합성 fixture는 포트 공개 없이 network none 컨테이너로 시험한다. Docker 로컬 endpoint·불변 컨테이너 ID·실제 DB 버전을 검증하고 자신이 만든 컨테이너만 정리한다.</p>
-<p><code>scripts/security/bonus-history-rls-chain.sh</code>의 seed·원장·SQL 실패와 필수 테스트 누락을 nonzero로 처리한다. 공유 54322와 원격 Docker는 거부한다. 기존 cross-env kit와 Supabase PG17 전체 체인은 별도 근거로 유지한다.</p>
+<section id="task-2"><h3>T2. 독립 DB 시험 실행기 — 선행 시험 통과, 전체 SQL 회귀 실패 분류 중</h3>
+<p>DB 브랜치 <code>feat/web-payment-contract</code>의 6599e3e → 0537a73 → cbdcf62에 구현했다. 0537a73의 독립 재검증은 F1–F8 해소로 로컬 준비 품질 통과다. cbdcf62의 새 체인 경계 리뷰는 N1–N3 해소를 확인했으나 Medium 1·Low 3을 요청했다. Docker 명령 시간 제한·정리 실패·보존된 receipt 덮어쓰기와 설명을 보완하고 재검증을 준비한다.</p>
+<p>PG15.8/17.6 각각 상태·권한 20개와 SQLSTATE 거부 4개, 관리자 정책 변이 2종을 확인했다. 최소 fixture 실행기 17개·수명주기 2개와 기존 wallet safety 223개가 통과했다(전용 DB 필요 5개 건너뜀). 후속 chain 경계 테스트는 16개 통과다.</p>
+<p>실제 Supabase PG17에서 migration 258개와 seed를 재생했다. 별도 대조 실행은 bonus_history_rls 1개·kit 6/7 기준값·원장 258행을 확인하고 exit 0으로 끝났다. 전체 SQL 실행은 116개 중 <strong>90개 통과·26개 실패, exit 2</strong>다. 두 실행의 결과를 합쳐 전체 통과로 표시하지 않는다. 기존 supautils 제외 2개도 통과 수에서 뺐다.</p>
+<p>DB의 <code>scripts/wallet/web-payment-fixture.test.py</code>는 로컬 endpoint·전체 컨테이너 ID·실제 버전을 확인한다. 체인도 network none·공개 포트 없음·SQL만 읽기 전용 mount·자동 cron 중지를 적용한다. 정리는 소유한 컨테이너만 한다. 공유 54322와 운영 DB는 사용하지 않는다.</p>
+<p>실패 중 Auth fixture 누락 열·시험용 함수 CREATE 권한·옛 입력·전용 실행기 의존성과 별도 원인 검증이 필요한 지갑 상태/회수 사례를 분리했다. T4 지급·환불 검증 전에 관련 실패를 전용 fixture에서 해결해야 한다. 기존 cross-env SQL은 통과했지만 별도 cutover kit의 PG15/17 실행과 실제 PostgREST 통합은 남는다. T3/T4는 구현 전이다.</p>
 <pre>python3 scripts/wallet/web-payment-fixture-runner.test.py
 python3 scripts/wallet/web-payment-fixture.test.py --postgres-image postgres:15.8 --suite prerequisites
 # 같은 suite를 postgres:17.6에서도 실행</pre></section>
