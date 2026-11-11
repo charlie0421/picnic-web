@@ -23,7 +23,7 @@ body{font:16px/1.7 system-ui,sans-serif;color:#203049;background:#f4f7fb;margin:
 <pre>npm test -- __tests__/api/payment/purchase-status.test.ts __tests__/lib/payment/purchase-status.test.ts
 npx tsc --noEmit</pre></section>
 <section id="task-2"><h3>T2. 독립 DB 시험 실행기 — 선행 시험 통과, 전체 SQL 회귀 실패 분류 중</h3>
-<p>DB 브랜치 <code>feat/web-payment-contract</code>의 6599e3e → 0537a73 → cbdcf62에 구현했다. 0537a73의 독립 재검증은 F1–F8 해소로 로컬 준비 품질 통과다. cbdcf62의 새 체인 경계 리뷰는 N1–N3 해소를 확인했으나 Medium 1·Low 3을 요청했다. Docker 명령 시간 제한·정리 실패·보존된 receipt 덮어쓰기와 설명을 보완하고 재검증을 준비한다.</p>
+<p>DB 브랜치 <code>feat/web-payment-contract</code>의 6599e3e → 0537a73 → cbdcf62에 구현했다. 0537a73의 독립 재검증은 F1–F8 해소로 로컬 준비 품질 통과다. cbdcf62의 새 체인 경계 리뷰는 N1–N3 해소를 확인했으나 Medium 1·Low 3을 요청했다. d3bfbef에서 Docker 명령 시간 제한·정리 실패·보존된 receipt 덮어쓰기와 설명을 보완했다. ctx_b1f7bc3a128f 재검증은 M1·L1–L3 해소, 새 Medium 이상 없음으로 통과했다. 남은 Low 2건은 중단/수동 정리 절차와 무제한 대기의 한계로 기록했다.</p>
 <p>PG15.8/17.6 각각 상태·권한 20개와 SQLSTATE 거부 4개, 관리자 정책 변이 2종을 확인했다. 최소 fixture 실행기 17개·수명주기 2개와 기존 wallet safety 223개가 통과했다(전용 DB 필요 5개 건너뜀). 후속 chain 경계 테스트는 16개 통과다.</p>
 <p>실제 Supabase PG17에서 migration 258개와 seed를 재생했다. 별도 대조 실행은 bonus_history_rls 1개·kit 6/7 기준값·원장 258행을 확인하고 exit 0으로 끝났다. 전체 SQL 실행은 116개 중 <strong>90개 통과·26개 실패, exit 2</strong>다. 두 실행의 결과를 합쳐 전체 통과로 표시하지 않는다. 기존 supautils 제외 2개도 통과 수에서 뺐다.</p>
 <p>DB의 <code>scripts/wallet/web-payment-fixture.test.py</code>는 로컬 endpoint·전체 컨테이너 ID·실제 버전을 확인한다. 체인도 network none·공개 포트 없음·SQL만 읽기 전용 mount·자동 cron 중지를 적용한다. 정리는 소유한 컨테이너만 한다. 공유 54322와 운영 DB는 사용하지 않는다.</p>
