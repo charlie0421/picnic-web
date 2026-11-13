@@ -31,8 +31,9 @@ npx tsc --noEmit</pre></section>
 <pre>python3 scripts/wallet/web-payment-fixture-runner.test.py
 python3 scripts/wallet/web-payment-fixture.test.py --postgres-image postgres:15.8 --suite prerequisites
 # 같은 suite를 postgres:17.6에서도 실행</pre></section>
-<section id="task-3"><h3>T3. 서버 주문·견적·청구 관문 — DB 단위 코드 통과, 웹 연결 대기</h3>
-<p>첫 단위는 서버 주문 생성 RPC와 불변 견적이다. Sol/high 작업자 <code>task_60bd3c3b1a5c / ctx_d32f41728dae</code>가 새 DB migration·주문 시험만 작성하고, 조정자가 실패 시험과 구현 후 검증을 실행한다. 기존 회귀 fixture 수정과 파일 소유권을 분리했다. 이후 청구 lease·전송 의도·공급자 연결과 관측 저장 DB 단위까지 구현·독립 재검증했다. 웹 주문 API·실제 청구 어댑터 연결은 남아 있으므로 T3 전체 완료로 표시하지 않는다.</p>
+<section id="task-3"><h3>T3. 서버 주문·견적·청구 관문 — DB·웹 주문 API 코드 통과, 청구 어댑터 미연결</h3>
+<p>첫 단위는 서버 주문 생성 RPC와 불변 견적이다. Sol/high 작업자 <code>task_60bd3c3b1a5c / ctx_d32f41728dae</code>가 새 DB migration·주문 시험만 작성하고, 조정자가 실패 시험과 구현 후 검증을 실행한다. 기존 회귀 fixture 수정과 파일 소유권을 분리했다. 이후 청구 lease·전송 의도·공급자 연결과 관측 저장 DB 단위까지 구현·독립 재검증했다. 후속 웹 주문 API 연결은 아래 로컬 코드 단위에서 완료했다. 실제 청구 어댑터 연결은 남아 있으므로 T3 전체 완료로 표시하지 않는다.</p>
+<p><strong>웹 주문 API · 2026-11-13:</strong> 사용자 계속 진행 지시에 따라 <code>POST /api/payment/orders</code>·검증기·service-only repository·시험·사건 코드 7파일을 구현했다. Astra/high 작성·Low 보완과 Opus 5.5/high 독립 리뷰·1회 재검증을 마쳤다. 최초 Low1–3은 해소됐고 실제 도메인 Origin 확인은 개방 전 미해결 항목으로 남는다. 제품/국가의 ASCII 입력 경계, 고정 actor·단일 RPC·안전 DTO·오류 단계/경고 분류를 검증했다. 최종 대상240개·타입검사·관련919개·전체5,769개가 통과했고 기존 PayPal 예상 실패2개/건너뜀1개는 유지됐다. 실제 DB/PostgREST 서버나 공급자 청구·설정 저장·운영 DB·배포는 포함하지 않는다. 새 migration과 기존 PayPal/PortOne route·스위치 변경도 없다. <a href="../../reports/2026-11-12-web-payment-validation.html#web-order-api">원본 증거와 남은 경계</a>.</p>
 <p>DB migration과 <code>web_payment_orders.test.sql</code>, <code>web_payment_charge_lease.test.sql</code>, 웹 <code>server-order.ts</code>, <code>server-availability.ts</code>, <code>api/payment/orders/route.ts</code>를 추가한다. 요청은 상품·공급자·국가·requestId·동의 정책 버전만 받는다. 같은 요청은 같은 주문, 변경된 입력은 409다.</p>
 <p>견적은 15분 동안 고정한다. 서버 개방 설정은 기본 닫힘, KR은 PortOne/KRW, PayPal 국가 허용 목록은 확인 전 빈 목록이다. 동시 청구 claim 하나, lease 만료·중지·기한 경계와 이미 청구된 주문 복구를 시험한다.</p>
 <pre>python3 scripts/wallet/web-payment-fixture.test.py --postgres-image postgres:15.8 --suite orders
@@ -47,6 +48,7 @@ python3 scripts/wallet/web-payment-settlement-fixture.test.py postgres:17.6 --ru
 python3 scripts/wallet/web-payment-settlement-integration.test.py postgres:15.8 --run-label settlement-check-v1</pre></section>
 <section><h3>T5. PayPal·PortOne 어댑터</h3>
 <p>기존 create/capture 및 confirm/callback/verify 경로와 서버 어댑터를 주문 계약에 연결한다. 주문 생성·청구에 고정 request key를 쓰고, 소유권·견적 검증 뒤 외부 변경을 수행한다. PayPal 승인 callback만 청구를 시작하며 팝업 닫힘은 조회한다. PortOne의 실제 대상 채널 수동 승인 지원이 확인되지 않으면 mock까지만 준비한다.</p>
+<p>서버 주문 API의 로컬 코드 단위는 완료했지만 실제 DB/PostgREST 서버 통합과 청구 어댑터는 아직 연결하지 않았다. 개방 전 Vercel Preview/Production의 동일 Origin POST와 리디렉트 후 동작을 실측하고, <code>payment.order.business.unavailable</code> WARN의 운영 경보 경로를 확정·검증한다. 현재 설정 결함도 WARN으로 남으므로 Sentry error 부재를 정상 증거로 쓰지 않는다.</p>
 <p>GET 상태 조회와 POST 대사 접수를 분리한다. 대사는 외부 청구 POST를 보내지 않는다. 응답 유실·중복 요청에도 다시 청구하지 않는다. 기존 PayPal expected-failure 2개는 수정 후 일반 통과 테스트로 바꾼다.</p>
 <pre>npm test -- __tests__/api/payment/web-payment-adapters.test.ts __tests__/api/payment/paypal-contract.test.ts __tests__/api/portone-confirm-disabled.test.ts __tests__/api/payment/payment-error-safety.test.ts</pre></section>
 <section><h3>T6. 환불·대사·관리자 수리</h3>
