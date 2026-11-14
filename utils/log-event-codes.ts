@@ -122,6 +122,15 @@ export const LOG_EVENT_CODES = [
   'payment.portone.webhook.verification.failed',
   'payment.toss.result.failed',
   'payment.toss.result.get.unhandled',
+  'payment.paypal.charge.context.failed',
+  'payment.paypal.charge.credential.unavailable',
+  'payment.paypal.charge.create.failed',
+  'payment.paypal.charge.lookup.failed',
+  'payment.paypal.charge.claim.blocked',
+  'payment.paypal.charge.intent.failed',
+  'payment.paypal.charge.submit.unknown',
+  'payment.paypal.charge.observe.review',
+  'payment.paypal.charge.intake.failed',
 ] as const;
 
 export type LogEventCode = (typeof LOG_EVENT_CODES)[number];
