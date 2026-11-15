@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>U2 provider RPC consumer 구현 계획</title><style>body{font:16px/1.75 system-ui,sans-serif;color:#203049;margin:30px auto;max-width:1120px;padding:0 22px}h1,h2,h3{line-height:1.35}h2{border-top:1px solid #cbd5e1;padding-top:22px}code{font-size:.91em;background:#edf2f7;overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#edf2f7;padding:16px;overflow-wrap:anywhere}.notice{padding:16px;background:#fff7dc;border-left:4px solid #ad7900}li{margin:7px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.88em;margin:14px 0}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left;vertical-align:top}th{background:#edf2f7}a{color:#155e9b}</style></head><body><main>
+<h1>U2 provider RPC consumer · 실제 HTTP 검증 구현 계획</h1><p class="notice"><strong>2026-11-16 · 독립 계획 검토·1회 재검증 완료, 구현 범위 확인 전.</strong> 첫 권고 범위는 U2-A+D1 신규11파일·수정0·D0이다. 아직 제품·시험·SQL·Docker를 실행하거나 수정하지 않았다. 사용자가 구체 범위를 확인한 뒤에만 구현한다. U0-B의 native 완료를 U2 HTTP나 운영 승인으로 바꾸지 않는다.</p><p><strong>Goal:</strong> 고정 binding source, live entry client와 CREATE 전 배선 및 실제 PostgREST 증거를 독립 단위로 구현한다. <strong>Architecture:</strong> 기존 U1 core·D current10을 보존하고 A/D1→B→C→D2로 범위를 나눈다. <strong>Tech Stack:</strong> 현재 Supabase JS/PostgREST JS2.112.3·TypeScript·검증된 Python factory/loader·격리 PG15.8/17.6/PostgREST14.8. <strong>Spec:</strong> <a href="../specs/2026-11-11-web-payment-readiness-design.html">승인 설계 §2–8</a>, <a href="2026-11-15-web-payment-provider-entry.html#native-local-result">U0-B 결과와 U2 소비 경계</a>.</p><p>For agentic workers: 기존 Orca 오케스트레이션을 유지한다. superpowers:subagent-driven-development 또는 executing-plans의 단위별 소유권·TDD 원칙을 적용하되 네이티브 하위 에이전트는 쓰지 않는다. 작성자는 정적 편집만 하고 조정자가 모든 실제 명령과 최종 HTML 문서·커밋을 맡는다. 아래는 실행 전 계획이며 수치·HTTP 결과의 기대값과 미측정 항목을 구분한다.</p><p>기준 W <code>a887b996dd8f80f8c508a942d169dc64187860a6</code>, D <code>471b278cb57835973c3b24748f74898d03cef968</code>. 조정자는 W69/D97/설치4개 bytes를 현재 source와 대조했다. 계획 전달 Task는 <code>task_57abb7c75e07 / ctx_cec252c87d91</code>이며 쓰기·실행·hash 측정은 하지 않았다.</p>
+<section id="part-1"><h2>1. 현재 사실·대안·순서·범위</h2>
+<h3>1. 원본 사실(현재 W a887b996 / D 사본 471b278c)</h3>
+<ul>
+<li>F1 orchestrator.ts:455-489 ensure 순서: owner → linked READY → freshRefusal → binding 존재 → prepare → samePrepared → authorize(binding/credential/token) → before(quoteExpiresAt) → create → bind. Stage 12개. CONTEXT/PREPARE는 <code>payment.paypal.charge.context.failed</code>이다. ChargeBindingSource는 :11-15.</li>
+<li>F2 repository.ts:177-188: <code>client.rpc(name,args).retry(false).abortSignal(AbortSignal.timeout(10_000))</code>, POST. <code>ChargeRepositoryError</code>는 export(:35)이고 validator는 private이다. createServiceChargeRepository가 이미 있다. U2는 새 production factory를 만들지 않는다.</li>
+<li>F3 D binding read(20261115075731): STABLE. exact3/16. <code>binding_version</code>=::text. <code>expected_application</code>=document-&gt;&#x27;expected_application&#x27;. 손상 시 P0001 BINDING_INVALID.</li>
+<li>F4 D entry(20261115122716:14-155): VOLATILE. RC가 아니면 P0001 ISOLATION_UNSUPPORTED. 순서는 NOT_FOUND → INPUT_INVALID → PROVIDER_UNSUPPORTED → 내부 binding read → CONTEXT_MISMATCH/BINDING_MISMATCH(:57-63) → 최종 snapshot → ORDER_LINKED(:102) → 사유 → AUTHORIZED exact9이다. CONTEXT/BINDING_MISMATCH가 ORDER_LINKED보다 먼저다. entry_not_after=q.expires_at이고 getter quote_expires_at도 q.expires_at이다(charge_gate.sql:325).</li>
+<li>F5 postgrest-js 2.112.3 dist: 재시도 method는 GET/HEAD/OPTIONS, status는 520/503이다. POST는 재시도하지 않는다. rpc <code>{get:true}</code>는 query GET이다. 재시도 때 X-Retry-Count를 붙인다.</li>
+<li>F6 옛 harness: order-http/run.py WEB_HEAD=a67c9277, setup_db.py DB_HEAD=5a84abd9(verify_source만 사용), charge-context run.py DB_HEAD=e0ba366b·closure93·FROZEN_PINS log-event-codes=e1aca50d. 현재 값 632ea6f4와 달라서 현재 HEAD에서는 실행할 수 없다. HEAD 독립 정의: pair_fixture(PairFactory, PUBLIC_PASSWORD, PUBLIC_JWT_SECRET, LABEL), setup_db.verified_helpers, order-http/run.py(LocalDocker, jwt, interpreter_evidence), charge-context run.py의 일반 helper(_install, _execution_bytes/_read_pinned/_file/_root/_relative/_digest/_json, _runtime_flags, _cleanup_pair, _cache_state, _sql_literal, _error). PairFactory 제약: artifact_dir=ROOT/.artifacts/payment-web-order-http/*/node-artifacts, --internal network, 게시 port 없음, PostgREST pool1, PG15.8/17.6+PostgREST14.8+node digest 고정.</li>
+<li>F7 D migration은 picnic.* GUC를 읽지 않는다(grep 0). GUC는 native test 전용이다.</li>
+<li>F8 vitest include는 <code>*.test.ts</code>라서 <code>.http.ts</code>는 제외된다. server-only esbuild plugin 선례는 order-http/bundle.mjs:22이다.</li>
+<li>F9 대상523 = protocol129/repository78/adapter316.</li>
+</ul>
+<h3>2. 대안·권고</h3>
+<ul>
+<li>orchestrator 시험의 entry 경계: (권고) bindings와 같은 주입 traced mock. 기존 trail 2개만 바뀐다. 대안인 실제 gate+scripted RPC는 B parser와 결합되고 기존 script 변경이 커진다.</li>
+<li>validator 공유: (권고) 새 파일마다 private validator를 두고 export된 ChargeRepositoryError를 재사용한다. 보호 파일 repository.ts는 바꾸지 않는다. 대안인 repository 추출은 523 회귀를 넓히고, 공용 새 모듈은 파일+1에 간접 시험만 생긴다.</li>
+<li>harness: (권고) 새 디렉터리를 두고 검증 bytes 4모듈을 재사용한다. 옛 harness 수정은 금지다. 통째 복제는 불필요한 중복이다. 옛 verify_web/finalize/observe는 자기 FROZEN/OWNED/phase/DB_HEAD에 묶여 있어서 새 run.py가 소유한다.</li>
+<li>첫 범위: (권고) U2-A+U2-D1. 전체 U2는 보호2파일 변경, 신규14파일, 3 phase 실행이 한 리뷰에 섞여 고위험 실패를 분리하기 어렵다. A+D1은 entry와 독립적이다(§9 선후). U0의 HTTP 미완료(G1)를 가장 작은 RPC 표면으로 닫고, 이후 D2가 쓸 harness·source closure를 먼저 검증한다.</li>
+</ul>
+<h3>3. DAG·리뷰 관문(순차, 동시성 ≤2)</h3>
+<p>A → 반대 공급자 Frontier 리뷰+1회 재검증 → root 커밋 → D1(A를 frozen으로 사용) → 리뷰/커밋.</p>
+<p>B(A 리뷰 뒤 시작 가능, 파일 독립) → 리뷰 → C(B interface 소비) → 리뷰 → D2(A·B·C 커밋과 D1 harness 필요) → 리뷰/커밋.</p>
+<p>모든 Task는 고위험(결제·권한)이다. 구현의 반대 공급자 Frontier가 리뷰하고 원 리뷰 계열이 1회 재검증한다.</p>
+<h3>4. 파일 수</h3>
+<div data-revision="17"><p>신규14: product2(binding-source.ts, provider-entry.ts), 단위시험2, harness8, http entry2. 수정2: orchestrator.ts, web-payment-adapters.test.ts. D·package·lock·generated types는 0이다. W closure는 69→83, D97은 불변이다. 선택 단위 U2-E(§6, 채택 시에만)는 같은 수정2 파일을 C 뒤 별도 커밋으로 다시 바꾸며 신규0·D0이다. 파일 집합과 수량은 바뀌지 않고 리뷰 관문만 1개 늘어난다.</p></div></section>
+<section id="part-2"><h2>2. Task A binding source · Task B entry gate</h2>
+<p>공통 RPC 규칙(A·B)</p>
+<p>POST <code>client.rpc(name,args).retry(false).abortSignal(AbortSignal.timeout(10_000))</code>. response.error나 throw가 있으면 <code>ChargeRepositoryError(&#x27;RPC&#x27;)</code>를 던진다. DTO 위반이면 <code>&#x27;RESPONSE&#x27;</code>, 입력 위반이면 fetch 전에 <code>&#x27;CONFIG&#x27;</code>를 던진다. message는 고정값 <code>WEB_PAYMENT_CHARGE_UNAVAILABLE</code>이다. raw body·code·secret은 오류·로그에 넣지 않는다. 새 파일은 로그를 쓰지 않는다. <code>process.env</code>·<code>createClient(</code>·<code>console.</code>은 0이다. production factory·resolver를 조합하지 않는다. actorUserId는 미래 U3 서버 <code>auth.getUser</code> 결과만 받는다. 브라우저 actor는 권위가 아니다.</p>
+<h3>Task A · U2-A 고정 binding source</h3>
+<p>Files: Create <code>lib/payment/paypal-charge/binding-source.ts</code>. Test(Create) <code>__tests__/lib/payment/paypal-charge-binding-source.test.ts</code>.</p>
+<p>Consumes: <code>ChargeBindingSource</code>, <code>ProviderChargeBinding</code>(orchestrator.ts, <code>import type</code>), <code>ChargeRepositoryError</code>(repository.ts).</p>
+<p>Produces: <code>export function createRpcChargeBindingSource(client: SupabaseClient): ChargeBindingSource</code>. 기존 <code>getProviderBinding(actorUserId, orderId)</code>는 유지한다. 바꿀 근거가 없다.</p>
+<ul>
+<li>입력: 둘 다 소문자 UUID가 아니면 CONFIG(fetch0).</li>
+<li>호출: <code>get_web_payment_provider_binding</code> <code>{p_actor_user_id,p_order_id}</code>.</li>
+<li>공통: contract_version=&#x27;web-payment-provider-binding.v1&#x27;, charge_authority===false.</li>
+<li>non-FOUND: exact3 key이고 outcome∈{NOT_FOUND,CONTEXT_REQUIRED,VERIFICATION_BINDING_REQUIRED}이면 <code>{kind}</code>.</li>
+<li>FOUND exact16: order_id===요청 orderId(UUID), context_id/quote_id/binding_id는 UUID, quote_hash/binding_hash는 ^[0-9a-f]{64}$, provider===&#x27;PAYPAL&#x27;(PORTONE FOUND→RESPONSE), environment∈{LIVE,SANDBOX}, billing_country ^[A-Z]{2}$, scope는 정확2 key {account_id,merchant_id}이고 각 값 ^[A-Za-z0-9._:-]{1,200}$, binding_version은 문자열 ^[1-9][0-9]{0,18}$이면서 ≤int8 max(숫자 타입 거부), credential_ref ^[A-Za-z][A-Za-z0-9._-]{0,127}$, expected_application은 정확1 key {paypal_client_id: 위 scope 식}. quote_id/hash는 검증한 뒤 버린다. scope는 새 객체로 복사한다.</li>
+<li>반환: <code>{orderId,contextId,provider:&#x27;PAYPAL&#x27;,environment,billingCountry,scope,bindingId,bindingVersion,bindingHash,credentialRef,expectedPayPalClientId}</code>.</li>
+</ul>
+<p>시험(공개 factory + 실제 <code>createClient</code>, <code>global.fetch</code> stub, 원본 SQL과 독립인 literal DTO. helper mirror 금지):</p>
+<ul>
+<li>A1 &#x27;posts one non-retried binding RPC with a 10s abort signal&#x27;: URL <code>/rest/v1/rpc/get_web_payment_provider_binding</code>, POST, body 일치, signal, <code>AbortSignal.timeout</code> 10000, x-retry-count null, fetch1.</li>
+<li>A2 &#x27;maps exact FOUND to ProviderChargeBinding without quote fields&#x27;: toEqual literal.</li>
+<li>A3 it.each 3 non-FOUND → <code>{kind}</code>.</li>
+<li>A4 it.each &#x27;rejects malformed FOUND %s&#x27;(행마다 하나만 변경): PORTONE+scope4+app null, env TEST, order_id 다른 UUID, context_id/quote_id/binding_id 비UUID, quote_hash/binding_hash 비hex, billing_country &#x27;us&#x27;·&#x27;USA&#x27;, scope 추가/누락/빈값, binding_version 숫자1·&#x27;0&#x27;·&#x27;01&#x27;·&#x27;9223372036854775808&#x27;, credential_ref <code>&#x27;https://x&#x27;</code>, expected_application null·추가 key·빈 client, top-level 추가/누락 key, charge_authority true, contract_version 오류 → RESPONSE reject, fetch1.</li>
+<li>A5 it.each non-FOUND 추가/누락 key, 미지 outcome, null/array body → reject.</li>
+<li>A6 it.each HTTP: 400 P0001 WEB_PAYMENT_PROVIDER_BINDING_INVALID, 401/403 42501, 503, fetch reject, AbortError → reject. fetch는 정확히1이다. error와 직렬화 값에 sentinel <code>Q7pPriv</code>가 없다.</li>
+<li>A7 it.each 잘못된 입력(대문자/빈/비UUID) → CONFIG, fetch0.</li>
+</ul>
+<h3>Task B · U2-B live entry gate</h3>
+<p>Files: Create <code>lib/payment/paypal-charge/provider-entry.ts</code>. Test(Create) <code>__tests__/lib/payment/paypal-charge-provider-entry.test.ts</code>.</p>
+<p>Produces(정확한 이름):</p>
+<pre><code>export type ProviderEntryBlockedReason = &#x27;INPUT_INVALID&#x27;|&#x27;PROVIDER_UNSUPPORTED&#x27;|&#x27;CONTEXT_REQUIRED&#x27;|&#x27;VERIFICATION_BINDING_REQUIRED&#x27;|&#x27;CONTEXT_MISMATCH&#x27;|&#x27;BINDING_MISMATCH&#x27;|&#x27;ORDER_STATE_INVALID&#x27;|&#x27;ACTOR_DELETED&#x27;|&#x27;SETTINGS_UNAVAILABLE&#x27;|&#x27;ENVIRONMENT_MISMATCH&#x27;|&#x27;ORDERS_CLOSED&#x27;|&#x27;CHARGE_CLOSED&#x27;|&#x27;COUNTRY_NOT_ALLOWED&#x27;|&#x27;ACTOR_NOT_ALLOWED&#x27;|&#x27;POLICY_UNAVAILABLE&#x27;|&#x27;POLICY_NOT_ACCEPTED&#x27;|&#x27;QUOTE_EXPIRED&#x27;|&#x27;PRODUCT_UNAVAILABLE&#x27;|&#x27;REVIEW_REQUIRED&#x27;|&#x27;VERIFICATION_BINDING_CHANGED&#x27;|&#x27;PROVIDER_SCOPE_CHANGED&#x27;;
+export type ProviderEntryInput = { actorUserId: string; orderId: string; contextId: string; createRequestKey: string; bindingHash: string };
+export type ProviderEntryDecision =
+ | { kind: &#x27;AUTHORIZED&#x27;; orderId: string; contextId: string; createRequestKey: string; quoteHash: string; bindingHash: string; entryNotAfter: string }
+ | { kind: &#x27;ORDER_LINKED&#x27; } | { kind: &#x27;NOT_FOUND&#x27; } | { kind: &#x27;BLOCKED&#x27;; reason: ProviderEntryBlockedReason };
+export interface ProviderEntryGate { authorizeProviderEntry(input: ProviderEntryInput): Promise&lt;ProviderEntryDecision&gt; }
+export function createRpcProviderEntryGate(client: SupabaseClient): ProviderEntryGate;</code></pre>
+<ul>
+<li>입력: UUID4개는 소문자 UUID, bindingHash는 64 hex. 위반이면 CONFIG(fetch0). DB 결정을 로컬에서 꾸미지 않는다.</li>
+<li>호출: <code>authorize_web_payment_provider_entry</code> <code>{p_actor_user_id,p_order_id,p_context_id,p_create_request_key,p_binding_hash}</code>.</li>
+<li>공통: contract_version=&#x27;web-payment-provider-entry.v1&#x27;, charge_authority===false(AUTHORIZED 포함).</li>
+<li>NOT_FOUND/ORDER_LINKED는 exact3. BLOCKED는 exact4이고 safe_reason_code∈위 21.</li>
+<li>AUTHORIZED exact9: order_id/context_id/create_request_key/binding_hash가 입력과 같아야 한다. quote_hash는 64 hex다. entry_not_after는 RFC3339이고 offset이 필수다(Z 또는 ±HH:MM, 소수 1–6자리, 실재 날짜). 원 문자열을 보존한다. 불일치·미지 outcome/reason·추가/누락 key·타입 오류·authority true면 RESPONSE.</li>
+<li>P0001 3종(ISOLATION_UNSUPPORTED, ENTRY_INVALID, BINDING_INVALID)·42501·기타 HTTP/transport는 모두 RPC throw다. 오류일 때 결정을 반환하지 않는다. 소비자 C가 UNAVAILABLE ENTRY로 닫는다.</li>
+</ul>
+<p>시험:</p>
+<ul>
+<li>B1 &#x27;posts one non-retried entry RPC with exact five arguments and a 10s signal&#x27;.</li>
+<li>B2 AUTHORIZED → 정확 decision toEqual.</li>
+<li>B3 &#x27;accepts the same instant in +00:00, Z and +09:00 forms&#x27;(원문 보존).</li>
+<li>B4 it.each &#x27;rejects offset-less, 7-digit fraction and impossible calendar timestamps&#x27;.</li>
+<li>B5 it.each echo 불일치 4필드 + quote_hash 오류 → reject.</li>
+<li>B6 ORDER_LINKED·NOT_FOUND exact3.</li>
+<li>B7 it.each 21 reasons → <code>{kind:&#x27;BLOCKED&#x27;,reason}</code>.</li>
+<li>B8 it.each 미지 reason·비문자 reason·BLOCKED 추가 key·NOT_FOUND 추가 key·AUTHORIZED 누락/추가 key·charge_authority true/누락/&#x27;false&#x27;·contract 오류·미지 outcome·null/array → reject.</li>
+<li>B9 it.each HTTP 400 P0001×3, 401/403 42501, 503, reject, AbortError → reject, fetch1, sentinel 없음.</li>
+<li>B10 it.each 잘못된 입력 → CONFIG, fetch0.</li>
+</ul>
+<p>TDD 단계(A·B 같은 형식)</p>
+<p>1 시험 작성.</p>
+<p>2 root 실행 → absent-import RED(module 없음·test0). 행동 RED로 세지 않는다.</p>
+<p>3 닫힌 골격: 서명만 있고 항상 RESPONSE throw. 정상 매핑 시험(A2/A3, B2/B3/B6/B7)의 첫 도달 단언을 행동 RED로 측정한다. 골격에서 통과하는 fail-closed 시험은 &#x27;skeleton-vacuous&#x27;로 따로 기록하고 RED 증거로 세지 않는다.</p>
+<p>4 최소 구현.</p>
+<p>5 GREEN.</p>
+<p>6 회귀·타입.</p>
+<p>7 리뷰·커밋.</p>
+<p>root 명령:</p>
+<p><code>npm test -- __tests__/lib/payment/paypal-charge-binding-source.test.ts</code> (B는 provider-entry.test.ts)</p>
+<p><code>npm test -- __tests__/lib/payment/paypal-charge-protocol.test.ts __tests__/lib/payment/paypal-charge-repository.test.ts __tests__/api/payment/web-payment-adapters.test.ts &lt;새 시험&gt;</code> → 기존523 이름 집합 동일 + 신규 PASS</p>
+<p><code>npx --no-install tsc --noEmit --incremental false</code></p>
+<p>U1과 같은 root offline driver로 결제 회귀(기준43파일1497+expectedfail2)·전체(270/6301+expectedfail2/skip1)를 새 label로 실행한다. 파일 수 증가만 허용한다.</p>
+<p><code>rg -n &quot;process\.env|createClient\(|console\.&quot; &lt;새 product 파일&gt;</code> → 0줄.</p></section>
+<section id="part-3"><h2>3. Task C CREATE 전 배선·기존 시험 변경</h2>
+<p>Files: Modify <code>lib/payment/paypal-charge/orchestrator.ts</code>. 변경 범위는 Stage union(:21), EVENTS(:44-50), PayPalChargeDeps(:29-31), ensurePayPalProviderOrder(:455-489)뿐이다. Modify <code>__tests__/api/payment/web-payment-adapters.test.ts</code>.</p>
+<p>Consumes: B의 <code>ProviderEntryGate</code>/<code>ProviderEntryDecision</code>(<code>import type ... from &#x27;./provider-entry&#x27;</code>).</p>
+<p>Produces: <code>PayPalChargeDeps.entry: ProviderEntryGate</code>(필수). Stage에 <code>&#x27;ENTRY&#x27;</code>를 더한다. <code>EVENTS.ENTRY=&#x27;payment.paypal.charge.context.failed&#x27;</code>(기존 code 재사용)이고 level은 warn이다. 기존 log()의 error 목록은 바꾸지 않는다. log-event-codes registry는 고정한다.</p>
+<p>동작(기존 token 성공 뒤, create 전. capture/reconcile/status에는 넣지 않는다)</p>
+<h3>1. <code>d.entry.authorizeProviderEntry({actorUserId:i.actorUserId, orderId:i.orderId, contextId:prepared.contextId, createRequestKey:prepared.createRequestKey, bindingHash:auth.authorized.binding.bindingHash})</code>를 정확히 1회 호출한다. throw이면 <code>unavailable(d,&#x27;ENTRY&#x27;)</code>.</h3>
+<h3>2. AUTHORIZED이면 B echo와 별개로 다시 대조한다: orderId===i.orderId===c.orderId, contextId===prepared.contextId, createRequestKey===prepared.createRequestKey, quoteHash===c.quoteHash, bindingHash===binding.bindingHash, <code>Date.parse(entryNotAfter)</code>가 유한하고 <code>Date.parse(c.quoteExpiresAt)</code>와 같은 순간. 하나라도 다르면 UNAVAILABLE ENTRY.</h3>
+<h3>3. 그 뒤 기존 :468을 <code>before(d, decision.entryNotAfter)</code>(margin 0)로 바꾼다. 실패 처리는 기존과 같다(PREPARE 로그 + BLOCKED QUOTE_EXPIRED). 이어서 create한다.</h3>
+<h3>4. ORDER_LINKED이면 <code>owner({repository:d.repository}, i)</code>를 1회 호출한다(CONTEXT 로그 없음). FOUND이고 contextId===prepared.contextId이고 providerOrderId가 non-null이면 <code>{PROVIDER_ORDER_READY, providerOrderId, replayed:true}</code>(무로그). 그 밖에는 UNAVAILABLE ENTRY. 두 경우 모두 create0이다.</h3>
+<h3>5. BLOCKED REVIEW_REQUIRED이면 ENTRY 로그 + <code>{kind:&#x27;REVIEW_REQUIRED&#x27;}</code>. 나머지 20 사유는 ENTRY 로그 + <code>{kind:&#x27;BLOCKED&#x27;,reason}</code>.</h3>
+<h3>6. NOT_FOUND는 owner 결과와 모순이므로 UNAVAILABLE ENTRY다(계획 선택, 닫힘).</h3>
+<p>logger 예외 격리(:54-58), 원본 prepare 잠금 replay/samePrepared/count/trail, U1 N1·M2 32 bound 분기는 바꾸지 않는다.</p>
+<p>기존 시험 fixture 변경(전수)</p>
+<ul>
+<li><code>boundaries()</code>(:272-314): <code>const AUTHORIZED={kind:&#x27;AUTHORIZED&#x27;,orderId:ORDER,contextId:CONTEXT,createRequestKey:CREATE_KEY,quoteHash:HASH,bindingHash:BINDING.bindingHash,entryNotAfter:&#x27;2026-11-14T00:15:00.123456+00:00&#x27;}</code>를 둔다. <code>entry={authorizeProviderEntry:vi.fn().mockImplementation(async()=&gt;structuredClone(AUTHORIZED))}</code>, <code>deps.entry={authorizeProviderEntry:traceCall(&#x27;entry&#x27;,entry.authorizeProviderEntry)}</code>로 추가하고 return에 <code>entry</code>를 넣는다.</li>
+<li><code>expectNoProvider()</code>(:321-325): <code>expect(h.entry.authorizeProviderEntry).not.toHaveBeenCalled()</code> 1줄을 추가한다(강화만).</li>
+<li>단언 변경은 정확히 2곳: :344와 :365 trail → <code>[RPC.getter, RPC.prepare,&#x27;binding&#x27;,&#x27;resolve&#x27;,&#x27;token&#x27;,&#x27;entry&#x27;,&#x27;create&#x27;,RPC.bind]</code>.</li>
+<li>변경 불필요(사유를 검증함): :330, :335(linked), :367(mockImplementation이 반복되어 entry 3회 AUTHORIZED·같은 key), :388×4, :397, :403×4(token 이전), :416(entry 뒤 deadline에서 차단), :423×5, :432, :469, :1156, :1162, :1168, :1188의 prepare-refused/create-unknown/bind-review(AUTHORIZED는 무로그라 로그 배열 불변). capture/reconcile 전 시험은 entry를 호출하지 않는다.</li>
+<li>이름은 adapter316·protocol129·repository78을 모두 보존한다. 위 외 기존 기대값을 일괄 치환하지 않는다. 리뷰어는 diff hunk가 위 4종 + 새 describe 추가뿐인지 확인한다.</li>
+</ul>
+<p>새 시험 describe &#x27;U2-C live provider entry before CREATE&#x27;(음성 우선)</p>
+<ul>
+<li>C1 &#x27;calls entry once with the prepared tuple after token and before create&#x27;: 입력 toEqual, trail 위치, createOrder1.</li>
+<li>C2 it.each 20 non-REVIEW reasons: <code>{BLOCKED,reason}</code>, createOrder0·bind0·observe0, log <code>[[{stage:&#x27;ENTRY&#x27;,level:&#x27;warn&#x27;,code:&#x27;payment.paypal.charge.context.failed&#x27;,orderId:ORDER}]]</code>.</li>
+<li>C3 REVIEW_REQUIRED → <code>{kind:&#x27;REVIEW_REQUIRED&#x27;}</code>, create0, 같은 ENTRY 로그.</li>
+<li>C4 entry throws Error(&#x27;Q7pPriv secret&#x27;) → UNAVAILABLE ENTRY. result/log에 sentinel이 없고 create0.</li>
+<li>C5 it.each tuple 불일치 6종(orderId, contextId, createRequestKey, quoteHash, bindingHash, entryNotAfter +1ms) → UNAVAILABLE ENTRY, create0.</li>
+<li data-revision="21"><p>C6 it.each 같은 순간의 &#x27;+09:00&#x27;·&#x27;Z&#x27; 형식: 첫 단언은 <code>expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1)</code>과 trail의 &#x27;entry&#x27; 위치(&#x27;token&#x27; 뒤·&#x27;create&#x27; 앞)다. 그다음 READY, createOrder1을 단언한다. clock은 그 순간보다 1ms 이르다. deadline 소비의 반증은 C7이 소유한다.</p></li>
+<li>C7 entry mock이 clock을 00:15:00.124로 옮김 → BLOCKED QUOTE_EXPIRED, create0, log PREPARE.</li>
+<li>C8 ORDER_LINKED: (a) 재조회 linked → READY replayed:true, getter2·create0·bind0. (b) 재조회 unlinked → UNAVAILABLE ENTRY. (c) 재조회 context 다름/getter 503 → UNAVAILABLE ENTRY이고 로그는 ENTRY 1건뿐(CONTEXT 로그 없음).</li>
+<li>C9 NOT_FOUND → UNAVAILABLE ENTRY, create0.</li>
+<li>C10 logger throw 중 ENTRY 거부 → 같은 outcome, create0.</li>
+<li>C11 it.each capture 성공·reconcile·status → entry 0회.</li>
+<li>C12 it.each entry 전 거부(prepare REFUSED, BINDING/CREDENTIAL/TOKEN 실패, freshRefusal 4종) → entry 0회.</li>
+</ul>
+<p>RED 분류</p>
+<ul>
+<li data-revision="22"><p>구현 전 C1–C10과 변경 trail 2개는 행동 RED 후보다(entry 미호출 또는 create 발생이 예상 원인). 실제 RED는 root가 실행 후 시험별 첫 실패 단언을 기록한 것만 센다. 구현 전에 통과하는 사례는 coverage로 재분류하고 RED로 세지 않는다. C6은 구현 전 첫 단언(entry 호출 1회)에서 실패해야 RED로 센다.</p></li>
+<li>C11/C12와 기존 314는 구현 전에도 통과해야 한다. coverage로 표시하고 RED로 세지 않는다.</li>
+<li>시험 파일은 tsconfig 제외라 deps 타입 누락이 정적 RED로 잡히지 않는다. 정적 검사는 product tsc로만 주장한다.</li>
+</ul>
+<p>root 명령</p>
+<p><code>npm test -- __tests__/api/payment/web-payment-adapters.test.ts</code></p>
+<p><code>npm test -- __tests__/lib/payment/paypal-charge-protocol.test.ts __tests__/lib/payment/paypal-charge-repository.test.ts __tests__/api/payment/web-payment-adapters.test.ts __tests__/lib/payment/paypal-charge-binding-source.test.ts __tests__/lib/payment/paypal-charge-provider-entry.test.ts</code> → 523 이름 집합 동일(실행 전후 이름 목록 비교) + 신규 PASS</p>
+<p><code>npx --no-install tsc --noEmit --incremental false</code>. 결제·전체 회귀는 root offline driver의 새 label로 실행한다.</p>
+<p>수용: <code>git diff --stat</code>는 2파일이다. <code>rg -n &quot;entry&quot; lib/payment/paypal-charge/orchestrator.ts</code>의 결과가 ensure 외 함수에 없는지 리뷰어가 확인한다.</p></section>
+<section id="part-4"><h2>4. Task D1 새 harness·binding 실제 HTTP</h2>
+<p>Files(Create 9): <code>scripts/payment/provider-rpc-http/{run.py,test_run.py,guard.cjs,bundle.mjs,seed.sql,observer.sql,rotate.sql,stop.sql}</code>, <code>__tests__/integration/payment/provider-binding-postgrest.http.ts</code>. 옛 order-http/charge-context-http 17파일은 바꾸지 않는다.</p>
+<p>재사용·소유</p>
+<ul>
+<li>run.py가 자체 최소 검증 loader를 소유한다. 모든 pin을 먼저 대조한 뒤 실행한다. bytes compile만 하고 pyc를 읽지 않는다. <code>sys.dont_write_bytecode=True</code>. sys.modules에 미리 바인딩된 모듈은 거부한다. 종료 때 원상 복원한다.</li>
+<li>REUSE4(현재 manifest 값. root가 실행 전 재측정): order-http/pair_fixture.py a194d142…, order-http/setup_db.py 3bff4c99…, order-http/run.py 809fde33…, charge-context-http/run.py 0a4b7982…. 로딩 순서는 pair_fixture → setup_db → order_http_run → charge_context_run이다.</li>
+<li>허용 호출: PairFactory(start/sql/start_postgrest/exec_node/role/close), PUBLIC_PASSWORD, setup_db.verified_helpers, order_http_run.LocalDocker/jwt/interpreter_evidence, charge_context_run의 _install/_execution_bytes/_read_pinned/_file/_root/_relative/_digest/_json/_runtime_flags/_cleanup_pair/_cache_state/_sql_literal/_error.</li>
+<li>금지 호출: setup_db.setup/verify_source, 두 옛 main, charge_context_run.verify_web/_verify_db/_setup_current8/_observe/finalize_receipt/parse_phase/_http_parity. pin을 완화하거나 옛 main으로 우회하지 않는다.</li>
+<li>run.py가 새로 소유: verify_web(새 FROZEN/OWNED), verify_db, current10 setup, observe, parse_result, finalize.</li>
+</ul>
+<p>run.py CLI·상수</p>
+<p><code>--phase-set d1|d2 --postgres-image postgres:15.8|postgres:17.6 --run-label --db-workspace --docker-host --web-head --web-manifest --web-manifest-sha256 --db-manifest --db-manifest-sha256 [--docker-bin --node-bin]</code>. 실행 flag는 <code>-I -B</code> 필수(_runtime_flags)다.</p>
+<p>DB_ROOT는 기존 D 경로, DB_HEAD=&#x27;471b278cb57835973c3b24748f74898d03cef968&#x27;, DB 소스 수 97이다. DB manifest는 <code>{root,sourceCommit,dependencySqlSha256,files(97)}</code>이고 tracked·clean·HEAD blob과 같아야 한다.</p>
+<p>MIGRATIONS10은 정확한 이름이다: 원본7 + <code>20261114015304_web_payment_charge_gate.sql</code> + <code>20261115075731_web_payment_provider_binding_read.sql</code> + <code>20261115122716_web_payment_provider_entry.sql</code>. 오름차순을 검사한다. upgrade fixture는 없다(gate suite 전용). picnic.* GUC는 설정하지 않는다(migration 소비 0). receipt에 <code>installedContractLevel:&#x27;current10&#x27;</code>, <code>suiteContractLevel:null</code>을 기록한다.</p>
+<p>W manifest는 <code>{webHead,frozenFiles,ownedFiles,installedFiles}</code>이다.</p>
+<ul>
+<li>frozen: REUSE4 + d1 product(binding-source.ts, repository.ts). d2는 provider-entry.ts, orchestrator.ts, protocol.ts를 더한다. tracked·clean·HEAD blob이어야 한다.</li>
+<li>owned: 위 harness 8 + phase entry.</li>
+<li>installed4: supabase-js/postgrest-js 2.112.3 package.json·dist/index.cjs. 현재 hash d01ad122/ac256611/74b9ee26/d457ad36.</li>
+<li><code>--web-head</code>는 A 커밋을 포함한 실제 HEAD다.</li>
+</ul>
+<p>manifest 파일은 root가 <code>.artifacts/payment-web-order-http/provider-rpc-manifests/</code>에 만든다(추적 안 함). dependencySqlSha256은 현재 settlement_dependencies() 결과로 root가 측정한다. 이전 f6791fff와 같다고 가정하지 않는다. 선택 파일은 모두 97 안에 있어야 한다.</p>
+<p>출력: <code>.artifacts/payment-web-order-http/provider-rpc-&lt;label&gt;/</code>(exist_ok=False), <code>node-artifacts/</code>. PairFactory 제약에 맞다.</p>
+<p>실행 순서</p>
+<p>web 검증 → DB 검증 → REUSE 로드 → host bundle(esbuild stdin, server-only plugin, metafile inputs 정확 집합 d1={entry, binding-source.ts, repository.ts, server-only marker}) → PairFactory.start → bootstrap → selected deps → engine-control(marker) → MIGRATIONS10(postgres) → authenticator → seed.sql(marker) → observer baseline → start_postgrest → Node phase A → observer → rotate.sql → observer(허용 diff: settings binding/scope와 새 binding row) → phase B → observer → stop.sql → observer(허용 diff: mode/allow_*·지정 actor deleted_at) → phase C → observer → cleanup → after snapshot → receipt.</p>
+<p>metafile 실제 집합이 다르면 범위를 넓히지 않는다. 멈추고 리뷰를 받는다.</p>
+<p>guard.cjs</p>
+<p>허용 socket은 restIp:3000과 등록된 127.0.0.1 proxy뿐이다. DNS literal 외, TLS, https, http2, UDP, child_process, worker는 deny다. RPC allowlist는 d1={get_web_payment_provider_binding}이다. GET은 stable allowlist만 허용한다. config.json에는 public synthetic JWT만 둔다. guard.report와 차단 목록을 결과에 넣는다.</p>
+<p>seed.sql(합성 seed만. product RPC stub 금지)</p>
+<ul>
+<li>행위자 A/B/C와 profile, PAYPAL SANDBOX OPEN 설정 + binding v1, PORTONE TEST, 상품.</li>
+<li>주문은 원본 order 함수를 postgres로 직접 호출해 만든다.</li>
+<li>사례: B1 FOUND(원본 prepare로 context 생성, US), B2 CONTEXT_REQUIRED, B3 VERIFICATION_BINDING_REQUIRED, B4 PORTONE FOUND(KR, scope4, app null).</li>
+<li>B3는 charge-context privileged 방식의 INSERT-only fixture다. 원본 trigger/FK/CHECK가 막으면 setup 실패로 정산한다. 세지 않는다.</li>
+<li>사례 메타데이터를 JSON 줄로 내보내고 marker를 출력한다.</li>
+</ul>
+<div data-revision="10"><p>observer.sql: fixture_admin 세션의 rollback 전용 관측이다. 1줄 JSON으로 다음을 출력한다. (1) productDigest: orders·quotes·provider_contexts·provider_links·observations·charge_attempts·purchase_intakes·재무31·full6 표의 정렬 행 digest. (2) controlDigest: provider_settings·verification_bindings·user_profiles 행 digest. (3) 재무31·full6의 표별 count. (4) 사례별 native <code>get_web_payment_provider_binding</code> 값. (5) d2에서만: 소유 주문별 사실(payment_state, settlement_state, row_version, context 유무, link kind별 external_id, observation 목록[source, identity_kind, outcome, reason_code], attempt 유무·submission_intent 기록 여부, intake·inbox·receipt 수). d1은 재무31·full6 전부 0을 SQL assert한다. d2는 receipts·wallet_provider_event_inbox를 제외한 재무29·full6=0을 SQL assert하고, 그 두 표의 판정은 run.py가 한다. rotate.sql은 새 binding v2와 현재 settings scope 변경, stop.sql은 CLOSED·allow_new_orders/charge=false와 C 탈퇴를 수행한다.</p></div>
+<p>provider-binding-postgrest.http.ts(phase A/B/C 같은 행렬. 기대는 root 측정 전 미측정)</p>
+<ul>
+<li data-revision="4"><p>source(소비자 A): service JWT <code>createClient(proxy)</code>로 실제 <code>createRpcChargeBindingSource</code>를 호출한다. 사례 6개: B1 → 정확한 ProviderChargeBinding(bindingVersion &#x27;1&#x27;). B2 → <code>{kind:&#x27;CONTEXT_REQUIRED&#x27;}</code>. B3 → <code>{kind:&#x27;VERIFICATION_BINDING_REQUIRED&#x27;}</code>. B4 → ChargeRepositoryError(RESPONSE) reject. NF_OTHER(행위자 B + A 소유 B1 주문, 유효 UUID) → <code>{kind:&#x27;NOT_FOUND&#x27;}</code>. NF_UNKNOWN(행위자 A + 미존재 유효 UUID) → <code>{kind:&#x27;NOT_FOUND&#x27;}</code>. null·비UUID 입력은 A가 fetch 전에 CONFIG로 닫으므로(A7) 소비자 HTTP 사례에 넣지 않는다. 서명이 string이므로 null을 cast해서 kind 매핑을 주장하지 않는다.</p></li>
+<li data-revision="5"><p>raw service(direct restIp, proxy 미경유): B1·B2·B3·B4·NF_OTHER·NF_UNKNOWN 6개는 POST와 GET을 각각 1회 보낸다. NF_NULL_ACTOR·NF_NULL_ORDER·NF_NULL_BOTH 3개는 JSON null 인수로 POST만 보낸다. null 3개는 native owner-first NOT_FOUND의 raw 증거이며 소비자 kind 증거가 아니다. 기대: 200, JSON===observer native 값, binding_version은 typeof string, GET===POST.</p></li>
+<li data-revision="6"><p>anon / authenticated(sub=A) raw GET·POST(B1, direct) 4건: non-2xx, body.code===&#x27;42501&#x27;. status는 기록만 한다(anon 401·auth 403 예상은 미측정).</p></li>
+<li data-revision="7"><p>retry metadata(phase A만. 설정 상태와 무관한 SDK 동작이다). R_OFF: <code>rpc(&#x27;get_web_payment_provider_binding&#x27;, B1 인수, {get:true}).retry(false)</code> 1건. proxy가 합성 503을 주입하고 upstream을 호출하지 않는다. 기대: client fetch1, X-Retry-Count 없음, proxy tap1(주입), upstream0, 오류 반환. R_DEF: 같은 호출의 기본 retry 판. proxy는 이 사례의 모든 시도에 <code>Retry-After: 0</code> 503을 주입하고 upstream은 0이다. postgrest-js 2.112.3 source상 GET 503은 최대 3회 재시도(DEFAULT_MAX_RETRIES=3)이고 재시도 요청에 X-Retry-Count 1·2·3을 붙인다(dist/index.cjs:7,21,25-29,181-186,354-389). source 기준 예상은 client 시도4·proxy tap4이지만 미측정이다. 실제 시도 수와 header는 SDK 관찰값으로만 기록하고 PostgREST 증거로 부르지 않는다. 주입 응답은 DB 요청 수에 넣지 않는다.</p></li>
+<li data-revision="8"><p>B·C phase의 B1 FOUND는 phase A 값과 byte 동일(frozen r0)해야 한다. D1은 모든 phase가 읽기 전용이므로 phase 안의 productDigest와 controlDigest가 baseline과 after에서 같아야 한다(§5 D2 phase-set 판정표의 D1 행).</p></li>
+<li data-revision="9"><p>tap·case 수는 test_run.py 고정 사례표의 정확값이다. wildcard는 쓰지 않는다.</p>
+<div class="table-scroll"><table><thead><tr><th>계층</th><th>사례</th><th>phase A</th><th>phase B</th><th>phase C</th></tr></thead><tbody><tr><td>소비자 source(proxy POST)</td><td>6</td><td>proxy tap6 / upstream6</td><td>6/6</td><td>6/6</td></tr><tr><td>raw service direct</td><td>6×(POST+GET)+null 3 POST</td><td>upstream15 (proxy0)</td><td>15</td><td>15</td></tr><tr><td>ACL direct</td><td>4</td><td>upstream4</td><td>4</td><td>4</td></tr><tr><td>R_OFF</td><td>1</td><td>proxy tap1(주입) / upstream0 / fetch1</td><td>—</td><td>—</td></tr><tr><td>R_DEF(관찰 전용, 고정 합계 제외)</td><td>1</td><td>기록만(source 예상 4) / upstream0</td><td>—</td><td>—</td></tr><tr><td>native observer</td><td>9 label</td><td>baseline·after 각 9</td><td>9</td><td>9</td></tr></tbody></table></div>
+<p>고정 합계: proxy tap A7·B6·C6(R_DEF 제외). PostgREST 도달 요청 A25·B25·C25(source6 + direct19). proxy 경유 요청은 proxy forward 수, direct 요청은 client 응답 수로 센다. 주입 503은 도달 요청에 넣지 않는다.</p></li>
+</ul>
+<p>test_run.py(Docker 없음. 가짜 transport/git/fs)</p>
+<div data-revision="13"><p>web/DB manifest 필드·head·97 수·dirty frozen·untracked·symlink 거부. REUSE hash·prebound·pyc 미사용. MIGRATIONS10 누락·중복·순서 오류 DB 전 거부. 설치 단계 목록과 GUC 0. bundle metafile 추가 input 거부. 결과 marker 누락/중복/partial 거부. finalize d1 판정(phase 안 productDigest·controlDigest 불변, rotate/stop의 control diff allowlist, control 단계 전후 productDigest 불변, 재무31·full6 0)과 각 위반의 실패. cleanup은 factory ledger CID 3개+network 1개만 대상이고 이름/label 검색은 0. <code>--phase-set</code>은 d1만 받는다. d2는 DB·Docker 전에 거부한다(D1 미구현, fail closed). D2가 d2 분기를 연다.</p></div>
+<p>TDD·명령</p>
+<p>1 test_run 작성 → <code>/opt/homebrew/bin/python3 -I -B scripts/payment/provider-rpc-http/test_run.py</code> absent-import RED.</p>
+<p>2 run.py 구현 → 단위 GREEN.</p>
+<p>3 HTTP는 제품 행동 RED가 없는 측정 Task다. 첫 실제 실행은 PASS 또는 setup/environment/contract/behavior로 분류한다.</p>
+<p><code>/opt/homebrew/bin/python3 -I -B scripts/payment/provider-rpc-http/run.py --phase-set d1 --postgres-image postgres:15.8 --run-label u2-d1-pg15-v1 --db-workspace /Users/charlie.hyun/orca/workspaces/picnic-supabase/web-payment-contract --docker-host unix://&lt;root socket&gt; --web-head &lt;HEAD&gt; --web-manifest &lt;W&gt;/.artifacts/payment-web-order-http/provider-rpc-manifests/web-d1.json --web-manifest-sha256 &lt;sha&gt; --db-manifest &lt;W&gt;/.artifacts/payment-web-order-http/provider-rpc-manifests/db-current10.json --db-manifest-sha256 &lt;sha&gt;</code></p>
+<p>PG17.6도 새 label로 같은 방식으로 실행한다. 재실행은 항상 새 label을 쓴다.</p></section>
+<section id="part-5"><h2>5. Task D2 실제 9RPC bridge</h2>
+<p>Files: Create <code>__tests__/integration/payment/provider-bridge-postgrest.http.ts</code>. Modify(D1 소유 harness): run.py(d2 분기·결과 parser·phase 조건), test_run.py, guard.cjs(d2 allowlist), bundle.mjs(d2 inputs={entry, binding-source.ts, provider-entry.ts, repository.ts, orchestrator.ts, protocol.ts, server-only marker}. transport.ts는 type-only라 제외. root가 metafile로 확인), seed.sql(d2 사례), observer.sql(d2 사실).</p>
+<p>조합: service JWT client 1개(proxy)로 실제 <code>createWebPaymentChargeRepository</code>, <code>createRpcChargeBindingSource</code>, <code>createRpcProviderEntryGate</code>를 만들고 orchestrator export를 사용한다. 합성 값은 in-process fake PayPalTransport(scripted, 호출 기록)와 resolver(<code>{clientId: seed expected, clientSecret:&#x27;public-fixture-only-secret&#x27;}</code>)뿐이다. nowMs=Date.now. 외부망은 0이다(guard 차단 목록은 의도 probe 외 비어야 한다). 판정 근거는 observer.sql의 DB 행(link ORDER/CAPTURE, attempt·intent, observation outcome/reason, intake inbox/receipt, payment/settlement state, row_version), proxy tap(RPC·method·args·status), fake 호출 기록이다. literal getter를 SQL commit처럼 쓰지 않는다.</p>
+<p>guard d2: 정확 9 RPC(getter, prepare, provider_binding, provider_entry, bind, record, claim, intent, receive). proxy GET은 stable2(get_web_payment_charge_context, get_web_payment_provider_binding)만 허용한다. 예외 1건: direct restIp GET <code>/rpc/authorize_web_payment_provider_entry</code>는 5개 UUID/hash query일 때만 허용한다(음성 probe). proxy 비stable GET 거부는 guard 증거로 따로 표시한다.</p>
+<p>phase A(OPEN). 시나리오마다 별도 주문을 쓴다.</p>
+<ul>
+<li>F1 ensure→READY(createOrder1, requestKey=prepare key, ORDER link1) → capture(getOrder APPROVED→claim→intent→captureOrder COMPLETED) → INTAKE_PENDING. DB: CAPTURE link1, attempt1 intent, receipt1, REVIEW0. tap 순서를 정확히 고정한다.</li>
+<li>F2 ensure#1 createOrder TRANSPORT_UNKNOWN → SUBMISSION_UNKNOWN, link0. ensure#2 → READY, link1. createOrder requestKey [k,k], prepare 2(fresh→replay).</li>
+<li>F3a ensure#1 createOrder TRANSPORT_UNKNOWN, link0(→phase C).</li>
+<li data-revision="1"><p>F4(같은 key 동시 ensure). F4a·F4b는 각각 별도 주문이다.</p>
+<ul><li>준비(setup, 측정 수에서 제외): <code>repository.prepareProviderContext</code>를 실제로 1회 호출한다 → PREPARED, replayed=false. 그다음 getter 1회로 상태를 확정한다: context_id=준비 context, verification_binding_present=true, provider_order_id=null, review_required=false, attempt_id=null, submission_intent_recorded=false. 하나라도 다르면 setup 실패로 정산하고 측정하지 않는다. 준비 tap은 사례당 prepare1·getter1이다.</li><li>측정: 두 ensure를 동시에 시작한다. 기대 순서는 getter 2(같은 준비 context) → prepare replay 2(replayed=true, 같은 context_id·create_request_key) → binding 2 → resolver/token 2 → entry 2(AUTHORIZED) → fake createOrder barrier 2(requestKey [k,k]) → bind 2이다. entry tap 2건의 p_context_id가 준비 context와 같으면 두 getter가 같은 context를 본 증거로 쓴다(samePrepared가 그 경우에만 통과). barrier는 정확히 2건이 도착해야 풀린다. 시간 초과면 사례 실패로 기록하고 대기 중 fake 호출은 TRANSPORT_UNKNOWN으로 끝낸다(bind0, 성공 처리 없음). 측정 tap은 사례당 getter2·prepare2·binding2·entry2·bind2이다.</li><li>F4a 같은 provider ID: 두 결과 모두 <code>{PROVIDER_ORDER_READY, 같은 ID, replayed:true}</code>. DB ORDER link1. 두 fake 응답 body가 같으면 evidence hash가 같아 둘째 bind는 replay이고 observation은 RECORDED 1건이다(provider_observation.sql:310-317, 정적 판독).</li><li>F4b 다른 provider ID: 결과 multiset은 {READY(승자 ID), REVIEW_REQUIRED}이다. 승자는 pool1 직렬화 순서로 정해지므로 고정하지 않는다. DB는 ORDER link1(external_id=READY의 ID), observation 2건(RECORDED 1 + REVIEW_REQUIRED IDENTITY_ALREADY_BOUND 1)이다. 이후 capture → getter REVIEW fast refusal로 REVIEW_REQUIRED(getOrder0·claim0). gate 직접 호출(정상 tuple) → ORDER_LINKED.</li><li>fresh-context 경쟁(context 없는 새 주문에서 두 getter가 모두 null을 본 경우)은 현재 정상 거부다. 첫 prepare만 replayed=false이고 둘째는 samePrepared false로 UNAVAILABLE PREPARE다(orchestrator.ts:96-99,466). samePrepared를 완화하지 않고 getter를 stub하지 않는다. 이 경우는 선택 coverage F4c로만 두고 기본 사례표에서 뺀다. F4c를 넣으면: proxy가 두 getter 응답을 2건 도착까지 보류, 기대 {READY replayed:false, UNAVAILABLE PREPARE}, prepare2(fresh1·replay1)·binding1·entry1·createOrder1·bind1, context1·ORDER link1, PREPARE 로그1, D2 사례 수 +1, proxy getter-응답 barrier 기능 필요.</li><li>PostgREST pool1이므로 W 수준 interleaving 증거이며 DB 병렬성 증거가 아니다.</li></ul></li>
+<li>F5 READY → capture에서 intent 응답을 proxy가 upstream 200 뒤 socket 파기 → SUBMISSION_UNKNOWN, captureOrder0, DB intent 기록(commit 응답 유실). 재capture → reconcile GET만, captureOrder0. <code>repository.claimCharge(현재 row_version)</code> → 실제 LOOKUP_ONLY. F5′ captureOrder TRANSPORT_UNKNOWN+GET 실패 → SUBMISSION_UNKNOWN, captureOrder1. 재호출해도 POST는 추가되지 않는다.</li>
+<li data-revision="2"><p>F6(미link 주문의 저장 REVIEW).</p>
+<ul><li>준비: ensure 1회에서 fake createOrder가 payee merchant_id만 다른 CREATE_RESPONSE(status CREATED)를 돌려준다. 정적 경로는 assess PAYEE → ORDER record(p_bind=false)이다. 결과는 REVIEW_REQUIRED, createOrder1, ORDER link0이다. DB REVIEW 1건의 예상 reason PROVIDER_SCOPE_MISMATCH는 미측정이다. RECORDED이거나 REVIEW가 없으면 setup 실패로 보고하고 꾸미지 않는다. 그다음 getter 1회로 review_required=true, provider_order_id=null, attempt_id=null, payment_state=NOT_SUBMITTED를 확인한다.</li><li>측정 1(소비자 fast refusal): 재ensure → getter1 뒤 <code>{kind:&#x27;REVIEW_REQUIRED&#x27;}</code>, PREPARE 로그1. prepare0·binding0·resolver0·token0·entry0·createOrder 누계1. 이 경로는 entry를 호출하지 않으므로 entry·claim parity 증거로 세지 않는다.</li><li>측정 2(gate 직접): 실제 저장 tuple로 <code>createRpcProviderEntryGate(client).authorizeProviderEntry</code>를 1회 호출한다. contextId=getter context_id, createRequestKey=준비 ensure의 fake createOrder 기록 requestKey, bindingHash=binding source 직접 read 1회의 FOUND bindingHash. 기대 <code>{kind:&#x27;BLOCKED&#x27;,reason:&#x27;REVIEW_REQUIRED&#x27;}</code>. 앞선 entry 사유가 모두 통과하는 phase A·견적 유효 시간 안에서만 실행한다.</li><li>측정 3(claim 직접): <code>repository.claimCharge(actor, order, getter row_version)</code> 1회 → <code>{kind:&#x27;BLOCKED&#x27;,reason:&#x27;REVIEW_REQUIRED&#x27;}</code>. attempt0, row_version 불변.</li><li>측정 tap: getter1·binding1·entry1·claim1. 측정 2·3이 같은 저장 REVIEW에서 모두 REVIEW_REQUIRED이면 Info1 parity를 HTTP로 한 경로 관측한 것이다.</li><li>orchestrator ENTRY 단계의 REVIEW는 initial getter 뒤·entry 전에 REVIEW를 commit하는 별도 interleaving이 있어야 측정된다. 최소 수정에는 넣지 않는다. production 우회 경로는 만들지 않는다.</li></ul></li>
+<li>F7a <code>repository.prepareProviderContext</code> → PREPARED fresh(→phase B).</li>
+<li data-revision="19"><p>L1(linked 흡수 전 tuple 검사와 상태별 ORDER_LINKED, gate 직접 호출). 상태 class는 둘이며 각 class는 별도 주문의 실제 API 상태로 만든다.</p>
+<ul><li>L1a(잘못된 tuple, F1 주문): 잘못된 contextId(유효 UUID) → BLOCKED CONTEXT_MISMATCH. 잘못된 createRequestKey → CONTEXT_MISMATCH. 잘못된 bindingHash(64 hex) → BINDING_MISMATCH. 이 검사는 entry.sql:57-64에서 ORDER_LINKED(:102)보다 먼저다. 같은 주문의 정상 tuple → ORDER_LINKED는 대조 확인이며 독립 class로 세지 않는다.</li><li>L1-CLAIM(linked + claim만): 별도 주문에서 ensure → READY(ORDER link1) 뒤 <code>repository.claimCharge(actor, order, getter row_version)</code> 1회 → SUBMIT lease. intent는 기록하지 않는다. getter로 provider_order_id≠null, attempt_id≠null, submission_intent_recorded=false, payment_state=NOT_SUBMITTED, review_required=false를 확인한다. 다르면 setup 실패. 정상 tuple → ORDER_LINKED.</li><li>L1b(linked + intent 뒤, F5 주문): 실제 claim→intent/SUBMISSION_UNKNOWN 뒤 getter로 submission_intent_recorded=true, payment_state=SUBMISSION_UNKNOWN을 확인한다. 정상 tuple → ORDER_LINKED.</li><li>정상 tuple의 createRequestKey는 각 주문 준비 ensure의 fake createOrder 기록 requestKey, bindingHash는 binding source 직접 read 값이다.</li></ul></li>
+<li>N-A/N-B/N-C 관측(각 별도 주문, capture POST fake 응답): N-A는 FUTURE_ORDER 상태+충돌 CAPTURE, N-B는 intent AUTHORIZE+일치 CAPTURE, N-C는 정상 CAPTURE+ORDER 상태 미지. 안전 불변식은 receive0(N-A/N-B), captureOrder1, 추가 POST0이다. 실제 기록 행은 receipt <code>openFindings</code>에 OBSERVED_OPEN으로 남긴다. 현재 동작을 정답으로 고정하는 단언은 쓰지 않는다.</li>
+<li data-revision="15"><p>ACL(ORD-ACL 전용 주문, 읽기 전용 구간): anon/authenticated로 9 RPC를 POST한다. non-2xx, code 42501. status는 기록한다. service stable2 GET은 200이다. entry direct GET probe는 non-2xx가 기대값이다. 2xx이면 STOP하고 finding으로 보고한다. 통과로 정산하지 않는다. ORD-ACL과 표 밖 주문은 phase A 판정표에서 행 단위로 불변이어야 한다. entry 함수 본문에는 쓰기가 없으므로(entry.sql:13-155) 무변경만으로는 GET 거부 증거가 되지 않는다. GET 판정 근거는 HTTP status/code다.</p></li>
+</ul>
+<p>phase B(rotate.sql 뒤): F7b ensure → prepare replay → binding r0 → resolver/token → entry BLOCKED VERIFICATION_BINDING_CHANGED → createOrder0.</p>
+<p>phase C(stop.sql 뒤): F3b ensure#2 → BLOCKED ORDERS_CLOSED. createOrder 누계 1. status와 binding read FOUND r0은 유지된다. 모든 주문의 getter/status 조회가 가능하다.</p>
+<div data-revision="12"><p>bigint는 문자열(row_version·binding_version), HTTP ACL, commit 응답 유실을 실제 client/DB 증거로만 판정한다.
+D2 phase-set 판정표. run.py finalize와 test_run.py가 구현 전에 이 표를 고정한다. 값은 원본 RPC 정적 판독에서 나온 기대값이며 실행 전에는 미측정이다.
+판정 규칙</p>
+<div class="table-scroll"><table><thead><tr><th>구간</th><th>productDigest</th><th>controlDigest</th></tr></thead><tbody><tr><td>D1 phase A/B/C</td><td>baseline===after</td><td>baseline===after</td></tr><tr><td>rotate.sql 전후(D1·D2)</td><td>같음</td><td>허용 diff만: settings의 verification_binding_id·paypal scope 필드, 새 binding row 1</td></tr><tr><td>stop.sql 전후(D1·D2)</td><td>같음</td><td>허용 diff만: settings mode·allow_new_orders·allow_charge, 지정 actor C의 deleted_at</td></tr><tr><td>D2 phase A</td><td>아래 주문별 표와 정확히 일치. 표 밖 주문(D1 seed·ORD-ACL·비소유 주문)은 행 단위 불변</td><td>baseline===after</td></tr><tr><td>D2 phase B/C</td><td>baseline===after(F7b·F3b는 쓰기 없음)</td><td>baseline===after</td></tr></tbody></table></div>
+<p>D2 phase A 주문별 기대 사후 상태. 사전 상태는 seed(context0·link0·observation0·attempt0·NOT_SUBMITTED·NOT_INTAKE·row_version r0)다.</p>
+<div class="table-scroll"><table><thead><tr><th>주문</th><th>context</th><th>link</th><th>observation(source/kind/outcome)</th><th>attempt</th><th>payment / settlement</th><th>row_version</th><th>intake·inbox·receipt</th></tr></thead><tbody><tr><td>F1</td><td>1</td><td>ORDER1·CAPTURE1</td><td>CREATE_RESPONSE/ORDER/RECORDED, SUBMIT_RESPONSE/CAPTURE/RECORDED</td><td>1, intent 기록</td><td>SUBMISSION_UNKNOWN / INTAKE_PENDING</td><td>r0+3(claim·intent·receive)</td><td>각 1</td></tr><tr><td>F2</td><td>1</td><td>ORDER1</td><td>CREATE_RESPONSE/ORDER/RECORDED 1</td><td>0</td><td>NOT_SUBMITTED / NOT_INTAKE</td><td>r0</td><td>0</td></tr><tr><td>F3</td><td>1</td><td>0</td><td>0</td><td>0</td><td>NOT_SUBMITTED / NOT_INTAKE</td><td>r0</td><td>0</td></tr><tr><td>F4a</td><td>1</td><td>ORDER1</td><td>ORDER/RECORDED 1(두 body 동일 조건)</td><td>0</td><td>NOT_SUBMITTED / NOT_INTAKE</td><td>r0</td><td>0</td></tr><tr><td>F4b</td><td>1</td><td>ORDER1(READY ID)</td><td>ORDER/RECORDED 1 + ORDER/REVIEW_REQUIRED(IDENTITY_ALREADY_BOUND) 1</td><td>0</td><td>NOT_SUBMITTED / NOT_INTAKE</td><td>r0</td><td>0</td></tr><tr><td>F5</td><td>1</td><td>ORDER1</td><td>ORDER/RECORDED 1</td><td>1, intent 기록</td><td>SUBMISSION_UNKNOWN / NOT_INTAKE</td><td>r0+2</td><td>0</td></tr><tr><td>F5′</td><td>1</td><td>ORDER1</td><td>ORDER/RECORDED 1</td><td>1, intent 기록</td><td>SUBMISSION_UNKNOWN / NOT_INTAKE</td><td>r0+2</td><td>0</td></tr><tr><td>F6</td><td>1</td><td>0</td><td>CREATE_RESPONSE/ORDER/REVIEW_REQUIRED 1(reason 미측정, 예상 PROVIDER_SCOPE_MISMATCH)</td><td>0</td><td>NOT_SUBMITTED / NOT_INTAKE</td><td>r0</td><td>0</td></tr><tr><td>F7</td><td>1</td><td>0</td><td>0</td><td>0</td><td>NOT_SUBMITTED / NOT_INTAKE</td><td>r0</td><td>0</td></tr><tr><td>L1-CLAIM</td><td>1</td><td>ORDER1</td><td>ORDER/RECORDED 1</td><td>1, intent 없음</td><td>NOT_SUBMITTED / NOT_INTAKE</td><td>r0+1</td><td>0</td></tr><tr><td>N-A·N-B·N-C</td><td>실제 행 기록(OBSERVED_OPEN)</td><td>기록</td><td>기록</td><td>기록</td><td>기록</td><td>기록</td><td>각 0(안전 불변식)</td></tr><tr><td>ORD-ACL</td><td>0</td><td>0</td><td>0</td><td>0</td><td>NOT_SUBMITTED / NOT_INTAKE</td><td>r0</td><td>0</td></tr></tbody></table></div>
+<p>전역 조건: 재무31 중 receipts·wallet_provider_event_inbox만 각 1건이며 F1에 묶여야 한다(receipt verification_data.order_id=F1, inbox idempotency_key=<code>web-payment.purchase.v2:&lt;F1&gt;</code>). 나머지 재무29·full6은 0이다. wallet grant·credit·debit·star lot 행은 0이다.
+N-* 조건: 결과 값을 정답으로 고정하지 않는다. 다만 쓰기는 그 주문 자신의 orders·provider_contexts·provider_links·observations·charge_attempts 행으로 한정한다. intake·inbox·receipt 0과 captureOrder 정확히 1을 요구한다. N-C의 receive0은 orchestrator.ts:375가 receivePurchase(:384) 전에 REVIEW를 반환하는 정적 판독에 근거한다.
+row_version은 위 정확 증분만 허용한다. 임의 단조 증가는 허용하지 않는다(claim +1, intent +1, receive +1, prepare·bind·record·getter·binding read·entry 0).
+F5의 intent commit은 observer의 attempt intent 기록으로만 판정한다. 기록이 없으면 commit 응답 유실 시나리오가 성립하지 않으므로 setup/env 실패로 분류한다. F5 재capture의 fake GET은 capture 없는 APPROVED를, F5′의 fake GET은 실패를 돌려준다(표의 r0+2·intake0 전제).</p></div>
+<p>TDD·명령</p>
+<div data-revision="14"><p>test_run d2 반례를 먼저 작성 → RED → 구현 → GREEN. 반례: 9 RPC 외 거부, direct GET 예외의 정확 형태, partial 결과 거부, 그리고 판정표 위반 각각의 실패(주문별 사후 상태 1필드 불일치, row_version이 기대 증분보다 크거나 작은 행, 표 밖 주문의 행 변화, receipts·inbox가 F1 외 주문에 생긴 경우, 재무29·full6 비0, N-* 주문의 intake 존재 또는 captureOrder≠1, N-* 주문이 자기 행 밖을 바꾼 경우, phase B/C productDigest 변화, control diff allowlist 밖 변경, control 단계 전후 productDigest 변화). d1 판정 반례는 그대로 통과 조건을 유지한다.</p></div>
+<p>HTTP 실행은 측정이다. 첫 실패는 setup/env/contract/behavior로 분류한다. 제품 결함이 나오면 해당 Task(A/B/C)로 되돌려 반례·수정·리뷰를 거친다. harness 기대값을 완화하지 않는다.</p>
+<p><code>/opt/homebrew/bin/python3 -I -B scripts/payment/provider-rpc-http/test_run.py</code></p>
+<p><code>... run.py --phase-set d2 --postgres-image postgres:15.8 --run-label u2-d2-pg15-v1 ...</code>(D1과 같은 인수, web-d2 manifest). PG17.6은 새 label로 실행한다.</p>
+<p>U0-B 선택 Low/Info 처리</p>
+<ul>
+<li data-revision="20"><p>Low1은 위 L1a(tuple 불일치 3종)·L1-CLAIM·L1b가 소유한다. claim만 있는 class와 intent 뒤 class를 각각 별도 주문으로 측정한다. F1 intake와 F5 intent를 두 개의 독립 class로 세지 않는다. U3 조합 전에 필수다. 원본 native SQL 시험은 바꾸지 않는다.</p></li>
+<li data-revision="3"><p>Info1(REVIEW 식 parity)은 F6 측정 2·3(gate 직접·claim 직접)이 같은 저장 REVIEW에서 각각 REVIEW_REQUIRED를 반환하는지로 HTTP 한 경로를 관측한다. 소비자 ensure의 fast refusal(측정 1)은 entry를 거치지 않으므로 parity로 세지 않는다. 향후 D 변경 때의 drift 대조는 리뷰 항목으로 남긴다.</p></li>
+<li>Info2(시험 helper가 즉시 검증 뒤 원본 FK2의 DEFERRED 모드만 복원하고, 다른 처음부터 지연되는 제약은 IMMEDIATE로 남음)는 native 시험 전용이다. U2는 바꾸거나 실행하지 않는다. 이월한다.</li>
+<li>Info3(entry_not_after offset)은 B3/B4, C5/C6이 소유한다.</li>
+<li>Info4(diagnosticExactPriorMatch=ERROR 원문+CONTEXT 함수/행, pg_temp_N 정규화)는 U2에 native 진단이 없다. 이월한다.</li>
+</ul></section>
+<section id="part-6"><h2>6. 열린 관문·RF5·수용·첫 구현 범위</h2>
+<h3>1. U1 Low3·영속성·M1(미해결, 숨기지 않음)</h3>
+<ul>
+<li>D2 N-A/B/C는 관측만 한다. 판정 소유자는 U3 진입 관문(production 조합 전)이다. 승인 설계 §2 &quot;확인하지 못한 거래는 적립하지 않고 운영 확인 상태로 보존&quot;과 §5 &quot;주기 대사&quot;가 기준이다. 새 DB sticky reason/table과 T6 확장은 만들지 않는다.</li>
+<li>N-A 선택지: (a) ORDER 튜플(id/금액/통화/merchant/reference)이 일치하고 상태만 미지일 때 일치 CAPTURE도 기존 record RPC로 record-only 보존(W 전용, 별도 Task U2-E). (b) 현행 local REVIEW 유지.</li>
+<li>N-C 선택지: (a) 미지 ORDER 상태를 기존 record로 기록해서 DB의 기존 UNRECOGNIZED_STATUS REVIEW를 얻는다(W 전용 U2-E, D2에서 실제 결과 측정). (b) 현행 유지.</li>
+<li data-revision="16"><p>N-B(intent AUTHORIZE + 일치 CAPTURE): 현재 소비자는 INTENT 불일치에서 ORDER 사실만 기록한다. ORDER link가 이미 있으므로 이 observation은 RECORDED이고 sticky REVIEW가 아니다. 그래서 getter.review_required=false로 남고, 후속 정상 GET이 bind→receive까지 갈 수 있다(정적 판독, 미측정). INTENT 전용 DB 사유는 없고 만들지 않는다. 선택지:
+(a) U2-E-B(W 전용, 기존 ABI). 조건: ORDER 튜플(parent=ORDER link external_id·order·scope·금액·통화·reference)이 일치하고, 실제 CAPTURE ID와 알려진 status가 있고, 아직 CAPTURE link가 없다. 이때만 그 실제 CAPTURE 사실을 기존 recordObservation(p_bind=false)으로 보존한다. 기존 DB 판정은 IDENTITY_NOT_BOUND REVIEW이며 getter·entry·claim의 review 식에 잡힌다. intent 사유를 꾸미거나 다른 사유로 바꾸지 않는다. 한계: CAPTURE가 없는 INTENT 불일치, CAPTURE ID·status가 없는 경우, 같은 ID의 CAPTURE link가 이미 있는 경우(RECORDED)는 표현하지 못한다. 모든 INTENT 충돌이 기존 ABI로 표현된다고 주장하지 않는다. 후속 정상 GET 주의: 현재 captureObserved는 reviewRequired 확인 전에 bind를 호출하므로, REVIEW 유지·receive0이어도 후속 GET이 CAPTURE link를 만들 수 있다. 채택 시 검증(D2 N-B 행을 OBSERVED_OPEN에서 단언으로 바꿈): CAPTURE observation outcome=REVIEW_REQUIRED·reason=IDENTITY_NOT_BOUND·evidence가 fake 응답의 실제 값과 일치, record 직후 CAPTURE link0, intake·inbox·receipt 0, getter.review_required=true, 후속 정상 GET 재capture → REVIEW_REQUIRED·receive0·captureOrder 누계1(추가 POST0), 후속 GET 뒤 CAPTURE link 수는 실제 값을 기록만 한다. 범위: 선택 단위 U2-E이며 첫 A+D1과 D2에 포함하지 않는다. 채택하면 C 뒤 별도 커밋으로 orchestrator.ts·web-payment-adapters.test.ts를 다시 수정한다(신규0·D0, 수정 파일 집합 2는 같음, 리뷰 관문 1개 추가). 기록 RPC 실패·crash 영속성은 해결하지 못하며 아래 U3 관문에 남는다.
+(b) 현행 local REVIEW 유지 + 후속 정상 GET intake 위험 수용.
+(c) 별도 D 계약(U2 밖). 기존 ABI로 (a)가 되는 범위에서는 (c)를 강제하지 않는다.
+(a)/(b)는 승인 설계가 직접 답하지 않는 위험 선택이므로 U3 진입 때 사용자 결정이 필요하다. 이 Task는 U2-E를 구현했거나 N-B를 해결했다고 쓰지 않는다.</p></li>
+<li>기록 실패의 프로세스 영속성: U2로 닫을 수 없다. §5의 D 소유 주기 대사(T6/D 범위)가 생길 때까지 U3 관문을 닫아 둔다. 호출 내 재시도는 crash를 해결하지 못해 권고하지 않는다.</li>
+<li>범위 밖: M1 실제 sandbox strict merchant/reference 표현, account_id 운영 의미, credential 등록, 운영 minor 차이, legacy/UI(U3/U4), PortOne403, T5 전체/T6, 운영 적용·배포·개방. 15분·drain·scope 등 이미 승인된 결정은 다시 묻지 않는다.</li>
+</ul>
+<h3>2. Review Focus 5(가능성 높은 순 → 소유 시험)</h3>
+<ul>
+<li>RF1 entry_not_after가 같은 순간의 다른 offset/정밀도이면 수용하고, 다른 순간·offset 없음이면 거부해야 한다 → B3/B4, C5/C6.</li>
+<li>RF2 ORDER_LINKED인데 재조회 owner에 provider ID가 없거나 context가 다르거나 실패하면 create0·UNAVAILABLE ENTRY → C8.</li>
+<li>RF3 binding read 타입 drift(숫자 version, int8 초과, PORTONE FOUND, 추가 key)는 resolver 전에 닫힘 → A4, 기존 adapter :452.</li>
+<li data-revision="23"><p>RF4 intent commit 응답 유실(DB commit, client 미확인)에서 capture POST0, 이후 GET만, claim LOOKUP_ONLY, 주문 상태는 attempt intent 기록·SUBMISSION_UNKNOWN·row_version r0+2여야 한다 → D2 F5와 phase A 판정표.</p></li>
+<li>RF5 VOLATILE entry GET을 직접 PostgREST에 보내면 non-2xx이고 무변경이어야 한다. 2xx는 STOP finding이다. proxy GET은 stable2만 허용한다 → D2 ACL.</li>
+</ul>
+<h3>3. 수용·source·정리</h3>
+<ul>
+<li>A/B/C: 대상 PASS. 523 이름 집합의 실행 전후 동일(root가 reporter 이름 목록 비교). tsc exit0. 결제·전체 회귀는 기존 expectedfail2/skip1만 허용한다. W69 보호 중 수정 허용은 C의 2파일뿐이다. 신규 파일은 계획 목록과 일치해야 한다. D97·package·lock·types 불변.</li>
+<li data-revision="11"><p>D1/D2 receipt passed 공통 조건: 모든 phase exit0과 고유 marker, 정확 count, HTTP/native parity, absence(ledger CID 3+network 1), sourcesUnchanged(W·D97·installed4), artifactsUnchanged, pyc cache 불변, unknownCreation=[], originalError null. 상태 판정은 §5 D2 phase-set 판정표를 따른다. digest 검사는 없애지 않는다. PG15/17 각각 새 label이 필요하다.</p></li>
+<li>정리는 factory ledger에 기록된 정확 CID·network만 대상으로 한다. 공유 Supabase stack·게시 port는 쓰지 않는다. uncertain phase이면 자원을 보존하고 보고한다. 이름/label 추측 삭제는 0이다.</li>
+<li>옛 harness 17파일·REUSE4 hash 불변을 확인한다. 문서 HTML 작성·커밋은 root가 한다.</li>
+</ul>
+<h3>4. 첫 범위(대규모 변경 규칙상 사용자 확인 대상): U2-A + U2-D1</h3>
+<ul>
+<li>신규11: <code>lib/payment/paypal-charge/binding-source.ts</code>, <code>__tests__/lib/payment/paypal-charge-binding-source.test.ts</code>, <code>scripts/payment/provider-rpc-http/{run.py,test_run.py,guard.cjs,bundle.mjs,seed.sql,observer.sql,rotate.sql,stop.sql}</code>, <code>__tests__/integration/payment/provider-binding-postgrest.http.ts</code>.</li>
+<li>수정0, D 0. 실행: vitest·tsc·회귀, PG15.8/17.6+PostgREST14.8 disposable 실행(D1). provider·credential·production factory/resolver·route/UI는 0이다.</li>
+<li data-revision="18"><p>다음 단위: B → C → D2(신규3, 수정2). 각 단위마다 리뷰 관문을 둔다. 선택 U2-E는 U3 진입 결정에서 사용자가 고를 때만 C 뒤 별도 단위로 계획한다. 첫 범위나 D2에 자동으로 넣지 않는다.</p></li>
+</ul>
+<h3>5. 미측정(root 측정 전에는 주장 금지)</h3>
+<div data-revision="24"><p>VOLATILE GET의 실제 status/code. anon/authenticated 실제 HTTP status. jsonb timestamptz 직렬화 문자열과 PostgREST session TimeZone. bundle metafile 실제 input 집합. 현재 D selected 의존성 개수/sha. B3 fixture 도달성. F4 setup·측정 결과와 barrier 도달, F4b 승자. F6 REVIEW reason과 측정 2·3 결과. L1-CLAIM setup 상태. D2 주문별 사후 상태·row_version 증분(정적 판독 기대값). F5 intent commit 여부. SDK 기본 retry의 실제 시도(source 예상 4). N-A/N-B/N-C 실제 기록 행. U2-E 채택 시 결과(후속 GET 뒤 CAPTURE link 수 포함). 운영 minor 동등성. PayPal 멱등 보존 기간.</p></div>
+<h3>6. 읽은 범위·한계</h3>
+<p>전문 읽음: requirements, W-AGENTS, D-CLAUDE, writing-plans/Supabase/STE SKILL, provider-entry-plan·binding-plan 결과, orchestrator.ts, repository.ts, entry migration 본문, charge-context run.py(1-897), pair_fixture.py 400-604, settlement-fixture.test.py main, setup_db 36-95, guard.cjs, charge-context bundle.mjs, db-review-closeout.</p>
+<p>부분 읽음: 승인 설계 §2–8(§1·§9–10 미독), roadmap(U2/U3 줄), binding migration은 grep, adapters 시험 1-489·1130-1329(490-1129와 1330 이후 미독), repository 시험 1-80, postgrest dist 일부, order-http run/bundle 일부, charge-context http.ts/seed는 grep.</p>
+<p>미독: protocol.ts·transport.ts 본문, D native test SQL·fixture SQL·Python helper 본문, functions/securing-api 본문, orders-postgrest.http.ts, types/supabase.ts, GLOBAL-policy.md 파일(세션 내 rev2 본문으로 대체), db-final-validation 80행 이후.</p>
+<p>공식 근거: <a href="https://supabase.com/changelog.md">https://supabase.com/changelog.md</a> 관련 breaking change = CLI v3 local 기본(U2는 CLI/DDL 0), 45329 표 자동 노출 중단(새 표 0, 함수 EXECUTE는 D가 명시 grant), postgres-15-19-17-11(minor 차이, PG15.8/17.6은 운영 동등 증거 아님), PostgREST v14 무breaking. <a href="https://supabase.com/docs/reference/javascript/rpc">https://supabase.com/docs/reference/javascript/rpc</a> (<code>{get:true}</code>), <a href="https://supabase.com/docs/reference/javascript/using-modifiers-retry">https://supabase.com/docs/reference/javascript/using-modifiers-retry</a> <a href="https://supabase.com/docs/reference/javascript/using-modifiers-abortsignal">https://supabase.com/docs/reference/javascript/using-modifiers-abortsignal</a> <a href="https://supabase.com/docs/guides/database/functions">https://supabase.com/docs/guides/database/functions</a> <a href="https://supabase.com/docs/guides/api/securing-your-api">https://supabase.com/docs/guides/api/securing-your-api</a> 일반 upgrade·advisor는 하지 않았다.</p></section>
+<section id="plan-review-result"><h2>7. 독립 계획 검토·수정·1회 재검증 결과</h2>
+<p><strong>SPEC PASS / QUALITY PASS · 최초 Medium5·Low2 모두 fixed · 신규 차단 지적0.</strong> 이 판정은 읽기 전용 정적 계획 검토다. U2 구현 승인·실제 HTTP 통과·U3 production 조합·운영 개방 승인이 아니다.</p>
+<p>Opus5.5/high 계획 <code>task_57abb7c75e07 / ctx_cec252c87d91</code> 뒤 Sol/high 독립 검토 <code>task_518e740bf230 / ctx_0f0d592162f8</code>는 수정을 요구했다. Opus5.5/high 보완 <code>task_bd1095dda93c / ctx_b78a52558a65</code>을 조정자가 24개 교체로 반영했고, 원 Sol/high 계열 <code>task_0f1a039c6dac / ctx_72ac53f26aeb</code>이 한 번 재검증했다. 각 worker_done은 보고 전달의 정산이며 판정과 구분한다.</p>
+<p>최초 후보 SHA256은 <code>a1dddf751def42cdb1f7f3d36ad71d0cd3041f18eb3e13da9ca6e85dd29e65d5</code>, 재검증 후보는 <code>01f4807349d0ac4eb8603c0dc72ccf26a2c896631fef22d119b4a79fba8da913</code>이다. 재검증 뒤에는 이 결과 절과 첫 상태 문구만 추가·갱신했다. 계약·사례·판정표·첫 범위는 바꾸지 않았다.</p>
+<table><thead><tr><th>최초 지적</th><th>수정 내용 · 재검증에서 모두 fixed</th></tr></thead><tbody><tr><td>R1 · Medium</td><td>F4 동시 ensure 전에 실제 prepare·getter로 기존 context를 확정한다. setup과 replay2·entry2·create barrier2의 측정 수를 분리했다.</td></tr><tr><td>R2 · Medium</td><td>저장 REVIEW 뒤 ensure의 fast refusal(entry0)을 보존하고 직접 entry·claim 호출로 같은 REVIEW의 거부를 측정한다.</td></tr><tr><td>R3 · Medium</td><td>소비자 UUID CONFIG와 raw null NOT_FOUND를 분리했다. 소비자6·raw15·ACL4, phase별 실제 PostgREST25건과 합성 retry를 구분한다.</td></tr><tr><td>R4 · Medium</td><td>D1 읽기·control 불변과 D2 제품 RPC의 정확한 주문별 상태·row_version 변화, 비소유 행 불변을 분리했다.</td></tr><tr><td>R5 · Medium</td><td>실제 CAPTURE를 기존 ABI로 record-only 보존하는 제한된 U2-E-B 선택지를 추가했다. 후속 GET의 bind-before-review와 기록 실패·crash 한계도 유지한다.</td></tr><tr><td>L1 · Low</td><td>linked tuple 불일치 3종, 실제 claim만 있는 주문, intent 뒤 주문을 각각 구분했다.</td></tr><tr><td>L2 · Low</td><td>C6에 entry 호출·위치 단언을 추가했다. 실제 첫 실패를 측정한 사례만 행동 RED로 센다.</td></tr></tbody></table>
+<p>리뷰어는 W69·D97 미러·설치 SDK4·참조11의 181개와 SDK 미러4의 bytes 일치를 확인했다. 이는 의미상 전체 감사가 아니다. requirements·before/current/diff·정책/스킬·관련 승인 설계·core·binding read/entry SQL과 observation/charge/intake 관련 함수를 대조했다. adapter·protocol·옛 harness·SDK는 관련 위치를 읽었으며 나머지 제품·migration·시험·공식 문서 전체와 과거 raw receipt/log는 미독 또는 부분독이다. 큰 native 결과 출력이 일부 잘렸으므로 전체 원문 검토로 주장하지 않는다.</p>
+<p>절차 이탈도 기록한다. 첫 lifecycle의 잘못된 <code>--from</code>은 <code>--terminal</code>로 정정한 뒤 성공했고 그 뒤 검토했다. 작업자는 CLI 선택용 <code>ORCA_CLI_COMMAND</code>·<code>ORCA_DEV_REPO_ROOT</code> 이름을 printenv로 한 번 조회했다고 보고했다(둘 다 미설정). 이는 Task의 env 금지와 달랐다. 실제 환경파일·제품 env·자격증명·계정·사용량 조회는 하지 않았다고 구분했다. 모델·effort는 조정자가 관측한 실제 CLI 화면, 정책 로딩과 lifecycle은 작업자의 별도 관측이며 requested/effective 값으로 대체하지 않는다.</p>
+<p>실제 U2 HTTP ACL/status·entry GET 거부·timestamp 직렬화·SDK retry 횟수·bundle metafile·현재 dependency SQL 집합·B3 fixture·F4 barrier/승자·F6 직접 gate/claim·D2 사후 상태/버전·F5 commit/정리 receipt는 아직 미측정이다. 구현 후 조정자가 측정하고 예상과 다르면 원인을 분류한다. 기대값을 완화해 통과로 바꾸지 않는다.</p>
+<p><strong>다음 확인 대상:</strong> 첫 A+D1 신규11파일·수정0·D0과 vitest/tsc/회귀·PG15.8/17.6+PostgREST14.8 격리 실행이다. 상세 경로는6절에 있다. 공통 AGENTS의 “대규모 변경(여러 파일에 걸친 구조 변경·마이그레이션·삭제 등) 전에는 계획을 짧게 제시하고 확인받는다” 규칙에 따라 사용자의 구체 범위 확인 뒤 구현한다. 후속 B/C/D2·선택 U2-E·실 provider/credential·운영 적용·배포·개방은 이 첫 범위에 포함하지 않는다.</p>
+</section>
+</main></body></html>
