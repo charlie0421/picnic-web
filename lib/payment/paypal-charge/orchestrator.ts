@@ -4,6 +4,7 @@ import { assessPayPalOrder, buildPayPalEvidence, minorToPayPalValue, type Expect
   type ObservedPayPalCapture, type ObservedPayPalOrder, type PayPalEnvironment, type PayPalEvidence, type PayPalOrderAssessment, type PayPalScope } from './protocol';
 import type { ChargeCommand, ChargeContext, ChargeLease, PreparedProviderContext, WebPaymentChargeRepository } from './repository';
 import type { PayPalHttpResult, PayPalTransport } from './transport';
+import type { ProviderEntryDecision, ProviderEntryGate } from './provider-entry';
 
 export type ProviderChargeBinding = { orderId: string; contextId: string; provider: 'PAYPAL'; environment: PayPalEnvironment;
   billingCountry: string; scope: PayPalScope; bindingId: string; bindingVersion: string; bindingHash: string;
@@ -18,7 +19,7 @@ export interface PayPalCredentialResolver {
     Promise<{ clientId: string; clientSecret: string } | null>;
 }
 export const closedPayPalCredentialResolver: PayPalCredentialResolver = { async resolve() { return null; } };
-type Stage = 'CONTEXT' | 'PREPARE' | 'BINDING' | 'CREDENTIAL' | 'TOKEN' | 'CREATE' | 'LOOKUP' | 'CLAIM' | 'INTENT' | 'SUBMIT' | 'OBSERVE' | 'INTAKE';
+type Stage = 'CONTEXT' | 'PREPARE' | 'BINDING' | 'CREDENTIAL' | 'TOKEN' | 'ENTRY' | 'CREATE' | 'LOOKUP' | 'CLAIM' | 'INTENT' | 'SUBMIT' | 'OBSERVE' | 'INTAKE';
 export type PayPalChargeOutcome =
   | { kind: 'PROVIDER_ORDER_READY'; providerOrderId: string; replayed: boolean }
   | { kind: 'INTAKE_PENDING'; replayed: boolean }
@@ -27,7 +28,7 @@ export type PayPalChargeOutcome =
   | { kind: 'NOT_APPROVED' | 'ORDER_VOIDED' | 'IN_PROGRESS' | 'CAPTURE_PENDING' | 'CAPTURE_FAILED' | 'SUBMISSION_UNKNOWN'
       | 'NO_PROVIDER_ORDER' | 'REVIEW_REQUIRED' | 'NOT_FOUND' };
 export type PayPalChargeDeps = { repository: WebPaymentChargeRepository; bindings: ChargeBindingSource;
-  credentials: PayPalCredentialResolver; transport: PayPalTransport; nowMs: () => number;
+  credentials: PayPalCredentialResolver; transport: PayPalTransport; entry: ProviderEntryGate; nowMs: () => number;
   log: (entry: { stage: Stage; level: 'warn' | 'error'; code: LogEventCode; orderId: string; httpStatus?: number }) => void };
 export type PayPalChargeBrowserDto = { contractVersion: 'web-payment-charge.v1'; orderId: string; state: PayPalChargeOutcome['kind'];
   newOrderAllowed: false; providerOrderId?: string; paymentState?: ChargeContext['paymentState'];
@@ -44,6 +45,7 @@ const SCOPE_VALUE = /^[A-Za-z0-9._:-]{1,200}$/;
 const EVENTS = {
   CONTEXT: 'payment.paypal.charge.context.failed', PREPARE: 'payment.paypal.charge.context.failed', BINDING: 'payment.paypal.charge.credential.unavailable',
   CREDENTIAL: 'payment.paypal.charge.credential.unavailable', TOKEN: 'payment.paypal.charge.credential.unavailable',
+  ENTRY: 'payment.paypal.charge.context.failed',
   CREATE: 'payment.paypal.charge.create.failed', LOOKUP: 'payment.paypal.charge.lookup.failed', CLAIM: 'payment.paypal.charge.claim.blocked',
   INTENT: 'payment.paypal.charge.intent.failed', SUBMIT: 'payment.paypal.charge.submit.unknown',
   OBSERVE: 'payment.paypal.charge.observe.review', INTAKE: 'payment.paypal.charge.intake.failed',
@@ -465,26 +467,49 @@ export async function ensurePayPalProviderOrder(d: PayPalChargeDeps, i: Input): 
   if (prepared.kind === 'REFUSED') { log(d, 'PREPARE', i.orderId); return { kind: 'BLOCKED', reason: prepared.code }; }
   if (!samePrepared(c, prepared)) return unavailable(d, 'PREPARE', i.orderId);
   const auth = await authorize(d, i, c, prepared); if ('outcome' in auth) return auth.outcome;
-  if (!before(d, c.quoteExpiresAt)) { log(d, 'PREPARE', i.orderId); return { kind: 'BLOCKED', reason: 'QUOTE_EXPIRED' }; }
+  let decision: ProviderEntryDecision;
+  try { decision = await d.entry.authorizeProviderEntry({ actorUserId: i.actorUserId, orderId: i.orderId,
+    contextId: prepared.contextId, createRequestKey: prepared.createRequestKey, bindingHash: auth.authorized.binding.bindingHash }); }
+  catch { return unavailable(d, 'ENTRY', i.orderId); }
+  if (decision.kind === 'BLOCKED') {
+    log(d, 'ENTRY', i.orderId);
+    return decision.reason === 'REVIEW_REQUIRED' ? { kind: 'REVIEW_REQUIRED' } : { kind: 'BLOCKED', reason: decision.reason };
+  }
+  if (decision.kind === 'ORDER_LINKED') {
+    const refreshed = await owner({ repository: d.repository }, i);
+    if ('context' in refreshed && refreshed.context.contextId === prepared.contextId && refreshed.context.providerOrderId !== null) {
+      return { kind: 'PROVIDER_ORDER_READY', providerOrderId: refreshed.context.providerOrderId, replayed: true };
+    }
+    return unavailable(d, 'ENTRY', i.orderId);
+  }
+  if (decision.kind !== 'AUTHORIZED') return unavailable(d, 'ENTRY', i.orderId);
+  const deadline = Date.parse(decision.entryNotAfter);
+  if (decision.orderId !== i.orderId || decision.orderId !== c.orderId || decision.contextId !== prepared.contextId
+    || decision.createRequestKey !== prepared.createRequestKey || decision.quoteHash !== c.quoteHash
+    || decision.bindingHash !== auth.authorized.binding.bindingHash || !Number.isFinite(deadline)
+    || deadline !== Date.parse(c.quoteExpiresAt)) return unavailable(d, 'ENTRY', i.orderId);
+  const { orderId, contextId, createRequestKey, quoteHash, entryNotAfter } = decision;
+  const enteredInput = { actorUserId: i.actorUserId, orderId };
+  const contextual = { ...c, orderId, contextId, quoteHash };
+  if (!before(d, entryNotAfter)) { log(d, 'PREPARE', orderId); return { kind: 'BLOCKED', reason: 'QUOTE_EXPIRED' }; }
   let response;
   try { response = await d.transport.createOrder({ environment: auth.authorized.binding.environment, accessToken: auth.authorized.accessToken,
-    requestKey: prepared.createRequestKey, orderId: i.orderId, amountMinor: c.amountMinor }); }
-  catch { log(d, 'CREATE', i.orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
-  if (!successful(response) || response.body === null) { log(d, 'CREATE', i.orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
-  const contextual = { ...c, contextId: prepared.contextId };
-  const assessment = assessPayPalOrder(response.body, expected(c, auth.authorized.binding, null));
-  if (assessment.kind === 'MISMATCH') return mismatch(d, i, contextual, auth.authorized, assessment, 'CREATE_RESPONSE', response.body);
+    requestKey: createRequestKey, orderId, amountMinor: c.amountMinor }); }
+  catch { log(d, 'CREATE', orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
+  if (!successful(response) || response.body === null) { log(d, 'CREATE', orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
+  const assessment = assessPayPalOrder(response.body, expected(contextual, auth.authorized.binding, null));
+  if (assessment.kind === 'MISMATCH') return mismatch(d, enteredInput, contextual, auth.authorized, assessment, 'CREATE_RESPONSE', response.body);
   if (assessment.status === 'UNRECOGNIZED') {
-    const actual = evidence(contextual, i, auth.authorized.binding, assessment.observed, 'CREATE_RESPONSE');
-    if (actual) { try { await d.repository.recordObservation(prepared.contextId, actual); } catch { /* Local REVIEW remains closed. */ } }
-    log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
+    const actual = evidence(contextual, enteredInput, auth.authorized.binding, assessment.observed, 'CREATE_RESPONSE');
+    if (actual) { try { await d.repository.recordObservation(contextId, actual); } catch { /* Local REVIEW remains closed. */ } }
+    log(d, 'OBSERVE', orderId); return { kind: 'REVIEW_REQUIRED' };
   }
-  const e = evidence(contextual, i, auth.authorized.binding, assessment.observed, 'CREATE_RESPONSE');
-  if (!e) return unavailable(d, 'OBSERVE', i.orderId);
+  const e = evidence(contextual, enteredInput, auth.authorized.binding, assessment.observed, 'CREATE_RESPONSE');
+  if (!e) return unavailable(d, 'OBSERVE', orderId);
   let bound;
-  try { bound = await d.repository.bindProviderIdentity(prepared.contextId, e); }
-  catch { return unavailable(d, 'OBSERVE', i.orderId); }
-  if (bound.kind === 'REVIEW_REQUIRED') { log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' }; }
+  try { bound = await d.repository.bindProviderIdentity(contextId, e); }
+  catch { return unavailable(d, 'OBSERVE', orderId); }
+  if (bound.kind === 'REVIEW_REQUIRED') { log(d, 'OBSERVE', orderId); return { kind: 'REVIEW_REQUIRED' }; }
   return { kind: 'PROVIDER_ORDER_READY', providerOrderId: assessment.providerOrderId, replayed: prepared.replayed };
 }
 

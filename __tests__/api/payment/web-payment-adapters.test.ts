@@ -291,6 +291,9 @@ function boundaries(overrides: Record<string, RpcReply[]> = {}) {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }, global: { fetch: rpcFetch },
   });
   const bindings = { getProviderBinding: vi.fn().mockImplementation(async () => structuredClone(BINDING)) };
+  const AUTHORIZED = { kind: 'AUTHORIZED', orderId: ORDER, contextId: CONTEXT, createRequestKey: CREATE_KEY,
+    quoteHash: HASH, bindingHash: BINDING.bindingHash, entryNotAfter: '2026-11-14T00:15:00.123456+00:00' };
+  const entry = { authorizeProviderEntry: vi.fn().mockImplementation(async () => structuredClone(AUTHORIZED)) };
   const credentials = { resolve: vi.fn().mockImplementation(async () =>
     ({ clientId: 'synthetic-client', clientSecret: 'Q7pPriv-secret' })) };
   const transport = {
@@ -305,12 +308,13 @@ function boundaries(overrides: Record<string, RpcReply[]> = {}) {
   }
   const log = vi.fn();
   const deps = { repository: createWebPaymentChargeRepository(client),
+    entry: { authorizeProviderEntry: traceCall('entry', entry.authorizeProviderEntry) },
     bindings: { getProviderBinding: traceCall('binding', bindings.getProviderBinding) },
     credentials: { resolve: traceCall('resolve', credentials.resolve) },
     transport: { requestToken: traceCall('token', transport.requestToken), createOrder: traceCall('create', transport.createOrder),
       getOrder: traceCall('get', transport.getOrder), captureOrder: traceCall('capture', transport.captureOrder) },
     nowMs: () => NOW, log };
-  return { deps, script, trail, calls, rpcFetch, bindings, credentials, transport, log };
+  return { deps, script, trail, calls, rpcFetch, bindings, entry, credentials, transport, log };
 }
 
 function rpcCalls(h: ReturnType<typeof boundaries>, name: string) { return h.calls.filter(call => call.name === name); }
@@ -319,6 +323,7 @@ function expectNoSubmission(h: ReturnType<typeof boundaries>) {
   expect(rpcCalls(h, RPC.intent)).toHaveLength(0); expect(rpcCalls(h, RPC.receive)).toHaveLength(0);
 }
 function expectNoProvider(h: ReturnType<typeof boundaries>) {
+  expect(h.entry.authorizeProviderEntry).not.toHaveBeenCalled();
   expect(h.bindings.getProviderBinding).not.toHaveBeenCalled(); expect(h.credentials.resolve).not.toHaveBeenCalled();
   expect(h.transport.requestToken).not.toHaveBeenCalled(); expect(h.transport.getOrder).not.toHaveBeenCalled();
   expectNoSubmission(h);
@@ -341,7 +346,7 @@ describe('server PayPal CREATE authority', () => {
     const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
     const result = await ensurePayPalProviderOrder(h.deps, input);
     expect(result).toEqual({ kind: 'PROVIDER_ORDER_READY', providerOrderId: PROVIDER_ORDER, replayed: true });
-    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'create', RPC.bind]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry', 'create', RPC.bind]);
     expect(h.bindings.getProviderBinding).toHaveBeenCalledWith(ACTOR, ORDER);
     expect(h.credentials.resolve).toHaveBeenCalledWith({ provider: 'PAYPAL', environment: 'SANDBOX',
       credentialRef: 'Q7pPrivCredential', bindingVersion: '1', bindingHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' });
@@ -362,7 +367,7 @@ describe('server PayPal CREATE authority', () => {
     const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null, context_id: null,
       verification_binding_present: false } }], [RPC.prepare]: [{ data: { ...NATIVE_PREPARED, replayed: false } }] });
     expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual({ kind: 'PROVIDER_ORDER_READY', providerOrderId: PROVIDER_ORDER, replayed: false });
-    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'create', RPC.bind]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry', 'create', RPC.bind]);
   });
   it('keeps the same create key after response loss and uses different observation keys for latest statuses', async () => {
     const fresh = { ...NATIVE_FOUND, provider_order_id: null };
@@ -2142,5 +2147,218 @@ describe('N1 status-only ORDER recovery preserves the actual competing capture',
       state: 'REVIEW_REQUIRED', newOrderAllowed: false });
     expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toContain('Q7pPriv');
     // The failed ORDER delivery proves neither persistence nor a durable REVIEW flag.
+  });
+});
+
+describe('U2-C live provider entry before CREATE', () => {
+  const authorized = { kind: 'AUTHORIZED', orderId: ORDER, contextId: CONTEXT, createRequestKey: CREATE_KEY,
+    quoteHash: HASH, bindingHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    entryNotAfter: '2026-11-14T00:15:00.123456+00:00' };
+
+  it.each([
+    'INPUT_INVALID', 'PROVIDER_UNSUPPORTED', 'CONTEXT_REQUIRED', 'VERIFICATION_BINDING_REQUIRED',
+    'CONTEXT_MISMATCH', 'BINDING_MISMATCH', 'ORDER_STATE_INVALID', 'ACTOR_DELETED',
+    'SETTINGS_UNAVAILABLE', 'ENVIRONMENT_MISMATCH', 'ORDERS_CLOSED', 'CHARGE_CLOSED',
+    'COUNTRY_NOT_ALLOWED', 'ACTOR_NOT_ALLOWED', 'POLICY_UNAVAILABLE', 'POLICY_NOT_ACCEPTED',
+    'QUOTE_EXPIRED', 'PRODUCT_UNAVAILABLE', 'VERIFICATION_BINDING_CHANGED', 'PROVIDER_SCOPE_CHANGED',
+  ])('C2 blocks CREATE, bind and observation after entry refuses %s', async reason => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    h.entry.authorizeProviderEntry.mockResolvedValue({ kind: 'BLOCKED', reason });
+    expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual({ kind: 'BLOCKED', reason });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry']);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'ENTRY', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+  });
+
+  it('C3 maps entry REVIEW_REQUIRED to review without CREATE', async () => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    h.entry.authorizeProviderEntry.mockResolvedValue({ kind: 'BLOCKED', reason: 'REVIEW_REQUIRED' });
+    expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'ENTRY', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+  });
+
+  it('C4 closes a thrown entry error without leaking its synthetic secret or creating', async () => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    h.entry.authorizeProviderEntry.mockRejectedValue(new Error('Q7pPriv secret'));
+    const result = await ensurePayPalProviderOrder(h.deps, input);
+    expect(result).toEqual({ kind: 'UNAVAILABLE', stage: 'ENTRY' });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'ENTRY', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+    expect(JSON.stringify({ result, logs: h.log.mock.calls })).not.toContain('Q7pPriv');
+  });
+
+  it.each([
+    ['orderId', '99999999-9999-4999-8999-999999999999'], ['contextId', QUOTE], ['createRequestKey', ATTEMPT],
+    ['quoteHash', 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'],
+    ['bindingHash', 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'],
+    ['entryNotAfter', '2026-11-14T00:15:00.124456+00:00'],
+  ])('C5 independently refuses entry %s echo mismatch before CREATE', async (field, value) => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    h.entry.authorizeProviderEntry.mockResolvedValue({ ...authorized, [field]: value });
+    expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual({ kind: 'UNAVAILABLE', stage: 'ENTRY' });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'ENTRY', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+  });
+
+  it('C7 rechecks the returned entry deadline after entry advances the injected clock', async () => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    let clock = NOW; h.deps.nowMs = () => clock;
+    h.entry.authorizeProviderEntry.mockImplementation(async () => {
+      clock = Date.parse('2026-11-14T00:15:00.124Z'); return structuredClone(authorized);
+    });
+    expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual({ kind: 'BLOCKED', reason: 'QUOTE_EXPIRED' });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry']);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'PREPARE', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+  });
+
+  it('C7 blocks CREATE at parsed millisecond equality with the returned entry deadline', async () => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    let clock = NOW; h.deps.nowMs = () => clock;
+    h.entry.authorizeProviderEntry.mockImplementation(async () => {
+      clock = Date.parse('2026-11-14T00:15:00.123Z'); return structuredClone(authorized);
+    });
+    expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual({ kind: 'BLOCKED', reason: 'QUOTE_EXPIRED' });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry']);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'PREPARE', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+  });
+
+  it.each([
+    ['unlinked', { data: { ...NATIVE_FOUND, provider_order_id: null } }],
+    ['different context', { data: { ...NATIVE_FOUND, context_id: QUOTE } }],
+    ['getter 503', { status: 503, data: { code: 'XX000', message: 'Q7pPriv getter secret' } }],
+    ['not found', { data: { contract_version: 'web-payment-charge-context.v1', outcome: 'NOT_FOUND', charge_authority: false } }],
+  ])('C8 closes ORDER_LINKED after %s owner reread with only an ENTRY log', async (_mode, reply) => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null, context_id: null,
+      verification_binding_present: false } }, reply], [RPC.prepare]: [{ data: { ...NATIVE_PREPARED, replayed: false } }] });
+    h.entry.authorizeProviderEntry.mockResolvedValue({ kind: 'ORDER_LINKED' });
+    const result = await ensurePayPalProviderOrder(h.deps, input);
+    expect(result).toEqual({ kind: 'UNAVAILABLE', stage: 'ENTRY' });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expect(rpcCalls(h, RPC.getter)).toEqual([
+      { name: RPC.getter, args: { p_actor_user_id: ACTOR, p_order_id: ORDER } },
+      { name: RPC.getter, args: { p_actor_user_id: ACTOR, p_order_id: ORDER } },
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry', RPC.getter]);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'ENTRY', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+    expect(JSON.stringify({ result, logs: h.log.mock.calls })).not.toContain('Q7pPriv');
+  });
+
+  it('C9 closes entry NOT_FOUND after an existing owner context without CREATE', async () => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    h.entry.authorizeProviderEntry.mockResolvedValue({ kind: 'NOT_FOUND' });
+    expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual({ kind: 'UNAVAILABLE', stage: 'ENTRY' });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expect(rpcCalls(h, RPC.getter)).toHaveLength(1);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'ENTRY', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+  });
+
+  it('C10 keeps entry refusal closed when the logger throws without authorizing or repeating CREATE', async () => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    h.entry.authorizeProviderEntry.mockResolvedValue({ kind: 'BLOCKED', reason: 'CHARGE_CLOSED' });
+    h.log.mockImplementation(() => { throw new Error('Q7pPriv logger secret'); });
+    const result = await ensurePayPalProviderOrder(h.deps, input);
+    expect(result).toEqual({ kind: 'BLOCKED', reason: 'CHARGE_CLOSED' });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry']);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([[{ stage: 'ENTRY', level: 'warn', code: 'payment.paypal.charge.context.failed', orderId: ORDER }]]);
+    expect(JSON.stringify({ result, logs: h.log.mock.calls })).not.toContain('Q7pPriv');
+  });
+
+  it('C1 calls entry once with the prepared tuple after token and before create', async () => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null, context_id: null,
+      verification_binding_present: false } }], [RPC.prepare]: [{ data: { ...NATIVE_PREPARED, replayed: false } }] });
+    const result = await ensurePayPalProviderOrder(h.deps, input);
+    expect(h.entry.authorizeProviderEntry.mock.calls).toEqual([[{ actorUserId: ACTOR, orderId: ORDER,
+      contextId: CONTEXT, createRequestKey: CREATE_KEY,
+      bindingHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' }]]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry', 'create', RPC.bind]);
+    expect(result).toEqual({ kind: 'PROVIDER_ORDER_READY', providerOrderId: PROVIDER_ORDER, replayed: false });
+    expect(h.transport.createOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token',
+      requestKey: CREATE_KEY, orderId: ORDER, amountMinor: '999' }]]);
+    expect(rpcCalls(h, RPC.bind)).toHaveLength(1); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([]);
+  });
+
+  it.each(['2026-11-14T09:15:00.123456+09:00', '2026-11-14T00:15:00.123456Z'])
+    ('C6 accepts the same entry deadline instant in %s after calling entry before CREATE', async entryNotAfter => {
+      const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+      h.entry.authorizeProviderEntry.mockResolvedValue({ ...authorized, entryNotAfter });
+      h.deps.nowMs = () => Date.parse('2026-11-14T00:15:00.122Z');
+      const result = await ensurePayPalProviderOrder(h.deps, input);
+      expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+      expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry', 'create', RPC.bind]);
+      expect(result).toEqual({ kind: 'PROVIDER_ORDER_READY', providerOrderId: PROVIDER_ORDER, replayed: true });
+      expect(h.transport.createOrder).toHaveBeenCalledTimes(1);
+      expect(rpcCalls(h, RPC.bind)).toHaveLength(1); expect(h.log.mock.calls).toEqual([]);
+    });
+
+  it('C8 replays ORDER_LINKED only after one owner reread matches the prepared context and linked ID', async () => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null, context_id: null,
+      verification_binding_present: false } }, { data: NATIVE_FOUND }],
+      [RPC.prepare]: [{ data: { ...NATIVE_PREPARED, replayed: false } }] });
+    h.entry.authorizeProviderEntry.mockResolvedValue({ kind: 'ORDER_LINKED' });
+    const result = await ensurePayPalProviderOrder(h.deps, input);
+    expect(result).toEqual({ kind: 'PROVIDER_ORDER_READY', providerOrderId: PROVIDER_ORDER, replayed: true });
+    expect(h.entry.authorizeProviderEntry).toHaveBeenCalledTimes(1);
+    expect(rpcCalls(h, RPC.getter)).toEqual([
+      { name: RPC.getter, args: { p_actor_user_id: ACTOR, p_order_id: ORDER } },
+      { name: RPC.getter, args: { p_actor_user_id: ACTOR, p_order_id: ORDER } },
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'entry', RPC.getter]);
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(h.log.mock.calls).toEqual([]);
+  });
+
+  it.each(['capture', 'reconcile', 'status'])('C11 leaves entry unused for successful %s', async operation => {
+    const h = boundaries();
+    h.entry.authorizeProviderEntry.mockRejectedValue(new Error('Q7pPriv entry must stay unused'));
+    if (operation === 'reconcile') h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const result = operation === 'capture' ? await capturePayPalOrder(h.deps, approvedInput)
+      : operation === 'reconcile' ? await reconcilePayPalOrder(h.deps, input) : await getPayPalChargeStatus(h.deps, input);
+    expect(h.entry.authorizeProviderEntry).not.toHaveBeenCalled();
+    expect(result).toEqual(operation === 'status'
+      ? { kind: 'STATUS', paymentState: 'NOT_SUBMITTED', settlementState: 'NOT_INTAKE', reviewRequired: false }
+      : { kind: 'INTAKE_PENDING', replayed: false });
+    expect(h.transport.createOrder).not.toHaveBeenCalled();
+    expect(h.transport.captureOrder).toHaveBeenCalledTimes(operation === 'capture' ? 1 : 0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(operation === 'status' ? 0 : 1);
+  });
+
+  it.each([
+    ['prepare REFUSED', { kind: 'BLOCKED', reason: 'WEB_PAYMENT_ORDERS_CLOSED' }],
+    ['BINDING failure', { kind: 'UNAVAILABLE', stage: 'BINDING' }],
+    ['CREDENTIAL failure', { kind: 'UNAVAILABLE', stage: 'CREDENTIAL' }],
+    ['TOKEN failure', { kind: 'UNAVAILABLE', stage: 'TOKEN' }],
+    ['fresh review', { kind: 'REVIEW_REQUIRED' }], ['fresh deleted actor', { kind: 'BLOCKED', reason: 'ACTOR_DELETED' }],
+    ['fresh expired quote', { kind: 'BLOCKED', reason: 'QUOTE_EXPIRED' }], ['fresh recovery', { kind: 'SUBMISSION_UNKNOWN' }],
+  ])('C12 leaves entry unused after %s', async (scenario, outcome) => {
+    const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
+    h.entry.authorizeProviderEntry.mockRejectedValue(new Error('Q7pPriv entry must stay unused'));
+    if (scenario === 'prepare REFUSED') h.script[RPC.prepare] = [{ status: 400,
+      data: { code: 'P0001', message: 'WEB_PAYMENT_ORDERS_CLOSED' } }];
+    if (scenario === 'BINDING failure') h.bindings.getProviderBinding.mockResolvedValue({ ...BINDING, bindingHash: 'bad-hash' });
+    if (scenario === 'CREDENTIAL failure') h.credentials.resolve.mockResolvedValue(null);
+    if (scenario === 'TOKEN failure') h.transport.requestToken.mockResolvedValue(null);
+    if (scenario === 'fresh review') h.script[RPC.getter] = [{ data: { ...NATIVE_FOUND, provider_order_id: null, review_required: true } }];
+    if (scenario === 'fresh deleted actor') h.script[RPC.getter] = [{ data: { ...NATIVE_FOUND, provider_order_id: null, actor_deleted: true } }];
+    if (scenario === 'fresh expired quote') h.script[RPC.getter] = [{ data: { ...NATIVE_FOUND, provider_order_id: null,
+      quote_expires_at: '2026-11-13T23:59:59.123456Z' } }];
+    if (scenario === 'fresh recovery') h.script[RPC.getter] = [{ data: { ...NATIVE_FOUND, provider_order_id: null,
+      submission_intent_recorded: true, payment_state: 'SUBMISSION_UNKNOWN', attempt_id: ATTEMPT } }];
+    expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual(outcome);
+    expect(h.entry.authorizeProviderEntry).not.toHaveBeenCalled();
+    expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
   });
 });
