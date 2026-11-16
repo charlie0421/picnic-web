@@ -91,7 +91,7 @@ UUID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 D2_ENTRY = '__tests__/integration/payment/provider-bridge-postgrest.http.ts'
 D2_PRODUCT_PINS = {**PRODUCT_PINS,
     'lib/payment/paypal-charge/provider-entry.ts': 'd5b28163e39e238fac54388e08bcb3d6d1dea469d8509caee4503a678b049d22',
-    'lib/payment/paypal-charge/orchestrator.ts': '91440de9d521c9bd76db8e4213bb0832fe42272d2df5dfb458b5cccfa4ef2c2f',
+    'lib/payment/paypal-charge/orchestrator.ts': 'cc8c911d3fedba478fcff17c2eaa9187f00abff758b0c88f73ebf38291e4e761',
     'lib/payment/paypal-charge/protocol.ts': '987d3333122a197f0115d9a9b5f06337ba0c9bebcea36f3c623081c1ebef67c5'}
 D2_FROZEN = frozenset((*REUSE.values(), *D2_PRODUCT_PINS))
 D2_OWNED = frozenset((OWNED - {ENTRY}) | {D2_ENTRY})
@@ -123,12 +123,12 @@ D2_TAP_PLAN = {
         'F7a': ('F7', '', 'prepare'), 'L1a': ('F1', '', 'binding entry entry entry entry'),
         'L1-CLAIM': ('L1-CLAIM', 'getter prepare binding entry bind getter claim getter binding', 'entry'),
         'L1b': ('F5', '', 'binding entry'),
-        'N-A': ('N-A', '', 'getter prepare binding entry bind getter prepare binding claim intent record getter prepare binding'),
-        'N-B': ('N-B', '', 'getter prepare binding entry bind getter prepare binding claim intent record getter prepare binding'),
-        'N-C': ('N-C', '', 'getter prepare binding entry bind getter prepare binding claim intent bind getter prepare binding')},
+        'N-A': ('N-A', '', 'getter prepare binding entry bind getter prepare binding claim intent record record getter prepare binding bind entry claim'),
+        'N-B': ('N-B', '', 'getter prepare binding entry bind getter prepare binding claim intent record record getter prepare binding bind entry claim'),
+        'N-C': ('N-C', '', 'getter prepare binding entry bind getter prepare binding claim intent record bind getter prepare binding bind entry claim')},
     'B': {'F7b': ('F7', '', 'getter prepare binding entry')},
     'C': {'F3b': ('F3', '', 'getter prepare binding entry'), 'C-READS': (None, '', '')}}
-D2_COUNTS = {'A': {'scenarios': 16, 'setupProxy': 19, 'measuredProxy': 130, 'direct': 24, 'postgrest': 173},
+D2_COUNTS = {'A': {'scenarios': 16, 'setupProxy': 19, 'measuredProxy': 142, 'direct': 24, 'postgrest': 185},
     'B': {'scenarios': 1, 'setupProxy': 0, 'measuredProxy': 4, 'direct': 0, 'postgrest': 4},
     'C': {'scenarios': 2, 'setupProxy': 0, 'measuredProxy': 32, 'direct': 0, 'postgrest': 32}}
 # context, ORDER link, CAPTURE link, observation, attempt, intent,
@@ -144,6 +144,9 @@ D2_END_STATES = {
     'F6': (1, 0, 0, 1, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0),
     'F7': (1, 0, 0, 0, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0),
     'L1-CLAIM': (1, 1, 0, 1, 1, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 1, 0),
+    'N-A': (1, 1, 1, 4, 1, True, 'SUBMISSION_UNKNOWN', 'NOT_INTAKE', 2, 0),
+    'N-B': (1, 1, 1, 4, 1, True, 'SUBMISSION_UNKNOWN', 'NOT_INTAKE', 2, 0),
+    'N-C': (1, 1, 1, 4, 1, True, 'SUBMISSION_UNKNOWN', 'NOT_INTAKE', 2, 0),
     'ORD-ACL': (0, 0, 0, 0, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0)}
 
 
@@ -884,12 +887,89 @@ def _validate_d2_http(phase, result, before, cases):
             if name in ('F2','F3a'):
                 check(next(c for c in calls if c['method']=='createOrder')['response'] == {'kind':'TRANSPORT_UNKNOWN'}, 'Unknown create fact differs')
             if name.startswith('N-'):
-                capture = next(c for c in calls if c['method']=='captureOrder')['response']
-                body = capture['body']; unit = body['purchase_units'][0]
-                check(capture['kind']=='RESPONSE' and capture['status']==200
-                      and body['status'] == ('COMPLETED' if name=='N-B' else 'FUTURE_ORDER')
-                      and body['intent'] == ('AUTHORIZE' if name=='N-B' else 'CAPTURE')
-                      and unit['payments']['captures'][0]['amount'] == {'value':'2.34' if name=='N-A' else '1.23','currency_code':'USD'}, 'Open capture fact differs')
+                rows = [t for t in selected if t['scope']=='measured' and t['lane']==0]
+                order_id = 'ORDER'+name.replace('-','')
+                capture_id = 'CAPTURE'+name.replace('-','')
+                order = mapped[label]['order']
+                account = rows[1]['response']['scope']['account_id']
+                expected_scope = {'account_id':account,'merchant_id':'binding-merchant-v1'}
+                check(isinstance(account,str) and account, 'N prepared scope differs: '+name)
+                for step in (1,6,13):
+                    check(rows[step]['response']['scope']==expected_scope, 'N prepared scope differs: '+name)
+                for step in (2,7,14):
+                    check(rows[step]['response']['scope']==expected_scope, 'N binding scope differs: '+name)
+                expected_body = {'id':order_id,'status':'CREATED','intent':'CAPTURE','purchase_units':[{
+                    'custom_id':'v2:'+order,'amount':{'value':'1.23','currency_code':'USD'},
+                    'payee':{'merchant_id':'binding-merchant-v1'},'payments':{'captures':[]}}]}
+                create = next(c for c in calls if c['method']=='createOrder')
+                check(create['response']=={'kind':'RESPONSE','status':200,'body':expected_body}
+                      and create['providerOrderId']==order_id, 'N CREATE body differs: '+name)
+                gets = [c for c in calls if c['method']=='getOrder']
+                expected_first = copy.deepcopy(expected_body)
+                expected_first['status']='APPROVED'
+                check(gets[0]['response']=={'kind':'RESPONSE','status':200,'body':expected_first}
+                      and gets[0]['providerOrderId']==order_id, 'N first GET differs: '+name)
+                expected_capture = copy.deepcopy(expected_body)
+                expected_capture['status']='COMPLETED' if name=='N-B' else 'FUTURE_ORDER'
+                expected_capture['purchase_units'][0]['payments']['captures']=[{'id':capture_id,'status':'COMPLETED',
+                    'amount':{'value':'2.34' if name=='N-A' else '1.23','currency_code':'USD'}}]
+                if name=='N-A':
+                    del expected_capture['intent']
+                elif name=='N-B':
+                    expected_capture['intent']='AUTHORIZE'
+                capture = next(c for c in calls if c['method']=='captureOrder')
+                check(capture['response']=={'kind':'RESPONSE','status':200,'body':expected_capture}
+                      and capture['providerOrderId']==order_id, 'N capture body differs: '+name)
+                expected_followup = copy.deepcopy(expected_capture)
+                expected_followup.update(status='COMPLETED',intent='CAPTURE')
+                expected_followup['purchase_units'][0]['payments']['captures'][0]['amount']['value']='1.23'
+                check(gets[1]['response']=={'kind':'RESPONSE','status':200,'body':expected_followup}
+                      and gets[1]['providerOrderId']==order_id, 'N followup GET differs: '+name)
+                observation_ids = set()
+                for step in (4,10,11,15):
+                    is_capture = step in (11,15)
+                    status = 'CREATED' if step==4 else 'FUTURE_ORDER' if step==10 and name!='N-B' else 'COMPLETED'
+                    kind = 'CAPTURE' if is_capture else 'ORDER'
+                    external_id = capture_id if is_capture else order_id
+                    wanted_evidence = {'source':'CREATE_RESPONSE' if step==4 else 'LOOKUP' if step==15 else 'SUBMIT_RESPONSE',
+                        'key':kind+':'+external_id+':'+status,'provider':'PAYPAL','environment':'SANDBOX',
+                        'identity_kind':kind,'external_id':external_id,'parent_external_id':order_id if is_capture else None,
+                        'order_id':order,'user_id':ACTORS['A'],'quote_hash':rows[1]['response']['quote_hash'],
+                        'order_reference':'v2:'+order,'scope':expected_scope,
+                        'amount_minor':'234' if name=='N-A' and step==11 else '123','currency':'USD','status':status}
+                    actual = rows[step]['args']['p_evidence']
+                    check(rows[step]['args']['p_context_id']==rows[1]['response']['context_id']
+                          and set(actual)==set(wanted_evidence)|{'payload_hash'} and pin(actual['payload_hash'])
+                          and {k:v for k,v in actual.items() if k!='payload_hash'}==wanted_evidence,
+                          'N evidence differs: '+name+' step '+str(step))
+                    response = rows[step]['response']
+                    reason = {('N-A',10):'UNRECOGNIZED_STATUS',('N-A',11):'AMOUNT_MISMATCH',
+                        ('N-B',11):'IDENTITY_NOT_BOUND',('N-C',10):'UNRECOGNIZED_STATUS'}.get((name,step))
+                    observation_id = response.get('observation_id')
+                    check(isinstance(observation_id,str) and UUID.fullmatch(observation_id)
+                          and observation_id not in observation_ids and response=={
+                              'outcome':'REVIEW_REQUIRED' if reason else 'RECORDED','reason_code':reason,
+                              'trust':'SERVER_REPORTED','observation_id':observation_id,'replayed':False}
+                          and response['replayed'] is False, 'N observation outcome differs: '+name+' step '+str(step))
+                    observation_ids.add(observation_id)
+                snapshot = rows[12]['response']
+                r0 = rows[5]['response']['row_version']
+                check(isinstance(r0,str) and re.fullmatch(r'0|[1-9][0-9]*',r0)
+                      and snapshot['quote_hash']==rows[1]['response']['quote_hash']
+                      and snapshot['context_id']==rows[1]['response']['context_id']
+                      and snapshot['review_required'] is True and snapshot['provider_order_id']==order_id
+                      and snapshot['provider_capture_id']==(capture_id if name=='N-C' else None)
+                      and snapshot['payment_state']=='SUBMISSION_UNKNOWN' and snapshot['submission_intent_recorded'] is True
+                      and snapshot['settlement_state']=='NOT_INTAKE' and snapshot['row_version']==str(int(r0)+2)
+                      and snapshot['attempt_id']==rows[8]['response']['attempt_id'], 'N snapshot differs: '+name)
+                check(rows[16]['response']=={'contract_version':'web-payment-provider-entry.v1',
+                      'outcome':'ORDER_LINKED','charge_authority':False} and rows[16]['response']['charge_authority'] is False,
+                      'N entry differs: '+name)
+                submitted = rows[8]['response']
+                check(rows[17]['args']['p_expected_version']==snapshot['row_version'] and rows[17]['response']=={
+                    'decision':'LOOKUP_ONLY','safe_reason_code':'SUBMISSION_UNKNOWN','attempt_id':submitted['attempt_id'],
+                    'provider_request_key':submitted['provider_request_key'],'fencing_version':submitted['fencing_version'],
+                    'row_version':snapshot['row_version'],'quote_hash':snapshot['quote_hash']}, 'N claim differs: '+name)
         outcomes = scenario['outcomes']
         check(isinstance(outcomes,list) and all(isinstance(o,dict) for o in outcomes), 'Outcomes missing')
         kinds = [o.get('kind') for o in outcomes]
@@ -905,7 +985,9 @@ def _validate_d2_http(phase, result, before, cases):
         elif not name.startswith('N-'):
             check(kinds == expected[name], 'Scenario outcome differs: ' + name)
         else:
-            check(len(outcomes)==3 and kinds[0]=='PROVIDER_ORDER_READY', 'Open observation outcome missing')
+            check(outcomes==[{'kind':'PROVIDER_ORDER_READY','providerOrderId':'ORDER'+name.replace('-',''),'replayed':False},
+                {'kind':'REVIEW_REQUIRED'},{'kind':'REVIEW_REQUIRED'},{'kind':'ORDER_LINKED'},{'kind':'LOOKUP_ONLY'}]
+                and outcomes[0]['replayed'] is False, 'N outcomes differ: '+name)
         if name == 'F5prime':
             check(outcomes[2] == {'kind':'UNAVAILABLE','stage':'LOOKUP'}, 'Recovery GET must be exact UNAVAILABLE LOOKUP')
         for outcome in outcomes:
@@ -1056,7 +1138,21 @@ def _validate_d2_state(phase, before, after, result, cases):
                 expected.append({'source':'SUBMIT_RESPONSE','identityKind':'CAPTURE','outcome':'RECORDED','reasonCode':None})
             if label=='F4b':
                 expected.append({'source':'CREATE_RESPONSE','identityKind':'ORDER','outcome':'REVIEW_REQUIRED','reasonCode':'IDENTITY_ALREADY_BOUND'})
+            if label in ('N-A','N-B','N-C'):
+                expected += [
+                    {'source':'SUBMIT_RESPONSE','identityKind':'ORDER',
+                     'outcome':'RECORDED' if label=='N-B' else 'REVIEW_REQUIRED',
+                     'reasonCode':None if label=='N-B' else 'UNRECOGNIZED_STATUS'},
+                    {'source':'SUBMIT_RESPONSE','identityKind':'CAPTURE',
+                     'outcome':'RECORDED' if label=='N-C' else 'REVIEW_REQUIRED',
+                     'reasonCode':{'N-A':'AMOUNT_MISMATCH','N-B':'IDENTITY_NOT_BOUND','N-C':None}[label]},
+                    {'source':'LOOKUP','identityKind':'CAPTURE','outcome':'RECORDED','reasonCode':None}]
             check(normalize(observations)==normalize(expected), 'Observation class differs: '+label)
+            if label in ('N-A','N-B','N-C'):
+                prepared = next(t['response'] for t in result['taps'] if t['label']==label and t['step']==1)
+                check(after['bridgeNative'][label]['binding']['scope']=={
+                    'account_id':prepared['scope']['account_id'],'merchant_id':'binding-merchant-v1'},
+                    'N binding scope differs: '+label)
             if o:
                 scenario=next(r for r in result['scenarios'] if r['orderLabel']==label)
                 ready=next((r['providerOrderId'] for r in scenario['outcomes'] if r['kind']=='PROVIDER_ORDER_READY'), None)
@@ -1076,7 +1172,7 @@ def _validate_d2_state(phase, before, after, result, cases):
         return set(facts)==set(observed) and all(normalize(facts[k])==normalize(observed[k])
             if k in ('links','observations') else facts[k]==observed[k] and type(facts[k]) is type(observed[k]) for k in observed)
     check(len(findings)==3 and {f['label'] for f in findings}=={'N-A','N-B','N-C'}
-          and all(set(f)=={'label','status','facts'} and f['status']=='OBSERVED_OPEN' and finding_matches(f) for f in findings), 'Open findings must retain observed facts')
+          and all(set(f)=={'label','status','facts'} and f['status']=='E_ASSERTED' and finding_matches(f) for f in findings), 'N findings must retain asserted facts')
 
 
 def rows_by(rows, keys):

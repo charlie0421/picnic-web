@@ -1670,7 +1670,6 @@ D2_TABLES = ("web_payment_orders", "web_payment_quotes", "web_payment_provider_c
 D2_PROBES = ["http", "http-address", "rpc-path", "http-address", "rpc-method", "rpc-method", "rpc-query", "rpc-query", "rpc-method"]
 # Column order: contexts, ORDER links, CAPTURE links, observations, attempts,
 # intent present, payment, settlement, exact version delta, intake/inbox/receipt.
-# N-* deliberately has no correctness row: only ownership and safety bounds.
 D2_STATE = {
     "F1": (1, 1, 1, 2, 1, True, "SUBMISSION_UNKNOWN", "INTAKE_PENDING", 3, 1),
     "F2": (1, 1, 0, 1, 0, False, "NOT_SUBMITTED", "NOT_INTAKE", 0, 0),
@@ -1682,6 +1681,9 @@ D2_STATE = {
     "F6": (1, 0, 0, 1, 0, False, "NOT_SUBMITTED", "NOT_INTAKE", 0, 0),
     "F7": (1, 0, 0, 0, 0, False, "NOT_SUBMITTED", "NOT_INTAKE", 0, 0),
     "L1-CLAIM": (1, 1, 0, 1, 1, False, "NOT_SUBMITTED", "NOT_INTAKE", 1, 0),
+    "N-A": (1, 1, 1, 4, 1, True, "SUBMISSION_UNKNOWN", "NOT_INTAKE", 2, 0),
+    "N-B": (1, 1, 1, 4, 1, True, "SUBMISSION_UNKNOWN", "NOT_INTAKE", 2, 0),
+    "N-C": (1, 1, 1, 4, 1, True, "SUBMISSION_UNKNOWN", "NOT_INTAKE", 2, 0),
     "ORD-ACL": (0, 0, 0, 0, 0, False, "NOT_SUBMITTED", "NOT_INTAKE", 0, 0),
 }
 # Exact RPC order per sequential case; F4 lanes use separate lane numbers.
@@ -1701,16 +1703,16 @@ D2_TAP_PLAN = {
         "L1a": ("F1", "", "binding entry entry entry entry"),
         "L1-CLAIM": ("L1-CLAIM", "getter prepare binding entry bind getter claim getter binding", "entry"),
         "L1b": ("F5", "", "binding entry"),
-        "N-A": ("N-A", "", "getter prepare binding entry bind getter prepare binding claim intent record getter prepare binding"),
-        "N-B": ("N-B", "", "getter prepare binding entry bind getter prepare binding claim intent record getter prepare binding"),
-        "N-C": ("N-C", "", "getter prepare binding entry bind getter prepare binding claim intent bind getter prepare binding"),
+        "N-A": ("N-A", "", "getter prepare binding entry bind getter prepare binding claim intent record record getter prepare binding bind entry claim"),
+        "N-B": ("N-B", "", "getter prepare binding entry bind getter prepare binding claim intent record record getter prepare binding bind entry claim"),
+        "N-C": ("N-C", "", "getter prepare binding entry bind getter prepare binding claim intent record bind getter prepare binding bind entry claim"),
     },
     "B": {"F7b": ("F7", "", "getter prepare binding entry")},
     "C": {"F3b": ("F3", "", "getter prepare binding entry"),
           "C-READS": (None, "", "")},
 }
 D2_COUNTS = {
-    "A": {"scenarios": 16, "setupProxy": 19, "measuredProxy": 130, "direct": 24, "postgrest": 173},
+    "A": {"scenarios": 16, "setupProxy": 19, "measuredProxy": 142, "direct": 24, "postgrest": 185},
     "B": {"scenarios": 1, "setupProxy": 0, "measuredProxy": 4, "direct": 0, "postgrest": 4},
     "C": {"scenarios": 2, "setupProxy": 0, "measuredProxy": 32, "direct": 0, "postgrest": 32},
 }
@@ -1718,7 +1720,7 @@ D2_COUNTS = {
 
 def d2_id(label, kind="order"):
     # Synthetic identifiers only; no expectation uses a subject helper.
-    group = {"order": "cc", "context": "dd", "quote": "ee", "key": "ff", "attempt": "ab"}[kind]
+    group = {"order": "cc", "context": "dd", "quote": "ee", "key": "ff", "attempt": "ab", "obs2": "c2", "obs3": "c3"}[kind]
     return "d255" + group + "01-0000-4000-8000-" + str(D2_LABELS.index(label) + 1).zfill(12)
 
 
@@ -1739,6 +1741,8 @@ def d2_native(label, prepared=True):
     if prepared:
         binding = {**native_values()["B1"]["value"], "order_id": d2_id(label), "context_id": d2_id(label, "context"),
                    "quote_id": d2_id(label, "quote")}
+        if label in ("N-A", "N-B", "N-C"):
+            binding["scope"] = {"account_id": "unit-account-v1", "merchant_id": "binding-merchant-v1"}
     return {"binding": binding, "context": context}
 
 
@@ -1766,11 +1770,11 @@ def d2_observation(label="baselineA"):
     state["web_payment_orders"].append({"id": "d255cc99-0000-4000-8000-000000000099", "user_id": ACTORS["B"],
         "row_version": "7", "payment_state": "NOT_SUBMITTED", "settlement_state": "NOT_INTAKE", "immutable": "non-owned"})
     for name in D2_LABELS:
-        values = D2_STATE.get(name, (1, 1, 0, 1, 1, True, "SUBMISSION_UNKNOWN", "NOT_INTAKE", 2, 0)) if after_a else (0, 0, 0, 0, 0, False, "NOT_SUBMITTED", "NOT_INTAKE", 0, 0)
+        values = D2_STATE[name] if after_a else (0, 0, 0, 0, 0, False, "NOT_SUBMITTED", "NOT_INTAKE", 0, 0)
         contexts, orders, captures, observed, attempts, intent, payment, settlement, delta, intake = values
         links = ([{"identityKind": "ORDER", "externalId": "ORDER" + name.replace("-", "").upper()}] if orders else [])
         if captures:
-            links.append({"identityKind": "CAPTURE", "externalId": "CAPTUREF1"})
+            links.append({"identityKind": "CAPTURE", "externalId": "CAPTURE" + name.replace("-", "").upper()})
         facts = []
         if observed:
             facts.append({"source": "CREATE_RESPONSE", "identityKind": "ORDER", "outcome": "RECORDED", "reasonCode": None})
@@ -1780,6 +1784,16 @@ def d2_observation(label="baselineA"):
             facts.append({"source": "CREATE_RESPONSE", "identityKind": "ORDER", "outcome": "REVIEW_REQUIRED", "reasonCode": "IDENTITY_ALREADY_BOUND"})
         elif name == "F6" and after_a:
             facts[0].update(outcome="REVIEW_REQUIRED", reasonCode="PROVIDER_SCOPE_MISMATCH")
+        elif name in ("N-A", "N-B", "N-C") and after_a:
+            facts += [
+                {"source": "SUBMIT_RESPONSE", "identityKind": "ORDER",
+                 "outcome": "RECORDED" if name == "N-B" else "REVIEW_REQUIRED",
+                 "reasonCode": None if name == "N-B" else "UNRECOGNIZED_STATUS"},
+                {"source": "SUBMIT_RESPONSE", "identityKind": "CAPTURE",
+                 "outcome": "RECORDED" if name == "N-C" else "REVIEW_REQUIRED",
+                 "reasonCode": {"N-A": "AMOUNT_MISMATCH", "N-B": "IDENTITY_NOT_BOUND", "N-C": None}[name]},
+                {"source": "LOOKUP", "identityKind": "CAPTURE", "outcome": "RECORDED", "reasonCode": None},
+            ]
         fact = {"orderId": d2_id(name), "contextCount": contexts, "links": links, "observations": facts,
                 "attemptCount": attempts, "submissionIntentRecorded": intent, "paymentState": payment,
                 "settlementState": settlement, "rowVersion": str(7 + delta),
@@ -1797,7 +1811,7 @@ def d2_observation(label="baselineA"):
             state["web_payment_provider_links"].append({"id": d2_id(name, "context" if index == 0 else "key"),
                 "context_id": d2_id(name, "context"), "identity_kind": item["identityKind"], "external_id": item["externalId"]})
         for index, item in enumerate(facts):
-            state["web_payment_observations"].append({"id": d2_id(name, "quote" if index == 0 else "attempt"),
+            state["web_payment_observations"].append({"id": d2_id(name, ("quote", "attempt", "obs2", "obs3")[index]),
                 "context_id": d2_id(name, "context"), "requested_context_id": d2_id(name, "context"),
                 "source": item["source"], "outcome": item["outcome"], "reason_code": item["reasonCode"],
                 "evidence": {"order_id": d2_id(name), "identity_kind": item["identityKind"]}})
@@ -1809,7 +1823,7 @@ def d2_observation(label="baselineA"):
             settlement_state=settlement, context_id=d2_id(name, "context") if contexts else None,
             attempt_id=d2_id(name, "attempt") if attempts else None, submission_intent_recorded=intent,
             provider_order_id=links[0]["externalId"] if orders else None,
-            provider_capture_id="CAPTUREF1" if captures else None,
+            provider_capture_id="CAPTURE" + name.replace("-", "").upper() if captures else None,
             review_required=any(item["outcome"] == "REVIEW_REQUIRED" for item in facts))
     if after_a:
         state["receipts"] = [{"id": "1", "user_id": ACTORS["A"], "verification_data": {"order_id": d2_id("F1")}}]
@@ -1865,9 +1879,9 @@ def d2_outcomes(name):
         "L1a": [{"kind": "BLOCKED", "reason": "CONTEXT_MISMATCH"}, {"kind": "BLOCKED", "reason": "CONTEXT_MISMATCH"},
                  {"kind": "BLOCKED", "reason": "BINDING_MISMATCH"}, {"kind": "ORDER_LINKED"}],
         "L1-CLAIM": [{"kind": "ORDER_LINKED"}], "L1b": [{"kind": "ORDER_LINKED"}],
-        "N-A": [ready("N-A"), {"kind": "REVIEW_REQUIRED"}, {"kind": "SUBMISSION_UNKNOWN"}],
-        "N-B": [ready("N-B"), {"kind": "REVIEW_REQUIRED"}, {"kind": "SUBMISSION_UNKNOWN"}],
-        "N-C": [ready("N-C"), {"kind": "REVIEW_REQUIRED"}, {"kind": "SUBMISSION_UNKNOWN"}],
+        "N-A": [ready("N-A"), {"kind": "REVIEW_REQUIRED"}, {"kind": "REVIEW_REQUIRED"}, {"kind": "ORDER_LINKED"}, {"kind": "LOOKUP_ONLY"}],
+        "N-B": [ready("N-B"), {"kind": "REVIEW_REQUIRED"}, {"kind": "REVIEW_REQUIRED"}, {"kind": "ORDER_LINKED"}, {"kind": "LOOKUP_ONLY"}],
+        "N-C": [ready("N-C"), {"kind": "REVIEW_REQUIRED"}, {"kind": "REVIEW_REQUIRED"}, {"kind": "ORDER_LINKED"}, {"kind": "LOOKUP_ONLY"}],
         "F7b": [{"kind": "BLOCKED", "reason": "VERIFICATION_BINDING_CHANGED"}],
         "F3b": [{"kind": "BLOCKED", "reason": "ORDERS_CLOSED"}], "C-READS": [],
     }[name])
@@ -1901,8 +1915,10 @@ def d2_response(op, label, name, index, scope, lane):
             value["review_required"] = True
         if name == "F4b-refusal":
             value["review_required"] = True
-        if (name in ("F5", "F5prime") and index >= 10) or (name in ("N-A", "N-B", "N-C") and index == 11):
+        if (name in ("F5", "F5prime") and index >= 10) or (name in ("N-A", "N-B", "N-C") and index == 12):
             value.update(row_version="9", payment_state="SUBMISSION_UNKNOWN", attempt_id=d2_id(label, "attempt"), submission_intent_recorded=True)
+            if name in ("N-A", "N-B", "N-C"):
+                value.update(review_required=True, provider_capture_id="CAPTURENC" if name == "N-C" else None)
         if name == "L1-CLAIM" and index == 7:
             value.update(row_version="8", attempt_id=d2_id(label, "attempt"))
         return value
@@ -1914,11 +1930,11 @@ def d2_response(op, label, name, index, scope, lane):
         return {"outcome": "PREPARED", "replayed": not fresh, "context_id": d2_id(label, "context"),
             "order_id": d2_id(label), "quote_id": d2_id(label, "quote"), "quote_hash": "a" * 64,
             "provider": "PAYPAL", "environment": "SANDBOX",
-            "scope": {"account_id": "unit-account-v1", "merchant_id": "unit-merchant-v1"},
+            "scope": {"account_id": "unit-account-v1", "merchant_id": "binding-merchant-v1" if label in ("N-A", "N-B", "N-C") else "unit-merchant-v1"},
             "settings_version": "31", "create_request_key": d2_id(label, "key"), "payment_id": None}
     if op == "entry":
         small = {"contract_version": "web-payment-provider-entry.v1", "charge_authority": False}
-        if name in ("F4b-refusal", "L1-CLAIM", "L1b") or (name == "L1a" and index == 4):
+        if name in ("F4b-refusal", "L1-CLAIM", "L1b") or (name == "L1a" and index == 4) or (name in ("N-A", "N-B", "N-C") and index == 16):
             return {**small, "outcome": "ORDER_LINKED"}
         reason = {"F6": "REVIEW_REQUIRED", "F7b": "VERIFICATION_BINDING_CHANGED", "F3b": "ORDERS_CLOSED"}.get(name)
         if name == "F6" and scope == "setup":
@@ -1931,6 +1947,12 @@ def d2_response(op, label, name, index, scope, lane):
             "create_request_key": d2_id(label, "key"), "quote_hash": "a" * 64,
             "binding_hash": "b" * 64, "entry_not_after": "2026-11-16T04:59:00.123456+00:00"}
     if op in ("bind", "record"):
+        if name in ("N-A", "N-B", "N-C"):
+            reason = {("N-A", 10): "UNRECOGNIZED_STATUS", ("N-A", 11): "AMOUNT_MISMATCH",
+                      ("N-B", 11): "IDENTITY_NOT_BOUND", ("N-C", 10): "UNRECOGNIZED_STATUS"}.get((name, index))
+            return {"outcome": "REVIEW_REQUIRED" if reason else "RECORDED", "reason_code": reason,
+                "trust": "SERVER_REPORTED", "observation_id": d2_id(label, {4: "quote", 10: "attempt", 11: "obs2", 15: "obs3"}[index]),
+                "replayed": False}
         reason = "PROVIDER_SCOPE_MISMATCH" if name == "F6" else "IDENTITY_ALREADY_BOUND" if name == "F4b" and lane == 1 else None
         return {"outcome": "REVIEW_REQUIRED" if reason else "RECORDED", "reason_code": reason, "trust": "SERVER_REPORTED",
                 "observation_id": d2_id(label, "attempt" if (name == "F4b" and lane == 1) or (name == "F1" and index == 10) else "quote"),
@@ -1938,7 +1960,7 @@ def d2_response(op, label, name, index, scope, lane):
     if op in ("claim", "intent"):
         if name == "F6":
             return {"decision": "BLOCKED", "safe_reason_code": "REVIEW_REQUIRED"}
-        if name == "F5" and op == "claim" and index == 14:
+        if op == "claim" and ((name == "F5" and index == 14) or (name in ("N-A", "N-B", "N-C") and index == 17)):
             return {"decision": "LOOKUP_ONLY", "safe_reason_code": "SUBMISSION_UNKNOWN", "attempt_id": d2_id(label, "attempt"),
                 "provider_request_key": d2_id(label, "attempt"), "fencing_version": "1", "row_version": "9", "quote_hash": "a" * 64}
         return {"decision": "SUBMIT", "safe_reason_code": "INTENT_RECORDED" if op == "intent" else "LEASE_CLAIMED",
@@ -1953,7 +1975,7 @@ def d2_paypal_body(label, capture=False, bad_payee=False):
     body = {"id": "ORDER" + label.replace("-", "").upper(), "status": "COMPLETED" if capture else "CREATED",
         "intent": "CAPTURE", "purchase_units": [{"custom_id": "v2:" + d2_id(label),
             "amount": {"value": "1.23", "currency_code": "USD"},
-            "payee": {"merchant_id": "different-merchant" if bad_payee else "unit-merchant-v1"},
+            "payee": {"merchant_id": "different-merchant" if bad_payee else "binding-merchant-v1" if label in ("N-A", "N-B", "N-C") else "unit-merchant-v1"},
             "payments": {"captures": []}}]}
     if capture:
         body["purchase_units"][0]["payments"]["captures"] = [{"id": "CAPTURE" + label.replace("-", "").upper(),
@@ -1962,6 +1984,8 @@ def d2_paypal_body(label, capture=False, bad_payee=False):
             body["status"] = "FUTURE_ORDER"
         if label == "N-B":
             body["intent"] = "AUTHORIZE"
+        if label == "N-A":
+            del body["intent"]
     return body
 
 
@@ -1973,7 +1997,7 @@ def d2_result(phase="A"):
                 for index, op in enumerate(sequence.split()):
                     args = d2_rpc_args(op, label)
                     response = d2_response(op, label, name, index, scope, lane)
-                    if name == "F5" and op == "claim" and index == 14:
+                    if op == "claim" and ((name == "F5" and index == 14) or (name in ("N-A", "N-B", "N-C") and index == 17)):
                         args["p_expected_version"] = "9"
                     if name == "L1a" and op == "entry":
                         if index == 1:
@@ -1987,11 +2011,18 @@ def d2_result(phase="A"):
                         evidence["external_id"] = "ORDER" + label.replace("-", "").upper() + ("OTHER" if name == "F4b" and lane == 1 else "")
                         if name == "F6":
                             evidence["scope"]["merchant_id"] = "different-merchant"
-                        if (name == "F1" and index == 10) or (name == "N-C" and index == 10):
+                        if name == "F1" and index == 10:
                             evidence.update(source="SUBMIT_RESPONSE", identity_kind="CAPTURE", external_id="CAPTURE" + label.replace("-", "").upper(),
                                 parent_external_id="ORDER" + label.replace("-", "").upper(), status="COMPLETED")
-                        elif name in ("N-A", "N-B") and op == "record":
-                            evidence.update(source="SUBMIT_RESPONSE", status="FUTURE_ORDER" if name == "N-A" else "COMPLETED")
+                        elif name in ("N-A", "N-B", "N-C"):
+                            evidence["scope"] = {"account_id": "unit-account-v1", "merchant_id": "binding-merchant-v1"}
+                            if index == 10:
+                                evidence.update(source="SUBMIT_RESPONSE", status="COMPLETED" if name == "N-B" else "FUTURE_ORDER")
+                            elif index in (11, 15):
+                                evidence.update(source="SUBMIT_RESPONSE" if index == 11 else "LOOKUP", identity_kind="CAPTURE",
+                                    external_id="CAPTURE" + label.replace("-", "").upper(),
+                                    parent_external_id="ORDER" + label.replace("-", "").upper(), status="COMPLETED",
+                                    amount_minor="234" if name == "N-A" and index == 11 else "123")
                         evidence["key"] = evidence["identity_kind"] + ":" + evidence["external_id"] + ":" + evidence["status"]
                     taps.append({"label": name, "orderLabel": label, "scope": scope, "lane": lane, "step": index,
                         "rpc": D2_RPC[op], "method": "POST", "args": args, "status": 200, "response": response,
@@ -2007,11 +2038,14 @@ def d2_result(phase="A"):
                     if method in ("createOrder", "getOrder", "captureOrder"):
                         unknown = (method == "createOrder" and ((name == "F2" and index == 0) or name == "F3a"))
                         unknown = unknown or (method == "captureOrder" and name == "F5prime")
-                        unknown = unknown or (method == "getOrder" and ((name == "F5prime" and index > 0)
-                            or (name in ("N-A", "N-B", "N-C") and index == 1)))
+                        unknown = unknown or (method == "getOrder" and name == "F5prime" and index > 0)
                         body = d2_paypal_body(label, method == "captureOrder", name == "F6")
                         if method == "getOrder":
                             body["status"] = "APPROVED"
+                            if name in ("N-A", "N-B", "N-C") and index == 1:
+                                body = d2_paypal_body(label, True)
+                                body.update(status="COMPLETED", intent="CAPTURE")
+                                body["purchase_units"][0]["payments"]["captures"][0]["amount"]["value"] = "1.23"
                         if name == "F4b" and method == "createOrder" and index == 1:
                             body["id"] += "OTHER"
                         response = {"kind": "TRANSPORT_UNKNOWN"} if unknown else {"kind": "RESPONSE", "status": 200, "body": body}
@@ -2063,7 +2097,7 @@ def d2_result(phase="A"):
                 "status": 418, "response": {"code": "42501"}, "query": d2_entry_args("ORD-ACL"), "retryHeader": None})
         for row in direct:
             row.update(rawBody=json.dumps(row["response"], separators=(",", ":")), parseError=None)
-    findings = [{"label": label, "status": "OBSERVED_OPEN", "facts": d2_observation("afterA")["orderFacts"][label]}
+    findings = [{"label": label, "status": "E_ASSERTED", "facts": d2_observation("afterA")["orderFacts"][label]}
                 for label in ("N-A", "N-B", "N-C")] if phase == "A" else []
     return {"phase": phase, "phaseSet": "d2", "source": [], "direct": direct, "taps": taps,
             "scenarios": scenarios, "counts": copy.deepcopy(D2_COUNTS[phase]), "openFindings": findings,
@@ -2279,9 +2313,174 @@ class D2HttpTests(TemporarySource):
         return subject.validate_http(phase, d2_result(phase) if result is None else result,
             d2_observation("baseline" + phase), d2_cases(), phase_set="d2")
 
+    def test_e_n_rows_require_exact_tape_and_absorption_outcomes(self):
+        """Break: missing facts or changed absorption outcomes pass as bounded N evidence."""
+        self.verify()
+        for label in ("N-A", "N-B", "N-C"):
+            mutations = ("missing-capture", "wrong-capture-rpc", "capture-outcome", "entry", "claim") if label != "N-C" else (
+                "record-bind-order", "capture-outcome", "entry", "claim")
+            for mutation in mutations:
+                with self.subTest(label=label, mutation=mutation):
+                    value = d2_result()
+                    rows = [row for row in value["taps"] if row["label"] == label]
+                    scenario = next(row for row in value["scenarios"] if row["label"] == label)
+                    if mutation == "missing-capture":
+                        value["taps"].remove(rows[11])
+                        message = "Tap count differs"
+                    elif mutation == "wrong-capture-rpc":
+                        rows[11]["rpc"] = D2_RPC["bind"]
+                        message = "RPC sequence differs"
+                    elif mutation == "record-bind-order":
+                        rows[10]["rpc"], rows[11]["rpc"] = rows[11]["rpc"], rows[10]["rpc"]
+                        message = "RPC sequence differs"
+                    elif mutation == "capture-outcome":
+                        scenario["outcomes"][2] = {"kind": "INTAKE_PENDING", "replayed": False}
+                        message = "N outcomes differ: " + label
+                    elif mutation == "entry":
+                        rows[16]["response"].update(outcome="BLOCKED", safe_reason_code="REVIEW_REQUIRED")
+                        scenario["outcomes"][3] = {"kind": "BLOCKED", "reason": "REVIEW_REQUIRED"}
+                        message = "N entry differs: " + label
+                    else:
+                        rows[17]["response"] = {"decision": "BLOCKED", "safe_reason_code": "REVIEW_REQUIRED"}
+                        scenario["outcomes"][4] = {"kind": "BLOCKED", "reason": "REVIEW_REQUIRED"}
+                        message = "N claim differs: " + label
+                    with self.assertRaises(subject.BoundaryError) as caught:
+                        self.verify(result=value)
+                    self.assertEqual(caught.exception.code, "D2_HTTP")
+                    self.assertEqual(str(caught.exception), message)
+
+    def test_e_followup_get_must_be_normal_matched_not_forced_failure(self):
+        """Break: forced lookup failure or altered GET facts conceal N review persistence."""
+        self.verify()
+        for label in ("N-A", "N-B", "N-C"):
+            for mutation in ("forced-failure", "status", "amount", "capture-id", "third-get", "merchant", "first-get-merchant", "create-merchant"):
+                with self.subTest(label=label, mutation=mutation):
+                    value = d2_result()
+                    scenario = next(row for row in value["scenarios"] if row["label"] == label)
+                    gets = [row for row in scenario["fakeCalls"] if row["method"] == "getOrder"]
+                    call = gets[1]
+                    message = "N followup GET differs: " + label
+                    if mutation == "forced-failure":
+                        call["response"] = {"kind": "TRANSPORT_UNKNOWN"}
+                    elif mutation == "third-get":
+                        scenario["fakeCalls"].append(copy.deepcopy(call))
+                        message = "Fake transport count differs"
+                    else:
+                        if mutation == "first-get-merchant":
+                            call = gets[0]
+                            message = "N first GET differs: " + label
+                        elif mutation == "create-merchant":
+                            call = next(row for row in scenario["fakeCalls"] if row["method"] == "createOrder")
+                            message = "N CREATE body differs: " + label
+                        body = call["response"]["body"]
+                        unit = body["purchase_units"][0]
+                        if mutation == "status":
+                            body["status"] = "APPROVED"
+                        elif mutation == "amount":
+                            unit["payments"]["captures"][0]["amount"]["value"] = "2.34"
+                        elif mutation == "capture-id":
+                            unit["payments"]["captures"][0]["id"] = "DIFFERENTCAPTURE"
+                        else:
+                            unit["payee"]["merchant_id"] = "unit-merchant-v1"
+                    with self.assertRaises(subject.BoundaryError) as caught:
+                        self.verify(result=value)
+                    self.assertEqual(caught.exception.code, "D2_HTTP")
+                    self.assertEqual(str(caught.exception), message)
+
+    def test_e_n_evidence_and_native_outcomes_must_equal_actual_fake_values(self):
+        """Break: invented evidence, reason codes or merchant scopes replace actual N facts."""
+        self.verify()
+        cases_to_change = (
+            ("N-A", "complete-post", 11), ("N-A", "amount", 11), ("N-A", "reason", 10),
+            ("N-B", "amount", 11), ("N-B", "recorded", 11), ("N-B", "already-bound", 11),
+            ("N-C", "status", 10), ("N-C", "source", 15),
+            ("N-A", "capture-merchant", 11), ("N-B", "prepare-merchant", 1),
+            ("N-C", "binding-merchant", 2), ("N-A", "evidence-merchant", 4),
+            ("N-B", "evidence-merchant", 10), ("N-C", "evidence-merchant", 15),
+        )
+        for label, mutation, step in cases_to_change:
+            with self.subTest(label=label, mutation=mutation, step=step):
+                value = d2_result()
+                rows = [row for row in value["taps"] if row["label"] == label]
+                tap = rows[step]
+                message = "N evidence differs: " + label + " step " + str(step)
+                if mutation in ("complete-post", "capture-merchant"):
+                    scenario = next(row for row in value["scenarios"] if row["label"] == label)
+                    body = next(row for row in scenario["fakeCalls"] if row["method"] == "captureOrder")["response"]["body"]
+                    if mutation == "complete-post":
+                        body["intent"] = "CAPTURE"
+                    else:
+                        body["purchase_units"][0]["payee"]["merchant_id"] = "unit-merchant-v1"
+                    message = "N capture body differs: " + label
+                elif mutation == "prepare-merchant":
+                    tap["response"]["scope"]["merchant_id"] = "unit-merchant-v1"
+                    message = "N prepared scope differs: " + label
+                elif mutation == "binding-merchant":
+                    tap["response"]["scope"]["merchant_id"] = "unit-merchant-v1"
+                    message = "N binding scope differs: " + label
+                elif mutation in ("reason", "recorded", "already-bound"):
+                    if mutation == "recorded":
+                        tap["response"].update(outcome="RECORDED", reason_code=None)
+                    else:
+                        tap["response"]["reason_code"] = "AMOUNT_MISMATCH" if mutation == "reason" else "IDENTITY_ALREADY_BOUND"
+                    message = "N observation outcome differs: " + label + " step " + str(step)
+                else:
+                    evidence = tap["args"]["p_evidence"]
+                    if mutation == "amount":
+                        evidence["amount_minor"] = "123" if label == "N-A" else "124"
+                    elif mutation == "status":
+                        evidence.update(status="COMPLETED", key="ORDER:ORDERNC:COMPLETED")
+                    elif mutation == "source":
+                        evidence["source"] = "SUBMIT_RESPONSE"
+                    else:
+                        evidence["scope"]["merchant_id"] = "unit-merchant-v1"
+                with self.assertRaises(subject.BoundaryError) as caught:
+                    self.verify(result=value)
+                self.assertEqual(caught.exception.code, "D2_HTTP")
+                self.assertEqual(str(caught.exception), message)
+
+    def test_e_snapshot_after_record_requires_review_and_case_link_state(self):
+        """Break: a premature or inconsistent snapshot masks missing N review and link state."""
+        self.verify()
+        for label in ("N-A", "N-B", "N-C"):
+            for mutation in ("step", "review", "capture-link", "version", "context", "quote-and-claim", "claim-version", "claim-attempt", "claim-lease"):
+                with self.subTest(label=label, mutation=mutation):
+                    value = d2_result()
+                    rows = [row for row in value["taps"] if row["label"] == label]
+                    snapshot = rows[12]["response"]
+                    message = "N snapshot differs: " + label
+                    if mutation == "step":
+                        rows[12]["step"] = 11
+                        message = "RPC sequence differs"
+                    elif mutation == "review":
+                        snapshot["review_required"] = False
+                    elif mutation == "capture-link":
+                        snapshot["provider_capture_id"] = None if label == "N-C" else "CAPTURE" + label.replace("-", "")
+                    elif mutation == "version":
+                        snapshot["row_version"] = "10"
+                        rows[17]["args"]["p_expected_version"] = "10"
+                        rows[17]["response"]["row_version"] = "10"
+                    elif mutation == "context":
+                        snapshot["context_id"] = d2_id("F1", "context")
+                    elif mutation == "quote-and-claim":
+                        snapshot["quote_hash"] = "b" * 64
+                        rows[17]["response"]["quote_hash"] = "b" * 64
+                    else:
+                        message = "N claim differs: " + label
+                        if mutation == "claim-version":
+                            rows[17]["args"]["p_expected_version"] = "10"
+                        elif mutation == "claim-attempt":
+                            rows[17]["response"]["attempt_id"] = d2_id("F1", "attempt")
+                        else:
+                            rows[17]["response"]["lease_token"] = "<redacted>"
+                    with self.assertRaises(subject.BoundaryError) as caught:
+                        self.verify(result=value)
+                    self.assertEqual(caught.exception.code, "D2_HTTP")
+                    self.assertEqual(str(caught.exception), message)
+
     def test_d2_exact_per_phase_counts_separate_setup_from_measured_and_direct(self):
         """Break: setup is counted twice, injections count as DB reach or a phase is skipped."""
-        for phase, expected in (("A", (173, 19, 130, 24)), ("B", (4, 0, 4, 0)), ("C", (32, 0, 32, 0))):
+        for phase, expected in (("A", (185, 19, 142, 24)), ("B", (4, 0, 4, 0)), ("C", (32, 0, 32, 0))):
             actual = self.verify(phase)
             self.assertEqual(tuple(actual[key] for key in ("postgrestRequests", "setupProxyTaps", "measuredProxyTaps", "directRequests")), expected)
 
@@ -2358,9 +2557,9 @@ class D2HttpTests(TemporarySource):
         value = d2_result()
         row = next(row for row in value["scenarios"] if row["label"] == "F4b")
         row["outcomes"].reverse()
-        self.assertEqual(self.verify(result=value)["postgrestRequests"], 173)
+        self.assertEqual(self.verify(result=value)["postgrestRequests"], 185)
         next(outcome for outcome in row["outcomes"] if outcome["kind"] == "PROVIDER_ORDER_READY")["providerOrderId"] = "ORDERF4BOTHER"
-        self.assertEqual(self.verify(result=value)["postgrestRequests"], 173)
+        self.assertEqual(self.verify(result=value)["postgrestRequests"], 185)
         row["outcomes"] = [{"kind": "REVIEW_REQUIRED"}, {"kind": "REVIEW_REQUIRED"}]
         self.refuses("D2_HTTP", lambda: self.verify(result=value))
         value = d2_result()
@@ -2675,26 +2874,81 @@ class D2StateTests(TemporarySource):
             row["evidence"]["order_id"] = d2_id("ORD-ACL")
             self.refuses("D2_STATE", lambda: self.verify(after=after))
 
-    def test_open_n_findings_record_alternative_actual_facts_without_canonizing_current_behavior(self):
-        """Break: observational N-* outcomes become correctness assertions or disappear as resolved."""
-        after, result = d2_observation("afterA"), d2_result()
-        fact = after["orderFacts"]["N-A"]
-        fact["observations"][0].update(outcome="REVIEW_REQUIRED", reasonCode="UNRECOGNIZED_STATUS")
-        row = next(row for row in after["productState"]["web_payment_observations"] if row["evidence"]["order_id"] == d2_id("N-A"))
-        row.update(outcome="REVIEW_REQUIRED", reason_code="UNRECOGNIZED_STATUS")
-        after["bridgeNative"]["N-A"]["context"]["review_required"] = True
-        result["openFindings"][0]["facts"] = copy.deepcopy(fact)
-        next(row for row in result["scenarios"] if row["label"] == "N-A")["outcomes"][-1] = {"kind": "REVIEW_REQUIRED"}
-        self.assertIsNone(self.verify(after=after, result=result))
-        for mutation in ("resolved", "missing", "wrong-facts"):
-            value = copy.deepcopy(result)
-            if mutation == "resolved":
-                value["openFindings"][0]["status"] = "FIXED"
-            elif mutation == "missing":
-                value["openFindings"].pop()
-            else:
-                value["openFindings"][0]["facts"]["receiptCount"] = 1
-            self.refuses("D2_STATE", lambda: self.verify(after=after, result=value))
+    def test_e_n_end_states_observation_classes_and_link_counts_are_exact(self):
+        """Break: coherent raw/native summaries hide missing N facts, links or version writes."""
+        self.assertIsNone(self.verify())
+        changes = (("N-A", "missing-capture-fact"), ("N-A", "missing-capture-link"),
+            ("N-B", "recorded"), ("N-C", "unknown-status-lost"), ("N-C", "extra-lookup"),
+            ("N-A", "version"), ("N-B", "version"), ("N-C", "version"),
+            ("N-A", "native-merchant"), ("N-B", "native-merchant"), ("N-C", "native-merchant"))
+        for label, mutation in changes:
+            with self.subTest(label=label, mutation=mutation):
+                after, result = d2_observation("afterA"), d2_result()
+                fact = after["orderFacts"][label]
+                state = after["productState"]
+                native = after["bridgeNative"][label]["context"]
+                raw = [row for row in state["web_payment_observations"] if row["evidence"]["order_id"] == d2_id(label)]
+                rows = [row for row in result["taps"] if row["label"] == label]
+                message = "Exact end state differs: " + label
+                if mutation == "missing-capture-fact":
+                    state["web_payment_observations"].remove(raw[2])
+                    fact["observations"].pop(2)
+                    result["taps"].remove(rows[11])
+                elif mutation == "missing-capture-link":
+                    state["web_payment_provider_links"] = [row for row in state["web_payment_provider_links"]
+                        if not (row["context_id"] == d2_id(label, "context") and row["identity_kind"] == "CAPTURE")]
+                    fact["links"] = [row for row in fact["links"] if row["identityKind"] != "CAPTURE"]
+                    native["provider_capture_id"] = None
+                elif mutation in ("recorded", "unknown-status-lost"):
+                    index = 2 if mutation == "recorded" else 1
+                    fact["observations"][index].update(outcome="RECORDED", reasonCode=None)
+                    raw[index].update(outcome="RECORDED", reason_code=None)
+                    rows[11 if index == 2 else 10]["response"].update(outcome="RECORDED", reason_code=None)
+                    native["review_required"] = False
+                    message = "Observation class differs: " + label
+                elif mutation == "extra-lookup":
+                    additional = copy.deepcopy(raw[3])
+                    additional["id"] = additional["id"].replace("d255c301", "d255c401", 1)
+                    state["web_payment_observations"].append(additional)
+                    fact["observations"].append(copy.deepcopy(fact["observations"][3]))
+                    extra_tap = copy.deepcopy(rows[15])
+                    extra_tap["response"]["observation_id"] = additional["id"]
+                    extra_tap["step"] = 18
+                    result["taps"].append(extra_tap)
+                elif mutation == "native-merchant":
+                    after["bridgeNative"][label]["binding"]["scope"]["merchant_id"] = "unit-merchant-v1"
+                    message = "N binding scope differs: " + label
+                else:
+                    fact["rowVersion"] = "10"
+                    next(row for row in state["web_payment_orders"] if row["id"] == d2_id(label))["row_version"] = "10"
+                    native["row_version"] = "10"
+                    rows[12]["response"]["row_version"] = "10"
+                    rows[17]["args"]["p_expected_version"] = "10"
+                    rows[17]["response"]["row_version"] = "10"
+                next(row for row in result["openFindings"] if row["label"] == label)["facts"] = copy.deepcopy(fact)
+                with self.assertRaises(subject.BoundaryError) as caught:
+                    self.verify(after=after, result=result)
+                self.assertEqual(caught.exception.code, "D2_STATE")
+                self.assertEqual(str(caught.exception), message)
+
+    def test_e_findings_are_asserted_with_exact_facts_and_old_open_status_refused(self):
+        """Break: old OPEN status or incomplete findings conceal bounded E assertions."""
+        self.assertIsNone(self.verify())
+        for label in ("N-A", "N-B", "N-C"):
+            for mutation in ("old-open", "missing", "wrong-facts"):
+                with self.subTest(label=label, mutation=mutation):
+                    after, value = d2_observation("afterA"), d2_result()
+                    finding = next(row for row in value["openFindings"] if row["label"] == label)
+                    if mutation == "old-open":
+                        finding["status"] = "OBSERVED_OPEN"
+                    elif mutation == "missing":
+                        value["openFindings"].remove(finding)
+                    else:
+                        finding["facts"]["receiptCount"] = 1
+                    with self.assertRaises(subject.BoundaryError) as caught:
+                        self.verify(after=after, result=value)
+                    self.assertEqual(caught.exception.code, "D2_STATE")
+                    self.assertEqual(str(caught.exception), "N findings must retain asserted facts")
 
     def test_f5_intent_commit_must_be_observed_in_attempt_not_in_client_claims(self):
         """Break: a client error/result is used as proof of intent commit."""
@@ -2952,7 +3206,7 @@ class D2MainTests(TemporarySource):
         self.assertEqual((code, receipt["status"], receipt["phaseSet"]), (0, "passed", "d2"))
         self.assertEqual(boundary.events, ["bundle", "start", "seed", "baselineA", "postgrest", "httpA", "afterA",
             "rotate", "baselineB", "httpB", "afterB", "stop", "baselineC", "httpC", "afterC", "cleanup"])
-        self.assertEqual([receipt["phases"][phase]["measuredCounts"]["postgrestRequests"] for phase in "ABC"], [173, 4, 32])
+        self.assertEqual([receipt["phases"][phase]["measuredCounts"]["postgrestRequests"] for phase in "ABC"], [185, 4, 32])
         self.assertTrue(receipt["absenceComplete"] and receipt["sourcesUnchanged"] and receipt["dbSourcesUnchanged"])
         self.assertEqual([args for args in boundary.cleanup_transport.calls if args[1] == "rm"],
             [["container", "rm", "--force", "--volumes", cid] for cid in reversed(CID)] + [["network", "rm", NID]])
@@ -3024,8 +3278,8 @@ class ApprovedAHttpTests(TemporarySource):
 
     def test_approved_a_accepts_exact24_direct9_denials_and173_postgrest(self):
         """Break: the old 21/8 contract rejects the approved same-tuple read probe."""
-        self.assertEqual(self.verify(), {"postgrestRequests": 173, "setupProxyTaps": 19,
-            "measuredProxyTaps": 130, "directRequests": 24})
+        self.assertEqual(self.verify(), {"postgrestRequests": 185, "setupProxyTaps": 19,
+            "measuredProxyTaps": 142, "directRequests": 24})
 
     def test_service_entry_get_and_post_require_exact200_context_required_literal(self):
         """Break: two matching but wrong service responses pass through parity alone."""
@@ -3151,7 +3405,7 @@ class ApprovedAHttpTests(TemporarySource):
 
     def test_f5prime_first_unknown_then_exact_unavailable_lookup_is_accepted(self):
         """Break: the old harness insists on SUBMISSION_UNKNOWN for a later recovery GET."""
-        self.assertEqual(self.verify()["postgrestRequests"], 173)
+        self.assertEqual(self.verify()["postgrestRequests"], 185)
 
     def test_f5prime_wrong_third_result_or_second_capture_is_refused(self):
         """Break: result wildcards or extra provider POSTs weaken the recovery contract."""

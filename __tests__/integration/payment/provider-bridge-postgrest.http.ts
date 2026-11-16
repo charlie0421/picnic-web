@@ -189,6 +189,7 @@ function fakeBody(label:string,capture=false,badPayee=false) {
       amount:{value:label==='N-A'?'2.34':'1.23',currency_code:'USD'}}];
     if (['N-A','N-C'].includes(label)) body.status='FUTURE_ORDER';
     if (label==='N-B') body.intent='AUTHORIZE';
+    if (label==='N-A') delete body.intent;
   }
   return body;
 }
@@ -218,7 +219,11 @@ function fakeTransport(name:string,label:string,calls:any[],barrier?:any):PayPal
     if (method==='getOrder') {
       response.body.status='APPROVED';
       const index=gets++;
-      if ((name==='F5prime' || name.startsWith('N-')) && index>0) response.kind='TRANSPORT_UNKNOWN';
+      if (name==='F5prime' && index>0) response.kind='TRANSPORT_UNKNOWN';
+      if (name.startsWith('N-') && index>0) {
+        response.body={...fakeBody(label,true),status:'COMPLETED',intent:'CAPTURE'};
+        response.body.purchase_units[0].payments.captures[0].amount.value='1.23';
+      }
     }
     if (method==='captureOrder' && name==='F5prime') response.kind='TRANSPORT_UNKNOWN';
     if (response.kind==='TRANSPORT_UNKNOWN') { delete response.status; delete response.body; }
@@ -369,14 +374,19 @@ async function phaseA() {
     r.outcomes.push(remember(label,await ensurePayPalProviderOrder(d,input(label))));
     r.outcomes.push(await capturePayPalOrder(d,captureInput(label)));
     r.outcomes.push(await capturePayPalOrder(d,captureInput(label)));
+    r.outcomes.push(await entry.authorizeProviderEntry(gateInput(label)));
+    r.outcomes.push({kind:(await repository.claimCharge(cases.get(label).actor,cases.get(label).order,
+      latest(label,rpc.getter).row_version)).kind});
   }));
-  for(const label of ['N-A','N-B','N-C']) openFindings.push({label,status:'OBSERVED_OPEN',facts:observedFacts(label)});
+  for(const label of ['N-A','N-B','N-C']) openFindings.push({label,status:'E_ASSERTED',facts:observedFacts(label)});
 }
 function observedFacts(label:string) {
   const rows=taps.filter(t=>t.orderLabel===label),getter=rows.filter(t=>t.rpc===rpc.getter).at(-1)!.response;
   const bound=rows.filter(t=>t.rpc===rpc.bind||t.rpc===rpc.record);
   const unique=[...new Map(bound.filter(t=>t.response.observation_id).map(t=>[t.response.observation_id,t])).values()];
-  const links=unique.filter(t=>t.rpc===rpc.bind&&t.response.outcome==='RECORDED').map(t=>({identityKind:t.args.p_evidence.identity_kind,externalId:t.args.p_evidence.external_id}));
+  const links=[...new Map(unique.filter(t=>t.rpc===rpc.bind&&t.response.outcome==='RECORDED')
+    .map(t=>({identityKind:t.args.p_evidence.identity_kind,externalId:t.args.p_evidence.external_id}))
+    .map(link=>[JSON.stringify([link.identityKind,link.externalId]),link])).values()];
   const observations=unique.map(t=>({source:t.args.p_evidence.source,identityKind:t.args.p_evidence.identity_kind,
     outcome:t.response.outcome,reasonCode:t.response.reason_code??null}));
   return {orderId:cases.get(label).order,contextCount:getter.context_id?1:0,links,observations,
@@ -455,7 +465,7 @@ async function main() {
   assert.equal(pending.size,0,'Unfinished SDK requests'); if(firstProxyError) throw firstProxyError;
   const counts={scenarios:scenarios.length,setupProxy:taps.filter(t=>t.scope==='setup').length,
     measuredProxy:taps.filter(t=>t.scope==='measured').length,direct:direct.length,postgrest:taps.length+direct.length};
-  const expected:any={A:{scenarios:16,setupProxy:19,measuredProxy:130,direct:24,postgrest:173},
+  const expected:any={A:{scenarios:16,setupProxy:19,measuredProxy:142,direct:24,postgrest:185},
     B:{scenarios:1,setupProxy:0,measuredProxy:4,direct:0,postgrest:4},C:{scenarios:2,setupProxy:0,measuredProxy:32,direct:0,postgrest:32}};
   assert.deepEqual(counts,expected[phase],'Actual request counts differ');
   assert.deepEqual(guard.report().blocked,['http','http-address','rpc-path','http-address','rpc-method','rpc-method','rpc-query','rpc-query','rpc-method']);
