@@ -1765,8 +1765,6 @@ describe('R1 partial POST preserves representable contradictory facts before rec
       b.purchase_units[0].payments.captures[0].amount.value = '10.00'; delete b.intent;
     }, { identity_kind: 'CAPTURE', external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T',
       key: 'CAPTURE:3C679366HH908993F:COMPLETED', amount_minor: '1000' }],
-    ['unknown-order-status/missing-intent', 'UNRECOGNIZED_STATUS', (b: any) => { b.status = 'FUTURE_ORDER'; delete b.intent; },
-      { status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER' }],
     ['unknown-capture-status/missing-intent', 'UNRECOGNIZED_STATUS', (b: any) => {
       b.purchase_units[0].payments.captures[0].status = 'FUTURE_CAPTURE'; delete b.intent;
     }, { identity_kind: 'CAPTURE', external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T',
@@ -1797,6 +1795,53 @@ describe('R1 partial POST preserves representable contradictory facts before rec
     expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
     expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
       state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // 미지 ORDER status 때문에 귀속 가능한 CAPTURE를 버리는 조기 반환을 검출한다.
+  it('records actual SUBMIT_RESPONSE for unknown-order-status/missing-intent with no corrective GET, bind or receipt', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_NOT_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
     expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
     expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
   });
@@ -2361,4 +2406,917 @@ describe('U2-C live provider entry before CREATE', () => {
     expect(h.entry.authorizeProviderEntry).not.toHaveBeenCalled();
     expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
   });
+});
+
+describe('U2-E bounded provider fact preservation', () => {
+  const capturesAt = (n: number) => Array.from({ length: n }, (_u, k) => ({
+    id: k === 0 ? '3C679366HH908993F' : `CAP${k}`, status: 'COMPLETED',
+    amount: { currency_code: 'USD', value: '9.99' }, custom_id: 'v2:11111111-1111-4111-8111-111111111111',
+  }));
+
+  it('records FUTURE_ORDER and the actual conflicting CAPTURE amount from a partial POST without recovery', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'AMOUNT_MISMATCH', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
+    body.purchase_units[0].payments.captures[0].amount.value = '10.00';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '1000', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  it('records FUTURE_ORDER and the actual matching CAPTURE from a complete AUTHORIZE POST once each', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_NOT_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; body.intent = 'AUTHORIZE';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // 기록 실패 뒤 다음 사실을 생략하거나 같은 사실을 재시도하는 회귀를 검출한다.
+  it('still records the actual CAPTURE once after the FUTURE_ORDER record returns 503', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { status: 503, data: { code: 'XX000', message: 'Q7pPriv record unavailable' } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'AMOUNT_MISMATCH', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
+    body.purchase_units[0].payments.captures[0].amount.value = '10.00';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '1000', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // 중복 제거 전 raw 33개를 닫고, raw 3개에서는 서로 다른 두 사실만 보낸다.
+  it.each(['duplicate', 'raw-33-unique', 'raw-33-with-duplicate'])
+    ('bounds unknown-status CAPTURE facts for %s raw captures', async mode => {
+    const h = boundaries({ [RPC.observe]: mode === 'duplicate' ? [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'AMOUNT_MISMATCH', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'AMOUNT_MISMATCH', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ] : [], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
+    if (mode === 'duplicate') {
+      const first = { id: '3C679366HH908993F', status: 'COMPLETED', amount: { currency_code: 'USD', value: '10.00' },
+        custom_id: 'v2:11111111-1111-4111-8111-111111111111' };
+      body.purchase_units[0].payments.captures = [first, structuredClone(first), { id: '9SECOND', status: 'COMPLETED',
+        amount: { currency_code: 'USD', value: '11.00' }, custom_id: 'v2:11111111-1111-4111-8111-111111111111' }];
+    } else {
+      body.purchase_units[0].payments.captures = mode === 'raw-33-unique' ? capturesAt(33)
+        : [...capturesAt(32), structuredClone(capturesAt(32)[0])];
+    }
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(mode === 'duplicate' ? 3 : 0);
+    expect(recorded.map(call => call.args)).toEqual(mode === 'duplicate' ? [
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '1000', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '9SECOND', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '1100', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:9SECOND:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ] : []);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', ...(mode === 'duplicate' ? [RPC.observe, RPC.observe, RPC.observe] : [])]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  it('keeps only the ORDER fact when an unknown-status POST names another merchant', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
+    body.purchase_units[0].payee.merchant_id = 'MERCHANTB2';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTB2' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // ORDER1과 CAPTURE32를 모두 응답 순서로 기록하며 잘린 반복을 검출한다.
+  it('records the ORDER then all 32 actual unknown-status CAPTURE facts at the raw bound', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } },
+      ...Array.from({ length: 32 }, () => ({ data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_NOT_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } })),
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body = capturedOrder(); body.status = 'FUTURE_ORDER'; delete (body as any).intent;
+    body.purchase_units[0].payments.captures = capturesAt(32);
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(33);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      ...capturesAt(32).map(c => ({ p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: c.id, parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: `CAPTURE:${c.id}:COMPLETED`,
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } })),
+    ]);
+    expect(new Set(recorded.map(call => (call.args.p_evidence as any).payload_hash)).size).toBe(33);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', ...Array(33).fill(RPC.observe)]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // 완전 CAPTURE_SHAPE 경로에 ORDER 기록을 잘못 추가하는 변경을 검출한다.
+  it('keeps a complete unknown-status POST with a conflicting CAPTURE on the record-only CAPTURE_SHAPE path', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'AMOUNT_MISMATCH', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; body.purchase_units[0].payments.captures[0].amount.value = '10.00';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '1000', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // INTENT fallback에서 일치 CAPTURE가 빠지거나 bind로 바뀌는 회귀를 검출한다.
+  it('records the actual matching AUTHORIZE CAPTURE as record-only after the ORDER fact', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: NATIVE_RECORDED },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_NOT_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.intent = 'AUTHORIZE';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'ORDER:5O190127TN364715T:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // literal getter REVIEW가 정상 GET 후 intake로 풀리는 회귀를 검출하며 SQL 영속성은 주장하지 않는다.
+  it('keeps REVIEW and zero intake when a later normal GET binds the AUTHORIZE capture', async () => {
+    const h = boundaries({ [RPC.observe]: [], [RPC.bind]: [{ data: NATIVE_RECORDED }], [RPC.receive]: [], [RPC.claim]: [], [RPC.intent]: [],
+      [RPC.getter]: [{ data: { ...NATIVE_FOUND, row_version: '3', payment_state: 'SUBMISSION_UNKNOWN', submission_intent_recorded: true,
+        attempt_id: ATTEMPT, review_required: true } }] });
+    const body: any = capturedOrder();
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(0);
+    expect(recorded.map(call => call.args)).toEqual([]);
+    expect(rpcCalls(h, RPC.bind).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
+      source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+      external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+      order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+      amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+      payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    } }]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.bind]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(0); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // 동시 같은 ID link의 RECORDED 응답이 로컬 REVIEW를 풀지 못한다.
+  it('returns local REVIEW without intake when the AUTHORIZE CAPTURE record returns RECORDED', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: NATIVE_RECORDED },
+      { data: NATIVE_RECORDED }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.intent = 'AUTHORIZE';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'ORDER:5O190127TN364715T:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  it('still records the AUTHORIZE CAPTURE once after the ORDER record returns 503', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { status: 503, data: { code: 'XX000', message: 'Q7pPriv record unavailable' } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_NOT_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.intent = 'AUTHORIZE';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'ORDER:5O190127TN364715T:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // AUTHORIZE 외 intent, CAPTURE 부재, 외부 merchant에 기록 범위를 넓히는 회귀를 검출한다.
+  it.each(['no-capture', 'sale-intent', 'foreign-merchant'])
+    ('does not add a CAPTURE fact for excluded %s POST', async mode => {
+    const h = boundaries({ [RPC.observe]: [{ data: NATIVE_RECORDED }], [RPC.bind]: [], [RPC.receive]: [] });
+    const body = capturedOrder(); body.intent = mode === 'sale-intent' ? 'SALE' : 'AUTHORIZE';
+    if (mode === 'no-capture') body.purchase_units[0].payments.captures = [];
+    if (mode === 'foreign-merchant') body.purchase_units[0].payee.merchant_id = 'MERCHANTB2';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: mode === 'foreign-merchant' ? 'MERCHANTB2' : 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'ORDER:5O190127TN364715T:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // 중복 제거 전 raw 33개를 닫고, raw 3개에서는 서로 다른 두 사실만 보낸다.
+  it.each(['duplicate', 'raw-33-unique', 'raw-33-with-duplicate'])
+    ('bounds AUTHORIZE CAPTURE facts for %s raw captures', async mode => {
+    const h = boundaries({ [RPC.observe]: mode === 'duplicate' ? [
+      { data: NATIVE_RECORDED },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_NOT_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_NOT_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ] : [], [RPC.bind]: [], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.intent = 'AUTHORIZE';
+    if (mode === 'duplicate') {
+      const first = { id: '3C679366HH908993F', status: 'COMPLETED', amount: { currency_code: 'USD', value: '9.99' },
+        custom_id: 'v2:11111111-1111-4111-8111-111111111111' };
+      body.purchase_units[0].payments.captures = [first, structuredClone(first), { id: '9SECOND', status: 'COMPLETED',
+        amount: { currency_code: 'USD', value: '9.99' }, custom_id: 'v2:11111111-1111-4111-8111-111111111111' }];
+    } else {
+      body.purchase_units[0].payments.captures = mode === 'raw-33-unique' ? capturesAt(33)
+        : [...capturesAt(32), structuredClone(capturesAt(32)[0])];
+    }
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(mode === 'duplicate' ? 3 : 0);
+    expect(recorded.map(call => call.args)).toEqual(mode === 'duplicate' ? [
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'ORDER:5O190127TN364715T:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '9SECOND', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:9SECOND:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ] : []);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', ...(mode === 'duplicate' ? [RPC.observe, RPC.observe, RPC.observe] : [])]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // ORDER1과 CAPTURE32를 모두 응답 순서로 기록하며 잘린 반복을 검출한다.
+  it('records the ORDER then all 32 actual AUTHORIZE CAPTURE facts at the raw bound', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: NATIVE_RECORDED },
+      ...Array.from({ length: 32 }, () => ({ data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_NOT_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } })),
+    ], [RPC.bind]: [], [RPC.receive]: [] });
+    const body = capturedOrder(); body.intent = 'AUTHORIZE';
+    body.purchase_units[0].payments.captures = capturesAt(32);
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(33);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'ORDER:5O190127TN364715T:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      ...capturesAt(32).map(c => ({ p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: c.id, parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: `CAPTURE:${c.id}:COMPLETED`,
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } })),
+    ]);
+    expect(new Set(recorded.map(call => (call.args.p_evidence as any).payload_hash)).size).toBe(33);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', ...Array(33).fill(RPC.observe)]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  // 미지 ORDER 기록 누락과 bind 뒤로 옮긴 기록 순서를 검출한다.
+  it('records the actual unknown ORDER status before binding the matching SUBMIT capture', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [{ data: NATIVE_RECORDED }], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(rpcCalls(h, RPC.bind).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
+      source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+      external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+      order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+      amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+      payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    } }]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.bind]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  it('records the actual unknown ORDER status before binding a capture found by the first GET', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [{ data: NATIVE_RECORDED }], [RPC.receive]: [], [RPC.claim]: [], [RPC.intent]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER';
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(rpcCalls(h, RPC.bind).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
+      source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+      external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+      order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+      amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+      payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    } }]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.observe, RPC.bind]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(0); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  it('still binds the actual capture once after the unknown-status ORDER record returns 503', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { status: 503, data: { code: 'XX000', message: 'Q7pPriv record unavailable' } }
+    ], [RPC.bind]: [{ data: NATIVE_RECORDED }], [RPC.receive]: [] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(rpcCalls(h, RPC.bind).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
+      source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+      external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+      order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+      amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+      payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    } }]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe, RPC.bind]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  it('records the unknown ORDER status before refusing a different existing capture link', async () => {
+    const h = boundaries({ [RPC.observe]: [
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } },
+      { data: { outcome: 'REVIEW_REQUIRED', reason_code: 'IDENTITY_ALREADY_BOUND', trust: 'SERVER_REPORTED',
+        observation_id: OBSERVATION, replayed: false } }
+    ], [RPC.bind]: [], [RPC.receive]: [], [RPC.claim]: [], [RPC.intent]: [],
+      [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_capture_id: '9EXISTINGCAP' } }] });
+    const body: any = capturedOrder(); body.status = 'FUTURE_ORDER';
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'FUTURE_ORDER', key: 'ORDER:5O190127TN364715T:FUTURE_ORDER',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } },
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+        external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.observe, RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(0); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
+  it('does not record a CAPTURE from an AUTHORIZE POST with a malformed ORDER amount', async () => {
+    const h = boundaries({ [RPC.observe]: [], [RPC.bind]: [], [RPC.receive]: [] });
+    const body = capturedOrder(); body.intent = 'AUTHORIZE'; body.purchase_units[0].amount.value = '9.9';
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.receive)).toHaveLength(0);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture']);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER, requestKey: ATTEMPT }]]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls, dto: toPayPalChargeBrowserDto(ORDER, outcome) }))
+      .not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTA1|MERCHANTB2|3C679366HH908993F|lease_token|quote_hash|credentialRef/);
+  });
+
+  it('keeps an AUTHORIZE LOOKUP at ORDER-only evidence without recording its CAPTURE', async () => {
+    const h = boundaries({ [RPC.observe]: [{ data: NATIVE_RECORDED }], [RPC.bind]: [], [RPC.receive]: [], [RPC.claim]: [], [RPC.intent]: [] });
+    const body = capturedOrder(); body.intent = 'AUTHORIZE';
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
+    expect(recorded.map(call => call.args)).toEqual([
+      { p_context_id: CONTEXT, p_evidence: {
+        source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
+        external_id: '5O190127TN364715T', parent_external_id: null, order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+        order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+        amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'ORDER:5O190127TN364715T:COMPLETED',
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      } }
+    ]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.observe]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder).toHaveBeenCalledTimes(0); expect(h.transport.createOrder).toHaveBeenCalledTimes(0);
+    expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.receive)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.claim)).toHaveLength(0); expect(rpcCalls(h, RPC.intent)).toHaveLength(0);
+    expect(h.script[RPC.observe]).toHaveLength(0); expect(h.script[RPC.getter]).toHaveLength(0);
+    expect(h.script[RPC.prepare]).toHaveLength(0); expect(h.script[RPC.claim]).toHaveLength(0);
+    expect(h.script[RPC.intent]).toHaveLength(0); expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(recorded)).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls, dto: toPayPalChargeBrowserDto(ORDER, outcome) }))
+      .not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTA1|MERCHANTB2|3C679366HH908993F|lease_token|quote_hash|credentialRef/);
+  });
+
+  it('keeps REVIEW and zero intake when reconcile rebinds the same capture after unknown status', async () => {
+    const h = boundaries({ [RPC.observe]: [], [RPC.bind]: [{ data: NATIVE_RECORDED }], [RPC.receive]: [], [RPC.claim]: [], [RPC.intent]: [],
+      [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_capture_id: '3C679366HH908993F', review_required: true,
+        payment_state: 'SUBMISSION_UNKNOWN', submission_intent_recorded: true, attempt_id: ATTEMPT, row_version: '3' } }] });
+    const body: any = capturedOrder();
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    const outcome = await reconcilePayPalOrder(h.deps, input);
+    const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(0);
+    expect(recorded.map(call => call.args)).toEqual([]);
+    expect(rpcCalls(h, RPC.bind).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
+      source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
+      external_id: '3C679366HH908993F', parent_external_id: '5O190127TN364715T', order_id: ORDER, user_id: ACTOR, quote_hash: HASH,
+      order_reference: 'v2:11111111-1111-4111-8111-111111111111', scope: { account_id: 'ACCOUNTA1', merchant_id: 'MERCHANTA1' },
+      amount_minor: '999', currency: 'USD', status: 'COMPLETED', key: 'CAPTURE:3C679366HH908993F:COMPLETED',
+      payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    } }]);
+    expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.bind]);
+    expect(h.transport.getOrder.mock.calls).toEqual([[{ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER }]]);
+    expect(h.transport.captureOrder.mock.calls).toEqual([]);
+    expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(1);
+    expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(0);
+    expect(rpcCalls(h, RPC.intent)).toHaveLength(0); expect(h.script[RPC.observe]).toHaveLength(0);
+    expect(h.script[RPC.getter]).toHaveLength(0); expect(h.script[RPC.prepare]).toHaveLength(0);
+    expect(h.script[RPC.claim]).toHaveLength(0); expect(h.script[RPC.intent]).toHaveLength(0);
+    expect(h.script[RPC.bind]).toHaveLength(0); expect(h.script[RPC.receive]).toHaveLength(0);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+    expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+      state: 'REVIEW_REQUIRED', newOrderAllowed: false });
+    expect(h.log.mock.calls).toEqual([[{ stage: 'OBSERVE', level: 'warn', code: 'payment.paypal.charge.observe.review', orderId: ORDER }]]);
+    expect(JSON.stringify(rpcCalls(h, RPC.observe))).not.toMatch(/Q7pPriv|email_address|links|update_time|provider_completed_at|COUNTRY_MISMATCH/);
+    expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|9OTHERORDER|FUTURE_|ACCOUNTA1|MERCHANTB2|3C679366HH908993F/);
+  });
+
 });

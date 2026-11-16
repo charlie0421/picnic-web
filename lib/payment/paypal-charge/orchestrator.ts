@@ -274,18 +274,18 @@ function contradictoryFacts(c: ChargeContext, i: Input, binding: ProviderChargeB
   // transport recovery inputs, not permission to fill evidence from expectations.
   if (!order || order.amount_minor === null || order.currency === null || order.order_reference === null) return [];
   if (order.external_id !== c.providerOrderId || order.amount_minor !== c.amountMinor || order.currency !== c.currency
-    || order.scope.merchant_id !== binding.scope.merchant_id || order.order_reference !== `v2:${c.orderId}`
-    || !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED'].includes(order.status)) return [order];
+    || order.scope.merchant_id !== binding.scope.merchant_id || order.order_reference !== `v2:${c.orderId}`) return [order];
+  const unknownOrder = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED'].includes(order.status);
   // Only the matching ORDER tuple can attribute CAPTURE facts to this order.
   // A missing CAPTURE link alone is not an observed provider contradiction.
-  const facts: PayPalEvidence[] = []; const seen = new Set<string>();
+  const facts: PayPalEvidence[] = unknownOrder ? [order] : []; const seen = new Set<string>();
   for (let index = 0; index < observed.captures.length; index++) {
     const capture = observed.captures[index]; const raw = object(captures?.[index]);
     if (!raw || !capture.providerCaptureId || !capture.rawStatus || !capture.amountMinor || !capture.currency
       || (raw.custom_id !== undefined && !capture.orderReference)) continue;
     const actual = evidence(c, i, binding, observed, source, capture);
     if (!actual || !actual.order_reference || seen.has(actual.payload_hash)) continue;
-    if (actual.amount_minor !== c.amountMinor || actual.currency !== c.currency
+    if (unknownOrder || actual.amount_minor !== c.amountMinor || actual.currency !== c.currency
       || actual.order_reference !== `v2:${c.orderId}` || capture.status === 'UNRECOGNIZED'
       || (c.providerCaptureId !== null && actual.external_id !== c.providerCaptureId)) {
       seen.add(actual.payload_hash); facts.push(actual);
@@ -359,6 +359,23 @@ async function mismatch(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Auth
       try { await d.repository.recordObservation(c.contextId, e); } catch { /* Local refusal remains closed if persistence fails. */ }
     }
   }
+  if (source === 'SUBMIT_RESPONSE' && assessment.reason === 'INTENT' && object(body)?.intent === 'AUTHORIZE'
+    && c.contextId && c.providerCaptureId === null && observed.providerOrderId === c.providerOrderId
+    && observed.amountMinor === c.amountMinor && observed.currency === c.currency
+    && observed.merchantId === a.binding.scope.merchant_id && observed.orderReference === `v2:${c.orderId}`) {
+    const seen = new Set<string>();
+    for (let index = 0; index < observed.captures.length; index++) {
+      const capture = observed.captures[index]; const raw = object(rawCaptures?.[index]);
+      if (!raw || !capture.providerCaptureId || !capture.rawStatus || !capture.amountMinor || !capture.currency
+        || (raw.custom_id !== undefined && !capture.orderReference) || capture.status === 'UNRECOGNIZED') continue;
+      const actual = evidence(c, i, a.binding, observed, source, capture);
+      if (!actual || actual.amount_minor !== c.amountMinor || actual.currency !== c.currency
+        || actual.order_reference !== `v2:${c.orderId}` || seen.has(actual.payload_hash)) continue;
+      seen.add(actual.payload_hash);
+      try { await d.repository.recordObservation(c.contextId, actual); }
+      catch { /* A failed record must not discard later actual captures. */ }
+    }
+  }
   log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
 }
 
@@ -367,6 +384,10 @@ async function captureObserved(d: PayPalChargeDeps, i: Input, c: ChargeContext, 
   const capture = assessment.captures[0];
   const e = evidence(c, i, a.binding, assessment.observed, source, capture ?? null);
   if (!capture || !e || !c.contextId) return { kind: 'SUBMISSION_UNKNOWN' };
+  if (assessment.status === 'UNRECOGNIZED') {
+    const order = evidence(c, i, a.binding, assessment.observed, source);
+    if (order) await recordFacts(d, c, [order]);
+  }
   if (c.providerCaptureId !== null && e.external_id !== c.providerCaptureId) {
     try { await d.repository.recordObservation(c.contextId, e); } catch { /* Never replace the existing capture link. */ }
     log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
