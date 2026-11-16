@@ -17,6 +17,11 @@ if (net.isIP(config.restIp) !== 4 || config.restPort !== 3000 || config.restAlia
 const blocked = [];
 let proxyPort = null;
 const rpc = 'get_web_payment_provider_binding';
+const d2 = config.phaseSet === 'd2';
+if (config.phaseSet !== undefined && !['d1', 'd2'].includes(config.phaseSet)) throw new Error('Invalid phase set');
+const d2Rpcs = ['get_web_payment_charge_context', 'prepare_web_payment_provider_context', rpc,
+  'authorize_web_payment_provider_entry', 'bind_web_payment_provider_identity', 'record_web_payment_observation',
+  'claim_web_payment_charge', 'record_web_payment_submission_intent', 'receive_web_payment_purchase'];
 function deny(kind) {
   blocked.push(kind);
   const error = new Error('PROVIDER_RPC_HTTP_NETWORK_DENIED:' + kind);
@@ -39,9 +44,29 @@ net.Server.prototype.listen = function(...args) {
   return originalListen.apply(this, args);
 };
 function checkHttp(url, method) {
-  if (url.protocol !== 'http:' || url.username || url.password || url.hash || !['GET', 'POST'].includes(method)) deny('http');
+  if (url.protocol !== 'http:' || url.username || url.password || url.hash) deny('http');
+  if (!d2 && !['GET', 'POST'].includes(method)) deny('http');
   if (!socketAllowed(url.hostname, Number(url.port || 80))) deny('http-address');
   const prefix = url.hostname === '127.0.0.1' ? '/rest/v1/rpc/' : '/rpc/';
+  if (d2) {
+    const name = url.pathname.slice(prefix.length);
+    if (!url.pathname.startsWith(prefix) || !d2Rpcs.includes(name)) deny('rpc-path');
+    if (!['GET', 'POST'].includes(method)) deny('rpc-method');
+    const stable = ['get_web_payment_charge_context', rpc].includes(name);
+    const entryGet = name === 'authorize_web_payment_provider_entry' && url.hostname === config.restIp;
+    if (method === 'GET' && !stable && !entryGet) deny('rpc-method');
+    if (method === 'POST') { if (url.search) deny('rpc-query'); return; }
+    const keys = ['p_actor_user_id', 'p_order_id'];
+    if (entryGet) keys.push('p_context_id', 'p_create_request_key', 'p_binding_hash');
+    const seen = new Set();
+    for (const [key, value] of url.searchParams) {
+      const pattern = key === 'p_binding_hash' ? /^[0-9a-f]{64}$/ : /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      if (!keys.includes(key) || seen.has(key) || !pattern.test(value)) deny('rpc-query');
+      seen.add(key);
+    }
+    if (seen.size !== keys.length) deny('rpc-query');
+    return;
+  }
   if (url.pathname !== prefix + rpc) deny('rpc-path');
   if (method === 'POST' && url.search) deny('rpc-query');
   const seen = new Set();

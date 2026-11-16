@@ -1,6 +1,7 @@
 \set ON_ERROR_STOP on
 -- Disposable synthetic identities only. No provider credential resolution.
 begin;
+set local provider_rpc.phase_set to '__PROVIDER_RPC_PHASE_SET__';
 do $$ begin
  assert session_user='postgres' and current_user='postgres';
  assert current_database()='fixture' and current_setting('plpgsql.check_asserts')='on';
@@ -74,6 +75,18 @@ insert into binding_cases values
  ('B4','d155aa01-0000-4000-8000-000000000003',
   pg_temp.binding_order('B4','d155aa01-0000-4000-8000-000000000003','PORTONE',true));
 
+do $$
+declare label text;
+begin
+ if current_setting('provider_rpc.phase_set')='d2' then
+  foreach label in array array['F1','F2','F3','F4a','F4b','F5','F5prime','F6','F7','L1-CLAIM','N-A','N-B','N-C','ORD-ACL'] loop
+   insert into binding_cases values(label,'d155aa01-0000-4000-8000-000000000001',
+    pg_temp.binding_order(label,'d155aa01-0000-4000-8000-000000000001','PAYPAL',false));
+  end loop;
+ else
+  assert current_setting('provider_rpc.phase_set')='d1','SEED_PHASE_SET';
+ end if;
+end $$;
 -- B3 is INSERT-only historical data. Keep FK/CHECK/internal triggers active.
 -- Restore the original USER-trigger modes before any binding RPC observes it.
 do $$
@@ -123,7 +136,7 @@ begin
 exception when others or assert_failure then reset role;raise;
 end $$;
 do $$ begin
- assert (select count(*)=4 from binding_cases),'SEED_CASE_COUNT';
+ assert (select count(*)=case when current_setting('provider_rpc.phase_set')='d2' then 18 else 4 end from binding_cases),'SEED_CASE_COUNT';
  assert (select count(*)=2 from public.web_payment_provider_settings where is_current_environment
   and mode='OPEN' and allow_charge and allow_new_orders),'SEED_SETTINGS_COUNT';
  assert (select count(*)=0 from public.web_payment_orders where user_id='d155aa01-0000-4000-8000-000000000002');

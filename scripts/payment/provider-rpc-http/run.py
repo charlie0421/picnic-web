@@ -22,6 +22,7 @@ import subprocess
 import sys
 import traceback
 import uuid
+from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).absolute().parents[3]
@@ -87,6 +88,63 @@ ENV = {'PATH': '/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin', 'NODE_ENV': 'te
 HASH = re.compile(r'[0-9a-f]{64}\Z')
 HEAD = re.compile(r'[0-9a-f]{40}\Z')
 UUID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z')
+D2_ENTRY = '__tests__/integration/payment/provider-bridge-postgrest.http.ts'
+D2_PRODUCT_PINS = {**PRODUCT_PINS,
+    'lib/payment/paypal-charge/provider-entry.ts': 'd5b28163e39e238fac54388e08bcb3d6d1dea469d8509caee4503a678b049d22',
+    'lib/payment/paypal-charge/orchestrator.ts': '91440de9d521c9bd76db8e4213bb0832fe42272d2df5dfb458b5cccfa4ef2c2f',
+    'lib/payment/paypal-charge/protocol.ts': '987d3333122a197f0115d9a9b5f06337ba0c9bebcea36f3c623081c1ebef67c5'}
+D2_FROZEN = frozenset((*REUSE.values(), *D2_PRODUCT_PINS))
+D2_OWNED = frozenset((OWNED - {ENTRY}) | {D2_ENTRY})
+D2_BUNDLE = frozenset((D2_ENTRY, *D2_PRODUCT_PINS, 'server-only-marker:server-only'))
+D2_ARTIFACTS = frozenset(('provider-bridge-http.cjs', 'guard.cjs', 'config.json', 'bundle-inputs.json'))
+D2_LABELS = ('F1', 'F2', 'F3', 'F4a', 'F4b', 'F5', 'F5prime', 'F6', 'F7', 'L1-CLAIM', 'N-A', 'N-B', 'N-C', 'ORD-ACL')
+D2_RPC = {'getter': 'get_web_payment_charge_context', 'prepare': 'prepare_web_payment_provider_context',
+    'binding': 'get_web_payment_provider_binding', 'entry': 'authorize_web_payment_provider_entry',
+    'bind': 'bind_web_payment_provider_identity', 'record': 'record_web_payment_observation',
+    'claim': 'claim_web_payment_charge', 'intent': 'record_web_payment_submission_intent', 'receive': 'receive_web_payment_purchase'}
+D2_STABLE = frozenset((D2_RPC['getter'], D2_RPC['binding']))
+D2_PROBES = ['http', 'http-address', 'rpc-path', 'http-address', 'rpc-method', 'rpc-method', 'rpc-query', 'rpc-query', 'rpc-method']
+PRODUCT_TABLES = frozenset(('web_payment_orders', 'web_payment_quotes', 'web_payment_provider_contexts',
+    'web_payment_provider_links', 'web_payment_observations', 'web_payment_charge_attempts',
+    'web_payment_purchase_intakes', 'products', *FINANCIAL, *FULL))
+# Closed measurement plan. Entries are external RPC names in arrival order
+# within one lane; concurrent F4 lanes are validated independently.
+D2_TAP_PLAN = {
+    'A': {
+        'F1': ('F1', '', 'getter prepare binding entry bind getter prepare binding claim intent bind receive'),
+        'F2': ('F2', '', 'getter prepare binding entry getter prepare binding entry bind'),
+        'F3a': ('F3', '', 'getter prepare binding entry'),
+        'F4a': ('F4a', 'prepare getter', 'getter prepare binding entry bind'),
+        'F4b': ('F4b', 'prepare getter', 'getter prepare binding entry bind'),
+        'F4b-refusal': ('F4b', '', 'getter entry'),
+        'F5': ('F5', '', 'getter prepare binding entry bind getter prepare binding claim intent getter prepare binding getter claim'),
+        'F5prime': ('F5prime', '', 'getter prepare binding entry bind getter prepare binding claim intent getter prepare binding'),
+        'F6': ('F6', 'getter prepare binding entry record getter', 'getter binding entry claim'),
+        'F7a': ('F7', '', 'prepare'), 'L1a': ('F1', '', 'binding entry entry entry entry'),
+        'L1-CLAIM': ('L1-CLAIM', 'getter prepare binding entry bind getter claim getter binding', 'entry'),
+        'L1b': ('F5', '', 'binding entry'),
+        'N-A': ('N-A', '', 'getter prepare binding entry bind getter prepare binding claim intent record getter prepare binding'),
+        'N-B': ('N-B', '', 'getter prepare binding entry bind getter prepare binding claim intent record getter prepare binding'),
+        'N-C': ('N-C', '', 'getter prepare binding entry bind getter prepare binding claim intent bind getter prepare binding')},
+    'B': {'F7b': ('F7', '', 'getter prepare binding entry')},
+    'C': {'F3b': ('F3', '', 'getter prepare binding entry'), 'C-READS': (None, '', '')}}
+D2_COUNTS = {'A': {'scenarios': 16, 'setupProxy': 19, 'measuredProxy': 130, 'direct': 24, 'postgrest': 173},
+    'B': {'scenarios': 1, 'setupProxy': 0, 'measuredProxy': 4, 'direct': 0, 'postgrest': 4},
+    'C': {'scenarios': 2, 'setupProxy': 0, 'measuredProxy': 32, 'direct': 0, 'postgrest': 32}}
+# context, ORDER link, CAPTURE link, observation, attempt, intent,
+# payment, settlement, exact row-version delta, intake/inbox/receipt.
+D2_END_STATES = {
+    'F1': (1, 1, 1, 2, 1, True, 'SUBMISSION_UNKNOWN', 'INTAKE_PENDING', 3, 1),
+    'F2': (1, 1, 0, 1, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0),
+    'F3': (1, 0, 0, 0, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0),
+    'F4a': (1, 1, 0, 1, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0),
+    'F4b': (1, 1, 0, 2, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0),
+    'F5': (1, 1, 0, 1, 1, True, 'SUBMISSION_UNKNOWN', 'NOT_INTAKE', 2, 0),
+    'F5prime': (1, 1, 0, 1, 1, True, 'SUBMISSION_UNKNOWN', 'NOT_INTAKE', 2, 0),
+    'F6': (1, 0, 0, 1, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0),
+    'F7': (1, 0, 0, 0, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0),
+    'L1-CLAIM': (1, 1, 0, 1, 1, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 1, 0),
+    'ORD-ACL': (0, 0, 0, 0, 0, False, 'NOT_SUBMITTED', 'NOT_INTAKE', 0, 0)}
 
 
 class BoundaryError(RuntimeError):
@@ -98,6 +156,13 @@ class BoundaryError(RuntimeError):
 def require(condition, code, message):
     if not condition:
         raise BoundaryError(code, message)
+
+
+def phase_contract(phase_set):
+    require(phase_set in ('d1', 'd2'), 'PHASE_SET', 'Unknown phase set')
+    if phase_set == 'd2':
+        return D2_FROZEN, D2_OWNED, D2_ENTRY, D2_BUNDLE, D2_ARTIFACTS, 'provider-bridge-http.cjs'
+    return FROZEN, OWNED, ENTRY, BUNDLE_INPUTS, ARTIFACTS, 'provider-binding-http.cjs'
 
 
 def digest(data):
@@ -222,7 +287,8 @@ def git_command(git, root, args, *, binary=False):
     return git(['git', '-C', str(root), *args], capture_output=True, text=not binary, timeout=30)
 
 
-def verify_web(root, manifest_path, manifest_sha256, web_head, *, git):
+def verify_web(root, manifest_path, manifest_sha256, web_head, *, git, phase_set='d1'):
+    frozen, owned, _, _, _, _ = phase_contract(phase_set)
     root = root_path(root)
     require(isinstance(web_head, str) and HEAD.fullmatch(web_head), 'WEB_HEAD', 'Full explicit web HEAD is required')
     path, raw = manifest_bytes(root, manifest_path, manifest_sha256, 'MANIFEST_HASH')
@@ -231,7 +297,7 @@ def verify_web(root, manifest_path, manifest_sha256, web_head, *, git):
             'MANIFEST_SET', 'Web manifest fields differ')
     require(manifest['webHead'] == web_head, 'WEB_HEAD', 'Web manifest HEAD differs')
     sources = {}
-    for category, names in (('frozenFiles', FROZEN), ('ownedFiles', OWNED), ('installedFiles', INSTALLED)):
+    for category, names in (('frozenFiles', frozen), ('ownedFiles', owned), ('installedFiles', INSTALLED)):
         rows = manifest[category]
         require(isinstance(rows, dict), 'MANIFEST_SET', 'Manifest category must be an object')
         for name in rows:
@@ -244,7 +310,7 @@ def verify_web(root, manifest_path, manifest_sha256, web_head, *, git):
     actual = git_command(git, root, ['rev-parse', 'HEAD'])
     require(actual.returncode == 0 and actual.stdout.strip() == web_head, 'WEB_HEAD', 'Actual web HEAD differs')
     frozen_state, owned_state = {}, {}
-    for name in sorted(FROZEN | OWNED):
+    for name in sorted(frozen | owned):
         tracked = git_command(git, root, ['ls-files', '--error-unmatch', '--', name])
         status = git_command(git, root, ['status', '--porcelain=v1', '--untracked-files=all', '--', name])
         require(tracked.returncode in (0, 1) and status.returncode == 0, 'GIT_STATUS', 'Git source query failed')
@@ -253,7 +319,7 @@ def verify_web(root, manifest_path, manifest_sha256, web_head, *, git):
                 and lines[0][3:] == name and all(char in ' MADRCUT?!' for char in lines[0][:2])),
                 'GIT_STATUS', 'Git status source evidence is ambiguous')
         state = {'tracked': tracked.returncode == 0, 'dirty': bool(lines)}
-        if name in FROZEN:
+        if name in frozen:
             require(state['tracked'], 'FROZEN_TRACKING', 'Frozen source is untracked: ' + name)
             require(not state['dirty'], 'FROZEN_DIRTY', 'Frozen source is dirty: ' + name)
             blob = git_command(git, root, ['show', 'HEAD:' + name], binary=True)
@@ -334,7 +400,20 @@ def sql_literal(value):
     return "'" + value.replace("'", "''") + "'"
 
 
-def validate_cases(cases):
+def validate_cases(cases, *, phase_set='d1'):
+    phase_contract(phase_set)
+    if phase_set == 'd2':
+        require(isinstance(cases, list) and len(cases) == 23, 'FIXTURE_CASES', 'Expected native9 and distinct bridge14')
+        old = [row for row in cases if isinstance(row, dict) and row.get('label') in LABELS]
+        validate_cases(old)
+        bridge = [row for row in cases if isinstance(row, dict) and row.get('label') in D2_LABELS]
+        require(len(bridge) == 14 and {row['label'] for row in bridge} == set(D2_LABELS)
+            and all(set(row) == {'label', 'actor', 'order'} and row['actor'] == ACTORS['A']
+                and isinstance(row['order'], str) and UUID.fullmatch(row['order']) for row in bridge)
+            and len({row['order'] for row in bridge}) == 14
+            and not ({row['order'] for row in bridge} & {row['order'] for row in old}),
+            'FIXTURE_CASES', 'Bridge identities are missing, duplicate, null or shared')
+        return {row['label']: row for row in cases}
     require(isinstance(cases, list) and len(cases) == 9
             and all(isinstance(row, dict) and set(row) == {'label', 'actor', 'order'} for row in cases)
             and {row['label'] for row in cases} == LABELS, 'FIXTURE_CASES', 'Expected exactly the nine D1 fixture labels')
@@ -348,7 +427,7 @@ def validate_cases(cases):
     return mapped
 
 
-def setup_current10(pair, modules, db_root, manifest, out, web_pins, evidence):
+def setup_current10(pair, modules, db_root, manifest, out, web_pins, evidence, *, phase_set='d1'):
     names = validate_migrations(MIGRATIONS10)
     db_pins = {name: row['sha256'] for name, row in manifest['files'].items()}
     for name in names:
@@ -383,29 +462,37 @@ def setup_current10(pair, modules, db_root, manifest, out, web_pins, evidence):
         'create role authenticator login noinherit nosuperuser nobypassrls password ' + sql_literal(password)
         + '; grant anon,authenticated,service_role to authenticator; grant connect on database fixture to authenticator;',
         user='fixture_admin', evidence=evidence)
-    seed = install_sql(pair, out, 'seed', execution_bytes(ROOT, PREFIX + 'seed.sql', web_pins, evidence, 'web'),
+    seed_bytes = execution_bytes(ROOT, PREFIX + 'seed.sql', web_pins, evidence, 'web')
+    seed_bytes = seed_bytes.replace(b'__PROVIDER_RPC_PHASE_SET__', phase_set.encode('ascii'))
+    seed = install_sql(pair, out, 'seed', seed_bytes,
         user='postgres', marker='PROVIDER_RPC_SEED_COMPLETE', evidence=evidence)
     seeded = [read_json(line, 'FIXTURE_JSON') for line in seed.stdout.splitlines() if line.startswith('{')]
-    require(len(seeded) == 4 and all(isinstance(row, dict) and set(row) == {'label', 'actor', 'order'} for row in seeded)
-            and {row['label'] for row in seeded} == {'B1', 'B2', 'B3', 'B4'}
-            and len({row['order'] for row in seeded}) == 4, 'FIXTURE_CASES', 'Seed must return distinct B1-B4 orders')
+    labels = {'B1', 'B2', 'B3', 'B4'} | (set(D2_LABELS) if phase_set == 'd2' else set())
+    require(len(seeded) == len(labels) and all(isinstance(row, dict) and set(row) == {'label', 'actor', 'order'} for row in seeded)
+            and {row['label'] for row in seeded} == labels
+            and len({row['order'] for row in seeded}) == len(labels), 'FIXTURE_CASES', 'Seed must return exact distinct order labels')
     first = next(row['order'] for row in seeded if row['label'] == 'B1')
     seeded += [{'label': 'NF_OTHER', 'actor': ACTORS['B'], 'order': first},
                {'label': 'NF_UNKNOWN', 'actor': ACTORS['A'], 'order': 'd155cc09-0000-4000-8000-000000000099'},
                {'label': 'NF_NULL_ACTOR', 'actor': None, 'order': first},
                {'label': 'NF_NULL_ORDER', 'actor': ACTORS['A'], 'order': None},
                {'label': 'NF_NULL_BOTH', 'actor': None, 'order': None}]
-    validate_cases(seeded)
+    validate_cases(seeded, phase_set=phase_set)
+    if phase_set == 'd2':
+        mapped = {row['label']: row for row in seeded}
+        seeded = [mapped[label] for label in ('B1', 'B2', 'B3', 'B4', 'NF_OTHER', 'NF_UNKNOWN',
+            'NF_NULL_ACTOR', 'NF_NULL_ORDER', 'NF_NULL_BOTH', *D2_LABELS)]
     evidence.update(installedContractLevel='current10', suiteContractLevel=None)
     return seeded
 
 
-def verify_bundle(meta, entry_bytes):
+def verify_bundle(meta, entry_bytes, *, phase_set='d1'):
+    _, _, entry, bundle_inputs, _, _ = phase_contract(phase_set)
     require(isinstance(meta, dict) and meta.get('entryDeliveryHex') == entry_bytes.hex(),
             'BUNDLE_DELIVERY', 'Bundle entry delivery differs from approved snapshot')
     inputs = meta.get('metafile', {}).get('inputs')
-    require(isinstance(inputs, dict) and set(inputs) == BUNDLE_INPUTS, 'BUNDLE_INPUTS', 'Actual bundle graph differs; stop for review')
-    require(isinstance(inputs[ENTRY], dict) and inputs[ENTRY].get('bytes') == len(entry_bytes),
+    require(isinstance(inputs, dict) and set(inputs) == bundle_inputs, 'BUNDLE_INPUTS', 'Actual bundle graph differs; stop for review')
+    require(isinstance(inputs[entry], dict) and inputs[entry].get('bytes') == len(entry_bytes),
             'BUNDLE_DELIVERY', 'Metafile entry byte count differs')
     return {'inputPaths': sorted(inputs), 'esbuildVersion': meta.get('esbuildVersion'),
             'entryDeliverySha256': digest(entry_bytes)}
@@ -416,22 +503,61 @@ def zero_counts(value, expected):
             and all(type(count) is int and count == 0 for count in value.values()))
 
 
-def valid_observation(value, label, labels=LABELS):
+def valid_entry_catalog(value):
+    fields = {'signature', 'owner', 'securityDefiner', 'volatility', 'proconfig',
+              'executeGrantees', 'publicExecute', 'effectiveExecute'}
+    effective = {'service_role': True, 'anon': False, 'authenticated': False, 'wallet_test': False,
+                 'wallet_state_owner': False, 'wallet_attestation_owner': False}
+    if not (isinstance(value, dict) and set(value) == fields
+            and value['signature'] == 'authorize_web_payment_provider_entry(uuid,uuid,uuid,uuid,text)'
+            and value['owner'] == 'wallet_command_owner' and value['securityDefiner'] is True
+            and value['volatility'] == 'v' and value['proconfig'] == ['search_path=""']
+            and value['publicExecute'] is False and isinstance(value['executeGrantees'], list)
+            and all(isinstance(role, str) for role in value['executeGrantees'])
+            and isinstance(value['effectiveExecute'], dict) and set(value['effectiveExecute']) == set(effective)):
+        return False
+    grantees = value['executeGrantees']
+    return (len(set(grantees)) == len(grantees) and set(grantees) - {value['owner']} == {'service_role'}
+            and all(value['effectiveExecute'][role] is allowed for role, allowed in effective.items()))
+
+
+def valid_observation(value, label, labels=LABELS, *, phase_set='d1'):
     fields = {'label', 'sessionUser', 'currentUser', 'timezone', 'productDigest', 'controlDigest', 'controlState',
               'financialCounts', 'fullCounts', 'financialZero', 'fullZero', 'aclValid', 'native'}
+    if phase_set == 'd2':
+        fields |= {'phaseSet', 'orderFacts', 'productState', 'bridgeNative', 'entryCatalog'}
+        if not (isinstance(value, dict) and set(value) == fields and value['phaseSet'] == 'd2'
+            and valid_entry_catalog(value['entryCatalog'])
+            and isinstance(value['orderFacts'], dict) and set(value['orderFacts']) == set(D2_LABELS)
+            and isinstance(value['bridgeNative'], dict) and set(value['bridgeNative']) == set(D2_LABELS)
+            and all(isinstance(row, dict) and set(row) == {'binding', 'context'}
+                and all(isinstance(row[key], dict) for key in ('binding', 'context')) for row in value['bridgeNative'].values())
+            and isinstance(value['productState'], dict) and set(value['productState']) == PRODUCT_TABLES
+            and all(isinstance(rows, list) and all(isinstance(row, dict) for row in rows) for rows in value['productState'].values())
+            and isinstance(value['financialCounts'], dict) and set(value['financialCounts']) == FINANCIAL
+            and all(type(n) is int and 0 <= n <= (1 if table in ('receipts', 'wallet_provider_event_inbox') else 0)
+                for table, n in value['financialCounts'].items())):
+            return False
+        financial_valid = True
+    elif phase_set == 'd1':
+        financial_valid = isinstance(value, dict) and zero_counts(value.get('financialCounts'), FINANCIAL)
+    else:
+        return False
     return (isinstance(value, dict) and set(value) == fields and value['label'] == label
             and value['sessionUser'] == value['currentUser'] == 'fixture_admin' and value['timezone'] == 'UTC'
             and pin(value['productDigest']) and pin(value['controlDigest']) and isinstance(value['controlState'], dict)
-            and zero_counts(value['financialCounts'], FINANCIAL) and zero_counts(value['fullCounts'], FULL)
+            and financial_valid and zero_counts(value['fullCounts'], FULL)
             and all(value[key] is True for key in ('financialZero', 'fullZero', 'aclValid'))
             and isinstance(value['native'], dict) and set(value['native']) == labels
             and all(isinstance(row, dict) and set(row) == {'ok', 'value'} and row['ok'] is True
                     and isinstance(row['value'], dict) for row in value['native'].values()))
 
 
-def observe(pair, out, label, cases, observer_bytes, evidence):
-    validate_cases(cases)
+def observe(pair, out, label, cases, observer_bytes, evidence, *, phase_set='d1'):
+    validate_cases(cases, phase_set=phase_set)
     prefix = 'set provider_rpc.cases to ' + sql_literal(json.dumps(cases, separators=(',', ':'))) + ';\n'
+    if phase_set == 'd2':
+        prefix += "set provider_rpc.phase_set to 'd2';\n"
     prefix += 'set provider_rpc.observation_label to ' + sql_literal(label) + ';\n'
     data = prefix.encode() + observer_bytes
     result = install_sql(pair, out, label, data, user='fixture_admin',
@@ -440,11 +566,12 @@ def observe(pair, out, label, cases, observer_bytes, evidence):
             if line.startswith('PROVIDER_RPC_OBSERVATION ')]
     require(len(rows) == 1, 'OBSERVER_RESULT', 'Expected one complete observer payload')
     value = read_json(rows[0], 'OBSERVER_RESULT')
-    require(valid_observation(value, label), 'OBSERVER_RESULT', 'Native observer evidence differs from D1 schema')
+    require(valid_observation(value, label, phase_set=phase_set), 'OBSERVER_RESULT', 'Native observer evidence differs from selected schema')
     return value
 
 
-def parse_result(phase, child, config):
+def parse_result(phase, child, config, *, phase_set='d1'):
+    phase_contract(phase_set)
     markers = config.get('completionMarkers') if isinstance(config, dict) else None
     require(phase in ('A', 'B', 'C') and isinstance(markers, dict) and set(markers) == {'A', 'B', 'C'}
             and all(isinstance(marker, str) and marker and '\n' not in marker and '\r' not in marker for marker in markers.values())
@@ -464,6 +591,10 @@ def parse_result(phase, child, config):
     require(isinstance(value, dict) and value.get('phase') == phase
             and all(isinstance(value.get(key), list) for key in ('source', 'direct', 'taps')),
             'PHASE_RESULT', 'HTTP phase/result shape differs')
+    if phase_set == 'd2':
+        require(config.get('phaseSet') == value.get('phaseSet') == 'd2'
+            and all(isinstance(value.get(key), list) for key in ('scenarios', 'openFindings'))
+            and isinstance(value.get('counts'), dict), 'PHASE_RESULT', 'D2 result contract is incomplete')
     return value
 
 
@@ -474,7 +605,10 @@ def expected_binding(value):
             'credentialRef': value['credential_ref'], 'expectedPayPalClientId': value['expected_application']['paypal_client_id']}
 
 
-def validate_http(phase, result, native, cases):
+def validate_http(phase, result, native, cases, *, phase_set='d1'):
+    phase_contract(phase_set)
+    if phase_set == 'd2':
+        return validate_d2_http(phase, result, native, cases)
     mapped = validate_cases(cases)
     require(phase in ('A', 'B', 'C') and isinstance(result, dict) and result.get('phase') == phase
             and all(isinstance(result.get(key), list) for key in ('source', 'direct', 'taps'))
@@ -569,6 +703,382 @@ def validate_http(phase, result, native, cases):
             'defaultRetryObservation': copy.deepcopy(retry.get('R_DEF'))}
 
 
+def validate_request_policy(request, config, *, phase_set='d1'):
+    """Validate one runner request description, independently of Node wrappers."""
+    phase_contract(phase_set)
+    try:
+        require(isinstance(request, dict) and set(request) == {'url', 'method', 'query'}, 'HTTP_POLICY', 'Request fields differ')
+        url = urlsplit(request['url'])
+        method, query = request['method'], request['query']
+        require(url.scheme == 'http' and not url.username and not url.password and not url.fragment and not url.query
+            and method in ('POST', 'GET') and isinstance(query, list), 'HTTP_POLICY', 'Request method/URL differs')
+        direct = url.hostname == config['restIp'] and url.port == 3000
+        proxy = url.hostname == '127.0.0.1' and type(config.get('proxyPort')) is int and url.port == config['proxyPort']
+        require(direct or proxy, 'HTTP_POLICY', 'Request is outside the owned addresses')
+        prefix = '/rpc/' if direct else '/rest/v1/rpc/'
+        require(url.path.startswith(prefix), 'HTTP_POLICY', 'RPC path prefix differs')
+        rpc = url.path[len(prefix):]
+        allowed = set(D2_RPC.values()) if phase_set == 'd2' else {D2_RPC['binding']}
+        require(rpc in allowed, 'HTTP_POLICY', 'Unapproved RPC')
+        if method == 'POST':
+            require(not query, 'HTTP_POLICY', 'POST query is forbidden')
+            return
+        keys = {'p_actor_user_id', 'p_order_id'}
+        if phase_set == 'd2' and rpc not in D2_STABLE:
+            require(direct and rpc == D2_RPC['entry'], 'HTTP_POLICY', 'Nonstable GET is forbidden')
+            keys |= {'p_context_id', 'p_create_request_key', 'p_binding_hash'}
+        require(all(isinstance(row, (tuple, list)) and len(row) == 2 for row in query), 'HTTP_POLICY', 'Malformed query')
+        values = dict(query)
+        require(len(values) == len(query) == len(keys) and set(values) == keys
+            and all(isinstance(value, str) and (HASH if key == 'p_binding_hash' else UUID).fullmatch(value)
+                for key, value in values.items()), 'HTTP_POLICY', 'GET query is incomplete or malformed')
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        raise BoundaryError('HTTP_POLICY', 'Malformed request policy evidence') from exc
+
+
+def validate_d2_http(phase, result, before, cases):
+    try:
+        _validate_d2_http(phase, result, before, cases)
+    except (KeyError, TypeError, ValueError, AttributeError, IndexError) as exc:
+        raise BoundaryError('D2_HTTP', 'Incomplete D2 HTTP evidence') from exc
+    counts = D2_COUNTS[phase]
+    return {'postgrestRequests': counts['postgrest'], 'setupProxyTaps': counts['setupProxy'],
+            'measuredProxyTaps': counts['measuredProxy'], 'directRequests': counts['direct']}
+
+
+def _validate_d2_http(phase, result, before, cases):
+    def check(condition, message):
+        require(condition, 'D2_HTTP', message)
+    mapped = validate_cases(cases, phase_set='d2')
+    check(phase in D2_TAP_PLAN and valid_observation(before, 'baseline' + phase, phase_set='d2'), 'Missing native baseline')
+    check(result['phaseSet'] == 'd2' and result['phase'] == phase and result['source'] == []
+          and result['guard']['blocked'] == D2_PROBES and result['counts'] == D2_COUNTS[phase], 'Phase/count/guard contract differs')
+    stamps = result['nativeTimestampEvidence']
+    check(isinstance(stamps, dict) and stamps.get('timezone') == 'UTC' and 'entryNotAfter' in stamps
+          and (stamps['entryNotAfter'] is None or isinstance(stamps['entryNotAfter'], str)
+               and re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?\+00:00', stamps['entryNotAfter'])), 'Native timestamp evidence missing')
+    scenarios = result['scenarios']
+    check(isinstance(scenarios, list) and len(scenarios) == len(D2_TAP_PLAN[phase])
+          and all(isinstance(row, dict) for row in scenarios), 'Scenario count differs')
+    by_name = {row['label']: row for row in scenarios}
+    check(set(by_name) == set(D2_TAP_PLAN[phase]), 'Scenario identities differ')
+    taps = result['taps']
+    check(isinstance(taps, list) and len(taps) == D2_COUNTS[phase]['setupProxy'] + D2_COUNTS[phase]['measuredProxy'], 'Tap count differs')
+    tap_keys = {'label', 'orderLabel', 'scope', 'lane', 'step', 'rpc', 'method', 'args', 'status', 'response',
+                'upstream', 'injected', 'retryHeader', 'sdkHeaders', 'incomingHeaders', 'leaseTokenMatchesClaim', 'downstreamDestroyed'}
+    headers = {'accept': None, 'prefer': None, 'contentType': 'application/json', 'contentProfile': 'public',
+               'acceptProfile': None, 'apikeyMatches': True, 'authorizationMatches': True, 'clientInfoVersion': '2.112.3'}
+    for tap in taps:
+        check(isinstance(tap, dict) and set(tap) == tap_keys and tap['label'] in by_name
+              and tap['orderLabel'] in D2_LABELS and tap['scope'] in ('setup', 'measured')
+              and type(tap['lane']) is int and type(tap['step']) is int and tap['method'] == 'POST'
+              and type(tap['status']) is int and tap['status'] == 200 and tap['upstream'] is True
+              and tap['injected'] is False and tap['retryHeader'] is None, 'Tap request/reach evidence differs')
+        for key, wanted in (('sdkHeaders', headers), ('incomingHeaders', {**headers, 'accept': '*/*'})):
+            check(tap[key] == wanted and all(type(tap[key][k]) is bool for k in ('apikeyMatches', 'authorizationMatches')), 'Semantic headers differ')
+    fake_counts = {
+        'F1': ((0,0,0,0),(2,1,1,1)), 'F2': ((0,0,0,0),(2,2,0,0)), 'F3a': ((0,0,0,0),(1,1,0,0)),
+        'F4a': ((0,0,0,0),(2,2,0,0)), 'F4b': ((0,0,0,0),(2,2,0,0)), 'F4b-refusal': ((0,0,0,0),(0,0,0,0)),
+        'F5': ((0,0,0,0),(3,1,2,0)), 'F5prime': ((0,0,0,0),(3,1,3,1)), 'F6': ((1,1,0,0),(0,0,0,0)),
+        'F7a': ((0,0,0,0),(0,0,0,0)), 'L1a': ((0,0,0,0),(0,0,0,0)),
+        'L1-CLAIM': ((1,1,0,0),(0,0,0,0)), 'L1b': ((0,0,0,0),(0,0,0,0)),
+        'N-A': ((0,0,0,0),(3,1,2,1)), 'N-B': ((0,0,0,0),(3,1,2,1)), 'N-C': ((0,0,0,0),(3,1,2,1)),
+        'F7b': ((0,0,0,0),(1,0,0,0)), 'F3b': ((0,0,0,0),(1,0,0,0)), 'C-READS': ((0,0,0,0),(0,0,0,0))}
+    for name, (label, setup_plan, measured_plan) in D2_TAP_PLAN[phase].items():
+        scenario = by_name[name]
+        check(scenario['orderLabel'] == label, 'Scenario order differs')
+        selected = [t for t in taps if t['label'] == name]
+        expected_groups = {}
+        for scope, plan in (('setup', setup_plan), ('measured', measured_plan)):
+            for lane in range(2 if name in ('F4a', 'F4b') and scope == 'measured' else 1):
+                if plan:
+                    expected_groups[(scope, lane)] = plan.split()
+        if name == 'C-READS':
+            check(len(selected) == 28 and scenario['fakeCalls'] == [] and scenario['setupEvidence'] is None, 'C read count/setup differs')
+            for read_label in D2_LABELS:
+                rows = [t for t in selected if t['orderLabel'] == read_label]
+                check([t['rpc'] for t in rows] == [D2_RPC['getter'], D2_RPC['binding']], 'C read surface differs')
+                for row, key in zip(rows, ('context', 'binding')):
+                    check(row['response'] == before['bridgeNative'][read_label][key]
+                          and row['args'] == {'p_actor_user_id': ACTORS['A'], 'p_order_id': mapped[read_label]['order']}, 'C native parity differs')
+        else:
+            groups = {(t['scope'], t['lane']) for t in selected}
+            check(groups == set(expected_groups), 'Unexpected/missing setup or lane')
+            prepared = None
+            claim = None
+            for group, plan in expected_groups.items():
+                rows = [t for t in selected if (t['scope'], t['lane']) == group]
+                check(len(rows) == len(plan) and [t['step'] for t in rows] == list(range(len(plan)))
+                      and [t['rpc'] for t in rows] == [D2_RPC[op] for op in plan], 'RPC sequence differs')
+                for op, tap in zip(plan, rows):
+                    check(tap['orderLabel'] == label and isinstance(tap['response'], dict), 'Tap response/order missing')
+                    args, response = tap['args'], tap['response']
+                    actor = {'p_actor_user_id': ACTORS['A'], 'p_order_id': mapped[label]['order']}
+                    keys = {'getter': set(actor), 'prepare': set(actor), 'binding': set(actor),
+                        'entry': set(actor) | {'p_context_id','p_create_request_key','p_binding_hash'},
+                        'bind': {'p_context_id','p_evidence'}, 'record': {'p_context_id','p_evidence'},
+                        'claim': set(actor) | {'p_expected_version','p_action'},
+                        'intent': set(actor) | {'p_expected_version','p_action','p_attempt_id','p_lease_token','p_fencing_version'},
+                        'receive': {'p_order_id','p_observation_id'}}[op]
+                    check(isinstance(args, dict) and set(args) == keys and all(args[k] == v for k,v in actor.items() if k in keys), 'RPC arguments differ')
+                    if op == 'prepare' and response.get('outcome') == 'PREPARED':
+                        prepared = response
+                        check(response.get('order_id') == mapped[label]['order'] and UUID.fullmatch(response['context_id'])
+                              and UUID.fullmatch(response['create_request_key']), 'Prepared identity differs')
+                    if op == 'entry':
+                        check(response.get('contract_version') == 'web-payment-provider-entry.v1' and response.get('charge_authority') is False, 'Entry envelope differs')
+                        if response.get('outcome') == 'AUTHORIZED':
+                            check(response.get('context_id') == args['p_context_id']
+                                  and response.get('create_request_key') == args['p_create_request_key']
+                                  and response.get('binding_hash') == args['p_binding_hash'], 'Entry echo differs')
+                    if op in ('bind', 'record'):
+                        check(args['p_evidence'].get('order_id') == mapped[label]['order'], 'Evidence crosses order ownership')
+                    if op == 'claim' and response.get('decision') == 'SUBMIT':
+                        claim = response
+                    if op == 'intent':
+                        check(args['p_lease_token'] == '<redacted>' and tap['leaseTokenMatchesClaim'] is True
+                              and claim is not None and args['p_attempt_id'] == claim['attempt_id']
+                              and args['p_fencing_version'] == claim['fencing_version'], 'Intent capability mismatch')
+                    else:
+                        check(tap['leaseTokenMatchesClaim'] is None, 'Unexpected capability projection')
+                    check(tap['downstreamDestroyed'] is (name == 'F5' and op == 'intent'), 'Intent loss boundary differs')
+                    if name in ('F4a', 'F4b') and group[0] == 'measured':
+                        seed = scenario['setupEvidence']['prepared']
+                        if op == 'prepare':
+                            check(response['replayed'] is True and response['context_id'] == seed['contextId']
+                                  and response['create_request_key'] == seed['createRequestKey'], 'Concurrent replay differs')
+                        if op == 'entry':
+                            check(args['p_context_id'] == seed['contextId'] and args['p_create_request_key'] == seed['createRequestKey'], 'Concurrent tuple differs')
+            if name in ('F4a','F4b'):
+                seed = scenario['setupEvidence']; getter = seed['getter']; p = seed['prepared']
+                check(p['kind'] == 'PREPARED' and p['replayed'] is False and getter == {
+                    'contextId': p['contextId'], 'verificationBindingPresent': True, 'providerOrderId': None,
+                    'reviewRequired': False, 'attemptId': None, 'submissionIntentRecorded': False}
+                    and scenario['barrier'] == {'arrivals': 2, 'released': True, 'timedOut': False}, 'Concurrent setup/barrier differs')
+            if name == 'F6':
+                seed = scenario['setupEvidence']
+                check(seed == {'outcome': {'kind':'REVIEW_REQUIRED'}, 'createCount':1, 'reasonObserved':'PROVIDER_SCOPE_MISMATCH',
+                    'getter': {'reviewRequired':True,'providerOrderId':None,'attemptId':None,'paymentState':'NOT_SUBMITTED'}}, 'Stored review setup differs')
+            if name == 'L1-CLAIM':
+                seed = scenario['setupEvidence']
+                getter = next(t['response'] for t in selected if t['rpc'] == D2_RPC['getter'] and t['step'] == 7)
+                check(seed['claim'] == {'kind':'SUBMIT'} and seed['submissionIntentRecorded'] is False
+                      and seed['paymentState'] == 'NOT_SUBMITTED' and seed['reviewRequired'] is False
+                      and seed['rowVersion'] == getter['row_version'] and seed['attemptId'] == getter['attempt_id'], 'Claim-only setup differs')
+            calls = scenario['fakeCalls']
+            check(isinstance(calls,list) and all(set(c) == {'scope','method','requestKey','providerOrderId','response'} for c in calls), 'Fake transport evidence fields differ')
+            for scope, counts in zip(('setup','measured'),fake_counts[name]):
+                rows = [c for c in calls if c['scope'] == scope]
+                check(len(rows) == sum(counts), 'Fake transport count differs')
+                for method, count in zip(('requestToken','createOrder','getOrder','captureOrder'),counts):
+                    actual = [c for c in rows if c['method'] == method]
+                    check(len(actual) == count, 'Fake transport method count differs')
+                    for call in actual:
+                        if method == 'createOrder':
+                            check(prepared is not None and call['requestKey'] == prepared['create_request_key'], 'CREATE key differs')
+                        elif method == 'captureOrder':
+                            check(claim is not None and call['requestKey'] == claim['provider_request_key']
+                                  and call['requestKey'] != prepared['create_request_key'], 'CAPTURE key differs')
+                        else:
+                            check(call['requestKey'] is None, 'Unexpected request key')
+            if name in ('F2','F3a'):
+                check(next(c for c in calls if c['method']=='createOrder')['response'] == {'kind':'TRANSPORT_UNKNOWN'}, 'Unknown create fact differs')
+            if name.startswith('N-'):
+                capture = next(c for c in calls if c['method']=='captureOrder')['response']
+                body = capture['body']; unit = body['purchase_units'][0]
+                check(capture['kind']=='RESPONSE' and capture['status']==200
+                      and body['status'] == ('COMPLETED' if name=='N-B' else 'FUTURE_ORDER')
+                      and body['intent'] == ('AUTHORIZE' if name=='N-B' else 'CAPTURE')
+                      and unit['payments']['captures'][0]['amount'] == {'value':'2.34' if name=='N-A' else '1.23','currency_code':'USD'}, 'Open capture fact differs')
+        outcomes = scenario['outcomes']
+        check(isinstance(outcomes,list) and all(isinstance(o,dict) for o in outcomes), 'Outcomes missing')
+        kinds = [o.get('kind') for o in outcomes]
+        expected = {'F1':['PROVIDER_ORDER_READY','INTAKE_PENDING'],'F2':['SUBMISSION_UNKNOWN','PROVIDER_ORDER_READY'],
+            'F3a':['SUBMISSION_UNKNOWN'],'F4a':['PROVIDER_ORDER_READY']*2,'F4b-refusal':['REVIEW_REQUIRED','ORDER_LINKED'],
+            'F5':['PROVIDER_ORDER_READY','SUBMISSION_UNKNOWN','SUBMISSION_UNKNOWN','LOOKUP_ONLY'],
+            'F5prime':['PROVIDER_ORDER_READY','SUBMISSION_UNKNOWN','UNAVAILABLE'],
+            'F6':['REVIEW_REQUIRED','BLOCKED','BLOCKED'],'F7a':['PREPARED'],
+            'L1a':['BLOCKED','BLOCKED','BLOCKED','ORDER_LINKED'],'L1-CLAIM':['ORDER_LINKED'],'L1b':['ORDER_LINKED'],
+            'F7b':['BLOCKED'],'F3b':['BLOCKED'],'C-READS':[]}
+        if name == 'F4b':
+            check(sorted(kinds) == ['PROVIDER_ORDER_READY','REVIEW_REQUIRED'], 'Different-ID outcomes differ')
+        elif not name.startswith('N-'):
+            check(kinds == expected[name], 'Scenario outcome differs: ' + name)
+        else:
+            check(len(outcomes)==3 and kinds[0]=='PROVIDER_ORDER_READY', 'Open observation outcome missing')
+        if name == 'F5prime':
+            check(outcomes[2] == {'kind':'UNAVAILABLE','stage':'LOOKUP'}, 'Recovery GET must be exact UNAVAILABLE LOOKUP')
+        for outcome in outcomes:
+            if outcome.get('kind') == 'PROVIDER_ORDER_READY':
+                order_ids = [c['response']['body']['id'] for c in scenario['fakeCalls'] if c['method']=='createOrder' and c['response']['kind']=='RESPONSE']
+                check(outcome.get('providerOrderId') in order_ids and outcome.get('replayed') is (name in ('F2','F4a','F4b')), 'Ready identity/replay differs')
+        if name == 'F4a':
+            check(outcomes[0] == outcomes[1], 'Same-ID outcomes differ')
+        reasons = {'L1a':['CONTEXT_MISMATCH','CONTEXT_MISMATCH','BINDING_MISMATCH'],
+                   'F6':['REVIEW_REQUIRED','REVIEW_REQUIRED'], 'F7b':['VERIFICATION_BINDING_CHANGED'], 'F3b':['ORDERS_CLOSED']}
+        if name in reasons:
+            check([o.get('reason') for o in outcomes if o['kind']=='BLOCKED'] == reasons[name], 'Gate/claim refusal differs')
+    direct = result['direct']
+    check(isinstance(direct,list) and len(direct) == D2_COUNTS[phase]['direct'], 'Direct count differs')
+    if phase == 'A':
+        identities = [(r['role'],r['rpc'],r['method']) for r in direct]
+        expected = {(role,rpc,'POST') for role in ('anon','authenticated') for rpc in D2_RPC.values()}
+        expected |= {('service',rpc,'GET') for rpc in (*D2_STABLE,D2_RPC['entry'])}
+        expected |= {('service',D2_RPC['entry'],'POST')}
+        expected |= {(role,D2_RPC['entry'],'GET') for role in ('anon','authenticated')}
+        check(len(set(identities))==24 and set(identities)==expected, 'Direct matrix differs')
+        entry_tuple = None
+        entry_response = None
+        for row in direct:
+            check(row['label']=='ORD-ACL' and row['retryHeader'] is None and type(row['status']) is int
+                  and 100 <= row['status'] <= 599 and isinstance(row['response'], dict)
+                  and isinstance(row['rawBody'], str) and len(row['rawBody'].encode('utf-8')) <= 65536
+                  and row['parseError'] is None, 'Direct wire evidence missing, malformed or overflowed')
+            check(read_json(row['rawBody'], 'D2_HTTP') == row['response'], 'Direct raw/parsed response differs')
+            if row['rpc'] == D2_RPC['entry'] and (row['method'] == 'GET' or row['role'] == 'service'):
+                args = row['query'] if row['method'] == 'GET' else row['args']
+                check(isinstance(args, dict) and set(args) == {'p_actor_user_id','p_order_id','p_context_id','p_create_request_key','p_binding_hash'}
+                      and args['p_actor_user_id'] == ACTORS['A'] and args['p_order_id'] == mapped['ORD-ACL']['order']
+                      and all(isinstance(args[key], str) and UUID.fullmatch(args[key]) for key in ('p_context_id','p_create_request_key'))
+                      and pin(args['p_binding_hash']) and row.get('proxy',False) is False, 'Direct entry tuple differs')
+                if entry_tuple is None:
+                    entry_tuple = args
+                check(args == entry_tuple, 'Direct entry GET/POST tuples differ')
+            if row['role'] != 'service':
+                check(not 200<=row['status']<300 and row['response'].get('code')=='42501', 'ACL is not actual non2xx/42501')
+            else:
+                if row['rpc']==D2_RPC['entry']:
+                    check(row['status'] == 200 and row['response'] == {'contract_version':'web-payment-provider-entry.v1',
+                        'outcome':'BLOCKED','charge_authority':False,'safe_reason_code':'CONTEXT_REQUIRED'}
+                        and row['response']['charge_authority'] is False, 'Service entry read contract differs')
+                    if entry_response is None:
+                        entry_response = row['response']
+                    check(row['response'] == entry_response, 'Service entry GET/POST responses differ')
+                else:
+                    check(set(row['query'])=={'p_actor_user_id','p_order_id'}
+                          and row['query']['p_order_id']==mapped['ORD-ACL']['order']
+                          and row['query']['p_actor_user_id']==ACTORS['A'] and row.get('proxy',False) is False, 'Direct GET query differs')
+                    key='context' if row['rpc']==D2_RPC['getter'] else 'binding'
+                    check(row['status']==200 and row['response']==before['bridgeNative']['ORD-ACL'][key], 'Stable native parity differs')
+
+
+def validate_d2_state(phase, before, after, result, cases):
+    try:
+        _validate_d2_state(phase, before, after, result, cases)
+    except (KeyError, TypeError, ValueError, AttributeError, IndexError) as exc:
+        raise BoundaryError('D2_STATE', 'Incomplete D2 state evidence') from exc
+
+
+def _validate_d2_state(phase, before, after, result, cases):
+    def check(condition, message):
+        require(condition, 'D2_STATE', message)
+    mapped = validate_cases(cases, phase_set='d2')
+    check(phase in 'ABC' and valid_observation(before,'baseline'+phase,phase_set='d2')
+          and valid_observation(after,'after'+phase,phase_set='d2'), 'Observer schema differs')
+    check(all(before[k]==after[k] for k in ('controlDigest','controlState','native')), 'HTTP changed control/D1 native state')
+    if phase != 'A':
+        check(all(before[k]==after[k] for k in ('productDigest','productState','orderFacts','bridgeNative')), 'B/C must preserve product/native state')
+        return
+    old, new = before['productState'], after['productState']
+    orders_old = {r['id']:r for r in old['web_payment_orders']}
+    orders_new = {r['id']:r for r in new['web_payment_orders']}
+    check(len(orders_old)==len(old['web_payment_orders']) and len(orders_new)==len(new['web_payment_orders'])
+          and set(orders_old)==set(orders_new), 'Order identity set differs')
+    owned = {mapped[l]['order'] for l in D2_LABELS if l!='ORD-ACL'}
+    allowed_order = {'row_version','payment_state','settlement_state','updated_at'}
+    for oid, row in orders_old.items():
+        check(row==orders_new[oid] if oid not in owned else
+              {k:v for k,v in row.items() if k not in allowed_order}=={k:v for k,v in orders_new[oid].items() if k not in allowed_order}, 'Order immutable/nonowned fields changed')
+    changing = {'web_payment_orders','web_payment_provider_contexts','web_payment_provider_links','web_payment_observations',
+                'web_payment_charge_attempts','web_payment_purchase_intakes','receipts','wallet_provider_event_inbox'}
+    for table in PRODUCT_TABLES - changing:
+        check(old[table]==new[table], 'Unapproved table changed: '+table)
+    contexts = new['web_payment_provider_contexts']
+    context_owner = {r['id']:r['order_id'] for r in contexts}
+    check(len(context_owner)==len(contexts), 'Duplicate context')
+    for table in changing - {'web_payment_orders'}:
+        rows = new[table]
+        identity = 'order_id' if table=='web_payment_purchase_intakes' else 'id'
+        check(len({r[identity] for r in rows})==len(rows), 'Duplicate raw row: '+table)
+        check(all(r in rows for r in old[table]), 'Historical row changed: '+table)
+        for row in rows:
+            if row in old[table]:
+                continue
+            if table in ('web_payment_provider_contexts','web_payment_charge_attempts','web_payment_purchase_intakes'):
+                owner=row['order_id']
+            elif table=='receipts':
+                owner=row.get('verification_data',{}).get('order_id')
+            elif table=='wallet_provider_event_inbox':
+                prefix='web-payment.purchase.v2:'
+                check(row['idempotency_key'].startswith(prefix), 'Inbox key differs')
+                owner=row['idempotency_key'][len(prefix):]
+            else:
+                owner=context_owner.get(row.get('context_id') or row.get('requested_context_id'))
+                if table=='web_payment_observations':
+                    check(row['evidence'].get('order_id')==owner, 'Observation evidence crosses context owner')
+            check(owner in owned and (owner==mapped['F1']['order'] if table in ('receipts','wallet_provider_event_inbox','web_payment_purchase_intakes') else True), 'Write outside owned rows')
+    for label in D2_LABELS:
+        oid=mapped[label]['order']; fact=after['orderFacts'][label]; base=before['orderFacts'][label]
+        row=orders_new[oid]; ctx=[r for r in contexts if r['order_id']==oid]; ids={r['id'] for r in ctx}
+        links=[{'identityKind':r['identity_kind'],'externalId':r['external_id']} for r in new['web_payment_provider_links'] if r['context_id'] in ids]
+        observations=[{'source':r['source'],'identityKind':r['evidence']['identity_kind'],'outcome':r['outcome'],'reasonCode':r['reason_code']}
+            for r in new['web_payment_observations'] if (r.get('context_id') or r.get('requested_context_id')) in ids]
+        attempts=[r for r in new['web_payment_charge_attempts'] if r['order_id']==oid]
+        intakes=[r for r in new['web_payment_purchase_intakes'] if r['order_id']==oid]
+        receipts=[r for r in new['receipts'] if r.get('verification_data',{}).get('order_id')==oid]
+        inbox=[r for r in new['wallet_provider_event_inbox'] if r['idempotency_key']=='web-payment.purchase.v2:'+oid]
+        raw = {'orderId':oid,'contextCount':len(ctx),'links':links,'observations':observations,'attemptCount':len(attempts),
+               'submissionIntentRecorded':any(r.get('submission_intent_at') is not None for r in attempts),
+               'paymentState':row['payment_state'],'settlementState':row['settlement_state'],'rowVersion':row['row_version'],
+               'intakeCount':len(intakes),'inboxCount':len(inbox),'receiptCount':len(receipts)}
+        # Array order is not a database invariant. Compare exact multisets.
+        normalize=lambda rows: sorted(json.dumps(r,sort_keys=True) for r in rows)
+        check(set(fact)==set(raw) and all(normalize(fact[k])==normalize(raw[k]) if k in ('links','observations') else fact[k]==raw[k] and type(fact[k]) is type(raw[k]) for k in raw), 'Summary/raw rows disagree: '+label)
+        native=after['bridgeNative'][label]['context']
+        check(native['row_version']==fact['rowVersion'] and native['payment_state']==fact['paymentState']
+              and native['settlement_state']==fact['settlementState'] and native['submission_intent_recorded'] is fact['submissionIntentRecorded']
+              and native['context_id']==(ctx[0]['id'] if ctx else None)
+              and native['attempt_id']==(attempts[0]['id'] if attempts else None)
+              and native['review_required'] is any(r['outcome']=='REVIEW_REQUIRED' for r in observations), 'Native/raw disagreement')
+        for kind, key in (('ORDER','provider_order_id'),('CAPTURE','provider_capture_id')):
+            values=[r['externalId'] for r in links if r['identityKind']==kind]
+            check(len(values)<=1 and native[key]==(values[0] if values else None), 'Native link disagreement')
+        for version in (base['rowVersion'],fact['rowVersion']):
+            check(isinstance(version,str) and re.fullmatch(r'0|[1-9][0-9]*',version), 'Version must be canonical bigint string')
+        if label in D2_END_STATES:
+            c,o,cap,obs,a,intent,payment,settlement,delta,intake=D2_END_STATES[label]
+            check((len(ctx),sum(r['identityKind']=='ORDER' for r in links),sum(r['identityKind']=='CAPTURE' for r in links),len(observations),len(attempts),fact['submissionIntentRecorded'],fact['paymentState'],fact['settlementState'],int(fact['rowVersion'])-int(base['rowVersion']),len(intakes))
+                  ==(c,o,cap,obs,a,intent,payment,settlement,delta,intake), 'Exact end state differs: '+label)
+            expected=[]
+            if obs:
+                expected=[{'source':'CREATE_RESPONSE','identityKind':'ORDER','outcome':'REVIEW_REQUIRED' if label=='F6' else 'RECORDED','reasonCode':'PROVIDER_SCOPE_MISMATCH' if label=='F6' else None}]
+            if label=='F1':
+                expected.append({'source':'SUBMIT_RESPONSE','identityKind':'CAPTURE','outcome':'RECORDED','reasonCode':None})
+            if label=='F4b':
+                expected.append({'source':'CREATE_RESPONSE','identityKind':'ORDER','outcome':'REVIEW_REQUIRED','reasonCode':'IDENTITY_ALREADY_BOUND'})
+            check(normalize(observations)==normalize(expected), 'Observation class differs: '+label)
+            if o:
+                scenario=next(r for r in result['scenarios'] if r['orderLabel']==label)
+                ready=next((r['providerOrderId'] for r in scenario['outcomes'] if r['kind']=='PROVIDER_ORDER_READY'), None)
+                if label=='L1-CLAIM':
+                    ready=scenario['setupEvidence']['providerOrderId']
+                check(next(r['externalId'] for r in links if r['identityKind']=='ORDER')==ready, 'Winner/link mismatch')
+        else:
+            check(len(intakes)==len(receipts)==len(inbox)==0, 'Open finding crossed financial boundary')
+    check(len(new['receipts'])==len(new['wallet_provider_event_inbox'])==len(new['web_payment_purchase_intakes'])==1, 'F1 must own exactly one receipt/inbox/intake')
+    receipt=new['receipts'][0]; inbox=new['wallet_provider_event_inbox'][0]; intake=new['web_payment_purchase_intakes'][0]
+    check(intake['receipt_id']==receipt['id'] and intake['inbox_id']==inbox['id'] and receipt.get('user_id')==ACTORS['A'], 'F1 financial crosslink/owner mismatch')
+    for table in FINANCIAL:
+        check(after['financialCounts'][table]==len(new[table]), 'Financial summary/raw count differs')
+    findings=result['openFindings']
+    def finding_matches(finding):
+        facts=finding['facts']; observed=after['orderFacts'][finding['label']]
+        return set(facts)==set(observed) and all(normalize(facts[k])==normalize(observed[k])
+            if k in ('links','observations') else facts[k]==observed[k] and type(facts[k]) is type(observed[k]) for k in observed)
+    check(len(findings)==3 and {f['label'] for f in findings}=={'N-A','N-B','N-C'}
+          and all(set(f)=={'label','status','facts'} and f['status']=='OBSERVED_OPEN' and finding_matches(f) for f in findings), 'Open findings must retain observed facts')
+
+
 def rows_by(rows, keys):
     require(isinstance(rows, list) and all(isinstance(row, dict) for row in rows), 'CONTROL_STATE', 'Control rows must be objects')
     result = {}
@@ -658,6 +1168,8 @@ def hash_snapshot(value, *, exact=None, count=None):
 
 
 def finalize(receipt, *, cleanup, snapshot):
+    phase_set = receipt.get('phaseSet')
+    frozen, owned, entry, _, artifacts, bundle_name = phase_contract(phase_set)
     cleanup_error = None
     try:
         absence = cleanup()
@@ -673,7 +1185,7 @@ def finalize(receipt, *, cleanup, snapshot):
             artifactHashesAfter=after['artifacts'], cacheAfter=after['cache'], nativeInputHashesAfter=after['nativeInputs'])
         result['sourcesUnchanged'] = hash_snapshot(result.get('sourcesBefore')) and result['sourcesBefore'] == after['sources']
         result['dbSourcesUnchanged'] = hash_snapshot(result.get('dbSourcesBefore'), count=97) and result['dbSourcesBefore'] == after['dbSources']
-        result['artifactsUnchanged'] = hash_snapshot(result.get('artifactHashesBefore'), exact=ARTIFACTS) and result['artifactHashesBefore'] == after['artifacts']
+        result['artifactsUnchanged'] = hash_snapshot(result.get('artifactHashesBefore'), exact=artifacts) and result['artifactHashesBefore'] == after['artifacts']
         result['cacheUnchanged'] = isinstance(result.get('cacheBefore'), dict) and result['cacheBefore'] == after['cache']
         result['nativeInputsUnchanged'] = hash_snapshot(result.get('nativeInputHashes'), exact={'native-' + phase + '.json' for phase in 'ABC'}) and result['nativeInputHashes'] == after['nativeInputs']
     except BaseException as exc:
@@ -684,13 +1196,16 @@ def finalize(receipt, *, cleanup, snapshot):
         and absence['network'] is True and isinstance(absence['containers'], dict) and set(absence['containers']) == set(ids)
         and all(value is True for value in absence['containers'].values()))
     result['absenceComplete'] = absence_valid
-    valid = (absence_valid and result.get('phaseSet') == 'd1' and result.get('installedContractLevel') == 'current10'
+    valid = (absence_valid and result.get('phaseSet') in ('d1', 'd2') and result.get('installedContractLevel') == 'current10'
         and 'suiteContractLevel' in result and result['suiteContractLevel'] is None
         and 'originalError' in result and result['originalError'] is None and result.get('unknownCreation') == []
         and result.get('uncertainPhase') == []
         and not any(key in result for key in ('metadataError', 'cleanupError', 'sourceVerificationError', 'finalizationError'))
         and all(result.get(key) is True for key in ('sourcesUnchanged', 'dbSourcesUnchanged', 'artifactsUnchanged', 'cacheUnchanged', 'nativeInputsUnchanged')))
     try:
+        if phase_set == 'd2':
+            require(hash_snapshot(result.get('sourcesBefore'), exact={'web:' + p for p in frozen | owned | set(INSTALLED_PINS)}),
+                    'FINAL_SOURCES', 'D2 source closure incomplete')
         phases, observations = result['phases'], result['observations']
         require(isinstance(phases, dict) and set(phases) == {'A', 'B', 'C'} and isinstance(observations, dict)
                 and set(observations) == {'baseline' + p for p in 'ABC'} | {'after' + p for p in 'ABC'},
@@ -700,15 +1215,23 @@ def finalize(receipt, *, cleanup, snapshot):
             require(isinstance(row, dict) and row.get('completed') is True and type(row.get('exitCode')) is int and row['exitCode'] == 0,
                     'FINAL_PHASES', 'Phase did not complete successfully')
             before, after = observations['baseline' + phase], observations['after' + phase]
-            require(valid_observation(before, 'baseline' + phase) and valid_observation(after, 'after' + phase),
+            require(valid_observation(before, 'baseline' + phase, phase_set=phase_set) and valid_observation(after, 'after' + phase, phase_set=phase_set),
                     'FINAL_OBSERVATION', 'Observer evidence invalid')
-            require(all(before[key] == after[key] for key in ('productDigest', 'controlDigest', 'controlState', 'native')),
-                    'FINAL_MUTATION', 'HTTP phase changed product/control/native state')
-            validate_http(phase, row['result'], before['native'], result['fixtureCases'])
+            if phase_set == 'd2':
+                validate_d2_state(phase, before, after, row['result'], result['fixtureCases'])
+                expected_pins = {'bundleSha256': result['artifactHashesBefore'][bundle_name],
+                    'guardSha256': result['artifactHashesBefore']['guard.cjs'],
+                    'entryDeliverySha256': result['sourcesBefore']['web:' + entry]}
+                require(row['result'].get('executionPins') == expected_pins, 'NODE_EXECUTION_PINS', 'Node execution pins differ')
+            else:
+                require(all(before[key] == after[key] for key in ('productDigest', 'controlDigest', 'controlState', 'native')),
+                        'FINAL_MUTATION', 'HTTP phase changed product/control/native state')
+            validate_http(phase, row['result'], before if phase_set == 'd2' else before['native'], result['fixtureCases'], phase_set=phase_set)
             require(before['native'] == observations['baselineA']['native'], 'FINAL_FROZEN_BINDING', 'Native frozen responses changed across phases')
         for earlier, later, kind in (('A', 'B', 'rotate'), ('B', 'C', 'stop')):
             before, after = observations['after' + earlier], observations['baseline' + later]
             require(before['productDigest'] == after['productDigest']
+                    and (phase_set != 'd2' or all(before[k] == after[k] for k in ('productState','orderFacts','bridgeNative')))
                     and control_changes_allowed(kind, before['controlState'], after['controlState'], result['actors']),
                     'FINAL_CONTROL', 'Control operation changed product/non-allowlisted fields')
     except (BoundaryError, KeyError, TypeError, ValueError, AttributeError) as exc:
@@ -723,8 +1246,8 @@ def _command(argv, **kwargs):
     return subprocess.run(argv, env=ENV, **kwargs)
 
 
-def artifact_hashes(directory):
-    return {name: digest(source_file(directory, name).read_bytes()) for name in sorted(ARTIFACTS)}
+def artifact_hashes(directory, *, phase_set='d1'):
+    return {name: digest(source_file(directory, name).read_bytes()) for name in sorted(phase_contract(phase_set)[4])}
 
 
 def cache_state(*directories):
@@ -747,13 +1270,15 @@ def runtime_flags():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase-set', choices=['d1'], required=True)
+    parser.add_argument('--phase-set', choices=['d1', 'd2'], required=True)
     parser.add_argument('--postgres-image', choices=['postgres:15.8', 'postgres:17.6'], required=True)
     for name in ('run-label', 'db-workspace', 'docker-host', 'web-head', 'web-manifest', 'web-manifest-sha256', 'db-manifest', 'db-manifest-sha256'):
         parser.add_argument('--' + name, required=True)
     parser.add_argument('--docker-bin', default=shutil.which('docker', path=ENV['PATH']))
     parser.add_argument('--node-bin', default=shutil.which('node', path=ENV['PATH']))
     args = parser.parse_args(argv)
+    phase_set = args.phase_set
+    _, _, entry, _, _, bundle_name = phase_contract(phase_set)
     flags = runtime_flags()
     require(re.fullmatch(r'[a-z0-9][a-z0-9-]{0,63}', args.run_label), 'RUN_LABEL', 'Invalid fresh run label')
     for parent in (ROOT / '.artifacts', ROOT / '.artifacts/payment-web-order-http'):
@@ -771,6 +1296,11 @@ def main(argv=None):
                    'transactionMode': 'Actual GET/native READONLY compatibility only; no transaction-mode inference',
                    'retry': 'Phase-A SDK synthetic503 observations are excluded from PostgREST counts',
                    'concurrency': 'Sequential pool1 only', 'dependencyTree': 'Selected installed4 pinned, not whole dependency tree'}}
+    if phase_set == 'd2':
+        evidence['limits'].update(provider='Scripted local PayPalTransport and public fixture resolver only; no real provider or production composition',
+            transactionMode='Actual POST RPCs and stable GET/native parity; no unsupported transaction-mode inference',
+            retry='Every product SDK RPC uses retry(false); no synthetic retry case in D2',
+            concurrency='F4 two caller lanes with fake CREATE barrier over PostgREST pool1; no DB parallelism claim')
     pair, modules, web, db_root, manifest = None, None, None, None, None
     native_pins = {}
     stack = ExitStack()
@@ -782,9 +1312,9 @@ def main(argv=None):
 
     signal.signal(signal.SIGTERM, terminated)
     try:
-        web = verify_web(ROOT, args.web_manifest, args.web_manifest_sha256, args.web_head, git=_command)
+        web = verify_web(ROOT, args.web_manifest, args.web_manifest_sha256, args.web_head, git=_command, phase_set=phase_set)
         evidence['webPreflight'] = web
-        require(all(web['sources'].get(name) == value for name, value in {**REUSE_PINS, **PRODUCT_PINS, **INSTALLED_PINS}.items()),
+        require(all(web['sources'].get(name) == value for name, value in {**REUSE_PINS, **(D2_PRODUCT_PINS if phase_set == 'd2' else PRODUCT_PINS), **INSTALLED_PINS}.items()),
                 'FROZEN_RUNTIME_PIN', 'Frozen reuse/product/SDK bytes differ')
         evidence['stage'] = 'db-preflight'
         validate_migrations(MIGRATIONS10)
@@ -804,15 +1334,15 @@ def main(argv=None):
         node_out.mkdir()
         evidence['stage'] = 'bundle'
         bundle_source = execution_bytes(ROOT, PREFIX + 'bundle.mjs', web['sources'], evidence, 'web')
-        entry_bytes = execution_bytes(ROOT, ENTRY, web['sources'], evidence, 'web')
+        entry_bytes = execution_bytes(ROOT, entry, web['sources'], evidence, 'web')
         bundle_text = bundle_source.decode('utf-8', errors='strict')
-        bundled = _command([args.node_bin, '--input-type=module', '-', str(node_out), entry_bytes.hex()],
+        bundled = _command([args.node_bin, '--input-type=module', '-', str(node_out), entry_bytes.hex(), *(['d2'] if phase_set == 'd2' else [])],
             input=bundle_text, cwd=str(ROOT), text=True, encoding='utf-8', capture_output=True, timeout=30)
         (out / 'bundle.log').write_text(bundled.stdout + bundled.stderr)
         evidence['bundleExitCode'] = bundled.returncode
         require(bundled.returncode == 0, 'BUNDLE_FAILURE', 'Host build failed before Docker creation')
         meta_bytes = source_file(node_out, 'bundle-inputs.json').read_bytes()
-        evidence['bundleMetadata'] = verify_bundle(read_json(meta_bytes, 'BUNDLE_META'), entry_bytes)
+        evidence['bundleMetadata'] = verify_bundle(read_json(meta_bytes, 'BUNDLE_META'), entry_bytes, phase_set=phase_set)
         evidence['bundleMetadata'].update(sha256=digest(meta_bytes), scriptStdinSha256=digest(bundle_source))
         guard = execution_bytes(ROOT, PREFIX + 'guard.cjs', web['sources'], evidence, 'web')
         (node_out / 'guard.cjs').write_bytes(guard)
@@ -822,12 +1352,12 @@ def main(argv=None):
         evidence['stage'] = 'factory-start'
         pair.start()
         evidence['stage'] = 'source-current10-setup'
-        cases = setup_current10(pair, modules, db_root, manifest, out, web['sources'], evidence)
+        cases = setup_current10(pair, modules, db_root, manifest, out, web['sources'], evidence, phase_set=phase_set)
         evidence['fixtureCases'] = cases
 
         def native_observe(label):
             data = execution_bytes(ROOT, PREFIX + 'observer.sql', web['sources'], evidence, 'web')
-            return observe(pair, out, label, cases, data, evidence)
+            return observe(pair, out, label, cases, data, evidence, phase_set=phase_set)
 
         evidence['observations']['baselineA'] = native_observe('baselineA')
         evidence['stage'] = 'postgrest-start'
@@ -838,12 +1368,15 @@ def main(argv=None):
             'tokens': {'service': modules['order_http_run'].jwt('service_role'), 'anon': modules['order_http_run'].jwt('anon'),
                        'authenticated': modules['order_http_run'].jwt('authenticated', sub=ACTORS['A'])},
             'completionMarkers': {phase: 'PROVIDER_RPC_HTTP_COMPLETE_' + uuid.uuid4().hex + '_' + phase for phase in 'ABC'},
-            'executionPins': {'bundleSha256': digest(source_file(node_out, 'provider-binding-http.cjs').read_bytes()),
+            'executionPins': {'bundleSha256': digest(source_file(node_out, bundle_name).read_bytes()),
                 'guardSha256': digest(guard), 'entryDeliverySha256': digest(entry_bytes)}}
+        if phase_set == 'd2':
+            config['phaseSet'] = 'd2'
         (node_out / 'config.json').write_text(json.dumps(config, indent=2) + '\n')
-        evidence['artifactHashesBefore'] = artifact_hashes(node_out)
+        evidence['artifactHashesBefore'] = artifact_hashes(node_out, phase_set=phase_set)
         evidence['completionMarkers'] = config['completionMarkers']
         for phase in 'ABC':
+            result = None
             if phase != 'A':
                 kind = 'rotate' if phase == 'B' else 'stop'
                 earlier = 'A' if phase == 'B' else 'B'
@@ -860,18 +1393,18 @@ def main(argv=None):
                         'FROZEN_NATIVE', 'Frozen native binding changed after control operation')
             baseline = evidence['observations']['baseline' + phase]
             native_path = node_out / ('native-' + phase + '.json')
-            native_path.write_text(json.dumps(baseline['native'], indent=2) + '\n')
+            native_path.write_text(json.dumps(baseline if phase_set == 'd2' else baseline['native'], indent=2) + '\n')
             native_pins[native_path.name] = digest(native_path.read_bytes())
-            require(artifact_hashes(node_out) == evidence['artifactHashesBefore'], 'ARTIFACT_CHANGED', 'Immutable build/config changed between phases')
+            require(artifact_hashes(node_out, phase_set=phase_set) == evidence['artifactHashesBefore'], 'ARTIFACT_CHANGED', 'Immutable build/config changed between phases')
             evidence['stage'] = 'http-' + phase
-            child = pair.exec_node(['node', '--require', '/fixture/guard.cjs', '/fixture/provider-binding-http.cjs', phase, native_pins[native_path.name]], check=False)
+            child = pair.exec_node(['node', '--require', '/fixture/guard.cjs', '/fixture/' + bundle_name, phase, native_pins[native_path.name]], check=False)
             (out / ('http-' + phase + '.stdout.log')).write_text(child.stdout)
             (out / ('http-' + phase + '.stderr.log')).write_text(child.stderr)
             evidence['phases'][phase] = {'exitCode': child.returncode, 'completed': False}
             first_error = None
             try:
-                result = parse_result(phase, child, config)
-                counts = validate_http(phase, result, baseline['native'], cases)
+                result = parse_result(phase, child, config, phase_set=phase_set)
+                counts = validate_http(phase, result, baseline if phase_set == 'd2' else baseline['native'], cases, phase_set=phase_set)
                 require(result.get('executionPins') == config['executionPins'], 'NODE_EXECUTION_PINS', 'Node artifact evidence differs')
                 evidence['phases'][phase].update(completed=True, result=result, measuredCounts=counts)
             except BaseException as exc:
@@ -879,8 +1412,14 @@ def main(argv=None):
             try:
                 after = native_observe('after' + phase)
                 evidence['observations']['after' + phase] = after
-                require(all(baseline[key] == after[key] for key in ('productDigest', 'controlDigest', 'controlState', 'native')),
-                        'HTTP_STATE_MUTATION', 'Read-only HTTP phase changed product/control/native state')
+                if phase_set == 'd2':
+                    if result is None:
+                        evidence['phases'][phase]['stateValidation'] = {'status':'NOT_RUN','reason':'NO_COMPLETE_RESULT'}
+                    else:
+                        validate_d2_state(phase, baseline, after, result, cases)
+                else:
+                    require(all(baseline[key] == after[key] for key in ('productDigest', 'controlDigest', 'controlState', 'native')),
+                            'HTTP_STATE_MUTATION', 'Read-only HTTP phase changed product/control/native state')
             except BaseException as exc:
                 if first_error is None:
                     first_error = exc
@@ -900,10 +1439,10 @@ def main(argv=None):
                     return cleanup_owned(pair, evidence)
 
                 def snapshot():
-                    current_web = verify_web(ROOT, args.web_manifest, args.web_manifest_sha256, args.web_head, git=_command)
+                    current_web = verify_web(ROOT, args.web_manifest, args.web_manifest_sha256, args.web_head, git=_command, phase_set=phase_set)
                     _, _, current_db = verify_db(db_root, args.db_manifest, args.db_manifest_sha256, git=_command)
                     return {'sources': {'web:' + name: value for name, value in current_web['sources'].items()},
-                        'dbSources': current_db, 'artifacts': artifact_hashes(node_out),
+                        'dbSources': current_db, 'artifacts': artifact_hashes(node_out, phase_set=phase_set),
                         'cache': cache_state(ROOT / 'scripts/payment/order-http', ROOT / 'scripts/payment/charge-context-http', db_root / 'scripts/wallet'),
                         'nativeInputs': {name: digest(source_file(node_out, name).read_bytes()) for name in native_pins}}
 
