@@ -5,7 +5,8 @@ import type { CallerAssertion, ReadActorKind, ReadCategory, ReadCompletionInput,
 import type { ProviderChargeBinding } from './orchestrator';
 import type { ChargeContext, WebPaymentChargeRepository } from './repository';
 import { asFact, buildEvidence, captureIdSet, expectedOrder, judgmentAssertions, mismatchFacts, orderTupleMatches,
-  PARTIAL_VOIDED_ASSERTION, representableCaptures, UNREPRESENTABLE_ASSERTION, type CaptureIdSet } from './submission-classification';
+  PARTIAL_ADVERSE_CAPTURE_ASSERTION, PARTIAL_VOIDED_ASSERTION, representableCaptures, unrecordedAdverseCapture,
+  UNREPRESENTABLE_ASSERTION, type CaptureIdSet } from './submission-classification';
 import type { PayPalBodyStatus, PayPalHttpResult, PayPalTransport } from './transport';
 
 // W2 protected read cycle (spec 5/10, G5, G8, G9): open, at most one GET, one completion.
@@ -51,12 +52,21 @@ export function collectReadFacts(response: PayPalHttpResult, context: ChargeCont
       const captures = ids.ids !== null && orderTupleMatches(context, binding, observed)
         ? representableCaptures(context, actorUserId, binding, observed, 'LOOKUP', body) : [];
       const facts = [...(order ? [asFact(order)] : []), ...captures.map(candidate => asFact(candidate.evidence))];
-      if (facts.length) return build('ADVERSE', 'READ_NON_SUCCESS_FACT', status, 'PARSED', ids, facts);
       // A known VOIDED ORDER whose ORDER fact cannot be built. READ_ORDER_VOIDED is for 2xx only (M2), so the
       // judgment uses the conservative category with the exact assertion (G3) and the observed IDs (G9).
-      if (observed.rawStatus === 'VOIDED') {
-        return build('ADVERSE', 'READ_ADVERSE_UNSPECIFIED', status, 'PARSED', ids, [], [PARTIAL_VOIDED_ASSERTION]);
-      }
+      const voided = !facts.length && observed.rawStatus === 'VOIDED';
+      // W-F1: a capture with a known adverse status (DECLINED, FAILED, REFUNDED, PARTIALLY_REFUNDED) that no
+      // CAPTURE fact records is an observed judgment. It is kept as the exact assertion, also beside actual facts.
+      // No fact is built from an expectation. Every arm below is record-only: bind false, receive index null.
+      const assertions: CallerAssertion[] = [...(voided ? [PARTIAL_VOIDED_ASSERTION] : []),
+        ...(unrecordedAdverseCapture(observed, facts) ? [PARTIAL_ADVERSE_CAPTURE_ASSERTION] : [])];
+      if (voided) return build('ADVERSE', 'READ_ADVERSE_UNSPECIFIED', status, 'PARSED', ids, [], assertions);
+      // W-F1: a malformed capture ID is a parsed judgment. The count, the observed IDs and the bounded actual
+      // facts are kept, as for a 2xx response.
+      if (ids.unparseable > 0) return build('ADVERSE', 'READ_CAPTURE_ID_UNPARSEABLE', status, 'PARSED', ids, facts, assertions);
+      if (facts.length) return build('ADVERSE', 'READ_NON_SUCCESS_FACT', status, 'PARSED', ids, facts, assertions);
+      // No fact can be built. The adverse capture judgment still completes the cycle as ADVERSE with the observed IDs.
+      if (assertions.length) return build('ADVERSE', 'READ_ADVERSE_UNSPECIFIED', status, 'PARSED', ids, [], assertions);
     }
     // 1xx and 3xx. The 2xx range is handled below.
     if (status < 400) return build('ADVERSE', 'READ_HTTP_UNEXPECTED', status, bodyStatus, null);

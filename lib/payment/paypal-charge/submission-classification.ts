@@ -21,12 +21,20 @@ const KNOWN_ORDER_STATUSES = ['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLET
 export const PARTIAL_VOIDED_ASSERTION: CallerAssertion = { code: 'UNRECORDABLE_PROVIDER_FACT',
   detail: { fact_kind: 'ORDER', reason: 'ADVERSE_STATUS_PARTIAL' } };
 export const UNREPRESENTABLE_ASSERTION: CallerAssertion = { code: 'UNREPRESENTABLE_CONTRADICTION', detail: {} };
-// The exact assertion for a known adverse CAPTURE of a partial POST response that no CAPTURE fact records.
-const PARTIAL_ADVERSE_CAPTURE_ASSERTION: CallerAssertion = { code: 'UNRECORDABLE_PROVIDER_FACT',
+// The exact assertion for a known adverse CAPTURE that no CAPTURE fact records: a partial POST response, or a
+// non-2xx protected GET whose capture cannot be attributed to this order (W-F1).
+export const PARTIAL_ADVERSE_CAPTURE_ASSERTION: CallerAssertion = { code: 'UNRECORDABLE_PROVIDER_FACT',
   detail: { fact_kind: 'CAPTURE', reason: 'ADVERSE_STATUS_PARTIAL' } };
 // A recognised capture status that is neither COMPLETED nor PENDING: DECLINED, FAILED, REFUNDED, PARTIALLY_REFUNDED.
 const adverseCapture = (capture: ObservedPayPalCapture) =>
   capture.status !== 'UNRECOGNIZED' && capture.status !== 'COMPLETED' && capture.status !== 'PENDING';
+// True when the response reports a capture with a known adverse status that no CAPTURE fact of the same ID and
+// status records. The status is the one that the provider reported. No fact is built from an expectation.
+export function unrecordedAdverseCapture(observed: ObservedPayPalOrder, facts: ResultFact[]): boolean {
+  return observed.captures.some(capture => adverseCapture(capture) && !facts.some(item =>
+    item.evidence.identity_kind === 'CAPTURE' && item.evidence.external_id === capture.providerCaptureId
+    && item.evidence.status === capture.rawStatus));
+}
 
 function matches(value: unknown, regex: RegExp): value is string { return typeof value === 'string' && regex.exec(value)?.[0] === value; }
 function present(value: unknown) { return value !== undefined && value !== null; }
@@ -321,9 +329,7 @@ export function classifySubmission(response: PayPalHttpResult, context: ChargeCo
     // A known adverse capture status is an actual observation. A missing field of the response does not erase it:
     // an attributable capture is a record-only fact, and a capture that no fact records is the exact assertion.
     const facts = contradictoryFacts(context, actorUserId, binding, observed, 'SUBMIT_RESPONSE', body, true).map(evidence => asFact(evidence));
-    const unrecorded = observed.captures.some(capture => adverseCapture(capture) && !facts.some(item =>
-      item.evidence.identity_kind === 'CAPTURE' && item.evidence.external_id === capture.providerCaptureId
-      && item.evidence.status === capture.rawStatus));
+    const unrecorded = unrecordedAdverseCapture(observed, facts);
     // A partial response with no observed contradiction is NO_RESPONSE. Its capture IDs are kept for the DB.
     if (!facts.length && !unrecorded && incomplete) return result('NO_RESPONSE', 'PARTIAL_UNCONTRADICTED', []);
     const judgments = [...judgmentAssertions(body, assessment, e, true), ...(unrecorded ? [PARTIAL_ADVERSE_CAPTURE_ASSERTION] : [])];

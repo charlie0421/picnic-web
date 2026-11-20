@@ -4447,6 +4447,34 @@ describe('W2 correction S-H2: a non-2xx protected GET completes its parsed judgm
     expect(JSON.stringify({ outcome, logs: h.log.mock.calls })).not.toMatch(/Q7pPriv|eeeeeeee|55555555/);
   });
 
+  it.each([401, 403, 408, 429, 503])('W-F1 sends the observed DECLINED judgment without an attributable fact at HTTP %s', async status => {
+    const lookup: any = capturedOrder('DECLINED'); delete lookup.purchase_units[0].payee;
+    const h = recoveryRead(parsed(lookup, status));
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    expectOneProtectedRead(h);
+    expect(rpcCalls(h, RPC.complete)).toEqual([{ name: RPC.complete, args: { p_cycle_id: CYCLE, p_cycle_token: CYCLE_TOKEN,
+      p_completion: { contract_version: 'web-payment-read-cycle-completion.v2', kind: 'ADVERSE',
+        category: 'READ_ADVERSE_UNSPECIFIED', get_http_status: status, get_body_status: 'PARSED',
+        observed_capture_ids: ['3C679366HH908993F'], unparseable_capture_count: 0, capture_count_exceeded: false,
+        facts: [], assertions: [{ code: 'UNRECORDABLE_PROVIDER_FACT', detail: { fact_kind: 'CAPTURE', reason: 'ADVERSE_STATUS_PARTIAL' } }],
+        receive_fact_index: null } } }]);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+  });
+
+  it.each([401, 403, 408, 429, 503])('W-F1 sends the malformed capture ID count without an attributable fact at HTTP %s', async status => {
+    const lookup: any = capturedOrder(); delete lookup.purchase_units[0].payee;
+    lookup.purchase_units[0].payments.captures[0].id = '../bad';
+    const h = recoveryRead(parsed(lookup, status));
+    const outcome = await capturePayPalOrder(h.deps, approvedInput);
+    expectOneProtectedRead(h);
+    expect(rpcCalls(h, RPC.complete)).toEqual([{ name: RPC.complete, args: { p_cycle_id: CYCLE, p_cycle_token: CYCLE_TOKEN,
+      p_completion: { contract_version: 'web-payment-read-cycle-completion.v2', kind: 'ADVERSE',
+        category: 'READ_CAPTURE_ID_UNPARSEABLE', get_http_status: status, get_body_status: 'PARSED',
+        observed_capture_ids: [], unparseable_capture_count: 1, capture_count_exceeded: false, facts: [], assertions: [],
+        receive_fact_index: null } } }]);
+    expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
+  });
+
   // Controls. These pass before and after the correction.
   it('control: an ordinary 503 with no provider fact and no judgment completes as NO_DATA', async () => {
     const h = recoveryRead(parsed({ name: 'INTERNAL_SERVICE_ERROR', message: 'Q7pPriv temporary' }, 503));

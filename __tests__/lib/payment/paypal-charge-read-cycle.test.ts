@@ -552,6 +552,23 @@ describe('W2 correction S-H2: a non-2xx GET keeps a bounded parsed judgment befo
       unparseable_capture_count: 0, capture_count_exceeded: true, facts: [], assertions: [], receive_fact_index: null });
   });
 
+  it.each([401, 403, 408, 429, 503])('W-F1 keeps a DECLINED capture without a usable merchant at HTTP %s', async status => {
+    const body = capturedOrder('DECLINED'); delete body.purchase_units[0].payee;
+    expect(await collect(parsed(body, status))).toEqual({ contract_version: 'web-payment-read-cycle-completion.v2',
+      kind: 'ADVERSE', category: 'READ_ADVERSE_UNSPECIFIED', get_http_status: status, get_body_status: 'PARSED',
+      observed_capture_ids: ['3C679366HH908993F'], unparseable_capture_count: 0, capture_count_exceeded: false,
+      facts: [], assertions: [{ code: 'UNRECORDABLE_PROVIDER_FACT', detail: { fact_kind: 'CAPTURE', reason: 'ADVERSE_STATUS_PARTIAL' } }],
+      receive_fact_index: null });
+  });
+
+  it.each([401, 403, 408, 429, 503])('W-F1 keeps the malformed capture ID count without a usable merchant at HTTP %s', async status => {
+    const body = withCaptures([capture('../bad')]); delete body.purchase_units[0].payee;
+    expect(await collect(parsed(body, status))).toEqual({ contract_version: 'web-payment-read-cycle-completion.v2',
+      kind: 'ADVERSE', category: 'READ_CAPTURE_ID_UNPARSEABLE', get_http_status: status, get_body_status: 'PARSED',
+      observed_capture_ids: [], unparseable_capture_count: 1, capture_count_exceeded: false, facts: [], assertions: [],
+      receive_fact_index: null });
+  });
+
   // Controls. These pass before and after the correction.
   it('control: an ordinary 503 with no provider fact and no judgment stays NO_DATA', async () => {
     const result = await collect(parsed({ name: 'INTERNAL_SERVICE_ERROR', message: 'Q7pPriv temporary', debug_id: 'Q7pPrivDebug' }, 503));
