@@ -131,6 +131,10 @@ export const LOG_EVENT_CODES = [
   'payment.paypal.charge.submit.unknown',
   'payment.paypal.charge.observe.review',
   'payment.paypal.charge.intake.failed',
+  'payment.paypal.charge.classify.failed',
+  'payment.paypal.charge.cycle.failed',
+  'payment.paypal.charge.intake.held',
+  'payment.paypal.reconcile.run.failed',
 ] as const;
 
 export type LogEventCode = (typeof LOG_EVENT_CODES)[number];

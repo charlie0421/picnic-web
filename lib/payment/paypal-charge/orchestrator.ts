@@ -1,8 +1,11 @@
 import 'server-only';
 import type { LogEventCode } from '@/utils/log-event-codes';
-import { assessPayPalOrder, buildPayPalEvidence, minorToPayPalValue, type ExpectedPayPalOrder,
-  type ObservedPayPalCapture, type ObservedPayPalOrder, type PayPalEnvironment, type PayPalEvidence, type PayPalOrderAssessment, type PayPalScope } from './protocol';
-import type { ChargeCommand, ChargeContext, ChargeLease, PreparedProviderContext, WebPaymentChargeRepository } from './repository';
+import { assessPayPalOrder, minorToPayPalValue, type PayPalEnvironment, type PayPalOrderAssessment, type PayPalScope } from './protocol';
+import type { CallerAssertion, ReadCycleReport, ReconciliationRuntime, ResultFact } from './durability-contract';
+import { performReadCycle, readSignal, remainingReadMs } from './read-cycle';
+import type { ChargeCommand, ChargeContext, ChargeLease, IntakeResult, PreparedProviderContext, WebPaymentChargeRepository } from './repository';
+import { buildEvidence, captureList, classifySubmission, expectedOrder, judgmentAssertions, mismatchFacts,
+  UNREPRESENTABLE_ASSERTION, type OrderMismatch } from './submission-classification';
 import type { PayPalHttpResult, PayPalTransport } from './transport';
 import type { ProviderEntryDecision, ProviderEntryGate } from './provider-entry';
 
@@ -15,11 +18,13 @@ export interface ChargeBindingSource {
     | { kind: 'NOT_FOUND' | 'CONTEXT_REQUIRED' | 'VERIFICATION_BINDING_REQUIRED' }>;
 }
 export interface PayPalCredentialResolver {
-  resolve(input: { provider: 'PAYPAL'; environment: PayPalEnvironment; credentialRef: string; bindingVersion: string; bindingHash: string }):
-    Promise<{ clientId: string; clientSecret: string } | null>;
+  // signal is present only for a trusted reconciliation runtime. A trusted resolver must honor its cancellation.
+  resolve(input: { provider: 'PAYPAL'; environment: PayPalEnvironment; credentialRef: string; bindingVersion: string; bindingHash: string;
+    signal?: AbortSignal }): Promise<{ clientId: string; clientSecret: string } | null>;
 }
 export const closedPayPalCredentialResolver: PayPalCredentialResolver = { async resolve() { return null; } };
-type Stage = 'CONTEXT' | 'PREPARE' | 'BINDING' | 'CREDENTIAL' | 'TOKEN' | 'ENTRY' | 'CREATE' | 'LOOKUP' | 'CLAIM' | 'INTENT' | 'SUBMIT' | 'OBSERVE' | 'INTAKE';
+type Stage = 'CONTEXT' | 'PREPARE' | 'BINDING' | 'CREDENTIAL' | 'TOKEN' | 'ENTRY' | 'CREATE' | 'LOOKUP' | 'CLAIM' | 'INTENT' | 'SUBMIT' | 'OBSERVE' | 'INTAKE'
+  | 'CLASSIFY' | 'CYCLE' | 'HELD';
 export type PayPalChargeOutcome =
   | { kind: 'PROVIDER_ORDER_READY'; providerOrderId: string; replayed: boolean }
   | { kind: 'INTAKE_PENDING'; replayed: boolean }
@@ -27,15 +32,17 @@ export type PayPalChargeOutcome =
   | { kind: 'BLOCKED'; reason: string } | { kind: 'UNAVAILABLE'; stage: Stage }
   | { kind: 'NOT_APPROVED' | 'ORDER_VOIDED' | 'IN_PROGRESS' | 'CAPTURE_PENDING' | 'CAPTURE_FAILED' | 'SUBMISSION_UNKNOWN'
       | 'NO_PROVIDER_ORDER' | 'REVIEW_REQUIRED' | 'NOT_FOUND' };
+// runtime is a trusted in-memory value from the reconciliation executor. It is never browser input.
 export type PayPalChargeDeps = { repository: WebPaymentChargeRepository; bindings: ChargeBindingSource;
   credentials: PayPalCredentialResolver; transport: PayPalTransport; entry: ProviderEntryGate; nowMs: () => number;
-  log: (entry: { stage: Stage; level: 'warn' | 'error'; code: LogEventCode; orderId: string; httpStatus?: number }) => void };
+  log: (entry: { stage: Stage; level: 'warn' | 'error'; code: LogEventCode; orderId: string; httpStatus?: number }) => void;
+  runtime?: ReconciliationRuntime };
 export type PayPalChargeBrowserDto = { contractVersion: 'web-payment-charge.v1'; orderId: string; state: PayPalChargeOutcome['kind'];
   newOrderAllowed: false; providerOrderId?: string; paymentState?: ChargeContext['paymentState'];
   settlementState?: ChargeContext['settlementState']; reviewRequired?: boolean };
 type Input = { actorUserId: string; orderId: string };
 type Authorized = { binding: ProviderChargeBinding; accessToken: string };
-type PostRecovery = { captureIds: string[]; reviewRequired: boolean };
+type UserReadKind = 'USER_CAPTURE' | 'USER_RECONCILE';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const HASH = /^[0-9a-f]{64}$/;
@@ -49,12 +56,14 @@ const EVENTS = {
   CREATE: 'payment.paypal.charge.create.failed', LOOKUP: 'payment.paypal.charge.lookup.failed', CLAIM: 'payment.paypal.charge.claim.blocked',
   INTENT: 'payment.paypal.charge.intent.failed', SUBMIT: 'payment.paypal.charge.submit.unknown',
   OBSERVE: 'payment.paypal.charge.observe.review', INTAKE: 'payment.paypal.charge.intake.failed',
+  CLASSIFY: 'payment.paypal.charge.classify.failed', CYCLE: 'payment.paypal.charge.cycle.failed',
+  HELD: 'payment.paypal.charge.intake.held',
 } as const satisfies Record<Stage, LogEventCode>;
 
 function matches(value: unknown, regex: RegExp): value is string { return typeof value === 'string' && regex.exec(value)?.[0] === value; }
 function positive(value: unknown): value is string { return matches(value, POSITIVE) && BigInt(value) <= BigInt('9223372036854775807'); }
 function log(d: Pick<PayPalChargeDeps, 'log'>, stage: Stage, orderId: string, httpStatus?: number) {
-  try { d.log({ stage, level: ['CONTEXT', 'CREATE', 'SUBMIT', 'INTAKE'].includes(stage) ? 'error' : 'warn', code: EVENTS[stage], orderId,
+  try { d.log({ stage, level: ['CONTEXT', 'CREATE', 'SUBMIT', 'INTAKE', 'CLASSIFY', 'CYCLE'].includes(stage) ? 'error' : 'warn', code: EVENTS[stage], orderId,
     ...(Number.isInteger(httpStatus) && httpStatus! >= 100 && httpStatus! <= 599 ? { httpStatus } : {}) }); }
   catch { /* Logging cannot authorize or repeat a payment operation. */ }
 }
@@ -76,6 +85,24 @@ function freshRefusal(d: Pick<PayPalChargeDeps, 'nowMs'>, c: ChargeContext): Pay
   if (!before(d, c.quoteExpiresAt)) return { kind: 'BLOCKED', reason: 'QUOTE_EXPIRED' };
   if (recovery(c)) return { kind: 'SUBMISSION_UNKNOWN' };
   return null;
+}
+
+// The report callback is synchronous and grants no authority. Its failure cannot change the workflow.
+function report(d: Pick<PayPalChargeDeps, 'runtime'>, value: ReadCycleReport) {
+  try { d.runtime?.onReadResult(value); } catch { /* The executor settles from its own state. */ }
+}
+function deferred(d: Pick<PayPalChargeDeps, 'runtime'>) {
+  report(d, { kind: 'NOT_OPENED', reason: 'DEFERRED', opened: false, readCancelled: d.runtime?.window.signal.aborted ?? false });
+}
+// Options for one provider or resolver read that starts now. Without a runtime the read has no extra signal.
+// With a runtime the remaining time is recalculated here. null means that the read must not start: the budget
+// ended or the run was cancelled before the start. That is reported once as DEFERRED and is not a credential,
+// token or provider failure.
+function runtimeRead(d: Pick<PayPalChargeDeps, 'runtime'>): { signal?: AbortSignal } | null {
+  if (!d.runtime) return {};
+  const signal = readSignal(d.runtime.window);
+  if (signal) return { signal };
+  deferred(d); return null;
 }
 
 async function owner(d: Pick<PayPalChargeDeps, 'repository'> & Partial<Pick<PayPalChargeDeps, 'log'>>, i: Input): Promise<{ context: ChargeContext } | { outcome: PayPalChargeOutcome }> {
@@ -120,6 +147,7 @@ async function authorize(d: PayPalChargeDeps, i: Input, c: ChargeContext, prepar
     if (!c.contextId || !c.verificationBindingPresent) return { outcome: unavailable(d, 'BINDING', i.orderId) };
     // Existing-context replay takes wallet/order locks. It does not create a
     // context or reauthorize current settings, including during deleted-actor recovery.
+    // A started prepare is awaited to its own service deadline. It does not receive the read signal.
     let replay;
     try { replay = await d.repository.prepareProviderContext(i.actorUserId, i.orderId); }
     catch { return { outcome: unavailable(d, 'PREPARE', i.orderId) }; }
@@ -135,261 +163,85 @@ async function authorize(d: PayPalChargeDeps, i: Input, c: ChargeContext, prepar
     || binding.scope.merchant_id !== preparedScope.merchant_id || Object.keys(preparedScope).length !== 2) {
     return { outcome: unavailable(d, 'BINDING', i.orderId) };
   }
+  const resolveRead = runtimeRead(d); if (!resolveRead) return { outcome: { kind: 'IN_PROGRESS' } };
   let credential;
   try { credential = await d.credentials.resolve({ provider: 'PAYPAL', environment: binding.environment,
-    credentialRef: binding.credentialRef, bindingVersion: binding.bindingVersion, bindingHash: binding.bindingHash }); }
+    credentialRef: binding.credentialRef, bindingVersion: binding.bindingVersion, bindingHash: binding.bindingHash, ...resolveRead }); }
   catch { return { outcome: unavailable(d, 'CREDENTIAL', i.orderId) }; }
   // Resolver output attests no hash. Only the returned client ID can be compared here.
   if (!credential || credential.clientId !== binding.expectedPayPalClientId || !credentialValue(credential.clientId)
     || !credentialValue(credential.clientSecret)) return { outcome: unavailable(d, 'CREDENTIAL', i.orderId) };
+  const tokenRead = runtimeRead(d); if (!tokenRead) return { outcome: { kind: 'IN_PROGRESS' } };
   let token;
-  try { token = await d.transport.requestToken({ environment: binding.environment, credential }); }
+  try { token = await d.transport.requestToken({ environment: binding.environment, credential, ...tokenRead }); }
   catch { return { outcome: unavailable(d, 'TOKEN', i.orderId) }; }
   if (!token || !credentialValue(token.accessToken)) return { outcome: unavailable(d, 'TOKEN', i.orderId) };
   return { authorized: { binding, accessToken: token.accessToken } };
 }
 
-function expected(c: ChargeContext, binding: ProviderChargeBinding, providerOrderId = c.providerOrderId): ExpectedPayPalOrder {
-  return { orderId: c.orderId, providerOrderId, amountMinor: c.amountMinor, currency: 'USD',
-    merchantId: binding.scope.merchant_id, billingCountry: binding.billingCountry };
-}
 function successful(result: PayPalHttpResult): result is Extract<PayPalHttpResult, { kind: 'RESPONSE' }> {
   return result.kind === 'RESPONSE' && Number.isInteger(result.status) && result.status >= 200 && result.status < 300;
 }
-function object(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
-}
-function captureList(body: unknown): unknown[] | null {
-  const units = object(body)?.purchase_units;
-  const unit = Array.isArray(units) && units.length === 1 ? object(units[0]) : null;
-  const captures = object(unit?.payments)?.captures;
-  return Array.isArray(captures) ? captures : null;
-}
-function partialPostResponse(body: unknown): boolean {
-  const captures = captureList(body);
-  if (captures && captures.length > 32) return false;
-  const order = object(body); if (!order) return true;
-  const present = (value: unknown) => value !== undefined && value !== null;
-  if (!present(order.purchase_units)) return true;
-  if (!Array.isArray(order.purchase_units) || order.purchase_units.length !== 1) return false;
-  const unit = object(order.purchase_units[0]); if (!unit) return false;
-  const money = object(unit.amount); const payee = object(unit.payee); const payments = object(unit.payments);
-  // Missing fields in an extra malformed capture do not turn a complete conflict
-  // into a partial representation. Full multiple-capture handling remains closed.
-  const capture = captures?.length === 1 ? object(captures[0]) : null;
-  const amount = object(capture?.amount);
-  return !present(order.id) || !present(order.status) || !present(order.intent) || !present(unit.custom_id)
-    || !present(money?.value) || !present(money?.currency_code) || !present(payee?.merchant_id)
-    || !present(unit.payments) || !present(payments?.captures)
-    || (capture !== null && (!present(capture.id) || !present(capture.status)
-      || !present(amount?.value) || !present(amount?.currency_code)));
-}
-function postCaptureIds(body: unknown, c: ChargeContext): string[] {
-  const order = object(body); const captures = captureList(body);
-  if (!order || !matches(order.id, ID) || order.id !== c.providerOrderId || !captures || captures.length > 32) return [];
-  const ids: string[] = [];
-  for (const value of captures) {
-    const capture = object(value);
-    if (capture && matches(capture.id, ID)) ids.push(capture.id);
-  }
-  return ids;
-}
-function incompletePostResponse(body: unknown, observed: ObservedPayPalOrder, e: ExpectedPayPalOrder): boolean {
-  const order = object(body); if (!order) return true;
-  const present = (value: unknown) => value !== undefined && value !== null;
-  // Check every observed contradiction before considering any missing field.
-  // A later complete GET must not erase a real conflicting POST observation.
-  if ((present(order.id) && observed.providerOrderId !== e.providerOrderId)
-    || (present(order.intent) && order.intent !== 'CAPTURE')
-    || (present(order.status) && (!observed.rawStatus
-      || !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED'].includes(observed.rawStatus)))) return false;
-  const source = object(order.payment_source); const paypal = object(source?.paypal); const payer = object(order.payer);
-  if ((present(order.payment_source) && !source) || (present(source?.paypal) && !paypal) || (present(order.payer) && !payer)) return false;
-  for (const value of [paypal?.address, payer?.address]) {
-    if (value === undefined) continue;
-    const address = object(value);
-    if (!address || address.country_code !== e.billingCountry) return false;
-  }
-  if (!present(order.purchase_units)) return true;
-  if (!Array.isArray(order.purchase_units) || order.purchase_units.length !== 1) return false;
-  const unit = object(order.purchase_units[0]); if (!unit) return false;
-  const money = object(unit.amount); const payee = object(unit.payee);
-  if ((present(unit.custom_id) && observed.orderReference !== `v2:${e.orderId}`)
-    || (present(unit.amount) && !money) || (present(money?.value) && observed.amountMinor !== e.amountMinor)
-    || (present(money?.currency_code) && observed.currency !== e.currency)
-    || (present(unit.payee) && !payee) || (present(payee?.merchant_id) && observed.merchantId !== e.merchantId)) return false;
-  const payments = object(unit.payments); const captures = payments?.captures;
-  if ((present(unit.payments) && !payments) || (present(captures) && (!Array.isArray(captures) || captures.length > 1))) return false;
-  let missingCapture = false;
-  if (Array.isArray(captures)) {
-    for (let index = 0; index < captures.length; index++) {
-      const raw = object(captures[index]); const capture = observed.captures[index];
-      if (!raw || !capture) return false;
-      const amount = object(raw.amount);
-      if ((present(raw.id) && !capture.providerCaptureId)
-        || (present(raw.status) && (!capture.rawStatus || capture.status === 'UNRECOGNIZED'))
-        || (present(raw.amount) && !amount) || (present(amount?.value) && capture.amountMinor !== e.amountMinor)
-        || (present(amount?.currency_code) && capture.currency !== e.currency)
-        || (raw.custom_id !== undefined && raw.custom_id !== `v2:${e.orderId}`)) return false;
-      missingCapture ||= !present(raw.id) || !present(raw.status) || !present(amount?.value) || !present(amount?.currency_code);
-    }
-  }
-  return !present(order.id) || !present(order.status) || !present(order.intent) || !present(unit.custom_id)
-    || !present(money?.value) || !present(money?.currency_code) || !present(payee?.merchant_id)
-    || !present(unit.payments) || !present(captures) || missingCapture;
-}
-async function lookup(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Authorized):
+
+// Unprotected GET. Only S1 (before claim) and S6 (no intent) use it. A read after an intent uses protectedRead.
+// started holds read options that the caller already obtained, so that one call reports DEFERRED at most once.
+async function lookup(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Authorized, started?: { signal?: AbortSignal }):
   Promise<{ assessment: PayPalOrderAssessment; body: unknown } | { outcome: PayPalChargeOutcome }> {
+  const read = started ?? runtimeRead(d); if (!read) return { outcome: { kind: 'IN_PROGRESS' } };
   let result;
-  try { result = await d.transport.getOrder({ environment: a.binding.environment, accessToken: a.accessToken, providerOrderId: c.providerOrderId! }); }
+  try { result = await d.transport.getOrder({ environment: a.binding.environment, accessToken: a.accessToken, providerOrderId: c.providerOrderId!, ...read }); }
   catch { return { outcome: unavailable(d, 'LOOKUP', i.orderId) }; }
   if (!successful(result) || result.body === null) return { outcome: unavailable(d, 'LOOKUP', i.orderId, result.kind === 'RESPONSE' ? result.status : undefined) };
-  return { assessment: assessPayPalOrder(result.body, expected(c, a.binding)), body: result.body };
+  return { assessment: assessPayPalOrder(result.body, expectedOrder(c, a.binding)), body: result.body };
 }
 
-function evidence(c: ChargeContext, i: Input, binding: ProviderChargeBinding, observed: ObservedPayPalOrder,
-  source: PayPalEvidence['source'], capture: ObservedPayPalCapture | null = null): PayPalEvidence | null {
-  const item = capture;
-  const externalId = capture ? item?.providerCaptureId : observed.providerOrderId;
-  const status = capture ? item?.rawStatus : observed.rawStatus;
-  if (!externalId || !status || !observed.merchantId) return null;
-  try {
-    return buildPayPalEvidence({ source, provider: 'PAYPAL', environment: binding.environment,
-      identity_kind: capture ? 'CAPTURE' : 'ORDER', external_id: externalId,
-      parent_external_id: capture ? observed.providerOrderId : null, order_id: c.orderId, user_id: i.actorUserId, quote_hash: c.quoteHash,
-      order_reference: item?.orderReference ?? observed.orderReference,
-      // account_id is copied context, whereas merchant_id is the observed PayPal payee.
-      scope: { account_id: binding.scope.account_id, merchant_id: observed.merchantId },
-      amount_minor: capture ? item?.amountMinor ?? null : observed.amountMinor,
-      currency: capture ? item?.currency ?? null : observed.currency, status });
-  } catch { return null; }
-}
-
-function contradictoryFacts(c: ChargeContext, i: Input, binding: ProviderChargeBinding, observed: ObservedPayPalOrder,
-  source: PayPalEvidence['source'], body: unknown): PayPalEvidence[] {
-  const captures = captureList(body);
-  if (captures && captures.length > 32) return [];
-  const order = evidence(c, i, binding, observed, source);
-  // A partial representation must supply the actual tuple. Missing fields are
-  // transport recovery inputs, not permission to fill evidence from expectations.
-  if (!order || order.amount_minor === null || order.currency === null || order.order_reference === null) return [];
-  if (order.external_id !== c.providerOrderId || order.amount_minor !== c.amountMinor || order.currency !== c.currency
-    || order.scope.merchant_id !== binding.scope.merchant_id || order.order_reference !== `v2:${c.orderId}`) return [order];
-  const unknownOrder = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'COMPLETED', 'PAYER_ACTION_REQUIRED'].includes(order.status);
-  // Only the matching ORDER tuple can attribute CAPTURE facts to this order.
-  // A missing CAPTURE link alone is not an observed provider contradiction.
-  const facts: PayPalEvidence[] = unknownOrder ? [order] : []; const seen = new Set<string>();
-  for (let index = 0; index < observed.captures.length; index++) {
-    const capture = observed.captures[index]; const raw = object(captures?.[index]);
-    if (!raw || !capture.providerCaptureId || !capture.rawStatus || !capture.amountMinor || !capture.currency
-      || (raw.custom_id !== undefined && !capture.orderReference)) continue;
-    const actual = evidence(c, i, binding, observed, source, capture);
-    if (!actual || !actual.order_reference || seen.has(actual.payload_hash)) continue;
-    if (unknownOrder || actual.amount_minor !== c.amountMinor || actual.currency !== c.currency
-      || actual.order_reference !== `v2:${c.orderId}` || capture.status === 'UNRECOGNIZED'
-      || (c.providerCaptureId !== null && actual.external_id !== c.providerCaptureId)) {
-      seen.add(actual.payload_hash); facts.push(actual);
-    }
+// Best-effort record of one fact outside the barrier (S0, S1, S6). A failed record cannot authorize
+// recovery, binding or intake. A lost bind response keeps the same actual evidence through native
+// replay/IDENTITY_NOT_BOUND semantics and never binds a replacement candidate.
+async function recordFact(d: PayPalChargeDeps, contextId: string, fact: ResultFact): Promise<void> {
+  if (fact.bind) {
+    try { await d.repository.bindProviderIdentity(contextId, fact.evidence); return; } catch { /* Commit is unknown. */ }
   }
-  return facts;
+  try { await d.repository.recordObservation(contextId, fact.evidence); } catch { /* The local refusal remains closed. */ }
 }
 
-async function recordFacts(d: PayPalChargeDeps, c: ChargeContext, facts: PayPalEvidence[]): Promise<void> {
-  if (!c.contextId) return;
-  for (const fact of facts) {
-    try { await d.repository.recordObservation(c.contextId, fact); }
-    catch { /* Record failure cannot authorize recovery, binding or intake. */ }
-  }
-}
-
+// A CREATE (S0) or unprotected GET (S1, S6) that does not match this order. No intent exists on these paths.
 async function mismatch(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Authorized,
-  assessment: Extract<PayPalOrderAssessment, { kind: 'MISMATCH' }>, source: PayPalEvidence['source'], body: unknown): Promise<PayPalChargeOutcome> {
+  assessment: OrderMismatch, source: 'CREATE_RESPONSE' | 'LOOKUP', body: unknown): Promise<PayPalChargeOutcome> {
   const rawCaptures = captureList(body);
   if (rawCaptures && rawCaptures.length > 32) {
     // Do not partially persist either CAPTURE or ORDER evidence above the local work bound.
     log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
   }
-  const observed = assessment.observed;
-  if (c.contextId && source !== 'CREATE_RESPONSE' && ['COUNTRY', 'CAPTURE_SHAPE', 'SHAPE'].includes(assessment.reason)
-    && observed.providerOrderId === c.providerOrderId && observed.amountMinor === c.amountMinor && observed.currency === c.currency
-    && observed.merchantId === a.binding.scope.merchant_id && observed.orderReference === `v2:${c.orderId}`) {
-    const seen = new Set<string>(); const candidates: Array<{ evidence: PayPalEvidence; knownStatus: boolean }> = [];
-    for (let index = 0; index < observed.captures.length; index++) {
-      const capture = observed.captures[index]; const raw = object(rawCaptures?.[index]);
-      if (!raw || !capture.providerCaptureId || !capture.rawStatus || !capture.amountMinor || !capture.currency
-        || (raw.custom_id !== undefined && !capture.orderReference)) continue;
-      const e = evidence(c, i, a.binding, observed, source, capture);
-      if (!e || !e.order_reference || seen.has(e.payload_hash)) continue;
-      seen.add(e.payload_hash); candidates.push({ evidence: e, knownStatus: capture.status !== 'UNRECOGNIZED' });
-    }
-    if (candidates.length) {
-      const selected = candidates.find(candidate => candidate.knownStatus && candidate.evidence.amount_minor === c.amountMinor
-        && candidate.evidence.currency === c.currency && candidate.evidence.order_reference === `v2:${c.orderId}`
-        && (c.providerCaptureId === null || candidate.evidence.external_id === c.providerCaptureId));
-      if (selected) {
-        try { await d.repository.bindProviderIdentity(c.contextId, selected.evidence); }
-        catch {
-          // Commit is unknown. Preserve the same actual evidence once through native
-          // replay/IDENTITY_NOT_BOUND semantics; never bind a replacement candidate.
-          try { await d.repository.recordObservation(c.contextId, selected.evidence); } catch { /* Remain in local REVIEW. */ }
-        }
-      }
-      for (const candidate of candidates) {
-        if (candidate === selected) continue;
-        try { await d.repository.recordObservation(c.contextId, candidate.evidence); }
-        catch { /* A failed observation must not discard the later actual candidates. */ }
-      }
-      log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
-    }
-  }
-  if (source === 'SUBMIT_RESPONSE') {
-    const facts = contradictoryFacts(c, i, a.binding, observed, source, body);
-    if (facts.length) {
-      await recordFacts(d, c, facts);
-      log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
-    }
-  }
-  if (!observed.rawStatus) return unavailable(d, source === 'CREATE_RESPONSE' ? 'CREATE' : 'LOOKUP', i.orderId);
-  // Country/shape have no dedicated sticky-review reason in the existing 17-key DB contract.
-  // Persist only representable observations; never substitute a false amount, scope or status.
-  if (['ID', 'INTENT', 'CUSTOM_ID', 'AMOUNT', 'CURRENCY', 'PAYEE', 'CAPTURE_SHAPE'].includes(assessment.reason)) {
-    const e = evidence(c, i, a.binding, observed, source,
-      assessment.reason === 'CAPTURE_SHAPE' && observed.captures.length === 1 ? observed.captures[0] : null);
-    if (e && e.amount_minor !== null && e.currency !== null && e.order_reference !== null && c.contextId) {
-      try { await d.repository.recordObservation(c.contextId, e); } catch { /* Local refusal remains closed if persistence fails. */ }
-    }
-  }
-  if (source === 'SUBMIT_RESPONSE' && assessment.reason === 'INTENT' && object(body)?.intent === 'AUTHORIZE'
-    && c.contextId && c.providerCaptureId === null && observed.providerOrderId === c.providerOrderId
-    && observed.amountMinor === c.amountMinor && observed.currency === c.currency
-    && observed.merchantId === a.binding.scope.merchant_id && observed.orderReference === `v2:${c.orderId}`) {
-    const seen = new Set<string>();
-    for (let index = 0; index < observed.captures.length; index++) {
-      const capture = observed.captures[index]; const raw = object(rawCaptures?.[index]);
-      if (!raw || !capture.providerCaptureId || !capture.rawStatus || !capture.amountMinor || !capture.currency
-        || (raw.custom_id !== undefined && !capture.orderReference) || capture.status === 'UNRECOGNIZED') continue;
-      const actual = evidence(c, i, a.binding, observed, source, capture);
-      if (!actual || actual.amount_minor !== c.amountMinor || actual.currency !== c.currency
-        || actual.order_reference !== `v2:${c.orderId}` || seen.has(actual.payload_hash)) continue;
-      seen.add(actual.payload_hash);
-      try { await d.repository.recordObservation(c.contextId, actual); }
-      catch { /* A failed record must not discard later actual captures. */ }
+  const { facts } = mismatchFacts(c, i.actorUserId, a.binding, assessment, source, body);
+  if (c.contextId) { for (const fact of facts) await recordFact(d, c.contextId, fact); }
+  if (!facts.length && !assessment.observed.rawStatus) return unavailable(d, source === 'CREATE_RESPONSE' ? 'CREATE' : 'LOOKUP', i.orderId);
+  if (source === 'LOOKUP' && c.providerOrderId) {
+    // P3: best-effort store of the W judgment that no evidence field can express. A stored assertion is
+    // sticky. A failed store loses it, and a later clean GET can then lead to a claim (R-PRE residual).
+    const judgments = judgmentAssertions(body, assessment, expectedOrder(c, a.binding), false);
+    const assertions: CallerAssertion[] = judgments.length || facts.length ? judgments : [UNREPRESENTABLE_ASSERTION];
+    if (assertions.length) {
+      try { await d.repository.recordPreIntentAssertions(i.actorUserId, i.orderId, assertions); }
+      catch { /* The current call stays in local REVIEW. */ }
     }
   }
   log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
 }
 
+// An actual capture seen by an unprotected GET (S1, S6). W records the observation and creates no intake.
 async function captureObserved(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Authorized,
-  assessment: Extract<PayPalOrderAssessment, { kind: 'OK' }>, source: 'LOOKUP' | 'SUBMIT_RESPONSE'): Promise<PayPalChargeOutcome> {
+  assessment: Extract<PayPalOrderAssessment, { kind: 'OK' }>): Promise<PayPalChargeOutcome> {
   const capture = assessment.captures[0];
-  const e = evidence(c, i, a.binding, assessment.observed, source, capture ?? null);
+  const e = buildEvidence(c, i.actorUserId, a.binding, assessment.observed, 'LOOKUP', capture ?? null);
   if (!capture || !e || !c.contextId) return { kind: 'SUBMISSION_UNKNOWN' };
   if (assessment.status === 'UNRECOGNIZED') {
-    const order = evidence(c, i, a.binding, assessment.observed, source);
-    if (order) await recordFacts(d, c, [order]);
+    const order = buildEvidence(c, i.actorUserId, a.binding, assessment.observed, 'LOOKUP');
+    if (order) await recordFact(d, c.contextId, { evidence: order, bind: false });
   }
   if (c.providerCaptureId !== null && e.external_id !== c.providerCaptureId) {
-    try { await d.repository.recordObservation(c.contextId, e); } catch { /* Never replace the existing capture link. */ }
+    // Never replace the existing capture link.
+    await recordFact(d, c.contextId, { evidence: e, bind: false });
     log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
   }
   let observation;
@@ -400,78 +252,117 @@ async function captureObserved(d: PayPalChargeDeps, i: Input, c: ChargeContext, 
   }
   if (capture.status === 'PENDING') return { kind: 'CAPTURE_PENDING' };
   if (capture.status === 'DECLINED' || capture.status === 'FAILED') return { kind: 'CAPTURE_FAILED' };
-  if (capture.status === 'REFUNDED' || capture.status === 'PARTIALLY_REFUNDED') {
-    log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
-  }
-  let intake;
-  try { intake = await d.repository.receivePurchase(c.orderId, observation.observationId); }
-  catch { return unavailable(d, 'INTAKE', i.orderId); }
-  if (intake.kind === 'INTAKE_PENDING') return { kind: 'INTAKE_PENDING', replayed: intake.replayed };
-  log(d, 'INTAKE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
+  // REFUNDED and PARTIALLY_REFUNDED are REVIEW. A COMPLETED capture without an intent is
+  // EXTERNAL_CAPTURE_WITHOUT_INTENT: W never calls receive, so this read creates no intake.
+  log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
 }
 
-async function recordRecoveryCaptures(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Authorized,
-  observed: ObservedPayPalOrder, body: unknown): Promise<void> {
-  const orderFacts = contradictoryFacts(c, i, a.binding, observed, 'LOOKUP', body)
-    .filter(fact => fact.identity_kind === 'ORDER');
-  if (orderFacts.length) await recordFacts(d, c, orderFacts);
-  // Status alone does not invalidate capture attribution. The ORDER tuple below
-  // must still match before any actual CAPTURE is recorded.
-  const captures = captureList(body);
-  if (!c.contextId || !captures || captures.length > 32 || observed.providerOrderId !== c.providerOrderId
-    || observed.amountMinor !== c.amountMinor || observed.currency !== c.currency
-    || observed.merchantId !== a.binding.scope.merchant_id || observed.orderReference !== `v2:${c.orderId}`) return;
-  const seen = new Set<string>();
-  for (let index = 0; index < observed.captures.length; index++) {
-    const capture = observed.captures[index]; const raw = object(captures[index]);
-    if (!raw || !capture.providerCaptureId || !capture.rawStatus || !capture.amountMinor || !capture.currency
-      || (raw.custom_id !== undefined && !capture.orderReference)) continue;
-    const e = evidence(c, i, a.binding, observed, 'LOOKUP', capture);
-    if (!e || !e.order_reference || seen.has(e.payload_hash)) continue;
-    seen.add(e.payload_hash);
-    try { await d.repository.recordObservation(c.contextId, e); }
-    catch { /* Preserve later actual observations even when this record fails. */ }
-  }
-}
-
+// S6: an intent-less read keeps the existing observation record. It runs only after S2 OPEN returned the
+// authoritative NOT_APPLICABLE for a context whose intent the caller had not confirmed.
 async function lookupOutcome(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Authorized,
-  recovering = false, post?: PostRecovery): Promise<PayPalChargeOutcome> {
-  const result = await lookup(d, i, c, a);
-  if ('outcome' in result) return post?.reviewRequired ? { kind: 'REVIEW_REQUIRED' }
-    : recovering ? { kind: 'SUBMISSION_UNKNOWN' } : result.outcome;
+  started: { signal?: AbortSignal }): Promise<PayPalChargeOutcome> {
+  const result = await lookup(d, i, c, a, started);
+  if ('outcome' in result) return result.outcome;
   const assessment = result.assessment;
-  // Check the entire bounded GET before either the ordinary or mismatch path can
-  // bind any candidate. A different ID never replaces observed POST evidence.
-  if (post?.captureIds.length && assessment.observed.captures.some(capture =>
-    capture.providerCaptureId !== null && !post.captureIds.includes(capture.providerCaptureId))) {
-    await recordRecoveryCaptures(d, i, c, a, assessment.observed, result.body);
-    log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
-  }
-  const context = post?.reviewRequired ? { ...c, reviewRequired: true } : c;
-  if (assessment.kind === 'MISMATCH') {
-    const outcome = await mismatch(d, i, context, a, assessment, 'LOOKUP', result.body);
-    return post?.reviewRequired ? { kind: 'REVIEW_REQUIRED' } : outcome;
-  }
-  if (assessment.captures.length) {
-    const outcome = await captureObserved(d, i, context, a, assessment, 'LOOKUP');
-    return post?.reviewRequired ? { kind: 'REVIEW_REQUIRED' } : outcome;
-  }
-  if (post?.reviewRequired) { log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' }; }
-  if (recovering) return { kind: 'SUBMISSION_UNKNOWN' };
+  if (assessment.kind === 'MISMATCH') return mismatch(d, i, c, a, assessment, 'LOOKUP', result.body);
+  if (assessment.captures.length) return captureObserved(d, i, c, a, assessment);
   if (assessment.status === 'UNRECOGNIZED') {
-    const e = evidence(c, i, a.binding, assessment.observed, 'LOOKUP');
-    if (e && c.contextId) { try { await d.repository.recordObservation(c.contextId, e); } catch { /* No charge is allowed. */ } }
+    const e = buildEvidence(c, i.actorUserId, a.binding, assessment.observed, 'LOOKUP');
+    if (e && c.contextId) await recordFact(d, c.contextId, { evidence: e, bind: false });
     log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
   }
   if (assessment.status === 'VOIDED') return { kind: 'ORDER_VOIDED' };
   return { kind: assessment.status === 'COMPLETED' || recovery(c) ? 'SUBMISSION_UNKNOWN' : 'NOT_APPROVED' };
 }
 
-async function reconcileContext(d: PayPalChargeDeps, i: Input, c: ChargeContext): Promise<PayPalChargeOutcome> {
+// CAPTURE_FAILED needs W's own ADVERSE request for exactly one actual DECLINED or FAILED capture with a
+// known, not VOIDED ORDER and no W judgment. Every other ADVERSE result is REVIEW.
+function captureFailed(adverseFact: boolean, facts: ResultFact[], assertions: CallerAssertion[]) {
+  if (!adverseFact || assertions.length) return false;
+  const captures = facts.filter(fact => fact.evidence.identity_kind === 'CAPTURE');
+  return captures.length === 1 && (captures[0].evidence.status === 'DECLINED' || captures[0].evidence.status === 'FAILED')
+    && facts.every(fact => fact.evidence.identity_kind === 'CAPTURE'
+      || ['CREATED', 'SAVED', 'APPROVED', 'COMPLETED', 'PAYER_ACTION_REQUIRED'].includes(fact.evidence.status));
+}
+// Outcome of a DB effective CLEAN result. The intake is the one that the DB made inside S1 or S3.
+function settleClean(d: PayPalChargeDeps, i: Input, intake: IntakeResult | null, pending: boolean, noCapture: boolean): PayPalChargeOutcome {
+  if (intake?.kind === 'INTAKE_PENDING') return { kind: 'INTAKE_PENDING', replayed: intake.replayed };
+  if (intake?.kind === 'REVIEW_REQUIRED') { log(d, 'HELD', i.orderId); return { kind: 'REVIEW_REQUIRED' }; }
+  if (pending) return { kind: 'CAPTURE_PENDING' };
+  if (noCapture) return { kind: 'SUBMISSION_UNKNOWN' };
+  log(d, 'HELD', i.orderId); return { kind: 'REVIEW_REQUIRED' };
+}
+
+// P2: every GET of an order with an intent is open -> GET -> complete. No step is retried in this call,
+// and no branch sends a POST, a per-fact RPC or a direct receive.
+// S2 OPEN decides the current intent under the DB lock, after the token is ready. The getter flag alone never
+// selects an unprotected GET. OPENED completes P2 whatever the getter said. intentUnconfirmed is true only when
+// this caller has no intent evidence (no getter flag, no just-acknowledged P1, no LOOKUP_ONLY). Only then does
+// the authoritative NOT_APPLICABLE fall back to the S6 observation read. OPEN failure, READ_IN_PROGRESS and a
+// NOT_APPLICABLE for a known intent send no GET. W does not claim atomicity between the committed
+// NOT_APPLICABLE and the later provider GET.
+async function protectedRead(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Authorized, userKind: UserReadKind,
+  intentUnconfirmed = false): Promise<PayPalChargeOutcome> {
+  const window = d.runtime?.window;
+  if (window && (window.signal.aborted || !(remainingReadMs(window) > 0))) { deferred(d); return { kind: 'IN_PROGRESS' }; }
+  const { report: cycle, completion } = await performReadCycle({ repository: d.repository, transport: d.transport, nowMs: d.nowMs },
+    { actorUserId: i.actorUserId, orderId: i.orderId, context: c, binding: a.binding, accessToken: a.accessToken,
+      actorKind: d.runtime ? d.runtime.actorKind : userKind, ...(window ? { window } : {}) });
+  if (intentUnconfirmed && cycle.kind === 'NOT_OPENED' && cycle.reason === 'NOT_APPLICABLE') {
+    // One report for this call: DEFERRED when the S6 read cannot start, otherwise the NOT_APPLICABLE report.
+    const started = runtimeRead(d); if (!started) return { kind: 'IN_PROGRESS' };
+    report(d, cycle);
+    return lookupOutcome(d, i, c, a, started);
+  }
+  report(d, cycle);
+  if (cycle.kind === 'NOT_OPENED' && cycle.reason === 'IN_PROGRESS') return { kind: 'IN_PROGRESS' };
+  // No OPEN ACK or no completion ACK: the read result is unknown. NOT_APPLICABLE for a confirmed intent
+  // is not permission to send an unprotected GET.
+  if (cycle.kind === 'NOT_OPENED' || cycle.kind === 'WRITE_UNKNOWN') { log(d, 'CYCLE', i.orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
+  // LATE or CONFLICT: the result is not the cycle result. It is never an intake.
+  if (cycle.kind !== 'COMPLETED' || !completion) { log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' }; }
+  if (cycle.effectiveKind === 'NO_DATA') return { kind: 'SUBMISSION_UNKNOWN' };
+  if (cycle.effectiveKind !== 'CLEAN') {
+    if (completion.kind === 'ADVERSE' && captureFailed(completion.category === 'READ_ADVERSE_FACT', completion.facts, completion.assertions)) {
+      return { kind: 'CAPTURE_FAILED' };
+    }
+    log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
+  }
+  return settleClean(d, i, cycle.intake ?? null, completion.category === 'READ_CAPTURE_PENDING', completion.category === 'READ_ORDER_NO_CAPTURE');
+}
+
+// P1: the one capture POST result is classified by one atomic RPC with the intent sender. An RPC failure or a
+// lost ACK ends the call as SUBMISSION_UNKNOWN with no GET. Only an acknowledged GET-eligible NO_RESPONSE
+// continues to one protected read.
+async function settleSubmission(d: PayPalChargeDeps, i: Input, c: ChargeContext, a: Authorized, sender: ChargeLease,
+  response: PayPalHttpResult): Promise<PayPalChargeOutcome> {
+  let input; let result;
+  try {
+    input = classifySubmission(response, c, a.binding, sender, i.actorUserId);
+    result = await d.repository.recordSubmissionResult(i.actorUserId, i.orderId, sender, input);
+  } catch { log(d, 'CLASSIFY', i.orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
+  // BLOCKED or CONFLICT_RECORDED: this sender has no classified result.
+  if (result.kind !== 'CLASSIFIED') { log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' }; }
+  if (result.effectiveKind === 'ADVERSE') {
+    if (input.kind === 'ADVERSE' && captureFailed(input.category === 'RESPONSE_ADVERSE_FACT', input.facts, input.assertions)) {
+      return { kind: 'CAPTURE_FAILED' };
+    }
+    log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
+  }
+  if (result.effectiveKind === 'CLEAN') {
+    return settleClean(d, i, result.intake, input.category === 'RESPONSE_COMPLETE_CAPTURE_PENDING', false);
+  }
+  log(d, 'SUBMIT', i.orderId);
+  if (!result.hold.getEligible) return { kind: 'SUBMISSION_UNKNOWN' };
+  return protectedRead(d, i, c, a, 'USER_CAPTURE');
+}
+
+async function reconcileContext(d: PayPalChargeDeps, i: Input, c: ChargeContext, userKind: UserReadKind): Promise<PayPalChargeOutcome> {
   if (!c.providerOrderId) return { kind: 'NO_PROVIDER_ORDER' };
   const auth = await authorize(d, i, c);
   if ('outcome' in auth) return c.reviewRequired ? { kind: 'REVIEW_REQUIRED' } : auth.outcome;
-  const outcome = await lookupOutcome(d, i, c, auth.authorized);
+  // Every reconcile and capture-recovery read asks S2 OPEN first. A false getter flag is not proof of no intent.
+  const outcome = await protectedRead(d, i, c, auth.authorized, userKind, !c.submissionIntentRecorded);
   return c.reviewRequired ? { kind: 'REVIEW_REQUIRED' } : outcome;
 }
 
@@ -518,14 +409,14 @@ export async function ensurePayPalProviderOrder(d: PayPalChargeDeps, i: Input): 
     requestKey: createRequestKey, orderId, amountMinor: c.amountMinor }); }
   catch { log(d, 'CREATE', orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
   if (!successful(response) || response.body === null) { log(d, 'CREATE', orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
-  const assessment = assessPayPalOrder(response.body, expected(contextual, auth.authorized.binding, null));
+  const assessment = assessPayPalOrder(response.body, expectedOrder(contextual, auth.authorized.binding, null));
   if (assessment.kind === 'MISMATCH') return mismatch(d, enteredInput, contextual, auth.authorized, assessment, 'CREATE_RESPONSE', response.body);
   if (assessment.status === 'UNRECOGNIZED') {
-    const actual = evidence(contextual, enteredInput, auth.authorized.binding, assessment.observed, 'CREATE_RESPONSE');
-    if (actual) { try { await d.repository.recordObservation(contextId, actual); } catch { /* Local REVIEW remains closed. */ } }
+    const actual = buildEvidence(contextual, enteredInput.actorUserId, auth.authorized.binding, assessment.observed, 'CREATE_RESPONSE');
+    if (actual) await recordFact(d, contextId, { evidence: actual, bind: false });
     log(d, 'OBSERVE', orderId); return { kind: 'REVIEW_REQUIRED' };
   }
-  const e = evidence(contextual, enteredInput, auth.authorized.binding, assessment.observed, 'CREATE_RESPONSE');
+  const e = buildEvidence(contextual, enteredInput.actorUserId, auth.authorized.binding, assessment.observed, 'CREATE_RESPONSE');
   if (!e) return unavailable(d, 'OBSERVE', orderId);
   let bound;
   try { bound = await d.repository.bindProviderIdentity(contextId, e); }
@@ -562,17 +453,18 @@ export async function capturePayPalOrder(d: PayPalChargeDeps, i: Input & { appro
   if (!matches(i.approvedProviderOrderId, ID) || i.approvedProviderOrderId !== c.providerOrderId) {
     log(d, 'CLAIM', i.orderId); return { kind: 'BLOCKED', reason: 'PROVIDER_ORDER_MISMATCH' };
   }
-  if (recovery(c)) return reconcileContext(d, i, c);
+  if (recovery(c)) return reconcileContext(d, i, c, 'USER_CAPTURE');
   const refusal = freshRefusal(d, c); if (refusal) { log(d, 'CLAIM', i.orderId); return refusal; }
   const auth = await authorize(d, i, c); if ('outcome' in auth) return auth.outcome;
   const a = auth.authorized;
+  // S1: the GET before claim is outside the barrier.
   const original = await lookup(d, i, c, a); if ('outcome' in original) return original.outcome;
   const assessment = original.assessment;
   if (assessment.kind === 'MISMATCH') return mismatch(d, i, c, a, assessment, 'LOOKUP', original.body);
-  if (assessment.captures.length) return captureObserved(d, i, c, a, assessment, 'LOOKUP');
+  if (assessment.captures.length) return captureObserved(d, i, c, a, assessment);
   if (assessment.status === 'UNRECOGNIZED') {
-    const e = evidence(c, i, a.binding, assessment.observed, 'LOOKUP');
-    if (e && c.contextId) { try { await d.repository.recordObservation(c.contextId, e); } catch { /* Refusal remains local. */ } }
+    const e = buildEvidence(c, i.actorUserId, a.binding, assessment.observed, 'LOOKUP');
+    if (e && c.contextId) await recordFact(d, c.contextId, { evidence: e, bind: false });
     log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
   }
   if (assessment.status === 'VOIDED') return { kind: 'ORDER_VOIDED' };
@@ -591,13 +483,15 @@ export async function capturePayPalOrder(d: PayPalChargeDeps, i: Input & { appro
   }
   if (command.kind === 'BLOCKED') { log(d, 'CLAIM', i.orderId); return blocked(command); }
   if (command.kind === 'LOOKUP_ONLY') {
-    if (command.quoteHash === c.quoteHash) return lookupOutcome(d, i, c, a, true);
+    // Another sender has an intent. This recovery read uses the same protected boundary.
+    if (command.quoteHash === c.quoteHash) return protectedRead(d, i, c, a, 'USER_CAPTURE');
     log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
   }
   const lease = command.lease;
   if (!usableClaim(c, lease)) return unavailable(d, 'CLAIM', i.orderId);
   const remainingMs = Date.parse(lease.submitNotAfter) - now(d);
   if (!Number.isFinite(remainingMs) || remainingMs < 10_000) { log(d, 'CLAIM', i.orderId); return { kind: 'IN_PROGRESS' }; }
+  // An intent RPC failure or a lost intent ACK is not POST authority: POST 0, P1 0.
   let intent;
   try { intent = await d.repository.recordSubmissionIntent(i.actorUserId, i.orderId, lease.rowVersion, lease); }
   catch { log(d, 'INTENT', i.orderId); return { kind: 'SUBMISSION_UNKNOWN' }; }
@@ -608,30 +502,12 @@ export async function capturePayPalOrder(d: PayPalChargeDeps, i: Input & { appro
   try { response = await d.transport.captureOrder({ environment: a.binding.environment, accessToken: a.accessToken,
     providerOrderId: c.providerOrderId!, requestKey: intent.lease.providerRequestKey }); }
   catch { response = { kind: 'TRANSPORT_UNKNOWN' }; }
-  // After durable intent, ambiguity can cause one GET only. No branch sends another POST.
-  if (!successful(response) || response.body === null) { log(d, 'SUBMIT', i.orderId); return lookupOutcome(d, i, c, a, true); }
-  const result = assessPayPalOrder(response.body, expected(c, a.binding));
-  if (result.kind === 'MISMATCH') {
-    const incomplete = incompletePostResponse(response.body, result.observed, expected(c, a.binding));
-    if (incomplete || partialPostResponse(response.body)) {
-      const facts = contradictoryFacts(c, i, a.binding, result.observed, 'SUBMIT_RESPONSE', response.body);
-      if (facts.length) {
-        await recordFacts(d, c, facts);
-        log(d, 'OBSERVE', i.orderId); return { kind: 'REVIEW_REQUIRED' };
-      }
-      log(d, 'SUBMIT', i.orderId);
-      return lookupOutcome(d, i, c, a, true, {
-        captureIds: postCaptureIds(response.body, c), reviewRequired: !incomplete,
-      });
-    }
-    return mismatch(d, i, c, a, result, 'SUBMIT_RESPONSE', response.body);
-  }
-  if (!result.captures.length) { log(d, 'SUBMIT', i.orderId); return lookupOutcome(d, i, c, a, true); }
-  return captureObserved(d, i, c, a, result, 'SUBMIT_RESPONSE');
+  // After the one POST, the sender of the intent ACK records one atomic classification. No branch sends another POST.
+  return settleSubmission(d, i, c, a, intent.lease, response);
 }
 
 export async function reconcilePayPalOrder(d: PayPalChargeDeps, i: Input): Promise<PayPalChargeOutcome> {
-  const loaded = await owner(d, i); return 'outcome' in loaded ? loaded.outcome : reconcileContext(d, i, loaded.context);
+  const loaded = await owner(d, i); return 'outcome' in loaded ? loaded.outcome : reconcileContext(d, i, loaded.context, 'USER_RECONCILE');
 }
 export async function getPayPalChargeStatus(d: Pick<PayPalChargeDeps, 'repository'>, i: Input): Promise<PayPalChargeOutcome> {
   const loaded = await owner({ repository: d.repository }, i); if ('outcome' in loaded) return loaded.outcome;

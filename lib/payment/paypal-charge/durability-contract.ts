@@ -103,6 +103,20 @@ export type ReconciliationRunInput =
   | { runId: string; executorId: string; instanceId: string; phase: 'FINISHED';
       metrics: ReconciliationMetrics; resultCode: ReconciliationRunResultCode };
 
+// ---- W2 shared read window, report and runtime types ----------------------------------------
+
+// A trusted in-memory read budget. deadlineAtMs is compared with nowMs(). signal is the run cancellation.
+export type ReadWindow = { deadlineAtMs: number; signal: AbortSignal; nowMs: () => number };
+// Result of one protected read cycle. It never contains the cycle token.
+export type ReadCycleReport = { kind: 'COMPLETED' | 'NOT_OPENED' | 'WRITE_UNKNOWN' | 'LATE' | 'CONFLICT';
+  effectiveKind?: ReadKind; intake?: IntakeResult | null;
+  reason?: 'IN_PROGRESS' | 'DEFERRED' | 'NOT_APPLICABLE' | 'FAILED';
+  opened: boolean; readCancelled: boolean; cycleId?: string; hold?: HoldSnapshot };
+// The reconciliation executor injects this value. It is not browser input and grants no DB authority.
+// onReadResult is a synchronous report callback.
+export type ReconciliationRuntime = { actorKind: 'SCANNER'; window: ReadWindow;
+  onReadResult: (report: ReadCycleReport) => void };
+
 // ---- Parser primitives ---------------------------------------------------------------------
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
