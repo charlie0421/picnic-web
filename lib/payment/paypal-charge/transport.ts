@@ -1,7 +1,11 @@
 import 'server-only';
 import { minorToPayPalValue, type PayPalEnvironment } from './protocol';
 
-export type PayPalHttpResult = { kind: 'RESPONSE'; status: number; body: unknown } | { kind: 'TRANSPORT_UNKNOWN' };
+// bodyStatus states why body is or is not available. Every non-PARSED status keeps body:null.
+// PARSED can also carry body:null when the response is the JSON literal null.
+export type PayPalBodyStatus = 'PARSED' | 'EMPTY' | 'OVERSIZE' | 'INVALID_UTF8' | 'INVALID_JSON' | 'STREAM_ERROR';
+export type PayPalHttpResult = { kind: 'RESPONSE'; status: number; body: unknown; bodyStatus: PayPalBodyStatus }
+  | { kind: 'TRANSPORT_UNKNOWN' };
 type RequestBase = { environment: PayPalEnvironment; signal?: AbortSignal };
 type Authorized = RequestBase & { accessToken: string };
 export interface PayPalTransport {
@@ -22,23 +26,39 @@ function headerValue(value: unknown): value is string {
 }
 function valid(value: unknown, pattern: RegExp): value is string { return typeof value === 'string' && pattern.exec(value)?.[0] === value; }
 
-async function boundedJson(response: Response): Promise<unknown> {
-  if (!response.body) return null;
-  const reader = response.body.getReader(); const chunks: Uint8Array[] = []; let bytes = 0;
+const MAX_BODY_BYTES = 256 * 1024;
+type BoundedBody = { body: unknown; bodyStatus: PayPalBodyStatus };
+const nullBody = (bodyStatus: Exclude<PayPalBodyStatus, 'PARSED'>): BoundedBody => ({ body: null, bodyStatus });
+
+async function cancelQuietly(reader: ReadableStreamDefaultReader<Uint8Array>) {
+  try { await reader.cancel(); } catch { /* The stream may already be closed or errored. */ }
+}
+
+// Never throws. Reads at most MAX_BODY_BYTES, then decodes the whole buffer once so that a
+// multi-byte character split across chunks is valid.
+async function boundedJson(response: Response): Promise<BoundedBody> {
+  if (!response.body) return nullBody('EMPTY');
+  let reader: ReadableStreamDefaultReader<Uint8Array>;
+  try { reader = response.body.getReader(); } catch { return nullBody('STREAM_ERROR'); }
+  const chunks: Uint8Array[] = []; let bytes = 0;
   try {
     while (true) {
-      const next = await reader.read(); if (next.done) break;
+      let next: ReadableStreamReadResult<Uint8Array>;
+      try { next = await reader.read(); } catch { await cancelQuietly(reader); return nullBody('STREAM_ERROR'); }
+      if (next.done) break;
       bytes += next.value.byteLength;
-      if (bytes > 256 * 1024) { await reader.cancel(); return null; }
+      if (bytes > MAX_BODY_BYTES) { await cancelQuietly(reader); return nullBody('OVERSIZE'); }
       chunks.push(next.value);
     }
-    const body = new Uint8Array(bytes); let offset = 0;
-    for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
-    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body));
-  } catch {
-    try { await reader.cancel(); } catch { /* The stream may already be closed. */ }
-    return null;
-  } finally { reader.releaseLock(); }
+  } finally {
+    try { reader.releaseLock(); } catch { /* The lock may already be released. */ }
+  }
+  if (bytes === 0) return nullBody('EMPTY');
+  const body = new Uint8Array(bytes); let offset = 0;
+  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+  let text: string;
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(body); } catch { return nullBody('INVALID_UTF8'); }
+  try { return { body: JSON.parse(text), bodyStatus: 'PARSED' }; } catch { return nullBody('INVALID_JSON'); }
 }
 
 export function createPayPalFetchTransport(fetchImpl: typeof fetch): PayPalTransport {
@@ -49,7 +69,8 @@ export function createPayPalFetchTransport(fetchImpl: typeof fetch): PayPalTrans
       const deadline = AbortSignal.timeout(timeoutMs);
       const signal = base.signal ? AbortSignal.any([deadline, base.signal]) : deadline;
       const response = await fetchImpl(`${origin}${path}`, { ...init, signal, redirect: 'error', cache: 'no-store' });
-      return { kind: 'RESPONSE', status: response.status, body: await boundedJson(response) };
+      const { body, bodyStatus } = await boundedJson(response);
+      return { kind: 'RESPONSE', status: response.status, body, bodyStatus };
     } catch { return UNKNOWN; }
   }
   const authorizedHeaders = (token: string) => ({ authorization: `Bearer ${token}`, 'content-type': 'application/json' });

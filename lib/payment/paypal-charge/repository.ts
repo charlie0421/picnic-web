@@ -1,6 +1,11 @@
 import 'server-only';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { PayPalEvidence } from './protocol';
+import {
+  OBSERVATION_REASON_CODES, parseIntakeWire, parsePreIntentResult, parseReadCompletionResult, parseReadOpenResult,
+  parseSubmissionResult, type CallerAssertion, type PreIntentResult, type ReadActorKind, type ReadCompletionInput,
+  type ReadCompletionResult, type ReadOpenResult, type SenderCapability, type SubmissionInput, type SubmissionResult,
+} from './durability-contract';
 
 export type ChargeContext = { chargeAuthority: false; orderId: string; provider: 'PAYPAL' | 'PORTONE';
   environment: 'LIVE' | 'SANDBOX' | 'TEST'; rowVersion: string; paymentState: 'NOT_SUBMITTED' | 'SUBMISSION_UNKNOWN';
@@ -29,7 +34,14 @@ export interface WebPaymentChargeRepository {
   recordObservation(contextId: string, evidence: PayPalEvidence): Promise<ObservationResult>;
   claimCharge(actorUserId: string, orderId: string, expectedVersion: string): Promise<ChargeCommand>;
   recordSubmissionIntent(actorUserId: string, orderId: string, expectedVersion: string, lease: ChargeLease): Promise<ChargeCommand>;
+  // Defined for compatibility. W2 workflows stop calling it; durable results receive inside S1/S3.
   receivePurchase(orderId: string, observationId: string): Promise<IntakeResult>;
+  // S1-S4 durable result RPCs. Inputs are sent unchanged; outputs are closed unions.
+  recordSubmissionResult(actorUserId: string, orderId: string, sender: SenderCapability,
+    input: SubmissionInput): Promise<SubmissionResult>;
+  openReadCycle(actorUserId: string, orderId: string, actorKind: ReadActorKind): Promise<ReadOpenResult>;
+  completeReadCycle(cycleId: string, cycleToken: string, input: ReadCompletionInput): Promise<ReadCompletionResult>;
+  recordPreIntentAssertions(actorUserId: string, orderId: string, assertions: CallerAssertion[]): Promise<PreIntentResult>;
 }
 
 export class ChargeRepositoryError extends Error {
@@ -52,9 +64,7 @@ const BLOCKED_REASONS = new Set(['INPUT_INVALID', 'ACTION_INVALID', 'ACTOR_NOT_F
   'PRODUCT_UNAVAILABLE', 'ATTEMPT_BINDING_INVALID', 'REVIEW_REQUIRED', 'CONTEXT_REQUIRED', 'CONTEXT_INVALID',
   'VERIFICATION_BINDING_REQUIRED', 'VERIFICATION_BINDING_INVALID', 'VERIFICATION_BINDING_CHANGED', 'PROVIDER_SCOPE_CHANGED',
   'PROVIDER_ORDER_LINK_REQUIRED', 'LEASE_MISMATCH', 'LEASE_EXPIRED', 'LEASE_ACTIVE']);
-const OBSERVATION_REASONS = new Set(['OBSERVATION_KEY_CONFLICT', 'CONTEXT_NOT_FOUND', 'UNRECOGNIZED_STATUS',
-  'ORDER_BINDING_MISMATCH', 'PROVIDER_SCOPE_MISMATCH', 'AMOUNT_MISMATCH', 'CURRENCY_MISMATCH', 'ORDER_REFERENCE_MISMATCH',
-  'PAYMENT_ID_MISMATCH', 'PARENT_MISMATCH', 'IDENTITY_ALREADY_BOUND', 'IDENTITY_NOT_BOUND', 'LOOKUP_REQUIRED', 'PROVIDER_ID_CONFLICT']);
+const OBSERVATION_REASONS = OBSERVATION_REASON_CODES;
 
 function record(value: unknown): Record<string, unknown> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new ChargeRepositoryError('RESPONSE');
@@ -159,33 +169,35 @@ function parseCommand(value: unknown, submissionIntent: boolean): ChargeCommand 
     submitNotAfter: d.submit_not_after, quoteHash: d.quote_hash } };
 }
 
+// Every parse failure, including an unexpected runtime error inside a parser, closes as RESPONSE
+// with a fixed message. The wire value never enters the error.
+export function projectWireResponse<T>(parse: () => T): T {
+  try { return parse(); } catch { throw new ChargeRepositoryError('RESPONSE'); }
+}
+
+// Native receive result, including the durable INTAKE_HELD refusal.
 function parseIntake(value: unknown, orderId: string): IntakeResult {
-  const d = record(value); requireValue(d.grant_eligible === false);
-  if (d.outcome === 'NOT_COMPLETED') { exactKeys(d, ['outcome', 'grant_eligible']); return { kind: 'NOT_COMPLETED', grantEligible: false }; }
-  if (d.outcome === 'REVIEW_REQUIRED') {
-    exactKeys(d, ['outcome', 'reason_code', 'grant_eligible']);
-    requireValue(d.reason_code === 'CANDIDATE_BINDING_INVALID' || d.reason_code === 'EXISTING_PURCHASE_IDENTITY');
-    return { kind: 'REVIEW_REQUIRED', reason: d.reason_code, grantEligible: false };
+  return projectWireResponse(() => parseIntakeWire(value, orderId));
+}
+
+// Shared safe service RPC envelope: one request, no SDK retry, a ten-second deadline, sanitized errors.
+async function serviceRpc(client: SupabaseClient, name: string, args: Record<string, unknown>, prepare: boolean): Promise<unknown> {
+  let response;
+  try { response = await client.rpc(name, args).retry(false).abortSignal(AbortSignal.timeout(10_000)); }
+  catch { throw new ChargeRepositoryError('RPC'); }
+  if (response.error) {
+    const error = response.error;
+    if (prepare && error.code === 'P0001' && PREPARE_REFUSALS.has(error.message)) throw new PrepareRefusal(error.message);
+    throw new ChargeRepositoryError('RPC');
   }
-  exactKeys(d, ['outcome', 'replayed', 'order_id', 'inbox_id', 'receipt_id', 'coverage', 'grant_eligible']);
-  requireValue(d.outcome === 'INTAKE_PENDING' && d.order_id === orderId && matches(d.order_id, UUID) && typeof d.replayed === 'boolean'
-    && matches(d.inbox_id, UUID) && positive(d.receipt_id) && d.coverage === 'SCOPE_ONLY');
-  return { kind: 'INTAKE_PENDING', replayed: d.replayed, orderId: d.order_id, inboxId: d.inbox_id,
-    receiptId: d.receipt_id, coverage: 'SCOPE_ONLY', grantEligible: false };
+  return response.data;
+}
+export function callWebPaymentServiceRpc(client: SupabaseClient, name: string, args: Record<string, unknown>): Promise<unknown> {
+  return serviceRpc(client, name, args, false);
 }
 
 export function createWebPaymentChargeRepository(client: SupabaseClient): WebPaymentChargeRepository {
-  async function rpc(name: string, args: Record<string, unknown>, prepare = false): Promise<unknown> {
-    let response;
-    try { response = await client.rpc(name, args).retry(false).abortSignal(AbortSignal.timeout(10_000)); }
-    catch { throw new ChargeRepositoryError('RPC'); }
-    if (response.error) {
-      const error = response.error;
-      if (prepare && error.code === 'P0001' && PREPARE_REFUSALS.has(error.message)) throw new PrepareRefusal(error.message);
-      throw new ChargeRepositoryError('RPC');
-    }
-    return response.data;
-  }
+  const rpc = (name: string, args: Record<string, unknown>, prepare = false) => serviceRpc(client, name, args, prepare);
   const actorArgs = (actorUserId: string, orderId: string) => ({ p_actor_user_id: actorUserId, p_order_id: orderId });
   return {
     async getChargeContext(actorUserId, orderId) {
@@ -208,6 +220,28 @@ export function createWebPaymentChargeRepository(client: SupabaseClient): WebPay
         p_action: 'CAPTURE', p_attempt_id: lease.attemptId, p_lease_token: lease.leaseToken, p_fencing_version: lease.fencingVersion }), true);
     },
     async receivePurchase(orderId, observationId) { return parseIntake(await rpc('receive_web_payment_purchase', { p_order_id: orderId, p_observation_id: observationId }), orderId); },
+    // S1. Only the fixed intent sender tuple is sent; other lease fields stay in memory.
+    async recordSubmissionResult(actorUserId, orderId, sender, input) {
+      const data = await rpc('record_web_payment_submission_result', { ...actorArgs(actorUserId, orderId),
+        p_attempt_id: sender.attemptId, p_lease_token: sender.leaseToken, p_fencing_version: sender.fencingVersion,
+        p_classification: input });
+      return projectWireResponse(() => parseSubmissionResult(data, orderId));
+    },
+    // S2. The OPENED cycle token is returned to the caller's memory only.
+    async openReadCycle(actorUserId, orderId, actorKind) {
+      const data = await rpc('open_web_payment_read_cycle', { ...actorArgs(actorUserId, orderId), p_actor_kind: actorKind });
+      return projectWireResponse(() => parseReadOpenResult(data));
+    },
+    // S3. A COMPLETED result must name the requested cycle.
+    async completeReadCycle(cycleId, cycleToken, input) {
+      const data = await rpc('complete_web_payment_read_cycle', { p_cycle_id: cycleId, p_cycle_token: cycleToken, p_completion: input });
+      return projectWireResponse(() => parseReadCompletionResult(data, cycleId));
+    },
+    // S4.
+    async recordPreIntentAssertions(actorUserId, orderId, assertions) {
+      const data = await rpc('record_web_payment_preintent_assertions', { ...actorArgs(actorUserId, orderId), p_assertions: assertions });
+      return projectWireResponse(() => parsePreIntentResult(data));
+    },
   };
 }
 

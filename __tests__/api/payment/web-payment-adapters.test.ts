@@ -296,11 +296,13 @@ function boundaries(overrides: Record<string, RpcReply[]> = {}) {
   const entry = { authorizeProviderEntry: vi.fn().mockImplementation(async () => structuredClone(AUTHORIZED)) };
   const credentials = { resolve: vi.fn().mockImplementation(async () =>
     ({ clientId: 'synthetic-client', clientSecret: 'Q7pPriv-secret' })) };
+  // W1 transport contract: every RESPONSE double carries bodyStatus. A parsed JSON body is PARSED.
+  // A null body uses the non-PARSED status of its scenario (EMPTY, INVALID_JSON or STREAM_ERROR).
   const transport = {
     requestToken: vi.fn().mockImplementation(async () => ({ accessToken: 'Q7pPriv-token' })),
-    createOrder: vi.fn().mockImplementation(async () => ({ kind: 'RESPONSE', status: 201, body: providerOrder('CREATED') })),
-    getOrder: vi.fn().mockImplementation(async () => ({ kind: 'RESPONSE', status: 200, body: providerOrder() })),
-    captureOrder: vi.fn().mockImplementation(async () => ({ kind: 'RESPONSE', status: 201, body: capturedOrder() })),
+    createOrder: vi.fn().mockImplementation(async () => ({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: providerOrder('CREATED') })),
+    getOrder: vi.fn().mockImplementation(async () => ({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })),
+    captureOrder: vi.fn().mockImplementation(async () => ({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: capturedOrder() })),
   };
   // Record the actual injected call even when a scenario replaces a mock's implementation.
   function traceCall<Args extends unknown[], Result>(stage: string, boundary: (...args: Args) => Result) {
@@ -376,8 +378,8 @@ describe('server PayPal CREATE authority', () => {
       [RPC.bind]: [{ status: 503, data: { code: 'XX000', message: 'Q7pPriv' } },
         { data: { ...NATIVE_RECORDED, observation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' } }] });
     h.transport.createOrder.mockResolvedValueOnce({ kind: 'TRANSPORT_UNKNOWN' })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 201, body: providerOrder('CREATED') })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder('APPROVED') });
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: providerOrder('CREATED') })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder('APPROVED') });
     const lost = await ensurePayPalProviderOrder(h.deps, input);
     expect(lost.kind).not.toBe('PROVIDER_ORDER_READY'); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
     // The CREATED bind failed; only the later APPROVED bind establishes the immutable link.
@@ -437,7 +439,7 @@ describe('server PayPal CREATE authority', () => {
   it('does not blind-bind a CREATE response naming a different merchant', async () => {
     const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }] });
     const body = providerOrder('CREATED'); body.purchase_units[0].payee.merchant_id = 'MERCHANTB2';
-    h.transport.createOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.createOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     expect(await ensurePayPalProviderOrder(h.deps, input)).toMatchObject({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(h.transport.createOrder).toHaveBeenCalledTimes(1);
     const observations = rpcCalls(h, RPC.observe); expect(observations).toHaveLength(1);
@@ -533,19 +535,19 @@ describe('PayPal CAPTURE verifies original ORDER before durable authority', () =
     ['CREATED', 'NOT_APPROVED'], ['SAVED', 'NOT_APPROVED'], ['PAYER_ACTION_REQUIRED', 'NOT_APPROVED'],
     ['VOIDED', 'ORDER_VOIDED'], ['COMPLETED', 'SUBMISSION_UNKNOWN'], ['FUTURE_STATUS', 'REVIEW_REQUIRED'],
   ])('never claims or submits original ORDER %s without an actual completed capture', async (status, kind) => {
-    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: providerOrder(status) });
+    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder(status) });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toMatchObject({ kind });
     expect(rpcCalls(h, RPC.claim)).toHaveLength(0); expectNoSubmission(h); expect(h.transport.getOrder).toHaveBeenCalledTimes(1);
   });
   it.each([' APPROVED', 'APPROVED ', 'A'.repeat(201), 'Q7pPriv\n'])
     ('does not record an unbounded or malformed provider status %#', async status => {
-      const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: providerOrder(status) });
+      const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder(status) });
       const outcome = await capturePayPalOrder(h.deps, approvedInput);
       expect(outcome.kind).not.toBe('INTAKE_PENDING'); expectNoSubmission(h);
       expect(rpcCalls(h, RPC.claim)).toHaveLength(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
     });
   it('recovers a completed capture found before claim with no new submission', async () => {
-    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
     expect(rpcCalls(h, RPC.claim)).toHaveLength(0); expect(rpcCalls(h, RPC.intent)).toHaveLength(0);
     expect(h.transport.captureOrder).not.toHaveBeenCalled();
@@ -566,20 +568,21 @@ describe('PayPal CAPTURE verifies original ORDER before durable authority', () =
     ['shape', (b: any) => { b.purchase_units = []; }],
   ])('refuses original %s mismatch before claim/intent/capture', async (_label, mutate) => {
     const h = boundaries(); const body = providerOrder(); mutate(body);
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toMatchObject({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.claim)).toHaveLength(0); expectNoSubmission(h); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
   });
   it('country conflict stays local REVIEW without falsifying evidence to manufacture sticky DB review', async () => {
     const h = boundaries(); const body = providerOrder(); body.payment_source.paypal.address.country_code = 'KR';
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expectNoSubmission(h); expect(rpcCalls(h, RPC.claim)).toHaveLength(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
     expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
   });
+  // W1 bodyStatus: a null body here is an empty 404 or an unreadable 200, not a parsed JSON null.
   it.each([
-    { kind: 'TRANSPORT_UNKNOWN' }, { kind: 'RESPONSE', status: 404, body: null },
-    { kind: 'RESPONSE', status: 500, body: { message: 'Q7pPriv' } }, { kind: 'RESPONSE', status: 200, body: null },
+    { kind: 'TRANSPORT_UNKNOWN' }, { kind: 'RESPONSE', bodyStatus: 'EMPTY', status: 404, body: null },
+    { kind: 'RESPONSE', bodyStatus: 'PARSED', status: 500, body: { message: 'Q7pPriv' } }, { kind: 'RESPONSE', bodyStatus: 'INVALID_JSON', status: 200, body: null },
   ])('closes uncertain original lookup %# before mutation authority', async response => {
     const h = boundaries(); h.transport.getOrder.mockResolvedValue(response);
     expect((await capturePayPalOrder(h.deps, approvedInput)).kind).not.toBe('INTAKE_PENDING');
@@ -633,7 +636,7 @@ describe('lease, intent, version and deadline gates', () => {
   it('does not turn native LOOKUP_ONLY into intent or a second POST', async () => {
     const h = boundaries({ [RPC.claim]: [{ data: { decision: 'LOOKUP_ONLY', safe_reason_code: 'SUBMISSION_UNKNOWN',
       attempt_id: ATTEMPT, provider_request_key: ATTEMPT, fencing_version: '1', row_version: '3', quote_hash: HASH } }] });
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: providerOrder() });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() });
     const result = await capturePayPalOrder(h.deps, approvedInput);
     expect(result.kind).not.toBe('INTAKE_PENDING'); expectNoSubmission(h); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
   });
@@ -686,13 +689,13 @@ describe('capture outcome and response-loss recovery', () => {
     ['PENDING', 'CAPTURE_PENDING'], ['DECLINED', 'CAPTURE_FAILED'], ['FAILED', 'CAPTURE_FAILED'],
     ['PARTIALLY_REFUNDED', 'REVIEW_REQUIRED'], ['REFUNDED', 'REVIEW_REQUIRED'], ['FUTURE_CAPTURE', 'REVIEW_REQUIRED'],
   ])('does not intake capture %s even when ORDER is COMPLETED', async (status, kind) => {
-    const h = boundaries(); h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: capturedOrder(status) });
+    const h = boundaries(); h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: capturedOrder(status) });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toMatchObject({ kind });
     expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(h.transport.captureOrder).toHaveBeenCalledTimes(1);
   });
   it('does not intake when capture amount differs from the fixed quote', async () => {
     const h = boundaries(); const body: any = capturedOrder(); body.purchase_units[0].payments.captures[0].amount.value = '10.00';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toMatchObject({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(h.transport.captureOrder).toHaveBeenCalledTimes(1);
   });
@@ -702,24 +705,26 @@ describe('capture outcome and response-loss recovery', () => {
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.receive)).toHaveLength(0); expect(h.transport.captureOrder).toHaveBeenCalledTimes(1);
   });
+  // W1 bodyStatus: an empty 500 and a 201 whose body stream failed (response loss) are both unreadable.
   it.each([
-    { kind: 'TRANSPORT_UNKNOWN' }, { kind: 'RESPONSE', status: 500, body: null },
-    { kind: 'RESPONSE', status: 201, body: null }, { kind: 'RESPONSE', status: 422, body: { name: 'Q7pPriv' } },
+    { kind: 'TRANSPORT_UNKNOWN' }, { kind: 'RESPONSE', bodyStatus: 'EMPTY', status: 500, body: null },
+    { kind: 'RESPONSE', bodyStatus: 'STREAM_ERROR', status: 201, body: null }, { kind: 'RESPONSE', bodyStatus: 'PARSED', status: 422, body: { name: 'Q7pPriv' } },
   ])('makes only one recovery GET after ambiguous mutation %#', async response => {
     const h = boundaries(); h.transport.captureOrder.mockResolvedValue(response);
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
     expect(h.transport.captureOrder).toHaveBeenCalledTimes(1); expect(h.transport.getOrder).toHaveBeenCalledTimes(2);
     expect(rpcCalls(h, RPC.claim)).toHaveLength(1); expect(rpcCalls(h, RPC.intent)).toHaveLength(1);
     expect(rpcCalls(h, RPC.bind)[0].args).toMatchObject({ p_evidence: { source: 'LOOKUP', external_id: '3C679366HH908993F' } });
   });
+  // W1 bodyStatus: the 404 recovery has an empty body.
   it.each([
-    { kind: 'TRANSPORT_UNKNOWN' }, { kind: 'RESPONSE', status: 404, body: null },
-    { kind: 'RESPONSE', status: 200, body: providerOrder() }, { kind: 'RESPONSE', status: 200, body: providerOrder('COMPLETED') },
+    { kind: 'TRANSPORT_UNKNOWN' }, { kind: 'RESPONSE', bodyStatus: 'EMPTY', status: 404, body: null },
+    { kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() }, { kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder('COMPLETED') },
   ])('keeps unknown after inconclusive recovery %# without a second POST or new-order suggestion', async response => {
     const h = boundaries(); h.transport.captureOrder.mockResolvedValue({ kind: 'TRANSPORT_UNKNOWN' });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() }).mockResolvedValueOnce(response);
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() }).mockResolvedValueOnce(response);
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(outcome).toEqual({ kind: 'SUBMISSION_UNKNOWN' });
     expect(toPayPalChargeBrowserDto(ORDER, outcome)).toEqual({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
@@ -746,7 +751,7 @@ describe('RECONCILE observes and STATUS reads without any charge command', () =>
     ['COMPLETED', 'INTAKE_PENDING'], ['PENDING', 'CAPTURE_PENDING'], ['DECLINED', 'CAPTURE_FAILED'],
     ['FAILED', 'CAPTURE_FAILED'], ['REFUNDED', 'REVIEW_REQUIRED'], ['PARTIALLY_REFUNDED', 'REVIEW_REQUIRED'],
   ])('reconciles actual capture %s without claim, intent, create or capture POST', async (status, kind) => {
-    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder(status) });
+    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder(status) });
     expect(await reconcilePayPalOrder(h.deps, input)).toMatchObject({ kind });
     expect(rpcCalls(h, RPC.claim)).toHaveLength(0); expect(rpcCalls(h, RPC.intent)).toHaveLength(0);
     expect(h.transport.createOrder).not.toHaveBeenCalled(); expect(h.transport.captureOrder).not.toHaveBeenCalled();
@@ -757,7 +762,7 @@ describe('RECONCILE observes and STATUS reads without any charge command', () =>
   it('recovers existing intent after actor deletion and quote expiry without fresh mutation authority', async () => {
     const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, actor_deleted: true, payment_state: 'SUBMISSION_UNKNOWN',
       submission_intent_recorded: true, attempt_id: ATTEMPT, quote_expires_at: '2020-01-01T00:00:00.123456Z' } }] });
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
     expect(rpcCalls(h, RPC.claim)).toHaveLength(0); expect(rpcCalls(h, RPC.intent)).toHaveLength(0);
     expect(h.transport.captureOrder).not.toHaveBeenCalled(); expect(rpcCalls(h, RPC.prepare)).toHaveLength(1);
@@ -769,7 +774,7 @@ describe('RECONCILE observes and STATUS reads without any charge command', () =>
       [RPC.prepare]: [{ data: NATIVE_PREPARED }, { data: NATIVE_PREPARED }],
       [RPC.bind]: [{ data: NATIVE_RECORDED }, { data: { ...NATIVE_RECORDED, replayed: true } }],
       [RPC.receive]: [{ data: NATIVE_INTAKE }, { data: { ...NATIVE_INTAKE, replayed: true } }] });
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     expect(await reconcilePayPalOrder(h.deps, input)).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
     expect(await reconcilePayPalOrder(h.deps, input)).toEqual({ kind: 'INTAKE_PENDING', replayed: true });
     expect(rpcCalls(h, RPC.receive).map(call => call.args)).toEqual([
@@ -804,7 +809,7 @@ describe('scripted authority concurrency, without claiming actual DB locking', (
       [RPC.prepare]: [{ data: NATIVE_PREPARED }, { data: NATIVE_PREPARED }],
       [RPC.claim]: [{ data: NATIVE_CLAIMED }, { data: { decision: 'BLOCKED', safe_reason_code: 'LEASE_ACTIVE' } }] });
     h.transport.getOrder.mockImplementation(async () => { lookups++; if (lookups === 2) bothLookup.resolve();
-      await bothLookup.promise; return { kind: 'RESPONSE', status: 200, body: providerOrder() }; });
+      await bothLookup.promise; return { kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() }; });
     const outcomes = await Promise.all([capturePayPalOrder(h.deps, approvedInput), capturePayPalOrder(h.deps, approvedInput)]);
     expect(h.transport.captureOrder).toHaveBeenCalledTimes(1); expect(rpcCalls(h, RPC.claim)).toHaveLength(2);
     expect(rpcCalls(h, RPC.intent)).toHaveLength(1); expect(rpcCalls(h, RPC.receive)).toHaveLength(1);
@@ -860,7 +865,7 @@ describe('safe outcomes, logs and browser projection', () => {
     if (boundary === 'lookup') h.transport.getOrder.mockRejectedValue(failure);
     if (boundary === 'submit') {
       h.transport.captureOrder.mockRejectedValue(failure);
-      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
+      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
         .mockResolvedValueOnce({ kind: 'TRANSPORT_UNKNOWN' });
     }
     const result = await capturePayPalOrder(h.deps, approvedInput);
@@ -890,9 +895,9 @@ describe('H1 minimal post-capture representations recover through one actual loo
     const lookedUp = capturedOrder(); lookedUp.purchase_units[0].amount.value = '100.00';
     lookedUp.purchase_units[0].payments.captures[0].amount = { currency_code: 'USD', value: '100.00' };
     lookedUp.purchase_units[0].payments.captures[0].id = '3C679366HH908993F';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: approved })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookedUp });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: approved })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookedUp });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent,
       'capture', 'get', RPC.bind, RPC.receive]);
@@ -926,9 +931,9 @@ describe('H1 minimal post-capture representations recover through one actual loo
       // No attributable POST ID exists when the parent, unit, or capture ID is absent.
       const lookupId = ['id', 'units', 'capture-id'].includes(_field) ? '9LOOKUPCAP' : '3C679366HH908993F';
       const lookup = capturedOrder(); lookup.purchase_units[0].payments.captures[0].id = lookupId;
-      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: httpStatus, body });
-      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-        .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookup });
+      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: httpStatus, body });
+      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+        .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookup });
       expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
       expect(h.transport.captureOrder).toHaveBeenCalledTimes(1); expect(h.transport.getOrder).toHaveBeenCalledTimes(2);
       expect(h.transport.createOrder).toHaveBeenCalledTimes(0);
@@ -951,9 +956,9 @@ describe('H1 minimal post-capture representations recover through one actual loo
       const recovery: any = mode === 'no-capture' ? providerOrder('COMPLETED') : capturedOrder();
       if (mode === 'incomplete') delete recovery.purchase_units[0].payee.merchant_id;
       if (mode === 'merchant-conflict') recovery.purchase_units[0].payee.merchant_id = 'MERCHANTB2';
-      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-        .mockResolvedValueOnce(mode === 'transport' ? { kind: 'TRANSPORT_UNKNOWN' } : { kind: 'RESPONSE', status: 200, body: recovery });
+      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+        .mockResolvedValueOnce(mode === 'transport' ? { kind: 'TRANSPORT_UNKNOWN' } : { kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: recovery });
       const outcome = await capturePayPalOrder(h.deps, approvedInput);
       expect(outcome).toEqual({ kind: mode === 'incomplete' || mode === 'merchant-conflict' ? 'REVIEW_REQUIRED' : 'SUBMISSION_UNKNOWN' });
       expect(h.transport.captureOrder).toHaveBeenCalledTimes(1); expect(h.transport.getOrder).toHaveBeenCalledTimes(2);
@@ -977,7 +982,7 @@ describe('H1 minimal post-capture representations recover through one actual loo
     ['capture-amount', (b: any) => { b.purchase_units[0].payments.captures[0].amount.value = '10.00'; }],
   ])('does not use a corrective GET to overwrite a real post-response %s conflict', async (_field, mutate) => {
     const h = boundaries(); const body = capturedOrder(); mutate(body);
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.transport.getOrder).toHaveBeenCalledTimes(1); expect(h.transport.captureOrder).toHaveBeenCalledTimes(1);
     expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.bind)).toHaveLength(0);
@@ -1005,7 +1010,7 @@ describe('M2 post-intent conflicts preserve actual attributable capture evidence
       if (mode === 'multiple') body.purchase_units[0].payments.captures.push(second);
       if (mode === 'malformed-first') body.purchase_units[0].payments.captures.unshift({ id: '../bad' });
       if (mode === 'malformed-second') body.purchase_units[0].payments.captures.push({ id: '../bad' });
-      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
       expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
       expect(h.transport.captureOrder).toHaveBeenCalledTimes(1); expect(h.transport.getOrder).toHaveBeenCalledTimes(1);
       expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
@@ -1039,11 +1044,11 @@ describe('M2 post-intent conflicts preserve actual attributable capture evidence
       if (mode === 'missing-reference') delete body.purchase_units[0].custom_id;
       if (mode === 'missing-merchant') delete body.purchase_units[0].payee.merchant_id;
       if (mode === 'foreign-parent') body.id = '9OTHERORDER';
-      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
       // A missing binding field may trigger one strict recovery lookup; it must not authorize receipt.
       if (mode === 'missing-reference' || mode === 'missing-merchant') {
-        h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-          .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body });
+        h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+          .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
       }
       const outcome = await capturePayPalOrder(h.deps, approvedInput);
       expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
@@ -1096,7 +1101,7 @@ describe.each(['capture', 'reconcile'] as const)('M3 immutable scope replay befo
     expect(rpcCalls(h, RPC.observe)).toHaveLength(0); expect(JSON.stringify({ result, logs: h.log.mock.calls })).not.toContain('Q7pPriv');
   });
   it('uses the valid locking replay before binding, resolver and token exactly once', async () => {
-    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const result = operation === 'capture' ? await capturePayPalOrder(h.deps, approvedInput) : await reconcilePayPalOrder(h.deps, input);
     expect(result).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.bind, RPC.receive]);
@@ -1123,7 +1128,7 @@ describe('L3 sticky review recovery collects evidence with zero submission and i
     const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, review_required: true, actor_deleted: true,
       submission_intent_recorded: true, payment_state: 'SUBMISSION_UNKNOWN', attempt_id: ATTEMPT,
       quote_expires_at: '2020-01-01T00:00:00.123456Z' } }] });
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder(status) });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder(status) });
     const outcome = operation === 'reconcile' ? await reconcilePayPalOrder(h.deps, input) : await capturePayPalOrder(h.deps, approvedInput);
     expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.bind]);
@@ -1138,7 +1143,7 @@ describe('L3 sticky review recovery collects evidence with zero submission and i
   });
   it('can reconcile a review-only context without requiring a new submission intent', async () => {
     const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, review_required: true } }] });
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     expect(await reconcilePayPalOrder(h.deps, input)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.transport.getOrder).toHaveBeenCalledTimes(1); expect(rpcCalls(h, RPC.bind)).toHaveLength(1);
     expectNoSubmission(h); expect(rpcCalls(h, RPC.claim)).toHaveLength(0);
@@ -1174,7 +1179,7 @@ describe('L4 existing unbound CREATE context and L2 unknown CREATE observation',
     const h = boundaries({ [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_order_id: null } }],
       [RPC.observe]: [{ data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS',
         trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false } }] });
-    h.transport.createOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: providerOrder('FUTURE_STATUS') });
+    h.transport.createOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: providerOrder('FUTURE_STATUS') });
     expect(await ensurePayPalProviderOrder(h.deps, input)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.transport.createOrder).toHaveBeenCalledTimes(1); expect(h.transport.getOrder).toHaveBeenCalledTimes(0);
     expect(h.transport.captureOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.prepare)).toHaveLength(1);
@@ -1211,16 +1216,16 @@ describe('L1 exact safe logs cover previously silent refusals and uncertain subm
     if (scenario === 'create-unknown' || scenario === 'lookup-unknown') h.script[RPC.observe] = [{ data: {
       outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS', trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false,
     } }];
-    if (scenario === 'create-unknown') h.transport.createOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: providerOrder('FUTURE_STATUS') });
+    if (scenario === 'create-unknown') h.transport.createOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: providerOrder('FUTURE_STATUS') });
     if (scenario === 'bind-review') h.script[RPC.bind] = [{ data: { outcome: 'REVIEW_REQUIRED', reason_code: 'PROVIDER_ID_CONFLICT',
       trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false } }];
-    if (scenario === 'refund') h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: capturedOrder('REFUNDED') });
-    if (scenario === 'lookup-unknown') h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: providerOrder('FUTURE_STATUS') });
+    if (scenario === 'refund') h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: capturedOrder('REFUNDED') });
+    if (scenario === 'lookup-unknown') h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder('FUTURE_STATUS') });
     if (scenario === 'lease-short') h.script[RPC.claim] = [{ data: { ...NATIVE_CLAIMED, submit_not_after: '2026-11-14T00:00:10.122456+00:00' } }];
     if (scenario === 'post-unknown') {
       h.transport.captureOrder.mockRejectedValue(new Error('Q7pPriv token secret'));
-      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-        .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder('COMPLETED') });
+      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+        .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder('COMPLETED') });
     }
     if (scenario === 'intake-review') h.script[RPC.receive] = [{ data: { outcome: 'REVIEW_REQUIRED', reason_code: 'EXISTING_PURCHASE_IDENTITY', grant_eligible: false } }];
     const result = ['prepare-refused', 'create-unknown', 'bind-review'].includes(scenario as string)
@@ -1236,7 +1241,7 @@ describe('L1 exact safe logs cover previously silent refusals and uncertain subm
     expect(h.transport.createOrder).toHaveBeenCalledTimes(scenario === 'create-unknown' || scenario === 'bind-review' ? 1 : 0);
   });
   it('logs only the bounded HTTP status for original lookup failure', async () => {
-    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 503, body: { message: 'Q7pPriv' } });
+    const h = boundaries(); h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 503, body: { message: 'Q7pPriv' } });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'UNAVAILABLE', stage: 'LOOKUP' });
     expect(h.log.mock.calls).toEqual([[{ stage: 'LOOKUP', level: 'warn', code: 'payment.paypal.charge.lookup.failed', orderId: ORDER, httpStatus: 503 }]]);
     expectNoSubmission(h); expect(rpcCalls(h, RPC.claim)).toHaveLength(0);
@@ -1244,8 +1249,8 @@ describe('L1 exact safe logs cover previously silent refusals and uncertain subm
   it('continues the same closed outcome when the logger throws a secret-bearing exception', async () => {
     const h = boundaries(); h.log.mockImplementation(() => { throw new Error('Q7pPriv logger secret'); });
     h.transport.captureOrder.mockRejectedValue(new Error('Q7pPriv provider secret'));
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder('COMPLETED') });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder('COMPLETED') });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(outcome).toEqual({ kind: 'SUBMISSION_UNKNOWN' });
     expect(h.log.mock.calls).toEqual([[{ stage: 'SUBMIT', level: 'error', code: 'payment.paypal.charge.submit.unknown', orderId: ORDER }]]);
@@ -1267,7 +1272,7 @@ describe('M2 local capture work bound and existing capture identity preference',
       id: `CAP${index}`, status: index === 0 ? 'COMPLETED' : 'PENDING', amount: { currency_code: 'USD', value: '9.99' },
       custom_id: 'v2:11111111-1111-4111-8111-111111111111',
     }));
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.transport.captureOrder).toHaveBeenCalledTimes(1); expect(h.transport.getOrder).toHaveBeenCalledTimes(1);
     expect(h.transport.createOrder).toHaveBeenCalledTimes(0); expect(rpcCalls(h, RPC.claim)).toHaveLength(1);
@@ -1297,7 +1302,7 @@ describe('M2 local capture work bound and existing capture identity preference',
   it('does not invent a competing identity for an identical repeated capture ID', async () => {
     const h = boundaries(); const body = capturedOrder();
     body.purchase_units[0].payments.captures.push(structuredClone(body.purchase_units[0].payments.captures[0]));
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.bind)).toHaveLength(1); expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
     expect(rpcCalls(h, RPC.bind)[0].args).toMatchObject({ p_context_id: CONTEXT, p_evidence: {
@@ -1315,7 +1320,7 @@ describe('M2 local capture work bound and existing capture identity preference',
         observation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', replayed: false } }] });
     const body = capturedOrder(); body.purchase_units[0].payments.captures.push({ id: '9SECOND', status: 'PENDING',
       amount: { currency_code: 'USD', value: '9.99' }, custom_id: 'v2:11111111-1111-4111-8111-111111111111' });
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
     expect(await reconcilePayPalOrder(h.deps, input)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.bind, RPC.observe]);
     expect(rpcCalls(h, RPC.bind)).toHaveLength(1); expect(rpcCalls(h, RPC.observe)).toHaveLength(1);
@@ -1339,7 +1344,7 @@ describe('M2 observation faults preserve actual candidates without another bind 
         observation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', replayed: false } }] });
     const body = capturedOrder(); body.purchase_units[0].payments.captures.push({ id: '9SECOND', status: 'PENDING',
       amount: { currency_code: 'USD', value: '9.99' }, custom_id: 'v2:11111111-1111-4111-8111-111111111111' });
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.bind)).toHaveLength(1); expect(rpcCalls(h, RPC.observe)).toHaveLength(1);
     expect(rpcCalls(h, RPC.bind)[0].args).toMatchObject({ p_context_id: CONTEXT, p_evidence: {
@@ -1367,7 +1372,7 @@ describe('M2 observation faults preserve actual candidates without another bind 
       ] });
     const body = capturedOrder(); body.purchase_units[0].payments.captures.push({ id: '9SECOND', status: 'PENDING',
       amount: { currency_code: 'USD', value: '9.99' }, custom_id: 'v2:11111111-1111-4111-8111-111111111111' });
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
     const bound = rpcCalls(h, RPC.bind); const recorded = rpcCalls(h, RPC.observe);
@@ -1401,7 +1406,7 @@ describe('M2 observation faults preserve actual candidates without another bind 
         custom_id: 'v2:11111111-1111-4111-8111-111111111111' },
       { id: '9THIRD', status: 'DECLINED', amount: { currency_code: 'USD', value: '9.99' },
         custom_id: 'v2:11111111-1111-4111-8111-111111111111' });
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.bind)).toHaveLength(1); expect(rpcCalls(h, RPC.observe)).toHaveLength(2);
     expect(rpcCalls(h, RPC.bind)[0].args).toMatchObject({ p_context_id: CONTEXT, p_evidence: {
@@ -1429,7 +1434,7 @@ describe('M2 observation faults preserve actual candidates without another bind 
     const h = boundaries(); const body = capturedOrder('PENDING');
     body.purchase_units[0].payments.captures.push({ id: '3C679366HH908993F', status: 'COMPLETED',
       amount: { currency_code: 'USD', value: '9.99' }, custom_id: 'v2:11111111-1111-4111-8111-111111111111' });
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.bind)).toHaveLength(1); expect(rpcCalls(h, RPC.observe)).toHaveLength(1);
     expect(rpcCalls(h, RPC.bind)[0].args).toMatchObject({ p_context_id: CONTEXT, p_evidence: {
@@ -1469,9 +1474,9 @@ describe('N1 recovery preserves the actual capture identity reported by a matchi
     lookup.purchase_units[0].amount.value = minor === '10000' ? '100.00' : '9.99';
     lookup.purchase_units[0].payments.captures[0].amount = { currency_code: 'USD', value: minor === '10000' ? '100.00' : '9.99' };
     lookup.purchase_units[0].payments.captures[0].id = '9LOOKUPCAP';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: approved })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookup });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: approved })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookup });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent,
@@ -1510,9 +1515,9 @@ describe('N1 recovery preserves the actual capture identity reported by a matchi
     const post: any = capturedOrder(); delete post.intent;
     const lookup = capturedOrder(); lookup.purchase_units[0].payments.captures.push({ id: '9LOOKUPCAP', status: 'COMPLETED',
       amount: { currency_code: 'USD', value: '9.99' }, custom_id: 'v2:11111111-1111-4111-8111-111111111111' });
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookup });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookup });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent,
@@ -1538,9 +1543,9 @@ describe('N1 recovery preserves the actual capture identity reported by a matchi
 
   it('allows the same actual ID to progress from partial POST PENDING to LOOKUP COMPLETED', async () => {
     const h = boundaries(); const post: any = capturedOrder('PENDING'); delete post.intent;
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent,
       'capture', 'get', RPC.bind, RPC.receive]);
@@ -1565,9 +1570,9 @@ describe('N1 recovery preserves the actual capture identity reported by a matchi
       if (mode === 'missing-capture-id') delete post.purchase_units[0].payments.captures[0].id;
       if (mode === 'missing-units') delete post.purchase_units;
       const lookup = capturedOrder(); lookup.purchase_units[0].payments.captures[0].id = '9LOOKUPCAP';
-      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-        .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookup });
+      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+        .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookup });
       expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'INTAKE_PENDING', replayed: false });
       expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent,
         'capture', 'get', RPC.bind, RPC.receive]);
@@ -1590,9 +1595,9 @@ describe('L-new1 partial POST contradictions permit observation only and remain 
     post.purchase_units[0].payments.captures = Array.from({ length: count }, (_unused, index) => ({
       id: index === 0 ? '3C679366HH908993F' : `CAP${index}`, status: 'COMPLETED', amount: { currency_code: 'USD', value: '9.99' },
     }));
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture',
@@ -1624,9 +1629,9 @@ describe('L-new1 partial POST contradictions permit observation only and remain 
         Object.assign(post, capturedOrder()); delete post.purchase_units[0].payee.merchant_id;
         post.payment_source.paypal.address.country_code = 'KR';
       }
-      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-        .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+        .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
       const outcome = await capturePayPalOrder(h.deps, approvedInput);
       expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
       expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent,
@@ -1659,12 +1664,12 @@ describe('L-new1 partial POST contradictions permit observation only and remain 
       const h = boundaries(); const post: any = structuredClone(OFFICIAL_CAPTURE_201);
       post.purchase_units[0].payments.captures[0].amount.value = '9.99';
       post.payment_source.paypal.address = { country_code: 'KR' };
-      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() });
+      h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+      h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() });
       if (mode === 'throw') h.transport.getOrder.mockRejectedValueOnce(new Error('Q7pPriv lookup failure'));
       else h.transport.getOrder.mockResolvedValueOnce(mode === 'transport' ? { kind: 'TRANSPORT_UNKNOWN' }
-        : mode === 'http-failure' ? { kind: 'RESPONSE', status: 503, body: { message: 'Q7pPriv' } }
-          : { kind: 'RESPONSE', status: 200, body: providerOrder('COMPLETED') });
+        : mode === 'http-failure' ? { kind: 'RESPONSE', bodyStatus: 'PARSED', status: 503, body: { message: 'Q7pPriv' } }
+          : { kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder('COMPLETED') });
       const outcome = await capturePayPalOrder(h.deps, approvedInput);
       expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
       expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', 'get']);
@@ -1683,9 +1688,9 @@ describe('L-new1 partial POST contradictions permit observation only and remain 
     post.purchase_units[0].payments.captures[0].amount.value = '9.99';
     post.payment_source.paypal.address = { country_code: 'KR' };
     const lookup = capturedOrder(); lookup.purchase_units[0].payments.captures[0].id = '9LOOKUPCAP';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookup });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookup });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(outcome).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent,
@@ -1773,10 +1778,10 @@ describe('R1 partial POST preserves representable contradictory facts before rec
     const h = boundaries({ [RPC.observe]: [{ data: { outcome: 'REVIEW_REQUIRED', reason_code: reason,
       trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false } }] });
     const post = capturedOrder(); (mutate as (body: any) => void)(post);
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
     // A normal later GET must never replace the contradictory POST fact.
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
       source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
@@ -1808,9 +1813,9 @@ describe('R1 partial POST preserves representable contradictory facts before rec
         observation_id: OBSERVATION, replayed: false } }
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
     expect(recorded.map(call => call.args)).toEqual([
@@ -1849,9 +1854,9 @@ describe('R1 partial POST preserves representable contradictory facts before rec
   it('keeps the current call REVIEW after actual contradictory POST record returns 503', async () => {
     const h = boundaries({ [RPC.observe]: [{ status: 503, data: { code: 'XX000', message: 'Q7pPriv record unavailable' } }] });
     const post: any = capturedOrder(); delete post.intent; post.purchase_units[0].amount.value = '10.00';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe)).toHaveLength(1);
     expect(rpcCalls(h, RPC.observe)[0].args).toMatchObject({ p_context_id: CONTEXT, p_evidence: {
@@ -1874,7 +1879,7 @@ describe('R1 partial POST preserves representable contradictory facts before rec
     const h = boundaries({ [RPC.observe]: [{ data: { outcome: 'REVIEW_REQUIRED', reason_code: 'AMOUNT_MISMATCH',
       trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false } }] });
     const post: any = capturedOrder(); delete post.intent; post.purchase_units[0].amount.value = '10.00';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
     expect(await capturePayPalOrder(h.deps, approvedInput)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(rpcCalls(h, RPC.observe)).toHaveLength(1);
     expect(rpcCalls(h, RPC.observe)[0].args).toMatchObject({ p_context_id: CONTEXT, p_evidence: {
@@ -1888,7 +1893,7 @@ describe('R1 partial POST preserves representable contradictory facts before rec
     h.script[RPC.getter].push({ data: { ...NATIVE_FOUND, review_required: true, row_version: '3',
       submission_intent_recorded: true, payment_state: 'SUBMISSION_UNKNOWN', attempt_id: ATTEMPT } });
     h.script[RPC.prepare].push({ data: NATIVE_PREPARED });
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     expect(await reconcilePayPalOrder(h.deps, input)).toEqual({ kind: 'REVIEW_REQUIRED' });
     expect(h.trail).toEqual([RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.claim, RPC.intent, 'capture', RPC.observe,
       RPC.getter, RPC.prepare, 'binding', 'resolve', 'token', 'get', RPC.bind]);
@@ -1917,9 +1922,9 @@ describe('N1-a recovery preserves actual ORDER conflict before the capture-ID re
     const post: any = capturedOrder(); delete post.intent;
     const lookup = capturedOrder(); lookup.purchase_units[0].payments.captures[0].id = '9LOOKUPCAP';
     (mutate as (body: any) => void)(lookup);
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookup });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookup });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
       source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER', external_id: '5O190127TN364715T',
@@ -1952,9 +1957,9 @@ describe('R1-b complete POST preserves actual capture facts hidden by INTENT ref
       trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false } }] });
     const post = capturedOrder(); post.intent = 'AUTHORIZE';
     post.purchase_units[0].payments.captures[0].amount = { currency_code: 'USD', value: '10.00' };
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
       source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
@@ -1980,9 +1985,9 @@ describe('R1-b complete POST preserves actual capture facts hidden by INTENT ref
       trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false } }] });
     const post = capturedOrder(); post.intent = 'AUTHORIZE';
     post.purchase_units[0].payments.captures[0].amount = { currency_code: 'EUR', value: '9.99' };
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
       source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
@@ -2008,9 +2013,9 @@ describe('R1-b complete POST preserves actual capture facts hidden by INTENT ref
       trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false } }] });
     const post = capturedOrder(); post.intent = 'AUTHORIZE';
     post.purchase_units[0].payments.captures[0].custom_id = 'v2:99999999-9999-4999-8999-999999999999';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
       source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
@@ -2035,9 +2040,9 @@ describe('R1-b complete POST preserves actual capture facts hidden by INTENT ref
     const h = boundaries({ [RPC.observe]: [{ data: { outcome: 'REVIEW_REQUIRED', reason_code: 'UNRECOGNIZED_STATUS',
       trust: 'SERVER_REPORTED', observation_id: OBSERVATION, replayed: false } }] });
     const post = capturedOrder('FUTURE_CAPTURE'); post.intent = 'AUTHORIZE';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([{ p_context_id: CONTEXT, p_evidence: {
       source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'CAPTURE',
@@ -2074,9 +2079,9 @@ describe('R1-b complete POST preserves actual capture facts hidden by INTENT ref
       { id: '9SECOND', status: 'COMPLETED', amount: { currency_code: 'USD', value: '11.00' },
         custom_id: 'v2:11111111-1111-4111-8111-111111111111' },
     ];
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([
       { p_context_id: CONTEXT, p_evidence: { source: 'SUBMIT_RESPONSE', provider: 'PAYPAL', environment: 'SANDBOX',
@@ -2119,9 +2124,9 @@ describe('N1 status-only ORDER recovery preserves the actual competing capture',
     const post: any = capturedOrder(); delete post.intent;
     const lookup = capturedOrder(); lookup.status = 'FUTURE_ORDER';
     lookup.purchase_units[0].payments.captures[0].id = '9LOOKUPCAP';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookup });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookup });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([
       { p_context_id: CONTEXT, p_evidence: { source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
@@ -2160,9 +2165,9 @@ describe('N1 status-only ORDER recovery preserves the actual competing capture',
     const post: any = capturedOrder(); delete post.intent;
     const lookup = capturedOrder(); lookup.status = 'FUTURE_ORDER';
     lookup.purchase_units[0].payments.captures[0].id = '9LOOKUPCAP';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body: post });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: lookup });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body: post });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: lookup });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe).map(call => call.args)).toEqual([
       { p_context_id: CONTEXT, p_evidence: { source: 'LOOKUP', provider: 'PAYPAL', environment: 'SANDBOX', identity_kind: 'ORDER',
@@ -2369,7 +2374,7 @@ describe('U2-C live provider entry before CREATE', () => {
   it.each(['capture', 'reconcile', 'status'])('C11 leaves entry unused for successful %s', async operation => {
     const h = boundaries();
     h.entry.authorizeProviderEntry.mockRejectedValue(new Error('Q7pPriv entry must stay unused'));
-    if (operation === 'reconcile') h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    if (operation === 'reconcile') h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const result = operation === 'capture' ? await capturePayPalOrder(h.deps, approvedInput)
       : operation === 'reconcile' ? await reconcilePayPalOrder(h.deps, input) : await getPayPalChargeStatus(h.deps, input);
     expect(h.entry.authorizeProviderEntry).not.toHaveBeenCalled();
@@ -2423,9 +2428,9 @@ describe('U2-E bounded provider fact preservation', () => {
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
     body.purchase_units[0].payments.captures[0].amount.value = '10.00';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2469,9 +2474,9 @@ describe('U2-E bounded provider fact preservation', () => {
         observation_id: OBSERVATION, replayed: false } }
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; body.intent = 'AUTHORIZE';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2516,9 +2521,9 @@ describe('U2-E bounded provider fact preservation', () => {
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
     body.purchase_units[0].payments.captures[0].amount.value = '10.00';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2575,7 +2580,7 @@ describe('U2-E bounded provider fact preservation', () => {
       body.purchase_units[0].payments.captures = mode === 'raw-33-unique' ? capturesAt(33)
         : [...capturesAt(32), structuredClone(capturesAt(32)[0])];
     }
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(mode === 'duplicate' ? 3 : 0);
     expect(recorded.map(call => call.args)).toEqual(mode === 'duplicate' ? [
@@ -2625,9 +2630,9 @@ describe('U2-E bounded provider fact preservation', () => {
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; delete body.intent;
     body.purchase_units[0].payee.merchant_id = 'MERCHANTB2';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2666,7 +2671,7 @@ describe('U2-E bounded provider fact preservation', () => {
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body = capturedOrder(); body.status = 'FUTURE_ORDER'; delete (body as any).intent;
     body.purchase_units[0].payments.captures = capturesAt(32);
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(33);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2710,9 +2715,9 @@ describe('U2-E bounded provider fact preservation', () => {
         observation_id: OBSERVATION, replayed: false } }
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER'; body.purchase_units[0].payments.captures[0].amount.value = '10.00';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2749,9 +2754,9 @@ describe('U2-E bounded provider fact preservation', () => {
         observation_id: OBSERVATION, replayed: false } }
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.intent = 'AUTHORIZE';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2793,7 +2798,7 @@ describe('U2-E bounded provider fact preservation', () => {
       [RPC.getter]: [{ data: { ...NATIVE_FOUND, row_version: '3', payment_state: 'SUBMISSION_UNKNOWN', submission_intent_recorded: true,
         attempt_id: ATTEMPT, review_required: true } }] });
     const body: any = capturedOrder();
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(0);
     expect(recorded.map(call => call.args)).toEqual([]);
@@ -2828,9 +2833,9 @@ describe('U2-E bounded provider fact preservation', () => {
       { data: NATIVE_RECORDED }
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.intent = 'AUTHORIZE';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2873,9 +2878,9 @@ describe('U2-E bounded provider fact preservation', () => {
         observation_id: OBSERVATION, replayed: false } }
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.intent = 'AUTHORIZE';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2918,7 +2923,7 @@ describe('U2-E bounded provider fact preservation', () => {
     const body = capturedOrder(); body.intent = mode === 'sale-intent' ? 'SALE' : 'AUTHORIZE';
     if (mode === 'no-capture') body.purchase_units[0].payments.captures = [];
     if (mode === 'foreign-merchant') body.purchase_units[0].payee.merchant_id = 'MERCHANTB2';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
     expect(recorded.map(call => call.args)).toEqual([
@@ -2967,7 +2972,7 @@ describe('U2-E bounded provider fact preservation', () => {
       body.purchase_units[0].payments.captures = mode === 'raw-33-unique' ? capturesAt(33)
         : [...capturesAt(32), structuredClone(capturesAt(32)[0])];
     }
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(mode === 'duplicate' ? 3 : 0);
     expect(recorded.map(call => call.args)).toEqual(mode === 'duplicate' ? [
@@ -3019,7 +3024,7 @@ describe('U2-E bounded provider fact preservation', () => {
     ], [RPC.bind]: [], [RPC.receive]: [] });
     const body = capturedOrder(); body.intent = 'AUTHORIZE';
     body.purchase_units[0].payments.captures = capturesAt(32);
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(33);
     expect(recorded.map(call => call.args)).toEqual([
@@ -3063,9 +3068,9 @@ describe('U2-E bounded provider fact preservation', () => {
         observation_id: OBSERVATION, replayed: false } }
     ], [RPC.bind]: [{ data: NATIVE_RECORDED }], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
     expect(recorded.map(call => call.args)).toEqual([
@@ -3107,7 +3112,7 @@ describe('U2-E bounded provider fact preservation', () => {
         observation_id: OBSERVATION, replayed: false } }
     ], [RPC.bind]: [{ data: NATIVE_RECORDED }], [RPC.receive]: [], [RPC.claim]: [], [RPC.intent]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER';
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
     expect(recorded.map(call => call.args)).toEqual([
@@ -3148,9 +3153,9 @@ describe('U2-E bounded provider fact preservation', () => {
       { status: 503, data: { code: 'XX000', message: 'Q7pPriv record unavailable' } }
     ], [RPC.bind]: [{ data: NATIVE_RECORDED }], [RPC.receive]: [] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
-    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: providerOrder() })
-      .mockResolvedValueOnce({ kind: 'RESPONSE', status: 200, body: capturedOrder() });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
+    h.transport.getOrder.mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: providerOrder() })
+      .mockResolvedValueOnce({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body: capturedOrder() });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
     expect(recorded.map(call => call.args)).toEqual([
@@ -3195,7 +3200,7 @@ describe('U2-E bounded provider fact preservation', () => {
     ], [RPC.bind]: [], [RPC.receive]: [], [RPC.claim]: [], [RPC.intent]: [],
       [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_capture_id: '9EXISTINGCAP' } }] });
     const body: any = capturedOrder(); body.status = 'FUTURE_ORDER';
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(2);
     expect(recorded.map(call => call.args)).toEqual([
@@ -3234,7 +3239,7 @@ describe('U2-E bounded provider fact preservation', () => {
   it('does not record a CAPTURE from an AUTHORIZE POST with a malformed ORDER amount', async () => {
     const h = boundaries({ [RPC.observe]: [], [RPC.bind]: [], [RPC.receive]: [] });
     const body = capturedOrder(); body.intent = 'AUTHORIZE'; body.purchase_units[0].amount.value = '9.9';
-    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', status: 201, body });
+    h.transport.captureOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 201, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     expect(rpcCalls(h, RPC.observe)).toHaveLength(0);
     expect(rpcCalls(h, RPC.bind)).toHaveLength(0); expect(rpcCalls(h, RPC.receive)).toHaveLength(0);
@@ -3257,7 +3262,7 @@ describe('U2-E bounded provider fact preservation', () => {
   it('keeps an AUTHORIZE LOOKUP at ORDER-only evidence without recording its CAPTURE', async () => {
     const h = boundaries({ [RPC.observe]: [{ data: NATIVE_RECORDED }], [RPC.bind]: [], [RPC.receive]: [], [RPC.claim]: [], [RPC.intent]: [] });
     const body = capturedOrder(); body.intent = 'AUTHORIZE';
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
     const outcome = await capturePayPalOrder(h.deps, approvedInput);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(1);
     expect(recorded.map(call => call.args)).toEqual([
@@ -3291,7 +3296,7 @@ describe('U2-E bounded provider fact preservation', () => {
       [RPC.getter]: [{ data: { ...NATIVE_FOUND, provider_capture_id: '3C679366HH908993F', review_required: true,
         payment_state: 'SUBMISSION_UNKNOWN', submission_intent_recorded: true, attempt_id: ATTEMPT, row_version: '3' } }] });
     const body: any = capturedOrder();
-    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', status: 200, body });
+    h.transport.getOrder.mockResolvedValue({ kind: 'RESPONSE', bodyStatus: 'PARSED', status: 200, body });
     const outcome = await reconcilePayPalOrder(h.deps, input);
     const recorded = rpcCalls(h, RPC.observe); expect(recorded).toHaveLength(0);
     expect(recorded.map(call => call.args)).toEqual([]);

@@ -264,6 +264,26 @@ describe('exact seven existing charge RPCs', () => {
     expect(await repository().receivePurchase(ORDER, OBSERVATION)).toMatchObject({ kind: data.outcome });
     expect(rpcFetch).toHaveBeenCalledTimes(1);
   });
+  // W1 (spec 8/10 sections 3-5): the replaced native receive can return the durable hold refusal.
+  it('accepts native receive REVIEW_REQUIRED INTAKE_HELD as a non-grant refusal', async () => {
+    expectedRpc = 'receive_web_payment_purchase';
+    wire = { outcome: 'REVIEW_REQUIRED', reason_code: 'INTAKE_HELD', grant_eligible: false };
+    await expect(repository().receivePurchase(ORDER, OBSERVATION)).resolves.toEqual({
+      kind: 'REVIEW_REQUIRED', reason: 'INTAKE_HELD', grantEligible: false,
+    });
+    expectRpc('receive_web_payment_purchase', { p_order_id: ORDER, p_observation_id: OBSERVATION });
+  });
+  it.each([
+    { outcome: 'REVIEW_REQUIRED', reason_code: 'INTAKE_HELD', grant_eligible: true },
+    { outcome: 'REVIEW_REQUIRED', reason_code: 'INTAKE_HELD_PENDING', grant_eligible: false },
+    { outcome: 'REVIEW_REQUIRED', reason_code: 'INTAKE_HELD', grant_eligible: false, hold_version: 'Q7pPriv' },
+  ])('keeps malformed INTAKE_HELD variant %# closed', async data => {
+    expectedRpc = 'receive_web_payment_purchase'; wire = data;
+    const caught = await repository().receivePurchase(ORDER, OBSERVATION).catch(error => error);
+    expect(caught).toMatchObject({ stage: 'RESPONSE' });
+    expect(String(caught) + JSON.stringify(caught)).not.toContain('Q7pPriv');
+    expect(rpcFetch).toHaveBeenCalledTimes(1);
+  });
   it.each([
     ['bind_web_payment_provider_identity', { ...RECORDED, trust: 'FULL' }],
     ['record_web_payment_observation', { ...RECORDED, outcome: 'REVIEW_REQUIRED', reason_code: 'NEW_REASON' }],

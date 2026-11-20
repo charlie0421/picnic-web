@@ -235,7 +235,7 @@ describe('PayPal fetch transport with synthetic responses only', () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     const fetchImpl = vi.fn().mockImplementation(async () => new Response(JSON.stringify(approvedOrder()), { status: 201 }));
     const t = createPayPalFetchTransport(fetchImpl);
-    expect(await t.createOrder({ ...createInput, environment })).toMatchObject({ kind: 'RESPONSE', status: 201 });
+    expect(await t.createOrder({ ...createInput, environment })).toMatchObject({ kind: 'RESPONSE', status: 201, bodyStatus: 'PARSED' });
     await t.getOrder({ ...getInput, environment });
     await t.captureOrder({ ...captureInput, environment });
     expect(fetchImpl).toHaveBeenCalledTimes(3);
@@ -285,7 +285,7 @@ describe('PayPal fetch transport with synthetic responses only', () => {
   it.each([429, 500, 503])('does not retry mutation HTTP %s', async status => {
     const fetchImpl = vi.fn().mockImplementation(async () => new Response('{"name":"Q7pPriv"}', { status }));
     const t = createPayPalFetchTransport(fetchImpl);
-    expect(await t.captureOrder(captureInput)).toEqual({ kind: 'RESPONSE', status, body: { name: 'Q7pPriv' } });
+    expect(await t.captureOrder(captureInput)).toEqual({ kind: 'RESPONSE', status, body: { name: 'Q7pPriv' }, bodyStatus: 'PARSED' });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
   it('does not retry or expose a thrown transport error', async () => {
@@ -313,9 +313,14 @@ describe('PayPal fetch transport with synthetic responses only', () => {
     expect(await createPayPalFetchTransport(fetchImpl).getOrder(getInput)).toEqual({ kind: 'TRANSPORT_UNKNOWN' });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
-  it.each(['<html>Q7pPriv</html>', '{', ''])('returns null body for malformed JSON %#', async body => {
+  // W1: each null body keeps its actual reason. An empty body is EMPTY, not INVALID_JSON or PARSED.
+  it.each([
+    ['<html>Q7pPriv</html>', 'INVALID_JSON'], ['{', 'INVALID_JSON'], ['', 'EMPTY'],
+  ] as const)('returns null body for malformed JSON %#', async (body, bodyStatus) => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(body, { status: 200 }));
-    expect(await createPayPalFetchTransport(fetchImpl).getOrder(getInput)).toEqual({ kind: 'RESPONSE', status: 200, body: null });
+    const result = await createPayPalFetchTransport(fetchImpl).getOrder(getInput);
+    expect(result).toEqual({ kind: 'RESPONSE', status: 200, body: null, bodyStatus });
+    expect(JSON.stringify(result)).not.toContain('Q7pPriv');
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
   it('stops and cancels a chunked response at 256 KiB even without Content-Length', async () => {
@@ -325,7 +330,7 @@ describe('PayPal fetch transport with synthetic responses only', () => {
     }, { highWaterMark: 0 }));
     const text = vi.spyOn(response, 'text');
     const fetchImpl = vi.fn().mockResolvedValue(response);
-    expect(await createPayPalFetchTransport(fetchImpl).getOrder(getInput)).toEqual({ kind: 'RESPONSE', status: 200, body: null });
+    expect(await createPayPalFetchTransport(fetchImpl).getOrder(getInput)).toEqual({ kind: 'RESPONSE', status: 200, body: null, bodyStatus: 'OVERSIZE' });
     expect(pulls).toBeLessThanOrEqual(5); expect(cancel).toHaveBeenCalledTimes(1);
     expect(text).not.toHaveBeenCalled(); expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
@@ -335,7 +340,7 @@ describe('PayPal fetch transport with synthetic responses only', () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(new ReadableStream({
       pull(controller) { pulls++; controller.enqueue(chunk); }, cancel,
     }, { highWaterMark: 0 })));
-    expect(await createPayPalFetchTransport(fetchImpl).getOrder(getInput)).toEqual({ kind: 'RESPONSE', status: 200, body: null });
+    expect(await createPayPalFetchTransport(fetchImpl).getOrder(getInput)).toEqual({ kind: 'RESPONSE', status: 200, body: null, bodyStatus: 'OVERSIZE' });
     expect(pulls).toBeLessThanOrEqual(3); expect(cancel).toHaveBeenCalledTimes(1);
   });
   it('cancels an oversized token stream instead of reading arbitrary credential-bearing JSON', async () => {
@@ -352,4 +357,133 @@ describe('PayPal fetch transport with synthetic responses only', () => {
       expect(await createPayPalFetchTransport(fetchImpl).requestToken(tokenInput)).toBeNull();
       expect(fetchImpl).toHaveBeenCalledTimes(1);
     });
+});
+
+// W1 transport contract (spec 4/10 section 8, plan W1). RESPONSE adds bodyStatus:
+// PARSED | EMPTY | OVERSIZE | INVALID_UTF8 | INVALID_JSON | STREAM_ERROR.
+// Every non-PARSED arm keeps body:null. TRANSPORT_UNKNOWN keeps its single key.
+// The streams below are real ReadableStream bodies read by the actual transport.
+describe('PayPal fetch transport bodyStatus discriminator', () => {
+  const getInput = { environment: 'SANDBOX' as const, accessToken: 'Q7pPriv-token', providerOrderId: PROVIDER_ORDER };
+  const captureInput = { ...getInput, requestKey: CAPTURE_KEY };
+  const encoder = new TextEncoder();
+  const KIB256 = 256 * 1024;
+
+  function chunked(chunks: Uint8Array[], cancel = vi.fn()) {
+    let index = 0;
+    return new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (index < chunks.length) controller.enqueue(chunks[index++]); else controller.close();
+      }, cancel,
+    }, { highWaterMark: 0 });
+  }
+  function split(bytes: Uint8Array, size: number): Uint8Array[] {
+    const parts: Uint8Array[] = [];
+    for (let offset = 0; offset < bytes.byteLength; offset += size) parts.push(bytes.slice(offset, offset + size));
+    return parts;
+  }
+  async function getWith(response: Response) {
+    const fetchImpl = vi.fn().mockResolvedValue(response);
+    const result = await createPayPalFetchTransport(fetchImpl).getOrder(getInput);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    return result;
+  }
+
+  it('returns PARSED with the parsed body for a complete JSON response', async () => {
+    const result = await getWith(new Response(JSON.stringify({ id: PROVIDER_ORDER, status: 'APPROVED' }), { status: 200 }));
+    expect(result).toEqual({ kind: 'RESPONSE', status: 200, body: { id: PROVIDER_ORDER, status: 'APPROVED' }, bodyStatus: 'PARSED' });
+  });
+  it('keeps a parsed JSON null literal as PARSED with body null', async () => {
+    expect(await getWith(new Response('null', { status: 200 })))
+      .toEqual({ kind: 'RESPONSE', status: 200, body: null, bodyStatus: 'PARSED' });
+  });
+  it('parses a multi-byte character split across real stream chunks', async () => {
+    const bytes = encoder.encode('{"note":"€"}');
+    const euroStart = bytes.indexOf(0xe2);
+    const result = await getWith(new Response(chunked([bytes.slice(0, euroStart + 2), bytes.slice(euroStart + 2)]), { status: 200 }));
+    expect(result).toEqual({ kind: 'RESPONSE', status: 200, body: { note: '€' }, bodyStatus: 'PARSED' });
+  });
+  it.each([
+    ['empty string body', () => new Response('', { status: 200 }), 200],
+    ['null body', () => new Response(null, { status: 200 }), 200],
+    ['204 without body', () => new Response(null, { status: 204 }), 204],
+    ['stream closed before any chunk', () => new Response(chunked([]), { status: 200 }), 200],
+    ['stream with one zero-length chunk', () => new Response(chunked([new Uint8Array(0)]), { status: 200 }), 200],
+  ] as const)('returns EMPTY with body null for %s', async (_label, build, status) => {
+    expect(await getWith(build())).toEqual({ kind: 'RESPONSE', status, body: null, bodyStatus: 'EMPTY' });
+  });
+  it('accepts exactly 256 KiB of valid JSON and marks one more byte OVERSIZE', async () => {
+    const exact = encoder.encode(`"${'a'.repeat(KIB256 - 2)}"`);
+    const over = encoder.encode(`"${'a'.repeat(KIB256 - 1)}"`);
+    expect(exact.byteLength).toBe(KIB256); expect(over.byteLength).toBe(KIB256 + 1);
+    expect(await getWith(new Response(chunked(split(exact, 65_536)), { status: 200 })))
+      .toEqual({ kind: 'RESPONSE', status: 200, body: 'a'.repeat(KIB256 - 2), bodyStatus: 'PARSED' });
+    const cancel = vi.fn();
+    expect(await getWith(new Response(chunked(split(over, 65_536), cancel), { status: 200 })))
+      .toEqual({ kind: 'RESPONSE', status: 200, body: null, bodyStatus: 'OVERSIZE' });
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    ['invalid byte inside a string', [0x7b, 0x22, 0x61, 0x22, 0x3a, 0x22, 0xff, 0x22, 0x7d]],
+    ['truncated multi-byte sequence at end', [0x22, 0xe2, 0x82]],
+  ])('returns INVALID_UTF8 with body null for %s', async (_label, bytes) => {
+    expect(await getWith(new Response(new Uint8Array(bytes), { status: 200 })))
+      .toEqual({ kind: 'RESPONSE', status: 200, body: null, bodyStatus: 'INVALID_UTF8' });
+  });
+  it.each(['{"id":', '<html>Q7pPriv</html>', 'undefined'])('returns INVALID_JSON with body null for valid UTF-8 %#', async text => {
+    const result = await getWith(new Response(text, { status: 200 }));
+    expect(result).toEqual({ kind: 'RESPONSE', status: 200, body: null, bodyStatus: 'INVALID_JSON' });
+    expect(JSON.stringify(result)).not.toContain('Q7pPriv');
+  });
+  it.each([
+    ['after one chunk', 200, () => {
+      let pulls = 0;
+      return new ReadableStream<Uint8Array>({ pull(controller) {
+        if (pulls++ === 0) controller.enqueue(encoder.encode('{"id":"5O190127')); else controller.error(new Error('Q7pPriv stream'));
+      } }, { highWaterMark: 0 });
+    }],
+    ['before any chunk', 200, () => new ReadableStream<Uint8Array>({ start(controller) { controller.error(new Error('Q7pPriv stream')); } })],
+    ['on a non-2xx response', 503, () => new ReadableStream<Uint8Array>({ start(controller) { controller.error(new Error('Q7pPriv stream')); } })],
+  ] as const)('returns STREAM_ERROR with body null when the reader fails %s', async (_label, status, stream) => {
+    const result = await getWith(new Response(stream(), { status }));
+    expect(result).toEqual({ kind: 'RESPONSE', status, body: null, bodyStatus: 'STREAM_ERROR' });
+    expect(JSON.stringify(result)).not.toContain('Q7pPriv');
+  });
+  it('keeps TRANSPORT_UNKNOWN as the only key when fetch rejects', async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(new TypeError('Q7pPriv fetch failed'));
+    const result = await createPayPalFetchTransport(fetchImpl).captureOrder(captureInput);
+    expect(result).toStrictEqual({ kind: 'TRANSPORT_UNKNOWN' });
+    expect(Object.keys(result)).toEqual(['kind']);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  it('keeps redirect refusal as TRANSPORT_UNKNOWN and never exposes a redirect status', async () => {
+    const fetchImpl = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      expect(init.redirect).toBe('error');
+      throw new TypeError('fetch failed: unexpected redirect to https://evil.example.invalid/Q7pPriv');
+    });
+    const result = await createPayPalFetchTransport(fetchImpl).getOrder(getInput);
+    expect(result).toStrictEqual({ kind: 'TRANSPORT_UNKNOWN' });
+    expect(JSON.stringify(result)).not.toMatch(/Q7pPriv|302|redirect/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  it('keeps the deadline signal and per-operation timeouts while adding bodyStatus', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const fetchImpl = vi.fn().mockImplementation(async () => new Response(null, { status: 204 }));
+    const t = createPayPalFetchTransport(fetchImpl);
+    const created = await t.createOrder({ environment: 'SANDBOX', accessToken: 'Q7pPriv-token', requestKey: CREATE_KEY, orderId: ORDER, amountMinor: '999' });
+    const read = await t.getOrder(getInput);
+    const captured = await t.captureOrder(captureInput);
+    for (const result of [created, read, captured]) expect(result).toEqual({ kind: 'RESPONSE', status: 204, body: null, bodyStatus: 'EMPTY' });
+    expect(timeout.mock.calls.map(([ms]) => ms)).toEqual([15_000, 10_000, 20_000]);
+    for (const [, init] of fetchImpl.mock.calls) expect(init).toMatchObject({ redirect: 'error', cache: 'no-store', signal: expect.any(AbortSignal) });
+  });
+  it('keeps a deadline abort before the response as TRANSPORT_UNKNOWN without bodyStatus', async () => {
+    const deadline = new AbortController();
+    vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal);
+    const fetchImpl = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      deadline.abort(new DOMException('Q7pPriv', 'TimeoutError')); init.signal!.throwIfAborted();
+    });
+    expect(await createPayPalFetchTransport(fetchImpl).getOrder(getInput)).toStrictEqual({ kind: 'TRANSPORT_UNKNOWN' });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });
