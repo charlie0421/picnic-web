@@ -1006,6 +1006,7 @@ def integrated_vote_prerequisites(read_pinned):
     require(vote_type is not None and len(prior) == 3 and prior[1].startswith(
         'CREATE OR REPLACE FUNCTION public.perform_vote_transaction_v3('), 'DEPENDENCY_CLOSURE',
         'Prior vote type or function is unavailable')
+    table_ddl = '\n'.join(table_sql)
     return f"""
 begin;
 create schema supabase_migrations authorization postgres;
@@ -1013,13 +1014,20 @@ create table supabase_migrations.schema_migrations (version text primary key, st
 alter table supabase_migrations.schema_migrations owner to postgres;
 set local check_function_bodies=off;
 set local search_path=public,extensions,pg_catalog;
-{chr(10).join(table_sql)}
+{table_ddl}
 {vote_type.group()}
 alter type public.wallet_vote_result owner to wallet_command_owner;
 {prior[1].rstrip()};
 alter function public.perform_vote_transaction_v3(uuid,integer,integer,integer,uuid) owner to wallet_command_owner;
 revoke all on function public.perform_vote_transaction_v3(uuid,integer,integer,integer,uuid) from public,anon,authenticated;
 grant execute on function public.perform_vote_transaction_v3(uuid,integer,integer,integer,uuid) to service_role,wallet_test;
+-- Project its original PROVIDER_WORKER classification onto the selected fixture.
+insert into wallet_private.wallet_service_rpc_catalog (function_identity,function_name,is_wallet_relevant,evidence)
+select function_identity,function_name,true,evidence
+from wallet_private.wallet_relevant_service_rpc_identities()
+where function_identity='perform_vote_transaction_v3(uuid,integer,integer,integer,uuid)';
+insert into wallet_private.wallet_service_rpc_manifest (function_identity,classification)
+values ('perform_vote_transaction_v3(uuid,integer,integer,integer,uuid)','PROVIDER_WORKER');
 commit;
 """
 
