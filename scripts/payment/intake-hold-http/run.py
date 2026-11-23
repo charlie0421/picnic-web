@@ -70,6 +70,7 @@ INTEGRATED_BASELINE_PINS = {
     MIGRATIONS + '20261120120000_purchase_pregrant_refund_gate.sql':
         'd497929b789a288e1a1be1a59374096d5fba682002d55282453e9f66921b9196',
 }
+VOTE_TABLE_SOURCE = MIGRATIONS + '20260425161337_baseline_squash.sql'
 VOTE_TYPE_SOURCE = MIGRATIONS + '20260721094000_wallet_core_vote_v3.sql'
 VOTE_PRIOR_SOURCE = 'supabase/prod-cutover/20261116-vote-lock-key-share/rollback/01_restore.sql'
 KIT_PATH = 'supabase/prod-cutover/2026-11-17-web-payment-reconciliation-cron/kit.html'
@@ -995,6 +996,13 @@ def integrated_vote_prerequisites(read_pinned):
     vote_type = re.match(r'create type public\.wallet_vote_result as \([\s\S]*?^\);',
                          read_pinned(VOTE_TYPE_SOURCE).decode(), re.MULTILINE)
     prior = read_pinned(VOTE_PRIOR_SOURCE).decode().split('$prior$')
+    tables = read_pinned(VOTE_TABLE_SOURCE).decode()
+    table_sql = []
+    for name in ('vote', 'vote_item'):
+        matches = re.findall(r'^CREATE TABLE IF NOT EXISTS "public"\."' + name + r'" \([\s\S]*?^\);',
+                             tables, re.MULTILINE)
+        require(len(matches) == 1, 'DEPENDENCY_CLOSURE', 'A prior vote row type is unavailable: ' + name)
+        table_sql.append(matches[0])
     require(vote_type is not None and len(prior) == 3 and prior[1].startswith(
         'CREATE OR REPLACE FUNCTION public.perform_vote_transaction_v3('), 'DEPENDENCY_CLOSURE',
         'Prior vote type or function is unavailable')
@@ -1005,6 +1013,7 @@ create table supabase_migrations.schema_migrations (version text primary key, st
 alter table supabase_migrations.schema_migrations owner to postgres;
 set local check_function_bodies=off;
 set local search_path=public,extensions,pg_catalog;
+{chr(10).join(table_sql)}
 {vote_type.group()}
 alter type public.wallet_vote_result owner to wallet_command_owner;
 {prior[1].rstrip()};
