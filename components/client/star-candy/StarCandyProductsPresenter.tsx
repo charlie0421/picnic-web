@@ -22,6 +22,7 @@ import {
 } from './star-candy-utils';
 import { usePaymentPolling } from './usePaymentPolling';
 import { usePaymentHandlers } from './usePaymentHandlers';
+import { PayPalCheckout } from './PayPalCheckout';
 
 interface StarCandyProductsPresenterProps {
   products: Products[];
@@ -69,6 +70,8 @@ export function StarCandyProductsPresenter({
     getCurrentPrice,
     getCurrentCurrency,
     processingProductId,
+    payPalProductId,
+    closePayPalCheckout,
   } = usePaymentHandlers({
     user,
     selectedPaymentMethod,
@@ -266,6 +269,11 @@ export function StarCandyProductsPresenter({
           <li>• {t('star_candy_notice_3')}</li>
         </ul>
       </div>
+
+      {user && isAdmin && payPalProductId && (
+        <PayPalCheckout key={user.id} userId={user.id} productId={payPalProductId}
+          language={currentLanguage} t={t} onClose={closePayPalCheckout} />
+      )}
 
       {/* 결제 검증 중 펄스 애니메이션 오버레이 */}
       {isVerifying && (

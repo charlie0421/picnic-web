@@ -24,13 +24,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 const portOne = vi.hoisted(() => ({ requestPaymentAuto: vi.fn() }));
-const payPal = vi.hoisted(() => ({
-  initialize: vi.fn(async () => false),
-  createOrder: vi.fn(),
-  getPayPal: vi.fn(),
-}));
 vi.mock('@/lib/payment/portone', () => ({ portOneService: portOne }));
-vi.mock('@/lib/payment/paypal', () => ({ payPalService: payPal }));
 
 vi.mock('@/utils/ip-detection', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/ip-detection')>();
@@ -89,6 +83,6 @@ describe('PortOne 웹 결제 숨김', () => {
     });
 
     expect(portOne.requestPaymentAuto).not.toHaveBeenCalled();
-    expect(payPal.initialize).toHaveBeenCalledTimes(1);
+    expect(result.current.payPalProductId).toBe(product.id);
   });
 });

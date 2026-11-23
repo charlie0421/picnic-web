@@ -49,8 +49,6 @@ const json = (path: string, body: unknown) =>
   });
 
 const routes = [
-  ['PayPal create-order', '@/app/api/payment/paypal/create-order/route', '/api/payment/paypal/create-order', { productId: 'STAR_100' }],
-  ['PayPal capture-order', '@/app/api/payment/paypal/capture-order/route', '/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }],
   ['PortOne confirm', '@/app/api/payment/portone/confirm/route', '/api/payment/portone/confirm', { paymentId: 'pay_1' }],
   ['storage signed-url', '@/app/api/storage/signed-url/route', '/api/storage/signed-url', { path: 'x.png' }],
   ['uploads presign', '@/app/api/uploads/presign/route', '/api/uploads/presign', { contentType: 'image/png', size: 100 }],

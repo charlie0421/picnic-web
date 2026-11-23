@@ -6,16 +6,6 @@ import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.share
 /** Featured product thresholds (star candy amounts) */
 export const FEATURED_PRODUCT_AMOUNTS = [600, 10000] as const;
 
-/** PayPal checkout popup dimensions */
-export const PAYPAL_POPUP_WIDTH = 500;
-export const PAYPAL_POPUP_HEIGHT = 600;
-
-/** PayPal payment polling interval (ms) */
-export const PAYMENT_POLL_INTERVAL_MS = 1000;
-
-/** PayPal payment polling timeout (ms) - 10 minutes */
-export const PAYMENT_POLL_TIMEOUT_MS = 600000;
-
 /** Initial delay before first payment verification (ms) */
 export const VERIFY_INITIAL_DELAY_MS = 2000;
 

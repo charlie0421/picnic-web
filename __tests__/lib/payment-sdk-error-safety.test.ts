@@ -1,14 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const sinks = vi.hoisted(() => ({ safeError: vi.fn(), loadScript: vi.fn() }));
+const sinks = vi.hoisted(() => ({ safeError: vi.fn() }));
 vi.mock('@/utils/logger', () => ({ logger: { safeError: sinks.safeError } }));
-vi.mock('@paypal/paypal-js', () => ({ loadScript: sinks.loadScript }));
 
 describe('browser payment failures preserve results without adding error events', () => {
   beforeEach(() => {
     vi.resetModules();
     sinks.safeError.mockReset();
-    sinks.loadScript.mockReset();
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubEnv('NEXT_PUBLIC_PORTONE_STORE_ID', 'store_fixture');
     vi.stubEnv('NEXT_PUBLIC_PORTONE_CHANNEL_KEY', 'channel_fixture');
@@ -25,22 +23,12 @@ describe('browser payment failures preserve results without adding error events'
     expect(console.error).not.toHaveBeenCalled();
   }
 
-  it('PayPal popup cancellation keeps the capture rejection without an extra browser event', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'Failed to capture PayPal order' }), { status: 500 })));
-    const { payPalService } = await import('@/lib/payment/paypal');
-    await expect(payPalService.captureOrder('ORDER-CANCELLED')).rejects.toThrow('Failed to capture PayPal order');
-    expectNoEvent();
-  });
-  it('PayPal create rejection reaches the caller without an extra browser event', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Q7pPriv')));
-    const { payPalService } = await import('@/lib/payment/paypal');
-    await expect(payPalService.createOrder({ productId: 'STAR_100', productName: 'Star', amount: 1, starCandy: 100, bonusAmount: 0, userId: 'user_fixture', userEmail: 'private@example.invalid' })).rejects.toThrow('Q7pPriv');
-    expectNoEvent();
-  });
-  it('PayPal SDK load failure remains false without an extra browser event', async () => {
-    sinks.loadScript.mockRejectedValue(new Error('Q7pPriv'));
-    const { payPalService } = await import('@/lib/payment/paypal');
-    expect(await payPalService.initialize()).toBe(false);
+  it('uses a fixed message for an unavailable PayPal quote without a browser error event', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error: 'Q7pPriv' }, { status: 503 })));
+    const { createQuotedPayPalOrder } = await import('@/lib/payment/paypal-order-browser');
+    await expect(createQuotedPayPalOrder({ productId: 'STAR_100', billingCountry: 'US',
+      requestId: 'decc5ea0-6c2b-4b08-8cd9-a6709a5e217f', acceptedPolicyVersion: 'fixture' }, 'SANDBOX'))
+      .rejects.toThrow('WEB_PAYPAL_ORDER_UNAVAILABLE');
     expectNoEvent();
   });
   it('PortOne SDK cancellation rejection keeps the existing UI error without an extra browser event', async () => {

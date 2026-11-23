@@ -102,7 +102,8 @@ async function main() {
     const signature = createHmac('sha256', env.PORTONE_WEBHOOK_SECRET).update(payload).digest('hex');
     await request('webhook provider unavailable', '/api/payment/portone/webhook', payload, 502, { 'x-portone-signature': signature });
     for (const route of ['paypal/create-order', 'paypal/capture-order', 'portone/confirm', 'portone/verify']) {
-      await request(`${route} anonymous`, `/api/payment/${route}`, JSON.stringify({ memo: CANARIES.join(' ') }), 401);
+      const expectedStatus = route.startsWith('paypal/') ? 410 : 401;
+      await request(`${route} anonymous`, `/api/payment/${route}`, JSON.stringify({ memo: CANARIES.join(' ') }), expectedStatus);
     }
     for (const route of ['portone/callback', 'toss/result']) {
       const url = new URL(`${base}/api/payment/${route}`);
