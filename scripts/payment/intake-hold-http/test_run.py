@@ -26,6 +26,7 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 
@@ -561,6 +562,55 @@ class ManifestCase(SubjectCase):
     def verify(self):
         return subject.verify_manifest(self.path, self.pin, web_root=self.web, db_root=self.db,
                                        git=self.git, docker=self.docker)
+
+
+
+class IntegratedBaselineTests(ManifestCase):
+    def setUp(self):
+        super().setUp()
+        names = tuple(MIGRATION_DIR + name for name in (
+            "20261116000000_bonus_history_parent_index.sql",
+            "20261116010000_refund_evidence_user_scope.sql",
+            "20261116020000_vote_lock_key_share.sql",
+            "20261120090000_bonus_projection_check_open_buckets.sql",
+            "20261120120000_purchase_pregrant_refund_gate.sql",
+        ))
+        self.baseline = []
+        for name in names:
+            data = ("approved baseline fixture " + name).encode()
+            self.put(self.db, name, data)
+            self.git.blobs[str(self.db)][name] = data
+            self.baseline.append({"path": name, "sha256": sha(data)})
+        pin_patch = patch.object(subject, "INTEGRATED_BASELINE_PINS",
+                                 {row["path"]: row["sha256"] for row in self.baseline}, create=True)
+        pin_patch.start()
+        self.addCleanup(pin_patch.stop)
+
+    def test_integrated_baseline_precedes_the_web_contract(self):
+        self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"]
+        self.seal()
+        self.assertEqual(self.verify()["contractPrefix"][:5], self.baseline)
+
+    def test_old_manifest_cannot_skip_main_migrations_on_integrated_checkout(self):
+        self.refuses(Code.PREFIX, self.verify)
+
+    def test_unapproved_sql_is_refused_even_when_manifest_is_rehashed(self):
+        self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"]
+        self.put(self.db, self.baseline[0]["path"], b"unapproved SQL")
+        self.manifest["contractPrefix"][0] = {"path": self.baseline[0]["path"], "sha256": sha(b"unapproved SQL")}
+        self.seal()
+        self.refuses(Code.SOURCE, self.verify)
+
+    def test_partial_integrated_baseline_cannot_be_downgraded(self):
+        (self.db / self.baseline[-1]["path"]).unlink()
+        self.refuses(Code.PREFIX, self.verify)
+
+    def test_unknown_later_migration_invalidates_an_exact_integrated_manifest(self):
+        self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"]
+        self.put(self.db, MIGRATION_DIR + "20261121000000_new.sql", b"")
+        self.seal()
+        self.refuses(Code.PREFIX, self.verify)
+
 
 
 class ManifestValidatorTests(ManifestCase):

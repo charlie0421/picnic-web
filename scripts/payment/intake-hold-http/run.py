@@ -57,6 +57,21 @@ M1_TO_M5 = tuple(MIGRATIONS + name for name in (
     '20261117070424_web_payment_intake_admission.sql', '20261117093017_web_payment_reconciliation_queue.sql',
     '20261117120247_web_payment_absence_release.sql'))
 CONTRACT_PREFIX = (*CURRENT10, *M1_TO_M5)
+# Already applied on the integration baseline. Replay these before the pending web contract.
+INTEGRATED_BASELINE_PINS = {
+    MIGRATIONS + '20261116000000_bonus_history_parent_index.sql':
+        '5ada01c4d0ee57a9e762909dec54891aa5e3d2bfa4733cac84530206fa8d07ad',
+    MIGRATIONS + '20261116010000_refund_evidence_user_scope.sql':
+        '8d0057178fe1530549ccde189cea0b502713888868cb508fc5790463d281c344',
+    MIGRATIONS + '20261116020000_vote_lock_key_share.sql':
+        '962f22588655687e1950074f1a2701eb207fa266cca1014bb486dc9c1d414f6a',
+    MIGRATIONS + '20261120090000_bonus_projection_check_open_buckets.sql':
+        'a0e79f492d4635312a9c934081e71aaee4092fb8e7a8e3d8744997d19c10b8df',
+    MIGRATIONS + '20261120120000_purchase_pregrant_refund_gate.sql':
+        'd497929b789a288e1a1be1a59374096d5fba682002d55282453e9f66921b9196',
+}
+VOTE_TYPE_SOURCE = MIGRATIONS + '20260721094000_wallet_core_vote_v3.sql'
+VOTE_PRIOR_SOURCE = 'supabase/prod-cutover/20261116-vote-lock-key-share/rollback/01_restore.sql'
 KIT_PATH = 'supabase/prod-cutover/2026-11-17-web-payment-reconciliation-cron/kit.html'
 DB_PRODUCT_COMMIT = 'e6464002139de353fc94460017a6e8b02dd759e5'
 OWNED = (*(PREFIX + name for name in ('run.py', 'test_run.py', 'bundle.mjs', 'guard.cjs', 'seed.sql',
@@ -264,9 +279,13 @@ def manifest_shape(manifest):
                 and isinstance(row['files'], dict) and set(row['files']) == set(files)
                 and all(pin(item) for item in row['files'].values()), 'MANIFEST_SET', 'SDK pin shape differs')
     require(isinstance(manifest['images'], dict), 'MANIFEST_SET', 'images must be an object')
-    # The prefix is exact and ordered: current10, then M1-M5.
-    require(tuple(row['path'] for row in prefix) == CONTRACT_PREFIX, 'CONTRACT_PREFIX_MISMATCH',
-            'Contract prefix is not the ordered current10 followed by M1-M5')
+    paths = tuple(row['path'] for row in prefix)
+    require(paths in (CONTRACT_PREFIX, (*INTEGRATED_BASELINE_PINS, *CONTRACT_PREFIX)),
+            'CONTRACT_PREFIX_MISMATCH', 'Contract prefix differs from the supported ordered profiles')
+    for row in prefix:
+        approved = INTEGRATED_BASELINE_PINS.get(row['path'])
+        require(approved is None or approved == row['sha256'], 'SOURCE_DRIFT',
+                'Integrated migration differs from the approved hash: ' + row['path'])
 
 
 def verify_heads(manifest, web_root, db_root, git):
@@ -339,6 +358,8 @@ def verify_manifest(path, sha256, *, web_root, db_root, git, docker):
     require(pin(sha256) and digest(raw) == sha256, 'MANIFEST_HASH', 'Manifest differs from the approval hash')
     manifest = read_json(raw, 'MANIFEST_SET')
     manifest_shape(manifest)
+    require(tuple(row['path'] for row in manifest['contractPrefix']) == actual_prefix(db_root),
+            'CONTRACT_PREFIX_MISMATCH', 'Manifest and checkout require different migration profiles')
     verify_heads(manifest, web_root, db_root, git)
     verify_sources(manifest, web_root, db_root, git)
     verify_sdk(manifest, web_root)
@@ -348,18 +369,22 @@ def verify_manifest(path, sha256, *, web_root, db_root, git, docker):
 
 
 def actual_prefix(db_root):
-    """The actual checkout must hold the exact prefix and no later migration."""
+    """Return the installation order of the exact legacy or integrated checkout profile."""
     for name in CONTRACT_PREFIX:
         require((Path(db_root) / name).is_file(), 'CONTRACT_PREFIX_MISMATCH', 'Contract stage is missing: ' + name)
     last_current = CURRENT10[-1].rsplit('/', 1)[1]
     later = sorted(MIGRATIONS + path.name for path in (Path(db_root) / MIGRATIONS).glob('*.sql')
                    if path.name > last_current)
-    require(tuple(later) == M1_TO_M5, 'CONTRACT_PREFIX_MISMATCH', 'Migrations after current10 are not exactly M1-M5')
+    if tuple(later) == M1_TO_M5:
+        return CONTRACT_PREFIX
+    require(tuple(later) == tuple(sorted((*M1_TO_M5, *INTEGRATED_BASELINE_PINS))), 'CONTRACT_PREFIX_MISMATCH',
+            'Unexpected or incomplete migration set after current10')
+    return (*INTEGRATED_BASELINE_PINS, *CONTRACT_PREFIX)
 
 
 def build_manifest(*, web_root, db_root, git, docker):
     web_root, db_root = Path(web_root), Path(db_root)
-    actual_prefix(db_root)
+    prefix = actual_prefix(db_root)
     heads = {}
     for root, key in ((web_root, 'webHead'), (db_root, 'dbHead')):
         actual = git_call(git, root, ['rev-parse', 'HEAD'])
@@ -371,12 +396,13 @@ def build_manifest(*, web_root, db_root, git, docker):
     seed_pins = {name: {'sha256': digest(read_source(db_root, name))} for name in (*NATIVE_HELPERS, NATIVE_BOOTSTRAP, NATIVE_CONTROL)}
     with verified_reuse(web_root, reuse) as modules:
         native = native_dependencies(modules, db_root, seed_pins)
-    dependency_names = list(dict.fromkeys((*NATIVE_HELPERS, NATIVE_BOOTSTRAP, NATIVE_CONTROL, *native['sources'])))
-    dependency_names = [name for name in dependency_names if name not in CONTRACT_PREFIX]
+    additional = (VOTE_TYPE_SOURCE, VOTE_PRIOR_SOURCE) if prefix != CONTRACT_PREFIX else ()
+    dependency_names = dict.fromkeys((*NATIVE_HELPERS, NATIVE_BOOTSTRAP, NATIVE_CONTROL, *native['sources'], *additional))
+    dependency_names = [name for name in dependency_names if name not in prefix]
     manifest = {
         **heads, 'dbProductCommit': DB_PRODUCT_COMMIT,
         'kit': {'path': KIT_PATH, 'sha256': digest(read_source(db_root, KIT_PATH))},
-        'contractPrefix': [{'path': name, 'sha256': digest(read_source(db_root, name))} for name in CONTRACT_PREFIX],
+        'contractPrefix': [{'path': name, 'sha256': digest(read_source(db_root, name))} for name in prefix],
         'dependencySources': [{'path': name, 'sha256': digest(read_source(db_root, name))} for name in dependency_names],
         'dependencySqlSha256': native['dependencySqlSha256'], 'queueDependencySqlSha256': native['queueDependencySqlSha256'],
         'webSources': {name: digest(read_source(web_root, name)) for name in sorted(REQUIRED_WEB_SOURCES)},
@@ -963,12 +989,38 @@ def sql_literal(value):
     return "'" + value.replace("'", "''") + "'"
 
 
-def setup_database(pair, modules, manifest, native, out, evidence, secrets, *, prefix=CONTRACT_PREFIX, labels=()):
-    """Bootstrap, dependencies, positive engine control, then the authentic prefix once and in order."""
+def integrated_vote_prerequisites(read_pinned):
+    # The selected-source payment fixture has no vote endpoint or migration ledger.
+    # Install the authentic prior vote function so the migration can verify and patch it.
+    vote_type = re.match(r'create type public\.wallet_vote_result as \([\s\S]*?^\);',
+                         read_pinned(VOTE_TYPE_SOURCE).decode(), re.MULTILINE)
+    prior = read_pinned(VOTE_PRIOR_SOURCE).decode().split('$prior$')
+    require(vote_type is not None and len(prior) == 3 and prior[1].startswith(
+        'CREATE OR REPLACE FUNCTION public.perform_vote_transaction_v3('), 'DEPENDENCY_CLOSURE',
+        'Prior vote type or function is unavailable')
+    return f"""
+begin;
+create schema supabase_migrations authorization postgres;
+create table supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
+alter table supabase_migrations.schema_migrations owner to postgres;
+set local check_function_bodies=off;
+set local search_path=public,extensions,pg_catalog;
+{vote_type.group()}
+alter type public.wallet_vote_result owner to wallet_command_owner;
+{prior[1].rstrip()};
+alter function public.perform_vote_transaction_v3(uuid,integer,integer,integer,uuid) owner to wallet_command_owner;
+revoke all on function public.perform_vote_transaction_v3(uuid,integer,integer,integer,uuid) from public,anon,authenticated;
+grant execute on function public.perform_vote_transaction_v3(uuid,integer,integer,integer,uuid) to service_role,wallet_test;
+commit;
+"""
+
+
+def setup_database(pair, modules, manifest, native, out, evidence, secrets, *, db_root, smoke=False, labels=()):
+    """Install the verified fixture, approved main baseline, and pending web contract in order."""
     pins = {row['path']: row['sha256'] for row in (*manifest['contractPrefix'], *manifest['dependencySources'])}
 
     def db_bytes(name):
-        data = read_source(DB_ROOT, name)
+        data = read_source(db_root, name)
         require(digest(data) == pins.get(name), 'SOURCE_DRIFT', 'Execution input differs from its pin: ' + name)
         return data
 
@@ -978,14 +1030,19 @@ def setup_database(pair, modules, manifest, native, out, evidence, secrets, *, p
     step('bootstrap', db_bytes(NATIVE_BOOTSTRAP), 'fixture_admin')
     step('dependencies', native['definitions'], 'fixture_admin')
     step('queue-dependencies', native['queueSql'], 'fixture_admin')
+    prefix = tuple(row['path'] for row in manifest['contractPrefix'])
+    if prefix != CONTRACT_PREFIX:
+        step('integrated-vote-prerequisites', integrated_vote_prerequisites(db_bytes), 'fixture_admin')
+        for name in INTEGRATED_BASELINE_PINS:
+            step(name.rsplit('/', 1)[1], 'begin;\n' + db_bytes(name).decode() + '\ncommit;', 'postgres')
+            evidence.setdefault('appliedMigrations', []).append(name)
     step('positive-engine-control', db_bytes(NATIVE_CONTROL), 'postgres', 'positive-refund-control-complete')
     evidence['engineControlCompleted'] = True
-    require(tuple(prefix) == CONTRACT_PREFIX[:len(prefix)] and len(prefix) in (10, 15), 'CONTRACT_PREFIX_MISMATCH',
-            'Only the exact current10 or the exact 15-stage prefix is installable')
-    for name in prefix:
+    for name in (CURRENT10 if smoke else CONTRACT_PREFIX):
         step(name.rsplit('/', 1)[1], db_bytes(name), 'postgres')
         evidence.setdefault('appliedMigrations', []).append(name)
-    evidence['installedPrefix'] = 'current10+M1-M5' if len(prefix) == 15 else 'current10'
+    baseline = 'main5+' if prefix != CONTRACT_PREFIX else ''
+    evidence['installedPrefix'] = baseline + ('current10' if smoke else 'current10+M1-M5')
     step('authenticator', 'create role authenticator login noinherit nosuperuser nobypassrls password '
          + sql_literal(modules['pair_fixture'].PUBLIC_PASSWORD)
          + '; grant anon,authenticated,service_role to authenticator; grant connect on database fixture to authenticator;',
@@ -1811,10 +1868,8 @@ def execute(args, *, git, docker, process, flags, smoke=False):
     require(re.fullmatch(r'[a-z0-9][a-z0-9-]{0,63}', args.run_label) is not None, 'RUN_LABEL', 'Invalid fresh run label')
     preflight = docker or LocalDocker(shutil.which('docker', path=ENV['PATH']) or '/nonexistent', docker_endpoint(),
                                       ROOT / '.artifacts/payment-web-order-http/.intake-hold-docker-config')
-    manifest = verify_manifest(args.manifest, args.manifest_sha256, web_root=ROOT, db_root=DB_ROOT, git=git, docker=preflight)
-    # Run authorization: the actual D checkout must hold the exact ordered prefix and no other migration
-    # after current10, tracked or untracked. The manifest check alone hashes only the listed files.
-    actual_prefix(DB_ROOT)
+    db_root = Path(args.db_root).resolve()
+    manifest = verify_manifest(args.manifest, args.manifest_sha256, web_root=ROOT, db_root=db_root, git=git, docker=preflight)
     for parent in (ROOT / '.artifacts', ROOT / '.artifacts/payment-web-order-http'):
         require(not parent.is_symlink(), 'ARTIFACT_PATH', 'Artifact parent symlinks are forbidden')
     os.umask(0o077)
@@ -1849,14 +1904,14 @@ def execute(args, *, git, docker, process, flags, smoke=False):
         modules = stack.enter_context(verified_reuse(ROOT, manifest['reuseSources']))
         evidence['stage'] = 'native-dependencies'
         pins = {row['path']: {'sha256': row['sha256']} for row in (*manifest['contractPrefix'], *manifest['dependencySources'])}
-        native = native_dependencies(modules, DB_ROOT, pins)
+        native = native_dependencies(modules, db_root, pins)
         require(all(name in pins for name in (*native['sources'], NATIVE_BOOTSTRAP, NATIVE_CONTROL)), 'DEPENDENCY_CLOSURE',
                 'A native dependency source has no manifest pin')
         require(native['dependencySqlSha256'] == manifest['dependencySqlSha256']
                 and native['queueDependencySqlSha256'] == manifest['queueDependencySqlSha256'], 'DEPENDENCY_SQL',
                 'Recomputed dependency SQL differs from the manifest digests')
         evidence['dependencies'] = {key: native[key] for key in ('dependencySqlSha256', 'queueDependencySqlSha256', 'sources')}
-        verify_sources(manifest, ROOT, DB_ROOT)
+        verify_sources(manifest, ROOT, db_root)
         evidence['stage'] = 'bundle'
         node = shutil.which('node', path=ENV['PATH'])
         require(node is not None, 'EXECUTABLES', 'Installed Node is required')
@@ -1881,7 +1936,7 @@ def execute(args, *, git, docker, process, flags, smoke=False):
         pins_now = {'bundleSha256': digest((node_out / BUNDLE_NAME).read_bytes()), 'guardSha256': digest(guard),
                     'entryDeliverySha256': digest(entry)}
         evidence['bundle'] = {'inputs': sorted(inputs), 'esbuildVersion': meta.get('esbuildVersion'), **pins_now}
-        verify_sources(manifest, ROOT, DB_ROOT)
+        verify_sources(manifest, ROOT, db_root)
 
         evidence['stage'] = 'factory-start'
         transport = docker or LocalDocker(preflight.executable, preflight.endpoint, out / 'empty-docker-config', docker_log)
@@ -1891,7 +1946,7 @@ def execute(args, *, git, docker, process, flags, smoke=False):
         evidence['stage'] = 'database-setup'
         labels = () if smoke else tuple(phase_labels(args.phase))
         orders = setup_database(pair, modules, manifest, native, out, evidence, secrets,
-                                prefix=CURRENT10 if smoke else CONTRACT_PREFIX, labels=labels)
+                                db_root=db_root, smoke=smoke, labels=labels)
         observer_sql = read_source(ROOT, PREFIX + 'observer.sql')
         evidence['stage'] = 'installed-contract'
         evidence['installedContract'] = require_installed_contract(pair, observer_sql)
@@ -1943,10 +1998,9 @@ def execute(args, *, git, docker, process, flags, smoke=False):
                 logs.append({'log': name, 'status': 'REJECTED', 'error': error(exc)})
         evidence['childLogs'] = logs
         try:
-            # Step 4. Final pins: the actual ordered prefix, then every manifest pin again.
+            # Step 4. Verify the migration profile and every manifest pin again.
             try:
-                actual_prefix(DB_ROOT)
-                verify_manifest(args.manifest, args.manifest_sha256, web_root=ROOT, db_root=DB_ROOT, git=git, docker=preflight)
+                verify_manifest(args.manifest, args.manifest_sha256, web_root=ROOT, db_root=db_root, git=git, docker=preflight)
                 evidence['sourcesUnchanged'] = True
             except BaseException as exc:
                 evidence.update(sourcesUnchanged=False, sourceVerificationError=error(exc))
@@ -2016,14 +2070,14 @@ def close_pair(pair, evidence):
     return result
 
 
-def missing_contract_smoke(image, manifest, manifest_sha256, run_label, *, git=None, docker=None):
+def missing_contract_smoke(image, manifest, manifest_sha256, run_label, *, db_root=DB_ROOT, git=None, docker=None):
     """Owned smoke: install only current10, then expect the exact MISSING_CONTRACT refusal.
 
     This is not a command-line option. The coordinator calls it from python3 -I -B
     after loading this file. No child process starts and no PostgREST starts.
     """
     args = argparse.Namespace(image=image, phase='canonical', manifest=manifest, manifest_sha256=manifest_sha256,
-                              run_label=run_label)
+                              run_label=run_label, db_root=db_root)
     require(image in ('postgres:15.8', 'postgres:17.6'), 'IMAGE_ID', 'Unsupported PostgreSQL image')
     return execute(args, git=git or _command, docker=docker, process=None, flags=runtime_flags(), smoke=True)
 
@@ -2034,6 +2088,8 @@ def main(argv=None, *, git=None, docker=None, process=None):
     build = commands.add_parser('manifest')
     build.add_argument('--output', required=True)
     run = commands.add_parser('run')
+    for command in (build, run):
+        command.add_argument('--db-root', type=Path, default=DB_ROOT)
     run.add_argument('--image', choices=['postgres:15.8', 'postgres:17.6'], required=True)
     run.add_argument('--phase', choices=['canonical', 'fault'], required=True)
     for name in ('manifest', 'manifest-sha256', 'run-label'):
@@ -2046,7 +2102,7 @@ def main(argv=None, *, git=None, docker=None, process=None):
             require(not output.exists(), 'MANIFEST_OUTPUT', 'Manifest output already exists')
             client = docker or LocalDocker(shutil.which('docker', path=ENV['PATH']) or '/nonexistent', docker_endpoint(),
                                            ROOT / '.artifacts/payment-web-order-http/.intake-hold-docker-config')
-            manifest = build_manifest(web_root=ROOT, db_root=DB_ROOT, git=git or _command, docker=client)
+            manifest = build_manifest(web_root=ROOT, db_root=args.db_root.resolve(), git=git or _command, docker=client)
             output.write_text(json.dumps(manifest, indent=2) + '\n')
             print(json.dumps({'status': 'written', 'manifestSha256': digest(output.read_bytes()), 'output': str(output)}))
             return 0
