@@ -43,7 +43,7 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 <li>임시 웹훅의 삭제는 HTTP 204였고 재조회 결과 등록 0개였다. 임시 HTTPS 터널과 수신기도 종료했다. 이번 검증 범위는 PayPal Sandbox의 구매 승인·청구·환불·웹훅이다. PICNIC의 실제 PostgreSQL 접수·지급·회수 경로 검증과 운영 출시는 대기 중이다. <a href="https://developer.paypal.com/api/rest/webhooks/rest/">PayPal 웹훅 서명 검증</a></li>
 <li>시험에 사용한 Sandbox 앱에서 Transaction Search 설정은 꺼져 있었다. 정산 보고서 원본과 보류 뒤 완료 사례는 확보 대기 중이다. 샌드박스 검증 요약의 SHA-256은 <code>4d406f5eb62a7907b4535b97b1a9cbc0dd9b449c0aae5e61283d3c5a3674182d</code>다.</li>
 <li>재로그인 후 Sandbox 판매자 활동내역에서 같은 청구와 전액 환불을 확인했다. 거래 상세의 <strong>날짜</strong>는 2026-11-24 01:49:05 KST로 표시됐다. 같은 청구의 직접 API 조회는 청구 ID, <code>supplementary_data.related_ids.order_id</code>, 상위 주문에 포함된 단일 청구, USD 1.23과 <code>REFUNDED</code> 상태를 대조했다.</li>
-<li>판매자의 활동내역 CSV를 2026-11-24 하루 범위로 요청했다. PayPal은 이 보고서의 <code>Date</code>, <code>Time</code>, <code>TimeZone</code>을 거래 완료 일시와 시간대로 정의한다. 마지막 확인에서 상태는 <strong>진행 중</strong>이었다. CSV가 생성되면 동일 청구 ID의 행을 대조한다. <a href="https://developer.paypal.com/reports/activity-download/">PayPal 활동내역 보고서 명세</a></li>
+<li>판매자의 2026-11-24 활동내역 CSV에서 같은 청구 ID의 완료 행 1건을 확인했다. 금액은 USD 1.23이다. PayPal이 거래 완료 시각으로 정의한 <code>Date</code>, <code>Time</code>, <code>TimeZone</code>을 합치면 2026-11-24 01:49:05 KST다. UTC로 환산하면 <code>2026-11-23T16:49:05Z</code>이며, 서명 검증된 완료 이벤트의 청구 시각과 일치한다. 이번 결과는 즉시 완료 사례다. 보류 뒤 완료 사례와 자동 수집 경로는 확인 대기 중이다. CSV의 SHA-256은 <code>838504367d64b6916cdb140044858165b06a3e6678e669c0ab738f7cae00356c</code>다. <a href="https://developer.paypal.com/reports/activity-download/">PayPal 활동내역 보고서 명세</a></li>
 </ul>
 <h2>로컬 웹 회귀 검증</h2>
 <p>구매 화면, 브라우저 결제 호출, 새 주문 API의 집중 시험 31개가 통과했다. 전체 웹 시험은 279개 파일에서 7,259개 통과, 1개 건너뜀이다. 제품과 집중 시험의 TypeScript 검사, 변경 경로의 린트, H1 검사기 시험 71개가 통과했다. 웹 시험은 합성 PayPal 응답과 세션으로 실행했다.</p>
