@@ -48,11 +48,19 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 <li>전액 환불의 HTTP 201과 <code>COMPLETED</code>, 원래 청구의 <code>REFUNDED</code>, 환불 ID가 일치하는 서명된 알림을 확인했다. 청구의 <code>update_time</code>은 <code>19:13:55Z</code>로 바뀌었다. 임시 웹훅 삭제는 HTTP 204였고 등록 목록은 0개였다. 수신기와 터널의 종료도 확인했다. 시험 요약의 SHA-256은 <code>0fffdbf40b8e3852830a3f431b6b26d58cd5cc4ae7967db8d84072c67e75312f</code>다.</li>
 </ul>
 <p>자동 수집 후보는 PayPal 정산 보고서다. PayPal이 판매자의 보고서 구독을 활성화해야 하며, SFTP는 별도 계정을 사용한다. 거래 조회 API의 시작·최근 변경 시각은 정산 보고서의 완료 필드와 의미가 다르다. 현재 남은 검증은 해당 판매자의 정산 보고서 접근과, 동일 청구가 보류에서 완료된 뒤 그 보고서의 계정·청구 ID·금액 및 완료 시각이 서명 이벤트와 대조되는지 확인하는 것이다. 일일 보고서에 의존하는 지급은 보고서가 도착할 때까지 기다려야 한다. <a href="https://developer.paypal.com/platforms/reports/sftp-access">PayPal SFTP 접근 요건</a> · <a href="https://developer.paypal.com/api/transaction-search/v1/definitions/transaction_detail/">PayPal 거래 조회 필드</a></p>
+<h3>PayPal 기술지원 문의 초안</h3>
+<p>2026-11-24 저장된 패스키로 PayPal Developer에 재로그인을 시도했다. PayPal 인증 화면에서 오류를 반환해 판매자별 보고서 구독 상태는 확인하지 못했다. 아래 문의는 제출 승인을 기다린다. <a href="https://developer.paypal.com/docs/multiparty/troubleshoot/">PayPal 기술지원 접수 안내</a></p>
+<blockquote lang="en">
+<p><strong>Subject</strong> · Orders v2 Sandbox delayed capture and Settlement Report access</p>
+<p>We are validating order fulfillment for a Korean merchant using PayPal Checkout and Orders v2. Can you confirm whether Settlement Reports (STL) over SFTP are available for our Sandbox business account? Please advise how to enable that Sandbox subscription and confirm eligibility for the live merchant account.</p>
+<p>Can you provide a supported Sandbox procedure to create a PayPal wallet capture that moves from <code>PENDING</code> to <code>COMPLETED</code> under the same capture ID? We need to compare that capture with the matching sale row's <code>transaction_id</code> and <code>transaction_completion_date</code>. Please confirm whether the field records the first completion and whether a later refund can change it. Please also confirm if a supported API can return the same completion time before the daily report is available.</p>
+</blockquote>
 <h2>로컬 웹 회귀 검증</h2>
 <p>구매 화면, 브라우저 결제 호출, 새 주문 API의 집중 시험 31개가 통과했다. 전체 웹 시험은 279개 파일에서 7,259개 통과, 1개 건너뜀이다. 제품과 집중 시험의 TypeScript 검사, 변경 경로의 린트, H1 검사기 시험 71개가 통과했다. 웹 시험은 합성 PayPal 응답과 세션으로 실행했다.</p>
 <p>독립 재검토에서 리뷰어는 상품 불일치·견적 만료·확정 거절의 수정과 보류 상태 표시를 확인했다. 새 High·Medium 지적은 없었다. 샌드박스 후속 검증에는 약관 버전 변경 뒤 견적 복구, 정상 취소 안내, 다른 상품에서 이전 지급 상태를 볼 때의 안내, 청구 시도 후 복구, 공급자 대사 응답이 지연될 때의 동작이 포함된다.</p>
 <p>2026-11-24 격리 PostgreSQL 15.8에서 현재 10개 migration을 설치한 지급·회수 시험과 M1–M5까지 설치한 호환성 시험이 통과했다. 기존 PortOne 지급은 통과했고, PayPal 지급 요청은 <code>COMPLETION_EVIDENCE_REQUIRED</code>로 검토에 남았다. PayPal 상위 주문·청구 참조와 완료 시각을 검사하는 검증기 시험을 포함해 Deno 시험 13개가 통과했다. 모든 입력은 시험용이다.</p>
-<p>M1–M5를 설치한 격리 DB에서 보류 중 접수 차단과 일반 재시도 예산을 별도 DB 연결로 관측했다. 31회 전체 재시도는 취소했다. 단축 시험의 범위에서 읽기 주기 만료, 31회 반복, 후속 32·33번째 요청을 제외했다. 사용한 컨테이너가 모두 제거된 것을 확인했다.</p>
+<p>현재 후보의 PostgreSQL 15.8 단축 시험은 보류 중 접수 차단과 일반 재시도 예산을 별도 DB 연결로 확인했다. 같은 시험의 전체 실행은 중단됐다. 별도로 이전 격리 PostgreSQL 15.8의 전체 실행 원본에서 읽기 주기 만료, 실제 DB 시각을 기다린 보류 재시도 31회, 후속 요청 32·33번째의 일반 재시도 예산 1·2와 지연 2·4초를 확인했다. 이전 실행과 현재 후보에서 migration 15개를 포함한 시험 입력 파일 83개 및 생성 의존 SQL의 SHA-256이 일치한다. 이 대조는 해당 SQL 시험 범위다. 전체 migration 체인과 변경된 Edge 코드는 대조 범위 밖이다. 이전 실행 기록의 SHA-256은 <code>59f871a34a0e9c4f7fdbaa49df993586aeff1864130eeee4f75589ad70eb36df</code>다.</p>
+<p>현재 후보로 격리 PostgreSQL 15.8의 결과 기록 시험을 새로 실행했다. 교차 순서로 들어온 제출·완료 요청, 같은 청구 ID를 연결하려는 경쟁 요청, 대사 큐 잠금 대기 및 실제 기한이 지난 제출의 처리를 별도 연결에서 확인했다. 시험은 종료 코드 0을 반환했다. 소스 해시가 유지됐고 전용 컨테이너가 제거됐다. 실행 기록의 SHA-256은 <code>b8ac0de41e915bb108463791bcdacf5a4f1f07f4badf0e6ecd73d5105daab86a</code>다.</p>
 <p>PayPal은 eCheck가 아직 처리되지 않았거나 판매자가 수동 수락을 설정한 경우 등에서 청구가 보류될 수 있다고 문서화한다. 실제 보류 거래가 완료로 바뀌면 동일 청구 ID와 시각을 판매자 보고서 및 서명 검증된 이벤트에서 대조한다. <a href="https://developer.paypal.com/api/orders/v2/definitions/purchase_unit">PayPal 청구 상태와 보류 사유</a></p>
 <h2>계획을 지탱하는 코드와 이전 검증</h2>
 <ul>
