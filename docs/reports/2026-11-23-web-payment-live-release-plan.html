@@ -42,13 +42,15 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 <li>완료 청구의 <code>create_time</code>과 당시 <code>update_time</code>은 모두 <code>2026-11-23T16:49:05Z</code>였다. 완료 알림의 생성 시각은 <code>16:49:09.750Z</code>였다. 환불 뒤 청구의 <code>update_time</code>은 <code>16:49:50Z</code>로 바뀌었다. 이번 건은 즉시 완료됐다. 보류 뒤 완료되는 건의 시각은 별도로 검증해야 한다.</li>
 <li>임시 웹훅의 삭제는 HTTP 204였고 재조회 결과 등록 0개였다. 임시 HTTPS 터널과 수신기도 종료했다. 이번 검증 범위는 PayPal Sandbox의 구매 승인·청구·환불·웹훅이다. PICNIC의 실제 PostgreSQL 접수·지급·회수 경로 검증과 운영 출시는 대기 중이다. <a href="https://developer.paypal.com/api/rest/webhooks/rest/">PayPal 웹훅 서명 검증</a></li>
 <li>시험에 사용한 Sandbox 앱에서 Transaction Search 설정은 꺼져 있었다. 정산 보고서 원본과 보류 뒤 완료 사례는 확보 대기 중이다. 샌드박스 검증 요약의 SHA-256은 <code>4d406f5eb62a7907b4535b97b1a9cbc0dd9b449c0aae5e61283d3c5a3674182d</code>다.</li>
+<li>재로그인 후 Sandbox 판매자 활동내역에서 같은 청구와 전액 환불을 확인했다. 거래 상세의 <strong>날짜</strong>는 2026-11-24 01:49:05 KST로 표시됐다. 같은 청구의 직접 API 조회는 청구 ID, <code>supplementary_data.related_ids.order_id</code>, 상위 주문에 포함된 단일 청구, USD 1.23과 <code>REFUNDED</code> 상태를 대조했다.</li>
+<li>판매자의 활동내역 CSV를 2026-11-24 하루 범위로 요청했다. PayPal은 이 보고서의 <code>Date</code>, <code>Time</code>, <code>TimeZone</code>을 거래 완료 일시와 시간대로 정의한다. 마지막 확인에서 상태는 <strong>진행 중</strong>이었다. CSV가 생성되면 동일 청구 ID의 행을 대조한다. <a href="https://developer.paypal.com/reports/activity-download/">PayPal 활동내역 보고서 명세</a></li>
 </ul>
 <h2>로컬 웹 회귀 검증</h2>
 <p>구매 화면, 브라우저 결제 호출, 새 주문 API의 집중 시험 31개가 통과했다. 전체 웹 시험은 279개 파일에서 7,259개 통과, 1개 건너뜀이다. 제품과 집중 시험의 TypeScript 검사, 변경 경로의 린트, H1 검사기 시험 71개가 통과했다. 웹 시험은 합성 PayPal 응답과 세션으로 실행했다.</p>
 <p>독립 재검토에서 리뷰어는 상품 불일치·견적 만료·확정 거절의 수정과 보류 상태 표시를 확인했다. 새 High·Medium 지적은 없었다. 샌드박스 후속 검증에는 약관 버전 변경 뒤 견적 복구, 정상 취소 안내, 다른 상품에서 이전 지급 상태를 볼 때의 안내, 청구 시도 후 복구, 공급자 대사 응답이 지연될 때의 동작이 포함된다.</p>
 <p>2026-11-24 격리 PostgreSQL 15.8에서 현재 10개 migration을 설치한 지급·회수 시험과 M1–M5까지 설치한 호환성 시험이 통과했다. 기존 PortOne 지급은 통과했고, PayPal 지급 요청은 <code>COMPLETION_EVIDENCE_REQUIRED</code>로 검토에 남았다. PayPal 상위 주문·청구 참조와 완료 시각을 검사하는 검증기 시험을 포함해 Deno 시험 13개가 통과했다. 모든 입력은 시험용이다.</p>
 <p>M1–M5를 설치한 격리 DB에서 보류 중 접수 차단과 일반 재시도 예산을 별도 DB 연결로 관측했다. 31회 전체 재시도는 취소했다. 단축 시험의 범위에서 읽기 주기 만료, 31회 반복, 후속 32·33번째 요청을 제외했다. 사용한 컨테이너가 모두 제거된 것을 확인했다.</p>
-<p>PayPal은 eCheck가 아직 처리되지 않았거나 판매자가 수동 수락을 설정한 경우 등에서 청구가 보류될 수 있다고 문서화한다. 실제 보류 거래가 완료로 바뀌면 동일 청구 ID와 시각을 판매자 보고서 및 서명 검증된 이벤트에서 대조한다. 현재 PayPal의 저장 패스키 인증이 실패해 판매자 보고서 접근을 확인하지 못했다. <a href="https://developer.paypal.com/api/orders/v2/definitions/purchase_unit">PayPal 청구 상태와 보류 사유</a></p>
+<p>PayPal은 eCheck가 아직 처리되지 않았거나 판매자가 수동 수락을 설정한 경우 등에서 청구가 보류될 수 있다고 문서화한다. 실제 보류 거래가 완료로 바뀌면 동일 청구 ID와 시각을 판매자 보고서 및 서명 검증된 이벤트에서 대조한다. <a href="https://developer.paypal.com/api/orders/v2/definitions/purchase_unit">PayPal 청구 상태와 보류 사유</a></p>
 <h2>계획을 지탱하는 코드와 이전 검증</h2>
 <ul>
 <li><a href="../superpowers/plans/2026-11-12-web-payment-implementation.html">웹 결제 원 계획</a></li>
