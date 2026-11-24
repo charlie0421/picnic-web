@@ -88,7 +88,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
       </div>
 
       {rewards.length > 0 && (
-        <section aria-labelledby="vote-rewards-title" className="mx-4 mb-4">
+        <section aria-labelledby="vote-rewards-title" className="mb-4 px-4">
           <h2 id="vote-rewards-title" className="mb-1 text-sm font-semibold text-gray-700">{t('label_vote_reward_list')}</h2>
           <ul className="flex gap-2 overflow-x-auto p-1">
             {rewards.map((reward) => (
@@ -96,7 +96,7 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
                 <Link
                   href={`/${currentLanguage}/rewards/${reward.id}`}
                   prefetch={false}
-                  className="flex min-h-9 items-center gap-2 rounded-lg border border-secondary-200 bg-secondary-50 px-3 py-1 text-sm font-medium text-gray-900 hover:bg-secondary-100 focus-visible:outline-primary"
+                  className="flex items-center gap-2 rounded-lg border border-secondary-200 bg-secondary-50/80 px-3 py-2 text-sm font-medium text-gray-900 hover:shadow-md focus-visible:outline-primary-500"
                 >
                   {reward.thumbnail && (
                     <OptimizedImage src={reward.thumbnail} alt="" width={24} height={24} className="h-6 w-6 shrink-0 rounded object-cover" />
