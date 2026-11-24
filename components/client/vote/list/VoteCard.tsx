@@ -152,9 +152,9 @@ export const VoteCard = React.memo(
       <div className={containerClass}>
         <NavigationLink
           href={`/vote/${vote.id}`}
-          className='!block w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 rounded-xl'
+          className={`!block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 rounded-xl ${rewards.length === 0 ? 'flex-1' : ''}`}
         >
-          <div className='flex flex-col h-full'>
+          <div className='flex flex-col'>
             <div className='relative'>
               {vote.main_image && (
                 <div className='bg-gray-200 relative overflow-hidden aspect-[4/3]'>
