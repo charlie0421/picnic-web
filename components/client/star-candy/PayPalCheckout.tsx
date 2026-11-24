@@ -72,7 +72,8 @@ export function PayPalCheckout({ userId, productId, language, t, onClose }: Prop
   const quote = attempt?.quote;
   const currentProduct = !attempt || attempt.input.productId === productId.toUpperCase();
   const requestId = attempt?.input.requestId;
-  const priorAttempt = !currentProduct || Boolean(quote && Date.parse(quote.expiresAt) <= Date.now());
+  const policyChanged = Boolean(attempt && policy && attempt.input.acceptedPolicyVersion !== policy);
+  const priorAttempt = policyChanged || !currentProduct || Boolean(quote && Date.parse(quote.expiresAt) <= Date.now());
   const quoteMatchesEnvironment = quote?.environment === (environment === 'sandbox' ? 'SANDBOX' : 'LIVE');
   const canReuse = !attempt || (attempt.input.billingCountry === country && attempt.input.acceptedPolicyVersion === policy);
   const granted = outcome?.state === 'STATUS' && outcome.settlementState === 'GRANTED';
@@ -87,7 +88,7 @@ export function PayPalCheckout({ userId, productId, language, t, onClose }: Prop
 
   useEffect(() => {
     const container = host.current;
-    if (!allowButtons || !quote || !container || !configured || !quoteMatchesEnvironment || !currentProduct) return;
+    if (!allowButtons || !quote || !container || !configured || !quoteMatchesEnvironment || !currentProduct || policyChanged) return;
     let active = true;
     let buttons: PayPalButtonsComponent | undefined;
     const api = payPalOrderApi(quote.orderId);
@@ -134,7 +135,7 @@ export function PayPalCheckout({ userId, productId, language, t, onClose }: Prop
       void buttons?.close().catch(() => undefined);
       void actions.cancel();
     };
-  }, [allowButtons, quote, configured, quoteMatchesEnvironment, currentProduct, storageKey, requestId, clientId, environment]);
+  }, [allowButtons, quote, configured, quoteMatchesEnvironment, currentProduct, policyChanged, storageKey, requestId, clientId, environment]);
 
   function discardAttempt(expected: string) {
     if (recover(storageKey)?.input.requestId !== expected) return;
@@ -198,7 +199,7 @@ export function PayPalCheckout({ userId, productId, language, t, onClose }: Prop
       }
       const status = await payPalOrderApi(order.orderId)('status');
       if (!mounted.current) return;
-      if (notSubmitted(status) && (!currentProduct || Date.parse(order.expiresAt) <= Date.now())) {
+      if (notSubmitted(status) && (priorAttempt || Date.parse(order.expiresAt) <= Date.now())) {
         const saved = recover(storageKey);
         if (saved?.input.requestId === attempt.input.requestId && !saved.captureAttempted) {
           discardAttempt(saved.input.requestId);
@@ -210,7 +211,8 @@ export function PayPalCheckout({ userId, productId, language, t, onClose }: Prop
       setHasUpdate(true);
       setFailed(false);
     } catch (error) {
-      if (error instanceof PayPalQuoteRefused && !quote) {
+      if (error instanceof PayPalQuoteRefused && !quote
+        && (!policyChanged || error.code === 'WEB_PAYMENT_POLICY_CHANGED')) {
         try { discardAttempt(attempt.input.requestId); } catch { /* Keep the saved attempt on storage failure. */ }
       }
       if (mounted.current) setFailed(true);
@@ -259,7 +261,7 @@ export function PayPalCheckout({ userId, productId, language, t, onClose }: Prop
         )}
         {priorAttempt && <p className="text-sm">{language === 'ko'
           ? '이 탭의 이전 주문 상태를 확인하세요.' : 'Check the previous order in this tab.'}</p>}
-        {(quote || !currentProduct) && <>
+        {(quote || priorAttempt) && <>
           {quote && currentProduct && <>
             <p className="text-sm">{quote.productName}</p>
             <p className="text-lg font-semibold">{formatUsd(quote.amountMinor)}</p>

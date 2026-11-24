@@ -82,6 +82,113 @@ function status(settlementState = 'NOT_INTAKE') {
     state: 'STATUS', newOrderAllowed: false, paymentState: 'NOT_SUBMITTED', settlementState, reviewRequired: false });
 }
 
+it.each(['STAR_100', 'STAR_200'])('allows new consent after an old quote request is refused for %s', async productId => {
+  vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
+  sessionStorage.setItem(key, JSON.stringify({ input }));
+  const fetcher = vi.fn(async (_url: string, _init: RequestInit) =>
+    Response.json({ error: 'WEB_PAYMENT_POLICY_CHANGED' }, { status: 409 }));
+  vi.stubGlobal('fetch', fetcher);
+  const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
+  render(<PayPalCheckout userId={ACTOR} productId={productId} language="en" t={key => key} onClose={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' }));
+  await waitFor(() => expect(sessionStorage.getItem(key)).toBeNull());
+  expect(screen.getByLabelText('Billing country (two letters)')).toBeEnabled();
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByRole('button', { name: 'confirm_payment' })).toBeDisabled();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(fetcher.mock.calls[0][0]).toBe('/api/payment/orders');
+  expect(JSON.parse(String(fetcher.mock.calls[0][1].body))).toEqual({
+    productId: 'STAR_100', billingCountry: 'US', provider: 'paypal',
+    requestId: ORDER, acceptedPolicyVersion: 'policy-1',
+  });
+  expect(sdk.loadScript).not.toHaveBeenCalled();
+});
+
+it('retires a recovered quote under previous terms only after confirming no submission or intake', async () => {
+  vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
+  sessionStorage.setItem(key, JSON.stringify({ input }));
+  const fetcher = vi.fn(async (url: string) => {
+    if (url.endsWith('/status')) return status();
+    return Response.json({ contractVersion: 'web-payment-order.v1', orderId: ORDER,
+      quote: { environment: 'SANDBOX', provider: 'paypal', currency: 'USD', productId: 'STAR_100',
+        billingCountry: 'US', acceptedPolicyVersion: 'policy-1', productName: 'Prior Quote',
+        amountMinor: '123', expiresAt: new Date(Date.now() + 60_000).toISOString() } });
+  });
+  vi.stubGlobal('fetch', fetcher);
+  const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
+  render(<PayPalCheckout userId={ACTOR} productId="STAR_100" language="en" t={key => key} onClose={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' }));
+  await waitFor(() => expect(sessionStorage.getItem(key)).toBeNull());
+  expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+    '/api/payment/orders', '/api/payment/orders/' + ORDER + '/paypal/status',
+  ]);
+  expect(sdk.loadScript).not.toHaveBeenCalled();
+});
+
+it('keeps an old quote and capture marker when the status is indeterminate', async () => {
+  vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
+  saveQuote(new Date(Date.now() + 60_000).toISOString(), true);
+  const saved = sessionStorage.getItem(key);
+  const fetcher = vi.fn(async () => Response.json({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+    state: 'STATUS', newOrderAllowed: false, paymentState: 'SUBMISSION_UNKNOWN', settlementState: 'NOT_INTAKE',
+    reviewRequired: false }));
+  vi.stubGlobal('fetch', fetcher);
+  const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
+  render(<PayPalCheckout userId={ACTOR} productId="STAR_100" language="en" t={key => key} onClose={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' }));
+  expect(await screen.findByText('label_payment_pending')).toBeInTheDocument();
+  expect(sessionStorage.getItem(key)).toBe(saved);
+  expect(screen.queryByRole('button', { name: 'confirm_payment' })).not.toBeInTheDocument();
+  expect(sdk.loadScript).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['an unknown submission', { paymentState: 'SUBMISSION_UNKNOWN' }],
+  ['a pending intake', { settlementState: 'INTAKE_PENDING' }],
+  ['an outstanding review', { reviewRequired: true }],
+  ['an unavailable order', { state: 'NOT_FOUND' }],
+])('keeps an old quote with %s even without a capture marker', async (_name, change) => {
+  vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
+  saveQuote(new Date(Date.now() + 60_000).toISOString());
+  const saved = sessionStorage.getItem(key);
+  const fetcher = vi.fn(async () => Response.json({ contractVersion: 'web-payment-charge.v1', orderId: ORDER,
+    state: 'STATUS', newOrderAllowed: false, paymentState: 'NOT_SUBMITTED', settlementState: 'NOT_INTAKE',
+    reviewRequired: false, ...change }));
+  vi.stubGlobal('fetch', fetcher);
+  const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
+  render(<PayPalCheckout userId={ACTOR} productId="STAR_100" language="en" t={key => key} onClose={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'label_payment_status' })).toBeEnabled());
+  expect(sessionStorage.getItem(key)).toBe(saved);
+  expect(screen.queryByRole('button', { name: 'confirm_payment' })).not.toBeInTheDocument();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(sdk.loadScript).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['an idempotency conflict', 'WEB_PAYMENT_REQUEST_CONFLICT', 409],
+  ['an unexpected status for a policy error', 'WEB_PAYMENT_POLICY_CHANGED', 503],
+  ['an authentication failure', 'AUTHENTICATION_REQUIRED', 401],
+  ['a request rejected at the API boundary', 'WEB_PAYMENT_NOT_AVAILABLE', 403],
+])('keeps the request after %s under previous terms', async (_name, error, responseStatus) => {
+  vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
+  sessionStorage.setItem(key, JSON.stringify({ input }));
+  const saved = sessionStorage.getItem(key);
+  const fetcher = vi.fn(async () => Response.json({ error }, { status: responseStatus }));
+  vi.stubGlobal('fetch', fetcher);
+  const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
+  render(<PayPalCheckout userId={ACTOR} productId="STAR_200" language="en" t={key => key} onClose={vi.fn()} />);
+
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' })); });
+  expect(sessionStorage.getItem(key)).toBe(saved);
+  expect(screen.queryByRole('button', { name: 'confirm_payment' })).not.toBeInTheDocument();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
 it.each([
   ['another product', 'STAR_200', 60_000],
   ['an expired quote', 'STAR_100', -1000],

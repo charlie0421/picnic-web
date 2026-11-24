@@ -16,7 +16,11 @@ type OrderUpdate = (outcome: PayPalChargeBrowserDto | null) => void;
 const cache = 'no-store' as const;
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
-export class PayPalQuoteRefused extends Error {}
+export class PayPalQuoteRefused extends Error {
+  constructor(readonly code: string) {
+    super(code);
+  }
+}
 
 // Only server responses that explicitly reject the request before creating an order.
 const refusedQuoteStatuses = new Map([
@@ -24,6 +28,7 @@ const refusedQuoteStatuses = new Map([
   ['ACCOUNT_UNAVAILABLE', 403],
   ['WEB_PAYMENT_NOT_AVAILABLE', 403],
   ['AUTHENTICATION_REQUIRED', 401],
+  ['WEB_PAYMENT_POLICY_CHANGED', 409],
 ]);
 
 function unavailable(): Error {
@@ -42,7 +47,7 @@ export async function createQuotedPayPalOrder(
   });
   const result = await response.json();
   if (!response.ok) {
-    if (refusedQuoteStatuses.get(result?.error) === response.status) throw new PayPalQuoteRefused();
+    if (refusedQuoteStatuses.get(result?.error) === response.status) throw new PayPalQuoteRefused(result.error);
     throw unavailable();
   }
   const quote = result?.quote;
