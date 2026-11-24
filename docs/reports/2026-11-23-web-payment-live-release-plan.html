@@ -15,6 +15,7 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 <p><strong>2026-11-24 · 운영 DB 적용 완료, 고객 출시 대기.</strong> PostgreSQL 15.8을 기준으로 한다. 새 PayPal 결제에서 구매 승인부터 지급까지 검증한 뒤 고객에게 연다. 적용 순서는 기존 운영 승인 범위를 따른다.</p>
 <h2>확인한 운영 상태</h2>
 <p>2026-11-24 14:42 KST에 <code>PICNIC-PROD</code>에서 승인된 웹 결제 DB 마이그레이션 15개를 적용했다. 각 원장의 SQL 해시와 최종 RPC 매니페스트를 확인했다. 웹 등록·청구 플래그는 모두 닫혀 있고 웹 결제 cron은 0개다. 기존 공용 지갑 작업자와 heartbeat cron은 활성 상태다. <a href="2026-11-23-web-payment-og2-pg15-readiness.html">운영 DB 적용 기록</a></p>
+<p>같은 날 16:42 KST에 읽기 전용 조회로 열린 등록·청구 플래그 0개, 웹 결제 cron 0개, <code>WEB_PURCHASE_V2</code> 행 부재를 확인했다. 운영 Edge Function은 <code>wallet-operation-worker</code> 버전 39와 <code>wallet-provider-event</code> 버전 37이 활성 상태였다.</p>
 <p>2026-11-23 19:18:04 KST에 <code>PICNIC-PROD</code>의 서버 버전과 원장·등록 정보를 읽기 전용으로 조회했다. 서버 버전은 <code>150008</code>, 원장 최신 버전은 <code>20261120120000</code>이다. 선행 5개의 원장 이름과 단일 SQL 텍스트의 SHA256이 고정 소스와 일치했다. 대상 15개는 모두 미적용 상태다. 웹 공급자 설정 테이블은 없으며, 공용 지갑 작업자 cron은 활성 1개, 웹 재조정 cron은 0개다. 적용 작업 창에서 다시 조회한다.</p>
 <h2>고객 출시까지의 순서</h2>
 <ol>
@@ -65,6 +66,8 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 <p>We need to compare a delayed capture with the matching sale row's <code>transaction_id</code> and <code>transaction_completion_date</code>. Please confirm whether the field records the first completion and whether a later refund can change it. Please also confirm if a supported API can return the same completion time before the daily report is available.</p>
 </blockquote>
 <h2>로컬 웹 회귀 검증</h2>
+<p>배포 준비 점검에서 W <code>fed8bbdc</code>의 <code>npm run build</code>가 통과했다. 운영 자격 증명 없이 로컬 Supabase 응답과 캐시한 공개 폰트로 빌드했다. 같은 빌드를 구동해 기존 PayPal API 410 응답 두 건, 타 Origin 403, 동일 Origin의 미인증 401, 내부 대사 secret이 없을 때 503을 확인했다. 다섯 요청의 fixture 호출은 0건이었다. 처음 사용한 <code>127.0.0.1</code> Origin은 Next.js의 <code>localhost</code> 정규화로 거부됐다. <code>localhost</code> 요청으로 다시 확인했다.</p>
+<p>D <code>9c6a3256</code>과 원격 <code>main</code> <code>60e0be29</code>의 병합 트리에 충돌이 없었다. 해당 트리에서 외부 네트워크를 차단한 Deno 지갑 시험 735개가 통과했다. 별도 로컬 DB가 필요한 광고 시험 파일 하나는 이 실행의 범위 밖이었다. W 검증 SHA로 Vercel Preview를 조회한 결과는 0건이었다. 후보 브랜치 두 개와 PR은 원격에 없었다. 배포 준비 검증 기록 SHA256은 <code>4d407bb546ef3597568d50dce35ff96777e83450e52942e7afee4d834e5f3859</code>이다.</p>
 <p>구매 화면, 브라우저 결제 호출, 새 주문 API의 집중 시험 31개가 통과했다. 전체 웹 시험은 279개 파일에서 7,259개 통과, 1개 건너뜀이다. 제품과 집중 시험의 TypeScript 검사, 변경 경로의 린트, H1 검사기 시험 71개가 통과했다. 웹 시험은 합성 PayPal 응답과 세션으로 실행했다.</p>
 <p>2026-11-24 외부 네트워크를 차단하고 결제 API, 결제 라이브러리 및 PayPal 구매 화면의 회귀 시험을 다시 실행했다. 22개 파일의 시험 1,849개가 통과했다. 프로젝트 TypeScript 검사도 종료 코드 0을 반환했다. Vitest 결과의 SHA-256은 <code>24f892ca0a7980068958998c78de415f1fc4a2aef24b3688f884ed834c993053</code>다.</p>
 <p>독립 재검토에서 리뷰어는 상품 불일치·견적 만료·확정 거절의 수정과 보류 상태 표시를 확인했다. 새 High·Medium 지적은 없었다. 샌드박스 후속 검증에는 정상 취소 안내, 다른 상품에서 이전 지급 상태를 볼 때의 안내, 청구 시도 후 복구, 공급자 대사 응답이 지연될 때의 동작이 포함된다.</p>
