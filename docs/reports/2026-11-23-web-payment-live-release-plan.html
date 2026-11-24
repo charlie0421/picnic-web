@@ -54,6 +54,7 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 <p>후속 시험에서는 <code>Payment Review</code>를 켜고 설정을 재조회한 뒤 USD 1.23 주문 1건을 만들었다. 구매 승인과 청구 때도 설정은 켜져 있었다. 청구 응답과 별도 조회 모두 <code>PENDING</code>과 <code>PENDING_REVIEW</code>를 반환했다. 주문의 상태는 <code>COMPLETED</code>였지만 청구는 보류 상태였다. 청구 생성은 <code>2026-11-24T02:17:50Z</code>, 서명된 보류 알림의 생성은 <code>02:17:54.460Z</code>였다. 알림의 청구 ID 및 상위 주문 ID를 API 응답과 대조했다. <a href="https://developer.paypal.com/api/orders/v2/definitions/order_status/">PayPal 주문과 청구 상태</a></p>
 <p>Sandbox 판매자 화면의 같은 거래에 해제일 <strong>2026-11-25</strong>가 표시됐다. 거래 목록과 상세의 추가 작업 메뉴에서 수락 버튼을 확인하지 못했다. <code>Payment Review</code>를 끄고 재조회했으며 해당 청구는 여전히 <code>PENDING_REVIEW</code>였다. PayPal은 보류 중인 청구에 환불을 허용하지 않는다. 해당 청구의 완료 확인, 완료 시각과 판매자 활동내역 CSV 대조, 전액 환불이 남았다. <a href="https://developer.paypal.com/api/payments/v2/errors/pending_capture/">PayPal 보류 청구의 환불 조건</a></p>
 <p>임시 웹훅은 HTTP 204로 삭제했고 등록 목록은 0개였다. 삭제 후에도 거래 ID로 보류 알림 1건을 다시 조회했다. 구독이 없는 상태에서 이후 완료 알림이 조회될지는 확인 대기 중이다. 수신기와 터널을 종료했다. 시험 요약의 SHA-256은 <code>5a5346ea5fd08dbb5f9692f07d9451cf54a523086361c1e7d508a4c3a8ca8541</code>다. <a href="https://developer.paypal.com/api/webhooks/v1/webhooks-events-list/">PayPal 이벤트 이력 조회</a></p>
+<p>2026-11-25 12:00 KST에 Orca에서 같은 Sandbox 청구의 재조회를 예약했다. 예약은 해당 날짜에만 실행하도록 제한했다. 접속이 가능하면 청구 상태와 확인 가능한 완료 근거를 보고한다. 브라우저 또는 로그인 세션을 사용할 수 없으면 조회 불가를 보고한다. 예약 작업의 권한은 조회와 결과 보고다.</p>
 <h3>PayPal 기술지원 문의 초안</h3>
 <p>아래 문의는 Sandbox 정산 보고서 활성화와 최초 완료 시각의 확인 방법을 묻는다. 제출 승인을 기다린다. <a href="https://developer.paypal.com/docs/multiparty/troubleshoot/">PayPal 기술지원 접수 안내</a></p>
 <blockquote lang="en">
@@ -64,10 +65,12 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 </blockquote>
 <h2>로컬 웹 회귀 검증</h2>
 <p>구매 화면, 브라우저 결제 호출, 새 주문 API의 집중 시험 31개가 통과했다. 전체 웹 시험은 279개 파일에서 7,259개 통과, 1개 건너뜀이다. 제품과 집중 시험의 TypeScript 검사, 변경 경로의 린트, H1 검사기 시험 71개가 통과했다. 웹 시험은 합성 PayPal 응답과 세션으로 실행했다.</p>
+<p>2026-11-24 외부 네트워크를 차단하고 결제 API, 결제 라이브러리 및 PayPal 구매 화면의 회귀 시험을 다시 실행했다. 22개 파일의 시험 1,849개가 통과했다. 프로젝트 TypeScript 검사도 종료 코드 0을 반환했다. Vitest 결과의 SHA-256은 <code>24f892ca0a7980068958998c78de415f1fc4a2aef24b3688f884ed834c993053</code>다.</p>
 <p>독립 재검토에서 리뷰어는 상품 불일치·견적 만료·확정 거절의 수정과 보류 상태 표시를 확인했다. 새 High·Medium 지적은 없었다. 샌드박스 후속 검증에는 약관 버전 변경 뒤 견적 복구, 정상 취소 안내, 다른 상품에서 이전 지급 상태를 볼 때의 안내, 청구 시도 후 복구, 공급자 대사 응답이 지연될 때의 동작이 포함된다.</p>
 <p>2026-11-24 격리 PostgreSQL 15.8에서 현재 10개 migration을 설치한 지급·회수 시험과 M1–M5까지 설치한 호환성 시험이 통과했다. 기존 PortOne 지급은 통과했고, PayPal 지급 요청은 <code>COMPLETION_EVIDENCE_REQUIRED</code>로 검토에 남았다. PayPal 상위 주문·청구 참조와 완료 시각을 검사하는 검증기 시험을 포함해 Deno 시험 13개가 통과했다. 모든 입력은 시험용이다.</p>
 <p>현재 후보의 PostgreSQL 15.8 단축 시험은 보류 중 접수 차단과 일반 재시도 예산을 별도 DB 연결로 확인했다. 같은 시험의 전체 실행은 중단됐다. 별도로 이전 격리 PostgreSQL 15.8의 전체 실행 원본에서 읽기 주기 만료, 실제 DB 시각을 기다린 보류 재시도 31회, 후속 요청 32·33번째의 일반 재시도 예산 1·2와 지연 2·4초를 확인했다. 이전 실행과 현재 후보에서 migration 15개를 포함한 시험 입력 파일 83개 및 생성 의존 SQL의 SHA-256이 일치한다. 이 대조는 해당 SQL 시험 범위다. 전체 migration 체인과 변경된 Edge 코드는 대조 범위 밖이다. 이전 실행 기록의 SHA-256은 <code>59f871a34a0e9c4f7fdbaa49df993586aeff1864130eeee4f75589ad70eb36df</code>다.</p>
 <p>현재 후보로 격리 PostgreSQL 15.8의 결과 기록 시험을 새로 실행했다. 교차 순서로 들어온 제출·완료 요청, 같은 청구 ID를 연결하려는 경쟁 요청, 대사 큐 잠금 대기 및 실제 기한이 지난 제출의 처리를 별도 연결에서 확인했다. 시험은 종료 코드 0을 반환했다. 소스 해시가 유지됐고 전용 컨테이너가 제거됐다. 실행 기록의 SHA-256은 <code>b8ac0de41e915bb108463791bcdacf5a4f1f07f4badf0e6ecd73d5105daab86a</code>다.</p>
+<p>같은 PostgreSQL 15.8 후보에서 미제출 보류 해제 시험을 별도로 실행했다. 기록의 원자성, 잠금 뒤 보류 재평가, 실제 제출 유예 기간 및 해제 뒤 접수 재자격을 확인했다. 시험은 종료 코드 0을 반환했다. 쓰기 권한 시험에 사용한 설정을 복구했고 전용 컨테이너가 제거됐다. 실행 기록의 SHA-256은 <code>48060b39def4563280543523bbd1ff2c2d91cf5f3fe3e895fb7eee1a66a69dad</code>다. 시험은 격리 DB의 합성 데이터에 한정한다.</p>
 <p>PayPal은 eCheck가 아직 처리되지 않았거나 판매자가 수동 수락을 설정한 경우 등에서 청구가 보류될 수 있다고 문서화한다. 실제 보류 거래가 완료로 바뀌면 동일 청구 ID와 시각을 판매자 보고서 및 서명 검증된 이벤트에서 대조한다. <a href="https://developer.paypal.com/api/orders/v2/definitions/purchase_unit">PayPal 청구 상태와 보류 사유</a></p>
 <h2>계획을 지탱하는 코드와 이전 검증</h2>
 <ul>
