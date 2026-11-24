@@ -87,8 +87,8 @@ export function PayPalCheckout({ userId, productId, language, t, onClose }: Prop
   }, []);
 
   useEffect(() => {
-    const container = host.current;
-    if (!allowButtons || !quote || !container || !configured || !quoteMatchesEnvironment || !currentProduct || policyChanged) return;
+    const buttonHost = host.current;
+    if (!allowButtons || !quote || !buttonHost || !configured || !quoteMatchesEnvironment || !currentProduct || policyChanged) return;
     let active = true;
     let buttons: PayPalButtonsComponent | undefined;
     const api = payPalOrderApi(quote.orderId);
@@ -128,7 +128,7 @@ export function PayPalCheckout({ userId, productId, language, t, onClose }: Prop
         onError: () => stopSdk(true),
       });
       if (!buttons?.isEligible()) throw new Error('WEB_PAYPAL_UNAVAILABLE');
-      await buttons.render(container);
+      await buttons.render(buttonHost);
     }).catch(() => { if (active) setFailed(true); });
     return () => {
       active = false;
