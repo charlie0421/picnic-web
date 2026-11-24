@@ -169,8 +169,14 @@ class PortOneService {
 
       const response = await window.PortOne.requestPayment(paymentRequest);
 
-      if (response.code === null && response.paymentId) {
-        // Payment completed successfully
+      if (response.code == null && response.paymentId && response.paymentId === request.paymentId) {
+        if (response.paymentToken !== undefined) {
+          return {
+            success: false,
+            error: { code: 'PAYMENT_REQUIRES_CONFIRMATION', message: '결제 승인을 기다리고 있습니다.' },
+          };
+        }
+        // The SDK returned for this payment. The server verifies its financial status.
         return {
           success: true,
           paymentId: response.paymentId,
