@@ -30,7 +30,7 @@ vi.mock('@/components/client/vote/detail/useVoteDetail', () => ({
     voteStatus: 'ongoing', canVote: true, searchQuery: 'zzz', handleCardClick: vi.fn(), cancelVote: vi.fn(),
     handleSearch: vi.fn(), rankedVoteItems: items, filteredItems: [], totalVotes: 100, isAdmin: false,
     formatVotePeriod: () => 'Sep 1, 2026 ~ Sep 30, 2026', vote: { id: 1, title: { en: 'Debut Vote' } },
-    rewards: [{ id: 9 }], className: '',
+    rewards: [{ id: 9, title: { en: 'Gangnam Billboard' } }, { id: 10 }], className: '',
   }),
 }));
 vi.mock('@/components/client/vote', () => ({ VoteRankCard: () => null, VoteCard: () => null }));
@@ -56,7 +56,7 @@ const HANGUL = /[ㄱ-힝]/;
 
 describe('VoteDetailPresenter — 영어 화면에 한국어 없음', () => {
   it('상태·총 투표수·타이머·검색·순위·빈 결과·리워드 문구가 모두 번역된다', () => {
-    const { container } = render(<VoteDetailPresenter {...({} as any)} />);
+    const { container } = render(<VoteDetailPresenter {...({ lang: 'ko' } as any)} />);
     const text = container.textContent ?? '';
     const placeholders = Array.from(container.querySelectorAll('[placeholder]')).map((el) => el.getAttribute('placeholder'));
     const labels = Array.from(container.querySelectorAll('[aria-label]')).map((el) => el.getAttribute('aria-label'));
@@ -66,6 +66,7 @@ describe('VoteDetailPresenter — 영어 화면에 한국어 없음', () => {
     expect(labels.join(' ')).not.toMatch(HANGUL);
     expect(text).toContain('Ongoing');
     expect(text).toContain('No search results found.');
-    expect(text).toContain('Rewards #1');
+    expect(container.querySelector('a[href="/en/rewards/9"]')).toHaveTextContent('Gangnam Billboard');
+    expect(container.querySelector('a[href="/en/rewards/10"]')).toHaveTextContent('Rewards');
   });
 });
