@@ -82,6 +82,13 @@ function status(settlementState = 'NOT_INTAKE') {
     state: 'STATUS', newOrderAllowed: false, paymentState: 'NOT_SUBMITTED', settlementState, reviewRequired: false });
 }
 
+function restoredQuote(expiresAt: string) {
+  return Response.json({ contractVersion: 'web-payment-order.v1', orderId: ORDER,
+    quote: { environment: 'SANDBOX', provider: 'paypal', currency: 'USD', productId: 'STAR_100',
+      billingCountry: 'US', acceptedPolicyVersion: 'policy-1', productName: 'Prior Quote',
+      amountMinor: '123', expiresAt } });
+}
+
 it.each(['STAR_100', 'STAR_200'])('allows new consent after an old quote request is refused for %s', async productId => {
   vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
   sessionStorage.setItem(key, JSON.stringify({ input }));
@@ -108,13 +115,8 @@ it.each(['STAR_100', 'STAR_200'])('allows new consent after an old quote request
 it('retires a recovered quote under previous terms only after confirming no submission or intake', async () => {
   vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
   sessionStorage.setItem(key, JSON.stringify({ input }));
-  const fetcher = vi.fn(async (url: string) => {
-    if (url.endsWith('/status')) return status();
-    return Response.json({ contractVersion: 'web-payment-order.v1', orderId: ORDER,
-      quote: { environment: 'SANDBOX', provider: 'paypal', currency: 'USD', productId: 'STAR_100',
-        billingCountry: 'US', acceptedPolicyVersion: 'policy-1', productName: 'Prior Quote',
-        amountMinor: '123', expiresAt: new Date(Date.now() + 60_000).toISOString() } });
-  });
+  const expiresAt = new Date(Date.now() + 60_000).toISOString();
+  const fetcher = vi.fn(async (url: string) => url.endsWith('/status') ? status() : restoredQuote(expiresAt));
   vi.stubGlobal('fetch', fetcher);
   const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
   render(<PayPalCheckout userId={ACTOR} productId="STAR_100" language="en" t={key => key} onClose={vi.fn()} />);
@@ -124,6 +126,30 @@ it('retires a recovered quote under previous terms only after confirming no subm
   expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
     '/api/payment/orders', '/api/payment/orders/' + ORDER + '/paypal/status',
   ]);
+  expect(sdk.loadScript).not.toHaveBeenCalled();
+});
+
+it('saves a recovered quote while the submission is still unknown', async () => {
+  vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
+  sessionStorage.setItem(key, JSON.stringify({ input }));
+  const expiresAt = new Date(Date.now() + 60_000).toISOString();
+  const fetcher = vi.fn(async (url: string) => url.endsWith('/status')
+    ? Response.json({ contractVersion: 'web-payment-charge.v1', orderId: ORDER, state: 'STATUS',
+      newOrderAllowed: false, paymentState: 'SUBMISSION_UNKNOWN', settlementState: 'NOT_INTAKE', reviewRequired: false })
+    : restoredQuote(expiresAt));
+  vi.stubGlobal('fetch', fetcher);
+  const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
+  render(<PayPalCheckout userId={ACTOR} productId="STAR_100" language="en" t={key => key} onClose={vi.fn()} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' }));
+  expect(await screen.findByText('label_payment_pending')).toBeInTheDocument();
+  expect(JSON.parse(sessionStorage.getItem(key) ?? 'null')).toEqual({
+    input, quote: { orderId: ORDER, environment: 'SANDBOX', productName: 'Prior Quote', amountMinor: '123', expiresAt },
+  });
+  expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
+    '/api/payment/orders', '/api/payment/orders/' + ORDER + '/paypal/status',
+  ]);
+  expect(screen.queryByRole('button', { name: 'confirm_payment' })).not.toBeInTheDocument();
   expect(sdk.loadScript).not.toHaveBeenCalled();
 });
 
@@ -140,6 +166,22 @@ it('keeps an old quote and capture marker when the status is indeterminate', asy
 
   fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' }));
   expect(await screen.findByText('label_payment_pending')).toBeInTheDocument();
+  expect(sessionStorage.getItem(key)).toBe(saved);
+  expect(screen.queryByRole('button', { name: 'confirm_payment' })).not.toBeInTheDocument();
+  expect(sdk.loadScript).not.toHaveBeenCalled();
+});
+
+it('keeps a current-product quote with a capture marker after a clean status under previous terms', async () => {
+  vi.stubEnv('NEXT_PUBLIC_WEB_PAYPAL_POLICY_VERSION', 'policy-2');
+  saveQuote(new Date(Date.now() + 60_000).toISOString(), true);
+  const saved = sessionStorage.getItem(key);
+  const fetcher = vi.fn(async (_url: string) => status());
+  vi.stubGlobal('fetch', fetcher);
+  const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
+  render(<PayPalCheckout userId={ACTOR} productId="STAR_100" language="en" t={key => key} onClose={vi.fn()} />);
+
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' })); });
+  expect(fetcher.mock.calls).toEqual([['/api/payment/orders/' + ORDER + '/paypal/status', expect.any(Object)]]);
   expect(sessionStorage.getItem(key)).toBe(saved);
   expect(screen.queryByRole('button', { name: 'confirm_payment' })).not.toBeInTheDocument();
   expect(sdk.loadScript).not.toHaveBeenCalled();
@@ -217,10 +259,13 @@ it('preserves a prior capture attempt even if the old status is not submitted', 
   expect(sdk.loadScript).not.toHaveBeenCalled();
 });
 
-it('saves the request before POST and lets the buyer correct a definite refusal', async () => {
+it.each([
+  ['saves the request before POST and lets the buyer correct a definite refusal', 'WEB_PAYMENT_NOT_AVAILABLE', 403],
+  ['clears the first quote attempt after the server rejects a stale policy', 'WEB_PAYMENT_POLICY_CHANGED', 409],
+])('%s', async (_name, error, responseStatus) => {
   const fetcher = vi.fn(async () => {
     expect(JSON.parse(sessionStorage.getItem(key)!).input.billingCountry).toBe('US');
-    return Response.json({ error: 'WEB_PAYMENT_NOT_AVAILABLE' }, { status: 403 });
+    return Response.json({ error }, { status: responseStatus });
   });
   vi.stubGlobal('fetch', fetcher);
   const { PayPalCheckout } = await import('@/components/client/star-candy/PayPalCheckout');
@@ -232,6 +277,8 @@ it('saves the request before POST and lets the buyer correct a definite refusal'
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(sessionStorage.getItem(key)).toBeNull();
   expect(screen.getByLabelText('Billing country (two letters)')).toBeEnabled();
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(sdk.loadScript).not.toHaveBeenCalled();
 });
 
 it('sends no order when the request id cannot be saved', async () => {
