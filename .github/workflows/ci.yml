@@ -1,8 +1,10 @@
 # PR 과 main 에 대해 타입 검사·lint·테스트를 돌린다.
 #
-# 이 레포는 Preview 배포가 없고 main 머지가 곧 Production 배포다. 머지 전에 볼 수 있는 자동 검증은 이것뿐이다.
-# 일반 빌드는 운영 조회에 의존하므로 합성 데이터 전용 job에서만 빌드한다.
-# 빌드와 렌더링 모드 검사는 Vercel 의 Production 빌드에서 돈다.
+# main 머지가 곧 Production 배포다. 2026-11-25 부터 다른 브랜치는 Vercel Preview 로 배포된다.
+# Preview 는 Vercel 팀 계정으로 로그인해야 열린다. 가장 최근의 Preview 는 고정 주소
+# preview.picnic.fan 으로도 열린다(preview-alias.yml).
+# 일반 빌드는 운영 조회에 의존하므로 여기서는 합성 데이터 전용 job에서만 빌드한다.
+# 빌드와 렌더링 모드 검사는 Vercel 의 Preview 와 Production 빌드에서 돈다.
 name: CI
 
 on:
