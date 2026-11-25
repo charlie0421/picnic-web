@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>포트원 TEST·LIVE 결제수단 통합 설계와 구현 계획</title>
+<style>
+body{max-width:58rem;margin:3rem auto;padding:0 1.25rem;color:#172434;font:16px/1.65 system-ui,sans-serif}
+h1,h2,h3{line-height:1.35}h2{margin-top:2rem}table{border-collapse:collapse;width:100%}th,td{padding:.6rem;border:1px solid #b7c3cc;text-align:left;vertical-align:top}
+th{background:#edf2f6}code,pre{font-family:ui-monospace,monospace}code{overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#f4f6f8;padding:1rem}a{color:#164b73}
+</style>
+</head>
+<body>
+<main>
+<h1>포트원 TEST·LIVE 결제수단 통합</h1>
+<p>2026년 11월 25일 설계 검토안. 별사탕 구매 화면에서 고객이 가맹점 결제창에 표시된 수단을 선택하면 같은 주문으로 결제, 지급, 전액 환불, 회수를 처리한다. TEST와 LIVE는 같은 처리 규칙을 사용한다. 주문, 채널 자격 증명, 알림과 원장은 환경별로 구분한다.</p>
+<h2>기준과 적용 범위</h2>
+<p>검토 기준은 웹 후보 <code>f4943425</code>, DB 후보 <code>cae5f75d</code>, 웹 원격 main <code>250d14dc</code>다. 배포된 웹의 실제 커밋은 확인 대기 중이다. 11월 25일 확인 기록에는 KG이니시스, 카카오페이, 기존 토스페이먼츠 TEST 채널이 있으며 실연동 채널은 0개였다. 가맹점에서 활성화한 수단과 기기별 동작은 채널별로 확인한다. <a href="../../reports/2026-11-23-web-payment-live-release-plan.html">채널과 실카드 시험 기록</a></p>
+<p>카드, 간편결제, 계좌이체, 가상계좌, 휴대폰 결제, 상품권 등 가맹점이 제공하는 일회성 결제가 대상이다. PG가 통합 선택창을 제공하면 고객은 그 안에서 수단을 고른다. SDK가 호출 전에 결제수단을 요구하면 PICNIC에서 해당 채널의 수단을 먼저 선택하게 한다. 전용 카카오페이 채널과 KG 결제창 안의 카카오페이는 서로 다른 채널로 기록한다. 실제 제휴 여부는 환경별 가맹점 설정으로 결정한다. <a href="https://developers.portone.io/opi/ko/integration/pg/v2/inicis-v2">KG이니시스 연동</a> · <a href="https://developers.portone.io/opi/ko/integration/pg/v2/kakaopay">카카오페이 연동</a></p>
+<h2>설계 결정</h2>
+<p>기존 운영 화면의 카드 요청만 바꾸면 새 주문과 환불 원장에 연결되지 않는다. TEST의 카드 판정을 완화하는 방법도 모바일 복귀, 입금 대기, 운영 대사를 해결하지 못한다. 서버 주문에 결제 경로를 고정하고 결제사별 호출 방식을 분리한다. 주문과 지갑의 기존 지급·환불 절차를 재사용한다.</p>
+<table><thead><tr><th>시점</th><th>서버의 처리</th><th>고객 결과</th></tr></thead><tbody>
+<tr><td>주문 생성</td><td>환경, 상점, 채널, 선택 가능한 수단, 견적, 설정 버전을 고정한다. 요청 재전송은 기존 주문과 대조한다.</td><td>브라우저를 새로 열어도 같은 주문을 조회할 수 있다.</td></tr>
+<tr><td>인증 후 복귀</td><td>주문 소유자와 포트원 거래를 확인한다. 수동 승인 채널은 승인 의도를 저장한 뒤 한 번 호출한다. 결과를 잃으면 포트원을 조회한다.</td><td>앱 전환이나 새로고침이 두 번째 청구로 이어지지 않는다.</td></tr>
+<tr><td>가상계좌 발급</td><td>발급 시점에 유효했던 주문과 입금 기한을 보관한다. 이후 확인한 입금에 발급 당시 조건을 적용한다. 입금 사실이 확인될 때까지 지급을 보류한다.</td><td>입금 대기와 지급 완료를 구분한다.</td></tr>
+<tr><td>결제 완료</td><td>서명된 웹훅 또는 재조회로 처리를 시작한다. 서버가 해당 환경에서 조회한 결제 상태, 금액, 통화, 주문과 거래 식별자를 검증한다. PG별 응답에서 확인할 수 있는 수단·할인 정보를 검증한다.</td><td>지갑에 기본·보너스 별사탕을 한 번 지급한다.</td></tr>
+<tr><td>전액 환불</td><td>취소 요청과 환불 성공을 구분한다. 성공한 전액 환불은 원거래에 연결한다. 지급 전이면 이후 지급을 막고, 지급 후이면 기존 환불 원장으로 회수한다. 판매 종료나 채널 교체 후에도 과거 주문을 처리한다.</td><td>취소 알림이 반복되거나 순서가 바뀌어도 회수는 한 번이다.</td></tr>
+</tbody></table>
+<h2>구현 순서와 통과 기준</h2>
+<ol>
+<li><strong>채널 설정과 주문 계약.</strong> <code>picnic-supabase</code>에 추가 마이그레이션을 만든다. <code>create_web_payment_order</code>, <code>prepare_web_payment_provider_context</code>, <code>get_web_payment_provider_binding</code>, <code>authorize_web_payment_provider_entry</code>와 웹 주문 DTO를 확장한다. 기존 주문·PayPal 호환성, 같은 주문 요청의 재전송, 잘못된 채널 및 TEST/LIVE 교차 사용을 시험한다. 브라우저에서 가격이나 자격 증명을 지정할 수 없어야 한다.</li>
+<li><strong>구매 화면과 승인.</strong> <code>StarCandyProductsPresenter</code>, <code>usePaymentHandlers</code>에서 주문 기반 결제로 진입한다. <code>lib/payment/portone-test/</code>의 서비스, 전송, 저장소 코드를 재사용해 서버가 검증한 환경과 채널로 SDK 요청을 만든다. 채널마다 지원하는 PC·모바일 호출, 필수 구매자 필드, 수동 승인 가능 여부를 고정한 SDK 선언과 대조한다. 동시 확인과 승인 응답 유실 시험에서 같은 주문의 승인 호출은 최대 한 번이다.</li>
+<li><strong>PC·모바일 복귀.</strong> <code>PortOneTestCheckout.tsx</code>, <code>portone-test-browser.ts</code>, 포트원 콜백에서 원래 주문으로 돌아간다. 복귀 URL에서 받은 결제 ID만으로 승인하거나 지급하지 않는다. 로그인 만료, 앱 복귀, 중복 콜백, 변조, 저장소 실패 후에도 원래 주문만 조회한다. 승인 토큰을 로그나 영구 브라우저 저장소에 남기지 않는다.</li>
+<li><strong>지급과 입금 대사.</strong> <code>20261117093017</code>의 기존 대사 큐를 확장한다. 서명 알림 접수와 포트원 재조회 결과를 영속화한다. <code>bind_web_payment_provider_identity</code>, <code>receive_web_payment_purchase</code>와 지갑 지급 작업자를 연결한다. 발급만 한 주문의 지급 0건, 유효한 입금의 지급 1건, 기한 경과와 알림 유실 시 복구를 검증한다.</li>
+<li><strong>전액 환불.</strong> <code>20261125072400</code>의 기존 마이그레이션은 보존하고 후속 마이그레이션에서 환불 접수의 주문·원거래 검사를 확장한다. 설정 폐쇄 후 접수, 실패 후 성공한 취소, 장기 대기, 최종 실패를 구분한다. 환경과 원거래에 연결한 취소 키로 중복 접수를 방지한다. 이미 소비한 잔액도 기존 <code>refund_verified_purchase</code> 정책으로 검증한다.</li>
+<li><strong>통합 검증.</strong> 환경 × 채널 × 활성 수단 × PC·모바일 조합별로 결제, 지급, 전액 취소, 회수 결과를 기록한다. 별도 DB 연결에서 지갑을 읽어 지급·회수 각 1건을 확인한다. 취소가 지급보다 먼저 확정되면 지급 0건이어야 한다. TEST용과 LIVE용 코드는 합성 거래와 격리 DB에서 검증한다. 실제 거래 증거와 구분해 기록하고 결제 코드·SQL은 구현과 다른 공급자가 검토한다.</li>
+</ol>
+<h2>구현 중 확인할 계약</h2>
+<p>각 채널의 활성 수단 목록, 승인 방식, 모바일 반환값, 가상계좌 입금 기한, 취소 완료 응답, 할인 시 주문액과 환불액의 관계를 확인한다. 증거가 없는 조합은 검증 대기로 남긴다. 계좌 환불에 필요한 정보의 취급과 키 교체 후 과거 거래의 조회 방법을 해당 PG 계약에서 확인한다. 실제 채널 활성화, 운영 DB 적용 및 실제 청구는 별도 승인 후 수행한다.</p>
+<h2>기준 시험</h2>
+<p>변경 전 웹 후보에서 아래 집중 시험 명령으로 127개가 통과했다. DB 후보의 기존 TEST 환불 단위 시험은 6개가 통과했다. PostgreSQL 15.8 선별 소스 통합 시험은 초기 데이터 준비 단계에서 <code>42501: permission denied for database fixture</code>로 중단됐다. 세 가지 지급·환불 시나리오는 이번 실행에서 시작하지 못했다. 구현 검증 시 전용 시험 DB의 스키마 생성 권한부터 확인한다.</p>
+<pre><code>./node_modules/.bin/vitest run \
+  __tests__/lib/payment/portone-test-service.test.ts \
+  __tests__/lib/payment/portone-test-webhook.test.ts \
+  __tests__/api/payment/portone-settlement-ingress.test.ts \
+  __tests__/components/client/star-candy/portone-test-checkout.test.tsx
+
+deno test --cached-only --no-config --no-lock --deny-net --no-prompt \
+  --allow-env=TMPDIR,TMP,TEMP --allow-sys=uid --allow-read --allow-write \
+  scripts/wallet/portone-test-settlement.test.ts</code></pre>
+</main>
+</body>
+</html>
