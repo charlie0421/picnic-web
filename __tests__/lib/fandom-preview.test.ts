@@ -1,5 +1,3 @@
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { sampleFandom, sampleMarketChart } from '@/lib/charts/fandom-preview';
 import { fandomParams, parseFandomReport, parseSubjects } from '@/lib/charts/fandom';
@@ -16,18 +14,18 @@ const countries = ['ALL', 'ID', 'KR', 'JP', 'TH', 'US', 'PH', 'VN'];
 describe('fictional investor scenario', () => {
     const report = (q: string) => parseFandomReport(sampleFandom(fandomParams(new URLSearchParams(q))!));
     it('finds a member through their group and a group through its member', () => {
-        expect(parseSubjects(sampleFandom({ type: 'search', query: '벨라' }))).toHaveLength(3);
+        expect(parseSubjects(sampleFandom({ type: 'search', query: '베이비' }))).toHaveLength(3);
         expect(
-            parseSubjects(sampleFandom({ type: 'search', query: '아린' })).some((s) => s.entity === 'group'),
+            parseSubjects(sampleFandom({ type: 'search', query: '치키타' })).some((s) => s.entity === 'group'),
         ).toBe(true);
     });
     it('keeps selected market and the two scopes distinct', () => {
-        const r = report('id=11&entity=group&country=ID&days=7&mode=member_rollup');
+        const r = report('id=65&entity=group&country=ID&days=7&mode=member_rollup');
         expect(r.series).toHaveLength(7);
         expect(r.markets.map((m) => m.country)).toEqual(['ID']);
         expect(r.metrics.fans.status).toBe('unavailable');
         const c = report(
-            'id=11&entity=group&days=7&scope=campaign&campaign=00000000-0000-4000-8000-000000000011',
+            'id=65&entity=group&days=7&scope=campaign&campaign=00000000-0000-4000-8000-000000000011',
         );
         expect(c.series_basis).toBe('completed_week');
         expect(c.metrics.voters.status).toBe('unavailable');
@@ -63,12 +61,14 @@ describe('fictional market chart', () => {
         expect(growth.some((g) => g > 0) && growth.some((g) => g < 0)).toBe(true);
     });
 
-    it('shows an existing illustration for every ranked subject', () => {
+    it('shows the catalog image from the CDN for every ranked subject', () => {
+        const images = new Set<string>();
         for (const entity of ['artist', 'group'] as const)
             for (const r of chart({ entity }).rankings) {
-                expect(r.image_url).toMatch(/^\/images\/charts\/sample\/[ag]-[a-z0-9-]+\.svg$/);
-                expect(existsSync(path.join(process.cwd(), 'public', r.image_url!)), r.image_url!).toBe(true);
+                expect(r.image_url).toMatch(/^https:\/\/cdn\.picnic\.fan\/picnic\/(artist|artist_group|artist-group)\/[A-Za-z0-9/-]+\.png$/);
+                images.add(r.image_url!);
             }
+        expect(images.size).toBe(32);
     });
 
     it('ranks with the same numbers that the fandom report shows', () => {

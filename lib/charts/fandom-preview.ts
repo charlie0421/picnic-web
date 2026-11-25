@@ -1,6 +1,7 @@
-// First-party fictional catalog for explicitly marked investor previews.
+// Synthetic numbers on real catalog entries for explicitly marked investor previews.
 import { parseFandomReport, type DetailOptions, type FandomRequest, type Subject } from './fandom';
 import type { ChartCell, ChartFilters, ChartGender, ChartMetric, ChartSnapshot } from './contract';
+import { PREVIEW_SHOWCASE } from './preview-showcase';
 export function isChartPreviewEnabled() {
     const stage = process.env.VERCEL_ENV;
     return (
@@ -27,96 +28,91 @@ interface Profile {
     buyRate: number;
     members: Profile[];
 }
-// en, ko, share of the group's daily voters, trend change, market with an extra following
-type MemberRow = [string, string, number, number, Market];
-// en, ko, gender, daily, trend, shares, votes per daily voter, purchaser share, members
-type GroupRow = [string, string, Exclude<ChartGender, null>, number, number, Shares, number, number, MemberRow[]];
-// The first four groups and their first members keep the ids of the earlier preview (11-14, 31-34).
+type Names = Record<string, string>;
+// id, names, CDN key, share of the group's daily voters, trend change, market with an extra following
+type MemberRow = [number, Names, string, number, number, Market];
+// id, names, CDN key, gender, daily, trend, shares, votes per daily voter, purchaser share, members
+type GroupRow = [number, Names, string, Exclude<ChartGender, null>, number, number, Shares, number, number, MemberRow[]];
+// Real catalog entries (public.artist and public.artist_group: id, name, image) with invented numbers.
+// Two members per group with the most PICNIC votes. Every image key returns 200 from the CDN.
+const both = (ko: string, en: string, more: Names = {}): Names => ({ ko, en, ...more });
+const same = (ko: string, en: string) => both(ko, en, { ja: en, zh: en });
 const groupRows: GroupRow[] = [
-    ['VELA NINE', '벨라 나인', 'female', 520, 0.006, [38, 14, 9, 12, 6, 13, 8], 6.1, 0.15, [
-        ['Rin', '린', 0.92, 0.002, 'ID'],
-        ['Hana', '하나', 0.48, 0.006, 'PH'],
+    [6, same('BTS', 'BTS'), 'artist_group/6/image.png', 'male', 640, 0.001, [16, 24, 20, 10, 18, 6, 6], 7.9, 0.18, [
+        [35, same('뷔', 'V'), 'artist/35/image.png', 0.95, 0.002, 'US'],
+        [34, same('진', 'JIN'), 'artist/34/image.png', 0.62, -0.002, 'JP'],
     ]],
-    ['Blue Cinema', '블루 시네마', 'female', 430, -0.002, [14, 30, 24, 8, 12, 6, 6], 7.4, 0.19, [
-        ['Arin', '아린', 0.74, -0.004, 'JP'],
-        ['Seo', '서', 0.66, 0.007, 'KR'],
+    [40, same('라이즈', 'RIIZE'), 'artist_group/40/image.png', 'male', 520, 0.008, [22, 30, 18, 10, 8, 6, 6], 6.6, 0.15, [
+        [241, same('원빈', 'WONBIN'), 'artist/6000b274-9c80-4310-87ed-3680cecff6a3.png', 0.9, 0.004, 'ID'],
+        [243, same('앤톤', 'ANTON'), 'artist/c0311f87-9125-409f-8b59-c6c994c77ea4.png', 0.55, 0.006, 'TH'],
     ]],
-    ['Lunar Post', '루나 포스트', 'female', 300, 0.011, [22, 18, 6, 26, 8, 10, 10], 5.2, 0.11, [
-        ['Sol', '솔', 1.15, 0.004, 'TH'],
-        ['Dami', '다미', 0.41, 0.012, 'VN'],
+    [88, same('스트레이키즈', 'STRAY KIDS'), 'artist_group/88/image.png', 'male', 430, -0.003, [14, 20, 22, 8, 24, 6, 6], 7.2, 0.17, [
+        [510, same('리노', 'LEE KNOW'), 'artist/ed7857f9-915f-42a5-8d41-443c15b6d0d3.png', 0.7, 0.001, 'KR'],
+        [504, same('현진', 'HYUNJIN'), 'artist/e724caa7-10d2-400a-99a6-bbc349c75f02.png', 0.6, 0.004, 'PH'],
     ]],
-    ['June Atlas', '준 아틀라스', 'mixed', 260, -0.004, [18, 26, 10, 10, 20, 8, 8], 4.6, 0.09, [
-        ['Yun', '윤', 0.88, 0.001, 'US'],
-        ['Theo', '테오', 0.57, -0.006, 'KR'],
+    [200, same('플레이브', 'PLAVE'), 'artist_group/200/image.png', 'male', 380, 0.006, [8, 52, 12, 6, 10, 6, 6], 8.8, 0.22, [
+        [1234, same('노아', 'NOAH'), 'artist/ade6c4a2-e2bb-4f58-9826-b6668bf3954b.png', 0.8, 0.003, 'KR'],
+        [1236, same('밤비', 'BAMBY'), 'artist/2e1bf2fa-155f-4827-94b4-b45ca28a92a7.png', 0.78, 0.005, 'JP'],
     ]],
-    ['Coral Static', '코랄 스태틱', 'female', 210, 0.002, [10, 22, 36, 6, 14, 6, 6], 8.3, 0.21, [
-        ['Ella', '엘라', 1.32, 0.003, 'JP'],
-        ['Bom', '봄', 0.61, -0.002, 'KR'],
+    [65, same('베이비몬스터', 'BABYMONSTER'), 'artist_group/65/image.png', 'female', 470, 0.009, [30, 14, 10, 16, 10, 12, 8], 5.6, 0.12, [
+        [369, same('치키타', 'CHIQUITA'), 'artist/cb9099e9-0708-4575-bd29-e0ad5dadae5f.png', 0.74, 0.01, 'TH'],
+        [371, same('아현', 'AHYEON'), 'artist/b106cd47-b688-42e1-83fe-ab418c08a94e.png', 0.66, 0.006, 'ID'],
     ]],
-    ['Mono Garden', '모노 가든', 'mixed', 150, 0.009, [12, 34, 8, 8, 18, 10, 10], 5.8, 0.13, [
-        ['Ian', '이안', 1.05, 0.005, 'US'],
-        ['Seri', '세리', 0.72, 0.01, 'KR'],
+    [50, same('르세라핌', 'LE SSERAFIM'), 'artist_group/50/image.png', 'female', 410, -0.002, [14, 26, 26, 8, 14, 6, 6], 7.4, 0.19, [
+        [298, same('사쿠라', 'SAKURA'), 'artist/7ba6687c-96e9-4210-ad63-b91b655d6dbc.png', 0.82, -0.003, 'JP'],
+        [301, same('허윤진', 'HUH YUNJIN'), 'artist/87a0294e-3a2a-4d44-b08c-61fdfb7bba26.png', 0.58, 0.004, 'US'],
     ]],
-    ['NORTH SIGNAL', '노스 시그널', 'male', 560, 0.001, [16, 32, 18, 10, 12, 6, 6], 7.9, 0.18, [
-        ['Ryu', '류', 0.68, -0.002, 'KR'],
-        ['Haon', '하온', 0.51, 0.006, 'JP'],
+    [234, both('프로미스나인', 'fromis_9', { ja: 'プロミスナイン' }), 'artist-group/e9d26756-5ca0-48f5-a34d-fa3b33394740.png', 'female', 300, 0.004, [10, 44, 16, 8, 10, 6, 6], 8.3, 0.21, [
+        [3036, both('이나경', 'LEE NA GYUNG'), 'artist/43b2a17f-94da-4e59-bc83-feec69c2d278.png', 1.2, 0.006, 'KR'],
+        [3035, both('이채영', 'LEE CHAE YOUNG'), 'artist/0d8503a3-adf8-4981-ad40-3d069bd590bc.png', 0.5, 0.002, 'VN'],
     ]],
-    ['Glass Engine', '글래스 엔진', 'male', 380, 0.008, [30, 16, 8, 14, 8, 14, 10], 5.5, 0.12, [
-        ['Ezra', '에즈라', 1.24, 0.004, 'ID'],
-        ['Doha', '도하', 0.86, 0.009, 'PH'],
+    [223, same('하츠투하츠', 'Hearts2Hearts'), 'artist-group/6e33c748-e969-4086-a8c6-9c9da5d90b09.png', 'female', 250, 0.013, [26, 22, 10, 14, 8, 10, 10], 5.2, 0.11, [
+        [1372, same('카르멘', 'CARMEN'), 'artist/a39be0c7-8ed3-4dec-a749-1e067879c69c.png', 0.9, 0.012, 'ID'],
+        [1374, same('스텔라', 'STELLA'), 'artist/199ddba2-6374-47b6-b660-862dc7f1af95.png', 0.6, 0.009, 'PH'],
     ]],
-    ['Arc Harbor', '아크 하버', 'male', 290, -0.005, [10, 24, 34, 8, 12, 6, 6], 8.8, 0.22, [
-        ['Kyle', '카일', 0.79, -0.003, 'JP'],
-        ['Yeon', '연', 0.62, 0.002, 'TH'],
+    [237, both('올데이 프로젝트', 'ALLDAY PROJECT'), 'artist-group/21f66d29-406c-4e74-9143-c21112329e43.png', 'mixed', 190, 0.011, [14, 38, 10, 10, 14, 8, 6], 5.8, 0.13, [
+        [3016, both('우찬', 'WOOCHAN'), 'artist/c1585729-b32a-4c3c-9343-7d543dabef82.png', 0.8, 0.007, 'KR'],
+        [3013, both('애니', 'ANNIE'), 'artist/70d443f5-a721-450f-b219-421b90b9afe4.png', 0.7, 0.012, 'US'],
     ]],
-    ['Paper Comet', '페이퍼 코멧', 'male', 180, 0.012, [14, 36, 6, 12, 10, 12, 10], 4.9, 0.1, [
-        ['Noa', '노아', 1.41, 0.006, 'KR'],
-        ['Siwoo', '시우', 0.94, 0.011, 'VN'],
+    [263, both('크록티칼', 'CRTK'), 'artist-group/e653d8ff-459c-45dc-99ff-bf8bf6c7b7d2.png', 'mixed', 110, 0.005, [16, 30, 8, 12, 14, 10, 10], 4.6, 0.09, [
+        [3828, both('이시연', 'LEE SIYEON'), 'artist/8b926b18-fb18-415d-b53e-fa2743d751b7.png', 0.85, 0.004, 'KR'],
+        [3829, both('이원석', 'LEE WONSEOK'), 'artist/4b86ad15-05fa-4df2-aabd-5c14a0f697c0.png', 0.7, 0.006, 'TH'],
     ]],
 ];
-// en, ko, daily, trend, shares, votes per daily voter, purchaser share
-const soloRows: [string, string, number, number, Shares, number, number][] = [
-    ['Haneul', '하늘', 470, 0.003, [12, 40, 14, 8, 14, 6, 6], 6.8, 0.17],
-    ['Lumi', '루미', 260, 0.014, [34, 10, 6, 18, 6, 16, 10], 5.1, 0.12],
+// id, names, CDN key, daily, trend, shares, votes per daily voter, purchaser share
+const soloRows: [number, Names, string, number, number, Shares, number, number][] = [
+    [734, same('마크', 'MARK'), 'artist/14ae9545-7766-47dc-8331-8d06c994e0b9.png', 420, 0.004, [18, 22, 12, 8, 22, 10, 8], 6.4, 0.16],
+    [3901, both('그윈 도라도', 'GWYN DORADO'), 'artist/f1b08459-1817-479e-8d2a-179f38100b56.png', 230, 0.012, [10, 8, 6, 8, 18, 42, 8], 5.4, 0.12],
 ];
-const slug = (en: string) => en.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-const portrait = (kind: 'a' | 'g', en: string) => `/images/charts/sample/${kind}-${slug(en)}.svg`;
+const cdn = (key: string) => `https://cdn.picnic.fan/picnic/${key}`;
 const boosted = (shares: Shares, market: Market) => shares.map((w, i) => (markets[i] === market ? w + 14 : w));
-const groups: Profile[] = groupRows.map(([en, ko, gender, daily, trend, shares, votesPerVoter, buyRate, members], i) => {
-    const name = { en, ko };
-    return {
-        subject: { entity: 'group', id: String(11 + i), name, group_name: null },
-        gender,
-        image: portrait('g', en),
-        daily,
-        trend,
-        shares,
-        votesPerVoter,
-        buyRate,
-        members: members.map(([memberEn, memberKo, ratio, change, market], j) => ({
-            subject: {
-                entity: 'artist',
-                id: String(31 + i + j * groupRows.length),
-                name: { en: memberEn, ko: memberKo },
-                group_name: name,
-            },
-            gender: null,
-            image: portrait('a', memberEn),
-            daily: Math.round(daily * ratio),
-            trend: trend + change,
-            shares: boosted(shares, market),
-            votesPerVoter: votesPerVoter * (j ? 0.92 : 1.06),
-            buyRate: buyRate * (j ? 0.9 : 1.05),
-            members: [],
-        })),
-    };
-});
+const groups: Profile[] = groupRows.map(([id, name, image, gender, daily, trend, shares, votesPerVoter, buyRate, members]) => ({
+    subject: { entity: 'group', id: String(id), name, group_name: null },
+    gender,
+    image: cdn(image),
+    daily,
+    trend,
+    shares,
+    votesPerVoter,
+    buyRate,
+    members: members.map(([memberId, memberName, memberImage, ratio, change, market], j) => ({
+        subject: { entity: 'artist', id: String(memberId), name: memberName, group_name: name },
+        gender: null,
+        image: cdn(memberImage),
+        daily: Math.round(daily * ratio),
+        trend: trend + change,
+        shares: boosted(shares, market),
+        votesPerVoter: votesPerVoter * (j ? 0.92 : 1.06),
+        buyRate: buyRate * (j ? 0.9 : 1.05),
+        members: [],
+    })),
+}));
 const artists: Profile[] = [
     ...groups.flatMap((g) => g.members),
-    ...soloRows.map(([en, ko, daily, trend, shares, votesPerVoter, buyRate], i): Profile => ({
-        subject: { entity: 'artist', id: String(31 + groupRows.length * 2 + i), name: { en, ko }, group_name: null },
+    ...soloRows.map(([id, name, image, daily, trend, shares, votesPerVoter, buyRate]): Profile => ({
+        subject: { entity: 'artist', id: String(id), name, group_name: null },
         gender: null,
-        image: portrait('a', en),
+        image: cdn(image),
         daily,
         trend,
         shares,
@@ -124,13 +120,13 @@ const artists: Profile[] = [
         buyRate,
         members: [],
     })),
-].sort((a, b) => Number(a.subject.id) - Number(b.subject.id));
+];
 const profiles = [...groups, ...artists];
 const catalog: Subject[] = profiles.map((p) => p.subject);
 
 const day = 86400000;
 const end = Date.UTC(2026, 10, 23);
-const campaign = { id: '00000000-0000-4000-8000-000000000011', name: 'VELA NINE · Jakarta', shared: false };
+const campaign = { id: '00000000-0000-4000-8000-000000000011', name: 'BABYMONSTER · Jakarta', shared: false };
 const n = (value: number) => ({ status: 'available' as const, value });
 const iso = (time: number) => new Date(time).toISOString().slice(0, 10);
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
@@ -192,13 +188,14 @@ export function sampleFandom(req: FandomRequest) {
                 (s.entity === 'group' && catalog.some((m) => m.group_name?.en === s.name.en && hits(m.name))),
         );
     }
-    if (req.type === 'campaigns') return req.id === 11 && req.entity === 'group' ? [campaign] : [];
+    const showcase = Number(PREVIEW_SHOWCASE.id);
+    if (req.type === 'campaigns') return req.id === showcase && req.entity === 'group' ? [campaign] : [];
     const f = req.filters,
         profile = profiles.find((p) => p.subject.entity === f.entity && p.subject.id === String(f.id)),
         subject = profile?.subject;
     if (!profile || !subject) return parseFandomReport({ status: 'not_found' });
     const linked = f.scope === 'campaign';
-    if (linked && (f.campaign !== campaign.id || f.id !== 11 || f.country !== 'ALL'))
+    if (linked && (f.campaign !== campaign.id || f.id !== showcase || f.country !== 'ALL'))
         return parseFandomReport({ status: 'unavailable', subject });
     const days = linked ? 7 : f.days;
     const m = measure(profile, { country: f.country, days, mode: f.mode });

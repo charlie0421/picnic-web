@@ -73,7 +73,7 @@ describe('fandom report API', () => {
         );
         for (const mode of ['', 'synthetic']) {
             vi.stubEnv('KPOP_CHART_PREVIEW_DATA', mode);
-            const r = await request('id=11&entity=group&country=ID');
+            const r = await request('id=65&entity=group&country=ID');
             const json = await r.json();
             expect(json.net_amounts).toEqual([]);
             expect(json.metrics.paid_units).toEqual({ status: 'unavailable', value: null });

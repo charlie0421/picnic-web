@@ -15,6 +15,7 @@ import {
 import type { ChartCell } from '@/lib/charts/contract';
 import type { ChartCopy } from '@/lib/charts/copy';
 import type { FandomCopy } from '@/lib/charts/fandom-copy';
+import { PREVIEW_SHOWCASE } from '@/lib/charts/preview-showcase';
 // Natural Earth 1:110m Admin 0 map units, public domain (naturalearthdata.com).
 import paths from '@/lib/charts/world-paths.json';
 import styles from './fandom.module.css';
@@ -220,13 +221,13 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                             <a
                                 href={fandomDetailHref(
                                     locale,
-                                    { id: '11', entity: 'group' },
+                                    PREVIEW_SHOWCASE,
                                     30,
                                     'ID',
                                     'member_rollup',
                                 )}
                             >
-                                VELA NINE ↗
+                                {PREVIEW_SHOWCASE.name} ↗
                             </a>
                         )}
                     </div>
